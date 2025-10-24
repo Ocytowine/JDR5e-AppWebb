@@ -1,0 +1,72 @@
+{
+  "races": [
+    {
+      "id": "humain",
+      "name": "Humain",
+      "description": "Les humains sont les plus adaptables et ambitieux parmi les races communes.",
+      "abilityScoreIncrease": {
+        "type": "all",
+        "value": 1
+      },
+      "size": "Moyen",
+      "speed": 30,
+      "languages": ["Commun", "Une langue au choix"],
+      "traits": [
+        {
+          "name": "Versatilité humaine",
+          "description": "+1 à toutes les caractéristiques"
+        }
+      ]
+    },
+    {
+      "id": "elfe",
+      "name": "Elfe",
+      "description": "Les elfes sont un peuple magique d'une grâce surnaturelle.",
+      "abilityScoreIncrease": {
+        "Dextérité": 2
+      },
+      "size": "Moyen",
+      "speed": 30,
+      "languages": ["Commun", "Elfique"],
+      "traits": [
+        {
+          "name": "Vision dans le noir",
+          "description": "Vous pouvez voir à 60 pieds dans une lumière faible"
+        },
+        {
+          "name": "Sens aiguisés",
+          "description": "Maîtrise de la compétence Perception"
+        },
+        {
+          "name": "Ascendance féerique",
+          "description": "Avantage aux jets de sauvegarde contre le charme"
+        }
+      ]
+    },
+    {
+      "id": "nain",
+      "name": "Nain",
+      "description": "Robustes et courageux, les nains sont réputés pour leur endurance.",
+      "abilityScoreIncrease": {
+        "Constitution": 2
+      },
+      "size": "Moyen",
+      "speed": 25,
+      "languages": ["Commun", "Nain"],
+      "traits": [
+        {
+          "name": "Vision dans le noir",
+          "description": "Vous pouvez voir à 60 pieds dans une lumière faible"
+        },
+        {
+          "name": "Résilience naine",
+          "description": "Avantage aux jets de sauvegarde contre le poison"
+        },
+        {
+          "name": "Formation aux armes naines",
+          "description": "Maîtrise des haches et marteaux de guerre"
+        }
+      ]
+    }
+  ]
+}
