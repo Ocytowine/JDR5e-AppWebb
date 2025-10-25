@@ -5,14 +5,14 @@ La ligne est inscrite dans chaque fichier json concernant les "damage" à :
 "damage_type":"type de dégat"
 
 Catégorie :
-	
-    Physique :	(Armes et attaques physiques)
+
+    Physique :(Armes et attaques physiques)
 
         Tranchant
         Perforant
         Contondant
             
-    Élémentaire	: (Naturels ou magiques)
+    Élémentaire :(Naturels ou magiques)
 
         Feu
         Froid
@@ -21,7 +21,7 @@ Catégorie :
         Poison
         Tonnerre
 
-    Magique / Énergétique :	(Spécifique aux sorts certaine armes et entités puissantes)
+    Magique / Énergétique :(Spécifique aux sorts certaine armes et entités puissantes)
 
         Force
         Radiant

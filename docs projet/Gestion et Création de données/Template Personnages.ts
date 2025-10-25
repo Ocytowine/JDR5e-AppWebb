@@ -93,7 +93,7 @@ export type Personnage = {// Modèle de données pour un personnage //hydrater d
   // Le poids total transporté est calculé en fonction de l'inventaire complet (items équipés et non équipés)
   // Le poids maximum transportable est géré via statBases (ex: force * 15 kg)
   // L'or total est géré via l'inventaire (items de type or, pièces d'or, etc.)
-  // Les changement fait dans l'inventaire sont soumiss à validation par le MJ (IA via un système de demande de validation) avant d'être appliqués au personnage.
+  // Les changements faits dans l'inventaire sont soumis à validation par le MJ (IA via un système de demande de validation) avant d'être appliqués au personnage.
 
   materielSlots: {// Slots pour mettres des équipements (items) à disposition direct (aucun malus d'action pour les utiliser)
     Ceinture_gauche: string | null // limité au items étant d'une longueur inferieure à la moitié de la taille du personnage
