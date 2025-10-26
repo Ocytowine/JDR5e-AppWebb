@@ -127,7 +127,10 @@ export type Personnage = {// Modèle de données pour un personnage //hydrater d
       conteneur:string | null // spécifie dans quel contenant se trouve l'item (sac, coffre, etc.), null si l'item est porté sur soi
     } // liste des items dans l'inventaire avec leur quantité et un id unique pour chaque instance (permet de gérer les items consommables, usables, etc.)
 
-    
+    capaMax: number //Calcul : 7.5 x FOR //capacité maximale de poids que le personnage peut porter (kg)
+    capaAvantMalus: number //Calcul : capaMax / 2 //capacité de poids avant de subir des malus (kg)
+    poidsActuel: number // poids total actuel de l'inventaire (kg)
+    StatEncombrement: string //Si poidsActuel < capaAvantMalus : Non Encombré, Si poidsActuel > capaAvantMalus : Légèrement Encombré, Si poidsActuel > capaMax : Très Encombré
   
   descriptionPersonnage: {
     bio: string

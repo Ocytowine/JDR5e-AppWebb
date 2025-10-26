@@ -165,9 +165,11 @@ coté donnée brute de race :
 ```json
 pas encore modifié
 ```
+
 coté sauvegarde "Personnages" :
 
 ```ts
+
 pas fini
 ```
 
@@ -318,15 +320,18 @@ Dans chaque objet json (Classe, Races, Background) il y'a une charge utile (payl
     },
     "onValidation":"spellId" //ce qui va être gardé du choix
 ```
+
 Chaque niveau que l'utilisateur à décidé d'aquérir doit être pris en compte. Si la classe choisie requiere des choix sur les 3 premiers niveau, il faut les soumettres. (je ne sais pas comment faire en sorte qu'il le fasse réelement)
 
 ```json
 "conditions": {
-        "all": [
-          { "classeId":"sorcier", "niveau": 2 }//Le choix est proposé seulement si la classe sorcier atteint le niveau 2
-          ]
+    "all": [
+    { "classeId":"sorcier", "niveau": 2 }//Le choix est proposé seulement si la classe sorcier atteint le niveau 2
+    ]
 }
+
 ```
+
 cette logique s'applique aussi au passage de niveau (sous-phase : LevelUp)
 et potentiellement au repos (sous-phase : repos)
 
@@ -344,9 +349,13 @@ Les classes, background fournissent un pack d'items pour le début d'aventure. l
 **Coté UI :**
 
 En entête : choisie ce que tu garde et vend le reste.
-suivie du poid des objet gardé (cumulé) et de la capacité de port du personnage (calcul lié au stat de force à détaillé) et l'argent actuel (le personnage ce voit attribué une bourse (rempli d'aprés le background) c'est un item au même titre que les autres)
+suivie du poids des objets gardés (cumulé) et de la capacité de port du personnage (Formule de capaMax : 7.5 x FOR) et l'argent actuel (le personnage ce voit attribué une bourse (rempli d'aprés le background) c'est un item au même titre que les autres)
+Grille de carte objet (cardItemCreat)
 
 **Coté mécanique :**
+
+Les objet sont récupéré des features chosie dans les étape d'avant. Si une feature donne des objets, la propriétée suis cette structure :
+
 **onValidation :**
 
 ### étape 8 : Preview
