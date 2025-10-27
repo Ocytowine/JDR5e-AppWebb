@@ -31,7 +31,7 @@ La partie création se déroule en 9 étapes :
     - étape 5 : Choix des caractéristiques
     - étape 6 : Choix relatif
     - étape 7 : Choix des équipements
-    - étape 8 : Preview
+    - étape 8 : Choix de vie
 
 **Coté UI :**
 La page création à une entête répertoriant les numéros de phase (et nom de phase) qui change de couleur en fonction de l'avancement (gris : non faite, bleu : en cours : vert : validé)
@@ -110,6 +110,8 @@ Ce qu'il y'a dans DataBase ->
 
 a travailler !
 
+---
+
 ### étape 1 : Choix de l'identitée
 
 **Coté UI :**
@@ -123,6 +125,8 @@ a travailler !
 ```ts
         nom: {nomcomplet: string; prenom?: string; surnom?: string} // nom du personnage, prénom et surnom optionnel
 ```
+
+---
 
 ### étape 2 : Choix de la race
 
@@ -175,6 +179,8 @@ pas fini
 
 c'est trés important d'avoir une écriture définitive, car les prochaines étapes vont modifier ces valeurs de base
 
+---
+
 ### étape 3 : Choix de la classe
 
 Les classes sont un grand pan du modele de progression du joueur, c'est la classe qui dictent la facon de jouer, part le biais des feature unique qui l'accompagne, donne aussi une partie du materiel pour commencer l'aventure
@@ -212,6 +218,8 @@ Une fois validée :
     - Une récupération de classe ciblé s'opère, l'objet StatClasseBase (à créer) est injecté dans sauvegarde/Personnage.
     - L'hydratation s'execute, la sauvegarde/Personnage ce complete.
 
+---
+
 ### étape 4 : Choix de l'historique (background)
 
 L'historique forge les compétences du personnages, ca facon de s'exprimer, et le materielle qu'il porte lors de son entrée en scene.
@@ -237,6 +245,8 @@ les données sujetes a la récupération (catalogue) sont :
     - back3...
 
 **onValidation :**
+
+---
 
 ### étape 5 : Choix des caractéristiques
 
@@ -276,6 +286,8 @@ la validation entraine une écriture de la sauvegarde Personnage, les objets hyd
     sagesse: { SAG: number; modSAG: number },// modSAG = Math.floor((SAG - 10) / 2)
     charisme: { CHA: number; modCHA: number }// modCHA = Math.floor((CHA - 10) / 2)
 ```
+
+---
 
 ### étape 6 : Choix relatifs
 
@@ -342,6 +354,8 @@ Phase 1 : la validation doit entrainer une recherche dans les features catégori
 Phase 2 : la phase 1 étant résolue, tout les choix sont validé, la validation récupère les ids des choix et les ids des features aquisent grace à eux, exemple :
 "sorcier_spell_choice_1" : "boule_de_feu"
 
+---
+
 ### étape 7 : Choix des équipements
 
 Les classes, background fournissent un pack d'items pour le début d'aventure. l'étape 7 permet de donner le choix au joueur de ce qu'il compte garder ou de ce qu'il veut vendre. donc plusieurs aspect s'on pris en compte ici. le poids, le prix, les types d'items. Un item non gardé et échangé contre ca valeur en pièce, et un item et soit équipé, soit rangé, rien n'est tenu en main (pas pendant la phase création) donc il y'a un systeme de slot.
@@ -349,18 +363,160 @@ Les classes, background fournissent un pack d'items pour le début d'aventure. l
 **Coté UI :**
 
 En entête : choisie ce que tu garde et vend le reste.
-suivie du poids des objets gardés (cumulé) et de la capacité de port du personnage (Formule de capaMax : 7.5 x FOR) et l'argent actuel (le personnage ce voit attribué une bourse (rempli d'aprés le background) c'est un item au même titre que les autres)
+suivie du poids des objets gardés (cumulé) et de la capacité de port du personnage (Formule de capaMax : 7.5 x FOR)l'argent actuel (le personnage ce voit attribué une bourse (rempli d'aprés le background) c'est un item au même titre que les autres)
 Grille de carte objet (cardItemCreat)
 
 **Coté mécanique :**
 
-Les objet sont récupéré des features chosie dans les étape d'avant. Si une feature donne des objets, la propriétée suis cette structure :
+Les objet sont récupéré des features chosie dans les étape d'avant. Si une feature donne des objets.
+
+cardItemCreat : possedent une pastille gardé/vendu (bleu/verte) un bouton garder/vendre. une icone format svg du type d'objet (la couleur change en fonction de la valeur voir document "valeur"). La carte possèdent les informations résumé des éléments de l'item en plus du nom, quantité (si superieur à 1), sous-type, valeur, poids/taille et de la description courte. (les information résumés sont sous la propriété : infoResum : {info1:"",info2:""}).
+
+Capacité de port maximal : capaMax : 7.5 x FOR = valeur en kilogramme
+Capacité de port avant Malus : capaAvantMalus: number //Calcul : capaMax / 2
+Poids porté : sommes des poid des items gardé (en tenant compte des quantités) (Outil : CalculPoids)
+Bourse : Indique la valeur (tout compris) des items vendu + l'argent de base dans la bourse. (outil : CalculBourse)
 
 **onValidation :**
 
-### étape 8 : Preview
+Pour valider, il ne faut pas que la capacité de port maximal soit dépassé.
+
+les itemIds marqué gardé sont récupéré
+les itemIds marqué vendu sont réduit à leurs valeurs (propriété : value{}) et sont ajouté à la valeur
+la bourse est considéré différament, elle est un contenant. les items vendus, la valeur de ceux ci, sont additionnés à ceux qu'elle contenait de base.
+
+la validation hydrate la sauvegarde personnage au niveau de :
+
+```ts
+Inventaire: 
+    {
+        item1 :{
+      id: string, //identifiant de l'item issu de la base de données des items
+      idUnique:string, // identifiant unique pour chaque instance de l'item (permet de gérer les items consommables, usables, etc.)
+      quantite: number,  // quantité de cet item dans l'inventaire
+      mod:{String:string} | null, //modificateurs appliqués à cet item, peut-s'agir de la description visuelle, de bonus de caractéristique, d'une libertée du MJ (en somme appelle la propriété de l'arme, la remplace par une autre valeur).
+      conteneur:string | null // spécifie dans quel contenant se trouve l'item (sac, coffre, etc.), null si l'item est porté sur soi
+    }
+    item2{}
+    } // liste des items dans l'inventaire avec leur quantité et un id unique pour chaque instance (permet de gérer les items consommables, usables, etc.)
+```
+
+Un outil (EquipAuto) va "ranger" automatiquement les items dans les slots d'équipement et choisir l'arme par défaut. les propriété de sauvegarde impacté sont :
+
+```ts
+  materielSlots: {// Slots pour mettres des équipements (items) à disposition direct (aucun malus d'action pour les utiliser)
+    Ceinture_gauche: string | null // limité au items étant d'une longueur inferieure à la moitié de la taille du personnage
+// création d'un module de filtrage des items en fonction des slots disponibles et des caractéristiques du personnage (taille, force, etc.) pour n'afficher que les items compatibles lors de l'équipement. (liste déroulante filtrée)
+    Ceinture_droite: string | null // limité au items étant d'une longueur inferieure à la moitié de la taille du personnage
+
+    Dos_gauche: string | null // limité au items étant d'une longueur inferieure à la taille du personnage
+
+    Dos_droit: string | null // limité au items étant d'une longueur inferieure à la taille du personnage
+
+    Armure: string | null // armure légère, armure lourde, etc. peut être recouverte par un vêtement
+
+    Vetement: string | null // Vêtement, Veste, etc.
+
+    paquetage: string | null // sac à dos, besace, etc.
+
+    accessoire: string | null // Montre, amulette, bague, etc. limite de 5
+  }
+  armesDefaut:
+  {// Systeme permettant de définir les armes par défaut du personnage (ex: arme de mêlée principale, arme de mêlée secondaire, arme à distance), à la condition d'être présent dans les slots d'équipement (materielSlots)
+    main_droite: string | null // idUnique de l'arme équipée en main droite //Filtre les armes compatibles via leur propriété (ex: arme légère, arme de jet, etc.)
+    main_gauche: string | null // idUnique de l'arme équipée en main gauche //Filtre les armes compatibles via leur propriété (ex: arme légère, arme de jet, etc.)
+    mains: string | null // idUnique de l'arme équipée à deux mains //Filtre les armes compatibles via leur propriété (ex: arme à deux mains, etc.)
+  } //Ont applique les features des items de armesDefaut (calcul du CA avec bouclier, bonus de dégâts, etc.)
+```
+
+---
+
+### étape 8 : Choix de vie
+
+Le preview, ou plutot la prévisualisation et une pages qui résume les capacités, les stats, les items... tout ce qui à était fait. Mais avant de partir dans l'aventure,
+Il y'a une chose trés importante à indiquer par le joueur, c'est la partie narrative et descriptive.
+Pour compléter c'est éléments, il y'aura une partie dédié au visuel, et d'un autre la partie psychologique
+
+partie visuel, il faut écrire dans plusieurs case, à quoi ressemble notre personnage, couleur de peau, yeux, cheveux, puis la démarche, les vetements ou armure...
+(par défaut, c'est case sont déja écrite, mais un générateur IA (à établir) servira des détail plus aboutie en fonction des choix de classe race, background)
+répercution :
+
+partie psychologie : en utilisant le background, le joueur va décrire l'histoire du personnage, puis une IA va poser des question pertinente (pour chercher à trouver l'alignement, les qualités et défaut du personnage (sujet à creuser), savoir si l'historique peut faire l'objet d'une quète (voir "Phase Aventure"))
 
 
 **Coté UI :**
+
+Une présentation classique de la fiche de personnage, avec comme information récoltées:
+
+- nom, prénom, surnom
+- race, ethnie
+- classe, sous-classe
+- niveau global et de classe (en phase création, c'est la même valeur)
+- traits (langue,vitesse, taille, poids, traits naturelle (vision...))
+- caractéristique (sous forme de tableau, type, valeur et modificateur)
+- compétences lié au caractéristique (intimidation...)
+- bonus de maitrise
+- maitrise technique (armes, armures, outils...)
+- Jet de Sauvegarde
+- dés de vie
+- PV
+- CA
+- Capacités (feature de classe...)
+- Equipement (dans les slots)
+- inventaire (le reste, ce qui est rangé)
+- infos conditionnel, dépend des classes, races...
+- Habileté de mage...
+- Sorts appris / connus
+
+puis en bas de cette prévisualisation, il y'a plusieurs boutons :
+
+- confirmer
+- revenir au choix de : race, classe, background...
+
+et si le bouton confirmer est cliquer, la fiche est vérrouiller.
+
+la partie "Qui êtes-vous vraiment ?" s'initialyse
+
+avec 2 blocs distinct :
+- un pour la description de l'apparence divisé en 2 (un sur le physique et un lié sur l'équipement, visant à décrire tenu et armes)
+- un pour écrire l'historique du personnage, sous la forme d'un entretien avec un interlocuteur IA qui orrientera les réponses pour avoir les prérequis nécessaire au départ d'aventure.
+
 **Coté mécanique :**
+
+récupération des éléments choisis, calcul et application des propriétés
+rien n'évolue avant la confirmation.
+puis
+
+partie "Qui êtes-vous vraiment ?" commence :
+
+- du coté de "description de l'apparence" :
+
+- du coté de "raconter moi tout" :
+
+l'outil : iaStoryPerso s'initialise en chargent la fiche perso (confirmer) et commence par poser des question pertinente pour remplir des cases (virtuelle), notament :
+    - origine familial (génère processus de quête/mystere/modificateur social)
+    - motivation ou quete personelle (génère processus de quête)
+    - faiblesses (peut etre désaventage aléatoire dans un cas si prétent)
+    - qualitées (peut etre aventage aléatoire dans un cas si prétent)
+    - pourquoi cette historique (sur quoi le mj peut ammener l'histoire, le ton employé,  ce qui ce passe aprés)
+au niveau mécanique sela génère plusieurs choses, a définir plutard (mécanique flou encore)
+
+l'outil : iaDetailling s'initialise en chargant la fiche perso, et prérempli des cases réelles notament description physique/physionomie (corps et tête), description comportementale (démarche, allure, regard portée), description vestimentaire/materielle (fonction de personnalisation d'équipement, affecte la description d'un item, et la facon que les pnj le percois techniquement ajoute une sous-propriété à l'item present dans l'inventaire : mod:{String:string} | null, ou string dans ce cas ci est la description courte, ou le nom de l'item (plus de détail dans le doc outil concerné))
+
+Outil à créer :
+
+- iaDetailling :
+
+        permet d'affiner la partie visuel en s'appuyant sur les choix réalisé au niveau de la race, classes, background.
+        Mais laisse le joueur modifié à ca guise tout les aspects. Il n'a qu'un rôle de remplissage par défaut.
+
+- iaStoryPerso :
+        permet d'aider à approfondir les personnages par des question/réponse.
+        Les point d'entrée : background 1/2 importance, fiche personnage 1/2 importance.
+        Les point de sortie : des bonus de stats, des malus de stats (voir comment l'intégrer). des quètes à débloquer (passage de niveau) (générer par IA) (Outil quète à définir) des features généré procéduralement ou IA.
+
 **onValidation :**
+
+La partie "Qui êtes-vous vraiment ?" valider, les données issue des 2 outils finissent soit dans la sauvegarde Personnages, soit dans Core la partie dédié au déroulement de l'aventure (détail dans le doc de chaque outil)
+
+puis la phase Création laisse place à la phase Aventure.
