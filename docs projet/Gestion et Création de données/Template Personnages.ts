@@ -67,6 +67,8 @@ export type Personnage = {// Modèle de données pour un personnage //hydrater d
     Persuasion: number
   }//Valeur_Base:Classe / Background
 
+  percPassive: number //Valeur_Base:10 + modSAG + bonus de compétence en Perception (si compétent)
+
   proficiencies: Record<string, ProficiencyRank> //Valeur_Base:Classe/Background/race // Liste des maitrises (armes, armures, outils, etc. voir documents de référence)
   savingThrows: string[] //Valeur_Base:Classe // Liste des caracs pour lesquelles le personnage est compétent aux jets de sauvegarde
   inspiration: boolean //Valeur_Base:false // Indique si le personnage a de l'inspiration (avantage sur un jet)
@@ -129,7 +131,7 @@ export type Personnage = {// Modèle de données pour un personnage //hydrater d
 
     capaMax: number //Calcul : 7.5 x FOR //capacité maximale de poids que le personnage peut porter (kg)
     capaAvantMalus: number //Calcul : capaMax / 2 //capacité de poids avant de subir des malus (kg)
-    poidsActuel: number // poids total actuel de l'inventaire (kg)
+    capaActuel: number // poids total actuel de l'inventaire (kg)
     StatEncombrement: string //Si poidsActuel < capaAvantMalus : Non Encombré, Si poidsActuel > capaAvantMalus : Légèrement Encombré, Si poidsActuel > capaMax : Très Encombré
   
   descriptionPersonnage: {

@@ -103,7 +103,7 @@ Le Journal repertorie des entrées journalières, les entrées sont génèré vi
 
 les quêtes ou intrigue sont présenté ici.
 
-Elles n'apparaisse que si le joueur / personnage montre un interet à suivre une quête
+Elles n'apparaisse que si le joueur / personnage montre un interet à suivre une quête, ou est conscient d'un évenement.
 
 Ici, la quête est écrite du point de vue du personnage, un personnage INT:10 formulera mieux les choses que INT:8
 

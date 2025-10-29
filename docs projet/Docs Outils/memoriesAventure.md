@@ -1,9 +1,19 @@
 
 # memoriesAventure
 
+role :
+
 Sert à générer un résumés de discussion, en tenant compte du temps en jeu, des actions, des rencontres, des lieux, des objectifs du joueurs....
 
 cette outils dépend de l'ia.
+
+données d'entrée :
+
+ -> Fil de discussion
+ -> commandée par timeAventure
+
+données de sortie :
+
 Elle produit 2 type de données :
 - La mémoire de discussion
 - La mémoire journalisée
