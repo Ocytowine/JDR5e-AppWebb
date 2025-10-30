@@ -25,7 +25,7 @@ voici les éléments traiter par iaRuntime, qui permette au jeu de traiter les d
 Demande : Texte émis par le joueur dans le fil de discussion
 Contexte : état narratif de l'aventure à ce moment (fil de discussion / )
 Personnages : qui est concerné, définir les potentiels (donnée Personnages)
-Quètes : qu'elle quête sont en cours, le joueurs est-il en quete
+Quêtes : qu'elle quête sont en cours, le joueurs est-il en quete
 Wiki : donnée existante du lore, y'a til un lien avec
 Lieux  : zone géographique, cohérence naturelle
 
@@ -92,7 +92,7 @@ Changement de Personnages : FOR:10, statEncombrement : Chargé percPassive: 18, 
         aucun
         Dépend de la nouvel demande du joueur.
 
-Changement de quête : si la quète implique de traverser la rivière
+Changement de quête : si la quête implique de traverser la rivière
 
 Changement de wiki : si une donné existe sur la rivière
 Changement de lieu : 

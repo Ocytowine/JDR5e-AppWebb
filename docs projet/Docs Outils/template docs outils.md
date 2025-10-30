@@ -1,10 +1,10 @@
 
 # nom de l'outil
 
-roles
+**roles :**
 
-données d'entrées
+**données d'entrées :**
 
-donée de sorties
+**données de sorties :**
 
 ---

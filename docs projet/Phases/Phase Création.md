@@ -197,7 +197,7 @@ Cette page est composé exclusivement d'une grille (disposition variable suivant
 
 Les données sont chargé de la même facon que les races, voici les outils :
 
-- adapteur Github (un adapteur pour toutes les requète de donnée statique)
+- adapteur Github (un adapteur pour toutes les requête de donnée statique)
 - cataloque Classe (objets à détailler)
 
 les données sujetes a la récupération sont :
@@ -235,7 +235,7 @@ Cette page est composé d'un grille de carte (même régle de disposition que cl
 
 Les données sont chargé de la même facon que les races, voici les outils :
 
-- adapteur Github (un adapteur pour toutes les requète de donnée statique)
+- adapteur Github (un adapteur pour toutes les requête de donnée statique)
 - cataloque background (objets fetch à détailler)
 
 les données sujetes a la récupération (catalogue) sont :
@@ -441,7 +441,7 @@ partie visuel, il faut écrire dans plusieurs case, à quoi ressemble notre pers
 (par défaut, c'est case sont déja écrite, mais un générateur IA (à établir) servira des détail plus aboutie en fonction des choix de classe race, background)
 répercution :
 
-partie psychologie : en utilisant le background, le joueur va décrire l'histoire du personnage, puis une IA va poser des question pertinente (pour chercher à trouver l'alignement, les qualités et défaut du personnage (sujet à creuser), savoir si l'historique peut faire l'objet d'une quète (voir "Phase Aventure"))
+partie psychologie : en utilisant le background, le joueur va décrire l'histoire du personnage, puis une IA va poser des question pertinente (pour chercher à trouver l'alignement, les qualités et défaut du personnage (sujet à creuser), savoir si l'historique peut faire l'objet d'une quête (voir "Phase Aventure"))
 
 
 **Coté UI :**
@@ -513,7 +513,7 @@ Outil à créer :
 - iaStoryPerso :
         permet d'aider à approfondir les personnages par des question/réponse.
         Les point d'entrée : background 1/2 importance, fiche personnage 1/2 importance.
-        Les point de sortie : des bonus de stats, des malus de stats (voir comment l'intégrer). des quètes à débloquer (passage de niveau) (générer par IA) (Outil quète à définir) des features généré procéduralement ou IA.
+        Les point de sortie : des bonus de stats, des malus de stats (voir comment l'intégrer). des quêtes à débloquer (passage de niveau) (générer par IA) (Outil quête à définir) des features généré procéduralement ou IA.
 
 **onValidation :**
 

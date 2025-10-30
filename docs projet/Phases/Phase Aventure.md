@@ -17,7 +17,7 @@ La side barre est constituée de plusieurs boutons :
 Chaque bouton renvoie à l'affichage d'onglet et mécanique décrite plus bas.
 l'onglet par défaut est le premier, c'est à dire Narration.
 
-### Narration :###
+### Narration
 
 C'est ici que le joueur intérragit avec le MJ, qu'il interragit avec le monde en somme.
 L'ui est simple, c'est un fil de discussion.
@@ -55,10 +55,6 @@ exemple d'application :
     - le résultat : il ce passe 2 choses : un combat, une maladie. travelAventure indique à quel moment ces péripétie ce déclare -> timeAventure avance le temps jusqu'a la première péripéthie donc 2 jours.
     - pendant ces 2 jours timelapsé il ne ce passe rien (au niveau du fil de discussion), c'est pourquoi les outis de mémoire ne résume pas, n'y ne compte les période pour journaliser les événements. mais les rations de nourriture sont décompté, les temps de repos sont joué... mais le temps est bien compté.
 
-
-
-
-
 outils : timeAventure, travelAventure, mjRules, memoriesAventure, iaRuntime, contextEngine, diceRoller, iaPrechoice, timeLaps
 
 Commandes : créer un lexique
@@ -92,14 +88,13 @@ l'id de l'ui est dans la propriété du Personnage : ui_template : "id de l'ui d
 
 ---
 
-**Journal**
+**Journal :**
 
 Le Journal repertorie des entrées journalières, les entrées sont génèré via l'outil : memoriesAventure. les entrées sont figé, mais le joueur peut compléter un jour en ajoutant des détail, sur validation de l'ia/Mj.
 
-
 ---
 
-**Quètes**
+**Quêtes :**
 
 les quêtes ou intrigue sont présenté ici.
 
@@ -108,6 +103,7 @@ Elles n'apparaisse que si le joueur / personnage montre un interet à suivre une
 Ici, la quête est écrite du point de vue du personnage, un personnage INT:10 formulera mieux les choses que INT:8
 
 La quête possedent une version coté MJ et une coté PJ voici les détails :
+
 - coté mj :
     Elle dépend d'un outil : questGenerator, qui génère des quêtes avec contexte, gère une profondeur définie, s'adapte au choix et l'approche du joueur. le mj/ia, sais donc les étapes de quête, le types, les lieux clés... ce sont les "données de ciblage" sur lesquelle iaRuntime ce base pour générer la naration quand le joueur tend à se rapprocher d'une quête.
 - coté pj :
@@ -126,8 +122,8 @@ template : (affichage : quest.vue) (données : quetes.json)
 
 ---
 
-**Compagnon : optionnel**
+**Compagnon :**
 
 ---
 
-**Wiki**
+**Wiki :**
