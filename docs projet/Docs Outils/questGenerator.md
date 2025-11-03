@@ -22,6 +22,25 @@ propulsé par IA
 
 ---
 
+## Cycle d'apparition de ce processus
+
+Si on reprend la trame général de la narration :
+
+Filtre d'entrée -> Appel à l'ia -> Filtre de sortie
+
+    Filtre d'entrée :
+        Reçoit la réponse JSON de l’IA
+
+        Identifie les commandes à exécuter
+
+        Appelle les bons modules (combat, narration, IA secondaire, gestion du monde, etc.) ! ICI !
+
+        Attend leurs résultats
+
+        Les renvoie à l’IA (si besoin pour synthèse)
+
+        Rassemble tout dans la réponse finale
+
 ## Une Quête, c'est quoi ?
 
 Qu'est ce qu'une quête dans le jeu ?
@@ -31,6 +50,10 @@ Qu'est ce qu'une quête dans le jeu ?
     - si un évenement type quête est généré, il possedent une version joueur (affiché dans l'onglet quêtes), et une version mj.
     - un évenement devient une quête, du moment que le PJ en ai conscient.
     - un évènement est considéré en temps que tel du moment que celui ci rempli des conditions.
+
+## Outil à intégrer au processus
+
+
 
 ## Explication du processus
 
@@ -97,11 +120,169 @@ TYPE : QUEST, INTEREST, TRAME les différents type d'event : quête, point d'int
 
 à la fin de cette étape, le début et la fin de l'intrigue sont définie
 
-reprenons les 3 exemples : 
-
 ### Fragmenter
 
 Le fragmentage permet de créer des zones d'intrigues entre le point de départ et le point final.
-le fragmentage et choisis par ia défini arbitrairement en fonction du scénrio, en générale une intrigue comporte 3 fragment, que nous noterons A, B, C...
-ce sont des zones géographique plus ou moins grande, si l'intrigue ce joue à huit clos, les zones peuvent être des pièces. Si c'est une aventure principale, peut-être une ville.
-C'est à partir du point de départ que la narration va guider le joueur. Le joueur peut trouver l'idée d'un fragment par déduction, ou par le simple fait d'enquéter, poser des question
+le fragmentage est choisis par ia défini arbitrairement en fonction du scénrio, en générale une intrigue comporte 3 fragment, que nous noterons A, B, C...
+le fragmentage est une zones géographique plus ou moins grande, si l'intrigue ce joue à huit clos, la zones peut être une pièces. Si c'est une aventure principale, peut être une ville.
+C'est à partir du point de départ que la narration va guider le joueur. Le joueur peut trouver l'idée d'un fragment par déduction, ou par le simple fait d'enquéter, poser des questions...
+
+### Tonnaliser/Consolider
+
+Point de départ + final + nombre de fragment définit. il n'y a plus qu'a définir le ton de chacun d'eux, définir un fil conducteur ou inter-connecteur. une foix fait, il faut définir géographiquement ou ce situe les fragments, et définir les impératifs.
+
+### Implanter
+
+Fin de processus créatif : il faut sauvegarder l'ensemble des données dans CORE, qui sera relus à chaque interaction a l'évenement.
+la sauvegarde doit contenir des métas infos en plus des élément concrets sité avant. Notament la date de départ, date de fin si il y'a, les données adresses, données Donjons.
+
+Structure hypotétique :
+
+event : {
+    id: "nomme l'evenement",
+    ton: "enquete horifique",
+    dateDebut: [format_date],
+    depart :{ lieu: [adresse, nom de lieu], eventType: QUETE, },
+    fragA...
+    fragB...
+    fragC...
+    final...
+    }
+
+### Jouer
+
+En jouant, des éléments importants peuvent être ajoutés aux fragments actuelement actif ou d'autres à découvrir ou déja terminer (terminer sous entend que le joueur à eu suffisamant d'éléments pour comprendre le fil conducteur ou une inter-connection)
+
+### Prolonger(optionnel)
+
+le prolongement s'applique à une suite aprés le final, sans pour autant créé un nouvel evenement. Le boss qui fuit, pour être achever (prolongement), à la différence du boss qui fuit sans que le joueur puissent le retrouver (nouvel evenement).
+
+### Exemple complets
+
+exemple 1 :
+
+    avant déclenchement : "Vous voyager maintenant depuis plus d'une heure, le chant des oiseaux et quelques animaux surpris marque votre progression dans cette foret plutot calme, néanmoins, un bruit différent venant de votre droite, vous sort de votre légere torpeur. Ce bruit ne ce rattache pas à ce que vous avez l'habitude d'entendre, mais n'est pas non plus inquietant, que faite vous ?"
+
+Détection :
+    iaRuntime appel donc une création d'évenement : par le biais de la commande : ADD_EVENT_INTEREST:"bruit dans la foret" (exemple)
+    il detecte quelque chose pouvant avoir un intéret pour le joueur.
+
+Etablir :
+    Point de départ :
+        QUOI :
+            les faits relatés: bruit inconnue provenant de la foret.
+            les faits complétés :
+                - Qui : qui fait du bruit ?- un gobelin s'entraine à l'arc seule (identitée définie : Zark de Ghoradir)
+                - Quoi : qu'est ce qui fait du bruit ? - les fleches tape les tronc d'arbres
+                - Ou : l'origine du bruit ? - 30 metre dans la foret, au pied d'un arbre
+                - Quand : l'heure au moment ou ce passe l'action ? - aprés midi ensoleilé, à l'instant
+                - Comment : qu'est ce qui fait du bruit ? - fleche de mauvaise qualitée qui ce plante sur des tronc creux
+                - Pourquoi : la raison du bruit ou la raison de l'entrainement ?- le gobelin s'entraine pour attaquer des marchand passant sur la route
+
+        DONNEES : aucune données trouvé en cherchant : bruit inconnue / foret / marchand
+
+        SITUATIONS :
+            le Lieu ou ce trouve le PJ (info dans CORE) renvoie : Plaine parsemmé de foret classique, bas niveau. (issue de la lecture : donnée de carte)
+            Tonalité (info dans CORE) : aventure medieval/fatastique classique.
+            Donnée de Personnages récupéré : PJ: santé maxi...
+
+    Point final :
+    s'articule autour de la raison du "pourquoi ?"
+        POURQUOI : le gobelin doit bcp d'argent à son ancien chef
+            - Qui : le chef, un gobelin puissant (identitée définie...) (camps de 8 huttes, estime les ennemies si besoin)
+            - Quoi : 200 piece d'or
+            - Ou : le camps est à 1 jour de marche (estimation via outil travelAventure) charette passe sur la route connue
+            - Quand : 4 jours restant pour ammener l'argent, la charette passe demain (evenement définit dans le temps)
+            - Comment : il veut attaquer seul une charette remplie de breloque
+            - Pourquoi : il à fait bruler l'entrepot de vivre de son camps, le chef s'en prendrais à sa famille, c'est sa seule chance (chef gentil)
+        DONNEES : gobelin / camps de gobelin - donne - code des gobelin (trouve le fonctionnement des camps de gobelin, hiérarchie, coutume...)
+
+fragmenter :
+
+l'evenement ouvre plusieurs possibilitée de fin, pour fragmenté intéligament avant le point final ont peut donner plusieurs fin à l'évenement du point de vue du joueur voici des cas simple de fin :
+
+    le pj peut tuer Zark
+    le pj peut aider Zark à mieux utiliser son arc
+    le pj peut demander pourquoi Zark fait cela, Zark réponds:
+        Zark a besoin de 200 po :
+            PJ donne 200 po
+            PJ demande pourquoi :
+                Zark -> rembourser son chef
+                Zark ment -> fausse piste
+
+        Zark veut attaquer un marchand pour voler ses marchandise :
+            PJ aide
+            PJ capture Zark pour emprisonement / le tue
+            il demande pourquoi :
+                Zark -> rembourser son chef
+                Zark ment -> fausse piste
+                
+    Zark -> rembourser son chef :
+        PJ va demander au chef si il peut rallonger le délai
+        PJ menace le chef
+        PJ négocie...
+
+En réfléchissent ainsi ont peut identifier plusieurs fragment évident :
+    Embuscade du marchand (route)
+    Camps de Zark (négociation)
+    Hutte du chef (si combat final)
+    Boutique du marchand (si vole par infiltration...)
+
+L'ia définit 2 fragment intéressant et évident pour passer à l'étape d'aprés, le camps de Zark et l'ambuscade (variante :si le PJ et roublard : boutique du marchand)
+
+Tonnaliser/Consolider :
+
+point de départ et final ok, il faut définir les 2 fragments
+
+fragment A, l'embuscade / fragment B, le camp.
+
+fragA : id: l'embuscade
+    Ou : sur la route (adresse) bordé d'un
+    Qui : marchand (identité complexe (nom prénoms, race, classe, équipement)), escorte (identitée simple,classae,équipement)
+    Quoi : transporte des meubles de luxe d'une valeur de 300 po
+    Quand : date de passage définit (evenement définit dans le temps)
+
+fragB : le camps
+    Ou : (adresse au hasard à une distance de 20km) description du camps
+    Qui : chef (identitée complexe), famille de zark (identitée simple), gobelin diverse...
+    Quoi : Activité diverse de camps gobelin classique (Wiki)
+
+Implanter :
+
+event : {
+    id: "Le bruit dans la foret",
+    ton: "classique",
+    dateDebut: [format_date],
+    eventType: INTEREST,
+    depart :{
+        lieu: [[x:24;y:11], "foret de Landry"],
+        Qui : un gobelin s'entraine à l'arc seule (identitée définie : Zark de Ghoradir)
+        Quoi : du bruit dans la foret
+        Ou : dans la foret, au pied d'un arbre
+        Quand : aprés midi ensoleilé, à l'instant
+        Comment : fleche de mauvaise qualitée qui ce plante sur des tronc creux
+        Pourquoi : le gobelin s'entraine pour attaquer des marchand passant sur la route
+    },
+    fragA :{
+        id: "L'embuscade"
+        lieu: [[x:24;y:11], "route de Landry"],
+        Ou : route bordée d'une foret...
+        Qui : marchand (identité complexe (nom prénoms, race, classe, équipement)), escorte (identitée simple,classae,équipement)
+        Quoi : transporte des meubles de luxe d'une valeur de 300 po
+        Quand : date de passage définit (evenement définit dans le temps)
+    },
+    fragB :{
+        id: "le camp"
+        lieu: [[x:25;y:42], "Camps de Zark"],
+        Ou : description du camps
+        Qui : chef (identitée complexe), famille de zark (identitée simple), gobelin diverse...
+        Quoi : Activité diverse de camps gobelin classique (Wiki)
+    },
+    final :{
+        lieu: [[x:25;y:14], "Camps de Zark"],
+        Qui : le chef, un gobelin puissant (identitée définie...) (camps de 8 huttes, estime les ennemies si besoin),
+        Quoi : 200 piece d'or,
+        Quand : 4 jours restant pour ammener l'argent,
+        Comment : il veut attaquer seul une charette remplie de breloque,
+        Pourquoi : il à fait bruler l'entrepot de vivre de son camps, le chef s'en prendrais à sa famille, c'est sa seule chance (chef gentil)},
+    }
