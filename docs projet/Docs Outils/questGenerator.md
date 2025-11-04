@@ -249,40 +249,45 @@ fragB : le camps
 
 Implanter :
 
+```js
 event : {
     id: "Le bruit dans la foret",
-    ton: "classique",
+    toneTags: "classique",
+    links: null,
+    status: "active",
     dateDebut: [format_date],
-    eventType: INTEREST,
+    eventType: ["INTEREST", "PNJ_RESCUE", "EVENT_MINEUR"],
+    pjkndge: "sur la route de Landry j'ai entendu des bruits provenant de la foret, comme des impacts",
     depart :{
         lieu: [[x:24;y:11], "foret de Landry"],
-        Qui : un gobelin s'entraine à l'arc seule (identitée définie : Zark de Ghoradir)
-        Quoi : du bruit dans la foret
-        Ou : dans la foret, au pied d'un arbre
-        Quand : aprés midi ensoleilé, à l'instant
-        Comment : fleche de mauvaise qualitée qui ce plante sur des tronc creux
-        Pourquoi : le gobelin s'entraine pour attaquer des marchand passant sur la route
+        Qui : "un gobelin s'entraine à l'arc seule (identitée définie : Zark de Ghoradir)",
+        Quoi : "du bruit dans la foret"
+        Ou : "dans la foret, au pied d'un arbre",
+        Quand : "aprés midi ensoleilé, à l'instant",
+        Comment : "fleche de mauvaise qualitée qui ce plante sur des tronc creux",
+        Pourquoi : "le gobelin s'entraine pour attaquer des marchand passant sur la route"
     },
     fragA :{
         id: "L'embuscade"
         lieu: [[x:24;y:11], "route de Landry"],
-        Ou : route bordée d'une foret...
-        Qui : marchand (identité complexe (nom prénoms, race, classe, équipement)), escorte (identitée simple,classae,équipement)
-        Quoi : transporte des meubles de luxe d'une valeur de 300 po
-        Quand : date de passage définit (evenement définit dans le temps)
+        Ou : "route bordée d'une foret...",
+        Qui : "marchand (identité complexe (nom prénoms, race, classe, équipement)), escorte (identitée simple,classae,équipement)",
+        Quoi : "transporte des meubles de luxe d'une valeur de 300 po",
+        Quand : "date de passage définit (evenement définit dans le temps)"
     },
     fragB :{
         id: "le camp"
         lieu: [[x:25;y:42], "Camps de Zark"],
-        Ou : description du camps
-        Qui : chef (identitée complexe), famille de zark (identitée simple), gobelin diverse...
-        Quoi : Activité diverse de camps gobelin classique (Wiki)
+        Ou : "description du camps",
+        Qui : "chef (identitée complexe), famille de zark (identitée simple), gobelin diverse...",
+        Quoi : "Activité diverse de camps gobelin classique (Wiki)"
     },
     final :{
         lieu: [[x:25;y:14], "Camps de Zark"],
-        Qui : le chef, un gobelin puissant (identitée définie...) (camps de 8 huttes, estime les ennemies si besoin),
-        Quoi : 200 piece d'or,
-        Quand : 4 jours restant pour ammener l'argent,
-        Comment : il veut attaquer seul une charette remplie de breloque,
-        Pourquoi : il à fait bruler l'entrepot de vivre de son camps, le chef s'en prendrais à sa famille, c'est sa seule chance (chef gentil)},
+        Qui : "le chef, un gobelin puissant (identitée définie...) (camps de 8 huttes, estime les ennemies si besoin)",
+        Quoi : "200 piece d'or",
+        Quand : "4 jours restant pour ammener l'argent",
+        Comment : "il veut attaquer seul une charette remplie de breloque",
+        Pourquoi : "il à fait bruler l'entrepot de vivre de son camps, le chef s'en prendrais à sa famille, c'est sa seule chance (chef gentil)",
     }
+    ```
