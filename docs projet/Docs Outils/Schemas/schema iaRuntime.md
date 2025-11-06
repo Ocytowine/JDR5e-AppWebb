@@ -1,8 +1,11 @@
----
-config:
-  look: handDrawn
-  theme: neutral
+# Schéma iaRuntime
+
+config :
+
+look: handDrawn
+theme: dark
   ---
+
 ```mermaid
 flowchart TD;
     A(Entrée textuelle PJ)-->B(Analyse iaRuntime);
@@ -42,4 +45,5 @@ flowchart TD;
 
     Fe-->Z(Sortie MJ)
 ```
-    G(test)
+
+G(test)

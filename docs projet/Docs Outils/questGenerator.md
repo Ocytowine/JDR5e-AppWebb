@@ -10,10 +10,10 @@ propulsé par IA
 
 **données d'entrées :**
 
--> iaRuntime (via commande)
--> fil de discussion
--> wiki
--> modulEvent
+-> iaRuntime -> commande
+-> Contexte -> contextEngine
+-> wiki -> wikiTag
+-> aide -> modulEvent
 
 **données de sorties :**
 
