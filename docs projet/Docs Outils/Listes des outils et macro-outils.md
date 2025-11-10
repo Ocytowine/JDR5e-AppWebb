@@ -7,6 +7,7 @@
 ### Macro : (outils utilisant d'autre outil)
 
 iaRuntime : réagit au demande du joueur, génère l'aventure, donne vit au monde, c'est le mj en somme
+
 contextEngine : créé un contexte d'aventure (l'environement direct du personnage, s'appuie sur divers données)
 
 ### Sous-Outils
@@ -24,6 +25,8 @@ wikiTag : génère des tags issue du contexte, ou quetes, pour tirer des informa
 memoriesAventure : gère la narration passée, et comment elle est stockée
 
 iaPrechoice : propose des choix que le joueur peut suivre ou non
+
+pnjEngine : Sert à faire vivre les pnjs en simulant l'impression qui'ils ont vis à vis du PJ, générer un micro background...
 
     **Calculateur**
 
@@ -46,10 +49,13 @@ modulEvent : aide création d'événement
 ### Données serveurs
 
 infoMap : donnée géographique précise, donne des information par case de la carte.
+
 Map1 : cadrillage hexagonal représentant la carte du jeu
 
 ### Données joueurs (sauvegarde)
 
-CORE : donnée du monde, le temps, les évenements passé ou à venir,...
+CORE : donnée du monde, le temps, les évenements passé ou à venir, connaissances aquises, relation entre personnage
+
 Personnages : fiche PJ, PNJC, montures, les connaisances
+
 DataBase : données brut issue de récupération (évite des requêtes lourdes).

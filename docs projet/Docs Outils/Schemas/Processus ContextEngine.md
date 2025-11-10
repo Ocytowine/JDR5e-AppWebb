@@ -11,6 +11,7 @@ flowchart TD;
     CtxStart-->CtxK(kndgePj);
     CtxK-->CtxK1(Récupère les données connaissance du joueur);
     CtxK1-->CtxW
+    
     CtxStart-->CtxT(timeAventure)
     CtxT-->CtxT1(fetch de donnée time dans CORE)
     CtxT1-->CtxT2(Convertie l'infos en date / heure / minute / météo)

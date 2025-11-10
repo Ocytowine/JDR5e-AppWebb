@@ -48,7 +48,7 @@ Qu'est ce qu'une quête dans le jeu ?
     - c'est une succession d'étape clé prégénérer à l'avance
     - l'evenement "concerne" le pj, soit en étant l'acteur, soit en étant le commanditaire, soit la cible
     - si un évenement type quête est généré, il possedent une version joueur (affiché dans l'onglet quêtes), et une version mj.
-    - un évenement devient une quête, du moment que le PJ en ai conscient.
+    - un évenement devient une quête, du moment que le PJ en est conscient.
     - un évènement est considéré en temps que tel du moment que celui ci rempli des conditions.
 
 ## Outil à intégrer au processus
@@ -142,6 +142,7 @@ event : {
     id: "nomme l'evenement",
     ton: "enquete horifique",
     dateDebut: [format_date],
+    zoneInfluence: [10km]
     depart :{ lieu: [adresse, nom de lieu], eventType: QUETE, },
     fragA...
     fragB...

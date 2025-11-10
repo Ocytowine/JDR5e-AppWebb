@@ -1,6 +1,7 @@
 # ⚙️ PHASES DE JEU (macro-structure)
 
-Ce sont les grands “modes” du jeu, comme des contextes qui changent les règles actives.
+Ce sont les grands “modes” du jeu, comme des contextes qui changent les règles actives. 
+iaRuntime dois pouvoir les déceler et les suivre jusqu'au changement de scénario suivant
 
 ## Exploration
 

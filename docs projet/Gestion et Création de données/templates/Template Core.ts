@@ -15,7 +15,7 @@ export type Core = {
       description: string
     }
   },
-  Quetes: { [queteId: string]: {
+  Quetes: { [queteId: string]: {//a revoir
       nom: string,
       description: string,
       terminee: boolean,
@@ -23,5 +23,18 @@ export type Core = {
         nom: string,
         descriptionpj: string,
         terminee: boolean
-      } }
+            }
+          }
+        }
+      },
+  kndgePJ:
+    {
+      wikiTag: string,
+    },
+    relationPJ:
+    {
+      PNJId: string,
+      niveauRelation: number
+      description: string
+    }
   }
