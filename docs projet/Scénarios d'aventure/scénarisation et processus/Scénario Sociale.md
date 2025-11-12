@@ -16,3 +16,7 @@ Identité de l'interlocuteur: connu via Event, si non, généré le PNJ via pnjE
 ### Confrontation sociale (jet opposé)
 
 ### Marchandage (avec ajustement de prix / attitude PNJ)
+
+en plus de tout les prérequis d'une discusiion libre,
+le marchandage, s'appui sur une génération d'items faite à l'avance. Outil : merchGenerator
+en fonction de plusieurs facteur, une liste d'item sera proposer (ou pas) au PJ, à un prix indicatif. Présentation des items à reflechir. La discussion est identique au reste des interaction social, donc possibilité de négocier l'obtention des items. d'avoir des informations sur un event ou autre...

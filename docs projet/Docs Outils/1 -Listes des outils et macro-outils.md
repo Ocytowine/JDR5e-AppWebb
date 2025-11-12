@@ -28,6 +28,8 @@ iaPrechoice : propose des choix que le joueur peut suivre ou non
 
 pnjEngine : Sert à faire vivre les pnjs en simulant l'impression qui'ils ont vis à vis du PJ, générer un micro background...
 
+merchGenerator : Génères des marchandises, en s'appuyant sur des données issue du contexte, wiki, race du marchand...
+
     **Calculateur**
 
 timeAventure : transforme le compteur temps en date, heure, minute, et cycle jour/nuit.
