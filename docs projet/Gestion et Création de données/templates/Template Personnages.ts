@@ -14,7 +14,7 @@ export type Personnage = {// Modèle de données pour un personnage //hydrater d
   classe: {
     1: { classeId: string; subclasseId: string; niveau: number } // classe principale
     2?: { classeId: string; subclasseId: string; niveau: number } // classe secondaire
-  }
+  },
   xp: number // Valeur_Base:NiveauChoisie // expérience totale, palier et logique xp définie ailleurs
   dv: number // Valeur_Base:Classe // dés de vie, se cumulent selon les classes
   maitriseBonus: number // Valeur_Base:NiveauChoisie // bonus de maîtrise, dépend du niveau global
@@ -24,12 +24,12 @@ export type Personnage = {// Modèle de données pour un personnage //hydrater d
   calculPvMax: {
     classe1: { niveauGlobal_1: string; par_niveau_apres_1: string };
     classe2: { par_niveau_apres_1: string }
-  }
+  },
   CA: number // classe d'armure, peut être une valeur fixe ou une formule
   CalculCA: {
     base: string; // // Valeur_Base:Race //ex: 10 + modDEX
     bonusArmure: string; // ex: armure portée
-  }
+  },
 
   nivFatigueActuel: number // Valeur_Base:Race // Niveau de fatigue actuel, chaque niveau a des effets spécifiques
   nivFatigueMax: number // Valeur_Base:Race // Niveau de fatigue maximum avant la mort
@@ -45,7 +45,7 @@ export type Personnage = {// Modèle de données pour un personnage //hydrater d
     intelligence: { INT: number; modINT: number },// modINT = Math.floor((INT - 10) / 2)
     sagesse: { SAG: number; modSAG: number },// modSAG = Math.floor((SAG - 10) / 2)
     charisme: { CHA: number; modCHA: number }// modCHA = Math.floor((CHA - 10) / 2)
-  }
+  },
   competences: { // 1 si le personnage a la compétence, 0 sinon, si plusieurs fois la valeur est true alors on la compétence est expertisée (double le maitriseBonus)
     Athlétisme: number,
     Acrobaties: number,

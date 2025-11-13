@@ -1,0 +1,52 @@
+Localisation (lieux):
+    Mondes
+        Continents
+        gouvernance
+        Région
+            Ville principale
+        Religion
+        Faction
+        Histoire
+
+Sous-catégories "Régions": (s'applique pour les villes et villages secondaire)
+
+    description courte :
+    description longue :
+    Coutumes / traditions :
+    Langues :
+    Économie : niveau de richesse (PIB)
+    Architecture / vêtements : description des styles
+    Nourriture / fêtes / musique :
+    climat : [{océanique / désertique} + {température moy par saison}]
+    niveau d'ordre global: echelle de 1 à 10 déterminent l'emprise du chaos de la région (10, les montres/bandits sont légions)
+    Race dominante :
+
+        relier à : (exemple)
+
+        Faction : Royaume intel / Conclave / Famille (sous catégorie)
+        Histoire : Guerre / Catastrophe (sous catégorie)
+
+Sous-catégories "Villes principales" :
+
+    type de ville : Citée fortifiée
+    description courte :
+    description longue :
+    Origine ethnique : elfe
+    type de gouvenance : Duchet (Sous-Catégorie)
+    Siege du pouvoir : palais / mairie / chateau / hutte
+    nombre d'habitant : nombre
+    Races dominante : humain 60, elfe 30
+    Niveau de criminalité global : 20
+
+        relier à :
+
+        Gouvernance : (sous catégorie)
+        Quartier : arrondissement / bourg / camps / port (Sous-Catégorie)
+
+Sous-catégories "Faction"
+Sous-catégories "Histoire"
+Sous-catégories "Gouvernance"
+Sous-catégories "Quartier"
+Sous-catégories "Structure"
+
+Sous-catégories "Religion

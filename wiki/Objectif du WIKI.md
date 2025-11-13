@@ -4,31 +4,39 @@ L'objectif est de fournir une base de connaissance complète et structurée afin
 
 Structure attendue :
 
+/lore
+  /canon
+    /meta
+      world.json
+      settings.json
+    /regions
+      /region_id/
+        region.json
+        lieux/
+          lieu_id.json
+        pnj/
+          pnj_id.json
+        factions/
+          faction_id.json
+        objets/
+          objet_id.json
+        events/
+          event_id.json
+
+  /graph_scripts
+    generate_cypher.js
+    import_all.js
+    /output/
+      full_graph.cypher
+
+
 méthode : 
 
 créer un monde canon à partir du script précédent,
 et générer une instance joueur clonée automatiquement (sur action “nouvelle partie”)
 
 
-Localisation (lieux):
-    Mondes
-        Continents
-        Royaumes / gouvernement
-        Région
-            Villes principales
-        Religions
-        Factions
-        Histoires
 
-Sous-catégories Régions: (s'applique pour les villes et villages secondaire)
-
-Coutumes / traditions
-Langues
-Économie
-Architecture / vêtements
-Nourriture / fêtes / musique
-
-Sous-catégories Villes principales:
 
 exemple en neo4j :
 
