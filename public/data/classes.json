@@ -1,0 +1,48 @@
+{
+  "classes": [
+    {
+      "id": "guerrier",
+      "name": "Guerrier",
+      "description": "Un combattant expérimenté spécialisé dans le combat au corps à corps et les armes.",
+      "hitDice": "1d10",
+      "primaryAbilities": ["Force", "Constitution"],
+      "savingThrows": ["Force", "Constitution"],
+      "skills": 2,
+      "armor": ["Toutes armures", "Boucliers"],
+      "weapons": ["Armes simples", "Armes de guerre"]
+    },
+    {
+      "id": "mage",
+      "name": "Mage",
+      "description": "Un lanceur de sorts qui puise dans l'énergie magique pour créer des effets puissants.",
+      "hitDice": "1d6",
+      "primaryAbilities": ["Intelligence"],
+      "savingThrows": ["Intelligence", "Sagesse"],
+      "skills": 2,
+      "armor": [],
+      "weapons": ["Dague", "Fléchettes", "Fronde", "Bâton", "Arbalète légère"]
+    },
+    {
+      "id": "roublard",
+      "name": "Roublard",
+      "description": "Un expert en discrétion et en attaques sournoises.",
+      "hitDice": "1d8",
+      "primaryAbilities": ["Dextérité"],
+      "savingThrows": ["Dextérité", "Intelligence"],
+      "skills": 4,
+      "armor": ["Armures légères"],
+      "weapons": ["Armes simples", "Arbalète de poing", "Épée courte", "Épée longue", "Rapière"]
+    },
+    {
+      "id": "clerc",
+      "name": "Clerc",
+      "description": "Un serviteur divin qui canalise la puissance de sa divinité.",
+      "hitDice": "1d8",
+      "primaryAbilities": ["Sagesse"],
+      "savingThrows": ["Sagesse", "Charisme"],
+      "skills": 2,
+      "armor": ["Armures légères", "Armures intermédiaires", "Boucliers"],
+      "weapons": ["Armes simples"]
+    }
+  ]
+}
