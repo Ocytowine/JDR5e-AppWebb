@@ -44,8 +44,12 @@ Sous-catégories "Villes principales" :
         Quartier : arrondissement / bourg / camps / port (Sous-Catégorie)
 
 Sous-catégories "Faction"
+    N
 Sous-catégories "Histoire"
 Sous-catégories "Gouvernance"
+    type : monarchique démocratique
+    fonctionnement :
+    
 Sous-catégories "Quartier"
 Sous-catégories "Structure"
 
