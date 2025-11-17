@@ -57,15 +57,14 @@ il existe 4 variantes de valeurs différentes :
 
 ## Le panthéon
 
-L'histoire de la création du monde materiel :
+### La Genese
 
-    pourquoi le monde materiel existe :
-
+**Défi du créateur**
     Il existe par dela les plans, des formes de conciences, l'une d'elle est l'origine de toutes choses : le créateur.
     Le créateur en s'épanouissant dans la matiere, créa des divins, fruit de sa reflexion. il en existe enormément, tous différent, doté de conscience prodigieuse.
     Le créateur aime s'entourré de divin aussi puissant que lui, Mais il y'a un domaine ou il se retrouve seule à son niveau de conscience.
     Pour pallier à cette ennuie, il élabore des paradoxes, et les donnes en sujet de reflexion aux autres divins.
-    Son sujet préferé étant la notion de vie. il crééa un paradoxe autour de celui-ci : créer une forme de vie possédant toute les qualités qu'un dieu doit avoir, tout en étant mortelle. 
+    Son sujet préferé étant la notion de vie. il crééa un paradoxe autour de celui-ci : créer une forme de vie possédant toute les qualités qu'un dieu doit avoir, tout en étant mortelle.
     Pourquoi paradoxale : un divin est tout, sans avoir de limite, une vie est litterallement l'inverse. Les qualités ne naissent pas n'importe comment et sont vite balayer par les aléa d'une vie mortelle.
 
     1ere raison de la difficulté de la tache :
@@ -77,12 +76,13 @@ L'histoire de la création du monde materiel :
     3eme raison :
     Quand un Divin créer un monde, il sculpte chaque facette du monde et pour créer la vie, il utilise un fragment de la sienne (source arcanique). cette partie n'est naturellement pas perdu, mais si ce fragment de vie disparaissé du plan auquelle il appartiens, elle le serrait. et si un fragment venait à etre corrompu, le divin le serait tout autant.
 
-    donc en gros, un divin peut soit perdre sa source, libéré le chaos, ou etre corrompu. 
+    donc en gros, un divin peut soit perdre sa source, libéré le chaos, ou etre corrompu.
 
     Les Divins étant hunaniment de l'impossiblitée de cette tâche, aucun prirent la peine d'essayer, sauf un, Kharon.
 
-        Kharon possedent une source puissante, caractérisé par un flux tentaculaire qui s'étand loin, et toujours en forme harmonieuse. comme des rayons de lumieres s'ondulant autours des astres qui au contact de la matière, se fractalise à la recherche de nouvelle interaction.
- 
+**Kharon le Divin**
+    Kharon possedent une source puissante, caractérisé par un flux tentaculaire qui s'étand loin, et toujours en forme harmonieuse. comme des rayons de lumieres s'ondulant autours des astres qui au contact de la matière, se fractalise à la recherche de nouvelle interaction.
+
     le divin Kharon en crééent Dunia releva ce défi.
 
     Il créa Dunia en entrechoquant plusieurs planetes, récupéra le meilleur, et sculpta des formes voluptueuse.
@@ -107,10 +107,60 @@ L'histoire de la création du monde materiel :
     Ils découvris qu'au bout d'un moment un phenomene étrange. certaine forme de vie, essayait d'utilisé la source présente en eux.
     Puis trés vite, les duniens aussi, certains faisait de belle choses, et d'autres s'en servaient pour créé le mal.
 
+**Les echecs de Kharon**
     Kharon s'alarma, car le mal de ce plan à des consequences terrible. Une des lois de l'univers indique que chaque action faite par un poccesseur de source vennant à l'encontre fondamentale de celui qui lui à insufler, génère de l'energie noire.
     Cette énergie noire libérée, créer des failles vers des plans obscure, les abysses les enfers et autres plans inferieur.
 
     Kharon ce dit que cela devenait trop dangereux, il voyait que ca tentative de créé une vie inteligente était en bonne voie, mais qu'il fallait leur enseigner des rudiments essentiels à leurs bon develloppement.
 
-    Kharon entrepris une démarche de selection des meilleurs éléments parmis toutes les formes de vie inteligente dunienes. ils créas une règle lié à ca source. chaque forme de vie inteligente capable d'alliée certain traits spécifique de caractere ou de valeur morale, pouvait prétendre à la survie. 
-    tout les 100 000 cycles, il 
+    Les essaies de Kharon :
+
+    Kharon alla sur Dunia pour guider les peuples, il prit l'apparence d'un Dunien et entra en contact ave eu. il passa dans les civilisation essayant de guider les esprits.
+        Cela à eu pour but d'augmenter la haine des peuples les un envers les autres, car le divin ne pouvait soutenir qu'un peuple.
+    Il détruisit les peuples pour n'en garder qu'un seul.
+    Et ce fut une nouvelle ère. le cycle ce répéta, les Duniens finissent par oublier ses paroles, et se rebatir les uns contre les autres.
+
+    Il essaya de diverse manière mais en vint.
+
+    Kharon essaya de changer certaine chose sur Dunia, la température, la faune, la flore, mais rien n'y fait
+
+    Puis Kharon se dit qu'il fallait des guides spirituels sur Dunia, qui agirons selon ses préceptes.
+
+    Kharon fragmenta donc sa source en 12 part. faisant des copies de son spectre, et revetant la même apparence. il donna l'ordre à ses copies de partir ralier les peuples.
+        Cela à eu pour but de concéquence de transformer les Duniens en Etres dotés d'aucune volonté n'y faculté d'adaptation, ils finisserent par s'etteindre quasi tous.
+        A l'exception de quelque tribu, qui c'étaient volontairement reclu, et qui n'avait donc aucun lien avec les copie divine.
+
+    Kharon refusionna ses fragments, décida de laisser les tribues survivante vivres normalement.
+    Aprés quelque centaine d'année de reflexion et d'observation, il compris une chose. Donner les réponse n'était pas une solution, les guider non plus, mais les inspirer était peut être la clée.
+
+**Lueur d'espoir**
+    Kharon donna alors une propriétée particulière à la source. Quand un etre fait preuve d'un trait recherché est bon selon Kharon. L'être recevra une marque divine.
+        Cela à eu pour concéquence, de donner un sens à leur vie.
+
+    Et pour les inspirer, il créa une nouvelle fois 12 fragments, mais au lieu de faire des copies de lui même. ils modela ce qu'il cherché. il personnifia les qualités qu'un divin dois posseder. en créant les 12 dieux de Dunia.
+
+    Les dieux doué de conscience propre ont modelé le monde pendant des millenaires, certains restant reclus, d'autre leader de peuple.
+    Kharon était partagé dans ces idées, d'un cotés, il voyait l'emmergence d'êtres débordant de qualitées, et d'un autre des guerres faisaient rage.
+    Certains etre arrivée à dompter la source, en magie arcane, soigant les leurs, penadant que d'autre l'utilisé pour mettre le feu et faire couler le sang.
+
+    Suite à ces exaction, Kharon voyait des parties de lui même ce corrompre, des fissures planaire emmergée... il convocat ces 12 dieux.
+    
+**Lultimatum**
+    Kharon posa un ultimatum, si durant les 100 000 prochaines années, aucun etre pur portant les 12 marque divines n'est déclaré, il mettra fin à Dunia.
+
+### les 12 de Dunia
+
+Kharon donna vie à 12 dieux représentant ce qu'il attendait de voir en un seul être.
+Voici leur noms et leur valeur :
+    Naven
+    Narima
+    Nara
+    Odekun
+    Odorun
+    Odrika
+    Sumen
+    Simari
+    Sive
+    Fanika
+    Funara
+    Feras
