@@ -1,14 +1,17 @@
 Localisation (lieux):
     Mondes
         Continents
-        gouvernance
-        Région
-            Ville principale
-        Religion
-        Faction
-        Histoire
+        Gouvernances
+        Territoires
+            Regions
+                Villes
+                    Quartiers
+                        Structures
+        Religions
+        Factions
+        Histoires
 
-Sous-catégories "Régions": (s'applique pour les villes et villages secondaire)
+Sous-catégories "Regions": (s'applique pour les villes et villages secondaire)
 
     description courte :
     description longue :
@@ -26,7 +29,7 @@ Sous-catégories "Régions": (s'applique pour les villes et villages secondaire)
         Faction : Royaume intel / Conclave / Famille (sous catégorie)
         Histoire : Guerre / Catastrophe (sous catégorie)
 
-Sous-catégories "Villes principales" :
+Sous-catégories "Villes" :
 
     type de ville : Citée fortifiée
     description courte :
@@ -40,8 +43,8 @@ Sous-catégories "Villes principales" :
 
         relier à :
 
-        Gouvernance : (sous catégorie)
-        Quartier : arrondissement / bourg / camps / port (Sous-Catégorie)
+        Gouvernances : (sous catégorie)
+        Quartiers : arrondissement / bourg / camps / port (Sous-Catégorie)
 
 Sous-catégories "Faction"
     N
@@ -50,7 +53,7 @@ Sous-catégories "Gouvernance"
     type : monarchique démocratique
     fonctionnement :
     
-Sous-catégories "Quartier"
-Sous-catégories "Structure"
+Sous-catégories "Quartiers"
+Sous-catégories "Structures"
 
 Sous-catégories "Religion
