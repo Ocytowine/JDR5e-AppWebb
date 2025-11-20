@@ -1,7 +1,8 @@
 
-## La Genèse
+# La Genèse
 
-### Le Défi du Créateur
+## Le Défi du Créateur
+
 Au-delà de tous les plans connus existent des consciences anciennes, immatérielles et insondables. Parmi elles, l’une se distingue : **le Créateur**, origine première de toute existence.
 
 En se déployant dans la matière, le Créateur donna naissance aux **Divins**, projections de sa pensée. Ils sont innombrables, singuliers, porteurs d’intelligences démesurées. Le Créateur apprécie leur compagnie, mais un sujet demeure hors de leur portée : **la vie**.
@@ -12,6 +13,7 @@ Pour nourrir leur réflexion, il forgea un paradoxe :
 Le paradoxe est absolu. Le Divin est illimité ; la vie, fragile. Les qualités d’un dieu ne peuvent naître sans fondement, ni survivre aux épreuves d’une existence brève.
 
 Trois obstacles rendaient la tâche presque impossible :
+
 1. **La mortalité engendre le chaos.** En insufflant une part d’eux-mêmes dans un mortel, les Divins risquaient de devenir eux‑mêmes chaos si cette vie venait à en produire.
 2. **Le mortel lutte contre l’oubli.** Cette lutte ouvre la voie à la corruption, créant des brèches vers d’autres plans.
 3. **Créer la vie exige un fragment de sa propre source.** Si ce fragment disparaît ou est corrompu, le Divin en subit les conséquences.
@@ -24,6 +26,7 @@ Sauf **Kharon**.
 ---
 
 ## Kharon, le Défiant
+
 Kharon possédait une source singulière : un flux tentaculaire, lumineux et harmonieux, s’étendant loin dans le cosmos, se fractalisant au contact de la matière comme pour explorer chaque possibilité.
 
 Il décida de tenter l’impossible : **créer Dunia**.
@@ -45,6 +48,7 @@ Le paradoxe prenait forme.
 ---
 
 ## Les Échecs de Kharon
+
 Kharon sut alors que le danger était réel. Toute action d’un être porteur de source qui va à l’encontre du Divin qui l’a inspirée génère une substance maudite : **l’Énergie Noire**.
 
 Cette énergie ouvre des failles vers les plans obscurs : abysses, enfers, niveaux inférieurs.
@@ -52,6 +56,7 @@ Cette énergie ouvre des failles vers les plans obscurs : abysses, enfers, nivea
 Craignant la ruine de Dunia, Kharon voulut guider les mortels.
 
 Il tenta :
+
 - de parcourir Dunia sous forme mortelle pour enseigner et conseiller ; cela attisa jalousies et guerres entre peuples,
 - d’effacer les civilisations corrompues pour ne laisser qu’un peuple unique ; le cycle revint,
 - de remodeler Dunia elle‑même : climat, faune, flore ; en vain,
@@ -65,6 +70,7 @@ Kharon refusionna sa source et observa, encore, longtemps. Il comprit enfin :
 ---
 
 ## Lueur d’Espoir
+
 Kharon donna alors une nouvelle propriété à la source : lorsqu’un être manifeste une vertu digne du Divin, une **Marque Divine** apparaît sur son âme.
 
 Les mortels trouvèrent enfin un sens à leurs vies.
@@ -80,6 +86,7 @@ Les actes sombres fissuraient la source de Kharon. Les plans tremblaient. Il con
 ---
 
 ## L’Ultimatum
+
 Kharon proclama :
 
 > **Si, dans les cent mille prochaines années, aucun être pur portant les Douze Marques Divines ne vient au monde… Dunia sera détruite.**

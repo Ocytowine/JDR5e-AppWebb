@@ -38,8 +38,8 @@ par saison :
 
 ## les saisons
 
-Dunia possedent 4 saisons :
-en langue commune :
+Dunia possedent 4 saisons : hiver, printemps, été, automne
+en langue commune : Natar, Odrinar, Selar, Falar
 
     hiver : Natar
     printemps : Odrinar

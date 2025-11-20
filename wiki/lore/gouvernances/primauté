@@ -1,4 +1,4 @@
-## Présentation de la Primauté
+# Présentation de la Primauté
 
 1 Primarque (comparable à un roi)
 
@@ -45,6 +45,7 @@ Chaque Cercle est dirigé par un Exarque, figure noble, respectée comme un duc-
 
 Chaque Cercle gère un domaine spécifique (justice, finances, armée, religion, etc.).
 Les 8 Cercles :
+
 1. Cercle de la Justice (les justes)
 2. Cercle des Finances (les trésoriers)
 3. Cercle de l'Armée (les lames)
@@ -72,7 +73,7 @@ Ils sont responsables de la gestion des affaires dans leur domaine spécifique, 
 
     Primarque (roi) -> Exarques (seigneurs chef de cercle, possedent des terres)-> Sahrques (seigneurs siegent dans un cercle, possedent des terres) -> tharques (seigneurs possedents des terres) -> Draque (seigneur sans terre) -> Capitaine -> Mestre -> civil
 
-## les organes secondaire.
+## les organes secondaire
 
 ### Vassalitée
 
@@ -83,4 +84,5 @@ Ils sont responsables de la gestion des affaires dans leur domaine spécifique, 
         Ils peuvent nommer des Mestres pour diriger la vie civile, des Capitaines dirigant la garnison.
         Ou diriger eux même tous les aspects.
     
-        Ils obéissent aux décrets d
+        Ils obéissent aux décrets décidés par les Exarques et Sahrques, validés par le Primarque.
+        Ils collectent les impôts, administrent la justice locale, et maintiennent l'ordre.
