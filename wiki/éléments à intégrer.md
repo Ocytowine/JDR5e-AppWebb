@@ -11,6 +11,13 @@ Localisation (lieux):
         Factions
         Histoires
 
+Sous-catégories "territoires":
+
+    description courte :
+    description longue :
+    Capitale : 
+    Gouvernance : 
+
 Sous-catégories "Regions": (s'applique pour les villes et villages secondaire)
 
     description courte :
