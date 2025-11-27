@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Lore - Narrateur</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <div class="badge">Prototype</div>
+    <h1>Laboratoire du Narrateur</h1>
+    <p>Teste une boucle simple: ajout de lore → message du joueur → réponse du narrateur qui réutilise le contexte.</p>
+  </header>
+
+  <main>
+    <section class="panel">
+      <div class="panel-header">
+        <div>
+          <h2>Base de lore</h2>
+          <p class="muted">Tu peux saisir des entrées rapides pour nourrir l'IA.</p>
+        </div>
+        <button id="refresh-lore" type="button">Rafraîchir</button>
+      </div>
+      <form id="lore-form" class="stack">
+        <input name="title" placeholder="Titre" required>
+        <input name="tags" placeholder="Tags (séparés par des virgules)">
+        <input name="summary" placeholder="Résumé court" required>
+        <textarea name="body" placeholder="Texte complet" rows="3" required></textarea>
+        <button type="submit">Ajouter</button>
+      </form>
+      <ul id="lore-list" class="list"></ul>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <div>
+          <h2>Fil de discussion</h2>
+          <p class="muted">Le narrateur répond en utilisant les morceaux de lore correspondants.</p>
+        </div>
+      </div>
+      <div id="chat-log" class="chat-log"></div>
+      <form id="chat-form" class="chat-form">
+        <textarea id="chat-input" placeholder="Décris l'action du joueur..." rows="3" required></textarea>
+        <div class="row">
+          <button type="submit">Envoyer</button>
+          <button id="reset-conv" type="button" class="ghost">Nouvelle conversation</button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
