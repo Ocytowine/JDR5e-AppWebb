@@ -1,4 +1,6 @@
+---
 id: astryade
-nom: Primauté d'astryade
-description courte: la primauté d'astryade est un royaume situé sur le continent d'elysion, connu pour sa riche histoire et sa culture florissante. elle regroupe les région d'Ylsséa, d'Ardherne et d'Orthévar.
-description longue: grand texte.
+type: region
+nom: Primauté d'Astryade
+---
+La Primauté d'Astryade est un royaume situé sur le continent d'Elysion,
