@@ -1,0 +1,57 @@
+---
+type: region
+id: <slug_region>                   # ex: hautes_herbes
+nom: <Nom de la région>             # ex: Les Hautes Herbes
+
+territoire: <slug_territoire>       # lien vers le territoire parent
+type_region: <type>                 # ex: Province, Forêt, Montagnes, Archipel...
+
+# GEOGRAPHIE / CLIMAT
+climat: <description courte>        # ex: "vent constant, hivers neigeux"
+relief:
+  - <ex: grandes plaines ondulantes>
+  - <petits bois isolés>
+risques_naturels:
+  - <ex: tempêtes de sable>
+  - <inondations saisonnières>
+
+# POPULATION / HABITANTS
+population_estimee: <nombre_approx> # si utile
+habitats_principaux:
+  - <ex: villages agricoles>
+  - <campements nomades>
+peuples_present:
+  - <ex: "Humains 70%">
+  - <ex: "Elfes des plaines 20%">
+  - <ex: "Autres 10%">
+
+# ECONOMIE / RESSOURCES
+ressources:
+  - <ex: céréales>
+  - <chevaux>
+activites:
+  - <ex: élevage>
+  - <marchés itinérants>
+
+# POLITIQUE / CONTRÔLE
+autorite_locale: <slug_faction_ou_territoire>  # qui contrôle la région ?
+niveau_controle: <faible/moyen/élevé>          # contrôle réel sur place
+zones_de_loi_faible:
+  - <ex: "frontière nord">
+  - <ex: "marais de l'ouest">
+
+# LIENS / CONTENU
+villes_principales:
+  - <slug_ville_1>
+  - <slug_ville_2>
+lieux_remarquables:
+  - <slug_batiment_ou_lieu_1>
+  - <slug_batiment_ou_lieu_2>
+factions_actives:
+  - <slug_faction_1>
+  - <slug_faction_2>
+
+mots_cles:
+  - <mot clé 1>
+  - <mot clé 2>
+---

@@ -1,0 +1,84 @@
+---
+type: pnj
+id: <slug_pnj>                        # ex: elarion_lysenthe
+nom: <Nom complet du PNJ>             # ex: Elarion de Lysenthe
+
+# IDENTITÉ / ORIGINE
+surnoms:
+  - <surnom_1>
+  - <surnom_2>
+age: <age_ou_approx>                  # ex: "120 ans", "la quarantaine"
+genre: <genre>                        # ex: "masculin", "féminin", "non-binaire"
+origine: <origine_culturelle>         # ex: "elfe", "humain de Lysenthe", "demi-orc du nord"
+espece: <race_espece>                 # ex: "Elfe", "Humain", "Nain"
+statut_social: <statut>              # ex: "noblesse", "roturier", "clergé"
+
+# LOCALISATION / APPARTENANCE
+territoire: <slug_territoire>         # ex: fougere
+region: <slug_region>                 # ex: hautes_herbes
+ville: <slug_ville>                   # ex: lysenthe
+quartier: <slug_quartier>             # optionnel
+
+factions:
+  - <slug_faction_1>
+  - <slug_faction_2>
+role_principal: <role>                # ex: "duc", "capitaine de la garde", "prêtresse", "informateur"
+
+# CARACTÈRE / COMPORTEMENT
+personnalite:
+  traits_positifs:
+    - <ex: "loyal">
+    - <ex: "calme">
+  traits_negatifs:
+    - <ex: "rancunier">
+    - <ex: "orgueilleux">
+motivation_principale: <phrase_courte>
+objectifs:
+  - <objectif_1>
+  - <objectif_2>
+peurs:
+  - <peur_1>
+  - <peur_2>
+
+# RELATIONS
+relations_pnjs:
+  - pnj: <slug_autre_pnj>
+    type: <lien>                      # ex: "allié", "ennemi", "mentor", "famille"
+    details: <courte_explication>
+relations_factions:
+  - faction: <slug_faction>
+    type: <lien>                      # ex: "dirige", "travaille pour", "espionne"
+    details: <courte_explication>
+
+# NIVEAU D'IMPACT (POUR LE JEU)
+niveau_influence: <0-100>             # poids politique/social
+dangerosite: <0-100>                  # dangereux physiquement / politiquement ?
+importance_scenario: <0-100>          # important pour la campagne ?
+
+# COMPÉTENCES / CAPACITÉS (RESTE LORE, PAS OBLIGÉ D’ÊTRE DES STATS CHIFFRÉES)
+competences:
+  - <ex: "bretteur hors pair">
+  - <ex: "maîtrise de la magie du sang">
+  - <ex: "expert en intrigues de cour">
+specialites:
+  - <specialite_1>
+  - <specialite_2>
+
+# HOOKS / UTILISATION EN JEU
+accroches_scenario:
+  - <id_ou_nom_accroche_1>            # optionnel, pour toi
+  - <id_ou_nom_accroche_2>
+rumeurs:
+  - <rumeur_1>
+  - <rumeur_2>
+secrets:
+  publics:
+    - <secret_que_tout_le_monde_peut_apprendre_facilement>
+  caches:
+    - <secret_important_a_reveler_en_jeu>
+---
+Texte de description libre du PNJ.
+
+Décris son apparence, sa façon de parler, son attitude générale,
+comment les habitants le perçoivent, et comment les joueurs ont des chances
+de le rencontrer ou de l’aborder.

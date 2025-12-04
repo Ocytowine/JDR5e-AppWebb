@@ -1,0 +1,38 @@
+---
+type: batiment
+id: <slug_batiment>                 # ex: chateau_ducal_lysenthe
+nom: <Nom du bâtiment>             # ex: Château ducal de Lysenthe
+
+# LOCALISATION
+ville: <slug_ville>                # ex: lysenthe
+region: <slug_region>              # optionnel si hors-ville
+territoire: <slug_territoire>      # pour contexte global
+
+# TYPE / FONCTION
+type_batiment: <type>              # ex: Forteresse, Temple, Taverne, Guilde...
+fonction_principale:
+  - <ex: siège politique>
+  - <ex: centre religieux>
+importance_strategique: <0-100>
+
+# PROPRIÉTÉ / CONTRÔLE
+proprietaire_faction: <slug_faction>    # ex: maison_ducale_fougere
+proprietaire_principal: <nom_personnage_ou_surnom>
+acces: <public/privé/très_restreint>
+
+# DESCRIPTION RAPIDE
+etat_general: <bon/moyen/mauvais/en ruine>
+niveau_securite: <0-100>           # gardes, protections, magie...
+rumeurs:
+  - <rumeur 1>
+  - <rumeur 2>
+
+# LIENS
+lieux_connectes:
+  - <slug_batiment_ou_lieu_1>
+  - <slug_batiment_ou_lieu_2>
+
+mots_cles:
+  - <mot clé 1>
+  - <mot clé 2>
+---

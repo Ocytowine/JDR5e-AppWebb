@@ -1,0 +1,61 @@
+---
+type: ville
+id: <slug_ville>                   # ex: lysenthe
+nom: <Nom de la ville>             # ex: Lysenthe
+
+territoire: <slug_territoire>      # ex: fougere
+region: <slug_region>              # ex: hautes_herbes
+
+type_ville: <type>                 # ex: Citée fortifiée, Village, Port, Capitale...
+origine: <origine_raciale/culturelle> # ex: elfe, humaine, naine...
+type_gouvernance: <texte>          # ex: Ducat, Conseil, Gouverneur militaire...
+siege_pouvoir: <slug_batiment>     # ex: chateau_ducal
+
+# POPULATION
+population_totale: <nombre>        # ex: 200000
+composition_population:
+  - '<ex: "Humains 60%">'
+  - '<ex: "Elfes 30%">'
+  - '<ex: "Nains 10%">'
+
+niveau_vie: <pauvre/moyen/riche/contrasté>
+
+# INDICATEURS SOCIAUX
+niveau_criminalite: <0-100>        # 0 = inexistant, 100 = anarchie totale
+stabilite_sociale: <faible/moyenne/élevée>
+corruption: <0-100>
+tension_ethnique: <0-100>
+
+# CLIMAT / CADRE
+climat: <court>                    # ex: "tempéré humide"
+particularites_env:
+  - '<ex: "toujours brumeuse le matin">'
+  - '<ex: "vents violents sur les remparts">'
+
+# QUARTIERS / STRUCTURE URBAINE
+quartiers:
+  - <slug_quartier_1>
+  - <slug_quartier_2>
+  - <...>
+
+batiments_importants:
+  - <slug_batiment_1>
+  - <slug_batiment_2>
+
+# FACTIONS / RELIGIONS
+factions_presentes:
+  - <slug_faction_1>
+  - <slug_faction_2>
+religions_principales:
+  - <slug_religion_1>
+  - <slug_religion_2>
+
+# LIAISONS / CONNEXIONS
+liaisons:                         # liens pratiques, routes, ports, etc.
+  - <slug_ville_ou_region_1>
+  - <slug_ville_ou_region_2>
+
+mots_cles:
+  - <mot clé 1>
+  - <mot clé 2>
+---

@@ -1,12 +1,58 @@
 ---
-id: lysenthe
 type: ville
-type_ville: Citée fortifiée
-origine: elfe
-type_gouvenance: Duchet (Sous-Catégorie)
-siege: Chateau ducal
-habitant: 200 000
-dominante: humain 60, elfe 30
-criminalite: 20
+id: lysenthe
+nom: Lysenthe
+
+territoire: astryade                      # TODO: confirmer le territoire parent
+region: ylssea
+
+type_ville: Cité portuaire fortifiée
+origine: humaine (influence elfique)
+type_gouvernance: Ducat
+siege_pouvoir: chateau_ducal
+
+# POPULATION
+population_totale: 200000
+composition_population:
+  - Humains 60%
+  - Elfes 30%
+  - Autres 10%
+
+niveau_vie: <pauvre/moyen/riche/contrastée>
+
+# INDICATEURS SOCIAUX
+niveau_criminalite: 20
+stabilite_sociale: <faible/moyenne/élevée>
+corruption: <0-100>
+tension_ethnique: <0-100>
+
+# CLIMAT / CADRE
+climat: tempéré humide
+particularites_env:
+  - port constamment brassé par les vents marins
+  - brumes côtières fréquentes au lever du jour
+
+# QUARTIERS / STRUCTURE URBAINE
+quartiers:
+  - <à préciser>
+  - <à préciser>
+batiments_importants:
+  - <à préciser>
+  - <à préciser>
+
+# FACTIONS / RELIGIONS
+factions_presentes:
+  - <à préciser>
+religions_principales:
+  - <à préciser>
+
+# LIAISONS / CONNEXIONS
+liaisons:
+  - <à préciser>
+
+mots_cles:
+  - port
+  - commerce maritime
+  - cité fortifiée
 ---
-Citée portuaire fortifiée, Lysenthe est un carrefour commercial majeur pour les échanges entre les différentes régions côtières de Dunia. Fondée par des colons humains, la ville a su conserver une forte influence humaine dans son architecture et sa culture, tout en intégrant des éléments elfique et d'autres. Les habitants de Lysenthe sont réputés pour leur esprit d'entreprise et leur ouverture aux échanges culturels.
+Cité portuaire fortifiée, Lysenthe est un carrefour commercial majeur pour les échanges entre les différentes régions côtières de Dunia. Fondée par des colons humains, la ville a su conserver une forte influence humaine dans son architecture et sa culture, tout en intégrant des éléments elfiques et d'autres. Les habitants de Lysenthe sont réputés pour leur esprit d'entreprise et leur ouverture aux échanges culturels.

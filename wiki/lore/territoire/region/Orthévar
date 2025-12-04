@@ -1,21 +1,65 @@
 ---
-id: orthevar
 type: region
+id: orthevar
 nom: Orthévar
-traditions: Il est courant pour les habitants d'Orthévar de célébrer les récoltes avec des festivals locaux, mettant en avant la musique folklorique, la danse et la gastronomie régionale. Les marchés hebdomadaires sont des événements sociaux importants où les villageois échangent des produits frais et artisanaux.
-langues: Commun : 80%, Autres (elfe, orque) : 20%
-economie: Moyenne
-architecture: L'architecture d'Orthévar est caractérisée par des maisons en pierre avec des toits en chaume ou en tuiles, souvent décorées de motifs floraux.
-vetements: Les vêtements traditionnels incluent des tissus en lin et en laine, adaptés au climat tempéré de la région.
-nourriture: La cuisine d'Orthévar met l'accent sur les produits locaux, avec des plats à base de légumes frais, de viandes grillées et de fromages artisanaux.
-fetes: Les fêtes locales incluent des danses folkloriques et des chants traditionnels, souvent accompagnés de musique jouée avec des instruments comme le violon et l'accordéon.
-musique: La musique d'Orthévar est riche en influences folkloriques, avec des mélodies entraînantes et des rythmes dansants.
-climat: Tempéré, avec des étés chauds et des hivers doux. Les précipitations sont modérées tout au long de l'année, favorisant une végétation luxuriante.
-ordre: 3
-dominante:
+
+territoire: astryade                      # TODO: confirmer le territoire parent
+type_region: Plaines agricoles et forêts
+
+# GEOGRAPHIE / CLIMAT
+climat: "tempéré, étés chauds, hivers doux, précipitations modérées"
+relief:
+  - plaines cultivées
+  - bosquets et forêts
+risques_naturels:
+  - inondations saisonnières
+  - tempêtes de vent
+
+# POPULATION / HABITANTS
+population_estimee: <à renseigner>
+habitats_principaux:
+  - villages agricoles
+  - hameaux forestiers
+peuples_present:
   - Humains: 50%
   - Elfes: 30%
   - Nains: 15%
   - Autres: 5%
+
+# ECONOMIE / RESSOURCES
+ressources:
+  - céréales
+  - fruits et légumes
+  - bois et matériaux de construction
+activites:
+  - agriculture
+  - élevage
+  - marchés hebdomadaires
+  - artisanat local
+
+# POLITIQUE / CONTRÔLE
+autorite_locale: <slug_faction_ou_territoire>
+niveau_controle: <faible/moyen/élevé>
+zones_de_loi_faible:
+  - <à préciser>
+
+# LIENS / CONTENU
+villes_principales:
+  - <à préciser>
+lieux_remarquables:
+  - <à préciser>
+factions_actives:
+  - <à préciser>
+
+mots_cles:
+  - agriculture
+  - forêts
+  - marchés
 ---
-Orthévar est une région agricole et forestière. La région est réputée pour sa production de céréales, de fruits et de légumes, ainsi que pour son élevage de bétail. Les habitants d'Orthévar vivent principalement dans des villages pittoresques, où l'architecture traditionnelle en pierre et en bois reflète l'histoire et la culture locale.
+Orthévar est une région agricole et forestière réputée pour sa production de céréales, de fruits et de légumes, ainsi que pour son élevage de bétail. Les habitants vivent principalement dans des villages pittoresques où l'architecture en pierre et en bois reflète l'histoire locale.
+
+Traditions et fêtes : festivals des récoltes avec musique folklorique, danse et gastronomie régionale. Les marchés hebdomadaires sont des événements sociaux majeurs où s'échangent produits frais et artisanat.
+
+Langues et culture : Commun : 80%, Autres (elfe, orque) : 20%. Architecture en pierre aux toits de chaume ou tuiles décorées de motifs floraux ; vêtements en lin et laine adaptés au climat tempéré.
+
+Cuisine : plats à base de légumes frais, viandes grillées et fromages artisanaux. Musique folklorique aux mélodies entraînantes et rythmes dansants.

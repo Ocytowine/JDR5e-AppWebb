@@ -1,12 +1,56 @@
 ---
-id: ardherne
 type: region
-traditions : 
-nourriture:
-fetes:
-musique: 
-climat: 
-ordre: 3
-dominante : Humains 50%, Elfes 10%, Nains 30%, Autres 10%
+id: ardherne
+nom: Ardherne
+
+territoire: astryade                      # TODO: confirmer le territoire parent
+type_region: Montagnes forestières
+
+# GEOGRAPHIE / CLIMAT
+climat: "montagneux, forêts denses, rivières froides"
+relief:
+  - crêtes escarpées
+  - vallées boisées
+risques_naturels:
+  - éboulements
+  - avalanches
+
+# POPULATION / HABITANTS
+population_estimee: <à renseigner>
+habitats_principaux:
+  - villages humains et nains
+peuples_present:
+  - Humains 50%
+  - Nains 30%
+  - Elfes 10%
+  - Autres 10%
+
+# ECONOMIE / RESSOURCES
+ressources:
+  - bois
+  - minerai
+  - artisanat (forge, sculpture)
+activites:
+  - forge
+  - sculpture sur bois
+  - artisanat traditionnel
+
+# POLITIQUE / CONTRÔLE
+autorite_locale: <slug_faction_ou_territoire>
+niveau_controle: <faible/moyen/élevé>
+zones_de_loi_faible:
+  - <à préciser>
+
+# LIENS / CONTENU
+villes_principales:
+  - <à préciser>
+lieux_remarquables:
+  - <à préciser>
+factions_actives:
+  - <à préciser>
+
+mots_cles:
+  - montagnes
+  - artisanat
 ---
-Ardherne est une région montagneuse, caractérisée par ses paysages pittoresques, ses forêts denses et ses rivières cristallines. La région est habitée principalement par des communautés humaines et naines, qui vivent en harmonie avec la nature environnante. Les habitants d'Ardherne sont connus pour leurs compétences artisanales, notamment dans la forge et la sculpture sur bois, perpétuant des traditions ancestrales transmises de génération en génération.
+Ardherne est une rǸgion montagneuse, caractǸrisǸe par ses paysages pittoresques, ses forǦts denses et ses rivi��res cristallines. La rǸgion est habitǸe principalement par des communautǸs humaines et naines, qui vivent en harmonie avec la nature environnante. Les habitants d'Ardherne sont connus pour leurs compǸtences artisanales, notamment dans la forge et la sculpture sur bois, perpǸtuant des traditions ancestrales transmises de gǸnǸration en gǸnǸration.
