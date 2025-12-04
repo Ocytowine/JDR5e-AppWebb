@@ -21,14 +21,14 @@ loreForm.addEventListener('submit', async (e) => {
     });
     if (!res.ok) {
       const err = await res.json();
-      alert(err.error || 'Impossible d\'ajouter cette entrée.');
+      alert(err.error || "Impossible d'ajouter cette entree.");
       return;
     }
     loreForm.reset();
     loadLore();
   } catch (err) {
     console.error(err);
-    alert('Erreur réseau lors de l\'ajout.');
+    alert("Erreur reseau lors de l'ajout.");
   }
 });
 
@@ -48,14 +48,14 @@ chatForm.addEventListener('submit', async (e) => {
     });
     const payload = await res.json();
     if (!res.ok) {
-      alert(payload.error || 'Erreur côté serveur.');
+      alert(payload.error || 'Erreur cote serveur.');
       return;
     }
     conversationId = payload.conversationId;
     appendBubble('narrator', payload.response);
   } catch (err) {
     console.error(err);
-    appendBubble('narrator', 'Erreur réseau: je suis momentanément muet.');
+    appendBubble('narrator', 'Erreur reseau: je suis momentanement muet.');
   }
 });
 
@@ -71,16 +71,20 @@ async function loadLore() {
     const data = await res.json();
     if (!Array.isArray(data)) throw new Error('format inattendu');
     if (data.length === 0) {
-      loreListEl.innerHTML = '<li class="meta">Aucune entrée (les seeds se créent au premier lancement).</li>';
+      loreListEl.innerHTML = '<li class="meta">Aucune entree (les seeds se creent au premier lancement).</li>';
       return;
     }
-    loreListEl.innerHTML = data.map(item => `
+    loreListEl.innerHTML = data
+      .map(
+        (item) => `
       <li>
         <p class="title">${item.title}</p>
-        <p class="meta">Tags: ${item.tags || '—'} · ${new Date(item.created_at).toLocaleString('fr-FR')}</p>
+        <p class="meta">Tags: ${item.tags || '-'} - ${new Date(item.created_at).toLocaleString('fr-FR')}</p>
         <p>${item.summary}</p>
       </li>
-    `).join('');
+    `
+      )
+      .join('');
   } catch (err) {
     console.error(err);
     loreListEl.innerHTML = '<li class="meta" style="color: var(--danger);">Impossible de charger la base.</li>';

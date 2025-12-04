@@ -1,0 +1,78 @@
+---
+type: meta
+id: <slug_meta>                      # ex: cosmologie_dunia
+nom: <Titre lisible>                 # ex: Cosmologie de Dunia
+portee: <global/continent/royaume>   # à quel niveau cette méta s'applique
+resume: <1-3 phrases>                # synthèse courte pour l'IA
+
+axes_fondamentaux:
+  - theme: cosmologie_et_creation    # origine du monde, divinités, plans
+    points:
+      - <ex: le Créateur a fragmenté sa source en huit cercles>
+      - <ex: existence de plans adjacents instables>
+  - theme: magie_et_flux             # sources de magie, coûts, risques
+    points:
+      - <ex: magie liée aux marées lunaires>
+      - <ex: corruption si usage excessif>
+  - theme: technologie_et_societe    # niveau tech, artisanat, infrastructure
+    points:
+      - <ex: niveau médiéval tardif, arquebuses rares>
+      - <ex: routes sous contrôle des guildes>
+  - theme: lois_et_interdits         # tabous, lois sacrées, sanctions
+    points:
+      - <ex: interdiction des nécromancies publiques>
+      - <ex: sanctuaires inviolables>
+  - theme: menaces_globales          # fléaux, forces cosmiques, crises
+    points:
+      - <ex: brèches vers les plans inférieurs>
+      - <ex: peste rouge des mines>
+
+structures_clefs:
+  pantheon:                          # divinités ou entités majeures
+    - nom: <divinite_ou_entite>
+      domaine: <domaine>
+      posture: <bienveillant/neutre/hostile>
+      relations: <alliances/rivalites>
+  cercles_ou_piliers:                # organes d'ordre (ex: cercles, piliers)
+    - nom: <cercle_1>
+      role: <gouvernance/armées/savoirs...>
+      influence: <0-100>
+  factions_globales:                 # grandes forces trans-régions
+    - nom: <faction>
+      type: <ordre/guilde/empire/reseau>
+      objectifs: <phrases courtes>
+      presence: <zones ou plans>
+  peuples_et_origines:               # grands peuples ou espèces
+    - nom: <peuple>
+      traits: <3-5 mots>
+      zones: <principales régions>
+
+regles_narratives:
+  ton: <sombre/epique/merveilleux/politique>
+  violence: <suggeree/moderee/graphiques>
+  niveau_magie: <bas/moyen/haut>
+  consequences: <rapides/progressives/lentes>
+  tabous_narratifs:
+    - <themes à éviter ou à traiter hors-écran>
+  signaux_esthetiques:
+    - <mots-clés pour l'ambiance sonore/visuelle>
+
+lexique_termes:
+  - terme: <mot_ou_expression>
+    definition: <brève définition>
+    variations: [<synonyme_1>, <synonyme_2>]
+
+ancrages_historiques:
+  periodes:
+    - nom: <ere_ou_cycle>
+      evenements_majeurs:
+        - <événement + impact>
+      legats: <héritage sur le présent>
+  chronologie_simplifiee:
+    - <date courte> : <fait notable>
+
+mots_cles:
+  - <mot_1>
+  - <mot_2>
+---
+<Texte libre décrivant le fonctionnement du monde, comment ces règles s'appliquent en jeu, exemples d'utilisation par le narrateur, et ce que les PJ peuvent ressentir en interaction avec ces éléments.>

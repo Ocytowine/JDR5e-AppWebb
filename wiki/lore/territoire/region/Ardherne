@@ -3,7 +3,7 @@ type: region
 id: ardherne
 nom: Ardherne
 
-territoire: astryade                      # TODO: confirmer le territoire parent
+territoire: astryade
 type_region: Montagnes forestières
 
 # GEOGRAPHIE / CLIMAT

@@ -3,7 +3,7 @@ type: region
 id: orthevar
 nom: Orthévar
 
-territoire: astryade                      # TODO: confirmer le territoire parent
+territoire: astryade
 type_region: Plaines agricoles et forêts
 
 # GEOGRAPHIE / CLIMAT

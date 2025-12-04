@@ -3,7 +3,7 @@ type: region
 id: ylssea
 nom: Ylsséa
 
-territoire: astryade                      # TODO: confirmer le territoire parent
+territoire: astryade
 type_region: Côte maritime
 
 # GEOGRAPHIE / CLIMAT
