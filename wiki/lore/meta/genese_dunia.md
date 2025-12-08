@@ -79,10 +79,15 @@ ancrages_historiques:
     - Cycle 2 : Les mortels evoluent et se divisent.
 mots_cles:
   - creation
-  - source
+  - source_divine
   - defiant
   - cosmos
   - corruption
+  - kharon
+  - createur
+  - duniens
+  - fragment_de_source
+  - defis_divins
 ---
 Texte libre :
 Kharon travaille comme un sculpteur cosmique, liant roches et mers avant de depenser un fragment de son essence. La vie s'epanouit mais porte deja le germe du chaos et de l oubli, rappelant que chaque acte divin a un prix. Le narrateur peut evoquer la lumiere fractale de la source de Kharon, la peur silencieuse des autres Divins, et les premiers conflits qui marquent les Duniens emergents.

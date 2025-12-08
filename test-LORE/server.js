@@ -11,6 +11,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const DB_PATH = path.join(__dirname, 'data', 'lore.db');
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+const tokenTotals = { prompt: 0, completion: 0, total: 0 };
 
 const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
 
@@ -106,6 +107,7 @@ app.post('/api/message', async (req, res) => {
     .join('\n\n');
 
   let narratorReply = null;
+  let lastUsage = null;
   if (openai) {
     try {
       const history = loadHistory(convId);
@@ -116,6 +118,16 @@ app.post('/api/message', async (req, res) => {
         messages: buildChatMessages(content, loreContext, history)
       });
       narratorReply = completion.choices?.[0]?.message?.content?.trim();
+      if (completion.usage) {
+        lastUsage = {
+          prompt: completion.usage.prompt_tokens || 0,
+          completion: completion.usage.completion_tokens || 0,
+          total: completion.usage.total_tokens || 0
+        };
+        tokenTotals.prompt += lastUsage.prompt;
+        tokenTotals.completion += lastUsage.completion;
+        tokenTotals.total += lastUsage.total;
+      }
     } catch (err) {
       console.error('OpenAI error', err);
       narratorReply = null;
@@ -132,7 +144,11 @@ app.post('/api/message', async (req, res) => {
   res.json({
     conversationId: convId,
     response: responseText,
-    loreUsed: matches
+    loreUsed: matches,
+    tokenUsage: {
+      last: lastUsage,
+      total: tokenTotals
+    }
   });
 });
 

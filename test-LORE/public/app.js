@@ -53,6 +53,7 @@ chatForm.addEventListener('submit', async (e) => {
     }
     conversationId = payload.conversationId;
     appendBubble('narrator', payload.response);
+    updateTokenUsage(payload.tokenUsage);
   } catch (err) {
     console.error(err);
     appendBubble('narrator', 'Erreur reseau: je suis momentanement muet.');
@@ -75,16 +76,24 @@ async function loadLore() {
       return;
     }
     loreListEl.innerHTML = data
-      .map(
-        (item) => `
-      <li>
-        <p class="title">${item.title}</p>
-        <p class="meta">Tags: ${item.tags || '-'} - ${new Date(item.created_at).toLocaleString('fr-FR')}</p>
-        <p>${item.summary}</p>
-      </li>
-    `
-      )
+      .map((item) => {
+        const date = new Date(item.created_at).toLocaleString('fr-FR');
+        return `
+        <li class="lore-card" data-id="${item.id}">
+          <button class="lore-toggle" type="button">
+            <div class="lore-head">
+              <p class="title">${item.title}</p>
+              <p class="meta">Tags: ${item.tags || '-'} · ${date}</p>
+            </div>
+            <span class="chevron">▼</span>
+          </button>
+          <div class="lore-content" hidden>
+            <p>${item.summary || ''}</p>
+          </div>
+        </li>`;
+      })
       .join('');
+    bindLoreToggles();
   } catch (err) {
     console.error(err);
     loreListEl.innerHTML = '<li class="meta" style="color: var(--danger);">Impossible de charger la base.</li>';
@@ -97,4 +106,34 @@ function appendBubble(role, text) {
   div.textContent = text;
   chatLog.appendChild(div);
   chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+function bindLoreToggles() {
+  const toggles = loreListEl.querySelectorAll('.lore-toggle');
+  toggles.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const card = btn.closest('.lore-card');
+      const content = card?.querySelector('.lore-content');
+      const chevron = btn.querySelector('.chevron');
+      if (!content) return;
+      const isOpen = !content.hidden;
+      content.hidden = isOpen;
+      card?.classList.toggle('open', !isOpen);
+      if (chevron) chevron.textContent = isOpen ? '▼' : '▲';
+    });
+  });
+}
+
+function updateTokenUsage(tokenUsage) {
+  const lastEl = document.getElementById('token-last');
+  const totalEl = document.getElementById('token-total');
+  if (!lastEl || !totalEl || !tokenUsage) return;
+  const last = tokenUsage.last;
+  const total = tokenUsage.total;
+  lastEl.textContent = last
+    ? `in ${last.prompt || 0} · out ${last.completion || 0} · total ${last.total || 0}`
+    : '-';
+  totalEl.textContent = total
+    ? `in ${total.prompt || 0} · out ${total.completion || 0} · total ${total.total || 0}`
+    : '-';
 }

@@ -146,6 +146,51 @@ button.ghost {
   color: var(--muted);
   margin: 0 0 6px;
 }
+.lore-card {
+  padding: 0;
+  overflow: hidden;
+  transition: border-color 0.2s ease;
+}
+
+.lore-card.open {
+  border-color: var(--accent);
+}
+
+.lore-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  padding: 10px;
+  cursor: pointer;
+}
+
+.lore-toggle:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.lore-toggle:focus {
+  outline: none;
+}
+
+.lore-head {
+  text-align: left;
+}
+
+.chevron {
+  font-size: 14px;
+  color: var(--muted);
+  margin-left: 8px;
+}
+
+.lore-content {
+  padding: 0 10px 10px;
+  color: var(--text);
+  border-top: 1px solid var(--border);
+}
 
 .chat-log {
   background: var(--card);
@@ -158,6 +203,23 @@ button.ghost {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.token-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+
+.token-stats .meta {
+  margin: 0;
+}
+
+.token-val {
+  margin: 2px 0 0;
+  font-weight: 600;
+  color: var(--accent);
 }
 
 .bubble {

@@ -96,8 +96,20 @@ function toTags(meta) {
   add(meta.villes_principales);
   add(meta.batiments_importants);
   add(meta.axes_fondamentaux);
+  add(extractLexique(meta.lexique_termes));
 
   return Array.from(tags).filter(Boolean).join(',');
+}
+
+function extractLexique(lexique) {
+  if (!lexique || !Array.isArray(lexique)) return [];
+  const terms = [];
+  lexique.forEach((item) => {
+    if (!item) return;
+    if (item.terme) terms.push(item.terme);
+    if (Array.isArray(item.variations)) terms.push(...item.variations);
+  });
+  return terms;
 }
 
 function buildSummary(meta, content) {

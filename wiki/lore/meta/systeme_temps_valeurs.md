@@ -60,6 +60,29 @@ mots_cles:
   - saisons
   - monnaies
   - mesures
+  - saison
+  - hiver
+  - printemps
+  - ete
+  - automne
+  - mois
+  - naven
+  - narima
+  - nara
+  - odekun
+  - odorun
+  - odrika
+  - sumen
+  - simari
+  - sive
+  - fanika
+  - funara
+  - feras
+  - pc
+  - pa
+  - po
+  - pp
+  - pieces
 ---
 Texte libre :
 Dates courantes : "le 17 de Nara, annee 427". Les saisons portent les noms collectifs des trois mois correspondants. Sur les marches, on paie en pieces : une ration simple vaut quelques PC, un artisan demande des PA, une arme de qualite peut monter a plusieurs PO. Les journaux de bord et contrats utilisent la notation standard pour eviter les litiges.

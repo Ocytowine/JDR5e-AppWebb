@@ -103,6 +103,22 @@ mots_cles:
   - visions
   - serments
   - epreuves
+  - deesses
+  - pantheon
+  - douze
+  - justice
+  - compassion
+  - courage
+  - sagesse
+  - endurance
+  - loyautes
+  - destinee
+  - art
+  - memoires
+  - vie
+  - ruse
+  - mort_douce
+  - tempete
 ---
 Texte libre :
 Le pantheon agit comme une constellation de voix et d images. Naven juge les injustices flagrantes par des sphinx de pierre; Narima apaise les cauchemars; Nara souffle dans la nuque des combattants despoir discret; Odekun distille une intuition rare; Odorun tient bon dans les sieges. Les autres deesses se manifestent en art, en recoltes, en tempetes ou en rites funebres. Le narrateur peut colorer ses descriptions selon la vertu en jeu, sans jamais transformer ces presences en deus ex machina.
