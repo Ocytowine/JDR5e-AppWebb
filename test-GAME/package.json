@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev": "vite",
+    "dev": "node server.js",
     "build": "vite build",
     "preview": "vite preview"
   },
@@ -20,4 +20,3 @@
     "vite": "^6.0.0"
   }
 }
-
