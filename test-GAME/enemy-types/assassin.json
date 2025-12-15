@@ -1,0 +1,11 @@
+{
+  "id": "assassin",
+  "label": "Assassin",
+  "description": "Frappeur rapide qui cherche a se rapprocher pour porter un coup decisif.",
+  "aiRole": "assassin",
+  "baseStats": {
+    "hp": 6,
+    "moveRange": 3,
+    "attackDamage": 3
+  }
+}

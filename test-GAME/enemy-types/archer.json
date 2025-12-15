@@ -1,0 +1,11 @@
+{
+  "id": "archer",
+  "label": "Archer",
+  "description": "Tireur qui prefere garder une distance de securite avant de frapper.",
+  "aiRole": "archer",
+  "baseStats": {
+    "hp": 7,
+    "moveRange": 2,
+    "attackDamage": 2
+  }
+}

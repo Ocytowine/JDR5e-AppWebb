@@ -4,6 +4,10 @@ import { sampleCharacter } from "./sampleCharacter";
 import type { TokenState } from "./types";
 import gentilSvg from "../model/gentil.svg";
 import mechantSvg from "../model/mechant.svg";
+import enemyTypesIndex from "../enemy-types/index.json";
+import bruteType from "../enemy-types/brute.json";
+import archerType from "../enemy-types/archer.json";
+import assassinType from "../enemy-types/assassin.json";
 import actionsIndex from "../action-game/actions/index.json";
 import meleeStrike from "../action-game/actions/melee-strike.json";
 import dashAction from "../action-game/actions/dash.json";
@@ -56,6 +60,10 @@ interface EnemySummary {
   y: number;
   hp: number;
   maxHp: number;
+  type?: string;
+  aiRole?: string | null;
+  moveRange?: number | null;
+  attackDamage?: number | null;
 }
 
 interface PlayerSummary {
@@ -148,6 +156,18 @@ interface AiHints {
   failureLog?: string;
 }
 
+interface EnemyTypeDefinition {
+  id: string;
+  label: string;
+  description: string;
+  aiRole: string;
+  baseStats: {
+    hp: number;
+    moveRange: number;
+    attackDamage: number;
+  };
+}
+
 interface ActionDefinition {
   id: string;
   name: string;
@@ -187,20 +207,53 @@ const ACTION_MODULES: Record<string, ActionDefinition> = {
   "./throw-dagger.json": throwDagger as ActionDefinition
 };
 
+const ENEMY_TYPE_MODULES: Record<string, EnemyTypeDefinition> = {
+  "./brute.json": bruteType as EnemyTypeDefinition,
+  "./archer.json": archerType as EnemyTypeDefinition,
+  "./assassin.json": assassinType as EnemyTypeDefinition
+};
+
 // -------------------------------------------------------------
 // Helpers
 // -------------------------------------------------------------
 
-function createEnemy(id: number): TokenState {
+function loadEnemyTypesFromIndex(): EnemyTypeDefinition[] {
+  const indexed = Array.isArray((enemyTypesIndex as any).types)
+    ? ((enemyTypesIndex as any).types as string[])
+    : [];
+
+  const loaded: EnemyTypeDefinition[] = [];
+  for (const path of indexed) {
+    const mod = ENEMY_TYPE_MODULES[path];
+    if (mod) {
+      loaded.push(mod);
+    } else {
+      console.warn("[enemy-types] Type path missing in bundle:", path);
+    }
+  }
+
+  if (loaded.length === 0) {
+    console.warn("[enemy-types] No enemy types loaded from index.json");
+  }
+
+  return loaded;
+}
+
+function createEnemy(id: number, enemyType: EnemyTypeDefinition): TokenState {
   const x = GRID_COLS - 1;
   const y = id;
   return {
     id: `enemy-${id}`,
     type: "enemy",
+    enemyTypeId: enemyType.id,
+    enemyTypeLabel: enemyType.label,
+    aiRole: enemyType.aiRole,
+    moveRange: enemyType.baseStats.moveRange,
+    attackDamage: enemyType.baseStats.attackDamage,
     x,
     y,
-    hp: 6,
-    maxHp: 6
+    hp: enemyType.baseStats.hp,
+    maxHp: enemyType.baseStats.hp
   };
 }
 
@@ -211,6 +264,25 @@ function clamp(value: number, min: number, max: number): number {
 function manhattan(a: { x: number; y: number }, b: { x: number; y: number }) {
   return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 }
+
+const ENEMY_CAPABILITIES: { action: EnemyActionType; label: string; color: string }[] = [
+  {
+    action: "move",
+    label: "Se deplacer jusqu'a 3 cases (Manhattan)",
+    color: "#2ecc71"
+  },
+  {
+    action: "attack",
+    label: "Attaque le joueur a distance 1 (2 degats)",
+    color: "#e74c3c"
+  },
+  {
+    action: "wait",
+    label: "Attend si aucune action viable",
+    color: "#7f8c8d"
+  }
+];
+
 
 // -------------------------------------------------------------
 // Main component
@@ -233,11 +305,8 @@ export const GameBoard: React.FC = () => {
     maxHp: sampleCharacter.pvMax
   });
 
-  const [enemies, setEnemies] = useState<TokenState[]>([
-    createEnemy(1),
-    createEnemy(3),
-    createEnemy(5)
-  ]);
+  const [enemyTypes, setEnemyTypes] = useState<EnemyTypeDefinition[]>([]);
+  const [enemies, setEnemies] = useState<TokenState[]>([]);
 
   const [phase, setPhase] = useState<TurnPhase>("player");
   const [round, setRound] = useState<number>(1);
@@ -269,6 +338,28 @@ export const GameBoard: React.FC = () => {
   const [aiLastError, setAiLastError] = useState<string | null>(null);
   const [aiUsedFallback, setAiUsedFallback] = useState<boolean>(false);
 
+  function describeEnemyLastDecision(enemyId: string): string {
+    if (aiUsedFallback) {
+      return "Fallback local : poursuite/attaque basique du joueur";
+    }
+    if (aiLastDecisions === null) {
+      return "IA non appelée pour l'instant";
+    }
+    const decision = aiLastDecisions.find(d => d.enemyId === enemyId);
+    if (!decision) {
+      return "Aucune décision reçue pour cet ennemi";
+    }
+    if (decision.action === "move") {
+      const tx = typeof decision.targetX === "number" ? decision.targetX : "?";
+      const ty = typeof decision.targetY === "number" ? decision.targetY : "?";
+      return `Déplacement vers (${tx}, ${ty})`;
+    }
+    if (decision.action === "attack") {
+      return "Attaque le joueur (distance 1)";
+    }
+    return "Attend ce tour";
+  }
+
   function pushLog(message: string) {
     setLog(prev => [message, ...prev].slice(0, 12));
   }
@@ -277,6 +368,19 @@ export const GameBoard: React.FC = () => {
     setDiceLogs(prev => [message, ...prev].slice(0, 6));
     pushLog(message);
   }
+
+  // -----------------------------------------------------------
+  // Load enemy types and instantiate initial enemies
+  // -----------------------------------------------------------
+
+  useEffect(() => {
+    const loadedTypes = loadEnemyTypesFromIndex();
+    setEnemyTypes(loadedTypes);
+    if (loadedTypes.length > 0) {
+      const pick = (index: number) => loadedTypes[index % loadedTypes.length];
+      setEnemies([createEnemy(1, pick(0)), createEnemy(3, pick(1)), createEnemy(5, pick(2))]);
+    }
+  }, []);
 
   // -----------------------------------------------------------
   // Load player actions from JSON modules
@@ -667,7 +771,11 @@ export const GameBoard: React.FC = () => {
       x: e.x,
       y: e.y,
       hp: e.hp,
-      maxHp: e.maxHp
+      maxHp: e.maxHp,
+      type: e.enemyTypeId,
+      aiRole: e.aiRole ?? null,
+      moveRange: e.moveRange ?? null,
+      attackDamage: e.attackDamage ?? null
     }));
 
     return {
@@ -679,9 +787,36 @@ export const GameBoard: React.FC = () => {
     };
   }
 
+  function sanitizeEnemyDecisions(decisions: EnemyDecision[]): EnemyDecision[] {
+    const enemyIds = new Set(enemies.map(e => e.id));
+    const validActions = new Set<EnemyActionType>(["move", "attack", "wait"]);
+    const sanitized: EnemyDecision[] = [];
+    for (const d of decisions) {
+      if (!d || typeof d !== "object") continue;
+      if (!enemyIds.has(d.enemyId)) {
+        console.warn("[enemy-ai] Decision ignoree (enemyId inconnu):", d);
+        continue;
+      }
+      const action = (d.action || "wait").toLowerCase() as EnemyActionType;
+      if (!validActions.has(action)) {
+        console.warn("[enemy-ai] Decision ignoree (action invalide):", d);
+        continue;
+      }
+      if (action === "move") {
+        if (typeof d.targetX !== "number" || typeof d.targetY !== "number") {
+          console.warn("[enemy-ai] Decision move ignoree (cible manquante):", d);
+          continue;
+        }
+      }
+      sanitized.push({ ...d, action });
+    }
+    return sanitized;
+  }
+
   async function requestEnemyAi(
     state: EnemyAiStateSummary
   ): Promise<EnemyDecision[]> {
+    console.log("[enemy-ai] Envoi état au backend:", state);
     setAiLastState(state);
     setAiLastError(null);
     setAiUsedFallback(false);
@@ -704,8 +839,13 @@ export const GameBoard: React.FC = () => {
         throw new Error("Réponse backend invalide (decisions manquant).");
       }
 
-      setAiLastDecisions(data.decisions);
-      return data.decisions;
+      const sanitized = sanitizeEnemyDecisions(data.decisions);
+      console.log("[enemy-ai] Décisions reçues (filtrées):", sanitized);
+      setAiLastDecisions(sanitized);
+      if (sanitized.length === 0) {
+        setAiUsedFallback(true);
+      }
+      return sanitized;
     } catch (error) {
       console.warn("[enemy-ai] Erreur lors de la requete IA:", error);
       setAiLastError(
@@ -713,6 +853,7 @@ export const GameBoard: React.FC = () => {
       );
       setAiLastDecisions(null);
       setAiUsedFallback(true);
+      console.warn("[enemy-ai] Décisions manquantes, utilisation du fallback local.");
       return [];
     }
   }
@@ -758,6 +899,12 @@ export const GameBoard: React.FC = () => {
         if (!enemy) continue;
 
         const action = (rawDecision.action || "wait").toLowerCase() as EnemyActionType;
+        console.log("[enemy-ai] Application action", {
+          enemyId: enemy.id,
+          action,
+          targetX: rawDecision.targetX,
+          targetY: rawDecision.targetY
+        });
 
         if (action === "wait") {
           pushLog(`${enemy.id} attend.`);
@@ -814,7 +961,7 @@ export const GameBoard: React.FC = () => {
         if (action === "attack") {
           const distToPlayer = manhattan(enemy, playerCopy);
           if (distToPlayer <= 1) {
-            const damage = 2;
+            const damage = typeof enemy.attackDamage === "number" ? enemy.attackDamage : 2;
             playerCopy = {
               ...playerCopy,
               hp: Math.max(0, playerCopy.hp - damage)
@@ -1360,6 +1507,100 @@ export const GameBoard: React.FC = () => {
                   })`}
             </div>
             {aiLastError && <div>Erreur : {aiLastError}</div>}
+          </div>
+        </section>
+
+        <section
+          style={{
+            padding: "8px 12px",
+            background: "#151524",
+            borderRadius: 8,
+            border: "1px solid #333",
+            display: "flex",
+            flexDirection: "column",
+            gap: 8
+          }}
+        >
+          <h2 style={{ margin: "0 0 4px" }}>Ennemis</h2>
+          <p style={{ margin: 0, fontSize: 12, opacity: 0.85 }}>
+            Chaque ennemi est une entité propre. Capacités IA : déplacement, attaque
+            au contact, attente si aucune option.
+          </p>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+              maxHeight: "180px",
+              overflowY: "auto",
+              paddingRight: 4
+            }}
+          >
+            {enemies.map(enemy => (
+              <div
+                key={enemy.id}
+                style={{
+                  background: "#0f0f19",
+                  border: "1px solid #2a2a3a",
+                  borderRadius: 8,
+                  padding: "8px 10px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 6
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 8
+                  }}
+                >
+                  <strong style={{ color: "#f5f5f5" }}>{enemy.id}</strong>
+                  <span style={{ fontSize: 12, color: "#b0b8c4" }}>
+                    PV {enemy.hp} / {enemy.maxHp}
+                  </span>
+                </div>
+                <div style={{ fontSize: 12, color: "#b0b8c4" }}>
+                  Position : ({enemy.x}, {enemy.y})
+                </div>
+                <div style={{ fontSize: 12, color: "#b0b8c4" }}>
+                  Type : {enemy.enemyTypeLabel || enemy.enemyTypeId || "inconnu"}{" "}
+                  {enemy.aiRole ? `(role: ${enemy.aiRole})` : ""}
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 6
+                  }}
+                >
+                  {ENEMY_CAPABILITIES.map(cap => (
+                    <span
+                      key={`${enemy.id}-${cap.action}`}
+                      style={{
+                        background: cap.color,
+                        color: "#0b0b12",
+                        borderRadius: 4,
+                        padding: "2px 6px",
+                        fontSize: 11,
+                        fontWeight: 700
+                      }}
+                    >
+                      {cap.action.toUpperCase()}
+                    </span>
+                  ))}
+                </div>
+                <div style={{ fontSize: 12, color: "#d0d6e0" }}>
+                  Ce qu'il peut faire :{" "}
+                  {ENEMY_CAPABILITIES.map(cap => cap.label).join(" | ")}
+                </div>
+                <div style={{ fontSize: 12, color: "#9cb2ff" }}>
+                  Dernière décision IA : {describeEnemyLastDecision(enemy.id)}
+                </div>
+              </div>
+            ))}
           </div>
         </section>
 

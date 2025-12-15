@@ -62,6 +62,8 @@ if (!OPENAI_API_KEY) {
     "[enemy-ai] Aucun OPENAI_API_KEY trouvé. " +
       "Le serveur répondra mais sans appeler l'API OpenAI (fallback local)."
   );
+} else {
+  console.log("[enemy-ai] Clé OpenAI détectée, appels IA activés.");
 }
 
 // ----------------------------------------------------
@@ -114,14 +116,18 @@ async function callOpenAiForEnemyDecisions(stateSummary) {
   const model = process.env.ENEMY_AI_MODEL || "gpt-4.1-mini";
 
   const systemPrompt =
-    "Tu es le contrôleur tactique des ennemis dans un jeu de combat au tour par tour sur grille. " +
-    "On te fournit l'état du plateau (joueur, ennemis, dimensions). " +
+    "Tu es le controleur tactique des ennemis dans un jeu de combat au tour par tour sur grille. " +
+    "On te fournit l'etat du plateau (joueur, ennemis, dimensions, types d'ennemis). " +
     "Tu dois proposer UNE action par ennemi (move, attack ou wait) et rien d'autre. " +
     "Respecte strictement les contraintes suivantes : " +
-    "- Ne dépasse jamais les limites de la grille. " +
-    "- Les déplacements ne peuvent pas dépasser 3 cases en manhattan distance. " +
-    "- Une attaque ne peut avoir lieu que si la cible est à distance 1 (manhattan <= 1). " +
-    "Réponds UNIQUEMENT avec un JSON de la forme { \"decisions\": [...] } sans texte supplémentaire.";
+    "- Utilise uniquement les enemyId fournis dans l'etat. " +
+    "- Ne depasse jamais les limites de la grille. " +
+    "- Les deplacements ne peuvent pas depasser 3 cases en distance de Manhattan. " +
+    "- Une attaque ne peut avoir lieu que si la cible est a distance 1 (Manhattan <= 1). " +
+    "- Pour une action move, tu dois fournir targetX et targetY (entiers). " +
+    "- Integre le type d'ennemi (aiRole/type) pour prioriser la cible: brute avance vers le joueur, archer prefere garder la distance, assassin cherche le contact rapide. " +
+    "Repond UNIQUEMENT avec un JSON valide de la forme { \"decisions\": [ { \"enemyId\": \"...\", \"action\": \"move|attack|wait\", \"targetX\": nombre, \"targetY\": nombre } ] } sans aucun texte autour. " +
+    "Exemple: { \"decisions\": [ { \"enemyId\": \"enemy-1\", \"action\": \"move\", \"targetX\": 3, \"targetY\": 2 } ] }";
 
   const userContent = JSON.stringify(stateSummary);
 
@@ -162,10 +168,44 @@ async function callOpenAiForEnemyDecisions(stateSummary) {
   }
 
   if (!parsed.decisions || !Array.isArray(parsed.decisions)) {
-    throw new Error("Réponse OpenAI invalide: champ decisions manquant.");
+    throw new Error("Reponse OpenAI invalide: champ decisions manquant.");
   }
 
-  return parsed;
+  const enemyIds = new Set(
+    Array.isArray(stateSummary?.enemies)
+      ? stateSummary.enemies.map(e => e.id).filter(Boolean)
+      : []
+  );
+  const validActions = new Set(["move", "attack", "wait"]);
+  const sanitized = parsed.decisions.filter(d => {
+    if (!d || typeof d !== "object") return false;
+    if (!enemyIds.has(d.enemyId)) {
+      console.warn("[enemy-ai] Decision ignoree (enemyId inconnu):", d);
+      return false;
+    }
+    const action = typeof d.action === "string" ? d.action.toLowerCase() : "";
+    if (!validActions.has(action)) {
+      console.warn("[enemy-ai] Decision ignoree (action invalide):", d);
+      return false;
+    }
+    if (action === "move") {
+      if (typeof d.targetX !== "number" || typeof d.targetY !== "number") {
+        console.warn("[enemy-ai] Decision move ignoree (cible manquante):", d);
+        return false;
+      }
+    }
+    return true;
+  });
+
+  const logged = sanitized.map(d => ({
+    enemyId: d.enemyId,
+    action: d.action,
+    targetX: d.targetX,
+    targetY: d.targetY
+  }));
+  console.log("[enemy-ai] Decisions IA retenues:", logged);
+
+  return { decisions: sanitized };
 }
 
 // ----------------------------------------------------
@@ -197,6 +237,10 @@ const server = http.createServer(async (req, res) => {
         console.error("[enemy-ai] Erreur appel OpenAI:", err.message);
         // En cas d'erreur API, on renvoie quand même une forme valide
         result = { decisions: [] };
+      }
+
+      if (!result.decisions || result.decisions.length === 0) {
+        console.warn("[enemy-ai] Aucune décision IA renvoyée (fallback probable).");
       }
 
       sendJson(res, 200, result);
@@ -300,4 +344,3 @@ function sendNotFound(res) {
   });
   res.end("Not found");
 }
-

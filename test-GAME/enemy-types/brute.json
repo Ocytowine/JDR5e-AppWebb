@@ -1,0 +1,11 @@
+{
+  "id": "brute",
+  "label": "Brute",
+  "description": "Frontliner robuste qui avance pour engager le joueur.",
+  "aiRole": "brute",
+  "baseStats": {
+    "hp": 10,
+    "moveRange": 3,
+    "attackDamage": 2
+  }
+}
