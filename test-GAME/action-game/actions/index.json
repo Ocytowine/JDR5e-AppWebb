@@ -1,0 +1,9 @@
+{
+  "model": "../action-model.json",
+  "actions": [
+    "./melee-strike.json",
+    "./dash.json",
+    "./second-wind.json",
+    "./throw-dagger.json"
+  ]
+}
