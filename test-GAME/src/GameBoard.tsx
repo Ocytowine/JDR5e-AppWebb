@@ -1518,6 +1518,7 @@ function handleEndPlayerTurn() {
   // -----------------------------------------------------------
 
   useEffect(() => {
+    if (!isCombatConfigured) return;
     if (!pixiContainerRef.current || appRef.current) return;
 
     const app = new Application();
@@ -1644,8 +1645,7 @@ function handleEndPlayerTurn() {
       tokenLayerRef.current = null;
       pathLayerRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isCombatConfigured]);
 
   // -----------------------------------------------------------
   // Layer 4: redraw tokens when state changes
