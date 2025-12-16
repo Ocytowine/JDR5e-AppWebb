@@ -2,6 +2,7 @@
   "types": [
     "./brute.json",
     "./archer.json",
-    "./assassin.json"
+    "./assassin.json",
+    "./ghost.json"
   ]
 }

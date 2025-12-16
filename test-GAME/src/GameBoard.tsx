@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Application, Container, Graphics, Sprite, Assets } from "pixi.js";
 import { sampleCharacter } from "./sampleCharacter";
-import type { TokenState } from "./types";
+import type { MovementProfile, TokenState } from "./types";
 import gentilSvg from "../model/gentil.svg";
 import mechantSvg from "../model/mechant.svg";
 import enemyTypesIndex from "../enemy-types/index.json";
 import bruteType from "../enemy-types/brute.json";
 import archerType from "../enemy-types/archer.json";
 import assassinType from "../enemy-types/assassin.json";
+import ghostType from "../enemy-types/ghost.json";
 import actionsIndex from "../action-game/actions/index.json";
 import meleeStrike from "../action-game/actions/melee-strike.json";
 import dashAction from "../action-game/actions/dash.json";
@@ -38,6 +39,8 @@ import {
   screenToGrid,
   isCellInsideBoard
 } from "./boardConfig";
+import { computePathTowards } from "./pathfinding";
+import { getTokenAt } from "./gridUtils";
 
 // -------------------------------------------------------------
 // Types for enemy AI and turn system
@@ -46,6 +49,14 @@ import {
 type TurnPhase = "player" | "enemies";
 
 type EnemyActionType = "move" | "attack" | "wait";
+
+type TurnKind = "player" | "enemy";
+
+interface TurnEntry {
+  id: string;
+  kind: TurnKind;
+  initiative: number;
+}
 
 interface EnemyDecision {
   enemyId: string;
@@ -166,6 +177,7 @@ interface EnemyTypeDefinition {
     moveRange: number;
     attackDamage: number;
   };
+  movement?: MovementProfile;
 }
 
 interface ActionDefinition {
@@ -210,7 +222,8 @@ const ACTION_MODULES: Record<string, ActionDefinition> = {
 const ENEMY_TYPE_MODULES: Record<string, EnemyTypeDefinition> = {
   "./brute.json": bruteType as EnemyTypeDefinition,
   "./archer.json": archerType as EnemyTypeDefinition,
-  "./assassin.json": assassinType as EnemyTypeDefinition
+  "./assassin.json": assassinType as EnemyTypeDefinition,
+  "./ghost.json": ghostType as EnemyTypeDefinition
 };
 
 // -------------------------------------------------------------
@@ -250,6 +263,15 @@ function createEnemy(id: number, enemyType: EnemyTypeDefinition): TokenState {
     aiRole: enemyType.aiRole,
     moveRange: enemyType.baseStats.moveRange,
     attackDamage: enemyType.baseStats.attackDamage,
+    movementProfile: enemyType.movement
+      ? (enemyType.movement as MovementProfile)
+      : {
+          type: "ground",
+          speed: enemyType.baseStats.moveRange,
+          canPassThroughWalls: false,
+          canPassThroughEntities: false,
+          canStopOnOccupiedTile: false
+        },
     x,
     y,
     hp: enemyType.baseStats.hp,
@@ -311,6 +333,12 @@ export const GameBoard: React.FC = () => {
   const [phase, setPhase] = useState<TurnPhase>("player");
   const [round, setRound] = useState<number>(1);
   const [isResolvingEnemies, setIsResolvingEnemies] = useState<boolean>(false);
+  const [hasRolledInitiative, setHasRolledInitiative] = useState<boolean>(false);
+  const [playerInitiative, setPlayerInitiative] = useState<number | null>(null);
+  const [turnOrder, setTurnOrder] = useState<TurnEntry[]>([]);
+  const [currentTurnIndex, setCurrentTurnIndex] = useState<number>(0);
+  const [isCombatConfigured, setIsCombatConfigured] = useState<boolean>(false);
+  const [configEnemyCount, setConfigEnemyCount] = useState<number>(3);
 
   // Player actions loaded from JSON
   const [actions, setActions] = useState<ActionDefinition[]>([]);
@@ -326,6 +354,8 @@ export const GameBoard: React.FC = () => {
   const [selectedPath, setSelectedPath] = useState<{ x: number; y: number }[]>(
     []
   );
+  const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
+  const [targetMode, setTargetMode] = useState<"none" | "selecting">("none");
 
   // Area-of-effect specs attached to the player
   const [effectSpecs, setEffectSpecs] = useState<EffectSpec[]>([]);
@@ -360,6 +390,82 @@ export const GameBoard: React.FC = () => {
     return "Attend ce tour";
   }
 
+  function getActiveTurnEntry(): TurnEntry | null {
+    if (!hasRolledInitiative || turnOrder.length === 0) return null;
+    const clampedIndex =
+      currentTurnIndex >= 0 && currentTurnIndex < turnOrder.length
+        ? currentTurnIndex
+        : 0;
+    return turnOrder[clampedIndex] ?? null;
+  }
+
+  function advanceTurn() {
+    if (turnOrder.length === 0) return;
+    setCurrentTurnIndex(prev => {
+      const next = (prev + 1) % turnOrder.length;
+      if (next === 0) {
+        setRound(r => r + 1);
+      }
+      return next;
+    });
+  }
+
+  function rollInitialInitiativeIfNeeded() {
+    if (hasRolledInitiative) return;
+
+    const playerMod = sampleCharacter.caracs.dexterite.modDEX ?? 0;
+    const rollD20 = () => Math.floor(Math.random() * 20) + 1;
+
+    const pjRoll = rollD20();
+    const pjTotal = pjRoll + playerMod;
+
+    const entries: TurnEntry[] = [];
+
+    entries.push({
+      id: player.id,
+      kind: "player",
+      initiative: pjTotal
+    });
+
+    const enemiesWithInit = enemies.map(enemy => {
+      const initRoll = rollD20();
+      const totalInit = initRoll;
+
+      entries.push({
+        id: enemy.id,
+        kind: "enemy",
+        initiative: totalInit
+      });
+
+      return {
+        ...enemy,
+        initiative: totalInit
+      };
+    });
+
+    setPlayerInitiative(pjTotal);
+    setEnemies(enemiesWithInit);
+
+    entries.sort((a, b) => b.initiative - a.initiative);
+
+    setTurnOrder(entries);
+    setCurrentTurnIndex(0);
+    setHasRolledInitiative(true);
+
+    const first = entries[0];
+    if (!first) return;
+
+    if (first.kind === "player") {
+      pushLog(
+        `Initiative: Joueur ${pjTotal} (d20=${pjRoll}, mod=${playerMod}) – le joueur commence.`
+      );
+    } else {
+      pushLog(
+        `Initiative: Joueur ${pjTotal} (d20=${pjRoll}, mod=${playerMod}) – ${first.id} commence (initiative ${first.initiative}).`
+      );
+    }
+  }
+
   function pushLog(message: string) {
     setLog(prev => [message, ...prev].slice(0, 12));
   }
@@ -376,11 +482,14 @@ export const GameBoard: React.FC = () => {
   useEffect(() => {
     const loadedTypes = loadEnemyTypesFromIndex();
     setEnemyTypes(loadedTypes);
-    if (loadedTypes.length > 0) {
-      const pick = (index: number) => loadedTypes[index % loadedTypes.length];
-      setEnemies([createEnemy(1, pick(0)), createEnemy(3, pick(1)), createEnemy(5, pick(2))]);
-    }
   }, []);
+
+  useEffect(() => {
+    if (!isCombatConfigured) return;
+    if (!hasRolledInitiative && enemies.length > 0) {
+      rollInitialInitiativeIfNeeded();
+    }
+  }, [isCombatConfigured, hasRolledInitiative, enemies.length]);
 
   // -----------------------------------------------------------
   // Load player actions from JSON modules
@@ -408,6 +517,34 @@ export const GameBoard: React.FC = () => {
     setActions(loaded);
     setSelectedActionId(loaded.length ? loaded[0].id : null);
   }, []);
+
+  // -----------------------------------------------------------
+  // Tour par tour : entité active (joueur / ennemi)
+  // -----------------------------------------------------------
+
+  useEffect(() => {
+    if (!isCombatConfigured) return;
+    if (!hasRolledInitiative) return;
+
+    const entry = getActiveTurnEntry();
+    if (!entry) return;
+
+    if (entry.kind === "player") {
+      setPhase("player");
+      return;
+    }
+
+    // Tour d'un ennemi
+    if (isResolvingEnemies) return;
+    setPhase("enemies");
+    void runSingleEnemyTurn(entry.id);
+  }, [
+    isCombatConfigured,
+    hasRolledInitiative,
+    turnOrder,
+    currentTurnIndex,
+    isResolvingEnemies
+  ]);
 
   function minDistanceToAnyEnemy(): number | null {
     if (enemies.length === 0) return null;
@@ -579,6 +716,17 @@ export const GameBoard: React.FC = () => {
     setDamageRoll(null);
     const hint = action.aiHints?.successLog || "Action validee. Prets pour les jets.";
     pushLog(`${action.name}: ${hint}`);
+
+    if (action.targeting?.target === "enemy") {
+      setTargetMode("selecting");
+      setSelectedTargetId(null);
+      pushLog(
+        `Selection de cible: cliquez sur un ennemi sur la grille ou dans la liste.`
+      );
+    } else {
+      setTargetMode("none");
+      setSelectedTargetId(null);
+    }
   }
 
   function getValidatedAction(): ActionDefinition | null {
@@ -596,6 +744,21 @@ export const GameBoard: React.FC = () => {
       pushLog("Cette action ne requiert pas de jet de touche.");
       return;
     }
+
+    if (action.targeting?.target === "enemy") {
+      if (!selectedTargetId) {
+        pushLog(
+          "Aucune cible ennemie selectionnee pour cette action. Selectionnez une cible avant le jet."
+        );
+        return;
+      }
+      const target = enemies.find(e => e.id === selectedTargetId);
+      if (!target) {
+        pushLog("Cible ennemie introuvable ou deja vaincue.");
+        return;
+      }
+    }
+
     const result = rollAttack(
       action.attack.bonus,
       advantageMode,
@@ -607,8 +770,14 @@ export const GameBoard: React.FC = () => {
       result.mode === "normal"
         ? `${result.d20.total}`
         : `${result.d20.rolls.join(" / ")} -> ${result.d20.total}`;
+
+    const targetSuffix =
+      action.targeting?.target === "enemy" && selectedTargetId
+        ? ` sur ${selectedTargetId}`
+        : "";
+
     pushDiceLog(
-      `Jet de touche (${action.name}) : ${rollsText} + ${result.bonus} = ${result.total}${
+      `Jet de touche (${action.name})${targetSuffix} : ${rollsText} + ${result.bonus} = ${result.total}${
         result.isCrit ? " (critique!)" : ""
       }`
     );
@@ -624,6 +793,22 @@ export const GameBoard: React.FC = () => {
       pushLog("Cette action ne requiert pas de jet de degats.");
       return;
     }
+
+    let targetIndex: number | null = null;
+    if (action.targeting?.target === "enemy") {
+      if (!selectedTargetId) {
+        pushLog(
+          "Aucune cible ennemie selectionnee pour cette action. Selectionnez une cible avant le jet de degats."
+        );
+        return;
+      }
+      targetIndex = enemies.findIndex(e => e.id === selectedTargetId);
+      if (targetIndex === -1) {
+        pushLog("Cible ennemie introuvable ou deja vaincue.");
+        return;
+      }
+    }
+
     const isCrit = Boolean(attackRoll?.isCrit);
     const result = rollDamage(action.damage.formula, {
       isCrit,
@@ -633,11 +818,32 @@ export const GameBoard: React.FC = () => {
     const diceText = result.dice
       .map(d => d.rolls.join("+"))
       .join(" | ");
+
+    const totalDamage = result.total;
+
+    const targetSuffix =
+      action.targeting?.target === "enemy" && selectedTargetId
+        ? ` sur ${selectedTargetId}`
+        : "";
+
     pushDiceLog(
-      `Degats (${action.name}) : ${diceText || "0"} + ${
+      `Degats (${action.name})${targetSuffix} : ${diceText || "0"} + ${
         result.flatModifier
-      } = ${result.total}${isCrit ? " (critique)" : ""}`
+      } = ${totalDamage}${isCrit ? " (critique)" : ""}`
     );
+
+    if (typeof targetIndex === "number" && targetIndex >= 0) {
+      setEnemies(prev => {
+        if (targetIndex === null || targetIndex < 0 || targetIndex >= prev.length) {
+          return prev;
+        }
+        const copy = [...prev];
+        const target = { ...copy[targetIndex] };
+        target.hp = Math.max(0, target.hp - totalDamage);
+        copy[targetIndex] = target;
+        return copy;
+      });
+    }
   }
 
   function handleAutoResolveRolls() {
@@ -686,6 +892,30 @@ export const GameBoard: React.FC = () => {
 
     if (!isCellInsideBoard(targetX, targetY)) return;
 
+    // Mode selection de cible pour une action ciblant un ennemi
+    if (targetMode === "selecting") {
+      const tokens = [player, ...enemies];
+      const target = getTokenAt({ x: targetX, y: targetY }, tokens);
+      if (!target || target.type !== "enemy") {
+        pushLog(`Pas d'ennemi sur (${targetX}, ${targetY}).`);
+        return;
+      }
+      setSelectedTargetId(target.id);
+      setTargetMode("none");
+      pushLog(`Cible selectionnee: ${target.id}.`);
+      return;
+    }
+
+    const isEnemyAt = (x: number, y: number) =>
+      enemies.some(e => e.hp > 0 && e.x === x && e.y === y);
+
+    if (isEnemyAt(targetX, targetY)) {
+      pushLog(
+        `Case (${targetX}, ${targetY}) occupee par un ennemi : impossible de s'y deplacer.`
+      );
+      return;
+    }
+
     setSelectedPath(prev => {
       const maxSteps = 5;
       const path = [...prev];
@@ -705,12 +935,28 @@ export const GameBoard: React.FC = () => {
       let stepsRemaining = maxSteps - path.length;
 
       while (cx !== targetX && stepsRemaining > 0) {
-        cx += Math.sign(targetX - cx);
+        const stepX = Math.sign(targetX - cx);
+        const nextX = cx + stepX;
+        if (isEnemyAt(nextX, cy)) {
+          pushLog(
+            `Trajectoire bloquee par un ennemi en (${nextX}, ${cy}).`
+          );
+          break;
+        }
+        cx = nextX;
         path.push({ x: cx, y: cy });
         stepsRemaining--;
       }
       while (cy !== targetY && stepsRemaining > 0) {
-        cy += Math.sign(targetY - cy);
+        const stepY = Math.sign(targetY - cy);
+        const nextY = cy + stepY;
+        if (isEnemyAt(cx, nextY)) {
+          pushLog(
+            `Trajectoire bloquee par un ennemi en (${cx}, ${nextY}).`
+          );
+          break;
+        }
+        cy = nextY;
         path.push({ x: cx, y: cy });
         stepsRemaining--;
       }
@@ -863,26 +1109,68 @@ export const GameBoard: React.FC = () => {
       // Fallback simple: une "IA locale" pour que ça bouge quand même
       setAiUsedFallback(true);
       setAiLastDecisions([]);
-      setEnemies(prev => {
-        return prev.map(enemy => {
-          const dx = player.x > enemy.x ? 1 : player.x < enemy.x ? -1 : 0;
-          const dy = player.y > enemy.y ? 1 : player.y < enemy.y ? -1 : 0;
+      setEnemies(prevEnemies => {
+        const enemiesCopy = prevEnemies.map(e => ({ ...e }));
+        let playerCopy = { ...player };
 
-          const newX = clamp(enemy.x + dx, 0, GRID_COLS - 1);
-          const newY = clamp(enemy.y + dy, 0, GRID_ROWS - 1);
+        for (const enemy of enemiesCopy) {
+          const maxRange =
+            typeof enemy.moveRange === "number" ? enemy.moveRange : 3;
 
-          if (newX === player.x && newY === player.y) {
-            setPlayer(prevPlayer => ({
-              ...prevPlayer,
-              hp: Math.max(0, prevPlayer.hp - 2)
-            }));
-            pushLog(`${enemy.id} attaque le joueur pour 2 degats (fallback).`);
-          } else {
-            pushLog(`${enemy.id} avance vers (${newX}, ${newY}).`);
+          const tokensForPath: TokenState[] = [
+            playerCopy as TokenState,
+            ...enemiesCopy
+          ];
+
+          const path = computePathTowards(
+            enemy,
+            { x: playerCopy.x, y: playerCopy.y },
+            tokensForPath,
+            {
+              maxDistance: maxRange,
+              allowTargetOccupied: true
+            }
+          );
+
+          enemy.plannedPath = path;
+
+          if (path.length === 0) {
+            pushLog(
+              `${enemy.id} ne trouve pas de chemin valide vers le joueur (fallback, reste en place).`
+            );
+            continue;
           }
 
-          return { ...enemy, x: newX, y: newY };
-        });
+          const destination = path[path.length - 1];
+
+          enemy.x = destination.x;
+          enemy.y = destination.y;
+
+          const distToPlayer =
+            Math.abs(enemy.x - playerCopy.x) +
+            Math.abs(enemy.y - playerCopy.y);
+
+          if (distToPlayer <= 1) {
+            const damage =
+              typeof enemy.attackDamage === "number"
+                ? enemy.attackDamage
+                : 2;
+            playerCopy = {
+              ...playerCopy,
+              hp: Math.max(0, playerCopy.hp - damage)
+            };
+            pushLog(
+              `${enemy.id} suit un chemin et attaque le joueur pour ${damage} degats (fallback).`
+            );
+          } else {
+            pushLog(
+              `${enemy.id} suit un chemin vers (${destination.x}, ${destination.y}) (fallback).`
+            );
+          }
+        }
+
+        setPlayer(playerCopy);
+        return enemiesCopy;
       });
       return;
     }
@@ -933,28 +1221,42 @@ export const GameBoard: React.FC = () => {
             continue;
           }
 
-          let targetX = clamp(tx, 0, GRID_COLS - 1);
-          let targetY = clamp(ty, 0, GRID_ROWS - 1);
+          const maxRange =
+            typeof enemy.moveRange === "number" ? enemy.moveRange : 3;
 
-          const dist = manhattan(enemy, { x: targetX, y: targetY });
-          if (dist > 3) {
-            const dx = clamp(targetX - enemy.x, -3, 3);
-            const dy = clamp(targetY - enemy.y, -3, 3);
-            targetX = clamp(
-              enemy.x + Math.sign(dx) * Math.min(Math.abs(dx), 3),
-              0,
-              GRID_COLS - 1
+          const targetX = clamp(tx, 0, GRID_COLS - 1);
+          const targetY = clamp(ty, 0, GRID_ROWS - 1);
+
+          const tokensForPath: TokenState[] = [
+            playerCopy as TokenState,
+            ...enemiesCopy
+          ];
+
+          const path = computePathTowards(
+            enemy,
+            { x: targetX, y: targetY },
+            tokensForPath,
+            {
+              maxDistance: maxRange,
+              allowTargetOccupied: true
+            }
+          );
+
+          enemy.plannedPath = path;
+
+          if (path.length === 0) {
+            pushLog(
+              `${enemy.id}: aucun trajet valide vers (${targetX}, ${targetY}), reste en place.`
             );
-            targetY = clamp(
-              enemy.y + Math.sign(dy) * Math.min(Math.abs(dy), 3),
-              0,
-              GRID_ROWS - 1
-            );
+            continue;
           }
 
-          enemy.x = targetX;
-          enemy.y = targetY;
-          pushLog(`${enemy.id} se deplace vers (${targetX}, ${targetY}).`);
+          const destination = path[path.length - 1];
+          enemy.x = destination.x;
+          enemy.y = destination.y;
+          pushLog(
+            `${enemy.id} suit un chemin vers (${destination.x}, ${destination.y}).`
+          );
           continue;
         }
 
@@ -980,27 +1282,192 @@ export const GameBoard: React.FC = () => {
     });
   }
 
-  async function runEnemyTurn() {
-    setIsResolvingEnemies(true);
+  async function runSingleEnemyTurn(activeEnemyId: string) {
+  setIsResolvingEnemies(true);
 
-    setSelectedPath([]);
-    setEffectSpecs([]);
+  setSelectedPath([]);
+  setEffectSpecs([]);
 
-    const summary = buildEnemyAiSummary();
-    const decisions = await requestEnemyAi(summary);
-    applyEnemyDecisions(decisions);
+  const summary = buildEnemyAiSummary();
+  const decisions = await requestEnemyAi(summary);
+  const filtered = decisions.filter(d => d.enemyId === activeEnemyId);
 
-    setIsResolvingEnemies(false);
-    setPhase("player");
-    setRound(prev => prev + 1);
+  if (filtered.length === 0) {
+    // Fallback local pour cet ennemi uniquement
+    setAiUsedFallback(true);
+    setAiLastDecisions([]);
+    setEnemies(prevEnemies => {
+      const enemiesCopy = prevEnemies.map(e => ({ ...e }));
+      let playerCopy = { ...player };
+
+      const enemy = enemiesCopy.find(e => e.id === activeEnemyId);
+      if (!enemy) return prevEnemies;
+
+      const maxRange =
+        typeof enemy.moveRange === "number" ? enemy.moveRange : 3;
+
+      const tokensForPath: TokenState[] = [
+        playerCopy as TokenState,
+        ...enemiesCopy
+      ];
+
+      const path = computePathTowards(
+        enemy,
+        { x: playerCopy.x, y: playerCopy.y },
+        tokensForPath,
+        {
+          maxDistance: maxRange,
+          allowTargetOccupied: true
+        }
+      );
+
+      enemy.plannedPath = path;
+
+      if (path.length === 0) {
+        pushLog(
+          `${enemy.id} ne trouve pas de chemin valide vers le joueur (fallback, reste en place).`
+        );
+      } else {
+        const destination = path[path.length - 1];
+        enemy.x = destination.x;
+        enemy.y = destination.y;
+
+        const distToPlayer =
+          Math.abs(enemy.x - playerCopy.x) +
+          Math.abs(enemy.y - playerCopy.y);
+
+        if (distToPlayer <= 1) {
+          const damage =
+            typeof enemy.attackDamage === "number" ? enemy.attackDamage : 2;
+          playerCopy = {
+            ...playerCopy,
+            hp: Math.max(0, playerCopy.hp - damage)
+          };
+          pushLog(
+            `${enemy.id} suit un chemin et attaque le joueur pour ${damage} degats (fallback).`
+          );
+        } else {
+          pushLog(
+            `${enemy.id} suit un chemin vers (${destination.x}, ${destination.y}) (fallback).`
+          );
+        }
+      }
+
+      setPlayer(playerCopy);
+      return enemiesCopy;
+    });
+  } else {
+    // Application des décisions backend pour cet ennemi uniquement
+    setAiUsedFallback(false);
+    setAiLastDecisions(filtered);
+    setEnemies(prevEnemies => {
+      const enemiesCopy = prevEnemies.map(e => ({ ...e }));
+      let playerCopy = { ...player };
+
+      for (const rawDecision of filtered) {
+        const enemy = enemiesCopy.find(e => e.id === rawDecision.enemyId);
+        if (!enemy) continue;
+
+        const action = (rawDecision.action || "wait").toLowerCase() as EnemyActionType;
+
+        if (action === "wait") {
+          pushLog(`${enemy.id} attend.`);
+          continue;
+        }
+
+        if (action === "move") {
+          let tx: number | undefined = rawDecision.targetX;
+          let ty: number | undefined = rawDecision.targetY;
+          const anyDecision = rawDecision as any;
+          if (
+            (typeof tx !== "number" || typeof ty !== "number") &&
+            anyDecision.target &&
+            typeof anyDecision.target.x === "number" &&
+            typeof anyDecision.target.y === "number"
+          ) {
+            tx = anyDecision.target.x;
+            ty = anyDecision.target.y;
+          }
+
+          if (typeof tx !== "number" || typeof ty !== "number") {
+            pushLog(
+              `${enemy.id}: decision MOVE ignoree (pas de cible valide).`
+            );
+            continue;
+          }
+
+          const maxRange =
+            typeof enemy.moveRange === "number" ? enemy.moveRange : 3;
+
+          const targetX = clamp(tx, 0, GRID_COLS - 1);
+          const targetY = clamp(ty, 0, GRID_ROWS - 1);
+
+          const tokensForPath: TokenState[] = [
+            playerCopy as TokenState,
+            ...enemiesCopy
+          ];
+
+          const path = computePathTowards(
+            enemy,
+            { x: targetX, y: targetY },
+            tokensForPath,
+            {
+              maxDistance: maxRange,
+              allowTargetOccupied: true
+            }
+          );
+
+          enemy.plannedPath = path;
+
+          if (path.length === 0) {
+            pushLog(
+              `${enemy.id}: aucun trajet valide vers (${targetX}, ${targetY}), reste en place.`
+            );
+            continue;
+          }
+
+          const destination = path[path.length - 1];
+          enemy.x = destination.x;
+          enemy.y = destination.y;
+          pushLog(
+            `${enemy.id} suit un chemin vers (${destination.x}, ${destination.y}).`
+          );
+          continue;
+        }
+
+        if (action === "attack") {
+          const distToPlayer = manhattan(enemy, playerCopy);
+          if (distToPlayer <= 1) {
+            const damage =
+              typeof enemy.attackDamage === "number" ? enemy.attackDamage : 2;
+            playerCopy = {
+              ...playerCopy,
+              hp: Math.max(0, playerCopy.hp - damage)
+            };
+            pushLog(`${enemy.id} attaque le joueur pour ${damage} degats.`);
+          } else {
+            pushLog(
+              `${enemy.id} voulait attaquer mais est trop loin (ignore).`
+            );
+          }
+        }
+      }
+
+      setPlayer(playerCopy);
+      return enemiesCopy;
+    });
   }
 
-  function handleEndPlayerTurn() {
-    if (phase !== "player") return;
-    setPhase("enemies");
-    pushLog(`Fin du tour joueur (round ${round}). Tour des ennemis...`);
-    void runEnemyTurn();
-  }
+  setIsResolvingEnemies(false);
+  advanceTurn();
+}
+
+function handleEndPlayerTurn() {
+  const entry = getActiveTurnEntry();
+  if (!entry || entry.kind !== "player") return;
+  pushLog(`Fin du tour joueur (round ${round}).`);
+  advanceTurn();
+}
 
   // -----------------------------------------------------------
   // Demo AoE controls (attach effects to player)
@@ -1286,7 +1753,38 @@ export const GameBoard: React.FC = () => {
       }
     }
 
-    // 2) Highlight last clicked cell with a yellow aura
+    // 2) Highlight occupied cells (player + ennemis)
+    const occupiedTokens: TokenState[] = [player, ...enemies];
+    for (const token of occupiedTokens) {
+      const center = gridToScreen(token.x, token.y);
+      const w = TILE_SIZE;
+      const h = TILE_SIZE * 0.5;
+
+      const points = [
+        center.x,
+        center.y - h / 2,
+        center.x + w / 2,
+        center.y,
+        center.x,
+        center.y + h / 2,
+        center.x - w / 2,
+        center.y
+      ];
+
+      const color =
+        token.type === "player"
+          ? 0x2ecc71
+          : 0xe74c3c;
+
+      pathLayer
+        .poly(points)
+        .fill({
+          color,
+          alpha: 0.2
+        });
+    }
+
+    // 3) Highlight last clicked cell with a yellow aura
     if (selectedPath.length > 0) {
       const last = selectedPath[selectedPath.length - 1];
       const center = gridToScreen(last.x, last.y);
@@ -1312,7 +1810,29 @@ export const GameBoard: React.FC = () => {
         });
     }
 
-    // 3) Draw path polyline
+    // 4) Draw enemy planned paths
+    for (const enemy of enemies) {
+      if (!enemy.plannedPath || enemy.plannedPath.length === 0) continue;
+
+      const pathNodes = enemy.plannedPath;
+      const first = pathNodes[0];
+      const start = gridToScreen(first.x, first.y);
+
+      pathLayer.setStrokeStyle({
+        width: 3,
+        color: 0xe74c3c,
+        alpha: 0.9
+      });
+
+      pathLayer.moveTo(start.x, start.y);
+      for (const node of pathNodes.slice(1)) {
+        const p = gridToScreen(node.x, node.y);
+        pathLayer.lineTo(p.x, p.y);
+      }
+      pathLayer.stroke();
+    }
+
+    // 5) Draw player path polyline
     if (selectedPath.length === 0) return;
 
     pathLayer.setStrokeStyle({
@@ -1330,7 +1850,7 @@ export const GameBoard: React.FC = () => {
     }
 
     pathLayer.stroke();
-  }, [player, selectedPath, effectSpecs]);
+  }, [player, enemies, selectedPath, effectSpecs]);
 
   // -----------------------------------------------------------
   // Render
@@ -1344,6 +1864,114 @@ export const GameBoard: React.FC = () => {
   const validatedAction = getValidatedAction();
 
   const isPlayerTurn = phase === "player";
+  const activeEntry = getActiveTurnEntry();
+  const timelineEntries = turnOrder;
+
+  if (!isCombatConfigured) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100vh",
+          background: "#0b0b12",
+          color: "#f5f5f5",
+          fontFamily: "system-ui, sans-serif",
+          padding: 16,
+          boxSizing: "border-box"
+        }}
+      >
+        <h1 style={{ marginBottom: 8 }}>Préparation du combat</h1>
+        <p style={{ marginBottom: 16, fontSize: 13, maxWidth: 480, textAlign: "center" }}>
+          Configurez le combat avant de lancer la grille : nombre d&apos;ennemis,
+          puis démarrez pour effectuer les jets d&apos;initiative et entrer en
+          mode tour par tour.
+        </p>
+        <div
+          style={{
+            padding: 16,
+            borderRadius: 8,
+            background: "#141421",
+            border: "1px solid #333",
+            minWidth: 260,
+            display: "flex",
+            flexDirection: "column",
+            gap: 12
+          }}
+        >
+          <label style={{ fontSize: 13 }}>
+            Nombre d&apos;ennemis :
+            <input
+              type="number"
+              min={1}
+              max={8}
+              value={configEnemyCount}
+              onChange={e =>
+                setConfigEnemyCount(
+                  Math.max(1, Math.min(8, Number(e.target.value) || 1))
+                )
+              }
+              style={{
+                marginLeft: 8,
+                width: 60,
+                background: "#0f0f19",
+                color: "#f5f5f5",
+                border: "1px solid #333",
+                borderRadius: 4,
+                padding: "2px 4px"
+              }}
+            />
+          </label>
+          <p style={{ fontSize: 11, color: "#b0b8c4", margin: 0 }}>
+            Taille de la carte : actuellement fixe ({GRID_COLS} x {GRID_ROWS}).
+            Un redimensionnement dynamique demandera une refonte de boardConfig.ts.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              if (enemyTypes.length === 0) {
+                pushLog(
+                  "Aucun type d'ennemi charge (enemyTypes). Impossible de generer le combat."
+                );
+                return;
+              }
+              const newEnemies: TokenState[] = [];
+              const pick = (index: number) =>
+                enemyTypes[index % enemyTypes.length];
+              for (let i = 0; i < configEnemyCount; i++) {
+                // On espace les positions de depart pour eviter les chevauchements
+                const baseRow = Math.min(GRID_ROWS - 1, i * 2);
+                newEnemies.push(
+                  createEnemy(baseRow, pick(i))
+                );
+              }
+              setEnemies(newEnemies);
+              setRound(1);
+              setHasRolledInitiative(false);
+              setTurnOrder([]);
+              setCurrentTurnIndex(0);
+              setIsCombatConfigured(true);
+            }}
+            style={{
+              marginTop: 8,
+              padding: "6px 12px",
+              background: "#2ecc71",
+              color: "#0b0b12",
+              border: "none",
+              borderRadius: 4,
+              cursor: "pointer",
+              fontWeight: 600,
+              fontSize: 13
+            }}
+          >
+            Lancer le combat
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -1368,6 +1996,102 @@ export const GameBoard: React.FC = () => {
           justifyContent: "center"
         }}
       >
+        <div
+          style={{
+            marginBottom: 8,
+            padding: "6px 10px",
+            background: "#111322",
+            borderRadius: 8,
+            border: "1px solid #333",
+            display: "flex",
+            flexDirection: "column",
+            gap: 4,
+            maxWidth: "100%"
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 4
+            }}
+          >
+            <span style={{ fontSize: 12, color: "#b0b8c4" }}>
+              Ordre d&apos;initiative (round {round})
+            </span>
+            {activeEntry && (
+              <span style={{ fontSize: 11, color: "#f1c40f" }}>
+                Tour actuel :{" "}
+                {activeEntry.kind === "player" ? "Joueur" : activeEntry.id}
+              </span>
+            )}
+          </div>
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              alignItems: "center",
+              overflowX: "auto",
+              paddingBottom: 2
+            }}
+          >
+            {timelineEntries.map(entry => {
+              const isActive =
+                activeEntry &&
+                entry.id === activeEntry.id &&
+                entry.kind === activeEntry.kind;
+              const isPlayer = entry.kind === "player";
+              const token = isPlayer
+                ? { svg: gentilSvg, label: "PJ" }
+                : { svg: mechantSvg, label: entry.id };
+              return (
+                <div
+                  key={`${entry.kind}-${entry.id}`}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    padding: 4,
+                    borderRadius: 6,
+                    border: isActive ? "2px solid #f1c40f" : "1px solid #333",
+                    background: isActive ? "#1b1b30" : "#101020",
+                    minWidth: 48
+                  }}
+                >
+                  <img
+                    src={token.svg}
+                    alt={token.label}
+                    style={{
+                      width: 32,
+                      height: 32,
+                      objectFit: "contain",
+                      filter: isPlayer ? "none" : "grayscale(0.2)"
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontSize: 10,
+                      marginTop: 2,
+                      color: "#d0d6e0",
+                      whiteSpace: "nowrap"
+                    }}
+                  >
+                    {token.label}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 9,
+                      color: "#9aa0b5"
+                    }}
+                  >
+                    Init {entry.initiative}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
         <h1 style={{ marginBottom: 8 }}>Mini Donjon (test-GAME)</h1>
         <p style={{ marginBottom: 8 }}>
           Tour par tour simple. Cliquez sur la grille pour definir une
@@ -1461,6 +2185,10 @@ export const GameBoard: React.FC = () => {
           <div>
             <strong>Round :</strong> {round} |{" "}
             <strong>Phase :</strong> {phase === "player" ? "Joueur" : "Ennemis"}
+          </div>
+          <div style={{ fontSize: 12, marginTop: 4 }}>
+            <strong>Initiative PJ :</strong>{" "}
+            {playerInitiative ?? "en cours..."}{" "}
           </div>
           <div>
             <strong>Nom :</strong> {sampleCharacter.nom.nomcomplet}
@@ -1564,6 +2292,12 @@ export const GameBoard: React.FC = () => {
                 </div>
                 <div style={{ fontSize: 12, color: "#b0b8c4" }}>
                   Position : ({enemy.x}, {enemy.y})
+                </div>
+                <div style={{ fontSize: 12, color: "#b0b8c4" }}>
+                  Initiative :{" "}
+                  {typeof enemy.initiative === "number"
+                    ? enemy.initiative
+                    : "non definie"}
                 </div>
                 <div style={{ fontSize: 12, color: "#b0b8c4" }}>
                   Type : {enemy.enemyTypeLabel || enemy.enemyTypeId || "inconnu"}{" "}

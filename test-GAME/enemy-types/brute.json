@@ -7,5 +7,12 @@
     "hp": 10,
     "moveRange": 3,
     "attackDamage": 2
+  },
+  "movement": {
+    "type": "ground",
+    "speed": 3,
+    "canPassThroughWalls": false,
+    "canPassThroughEntities": false,
+    "canStopOnOccupiedTile": false
   }
 }

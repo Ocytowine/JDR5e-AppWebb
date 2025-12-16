@@ -1,0 +1,19 @@
+{
+  "id": "ghost",
+  "label": "Fantome",
+  "description": "Esprit intangible capable de traverser les autres creatures.",
+  "aiRole": "ghost",
+  "baseStats": {
+    "hp": 8,
+    "moveRange": 4,
+    "attackDamage": 3
+  },
+  "movement": {
+    "type": "ghost",
+    "speed": 4,
+    "canPassThroughWalls": true,
+    "canPassThroughEntities": true,
+    "canStopOnOccupiedTile": false
+  }
+}
+
