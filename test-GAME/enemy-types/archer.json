@@ -6,7 +6,8 @@
   "baseStats": {
     "hp": 7,
     "moveRange": 2,
-    "attackDamage": 2
+    "attackDamage": 2,
+    "armorClass": 13
   },
   "movement": {
     "type": "ground",

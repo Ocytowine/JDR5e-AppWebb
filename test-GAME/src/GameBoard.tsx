@@ -1,9 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Application, Container, Graphics, Sprite, Assets } from "pixi.js";
+import { Application, Container, Graphics, Sprite, Assets, Texture } from "pixi.js";
 import { sampleCharacter } from "./sampleCharacter";
 import type { MovementProfile, TokenState } from "./types";
-import gentilSvg from "../model/gentil.svg";
-import mechantSvg from "../model/mechant.svg";
+import { buildTokenSvgDataUrl } from "./svgTokenHelper";
 import enemyTypesIndex from "../enemy-types/index.json";
 import bruteType from "../enemy-types/brute.json";
 import archerType from "../enemy-types/archer.json";
@@ -176,6 +175,7 @@ interface EnemyTypeDefinition {
     hp: number;
     moveRange: number;
     attackDamage: number;
+    armorClass: number;
   };
   movement?: MovementProfile;
 }
@@ -252,17 +252,21 @@ function loadEnemyTypesFromIndex(): EnemyTypeDefinition[] {
   return loaded;
 }
 
-function createEnemy(id: number, enemyType: EnemyTypeDefinition): TokenState {
-  const x = GRID_COLS - 1;
-  const y = id;
+function createEnemy(
+  index: number,
+  enemyType: EnemyTypeDefinition,
+  position: { x: number; y: number }
+): TokenState {
+  const { x, y } = position;
   return {
-    id: `enemy-${id}`,
+    id: `enemy-${index + 1}`,
     type: "enemy",
     enemyTypeId: enemyType.id,
     enemyTypeLabel: enemyType.label,
     aiRole: enemyType.aiRole,
     moveRange: enemyType.baseStats.moveRange,
     attackDamage: enemyType.baseStats.attackDamage,
+    armorClass: enemyType.baseStats.armorClass,
     movementProfile: enemyType.movement
       ? (enemyType.movement as MovementProfile)
       : {
@@ -285,6 +289,21 @@ function clamp(value: number, min: number, max: number): number {
 
 function manhattan(a: { x: number; y: number }, b: { x: number; y: number }) {
   return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+}
+
+function computeEnemySpawnPosition(index: number): { x: number; y: number } {
+  // On remplit colonne par colonne, en partant de la droite,
+  // en descendant de haut en bas, sans chevauchement.
+  const rows = GRID_ROWS;
+  const cols = GRID_COLS;
+
+  const colIndex = Math.floor(index / rows);
+  const rowIndex = index % rows;
+
+  const x = Math.max(0, cols - 1 - colIndex);
+  const y = rowIndex;
+
+  return { x, y };
 }
 
 const ENEMY_CAPABILITIES: { action: EnemyActionType; label: string; color: string }[] = [
@@ -349,6 +368,12 @@ export const GameBoard: React.FC = () => {
   const [attackRoll, setAttackRoll] = useState<AttackRollResult | null>(null);
   const [damageRoll, setDamageRoll] = useState<DamageRollResult | null>(null);
   const [diceLogs, setDiceLogs] = useState<string[]>([]);
+  const [hasRolledAttackForCurrentAction, setHasRolledAttackForCurrentAction] =
+    useState<boolean>(false);
+  const [turnActionUsage, setTurnActionUsage] = useState<{
+    usedAction: boolean;
+    usedBonus: boolean;
+  }>({ usedAction: false, usedBonus: false });
 
   // Player movement path (limited to 5 cells)
   const [selectedPath, setSelectedPath] = useState<{ x: number; y: number }[]>(
@@ -531,6 +556,10 @@ export const GameBoard: React.FC = () => {
 
     if (entry.kind === "player") {
       setPhase("player");
+      setTurnActionUsage({ usedAction: false, usedBonus: false });
+      setHasRolledAttackForCurrentAction(false);
+      setAttackRoll(null);
+      setDamageRoll(null);
       return;
     }
 
@@ -556,6 +585,91 @@ export const GameBoard: React.FC = () => {
       }
     }
     return best;
+  }
+
+  function validateEnemyTargetForAction(
+    action: ActionDefinition,
+    enemy: TokenState,
+    actor: TokenState
+  ): { ok: boolean; reason?: string } {
+    if (enemy.type !== "enemy") {
+      return { ok: false, reason: "La cible selectionnee n'est pas un ennemi." };
+    }
+    if (enemy.hp <= 0) {
+      return { ok: false, reason: "La cible est deja a terre." };
+    }
+
+    const targeting = action.targeting;
+    if (!targeting || targeting.target !== "enemy") {
+      return {
+        ok: false,
+        reason: "Cette action ne cible pas un ennemi."
+      };
+    }
+
+    const dist = manhattan(actor, enemy);
+    const range = targeting.range;
+
+    if (range) {
+      if (typeof range.min === "number" && dist < range.min) {
+        return {
+          ok: false,
+          reason: `Cible trop proche pour ${action.name} (distance ${dist}, min ${range.min}).`
+        };
+      }
+      if (typeof range.max === "number" && dist > range.max) {
+        return {
+          ok: false,
+          reason: `Cible hors portee pour ${action.name} (distance ${dist}, max ${range.max}).`
+        };
+      }
+    }
+
+    for (const cond of action.conditions || []) {
+      if (cond.type === "distance_max") {
+        if (typeof cond.max === "number" && dist > cond.max) {
+          return {
+            ok: false,
+            reason: cond.reason || `Distance cible > ${cond.max}.`
+          };
+        }
+      }
+      if (cond.type === "distance_between") {
+        const min =
+          typeof cond.min === "number"
+            ? cond.min
+            : typeof range?.min === "number"
+            ? range.min
+            : null;
+        const max =
+          typeof cond.max === "number"
+            ? cond.max
+            : typeof range?.max === "number"
+            ? range.max
+            : null;
+
+        if (min !== null && dist < min) {
+          return {
+            ok: false,
+            reason: cond.reason || `Distance cible < ${min}.`
+          };
+        }
+        if (max !== null && dist > max) {
+          return {
+            ok: false,
+            reason: cond.reason || `Distance cible > ${max}.`
+          };
+        }
+      }
+      if (cond.type === "target_alive" && enemy.hp <= 0) {
+        return {
+          ok: false,
+          reason: cond.reason || "La cible doit avoir des PV restants."
+        };
+      }
+    }
+
+    return { ok: true };
   }
 
   function computeActionAvailability(action: ActionDefinition): ActionAvailability {
@@ -704,6 +818,23 @@ export const GameBoard: React.FC = () => {
   }
 
   function handleUseAction(action: ActionDefinition) {
+    const costType = action.actionCost?.actionType;
+    const isStandardAction = costType === "action";
+    const isBonusAction = costType === "bonus";
+
+    if (isStandardAction && turnActionUsage.usedAction) {
+      pushLog(
+        `Action ${action.name} refusee: action principale deja utilisee ce tour.`
+      );
+      return;
+    }
+    if (isBonusAction && turnActionUsage.usedBonus) {
+      pushLog(
+        `Action ${action.name} refusee: action bonus deja utilisee ce tour.`
+      );
+      return;
+    }
+
     const availability = computeActionAvailability(action);
     if (!availability.enabled) {
       pushLog(
@@ -714,6 +845,11 @@ export const GameBoard: React.FC = () => {
     setValidatedActionId(action.id);
     setAttackRoll(null);
     setDamageRoll(null);
+    setHasRolledAttackForCurrentAction(false);
+    setTurnActionUsage(prev => ({
+      usedAction: prev.usedAction || isStandardAction,
+      usedBonus: prev.usedBonus || isBonusAction
+    }));
     const hint = action.aiHints?.successLog || "Action validee. Prets pour les jets.";
     pushLog(`${action.name}: ${hint}`);
 
@@ -734,6 +870,17 @@ export const GameBoard: React.FC = () => {
     return actions.find(a => a.id === validatedActionId) || null;
   }
 
+  function actionNeedsDiceUI(action: ActionDefinition | null): boolean {
+    if (!action) return false;
+    if (action.attack || action.damage || action.skillCheck) return true;
+
+    const hasFormulaEffect = (action.effects || []).some(effect => {
+      return typeof effect.formula === "string" && effect.formula.trim().length > 0;
+    });
+
+    return hasFormulaEffect;
+  }
+
   function handleRollAttack() {
     const action = getValidatedAction();
     if (!action) {
@@ -744,7 +891,14 @@ export const GameBoard: React.FC = () => {
       pushLog("Cette action ne requiert pas de jet de touche.");
       return;
     }
+    if (hasRolledAttackForCurrentAction) {
+      pushLog(
+        "Jet de touche deja effectue pour cette action ce tour. Validez une nouvelle action ou terminez le tour."
+      );
+      return;
+    }
 
+    let targetArmorClass: number | null = null;
     if (action.targeting?.target === "enemy") {
       if (!selectedTargetId) {
         pushLog(
@@ -757,6 +911,8 @@ export const GameBoard: React.FC = () => {
         pushLog("Cible ennemie introuvable ou deja vaincue.");
         return;
       }
+      targetArmorClass =
+        typeof target.armorClass === "number" ? target.armorClass : null;
     }
 
     const result = rollAttack(
@@ -765,6 +921,7 @@ export const GameBoard: React.FC = () => {
       action.attack.critRange ?? 20
     );
     setAttackRoll(result);
+    setHasRolledAttackForCurrentAction(true);
     setDamageRoll(null);
     const rollsText =
       result.mode === "normal"
@@ -776,11 +933,19 @@ export const GameBoard: React.FC = () => {
         ? ` sur ${selectedTargetId}`
         : "";
 
-    pushDiceLog(
-      `Jet de touche (${action.name})${targetSuffix} : ${rollsText} + ${result.bonus} = ${result.total}${
-        result.isCrit ? " (critique!)" : ""
-      }`
-    );
+    const baseLine = `Jet de touche (${action.name})${targetSuffix} : ${rollsText} + ${result.bonus} = ${result.total}`;
+
+    if (targetArmorClass !== null) {
+      const isHit = result.total >= targetArmorClass || result.isCrit;
+      const outcome = isHit
+        ? `TOUCHE (CA ${targetArmorClass})${result.isCrit ? " (critique!)" : ""}`
+        : `RATE (CA ${targetArmorClass})`;
+      pushDiceLog(`${baseLine} -> ${outcome}`);
+    } else {
+      pushDiceLog(
+        `${baseLine}${result.isCrit ? " (critique!)" : ""}`
+      );
+    }
   }
 
   function handleRollDamage() {
@@ -794,7 +959,15 @@ export const GameBoard: React.FC = () => {
       return;
     }
 
+    if (action.attack && !attackRoll) {
+      pushLog(
+        "Un jet de touche est requis avant les degats pour cette action."
+      );
+      return;
+    }
+
     let targetIndex: number | null = null;
+    let targetArmorClass: number | null = null;
     if (action.targeting?.target === "enemy") {
       if (!selectedTargetId) {
         pushLog(
@@ -807,9 +980,27 @@ export const GameBoard: React.FC = () => {
         pushLog("Cible ennemie introuvable ou deja vaincue.");
         return;
       }
+      const target = enemies[targetIndex];
+      targetArmorClass =
+        typeof target.armorClass === "number" ? target.armorClass : null;
     }
 
     const isCrit = Boolean(attackRoll?.isCrit);
+
+    if (targetArmorClass !== null && action.attack && attackRoll) {
+      const totalAttack = attackRoll.total;
+      const isHit = totalAttack >= targetArmorClass || attackRoll.isCrit;
+      if (!isHit) {
+        const targetSuffix =
+          action.targeting?.target === "enemy" && selectedTargetId
+            ? ` sur ${selectedTargetId}`
+            : "";
+        pushLog(
+          `L'attaque (${action.name})${targetSuffix} a manque la cible (CA ${targetArmorClass}). Pas de degats.`
+        );
+        return;
+      }
+    }
     const result = rollDamage(action.damage.formula, {
       isCrit,
       critRule: action.damage.critRule
@@ -900,6 +1091,19 @@ export const GameBoard: React.FC = () => {
         pushLog(`Pas d'ennemi sur (${targetX}, ${targetY}).`);
         return;
       }
+
+      const action = getValidatedAction();
+      if (!action) {
+        pushLog("Aucune action validee pour selectionner une cible.");
+        return;
+      }
+
+      const validation = validateEnemyTargetForAction(action, target, player);
+      if (!validation.ok) {
+        pushLog(validation.reason || "Cette cible n'est pas valide pour cette action.");
+        return;
+      }
+
       setSelectedTargetId(target.id);
       setTargetMode("none");
       pushLog(`Cible selectionnee: ${target.id}.`);
@@ -1538,8 +1742,6 @@ function handleEndPlayerTurn() {
 
       initialized = true;
 
-      await Assets.load([gentilSvg, mechantSvg]);
-
       if (destroyed) return;
 
       const container = pixiContainerRef.current;
@@ -1659,15 +1861,14 @@ function handleEndPlayerTurn() {
 
     const allTokens: TokenState[] = [player, ...enemies];
     for (const token of allTokens) {
-      const textureUrl = token.type === "player" ? gentilSvg : mechantSvg;
-
       const tokenContainer = new Container();
 
-      const sprite = Sprite.from(textureUrl);
+      const svgUrl = buildTokenSvgDataUrl(token.type === "player" ? "player" : "enemy");
+      const texture = Texture.from(svgUrl);
+      const sprite = new Sprite(texture);
       sprite.anchor.set(0.5);
       sprite.width = TILE_SIZE * 0.9;
       sprite.height = TILE_SIZE * 0.9;
-      sprite.tint = 0xffffff;
       tokenContainer.addChild(sprite);
 
       const screenPos = gridToScreen(token.x, token.y);
@@ -1784,7 +1985,35 @@ function handleEndPlayerTurn() {
         });
     }
 
-    // 3) Highlight last clicked cell with a yellow aura
+    // 3) Highlight selected enemy target cell in blue
+    if (selectedTargetId) {
+      const target = enemies.find(e => e.id === selectedTargetId);
+      if (target) {
+        const center = gridToScreen(target.x, target.y);
+        const w = TILE_SIZE;
+        const h = TILE_SIZE * 0.5;
+
+        const points = [
+          center.x,
+          center.y - h / 2,
+          center.x + w / 2,
+          center.y,
+          center.x,
+          center.y + h / 2,
+          center.x - w / 2,
+          center.y
+        ];
+
+        pathLayer
+          .poly(points)
+          .fill({
+            color: 0x3498db,
+            alpha: 0.6
+          });
+      }
+    }
+
+    // 4) Highlight last clicked cell with a yellow aura
     if (selectedPath.length > 0) {
       const last = selectedPath[selectedPath.length - 1];
       const center = gridToScreen(last.x, last.y);
@@ -1810,7 +2039,7 @@ function handleEndPlayerTurn() {
         });
     }
 
-    // 4) Draw enemy planned paths
+    // 5) Draw enemy planned paths
     for (const enemy of enemies) {
       if (!enemy.plannedPath || enemy.plannedPath.length === 0) continue;
 
@@ -1832,7 +2061,7 @@ function handleEndPlayerTurn() {
       pathLayer.stroke();
     }
 
-    // 5) Draw player path polyline
+    // 6) Draw player path polyline
     if (selectedPath.length === 0) return;
 
     pathLayer.setStrokeStyle({
@@ -1850,7 +2079,7 @@ function handleEndPlayerTurn() {
     }
 
     pathLayer.stroke();
-  }, [player, enemies, selectedPath, effectSpecs]);
+  }, [player, enemies, selectedPath, effectSpecs, selectedTargetId]);
 
   // -----------------------------------------------------------
   // Render
@@ -1862,6 +2091,7 @@ function handleEndPlayerTurn() {
     ? computeActionAvailability(selectedAction)
     : null;
   const validatedAction = getValidatedAction();
+  const showDicePanel = actionNeedsDiceUI(validatedAction);
 
   const isPlayerTurn = phase === "player";
   const activeEntry = getActiveTurnEntry();
@@ -1941,10 +2171,8 @@ function handleEndPlayerTurn() {
               const pick = (index: number) =>
                 enemyTypes[index % enemyTypes.length];
               for (let i = 0; i < configEnemyCount; i++) {
-                // On espace les positions de depart pour eviter les chevauchements
-                const baseRow = Math.min(GRID_ROWS - 1, i * 2);
                 newEnemies.push(
-                  createEnemy(baseRow, pick(i))
+                  createEnemy(i, pick(i), computeEnemySpawnPosition(i))
                 );
               }
               setEnemies(newEnemies);
@@ -2042,9 +2270,12 @@ function handleEndPlayerTurn() {
                 entry.id === activeEntry.id &&
                 entry.kind === activeEntry.kind;
               const isPlayer = entry.kind === "player";
+              const tokenSvg = buildTokenSvgDataUrl(
+                isPlayer ? "player" : "enemy"
+              );
               const token = isPlayer
-                ? { svg: gentilSvg, label: "PJ" }
-                : { svg: mechantSvg, label: entry.id };
+                ? { svg: tokenSvg, label: "PJ" }
+                : { svg: tokenSvg, label: entry.id };
               return (
                 <div
                   key={`${entry.kind}-${entry.id}`}
@@ -2330,6 +2561,49 @@ function handleEndPlayerTurn() {
                   Ce qu'il peut faire :{" "}
                   {ENEMY_CAPABILITIES.map(cap => cap.label).join(" | ")}
                 </div>
+                {validatedAction && validatedAction.targeting?.target === "enemy" && (
+                  (() => {
+                    const validation = validateEnemyTargetForAction(
+                      validatedAction,
+                      enemy,
+                      player
+                    );
+                    const canTarget = validation.ok;
+                    const isCurrent = selectedTargetId === enemy.id;
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!canTarget) {
+                            pushLog(
+                              validation.reason ||
+                                `Cible ${enemy.id} invalide pour ${validatedAction.name}.`
+                            );
+                            return;
+                          }
+                          setSelectedTargetId(enemy.id);
+                          setTargetMode("none");
+                          pushLog(`Cible selectionnee: ${enemy.id}.`);
+                        }}
+                        disabled={!canTarget}
+                        style={{
+                          marginTop: 6,
+                          alignSelf: "flex-start",
+                          padding: "4px 8px",
+                          fontSize: 11,
+                          borderRadius: 4,
+                          border: "none",
+                          cursor: canTarget ? "pointer" : "default",
+                          background: canTarget ? "#3498db" : "#555",
+                          color: "#fff",
+                          opacity: isCurrent ? 1 : 0.9
+                        }}
+                      >
+                        {isCurrent ? "Cible actuelle" : "Cibler avec l'action validee"}
+                      </button>
+                    );
+                  })()
+                )}
                 <div style={{ fontSize: 12, color: "#9cb2ff" }}>
                   Dernière décision IA : {describeEnemyLastDecision(enemy.id)}
                 </div>
@@ -2339,16 +2613,16 @@ function handleEndPlayerTurn() {
         </section>
 
         <section
-          style={{
-            padding: "8px 12px",
-            background: "#141421",
-            borderRadius: 8,
-            border: "1px solid #333",
-            display: "flex",
-            flexDirection: "column",
-            gap: 8
-          }}
-        >
+            style={{
+              padding: "8px 12px",
+              background: "#141421",
+              borderRadius: 8,
+              border: "1px solid #333",
+              display: "flex",
+              flexDirection: "column",
+              gap: 8
+            }}
+          >
           <h2 style={{ margin: "0 0 4px" }}>Actions detaillees</h2>
           <p style={{ margin: 0, fontSize: 12, opacity: 0.85 }}>
             Source: <code>action-game/actions/index.json</code>. Liste chargee et verifiee
@@ -2617,36 +2891,90 @@ function handleEndPlayerTurn() {
           </div>
         </section>
 
-        <section
-          style={{
-            padding: "8px 12px",
-            background: "#141421",
-            borderRadius: 8,
-            border: "1px solid #333",
-            display: "flex",
-            flexDirection: "column",
-            gap: 8
-          }}
-        >
-          <h2 style={{ margin: "0 0 4px" }}>Jets de des</h2>
-          <p style={{ margin: 0, fontSize: 12, opacity: 0.85 }}>
-            Choisir une action, la valider, puis lancer le jet de touche et/ou de degats. Mode auto: enchaine touche + degats.
-          </p>
-          <div style={{ fontSize: 12 }}>
-            Action validee :{" "}
-            {validatedAction
-              ? `${validatedAction.name} (${validatedAction.id})`
-              : "aucune (valider une action d'abord)"}
-          </div>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {(["normal", "advantage", "disadvantage"] as AdvantageMode[]).map(mode => (
+        {showDicePanel && (
+          <section
+            style={{
+              padding: "8px 12px",
+              background: "#141421",
+              borderRadius: 8,
+              border: "1px solid #333",
+              display: "flex",
+              flexDirection: "column",
+              gap: 8
+            }}
+          >
+            <h2 style={{ margin: "0 0 4px" }}>Jets de des</h2>
+            <p style={{ margin: 0, fontSize: 12, opacity: 0.85 }}>
+              Choisir une action, la valider, puis lancer le jet de touche et/ou de
+              degats. Mode auto: enchaine touche + degats.
+            </p>
+            <div style={{ fontSize: 12 }}>
+              Action validee :{" "}
+              {validatedAction
+                ? `${validatedAction.name} (${validatedAction.id})`
+                : "aucune (valider une action d'abord)"}
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {(["normal", "advantage", "disadvantage"] as AdvantageMode[]).map(
+                mode => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setAdvantageMode(mode)}
+                    style={{
+                      padding: "4px 8px",
+                      background: advantageMode === mode ? "#8e44ad" : "#2c2c3a",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: 4,
+                      cursor: "pointer",
+                      fontSize: 12
+                    }}
+                  >
+                    {mode}
+                  </button>
+                )
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button
-                key={mode}
                 type="button"
-                onClick={() => setAdvantageMode(mode)}
+                onClick={handleRollAttack}
+                disabled={!validatedAction?.attack}
                 style={{
                   padding: "4px 8px",
-                  background: advantageMode === mode ? "#8e44ad" : "#2c2c3a",
+                  background: validatedAction?.attack ? "#2980b9" : "#555",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 4,
+                  cursor: validatedAction?.attack ? "pointer" : "default",
+                  fontSize: 12
+                }}
+              >
+                Lancer jet de touche
+              </button>
+              <button
+                type="button"
+                onClick={handleRollDamage}
+                disabled={!validatedAction?.damage}
+                style={{
+                  padding: "4px 8px",
+                  background: validatedAction?.damage ? "#27ae60" : "#555",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 4,
+                  cursor: validatedAction?.damage ? "pointer" : "default",
+                  fontSize: 12
+                }}
+              >
+                Lancer degats
+              </button>
+              <button
+                type="button"
+                onClick={handleAutoResolveRolls}
+                style={{
+                  padding: "4px 8px",
+                  background: "#9b59b6",
                   color: "#fff",
                   border: "none",
                   borderRadius: 4,
@@ -2654,66 +2982,16 @@ function handleEndPlayerTurn() {
                   fontSize: 12
                 }}
               >
-                {mode}
+                Mode auto (touche + degats)
               </button>
-            ))}
-          </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button
-              type="button"
-              onClick={handleRollAttack}
-              disabled={!validatedAction?.attack}
+            </div>
+            <div
               style={{
-                padding: "4px 8px",
-                background: validatedAction?.attack ? "#2980b9" : "#555",
-                color: "#fff",
-                border: "none",
-                borderRadius: 4,
-                cursor: validatedAction?.attack ? "pointer" : "default",
-                fontSize: 12
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 8
               }}
             >
-              Lancer jet de touche
-            </button>
-            <button
-              type="button"
-              onClick={handleRollDamage}
-              disabled={!validatedAction?.damage}
-              style={{
-                padding: "4px 8px",
-                background: validatedAction?.damage ? "#27ae60" : "#555",
-                color: "#fff",
-                border: "none",
-                borderRadius: 4,
-                cursor: validatedAction?.damage ? "pointer" : "default",
-                fontSize: 12
-              }}
-            >
-              Lancer degats
-            </button>
-            <button
-              type="button"
-              onClick={handleAutoResolveRolls}
-              style={{
-                padding: "4px 8px",
-                background: "#9b59b6",
-                color: "#fff",
-                border: "none",
-                borderRadius: 4,
-                cursor: "pointer",
-                fontSize: 12
-              }}
-            >
-              Mode auto (touche + degats)
-            </button>
-          </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 8
-            }}
-          >
             <div
               style={{
                 background: "#101020",
@@ -2762,7 +3040,14 @@ function handleEndPlayerTurn() {
           </div>
           <div style={{ fontSize: 12 }}>
             <strong>Logs des jets:</strong>
-            <div style={{ marginTop: 4, display: "flex", flexDirection: "column", gap: 2 }}>
+            <div
+              style={{
+                marginTop: 4,
+                display: "flex",
+                flexDirection: "column",
+                gap: 2
+              }}
+            >
               {diceLogs.map((entry, idx) => (
                 <div key={idx} style={{ color: "#dfe6ff" }}>
                   - {entry}
@@ -2774,6 +3059,7 @@ function handleEndPlayerTurn() {
             </div>
           </div>
         </section>
+        )}
 
         <section
           style={{

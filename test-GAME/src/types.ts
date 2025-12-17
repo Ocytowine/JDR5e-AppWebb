@@ -41,6 +41,7 @@ export interface TokenState {
   aiRole?: string | null;
   moveRange?: number;
   attackDamage?: number;
+  armorClass?: number;
   /**
    * Profil de deplacement derive des JSON enemy-types
    * ou des capacites du personnage joueur.

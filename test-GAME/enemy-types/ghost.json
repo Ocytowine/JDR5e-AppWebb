@@ -6,7 +6,8 @@
   "baseStats": {
     "hp": 8,
     "moveRange": 4,
-    "attackDamage": 3
+    "attackDamage": 3,
+    "armorClass": 12
   },
   "movement": {
     "type": "ghost",
@@ -16,4 +17,3 @@
     "canStopOnOccupiedTile": false
   }
 }
-
