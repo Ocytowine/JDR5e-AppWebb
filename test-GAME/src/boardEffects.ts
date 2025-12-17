@@ -74,12 +74,30 @@ export function generateConeEffect(
   cx: number,
   cy: number,
   range: number,
-  direction: ConeDirection
+  direction: ConeDirection,
+  apertureDeg?: number
 ): BoardEffect {
   const cells: GridCell[] = [];
 
+  const useCustomAngle =
+    typeof apertureDeg === "number" &&
+    apertureDeg > 0 &&
+    apertureDeg < 180;
+  const halfAngleRad = useCustomAngle
+    ? (apertureDeg * Math.PI) / 360
+    : null;
+
   for (let r = 1; r <= range; r++) {
-    for (let offset = -r; offset <= r; offset++) {
+    let maxOffset = r;
+
+    if (halfAngleRad !== null) {
+      const raw = Math.tan(halfAngleRad) * r;
+      maxOffset = Math.floor(raw);
+      if (maxOffset < 0) maxOffset = 0;
+      if (maxOffset > r) maxOffset = r;
+    }
+
+    for (let offset = -maxOffset; offset <= maxOffset; offset++) {
       let x = cx;
       let y = cy;
 
@@ -109,4 +127,3 @@ export function generateConeEffect(
 
   return { id, type: "cone", cells };
 }
-

@@ -1,3 +1,4 @@
+import { Assets } from "pixi.js";
 import gentilSvgSource from "../model/gentil.svg?raw";
 import mechantSvgSource from "../model/mechant.svg?raw";
 
@@ -56,4 +57,20 @@ export function buildTokenSvgDataUrl(kind: TokenKind): string {
   const svg = buildTokenSvg(kind);
   const base64 = btoa(unescape(encodeURIComponent(svg)));
   return `data:image/svg+xml;base64,${base64}`;
+}
+
+export const PLAYER_TOKEN_ID = "token-player-svg";
+export const ENEMY_TOKEN_ID = "token-enemy-svg";
+
+export async function preloadTokenTextures(): Promise<void> {
+  const assets = [
+    { alias: PLAYER_TOKEN_ID, src: buildTokenSvgDataUrl("player") },
+    { alias: ENEMY_TOKEN_ID, src: buildTokenSvgDataUrl("enemy") }
+  ];
+
+  for (const asset of assets) {
+    Assets.add(asset);
+  }
+
+  await Assets.load(assets.map(a => a.alias));
 }

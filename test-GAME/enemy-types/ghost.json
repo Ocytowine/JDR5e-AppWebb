@@ -15,5 +15,10 @@
     "canPassThroughWalls": true,
     "canPassThroughEntities": true,
     "canStopOnOccupiedTile": false
+  },
+  "vision": {
+    "shape": "circle",
+    "range": 6,
+    "canSeeInDark": true
   }
 }

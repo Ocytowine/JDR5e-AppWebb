@@ -1,8 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Application, Container, Graphics, Sprite, Assets, Texture } from "pixi.js";
+import { Application, Container, Graphics, Sprite, Assets } from "pixi.js";
 import { sampleCharacter } from "./sampleCharacter";
-import type { MovementProfile, TokenState } from "./types";
-import { buildTokenSvgDataUrl } from "./svgTokenHelper";
+import type { MovementProfile, TokenState, VisionProfile } from "./types";
+import {
+  buildTokenSvgDataUrl,
+  preloadTokenTextures,
+  PLAYER_TOKEN_ID,
+  ENEMY_TOKEN_ID
+} from "./svgTokenHelper";
 import enemyTypesIndex from "../enemy-types/index.json";
 import bruteType from "../enemy-types/brute.json";
 import archerType from "../enemy-types/archer.json";
@@ -40,6 +45,11 @@ import {
 } from "./boardConfig";
 import { computePathTowards } from "./pathfinding";
 import { getTokenAt } from "./gridUtils";
+import {
+  computeVisionEffectForToken,
+  getEntitiesInVision,
+  isTargetVisible
+} from "./vision";
 
 // -------------------------------------------------------------
 // Types for enemy AI and turn system
@@ -178,6 +188,7 @@ interface EnemyTypeDefinition {
     armorClass: number;
   };
   movement?: MovementProfile;
+   vision?: VisionProfile;
 }
 
 interface ActionDefinition {
@@ -276,6 +287,13 @@ function createEnemy(
           canPassThroughEntities: false,
           canStopOnOccupiedTile: false
         },
+    facing: "left",
+    visionProfile: enemyType.vision
+      ? (enemyType.vision as VisionProfile)
+      : {
+          shape: "cone",
+          range: 5
+        },
     x,
     y,
     hp: enemyType.baseStats.hp,
@@ -289,6 +307,19 @@ function clamp(value: number, min: number, max: number): number {
 
 function manhattan(a: { x: number; y: number }, b: { x: number; y: number }) {
   return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+}
+
+function computeFacingTowards(
+  from: { x: number; y: number },
+  to: { x: number; y: number }
+): "up" | "down" | "left" | "right" {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return dx >= 0 ? "right" : "left";
+  }
+  return dy >= 0 ? "down" : "up";
 }
 
 function computeEnemySpawnPosition(index: number): { x: number; y: number } {
@@ -342,6 +373,11 @@ export const GameBoard: React.FC = () => {
     type: "player",
     x: 0,
     y: Math.floor(GRID_ROWS / 2),
+    facing: "right",
+    visionProfile: {
+      shape: "cone",
+      range: 5
+    },
     hp: sampleCharacter.pvActuels,
     maxHp: sampleCharacter.pvMax
   });
@@ -384,6 +420,7 @@ export const GameBoard: React.FC = () => {
 
   // Area-of-effect specs attached to the player
   const [effectSpecs, setEffectSpecs] = useState<EffectSpec[]>([]);
+  const [showVisionDebug, setShowVisionDebug] = useState<boolean>(false);
 
   // Debug IA ennemie : dernier état envoyé / décisions / erreur
   const [aiLastState, setAiLastState] =
@@ -590,7 +627,8 @@ export const GameBoard: React.FC = () => {
   function validateEnemyTargetForAction(
     action: ActionDefinition,
     enemy: TokenState,
-    actor: TokenState
+    actor: TokenState,
+    allTokens: TokenState[]
   ): { ok: boolean; reason?: string } {
     if (enemy.type !== "enemy") {
       return { ok: false, reason: "La cible selectionnee n'est pas un ennemi." };
@@ -665,6 +703,17 @@ export const GameBoard: React.FC = () => {
         return {
           ok: false,
           reason: cond.reason || "La cible doit avoir des PV restants."
+        };
+      }
+    }
+
+    if (targeting.requiresLos) {
+      const visible = isTargetVisible(actor, enemy, allTokens);
+      if (!visible) {
+        return {
+          ok: false,
+          reason:
+            "Cible hors du champ de vision ou derriere un obstacle (ligne de vue requise)."
         };
       }
     }
@@ -1098,7 +1147,12 @@ export const GameBoard: React.FC = () => {
         return;
       }
 
-      const validation = validateEnemyTargetForAction(action, target, player);
+      const validation = validateEnemyTargetForAction(
+        action,
+        target,
+        player,
+        [player, ...enemies]
+      );
       if (!validation.ok) {
         pushLog(validation.reason || "Cette cible n'est pas valide pour cette action.");
         return;
@@ -1202,6 +1256,15 @@ export const GameBoard: React.FC = () => {
     if (phase !== "player") return;
     setSelectedPath([]);
     pushLog("Trajectoire reinitialisee.");
+  }
+
+  function handleSetPlayerFacing(direction: "up" | "down" | "left" | "right") {
+    if (phase !== "player") return;
+    setPlayer(prev => ({
+      ...prev,
+      facing: direction
+    }));
+    pushLog(`Orientation du joueur mise a jour: ${direction}.`);
   }
 
   // -----------------------------------------------------------
@@ -1349,6 +1412,7 @@ export const GameBoard: React.FC = () => {
 
           enemy.x = destination.x;
           enemy.y = destination.y;
+          enemy.facing = computeFacingTowards(enemy, playerCopy);
 
           const distToPlayer =
             Math.abs(enemy.x - playerCopy.x) +
@@ -1458,6 +1522,7 @@ export const GameBoard: React.FC = () => {
           const destination = path[path.length - 1];
           enemy.x = destination.x;
           enemy.y = destination.y;
+          enemy.facing = computeFacingTowards(enemy, playerCopy);
           pushLog(
             `${enemy.id} suit un chemin vers (${destination.x}, ${destination.y}).`
           );
@@ -1465,6 +1530,7 @@ export const GameBoard: React.FC = () => {
         }
 
         if (action === "attack") {
+          enemy.facing = computeFacingTowards(enemy, playerCopy);
           const distToPlayer = manhattan(enemy, playerCopy);
           if (distToPlayer <= 1) {
             const damage = typeof enemy.attackDamage === "number" ? enemy.attackDamage : 2;
@@ -1535,6 +1601,7 @@ export const GameBoard: React.FC = () => {
         const destination = path[path.length - 1];
         enemy.x = destination.x;
         enemy.y = destination.y;
+        enemy.facing = computeFacingTowards(enemy, playerCopy);
 
         const distToPlayer =
           Math.abs(enemy.x - playerCopy.x) +
@@ -1633,6 +1700,7 @@ export const GameBoard: React.FC = () => {
           const destination = path[path.length - 1];
           enemy.x = destination.x;
           enemy.y = destination.y;
+          enemy.facing = computeFacingTowards(enemy, playerCopy);
           pushLog(
             `${enemy.id} suit un chemin vers (${destination.x}, ${destination.y}).`
           );
@@ -1640,6 +1708,7 @@ export const GameBoard: React.FC = () => {
         }
 
         if (action === "attack") {
+          enemy.facing = computeFacingTowards(enemy, playerCopy);
           const distToPlayer = manhattan(enemy, playerCopy);
           if (distToPlayer <= 1) {
             const damage =
@@ -1741,6 +1810,8 @@ function handleEndPlayerTurn() {
       });
 
       initialized = true;
+
+      await preloadTokenTextures();
 
       if (destroyed) return;
 
@@ -1863,9 +1934,9 @@ function handleEndPlayerTurn() {
     for (const token of allTokens) {
       const tokenContainer = new Container();
 
-      const svgUrl = buildTokenSvgDataUrl(token.type === "player" ? "player" : "enemy");
-      const texture = Texture.from(svgUrl);
-      const sprite = new Sprite(texture);
+      const textureId =
+        token.type === "player" ? PLAYER_TOKEN_ID : ENEMY_TOKEN_ID;
+      const sprite = Sprite.from(textureId);
       sprite.anchor.set(0.5);
       sprite.width = TILE_SIZE * 0.9;
       sprite.height = TILE_SIZE * 0.9;
@@ -1954,7 +2025,43 @@ function handleEndPlayerTurn() {
       }
     }
 
-    // 2) Highlight occupied cells (player + ennemis)
+    // 2) Debug: champs de vision de chaque entite
+    if (showVisionDebug) {
+      const allTokens: TokenState[] = [player, ...enemies];
+      for (const token of allTokens) {
+        const visionEffect = computeVisionEffectForToken(token);
+        for (const cell of visionEffect.cells) {
+          const center = gridToScreen(cell.x, cell.y);
+          const w = TILE_SIZE;
+          const h = TILE_SIZE * 0.5;
+
+          const points = [
+            center.x,
+            center.y - h / 2,
+            center.x + w / 2,
+            center.y,
+            center.x,
+            center.y + h / 2,
+            center.x - w / 2,
+            center.y
+          ];
+
+          const color =
+            token.type === "player"
+              ? 0x2980b9
+              : 0xc0392b;
+
+          pathLayer
+            .poly(points)
+            .fill({
+              color,
+              alpha: token.type === "player" ? 0.25 : 0.2
+            });
+        }
+      }
+    }
+
+    // 3) Highlight occupied cells (player + ennemis)
     const occupiedTokens: TokenState[] = [player, ...enemies];
     for (const token of occupiedTokens) {
       const center = gridToScreen(token.x, token.y);
@@ -1985,7 +2092,7 @@ function handleEndPlayerTurn() {
         });
     }
 
-    // 3) Highlight selected enemy target cell in blue
+    // 4) Highlight selected enemy target cell in blue
     if (selectedTargetId) {
       const target = enemies.find(e => e.id === selectedTargetId);
       if (target) {
@@ -2013,7 +2120,7 @@ function handleEndPlayerTurn() {
       }
     }
 
-    // 4) Highlight last clicked cell with a yellow aura
+    // 5) Highlight last clicked cell with a yellow aura
     if (selectedPath.length > 0) {
       const last = selectedPath[selectedPath.length - 1];
       const center = gridToScreen(last.x, last.y);
@@ -2039,7 +2146,7 @@ function handleEndPlayerTurn() {
         });
     }
 
-    // 5) Draw enemy planned paths
+    // 6) Draw enemy planned paths
     for (const enemy of enemies) {
       if (!enemy.plannedPath || enemy.plannedPath.length === 0) continue;
 
@@ -2061,7 +2168,7 @@ function handleEndPlayerTurn() {
       pathLayer.stroke();
     }
 
-    // 6) Draw player path polyline
+    // 7) Draw player path polyline
     if (selectedPath.length === 0) return;
 
     pathLayer.setStrokeStyle({
@@ -2079,7 +2186,7 @@ function handleEndPlayerTurn() {
     }
 
     pathLayer.stroke();
-  }, [player, enemies, selectedPath, effectSpecs, selectedTargetId]);
+  }, [player, enemies, selectedPath, effectSpecs, selectedTargetId, showVisionDebug]);
 
   // -----------------------------------------------------------
   // Render
@@ -2388,6 +2495,70 @@ function handleEndPlayerTurn() {
           >
             Fin du tour joueur
           </button>
+          <button
+            type="button"
+            onClick={() => handleSetPlayerFacing("up")}
+            style={{
+              padding: "4px 8px",
+              background: isPlayerTurn ? "#34495e" : "#555",
+              color: "#fff",
+              border: "none",
+              borderRadius: 4,
+              cursor: isPlayerTurn ? "pointer" : "default",
+              fontSize: 11
+            }}
+            disabled={!isPlayerTurn}
+          >
+            Regarder haut
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSetPlayerFacing("down")}
+            style={{
+              padding: "4px 8px",
+              background: isPlayerTurn ? "#34495e" : "#555",
+              color: "#fff",
+              border: "none",
+              borderRadius: 4,
+              cursor: isPlayerTurn ? "pointer" : "default",
+              fontSize: 11
+            }}
+            disabled={!isPlayerTurn}
+          >
+            Regarder bas
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSetPlayerFacing("left")}
+            style={{
+              padding: "4px 8px",
+              background: isPlayerTurn ? "#34495e" : "#555",
+              color: "#fff",
+              border: "none",
+              borderRadius: 4,
+              cursor: isPlayerTurn ? "pointer" : "default",
+              fontSize: 11
+            }}
+            disabled={!isPlayerTurn}
+          >
+            Regarder gauche
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSetPlayerFacing("right")}
+            style={{
+              padding: "4px 8px",
+              background: isPlayerTurn ? "#34495e" : "#555",
+              color: "#fff",
+              border: "none",
+              borderRadius: 4,
+              cursor: isPlayerTurn ? "pointer" : "default",
+              fontSize: 11
+            }}
+            disabled={!isPlayerTurn}
+          >
+            Regarder droite
+          </button>
           {!isPlayerTurn && (
             <span style={{ fontSize: 12, alignSelf: "center" }}>
               Tour des ennemis en cours...
@@ -2566,7 +2737,8 @@ function handleEndPlayerTurn() {
                     const validation = validateEnemyTargetForAction(
                       validatedAction,
                       enemy,
-                      player
+                      player,
+                      [player, ...enemies]
                     );
                     const canTarget = validation.ok;
                     const isCurrent = selectedTargetId === enemy.id;
@@ -3124,6 +3296,21 @@ function handleEndPlayerTurn() {
               }}
             >
               Cone portee 4
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowVisionDebug(prev => !prev)}
+              style={{
+                padding: "4px 8px",
+                background: showVisionDebug ? "#f1c40f" : "#555",
+                color: "#0b0b12",
+                border: "none",
+                borderRadius: 4,
+                cursor: "pointer",
+                fontSize: 12
+              }}
+            >
+              {showVisionDebug ? "Masquer vision" : "Afficher vision"}
             </button>
             <button
               type="button"

@@ -15,5 +15,11 @@
     "canPassThroughWalls": false,
     "canPassThroughEntities": true,
     "canStopOnOccupiedTile": false
+  },
+  "vision": {
+    "shape": "cone",
+    "range": 6,
+    "apertureDeg": 80,
+    "canSeeInDark": false
   }
 }
