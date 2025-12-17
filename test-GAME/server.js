@@ -251,6 +251,113 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // API narration (resume de tour + bulles roleplay)
+  if (req.method === "POST" && req.url === "/api/narration") {
+    try {
+      const body = await parseJsonBody(req);
+      const events = Array.isArray(body?.events) ? body.events : [];
+      const focusSide = body?.focusSide === "player" ? "player" : "enemies";
+
+      let summary;
+      if (!events.length) {
+        summary =
+          focusSide === "player"
+            ? "Le heros observe le champ de bataille, en quete d'une action decisive."
+            : "Les ennemis se repositionnent prudemment, jaugeant le heros.";
+      } else {
+        const attackEvents = events.filter(
+          e => e.kind === "player_attack" || e.kind === "enemy_attack"
+        );
+        const deaths = events.filter(e => e.kind === "death");
+
+        const parts = [];
+        if (attackEvents.length) {
+          const last = attackEvents[attackEvents.length - 1];
+          if (last.actorKind === "player") {
+            parts.push(
+              "Le heros profite d'une ouverture et frappe avec decision, ebranlant la ligne adverse."
+            );
+          } else {
+            parts.push(
+              "Les ennemis serrent les rangs et declenchent une serie d'assaillants contre le heros."
+            );
+          }
+        } else {
+          if (focusSide === "player") {
+            parts.push(
+              "Le heros se deplace avec prudence, etudie chaque menace et cherche la meilleure opportunite."
+            );
+          } else {
+            parts.push(
+              "Les ennemis se concertent a voix basse, cherchant le moment ideal pour frapper."
+            );
+          }
+        }
+
+        if (deaths.length) {
+          parts.push(
+            deaths.length === 1
+              ? "Une silhouette tombe au sol, signalant un tournant brutal dans le combat."
+              : "Plusieurs corps s'effondrent, laissant un silence pesant planer sur la zone."
+          );
+        }
+
+        summary = parts.join(" ");
+      }
+
+      // Petites repliques roleplay simplifiees
+      const enemySpeeches = [];
+      if (Array.isArray(body?.state?.actors)) {
+        const enemiesAlive = body.state.actors.filter(
+          a => a.kind === "enemy" && typeof a.hp === "number" && a.hp > 0
+        );
+
+        // Si un ennemi vient de mourir, les autres reagissent
+        const deaths = events.filter(e => e.kind === "death" && e.actorKind === "enemy");
+        if (deaths.length && enemiesAlive.length) {
+          const killed = deaths[deaths.length - 1].actorId;
+          const speaker = enemiesAlive[0];
+          enemySpeeches.push({
+            enemyId: speaker.id,
+            line: `Tombe pas comme ${killed}, reste en formation !`
+          });
+        } else if (focusSide === "player" && enemiesAlive.length) {
+          // Replique apres une action du joueur
+          const speaker = enemiesAlive[Math.floor(Math.random() * enemiesAlive.length)];
+          enemySpeeches.push({
+            enemyId: speaker.id,
+            line: "Il est coriace ce type... reste sur tes gardes !"
+          });
+        } else if (focusSide === "enemies" && enemiesAlive.length >= 2) {
+          // Deux ennemis coordonnent un peu leur plan
+          const a = enemiesAlive[0];
+          const b = enemiesAlive[1];
+          enemySpeeches.push(
+            {
+              enemyId: a.id,
+              line: "On le prend de flanc, pousse-le vers moi !"
+            },
+            {
+              enemyId: b.id,
+              line: "Compris, je le tiens occupe !"
+            }
+          );
+        }
+      }
+
+      const response = {
+        summary,
+        enemySpeeches
+      };
+
+      sendJson(res, 200, response);
+    } catch (err) {
+      console.error("[narration] Erreur de traitement:", err.message);
+      sendJson(res, 400, { error: "Bad request" });
+    }
+    return;
+  }
+
   // À partir d'ici : route "front" -> servir les fichiers de dist/
   if (req.method === "GET" || req.method === "HEAD") {
     try {

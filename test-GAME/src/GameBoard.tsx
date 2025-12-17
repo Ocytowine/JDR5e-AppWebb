@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Application, Container, Graphics, Sprite, Assets } from "pixi.js";
+import { Application, Container, Graphics, Sprite, Assets, Text } from "pixi.js";
 import { sampleCharacter } from "./sampleCharacter";
 import type { MovementProfile, TokenState, VisionProfile } from "./types";
 import {
@@ -50,6 +50,15 @@ import {
   getEntitiesInVision,
   isTargetVisible
 } from "./vision";
+import {
+  recordCombatEvent,
+  requestTurnNarration
+} from "./narrationClient";
+import type {
+  CombatStateSummary,
+  CombatSide,
+  EnemySpeech
+} from "./narrationTypes";
 
 // -------------------------------------------------------------
 // Types for enemy AI and turn system
@@ -99,6 +108,12 @@ interface EnemyAiStateSummary {
   grid: { cols: number; rows: number };
   player: PlayerSummary;
   enemies: EnemySummary[];
+}
+
+interface SpeechBubbleEntry {
+  tokenId: string;
+  text: string;
+  expiresAt: number;
 }
 
 type EffectSpecKind = "circle" | "rectangle" | "cone";
@@ -186,9 +201,11 @@ interface EnemyTypeDefinition {
     moveRange: number;
     attackDamage: number;
     armorClass: number;
+    attackRange?: number;
+    maxAttacksPerTurn?: number;
   };
   movement?: MovementProfile;
-   vision?: VisionProfile;
+  vision?: VisionProfile;
 }
 
 interface ActionDefinition {
@@ -269,15 +286,19 @@ function createEnemy(
   position: { x: number; y: number }
 ): TokenState {
   const { x, y } = position;
+  const base = enemyType.baseStats;
   return {
     id: `enemy-${index + 1}`,
     type: "enemy",
     enemyTypeId: enemyType.id,
     enemyTypeLabel: enemyType.label,
     aiRole: enemyType.aiRole,
-    moveRange: enemyType.baseStats.moveRange,
-    attackDamage: enemyType.baseStats.attackDamage,
-    armorClass: enemyType.baseStats.armorClass,
+    moveRange: base.moveRange,
+    attackDamage: base.attackDamage,
+    attackRange: typeof base.attackRange === "number" ? base.attackRange : 1,
+    maxAttacksPerTurn:
+      typeof base.maxAttacksPerTurn === "number" ? base.maxAttacksPerTurn : 1,
+    armorClass: base.armorClass,
     movementProfile: enemyType.movement
       ? (enemyType.movement as MovementProfile)
       : {
@@ -296,8 +317,8 @@ function createEnemy(
         },
     x,
     y,
-    hp: enemyType.baseStats.hp,
-    maxHp: enemyType.baseStats.hp
+    hp: base.hp,
+    maxHp: base.hp
   };
 }
 
@@ -307,6 +328,45 @@ function clamp(value: number, min: number, max: number): number {
 
 function manhattan(a: { x: number; y: number }, b: { x: number; y: number }) {
   return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+}
+
+function isTokenDead(token: TokenState): boolean {
+  return token.hp <= 0;
+}
+
+function getAttackRangeForToken(token: TokenState): number {
+  if (typeof token.attackRange === "number" && token.attackRange > 0) {
+    return token.attackRange;
+  }
+  return 1;
+}
+
+function getMaxAttacksForToken(token: TokenState): number {
+  if (typeof token.maxAttacksPerTurn === "number" && token.maxAttacksPerTurn > 0) {
+    return token.maxAttacksPerTurn;
+  }
+  return 1;
+}
+
+function canEnemySeePlayer(
+  enemy: TokenState,
+  playerToken: TokenState,
+  allTokens: TokenState[]
+): boolean {
+  if (isTokenDead(enemy) || isTokenDead(playerToken)) return false;
+  return isTargetVisible(enemy, playerToken, allTokens);
+}
+
+function canEnemyMeleeAttack(
+  enemy: { x: number; y: number },
+  playerToken: { x: number; y: number }
+): boolean {
+  return manhattan(enemy, playerToken) <= 1;
+}
+
+function canEnemyAttackPlayer(enemy: TokenState, playerToken: TokenState): boolean {
+  const range = getAttackRangeForToken(enemy);
+  return manhattan(enemy, playerToken) <= range;
 }
 
 function computeFacingTowards(
@@ -367,6 +427,8 @@ export const GameBoard: React.FC = () => {
   const pathLayerRef = useRef<Graphics | null>(null);
 
   const [log, setLog] = useState<string[]>([]);
+  const [narrativeLog, setNarrativeLog] = useState<string[]>([]);
+  const [speechBubbles, setSpeechBubbles] = useState<SpeechBubbleEntry[]>([]);
 
   const [player, setPlayer] = useState<TokenState>({
     id: "player-1",
@@ -426,9 +488,10 @@ export const GameBoard: React.FC = () => {
   const [aiLastState, setAiLastState] =
     useState<EnemyAiStateSummary | null>(null);
   const [aiLastDecisions, setAiLastDecisions] =
-    useState<EnemyDecision[] | null>(null);
+      useState<EnemyDecision[] | null>(null);
   const [aiLastError, setAiLastError] = useState<string | null>(null);
   const [aiUsedFallback, setAiUsedFallback] = useState<boolean>(false);
+  const [isGameOver, setIsGameOver] = useState<boolean>(false);
 
   function describeEnemyLastDecision(enemyId: string): string {
     if (aiUsedFallback) {
@@ -532,9 +595,61 @@ export const GameBoard: React.FC = () => {
     setLog(prev => [message, ...prev].slice(0, 12));
   }
 
+  function pushNarrative(message: string) {
+    setNarrativeLog(prev => [message, ...prev].slice(0, 20));
+  }
+
   function pushDiceLog(message: string) {
     setDiceLogs(prev => [message, ...prev].slice(0, 6));
     pushLog(message);
+  }
+
+  function applyEnemySpeeches(speeches: EnemySpeech[] | undefined | null) {
+    if (!speeches || !speeches.length) return;
+    const expiresAt = Date.now() + 3500;
+    setSpeechBubbles(prev => {
+      const filtered = prev.filter(
+        b => !speeches.some(s => s.enemyId === b.tokenId)
+      );
+      const next = speeches.map(s => ({
+        tokenId: s.enemyId,
+        text: s.line,
+        expiresAt
+      }));
+      return [...filtered, ...next];
+    });
+  }
+
+  function buildCombatStateSummary(focusSide: CombatSide): CombatStateSummary {
+    const actors = [
+      {
+        id: player.id,
+        kind: "player" as const,
+        label: "Heros",
+        aiRole: null,
+        x: player.x,
+        y: player.y,
+        hp: player.hp,
+        maxHp: player.maxHp
+      },
+      ...enemies.map(e => ({
+        id: e.id,
+        kind: "enemy" as const,
+        label: e.enemyTypeLabel || e.enemyTypeId || e.id,
+        aiRole: e.aiRole ?? null,
+        x: e.x,
+        y: e.y,
+        hp: e.hp,
+        maxHp: e.maxHp
+      }))
+    ];
+
+    return {
+      round,
+      phase: focusSide,
+      grid: { cols: GRID_COLS, rows: GRID_ROWS },
+      actors
+    };
   }
 
   // -----------------------------------------------------------
@@ -931,6 +1046,8 @@ export const GameBoard: React.FC = () => {
   }
 
   function handleRollAttack() {
+    if (isGameOver) return;
+    if (isTokenDead(player)) return;
     const action = getValidatedAction();
     if (!action) {
       pushLog("Aucune action validee pour lancer un jet.");
@@ -998,6 +1115,8 @@ export const GameBoard: React.FC = () => {
   }
 
   function handleRollDamage() {
+    if (isGameOver) return;
+    if (isTokenDead(player)) return;
     const action = getValidatedAction();
     if (!action) {
       pushLog("Aucune action validee pour lancer un jet.");
@@ -1072,18 +1191,70 @@ export const GameBoard: React.FC = () => {
       } = ${totalDamage}${isCrit ? " (critique)" : ""}`
     );
 
-    if (typeof targetIndex === "number" && targetIndex >= 0) {
-      setEnemies(prev => {
-        if (targetIndex === null || targetIndex < 0 || targetIndex >= prev.length) {
-          return prev;
-        }
-        const copy = [...prev];
-        const target = { ...copy[targetIndex] };
-        target.hp = Math.max(0, target.hp - totalDamage);
-        copy[targetIndex] = target;
-        return copy;
-      });
-    }
+      if (typeof targetIndex === "number" && targetIndex >= 0) {
+        setEnemies(prev => {
+          if (targetIndex === null || targetIndex < 0 || targetIndex >= prev.length) {
+            return prev;
+          }
+          const copy = [...prev];
+          const target = { ...copy[targetIndex] };
+          const beforeHp = target.hp;
+          target.hp = Math.max(0, target.hp - totalDamage);
+          copy[targetIndex] = target;
+
+          recordCombatEvent({
+            round,
+            phase,
+            kind: "player_attack",
+            actorId: player.id,
+            actorKind: "player",
+            targetId: target.id,
+            targetKind: "enemy",
+            summary: `Le heros frappe ${target.id} et inflige ${totalDamage} degats (PV ${beforeHp} -> ${target.hp}).`,
+            data: {
+              actionId: action.id,
+              damage: totalDamage,
+              isCrit,
+              targetHpBefore: beforeHp,
+              targetHpAfter: target.hp
+            }
+          });
+
+          if (target.hp <= 0 && beforeHp > 0) {
+            recordCombatEvent({
+              round,
+              phase,
+              kind: "death",
+              actorId: target.id,
+              actorKind: "enemy",
+              summary: `${target.id} s'effondre, hors de combat.`,
+              targetId: target.id,
+              targetKind: "enemy",
+              data: {
+                killedBy: player.id
+              }
+            });
+          }
+
+          return copy;
+        });
+
+          // Lancer une demande de narration pour le tour du joueur
+          void (async () => {
+            try {
+              const stateSummary = buildCombatStateSummary("player");
+              const narration = await requestTurnNarration("player", stateSummary);
+              const text =
+                narration.playerPerspective || narration.summary || null;
+              if (text) {
+                pushNarrative(text);
+              }
+              applyEnemySpeeches(narration.enemySpeeches ?? []);
+            } catch {
+              // en cas d'erreur reseau, on ignore simplement
+            }
+          })();
+      }
   }
 
   function handleAutoResolveRolls() {
@@ -1112,7 +1283,9 @@ export const GameBoard: React.FC = () => {
   // -----------------------------------------------------------
 
   function handleBoardClick(event: React.MouseEvent<HTMLDivElement>) {
-    if (phase !== "player") return;
+      if (phase !== "player") return;
+      if (isGameOver) return;
+      if (isTokenDead(player)) return;
 
     const container = pixiContainerRef.current;
     if (!container) return;
@@ -1233,8 +1406,10 @@ export const GameBoard: React.FC = () => {
   // Player actions: validate / reset movement
   // -----------------------------------------------------------
 
-  function handleValidatePath() {
-    if (phase !== "player") return;
+    function handleValidatePath() {
+      if (phase !== "player") return;
+      if (isGameOver) return;
+      if (isTokenDead(player)) return;
     if (selectedPath.length === 0) return;
 
     const last = selectedPath[selectedPath.length - 1];
@@ -1252,14 +1427,16 @@ export const GameBoard: React.FC = () => {
     setSelectedPath([]);
   }
 
-  function handleResetPath() {
-    if (phase !== "player") return;
+    function handleResetPath() {
+      if (phase !== "player") return;
+      if (isGameOver) return;
     setSelectedPath([]);
     pushLog("Trajectoire reinitialisee.");
   }
 
-  function handleSetPlayerFacing(direction: "up" | "down" | "left" | "right") {
-    if (phase !== "player") return;
+    function handleSetPlayerFacing(direction: "up" | "down" | "left" | "right") {
+      if (phase !== "player") return;
+      if (isGameOver) return;
     setPlayer(prev => ({
       ...prev,
       facing: direction
@@ -1372,32 +1549,48 @@ export const GameBoard: React.FC = () => {
   }
 
   function applyEnemyDecisions(decisions: EnemyDecision[]) {
-    if (!decisions.length) {
-      // Fallback simple: une "IA locale" pour que ça bouge quand même
-      setAiUsedFallback(true);
-      setAiLastDecisions([]);
-      setEnemies(prevEnemies => {
-        const enemiesCopy = prevEnemies.map(e => ({ ...e }));
-        let playerCopy = { ...player };
+      if (!decisions.length) {
+        // Fallback simple: une "IA locale" pour que ça bouge quand même
+        setAiUsedFallback(true);
+        setAiLastDecisions([]);
+        setEnemies(prevEnemies => {
+          const enemiesCopy = prevEnemies.map(e => ({ ...e }));
+          let playerCopy = { ...player };
+  
+          for (const enemy of enemiesCopy) {
+            if (isTokenDead(enemy)) {
+              continue;
+            }
 
-        for (const enemy of enemiesCopy) {
-          const maxRange =
-            typeof enemy.moveRange === "number" ? enemy.moveRange : 3;
+            const allTokens: TokenState[] = [
+              playerCopy as TokenState,
+              ...enemiesCopy
+            ];
+
+            if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens)) {
+              pushLog(
+                `${enemy.id} ne voit pas le joueur et reste en alerte (fallback).`
+              );
+              continue;
+            }
+
+            const maxRange =
+              typeof enemy.moveRange === "number" ? enemy.moveRange : 3;
 
           const tokensForPath: TokenState[] = [
             playerCopy as TokenState,
             ...enemiesCopy
           ];
 
-          const path = computePathTowards(
-            enemy,
-            { x: playerCopy.x, y: playerCopy.y },
-            tokensForPath,
-            {
-              maxDistance: maxRange,
-              allowTargetOccupied: true
-            }
-          );
+            const path = computePathTowards(
+              enemy,
+              { x: playerCopy.x, y: playerCopy.y },
+              tokensForPath,
+              {
+                maxDistance: maxRange,
+                allowTargetOccupied: true
+              }
+            );
 
           enemy.plannedPath = path;
 
@@ -1408,34 +1601,68 @@ export const GameBoard: React.FC = () => {
             continue;
           }
 
-          const destination = path[path.length - 1];
-
-          enemy.x = destination.x;
-          enemy.y = destination.y;
-          enemy.facing = computeFacingTowards(enemy, playerCopy);
-
-          const distToPlayer =
-            Math.abs(enemy.x - playerCopy.x) +
-            Math.abs(enemy.y - playerCopy.y);
-
-          if (distToPlayer <= 1) {
-            const damage =
-              typeof enemy.attackDamage === "number"
-                ? enemy.attackDamage
-                : 2;
-            playerCopy = {
-              ...playerCopy,
-              hp: Math.max(0, playerCopy.hp - damage)
-            };
-            pushLog(
-              `${enemy.id} suit un chemin et attaque le joueur pour ${damage} degats (fallback).`
-            );
-          } else {
-            pushLog(
-              `${enemy.id} suit un chemin vers (${destination.x}, ${destination.y}) (fallback).`
-            );
+            const destination = path[path.length - 1];
+  
+            enemy.x = destination.x;
+            enemy.y = destination.y;
+            enemy.facing = computeFacingTowards(enemy, playerCopy);
+  
+            const distToPlayer = manhattan(enemy, playerCopy);
+            const attackRange = getAttackRangeForToken(enemy);
+  
+              if (distToPlayer <= attackRange) {
+                const baseDamage =
+                  typeof enemy.attackDamage === "number" ? enemy.attackDamage : 2;
+                const attacks = getMaxAttacksForToken(enemy);
+                const totalDamage = baseDamage * attacks;
+                const beforeHp = playerCopy.hp;
+                playerCopy = {
+                  ...playerCopy,
+                  hp: Math.max(0, playerCopy.hp - totalDamage)
+                };
+                pushLog(
+                  attacks > 1
+                    ? `${enemy.id} suit un chemin et effectue ${attacks} attaques pour un total de ${totalDamage} degats (fallback).`
+                    : `${enemy.id} suit un chemin et attaque le joueur pour ${totalDamage} degats (fallback).`
+                );
+                recordCombatEvent({
+                  round,
+                  phase,
+                  kind: "enemy_attack",
+                  actorId: enemy.id,
+                  actorKind: "enemy",
+                  targetId: playerCopy.id,
+                  targetKind: "player",
+                  summary: `${enemy.id} atteint le heros pour ${totalDamage} degats (PV ${beforeHp} -> ${playerCopy.hp}).`,
+                  data: {
+                    damage: totalDamage,
+                    attacks,
+                    playerHpBefore: beforeHp,
+                    playerHpAfter: playerCopy.hp,
+                    fallback: true
+                  }
+                });
+                if (playerCopy.hp <= 0 && beforeHp > 0) {
+                  recordCombatEvent({
+                    round,
+                    phase,
+                    kind: "death",
+                    actorId: playerCopy.id,
+                    actorKind: "player",
+                    summary: "Le heros s'effondre sous les coups ennemis.",
+                    targetId: playerCopy.id,
+                    targetKind: "player",
+                    data: {
+                      killedBy: enemy.id
+                    }
+                  });
+                }
+              } else {
+                pushLog(
+                `${enemy.id} suit un chemin vers (${destination.x}, ${destination.y}) (fallback).`
+              );
+            }
           }
-        }
 
         setPlayer(playerCopy);
         return enemiesCopy;
@@ -1445,107 +1672,137 @@ export const GameBoard: React.FC = () => {
 
     setAiUsedFallback(false);
 
-    // Apply remote decisions in a single pass
-    setEnemies(prevEnemies => {
-      const enemiesCopy = prevEnemies.map(e => ({ ...e }));
-      let playerCopy = { ...player };
+      // Apply remote decisions in a single pass
+      setEnemies(prevEnemies => {
+        const enemiesCopy = prevEnemies.map(e => ({ ...e }));
+        let playerCopy = { ...player };
+  
+        for (const rawDecision of decisions) {
+          const enemy = enemiesCopy.find(e => e.id === rawDecision.enemyId);
+          if (!enemy) continue;
+          if (isTokenDead(enemy)) continue;
 
-      for (const rawDecision of decisions) {
-        const enemy = enemiesCopy.find(e => e.id === rawDecision.enemyId);
-        if (!enemy) continue;
-
-        const action = (rawDecision.action || "wait").toLowerCase() as EnemyActionType;
-        console.log("[enemy-ai] Application action", {
-          enemyId: enemy.id,
-          action,
-          targetX: rawDecision.targetX,
-          targetY: rawDecision.targetY
-        });
-
-        if (action === "wait") {
-          pushLog(`${enemy.id} attend.`);
-          continue;
-        }
-
-        if (action === "move") {
-          // Accepte soit targetX/targetY, soit target: { x, y }
-          let tx: number | undefined = rawDecision.targetX;
-          let ty: number | undefined = rawDecision.targetY;
-          const anyDecision = rawDecision as any;
-          if (
-            (typeof tx !== "number" || typeof ty !== "number") &&
-            anyDecision.target &&
-            typeof anyDecision.target.x === "number" &&
-            typeof anyDecision.target.y === "number"
-          ) {
-            tx = anyDecision.target.x;
-            ty = anyDecision.target.y;
-          }
-
-          if (typeof tx !== "number" || typeof ty !== "number") {
-            pushLog(
-              `${enemy.id}: decision MOVE ignoree (pas de cible valide).`
-            );
-            continue;
-          }
-
-          const maxRange =
-            typeof enemy.moveRange === "number" ? enemy.moveRange : 3;
-
-          const targetX = clamp(tx, 0, GRID_COLS - 1);
-          const targetY = clamp(ty, 0, GRID_ROWS - 1);
-
-          const tokensForPath: TokenState[] = [
+          const allTokens: TokenState[] = [
             playerCopy as TokenState,
             ...enemiesCopy
           ];
 
-          const path = computePathTowards(
-            enemy,
-            { x: targetX, y: targetY },
-            tokensForPath,
-            {
-              maxDistance: maxRange,
-              allowTargetOccupied: true
+          const action = (rawDecision.action || "wait").toLowerCase() as EnemyActionType;
+          console.log("[enemy-ai] Application action", {
+            enemyId: enemy.id,
+            action,
+            targetX: rawDecision.targetX,
+            targetY: rawDecision.targetY
+          });
+
+          if (action === "wait") {
+            pushLog(`${enemy.id} attend.`);
+            continue;
+          }
+
+          if (action === "move") {
+            if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens)) {
+              pushLog(
+                `${enemy.id} ne voit pas le joueur et reste en alerte.`
+              );
+              continue;
             }
-          );
 
-          enemy.plannedPath = path;
+            // Accepte soit targetX/targetY, soit target: { x, y }
+            let tx: number | undefined = rawDecision.targetX;
+            let ty: number | undefined = rawDecision.targetY;
+            const anyDecision = rawDecision as any;
+            if (
+              (typeof tx !== "number" || typeof ty !== "number") &&
+              anyDecision.target &&
+              typeof anyDecision.target.x === "number" &&
+              typeof anyDecision.target.y === "number"
+            ) {
+              tx = anyDecision.target.x;
+              ty = anyDecision.target.y;
+            }
 
-          if (path.length === 0) {
+            if (typeof tx !== "number" || typeof ty !== "number") {
+              pushLog(
+                `${enemy.id}: decision MOVE ignoree (pas de cible valide).`
+              );
+              continue;
+            }
+
+            const maxRange =
+              typeof enemy.moveRange === "number" ? enemy.moveRange : 3;
+
+            const targetX = clamp(tx, 0, GRID_COLS - 1);
+            const targetY = clamp(ty, 0, GRID_ROWS - 1);
+
+            const tokensForPath: TokenState[] = [
+              playerCopy as TokenState,
+              ...enemiesCopy
+            ];
+
+            const path = computePathTowards(
+              enemy,
+              { x: targetX, y: targetY },
+              tokensForPath,
+              {
+                maxDistance: maxRange,
+                allowTargetOccupied: true
+              }
+            );
+
+            enemy.plannedPath = path;
+
+            if (path.length === 0) {
+              pushLog(
+                `${enemy.id}: aucun trajet valide vers (${targetX}, ${targetY}), reste en place.`
+              );
+              continue;
+            }
+
+            const destination = path[path.length - 1];
+            enemy.x = destination.x;
+            enemy.y = destination.y;
+            enemy.facing = computeFacingTowards(enemy, playerCopy);
             pushLog(
-              `${enemy.id}: aucun trajet valide vers (${targetX}, ${targetY}), reste en place.`
+              `${enemy.id} suit un chemin vers (${destination.x}, ${destination.y}).`
             );
             continue;
           }
 
-          const destination = path[path.length - 1];
-          enemy.x = destination.x;
-          enemy.y = destination.y;
-          enemy.facing = computeFacingTowards(enemy, playerCopy);
-          pushLog(
-            `${enemy.id} suit un chemin vers (${destination.x}, ${destination.y}).`
-          );
-          continue;
-        }
+          if (action === "attack") {
+            enemy.facing = computeFacingTowards(enemy, playerCopy);
 
-        if (action === "attack") {
-          enemy.facing = computeFacingTowards(enemy, playerCopy);
-          const distToPlayer = manhattan(enemy, playerCopy);
-          if (distToPlayer <= 1) {
-            const damage = typeof enemy.attackDamage === "number" ? enemy.attackDamage : 2;
-            playerCopy = {
-              ...playerCopy,
-              hp: Math.max(0, playerCopy.hp - damage)
-            };
-            pushLog(`${enemy.id} attaque le joueur pour ${damage} degats.`);
-          } else {
-            pushLog(
-              `${enemy.id} voulait attaquer mais est trop loin (ignore).`
-            );
+            if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens)) {
+              pushLog(
+                `${enemy.id} voulait attaquer mais ne voit pas le joueur.`
+              );
+              continue;
+            }
+
+            const distToPlayer = manhattan(enemy, playerCopy);
+            const attackRange = getAttackRangeForToken(enemy);
+
+            if (distToPlayer <= attackRange) {
+              const baseDamage =
+                typeof enemy.attackDamage === "number" ? enemy.attackDamage : 2;
+              const attacks = getMaxAttacksForToken(enemy);
+              const totalDamage = baseDamage * attacks;
+              playerCopy = {
+                ...playerCopy,
+                hp: Math.max(0, playerCopy.hp - totalDamage)
+              };
+              pushLog(
+                attacks > 1
+                  ? `${enemy.id} effectue ${attacks} attaques et inflige ${totalDamage} degats au joueur.`
+                  : `${enemy.id} attaque le joueur pour ${totalDamage} degats.`
+              );
+            } else {
+              pushLog(
+                `${enemy.id} voulait attaquer mais est trop loin (ignore).`
+              );
+            }
           }
         }
-      }
 
       setPlayer(playerCopy);
       return enemiesCopy;
@@ -1570,8 +1827,21 @@ export const GameBoard: React.FC = () => {
       const enemiesCopy = prevEnemies.map(e => ({ ...e }));
       let playerCopy = { ...player };
 
-      const enemy = enemiesCopy.find(e => e.id === activeEnemyId);
-      if (!enemy) return prevEnemies;
+        const enemy = enemiesCopy.find(e => e.id === activeEnemyId);
+        if (!enemy) return prevEnemies;
+        if (isTokenDead(enemy)) return prevEnemies;
+
+        const allTokens: TokenState[] = [
+          playerCopy as TokenState,
+          ...enemiesCopy
+        ];
+
+        if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens)) {
+          pushLog(
+            `${enemy.id} ne voit pas le joueur et reste en alerte (fallback).`
+          );
+          return enemiesCopy;
+        }
 
       const maxRange =
         typeof enemy.moveRange === "number" ? enemy.moveRange : 3;
@@ -1593,36 +1863,72 @@ export const GameBoard: React.FC = () => {
 
       enemy.plannedPath = path;
 
-      if (path.length === 0) {
-        pushLog(
-          `${enemy.id} ne trouve pas de chemin valide vers le joueur (fallback, reste en place).`
-        );
-      } else {
-        const destination = path[path.length - 1];
-        enemy.x = destination.x;
-        enemy.y = destination.y;
-        enemy.facing = computeFacingTowards(enemy, playerCopy);
-
-        const distToPlayer =
-          Math.abs(enemy.x - playerCopy.x) +
-          Math.abs(enemy.y - playerCopy.y);
-
-        if (distToPlayer <= 1) {
-          const damage =
-            typeof enemy.attackDamage === "number" ? enemy.attackDamage : 2;
-          playerCopy = {
-            ...playerCopy,
-            hp: Math.max(0, playerCopy.hp - damage)
-          };
+        if (path.length === 0) {
           pushLog(
-            `${enemy.id} suit un chemin et attaque le joueur pour ${damage} degats (fallback).`
+            `${enemy.id} ne trouve pas de chemin valide vers le joueur (fallback, reste en place).`
           );
         } else {
-          pushLog(
-            `${enemy.id} suit un chemin vers (${destination.x}, ${destination.y}) (fallback).`
-          );
-        }
-      }
+          const destination = path[path.length - 1];
+          enemy.x = destination.x;
+          enemy.y = destination.y;
+          enemy.facing = computeFacingTowards(enemy, playerCopy);
+  
+          const distToPlayer = manhattan(enemy, playerCopy);
+          const attackRange = getAttackRangeForToken(enemy);
+  
+            if (distToPlayer <= attackRange) {
+              const baseDamage =
+                typeof enemy.attackDamage === "number" ? enemy.attackDamage : 2;
+              const attacks = getMaxAttacksForToken(enemy);
+              const totalDamage = baseDamage * attacks;
+              const beforeHp = playerCopy.hp;
+              playerCopy = {
+                ...playerCopy,
+                hp: Math.max(0, playerCopy.hp - totalDamage)
+              };
+              pushLog(
+                attacks > 1
+                  ? `${enemy.id} suit un chemin et effectue ${attacks} attaques pour un total de ${totalDamage} degats (fallback).`
+                  : `${enemy.id} suit un chemin et attaque le joueur pour ${totalDamage} degats (fallback).`
+              );
+              recordCombatEvent({
+                round,
+                phase,
+                kind: "enemy_attack",
+                actorId: enemy.id,
+                actorKind: "enemy",
+                targetId: playerCopy.id,
+                targetKind: "player",
+                summary: `${enemy.id} atteint le heros pour ${totalDamage} degats (PV ${beforeHp} -> ${playerCopy.hp}).`,
+                data: {
+                  damage: totalDamage,
+                  attacks,
+                  playerHpBefore: beforeHp,
+                  playerHpAfter: playerCopy.hp,
+                  fallback: true
+                }
+              });
+              if (playerCopy.hp <= 0 && beforeHp > 0) {
+                recordCombatEvent({
+                  round,
+                  phase,
+                  kind: "death",
+                  actorId: playerCopy.id,
+                  actorKind: "player",
+                  summary: "Le heros s'effondre sous les coups ennemis.",
+                  targetId: playerCopy.id,
+                  targetKind: "player",
+                  data: {
+                    killedBy: enemy.id
+                  }
+                });
+              }
+            } else {
+              pushLog(
+                `${enemy.id} suit un chemin vers (${destination.x}, ${destination.y}) (fallback).`
+              );
+            }
+          }
 
       setPlayer(playerCopy);
       return enemiesCopy;
@@ -1635,20 +1941,32 @@ export const GameBoard: React.FC = () => {
       const enemiesCopy = prevEnemies.map(e => ({ ...e }));
       let playerCopy = { ...player };
 
-      for (const rawDecision of filtered) {
-        const enemy = enemiesCopy.find(e => e.id === rawDecision.enemyId);
-        if (!enemy) continue;
+        for (const rawDecision of filtered) {
+          const enemy = enemiesCopy.find(e => e.id === rawDecision.enemyId);
+          if (!enemy) continue;
 
-        const action = (rawDecision.action || "wait").toLowerCase() as EnemyActionType;
+          const allTokens: TokenState[] = [
+            playerCopy as TokenState,
+            ...enemiesCopy
+          ];
+  
+          const action = (rawDecision.action || "wait").toLowerCase() as EnemyActionType;
 
         if (action === "wait") {
           pushLog(`${enemy.id} attend.`);
           continue;
         }
 
-        if (action === "move") {
-          let tx: number | undefined = rawDecision.targetX;
-          let ty: number | undefined = rawDecision.targetY;
+          if (action === "move") {
+            if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens)) {
+              pushLog(
+                `${enemy.id} ne voit pas le joueur et reste en alerte.`
+              );
+              continue;
+            }
+
+            let tx: number | undefined = rawDecision.targetX;
+            let ty: number | undefined = rawDecision.targetY;
           const anyDecision = rawDecision as any;
           if (
             (typeof tx !== "number" || typeof ty !== "number") &&
@@ -1707,20 +2025,36 @@ export const GameBoard: React.FC = () => {
           continue;
         }
 
-        if (action === "attack") {
-          enemy.facing = computeFacingTowards(enemy, playerCopy);
-          const distToPlayer = manhattan(enemy, playerCopy);
-          if (distToPlayer <= 1) {
-            const damage =
-              typeof enemy.attackDamage === "number" ? enemy.attackDamage : 2;
-            playerCopy = {
-              ...playerCopy,
-              hp: Math.max(0, playerCopy.hp - damage)
-            };
-            pushLog(`${enemy.id} attaque le joueur pour ${damage} degats.`);
-          } else {
-            pushLog(
-              `${enemy.id} voulait attaquer mais est trop loin (ignore).`
+          if (action === "attack") {
+            enemy.facing = computeFacingTowards(enemy, playerCopy);
+
+            if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens)) {
+              pushLog(
+                `${enemy.id} voulait attaquer mais ne voit pas le joueur.`
+              );
+              continue;
+            }
+
+            const distToPlayer = manhattan(enemy, playerCopy);
+            const attackRange = getAttackRangeForToken(enemy);
+
+            if (distToPlayer <= attackRange) {
+              const baseDamage =
+                typeof enemy.attackDamage === "number" ? enemy.attackDamage : 2;
+              const attacks = getMaxAttacksForToken(enemy);
+              const totalDamage = baseDamage * attacks;
+              playerCopy = {
+                ...playerCopy,
+                hp: Math.max(0, playerCopy.hp - totalDamage)
+              };
+              pushLog(
+                attacks > 1
+                  ? `${enemy.id} effectue ${attacks} attaques et inflige ${totalDamage} degats au joueur.`
+                  : `${enemy.id} attaque le joueur pour ${totalDamage} degats.`
+              );
+            } else {
+              pushLog(
+                `${enemy.id} voulait attaquer mais est trop loin (ignore).`
             );
           }
         }
@@ -1736,11 +2070,12 @@ export const GameBoard: React.FC = () => {
 }
 
 function handleEndPlayerTurn() {
-  const entry = getActiveTurnEntry();
-  if (!entry || entry.kind !== "player") return;
-  pushLog(`Fin du tour joueur (round ${round}).`);
-  advanceTurn();
-}
+    if (isGameOver) return;
+    const entry = getActiveTurnEntry();
+    if (!entry || entry.kind !== "player") return;
+    pushLog(`Fin du tour joueur (round ${round}).`);
+    advanceTurn();
+  }
 
   // -----------------------------------------------------------
   // Demo AoE controls (attach effects to player)
@@ -1906,7 +2241,7 @@ function handleEndPlayerTurn() {
 
     void initPixi();
 
-    return () => {
+      return () => {
       destroyed = true;
       if (resizeHandler) {
         window.removeEventListener("resize", resizeHandler);
@@ -1916,9 +2251,23 @@ function handleEndPlayerTurn() {
       }
       appRef.current = null;
       tokenLayerRef.current = null;
-      pathLayerRef.current = null;
-    };
-  }, [isCombatConfigured]);
+        pathLayerRef.current = null;
+      };
+    }, [isCombatConfigured]);
+
+    // Game over si le joueur n'a plus de PV et aucun allié vivant
+    useEffect(() => {
+      if (isGameOver) return;
+
+      if (player.hp <= 0) {
+        const alliesAlive = [player, ...enemies].some(
+          t => t.type === "player" && !isTokenDead(t)
+        );
+        if (!alliesAlive) {
+          setIsGameOver(true);
+        }
+      }
+    }, [player, enemies, isGameOver]);
 
   // -----------------------------------------------------------
   // Layer 4: redraw tokens when state changes
@@ -1936,23 +2285,100 @@ function handleEndPlayerTurn() {
 
       const textureId =
         token.type === "player" ? PLAYER_TOKEN_ID : ENEMY_TOKEN_ID;
-      const sprite = Sprite.from(textureId);
-      sprite.anchor.set(0.5);
+        const sprite = Sprite.from(textureId);
+        sprite.anchor.set(0.5, 1);
       sprite.width = TILE_SIZE * 0.9;
       sprite.height = TILE_SIZE * 0.9;
       tokenContainer.addChild(sprite);
 
       const screenPos = gridToScreen(token.x, token.y);
       // Légers offsets pour compenser le viewBox des SVG et mieux coller à la case
-      tokenContainer.x = screenPos.x + TILE_SIZE * 0.05;
-      tokenContainer.y = screenPos.y - TILE_SIZE * 0.1;
+        tokenContainer.x = screenPos.x + TILE_SIZE * 0.05;
+        tokenContainer.y = screenPos.y;
 
       tokenLayer.addChild(tokenContainer);
     }
-  }, [player, enemies]);
+    }, [player, enemies]);
+  
+    // Apply visual effects on tokens (shadow, death orientation, speech bubbles)
+    useEffect(() => {
+      const tokenLayer = tokenLayerRef.current;
+      if (!tokenLayer) return;
 
-  // -----------------------------------------------------------
-  // Layer 3: draw path and AoE (attached to player)
+      const allTokens: TokenState[] = [player, ...enemies];
+
+      tokenLayer.children.forEach((child, index) => {
+        const token = allTokens[index];
+        if (!token) return;
+        if (!(child instanceof Container)) return;
+        const container = child as Container;
+
+        let sprite: Sprite | null = null;
+        for (const c of container.children) {
+          if (c instanceof Sprite) {
+            sprite = c as Sprite;
+            break;
+          }
+        }
+        if (!sprite) return;
+
+        // Remove existing non-sprite children (anciens halos / bulles)
+        const toRemove = container.children.filter(c => !(c instanceof Sprite));
+        for (const c of toRemove) {
+          container.removeChild(c);
+        }
+
+          // Halo d'ombre sous le pion
+          // Le centre du halo doit toujours coincider avec le centre
+          // de la case isometrique (origine du container), sauf si
+          // l'entite est morte (pas de halo dans ce cas).
+          if (!isTokenDead(token)) {
+            const shadow = new Graphics();
+            shadow.beginFill(0x000000, 0.4);
+            shadow.drawEllipse(0, 0, TILE_SIZE * 0.4, TILE_SIZE * 0.15);
+            shadow.endFill();
+            container.addChildAt(shadow, 0);
+          }
+
+        // Orientation / transparence en fonction de l'etat
+        if (isTokenDead(token)) {
+          sprite.rotation = Math.PI / 2;
+          sprite.alpha = 0.7;
+        } else {
+          sprite.rotation = 0;
+          sprite.alpha = 1;
+        }
+
+        // Bulle de dialogue eventuelle
+        const bubble = speechBubbles.find(b => b.tokenId === token.id);
+        if (bubble && bubble.text.trim().length > 0) {
+          const maxWidth = 120;
+          const bubbleBg = new Graphics();
+          bubbleBg.beginFill(0xffffff, 0.9);
+          const textObj = new Text(bubble.text, {
+            fontFamily: "Arial",
+            fontSize: 10,
+            fill: 0x000000,
+            align: "center",
+            wordWrap: true,
+            wordWrapWidth: maxWidth - 8
+          });
+          const width = Math.min(maxWidth, textObj.width + 8);
+          const height = textObj.height + 6;
+          bubbleBg.drawRoundedRect(-width / 2, -TILE_SIZE, width, height, 6);
+          bubbleBg.endFill();
+
+          textObj.x = -textObj.width / 2;
+          textObj.y = -TILE_SIZE + 3;
+
+          container.addChild(bubbleBg);
+          container.addChild(textObj);
+        }
+      });
+    }, [player, enemies, speechBubbles]);
+  
+    // -----------------------------------------------------------
+    // Layer 3: draw path and AoE (attached to player)
   // -----------------------------------------------------------
 
   useEffect(() => {
@@ -2204,8 +2630,8 @@ function handleEndPlayerTurn() {
   const activeEntry = getActiveTurnEntry();
   const timelineEntries = turnOrder;
 
-  if (!isCombatConfigured) {
-    return (
+    if (!isCombatConfigured) {
+      return (
       <div
         style={{
           display: "flex",
@@ -2309,32 +2735,128 @@ function handleEndPlayerTurn() {
   }
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "row",
-        gap: "16px",
-        height: "100vh",
-        background: "#0b0b12",
-        color: "#f5f5f5",
-        fontFamily: "system-ui, sans-serif",
-        padding: "16px",
-        boxSizing: "border-box"
-      }}
-    >
       <div
         style={{
-          flex: "1 1 auto",
           display: "flex",
-          flexDirection: "column",
-          alignItems: "stretch",
-          justifyContent: "center"
+          flexDirection: "row",
+          gap: "16px",
+          height: "100vh",
+          background: "#0b0b12",
+          color: "#f5f5f5",
+          fontFamily: "system-ui, sans-serif",
+          padding: "16px",
+          boxSizing: "border-box",
+          position: "relative"
         }}
       >
+        {isGameOver && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0, 0, 0, 0.75)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 1000
+            }}
+          >
+            <div
+              style={{
+                background: "#141421",
+                borderRadius: 12,
+                border: "1px solid #f1c40f",
+                padding: "24px 32px",
+                maxWidth: 360,
+                textAlign: "center",
+                boxShadow: "0 0 24px rgba(0,0,0,0.6)"
+              }}
+            >
+              <h2 style={{ margin: "0 0 8px" }}>Game Over</h2>
+              <p style={{ fontSize: 13, margin: "0 0 16px" }}>
+                Le heros est tombe et aucun allie n&apos;est en mesure de continuer.
+              </p>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                style={{
+                  padding: "6px 12px",
+                  background: "#e67e22",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 6,
+                  cursor: "pointer",
+                  fontSize: 13,
+                  fontWeight: 600
+                }}
+              >
+                Recommencer le combat
+              </button>
+            </div>
+          </div>
+        )}
         <div
           style={{
-            marginBottom: 8,
-            padding: "6px 10px",
+            flex: "1 1 auto",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "stretch",
+            justifyContent: "center"
+          }}
+        >
+          <div
+            style={{
+              marginBottom: 8,
+              padding: "6px 10px",
+              background: "#111322",
+              borderRadius: 8,
+              border: "1px solid #333",
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+              maxWidth: "100%"
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 4
+              }}
+            >
+              <span style={{ fontSize: 12, color: "#b0b8c4" }}>
+                Narration du tour
+              </span>
+              <span style={{ fontSize: 11, color: "#9aa0b5" }}>
+                Round {round}
+              </span>
+            </div>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 2,
+                maxHeight: 80,
+                overflowY: "auto"
+              }}
+            >
+              {narrativeLog.length === 0 && (
+                <span style={{ fontSize: 11, color: "#7f8694" }}>
+                  En attente d&apos;actions pour raconter le tour...
+                </span>
+              )}
+              {narrativeLog.slice(0, 6).map((line, idx) => (
+                <span key={idx} style={{ fontSize: 11, color: "#e0e4ff" }}>
+                  - {line}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div
+            style={{
+              marginBottom: 8,
+              padding: "6px 10px",
             background: "#111322",
             borderRadius: 8,
             border: "1px solid #333",
@@ -2372,49 +2894,59 @@ function handleEndPlayerTurn() {
             }}
           >
             {timelineEntries.map(entry => {
-              const isActive =
-                activeEntry &&
-                entry.id === activeEntry.id &&
-                entry.kind === activeEntry.kind;
-              const isPlayer = entry.kind === "player";
-              const tokenSvg = buildTokenSvgDataUrl(
-                isPlayer ? "player" : "enemy"
-              );
-              const token = isPlayer
-                ? { svg: tokenSvg, label: "PJ" }
-                : { svg: tokenSvg, label: entry.id };
-              return (
-                <div
-                  key={`${entry.kind}-${entry.id}`}
-                  style={{
-                    display: "flex",
+                const isActive =
+                  activeEntry &&
+                  entry.id === activeEntry.id &&
+                  entry.kind === activeEntry.kind;
+                const isPlayer = entry.kind === "player";
+                const tokenSvg = buildTokenSvgDataUrl(
+                  isPlayer ? "player" : "enemy"
+                );
+                const tokenState =
+                  entry.kind === "player"
+                    ? player
+                    : enemies.find(e => e.id === entry.id) || null;
+                const isDead = tokenState ? isTokenDead(tokenState) : false;
+                const token = isPlayer
+                  ? { svg: tokenSvg, label: "PJ" }
+                  : { svg: tokenSvg, label: entry.id };
+                return (
+                  <div
+                    key={`${entry.kind}-${entry.id}`}
+                    style={{
+                      display: "flex",
                     flexDirection: "column",
                     alignItems: "center",
                     padding: 4,
                     borderRadius: 6,
-                    border: isActive ? "2px solid #f1c40f" : "1px solid #333",
-                    background: isActive ? "#1b1b30" : "#101020",
-                    minWidth: 48
-                  }}
-                >
+                      border: isActive ? "2px solid #f1c40f" : "1px solid #333",
+                      background: isDead ? "#111118" : isActive ? "#1b1b30" : "#101020",
+                      minWidth: 48
+                    }}
+                  >
                   <img
                     src={token.svg}
                     alt={token.label}
-                    style={{
-                      width: 32,
-                      height: 32,
-                      objectFit: "contain",
-                      filter: isPlayer ? "none" : "grayscale(0.2)"
-                    }}
-                  />
-                  <span
-                    style={{
-                      fontSize: 10,
-                      marginTop: 2,
-                      color: "#d0d6e0",
-                      whiteSpace: "nowrap"
-                    }}
-                  >
+                      style={{
+                        width: 32,
+                        height: 32,
+                        objectFit: "contain",
+                        filter: isDead
+                          ? "grayscale(1)"
+                          : isPlayer
+                          ? "none"
+                          : "grayscale(0.2)"
+                      }}
+                    />
+                    <span
+                      style={{
+                        fontSize: 10,
+                        marginTop: 2,
+                        color: isDead ? "#777a8a" : "#d0d6e0",
+                        whiteSpace: "nowrap",
+                        textDecoration: isDead ? "line-through" : "none"
+                      }}
+                    >
                     {token.label}
                   </span>
                   <span
@@ -2430,15 +2962,15 @@ function handleEndPlayerTurn() {
             })}
           </div>
         </div>
-        <h1 style={{ marginBottom: 8 }}>Mini Donjon (test-GAME)</h1>
+          <h1 style={{ marginBottom: 8 }}>Mini Donjon (test-GAME)</h1>
         <p style={{ marginBottom: 8 }}>
           Tour par tour simple. Cliquez sur la grille pour definir une
           trajectoire (max 5 cases), validez le déplacement, puis terminez le
           tour pour laisser l&apos;IA des ennemis jouer.
         </p>
-        <div
-          ref={pixiContainerRef}
-          onClick={handleBoardClick}
+          <div
+            ref={pixiContainerRef}
+            onClick={handleBoardClick}
           style={{
             flex: "1 1 auto",
             border: "1px solid #333",
@@ -2447,7 +2979,7 @@ function handleEndPlayerTurn() {
             maxWidth: "min(100%, 1024px)"
           }}
         />
-        <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button
             type="button"
             onClick={handleValidatePath}

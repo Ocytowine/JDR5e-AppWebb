@@ -7,7 +7,9 @@
     "hp": 7,
     "moveRange": 2,
     "attackDamage": 2,
-    "armorClass": 13
+    "armorClass": 13,
+    "attackRange": 6,
+    "maxAttacksPerTurn": 1
   },
   "movement": {
     "type": "ground",

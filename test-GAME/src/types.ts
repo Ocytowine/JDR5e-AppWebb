@@ -66,6 +66,16 @@ export interface TokenState {
   aiRole?: string | null;
   moveRange?: number;
   attackDamage?: number;
+  /**
+   * Portee d'attaque de base (en cases).
+   * 1 = corps a corps, >1 = attaque a distance.
+   */
+  attackRange?: number;
+  /**
+   * Nombre maximum d'attaques que l'entite
+   * peut effectuer pendant son tour.
+   */
+  maxAttacksPerTurn?: number;
   armorClass?: number;
   /**
    * Profil de deplacement derive des JSON enemy-types
@@ -91,6 +101,11 @@ export interface TokenState {
    * et pour l'affichage des chemins).
    */
   plannedPath?: GridPosition[] | null;
+  /**
+   * Hauteur relative par rapport au sol.
+   * 0 = au sol, >0 = en elevation.
+   */
+  elevation?: number;
   x: number;
   y: number;
   hp: number;
