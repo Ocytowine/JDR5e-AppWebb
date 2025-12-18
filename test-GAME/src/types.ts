@@ -1,8 +1,28 @@
-import type { Personnage as RawPersonnage } from "../docs projet/Gestion et CrǸation de donnǸes/templates/Template Personnages";
 import type { ConeDirection } from "./boardEffects";
 import type { EnemySpeechProfile } from "./narrationTypes";
 
-export type Personnage = RawPersonnage;
+export interface Personnage {
+  id: string;
+  nom: {
+    nomcomplet: string;
+    prenom?: string;
+    surnom?: string;
+  };
+  niveauGlobal: number;
+  classe: Record<
+    string | number,
+    { classeId: string; subclasseId?: string | null; niveau: number }
+  >;
+  CA: number;
+  caracs: {
+    force: { FOR: number; modFOR: number };
+    dexterite: { DEX: number; modDEX: number };
+    constitution: { CON: number; modCON: number };
+    [key: string]: any;
+  };
+  [key: string]: any;
+}
+
 
 export type TokenType = "player" | "enemy";
 

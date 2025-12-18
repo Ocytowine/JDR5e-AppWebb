@@ -1,13 +1,35 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Application, Container, Graphics, Sprite, Assets, Text } from "pixi.js";
 import { sampleCharacter } from "./sampleCharacter";
 import type { MovementProfile, TokenState, VisionProfile } from "./types";
+import type {
+  ActionAvailability,
+  ActionDefinition,
+  Condition,
+  Effect,
+  TargetingSpec,
+  UsageSpec
+} from "./game/actionTypes";
+import type { EnemyTypeDefinition } from "./game/enemyTypes";
+import type {
+  EffectSpec,
+  EnemyActionType,
+  EnemyAiStateSummary,
+  EnemyDecision,
+  EnemySummary,
+  PlayerSummary,
+  SpeechBubbleEntry,
+  TurnEntry,
+  TurnPhase
+} from "./game/turnTypes";
 import {
-  buildTokenSvgDataUrl,
-  preloadTokenTextures,
-  PLAYER_TOKEN_ID,
-  ENEMY_TOKEN_ID
-} from "./svgTokenHelper";
+  clamp,
+  computeFacingTowards,
+  getAttackRangeForToken,
+  getMaxAttacksForToken,
+  isTokenDead,
+  manhattan,
+  canEnemySeePlayer
+} from "./game/combatUtils";
 import enemyTypesIndex from "../enemy-types/index.json";
 import bruteType from "../enemy-types/brute.json";
 import archerType from "../enemy-types/archer.json";
@@ -19,12 +41,6 @@ import dashAction from "../action-game/actions/dash.json";
 import secondWind from "../action-game/actions/second-wind.json";
 import throwDagger from "../action-game/actions/throw-dagger.json";
 import {
-  type BoardEffect,
-  generateCircleEffect,
-  generateRectangleEffect,
-  generateConeEffect
-} from "./boardEffects";
-import {
   rollAttack,
   rollDamage,
   type AttackRollResult,
@@ -32,21 +48,16 @@ import {
   type AdvantageMode
 } from "./dice/roller";
 import {
+  BOARD_HEIGHT,
+  BOARD_WIDTH,
   GRID_COLS,
   GRID_ROWS,
-  TILE_SIZE,
-  BOARD_WIDTH,
-  BOARD_HEIGHT,
-  BOARD_BACKGROUND_COLOR,
-  BOARD_BACKGROUND_IMAGE_URL,
-  gridToScreen,
   screenToGrid,
   isCellInsideBoard
 } from "./boardConfig";
 import { computePathTowards } from "./pathfinding";
 import { getTokenAt } from "./gridUtils";
 import {
-  computeVisionEffectForToken,
   getEntitiesInVision,
   isTargetVisible
 } from "./vision";
@@ -68,187 +79,20 @@ import type {
   EnemySpeech,
   EnemySpeechRequest
 } from "./narrationTypes";
-
-// -------------------------------------------------------------
-// Types for enemy AI and turn system
-// -------------------------------------------------------------
-
-type TurnPhase = "player" | "enemies";
-
-type EnemyActionType = "move" | "attack" | "wait";
-
-type TurnKind = "player" | "enemy";
-
-interface TurnEntry {
-  id: string;
-  kind: TurnKind;
-  initiative: number;
-}
-
-interface EnemyDecision {
-  enemyId: string;
-  action: EnemyActionType;
-  targetX?: number;
-  targetY?: number;
-}
-
-interface EnemySummary {
-  id: string;
-  x: number;
-  y: number;
-  hp: number;
-  maxHp: number;
-  type?: string;
-  aiRole?: string | null;
-  moveRange?: number | null;
-  attackDamage?: number | null;
-}
-
-interface PlayerSummary {
-  x: number;
-  y: number;
-  hp: number;
-  maxHp: number;
-}
-
-interface EnemyAiStateSummary {
-  round: number;
-  phase: TurnPhase;
-  grid: { cols: number; rows: number };
-  player: PlayerSummary;
-  enemies: EnemySummary[];
-}
-
-interface SpeechBubbleEntry {
-  tokenId: string;
-  text: string;
-  updatedAtRound: number;
-}
-
-type EffectSpecKind = "circle" | "rectangle" | "cone";
-interface EffectSpec {
-  id: string;
-  kind: EffectSpecKind;
-  radius?: number;
-  width?: number;
-  height?: number;
-  range?: number;
-  direction?: "up" | "down" | "left" | "right";
-}
-
-// -------------------------------------------------------------
-// Types for player actions loaded from JSON
-// -------------------------------------------------------------
-
-type ActionCategory =
-  | "attack"
-  | "movement"
-  | "support"
-  | "defense"
-  | "item"
-  | "reaction"
-  | string;
-type ActionCostType = "action" | "bonus" | "reaction" | "free" | string;
-
-interface ActionCost {
-  actionType: ActionCostType;
-  movementCost: number;
-}
-
-type TargetingKind = "enemy" | "ally" | "self" | "cell" | "emptyCell" | string;
-type RangeShape = "single" | "line" | "cone" | "circle" | "rectangle" | "self" | string;
-
-interface RangeSpec {
-  min: number;
-  max: number;
-  shape: RangeShape;
-}
-
-interface TargetingSpec {
-  target: TargetingKind;
-  range: RangeSpec;
-  maxTargets: number;
-  requiresLos: boolean;
-}
-
-interface ResourceUsage {
-  name: string;
-  pool?: string | null;
-  min?: number | null;
-}
-
-interface UsageSpec {
-  perTurn: number | null;
-  perEncounter: number | null;
-  resource?: ResourceUsage | null;
-}
-
-interface Condition {
-  type: string;
-  [key: string]: any;
-  reason?: string;
-}
-
-interface Effect {
-  type: string;
-  [key: string]: any;
-}
-
-interface AiHints {
-  priority?: string;
-  successLog?: string;
-  failureLog?: string;
-}
-
-interface EnemyTypeDefinition {
-  id: string;
-  label: string;
-  description: string;
-  aiRole: string;
-  speechProfile?: import("./narrationTypes").EnemySpeechProfile;
-  baseStats: {
-    hp: number;
-    moveRange: number;
-    attackDamage: number;
-    armorClass: number;
-    attackRange?: number;
-    maxAttacksPerTurn?: number;
-  };
-  movement?: MovementProfile;
-  vision?: VisionProfile;
-}
-
-interface ActionDefinition {
-  id: string;
-  name: string;
-  summary?: string;
-  category: ActionCategory;
-  actionCost: ActionCost;
-  targeting: TargetingSpec;
-  usage: UsageSpec;
-  conditions: Condition[];
-  effects: Effect[];
-  attack?: {
-    bonus: number;
-    critRange?: number;
-  };
-  damage?: {
-    formula: string;
-    critRule?: "double-dice" | "double-total";
-    damageType?: string;
-  };
-  skillCheck?: {
-    formula: string;
-  };
-  aiHints?: AiHints;
-  tags?: string[];
-}
-
-interface ActionAvailability {
-  enabled: boolean;
-  reasons: string[];
-  details: string[];
-}
+import { usePixiBoard } from "./pixi/usePixiBoard";
+import { usePixiOverlays } from "./pixi/usePixiOverlays";
+import { usePixiSpeechBubbles } from "./pixi/usePixiSpeechBubbles";
+import { usePixiTokens } from "./pixi/usePixiTokens";
+import { CombatSetupScreen } from "./ui/CombatSetupScreen";
+import { CombatStatusPanel } from "./ui/CombatStatusPanel";
+import { EnemiesPanel } from "./ui/EnemiesPanel";
+import { GameOverOverlay } from "./ui/GameOverOverlay";
+import { InitiativePanel } from "./ui/InitiativePanel";
+import { NarrationPanel } from "./ui/NarrationPanel";
+import { ActionsPanel } from "./ui/ActionsPanel";
+import { DicePanel } from "./ui/DicePanel";
+import { EffectsPanel } from "./ui/EffectsPanel";
+import { LogPanel } from "./ui/LogPanel";
 
 const ACTION_MODULES: Record<string, ActionDefinition> = {
   "./melee-strike.json": meleeStrike as ActionDefinition,
@@ -333,66 +177,6 @@ function createEnemy(
   };
 }
 
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
-}
-
-function manhattan(a: { x: number; y: number }, b: { x: number; y: number }) {
-  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-}
-
-function isTokenDead(token: TokenState): boolean {
-  return token.hp <= 0;
-}
-
-function getAttackRangeForToken(token: TokenState): number {
-  if (typeof token.attackRange === "number" && token.attackRange > 0) {
-    return token.attackRange;
-  }
-  return 1;
-}
-
-function getMaxAttacksForToken(token: TokenState): number {
-  if (typeof token.maxAttacksPerTurn === "number" && token.maxAttacksPerTurn > 0) {
-    return token.maxAttacksPerTurn;
-  }
-  return 1;
-}
-
-function canEnemySeePlayer(
-  enemy: TokenState,
-  playerToken: TokenState,
-  allTokens: TokenState[]
-): boolean {
-  if (isTokenDead(enemy) || isTokenDead(playerToken)) return false;
-  return isTargetVisible(enemy, playerToken, allTokens);
-}
-
-function canEnemyMeleeAttack(
-  enemy: { x: number; y: number },
-  playerToken: { x: number; y: number }
-): boolean {
-  return manhattan(enemy, playerToken) <= 1;
-}
-
-function canEnemyAttackPlayer(enemy: TokenState, playerToken: TokenState): boolean {
-  const range = getAttackRangeForToken(enemy);
-  return manhattan(enemy, playerToken) <= range;
-}
-
-function computeFacingTowards(
-  from: { x: number; y: number },
-  to: { x: number; y: number }
-): "up" | "down" | "left" | "right" {
-  const dx = to.x - from.x;
-  const dy = to.y - from.y;
-
-  if (Math.abs(dx) >= Math.abs(dy)) {
-    return dx >= 0 ? "right" : "left";
-  }
-  return dy >= 0 ? "down" : "up";
-}
-
 function computeEnemySpawnPosition(index: number): { x: number; y: number } {
   // On remplit colonne par colonne, en partant de la droite,
   // en descendant de haut en bas, sans chevauchement.
@@ -433,10 +217,6 @@ const ENEMY_CAPABILITIES: { action: EnemyActionType; label: string; color: strin
 
 export const GameBoard: React.FC = () => {
   const pixiContainerRef = useRef<HTMLDivElement | null>(null);
-  const appRef = useRef<Application | null>(null);
-  const tokenLayerRef = useRef<Container | null>(null);
-  const pathLayerRef = useRef<Graphics | null>(null);
-  const speechLayerRef = useRef<Container | null>(null);
   const narrationPendingRef = useRef<boolean>(false);
 
   const [log, setLog] = useState<string[]>([]);
@@ -469,6 +249,11 @@ export const GameBoard: React.FC = () => {
   const [currentTurnIndex, setCurrentTurnIndex] = useState<number>(0);
   const [isCombatConfigured, setIsCombatConfigured] = useState<boolean>(false);
   const [configEnemyCount, setConfigEnemyCount] = useState<number>(3);
+
+  const { tokenLayerRef, pathLayerRef, speechLayerRef } = usePixiBoard({
+    enabled: isCombatConfigured,
+    containerRef: pixiContainerRef
+  });
 
   // Player actions loaded from JSON
   const [actions, setActions] = useState<ActionDefinition[]>([]);
@@ -506,6 +291,18 @@ export const GameBoard: React.FC = () => {
   const [aiUsedFallback, setAiUsedFallback] = useState<boolean>(false);
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
 
+  usePixiTokens({ tokenLayerRef, player, enemies });
+  usePixiSpeechBubbles({ speechLayerRef, player, enemies, speechBubbles });
+  usePixiOverlays({
+    pathLayerRef,
+    player,
+    enemies,
+    selectedPath,
+    effectSpecs,
+    selectedTargetId,
+    showVisionDebug
+  });
+
   function describeEnemyLastDecision(enemyId: string): string {
     if (aiUsedFallback) {
       return "Fallback local : poursuite/attaque basique du joueur";
@@ -526,6 +323,28 @@ export const GameBoard: React.FC = () => {
       return "Attaque le joueur (distance 1)";
     }
     return "Attend ce tour";
+  }
+
+  function handleStartCombat() {
+    if (enemyTypes.length === 0) {
+      pushLog(
+        "Aucun type d'ennemi charge (enemyTypes). Impossible de generer le combat."
+      );
+      return;
+    }
+
+    const newEnemies: TokenState[] = [];
+    const pick = (index: number) => enemyTypes[index % enemyTypes.length];
+    for (let i = 0; i < configEnemyCount; i++) {
+      newEnemies.push(createEnemy(i, pick(i), computeEnemySpawnPosition(i)));
+    }
+    setEnemies(newEnemies);
+
+    setRound(1);
+    setHasRolledInitiative(false);
+    setTurnOrder([]);
+    setCurrentTurnIndex(0);
+    setIsCombatConfigured(true);
   }
 
   function getActiveTurnEntry(): TurnEntry | null {
@@ -1334,9 +1153,9 @@ export const GameBoard: React.FC = () => {
   // -----------------------------------------------------------
 
   function handleBoardClick(event: React.MouseEvent<HTMLDivElement>) {
-      if (phase !== "player") return;
-      if (isGameOver) return;
-      if (isTokenDead(player)) return;
+    if (phase !== "player") return;
+    if (isGameOver) return;
+    if (isTokenDead(player)) return;
 
     const container = pixiContainerRef.current;
     if (!container) return;
@@ -1489,16 +1308,16 @@ export const GameBoard: React.FC = () => {
     setSelectedPath([]);
   }
 
-    function handleResetPath() {
-      if (phase !== "player") return;
-      if (isGameOver) return;
+  function handleResetPath() {
+    if (phase !== "player") return;
+    if (isGameOver) return;
     setSelectedPath([]);
     pushLog("Trajectoire reinitialisee.");
   }
 
-    function handleSetPlayerFacing(direction: "up" | "down" | "left" | "right") {
-      if (phase !== "player") return;
-      if (isGameOver) return;
+  function handleSetPlayerFacing(direction: "up" | "down" | "left" | "right") {
+    if (phase !== "player") return;
+    if (isGameOver) return;
     setPlayer(prev => ({
       ...prev,
       facing: direction
@@ -2557,145 +2376,7 @@ function handleEndPlayerTurn() {
     pushLog("Zones d'effet effacees.");
   }
 
-  // -----------------------------------------------------------
-  // Pixi initialisation
-  // -----------------------------------------------------------
-
-  useEffect(() => {
-    if (!isCombatConfigured) return;
-    if (!pixiContainerRef.current || appRef.current) return;
-
-    const app = new Application();
-    appRef.current = app;
-
-    let destroyed = false;
-    let resizeHandler: (() => void) | null = null;
-    let initialized = false;
-
-    const initPixi = async () => {
-      await app.init({
-        width: BOARD_WIDTH,
-        height: BOARD_HEIGHT,
-        background: BOARD_BACKGROUND_COLOR,
-        antialias: true
-      });
-
-      initialized = true;
-
-      await preloadTokenTextures();
-
-      if (destroyed) return;
-
-      const container = pixiContainerRef.current;
-      if (!container) return;
-
-      container.appendChild(app.canvas);
-
-      const root = new Container();
-      app.stage.addChild(root);
-
-      // Layer 1: background image (optional)
-      if (BOARD_BACKGROUND_IMAGE_URL) {
-        try {
-          const bgTexture = await Assets.load(BOARD_BACKGROUND_IMAGE_URL);
-          const bgSprite = new Sprite(bgTexture);
-          bgSprite.x = 0;
-          bgSprite.y = 0;
-          bgSprite.width = BOARD_WIDTH;
-          bgSprite.height = BOARD_HEIGHT;
-          root.addChild(bgSprite);
-        } catch (error) {
-          console.warn("Cannot load board background image:", error);
-        }
-      }
-
-      // Layer 2: isometric grid
-      const gridLayer = new Graphics();
-      root.addChild(gridLayer);
-
-      const drawGrid = () => {
-        gridLayer.clear();
-
-        for (let gy = 0; gy < GRID_ROWS; gy++) {
-          for (let gx = 0; gx < GRID_COLS; gx++) {
-            if (!isCellInsideBoard(gx, gy)) continue;
-
-            const center = gridToScreen(gx, gy);
-            const w = TILE_SIZE;
-            const h = TILE_SIZE * 0.5;
-
-            const points = [
-              center.x,
-              center.y - h / 2,
-              center.x + w / 2,
-              center.y,
-              center.x,
-              center.y + h / 2,
-              center.x - w / 2,
-              center.y
-            ];
-
-            const isDark = (gx + gy) % 2 === 0;
-            gridLayer
-              .poly(points)
-              .fill({
-                color: isDark ? 0x151522 : 0x1d1d30,
-                alpha: 1
-              });
-          }
-        }
-      };
-
-      drawGrid();
-
-      // Layer 3: paths and area effects
-      const pathLayer = new Graphics();
-      root.addChild(pathLayer);
-      pathLayerRef.current = pathLayer;
-
-      // Layer 4: tokens
-      const tokenLayer = new Container();
-      root.addChild(tokenLayer);
-      tokenLayerRef.current = tokenLayer;
-
-      // Layer 5: speech bubbles (above tokens)
-      const speechLayer = new Container();
-      root.addChild(speechLayer);
-      speechLayerRef.current = speechLayer;
-
-      const resize = () => {
-        const canvas = app.canvas;
-        const parent = canvas.parentElement;
-        if (!parent) return;
-        const scale = Math.min(
-          parent.clientWidth / BOARD_WIDTH,
-          parent.clientHeight / BOARD_HEIGHT
-        );
-        canvas.style.transformOrigin = "top left";
-        canvas.style.transform = `scale(${scale})`;
-      };
-
-      resizeHandler = resize;
-      resize();
-      window.addEventListener("resize", resize);
-    };
-
-    void initPixi();
-
-      return () => {
-      destroyed = true;
-      if (resizeHandler) {
-        window.removeEventListener("resize", resizeHandler);
-      }
-      if (initialized && appRef.current) {
-        appRef.current.destroy(true);
-      }
-      appRef.current = null;
-      tokenLayerRef.current = null;
-        pathLayerRef.current = null;
-      speechLayerRef.current = null;
-      };
-    }, [isCombatConfigured]);
+  // Pixi is initialized via `usePixiBoard`.
 
     // Game over si le joueur n'a plus de PV et aucun allié vivant
     useEffect(() => {
@@ -2711,444 +2392,7 @@ function handleEndPlayerTurn() {
       }
     }, [player, enemies, isGameOver]);
 
-  // -----------------------------------------------------------
-  // Layer 4: redraw tokens when state changes
-  // -----------------------------------------------------------
-
-  useEffect(() => {
-    const tokenLayer = tokenLayerRef.current;
-    if (!tokenLayer) return;
-
-    tokenLayer.removeChildren();
-
-    const allTokens: TokenState[] = [player, ...enemies];
-    for (const token of allTokens) {
-      const tokenContainer = new Container();
-
-      const textureId =
-        token.type === "player" ? PLAYER_TOKEN_ID : ENEMY_TOKEN_ID;
-        const sprite = Sprite.from(textureId);
-        sprite.anchor.set(0.5, 1);
-      sprite.width = TILE_SIZE * 0.9;
-      sprite.height = TILE_SIZE * 0.9;
-      tokenContainer.addChild(sprite);
-
-      const screenPos = gridToScreen(token.x, token.y);
-      // Légers offsets pour compenser le viewBox des SVG et mieux coller à la case
-        tokenContainer.x = screenPos.x + TILE_SIZE * 0.05;
-        tokenContainer.y = screenPos.y;
-
-      tokenLayer.addChild(tokenContainer);
-    }
-    }, [player, enemies]);
-  
-    // Apply visual effects on tokens (shadow, death orientation, speech bubbles)
-    useEffect(() => {
-      const tokenLayer = tokenLayerRef.current;
-      if (!tokenLayer) return;
-
-      const allTokens: TokenState[] = [player, ...enemies];
-
-      tokenLayer.children.forEach((child, index) => {
-        const token = allTokens[index];
-        if (!token) return;
-        if (!(child instanceof Container)) return;
-        const container = child as Container;
-
-        let sprite: Sprite | null = null;
-        for (const c of container.children) {
-          if (c instanceof Sprite) {
-            sprite = c as Sprite;
-            break;
-          }
-        }
-        if (!sprite) return;
-
-        // Remove existing non-sprite children (anciens halos / bulles)
-        const toRemove = container.children.filter(c => !(c instanceof Sprite));
-        for (const c of toRemove) {
-          container.removeChild(c);
-        }
-
-          // Halo d'ombre sous le pion
-          // Le centre du halo doit toujours coincider avec le centre
-          // de la case isometrique (origine du container), sauf si
-          // l'entite est morte (pas de halo dans ce cas).
-          if (!isTokenDead(token)) {
-            const shadow = new Graphics();
-            shadow.beginFill(0x000000, 0.4);
-            shadow.drawEllipse(0, 0, TILE_SIZE * 0.4, TILE_SIZE * 0.15);
-            shadow.endFill();
-            container.addChildAt(shadow, 0);
-          }
-
-        // Orientation / transparence en fonction de l'etat
-        if (isTokenDead(token)) {
-          sprite.rotation = Math.PI / 2;
-          sprite.alpha = 0.7;
-        } else {
-          sprite.rotation = 0;
-          sprite.alpha = 1;
-        }
-
-      });
-    }, [player, enemies, speechBubbles]);
-
-    // Draw speech bubbles in a dedicated layer and resolve overlaps.
-    useEffect(() => {
-      const speechLayer = speechLayerRef.current;
-      if (!speechLayer) return;
-
-      speechLayer.removeChildren();
-
-      const allTokens: TokenState[] = [player, ...enemies];
-      const bubbleByTokenId = new Map(
-        speechBubbles.map(b => [b.tokenId, b] as const)
-      );
-
-      type BubbleItem = {
-        tokenId: string;
-        x: number;
-        y: number;
-        width: number;
-        height: number;
-        view: Container;
-      };
-
-      const padding = 6;
-      const maxWidth = 140;
-      const baseOffsetY = TILE_SIZE * 1;
-
-      const items: BubbleItem[] = [];
-
-      for (const token of allTokens) {
-        if (token.type !== "enemy") continue;
-        if (isTokenDead(token)) continue;
-        const bubble = bubbleByTokenId.get(token.id);
-        if (!bubble) continue;
-        if (!bubble.text.trim()) continue;
-
-        const screenPos = gridToScreen(token.x, token.y);
-
-        const bubbleContainer = new Container();
-        const bubbleBg = new Graphics();
-        bubbleBg.beginFill(0xffffff, 0.92);
-
-        const textObj = new Text(bubble.text, {
-          fontFamily: "Arial",
-          fontSize: 11,
-          fill: 0x000000,
-          align: "center",
-          wordWrap: true,
-          wordWrapWidth: maxWidth - 10
-        });
-
-        const width = Math.min(maxWidth, textObj.width + 10);
-        const height = textObj.height + 8;
-
-        bubbleBg.drawRoundedRect(-width / 2, -height, width, height, 7);
-        bubbleBg.endFill();
-
-        textObj.x = -textObj.width / 2;
-        textObj.y = -height + 4;
-
-        bubbleContainer.addChild(bubbleBg);
-        bubbleContainer.addChild(textObj);
-
-        const x = screenPos.x + TILE_SIZE * 0.05;
-        const y = screenPos.y - baseOffsetY;
-
-        bubbleContainer.x = x;
-        bubbleContainer.y = y;
-
-        speechLayer.addChild(bubbleContainer);
-
-        items.push({
-          tokenId: token.id,
-          x: x - width / 2,
-          y: y - height,
-          width,
-          height,
-          view: bubbleContainer
-        });
-      }
-
-      // Resolve overlaps by pushing bubbles upward.
-      items.sort((a, b) => a.y - b.y);
-      const placed: BubbleItem[] = [];
-
-      for (const item of items) {
-        let currentY = item.y;
-        let tries = 0;
-
-        const overlaps = (a: BubbleItem, bx: number, by: number) => {
-          const ax1 = a.x;
-          const ay1 = a.y;
-          const ax2 = a.x + a.width;
-          const ay2 = a.y + a.height;
-
-          const bx1 = bx;
-          const by1 = by;
-          const bx2 = bx + item.width;
-          const by2 = by + item.height;
-
-          return ax1 < bx2 && ax2 > bx1 && ay1 < by2 && ay2 > by1;
-        };
-
-        while (tries < 20) {
-          const colliding = placed.find(p => overlaps(p, item.x, currentY));
-          if (!colliding) break;
-          currentY = colliding.y - item.height - padding;
-          tries += 1;
-        }
-
-        const dy = currentY - item.y;
-        if (dy !== 0) {
-          item.view.y += dy;
-          item.y = currentY;
-        }
-
-        placed.push(item);
-      }
-    }, [player, enemies, speechBubbles]);
-  
-    // -----------------------------------------------------------
-    // Layer 3: draw path and AoE (attached to player)
-  // -----------------------------------------------------------
-
-  useEffect(() => {
-    const pathLayer = pathLayerRef.current;
-    if (!pathLayer) return;
-
-    pathLayer.clear();
-
-    // 1) Compute AoE from specs and draw filled diamonds
-    const activeEffects: BoardEffect[] = effectSpecs.map(spec => {
-      switch (spec.kind) {
-        case "circle":
-          return generateCircleEffect(
-            spec.id,
-            player.x,
-            player.y,
-            spec.radius ?? 1
-          );
-        case "rectangle":
-          return generateRectangleEffect(
-            spec.id,
-            player.x,
-            player.y,
-            spec.width ?? 1,
-            spec.height ?? 1
-          );
-        case "cone":
-          return generateConeEffect(
-            spec.id,
-            player.x,
-            player.y,
-            spec.range ?? 1,
-            spec.direction ?? "right"
-          );
-        default:
-          return { id: spec.id, type: "circle", cells: [] };
-      }
-    });
-
-    for (const effect of activeEffects) {
-      for (const cell of effect.cells) {
-        const center = gridToScreen(cell.x, cell.y);
-        const w = TILE_SIZE;
-        const h = TILE_SIZE * 0.5;
-
-        const points = [
-          center.x,
-          center.y - h / 2,
-          center.x + w / 2,
-          center.y,
-          center.x,
-          center.y + h / 2,
-          center.x - w / 2,
-          center.y
-        ];
-
-        const color =
-          effect.type === "circle"
-            ? 0x3498db
-            : effect.type === "rectangle"
-            ? 0x2ecc71
-            : 0xe74c3c;
-
-        pathLayer
-          .poly(points)
-          .fill({
-            color,
-            alpha: 0.45
-          });
-      }
-    }
-
-    // 2) Debug: champs de vision de chaque entite
-    if (showVisionDebug) {
-      const allTokens: TokenState[] = [player, ...enemies];
-      for (const token of allTokens) {
-        const visionEffect = computeVisionEffectForToken(token);
-        for (const cell of visionEffect.cells) {
-          const center = gridToScreen(cell.x, cell.y);
-          const w = TILE_SIZE;
-          const h = TILE_SIZE * 0.5;
-
-          const points = [
-            center.x,
-            center.y - h / 2,
-            center.x + w / 2,
-            center.y,
-            center.x,
-            center.y + h / 2,
-            center.x - w / 2,
-            center.y
-          ];
-
-          const color =
-            token.type === "player"
-              ? 0x2980b9
-              : 0xc0392b;
-
-          pathLayer
-            .poly(points)
-            .fill({
-              color,
-              alpha: token.type === "player" ? 0.25 : 0.2
-            });
-        }
-      }
-    }
-
-    // 3) Highlight occupied cells (player + ennemis)
-    const occupiedTokens: TokenState[] = [player, ...enemies];
-    for (const token of occupiedTokens) {
-      const center = gridToScreen(token.x, token.y);
-      const w = TILE_SIZE;
-      const h = TILE_SIZE * 0.5;
-
-      const points = [
-        center.x,
-        center.y - h / 2,
-        center.x + w / 2,
-        center.y,
-        center.x,
-        center.y + h / 2,
-        center.x - w / 2,
-        center.y
-      ];
-
-      const color =
-        token.type === "player"
-          ? 0x2ecc71
-          : 0xe74c3c;
-
-      pathLayer
-        .poly(points)
-        .fill({
-          color,
-          alpha: 0.2
-        });
-    }
-
-    // 4) Highlight selected enemy target cell in blue
-    if (selectedTargetId) {
-      const target = enemies.find(e => e.id === selectedTargetId);
-      if (target) {
-        const center = gridToScreen(target.x, target.y);
-        const w = TILE_SIZE;
-        const h = TILE_SIZE * 0.5;
-
-        const points = [
-          center.x,
-          center.y - h / 2,
-          center.x + w / 2,
-          center.y,
-          center.x,
-          center.y + h / 2,
-          center.x - w / 2,
-          center.y
-        ];
-
-        pathLayer
-          .poly(points)
-          .fill({
-            color: 0x3498db,
-            alpha: 0.6
-          });
-      }
-    }
-
-    // 5) Highlight last clicked cell with a yellow aura
-    if (selectedPath.length > 0) {
-      const last = selectedPath[selectedPath.length - 1];
-      const center = gridToScreen(last.x, last.y);
-      const w = TILE_SIZE;
-      const h = TILE_SIZE * 0.5;
-
-      const auraPoints = [
-        center.x,
-        center.y - h / 2,
-        center.x + w / 2,
-        center.y,
-        center.x,
-        center.y + h / 2,
-        center.x - w / 2,
-        center.y
-      ];
-
-      pathLayer
-        .poly(auraPoints)
-        .fill({
-          color: 0xf1c40f,
-          alpha: 0.2
-        });
-    }
-
-    // 6) Draw enemy planned paths
-    for (const enemy of enemies) {
-      if (!enemy.plannedPath || enemy.plannedPath.length === 0) continue;
-
-      const pathNodes = enemy.plannedPath;
-      const first = pathNodes[0];
-      const start = gridToScreen(first.x, first.y);
-
-      pathLayer.setStrokeStyle({
-        width: 3,
-        color: 0xe74c3c,
-        alpha: 0.9
-      });
-
-      pathLayer.moveTo(start.x, start.y);
-      for (const node of pathNodes.slice(1)) {
-        const p = gridToScreen(node.x, node.y);
-        pathLayer.lineTo(p.x, p.y);
-      }
-      pathLayer.stroke();
-    }
-
-    // 7) Draw player path polyline
-    if (selectedPath.length === 0) return;
-
-    pathLayer.setStrokeStyle({
-      width: 6,
-      color: 0xf1c40f,
-      alpha: 1
-    });
-
-    const start = gridToScreen(player.x, player.y);
-    pathLayer.moveTo(start.x, start.y);
-
-    for (const node of selectedPath) {
-      const p = gridToScreen(node.x, node.y);
-      pathLayer.lineTo(p.x, p.y);
-    }
-
-    pathLayer.stroke();
-  }, [player, enemies, selectedPath, effectSpecs, selectedTargetId, showVisionDebug]);
-
+  // Pixi rendering is handled via hooks (tokens, bubbles, overlays).
   // -----------------------------------------------------------
   // Render
   // -----------------------------------------------------------
@@ -3167,6 +2411,21 @@ function handleEndPlayerTurn() {
 
     if (!isCombatConfigured) {
       return (
+        <CombatSetupScreen
+          configEnemyCount={configEnemyCount}
+          enemyTypeCount={enemyTypes.length}
+          gridCols={GRID_COLS}
+          gridRows={GRID_ROWS}
+          onChangeEnemyCount={setConfigEnemyCount}
+          onNoEnemyTypes={() =>
+            pushLog(
+              "Aucun type d'ennemi charge (enemyTypes). Impossible de generer le combat."
+            )
+          }
+          onStartCombat={handleStartCombat}
+        />
+      );
+/*
       <div
         style={{
           display: "flex",
@@ -3267,6 +2526,7 @@ function handleEndPlayerTurn() {
         </div>
       </div>
     );
+*/
   }
 
   return (
@@ -3285,50 +2545,7 @@ function handleEndPlayerTurn() {
         }}
       >
         {isGameOver && (
-          <div
-            style={{
-              position: "fixed",
-              inset: 0,
-              background: "rgba(0, 0, 0, 0.75)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 1000
-            }}
-          >
-            <div
-              style={{
-                background: "#141421",
-                borderRadius: 12,
-                border: "1px solid #f1c40f",
-                padding: "24px 32px",
-                maxWidth: 360,
-                textAlign: "center",
-                boxShadow: "0 0 24px rgba(0,0,0,0.6)"
-              }}
-            >
-              <h2 style={{ margin: "0 0 8px" }}>Game Over</h2>
-              <p style={{ fontSize: 13, margin: "0 0 16px" }}>
-                Le heros est tombe et aucun allie n&apos;est en mesure de continuer.
-              </p>
-              <button
-                type="button"
-                onClick={() => window.location.reload()}
-                style={{
-                  padding: "6px 12px",
-                  background: "#e67e22",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                  fontSize: 13,
-                  fontWeight: 600
-                }}
-              >
-                Recommencer le combat
-              </button>
-            </div>
-          </div>
+          <GameOverOverlay onRestart={() => window.location.reload()} />
         )}
         <div
           style={{
@@ -3339,164 +2556,14 @@ function handleEndPlayerTurn() {
             justifyContent: "center"
           }}
         >
-          <div
-            style={{
-              marginBottom: 8,
-              padding: "6px 10px",
-              background: "#111322",
-              borderRadius: 8,
-              border: "1px solid #333",
-              display: "flex",
-              flexDirection: "column",
-              gap: 4,
-              maxWidth: "100%"
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 4
-              }}
-            >
-              <span style={{ fontSize: 12, color: "#b0b8c4" }}>
-                Narration du tour
-              </span>
-              <span style={{ fontSize: 11, color: "#9aa0b5" }}>
-                Round {round}
-              </span>
-            </div>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 2,
-                maxHeight: 80,
-                overflowY: "auto"
-              }}
-            >
-              {narrativeLog.length === 0 && (
-                <span style={{ fontSize: 11, color: "#7f8694" }}>
-                  En attente d&apos;actions pour raconter le tour...
-                </span>
-              )}
-              {narrativeLog.slice(0, 6).map((line, idx) => (
-                <span key={idx} style={{ fontSize: 11, color: "#e0e4ff" }}>
-                  - {line}
-                </span>
-              ))}
-            </div>
-          </div>
-          <div
-            style={{
-              marginBottom: 8,
-              padding: "6px 10px",
-            background: "#111322",
-            borderRadius: 8,
-            border: "1px solid #333",
-            display: "flex",
-            flexDirection: "column",
-            gap: 4,
-            maxWidth: "100%"
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: 4
-            }}
-          >
-            <span style={{ fontSize: 12, color: "#b0b8c4" }}>
-              Ordre d&apos;initiative (round {round})
-            </span>
-            {activeEntry && (
-              <span style={{ fontSize: 11, color: "#f1c40f" }}>
-                Tour actuel :{" "}
-                {activeEntry.kind === "player" ? "Joueur" : activeEntry.id}
-              </span>
-            )}
-          </div>
-          <div
-            style={{
-              display: "flex",
-              gap: 8,
-              alignItems: "center",
-              overflowX: "auto",
-              paddingBottom: 2
-            }}
-          >
-            {timelineEntries.map(entry => {
-                const isActive =
-                  activeEntry &&
-                  entry.id === activeEntry.id &&
-                  entry.kind === activeEntry.kind;
-                const isPlayer = entry.kind === "player";
-                const tokenSvg = buildTokenSvgDataUrl(
-                  isPlayer ? "player" : "enemy"
-                );
-                const tokenState =
-                  entry.kind === "player"
-                    ? player
-                    : enemies.find(e => e.id === entry.id) || null;
-                const isDead = tokenState ? isTokenDead(tokenState) : false;
-                const token = isPlayer
-                  ? { svg: tokenSvg, label: "PJ" }
-                  : { svg: tokenSvg, label: entry.id };
-                return (
-                  <div
-                    key={`${entry.kind}-${entry.id}`}
-                    style={{
-                      display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    padding: 4,
-                    borderRadius: 6,
-                      border: isActive ? "2px solid #f1c40f" : "1px solid #333",
-                      background: isDead ? "#111118" : isActive ? "#1b1b30" : "#101020",
-                      minWidth: 48
-                    }}
-                  >
-                  <img
-                    src={token.svg}
-                    alt={token.label}
-                      style={{
-                        width: 32,
-                        height: 32,
-                        objectFit: "contain",
-                        filter: isDead
-                          ? "grayscale(1)"
-                          : isPlayer
-                          ? "none"
-                          : "grayscale(0.2)"
-                      }}
-                    />
-                    <span
-                      style={{
-                        fontSize: 10,
-                        marginTop: 2,
-                        color: isDead ? "#777a8a" : "#d0d6e0",
-                        whiteSpace: "nowrap",
-                        textDecoration: isDead ? "line-through" : "none"
-                      }}
-                    >
-                    {token.label}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: 9,
-                      color: "#9aa0b5"
-                    }}
-                  >
-                    Init {entry.initiative}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+          <NarrationPanel round={round} narrativeLog={narrativeLog} />
+          <InitiativePanel
+            round={round}
+            timelineEntries={timelineEntries}
+            activeEntry={activeEntry}
+            player={player}
+            enemies={enemies}
+          />
           <h1 style={{ marginBottom: 8 }}>Mini Donjon (test-GAME)</h1>
         <p style={{ marginBottom: 8 }}>
           Tour par tour simple. Cliquez sur la grille pour definir une
@@ -3642,786 +2709,65 @@ function handleEndPlayerTurn() {
           gap: "12px"
         }}
       >
-        <section
-          style={{
-            padding: "8px 12px",
-            background: "#141421",
-            borderRadius: 8,
-            border: "1px solid #333"
-          }}
-        >
-          <h2 style={{ margin: "0 0 8px" }}>Etat du combat</h2>
-          <div>
-            <strong>Round :</strong> {round} |{" "}
-            <strong>Phase :</strong> {phase === "player" ? "Joueur" : "Ennemis"}
-          </div>
-          <div style={{ fontSize: 12, marginTop: 4 }}>
-            <strong>Initiative PJ :</strong>{" "}
-            {playerInitiative ?? "en cours..."}{" "}
-          </div>
-          <div>
-            <strong>Nom :</strong> {sampleCharacter.nom.nomcomplet}
-          </div>
-          <div>
-            <strong>Niveau :</strong> {sampleCharacter.niveauGlobal} |{" "}
-            <strong>Classe :</strong> {sampleCharacter.classe[1].classeId}
-          </div>
-          <div>
-            <strong>PV :</strong> {player.hp} / {player.maxHp}
-          </div>
-          <div>
-            <strong>CA :</strong> {sampleCharacter.CA}
-          </div>
-          <div style={{ marginTop: 8 }}>
-            <strong>Caracs :</strong>{" "}
-            FOR {sampleCharacter.caracs.force.FOR} | DEX{" "}
-            {sampleCharacter.caracs.dexterite.DEX} | CON{" "}
-            {sampleCharacter.caracs.constitution.CON}
-          </div>
-          <div style={{ marginTop: 8, fontSize: 12 }}>
-            <strong>Trajectoire :</strong>{" "}
-            {selectedPath.length === 0
-              ? "aucune"
-              : `(${player.x}, ${player.y}) -> ` +
-                selectedPath
-                  .map(node => `(${node.x}, ${node.y})`)
-                  .join(" -> ")}
-          </div>
-          <div style={{ marginTop: 8, fontSize: 11, opacity: 0.85 }}>
-            <strong>IA ennemis (debug) :</strong>
-            <div>
-              Dernier appel :{" "}
-              {aiLastState
-                ? `round ${aiLastState.round}, phase ${aiLastState.phase}`
-                : "aucun"}
-            </div>
-            <div>
-              Décisions reçues :{" "}
-              {aiLastDecisions === null
-                ? "n/a"
-                : `${aiLastDecisions.length} (fallback: ${
-                    aiUsedFallback ? "oui" : "non"
-                  })`}
-            </div>
-            {aiLastError && <div>Erreur : {aiLastError}</div>}
-          </div>
-        </section>
-
-        <section
-          style={{
-            padding: "8px 12px",
-            background: "#151524",
-            borderRadius: 8,
-            border: "1px solid #333",
-            display: "flex",
-            flexDirection: "column",
-            gap: 8
-          }}
-        >
-          <h2 style={{ margin: "0 0 4px" }}>Ennemis</h2>
-          <p style={{ margin: 0, fontSize: 12, opacity: 0.85 }}>
-            Chaque ennemi est une entité propre. Capacités IA : déplacement, attaque
-            au contact, attente si aucune option.
-          </p>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 8,
-              maxHeight: "180px",
-              overflowY: "auto",
-              paddingRight: 4
-            }}
-          >
-            {enemies.map(enemy => (
-              <div
-                key={enemy.id}
-                style={{
-                  background: "#0f0f19",
-                  border: "1px solid #2a2a3a",
-                  borderRadius: 8,
-                  padding: "8px 10px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 6
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 8
-                  }}
-                >
-                  <strong style={{ color: "#f5f5f5" }}>{enemy.id}</strong>
-                  <span style={{ fontSize: 12, color: "#b0b8c4" }}>
-                    PV {enemy.hp} / {enemy.maxHp}
-                  </span>
-                </div>
-                <div style={{ fontSize: 12, color: "#b0b8c4" }}>
-                  Position : ({enemy.x}, {enemy.y})
-                </div>
-                <div style={{ fontSize: 12, color: "#b0b8c4" }}>
-                  Initiative :{" "}
-                  {typeof enemy.initiative === "number"
-                    ? enemy.initiative
-                    : "non definie"}
-                </div>
-                <div style={{ fontSize: 12, color: "#b0b8c4" }}>
-                  Type : {enemy.enemyTypeLabel || enemy.enemyTypeId || "inconnu"}{" "}
-                  {enemy.aiRole ? `(role: ${enemy.aiRole})` : ""}
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: 6
-                  }}
-                >
-                  {ENEMY_CAPABILITIES.map(cap => (
-                    <span
-                      key={`${enemy.id}-${cap.action}`}
-                      style={{
-                        background: cap.color,
-                        color: "#0b0b12",
-                        borderRadius: 4,
-                        padding: "2px 6px",
-                        fontSize: 11,
-                        fontWeight: 700
-                      }}
-                    >
-                      {cap.action.toUpperCase()}
-                    </span>
-                  ))}
-                </div>
-                <div style={{ fontSize: 12, color: "#d0d6e0" }}>
-                  Ce qu'il peut faire :{" "}
-                  {ENEMY_CAPABILITIES.map(cap => cap.label).join(" | ")}
-                </div>
-                {validatedAction && validatedAction.targeting?.target === "enemy" && (
-                  (() => {
-                    const validation = validateEnemyTargetForAction(
-                      validatedAction,
-                      enemy,
-                      player,
-                      [player, ...enemies]
-                    );
-                    const canTarget = validation.ok;
-                    const isCurrent = selectedTargetId === enemy.id;
-                    return (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!canTarget) {
-                            pushLog(
-                              validation.reason ||
-                                `Cible ${enemy.id} invalide pour ${validatedAction.name}.`
-                            );
-                            return;
-                          }
-                          setSelectedTargetId(enemy.id);
-                          setTargetMode("none");
-                          pushLog(`Cible selectionnee: ${enemy.id}.`);
-                        }}
-                        disabled={!canTarget}
-                        style={{
-                          marginTop: 6,
-                          alignSelf: "flex-start",
-                          padding: "4px 8px",
-                          fontSize: 11,
-                          borderRadius: 4,
-                          border: "none",
-                          cursor: canTarget ? "pointer" : "default",
-                          background: canTarget ? "#3498db" : "#555",
-                          color: "#fff",
-                          opacity: isCurrent ? 1 : 0.9
-                        }}
-                      >
-                        {isCurrent ? "Cible actuelle" : "Cibler avec l'action validee"}
-                      </button>
-                    );
-                  })()
-                )}
-                <div style={{ fontSize: 12, color: "#9cb2ff" }}>
-                  Dernière décision IA : {describeEnemyLastDecision(enemy.id)}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section
-            style={{
-              padding: "8px 12px",
-              background: "#141421",
-              borderRadius: 8,
-              border: "1px solid #333",
-              display: "flex",
-              flexDirection: "column",
-              gap: 8
-            }}
-          >
-          <h2 style={{ margin: "0 0 4px" }}>Actions detaillees</h2>
-          <p style={{ margin: 0, fontSize: 12, opacity: 0.85 }}>
-            Source: <code>action-game/actions/index.json</code>. Liste chargee et verifiee
-            localement (phase, distance).
-          </p>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 8
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 6,
-                maxHeight: "180px",
-                overflowY: "auto",
-                paddingRight: 4
-              }}
-            >
-              {actions.map(action => {
-                const availability = computeActionAvailability(action);
-                const isSelected = selectedAction?.id === action.id;
-                const badgeColor =
-                  action.actionCost.actionType === "action"
-                    ? "#8e44ad"
-                    : action.actionCost.actionType === "bonus"
-                    ? "#27ae60"
-                    : action.actionCost.actionType === "reaction"
-                    ? "#e67e22"
-                    : "#2980b9";
-                const borderColor = isSelected ? "#6c5ce7" : "#2a2a3a";
-                return (
-                  <button
-                    key={action.id}
-                    type="button"
-                    onClick={() => setSelectedActionId(action.id)}
-                    style={{
-                      textAlign: "left",
-                      background: isSelected ? "#1e1e2f" : "#0f0f19",
-                      color: "#f5f5f5",
-                      border: `1px solid ${borderColor}`,
-                      borderRadius: 6,
-                      padding: "8px 10px",
-                      cursor: "pointer"
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: 8,
-                        marginBottom: 4,
-                        alignItems: "center"
-                      }}
-                    >
-                      <span style={{ fontWeight: 600 }}>{action.name}</span>
-                      <span
-                        style={{
-                          fontSize: 11,
-                          padding: "2px 6px",
-                          borderRadius: 4,
-                          background: badgeColor,
-                          color: "#fff"
-                        }}
-                      >
-                        {action.actionCost.actionType}
-                      </span>
-                    </div>
-                    <div style={{ fontSize: 12, opacity: 0.9 }}>
-                      {action.summary || action.category}
-                    </div>
-                    <div
-                      style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        gap: 8,
-                        marginTop: 4,
-                        fontSize: 11,
-                        alignItems: "center"
-                      }}
-                    >
-                      <span
-                        style={{
-                          color: availability.enabled ? "#2ecc71" : "#e74c3c"
-                        }}
-                      >
-                        {availability.enabled
-                          ? "Disponible"
-                          : availability.reasons[0] || "Bloquee"}
-                      </span>
-                      <span style={{ color: "#9aa0b5" }}>
-                        {describeRange(action.targeting)}
-                      </span>
-                      <span style={{ color: "#9aa0b5" }}>
-                        {describeUsage(action.usage)}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
-              {actions.length === 0 && (
-                <div style={{ fontSize: 12, opacity: 0.8 }}>
-                  Aucune action chargee pour le moment.
-                </div>
-              )}
-            </div>
-
-            {selectedAction && (
-              <div
-                style={{
-                  borderTop: "1px solid #2a2a3a",
-                  paddingTop: 8,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 6
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 6,
-                    flexWrap: "wrap",
-                    fontSize: 11
-                  }}
-                >
-                  <span
-                    style={{
-                      background: "#2d2d40",
-                      color: "#d0d4f7",
-                      padding: "2px 6px",
-                      borderRadius: 4
-                    }}
-                  >
-                    {selectedAction.category}
-                  </span>
-                  {selectedAction.tags?.slice(0, 4).map(tag => (
-                    <span
-                      key={tag}
-                      style={{
-                        background: "#1f2a38",
-                        color: "#9bb0d6",
-                        padding: "2px 6px",
-                        borderRadius: 4
-                      }}
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-                <div style={{ fontSize: 12 }}>
-                  {selectedAction.summary || "Pas de resume."}
-                </div>
-                <div style={{ fontSize: 12 }}>
-                  <strong>Cout:</strong> {selectedAction.actionCost.actionType}{" "}
-                  | Mouvement {selectedAction.actionCost.movementCost}
-                </div>
-                <div style={{ fontSize: 12 }}>
-                  <strong>Portee:</strong> {describeRange(selectedAction.targeting)}
-                </div>
-                <div style={{ fontSize: 12 }}>
-                  <strong>Usage:</strong> {describeUsage(selectedAction.usage)}
-                </div>
-                <div style={{ fontSize: 12 }}>
-                  <strong>Conditions:</strong>
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 4,
-                      marginTop: 4
-                    }}
-                  >
-                    {selectedAction.conditions.length === 0 && (
-                      <span style={{ color: "#9aa0b5" }}>Aucune condition.</span>
-                    )}
-                    {selectedAction.conditions.map((cond, idx) => (
-                      <div key={`${cond.type}-${idx}`} style={{ color: "#cfd3ec" }}>
-                        {conditionLabel(cond)}
-                        {cond.reason ? ` — ${cond.reason}` : ""}
-                      </div>
-                    ))}
-                    {selectedAvailability && (
-                      <div
-                        style={{
-                          color: selectedAvailability.enabled ? "#2ecc71" : "#e74c3c"
-                        }}
-                      >
-                        Etat:{" "}
-                        {selectedAvailability.enabled
-                          ? "OK pour ce tour"
-                          : selectedAvailability.reasons.join(" | ") || "Bloque"}
-                        {selectedAvailability.details.length > 0 && (
-                          <div style={{ color: "#9aa0b5", marginTop: 2 }}>
-                            {selectedAvailability.details.join(" / ")}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div style={{ fontSize: 12 }}>
-                  <strong>Effets:</strong>
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 4,
-                      marginTop: 4
-                    }}
-                  >
-                    {selectedAction.effects.map((effect, idx) => (
-                      <div key={`${effect.type}-${idx}`} style={{ color: "#cfd3ec" }}>
-                        {effectLabel(effect)}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div style={{ fontSize: 12 }}>
-                  <strong>Hints IA:</strong>{" "}
-                  {selectedAction.aiHints?.priority || "n/a"}
-                  <div style={{ color: "#9aa0b5" }}>
-                    Success: {selectedAction.aiHints?.successLog || "n/a"}
-                  </div>
-                  <div style={{ color: "#9aa0b5" }}>
-                    Failure: {selectedAction.aiHints?.failureLog || "n/a"}
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <button
-                    type="button"
-                    onClick={() => previewActionArea(selectedAction)}
-                    style={{
-                      padding: "4px 8px",
-                      background: "#2980b9",
-                      color: "#fff",
-                      border: "none",
-                      borderRadius: 4,
-                      cursor: "pointer",
-                      fontSize: 12
-                    }}
-                  >
-                    Previsualiser
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleUseAction(selectedAction)}
-                    disabled={!selectedAvailability?.enabled}
-                    style={{
-                      padding: "4px 8px",
-                      background: selectedAvailability?.enabled ? "#2ecc71" : "#555",
-                      color: "#fff",
-                      border: "none",
-                      borderRadius: 4,
-                      cursor: selectedAvailability?.enabled ? "pointer" : "default",
-                      fontSize: 12
-                    }}
-                  >
-                    Valider l'action
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </section>
-
+        <CombatStatusPanel
+          round={round}
+          phase={phase}
+          playerInitiative={playerInitiative}
+          player={player}
+          selectedPath={selectedPath}
+          sampleCharacter={sampleCharacter}
+          aiLastState={aiLastState}
+          aiLastDecisions={aiLastDecisions}
+          aiUsedFallback={aiUsedFallback}
+          aiLastError={aiLastError}
+        />
+        <EnemiesPanel
+          enemies={enemies}
+          player={player}
+          capabilities={ENEMY_CAPABILITIES}
+          validatedAction={validatedAction}
+          selectedTargetId={selectedTargetId}
+          describeEnemyLastDecision={describeEnemyLastDecision}
+          validateEnemyTargetForAction={validateEnemyTargetForAction}
+          onSelectTargetId={setSelectedTargetId}
+          onSetTargetMode={setTargetMode}
+          onLog={pushLog}
+        />
+        <ActionsPanel
+          actions={actions}
+          selectedAction={selectedAction}
+          selectedAvailability={selectedAvailability}
+          computeActionAvailability={computeActionAvailability}
+          onSelectActionId={setSelectedActionId}
+          describeRange={describeRange}
+          describeUsage={describeUsage}
+          conditionLabel={conditionLabel}
+          effectLabel={effectLabel}
+          onPreviewActionArea={previewActionArea}
+          onValidateAction={handleUseAction}
+        />
         {showDicePanel && (
-          <section
-            style={{
-              padding: "8px 12px",
-              background: "#141421",
-              borderRadius: 8,
-              border: "1px solid #333",
-              display: "flex",
-              flexDirection: "column",
-              gap: 8
-            }}
-          >
-            <h2 style={{ margin: "0 0 4px" }}>Jets de des</h2>
-            <p style={{ margin: 0, fontSize: 12, opacity: 0.85 }}>
-              Choisir une action, la valider, puis lancer le jet de touche et/ou de
-              degats. Mode auto: enchaine touche + degats.
-            </p>
-            <div style={{ fontSize: 12 }}>
-              Action validee :{" "}
-              {validatedAction
-                ? `${validatedAction.name} (${validatedAction.id})`
-                : "aucune (valider une action d'abord)"}
-            </div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              {(["normal", "advantage", "disadvantage"] as AdvantageMode[]).map(
-                mode => (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => setAdvantageMode(mode)}
-                    style={{
-                      padding: "4px 8px",
-                      background: advantageMode === mode ? "#8e44ad" : "#2c2c3a",
-                      color: "#fff",
-                      border: "none",
-                      borderRadius: 4,
-                      cursor: "pointer",
-                      fontSize: 12
-                    }}
-                  >
-                    {mode}
-                  </button>
-                )
-              )}
-            </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button
-                type="button"
-                onClick={handleRollAttack}
-                disabled={!validatedAction?.attack}
-                style={{
-                  padding: "4px 8px",
-                  background: validatedAction?.attack ? "#2980b9" : "#555",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 4,
-                  cursor: validatedAction?.attack ? "pointer" : "default",
-                  fontSize: 12
-                }}
-              >
-                Lancer jet de touche
-              </button>
-              <button
-                type="button"
-                onClick={handleRollDamage}
-                disabled={!validatedAction?.damage}
-                style={{
-                  padding: "4px 8px",
-                  background: validatedAction?.damage ? "#27ae60" : "#555",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 4,
-                  cursor: validatedAction?.damage ? "pointer" : "default",
-                  fontSize: 12
-                }}
-              >
-                Lancer degats
-              </button>
-              <button
-                type="button"
-                onClick={handleAutoResolveRolls}
-                style={{
-                  padding: "4px 8px",
-                  background: "#9b59b6",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 4,
-                  cursor: "pointer",
-                  fontSize: 12
-                }}
-              >
-                Mode auto (touche + degats)
-              </button>
-            </div>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 8
-              }}
-            >
-            <div
-              style={{
-                background: "#101020",
-                borderRadius: 6,
-                padding: 8,
-                border: "1px solid #26263a"
-              }}
-            >
-              <div style={{ fontWeight: 600, marginBottom: 4, fontSize: 12 }}>
-                Jet de touche
-              </div>
-              {attackRoll ? (
-                <div style={{ fontSize: 12, lineHeight: 1.4 }}>
-                  d20: {attackRoll.d20.rolls.join(" / ")} → {attackRoll.d20.total}{" "}
-                  | bonus {attackRoll.bonus} | total {attackRoll.total}{" "}
-                  {attackRoll.isCrit ? "(critique)" : ""}
-                </div>
-              ) : (
-                <div style={{ fontSize: 12, opacity: 0.7 }}>Pas encore lance.</div>
-              )}
-            </div>
-            <div
-              style={{
-                background: "#101020",
-                borderRadius: 6,
-                padding: 8,
-                border: "1px solid #26263a"
-              }}
-            >
-              <div style={{ fontWeight: 600, marginBottom: 4, fontSize: 12 }}>
-                Jet de degats
-              </div>
-              {damageRoll ? (
-                <div style={{ fontSize: 12, lineHeight: 1.4 }}>
-                  Des:{" "}
-                  {damageRoll.dice.length
-                    ? damageRoll.dice.map(d => d.rolls.join("+")).join(" | ")
-                    : "—"}{" "}
-                  | mod {damageRoll.flatModifier} | total {damageRoll.total}{" "}
-                  {damageRoll.isCrit ? "(critique)" : ""}
-                </div>
-              ) : (
-                <div style={{ fontSize: 12, opacity: 0.7 }}>Pas encore lance.</div>
-              )}
-            </div>
-          </div>
-          <div style={{ fontSize: 12 }}>
-            <strong>Logs des jets:</strong>
-            <div
-              style={{
-                marginTop: 4,
-                display: "flex",
-                flexDirection: "column",
-                gap: 2
-              }}
-            >
-              {diceLogs.map((entry, idx) => (
-                <div key={idx} style={{ color: "#dfe6ff" }}>
-                  - {entry}
-                </div>
-              ))}
-              {diceLogs.length === 0 && (
-                <div style={{ color: "#9aa0b5" }}>Aucun jet enregistre.</div>
-              )}
-            </div>
-          </div>
-        </section>
+          <DicePanel
+            validatedAction={validatedAction}
+            advantageMode={advantageMode}
+            onSetAdvantageMode={setAdvantageMode}
+            onRollAttack={handleRollAttack}
+            onRollDamage={handleRollDamage}
+            onAutoResolve={handleAutoResolveRolls}
+            attackRoll={attackRoll}
+            damageRoll={damageRoll}
+            diceLogs={diceLogs}
+          />
         )}
-
-        <section
-          style={{
-            padding: "8px 12px",
-            background: "#141421",
-            borderRadius: 8,
-            border: "1px solid #333",
-            display: "flex",
-            flexDirection: "column",
-            gap: 8
-          }}
-        >
-          <h2 style={{ margin: "0 0 4px" }}>Zones d&apos;effet (demo)</h2>
-          <p style={{ margin: 0, fontSize: 12 }}>
-            Ces boutons utilisent les helpers de <code>boardEffects.ts</code>{" "}
-            pour dessiner des zones en coordonnees de grille autour du joueur.
-          </p>
-          <div
-            style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}
-          >
-            <button
-              type="button"
-              onClick={handleShowCircleEffect}
-              style={{
-                padding: "4px 8px",
-                background: "#2980b9",
-                color: "#fff",
-                border: "none",
-                borderRadius: 4,
-                cursor: "pointer",
-                fontSize: 12
-              }}
-            >
-              Cercle R=2
-            </button>
-            <button
-              type="button"
-              onClick={handleShowRectangleEffect}
-              style={{
-                padding: "4px 8px",
-                background: "#27ae60",
-                color: "#fff",
-                border: "none",
-                borderRadius: 4,
-                cursor: "pointer",
-                fontSize: 12
-              }}
-            >
-              Rectangle 3x3
-            </button>
-            <button
-              type="button"
-              onClick={handleShowConeEffect}
-              style={{
-                padding: "4px 8px",
-                background: "#c0392b",
-                color: "#fff",
-                border: "none",
-                borderRadius: 4,
-                cursor: "pointer",
-                fontSize: 12
-              }}
-            >
-              Cone portee 4
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowVisionDebug(prev => !prev)}
-              style={{
-                padding: "4px 8px",
-                background: showVisionDebug ? "#f1c40f" : "#555",
-                color: "#0b0b12",
-                border: "none",
-                borderRadius: 4,
-                cursor: "pointer",
-                fontSize: 12
-              }}
-            >
-              {showVisionDebug ? "Masquer vision" : "Afficher vision"}
-            </button>
-            <button
-              type="button"
-              onClick={handleClearEffects}
-              style={{
-                padding: "4px 8px",
-                background: "#7f8c8d",
-                color: "#fff",
-                border: "none",
-                borderRadius: 4,
-                cursor: "pointer",
-                fontSize: 12
-              }}
-            >
-              Effacer zones
-            </button>
-          </div>
-        </section>
-
-        <section
-          style={{
-            padding: "8px 12px",
-            background: "#141421",
-            borderRadius: 8,
-            border: "1px solid #333",
-            flex: "1 1 auto",
-            display: "flex",
-            flexDirection: "column"
-          }}
-        >
-          <h2 style={{ margin: "0 0 8px" }}>Log</h2>
-          <div
-            style={{
-              flex: "1 1 auto",
-              overflowY: "auto",
-              fontSize: 12,
-              lineHeight: 1.4
-            }}
-          >
-            {log.map((line, idx) => (
-              <div key={idx}>- {line}</div>
-            ))}
-          </div>
-        </section>
+        <EffectsPanel
+          showVisionDebug={showVisionDebug}
+          onShowCircle={handleShowCircleEffect}
+          onShowRectangle={handleShowRectangleEffect}
+          onShowCone={handleShowConeEffect}
+          onToggleVisionDebug={() => setShowVisionDebug(prev => !prev)}
+          onClear={handleClearEffects}
+        />
+        <LogPanel log={log} />
       </div>
     </div>
   );
