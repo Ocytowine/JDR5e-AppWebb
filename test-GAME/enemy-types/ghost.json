@@ -3,6 +3,8 @@
   "label": "Fantome",
   "description": "Esprit intangible capable de traverser les autres creatures.",
   "aiRole": "ghost",
+  "actions": ["enemy-move", "enemy-melee-strike"],
+  "behavior": { "preferredRangeMin": 1, "preferredRangeMax": 1, "panicRange": 0 },
   "speechProfile": {
     "raceOrOrigin": "Esprit vengeur",
     "register": "soutenu",

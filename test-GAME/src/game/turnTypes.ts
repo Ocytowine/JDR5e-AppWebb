@@ -17,6 +17,18 @@ export interface EnemyDecision {
   targetY?: number;
 }
 
+export type EnemyIntentTarget =
+  | { kind: "token"; tokenId: string }
+  | { kind: "cell"; x: number; y: number }
+  | { kind: "none" };
+
+export interface EnemyActionIntent {
+  enemyId: string;
+  actionId: string;
+  target: EnemyIntentTarget;
+  advantageMode?: "normal" | "advantage" | "disadvantage";
+}
+
 export interface EnemySummary {
   id: string;
   x: number;
@@ -27,9 +39,13 @@ export interface EnemySummary {
   aiRole?: string | null;
   moveRange?: number | null;
   attackDamage?: number | null;
+  attackRange?: number | null;
+  maxAttacksPerTurn?: number | null;
+  actionIds?: string[] | null;
 }
 
 export interface PlayerSummary {
+  id: string;
   x: number;
   y: number;
   hp: number;
@@ -42,6 +58,12 @@ export interface EnemyAiStateSummary {
   grid: { cols: number; rows: number };
   player: PlayerSummary;
   enemies: EnemySummary[];
+  actionsCatalog?: {
+    id: string;
+    name: string;
+    category: string;
+    targeting: { target: string; range: { min: number; max: number; shape: string }; requiresLos: boolean };
+  }[];
 }
 
 export interface SpeechBubbleEntry {
@@ -61,4 +83,3 @@ export interface EffectSpec {
   range?: number;
   direction?: "up" | "down" | "left" | "right";
 }
-

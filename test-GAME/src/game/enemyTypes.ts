@@ -5,6 +5,12 @@ export interface EnemyTypeDefinition {
   label: string;
   description: string;
   aiRole: string;
+  actions?: string[];
+  behavior?: {
+    preferredRangeMin?: number;
+    preferredRangeMax?: number;
+    panicRange?: number;
+  };
   speechProfile?: import("../narrationTypes").EnemySpeechProfile;
   baseStats: {
     hp: number;
@@ -17,4 +23,3 @@ export interface EnemyTypeDefinition {
   movement?: MovementProfile;
   vision?: VisionProfile;
 }
-

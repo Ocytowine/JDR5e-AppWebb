@@ -1,6 +1,6 @@
 import React from "react";
 import type { TurnPhase } from "../game/turnTypes";
-import type { EnemyAiStateSummary, EnemyDecision } from "../game/turnTypes";
+import type { EnemyAiStateSummary, EnemyActionIntent } from "../game/turnTypes";
 import type { TokenState } from "../types";
 import type { Personnage } from "../types";
 
@@ -12,7 +12,7 @@ export function CombatStatusPanel(props: {
   selectedPath: { x: number; y: number }[];
   sampleCharacter: Personnage;
   aiLastState: EnemyAiStateSummary | null;
-  aiLastDecisions: EnemyDecision[] | null;
+  aiLastIntents: EnemyActionIntent[] | null;
   aiUsedFallback: boolean;
   aiLastError: string | null;
 }): React.JSX.Element {
@@ -68,9 +68,9 @@ export function CombatStatusPanel(props: {
         </div>
         <div>
           Décisions reçues :{" "}
-          {props.aiLastDecisions === null
+          {props.aiLastIntents === null
             ? "n/a"
-            : `${props.aiLastDecisions.length} (fallback: ${
+            : `${props.aiLastIntents.length} (fallback: ${
                 props.aiUsedFallback ? "oui" : "non"
               })`}
         </div>
@@ -79,4 +79,3 @@ export function CombatStatusPanel(props: {
     </section>
   );
 }
-

@@ -107,27 +107,26 @@ function parseJsonBody(req) {
 // Appel à l'API OpenAI (Chat Completions JSON)
 // ----------------------------------------------------
 
-async function callOpenAiForEnemyDecisions(stateSummary) {
+async function callOpenAiForEnemyIntents(stateSummary) {
   if (!OPENAI_API_KEY) {
     // Pas de clé : on renvoie un tableau vide, le front fera un fallback local.
-    return { decisions: [] };
+    return { intents: [] };
   }
 
   const model = process.env.ENEMY_AI_MODEL || "gpt-4.1-mini";
 
   const systemPrompt =
     "Tu es le controleur tactique des ennemis dans un jeu de combat au tour par tour sur grille. " +
-    "On te fournit l'etat du plateau (joueur, ennemis, dimensions, types d'ennemis). " +
-    "Tu dois proposer UNE action par ennemi (move, attack ou wait) et rien d'autre. " +
+    "On te fournit l'etat du plateau (joueur, ennemis, dimensions, actions disponibles). " +
+    "Tu dois proposer UNE action par ennemi via un intent, et rien d'autre. " +
+    "Chaque ennemi a une liste actionIds (les IDs d'actions qu'il a le droit d'utiliser). " +
     "Respecte strictement les contraintes suivantes : " +
     "- Utilise uniquement les enemyId fournis dans l'etat. " +
-    "- Ne depasse jamais les limites de la grille. " +
-    "- Les deplacements ne peuvent pas depasser 3 cases en distance de Manhattan. " +
-    "- Une attaque ne peut avoir lieu que si la cible est a distance 1 (Manhattan <= 1). " +
-    "- Pour une action move, tu dois fournir targetX et targetY (entiers). " +
-    "- Integre le type d'ennemi (aiRole/type) pour prioriser la cible: brute avance vers le joueur, archer prefere garder la distance, assassin cherche le contact rapide. " +
-    "Repond UNIQUEMENT avec un JSON valide de la forme { \"decisions\": [ { \"enemyId\": \"...\", \"action\": \"move|attack|wait\", \"targetX\": nombre, \"targetY\": nombre } ] } sans aucun texte autour. " +
-    "Exemple: { \"decisions\": [ { \"enemyId\": \"enemy-1\", \"action\": \"move\", \"targetX\": 3, \"targetY\": 2 } ] }";
+    "- Utilise uniquement des actionId presentes dans actionsCatalog ET dans enemy.actionIds. " +
+    "- Pour une action de deplacement (ex: enemy-move), renvoie target.kind='cell' avec x,y entiers dans la grille. " +
+    "- Pour une attaque ciblant le joueur, renvoie target.kind='token' avec tokenId = player.id. " +
+    "- Integre aiRole pour le comportement: brute/assassin cherchent le contact, archer garde une distance et tire si possible. " +
+    "Repond UNIQUEMENT avec un JSON valide de la forme { \"intents\": [ { \"enemyId\": \"...\", \"actionId\": \"...\", \"target\": { \"kind\": \"token\", \"tokenId\": \"...\" } } ] } sans aucun texte autour.";
 
   const userContent = JSON.stringify(stateSummary);
 
@@ -167,8 +166,8 @@ async function callOpenAiForEnemyDecisions(stateSummary) {
     throw new Error("Impossible de parser la réponse OpenAI en JSON.");
   }
 
-  if (!parsed.decisions || !Array.isArray(parsed.decisions)) {
-    throw new Error("Reponse OpenAI invalide: champ decisions manquant.");
+  if (!parsed.intents || !Array.isArray(parsed.intents)) {
+    throw new Error("Reponse OpenAI invalide: champ intents manquant.");
   }
 
   const enemyIds = new Set(
@@ -176,36 +175,61 @@ async function callOpenAiForEnemyDecisions(stateSummary) {
       ? stateSummary.enemies.map(e => e.id).filter(Boolean)
       : []
   );
-  const validActions = new Set(["move", "attack", "wait"]);
-  const sanitized = parsed.decisions.filter(d => {
-    if (!d || typeof d !== "object") return false;
-    if (!enemyIds.has(d.enemyId)) {
-      console.warn("[enemy-ai] Decision ignoree (enemyId inconnu):", d);
-      return false;
-    }
-    const action = typeof d.action === "string" ? d.action.toLowerCase() : "";
-    if (!validActions.has(action)) {
-      console.warn("[enemy-ai] Decision ignoree (action invalide):", d);
-      return false;
-    }
-    if (action === "move") {
-      if (typeof d.targetX !== "number" || typeof d.targetY !== "number") {
-        console.warn("[enemy-ai] Decision move ignoree (cible manquante):", d);
-        return false;
+  const actionIdsByEnemy = new Map();
+  if (Array.isArray(stateSummary?.enemies)) {
+    for (const e of stateSummary.enemies) {
+      if (!e || typeof e !== "object") continue;
+      if (typeof e.id !== "string") continue;
+      if (Array.isArray(e.actionIds)) {
+        actionIdsByEnemy.set(
+          e.id,
+          new Set(e.actionIds.filter(x => typeof x === "string"))
+        );
+      } else {
+        actionIdsByEnemy.set(e.id, new Set());
       }
     }
-    return true;
+  }
+
+  const catalog = new Set(
+    Array.isArray(stateSummary?.actionsCatalog)
+      ? stateSummary.actionsCatalog.map(a => a.id).filter(Boolean)
+      : []
+  );
+
+  const playerId = stateSummary?.player?.id;
+
+  const sanitized = parsed.intents.filter(i => {
+    if (!i || typeof i !== "object") return false;
+    if (!enemyIds.has(i.enemyId)) return false;
+    if (typeof i.actionId !== "string" || !i.actionId.trim()) return false;
+    if (!catalog.has(i.actionId)) return false;
+
+    const allowed = actionIdsByEnemy.get(i.enemyId);
+    if (allowed && allowed.size > 0 && !allowed.has(i.actionId)) return false;
+
+    const target = i.target;
+    if (!target || typeof target !== "object") return true;
+    if (target.kind === "cell") {
+      return typeof target.x === "number" && typeof target.y === "number";
+    }
+    if (target.kind === "token") {
+      if (typeof target.tokenId !== "string") return false;
+      if (typeof playerId === "string" && target.tokenId !== playerId) return false;
+      return true;
+    }
+    if (target.kind === "none") return true;
+    return false;
   });
 
-  const logged = sanitized.map(d => ({
-    enemyId: d.enemyId,
-    action: d.action,
-    targetX: d.targetX,
-    targetY: d.targetY
+  const logged = sanitized.map(i => ({
+    enemyId: i.enemyId,
+    actionId: i.actionId,
+    target: i.target
   }));
-  console.log("[enemy-ai] Decisions IA retenues:", logged);
+  console.log("[enemy-ai] Intents IA retenus:", logged);
 
-  return { decisions: sanitized };
+  return { intents: sanitized };
 }
 
 async function callOpenAiJson({ model, systemPrompt, userPayload }) {
@@ -273,14 +297,14 @@ const server = http.createServer(async (req, res) => {
 
       let result;
       try {
-        result = await callOpenAiForEnemyDecisions(stateSummary);
+        result = await callOpenAiForEnemyIntents(stateSummary);
       } catch (err) {
         console.error("[enemy-ai] Erreur appel OpenAI:", err.message);
         // En cas d'erreur API, on renvoie quand même une forme valide
-        result = { decisions: [] };
+        result = { intents: [] };
       }
 
-      if (!result.decisions || result.decisions.length === 0) {
+      if (!result.intents || result.intents.length === 0) {
         console.warn("[enemy-ai] Aucune décision IA renvoyée (fallback probable).");
       }
 
@@ -308,6 +332,8 @@ const server = http.createServer(async (req, res) => {
         "Ta mission: ecrire un recap narratif en FRANCAIS, au POINT DE VUE DU JOUEUR (1ere personne: je). " +
         "Le recap resume la sequence complete: action(s) du joueur puis reponses des ennemis. " +
         "Contraintes: 2 a 6 phrases, ton immersif, pas de listes, pas de meta-commentaires, pas de mention d'IA. " +
+        "Priorite: mentionne toujours les coups qui touchent et font baisser les PV de manière roleplay (player_attack/enemy_attack avec damage > 0, ou baisse de PV entre stateStart et stateEnd), en citant l'auteur et la nature de l'attaque. " +
+        "Si une attaque rate (isHit=false), tu peux le resumer brièvement si tu as la place. " +
         "Base-toi uniquement sur les evenements et l'etat fournis. " +
         "Repond STRICTEMENT en JSON: { \"summary\": \"...\" }.";
 

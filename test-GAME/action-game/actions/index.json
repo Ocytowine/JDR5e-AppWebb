@@ -4,6 +4,9 @@
     "./melee-strike.json",
     "./dash.json",
     "./second-wind.json",
-    "./throw-dagger.json"
+    "./throw-dagger.json",
+    "./enemy-move.json",
+    "./enemy-melee-strike.json",
+    "./enemy-bow-shot.json"
   ]
 }

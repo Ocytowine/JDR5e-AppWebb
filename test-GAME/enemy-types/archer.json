@@ -3,6 +3,8 @@
   "label": "Archer",
   "description": "Tireur qui prefere garder une distance de securite avant de frapper.",
   "aiRole": "archer",
+  "actions": ["enemy-move", "enemy-bow-shot", "enemy-melee-strike"],
+  "behavior": { "preferredRangeMin": 3, "preferredRangeMax": 6, "panicRange": 2 },
   "speechProfile": {
     "raceOrOrigin": "Archer de bande",
     "register": "neutre",

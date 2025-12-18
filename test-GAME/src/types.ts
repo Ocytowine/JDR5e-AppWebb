@@ -86,6 +86,12 @@ export interface TokenState {
   enemyTypeLabel?: string;
   aiRole?: string | null;
   /**
+   * Liste d'actions que l'entite peut utiliser (IDs ActionDefinition).
+   * Pour le joueur, cela correspond au catalogue d'actions charge.
+   * Pour les ennemis, cela vient de enemy-types/*.json.
+   */
+  actionIds?: string[] | null;
+  /**
    * Profil RP pour guider les bulles de dialogue (enemy-types).
    */
   speechProfile?: EnemySpeechProfile | null;
