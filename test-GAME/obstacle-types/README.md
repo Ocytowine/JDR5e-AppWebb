@@ -17,3 +17,6 @@ Notes:
 - Keep `id` in lowercase with hyphens.
 - Keep `tags` generic and stable; UI and generators can rely on them.
 
+il reste à faire:
+- ajouter des exemples de règles de spawn
+- documenter les propriétés de durabilité pv, brulable... escalader
