@@ -93,7 +93,8 @@ import { ActionsPanel } from "./ui/ActionsPanel";
 import { DicePanel } from "./ui/DicePanel";
 import { EffectsPanel } from "./ui/EffectsPanel";
 import { LogPanel } from "./ui/LogPanel";
-import { RadialWheelMenu, type WheelMenuItem } from "./ui/RadialWheelMenu";
+import { ActionWheelMenu } from "./ui/ActionWheelMenu";
+import { ActionContextWindow } from "./ui/ActionContextWindow";
 import { BottomDock } from "./ui/BottomDock";
 
 const ACTION_MODULES: Record<string, ActionDefinition> = {
@@ -283,6 +284,14 @@ export const GameBoard: React.FC = () => {
     usedAction: boolean;
     usedBonus: boolean;
   }>({ usedAction: false, usedBonus: false });
+  const [actionUsageCounts, setActionUsageCounts] = useState<{
+    turn: Record<string, number>;
+    encounter: Record<string, number>;
+  }>({ turn: {}, encounter: {} });
+  const [playerResources, setPlayerResources] = useState<Record<string, number>>({
+    "bandolier:dagger": 3
+  });
+  const [pathLimit, setPathLimit] = useState<number>(5);
 
   // Player movement path (limited to 5 cells)
   const [selectedPath, setSelectedPath] = useState<{ x: number; y: number }[]>(
@@ -299,6 +308,12 @@ export const GameBoard: React.FC = () => {
     anchorY: number;
     cell: { x: number; y: number };
     token: TokenState | null;
+  } | null>(null);
+  const [actionContext, setActionContext] = useState<{
+    anchorX: number;
+    anchorY: number;
+    actionId: string;
+    stage: "draft" | "active";
   } | null>(null);
 
   // Area-of-effect specs attached to the player
@@ -328,6 +343,15 @@ export const GameBoard: React.FC = () => {
 
   function closeRadialMenu() {
     setRadialMenu(current => (current ? { ...current, open: false } : null));
+  }
+
+  function resourceKey(name: string, pool?: string | null): string {
+    return `${pool ?? "default"}:${name}`;
+  }
+
+  function getResourceAmount(name: string, pool?: string | null): number {
+    const key = resourceKey(name, pool);
+    return typeof playerResources[key] === "number" ? playerResources[key] : 0;
   }
 
   useEffect(() => {
@@ -400,6 +424,10 @@ export const GameBoard: React.FC = () => {
     setTurnOrder([]);
     setCurrentTurnIndex(0);
     setIsCombatConfigured(true);
+    setActionUsageCounts({ turn: {}, encounter: {} });
+    setTurnActionUsage({ usedAction: false, usedBonus: false });
+    setPlayerResources({ "bandolier:dagger": 3 });
+    setPathLimit(5);
   }
 
   function getActiveTurnEntry(): TurnEntry | null {
@@ -620,6 +648,8 @@ export const GameBoard: React.FC = () => {
     if (entry.kind === "player") {
       setPhase("player");
       setTurnActionUsage({ usedAction: false, usedBonus: false });
+      setActionUsageCounts(prev => ({ ...prev, turn: {} }));
+      setPathLimit(5);
       setHasRolledAttackForCurrentAction(false);
       setAttackRoll(null);
       setDamageRoll(null);
@@ -766,6 +796,39 @@ export const GameBoard: React.FC = () => {
       reasons.push("Action bloquee pendant le tour des ennemis.");
     }
 
+    const costType = action.actionCost?.actionType;
+    if (costType === "action" && turnActionUsage.usedAction) {
+      reasons.push("Action principale deja utilisee ce tour.");
+    }
+    if (costType === "bonus" && turnActionUsage.usedBonus) {
+      reasons.push("Action bonus deja utilisee ce tour.");
+    }
+
+    const turnUses = typeof actionUsageCounts.turn[action.id] === "number" ? actionUsageCounts.turn[action.id] : 0;
+    const encounterUses =
+      typeof actionUsageCounts.encounter[action.id] === "number" ? actionUsageCounts.encounter[action.id] : 0;
+    if (typeof action.usage?.perTurn === "number") {
+      details.push(`Usages/tour: ${turnUses}/${action.usage.perTurn}`);
+      if (turnUses >= action.usage.perTurn) {
+        reasons.push("Limite d'usage atteinte pour ce tour.");
+      }
+    }
+    if (typeof action.usage?.perEncounter === "number") {
+      details.push(`Usages/rencontre: ${encounterUses}/${action.usage.perEncounter}`);
+      if (encounterUses >= action.usage.perEncounter) {
+        reasons.push("Limite d'usage atteinte pour la rencontre.");
+      }
+    }
+
+    const usageResource = action.usage?.resource;
+    if (usageResource?.name && typeof usageResource.min === "number") {
+      const amount = getResourceAmount(usageResource.name, usageResource.pool);
+      if (amount < usageResource.min) {
+        const poolSuffix = usageResource.pool ? ` (${usageResource.pool})` : "";
+        reasons.push(`Ressource insuffisante: ${usageResource.name}${poolSuffix} (${amount}/${usageResource.min}).`);
+      }
+    }
+
     const targeting = action.targeting?.target;
     const range = action.targeting?.range;
     if (targeting === "enemy") {
@@ -787,6 +850,13 @@ export const GameBoard: React.FC = () => {
       if (cond.type === "phase" && cond.mustBe && cond.mustBe !== phase) {
         reasons.push(cond.reason || "Phase incorrecte.");
       }
+      if (cond.type === "stat_below_percent" && cond.who === "self" && cond.stat === "hp") {
+        const max = Math.max(1, player.maxHp || 1);
+        const ratio = player.hp / max;
+        if (typeof cond.percentMax === "number" && ratio >= cond.percentMax) {
+          reasons.push(cond.reason || `PV trop hauts (>= ${Math.round(cond.percentMax * 100)}%).`);
+        }
+      }
       if (cond.type === "distance_max" && targeting === "enemy") {
         const dist = minDistanceToAnyEnemy();
         if (dist !== null && typeof cond.max === "number" && dist > cond.max) {
@@ -804,6 +874,15 @@ export const GameBoard: React.FC = () => {
           }
         }
       }
+      if (cond.type === "resource_at_least" && cond.resource) {
+        const pool = typeof cond.pool === "string" ? cond.pool : undefined;
+        const amount = getResourceAmount(String(cond.resource), pool);
+        const needed = typeof cond.value === "number" ? cond.value : 1;
+        if (amount < needed) {
+          const poolSuffix = pool ? ` (${pool})` : "";
+          reasons.push(cond.reason || `Ressource insuffisante: ${cond.resource}${poolSuffix} (${amount}/${needed}).`);
+        }
+      }
     }
 
     return {
@@ -811,6 +890,19 @@ export const GameBoard: React.FC = () => {
       reasons,
       details
     };
+  }
+
+  function resolvePlayerFormula(formula: string): string {
+    const level = Number(sampleCharacter.niveauGlobal || 1);
+    const modFOR = Number(sampleCharacter.caracs?.force?.modFOR || 0);
+    const modDEX = Number(sampleCharacter.caracs?.dexterite?.modDEX || 0);
+    const modCON = Number(sampleCharacter.caracs?.constitution?.modCON || 0);
+    return formula
+      .replace(/\s+/g, "")
+      .replace(/niveau/gi, String(level))
+      .replace(/modFOR/gi, String(modFOR))
+      .replace(/modDEX/gi, String(modDEX))
+      .replace(/modCON/gi, String(modCON));
   }
 
   function describeUsage(usage: UsageSpec): string {
@@ -928,6 +1020,44 @@ export const GameBoard: React.FC = () => {
       );
       return;
     }
+
+    setActionUsageCounts(prev => ({
+      turn: { ...prev.turn, [action.id]: (prev.turn[action.id] ?? 0) + 1 },
+      encounter: { ...prev.encounter, [action.id]: (prev.encounter[action.id] ?? 0) + 1 }
+    }));
+
+    for (const effect of action.effects || []) {
+      if (effect.type === "modify_path_limit" && typeof effect.delta === "number") {
+        setPathLimit(prev => Math.max(1, prev + effect.delta));
+        if (typeof effect.delta === "number") {
+          pushLog(`Mouvement: limite de trajet modifiee (${effect.delta >= 0 ? "+" : ""}${effect.delta}).`);
+        }
+      }
+      if (effect.type === "resource_spend" && effect.resource) {
+        const pool = typeof effect.pool === "string" ? effect.pool : null;
+        const amount = typeof effect.amount === "number" ? effect.amount : 1;
+        const key = resourceKey(String(effect.resource), pool);
+        setPlayerResources(prev => ({
+          ...prev,
+          [key]: Math.max(0, (prev[key] ?? 0) - amount)
+        }));
+      }
+      if (effect.type === "heal" && typeof effect.formula === "string") {
+        const resolved = resolvePlayerFormula(effect.formula);
+        const result = rollDamage(resolved, { isCrit: false, critRule: "double-dice" });
+        const minHeal = typeof effect.min === "number" ? effect.min : null;
+        const healAmount = minHeal !== null ? Math.max(minHeal, result.total) : result.total;
+        setPlayer(prev => ({
+          ...prev,
+          hp: Math.min(prev.maxHp, prev.hp + healAmount)
+        }));
+        pushDiceLog(`Soin (${action.name}) : ${resolved} -> +${healAmount} PV`);
+      }
+      if (effect.type === "log" && typeof effect.message === "string") {
+        pushLog(effect.message);
+      }
+    }
+
     setValidatedActionId(action.id);
     setAttackRoll(null);
     setDamageRoll(null);
@@ -1299,7 +1429,7 @@ export const GameBoard: React.FC = () => {
     }
 
     setSelectedPath(prev => {
-      const maxSteps = 5;
+      const maxSteps = Math.max(1, pathLimit);
       const path = [...prev];
 
       if (path.length >= maxSteps) {
@@ -2487,6 +2617,18 @@ function handleEndPlayerTurn() {
     : null;
   const validatedAction = getValidatedAction();
   const showDicePanel = actionNeedsDiceUI(validatedAction);
+  const contextAction = actionContext
+    ? actions.find(a => a.id === actionContext.actionId) || null
+    : null;
+  const contextAvailabilityRaw = contextAction
+    ? computeActionAvailability(contextAction)
+    : null;
+  const contextAvailability =
+    actionContext?.stage === "active" &&
+    contextAction &&
+    validatedActionId === contextAction.id
+      ? { enabled: true, reasons: [], details: contextAvailabilityRaw?.details ?? [] }
+      : contextAvailabilityRaw;
 
   const isPlayerTurn = phase === "player";
   const activeEntry = getActiveTurnEntry();
@@ -2617,121 +2759,56 @@ function handleEndPlayerTurn() {
   const canInteractWithBoard =
     phase === "player" && !isGameOver && !isTokenDead(player);
 
-  const radialItems: WheelMenuItem[] = [
-    {
-      id: "move",
-      label: "Deplacer",
-      color: "#2ecc71",
-      disabled: !canInteractWithBoard,
-      disabledReason: "Tour joueur requis",
-      onSelect: () => {
-        setInteractionMode("moving");
-        closeRadialMenu();
-        pushLog(
-          "Mode deplacement active: cliquez sur des cases pour tracer un trajet (max 5)."
-        );
-      }
-    },
-    {
-      id: "attack",
-      label: "Attaquer",
-      color: "#e74c3c",
-      disabled: !canInteractWithBoard,
-      disabledReason: "Tour joueur requis",
-      onSelect: () => {
-        pushLog("Attaquer: (a integrer) selection d'action/cible.");
-        closeRadialMenu();
-      }
-    },
-    {
-      id: "validate-move",
-      label: "Valider",
-      color: "#f1c40f",
-      disabled: !canInteractWithBoard || selectedPath.length === 0,
-      disabledReason:
-        selectedPath.length === 0
-          ? "Aucun trajet"
-          : "Tour joueur requis",
-      onSelect: () => {
-        handleValidatePath();
-      }
-    },
-    {
-      id: "reset-move",
-      label: "Annuler trajet",
-      color: "#e67e22",
-      disabled: !canInteractWithBoard || selectedPath.length === 0,
-      disabledReason:
-        selectedPath.length === 0
-          ? "Aucun trajet"
-          : "Tour joueur requis",
-      onSelect: () => {
-        handleResetPath();
-        closeRadialMenu();
-      }
-    },
-    {
-      id: "inspect",
-      label: "Inspecter",
-      color: "#3498db",
-      disabled: !radialMenu?.cell,
-      onSelect: () => {
-        const cell = radialMenu?.cell;
-        if (!cell) return;
-        const token = radialMenu?.token;
-        if (!token) {
-          pushLog(`Inspection: case (${cell.x}, ${cell.y}).`);
-        } else if (token.type === "player") {
-          pushLog(
-            `Inspection: joueur (${token.id}) en (${token.x}, ${token.y}), PV ${token.hp}/${token.maxHp}.`
-          );
-        } else {
-          pushLog(
-            `Inspection: ennemi (${token.id}) en (${token.x}, ${token.y}), PV ${token.hp}/${token.maxHp}.`
-          );
-        }
-        closeRadialMenu();
-      }
-    },
-    {
-      id: "interact",
-      label: "Interagir",
-      color: "#9b59b6",
-      disabled: !canInteractWithBoard,
-      disabledReason: "Tour joueur requis",
-      onSelect: () => {
-        const cell = radialMenu?.cell;
-        if (cell) {
-          pushLog(`Interagir: (a integrer) sur (${cell.x}, ${cell.y}).`);
-        } else {
-          pushLog("Interagir: (a integrer).");
-        }
-        closeRadialMenu();
-      }
-    },
-    {
-      id: "hide",
-      label: "Se cacher",
-      color: "#34495e",
-      disabled: !canInteractWithBoard,
-      disabledReason: "Tour joueur requis",
-      onSelect: () => {
-        pushLog("Se cacher: (a integrer).");
-        closeRadialMenu();
-      }
-    },
-    {
-      id: "end-turn",
-      label: "Fin tour",
-      color: "#ff7f50",
-      disabled: !canInteractWithBoard || isResolvingEnemies,
-      disabledReason: isResolvingEnemies ? "Tour des ennemis en cours" : "Tour joueur requis",
-      onSelect: () => {
-        handleEndPlayerTurn();
-        closeRadialMenu();
-      }
+  function openActionContextFromWheel(action: ActionDefinition) {
+    const anchorX = radialMenu?.anchorX ?? 0;
+    const anchorY = radialMenu?.anchorY ?? 0;
+    setSelectedActionId(action.id);
+    setActionContext({ anchorX, anchorY, actionId: action.id, stage: "draft" });
+    closeRadialMenu();
+  }
+
+  function closeActionContext() {
+    setActionContext(null);
+    setTargetMode("none");
+  }
+
+  function handleValidateActionFromContext(action: ActionDefinition) {
+    handleUseAction(action);
+    setActionContext(current => (current ? { ...current, actionId: action.id, stage: "active" } : current));
+  }
+
+  function handleInspectFromWheel() {
+    const cell = radialMenu?.cell;
+    if (!cell) return;
+    const token = radialMenu?.token;
+    if (!token) {
+      pushLog(`Inspection: case (${cell.x}, ${cell.y}).`);
+    } else if (token.type === "player") {
+      pushLog(
+        `Inspection: joueur (${token.id}) en (${token.x}, ${token.y}), PV ${token.hp}/${token.maxHp}.`
+      );
+    } else {
+      pushLog(
+        `Inspection: ennemi (${token.id}) en (${token.x}, ${token.y}), PV ${token.hp}/${token.maxHp}.`
+      );
     }
-  ];
+    closeRadialMenu();
+  }
+
+  function handleInteractFromWheel() {
+    const cell = radialMenu?.cell;
+    if (cell) {
+      pushLog(`Interagir: (a integrer) sur (${cell.x}, ${cell.y}).`);
+    } else {
+      pushLog("Interagir: (a integrer).");
+    }
+    closeRadialMenu();
+  }
+
+  function handleHideFromWheel() {
+    pushLog("Se cacher: (a integrer).");
+    closeRadialMenu();
+  }
 
   const dockTabs = [
     {
@@ -3045,14 +3122,65 @@ function handleEndPlayerTurn() {
                 </button>
               </div>
 
-              <RadialWheelMenu
+              <ActionWheelMenu
                 open={Boolean(radialMenu?.open)}
                 anchorX={radialMenu?.anchorX ?? 0}
                 anchorY={radialMenu?.anchorY ?? 0}
-            items={radialItems}
-            onClose={closeRadialMenu}
-            size={240}
-          />
+                size={240}
+                canInteractWithBoard={canInteractWithBoard}
+                hasCell={Boolean(radialMenu?.cell)}
+                selectedPathLength={selectedPath.length}
+                isResolvingEnemies={isResolvingEnemies}
+                actions={actions}
+                computeActionAvailability={computeActionAvailability}
+                onClose={closeRadialMenu}
+                onEnterMoveMode={() => {
+                  setInteractionMode("moving");
+                  closeRadialMenu();
+                  pushLog(
+                    `Mode deplacement active: cliquez sur des cases pour tracer un trajet (max ${pathLimit}).`
+                  );
+                }}
+                onValidateMove={handleValidatePath}
+                onResetMove={() => {
+                  handleResetPath();
+                  closeRadialMenu();
+                }}
+                onInspect={handleInspectFromWheel}
+                onInteract={handleInteractFromWheel}
+                onHide={handleHideFromWheel}
+                onEndTurn={() => {
+                  handleEndPlayerTurn();
+                  closeRadialMenu();
+                }}
+                onPickAction={openActionContextFromWheel}
+              />
+
+              <ActionContextWindow
+                open={Boolean(actionContext)}
+                anchorX={actionContext?.anchorX ?? 0}
+                anchorY={actionContext?.anchorY ?? 0}
+                stage={actionContext?.stage ?? "draft"}
+                action={contextAction}
+                availability={contextAvailability}
+                player={player}
+                enemies={enemies}
+                validatedAction={validatedAction}
+                targetMode={targetMode}
+                selectedTargetId={selectedTargetId}
+                onSelectTargetId={setSelectedTargetId}
+                onSetTargetMode={setTargetMode}
+                advantageMode={advantageMode}
+                onSetAdvantageMode={setAdvantageMode}
+                onRollAttack={handleRollAttack}
+                onRollDamage={handleRollDamage}
+                onAutoResolve={handleAutoResolveRolls}
+                attackRoll={attackRoll}
+                damageRoll={damageRoll}
+                diceLogs={diceLogs}
+                onValidateAction={handleValidateActionFromContext}
+                onClose={closeActionContext}
+              />
 
           {interactionMode === "moving" && (
             <div

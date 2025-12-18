@@ -58,6 +58,10 @@ export function RadialWheelMenu(props: {
   items: WheelMenuItem[];
   onClose: () => void;
   size?: number;
+  centerLabel?: string;
+  onCenterClick?: () => void;
+  sliceOpacity?: number;
+  centerOpacity?: number;
 }): React.ReactNode {
   if (!props.open) return null;
 
@@ -70,6 +74,10 @@ export function RadialWheelMenu(props: {
   const itemCount = Math.max(1, props.items.length);
   const angleStep = (Math.PI * 2) / itemCount;
   const startAngle = -Math.PI / 2;
+  const centerLabel = props.centerLabel ?? "Annuler";
+  const onCenterClick = props.onCenterClick ?? props.onClose;
+  const sliceOpacity = typeof props.sliceOpacity === "number" ? props.sliceOpacity : 1;
+  const centerOpacity = typeof props.centerOpacity === "number" ? props.centerOpacity : 1;
 
   return (
     <div
@@ -127,7 +135,7 @@ export function RadialWheelMenu(props: {
                     cursor: isDisabled ? "not-allowed" : "pointer",
                     transition: "filter 120ms ease, opacity 120ms ease"
                   }}
-                  opacity={isDisabled ? 0.55 : 0.95}
+                  opacity={(isDisabled ? 0.55 : 0.95) * Math.max(0, Math.min(1, sliceOpacity))}
                   onClick={event => {
                     event.preventDefault();
                     event.stopPropagation();
@@ -163,11 +171,12 @@ export function RadialWheelMenu(props: {
             fill="rgba(10,10,16,0.92)"
             stroke="rgba(255,255,255,0.18)"
             strokeWidth={1}
+            opacity={Math.max(0, Math.min(1, centerOpacity))}
             style={{ cursor: "pointer" }}
             onClick={event => {
               event.preventDefault();
               event.stopPropagation();
-              props.onClose();
+              onCenterClick();
             }}
           />
           <text
@@ -182,11 +191,10 @@ export function RadialWheelMenu(props: {
               pointerEvents: "none"
             }}
           >
-            Annuler
+            {centerLabel}
           </text>
         </g>
       </svg>
     </div>
   );
 }
-
