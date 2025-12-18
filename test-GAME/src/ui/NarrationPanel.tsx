@@ -7,15 +7,19 @@ export function NarrationPanel(props: {
   return (
     <div
       style={{
-        marginBottom: 8,
-        padding: "6px 10px",
-        background: "#111322",
-        borderRadius: 8,
-        border: "1px solid #333",
+        padding: "10px 12px",
+        background:
+          "linear-gradient(180deg, rgba(38, 28, 16, 0.92), rgba(16, 12, 8, 0.92))",
+        borderRadius: 14,
+        border: "1px solid rgba(255,255,255,0.10)",
+        boxShadow: "0 16px 50px rgba(0,0,0,0.45)",
         display: "flex",
         flexDirection: "column",
         gap: 4,
-        maxWidth: "100%"
+        maxWidth: "100%",
+        height: 170,
+        fontFamily:
+          "\"Iowan Old Style\", \"Palatino Linotype\", Palatino, Garamond, \"Times New Roman\", serif"
       }}
     >
       <div
@@ -26,30 +30,35 @@ export function NarrationPanel(props: {
           marginBottom: 4
         }}
       >
-        <span style={{ fontSize: 12, color: "#b0b8c4" }}>Narration du tour</span>
-        <span style={{ fontSize: 11, color: "#9aa0b5" }}>Round {props.round}</span>
+        <span style={{ fontSize: 13, color: "rgba(255,255,255,0.82)", fontWeight: 700 }}>
+          Chronique du tour
+        </span>
+        <span style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
+          Round {props.round}
+        </span>
       </div>
       <div
         style={{
           display: "flex",
           flexDirection: "column",
           gap: 2,
-          maxHeight: 80,
-          overflowY: "auto"
+          flex: "1 1 auto",
+          minHeight: 0,
+          overflowY: "auto",
+          paddingRight: 4
         }}
       >
         {props.narrativeLog.length === 0 && (
-          <span style={{ fontSize: 11, color: "#7f8694" }}>
+          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
             En attente d&apos;actions pour raconter le tour...
           </span>
         )}
-        {props.narrativeLog.slice(0, 6).map((line, idx) => (
-          <span key={idx} style={{ fontSize: 11, color: "#e0e4ff" }}>
-            - {line}
+        {props.narrativeLog.slice(0, 20).map((line, idx) => (
+          <span key={idx} style={{ fontSize: 13, color: "rgba(255,255,255,0.88)" }}>
+            — {line}
           </span>
         ))}
       </div>
     </div>
   );
 }
-

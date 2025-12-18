@@ -93,6 +93,8 @@ import { ActionsPanel } from "./ui/ActionsPanel";
 import { DicePanel } from "./ui/DicePanel";
 import { EffectsPanel } from "./ui/EffectsPanel";
 import { LogPanel } from "./ui/LogPanel";
+import { RadialWheelMenu, type WheelMenuItem } from "./ui/RadialWheelMenu";
+import { BottomDock } from "./ui/BottomDock";
 
 const ACTION_MODULES: Record<string, ActionDefinition> = {
   "./melee-strike.json": meleeStrike as ActionDefinition,
@@ -250,9 +252,20 @@ export const GameBoard: React.FC = () => {
   const [isCombatConfigured, setIsCombatConfigured] = useState<boolean>(false);
   const [configEnemyCount, setConfigEnemyCount] = useState<number>(3);
 
-  const { tokenLayerRef, pathLayerRef, speechLayerRef } = usePixiBoard({
+  const ZOOM_MIN = 0.5;
+  const ZOOM_MAX = 2.5;
+  const ZOOM_STEP = 0.1;
+  const [boardZoom, setBoardZoom] = useState<number>(1);
+  const [boardPan, setBoardPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isPanningBoard, setIsPanningBoard] = useState<boolean>(false);
+  const panDragRef = useRef<{ x: number; y: number } | null>(null);
+
+  const { tokenLayerRef, pathLayerRef, speechLayerRef, viewportRef } = usePixiBoard({
     enabled: isCombatConfigured,
-    containerRef: pixiContainerRef
+    containerRef: pixiContainerRef,
+    zoom: boardZoom,
+    panX: boardPan.x,
+    panY: boardPan.y
   });
 
   // Player actions loaded from JSON
@@ -277,6 +290,16 @@ export const GameBoard: React.FC = () => {
   );
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
   const [targetMode, setTargetMode] = useState<"none" | "selecting">("none");
+  type BoardInteractionMode = "idle" | "moving";
+  const [interactionMode, setInteractionMode] =
+    useState<BoardInteractionMode>("idle");
+  const [radialMenu, setRadialMenu] = useState<{
+    open: boolean;
+    anchorX: number;
+    anchorY: number;
+    cell: { x: number; y: number };
+    token: TokenState | null;
+  } | null>(null);
 
   // Area-of-effect specs attached to the player
   const [effectSpecs, setEffectSpecs] = useState<EffectSpec[]>([]);
@@ -302,6 +325,38 @@ export const GameBoard: React.FC = () => {
     selectedTargetId,
     showVisionDebug
   });
+
+  function closeRadialMenu() {
+    setRadialMenu(current => (current ? { ...current, open: false } : null));
+  }
+
+  useEffect(() => {
+    if (phase !== "player" || isGameOver) {
+      setInteractionMode("idle");
+      closeRadialMenu();
+    }
+  }, [phase, isGameOver]);
+
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+
+      if (radialMenu?.open) {
+        closeRadialMenu();
+        return;
+      }
+      if (targetMode === "selecting") {
+        setTargetMode("none");
+        return;
+      }
+      if (interactionMode === "moving") {
+        setInteractionMode("idle");
+      }
+    };
+
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [radialMenu?.open, interactionMode, targetMode]);
 
   function describeEnemyLastDecision(enemyId: string): string {
     if (aiUsedFallback) {
@@ -1166,8 +1221,15 @@ export const GameBoard: React.FC = () => {
     const localX = event.clientX - bounds.left;
     const localY = event.clientY - bounds.top;
 
-    const stageX = (localX / bounds.width) * BOARD_WIDTH;
-    const stageY = (localY / bounds.height) * BOARD_HEIGHT;
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    const stageX = (localX - viewport.offsetX) / viewport.scale;
+    const stageY = (localY - viewport.offsetY) / viewport.scale;
+
+    if (stageX < 0 || stageY < 0 || stageX > BOARD_WIDTH || stageY > BOARD_HEIGHT) {
+      return;
+    }
 
     const { x: gx, y: gy } = screenToGrid(stageX, stageY);
     const targetX = gx;
@@ -1204,6 +1266,25 @@ export const GameBoard: React.FC = () => {
       setSelectedTargetId(target.id);
       setTargetMode("none");
       pushLog(`Cible selectionnee: ${target.id}.`);
+      return;
+    }
+
+    // Clic standard: ouvrir la roue d'action (le mouvement se fait uniquement en mode "moving").
+    if (interactionMode !== "moving") {
+      const tokens = [player, ...enemies];
+      const token = getTokenAt({ x: targetX, y: targetY }, tokens) ?? null;
+
+      // Fixed-size wheel; allow it to overflow (no clamping).
+      const anchorX = localX;
+      const anchorY = localY;
+
+      setRadialMenu({
+        open: true,
+        anchorX,
+        anchorY,
+        cell: { x: targetX, y: targetY },
+        token
+      });
       return;
     }
 
@@ -1306,6 +1387,8 @@ export const GameBoard: React.FC = () => {
     });
 
     setSelectedPath([]);
+    setInteractionMode("idle");
+    closeRadialMenu();
   }
 
   function handleResetPath() {
@@ -2523,19 +2606,227 @@ function handleEndPlayerTurn() {
           >
             Lancer le combat
           </button>
-        </div>
+            </div>
+          </div>
+
       </div>
     );
 */
   }
 
+  const canInteractWithBoard =
+    phase === "player" && !isGameOver && !isTokenDead(player);
+
+  const radialItems: WheelMenuItem[] = [
+    {
+      id: "move",
+      label: "Deplacer",
+      color: "#2ecc71",
+      disabled: !canInteractWithBoard,
+      disabledReason: "Tour joueur requis",
+      onSelect: () => {
+        setInteractionMode("moving");
+        closeRadialMenu();
+        pushLog(
+          "Mode deplacement active: cliquez sur des cases pour tracer un trajet (max 5)."
+        );
+      }
+    },
+    {
+      id: "attack",
+      label: "Attaquer",
+      color: "#e74c3c",
+      disabled: !canInteractWithBoard,
+      disabledReason: "Tour joueur requis",
+      onSelect: () => {
+        pushLog("Attaquer: (a integrer) selection d'action/cible.");
+        closeRadialMenu();
+      }
+    },
+    {
+      id: "validate-move",
+      label: "Valider",
+      color: "#f1c40f",
+      disabled: !canInteractWithBoard || selectedPath.length === 0,
+      disabledReason:
+        selectedPath.length === 0
+          ? "Aucun trajet"
+          : "Tour joueur requis",
+      onSelect: () => {
+        handleValidatePath();
+      }
+    },
+    {
+      id: "reset-move",
+      label: "Annuler trajet",
+      color: "#e67e22",
+      disabled: !canInteractWithBoard || selectedPath.length === 0,
+      disabledReason:
+        selectedPath.length === 0
+          ? "Aucun trajet"
+          : "Tour joueur requis",
+      onSelect: () => {
+        handleResetPath();
+        closeRadialMenu();
+      }
+    },
+    {
+      id: "inspect",
+      label: "Inspecter",
+      color: "#3498db",
+      disabled: !radialMenu?.cell,
+      onSelect: () => {
+        const cell = radialMenu?.cell;
+        if (!cell) return;
+        const token = radialMenu?.token;
+        if (!token) {
+          pushLog(`Inspection: case (${cell.x}, ${cell.y}).`);
+        } else if (token.type === "player") {
+          pushLog(
+            `Inspection: joueur (${token.id}) en (${token.x}, ${token.y}), PV ${token.hp}/${token.maxHp}.`
+          );
+        } else {
+          pushLog(
+            `Inspection: ennemi (${token.id}) en (${token.x}, ${token.y}), PV ${token.hp}/${token.maxHp}.`
+          );
+        }
+        closeRadialMenu();
+      }
+    },
+    {
+      id: "interact",
+      label: "Interagir",
+      color: "#9b59b6",
+      disabled: !canInteractWithBoard,
+      disabledReason: "Tour joueur requis",
+      onSelect: () => {
+        const cell = radialMenu?.cell;
+        if (cell) {
+          pushLog(`Interagir: (a integrer) sur (${cell.x}, ${cell.y}).`);
+        } else {
+          pushLog("Interagir: (a integrer).");
+        }
+        closeRadialMenu();
+      }
+    },
+    {
+      id: "hide",
+      label: "Se cacher",
+      color: "#34495e",
+      disabled: !canInteractWithBoard,
+      disabledReason: "Tour joueur requis",
+      onSelect: () => {
+        pushLog("Se cacher: (a integrer).");
+        closeRadialMenu();
+      }
+    },
+    {
+      id: "end-turn",
+      label: "Fin tour",
+      color: "#ff7f50",
+      disabled: !canInteractWithBoard || isResolvingEnemies,
+      disabledReason: isResolvingEnemies ? "Tour des ennemis en cours" : "Tour joueur requis",
+      onSelect: () => {
+        handleEndPlayerTurn();
+        closeRadialMenu();
+      }
+    }
+  ];
+
+  const dockTabs = [
+    {
+      id: "combat",
+      label: "Combat",
+      content: (
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
+          <div style={{ flex: "1 1 340px", minWidth: 340 }}>
+            <CombatStatusPanel
+              round={round}
+              phase={phase}
+              playerInitiative={playerInitiative}
+              player={player}
+              selectedPath={selectedPath}
+              sampleCharacter={sampleCharacter}
+              aiLastState={aiLastState}
+              aiLastDecisions={aiLastDecisions}
+              aiUsedFallback={aiUsedFallback}
+              aiLastError={aiLastError}
+            />
+          </div>
+          <div style={{ flex: "1 1 340px", minWidth: 340 }}>
+            <EnemiesPanel
+              enemies={enemies}
+              player={player}
+              capabilities={ENEMY_CAPABILITIES}
+              validatedAction={validatedAction}
+              selectedTargetId={selectedTargetId}
+              describeEnemyLastDecision={describeEnemyLastDecision}
+              validateEnemyTargetForAction={validateEnemyTargetForAction}
+              onSelectTargetId={setSelectedTargetId}
+              onSetTargetMode={setTargetMode}
+              onLog={pushLog}
+            />
+          </div>
+          <div style={{ flex: "1 1 340px", minWidth: 340 }}>
+            <ActionsPanel
+              actions={actions}
+              selectedAction={selectedAction}
+              selectedAvailability={selectedAvailability}
+              computeActionAvailability={computeActionAvailability}
+              onSelectActionId={setSelectedActionId}
+              describeRange={describeRange}
+              describeUsage={describeUsage}
+              conditionLabel={conditionLabel}
+              effectLabel={effectLabel}
+              onPreviewActionArea={previewActionArea}
+              onValidateAction={handleUseAction}
+            />
+          </div>
+          {showDicePanel && (
+            <div style={{ flex: "1 1 340px", minWidth: 340 }}>
+              <DicePanel
+                validatedAction={validatedAction}
+                advantageMode={advantageMode}
+                onSetAdvantageMode={setAdvantageMode}
+                onRollAttack={handleRollAttack}
+                onRollDamage={handleRollDamage}
+                onAutoResolve={handleAutoResolveRolls}
+                attackRoll={attackRoll}
+                damageRoll={damageRoll}
+                diceLogs={diceLogs}
+              />
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      id: "effects",
+      label: "Effets",
+      content: (
+        <div style={{ maxWidth: 520 }}>
+          <EffectsPanel
+            showVisionDebug={showVisionDebug}
+            onShowCircle={handleShowCircleEffect}
+            onShowRectangle={handleShowRectangleEffect}
+            onShowCone={handleShowConeEffect}
+            onToggleVisionDebug={() => setShowVisionDebug(prev => !prev)}
+            onClear={handleClearEffects}
+          />
+        </div>
+      )
+    },
+    { id: "logs", label: "Logs", content: <LogPanel log={log} /> }
+  ];
+
   return (
       <div
         style={{
           display: "flex",
-          flexDirection: "row",
-          gap: "16px",
+          flexDirection: "column",
+          gap: "12px",
           height: "100vh",
+          overflow: "hidden",
           background: "#0b0b12",
           color: "#f5f5f5",
           fontFamily: "system-ui, sans-serif",
@@ -2553,222 +2844,301 @@ function handleEndPlayerTurn() {
             display: "flex",
             flexDirection: "column",
             alignItems: "stretch",
-            justifyContent: "center"
+            justifyContent: "flex-start",
+            gap: 10,
+            minHeight: 0,
+            overflow: "hidden"
           }}
         >
-          <NarrationPanel round={round} narrativeLog={narrativeLog} />
-          <InitiativePanel
-            round={round}
-            timelineEntries={timelineEntries}
-            activeEntry={activeEntry}
-            player={player}
-            enemies={enemies}
-          />
-          <h1 style={{ marginBottom: 8 }}>Mini Donjon (test-GAME)</h1>
-        <p style={{ marginBottom: 8 }}>
-          Tour par tour simple. Cliquez sur la grille pour definir une
-          trajectoire (max 5 cases), validez le déplacement, puis terminez le
-          tour pour laisser l&apos;IA des ennemis jouer.
-        </p>
           <div
-            ref={pixiContainerRef}
-            onClick={handleBoardClick}
-          style={{
-            flex: "1 1 auto",
-            border: "1px solid #333",
-            overflow: "hidden",
-            maxHeight: "min(80vh, 640px)",
-            maxWidth: "min(100%, 1024px)"
-          }}
-        />
-          <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button
-            type="button"
-            onClick={handleValidatePath}
             style={{
-              padding: "4px 8px",
-              background:
-                isPlayerTurn && selectedPath.length ? "#2ecc71" : "#555",
-              color: "#fff",
-              border: "none",
-              borderRadius: 4,
-              cursor:
-                isPlayerTurn && selectedPath.length ? "pointer" : "default"
+              flex: "0 0 auto",
+              padding: "10px 12px",
+              borderRadius: 14,
+              background: "rgba(12,12,18,0.88)",
+              border: "1px solid rgba(255,255,255,0.10)",
+              boxShadow: "0 18px 60px rgba(0,0,0,0.35)"
             }}
-            disabled={!isPlayerTurn || selectedPath.length === 0}
           >
-            Valider le deplacement
-          </button>
-          <button
-            type="button"
-            onClick={handleResetPath}
-            style={{
-              padding: "4px 8px",
-              background: isPlayerTurn ? "#e67e22" : "#555",
-              color: "#fff",
-              border: "none",
-              borderRadius: 4,
-              cursor: isPlayerTurn ? "pointer" : "default"
-            }}
-            disabled={!isPlayerTurn}
-          >
-            Reinitialiser trajet
-          </button>
-          <button
-            type="button"
-            onClick={handleEndPlayerTurn}
-            style={{
-              padding: "4px 8px",
-              background: isPlayerTurn ? "#9b59b6" : "#555",
-              color: "#fff",
-              border: "none",
-              borderRadius: 4,
-              cursor: isPlayerTurn ? "pointer" : "default"
-            }}
-            disabled={!isPlayerTurn || isResolvingEnemies}
-          >
-            Fin du tour joueur
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSetPlayerFacing("up")}
-            style={{
-              padding: "4px 8px",
-              background: isPlayerTurn ? "#34495e" : "#555",
-              color: "#fff",
-              border: "none",
-              borderRadius: 4,
-              cursor: isPlayerTurn ? "pointer" : "default",
-              fontSize: 11
-            }}
-            disabled={!isPlayerTurn}
-          >
-            Regarder haut
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSetPlayerFacing("down")}
-            style={{
-              padding: "4px 8px",
-              background: isPlayerTurn ? "#34495e" : "#555",
-              color: "#fff",
-              border: "none",
-              borderRadius: 4,
-              cursor: isPlayerTurn ? "pointer" : "default",
-              fontSize: 11
-            }}
-            disabled={!isPlayerTurn}
-          >
-            Regarder bas
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSetPlayerFacing("left")}
-            style={{
-              padding: "4px 8px",
-              background: isPlayerTurn ? "#34495e" : "#555",
-              color: "#fff",
-              border: "none",
-              borderRadius: 4,
-              cursor: isPlayerTurn ? "pointer" : "default",
-              fontSize: 11
-            }}
-            disabled={!isPlayerTurn}
-          >
-            Regarder gauche
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSetPlayerFacing("right")}
-            style={{
-              padding: "4px 8px",
-              background: isPlayerTurn ? "#34495e" : "#555",
-              color: "#fff",
-              border: "none",
-              borderRadius: 4,
-              cursor: isPlayerTurn ? "pointer" : "default",
-              fontSize: 11
-            }}
-            disabled={!isPlayerTurn}
-          >
-            Regarder droite
-          </button>
-          {!isPlayerTurn && (
-            <span style={{ fontSize: 12, alignSelf: "center" }}>
-              Tour des ennemis en cours...
-            </span>
-          )}
-        </div>
-      </div>
+            <InitiativePanel
+              round={round}
+              timelineEntries={timelineEntries}
+              activeEntry={activeEntry}
+              player={player}
+              enemies={enemies}
+            />
+          </div>
 
-      <div
-        style={{
-          width: "360px",
-          display: "flex",
-          flexDirection: "column",
-          gap: "12px"
-        }}
-      >
-        <CombatStatusPanel
-          round={round}
-          phase={phase}
-          playerInitiative={playerInitiative}
-          player={player}
-          selectedPath={selectedPath}
-          sampleCharacter={sampleCharacter}
-          aiLastState={aiLastState}
-          aiLastDecisions={aiLastDecisions}
-          aiUsedFallback={aiUsedFallback}
-          aiLastError={aiLastError}
-        />
-        <EnemiesPanel
-          enemies={enemies}
-          player={player}
-          capabilities={ENEMY_CAPABILITIES}
-          validatedAction={validatedAction}
-          selectedTargetId={selectedTargetId}
-          describeEnemyLastDecision={describeEnemyLastDecision}
-          validateEnemyTargetForAction={validateEnemyTargetForAction}
-          onSelectTargetId={setSelectedTargetId}
-          onSetTargetMode={setTargetMode}
-          onLog={pushLog}
-        />
-        <ActionsPanel
-          actions={actions}
-          selectedAction={selectedAction}
-          selectedAvailability={selectedAvailability}
-          computeActionAvailability={computeActionAvailability}
-          onSelectActionId={setSelectedActionId}
-          describeRange={describeRange}
-          describeUsage={describeUsage}
-          conditionLabel={conditionLabel}
-          effectLabel={effectLabel}
-          onPreviewActionArea={previewActionArea}
-          onValidateAction={handleUseAction}
-        />
-        {showDicePanel && (
-          <DicePanel
-            validatedAction={validatedAction}
-            advantageMode={advantageMode}
-            onSetAdvantageMode={setAdvantageMode}
-            onRollAttack={handleRollAttack}
-            onRollDamage={handleRollDamage}
-            onAutoResolve={handleAutoResolveRolls}
-            attackRoll={attackRoll}
-            damageRoll={damageRoll}
-            diceLogs={diceLogs}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "baseline",
+              padding: "0 4px"
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <span style={{ fontSize: 18, fontWeight: 900, letterSpacing: 0.4 }}>
+                Mini Donjon
+              </span>
+              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.70)" }}>
+                Clic gauche: roue d&apos;actions • Deplacer: clics successifs (max 5)
+              </span>
+            </div>
+            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
+              {phase === "player" ? "Tour joueur" : "Tour ennemis"}
+            </span>
+          </div>
+          <div
+            style={{
+              flex: "1 1 auto",
+              minHeight: 0,
+              borderRadius: 18,
+              padding: 10,
+              background:
+                "radial-gradient(1200px 500px at 40% 0%, rgba(120,90,40,0.20), rgba(12,12,18,0.92))",
+              border: "1px solid rgba(255,255,255,0.12)",
+              boxShadow: "0 25px 90px rgba(0,0,0,0.55)",
+              overflow: "visible"
+            }}
+          >
+            <div
+              ref={pixiContainerRef}
+              onClick={handleBoardClick}
+              onContextMenu={event => {
+                event.preventDefault();
+              }}
+              onMouseDown={event => {
+                if (event.button !== 2) return; // right click
+                event.preventDefault();
+                event.stopPropagation();
+                setIsPanningBoard(true);
+                panDragRef.current = { x: event.clientX, y: event.clientY };
+              }}
+              onMouseMove={event => {
+                if (!isPanningBoard) return;
+                const start = panDragRef.current;
+                if (!start) return;
+                const dx = event.clientX - start.x;
+                const dy = event.clientY - start.y;
+                if (dx === 0 && dy === 0) return;
+                panDragRef.current = { x: event.clientX, y: event.clientY };
+                setBoardPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+              }}
+              onMouseUp={event => {
+                if (event.button !== 2) return;
+                setIsPanningBoard(false);
+                panDragRef.current = null;
+              }}
+              onMouseLeave={() => {
+                setIsPanningBoard(false);
+                panDragRef.current = null;
+              }}
+              style={{
+                width: "100%",
+                height: "100%",
+                minHeight: 0,
+                borderRadius: 14,
+                border: "1px solid rgba(255,255,255,0.10)",
+                background: "#05050a",
+                position: "relative",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                overflow: "visible"
+                ,
+                cursor: isPanningBoard ? "grabbing" : "default"
+              }}
+            >
+              <div
+                onMouseDown={event => event.stopPropagation()}
+                style={{
+                  position: "absolute",
+                  right: 12,
+                  top: 12,
+                  zIndex: 45,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 6,
+                  padding: 8,
+                  borderRadius: 12,
+                  background: "rgba(10, 10, 16, 0.72)",
+                  border: "1px solid rgba(255,255,255,0.14)",
+                  backdropFilter: "blur(6px)",
+                  boxShadow: "0 14px 40px rgba(0,0,0,0.35)"
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() =>
+                    setBoardZoom(z => clamp(Math.round((z + ZOOM_STEP) * 10) / 10, ZOOM_MIN, ZOOM_MAX))
+                  }
+                  disabled={boardZoom >= ZOOM_MAX - 1e-6}
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 10,
+                    border: "1px solid rgba(255,255,255,0.14)",
+                    background: boardZoom >= ZOOM_MAX - 1e-6 ? "rgba(80,80,90,0.55)" : "rgba(255,255,255,0.08)",
+                    color: "#fff",
+                    cursor: boardZoom >= ZOOM_MAX - 1e-6 ? "default" : "pointer",
+                    fontSize: 18,
+                    fontWeight: 800,
+                    lineHeight: 1
+                  }}
+                  title="Zoom +"
+                >
+                  +
+                </button>
+                <div
+                  style={{
+                    textAlign: "center",
+                    fontSize: 12,
+                    color: "rgba(255,255,255,0.75)",
+                    fontWeight: 700
+                  }}
+                  title="Niveau de zoom"
+                >
+                  {Math.round(boardZoom * 100)}%
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setBoardZoom(z => clamp(Math.round((z - ZOOM_STEP) * 10) / 10, ZOOM_MIN, ZOOM_MAX))
+                  }
+                  disabled={boardZoom <= ZOOM_MIN + 1e-6}
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 10,
+                    border: "1px solid rgba(255,255,255,0.14)",
+                    background: boardZoom <= ZOOM_MIN + 1e-6 ? "rgba(80,80,90,0.55)" : "rgba(255,255,255,0.08)",
+                    color: "#fff",
+                    cursor: boardZoom <= ZOOM_MIN + 1e-6 ? "default" : "pointer",
+                    fontSize: 22,
+                    fontWeight: 800,
+                    lineHeight: 1
+                  }}
+                  title="Zoom -"
+                >
+                  −
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBoardZoom(1)}
+                  disabled={Math.abs(boardZoom - 1) < 1e-6}
+                  style={{
+                    marginTop: 4,
+                    width: 34,
+                    height: 28,
+                    borderRadius: 10,
+                    border: "1px solid rgba(255,255,255,0.14)",
+                    background: Math.abs(boardZoom - 1) < 1e-6 ? "rgba(80,80,90,0.55)" : "rgba(255,255,255,0.06)",
+                    color: "rgba(255,255,255,0.85)",
+                    cursor: Math.abs(boardZoom - 1) < 1e-6 ? "default" : "pointer",
+                    fontSize: 11,
+                    fontWeight: 800
+                  }}
+                  title="Reset zoom"
+                >
+                  1×
+                </button>
+              </div>
+
+              <RadialWheelMenu
+                open={Boolean(radialMenu?.open)}
+                anchorX={radialMenu?.anchorX ?? 0}
+                anchorY={radialMenu?.anchorY ?? 0}
+            items={radialItems}
+            onClose={closeRadialMenu}
+            size={240}
           />
-        )}
-        <EffectsPanel
-          showVisionDebug={showVisionDebug}
-          onShowCircle={handleShowCircleEffect}
-          onShowRectangle={handleShowRectangleEffect}
-          onShowCone={handleShowConeEffect}
-          onToggleVisionDebug={() => setShowVisionDebug(prev => !prev)}
-          onClear={handleClearEffects}
-        />
-        <LogPanel log={log} />
-      </div>
+
+          {interactionMode === "moving" && (
+            <div
+              onMouseDown={event => event.stopPropagation()}
+              style={{
+                position: "absolute",
+                left: 10,
+                bottom: 10,
+                zIndex: 40,
+                display: "flex",
+                gap: 8,
+                padding: "8px 10px",
+                borderRadius: 10,
+                background: "rgba(10, 10, 16, 0.75)",
+                border: "1px solid rgba(255,255,255,0.14)",
+                backdropFilter: "blur(6px)",
+                boxShadow: "0 14px 40px rgba(0,0,0,0.35)"
+              }}
+            >
+              <span style={{ fontSize: 12, alignSelf: "center", color: "#cfd3ff" }}>
+                Mode deplacement
+              </span>
+              <button
+                type="button"
+                onClick={() => setInteractionMode("idle")}
+                style={{
+                  padding: "4px 8px",
+                  background: "#34495e",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 6,
+                  cursor: "pointer",
+                  fontSize: 12
+                }}
+              >
+                Quitter
+              </button>
+              <button
+                type="button"
+                onClick={handleResetPath}
+                disabled={selectedPath.length === 0}
+                style={{
+                  padding: "4px 8px",
+                  background: selectedPath.length ? "#e67e22" : "#555",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 6,
+                  cursor: selectedPath.length ? "pointer" : "default",
+                  fontSize: 12
+                }}
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={handleValidatePath}
+                disabled={selectedPath.length === 0}
+                style={{
+                  padding: "4px 8px",
+                  background: selectedPath.length ? "#2ecc71" : "#555",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 6,
+                  cursor: selectedPath.length ? "pointer" : "default",
+                  fontSize: 12,
+                  fontWeight: 600
+                }}
+              >
+                Valider
+              </button>
+            </div>
+          )}
+            </div>
+          </div>
+
+          <NarrationPanel round={round} narrativeLog={narrativeLog} />
+        </div>
+
+      <BottomDock
+        tabs={dockTabs}
+        defaultTabId="combat"
+        collapsible={true}
+        collapsedByDefault={true}
+        collapsedHeight={52}
+        expandedHeight={320}
+      />
     </div>
   );
 };

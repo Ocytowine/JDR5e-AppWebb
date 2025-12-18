@@ -62,15 +62,23 @@ export function buildTokenSvgDataUrl(kind: TokenKind): string {
 export const PLAYER_TOKEN_ID = "token-player-svg";
 export const ENEMY_TOKEN_ID = "token-enemy-svg";
 
+let tokenTexturesPreloadPromise: Promise<void> | null = null;
+
 export async function preloadTokenTextures(): Promise<void> {
+  if (tokenTexturesPreloadPromise) return tokenTexturesPreloadPromise;
+
   const assets = [
     { alias: PLAYER_TOKEN_ID, src: buildTokenSvgDataUrl("player") },
     { alias: ENEMY_TOKEN_ID, src: buildTokenSvgDataUrl("enemy") }
   ];
 
-  for (const asset of assets) {
-    Assets.add(asset);
-  }
+  tokenTexturesPreloadPromise = (async () => {
+    for (const asset of assets) {
+      Assets.add(asset);
+    }
 
-  await Assets.load(assets.map(a => a.alias));
+    await Assets.load(assets.map(a => a.alias));
+  })();
+
+  return tokenTexturesPreloadPromise;
 }

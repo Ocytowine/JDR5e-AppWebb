@@ -17,16 +17,37 @@ import { preloadTokenTextures } from "../svgTokenHelper";
 export function usePixiBoard(options: {
   enabled: boolean;
   containerRef: RefObject<HTMLDivElement | null>;
+  zoom?: number;
+  panX?: number;
+  panY?: number;
 }): {
   appRef: RefObject<Application | null>;
   tokenLayerRef: RefObject<Container | null>;
   pathLayerRef: RefObject<Graphics | null>;
   speechLayerRef: RefObject<Container | null>;
+  viewportRef: RefObject<{ scale: number; offsetX: number; offsetY: number } | null>;
 } {
   const appRef = useRef<Application | null>(null);
   const tokenLayerRef = useRef<Container | null>(null);
   const pathLayerRef = useRef<Graphics | null>(null);
   const speechLayerRef = useRef<Container | null>(null);
+  const viewportRef = useRef<{ scale: number; offsetX: number; offsetY: number } | null>(null);
+  const resizeRef = useRef<(() => void) | null>(null);
+  const zoomRef = useRef<number>(typeof options.zoom === "number" ? options.zoom : 1);
+  const panRef = useRef<{ x: number; y: number }>({
+    x: typeof options.panX === "number" ? options.panX : 0,
+    y: typeof options.panY === "number" ? options.panY : 0
+  });
+
+  zoomRef.current = typeof options.zoom === "number" ? options.zoom : 1;
+  panRef.current = {
+    x: typeof options.panX === "number" ? options.panX : 0,
+    y: typeof options.panY === "number" ? options.panY : 0
+  };
+
+  useEffect(() => {
+    resizeRef.current?.();
+  }, [options.zoom, options.panX, options.panY]);
 
   useEffect(() => {
     if (!options.enabled) return;
@@ -37,6 +58,7 @@ export function usePixiBoard(options: {
 
     let destroyed = false;
     let resizeHandler: (() => void) | null = null;
+    let resizeObserver: ResizeObserver | null = null;
     let initialized = false;
 
     const initPixi = async () => {
@@ -56,7 +78,8 @@ export function usePixiBoard(options: {
       const container = options.containerRef.current;
       if (!container) return;
 
-      container.appendChild(app.canvas);
+      // Keep the canvas behind React-rendered overlays inside the same container.
+      container.prepend(app.canvas);
 
       const root = new Container();
       app.stage.addChild(root);
@@ -124,19 +147,37 @@ export function usePixiBoard(options: {
       speechLayerRef.current = speechLayer;
 
       const resize = () => {
-        const canvas = app.canvas;
-        const parent = canvas.parentElement;
+        const parent = options.containerRef.current;
         if (!parent) return;
-        const scale = Math.min(
-          parent.clientWidth / BOARD_WIDTH,
-          parent.clientHeight / BOARD_HEIGHT
-        );
-        canvas.style.transformOrigin = "top left";
-        canvas.style.transform = `scale(${scale})`;
+
+        const width = Math.max(1, parent.clientWidth);
+        const height = Math.max(1, parent.clientHeight);
+
+        app.renderer.resize(width, height);
+
+        const baseScale = Math.min(width / BOARD_WIDTH, height / BOARD_HEIGHT);
+        const zoom = zoomRef.current;
+        const scale = baseScale * zoom;
+        const offsetX = (width - BOARD_WIDTH * scale) / 2 + panRef.current.x;
+        const offsetY = (height - BOARD_HEIGHT * scale) / 2 + panRef.current.y;
+
+        root.scale.set(scale);
+        root.position.set(offsetX, offsetY);
+
+        viewportRef.current = { scale, offsetX, offsetY };
+
+        const canvas = app.canvas as HTMLCanvasElement;
+        canvas.style.width = "100%";
+        canvas.style.height = "100%";
+        canvas.style.display = "block";
       };
 
       resizeHandler = resize;
+      resizeRef.current = resize;
       resize();
+
+      resizeObserver = new ResizeObserver(() => resize());
+      resizeObserver.observe(container);
       window.addEventListener("resize", resize);
     };
 
@@ -144,9 +185,8 @@ export function usePixiBoard(options: {
 
     return () => {
       destroyed = true;
-      if (resizeHandler) {
-        window.removeEventListener("resize", resizeHandler);
-      }
+      if (resizeObserver) resizeObserver.disconnect();
+      if (resizeHandler) window.removeEventListener("resize", resizeHandler);
       if (initialized && appRef.current) {
         appRef.current.destroy(true);
       }
@@ -154,8 +194,10 @@ export function usePixiBoard(options: {
       tokenLayerRef.current = null;
       pathLayerRef.current = null;
       speechLayerRef.current = null;
+      viewportRef.current = null;
+      resizeRef.current = null;
     };
   }, [options.enabled, options.containerRef]);
 
-  return { appRef, tokenLayerRef, pathLayerRef, speechLayerRef };
+  return { appRef, tokenLayerRef, pathLayerRef, speechLayerRef, viewportRef };
 }
