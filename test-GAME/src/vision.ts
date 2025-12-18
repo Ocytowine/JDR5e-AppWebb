@@ -69,6 +69,17 @@ function key(pos: GridPosition): string {
   return `${pos.x},${pos.y}`;
 }
 
+export function isCellVisible(observer: TokenState, cell: GridPosition): boolean {
+  const effect = computeVisionEffectForToken(observer);
+  if (!effect.cells.length) return false;
+
+  const cellKey = key(cell);
+  for (const c of effect.cells) {
+    if (key(c) === cellKey) return true;
+  }
+  return false;
+}
+
 export function getEntitiesInVision(
   observer: TokenState,
   allTokens: TokenState[]

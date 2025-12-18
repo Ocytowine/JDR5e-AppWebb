@@ -64,6 +64,7 @@ import { computePathTowards } from "./pathfinding";
 import { getTokenAt } from "./gridUtils";
 import {
   getEntitiesInVision,
+  isCellVisible,
   isTargetVisible
 } from "./vision";
 import {
@@ -232,6 +233,7 @@ const ENEMY_CAPABILITIES: { action: EnemyActionType; label: string; color: strin
 export const GameBoard: React.FC = () => {
   const pixiContainerRef = useRef<HTMLDivElement | null>(null);
   const narrationPendingRef = useRef<boolean>(false);
+  const playerBubbleTimeoutRef = useRef<number | null>(null);
 
   const [log, setLog] = useState<string[]>([]);
   const [narrativeLog, setNarrativeLog] = useState<string[]>([]);
@@ -312,9 +314,15 @@ export const GameBoard: React.FC = () => {
   );
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
   const [targetMode, setTargetMode] = useState<"none" | "selecting">("none");
-  type BoardInteractionMode = "idle" | "moving";
+  type BoardInteractionMode = "idle" | "moving" | "inspect-select" | "look-select";
   const [interactionMode, setInteractionMode] =
     useState<BoardInteractionMode>("idle");
+  const [revealedEnemyIds, setRevealedEnemyIds] = useState<Set<string>>(
+    () => new Set()
+  );
+  const [revealedCells, setRevealedCells] = useState<Set<string>>(
+    () => new Set()
+  );
   const [radialMenu, setRadialMenu] = useState<{
     open: boolean;
     anchorX: number;
@@ -356,8 +364,14 @@ export const GameBoard: React.FC = () => {
     showVisionDebug
   });
 
+  const INSPECT_RANGE = 10;
+
   function closeRadialMenu() {
     setRadialMenu(current => (current ? { ...current, open: false } : null));
+  }
+
+  function cellKey(x: number, y: number): string {
+    return `${x},${y}`;
   }
 
   function resourceKey(name: string, pool?: string | null): string {
@@ -388,7 +402,7 @@ export const GameBoard: React.FC = () => {
         setTargetMode("none");
         return;
       }
-      if (interactionMode === "moving") {
+      if (interactionMode !== "idle") {
         setInteractionMode("idle");
       }
     };
@@ -453,6 +467,8 @@ export const GameBoard: React.FC = () => {
       newEnemies.push(createEnemy(i, pick(i), computeEnemySpawnPosition(i)));
     }
     setEnemies(newEnemies);
+    setRevealedEnemyIds(new Set());
+    setRevealedCells(new Set());
 
     setRound(1);
     setHasRolledInitiative(false);
@@ -578,6 +594,25 @@ export const GameBoard: React.FC = () => {
     setSpeechBubbles(prev => prev.filter(b => b.tokenId !== enemyId));
   }
 
+  function setPlayerBubble(textInput: string) {
+    const text = (textInput ?? "").trim();
+    if (!text) return;
+
+    if (playerBubbleTimeoutRef.current !== null) {
+      window.clearTimeout(playerBubbleTimeoutRef.current);
+      playerBubbleTimeoutRef.current = null;
+    }
+
+    setSpeechBubbles(prev => {
+      const filtered = prev.filter(b => b.tokenId !== player.id);
+      return [...filtered, { tokenId: player.id, text, updatedAtRound: round }];
+    });
+
+    playerBubbleTimeoutRef.current = window.setTimeout(() => {
+      setSpeechBubbles(prev => prev.filter(b => b.tokenId !== player.id));
+    }, 2600);
+  }
+
   function buildCombatStateSummaryFrom(
     focusSide: CombatSide,
     playerState: TokenState,
@@ -638,9 +673,13 @@ export const GameBoard: React.FC = () => {
 
   useEffect(() => {
     setSpeechBubbles(prev =>
-      prev.filter(b => enemies.some(e => e.id === b.tokenId && e.hp > 0))
+      prev.filter(
+        b =>
+          b.tokenId === player.id ||
+          enemies.some(e => e.id === b.tokenId && e.hp > 0)
+      )
     );
-  }, [enemies]);
+  }, [enemies, player.id]);
 
   // -----------------------------------------------------------
   // Load player actions from JSON modules
@@ -1434,6 +1473,64 @@ export const GameBoard: React.FC = () => {
       setSelectedTargetId(target.id);
       setTargetMode("none");
       pushLog(`Cible selectionnee: ${target.id}.`);
+      return;
+    }
+
+    if (interactionMode === "inspect-select") {
+      const dist = manhattan(player, { x: targetX, y: targetY });
+      if (dist > INSPECT_RANGE) {
+        pushLog(
+          `Inspection: case hors portee (${dist} > ${INSPECT_RANGE}).`
+        );
+        return;
+      }
+
+      if (!isCellVisible(player, { x: targetX, y: targetY })) {
+        pushLog("Inspection: la case n'est pas dans votre champ de vision.");
+        return;
+      }
+
+      setRevealedCells(prev => {
+        const next = new Set(prev);
+        next.add(cellKey(targetX, targetY));
+        return next;
+      });
+
+      const tokens = [player, ...enemies];
+      const token = getTokenAt({ x: targetX, y: targetY }, tokens);
+      if (!token) {
+        pushLog(`Inspection: case (${targetX}, ${targetY}) -> sol.`);
+        setPlayerBubble(`Inspection (${targetX},${targetY}) : sol.`);
+        setInteractionMode("idle");
+        return;
+      }
+
+      if (token.type === "enemy") {
+        setRevealedEnemyIds(prev => {
+          const next = new Set(prev);
+          next.add(token.id);
+          return next;
+        });
+
+        const nature = token.enemyTypeLabel ?? token.enemyTypeId ?? "inconnu";
+        const role = token.aiRole ?? "inconnu";
+        const text = `Inspection (${targetX},${targetY}) : ${nature}\nEtat: PV ${token.hp}/${token.maxHp}\nRole: ${role}`;
+        pushLog(`Inspection: ennemi (${token.id}) -> nature: ${nature}, etat: PV ${token.hp}/${token.maxHp}, role: ${role}.`);
+        setPlayerBubble(text);
+      } else {
+        const text = `Inspection (${targetX},${targetY}) : joueur\nEtat: PV ${token.hp}/${token.maxHp}`;
+        pushLog(`Inspection: joueur (${token.id}) -> etat: PV ${token.hp}/${token.maxHp}.`);
+        setPlayerBubble(text);
+      }
+
+      setInteractionMode("idle");
+      return;
+    }
+
+    if (interactionMode === "look-select") {
+      const direction = computeFacingTowards(player, { x: targetX, y: targetY });
+      handleSetPlayerFacing(direction);
+      setInteractionMode("idle");
       return;
     }
 
@@ -2896,22 +2993,22 @@ function handleEndPlayerTurn() {
     setActionContext(current => (current ? { ...current, actionId: action.id, stage: "active" } : current));
   }
 
-  function handleInspectFromWheel() {
-    const cell = radialMenu?.cell;
-    if (!cell) return;
-    const token = radialMenu?.token;
-    if (!token) {
-      pushLog(`Inspection: case (${cell.x}, ${cell.y}).`);
-    } else if (token.type === "player") {
-      pushLog(
-        `Inspection: joueur (${token.id}) en (${token.x}, ${token.y}), PV ${token.hp}/${token.maxHp}.`
-      );
-    } else {
-      pushLog(
-        `Inspection: ennemi (${token.id}) en (${token.x}, ${token.y}), PV ${token.hp}/${token.maxHp}.`
-      );
-    }
+  function handleEnterInspectModeFromWheel() {
+    if (!canInteractWithBoard) return;
+    setTargetMode("none");
+    setInteractionMode("inspect-select");
     closeRadialMenu();
+    pushLog(
+      `Inspection: cliquez sur une case VISIBLE (portee ${INSPECT_RANGE}) pour reveler nature / etat / role.`
+    );
+  }
+
+  function handleEnterLookModeFromWheel() {
+    if (!canInteractWithBoard) return;
+    setTargetMode("none");
+    setInteractionMode("look-select");
+    closeRadialMenu();
+    pushLog("Tourner le regard: cliquez sur une case pour orienter le champ de vision.");
   }
 
   function handleInteractFromWheel() {
@@ -2953,6 +3050,7 @@ function handleEndPlayerTurn() {
             <EnemiesPanel
               enemies={enemies}
               player={player}
+              revealedEnemyIds={revealedEnemyIds}
               capabilities={ENEMY_CAPABILITIES}
               validatedAction={validatedAction}
               selectedTargetId={selectedTargetId}
@@ -3265,7 +3363,8 @@ function handleEndPlayerTurn() {
                   handleResetPath();
                   closeRadialMenu();
                 }}
-                onInspect={handleInspectFromWheel}
+                onInspectCell={handleEnterInspectModeFromWheel}
+                onLook={handleEnterLookModeFromWheel}
                 onInteract={handleInteractFromWheel}
                 onHide={handleHideFromWheel}
                 onEndTurn={() => {

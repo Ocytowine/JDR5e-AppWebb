@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import type { ActionAvailability, ActionDefinition } from "../game/actionTypes";
 import { RadialWheelMenu, type WheelMenuItem } from "./RadialWheelMenu";
 
-type WheelView = "root" | "categories" | "actions";
+type WheelView = "root" | "categories" | "actions" | "inspect";
 
 function categoryLabel(category: string): string {
   const c = category.toLowerCase();
@@ -41,7 +41,8 @@ export function ActionWheelMenu(props: {
   onEnterMoveMode: () => void;
   onValidateMove: () => void;
   onResetMove: () => void;
-  onInspect: () => void;
+  onInspectCell: () => void;
+  onLook: () => void;
   onInteract: () => void;
   onHide: () => void;
   onEndTurn: () => void;
@@ -110,6 +111,40 @@ export function ActionWheelMenu(props: {
       });
     }
 
+    if (view === "inspect") {
+      const enabled = props.canInteractWithBoard && props.hasCell;
+      const disabledReason = !props.canInteractWithBoard
+        ? "Tour joueur requis"
+        : !props.hasCell
+          ? "Aucune case"
+          : "Indisponible";
+
+      return [
+        {
+          id: "inspect-cell",
+          label: "Inspecter (10)",
+          color: "#3498db",
+          disabled: !enabled,
+          disabledReason,
+          onSelect: () => {
+            props.onInspectCell();
+            setView("root");
+          }
+        },
+        {
+          id: "look",
+          label: "Tourner regard",
+          color: "#1abc9c",
+          disabled: !enabled,
+          disabledReason,
+          onSelect: () => {
+            props.onLook();
+            setView("root");
+          }
+        }
+      ];
+    }
+
     const isMoveAvailable = props.canInteractWithBoard;
     const hasPath = props.selectedPathLength > 0;
 
@@ -156,9 +191,9 @@ export function ActionWheelMenu(props: {
         id: "inspect",
         label: "Inspecter",
         color: "#3498db",
-        disabled: !props.hasCell,
-        disabledReason: "Aucune case",
-        onSelect: props.onInspect
+        disabled: !props.hasCell || !props.canInteractWithBoard,
+        disabledReason: !props.canInteractWithBoard ? "Tour joueur requis" : "Aucune case",
+        onSelect: () => setView("inspect")
       },
       {
         id: "interact",
@@ -198,6 +233,9 @@ export function ActionWheelMenu(props: {
       return { centerLabel: "Annuler", onCenterClick: props.onClose };
     }
     if (view === "categories") {
+      return { centerLabel: "Retour", onCenterClick: () => setView("root") };
+    }
+    if (view === "inspect") {
       return { centerLabel: "Retour", onCenterClick: () => setView("root") };
     }
     if (view === "actions" && shouldFilterByCategory) {

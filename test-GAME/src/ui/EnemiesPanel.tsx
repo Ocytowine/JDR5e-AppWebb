@@ -6,6 +6,7 @@ import type { ActionDefinition } from "../game/actionTypes";
 export function EnemiesPanel(props: {
   enemies: TokenState[];
   player: TokenState;
+  revealedEnemyIds: Set<string>;
   capabilities: { action: EnemyActionType; label: string; color: string }[];
   validatedAction: ActionDefinition | null;
   selectedTargetId: string | null;
@@ -49,7 +50,11 @@ export function EnemiesPanel(props: {
           paddingRight: 4
         }}
       >
-        {enemies.map(enemy => (
+        {enemies.map(enemy => {
+          const isRevealed = props.revealedEnemyIds.has(enemy.id);
+          const enemyNature = enemy.enemyTypeLabel ?? enemy.enemyTypeId ?? "inconnu";
+
+          return (
           <div
             key={enemy.id}
             style={{
@@ -72,9 +77,19 @@ export function EnemiesPanel(props: {
             >
               <strong style={{ color: "#f5f5f5" }}>{enemy.id}</strong>
               <span style={{ fontSize: 12, color: "#b0b8c4" }}>
-                ({enemy.x},{enemy.y}) | PV {enemy.hp} / {enemy.maxHp}{" "}
-                {enemy.aiRole ? `(role: ${enemy.aiRole})` : ""}
+                ({enemy.x},{enemy.y}) |{" "}
+                {isRevealed ? (
+                  <>
+                    PV {enemy.hp} / {enemy.maxHp}{" "}
+                    {enemy.aiRole ? `(role: ${enemy.aiRole})` : ""}
+                  </>
+                ) : (
+                  "etat inconnu"
+                )}
               </span>
+            </div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.78)" }}>
+              Nature : {isRevealed ? enemyNature : "inconnu"}
             </div>
             <div
               style={{
@@ -152,9 +167,9 @@ export function EnemiesPanel(props: {
               Dernière décision IA : {props.describeEnemyLastDecision(enemy.id)}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );
 }
-

@@ -38,7 +38,6 @@ export function usePixiSpeechBubbles(options: {
     const items: BubbleItem[] = [];
 
     for (const token of allTokens) {
-      if (token.type !== "enemy") continue;
       if (isTokenDead(token)) continue;
       const bubble = bubbleByTokenId.get(token.id);
       if (!bubble) continue;
@@ -131,4 +130,3 @@ export function usePixiSpeechBubbles(options: {
     options.speechBubbles
   ]);
 }
-
