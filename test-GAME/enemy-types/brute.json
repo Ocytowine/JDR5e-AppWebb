@@ -3,6 +3,14 @@
   "label": "Brute",
   "description": "Frontliner robuste qui avance pour engager le joueur.",
   "aiRole": "brute",
+  "speechProfile": {
+    "raceOrOrigin": "Brute mercenaire",
+    "register": "familier",
+    "tone": ["agressif", "direct", "impatient"],
+    "vocabulary": ["charge", "ecrase", "avance", "finissons-en"],
+    "quirks": ["phrases courtes", "menaces simples"],
+    "taboos": ["pas de modernisme", "pas de meta-jeu"]
+  },
   "baseStats": {
     "hp": 10,
     "moveRange": 3,

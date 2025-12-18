@@ -51,13 +51,22 @@ import {
   isTargetVisible
 } from "./vision";
 import {
+  beginRoundNarrationBuffer,
+  buildRoundNarrationRequest,
+  clearRoundNarrationBuffer,
+  getLastSpeechForEnemy,
+  getPriorEnemySpeechesThisRound,
+  getRecentCombatEvents,
   recordCombatEvent,
-  requestTurnNarration
+  recordEnemySpeech,
+  requestEnemySpeech,
+  requestRoundNarration
 } from "./narrationClient";
 import type {
   CombatStateSummary,
   CombatSide,
-  EnemySpeech
+  EnemySpeech,
+  EnemySpeechRequest
 } from "./narrationTypes";
 
 // -------------------------------------------------------------
@@ -113,7 +122,7 @@ interface EnemyAiStateSummary {
 interface SpeechBubbleEntry {
   tokenId: string;
   text: string;
-  expiresAt: number;
+  updatedAtRound: number;
 }
 
 type EffectSpecKind = "circle" | "rectangle" | "cone";
@@ -196,6 +205,7 @@ interface EnemyTypeDefinition {
   label: string;
   description: string;
   aiRole: string;
+  speechProfile?: import("./narrationTypes").EnemySpeechProfile;
   baseStats: {
     hp: number;
     moveRange: number;
@@ -293,6 +303,7 @@ function createEnemy(
     enemyTypeId: enemyType.id,
     enemyTypeLabel: enemyType.label,
     aiRole: enemyType.aiRole,
+    speechProfile: enemyType.speechProfile ?? null,
     moveRange: base.moveRange,
     attackDamage: base.attackDamage,
     attackRange: typeof base.attackRange === "number" ? base.attackRange : 1,
@@ -425,6 +436,8 @@ export const GameBoard: React.FC = () => {
   const appRef = useRef<Application | null>(null);
   const tokenLayerRef = useRef<Container | null>(null);
   const pathLayerRef = useRef<Graphics | null>(null);
+  const speechLayerRef = useRef<Container | null>(null);
+  const narrationPendingRef = useRef<boolean>(false);
 
   const [log, setLog] = useState<string[]>([]);
   const [narrativeLog, setNarrativeLog] = useState<string[]>([]);
@@ -524,6 +537,14 @@ export const GameBoard: React.FC = () => {
     return turnOrder[clampedIndex] ?? null;
   }
 
+  function peekNextTurnEntry(): { entry: TurnEntry | null; willWrap: boolean } {
+    if (!hasRolledInitiative || turnOrder.length === 0) {
+      return { entry: null, willWrap: false };
+    }
+    const nextIndex = (currentTurnIndex + 1) % turnOrder.length;
+    return { entry: turnOrder[nextIndex] ?? null, willWrap: nextIndex === 0 };
+  }
+
   function advanceTurn() {
     if (turnOrder.length === 0) return;
     setCurrentTurnIndex(prev => {
@@ -604,39 +625,45 @@ export const GameBoard: React.FC = () => {
     pushLog(message);
   }
 
-  function applyEnemySpeeches(speeches: EnemySpeech[] | undefined | null) {
-    if (!speeches || !speeches.length) return;
-    const expiresAt = Date.now() + 3500;
+  function setEnemyBubble(enemyId: string, line: string) {
+    const text = (line ?? "").trim();
+    if (!text) return;
     setSpeechBubbles(prev => {
-      const filtered = prev.filter(
-        b => !speeches.some(s => s.enemyId === b.tokenId)
-      );
-      const next = speeches.map(s => ({
-        tokenId: s.enemyId,
-        text: s.line,
-        expiresAt
-      }));
-      return [...filtered, ...next];
+      const filtered = prev.filter(b => b.tokenId !== enemyId);
+      return [
+        ...filtered,
+        { tokenId: enemyId, text, updatedAtRound: round }
+      ];
     });
   }
 
-  function buildCombatStateSummary(focusSide: CombatSide): CombatStateSummary {
+  function clearEnemyBubble(enemyId: string) {
+    setSpeechBubbles(prev => prev.filter(b => b.tokenId !== enemyId));
+  }
+
+  function buildCombatStateSummaryFrom(
+    focusSide: CombatSide,
+    playerState: TokenState,
+    enemiesState: TokenState[]
+  ): CombatStateSummary {
     const actors = [
       {
-        id: player.id,
+        id: playerState.id,
         kind: "player" as const,
         label: "Heros",
         aiRole: null,
-        x: player.x,
-        y: player.y,
-        hp: player.hp,
-        maxHp: player.maxHp
+        enemyTypeId: null,
+        x: playerState.x,
+        y: playerState.y,
+        hp: playerState.hp,
+        maxHp: playerState.maxHp
       },
-      ...enemies.map(e => ({
+      ...enemiesState.map(e => ({
         id: e.id,
         kind: "enemy" as const,
         label: e.enemyTypeLabel || e.enemyTypeId || e.id,
         aiRole: e.aiRole ?? null,
+        enemyTypeId: e.enemyTypeId ?? null,
         x: e.x,
         y: e.y,
         hp: e.hp,
@@ -650,6 +677,10 @@ export const GameBoard: React.FC = () => {
       grid: { cols: GRID_COLS, rows: GRID_ROWS },
       actors
     };
+  }
+
+  function buildCombatStateSummary(focusSide: CombatSide): CombatStateSummary {
+    return buildCombatStateSummaryFrom(focusSide, player, enemies);
   }
 
   // -----------------------------------------------------------
@@ -667,6 +698,12 @@ export const GameBoard: React.FC = () => {
       rollInitialInitiativeIfNeeded();
     }
   }, [isCombatConfigured, hasRolledInitiative, enemies.length]);
+
+  useEffect(() => {
+    setSpeechBubbles(prev =>
+      prev.filter(b => enemies.some(e => e.id === b.tokenId && e.hp > 0))
+    );
+  }, [enemies]);
 
   // -----------------------------------------------------------
   // Load player actions from JSON modules
@@ -712,13 +749,24 @@ export const GameBoard: React.FC = () => {
       setHasRolledAttackForCurrentAction(false);
       setAttackRoll(null);
       setDamageRoll(null);
+
+      narrationPendingRef.current = false;
+      beginRoundNarrationBuffer(round, buildCombatStateSummary("player"));
+      recordCombatEvent({
+        round,
+        phase: "player",
+        kind: "turn_start",
+        actorId: player.id,
+        actorKind: "player",
+        summary: `Debut du tour du heros (round ${round}).`
+      });
       return;
     }
 
     // Tour d'un ennemi
     if (isResolvingEnemies) return;
     setPhase("enemies");
-    void runSingleEnemyTurn(entry.id);
+    void runSingleEnemyTurnV2(entry.id);
   }, [
     isCombatConfigured,
     hasRolledInitiative,
@@ -1166,6 +1214,24 @@ export const GameBoard: React.FC = () => {
         pushLog(
           `L'attaque (${action.name})${targetSuffix} a manque la cible (CA ${targetArmorClass}). Pas de degats.`
         );
+        if (selectedTargetId) {
+          recordCombatEvent({
+            round,
+            phase,
+            kind: "player_attack",
+            actorId: player.id,
+            actorKind: "player",
+            targetId: selectedTargetId,
+            targetKind: "enemy",
+            summary: `Le heros attaque ${selectedTargetId} (${action.name}) mais manque (CA ${targetArmorClass}).`,
+            data: {
+              actionId: action.id,
+              attackTotal: totalAttack,
+              targetArmorClass,
+              hit: false
+            }
+          });
+        }
         return;
       }
     }
@@ -1239,21 +1305,6 @@ export const GameBoard: React.FC = () => {
           return copy;
         });
 
-          // Lancer une demande de narration pour le tour du joueur
-          void (async () => {
-            try {
-              const stateSummary = buildCombatStateSummary("player");
-              const narration = await requestTurnNarration("player", stateSummary);
-              const text =
-                narration.playerPerspective || narration.summary || null;
-              if (text) {
-                pushNarrative(text);
-              }
-              applyEnemySpeeches(narration.enemySpeeches ?? []);
-            } catch {
-              // en cas d'erreur reseau, on ignore simplement
-            }
-          })();
       }
   }
 
@@ -1413,6 +1464,7 @@ export const GameBoard: React.FC = () => {
     if (selectedPath.length === 0) return;
 
     const last = selectedPath[selectedPath.length - 1];
+    const from = { x: player.x, y: player.y };
 
     setPlayer(prev => ({
       ...prev,
@@ -1423,6 +1475,16 @@ export const GameBoard: React.FC = () => {
     pushLog(
       `Deplacement valide vers (${last.x}, ${last.y}) via ${selectedPath.length} etape(s).`
     );
+
+    recordCombatEvent({
+      round,
+      phase: "player",
+      kind: "move",
+      actorId: player.id,
+      actorKind: "player",
+      summary: `Le heros se deplace de (${from.x}, ${from.y}) vers (${last.x}, ${last.y}).`,
+      data: { from, to: { x: last.x, y: last.y }, steps: selectedPath.length }
+    });
 
     setSelectedPath([]);
   }
@@ -2069,11 +2131,385 @@ export const GameBoard: React.FC = () => {
   advanceTurn();
 }
 
+  async function updateEnemySpeechAfterTurn(
+    enemyId: string,
+    playerState: TokenState,
+    enemiesState: TokenState[]
+  ): Promise<void> {
+    const enemy = enemiesState.find(e => e.id === enemyId);
+    if (!enemy) return;
+    if (isTokenDead(enemy)) return;
+
+    const allTokens: TokenState[] = [playerState, ...enemiesState];
+    const visible = getEntitiesInVision(enemy, allTokens);
+
+    const alliesVisible = visible
+      .filter(t => t.type === "enemy" && t.id !== enemyId && !isTokenDead(t))
+      .map(t => t.id);
+
+    const enemiesVisible = visible
+      .filter(t => t.type === "player" && !isTokenDead(t))
+      .map(t => t.id);
+
+    const canSeePlayerNow = canEnemySeePlayer(enemy, playerState, allTokens);
+    const distToPlayer = manhattan(enemy, playerState);
+    const hpRatio = enemy.maxHp > 0 ? enemy.hp / enemy.maxHp : 0;
+
+    const payload: EnemySpeechRequest = {
+      language: "fr",
+      maxLines: 2,
+      enemyId,
+      enemyTypeId: enemy.enemyTypeId ?? null,
+      aiRole: enemy.aiRole ?? null,
+      speechProfile: enemy.speechProfile ?? null,
+      perception: {
+        canSeePlayer: canSeePlayerNow,
+        distanceToPlayer: Number.isFinite(distToPlayer) ? distToPlayer : null,
+        hpRatio: Number.isFinite(hpRatio) ? hpRatio : 0,
+        alliesVisible,
+        enemiesVisible,
+        lastKnownPlayerPos: canSeePlayerNow
+          ? { x: playerState.x, y: playerState.y }
+          : null
+      },
+      priorSpeechesThisRound: getPriorEnemySpeechesThisRound(),
+      selfLastSpeech: getLastSpeechForEnemy(enemyId),
+      recentEvents: getRecentCombatEvents(16)
+    };
+
+    const response = await requestEnemySpeech(payload);
+    const line = (response.line ?? "").trim();
+    if (!line) {
+      clearEnemyBubble(enemyId);
+      return;
+    }
+
+    setEnemyBubble(enemyId, line);
+    recordEnemySpeech(enemyId, line);
+  }
+
+  async function runSingleEnemyTurnV2(activeEnemyId: string) {
+    setIsResolvingEnemies(true);
+
+    setSelectedPath([]);
+    setEffectSpecs([]);
+
+    const enemiesCopy = enemies.map(e => ({ ...e }));
+    let playerCopy = { ...player };
+
+    const activeEnemy = enemiesCopy.find(e => e.id === activeEnemyId);
+    if (!activeEnemy || isTokenDead(activeEnemy)) {
+      setIsResolvingEnemies(false);
+      advanceTurn();
+      return;
+    }
+
+    const summary = buildEnemyAiSummary();
+    const decisions = await requestEnemyAi(summary);
+    const filtered = decisions.filter(d => d.enemyId === activeEnemyId);
+
+    const tokensForVision: TokenState[] = [playerCopy as TokenState, ...enemiesCopy];
+
+    if (filtered.length === 0) {
+      setAiUsedFallback(true);
+      setAiLastDecisions([]);
+
+      const canSee = canEnemySeePlayer(
+        activeEnemy,
+        playerCopy as TokenState,
+        tokensForVision
+      );
+      if (!canSee) {
+        pushLog(`${activeEnemy.id} ne voit pas le joueur et reste en alerte.`);
+      } else {
+        const maxRange =
+          typeof activeEnemy.moveRange === "number" ? activeEnemy.moveRange : 3;
+
+        const path = computePathTowards(
+          activeEnemy,
+          { x: playerCopy.x, y: playerCopy.y },
+          tokensForVision,
+          { maxDistance: maxRange, allowTargetOccupied: true }
+        );
+
+        activeEnemy.plannedPath = path;
+
+        if (path.length === 0) {
+          pushLog(
+            `${activeEnemy.id} ne trouve pas de chemin valide vers le joueur (reste en place).`
+          );
+        } else {
+          const from = { x: activeEnemy.x, y: activeEnemy.y };
+          const destination = path[path.length - 1];
+          activeEnemy.x = destination.x;
+          activeEnemy.y = destination.y;
+          activeEnemy.facing = computeFacingTowards(activeEnemy, playerCopy);
+
+          pushLog(
+            `${activeEnemy.id} suit un chemin vers (${destination.x}, ${destination.y}).`
+          );
+          recordCombatEvent({
+            round,
+            phase: "enemies",
+            kind: "move",
+            actorId: activeEnemy.id,
+            actorKind: "enemy",
+            summary: `${activeEnemy.id} se deplace de (${from.x}, ${from.y}) vers (${destination.x}, ${destination.y}).`,
+            data: { from, to: destination, fallback: true }
+          });
+
+          const distToPlayer = manhattan(activeEnemy, playerCopy);
+          const attackRange = getAttackRangeForToken(activeEnemy);
+
+          if (distToPlayer <= attackRange) {
+            const baseDamage =
+              typeof activeEnemy.attackDamage === "number"
+                ? activeEnemy.attackDamage
+                : 2;
+            const attacks = getMaxAttacksForToken(activeEnemy);
+            const totalDamage = baseDamage * attacks;
+            const beforeHp = playerCopy.hp;
+
+            playerCopy = {
+              ...playerCopy,
+              hp: Math.max(0, playerCopy.hp - totalDamage)
+            };
+
+            pushLog(
+              attacks > 1
+                ? `${activeEnemy.id} attaque ${attacks} fois pour ${totalDamage} degats.`
+                : `${activeEnemy.id} attaque le joueur pour ${totalDamage} degats.`
+            );
+
+            recordCombatEvent({
+              round,
+              phase: "enemies",
+              kind: "enemy_attack",
+              actorId: activeEnemy.id,
+              actorKind: "enemy",
+              targetId: playerCopy.id,
+              targetKind: "player",
+              summary: `${activeEnemy.id} frappe le heros et inflige ${totalDamage} degats (PV ${beforeHp} -> ${playerCopy.hp}).`,
+              data: {
+                damage: totalDamage,
+                attacks,
+                playerHpBefore: beforeHp,
+                playerHpAfter: playerCopy.hp,
+                fallback: true
+              }
+            });
+
+            if (playerCopy.hp <= 0 && beforeHp > 0) {
+              recordCombatEvent({
+                round,
+                phase: "enemies",
+                kind: "death",
+                actorId: playerCopy.id,
+                actorKind: "player",
+                summary: "Le heros s'effondre sous les coups ennemis.",
+                targetId: playerCopy.id,
+                targetKind: "player",
+                data: { killedBy: activeEnemy.id }
+              });
+            }
+          }
+        }
+      }
+    } else {
+      setAiUsedFallback(false);
+      setAiLastDecisions(filtered);
+
+      const decision = filtered[0];
+      const action = (decision.action || "wait").toLowerCase() as EnemyActionType;
+
+      if (action === "wait") {
+        pushLog(`${activeEnemy.id} attend.`);
+      } else if (action === "move") {
+        const canSee = canEnemySeePlayer(
+          activeEnemy,
+          playerCopy as TokenState,
+          tokensForVision
+        );
+        if (!canSee) {
+          pushLog(`${activeEnemy.id} ne voit pas le joueur et reste en alerte.`);
+        } else {
+          let tx: number | undefined = decision.targetX;
+          let ty: number | undefined = decision.targetY;
+          const anyDecision = decision as any;
+          if (
+            (typeof tx !== "number" || typeof ty !== "number") &&
+            anyDecision.target &&
+            typeof anyDecision.target.x === "number" &&
+            typeof anyDecision.target.y === "number"
+          ) {
+            tx = anyDecision.target.x;
+            ty = anyDecision.target.y;
+          }
+
+          if (typeof tx !== "number" || typeof ty !== "number") {
+            pushLog(`${activeEnemy.id}: move ignore (cible invalide).`);
+          } else {
+            const maxRange =
+              typeof activeEnemy.moveRange === "number"
+                ? activeEnemy.moveRange
+                : 3;
+
+            const targetX = clamp(tx, 0, GRID_COLS - 1);
+            const targetY = clamp(ty, 0, GRID_ROWS - 1);
+
+            const path = computePathTowards(
+              activeEnemy,
+              { x: targetX, y: targetY },
+              tokensForVision,
+              { maxDistance: maxRange, allowTargetOccupied: true }
+            );
+
+            activeEnemy.plannedPath = path;
+            if (path.length === 0) {
+              pushLog(
+                `${activeEnemy.id}: aucun trajet valide vers (${targetX}, ${targetY}), reste en place.`
+              );
+            } else {
+              const from = { x: activeEnemy.x, y: activeEnemy.y };
+              const destination = path[path.length - 1];
+              activeEnemy.x = destination.x;
+              activeEnemy.y = destination.y;
+              activeEnemy.facing = computeFacingTowards(activeEnemy, playerCopy);
+              pushLog(
+                `${activeEnemy.id} suit un chemin vers (${destination.x}, ${destination.y}).`
+              );
+              recordCombatEvent({
+                round,
+                phase: "enemies",
+                kind: "move",
+                actorId: activeEnemy.id,
+                actorKind: "enemy",
+                summary: `${activeEnemy.id} se deplace de (${from.x}, ${from.y}) vers (${destination.x}, ${destination.y}).`,
+                data: { from, to: destination }
+              });
+            }
+          }
+        }
+      } else if (action === "attack") {
+        activeEnemy.facing = computeFacingTowards(activeEnemy, playerCopy);
+
+        const canSee = canEnemySeePlayer(
+          activeEnemy,
+          playerCopy as TokenState,
+          tokensForVision
+        );
+        if (!canSee) {
+          pushLog(`${activeEnemy.id} voulait attaquer mais ne voit pas le joueur.`);
+        } else {
+          const distToPlayer = manhattan(activeEnemy, playerCopy);
+          const attackRange = getAttackRangeForToken(activeEnemy);
+
+          if (distToPlayer <= attackRange) {
+            const baseDamage =
+              typeof activeEnemy.attackDamage === "number"
+                ? activeEnemy.attackDamage
+                : 2;
+            const attacks = getMaxAttacksForToken(activeEnemy);
+            const totalDamage = baseDamage * attacks;
+            const beforeHp = playerCopy.hp;
+
+            playerCopy = {
+              ...playerCopy,
+              hp: Math.max(0, playerCopy.hp - totalDamage)
+            };
+
+            pushLog(
+              attacks > 1
+                ? `${activeEnemy.id} effectue ${attacks} attaques et inflige ${totalDamage} degats au joueur.`
+                : `${activeEnemy.id} attaque le joueur pour ${totalDamage} degats.`
+            );
+
+            recordCombatEvent({
+              round,
+              phase: "enemies",
+              kind: "enemy_attack",
+              actorId: activeEnemy.id,
+              actorKind: "enemy",
+              targetId: playerCopy.id,
+              targetKind: "player",
+              summary: `${activeEnemy.id} attaque le heros et inflige ${totalDamage} degats (PV ${beforeHp} -> ${playerCopy.hp}).`,
+              data: {
+                damage: totalDamage,
+                attacks,
+                playerHpBefore: beforeHp,
+                playerHpAfter: playerCopy.hp
+              }
+            });
+
+            if (playerCopy.hp <= 0 && beforeHp > 0) {
+              recordCombatEvent({
+                round,
+                phase: "enemies",
+                kind: "death",
+                actorId: playerCopy.id,
+                actorKind: "player",
+                summary: "Le heros s'effondre sous les coups ennemis.",
+                targetId: playerCopy.id,
+                targetKind: "player",
+                data: { killedBy: activeEnemy.id }
+              });
+            }
+          } else {
+            pushLog(`${activeEnemy.id} voulait attaquer mais est trop loin (ignore).`);
+          }
+        }
+      }
+    }
+
+    setPlayer(playerCopy);
+    setEnemies(enemiesCopy);
+
+    try {
+      await updateEnemySpeechAfterTurn(activeEnemyId, playerCopy, enemiesCopy);
+    } catch {
+      // ignore speech failures
+    }
+
+    const next = peekNextTurnEntry();
+    if (narrationPendingRef.current && next.entry?.kind === "player") {
+      try {
+        const stateEnd = buildCombatStateSummaryFrom("player", playerCopy, enemiesCopy);
+        const payload = buildRoundNarrationRequest({
+          focusActorId: playerCopy.id ?? null,
+          stateEnd
+        });
+        if (payload) {
+          const narration = await requestRoundNarration(payload);
+          const text = (narration.error || narration.summary || "").trim();
+          if (text) pushNarrative(text);
+        }
+      } catch {
+        pushNarrative("IA non fonctionnel.");
+      } finally {
+        clearRoundNarrationBuffer();
+        narrationPendingRef.current = false;
+      }
+    }
+
+    setIsResolvingEnemies(false);
+    advanceTurn();
+  }
+
 function handleEndPlayerTurn() {
     if (isGameOver) return;
     const entry = getActiveTurnEntry();
     if (!entry || entry.kind !== "player") return;
     pushLog(`Fin du tour joueur (round ${round}).`);
+
+    narrationPendingRef.current = true;
+    recordCombatEvent({
+      round,
+      phase: "player",
+      kind: "turn_end",
+      actorId: player.id,
+      actorKind: "player",
+      summary: `Fin du tour du heros (round ${round}).`
+    });
     advanceTurn();
   }
 
@@ -2222,6 +2658,11 @@ function handleEndPlayerTurn() {
       root.addChild(tokenLayer);
       tokenLayerRef.current = tokenLayer;
 
+      // Layer 5: speech bubbles (above tokens)
+      const speechLayer = new Container();
+      root.addChild(speechLayer);
+      speechLayerRef.current = speechLayer;
+
       const resize = () => {
         const canvas = app.canvas;
         const parent = canvas.parentElement;
@@ -2252,6 +2693,7 @@ function handleEndPlayerTurn() {
       appRef.current = null;
       tokenLayerRef.current = null;
         pathLayerRef.current = null;
+      speechLayerRef.current = null;
       };
     }, [isCombatConfigured]);
 
@@ -2349,32 +2791,125 @@ function handleEndPlayerTurn() {
           sprite.alpha = 1;
         }
 
-        // Bulle de dialogue eventuelle
-        const bubble = speechBubbles.find(b => b.tokenId === token.id);
-        if (bubble && bubble.text.trim().length > 0) {
-          const maxWidth = 120;
-          const bubbleBg = new Graphics();
-          bubbleBg.beginFill(0xffffff, 0.9);
-          const textObj = new Text(bubble.text, {
-            fontFamily: "Arial",
-            fontSize: 10,
-            fill: 0x000000,
-            align: "center",
-            wordWrap: true,
-            wordWrapWidth: maxWidth - 8
-          });
-          const width = Math.min(maxWidth, textObj.width + 8);
-          const height = textObj.height + 6;
-          bubbleBg.drawRoundedRect(-width / 2, -TILE_SIZE, width, height, 6);
-          bubbleBg.endFill();
-
-          textObj.x = -textObj.width / 2;
-          textObj.y = -TILE_SIZE + 3;
-
-          container.addChild(bubbleBg);
-          container.addChild(textObj);
-        }
       });
+    }, [player, enemies, speechBubbles]);
+
+    // Draw speech bubbles in a dedicated layer and resolve overlaps.
+    useEffect(() => {
+      const speechLayer = speechLayerRef.current;
+      if (!speechLayer) return;
+
+      speechLayer.removeChildren();
+
+      const allTokens: TokenState[] = [player, ...enemies];
+      const bubbleByTokenId = new Map(
+        speechBubbles.map(b => [b.tokenId, b] as const)
+      );
+
+      type BubbleItem = {
+        tokenId: string;
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+        view: Container;
+      };
+
+      const padding = 6;
+      const maxWidth = 140;
+      const baseOffsetY = TILE_SIZE * 1;
+
+      const items: BubbleItem[] = [];
+
+      for (const token of allTokens) {
+        if (token.type !== "enemy") continue;
+        if (isTokenDead(token)) continue;
+        const bubble = bubbleByTokenId.get(token.id);
+        if (!bubble) continue;
+        if (!bubble.text.trim()) continue;
+
+        const screenPos = gridToScreen(token.x, token.y);
+
+        const bubbleContainer = new Container();
+        const bubbleBg = new Graphics();
+        bubbleBg.beginFill(0xffffff, 0.92);
+
+        const textObj = new Text(bubble.text, {
+          fontFamily: "Arial",
+          fontSize: 11,
+          fill: 0x000000,
+          align: "center",
+          wordWrap: true,
+          wordWrapWidth: maxWidth - 10
+        });
+
+        const width = Math.min(maxWidth, textObj.width + 10);
+        const height = textObj.height + 8;
+
+        bubbleBg.drawRoundedRect(-width / 2, -height, width, height, 7);
+        bubbleBg.endFill();
+
+        textObj.x = -textObj.width / 2;
+        textObj.y = -height + 4;
+
+        bubbleContainer.addChild(bubbleBg);
+        bubbleContainer.addChild(textObj);
+
+        const x = screenPos.x + TILE_SIZE * 0.05;
+        const y = screenPos.y - baseOffsetY;
+
+        bubbleContainer.x = x;
+        bubbleContainer.y = y;
+
+        speechLayer.addChild(bubbleContainer);
+
+        items.push({
+          tokenId: token.id,
+          x: x - width / 2,
+          y: y - height,
+          width,
+          height,
+          view: bubbleContainer
+        });
+      }
+
+      // Resolve overlaps by pushing bubbles upward.
+      items.sort((a, b) => a.y - b.y);
+      const placed: BubbleItem[] = [];
+
+      for (const item of items) {
+        let currentY = item.y;
+        let tries = 0;
+
+        const overlaps = (a: BubbleItem, bx: number, by: number) => {
+          const ax1 = a.x;
+          const ay1 = a.y;
+          const ax2 = a.x + a.width;
+          const ay2 = a.y + a.height;
+
+          const bx1 = bx;
+          const by1 = by;
+          const bx2 = bx + item.width;
+          const by2 = by + item.height;
+
+          return ax1 < bx2 && ax2 > bx1 && ay1 < by2 && ay2 > by1;
+        };
+
+        while (tries < 20) {
+          const colliding = placed.find(p => overlaps(p, item.x, currentY));
+          if (!colliding) break;
+          currentY = colliding.y - item.height - padding;
+          tries += 1;
+        }
+
+        const dy = currentY - item.y;
+        if (dy !== 0) {
+          item.view.y += dy;
+          item.y = currentY;
+        }
+
+        placed.push(item);
+      }
     }, [player, enemies, speechBubbles]);
   
     // -----------------------------------------------------------

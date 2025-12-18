@@ -3,6 +3,14 @@
   "label": "Archer",
   "description": "Tireur qui prefere garder une distance de securite avant de frapper.",
   "aiRole": "archer",
+  "speechProfile": {
+    "raceOrOrigin": "Archer de bande",
+    "register": "neutre",
+    "tone": ["tactique", "moqueur", "vigilant"],
+    "vocabulary": ["a couvert", "recule", "je l'ai en vue", "distance"],
+    "quirks": ["annonce ce qu'il voit", "donne des consignes courtes"],
+    "taboos": ["pas de modernisme", "pas de meta-jeu"]
+  },
   "baseStats": {
     "hp": 7,
     "moveRange": 2,

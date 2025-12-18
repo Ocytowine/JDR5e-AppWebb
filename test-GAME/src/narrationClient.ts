@@ -3,12 +3,49 @@ import type {
   CombatEventKind,
   CombatSide,
   CombatStateSummary,
+  EnemySpeech,
+  EnemySpeechRequest,
+  EnemySpeechResponse,
   NarrationRequest,
   NarrationResponse
 } from "./narrationTypes";
 
-let currentTurnEvents: CombatEvent[] = [];
+type RoundNarrationBuffer = {
+  active: boolean;
+  round: number | null;
+  stateStart: CombatStateSummary | null;
+  events: CombatEvent[];
+  enemySpeeches: EnemySpeech[];
+  lastSpeechByEnemyThisRound: Map<string, string>;
+};
+
+const buffer: RoundNarrationBuffer = {
+  active: false,
+  round: null,
+  stateStart: null,
+  events: [],
+  enemySpeeches: [],
+  lastSpeechByEnemyThisRound: new Map()
+};
+
 let eventCounter = 0;
+const lastSpeechByEnemyGlobal = new Map<string, string>();
+
+export function beginRoundNarrationBuffer(
+  round: number,
+  stateStart: CombatStateSummary
+): void {
+  buffer.active = true;
+  buffer.round = round;
+  buffer.stateStart = stateStart;
+  buffer.events = [];
+  buffer.enemySpeeches = [];
+  buffer.lastSpeechByEnemyThisRound = new Map();
+}
+
+export function isRoundNarrationBufferActive(): boolean {
+  return buffer.active;
+}
 
 export function recordCombatEvent(input: {
   round: number;
@@ -21,6 +58,12 @@ export function recordCombatEvent(input: {
   summary: string;
   data?: Record<string, unknown>;
 }): void {
+  if (!buffer.active) return;
+  if (buffer.round !== null && input.round !== buffer.round) {
+    // Ignore events that belong to a different round buffer.
+    return;
+  }
+
   const evt: CombatEvent = {
     id: `evt-${Date.now()}-${eventCounter++}`,
     round: input.round,
@@ -34,125 +77,112 @@ export function recordCombatEvent(input: {
     data: input.data ?? {},
     timestamp: Date.now()
   };
-  currentTurnEvents.push(evt);
+  buffer.events.push(evt);
 }
 
-export function flushTurnEvents(): CombatEvent[] {
-  const out = currentTurnEvents;
-  currentTurnEvents = [];
-  return out;
+export function recordEnemySpeech(enemyId: string, line: string): void {
+  if (!buffer.active) return;
+  const trimmed = (line ?? "").trim();
+  if (!trimmed) return;
+
+  buffer.enemySpeeches.push({ enemyId, line: trimmed });
+  buffer.lastSpeechByEnemyThisRound.set(enemyId, trimmed);
+  lastSpeechByEnemyGlobal.set(enemyId, trimmed);
+
+  if (buffer.round !== null) {
+    recordCombatEvent({
+      round: buffer.round,
+      phase: "enemies",
+      kind: "speech",
+      actorId: enemyId,
+      actorKind: "enemy",
+      summary: `${enemyId} dit: "${trimmed}"`,
+      data: { line: trimmed }
+    });
+  }
 }
 
-function buildLocalNarration(
-  focusSide: CombatSide,
-  state: CombatStateSummary,
-  events: CombatEvent[]
-): NarrationResponse {
-  if (!events.length) {
-    return {
-      summary:
-        focusSide === "player"
-          ? "Le heros observe le champ de bataille, en quete d'une action decisive."
-          : "Les ennemis se tiennent prudemment, indecis quant a leur prochaine action."
-    };
-  }
+export function getPriorEnemySpeechesThisRound(): EnemySpeech[] {
+  return buffer.enemySpeeches.slice();
+}
 
-  const attackEvents = events.filter(
-    e => e.kind === "player_attack" || e.kind === "enemy_attack"
-  );
-  const deaths = events.filter(e => e.kind === "death");
+export function getLastSpeechForEnemy(enemyId: string): string | null {
+  return lastSpeechByEnemyGlobal.get(enemyId) ?? null;
+}
 
-  const parts: string[] = [];
+export function getRecentCombatEvents(limit: number): CombatEvent[] {
+  if (!Number.isFinite(limit) || limit <= 0) return buffer.events.slice();
+  return buffer.events.slice(-Math.floor(limit));
+}
 
-  if (attackEvents.length) {
-    const lastAttack = attackEvents[attackEvents.length - 1];
-    if (lastAttack.actorKind === "player") {
-      parts.push(
-        "Le heros frappe avec determination, frappant son adversaire au coeur de la melee."
-      );
-    } else {
-      parts.push(
-        "Les ennemis redoublent de violence, tentant de submerger le heros sous leurs assauts."
-      );
-    }
-  } else {
-    if (focusSide === "player") {
-      parts.push(
-        "Le heros se repositionne prudemment, jaugeant la situation."
-      );
-    } else {
-      parts.push(
-        "Les ennemis se deplacent et murmurent entre eux, cherchant une ouverture."
-      );
-    }
-  }
-
-  if (deaths.length) {
-    parts.push(
-      deaths.length === 1
-        ? "Une silhouette s'effondre sur le champ de bataille, laissant un silence pesant derriere elle."
-        : "Plusieurs corps tombent au sol, marquant un tournant sanglant dans l'affrontement."
-    );
-  }
-
-  const summary = parts.join(" ");
-
-  let playerPerspective: string | undefined;
-  if (focusSide === "player") {
-    const player = state.actors.find(a => a.kind === "player");
-    if (player) {
-      playerPerspective =
-        "Le heros, essouffle mais resolu, cherche a reprendre l'avantage dans ce combat incertain.";
-    }
-  }
+export function buildRoundNarrationRequest(input: {
+  focusActorId: string | null;
+  stateEnd: CombatStateSummary;
+}): NarrationRequest | null {
+  if (!buffer.active || !buffer.stateStart || buffer.round === null) return null;
 
   return {
-    summary,
-    playerPerspective
+    language: "fr",
+    focusSide: "player",
+    focusActorId: input.focusActorId,
+    stateStart: buffer.stateStart,
+    stateEnd: input.stateEnd,
+    events: buffer.events.slice(),
+    enemySpeeches: buffer.enemySpeeches.slice()
   };
 }
 
-export async function requestTurnNarration(
-  focusSide: CombatSide,
-  state: CombatStateSummary
+export function clearRoundNarrationBuffer(): void {
+  buffer.active = false;
+  buffer.round = null;
+  buffer.stateStart = null;
+  buffer.events = [];
+  buffer.enemySpeeches = [];
+  buffer.lastSpeechByEnemyThisRound = new Map();
+}
+
+export async function requestRoundNarration(
+  payload: NarrationRequest
 ): Promise<NarrationResponse> {
-  const events = flushTurnEvents();
+  const response = await fetch("/api/narration", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
 
-  const payload: NarrationRequest = {
-    focusSide,
-    focusActorId:
-      focusSide === "player"
-        ? state.actors.find(a => a.kind === "player")?.id ?? null
-        : null,
-    state,
-    events
-  };
-
-  if (!events.length) {
-    return buildLocalNarration(focusSide, state, events);
+  if (!response.ok) {
+    return { summary: "", error: "IA non fonctionnel." };
   }
 
-  try {
-    const response = await fetch("/api/narration", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(payload)
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    const data = (await response.json()) as NarrationResponse;
-
-    if (!data || typeof data.summary !== "string") {
-      throw new Error("Reponse narration invalide");
-    }
-
-    return data;
-  } catch {
-    return buildLocalNarration(focusSide, state, events);
+  const data = (await response.json()) as NarrationResponse;
+  if (!data || typeof data.summary !== "string") {
+    return { summary: "", error: "IA non fonctionnel." };
   }
+
+  if (data.error && typeof data.error === "string") {
+    return { summary: "", error: data.error };
+  }
+
+  return { summary: data.summary };
+}
+
+export async function requestEnemySpeech(
+  payload: EnemySpeechRequest
+): Promise<EnemySpeechResponse> {
+  const response = await fetch("/api/enemy-speech", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    return { line: "" };
+  }
+
+  const data = (await response.json()) as EnemySpeechResponse;
+  if (!data || typeof data.line !== "string") {
+    return { line: "" };
+  }
+
+  return { line: data.line };
 }

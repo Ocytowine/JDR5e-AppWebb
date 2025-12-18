@@ -208,6 +208,47 @@ async function callOpenAiForEnemyDecisions(stateSummary) {
   return { decisions: sanitized };
 }
 
+async function callOpenAiJson({ model, systemPrompt, userPayload }) {
+  if (!OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY manquante");
+  }
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${OPENAI_API_KEY}`
+    },
+    body: JSON.stringify({
+      model,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: JSON.stringify(userPayload) }
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(
+      `Erreur OpenAI ${response.status} ${response.statusText}: ${text}`
+    );
+  }
+
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content;
+  if (!content) {
+    throw new Error("Réponse OpenAI sans contenu message.");
+  }
+
+  try {
+    return JSON.parse(content);
+  } catch {
+    throw new Error("Impossible de parser la réponse OpenAI en JSON.");
+  }
+}
+
 // ----------------------------------------------------
 // Serveur HTTP : API + fichiers statiques (dist/)
 // ----------------------------------------------------
@@ -251,111 +292,84 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // API narration (resume de tour + bulles roleplay)
+  // API narration (recap "MJ" apres la phase ennemie, point de vue joueur)
   if (req.method === "POST" && req.url === "/api/narration") {
     try {
       const body = await parseJsonBody(req);
-      const events = Array.isArray(body?.events) ? body.events : [];
-      const focusSide = body?.focusSide === "player" ? "player" : "enemies";
 
-      let summary;
-      if (!events.length) {
-        summary =
-          focusSide === "player"
-            ? "Le heros observe le champ de bataille, en quete d'une action decisive."
-            : "Les ennemis se repositionnent prudemment, jaugeant le heros.";
-      } else {
-        const attackEvents = events.filter(
-          e => e.kind === "player_attack" || e.kind === "enemy_attack"
-        );
-        const deaths = events.filter(e => e.kind === "death");
-
-        const parts = [];
-        if (attackEvents.length) {
-          const last = attackEvents[attackEvents.length - 1];
-          if (last.actorKind === "player") {
-            parts.push(
-              "Le heros profite d'une ouverture et frappe avec decision, ebranlant la ligne adverse."
-            );
-          } else {
-            parts.push(
-              "Les ennemis serrent les rangs et declenchent une serie d'assaillants contre le heros."
-            );
-          }
-        } else {
-          if (focusSide === "player") {
-            parts.push(
-              "Le heros se deplace avec prudence, etudie chaque menace et cherche la meilleure opportunite."
-            );
-          } else {
-            parts.push(
-              "Les ennemis se concertent a voix basse, cherchant le moment ideal pour frapper."
-            );
-          }
-        }
-
-        if (deaths.length) {
-          parts.push(
-            deaths.length === 1
-              ? "Une silhouette tombe au sol, signalant un tournant brutal dans le combat."
-              : "Plusieurs corps s'effondrent, laissant un silence pesant planer sur la zone."
-          );
-        }
-
-        summary = parts.join(" ");
+      if (!OPENAI_API_KEY) {
+        return sendJson(res, 200, { summary: "", error: "IA non fonctionnel." });
       }
 
-      // Petites repliques roleplay simplifiees
-      const enemySpeeches = [];
-      if (Array.isArray(body?.state?.actors)) {
-        const enemiesAlive = body.state.actors.filter(
-          a => a.kind === "enemy" && typeof a.hp === "number" && a.hp > 0
-        );
+      const model = process.env.NARRATION_MODEL || "gpt-4.1-mini";
 
-        // Si un ennemi vient de mourir, les autres reagissent
-        const deaths = events.filter(e => e.kind === "death" && e.actorKind === "enemy");
-        if (deaths.length && enemiesAlive.length) {
-          const killed = deaths[deaths.length - 1].actorId;
-          const speaker = enemiesAlive[0];
-          enemySpeeches.push({
-            enemyId: speaker.id,
-            line: `Tombe pas comme ${killed}, reste en formation !`
-          });
-        } else if (focusSide === "player" && enemiesAlive.length) {
-          // Replique apres une action du joueur
-          const speaker = enemiesAlive[Math.floor(Math.random() * enemiesAlive.length)];
-          enemySpeeches.push({
-            enemyId: speaker.id,
-            line: "Il est coriace ce type... reste sur tes gardes !"
-          });
-        } else if (focusSide === "enemies" && enemiesAlive.length >= 2) {
-          // Deux ennemis coordonnent un peu leur plan
-          const a = enemiesAlive[0];
-          const b = enemiesAlive[1];
-          enemySpeeches.push(
-            {
-              enemyId: a.id,
-              line: "On le prend de flanc, pousse-le vers moi !"
-            },
-            {
-              enemyId: b.id,
-              line: "Compris, je le tiens occupe !"
-            }
-          );
-        }
+      const systemPrompt =
+        "Tu es un maitre du jeu (Donjons & Dragons) et un auteur d'heroic-fantasy. " +
+        "Ta mission: ecrire un recap narratif en FRANCAIS, au POINT DE VUE DU JOUEUR (1ere personne: je). " +
+        "Le recap resume la sequence complete: action(s) du joueur puis reponses des ennemis. " +
+        "Contraintes: 2 a 6 phrases, ton immersif, pas de listes, pas de meta-commentaires, pas de mention d'IA. " +
+        "Base-toi uniquement sur les evenements et l'etat fournis. " +
+        "Repond STRICTEMENT en JSON: { \"summary\": \"...\" }.";
+
+      const parsed = await callOpenAiJson({
+        model,
+        systemPrompt,
+        userPayload: body
+      });
+
+      if (!parsed || typeof parsed.summary !== "string") {
+        return sendJson(res, 200, { summary: "", error: "IA non fonctionnel." });
       }
 
-      const response = {
-        summary,
-        enemySpeeches
-      };
-
-      sendJson(res, 200, response);
+      return sendJson(res, 200, { summary: parsed.summary });
     } catch (err) {
-      console.error("[narration] Erreur de traitement:", err.message);
-      sendJson(res, 400, { error: "Bad request" });
+      console.error("[narration] Erreur:", err.message);
+      return sendJson(res, 200, { summary: "", error: "IA non fonctionnel." });
     }
-    return;
+  }
+
+  // API bulles ennemies (1-2 lignes, generees a chaque tour d'ennemi)
+  if (req.method === "POST" && req.url === "/api/enemy-speech") {
+    try {
+      const body = await parseJsonBody(req);
+
+      if (!OPENAI_API_KEY) {
+        return sendJson(res, 200, { line: "" });
+      }
+
+      const model = process.env.ENEMY_SPEECH_MODEL || "gpt-4.1-mini";
+
+      const systemPrompt =
+        "Tu ecris une bulle de dialogue d'ennemi dans un combat heroic-fantasy. " +
+        "FRANCAIS uniquement. " +
+        "Contraintes: 1 ou 2 lignes maximum (au plus un saut de ligne). " +
+        "C'est une phrase prononcee a voix haute (pas de narration), adapte le style au speechProfile/role/perception. " +
+        "L'ennemi peut parler meme s'il ne voit pas le joueur. " +
+        "Il peut aussi choisir de rester silencieux pour rester discret: dans ce cas, renvoie { \"line\": \"\" }. " +
+        "Tu peux reagir aux priorSpeechesThisRound (dans l'ordre), mais ne simule pas de reponse immediate hors tour. " +
+        "Interdit: meta-jeu, references modernes, mentions d'IA. " +
+        "Repond STRICTEMENT en JSON: { \"line\": \"...\" }.";
+
+      const parsed = await callOpenAiJson({
+        model,
+        systemPrompt,
+        userPayload: body
+      });
+
+      if (!parsed || typeof parsed.line !== "string") {
+        return sendJson(res, 200, { line: "" });
+      }
+
+      // Sanitize: max 2 lines
+      const raw = parsed.line;
+      const lines = String(raw).split(/\r?\n/).slice(0, 2);
+      const line = lines.join("\n").trim();
+
+      return sendJson(res, 200, { line });
+    } catch (err) {
+      console.error("[enemy-speech] Erreur:", err.message);
+      return sendJson(res, 200, { line: "" });
+    }
   }
 
   // À partir d'ici : route "front" -> servir les fichiers de dist/

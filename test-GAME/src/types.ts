@@ -1,5 +1,6 @@
 import type { Personnage as RawPersonnage } from "../docs projet/Gestion et CrǸation de donnǸes/templates/Template Personnages";
 import type { ConeDirection } from "./boardEffects";
+import type { EnemySpeechProfile } from "./narrationTypes";
 
 export type Personnage = RawPersonnage;
 
@@ -64,6 +65,10 @@ export interface TokenState {
   enemyTypeId?: string;
   enemyTypeLabel?: string;
   aiRole?: string | null;
+  /**
+   * Profil RP pour guider les bulles de dialogue (enemy-types).
+   */
+  speechProfile?: EnemySpeechProfile | null;
   moveRange?: number;
   attackDamage?: number;
   /**

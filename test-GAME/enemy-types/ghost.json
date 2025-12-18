@@ -3,6 +3,14 @@
   "label": "Fantome",
   "description": "Esprit intangible capable de traverser les autres creatures.",
   "aiRole": "ghost",
+  "speechProfile": {
+    "raceOrOrigin": "Esprit vengeur",
+    "register": "soutenu",
+    "tone": ["cryptique", "menaçant", "surnaturel"],
+    "vocabulary": ["je te sens", "au-dela", "froideur", "souffle"],
+    "quirks": ["parle en images", "phrases etranges mais courtes"],
+    "taboos": ["pas de modernisme", "pas de meta-jeu"]
+  },
   "baseStats": {
     "hp": 8,
     "moveRange": 4,
