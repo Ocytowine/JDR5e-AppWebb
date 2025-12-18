@@ -9,6 +9,7 @@ import type {
   TokenState,
   VisionProfile
 } from "./types";
+import { hasLineOfEffect } from "./lineOfSight";
 
 const DEFAULT_VISION_RANGE = 30;
 
@@ -69,20 +70,35 @@ function key(pos: GridPosition): string {
   return `${pos.x},${pos.y}`;
 }
 
-export function isCellVisible(observer: TokenState, cell: GridPosition): boolean {
+export function isCellVisible(
+  observer: TokenState,
+  cell: GridPosition,
+  opaqueCells?: Set<string> | null
+): boolean {
   const effect = computeVisionEffectForToken(observer);
   if (!effect.cells.length) return false;
 
   const cellKey = key(cell);
   for (const c of effect.cells) {
-    if (key(c) === cellKey) return true;
+    if (key(c) === cellKey) {
+      if (opaqueCells && opaqueCells.size > 0) {
+        return hasLineOfEffect(
+          { x: observer.x, y: observer.y },
+          { x: cell.x, y: cell.y },
+          opaqueCells
+        );
+      }
+      return true;
+    }
   }
+
   return false;
 }
 
 export function getEntitiesInVision(
   observer: TokenState,
-  allTokens: TokenState[]
+  allTokens: TokenState[],
+  opaqueCells?: Set<string> | null
 ): TokenState[] {
   const effect = computeVisionEffectForToken(observer);
   if (!effect.cells.length) return [];
@@ -92,20 +108,34 @@ export function getEntitiesInVision(
     cells.add(key(cell));
   }
 
-  return allTokens.filter(
+  const candidates = allTokens.filter(
     t =>
       t.id !== observer.id &&
       t.hp > 0 &&
       cells.has(key({ x: t.x, y: t.y }))
+  );
+
+  if (!opaqueCells || opaqueCells.size === 0) return candidates;
+
+  return candidates.filter(t =>
+    hasLineOfEffect(
+      { x: observer.x, y: observer.y },
+      { x: t.x, y: t.y },
+      opaqueCells
+    )
   );
 }
 
 export function isTargetVisible(
   observer: TokenState,
   target: TokenState,
-  allTokens: TokenState[]
+  allTokens: TokenState[],
+  opaqueCells?: Set<string> | null
 ): boolean {
   if (target.hp <= 0) return false;
-  const visibles = getEntitiesInVision(observer, allTokens);
-  return visibles.some(t => t.id === target.id);
+
+  const visibles = getEntitiesInVision(observer, allTokens, opaqueCells);
+  const inCone = visibles.some(t => t.id === target.id);
+  if (!inCone) return false;
+  return true;
 }

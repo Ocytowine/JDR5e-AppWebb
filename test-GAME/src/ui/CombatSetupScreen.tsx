@@ -5,6 +5,8 @@ export function CombatSetupScreen(props: {
   enemyTypeCount: number;
   gridCols: number;
   gridRows: number;
+  mapPrompt: string;
+  onChangeMapPrompt: (value: string) => void;
   onChangeEnemyCount: (value: number) => void;
   onStartCombat: () => void;
   onNoEnemyTypes: () => void;
@@ -42,6 +44,26 @@ export function CombatSetupScreen(props: {
           gap: 12
         }}
       >
+        <label style={{ fontSize: 13, display: "flex", flexDirection: "column", gap: 6 }}>
+          Contexte de la battle map :
+          <textarea
+            value={props.mapPrompt}
+            onChange={e => props.onChangeMapPrompt(e.target.value)}
+            placeholder="Ex: Un donjon humide: une salle, un couloir, une porte verrouillée, des piliers. Ennemis en embuscade au fond."
+            rows={4}
+            style={{
+              resize: "vertical",
+              minHeight: 84,
+              background: "#0f0f19",
+              color: "#f5f5f5",
+              border: "1px solid #333",
+              borderRadius: 6,
+              padding: "8px 10px",
+              fontSize: 12,
+              lineHeight: 1.35
+            }}
+          />
+        </label>
         <label style={{ fontSize: 13 }}>
           Nombre d&apos;ennemis :
           <input
@@ -94,4 +116,3 @@ export function CombatSetupScreen(props: {
     </div>
   );
 }
-

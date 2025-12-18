@@ -22,12 +22,14 @@ export function usePixiBoard(options: {
   panY?: number;
 }): {
   appRef: RefObject<Application | null>;
+  obstacleLayerRef: RefObject<Container | null>;
   tokenLayerRef: RefObject<Container | null>;
   pathLayerRef: RefObject<Graphics | null>;
   speechLayerRef: RefObject<Container | null>;
   viewportRef: RefObject<{ scale: number; offsetX: number; offsetY: number } | null>;
 } {
   const appRef = useRef<Application | null>(null);
+  const obstacleLayerRef = useRef<Container | null>(null);
   const tokenLayerRef = useRef<Container | null>(null);
   const pathLayerRef = useRef<Graphics | null>(null);
   const speechLayerRef = useRef<Container | null>(null);
@@ -134,6 +136,10 @@ export function usePixiBoard(options: {
 
       drawGrid();
 
+      const obstacleLayer = new Container();
+      root.addChild(obstacleLayer);
+      obstacleLayerRef.current = obstacleLayer;
+
       const pathLayer = new Graphics();
       root.addChild(pathLayer);
       pathLayerRef.current = pathLayer;
@@ -191,6 +197,7 @@ export function usePixiBoard(options: {
         appRef.current.destroy(true);
       }
       appRef.current = null;
+      obstacleLayerRef.current = null;
       tokenLayerRef.current = null;
       pathLayerRef.current = null;
       speechLayerRef.current = null;
@@ -199,5 +206,12 @@ export function usePixiBoard(options: {
     };
   }, [options.enabled, options.containerRef]);
 
-  return { appRef, tokenLayerRef, pathLayerRef, speechLayerRef, viewportRef };
+  return {
+    appRef,
+    obstacleLayerRef,
+    tokenLayerRef,
+    pathLayerRef,
+    speechLayerRef,
+    viewportRef
+  };
 }

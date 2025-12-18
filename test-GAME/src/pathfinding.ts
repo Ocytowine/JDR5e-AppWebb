@@ -8,6 +8,11 @@ interface PathfindingOptions {
    * est par exemple le joueur que l'on veut engager).
    */
   allowTargetOccupied?: boolean;
+  /**
+   * Set of blocked cells (obstacles/walls) encoded as "x,y".
+   * Movement profiles with `canPassThroughWalls` can ignore these.
+   */
+  blockedCells?: Set<string> | null;
 }
 
 function coordKey(x: number, y: number): string {
@@ -35,12 +40,20 @@ function canEnterCell(
   y: number,
   tokens: TokenState[],
   allowTargetOccupied: boolean,
-  target: GridPosition
+  target: GridPosition,
+  blockedCells?: Set<string> | null
 ): boolean {
   if (x < 0 || y < 0 || x >= GRID_COLS || y >= GRID_ROWS) return false;
   if (!isCellInsideBoard(x, y)) return false;
 
   const isTarget = x === target.x && y === target.y;
+
+  const cellKey = coordKey(x, y);
+  if (blockedCells?.has(cellKey)) {
+    if (!profile?.canPassThroughWalls) {
+      return false;
+    }
+  }
 
   const occupiedByOther = tokens.some(
     t => t.id !== entity.id && t.hp > 0 && t.x === x && t.y === y
@@ -130,7 +143,8 @@ export function computePathTowards(
           ny,
           tokens,
           options.allowTargetOccupied ?? false,
-          target
+          target,
+          options.blockedCells ?? null
         )
       ) {
         continue;

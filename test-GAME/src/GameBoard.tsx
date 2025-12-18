@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { sampleCharacter } from "./sampleCharacter";
 import type { MovementProfile, TokenState, VisionProfile } from "./types";
 import type {
@@ -36,6 +36,10 @@ import bruteType from "../enemy-types/brute.json";
 import archerType from "../enemy-types/archer.json";
 import assassinType from "../enemy-types/assassin.json";
 import ghostType from "../enemy-types/ghost.json";
+import { loadObstacleTypesFromIndex } from "./game/obstacleCatalog";
+import type { ObstacleInstance, ObstacleTypeDefinition } from "./game/obstacleTypes";
+import { generateBattleMap } from "./game/mapEngine";
+import { buildObstacleBlockingSets } from "./game/obstacleRuntime";
 import actionsIndex from "../action-game/actions/index.json";
 import meleeStrike from "../action-game/actions/melee-strike.json";
 import dashAction from "../action-game/actions/dash.json";
@@ -67,6 +71,7 @@ import {
   isCellVisible,
   isTargetVisible
 } from "./vision";
+import { hasLineOfEffect } from "./lineOfSight";
 import {
   beginRoundNarrationBuffer,
   buildRoundNarrationRequest,
@@ -86,6 +91,7 @@ import type {
   EnemySpeechRequest
 } from "./narrationTypes";
 import { usePixiBoard } from "./pixi/usePixiBoard";
+import { usePixiObstacles } from "./pixi/usePixiObstacles";
 import { usePixiOverlays } from "./pixi/usePixiOverlays";
 import { usePixiSpeechBubbles } from "./pixi/usePixiSpeechBubbles";
 import { usePixiTokens } from "./pixi/usePixiTokens";
@@ -255,6 +261,8 @@ export const GameBoard: React.FC = () => {
 
   const [enemyTypes, setEnemyTypes] = useState<EnemyTypeDefinition[]>([]);
   const [enemies, setEnemies] = useState<TokenState[]>([]);
+  const [obstacleTypes, setObstacleTypes] = useState<ObstacleTypeDefinition[]>([]);
+  const [obstacles, setObstacles] = useState<ObstacleInstance[]>([]);
 
   const [phase, setPhase] = useState<TurnPhase>("player");
   const [round, setRound] = useState<number>(1);
@@ -265,6 +273,7 @@ export const GameBoard: React.FC = () => {
   const [currentTurnIndex, setCurrentTurnIndex] = useState<number>(0);
   const [isCombatConfigured, setIsCombatConfigured] = useState<boolean>(false);
   const [configEnemyCount, setConfigEnemyCount] = useState<number>(3);
+  const [mapPrompt, setMapPrompt] = useState<string>("");
 
   const ZOOM_MIN = 0.5;
   const ZOOM_MAX = 2.5;
@@ -274,7 +283,13 @@ export const GameBoard: React.FC = () => {
   const [isPanningBoard, setIsPanningBoard] = useState<boolean>(false);
   const panDragRef = useRef<{ x: number; y: number } | null>(null);
 
-  const { tokenLayerRef, pathLayerRef, speechLayerRef, viewportRef } = usePixiBoard({
+  const {
+    obstacleLayerRef,
+    tokenLayerRef,
+    pathLayerRef,
+    speechLayerRef,
+    viewportRef
+  } = usePixiBoard({
     enabled: isCombatConfigured,
     containerRef: pixiContainerRef,
     zoom: boardZoom,
@@ -352,6 +367,7 @@ export const GameBoard: React.FC = () => {
   const [aiUsedFallback, setAiUsedFallback] = useState<boolean>(false);
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
 
+  usePixiObstacles({ obstacleLayerRef, obstacleTypes, obstacles });
   usePixiTokens({ tokenLayerRef, player, enemies });
   usePixiSpeechBubbles({ speechLayerRef, player, enemies, speechBubbles });
   usePixiOverlays({
@@ -373,6 +389,10 @@ export const GameBoard: React.FC = () => {
   function cellKey(x: number, y: number): string {
     return `${x},${y}`;
   }
+
+  const obstacleBlocking = useMemo(() => {
+    return buildObstacleBlockingSets(obstacleTypes, obstacles);
+  }, [obstacleTypes, obstacles]);
 
   function resourceKey(name: string, pool?: string | null): string {
     return `${pool ?? "default"}:${name}`;
@@ -461,11 +481,27 @@ export const GameBoard: React.FC = () => {
       return;
     }
 
-    const newEnemies: TokenState[] = [];
-    const pick = (index: number) => enemyTypes[index % enemyTypes.length];
-    for (let i = 0; i < configEnemyCount; i++) {
-      newEnemies.push(createEnemy(i, pick(i), computeEnemySpawnPosition(i)));
-    }
+    const map = generateBattleMap({
+      prompt: mapPrompt,
+      grid: { cols: GRID_COLS, rows: GRID_ROWS },
+      enemyCount: configEnemyCount,
+      enemyTypes,
+      obstacleTypes
+    });
+
+    pushLog(map.summary);
+
+    setPlayer(prev => ({
+      ...prev,
+      x: map.playerStart.x,
+      y: map.playerStart.y
+    }));
+
+    setObstacles(map.obstacles);
+
+    const newEnemies: TokenState[] = map.enemySpawns.map((spawn, i) =>
+      createEnemy(i, spawn.enemyType, spawn.position)
+    );
     setEnemies(newEnemies);
     setRevealedEnemyIds(new Set());
     setRevealedCells(new Set());
@@ -665,6 +701,11 @@ export const GameBoard: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    const loadedTypes = loadObstacleTypesFromIndex();
+    setObstacleTypes(loadedTypes);
+  }, []);
+
+  useEffect(() => {
     if (!isCombatConfigured) return;
     if (!hasRolledInitiative && enemies.length > 0) {
       rollInitialInitiativeIfNeeded();
@@ -852,12 +893,28 @@ export const GameBoard: React.FC = () => {
     }
 
     if (targeting.requiresLos) {
-      const visible = isTargetVisible(actor, enemy, allTokens);
+      const visible = isTargetVisible(
+        actor,
+        enemy,
+        allTokens,
+        obstacleBlocking.vision
+      );
       if (!visible) {
         return {
           ok: false,
           reason:
             "Cible hors du champ de vision ou derriere un obstacle (ligne de vue requise)."
+        };
+      }
+      const canHit = hasLineOfEffect(
+        { x: actor.x, y: actor.y },
+        { x: enemy.x, y: enemy.y },
+        obstacleBlocking.attacks
+      );
+      if (!canHit) {
+        return {
+          ok: false,
+          reason: "Trajectoire bloquee (obstacle entre l'attaquant et la cible)."
         };
       }
     }
@@ -1485,7 +1542,7 @@ export const GameBoard: React.FC = () => {
         return;
       }
 
-      if (!isCellVisible(player, { x: targetX, y: targetY })) {
+      if (!isCellVisible(player, { x: targetX, y: targetY }, obstacleBlocking.vision)) {
         pushLog("Inspection: la case n'est pas dans votre champ de vision.");
         return;
       }
@@ -1562,59 +1619,48 @@ export const GameBoard: React.FC = () => {
       );
       return;
     }
+    if (obstacleBlocking.movement.has(cellKey(targetX, targetY))) {
+      pushLog(`Case (${targetX}, ${targetY}) bloquee par un obstacle.`);
+      return;
+    }
 
     setSelectedPath(prev => {
       const maxSteps = Math.max(1, pathLimit);
       const path = [...prev];
 
       if (path.length >= maxSteps) {
-        pushLog("Limite de 5 cases atteinte pour ce tour.");
+        pushLog(`Limite de ${maxSteps} cases atteinte pour ce tour.`);
         return path;
       }
 
-      let current =
+      const start =
         path.length > 0 ? path[path.length - 1] : { x: player.x, y: player.y };
 
-      if (current.x === targetX && current.y === targetY) return path;
+      if (start.x === targetX && start.y === targetY) return path;
 
-      let cx = current.x;
-      let cy = current.y;
-      let stepsRemaining = maxSteps - path.length;
+      const stepsRemaining = maxSteps - path.length;
+      const tempPlayer = { ...player, x: start.x, y: start.y };
+      const tokensForPath: TokenState[] = [tempPlayer as TokenState, ...enemies];
 
-      while (cx !== targetX && stepsRemaining > 0) {
-        const stepX = Math.sign(targetX - cx);
-        const nextX = cx + stepX;
-        if (isEnemyAt(nextX, cy)) {
-          pushLog(
-            `Trajectoire bloquee par un ennemi en (${nextX}, ${cy}).`
-          );
-          break;
+      const computed = computePathTowards(
+        tempPlayer as TokenState,
+        { x: targetX, y: targetY },
+        tokensForPath,
+        {
+          maxDistance: Math.max(0, stepsRemaining),
+          allowTargetOccupied: false,
+          blockedCells: obstacleBlocking.movement
         }
-        cx = nextX;
-        path.push({ x: cx, y: cy });
-        stepsRemaining--;
-      }
-      while (cy !== targetY && stepsRemaining > 0) {
-        const stepY = Math.sign(targetY - cy);
-        const nextY = cy + stepY;
-        if (isEnemyAt(cx, nextY)) {
-          pushLog(
-            `Trajectoire bloquee par un ennemi en (${cx}, ${nextY}).`
-          );
-          break;
-        }
-        cy = nextY;
-        path.push({ x: cx, y: cy });
-        stepsRemaining--;
+      );
+
+      if (computed.length <= 1) {
+        pushLog("Aucun chemin valide vers cette case (bloque par obstacle ou entites).");
+        return path;
       }
 
-      if (stepsRemaining === 0 && (cx !== targetX || cy !== targetY)) {
-        pushLog("Trajectoire tronquee: limite de 5 cases atteinte.");
-      } else {
-        pushLog(`Trajectoire: ajout de la case (${targetX}, ${targetY}).`);
-      }
-
-      return path;
+      const appended = computed.slice(1);
+      pushLog(`Trajectoire: +${appended.length} case(s) vers (${targetX}, ${targetY}).`);
+      return path.concat(appended);
     });
   }
 
@@ -1882,7 +1928,7 @@ export const GameBoard: React.FC = () => {
               ...enemiesCopy
             ];
 
-            if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens)) {
+            if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision)) {
               pushLog(
                 `${enemy.id} ne voit pas le joueur et reste en alerte (fallback).`
               );
@@ -1903,7 +1949,8 @@ export const GameBoard: React.FC = () => {
               tokensForPath,
               {
                 maxDistance: maxRange,
-                allowTargetOccupied: true
+                allowTargetOccupied: true,
+                blockedCells: obstacleBlocking.movement
               }
             );
 
@@ -1926,6 +1973,15 @@ export const GameBoard: React.FC = () => {
             const attackRange = getAttackRangeForToken(enemy);
   
               if (distToPlayer <= attackRange) {
+                const canHit = hasLineOfEffect(
+                  { x: enemy.x, y: enemy.y },
+                  { x: playerCopy.x, y: playerCopy.y },
+                  obstacleBlocking.attacks
+                );
+                if (!canHit) {
+                  pushLog(`${enemy.id} ne peut pas attaquer: obstacle sur la trajectoire.`);
+                  continue;
+                }
                 const baseDamage =
                   typeof enemy.attackDamage === "number" ? enemy.attackDamage : 2;
                 const attacks = getMaxAttacksForToken(enemy);
@@ -2016,7 +2072,7 @@ export const GameBoard: React.FC = () => {
           }
 
           if (action === "move") {
-            if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens)) {
+            if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision)) {
               pushLog(
                 `${enemy.id} ne voit pas le joueur et reste en alerte.`
               );
@@ -2061,7 +2117,8 @@ export const GameBoard: React.FC = () => {
               tokensForPath,
               {
                 maxDistance: maxRange,
-                allowTargetOccupied: true
+                allowTargetOccupied: true,
+                blockedCells: obstacleBlocking.movement
               }
             );
 
@@ -2087,7 +2144,7 @@ export const GameBoard: React.FC = () => {
           if (action === "attack") {
             enemy.facing = computeFacingTowards(enemy, playerCopy);
 
-            if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens)) {
+            if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision)) {
               pushLog(
                 `${enemy.id} voulait attaquer mais ne voit pas le joueur.`
               );
@@ -2098,6 +2155,15 @@ export const GameBoard: React.FC = () => {
             const attackRange = getAttackRangeForToken(enemy);
 
             if (distToPlayer <= attackRange) {
+              const canHit = hasLineOfEffect(
+                { x: enemy.x, y: enemy.y },
+                { x: playerCopy.x, y: playerCopy.y },
+                obstacleBlocking.attacks
+              );
+              if (!canHit) {
+                pushLog(`${enemy.id} ne peut pas attaquer: obstacle sur la trajectoire.`);
+                continue;
+              }
               const baseDamage =
                 typeof enemy.attackDamage === "number" ? enemy.attackDamage : 2;
               const attacks = getMaxAttacksForToken(enemy);
@@ -2151,7 +2217,7 @@ export const GameBoard: React.FC = () => {
           ...enemiesCopy
         ];
 
-        if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens)) {
+        if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision)) {
           pushLog(
             `${enemy.id} ne voit pas le joueur et reste en alerte (fallback).`
           );
@@ -2172,7 +2238,8 @@ export const GameBoard: React.FC = () => {
         tokensForPath,
         {
           maxDistance: maxRange,
-          allowTargetOccupied: true
+          allowTargetOccupied: true,
+          blockedCells: obstacleBlocking.movement
         }
       );
 
@@ -2192,6 +2259,14 @@ export const GameBoard: React.FC = () => {
           const attackRange = getAttackRangeForToken(enemy);
   
             if (distToPlayer <= attackRange) {
+              const canHit = hasLineOfEffect(
+                { x: enemy.x, y: enemy.y },
+                { x: playerCopy.x, y: playerCopy.y },
+                obstacleBlocking.attacks
+              );
+              if (!canHit) {
+                pushLog(`${enemy.id} ne peut pas attaquer: obstacle sur la trajectoire.`);
+              } else {
               const baseDamage =
                 typeof enemy.attackDamage === "number" ? enemy.attackDamage : 2;
               const attacks = getMaxAttacksForToken(enemy);
@@ -2223,20 +2298,21 @@ export const GameBoard: React.FC = () => {
                   fallback: true
                 }
               });
-              if (playerCopy.hp <= 0 && beforeHp > 0) {
-                recordCombatEvent({
-                  round,
-                  phase,
-                  kind: "death",
-                  actorId: playerCopy.id,
-                  actorKind: "player",
-                  summary: "Le heros s'effondre sous les coups ennemis.",
-                  targetId: playerCopy.id,
-                  targetKind: "player",
-                  data: {
-                    killedBy: enemy.id
-                  }
-                });
+                if (playerCopy.hp <= 0 && beforeHp > 0) {
+                  recordCombatEvent({
+                    round,
+                    phase,
+                    kind: "death",
+                    actorId: playerCopy.id,
+                    actorKind: "player",
+                    summary: "Le heros s'effondre sous les coups ennemis.",
+                    targetId: playerCopy.id,
+                    targetKind: "player",
+                    data: {
+                      killedBy: enemy.id
+                    }
+                  });
+                }
               }
             } else {
               pushLog(
@@ -2273,7 +2349,7 @@ export const GameBoard: React.FC = () => {
         }
 
           if (action === "move") {
-            if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens)) {
+            if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision)) {
               pushLog(
                 `${enemy.id} ne voit pas le joueur et reste en alerte.`
               );
@@ -2317,7 +2393,8 @@ export const GameBoard: React.FC = () => {
             tokensForPath,
             {
               maxDistance: maxRange,
-              allowTargetOccupied: true
+              allowTargetOccupied: true,
+              blockedCells: obstacleBlocking.movement
             }
           );
 
@@ -2343,7 +2420,7 @@ export const GameBoard: React.FC = () => {
           if (action === "attack") {
             enemy.facing = computeFacingTowards(enemy, playerCopy);
 
-            if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens)) {
+            if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision)) {
               pushLog(
                 `${enemy.id} voulait attaquer mais ne voit pas le joueur.`
               );
@@ -2354,6 +2431,15 @@ export const GameBoard: React.FC = () => {
             const attackRange = getAttackRangeForToken(enemy);
 
             if (distToPlayer <= attackRange) {
+              const canHit = hasLineOfEffect(
+                { x: enemy.x, y: enemy.y },
+                { x: playerCopy.x, y: playerCopy.y },
+                obstacleBlocking.attacks
+              );
+              if (!canHit) {
+                pushLog(`${enemy.id} ne peut pas attaquer: obstacle sur la trajectoire.`);
+                continue;
+              }
               const baseDamage =
                 typeof enemy.attackDamage === "number" ? enemy.attackDamage : 2;
               const attacks = getMaxAttacksForToken(enemy);
@@ -2394,7 +2480,7 @@ export const GameBoard: React.FC = () => {
     if (isTokenDead(enemy)) return;
 
     const allTokens: TokenState[] = [playerState, ...enemiesState];
-    const visible = getEntitiesInVision(enemy, allTokens);
+    const visible = getEntitiesInVision(enemy, allTokens, obstacleBlocking.vision);
 
     const alliesVisible = visible
       .filter(t => t.type === "enemy" && t.id !== enemyId && !isTokenDead(t))
@@ -2404,7 +2490,12 @@ export const GameBoard: React.FC = () => {
       .filter(t => t.type === "player" && !isTokenDead(t))
       .map(t => t.id);
 
-    const canSeePlayerNow = canEnemySeePlayer(enemy, playerState, allTokens);
+    const canSeePlayerNow = canEnemySeePlayer(
+      enemy,
+      playerState,
+      allTokens,
+      obstacleBlocking.vision
+    );
     const distToPlayer = manhattan(enemy, playerState);
     const hpRatio = enemy.maxHp > 0 ? enemy.hp / enemy.maxHp : 0;
 
@@ -2484,6 +2575,9 @@ export const GameBoard: React.FC = () => {
           actor: activeEnemy,
           player: playerCopy,
           enemies: enemiesCopy,
+          blockedMovementCells: obstacleBlocking.movement,
+          blockedVisionCells: obstacleBlocking.vision,
+          blockedAttackCells: obstacleBlocking.attacks,
           sampleCharacter,
           onLog: pushLog,
           emitEvent: evt => {
@@ -2542,7 +2636,12 @@ export const GameBoard: React.FC = () => {
     if (usedFallback) {
       setAiUsedFallback(true);
 
-      const canSee = canEnemySeePlayer(activeEnemy, playerCopy as TokenState, allTokens);
+      const canSee = canEnemySeePlayer(
+        activeEnemy,
+        playerCopy as TokenState,
+        allTokens,
+        obstacleBlocking.vision
+      );
       if (!canSee) {
         pushLog(`${activeEnemy.id} ne voit pas le joueur et reste en alerte.`);
       } else {
@@ -2654,7 +2753,11 @@ export const GameBoard: React.FC = () => {
                 activeEnemy,
                 { x: playerCopy.x, y: playerCopy.y },
                 allTokens,
-                { maxDistance: moveRange, allowTargetOccupied: false }
+                {
+                  maxDistance: moveRange,
+                  allowTargetOccupied: false,
+                  blockedCells: obstacleBlocking.movement
+                }
               );
               if (path.length) destination = path[path.length - 1];
             } else {
@@ -2665,7 +2768,11 @@ export const GameBoard: React.FC = () => {
               activeEnemy,
               { x: playerCopy.x, y: playerCopy.y },
               allTokens,
-              { maxDistance: moveRange, allowTargetOccupied: false }
+              {
+                maxDistance: moveRange,
+                allowTargetOccupied: false,
+                blockedCells: obstacleBlocking.movement
+              }
             );
             if (path.length) destination = path[path.length - 1];
           }
@@ -2857,6 +2964,8 @@ function handleEndPlayerTurn() {
           enemyTypeCount={enemyTypes.length}
           gridCols={GRID_COLS}
           gridRows={GRID_ROWS}
+          mapPrompt={mapPrompt}
+          onChangeMapPrompt={setMapPrompt}
           onChangeEnemyCount={setConfigEnemyCount}
           onNoEnemyTypes={() =>
             pushLog(

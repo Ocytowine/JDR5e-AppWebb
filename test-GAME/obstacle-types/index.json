@@ -1,0 +1,11 @@
+{
+  "model": "./obstacle-model.json",
+  "types": [
+    "./wall-stone.json",
+    "./low-wall-stone.json",
+    "./tree-oak.json",
+    "./barrel-wood.json",
+    "./pillar-stone.json"
+  ]
+}
+

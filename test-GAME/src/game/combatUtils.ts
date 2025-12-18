@@ -36,10 +36,11 @@ export function getMaxAttacksForToken(token: TokenState): number {
 export function canEnemySeePlayer(
   enemy: TokenState,
   playerToken: TokenState,
-  allTokens: TokenState[]
+  allTokens: TokenState[],
+  opaqueCells?: Set<string> | null
 ): boolean {
   if (isTokenDead(enemy) || isTokenDead(playerToken)) return false;
-  return isTargetVisible(enemy, playerToken, allTokens);
+  return isTargetVisible(enemy, playerToken, allTokens, opaqueCells);
 }
 
 export function canEnemyMeleeAttack(
@@ -69,4 +70,3 @@ export function computeFacingTowards(
   }
   return dy >= 0 ? "down" : "up";
 }
-

@@ -5,6 +5,7 @@ import { clamp, manhattan } from "./combatUtils";
 import { computePathTowards } from "../pathfinding";
 import { GRID_COLS, GRID_ROWS, isCellInsideBoard } from "../boardConfig";
 import { rollAttack, rollDamage, type AdvantageMode } from "../dice/roller";
+import { hasLineOfEffect } from "../lineOfSight";
 
 export interface ActionEngineContext {
   round: number;
@@ -12,6 +13,9 @@ export interface ActionEngineContext {
   actor: TokenState;
   player: TokenState;
   enemies: TokenState[];
+  blockedMovementCells?: Set<string> | null;
+  blockedVisionCells?: Set<string> | null;
+  blockedAttackCells?: Set<string> | null;
   /**
    * Optional hook to emit structured combat events (narration buffer, analytics, etc.).
    * The engine stays UI-agnostic and does not import narrationClient directly.
@@ -128,6 +132,76 @@ export function validateActionTarget(
     return { ok: true };
   }
 
+  if (targeting.target === "enemy") {
+    if (target.kind !== "token" || target.token.type !== "enemy") {
+      return { ok: false, reason: "Cible ennemi manquante." };
+    }
+
+    const enemyToken = target.token;
+    if (enemyToken.hp <= 0) {
+      return { ok: false, reason: "La cible est deja a terre." };
+    }
+
+    const dist = manhattan(actor, enemyToken);
+    const range = targeting.range;
+
+    if (range) {
+      if (typeof range.min === "number" && dist < range.min) {
+        return {
+          ok: false,
+          reason: `Cible trop proche pour ${action.name} (distance ${dist}, min ${range.min}).`
+        };
+      }
+      if (typeof range.max === "number" && dist > range.max) {
+        return {
+          ok: false,
+          reason: `Cible hors portee pour ${action.name} (distance ${dist}, max ${range.max}).`
+        };
+      }
+    }
+
+    for (const cond of action.conditions || []) {
+      if (cond.type === "target_alive" && enemyToken.hp <= 0) {
+        return {
+          ok: false,
+          reason: cond.reason || "La cible doit avoir des PV restants."
+        };
+      }
+      if (cond.type === "distance_max") {
+        if (typeof cond.max === "number" && dist > cond.max) {
+          return { ok: false, reason: cond.reason || `Distance cible > ${cond.max}.` };
+        }
+      }
+      if (cond.type === "distance_between") {
+        const min = typeof cond.min === "number" ? cond.min : range?.min ?? null;
+        const max = typeof cond.max === "number" ? cond.max : range?.max ?? null;
+        if (min !== null && dist < min) {
+          return { ok: false, reason: cond.reason || `Distance cible < ${min}.` };
+        }
+        if (max !== null && dist > max) {
+          return { ok: false, reason: cond.reason || `Distance cible > ${max}.` };
+        }
+      }
+    }
+
+    if (targeting.requiresLos) {
+      const visible = isTargetVisible(actor, enemyToken, allTokens, ctx.blockedVisionCells ?? null);
+      if (!visible) {
+        return { ok: false, reason: "Cible hors vision (ligne de vue requise)." };
+      }
+      const canHit = hasLineOfEffect(
+        { x: actor.x, y: actor.y },
+        { x: enemyToken.x, y: enemyToken.y },
+        ctx.blockedAttackCells ?? null
+      );
+      if (!canHit) {
+        return { ok: false, reason: "Trajectoire bloquee (obstacle entre l'attaquant et la cible)." };
+      }
+    }
+
+    return { ok: true };
+  }
+
   if (targeting.target === "player") {
     const playerToken = ctx.player;
     if (playerToken.hp <= 0) {
@@ -177,9 +251,17 @@ export function validateActionTarget(
     }
 
     if (targeting.requiresLos) {
-      const visible = isTargetVisible(actor, playerToken, allTokens);
+      const visible = isTargetVisible(actor, playerToken, allTokens, ctx.blockedVisionCells ?? null);
       if (!visible) {
         return { ok: false, reason: "Cible hors vision (ligne de vue requise)." };
+      }
+      const canHit = hasLineOfEffect(
+        { x: actor.x, y: actor.y },
+        { x: playerToken.x, y: playerToken.y },
+        ctx.blockedAttackCells ?? null
+      );
+      if (!canHit) {
+        return { ok: false, reason: "Trajectoire bloquee (obstacle entre l'attaquant et la cible)." };
       }
     }
 
@@ -437,7 +519,8 @@ export function resolveAction(
       const tokensForPath: TokenState[] = [player as TokenState, ...enemies];
       const path = computePathTowards(actor, { x: targetX, y: targetY }, tokensForPath, {
         maxDistance: Math.max(0, maxSteps),
-        allowTargetOccupied: false
+        allowTargetOccupied: false,
+        blockedCells: ctx.blockedMovementCells ?? null
       });
 
       actor.plannedPath = path;
