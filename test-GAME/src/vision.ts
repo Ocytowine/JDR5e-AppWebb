@@ -39,7 +39,10 @@ export function getVisionProfileForToken(token: TokenState): VisionProfile {
   return DEFAULT_CONE_VISION;
 }
 
-export function computeVisionEffectForToken(token: TokenState): BoardEffect {
+export function computeVisionEffectForToken(
+  token: TokenState,
+  playableCells?: Set<string> | null
+): BoardEffect {
   const profile = getVisionProfileForToken(token);
   const facing = getFacingForToken(token);
   const id = `vision-${token.id}`;
@@ -53,7 +56,9 @@ export function computeVisionEffectForToken(token: TokenState): BoardEffect {
   }
 
   if (profile.shape === "circle") {
-    return generateCircleEffect(id, token.x, token.y, profile.range);
+    return generateCircleEffect(id, token.x, token.y, profile.range, {
+      playableCells: playableCells ?? null
+    });
   }
 
   return generateConeEffect(
@@ -62,7 +67,8 @@ export function computeVisionEffectForToken(token: TokenState): BoardEffect {
     token.y,
     profile.range,
     facing,
-    profile.apertureDeg
+    profile.apertureDeg,
+    { playableCells: playableCells ?? null }
   );
 }
 
@@ -73,13 +79,22 @@ function key(pos: GridPosition): string {
 export function isCellVisible(
   observer: TokenState,
   cell: GridPosition,
-  opaqueCells?: Set<string> | null
+  opaqueCells?: Set<string> | null,
+  playableCells?: Set<string> | null
 ): boolean {
-  const effect = computeVisionEffectForToken(observer);
+  if (playableCells && playableCells.size > 0) {
+    if (!playableCells.has(key(cell))) return false;
+    if (!playableCells.has(key({ x: observer.x, y: observer.y }))) return false;
+  }
+
+  const effect = computeVisionEffectForToken(observer, playableCells ?? null);
   if (!effect.cells.length) return false;
 
   const cellKey = key(cell);
   for (const c of effect.cells) {
+    if (playableCells && playableCells.size > 0 && !playableCells.has(key(c))) {
+      continue;
+    }
     if (key(c) === cellKey) {
       if (opaqueCells && opaqueCells.size > 0) {
         return hasLineOfEffect(
@@ -98,14 +113,17 @@ export function isCellVisible(
 export function getEntitiesInVision(
   observer: TokenState,
   allTokens: TokenState[],
-  opaqueCells?: Set<string> | null
+  opaqueCells?: Set<string> | null,
+  playableCells?: Set<string> | null
 ): TokenState[] {
-  const effect = computeVisionEffectForToken(observer);
+  const effect = computeVisionEffectForToken(observer, playableCells ?? null);
   if (!effect.cells.length) return [];
 
   const cells = new Set<string>();
   for (const cell of effect.cells) {
-    cells.add(key(cell));
+    const k = key(cell);
+    if (playableCells && playableCells.size > 0 && !playableCells.has(k)) continue;
+    cells.add(k);
   }
 
   const candidates = allTokens.filter(
@@ -115,9 +133,14 @@ export function getEntitiesInVision(
       cells.has(key({ x: t.x, y: t.y }))
   );
 
-  if (!opaqueCells || opaqueCells.size === 0) return candidates;
+  const filteredByPlayable =
+    playableCells && playableCells.size > 0
+      ? candidates.filter(t => playableCells.has(key({ x: t.x, y: t.y })))
+      : candidates;
 
-  return candidates.filter(t =>
+  if (!opaqueCells || opaqueCells.size === 0) return filteredByPlayable;
+
+  return filteredByPlayable.filter(t =>
     hasLineOfEffect(
       { x: observer.x, y: observer.y },
       { x: t.x, y: t.y },
@@ -130,11 +153,16 @@ export function isTargetVisible(
   observer: TokenState,
   target: TokenState,
   allTokens: TokenState[],
-  opaqueCells?: Set<string> | null
+  opaqueCells?: Set<string> | null,
+  playableCells?: Set<string> | null
 ): boolean {
   if (target.hp <= 0) return false;
+  if (playableCells && playableCells.size > 0) {
+    if (!playableCells.has(key({ x: target.x, y: target.y }))) return false;
+    if (!playableCells.has(key({ x: observer.x, y: observer.y }))) return false;
+  }
 
-  const visibles = getEntitiesInVision(observer, allTokens, opaqueCells);
+  const visibles = getEntitiesInVision(observer, allTokens, opaqueCells, playableCells);
   const inCone = visibles.some(t => t.id === target.id);
   if (!inCone) return false;
   return true;

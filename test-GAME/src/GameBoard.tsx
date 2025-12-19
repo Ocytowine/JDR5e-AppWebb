@@ -57,12 +57,12 @@ import {
 } from "./dice/roller";
 import { resolveAction, type ActionTarget } from "./game/actionEngine";
 import {
-  BOARD_HEIGHT,
-  BOARD_WIDTH,
   GRID_COLS,
   GRID_ROWS,
-  screenToGrid,
-  isCellInsideBoard
+  getBoardHeight,
+  getBoardWidth,
+  isCellInsideGrid,
+  screenToGridForGrid
 } from "./boardConfig";
 import { computePathTowards } from "./pathfinding";
 import { getTokenAt } from "./gridUtils";
@@ -198,12 +198,13 @@ function createEnemy(
   };
 }
 
-function computeEnemySpawnPosition(index: number): { x: number; y: number } {
+function computeEnemySpawnPosition(
+  index: number,
+  cols: number,
+  rows: number
+): { x: number; y: number } {
   // On remplit colonne par colonne, en partant de la droite,
   // en descendant de haut en bas, sans chevauchement.
-  const rows = GRID_ROWS;
-  const cols = GRID_COLS;
-
   const colIndex = Math.floor(index / rows);
   const rowIndex = index % rows;
 
@@ -263,6 +264,11 @@ export const GameBoard: React.FC = () => {
   const [enemies, setEnemies] = useState<TokenState[]>([]);
   const [obstacleTypes, setObstacleTypes] = useState<ObstacleTypeDefinition[]>([]);
   const [obstacles, setObstacles] = useState<ObstacleInstance[]>([]);
+  const [playableCells, setPlayableCells] = useState<Set<string> | null>(null);
+  const [mapGrid, setMapGrid] = useState<{ cols: number; rows: number }>({
+    cols: GRID_COLS,
+    rows: GRID_ROWS
+  });
 
   const [phase, setPhase] = useState<TurnPhase>("player");
   const [round, setRound] = useState<number>(1);
@@ -288,13 +294,16 @@ export const GameBoard: React.FC = () => {
     tokenLayerRef,
     pathLayerRef,
     speechLayerRef,
-    viewportRef
+    viewportRef,
+    pixiReadyTick
   } = usePixiBoard({
     enabled: isCombatConfigured,
     containerRef: pixiContainerRef,
     zoom: boardZoom,
     panX: boardPan.x,
-    panY: boardPan.y
+    panY: boardPan.y,
+    playableCells,
+    grid: mapGrid
   });
 
   // Actions loaded from JSON
@@ -367,9 +376,9 @@ export const GameBoard: React.FC = () => {
   const [aiUsedFallback, setAiUsedFallback] = useState<boolean>(false);
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
 
-  usePixiObstacles({ obstacleLayerRef, obstacleTypes, obstacles });
-  usePixiTokens({ tokenLayerRef, player, enemies });
-  usePixiSpeechBubbles({ speechLayerRef, player, enemies, speechBubbles });
+  usePixiObstacles({ obstacleLayerRef, obstacleTypes, obstacles, pixiReadyTick, grid: mapGrid });
+  usePixiTokens({ tokenLayerRef, player, enemies, pixiReadyTick, grid: mapGrid });
+  usePixiSpeechBubbles({ speechLayerRef, player, enemies, speechBubbles, pixiReadyTick, grid: mapGrid });
   usePixiOverlays({
     pathLayerRef,
     player,
@@ -377,7 +386,10 @@ export const GameBoard: React.FC = () => {
     selectedPath,
     effectSpecs,
     selectedTargetId,
-    showVisionDebug
+    showVisionDebug,
+    pixiReadyTick,
+    playableCells,
+    grid: mapGrid
   });
 
   const INSPECT_RANGE = 10;
@@ -388,6 +400,12 @@ export const GameBoard: React.FC = () => {
 
   function cellKey(x: number, y: number): string {
     return `${x},${y}`;
+  }
+
+  function isCellPlayable(x: number, y: number): boolean {
+    if (!isCellInsideGrid(x, y, mapGrid.cols, mapGrid.rows)) return false;
+    if (!playableCells || playableCells.size === 0) return true;
+    return playableCells.has(cellKey(x, y));
   }
 
   const obstacleBlocking = useMemo(() => {
@@ -481,15 +499,30 @@ export const GameBoard: React.FC = () => {
       return;
     }
 
-    const map = generateBattleMap({
+    let grid = { ...mapGrid };
+    let map = generateBattleMap({
       prompt: mapPrompt,
-      grid: { cols: GRID_COLS, rows: GRID_ROWS },
+      grid,
       enemyCount: configEnemyCount,
       enemyTypes,
       obstacleTypes
     });
 
+    const rec = map.recommendedGrid;
+    if (rec && (rec.cols > grid.cols || rec.rows > grid.rows)) {
+      pushLog(`[map] Redimensionnement automatique: ${grid.cols}x${grid.rows} -> ${rec.cols}x${rec.rows} (${rec.reason}).`);
+      grid = { cols: rec.cols, rows: rec.rows };
+      map = generateBattleMap({
+        prompt: mapPrompt,
+        grid,
+        enemyCount: configEnemyCount,
+        enemyTypes,
+        obstacleTypes
+      });
+    }
+
     pushLog(map.summary);
+    setMapGrid(grid);
 
     setPlayer(prev => ({
       ...prev,
@@ -498,6 +531,7 @@ export const GameBoard: React.FC = () => {
     }));
 
     setObstacles(map.obstacles);
+    setPlayableCells(new Set(map.playableCells ?? []));
 
     const newEnemies: TokenState[] = map.enemySpawns.map((spawn, i) =>
       createEnemy(i, spawn.enemyType, spawn.position)
@@ -682,7 +716,7 @@ export const GameBoard: React.FC = () => {
     return {
       round,
       phase: focusSide,
-      grid: { cols: GRID_COLS, rows: GRID_ROWS },
+      grid: { cols: mapGrid.cols, rows: mapGrid.rows },
       actors
     };
   }
@@ -897,7 +931,8 @@ export const GameBoard: React.FC = () => {
         actor,
         enemy,
         allTokens,
-        obstacleBlocking.vision
+        obstacleBlocking.vision,
+        playableCells
       );
       if (!visible) {
         return {
@@ -1491,15 +1526,17 @@ export const GameBoard: React.FC = () => {
     const stageX = (localX - viewport.offsetX) / viewport.scale;
     const stageY = (localY - viewport.offsetY) / viewport.scale;
 
-    if (stageX < 0 || stageY < 0 || stageX > BOARD_WIDTH || stageY > BOARD_HEIGHT) {
+    const boardWidth = getBoardWidth(mapGrid.cols);
+    const boardHeight = getBoardHeight(mapGrid.rows);
+    if (stageX < 0 || stageY < 0 || stageX > boardWidth || stageY > boardHeight) {
       return;
     }
 
-    const { x: gx, y: gy } = screenToGrid(stageX, stageY);
+    const { x: gx, y: gy } = screenToGridForGrid(stageX, stageY, mapGrid.cols, mapGrid.rows);
     const targetX = gx;
     const targetY = gy;
 
-    if (!isCellInsideBoard(targetX, targetY)) return;
+    if (!isCellPlayable(targetX, targetY)) return;
 
     // Mode selection de cible pour une action ciblant un ennemi
     if (targetMode === "selecting") {
@@ -1542,7 +1579,7 @@ export const GameBoard: React.FC = () => {
         return;
       }
 
-      if (!isCellVisible(player, { x: targetX, y: targetY }, obstacleBlocking.vision)) {
+      if (!isCellVisible(player, { x: targetX, y: targetY }, obstacleBlocking.vision, playableCells)) {
         pushLog("Inspection: la case n'est pas dans votre champ de vision.");
         return;
       }
@@ -1619,6 +1656,10 @@ export const GameBoard: React.FC = () => {
       );
       return;
     }
+    if (!isCellPlayable(targetX, targetY)) {
+      pushLog(`Case (${targetX}, ${targetY}) hors zone jouable.`);
+      return;
+    }
     if (obstacleBlocking.movement.has(cellKey(targetX, targetY))) {
       pushLog(`Case (${targetX}, ${targetY}) bloquee par un obstacle.`);
       return;
@@ -1642,16 +1683,18 @@ export const GameBoard: React.FC = () => {
       const tempPlayer = { ...player, x: start.x, y: start.y };
       const tokensForPath: TokenState[] = [tempPlayer as TokenState, ...enemies];
 
-      const computed = computePathTowards(
-        tempPlayer as TokenState,
-        { x: targetX, y: targetY },
-        tokensForPath,
-        {
-          maxDistance: Math.max(0, stepsRemaining),
-          allowTargetOccupied: false,
-          blockedCells: obstacleBlocking.movement
-        }
-      );
+        const computed = computePathTowards(
+          tempPlayer as TokenState,
+          { x: targetX, y: targetY },
+          tokensForPath,
+          {
+            maxDistance: Math.max(0, stepsRemaining),
+            allowTargetOccupied: false,
+            blockedCells: obstacleBlocking.movement,
+            playableCells,
+            grid: mapGrid
+          }
+        );
 
       if (computed.length <= 1) {
         pushLog("Aucun chemin valide vers cette case (bloque par obstacle ou entites).");
@@ -1750,7 +1793,7 @@ export const GameBoard: React.FC = () => {
     return {
       round,
       phase,
-      grid: { cols: GRID_COLS, rows: GRID_ROWS },
+      grid: { cols: mapGrid.cols, rows: mapGrid.rows },
       player: playerSummary,
       enemies: enemiesSummary,
       actionsCatalog: actionsCatalog.map(a => ({
@@ -1928,7 +1971,7 @@ export const GameBoard: React.FC = () => {
               ...enemiesCopy
             ];
 
-            if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision)) {
+            if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision, playableCells)) {
               pushLog(
                 `${enemy.id} ne voit pas le joueur et reste en alerte (fallback).`
               );
@@ -1943,16 +1986,18 @@ export const GameBoard: React.FC = () => {
             ...enemiesCopy
           ];
 
-            const path = computePathTowards(
-              enemy,
-              { x: playerCopy.x, y: playerCopy.y },
-              tokensForPath,
-              {
-                maxDistance: maxRange,
-                allowTargetOccupied: true,
-                blockedCells: obstacleBlocking.movement
-              }
-            );
+              const path = computePathTowards(
+                enemy,
+                { x: playerCopy.x, y: playerCopy.y },
+                tokensForPath,
+                {
+                  maxDistance: maxRange,
+                  allowTargetOccupied: true,
+                  blockedCells: obstacleBlocking.movement,
+                  playableCells,
+                  grid: mapGrid
+                }
+              );
 
           enemy.plannedPath = path;
 
@@ -2072,7 +2117,7 @@ export const GameBoard: React.FC = () => {
           }
 
           if (action === "move") {
-            if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision)) {
+            if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision, playableCells)) {
               pushLog(
                 `${enemy.id} ne voit pas le joueur et reste en alerte.`
               );
@@ -2103,8 +2148,8 @@ export const GameBoard: React.FC = () => {
             const maxRange =
               typeof enemy.moveRange === "number" ? enemy.moveRange : 3;
 
-            const targetX = clamp(tx, 0, GRID_COLS - 1);
-            const targetY = clamp(ty, 0, GRID_ROWS - 1);
+            const targetX = clamp(tx, 0, mapGrid.cols - 1);
+            const targetY = clamp(ty, 0, mapGrid.rows - 1);
 
             const tokensForPath: TokenState[] = [
               playerCopy as TokenState,
@@ -2118,7 +2163,9 @@ export const GameBoard: React.FC = () => {
               {
                 maxDistance: maxRange,
                 allowTargetOccupied: true,
-                blockedCells: obstacleBlocking.movement
+                blockedCells: obstacleBlocking.movement,
+                playableCells,
+                grid: mapGrid
               }
             );
 
@@ -2144,7 +2191,7 @@ export const GameBoard: React.FC = () => {
           if (action === "attack") {
             enemy.facing = computeFacingTowards(enemy, playerCopy);
 
-            if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision)) {
+            if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision, playableCells)) {
               pushLog(
                 `${enemy.id} voulait attaquer mais ne voit pas le joueur.`
               );
@@ -2217,7 +2264,7 @@ export const GameBoard: React.FC = () => {
           ...enemiesCopy
         ];
 
-        if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision)) {
+        if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision, playableCells)) {
           pushLog(
             `${enemy.id} ne voit pas le joueur et reste en alerte (fallback).`
           );
@@ -2239,7 +2286,9 @@ export const GameBoard: React.FC = () => {
         {
           maxDistance: maxRange,
           allowTargetOccupied: true,
-          blockedCells: obstacleBlocking.movement
+          blockedCells: obstacleBlocking.movement,
+          playableCells,
+          grid: mapGrid
         }
       );
 
@@ -2349,7 +2398,7 @@ export const GameBoard: React.FC = () => {
         }
 
           if (action === "move") {
-            if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision)) {
+            if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision, playableCells)) {
               pushLog(
                 `${enemy.id} ne voit pas le joueur et reste en alerte.`
               );
@@ -2379,8 +2428,8 @@ export const GameBoard: React.FC = () => {
           const maxRange =
             typeof enemy.moveRange === "number" ? enemy.moveRange : 3;
 
-          const targetX = clamp(tx, 0, GRID_COLS - 1);
-          const targetY = clamp(ty, 0, GRID_ROWS - 1);
+          const targetX = clamp(tx, 0, mapGrid.cols - 1);
+          const targetY = clamp(ty, 0, mapGrid.rows - 1);
 
           const tokensForPath: TokenState[] = [
             playerCopy as TokenState,
@@ -2394,7 +2443,9 @@ export const GameBoard: React.FC = () => {
             {
               maxDistance: maxRange,
               allowTargetOccupied: true,
-              blockedCells: obstacleBlocking.movement
+              blockedCells: obstacleBlocking.movement,
+              playableCells,
+              grid: mapGrid
             }
           );
 
@@ -2420,7 +2471,7 @@ export const GameBoard: React.FC = () => {
           if (action === "attack") {
             enemy.facing = computeFacingTowards(enemy, playerCopy);
 
-            if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision)) {
+            if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision, playableCells)) {
               pushLog(
                 `${enemy.id} voulait attaquer mais ne voit pas le joueur.`
               );
@@ -2480,7 +2531,7 @@ export const GameBoard: React.FC = () => {
     if (isTokenDead(enemy)) return;
 
     const allTokens: TokenState[] = [playerState, ...enemiesState];
-    const visible = getEntitiesInVision(enemy, allTokens, obstacleBlocking.vision);
+    const visible = getEntitiesInVision(enemy, allTokens, obstacleBlocking.vision, playableCells);
 
     const alliesVisible = visible
       .filter(t => t.type === "enemy" && t.id !== enemyId && !isTokenDead(t))
@@ -2494,7 +2545,8 @@ export const GameBoard: React.FC = () => {
       enemy,
       playerState,
       allTokens,
-      obstacleBlocking.vision
+      obstacleBlocking.vision,
+      playableCells
     );
     const distToPlayer = manhattan(enemy, playerState);
     const hpRatio = enemy.maxHp > 0 ? enemy.hp / enemy.maxHp : 0;
@@ -2578,6 +2630,8 @@ export const GameBoard: React.FC = () => {
           blockedMovementCells: obstacleBlocking.movement,
           blockedVisionCells: obstacleBlocking.vision,
           blockedAttackCells: obstacleBlocking.attacks,
+          playableCells,
+          grid: mapGrid,
           sampleCharacter,
           onLog: pushLog,
           emitEvent: evt => {
@@ -2640,7 +2694,8 @@ export const GameBoard: React.FC = () => {
         activeEnemy,
         playerCopy as TokenState,
         allTokens,
-        obstacleBlocking.vision
+        obstacleBlocking.vision,
+        playableCells
       );
       if (!canSee) {
         pushLog(`${activeEnemy.id} ne voit pas le joueur et reste en alerte.`);
@@ -2666,7 +2721,7 @@ export const GameBoard: React.FC = () => {
               if (steps === 0 || steps > moveRange) continue;
               const x = activeEnemy.x + dx;
               const y = activeEnemy.y + dy;
-              if (!isCellInsideBoard(x, y)) continue;
+              if (!isCellPlayable(x, y)) continue;
               if (getTokenAt({ x, y }, allTokens)) continue;
               const d = manhattan({ x, y }, playerCopy);
               if (d > bestDist) {
@@ -2756,7 +2811,9 @@ export const GameBoard: React.FC = () => {
                 {
                   maxDistance: moveRange,
                   allowTargetOccupied: false,
-                  blockedCells: obstacleBlocking.movement
+                  blockedCells: obstacleBlocking.movement,
+                  playableCells,
+                  grid: mapGrid
                 }
               );
               if (path.length) destination = path[path.length - 1];
@@ -2771,7 +2828,9 @@ export const GameBoard: React.FC = () => {
               {
                 maxDistance: moveRange,
                 allowTargetOccupied: false,
-                blockedCells: obstacleBlocking.movement
+                blockedCells: obstacleBlocking.movement,
+                playableCells,
+                grid: mapGrid
               }
             );
             if (path.length) destination = path[path.length - 1];
@@ -2962,8 +3021,8 @@ function handleEndPlayerTurn() {
         <CombatSetupScreen
           configEnemyCount={configEnemyCount}
           enemyTypeCount={enemyTypes.length}
-          gridCols={GRID_COLS}
-          gridRows={GRID_ROWS}
+          gridCols={mapGrid.cols}
+          gridRows={mapGrid.rows}
           mapPrompt={mapPrompt}
           onChangeMapPrompt={setMapPrompt}
           onChangeEnemyCount={setConfigEnemyCount}
@@ -3032,8 +3091,7 @@ function handleEndPlayerTurn() {
             />
           </label>
           <p style={{ fontSize: 11, color: "#b0b8c4", margin: 0 }}>
-            Taille de la carte : actuellement fixe ({GRID_COLS} x {GRID_ROWS}).
-            Un redimensionnement dynamique demandera une refonte de boardConfig.ts.
+            Taille de la carte : {mapGrid.cols} x {mapGrid.rows} (peut être ajustée automatiquement par le générateur).
           </p>
           <button
             type="button"
@@ -3049,7 +3107,7 @@ function handleEndPlayerTurn() {
                 enemyTypes[index % enemyTypes.length];
               for (let i = 0; i < configEnemyCount; i++) {
                 newEnemies.push(
-                  createEnemy(i, pick(i), computeEnemySpawnPosition(i))
+                  createEnemy(i, pick(i), computeEnemySpawnPosition(i, mapGrid.cols, mapGrid.rows))
                 );
               }
               setEnemies(newEnemies);

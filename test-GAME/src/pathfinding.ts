@@ -1,4 +1,4 @@
-import { GRID_COLS, GRID_ROWS, isCellInsideBoard } from "./boardConfig";
+import { GRID_COLS, GRID_ROWS, isCellInsideGrid } from "./boardConfig";
 import type { GridPosition, TokenState, MovementProfile } from "./types";
 
 interface PathfindingOptions {
@@ -13,6 +13,16 @@ interface PathfindingOptions {
    * Movement profiles with `canPassThroughWalls` can ignore these.
    */
   blockedCells?: Set<string> | null;
+  /**
+   * Set of playable cells encoded as "x,y".
+   * If provided, pathfinding will not enter cells outside this mask.
+   */
+  playableCells?: Set<string> | null;
+  /**
+   * Grille logique utilisée pour les bornes.
+   * Si non fourni, fallback sur `GRID_COLS/GRID_ROWS`.
+   */
+  grid?: { cols: number; rows: number } | null;
 }
 
 function coordKey(x: number, y: number): string {
@@ -41,14 +51,21 @@ function canEnterCell(
   tokens: TokenState[],
   allowTargetOccupied: boolean,
   target: GridPosition,
-  blockedCells?: Set<string> | null
+  blockedCells?: Set<string> | null,
+  playableCells?: Set<string> | null,
+  grid?: { cols: number; rows: number } | null
 ): boolean {
-  if (x < 0 || y < 0 || x >= GRID_COLS || y >= GRID_ROWS) return false;
-  if (!isCellInsideBoard(x, y)) return false;
+  const cols = grid?.cols ?? GRID_COLS;
+  const rows = grid?.rows ?? GRID_ROWS;
+  if (!isCellInsideGrid(x, y, cols, rows)) return false;
+
+  const cellKey = coordKey(x, y);
+  if (playableCells && playableCells.size > 0 && !playableCells.has(cellKey)) {
+    return false;
+  }
 
   const isTarget = x === target.x && y === target.y;
 
-  const cellKey = coordKey(x, y);
   if (blockedCells?.has(cellKey)) {
     if (!profile?.canPassThroughWalls) {
       return false;
@@ -144,7 +161,9 @@ export function computePathTowards(
           tokens,
           options.allowTargetOccupied ?? false,
           target,
-          options.blockedCells ?? null
+          options.blockedCells ?? null,
+          options.playableCells ?? null,
+          options.grid ?? null
         )
       ) {
         continue;

@@ -9,7 +9,7 @@ import {
   generateConeEffect,
   generateRectangleEffect
 } from "../boardEffects";
-import { TILE_SIZE, gridToScreen } from "../boardConfig";
+import { TILE_SIZE, gridToScreenForGrid } from "../boardConfig";
 import { computeVisionEffectForToken } from "../vision";
 
 export function usePixiOverlays(options: {
@@ -20,6 +20,9 @@ export function usePixiOverlays(options: {
   effectSpecs: EffectSpec[];
   selectedTargetId: string | null;
   showVisionDebug: boolean;
+  pixiReadyTick?: number;
+  playableCells?: Set<string> | null;
+  grid: { cols: number; rows: number };
 }): void {
   useEffect(() => {
     const pathLayer = options.pathLayerRef.current;
@@ -34,7 +37,8 @@ export function usePixiOverlays(options: {
             spec.id,
             options.player.x,
             options.player.y,
-            spec.radius ?? 1
+            spec.radius ?? 1,
+            { playableCells: options.playableCells ?? null }
           );
         case "rectangle":
           return generateRectangleEffect(
@@ -42,7 +46,8 @@ export function usePixiOverlays(options: {
             options.player.x,
             options.player.y,
             spec.width ?? 1,
-            spec.height ?? 1
+            spec.height ?? 1,
+            { playableCells: options.playableCells ?? null }
           );
         case "cone":
           return generateConeEffect(
@@ -50,7 +55,9 @@ export function usePixiOverlays(options: {
             options.player.x,
             options.player.y,
             spec.range ?? 1,
-            spec.direction ?? "right"
+            spec.direction ?? "right",
+            undefined,
+            { playableCells: options.playableCells ?? null }
           );
         default:
           return { id: spec.id, type: "circle", cells: [] };
@@ -59,7 +66,14 @@ export function usePixiOverlays(options: {
 
     for (const effect of activeEffects) {
       for (const cell of effect.cells) {
-        const center = gridToScreen(cell.x, cell.y);
+        if (
+          options.playableCells &&
+          options.playableCells.size > 0 &&
+          !options.playableCells.has(`${cell.x},${cell.y}`)
+        ) {
+          continue;
+        }
+        const center = gridToScreenForGrid(cell.x, cell.y, options.grid.cols, options.grid.rows);
         const w = TILE_SIZE;
         const h = TILE_SIZE * 0.5;
 
@@ -91,9 +105,16 @@ export function usePixiOverlays(options: {
     if (options.showVisionDebug) {
       const allTokens: TokenState[] = [options.player, ...options.enemies];
       for (const token of allTokens) {
-        const visionEffect = computeVisionEffectForToken(token);
+        const visionEffect = computeVisionEffectForToken(token, options.playableCells ?? null);
         for (const cell of visionEffect.cells) {
-          const center = gridToScreen(cell.x, cell.y);
+          if (
+            options.playableCells &&
+            options.playableCells.size > 0 &&
+            !options.playableCells.has(`${cell.x},${cell.y}`)
+          ) {
+            continue;
+          }
+          const center = gridToScreenForGrid(cell.x, cell.y, options.grid.cols, options.grid.rows);
           const w = TILE_SIZE;
           const h = TILE_SIZE * 0.5;
 
@@ -120,7 +141,7 @@ export function usePixiOverlays(options: {
 
     const occupiedTokens: TokenState[] = [options.player, ...options.enemies];
     for (const token of occupiedTokens) {
-      const center = gridToScreen(token.x, token.y);
+      const center = gridToScreenForGrid(token.x, token.y, options.grid.cols, options.grid.rows);
       const w = TILE_SIZE;
       const h = TILE_SIZE * 0.5;
 
@@ -146,7 +167,7 @@ export function usePixiOverlays(options: {
     if (options.selectedTargetId) {
       const target = options.enemies.find(e => e.id === options.selectedTargetId);
       if (target) {
-        const center = gridToScreen(target.x, target.y);
+        const center = gridToScreenForGrid(target.x, target.y, options.grid.cols, options.grid.rows);
         const w = TILE_SIZE;
         const h = TILE_SIZE * 0.5;
 
@@ -170,7 +191,7 @@ export function usePixiOverlays(options: {
 
     if (options.selectedPath.length > 0) {
       const last = options.selectedPath[options.selectedPath.length - 1];
-      const center = gridToScreen(last.x, last.y);
+      const center = gridToScreenForGrid(last.x, last.y, options.grid.cols, options.grid.rows);
       const w = TILE_SIZE;
       const h = TILE_SIZE * 0.5;
 
@@ -196,7 +217,7 @@ export function usePixiOverlays(options: {
 
       const pathNodes = enemy.plannedPath;
       const first = pathNodes[0];
-      const start = gridToScreen(first.x, first.y);
+      const start = gridToScreenForGrid(first.x, first.y, options.grid.cols, options.grid.rows);
 
       pathLayer.setStrokeStyle({
         width: 3,
@@ -206,7 +227,7 @@ export function usePixiOverlays(options: {
 
       pathLayer.moveTo(start.x, start.y);
       for (const node of pathNodes.slice(1)) {
-        const p = gridToScreen(node.x, node.y);
+        const p = gridToScreenForGrid(node.x, node.y, options.grid.cols, options.grid.rows);
         pathLayer.lineTo(p.x, p.y);
       }
       pathLayer.stroke();
@@ -220,11 +241,11 @@ export function usePixiOverlays(options: {
       alpha: 1
     });
 
-    const start = gridToScreen(options.player.x, options.player.y);
+    const start = gridToScreenForGrid(options.player.x, options.player.y, options.grid.cols, options.grid.rows);
     pathLayer.moveTo(start.x, start.y);
 
     for (const node of options.selectedPath) {
-      const p = gridToScreen(node.x, node.y);
+      const p = gridToScreenForGrid(node.x, node.y, options.grid.cols, options.grid.rows);
       pathLayer.lineTo(p.x, p.y);
     }
 
@@ -236,7 +257,10 @@ export function usePixiOverlays(options: {
     options.selectedPath,
     options.effectSpecs,
     options.selectedTargetId,
-    options.showVisionDebug
+    options.showVisionDebug,
+    options.pixiReadyTick,
+    options.playableCells,
+    options.grid
   ]);
 }
 

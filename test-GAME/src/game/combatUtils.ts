@@ -37,10 +37,11 @@ export function canEnemySeePlayer(
   enemy: TokenState,
   playerToken: TokenState,
   allTokens: TokenState[],
-  opaqueCells?: Set<string> | null
+  opaqueCells?: Set<string> | null,
+  playableCells?: Set<string> | null
 ): boolean {
   if (isTokenDead(enemy) || isTokenDead(playerToken)) return false;
-  return isTargetVisible(enemy, playerToken, allTokens, opaqueCells);
+  return isTargetVisible(enemy, playerToken, allTokens, opaqueCells, playableCells);
 }
 
 export function canEnemyMeleeAttack(

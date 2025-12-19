@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Container, Graphics, Sprite } from "pixi.js";
 import type { RefObject } from "react";
 import type { TokenState } from "../types";
-import { TILE_SIZE, gridToScreen } from "../boardConfig";
+import { TILE_SIZE, gridToScreenForGrid } from "../boardConfig";
 import { ENEMY_TOKEN_ID, PLAYER_TOKEN_ID } from "../svgTokenHelper";
 import { isTokenDead } from "../game/combatUtils";
 
@@ -10,6 +10,8 @@ export function usePixiTokens(options: {
   tokenLayerRef: RefObject<Container | null>;
   player: TokenState;
   enemies: TokenState[];
+  pixiReadyTick?: number;
+  grid: { cols: number; rows: number };
 }): void {
   useEffect(() => {
     const tokenLayer = options.tokenLayerRef.current;
@@ -46,12 +48,12 @@ export function usePixiTokens(options: {
 
       tokenContainer.addChild(sprite);
 
-      const screenPos = gridToScreen(token.x, token.y);
+      const screenPos = gridToScreenForGrid(token.x, token.y, options.grid.cols, options.grid.rows);
       tokenContainer.x = screenPos.x + TILE_SIZE * 0.05;
       tokenContainer.y = screenPos.y;
 
       tokenLayer.addChild(tokenContainer);
     }
-  }, [options.tokenLayerRef, options.player, options.enemies]);
+  }, [options.tokenLayerRef, options.player, options.enemies, options.pixiReadyTick, options.grid]);
 }
 

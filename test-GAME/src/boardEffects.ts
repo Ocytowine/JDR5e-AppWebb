@@ -4,7 +4,7 @@
 // (x, y) et ne connaissent rien de Pixi ou de l'affichage.
 // GameBoard s'occupe ensuite de projeter ces cases en isométrique.
 
-import { GRID_COLS, GRID_ROWS, isCellInsideBoard } from "./boardConfig";
+import { isCellInsideBoard, isCellInsideGrid } from "./boardConfig";
 
 export type EffectType = "circle" | "rectangle" | "cone";
 
@@ -19,12 +19,40 @@ export interface BoardEffect {
   cells: GridCell[];
 }
 
+export interface BoardEffectBoundsOptions {
+  /**
+   * Masque de cases jouables (limites de la battlemap).
+   * Si fourni, il prime sur `grid`.
+   */
+  playableCells?: Set<string> | null;
+  /**
+   * Grille logique (cols/rows) utilisée comme bornes si aucun mask.
+   * Si absent, fallback sur la grille "par défaut" via `isCellInsideBoard`.
+   */
+  grid?: { cols: number; rows: number } | null;
+}
+
+function allowCell(x: number, y: number, options?: BoardEffectBoundsOptions): boolean {
+  const playable = options?.playableCells ?? null;
+  if (playable && playable.size > 0) {
+    return playable.has(`${x},${y}`);
+  }
+
+  const grid = options?.grid ?? null;
+  if (grid) {
+    return isCellInsideGrid(x, y, grid.cols, grid.rows);
+  }
+
+  return isCellInsideBoard(x, y);
+}
+
 // Génère un disque (approximation) de rayon `radius` autour de (cx, cy).
 export function generateCircleEffect(
   id: string,
   cx: number,
   cy: number,
-  radius: number
+  radius: number,
+  options?: BoardEffectBoundsOptions
 ): BoardEffect {
   const cells: GridCell[] = [];
 
@@ -32,7 +60,7 @@ export function generateCircleEffect(
     for (let dx = -radius; dx <= radius; dx++) {
       const x = cx + dx;
       const y = cy + dy;
-      if (!isCellInsideBoard(x, y)) continue;
+      if (!allowCell(x, y, options)) continue;
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (dist <= radius + 0.01) {
         cells.push({ x, y });
@@ -49,7 +77,8 @@ export function generateRectangleEffect(
   cx: number,
   cy: number,
   width: number,
-  height: number
+  height: number,
+  options?: BoardEffectBoundsOptions
 ): BoardEffect {
   const cells: GridCell[] = [];
   const halfW = Math.floor(width / 2);
@@ -57,7 +86,7 @@ export function generateRectangleEffect(
 
   for (let y = cy - halfH; y <= cy + halfH; y++) {
     for (let x = cx - halfW; x <= cx + halfW; x++) {
-      if (!isCellInsideBoard(x, y)) continue;
+      if (!allowCell(x, y, options)) continue;
       cells.push({ x, y });
     }
   }
@@ -75,7 +104,8 @@ export function generateConeEffect(
   cy: number,
   range: number,
   direction: ConeDirection,
-  apertureDeg?: number
+  apertureDeg?: number,
+  options?: BoardEffectBoundsOptions
 ): BoardEffect {
   const cells: GridCell[] = [];
 
@@ -120,10 +150,11 @@ export function generateConeEffect(
           break;
       }
 
-      if (!isCellInsideBoard(x, y)) continue;
+      if (!allowCell(x, y, options)) continue;
       cells.push({ x, y });
     }
   }
 
   return { id, type: "cone", cells };
 }
+

@@ -1,16 +1,13 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
 import { Application, Container, Graphics, Sprite, Assets } from "pixi.js";
 import {
   BOARD_BACKGROUND_COLOR,
   BOARD_BACKGROUND_IMAGE_URL,
-  BOARD_HEIGHT,
-  BOARD_WIDTH,
-  GRID_COLS,
-  GRID_ROWS,
   TILE_SIZE,
-  gridToScreen,
-  isCellInsideBoard
+  getBoardHeight,
+  getBoardWidth,
+  gridToScreenForGrid
 } from "../boardConfig";
 import { preloadTokenTextures } from "../svgTokenHelper";
 
@@ -20,6 +17,8 @@ export function usePixiBoard(options: {
   zoom?: number;
   panX?: number;
   panY?: number;
+  playableCells?: Set<string> | null;
+  grid: { cols: number; rows: number };
 }): {
   appRef: RefObject<Application | null>;
   obstacleLayerRef: RefObject<Container | null>;
@@ -27,6 +26,7 @@ export function usePixiBoard(options: {
   pathLayerRef: RefObject<Graphics | null>;
   speechLayerRef: RefObject<Container | null>;
   viewportRef: RefObject<{ scale: number; offsetX: number; offsetY: number } | null>;
+  pixiReadyTick: number;
 } {
   const appRef = useRef<Application | null>(null);
   const obstacleLayerRef = useRef<Container | null>(null);
@@ -34,7 +34,14 @@ export function usePixiBoard(options: {
   const pathLayerRef = useRef<Graphics | null>(null);
   const speechLayerRef = useRef<Container | null>(null);
   const viewportRef = useRef<{ scale: number; offsetX: number; offsetY: number } | null>(null);
+  const [pixiReadyTick, setPixiReadyTick] = useState(0);
   const resizeRef = useRef<(() => void) | null>(null);
+  const drawGridRef = useRef<(() => void) | null>(null);
+  const playableCellsRef = useRef<Set<string> | null>(null);
+  const gridRef = useRef<{ cols: number; rows: number }>({
+    cols: options.grid.cols,
+    rows: options.grid.rows
+  });
   const zoomRef = useRef<number>(typeof options.zoom === "number" ? options.zoom : 1);
   const panRef = useRef<{ x: number; y: number }>({
     x: typeof options.panX === "number" ? options.panX : 0,
@@ -46,10 +53,20 @@ export function usePixiBoard(options: {
     x: typeof options.panX === "number" ? options.panX : 0,
     y: typeof options.panY === "number" ? options.panY : 0
   };
+  playableCellsRef.current = options.playableCells ?? null;
+  gridRef.current = {
+    cols: Math.max(1, Math.floor(options.grid.cols)),
+    rows: Math.max(1, Math.floor(options.grid.rows))
+  };
 
   useEffect(() => {
     resizeRef.current?.();
   }, [options.zoom, options.panX, options.panY]);
+
+  useEffect(() => {
+    drawGridRef.current?.();
+    resizeRef.current?.();
+  }, [options.playableCells, options.grid.cols, options.grid.rows, pixiReadyTick]);
 
   useEffect(() => {
     if (!options.enabled) return;
@@ -65,8 +82,8 @@ export function usePixiBoard(options: {
 
     const initPixi = async () => {
       await app.init({
-        width: BOARD_WIDTH,
-        height: BOARD_HEIGHT,
+        width: getBoardWidth(gridRef.current.cols),
+        height: getBoardHeight(gridRef.current.rows),
         background: BOARD_BACKGROUND_COLOR,
         antialias: true
       });
@@ -92,8 +109,8 @@ export function usePixiBoard(options: {
           const bgSprite = new Sprite(bgTexture);
           bgSprite.x = 0;
           bgSprite.y = 0;
-          bgSprite.width = BOARD_WIDTH;
-          bgSprite.height = BOARD_HEIGHT;
+          bgSprite.width = getBoardWidth(gridRef.current.cols);
+          bgSprite.height = getBoardHeight(gridRef.current.rows);
           root.addChild(bgSprite);
         } catch (error) {
           console.warn("Cannot load board background image:", error);
@@ -106,11 +123,15 @@ export function usePixiBoard(options: {
       const drawGrid = () => {
         gridLayer.clear();
 
-        for (let gy = 0; gy < GRID_ROWS; gy++) {
-          for (let gx = 0; gx < GRID_COLS; gx++) {
-            if (!isCellInsideBoard(gx, gy)) continue;
+        const { cols, rows } = gridRef.current;
+        for (let gy = 0; gy < rows; gy++) {
+          for (let gx = 0; gx < cols; gx++) {
+            const playable = playableCellsRef.current;
+            if (playable && playable.size > 0 && !playable.has(`${gx},${gy}`)) {
+              continue;
+            }
 
-            const center = gridToScreen(gx, gy);
+            const center = gridToScreenForGrid(gx, gy, cols, rows);
             const w = TILE_SIZE;
             const h = TILE_SIZE * 0.5;
 
@@ -134,6 +155,7 @@ export function usePixiBoard(options: {
         }
       };
 
+      drawGridRef.current = drawGrid;
       drawGrid();
 
       const obstacleLayer = new Container();
@@ -152,6 +174,9 @@ export function usePixiBoard(options: {
       root.addChild(speechLayer);
       speechLayerRef.current = speechLayer;
 
+      // Ensure React re-renders once the Pixi layers are ready.
+      setPixiReadyTick(tick => tick + 1);
+
       const resize = () => {
         const parent = options.containerRef.current;
         if (!parent) return;
@@ -161,11 +186,14 @@ export function usePixiBoard(options: {
 
         app.renderer.resize(width, height);
 
-        const baseScale = Math.min(width / BOARD_WIDTH, height / BOARD_HEIGHT);
+        const { cols, rows } = gridRef.current;
+        const boardW = getBoardWidth(cols);
+        const boardH = getBoardHeight(rows);
+        const baseScale = Math.min(width / boardW, height / boardH);
         const zoom = zoomRef.current;
         const scale = baseScale * zoom;
-        const offsetX = (width - BOARD_WIDTH * scale) / 2 + panRef.current.x;
-        const offsetY = (height - BOARD_HEIGHT * scale) / 2 + panRef.current.y;
+        const offsetX = (width - boardW * scale) / 2 + panRef.current.x;
+        const offsetY = (height - boardH * scale) / 2 + panRef.current.y;
 
         root.scale.set(scale);
         root.position.set(offsetX, offsetY);
@@ -203,6 +231,7 @@ export function usePixiBoard(options: {
       speechLayerRef.current = null;
       viewportRef.current = null;
       resizeRef.current = null;
+      drawGridRef.current = null;
     };
   }, [options.enabled, options.containerRef]);
 
@@ -212,6 +241,7 @@ export function usePixiBoard(options: {
     tokenLayerRef,
     pathLayerRef,
     speechLayerRef,
-    viewportRef
+    viewportRef,
+    pixiReadyTick
   };
 }

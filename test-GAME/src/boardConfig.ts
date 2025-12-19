@@ -47,6 +47,73 @@ export function isCellInsideBoard(x: number, y: number): boolean {
   return x >= 0 && x < GRID_COLS && y >= 0 && y < GRID_ROWS;
 }
 
+// ---------------------------------------------------
+// Variante dynamique (grille variable)
+// ---------------------------------------------------
+
+export function getBoardWidth(cols: number): number {
+  return Math.max(1, Math.floor(cols)) * TILE_SIZE;
+}
+
+export function getBoardHeight(rows: number): number {
+  return Math.max(1, Math.floor(rows)) * TILE_SIZE;
+}
+
+export function isCellInsideGrid(
+  x: number,
+  y: number,
+  cols: number,
+  rows: number
+): boolean {
+  return x >= 0 && x < cols && y >= 0 && y < rows;
+}
+
+export function gridToScreenForGrid(
+  x: number,
+  y: number,
+  cols: number,
+  rows: number
+): { x: number; y: number } {
+  const halfW = ISO_TILE_WIDTH / 2;
+  const halfH = ISO_TILE_HEIGHT / 2;
+
+  const originX = getBoardWidth(cols) / 2;
+  const originY = ISO_TILE_HEIGHT * 2;
+
+  const sx = (x - y) * halfW + originX;
+  const sy = (x + y) * halfH + originY;
+
+  return { x: sx, y: sy };
+}
+
+export function screenToGridForGrid(
+  screenX: number,
+  screenY: number,
+  cols: number,
+  rows: number
+): { x: number; y: number } {
+  const halfW = ISO_TILE_WIDTH / 2;
+  const halfH = ISO_TILE_HEIGHT / 2;
+
+  const originX = getBoardWidth(cols) / 2;
+  const originY = ISO_TILE_HEIGHT * 2;
+
+  const dx = screenX - originX;
+  const dy = screenY - originY;
+
+  const nx = dx / halfW;
+  const ny = dy / halfH;
+
+  const gx = (nx + ny) / 2;
+  const gy = (ny - nx) / 2;
+
+  // On arrondit à la case la plus proche.
+  const rx = Math.round(gx);
+  const ry = Math.round(gy);
+
+  return { x: rx, y: ry };
+}
+
 // Projection : coordonnées de grille -> coordonnées d'écran (isométrique)
 export function gridToScreen(x: number, y: number): { x: number; y: number } {
   const halfW = ISO_TILE_WIDTH / 2;
@@ -83,4 +150,3 @@ export function screenToGrid(
 
   return { x: rx, y: ry };
 }
-

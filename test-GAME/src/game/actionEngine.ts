@@ -3,7 +3,7 @@ import type { TokenState } from "../types";
 import { isTargetVisible } from "../vision";
 import { clamp, manhattan } from "./combatUtils";
 import { computePathTowards } from "../pathfinding";
-import { GRID_COLS, GRID_ROWS, isCellInsideBoard } from "../boardConfig";
+import { GRID_COLS, GRID_ROWS, isCellInsideGrid } from "../boardConfig";
 import { rollAttack, rollDamage, type AdvantageMode } from "../dice/roller";
 import { hasLineOfEffect } from "../lineOfSight";
 
@@ -16,6 +16,16 @@ export interface ActionEngineContext {
   blockedMovementCells?: Set<string> | null;
   blockedVisionCells?: Set<string> | null;
   blockedAttackCells?: Set<string> | null;
+  /**
+   * Masque de cases jouables (limites de la battlemap).
+   * Si fourni, certaines validations (mouvement/vision) l'utiliseront.
+   */
+  playableCells?: Set<string> | null;
+  /**
+   * Grille logique (cols/rows) de la map courante.
+   * Si absent, fallback sur `GRID_COLS/GRID_ROWS`.
+   */
+  grid?: { cols: number; rows: number } | null;
   /**
    * Optional hook to emit structured combat events (narration buffer, analytics, etc.).
    * The engine stays UI-agnostic and does not import narrationClient directly.
@@ -185,7 +195,13 @@ export function validateActionTarget(
     }
 
     if (targeting.requiresLos) {
-      const visible = isTargetVisible(actor, enemyToken, allTokens, ctx.blockedVisionCells ?? null);
+      const visible = isTargetVisible(
+        actor,
+        enemyToken,
+        allTokens,
+        ctx.blockedVisionCells ?? null,
+        ctx.playableCells ?? null
+      );
       if (!visible) {
         return { ok: false, reason: "Cible hors vision (ligne de vue requise)." };
       }
@@ -251,7 +267,13 @@ export function validateActionTarget(
     }
 
     if (targeting.requiresLos) {
-      const visible = isTargetVisible(actor, playerToken, allTokens, ctx.blockedVisionCells ?? null);
+      const visible = isTargetVisible(
+        actor,
+        playerToken,
+        allTokens,
+        ctx.blockedVisionCells ?? null,
+        ctx.playableCells ?? null
+      );
       if (!visible) {
         return { ok: false, reason: "Cible hors vision (ligne de vue requise)." };
       }
@@ -272,8 +294,16 @@ export function validateActionTarget(
     if (target.kind !== "cell") {
       return { ok: false, reason: "Cible de case manquante." };
     }
-    if (!isCellInsideBoard(target.x, target.y)) {
+    const cols = ctx.grid?.cols ?? GRID_COLS;
+    const rows = ctx.grid?.rows ?? GRID_ROWS;
+    if (!isCellInsideGrid(target.x, target.y, cols, rows)) {
       return { ok: false, reason: "Case hors plateau." };
+    }
+    if (ctx.playableCells && ctx.playableCells.size > 0) {
+      const k = `${target.x},${target.y}`;
+      if (!ctx.playableCells.has(k)) {
+        return { ok: false, reason: "Case hors zone jouable." };
+      }
     }
     return { ok: true };
   }
@@ -510,17 +540,27 @@ export function resolveAction(
         maxSteps = typeof actor.moveRange === "number" ? actor.moveRange : 3;
       }
 
-      const targetX = clamp(target.x, 0, GRID_COLS - 1);
-      const targetY = clamp(target.y, 0, GRID_ROWS - 1);
-      if (!isCellInsideBoard(targetX, targetY)) {
+      const cols = ctx.grid?.cols ?? GRID_COLS;
+      const rows = ctx.grid?.rows ?? GRID_ROWS;
+      const clampedX = clamp(target.x, 0, cols - 1);
+      const clampedY = clamp(target.y, 0, rows - 1);
+      if (!isCellInsideGrid(clampedX, clampedY, cols, rows)) {
         return { ok: false, reason: "Move: case hors plateau.", logs };
+      }
+      if (ctx.playableCells && ctx.playableCells.size > 0) {
+        const k = `${clampedX},${clampedY}`;
+        if (!ctx.playableCells.has(k)) {
+          return { ok: false, reason: "Move: case hors zone jouable.", logs };
+        }
       }
 
       const tokensForPath: TokenState[] = [player as TokenState, ...enemies];
-      const path = computePathTowards(actor, { x: targetX, y: targetY }, tokensForPath, {
+      const path = computePathTowards(actor, { x: clampedX, y: clampedY }, tokensForPath, {
         maxDistance: Math.max(0, maxSteps),
         allowTargetOccupied: false,
-        blockedCells: ctx.blockedMovementCells ?? null
+        blockedCells: ctx.blockedMovementCells ?? null,
+        playableCells: ctx.playableCells ?? null,
+        grid: ctx.grid ?? null
       });
 
       actor.plannedPath = path;

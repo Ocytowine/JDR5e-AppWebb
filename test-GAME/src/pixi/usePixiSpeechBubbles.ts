@@ -3,7 +3,7 @@ import { Container, Graphics, Text } from "pixi.js";
 import type { RefObject } from "react";
 import type { TokenState } from "../types";
 import type { SpeechBubbleEntry } from "../game/turnTypes";
-import { TILE_SIZE, gridToScreen } from "../boardConfig";
+import { TILE_SIZE, gridToScreenForGrid } from "../boardConfig";
 import { isTokenDead } from "../game/combatUtils";
 
 export function usePixiSpeechBubbles(options: {
@@ -11,6 +11,8 @@ export function usePixiSpeechBubbles(options: {
   player: TokenState;
   enemies: TokenState[];
   speechBubbles: SpeechBubbleEntry[];
+  pixiReadyTick?: number;
+  grid: { cols: number; rows: number };
 }): void {
   useEffect(() => {
     const speechLayer = options.speechLayerRef.current;
@@ -43,7 +45,7 @@ export function usePixiSpeechBubbles(options: {
       if (!bubble) continue;
       if (!bubble.text.trim()) continue;
 
-      const screenPos = gridToScreen(token.x, token.y);
+      const screenPos = gridToScreenForGrid(token.x, token.y, options.grid.cols, options.grid.rows);
 
       const bubbleContainer = new Container();
       const bubbleBg = new Graphics();
@@ -127,6 +129,8 @@ export function usePixiSpeechBubbles(options: {
     options.speechLayerRef,
     options.player,
     options.enemies,
-    options.speechBubbles
+    options.speechBubbles,
+    options.pixiReadyTick,
+    options.grid
   ]);
 }

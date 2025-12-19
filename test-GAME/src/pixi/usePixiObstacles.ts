@@ -2,7 +2,8 @@ import { useEffect } from "react";
 import { Container, Graphics } from "pixi.js";
 import type { RefObject } from "react";
 import type { ObstacleInstance, ObstacleTypeDefinition } from "../game/obstacleTypes";
-import { TILE_SIZE, gridToScreen } from "../boardConfig";
+import { getObstacleOccupiedCells } from "../game/obstacleRuntime";
+import { TILE_SIZE, gridToScreenForGrid } from "../boardConfig";
 
 function colorForObstacle(def: ObstacleTypeDefinition | null): number {
   const category = String(def?.category ?? "").toLowerCase();
@@ -16,6 +17,8 @@ export function usePixiObstacles(options: {
   obstacleLayerRef: RefObject<Container | null>;
   obstacleTypes: ObstacleTypeDefinition[];
   obstacles: ObstacleInstance[];
+  pixiReadyTick?: number;
+  grid: { cols: number; rows: number };
 }): void {
   useEffect(() => {
     const obstacleLayer = options.obstacleLayerRef.current;
@@ -28,38 +31,44 @@ export function usePixiObstacles(options: {
 
     for (const obs of options.obstacles) {
       const def = typeById.get(obs.typeId) ?? null;
-      const center = gridToScreen(obs.x, obs.y);
-
-      const w = TILE_SIZE;
-      const h = TILE_SIZE * 0.5;
-
-      const points = [
-        center.x,
-        center.y - h / 2,
-        center.x + w / 2,
-        center.y,
-        center.x,
-        center.y + h / 2,
-        center.x - w / 2,
-        center.y
-      ];
 
       const g = new Graphics();
-      g.poly(points).fill({
-        color: colorForObstacle(def),
-        alpha: 0.9
-      });
-      g.poly(points).stroke({
-        color: 0x0b0b12,
-        width: 2,
-        alpha: 0.8
-      });
+
+      const occupiedCells = def ? getObstacleOccupiedCells(obs, def) : [{ x: obs.x, y: obs.y }];
+      const w = TILE_SIZE;
+      const h = TILE_SIZE * 0.5;
+      const color = colorForObstacle(def);
+
+      for (const cell of occupiedCells) {
+        const center = gridToScreenForGrid(cell.x, cell.y, options.grid.cols, options.grid.rows);
+        const points = [
+          center.x,
+          center.y - h / 2,
+          center.x + w / 2,
+          center.y,
+          center.x,
+          center.y + h / 2,
+          center.x - w / 2,
+          center.y
+        ];
+
+        g.poly(points).fill({
+          color,
+          alpha: 0.9
+        });
+        g.poly(points).stroke({
+          color: 0x0b0b12,
+          width: 2,
+          alpha: 0.8
+        });
+      }
 
       // Simple HP bar (for destructible obstacles).
       const hpRatio =
         obs.maxHp > 0 ? Math.max(0, Math.min(1, obs.hp / obs.maxHp)) : 1;
       const barWidth = Math.max(10, w * 0.42);
       const barHeight = 4;
+      const center = gridToScreenForGrid(obs.x, obs.y, options.grid.cols, options.grid.rows);
       const barX = center.x - barWidth / 2;
       const barY = center.y - h * 0.9;
 
@@ -74,6 +83,12 @@ export function usePixiObstacles(options: {
 
       obstacleLayer.addChild(g);
     }
-  }, [options.obstacleLayerRef, options.obstacleTypes, options.obstacles]);
+  }, [
+    options.obstacleLayerRef,
+    options.obstacleTypes,
+    options.obstacles,
+    options.pixiReadyTick,
+    options.grid
+  ]);
 }
 
