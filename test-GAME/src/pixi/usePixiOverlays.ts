@@ -10,7 +10,7 @@ import {
   generateRectangleEffect
 } from "../boardEffects";
 import { TILE_SIZE, gridToScreenForGrid } from "../boardConfig";
-import { computeVisionEffectForToken } from "../vision";
+import { computeVisionEffectForToken, isCellVisible } from "../vision";
 
 export function usePixiOverlays(options: {
   pathLayerRef: RefObject<Graphics | null>;
@@ -19,6 +19,8 @@ export function usePixiOverlays(options: {
   selectedPath: { x: number; y: number }[];
   effectSpecs: EffectSpec[];
   selectedTargetId: string | null;
+  selectedObstacleCell: { x: number; y: number } | null;
+  obstacleVisionCells?: Set<string> | null;
   showVisionDebug: boolean;
   pixiReadyTick?: number;
   playableCells?: Set<string> | null;
@@ -70,6 +72,18 @@ export function usePixiOverlays(options: {
           options.playableCells &&
           options.playableCells.size > 0 &&
           !options.playableCells.has(`${cell.x},${cell.y}`)
+        ) {
+          continue;
+        }
+        if (
+          options.obstacleVisionCells &&
+          options.obstacleVisionCells.size > 0 &&
+          !isCellVisible(
+            options.player,
+            cell,
+            options.obstacleVisionCells,
+            options.playableCells ?? null
+          )
         ) {
           continue;
         }
@@ -187,6 +201,33 @@ export function usePixiOverlays(options: {
           alpha: 0.6
         });
       }
+    }
+
+    if (options.selectedObstacleCell) {
+      const center = gridToScreenForGrid(
+        options.selectedObstacleCell.x,
+        options.selectedObstacleCell.y,
+        options.grid.cols,
+        options.grid.rows
+      );
+      const w = TILE_SIZE;
+      const h = TILE_SIZE * 0.5;
+
+      const points = [
+        center.x,
+        center.y - h / 2,
+        center.x + w / 2,
+        center.y,
+        center.x,
+        center.y + h / 2,
+        center.x - w / 2,
+        center.y
+      ];
+
+      pathLayer.poly(points).fill({
+        color: 0x9b59b6,
+        alpha: 0.6
+      });
     }
 
     if (options.selectedPath.length > 0) {

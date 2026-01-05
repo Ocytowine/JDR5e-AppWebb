@@ -7,17 +7,22 @@ import { ENEMY_TOKEN_ID, PLAYER_TOKEN_ID } from "../svgTokenHelper";
 import { isTokenDead } from "../game/combatUtils";
 
 export function usePixiTokens(options: {
-  tokenLayerRef: RefObject<Container | null>;
+  depthLayerRef: RefObject<Container | null>;
   player: TokenState;
   enemies: TokenState[];
   pixiReadyTick?: number;
   grid: { cols: number; rows: number };
 }): void {
   useEffect(() => {
-    const tokenLayer = options.tokenLayerRef.current;
-    if (!tokenLayer) return;
+    const depthLayer = options.depthLayerRef.current;
+    if (!depthLayer) return;
 
-    tokenLayer.removeChildren();
+    for (const child of [...depthLayer.children]) {
+      if (child.name === "token") {
+        depthLayer.removeChild(child);
+        child.destroy?.();
+      }
+    }
 
     const allTokens: TokenState[] = [options.player, ...options.enemies];
     for (const token of allTokens) {
@@ -51,9 +56,11 @@ export function usePixiTokens(options: {
       const screenPos = gridToScreenForGrid(token.x, token.y, options.grid.cols, options.grid.rows);
       tokenContainer.x = screenPos.x + TILE_SIZE * 0.05;
       tokenContainer.y = screenPos.y;
+      tokenContainer.zIndex = screenPos.y + TILE_SIZE * 0.05;
+      tokenContainer.name = "token";
 
-      tokenLayer.addChild(tokenContainer);
+      depthLayer.addChild(tokenContainer);
     }
-  }, [options.tokenLayerRef, options.player, options.enemies, options.pixiReadyTick, options.grid]);
+  }, [options.depthLayerRef, options.player, options.enemies, options.pixiReadyTick, options.grid]);
 }
 

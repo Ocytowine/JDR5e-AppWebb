@@ -1,0 +1,44 @@
+{
+  "id": "fence-wood",
+  "label": "Cloture en bois",
+  "category": "structure",
+  "tags": ["fence", "wood", "structure"],
+  "blocking": {
+    "movement": true,
+    "vision": false,
+    "attacks": false
+  },
+  "durability": {
+    "destructible": true,
+    "maxHp": 8,
+    "ac": 10
+  },
+  "variants": [
+    {
+      "id": "1",
+      "label": "Segment 1",
+      "footprint": [{ "x": 0, "y": 0 }],
+      "rotatable": false
+    },
+    {
+      "id": "2",
+      "label": "Segment 2",
+      "footprint": [
+        { "x": 0, "y": 0 },
+        { "x": 1, "y": 0 }
+      ],
+      "rotatable": true
+    }
+  ],
+  "appearance": {
+    "spriteKey": "obstacle:fence-wood",
+    "tint": 16777215,
+    "heightClass": "low"
+  },
+  "spawnRules": {
+    "weight": 2,
+    "cluster": { "min": 1, "max": 6 },
+    "shapeHint": "line",
+    "avoidNearTokens": true
+  }
+}

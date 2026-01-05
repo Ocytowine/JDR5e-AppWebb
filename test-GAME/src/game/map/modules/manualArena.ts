@@ -1,0 +1,194 @@
+import type { GridPosition } from "../../../types";
+import type { MapBuildContext, ManualMapConfig } from "../types";
+import {
+  buildReservedRadius,
+  createDraft,
+  setLight,
+  setTerrain,
+  tryPlaceObstacle,
+  key
+} from "../draft";
+import { pickVariantIdForPlacement } from "../obstacleSelector";
+import { randomIntInclusive } from "../random";
+
+function resolveBaseLight(lighting: ManualMapConfig["options"]["lighting"]): number {
+  if (lighting === "low") return 0.35;
+  if (lighting === "bright") return 0.9;
+  return 0.7;
+}
+
+function buildRectBoundary(params: { x1: number; y1: number; x2: number; y2: number }): GridPosition[] {
+  const cells: GridPosition[] = [];
+  for (let x = params.x1; x <= params.x2; x++) {
+    cells.push({ x, y: params.y1 });
+    if (params.y2 !== params.y1) cells.push({ x, y: params.y2 });
+  }
+  for (let y = params.y1 + 1; y <= params.y2 - 1; y++) {
+    cells.push({ x: params.x1, y });
+    if (params.x2 !== params.x1) cells.push({ x: params.x2, y });
+  }
+  return cells;
+}
+
+function filterByBorderMask(
+  cells: GridPosition[],
+  rect: { x1: number; y1: number; x2: number; y2: number },
+  mask: ManualMapConfig["options"]["borderMask"]
+): GridPosition[] {
+  return cells.filter(cell => {
+    if (cell.y === rect.y1 && !mask.north) return false;
+    if (cell.y === rect.y2 && !mask.south) return false;
+    if (cell.x === rect.x1 && !mask.west) return false;
+    if (cell.x === rect.x2 && !mask.east) return false;
+    return true;
+  });
+}
+
+function chooseOpenings(params: { boundary: GridPosition[]; count: number; rand: () => number }): GridPosition[] {
+  const { boundary, rand } = params;
+  const count = Math.max(0, Math.floor(params.count));
+  if (!boundary.length || count <= 0) return [];
+
+  const chosen: GridPosition[] = [];
+  const shuffled = [...boundary].sort(() => rand() - 0.5);
+
+  const minDist = 4;
+  for (const c of shuffled) {
+    if (chosen.length >= count) break;
+    if (chosen.every(o => Math.abs(o.x - c.x) + Math.abs(o.y - c.y) >= minDist)) {
+      chosen.push(c);
+    }
+  }
+
+  while (chosen.length < count) {
+    chosen.push(boundary[Math.floor(rand() * boundary.length)] as GridPosition);
+  }
+
+  return chosen.slice(0, count);
+}
+
+export function generateManualArena(params: {
+  manualConfig: ManualMapConfig;
+  ctx: MapBuildContext;
+  rand: () => number;
+}): { draft: ReturnType<typeof createDraft>; playerStart: GridPosition } {
+  const { manualConfig, ctx, rand } = params;
+  const cols = Math.max(1, Math.floor(manualConfig.grid.cols));
+  const rows = Math.max(1, Math.floor(manualConfig.grid.rows));
+
+  const draft = createDraft({ cols, rows, reserved: new Set(), seedPrefix: "obs" });
+  draft.log.push("Layout: manual arena.");
+
+  const baseLight = resolveBaseLight(manualConfig.options.lighting);
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      setTerrain(draft, x, y, "floor");
+      setLight(draft, x, y, baseLight);
+    }
+  }
+
+  const playerStart: GridPosition = { x: 1, y: Math.floor(rows / 2) };
+  draft.reserved = buildReservedRadius(playerStart, 2, cols, rows);
+
+  const typeById = new Map(ctx.obstacleTypes.map(t => [t.id, t]));
+
+  if (manualConfig.options.walls) {
+    const wallType =
+      typeById.get("wall-stone") ??
+      ctx.obstacleTypes.find(t => t.category === "wall") ??
+      ctx.obstacleTypes[0] ??
+      null;
+
+    if (wallType) {
+      const rect = { x1: 0, y1: 0, x2: cols - 1, y2: rows - 1 };
+      const boundaryCells = filterByBorderMask(
+        buildRectBoundary(rect),
+        rect,
+        manualConfig.options.borderMask
+      );
+
+      const openings = chooseOpenings({
+        boundary: boundaryCells,
+        count: manualConfig.options.entrances ?? 0,
+        rand
+      });
+      const openingKeys = new Set(openings.map(o => key(o.x, o.y)));
+      for (const ok of openingKeys) draft.reserved.add(ok);
+
+      const smallestVariant =
+        (wallType.variants ?? [])
+          .map(v => ({
+            id: v.id,
+            len: Array.isArray(v.footprint) ? v.footprint.length : 1
+          }))
+          .sort((a, b) => a.len - b.len)[0]?.id ?? (wallType.variants?.[0]?.id ?? "1");
+
+      let placedWalls = 0;
+      for (const cell of boundaryCells) {
+        if (openingKeys.has(key(cell.x, cell.y))) continue;
+        const ok = tryPlaceObstacle({
+          draft,
+          type: wallType,
+          x: cell.x,
+          y: cell.y,
+          variantId: smallestVariant,
+          rotation: 0
+        });
+        if (ok) placedWalls++;
+      }
+
+      draft.log.push(`Walls: ${placedWalls} segments (openings ${openings.length}).`);
+    } else {
+      draft.log.push("Walls: no wall type available.");
+    }
+  }
+
+  for (const entry of manualConfig.obstacles) {
+    const count = Math.max(0, Math.floor(entry.count));
+    if (count === 0) continue;
+
+    const type = typeById.get(entry.typeId) ?? null;
+    if (!type) {
+      draft.log.push(`Manual: obstacle type missing (${entry.typeId}).`);
+      continue;
+    }
+
+    let placed = 0;
+    let attempts = 0;
+    const maxAttempts = Math.max(40, count * 60);
+
+    while (placed < count && attempts < maxAttempts) {
+      attempts++;
+      const x = randomIntInclusive(rand, 0, Math.max(0, cols - 1));
+      const y = randomIntInclusive(rand, 0, Math.max(0, rows - 1));
+
+      const shapeHint = type.spawnRules?.shapeHint;
+      const desiredShape =
+        shapeHint === "line"
+          ? "line"
+          : shapeHint === "room"
+            ? "room"
+            : "scatter";
+      const variantId = pickVariantIdForPlacement(type, desiredShape, rand);
+
+      const ok = tryPlaceObstacle({
+        draft,
+        type,
+        x,
+        y,
+        variantId,
+        rotation: 0
+      });
+
+      if (ok) placed++;
+    }
+
+    if (placed < count) {
+      draft.log.push(`Manual: ${type.id} ${placed}/${count} placed.`);
+    } else {
+      draft.log.push(`Manual: ${type.id} ${placed}/${count} placed.`);
+    }
+  }
+
+  return { draft, playerStart };
+}

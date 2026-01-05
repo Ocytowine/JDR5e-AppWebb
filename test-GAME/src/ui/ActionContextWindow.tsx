@@ -26,6 +26,7 @@ export function ActionContextWindow(props: {
   validatedAction: ActionDefinition | null;
   targetMode: "none" | "selecting";
   selectedTargetId: string | null;
+  selectedTargetLabel: string | null;
   onSelectTargetId: (enemyId: string) => void;
   onSetTargetMode: (mode: "none" | "selecting") => void;
   advantageMode: AdvantageMode;
@@ -307,9 +308,9 @@ export function ActionContextWindow(props: {
 
           <div style={{ marginTop: 6, fontSize: 12, color: "rgba(255,255,255,0.80)" }}>
             Cible selectionnee:{" "}
-            <strong>{props.selectedTargetId ? props.selectedTargetId : "aucune"}</strong>
+            <strong>{props.selectedTargetLabel ? props.selectedTargetLabel : "aucune"}</strong>
             {props.targetMode === "selecting" && props.stage === "active" && (
-              <span style={{ marginLeft: 8, color: "#cfd3ff" }}>(clique un ennemi)</span>
+              <span style={{ marginLeft: 8, color: "#cfd3ff" }}>(clique un ennemi ou un obstacle)</span>
             )}
           </div>
           {props.stage !== "active" && (

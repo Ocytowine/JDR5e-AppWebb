@@ -9,7 +9,7 @@ import type {
   TokenState,
   VisionProfile
 } from "./types";
-import { hasLineOfEffect } from "./lineOfSight";
+import { hasLineOfSight } from "./lineOfSight";
 
 const DEFAULT_VISION_RANGE = 30;
 
@@ -97,7 +97,7 @@ export function isCellVisible(
     }
     if (key(c) === cellKey) {
       if (opaqueCells && opaqueCells.size > 0) {
-        return hasLineOfEffect(
+        return hasLineOfSight(
           { x: observer.x, y: observer.y },
           { x: cell.x, y: cell.y },
           opaqueCells
@@ -141,7 +141,7 @@ export function getEntitiesInVision(
   if (!opaqueCells || opaqueCells.size === 0) return filteredByPlayable;
 
   return filteredByPlayable.filter(t =>
-    hasLineOfEffect(
+    hasLineOfSight(
       { x: observer.x, y: observer.y },
       { x: t.x, y: t.y },
       opaqueCells

@@ -40,6 +40,68 @@ export function lineCells(a: GridPosition, b: GridPosition): GridPosition[] {
   return cells;
 }
 
+/**
+ * Grid traversal that returns every cell crossed by the segment.
+ * Uses a DDA/voxel traversal so "thin" obstacles still block vision.
+ */
+export function lineCellsSupercover(a: GridPosition, b: GridPosition): GridPosition[] {
+  const cells: GridPosition[] = [];
+
+  const x0 = a.x + 0.5;
+  const y0 = a.y + 0.5;
+  const x1 = b.x + 0.5;
+  const y1 = b.y + 0.5;
+
+  const dx = x1 - x0;
+  const dy = y1 - y0;
+
+  const stepX = dx > 0 ? 1 : dx < 0 ? -1 : 0;
+  const stepY = dy > 0 ? 1 : dy < 0 ? -1 : 0;
+
+  let x = Math.floor(x0);
+  let y = Math.floor(y0);
+  const endX = Math.floor(x1);
+  const endY = Math.floor(y1);
+
+  let tMaxX: number;
+  let tMaxY: number;
+  let tDeltaX: number;
+  let tDeltaY: number;
+
+  if (dx === 0) {
+    tMaxX = Number.POSITIVE_INFINITY;
+    tDeltaX = Number.POSITIVE_INFINITY;
+  } else {
+    const nextX = stepX > 0 ? Math.floor(x0) + 1 : Math.floor(x0);
+    tMaxX = (nextX - x0) / dx;
+    tDeltaX = 1 / Math.abs(dx);
+  }
+
+  if (dy === 0) {
+    tMaxY = Number.POSITIVE_INFINITY;
+    tDeltaY = Number.POSITIVE_INFINITY;
+  } else {
+    const nextY = stepY > 0 ? Math.floor(y0) + 1 : Math.floor(y0);
+    tMaxY = (nextY - y0) / dy;
+    tDeltaY = 1 / Math.abs(dy);
+  }
+
+  cells.push({ x, y });
+
+  while (x !== endX || y !== endY) {
+    if (tMaxX < tMaxY) {
+      tMaxX += tDeltaX;
+      x += stepX;
+    } else {
+      tMaxY += tDeltaY;
+      y += stepY;
+    }
+    cells.push({ x, y });
+  }
+
+  return cells;
+}
+
 export function hasLineOfEffect(
   from: GridPosition,
   to: GridPosition,
@@ -56,3 +118,17 @@ export function hasLineOfEffect(
   return true;
 }
 
+export function hasLineOfSight(
+  from: GridPosition,
+  to: GridPosition,
+  blockedCells: Set<string> | null | undefined
+): boolean {
+  if (!blockedCells || blockedCells.size === 0) return true;
+
+  const cells = lineCellsSupercover(from, to);
+  for (let i = 1; i < cells.length - 1; i++) {
+    const c = cells[i];
+    if (blockedCells.has(key(c.x, c.y))) return false;
+  }
+  return true;
+}

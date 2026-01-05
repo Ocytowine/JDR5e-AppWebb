@@ -32,6 +32,9 @@ export interface ObstacleAppearance {
    * Used for visuals and later for cover/LOS heuristics if needed.
    */
   heightClass?: "low" | "medium" | "tall" | string;
+  scale?: number;
+  scaleRange?: { min: number; max: number };
+  scaleVariants?: number[];
   variantWeights?: Record<string, number>;
 }
 
@@ -68,4 +71,3 @@ export interface ObstacleInstance {
   hp: number;
   maxHp: number;
 }
-

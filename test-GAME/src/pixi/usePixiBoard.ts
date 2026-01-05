@@ -10,6 +10,7 @@ import {
   gridToScreenForGrid
 } from "../boardConfig";
 import { preloadTokenTextures } from "../svgTokenHelper";
+import { preloadObstacleTextures } from "../svgObstacleHelper";
 
 export function usePixiBoard(options: {
   enabled: boolean;
@@ -21,16 +22,14 @@ export function usePixiBoard(options: {
   grid: { cols: number; rows: number };
 }): {
   appRef: RefObject<Application | null>;
-  obstacleLayerRef: RefObject<Container | null>;
-  tokenLayerRef: RefObject<Container | null>;
+  depthLayerRef: RefObject<Container | null>;
   pathLayerRef: RefObject<Graphics | null>;
   speechLayerRef: RefObject<Container | null>;
   viewportRef: RefObject<{ scale: number; offsetX: number; offsetY: number } | null>;
   pixiReadyTick: number;
 } {
   const appRef = useRef<Application | null>(null);
-  const obstacleLayerRef = useRef<Container | null>(null);
-  const tokenLayerRef = useRef<Container | null>(null);
+  const depthLayerRef = useRef<Container | null>(null);
   const pathLayerRef = useRef<Graphics | null>(null);
   const speechLayerRef = useRef<Container | null>(null);
   const viewportRef = useRef<{ scale: number; offsetX: number; offsetY: number } | null>(null);
@@ -91,6 +90,7 @@ export function usePixiBoard(options: {
       initialized = true;
 
       await preloadTokenTextures();
+      await preloadObstacleTextures();
 
       if (destroyed) return;
 
@@ -158,17 +158,14 @@ export function usePixiBoard(options: {
       drawGridRef.current = drawGrid;
       drawGrid();
 
-      const obstacleLayer = new Container();
-      root.addChild(obstacleLayer);
-      obstacleLayerRef.current = obstacleLayer;
-
       const pathLayer = new Graphics();
       root.addChild(pathLayer);
       pathLayerRef.current = pathLayer;
 
-      const tokenLayer = new Container();
-      root.addChild(tokenLayer);
-      tokenLayerRef.current = tokenLayer;
+      const depthLayer = new Container();
+      depthLayer.sortableChildren = true;
+      root.addChild(depthLayer);
+      depthLayerRef.current = depthLayer;
 
       const speechLayer = new Container();
       root.addChild(speechLayer);
@@ -225,8 +222,7 @@ export function usePixiBoard(options: {
         appRef.current.destroy(true);
       }
       appRef.current = null;
-      obstacleLayerRef.current = null;
-      tokenLayerRef.current = null;
+      depthLayerRef.current = null;
       pathLayerRef.current = null;
       speechLayerRef.current = null;
       viewportRef.current = null;
@@ -237,8 +233,7 @@ export function usePixiBoard(options: {
 
   return {
     appRef,
-    obstacleLayerRef,
-    tokenLayerRef,
+    depthLayerRef,
     pathLayerRef,
     speechLayerRef,
     viewportRef,

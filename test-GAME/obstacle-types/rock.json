@@ -1,0 +1,35 @@
+{
+  "id": "rock",
+  "label": "Roche",
+  "category": "structure",
+  "tags": ["rock", "stone", "structure"],
+  "blocking": {
+    "movement": true,
+    "vision": true,
+    "attacks": true
+  },
+  "durability": {
+    "destructible": true,
+    "maxHp": 18,
+    "ac": 13
+  },
+  "variants": [
+    {
+      "id": "base",
+      "label": "Roche",
+      "footprint": [{ "x": 0, "y": 0 }],
+      "rotatable": false
+    }
+  ],
+  "appearance": {
+    "spriteKey": "obstacle:rock",
+    "tint": 16777215,
+    "heightClass": "medium"
+  },
+  "spawnRules": {
+    "weight": 3,
+    "cluster": { "min": 1, "max": 3 },
+    "shapeHint": "scatter",
+    "avoidNearTokens": true
+  }
+}

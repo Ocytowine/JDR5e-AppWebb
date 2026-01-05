@@ -92,6 +92,30 @@ export interface MapBuildContext {
   obstacleTypes: ObstacleTypeDefinition[];
 }
 
+export interface ManualMapBorderMask {
+  north: boolean;
+  south: boolean;
+  west: boolean;
+  east: boolean;
+}
+
+export interface ManualMapOptions {
+  walls: boolean;
+  density: "low" | "medium" | "high";
+  corridors: boolean;
+  entrances: number;
+  lighting: "low" | "normal" | "bright";
+  theme: MapTheme;
+  borderMask: ManualMapBorderMask;
+}
+
+export interface ManualMapConfig {
+  presetId: string;
+  grid: { cols: number; rows: number };
+  obstacles: { typeId: string; count: number }[];
+  options: ManualMapOptions;
+}
+
 export interface MapBuildResult {
   summaryParts: string[];
   generationLog: string[];

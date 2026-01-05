@@ -1,5 +1,5 @@
 import type { GridPosition } from "../../types";
-import type { MapBuildContext, MapBuildResult, MapSpec } from "./types";
+import type { MapBuildContext, MapBuildResult, ManualMapConfig, MapSpec } from "./types";
 import type { MapDraft } from "./draft";
 import { parsePromptToSpec } from "./promptParser";
 import { hashStringToSeed, mulberry32 } from "./random";
@@ -11,6 +11,7 @@ import { generateDungeonSquareRoom } from "./modules/dungeonSquareRoom";
 import { generateForestClearing } from "./modules/forestClearing";
 import { generateCityStreet } from "./modules/cityStreet";
 import { generateGenericScatter } from "./modules/genericScatter";
+import { generateManualArena } from "./modules/manualArena";
 
 export function buildMapFromPrompt(params: {
   prompt: string;
@@ -107,5 +108,47 @@ export function runGenerationPipeline(params: {
     playableCells: Array.from(draft.playable),
     obstacles: draft.obstacles,
     recommendedGrid: recommendedGrid ?? undefined
+  };
+}
+
+export function runManualGenerationPipeline(params: {
+  manualConfig: ManualMapConfig;
+  ctx: MapBuildContext;
+}): MapBuildResult {
+  const { manualConfig, ctx } = params;
+
+  const seed = hashStringToSeed(JSON.stringify(manualConfig));
+  const rand = mulberry32(seed);
+
+  const { draft, playerStart } = generateManualArena({ manualConfig, ctx, rand });
+
+  const { enemySpawns, log: spawnLog } = spawnEnemies({
+    draft,
+    playerStart,
+    enemyCount: ctx.enemyCount,
+    enemyTypes: ctx.enemyTypes,
+    rand
+  });
+
+  const summaryParts: string[] = [];
+  const generationLog: string[] = [];
+
+  summaryParts.push(`Manual preset: ${manualConfig.presetId}.`);
+  summaryParts.push(`Obstacles: ${draft.obstacles.length}. Ennemis: ${enemySpawns.length}.`);
+
+  generationLog.push(
+    `[manual] preset=${manualConfig.presetId} grid=${manualConfig.grid.cols}x${manualConfig.grid.rows}`
+  );
+  generationLog.push(...draft.log.map(l => `[gen] ${l}`));
+  generationLog.push(...spawnLog.map(l => `[spawn] ${l}`));
+
+  return {
+    summaryParts,
+    generationLog,
+    playerStart,
+    enemySpawns,
+    playableCells: Array.from(draft.playable),
+    obstacles: draft.obstacles,
+    recommendedGrid: undefined
   };
 }

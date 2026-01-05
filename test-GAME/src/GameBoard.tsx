@@ -39,7 +39,9 @@ import ghostType from "../enemy-types/ghost.json";
 import { loadObstacleTypesFromIndex } from "./game/obstacleCatalog";
 import type { ObstacleInstance, ObstacleTypeDefinition } from "./game/obstacleTypes";
 import { generateBattleMap } from "./game/mapEngine";
-import { buildObstacleBlockingSets } from "./game/obstacleRuntime";
+import type { ManualMapConfig } from "./game/map/types";
+import { MANUAL_MAP_PRESETS, getManualPresetById } from "./game/map/presets";
+import { buildObstacleBlockingSets, getObstacleOccupiedCells } from "./game/obstacleRuntime";
 import actionsIndex from "../action-game/actions/index.json";
 import meleeStrike from "../action-game/actions/melee-strike.json";
 import dashAction from "../action-game/actions/dash.json";
@@ -129,6 +131,35 @@ const ENEMY_TYPE_MODULES: Record<string, EnemyTypeDefinition> = {
 // -------------------------------------------------------------
 // Helpers
 // -------------------------------------------------------------
+
+function buildManualConfig(
+  presetId: string,
+  obstacleTypes: ObstacleTypeDefinition[]
+): ManualMapConfig {
+  const preset = getManualPresetById(presetId);
+  const obstacles = obstacleTypes
+    .filter(t => t.appearance?.spriteKey && t.category !== "wall")
+    .map(t => ({ typeId: t.id, count: 0 }));
+
+  return {
+    presetId: preset.id,
+    grid: { ...preset.grid },
+    options: { ...preset.options },
+    obstacles
+  };
+}
+
+function syncManualConfigObstacles(
+  config: ManualMapConfig,
+  obstacleTypes: ObstacleTypeDefinition[]
+): ManualMapConfig {
+  const byId = new Map(config.obstacles.map(o => [o.typeId, o.count]));
+  const obstacles = obstacleTypes
+    .filter(t => t.appearance?.spriteKey && t.category !== "wall")
+    .map(t => ({ typeId: t.id, count: byId.get(t.id) ?? 0 }));
+
+  return { ...config, obstacles };
+}
 
 function loadEnemyTypesFromIndex(): EnemyTypeDefinition[] {
   const indexed = Array.isArray((enemyTypesIndex as any).types)
@@ -280,6 +311,10 @@ export const GameBoard: React.FC = () => {
   const [isCombatConfigured, setIsCombatConfigured] = useState<boolean>(false);
   const [configEnemyCount, setConfigEnemyCount] = useState<number>(3);
   const [mapPrompt, setMapPrompt] = useState<string>("");
+  const [mapMode, setMapMode] = useState<"prompt" | "manual">("prompt");
+  const [manualConfig, setManualConfig] = useState<ManualMapConfig>(() =>
+    buildManualConfig("arena_medium", [])
+  );
 
   const ZOOM_MIN = 0.5;
   const ZOOM_MAX = 2.5;
@@ -290,8 +325,7 @@ export const GameBoard: React.FC = () => {
   const panDragRef = useRef<{ x: number; y: number } | null>(null);
 
   const {
-    obstacleLayerRef,
-    tokenLayerRef,
+    depthLayerRef,
     pathLayerRef,
     speechLayerRef,
     viewportRef,
@@ -337,6 +371,11 @@ export const GameBoard: React.FC = () => {
     []
   );
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
+  const [selectedObstacleTarget, setSelectedObstacleTarget] = useState<{
+    id: string;
+    x: number;
+    y: number;
+  } | null>(null);
   const [targetMode, setTargetMode] = useState<"none" | "selecting">("none");
   type BoardInteractionMode = "idle" | "moving" | "inspect-select" | "look-select";
   const [interactionMode, setInteractionMode] =
@@ -376,8 +415,17 @@ export const GameBoard: React.FC = () => {
   const [aiUsedFallback, setAiUsedFallback] = useState<boolean>(false);
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
 
-  usePixiObstacles({ obstacleLayerRef, obstacleTypes, obstacles, pixiReadyTick, grid: mapGrid });
-  usePixiTokens({ tokenLayerRef, player, enemies, pixiReadyTick, grid: mapGrid });
+  const obstacleBlocking = useMemo(() => {
+    return buildObstacleBlockingSets(obstacleTypes, obstacles);
+  }, [obstacleTypes, obstacles]);
+  const obstacleTypeById = useMemo(() => {
+    const map = new Map<string, ObstacleTypeDefinition>();
+    for (const t of obstacleTypes) map.set(t.id, t);
+    return map;
+  }, [obstacleTypes]);
+
+  usePixiObstacles({ depthLayerRef, obstacleTypes, obstacles, pixiReadyTick, grid: mapGrid });
+  usePixiTokens({ depthLayerRef, player, enemies, pixiReadyTick, grid: mapGrid });
   usePixiSpeechBubbles({ speechLayerRef, player, enemies, speechBubbles, pixiReadyTick, grid: mapGrid });
   usePixiOverlays({
     pathLayerRef,
@@ -386,6 +434,10 @@ export const GameBoard: React.FC = () => {
     selectedPath,
     effectSpecs,
     selectedTargetId,
+    selectedObstacleCell: selectedObstacleTarget
+      ? { x: selectedObstacleTarget.x, y: selectedObstacleTarget.y }
+      : null,
+    obstacleVisionCells: obstacleBlocking.vision,
     showVisionDebug,
     pixiReadyTick,
     playableCells,
@@ -408,9 +460,46 @@ export const GameBoard: React.FC = () => {
     return playableCells.has(cellKey(x, y));
   }
 
-  const obstacleBlocking = useMemo(() => {
-    return buildObstacleBlockingSets(obstacleTypes, obstacles);
-  }, [obstacleTypes, obstacles]);
+  function findObstacleAtCell(
+    x: number,
+    y: number
+  ): { instance: ObstacleInstance; def: ObstacleTypeDefinition | null } | null {
+    for (const obs of obstacles) {
+      if (obs.hp <= 0) continue;
+      const def = obstacleTypeById.get(obs.typeId) ?? null;
+      const cells = getObstacleOccupiedCells(obs, def);
+      if (cells.some(c => c.x === x && c.y === y)) {
+        return { instance: obs, def };
+      }
+    }
+    return null;
+  }
+
+  function getObstacleDistance(
+    from: { x: number; y: number },
+    obstacle: ObstacleInstance,
+    def: ObstacleTypeDefinition | null,
+    targetCell: { x: number; y: number }
+  ): number {
+    const cells = def ? getObstacleOccupiedCells(obstacle, def) : [targetCell];
+    let best = Number.POSITIVE_INFINITY;
+    for (const cell of cells) {
+      const dist = Math.abs(from.x - cell.x) + Math.abs(from.y - cell.y);
+      if (dist < best) best = dist;
+    }
+    return Number.isFinite(best) ? best : Math.abs(from.x - targetCell.x) + Math.abs(from.y - targetCell.y);
+  }
+
+  function getSelectedTargetLabel(): string | null {
+    if (selectedTargetId) return selectedTargetId;
+    if (selectedObstacleTarget) {
+      const obstacle = obstacles.find(o => o.id === selectedObstacleTarget.id) ?? null;
+      if (!obstacle) return "obstacle";
+      const def = obstacleTypeById.get(obstacle.typeId) ?? null;
+      return def?.label ?? obstacle.typeId ?? "obstacle";
+    }
+    return null;
+  }
 
   function resourceKey(name: string, pool?: string | null): string {
     return `${pool ?? "default"}:${name}`;
@@ -499,8 +588,11 @@ export const GameBoard: React.FC = () => {
       return;
     }
 
-    let grid = { ...mapGrid };
+    const isManual = mapMode === "manual";
+    let grid = isManual ? { ...manualConfig.grid } : { ...mapGrid };
     let map = generateBattleMap({
+      mode: mapMode,
+      manualConfig: isManual ? manualConfig : undefined,
       prompt: mapPrompt,
       grid,
       enemyCount: configEnemyCount,
@@ -508,17 +600,21 @@ export const GameBoard: React.FC = () => {
       obstacleTypes
     });
 
-    const rec = map.recommendedGrid;
-    if (rec && (rec.cols > grid.cols || rec.rows > grid.rows)) {
-      pushLog(`[map] Redimensionnement automatique: ${grid.cols}x${grid.rows} -> ${rec.cols}x${rec.rows} (${rec.reason}).`);
-      grid = { cols: rec.cols, rows: rec.rows };
-      map = generateBattleMap({
-        prompt: mapPrompt,
-        grid,
-        enemyCount: configEnemyCount,
-        enemyTypes,
-        obstacleTypes
-      });
+    if (!isManual) {
+      const rec = map.recommendedGrid;
+      if (rec && (rec.cols > grid.cols || rec.rows > grid.rows)) {
+        pushLog(`[map] Redimensionnement automatique: ${grid.cols}x${grid.rows} -> ${rec.cols}x${rec.rows} (${rec.reason}).`);
+        grid = { cols: rec.cols, rows: rec.rows };
+        map = generateBattleMap({
+          mode: mapMode,
+          manualConfig: undefined,
+          prompt: mapPrompt,
+          grid,
+          enemyCount: configEnemyCount,
+          enemyTypes,
+          obstacleTypes
+        });
+      }
     }
 
     pushLog(map.summary);
@@ -740,6 +836,11 @@ export const GameBoard: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (obstacleTypes.length === 0) return;
+    setManualConfig(prev => syncManualConfigObstacles(prev, obstacleTypes));
+  }, [obstacleTypes]);
+
+  useEffect(() => {
     if (!isCombatConfigured) return;
     if (!hasRolledInitiative && enemies.length > 0) {
       rollInitialInitiativeIfNeeded();
@@ -944,6 +1045,118 @@ export const GameBoard: React.FC = () => {
       const canHit = hasLineOfEffect(
         { x: actor.x, y: actor.y },
         { x: enemy.x, y: enemy.y },
+        obstacleBlocking.attacks
+      );
+      if (!canHit) {
+        return {
+          ok: false,
+          reason: "Trajectoire bloquee (obstacle entre l'attaquant et la cible)."
+        };
+      }
+    }
+
+    return { ok: true };
+  }
+
+  function validateObstacleTargetForAction(
+    action: ActionDefinition,
+    obstacle: ObstacleInstance,
+    targetCell: { x: number; y: number },
+    actor: TokenState,
+    allTokens: TokenState[]
+  ): { ok: boolean; reason?: string } {
+    if (obstacle.hp <= 0) {
+      return { ok: false, reason: "L'obstacle est deja detruit." };
+    }
+
+    const targeting = action.targeting;
+    if (!targeting || targeting.target !== "enemy") {
+      return {
+        ok: false,
+        reason: "Cette action ne cible pas un ennemi/obstacle."
+      };
+    }
+
+    const def = obstacleTypeById.get(obstacle.typeId) ?? null;
+    const dist = getObstacleDistance(actor, obstacle, def, targetCell);
+    const range = targeting.range;
+
+    if (range) {
+      if (typeof range.min === "number" && dist < range.min) {
+        return {
+          ok: false,
+          reason: `Cible trop proche pour ${action.name} (distance ${dist}, min ${range.min}).`
+        };
+      }
+      if (typeof range.max === "number" && dist > range.max) {
+        return {
+          ok: false,
+          reason: `Cible hors portee pour ${action.name} (distance ${dist}, max ${range.max}).`
+        };
+      }
+    }
+
+    for (const cond of action.conditions || []) {
+      if (cond.type === "distance_max") {
+        if (typeof cond.max === "number" && dist > cond.max) {
+          return {
+            ok: false,
+            reason: cond.reason || `Distance cible > ${cond.max}.`
+          };
+        }
+      }
+      if (cond.type === "distance_between") {
+        const min =
+          typeof cond.min === "number"
+            ? cond.min
+            : typeof range?.min === "number"
+              ? range.min
+              : null;
+        const max =
+          typeof cond.max === "number"
+            ? cond.max
+            : typeof range?.max === "number"
+              ? range.max
+              : null;
+
+        if (min !== null && dist < min) {
+          return {
+            ok: false,
+            reason: cond.reason || `Distance cible < ${min}.`
+          };
+        }
+        if (max !== null && dist > max) {
+          return {
+            ok: false,
+            reason: cond.reason || `Distance cible > ${max}.`
+          };
+        }
+      }
+      if (cond.type === "target_alive" && obstacle.hp <= 0) {
+        return {
+          ok: false,
+          reason: cond.reason || "La cible doit avoir des PV restants."
+        };
+      }
+    }
+
+    if (targeting.requiresLos) {
+      const visible = isCellVisible(
+        actor,
+        targetCell,
+        obstacleBlocking.vision,
+        playableCells
+      );
+      if (!visible) {
+        return {
+          ok: false,
+          reason:
+            "Cible hors du champ de vision ou derriere un obstacle (ligne de vue requise)."
+        };
+      }
+      const canHit = hasLineOfEffect(
+        { x: actor.x, y: actor.y },
+        { x: targetCell.x, y: targetCell.y },
         obstacleBlocking.attacks
       );
       if (!canHit) {
@@ -1241,12 +1454,14 @@ export const GameBoard: React.FC = () => {
     if (action.targeting?.target === "enemy") {
       setTargetMode("selecting");
       setSelectedTargetId(null);
+      setSelectedObstacleTarget(null);
       pushLog(
-        `Selection de cible: cliquez sur un ennemi sur la grille ou dans la liste.`
+        `Selection de cible: cliquez sur un ennemi ou un obstacle.`
       );
     } else {
       setTargetMode("none");
       setSelectedTargetId(null);
+      setSelectedObstacleTarget(null);
     }
   }
 
@@ -1286,20 +1501,33 @@ export const GameBoard: React.FC = () => {
     }
 
     let targetArmorClass: number | null = null;
+    let targetLabel: string | null = null;
     if (action.targeting?.target === "enemy") {
-      if (!selectedTargetId) {
+      if (selectedTargetId) {
+        const target = enemies.find(e => e.id === selectedTargetId);
+        if (!target) {
+          pushLog("Cible ennemie introuvable ou deja vaincue.");
+          return;
+        }
+        targetArmorClass =
+          typeof target.armorClass === "number" ? target.armorClass : null;
+        targetLabel = target.id;
+      } else if (selectedObstacleTarget) {
+        const obstacle = obstacles.find(o => o.id === selectedObstacleTarget.id) ?? null;
+        if (!obstacle || obstacle.hp <= 0) {
+          pushLog("Obstacle introuvable ou deja detruit.");
+          return;
+        }
+        const def = obstacleTypeById.get(obstacle.typeId) ?? null;
+        targetArmorClass =
+          typeof def?.durability?.ac === "number" ? def.durability.ac : null;
+        targetLabel = def?.label ?? obstacle.typeId ?? "obstacle";
+      } else {
         pushLog(
-          "Aucune cible ennemie selectionnee pour cette action. Selectionnez une cible avant le jet."
+          "Aucune cible selectionnee pour cette action. Selectionnez une cible avant le jet."
         );
         return;
       }
-      const target = enemies.find(e => e.id === selectedTargetId);
-      if (!target) {
-        pushLog("Cible ennemie introuvable ou deja vaincue.");
-        return;
-      }
-      targetArmorClass =
-        typeof target.armorClass === "number" ? target.armorClass : null;
     }
 
     const result = rollAttack(
@@ -1316,8 +1544,8 @@ export const GameBoard: React.FC = () => {
         : `${result.d20.rolls.join(" / ")} -> ${result.d20.total}`;
 
     const targetSuffix =
-      action.targeting?.target === "enemy" && selectedTargetId
-        ? ` sur ${selectedTargetId}`
+      action.targeting?.target === "enemy" && targetLabel
+        ? ` sur ${targetLabel}`
         : "";
 
     const baseLine = `Jet de touche (${action.name})${targetSuffix} : ${rollsText} + ${result.bonus} = ${result.total}`;
@@ -1357,21 +1585,36 @@ export const GameBoard: React.FC = () => {
 
     let targetIndex: number | null = null;
     let targetArmorClass: number | null = null;
+    let targetLabel: string | null = null;
+    let obstacleTarget: ObstacleInstance | null = null;
     if (action.targeting?.target === "enemy") {
-      if (!selectedTargetId) {
+      if (selectedTargetId) {
+        targetIndex = enemies.findIndex(e => e.id === selectedTargetId);
+        if (targetIndex === -1) {
+          pushLog("Cible ennemie introuvable ou deja vaincue.");
+          return;
+        }
+        const target = enemies[targetIndex];
+        targetArmorClass =
+          typeof target.armorClass === "number" ? target.armorClass : null;
+        targetLabel = target.id;
+      } else if (selectedObstacleTarget) {
+        obstacleTarget =
+          obstacles.find(o => o.id === selectedObstacleTarget.id) ?? null;
+        if (!obstacleTarget || obstacleTarget.hp <= 0) {
+          pushLog("Obstacle introuvable ou deja detruit.");
+          return;
+        }
+        const def = obstacleTypeById.get(obstacleTarget.typeId) ?? null;
+        targetArmorClass =
+          typeof def?.durability?.ac === "number" ? def.durability.ac : null;
+        targetLabel = def?.label ?? obstacleTarget.typeId ?? "obstacle";
+      } else {
         pushLog(
-          "Aucune cible ennemie selectionnee pour cette action. Selectionnez une cible avant le jet de degats."
+          "Aucune cible selectionnee pour cette action. Selectionnez une cible avant le jet de degats."
         );
         return;
       }
-      targetIndex = enemies.findIndex(e => e.id === selectedTargetId);
-      if (targetIndex === -1) {
-        pushLog("Cible ennemie introuvable ou deja vaincue.");
-        return;
-      }
-      const target = enemies[targetIndex];
-      targetArmorClass =
-        typeof target.armorClass === "number" ? target.armorClass : null;
     }
 
     const isCrit = Boolean(attackRoll?.isCrit);
@@ -1381,8 +1624,8 @@ export const GameBoard: React.FC = () => {
       const isHit = totalAttack >= targetArmorClass || attackRoll.isCrit;
       if (!isHit) {
         const targetSuffix =
-          action.targeting?.target === "enemy" && selectedTargetId
-            ? ` sur ${selectedTargetId}`
+          action.targeting?.target === "enemy" && targetLabel
+            ? ` sur ${targetLabel}`
             : "";
         pushLog(
           `L'attaque (${action.name})${targetSuffix} a manque la cible (CA ${targetArmorClass}). Pas de degats.`
@@ -1420,8 +1663,8 @@ export const GameBoard: React.FC = () => {
     const totalDamage = result.total;
 
     const targetSuffix =
-      action.targeting?.target === "enemy" && selectedTargetId
-        ? ` sur ${selectedTargetId}`
+      action.targeting?.target === "enemy" && targetLabel
+        ? ` sur ${targetLabel}`
         : "";
 
     pushDiceLog(
@@ -1478,6 +1721,55 @@ export const GameBoard: React.FC = () => {
           return copy;
         });
 
+      } else if (obstacleTarget && selectedObstacleTarget) {
+        const targetId = obstacleTarget.id;
+        const def = obstacleTypeById.get(obstacleTarget.typeId) ?? null;
+        const label = def?.label ?? obstacleTarget.typeId ?? "obstacle";
+        setObstacles(prev => {
+          const idx = prev.findIndex(o => o.id === targetId);
+          if (idx === -1) return prev;
+          const copy = [...prev];
+          const target = { ...copy[idx] };
+          const beforeHp = target.hp;
+          target.hp = Math.max(0, target.hp - totalDamage);
+          copy[idx] = target;
+
+          recordCombatEvent({
+            round,
+            phase,
+            kind: "player_attack",
+            actorId: player.id,
+            actorKind: "player",
+            summary: `Le heros frappe ${label} et inflige ${totalDamage} degats (PV ${beforeHp} -> ${target.hp}).`,
+            data: {
+              actionId: action.id,
+              damage: totalDamage,
+              isCrit,
+              targetHpBefore: beforeHp,
+              targetHpAfter: target.hp,
+              obstacleId: targetId,
+              obstacleTypeId: target.typeId
+            }
+          });
+
+          if (target.hp <= 0 && beforeHp > 0) {
+            recordCombatEvent({
+              round,
+              phase,
+              kind: "death",
+              actorId: targetId,
+              actorKind: "player",
+              summary: `${label} est detruit.`,
+              data: {
+                destroyedBy: player.id,
+                obstacleId: targetId,
+                obstacleTypeId: target.typeId
+              }
+            });
+          }
+
+          return copy;
+        });
       }
   }
 
@@ -1540,33 +1832,57 @@ export const GameBoard: React.FC = () => {
 
     // Mode selection de cible pour une action ciblant un ennemi
     if (targetMode === "selecting") {
-      const tokens = [player, ...enemies];
-      const target = getTokenAt({ x: targetX, y: targetY }, tokens);
-      if (!target || target.type !== "enemy") {
-        pushLog(`Pas d'ennemi sur (${targetX}, ${targetY}).`);
-        return;
-      }
-
       const action = getValidatedAction();
       if (!action) {
         pushLog("Aucune action validee pour selectionner une cible.");
         return;
       }
 
-      const validation = validateEnemyTargetForAction(
-        action,
-        target,
-        player,
-        [player, ...enemies]
-      );
-      if (!validation.ok) {
-        pushLog(validation.reason || "Cette cible n'est pas valide pour cette action.");
+      const tokens = [player, ...enemies];
+      const target = getTokenAt({ x: targetX, y: targetY }, tokens);
+
+      if (target && target.type === "enemy") {
+        const validation = validateEnemyTargetForAction(
+          action,
+          target,
+          player,
+          [player, ...enemies]
+        );
+        if (!validation.ok) {
+          pushLog(validation.reason || "Cette cible n'est pas valide pour cette action.");
+          return;
+        }
+
+        setSelectedTargetId(target.id);
+        setSelectedObstacleTarget(null);
+        setTargetMode("none");
+        pushLog(`Cible selectionnee: ${target.id}.`);
         return;
       }
 
-      setSelectedTargetId(target.id);
-      setTargetMode("none");
-      pushLog(`Cible selectionnee: ${target.id}.`);
+      const obstacleHit = findObstacleAtCell(targetX, targetY);
+      if (obstacleHit) {
+        const validation = validateObstacleTargetForAction(
+          action,
+          obstacleHit.instance,
+          { x: targetX, y: targetY },
+          player,
+          [player, ...enemies]
+        );
+        if (!validation.ok) {
+          pushLog(validation.reason || "Cette cible n'est pas valide pour cette action.");
+          return;
+        }
+
+        const label = obstacleHit.def?.label ?? obstacleHit.instance.typeId ?? "obstacle";
+        setSelectedTargetId(null);
+        setSelectedObstacleTarget({ id: obstacleHit.instance.id, x: targetX, y: targetY });
+        setTargetMode("none");
+        pushLog(`Cible selectionnee: ${label}.`);
+        return;
+      }
+
+      pushLog(`Pas d'ennemi ni d'obstacle sur (${targetX}, ${targetY}).`);
       return;
     }
 
@@ -1593,6 +1909,18 @@ export const GameBoard: React.FC = () => {
       const tokens = [player, ...enemies];
       const token = getTokenAt({ x: targetX, y: targetY }, tokens);
       if (!token) {
+        const obstacleHit = findObstacleAtCell(targetX, targetY);
+        if (obstacleHit) {
+          const name =
+            obstacleHit.def?.label ?? obstacleHit.instance.typeId ?? "obstacle";
+          const text = `Inspection (${targetX},${targetY}) : ${name}\nEtat: PV ${obstacleHit.instance.hp}/${obstacleHit.instance.maxHp}`;
+          pushLog(
+            `Inspection: obstacle (${name}) -> etat: PV ${obstacleHit.instance.hp}/${obstacleHit.instance.maxHp}.`
+          );
+          setPlayerBubble(text);
+          setInteractionMode("idle");
+          return;
+        }
         pushLog(`Inspection: case (${targetX}, ${targetY}) -> sol.`);
         setPlayerBubble(`Inspection (${targetX},${targetY}) : sol.`);
         setInteractionMode("idle");
@@ -3019,6 +3347,12 @@ function handleEndPlayerTurn() {
     if (!isCombatConfigured) {
       return (
         <CombatSetupScreen
+          mode={mapMode}
+          manualConfig={manualConfig}
+          manualPresets={MANUAL_MAP_PRESETS}
+          obstacleTypes={obstacleTypes}
+          onChangeMode={setMapMode}
+          onChangeManualConfig={setManualConfig}
           configEnemyCount={configEnemyCount}
           enemyTypeCount={enemyTypes.length}
           gridCols={mapGrid.cols}
@@ -3223,7 +3557,10 @@ function handleEndPlayerTurn() {
               selectedTargetId={selectedTargetId}
               describeEnemyLastDecision={describeEnemyLastDecision}
               validateEnemyTargetForAction={validateEnemyTargetForAction}
-              onSelectTargetId={setSelectedTargetId}
+              onSelectTargetId={enemyId => {
+                setSelectedTargetId(enemyId);
+                setSelectedObstacleTarget(null);
+              }}
               onSetTargetMode={setTargetMode}
               onLog={pushLog}
             />
@@ -3553,7 +3890,11 @@ function handleEndPlayerTurn() {
                 validatedAction={validatedAction}
                 targetMode={targetMode}
                 selectedTargetId={selectedTargetId}
-                onSelectTargetId={setSelectedTargetId}
+                selectedTargetLabel={getSelectedTargetLabel()}
+                onSelectTargetId={enemyId => {
+                  setSelectedTargetId(enemyId);
+                  setSelectedObstacleTarget(null);
+                }}
                 onSetTargetMode={setTargetMode}
                 advantageMode={advantageMode}
                 onSetAdvantageMode={setAdvantageMode}
