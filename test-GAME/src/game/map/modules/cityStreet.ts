@@ -2,6 +2,47 @@ import type { GridPosition } from "../../../types";
 import type { MapBuildContext, MapSpec } from "../types";
 import { clamp, createDraft, setLight, setTerrain, tryPlaceObstacle, key, buildReservedRadius } from "../draft";
 import { findObstacleType, pickVariantIdForPlacement, rotationForLine } from "../obstacleSelector";
+import { loadMapPatternsFromIndex } from "../../mapPatternCatalog";
+import { choosePatternsByPrompt, pickPatternTransform, placePattern } from "../patterns";
+
+const CITY_PATTERNS = loadMapPatternsFromIndex().filter(p => p.theme === "city");
+
+function placeCityPatterns(params: {
+  draft: ReturnType<typeof createDraft>;
+  rand: () => number;
+  obstacleTypes: MapBuildContext["obstacleTypes"];
+  cols: number;
+  rows: number;
+  topY2: number;
+  prompt: string;
+}): number {
+  const { draft, rand, obstacleTypes, cols, rows, topY2, prompt } = params;
+  if (CITY_PATTERNS.length === 0) return 0;
+  if (topY2 < 0 || topY2 >= rows) return 0;
+
+  let placed = 0;
+  const attempts = Math.min(8, cols);
+  const picks = choosePatternsByPrompt({
+    patterns: CITY_PATTERNS,
+    prompt,
+    rand,
+    count: attempts
+  });
+  for (const pattern of picks) {
+    const anchorX = Math.floor(rand() * cols);
+    const anchorY = topY2;
+    const transform = pickPatternTransform({
+      rand,
+      allowedRotations: [0, 180],
+      allowMirrorX: true,
+      allowMirrorY: false
+    });
+    const ok = placePattern({ draft, pattern, anchorX, anchorY, obstacleTypes, rand, transform });
+    if (ok) placed++;
+  }
+
+  return placed;
+}
 
 export function generateCityStreet(params: {
   spec: MapSpec;
@@ -30,7 +71,7 @@ export function generateCityStreet(params: {
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
       setLight(draft, x, y, baseLight);
-      setTerrain(draft, x, y, "road");
+      setTerrain(draft, x, y, "stone");
     }
   }
 
@@ -63,25 +104,20 @@ export function generateCityStreet(params: {
   const botY1 = clamp(streetY2 + 1, 0, rows - 1);
   const botY2 = clamp(botY1 + depth - 1, 0, rows - 1);
 
-  let placed = 0;
-  const placeWallLine = (y: number, x1: number, x2: number) => {
-    for (let x = x1; x <= x2; x++) {
-      const variantId = pickVariantIdForPlacement(wallType, "line", rand);
-      const rot = rotationForLine(wallType, variantId, "horizontal");
-      if (tryPlaceObstacle({ draft, type: wallType, x, y, variantId, rotation: rot })) placed++;
-    }
-  };
+  const placedPatterns = placeCityPatterns({
+    draft,
+    rand,
+    obstacleTypes: ctx.obstacleTypes,
+    cols,
+    rows,
+    topY2,
+    prompt: spec.prompt
+  });
+  if (placedPatterns > 0) {
+    draft.log.push(`Patterns: +${placedPatterns} (city).`);
+  }
 
-  // "Façades" des maisons: une ligne de mur le long de la rue, portes fermées = aucune ouverture.
-  if (topY2 >= 0 && topY2 < rows) placeWallLine(topY2, 0, cols - 1);
-  if (botY1 >= 0 && botY1 < rows) placeWallLine(botY1, 0, cols - 1);
-
-  // Murs arrière (optionnel si on a la place)
-  if (topY1 !== topY2 && topY1 >= 0 && topY1 < rows) placeWallLine(topY1, 0, cols - 1);
-  if (botY2 !== botY1 && botY2 >= 0 && botY2 < rows) placeWallLine(botY2, 0, cols - 1);
-
-  draft.log.push(`Maisons: ${placed} segments de murs (portes ${city.doors === "closed" ? "fermées" : "ouvertes"}).`);
+  draft.log.push("Maisons: murs places uniquement via patterns.");
 
   return { draft, playerStart };
 }
-

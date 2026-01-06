@@ -1,35 +1,53 @@
 {
-  "id": "brazier",
-  "label": "Brasero",
-  "category": "prop",
-  "tags": ["brazier", "fire", "prop"],
-  "blocking": {
-    "movement": true,
-    "vision": false,
-    "attacks": false
-  },
-  "durability": {
-    "destructible": true,
-    "maxHp": 6,
-    "ac": 10
-  },
-  "variants": [
-    {
-      "id": "base",
-      "label": "Brasero",
-      "footprint": [{ "x": 0, "y": 0 }],
-      "rotatable": false
-    }
-  ],
-  "appearance": {
-    "spriteKey": "obstacle:brazier",
-    "tint": 16777215,
-    "heightClass": "medium"
-  },
-  "spawnRules": {
-    "weight": 1,
-    "cluster": { "min": 1, "max": 2 },
-    "shapeHint": "room",
-    "avoidNearTokens": true
-  }
+    "id":  "brazier",
+    "label":  "Brasero",
+    "category":  "prop",
+    "tags":  [
+                 "brazier",
+                 "fire",
+                 "prop"
+             ],
+    "blocking":  {
+                     "movement":  true,
+                     "vision":  false,
+                     "attacks":  false
+                 },
+    "durability":  {
+                       "destructible":  true,
+                       "maxHp":  6,
+                       "ac":  10
+                   },
+    "variants":  [
+                     {
+                         "id":  "base",
+                         "label":  "Brasero",
+                         "footprint":  [
+                                           {
+                                               "x":  0,
+                                               "y":  0
+                                           }
+                                       ],
+                         "rotatable":  false
+                     }
+                 ],
+    "appearance":  {
+                       "spriteKey":  "obstacle:brazier",
+                       "tint":  16777215,
+                       "heightClass":  "medium",
+                       "tokenScale":  {
+                                          "min":  80,
+                                          "default":  100,
+                                          "max":  150
+                                      }
+                   },
+    "spawnRules":  {
+                       "weight":  1,
+                       "cluster":  {
+                                       "min":  1,
+                                       "max":  2
+                                   },
+                       "shapeHint":  "room",
+                       "avoidNearTokens":  true
+                   }
 }
+

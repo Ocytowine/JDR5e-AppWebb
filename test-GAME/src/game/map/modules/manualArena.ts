@@ -10,6 +10,10 @@ import {
 } from "../draft";
 import { pickVariantIdForPlacement } from "../obstacleSelector";
 import { randomIntInclusive } from "../random";
+import { loadMapPatternsFromIndex } from "../../mapPatternCatalog";
+import { getPatternSize, pickPatternTransform, placePatternAtOrigin } from "../patterns";
+
+const MANUAL_PATTERNS = loadMapPatternsFromIndex();
 
 function resolveBaseLight(lighting: ManualMapConfig["options"]["lighting"]): number {
   if (lighting === "low") return 0.35;
@@ -65,6 +69,47 @@ function chooseOpenings(params: { boundary: GridPosition[]; count: number; rand:
   }
 
   return chosen.slice(0, count);
+}
+
+function placeManualPatterns(params: {
+  draft: ReturnType<typeof createDraft>;
+  manualConfig: ManualMapConfig;
+  rand: () => number;
+  obstacleTypes: MapBuildContext["obstacleTypes"];
+  cols: number;
+  rows: number;
+}): number {
+  const { draft, manualConfig, rand, obstacleTypes, cols, rows } = params;
+  const requested = manualConfig.options.patterns ?? [];
+  if (!requested.length || MANUAL_PATTERNS.length === 0) return 0;
+
+  const byId = new Map(MANUAL_PATTERNS.map(p => [p.id, p]));
+  let placed = 0;
+
+  for (const id of requested) {
+    const pattern = byId.get(id);
+    if (!pattern) continue;
+
+    const attempts = 20;
+    let ok = false;
+    for (let i = 0; i < attempts && !ok; i++) {
+      const transform = pickPatternTransform({
+        rand,
+        allowedRotations: [0, 90, 180, 270],
+        allowMirrorX: true,
+        allowMirrorY: true
+      });
+      const size = getPatternSize(pattern, transform);
+      const maxX = Math.max(0, cols - size.w);
+      const maxY = Math.max(0, rows - size.h);
+      const originX = randomIntInclusive(rand, 0, maxX);
+      const originY = randomIntInclusive(rand, 0, maxY);
+      ok = placePatternAtOrigin({ draft, pattern, originX, originY, obstacleTypes, rand, transform });
+    }
+    if (ok) placed++;
+  }
+
+  return placed;
 }
 
 export function generateManualArena(params: {
@@ -141,6 +186,18 @@ export function generateManualArena(params: {
     } else {
       draft.log.push("Walls: no wall type available.");
     }
+  }
+
+  const placedPatterns = placeManualPatterns({
+    draft,
+    manualConfig,
+    rand,
+    obstacleTypes: ctx.obstacleTypes,
+    cols,
+    rows
+  });
+  if (placedPatterns > 0) {
+    draft.log.push(`Patterns: +${placedPatterns} (manual).`);
   }
 
   for (const entry of manualConfig.obstacles) {

@@ -8,7 +8,8 @@ import {
   setLight,
   setTerrain,
   tryPlaceObstacle,
-  key
+  key,
+  scatterTerrainPatches
 } from "../draft";
 import { findObstacleType, pickVariantIdForPlacement, weightedTypesForContext } from "../obstacleSelector";
 import { pickWeighted, randomIntInclusive } from "../random";
@@ -92,10 +93,19 @@ export function generateDungeonSquareRoom(params: {
       : 0.8;
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
-      setTerrain(draft, x, y, "floor");
+      setTerrain(draft, x, y, "stone");
       setLight(draft, x, y, baseLight);
     }
   }
+  const dirtPatchCount = clamp(Math.floor((cols * rows) / 140), 1, 6);
+  scatterTerrainPatches({
+    draft,
+    rand,
+    terrain: "dirt",
+    count: dirtPatchCount,
+    radiusMin: 1,
+    radiusMax: 2
+  });
 
   const playerStart: GridPosition = { x: 1, y: Math.floor(rows / 2) };
   draft.reserved = buildReservedRadius(playerStart, 2, cols, rows);
@@ -201,4 +211,3 @@ export function generateDungeonSquareRoom(params: {
 
   return { draft, playerStart };
 }
-

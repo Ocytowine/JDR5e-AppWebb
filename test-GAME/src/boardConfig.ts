@@ -86,6 +86,17 @@ export function gridToScreenForGrid(
   return { x: sx, y: sy };
 }
 
+// Base sprite position: bottom-center of the iso cell.
+export function gridToScreenBaseForGrid(
+  x: number,
+  y: number,
+  cols: number,
+  rows: number
+): { x: number; y: number } {
+  const pos = gridToScreenForGrid(x, y, cols, rows);
+  return { x: pos.x, y: pos.y + ISO_TILE_HEIGHT / 2 };
+}
+
 export function screenToGridForGrid(
   screenX: number,
   screenY: number,

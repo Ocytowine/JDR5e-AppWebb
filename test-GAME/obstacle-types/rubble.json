@@ -1,35 +1,53 @@
 {
-  "id": "rubble",
-  "label": "Gravats",
-  "category": "prop",
-  "tags": ["rubble", "stone", "prop"],
-  "blocking": {
-    "movement": true,
-    "vision": false,
-    "attacks": false
-  },
-  "durability": {
-    "destructible": true,
-    "maxHp": 8,
-    "ac": 11
-  },
-  "variants": [
-    {
-      "id": "base",
-      "label": "Gravats",
-      "footprint": [{ "x": 0, "y": 0 }],
-      "rotatable": false
-    }
-  ],
-  "appearance": {
-    "spriteKey": "obstacle:rubble",
-    "tint": 16777215,
-    "heightClass": "low"
-  },
-  "spawnRules": {
-    "weight": 2,
-    "cluster": { "min": 1, "max": 4 },
-    "shapeHint": "scatter",
-    "avoidNearTokens": true
-  }
+    "id":  "rubble",
+    "label":  "Gravats",
+    "category":  "prop",
+    "tags":  [
+                 "rubble",
+                 "stone",
+                 "prop"
+             ],
+    "blocking":  {
+                     "movement":  true,
+                     "vision":  false,
+                     "attacks":  false
+                 },
+    "durability":  {
+                       "destructible":  true,
+                       "maxHp":  8,
+                       "ac":  11
+                   },
+    "variants":  [
+                     {
+                         "id":  "base",
+                         "label":  "Gravats",
+                         "footprint":  [
+                                           {
+                                               "x":  0,
+                                               "y":  0
+                                           }
+                                       ],
+                         "rotatable":  false
+                     }
+                 ],
+    "appearance":  {
+                       "spriteKey":  "obstacle:rubble",
+                       "tint":  16777215,
+                       "heightClass":  "low",
+                       "tokenScale":  {
+                                          "min":  80,
+                                          "default":  100,
+                                          "max":  150
+                                      }
+                   },
+    "spawnRules":  {
+                       "weight":  2,
+                       "cluster":  {
+                                       "min":  1,
+                                       "max":  4
+                                   },
+                       "shapeHint":  "scatter",
+                       "avoidNearTokens":  true
+                   }
 }
+

@@ -2,6 +2,8 @@ import React from "react";
 import type { ObstacleTypeDefinition } from "../game/obstacleTypes";
 import type { ManualMapConfig } from "../game/map/types";
 import type { ManualMapPreset } from "../game/map/presets";
+import { getObstacleSvgDataUrl } from "../svgObstacleHelper";
+import { loadMapPatternsFromIndex } from "../game/mapPatternCatalog";
 
 export function CombatSetupScreen(props: {
   mode: "prompt" | "manual";
@@ -23,6 +25,7 @@ export function CombatSetupScreen(props: {
   const obstacleList = props.obstacleTypes.filter(
     t => t.appearance?.spriteKey && t.category !== "wall"
   );
+  const patternList = loadMapPatternsFromIndex();
   const activePreset =
     props.manualPresets.find(p => p.id === props.manualConfig.presetId) ??
     props.manualPresets[0];
@@ -347,6 +350,33 @@ export function CombatSetupScreen(props: {
               </label>
             </div>
 
+            <label style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 6 }}>
+              Patterns (multi-selection)
+              <select
+                multiple
+                value={props.manualConfig.options.patterns ?? []}
+                onChange={e => {
+                  const selected = Array.from(e.currentTarget.selectedOptions).map(o => o.value);
+                  updateManualOptions({ patterns: selected });
+                }}
+                style={{
+                  minHeight: 90,
+                  background: "#0f0f19",
+                  color: "#f5f5f5",
+                  border: "1px solid #333",
+                  borderRadius: 6,
+                  padding: "6px 8px",
+                  fontSize: 12
+                }}
+              >
+                {patternList.map(pattern => (
+                  <option key={pattern.id} value={pattern.id}>
+                    {pattern.label} ({pattern.theme})
+                  </option>
+                ))}
+              </select>
+            </label>
+
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
               <span style={{ fontSize: 12, minWidth: 72 }}>Bordures:</span>
               <label style={{ fontSize: 12 }}>
@@ -411,6 +441,34 @@ export function CombatSetupScreen(props: {
                     key={type.id}
                     style={{ display: "flex", alignItems: "center", gap: 8 }}
                   >
+                    <div
+                      aria-hidden="true"
+                      style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: 4,
+                        background: "#141421",
+                        border: "1px solid #2b2b3a",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flex: "0 0 auto"
+                      }}
+                    >
+                      {getObstacleSvgDataUrl(type.appearance?.spriteKey) ? (
+                        <img
+                          src={getObstacleSvgDataUrl(type.appearance?.spriteKey) as string}
+                          alt=""
+                          width={18}
+                          height={18}
+                          style={{ display: "block" }}
+                        />
+                      ) : (
+                        <span style={{ fontSize: 10, color: "#9aa3b2" }}>
+                          {type.label?.slice(0, 1) ?? "?"}
+                        </span>
+                      )}
+                    </div>
                     <div style={{ flex: "1 1 auto", fontSize: 12 }}>
                       {type.label} ({type.id})
                     </div>

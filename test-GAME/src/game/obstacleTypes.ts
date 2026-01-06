@@ -32,6 +32,7 @@ export interface ObstacleAppearance {
    * Used for visuals and later for cover/LOS heuristics if needed.
    */
   heightClass?: "low" | "medium" | "tall" | string;
+  tokenScale?: { default: number; min: number; max: number };
   scale?: number;
   scaleRange?: { min: number; max: number };
   scaleVariants?: number[];
@@ -68,6 +69,7 @@ export interface ObstacleInstance {
   x: number;
   y: number;
   rotation: ObstacleRotationDeg;
+  tokenScale?: number;
   hp: number;
   maxHp: number;
 }

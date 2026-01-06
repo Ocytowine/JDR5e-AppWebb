@@ -11,6 +11,32 @@ import {
 } from "../boardConfig";
 import { preloadTokenTextures } from "../svgTokenHelper";
 import { preloadObstacleTextures } from "../svgObstacleHelper";
+import { preloadDecorTextures } from "../svgDecorHelper";
+import type { TerrainCell } from "../game/map/draft";
+
+function hash01(x: number, y: number): number {
+  let h = x * 374761393 + y * 668265263;
+  h = (h ^ (h >> 13)) * 1274126177;
+  h = (h ^ (h >> 16)) >>> 0;
+  return (h % 1000) / 1000;
+}
+
+function scaleColor(color: number, factor: number): number {
+  const r = Math.min(255, Math.max(0, Math.round(((color >> 16) & 0xff) * factor)));
+  const g = Math.min(255, Math.max(0, Math.round(((color >> 8) & 0xff) * factor)));
+  const b = Math.min(255, Math.max(0, Math.round((color & 0xff) * factor)));
+  return (r << 16) | (g << 8) | b;
+}
+
+const TERRAIN_COLORS: Record<TerrainCell, { base: number; alt: number }> = {
+  grass: { base: 0x2f6b2f, alt: 0x3a7a3a },
+  dirt: { base: 0x6a4b2a, alt: 0x7a5a35 },
+  stone: { base: 0x666666, alt: 0x585858 },
+  water: { base: 0x2b4f8c, alt: 0x315b9c },
+  road: { base: 0x5a4e3b, alt: 0x6a5a45 },
+  floor: { base: 0x3a3a3a, alt: 0x454545 },
+  unknown: { base: 0x1d1d30, alt: 0x151522 }
+};
 
 export function usePixiBoard(options: {
   enabled: boolean;
@@ -19,6 +45,7 @@ export function usePixiBoard(options: {
   panX?: number;
   panY?: number;
   playableCells?: Set<string> | null;
+  terrain?: TerrainCell[] | null;
   grid: { cols: number; rows: number };
 }): {
   appRef: RefObject<Application | null>;
@@ -37,6 +64,7 @@ export function usePixiBoard(options: {
   const resizeRef = useRef<(() => void) | null>(null);
   const drawGridRef = useRef<(() => void) | null>(null);
   const playableCellsRef = useRef<Set<string> | null>(null);
+  const terrainRef = useRef<TerrainCell[] | null>(null);
   const gridRef = useRef<{ cols: number; rows: number }>({
     cols: options.grid.cols,
     rows: options.grid.rows
@@ -53,6 +81,7 @@ export function usePixiBoard(options: {
     y: typeof options.panY === "number" ? options.panY : 0
   };
   playableCellsRef.current = options.playableCells ?? null;
+  terrainRef.current = Array.isArray(options.terrain) ? options.terrain : null;
   gridRef.current = {
     cols: Math.max(1, Math.floor(options.grid.cols)),
     rows: Math.max(1, Math.floor(options.grid.rows))
@@ -65,7 +94,7 @@ export function usePixiBoard(options: {
   useEffect(() => {
     drawGridRef.current?.();
     resizeRef.current?.();
-  }, [options.playableCells, options.grid.cols, options.grid.rows, pixiReadyTick]);
+  }, [options.playableCells, options.terrain, options.grid.cols, options.grid.rows, pixiReadyTick]);
 
   useEffect(() => {
     if (!options.enabled) return;
@@ -91,6 +120,7 @@ export function usePixiBoard(options: {
 
       await preloadTokenTextures();
       await preloadObstacleTextures();
+      await preloadDecorTextures();
 
       if (destroyed) return;
 
@@ -124,12 +154,24 @@ export function usePixiBoard(options: {
         gridLayer.clear();
 
         const { cols, rows } = gridRef.current;
+        const terrain = terrainRef.current;
         for (let gy = 0; gy < rows; gy++) {
           for (let gx = 0; gx < cols; gx++) {
             const playable = playableCellsRef.current;
             if (playable && playable.size > 0 && !playable.has(`${gx},${gy}`)) {
               continue;
             }
+
+            const terrainIndex = gy * cols + gx;
+            const cellTerrain =
+              terrain && terrainIndex >= 0 && terrainIndex < terrain.length
+                ? (terrain[terrainIndex] as TerrainCell)
+                : "unknown";
+            const colors = TERRAIN_COLORS[cellTerrain] ?? TERRAIN_COLORS.unknown;
+            const noise = hash01(gx, gy);
+            const baseColor = noise > 0.5 ? colors.base : colors.alt;
+            const variance = 1 + (noise - 0.5) * 0.18;
+            const tileColor = scaleColor(baseColor, variance);
 
             const center = gridToScreenForGrid(gx, gy, cols, rows);
             const w = TILE_SIZE;
@@ -146,9 +188,8 @@ export function usePixiBoard(options: {
               center.y
             ];
 
-            const isDark = (gx + gy) % 2 === 0;
             gridLayer.poly(points).fill({
-              color: isDark ? 0x151522 : 0x1d1d30,
+              color: tileColor,
               alpha: 1
             });
           }

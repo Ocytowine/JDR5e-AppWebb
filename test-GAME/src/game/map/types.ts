@@ -1,6 +1,8 @@
 import type { GridPosition } from "../../types";
 import type { EnemyTypeDefinition } from "../enemyTypes";
 import type { ObstacleTypeDefinition } from "../obstacleTypes";
+import type { DecorInstance } from "../decorTypes";
+import type { TerrainCell } from "./draft";
 
 export type MapTheme = "dungeon" | "forest" | "city" | "generic";
 
@@ -107,6 +109,7 @@ export interface ManualMapOptions {
   lighting: "low" | "normal" | "bright";
   theme: MapTheme;
   borderMask: ManualMapBorderMask;
+  patterns?: string[];
 }
 
 export interface ManualMapConfig {
@@ -123,5 +126,7 @@ export interface MapBuildResult {
   enemySpawns: { enemyType: EnemyTypeDefinition; position: GridPosition }[];
   playableCells: string[];
   obstacles: import("../obstacleTypes").ObstacleInstance[];
+  terrain: TerrainCell[];
+  decorations: DecorInstance[];
   recommendedGrid?: { cols: number; rows: number; reason: string };
 }

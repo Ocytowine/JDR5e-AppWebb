@@ -1,4 +1,5 @@
 import type { GridPosition } from "../../types";
+import type { DecorInstance } from "../decorTypes";
 import type {
   ObstacleInstance,
   ObstacleTypeDefinition,
@@ -14,7 +15,14 @@ import { getObstacleOccupiedCells } from "../obstacleRuntime";
 // - terrain (eau/boue/route...), hauteur, lumière (futur)
 // - un log de génération lisible (debug)
 
-export type TerrainCell = "floor" | "grass" | "water" | "road" | "unknown";
+export type TerrainCell =
+  | "floor"
+  | "grass"
+  | "dirt"
+  | "stone"
+  | "water"
+  | "road"
+  | "unknown";
 
 export interface MapLayers {
   terrain: TerrainCell[];
@@ -36,11 +44,14 @@ export interface MapDraft {
   obstacles: ObstacleInstance[];
   occupied: Set<string>;
   movementBlocked: Set<string>;
+  decorations: DecorInstance[];
+  decorOccupied: Set<string>;
 
   reserved: Set<string>;
   log: string[];
 
   nextObstacleId: () => string;
+  nextDecorId: () => string;
 }
 
 export function key(x: number, y: number): string {
@@ -51,12 +62,48 @@ export function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
+function resolveTokenScale(
+  type: ObstacleTypeDefinition | null,
+  override?: number
+): number | null {
+  if (!type) return null;
+  const scaleSpec = type.appearance?.tokenScale;
+  const hasOverride = typeof override === "number" && Number.isFinite(override);
+  const min = scaleSpec && Number.isFinite(scaleSpec.min) ? scaleSpec.min : null;
+  const max = scaleSpec && Number.isFinite(scaleSpec.max) ? scaleSpec.max : null;
+  const def = scaleSpec && Number.isFinite(scaleSpec.default) ? scaleSpec.default : null;
+  let chosen: number | null = null;
+
+  if (hasOverride) {
+    chosen = override as number;
+  } else if (min !== null && max !== null) {
+    const lo = Math.min(min, max);
+    const hi = Math.max(min, max);
+    chosen = lo + (hi - lo) * Math.random();
+  } else if (def !== null) {
+    chosen = def;
+  }
+
+  if (chosen === null) return null;
+  if (min !== null || max !== null) {
+    const lo = min ?? chosen;
+    const hi = max ?? chosen;
+    chosen = clamp(chosen, Math.min(lo, hi), Math.max(lo, hi));
+  }
+  return chosen;
+}
+
 export function isInside(draft: MapDraft, x: number, y: number): boolean {
   return x >= 0 && y >= 0 && x < draft.cols && y < draft.rows;
 }
 
 export function indexOf(draft: MapDraft, x: number, y: number): number {
   return y * draft.cols + x;
+}
+
+export function getTerrainAt(draft: MapDraft, x: number, y: number): TerrainCell | null {
+  if (!isInside(draft, x, y)) return null;
+  return draft.layers.terrain[indexOf(draft, x, y)] ?? null;
 }
 
 export function createDraft(params: {
@@ -93,9 +140,12 @@ export function createDraft(params: {
     obstacles: [],
     occupied: new Set<string>(),
     movementBlocked: new Set<string>(),
+    decorations: [],
+    decorOccupied: new Set<string>(),
     reserved: params.reserved ?? new Set<string>(),
     log: [],
-    nextObstacleId: () => `${prefix}-${seq++}`
+    nextObstacleId: () => `${prefix}-${seq++}`,
+    nextDecorId: () => `decor-${seq++}`
   };
 }
 
@@ -125,6 +175,40 @@ export function setTerrain(draft: MapDraft, x: number, y: number, cell: TerrainC
   draft.layers.terrain[indexOf(draft, x, y)] = cell;
 }
 
+export function scatterTerrainPatches(params: {
+  draft: MapDraft;
+  rand: () => number;
+  terrain: TerrainCell;
+  count: number;
+  radiusMin: number;
+  radiusMax: number;
+  mask?: Set<string>;
+}): void {
+  const { draft, rand, terrain, mask } = params;
+  const count = Math.max(0, Math.floor(params.count));
+  if (count === 0) return;
+  const rMin = Math.max(1, Math.floor(params.radiusMin));
+  const rMax = Math.max(rMin, Math.floor(params.radiusMax));
+
+  for (let i = 0; i < count; i++) {
+    const cx = Math.floor(rand() * draft.cols);
+    const cy = Math.floor(rand() * draft.rows);
+    const radius = rMin + Math.floor(rand() * (rMax - rMin + 1));
+    for (let dy = -radius; dy <= radius; dy++) {
+      for (let dx = -radius; dx <= radius; dx++) {
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > radius + 0.15) continue;
+        const x = cx + dx;
+        const y = cy + dy;
+        if (!isInside(draft, x, y)) continue;
+        const k = key(x, y);
+        if (mask && !mask.has(k)) continue;
+        setTerrain(draft, x, y, terrain);
+      }
+    }
+  }
+}
+
 export function setHeight(draft: MapDraft, x: number, y: number, h: number): void {
   if (!isInside(draft, x, y)) return;
   draft.layers.height[indexOf(draft, x, y)] = h;
@@ -142,6 +226,7 @@ export function tryPlaceObstacle(params: {
   y: number;
   variantId: string;
   rotation: ObstacleRotationDeg;
+  tokenScale?: number;
   allowOnReserved?: boolean;
 }): boolean {
   const { draft, type, x, y, variantId, rotation } = params;
@@ -155,6 +240,10 @@ export function tryPlaceObstacle(params: {
     x,
     y,
     rotation,
+    tokenScale: (() => {
+      const resolved = resolveTokenScale(type, params.tokenScale);
+      return resolved === null ? undefined : Math.round(resolved);
+    })(),
     hp: maxHp,
     maxHp
   };
@@ -179,6 +268,75 @@ export function tryPlaceObstacle(params: {
   }
 
   return true;
+}
+
+export function tryPlaceDecor(params: {
+  draft: MapDraft;
+  spriteKey: string;
+  x: number;
+  y: number;
+  rotation?: number;
+  scale?: number;
+  allowOnReserved?: boolean;
+}): boolean {
+  const { draft, spriteKey, x, y } = params;
+  if (!spriteKey) return false;
+  if (!isInside(draft, x, y)) return false;
+  const k = key(x, y);
+  const enforcePlayable = draft.playable.size > 0;
+  if (enforcePlayable && !draft.playable.has(k)) return false;
+  if (!params.allowOnReserved && draft.reserved.has(k)) return false;
+  if (draft.occupied.has(k)) return false;
+  if (draft.decorOccupied.has(k)) return false;
+
+  const instance: DecorInstance = {
+    id: draft.nextDecorId(),
+    spriteKey,
+    x,
+    y,
+    rotation: typeof params.rotation === "number" ? params.rotation : 0,
+    scale: typeof params.scale === "number" ? params.scale : 1,
+    layer: "ground"
+  };
+
+  draft.decorations.push(instance);
+  draft.decorOccupied.add(k);
+  return true;
+}
+
+export function scatterDecorations(params: {
+  draft: MapDraft;
+  rand: () => number;
+  spriteKeys: string[];
+  count: number;
+  terrainFilter?: TerrainCell[];
+  mask?: Set<string>;
+}): void {
+  const { draft, rand } = params;
+  const count = Math.max(0, Math.floor(params.count));
+  if (!count) return;
+  const spriteKeys = params.spriteKeys.filter(Boolean);
+  if (!spriteKeys.length) return;
+  const terrainFilter = params.terrainFilter ?? null;
+  const mask = params.mask ?? null;
+
+  let placed = 0;
+  let attempts = 0;
+  const maxAttempts = Math.max(50, count * 20);
+  while (placed < count && attempts < maxAttempts) {
+    attempts++;
+    const x = Math.floor(rand() * draft.cols);
+    const y = Math.floor(rand() * draft.rows);
+    const k = key(x, y);
+    if (mask && !mask.has(k)) continue;
+    if (terrainFilter) {
+      const terrain = getTerrainAt(draft, x, y);
+      if (!terrain || !terrainFilter.includes(terrain)) continue;
+    }
+    const spriteKey = spriteKeys[Math.floor(rand() * spriteKeys.length)] as string;
+    const ok = tryPlaceDecor({ draft, spriteKey, x, y });
+    if (ok) placed++;
+  }
 }
 
 export function computeReachableCells(draft: MapDraft, start: GridPosition): Set<string> {

@@ -2,6 +2,8 @@ import type { EnemyTypeDefinition } from "./enemyTypes";
 import type { GridPosition } from "../types";
 import type { ObstacleInstance, ObstacleTypeDefinition } from "./obstacleTypes";
 import type { ManualMapConfig } from "./map/types";
+import type { DecorInstance } from "./decorTypes";
+import type { TerrainCell } from "./map/draft";
 import { runGenerationPipeline, runManualGenerationPipeline } from "./map/pipeline";
 
 export interface MapDesignRequest {
@@ -24,6 +26,8 @@ export interface MapDesignResult {
    */
   playableCells: string[];
   obstacles: ObstacleInstance[];
+  terrain: TerrainCell[];
+  decorations: DecorInstance[];
   recommendedGrid?: { cols: number; rows: number; reason: string };
   /**
    * Détails de génération (utile pour debug/itération prompt).
@@ -63,6 +67,8 @@ export function generateBattleMap(request: MapDesignRequest): MapDesignResult {
       enemySpawns: result.enemySpawns,
       playableCells: result.playableCells,
       obstacles: result.obstacles,
+      terrain: result.terrain,
+      decorations: result.decorations,
       recommendedGrid: result.recommendedGrid,
       generationLog: result.generationLog
     };
@@ -84,6 +90,8 @@ export function generateBattleMap(request: MapDesignRequest): MapDesignResult {
     enemySpawns: result.enemySpawns,
     playableCells: result.playableCells,
     obstacles: result.obstacles,
+    terrain: result.terrain,
+    decorations: result.decorations,
     recommendedGrid: result.recommendedGrid,
     generationLog: result.generationLog
   };

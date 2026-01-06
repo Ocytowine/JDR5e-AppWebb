@@ -107,6 +107,8 @@ export function runGenerationPipeline(params: {
     enemySpawns,
     playableCells: Array.from(draft.playable),
     obstacles: draft.obstacles,
+    terrain: draft.layers.terrain,
+    decorations: draft.decorations,
     recommendedGrid: recommendedGrid ?? undefined
   };
 }
@@ -149,6 +151,8 @@ export function runManualGenerationPipeline(params: {
     enemySpawns,
     playableCells: Array.from(draft.playable),
     obstacles: draft.obstacles,
+    terrain: draft.layers.terrain,
+    decorations: draft.decorations,
     recommendedGrid: undefined
   };
 }

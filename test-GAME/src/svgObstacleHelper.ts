@@ -6,6 +6,7 @@ const svgModules = import.meta.glob("../model/*.svg", {
 });
 
 const OBSTACLE_SVG_BY_KEY: Record<string, string> = {};
+const OBSTACLE_SVG_SCALE = 2;
 
 for (const [path, svg] of Object.entries(svgModules)) {
   const file = path.split("/").pop() ?? "";
@@ -23,6 +24,13 @@ function svgToDataUrl(svg: string): string {
   return `data:image/svg+xml;base64,${base64}`;
 }
 
+export function getObstacleSvgDataUrl(spriteKey: string | null | undefined): string | null {
+  if (!spriteKey) return null;
+  const svg = OBSTACLE_SVG_BY_KEY[spriteKey];
+  if (!svg) return null;
+  return svgToDataUrl(svg);
+}
+
 let obstacleTexturesPreloadPromise: Promise<void> | null = null;
 
 export async function preloadObstacleTextures(): Promise<void> {
@@ -30,7 +38,8 @@ export async function preloadObstacleTextures(): Promise<void> {
 
   const assets = Object.entries(OBSTACLE_SVG_BY_KEY).map(([alias, svg]) => ({
     alias,
-    src: svgToDataUrl(svg)
+    src: svgToDataUrl(svg),
+    data: { scale: OBSTACLE_SVG_SCALE }
   }));
 
   obstacleTexturesPreloadPromise = (async () => {

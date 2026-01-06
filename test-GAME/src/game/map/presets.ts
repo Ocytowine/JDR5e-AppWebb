@@ -26,7 +26,8 @@ export const MANUAL_MAP_PRESETS: ManualMapPreset[] = [
       entrances: 2,
       lighting: "normal",
       theme: "generic",
-      borderMask: { ...baseBorderMask }
+      borderMask: { ...baseBorderMask },
+      patterns: []
     }
   },
   {
@@ -40,7 +41,8 @@ export const MANUAL_MAP_PRESETS: ManualMapPreset[] = [
       entrances: 2,
       lighting: "normal",
       theme: "generic",
-      borderMask: { ...baseBorderMask }
+      borderMask: { ...baseBorderMask },
+      patterns: []
     }
   },
   {
@@ -54,7 +56,8 @@ export const MANUAL_MAP_PRESETS: ManualMapPreset[] = [
       entrances: 2,
       lighting: "normal",
       theme: "generic",
-      borderMask: { ...baseBorderMask }
+      borderMask: { ...baseBorderMask },
+      patterns: []
     }
   }
 ];

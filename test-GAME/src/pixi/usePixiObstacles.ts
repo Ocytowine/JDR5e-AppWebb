@@ -3,7 +3,7 @@ import { Assets, Container, Graphics, Sprite, Texture } from "pixi.js";
 import type { RefObject } from "react";
 import type { ObstacleInstance, ObstacleTypeDefinition } from "../game/obstacleTypes";
 import { getObstacleOccupiedCells } from "../game/obstacleRuntime";
-import { TILE_SIZE, gridToScreenForGrid } from "../boardConfig";
+import { TILE_SIZE, gridToScreenBaseForGrid, gridToScreenForGrid } from "../boardConfig";
 
 function cellKey(x: number, y: number): string {
   return `${x},${y}`;
@@ -23,6 +23,24 @@ function spriteHeightScale(def: ObstacleTypeDefinition | null): number {
   if (heightClass === "medium") return 1.35;
   if (heightClass === "tall") return 2.1;
   return 1.2;
+}
+
+function tokenScaleFactor(
+  def: ObstacleTypeDefinition | null,
+  obs: ObstacleInstance
+): number {
+  const spec = def?.appearance?.tokenScale;
+  const hasValue = typeof obs.tokenScale === "number" && Number.isFinite(obs.tokenScale);
+  const fallback = spec && Number.isFinite(spec.default) ? spec.default : 100;
+  let value = hasValue ? obs.tokenScale : fallback;
+  const min = spec && Number.isFinite(spec.min) ? spec.min : null;
+  const max = spec && Number.isFinite(spec.max) ? spec.max : null;
+  if (min !== null || max !== null) {
+    const lo = min ?? value;
+    const hi = max ?? value;
+    value = Math.min(Math.max(value, Math.min(lo, hi)), Math.max(lo, hi));
+  }
+  return value / 100;
 }
 
 function spriteDepthBias(def: ObstacleTypeDefinition | null): number {
@@ -660,14 +678,15 @@ export function usePixiObstacles(options: {
           sprite.anchor.set(0.5, 1);
 
           const heightScale = spriteHeightScale(def);
-          const targetHeight = TILE_SIZE * heightScale;
+          const scaleFactor = tokenScaleFactor(def, obs);
+          const targetHeight = TILE_SIZE * heightScale * scaleFactor;
           const aspect = texture.height > 0 ? texture.width / texture.height : 1;
           sprite.height = targetHeight;
           sprite.width = targetHeight * aspect;
 
-          const center = gridToScreenForGrid(occupiedCells[0].x, occupiedCells[0].y, options.grid.cols, options.grid.rows);
-          sprite.x = center.x;
-          sprite.y = center.y;
+          const base = gridToScreenBaseForGrid(occupiedCells[0].x, occupiedCells[0].y, options.grid.cols, options.grid.rows);
+          sprite.x = base.x;
+          sprite.y = base.y;
 
           if (typeof def?.appearance?.tint === "number") {
             sprite.tint = def.appearance.tint;
@@ -677,9 +696,7 @@ export function usePixiObstacles(options: {
             sprite.rotation = (obs.rotation * Math.PI) / 180;
           }
 
-          sprite.zIndex =
-            depthFromGrid(occupiedCells[0].x, occupiedCells[0].y, options.grid.cols, options.grid.rows) +
-            spriteDepthBias(def);
+          sprite.zIndex = base.y + spriteDepthBias(def);
           sprite.name = "obstacle";
           depthLayer.addChild(sprite);
           continue;

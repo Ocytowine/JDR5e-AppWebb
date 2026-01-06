@@ -1,0 +1,12 @@
+{
+  "schema": "./map-pattern.schema.json",
+  "patterns": [
+    "./street-house-front-3x5.json",
+    "./street-market-stall-3x4.json",
+    "./interior-table-set.json",
+    "./interior-tavern-corner.json",
+    "./forest-alley-2x8.json",
+    "./forest-grove-3x3.json",
+    "./dungeon-altar-nook.json"
+  ]
+}

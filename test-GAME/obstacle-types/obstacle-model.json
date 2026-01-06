@@ -1,35 +1,50 @@
 {
-  "id": "obstacle-id",
-  "label": "Obstacle",
-  "category": "prop",
-  "tags": ["prop"],
-  "blocking": {
-    "movement": true,
-    "vision": false,
-    "attacks": false
-  },
-  "durability": {
-    "destructible": true,
-    "maxHp": 10,
-    "ac": 10
-  },
-  "variants": [
-    {
-      "id": "base",
-      "label": "Base",
-      "footprint": [{ "x": 0, "y": 0 }],
-      "rotatable": false
-    }
-  ],
-  "appearance": {
-    "spriteKey": "obstacle:placeholder",
-    "tint": 16777215,
-    "heightClass": "medium"
-  },
-  "spawnRules": {
-    "weight": 1,
-    "cluster": { "min": 1, "max": 1 },
-    "avoidNearTokens": true
-  }
+    "id":  "obstacle-id",
+    "label":  "Obstacle",
+    "category":  "prop",
+    "tags":  [
+                 "prop"
+             ],
+    "blocking":  {
+                     "movement":  true,
+                     "vision":  false,
+                     "attacks":  false
+                 },
+    "durability":  {
+                       "destructible":  true,
+                       "maxHp":  10,
+                       "ac":  10
+                   },
+    "variants":  [
+                     {
+                         "id":  "base",
+                         "label":  "Base",
+                         "footprint":  [
+                                           {
+                                               "x":  0,
+                                               "y":  0
+                                           }
+                                       ],
+                         "rotatable":  false
+                     }
+                 ],
+    "appearance":  {
+                       "spriteKey":  "obstacle:placeholder",
+                       "tint":  16777215,
+                       "heightClass":  "medium",
+                       "tokenScale":  {
+                                          "min":  80,
+                                          "default":  100,
+                                          "max":  150
+                                      }
+                   },
+    "spawnRules":  {
+                       "weight":  1,
+                       "cluster":  {
+                                       "min":  1,
+                                       "max":  1
+                                   },
+                       "avoidNearTokens":  true
+                   }
 }
 

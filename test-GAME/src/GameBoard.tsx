@@ -39,6 +39,8 @@ import ghostType from "../enemy-types/ghost.json";
 import { loadObstacleTypesFromIndex } from "./game/obstacleCatalog";
 import type { ObstacleInstance, ObstacleTypeDefinition } from "./game/obstacleTypes";
 import { generateBattleMap } from "./game/mapEngine";
+import type { TerrainCell } from "./game/map/draft";
+import type { DecorInstance } from "./game/decorTypes";
 import type { ManualMapConfig } from "./game/map/types";
 import { MANUAL_MAP_PRESETS, getManualPresetById } from "./game/map/presets";
 import { buildObstacleBlockingSets, getObstacleOccupiedCells } from "./game/obstacleRuntime";
@@ -93,6 +95,7 @@ import type {
   EnemySpeechRequest
 } from "./narrationTypes";
 import { usePixiBoard } from "./pixi/usePixiBoard";
+import { usePixiDecorations } from "./pixi/usePixiDecorations";
 import { usePixiObstacles } from "./pixi/usePixiObstacles";
 import { usePixiOverlays } from "./pixi/usePixiOverlays";
 import { usePixiSpeechBubbles } from "./pixi/usePixiSpeechBubbles";
@@ -295,7 +298,9 @@ export const GameBoard: React.FC = () => {
   const [enemies, setEnemies] = useState<TokenState[]>([]);
   const [obstacleTypes, setObstacleTypes] = useState<ObstacleTypeDefinition[]>([]);
   const [obstacles, setObstacles] = useState<ObstacleInstance[]>([]);
+  const [decorations, setDecorations] = useState<DecorInstance[]>([]);
   const [playableCells, setPlayableCells] = useState<Set<string> | null>(null);
+  const [mapTerrain, setMapTerrain] = useState<TerrainCell[]>([]);
   const [mapGrid, setMapGrid] = useState<{ cols: number; rows: number }>({
     cols: GRID_COLS,
     rows: GRID_ROWS
@@ -319,7 +324,8 @@ export const GameBoard: React.FC = () => {
   const ZOOM_MIN = 0.5;
   const ZOOM_MAX = 2.5;
   const ZOOM_STEP = 0.1;
-  const [boardZoom, setBoardZoom] = useState<number>(1);
+  const DEFAULT_ZOOM = 1.5;
+  const [boardZoom, setBoardZoom] = useState<number>(DEFAULT_ZOOM);
   const [boardPan, setBoardPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isPanningBoard, setIsPanningBoard] = useState<boolean>(false);
   const panDragRef = useRef<{ x: number; y: number } | null>(null);
@@ -337,6 +343,7 @@ export const GameBoard: React.FC = () => {
     panX: boardPan.x,
     panY: boardPan.y,
     playableCells,
+    terrain: mapTerrain,
     grid: mapGrid
   });
 
@@ -425,6 +432,7 @@ export const GameBoard: React.FC = () => {
   }, [obstacleTypes]);
 
   usePixiObstacles({ depthLayerRef, obstacleTypes, obstacles, pixiReadyTick, grid: mapGrid });
+  usePixiDecorations({ depthLayerRef, decorations, pixiReadyTick, grid: mapGrid });
   usePixiTokens({ depthLayerRef, player, enemies, pixiReadyTick, grid: mapGrid });
   usePixiSpeechBubbles({ speechLayerRef, player, enemies, speechBubbles, pixiReadyTick, grid: mapGrid });
   usePixiOverlays({
@@ -538,6 +546,63 @@ export const GameBoard: React.FC = () => {
     return () => window.removeEventListener("keydown", handler);
   }, [radialMenu?.open, interactionMode, targetMode]);
 
+  function handleBoardWheel(event: WheelEvent) {
+    if (event.deltaY === 0) return;
+    event.preventDefault();
+
+    const direction = event.deltaY < 0 ? 1 : -1;
+    const nextZoom = clamp(
+      Math.round((boardZoom + direction * ZOOM_STEP) * 10) / 10,
+      ZOOM_MIN,
+      ZOOM_MAX
+    );
+    if (Math.abs(nextZoom - boardZoom) < 1e-6) return;
+
+    const viewport = viewportRef.current;
+    if (!viewport) {
+      setBoardZoom(nextZoom);
+      return;
+    }
+
+    const target = event.currentTarget;
+    if (!(target instanceof HTMLDivElement)) return;
+    const rect = target.getBoundingClientRect();
+    const localX = event.clientX - rect.left;
+    const localY = event.clientY - rect.top;
+
+    const { scale, offsetX, offsetY } = viewport;
+    const boardX = (localX - offsetX) / scale;
+    const boardY = (localY - offsetY) / scale;
+
+    const boardW = getBoardWidth(mapGrid.cols);
+    const boardH = getBoardHeight(mapGrid.rows);
+    const baseScale = scale / boardZoom;
+    const nextScale = baseScale * nextZoom;
+
+    const nextOffsetX = localX - boardX * nextScale;
+    const nextOffsetY = localY - boardY * nextScale;
+    const width = Math.max(1, target.clientWidth);
+    const height = Math.max(1, target.clientHeight);
+
+    const nextPanX = nextOffsetX - (width - boardW * nextScale) / 2;
+    const nextPanY = nextOffsetY - (height - boardH * nextScale) / 2;
+
+    setBoardZoom(nextZoom);
+    setBoardPan({ x: nextPanX, y: nextPanY });
+  }
+
+  useEffect(() => {
+    const container = pixiContainerRef.current;
+    if (!container) return;
+    const handler = (event: WheelEvent) => {
+      handleBoardWheel(event);
+    };
+    container.addEventListener("wheel", handler, { passive: false });
+    return () => {
+      container.removeEventListener("wheel", handler);
+    };
+  }, [boardZoom, mapGrid.cols, mapGrid.rows, viewportRef]);
+
   function describeEnemyLastDecisionLegacy(enemyId: string): string {
     if (aiUsedFallback) {
       return "Fallback local : poursuite/attaque basique du joueur";
@@ -628,6 +693,8 @@ export const GameBoard: React.FC = () => {
 
     setObstacles(map.obstacles);
     setPlayableCells(new Set(map.playableCells ?? []));
+    setMapTerrain(Array.isArray(map.terrain) ? map.terrain : []);
+    setDecorations(Array.isArray(map.decorations) ? map.decorations : []);
 
     const newEnemies: TokenState[] = map.enemySpawns.map((spawn, i) =>
       createEnemy(i, spawn.enemyType, spawn.position)
@@ -3823,17 +3890,17 @@ function handleEndPlayerTurn() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setBoardZoom(1)}
-                  disabled={Math.abs(boardZoom - 1) < 1e-6}
+                  onClick={() => setBoardZoom(DEFAULT_ZOOM)}
+                  disabled={Math.abs(boardZoom - DEFAULT_ZOOM) < 1e-6}
                   style={{
                     marginTop: 4,
                     width: 34,
                     height: 28,
                     borderRadius: 10,
                     border: "1px solid rgba(255,255,255,0.14)",
-                    background: Math.abs(boardZoom - 1) < 1e-6 ? "rgba(80,80,90,0.55)" : "rgba(255,255,255,0.06)",
+                    background: Math.abs(boardZoom - DEFAULT_ZOOM) < 1e-6 ? "rgba(80,80,90,0.55)" : "rgba(255,255,255,0.06)",
                     color: "rgba(255,255,255,0.85)",
-                    cursor: Math.abs(boardZoom - 1) < 1e-6 ? "default" : "pointer",
+                    cursor: Math.abs(boardZoom - DEFAULT_ZOOM) < 1e-6 ? "default" : "pointer",
                     fontSize: 11,
                     fontWeight: 800
                   }}

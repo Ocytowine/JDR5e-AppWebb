@@ -8,7 +8,8 @@ import {
   setLight,
   setTerrain,
   tryPlaceObstacle,
-  key
+  key,
+  scatterTerrainPatches
 } from "../draft";
 import {
   findObstacleType,
@@ -160,9 +161,19 @@ export function generateDungeonCircularRoom(params: {
   // Terrain de base
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
-      if (roomMask.has(key(x, y))) setTerrain(draft, x, y, "floor");
+      if (roomMask.has(key(x, y))) setTerrain(draft, x, y, "stone");
     }
   }
+  const dirtPatchCount = clamp(Math.floor((roomMask.size || 0) / 140), 1, 5);
+  scatterTerrainPatches({
+    draft,
+    rand,
+    terrain: "dirt",
+    count: dirtPatchCount,
+    radiusMin: 1,
+    radiusMax: 2,
+    mask: roomMask
+  });
 
   // Lighting: faible sur les bords, plus forte au centre si demandé
   const baseLight = dSpec.lighting === "low" ? 0.25 : 0.75;

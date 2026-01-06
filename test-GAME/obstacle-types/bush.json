@@ -1,35 +1,53 @@
 {
-  "id": "bush",
-  "label": "Buisson",
-  "category": "vegetation",
-  "tags": ["bush", "vegetation", "nature"],
-  "blocking": {
-    "movement": true,
-    "vision": false,
-    "attacks": false
-  },
-  "durability": {
-    "destructible": true,
-    "maxHp": 5,
-    "ac": 10
-  },
-  "variants": [
-    {
-      "id": "base",
-      "label": "Buisson",
-      "footprint": [{ "x": 0, "y": 0 }],
-      "rotatable": false
-    }
-  ],
-  "appearance": {
-    "spriteKey": "obstacle:bush",
-    "tint": 16777215,
-    "heightClass": "low"
-  },
-  "spawnRules": {
-    "weight": 4,
-    "cluster": { "min": 1, "max": 6 },
-    "shapeHint": "scatter",
-    "avoidNearTokens": true
-  }
+    "id":  "bush",
+    "label":  "Buisson",
+    "category":  "vegetation",
+    "tags":  [
+                 "bush",
+                 "vegetation",
+                 "nature"
+             ],
+    "blocking":  {
+                     "movement":  true,
+                     "vision":  false,
+                     "attacks":  false
+                 },
+    "durability":  {
+                       "destructible":  true,
+                       "maxHp":  5,
+                       "ac":  10
+                   },
+    "variants":  [
+                     {
+                         "id":  "base",
+                         "label":  "Buisson",
+                         "footprint":  [
+                                           {
+                                               "x":  0,
+                                               "y":  0
+                                           }
+                                       ],
+                         "rotatable":  false
+                     }
+                 ],
+    "appearance":  {
+                       "spriteKey":  "obstacle:bush",
+                       "tint":  16777215,
+                       "heightClass":  "low",
+                       "tokenScale":  {
+                                          "default":  70,
+                                          "min":  65,
+                                          "max":  80
+                                      }
+                   },
+    "spawnRules":  {
+                       "weight":  4,
+                       "cluster":  {
+                                       "min":  1,
+                                       "max":  6
+                                   },
+                       "shapeHint":  "scatter",
+                       "avoidNearTokens":  true
+                   }
 }
+
