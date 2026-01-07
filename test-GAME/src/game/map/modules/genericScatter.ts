@@ -1,6 +1,6 @@
 import type { GridPosition } from "../../../types";
 import type { MapBuildContext, MapSpec } from "../types";
-import { createDraft, buildReservedRadius, clamp, setLight, setTerrain, tryPlaceObstacle } from "../draft";
+import { createDraft, clamp, setLight, setTerrain, tryPlaceObstacle } from "../draft";
 import { findObstacleType, pickVariantIdForPlacement, weightedTypesForContext } from "../obstacleSelector";
 import { pickWeighted } from "../random";
 
@@ -14,8 +14,7 @@ export function generateGenericScatter(params: {
   const rows = Math.max(1, spec.grid.rows);
 
   const playerStart: GridPosition = { x: 1, y: Math.floor(rows / 2) };
-  const reserved = buildReservedRadius(playerStart, 2, cols, rows);
-  const draft = createDraft({ cols, rows, reserved, seedPrefix: "obs" });
+  const draft = createDraft({ cols, rows, reserved: new Set(), seedPrefix: "obs" });
 
   draft.log.push("Layout: basique (scatter).");
 
@@ -41,7 +40,6 @@ export function generateGenericScatter(params: {
     if (!chosen) break;
     const x = Math.floor(rand() * cols);
     const y = Math.floor(rand() * rows);
-    if (x === playerStart.x && y === playerStart.y) continue;
     const variantId = pickVariantIdForPlacement(chosen, "scatter", rand);
     const ok = tryPlaceObstacle({ draft, type: chosen, x, y, variantId, rotation: 0 });
     if (ok) placed++;
@@ -50,4 +48,3 @@ export function generateGenericScatter(params: {
   draft.log.push(`Props: ${placed}.`);
   return { draft, playerStart };
 }
-

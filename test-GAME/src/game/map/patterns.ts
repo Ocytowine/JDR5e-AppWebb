@@ -5,9 +5,11 @@ import type {
   MapPatternRotation
 } from "../mapPatternCatalog";
 import type { ObstacleTypeDefinition } from "../obstacleTypes";
+import type { WallTypeDefinition } from "../wallTypes";
 import { getObstacleOccupiedCells } from "../obstacleRuntime";
+import { getWallOccupiedCells } from "../wallRuntime";
 import type { MapDraft } from "./draft";
-import { isInside, key, tryPlaceDecor, tryPlaceObstacle } from "./draft";
+import { isInside, key, tryPlaceDecor, tryPlaceObstacle, tryPlaceWall } from "./draft";
 
 export interface PatternTransform {
   rotation?: MapPatternRotation;
@@ -209,9 +211,11 @@ function canPlaceElements(params: {
   originY: number;
   elements: MapPatternElement[];
   obstacleTypes: ObstacleTypeDefinition[];
+  wallTypes: WallTypeDefinition[];
 }): boolean {
-  const { draft, originX, originY, elements, obstacleTypes } = params;
+  const { draft, originX, originY, elements, obstacleTypes, wallTypes } = params;
   const typeById = new Map(obstacleTypes.map(t => [t.id, t]));
+  const wallById = new Map(wallTypes.map(t => [t.id, t]));
 
   for (const element of elements) {
     const gx = originX + element.x;
@@ -224,6 +228,34 @@ function canPlaceElements(params: {
       if (draft.occupied.has(k)) return false;
       if (draft.decorOccupied.has(k)) return false;
       if (draft.reserved.has(k)) return false;
+      continue;
+    }
+
+    if (element.type === "wall") {
+      const typeId = element.typeId ?? "";
+      const typeDef = wallById.get(typeId) ?? null;
+      if (!typeDef) return false;
+      const variantId = element.variant ?? typeDef.variants?.[0]?.id ?? "base";
+      const rotation = element.rotation ?? 0;
+      const temp = {
+        id: "pattern-wall",
+        typeId,
+        variantId,
+        x: gx,
+        y: gy,
+        rotation,
+        state: "closed" as const
+      };
+      const cells = getWallOccupiedCells(temp, typeDef);
+      if (!cells.length) return false;
+      for (const c of cells) {
+        if (!isInside(draft, c.x, c.y)) return false;
+        if (!isPlayable(draft, c.x, c.y)) return false;
+        const k = key(c.x, c.y);
+        if (draft.occupied.has(k)) return false;
+        if (draft.decorOccupied.has(k)) return false;
+        if (draft.reserved.has(k)) return false;
+      }
       continue;
     }
 
@@ -267,11 +299,12 @@ export function placePattern(params: {
   anchorX: number;
   anchorY: number;
   obstacleTypes: ObstacleTypeDefinition[];
+  wallTypes: WallTypeDefinition[];
   rand?: () => number;
   anchorOverride?: MapPatternAnchor;
   transform?: PatternTransform;
 }): boolean {
-  const { draft, pattern, anchorX, anchorY, obstacleTypes, rand, anchorOverride, transform } = params;
+  const { draft, pattern, anchorX, anchorY, obstacleTypes, wallTypes, rand, anchorOverride, transform } = params;
   const baseElements = pickElements(pattern, rand);
   const { elements, size } = applyTransformToElements({
     pattern,
@@ -285,7 +318,7 @@ export function placePattern(params: {
   if (!fitsBounds({ draft, pattern, originX, originY, size })) return false;
   if (!isClearArea({ draft, pattern, originX, originY, size })) return false;
 
-  if (!canPlaceElements({ draft, pattern, originX, originY, elements, obstacleTypes })) return false;
+  if (!canPlaceElements({ draft, pattern, originX, originY, elements, obstacleTypes, wallTypes })) return false;
 
   for (const element of elements) {
     const gx = originX + element.x;
@@ -299,6 +332,23 @@ export function placePattern(params: {
         y: gy,
         rotation: element.rotation,
         scale: element.scale
+      });
+      if (!ok) return false;
+      continue;
+    }
+
+    if (element.type === "wall") {
+      const typeId = element.typeId ?? "";
+      const typeDef = wallTypes.find(t => t.id === typeId) ?? null;
+      if (!typeDef) return false;
+      const variantId = element.variant ?? typeDef.variants?.[0]?.id ?? "base";
+      const ok = tryPlaceWall({
+        draft,
+        type: typeDef,
+        x: gx,
+        y: gy,
+        variantId,
+        rotation: element.rotation ?? 0
       });
       if (!ok) return false;
       continue;
@@ -329,11 +379,12 @@ export function placePatternAtOrigin(params: {
   originX: number;
   originY: number;
   obstacleTypes: ObstacleTypeDefinition[];
+  wallTypes: WallTypeDefinition[];
   rand?: () => number;
   anchorOverride?: MapPatternAnchor;
   transform?: PatternTransform;
 }): boolean {
-  const { draft, pattern, originX, originY, obstacleTypes, rand, anchorOverride, transform } = params;
+  const { draft, pattern, originX, originY, obstacleTypes, wallTypes, rand, anchorOverride, transform } = params;
   const size = transformedSize(
     Math.max(1, Math.floor(pattern.footprint.w)),
     Math.max(1, Math.floor(pattern.footprint.h)),
@@ -344,6 +395,7 @@ export function placePatternAtOrigin(params: {
     draft,
     pattern,
     obstacleTypes,
+    wallTypes,
     rand,
     anchorOverride,
     transform,

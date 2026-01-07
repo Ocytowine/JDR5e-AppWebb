@@ -1,7 +1,8 @@
 import { Assets } from "pixi.js";
 
 const svgModules = import.meta.glob("../model/*.svg", {
-  as: "raw",
+  query: "?raw",
+  import: "default",
   eager: true
 });
 

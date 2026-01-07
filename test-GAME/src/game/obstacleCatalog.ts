@@ -2,10 +2,6 @@ import type { ObstacleTypeDefinition } from "./obstacleTypes";
 
 import obstaclesIndex from "../../obstacle-types/index.json";
 
-import wallStone from "../../obstacle-types/wall-stone.json";
-import wallWood from "../../obstacle-types/wall-wood.json";
-import lowWallStone from "../../obstacle-types/low-wall-stone.json";
-import lowWallWood from "../../obstacle-types/low-wall-wood.json";
 import fenceWood from "../../obstacle-types/fence-wood.json";
 import doorWood from "../../obstacle-types/door-wood.json";
 import treeOak from "../../obstacle-types/tree-oak.json";
@@ -22,12 +18,9 @@ import statueStone from "../../obstacle-types/statue-stone.json";
 import torchWall from "../../obstacle-types/torch-wall.json";
 import brazier from "../../obstacle-types/brazier.json";
 import pillarStone from "../../obstacle-types/pillar-stone.json";
+import stairsStone from "../../obstacle-types/stairs-stone.json";
 
 const OBSTACLE_TYPE_MODULES: Record<string, ObstacleTypeDefinition> = {
-  "./wall-stone.json": wallStone as ObstacleTypeDefinition,
-  "./wall-wood.json": wallWood as ObstacleTypeDefinition,
-  "./low-wall-stone.json": lowWallStone as ObstacleTypeDefinition,
-  "./low-wall-wood.json": lowWallWood as ObstacleTypeDefinition,
   "./fence-wood.json": fenceWood as ObstacleTypeDefinition,
   "./door-wood.json": doorWood as ObstacleTypeDefinition,
   "./tree-oak.json": treeOak as ObstacleTypeDefinition,
@@ -43,7 +36,8 @@ const OBSTACLE_TYPE_MODULES: Record<string, ObstacleTypeDefinition> = {
   "./statue-stone.json": statueStone as ObstacleTypeDefinition,
   "./torch-wall.json": torchWall as ObstacleTypeDefinition,
   "./brazier.json": brazier as ObstacleTypeDefinition,
-  "./pillar-stone.json": pillarStone as ObstacleTypeDefinition
+  "./pillar-stone.json": pillarStone as ObstacleTypeDefinition,
+  "./stairs-stone.json": stairsStone as ObstacleTypeDefinition
 };
 
 export function loadObstacleTypesFromIndex(): ObstacleTypeDefinition[] {

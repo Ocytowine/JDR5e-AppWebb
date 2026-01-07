@@ -6,6 +6,7 @@ import { computePathTowards } from "../pathfinding";
 import { GRID_COLS, GRID_ROWS, isCellInsideGrid } from "../boardConfig";
 import { rollAttack, rollDamage, type AdvantageMode } from "../dice/roller";
 import { hasLineOfEffect } from "../lineOfSight";
+import { getHeightAtGrid } from "./map/draft";
 
 export interface ActionEngineContext {
   round: number;
@@ -26,6 +27,8 @@ export interface ActionEngineContext {
    * Si absent, fallback sur `GRID_COLS/GRID_ROWS`.
    */
   grid?: { cols: number; rows: number } | null;
+  heightMap?: number[] | null;
+  activeLevel?: number | null;
   /**
    * Optional hook to emit structured combat events (narration buffer, analytics, etc.).
    * The engine stays UI-agnostic and does not import narrationClient directly.
@@ -99,6 +102,19 @@ function resolveNumberVar(
   return null;
 }
 
+function areOnSameBaseLevel(
+  ctx: ActionEngineContext,
+  a: TokenState,
+  b: TokenState
+): boolean {
+  if (!ctx.heightMap || ctx.heightMap.length === 0) return true;
+  const cols = ctx.grid?.cols ?? GRID_COLS;
+  const rows = ctx.grid?.rows ?? GRID_ROWS;
+  const ha = getHeightAtGrid(ctx.heightMap, cols, rows, a.x, a.y);
+  const hb = getHeightAtGrid(ctx.heightMap, cols, rows, b.x, b.y);
+  return ha === hb;
+}
+
 export function resolveFormula(formula: string, ctx: ActionEngineContext): string {
   const raw = String(formula ?? "");
   if (!raw.trim()) return "0";
@@ -150,6 +166,10 @@ export function validateActionTarget(
     const enemyToken = target.token;
     if (enemyToken.hp <= 0) {
       return { ok: false, reason: "La cible est deja a terre." };
+    }
+
+    if (!areOnSameBaseLevel(ctx, actor, enemyToken)) {
+      return { ok: false, reason: "Cible sur un autre niveau." };
     }
 
     const dist = manhattan(actor, enemyToken);
@@ -222,6 +242,10 @@ export function validateActionTarget(
     const playerToken = ctx.player;
     if (playerToken.hp <= 0) {
       return { ok: false, reason: "Le joueur est deja a terre." };
+    }
+
+    if (!areOnSameBaseLevel(ctx, actor, playerToken)) {
+      return { ok: false, reason: "Cible sur un autre niveau." };
     }
 
     const dist = manhattan(actor, playerToken);
@@ -554,13 +578,25 @@ export function resolveAction(
         }
       }
 
-      const tokensForPath: TokenState[] = [player as TokenState, ...enemies];
+      const tokensForPath: TokenState[] = (() => {
+        if (!ctx.heightMap || typeof ctx.activeLevel !== "number") {
+          return [player as TokenState, ...enemies];
+        }
+        const cols = ctx.grid?.cols ?? GRID_COLS;
+        const rows = ctx.grid?.rows ?? GRID_ROWS;
+        return [player as TokenState, ...enemies].filter(t => {
+          const baseHeight = getHeightAtGrid(ctx.heightMap as number[], cols, rows, t.x, t.y);
+          return baseHeight === ctx.activeLevel;
+        });
+      })();
       const path = computePathTowards(actor, { x: clampedX, y: clampedY }, tokensForPath, {
         maxDistance: Math.max(0, maxSteps),
         allowTargetOccupied: false,
         blockedCells: ctx.blockedMovementCells ?? null,
         playableCells: ctx.playableCells ?? null,
-        grid: ctx.grid ?? null
+        grid: ctx.grid ?? null,
+        heightMap: ctx.heightMap ?? null,
+        activeLevel: ctx.activeLevel ?? null
       });
 
       actor.plannedPath = path;

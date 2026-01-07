@@ -1,6 +1,7 @@
 import type { GridPosition } from "../../types";
 import type { EnemyTypeDefinition } from "../enemyTypes";
 import type { ObstacleTypeDefinition } from "../obstacleTypes";
+import type { WallTypeDefinition } from "../wallTypes";
 import type { DecorInstance } from "../decorTypes";
 import type { TerrainCell } from "./draft";
 
@@ -11,11 +12,20 @@ export type MapTimeOfDay = "day" | "night" | "unknown";
 export type LayoutId =
   | "dungeon_circular_room"
   | "dungeon_square_room"
+  | "dungeon_split_rooms"
+  | "dungeon_corridor_rooms"
   | "forest_clearing"
   | "city_street"
   | "generic_scatter";
 
 export type EntranceSide = "north" | "south" | "west" | "east";
+export type EntrancePosition = "center" | "start" | "end";
+
+export interface EntrancePlacementSpec {
+  side: EntranceSide;
+  count?: number;
+  position?: EntrancePosition;
+}
 
 export interface MapEntrancesSpec {
   /**
@@ -30,6 +40,7 @@ export interface MapEntrancesSpec {
    * Si non vide, impose les côtés pour les ouvertures.
    */
   sides?: EntranceSide[];
+  placements?: EntrancePlacementSpec[];
 }
 
 export interface DungeonRoomSpec {
@@ -54,6 +65,40 @@ export interface DungeonSpec {
    * "low" = ambiance sombre, "normal" = neutre.
    */
   lighting: "low" | "normal";
+}
+
+export type DungeonDoorState = "open" | "closed" | "locked";
+
+export interface DungeonRoomContentSpec {
+  kind: "table" | "barrel" | "crate" | "pillar" | "altar";
+  count?: number;
+}
+
+export interface DungeonRoomPlanSpec {
+  id: string;
+  role?: "player" | "enemy" | "neutral";
+  contents?: DungeonRoomContentSpec[];
+}
+
+export interface DungeonExteriorAccessSpec {
+  roomId: string;
+  side?: EntranceSide;
+  position?: EntrancePosition;
+  state?: DungeonDoorState;
+}
+
+export interface DungeonPlanSpec {
+  roomCount: number;
+  layoutStyle: "split" | "corridor";
+  splitAxis?: "vertical" | "horizontal";
+  corridorSide?: EntranceSide;
+  doorPosition?: EntrancePosition;
+  doorState?: DungeonDoorState;
+  playerRoomId?: string;
+  enemyRoomId?: string;
+  enemyCountOverride?: number;
+  rooms: DungeonRoomPlanSpec[];
+  exteriorAccess?: DungeonExteriorAccessSpec[];
 }
 
 export interface ForestClearingSpec {
@@ -84,6 +129,7 @@ export interface MapSpec {
 
   // Sous-spécifications selon le layout
   dungeon?: DungeonSpec;
+  dungeonPlan?: DungeonPlanSpec;
   forest?: ForestClearingSpec;
   city?: CityStreetSpec;
 }
@@ -92,6 +138,7 @@ export interface MapBuildContext {
   enemyCount: number;
   enemyTypes: EnemyTypeDefinition[];
   obstacleTypes: ObstacleTypeDefinition[];
+  wallTypes: WallTypeDefinition[];
 }
 
 export interface ManualMapBorderMask {
@@ -121,12 +168,17 @@ export interface ManualMapConfig {
 
 export interface MapBuildResult {
   summaryParts: string[];
+  grid: { cols: number; rows: number };
   generationLog: string[];
+  theme: MapTheme;
   playerStart: GridPosition;
   enemySpawns: { enemyType: EnemyTypeDefinition; position: GridPosition }[];
   playableCells: string[];
   obstacles: import("../obstacleTypes").ObstacleInstance[];
+  walls: import("../wallTypes").WallInstance[];
   terrain: TerrainCell[];
+  height: number[];
   decorations: DecorInstance[];
   recommendedGrid?: { cols: number; rows: number; reason: string };
 }
+

@@ -3,7 +3,8 @@ import { Container, Graphics, Text } from "pixi.js";
 import type { RefObject } from "react";
 import type { TokenState } from "../types";
 import type { SpeechBubbleEntry } from "../game/turnTypes";
-import { TILE_SIZE, gridToScreenForGrid } from "../boardConfig";
+import { LEVEL_HEIGHT_PX, TILE_SIZE, gridToScreenForGrid } from "../boardConfig";
+import { getHeightAtGrid } from "../game/map/draft";
 import { isTokenDead } from "../game/combatUtils";
 
 export function usePixiSpeechBubbles(options: {
@@ -13,6 +14,8 @@ export function usePixiSpeechBubbles(options: {
   speechBubbles: SpeechBubbleEntry[];
   pixiReadyTick?: number;
   grid: { cols: number; rows: number };
+  heightMap: number[];
+  activeLevel: number;
 }): void {
   useEffect(() => {
     const speechLayer = options.speechLayerRef.current;
@@ -41,6 +44,16 @@ export function usePixiSpeechBubbles(options: {
 
     for (const token of allTokens) {
       if (isTokenDead(token)) continue;
+      const baseHeight = getHeightAtGrid(
+        options.heightMap,
+        options.grid.cols,
+        options.grid.rows,
+        token.x,
+        token.y
+      );
+      if (baseHeight !== options.activeLevel) continue;
+      const elevation = Number.isFinite(token.elevation) ? token.elevation ?? 0 : 0;
+      const heightOffset = (baseHeight + elevation) * LEVEL_HEIGHT_PX;
       const bubble = bubbleByTokenId.get(token.id);
       if (!bubble) continue;
       if (!bubble.text.trim()) continue;
@@ -49,8 +62,6 @@ export function usePixiSpeechBubbles(options: {
 
       const bubbleContainer = new Container();
       const bubbleBg = new Graphics();
-      bubbleBg.beginFill(0xffffff, 0.92);
-
       const textObj = new Text(bubble.text, {
         fontFamily: "Arial",
         fontSize: 11,
@@ -63,8 +74,9 @@ export function usePixiSpeechBubbles(options: {
       const width = Math.min(maxWidth, textObj.width + 10);
       const height = textObj.height + 8;
 
-      bubbleBg.drawRoundedRect(-width / 2, -height, width, height, 7);
-      bubbleBg.endFill();
+      bubbleBg
+        .roundRect(-width / 2, -height, width, height, 7)
+        .fill({ color: 0xffffff, alpha: 0.92 });
 
       textObj.x = -textObj.width / 2;
       textObj.y = -height + 4;
@@ -73,7 +85,7 @@ export function usePixiSpeechBubbles(options: {
       bubbleContainer.addChild(textObj);
 
       const x = screenPos.x + TILE_SIZE * 0.05;
-      const y = screenPos.y - baseOffsetY;
+      const y = screenPos.y - baseOffsetY - heightOffset;
 
       bubbleContainer.x = x;
       bubbleContainer.y = y;
@@ -131,6 +143,8 @@ export function usePixiSpeechBubbles(options: {
     options.enemies,
     options.speechBubbles,
     options.pixiReadyTick,
-    options.grid
+    options.grid,
+    options.heightMap,
+    options.activeLevel
   ]);
 }

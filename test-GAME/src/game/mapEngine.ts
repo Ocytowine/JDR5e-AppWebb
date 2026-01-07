@@ -1,7 +1,8 @@
 import type { EnemyTypeDefinition } from "./enemyTypes";
 import type { GridPosition } from "../types";
 import type { ObstacleInstance, ObstacleTypeDefinition } from "./obstacleTypes";
-import type { ManualMapConfig } from "./map/types";
+import type { WallInstance, WallTypeDefinition } from "./wallTypes";
+import type { ManualMapConfig, MapTheme } from "./map/types";
 import type { DecorInstance } from "./decorTypes";
 import type { TerrainCell } from "./map/draft";
 import { runGenerationPipeline, runManualGenerationPipeline } from "./map/pipeline";
@@ -13,11 +14,14 @@ export interface MapDesignRequest {
   enemyCount: number;
   enemyTypes: EnemyTypeDefinition[];
   obstacleTypes: ObstacleTypeDefinition[];
+  wallTypes: WallTypeDefinition[];
   manualConfig?: ManualMapConfig;
 }
 
 export interface MapDesignResult {
   summary: string;
+  grid: { cols: number; rows: number };
+  theme: MapTheme;
   playerStart: GridPosition;
   enemySpawns: { enemyType: EnemyTypeDefinition; position: GridPosition }[];
   /**
@@ -26,7 +30,9 @@ export interface MapDesignResult {
    */
   playableCells: string[];
   obstacles: ObstacleInstance[];
+  walls: WallInstance[];
   terrain: TerrainCell[];
+  height: number[];
   decorations: DecorInstance[];
   recommendedGrid?: { cols: number; rows: number; reason: string };
   /**
@@ -57,17 +63,22 @@ export function generateBattleMap(request: MapDesignRequest): MapDesignResult {
       ctx: {
         enemyCount: request.enemyCount,
         enemyTypes: request.enemyTypes,
-        obstacleTypes: request.obstacleTypes
+        obstacleTypes: request.obstacleTypes,
+        wallTypes: request.wallTypes
       }
     });
 
     return {
       summary: result.summaryParts.join(" "),
+      grid: result.grid,
+      theme: result.theme,
       playerStart: result.playerStart,
       enemySpawns: result.enemySpawns,
       playableCells: result.playableCells,
       obstacles: result.obstacles,
+      walls: result.walls,
       terrain: result.terrain,
+      height: result.height,
       decorations: result.decorations,
       recommendedGrid: result.recommendedGrid,
       generationLog: result.generationLog
@@ -80,19 +91,26 @@ export function generateBattleMap(request: MapDesignRequest): MapDesignResult {
     ctx: {
       enemyCount: request.enemyCount,
       enemyTypes: request.enemyTypes,
-      obstacleTypes: request.obstacleTypes
+      obstacleTypes: request.obstacleTypes,
+      wallTypes: request.wallTypes
     }
   });
 
   return {
     summary: result.summaryParts.join(" "),
+      grid: result.grid,
+      theme: result.theme,
     playerStart: result.playerStart,
     enemySpawns: result.enemySpawns,
     playableCells: result.playableCells,
     obstacles: result.obstacles,
+    walls: result.walls,
     terrain: result.terrain,
+    height: result.height,
     decorations: result.decorations,
     recommendedGrid: result.recommendedGrid,
     generationLog: result.generationLog
   };
 }
+
+

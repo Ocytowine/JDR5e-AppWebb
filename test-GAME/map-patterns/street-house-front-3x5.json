@@ -10,10 +10,10 @@
     "avoidBorder": { "top": 0, "left": 0, "right": 0, "bottom": 0 }
   },
   "elements": [
-    { "type": "obstacle", "typeId": "wall-wood", "x": 0, "y": 2, "variant": "1", "rotation": 0 },
-    { "type": "obstacle", "typeId": "wall-wood", "x": 1, "y": 2, "variant": "1", "rotation": 0 },
-    { "type": "obstacle", "typeId": "door-wood", "x": 2, "y": 2, "variant": "base", "rotation": 0 },
-    { "type": "obstacle", "typeId": "wall-wood", "x": 3, "y": 2, "variant": "1", "rotation": 0 },
-    { "type": "obstacle", "typeId": "wall-wood", "x": 4, "y": 2, "variant": "1", "rotation": 0 }
+    { "type": "wall", "typeId": "wall-wood", "x": 0, "y": 2, "variant": "1", "rotation": 0 },
+    { "type": "wall", "typeId": "wall-wood", "x": 1, "y": 2, "variant": "1", "rotation": 0 },
+    { "type": "wall", "typeId": "wall-wood-door", "x": 2, "y": 2, "variant": "1", "rotation": 0 },
+    { "type": "wall", "typeId": "wall-wood", "x": 3, "y": 2, "variant": "1", "rotation": 0 },
+    { "type": "wall", "typeId": "wall-wood", "x": 4, "y": 2, "variant": "1", "rotation": 0 }
   ]
 }

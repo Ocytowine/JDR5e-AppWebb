@@ -9,7 +9,8 @@ import {
   generateConeEffect,
   generateRectangleEffect
 } from "../boardEffects";
-import { TILE_SIZE, gridToScreenForGrid } from "../boardConfig";
+import { LEVEL_HEIGHT_PX, TILE_SIZE, gridToScreenForGrid } from "../boardConfig";
+import { getHeightAtGrid } from "../game/map/draft";
 import { computeVisionEffectForToken, isCellVisible } from "../vision";
 
 export function usePixiOverlays(options: {
@@ -25,6 +26,8 @@ export function usePixiOverlays(options: {
   pixiReadyTick?: number;
   playableCells?: Set<string> | null;
   grid: { cols: number; rows: number };
+  heightMap: number[];
+  activeLevel: number;
 }): void {
   useEffect(() => {
     const pathLayer = options.pathLayerRef.current;
@@ -66,8 +69,60 @@ export function usePixiOverlays(options: {
       }
     });
 
+    const cellCenter = (x: number, y: number) => {
+      const center = gridToScreenForGrid(x, y, options.grid.cols, options.grid.rows);
+      const height = getHeightAtGrid(options.heightMap, options.grid.cols, options.grid.rows, x, y);
+      const offset = height * LEVEL_HEIGHT_PX;
+      return { x: center.x, y: center.y - offset, height };
+    };
+
+    for (let y = 0; y < options.grid.rows; y++) {
+      for (let x = 0; x < options.grid.cols; x++) {
+        const height = getHeightAtGrid(
+          options.heightMap,
+          options.grid.cols,
+          options.grid.rows,
+          x,
+          y
+        );
+        if (height <= 0 || height !== options.activeLevel) continue;
+        if (
+          options.playableCells &&
+          options.playableCells.size > 0 &&
+          !options.playableCells.has(`${x},${y}`)
+        ) {
+          continue;
+        }
+        const center = cellCenter(x, y);
+        const w = TILE_SIZE;
+        const h = TILE_SIZE * 0.5;
+        const points = [
+          center.x,
+          center.y - h / 2,
+          center.x + w / 2,
+          center.y,
+          center.x,
+          center.y + h / 2,
+          center.x - w / 2,
+          center.y
+        ];
+        pathLayer.poly(points).fill({
+          color: 0xc2a15a,
+          alpha: 0.18
+        });
+      }
+    }
+
     for (const effect of activeEffects) {
       for (const cell of effect.cells) {
+        const height = getHeightAtGrid(
+          options.heightMap,
+          options.grid.cols,
+          options.grid.rows,
+          cell.x,
+          cell.y
+        );
+        if (height !== options.activeLevel) continue;
         if (
           options.playableCells &&
           options.playableCells.size > 0 &&
@@ -87,7 +142,7 @@ export function usePixiOverlays(options: {
         ) {
           continue;
         }
-        const center = gridToScreenForGrid(cell.x, cell.y, options.grid.cols, options.grid.rows);
+        const center = cellCenter(cell.x, cell.y);
         const w = TILE_SIZE;
         const h = TILE_SIZE * 0.5;
 
@@ -117,10 +172,27 @@ export function usePixiOverlays(options: {
     }
 
     if (options.showVisionDebug) {
-      const allTokens: TokenState[] = [options.player, ...options.enemies];
+      const allTokens: TokenState[] = [options.player, ...options.enemies].filter(t => {
+        const height = getHeightAtGrid(
+          options.heightMap,
+          options.grid.cols,
+          options.grid.rows,
+          t.x,
+          t.y
+        );
+        return height === options.activeLevel;
+      });
       for (const token of allTokens) {
         const visionEffect = computeVisionEffectForToken(token, options.playableCells ?? null);
         for (const cell of visionEffect.cells) {
+          const height = getHeightAtGrid(
+            options.heightMap,
+            options.grid.cols,
+            options.grid.rows,
+            cell.x,
+            cell.y
+          );
+          if (height !== options.activeLevel) continue;
           if (
             options.playableCells &&
             options.playableCells.size > 0 &&
@@ -128,7 +200,7 @@ export function usePixiOverlays(options: {
           ) {
             continue;
           }
-          const center = gridToScreenForGrid(cell.x, cell.y, options.grid.cols, options.grid.rows);
+          const center = cellCenter(cell.x, cell.y);
           const w = TILE_SIZE;
           const h = TILE_SIZE * 0.5;
 
@@ -155,7 +227,15 @@ export function usePixiOverlays(options: {
 
     const occupiedTokens: TokenState[] = [options.player, ...options.enemies];
     for (const token of occupiedTokens) {
-      const center = gridToScreenForGrid(token.x, token.y, options.grid.cols, options.grid.rows);
+      const height = getHeightAtGrid(
+        options.heightMap,
+        options.grid.cols,
+        options.grid.rows,
+        token.x,
+        token.y
+      );
+      if (height !== options.activeLevel) continue;
+      const center = cellCenter(token.x, token.y);
       const w = TILE_SIZE;
       const h = TILE_SIZE * 0.5;
 
@@ -181,7 +261,50 @@ export function usePixiOverlays(options: {
     if (options.selectedTargetId) {
       const target = options.enemies.find(e => e.id === options.selectedTargetId);
       if (target) {
-        const center = gridToScreenForGrid(target.x, target.y, options.grid.cols, options.grid.rows);
+        const height = getHeightAtGrid(
+          options.heightMap,
+          options.grid.cols,
+          options.grid.rows,
+          target.x,
+          target.y
+        );
+        if (height === options.activeLevel) {
+          const center = cellCenter(target.x, target.y);
+          const w = TILE_SIZE;
+          const h = TILE_SIZE * 0.5;
+
+          const points = [
+            center.x,
+            center.y - h / 2,
+            center.x + w / 2,
+            center.y,
+            center.x,
+            center.y + h / 2,
+            center.x - w / 2,
+            center.y
+          ];
+
+          pathLayer.poly(points).fill({
+            color: 0x3498db,
+            alpha: 0.6
+          });
+        }
+      }
+    }
+
+    if (options.selectedObstacleCell) {
+      const height = getHeightAtGrid(
+        options.heightMap,
+        options.grid.cols,
+        options.grid.rows,
+        options.selectedObstacleCell.x,
+        options.selectedObstacleCell.y
+      );
+      if (height === options.activeLevel) {
+        const center = cellCenter(
+          options.selectedObstacleCell.x,
+          options.selectedObstacleCell.y
+        );
         const w = TILE_SIZE;
         const h = TILE_SIZE * 0.5;
 
@@ -197,42 +320,15 @@ export function usePixiOverlays(options: {
         ];
 
         pathLayer.poly(points).fill({
-          color: 0x3498db,
+          color: 0x9b59b6,
           alpha: 0.6
         });
       }
     }
 
-    if (options.selectedObstacleCell) {
-      const center = gridToScreenForGrid(
-        options.selectedObstacleCell.x,
-        options.selectedObstacleCell.y,
-        options.grid.cols,
-        options.grid.rows
-      );
-      const w = TILE_SIZE;
-      const h = TILE_SIZE * 0.5;
-
-      const points = [
-        center.x,
-        center.y - h / 2,
-        center.x + w / 2,
-        center.y,
-        center.x,
-        center.y + h / 2,
-        center.x - w / 2,
-        center.y
-      ];
-
-      pathLayer.poly(points).fill({
-        color: 0x9b59b6,
-        alpha: 0.6
-      });
-    }
-
     if (options.selectedPath.length > 0) {
       const last = options.selectedPath[options.selectedPath.length - 1];
-      const center = gridToScreenForGrid(last.x, last.y, options.grid.cols, options.grid.rows);
+      const center = cellCenter(last.x, last.y);
       const w = TILE_SIZE;
       const h = TILE_SIZE * 0.5;
 
@@ -255,10 +351,18 @@ export function usePixiOverlays(options: {
 
     for (const enemy of options.enemies) {
       if (!enemy.plannedPath || enemy.plannedPath.length === 0) continue;
+      const height = getHeightAtGrid(
+        options.heightMap,
+        options.grid.cols,
+        options.grid.rows,
+        enemy.x,
+        enemy.y
+      );
+      if (height !== options.activeLevel) continue;
 
       const pathNodes = enemy.plannedPath;
       const first = pathNodes[0];
-      const start = gridToScreenForGrid(first.x, first.y, options.grid.cols, options.grid.rows);
+      const start = cellCenter(first.x, first.y);
 
       pathLayer.setStrokeStyle({
         width: 3,
@@ -268,7 +372,7 @@ export function usePixiOverlays(options: {
 
       pathLayer.moveTo(start.x, start.y);
       for (const node of pathNodes.slice(1)) {
-        const p = gridToScreenForGrid(node.x, node.y, options.grid.cols, options.grid.rows);
+        const p = cellCenter(node.x, node.y);
         pathLayer.lineTo(p.x, p.y);
       }
       pathLayer.stroke();
@@ -282,11 +386,11 @@ export function usePixiOverlays(options: {
       alpha: 1
     });
 
-    const start = gridToScreenForGrid(options.player.x, options.player.y, options.grid.cols, options.grid.rows);
+    const start = cellCenter(options.player.x, options.player.y);
     pathLayer.moveTo(start.x, start.y);
 
     for (const node of options.selectedPath) {
-      const p = gridToScreenForGrid(node.x, node.y, options.grid.cols, options.grid.rows);
+      const p = cellCenter(node.x, node.y);
       pathLayer.lineTo(p.x, p.y);
     }
 
@@ -301,7 +405,9 @@ export function usePixiOverlays(options: {
     options.showVisionDebug,
     options.pixiReadyTick,
     options.playableCells,
-    options.grid
+    options.grid,
+    options.heightMap,
+    options.activeLevel
   ]);
 }
 

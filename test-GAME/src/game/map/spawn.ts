@@ -14,8 +14,9 @@ export function spawnEnemies(params: {
   enemyCount: number;
   enemyTypes: EnemyTypeDefinition[];
   rand: () => number;
+  spawnMask?: Set<string>;
 }): { enemySpawns: { enemyType: EnemyTypeDefinition; position: GridPosition }[]; log: string[] } {
-  const { draft, playerStart, enemyTypes, rand } = params;
+  const { draft, playerStart, enemyTypes, rand, spawnMask } = params;
   const log: string[] = [];
 
   const enemySpawns: { enemyType: EnemyTypeDefinition; position: GridPosition }[] = [];
@@ -29,10 +30,11 @@ export function spawnEnemies(params: {
   const candidates: GridPosition[] = [];
   for (let y = 0; y < draft.rows; y++) {
     for (let x = 0; x < draft.cols; x++) {
+      if (spawnMask && !spawnMask.has(key(x, y))) continue;
       if (draft.occupied.has(key(x, y))) continue;
       if (draft.playable.size > 0 && !draft.playable.has(key(x, y))) continue;
       if (x === playerStart.x && y === playerStart.y) continue;
-      if (reachable.size > 0 && !reachable.has(key(x, y))) continue;
+      if (!spawnMask && reachable.size > 0 && !reachable.has(key(x, y))) continue;
       candidates.push({ x, y });
     }
   }
@@ -48,6 +50,7 @@ export function spawnEnemies(params: {
       }
     }
     log.push("Spawns: fallback (aucune case atteignable libre).");
+    if (spawnMask) log.push("Spawns: fallback sans masque de salle.");
   }
 
   candidates.sort((a, b) => scoreCell(b.x, b.y) - scoreCell(a.x, a.y));

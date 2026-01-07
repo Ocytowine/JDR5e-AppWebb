@@ -1,14 +1,15 @@
 import type { GridPosition } from "../../../types";
 import type { MapBuildContext, ManualMapConfig } from "../types";
 import {
-  buildReservedRadius,
   createDraft,
   setLight,
   setTerrain,
   tryPlaceObstacle,
+  tryPlaceWall,
   key
 } from "../draft";
 import { pickVariantIdForPlacement } from "../obstacleSelector";
+import { findWallType } from "../wallSelector";
 import { randomIntInclusive } from "../random";
 import { loadMapPatternsFromIndex } from "../../mapPatternCatalog";
 import { getPatternSize, pickPatternTransform, placePatternAtOrigin } from "../patterns";
@@ -76,10 +77,11 @@ function placeManualPatterns(params: {
   manualConfig: ManualMapConfig;
   rand: () => number;
   obstacleTypes: MapBuildContext["obstacleTypes"];
+  wallTypes: MapBuildContext["wallTypes"];
   cols: number;
   rows: number;
 }): number {
-  const { draft, manualConfig, rand, obstacleTypes, cols, rows } = params;
+  const { draft, manualConfig, rand, obstacleTypes, wallTypes, cols, rows } = params;
   const requested = manualConfig.options.patterns ?? [];
   if (!requested.length || MANUAL_PATTERNS.length === 0) return 0;
 
@@ -104,7 +106,16 @@ function placeManualPatterns(params: {
       const maxY = Math.max(0, rows - size.h);
       const originX = randomIntInclusive(rand, 0, maxX);
       const originY = randomIntInclusive(rand, 0, maxY);
-      ok = placePatternAtOrigin({ draft, pattern, originX, originY, obstacleTypes, rand, transform });
+      ok = placePatternAtOrigin({
+        draft,
+        pattern,
+        originX,
+        originY,
+        obstacleTypes,
+        wallTypes,
+        rand,
+        transform
+      });
     }
     if (ok) placed++;
   }
@@ -133,15 +144,19 @@ export function generateManualArena(params: {
   }
 
   const playerStart: GridPosition = { x: 1, y: Math.floor(rows / 2) };
-  draft.reserved = buildReservedRadius(playerStart, 2, cols, rows);
 
   const typeById = new Map(ctx.obstacleTypes.map(t => [t.id, t]));
+  const wallById = new Map(ctx.wallTypes.map(t => [t.id, t]));
 
   if (manualConfig.options.walls) {
     const wallType =
-      typeById.get("wall-stone") ??
-      ctx.obstacleTypes.find(t => t.category === "wall") ??
-      ctx.obstacleTypes[0] ??
+      findWallType(ctx.wallTypes, "wall-stone") ??
+      ctx.wallTypes.find(t => t.category === "wall") ??
+      ctx.wallTypes[0] ??
+      null;
+    const wallDoorType =
+      findWallType(ctx.wallTypes, "wall-stone-door") ??
+      wallById.get("wall-stone-door") ??
       null;
 
     if (wallType) {
@@ -170,14 +185,18 @@ export function generateManualArena(params: {
 
       let placedWalls = 0;
       for (const cell of boundaryCells) {
-        if (openingKeys.has(key(cell.x, cell.y))) continue;
-        const ok = tryPlaceObstacle({
+        const isOpening = openingKeys.has(key(cell.x, cell.y));
+        const typeForCell = isOpening && wallDoorType ? wallDoorType : wallType;
+        const state = isOpening ? "open" : "closed";
+        const ok = tryPlaceWall({
           draft,
-          type: wallType,
+          type: typeForCell,
           x: cell.x,
           y: cell.y,
           variantId: smallestVariant,
-          rotation: 0
+          rotation: 0,
+          state,
+          allowOnReserved: true
         });
         if (ok) placedWalls++;
       }
@@ -193,6 +212,7 @@ export function generateManualArena(params: {
     manualConfig,
     rand,
     obstacleTypes: ctx.obstacleTypes,
+    wallTypes: ctx.wallTypes,
     cols,
     rows
   });

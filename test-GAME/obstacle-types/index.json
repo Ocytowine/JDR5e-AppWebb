@@ -1,10 +1,6 @@
 {
   "model": "./obstacle-model.json",
   "types": [
-    "./wall-stone.json",
-    "./wall-wood.json",
-    "./low-wall-stone.json",
-    "./low-wall-wood.json",
     "./fence-wood.json",
     "./door-wood.json",
     "./tree-oak.json",
@@ -20,6 +16,7 @@
     "./statue-stone.json",
     "./torch-wall.json",
     "./brazier.json",
-    "./pillar-stone.json"
+    "./pillar-stone.json",
+    "./stairs-stone.json"
   ]
 }

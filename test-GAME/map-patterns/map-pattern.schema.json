@@ -42,7 +42,7 @@
         "type": "object",
         "required": ["type", "x", "y"],
         "properties": {
-          "type": { "type": "string", "enum": ["obstacle", "decor"] },
+          "type": { "type": "string", "enum": ["obstacle", "decor", "wall"] },
           "typeId": { "type": "string" },
           "spriteKey": { "type": "string" },
           "x": { "type": "integer" },

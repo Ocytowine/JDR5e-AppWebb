@@ -1,5 +1,6 @@
 import { GRID_COLS, GRID_ROWS, isCellInsideGrid } from "./boardConfig";
 import type { GridPosition, TokenState, MovementProfile } from "./types";
+import { getHeightAtGrid } from "./game/map/draft";
 
 interface PathfindingOptions {
   maxDistance: number;
@@ -23,6 +24,15 @@ interface PathfindingOptions {
    * Si non fourni, fallback sur `GRID_COLS/GRID_ROWS`.
    */
   grid?: { cols: number; rows: number } | null;
+  /**
+   * Carte de hauteur (niveau du sol par case).
+   * Si fourni, bloque les cellules hors du niveau actif.
+   */
+  heightMap?: number[] | null;
+  /**
+   * Niveau actif (0 = sol). Si fourni avec heightMap, filtre la navigation.
+   */
+  activeLevel?: number | null;
 }
 
 function coordKey(x: number, y: number): string {
@@ -53,11 +63,20 @@ function canEnterCell(
   target: GridPosition,
   blockedCells?: Set<string> | null,
   playableCells?: Set<string> | null,
-  grid?: { cols: number; rows: number } | null
+  grid?: { cols: number; rows: number } | null,
+  heightMap?: number[] | null,
+  activeLevel?: number | null
 ): boolean {
   const cols = grid?.cols ?? GRID_COLS;
   const rows = grid?.rows ?? GRID_ROWS;
   if (!isCellInsideGrid(x, y, cols, rows)) return false;
+
+  if (heightMap && heightMap.length > 0 && typeof activeLevel === "number") {
+    const baseHeight = getHeightAtGrid(heightMap, cols, rows, x, y);
+    if (baseHeight !== activeLevel) {
+      return false;
+    }
+  }
 
   const cellKey = coordKey(x, y);
   if (playableCells && playableCells.size > 0 && !playableCells.has(cellKey)) {
@@ -162,12 +181,14 @@ export function computePathTowards(
           options.allowTargetOccupied ?? false,
           target,
           options.blockedCells ?? null,
-          options.playableCells ?? null,
-          options.grid ?? null
-        )
-      ) {
-        continue;
-      }
+        options.playableCells ?? null,
+        options.grid ?? null,
+        options.heightMap ?? null,
+        options.activeLevel ?? null
+      )
+    ) {
+      continue;
+    }
 
       visited.add(key);
       parents.set(key, currentKey);

@@ -24,6 +24,9 @@ export const BOARD_HEIGHT = GRID_ROWS * TILE_SIZE;
 export const ISO_TILE_WIDTH = TILE_SIZE;
 export const ISO_TILE_HEIGHT = TILE_SIZE * 0.5;
 
+// Hauteur en pixels d'un niveau (1 mur = 1 niveau).
+export const LEVEL_HEIGHT_PX = ISO_TILE_HEIGHT;
+
 // Offset d'origine de la grille iso dans la scène Pixi.
 // On place la grille au centre horizontalement, et on laisse
 // un léger espace en haut.

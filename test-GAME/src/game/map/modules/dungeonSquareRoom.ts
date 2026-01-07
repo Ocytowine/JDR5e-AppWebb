@@ -1,37 +1,42 @@
 import type { GridPosition } from "../../../types";
 import type { ObstacleTypeDefinition } from "../../obstacleTypes";
-import type { MapBuildContext, MapSpec } from "../types";
+import type { EntrancePlacementSpec, EntranceSide, MapBuildContext, MapEntrancesSpec, MapSpec } from "../types";
 import {
-  buildReservedRadius,
   clamp,
   createDraft,
   setLight,
   setTerrain,
   tryPlaceObstacle,
+  tryPlaceWall,
   key,
   scatterTerrainPatches
 } from "../draft";
-import { findObstacleType, pickVariantIdForPlacement, weightedTypesForContext } from "../obstacleSelector";
+import { pickVariantIdForPlacement, weightedTypesForContext } from "../obstacleSelector";
+import { findWallType } from "../wallSelector";
 import { pickWeighted, randomIntInclusive } from "../random";
 
 function pickDungeonDefaults(ctx: MapBuildContext) {
   const wallType =
-    findObstacleType(ctx.obstacleTypes, "wall-stone") ??
-    ctx.obstacleTypes.find(t => t.category === "wall") ??
-    ctx.obstacleTypes[0] ??
+    findWallType(ctx.wallTypes, "wall-stone") ??
+    ctx.wallTypes.find(t => t.category === "wall") ??
+    ctx.wallTypes[0] ??
+    null;
+  const wallDoorType =
+    findWallType(ctx.wallTypes, "wall-stone-door") ??
+    ctx.wallTypes.find(t => (t.tags ?? []).includes("door")) ??
     null;
 
   const pillarType =
-    findObstacleType(ctx.obstacleTypes, "pillar-stone") ??
+    ctx.obstacleTypes.find(t => t.id === "pillar-stone") ??
     ctx.obstacleTypes.find(t => (t.tags ?? []).includes("pillar")) ??
     null;
 
   const barrelType =
-    findObstacleType(ctx.obstacleTypes, "barrel-wood") ??
+    ctx.obstacleTypes.find(t => t.id === "barrel-wood") ??
     ctx.obstacleTypes.find(t => (t.tags ?? []).includes("barrel")) ??
     null;
 
-  return { wallType, pillarType, barrelType };
+  return { wallType, wallDoorType, pillarType, barrelType };
 }
 
 function buildRectBoundary(params: { x1: number; y1: number; x2: number; y2: number }): GridPosition[] {
@@ -45,6 +50,24 @@ function buildRectBoundary(params: { x1: number; y1: number; x2: number; y2: num
     if (params.x2 !== params.x1) cells.push({ x: params.x2, y });
   }
   return cells;
+}
+
+function groupBoundaryBySide(rect: { x1: number; y1: number; x2: number; y2: number }): Record<EntranceSide, GridPosition[]> {
+  const north: GridPosition[] = [];
+  const south: GridPosition[] = [];
+  const west: GridPosition[] = [];
+  const east: GridPosition[] = [];
+
+  for (let x = rect.x1; x <= rect.x2; x++) {
+    north.push({ x, y: rect.y1 });
+    south.push({ x, y: rect.y2 });
+  }
+  for (let y = rect.y1 + 1; y <= rect.y2 - 1; y++) {
+    west.push({ x: rect.x1, y });
+    east.push({ x: rect.x2, y });
+  }
+
+  return { north, south, west, east };
 }
 
 function chooseOpenings(params: { boundary: GridPosition[]; count: number; rand: () => number }): GridPosition[] {
@@ -68,6 +91,91 @@ function chooseOpenings(params: { boundary: GridPosition[]; count: number; rand:
   }
 
   return chosen.slice(0, count);
+}
+
+function pickByPosition(
+  cells: GridPosition[],
+  position: EntrancePlacementSpec["position"] | undefined
+): GridPosition | null {
+  if (!cells.length) return null;
+  if (!position) return cells[Math.floor(cells.length / 2)] ?? null;
+  if (position === "start") return cells[0] ?? null;
+  if (position === "end") return cells[cells.length - 1] ?? null;
+  return cells[Math.floor(cells.length / 2)] ?? null;
+}
+
+function pickOpeningsOnSide(params: {
+  cells: GridPosition[];
+  count: number;
+  position?: EntrancePlacementSpec["position"];
+  rand: () => number;
+}): GridPosition[] {
+  const { cells, count, position, rand } = params;
+  if (!cells.length || count <= 0) return [];
+  if (count === 1) {
+    const picked = pickByPosition(cells, position);
+    return picked ? [picked] : [];
+  }
+
+  const picks: GridPosition[] = [];
+  const step = Math.max(1, Math.floor(cells.length / (count + 1)));
+  for (let i = 0; i < count && i * step < cells.length; i++) {
+    const idx = Math.min(cells.length - 1, step * (i + 1));
+    picks.push(cells[idx] ?? cells[cells.length - 1] as GridPosition);
+  }
+
+  while (picks.length < count) {
+    picks.push(cells[Math.floor(rand() * cells.length)] as GridPosition);
+  }
+
+  return picks;
+}
+
+function resolveOpenings(params: {
+  boundary: GridPosition[];
+  bySide: Record<EntranceSide, GridPosition[]>;
+  entrances: MapEntrancesSpec;
+  rand: () => number;
+}): GridPosition[] {
+  const { boundary, bySide, entrances, rand } = params;
+  if (!entrances) return [];
+  const chosen: GridPosition[] = [];
+  const chosenKeys = new Set<string>();
+
+  const placements = entrances.placements ?? [];
+  for (const placement of placements) {
+    const sideCells = bySide[placement.side] ?? [];
+    const count = Math.max(1, Math.floor(placement.count ?? 1));
+    const picks = pickOpeningsOnSide({
+      cells: sideCells,
+      count,
+      position: placement.position,
+      rand
+    });
+    for (const p of picks) {
+      const k = key(p.x, p.y);
+      if (chosenKeys.has(k)) continue;
+      chosenKeys.add(k);
+      chosen.push(p);
+    }
+  }
+
+  const target = Math.max(0, Math.floor(entrances.count ?? 0));
+  if (chosen.length >= target) return chosen.slice(0, target);
+
+  const sideFilter =
+    entrances.sides && entrances.sides.length
+      ? entrances.sides.flatMap(side => bySide[side] ?? [])
+      : boundary;
+
+  const remaining = sideFilter.filter(c => !chosenKeys.has(key(c.x, c.y)));
+  const extra = chooseOpenings({
+    boundary: remaining,
+    count: target - chosen.length,
+    rand
+  });
+
+  return chosen.concat(extra);
 }
 
 export function generateDungeonSquareRoom(params: {
@@ -108,9 +216,8 @@ export function generateDungeonSquareRoom(params: {
   });
 
   const playerStart: GridPosition = { x: 1, y: Math.floor(rows / 2) };
-  draft.reserved = buildReservedRadius(playerStart, 2, cols, rows);
 
-  const { wallType, pillarType, barrelType } = pickDungeonDefaults(ctx);
+  const { wallType, wallDoorType, pillarType, barrelType } = pickDungeonDefaults(ctx);
   const dSpec = spec.dungeon ?? {
     borderWalls: true,
     entrances: { count: 2, width: 1 },
@@ -122,10 +229,12 @@ export function generateDungeonSquareRoom(params: {
 
   const rect = { x1: 0, y1: 0, x2: cols - 1, y2: rows - 1 };
   const boundaryCells = buildRectBoundary(rect);
+  const boundaryBySide = groupBoundaryBySide(rect);
 
-  const openings = chooseOpenings({
+  const openings = resolveOpenings({
     boundary: boundaryCells,
-    count: dSpec.entrances?.count ?? 2,
+    bySide: boundaryBySide,
+    entrances: dSpec.entrances,
     rand
   });
   const openingKeys = new Set(openings.map(o => key(o.x, o.y)));
@@ -143,14 +252,18 @@ export function generateDungeonSquareRoom(params: {
 
     let placedWalls = 0;
     for (const cell of boundaryCells) {
-      if (openingKeys.has(key(cell.x, cell.y))) continue;
-      const ok = tryPlaceObstacle({
+      const isOpening = openingKeys.has(key(cell.x, cell.y));
+      const typeForCell = isOpening && wallDoorType ? wallDoorType : wallType;
+      const state = isOpening ? "open" : "closed";
+      const ok = tryPlaceWall({
         draft,
-        type: wallType,
+        type: typeForCell,
         x: cell.x,
         y: cell.y,
         variantId: smallestVariant,
-        rotation: 0
+        rotation: 0,
+        state,
+        allowOnReserved: true
       });
       if (ok) placedWalls++;
     }
@@ -162,11 +275,14 @@ export function generateDungeonSquareRoom(params: {
   // Colonnes dans l'intérieur (hors bordure)
   const columns = Math.max(0, dSpec.columns ?? 0);
   if (columns > 0) {
-    const typeForColumns = pillarType ?? wallType;
+    const typeForColumns = pillarType ?? null;
+    if (!typeForColumns) {
+      draft.log.push("Colonnes: aucun type de pilier disponible.");
+    }
     let placed = 0;
 
     let attempts = 0;
-    while (placed < columns && attempts < 300) {
+    while (typeForColumns && placed < columns && attempts < 300) {
       attempts++;
       const x = clamp(1 + Math.floor(rand() * Math.max(1, cols - 2)), 1, Math.max(1, cols - 2));
       const y = clamp(1 + Math.floor(rand() * Math.max(1, rows - 2)), 1, Math.max(1, rows - 2));

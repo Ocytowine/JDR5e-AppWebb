@@ -1,0 +1,26 @@
+{
+  "id": "wall-stone-door",
+  "label": "Mur de pierre (porte)",
+  "category": "wall",
+  "tags": ["wall", "stone", "door"],
+  "blocking": {
+    "movement": true,
+    "vision": true,
+    "attacks": true
+  },
+  "variants": [
+    {
+      "id": "1",
+      "label": "Segment 1",
+      "footprint": [{ "x": 0, "y": 0 }],
+      "rotatable": false
+    }
+  ],
+  "appearance": {
+    "textureKey": "wall:wallolddoor",
+    "heightClass": "tall"
+  },
+  "behavior": {
+    "kind": "door"
+  }
+}

@@ -10,7 +10,7 @@ import dungeonAltarNook from "../../map-patterns/dungeon-altar-nook.json";
 
 export type MapPatternTheme = "dungeon" | "forest" | "city" | "generic";
 export type MapPatternAnchor = "center" | "topLeft" | "topRight" | "bottomLeft" | "bottomRight";
-export type MapPatternElementType = "obstacle" | "decor";
+export type MapPatternElementType = "obstacle" | "decor" | "wall";
 export type MapPatternRotation = 0 | 90 | 180 | 270;
 
 export interface MapPatternFootprint {

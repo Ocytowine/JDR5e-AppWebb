@@ -1,7 +1,8 @@
 import { Assets } from "pixi.js";
 
 const pngModules = import.meta.glob("../decor-model/*.png", {
-  as: "url",
+  query: "?url",
+  import: "default",
   eager: true
 });
 

@@ -56,6 +56,7 @@ export interface ObstacleTypeDefinition {
   variants: ObstacleVariant[];
   appearance?: ObstacleAppearance;
   spawnRules?: ObstacleSpawnRules;
+  connects?: { from: number; to: number };
   /**
    * Free-form for later extensions (cover, doors, interactables...).
    */

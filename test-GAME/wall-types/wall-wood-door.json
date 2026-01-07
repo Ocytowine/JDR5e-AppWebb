@@ -1,0 +1,26 @@
+{
+  "id": "wall-wood-door",
+  "label": "Mur en bois (porte)",
+  "category": "wall",
+  "tags": ["wall", "wood", "door"],
+  "blocking": {
+    "movement": true,
+    "vision": true,
+    "attacks": true
+  },
+  "variants": [
+    {
+      "id": "1",
+      "label": "Segment 1",
+      "footprint": [{ "x": 0, "y": 0 }],
+      "rotatable": false
+    }
+  ],
+  "appearance": {
+    "textureKey": "wall:texture-plate",
+    "heightClass": "tall"
+  },
+  "behavior": {
+    "kind": "door"
+  }
+}

@@ -7,7 +7,6 @@ import {
   setTerrain,
   tryPlaceObstacle,
   key,
-  buildReservedRadius,
   scatterTerrainPatches,
   scatterDecorations
 } from "../draft";
@@ -22,6 +21,7 @@ function placeForestPatterns(params: {
   draft: ReturnType<typeof createDraft>;
   rand: () => number;
   obstacleTypes: MapBuildContext["obstacleTypes"];
+  wallTypes: MapBuildContext["wallTypes"];
   cols: number;
   rows: number;
   cx: number;
@@ -29,7 +29,7 @@ function placeForestPatterns(params: {
   radius: number;
   prompt: string;
 }): number {
-  const { draft, rand, obstacleTypes, cols, rows, cx, cy, radius, prompt } = params;
+  const { draft, rand, obstacleTypes, wallTypes, cols, rows, cx, cy, radius, prompt } = params;
   if (FOREST_PATTERNS.length === 0) return 0;
 
   let placed = 0;
@@ -52,14 +52,32 @@ function placeForestPatterns(params: {
     const size = getPatternSize(pattern, transform);
     const originX = clamp(cx - Math.floor(size.w / 2), 0, cols - 1);
     const originY = clamp(cy - Math.floor(size.h / 2), 0, rows - 1);
-    let ok = placePatternAtOrigin({ draft, pattern, originX, originY, obstacleTypes, rand, transform });
+    let ok = placePatternAtOrigin({
+      draft,
+      pattern,
+      originX,
+      originY,
+      obstacleTypes,
+      wallTypes,
+      rand,
+      transform
+    });
 
     if (!ok) {
       const attempts = 4;
       for (let i = 0; i < attempts && !ok; i++) {
         const ox = clamp(cx + randomIntInclusive(rand, -radius, radius), 0, cols - 1);
         const oy = clamp(cy + randomIntInclusive(rand, -radius, radius), 0, rows - 1);
-        ok = placePatternAtOrigin({ draft, pattern, originX: ox, originY: oy, obstacleTypes, rand, transform });
+        ok = placePatternAtOrigin({
+          draft,
+          pattern,
+          originX: ox,
+          originY: oy,
+          obstacleTypes,
+          wallTypes,
+          rand,
+          transform
+        });
       }
     }
 
@@ -85,8 +103,7 @@ export function generateForestClearing(params: {
   const rows = Math.max(1, spec.grid.rows);
 
   const playerStart: GridPosition = { x: 1, y: Math.floor(rows / 2) };
-  const reserved = buildReservedRadius(playerStart, 2, cols, rows);
-  const draft = createDraft({ cols, rows, reserved, seedPrefix: "obs" });
+  const draft = createDraft({ cols, rows, reserved: new Set(), seedPrefix: "obs" });
 
   const forest = spec.forest ?? {
     radius: Math.max(2, Math.floor(Math.min(cols, rows) * 0.30)),
@@ -104,6 +121,7 @@ export function generateForestClearing(params: {
     draft,
     rand,
     obstacleTypes: ctx.obstacleTypes,
+    wallTypes: ctx.wallTypes,
     cols,
     rows,
     cx,
@@ -163,8 +181,6 @@ export function generateForestClearing(params: {
     const x = Math.floor(rand() * cols);
     const y = Math.floor(rand() * rows);
 
-    // Ne pas bloquer le départ joueur
-    if (Math.abs(x - playerStart.x) + Math.abs(y - playerStart.y) <= 2) continue;
 
     const d = distance(x, y, cx, cy);
     const onRing = d >= r - ringThickness && d <= r + ringThickness;

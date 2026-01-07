@@ -5,7 +5,9 @@ import type {
   ObstacleTypeDefinition,
   ObstacleRotationDeg
 } from "../obstacleTypes";
+import type { WallInstance, WallRotationDeg, WallTypeDefinition, WallState } from "../wallTypes";
 import { getObstacleOccupiedCells } from "../obstacleRuntime";
+import { getWallOccupiedCells } from "../wallRuntime";
 
 // ------------------------------------------------------------
 // MapDraft: état intermédiaire "multi-couches"
@@ -44,6 +46,8 @@ export interface MapDraft {
   obstacles: ObstacleInstance[];
   occupied: Set<string>;
   movementBlocked: Set<string>;
+  walls: WallInstance[];
+  wallOccupied: Set<string>;
   decorations: DecorInstance[];
   decorOccupied: Set<string>;
 
@@ -51,6 +55,7 @@ export interface MapDraft {
   log: string[];
 
   nextObstacleId: () => string;
+  nextWallId: () => string;
   nextDecorId: () => string;
 }
 
@@ -106,6 +111,19 @@ export function getTerrainAt(draft: MapDraft, x: number, y: number): TerrainCell
   return draft.layers.terrain[indexOf(draft, x, y)] ?? null;
 }
 
+export function getHeightAtGrid(
+  height: number[],
+  cols: number,
+  rows: number,
+  x: number,
+  y: number
+): number {
+  if (!height || height.length === 0) return 0;
+  if (x < 0 || y < 0 || x >= cols || y >= rows) return 0;
+  const value = height[y * cols + x];
+  return Number.isFinite(value) ? value : 0;
+}
+
 export function createDraft(params: {
   cols: number;
   rows: number;
@@ -140,11 +158,14 @@ export function createDraft(params: {
     obstacles: [],
     occupied: new Set<string>(),
     movementBlocked: new Set<string>(),
+    walls: [],
+    wallOccupied: new Set<string>(),
     decorations: [],
     decorOccupied: new Set<string>(),
     reserved: params.reserved ?? new Set<string>(),
     log: [],
     nextObstacleId: () => `${prefix}-${seq++}`,
+    nextWallId: () => `wall-${seq++}`,
     nextDecorId: () => `decor-${seq++}`
   };
 }
@@ -263,6 +284,52 @@ export function tryPlaceObstacle(params: {
   draft.obstacles.push(instance);
   for (const c of cells) {
     const k = key(c.x, c.y);
+    draft.occupied.add(k);
+    if (type.blocking?.movement) draft.movementBlocked.add(k);
+  }
+
+  return true;
+}
+
+export function tryPlaceWall(params: {
+  draft: MapDraft;
+  type: WallTypeDefinition | null;
+  x: number;
+  y: number;
+  variantId: string;
+  rotation: WallRotationDeg;
+  state?: WallState;
+  allowOnReserved?: boolean;
+}): boolean {
+  const { draft, type, x, y, variantId, rotation } = params;
+  if (!type) return false;
+
+  const instance: WallInstance = {
+    id: draft.nextWallId(),
+    typeId: type.id,
+    variantId,
+    x,
+    y,
+    rotation,
+    state: params.state
+  };
+
+  const cells = getWallOccupiedCells(instance, type);
+  if (!cells.length) return false;
+
+  const enforcePlayable = draft.playable.size > 0;
+  for (const c of cells) {
+    if (!isInside(draft, c.x, c.y)) return false;
+    const k = key(c.x, c.y);
+    if (enforcePlayable && !draft.playable.has(k)) return false;
+    if (!params.allowOnReserved && draft.reserved.has(k)) return false;
+    if (draft.occupied.has(k)) return false;
+  }
+
+  draft.walls.push(instance);
+  for (const c of cells) {
+    const k = key(c.x, c.y);
+    draft.wallOccupied.add(k);
     draft.occupied.add(k);
     if (type.blocking?.movement) draft.movementBlocked.add(k);
   }

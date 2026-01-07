@@ -411,7 +411,13 @@ const server = http.createServer(async (req, res) => {
 
       // Fichiers statiques sous dist (JS, CSS, assets...)
       const safePath = pathname.replace(/^\//, "");
-      const filePath = path.join(DIST_DIR, safePath);
+      let decodedPath = safePath;
+      try {
+        decodedPath = decodeURIComponent(safePath);
+      } catch (err) {
+        console.warn("[server] URL decode failed for:", safePath);
+      }
+      const filePath = path.join(DIST_DIR, decodedPath);
 
       // Protection simple contre les sorties de dossier
       if (!filePath.startsWith(DIST_DIR)) {

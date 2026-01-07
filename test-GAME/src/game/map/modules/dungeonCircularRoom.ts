@@ -1,22 +1,18 @@
 import type { GridPosition } from "../../../types";
 import type { ObstacleTypeDefinition } from "../../obstacleTypes";
-import type { MapBuildContext, MapSpec } from "../types";
+import type { EntrancePlacementSpec, EntranceSide, MapBuildContext, MapEntrancesSpec, MapSpec } from "../types";
 import {
-  buildReservedRadius,
   clamp,
   createDraft,
   setLight,
   setTerrain,
   tryPlaceObstacle,
+  tryPlaceWall,
   key,
   scatterTerrainPatches
 } from "../draft";
-import {
-  findObstacleType,
-  pickVariantIdForPlacement,
-  rotationForLine,
-  weightedTypesForContext
-} from "../obstacleSelector";
+import { pickVariantIdForPlacement, weightedTypesForContext } from "../obstacleSelector";
+import { findWallType, wallRotationForLine } from "../wallSelector";
 import { pickWeighted, randomIntInclusive } from "../random";
 
 function cellDistance(ax: number, ay: number, bx: number, by: number): number {
@@ -85,24 +81,147 @@ function chooseOpeningsOnMaskBoundary(params: {
   return chosen.slice(0, count);
 }
 
+function groupBoundaryBySide(params: {
+  boundary: GridPosition[];
+  cx: number;
+  cy: number;
+}): Record<EntranceSide, GridPosition[]> {
+  const north: GridPosition[] = [];
+  const south: GridPosition[] = [];
+  const west: GridPosition[] = [];
+  const east: GridPosition[] = [];
+
+  for (const cell of params.boundary) {
+    const dx = cell.x - params.cx;
+    const dy = cell.y - params.cy;
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      if (dx >= 0) east.push(cell);
+      else west.push(cell);
+    } else {
+      if (dy >= 0) south.push(cell);
+      else north.push(cell);
+    }
+  }
+
+  north.sort((a, b) => a.x - b.x);
+  south.sort((a, b) => a.x - b.x);
+  west.sort((a, b) => a.y - b.y);
+  east.sort((a, b) => a.y - b.y);
+
+  return { north, south, west, east };
+}
+
+function pickByPosition(
+  cells: GridPosition[],
+  position: EntrancePlacementSpec["position"] | undefined
+): GridPosition | null {
+  if (!cells.length) return null;
+  if (!position) return cells[Math.floor(cells.length / 2)] ?? null;
+  if (position === "start") return cells[0] ?? null;
+  if (position === "end") return cells[cells.length - 1] ?? null;
+  return cells[Math.floor(cells.length / 2)] ?? null;
+}
+
+function pickOpeningsOnSide(params: {
+  cells: GridPosition[];
+  count: number;
+  position?: EntrancePlacementSpec["position"];
+  rand: () => number;
+}): GridPosition[] {
+  const { cells, count, position, rand } = params;
+  if (!cells.length || count <= 0) return [];
+  if (count === 1) {
+    const picked = pickByPosition(cells, position);
+    return picked ? [picked] : [];
+  }
+
+  const picks: GridPosition[] = [];
+  const step = Math.max(1, Math.floor(cells.length / (count + 1)));
+  for (let i = 0; i < count && i * step < cells.length; i++) {
+    const idx = Math.min(cells.length - 1, step * (i + 1));
+    picks.push(cells[idx] ?? cells[cells.length - 1] as GridPosition);
+  }
+
+  while (picks.length < count) {
+    picks.push(cells[Math.floor(rand() * cells.length)] as GridPosition);
+  }
+
+  return picks;
+}
+
+function resolveOpenings(params: {
+  boundary: GridPosition[];
+  bySide: Record<EntranceSide, GridPosition[]>;
+  entrances: MapEntrancesSpec;
+  cols: number;
+  rows: number;
+  rand: () => number;
+}): GridPosition[] {
+  const { boundary, bySide, entrances, cols, rows, rand } = params;
+  if (!entrances) return [];
+  const chosen: GridPosition[] = [];
+  const chosenKeys = new Set<string>();
+
+  const placements = entrances.placements ?? [];
+  for (const placement of placements) {
+    const sideCells = bySide[placement.side] ?? [];
+    const count = Math.max(1, Math.floor(placement.count ?? 1));
+    const picks = pickOpeningsOnSide({
+      cells: sideCells,
+      count,
+      position: placement.position,
+      rand
+    });
+    for (const p of picks) {
+      const k = key(p.x, p.y);
+      if (chosenKeys.has(k)) continue;
+      chosenKeys.add(k);
+      chosen.push(p);
+    }
+  }
+
+  const target = Math.max(0, Math.floor(entrances.count ?? 0));
+  if (chosen.length >= target) return chosen.slice(0, target);
+
+  const sideFilter =
+    entrances.sides && entrances.sides.length
+      ? entrances.sides.flatMap(side => bySide[side] ?? [])
+      : boundary;
+
+  const remaining = sideFilter.filter(c => !chosenKeys.has(key(c.x, c.y)));
+  const extra = chooseOpeningsOnMaskBoundary({
+    cols,
+    rows,
+    boundary: remaining,
+    count: target - chosen.length,
+    rand
+  });
+
+  return chosen.concat(extra);
+}
+
 function pickDungeonDefaults(spec: MapSpec, ctx: MapBuildContext) {
   const wallType =
-    findObstacleType(ctx.obstacleTypes, "wall-stone") ??
-    ctx.obstacleTypes.find(t => t.category === "wall") ??
-    ctx.obstacleTypes[0] ??
+    findWallType(ctx.wallTypes, "wall-stone") ??
+    ctx.wallTypes.find(t => t.category === "wall") ??
+    ctx.wallTypes[0] ??
+    null;
+  const wallDoorType =
+    findWallType(ctx.wallTypes, "wall-stone-door") ??
+    ctx.wallTypes.find(t => (t.tags ?? []).includes("door")) ??
     null;
 
   const pillarType =
-    findObstacleType(ctx.obstacleTypes, "pillar-stone") ??
+    ctx.obstacleTypes.find(t => t.id === "pillar-stone") ??
     ctx.obstacleTypes.find(t => (t.tags ?? []).includes("pillar")) ??
     null;
 
   const barrelType =
-    findObstacleType(ctx.obstacleTypes, "barrel-wood") ??
+    ctx.obstacleTypes.find(t => t.id === "barrel-wood") ??
     ctx.obstacleTypes.find(t => (t.tags ?? []).includes("barrel")) ??
     null;
 
-  return { wallType, pillarType, barrelType };
+  return { wallType, wallDoorType, pillarType, barrelType };
 }
 
 export function generateDungeonCircularRoom(params: {
@@ -129,7 +248,7 @@ export function generateDungeonCircularRoom(params: {
     lighting: "normal"
   };
 
-  const { wallType, pillarType, barrelType } = pickDungeonDefaults(spec, ctx);
+  const { wallType, wallDoorType, pillarType, barrelType } = pickDungeonDefaults(spec, ctx);
 
   const roomRadius =
     dSpec.room.radius ?? Math.max(2, Math.floor(Math.min(cols, rows) * 0.33));
@@ -140,7 +259,7 @@ export function generateDungeonCircularRoom(params: {
   const roomMask = buildCircularMask({ cols, rows, cx, cy, radius: roomRadius });
   draft.playable = roomMask;
 
-  // Player start: une cellule jouable proche de l'ouverture la plus "Ã  gauche".
+  // Player start: une cellule jouable proche de l'ouverture la plus "à gauche".
   let playerStart: GridPosition = { x: cx, y: cy };
   let best: GridPosition | null = null;
   let bestScore = Number.POSITIVE_INFINITY;
@@ -156,7 +275,6 @@ export function generateDungeonCircularRoom(params: {
     }
   }
   if (best) playerStart = best;
-  draft.reserved = buildReservedRadius(playerStart, 2, cols, rows);
 
   // Terrain de base
   for (let y = 0; y < rows; y++) {
@@ -175,7 +293,7 @@ export function generateDungeonCircularRoom(params: {
     mask: roomMask
   });
 
-  // Lighting: faible sur les bords, plus forte au centre si demandÃ©
+  // Lighting: faible sur les bords, plus forte au centre si demandé
   const baseLight = dSpec.lighting === "low" ? 0.25 : 0.75;
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
@@ -196,12 +314,15 @@ export function generateDungeonCircularRoom(params: {
     }
   }
 
-  // Ouvertures (accÃ¨s) dans les murs
-  const openings = chooseOpeningsOnMaskBoundary({
+  // Ouvertures (accès) dans les murs
+  const boundaryBySide = groupBoundaryBySide({ boundary: boundaryCells, cx, cy });
+
+  const openings = resolveOpenings({
+    boundary: boundaryCells,
+    bySide: boundaryBySide,
+    entrances: dSpec.entrances,
     cols,
     rows,
-    boundary: boundaryCells,
-    count: Math.max(0, dSpec.entrances.count),
     rand
   });
   const openingKeys = new Set(openings.map(o => key(o.x, o.y)));
@@ -217,29 +338,36 @@ export function generateDungeonCircularRoom(params: {
         }))
         .sort((a, b) => a.len - b.len)[0]?.id ?? (wallType.variants?.[0]?.id ?? "1");
     for (const cell of boundaryCells) {
-      if (openingKeys.has(key(cell.x, cell.y))) continue;
-      // Pour une enceinte continue, on privilÃ©gie un variant 1 case.
+      const isOpening = openingKeys.has(key(cell.x, cell.y));
+      const typeForCell = isOpening && wallDoorType ? wallDoorType : wallType;
+      const state = isOpening ? "open" : "closed";
+      // Pour une enceinte continue, on privilegie un variant 1 case.
       const variantId = smallestVariant;
-      const rot = rotationForLine(wallType, variantId, "horizontal");
-      const ok = tryPlaceObstacle({
+      const rot = wallRotationForLine(typeForCell, variantId, "horizontal");
+      const ok = tryPlaceWall({
         draft,
-        type: wallType,
+        type: typeForCell,
         x: cell.x,
         y: cell.y,
         variantId,
-        rotation: rot
+        rotation: rot,
+        state,
+        allowOnReserved: true
       });
       if (ok) placedWalls++;
     }
-    draft.log.push(`Murs: ${placedWalls} segments (avec ${openings.length} accÃ¨s).`);
+    draft.log.push(`Murs: ${placedWalls} segments (avec ${openings.length} accès).`);
   } else {
     draft.log.push("Murs: aucun type de mur disponible.");
   }
 
-  // Colonnes: rÃ©parties autour du centre
+  // Colonnes: réparties autour du centre
   const columns = Math.max(0, dSpec.columns);
   if (columns > 0) {
-    const typeForColumns = pillarType ?? wallType;
+    const typeForColumns = pillarType ?? null;
+    if (!typeForColumns) {
+      draft.log.push("Colonnes: aucun type de pilier disponible.");
+    }
     let placed = 0;
 
     const ring = Math.max(1, Math.floor(roomRadius * 0.5));
@@ -250,7 +378,7 @@ export function generateDungeonCircularRoom(params: {
       { x: cx, y: cy - ring }
     ].filter(p => roomMask.has(key(p.x, p.y)));
 
-    while (placed < columns && candidates.length) {
+    while (typeForColumns && placed < columns && candidates.length) {
       const p = candidates.shift() as GridPosition;
       const variantId = typeForColumns ? pickVariantIdForPlacement(typeForColumns, "scatter", rand) : "base";
       const ok = tryPlaceObstacle({
@@ -264,9 +392,9 @@ export function generateDungeonCircularRoom(params: {
       if (ok) placed++;
     }
 
-    // Si on a demandÃ© plus que 4 colonnes, on complÃ¨te en scatter Ã  l'intÃ©rieur.
+    // Si on a demandé plus que 4 colonnes, on complète en scatter à l'intérieur.
     let attempts = 0;
-    while (placed < columns && attempts < 200) {
+    while (typeForColumns && placed < columns && attempts < 200) {
       attempts++;
       const x = clamp(cx + randomIntInclusive(rand, -roomRadius + 1, roomRadius - 1), 0, cols - 1);
       const y = clamp(cy + randomIntInclusive(rand, -roomRadius + 1, roomRadius - 1), 0, rows - 1);
@@ -300,9 +428,9 @@ export function generateDungeonCircularRoom(params: {
         variantId,
         rotation: 0
       });
-      draft.log.push(ok ? "Autel: placÃ© au centre." : "Autel: placement impossible (collision).");
+      draft.log.push(ok ? "Autel: placé au centre." : "Autel: placement impossible (collision).");
     } else {
-      draft.log.push("Autel: aucun type d'obstacle appropriÃ©.");
+      draft.log.push("Autel: aucun type d'obstacle approprié.");
     }
   }
 
@@ -348,3 +476,9 @@ export function generateDungeonCircularRoom(params: {
 
   return { draft, playerStart };
 }
+
+
+
+
+
+

@@ -12,6 +12,7 @@ import {
 import { preloadTokenTextures } from "../svgTokenHelper";
 import { preloadObstacleTextures } from "../svgObstacleHelper";
 import { preloadDecorTextures } from "../svgDecorHelper";
+import { preloadWallTextures } from "../wallTextureHelper";
 import type { TerrainCell } from "../game/map/draft";
 
 function hash01(x: number, y: number): number {
@@ -44,6 +45,7 @@ export function usePixiBoard(options: {
   zoom?: number;
   panX?: number;
   panY?: number;
+  backgroundColor?: number;
   playableCells?: Set<string> | null;
   terrain?: TerrainCell[] | null;
   grid: { cols: number; rows: number };
@@ -109,10 +111,15 @@ export function usePixiBoard(options: {
     let initialized = false;
 
     const initPixi = async () => {
+      const backgroundColor =
+        typeof options.backgroundColor === "number"
+          ? options.backgroundColor
+          : BOARD_BACKGROUND_COLOR;
+
       await app.init({
         width: getBoardWidth(gridRef.current.cols),
         height: getBoardHeight(gridRef.current.rows),
-        background: BOARD_BACKGROUND_COLOR,
+        background: backgroundColor,
         antialias: true
       });
 
@@ -121,6 +128,11 @@ export function usePixiBoard(options: {
       await preloadTokenTextures();
       await preloadObstacleTextures();
       await preloadDecorTextures();
+      try {
+        await preloadWallTextures();
+      } catch (error) {
+        console.warn("[pixi] Wall textures preload failed:", error);
+      }
 
       if (destroyed) return;
 
@@ -271,6 +283,15 @@ export function usePixiBoard(options: {
       drawGridRef.current = null;
     };
   }, [options.enabled, options.containerRef]);
+
+  useEffect(() => {
+    const app = appRef.current;
+    if (!app || !app.renderer || !app.renderer.background) return;
+    app.renderer.background.color =
+      typeof options.backgroundColor === "number"
+        ? options.backgroundColor
+        : BOARD_BACKGROUND_COLOR;
+  }, [options.backgroundColor]);
 
   return {
     appRef,

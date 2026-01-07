@@ -37,13 +37,16 @@ import archerType from "../enemy-types/archer.json";
 import assassinType from "../enemy-types/assassin.json";
 import ghostType from "../enemy-types/ghost.json";
 import { loadObstacleTypesFromIndex } from "./game/obstacleCatalog";
+import { loadWallTypesFromIndex } from "./game/wallCatalog";
 import type { ObstacleInstance, ObstacleTypeDefinition } from "./game/obstacleTypes";
+import type { WallInstance, WallTypeDefinition } from "./game/wallTypes";
 import { generateBattleMap } from "./game/mapEngine";
-import type { TerrainCell } from "./game/map/draft";
+import { getHeightAtGrid, type TerrainCell } from "./game/map/draft";
 import type { DecorInstance } from "./game/decorTypes";
-import type { ManualMapConfig } from "./game/map/types";
+import type { ManualMapConfig, MapTheme } from "./game/map/types";
 import { MANUAL_MAP_PRESETS, getManualPresetById } from "./game/map/presets";
 import { buildObstacleBlockingSets, getObstacleOccupiedCells } from "./game/obstacleRuntime";
+import { buildWallBlockingSets } from "./game/wallRuntime";
 import actionsIndex from "../action-game/actions/index.json";
 import meleeStrike from "../action-game/actions/melee-strike.json";
 import dashAction from "../action-game/actions/dash.json";
@@ -97,6 +100,7 @@ import type {
 import { usePixiBoard } from "./pixi/usePixiBoard";
 import { usePixiDecorations } from "./pixi/usePixiDecorations";
 import { usePixiObstacles } from "./pixi/usePixiObstacles";
+import { usePixiWalls } from "./pixi/usePixiWalls";
 import { usePixiOverlays } from "./pixi/usePixiOverlays";
 import { usePixiSpeechBubbles } from "./pixi/usePixiSpeechBubbles";
 import { usePixiTokens } from "./pixi/usePixiTokens";
@@ -113,6 +117,7 @@ import { LogPanel } from "./ui/LogPanel";
 import { ActionWheelMenu } from "./ui/ActionWheelMenu";
 import { ActionContextWindow } from "./ui/ActionContextWindow";
 import { BottomDock } from "./ui/BottomDock";
+import { boardThemeColor, colorToCssHex } from "./boardTheme";
 
 const ACTION_MODULES: Record<string, ActionDefinition> = {
   "./melee-strike.json": meleeStrike as ActionDefinition,
@@ -298,13 +303,18 @@ export const GameBoard: React.FC = () => {
   const [enemies, setEnemies] = useState<TokenState[]>([]);
   const [obstacleTypes, setObstacleTypes] = useState<ObstacleTypeDefinition[]>([]);
   const [obstacles, setObstacles] = useState<ObstacleInstance[]>([]);
+  const [wallTypes, setWallTypes] = useState<WallTypeDefinition[]>([]);
+  const [walls, setWalls] = useState<WallInstance[]>([]);
   const [decorations, setDecorations] = useState<DecorInstance[]>([]);
   const [playableCells, setPlayableCells] = useState<Set<string> | null>(null);
   const [mapTerrain, setMapTerrain] = useState<TerrainCell[]>([]);
+  const [mapHeight, setMapHeight] = useState<number[]>([]);
   const [mapGrid, setMapGrid] = useState<{ cols: number; rows: number }>({
     cols: GRID_COLS,
     rows: GRID_ROWS
   });
+  const [mapTheme, setMapTheme] = useState<MapTheme>("generic");
+  const [activeLevel, setActiveLevel] = useState<number>(0);
 
   const [phase, setPhase] = useState<TurnPhase>("player");
   const [round, setRound] = useState<number>(1);
@@ -322,13 +332,15 @@ export const GameBoard: React.FC = () => {
   );
 
   const ZOOM_MIN = 0.5;
-  const ZOOM_MAX = 2.5;
+  const ZOOM_MAX = 4;
   const ZOOM_STEP = 0.1;
   const DEFAULT_ZOOM = 1.5;
   const [boardZoom, setBoardZoom] = useState<number>(DEFAULT_ZOOM);
   const [boardPan, setBoardPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isPanningBoard, setIsPanningBoard] = useState<boolean>(false);
   const panDragRef = useRef<{ x: number; y: number } | null>(null);
+
+  const boardBackgroundColor = boardThemeColor(mapTheme);
 
   const {
     depthLayerRef,
@@ -342,6 +354,7 @@ export const GameBoard: React.FC = () => {
     zoom: boardZoom,
     panX: boardPan.x,
     panY: boardPan.y,
+    backgroundColor: boardBackgroundColor,
     playableCells,
     terrain: mapTerrain,
     grid: mapGrid
@@ -423,18 +436,96 @@ export const GameBoard: React.FC = () => {
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
 
   const obstacleBlocking = useMemo(() => {
-    return buildObstacleBlockingSets(obstacleTypes, obstacles);
-  }, [obstacleTypes, obstacles]);
+    const obstacleSets = buildObstacleBlockingSets(obstacleTypes, obstacles);
+    const wallSets = buildWallBlockingSets(wallTypes, walls);
+
+    return {
+      movement: new Set([...obstacleSets.movement, ...wallSets.movement]),
+      vision: new Set([...obstacleSets.vision, ...wallSets.vision]),
+      attacks: new Set([...obstacleSets.attacks, ...wallSets.attacks]),
+      occupied: new Set([...obstacleSets.occupied, ...wallSets.occupied])
+    };
+  }, [obstacleTypes, obstacles, wallTypes, walls]);
   const obstacleTypeById = useMemo(() => {
     const map = new Map<string, ObstacleTypeDefinition>();
     for (const t of obstacleTypes) map.set(t.id, t);
     return map;
   }, [obstacleTypes]);
 
-  usePixiObstacles({ depthLayerRef, obstacleTypes, obstacles, pixiReadyTick, grid: mapGrid });
-  usePixiDecorations({ depthLayerRef, decorations, pixiReadyTick, grid: mapGrid });
-  usePixiTokens({ depthLayerRef, player, enemies, pixiReadyTick, grid: mapGrid });
-  usePixiSpeechBubbles({ speechLayerRef, player, enemies, speechBubbles, pixiReadyTick, grid: mapGrid });
+  const levelRange = useMemo(() => {
+    let min = 0;
+    let max = 0;
+    for (const value of mapHeight) {
+      if (!Number.isFinite(value)) continue;
+      min = Math.min(min, value);
+      max = Math.max(max, value);
+    }
+    for (const obs of obstacles) {
+      const def = obstacleTypeById.get(obs.typeId);
+      const connects = def?.connects;
+      if (!connects) continue;
+      min = Math.min(min, connects.from, connects.to);
+      max = Math.max(max, connects.from, connects.to);
+    }
+    return { min, max };
+  }, [mapHeight, obstacles, obstacleTypeById]);
+
+  function clampActiveLevel(value: number): number {
+    return Math.max(levelRange.min, Math.min(levelRange.max, value));
+  }
+
+  function getBaseHeightAt(x: number, y: number): number {
+    return getHeightAtGrid(mapHeight, mapGrid.cols, mapGrid.rows, x, y);
+  }
+
+  useEffect(() => {
+    setActiveLevel(prev => clampActiveLevel(prev));
+  }, [levelRange.min, levelRange.max]);
+
+  usePixiWalls({
+    depthLayerRef,
+    wallTypes,
+    walls,
+    pixiReadyTick,
+    grid: mapGrid,
+    activeLevel
+  });
+  usePixiObstacles({
+    depthLayerRef,
+    obstacleTypes,
+    obstacles,
+    pixiReadyTick,
+    grid: mapGrid,
+    heightMap: mapHeight,
+    activeLevel
+  });
+  usePixiDecorations({
+    depthLayerRef,
+    decorations,
+    pixiReadyTick,
+    grid: mapGrid,
+    heightMap: mapHeight,
+    activeLevel
+  });
+  usePixiTokens({
+    depthLayerRef,
+    player,
+    enemies,
+    pixiReadyTick,
+    grid: mapGrid,
+    heightMap: mapHeight,
+    activeLevel
+  });
+  usePixiSpeechBubbles({
+    speechLayerRef,
+    player,
+    enemies,
+    speechBubbles,
+    pixiReadyTick,
+    grid: mapGrid,
+    heightMap: mapHeight,
+    activeLevel
+  });
   usePixiOverlays({
     pathLayerRef,
     player,
@@ -449,7 +540,9 @@ export const GameBoard: React.FC = () => {
     showVisionDebug,
     pixiReadyTick,
     playableCells,
-    grid: mapGrid
+    grid: mapGrid,
+    heightMap: mapHeight,
+    activeLevel
   });
 
   const INSPECT_RANGE = 10;
@@ -469,6 +562,22 @@ export const GameBoard: React.FC = () => {
   }
 
   function findObstacleAtCell(
+    x: number,
+    y: number
+  ): { instance: ObstacleInstance; def: ObstacleTypeDefinition | null } | null {
+    if (getBaseHeightAt(x, y) !== activeLevel) return null;
+    for (const obs of obstacles) {
+      if (obs.hp <= 0) continue;
+      const def = obstacleTypeById.get(obs.typeId) ?? null;
+      const cells = getObstacleOccupiedCells(obs, def);
+      if (cells.some(c => c.x === x && c.y === y)) {
+        return { instance: obs, def };
+      }
+    }
+    return null;
+  }
+
+  function findObstacleAtCellAnyLevel(
     x: number,
     y: number
   ): { instance: ObstacleInstance; def: ObstacleTypeDefinition | null } | null {
@@ -516,6 +625,14 @@ export const GameBoard: React.FC = () => {
   function getResourceAmount(name: string, pool?: string | null): number {
     const key = resourceKey(name, pool);
     return typeof playerResources[key] === "number" ? playerResources[key] : 0;
+  }
+
+  function getTokensOnActiveLevel(tokens: TokenState[]): TokenState[] {
+    return tokens.filter(t => getBaseHeightAt(t.x, t.y) === activeLevel);
+  }
+
+  function areTokensOnSameLevel(a: TokenState, b: TokenState): boolean {
+    return getBaseHeightAt(a.x, a.y) === getBaseHeightAt(b.x, b.y);
   }
 
   useEffect(() => {
@@ -662,7 +779,8 @@ export const GameBoard: React.FC = () => {
       grid,
       enemyCount: configEnemyCount,
       enemyTypes,
-      obstacleTypes
+      obstacleTypes,
+      wallTypes
     });
 
     if (!isManual) {
@@ -677,12 +795,18 @@ export const GameBoard: React.FC = () => {
           grid,
           enemyCount: configEnemyCount,
           enemyTypes,
-          obstacleTypes
+          obstacleTypes,
+          wallTypes
         });
       }
     }
 
-    pushLog(map.summary);
+    const generationLines = Array.isArray(map.generationLog)
+      ? map.generationLog.map(line => `[map] ${line}`)
+      : [];
+    pushLogBatch([map.summary, ...generationLines.slice(0, 8)]);
+    setMapTheme(map.theme ?? "generic");
+    grid = map.grid ?? grid;
     setMapGrid(grid);
 
     setPlayer(prev => ({
@@ -692,8 +816,14 @@ export const GameBoard: React.FC = () => {
     }));
 
     setObstacles(map.obstacles);
+    setWalls(map.walls);
     setPlayableCells(new Set(map.playableCells ?? []));
     setMapTerrain(Array.isArray(map.terrain) ? map.terrain : []);
+    const nextHeight = Array.isArray(map.height) ? map.height : [];
+    setMapHeight(nextHeight);
+    setActiveLevel(
+      getHeightAtGrid(nextHeight, grid.cols, grid.rows, map.playerStart.x, map.playerStart.y)
+    );
     setDecorations(Array.isArray(map.decorations) ? map.decorations : []);
 
     const newEnemies: TokenState[] = map.enemySpawns.map((spawn, i) =>
@@ -802,6 +932,12 @@ export const GameBoard: React.FC = () => {
     setLog(prev => [message, ...prev].slice(0, 12));
   }
 
+  function pushLogBatch(messages: string[]) {
+    const trimmed = messages.filter(Boolean);
+    if (!trimmed.length) return;
+    setLog(prev => [...trimmed, ...prev].slice(0, 12));
+  }
+
   function pushNarrative(message: string) {
     setNarrativeLog(prev => [message, ...prev].slice(0, 20));
   }
@@ -900,6 +1036,11 @@ export const GameBoard: React.FC = () => {
   useEffect(() => {
     const loadedTypes = loadObstacleTypesFromIndex();
     setObstacleTypes(loadedTypes);
+  }, []);
+
+  useEffect(() => {
+    const loadedTypes = loadWallTypesFromIndex();
+    setWallTypes(loadedTypes);
   }, []);
 
   useEffect(() => {
@@ -1022,6 +1163,9 @@ export const GameBoard: React.FC = () => {
     }
     if (enemy.hp <= 0) {
       return { ok: false, reason: "La cible est deja a terre." };
+    }
+    if (!areTokensOnSameLevel(actor, enemy)) {
+      return { ok: false, reason: "Cible sur un autre niveau." };
     }
 
     const targeting = action.targeting;
@@ -1905,7 +2049,7 @@ export const GameBoard: React.FC = () => {
         return;
       }
 
-      const tokens = [player, ...enemies];
+      const tokens = getTokensOnActiveLevel([player, ...enemies]);
       const target = getTokenAt({ x: targetX, y: targetY }, tokens);
 
       if (target && target.type === "enemy") {
@@ -1961,6 +2105,11 @@ export const GameBoard: React.FC = () => {
         );
         return;
       }
+      const cellLevel = getBaseHeightAt(targetX, targetY);
+      if (cellLevel !== activeLevel) {
+        pushLog(`Inspection: case au niveau ${cellLevel} (actif ${activeLevel}).`);
+        return;
+      }
 
       if (!isCellVisible(player, { x: targetX, y: targetY }, obstacleBlocking.vision, playableCells)) {
         pushLog("Inspection: la case n'est pas dans votre champ de vision.");
@@ -1973,7 +2122,7 @@ export const GameBoard: React.FC = () => {
         return next;
       });
 
-      const tokens = [player, ...enemies];
+      const tokens = getTokensOnActiveLevel([player, ...enemies]);
       const token = getTokenAt({ x: targetX, y: targetY }, tokens);
       if (!token) {
         const obstacleHit = findObstacleAtCell(targetX, targetY);
@@ -2025,7 +2174,7 @@ export const GameBoard: React.FC = () => {
 
     // Clic standard: ouvrir la roue d'action (le mouvement se fait uniquement en mode "moving").
     if (interactionMode !== "moving") {
-      const tokens = [player, ...enemies];
+      const tokens = getTokensOnActiveLevel([player, ...enemies]);
       const token = getTokenAt({ x: targetX, y: targetY }, tokens) ?? null;
 
       // Fixed-size wheel; allow it to overflow (no clamping).
@@ -2039,6 +2188,12 @@ export const GameBoard: React.FC = () => {
         cell: { x: targetX, y: targetY },
         token
       });
+      return;
+    }
+
+    const cellLevel = getBaseHeightAt(targetX, targetY);
+    if (cellLevel !== activeLevel) {
+      pushLog(`Case (${targetX}, ${targetY}) au niveau ${cellLevel} (actif ${activeLevel}).`);
       return;
     }
 
@@ -2076,20 +2231,25 @@ export const GameBoard: React.FC = () => {
 
       const stepsRemaining = maxSteps - path.length;
       const tempPlayer = { ...player, x: start.x, y: start.y };
-      const tokensForPath: TokenState[] = [tempPlayer as TokenState, ...enemies];
+      const tokensForPath: TokenState[] = getTokensOnActiveLevel([
+        tempPlayer as TokenState,
+        ...enemies
+      ]);
 
-        const computed = computePathTowards(
-          tempPlayer as TokenState,
-          { x: targetX, y: targetY },
-          tokensForPath,
-          {
-            maxDistance: Math.max(0, stepsRemaining),
-            allowTargetOccupied: false,
-            blockedCells: obstacleBlocking.movement,
-            playableCells,
-            grid: mapGrid
-          }
-        );
+      const computed = computePathTowards(
+        tempPlayer as TokenState,
+        { x: targetX, y: targetY },
+        tokensForPath,
+        {
+          maxDistance: Math.max(0, stepsRemaining),
+          allowTargetOccupied: false,
+          blockedCells: obstacleBlocking.movement,
+          playableCells,
+          grid: mapGrid,
+          heightMap: mapHeight,
+          activeLevel
+        }
+      );
 
       if (computed.length <= 1) {
         pushLog("Aucun chemin valide vers cette case (bloque par obstacle ou entites).");
@@ -2366,7 +2526,10 @@ export const GameBoard: React.FC = () => {
               ...enemiesCopy
             ];
 
-            if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision, playableCells)) {
+            if (
+              !areTokensOnSameLevel(enemy, playerCopy as TokenState) ||
+              !canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision, playableCells)
+            ) {
               pushLog(
                 `${enemy.id} ne voit pas le joueur et reste en alerte (fallback).`
               );
@@ -2376,10 +2539,10 @@ export const GameBoard: React.FC = () => {
             const maxRange =
               typeof enemy.moveRange === "number" ? enemy.moveRange : 3;
 
-          const tokensForPath: TokenState[] = [
+          const tokensForPath: TokenState[] = getTokensOnActiveLevel([
             playerCopy as TokenState,
             ...enemiesCopy
-          ];
+          ]);
 
               const path = computePathTowards(
                 enemy,
@@ -2390,7 +2553,9 @@ export const GameBoard: React.FC = () => {
                   allowTargetOccupied: true,
                   blockedCells: obstacleBlocking.movement,
                   playableCells,
-                  grid: mapGrid
+                  grid: mapGrid,
+                  heightMap: mapHeight,
+                  activeLevel
                 }
               );
 
@@ -2512,7 +2677,10 @@ export const GameBoard: React.FC = () => {
           }
 
           if (action === "move") {
-            if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision, playableCells)) {
+            if (
+              !areTokensOnSameLevel(enemy, playerCopy as TokenState) ||
+              !canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision, playableCells)
+            ) {
               pushLog(
                 `${enemy.id} ne voit pas le joueur et reste en alerte.`
               );
@@ -2546,23 +2714,25 @@ export const GameBoard: React.FC = () => {
             const targetX = clamp(tx, 0, mapGrid.cols - 1);
             const targetY = clamp(ty, 0, mapGrid.rows - 1);
 
-            const tokensForPath: TokenState[] = [
+            const tokensForPath: TokenState[] = getTokensOnActiveLevel([
               playerCopy as TokenState,
               ...enemiesCopy
-            ];
+            ]);
 
-            const path = computePathTowards(
-              enemy,
-              { x: targetX, y: targetY },
-              tokensForPath,
-              {
-                maxDistance: maxRange,
-                allowTargetOccupied: true,
-                blockedCells: obstacleBlocking.movement,
-                playableCells,
-                grid: mapGrid
-              }
-            );
+              const path = computePathTowards(
+                enemy,
+                { x: targetX, y: targetY },
+                tokensForPath,
+                {
+                  maxDistance: maxRange,
+                  allowTargetOccupied: true,
+                  blockedCells: obstacleBlocking.movement,
+                  playableCells,
+                  grid: mapGrid,
+                  heightMap: mapHeight,
+                  activeLevel
+                }
+              );
 
             enemy.plannedPath = path;
 
@@ -2586,7 +2756,10 @@ export const GameBoard: React.FC = () => {
           if (action === "attack") {
             enemy.facing = computeFacingTowards(enemy, playerCopy);
 
-            if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision, playableCells)) {
+            if (
+              !areTokensOnSameLevel(enemy, playerCopy as TokenState) ||
+              !canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision, playableCells)
+            ) {
               pushLog(
                 `${enemy.id} voulait attaquer mais ne voit pas le joueur.`
               );
@@ -2659,7 +2832,10 @@ export const GameBoard: React.FC = () => {
           ...enemiesCopy
         ];
 
-        if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision, playableCells)) {
+        if (
+          !areTokensOnSameLevel(enemy, playerCopy as TokenState) ||
+          !canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision, playableCells)
+        ) {
           pushLog(
             `${enemy.id} ne voit pas le joueur et reste en alerte (fallback).`
           );
@@ -2669,10 +2845,10 @@ export const GameBoard: React.FC = () => {
       const maxRange =
         typeof enemy.moveRange === "number" ? enemy.moveRange : 3;
 
-      const tokensForPath: TokenState[] = [
+      const tokensForPath: TokenState[] = getTokensOnActiveLevel([
         playerCopy as TokenState,
         ...enemiesCopy
-      ];
+      ]);
 
       const path = computePathTowards(
         enemy,
@@ -2683,7 +2859,9 @@ export const GameBoard: React.FC = () => {
           allowTargetOccupied: true,
           blockedCells: obstacleBlocking.movement,
           playableCells,
-          grid: mapGrid
+          grid: mapGrid,
+          heightMap: mapHeight,
+          activeLevel
         }
       );
 
@@ -2793,7 +2971,10 @@ export const GameBoard: React.FC = () => {
         }
 
           if (action === "move") {
-            if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision, playableCells)) {
+            if (
+              !areTokensOnSameLevel(enemy, playerCopy as TokenState) ||
+              !canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision, playableCells)
+            ) {
               pushLog(
                 `${enemy.id} ne voit pas le joueur et reste en alerte.`
               );
@@ -2826,10 +3007,10 @@ export const GameBoard: React.FC = () => {
           const targetX = clamp(tx, 0, mapGrid.cols - 1);
           const targetY = clamp(ty, 0, mapGrid.rows - 1);
 
-          const tokensForPath: TokenState[] = [
+          const tokensForPath: TokenState[] = getTokensOnActiveLevel([
             playerCopy as TokenState,
             ...enemiesCopy
-          ];
+          ]);
 
           const path = computePathTowards(
             enemy,
@@ -2840,7 +3021,9 @@ export const GameBoard: React.FC = () => {
               allowTargetOccupied: true,
               blockedCells: obstacleBlocking.movement,
               playableCells,
-              grid: mapGrid
+              grid: mapGrid,
+              heightMap: mapHeight,
+              activeLevel
             }
           );
 
@@ -2866,7 +3049,10 @@ export const GameBoard: React.FC = () => {
           if (action === "attack") {
             enemy.facing = computeFacingTowards(enemy, playerCopy);
 
-            if (!canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision, playableCells)) {
+            if (
+              !areTokensOnSameLevel(enemy, playerCopy as TokenState) ||
+              !canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision, playableCells)
+            ) {
               pushLog(
                 `${enemy.id} voulait attaquer mais ne voit pas le joueur.`
               );
@@ -2925,7 +3111,7 @@ export const GameBoard: React.FC = () => {
     if (!enemy) return;
     if (isTokenDead(enemy)) return;
 
-    const allTokens: TokenState[] = [playerState, ...enemiesState];
+    const allTokens: TokenState[] = getTokensOnActiveLevel([playerState, ...enemiesState]);
     const visible = getEntitiesInVision(enemy, allTokens, obstacleBlocking.vision, playableCells);
 
     const alliesVisible = visible
@@ -2936,13 +3122,9 @@ export const GameBoard: React.FC = () => {
       .filter(t => t.type === "player" && !isTokenDead(t))
       .map(t => t.id);
 
-    const canSeePlayerNow = canEnemySeePlayer(
-      enemy,
-      playerState,
-      allTokens,
-      obstacleBlocking.vision,
-      playableCells
-    );
+    const canSeePlayerNow =
+      areTokensOnSameLevel(enemy, playerState) &&
+      canEnemySeePlayer(enemy, playerState, allTokens, obstacleBlocking.vision, playableCells);
     const distToPlayer = manhattan(enemy, playerState);
     const hpRatio = enemy.maxHp > 0 ? enemy.hp / enemy.maxHp : 0;
 
@@ -2999,7 +3181,10 @@ export const GameBoard: React.FC = () => {
     const intents = await requestEnemyAiIntents(summary);
     const filtered = intents.filter(i => i.enemyId === activeEnemyId);
 
-    const allTokens: TokenState[] = [playerCopy as TokenState, ...enemiesCopy];
+    const allTokens: TokenState[] = getTokensOnActiveLevel([
+      playerCopy as TokenState,
+      ...enemiesCopy
+    ]);
     const enemyActionIds =
       Array.isArray(activeEnemy.actionIds) && activeEnemy.actionIds.length
         ? activeEnemy.actionIds
@@ -3027,6 +3212,8 @@ export const GameBoard: React.FC = () => {
           blockedAttackCells: obstacleBlocking.attacks,
           playableCells,
           grid: mapGrid,
+          heightMap: mapHeight,
+          activeLevel,
           sampleCharacter,
           onLog: pushLog,
           emitEvent: evt => {
@@ -3085,13 +3272,15 @@ export const GameBoard: React.FC = () => {
     if (usedFallback) {
       setAiUsedFallback(true);
 
-      const canSee = canEnemySeePlayer(
-        activeEnemy,
-        playerCopy as TokenState,
-        allTokens,
-        obstacleBlocking.vision,
-        playableCells
-      );
+      const canSee =
+        areTokensOnSameLevel(activeEnemy, playerCopy as TokenState) &&
+        canEnemySeePlayer(
+          activeEnemy,
+          playerCopy as TokenState,
+          allTokens,
+          obstacleBlocking.vision,
+          playableCells
+        );
       if (!canSee) {
         pushLog(`${activeEnemy.id} ne voit pas le joueur et reste en alerte.`);
       } else {
@@ -3199,16 +3388,19 @@ export const GameBoard: React.FC = () => {
           if (isArcher) {
             // Simple: si trop loin, s'approche; si trop proche (mais > panicRange), cherche une case >= preferredMin.
             if (distToPlayer > preferredMin) {
+              const tokensForPath = getTokensOnActiveLevel(allTokens);
               const path = computePathTowards(
                 activeEnemy,
                 { x: playerCopy.x, y: playerCopy.y },
-                allTokens,
+                tokensForPath,
                 {
                   maxDistance: moveRange,
                   allowTargetOccupied: false,
                   blockedCells: obstacleBlocking.movement,
                   playableCells,
-                  grid: mapGrid
+                  grid: mapGrid,
+                  heightMap: mapHeight,
+                  activeLevel
                 }
               );
               if (path.length) destination = path[path.length - 1];
@@ -3216,16 +3408,19 @@ export const GameBoard: React.FC = () => {
               destination = pickBestRetreatCell();
             }
           } else {
+            const tokensForPath = getTokensOnActiveLevel(allTokens);
             const path = computePathTowards(
               activeEnemy,
               { x: playerCopy.x, y: playerCopy.y },
-              allTokens,
+              tokensForPath,
               {
                 maxDistance: moveRange,
                 allowTargetOccupied: false,
                 blockedCells: obstacleBlocking.movement,
                 playableCells,
-                grid: mapGrid
+                grid: mapGrid,
+                heightMap: mapHeight,
+                activeLevel
               }
             );
             if (path.length) destination = path[path.length - 1];
@@ -3581,11 +3776,60 @@ function handleEndPlayerTurn() {
 
   function handleInteractFromWheel() {
     const cell = radialMenu?.cell;
-    if (cell) {
-      pushLog(`Interagir: (a integrer) sur (${cell.x}, ${cell.y}).`);
-    } else {
-      pushLog("Interagir: (a integrer).");
+    if (!cell) {
+      pushLog("Interagir: aucune case cible.");
+      closeRadialMenu();
+      return;
     }
+
+    const obstacleHit = findObstacleAtCellAnyLevel(cell.x, cell.y);
+    const connects = obstacleHit?.def?.connects;
+
+    if (!connects) {
+      pushLog(`Interagir: aucun escalier sur (${cell.x}, ${cell.y}).`);
+      closeRadialMenu();
+      return;
+    }
+
+    const distToStairs = Math.abs(player.x - cell.x) + Math.abs(player.y - cell.y);
+    if (distToStairs > 1) {
+      pushLog("Interagir: placez-vous sur ou a cote de l'escalier.");
+      closeRadialMenu();
+      return;
+    }
+
+    const nextLevel =
+      activeLevel === connects.from
+        ? connects.to
+        : activeLevel === connects.to
+          ? connects.from
+          : null;
+
+    if (nextLevel === null) {
+      pushLog("Interagir: escalier incompatible avec ce niveau.");
+      closeRadialMenu();
+      return;
+    }
+
+    const candidates = [
+      { x: cell.x, y: cell.y },
+      { x: cell.x + 1, y: cell.y },
+      { x: cell.x - 1, y: cell.y },
+      { x: cell.x, y: cell.y + 1 },
+      { x: cell.x, y: cell.y - 1 }
+    ];
+    let destination = { x: player.x, y: player.y };
+    for (const c of candidates) {
+      if (!isCellPlayable(c.x, c.y)) continue;
+      if (getBaseHeightAt(c.x, c.y) === nextLevel) {
+        destination = c;
+        break;
+      }
+    }
+
+    setPlayer(prev => ({ ...prev, x: destination.x, y: destination.y }));
+    setActiveLevel(clampActiveLevel(nextLevel));
+    pushLog(`Interagir: changement de niveau -> ${nextLevel}.`);
     closeRadialMenu();
   }
 
@@ -3805,7 +4049,7 @@ function handleEndPlayerTurn() {
                 minHeight: 0,
                 borderRadius: 14,
                 border: "1px solid rgba(255,255,255,0.10)",
-                background: "#05050a",
+                background: colorToCssHex(boardBackgroundColor),
                 position: "relative",
                 display: "flex",
                 alignItems: "center",
@@ -3908,6 +4152,70 @@ function handleEndPlayerTurn() {
                 >
                   1×
                 </button>
+                <div
+                  style={{
+                    marginTop: 6,
+                    paddingTop: 6,
+                    borderTop: "1px solid rgba(255,255,255,0.12)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 6
+                  }}
+                >
+                  <div
+                    style={{
+                      textAlign: "center",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "rgba(255,255,255,0.75)"
+                    }}
+                    title="Niveau actif"
+                  >
+                    Niveau {activeLevel}
+                  </div>
+                  <div style={{ display: "flex", gap: 6, justifyContent: "space-between" }}>
+                    <button
+                      type="button"
+                      onClick={() => setActiveLevel(l => clampActiveLevel(l - 1))}
+                      disabled={activeLevel <= levelRange.min}
+                      style={{
+                        width: 34,
+                        height: 28,
+                        borderRadius: 10,
+                        border: "1px solid rgba(255,255,255,0.14)",
+                        background: activeLevel <= levelRange.min ? "rgba(80,80,90,0.55)" : "rgba(255,255,255,0.06)",
+                        color: "rgba(255,255,255,0.85)",
+                        cursor: activeLevel <= levelRange.min ? "default" : "pointer",
+                        fontSize: 16,
+                        fontWeight: 800,
+                        lineHeight: 1
+                      }}
+                      title="Niveau -"
+                    >
+                      -
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveLevel(l => clampActiveLevel(l + 1))}
+                      disabled={activeLevel >= levelRange.max}
+                      style={{
+                        width: 34,
+                        height: 28,
+                        borderRadius: 10,
+                        border: "1px solid rgba(255,255,255,0.14)",
+                        background: activeLevel >= levelRange.max ? "rgba(80,80,90,0.55)" : "rgba(255,255,255,0.06)",
+                        color: "rgba(255,255,255,0.85)",
+                        cursor: activeLevel >= levelRange.max ? "default" : "pointer",
+                        fontSize: 16,
+                        fontWeight: 800,
+                        lineHeight: 1
+                      }}
+                      title="Niveau +"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <ActionWheelMenu
@@ -4063,3 +4371,5 @@ function handleEndPlayerTurn() {
     </div>
   );
 };
+
+
