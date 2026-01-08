@@ -616,8 +616,9 @@ function createWallSideMesh(options: {
   ta: { x: number; y: number };
   tb: { x: number; y: number };
   heightPx: number;
+  flipU?: boolean;
 }): MeshSimple {
-  const { texture, a, b, ta, tb, heightPx } = options;
+  const { texture, a, b, ta, tb, heightPx, flipU } = options;
   const length = Math.hypot(b.x - a.x, b.y - a.y);
   const uMax = Math.max(1, length / TILE_SIZE);
   const vMax = Math.max(1, heightPx / TILE_SIZE);
@@ -627,12 +628,19 @@ function createWallSideMesh(options: {
     tb.x, tb.y,
     ta.x, ta.y
   ]);
-  const uvs = new Float32Array([
-    0, 0,
-    uMax, 0,
-    uMax, vMax,
-    0, vMax
-  ]);
+  const uvs = flipU
+    ? new Float32Array([
+        uMax, 0,
+        0, 0,
+        0, vMax,
+        uMax, vMax
+      ])
+    : new Float32Array([
+        0, 0,
+        uMax, 0,
+        uMax, vMax,
+        0, vMax
+      ]);
   const indices = new Uint32Array([0, 1, 2, 0, 2, 3]);
   return new MeshSimple({ texture, vertices, uvs, indices });
 }
@@ -693,7 +701,7 @@ function drawWallTopRing(options: {
 }): void {
   const { g, outer, inner, heightPx, color } = options;
   if (outer.length < 2 || inner.length < 2) return;
-  const targetCount = Math.min(outer.length, inner.length);
+  const targetCount = outer.length;
   const signedArea = (points: { x: number; y: number }[]) => {
     let area = 0;
     for (let i = 0; i < points.length; i++) {
@@ -703,18 +711,47 @@ function drawWallTopRing(options: {
     }
     return area * 0.5;
   };
+  const resampleLoop = (points: { x: number; y: number }[], count: number) => {
+    const closed = [...points, points[0]];
+    const dists: number[] = [0];
+    let total = 0;
+    for (let i = 1; i < closed.length; i++) {
+      const dx = closed[i].x - closed[i - 1].x;
+      const dy = closed[i].y - closed[i - 1].y;
+      total += Math.hypot(dx, dy);
+      dists.push(total);
+    }
+    if (total <= 1e-6) return points.slice(0, count);
+    const sampled: { x: number; y: number }[] = [];
+    for (let i = 0; i < count; i++) {
+      const t = (i / count) * total;
+      let seg = 1;
+      while (seg < dists.length && dists[seg] < t) seg++;
+      const d0 = dists[seg - 1];
+      const d1 = dists[seg];
+      const local = d1 - d0;
+      const alpha = local > 0 ? (t - d0) / local : 0;
+      const p0 = closed[seg - 1];
+      const p1 = closed[seg];
+      sampled.push({
+        x: p0.x + (p1.x - p0.x) * alpha,
+        y: p0.y + (p1.y - p0.y) * alpha
+      });
+    }
+    return sampled;
+  };
   const outerLoop = outer;
-  let innerLoop = inner;
+  let innerLoop = inner.length === outer.length ? inner : resampleLoop(inner, targetCount);
   if (signedArea(outerLoop) * signedArea(innerLoop) < 0) {
     innerLoop = [...innerLoop].reverse();
   }
   let bestShift = 0;
   let bestScore = Number.POSITIVE_INFINITY;
-  for (let shift = 0; shift < innerLoop.length; shift++) {
+  for (let shift = 0; shift < targetCount; shift++) {
     let score = 0;
     for (let i = 0; i < targetCount; i++) {
       const a = outerLoop[i];
-      const b = innerLoop[(i + shift) % innerLoop.length];
+      const b = innerLoop[(i + shift) % targetCount];
       const dx = a.x - b.x;
       const dy = a.y - b.y;
       score += dx * dx + dy * dy;
@@ -725,10 +762,10 @@ function drawWallTopRing(options: {
     }
   }
   if (bestShift !== 0) {
-    innerLoop = innerLoop.map((_, i) => innerLoop[(i + bestShift) % innerLoop.length]);
+    innerLoop = innerLoop.map((_, i) => innerLoop[(i + bestShift) % targetCount]);
   }
-  const outerTop = outerLoop.slice(0, targetCount).map(p => ({ x: p.x, y: p.y - heightPx }));
-  const innerTop = innerLoop.slice(0, targetCount).map(p => ({ x: p.x, y: p.y - heightPx }));
+  const outerTop = outerLoop.map(p => ({ x: p.x, y: p.y - heightPx }));
+  const innerTop = innerLoop.map(p => ({ x: p.x, y: p.y - heightPx }));
   g.beginFill(color, 1);
   for (let i = 0; i < targetCount; i++) {
     const next = (i + 1) % targetCount;
@@ -1054,7 +1091,8 @@ export function usePixiWalls(options: {
             b: face.b,
             ta: face.ta,
             tb: face.tb,
-            heightPx: wallHeight
+            heightPx: wallHeight,
+            flipU: segment.flipFaces
           });
           segmentContainer.addChild(mesh);
         }
