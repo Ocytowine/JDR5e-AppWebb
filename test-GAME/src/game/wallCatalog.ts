@@ -6,12 +6,16 @@ import wallStone from "../../wall-types/wall-stone.json";
 import wallStoneDoor from "../../wall-types/wall-stone-door.json";
 import wallWood from "../../wall-types/wall-wood.json";
 import wallWoodDoor from "../../wall-types/wall-wood-door.json";
+import lowWallStone from "../../wall-types/low-wall-stone.json";
+import lowWallWood from "../../wall-types/low-wall-wood.json";
 
 const WALL_TYPE_MODULES: Record<string, WallTypeDefinition> = {
   "./wall-stone.json": wallStone as WallTypeDefinition,
   "./wall-stone-door.json": wallStoneDoor as WallTypeDefinition,
   "./wall-wood.json": wallWood as WallTypeDefinition,
-  "./wall-wood-door.json": wallWoodDoor as WallTypeDefinition
+  "./wall-wood-door.json": wallWoodDoor as WallTypeDefinition,
+  "./low-wall-stone.json": lowWallStone as WallTypeDefinition,
+  "./low-wall-wood.json": lowWallWood as WallTypeDefinition
 };
 
 export function loadWallTypesFromIndex(): WallTypeDefinition[] {

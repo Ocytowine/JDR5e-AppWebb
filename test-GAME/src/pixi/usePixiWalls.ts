@@ -38,6 +38,81 @@ function getWallNeighbors(
   };
 }
 
+function cornerBiasForCell(
+  x: number,
+  y: number,
+  dir: { x: number; y: number },
+  wallCells: Set<string>
+): number {
+  const neighbors = getWallNeighbors(x, y, wallCells);
+  const neighborCount =
+    (neighbors.n ? 1 : 0) +
+    (neighbors.e ? 1 : 0) +
+    (neighbors.s ? 1 : 0) +
+    (neighbors.w ? 1 : 0);
+  if (neighborCount !== 2) return 0;
+  const straightNS = neighbors.n && neighbors.s && !neighbors.e && !neighbors.w;
+  const straightEW = neighbors.e && neighbors.w && !neighbors.n && !neighbors.s;
+  if (straightNS || straightEW) return 0;
+  const isHorizontal = dir.x !== 0;
+  if (neighbors.n && neighbors.w) return isHorizontal ? 1 : -1;
+  if (neighbors.n && neighbors.e) return isHorizontal ? -1 : 1;
+  if (neighbors.s && neighbors.e) return isHorizontal ? 1 : -1;
+  if (neighbors.s && neighbors.w) return isHorizontal ? -1 : 1;
+  return 0;
+}
+
+function shouldTrimEndpoint(
+  x: number,
+  y: number,
+  wallCells: Set<string>
+): boolean {
+  const neighbors = getWallNeighbors(x, y, wallCells);
+  const neighborCount =
+    (neighbors.n ? 1 : 0) +
+    (neighbors.e ? 1 : 0) +
+    (neighbors.s ? 1 : 0) +
+    (neighbors.w ? 1 : 0);
+  if (neighborCount !== 2) return neighborCount >= 1;
+  const straightNS = neighbors.n && neighbors.s && !neighbors.e && !neighbors.w;
+  const straightEW = neighbors.e && neighbors.w && !neighbors.n && !neighbors.s;
+  return !straightNS && !straightEW;
+}
+
+function adjustPathEndpoints(options: {
+  points: { x: number; y: number }[];
+  trimStart: boolean;
+  trimEnd: boolean;
+  extend: number;
+  trimLen: number;
+}): { x: number; y: number }[] {
+  const { points, trimStart, trimEnd, extend, trimLen } = options;
+  if (points.length < 2) return points;
+  const start = points[0];
+  const next = points[1];
+  const end = points[points.length - 1];
+  const prev = points[points.length - 2];
+  const startDx = next.x - start.x;
+  const startDy = next.y - start.y;
+  const endDx = end.x - prev.x;
+  const endDy = end.y - prev.y;
+  const startLen = Math.hypot(startDx, startDy) || 1;
+  const endLen = Math.hypot(endDx, endDy) || 1;
+  const startDir = { x: startDx / startLen, y: startDy / startLen };
+  const endDir = { x: endDx / endLen, y: endDy / endLen };
+  const startShift = -extend + (trimStart ? trimLen : 0);
+  const endShift = extend - (trimEnd ? trimLen : 0);
+  const adjustedStart = {
+    x: start.x + startDir.x * startShift,
+    y: start.y + startDir.y * startShift
+  };
+  const adjustedEnd = {
+    x: end.x + endDir.x * endShift,
+    y: end.y + endDir.y * endShift
+  };
+  return [adjustedStart, ...points.slice(1, -1), adjustedEnd];
+}
+
 function edgeEndpoints(
   center: { x: number; y: number },
   halfW: number,
@@ -240,6 +315,72 @@ function buildWallPaths(wallCells: Set<string>): WallPath[] {
   return paths;
 }
 
+function mergeOpenPathsAtEndpoints(paths: WallPath[]): WallPath[] {
+  const merged = [...paths];
+  let changed = true;
+  while (changed) {
+    changed = false;
+    const endpointMap = new Map<string, number[]>();
+    for (let i = 0; i < merged.length; i++) {
+      const path = merged[i];
+      if (path.closed || path.points.length < 2) continue;
+      const start = path.points[0];
+      const end = path.points[path.points.length - 1];
+      const startKey = cellKey(start.x, start.y);
+      const endKey = cellKey(end.x, end.y);
+      if (!endpointMap.has(startKey)) endpointMap.set(startKey, []);
+      if (!endpointMap.has(endKey)) endpointMap.set(endKey, []);
+      endpointMap.get(startKey)?.push(i);
+      endpointMap.get(endKey)?.push(i);
+    }
+
+    for (const [key, indices] of endpointMap.entries()) {
+      if (indices.length !== 2) continue;
+      const [i, j] = indices;
+      if (i === j) continue;
+      const a = merged[i];
+      const b = merged[j];
+      if (a.closed || b.closed || a.points.length < 2 || b.points.length < 2) continue;
+      const aStart = cellKey(a.points[0].x, a.points[0].y) === key;
+      const aEnd = cellKey(a.points[a.points.length - 1].x, a.points[a.points.length - 1].y) === key;
+      const bStart = cellKey(b.points[0].x, b.points[0].y) === key;
+      const bEnd = cellKey(b.points[b.points.length - 1].x, b.points[b.points.length - 1].y) === key;
+      if (!(aStart || aEnd) || !(bStart || bEnd)) continue;
+
+      let points: { x: number; y: number }[] = [];
+      if (aEnd && bStart) {
+        points = [...a.points, ...b.points.slice(1)];
+      } else if (aStart && bEnd) {
+        points = [...b.points, ...a.points.slice(1)];
+      } else if (aStart && bStart) {
+        const revA = [...a.points].reverse();
+        points = [...revA, ...b.points.slice(1)];
+      } else if (aEnd && bEnd) {
+        const revB = [...b.points].reverse();
+        points = [...a.points, ...revB.slice(1)];
+      } else {
+        continue;
+      }
+
+      let closed = false;
+      if (points.length >= 3) {
+        const first = points[0];
+        const last = points[points.length - 1];
+        if (first.x === last.x && first.y === last.y) {
+          points = points.slice(0, -1);
+          closed = true;
+        }
+      }
+
+      merged[i] = { points, closed };
+      merged.splice(j, 1);
+      changed = true;
+      break;
+    }
+  }
+  return merged;
+}
+
 function splitPathIntoSegments(path: WallPath): { points: { x: number; y: number }[] }[] {
   const pts = path.points;
   if (pts.length < 2) return [];
@@ -270,7 +411,7 @@ function buildOffsetPolygonGrid(
   points: { x: number; y: number }[],
   thickness: number,
   closed: boolean
-): { base: { x: number; y: number }[] } | null {
+): { base: { x: number; y: number }[]; outer?: { x: number; y: number }[]; inner?: { x: number; y: number }[] } | null {
   if (points.length < 2) return null;
   const segCount = closed ? points.length : points.length - 1;
   const normals: { x: number; y: number }[] = [];
@@ -343,7 +484,22 @@ function buildOffsetPolygonGrid(
   }
 
   const base = left.concat(right.reverse());
-  return base.length >= 3 ? { base } : null;
+  if (base.length < 3) return null;
+  let area = 0;
+  for (let i = 0; i < base.length; i++) {
+    const a = base[i];
+    const b = base[(i + 1) % base.length];
+    area += a.x * b.y - b.x * a.y;
+  }
+  if (area < 0) base.reverse();
+  const result: { base: { x: number; y: number }[]; outer?: { x: number; y: number }[]; inner?: { x: number; y: number }[] } = {
+    base
+  };
+  if (closed) {
+    result.outer = left;
+    result.inner = right;
+  }
+  return result;
 }
 
 function getWallTexture(type: WallTypeDefinition | null): Texture | null {
@@ -415,7 +571,8 @@ type WallFace = {
 
 function buildVisibleWallFaces(
   base: { x: number; y: number }[],
-  heightPx: number
+  heightPx: number,
+  flipFaces?: boolean
 ): WallFace[] {
   if (base.length < 3) return [];
   let area = 0;
@@ -424,7 +581,8 @@ function buildVisibleWallFaces(
     const q = base[(i + 1) % base.length];
     area += p.x * q.y - q.x * p.y;
   }
-  const isCCW = area > 0;
+  let isCCW = area > 0;
+  if (flipFaces) isCCW = !isCCW;
   const top = base.map(p => ({ x: p.x, y: p.y - heightPx }));
   const view = { x: -1, y: -1 };
   const viewLen = Math.hypot(view.x, view.y) || 1;
@@ -526,17 +684,106 @@ function drawWallTopFace(options: {
   g.poly(flat).fill({ color, alpha: 1 });
 }
 
+function drawWallTopRing(options: {
+  g: Graphics;
+  outer: { x: number; y: number }[];
+  inner: { x: number; y: number }[];
+  heightPx: number;
+  color: number;
+}): void {
+  const { g, outer, inner, heightPx, color } = options;
+  if (outer.length < 2 || inner.length < 2) return;
+  const targetCount = Math.min(outer.length, inner.length);
+  const signedArea = (points: { x: number; y: number }[]) => {
+    let area = 0;
+    for (let i = 0; i < points.length; i++) {
+      const a = points[i];
+      const b = points[(i + 1) % points.length];
+      area += a.x * b.y - b.x * a.y;
+    }
+    return area * 0.5;
+  };
+  const outerLoop = outer;
+  let innerLoop = inner;
+  if (signedArea(outerLoop) * signedArea(innerLoop) < 0) {
+    innerLoop = [...innerLoop].reverse();
+  }
+  let bestShift = 0;
+  let bestScore = Number.POSITIVE_INFINITY;
+  for (let shift = 0; shift < innerLoop.length; shift++) {
+    let score = 0;
+    for (let i = 0; i < targetCount; i++) {
+      const a = outerLoop[i];
+      const b = innerLoop[(i + shift) % innerLoop.length];
+      const dx = a.x - b.x;
+      const dy = a.y - b.y;
+      score += dx * dx + dy * dy;
+    }
+    if (score < bestScore) {
+      bestScore = score;
+      bestShift = shift;
+    }
+  }
+  if (bestShift !== 0) {
+    innerLoop = innerLoop.map((_, i) => innerLoop[(i + bestShift) % innerLoop.length]);
+  }
+  const outerTop = outerLoop.slice(0, targetCount).map(p => ({ x: p.x, y: p.y - heightPx }));
+  const innerTop = innerLoop.slice(0, targetCount).map(p => ({ x: p.x, y: p.y - heightPx }));
+  g.beginFill(color, 1);
+  for (let i = 0; i < targetCount; i++) {
+    const next = (i + 1) % targetCount;
+    const a = outerTop[i];
+    const b = outerTop[next];
+    const c = innerTop[next];
+    const d = innerTop[i];
+    g.poly([
+      a.x, a.y,
+      b.x, b.y,
+      c.x, c.y,
+      d.x, d.y
+    ]);
+  }
+  g.endFill();
+}
+
+function createTopCapMesh(options: {
+  texture: Texture;
+  points: { x: number; y: number }[];
+}): MeshSimple {
+  const { texture, points } = options;
+  const vertices = new Float32Array([
+    points[0].x, points[0].y,
+    points[1].x, points[1].y,
+    points[2].x, points[2].y,
+    points[3].x, points[3].y
+  ]);
+  const uvs = new Float32Array([
+    0, 0,
+    1, 0,
+    1, 1,
+    0, 1
+  ]);
+  const indices = new Uint32Array([0, 1, 2, 0, 2, 3]);
+  return new MeshSimple({ texture, vertices, uvs, indices });
+}
+
 const WALL_THICKNESS_RATIO = 0.33;
 const USE_WALL_MESH = true;
+const WALL_CORNER_Z_BIAS = TILE_SIZE * 0.05;
+const WALL_DEBUG = true
 
 type WallJunction = {
   x: number;
   y: number;
   color: number;
+  texture: Texture | null;
 };
 
 type WallSegmentRender = {
   base: { x: number; y: number }[];
+  hole: { x: number; y: number }[] | null;
+  drawTop: boolean;
+  flipFaces: boolean;
   baseColor: number;
   depthY: number;
   screenXMid: number;
@@ -549,6 +796,7 @@ type WallSegmentRender = {
   pointKeys: Set<string>;
   junctions: WallJunction[];
   texture: Texture | null;
+  cornerBias: number;
 };
 
 export function usePixiWalls(options: {
@@ -564,7 +812,7 @@ export function usePixiWalls(options: {
     if (!depthLayer) return;
 
     for (const child of [...depthLayer.children]) {
-      if (child.label === "wall" || child.label === "wall-mesh" || child.label === "wall-door") {
+      if (child.label === "wall" || child.label === "wall-mesh" || child.label === "wall-door" || child.label === "wall-cap") {
         depthLayer.removeChild(child);
         child.destroy?.();
       }
@@ -580,6 +828,7 @@ export function usePixiWalls(options: {
     const wallTypeByGroupId = new Map<string, WallTypeDefinition>();
     const doorOverlays: Array<{ cell: { x: number; y: number }; def: WallTypeDefinition; groupId: string }> = [];
     for (const wall of options.walls) {
+      if (typeof wall.hp === "number" && wall.hp <= 0) continue;
       const def = typeById.get(wall.typeId) ?? null;
       const cells = getWallOccupiedCells(wall, def);
       const groupDef = resolveWallGroupType(def, options.wallTypes);
@@ -634,76 +883,130 @@ export function usePixiWalls(options: {
         const straightNS = neighbors.n && neighbors.s && !neighbors.e && !neighbors.w;
         const straightEW = neighbors.e && neighbors.w && !neighbors.n && !neighbors.s;
         if (neighborCount >= 2 && !straightNS && !straightEW) {
-          wallJunctions.push({ x, y, color: baseColor });
+          wallJunctions.push({ x, y, color: baseColor, texture });
         }
       }
 
-      const wallPaths = buildWallPaths(wallCells);
+      const wallPaths = mergeOpenPathsAtEndpoints(buildWallPaths(wallCells));
       for (const path of wallPaths) {
-        const segments = splitPathIntoSegments(path);
-        for (const segment of segments) {
-          const pts = segment.points;
-          if (pts.length < 2) continue;
-          for (let i = 0; i < pts.length - 1; i++) {
-            const a = pts[i];
-            const b = pts[i + 1];
-            const dx = b.x - a.x;
-            const dy = b.y - a.y;
-            const dl = Math.hypot(dx, dy) || 1;
-            const extend = thicknessGrid * 0.75;
-            const extendedPoints = [
-              { x: a.x - (dx / dl) * extend, y: a.y - (dy / dl) * extend },
-              { x: b.x + (dx / dl) * extend, y: b.y + (dy / dl) * extend }
-            ];
-
-            const offsetGrid = buildOffsetPolygonGrid(extendedPoints, thicknessGrid, false);
-            if (!offsetGrid) continue;
-            const offset = offsetGrid.base.map(p =>
-              gridToScreenForGrid(p.x, p.y, options.grid.cols, options.grid.rows)
-            );
-            const depthY = Math.max(
+        let pts = path.points;
+        if (pts.length < 2) continue;
+        if (path.closed && pts.length > 2) {
+          const first = pts[0];
+          const last = pts[pts.length - 1];
+          if (first.x === last.x && first.y === last.y) {
+            pts = pts.slice(0, -1);
+          }
+        }
+        const extend = thicknessGrid * 0.75;
+        const trimLen = thicknessGrid * 0.6;
+        const trimStart = !path.closed && shouldTrimEndpoint(pts[0].x, pts[0].y, wallCells);
+        const trimEnd = !path.closed && shouldTrimEndpoint(pts[pts.length - 1].x, pts[pts.length - 1].y, wallCells);
+        const adjustedPoints = path.closed
+          ? pts
+          : adjustPathEndpoints({ points: pts, trimStart, trimEnd, extend, trimLen });
+        const offsetGrid = buildOffsetPolygonGrid(adjustedPoints, thicknessGrid, path.closed);
+        if (!offsetGrid) continue;
+        if (path.closed && offsetGrid.outer && offsetGrid.inner) {
+          console.debug("[wall] closed path", {
+            points: pts.length,
+            outer: offsetGrid.outer.length,
+            inner: offsetGrid.inner.length
+          });
+        } else if (!path.closed) {
+          console.debug("[wall] open path", { points: pts.length });
+        }
+        const offset = offsetGrid.base.map(p =>
+          gridToScreenForGrid(p.x, p.y, options.grid.cols, options.grid.rows)
+        );
+        const a = pts[0];
+        const b = pts[pts.length - 1];
+        const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+        const midScreen = gridToScreenForGrid(mid.x, mid.y, options.grid.cols, options.grid.rows);
+        const dir = {
+          x: Math.sign(b.x - a.x),
+          y: Math.sign(b.y - a.y)
+        };
+        const pointKeys = new Set<string>(pts.map(p => cellKey(p.x, p.y)));
+        const buildDepthY = (base: { x: number; y: number }[]) => {
+          let depthY = -Infinity;
+          for (const p of base) {
+            if (p.y > depthY) depthY = p.y;
+          }
+          if (!Number.isFinite(depthY)) {
+            depthY = Math.max(
               gridToScreenForGrid(a.x, a.y, options.grid.cols, options.grid.rows).y,
               gridToScreenForGrid(b.x, b.y, options.grid.cols, options.grid.rows).y
             );
-            const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-            const midScreen = gridToScreenForGrid(mid.x, mid.y, options.grid.cols, options.grid.rows);
-            const dir = {
-              x: Math.sign(b.x - a.x),
-              y: Math.sign(b.y - a.y)
-            };
-            const startNeighbors = getWallNeighbors(a.x, a.y, wallCells);
-            const endNeighbors = getWallNeighbors(b.x, b.y, wallCells);
-            const startNeighborCount =
-              (startNeighbors.n ? 1 : 0) +
-              (startNeighbors.e ? 1 : 0) +
-              (startNeighbors.s ? 1 : 0) +
-              (startNeighbors.w ? 1 : 0);
-            const endNeighborCount =
-              (endNeighbors.n ? 1 : 0) +
-              (endNeighbors.e ? 1 : 0) +
-              (endNeighbors.s ? 1 : 0) +
-              (endNeighbors.w ? 1 : 0);
-            const startHasContinuation = wallCells.has(cellKey(a.x - dir.x, a.y - dir.y));
-            const endHasContinuation = wallCells.has(cellKey(b.x + dir.x, b.y + dir.y));
-            const hideStartCap = startHasContinuation || startNeighborCount > 1;
-            const hideEndCap = endHasContinuation || endNeighborCount > 1;
-            const pointKeys = new Set<string>([cellKey(a.x, a.y), cellKey(b.x, b.y)]);
-            wallSegments.push({
-              base: offset,
-              baseColor,
-              depthY,
-              screenXMid: midScreen.x,
-              groupId: typeId,
-              start: a,
-              end: b,
-              dir,
-              hideStartCap,
-              hideEndCap,
-              pointKeys,
-              junctions: [],
-              texture
-            });
           }
+          return depthY;
+        };
+        if (path.closed && offsetGrid.outer && offsetGrid.inner) {
+          const outer = offsetGrid.outer.map(p =>
+            gridToScreenForGrid(p.x, p.y, options.grid.cols, options.grid.rows)
+          );
+          const inner = offsetGrid.inner.map(p =>
+            gridToScreenForGrid(p.x, p.y, options.grid.cols, options.grid.rows)
+          );
+          const innerReversed = [...inner].reverse();
+          wallSegments.push({
+            base: outer,
+            hole: inner,
+            drawTop: true,
+            flipFaces: false,
+            baseColor,
+            depthY: buildDepthY(outer),
+            screenXMid: midScreen.x,
+            groupId: typeId,
+            start: a,
+            end: b,
+            dir,
+            hideStartCap: false,
+            hideEndCap: false,
+            pointKeys,
+            junctions: [],
+            texture,
+            cornerBias: 0
+          });
+          wallSegments.push({
+            base: innerReversed,
+            hole: null,
+            drawTop: false,
+            flipFaces: true,
+            baseColor,
+            depthY: buildDepthY(innerReversed),
+            screenXMid: midScreen.x,
+            groupId: typeId,
+            start: a,
+            end: b,
+            dir,
+            hideStartCap: false,
+            hideEndCap: false,
+            pointKeys,
+            junctions: [],
+            texture,
+            cornerBias: 0
+          });
+        } else {
+          wallSegments.push({
+            base: offset,
+            hole: null,
+            drawTop: true,
+            flipFaces: false,
+            baseColor,
+            depthY: buildDepthY(offset),
+            screenXMid: midScreen.x,
+            groupId: typeId,
+            start: a,
+            end: b,
+            dir,
+            hideStartCap: false,
+            hideEndCap: false,
+            pointKeys,
+            junctions: [],
+            texture,
+            cornerBias: 0
+          });
         }
       }
 
@@ -719,25 +1022,28 @@ export function usePixiWalls(options: {
 
     wallSegments.sort((a, b) => {
       if (a.depthY !== b.depthY) return a.depthY - b.depthY;
+      if (a.cornerBias !== b.cornerBias) return a.cornerBias - b.cornerBias;
       if (a.screenXMid !== b.screenXMid) return b.screenXMid - a.screenXMid;
       return a.start.y - b.start.y;
     });
 
     const junctionSize = thicknessGrid * 0.75;
     const facesBySegment = new Map<WallSegmentRender, WallFace[]>();
-    const visibleFaces: Array<{ face: WallFace; groupId: string }> = [];
+    const visibleFaces: Array<{ face: WallFace; groupId: string; segmentDepthY: number }> = [];
 
     for (const segment of wallSegments) {
-      const faces = buildVisibleWallFaces(segment.base, wallHeight);
+      const faces = buildVisibleWallFaces(segment.base, wallHeight, segment.flipFaces);
       facesBySegment.set(segment, faces);
       for (const face of faces) {
-        visibleFaces.push({ face, groupId: segment.groupId });
+        visibleFaces.push({ face, groupId: segment.groupId, segmentDepthY: segment.depthY });
       }
     }
 
     for (const segment of wallSegments) {
       const segmentGraphics = new Graphics();
+      const outlineGraphics = new Graphics();
       const segmentContainer = new Container();
+      segmentContainer.sortableChildren = true;
 
       if (USE_WALL_MESH && segment.texture) {
         const faces = facesBySegment.get(segment) ?? [];
@@ -752,12 +1058,24 @@ export function usePixiWalls(options: {
           });
           segmentContainer.addChild(mesh);
         }
-        drawWallTopFace({
-          g: segmentGraphics,
-          base: segment.base,
-          heightPx: wallHeight,
-          color: segment.baseColor
-        });
+        if (segment.drawTop) {
+          if (segment.hole) {
+            drawWallTopRing({
+              g: segmentGraphics,
+              outer: segment.base,
+              inner: segment.hole,
+              heightPx: wallHeight,
+              color: segment.baseColor
+            });
+          } else {
+            drawWallTopFace({
+              g: segmentGraphics,
+              base: segment.base,
+              heightPx: wallHeight,
+              color: segment.baseColor
+            });
+          }
+        }
       } else {
         drawExtrudedPolygon({
           g: segmentGraphics,
@@ -768,15 +1086,27 @@ export function usePixiWalls(options: {
           sideLeft: scaleColor(segment.baseColor, 0.68),
           drawTop: false
         });
-        drawExtrudedPolygon({
-          g: segmentGraphics,
-          base: segment.base,
-          heightPx: wallHeight,
-          topColor: segment.baseColor,
-          sideRight: scaleColor(segment.baseColor, 0.78),
-          sideLeft: scaleColor(segment.baseColor, 0.68),
-          drawTop: true
-        });
+        if (segment.drawTop) {
+          if (segment.hole) {
+            drawWallTopRing({
+              g: segmentGraphics,
+              outer: segment.base,
+              inner: segment.hole,
+              heightPx: wallHeight,
+              color: segment.baseColor
+            });
+          } else {
+            drawExtrudedPolygon({
+              g: segmentGraphics,
+              base: segment.base,
+              heightPx: wallHeight,
+              topColor: segment.baseColor,
+              sideRight: scaleColor(segment.baseColor, 0.78),
+              sideLeft: scaleColor(segment.baseColor, 0.68),
+              drawTop: true
+            });
+          }
+        }
       }
 
       const topPoints = segment.base.map(p => ({ x: p.x, y: p.y - wallHeight }));
@@ -801,7 +1131,7 @@ export function usePixiWalls(options: {
         const screenB = gridToScreenForGrid(segment.end.x, segment.end.y, options.grid.cols, options.grid.rows);
         const dirScreen = { x: screenB.x - screenA.x, y: screenB.y - screenA.y };
         const center = { x: (screenA.x + screenB.x) / 2, y: (screenA.y + screenB.y) / 2 };
-        segmentGraphics.setStrokeStyle({
+        outlineGraphics.setStrokeStyle({
           width: 2,
           color: scaleColor(segment.baseColor, 0.25),
           alpha: 1
@@ -813,10 +1143,10 @@ export function usePixiWalls(options: {
             if (dot < 0 && segment.hideStartCap) continue;
             if (dot >= 0 && segment.hideEndCap) continue;
           }
-          segmentGraphics.moveTo(edge.a.x, edge.a.y);
-          segmentGraphics.lineTo(edge.b.x, edge.b.y);
+          outlineGraphics.moveTo(edge.a.x, edge.a.y);
+          outlineGraphics.lineTo(edge.b.x, edge.b.y);
         }
-        segmentGraphics.stroke();
+        outlineGraphics.stroke();
       }
 
       for (const j of segment.junctions) {
@@ -830,13 +1160,24 @@ export function usePixiWalls(options: {
           return { x: screen.x, y: screen.y - wallHeight };
         });
 
-        const flat: number[] = [];
-        for (const p of topPoints) flat.push(p.x, p.y);
-        segmentGraphics.poly(flat).fill({ color: j.color, alpha: 1 });
+        if (USE_WALL_MESH && j.texture) {
+          const mesh = createTopCapMesh({ texture: j.texture, points: topPoints });
+          const center = gridToScreenForGrid(j.x, j.y, options.grid.cols, options.grid.rows);
+          mesh.zIndex = center.y + WALL_CORNER_Z_BIAS * 0.5;
+          mesh.label = "wall-cap";
+          depthLayer.addChild(mesh);
+        } else {
+          const flat: number[] = [];
+          for (const p of topPoints) flat.push(p.x, p.y);
+          segmentGraphics.poly(flat).fill({ color: j.color, alpha: 1 });
+        }
       }
 
+      segmentGraphics.zIndex = 0;
+      outlineGraphics.zIndex = 1;
       segmentContainer.addChild(segmentGraphics);
-      segmentContainer.zIndex = segment.depthY;
+      segmentContainer.addChild(outlineGraphics);
+      segmentContainer.zIndex = segment.depthY + segment.cornerBias * WALL_CORNER_Z_BIAS;
       segmentContainer.label = "wall";
       depthLayer.addChild(segmentContainer);
     }
@@ -867,7 +1208,7 @@ export function usePixiWalls(options: {
       const stepX = { x: baseStepX.x - base.x, y: baseStepX.y - base.y };
       const stepY = { x: baseStepY.x - base.x, y: baseStepY.y - base.y };
 
-      let best: { face: WallFace; dist: number } | null = null;
+      let best: { face: WallFace; dist: number; segmentDepthY: number } | null = null;
       for (const entry of visibleFaces) {
         if (entry.groupId !== door.groupId) continue;
         const mid = {
@@ -878,7 +1219,7 @@ export function usePixiWalls(options: {
         const dy = mid.y - base.y;
         const dist = Math.hypot(dx, dy);
         if (!best || dist < best.dist) {
-          best = { face: entry.face, dist };
+          best = { face: entry.face, dist, segmentDepthY: entry.segmentDepthY };
         }
       }
       if (!best) continue;
@@ -920,7 +1261,8 @@ export function usePixiWalls(options: {
         vMax: 1,
         flipV: true
       });
-      const depthY = Math.max(a.y, b.y);
+      const faceDepthY = Math.max(a.y, b.y);
+      const depthY = Math.max(faceDepthY, best.segmentDepthY);
       mesh.zIndex = depthY + doorDepthBias;
       mesh.label = "wall-door";
       depthLayer.addChild(mesh);

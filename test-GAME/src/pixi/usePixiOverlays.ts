@@ -12,6 +12,13 @@ import {
 import { LEVEL_HEIGHT_PX, TILE_SIZE, gridToScreenForGrid } from "../boardConfig";
 import { getHeightAtGrid } from "../game/map/draft";
 import { computeVisionEffectForToken, isCellVisible } from "../vision";
+import { hasLineOfSight } from "../lineOfSight";
+
+export interface LightSource {
+  x: number;
+  y: number;
+  radius: number;
+}
 
 export function usePixiOverlays(options: {
   pathLayerRef: RefObject<Graphics | null>;
@@ -23,6 +30,11 @@ export function usePixiOverlays(options: {
   selectedObstacleCell: { x: number; y: number } | null;
   obstacleVisionCells?: Set<string> | null;
   showVisionDebug: boolean;
+  lightMap?: number[] | null;
+  lightSources?: LightSource[] | null;
+  showLightOverlay: boolean;
+  playerTorchOn: boolean;
+  playerTorchRadius?: number;
   pixiReadyTick?: number;
   playableCells?: Set<string> | null;
   grid: { cols: number; rows: number };
@@ -75,6 +87,98 @@ export function usePixiOverlays(options: {
       const offset = height * LEVEL_HEIGHT_PX;
       return { x: center.x, y: center.y - offset, height };
     };
+
+    const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
+    const mapLight = Array.isArray(options.lightMap) ? options.lightMap : null;
+    const baseLightAt = (x: number, y: number) => {
+      if (!mapLight || mapLight.length === 0) return 1;
+      const idx = y * options.grid.cols + x;
+      const value = mapLight[idx];
+      return Number.isFinite(value) ? clamp01(value) : 1;
+    };
+    const activeSources: LightSource[] = [];
+    if (Array.isArray(options.lightSources)) {
+      activeSources.push(...options.lightSources);
+    }
+    if (options.playerTorchOn) {
+      activeSources.push({
+        x: options.player.x,
+        y: options.player.y,
+        radius: Math.max(1, Math.floor(options.playerTorchRadius ?? 4))
+      });
+    }
+
+    if (options.showLightOverlay) {
+      const blocked = options.obstacleVisionCells ?? null;
+      const filteredSources = activeSources.filter(source => {
+        const height = getHeightAtGrid(
+          options.heightMap,
+          options.grid.cols,
+          options.grid.rows,
+          source.x,
+          source.y
+        );
+        return height === options.activeLevel;
+      });
+
+      for (let y = 0; y < options.grid.rows; y++) {
+        for (let x = 0; x < options.grid.cols; x++) {
+          const height = getHeightAtGrid(
+            options.heightMap,
+            options.grid.cols,
+            options.grid.rows,
+            x,
+            y
+          );
+          if (height !== options.activeLevel) continue;
+          if (
+            options.playableCells &&
+            options.playableCells.size > 0 &&
+            !options.playableCells.has(`${x},${y}`)
+          ) {
+            continue;
+          }
+
+          let light = baseLightAt(x, y);
+          for (const source of filteredSources) {
+            const dx = x - source.x;
+            const dy = y - source.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > source.radius) continue;
+            if (blocked && blocked.size > 0) {
+              const hasLos = hasLineOfSight(
+                { x: source.x, y: source.y },
+                { x, y },
+                blocked
+              );
+              if (!hasLos) continue;
+            }
+            light = Math.max(light, 1);
+          }
+
+          const darkness = clamp01(1 - light) * 0.75;
+          if (darkness <= 0.01) continue;
+          const center = cellCenter(x, y);
+          const w = TILE_SIZE;
+          const h = TILE_SIZE * 0.5;
+          const points = [
+            center.x,
+            center.y - h / 2,
+            center.x + w / 2,
+            center.y,
+            center.x,
+            center.y + h / 2,
+            center.x - w / 2,
+            center.y
+          ];
+
+          pathLayer.poly(points).fill({
+            color: 0x000000,
+            alpha: darkness
+          });
+        }
+      }
+    }
 
     for (let y = 0; y < options.grid.rows; y++) {
       for (let x = 0; x < options.grid.cols; x++) {
@@ -403,6 +507,11 @@ export function usePixiOverlays(options: {
     options.effectSpecs,
     options.selectedTargetId,
     options.showVisionDebug,
+    options.showLightOverlay,
+    options.lightMap,
+    options.lightSources,
+    options.playerTorchOn,
+    options.playerTorchRadius,
     options.pixiReadyTick,
     options.playableCells,
     options.grid,

@@ -20,7 +20,11 @@ export function spawnEnemies(params: {
   const log: string[] = [];
 
   const enemySpawns: { enemyType: EnemyTypeDefinition; position: GridPosition }[] = [];
-  const enemyCount = clamp(params.enemyCount, 1, 20);
+  const enemyCount = clamp(params.enemyCount, 0, 20);
+  if (enemyCount === 0) {
+    log.push("Spawns: 0/0 ennemis (desactive).");
+    return { enemySpawns, log };
+  }
 
   const reachable = computeReachableCells(draft, playerStart);
 

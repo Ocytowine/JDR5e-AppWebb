@@ -131,16 +131,20 @@ export function runGenerationPipeline(params: {
   ctx: MapBuildContext;
 }): MapBuildResult {
   const { spec, notes, rand } = buildMapFromPrompt(params);
+  const rawPrompt = String(params.prompt ?? "");
+  const disableEnemies = rawPrompt.trimStart().toLowerCase().startsWith("test");
 
   const recommendedGrid = recommendGridFromSpec({
     spec,
-    enemyCount: params.ctx.enemyCount
+    enemyCount: disableEnemies ? 0 : params.ctx.enemyCount
   });
 
   const { draft, playerStart, roomMasks, enemyRoomId } = generateFromSpec({ spec, ctx: params.ctx, rand });
   const resolvedPlayerStart = resolvePlayerStart(draft, playerStart);
 
   const enemyCountOverride = spec.dungeonPlan?.enemyCountOverride;
+  const resolvedEnemyCount = enemyCountOverride ?? params.ctx.enemyCount;
+  const effectiveEnemyCount = disableEnemies ? 0 : resolvedEnemyCount;
   const enemyRoomMask =
     enemyRoomId && roomMasks
       ? roomMasks[enemyRoomId] ?? null
@@ -149,7 +153,7 @@ export function runGenerationPipeline(params: {
   const { enemySpawns, log: spawnLog } = spawnEnemies({
     draft,
     playerStart: resolvedPlayerStart,
-    enemyCount: enemyCountOverride ?? params.ctx.enemyCount,
+    enemyCount: effectiveEnemyCount,
     enemyTypes: params.ctx.enemyTypes,
     rand,
     spawnMask: enemyRoomMask ?? undefined
@@ -177,6 +181,10 @@ export function runGenerationPipeline(params: {
   summaryParts.push(`Obstacles: ${draft.obstacles.length}. Murs: ${draft.walls.length}. Ennemis: ${enemySpawns.length}.`);
 
   generationLog.push(...notes.map(n => `[spec] ${n}`));
+  generationLog.push(`[spec] timeOfDay=${spec.timeOfDay}`);
+  if (disableEnemies) {
+    generationLog.push("[spec] testPrompt=true (ennemis desactive)");
+  }
   if (recommendedGrid) {
     generationLog.push(
       `[spec] recommendedGrid=${recommendedGrid.cols}x${recommendedGrid.rows} (${recommendedGrid.reason})`
@@ -197,6 +205,7 @@ export function runGenerationPipeline(params: {
     walls: draft.walls,
     terrain: draft.layers.terrain,
     height: draft.layers.height,
+    light: draft.layers.light,
     decorations: draft.decorations,
     recommendedGrid: recommendedGrid ?? undefined
   };
@@ -246,6 +255,7 @@ export function runManualGenerationPipeline(params: {
     walls: draft.walls,
     terrain: draft.layers.terrain,
     height: draft.layers.height,
+    light: draft.layers.light,
     decorations: draft.decorations,
     recommendedGrid: undefined
   };

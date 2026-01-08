@@ -178,6 +178,7 @@ export interface MapBuildResult {
   walls: import("../wallTypes").WallInstance[];
   terrain: TerrainCell[];
   height: number[];
+  light: number[];
   decorations: DecorInstance[];
   recommendedGrid?: { cols: number; rows: number; reason: string };
 }

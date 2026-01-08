@@ -2,7 +2,6 @@
   "model": "./obstacle-model.json",
   "types": [
     "./fence-wood.json",
-    "./door-wood.json",
     "./tree-oak.json",
     "./bush.json",
     "./log.json",

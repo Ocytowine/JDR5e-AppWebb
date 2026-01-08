@@ -114,6 +114,7 @@ export function generateCityStreet(params: {
 
   if (wantsBalcony && topY2 >= 2) {
     const stairType = findObstacleType(ctx.obstacleTypes, "stairs-stone");
+    const brazierType = findObstacleType(ctx.obstacleTypes, "brazier");
     const houseW = clamp(Math.floor(cols / 3), 4, Math.max(4, cols - 2));
     const houseX1 = clamp(Math.floor(cols * 0.65) - Math.floor(houseW / 2), 1, cols - houseW - 1);
     const houseX2 = clamp(houseX1 + houseW - 1, 1, cols - 2);
@@ -190,6 +191,19 @@ export function generateCityStreet(params: {
           variantId: stairType.variants?.[0]?.id ?? "base",
           rotation: 0
         });
+      }
+      if (brazierType) {
+        const brazierX = doorX;
+        const brazierY = streetY1;
+        const ok = tryPlaceObstacle({
+          draft,
+          type: brazierType,
+          x: brazierX,
+          y: brazierY,
+          variantId: brazierType.variants?.[0]?.id ?? "base",
+          rotation: 0
+        });
+        if (ok) draft.log.push("Brasier: place sur la rue (balcon).");
       }
       draft.log.push("Balcon: maison + niveau 1 (demo).");
     }

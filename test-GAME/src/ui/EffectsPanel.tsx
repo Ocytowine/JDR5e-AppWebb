@@ -2,10 +2,12 @@ import React from "react";
 
 export function EffectsPanel(props: {
   showVisionDebug: boolean;
+  showLightOverlay: boolean;
   onShowCircle: () => void;
   onShowRectangle: () => void;
   onShowCone: () => void;
   onToggleVisionDebug: () => void;
+  onToggleLightOverlay: () => void;
   onClear: () => void;
 }): React.JSX.Element {
   return (
@@ -88,6 +90,21 @@ export function EffectsPanel(props: {
         </button>
         <button
           type="button"
+          onClick={props.onToggleLightOverlay}
+          style={{
+            padding: "4px 8px",
+            background: props.showLightOverlay ? "#f39c12" : "#555",
+            color: "#0b0b12",
+            border: "none",
+            borderRadius: 4,
+            cursor: "pointer",
+            fontSize: 12
+          }}
+        >
+          {props.showLightOverlay ? "Masquer lumiere" : "Afficher lumiere"}
+        </button>
+        <button
+          type="button"
           onClick={props.onClear}
           style={{
             padding: "4px 8px",
@@ -105,4 +122,3 @@ export function EffectsPanel(props: {
     </section>
   );
 }
-

@@ -304,6 +304,7 @@ export function tryPlaceWall(params: {
   const { draft, type, x, y, variantId, rotation } = params;
   if (!type) return false;
 
+  const maxHp = Math.max(1, Number(type.durability?.maxHp ?? 1));
   const instance: WallInstance = {
     id: draft.nextWallId(),
     typeId: type.id,
@@ -311,7 +312,9 @@ export function tryPlaceWall(params: {
     x,
     y,
     rotation,
-    state: params.state
+    state: params.state,
+    hp: maxHp,
+    maxHp
   };
 
   const cells = getWallOccupiedCells(instance, type);

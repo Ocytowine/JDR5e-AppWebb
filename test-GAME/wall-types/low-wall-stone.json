@@ -1,17 +1,17 @@
 {
-  "id": "wall-wood",
-  "label": "Mur en bois",
+  "id": "low-wall-stone",
+  "label": "Muret de pierre",
   "category": "wall",
-  "tags": ["wall", "wood"],
+  "tags": ["wall", "stone", "low"],
   "blocking": {
     "movement": true,
-    "vision": true,
-    "attacks": true
+    "vision": false,
+    "attacks": false
   },
   "durability": {
     "destructible": true,
-    "maxHp": 22,
-    "ac": 12
+    "maxHp": 18,
+    "ac": 13
   },
   "variants": [
     {
@@ -25,17 +25,11 @@
       "label": "Segment 2",
       "footprint": [{ "x": 0, "y": 0 }, { "x": 1, "y": 0 }],
       "rotatable": true
-    },
-    {
-      "id": "3",
-      "label": "Segment 3",
-      "footprint": [{ "x": 0, "y": 0 }, { "x": 1, "y": 0 }, { "x": 2, "y": 0 }],
-      "rotatable": true
     }
   ],
   "appearance": {
-    "textureKey": "wall:texture-plate",
-    "heightClass": "tall"
+    "textureKey": "wall:walloldsimple",
+    "heightClass": "low"
   },
   "behavior": {
     "kind": "solid"

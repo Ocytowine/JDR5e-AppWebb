@@ -48,6 +48,9 @@
                                    },
                        "shapeHint":  "line",
                        "avoidNearTokens":  false
-                   }
+                   },
+    "light":  {
+                  "radius":  3
+              }
 }
 

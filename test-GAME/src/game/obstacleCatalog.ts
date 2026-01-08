@@ -3,7 +3,6 @@ import type { ObstacleTypeDefinition } from "./obstacleTypes";
 import obstaclesIndex from "../../obstacle-types/index.json";
 
 import fenceWood from "../../obstacle-types/fence-wood.json";
-import doorWood from "../../obstacle-types/door-wood.json";
 import treeOak from "../../obstacle-types/tree-oak.json";
 import bush from "../../obstacle-types/bush.json";
 import log from "../../obstacle-types/log.json";
@@ -22,7 +21,6 @@ import stairsStone from "../../obstacle-types/stairs-stone.json";
 
 const OBSTACLE_TYPE_MODULES: Record<string, ObstacleTypeDefinition> = {
   "./fence-wood.json": fenceWood as ObstacleTypeDefinition,
-  "./door-wood.json": doorWood as ObstacleTypeDefinition,
   "./tree-oak.json": treeOak as ObstacleTypeDefinition,
   "./bush.json": bush as ObstacleTypeDefinition,
   "./log.json": log as ObstacleTypeDefinition,

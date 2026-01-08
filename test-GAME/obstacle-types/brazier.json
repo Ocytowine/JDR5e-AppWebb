@@ -48,6 +48,9 @@
                                    },
                        "shapeHint":  "room",
                        "avoidNearTokens":  true
-                   }
+                   },
+    "light":  {
+                  "radius":  4
+              }
 }
 

@@ -1,6 +1,6 @@
 # obstacle-types
 
-JSON "definitions" for map obstacles (walls, trees, props...).
+JSON "definitions" for map obstacles (trees, props...).
 
 These files are meant to be data-driven and flexible so maps can be generated randomly:
 - `blocking` controls movement / vision / attacks.

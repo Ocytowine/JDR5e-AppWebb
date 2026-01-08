@@ -270,6 +270,11 @@ export function parsePromptToSpec(params: {
   const isDay = hasAny(text, [/\bil fait jour\b/, /\bjour\b/]);
   const isNight = hasAny(text, [/\bnuit\b/, /\bobscur\b/, /\bsombre\b/]);
   const timeOfDay = isDay ? "day" : isNight ? "night" : "unknown";
+  const hasTimeToken = hasAny(text, [/\bjour\b/, /\bnuit\b/]);
+  const promptWithTime =
+    raw.trim().length > 0 && timeOfDay !== "unknown" && !hasTimeToken
+      ? `${raw.trim()} (${timeOfDay === "day" ? "jour" : "nuit"})`
+      : raw;
 
   // ---------------------------
   // Layout selection heuristics
@@ -341,7 +346,7 @@ export function parsePromptToSpec(params: {
   else if (theme === "city") layoutId = "city_street";
 
   const spec: MapSpec = {
-    prompt: raw,
+    prompt: promptWithTime,
     grid: { cols: params.cols, rows: params.rows },
     layoutId,
     theme,

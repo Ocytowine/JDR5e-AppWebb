@@ -46,12 +46,13 @@ import type { DecorInstance } from "./game/decorTypes";
 import type { ManualMapConfig, MapTheme } from "./game/map/types";
 import { MANUAL_MAP_PRESETS, getManualPresetById } from "./game/map/presets";
 import { buildObstacleBlockingSets, getObstacleOccupiedCells } from "./game/obstacleRuntime";
-import { buildWallBlockingSets } from "./game/wallRuntime";
+import { buildWallBlockingSets, getWallOccupiedCells } from "./game/wallRuntime";
 import actionsIndex from "../action-game/actions/index.json";
 import meleeStrike from "../action-game/actions/melee-strike.json";
 import dashAction from "../action-game/actions/dash.json";
 import secondWind from "../action-game/actions/second-wind.json";
 import throwDagger from "../action-game/actions/throw-dagger.json";
+import torchToggle from "../action-game/actions/torch-toggle.json";
 import enemyMove from "../action-game/actions/enemy-move.json";
 import enemyMeleeStrike from "../action-game/actions/enemy-melee-strike.json";
 import enemyBowShot from "../action-game/actions/enemy-bow-shot.json";
@@ -101,7 +102,7 @@ import { usePixiBoard } from "./pixi/usePixiBoard";
 import { usePixiDecorations } from "./pixi/usePixiDecorations";
 import { usePixiObstacles } from "./pixi/usePixiObstacles";
 import { usePixiWalls } from "./pixi/usePixiWalls";
-import { usePixiOverlays } from "./pixi/usePixiOverlays";
+import { usePixiOverlays, type LightSource } from "./pixi/usePixiOverlays";
 import { usePixiSpeechBubbles } from "./pixi/usePixiSpeechBubbles";
 import { usePixiTokens } from "./pixi/usePixiTokens";
 import { CombatSetupScreen } from "./ui/CombatSetupScreen";
@@ -124,6 +125,7 @@ const ACTION_MODULES: Record<string, ActionDefinition> = {
   "./dash.json": dashAction as ActionDefinition,
   "./second-wind.json": secondWind as ActionDefinition,
   "./throw-dagger.json": throwDagger as ActionDefinition,
+  "./torch-toggle.json": torchToggle as ActionDefinition,
   "./enemy-move.json": enemyMove as ActionDefinition,
   "./enemy-melee-strike.json": enemyMeleeStrike as ActionDefinition,
   "./enemy-bow-shot.json": enemyBowShot as ActionDefinition
@@ -309,6 +311,7 @@ export const GameBoard: React.FC = () => {
   const [playableCells, setPlayableCells] = useState<Set<string> | null>(null);
   const [mapTerrain, setMapTerrain] = useState<TerrainCell[]>([]);
   const [mapHeight, setMapHeight] = useState<number[]>([]);
+  const [mapLight, setMapLight] = useState<number[]>([]);
   const [mapGrid, setMapGrid] = useState<{ cols: number; rows: number }>({
     cols: GRID_COLS,
     rows: GRID_ROWS
@@ -382,7 +385,8 @@ export const GameBoard: React.FC = () => {
     encounter: Record<string, number>;
   }>({ turn: {}, encounter: {} });
   const [playerResources, setPlayerResources] = useState<Record<string, number>>({
-    "bandolier:dagger": 3
+    "bandolier:dagger": 3,
+    "gear:torch": 1
   });
   const [pathLimit, setPathLimit] = useState<number>(5);
 
@@ -392,6 +396,11 @@ export const GameBoard: React.FC = () => {
   );
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
   const [selectedObstacleTarget, setSelectedObstacleTarget] = useState<{
+    id: string;
+    x: number;
+    y: number;
+  } | null>(null);
+  const [selectedWallTarget, setSelectedWallTarget] = useState<{
     id: string;
     x: number;
     y: number;
@@ -423,6 +432,8 @@ export const GameBoard: React.FC = () => {
   // Area-of-effect specs attached to the player
   const [effectSpecs, setEffectSpecs] = useState<EffectSpec[]>([]);
   const [showVisionDebug, setShowVisionDebug] = useState<boolean>(false);
+  const [showLightOverlay, setShowLightOverlay] = useState<boolean>(true);
+  const [playerTorchOn, setPlayerTorchOn] = useState<boolean>(false);
 
   // Debug IA ennemie : dernier état envoyé / décisions / erreur
   const [aiLastState, setAiLastState] =
@@ -451,6 +462,23 @@ export const GameBoard: React.FC = () => {
     for (const t of obstacleTypes) map.set(t.id, t);
     return map;
   }, [obstacleTypes]);
+  const wallTypeById = useMemo(() => {
+    const map = new Map<string, WallTypeDefinition>();
+    for (const t of wallTypes) map.set(t.id, t);
+    return map;
+  }, [wallTypes]);
+  const lightSources = useMemo(() => {
+    const sources: LightSource[] = [];
+    for (const obs of obstacles) {
+      if (obs.hp <= 0) continue;
+      const def = obstacleTypeById.get(obs.typeId);
+      const radiusRaw = def?.light?.radius;
+      const radius = Number.isFinite(radiusRaw) ? Math.floor(radiusRaw as number) : 0;
+      if (radius <= 0) continue;
+      sources.push({ x: obs.x, y: obs.y, radius });
+    }
+    return sources;
+  }, [obstacles, obstacleTypeById]);
 
   const levelRange = useMemo(() => {
     let min = 0;
@@ -526,6 +554,7 @@ export const GameBoard: React.FC = () => {
     heightMap: mapHeight,
     activeLevel
   });
+  const selectedStructureCell = selectedObstacleTarget ?? selectedWallTarget;
   usePixiOverlays({
     pathLayerRef,
     player,
@@ -533,11 +562,16 @@ export const GameBoard: React.FC = () => {
     selectedPath,
     effectSpecs,
     selectedTargetId,
-    selectedObstacleCell: selectedObstacleTarget
-      ? { x: selectedObstacleTarget.x, y: selectedObstacleTarget.y }
+    selectedObstacleCell: selectedStructureCell
+      ? { x: selectedStructureCell.x, y: selectedStructureCell.y }
       : null,
     obstacleVisionCells: obstacleBlocking.vision,
     showVisionDebug,
+    lightMap: mapLight,
+    lightSources,
+    showLightOverlay,
+    playerTorchOn,
+    playerTorchRadius: 4,
     pixiReadyTick,
     playableCells,
     grid: mapGrid,
@@ -592,6 +626,37 @@ export const GameBoard: React.FC = () => {
     return null;
   }
 
+  function findWallAtCell(
+    x: number,
+    y: number
+  ): { instance: WallInstance; def: WallTypeDefinition | null } | null {
+    if (getBaseHeightAt(x, y) !== activeLevel) return null;
+    for (const wall of walls) {
+      if (wall.hp <= 0) continue;
+      const def = wallTypeById.get(wall.typeId) ?? null;
+      const cells = getWallOccupiedCells(wall, def);
+      if (cells.some(c => c.x === x && c.y === y)) {
+        return { instance: wall, def };
+      }
+    }
+    return null;
+  }
+
+  function findWallAtCellAnyLevel(
+    x: number,
+    y: number
+  ): { instance: WallInstance; def: WallTypeDefinition | null } | null {
+    for (const wall of walls) {
+      if (wall.hp <= 0) continue;
+      const def = wallTypeById.get(wall.typeId) ?? null;
+      const cells = getWallOccupiedCells(wall, def);
+      if (cells.some(c => c.x === x && c.y === y)) {
+        return { instance: wall, def };
+      }
+    }
+    return null;
+  }
+
   function getObstacleDistance(
     from: { x: number; y: number },
     obstacle: ObstacleInstance,
@@ -607,6 +672,21 @@ export const GameBoard: React.FC = () => {
     return Number.isFinite(best) ? best : Math.abs(from.x - targetCell.x) + Math.abs(from.y - targetCell.y);
   }
 
+  function getWallDistance(
+    from: { x: number; y: number },
+    wall: WallInstance,
+    def: WallTypeDefinition | null,
+    targetCell: { x: number; y: number }
+  ): number {
+    const cells = def ? getWallOccupiedCells(wall, def) : [targetCell];
+    let best = Number.POSITIVE_INFINITY;
+    for (const cell of cells) {
+      const dist = Math.abs(from.x - cell.x) + Math.abs(from.y - cell.y);
+      if (dist < best) best = dist;
+    }
+    return Number.isFinite(best) ? best : Math.abs(from.x - targetCell.x) + Math.abs(from.y - targetCell.y);
+  }
+
   function getSelectedTargetLabel(): string | null {
     if (selectedTargetId) return selectedTargetId;
     if (selectedObstacleTarget) {
@@ -614,6 +694,12 @@ export const GameBoard: React.FC = () => {
       if (!obstacle) return "obstacle";
       const def = obstacleTypeById.get(obstacle.typeId) ?? null;
       return def?.label ?? obstacle.typeId ?? "obstacle";
+    }
+    if (selectedWallTarget) {
+      const wall = walls.find(w => w.id === selectedWallTarget.id) ?? null;
+      if (!wall) return "mur";
+      const def = wallTypeById.get(wall.typeId) ?? null;
+      return def?.label ?? wall.typeId ?? "mur";
     }
     return null;
   }
@@ -821,6 +907,7 @@ export const GameBoard: React.FC = () => {
     setMapTerrain(Array.isArray(map.terrain) ? map.terrain : []);
     const nextHeight = Array.isArray(map.height) ? map.height : [];
     setMapHeight(nextHeight);
+    setMapLight(Array.isArray(map.light) ? map.light : []);
     setActiveLevel(
       getHeightAtGrid(nextHeight, grid.cols, grid.rows, map.playerStart.x, map.playerStart.y)
     );
@@ -840,7 +927,7 @@ export const GameBoard: React.FC = () => {
     setIsCombatConfigured(true);
     setActionUsageCounts({ turn: {}, encounter: {} });
     setTurnActionUsage({ usedAction: false, usedBonus: false });
-    setPlayerResources({ "bandolier:dagger": 3 });
+    setPlayerResources({ "bandolier:dagger": 3, "gear:torch": 1 });
     setPathLimit(5);
   }
 
@@ -1381,6 +1468,121 @@ export const GameBoard: React.FC = () => {
     return { ok: true };
   }
 
+  function validateWallTargetForAction(
+    action: ActionDefinition,
+    wall: WallInstance,
+    targetCell: { x: number; y: number },
+    actor: TokenState
+  ): { ok: boolean; reason?: string } {
+    if (wall.hp <= 0) {
+      return { ok: false, reason: "Le mur est deja detruit." };
+    }
+
+    const targeting = action.targeting;
+    if (!targeting || targeting.target !== "enemy") {
+      return {
+        ok: false,
+        reason: "Cette action ne cible pas un ennemi/obstacle."
+      };
+    }
+
+    const def = wallTypeById.get(wall.typeId) ?? null;
+    if (def?.durability?.destructible === false) {
+      return { ok: false, reason: "Ce mur est indestructible." };
+    }
+
+    const dist = getWallDistance(actor, wall, def, targetCell);
+    const range = targeting.range;
+
+    if (range) {
+      if (typeof range.min === "number" && dist < range.min) {
+        return {
+          ok: false,
+          reason: `Cible trop proche pour ${action.name} (distance ${dist}, min ${range.min}).`
+        };
+      }
+      if (typeof range.max === "number" && dist > range.max) {
+        return {
+          ok: false,
+          reason: `Cible hors portee pour ${action.name} (distance ${dist}, max ${range.max}).`
+        };
+      }
+    }
+
+    for (const cond of action.conditions || []) {
+      if (cond.type === "distance_max") {
+        if (typeof cond.max === "number" && dist > cond.max) {
+          return {
+            ok: false,
+            reason: cond.reason || `Distance cible > ${cond.max}.`
+          };
+        }
+      }
+      if (cond.type === "distance_between") {
+        const min =
+          typeof cond.min === "number"
+            ? cond.min
+            : typeof range?.min === "number"
+              ? range.min
+              : null;
+        const max =
+          typeof cond.max === "number"
+            ? cond.max
+            : typeof range?.max === "number"
+              ? range.max
+              : null;
+
+        if (min !== null && dist < min) {
+          return {
+            ok: false,
+            reason: cond.reason || `Distance cible < ${min}.`
+          };
+        }
+        if (max !== null && dist > max) {
+          return {
+            ok: false,
+            reason: cond.reason || `Distance cible > ${max}.`
+          };
+        }
+      }
+      if (cond.type === "target_alive" && wall.hp <= 0) {
+        return {
+          ok: false,
+          reason: cond.reason || "La cible doit avoir des PV restants."
+        };
+      }
+    }
+
+    if (targeting.requiresLos) {
+      const visible = isCellVisible(
+        actor,
+        targetCell,
+        obstacleBlocking.vision,
+        playableCells
+      );
+      if (!visible) {
+        return {
+          ok: false,
+          reason:
+            "Cible hors du champ de vision ou derriere un obstacle (ligne de vue requise)."
+        };
+      }
+      const canHit = hasLineOfEffect(
+        { x: actor.x, y: actor.y },
+        { x: targetCell.x, y: targetCell.y },
+        obstacleBlocking.attacks
+      );
+      if (!canHit) {
+        return {
+          ok: false,
+          reason: "Trajectoire bloquee (obstacle entre l'attaquant et la cible)."
+        };
+      }
+    }
+
+    return { ok: true };
+  }
+
   function computeActionAvailability(action: ActionDefinition): ActionAvailability {
     const reasons: string[] = [];
     const details: string[] = [];
@@ -1635,6 +1837,13 @@ export const GameBoard: React.FC = () => {
           [key]: Math.max(0, (prev[key] ?? 0) - amount)
         }));
       }
+      if (effect.type === "toggle_torch") {
+        setPlayerTorchOn(prev => {
+          const next = !prev;
+          pushLog(`Torche: ${next ? "allumee" : "eteinte"}.`);
+          return next;
+        });
+      }
       if (effect.type === "heal" && typeof effect.formula === "string") {
         const resolved = resolvePlayerFormula(effect.formula);
         const result = rollDamage(resolved, { isCrit: false, critRule: "double-dice" });
@@ -1666,13 +1875,15 @@ export const GameBoard: React.FC = () => {
       setTargetMode("selecting");
       setSelectedTargetId(null);
       setSelectedObstacleTarget(null);
+      setSelectedWallTarget(null);
       pushLog(
-        `Selection de cible: cliquez sur un ennemi ou un obstacle.`
+        `Selection de cible: cliquez sur un ennemi, un obstacle ou un mur.`
       );
     } else {
       setTargetMode("none");
       setSelectedTargetId(null);
       setSelectedObstacleTarget(null);
+      setSelectedWallTarget(null);
     }
   }
 
@@ -1733,6 +1944,16 @@ export const GameBoard: React.FC = () => {
         targetArmorClass =
           typeof def?.durability?.ac === "number" ? def.durability.ac : null;
         targetLabel = def?.label ?? obstacle.typeId ?? "obstacle";
+      } else if (selectedWallTarget) {
+        const wall = walls.find(w => w.id === selectedWallTarget.id) ?? null;
+        if (!wall || wall.hp <= 0) {
+          pushLog("Mur introuvable ou deja detruit.");
+          return;
+        }
+        const def = wallTypeById.get(wall.typeId) ?? null;
+        targetArmorClass =
+          typeof def?.durability?.ac === "number" ? def.durability.ac : null;
+        targetLabel = def?.label ?? wall.typeId ?? "mur";
       } else {
         pushLog(
           "Aucune cible selectionnee pour cette action. Selectionnez une cible avant le jet."
@@ -1798,6 +2019,7 @@ export const GameBoard: React.FC = () => {
     let targetArmorClass: number | null = null;
     let targetLabel: string | null = null;
     let obstacleTarget: ObstacleInstance | null = null;
+    let wallTarget: WallInstance | null = null;
     if (action.targeting?.target === "enemy") {
       if (selectedTargetId) {
         targetIndex = enemies.findIndex(e => e.id === selectedTargetId);
@@ -1820,6 +2042,20 @@ export const GameBoard: React.FC = () => {
         targetArmorClass =
           typeof def?.durability?.ac === "number" ? def.durability.ac : null;
         targetLabel = def?.label ?? obstacleTarget.typeId ?? "obstacle";
+      } else if (selectedWallTarget) {
+        wallTarget = walls.find(w => w.id === selectedWallTarget.id) ?? null;
+        if (!wallTarget || wallTarget.hp <= 0) {
+          pushLog("Mur introuvable ou deja detruit.");
+          return;
+        }
+        const def = wallTypeById.get(wallTarget.typeId) ?? null;
+        if (def?.durability?.destructible === false) {
+          pushLog("Ce mur est indestructible.");
+          return;
+        }
+        targetArmorClass =
+          typeof def?.durability?.ac === "number" ? def.durability.ac : null;
+        targetLabel = def?.label ?? wallTarget.typeId ?? "mur";
       } else {
         pushLog(
           "Aucune cible selectionnee pour cette action. Selectionnez une cible avant le jet de degats."
@@ -1981,6 +2217,59 @@ export const GameBoard: React.FC = () => {
 
           return copy;
         });
+      } else if (wallTarget && selectedWallTarget) {
+        const targetId = wallTarget.id;
+        const def = wallTypeById.get(wallTarget.typeId) ?? null;
+        const label = def?.label ?? wallTarget.typeId ?? "mur";
+        if (def?.durability?.destructible === false) {
+          pushLog("Ce mur est indestructible.");
+          return;
+        }
+        setWalls(prev => {
+          const idx = prev.findIndex(w => w.id === targetId);
+          if (idx === -1) return prev;
+          const copy = [...prev];
+          const target = { ...copy[idx] };
+          const beforeHp = target.hp;
+          target.hp = Math.max(0, target.hp - totalDamage);
+          copy[idx] = target;
+
+          recordCombatEvent({
+            round,
+            phase,
+            kind: "player_attack",
+            actorId: player.id,
+            actorKind: "player",
+            summary: `Le heros frappe ${label} et inflige ${totalDamage} degats (PV ${beforeHp} -> ${target.hp}).`,
+            data: {
+              actionId: action.id,
+              damage: totalDamage,
+              isCrit,
+              targetHpBefore: beforeHp,
+              targetHpAfter: target.hp,
+              wallId: targetId,
+              wallTypeId: target.typeId
+            }
+          });
+
+          if (target.hp <= 0 && beforeHp > 0) {
+            recordCombatEvent({
+              round,
+              phase,
+              kind: "death",
+              actorId: targetId,
+              actorKind: "player",
+              summary: `${label} est detruit.`,
+              data: {
+                destroyedBy: player.id,
+                wallId: targetId,
+                wallTypeId: target.typeId
+              }
+            });
+          }
+
+          return copy;
+        });
       }
   }
 
@@ -2066,6 +2355,7 @@ export const GameBoard: React.FC = () => {
 
         setSelectedTargetId(target.id);
         setSelectedObstacleTarget(null);
+        setSelectedWallTarget(null);
         setTargetMode("none");
         pushLog(`Cible selectionnee: ${target.id}.`);
         return;
@@ -2088,12 +2378,35 @@ export const GameBoard: React.FC = () => {
         const label = obstacleHit.def?.label ?? obstacleHit.instance.typeId ?? "obstacle";
         setSelectedTargetId(null);
         setSelectedObstacleTarget({ id: obstacleHit.instance.id, x: targetX, y: targetY });
+        setSelectedWallTarget(null);
         setTargetMode("none");
         pushLog(`Cible selectionnee: ${label}.`);
         return;
       }
 
-      pushLog(`Pas d'ennemi ni d'obstacle sur (${targetX}, ${targetY}).`);
+      const wallHit = findWallAtCell(targetX, targetY);
+      if (wallHit) {
+        const validation = validateWallTargetForAction(
+          action,
+          wallHit.instance,
+          { x: targetX, y: targetY },
+          player
+        );
+        if (!validation.ok) {
+          pushLog(validation.reason || "Cette cible n'est pas valide pour cette action.");
+          return;
+        }
+
+        const label = wallHit.def?.label ?? wallHit.instance.typeId ?? "mur";
+        setSelectedTargetId(null);
+        setSelectedObstacleTarget(null);
+        setSelectedWallTarget({ id: wallHit.instance.id, x: targetX, y: targetY });
+        setTargetMode("none");
+        pushLog(`Cible selectionnee: ${label}.`);
+        return;
+      }
+
+      pushLog(`Pas d'ennemi, d'obstacle ni de mur sur (${targetX}, ${targetY}).`);
       return;
     }
 
@@ -2132,6 +2445,17 @@ export const GameBoard: React.FC = () => {
           const text = `Inspection (${targetX},${targetY}) : ${name}\nEtat: PV ${obstacleHit.instance.hp}/${obstacleHit.instance.maxHp}`;
           pushLog(
             `Inspection: obstacle (${name}) -> etat: PV ${obstacleHit.instance.hp}/${obstacleHit.instance.maxHp}.`
+          );
+          setPlayerBubble(text);
+          setInteractionMode("idle");
+          return;
+        }
+        const wallHit = findWallAtCell(targetX, targetY);
+        if (wallHit) {
+          const name = wallHit.def?.label ?? wallHit.instance.typeId ?? "mur";
+          const text = `Inspection (${targetX},${targetY}) : ${name}\nEtat: PV ${wallHit.instance.hp}/${wallHit.instance.maxHp}`;
+          pushLog(
+            `Inspection: mur (${name}) -> etat: PV ${wallHit.instance.hp}/${wallHit.instance.maxHp}.`
           );
           setPlayerBubble(text);
           setInteractionMode("idle");
@@ -3871,6 +4195,7 @@ function handleEndPlayerTurn() {
               onSelectTargetId={enemyId => {
                 setSelectedTargetId(enemyId);
                 setSelectedObstacleTarget(null);
+                setSelectedWallTarget(null);
               }}
               onSetTargetMode={setTargetMode}
               onLog={pushLog}
@@ -3916,10 +4241,12 @@ function handleEndPlayerTurn() {
         <div style={{ maxWidth: 520 }}>
           <EffectsPanel
             showVisionDebug={showVisionDebug}
+            showLightOverlay={showLightOverlay}
             onShowCircle={handleShowCircleEffect}
             onShowRectangle={handleShowRectangleEffect}
             onShowCone={handleShowConeEffect}
             onToggleVisionDebug={() => setShowVisionDebug(prev => !prev)}
+            onToggleLightOverlay={() => setShowLightOverlay(prev => !prev)}
             onClear={handleClearEffects}
           />
         </div>
@@ -4269,6 +4596,7 @@ function handleEndPlayerTurn() {
                 onSelectTargetId={enemyId => {
                   setSelectedTargetId(enemyId);
                   setSelectedObstacleTarget(null);
+                  setSelectedWallTarget(null);
                 }}
                 onSetTargetMode={setTargetMode}
                 advantageMode={advantageMode}

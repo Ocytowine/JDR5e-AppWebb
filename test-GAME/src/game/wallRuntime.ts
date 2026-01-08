@@ -72,6 +72,7 @@ export function buildWallBlockingSets(
   const occupied = new Set<string>();
 
   for (const wall of walls) {
+    if (typeof wall.hp === "number" && wall.hp <= 0) continue;
     const def = typeById.get(wall.typeId);
     const cells = getWallOccupiedCells(wall, def);
     const blocking = resolveBlocking(def ?? null, wall);

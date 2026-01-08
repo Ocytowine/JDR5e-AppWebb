@@ -33,6 +33,7 @@ export interface MapDesignResult {
   walls: WallInstance[];
   terrain: TerrainCell[];
   height: number[];
+  light: number[];
   decorations: DecorInstance[];
   recommendedGrid?: { cols: number; rows: number; reason: string };
   /**
@@ -79,6 +80,7 @@ export function generateBattleMap(request: MapDesignRequest): MapDesignResult {
       walls: result.walls,
       terrain: result.terrain,
       height: result.height,
+      light: result.light,
       decorations: result.decorations,
       recommendedGrid: result.recommendedGrid,
       generationLog: result.generationLog
@@ -107,6 +109,7 @@ export function generateBattleMap(request: MapDesignRequest): MapDesignResult {
     walls: result.walls,
     terrain: result.terrain,
     height: result.height,
+    light: result.light,
     decorations: result.decorations,
     recommendedGrid: result.recommendedGrid,
     generationLog: result.generationLog

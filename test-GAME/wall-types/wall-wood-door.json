@@ -8,6 +8,11 @@
     "vision": true,
     "attacks": true
   },
+  "durability": {
+    "destructible": true,
+    "maxHp": 14,
+    "ac": 12
+  },
   "variants": [
     {
       "id": "1",

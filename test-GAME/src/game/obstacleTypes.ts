@@ -46,6 +46,10 @@ export interface ObstacleSpawnRules {
   avoidNearTokens?: boolean;
 }
 
+export interface ObstacleLight {
+  radius: number;
+}
+
 export interface ObstacleTypeDefinition {
   id: string;
   label: string;
@@ -56,6 +60,7 @@ export interface ObstacleTypeDefinition {
   variants: ObstacleVariant[];
   appearance?: ObstacleAppearance;
   spawnRules?: ObstacleSpawnRules;
+  light?: ObstacleLight;
   connects?: { from: number; to: number };
   /**
    * Free-form for later extensions (cover, doors, interactables...).

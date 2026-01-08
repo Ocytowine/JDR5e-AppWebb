@@ -26,6 +26,12 @@ export interface WallBehavior {
   kind?: "solid" | "door" | "window" | "arch";
 }
 
+export interface WallDurability {
+  destructible: boolean;
+  maxHp: number;
+  ac?: number;
+}
+
 export interface WallTypeDefinition {
   id: string;
   label: string;
@@ -35,6 +41,7 @@ export interface WallTypeDefinition {
   variants: WallVariant[];
   appearance?: WallAppearance;
   behavior?: WallBehavior;
+  durability?: WallDurability;
   [key: string]: unknown;
 }
 
@@ -46,4 +53,6 @@ export interface WallInstance {
   y: number;
   rotation: WallRotationDeg;
   state?: WallState;
+  hp: number;
+  maxHp: number;
 }
