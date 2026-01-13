@@ -3,8 +3,14 @@ import { Assets, Container, Graphics, Sprite, Texture } from "pixi.js";
 import type { RefObject } from "react";
 import type { ObstacleInstance, ObstacleTypeDefinition } from "../game/obstacleTypes";
 import { getObstacleOccupiedCells } from "../game/obstacleRuntime";
-import { LEVEL_HEIGHT_PX, TILE_SIZE, gridToScreenBaseForGrid, gridToScreenForGrid } from "../boardConfig";
+import {
+  LEVEL_HEIGHT_PX,
+  TILE_SIZE,
+  gridToScreenBaseForGrid,
+  gridToScreenForGrid
+} from "../boardConfig";
 import { getHeightAtGrid } from "../game/map/draft";
+import { computeDepthFromPoints, computeDepthValue } from "./depthUtils";
 
 function colorForObstacle(def: ObstacleTypeDefinition | null): number {
   const category = String(def?.category ?? "").toLowerCase();
@@ -122,7 +128,11 @@ export function usePixiObstacles(options: {
             sprite.rotation = (obs.rotation * Math.PI) / 180;
           }
 
-          sprite.zIndex = base.y - heightOffset + spriteDepthBias(def);
+          sprite.zIndex = computeDepthValue(
+            base.y,
+            heightOffset,
+            spriteDepthBias(def)
+          );
           sprite.label = "obstacle";
           depthLayer.addChild(sprite);
           continue;
@@ -133,11 +143,11 @@ export function usePixiObstacles(options: {
       const w = TILE_SIZE;
       const h = TILE_SIZE * 0.5;
       const color = colorForObstacle(def);
-      let depthY = Number.NEGATIVE_INFINITY;
+      const centers = occupiedCells.map(cell =>
+        gridToScreenForGrid(cell.x, cell.y, options.grid.cols, options.grid.rows)
+      );
 
-      for (const cell of occupiedCells) {
-        const center = gridToScreenForGrid(cell.x, cell.y, options.grid.cols, options.grid.rows);
-        depthY = Math.max(depthY, center.y - heightOffset);
+      for (const center of centers) {
         const points = [
           center.x,
           center.y - heightOffset - h / 2,
@@ -160,7 +170,12 @@ export function usePixiObstacles(options: {
         });
       }
 
-      g.zIndex = (Number.isFinite(depthY) ? depthY : 0) + spriteDepthBias(def);
+      const depth = computeDepthFromPoints(
+        centers,
+        heightOffset,
+        spriteDepthBias(def)
+      );
+      g.zIndex = depth;
       g.label = "obstacle";
       depthLayer.addChild(g);
     }

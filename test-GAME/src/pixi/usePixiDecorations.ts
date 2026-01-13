@@ -4,6 +4,7 @@ import type { RefObject } from "react";
 import type { DecorInstance } from "../game/decorTypes";
 import { LEVEL_HEIGHT_PX, TILE_SIZE, gridToScreenBaseForGrid } from "../boardConfig";
 import { getHeightAtGrid } from "../game/map/draft";
+import { computeDepthValue } from "./depthUtils";
 
 export function usePixiDecorations(options: {
   depthLayerRef: RefObject<Container | null>;
@@ -55,7 +56,11 @@ export function usePixiDecorations(options: {
         sprite.rotation = (decor.rotation * Math.PI) / 180;
       }
 
-      sprite.zIndex = basePos.y - heightOffset - TILE_SIZE * 0.2;
+      sprite.zIndex = computeDepthValue(
+        basePos.y,
+        heightOffset,
+        -TILE_SIZE * 0.2
+      );
       sprite.label = "decor";
       depthLayer.addChild(sprite);
     }

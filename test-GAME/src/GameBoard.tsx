@@ -105,6 +105,7 @@ import { usePixiWalls } from "./pixi/usePixiWalls";
 import { usePixiOverlays, type LightSource } from "./pixi/usePixiOverlays";
 import { usePixiSpeechBubbles } from "./pixi/usePixiSpeechBubbles";
 import { usePixiTokens } from "./pixi/usePixiTokens";
+import { usePixiGridLabels } from "./pixi/usePixiGridLabels";
 import { CombatSetupScreen } from "./ui/CombatSetupScreen";
 import { CombatStatusPanel } from "./ui/CombatStatusPanel";
 import { EnemiesPanel } from "./ui/EnemiesPanel";
@@ -349,6 +350,7 @@ export const GameBoard: React.FC = () => {
     depthLayerRef,
     pathLayerRef,
     speechLayerRef,
+    labelLayerRef,
     viewportRef,
     pixiReadyTick
   } = usePixiBoard({
@@ -434,6 +436,7 @@ export const GameBoard: React.FC = () => {
   const [showVisionDebug, setShowVisionDebug] = useState<boolean>(false);
   const [showLightOverlay, setShowLightOverlay] = useState<boolean>(true);
   const [playerTorchOn, setPlayerTorchOn] = useState<boolean>(false);
+  const [showCellIds, setShowCellIds] = useState<boolean>(false);
 
   // Debug IA ennemie : dernier état envoyé / décisions / erreur
   const [aiLastState, setAiLastState] =
@@ -577,6 +580,15 @@ export const GameBoard: React.FC = () => {
     grid: mapGrid,
     heightMap: mapHeight,
     activeLevel
+  });
+  usePixiGridLabels({
+    labelLayerRef,
+    showLabels: showCellIds,
+    playableCells,
+    grid: mapGrid,
+    heightMap: mapHeight,
+    activeLevel,
+    pixiReadyTick
   });
 
   const INSPECT_RANGE = 10;
@@ -4242,11 +4254,13 @@ function handleEndPlayerTurn() {
           <EffectsPanel
             showVisionDebug={showVisionDebug}
             showLightOverlay={showLightOverlay}
+            showCellIds={showCellIds}
             onShowCircle={handleShowCircleEffect}
             onShowRectangle={handleShowRectangleEffect}
             onShowCone={handleShowConeEffect}
             onToggleVisionDebug={() => setShowVisionDebug(prev => !prev)}
             onToggleLightOverlay={() => setShowLightOverlay(prev => !prev)}
+            onToggleCellIds={() => setShowCellIds(prev => !prev)}
             onClear={handleClearEffects}
           />
         </div>
