@@ -40,6 +40,9 @@ export function usePixiOverlays(options: {
   grid: { cols: number; rows: number };
   heightMap: number[];
   activeLevel: number;
+  visibleCells?: Set<string> | null;
+  visibilityLevels?: Map<string, number> | null;
+  showAllLevels?: boolean;
 }): void {
   useEffect(() => {
     const pathLayer = options.pathLayerRef.current;
@@ -90,6 +93,11 @@ export function usePixiOverlays(options: {
 
     const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
     const mapLight = Array.isArray(options.lightMap) ? options.lightMap : null;
+    const buildCellKey = (x: number, y: number) => `${x},${y}`;
+    const isCellInView = (x: number, y: number, height: number) =>
+      options.showAllLevels ||
+      height === options.activeLevel ||
+      (options.visibleCells?.has(buildCellKey(x, y)) ?? false);
     const baseLightAt = (x: number, y: number) => {
       if (!mapLight || mapLight.length === 0) return 1;
       const idx = y * options.grid.cols + x;
@@ -118,7 +126,7 @@ export function usePixiOverlays(options: {
           source.x,
           source.y
         );
-        return height === options.activeLevel;
+        return isCellInView(source.x, source.y, height);
       });
 
       for (let y = 0; y < options.grid.rows; y++) {
@@ -130,7 +138,7 @@ export function usePixiOverlays(options: {
             x,
             y
           );
-          if (height !== options.activeLevel) continue;
+          if (!isCellInView(x, y, height)) continue;
           if (
             options.playableCells &&
             options.playableCells.size > 0 &&
@@ -180,6 +188,42 @@ export function usePixiOverlays(options: {
       }
     }
 
+    if (!options.showAllLevels && options.visibilityLevels) {
+      for (let y = 0; y < options.grid.rows; y++) {
+        for (let x = 0; x < options.grid.cols; x++) {
+          if (
+            options.playableCells &&
+            options.playableCells.size > 0 &&
+            !options.playableCells.has(`${x},${y}`)
+          ) {
+            continue;
+          }
+          const key = buildCellKey(x, y);
+          const visibility = options.visibilityLevels.get(key) ?? 0;
+          if (visibility >= 2) continue;
+          const center = cellCenter(x, y);
+          const w = TILE_SIZE;
+          const h = TILE_SIZE * 0.5;
+          const points = [
+            center.x,
+            center.y - h / 2,
+            center.x + w / 2,
+            center.y,
+            center.x,
+            center.y + h / 2,
+            center.x - w / 2,
+            center.y
+          ];
+
+          const alpha = visibility === 1 ? 0.35 : 0.6;
+          pathLayer.poly(points).fill({
+            color: 0x000000,
+            alpha
+          });
+        }
+      }
+    }
+
     for (let y = 0; y < options.grid.rows; y++) {
       for (let x = 0; x < options.grid.cols; x++) {
         const height = getHeightAtGrid(
@@ -189,7 +233,7 @@ export function usePixiOverlays(options: {
           x,
           y
         );
-        if (height <= 0 || height !== options.activeLevel) continue;
+        if (height <= 0 || !isCellInView(x, y, height)) continue;
         if (
           options.playableCells &&
           options.playableCells.size > 0 &&
@@ -226,7 +270,7 @@ export function usePixiOverlays(options: {
           cell.x,
           cell.y
         );
-        if (height !== options.activeLevel) continue;
+        if (!isCellInView(cell.x, cell.y, height)) continue;
         if (
           options.playableCells &&
           options.playableCells.size > 0 &&
@@ -284,7 +328,7 @@ export function usePixiOverlays(options: {
           t.x,
           t.y
         );
-        return height === options.activeLevel;
+        return isCellInView(t.x, t.y, height);
       });
       for (const token of allTokens) {
         const visionEffect = computeVisionEffectForToken(token, options.playableCells ?? null);
@@ -296,7 +340,7 @@ export function usePixiOverlays(options: {
             cell.x,
             cell.y
           );
-          if (height !== options.activeLevel) continue;
+          if (!isCellInView(cell.x, cell.y, height)) continue;
           if (
             options.playableCells &&
             options.playableCells.size > 0 &&
@@ -338,7 +382,7 @@ export function usePixiOverlays(options: {
         token.x,
         token.y
       );
-      if (height !== options.activeLevel) continue;
+      if (!isCellInView(token.x, token.y, height)) continue;
       const center = cellCenter(token.x, token.y);
       const w = TILE_SIZE;
       const h = TILE_SIZE * 0.5;
@@ -372,7 +416,7 @@ export function usePixiOverlays(options: {
           target.x,
           target.y
         );
-        if (height === options.activeLevel) {
+        if (isCellInView(target.x, target.y, height)) {
           const center = cellCenter(target.x, target.y);
           const w = TILE_SIZE;
           const h = TILE_SIZE * 0.5;
@@ -404,7 +448,7 @@ export function usePixiOverlays(options: {
         options.selectedObstacleCell.x,
         options.selectedObstacleCell.y
       );
-      if (height === options.activeLevel) {
+      if (isCellInView(options.selectedObstacleCell.x, options.selectedObstacleCell.y, height)) {
         const center = cellCenter(
           options.selectedObstacleCell.x,
           options.selectedObstacleCell.y
@@ -462,7 +506,7 @@ export function usePixiOverlays(options: {
         enemy.x,
         enemy.y
       );
-      if (height !== options.activeLevel) continue;
+      if (!isCellInView(enemy.x, enemy.y, height)) continue;
 
       const pathNodes = enemy.plannedPath;
       const first = pathNodes[0];
@@ -516,7 +560,10 @@ export function usePixiOverlays(options: {
     options.playableCells,
     options.grid,
     options.heightMap,
-    options.activeLevel
+    options.activeLevel,
+    options.visibleCells,
+    options.visibilityLevels,
+    options.showAllLevels
   ]);
 }
 

@@ -9,7 +9,15 @@ import type { WallTypeDefinition } from "../wallTypes";
 import { getObstacleOccupiedCells } from "../obstacleRuntime";
 import { getWallOccupiedCells } from "../wallRuntime";
 import type { MapDraft } from "./draft";
-import { isInside, key, tryPlaceDecor, tryPlaceObstacle, tryPlaceWall } from "./draft";
+import {
+  isInside,
+  key,
+  setHeight,
+  setTerrain,
+  tryPlaceDecor,
+  tryPlaceObstacle,
+  tryPlaceWall
+} from "./draft";
 
 export interface PatternTransform {
   rotation?: MapPatternRotation;
@@ -259,6 +267,12 @@ function canPlaceElements(params: {
       continue;
     }
 
+    if (element.type === "tile") {
+      if (!isInside(draft, gx, gy)) return false;
+      if (!isPlayable(draft, gx, gy)) return false;
+      continue;
+    }
+
     const typeId = element.typeId ?? "";
     const typeDef = typeById.get(typeId) ?? null;
     if (!typeDef) return false;
@@ -323,6 +337,16 @@ export function placePattern(params: {
   for (const element of elements) {
     const gx = originX + element.x;
     const gy = originY + element.y;
+
+    if (element.type === "tile") {
+      if (typeof element.height === "number") {
+        setHeight(draft, gx, gy, element.height);
+      }
+      if (typeof element.terrain === "string") {
+        setTerrain(draft, gx, gy, element.terrain as any);
+      }
+      continue;
+    }
 
     if (element.type === "decor") {
       const ok = tryPlaceDecor({

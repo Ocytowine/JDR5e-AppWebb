@@ -62,6 +62,8 @@ export function usePixiObstacles(options: {
   grid: { cols: number; rows: number };
   heightMap: number[];
   activeLevel: number;
+  visibleCells?: Set<string> | null;
+  showAllLevels?: boolean;
 }): void {
   useEffect(() => {
     const depthLayer = options.depthLayerRef.current;
@@ -77,6 +79,7 @@ export function usePixiObstacles(options: {
     const typeById = new Map<string, ObstacleTypeDefinition>();
     for (const t of options.obstacleTypes) typeById.set(t.id, t);
 
+    const buildCellKey = (x: number, y: number) => `${x},${y}`;
     for (const obs of options.obstacles) {
       const def = typeById.get(obs.typeId) ?? null;
       const occupiedCells = def ? getObstacleOccupiedCells(obs, def) : [{ x: obs.x, y: obs.y }];
@@ -95,7 +98,14 @@ export function usePixiObstacles(options: {
       const isConnector =
         connects &&
         (options.activeLevel === connects.from || options.activeLevel === connects.to);
-      if (baseHeight !== options.activeLevel && !isConnector) continue;
+      const hasVisibleCell = occupiedCells.some(cell =>
+        options.visibleCells?.has(buildCellKey(cell.x, cell.y)) ?? false
+      );
+      const shouldRender =
+        options.showAllLevels ||
+        hasVisibleCell ||
+        (!options.visibleCells && baseHeight === options.activeLevel);
+      if (!shouldRender) continue;
       const heightOffset =
         isConnector && baseHeight !== options.activeLevel
           ? options.activeLevel * LEVEL_HEIGHT_PX
@@ -186,6 +196,8 @@ export function usePixiObstacles(options: {
     options.pixiReadyTick,
     options.grid,
     options.heightMap,
-    options.activeLevel
+    options.activeLevel,
+    options.visibleCells,
+    options.showAllLevels
   ]);
 }

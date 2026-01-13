@@ -4,12 +4,14 @@ export function EffectsPanel(props: {
   showVisionDebug: boolean;
   showLightOverlay: boolean;
   showCellIds: boolean;
+  showAllLevels: boolean;
   onShowCircle: () => void;
   onShowRectangle: () => void;
   onShowCone: () => void;
   onToggleVisionDebug: () => void;
   onToggleLightOverlay: () => void;
   onToggleCellIds: () => void;
+  onToggleShowAllLevels: () => void;
   onClear: () => void;
 }): React.JSX.Element {
   return (
@@ -119,6 +121,21 @@ export function EffectsPanel(props: {
           }}
         >
           {props.showCellIds ? "Masquer IDs" : "Afficher IDs"}
+        </button>
+        <button
+          type="button"
+          onClick={props.onToggleShowAllLevels}
+          style={{
+            padding: "4px 8px",
+            background: props.showAllLevels ? "#e67e22" : "#555",
+            color: "#fff",
+            border: "none",
+            borderRadius: 4,
+            cursor: "pointer",
+            fontSize: 12
+          }}
+        >
+          {props.showAllLevels ? "Masquer tout" : "Voir tout"}
         </button>
         <button
           type="button"

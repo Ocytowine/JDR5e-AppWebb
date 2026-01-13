@@ -798,6 +798,8 @@ type WallSegmentRender = {
   junctions: WallJunction[];
   texture: Texture | null;
   cornerBias: number;
+  isVisible: boolean;
+  visibilityLevel: number;
 };
 
 export function usePixiWalls(options: {
@@ -807,13 +809,16 @@ export function usePixiWalls(options: {
   pixiReadyTick?: number;
   grid: { cols: number; rows: number };
   activeLevel: number;
+  visibleCells?: Set<string> | null;
+  visibilityLevels?: Map<string, number> | null;
+  showAllLevels?: boolean;
 }): void {
   useEffect(() => {
     const depthLayer = options.depthLayerRef.current;
     if (!depthLayer) return;
 
     for (const child of [...depthLayer.children]) {
-      if (child.label === "wall" || child.label === "wall-mesh" || child.label === "wall-door" || child.label === "wall-cap") {
+      if (child.label === "wall" || child.label === "wall-mesh" || child.label === "wall-door" || child.label === "wall-cap" || child.label === "wall-shadow") {
         depthLayer.removeChild(child);
         child.destroy?.();
       }
@@ -823,6 +828,15 @@ export function usePixiWalls(options: {
 
     const typeById = new Map<string, WallTypeDefinition>();
     for (const t of options.wallTypes) typeById.set(t.id, t);
+
+    const getCellVisibility = (x: number, y: number) => {
+      if (options.showAllLevels) return 2;
+      if (options.visibilityLevels) {
+        return options.visibilityLevels.get(cellKey(x, y)) ?? 0;
+      }
+      if (!options.visibleCells) return 2;
+      return options.visibleCells.has(cellKey(x, y)) ? 2 : 0;
+    };
 
     const wallCellsByType = new Map<string, Set<string>>();
     const wallColorByType = new Map<string, number>();
@@ -849,9 +863,7 @@ export function usePixiWalls(options: {
       if (!wallColorByType.has(groupId)) wallColorByType.set(groupId, baseColor);
 
       if (isDoorType(def)) {
-        for (const cell of cells) {
-          doorOverlays.push({ cell, def: def as WallTypeDefinition, groupId });
-        }
+        for (const cell of cells) doorOverlays.push({ cell, def: def as WallTypeDefinition, groupId });
       }
     }
 
@@ -929,6 +941,10 @@ export function usePixiWalls(options: {
           y: Math.sign(b.y - a.y)
         };
         const pointKeys = new Set<string>(pts.map(p => cellKey(p.x, p.y)));
+        const segmentVisibility = pts.reduce((acc, p) => {
+          const vis = getCellVisibility(p.x, p.y);
+          return Math.max(acc, vis);
+        }, 0);
         const buildDepthY = (base: { x: number; y: number }[]) => {
           const maxY = maxScreenY(base);
           if (!Number.isFinite(maxY)) {
@@ -964,7 +980,9 @@ export function usePixiWalls(options: {
             pointKeys,
             junctions: [],
             texture,
-            cornerBias: 0
+            cornerBias: 0,
+            isVisible: segmentVisibility >= 2,
+            visibilityLevel: segmentVisibility
           });
           wallSegments.push({
             base: innerReversed,
@@ -983,7 +1001,9 @@ export function usePixiWalls(options: {
             pointKeys,
             junctions: [],
             texture,
-            cornerBias: 0
+            cornerBias: 0,
+            isVisible: segmentVisibility >= 2,
+            visibilityLevel: segmentVisibility
           });
         } else {
           wallSegments.push({
@@ -1003,7 +1023,9 @@ export function usePixiWalls(options: {
             pointKeys,
             junctions: [],
             texture,
-            cornerBias: 0
+            cornerBias: 0,
+            isVisible: segmentVisibility >= 2,
+            visibilityLevel: segmentVisibility
           });
         }
       }
@@ -1052,6 +1074,7 @@ export function usePixiWalls(options: {
       const segmentContainer = new Container();
       segmentContainer.sortableChildren = true;
 
+      const needsShadow = segment.visibilityLevel < 2;
       if (USE_WALL_MESH && segment.texture) {
         const faces = facesBySegment.get(segment) ?? [];
         for (const face of faces) {
@@ -1171,6 +1194,7 @@ export function usePixiWalls(options: {
           const mesh = createTopCapMesh({ texture: j.texture, points: topPoints });
           const center = gridToScreenForGrid(j.x, j.y, options.grid.cols, options.grid.rows);
           mesh.zIndex = center.y + WALL_CORNER_Z_BIAS * 0.5;
+          mesh.alpha = 1;
           mesh.label = "wall-cap";
           depthLayer.addChild(mesh);
         } else {
@@ -1184,9 +1208,40 @@ export function usePixiWalls(options: {
       outlineGraphics.zIndex = 1;
       segmentContainer.addChild(segmentGraphics);
       segmentContainer.addChild(outlineGraphics);
+      if (USE_WALL_MESH) {
+        segmentContainer.alpha = 1;
+      }
       segmentContainer.zIndex = segmentDepthWithBias(segment);
       segmentContainer.label = "wall";
       depthLayer.addChild(segmentContainer);
+
+      if (needsShadow) {
+        const shadow = new Graphics();
+        const shadowAlpha = segment.visibilityLevel === 1 ? 0.25 : 0.5;
+        const shadowColor = 0x000000;
+        const topPoints = segment.base.map(p => ({ x: p.x, y: p.y - wallHeight }));
+        if (segment.hole) {
+          const hole = segment.hole.map(p => ({ x: p.x, y: p.y - wallHeight }));
+          drawWallTopRing({
+            g: shadow,
+            outer: topPoints,
+            inner: hole,
+            heightPx: 0,
+            color: shadowColor
+          });
+        } else {
+          drawWallTopFace({
+            g: shadow,
+            base: topPoints,
+            heightPx: 0,
+            color: shadowColor
+          });
+        }
+        shadow.alpha = shadowAlpha;
+        shadow.zIndex = segmentContainer.zIndex + 0.001;
+        shadow.label = "wall-shadow";
+        depthLayer.addChild(shadow);
+      }
     }
 
     const doorHeight = TILE_SIZE * 0.9;
@@ -1268,6 +1323,7 @@ export function usePixiWalls(options: {
         vMax: 1,
         flipV: true
       });
+      mesh.alpha = 1;
       const faceDepthY = Math.max(a.y, b.y);
       const depthY = Math.max(faceDepthY, best.segmentDepthY);
       mesh.zIndex = computeDepthValue(depthY, doorHeight, doorDepthBias);
@@ -1280,6 +1336,9 @@ export function usePixiWalls(options: {
     options.walls,
     options.pixiReadyTick,
     options.grid,
-    options.activeLevel
+    options.activeLevel,
+    options.visibleCells,
+    options.visibilityLevels,
+    options.showAllLevels
   ]);
 }

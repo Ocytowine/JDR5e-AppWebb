@@ -4,9 +4,21 @@ import { clamp, createDraft, setHeight, setLight, setTerrain, tryPlaceObstacle, 
 import { findWallType } from "../wallSelector";
 import { findObstacleType } from "../obstacleSelector";
 import { loadMapPatternsFromIndex } from "../../mapPatternCatalog";
-import { choosePatternsByPrompt, pickPatternTransform, placePattern } from "../patterns";
+import { choosePatternsByPrompt, getPatternSize, pickPatternTransform, placePattern } from "../patterns";
 
 const CITY_PATTERNS = loadMapPatternsFromIndex().filter(p => p.theme === "city");
+
+function resolveCityPatterns(
+  spec: MapSpec
+): { patterns: typeof CITY_PATTERNS; requested: string[] | null } {
+  const requested = Array.isArray(spec.city?.patterns) && spec.city?.patterns.length
+    ? spec.city.patterns
+    : null;
+  if (!requested) return { patterns: CITY_PATTERNS, requested: null };
+  const requestedSet = new Set(requested);
+  const filtered = CITY_PATTERNS.filter(p => requestedSet.has(p.id));
+  return { patterns: filtered, requested };
+}
 
 function placeCityPatterns(params: {
   draft: ReturnType<typeof createDraft>;
@@ -15,35 +27,60 @@ function placeCityPatterns(params: {
   wallTypes: MapBuildContext["wallTypes"];
   cols: number;
   rows: number;
-  topY2: number;
+  anchorYs: number[];
   prompt: string;
-}): number {
-  const { draft, rand, obstacleTypes, wallTypes, cols, rows, topY2, prompt } = params;
-  if (CITY_PATTERNS.length === 0) return 0;
-  if (topY2 < 0 || topY2 >= rows) return 0;
+  patterns: typeof CITY_PATTERNS;
+  requestedPatterns: string[] | null;
+}): { count: number; ids: string[] } {
+  const { draft, rand, obstacleTypes, wallTypes, cols, rows, anchorYs, prompt, patterns, requestedPatterns } = params;
+  if (patterns.length === 0) return { count: 0, ids: [] };
 
   let placed = 0;
+  const placedIds: string[] = [];
   const attempts = Math.min(8, cols);
-  const picks = choosePatternsByPrompt({
-    patterns: CITY_PATTERNS,
-    prompt,
-    rand,
-    count: attempts
-  });
+  const picks =
+    requestedPatterns && requestedPatterns.length
+      ? patterns
+      : choosePatternsByPrompt({
+          patterns,
+          prompt,
+          rand,
+          count: attempts
+        });
   for (const pattern of picks) {
-    const anchorX = Math.floor(rand() * cols);
-    const anchorY = topY2;
-    const transform = pickPatternTransform({
-      rand,
-      allowedRotations: [0, 180],
-      allowMirrorX: true,
-      allowMirrorY: false
-    });
-    const ok = placePattern({ draft, pattern, anchorX, anchorY, obstacleTypes, wallTypes, rand, transform });
-    if (ok) placed++;
+    const attemptCount = Math.max(3, Math.min(10, cols));
+    let placedThis = false;
+    for (let attempt = 0; attempt < attemptCount && !placedThis; attempt++) {
+      const transform = pickPatternTransform({
+        rand,
+        allowedRotations: [0, 180],
+        allowMirrorX: true,
+        allowMirrorY: false
+      });
+      const size = getPatternSize(pattern, transform);
+      const maxAnchorX = cols - size.w;
+      if (maxAnchorX < 0) continue;
+      const anchorX = Math.floor(rand() * (maxAnchorX + 1));
+      for (const anchorY of anchorYs) {
+        if (anchorY < 0 || anchorY >= rows) continue;
+        const ok = placePattern({ draft, pattern, anchorX, anchorY, obstacleTypes, wallTypes, rand, transform });
+        if (ok) {
+          placed++;
+          placedIds.push(pattern.id);
+          placedThis = true;
+          break;
+        }
+      }
+    }
   }
 
-  return placed;
+  if (placedIds.length > 0) {
+    draft.log.push(`Patterns (city): ${placedIds.join(", ")}.`);
+  } else if (requestedPatterns && requestedPatterns.length > 0) {
+    draft.log.push(`Patterns (city): echec de placement pour ${requestedPatterns.join(", ")}.`);
+  }
+
+  return { count: placed, ids: placedIds };
 }
 
 export function generateCityStreet(params: {
@@ -65,7 +102,9 @@ export function generateCityStreet(params: {
     doors: "closed",
     lighting: "day"
   };
+  const { patterns, requested } = resolveCityPatterns(spec);
 
+  draft.log.push("Module: city_street.");
   draft.log.push("Layout: ville (rue).");
 
   const baseLight = city.lighting === "night" ? 0.25 : 0.9;
@@ -93,7 +132,20 @@ export function generateCityStreet(params: {
 
   // Rue horizontale par défaut: une bande centrale libre, maisons de chaque côté.
   const streetW = clamp(Math.floor(city.streetWidth), 1, Math.max(1, rows - 2));
-  const depth = clamp(Math.floor(city.buildingDepth), 1, Math.max(1, Math.floor(rows / 2) - 1));
+  const maxDepth = Math.max(1, Math.floor(rows / 2) - 1);
+  let depth = clamp(Math.floor(city.buildingDepth), 1, maxDepth);
+  if (requested && patterns.length > 0) {
+    const requiredDepth = patterns.reduce(
+      (max, p) => Math.max(max, Math.floor(p.footprint.h)),
+      1
+    );
+    if (requiredDepth > maxDepth) {
+      draft.log.push(`Patterns: besoin depth=${requiredDepth}, max=${maxDepth} (trop petit).`);
+    } else if (requiredDepth > depth) {
+      depth = clamp(requiredDepth, 1, maxDepth);
+      draft.log.push(`Patterns: buildingDepth ajuste a ${depth}.`);
+    }
+  }
   const centerY = clamp(Math.floor(rows / 2), 0, rows - 1);
   const streetY1 = clamp(centerY - Math.floor(streetW / 2), 0, rows - 1);
   const streetY2 = clamp(streetY1 + streetW - 1, 0, rows - 1);
@@ -114,7 +166,6 @@ export function generateCityStreet(params: {
 
   if (wantsBalcony && topY2 >= 2) {
     const stairType = findObstacleType(ctx.obstacleTypes, "stairs-stone");
-    const brazierType = findObstacleType(ctx.obstacleTypes, "brazier");
     const houseW = clamp(Math.floor(cols / 3), 4, Math.max(4, cols - 2));
     const houseX1 = clamp(Math.floor(cols * 0.65) - Math.floor(houseW / 2), 1, cols - houseW - 1);
     const houseX2 = clamp(houseX1 + houseW - 1, 1, cols - 2);
@@ -192,23 +243,13 @@ export function generateCityStreet(params: {
           rotation: 0
         });
       }
-      if (brazierType) {
-        const brazierX = doorX;
-        const brazierY = streetY1;
-        const ok = tryPlaceObstacle({
-          draft,
-          type: brazierType,
-          x: brazierX,
-          y: brazierY,
-          variantId: brazierType.variants?.[0]?.id ?? "base",
-          rotation: 0
-        });
-        if (ok) draft.log.push("Brasier: place sur la rue (balcon).");
-      }
       draft.log.push("Balcon: maison + niveau 1 (demo).");
     }
   }
 
+  if (requested && requested.length > 0 && patterns.length === 0) {
+    draft.log.push(`Patterns (city): aucun pattern charge pour ${requested.join(", ")}.`);
+  }
   const placedPatterns = placeCityPatterns({
     draft,
     rand,
@@ -216,11 +257,13 @@ export function generateCityStreet(params: {
     wallTypes: ctx.wallTypes,
     cols,
     rows,
-    topY2,
-    prompt: spec.prompt
+    anchorYs: [topY2, botY2],
+    prompt: spec.prompt,
+    patterns,
+    requestedPatterns: requested
   });
-  if (placedPatterns > 0) {
-    draft.log.push(`Patterns: +${placedPatterns} (city).`);
+  if (placedPatterns.count > 0) {
+    draft.log.push(`Patterns: +${placedPatterns.count} (city).`);
   }
 
   draft.log.push("Maisons: murs places uniquement via patterns.");

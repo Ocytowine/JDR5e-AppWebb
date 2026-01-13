@@ -10,6 +10,7 @@ import type {
   VisionProfile
 } from "./types";
 import { hasLineOfSight } from "./lineOfSight";
+import { isCellInsideGrid } from "./boardConfig";
 
 const DEFAULT_VISION_RANGE = 30;
 
@@ -166,4 +167,168 @@ export function isTargetVisible(
   const inCone = visibles.some(t => t.id === target.id);
   if (!inCone) return false;
   return true;
+}
+
+export type VisibilityLevel = 0 | 1 | 2;
+
+function isInsideBounds(
+  x: number,
+  y: number,
+  grid?: { cols: number; rows: number } | null,
+  playableCells?: Set<string> | null
+): boolean {
+  if (grid && !isCellInsideGrid(x, y, grid.cols, grid.rows)) return false;
+  if (playableCells && playableCells.size > 0) return playableCells.has(`${x},${y}`);
+  return true;
+}
+
+function setVisibility(
+  map: Map<string, VisibilityLevel>,
+  x: number,
+  y: number,
+  level: VisibilityLevel
+): void {
+  const k = `${x},${y}`;
+  const prev = map.get(k) ?? 0;
+  if (level > prev) map.set(k, level);
+}
+
+function computeShadowcastVisibility(params: {
+  origin: GridPosition;
+  range: number;
+  grid?: { cols: number; rows: number } | null;
+  playableCells?: Set<string> | null;
+  opaqueCells?: Set<string> | null;
+}): Map<string, VisibilityLevel> {
+  const {
+    origin,
+    range,
+    grid = null,
+    playableCells = null,
+    opaqueCells = null
+  } = params;
+  const result = new Map<string, VisibilityLevel>();
+  if (range <= 0) return result;
+
+  const isOpaque = (x: number, y: number) =>
+    Boolean(opaqueCells && opaqueCells.has(`${x},${y}`));
+
+  const castLight = (
+    row: number,
+    start: number,
+    end: number,
+    radius: number,
+    xx: number,
+    xy: number,
+    yx: number,
+    yy: number
+  ) => {
+    if (start < end) return;
+    let newStart = start;
+    let blocked = false;
+
+    for (let dist = row; dist <= radius && !blocked; dist++) {
+      let dx = -dist - 1;
+      let dy = -dist;
+      while (dx <= 0) {
+        dx += 1;
+        const mx = origin.x + dx * xx + dy * xy;
+        const my = origin.y + dx * yx + dy * yy;
+        const lSlope = (dx - 0.5) / (dy + 0.5);
+        const rSlope = (dx + 0.5) / (dy - 0.5);
+
+        if (start < rSlope) {
+          continue;
+        }
+        if (end > lSlope) {
+          break;
+        }
+        if (!isInsideBounds(mx, my, grid, playableCells)) {
+          continue;
+        }
+
+        if (dx * dx + dy * dy <= radius * radius) {
+          const opaque = isOpaque(mx, my);
+          setVisibility(result, mx, my, opaque ? 1 : 2);
+        }
+
+        const opaque = isOpaque(mx, my);
+        if (blocked) {
+          if (opaque) {
+            newStart = rSlope;
+            continue;
+          }
+          blocked = false;
+          start = newStart;
+        } else if (opaque && dist < radius) {
+          blocked = true;
+          castLight(dist + 1, start, lSlope, radius, xx, xy, yx, yy);
+          newStart = rSlope;
+        }
+      }
+    }
+  };
+
+  setVisibility(result, origin.x, origin.y, 2);
+
+  const transforms = [
+    [1, 0, 0, 1],
+    [0, 1, 1, 0],
+    [-1, 0, 0, 1],
+    [0, -1, 1, 0],
+    [-1, 0, 0, -1],
+    [0, -1, -1, 0],
+    [1, 0, 0, -1],
+    [0, 1, -1, 0]
+  ];
+
+  for (const [xx, xy, yx, yy] of transforms) {
+    castLight(1, 1.0, 0.0, range, xx, xy, yx, yy);
+  }
+
+  return result;
+}
+
+export function computeVisibilityLevelsForToken(params: {
+  token: TokenState;
+  playableCells?: Set<string> | null;
+  grid?: { cols: number; rows: number } | null;
+  opaqueCells?: Set<string> | null;
+}): Map<string, VisibilityLevel> {
+  const { token, playableCells = null, grid = null, opaqueCells = null } = params;
+  const profile = getVisionProfileForToken(token);
+  const facing = getFacingForToken(token);
+  const range = Math.max(0, Math.floor(profile.range ?? 0));
+  if (range <= 0) return new Map<string, VisibilityLevel>();
+
+  const base = computeShadowcastVisibility({
+    origin: { x: token.x, y: token.y },
+    range,
+    grid,
+    playableCells,
+    opaqueCells
+  });
+
+  if (profile.shape === "circle") {
+    return base;
+  }
+
+  const cone = generateConeEffect(
+    `cone-${token.id}`,
+    token.x,
+    token.y,
+    range,
+    facing,
+    profile.apertureDeg,
+    { playableCells }
+  );
+  const allowed = new Set<string>(cone.cells.map(c => `${c.x},${c.y}`));
+  allowed.add(`${token.x},${token.y}`);
+
+  const filtered = new Map<string, VisibilityLevel>();
+  for (const [k, v] of base.entries()) {
+    if (!allowed.has(k)) continue;
+    filtered.set(k, v);
+  }
+  return filtered;
 }

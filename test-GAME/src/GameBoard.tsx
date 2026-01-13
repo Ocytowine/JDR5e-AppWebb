@@ -75,9 +75,11 @@ import {
 import { computePathTowards } from "./pathfinding";
 import { getTokenAt } from "./gridUtils";
 import {
+  computeVisibilityLevelsForToken,
   getEntitiesInVision,
   isCellVisible,
-  isTargetVisible
+  isTargetVisible,
+  type VisibilityLevel
 } from "./vision";
 import { hasLineOfEffect } from "./lineOfSight";
 import {
@@ -138,6 +140,10 @@ const ENEMY_TYPE_MODULES: Record<string, EnemyTypeDefinition> = {
   "./assassin.json": assassinType as EnemyTypeDefinition,
   "./ghost.json": ghostType as EnemyTypeDefinition
 };
+
+function buildCellKey(x: number, y: number): string {
+  return `${x},${y}`;
+}
 
 // -------------------------------------------------------------
 // Helpers
@@ -435,6 +441,7 @@ export const GameBoard: React.FC = () => {
   const [effectSpecs, setEffectSpecs] = useState<EffectSpec[]>([]);
   const [showVisionDebug, setShowVisionDebug] = useState<boolean>(false);
   const [showLightOverlay, setShowLightOverlay] = useState<boolean>(true);
+  const [showAllLevels, setShowAllLevels] = useState<boolean>(false);
   const [playerTorchOn, setPlayerTorchOn] = useState<boolean>(false);
   const [showCellIds, setShowCellIds] = useState<boolean>(false);
 
@@ -501,12 +508,148 @@ export const GameBoard: React.FC = () => {
     return { min, max };
   }, [mapHeight, obstacles, obstacleTypeById]);
 
+  const visionBlockersByLevel = useMemo(() => {
+    const blockers = new Map<number, Set<string>>();
+    const addBlocker = (level: number, x: number, y: number) => {
+      let set = blockers.get(level);
+      if (!set) {
+        set = new Set<string>();
+        blockers.set(level, set);
+      }
+      set.add(buildCellKey(x, y));
+    };
+    const heightAt = (x: number, y: number) =>
+      getHeightAtGrid(mapHeight, mapGrid.cols, mapGrid.rows, x, y);
+
+    for (const obs of obstacles) {
+      if (obs.hp <= 0) continue;
+      const def = obstacleTypeById.get(obs.typeId) ?? null;
+      if (!def?.blocking?.vision) continue;
+      const cells = getObstacleOccupiedCells(obs, def);
+      for (const cell of cells) {
+        const level = heightAt(cell.x, cell.y);
+        addBlocker(level, cell.x, cell.y);
+      }
+    }
+
+    for (const wall of walls) {
+      if (wall.hp <= 0) continue;
+      const def = wallTypeById.get(wall.typeId) ?? null;
+      if (!def?.blocking?.vision) continue;
+      const cells = getWallOccupiedCells(wall, def);
+      for (const cell of cells) {
+        const level = heightAt(cell.x, cell.y);
+        addBlocker(level, cell.x, cell.y);
+      }
+    }
+
+    return blockers;
+  }, [mapGrid, mapHeight, obstacles, obstacleTypeById, walls, wallTypeById]);
+
+  const visionBlockersForVisibility = useMemo(() => {
+    const combined = new Map<number, Set<string>>();
+    const activeBlockers = visionBlockersByLevel.get(activeLevel) ?? new Set<string>();
+
+    for (let level = levelRange.min; level <= levelRange.max; level++) {
+      const levelBlockers = visionBlockersByLevel.get(level) ?? new Set<string>();
+      if (level === activeLevel || activeBlockers.size === 0) {
+        combined.set(level, levelBlockers);
+        continue;
+      }
+      if (levelBlockers.size === 0) {
+        combined.set(level, activeBlockers);
+        continue;
+      }
+      combined.set(level, new Set([...activeBlockers, ...levelBlockers]));
+    }
+
+    return combined;
+  }, [activeLevel, levelRange.min, levelRange.max, visionBlockersByLevel]);
+
+  const visibilityByLevel = useMemo(() => {
+    if (showAllLevels) return null;
+    const perLevel = new Map<number, Map<string, VisibilityLevel>>();
+
+    for (let level = levelRange.min; level <= levelRange.max; level++) {
+      const blockers = visionBlockersForVisibility.get(level) ?? new Set<string>();
+      const baseVisibility = computeVisibilityLevelsForToken({
+        token: player,
+        playableCells: playableCells ?? null,
+        grid: mapGrid,
+        opaqueCells: blockers
+      });
+      const filtered = new Map<string, VisibilityLevel>();
+      for (const [key, vis] of baseVisibility.entries()) {
+        const [xs, ys] = key.split(",");
+        const x = Number(xs);
+        const y = Number(ys);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+        const cellLevel = getHeightAtGrid(mapHeight, mapGrid.cols, mapGrid.rows, x, y);
+        if (cellLevel !== level) continue;
+        filtered.set(key, vis);
+      }
+      const playerLevel = getHeightAtGrid(
+        mapHeight,
+        mapGrid.cols,
+        mapGrid.rows,
+        player.x,
+        player.y
+      );
+      if (playerLevel === level) {
+        filtered.set(buildCellKey(player.x, player.y), 2);
+      }
+      perLevel.set(level, filtered);
+    }
+
+    return perLevel;
+  }, [
+    activeLevel,
+    levelRange.min,
+    levelRange.max,
+    mapGrid,
+    mapHeight,
+    player,
+    playableCells,
+    showAllLevels,
+    visionBlockersForVisibility
+  ]);
+
+  const visibilityLevels = useMemo<Map<string, VisibilityLevel> | null>(() => {
+    if (showAllLevels) return null;
+    const union = new Map<string, VisibilityLevel>();
+    if (!visibilityByLevel) return union;
+    for (const levelMap of visibilityByLevel.values()) {
+      for (const [key, vis] of levelMap.entries()) {
+        const prev = union.get(key) ?? 0;
+        if (vis > prev) union.set(key, vis);
+      }
+    }
+    return union;
+  }, [showAllLevels, visibilityByLevel]);
+
+  const visibleCellsFull = useMemo<Set<string> | null>(() => {
+    if (showAllLevels) return null;
+    const full = new Set<string>();
+    if (!visibilityLevels) return full;
+    for (const [key, vis] of visibilityLevels.entries()) {
+      if (vis >= 2) full.add(key);
+    }
+    return full;
+  }, [showAllLevels, visibilityLevels]);
+
   function clampActiveLevel(value: number): number {
     return Math.max(levelRange.min, Math.min(levelRange.max, value));
   }
 
   function getBaseHeightAt(x: number, y: number): number {
     return getHeightAtGrid(mapHeight, mapGrid.cols, mapGrid.rows, x, y);
+  }
+
+  function isCellVisibleForPlayer(x: number, y: number): boolean {
+    if (showAllLevels) return true;
+    if (!visibilityLevels) return false;
+    const level = visibilityLevels.get(buildCellKey(x, y)) ?? 0;
+    return level > 0;
   }
 
   useEffect(() => {
@@ -519,7 +662,10 @@ export const GameBoard: React.FC = () => {
     walls,
     pixiReadyTick,
     grid: mapGrid,
-    activeLevel
+    activeLevel,
+    visibleCells: visibleCellsFull,
+    visibilityLevels,
+    showAllLevels
   });
   usePixiObstacles({
     depthLayerRef,
@@ -528,7 +674,9 @@ export const GameBoard: React.FC = () => {
     pixiReadyTick,
     grid: mapGrid,
     heightMap: mapHeight,
-    activeLevel
+    activeLevel,
+    visibleCells: visibleCellsFull,
+    showAllLevels
   });
   usePixiDecorations({
     depthLayerRef,
@@ -536,7 +684,9 @@ export const GameBoard: React.FC = () => {
     pixiReadyTick,
     grid: mapGrid,
     heightMap: mapHeight,
-    activeLevel
+    activeLevel,
+    visibleCells: visibleCellsFull,
+    showAllLevels
   });
   usePixiTokens({
     depthLayerRef,
@@ -545,7 +695,9 @@ export const GameBoard: React.FC = () => {
     pixiReadyTick,
     grid: mapGrid,
     heightMap: mapHeight,
-    activeLevel
+    activeLevel,
+    visibleCells: visibleCellsFull,
+    showAllLevels
   });
   usePixiSpeechBubbles({
     speechLayerRef,
@@ -555,7 +707,9 @@ export const GameBoard: React.FC = () => {
     pixiReadyTick,
     grid: mapGrid,
     heightMap: mapHeight,
-    activeLevel
+    activeLevel,
+    visibleCells: visibleCellsFull,
+    showAllLevels
   });
   const selectedStructureCell = selectedObstacleTarget ?? selectedWallTarget;
   usePixiOverlays({
@@ -570,6 +724,9 @@ export const GameBoard: React.FC = () => {
       : null,
     obstacleVisionCells: obstacleBlocking.vision,
     showVisionDebug,
+    visibleCells: visibleCellsFull,
+    visibilityLevels,
+    showAllLevels,
     lightMap: mapLight,
     lightSources,
     showLightOverlay,
@@ -2430,13 +2587,7 @@ export const GameBoard: React.FC = () => {
         );
         return;
       }
-      const cellLevel = getBaseHeightAt(targetX, targetY);
-      if (cellLevel !== activeLevel) {
-        pushLog(`Inspection: case au niveau ${cellLevel} (actif ${activeLevel}).`);
-        return;
-      }
-
-      if (!isCellVisible(player, { x: targetX, y: targetY }, obstacleBlocking.vision, playableCells)) {
+      if (!isCellVisibleForPlayer(targetX, targetY)) {
         pushLog("Inspection: la case n'est pas dans votre champ de vision.");
         return;
       }
@@ -2447,10 +2598,10 @@ export const GameBoard: React.FC = () => {
         return next;
       });
 
-      const tokens = getTokensOnActiveLevel([player, ...enemies]);
+      const tokens = [player, ...enemies];
       const token = getTokenAt({ x: targetX, y: targetY }, tokens);
       if (!token) {
-        const obstacleHit = findObstacleAtCell(targetX, targetY);
+        const obstacleHit = findObstacleAtCellAnyLevel(targetX, targetY);
         if (obstacleHit) {
           const name =
             obstacleHit.def?.label ?? obstacleHit.instance.typeId ?? "obstacle";
@@ -2462,7 +2613,7 @@ export const GameBoard: React.FC = () => {
           setInteractionMode("idle");
           return;
         }
-        const wallHit = findWallAtCell(targetX, targetY);
+        const wallHit = findWallAtCellAnyLevel(targetX, targetY);
         if (wallHit) {
           const name = wallHit.def?.label ?? wallHit.instance.typeId ?? "mur";
           const text = `Inspection (${targetX},${targetY}) : ${name}\nEtat: PV ${wallHit.instance.hp}/${wallHit.instance.maxHp}`;
@@ -4255,12 +4406,14 @@ function handleEndPlayerTurn() {
             showVisionDebug={showVisionDebug}
             showLightOverlay={showLightOverlay}
             showCellIds={showCellIds}
+            showAllLevels={showAllLevels}
             onShowCircle={handleShowCircleEffect}
             onShowRectangle={handleShowRectangleEffect}
             onShowCone={handleShowConeEffect}
             onToggleVisionDebug={() => setShowVisionDebug(prev => !prev)}
             onToggleLightOverlay={() => setShowLightOverlay(prev => !prev)}
             onToggleCellIds={() => setShowCellIds(prev => !prev)}
+            onToggleShowAllLevels={() => setShowAllLevels(prev => !prev)}
             onClear={handleClearEffects}
           />
         </div>

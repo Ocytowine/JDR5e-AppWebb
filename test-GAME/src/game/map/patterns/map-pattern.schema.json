@@ -42,14 +42,16 @@
         "type": "object",
         "required": ["type", "x", "y"],
         "properties": {
-          "type": { "type": "string", "enum": ["obstacle", "decor", "wall"] },
+          "type": { "type": "string", "enum": ["obstacle", "decor", "wall", "tile"] },
           "typeId": { "type": "string" },
           "spriteKey": { "type": "string" },
           "x": { "type": "integer" },
           "y": { "type": "integer" },
           "variant": { "type": "string" },
           "rotation": { "type": "integer", "enum": [0, 90, 180, 270] },
-          "scale": { "type": "number" }
+          "scale": { "type": "number" },
+          "height": { "type": "number" },
+          "terrain": { "type": "string" }
         }
       }
     },

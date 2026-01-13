@@ -284,6 +284,18 @@ export function parsePromptToSpec(params: {
   const wantsRectRoom = hasAny(text, [/\brectang\w+\b/, /\brectangle\b/]);
   const wantsClearing = hasAny(text, [/\bclairiere\b/]);
   const wantsStreet = hasAny(text, [/\brue\b/]);
+  const wantsHouse = hasAny(text, [/\bmaison\b/, /\bmaisons?\b/, /\bbatiment\b/]);
+  const wantsBuildingLayout = hasAny(text, [
+    /\btoit\b/,
+    /\bterrasse\b/,
+    /\bbalcon\b/,
+    /\bbatiment\b/,
+    /\betage\b/,
+    /\blevel\b/
+  ]);
+  const wantsRoofClosed = hasAny(text, [/\bferme\b/, /\bclos\b/, /\bclois?\b/, /\binterieur\b/]);
+  const wantsRoofOpen = hasAny(text, [/\bouvert\b/, /\baccessible\b/, /\bterrasse\b/, /\bbalcon\b/]);
+  const buildingStyle: "open" | "closed" = wantsRoofClosed ? "closed" : "open";
 
   const noEntrances = hasAny(text, [
     /\bsans portes?\b/,
@@ -344,6 +356,7 @@ export function parsePromptToSpec(params: {
   else if (theme === "dungeon") layoutId = "dungeon_circular_room"; // défaut donjon = salle
   else if (theme === "forest") layoutId = "forest_clearing";
   else if (theme === "city") layoutId = "city_street";
+  if (wantsBuildingLayout && !wantsStreet) layoutId = "building_tiered";
 
   const spec: MapSpec = {
     prompt: promptWithTime,
@@ -385,7 +398,8 @@ export function parsePromptToSpec(params: {
             streetWidth: 2,
             buildingDepth: 2,
             doors: doorsClosed ? "closed" : "closed",
-            lighting: isNight ? "night" : "day"
+            lighting: isNight ? "night" : "day",
+            patterns: undefined
           }
         : undefined
   };
@@ -552,6 +566,11 @@ export function parsePromptToSpec(params: {
     }
   }
 
+  if (theme === "city" && spec.city && wantsStreet && wantsHouse && wantsBuildingLayout) {
+    spec.city.patterns = [buildingStyle === "closed" ? "house-tiered-closed" : "house-tiered-open"];
+    notes.push(`cityPatterns=${spec.city.patterns.join(",")}`);
+  }
+
   if (theme === "dungeon" && spec.dungeon) {
     if (noEntrances) {
       spec.dungeon.entrances.count = 0;
@@ -569,6 +588,11 @@ export function parsePromptToSpec(params: {
     }
   }
 
+  if (spec.layoutId === "building_tiered" && wantsBuildingLayout) {
+    spec.building = { style: buildingStyle };
+  } else {
+    spec.building = undefined;
+  }
   notes.push(`theme=${theme} layout=${spec.layoutId} time=${timeOfDay}`);
   notes.push(`sizeHint=${sizeHint}`);
 

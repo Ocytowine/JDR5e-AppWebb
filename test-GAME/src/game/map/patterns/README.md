@@ -1,4 +1,4 @@
-# map-patterns
+# patterns
 
 Pattern JSON for hand-made sub layouts (houses, furniture sets, alleys...).
 

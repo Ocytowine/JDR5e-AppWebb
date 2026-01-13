@@ -1,7 +1,7 @@
 import type { GridPosition } from "../../types";
 import type { MapBuildContext, MapBuildResult, ManualMapConfig, MapSpec } from "./types";
 import type { MapDraft } from "./draft";
-import { key } from "./draft";
+import { getHeightAtGrid, key } from "./draft";
 import { parsePromptToSpec } from "./promptParser";
 import { hashStringToSeed, mulberry32 } from "./random";
 import { spawnEnemies } from "./spawn";
@@ -12,6 +12,7 @@ import { generateDungeonSquareRoom } from "./modules/dungeonSquareRoom";
 import { generateDungeonRoomPlan } from "./modules/dungeonRoomPlan";
 import { generateForestClearing } from "./modules/forestClearing";
 import { generateCityStreet } from "./modules/cityStreet";
+import { generateTieredBuilding } from "./modules/tieredBuilding";
 import { generateGenericScatter } from "./modules/genericScatter";
 import { generateManualArena } from "./modules/manualArena";
 
@@ -58,6 +59,8 @@ export function generateFromSpec(params: {
       return generateForestClearing({ spec, ctx, rand });
     case "city_street":
       return generateCityStreet({ spec, ctx, rand });
+    case "building_tiered":
+      return generateTieredBuilding({ spec, ctx, rand });
     default:
       return generateGenericScatter({ spec, ctx, rand });
   }
@@ -91,6 +94,13 @@ function resolvePlayerStart(draft: MapDraft, hint: GridPosition): GridPosition {
   const fallback: GridPosition = { x: 0, y: 0 };
   const safeHint =
     Number.isFinite(hint?.x) && Number.isFinite(hint?.y) ? hint : fallback;
+  const hintHeight = getHeightAtGrid(
+    draft.layers.height,
+    draft.cols,
+    draft.rows,
+    safeHint.x,
+    safeHint.y
+  );
 
   const clearanceOptions = [2, 1, 0];
   for (const radius of clearanceOptions) {
@@ -104,7 +114,9 @@ function resolvePlayerStart(draft: MapDraft, hint: GridPosition): GridPosition {
         if (!hasClearance(draft, candidate, radius)) continue;
 
         const dist = Math.abs(x - safeHint.x) + Math.abs(y - safeHint.y);
-        const score = dist * 1000 + x * 2 + Math.abs(y - safeHint.y);
+        const height = getHeightAtGrid(draft.layers.height, draft.cols, draft.rows, x, y);
+        const heightPenalty = height === hintHeight ? 0 : 10000;
+        const score = heightPenalty + dist * 1000 + x * 2 + Math.abs(y - safeHint.y);
         if (score < bestScore) {
           bestScore = score;
           best = candidate;
@@ -182,6 +194,7 @@ export function runGenerationPipeline(params: {
 
   generationLog.push(...notes.map(n => `[spec] ${n}`));
   generationLog.push(`[spec] timeOfDay=${spec.timeOfDay}`);
+  generationLog.push(`[gen] module=${spec.layoutId}`);
   if (disableEnemies) {
     generationLog.push("[spec] testPrompt=true (ennemis desactive)");
   }

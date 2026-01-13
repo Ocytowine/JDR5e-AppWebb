@@ -16,6 +16,7 @@ export type LayoutId =
   | "dungeon_corridor_rooms"
   | "forest_clearing"
   | "city_street"
+  | "building_tiered"
   | "generic_scatter";
 
 export type EntranceSide = "north" | "south" | "west" | "east";
@@ -113,6 +114,11 @@ export interface CityStreetSpec {
   buildingDepth: number;
   doors: "closed" | "open";
   lighting: "day" | "night";
+  patterns?: string[];
+}
+
+export interface BuildingSpec {
+  style: "open" | "closed";
 }
 
 export interface MapSpec {
@@ -121,6 +127,7 @@ export interface MapSpec {
   layoutId: LayoutId;
   theme: MapTheme;
   timeOfDay: MapTimeOfDay;
+  building?: BuildingSpec;
   /**
    * Indication de taille issue du prompt.
    * Utilisée pour recommander une grille plus grande (Option A).

@@ -7,6 +7,8 @@
     "./interior-tavern-corner.json",
     "./forest-alley-2x8.json",
     "./forest-grove-3x3.json",
-    "./dungeon-altar-nook.json"
+    "./dungeon-altar-nook.json",
+    "./house-tiered-open.json",
+    "./house-tiered-closed.json"
   ]
 }
