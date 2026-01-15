@@ -8,14 +8,18 @@ const CITY_PATTERNS = loadMapPatternsFromIndex().filter(p => p.theme === "city")
 
 function resolveCityPatterns(
   spec: MapSpec
-): { patterns: typeof CITY_PATTERNS; requested: string[] | null } {
+): { patterns: typeof CITY_PATTERNS; requested: string[] | null; requestedCount: number | null } {
   const requested = Array.isArray(spec.city?.patterns) && spec.city?.patterns.length
     ? spec.city.patterns
     : null;
-  if (!requested) return { patterns: CITY_PATTERNS, requested: null };
+  const requestedCount =
+    typeof spec.city?.patternCount === "number"
+      ? Math.max(1, Math.floor(spec.city.patternCount))
+      : null;
+  if (!requested) return { patterns: CITY_PATTERNS, requested: null, requestedCount };
   const requestedSet = new Set(requested);
   const filtered = CITY_PATTERNS.filter(p => requestedSet.has(p.id));
-  return { patterns: filtered, requested };
+  return { patterns: filtered, requested, requestedCount };
 }
 
 function placeCityPatterns(params: {
@@ -29,21 +33,46 @@ function placeCityPatterns(params: {
   prompt: string;
   patterns: typeof CITY_PATTERNS;
   requestedPatterns: string[] | null;
+  patternCount: number | null;
 }): { count: number; ids: string[] } {
-  const { draft, rand, obstacleTypes, wallTypes, cols, rows, anchorYs, prompt, patterns, requestedPatterns } = params;
+  const { draft, rand, obstacleTypes, wallTypes, cols, rows, anchorYs, prompt, patterns, requestedPatterns, patternCount } = params;
   if (patterns.length === 0) return { count: 0, ids: [] };
+
+  const anchorOffset = (
+    anchor: "center" | "topLeft" | "topRight" | "bottomLeft" | "bottomRight",
+    size: { w: number; h: number }
+  ) => {
+    switch (anchor) {
+      case "topRight":
+        return { x: size.w - 1, y: 0 };
+      case "bottomLeft":
+        return { x: 0, y: size.h - 1 };
+      case "bottomRight":
+        return { x: size.w - 1, y: size.h - 1 };
+      case "center":
+        return { x: Math.floor((size.w - 1) / 2), y: Math.floor((size.h - 1) / 2) };
+      default:
+        return { x: 0, y: 0 };
+    }
+  };
 
   let placed = 0;
   const placedIds: string[] = [];
   const attempts = Math.min(8, cols);
+  const desiredCount = Math.max(
+    1,
+    Math.floor(
+      patternCount ?? (requestedPatterns && requestedPatterns.length ? patterns.length : attempts)
+    )
+  );
   const picks =
     requestedPatterns && requestedPatterns.length
-      ? patterns
+      ? Array.from({ length: desiredCount }, (_, idx) => patterns[idx % patterns.length] as typeof patterns[number])
       : choosePatternsByPrompt({
           patterns,
           prompt,
           rand,
-          count: attempts
+          count: desiredCount
         });
   for (const pattern of picks) {
     const attemptCount = Math.max(3, Math.min(10, cols));
@@ -63,9 +92,15 @@ function placeCityPatterns(params: {
         if (anchorY < 0 || anchorY >= rows) continue;
         const ok = placePattern({ draft, pattern, anchorX, anchorY, obstacleTypes, wallTypes, rand, transform });
         if (ok) {
+          const offset = anchorOffset(pattern.anchor, size);
+          const originX = anchorX - offset.x;
+          const originY = anchorY - offset.y;
           placed++;
           placedIds.push(pattern.id);
           placedThis = true;
+          draft.log.push(
+            `Pattern placee: ${pattern.id} anchor=(${anchorX},${anchorY}) origin=(${originX},${originY}) size=${size.w}x${size.h} rot=${transform.rotation ?? 0} mx=${transform.mirrorX ? 1 : 0} my=${transform.mirrorY ? 1 : 0}`
+          );
           break;
         }
       }
@@ -100,7 +135,7 @@ export function generateCityStreet(params: {
     doors: "closed",
     lighting: "day"
   };
-  const { patterns, requested } = resolveCityPatterns(spec);
+  const { patterns, requested, requestedCount } = resolveCityPatterns(spec);
 
   draft.log.push("Module: city_street.");
   draft.log.push("Layout: ville (rue).");
@@ -157,7 +192,8 @@ export function generateCityStreet(params: {
     anchorYs: [topY2, botY2],
     prompt: spec.prompt,
     patterns,
-    requestedPatterns: requested
+    requestedPatterns: requested,
+    patternCount: requestedCount
   });
   if (placedPatterns.count > 0) {
     draft.log.push(`Patterns: +${placedPatterns.count} (city).`);

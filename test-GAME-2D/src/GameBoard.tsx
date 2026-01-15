@@ -624,7 +624,8 @@ export const GameBoard: React.FC = () => {
     player,
     playableCells,
     showAllLevels,
-    visionBlockersForVisibility
+    visionBlockersForVisibility,
+    wallEdges
   ]);
 
   const visibilityLevels = useMemo<Map<string, VisibilityLevel> | null>(() => {
@@ -1047,8 +1048,10 @@ export const GameBoard: React.FC = () => {
     });
 
     if (!isManual) {
-      const rec = map.recommendedGrid;
-      if (rec && (rec.cols > grid.cols || rec.rows > grid.rows)) {
+      let safety = 0;
+      while (safety < 3) {
+        const rec = map.recommendedGrid;
+        if (!rec || (rec.cols <= grid.cols && rec.rows <= grid.rows)) break;
         pushLog(`[map] Redimensionnement automatique: ${grid.cols}x${grid.rows} -> ${rec.cols}x${rec.rows} (${rec.reason}).`);
         grid = { cols: rec.cols, rows: rec.rows };
         map = generateBattleMap({
@@ -1061,13 +1064,14 @@ export const GameBoard: React.FC = () => {
           obstacleTypes,
           wallTypes
         });
+        safety++;
       }
     }
 
     const generationLines = Array.isArray(map.generationLog)
       ? map.generationLog.map(line => `[map] ${line}`)
       : [];
-    pushLogBatch([map.summary, ...generationLines.slice(0, 8)]);
+    pushLogBatch([map.summary, ...generationLines]);
     setMapTheme(map.theme ?? "generic");
     grid = map.grid ?? grid;
     setMapGrid(grid);
@@ -2049,17 +2053,12 @@ export const GameBoard: React.FC = () => {
       usedAction: prev.usedAction || isStandardAction,
       usedBonus: prev.usedBonus || isBonusAction
     }));
-    const hint = action.aiHints?.successLog || "Action validee. Prets pour les jets.";
-    pushLog(`${action.name}: ${hint}`);
 
     if (action.targeting?.target === "enemy") {
       setTargetMode("selecting");
       setSelectedTargetId(null);
       setSelectedObstacleTarget(null);
       setSelectedWallTarget(null);
-      pushLog(
-        `Selection de cible: cliquez sur un ennemi, un obstacle ou un mur.`
-      );
     } else {
       setTargetMode("none");
       setSelectedTargetId(null);
@@ -2594,7 +2593,6 @@ export const GameBoard: React.FC = () => {
         return;
       }
 
-      pushLog(`Pas d'ennemi, d'obstacle ni de mur sur (${targetX}, ${targetY}).`);
       return;
     }
 
@@ -2796,10 +2794,6 @@ export const GameBoard: React.FC = () => {
       y: last.y,
       facing: nextFacing
     }));
-
-    pushLog(
-      `Deplacement valide vers (${last.x}, ${last.y}) via ${selectedPath.length} etape(s).`
-    );
 
     recordCombatEvent({
       round,
@@ -4707,9 +4701,6 @@ function handleEndPlayerTurn() {
                 onEnterMoveMode={() => {
                   setInteractionMode("moving");
                   closeRadialMenu();
-                  pushLog(
-                    `Mode deplacement active: cliquez sur des cases pour tracer un trajet (max ${pathLimit}).`
-                  );
                 }}
                 onValidateMove={handleValidatePath}
                 onResetMove={() => {

@@ -116,6 +116,7 @@ export interface CityStreetSpec {
   doors: "closed" | "open";
   lighting: "day" | "night";
   patterns?: string[];
+  patternCount?: number;
 }
 
 export interface BuildingSpec {

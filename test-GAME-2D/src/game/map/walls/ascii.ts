@@ -39,6 +39,132 @@ function getCellChar(lines: string[], x: number, y: number): string {
   return row[x] ?? " ";
 }
 
+export function buildInteriorCellsFromAscii(params: {
+  ascii: string[];
+  originX: number;
+  originY: number;
+  rotation?: MapPatternRotation;
+}): { x: number; y: number }[] {
+  const rotation = params.rotation ?? 0;
+  const base = normalizeAscii(params.ascii ?? []);
+  const baseW = base.length > 0 ? base[0].length : 0;
+  const baseH = base.length;
+  if (baseW === 0 || baseH === 0) return [];
+
+  const isWallCell = (x: number, y: number): boolean => {
+    const ch = getCellChar(base, x, y);
+    return ch === "#" || ch === "L";
+  };
+
+  const isEmptyCell = (x: number, y: number): boolean => {
+    if (x < 0 || y < 0 || x >= baseW || y >= baseH) return false;
+    return !isWallCell(x, y);
+  };
+
+  const visited = new Set<string>();
+  const floodDirs = [
+    { dx: 1, dy: 0 },
+    { dx: -1, dy: 0 },
+    { dx: 0, dy: 1 },
+    { dx: 0, dy: -1 }
+  ];
+
+  const interiorKeys = new Set<string>();
+
+  for (let y = 0; y < baseH; y++) {
+    for (let x = 0; x < baseW; x++) {
+      if (!isWallCell(x, y)) continue;
+      const k = `${x},${y}`;
+      if (visited.has(k)) continue;
+      const queue: { x: number; y: number }[] = [{ x, y }];
+      visited.add(k);
+      const cells: { x: number; y: number }[] = [];
+      while (queue.length) {
+        const cur = queue.shift() as { x: number; y: number };
+        cells.push(cur);
+        for (const d of floodDirs) {
+          const nx = cur.x + d.dx;
+          const ny = cur.y + d.dy;
+          if (!isWallCell(nx, ny)) continue;
+          const nk = `${nx},${ny}`;
+          if (visited.has(nk)) continue;
+          visited.add(nk);
+          queue.push({ x: nx, y: ny });
+        }
+      }
+
+      let minX = baseW;
+      let maxX = 0;
+      let minY = baseH;
+      let maxY = 0;
+      for (const cell of cells) {
+        minX = Math.min(minX, cell.x);
+        maxX = Math.max(maxX, cell.x);
+        minY = Math.min(minY, cell.y);
+        maxY = Math.max(maxY, cell.y);
+      }
+      minX = Math.max(0, minX - 1);
+      minY = Math.max(0, minY - 1);
+      maxX = Math.min(baseW - 1, maxX + 1);
+      maxY = Math.min(baseH - 1, maxY + 1);
+
+      const outside = new Set<string>();
+      const queueEmpty: { x: number; y: number }[] = [];
+      for (let x = minX; x <= maxX; x++) {
+        for (const y of [minY, maxY]) {
+          if (!isEmptyCell(x, y)) continue;
+          const kk = `${x},${y}`;
+          if (outside.has(kk)) continue;
+          outside.add(kk);
+          queueEmpty.push({ x, y });
+        }
+      }
+      for (let y = minY; y <= maxY; y++) {
+        for (const x of [minX, maxX]) {
+          if (!isEmptyCell(x, y)) continue;
+          const kk = `${x},${y}`;
+          if (outside.has(kk)) continue;
+          outside.add(kk);
+          queueEmpty.push({ x, y });
+        }
+      }
+      while (queueEmpty.length) {
+        const cur = queueEmpty.shift() as { x: number; y: number };
+        for (const d of floodDirs) {
+          const nx = cur.x + d.dx;
+          const ny = cur.y + d.dy;
+          if (nx < minX || nx > maxX || ny < minY || ny > maxY) continue;
+          if (!isEmptyCell(nx, ny)) continue;
+          const kk = `${nx},${ny}`;
+          if (outside.has(kk)) continue;
+          outside.add(kk);
+          queueEmpty.push({ x: nx, y: ny });
+        }
+      }
+
+      for (let iy = minY; iy <= maxY; iy++) {
+        for (let ix = minX; ix <= maxX; ix++) {
+          if (!isEmptyCell(ix, iy)) continue;
+          const kk = `${ix},${iy}`;
+          if (outside.has(kk)) continue;
+          interiorKeys.add(kk);
+        }
+      }
+    }
+  }
+
+  const cells: { x: number; y: number }[] = [];
+  for (const kk of interiorKeys) {
+    const parts = kk.split(",");
+    const x = Number(parts[0]);
+    const y = Number(parts[1]);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    const rotated = rotatePoint(x, y, baseW, baseH, rotation);
+    cells.push({ x: params.originX + rotated.x, y: params.originY + rotated.y });
+  }
+  return cells;
+}
+
 export function buildSegmentsFromAscii(params: {
   ascii: string[];
   originX: number;

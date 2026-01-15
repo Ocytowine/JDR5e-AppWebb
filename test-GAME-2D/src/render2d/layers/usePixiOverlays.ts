@@ -266,6 +266,17 @@ export function usePixiOverlays(options: {
           ) {
             continue;
           }
+          if (
+            !isCellVisible(
+              token,
+              cell,
+              options.obstacleVisionCells ?? null,
+              options.playableCells ?? null,
+              options.wallVisionEdges ?? null
+            )
+          ) {
+            continue;
+          }
           const rect = cellRect(cell.x, cell.y);
           const color = token.type === "player" ? 0x2980b9 : 0xc0392b;
 

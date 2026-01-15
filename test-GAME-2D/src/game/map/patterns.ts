@@ -9,6 +9,7 @@ import type { WallTypeDefinition } from "../wallTypes";
 import { getObstacleOccupiedCells } from "../obstacleRuntime";
 import type { MapDraft } from "./draft";
 import {
+  getTerrainAt,
   isInside,
   key,
   setHeight,
@@ -16,7 +17,12 @@ import {
   tryPlaceDecor,
   tryPlaceObstacle
 } from "./draft";
-import { buildSegmentsFromAscii, buildWallCellsFromAscii } from "./walls/ascii";
+import {
+  buildInteriorCellsFromAscii,
+  buildSegmentsFromAscii,
+  buildWallCellsFromAscii,
+  getAsciiFootprint
+} from "./walls/ascii";
 import { wallEdgeKeyForSegment } from "./walls/grid";
 import { resolveWallMaxHp } from "./walls/durability";
 
@@ -241,11 +247,17 @@ function canPlaceElements(params: {
   originY: number;
   elements: MapPatternElement[];
   obstacleTypes: ObstacleTypeDefinition[];
+  size?: { w: number; h: number };
 }): boolean {
   const { draft, originX, originY, elements, obstacleTypes } = params;
+  const w = Math.max(1, Math.floor(params.size?.w ?? params.pattern.footprint.w));
+  const h = Math.max(1, Math.floor(params.size?.h ?? params.pattern.footprint.h));
+  const maxX = originX + w - 1;
+  const maxY = originY + h - 1;
   const typeById = new Map(obstacleTypes.map(t => [t.id, t]));
 
   for (const element of elements) {
+    if (element.x < 0 || element.y < 0 || element.x >= w || element.y >= h) return false;
     const gx = originX + element.x;
     const gy = originY + element.y;
 
@@ -288,6 +300,7 @@ function canPlaceElements(params: {
 
     for (const c of cells) {
       if (!isInside(draft, c.x, c.y)) return false;
+      if (c.x < originX || c.x > maxX || c.y < originY || c.y > maxY) return false;
       if (!isPlayable(draft, c.x, c.y)) return false;
       const k = key(c.x, c.y);
       if (draft.occupied.has(k)) return false;
@@ -296,6 +309,31 @@ function canPlaceElements(params: {
     }
   }
 
+  return true;
+}
+
+function respectsAllowedTerrains(params: {
+  draft: MapDraft;
+  pattern: MapPatternDefinition;
+  originX: number;
+  originY: number;
+  size?: { w: number; h: number };
+}): boolean {
+  const { draft, pattern, originX, originY } = params;
+  const allowed = pattern.allowedTerrains;
+  if (!Array.isArray(allowed) || allowed.length === 0) return true;
+  const allowedSet = new Set(allowed.map(t => String(t)));
+  const w = Math.max(1, Math.floor(params.size?.w ?? pattern.footprint.w));
+  const h = Math.max(1, Math.floor(params.size?.h ?? pattern.footprint.h));
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const gx = originX + x;
+      const gy = originY + y;
+      if (!isInside(draft, gx, gy)) return false;
+      const terrain = getTerrainAt(draft, gx, gy);
+      if (!terrain || !allowedSet.has(String(terrain))) return false;
+    }
+  }
   return true;
 }
 
@@ -323,8 +361,33 @@ export function placePattern(params: {
 
   if (!fitsBounds({ draft, pattern, originX, originY, size })) return false;
   if (!isClearArea({ draft, pattern, originX, originY, size })) return false;
+  if (!respectsAllowedTerrains({ draft, pattern, originX, originY, size })) return false;
 
-  if (!canPlaceElements({ draft, pattern, originX, originY, elements, obstacleTypes })) return false;
+  const asciiFootprint = Array.isArray(pattern.wallAscii) && pattern.wallAscii.length > 0
+    ? getAsciiFootprint(pattern.wallAscii)
+    : null;
+  if (asciiFootprint) {
+    const fpW = Math.max(1, Math.floor(pattern.footprint.w));
+    const fpH = Math.max(1, Math.floor(pattern.footprint.h));
+    if (asciiFootprint.w > fpW || asciiFootprint.h > fpH) return false;
+  }
+
+  if (!canPlaceElements({ draft, pattern, originX, originY, elements, obstacleTypes, size })) return false;
+
+  if (pattern.floorPaint?.mode === "interior" && Array.isArray(pattern.wallAscii)) {
+    const interiorCells = buildInteriorCellsFromAscii({
+      ascii: pattern.wallAscii,
+      originX,
+      originY,
+      rotation: transform?.rotation ?? 0
+    });
+    for (const cell of interiorCells) {
+      setTerrain(draft, cell.x, cell.y, pattern.floorPaint.terrain as any);
+      if (typeof pattern.floorPaint.height === "number") {
+        setHeight(draft, cell.x, cell.y, pattern.floorPaint.height);
+      }
+    }
+  }
 
   for (const element of elements) {
     const gx = originX + element.x;

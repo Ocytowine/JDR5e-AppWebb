@@ -1,4 +1,5 @@
 import type { MapSpec } from "./types";
+import { loadMapPatternsFromIndex } from "../mapPatternCatalog";
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -7,6 +8,21 @@ function clamp(value: number, min: number, max: number): number {
 function nextEven(value: number): number {
   const v = Math.max(1, Math.floor(value));
   return v % 2 === 0 ? v : v + 1;
+}
+
+function resolveCityPatternFootprints(ids: string[]): { maxW: number; maxH: number } | null {
+  if (!ids.length) return null;
+  const patterns = loadMapPatternsFromIndex();
+  let maxW = 0;
+  let maxH = 0;
+  for (const id of ids) {
+    const p = patterns.find(item => item.id === id);
+    if (!p) continue;
+    maxW = Math.max(maxW, Math.max(1, Math.floor(p.footprint.w)));
+    maxH = Math.max(maxH, Math.max(1, Math.floor(p.footprint.h)));
+  }
+  if (maxW <= 0 || maxH <= 0) return null;
+  return { maxW, maxH };
 }
 
 /**
@@ -76,18 +92,40 @@ export function recommendGridFromSpec(params: {
   if (spec.layoutId === "city_street") {
     const scale = spec.sizeHint === "large" ? 1.6 : spec.sizeHint === "small" ? 1.0 : 1.25;
     const desiredCols = Math.max(cols, nextEven(Math.ceil(cols * scale)));
-    const desiredRows = Math.max(rows, nextEven(Math.ceil(rows * (spec.sizeHint === "large" ? 1.4 : 1.1))));
-    if (desiredCols > cols || desiredRows > rows) {
+    const desiredRows = Math.max(
+      rows,
+      nextEven(Math.ceil(rows * (spec.sizeHint === "large" ? 1.4 : 1.1)))
+    );
+
+    const patternIds = spec.city?.patterns ?? [];
+    const patternCountRaw = typeof spec.city?.patternCount === "number"
+      ? Math.floor(spec.city.patternCount)
+      : patternIds.length;
+    const patternCount = Math.max(0, patternCountRaw);
+    const footprint = resolveCityPatternFootprints(patternIds);
+    const streetWidth = Math.max(1, Math.floor(spec.city?.streetWidth ?? 2));
+    const spacing = 1;
+
+    let minCols = desiredCols;
+    let minRows = desiredRows;
+    if (footprint && patternCount > 0) {
+      const neededCols = patternCount * (footprint.maxW + spacing) + 2;
+      const neededRows = streetWidth + 2 * footprint.maxH + 2;
+      minCols = Math.max(minCols, nextEven(Math.ceil(neededCols)));
+      minRows = Math.max(minRows, nextEven(Math.ceil(neededRows)));
+    }
+
+    if (minCols > cols || minRows > rows) {
       return {
-        cols: clamp(desiredCols, cols, 70),
-        rows: clamp(desiredRows, rows, 50),
-        reason: `rue '${spec.sizeHint ?? "medium"}' -> agrandissement pour réduire la densité`
+        cols: clamp(minCols, cols, 70),
+        rows: clamp(minRows, rows, 50),
+        reason: `rue '${spec.sizeHint ?? "medium"}' -> espace pour patterns`
       };
     }
     return null;
   }
 
-  // Forêt/clairière: augmenter un peu si "large"
+  // Foret/clairiere: augmenter un peu si "large"
   if (spec.layoutId === "forest_clearing") {
     const scale = spec.sizeHint === "large" ? 1.5 : spec.sizeHint === "small" ? 1.0 : 1.2;
     const desiredCols = Math.max(cols, nextEven(Math.ceil(cols * scale)));
@@ -96,13 +134,13 @@ export function recommendGridFromSpec(params: {
       return {
         cols: clamp(desiredCols, cols, 70),
         rows: clamp(desiredRows, rows, 50),
-        reason: `clairière '${spec.sizeHint ?? "medium"}' -> plus d'espace autour`
+        reason: `clairiere '${spec.sizeHint ?? "medium"}' -> plus d'espace autour`
       };
     }
     return null;
   }
 
-  // Fallback générique
+  // Fallback generique
   if (spec.sizeHint === "large") {
     const desiredCols = Math.max(cols, 18);
     const desiredRows = Math.max(rows, 12);
@@ -110,7 +148,7 @@ export function recommendGridFromSpec(params: {
       return {
         cols: desiredCols,
         rows: desiredRows,
-        reason: "taille 'large' (fallback générique)"
+        reason: "taille 'large' (fallback generique)"
       };
     }
   }

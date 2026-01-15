@@ -36,6 +36,10 @@
         }
       }
     },
+    "allowedTerrains": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
     "elements": {
       "type": "array",
       "items": {
@@ -81,6 +85,15 @@
           "dir": { "type": "string", "enum": ["N", "E", "S", "W"] },
           "state": { "type": "string", "enum": ["open", "closed"] }
         }
+      }
+    },
+    "floorPaint": {
+      "type": "object",
+      "required": ["mode", "terrain"],
+      "properties": {
+        "mode": { "type": "string", "enum": ["interior"] },
+        "terrain": { "type": "string" },
+        "height": { "type": "number" }
       }
     }
   }

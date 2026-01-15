@@ -617,7 +617,9 @@ export function resolveAction(
       actor.x = destination.x;
       actor.y = destination.y;
       replaceActorInEnemies();
-      log(`${actor.id} se deplace vers (${destination.x}, ${destination.y}).`);
+      if (actor.type === "player") {
+        log(`${actor.id} se deplace vers (${destination.x}, ${destination.y}).`);
+      }
       emit({
         kind: "move",
         actorId: actor.id,

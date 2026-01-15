@@ -15,3 +15,5 @@ Notes:
 - patterns can be mirrored or rotated at placement time.
 - Keep ids lowercase with hyphens.
 - wallAscii can define walls with "#" (wall) and "L" (low wall); wallDoors declares door edges.
+- floorPaint can auto-paint terrain inside wallAscii (mode: "interior").
+- allowedTerrains can restrict which base terrains a pattern can occupy.

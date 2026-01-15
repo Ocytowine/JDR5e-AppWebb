@@ -25,6 +25,40 @@ function scaleColor(color: number, factor: number): number {
   return (r << 16) | (g << 8) | b;
 }
 
+function drawWoodPlankTile(params: {
+  g: Graphics;
+  x: number;
+  y: number;
+  baseColor: number;
+  seedX: number;
+  seedY: number;
+}): void {
+  const { g, x, y, baseColor, seedX, seedY } = params;
+  const lineColor = scaleColor(baseColor, 0.72);
+  const highlightColor = scaleColor(baseColor, 1.08);
+  const horizontal = hash01(seedX, seedY) > 0.5;
+  const lines = 3;
+  const spacing = TILE_SIZE / (lines + 1);
+  for (let i = 1; i <= lines; i++) {
+    const jitter = (hash01(seedX + i * 11, seedY + i * 7) - 0.5) * 2;
+    const offset = Math.round(spacing * i + jitter * 1.2);
+    if (horizontal) {
+      const yPos = y + offset;
+      g.moveTo(x + 1, yPos);
+      g.lineTo(x + TILE_SIZE - 1, yPos);
+      g.stroke({ color: lineColor, alpha: 0.35, width: 1 });
+    } else {
+      const xPos = x + offset;
+      g.moveTo(xPos, y + 1);
+      g.lineTo(xPos, y + TILE_SIZE - 1);
+      g.stroke({ color: lineColor, alpha: 0.35, width: 1 });
+    }
+  }
+  const knotX = x + Math.round(TILE_SIZE * (0.25 + hash01(seedX + 3, seedY + 9) * 0.5));
+  const knotY = y + Math.round(TILE_SIZE * (0.25 + hash01(seedX + 5, seedY + 1) * 0.5));
+  g.circle(knotX, knotY, 1.3).fill({ color: highlightColor, alpha: 0.25 });
+}
+
 const TERRAIN_COLORS: Record<TerrainCell, { base: number; alt: number }> = {
   grass: { base: 0x2f6b2f, alt: 0x3a7a3a },
   dirt: { base: 0x6a4b2a, alt: 0x7a5a35 },
@@ -183,6 +217,16 @@ export function usePixiBoard(options: {
               color: tileColor,
               alpha: 1
             });
+            if (cellTerrain === "floor") {
+              drawWoodPlankTile({
+                g: gridLayer,
+                x,
+                y,
+                baseColor: tileColor,
+                seedX: gx,
+                seedY: gy
+              });
+            }
           }
         }
       };
