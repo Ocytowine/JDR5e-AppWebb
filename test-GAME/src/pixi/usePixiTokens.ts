@@ -6,6 +6,7 @@ import { LEVEL_HEIGHT_PX, TILE_SIZE, gridToScreenForGrid } from "../boardConfig"
 import { getHeightAtGrid } from "../game/map/draft";
 import { ENEMY_TOKEN_ID, PLAYER_TOKEN_ID } from "../svgTokenHelper";
 import { isTokenDead } from "../game/combatUtils";
+import { computeDepthValue } from "./depthUtils";
 
 export function usePixiTokens(options: {
   depthLayerRef: RefObject<Container | null>;
@@ -71,7 +72,11 @@ export function usePixiTokens(options: {
       const screenPos = gridToScreenForGrid(token.x, token.y, options.grid.cols, options.grid.rows);
       tokenContainer.x = screenPos.x + TILE_SIZE * 0.05;
       tokenContainer.y = screenPos.y - heightOffset;
-      tokenContainer.zIndex = screenPos.y - heightOffset + TILE_SIZE * 0.05;
+      tokenContainer.zIndex = computeDepthValue(
+        screenPos.y,
+        heightOffset,
+        TILE_SIZE * 0.05
+      );
       tokenContainer.label = "token";
 
       depthLayer.addChild(tokenContainer);

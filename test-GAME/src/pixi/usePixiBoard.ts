@@ -54,6 +54,7 @@ export function usePixiBoard(options: {
   depthLayerRef: RefObject<Container | null>;
   pathLayerRef: RefObject<Graphics | null>;
   speechLayerRef: RefObject<Container | null>;
+  labelLayerRef: RefObject<Container | null>;
   viewportRef: RefObject<{ scale: number; offsetX: number; offsetY: number } | null>;
   pixiReadyTick: number;
 } {
@@ -61,6 +62,7 @@ export function usePixiBoard(options: {
   const depthLayerRef = useRef<Container | null>(null);
   const pathLayerRef = useRef<Graphics | null>(null);
   const speechLayerRef = useRef<Container | null>(null);
+  const labelLayerRef = useRef<Container | null>(null);
   const viewportRef = useRef<{ scale: number; offsetX: number; offsetY: number } | null>(null);
   const [pixiReadyTick, setPixiReadyTick] = useState(0);
   const resizeRef = useRef<(() => void) | null>(null);
@@ -120,7 +122,9 @@ export function usePixiBoard(options: {
         width: getBoardWidth(gridRef.current.cols),
         height: getBoardHeight(gridRef.current.rows),
         background: backgroundColor,
-        antialias: true
+        antialias: true,
+        resolution: window.devicePixelRatio,
+        autoDensity: true
       });
 
       initialized = true;
@@ -215,6 +219,10 @@ export function usePixiBoard(options: {
       root.addChild(pathLayer);
       pathLayerRef.current = pathLayer;
 
+      const labelLayer = new Container();
+      root.addChild(labelLayer);
+      labelLayerRef.current = labelLayer;
+
       const depthLayer = new Container();
       depthLayer.sortableChildren = true;
       root.addChild(depthLayer);
@@ -278,6 +286,7 @@ export function usePixiBoard(options: {
       depthLayerRef.current = null;
       pathLayerRef.current = null;
       speechLayerRef.current = null;
+      labelLayerRef.current = null;
       viewportRef.current = null;
       resizeRef.current = null;
       drawGridRef.current = null;
@@ -298,6 +307,7 @@ export function usePixiBoard(options: {
     depthLayerRef,
     pathLayerRef,
     speechLayerRef,
+    labelLayerRef,
     viewportRef,
     pixiReadyTick
   };

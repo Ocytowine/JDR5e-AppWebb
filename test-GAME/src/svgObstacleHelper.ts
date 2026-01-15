@@ -1,4 +1,4 @@
-import { Assets } from "pixi.js";
+import { Assets, SCALE_MODES } from "pixi.js";
 
 const svgModules = import.meta.glob("../model/*.svg", {
   query: "?raw",
@@ -40,7 +40,13 @@ export async function preloadObstacleTextures(): Promise<void> {
   const assets = Object.entries(OBSTACLE_SVG_BY_KEY).map(([alias, svg]) => ({
     alias,
     src: svgToDataUrl(svg),
-    data: { scale: OBSTACLE_SVG_SCALE }
+    data: {
+      scale: OBSTACLE_SVG_SCALE,
+      autoGenerateMipmaps: true,
+      scaleMode: SCALE_MODES.LINEAR,
+      mipmapFilter: SCALE_MODES.LINEAR,
+      maxAnisotropy: 4
+    }
   }));
 
   obstacleTexturesPreloadPromise = (async () => {

@@ -3,11 +3,13 @@ import React from "react";
 export function EffectsPanel(props: {
   showVisionDebug: boolean;
   showLightOverlay: boolean;
+  showCellIds: boolean;
   onShowCircle: () => void;
   onShowRectangle: () => void;
   onShowCone: () => void;
   onToggleVisionDebug: () => void;
   onToggleLightOverlay: () => void;
+  onToggleCellIds: () => void;
   onClear: () => void;
 }): React.JSX.Element {
   return (
@@ -102,6 +104,21 @@ export function EffectsPanel(props: {
           }}
         >
           {props.showLightOverlay ? "Masquer lumiere" : "Afficher lumiere"}
+        </button>
+        <button
+          type="button"
+          onClick={props.onToggleCellIds}
+          style={{
+            padding: "4px 8px",
+            background: props.showCellIds ? "#8e44ad" : "#555",
+            color: "#fff",
+            border: "none",
+            borderRadius: 4,
+            cursor: "pointer",
+            fontSize: 12
+          }}
+        >
+          {props.showCellIds ? "Masquer IDs" : "Afficher IDs"}
         </button>
         <button
           type="button"

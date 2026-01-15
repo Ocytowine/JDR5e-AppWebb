@@ -4,6 +4,7 @@ import type { RefObject } from "react";
 import type { WallInstance, WallTypeDefinition } from "../game/wallTypes";
 import { getWallOccupiedCells } from "../game/wallRuntime";
 import { TILE_SIZE, gridToScreenBaseForGrid, gridToScreenForGrid } from "../boardConfig";
+import { computeDepthValue, maxScreenY } from "./depthUtils";
 
 function cellKey(x: number, y: number): string {
   return `${x},${y}`;
@@ -966,17 +967,14 @@ export function usePixiWalls(options: {
         };
         const pointKeys = new Set<string>(pts.map(p => cellKey(p.x, p.y)));
         const buildDepthY = (base: { x: number; y: number }[]) => {
-          let depthY = -Infinity;
-          for (const p of base) {
-            if (p.y > depthY) depthY = p.y;
-          }
-          if (!Number.isFinite(depthY)) {
-            depthY = Math.max(
+          const maxY = maxScreenY(base);
+          if (!Number.isFinite(maxY)) {
+            return Math.max(
               gridToScreenForGrid(a.x, a.y, options.grid.cols, options.grid.rows).y,
               gridToScreenForGrid(b.x, b.y, options.grid.cols, options.grid.rows).y
             );
           }
-          return depthY;
+          return maxY;
         };
         if (path.closed && offsetGrid.outer && offsetGrid.inner) {
           const outer = offsetGrid.outer.map(p =>
@@ -1057,8 +1055,17 @@ export function usePixiWalls(options: {
       }
     }
 
+    const segmentDepthWithBias = (segment: WallSegmentRender) =>
+      computeDepthValue(
+        segment.depthY,
+        wallHeight,
+        segment.cornerBias * WALL_CORNER_Z_BIAS
+      );
+
     wallSegments.sort((a, b) => {
-      if (a.depthY !== b.depthY) return a.depthY - b.depthY;
+      const depthA = segmentDepthWithBias(a);
+      const depthB = segmentDepthWithBias(b);
+      if (depthA !== depthB) return depthA - depthB;
       if (a.cornerBias !== b.cornerBias) return a.cornerBias - b.cornerBias;
       if (a.screenXMid !== b.screenXMid) return b.screenXMid - a.screenXMid;
       return a.start.y - b.start.y;
@@ -1215,7 +1222,7 @@ export function usePixiWalls(options: {
       outlineGraphics.zIndex = 1;
       segmentContainer.addChild(segmentGraphics);
       segmentContainer.addChild(outlineGraphics);
-      segmentContainer.zIndex = segment.depthY + segment.cornerBias * WALL_CORNER_Z_BIAS;
+      segmentContainer.zIndex = segmentDepthWithBias(segment);
       segmentContainer.label = "wall";
       depthLayer.addChild(segmentContainer);
     }
@@ -1301,7 +1308,7 @@ export function usePixiWalls(options: {
       });
       const faceDepthY = Math.max(a.y, b.y);
       const depthY = Math.max(faceDepthY, best.segmentDepthY);
-      mesh.zIndex = depthY + doorDepthBias;
+      mesh.zIndex = computeDepthValue(depthY, doorHeight, doorDepthBias);
       mesh.label = "wall-door";
       depthLayer.addChild(mesh);
     }
