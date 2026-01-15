@@ -4,11 +4,14 @@ export type WallState = "open" | "closed";
 
 export interface WallSegment {
   id: string;
+  typeId?: string;
   x: number;
   y: number;
   dir: WallDirection;
   kind: WallKind;
   state?: WallState;
+  hp?: number;
+  maxHp?: number;
 }
 
 export interface WallDoorSpec {

@@ -22,6 +22,7 @@ function placeCityPatterns(params: {
   draft: ReturnType<typeof createDraft>;
   rand: () => number;
   obstacleTypes: MapBuildContext["obstacleTypes"];
+  wallTypes: MapBuildContext["wallTypes"];
   cols: number;
   rows: number;
   anchorYs: number[];
@@ -29,7 +30,7 @@ function placeCityPatterns(params: {
   patterns: typeof CITY_PATTERNS;
   requestedPatterns: string[] | null;
 }): { count: number; ids: string[] } {
-  const { draft, rand, obstacleTypes, cols, rows, anchorYs, prompt, patterns, requestedPatterns } = params;
+  const { draft, rand, obstacleTypes, wallTypes, cols, rows, anchorYs, prompt, patterns, requestedPatterns } = params;
   if (patterns.length === 0) return { count: 0, ids: [] };
 
   let placed = 0;
@@ -60,7 +61,7 @@ function placeCityPatterns(params: {
       const anchorX = Math.floor(rand() * (maxAnchorX + 1));
       for (const anchorY of anchorYs) {
         if (anchorY < 0 || anchorY >= rows) continue;
-        const ok = placePattern({ draft, pattern, anchorX, anchorY, obstacleTypes, rand, transform });
+        const ok = placePattern({ draft, pattern, anchorX, anchorY, obstacleTypes, wallTypes, rand, transform });
         if (ok) {
           placed++;
           placedIds.push(pattern.id);
@@ -150,6 +151,7 @@ export function generateCityStreet(params: {
     draft,
     rand,
     obstacleTypes: ctx.obstacleTypes,
+    wallTypes: ctx.wallTypes,
     cols,
     rows,
     anchorYs: [topY2, botY2],

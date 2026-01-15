@@ -122,6 +122,16 @@ export function hasLineOfEffect(
     if (hasWalls) {
       const prev = cells[i - 1] ?? from;
       if (isEdgeBlockingVision(prev, c, from, wallVisionEdges!)) return false;
+      const dx = c.x - prev.x;
+      const dy = c.y - prev.y;
+      if (dx !== 0 && dy !== 0) {
+        const stepX = { x: prev.x + dx, y: prev.y };
+        const stepY = { x: prev.x, y: prev.y + dy };
+        if (isEdgeBlockingVision(prev, stepX, from, wallVisionEdges!)) return false;
+        if (isEdgeBlockingVision(prev, stepY, from, wallVisionEdges!)) return false;
+        if (isEdgeBlockingVision(stepX, c, from, wallVisionEdges!)) return false;
+        if (isEdgeBlockingVision(stepY, c, from, wallVisionEdges!)) return false;
+      }
     }
   }
   return true;
@@ -144,6 +154,16 @@ export function hasLineOfSight(
     if (hasWalls) {
       const prev = cells[i - 1] ?? from;
       if (isEdgeBlockingVision(prev, c, from, wallVisionEdges!)) return false;
+      const dx = c.x - prev.x;
+      const dy = c.y - prev.y;
+      if (dx !== 0 && dy !== 0) {
+        const stepX = { x: prev.x + dx, y: prev.y };
+        const stepY = { x: prev.x, y: prev.y + dy };
+        if (isEdgeBlockingVision(prev, stepX, from, wallVisionEdges!)) return false;
+        if (isEdgeBlockingVision(prev, stepY, from, wallVisionEdges!)) return false;
+        if (isEdgeBlockingVision(stepX, c, from, wallVisionEdges!)) return false;
+        if (isEdgeBlockingVision(stepY, c, from, wallVisionEdges!)) return false;
+      }
     }
   }
   return true;

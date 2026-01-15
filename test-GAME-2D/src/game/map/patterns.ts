@@ -5,6 +5,7 @@ import type {
   MapPatternRotation
 } from "../mapPatternCatalog";
 import type { ObstacleTypeDefinition } from "../obstacleTypes";
+import type { WallTypeDefinition } from "../wallTypes";
 import { getObstacleOccupiedCells } from "../obstacleRuntime";
 import type { MapDraft } from "./draft";
 import {
@@ -15,12 +16,35 @@ import {
   tryPlaceDecor,
   tryPlaceObstacle
 } from "./draft";
-import { buildSegmentsFromAscii } from "./walls/ascii";
+import { buildSegmentsFromAscii, buildWallCellsFromAscii } from "./walls/ascii";
+import { wallEdgeKeyForSegment } from "./walls/grid";
+import { resolveWallMaxHp } from "./walls/durability";
 
 export interface PatternTransform {
   rotation?: MapPatternRotation;
   mirrorX?: boolean;
   mirrorY?: boolean;
+}
+
+function pickWallTypeForKind(kind: "wall" | "low" | "door", wallTypes?: WallTypeDefinition[]): WallTypeDefinition | null {
+  if (!wallTypes || wallTypes.length === 0) return null;
+  if (kind === "door") {
+    return (
+      wallTypes.find(t => (t.tags ?? []).some(tag => String(tag).toLowerCase() === "door")) ??
+      wallTypes.find(t => t.behavior?.kind === "door") ??
+      wallTypes[0] ??
+      null
+    );
+  }
+  if (kind === "low") {
+    return (
+      wallTypes.find(t => (t.tags ?? []).some(tag => String(tag).toLowerCase() === "low")) ??
+      wallTypes.find(t => String(t.appearance?.heightClass ?? "").toLowerCase() === "low") ??
+      wallTypes[0] ??
+      null
+    );
+  }
+  return wallTypes.find(t => t.category === "wall") ?? wallTypes[0] ?? null;
 }
 
 function normalizePrompt(input: string): string {
@@ -281,11 +305,12 @@ export function placePattern(params: {
   anchorX: number;
   anchorY: number;
   obstacleTypes: ObstacleTypeDefinition[];
+  wallTypes?: WallTypeDefinition[];
   rand?: () => number;
   anchorOverride?: MapPatternAnchor;
   transform?: PatternTransform;
 }): boolean {
-  const { draft, pattern, anchorX, anchorY, obstacleTypes, rand, anchorOverride, transform } = params;
+  const { draft, pattern, anchorX, anchorY, obstacleTypes, rand, anchorOverride, transform, wallTypes } = params;
   const baseElements = pickElements(pattern, rand);
   const { elements, size } = applyTransformToElements({
     pattern,
@@ -353,8 +378,28 @@ export function placePattern(params: {
       doors: pattern.wallDoors ?? [],
       nextId: draft.nextWallId
     });
-    for (const seg of segments) {
-      draft.wallSegments.push(seg);
+      for (const seg of segments) {
+        const type = pickWallTypeForKind(seg.kind, wallTypes);
+        const maxHp = resolveWallMaxHp(type);
+        if (type) seg.typeId = type.id;
+        if (maxHp !== null) {
+          seg.maxHp = maxHp;
+          seg.hp = maxHp;
+        }
+        draft.wallSegments.push(seg);
+        draft.wallSegmentKeys.add(wallEdgeKeyForSegment(seg));
+      }
+
+    const wallCells = buildWallCellsFromAscii({
+      ascii: pattern.wallAscii,
+      originX,
+      originY,
+      rotation: transform?.rotation ?? 0
+    });
+    for (const cell of wallCells) {
+      const k = key(cell.x, cell.y);
+      draft.occupied.add(k);
+      draft.movementBlocked.add(k);
     }
   }
 
@@ -367,6 +412,7 @@ export function placePatternAtOrigin(params: {
   originX: number;
   originY: number;
   obstacleTypes: ObstacleTypeDefinition[];
+  wallTypes?: WallTypeDefinition[];
   rand?: () => number;
   anchorOverride?: MapPatternAnchor;
   transform?: PatternTransform;
@@ -382,6 +428,7 @@ export function placePatternAtOrigin(params: {
     draft,
     pattern,
     obstacleTypes,
+    wallTypes: params.wallTypes,
     rand,
     anchorOverride,
     transform,

@@ -100,7 +100,9 @@ export function isCellVisible(
       continue;
     }
     if (key(c) === cellKey) {
-      if (opaqueCells && opaqueCells.size > 0) {
+      const hasOpaque = Boolean(opaqueCells && opaqueCells.size > 0);
+      const hasWalls = Boolean(wallVisionEdges && wallVisionEdges.size > 0);
+      if (hasOpaque || hasWalls) {
         return hasLineOfSight(
           { x: observer.x, y: observer.y },
           { x: cell.x, y: cell.y },
@@ -144,7 +146,9 @@ export function getEntitiesInVision(
       ? candidates.filter(t => playableCells.has(key({ x: t.x, y: t.y })))
       : candidates;
 
-  if (!opaqueCells || opaqueCells.size === 0) return filteredByPlayable;
+  const hasOpaque = Boolean(opaqueCells && opaqueCells.size > 0);
+  const hasWalls = Boolean(wallVisionEdges && wallVisionEdges.size > 0);
+  if (!hasOpaque && !hasWalls) return filteredByPlayable;
 
   return filteredByPlayable.filter(t =>
     hasLineOfSight(

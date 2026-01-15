@@ -183,7 +183,6 @@ export interface MapBuildResult {
   enemySpawns: { enemyType: EnemyTypeDefinition; position: GridPosition }[];
   playableCells: string[];
   obstacles: import("../obstacleTypes").ObstacleInstance[];
-  walls: import("../wallTypes").WallInstance[];
   wallSegments: WallSegment[];
   terrain: TerrainCell[];
   height: number[];

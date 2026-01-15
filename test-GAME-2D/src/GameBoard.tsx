@@ -39,14 +39,13 @@ import ghostType from "../enemy-types/ghost.json";
 import { loadObstacleTypesFromIndex } from "./game/obstacleCatalog";
 import { loadWallTypesFromIndex } from "./game/wallCatalog";
 import type { ObstacleInstance, ObstacleTypeDefinition } from "./game/obstacleTypes";
-import type { WallInstance, WallTypeDefinition } from "./game/wallTypes";
+import type { WallTypeDefinition } from "./game/wallTypes";
 import { generateBattleMap } from "./game/mapEngine";
 import { getHeightAtGrid, type TerrainCell } from "./game/map/draft";
 import type { DecorInstance } from "./game/decorTypes";
 import type { ManualMapConfig, MapTheme } from "./game/map/types";
 import { MANUAL_MAP_PRESETS, getManualPresetById } from "./game/map/presets";
 import { buildObstacleBlockingSets, getObstacleOccupiedCells } from "./game/obstacleRuntime";
-import { buildWallBlockingSets, getWallOccupiedCells } from "./game/wallRuntime";
 import actionsIndex from "../action-game/actions/index.json";
 import meleeStrike from "../action-game/actions/melee-strike.json";
 import dashAction from "../action-game/actions/dash.json";
@@ -105,6 +104,8 @@ import {
   buildWallEdgeSets,
   computeClosedCells
 } from "./game/map/walls/runtime";
+import { getAdjacentCellsForEdge } from "./game/map/walls/grid";
+import { isWallDestructible } from "./game/map/walls/durability";
 import {
   usePixiBoard,
   usePixiDecorations,
@@ -323,7 +324,6 @@ export const GameBoard: React.FC = () => {
   const [obstacleTypes, setObstacleTypes] = useState<ObstacleTypeDefinition[]>([]);
   const [obstacles, setObstacles] = useState<ObstacleInstance[]>([]);
   const [wallTypes, setWallTypes] = useState<WallTypeDefinition[]>([]);
-  const [walls, setWalls] = useState<WallInstance[]>([]);
   const [wallSegments, setWallSegments] = useState<WallSegment[]>([]);
   const [decorations, setDecorations] = useState<DecorInstance[]>([]);
   const [playableCells, setPlayableCells] = useState<Set<string> | null>(null);
@@ -811,32 +811,32 @@ export const GameBoard: React.FC = () => {
     return null;
   }
 
-  function findWallAtCell(
+  function findWallSegmentAtCell(
     x: number,
     y: number
-  ): { instance: WallInstance; def: WallTypeDefinition | null } | null {
+  ): { segment: WallSegment; def: WallTypeDefinition | null } | null {
     if (getBaseHeightAt(x, y) !== activeLevel) return null;
-    for (const wall of walls) {
-      if (wall.hp <= 0) continue;
-      const def = wallTypeById.get(wall.typeId) ?? null;
-      const cells = getWallOccupiedCells(wall, def);
-      if (cells.some(c => c.x === x && c.y === y)) {
-        return { instance: wall, def };
+    for (const seg of wallSegments) {
+      if (typeof seg.hp === "number" && seg.hp <= 0) continue;
+      const cells = getAdjacentCellsForEdge(seg);
+      if ((cells.a.x === x && cells.a.y === y) || (cells.b.x === x && cells.b.y === y)) {
+        const def = seg.typeId ? wallTypeById.get(seg.typeId) ?? null : null;
+        return { segment: seg, def };
       }
     }
     return null;
   }
 
-  function findWallAtCellAnyLevel(
+  function findWallSegmentAtCellAnyLevel(
     x: number,
     y: number
-  ): { instance: WallInstance; def: WallTypeDefinition | null } | null {
-    for (const wall of walls) {
-      if (wall.hp <= 0) continue;
-      const def = wallTypeById.get(wall.typeId) ?? null;
-      const cells = getWallOccupiedCells(wall, def);
-      if (cells.some(c => c.x === x && c.y === y)) {
-        return { instance: wall, def };
+  ): { segment: WallSegment; def: WallTypeDefinition | null } | null {
+    for (const seg of wallSegments) {
+      if (typeof seg.hp === "number" && seg.hp <= 0) continue;
+      const cells = getAdjacentCellsForEdge(seg);
+      if ((cells.a.x === x && cells.a.y === y) || (cells.b.x === x && cells.b.y === y)) {
+        const def = seg.typeId ? wallTypeById.get(seg.typeId) ?? null : null;
+        return { segment: seg, def };
       }
     }
     return null;
@@ -857,19 +857,11 @@ export const GameBoard: React.FC = () => {
     return Number.isFinite(best) ? best : Math.abs(from.x - targetCell.x) + Math.abs(from.y - targetCell.y);
   }
 
-  function getWallDistance(
-    from: { x: number; y: number },
-    wall: WallInstance,
-    def: WallTypeDefinition | null,
-    targetCell: { x: number; y: number }
-  ): number {
-    const cells = def ? getWallOccupiedCells(wall, def) : [targetCell];
-    let best = Number.POSITIVE_INFINITY;
-    for (const cell of cells) {
-      const dist = Math.abs(from.x - cell.x) + Math.abs(from.y - cell.y);
-      if (dist < best) best = dist;
-    }
-    return Number.isFinite(best) ? best : Math.abs(from.x - targetCell.x) + Math.abs(from.y - targetCell.y);
+  function getWallSegmentDistance(from: { x: number; y: number }, segment: WallSegment): number {
+    const cells = getAdjacentCellsForEdge(segment);
+    const distA = Math.abs(from.x - cells.a.x) + Math.abs(from.y - cells.a.y);
+    const distB = Math.abs(from.x - cells.b.x) + Math.abs(from.y - cells.b.y);
+    return Math.min(distA, distB);
   }
 
   function getSelectedTargetLabel(): string | null {
@@ -881,9 +873,9 @@ export const GameBoard: React.FC = () => {
       return def?.label ?? obstacle.typeId ?? "obstacle";
     }
     if (selectedWallTarget) {
-      const wall = walls.find(w => w.id === selectedWallTarget.id) ?? null;
+      const wall = wallSegments.find(w => w.id === selectedWallTarget.id) ?? null;
       if (!wall) return "mur";
-      const def = wallTypeById.get(wall.typeId) ?? null;
+      const def = wall.typeId ? wallTypeById.get(wall.typeId) ?? null : null;
       return def?.label ?? wall.typeId ?? "mur";
     }
     return null;
@@ -1087,7 +1079,6 @@ export const GameBoard: React.FC = () => {
     }));
 
     setObstacles(map.obstacles);
-    setWalls(map.walls);
     setWallSegments(Array.isArray(map.wallSegments) ? map.wallSegments : []);
     setPlayableCells(new Set(map.playableCells ?? []));
     setMapTerrain(Array.isArray(map.terrain) ? map.terrain : []);
@@ -1200,13 +1191,13 @@ export const GameBoard: React.FC = () => {
   }
 
   function pushLog(message: string) {
-    setLog(prev => [message, ...prev].slice(0, 12));
+    setLog(prev => [message, ...prev]);
   }
 
   function pushLogBatch(messages: string[]) {
     const trimmed = messages.filter(Boolean);
     if (!trimmed.length) return;
-    setLog(prev => [...trimmed, ...prev].slice(0, 12));
+    setLog(prev => [...trimmed, ...prev]);
   }
 
   function pushNarrative(message: string) {
@@ -1656,13 +1647,13 @@ export const GameBoard: React.FC = () => {
     return { ok: true };
   }
 
-  function validateWallTargetForAction(
+  function validateWallSegmentTargetForAction(
     action: ActionDefinition,
-    wall: WallInstance,
+    segment: WallSegment,
     targetCell: { x: number; y: number },
     actor: TokenState
   ): { ok: boolean; reason?: string } {
-    if (wall.hp <= 0) {
+    if (typeof segment.hp === "number" && segment.hp <= 0) {
       return { ok: false, reason: "Le mur est deja detruit." };
     }
 
@@ -1674,12 +1665,12 @@ export const GameBoard: React.FC = () => {
       };
     }
 
-    const def = wallTypeById.get(wall.typeId) ?? null;
-    if (def?.durability?.destructible === false) {
+    const def = segment.typeId ? wallTypeById.get(segment.typeId) ?? null : null;
+    if (!isWallDestructible(def)) {
       return { ok: false, reason: "Ce mur est indestructible." };
     }
 
-    const dist = getWallDistance(actor, wall, def, targetCell);
+    const dist = getWallSegmentDistance(actor, segment);
     const range = targeting.range;
 
     if (range) {
@@ -1733,7 +1724,7 @@ export const GameBoard: React.FC = () => {
           };
         }
       }
-      if (cond.type === "target_alive" && wall.hp <= 0) {
+      if (cond.type === "target_alive" && typeof segment.hp === "number" && segment.hp <= 0) {
         return {
           ok: false,
           reason: cond.reason || "La cible doit avoir des PV restants."
@@ -1773,7 +1764,7 @@ export const GameBoard: React.FC = () => {
     return { ok: true };
   }
 
-  function computeActionAvailability(action: ActionDefinition): ActionAvailability {
+    function computeActionAvailability(action: ActionDefinition): ActionAvailability {
     const reasons: string[] = [];
     const details: string[] = [];
 
@@ -2135,12 +2126,16 @@ export const GameBoard: React.FC = () => {
           typeof def?.durability?.ac === "number" ? def.durability.ac : null;
         targetLabel = def?.label ?? obstacle.typeId ?? "obstacle";
       } else if (selectedWallTarget) {
-        const wall = walls.find(w => w.id === selectedWallTarget.id) ?? null;
-        if (!wall || wall.hp <= 0) {
+        const wall = wallSegments.find(w => w.id === selectedWallTarget.id) ?? null;
+        if (!wall || (typeof wall.hp === "number" && wall.hp <= 0)) {
           pushLog("Mur introuvable ou deja detruit.");
           return;
         }
-        const def = wallTypeById.get(wall.typeId) ?? null;
+        const def = wall.typeId ? wallTypeById.get(wall.typeId) ?? null : null;
+        if (!isWallDestructible(def)) {
+          pushLog("Ce mur est indestructible.");
+          return;
+        }
         targetArmorClass =
           typeof def?.durability?.ac === "number" ? def.durability.ac : null;
         targetLabel = def?.label ?? wall.typeId ?? "mur";
@@ -2209,7 +2204,6 @@ export const GameBoard: React.FC = () => {
     let targetArmorClass: number | null = null;
     let targetLabel: string | null = null;
     let obstacleTarget: ObstacleInstance | null = null;
-    let wallTarget: WallInstance | null = null;
     if (action.targeting?.target === "enemy") {
       if (selectedTargetId) {
         targetIndex = enemies.findIndex(e => e.id === selectedTargetId);
@@ -2233,19 +2227,19 @@ export const GameBoard: React.FC = () => {
           typeof def?.durability?.ac === "number" ? def.durability.ac : null;
         targetLabel = def?.label ?? obstacleTarget.typeId ?? "obstacle";
       } else if (selectedWallTarget) {
-        wallTarget = walls.find(w => w.id === selectedWallTarget.id) ?? null;
-        if (!wallTarget || wallTarget.hp <= 0) {
+        const wall = wallSegments.find(w => w.id === selectedWallTarget.id) ?? null;
+        if (!wall || (typeof wall.hp === "number" && wall.hp <= 0)) {
           pushLog("Mur introuvable ou deja detruit.");
           return;
         }
-        const def = wallTypeById.get(wallTarget.typeId) ?? null;
-        if (def?.durability?.destructible === false) {
+        const def = wall.typeId ? wallTypeById.get(wall.typeId) ?? null : null;
+        if (!isWallDestructible(def)) {
           pushLog("Ce mur est indestructible.");
           return;
         }
         targetArmorClass =
           typeof def?.durability?.ac === "number" ? def.durability.ac : null;
-        targetLabel = def?.label ?? wallTarget.typeId ?? "mur";
+        targetLabel = def?.label ?? wall.typeId ?? "mur";
       } else {
         pushLog(
           "Aucune cible selectionnee pour cette action. Selectionnez une cible avant le jet de degats."
@@ -2407,21 +2401,25 @@ export const GameBoard: React.FC = () => {
 
           return copy;
         });
-      } else if (wallTarget && selectedWallTarget) {
-        const targetId = wallTarget.id;
-        const def = wallTypeById.get(wallTarget.typeId) ?? null;
-        const label = def?.label ?? wallTarget.typeId ?? "mur";
-        if (def?.durability?.destructible === false) {
+      } else if (selectedWallTarget) {
+        const wall = wallSegments.find(w => w.id === selectedWallTarget.id) ?? null;
+        if (!wall) return;
+        const def = wall.typeId ? wallTypeById.get(wall.typeId) ?? null : null;
+        if (!isWallDestructible(def)) {
           pushLog("Ce mur est indestructible.");
           return;
         }
-        setWalls(prev => {
-          const idx = prev.findIndex(w => w.id === targetId);
+        const label = def?.label ?? wall.typeId ?? "mur";
+        setWallSegments(prev => {
+          const idx = prev.findIndex(w => w.id === wall.id);
           if (idx === -1) return prev;
           const copy = [...prev];
           const target = { ...copy[idx] };
-          const beforeHp = target.hp;
-          target.hp = Math.max(0, target.hp - totalDamage);
+          const beforeHp = typeof target.hp === "number" ? target.hp : 0;
+          const maxHp = typeof target.maxHp === "number" ? target.maxHp : beforeHp;
+          const nextHp = Math.max(0, beforeHp - totalDamage);
+          target.hp = nextHp;
+          target.maxHp = maxHp;
           copy[idx] = target;
 
           recordCombatEvent({
@@ -2430,38 +2428,38 @@ export const GameBoard: React.FC = () => {
             kind: "player_attack",
             actorId: player.id,
             actorKind: "player",
-            summary: `Le heros frappe ${label} et inflige ${totalDamage} degats (PV ${beforeHp} -> ${target.hp}).`,
+            summary: `Le heros frappe ${label} et inflige ${totalDamage} degats (PV ${beforeHp} -> ${nextHp}).`,
             data: {
               actionId: action.id,
               damage: totalDamage,
               isCrit,
               targetHpBefore: beforeHp,
-              targetHpAfter: target.hp,
-              wallId: targetId,
-              wallTypeId: target.typeId
+              targetHpAfter: nextHp,
+              wallId: target.id,
+              wallTypeId: target.typeId ?? null
             }
           });
 
-          if (target.hp <= 0 && beforeHp > 0) {
+          if (nextHp <= 0 && beforeHp > 0) {
             recordCombatEvent({
               round,
               phase,
               kind: "death",
-              actorId: targetId,
+              actorId: target.id,
               actorKind: "player",
               summary: `${label} est detruit.`,
               data: {
                 destroyedBy: player.id,
-                wallId: targetId,
-                wallTypeId: target.typeId
+                wallId: target.id,
+                wallTypeId: target.typeId ?? null
               }
             });
           }
 
-          return copy;
+          return copy.filter(w => w.hp === undefined || w.hp > 0);
         });
       }
-  }
+    }
 
   function handleAutoResolveRolls() {
     const action = getValidatedAction();
@@ -2574,11 +2572,11 @@ export const GameBoard: React.FC = () => {
         return;
       }
 
-      const wallHit = findWallAtCell(targetX, targetY);
+      const wallHit = findWallSegmentAtCell(targetX, targetY);
       if (wallHit) {
-        const validation = validateWallTargetForAction(
+        const validation = validateWallSegmentTargetForAction(
           action,
-          wallHit.instance,
+          wallHit.segment,
           { x: targetX, y: targetY },
           player
         );
@@ -2587,10 +2585,10 @@ export const GameBoard: React.FC = () => {
           return;
         }
 
-        const label = wallHit.def?.label ?? wallHit.instance.typeId ?? "mur";
+        const label = wallHit.def?.label ?? wallHit.segment.typeId ?? "mur";
         setSelectedTargetId(null);
         setSelectedObstacleTarget(null);
-        setSelectedWallTarget({ id: wallHit.instance.id, x: targetX, y: targetY });
+        setSelectedWallTarget({ id: wallHit.segment.id, x: targetX, y: targetY });
         setTargetMode("none");
         pushLog(`Cible selectionnee: ${label}.`);
         return;
@@ -2634,12 +2632,15 @@ export const GameBoard: React.FC = () => {
           setInteractionMode("idle");
           return;
         }
-        const wallHit = findWallAtCellAnyLevel(targetX, targetY);
+        const wallHit = findWallSegmentAtCellAnyLevel(targetX, targetY);
         if (wallHit) {
-          const name = wallHit.def?.label ?? wallHit.instance.typeId ?? "mur";
-          const text = `Inspection (${targetX},${targetY}) : ${name}\nEtat: PV ${wallHit.instance.hp}/${wallHit.instance.maxHp}`;
+          const name = wallHit.def?.label ?? wallHit.segment.typeId ?? "mur";
+          const hp = typeof wallHit.segment.hp === "number" ? wallHit.segment.hp : null;
+          const maxHp = typeof wallHit.segment.maxHp === "number" ? wallHit.segment.maxHp : null;
+          const status = hp !== null && maxHp !== null ? `PV ${hp}/${maxHp}` : "indestructible";
+          const text = `Inspection (${targetX},${targetY}) : ${name}\nEtat: ${status}`;
           pushLog(
-            `Inspection: mur (${name}) -> etat: PV ${wallHit.instance.hp}/${wallHit.instance.maxHp}.`
+            `Inspection: mur (${name}) -> etat: ${status}.`
           );
           setPlayerBubble(text);
           setInteractionMode("idle");

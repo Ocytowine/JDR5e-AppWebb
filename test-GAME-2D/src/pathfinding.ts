@@ -238,6 +238,23 @@ export function computePathTowards(
           options.activeLevel ?? null
         );
         if (!sideAOk || !sideBOk) continue;
+        if (options.wallEdges) {
+          const stepX = { x: current.x + dir.x, y: current.y };
+          const stepY = { x: current.x, y: current.y + dir.y };
+          const diagonal = { x: nx, y: ny };
+          if (isEdgeBlockedForMovement(current, stepX, options.wallEdges)) {
+            continue;
+          }
+          if (isEdgeBlockedForMovement(current, stepY, options.wallEdges)) {
+            continue;
+          }
+          if (isEdgeBlockedForMovement(stepX, diagonal, options.wallEdges)) {
+            continue;
+          }
+          if (isEdgeBlockedForMovement(stepY, diagonal, options.wallEdges)) {
+            continue;
+          }
+        }
       }
 
       visited.add(key);

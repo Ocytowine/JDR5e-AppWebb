@@ -7,13 +7,16 @@ import {
   setLight,
   setTerrain,
   tryPlaceObstacle,
-  tryPlaceWall,
+  tryPlaceWallSegment,
   key,
   scatterTerrainPatches
 } from "../draft";
 import { pickVariantIdForPlacement, weightedTypesForContext } from "../obstacleSelector";
 import { findWallType } from "../wallSelector";
 import { pickWeighted, randomIntInclusive } from "../random";
+import { resolveWallKindFromType } from "../walls/kind";
+import { resolveWallMaxHp } from "../walls/durability";
+import type { WallDirection, WallKind } from "../walls/types";
 
 function pickDungeonDefaults(ctx: MapBuildContext) {
   const wallType =
@@ -68,6 +71,41 @@ function groupBoundaryBySide(rect: { x1: number; y1: number; x2: number; y2: num
   }
 
   return { north, south, west, east };
+}
+
+function placeBoundaryEdges(params: {
+  draft: ReturnType<typeof createDraft>;
+  boundaryBySide: Record<EntranceSide, GridPosition[]>;
+  wallType: ReturnType<typeof pickDungeonDefaults>["wallType"];
+  wallDoorType: ReturnType<typeof pickDungeonDefaults>["wallDoorType"];
+  openingKeys: Set<string>;
+}): number {
+  const { draft, boundaryBySide, wallType, wallDoorType, openingKeys } = params;
+  if (!wallType) return 0;
+  const baseKind = resolveWallKindFromType(wallType);
+  const doorKind: WallKind = wallDoorType ? resolveWallKindFromType(wallDoorType) : "door";
+  const baseMaxHp = resolveWallMaxHp(wallType);
+  const doorMaxHp = resolveWallMaxHp(wallDoorType);
+
+  const placeSide = (cells: GridPosition[], dir: WallDirection) => {
+    let placed = 0;
+    for (const cell of cells) {
+      const isOpening = openingKeys.has(key(cell.x, cell.y));
+      const kind = isOpening ? doorKind : baseKind;
+      const state = isOpening ? "open" : undefined;
+      const typeId = isOpening ? wallDoorType?.id : wallType.id;
+      const maxHp = isOpening ? doorMaxHp : baseMaxHp;
+      if (tryPlaceWallSegment({ draft, x: cell.x, y: cell.y, dir, kind, state, typeId, maxHp: maxHp ?? undefined, allowOnReserved: true })) placed++;
+    }
+    return placed;
+  };
+
+  return (
+    placeSide(boundaryBySide.north, "N") +
+    placeSide(boundaryBySide.south, "S") +
+    placeSide(boundaryBySide.west, "W") +
+    placeSide(boundaryBySide.east, "E")
+  );
 }
 
 function chooseOpenings(params: { boundary: GridPosition[]; count: number; rand: () => number }): GridPosition[] {
@@ -242,32 +280,14 @@ export function generateDungeonSquareRoom(params: {
 
   // Murs sur la bordure (variant 1x1 privilégié pour la continuité).
   if (wallType && dSpec.borderWalls) {
-    const smallestVariant =
-      (wallType.variants ?? [])
-        .map(v => ({
-          id: v.id,
-          len: Array.isArray(v.footprint) ? v.footprint.length : 1
-        }))
-        .sort((a, b) => a.len - b.len)[0]?.id ?? (wallType.variants?.[0]?.id ?? "1");
-
-    let placedWalls = 0;
-    for (const cell of boundaryCells) {
-      const isOpening = openingKeys.has(key(cell.x, cell.y));
-      const typeForCell = isOpening && wallDoorType ? wallDoorType : wallType;
-      const state = isOpening ? "open" : "closed";
-      const ok = tryPlaceWall({
-        draft,
-        type: typeForCell,
-        x: cell.x,
-        y: cell.y,
-        variantId: smallestVariant,
-        rotation: 0,
-        state,
-        allowOnReserved: true
-      });
-      if (ok) placedWalls++;
-    }
-    draft.log.push(`Murs: ${placedWalls} segments (avec ${openings.length} accès).`);
+    const placedWalls = placeBoundaryEdges({
+      draft,
+      boundaryBySide,
+      wallType,
+      wallDoorType,
+      openingKeys
+    });
+    draft.log.push(`Murs: ${placedWalls} segments (avec ${openings.length} acces).`);
   } else {
     draft.log.push("Murs: aucun type de mur disponible.");
   }

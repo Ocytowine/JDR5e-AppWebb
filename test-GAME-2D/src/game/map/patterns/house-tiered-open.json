@@ -18,11 +18,14 @@
     "avoidBorder": { "top": 1, "bottom": 1, "left": 1, "right": 1 }
   },
   "wallAscii": [
-    "LLLLLL",
-    "L    L",
-    "L    L",
-    "L    L",
-    "LL LLL"
+    "######",
+    "#    #",
+    "#    #",
+    "#    #",
+    "######"
+  ],
+  "wallDoors": [
+    { "x": 3, "y": 4, "dir": "S", "state": "open" }
   ],
   "elements": [
     { "type": "tile", "x": 1, "y": 1, "height": 1, "terrain": "stone" },
