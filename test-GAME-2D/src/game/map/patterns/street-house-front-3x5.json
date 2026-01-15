@@ -1,0 +1,21 @@
+{
+  "id": "street_house_front_3x5",
+  "label": "Facade maison 3x5",
+  "theme": "city",
+  "tags": ["house", "street", "wall"],
+  "footprint": { "w": 5, "h": 3 },
+  "anchor": "bottomLeft",
+  "constraints": {
+    "needsClearArea": true,
+    "avoidBorder": { "top": 0, "left": 0, "right": 0, "bottom": 0 }
+  },
+  "elements": [],
+  "wallAscii": [
+    "     ",
+    "     ",
+    "#####"
+  ],
+  "wallDoors": [
+    { "x": 2, "y": 2, "dir": "S", "state": "closed" }
+  ]
+}
