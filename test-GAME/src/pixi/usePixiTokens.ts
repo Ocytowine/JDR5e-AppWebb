@@ -16,6 +16,8 @@ export function usePixiTokens(options: {
   grid: { cols: number; rows: number };
   heightMap: number[];
   activeLevel: number;
+  visibleCells?: Set<string> | null;
+  showAllLevels?: boolean;
 }): void {
   useEffect(() => {
     const depthLayer = options.depthLayerRef.current;
@@ -29,6 +31,7 @@ export function usePixiTokens(options: {
     }
 
     const allTokens: TokenState[] = [options.player, ...options.enemies];
+    const cellKey = (x: number, y: number) => `${x},${y}`;
     for (const token of allTokens) {
       const baseHeight = getHeightAtGrid(
         options.heightMap,
@@ -37,7 +40,12 @@ export function usePixiTokens(options: {
         token.x,
         token.y
       );
-      if (baseHeight !== options.activeLevel) continue;
+      const key = cellKey(token.x, token.y);
+      const isVisible =
+        options.showAllLevels ||
+        token.type === "player" ||
+        (options.visibleCells?.has(key) ?? false);
+      if (!isVisible) continue;
       const elevation = Number.isFinite(token.elevation) ? token.elevation ?? 0 : 0;
       const heightOffset = (baseHeight + elevation) * LEVEL_HEIGHT_PX;
 
@@ -88,7 +96,9 @@ export function usePixiTokens(options: {
     options.pixiReadyTick,
     options.grid,
     options.heightMap,
-    options.activeLevel
+    options.activeLevel,
+    options.visibleCells,
+    options.showAllLevels
   ]);
 }
 

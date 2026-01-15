@@ -1,5 +1,0 @@
-note des choses à corriger :
-- une action est décompté que si elle est accomplie jusqu'au bout (meme si l'action rate (jet de touche) elle est considéré comme décompté)
-- une somme de déplacement est valable par tour de jeu (actuellemnt, revient à 0 a chaque fin déplacment)
-- les ennemie ne savent pas tourné la tête, donc il ont tendance à ne pas voir efficacement la cible. il faut revoir leur faculté.
--il faut forcer l'ia à modifier les ennemie au chargement, qu'il puisse les personliser.

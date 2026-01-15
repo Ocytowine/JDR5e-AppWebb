@@ -13,6 +13,8 @@ export function usePixiDecorations(options: {
   grid: { cols: number; rows: number };
   heightMap: number[];
   activeLevel: number;
+  visibleCells?: Set<string> | null;
+  showAllLevels?: boolean;
 }): void {
   useEffect(() => {
     const depthLayer = options.depthLayerRef.current;
@@ -25,6 +27,7 @@ export function usePixiDecorations(options: {
       }
     }
 
+    const cellKey = (x: number, y: number) => `${x},${y}`;
     for (const decor of options.decorations) {
       const cellHeight = getHeightAtGrid(
         options.heightMap,
@@ -33,7 +36,10 @@ export function usePixiDecorations(options: {
         decor.x,
         decor.y
       );
-      if (cellHeight !== options.activeLevel) continue;
+      const shouldRender =
+        options.showAllLevels ||
+        (options.visibleCells?.has(cellKey(decor.x, decor.y)) ?? false);
+      if (!shouldRender) continue;
       const heightOffset = cellHeight * LEVEL_HEIGHT_PX;
       const texture = Assets.get(decor.spriteKey);
       if (!texture || !(texture instanceof Texture)) continue;
@@ -70,6 +76,8 @@ export function usePixiDecorations(options: {
     options.pixiReadyTick,
     options.grid,
     options.heightMap,
-    options.activeLevel
+    options.activeLevel,
+    options.visibleCells,
+    options.showAllLevels
   ]);
 }

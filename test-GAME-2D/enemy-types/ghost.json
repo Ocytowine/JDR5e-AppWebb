@@ -1,0 +1,35 @@
+{
+  "id": "ghost",
+  "label": "Fantome",
+  "description": "Esprit intangible capable de traverser les autres creatures.",
+  "aiRole": "ghost",
+  "actions": ["enemy-move", "enemy-melee-strike"],
+  "behavior": { "preferredRangeMin": 1, "preferredRangeMax": 1, "panicRange": 0 },
+  "speechProfile": {
+    "raceOrOrigin": "Esprit vengeur",
+    "register": "soutenu",
+    "tone": ["cryptique", "mena??ant", "surnaturel"],
+    "vocabulary": ["je te sens", "au-dela", "froideur", "souffle"],
+    "quirks": ["parle en images", "phrases etranges mais courtes"],
+    "taboos": ["pas de modernisme", "pas de meta-jeu"]
+  },
+  "baseStats": {
+    "hp": 8,
+    "moveRange": 4,
+    "attackDamage": 3,
+    "armorClass": 12
+  },
+  "movement": {
+    "type": "ghost",
+    "speed": 4,
+    "canPassThroughWalls": true,
+    "canPassThroughEntities": true,
+    "canStopOnOccupiedTile": false
+  },
+  "vision": {
+    "shape": "circle",
+    "range": 100,
+    "canSeeInDark": true
+  }
+}
+

@@ -1,0 +1,44 @@
+{
+  "id": "house-tiered-closed",
+  "label": "Maison etage clos",
+  "theme": "city",
+  "tags": [
+    "maison",
+    "etage",
+    "ferme",
+    "clos",
+    "interieur",
+    "toit",
+    "house"
+  ],
+  "footprint": { "w": 6, "h": 5 },
+  "anchor": "bottomLeft",
+  "constraints": {
+    "needsClearArea": true,
+    "avoidBorder": { "top": 1, "bottom": 1, "left": 1, "right": 1 }
+  },
+  "wallAscii": [
+    "######",
+    "#    #",
+    "#    #",
+    "#    #",
+    "######"
+  ],
+  "wallDoors": [
+    { "x": 2, "y": 4, "dir": "S", "state": "closed" }
+  ],
+  "elements": [
+    { "type": "tile", "x": 1, "y": 1, "height": 1, "terrain": "stone" },
+    { "type": "tile", "x": 2, "y": 1, "height": 1, "terrain": "stone" },
+    { "type": "tile", "x": 3, "y": 1, "height": 1, "terrain": "stone" },
+    { "type": "tile", "x": 4, "y": 1, "height": 1, "terrain": "stone" },
+    { "type": "tile", "x": 1, "y": 2, "height": 1, "terrain": "stone" },
+    { "type": "tile", "x": 2, "y": 2, "height": 1, "terrain": "stone" },
+    { "type": "tile", "x": 3, "y": 2, "height": 1, "terrain": "stone" },
+    { "type": "tile", "x": 4, "y": 2, "height": 1, "terrain": "stone" },
+    { "type": "tile", "x": 1, "y": 3, "height": 1, "terrain": "stone" },
+    { "type": "tile", "x": 3, "y": 3, "height": 1, "terrain": "stone" },
+    { "type": "tile", "x": 4, "y": 3, "height": 1, "terrain": "stone" },
+    { "type": "obstacle", "typeId": "stairs-stone", "x": 2, "y": 3, "variant": "base", "rotation": 0 }
+  ]
+}

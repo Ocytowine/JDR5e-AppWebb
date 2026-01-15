@@ -1,0 +1,19 @@
+{
+  "id": "forest_alley_2x8",
+  "label": "Allee d'arbres",
+  "theme": "forest",
+  "tags": ["alley", "trees"],
+  "footprint": { "w": 8, "h": 4 },
+  "anchor": "topLeft",
+  "constraints": { "needsClearArea": true, "avoidBorder": { "left": 1, "right": 1, "top": 1, "bottom": 1 } },
+  "elements": [
+    { "type": "obstacle", "typeId": "tree-oak", "x": 0, "y": 0, "variant": "base", "rotation": 0 },
+    { "type": "obstacle", "typeId": "tree-oak", "x": 0, "y": 3, "variant": "base", "rotation": 0 },
+    { "type": "obstacle", "typeId": "tree-oak", "x": 2, "y": 0, "variant": "base", "rotation": 0 },
+    { "type": "obstacle", "typeId": "tree-oak", "x": 2, "y": 3, "variant": "base", "rotation": 0 },
+    { "type": "obstacle", "typeId": "tree-oak", "x": 4, "y": 0, "variant": "base", "rotation": 0 },
+    { "type": "obstacle", "typeId": "tree-oak", "x": 4, "y": 3, "variant": "base", "rotation": 0 },
+    { "type": "obstacle", "typeId": "tree-oak", "x": 6, "y": 0, "variant": "base", "rotation": 0 },
+    { "type": "obstacle", "typeId": "tree-oak", "x": 6, "y": 3, "variant": "base", "rotation": 0 }
+  ]
+}
