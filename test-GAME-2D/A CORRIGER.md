@@ -51,3 +51,32 @@ Type de sol
 Type d'interaction
 Type d'attaque 
 Type d'effet
+
+
+prompt : 
+on va travailler sur les interactions de test-game-2D. chaque obstacle (et wall/door...) doit proposer plusieurs interaction propre. ont va commencer par la porte (door de test-GAME-2D\src\game\map\walls) en gros, j'aimerais que si le joueur ce place proche (a une case autour de lui, y compris en diagonal) la roue d'interaction s'ouvre (comme la partie action) et propose les intéractions possible (on va intégrer pour commencer, ouvrir, défoncer (celle la va dépendre d'un test de force). la dificulté du test de force sera aussi dans les propriétés de l'obstacle (idem pour les portes, murs...) donc j'aimerai que tu analyse l'existant, et que tu me propose le meilleurs plan de travail.
+
+reponse : 
+J’ai regardé le flux actuel et les points d’extension: les portes existent comme WallSegment avec kind: "door" et state (bloquage géré dans runtime.ts), la roue d’action est dans ActionWheelMenu.tsx, et l’entrée “Interagir” ne gère que les escaliers dans GameBoard.tsx. Il n’y a pas de système de skill check implémenté (seulement attack/damage), donc le “test de force” devra être ajouté côté interaction.
+
+Plan proposé
+
+1. Définir un format d’interactions/skill DC dans les types et JSON de murs/obstacles (ex: behavior.interactions.forceDc) dans wallTypes.ts et obstacleTypes.ts, puis compléter wall-stone-door.json (et wall-wood-door.json).
+2. Ajouter une détection “porte proche” (distance Chebyshev <= 1 depuis une des cases adjacentes au segment) dans GameBoard.tsx.
+3. Déclencher automatiquement une roue d’interaction dédiée (ou une vue “interact” enrichie) avec ancrage écran calculé depuis la position grille (gridToScreenForGrid + viewport).
+4. Implémenter les interactions “Ouvrir” et “Défoncer (test de force)” avec update d’état sur wallSegments et logs (et éventuellement HP/AC si tu veux conserver une cohérence avec le modèle).
+5. Gérer les cas limites UI (pas le tour joueur, porte déjà ouverte, indestructible, etc.) et tests manuels rapides.
+Points d’attention observés
+
+“Interagir” ne fait que les escaliers pour l’instant (GameBoard.tsx), donc il faudra soit créer une roue “interactions” séparée, soit enrichir l’existante.
+Aucun skill check n’est implémenté dans actionEngine.ts, donc on devra rouler un d20 + modFOR au niveau du GameBoard (ou créer un petit helper dédié).
+Questions rapides pour caler le comportement
+
+L’ouverture auto doit-elle se déclencher dès que le joueur arrive à 1 case, ou uniquement à la fin du déplacement/validation ?
+“Défoncer” doit mettre la porte open ou la détruire (HP=0 / retirer le segment) ?
+Ça consomme une action/bonus/free, ou c’est purement “interaction” hors coût pour le moment ?
+Si tu valides ce plan, je peux enchaîner sur l’implémentation. Suggestions de suite:
+
+Valider le format de propriété “forceDc” pour portes/murs.
+Me confirmer le timing d’ouverture auto et l’effet de “défoncer”.
+Lancer l’implémentation UI + logique.

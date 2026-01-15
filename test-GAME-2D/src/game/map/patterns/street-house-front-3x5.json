@@ -19,5 +19,5 @@
   "wallDoors": [
     { "x": 2, "y": 2, "dir": "S", "state": "closed" }
   ],
-  "floorPaint": { "mode": "interior", "terrain": "stone" }
+  "floorPaint": { "mode": "interior", "terrain": "floor" }
 }

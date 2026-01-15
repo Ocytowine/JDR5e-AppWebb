@@ -28,7 +28,7 @@
   "wallDoors": [
     { "x": 2, "y": 4, "dir": "S", "state": "closed" }
   ],
-  "floorPaint": { "mode": "interior", "terrain": "stone", "height": 1 },
+  "floorPaint": { "mode": "interior", "terrain": "floor", "height": 1 },
   "elements": [
     { "type": "tile", "x": 1, "y": 1, "height": 1, "terrain": "stone" },
     { "type": "tile", "x": 2, "y": 1, "height": 1, "terrain": "stone" },
