@@ -26,6 +26,22 @@
     "heightClass": "tall"
   },
   "behavior": {
-    "kind": "door"
+    "kind": "door",
+    "interactions": [
+      {
+        "id": "open",
+        "label": "Ouvrir",
+        "kind": "open",
+        "cost": "bonus"
+      },
+      {
+        "id": "break",
+        "label": "Defoncer",
+        "kind": "break",
+        "cost": "action",
+        "forceDc": 15,
+        "damageFraction": 0.5
+      }
+    ]
   }
 }

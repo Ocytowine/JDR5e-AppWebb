@@ -54,6 +54,7 @@ function getMovementProfile(entity: TokenState): MovementProfile | null {
     return {
       type: "ground",
       speed: entity.moveRange,
+      directions: 8,
       canPassThroughWalls: false,
       canPassThroughEntities: false,
       canStopOnOccupiedTile: false
@@ -158,16 +159,24 @@ export function computePathTowards(
 
   let foundTargetKey: string | null = null;
 
-  const dirs: GridPosition[] = [
-    { x: 1, y: 0 },
-    { x: -1, y: 0 },
-    { x: 0, y: 1 },
-    { x: 0, y: -1 },
-    { x: 1, y: 1 },
-    { x: 1, y: -1 },
-    { x: -1, y: 1 },
-    { x: -1, y: -1 }
-  ];
+  const allowDiagonals = profile?.directions !== 4;
+  const dirs: GridPosition[] = allowDiagonals
+    ? [
+        { x: 1, y: 0 },
+        { x: -1, y: 0 },
+        { x: 0, y: 1 },
+        { x: 0, y: -1 },
+        { x: 1, y: 1 },
+        { x: 1, y: -1 },
+        { x: -1, y: 1 },
+        { x: -1, y: -1 }
+      ]
+    : [
+        { x: 1, y: 0 },
+        { x: -1, y: 0 },
+        { x: 0, y: 1 },
+        { x: 0, y: -1 }
+      ];
 
   while (queue.length > 0) {
     const current = queue.shift() as GridPosition;

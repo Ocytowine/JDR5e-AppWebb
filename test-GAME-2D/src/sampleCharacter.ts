@@ -45,6 +45,7 @@ export const sampleCharacter: Personnage = {
     sagesse: { SAG: 12, modSAG: 1 },
     charisme: { CHA: 10, modCHA: 0 }
   },
+  movementModes: ["walk"],
   // Keep competences empty in this mini-game to avoid
   // encoding issues with accented keys.
   competences: {} as any,
@@ -113,4 +114,3 @@ export const sampleCharacter: Personnage = {
     spellIds: []
   }
 } as Personnage;
-

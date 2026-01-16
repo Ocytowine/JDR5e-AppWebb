@@ -1,4 +1,5 @@
 import type { GridPosition } from "../types";
+import type { InteractionSpec } from "./interactions";
 
 export type WallState = "open" | "closed";
 
@@ -23,6 +24,7 @@ export interface WallAppearance {
 
 export interface WallBehavior {
   kind?: "solid" | "door" | "window" | "arch";
+  interactions?: InteractionSpec[];
 }
 
 export interface WallDurability {

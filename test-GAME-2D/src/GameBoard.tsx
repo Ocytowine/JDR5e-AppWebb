@@ -128,9 +128,18 @@ import { DicePanel } from "./ui/DicePanel";
 import { EffectsPanel } from "./ui/EffectsPanel";
 import { LogPanel } from "./ui/LogPanel";
 import { ActionWheelMenu } from "./ui/ActionWheelMenu";
+import type { WheelMenuItem } from "./ui/RadialWheelMenu";
 import { ActionContextWindow } from "./ui/ActionContextWindow";
+import { InteractionContextWindow } from "./ui/InteractionContextWindow";
 import { BottomDock } from "./ui/BottomDock";
 import { boardThemeColor, colorToCssHex } from "./boardTheme";
+import type { InteractionCost, InteractionSpec } from "./game/interactions";
+import {
+  buildMovementProfileFromMode,
+  getDefaultMovementMode,
+  getMovementModesForCharacter,
+  type MovementModeDefinition
+} from "./game/movementModes";
 
 const ACTION_MODULES: Record<string, ActionDefinition> = {
   "./melee-strike.json": meleeStrike as ActionDefinition,
@@ -299,6 +308,12 @@ export const GameBoard: React.FC = () => {
   const pixiContainerRef = useRef<HTMLDivElement | null>(null);
   const narrationPendingRef = useRef<boolean>(false);
   const playerBubbleTimeoutRef = useRef<number | null>(null);
+  const movementModes = useMemo(
+    () => getMovementModesForCharacter(sampleCharacter),
+    []
+  );
+  const defaultMovementMode = movementModes[0] ?? getDefaultMovementMode();
+  const defaultMovementProfile = buildMovementProfileFromMode(defaultMovementMode);
 
   const [log, setLog] = useState<string[]>([]);
   const [narrativeLog, setNarrativeLog] = useState<string[]>([]);
@@ -310,6 +325,8 @@ export const GameBoard: React.FC = () => {
     x: 0,
     y: Math.floor(GRID_ROWS / 2),
     facing: "right",
+    movementProfile: defaultMovementProfile,
+    moveRange: defaultMovementProfile.speed,
     visionProfile: {
       shape: "cone",
       range: 100,
@@ -407,7 +424,10 @@ export const GameBoard: React.FC = () => {
     "bandolier:dagger": 3,
     "gear:torch": 1
   });
-  const [pathLimit, setPathLimit] = useState<number>(5);
+  const [pathLimit, setPathLimit] = useState<number>(defaultMovementProfile.speed);
+  const [activeMovementModeId, setActiveMovementModeId] = useState<string>(
+    defaultMovementMode.id
+  );
 
   // Player movement path (limited to 5 cells)
   const [selectedPath, setSelectedPath] = useState<{ x: number; y: number }[]>(
@@ -425,9 +445,24 @@ export const GameBoard: React.FC = () => {
     y: number;
   } | null>(null);
   const [targetMode, setTargetMode] = useState<"none" | "selecting">("none");
-  type BoardInteractionMode = "idle" | "moving" | "inspect-select" | "look-select";
+  type BoardInteractionMode =
+    | "idle"
+    | "moving"
+    | "inspect-select"
+    | "look-select"
+    | "interact-select";
   const [interactionMode, setInteractionMode] =
     useState<BoardInteractionMode>("idle");
+  type InteractionTarget =
+    | { kind: "wall"; segmentId: string; cell: { x: number; y: number } }
+    | { kind: "obstacle"; obstacleId: string; cell: { x: number; y: number } };
+  const [interactionContext, setInteractionContext] = useState<{
+    anchorX: number;
+    anchorY: number;
+    interaction: InteractionSpec;
+    target: InteractionTarget;
+  } | null>(null);
+  const [interactionMenuItems, setInteractionMenuItems] = useState<WheelMenuItem[]>([]);
   const [revealedEnemyIds, setRevealedEnemyIds] = useState<Set<string>>(
     () => new Set()
   );
@@ -500,6 +535,17 @@ export const GameBoard: React.FC = () => {
     for (const t of wallTypes) map.set(t.id, t);
     return map;
   }, [wallTypes]);
+  const hasAnyInteractionSource = useMemo(() => {
+    const wallHas = wallSegments.some(seg => {
+      const def = seg.typeId ? wallTypeById.get(seg.typeId) ?? null : null;
+      return (def?.behavior?.interactions ?? []).length > 0;
+    });
+    if (wallHas) return true;
+    return obstacles.some(obs => {
+      const def = obstacleTypeById.get(obs.typeId) ?? null;
+      return (def?.interactions ?? []).length > 0;
+    });
+  }, [obstacleTypeById, obstacles, wallSegments, wallTypeById]);
   const lightSources = useMemo(() => {
     const sources: LightSource[] = [];
     for (const obs of obstacles) {
@@ -769,6 +815,15 @@ export const GameBoard: React.FC = () => {
 
   function closeRadialMenu() {
     setRadialMenu(current => (current ? { ...current, open: false } : null));
+    if (interactionMode === "interact-select") {
+      setInteractionMode("idle");
+    }
+    setInteractionMenuItems([]);
+    closeInteractionContext();
+  }
+
+  function closeInteractionContext() {
+    setInteractionContext(null);
   }
 
   function cellKey(x: number, y: number): string {
@@ -865,6 +920,138 @@ export const GameBoard: React.FC = () => {
     return Math.min(distA, distB);
   }
 
+  function getWallSegmentChebyshevDistance(
+    from: { x: number; y: number },
+    segment: WallSegment
+  ): number {
+    const cells = getAdjacentCellsForEdge(segment);
+    const distA = gridDistance(from, cells.a);
+    const distB = gridDistance(from, cells.b);
+    return Math.min(distA, distB);
+  }
+
+  function getObstacleChebyshevDistance(
+    from: { x: number; y: number },
+    obstacle: ObstacleInstance,
+    def: ObstacleTypeDefinition | null,
+    targetCell: { x: number; y: number }
+  ): number {
+    const cells = def ? getObstacleOccupiedCells(obstacle, def) : [targetCell];
+    let best = Number.POSITIVE_INFINITY;
+    for (const cell of cells) {
+      const dist = gridDistance(from, cell);
+      if (dist < best) best = dist;
+    }
+    return Number.isFinite(best) ? best : gridDistance(from, targetCell);
+  }
+
+  function canPayInteractionCost(cost?: InteractionCost): { ok: boolean; reason?: string } {
+    if (!canInteractWithBoard) {
+      return { ok: false, reason: "Tour joueur requis." };
+    }
+    if (cost === "action" && turnActionUsage.usedAction) {
+      return { ok: false, reason: "Action principale deja utilisee." };
+    }
+    if (cost === "bonus" && turnActionUsage.usedBonus) {
+      return { ok: false, reason: "Action bonus deja utilisee." };
+    }
+    return { ok: true };
+  }
+
+  function applyInteractionCost(cost?: InteractionCost) {
+    const isStandardAction = cost === "action";
+    const isBonusAction = cost === "bonus";
+    if (!isStandardAction && !isBonusAction) return;
+    setTurnActionUsage(prev => ({
+      usedAction: prev.usedAction || isStandardAction,
+      usedBonus: prev.usedBonus || isBonusAction
+    }));
+  }
+
+  function resolveInteractionAvailabilityForWall(
+    interaction: InteractionSpec,
+    segment: WallSegment,
+    def: WallTypeDefinition | null
+  ): { ok: boolean; reason?: string } {
+    const costCheck = canPayInteractionCost(interaction.cost);
+    if (!costCheck.ok) return costCheck;
+
+    if (interaction.kind === "open") {
+      if (segment.kind !== "door") {
+        return { ok: false, reason: "Interaction reservee aux portes." };
+      }
+      if (segment.state === "open") {
+        return { ok: false, reason: "La porte est deja ouverte." };
+      }
+      return { ok: true };
+    }
+
+    if (interaction.kind === "break") {
+      if (segment.kind !== "door") {
+        return { ok: false, reason: "Interaction reservee aux portes." };
+      }
+      if (segment.state === "open") {
+        return { ok: false, reason: "La porte est deja ouverte." };
+      }
+      if (!isWallDestructible(def)) {
+        return { ok: false, reason: "Porte indestructible." };
+      }
+      if (typeof interaction.forceDc !== "number") {
+        return { ok: false, reason: "DD de force manquant." };
+      }
+      return { ok: true };
+    }
+
+    return { ok: true };
+  }
+
+  function resolveInteractionAvailabilityForObstacle(
+    interaction: InteractionSpec,
+    obstacle: ObstacleInstance,
+    def: ObstacleTypeDefinition | null
+  ): { ok: boolean; reason?: string } {
+    const costCheck = canPayInteractionCost(interaction.cost);
+    if (!costCheck.ok) return costCheck;
+
+    if (interaction.kind === "open") {
+      return { ok: false, reason: "Interaction reservee aux portes." };
+    }
+
+    if (interaction.kind === "break") {
+      if (def?.durability?.destructible === false) {
+        return { ok: false, reason: "Obstacle indestructible." };
+      }
+      if (obstacle.hp <= 0) {
+        return { ok: false, reason: "Obstacle deja detruit." };
+      }
+      if (typeof interaction.forceDc !== "number") {
+        return { ok: false, reason: "DD de force manquant." };
+      }
+    }
+
+    return { ok: true };
+  }
+
+  function getInteractionAvailability(
+    interaction: InteractionSpec,
+    target: InteractionTarget
+  ): { ok: boolean; reason?: string } {
+    if (target.kind === "wall") {
+      const wall = wallSegments.find(w => w.id === target.segmentId) ?? null;
+      if (!wall) return { ok: false, reason: "Mur introuvable." };
+      const def = wall.typeId ? wallTypeById.get(wall.typeId) ?? null : null;
+      const dist = getWallSegmentChebyshevDistance(player, wall);
+      if (dist > 1) return { ok: false, reason: "Trop loin." };
+      return resolveInteractionAvailabilityForWall(interaction, wall, def);
+    }
+    const obstacle = obstacles.find(o => o.id === target.obstacleId) ?? null;
+    if (!obstacle) return { ok: false, reason: "Obstacle introuvable." };
+    const def = obstacleTypeById.get(obstacle.typeId) ?? null;
+    const dist = getObstacleChebyshevDistance(player, obstacle, def, target.cell);
+    if (dist > 1) return { ok: false, reason: "Trop loin." };
+    return resolveInteractionAvailabilityForObstacle(interaction, obstacle, def);
+  }
+
   function getSelectedTargetLabel(): string | null {
     if (selectedTargetId) return selectedTargetId;
     if (selectedObstacleTarget) {
@@ -880,6 +1067,34 @@ export const GameBoard: React.FC = () => {
       return def?.label ?? wall.typeId ?? "mur";
     }
     return null;
+  }
+
+  function getMovementModeById(id: string): MovementModeDefinition | null {
+    return movementModes.find(mode => mode.id === id) ?? null;
+  }
+
+  function handleSelectMovementMode(modeId: string) {
+    const mode = getMovementModeById(modeId) ?? defaultMovementMode;
+    const profile = buildMovementProfileFromMode(mode);
+    setActiveMovementModeId(mode.id);
+    setPlayer(prev => ({
+      ...prev,
+      movementProfile: profile,
+      moveRange: profile.speed
+    }));
+    setPathLimit(profile.speed);
+    setInteractionMode("moving");
+  }
+
+  function handleCancelMoveFromWheel() {
+    handleResetPath();
+    setInteractionMode("idle");
+  }
+
+  function handleCancelInteractFromWheel() {
+    setInteractionMode("idle");
+    setInteractionMenuItems([]);
+    closeInteractionContext();
   }
 
   function resourceKey(name: string, pool?: string | null): string {
@@ -903,6 +1118,7 @@ export const GameBoard: React.FC = () => {
     if (phase !== "player" || isGameOver) {
       setInteractionMode("idle");
       closeRadialMenu();
+      closeInteractionContext();
     }
   }, [phase, isGameOver]);
 
@@ -910,10 +1126,6 @@ export const GameBoard: React.FC = () => {
     const handler = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
 
-      if (radialMenu?.open) {
-        closeRadialMenu();
-        return;
-      }
       if (targetMode === "selecting") {
         setTargetMode("none");
         return;
@@ -925,7 +1137,7 @@ export const GameBoard: React.FC = () => {
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [radialMenu?.open, interactionMode, targetMode]);
+  }, [interactionMode, targetMode]);
 
   function handleBoardWheel(event: WheelEvent) {
     if (event.deltaY === 0) return;
@@ -2672,6 +2884,112 @@ export const GameBoard: React.FC = () => {
       return;
     }
 
+    if (interactionMode === "interact-select") {
+      const wallHit = findWallSegmentAtCell(targetX, targetY);
+      const obstacleHit = findObstacleAtCell(targetX, targetY);
+
+      if (!wallHit && !obstacleHit) {
+        pushLog("Interagir: aucun element interactif ici.");
+        setInteractionMenuItems([]);
+        return;
+      }
+
+      if (wallHit) {
+        const interactions = wallHit.def?.behavior?.interactions ?? [];
+        if (interactions.length === 0) {
+          pushLog("Interagir: aucune interaction disponible pour ce mur.");
+          setInteractionMenuItems([]);
+          return;
+        }
+
+        const dist = getWallSegmentChebyshevDistance(player, wallHit.segment);
+        if (dist > 1) {
+          pushLog("Interagir: placez-vous a une case de la porte.");
+          setInteractionMenuItems([]);
+          return;
+        }
+
+        const available: InteractionSpec[] = [];
+        const reasons: string[] = [];
+        for (const interaction of interactions) {
+          const check = resolveInteractionAvailabilityForWall(
+            interaction,
+            wallHit.segment,
+            wallHit.def
+          );
+          if (check.ok) {
+            available.push(interaction);
+          } else if (check.reason) {
+            reasons.push(check.reason);
+          }
+        }
+
+        if (available.length === 0) {
+          const detail = reasons.length ? ` (${reasons[0]})` : "";
+          pushLog(`Interagir: aucune interaction possible${detail}.`);
+          setInteractionMenuItems([]);
+          return;
+        }
+
+        openInteractionWheel(localX, localY, {
+          kind: "wall",
+          segmentId: wallHit.segment.id,
+          cell: { x: targetX, y: targetY }
+        }, available);
+        return;
+      }
+
+      if (obstacleHit) {
+        const interactions = obstacleHit.def?.interactions ?? [];
+        if (interactions.length === 0) {
+          pushLog("Interagir: aucune interaction disponible pour cet obstacle.");
+          setInteractionMenuItems([]);
+          return;
+        }
+
+        const dist = getObstacleChebyshevDistance(
+          player,
+          obstacleHit.instance,
+          obstacleHit.def,
+          { x: targetX, y: targetY }
+        );
+        if (dist > 1) {
+          pushLog("Interagir: placez-vous a une case de l'obstacle.");
+          setInteractionMenuItems([]);
+          return;
+        }
+
+        const available: InteractionSpec[] = [];
+        const reasons: string[] = [];
+        for (const interaction of interactions) {
+          const check = resolveInteractionAvailabilityForObstacle(
+            interaction,
+            obstacleHit.instance,
+            obstacleHit.def
+          );
+          if (check.ok) {
+            available.push(interaction);
+          } else if (check.reason) {
+            reasons.push(check.reason);
+          }
+        }
+
+        if (available.length === 0) {
+          const detail = reasons.length ? ` (${reasons[0]})` : "";
+          pushLog(`Interagir: aucune interaction possible${detail}.`);
+          setInteractionMenuItems([]);
+          return;
+        }
+
+        openInteractionWheel(localX, localY, {
+          kind: "obstacle",
+          obstacleId: obstacleHit.instance.id,
+          cell: { x: targetX, y: targetY }
+        }, available);
+        return;
+      }
+    }
+
     if (interactionMode === "look-select") {
       const direction = computeFacingTowards(player, { x: targetX, y: targetY });
       handleSetPlayerFacing(direction);
@@ -2807,7 +3125,6 @@ export const GameBoard: React.FC = () => {
 
     setSelectedPath([]);
     setInteractionMode("idle");
-    closeRadialMenu();
   }
 
   function handleResetPath() {
@@ -4268,7 +4585,6 @@ function handleEndPlayerTurn() {
     const anchorY = radialMenu?.anchorY ?? 0;
     setSelectedActionId(action.id);
     setActionContext({ anchorX, anchorY, actionId: action.id, stage: "draft" });
-    closeRadialMenu();
   }
 
   function closeActionContext() {
@@ -4285,7 +4601,6 @@ function handleEndPlayerTurn() {
     if (!canInteractWithBoard) return;
     setTargetMode("none");
     setInteractionMode("inspect-select");
-    closeRadialMenu();
     pushLog(
       `Inspection: cliquez sur une case VISIBLE (portee ${INSPECT_RANGE}) pour reveler nature / etat / role.`
     );
@@ -4295,72 +4610,133 @@ function handleEndPlayerTurn() {
     if (!canInteractWithBoard) return;
     setTargetMode("none");
     setInteractionMode("look-select");
-    closeRadialMenu();
     pushLog("Tourner le regard: cliquez sur une case pour orienter le champ de vision.");
   }
 
-  function handleInteractFromWheel() {
-    const cell = radialMenu?.cell;
-    if (!cell) {
-      pushLog("Interagir: aucune case cible.");
-      closeRadialMenu();
+  function openInteractionWheel(
+    anchorX: number,
+    anchorY: number,
+    target: InteractionTarget,
+    interactions: InteractionSpec[]
+  ) {
+    setInteractionContext(null);
+    const items: WheelMenuItem[] = interactions.map(interaction => ({
+      id: `interaction-${interaction.id}`,
+      label: interaction.label,
+      color: "#9b59b6",
+      onSelect: () => {
+        setInteractionContext({ anchorX, anchorY, interaction, target });
+      }
+    }));
+    setInteractionMenuItems(items);
+  }
+
+  function handleExecuteInteraction(
+    interaction: InteractionSpec,
+    target: InteractionTarget
+  ) {
+    const availability = getInteractionAvailability(interaction, target);
+    if (!availability.ok) {
+      pushLog(`Interaction ${interaction.label}: ${availability.reason ?? "indisponible"}.`);
       return;
     }
 
-    const obstacleHit = findObstacleAtCellAnyLevel(cell.x, cell.y);
-    const connects = obstacleHit?.def?.connects;
+    const modForce = Number(sampleCharacter.caracs?.force?.modFOR ?? 0);
+    const forceDc =
+      typeof interaction.forceDc === "number" ? interaction.forceDc : null;
+    const needsCheck = interaction.kind === "break" && forceDc !== null;
 
-    if (!connects) {
-      pushLog(`Interagir: aucun escalier sur (${cell.x}, ${cell.y}).`);
-      closeRadialMenu();
-      return;
-    }
-
-    const distToStairs = Math.abs(player.x - cell.x) + Math.abs(player.y - cell.y);
-    if (distToStairs > 1) {
-      pushLog("Interagir: placez-vous sur ou a cote de l'escalier.");
-      closeRadialMenu();
-      return;
-    }
-
-    const nextLevel =
-      activeLevel === connects.from
-        ? connects.to
-        : activeLevel === connects.to
-          ? connects.from
-          : null;
-
-    if (nextLevel === null) {
-      pushLog("Interagir: escalier incompatible avec ce niveau.");
-      closeRadialMenu();
-      return;
-    }
-
-    const candidates = [
-      { x: cell.x, y: cell.y },
-      { x: cell.x + 1, y: cell.y },
-      { x: cell.x - 1, y: cell.y },
-      { x: cell.x, y: cell.y + 1 },
-      { x: cell.x, y: cell.y - 1 }
-    ];
-    let destination = { x: player.x, y: player.y };
-    for (const c of candidates) {
-      if (!isCellPlayable(c.x, c.y)) continue;
-      if (getBaseHeightAt(c.x, c.y) === nextLevel) {
-        destination = c;
-        break;
+    if (needsCheck) {
+      const result = rollAttack(modForce, "normal");
+      const total = result.total;
+      const base = result.d20.total;
+      const outcome = total >= forceDc ? "reussi" : "rate";
+      pushLog(
+        `Test de force (${interaction.label}) : ${base} + ${modForce} = ${total} vs DD ${forceDc} -> ${outcome}.`
+      );
+      if (total < forceDc) {
+        applyInteractionCost(interaction.cost);
+        return;
       }
     }
 
-    setPlayer(prev => ({ ...prev, x: destination.x, y: destination.y }));
-    setActiveLevel(clampActiveLevel(nextLevel));
-    pushLog(`Interagir: changement de niveau -> ${nextLevel}.`);
-    closeRadialMenu();
+    if (target.kind === "wall") {
+      setWallSegments(prev => {
+        const idx = prev.findIndex(w => w.id === target.segmentId);
+        if (idx === -1) return prev;
+        const copy = [...prev];
+        const segment = { ...copy[idx] };
+        const def = segment.typeId ? wallTypeById.get(segment.typeId) ?? null : null;
+
+        if (interaction.kind === "open") {
+          if (segment.kind === "door" && segment.state !== "open") {
+            segment.state = "open";
+            copy[idx] = segment;
+          }
+        } else if (interaction.kind === "break") {
+          if (segment.kind === "door" && segment.state !== "open" && isWallDestructible(def)) {
+            const maxHp =
+              typeof segment.maxHp === "number"
+                ? segment.maxHp
+                : typeof segment.hp === "number"
+                  ? segment.hp
+                  : null;
+            if (maxHp !== null) {
+              const fraction =
+                typeof interaction.damageFraction === "number"
+                  ? interaction.damageFraction
+                  : 0.5;
+              const damage = Math.max(0, Math.round(maxHp * fraction));
+              const beforeHp = typeof segment.hp === "number" ? segment.hp : maxHp;
+              segment.hp = Math.max(0, beforeHp - damage);
+              segment.maxHp = maxHp;
+            }
+            segment.state = "open";
+            copy[idx] = segment;
+          }
+        }
+
+        return copy.filter(w => w.hp === undefined || w.hp > 0);
+      });
+    } else if (target.kind === "obstacle") {
+      setObstacles(prev => {
+        const idx = prev.findIndex(o => o.id === target.obstacleId);
+        if (idx === -1) return prev;
+        const copy = [...prev];
+        const obstacle = { ...copy[idx] };
+        if (interaction.kind === "break" && obstacle.hp > 0) {
+          const fraction =
+            typeof interaction.damageFraction === "number"
+              ? interaction.damageFraction
+              : 0.5;
+          const maxHp =
+            typeof obstacle.maxHp === "number" ? obstacle.maxHp : obstacle.hp;
+          const damage = Math.max(0, Math.round(maxHp * fraction));
+          obstacle.hp = Math.max(0, obstacle.hp - damage);
+          copy[idx] = obstacle;
+        }
+        return copy.filter(o => o.hp > 0);
+      });
+    }
+
+    applyInteractionCost(interaction.cost);
+    pushLog(`Interaction ${interaction.label} executee.`);
+  }
+
+  function handleInteractFromWheel() {
+    if (!canInteractWithBoard) return;
+    if (!hasAnyInteractionSource) {
+      pushLog("Interagir: aucune interaction possible.");
+      return;
+    }
+    setTargetMode("none");
+    setInteractionMode("interact-select");
+    setInteractionMenuItems([]);
+    pushLog("Interagir: cliquez sur un element pour afficher ses interactions.");
   }
 
   function handleHideFromWheel() {
     pushLog("Se cacher: (a integrer).");
-    closeRadialMenu();
   }
 
   const dockTabs = [
@@ -4459,6 +4835,17 @@ function handleEndPlayerTurn() {
     },
     { id: "logs", label: "Logs", content: <LogPanel log={log} /> }
   ];
+
+  const interactionAvailability = interactionContext
+    ? getInteractionAvailability(interactionContext.interaction, interactionContext.target)
+    : null;
+  const forceMod = Number(sampleCharacter.caracs?.force?.modFOR ?? 0);
+  const interactionState =
+    interactionMode === "interact-select"
+      ? interactionMenuItems.length > 0
+        ? "menu"
+        : "select"
+      : "idle";
 
   return (
       <div
@@ -4696,28 +5083,29 @@ function handleEndPlayerTurn() {
                 selectedPathLength={selectedPath.length}
                 isResolvingEnemies={isResolvingEnemies}
                 actions={actions}
+                movementModes={movementModes}
+                activeMovementModeId={activeMovementModeId}
+                isMoving={interactionMode === "moving"}
+                interactionState={interactionState}
+                interactionItems={interactionMenuItems}
+                interactionPrompt="Selectionner la cible de l'interaction"
+                onCancelInteract={handleCancelInteractFromWheel}
                 computeActionAvailability={computeActionAvailability}
                 onClose={closeRadialMenu}
-                onEnterMoveMode={() => {
-                  setInteractionMode("moving");
-                  closeRadialMenu();
-                }}
+                onSelectMoveMode={handleSelectMovementMode}
+                onCancelMove={handleCancelMoveFromWheel}
+                onNoMovementModes={() => pushLog("Deplacement: aucun mode disponible.")}
+                onNoActions={() => pushLog("Action: aucune action disponible.")}
                 onValidateMove={handleValidatePath}
-                onResetMove={() => {
-                  handleResetPath();
-                  closeRadialMenu();
-                }}
                 onInspectCell={handleEnterInspectModeFromWheel}
                 onLook={handleEnterLookModeFromWheel}
                 onInteract={handleInteractFromWheel}
                 onHide={handleHideFromWheel}
                 onEndTurn={() => {
                   handleEndPlayerTurn();
-                  closeRadialMenu();
                 }}
                 onPickAction={openActionContextFromWheel}
               />
-
               <ActionContextWindow
                 open={Boolean(actionContext)}
                 anchorX={actionContext?.anchorX ?? 0}
@@ -4748,78 +5136,23 @@ function handleEndPlayerTurn() {
                 onValidateAction={handleValidateActionFromContext}
                 onClose={closeActionContext}
               />
+              <InteractionContextWindow
+                open={Boolean(interactionContext)}
+                anchorX={interactionContext?.anchorX ?? 0}
+                anchorY={interactionContext?.anchorY ?? 0}
+                interaction={interactionContext?.interaction ?? null}
+                availability={interactionAvailability}
+                forceMod={forceMod}
+                onExecute={() => {
+                  if (!interactionContext) return;
+                  handleExecuteInteraction(
+                    interactionContext.interaction,
+                    interactionContext.target
+                  );
+                }}
+                onClose={closeInteractionContext}
+              />
 
-          {interactionMode === "moving" && (
-            <div
-              onMouseDown={event => event.stopPropagation()}
-              style={{
-                position: "absolute",
-                left: 10,
-                bottom: 10,
-                zIndex: 40,
-                display: "flex",
-                gap: 8,
-                padding: "8px 10px",
-                borderRadius: 10,
-                background: "rgba(10, 10, 16, 0.75)",
-                border: "1px solid rgba(255,255,255,0.14)",
-                backdropFilter: "blur(6px)",
-                boxShadow: "0 14px 40px rgba(0,0,0,0.35)"
-              }}
-            >
-              <span style={{ fontSize: 12, alignSelf: "center", color: "#cfd3ff" }}>
-                Mode deplacement
-              </span>
-              <button
-                type="button"
-                onClick={() => setInteractionMode("idle")}
-                style={{
-                  padding: "4px 8px",
-                  background: "#34495e",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                  fontSize: 12
-                }}
-              >
-                Quitter
-              </button>
-              <button
-                type="button"
-                onClick={handleResetPath}
-                disabled={selectedPath.length === 0}
-                style={{
-                  padding: "4px 8px",
-                  background: selectedPath.length ? "#e67e22" : "#555",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 6,
-                  cursor: selectedPath.length ? "pointer" : "default",
-                  fontSize: 12
-                }}
-              >
-                Annuler
-              </button>
-              <button
-                type="button"
-                onClick={handleValidatePath}
-                disabled={selectedPath.length === 0}
-                style={{
-                  padding: "4px 8px",
-                  background: selectedPath.length ? "#2ecc71" : "#555",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 6,
-                  cursor: selectedPath.length ? "pointer" : "default",
-                  fontSize: 12,
-                  fontWeight: 600
-                }}
-              >
-                Valider
-              </button>
-            </div>
-          )}
             </div>
           </div>
 
