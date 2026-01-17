@@ -49,6 +49,8 @@ export function ActionWheelMenu(props: {
   isMoving: boolean;
   interactionState: "idle" | "select" | "menu";
   interactionItems: WheelMenuItem[];
+  movementCostUsed?: number;
+  movementCostMax?: number;
   interactionPrompt?: string;
   onCancelInteract: () => void;
   computeActionAvailability: (action: ActionDefinition) => ActionAvailability;
@@ -200,8 +202,21 @@ export function ActionWheelMenu(props: {
     }
 
     if (view === "movement") {
+      const costUsed = Number(props.movementCostUsed ?? 0);
+      const costMax = Number(props.movementCostMax ?? 0);
+      const costLabel = costMax > 0
+        ? `Cout: ${costUsed}/${costMax}`
+        : `Cout: ${costUsed}`;
       const hasPath = props.selectedPathLength > 0;
-      const moveItems: WheelMenuItem[] = props.movementModes.map(mode => {
+      const moveItems: WheelMenuItem[] = [
+        {
+          id: "move-cost",
+          label: costLabel,
+          color: "#34495e",
+          disabled: true,
+          disabledReason: "Budget de mouvement"
+        },
+        ...props.movementModes.map(mode => {
         const isActive = mode.id === props.activeMovementModeId;
         return {
           id: `move-${mode.id}`,
@@ -211,7 +226,8 @@ export function ActionWheelMenu(props: {
             props.onSelectMoveMode(mode.id);
           }
         };
-      });
+      })
+      ];
 
       moveItems.push({
         id: "validate-move",

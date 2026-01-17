@@ -7,7 +7,7 @@ import { GRID_COLS, GRID_ROWS, isCellInsideGrid } from "../boardConfig";
 import { rollAttack, rollDamage, type AdvantageMode } from "../dice/roller";
 import { hasLineOfEffect } from "../lineOfSight";
 import type { WallSegment } from "./map/walls/types";
-import { getHeightAtGrid } from "./map/draft";
+import { getHeightAtGrid, type TerrainCell } from "./map/draft";
 
 export interface ActionEngineContext {
   round: number;
@@ -31,6 +31,7 @@ export interface ActionEngineContext {
    */
   grid?: { cols: number; rows: number } | null;
   heightMap?: number[] | null;
+  floorIds?: TerrainCell[] | null;
   activeLevel?: number | null;
   /**
    * Optional hook to emit structured combat events (narration buffer, analytics, etc.).
@@ -604,6 +605,7 @@ export function resolveAction(
         playableCells: ctx.playableCells ?? null,
         grid: ctx.grid ?? null,
         heightMap: ctx.heightMap ?? null,
+        floorIds: ctx.floorIds ?? null,
         activeLevel: ctx.activeLevel ?? null
       });
 

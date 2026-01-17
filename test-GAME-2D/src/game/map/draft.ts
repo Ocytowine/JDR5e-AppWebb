@@ -7,6 +7,7 @@ import type {
 } from "../obstacleTypes";
 import { getObstacleOccupiedCells } from "../obstacleRuntime";
 import type { WallState } from "../wallTypes";
+import type { FloorId } from "./floors/types";
 import type { WallDirection, WallKind, WallSegment } from "./walls/types";
 import { getAdjacentCellsForEdge, wallEdgeKey } from "./walls/grid";
 import { buildWallEdgeSets, isEdgeBlockedForMovement } from "./walls/runtime";
@@ -19,14 +20,7 @@ import { buildWallEdgeSets, isEdgeBlockedForMovement } from "./walls/runtime";
 // - terrain (eau/boue/route...), hauteur, lumière (futur)
 // - un log de génération lisible (debug)
 
-export type TerrainCell =
-  | "floor"
-  | "grass"
-  | "dirt"
-  | "stone"
-  | "water"
-  | "road"
-  | "unknown";
+export type TerrainCell = FloorId;
 
 export interface MapLayers {
   terrain: TerrainCell[];

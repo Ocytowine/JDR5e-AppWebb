@@ -10,10 +10,19 @@ export interface FloorTexture {
   scale?: number;
 }
 
+export type FloorId = string;
+
 export interface FloorMaterial {
   id: string;
   label: string;
-  terrain: string;
   textureId?: string;
   fallbackColor?: string;
+  tags?: string[];
+  passable?: boolean;
+  moveCost?: number;
+  blocksVision?: boolean;
+  blocksProjectiles?: boolean;
+  liquid?: boolean;
+  depth?: number;
+  effects?: string[];
 }

@@ -381,7 +381,27 @@ export function placePattern(params: {
       originY,
       rotation: transform?.rotation ?? 0
     });
+    const wallCells = buildWallCellsFromAscii({
+      ascii: pattern.wallAscii,
+      originX,
+      originY,
+      rotation: transform?.rotation ?? 0
+    });
+    const paintKeys = new Set<string>();
+    const paintTargets: { x: number; y: number }[] = [];
     for (const cell of interiorCells) {
+      const k = key(cell.x, cell.y);
+      if (paintKeys.has(k)) continue;
+      paintKeys.add(k);
+      paintTargets.push(cell);
+    }
+    for (const cell of wallCells) {
+      const k = key(cell.x, cell.y);
+      if (paintKeys.has(k)) continue;
+      paintKeys.add(k);
+      paintTargets.push(cell);
+    }
+    for (const cell of paintTargets) {
       setTerrain(draft, cell.x, cell.y, pattern.floorPaint.terrain as any);
       if (typeof pattern.floorPaint.height === "number") {
         setHeight(draft, cell.x, cell.y, pattern.floorPaint.height);
