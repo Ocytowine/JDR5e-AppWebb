@@ -1,4 +1,5 @@
 import type { GridPosition } from "../types";
+import type { InteractionSpec } from "./interactions";
 
 export type ObstacleRotationDeg = 0 | 90 | 180 | 270;
 
@@ -62,6 +63,7 @@ export interface ObstacleTypeDefinition {
   spawnRules?: ObstacleSpawnRules;
   light?: ObstacleLight;
   connects?: { from: number; to: number };
+  interactions?: InteractionSpec[];
   /**
    * Free-form for later extensions (cover, doors, interactables...).
    */

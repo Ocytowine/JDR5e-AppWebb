@@ -310,6 +310,8 @@ export function parsePromptToSpec(params: {
 
   const columns =
     extractNumber(text, [/\b(\d+)\s*(colonnes|piliers)\b/]) ?? null;
+  const houseCount =
+    extractNumber(text, [/\b(\d+)\s*(maisons?|batiments?)\b/]) ?? null;
 
   const hasAltar = hasAny(text, [/\bautel\b/, /\bhotel\b/]); // tolère la faute fréquente
 
@@ -563,12 +565,20 @@ export function parsePromptToSpec(params: {
     if (spec.city) {
       spec.city.direction = hasAny(text, [/\bverticale?\b/]) ? "vertical" : "horizontal";
       spec.city.streetWidth = Math.max(1, extractNumber(text, [/\b(\d+)\s*cases?\b/]) ?? 2);
+      if (houseCount !== null) spec.city.patternCount = Math.max(1, houseCount);
     }
   }
 
-  if (theme === "city" && spec.city && wantsStreet && wantsHouse && wantsBuildingLayout) {
-    spec.city.patterns = [buildingStyle === "closed" ? "house-tiered-closed" : "house-tiered-open"];
+  if (theme === "city" && spec.city && wantsStreet && wantsHouse) {
+    if (wantsBuildingLayout) {
+      spec.city.patterns = [buildingStyle === "closed" ? "house-tiered-closed" : "house-tiered-open"];
+    } else {
+      spec.city.patterns = ["street-house-front-3x5"];
+    }
     notes.push(`cityPatterns=${spec.city.patterns.join(",")}`);
+    if (typeof spec.city.patternCount === "number") {
+      notes.push(`cityPatternCount=${spec.city.patternCount}`);
+    }
   }
 
   if (theme === "dungeon" && spec.dungeon) {

@@ -116,6 +116,7 @@ export interface CityStreetSpec {
   doors: "closed" | "open";
   lighting: "day" | "night";
   patterns?: string[];
+  patternCount?: number;
 }
 
 export interface BuildingSpec {
@@ -183,7 +184,6 @@ export interface MapBuildResult {
   enemySpawns: { enemyType: EnemyTypeDefinition; position: GridPosition }[];
   playableCells: string[];
   obstacles: import("../obstacleTypes").ObstacleInstance[];
-  walls: import("../wallTypes").WallInstance[];
   wallSegments: WallSegment[];
   terrain: TerrainCell[];
   height: number[];

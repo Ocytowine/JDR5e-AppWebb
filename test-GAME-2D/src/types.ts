@@ -36,6 +36,10 @@ export type MovementType = "ground" | "flying" | "ghost" | string;
 export interface MovementProfile {
   type: MovementType;
   /**
+   * Directions autorisees pour le pathfinding (4 ou 8).
+   */
+  directions?: 4 | 8;
+  /**
    * Nombre maximum de cases (distance de Manhattan) que
    * l'entite peut parcourir pendant son tour.
    */

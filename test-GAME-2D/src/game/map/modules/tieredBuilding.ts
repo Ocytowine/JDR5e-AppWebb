@@ -1,15 +1,15 @@
 import type { GridPosition } from "../../../types";
 import type { MapBuildContext, MapSpec } from "../types";
 import type { MapDraft } from "../draft";
-import { createDraft, setHeight, setTerrain, tryPlaceObstacle, tryPlaceWall } from "../draft";
+import { createDraft, setHeight, setTerrain, tryPlaceObstacle, tryPlaceWallSegment } from "../draft";
 import { findObstacleType } from "../obstacleSelector";
 import { findWallType } from "../wallSelector";
-import type { WallRotationDeg } from "../wallTypes";
+import { resolveWallKindFromType } from "../walls/kind";
+import { resolveWallMaxHp } from "../walls/durability";
+import type { WallDirection } from "../walls/types";
 
 const ROOF_HEIGHT = 1;
 const HOLE_RADIUS = 1;
-const HORIZONTAL: WallRotationDeg = 0;
-const VERTICAL: WallRotationDeg = 90;
 
 function clampRange(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -93,30 +93,24 @@ export function generateTieredBuilding(params: {
   if (style === "closed") {
     const wallType = findWallType(ctx.wallTypes, "wall-stone") ?? ctx.wallTypes[0] ?? null;
     if (wallType) {
-      const wallVariantId = wallType.variants?.[0]?.id ?? "1";
+      const baseKind = resolveWallKindFromType(wallType);
+      const baseMaxHp = resolveWallMaxHp(wallType);
       const placed = new Set<string>();
-      const placeEdge = (x: number, y: number, rotation: WallRotationDeg) => {
+      const placeEdge = (x: number, y: number, dir: WallDirection) => {
         if (x < 0 || x >= cols || y < 0 || y >= rows) return;
-        const key = `${x},${y},${rotation}`;
+        const key = `${x},${y},${dir}`;
         if (placed.has(key)) return;
         placed.add(key);
-        tryPlaceWall({
-          draft,
-          type: wallType,
-          x,
-          y,
-          variantId: wallVariantId,
-          rotation
-        });
+        tryPlaceWallSegment({ draft, x, y, dir, kind: baseKind, typeId: wallType.id, maxHp: baseMaxHp ?? undefined, allowOnReserved: true });
       };
 
       for (let x = bounds.x1; x <= bounds.x2; x++) {
-        placeEdge(x, bounds.y1 - 1, HORIZONTAL);
-        placeEdge(x, bounds.y2 + 1, HORIZONTAL);
+        placeEdge(x, bounds.y1 - 1, "S");
+        placeEdge(x, bounds.y2 + 1, "N");
       }
       for (let y = bounds.y1; y <= bounds.y2; y++) {
-        placeEdge(bounds.x1 - 1, y, VERTICAL);
-        placeEdge(bounds.x2 + 1, y, VERTICAL);
+        placeEdge(bounds.x1 - 1, y, "E");
+        placeEdge(bounds.x2 + 1, y, "W");
       }
     }
   }

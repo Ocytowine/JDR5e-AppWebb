@@ -10,6 +10,7 @@ import {
   gridToScreenForGrid
 } from "../../boardConfig";
 import type { TerrainCell } from "../../game/map/draft";
+import { getFloorMaterial } from "../../game/map/floors/catalog";
 
 function hash01(x: number, y: number): number {
   let h = x * 374761393 + y * 668265263;
@@ -25,15 +26,54 @@ function scaleColor(color: number, factor: number): number {
   return (r << 16) | (g << 8) | b;
 }
 
-const TERRAIN_COLORS: Record<TerrainCell, { base: number; alt: number }> = {
-  grass: { base: 0x2f6b2f, alt: 0x3a7a3a },
-  dirt: { base: 0x6a4b2a, alt: 0x7a5a35 },
-  stone: { base: 0x666666, alt: 0x585858 },
-  water: { base: 0x2b4f8c, alt: 0x315b9c },
-  road: { base: 0x5a4e3b, alt: 0x6a5a45 },
-  floor: { base: 0x3a3a3a, alt: 0x454545 },
-  unknown: { base: 0x1d1d30, alt: 0x151522 }
-};
+function parseHexColor(hex: string | null | undefined): number | null {
+  if (!hex) return null;
+  const cleaned = hex.trim().replace("#", "");
+  if (!cleaned) return null;
+  const value = Number.parseInt(cleaned, 16);
+  return Number.isFinite(value) ? value : null;
+}
+
+function resolveFloorColors(floorId: string): { base: number; alt: number; textureId?: string } {
+  const material = getFloorMaterial(floorId) ?? getFloorMaterial("unknown");
+  const baseColor = parseHexColor(material?.fallbackColor) ?? 0x1d1d30;
+  const altColor = scaleColor(baseColor, 1.08);
+  return { base: baseColor, alt: altColor, textureId: material?.textureId };
+}
+
+function drawWoodPlankTile(params: {
+  g: Graphics;
+  x: number;
+  y: number;
+  baseColor: number;
+  seedX: number;
+  seedY: number;
+}): void {
+  const { g, x, y, baseColor, seedX, seedY } = params;
+  const lineColor = scaleColor(baseColor, 0.72);
+  const highlightColor = scaleColor(baseColor, 1.08);
+  const horizontal = hash01(seedX, seedY) > 0.5;
+  const lines = 3;
+  const spacing = TILE_SIZE / (lines + 1);
+  for (let i = 1; i <= lines; i++) {
+    const jitter = (hash01(seedX + i * 11, seedY + i * 7) - 0.5) * 2;
+    const offset = Math.round(spacing * i + jitter * 1.2);
+    if (horizontal) {
+      const yPos = y + offset;
+      g.moveTo(x + 1, yPos);
+      g.lineTo(x + TILE_SIZE - 1, yPos);
+      g.stroke({ color: lineColor, alpha: 0.35, width: 1 });
+    } else {
+      const xPos = x + offset;
+      g.moveTo(xPos, y + 1);
+      g.lineTo(xPos, y + TILE_SIZE - 1);
+      g.stroke({ color: lineColor, alpha: 0.35, width: 1 });
+    }
+  }
+  const knotX = x + Math.round(TILE_SIZE * (0.25 + hash01(seedX + 3, seedY + 9) * 0.5));
+  const knotY = y + Math.round(TILE_SIZE * (0.25 + hash01(seedX + 5, seedY + 1) * 0.5));
+  g.circle(knotX, knotY, 1.3).fill({ color: highlightColor, alpha: 0.25 });
+}
 
 export function usePixiBoard(options: {
   enabled: boolean;
@@ -170,9 +210,9 @@ export function usePixiBoard(options: {
               terrain && terrainIndex >= 0 && terrainIndex < terrain.length
                 ? (terrain[terrainIndex] as TerrainCell)
                 : "unknown";
-            const colors = TERRAIN_COLORS[cellTerrain] ?? TERRAIN_COLORS.unknown;
+            const floorColors = resolveFloorColors(cellTerrain);
             const noise = hash01(gx, gy);
-            const baseColor = noise > 0.5 ? colors.base : colors.alt;
+            const baseColor = noise > 0.5 ? floorColors.base : floorColors.alt;
             const variance = 1 + (noise - 0.5) * 0.18;
             const tileColor = scaleColor(baseColor, variance);
 
@@ -183,6 +223,16 @@ export function usePixiBoard(options: {
               color: tileColor,
               alpha: 1
             });
+            if (floorColors.textureId === "wood-plank") {
+              drawWoodPlankTile({
+                g: gridLayer,
+                x,
+                y,
+                baseColor: tileColor,
+                seedX: gx,
+                seedY: gy
+              });
+            }
           }
         }
       };

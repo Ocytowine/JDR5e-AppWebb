@@ -6,7 +6,6 @@ import { parsePromptToSpec } from "./promptParser";
 import { hashStringToSeed, mulberry32 } from "./random";
 import { spawnEnemies } from "./spawn";
 import { recommendGridFromSpec } from "./recommendGrid";
-import { convertLegacyWallsToSegments } from "./walls/legacy";
 import { wallEdgeKeyForSegment } from "./walls/grid";
 
 import { generateDungeonCircularRoom } from "./modules/dungeonCircularRoom";
@@ -192,7 +191,7 @@ export function runGenerationPipeline(params: {
                 ? "Layout: ville (rue)."
                 : "Layout: basique."
   );
-  summaryParts.push(`Obstacles: ${draft.obstacles.length}. Murs: ${draft.walls.length}. Ennemis: ${enemySpawns.length}.`);
+  summaryParts.push(`Obstacles: ${draft.obstacles.length}. Murs: ${draft.wallSegments.length}. Ennemis: ${enemySpawns.length}.`);
 
   generationLog.push(...notes.map(n => `[spec] ${n}`));
   generationLog.push(`[spec] timeOfDay=${spec.timeOfDay}`);
@@ -208,12 +207,8 @@ export function runGenerationPipeline(params: {
   generationLog.push(...draft.log.map(l => `[gen] ${l}`));
   generationLog.push(...spawnLog.map(l => `[spawn] ${l}`));
 
-  const legacySegments = convertLegacyWallsToSegments({
-    walls: draft.walls,
-    wallTypes: params.ctx.wallTypes
-  });
   const wallSegmentMap = new Map<string, import("./walls/types").WallSegment>();
-  for (const seg of [...legacySegments, ...draft.wallSegments]) {
+  for (const seg of draft.wallSegments) {
     wallSegmentMap.set(wallEdgeKeyForSegment(seg), seg);
   }
 
@@ -226,7 +221,6 @@ export function runGenerationPipeline(params: {
     enemySpawns,
     playableCells: Array.from(draft.playable),
     obstacles: draft.obstacles,
-    walls: draft.walls,
     wallSegments: Array.from(wallSegmentMap.values()),
     terrain: draft.layers.terrain,
     height: draft.layers.height,
@@ -260,7 +254,7 @@ export function runManualGenerationPipeline(params: {
   const generationLog: string[] = [];
 
   summaryParts.push(`Manual preset: ${manualConfig.presetId}.`);
-  summaryParts.push(`Obstacles: ${draft.obstacles.length}. Murs: ${draft.walls.length}. Ennemis: ${enemySpawns.length}.`);
+  summaryParts.push(`Obstacles: ${draft.obstacles.length}. Murs: ${draft.wallSegments.length}. Ennemis: ${enemySpawns.length}.`);
 
   generationLog.push(
     `[manual] preset=${manualConfig.presetId} grid=${manualConfig.grid.cols}x${manualConfig.grid.rows}`
@@ -268,12 +262,8 @@ export function runManualGenerationPipeline(params: {
   generationLog.push(...draft.log.map(l => `[gen] ${l}`));
   generationLog.push(...spawnLog.map(l => `[spawn] ${l}`));
 
-  const legacySegments = convertLegacyWallsToSegments({
-    walls: draft.walls,
-    wallTypes: ctx.wallTypes
-  });
   const wallSegmentMap = new Map<string, import("./walls/types").WallSegment>();
-  for (const seg of [...legacySegments, ...draft.wallSegments]) {
+  for (const seg of draft.wallSegments) {
     wallSegmentMap.set(wallEdgeKeyForSegment(seg), seg);
   }
 
@@ -286,7 +276,6 @@ export function runManualGenerationPipeline(params: {
     enemySpawns,
     playableCells: Array.from(draft.playable),
     obstacles: draft.obstacles,
-    walls: draft.walls,
     wallSegments: Array.from(wallSegmentMap.values()),
     terrain: draft.layers.terrain,
     height: draft.layers.height,

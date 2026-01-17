@@ -6,9 +6,11 @@ import type {
   ObstacleRotationDeg
 } from "../obstacleTypes";
 import { getObstacleOccupiedCells } from "../obstacleRuntime";
-import type { WallInstance, WallRotationDeg, WallTypeDefinition, WallState } from "../wallTypes";
-import { getWallOccupiedCells } from "../wallRuntime";
-import type { WallSegment } from "./walls/types";
+import type { WallState } from "../wallTypes";
+import type { FloorId } from "./floors/types";
+import type { WallDirection, WallKind, WallSegment } from "./walls/types";
+import { getAdjacentCellsForEdge, wallEdgeKey } from "./walls/grid";
+import { buildWallEdgeSets, isEdgeBlockedForMovement } from "./walls/runtime";
 
 // ------------------------------------------------------------
 // MapDraft: état intermédiaire "multi-couches"
@@ -18,14 +20,7 @@ import type { WallSegment } from "./walls/types";
 // - terrain (eau/boue/route...), hauteur, lumière (futur)
 // - un log de génération lisible (debug)
 
-export type TerrainCell =
-  | "floor"
-  | "grass"
-  | "dirt"
-  | "stone"
-  | "water"
-  | "road"
-  | "unknown";
+export type TerrainCell = FloorId;
 
 export interface MapLayers {
   terrain: TerrainCell[];
@@ -47,9 +42,8 @@ export interface MapDraft {
   obstacles: ObstacleInstance[];
   occupied: Set<string>;
   movementBlocked: Set<string>;
-  walls: WallInstance[];
   wallSegments: WallSegment[];
-  wallOccupied: Set<string>;
+  wallSegmentKeys: Set<string>;
   decorations: DecorInstance[];
   decorOccupied: Set<string>;
 
@@ -160,9 +154,8 @@ export function createDraft(params: {
     obstacles: [],
     occupied: new Set<string>(),
     movementBlocked: new Set<string>(),
-    walls: [],
     wallSegments: [],
-    wallOccupied: new Set<string>(),
+    wallSegmentKeys: new Set<string>(),
     decorations: [],
     decorOccupied: new Set<string>(),
     reserved: params.reserved ?? new Set<string>(),
@@ -294,52 +287,44 @@ export function tryPlaceObstacle(params: {
   return true;
 }
 
-export function tryPlaceWall(params: {
+export function tryPlaceWallSegment(params: {
   draft: MapDraft;
-  type: WallTypeDefinition | null;
   x: number;
   y: number;
-  variantId: string;
-  rotation: WallRotationDeg;
+  dir: WallDirection;
+  kind: WallKind;
   state?: WallState;
+  typeId?: string;
+  maxHp?: number;
   allowOnReserved?: boolean;
 }): boolean {
-  const { draft, type, x, y, variantId, rotation } = params;
-  if (!type) return false;
+  const { draft, x, y, dir, kind } = params;
+  if (!isInside(draft, x, y)) return false;
 
-  const maxHp = Math.max(1, Number(type.durability?.maxHp ?? 1));
-  const instance: WallInstance = {
+  const edgeKey = wallEdgeKey(x, y, dir);
+  if (draft.wallSegmentKeys.has(edgeKey)) return false;
+
+  if (!params.allowOnReserved) {
+    const cells = getAdjacentCellsForEdge({ x, y, dir });
+    if (draft.reserved.has(key(cells.a.x, cells.a.y)) || draft.reserved.has(key(cells.b.x, cells.b.y))) {
+      return false;
+    }
+  }
+
+  const seg: WallSegment = {
     id: draft.nextWallId(),
-    typeId: type.id,
-    variantId,
+    typeId: params.typeId,
     x,
     y,
-    rotation,
+    dir,
+    kind,
     state: params.state,
-    hp: maxHp,
-    maxHp
+    hp: typeof params.maxHp === "number" ? params.maxHp : undefined,
+    maxHp: typeof params.maxHp === "number" ? params.maxHp : undefined
   };
 
-  const cells = getWallOccupiedCells(instance, type);
-  if (!cells.length) return false;
-
-  const enforcePlayable = draft.playable.size > 0;
-  for (const c of cells) {
-    if (!isInside(draft, c.x, c.y)) return false;
-    const k = key(c.x, c.y);
-    if (enforcePlayable && !draft.playable.has(k)) return false;
-    if (!params.allowOnReserved && draft.reserved.has(k)) return false;
-    if (draft.occupied.has(k)) return false;
-  }
-
-  draft.walls.push(instance);
-  for (const c of cells) {
-    const k = key(c.x, c.y);
-    draft.wallOccupied.add(k);
-    draft.occupied.add(k);
-    if (type.blocking?.movement) draft.movementBlocked.add(k);
-  }
-
+  draft.wallSegments.push(seg);
+  draft.wallSegmentKeys.add(edgeKey);
   return true;
 }
 
@@ -419,6 +404,8 @@ export function computeReachableCells(draft: MapDraft, start: GridPosition): Set
   const startKey = key(start.x, start.y);
   if (draft.movementBlocked.has(startKey)) return reachable;
 
+  const wallEdges = buildWallEdgeSets(draft.wallSegments).movement;
+
   const queue: GridPosition[] = [start];
   reachable.add(startKey);
 
@@ -435,6 +422,9 @@ export function computeReachableCells(draft: MapDraft, start: GridPosition): Set
       const nx = cur.x + d.x;
       const ny = cur.y + d.y;
       if (!isInside(draft, nx, ny)) continue;
+      if (wallEdges.size > 0 && isEdgeBlockedForMovement(cur, { x: nx, y: ny }, wallEdges)) {
+        continue;
+      }
       const k = key(nx, ny);
       if (reachable.has(k)) continue;
       if (draft.movementBlocked.has(k)) continue;

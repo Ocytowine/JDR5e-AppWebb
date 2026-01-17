@@ -1,9 +1,12 @@
 import type { GridPosition } from "../../../types";
 import type { ObstacleTypeDefinition } from "../../obstacleTypes";
 import type { MapBuildContext, MapSpec, EntrancePosition, EntranceSide } from "../types";
-import { clamp, createDraft, key, setLight, setTerrain, scatterTerrainPatches, tryPlaceObstacle, tryPlaceWall } from "../draft";
+import { clamp, createDraft, key, setLight, setTerrain, scatterTerrainPatches, tryPlaceObstacle, tryPlaceWallSegment } from "../draft";
 import { pickVariantIdForPlacement, weightedTypesForContext } from "../obstacleSelector";
 import { findWallType } from "../wallSelector";
+import { resolveWallKindFromType } from "../walls/kind";
+import { resolveWallMaxHp } from "../walls/durability";
+import type { WallDirection, WallKind } from "../walls/types";
 
 interface RoomMasksResult {
   draft: ReturnType<typeof createDraft>;
@@ -93,44 +96,45 @@ function pickByPosition(cells: GridPosition[], position: EntrancePosition | unde
 
 function placeBoundaryWalls(params: {
   draft: ReturnType<typeof createDraft>;
-  boundaryCells: GridPosition[];
+  boundaryBySide: Record<EntranceSide, GridPosition[]>;
   wallType: ReturnType<typeof pickDungeonDefaults>["wallType"];
   wallDoorType: ReturnType<typeof pickDungeonDefaults>["wallDoorType"];
   openings: Map<string, "open" | "closed">;
 }): void {
-  const { draft, boundaryCells, wallType, wallDoorType, openings } = params;
+  const { draft, boundaryBySide, wallType, wallDoorType, openings } = params;
   if (!wallType) {
     draft.log.push("Murs: aucun type de mur disponible.");
     return;
   }
 
-  const smallestVariant =
-    (wallType.variants ?? [])
-      .map(v => ({
-        id: v.id,
-        len: Array.isArray(v.footprint) ? v.footprint.length : 1
-      }))
-      .sort((a, b) => a.len - b.len)[0]?.id ?? (wallType.variants?.[0]?.id ?? "1");
+  const baseKind = resolveWallKindFromType(wallType);
+  const doorKind: WallKind = wallDoorType ? resolveWallKindFromType(wallDoorType) : "door";
+  const baseMaxHp = resolveWallMaxHp(wallType);
+  const doorMaxHp = resolveWallMaxHp(wallDoorType);
 
-  let placedWalls = 0;
-  for (const cell of boundaryCells) {
-    const k = key(cell.x, cell.y);
-    const openingState = openings.get(k) ?? null;
-    const isOpening = openingState !== null;
-    const typeForCell = isOpening && wallDoorType ? wallDoorType : wallType;
-    const state = isOpening ? openingState : "closed";
-    const ok = tryPlaceWall({
-      draft,
-      type: typeForCell,
-      x: cell.x,
-      y: cell.y,
-      variantId: smallestVariant,
-      rotation: 0,
-      state,
-      allowOnReserved: true
-    });
-    if (ok) placedWalls++;
-  }
+  const placeSide = (cells: GridPosition[], dir: WallDirection) => {
+    let placed = 0;
+    for (const cell of cells) {
+      const k = key(cell.x, cell.y);
+      const openingState = openings.get(k) ?? null;
+      const isOpening = openingState !== null;
+      const kind = isOpening ? doorKind : baseKind;
+      const state = isOpening ? openingState : undefined;
+      const typeId = isOpening ? wallDoorType?.id : wallType.id;
+      const maxHp = isOpening ? doorMaxHp : baseMaxHp;
+      if (tryPlaceWallSegment({ draft, x: cell.x, y: cell.y, dir, kind, state, typeId, maxHp: maxHp ?? undefined, allowOnReserved: true })) {
+        placed++;
+      }
+    }
+    return placed;
+  };
+
+  const placedWalls =
+    placeSide(boundaryBySide.north, "N") +
+    placeSide(boundaryBySide.south, "S") +
+    placeSide(boundaryBySide.west, "W") +
+    placeSide(boundaryBySide.east, "E");
+
   draft.log.push(`Murs: ${placedWalls} segments (avec ${openings.size} acces).`);
 }
 
@@ -147,30 +151,34 @@ function placeWallLine(params: {
 }): void {
   const { draft, wallType, wallDoorType } = params;
   if (!wallType) return;
-  const smallestVariant =
-    (wallType.variants ?? [])
-      .map(v => ({
-        id: v.id,
-        len: Array.isArray(v.footprint) ? v.footprint.length : 1
-      }))
-      .sort((a, b) => a.len - b.len)[0]?.id ?? (wallType.variants?.[0]?.id ?? "1");
+  const baseKind = resolveWallKindFromType(wallType);
+  const doorKind: WallKind = wallDoorType ? resolveWallKindFromType(wallDoorType) : "door";
+  const baseMaxHp = resolveWallMaxHp(wallType);
+  const doorMaxHp = resolveWallMaxHp(wallDoorType);
+  const isVertical = params.x1 === params.x2;
+  const isHorizontal = params.y1 === params.y2;
+  if (!isVertical && !isHorizontal) return;
 
+  const dir: WallDirection = isVertical ? "W" : "N";
   const dx = Math.sign(params.x2 - params.x1);
   const dy = Math.sign(params.y2 - params.y1);
   let x = params.x1;
   let y = params.y1;
   while (true) {
     const isDoor = params.doorCells?.has(key(x, y)) ?? false;
-    const typeForCell = isDoor && wallDoorType ? wallDoorType : wallType;
-    const state = isDoor ? params.doorState ?? "open" : "closed";
-    tryPlaceWall({
+    const kind = isDoor ? doorKind : baseKind;
+    const state = isDoor ? params.doorState ?? "open" : undefined;
+    const typeId = isDoor ? wallDoorType?.id : wallType.id;
+    const maxHp = isDoor ? doorMaxHp : baseMaxHp;
+    tryPlaceWallSegment({
       draft,
-      type: typeForCell,
       x,
       y,
-      variantId: smallestVariant,
-      rotation: 0,
+      dir,
+      kind,
       state,
+      typeId,
+      maxHp: maxHp ?? undefined,
       allowOnReserved: true
     });
     if (x === params.x2 && y === params.y2) break;
@@ -354,7 +362,7 @@ export function generateDungeonRoomPlan(params: {
     const corridorSide = plan.corridorSide ?? "north";
     const corridorWidth = 2;
     const roomCount = Math.max(2, plan.roomCount);
-    const roomWallGap = roomCount - 1;
+    const roomWallGap = 0;
 
     if (corridorSide === "north" || corridorSide === "south") {
       const roomWidth = Math.max(3, Math.floor((cols - 2 - roomWallGap) / roomCount));
@@ -368,8 +376,8 @@ export function generateDungeonRoomPlan(params: {
         const roomId = plan.rooms[i]?.id ?? `room-${i + 1}`;
         const x1 = startX;
         const x2 = Math.min(cols - 2, x1 + roomWidth - 1);
-        const y1 = corridorSide === "north" ? wallY + 1 : 1;
-        const y2 = corridorSide === "north" ? rows - 2 : wallY - 1;
+        const y1 = corridorSide === "north" ? wallY : 1;
+        const y2 = corridorSide === "north" ? rows - 2 : wallY;
         const mask = collectRoomMask({ cols, rows, x1, y1, x2, y2 });
         roomMasks[roomId] = mask;
 
@@ -396,7 +404,7 @@ export function generateDungeonRoomPlan(params: {
           });
         }
 
-        startX = x2 + 2;
+        startX = x2 + 1;
       }
 
       placeWallLine({
@@ -422,8 +430,8 @@ export function generateDungeonRoomPlan(params: {
         const roomId = plan.rooms[i]?.id ?? `room-${i + 1}`;
         const y1 = startY;
         const y2 = Math.min(rows - 2, y1 + roomHeight - 1);
-        const x1 = corridorSide === "west" ? wallX + 1 : 1;
-        const x2 = corridorSide === "west" ? cols - 2 : wallX - 1;
+        const x1 = corridorSide === "west" ? wallX : 1;
+        const x2 = corridorSide === "west" ? cols - 2 : wallX;
         const mask = collectRoomMask({ cols, rows, x1, y1, x2, y2 });
         roomMasks[roomId] = mask;
 
@@ -450,7 +458,7 @@ export function generateDungeonRoomPlan(params: {
           });
         }
 
-        startY = y2 + 2;
+        startY = y2 + 1;
       }
 
       placeWallLine({
@@ -491,7 +499,7 @@ export function generateDungeonRoomPlan(params: {
       });
 
       const leftMask = collectRoomMask({ cols, rows, x1: 1, y1: 1, x2: wallX - 1, y2: rows - 2 });
-      const rightMask = collectRoomMask({ cols, rows, x1: wallX + 1, y1: 1, x2: cols - 2, y2: rows - 2 });
+      const rightMask = collectRoomMask({ cols, rows, x1: wallX, y1: 1, x2: cols - 2, y2: rows - 2 });
       roomMasks[plan?.rooms[0]?.id ?? "room-1"] = leftMask;
       roomMasks[plan?.rooms[1]?.id ?? "room-2"] = rightMask;
     } else {
@@ -518,7 +526,7 @@ export function generateDungeonRoomPlan(params: {
       });
 
       const topMask = collectRoomMask({ cols, rows, x1: 1, y1: 1, x2: cols - 2, y2: wallY - 1 });
-      const bottomMask = collectRoomMask({ cols, rows, x1: 1, y1: wallY + 1, x2: cols - 2, y2: rows - 2 });
+      const bottomMask = collectRoomMask({ cols, rows, x1: 1, y1: wallY, x2: cols - 2, y2: rows - 2 });
       roomMasks[plan?.rooms[0]?.id ?? "room-1"] = topMask;
       roomMasks[plan?.rooms[1]?.id ?? "room-2"] = bottomMask;
     }
@@ -541,7 +549,7 @@ export function generateDungeonRoomPlan(params: {
 
   placeBoundaryWalls({
     draft,
-    boundaryCells,
+    boundaryBySide,
     wallType,
     wallDoorType,
     openings

@@ -1,6 +1,6 @@
 import type { GridPosition } from "../types";
+import type { InteractionSpec } from "./interactions";
 
-export type WallRotationDeg = 0 | 90 | 180 | 270;
 export type WallState = "open" | "closed";
 
 export interface WallBlocking {
@@ -24,6 +24,7 @@ export interface WallAppearance {
 
 export interface WallBehavior {
   kind?: "solid" | "door" | "window" | "arch";
+  interactions?: InteractionSpec[];
 }
 
 export interface WallDurability {
@@ -45,14 +46,3 @@ export interface WallTypeDefinition {
   [key: string]: unknown;
 }
 
-export interface WallInstance {
-  id: string;
-  typeId: string;
-  variantId: string;
-  x: number;
-  y: number;
-  rotation: WallRotationDeg;
-  state?: WallState;
-  hp: number;
-  maxHp: number;
-}

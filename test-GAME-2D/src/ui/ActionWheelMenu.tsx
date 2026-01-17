@@ -1,8 +1,16 @@
 import React, { useEffect, useMemo, useState } from "react";
 import type { ActionAvailability, ActionDefinition } from "../game/actionTypes";
+import type { MovementModeDefinition } from "../game/movementModes";
 import { RadialWheelMenu, type WheelMenuItem } from "./RadialWheelMenu";
 
-type WheelView = "root" | "categories" | "actions" | "inspect";
+type WheelView =
+  | "root"
+  | "categories"
+  | "actions"
+  | "inspect"
+  | "movement"
+  | "interaction-select"
+  | "interaction-actions";
 
 function categoryLabel(category: string): string {
   const c = category.toLowerCase();
@@ -36,17 +44,30 @@ export function ActionWheelMenu(props: {
   selectedPathLength: number;
   isResolvingEnemies: boolean;
   actions: ActionDefinition[];
+  movementModes: MovementModeDefinition[];
+  activeMovementModeId: string | null;
+  isMoving: boolean;
+  interactionState: "idle" | "select" | "menu";
+  interactionItems: WheelMenuItem[];
+  movementCostUsed?: number;
+  movementCostMax?: number;
+  interactionPrompt?: string;
+  onCancelInteract: () => void;
   computeActionAvailability: (action: ActionDefinition) => ActionAvailability;
   onClose: () => void;
-  onEnterMoveMode: () => void;
+  onSelectMoveMode: (modeId: string) => void;
+  onCancelMove: () => void;
+  onNoMovementModes: () => void;
+  onNoActions: () => void;
   onValidateMove: () => void;
-  onResetMove: () => void;
   onInspectCell: () => void;
   onLook: () => void;
   onInteract: () => void;
   onHide: () => void;
   onEndTurn: () => void;
   onPickAction: (action: ActionDefinition) => void;
+  sliceOpacity?: number;
+  centerOpacity?: number;
 }): React.ReactNode {
   const [view, setView] = useState<WheelView>("root");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -65,7 +86,37 @@ export function ActionWheelMenu(props: {
     }
   }, [props.open]);
 
+  useEffect(() => {
+    if (props.interactionState === "select") {
+      setView("interaction-select");
+      return;
+    }
+    if (props.interactionState === "menu") {
+      setView("interaction-actions");
+      return;
+    }
+    if (view === "interaction-select" || view === "interaction-actions") {
+      setView("root");
+    }
+  }, [props.interactionState, view]);
+
   const items: WheelMenuItem[] = useMemo(() => {
+    if (view === "interaction-select") {
+      return [
+        {
+          id: "interaction-select",
+          label: "Selection",
+          color: "#34495e",
+          disabled: true,
+          disabledReason: "Selection en cours"
+        }
+      ];
+    }
+
+    if (view === "interaction-actions") {
+      return props.interactionItems;
+    }
+
     if (view === "categories") {
       const catItems: WheelMenuItem[] = [
         {
@@ -91,6 +142,11 @@ export function ActionWheelMenu(props: {
     }
 
     if (view === "actions") {
+      if (props.actions.length === 0) {
+        props.onNoActions();
+        setView("root");
+        return [];
+      }
       const filtered = selectedCategory
         ? props.actions.filter(a => a.category === selectedCategory)
         : props.actions;
@@ -122,7 +178,7 @@ export function ActionWheelMenu(props: {
       return [
         {
           id: "inspect-cell",
-          label: "Inspecter (10)",
+          label: "Inspecter",
           color: "#3498db",
           disabled: !enabled,
           disabledReason,
@@ -145,8 +201,47 @@ export function ActionWheelMenu(props: {
       ];
     }
 
+    if (view === "movement") {
+      const costUsed = Number(props.movementCostUsed ?? 0);
+      const costMax = Number(props.movementCostMax ?? 0);
+      const costLabel = costMax > 0
+        ? `Cout: ${costUsed}/${costMax}`
+        : `Cout: ${costUsed}`;
+      const hasPath = props.selectedPathLength > 0;
+      const moveItems: WheelMenuItem[] = [
+        {
+          id: "move-cost",
+          label: costLabel,
+          color: "#34495e",
+          disabled: true,
+          disabledReason: "Budget de mouvement"
+        },
+        ...props.movementModes.map(mode => {
+        const isActive = mode.id === props.activeMovementModeId;
+        return {
+          id: `move-${mode.id}`,
+          label: mode.label,
+          color: isActive ? "#2ecc71" : "#34495e",
+          onSelect: () => {
+            props.onSelectMoveMode(mode.id);
+          }
+        };
+      })
+      ];
+
+      moveItems.push({
+        id: "validate-move",
+        label: "Valider trajet",
+        color: "#f1c40f",
+        disabled: !props.canInteractWithBoard || !hasPath,
+        disabledReason: !hasPath ? "Aucun trajet" : "Tour joueur requis",
+        onSelect: props.onValidateMove
+      });
+
+      return moveItems;
+    }
+
     const isMoveAvailable = props.canInteractWithBoard;
-    const hasPath = props.selectedPathLength > 0;
 
     return [
       {
@@ -155,7 +250,13 @@ export function ActionWheelMenu(props: {
         color: "#2ecc71",
         disabled: !isMoveAvailable,
         disabledReason: "Tour joueur requis",
-        onSelect: props.onEnterMoveMode
+        onSelect: () => {
+          if (props.movementModes.length === 0) {
+            props.onNoMovementModes();
+            return;
+          }
+          setView("movement");
+        }
       },
       {
         id: "action",
@@ -164,28 +265,16 @@ export function ActionWheelMenu(props: {
         disabled: !props.canInteractWithBoard,
         disabledReason: "Tour joueur requis",
         onSelect: () => {
+          if (props.actions.length === 0) {
+            props.onNoActions();
+            return;
+          }
           if (shouldFilterByCategory) {
             setView("categories");
             return;
           }
           setView("actions");
         }
-      },
-      {
-        id: "validate-move",
-        label: "Valider",
-        color: "#f1c40f",
-        disabled: !props.canInteractWithBoard || !hasPath,
-        disabledReason: !hasPath ? "Aucun trajet" : "Tour joueur requis",
-        onSelect: props.onValidateMove
-      },
-      {
-        id: "reset-move",
-        label: "Annuler trajet",
-        color: "#e67e22",
-        disabled: !props.canInteractWithBoard || !hasPath,
-        disabledReason: !hasPath ? "Aucun trajet" : "Tour joueur requis",
-        onSelect: props.onResetMove
       },
       {
         id: "inspect",
@@ -233,16 +322,47 @@ export function ActionWheelMenu(props: {
       return { centerLabel: "Annuler", onCenterClick: props.onClose };
     }
     if (view === "categories") {
-      return { centerLabel: "Retour", onCenterClick: () => setView("root") };
+      return { centerLabel: "Annuler", onCenterClick: () => setView("root") };
     }
     if (view === "inspect") {
-      return { centerLabel: "Retour", onCenterClick: () => setView("root") };
+      return { centerLabel: "Annuler", onCenterClick: () => setView("root") };
+    }
+    if (view === "movement") {
+      return {
+        centerLabel: "Annuler",
+        onCenterClick: () => {
+          props.onCancelMove();
+          setView("root");
+        }
+      };
+    }
+    if (view === "interaction-select" || view === "interaction-actions") {
+      return {
+        centerLabel: "Annuler",
+        onCenterClick: () => {
+          props.onCancelInteract();
+          setView("root");
+        }
+      };
     }
     if (view === "actions" && shouldFilterByCategory) {
-      return { centerLabel: "Retour", onCenterClick: () => setView("categories") };
+      return { centerLabel: "Annuler", onCenterClick: () => setView("root") };
     }
-    return { centerLabel: "Retour", onCenterClick: () => setView("root") };
-  }, [props.onClose, shouldFilterByCategory, view]);
+    return { centerLabel: "Annuler", onCenterClick: () => setView("root") };
+  }, [props.onCancelInteract, props.onCancelMove, props.onClose, shouldFilterByCategory, view]);
+
+  const sliceOpacity =
+    typeof props.sliceOpacity === "number"
+      ? props.sliceOpacity
+      : props.isMoving
+        ? 0.28
+        : 0.65;
+  const centerOpacity =
+    typeof props.centerOpacity === "number"
+      ? props.centerOpacity
+      : props.isMoving
+        ? 0.35
+        : 0.6;
 
   return (
     <RadialWheelMenu
@@ -254,8 +374,9 @@ export function ActionWheelMenu(props: {
       size={props.size}
       centerLabel={centerLabel}
       onCenterClick={onCenterClick}
-      sliceOpacity={0.65}
-      centerOpacity={0.6}
+      sliceOpacity={sliceOpacity}
+      centerOpacity={centerOpacity}
+      arcLabel={view === "interaction-select" ? props.interactionPrompt : undefined}
     />
   );
 }

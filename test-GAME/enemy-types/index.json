@@ -1,8 +1,0 @@
-{
-  "types": [
-    "./brute.json",
-    "./archer.json",
-    "./assassin.json",
-    "./ghost.json"
-  ]
-}

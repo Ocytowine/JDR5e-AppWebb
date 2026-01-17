@@ -1,7 +1,7 @@
 import type { EnemyTypeDefinition } from "./enemyTypes";
 import type { GridPosition } from "../types";
 import type { ObstacleInstance, ObstacleTypeDefinition } from "./obstacleTypes";
-import type { WallInstance, WallTypeDefinition } from "./wallTypes";
+import type { WallTypeDefinition } from "./wallTypes";
 import type { ManualMapConfig, MapTheme } from "./map/types";
 import type { DecorInstance } from "./decorTypes";
 import type { TerrainCell } from "./map/draft";
@@ -31,7 +31,6 @@ export interface MapDesignResult {
    */
   playableCells: string[];
   obstacles: ObstacleInstance[];
-  walls: WallInstance[];
   wallSegments: WallSegment[];
   terrain: TerrainCell[];
   height: number[];
@@ -79,7 +78,6 @@ export function generateBattleMap(request: MapDesignRequest): MapDesignResult {
       enemySpawns: result.enemySpawns,
       playableCells: result.playableCells,
       obstacles: result.obstacles,
-      walls: result.walls,
       wallSegments: result.wallSegments,
       terrain: result.terrain,
       height: result.height,
@@ -109,7 +107,6 @@ export function generateBattleMap(request: MapDesignRequest): MapDesignResult {
     enemySpawns: result.enemySpawns,
     playableCells: result.playableCells,
     obstacles: result.obstacles,
-    walls: result.walls,
     wallSegments: result.wallSegments,
     terrain: result.terrain,
     height: result.height,

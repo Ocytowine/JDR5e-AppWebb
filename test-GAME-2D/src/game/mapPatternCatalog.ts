@@ -38,6 +38,12 @@ export interface MapPatternElement {
   terrain?: string;
 }
 
+export interface MapPatternFloorPaint {
+  mode: "interior";
+  terrain: string;
+  height?: number;
+}
+
 export interface MapPatternVariant {
   id: string;
   elements: MapPatternElement[];
@@ -51,10 +57,57 @@ export interface MapPatternDefinition {
   footprint: MapPatternFootprint;
   anchor: MapPatternAnchor;
   constraints?: MapPatternConstraints;
+  allowedTerrains?: string[];
   elements: MapPatternElement[];
   variants?: MapPatternVariant[];
   wallAscii?: string[];
   wallDoors?: { x: number; y: number; dir: "N" | "E" | "S" | "W"; state?: "open" | "closed" }[];
+  floorPaint?: MapPatternFloorPaint;
+}
+
+function getNormalizedWallAsciiSize(lines?: string[]): { w: number; h: number } | null {
+  if (!Array.isArray(lines)) return null;
+  const cleaned = lines
+    .map(line => String(line ?? "").replace(/\r/g, ""))
+    .filter(line => line.trim().length > 0);
+  if (cleaned.length === 0) return null;
+  let w = 0;
+  for (const line of cleaned) w = Math.max(w, line.length);
+  return { w, h: cleaned.length };
+}
+
+function validatePattern(pattern: MapPatternDefinition): string[] {
+  const issues: string[] = [];
+  const w = Math.floor(pattern.footprint?.w ?? 0);
+  const h = Math.floor(pattern.footprint?.h ?? 0);
+  if (w <= 0 || h <= 0) {
+    issues.push(`footprint invalide: ${pattern.footprint?.w}x${pattern.footprint?.h}`);
+  }
+  for (const el of pattern.elements ?? []) {
+    const x = el.x;
+    const y = el.y;
+    if (typeof x === "number" && typeof y === "number" && w > 0 && h > 0) {
+      if (x < 0 || y < 0 || x >= w || y >= h) {
+        issues.push(`element hors footprint: (${x},${y})`);
+      }
+    }
+  }
+  const wallSize = getNormalizedWallAsciiSize(pattern.wallAscii);
+  if (wallSize && w > 0 && h > 0) {
+    if (wallSize.w !== w || wallSize.h !== h) {
+      issues.push(`wallAscii ${wallSize.w}x${wallSize.h} != footprint ${w}x${h}`);
+    }
+    for (const door of pattern.wallDoors ?? []) {
+      const dx = door.x;
+      const dy = door.y;
+      if (typeof dx === "number" && typeof dy === "number") {
+        if (dx < 0 || dy < 0 || dx >= wallSize.w || dy >= wallSize.h) {
+          issues.push(`door hors wallAscii: (${dx},${dy})`);
+        }
+      }
+    }
+  }
+  return issues;
 }
 
 const PATTERN_MODULES: Record<string, MapPatternDefinition> = {
@@ -78,6 +131,10 @@ export function loadMapPatternsFromIndex(): MapPatternDefinition[] {
   for (const path of indexed) {
     const mod = PATTERN_MODULES[path];
     if (mod) {
+      const issues = validatePattern(mod);
+      for (const issue of issues) {
+        console.warn(`[patterns] ${mod.id}: ${issue}`);
+      }
       loaded.push(mod);
     } else {
       console.warn("[patterns] Pattern path missing in bundle:", path);

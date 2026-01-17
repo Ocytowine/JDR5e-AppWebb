@@ -39,14 +39,14 @@ import ghostType from "../enemy-types/ghost.json";
 import { loadObstacleTypesFromIndex } from "./game/obstacleCatalog";
 import { loadWallTypesFromIndex } from "./game/wallCatalog";
 import type { ObstacleInstance, ObstacleTypeDefinition } from "./game/obstacleTypes";
-import type { WallInstance, WallTypeDefinition } from "./game/wallTypes";
+import type { WallTypeDefinition } from "./game/wallTypes";
 import { generateBattleMap } from "./game/mapEngine";
 import { getHeightAtGrid, type TerrainCell } from "./game/map/draft";
+import { getFloorMaterial } from "./game/map/floors/catalog";
 import type { DecorInstance } from "./game/decorTypes";
 import type { ManualMapConfig, MapTheme } from "./game/map/types";
 import { MANUAL_MAP_PRESETS, getManualPresetById } from "./game/map/presets";
 import { buildObstacleBlockingSets, getObstacleOccupiedCells } from "./game/obstacleRuntime";
-import { buildWallBlockingSets, getWallOccupiedCells } from "./game/wallRuntime";
 import actionsIndex from "../action-game/actions/index.json";
 import meleeStrike from "../action-game/actions/melee-strike.json";
 import dashAction from "../action-game/actions/dash.json";
@@ -105,6 +105,8 @@ import {
   buildWallEdgeSets,
   computeClosedCells
 } from "./game/map/walls/runtime";
+import { getAdjacentCellsForEdge } from "./game/map/walls/grid";
+import { isWallDestructible } from "./game/map/walls/durability";
 import {
   usePixiBoard,
   usePixiDecorations,
@@ -127,9 +129,18 @@ import { DicePanel } from "./ui/DicePanel";
 import { EffectsPanel } from "./ui/EffectsPanel";
 import { LogPanel } from "./ui/LogPanel";
 import { ActionWheelMenu } from "./ui/ActionWheelMenu";
+import type { WheelMenuItem } from "./ui/RadialWheelMenu";
 import { ActionContextWindow } from "./ui/ActionContextWindow";
+import { InteractionContextWindow } from "./ui/InteractionContextWindow";
 import { BottomDock } from "./ui/BottomDock";
 import { boardThemeColor, colorToCssHex } from "./boardTheme";
+import type { InteractionCost, InteractionSpec } from "./game/interactions";
+import {
+  buildMovementProfileFromMode,
+  getDefaultMovementMode,
+  getMovementModesForCharacter,
+  type MovementModeDefinition
+} from "./game/movementModes";
 
 const ACTION_MODULES: Record<string, ActionDefinition> = {
   "./melee-strike.json": meleeStrike as ActionDefinition,
@@ -298,6 +309,12 @@ export const GameBoard: React.FC = () => {
   const pixiContainerRef = useRef<HTMLDivElement | null>(null);
   const narrationPendingRef = useRef<boolean>(false);
   const playerBubbleTimeoutRef = useRef<number | null>(null);
+  const movementModes = useMemo(
+    () => getMovementModesForCharacter(sampleCharacter),
+    []
+  );
+  const defaultMovementMode = movementModes[0] ?? getDefaultMovementMode();
+  const defaultMovementProfile = buildMovementProfileFromMode(defaultMovementMode);
 
   const [log, setLog] = useState<string[]>([]);
   const [narrativeLog, setNarrativeLog] = useState<string[]>([]);
@@ -309,6 +326,8 @@ export const GameBoard: React.FC = () => {
     x: 0,
     y: Math.floor(GRID_ROWS / 2),
     facing: "right",
+    movementProfile: defaultMovementProfile,
+    moveRange: defaultMovementProfile.speed,
     visionProfile: {
       shape: "cone",
       range: 100,
@@ -323,7 +342,6 @@ export const GameBoard: React.FC = () => {
   const [obstacleTypes, setObstacleTypes] = useState<ObstacleTypeDefinition[]>([]);
   const [obstacles, setObstacles] = useState<ObstacleInstance[]>([]);
   const [wallTypes, setWallTypes] = useState<WallTypeDefinition[]>([]);
-  const [walls, setWalls] = useState<WallInstance[]>([]);
   const [wallSegments, setWallSegments] = useState<WallSegment[]>([]);
   const [decorations, setDecorations] = useState<DecorInstance[]>([]);
   const [playableCells, setPlayableCells] = useState<Set<string> | null>(null);
@@ -407,7 +425,10 @@ export const GameBoard: React.FC = () => {
     "bandolier:dagger": 3,
     "gear:torch": 1
   });
-  const [pathLimit, setPathLimit] = useState<number>(5);
+  const [pathLimit, setPathLimit] = useState<number>(defaultMovementProfile.speed);
+  const [activeMovementModeId, setActiveMovementModeId] = useState<string>(
+    defaultMovementMode.id
+  );
 
   // Player movement path (limited to 5 cells)
   const [selectedPath, setSelectedPath] = useState<{ x: number; y: number }[]>(
@@ -425,9 +446,24 @@ export const GameBoard: React.FC = () => {
     y: number;
   } | null>(null);
   const [targetMode, setTargetMode] = useState<"none" | "selecting">("none");
-  type BoardInteractionMode = "idle" | "moving" | "inspect-select" | "look-select";
+  type BoardInteractionMode =
+    | "idle"
+    | "moving"
+    | "inspect-select"
+    | "look-select"
+    | "interact-select";
   const [interactionMode, setInteractionMode] =
     useState<BoardInteractionMode>("idle");
+  type InteractionTarget =
+    | { kind: "wall"; segmentId: string; cell: { x: number; y: number } }
+    | { kind: "obstacle"; obstacleId: string; cell: { x: number; y: number } };
+  const [interactionContext, setInteractionContext] = useState<{
+    anchorX: number;
+    anchorY: number;
+    interaction: InteractionSpec;
+    target: InteractionTarget;
+  } | null>(null);
+  const [interactionMenuItems, setInteractionMenuItems] = useState<WheelMenuItem[]>([]);
   const [revealedEnemyIds, setRevealedEnemyIds] = useState<Set<string>>(
     () => new Set()
   );
@@ -500,6 +536,17 @@ export const GameBoard: React.FC = () => {
     for (const t of wallTypes) map.set(t.id, t);
     return map;
   }, [wallTypes]);
+  const hasAnyInteractionSource = useMemo(() => {
+    const wallHas = wallSegments.some(seg => {
+      const def = seg.typeId ? wallTypeById.get(seg.typeId) ?? null : null;
+      return (def?.behavior?.interactions ?? []).length > 0;
+    });
+    if (wallHas) return true;
+    return obstacles.some(obs => {
+      const def = obstacleTypeById.get(obs.typeId) ?? null;
+      return (def?.interactions ?? []).length > 0;
+    });
+  }, [obstacleTypeById, obstacles, wallSegments, wallTypeById]);
   const lightSources = useMemo(() => {
     const sources: LightSource[] = [];
     for (const obs of obstacles) {
@@ -531,6 +578,36 @@ export const GameBoard: React.FC = () => {
     return { min, max };
   }, [mapHeight, obstacles, obstacleTypeById]);
 
+  const floorVisionBlockersByLevel = useMemo(() => {
+    const blockers = new Map<number, Set<string>>();
+    const cols = mapGrid.cols;
+    const rows = mapGrid.rows;
+    if (!Array.isArray(mapTerrain) || mapTerrain.length === 0) return blockers;
+
+    const addBlocker = (level: number, x: number, y: number) => {
+      let set = blockers.get(level);
+      if (!set) {
+        set = new Set<string>();
+        blockers.set(level, set);
+      }
+      set.add(buildCellKey(x, y));
+    };
+
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const idx = y * cols + x;
+        if (idx < 0 || idx >= mapTerrain.length) continue;
+        const floorId = mapTerrain[idx];
+        const mat = getFloorMaterial(floorId);
+        if (!mat?.blocksVision) continue;
+        const level = getHeightAtGrid(mapHeight, cols, rows, x, y);
+        addBlocker(level, x, y);
+      }
+    }
+
+    return blockers;
+  }, [mapGrid, mapHeight, mapTerrain]);
+
   const visionBlockersByLevel = useMemo(() => {
     const blockers = new Map<number, Set<string>>();
     const addBlocker = (level: number, x: number, y: number) => {
@@ -555,8 +632,25 @@ export const GameBoard: React.FC = () => {
       }
     }
 
+    for (const [level, cells] of floorVisionBlockersByLevel.entries()) {
+      let set = blockers.get(level);
+      if (!set) {
+        set = new Set<string>();
+        blockers.set(level, set);
+      }
+      for (const cell of cells) {
+        set.add(cell);
+      }
+    }
+
     return blockers;
-  }, [mapGrid, mapHeight, obstacles, obstacleTypeById]);
+  }, [mapGrid, mapHeight, obstacles, obstacleTypeById, floorVisionBlockersByLevel]);
+
+  const visionBlockersActive = useMemo(() => {
+    const floorBlockers = floorVisionBlockersByLevel.get(activeLevel) ?? new Set<string>();
+    if (floorBlockers.size === 0) return new Set([...obstacleBlocking.vision]);
+    return new Set([...obstacleBlocking.vision, ...floorBlockers]);
+  }, [activeLevel, floorVisionBlockersByLevel, obstacleBlocking.vision]);
 
   const visionBlockersForVisibility = useMemo(() => {
     const combined = new Map<number, Set<string>>();
@@ -624,7 +718,8 @@ export const GameBoard: React.FC = () => {
     player,
     playableCells,
     showAllLevels,
-    visionBlockersForVisibility
+    visionBlockersForVisibility,
+    wallEdges
   ]);
 
   const visibilityLevels = useMemo<Map<string, VisibilityLevel> | null>(() => {
@@ -675,7 +770,7 @@ export const GameBoard: React.FC = () => {
     pixiReadyTick,
     grid: mapGrid,
     heightMap: mapHeight,
-          activeLevel,
+    activeLevel,
     visibleCells: visibleCellsFull,
     showAllLevels
   });
@@ -686,7 +781,7 @@ export const GameBoard: React.FC = () => {
     pixiReadyTick,
     grid: mapGrid,
     heightMap: mapHeight,
-          activeLevel,
+    activeLevel,
     visibleCells: visibleCellsFull,
     showAllLevels
   });
@@ -696,7 +791,7 @@ export const GameBoard: React.FC = () => {
     pixiReadyTick,
     grid: mapGrid,
     heightMap: mapHeight,
-          activeLevel,
+    activeLevel,
     visibleCells: visibleCellsFull,
     showAllLevels
   });
@@ -707,7 +802,7 @@ export const GameBoard: React.FC = () => {
     pixiReadyTick,
     grid: mapGrid,
     heightMap: mapHeight,
-          activeLevel,
+    activeLevel,
     visibleCells: visibleCellsFull,
     showAllLevels
   });
@@ -719,7 +814,7 @@ export const GameBoard: React.FC = () => {
     pixiReadyTick,
     grid: mapGrid,
     heightMap: mapHeight,
-          activeLevel,
+    activeLevel,
     visibleCells: visibleCellsFull,
     showAllLevels
   });
@@ -734,7 +829,7 @@ export const GameBoard: React.FC = () => {
     selectedObstacleCell: selectedStructureCell
       ? { x: selectedStructureCell.x, y: selectedStructureCell.y }
       : null,
-    obstacleVisionCells: obstacleBlocking.vision,
+    obstacleVisionCells: visionBlockersActive,
     wallVisionEdges: wallEdges.vision,
     closedCells,
     showVisionDebug,
@@ -750,7 +845,7 @@ export const GameBoard: React.FC = () => {
     playableCells,
     grid: mapGrid,
     heightMap: mapHeight,
-          activeLevel
+    activeLevel
   });
   usePixiGridLabels({
     labelLayerRef,
@@ -758,7 +853,7 @@ export const GameBoard: React.FC = () => {
     playableCells,
     grid: mapGrid,
     heightMap: mapHeight,
-          activeLevel,
+    activeLevel,
     obstacles,
     obstacleTypes,
     pixiReadyTick
@@ -768,6 +863,15 @@ export const GameBoard: React.FC = () => {
 
   function closeRadialMenu() {
     setRadialMenu(current => (current ? { ...current, open: false } : null));
+    if (interactionMode === "interact-select") {
+      setInteractionMode("idle");
+    }
+    setInteractionMenuItems([]);
+    closeInteractionContext();
+  }
+
+  function closeInteractionContext() {
+    setInteractionContext(null);
   }
 
   function cellKey(x: number, y: number): string {
@@ -811,32 +915,32 @@ export const GameBoard: React.FC = () => {
     return null;
   }
 
-  function findWallAtCell(
+  function findWallSegmentAtCell(
     x: number,
     y: number
-  ): { instance: WallInstance; def: WallTypeDefinition | null } | null {
+  ): { segment: WallSegment; def: WallTypeDefinition | null } | null {
     if (getBaseHeightAt(x, y) !== activeLevel) return null;
-    for (const wall of walls) {
-      if (wall.hp <= 0) continue;
-      const def = wallTypeById.get(wall.typeId) ?? null;
-      const cells = getWallOccupiedCells(wall, def);
-      if (cells.some(c => c.x === x && c.y === y)) {
-        return { instance: wall, def };
+    for (const seg of wallSegments) {
+      if (typeof seg.hp === "number" && seg.hp <= 0) continue;
+      const cells = getAdjacentCellsForEdge(seg);
+      if ((cells.a.x === x && cells.a.y === y) || (cells.b.x === x && cells.b.y === y)) {
+        const def = seg.typeId ? wallTypeById.get(seg.typeId) ?? null : null;
+        return { segment: seg, def };
       }
     }
     return null;
   }
 
-  function findWallAtCellAnyLevel(
+  function findWallSegmentAtCellAnyLevel(
     x: number,
     y: number
-  ): { instance: WallInstance; def: WallTypeDefinition | null } | null {
-    for (const wall of walls) {
-      if (wall.hp <= 0) continue;
-      const def = wallTypeById.get(wall.typeId) ?? null;
-      const cells = getWallOccupiedCells(wall, def);
-      if (cells.some(c => c.x === x && c.y === y)) {
-        return { instance: wall, def };
+  ): { segment: WallSegment; def: WallTypeDefinition | null } | null {
+    for (const seg of wallSegments) {
+      if (typeof seg.hp === "number" && seg.hp <= 0) continue;
+      const cells = getAdjacentCellsForEdge(seg);
+      if ((cells.a.x === x && cells.a.y === y) || (cells.b.x === x && cells.b.y === y)) {
+        const def = seg.typeId ? wallTypeById.get(seg.typeId) ?? null : null;
+        return { segment: seg, def };
       }
     }
     return null;
@@ -857,19 +961,143 @@ export const GameBoard: React.FC = () => {
     return Number.isFinite(best) ? best : Math.abs(from.x - targetCell.x) + Math.abs(from.y - targetCell.y);
   }
 
-  function getWallDistance(
+  function getWallSegmentDistance(from: { x: number; y: number }, segment: WallSegment): number {
+    const cells = getAdjacentCellsForEdge(segment);
+    const distA = Math.abs(from.x - cells.a.x) + Math.abs(from.y - cells.a.y);
+    const distB = Math.abs(from.x - cells.b.x) + Math.abs(from.y - cells.b.y);
+    return Math.min(distA, distB);
+  }
+
+  function getWallSegmentChebyshevDistance(
     from: { x: number; y: number },
-    wall: WallInstance,
-    def: WallTypeDefinition | null,
+    segment: WallSegment
+  ): number {
+    const cells = getAdjacentCellsForEdge(segment);
+    const distA = gridDistance(from, cells.a);
+    const distB = gridDistance(from, cells.b);
+    return Math.min(distA, distB);
+  }
+
+  function getObstacleChebyshevDistance(
+    from: { x: number; y: number },
+    obstacle: ObstacleInstance,
+    def: ObstacleTypeDefinition | null,
     targetCell: { x: number; y: number }
   ): number {
-    const cells = def ? getWallOccupiedCells(wall, def) : [targetCell];
+    const cells = def ? getObstacleOccupiedCells(obstacle, def) : [targetCell];
     let best = Number.POSITIVE_INFINITY;
     for (const cell of cells) {
-      const dist = Math.abs(from.x - cell.x) + Math.abs(from.y - cell.y);
+      const dist = gridDistance(from, cell);
       if (dist < best) best = dist;
     }
-    return Number.isFinite(best) ? best : Math.abs(from.x - targetCell.x) + Math.abs(from.y - targetCell.y);
+    return Number.isFinite(best) ? best : gridDistance(from, targetCell);
+  }
+
+  function canPayInteractionCost(cost?: InteractionCost): { ok: boolean; reason?: string } {
+    if (!canInteractWithBoard) {
+      return { ok: false, reason: "Tour joueur requis." };
+    }
+    if (cost === "action" && turnActionUsage.usedAction) {
+      return { ok: false, reason: "Action principale deja utilisee." };
+    }
+    if (cost === "bonus" && turnActionUsage.usedBonus) {
+      return { ok: false, reason: "Action bonus deja utilisee." };
+    }
+    return { ok: true };
+  }
+
+  function applyInteractionCost(cost?: InteractionCost) {
+    const isStandardAction = cost === "action";
+    const isBonusAction = cost === "bonus";
+    if (!isStandardAction && !isBonusAction) return;
+    setTurnActionUsage(prev => ({
+      usedAction: prev.usedAction || isStandardAction,
+      usedBonus: prev.usedBonus || isBonusAction
+    }));
+  }
+
+  function resolveInteractionAvailabilityForWall(
+    interaction: InteractionSpec,
+    segment: WallSegment,
+    def: WallTypeDefinition | null
+  ): { ok: boolean; reason?: string } {
+    const costCheck = canPayInteractionCost(interaction.cost);
+    if (!costCheck.ok) return costCheck;
+
+    if (interaction.kind === "open") {
+      if (segment.kind !== "door") {
+        return { ok: false, reason: "Interaction reservee aux portes." };
+      }
+      if (segment.state === "open") {
+        return { ok: false, reason: "La porte est deja ouverte." };
+      }
+      return { ok: true };
+    }
+
+    if (interaction.kind === "break") {
+      if (segment.kind !== "door") {
+        return { ok: false, reason: "Interaction reservee aux portes." };
+      }
+      if (segment.state === "open") {
+        return { ok: false, reason: "La porte est deja ouverte." };
+      }
+      if (!isWallDestructible(def)) {
+        return { ok: false, reason: "Porte indestructible." };
+      }
+      if (typeof interaction.forceDc !== "number") {
+        return { ok: false, reason: "DD de force manquant." };
+      }
+      return { ok: true };
+    }
+
+    return { ok: true };
+  }
+
+  function resolveInteractionAvailabilityForObstacle(
+    interaction: InteractionSpec,
+    obstacle: ObstacleInstance,
+    def: ObstacleTypeDefinition | null
+  ): { ok: boolean; reason?: string } {
+    const costCheck = canPayInteractionCost(interaction.cost);
+    if (!costCheck.ok) return costCheck;
+
+    if (interaction.kind === "open") {
+      return { ok: false, reason: "Interaction reservee aux portes." };
+    }
+
+    if (interaction.kind === "break") {
+      if (def?.durability?.destructible === false) {
+        return { ok: false, reason: "Obstacle indestructible." };
+      }
+      if (obstacle.hp <= 0) {
+        return { ok: false, reason: "Obstacle deja detruit." };
+      }
+      if (typeof interaction.forceDc !== "number") {
+        return { ok: false, reason: "DD de force manquant." };
+      }
+    }
+
+    return { ok: true };
+  }
+
+  function getInteractionAvailability(
+    interaction: InteractionSpec,
+    target: InteractionTarget
+  ): { ok: boolean; reason?: string } {
+    if (target.kind === "wall") {
+      const wall = wallSegments.find(w => w.id === target.segmentId) ?? null;
+      if (!wall) return { ok: false, reason: "Mur introuvable." };
+      const def = wall.typeId ? wallTypeById.get(wall.typeId) ?? null : null;
+      const dist = getWallSegmentChebyshevDistance(player, wall);
+      if (dist > 1) return { ok: false, reason: "Trop loin." };
+      return resolveInteractionAvailabilityForWall(interaction, wall, def);
+    }
+    const obstacle = obstacles.find(o => o.id === target.obstacleId) ?? null;
+    if (!obstacle) return { ok: false, reason: "Obstacle introuvable." };
+    const def = obstacleTypeById.get(obstacle.typeId) ?? null;
+    const dist = getObstacleChebyshevDistance(player, obstacle, def, target.cell);
+    if (dist > 1) return { ok: false, reason: "Trop loin." };
+    return resolveInteractionAvailabilityForObstacle(interaction, obstacle, def);
   }
 
   function getSelectedTargetLabel(): string | null {
@@ -881,12 +1109,40 @@ export const GameBoard: React.FC = () => {
       return def?.label ?? obstacle.typeId ?? "obstacle";
     }
     if (selectedWallTarget) {
-      const wall = walls.find(w => w.id === selectedWallTarget.id) ?? null;
+      const wall = wallSegments.find(w => w.id === selectedWallTarget.id) ?? null;
       if (!wall) return "mur";
-      const def = wallTypeById.get(wall.typeId) ?? null;
+      const def = wall.typeId ? wallTypeById.get(wall.typeId) ?? null : null;
       return def?.label ?? wall.typeId ?? "mur";
     }
     return null;
+  }
+
+  function getMovementModeById(id: string): MovementModeDefinition | null {
+    return movementModes.find(mode => mode.id === id) ?? null;
+  }
+
+  function handleSelectMovementMode(modeId: string) {
+    const mode = getMovementModeById(modeId) ?? defaultMovementMode;
+    const profile = buildMovementProfileFromMode(mode);
+    setActiveMovementModeId(mode.id);
+    setPlayer(prev => ({
+      ...prev,
+      movementProfile: profile,
+      moveRange: profile.speed
+    }));
+    setPathLimit(profile.speed);
+    setInteractionMode("moving");
+  }
+
+  function handleCancelMoveFromWheel() {
+    handleResetPath();
+    setInteractionMode("idle");
+  }
+
+  function handleCancelInteractFromWheel() {
+    setInteractionMode("idle");
+    setInteractionMenuItems([]);
+    closeInteractionContext();
   }
 
   function resourceKey(name: string, pool?: string | null): string {
@@ -906,10 +1162,28 @@ export const GameBoard: React.FC = () => {
     return getBaseHeightAt(a.x, a.y) === getBaseHeightAt(b.x, b.y);
   }
 
+  const selectedPathCost = useMemo(() => {
+    if (!selectedPath.length) return 0;
+    const cols = mapGrid.cols;
+    const rows = mapGrid.rows;
+    let total = 0;
+    for (const cell of selectedPath) {
+      if (!isCellInsideGrid(cell.x, cell.y, cols, rows)) continue;
+      const idx = cell.y * cols + cell.x;
+      if (idx < 0 || idx >= mapTerrain.length) continue;
+      const mat = getFloorMaterial(mapTerrain[idx]);
+      const cost = Number(mat?.moveCost ?? 1);
+      if (!Number.isFinite(cost) || cost <= 0) continue;
+      total += cost;
+    }
+    return Math.round(total * 10) / 10;
+  }, [mapGrid, mapTerrain, selectedPath]);
+
   useEffect(() => {
     if (phase !== "player" || isGameOver) {
       setInteractionMode("idle");
       closeRadialMenu();
+      closeInteractionContext();
     }
   }, [phase, isGameOver]);
 
@@ -917,10 +1191,6 @@ export const GameBoard: React.FC = () => {
     const handler = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
 
-      if (radialMenu?.open) {
-        closeRadialMenu();
-        return;
-      }
       if (targetMode === "selecting") {
         setTargetMode("none");
         return;
@@ -932,7 +1202,7 @@ export const GameBoard: React.FC = () => {
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [radialMenu?.open, interactionMode, targetMode]);
+  }, [interactionMode, targetMode]);
 
   function handleBoardWheel(event: WheelEvent) {
     if (event.deltaY === 0) return;
@@ -1055,8 +1325,10 @@ export const GameBoard: React.FC = () => {
     });
 
     if (!isManual) {
-      const rec = map.recommendedGrid;
-      if (rec && (rec.cols > grid.cols || rec.rows > grid.rows)) {
+      let safety = 0;
+      while (safety < 3) {
+        const rec = map.recommendedGrid;
+        if (!rec || (rec.cols <= grid.cols && rec.rows <= grid.rows)) break;
         pushLog(`[map] Redimensionnement automatique: ${grid.cols}x${grid.rows} -> ${rec.cols}x${rec.rows} (${rec.reason}).`);
         grid = { cols: rec.cols, rows: rec.rows };
         map = generateBattleMap({
@@ -1069,13 +1341,14 @@ export const GameBoard: React.FC = () => {
           obstacleTypes,
           wallTypes
         });
+        safety++;
       }
     }
 
     const generationLines = Array.isArray(map.generationLog)
       ? map.generationLog.map(line => `[map] ${line}`)
       : [];
-    pushLogBatch([map.summary, ...generationLines.slice(0, 8)]);
+    pushLogBatch([map.summary, ...generationLines]);
     setMapTheme(map.theme ?? "generic");
     grid = map.grid ?? grid;
     setMapGrid(grid);
@@ -1087,7 +1360,6 @@ export const GameBoard: React.FC = () => {
     }));
 
     setObstacles(map.obstacles);
-    setWalls(map.walls);
     setWallSegments(Array.isArray(map.wallSegments) ? map.wallSegments : []);
     setPlayableCells(new Set(map.playableCells ?? []));
     setMapTerrain(Array.isArray(map.terrain) ? map.terrain : []);
@@ -1200,13 +1472,13 @@ export const GameBoard: React.FC = () => {
   }
 
   function pushLog(message: string) {
-    setLog(prev => [message, ...prev].slice(0, 12));
+    setLog(prev => [message, ...prev]);
   }
 
   function pushLogBatch(messages: string[]) {
     const trimmed = messages.filter(Boolean);
     if (!trimmed.length) return;
-    setLog(prev => [...trimmed, ...prev].slice(0, 12));
+    setLog(prev => [...trimmed, ...prev]);
   }
 
   function pushNarrative(message: string) {
@@ -1514,7 +1786,7 @@ export const GameBoard: React.FC = () => {
         actor,
         enemy,
         allTokens,
-        obstacleBlocking.vision,
+        visionBlockersActive,
         playableCells,
         wallEdges.vision
       );
@@ -1628,7 +1900,7 @@ export const GameBoard: React.FC = () => {
       const visible = isCellVisible(
         actor,
         targetCell,
-        obstacleBlocking.vision,
+        visionBlockersActive,
         playableCells,
         wallEdges.vision
       );
@@ -1656,13 +1928,13 @@ export const GameBoard: React.FC = () => {
     return { ok: true };
   }
 
-  function validateWallTargetForAction(
+  function validateWallSegmentTargetForAction(
     action: ActionDefinition,
-    wall: WallInstance,
+    segment: WallSegment,
     targetCell: { x: number; y: number },
     actor: TokenState
   ): { ok: boolean; reason?: string } {
-    if (wall.hp <= 0) {
+    if (typeof segment.hp === "number" && segment.hp <= 0) {
       return { ok: false, reason: "Le mur est deja detruit." };
     }
 
@@ -1674,12 +1946,12 @@ export const GameBoard: React.FC = () => {
       };
     }
 
-    const def = wallTypeById.get(wall.typeId) ?? null;
-    if (def?.durability?.destructible === false) {
+    const def = segment.typeId ? wallTypeById.get(segment.typeId) ?? null : null;
+    if (!isWallDestructible(def)) {
       return { ok: false, reason: "Ce mur est indestructible." };
     }
 
-    const dist = getWallDistance(actor, wall, def, targetCell);
+    const dist = getWallSegmentDistance(actor, segment);
     const range = targeting.range;
 
     if (range) {
@@ -1733,7 +2005,7 @@ export const GameBoard: React.FC = () => {
           };
         }
       }
-      if (cond.type === "target_alive" && wall.hp <= 0) {
+      if (cond.type === "target_alive" && typeof segment.hp === "number" && segment.hp <= 0) {
         return {
           ok: false,
           reason: cond.reason || "La cible doit avoir des PV restants."
@@ -1745,7 +2017,7 @@ export const GameBoard: React.FC = () => {
       const visible = isCellVisible(
         actor,
         targetCell,
-        obstacleBlocking.vision,
+        visionBlockersActive,
         playableCells,
         wallEdges.vision
       );
@@ -1773,7 +2045,7 @@ export const GameBoard: React.FC = () => {
     return { ok: true };
   }
 
-  function computeActionAvailability(action: ActionDefinition): ActionAvailability {
+    function computeActionAvailability(action: ActionDefinition): ActionAvailability {
     const reasons: string[] = [];
     const details: string[] = [];
 
@@ -2058,17 +2330,12 @@ export const GameBoard: React.FC = () => {
       usedAction: prev.usedAction || isStandardAction,
       usedBonus: prev.usedBonus || isBonusAction
     }));
-    const hint = action.aiHints?.successLog || "Action validee. Prets pour les jets.";
-    pushLog(`${action.name}: ${hint}`);
 
     if (action.targeting?.target === "enemy") {
       setTargetMode("selecting");
       setSelectedTargetId(null);
       setSelectedObstacleTarget(null);
       setSelectedWallTarget(null);
-      pushLog(
-        `Selection de cible: cliquez sur un ennemi, un obstacle ou un mur.`
-      );
     } else {
       setTargetMode("none");
       setSelectedTargetId(null);
@@ -2135,12 +2402,16 @@ export const GameBoard: React.FC = () => {
           typeof def?.durability?.ac === "number" ? def.durability.ac : null;
         targetLabel = def?.label ?? obstacle.typeId ?? "obstacle";
       } else if (selectedWallTarget) {
-        const wall = walls.find(w => w.id === selectedWallTarget.id) ?? null;
-        if (!wall || wall.hp <= 0) {
+        const wall = wallSegments.find(w => w.id === selectedWallTarget.id) ?? null;
+        if (!wall || (typeof wall.hp === "number" && wall.hp <= 0)) {
           pushLog("Mur introuvable ou deja detruit.");
           return;
         }
-        const def = wallTypeById.get(wall.typeId) ?? null;
+        const def = wall.typeId ? wallTypeById.get(wall.typeId) ?? null : null;
+        if (!isWallDestructible(def)) {
+          pushLog("Ce mur est indestructible.");
+          return;
+        }
         targetArmorClass =
           typeof def?.durability?.ac === "number" ? def.durability.ac : null;
         targetLabel = def?.label ?? wall.typeId ?? "mur";
@@ -2209,7 +2480,6 @@ export const GameBoard: React.FC = () => {
     let targetArmorClass: number | null = null;
     let targetLabel: string | null = null;
     let obstacleTarget: ObstacleInstance | null = null;
-    let wallTarget: WallInstance | null = null;
     if (action.targeting?.target === "enemy") {
       if (selectedTargetId) {
         targetIndex = enemies.findIndex(e => e.id === selectedTargetId);
@@ -2233,19 +2503,19 @@ export const GameBoard: React.FC = () => {
           typeof def?.durability?.ac === "number" ? def.durability.ac : null;
         targetLabel = def?.label ?? obstacleTarget.typeId ?? "obstacle";
       } else if (selectedWallTarget) {
-        wallTarget = walls.find(w => w.id === selectedWallTarget.id) ?? null;
-        if (!wallTarget || wallTarget.hp <= 0) {
+        const wall = wallSegments.find(w => w.id === selectedWallTarget.id) ?? null;
+        if (!wall || (typeof wall.hp === "number" && wall.hp <= 0)) {
           pushLog("Mur introuvable ou deja detruit.");
           return;
         }
-        const def = wallTypeById.get(wallTarget.typeId) ?? null;
-        if (def?.durability?.destructible === false) {
+        const def = wall.typeId ? wallTypeById.get(wall.typeId) ?? null : null;
+        if (!isWallDestructible(def)) {
           pushLog("Ce mur est indestructible.");
           return;
         }
         targetArmorClass =
           typeof def?.durability?.ac === "number" ? def.durability.ac : null;
-        targetLabel = def?.label ?? wallTarget.typeId ?? "mur";
+        targetLabel = def?.label ?? wall.typeId ?? "mur";
       } else {
         pushLog(
           "Aucune cible selectionnee pour cette action. Selectionnez une cible avant le jet de degats."
@@ -2407,21 +2677,25 @@ export const GameBoard: React.FC = () => {
 
           return copy;
         });
-      } else if (wallTarget && selectedWallTarget) {
-        const targetId = wallTarget.id;
-        const def = wallTypeById.get(wallTarget.typeId) ?? null;
-        const label = def?.label ?? wallTarget.typeId ?? "mur";
-        if (def?.durability?.destructible === false) {
+      } else if (selectedWallTarget) {
+        const wall = wallSegments.find(w => w.id === selectedWallTarget.id) ?? null;
+        if (!wall) return;
+        const def = wall.typeId ? wallTypeById.get(wall.typeId) ?? null : null;
+        if (!isWallDestructible(def)) {
           pushLog("Ce mur est indestructible.");
           return;
         }
-        setWalls(prev => {
-          const idx = prev.findIndex(w => w.id === targetId);
+        const label = def?.label ?? wall.typeId ?? "mur";
+        setWallSegments(prev => {
+          const idx = prev.findIndex(w => w.id === wall.id);
           if (idx === -1) return prev;
           const copy = [...prev];
           const target = { ...copy[idx] };
-          const beforeHp = target.hp;
-          target.hp = Math.max(0, target.hp - totalDamage);
+          const beforeHp = typeof target.hp === "number" ? target.hp : 0;
+          const maxHp = typeof target.maxHp === "number" ? target.maxHp : beforeHp;
+          const nextHp = Math.max(0, beforeHp - totalDamage);
+          target.hp = nextHp;
+          target.maxHp = maxHp;
           copy[idx] = target;
 
           recordCombatEvent({
@@ -2430,38 +2704,38 @@ export const GameBoard: React.FC = () => {
             kind: "player_attack",
             actorId: player.id,
             actorKind: "player",
-            summary: `Le heros frappe ${label} et inflige ${totalDamage} degats (PV ${beforeHp} -> ${target.hp}).`,
+            summary: `Le heros frappe ${label} et inflige ${totalDamage} degats (PV ${beforeHp} -> ${nextHp}).`,
             data: {
               actionId: action.id,
               damage: totalDamage,
               isCrit,
               targetHpBefore: beforeHp,
-              targetHpAfter: target.hp,
-              wallId: targetId,
-              wallTypeId: target.typeId
+              targetHpAfter: nextHp,
+              wallId: target.id,
+              wallTypeId: target.typeId ?? null
             }
           });
 
-          if (target.hp <= 0 && beforeHp > 0) {
+          if (nextHp <= 0 && beforeHp > 0) {
             recordCombatEvent({
               round,
               phase,
               kind: "death",
-              actorId: targetId,
+              actorId: target.id,
               actorKind: "player",
               summary: `${label} est detruit.`,
               data: {
                 destroyedBy: player.id,
-                wallId: targetId,
-                wallTypeId: target.typeId
+                wallId: target.id,
+                wallTypeId: target.typeId ?? null
               }
             });
           }
 
-          return copy;
+          return copy.filter(w => w.hp === undefined || w.hp > 0);
         });
       }
-  }
+    }
 
   function handleAutoResolveRolls() {
     const action = getValidatedAction();
@@ -2574,11 +2848,11 @@ export const GameBoard: React.FC = () => {
         return;
       }
 
-      const wallHit = findWallAtCell(targetX, targetY);
+      const wallHit = findWallSegmentAtCell(targetX, targetY);
       if (wallHit) {
-        const validation = validateWallTargetForAction(
+        const validation = validateWallSegmentTargetForAction(
           action,
-          wallHit.instance,
+          wallHit.segment,
           { x: targetX, y: targetY },
           player
         );
@@ -2587,16 +2861,15 @@ export const GameBoard: React.FC = () => {
           return;
         }
 
-        const label = wallHit.def?.label ?? wallHit.instance.typeId ?? "mur";
+        const label = wallHit.def?.label ?? wallHit.segment.typeId ?? "mur";
         setSelectedTargetId(null);
         setSelectedObstacleTarget(null);
-        setSelectedWallTarget({ id: wallHit.instance.id, x: targetX, y: targetY });
+        setSelectedWallTarget({ id: wallHit.segment.id, x: targetX, y: targetY });
         setTargetMode("none");
         pushLog(`Cible selectionnee: ${label}.`);
         return;
       }
 
-      pushLog(`Pas d'ennemi, d'obstacle ni de mur sur (${targetX}, ${targetY}).`);
       return;
     }
 
@@ -2634,12 +2907,15 @@ export const GameBoard: React.FC = () => {
           setInteractionMode("idle");
           return;
         }
-        const wallHit = findWallAtCellAnyLevel(targetX, targetY);
+        const wallHit = findWallSegmentAtCellAnyLevel(targetX, targetY);
         if (wallHit) {
-          const name = wallHit.def?.label ?? wallHit.instance.typeId ?? "mur";
-          const text = `Inspection (${targetX},${targetY}) : ${name}\nEtat: PV ${wallHit.instance.hp}/${wallHit.instance.maxHp}`;
+          const name = wallHit.def?.label ?? wallHit.segment.typeId ?? "mur";
+          const hp = typeof wallHit.segment.hp === "number" ? wallHit.segment.hp : null;
+          const maxHp = typeof wallHit.segment.maxHp === "number" ? wallHit.segment.maxHp : null;
+          const status = hp !== null && maxHp !== null ? `PV ${hp}/${maxHp}` : "indestructible";
+          const text = `Inspection (${targetX},${targetY}) : ${name}\nEtat: ${status}`;
           pushLog(
-            `Inspection: mur (${name}) -> etat: PV ${wallHit.instance.hp}/${wallHit.instance.maxHp}.`
+            `Inspection: mur (${name}) -> etat: ${status}.`
           );
           setPlayerBubble(text);
           setInteractionMode("idle");
@@ -2671,6 +2947,112 @@ export const GameBoard: React.FC = () => {
 
       setInteractionMode("idle");
       return;
+    }
+
+    if (interactionMode === "interact-select") {
+      const wallHit = findWallSegmentAtCell(targetX, targetY);
+      const obstacleHit = findObstacleAtCell(targetX, targetY);
+
+      if (!wallHit && !obstacleHit) {
+        pushLog("Interagir: aucun element interactif ici.");
+        setInteractionMenuItems([]);
+        return;
+      }
+
+      if (wallHit) {
+        const interactions = wallHit.def?.behavior?.interactions ?? [];
+        if (interactions.length === 0) {
+          pushLog("Interagir: aucune interaction disponible pour ce mur.");
+          setInteractionMenuItems([]);
+          return;
+        }
+
+        const dist = getWallSegmentChebyshevDistance(player, wallHit.segment);
+        if (dist > 1) {
+          pushLog("Interagir: placez-vous a une case de la porte.");
+          setInteractionMenuItems([]);
+          return;
+        }
+
+        const available: InteractionSpec[] = [];
+        const reasons: string[] = [];
+        for (const interaction of interactions) {
+          const check = resolveInteractionAvailabilityForWall(
+            interaction,
+            wallHit.segment,
+            wallHit.def
+          );
+          if (check.ok) {
+            available.push(interaction);
+          } else if (check.reason) {
+            reasons.push(check.reason);
+          }
+        }
+
+        if (available.length === 0) {
+          const detail = reasons.length ? ` (${reasons[0]})` : "";
+          pushLog(`Interagir: aucune interaction possible${detail}.`);
+          setInteractionMenuItems([]);
+          return;
+        }
+
+        openInteractionWheel(localX, localY, {
+          kind: "wall",
+          segmentId: wallHit.segment.id,
+          cell: { x: targetX, y: targetY }
+        }, available);
+        return;
+      }
+
+      if (obstacleHit) {
+        const interactions = obstacleHit.def?.interactions ?? [];
+        if (interactions.length === 0) {
+          pushLog("Interagir: aucune interaction disponible pour cet obstacle.");
+          setInteractionMenuItems([]);
+          return;
+        }
+
+        const dist = getObstacleChebyshevDistance(
+          player,
+          obstacleHit.instance,
+          obstacleHit.def,
+          { x: targetX, y: targetY }
+        );
+        if (dist > 1) {
+          pushLog("Interagir: placez-vous a une case de l'obstacle.");
+          setInteractionMenuItems([]);
+          return;
+        }
+
+        const available: InteractionSpec[] = [];
+        const reasons: string[] = [];
+        for (const interaction of interactions) {
+          const check = resolveInteractionAvailabilityForObstacle(
+            interaction,
+            obstacleHit.instance,
+            obstacleHit.def
+          );
+          if (check.ok) {
+            available.push(interaction);
+          } else if (check.reason) {
+            reasons.push(check.reason);
+          }
+        }
+
+        if (available.length === 0) {
+          const detail = reasons.length ? ` (${reasons[0]})` : "";
+          pushLog(`Interagir: aucune interaction possible${detail}.`);
+          setInteractionMenuItems([]);
+          return;
+        }
+
+        openInteractionWheel(localX, localY, {
+          kind: "obstacle",
+          obstacleId: obstacleHit.instance.id,
+          cell: { x: targetX, y: targetY }
+        }, available);
+        return;
+      }
     }
 
     if (interactionMode === "look-select") {
@@ -2756,6 +3138,7 @@ export const GameBoard: React.FC = () => {
           playableCells,
           grid: mapGrid,
           heightMap: mapHeight,
+          floorIds: mapTerrain,
           activeLevel
         }
       );
@@ -2796,10 +3179,6 @@ export const GameBoard: React.FC = () => {
       facing: nextFacing
     }));
 
-    pushLog(
-      `Deplacement valide vers (${last.x}, ${last.y}) via ${selectedPath.length} etape(s).`
-    );
-
     recordCombatEvent({
       round,
       phase: "player",
@@ -2812,7 +3191,6 @@ export const GameBoard: React.FC = () => {
 
     setSelectedPath([]);
     setInteractionMode("idle");
-    closeRadialMenu();
   }
 
   function handleResetPath() {
@@ -3053,7 +3431,7 @@ export const GameBoard: React.FC = () => {
 
             if (
               !areTokensOnSameLevel(enemy, playerCopy as TokenState) ||
-              !canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision, playableCells, wallEdges.vision)
+              !canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, visionBlockersActive, playableCells, wallEdges.vision)
             ) {
               pushLog(
                 `${enemy.id} ne voit pas le joueur et reste en alerte (fallback).`
@@ -3077,11 +3455,12 @@ export const GameBoard: React.FC = () => {
                   maxDistance: maxRange,
                   allowTargetOccupied: true,
                   blockedCells: obstacleBlocking.movement,
-          wallEdges: wallEdges.movement,
-          playableCells,
+                  wallEdges: wallEdges.movement,
+                  playableCells,
                   grid: mapGrid,
                   heightMap: mapHeight,
-          activeLevel
+                  floorIds: mapTerrain,
+                  activeLevel
                 }
               );
 
@@ -3204,7 +3583,7 @@ export const GameBoard: React.FC = () => {
           if (action === "move") {
             if (
               !areTokensOnSameLevel(enemy, playerCopy as TokenState) ||
-              !canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision, playableCells, wallEdges.vision)
+              !canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, visionBlockersActive, playableCells, wallEdges.vision)
             ) {
               pushLog(
                 `${enemy.id} ne voit pas le joueur et reste en alerte.`
@@ -3252,11 +3631,12 @@ export const GameBoard: React.FC = () => {
                   maxDistance: maxRange,
                   allowTargetOccupied: true,
                   blockedCells: obstacleBlocking.movement,
-          wallEdges: wallEdges.movement,
-          playableCells,
+                  wallEdges: wallEdges.movement,
+                  playableCells,
                   grid: mapGrid,
                   heightMap: mapHeight,
-          activeLevel
+                  floorIds: mapTerrain,
+                  activeLevel
                 }
               );
 
@@ -3284,7 +3664,7 @@ export const GameBoard: React.FC = () => {
 
             if (
               !areTokensOnSameLevel(enemy, playerCopy as TokenState) ||
-              !canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision, playableCells, wallEdges.vision)
+              !canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, visionBlockersActive, playableCells, wallEdges.vision)
             ) {
               pushLog(
                 `${enemy.id} voulait attaquer mais ne voit pas le joueur.`
@@ -3359,7 +3739,7 @@ export const GameBoard: React.FC = () => {
 
         if (
           !areTokensOnSameLevel(enemy, playerCopy as TokenState) ||
-          !canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision, playableCells, wallEdges.vision)
+          !canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, visionBlockersActive, playableCells, wallEdges.vision)
         ) {
           pushLog(
             `${enemy.id} ne voit pas le joueur et reste en alerte (fallback).`
@@ -3387,6 +3767,7 @@ export const GameBoard: React.FC = () => {
           playableCells,
           grid: mapGrid,
           heightMap: mapHeight,
+          floorIds: mapTerrain,
           activeLevel
         }
       );
@@ -3498,7 +3879,7 @@ export const GameBoard: React.FC = () => {
           if (action === "move") {
             if (
               !areTokensOnSameLevel(enemy, playerCopy as TokenState) ||
-              !canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision, playableCells, wallEdges.vision)
+              !canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, visionBlockersActive, playableCells, wallEdges.vision)
             ) {
               pushLog(
                 `${enemy.id} ne voit pas le joueur et reste en alerte.`
@@ -3545,11 +3926,12 @@ export const GameBoard: React.FC = () => {
               maxDistance: maxRange,
               allowTargetOccupied: true,
               blockedCells: obstacleBlocking.movement,
-          wallEdges: wallEdges.movement,
-          playableCells,
+              wallEdges: wallEdges.movement,
+              playableCells,
               grid: mapGrid,
               heightMap: mapHeight,
-          activeLevel
+              floorIds: mapTerrain,
+              activeLevel
             }
           );
 
@@ -3577,7 +3959,7 @@ export const GameBoard: React.FC = () => {
 
             if (
               !areTokensOnSameLevel(enemy, playerCopy as TokenState) ||
-              !canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, obstacleBlocking.vision, playableCells, wallEdges.vision)
+              !canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, visionBlockersActive, playableCells, wallEdges.vision)
             ) {
               pushLog(
                 `${enemy.id} voulait attaquer mais ne voit pas le joueur.`
@@ -3637,7 +4019,7 @@ export const GameBoard: React.FC = () => {
     if (isTokenDead(enemy)) return;
 
     const allTokens: TokenState[] = getTokensOnActiveLevel([playerState, ...enemiesState]);
-    const visible = getEntitiesInVision(enemy, allTokens, obstacleBlocking.vision, playableCells, wallEdges.vision);
+    const visible = getEntitiesInVision(enemy, allTokens, visionBlockersActive, playableCells, wallEdges.vision);
 
     const alliesVisible = visible
       .filter(t => t.type === "enemy" && t.id !== enemyId && !isTokenDead(t))
@@ -3649,7 +4031,7 @@ export const GameBoard: React.FC = () => {
 
     const canSeePlayerNow =
       areTokensOnSameLevel(enemy, playerState) &&
-      canEnemySeePlayer(enemy, playerState, allTokens, obstacleBlocking.vision, playableCells, wallEdges.vision);
+      canEnemySeePlayer(enemy, playerState, allTokens, visionBlockersActive, playableCells, wallEdges.vision);
     const distToPlayer = gridDistance(enemy, playerState);
     const hpRatio = enemy.maxHp > 0 ? enemy.hp / enemy.maxHp : 0;
 
@@ -3734,12 +4116,13 @@ export const GameBoard: React.FC = () => {
           enemies: enemiesCopy,
           blockedMovementCells: obstacleBlocking.movement,
           blockedMovementEdges: wallEdges.movement,
-          blockedVisionCells: obstacleBlocking.vision,
+          blockedVisionCells: visionBlockersActive,
           blockedAttackCells: obstacleBlocking.attacks,
           wallVisionEdges: wallEdges.vision,
           playableCells,
           grid: mapGrid,
           heightMap: mapHeight,
+          floorIds: mapTerrain,
           activeLevel,
           sampleCharacter,
           onLog: pushLog,
@@ -3805,7 +4188,7 @@ export const GameBoard: React.FC = () => {
             activeEnemy,
             playerCopy as TokenState,
             allTokens,
-            obstacleBlocking.vision,
+            visionBlockersActive,
             playableCells,
             wallEdges.vision
           );
@@ -3925,11 +4308,12 @@ export const GameBoard: React.FC = () => {
                   maxDistance: moveRange,
                   allowTargetOccupied: false,
                   blockedCells: obstacleBlocking.movement,
-          wallEdges: wallEdges.movement,
-          playableCells,
+                  wallEdges: wallEdges.movement,
+                  playableCells,
                   grid: mapGrid,
                   heightMap: mapHeight,
-          activeLevel
+                  floorIds: mapTerrain,
+                  activeLevel
                 }
               );
               if (path.length) destination = path[path.length - 1];
@@ -3946,11 +4330,12 @@ export const GameBoard: React.FC = () => {
                 maxDistance: moveRange,
                 allowTargetOccupied: false,
                 blockedCells: obstacleBlocking.movement,
-          wallEdges: wallEdges.movement,
-          playableCells,
+                wallEdges: wallEdges.movement,
+                playableCells,
                 grid: mapGrid,
                 heightMap: mapHeight,
-          activeLevel
+                floorIds: mapTerrain,
+                activeLevel
               }
             );
             if (path.length) destination = path[path.length - 1];
@@ -4273,7 +4658,6 @@ function handleEndPlayerTurn() {
     const anchorY = radialMenu?.anchorY ?? 0;
     setSelectedActionId(action.id);
     setActionContext({ anchorX, anchorY, actionId: action.id, stage: "draft" });
-    closeRadialMenu();
   }
 
   function closeActionContext() {
@@ -4290,7 +4674,6 @@ function handleEndPlayerTurn() {
     if (!canInteractWithBoard) return;
     setTargetMode("none");
     setInteractionMode("inspect-select");
-    closeRadialMenu();
     pushLog(
       `Inspection: cliquez sur une case VISIBLE (portee ${INSPECT_RANGE}) pour reveler nature / etat / role.`
     );
@@ -4300,72 +4683,133 @@ function handleEndPlayerTurn() {
     if (!canInteractWithBoard) return;
     setTargetMode("none");
     setInteractionMode("look-select");
-    closeRadialMenu();
     pushLog("Tourner le regard: cliquez sur une case pour orienter le champ de vision.");
   }
 
-  function handleInteractFromWheel() {
-    const cell = radialMenu?.cell;
-    if (!cell) {
-      pushLog("Interagir: aucune case cible.");
-      closeRadialMenu();
+  function openInteractionWheel(
+    anchorX: number,
+    anchorY: number,
+    target: InteractionTarget,
+    interactions: InteractionSpec[]
+  ) {
+    setInteractionContext(null);
+    const items: WheelMenuItem[] = interactions.map(interaction => ({
+      id: `interaction-${interaction.id}`,
+      label: interaction.label,
+      color: "#9b59b6",
+      onSelect: () => {
+        setInteractionContext({ anchorX, anchorY, interaction, target });
+      }
+    }));
+    setInteractionMenuItems(items);
+  }
+
+  function handleExecuteInteraction(
+    interaction: InteractionSpec,
+    target: InteractionTarget
+  ) {
+    const availability = getInteractionAvailability(interaction, target);
+    if (!availability.ok) {
+      pushLog(`Interaction ${interaction.label}: ${availability.reason ?? "indisponible"}.`);
       return;
     }
 
-    const obstacleHit = findObstacleAtCellAnyLevel(cell.x, cell.y);
-    const connects = obstacleHit?.def?.connects;
+    const modForce = Number(sampleCharacter.caracs?.force?.modFOR ?? 0);
+    const forceDc =
+      typeof interaction.forceDc === "number" ? interaction.forceDc : null;
+    const needsCheck = interaction.kind === "break" && forceDc !== null;
 
-    if (!connects) {
-      pushLog(`Interagir: aucun escalier sur (${cell.x}, ${cell.y}).`);
-      closeRadialMenu();
-      return;
-    }
-
-    const distToStairs = Math.abs(player.x - cell.x) + Math.abs(player.y - cell.y);
-    if (distToStairs > 1) {
-      pushLog("Interagir: placez-vous sur ou a cote de l'escalier.");
-      closeRadialMenu();
-      return;
-    }
-
-    const nextLevel =
-      activeLevel === connects.from
-        ? connects.to
-        : activeLevel === connects.to
-          ? connects.from
-          : null;
-
-    if (nextLevel === null) {
-      pushLog("Interagir: escalier incompatible avec ce niveau.");
-      closeRadialMenu();
-      return;
-    }
-
-    const candidates = [
-      { x: cell.x, y: cell.y },
-      { x: cell.x + 1, y: cell.y },
-      { x: cell.x - 1, y: cell.y },
-      { x: cell.x, y: cell.y + 1 },
-      { x: cell.x, y: cell.y - 1 }
-    ];
-    let destination = { x: player.x, y: player.y };
-    for (const c of candidates) {
-      if (!isCellPlayable(c.x, c.y)) continue;
-      if (getBaseHeightAt(c.x, c.y) === nextLevel) {
-        destination = c;
-        break;
+    if (needsCheck) {
+      const result = rollAttack(modForce, "normal");
+      const total = result.total;
+      const base = result.d20.total;
+      const outcome = total >= forceDc ? "reussi" : "rate";
+      pushLog(
+        `Test de force (${interaction.label}) : ${base} + ${modForce} = ${total} vs DD ${forceDc} -> ${outcome}.`
+      );
+      if (total < forceDc) {
+        applyInteractionCost(interaction.cost);
+        return;
       }
     }
 
-    setPlayer(prev => ({ ...prev, x: destination.x, y: destination.y }));
-    setActiveLevel(clampActiveLevel(nextLevel));
-    pushLog(`Interagir: changement de niveau -> ${nextLevel}.`);
-    closeRadialMenu();
+    if (target.kind === "wall") {
+      setWallSegments(prev => {
+        const idx = prev.findIndex(w => w.id === target.segmentId);
+        if (idx === -1) return prev;
+        const copy = [...prev];
+        const segment = { ...copy[idx] };
+        const def = segment.typeId ? wallTypeById.get(segment.typeId) ?? null : null;
+
+        if (interaction.kind === "open") {
+          if (segment.kind === "door" && segment.state !== "open") {
+            segment.state = "open";
+            copy[idx] = segment;
+          }
+        } else if (interaction.kind === "break") {
+          if (segment.kind === "door" && segment.state !== "open" && isWallDestructible(def)) {
+            const maxHp =
+              typeof segment.maxHp === "number"
+                ? segment.maxHp
+                : typeof segment.hp === "number"
+                  ? segment.hp
+                  : null;
+            if (maxHp !== null) {
+              const fraction =
+                typeof interaction.damageFraction === "number"
+                  ? interaction.damageFraction
+                  : 0.5;
+              const damage = Math.max(0, Math.round(maxHp * fraction));
+              const beforeHp = typeof segment.hp === "number" ? segment.hp : maxHp;
+              segment.hp = Math.max(0, beforeHp - damage);
+              segment.maxHp = maxHp;
+            }
+            segment.state = "open";
+            copy[idx] = segment;
+          }
+        }
+
+        return copy.filter(w => w.hp === undefined || w.hp > 0);
+      });
+    } else if (target.kind === "obstacle") {
+      setObstacles(prev => {
+        const idx = prev.findIndex(o => o.id === target.obstacleId);
+        if (idx === -1) return prev;
+        const copy = [...prev];
+        const obstacle = { ...copy[idx] };
+        if (interaction.kind === "break" && obstacle.hp > 0) {
+          const fraction =
+            typeof interaction.damageFraction === "number"
+              ? interaction.damageFraction
+              : 0.5;
+          const maxHp =
+            typeof obstacle.maxHp === "number" ? obstacle.maxHp : obstacle.hp;
+          const damage = Math.max(0, Math.round(maxHp * fraction));
+          obstacle.hp = Math.max(0, obstacle.hp - damage);
+          copy[idx] = obstacle;
+        }
+        return copy.filter(o => o.hp > 0);
+      });
+    }
+
+    applyInteractionCost(interaction.cost);
+    pushLog(`Interaction ${interaction.label} executee.`);
+  }
+
+  function handleInteractFromWheel() {
+    if (!canInteractWithBoard) return;
+    if (!hasAnyInteractionSource) {
+      pushLog("Interagir: aucune interaction possible.");
+      return;
+    }
+    setTargetMode("none");
+    setInteractionMode("interact-select");
+    setInteractionMenuItems([]);
+    pushLog("Interagir: cliquez sur un element pour afficher ses interactions.");
   }
 
   function handleHideFromWheel() {
     pushLog("Se cacher: (a integrer).");
-    closeRadialMenu();
   }
 
   const dockTabs = [
@@ -4464,6 +4908,17 @@ function handleEndPlayerTurn() {
     },
     { id: "logs", label: "Logs", content: <LogPanel log={log} /> }
   ];
+
+  const interactionAvailability = interactionContext
+    ? getInteractionAvailability(interactionContext.interaction, interactionContext.target)
+    : null;
+  const forceMod = Number(sampleCharacter.caracs?.force?.modFOR ?? 0);
+  const interactionState =
+    interactionMode === "interact-select"
+      ? interactionMenuItems.length > 0
+        ? "menu"
+        : "select"
+      : "idle";
 
   return (
       <div
@@ -4701,31 +5156,31 @@ function handleEndPlayerTurn() {
                 selectedPathLength={selectedPath.length}
                 isResolvingEnemies={isResolvingEnemies}
                 actions={actions}
+                movementModes={movementModes}
+                activeMovementModeId={activeMovementModeId}
+                isMoving={interactionMode === "moving"}
+                interactionState={interactionState}
+                interactionItems={interactionMenuItems}
+                movementCostUsed={selectedPathCost}
+                movementCostMax={pathLimit}
+                interactionPrompt="Selectionner la cible de l'interaction"
+                onCancelInteract={handleCancelInteractFromWheel}
                 computeActionAvailability={computeActionAvailability}
                 onClose={closeRadialMenu}
-                onEnterMoveMode={() => {
-                  setInteractionMode("moving");
-                  closeRadialMenu();
-                  pushLog(
-                    `Mode deplacement active: cliquez sur des cases pour tracer un trajet (max ${pathLimit}).`
-                  );
-                }}
+                onSelectMoveMode={handleSelectMovementMode}
+                onCancelMove={handleCancelMoveFromWheel}
+                onNoMovementModes={() => pushLog("Deplacement: aucun mode disponible.")}
+                onNoActions={() => pushLog("Action: aucune action disponible.")}
                 onValidateMove={handleValidatePath}
-                onResetMove={() => {
-                  handleResetPath();
-                  closeRadialMenu();
-                }}
                 onInspectCell={handleEnterInspectModeFromWheel}
                 onLook={handleEnterLookModeFromWheel}
                 onInteract={handleInteractFromWheel}
                 onHide={handleHideFromWheel}
                 onEndTurn={() => {
                   handleEndPlayerTurn();
-                  closeRadialMenu();
                 }}
                 onPickAction={openActionContextFromWheel}
               />
-
               <ActionContextWindow
                 open={Boolean(actionContext)}
                 anchorX={actionContext?.anchorX ?? 0}
@@ -4756,78 +5211,23 @@ function handleEndPlayerTurn() {
                 onValidateAction={handleValidateActionFromContext}
                 onClose={closeActionContext}
               />
+              <InteractionContextWindow
+                open={Boolean(interactionContext)}
+                anchorX={interactionContext?.anchorX ?? 0}
+                anchorY={interactionContext?.anchorY ?? 0}
+                interaction={interactionContext?.interaction ?? null}
+                availability={interactionAvailability}
+                forceMod={forceMod}
+                onExecute={() => {
+                  if (!interactionContext) return;
+                  handleExecuteInteraction(
+                    interactionContext.interaction,
+                    interactionContext.target
+                  );
+                }}
+                onClose={closeInteractionContext}
+              />
 
-          {interactionMode === "moving" && (
-            <div
-              onMouseDown={event => event.stopPropagation()}
-              style={{
-                position: "absolute",
-                left: 10,
-                bottom: 10,
-                zIndex: 40,
-                display: "flex",
-                gap: 8,
-                padding: "8px 10px",
-                borderRadius: 10,
-                background: "rgba(10, 10, 16, 0.75)",
-                border: "1px solid rgba(255,255,255,0.14)",
-                backdropFilter: "blur(6px)",
-                boxShadow: "0 14px 40px rgba(0,0,0,0.35)"
-              }}
-            >
-              <span style={{ fontSize: 12, alignSelf: "center", color: "#cfd3ff" }}>
-                Mode deplacement
-              </span>
-              <button
-                type="button"
-                onClick={() => setInteractionMode("idle")}
-                style={{
-                  padding: "4px 8px",
-                  background: "#34495e",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                  fontSize: 12
-                }}
-              >
-                Quitter
-              </button>
-              <button
-                type="button"
-                onClick={handleResetPath}
-                disabled={selectedPath.length === 0}
-                style={{
-                  padding: "4px 8px",
-                  background: selectedPath.length ? "#e67e22" : "#555",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 6,
-                  cursor: selectedPath.length ? "pointer" : "default",
-                  fontSize: 12
-                }}
-              >
-                Annuler
-              </button>
-              <button
-                type="button"
-                onClick={handleValidatePath}
-                disabled={selectedPath.length === 0}
-                style={{
-                  padding: "4px 8px",
-                  background: selectedPath.length ? "#2ecc71" : "#555",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 6,
-                  cursor: selectedPath.length ? "pointer" : "default",
-                  fontSize: 12,
-                  fontWeight: 600
-                }}
-              >
-                Valider
-              </button>
-            </div>
-          )}
             </div>
           </div>
 
@@ -4845,6 +5245,7 @@ function handleEndPlayerTurn() {
     </div>
   );
 };
+
 
 
 

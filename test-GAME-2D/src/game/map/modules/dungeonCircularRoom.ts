@@ -7,13 +7,16 @@ import {
   setLight,
   setTerrain,
   tryPlaceObstacle,
-  tryPlaceWall,
+  tryPlaceWallSegment,
   key,
   scatterTerrainPatches
 } from "../draft";
 import { pickVariantIdForPlacement, weightedTypesForContext } from "../obstacleSelector";
-import { findWallType, wallRotationForLine } from "../wallSelector";
+import { findWallType } from "../wallSelector";
 import { pickWeighted, randomIntInclusive } from "../random";
+import { resolveWallKindFromType } from "../walls/kind";
+import { resolveWallMaxHp } from "../walls/durability";
+import type { WallDirection, WallKind } from "../walls/types";
 
 function cellDistance(ax: number, ay: number, bx: number, by: number): number {
   const dx = ax - bx;
@@ -329,34 +332,55 @@ export function generateDungeonCircularRoom(params: {
   for (const ok of openingKeys) draft.reserved.add(ok);
 
   if (wallType && dSpec.borderWalls) {
+    const baseKind = resolveWallKindFromType(wallType);
+    const doorKind: WallKind = wallDoorType ? resolveWallKindFromType(wallDoorType) : "door";
+    const baseMaxHp = resolveWallMaxHp(wallType);
+    const doorMaxHp = resolveWallMaxHp(wallDoorType);
     let placedWalls = 0;
-    const smallestVariant =
-      (wallType.variants ?? [])
-        .map(v => ({
-          id: v.id,
-          len: Array.isArray(v.footprint) ? v.footprint.length : 1
-        }))
-        .sort((a, b) => a.len - b.len)[0]?.id ?? (wallType.variants?.[0]?.id ?? "1");
+
+    const openingDirForCell = (cell: GridPosition): WallDirection => {
+      const dx = cell.x - cx;
+      const dy = cell.y - cy;
+      if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? "E" : "W";
+      return dy >= 0 ? "S" : "N";
+    };
+
+    const dirs: { dx: number; dy: number; dir: WallDirection }[] = [
+      { dx: 0, dy: -1, dir: "N" },
+      { dx: 0, dy: 1, dir: "S" },
+      { dx: -1, dy: 0, dir: "W" },
+      { dx: 1, dy: 0, dir: "E" }
+    ];
+
     for (const cell of boundaryCells) {
       const isOpening = openingKeys.has(key(cell.x, cell.y));
-      const typeForCell = isOpening && wallDoorType ? wallDoorType : wallType;
-      const state = isOpening ? "open" : "closed";
-      // Pour une enceinte continue, on privilegie un variant 1 case.
-      const variantId = smallestVariant;
-      const rot = wallRotationForLine(typeForCell, variantId, "horizontal");
-      const ok = tryPlaceWall({
-        draft,
-        type: typeForCell,
-        x: cell.x,
-        y: cell.y,
-        variantId,
-        rotation: rot,
-        state,
-        allowOnReserved: true
-      });
-      if (ok) placedWalls++;
+      const openingDir = isOpening ? openingDirForCell(cell) : null;
+      for (const d of dirs) {
+        const nx = cell.x + d.dx;
+        const ny = cell.y + d.dy;
+        const neighborKey = key(nx, ny);
+        if (roomMask.has(neighborKey)) continue;
+        const isDoorEdge = isOpening && openingDir === d.dir;
+        const kind = isDoorEdge ? doorKind : baseKind;
+        const state = isDoorEdge ? "open" : undefined;
+        const typeId = isDoorEdge ? wallDoorType?.id : wallType.id;
+        const maxHp = isDoorEdge ? doorMaxHp : baseMaxHp;
+        if (tryPlaceWallSegment({
+          draft,
+          x: cell.x,
+          y: cell.y,
+          dir: d.dir,
+          kind,
+          state,
+          typeId,
+          maxHp: maxHp ?? undefined,
+          allowOnReserved: true
+        })) {
+          placedWalls++;
+        }
+      }
     }
-    draft.log.push(`Murs: ${placedWalls} segments (avec ${openings.length} accès).`);
+    draft.log.push(`Murs: ${placedWalls} segments (avec ${openings.length} acces).`);
   } else {
     draft.log.push("Murs: aucun type de mur disponible.");
   }
