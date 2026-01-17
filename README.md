@@ -13,3 +13,6 @@ Projet de jeu web - jeu de rôle solo sur navigateur, mécaniques complexes
  g : 
 4 - Créer une app de discussion, suivant les règles et détectant les TRIGGERs
 5 - Fusionner les apps
+
+mise à jour en cours :
+ - Sol des patterns
