@@ -119,8 +119,11 @@ export function hasLineOfEffect(
   for (let i = 1; i < cells.length - 1; i++) {
     const c = cells[i];
     if (hasCells && blockedCells!.has(key(c.x, c.y))) return false;
-    if (hasWalls) {
+  }
+  if (hasWalls) {
+    for (let i = 1; i < cells.length; i++) {
       const prev = cells[i - 1] ?? from;
+      const c = cells[i];
       if (isEdgeBlockingVision(prev, c, from, wallVisionEdges!)) return false;
       const dx = c.x - prev.x;
       const dy = c.y - prev.y;
@@ -151,8 +154,11 @@ export function hasLineOfSight(
   for (let i = 1; i < cells.length - 1; i++) {
     const c = cells[i];
     if (hasCells && blockedCells!.has(key(c.x, c.y))) return false;
-    if (hasWalls) {
+  }
+  if (hasWalls) {
+    for (let i = 1; i < cells.length; i++) {
       const prev = cells[i - 1] ?? from;
+      const c = cells[i];
       if (isEdgeBlockingVision(prev, c, from, wallVisionEdges!)) return false;
       const dx = c.x - prev.x;
       const dy = c.y - prev.y;
