@@ -29,7 +29,8 @@
   "vision": {
     "shape": "circle",
     "range": 100,
-    "canSeeInDark": true
+    "canSeeInDark": true,
+    "lightVision": "darkvision"
   }
 }
 

@@ -39,13 +39,14 @@ export function usePixiGridLabels(options: {
       if (obs.hp <= 0) continue;
       const def = obstacleById.get(obs.typeId);
       const cells = getObstacleOccupiedCells(obs, def);
+      const label = `${def?.label ?? obs.typeId}#${obs.id}`;
       for (const cell of cells) {
         const key = `${cell.x},${cell.y}`;
         const list = obstacleLabels.get(key);
         if (list) {
-          list.push(obs.id);
+          list.push(label);
         } else {
-          obstacleLabels.set(key, [obs.id]);
+          obstacleLabels.set(key, [label]);
         }
       }
     }

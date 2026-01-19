@@ -11,7 +11,7 @@ import {
   key,
   scatterTerrainPatches
 } from "../draft";
-import { pickVariantIdForPlacement, weightedTypesForContext } from "../obstacleSelector";
+import { pickVariantIdForPlacement, randomRotationForPlacement, weightedTypesForContext } from "../obstacleSelector";
 import { findWallType } from "../wallSelector";
 import { pickWeighted, randomIntInclusive } from "../random";
 import { resolveWallKindFromType } from "../walls/kind";
@@ -307,7 +307,8 @@ export function generateDungeonSquareRoom(params: {
       const x = clamp(1 + Math.floor(rand() * Math.max(1, cols - 2)), 1, Math.max(1, cols - 2));
       const y = clamp(1 + Math.floor(rand() * Math.max(1, rows - 2)), 1, Math.max(1, rows - 2));
       const variantId = typeForColumns ? pickVariantIdForPlacement(typeForColumns, "scatter", rand) : "base";
-      const ok = tryPlaceObstacle({ draft, type: typeForColumns, x, y, variantId, rotation: 0 });
+      const rotation = typeForColumns ? randomRotationForPlacement(typeForColumns, variantId, rand) : 0;
+      const ok = tryPlaceObstacle({ draft, type: typeForColumns, x, y, variantId, rotation });
       if (ok) placed++;
     }
 
@@ -319,9 +320,10 @@ export function generateDungeonSquareRoom(params: {
     const altarType: ObstacleTypeDefinition | null = barrelType ?? pillarType ?? null;
     if (altarType) {
       const variantId = pickVariantIdForPlacement(altarType, "room", rand);
+      const rotation = randomRotationForPlacement(altarType, variantId, rand);
       const cx = Math.floor(cols / 2);
       const cy = Math.floor(rows / 2);
-      const ok = tryPlaceObstacle({ draft, type: altarType, x: cx, y: cy, variantId, rotation: 0 });
+      const ok = tryPlaceObstacle({ draft, type: altarType, x: cx, y: cy, variantId, rotation });
       draft.log.push(ok ? "Autel: placé au centre." : "Autel: placement impossible (collision).");
     } else {
       draft.log.push("Autel: aucun type d'obstacle approprié.");
@@ -340,7 +342,8 @@ export function generateDungeonSquareRoom(params: {
     const x = clamp(1 + randomIntInclusive(rand, 0, Math.max(0, cols - 3)), 1, Math.max(1, cols - 2));
     const y = clamp(1 + randomIntInclusive(rand, 0, Math.max(0, rows - 3)), 1, Math.max(1, rows - 2));
     const variantId = pickVariantIdForPlacement(chosen, "scatter", rand);
-    const ok = tryPlaceObstacle({ draft, type: chosen, x, y, variantId, rotation: 0 });
+    const rotation = randomRotationForPlacement(chosen, variantId, rand);
+    const ok = tryPlaceObstacle({ draft, type: chosen, x, y, variantId, rotation });
     if (ok) extraPlaced++;
   }
   if (extraPlaced) draft.log.push(`Props: +${extraPlaced}.`);

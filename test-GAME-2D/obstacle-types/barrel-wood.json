@@ -1,53 +1,52 @@
 {
-    "id":  "barrel-wood",
-    "label":  "Tonneau",
-    "category":  "prop",
-    "tags":  [
-                 "barrel",
-                 "wood",
-                 "prop"
-             ],
-    "blocking":  {
-                     "movement":  true,
-                     "vision":  false,
-                     "attacks":  false
-                 },
-    "durability":  {
-                       "destructible":  true,
-                       "maxHp":  8,
-                       "ac":  10
-                   },
-    "variants":  [
-                     {
-                         "id":  "base",
-                         "label":  "Tonneau",
-                         "footprint":  [
-                                           {
-                                               "x":  0,
-                                               "y":  0
-                                           }
-                                       ],
-                         "rotatable":  false
-                     }
-                 ],
-    "appearance":  {
-                       "spriteKey":  "obstacle:barrel-wood",
-                       "tint":  16777215,
-                       "heightClass":  "medium",
-                       "tokenScale":  {
-                                          "default":  50,
-                                          "min":  40,
-                                          "max":  55
-                                      }
-                   },
-    "spawnRules":  {
-                       "weight":  1,
-                       "cluster":  {
-                                       "min":  1,
-                                       "max":  3
-                                   },
-                       "shapeHint":  "scatter",
-                       "avoidNearTokens":  true
-                   }
+  "id": "barrel-wood",
+  "label": "Tonneau",
+  "category": "prop",
+  "tags": [
+    "barrel",
+    "wood",
+    "prop"
+  ],
+  "blocking": {
+    "movement": true,
+    "vision": false,
+    "attacks": false
+  },
+  "durability": {
+    "destructible": true,
+    "maxHp": 8,
+    "ac": 10
+  },
+  "variants": [
+    {
+      "id": "base",
+      "label": "Tonneau",
+      "footprint": [
+        {
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "rotatable": true
+    }
+  ],
+  "appearance": {
+    "spriteKey": "obstacle:barrel-wood",
+    "tint": 16777215,
+    "heightClass": "medium",
+    "tokenScale": {
+      "default": 50,
+      "min": 40,
+      "max": 55
+    }
+  },
+  "spawnRules": {
+    "weight": 1,
+    "cluster": {
+      "min": 1,
+      "max": 3
+    },
+    "shapeHint": "scatter",
+    "avoidNearTokens": true
+  }
 }
-

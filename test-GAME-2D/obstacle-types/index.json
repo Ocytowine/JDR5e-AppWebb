@@ -16,6 +16,7 @@
     "./torch-wall.json",
     "./brazier.json",
     "./pillar-stone.json",
-    "./stairs-stone.json"
+    "./stairs-stone.json",
+    "./charette-wood.json"
   ]
 }

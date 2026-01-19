@@ -4,6 +4,7 @@ import type { RefObject } from "react";
 import type { TokenState } from "../../types";
 import { TILE_SIZE, gridToScreenForGrid } from "../../boardConfig";
 import { isTokenDead } from "../../game/combatUtils";
+import { getTokenOccupiedCells } from "../../game/footprint";
 
 export function usePixiTokens(options: {
   depthLayerRef: RefObject<Container | null>;
@@ -33,9 +34,11 @@ export function usePixiTokens(options: {
     const visibleCells = options.visibleCells ?? null;
 
     for (const token of allTokens) {
-      const key = cellKey(token.x, token.y);
+      const occupied = getTokenOccupiedCells(token);
       const isVisible =
-        showAll || token.type === "player" || (visibleCells?.has(key) ?? true);
+        showAll ||
+        token.type === "player" ||
+        occupied.some(c => visibleCells?.has(cellKey(c.x, c.y)) ?? true);
       if (!isVisible) continue;
 
       const center = gridToScreenForGrid(token.x, token.y, options.grid.cols, options.grid.rows);

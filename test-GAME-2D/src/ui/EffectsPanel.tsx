@@ -5,6 +5,7 @@ export function EffectsPanel(props: {
   showLightOverlay: boolean;
   showCellIds: boolean;
   showAllLevels: boolean;
+  visionLegend?: string;
   onShowCircle: () => void;
   onShowRectangle: () => void;
   onShowCone: () => void;
@@ -31,6 +32,11 @@ export function EffectsPanel(props: {
         Ces boutons utilisent les helpers de <code>boardEffects.ts</code> pour dessiner des
         zones en coordonnées de grille autour du joueur.
       </p>
+      {props.visionLegend ? (
+        <p style={{ margin: 0, fontSize: 12, color: "#bfc6d2" }}>
+          {props.visionLegend}
+        </p>
+      ) : null}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
         <button
           type="button"

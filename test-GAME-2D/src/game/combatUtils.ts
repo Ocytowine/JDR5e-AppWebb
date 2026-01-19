@@ -1,4 +1,9 @@
-import type { TokenState } from "../types";
+import type { GridPosition, TokenState } from "../types";
+import {
+  distanceBetweenCells,
+  distanceToCells,
+  getTokenOccupiedCells
+} from "./footprint";
 import { isTargetVisible } from "../vision";
 
 export function clamp(value: number, min: number, max: number): number {
@@ -17,6 +22,17 @@ export function gridDistance(
   b: { x: number; y: number }
 ): number {
   return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+}
+
+export function distanceBetweenTokens(a: TokenState, b: TokenState): number {
+  const aCells = getTokenOccupiedCells(a);
+  const bCells = getTokenOccupiedCells(b);
+  return distanceBetweenCells(aCells, bCells);
+}
+
+export function distanceFromPointToToken(point: GridPosition, token: TokenState): number {
+  const cells = getTokenOccupiedCells(token);
+  return distanceToCells(point, cells);
 }
 
 export function isTokenDead(token: TokenState): boolean {
@@ -46,7 +62,9 @@ export function canEnemySeePlayer(
   allTokens: TokenState[],
   opaqueCells?: Set<string> | null,
   playableCells?: Set<string> | null,
-  wallVisionEdges?: Map<string, import("../map/walls/types").WallSegment> | null
+  wallVisionEdges?: Map<string, import("../map/walls/types").WallSegment> | null,
+  lightLevels?: number[] | null,
+  grid?: { cols: number; rows: number } | null
 ): boolean {
   if (isTokenDead(enemy) || isTokenDead(playerToken)) return false;
   return isTargetVisible(
@@ -55,7 +73,9 @@ export function canEnemySeePlayer(
     allTokens,
     opaqueCells,
     playableCells,
-    wallVisionEdges ?? null
+    wallVisionEdges ?? null,
+    lightLevels ?? null,
+    grid ?? null
   );
 }
 
@@ -71,7 +91,7 @@ export function canEnemyAttackPlayer(
   playerToken: TokenState
 ): boolean {
   const range = getAttackRangeForToken(enemy);
-  return gridDistance(enemy, playerToken) <= range;
+  return distanceBetweenTokens(enemy, playerToken) <= range;
 }
 
 export function computeFacingTowards(

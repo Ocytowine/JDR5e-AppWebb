@@ -6,7 +6,7 @@ import {
   setTerrain,
   tryPlaceObstacle
 } from "../draft";
-import { pickVariantIdForPlacement } from "../obstacleSelector";
+import { pickVariantIdForPlacement, randomRotationForPlacement } from "../obstacleSelector";
 import { randomIntInclusive } from "../random";
 import { loadMapPatternsFromIndex } from "../../mapPatternCatalog";
 import { getPatternSize, pickPatternTransform, placePatternAtOrigin } from "../patterns";
@@ -130,6 +130,7 @@ export function generateManualArena(params: {
             ? "room"
             : "scatter";
       const variantId = pickVariantIdForPlacement(type, desiredShape, rand);
+      const rotation = randomRotationForPlacement(type, variantId, rand);
 
       const ok = tryPlaceObstacle({
         draft,
@@ -137,7 +138,7 @@ export function generateManualArena(params: {
         x,
         y,
         variantId,
-        rotation: 0
+        rotation
       });
 
       if (ok) placed++;

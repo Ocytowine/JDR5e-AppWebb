@@ -46,3 +46,15 @@ export function rotationForLine(
   return direction === "vertical" ? 90 : 0;
 }
 
+export function randomRotationForPlacement(
+  type: ObstacleTypeDefinition,
+  variantId: string,
+  rand: () => number
+): number {
+  const variant = (type.variants ?? []).find(v => v.id === variantId) ?? null;
+  if (!variant?.rotatable) return 0;
+  if (!type.appearance?.randomRotation) return 0;
+  const rotations = [0, 45, 90, 135, 180, 225, 270, 315];
+  return rotations[Math.floor(rand() * rotations.length)] ?? 0;
+}
+

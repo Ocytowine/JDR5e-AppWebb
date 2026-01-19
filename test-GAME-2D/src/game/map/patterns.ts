@@ -25,6 +25,7 @@ import {
 } from "./walls/ascii";
 import { wallEdgeKeyForSegment } from "./walls/grid";
 import { resolveWallMaxHp } from "./walls/durability";
+import { getSpriteGridCells, hasTreeOverlap, isTreeType } from "./placement";
 
 export interface PatternTransform {
   rotation?: MapPatternRotation;
@@ -102,6 +103,12 @@ function pickElements(pattern: MapPatternDefinition, rand?: () => number): MapPa
     return variants[0].elements;
   }
   return pattern.elements;
+}
+
+function hasPatternTag(pattern: MapPatternDefinition, tag: string): boolean {
+  const tags = pattern.tags ?? [];
+  const target = String(tag).toLowerCase();
+  return tags.some(t => String(t).toLowerCase() === target);
 }
 
 function transformPoint(params: {
@@ -298,6 +305,30 @@ function canPlaceElements(params: {
     const cells = getObstacleOccupiedCells(temp, typeDef);
     if (!cells.length) return false;
 
+    if (isTreeType(typeDef)) {
+      const grid = typeDef.appearance?.spriteGrid;
+      const candidateCells =
+        grid && Number.isFinite(grid.tilesX) && Number.isFinite(grid.tilesY)
+          ? getSpriteGridCells({
+              x: gx,
+              y: gy,
+              tilesX: grid.tilesX,
+              tilesY: grid.tilesY,
+              cols: draft.cols,
+              rows: draft.rows
+            })
+          : cells;
+      if (hasTreeOverlap({
+        candidate: candidateCells,
+        draftObstacles: draft.obstacles,
+        typeById,
+        cols: draft.cols,
+        rows: draft.rows
+      })) {
+        return false;
+      }
+    }
+
     for (const c of cells) {
       if (!isInside(draft, c.x, c.y)) return false;
       if (c.x < originX || c.x > maxX || c.y < originY || c.y > maxY) return false;
@@ -405,6 +436,11 @@ export function placePattern(params: {
       setTerrain(draft, cell.x, cell.y, pattern.floorPaint.terrain as any);
       if (typeof pattern.floorPaint.height === "number") {
         setHeight(draft, cell.x, cell.y, pattern.floorPaint.height);
+      }
+    }
+    if (hasPatternTag(pattern, "roof-open")) {
+      for (const cell of interiorCells) {
+        draft.roofOpenCells.add(key(cell.x, cell.y));
       }
     }
   }

@@ -25,10 +25,11 @@ import type {
 import {
   clamp,
   computeFacingTowards,
+  distanceBetweenTokens,
+  distanceFromPointToToken,
   getAttackRangeForToken,
   getMaxAttacksForToken,
   isTokenDead,
-  gridDistance,
   canEnemySeePlayer
 } from "./game/combatUtils";
 import enemyTypesIndex from "../enemy-types/index.json";
@@ -47,6 +48,12 @@ import type { DecorInstance } from "./game/decorTypes";
 import type { ManualMapConfig, MapTheme } from "./game/map/types";
 import { MANUAL_MAP_PRESETS, getManualPresetById } from "./game/map/presets";
 import { buildObstacleBlockingSets, getObstacleOccupiedCells } from "./game/obstacleRuntime";
+import {
+  distanceBetweenCells,
+  getClosestFootprintCellToPoint,
+  orientationFromRotationDeg,
+  getTokenOccupiedCells
+} from "./game/footprint";
 import actionsIndex from "../action-game/actions/index.json";
 import meleeStrike from "../action-game/actions/melee-strike.json";
 import dashAction from "../action-game/actions/dash.json";
@@ -82,6 +89,14 @@ import {
   type VisibilityLevel
 } from "./vision";
 import { hasLineOfEffect } from "./lineOfSight";
+import {
+  computeLightLevels,
+  computeLightTints,
+  isLightVisible,
+  resolveLightVisionMode,
+  LIGHT_LEVEL_SHADOW_MIN,
+  type LightVisionMode
+} from "./lighting";
 import {
   beginRoundNarrationBuffer,
   buildRoundNarrationRequest,
@@ -141,6 +156,7 @@ import {
   getMovementModesForCharacter,
   type MovementModeDefinition
 } from "./game/movementModes";
+import { preloadObstaclePngTextures } from "./obstacleTextureHelper";
 
 const ACTION_MODULES: Record<string, ActionDefinition> = {
   "./melee-strike.json": meleeStrike as ActionDefinition,
@@ -259,6 +275,7 @@ function createEnemy(
           range: 100,
           apertureDeg: 180
         },
+    footprint: enemyType.footprint,
     x,
     y,
     hp: base.hp,
@@ -300,6 +317,8 @@ const ENEMY_CAPABILITIES: { action: EnemyActionType; label: string; color: strin
   }
 ];
 
+const PLAYER_TORCH_RADIUS = 4;
+
 
 // -------------------------------------------------------------
 // Main component
@@ -315,6 +334,13 @@ export const GameBoard: React.FC = () => {
   );
   const defaultMovementMode = movementModes[0] ?? getDefaultMovementMode();
   const defaultMovementProfile = buildMovementProfileFromMode(defaultMovementMode);
+  const defaultPlayerVisionProfile: VisionProfile =
+    sampleCharacter.visionProfile ?? {
+      shape: "cone",
+      range: 100,
+      apertureDeg: 180,
+      lightVision: "normal"
+    };
 
   const [log, setLog] = useState<string[]>([]);
   const [narrativeLog, setNarrativeLog] = useState<string[]>([]);
@@ -328,11 +354,7 @@ export const GameBoard: React.FC = () => {
     facing: "right",
     movementProfile: defaultMovementProfile,
     moveRange: defaultMovementProfile.speed,
-    visionProfile: {
-      shape: "cone",
-      range: 100,
-      apertureDeg: 180
-    },
+    visionProfile: defaultPlayerVisionProfile,
     hp: sampleCharacter.pvActuels,
     maxHp: sampleCharacter.pvMax
   });
@@ -348,11 +370,13 @@ export const GameBoard: React.FC = () => {
   const [mapTerrain, setMapTerrain] = useState<TerrainCell[]>([]);
   const [mapHeight, setMapHeight] = useState<number[]>([]);
   const [mapLight, setMapLight] = useState<number[]>([]);
+  const [roofOpenCells, setRoofOpenCells] = useState<Set<string> | null>(null);
   const [mapGrid, setMapGrid] = useState<{ cols: number; rows: number }>({
     cols: GRID_COLS,
     rows: GRID_ROWS
   });
   const [mapTheme, setMapTheme] = useState<MapTheme>("generic");
+  const [mapPaletteId, setMapPaletteId] = useState<string | null>(null);
   const [activeLevel, setActiveLevel] = useState<number>(0);
 
   const [phase, setPhase] = useState<TurnPhase>("player");
@@ -547,6 +571,19 @@ export const GameBoard: React.FC = () => {
       return (def?.interactions ?? []).length > 0;
     });
   }, [obstacleTypeById, obstacles, wallSegments, wallTypeById]);
+  const obstacleLegend = useMemo(() => {
+    return obstacles
+      .filter(o => o.hp > 0)
+      .map(o => {
+        const def = obstacleTypeById.get(o.typeId) ?? null;
+        const orientation = o.orientation ?? orientationFromRotationDeg(o.rotation ?? 0);
+        return {
+          id: o.id,
+          label: def?.label ?? o.typeId,
+          orientation
+        };
+      });
+  }, [obstacleTypeById, obstacles]);
   const lightSources = useMemo(() => {
     const sources: LightSource[] = [];
     for (const obs of obstacles) {
@@ -555,10 +592,28 @@ export const GameBoard: React.FC = () => {
       const radiusRaw = def?.light?.radius;
       const radius = Number.isFinite(radiusRaw) ? Math.floor(radiusRaw as number) : 0;
       if (radius <= 0) continue;
-      sources.push({ x: obs.x, y: obs.y, radius });
+      sources.push({ x: obs.x, y: obs.y, radius, color: def?.light?.color });
     }
     return sources;
   }, [obstacles, obstacleTypeById]);
+  const activeLightSources = useMemo(() => {
+    const sources = [...lightSources];
+    if (playerTorchOn) {
+      sources.push({
+        x: player.x,
+        y: player.y,
+        radius: Math.max(1, Math.floor(PLAYER_TORCH_RADIUS)),
+        color: 0xffb36b
+      });
+    }
+    return sources;
+  }, [lightSources, player.x, player.y, playerTorchOn]);
+  const isNight = useMemo(() => {
+    if (!Array.isArray(mapLight) || mapLight.length === 0) return false;
+    const total = mapLight.reduce((acc, value) => acc + (Number(value) || 0), 0);
+    const avg = total / mapLight.length;
+    return avg < LIGHT_LEVEL_SHADOW_MIN;
+  }, [mapLight]);
 
   const levelRange = useMemo(() => {
     let min = 0;
@@ -651,6 +706,42 @@ export const GameBoard: React.FC = () => {
     if (floorBlockers.size === 0) return new Set([...obstacleBlocking.vision]);
     return new Set([...obstacleBlocking.vision, ...floorBlockers]);
   }, [activeLevel, floorVisionBlockersByLevel, obstacleBlocking.vision]);
+  const lightLevels = useMemo(() => {
+    if (mapGrid.cols <= 0 || mapGrid.rows <= 0) return [];
+    return computeLightLevels({
+      grid: mapGrid,
+      mapLight,
+      lightSources: activeLightSources,
+      obstacleVisionCells: visionBlockersActive,
+      wallVisionEdges: wallEdges.vision,
+      closedCells,
+      roofOpenCells: roofOpenCells ?? null
+    });
+  }, [
+    activeLightSources,
+    closedCells,
+    mapGrid,
+    mapLight,
+    roofOpenCells,
+    visionBlockersActive,
+    wallEdges.vision
+  ]);
+  const lightTints = useMemo(() => {
+    if (mapGrid.cols <= 0 || mapGrid.rows <= 0) return null;
+    return computeLightTints({
+      grid: mapGrid,
+      lightSources: activeLightSources,
+      obstacleVisionCells: visionBlockersActive,
+      wallVisionEdges: wallEdges.vision
+    });
+  }, [activeLightSources, mapGrid, visionBlockersActive, wallEdges.vision]);
+  const playerLightMode = useMemo<LightVisionMode>(() => {
+    const profile = player.visionProfile;
+    const raw =
+      profile?.lightVision ??
+      (profile?.canSeeInDark ? "darkvision" : "normal");
+    return resolveLightVisionMode(raw);
+  }, [player.visionProfile]);
 
   const visionBlockersForVisibility = useMemo(() => {
     const combined = new Map<number, Set<string>>();
@@ -673,6 +764,63 @@ export const GameBoard: React.FC = () => {
   }, [activeLevel, levelRange.min, levelRange.max, visionBlockersByLevel]);
 
   const visibilityByLevel = useMemo(() => {
+    if (showAllLevels) return null;
+    const perLevel = new Map<number, Map<string, VisibilityLevel>>();
+    const hasLight = lightLevels.length > 0;
+
+    for (let level = levelRange.min; level <= levelRange.max; level++) {
+      const blockers = visionBlockersForVisibility.get(level) ?? new Set<string>();
+      const baseVisibility = computeVisibilityLevelsForToken({
+        token: player,
+        playableCells: playableCells ?? null,
+        grid: mapGrid,
+        opaqueCells: blockers,
+        wallVisionEdges: wallEdges.vision
+      });
+      const filtered = new Map<string, VisibilityLevel>();
+      for (const [key, vis] of baseVisibility.entries()) {
+        const [xs, ys] = key.split(",");
+        const x = Number(xs);
+        const y = Number(ys);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+        if (hasLight) {
+          const idx = y * mapGrid.cols + x;
+          const light = lightLevels[idx] ?? 0;
+          if (!isLightVisible(light, playerLightMode)) continue;
+        }
+        const cellLevel = getHeightAtGrid(mapHeight, mapGrid.cols, mapGrid.rows, x, y);
+        if (cellLevel !== level) continue;
+        filtered.set(key, vis);
+      }
+      const playerLevel = getHeightAtGrid(
+        mapHeight,
+        mapGrid.cols,
+        mapGrid.rows,
+        player.x,
+        player.y
+      );
+      if (playerLevel === level) {
+        filtered.set(buildCellKey(player.x, player.y), 2);
+      }
+      perLevel.set(level, filtered);
+    }
+
+    return perLevel;
+  }, [
+    activeLevel,
+    levelRange.min,
+    levelRange.max,
+    lightLevels,
+    mapGrid,
+    mapHeight,
+    player,
+    playerLightMode,
+    playableCells,
+    showAllLevels,
+    visionBlockersForVisibility,
+    wallEdges
+  ]);
+  const visionByLevel = useMemo(() => {
     if (showAllLevels) return null;
     const perLevel = new Map<number, Map<string, VisibilityLevel>>();
 
@@ -744,6 +892,32 @@ export const GameBoard: React.FC = () => {
     }
     return full;
   }, [showAllLevels, visibilityLevels]);
+  const visionCellsFull = useMemo<Set<string> | null>(() => {
+    if (showAllLevels) return null;
+    const full = new Set<string>();
+    if (!visionByLevel) return full;
+    for (const levelMap of visionByLevel.values()) {
+      for (const [key, vis] of levelMap.entries()) {
+        if (vis >= 2) full.add(key);
+      }
+    }
+    return full;
+  }, [showAllLevels, visionByLevel]);
+
+  const visionLegend = useMemo(() => {
+    const modeFor = (profile?: VisionProfile | null) => {
+      const raw =
+        profile?.lightVision ?? (profile?.canSeeInDark ? "darkvision" : "normal");
+      return resolveLightVisionMode(raw);
+    };
+    const playerMode = modeFor(player.visionProfile);
+    const enemyModes = enemyTypes
+      .map(t => `${t.label ?? t.id}: ${modeFor(t.vision as VisionProfile | undefined)}`)
+      .join(", ");
+    return enemyModes.length > 0
+      ? `Vision: joueur=${playerMode} | ennemis: ${enemyModes}`
+      : `Vision: joueur=${playerMode}`;
+  }, [enemyTypes, player.visionProfile]);
 
   function clampActiveLevel(value: number): number {
     return Math.max(levelRange.min, Math.min(levelRange.max, value));
@@ -764,6 +938,10 @@ export const GameBoard: React.FC = () => {
     setActiveLevel(prev => clampActiveLevel(prev));
   }, [levelRange.min, levelRange.max]);
 
+  useEffect(() => {
+    void preloadObstaclePngTextures();
+  }, []);
+
   usePixiWalls({
     depthLayerRef,
     walls: wallSegments,
@@ -778,12 +956,14 @@ export const GameBoard: React.FC = () => {
     depthLayerRef,
     obstacleTypes,
     obstacles,
+    tokens: [player, ...enemies],
     pixiReadyTick,
     grid: mapGrid,
     heightMap: mapHeight,
     activeLevel,
     visibleCells: visibleCellsFull,
-    showAllLevels
+    showAllLevels,
+    paletteId: mapPaletteId
   });
   usePixiDecorations({
     depthLayerRef,
@@ -834,13 +1014,17 @@ export const GameBoard: React.FC = () => {
     closedCells,
     showVisionDebug,
     visibleCells: visibleCellsFull,
+    visionCells: visionCellsFull,
     visibilityLevels,
     showAllLevels,
     lightMap: mapLight,
     lightSources,
     showLightOverlay,
+    lightLevels,
+    lightTints,
+    isNight,
     playerTorchOn,
-    playerTorchRadius: 4,
+    playerTorchRadius: PLAYER_TORCH_RADIUS,
     pixiReadyTick,
     playableCells,
     grid: mapGrid,
@@ -953,12 +1137,17 @@ export const GameBoard: React.FC = () => {
     targetCell: { x: number; y: number }
   ): number {
     const cells = def ? getObstacleOccupiedCells(obstacle, def) : [targetCell];
+    const fromCells = "id" in from ? getTokenOccupiedCells(from) : [from];
     let best = Number.POSITIVE_INFINITY;
-    for (const cell of cells) {
-      const dist = Math.abs(from.x - cell.x) + Math.abs(from.y - cell.y);
-      if (dist < best) best = dist;
+    for (const src of fromCells) {
+      for (const cell of cells) {
+        const dist = Math.abs(src.x - cell.x) + Math.abs(src.y - cell.y);
+        if (dist < best) best = dist;
+      }
     }
-    return Number.isFinite(best) ? best : Math.abs(from.x - targetCell.x) + Math.abs(from.y - targetCell.y);
+    if (Number.isFinite(best)) return best;
+    const fallback = Math.abs(from.x - targetCell.x) + Math.abs(from.y - targetCell.y);
+    return fallback;
   }
 
   function getWallSegmentDistance(from: { x: number; y: number }, segment: WallSegment): number {
@@ -968,14 +1157,20 @@ export const GameBoard: React.FC = () => {
     return Math.min(distA, distB);
   }
 
+  function getChebyshevDistanceFromEntity(
+    from: { x: number; y: number } | TokenState,
+    cells: { x: number; y: number }[]
+  ): number {
+    const fromCells = "id" in from ? getTokenOccupiedCells(from) : [from];
+    return distanceBetweenCells(fromCells, cells);
+  }
+
   function getWallSegmentChebyshevDistance(
     from: { x: number; y: number },
     segment: WallSegment
   ): number {
     const cells = getAdjacentCellsForEdge(segment);
-    const distA = gridDistance(from, cells.a);
-    const distB = gridDistance(from, cells.b);
-    return Math.min(distA, distB);
+    return getChebyshevDistanceFromEntity(from, [cells.a, cells.b]);
   }
 
   function getObstacleChebyshevDistance(
@@ -985,12 +1180,7 @@ export const GameBoard: React.FC = () => {
     targetCell: { x: number; y: number }
   ): number {
     const cells = def ? getObstacleOccupiedCells(obstacle, def) : [targetCell];
-    let best = Number.POSITIVE_INFINITY;
-    for (const cell of cells) {
-      const dist = gridDistance(from, cell);
-      if (dist < best) best = dist;
-    }
-    return Number.isFinite(best) ? best : gridDistance(from, targetCell);
+    return getChebyshevDistanceFromEntity(from, cells);
   }
 
   function canPayInteractionCost(cost?: InteractionCost): { ok: boolean; reason?: string } {
@@ -1350,6 +1540,7 @@ export const GameBoard: React.FC = () => {
       : [];
     pushLogBatch([map.summary, ...generationLines]);
     setMapTheme(map.theme ?? "generic");
+    setMapPaletteId(map.paletteId ?? null);
     grid = map.grid ?? grid;
     setMapGrid(grid);
 
@@ -1366,6 +1557,7 @@ export const GameBoard: React.FC = () => {
     const flatHeight = Array(grid.cols * grid.rows).fill(0);
     setMapHeight(flatHeight);
     setMapLight(Array.isArray(map.light) ? map.light : []);
+    setRoofOpenCells(new Set(map.roofOpenCells ?? []));
     setActiveLevel(0);
     setDecorations(Array.isArray(map.decorations) ? map.decorations : []);
 
@@ -1687,7 +1879,7 @@ export const GameBoard: React.FC = () => {
     if (enemies.length === 0) return null;
     let best: number | null = null;
     for (const enemy of enemies) {
-      const dist = gridDistance(player, enemy);
+      const dist = distanceBetweenTokens(player, enemy);
       if (best === null || dist < best) {
         best = dist;
       }
@@ -1719,7 +1911,7 @@ export const GameBoard: React.FC = () => {
       };
     }
 
-    const dist = gridDistance(actor, enemy);
+    const dist = distanceBetweenTokens(actor, enemy);
     const range = targeting.range;
 
     if (range) {
@@ -1788,7 +1980,9 @@ export const GameBoard: React.FC = () => {
         allTokens,
         visionBlockersActive,
         playableCells,
-        wallEdges.vision
+        wallEdges.vision,
+        lightLevels,
+        mapGrid
       );
       if (!visible) {
         return {
@@ -1797,9 +1991,12 @@ export const GameBoard: React.FC = () => {
             "Cible hors du champ de vision ou derriere un obstacle (ligne de vue requise)."
         };
       }
+      const targetCell =
+        getClosestFootprintCellToPoint({ x: actor.x, y: actor.y }, enemy) ??
+        { x: enemy.x, y: enemy.y };
       const canHit = hasLineOfEffect(
         { x: actor.x, y: actor.y },
-        { x: enemy.x, y: enemy.y },
+        targetCell,
         obstacleBlocking.attacks,
         wallEdges.vision
       );
@@ -1902,7 +2099,9 @@ export const GameBoard: React.FC = () => {
         targetCell,
         visionBlockersActive,
         playableCells,
-        wallEdges.vision
+        wallEdges.vision,
+        lightLevels,
+        mapGrid
       );
       if (!visible) {
         return {
@@ -2019,7 +2218,9 @@ export const GameBoard: React.FC = () => {
         targetCell,
         visionBlockersActive,
         playableCells,
-        wallEdges.vision
+        wallEdges.vision,
+        lightLevels,
+        mapGrid
       );
       if (!visible) {
         return {
@@ -2874,7 +3075,7 @@ export const GameBoard: React.FC = () => {
     }
 
     if (interactionMode === "inspect-select") {
-      const dist = gridDistance(player, { x: targetX, y: targetY });
+      const dist = distanceFromPointToToken({ x: targetX, y: targetY }, player);
       if (dist > INSPECT_RANGE) {
         pushLog(
           `Inspection: case hors portee (${dist} > ${INSPECT_RANGE}).`
@@ -3431,7 +3632,16 @@ export const GameBoard: React.FC = () => {
 
             if (
               !areTokensOnSameLevel(enemy, playerCopy as TokenState) ||
-              !canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, visionBlockersActive, playableCells, wallEdges.vision)
+              !canEnemySeePlayer(
+                enemy,
+                playerCopy as TokenState,
+                allTokens,
+                visionBlockersActive,
+                playableCells,
+                wallEdges.vision,
+                lightLevels,
+                mapGrid
+              )
             ) {
               pushLog(
                 `${enemy.id} ne voit pas le joueur et reste en alerte (fallback).`
@@ -3454,6 +3664,7 @@ export const GameBoard: React.FC = () => {
                 {
                   maxDistance: maxRange,
                   allowTargetOccupied: true,
+                  targetCells: getTokenOccupiedCells(playerCopy),
                   blockedCells: obstacleBlocking.movement,
                   wallEdges: wallEdges.movement,
                   playableCells,
@@ -3479,13 +3690,16 @@ export const GameBoard: React.FC = () => {
             enemy.y = destination.y;
             enemy.facing = computeFacingTowards(enemy, playerCopy);
   
-            const distToPlayer = gridDistance(enemy, playerCopy);
+            const distToPlayer = distanceBetweenTokens(enemy, playerCopy);
             const attackRange = getAttackRangeForToken(enemy);
   
               if (distToPlayer <= attackRange) {
+                const targetCell =
+                  getClosestFootprintCellToPoint({ x: enemy.x, y: enemy.y }, playerCopy) ??
+                  { x: playerCopy.x, y: playerCopy.y };
                 const canHit = hasLineOfEffect(
                   { x: enemy.x, y: enemy.y },
-                  { x: playerCopy.x, y: playerCopy.y },
+                  targetCell,
                   obstacleBlocking.attacks, wallEdges.vision);
                 if (!canHit) {
                   pushLog(`${enemy.id} ne peut pas attaquer: obstacle sur la trajectoire.`);
@@ -3583,7 +3797,16 @@ export const GameBoard: React.FC = () => {
           if (action === "move") {
             if (
               !areTokensOnSameLevel(enemy, playerCopy as TokenState) ||
-              !canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, visionBlockersActive, playableCells, wallEdges.vision)
+              !canEnemySeePlayer(
+                enemy,
+                playerCopy as TokenState,
+                allTokens,
+                visionBlockersActive,
+                playableCells,
+                wallEdges.vision,
+                lightLevels,
+                mapGrid
+              )
             ) {
               pushLog(
                 `${enemy.id} ne voit pas le joueur et reste en alerte.`
@@ -3664,7 +3887,16 @@ export const GameBoard: React.FC = () => {
 
             if (
               !areTokensOnSameLevel(enemy, playerCopy as TokenState) ||
-              !canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, visionBlockersActive, playableCells, wallEdges.vision)
+              !canEnemySeePlayer(
+                enemy,
+                playerCopy as TokenState,
+                allTokens,
+                visionBlockersActive,
+                playableCells,
+                wallEdges.vision,
+                lightLevels,
+                mapGrid
+              )
             ) {
               pushLog(
                 `${enemy.id} voulait attaquer mais ne voit pas le joueur.`
@@ -3672,13 +3904,16 @@ export const GameBoard: React.FC = () => {
               continue;
             }
 
-            const distToPlayer = gridDistance(enemy, playerCopy);
+            const distToPlayer = distanceBetweenTokens(enemy, playerCopy);
             const attackRange = getAttackRangeForToken(enemy);
 
             if (distToPlayer <= attackRange) {
+              const targetCell =
+                getClosestFootprintCellToPoint({ x: enemy.x, y: enemy.y }, playerCopy) ??
+                { x: playerCopy.x, y: playerCopy.y };
               const canHit = hasLineOfEffect(
                 { x: enemy.x, y: enemy.y },
-                { x: playerCopy.x, y: playerCopy.y },
+                targetCell,
                 obstacleBlocking.attacks, wallEdges.vision);
               if (!canHit) {
                 pushLog(`${enemy.id} ne peut pas attaquer: obstacle sur la trajectoire.`);
@@ -3739,7 +3974,16 @@ export const GameBoard: React.FC = () => {
 
         if (
           !areTokensOnSameLevel(enemy, playerCopy as TokenState) ||
-          !canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, visionBlockersActive, playableCells, wallEdges.vision)
+          !canEnemySeePlayer(
+            enemy,
+            playerCopy as TokenState,
+            allTokens,
+            visionBlockersActive,
+            playableCells,
+            wallEdges.vision,
+            lightLevels,
+            mapGrid
+          )
         ) {
           pushLog(
             `${enemy.id} ne voit pas le joueur et reste en alerte (fallback).`
@@ -3762,6 +4006,7 @@ export const GameBoard: React.FC = () => {
         {
           maxDistance: maxRange,
           allowTargetOccupied: true,
+          targetCells: getTokenOccupiedCells(playerCopy),
           blockedCells: obstacleBlocking.movement,
           wallEdges: wallEdges.movement,
           playableCells,
@@ -3784,13 +4029,16 @@ export const GameBoard: React.FC = () => {
           enemy.y = destination.y;
           enemy.facing = computeFacingTowards(enemy, playerCopy);
   
-          const distToPlayer = gridDistance(enemy, playerCopy);
+          const distToPlayer = distanceBetweenTokens(enemy, playerCopy);
           const attackRange = getAttackRangeForToken(enemy);
   
             if (distToPlayer <= attackRange) {
+              const targetCell =
+                getClosestFootprintCellToPoint({ x: enemy.x, y: enemy.y }, playerCopy) ??
+                { x: playerCopy.x, y: playerCopy.y };
               const canHit = hasLineOfEffect(
                 { x: enemy.x, y: enemy.y },
-                { x: playerCopy.x, y: playerCopy.y },
+                targetCell,
                 obstacleBlocking.attacks, wallEdges.vision);
               if (!canHit) {
                 pushLog(`${enemy.id} ne peut pas attaquer: obstacle sur la trajectoire.`);
@@ -3879,7 +4127,16 @@ export const GameBoard: React.FC = () => {
           if (action === "move") {
             if (
               !areTokensOnSameLevel(enemy, playerCopy as TokenState) ||
-              !canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, visionBlockersActive, playableCells, wallEdges.vision)
+              !canEnemySeePlayer(
+                enemy,
+                playerCopy as TokenState,
+                allTokens,
+                visionBlockersActive,
+                playableCells,
+                wallEdges.vision,
+                lightLevels,
+                mapGrid
+              )
             ) {
               pushLog(
                 `${enemy.id} ne voit pas le joueur et reste en alerte.`
@@ -3959,7 +4216,16 @@ export const GameBoard: React.FC = () => {
 
             if (
               !areTokensOnSameLevel(enemy, playerCopy as TokenState) ||
-              !canEnemySeePlayer(enemy, playerCopy as TokenState, allTokens, visionBlockersActive, playableCells, wallEdges.vision)
+              !canEnemySeePlayer(
+                enemy,
+                playerCopy as TokenState,
+                allTokens,
+                visionBlockersActive,
+                playableCells,
+                wallEdges.vision,
+                lightLevels,
+                mapGrid
+              )
             ) {
               pushLog(
                 `${enemy.id} voulait attaquer mais ne voit pas le joueur.`
@@ -3967,13 +4233,16 @@ export const GameBoard: React.FC = () => {
               continue;
             }
 
-            const distToPlayer = gridDistance(enemy, playerCopy);
+            const distToPlayer = distanceBetweenTokens(enemy, playerCopy);
             const attackRange = getAttackRangeForToken(enemy);
 
             if (distToPlayer <= attackRange) {
+              const targetCell =
+                getClosestFootprintCellToPoint({ x: enemy.x, y: enemy.y }, playerCopy) ??
+                { x: playerCopy.x, y: playerCopy.y };
               const canHit = hasLineOfEffect(
                 { x: enemy.x, y: enemy.y },
-                { x: playerCopy.x, y: playerCopy.y },
+                targetCell,
                 obstacleBlocking.attacks, wallEdges.vision);
               if (!canHit) {
                 pushLog(`${enemy.id} ne peut pas attaquer: obstacle sur la trajectoire.`);
@@ -4019,7 +4288,15 @@ export const GameBoard: React.FC = () => {
     if (isTokenDead(enemy)) return;
 
     const allTokens: TokenState[] = getTokensOnActiveLevel([playerState, ...enemiesState]);
-    const visible = getEntitiesInVision(enemy, allTokens, visionBlockersActive, playableCells, wallEdges.vision);
+    const visible = getEntitiesInVision(
+      enemy,
+      allTokens,
+      visionBlockersActive,
+      playableCells,
+      wallEdges.vision,
+      lightLevels,
+      mapGrid
+    );
 
     const alliesVisible = visible
       .filter(t => t.type === "enemy" && t.id !== enemyId && !isTokenDead(t))
@@ -4031,8 +4308,17 @@ export const GameBoard: React.FC = () => {
 
     const canSeePlayerNow =
       areTokensOnSameLevel(enemy, playerState) &&
-      canEnemySeePlayer(enemy, playerState, allTokens, visionBlockersActive, playableCells, wallEdges.vision);
-    const distToPlayer = gridDistance(enemy, playerState);
+      canEnemySeePlayer(
+        enemy,
+        playerState,
+        allTokens,
+        visionBlockersActive,
+        playableCells,
+        wallEdges.vision,
+        lightLevels,
+        mapGrid
+      );
+    const distToPlayer = distanceBetweenTokens(enemy, playerState);
     const hpRatio = enemy.maxHp > 0 ? enemy.hp / enemy.maxHp : 0;
 
     const payload: EnemySpeechRequest = {
@@ -4119,6 +4405,7 @@ export const GameBoard: React.FC = () => {
           blockedVisionCells: visionBlockersActive,
           blockedAttackCells: obstacleBlocking.attacks,
           wallVisionEdges: wallEdges.vision,
+          lightLevels,
           playableCells,
           grid: mapGrid,
           heightMap: mapHeight,
@@ -4190,12 +4477,14 @@ export const GameBoard: React.FC = () => {
             allTokens,
             visionBlockersActive,
             playableCells,
-            wallEdges.vision
+            wallEdges.vision,
+            lightLevels,
+            mapGrid
           );
       if (!canSee) {
         pushLog(`${activeEnemy.id} ne voit pas le joueur et reste en alerte.`);
       } else {
-        const distToPlayer = gridDistance(activeEnemy, playerCopy);
+        const distToPlayer = distanceBetweenTokens(activeEnemy, playerCopy);
 
         const hasBow = enemyActionIds.includes("enemy-bow-shot");
         const hasMelee = enemyActionIds.includes("enemy-melee-strike");
@@ -4218,7 +4507,7 @@ export const GameBoard: React.FC = () => {
               const y = activeEnemy.y + dy;
               if (!isCellPlayable(x, y)) continue;
               if (getTokenAt({ x, y }, allTokens)) continue;
-              const d = gridDistance({ x, y }, playerCopy);
+              const d = distanceFromPointToToken({ x, y }, playerCopy);
               if (d > bestDist) {
                 bestDist = d;
                 best = { x, y };
@@ -4894,6 +5183,7 @@ function handleEndPlayerTurn() {
             showLightOverlay={showLightOverlay}
             showCellIds={showCellIds}
             showAllLevels={showAllLevels}
+            visionLegend={visionLegend}
             onShowCircle={handleShowCircleEffect}
             onShowRectangle={handleShowRectangleEffect}
             onShowCone={handleShowConeEffect}
@@ -4938,6 +5228,32 @@ function handleEndPlayerTurn() {
       >
         {isGameOver && (
           <GameOverOverlay onRestart={() => window.location.reload()} />
+        )}
+        {showCellIds && obstacleLegend.length > 0 && (
+          <div
+            style={{
+              position: "absolute",
+              top: 16,
+              right: 16,
+              zIndex: 50,
+              background: "rgba(10,10,16,0.92)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: 10,
+              padding: "10px 12px",
+              maxWidth: 260,
+              maxHeight: "40vh",
+              overflowY: "auto",
+              fontSize: 12,
+              lineHeight: 1.4
+            }}
+          >
+            <div style={{ fontWeight: 600, marginBottom: 6 }}>Legende obstacles</div>
+            {obstacleLegend.map(item => (
+              <div key={item.id}>
+                {item.label} ({item.id}) [{item.orientation}]
+              </div>
+            ))}
+          </div>
         )}
         <div
           style={{

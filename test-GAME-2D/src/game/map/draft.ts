@@ -1,10 +1,7 @@
 import type { GridPosition } from "../../types";
 import type { DecorInstance } from "../decorTypes";
-import type {
-  ObstacleInstance,
-  ObstacleTypeDefinition,
-  ObstacleRotationDeg
-} from "../obstacleTypes";
+import type { ObstacleInstance, ObstacleTypeDefinition } from "../obstacleTypes";
+import { orientationFromRotationDeg, type Orientation8 } from "../footprint";
 import { getObstacleOccupiedCells } from "../obstacleRuntime";
 import type { WallState } from "../wallTypes";
 import type { FloorId } from "./floors/types";
@@ -46,6 +43,7 @@ export interface MapDraft {
   wallSegmentKeys: Set<string>;
   decorations: DecorInstance[];
   decorOccupied: Set<string>;
+  roofOpenCells: Set<string>;
 
   reserved: Set<string>;
   log: string[];
@@ -158,6 +156,7 @@ export function createDraft(params: {
     wallSegmentKeys: new Set<string>(),
     decorations: [],
     decorOccupied: new Set<string>(),
+    roofOpenCells: new Set<string>(),
     reserved: params.reserved ?? new Set<string>(),
     log: [],
     nextObstacleId: () => `${prefix}-${seq++}`,
@@ -242,13 +241,16 @@ export function tryPlaceObstacle(params: {
   x: number;
   y: number;
   variantId: string;
-  rotation: ObstacleRotationDeg;
+  rotation?: number;
+  orientation?: Orientation8;
   tokenScale?: number;
   allowOnReserved?: boolean;
 }): boolean {
-  const { draft, type, x, y, variantId, rotation } = params;
+  const { draft, type, x, y, variantId } = params;
   if (!type) return false;
 
+  const orientation =
+    params.orientation ?? orientationFromRotationDeg(params.rotation ?? 0);
   const maxHp = Math.max(1, Number(type.durability?.maxHp ?? 1));
   const instance: ObstacleInstance = {
     id: draft.nextObstacleId(),
@@ -256,7 +258,8 @@ export function tryPlaceObstacle(params: {
     variantId,
     x,
     y,
-    rotation,
+    rotation: params.rotation ?? 0,
+    orientation,
     tokenScale: (() => {
       const resolved = resolveTokenScale(type, params.tokenScale);
       return resolved === null ? undefined : Math.round(resolved);

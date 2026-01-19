@@ -11,7 +11,7 @@ import {
   key,
   scatterTerrainPatches
 } from "../draft";
-import { pickVariantIdForPlacement, weightedTypesForContext } from "../obstacleSelector";
+import { pickVariantIdForPlacement, randomRotationForPlacement, weightedTypesForContext } from "../obstacleSelector";
 import { findWallType } from "../wallSelector";
 import { pickWeighted, randomIntInclusive } from "../random";
 import { resolveWallKindFromType } from "../walls/kind";
@@ -405,13 +405,14 @@ export function generateDungeonCircularRoom(params: {
     while (typeForColumns && placed < columns && candidates.length) {
       const p = candidates.shift() as GridPosition;
       const variantId = typeForColumns ? pickVariantIdForPlacement(typeForColumns, "scatter", rand) : "base";
+      const rotation = typeForColumns ? randomRotationForPlacement(typeForColumns, variantId, rand) : 0;
       const ok = tryPlaceObstacle({
         draft,
         type: typeForColumns,
         x: p.x,
         y: p.y,
         variantId,
-        rotation: 0
+        rotation
       });
       if (ok) placed++;
     }
@@ -425,13 +426,14 @@ export function generateDungeonCircularRoom(params: {
       if (!roomMask.has(key(x, y))) continue;
       if (openingKeys.has(key(x, y))) continue;
       const variantId = typeForColumns ? pickVariantIdForPlacement(typeForColumns, "scatter", rand) : "base";
+      const rotation = typeForColumns ? randomRotationForPlacement(typeForColumns, variantId, rand) : 0;
       const ok = tryPlaceObstacle({
         draft,
         type: typeForColumns,
         x,
         y,
         variantId,
-        rotation: 0
+        rotation
       });
       if (ok) placed++;
     }
@@ -444,13 +446,14 @@ export function generateDungeonCircularRoom(params: {
     const altarType: ObstacleTypeDefinition | null = barrelType ?? pillarType ?? null;
     if (altarType) {
       const variantId = pickVariantIdForPlacement(altarType, "room", rand);
+      const rotation = randomRotationForPlacement(altarType, variantId, rand);
       const ok = tryPlaceObstacle({
         draft,
         type: altarType,
         x: cx,
         y: cy,
         variantId,
-        rotation: 0
+        rotation
       });
       draft.log.push(ok ? "Autel: placé au centre." : "Autel: placement impossible (collision).");
     } else {
@@ -473,18 +476,7 @@ export function generateDungeonCircularRoom(params: {
     if (openingKeys.has(key(x, y))) continue;
 
     const variantId = pickVariantIdForPlacement(chosen, "scatter", rand);
-    const variant = (chosen.variants ?? []).find(v => v.id === variantId) ?? null;
-    const rotation = variant?.rotatable
-      ? (pickWeighted(
-          [
-            { item: 0 as const, weight: 1 },
-            { item: 90 as const, weight: 1 },
-            { item: 180 as const, weight: 1 },
-            { item: 270 as const, weight: 1 }
-          ],
-          rand
-        ) ?? 0)
-      : 0;
+    const rotation = randomRotationForPlacement(chosen, variantId, rand);
 
     const ok = tryPlaceObstacle({
       draft,

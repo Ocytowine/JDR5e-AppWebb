@@ -46,6 +46,12 @@ export const sampleCharacter: Personnage = {
     charisme: { CHA: 10, modCHA: 0 }
   },
   movementModes: ["walk"],
+  visionProfile: {
+    shape: "cone",
+    range: 100,
+    apertureDeg: 180,
+    lightVision: "normal"
+  },
   // Keep competences empty in this mini-game to avoid
   // encoding issues with accented keys.
   competences: {} as any,

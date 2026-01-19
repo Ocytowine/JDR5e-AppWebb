@@ -13,12 +13,8 @@ import { TILE_SIZE, gridToScreenForGrid } from "../../boardConfig";
 import { computeVisionEffectForToken, isCellVisible } from "../../vision";
 import { hasLineOfSight } from "../../lineOfSight";
 import type { WallSegment } from "../../game/map/walls/types";
-
-export interface LightSource {
-  x: number;
-  y: number;
-  radius: number;
-}
+import { getTokenOccupiedCells } from "../../game/footprint";
+import type { LightSource } from "../../lighting";
 
 export function usePixiOverlays(options: {
   pathLayerRef: RefObject<Graphics | null>;
@@ -37,12 +33,16 @@ export function usePixiOverlays(options: {
   showLightOverlay: boolean;
   playerTorchOn: boolean;
   playerTorchRadius?: number;
+  lightLevels?: number[] | null;
+  lightTints?: { colors: number[]; strength: number[] } | null;
+  isNight?: boolean;
   pixiReadyTick?: number;
   playableCells?: Set<string> | null;
   grid: { cols: number; rows: number };
   heightMap: number[];
   activeLevel: number;
   visibleCells?: Set<string> | null;
+  visionCells?: Set<string> | null;
   visibilityLevels?: Map<string, number> | null;
   showAllLevels?: boolean;
 }): void {
@@ -88,11 +88,17 @@ export function usePixiOverlays(options: {
 
     const buildCellKey = (x: number, y: number) => `${x},${y}`;
     const visibleCells = options.visibleCells ?? null;
+    const visionCells = options.visionCells ?? null;
+    const isNight = Boolean(options.isNight);
     const showAll = Boolean(options.showAllLevels);
     const isCellInView = (x: number, y: number) => {
       if (showAll) return true;
       if (!visibleCells || visibleCells.size === 0) return true;
       return visibleCells.has(buildCellKey(x, y));
+    };
+    const isCellPlayable = (x: number, y: number) => {
+      if (!options.playableCells || options.playableCells.size === 0) return true;
+      return options.playableCells.has(`${x},${y}`);
     };
 
     const cellRect = (x: number, y: number) => {
@@ -130,30 +136,30 @@ export function usePixiOverlays(options: {
       for (let y = 0; y < options.grid.rows; y++) {
         for (let x = 0; x < options.grid.cols; x++) {
           if (!isCellInView(x, y)) continue;
-          if (
-            options.playableCells &&
-            options.playableCells.size > 0 &&
-            !options.playableCells.has(`${x},${y}`)
-          ) {
-            continue;
-          }
+          if (!isCellPlayable(x, y)) continue;
 
           let light = baseLightAt(x, y);
-          for (const source of activeSources) {
-            const dx = x - source.x;
-            const dy = y - source.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist > source.radius) continue;
-            if (blocked && blocked.size > 0) {
-              const hasLos = hasLineOfSight(
-                { x: source.x, y: source.y },
-                { x, y },
-                blocked,
-                options.wallVisionEdges ?? null
-              );
-              if (!hasLos) continue;
+          if (Array.isArray(options.lightLevels) && options.lightLevels.length > 0) {
+            const idx = y * options.grid.cols + x;
+            const value = options.lightLevels[idx];
+            light = Number.isFinite(value) ? clamp01(value) : light;
+          } else {
+            for (const source of activeSources) {
+              const dx = x - source.x;
+              const dy = y - source.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              if (dist > source.radius) continue;
+              if (blocked && blocked.size > 0) {
+                const hasLos = hasLineOfSight(
+                  { x: source.x, y: source.y },
+                  { x, y },
+                  blocked,
+                  options.wallVisionEdges ?? null
+                );
+                if (!hasLos) continue;
+              }
+              light = Math.max(light, 1);
             }
-            light = Math.max(light, 1);
           }
 
           const darkness = clamp01(1 - light) * 0.75;
@@ -167,17 +173,51 @@ export function usePixiOverlays(options: {
       }
     }
 
-    if (options.visibilityLevels) {
+    if (options.lightTints && isNight) {
+      const colors = options.lightTints.colors;
+      const strength = options.lightTints.strength;
       for (let y = 0; y < options.grid.rows; y++) {
         for (let x = 0; x < options.grid.cols; x++) {
           if (!isCellInView(x, y)) continue;
-          if (
-            options.playableCells &&
-            options.playableCells.size > 0 &&
-            !options.playableCells.has(`${x},${y}`)
-          ) {
-            continue;
-          }
+          if (!isCellPlayable(x, y)) continue;
+          const key = buildCellKey(x, y);
+          if (visibleCells && visibleCells.size > 0 && !visibleCells.has(key)) continue;
+          const idx = y * options.grid.cols + x;
+          const alpha = clamp01(strength[idx] ?? 0) * 0.35;
+          if (alpha <= 0.01) continue;
+          const rect = cellRect(x, y);
+          pathLayer.rect(rect.x, rect.y, rect.size, rect.size).fill({
+            color: colors[idx] ?? 0xffffff,
+            alpha
+          });
+        }
+      }
+    }
+
+    if (visionCells || visibleCells) {
+      const fogColor = isNight ? 0x000000 : 0xffffff;
+      for (let y = 0; y < options.grid.rows; y++) {
+        for (let x = 0; x < options.grid.cols; x++) {
+          if (!isCellPlayable(x, y)) continue;
+          const key = buildCellKey(x, y);
+          const inVision = visionCells ? visionCells.has(key) : true;
+          const perceivable = visibleCells ? visibleCells.has(key) : true;
+          if (inVision && perceivable) continue;
+
+          const rect = cellRect(x, y);
+          const alpha = inVision ? 0.65 : isNight ? 0.6 : 0.45;
+          const color = inVision ? 0x000000 : fogColor;
+          pathLayer.rect(rect.x, rect.y, rect.size, rect.size).fill({
+            color,
+            alpha
+          });
+        }
+      }
+    } else if (options.visibilityLevels) {
+      for (let y = 0; y < options.grid.rows; y++) {
+        for (let x = 0; x < options.grid.cols; x++) {
+          if (!isCellInView(x, y)) continue;
+          if (!isCellPlayable(x, y)) continue;
           const key = buildCellKey(x, y);
           const visibility = options.visibilityLevels.get(key) ?? 0;
           if (visibility >= 2) continue;
@@ -196,13 +236,7 @@ export function usePixiOverlays(options: {
       for (let y = 0; y < options.grid.rows; y++) {
         for (let x = 0; x < options.grid.cols; x++) {
           if (!isCellInView(x, y)) continue;
-          if (
-            options.playableCells &&
-            options.playableCells.size > 0 &&
-            !options.playableCells.has(`${x},${y}`)
-          ) {
-            continue;
-          }
+          if (!isCellPlayable(x, y)) continue;
           const key = buildCellKey(x, y);
           if (!options.closedCells.has(key)) continue;
           const rect = cellRect(x, y);
@@ -232,7 +266,9 @@ export function usePixiOverlays(options: {
             cell,
             options.obstacleVisionCells,
             options.playableCells ?? null,
-            options.wallVisionEdges ?? null
+            options.wallVisionEdges ?? null,
+            options.lightLevels ?? null,
+            options.grid
           )
         ) {
           continue;
@@ -272,7 +308,9 @@ export function usePixiOverlays(options: {
               cell,
               options.obstacleVisionCells ?? null,
               options.playableCells ?? null,
-              options.wallVisionEdges ?? null
+              options.wallVisionEdges ?? null,
+              options.lightLevels ?? null,
+              options.grid
             )
           ) {
             continue;
@@ -290,24 +328,28 @@ export function usePixiOverlays(options: {
 
     const occupiedTokens: TokenState[] = [options.player, ...options.enemies];
     for (const token of occupiedTokens) {
-      if (!isCellInView(token.x, token.y)) continue;
-      const rect = cellRect(token.x, token.y);
       const color = token.type === "player" ? 0x2ecc71 : 0xe74c3c;
-
-      pathLayer.rect(rect.x, rect.y, rect.size, rect.size).fill({
-        color,
-        alpha: 0.2
-      });
+      for (const cell of getTokenOccupiedCells(token)) {
+        if (!isCellInView(cell.x, cell.y)) continue;
+        const rect = cellRect(cell.x, cell.y);
+        pathLayer.rect(rect.x, rect.y, rect.size, rect.size).fill({
+          color,
+          alpha: 0.2
+        });
+      }
     }
 
     if (options.selectedTargetId) {
       const target = options.enemies.find(e => e.id === options.selectedTargetId);
-      if (target && isCellInView(target.x, target.y)) {
-        const rect = cellRect(target.x, target.y);
-        pathLayer.rect(rect.x, rect.y, rect.size, rect.size).fill({
-          color: 0x3498db,
-          alpha: 0.6
-        });
+      if (target) {
+        for (const cell of getTokenOccupiedCells(target)) {
+          if (!isCellInView(cell.x, cell.y)) continue;
+          const rect = cellRect(cell.x, cell.y);
+          pathLayer.rect(rect.x, rect.y, rect.size, rect.size).fill({
+            color: 0x3498db,
+            alpha: 0.6
+          });
+        }
       }
     }
 
@@ -381,12 +423,16 @@ export function usePixiOverlays(options: {
     options.lightSources,
     options.playerTorchOn,
     options.playerTorchRadius,
+    options.lightLevels,
+    options.lightTints,
+    options.isNight,
     options.pixiReadyTick,
     options.playableCells,
     options.grid,
     options.heightMap,
     options.activeLevel,
     options.visibleCells,
+    options.visionCells,
     options.visibilityLevels,
     options.showAllLevels,
     options.obstacleVisionCells,

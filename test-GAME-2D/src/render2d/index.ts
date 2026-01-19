@@ -6,4 +6,4 @@ export { usePixiOverlays } from "./layers/usePixiOverlays";
 export { usePixiSpeechBubbles } from "./layers/usePixiSpeechBubbles";
 export { usePixiTokens } from "./layers/usePixiTokens";
 export { usePixiWalls } from "./layers/usePixiWalls";
-export type { LightSource } from "./layers/usePixiOverlays";
+export type { LightSource } from "../lighting";

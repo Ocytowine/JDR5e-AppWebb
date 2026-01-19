@@ -12,6 +12,9 @@ import type {
 import { hasLineOfSight } from "./lineOfSight";
 import { isCellInsideGrid } from "./boardConfig";
 import type { WallSegment } from "./game/map/walls/types";
+import { getClosestFootprintCellToPoint, getTokenOccupiedCells } from "./game/footprint";
+import { isLightVisible, resolveLightVisionMode } from "./lighting";
+import type { LightVisionMode } from "./lighting";
 
 const DEFAULT_VISION_RANGE = 100;
 
@@ -79,12 +82,32 @@ function key(pos: GridPosition): string {
   return `${pos.x},${pos.y}`;
 }
 
+function getLightVisionMode(profile: VisionProfile): LightVisionMode {
+  if (profile.lightVision) return resolveLightVisionMode(profile.lightVision);
+  if (profile.canSeeInDark) return "darkvision";
+  return "normal";
+}
+
+function getLightAt(
+  lightLevels: number[] | null | undefined,
+  grid: { cols: number; rows: number } | null | undefined,
+  x: number,
+  y: number
+): number | null {
+  if (!lightLevels || !grid) return null;
+  if (x < 0 || y < 0 || x >= grid.cols || y >= grid.rows) return null;
+  const idx = y * grid.cols + x;
+  return typeof lightLevels[idx] === "number" ? lightLevels[idx] : null;
+}
+
 export function isCellVisible(
   observer: TokenState,
   cell: GridPosition,
   opaqueCells?: Set<string> | null,
   playableCells?: Set<string> | null,
-  wallVisionEdges?: Map<string, WallSegment> | null
+  wallVisionEdges?: Map<string, WallSegment> | null,
+  lightLevels?: number[] | null,
+  grid?: { cols: number; rows: number } | null
 ): boolean {
   if (playableCells && playableCells.size > 0) {
     if (!playableCells.has(key(cell))) return false;
@@ -102,15 +125,21 @@ export function isCellVisible(
     if (key(c) === cellKey) {
       const hasOpaque = Boolean(opaqueCells && opaqueCells.size > 0);
       const hasWalls = Boolean(wallVisionEdges && wallVisionEdges.size > 0);
-      if (hasOpaque || hasWalls) {
-        return hasLineOfSight(
-          { x: observer.x, y: observer.y },
-          { x: cell.x, y: cell.y },
-          opaqueCells,
-          wallVisionEdges ?? null
-        );
-      }
-      return true;
+      const hasLos =
+        !hasOpaque && !hasWalls
+          ? true
+          : hasLineOfSight(
+              { x: observer.x, y: observer.y },
+              { x: cell.x, y: cell.y },
+              opaqueCells,
+              wallVisionEdges ?? null
+            );
+      if (!hasLos) return false;
+      if (cell.x === observer.x && cell.y === observer.y) return true;
+      const light = getLightAt(lightLevels, grid ?? null, cell.x, cell.y);
+      if (light === null) return true;
+      const mode = getLightVisionMode(getVisionProfileForToken(observer));
+      return isLightVisible(light, mode);
     }
   }
 
@@ -122,7 +151,9 @@ export function getEntitiesInVision(
   allTokens: TokenState[],
   opaqueCells?: Set<string> | null,
   playableCells?: Set<string> | null,
-  wallVisionEdges?: Map<string, WallSegment> | null
+  wallVisionEdges?: Map<string, WallSegment> | null,
+  lightLevels?: number[] | null,
+  grid?: { cols: number; rows: number } | null
 ): TokenState[] {
   const effect = computeVisionEffectForToken(observer, playableCells ?? null);
   if (!effect.cells.length) return [];
@@ -134,30 +165,40 @@ export function getEntitiesInVision(
     cells.add(k);
   }
 
-  const candidates = allTokens.filter(
-    t =>
-      t.id !== observer.id &&
-      t.hp > 0 &&
-      cells.has(key({ x: t.x, y: t.y }))
-  );
+  const lightMode = getLightVisionMode(getVisionProfileForToken(observer));
+  const candidates = allTokens.filter(t => {
+    if (t.id === observer.id || t.hp <= 0) return false;
+    const footprint = getTokenOccupiedCells(t);
+    return footprint.some(c => {
+      if (!cells.has(key(c))) return false;
+      const light = getLightAt(lightLevels, grid ?? null, c.x, c.y);
+      if (light === null) return true;
+      return isLightVisible(light, lightMode);
+    });
+  });
 
   const filteredByPlayable =
     playableCells && playableCells.size > 0
-      ? candidates.filter(t => playableCells.has(key({ x: t.x, y: t.y })))
+      ? candidates.filter(t =>
+          getTokenOccupiedCells(t).some(c => playableCells.has(key(c)))
+        )
       : candidates;
 
   const hasOpaque = Boolean(opaqueCells && opaqueCells.size > 0);
   const hasWalls = Boolean(wallVisionEdges && wallVisionEdges.size > 0);
   if (!hasOpaque && !hasWalls) return filteredByPlayable;
 
-  return filteredByPlayable.filter(t =>
-    hasLineOfSight(
+  return filteredByPlayable.filter(t => {
+    const targetCell =
+      getClosestFootprintCellToPoint({ x: observer.x, y: observer.y }, t) ??
+      { x: t.x, y: t.y };
+    return hasLineOfSight(
       { x: observer.x, y: observer.y },
-      { x: t.x, y: t.y },
+      targetCell,
       opaqueCells,
       wallVisionEdges ?? null
-    )
-  );
+    );
+  });
 }
 
 export function isTargetVisible(
@@ -166,11 +207,14 @@ export function isTargetVisible(
   allTokens: TokenState[],
   opaqueCells?: Set<string> | null,
   playableCells?: Set<string> | null,
-  wallVisionEdges?: Map<string, WallSegment> | null
+  wallVisionEdges?: Map<string, WallSegment> | null,
+  lightLevels?: number[] | null,
+  grid?: { cols: number; rows: number } | null
 ): boolean {
   if (target.hp <= 0) return false;
   if (playableCells && playableCells.size > 0) {
-    if (!playableCells.has(key({ x: target.x, y: target.y }))) return false;
+    const targetCells = getTokenOccupiedCells(target);
+    if (!targetCells.some(c => playableCells.has(key(c)))) return false;
     if (!playableCells.has(key({ x: observer.x, y: observer.y }))) return false;
   }
 
@@ -179,7 +223,9 @@ export function isTargetVisible(
     allTokens,
     opaqueCells,
     playableCells,
-    wallVisionEdges
+    wallVisionEdges,
+    lightLevels,
+    grid
   );
   const inCone = visibles.some(t => t.id === target.id);
   if (!inCone) return false;

@@ -23,6 +23,7 @@ export interface MapDesignResult {
   summary: string;
   grid: { cols: number; rows: number };
   theme: MapTheme;
+  paletteId?: string;
   playerStart: GridPosition;
   enemySpawns: { enemyType: EnemyTypeDefinition; position: GridPosition }[];
   /**
@@ -36,6 +37,7 @@ export interface MapDesignResult {
   height: number[];
   light: number[];
   decorations: DecorInstance[];
+  roofOpenCells?: string[];
   recommendedGrid?: { cols: number; rows: number; reason: string };
   /**
    * Détails de génération (utile pour debug/itération prompt).
@@ -74,6 +76,7 @@ export function generateBattleMap(request: MapDesignRequest): MapDesignResult {
       summary: result.summaryParts.join(" "),
       grid: result.grid,
       theme: result.theme,
+      paletteId: result.paletteId,
       playerStart: result.playerStart,
       enemySpawns: result.enemySpawns,
       playableCells: result.playableCells,
@@ -83,6 +86,7 @@ export function generateBattleMap(request: MapDesignRequest): MapDesignResult {
       height: result.height,
       light: result.light,
       decorations: result.decorations,
+      roofOpenCells: result.roofOpenCells,
       recommendedGrid: result.recommendedGrid,
       generationLog: result.generationLog
     };
@@ -101,8 +105,9 @@ export function generateBattleMap(request: MapDesignRequest): MapDesignResult {
 
   return {
     summary: result.summaryParts.join(" "),
-      grid: result.grid,
-      theme: result.theme,
+    grid: result.grid,
+    theme: result.theme,
+    paletteId: result.paletteId,
     playerStart: result.playerStart,
     enemySpawns: result.enemySpawns,
     playableCells: result.playableCells,
@@ -112,6 +117,7 @@ export function generateBattleMap(request: MapDesignRequest): MapDesignResult {
     height: result.height,
     light: result.light,
     decorations: result.decorations,
+    roofOpenCells: result.roofOpenCells,
     recommendedGrid: result.recommendedGrid,
     generationLog: result.generationLog
   };

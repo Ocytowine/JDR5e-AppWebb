@@ -1,13 +1,14 @@
 import type { ActionAvailability, ActionDefinition } from "./actionTypes";
 import type { TokenState } from "../types";
 import { isTargetVisible } from "../vision";
-import { clamp, gridDistance } from "./combatUtils";
+import { clamp, distanceBetweenTokens } from "./combatUtils";
 import { computePathTowards } from "../pathfinding";
 import { GRID_COLS, GRID_ROWS, isCellInsideGrid } from "../boardConfig";
 import { rollAttack, rollDamage, type AdvantageMode } from "../dice/roller";
 import { hasLineOfEffect } from "../lineOfSight";
 import type { WallSegment } from "./map/walls/types";
 import { getHeightAtGrid, type TerrainCell } from "./map/draft";
+import { getClosestFootprintCellToPoint } from "./footprint";
 
 export interface ActionEngineContext {
   round: number;
@@ -20,6 +21,7 @@ export interface ActionEngineContext {
   blockedVisionCells?: Set<string> | null;
   blockedAttackCells?: Set<string> | null;
   wallVisionEdges?: Map<string, WallSegment> | null;
+  lightLevels?: number[] | null;
   /**
    * Masque de cases jouables (limites de la battlemap).
    * Si fourni, certaines validations (mouvement/vision) l'utiliseront.
@@ -176,7 +178,7 @@ export function validateActionTarget(
       return { ok: false, reason: "Cible sur un autre niveau." };
     }
 
-    const dist = gridDistance(actor, enemyToken);
+    const dist = distanceBetweenTokens(actor, enemyToken);
     const range = targeting.range;
 
     if (range) {
@@ -225,14 +227,19 @@ export function validateActionTarget(
         allTokens,
         ctx.blockedVisionCells ?? null,
         ctx.playableCells ?? null,
-        ctx.wallVisionEdges ?? null
+        ctx.wallVisionEdges ?? null,
+        ctx.lightLevels ?? null,
+        ctx.grid ?? null
       );
       if (!visible) {
         return { ok: false, reason: "Cible hors vision (ligne de vue requise)." };
       }
+      const targetCell =
+        getClosestFootprintCellToPoint({ x: actor.x, y: actor.y }, enemyToken) ??
+        { x: enemyToken.x, y: enemyToken.y };
       const canHit = hasLineOfEffect(
         { x: actor.x, y: actor.y },
-        { x: enemyToken.x, y: enemyToken.y },
+        targetCell,
         ctx.blockedAttackCells ?? null,
         ctx.wallVisionEdges ?? null
       );
@@ -254,7 +261,7 @@ export function validateActionTarget(
       return { ok: false, reason: "Cible sur un autre niveau." };
     }
 
-    const dist = gridDistance(actor, playerToken);
+    const dist = distanceBetweenTokens(actor, playerToken);
     const range = targeting.range;
 
     if (range) {
@@ -303,14 +310,19 @@ export function validateActionTarget(
         allTokens,
         ctx.blockedVisionCells ?? null,
         ctx.playableCells ?? null,
-        ctx.wallVisionEdges ?? null
+        ctx.wallVisionEdges ?? null,
+        ctx.lightLevels ?? null,
+        ctx.grid ?? null
       );
       if (!visible) {
         return { ok: false, reason: "Cible hors vision (ligne de vue requise)." };
       }
+      const targetCell =
+        getClosestFootprintCellToPoint({ x: actor.x, y: actor.y }, playerToken) ??
+        { x: playerToken.x, y: playerToken.y };
       const canHit = hasLineOfEffect(
         { x: actor.x, y: actor.y },
-        { x: playerToken.x, y: playerToken.y },
+        targetCell,
         ctx.blockedAttackCells ?? null,
         ctx.wallVisionEdges ?? null
       );

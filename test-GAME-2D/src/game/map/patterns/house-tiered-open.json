@@ -9,6 +9,7 @@
     "toit",
     "etage",
     "ouvert",
+    "roof-open",
     "house"
   ],
   "footprint": { "w": 6, "h": 5 },

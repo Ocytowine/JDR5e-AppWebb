@@ -2,7 +2,7 @@ import type { GridPosition } from "../../../types";
 import type { ObstacleTypeDefinition } from "../../obstacleTypes";
 import type { MapBuildContext, MapSpec, EntrancePosition, EntranceSide } from "../types";
 import { clamp, createDraft, key, setLight, setTerrain, scatterTerrainPatches, tryPlaceObstacle, tryPlaceWallSegment } from "../draft";
-import { pickVariantIdForPlacement, weightedTypesForContext } from "../obstacleSelector";
+import { pickVariantIdForPlacement, randomRotationForPlacement, weightedTypesForContext } from "../obstacleSelector";
 import { findWallType } from "../wallSelector";
 import { resolveWallKindFromType } from "../walls/kind";
 import { resolveWallMaxHp } from "../walls/durability";
@@ -260,7 +260,8 @@ function placeContents(params: {
       const y = Number(yStr);
       if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
       const variantId = pickVariantIdForPlacement(type, "room", rand);
-      const ok = tryPlaceObstacle({ draft, type, x, y, variantId, rotation: 0 });
+      const rotation = randomRotationForPlacement(type, variantId, rand);
+      const ok = tryPlaceObstacle({ draft, type, x, y, variantId, rotation });
       if (ok) {
         placed++;
         placedForItem++;
@@ -295,7 +296,8 @@ function fillRoomFallback(params: {
     const y = Number(yStr);
     if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
     const variantId = pickVariantIdForPlacement(chosen, "scatter", rand);
-    const ok = tryPlaceObstacle({ draft, type: chosen, x, y, variantId, rotation: 0 });
+    const rotation = randomRotationForPlacement(chosen, variantId, rand);
+    const ok = tryPlaceObstacle({ draft, type: chosen, x, y, variantId, rotation });
     if (ok) placed++;
   }
 }

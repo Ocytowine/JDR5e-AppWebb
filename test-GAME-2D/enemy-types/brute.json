@@ -32,7 +32,8 @@
     "shape": "cone",
     "range": 100,
     "apertureDeg": 180,
-    "canSeeInDark": false
+    "canSeeInDark": false,
+    "lightVision": "normal"
   }
 }
 

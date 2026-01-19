@@ -1,7 +1,7 @@
 import type { GridPosition } from "../../../types";
 import type { MapBuildContext, MapSpec } from "../types";
 import { createDraft, clamp, setLight, setTerrain, tryPlaceObstacle } from "../draft";
-import { findObstacleType, pickVariantIdForPlacement, weightedTypesForContext } from "../obstacleSelector";
+import { findObstacleType, pickVariantIdForPlacement, randomRotationForPlacement, weightedTypesForContext } from "../obstacleSelector";
 import { pickWeighted } from "../random";
 
 export function generateGenericScatter(params: {
@@ -41,7 +41,8 @@ export function generateGenericScatter(params: {
     const x = Math.floor(rand() * cols);
     const y = Math.floor(rand() * rows);
     const variantId = pickVariantIdForPlacement(chosen, "scatter", rand);
-    const ok = tryPlaceObstacle({ draft, type: chosen, x, y, variantId, rotation: 0 });
+    const rotation = randomRotationForPlacement(chosen, variantId, rand);
+    const ok = tryPlaceObstacle({ draft, type: chosen, x, y, variantId, rotation });
     if (ok) placed++;
   }
 

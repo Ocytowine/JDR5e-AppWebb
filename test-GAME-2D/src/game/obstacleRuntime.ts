@@ -1,34 +1,46 @@
 import type { GridPosition } from "../types";
-import type {
-  ObstacleInstance,
-  ObstacleRotationDeg,
-  ObstacleTypeDefinition,
-  ObstacleVariant
-} from "./obstacleTypes";
+import type { ObstacleInstance, ObstacleTypeDefinition, ObstacleVariant } from "./obstacleTypes";
+import {
+  getFootprintCellsAt,
+  orientationFromRotationDeg,
+  type Orientation8
+} from "./footprint";
 
 function key(x: number, y: number): string {
   return `${x},${y}`;
 }
 
-function rotateCell(
-  cell: GridPosition,
-  rotation: ObstacleRotationDeg
-): GridPosition {
-  // Rotation around (0,0) on a square grid footprint.
-  // 0: (x,y)
-  // 90: (-y, x)
-  // 180: (-x, -y)
-  // 270: (y, -x)
-  switch (rotation) {
-    case 90:
-      return { x: -cell.y, y: cell.x };
-    case 180:
-      return { x: -cell.x, y: -cell.y };
-    case 270:
-      return { x: cell.y, y: -cell.x };
-    default:
-      return { x: cell.x, y: cell.y };
+function resolveOrientation(instance: ObstacleInstance): Orientation8 {
+  if (instance.orientation) return instance.orientation;
+  return orientationFromRotationDeg(instance.rotation ?? 0);
+}
+
+function resolveRectSpec(
+  footprint: GridPosition[]
+): { width: number; height: number } | null {
+  if (!footprint.length) return null;
+  let minX = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  const set = new Set<string>();
+  for (const cell of footprint) {
+    minX = Math.min(minX, cell.x);
+    maxX = Math.max(maxX, cell.x);
+    minY = Math.min(minY, cell.y);
+    maxY = Math.max(maxY, cell.y);
+    set.add(`${cell.x},${cell.y}`);
   }
+  const width = maxX - minX + 1;
+  const height = maxY - minY + 1;
+  if (width <= 0 || height <= 0) return null;
+  if (set.size !== width * height) return null;
+  for (let y = minY; y <= maxY; y++) {
+    for (let x = minX; x <= maxX; x++) {
+      if (!set.has(`${x},${y}`)) return null;
+    }
+  }
+  return { width, height };
 }
 
 export function getObstacleVariant(
@@ -49,11 +61,20 @@ export function getObstacleOccupiedCells(
     ? variant.footprint
     : [{ x: 0, y: 0 }];
 
-  const rotation: ObstacleRotationDeg = instance.rotation ?? 0;
-  return footprint.map(rel => {
-    const rotated = rotateCell(rel, rotation);
-    return { x: instance.x + rotated.x, y: instance.y + rotated.y };
-  });
+  const orientation = resolveOrientation(instance);
+  const rect = resolveRectSpec(footprint);
+  if (rect) {
+    return getFootprintCellsAt(
+      { x: instance.x, y: instance.y },
+      { kind: "rect", width: rect.width, height: rect.height },
+      orientation
+    );
+  }
+  return getFootprintCellsAt(
+    { x: instance.x, y: instance.y },
+    { kind: "cells", cells: footprint },
+    orientation
+  );
 }
 
 export function buildObstacleBlockingSets(

@@ -7,6 +7,7 @@ import type {
   DungeonPlanSpec,
   DungeonDoorState
 } from "./types";
+import type { Orientation8 } from "../footprint";
 
 function norm(input: string): string {
   return String(input ?? "")
@@ -54,6 +55,116 @@ function extractWordNumber(text: string, patterns: RegExp[]): number | null {
     if (Number.isFinite(n)) return n;
   }
   return null;
+}
+
+function parseOrientationToken(token: string): Orientation8 | null {
+  const raw = String(token ?? "").trim().toLowerCase();
+  if (!raw) return null;
+  switch (raw) {
+    case "n":
+      return "up";
+    case "ne":
+      return "up-right";
+    case "e":
+      return "right";
+    case "se":
+      return "down-right";
+    case "s":
+      return "down";
+    case "sw":
+    case "so":
+      return "down-left";
+    case "w":
+    case "o":
+      return "left";
+    case "nw":
+    case "no":
+      return "up-left";
+    default:
+      return null;
+  }
+}
+
+function detectPlacementHint(clause: string): "road" | "road_edge" | "between_road_house" | "near_house" | null {
+  if (/\bentre\b/.test(clause) && /\broute\b/.test(clause) && /\bmaison\b/.test(clause)) {
+    return "between_road_house";
+  }
+  if (/\b(trottoir|bord de la route|bord de route|au bord de la route|au bord de route)\b/.test(clause)) {
+    return "road_edge";
+  }
+  if (/\b(a cote de la route|a cote de route|pres de la route|pres de route)\b/.test(clause)) {
+    return "road_edge";
+  }
+  if (/\b(a cote de la maison|a cote de maison|pres de la maison|pres de maison)\b/.test(clause)) {
+    return "near_house";
+  }
+  if (/\b(sur la route|sur route|route)\b/.test(clause)) {
+    return "road";
+  }
+  if (/\b(maison|maisons)\b/.test(clause)) {
+    return "near_house";
+  }
+  return null;
+}
+
+function extractObstacleRequests(raw: string, normalized: string): MapSpec["obstacleRequests"] {
+  const requests: NonNullable<MapSpec["obstacleRequests"]> = [];
+
+  const obstacles = [
+    { typeId: "charette-wood", tokens: ["charette", "charrette"] }
+  ];
+
+  const clauses = splitClauses(normalized);
+
+  for (const clause of clauses) {
+    let remaining = clause;
+    const placement = detectPlacementHint(clause);
+
+    for (const entry of obstacles) {
+      const tokenGroup = entry.tokens.map(t => t.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")).join("|");
+      const orientedPattern = new RegExp(`\\b(${tokenGroup})s?\\s*\\[\\s*(n|ne|e|se|s|sw|so|w|o|nw|no)\\s*\\]`, "g");
+      let orientedCount = 0;
+      let match: RegExpExecArray | null;
+      while ((match = orientedPattern.exec(remaining))) {
+        const dir = parseOrientationToken(match[2]);
+        if (dir) {
+          requests.push({
+            typeId: entry.typeId,
+            count: 1,
+            orientation: dir,
+            placement: placement ?? undefined
+          });
+          orientedCount += 1;
+        }
+      }
+
+      remaining = remaining.replace(orientedPattern, " ");
+
+      const numberPattern = new RegExp(`\\b(\\d+)\\s*(${tokenGroup})s?\\b`);
+      const wordPattern = new RegExp(`\\b([a-z]+)\\s*(${tokenGroup})s?\\b`);
+      const numeric = extractNumber(remaining, [numberPattern]);
+      const worded = extractWordNumber(remaining, [wordPattern]);
+      const count = numeric ?? worded;
+      const hasBare = new RegExp(`\\b(${tokenGroup})s?\\b`).test(remaining);
+
+      let remainingCount: number | null = null;
+      if (count !== null) {
+        remainingCount = Math.max(0, Math.floor(count) - orientedCount);
+      } else if (hasBare && orientedCount === 0) {
+        remainingCount = 1;
+      }
+
+      if (remainingCount && remainingCount > 0) {
+        requests.push({
+          typeId: entry.typeId,
+          count: remainingCount,
+          placement: placement ?? undefined
+        });
+      }
+    }
+  }
+
+  return requests.length > 0 ? requests : undefined;
 }
 
 function uniqueSides(placements: EntrancePlacementSpec[]): EntranceSide[] {
@@ -238,6 +349,7 @@ export function parsePromptToSpec(params: {
   const raw = String(params.prompt ?? "");
   const text = norm(raw);
   const notes: string[] = [];
+  const obstacleRequests = extractObstacleRequests(raw, text);
 
   const isDungeon = hasAny(text, [
     /\bdonjon\b/,
@@ -366,6 +478,7 @@ export function parsePromptToSpec(params: {
     layoutId,
     theme,
     timeOfDay,
+    obstacleRequests,
     sizeHint,
     dungeon:
       theme === "dungeon"
@@ -405,6 +518,16 @@ export function parsePromptToSpec(params: {
           }
         : undefined
   };
+
+  if (hasAny(text, [/\bautomne\b/, /\bautomnal\b/, /\bautumn\b/, /\bfall\b/])) {
+    spec.paletteId = "autumn";
+  } else if (hasAny(text, [/\bhiver\b/, /\bwinter\b/])) {
+    spec.paletteId = "winter";
+  } else if (hasAny(text, [/\bprintemps\b/, /\bspring\b/])) {
+    spec.paletteId = "spring";
+  } else if (hasAny(text, [/\bete\b/, /\bsummer\b/])) {
+    spec.paletteId = "summer";
+  }
 
   let dungeonPlan: DungeonPlanSpec | null = null;
   if (hasMultiRooms) {
@@ -563,7 +686,13 @@ export function parsePromptToSpec(params: {
 
   if (theme === "city" && wantsStreet) {
     if (spec.city) {
-      spec.city.direction = hasAny(text, [/\bverticale?\b/]) ? "vertical" : "horizontal";
+      if (hasAny(text, [/\bverticale?\b/, /\bnord[- ]sud\b/, /\bnord\s*-\s*sud\b/])) {
+        spec.city.direction = "vertical";
+      } else if (hasAny(text, [/\bhorizontale?\b/, /\best[- ]ouest\b/, /\best\s*-\s*ouest\b/])) {
+        spec.city.direction = "horizontal";
+      } else {
+        spec.city.direction = "horizontal";
+      }
       spec.city.streetWidth = Math.max(1, extractNumber(text, [/\b(\d+)\s*cases?\b/]) ?? 2);
       if (houseCount !== null) spec.city.patternCount = Math.max(1, houseCount);
     }
@@ -603,8 +732,42 @@ export function parsePromptToSpec(params: {
   } else {
     spec.building = undefined;
   }
+  if (theme === "city" && spec.city) {
+    const offsetMatch = text.match(/\bdecal\w*\s*(?:de\s*(\d+))?\s*(?:cases?)?\s*(?:vers|au|a|cote)?\s*(nord|sud|est|ouest)\b/);
+    const hasOffsetWord = /\bdecal\w*\b/.test(text);
+    const offsetAmount = offsetMatch && offsetMatch[1] ? Number(offsetMatch[1]) : 2;
+    const offsetDirToken = offsetMatch?.[2];
+    const offsetDir =
+      offsetDirToken === "nord"
+        ? "north"
+        : offsetDirToken === "sud"
+          ? "south"
+          : offsetDirToken === "est"
+            ? "east"
+            : offsetDirToken === "ouest"
+              ? "west"
+              : undefined;
+    if (offsetDir) {
+      spec.city.streetOffset = { dir: offsetDir, amount: Math.max(0, Math.floor(offsetAmount)) };
+    } else if (hasOffsetWord) {
+      const fallbackDir = spec.city.direction === "vertical" ? "west" : "north";
+      spec.city.streetOffset = { dir: fallbackDir, amount: Math.max(1, Math.floor(offsetAmount)) };
+    }
+  }
+
+  if (spec.obstacleRequests && spec.obstacleRequests.some(r => r.placement === "between_road_house" || r.placement === "road_edge")) {
+    if (spec.city) {
+      spec.city.sidewalk = Math.max(1, spec.city.sidewalk ?? 1);
+    }
+  }
+
   notes.push(`theme=${theme} layout=${spec.layoutId} time=${timeOfDay}`);
   notes.push(`sizeHint=${sizeHint}`);
+  if (obstacleRequests && obstacleRequests.length > 0) {
+    notes.push(
+      `obstacleRequests=${obstacleRequests.map(r => `${r.typeId}x${r.count ?? 1}${r.orientation ? `[${r.orientation}]` : ""}`).join(",")}`
+    );
+  }
 
   return { spec, notes };
 }

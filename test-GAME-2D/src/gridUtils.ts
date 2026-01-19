@@ -1,5 +1,6 @@
 import { isCellInsideBoard } from "./boardConfig";
 import type { GridPosition, TokenState } from "./types";
+import { getTokenOccupiedCells } from "./game/footprint";
 
 function key(pos: GridPosition): string {
   return `${pos.x},${pos.y}`;
@@ -18,13 +19,10 @@ export function isCellOccupied(
   tokens: TokenState[],
   ignoreId?: string
 ): boolean {
-  return tokens.some(
-    t =>
-      t.id !== ignoreId &&
-      t.hp > 0 &&
-      t.x === pos.x &&
-      t.y === pos.y
-  );
+  return tokens.some(t => {
+    if (t.id === ignoreId || t.hp <= 0) return false;
+    return getTokenOccupiedCells(t).some(c => c.x === pos.x && c.y === pos.y);
+  });
 }
 
 export function buildOccupancyMap(
@@ -33,7 +31,9 @@ export function buildOccupancyMap(
   const map = new Map<string, TokenState>();
   for (const t of tokens) {
     if (t.hp <= 0) continue;
-    map.set(key({ x: t.x, y: t.y }), t);
+    for (const c of getTokenOccupiedCells(t)) {
+      map.set(key(c), t);
+    }
   }
   return map;
 }
@@ -43,6 +43,9 @@ export function getTokenAt(
   tokens: TokenState[]
 ): TokenState | null {
   return (
-    tokens.find(t => t.hp > 0 && t.x === pos.x && t.y === pos.y) ?? null
+    tokens.find(t => {
+      if (t.hp <= 0) return false;
+      return getTokenOccupiedCells(t).some(c => c.x === pos.x && c.y === pos.y);
+    }) ?? null
   );
 }

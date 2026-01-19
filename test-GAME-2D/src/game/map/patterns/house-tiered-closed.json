@@ -9,6 +9,7 @@
     "clos",
     "interieur",
     "toit",
+    "roof-closed",
     "house"
   ],
   "footprint": { "w": 6, "h": 5 },

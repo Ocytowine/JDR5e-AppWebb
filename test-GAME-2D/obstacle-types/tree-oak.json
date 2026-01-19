@@ -1,62 +1,114 @@
 {
-    "id":  "tree-oak",
-    "label":  "Chêne",
-    "category":  "vegetation",
-    "tags":  [
-                 "tree",
-                 "vegetation",
-                 "wood"
-             ],
-    "blocking":  {
-                     "movement":  true,
-                     "vision":  true,
-                     "attacks":  true
-                 },
-    "durability":  {
-                       "destructible":  true,
-                       "maxHp":  22,
-                       "ac":  12
-                   },
-    "variants":  [
-                     {
-                         "id":  "base",
-                         "label":  "Tronc",
-                         "footprint":  [
-                                           {
-                                               "x":  0,
-                                               "y":  0
-                                           }
-                                       ],
-                         "rotatable":  false
-                     }
-                 ],
-    "appearance":  {
-                       "spriteKey":  "obstacle:tree-oak",
-                       "tint":  16777215,
-                       "heightClass":  "tall",
-                       "scaleRange":  {
-                                          "min":  1.05,
-                                          "max":  1.4
-                                      },
-                       "variantWeights":  {
-                                              "summer":  6,
-                                              "autumn":  3,
-                                              "dead":  1
-                                          },
-                       "tokenScale":  {
-                                          "min":  80,
-                                          "default":  100,
-                                          "max":  150
-                                      }
-                   },
-    "spawnRules":  {
-                       "weight":  6,
-                       "cluster":  {
-                                       "min":  1,
-                                       "max":  5
-                                   },
-                       "shapeHint":  "scatter",
-                       "avoidNearTokens":  true
-                   }
+  "id": "tree-oak",
+  "label": "Ch\u00eane",
+  "category": "vegetation",
+  "tags": [
+    "tree",
+    "vegetation",
+    "wood"
+  ],
+  "blocking": {
+    "movement": true,
+    "vision": true,
+    "attacks": true
+  },
+  "durability": {
+    "destructible": true,
+    "maxHp": 22,
+    "ac": 12
+  },
+  "variants": [
+    {
+      "id": "base",
+      "label": "Tronc",
+      "footprint": [
+        {
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "rotatable": true
+    }
+  ],
+  "appearance": {
+    "randomRotation": true,
+    "paletteId": "default",
+    "palettes": {
+      "default": {
+        "layers": {
+          "canopy": {
+            "alpha": 0.60,
+            "tintRange": {
+              "dark": 3107631,
+              "light": 7323487
+            }
+          },
+          "trunk": {
+            "tintRange": {
+              "dark": 5978654,
+              "light": 9132587
+            }
+          }
+        }
+      },
+      "autumn": {
+        "layers": {
+          "canopy": {
+            "alpha": 0.75,
+            "tintRange": {
+              "dark": 10709547,
+              "light": 15778138
+            }
+          },
+          "trunk": {
+            "tintRange": {
+              "dark": 5978654,
+              "light": 9132587
+            }
+          }
+        }
+      },
+      "leafless": {
+        "layers": {
+          "canopy": {
+            "alpha": 0.75,
+            "visible": false
+          }
+        }
+      }
+    },
+    "spriteGrid": {
+      "tilesX": 3,
+      "tilesY": 3
+    },
+    "heightClass": "tall",
+    "layers": [
+      {
+        "id": "trunk",
+        "spriteKey": "obstacle:tree-oak-trunk",
+        "z": 0,
+        "visible": "always"
+      },
+      {
+        "id": "canopy",
+        "spriteKey": "obstacle:tree-oak-canopy",
+        "z": 1,
+        "visible": "hideWhenTokenBelow"
+      }
+    ],
+    "tokenScale": {
+      "min": 80,
+      "default": 90,
+      "max": 100
+    }
+  },
+  "spawnRules": {
+    "weight": 6,
+    "cluster": {
+      "min": 1,
+      "max": 5
+    },
+    "shapeHint": "scatter",
+    "avoidNearTokens": true
+  }
 }
-

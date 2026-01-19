@@ -3,6 +3,8 @@ import type { MapBuildContext, MapSpec } from "../types";
 import { clamp, createDraft, setHeight, setLight, setTerrain, tryPlaceObstacle } from "../draft";
 import { loadMapPatternsFromIndex } from "../../mapPatternCatalog";
 import { choosePatternsByPrompt, getPatternSize, pickPatternTransform, placePattern } from "../patterns";
+import { findObstacleType, pickVariantIdForPlacement, randomRotationForPlacement } from "../obstacleSelector";
+import type { Orientation8 } from "../../footprint";
 
 const CITY_PATTERNS = loadMapPatternsFromIndex().filter(p => p.theme === "city");
 
@@ -29,13 +31,14 @@ function placeCityPatterns(params: {
   wallTypes: MapBuildContext["wallTypes"];
   cols: number;
   rows: number;
-  anchorYs: number[];
+  anchorYs?: number[];
+  anchorXs?: number[];
   prompt: string;
   patterns: typeof CITY_PATTERNS;
   requestedPatterns: string[] | null;
   patternCount: number | null;
 }): { count: number; ids: string[] } {
-  const { draft, rand, obstacleTypes, wallTypes, cols, rows, anchorYs, prompt, patterns, requestedPatterns, patternCount } = params;
+  const { draft, rand, obstacleTypes, wallTypes, cols, rows, anchorYs, anchorXs, prompt, patterns, requestedPatterns, patternCount } = params;
   if (patterns.length === 0) return { count: 0, ids: [] };
 
   const anchorOffset = (
@@ -86,23 +89,27 @@ function placeCityPatterns(params: {
       });
       const size = getPatternSize(pattern, transform);
       const maxAnchorX = cols - size.w;
+      const maxAnchorY = rows - size.h;
       if (maxAnchorX < 0) continue;
-      const anchorX = Math.floor(rand() * (maxAnchorX + 1));
-      for (const anchorY of anchorYs) {
-        if (anchorY < 0 || anchorY >= rows) continue;
-        const ok = placePattern({ draft, pattern, anchorX, anchorY, obstacleTypes, wallTypes, rand, transform });
-        if (ok) {
-          const offset = anchorOffset(pattern.anchor, size);
-          const originX = anchorX - offset.x;
-          const originY = anchorY - offset.y;
-          placed++;
-          placedIds.push(pattern.id);
-          placedThis = true;
-          draft.log.push(
-            `Pattern placee: ${pattern.id} anchor=(${anchorX},${anchorY}) origin=(${originX},${originY}) size=${size.w}x${size.h} rot=${transform.rotation ?? 0} mx=${transform.mirrorX ? 1 : 0} my=${transform.mirrorY ? 1 : 0}`
-          );
-          break;
-        }
+      if (maxAnchorY < 0) continue;
+      const anchorX = anchorXs && anchorXs.length
+        ? anchorXs[Math.floor(rand() * anchorXs.length)]!
+        : Math.floor(rand() * (maxAnchorX + 1));
+      const anchorY = anchorYs && anchorYs.length
+        ? anchorYs[Math.floor(rand() * anchorYs.length)]!
+        : Math.floor(rand() * (maxAnchorY + 1));
+      if (anchorX < 0 || anchorX >= cols || anchorY < 0 || anchorY >= rows) continue;
+      const ok = placePattern({ draft, pattern, anchorX, anchorY, obstacleTypes, wallTypes, rand, transform });
+      if (ok) {
+        const offset = anchorOffset(pattern.anchor, size);
+        const originX = anchorX - offset.x;
+        const originY = anchorY - offset.y;
+        placed++;
+        placedIds.push(pattern.id);
+        placedThis = true;
+        draft.log.push(
+          `Pattern placee: ${pattern.id} anchor=(${anchorX},${anchorY}) origin=(${originX},${originY}) size=${size.w}x${size.h} rot=${transform.rotation ?? 0} mx=${transform.mirrorX ? 1 : 0} my=${transform.mirrorY ? 1 : 0}`
+        );
       }
     }
   }
@@ -149,14 +156,22 @@ export function generateCityStreet(params: {
   }
 
   // Rue horizontale par défaut: une bande centrale libre, maisons de chaque côté.
-  const streetW = clamp(Math.floor(city.streetWidth), 1, Math.max(1, rows - 2));
-  const maxDepth = Math.max(1, Math.floor(rows / 2) - 1);
+  const direction = city.direction ?? "horizontal";
+  const sidewalk = Math.max(0, Math.floor(city.sidewalk ?? 0));
+  const streetW =
+    direction === "horizontal"
+      ? clamp(Math.floor(city.streetWidth), 1, Math.max(1, rows - 2))
+      : clamp(Math.floor(city.streetWidth), 1, Math.max(1, cols - 2));
+  const maxDepth =
+    direction === "horizontal"
+      ? Math.max(1, Math.floor(rows / 2) - 1)
+      : Math.max(1, Math.floor(cols / 2) - 1);
   let depth = clamp(Math.floor(city.buildingDepth), 1, maxDepth);
   if (requested && patterns.length > 0) {
-    const requiredDepth = patterns.reduce(
-      (max, p) => Math.max(max, Math.floor(p.footprint.h)),
-      1
-    );
+    const requiredDepth = patterns.reduce((max, p) => {
+      const size = direction === "horizontal" ? p.footprint.h : p.footprint.w;
+      return Math.max(max, Math.floor(size));
+    }, 1);
     if (requiredDepth > maxDepth) {
       draft.log.push(`Patterns: besoin depth=${requiredDepth}, max=${maxDepth} (trop petit).`);
     } else if (requiredDepth > depth) {
@@ -165,19 +180,46 @@ export function generateCityStreet(params: {
     }
   }
   const centerY = clamp(Math.floor(rows / 2), 0, rows - 1);
-  const streetY1 = clamp(centerY - Math.floor(streetW / 2), 0, rows - 1);
-  const streetY2 = clamp(streetY1 + streetW - 1, 0, rows - 1);
+  const centerX = clamp(Math.floor(cols / 2), 0, cols - 1);
+  const offset = city.streetOffset?.amount ?? 0;
+  const offsetDir = city.streetOffset?.dir ?? null;
+  let streetCenterY = centerY;
+  let streetCenterX = centerX;
+  if (offset > 0 && offsetDir) {
+    if (direction === "horizontal") {
+      if (offsetDir === "north") streetCenterY -= offset;
+      if (offsetDir === "south") streetCenterY += offset;
+    } else {
+      if (offsetDir === "west") streetCenterX -= offset;
+      if (offsetDir === "east") streetCenterX += offset;
+    }
+  }
+  streetCenterY = clamp(streetCenterY, 0, rows - 1);
+  streetCenterX = clamp(streetCenterX, 0, cols - 1);
 
-  // Marque le "sol" de la rue au centre.
-  for (let y = streetY1; y <= streetY2; y++) {
-    for (let x = 0; x < cols; x++) setTerrain(draft, x, y, "road");
+  const streetY1 = clamp(streetCenterY - Math.floor(streetW / 2), 0, rows - 1);
+  const streetY2 = clamp(streetY1 + streetW - 1, 0, rows - 1);
+  const streetX1 = clamp(streetCenterX - Math.floor(streetW / 2), 0, cols - 1);
+  const streetX2 = clamp(streetX1 + streetW - 1, 0, cols - 1);
+
+  if (direction === "horizontal") {
+    for (let y = streetY1; y <= streetY2; y++) {
+      for (let x = 0; x < cols; x++) setTerrain(draft, x, y, "road");
+    }
+  } else {
+    for (let x = streetX1; x <= streetX2; x++) {
+      for (let y = 0; y < rows; y++) setTerrain(draft, x, y, "road");
+    }
   }
 
-  // Zones "maisons" = au-dessus et en dessous de la rue.
-  const topY2 = clamp(streetY1 - 1, 0, rows - 1);
+  const topY2 = clamp(streetY1 - 1 - sidewalk, 0, rows - 1);
   const topY1 = clamp(topY2 - depth + 1, 0, rows - 1);
-  const botY1 = clamp(streetY2 + 1, 0, rows - 1);
+  const botY1 = clamp(streetY2 + 1 + sidewalk, 0, rows - 1);
   const botY2 = clamp(botY1 + depth - 1, 0, rows - 1);
+  const leftX2 = clamp(streetX1 - 1 - sidewalk, 0, cols - 1);
+  const leftX1 = clamp(leftX2 - depth + 1, 0, cols - 1);
+  const rightX1 = clamp(streetX2 + 1 + sidewalk, 0, cols - 1);
+  const rightX2 = clamp(rightX1 + depth - 1, 0, cols - 1);
 
   if (requested && requested.length > 0 && patterns.length === 0) {
     draft.log.push(`Patterns (city): aucun pattern charge pour ${requested.join(", ")}.`);
@@ -189,7 +231,8 @@ export function generateCityStreet(params: {
     wallTypes: ctx.wallTypes,
     cols,
     rows,
-    anchorYs: [topY2, botY2],
+    anchorYs: direction === "horizontal" ? [topY2, botY2] : undefined,
+    anchorXs: direction === "vertical" ? [leftX2, rightX1] : undefined,
     prompt: spec.prompt,
     patterns,
     requestedPatterns: requested,
@@ -197,6 +240,88 @@ export function generateCityStreet(params: {
   });
   if (placedPatterns.count > 0) {
     draft.log.push(`Patterns: +${placedPatterns.count} (city).`);
+  }
+
+  if (spec.obstacleRequests && spec.obstacleRequests.length > 0) {
+    const maxAttemptsPerItem = Math.max(20, cols * 2);
+    for (const req of spec.obstacleRequests) {
+      const type = findObstacleType(ctx.obstacleTypes, req.typeId);
+      if (!type) {
+        draft.log.push(`Obstacle manquant: ${req.typeId}.`);
+        continue;
+      }
+      const count = Math.max(1, Math.floor(req.count ?? 1));
+      const orientation = req.orientation as Orientation8 | undefined;
+      const placement = req.placement ?? "road";
+      let placed = 0;
+      let attempts = 0;
+      while (placed < count && attempts < maxAttemptsPerItem) {
+        attempts += 1;
+        let x = Math.floor(rand() * cols);
+        let y = Math.floor(rand() * rows);
+        if (direction === "horizontal") {
+          if (placement === "road") {
+            y = clamp(streetY1 + Math.floor(rand() * (streetY2 - streetY1 + 1)), 0, rows - 1);
+          } else if (placement === "road_edge" || placement === "between_road_house") {
+            const sideRows = [
+              ...Array.from({ length: Math.max(0, streetY1 - topY2 - 1) }, (_, i) => topY2 + 1 + i),
+              ...Array.from({ length: Math.max(0, botY1 - streetY2 - 1) }, (_, i) => streetY2 + 1 + i)
+            ].filter(v => v >= 0 && v < rows);
+            if (sideRows.length > 0) {
+              y = sideRows[Math.floor(rand() * sideRows.length)]!;
+            } else {
+              y = clamp(streetY1 + Math.floor(rand() * (streetY2 - streetY1 + 1)), 0, rows - 1);
+            }
+          } else if (placement === "near_house") {
+            const houseRows = [
+              ...Array.from({ length: Math.max(0, topY2 - topY1 + 1) }, (_, i) => topY1 + i),
+              ...Array.from({ length: Math.max(0, botY2 - botY1 + 1) }, (_, i) => botY1 + i)
+            ].filter(v => v >= 0 && v < rows);
+            if (houseRows.length > 0) {
+              y = houseRows[Math.floor(rand() * houseRows.length)]!;
+            }
+          }
+        } else {
+          if (placement === "road") {
+            x = clamp(streetX1 + Math.floor(rand() * (streetX2 - streetX1 + 1)), 0, cols - 1);
+          } else if (placement === "road_edge" || placement === "between_road_house") {
+            const sideCols = [
+              ...Array.from({ length: Math.max(0, streetX1 - leftX2 - 1) }, (_, i) => leftX2 + 1 + i),
+              ...Array.from({ length: Math.max(0, rightX1 - streetX2 - 1) }, (_, i) => streetX2 + 1 + i)
+            ].filter(v => v >= 0 && v < cols);
+            if (sideCols.length > 0) {
+              x = sideCols[Math.floor(rand() * sideCols.length)]!;
+            } else {
+              x = clamp(streetX1 + Math.floor(rand() * (streetX2 - streetX1 + 1)), 0, cols - 1);
+            }
+          } else if (placement === "near_house") {
+            const houseCols = [
+              ...Array.from({ length: Math.max(0, leftX2 - leftX1 + 1) }, (_, i) => leftX1 + i),
+              ...Array.from({ length: Math.max(0, rightX2 - rightX1 + 1) }, (_, i) => rightX1 + i)
+            ].filter(v => v >= 0 && v < cols);
+            if (houseCols.length > 0) {
+              x = houseCols[Math.floor(rand() * houseCols.length)]!;
+            }
+          }
+        }
+        const variantId = pickVariantIdForPlacement(type, "scatter", rand);
+        const rotation =
+          orientation === undefined
+            ? randomRotationForPlacement(type, variantId, rand)
+            : 0;
+        const ok = tryPlaceObstacle({
+          draft,
+          type,
+          x,
+          y,
+          variantId,
+          rotation,
+          orientation
+        });
+        if (ok) placed += 1;
+      }
+      draft.log.push(`Obstacle demande: ${req.typeId} (${placed}/${count}).`);
+    }
   }
 
   draft.log.push("Maisons: murs places uniquement via patterns.");

@@ -5,6 +5,7 @@ import type { TokenState } from "../../types";
 import type { SpeechBubbleEntry } from "../../game/turnTypes";
 import { TILE_SIZE, gridToScreenForGrid } from "../../boardConfig";
 import { isTokenDead } from "../../game/combatUtils";
+import { getTokenOccupiedCells } from "../../game/footprint";
 
 export function usePixiSpeechBubbles(options: {
   speechLayerRef: RefObject<Container | null>;
@@ -49,8 +50,11 @@ export function usePixiSpeechBubbles(options: {
 
     for (const token of allTokens) {
       if (isTokenDead(token)) continue;
-      const key = cellKey(token.x, token.y);
-      const isVisible = showAll || token.type === "player" || (visibleCells?.has(key) ?? true);
+      const occupied = getTokenOccupiedCells(token);
+      const isVisible =
+        showAll ||
+        token.type === "player" ||
+        occupied.some(c => visibleCells?.has(cellKey(c.x, c.y)) ?? true);
       if (!isVisible) continue;
 
       const bubble = bubbleByTokenId.get(token.id);

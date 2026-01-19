@@ -5,6 +5,7 @@ import type { WallTypeDefinition } from "../wallTypes";
 import type { DecorInstance } from "../decorTypes";
 import type { TerrainCell } from "./draft";
 import type { WallSegment } from "./walls/types";
+import type { Orientation8 } from "../footprint";
 
 export type MapTheme = "dungeon" | "forest" | "city" | "generic";
 
@@ -115,6 +116,8 @@ export interface CityStreetSpec {
   buildingDepth: number;
   doors: "closed" | "open";
   lighting: "day" | "night";
+  sidewalk?: number;
+  streetOffset?: { dir: "north" | "south" | "east" | "west"; amount: number };
   patterns?: string[];
   patternCount?: number;
 }
@@ -129,7 +132,14 @@ export interface MapSpec {
   layoutId: LayoutId;
   theme: MapTheme;
   timeOfDay: MapTimeOfDay;
+  paletteId?: string;
   building?: BuildingSpec;
+  obstacleRequests?: Array<{
+    typeId: string;
+    count?: number;
+    orientation?: Orientation8;
+    placement?: "road" | "road_edge" | "between_road_house" | "near_house";
+  }>;
   /**
    * Indication de taille issue du prompt.
    * Utilisée pour recommander une grille plus grande (Option A).
@@ -180,6 +190,7 @@ export interface MapBuildResult {
   grid: { cols: number; rows: number };
   generationLog: string[];
   theme: MapTheme;
+  paletteId?: string;
   playerStart: GridPosition;
   enemySpawns: { enemyType: EnemyTypeDefinition; position: GridPosition }[];
   playableCells: string[];
@@ -189,6 +200,7 @@ export interface MapBuildResult {
   height: number[];
   light: number[];
   decorations: DecorInstance[];
+  roofOpenCells?: string[];
   recommendedGrid?: { cols: number; rows: number; reason: string };
 }
 

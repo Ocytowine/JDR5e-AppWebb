@@ -10,10 +10,11 @@ import {
   scatterTerrainPatches,
   scatterDecorations
 } from "../draft";
-import { findObstacleType, pickVariantIdForPlacement, weightedTypesForContext } from "../obstacleSelector";
+import { findObstacleType, pickVariantIdForPlacement, randomRotationForPlacement, weightedTypesForContext } from "../obstacleSelector";
 import { pickWeighted, randomIntInclusive } from "../random";
 import { loadMapPatternsFromIndex } from "../../mapPatternCatalog";
 import { choosePatternsByPrompt, getPatternSize, pickPatternTransform, placePatternAtOrigin } from "../patterns";
+import { getSpriteGridCells, hasTreeOverlap, isTreeType } from "../placement";
 
 const FOREST_PATTERNS = loadMapPatternsFromIndex().filter(p => p.theme === "forest");
 
@@ -152,6 +153,8 @@ export function generateForestClearing(params: {
     for (let x = 0; x < cols; x++) setLight(draft, x, y, baseLight);
   }
 
+  const typeById = new Map(ctx.obstacleTypes.map(t => [t.id, t]));
+
   const treeType =
     findObstacleType(ctx.obstacleTypes, "tree-oak") ??
     ctx.obstacleTypes.find(t => (t.tags ?? []).includes("tree")) ??
@@ -185,19 +188,31 @@ export function generateForestClearing(params: {
     const chosen = pickWeighted(vegetationTypes, rand) ?? treeType;
     if (!chosen) break;
 
+    if (isTreeType(chosen)) {
+      const grid = chosen.appearance?.spriteGrid;
+      const candidateCells =
+        grid && Number.isFinite(grid.tilesX) && Number.isFinite(grid.tilesY)
+          ? getSpriteGridCells({
+              x,
+              y,
+              tilesX: grid.tilesX,
+              tilesY: grid.tilesY,
+              cols,
+              rows
+            })
+          : [{ x, y }];
+      const hasOverlap = hasTreeOverlap({
+        candidate: candidateCells,
+        draftObstacles: draft.obstacles,
+        typeById,
+        cols,
+        rows
+      });
+      if (hasOverlap) continue;
+    }
+
     const variantId = pickVariantIdForPlacement(chosen, "scatter", rand);
-    const variant = (chosen.variants ?? []).find(v => v.id === variantId) ?? null;
-    const rotation = variant?.rotatable
-      ? (pickWeighted(
-          [
-            { item: 0 as const, weight: 1 },
-            { item: 90 as const, weight: 1 },
-            { item: 180 as const, weight: 1 },
-            { item: 270 as const, weight: 1 }
-          ],
-          rand
-        ) ?? 0)
-      : 0;
+    const rotation = randomRotationForPlacement(chosen, variantId, rand);
 
     const ok = tryPlaceObstacle({
       draft,
@@ -226,7 +241,8 @@ export function generateForestClearing(params: {
     const chosen = pickWeighted(propTypes, rand) ?? null;
     if (!chosen) break;
     const variantId = pickVariantIdForPlacement(chosen, "scatter", rand);
-    const ok = tryPlaceObstacle({ draft, type: chosen, x, y, variantId, rotation: 0 });
+    const rotation = randomRotationForPlacement(chosen, variantId, rand);
+    const ok = tryPlaceObstacle({ draft, type: chosen, x, y, variantId, rotation });
     if (ok) propsPlaced++;
   }
   if (propsPlaced) draft.log.push(`Props: +${propsPlaced}.`);

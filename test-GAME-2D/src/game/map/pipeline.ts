@@ -195,6 +195,9 @@ export function runGenerationPipeline(params: {
 
   generationLog.push(...notes.map(n => `[spec] ${n}`));
   generationLog.push(`[spec] timeOfDay=${spec.timeOfDay}`);
+  if (spec.paletteId) {
+    generationLog.push(`[spec] palette=${spec.paletteId}`);
+  }
   generationLog.push(`[gen] module=${spec.layoutId}`);
   if (disableEnemies) {
     generationLog.push("[spec] testPrompt=true (ennemis desactive)");
@@ -217,6 +220,7 @@ export function runGenerationPipeline(params: {
     generationLog,
     grid: { cols: draft.cols, rows: draft.rows },
     theme: spec.theme,
+    paletteId: spec.paletteId,
     playerStart: resolvedPlayerStart,
     enemySpawns,
     playableCells: Array.from(draft.playable),
@@ -226,6 +230,7 @@ export function runGenerationPipeline(params: {
     height: draft.layers.height,
     light: draft.layers.light,
     decorations: draft.decorations,
+    roofOpenCells: Array.from(draft.roofOpenCells),
     recommendedGrid: recommendedGrid ?? undefined
   };
 }
@@ -272,6 +277,7 @@ export function runManualGenerationPipeline(params: {
     generationLog,
     grid: { cols: draft.cols, rows: draft.rows },
     theme: manualConfig.options.theme,
+    paletteId: undefined,
     playerStart: resolvedPlayerStart,
     enemySpawns,
     playableCells: Array.from(draft.playable),
@@ -281,6 +287,7 @@ export function runManualGenerationPipeline(params: {
     height: draft.layers.height,
     light: draft.layers.light,
     decorations: draft.decorations,
+    roofOpenCells: Array.from(draft.roofOpenCells),
     recommendedGrid: undefined
   };
 }

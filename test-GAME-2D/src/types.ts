@@ -20,6 +20,7 @@ export interface Personnage {
     constitution: { CON: number; modCON: number };
     [key: string]: any;
   };
+  visionProfile?: VisionProfile;
   [key: string]: any;
 }
 
@@ -30,6 +31,10 @@ export interface GridPosition {
   x: number;
   y: number;
 }
+
+export type FootprintSpec =
+  | { kind: "rect"; width: number; height: number }
+  | { kind: "cells"; cells: GridPosition[] };
 
 export type MovementType = "ground" | "flying" | "ghost" | string;
 
@@ -81,6 +86,10 @@ export interface VisionProfile {
    * (Non exploite tant que le plateau n'expose pas de niveaux de lumiere.)
    */
   canSeeInDark?: boolean;
+  /**
+   * Mode de vision face a la lumiere ambiante.
+   */
+  lightVision?: "normal" | "lowlight" | "darkvision";
 }
 
 export interface TokenState {
@@ -122,6 +131,11 @@ export interface TokenState {
    * Utilisee pour les cones de vision et certaines attaques directionnelles.
    */
   facing?: ConeDirection;
+  /**
+   * Emprise au sol de l'entite (en cases).
+   * Par defaut: 1x1.
+   */
+  footprint?: FootprintSpec;
   /**
    * Profil de vision de base de l'entite.
    * Sert de reference pour le calcul des cones et zones visibles.

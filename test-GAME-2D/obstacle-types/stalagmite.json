@@ -1,54 +1,54 @@
 {
-    "id":  "stalagmite",
-    "label":  "Stalagmite",
-    "category":  "structure",
-    "tags":  [
-                 "stalagmite",
-                 "cave",
-                 "stone",
-                 "structure"
-             ],
-    "blocking":  {
-                     "movement":  true,
-                     "vision":  true,
-                     "attacks":  true
-                 },
-    "durability":  {
-                       "destructible":  true,
-                       "maxHp":  16,
-                       "ac":  13
-                   },
-    "variants":  [
-                     {
-                         "id":  "base",
-                         "label":  "Stalagmite",
-                         "footprint":  [
-                                           {
-                                               "x":  0,
-                                               "y":  0
-                                           }
-                                       ],
-                         "rotatable":  false
-                     }
-                 ],
-    "appearance":  {
-                       "spriteKey":  "obstacle:stalagmite",
-                       "tint":  16777215,
-                       "heightClass":  "tall",
-                       "tokenScale":  {
-                                          "min":  80,
-                                          "default":  100,
-                                          "max":  150
-                                      }
-                   },
-    "spawnRules":  {
-                       "weight":  2,
-                       "cluster":  {
-                                       "min":  1,
-                                       "max":  4
-                                   },
-                       "shapeHint":  "scatter",
-                       "avoidNearTokens":  true
-                   }
+  "id": "stalagmite",
+  "label": "Stalagmite",
+  "category": "structure",
+  "tags": [
+    "stalagmite",
+    "cave",
+    "stone",
+    "structure"
+  ],
+  "blocking": {
+    "movement": true,
+    "vision": true,
+    "attacks": true
+  },
+  "durability": {
+    "destructible": true,
+    "maxHp": 16,
+    "ac": 13
+  },
+  "variants": [
+    {
+      "id": "base",
+      "label": "Stalagmite",
+      "footprint": [
+        {
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "rotatable": true
+    }
+  ],
+  "appearance": {
+    "randomRotation": true,
+    "spriteKey": "obstacle:stalagmite",
+    "tint": 16777215,
+    "heightClass": "tall",
+    "tokenScale": {
+      "min": 80,
+      "default": 100,
+      "max": 150
+    }
+  },
+  "spawnRules": {
+    "weight": 2,
+    "cluster": {
+      "min": 1,
+      "max": 4
+    },
+    "shapeHint": "scatter",
+    "avoidNearTokens": true
+  }
 }
-

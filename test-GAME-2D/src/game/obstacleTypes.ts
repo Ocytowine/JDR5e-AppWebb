@@ -1,7 +1,6 @@
 import type { GridPosition } from "../types";
+import type { Orientation8 } from "./footprint";
 import type { InteractionSpec } from "./interactions";
-
-export type ObstacleRotationDeg = 0 | 90 | 180 | 270;
 
 export interface ObstacleBlocking {
   movement: boolean;
@@ -29,10 +28,37 @@ export interface ObstacleVariant {
 export interface ObstacleAppearance {
   spriteKey?: string;
   tint?: number;
+  spriteGrid?: { tilesX: number; tilesY: number; tileSize?: number };
+  paletteId?: string;
+  palettes?: Record<
+    string,
+    {
+      layers?: Record<
+        string,
+        {
+          tint?: number;
+          tintRange?: { dark: number; light: number };
+          alpha?: number;
+          visible?: boolean;
+        }
+      >;
+    }
+  >;
+  randomRotation?: boolean;
   /**
    * Used for visuals and later for cover/LOS heuristics if needed.
    */
   heightClass?: "low" | "medium" | "tall" | string;
+  layers?: Array<{
+    id?: string;
+    spriteKey: string;
+    tint?: number;
+    alpha?: number;
+    scale?: number;
+    z?: number;
+    visible?: "always" | "hideWhenTokenBelow";
+    spriteGrid?: { tilesX: number; tilesY: number; tileSize?: number };
+  }>;
   tokenScale?: { default: number; min: number; max: number };
   scale?: number;
   scaleRange?: { min: number; max: number };
@@ -49,6 +75,7 @@ export interface ObstacleSpawnRules {
 
 export interface ObstacleLight {
   radius: number;
+  color?: number;
 }
 
 export interface ObstacleTypeDefinition {
@@ -76,7 +103,12 @@ export interface ObstacleInstance {
   variantId: string;
   x: number;
   y: number;
-  rotation: ObstacleRotationDeg;
+  orientation?: Orientation8;
+  /**
+   * Legacy rotation in degrees (0/90/180/270).
+   * Prefer `orientation`.
+   */
+  rotation?: number;
   tokenScale?: number;
   hp: number;
   maxHp: number;

@@ -1,53 +1,52 @@
 {
-    "id":  "crate-wood",
-    "label":  "Caisse",
-    "category":  "prop",
-    "tags":  [
-                 "crate",
-                 "wood",
-                 "prop"
-             ],
-    "blocking":  {
-                     "movement":  true,
-                     "vision":  false,
-                     "attacks":  false
-                 },
-    "durability":  {
-                       "destructible":  true,
-                       "maxHp":  6,
-                       "ac":  10
-                   },
-    "variants":  [
-                     {
-                         "id":  "base",
-                         "label":  "Caisse",
-                         "footprint":  [
-                                           {
-                                               "x":  0,
-                                               "y":  0
-                                           }
-                                       ],
-                         "rotatable":  false
-                     }
-                 ],
-    "appearance":  {
-                       "spriteKey":  "obstacle:crate-wood",
-                       "tint":  16777215,
-                       "heightClass":  "medium",
-                       "tokenScale":  {
-                                          "min":  80,
-                                          "default":  100,
-                                          "max":  150
-                                      }
-                   },
-    "spawnRules":  {
-                       "weight":  3,
-                       "cluster":  {
-                                       "min":  1,
-                                       "max":  4
-                                   },
-                       "shapeHint":  "scatter",
-                       "avoidNearTokens":  true
-                   }
+  "id": "crate-wood",
+  "label": "Caisse",
+  "category": "prop",
+  "tags": [
+    "crate",
+    "wood",
+    "prop"
+  ],
+  "blocking": {
+    "movement": true,
+    "vision": false,
+    "attacks": false
+  },
+  "durability": {
+    "destructible": true,
+    "maxHp": 6,
+    "ac": 10
+  },
+  "variants": [
+    {
+      "id": "base",
+      "label": "Caisse",
+      "footprint": [
+        {
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "rotatable": true
+    }
+  ],
+  "appearance": {
+    "spriteKey": "obstacle:crate-wood",
+    "tint": 16777215,
+    "heightClass": "medium",
+    "tokenScale": {
+      "min": 80,
+      "default": 100,
+      "max": 150
+    }
+  },
+  "spawnRules": {
+    "weight": 3,
+    "cluster": {
+      "min": 1,
+      "max": 4
+    },
+    "shapeHint": "scatter",
+    "avoidNearTokens": true
+  }
 }
-

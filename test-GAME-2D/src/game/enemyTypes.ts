@@ -1,4 +1,4 @@
-import type { MovementProfile, VisionProfile } from "../types";
+import type { FootprintSpec, MovementProfile, VisionProfile } from "../types";
 
 export interface EnemyTypeDefinition {
   id: string;
@@ -20,6 +20,7 @@ export interface EnemyTypeDefinition {
     attackRange?: number;
     maxAttacksPerTurn?: number;
   };
+  footprint?: FootprintSpec;
   movement?: MovementProfile;
   vision?: VisionProfile;
 }

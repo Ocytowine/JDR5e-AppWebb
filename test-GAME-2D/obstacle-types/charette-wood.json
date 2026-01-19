@@ -1,0 +1,46 @@
+{
+  "id": "charette-wood",
+  "label": "Charette",
+  "category": "prop",
+  "tags": ["prop"],
+  "blocking": {
+    "movement": true,
+    "vision": false,
+    "attacks": false
+  },
+  "durability": {
+    "destructible": true,
+    "maxHp": 18,
+    "ac": 10
+  },
+  "variants": [
+    {
+      "id": "base",
+      "label": "Base",
+      "footprint": [
+        { "x": -1, "y": -1 },
+        { "x": 0, "y": -1 },
+        { "x": -1, "y": 0 },
+        { "x": 0, "y": 0 },
+        { "x": -1, "y": 1 },
+        { "x": 0, "y": 1 }
+      ],
+      "rotatable": true
+    }
+  ],
+  "appearance": {
+    "spriteKey": "obstacle:charette-wood",
+    "tint": 13395558,
+    "heightClass": "medium",
+    "tokenScale": {
+      "min": 90,
+      "default": 110,
+      "max": 140
+    }
+  },
+  "spawnRules": {
+    "weight": 1,
+    "cluster": { "min": 1, "max": 1 },
+    "avoidNearTokens": true
+  }
+}

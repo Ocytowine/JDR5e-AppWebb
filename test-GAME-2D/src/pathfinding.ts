@@ -3,6 +3,10 @@ import type { GridPosition, TokenState, MovementProfile } from "./types";
 import { getHeightAtGrid, type TerrainCell } from "./game/map/draft";
 import { getFloorMaterial } from "./game/map/floors/catalog";
 import { isEdgeBlockedForMovement } from "./game/map/walls/runtime";
+import {
+  getTokenOccupiedCells,
+  getTokenOccupiedCellsAt
+} from "./game/footprint";
 
 interface PathfindingOptions {
   /**
@@ -14,6 +18,11 @@ interface PathfindingOptions {
    * est par exemple le joueur que l'on veut engager).
    */
   allowTargetOccupied?: boolean;
+  /**
+   * Cells occupied by the target (if any). Used to allow overlap
+   * when `allowTargetOccupied` is true.
+   */
+  targetCells?: GridPosition[] | null;
   /**
    * Set of blocked cells (obstacles/walls) encoded as "x,y".
    * Movement profiles with `canPassThroughWalls` can ignore these.
@@ -130,9 +139,10 @@ function canEnterCell(
   profile: MovementProfile | null,
   x: number,
   y: number,
-  tokens: TokenState[],
+  occupiedByTokens: Set<string>,
   allowTargetOccupied: boolean,
   target: GridPosition,
+  targetCells: Set<string> | null,
   blockedCells?: Set<string> | null,
   playableCells?: Set<string> | null,
   grid?: { cols: number; rows: number } | null,
@@ -142,47 +152,54 @@ function canEnterCell(
 ): boolean {
   const cols = grid?.cols ?? GRID_COLS;
   const rows = grid?.rows ?? GRID_ROWS;
-  if (!isCellInsideGrid(x, y, cols, rows)) return false;
+  const entityCells = getTokenOccupiedCellsAt(entity, { x, y });
+  if (!entityCells.length) return false;
 
-  if (heightMap && heightMap.length > 0 && typeof activeLevel === "number") {
-    const baseHeight = getHeightAtGrid(heightMap, cols, rows, x, y);
-    if (baseHeight !== activeLevel) {
+  for (const cell of entityCells) {
+    if (!isCellInsideGrid(cell.x, cell.y, cols, rows)) return false;
+
+    if (heightMap && heightMap.length > 0 && typeof activeLevel === "number") {
+      const baseHeight = getHeightAtGrid(heightMap, cols, rows, cell.x, cell.y);
+      if (baseHeight !== activeLevel) {
+        return false;
+      }
+    }
+
+    if (floorIds && floorIds.length > 0) {
+      const idx = cell.y * cols + cell.x;
+      if (idx >= 0 && idx < floorIds.length) {
+        const floorId = floorIds[idx];
+        const mat = getFloorMaterial(floorId);
+        if (mat?.passable === false) return false;
+      }
+    }
+
+    const cellKey = coordKey(cell.x, cell.y);
+    if (playableCells && playableCells.size > 0 && !playableCells.has(cellKey)) {
       return false;
     }
-  }
 
-  if (floorIds && floorIds.length > 0) {
-    const idx = y * cols + x;
-    if (idx >= 0 && idx < floorIds.length) {
-      const floorId = floorIds[idx];
-      const mat = getFloorMaterial(floorId);
-      if (mat?.passable === false) return false;
+    if (blockedCells?.has(cellKey)) {
+      if (!profile?.canPassThroughWalls) {
+        return false;
+      }
     }
-  }
-
-  const cellKey = coordKey(x, y);
-  if (playableCells && playableCells.size > 0 && !playableCells.has(cellKey)) {
-    return false;
   }
 
   const isTarget = x === target.x && y === target.y;
+  const overlaps = entityCells.some(c => occupiedByTokens.has(coordKey(c.x, c.y)));
 
-  if (blockedCells?.has(cellKey)) {
-    if (!profile?.canPassThroughWalls) {
-      return false;
-    }
-  }
-
-  const occupiedByOther = tokens.some(
-    t => t.id !== entity.id && t.hp > 0 && t.x === x && t.y === y
-  );
-
-  if (!occupiedByOther) {
+  if (!overlaps) {
     return true;
   }
 
   if (isTarget && allowTargetOccupied) {
-    return true;
+    if (!targetCells || targetCells.size === 0) return true;
+    const allOverlapsAreTarget = entityCells.every(c => {
+      const key = coordKey(c.x, c.y);
+      return !occupiedByTokens.has(key) || targetCells.has(key);
+    });
+    if (allOverlapsAreTarget) return true;
   }
 
   if (!profile) {
@@ -232,6 +249,18 @@ export function computePathTowards(
   if (start.x === target.x && start.y === target.y) {
     return [];
   }
+
+  const occupiedByTokens = new Set<string>();
+  for (const t of tokens) {
+    if (t.id === entity.id || t.hp <= 0) continue;
+    for (const c of getTokenOccupiedCells(t)) {
+      occupiedByTokens.add(coordKey(c.x, c.y));
+    }
+  }
+  const targetCellsSet =
+    options.targetCells && options.targetCells.length > 0
+      ? new Set(options.targetCells.map(c => coordKey(c.x, c.y)))
+      : null;
 
   const visited = new Set<string>();
   const parents = new Map<string, string | null>();
@@ -292,9 +321,10 @@ export function computePathTowards(
           profile,
           nx,
           ny,
-          tokens,
+          occupiedByTokens,
           options.allowTargetOccupied ?? false,
           target,
+          targetCellsSet,
           options.blockedCells ?? null,
           options.playableCells ?? null,
           options.grid ?? null,
@@ -317,9 +347,10 @@ export function computePathTowards(
           profile,
           current.x + dir.x,
           current.y,
-          tokens,
+          occupiedByTokens,
           false,
           target,
+          targetCellsSet,
           options.blockedCells ?? null,
           options.playableCells ?? null,
           options.grid ?? null,
@@ -332,9 +363,10 @@ export function computePathTowards(
           profile,
           current.x,
           current.y + dir.y,
-          tokens,
+          occupiedByTokens,
           false,
           target,
+          targetCellsSet,
           options.blockedCells ?? null,
           options.playableCells ?? null,
           options.grid ?? null,
