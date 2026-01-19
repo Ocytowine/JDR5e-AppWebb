@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import type { RefObject } from "react";
-import type { Graphics } from "pixi.js";
+import { BlurFilter, Graphics } from "pixi.js";
 import type { TokenState } from "../../types";
 import type { EffectSpec } from "../../game/turnTypes";
 import type { BoardEffect } from "../../boardEffects";
@@ -50,7 +50,20 @@ export function usePixiOverlays(options: {
     const pathLayer = options.pathLayerRef.current;
     if (!pathLayer) return;
 
+    const fogLayer: Graphics = (() => {
+      const parent = pathLayer.parent as any;
+      if (!parent) return pathLayer;
+      const existing = parent.__fogLayer as Graphics | undefined;
+      if (existing) return existing;
+      const layer = new Graphics();
+      layer.filters = [new BlurFilter({ strength: 2, quality: 2 })];
+      parent.__fogLayer = layer;
+      parent.addChild(layer);
+      return layer;
+    })();
+
     pathLayer.clear();
+    fogLayer.clear();
 
     const activeEffects: BoardEffect[] = options.effectSpecs.map(spec => {
       switch (spec.kind) {
@@ -205,9 +218,9 @@ export function usePixiOverlays(options: {
           if (inVision && perceivable) continue;
 
           const rect = cellRect(x, y);
-          const alpha = inVision ? 0.65 : isNight ? 0.6 : 0.45;
+          const alpha = inVision ? 0.65 : isNight ? 0.65 : 0.45;
           const color = inVision ? 0x000000 : fogColor;
-          pathLayer.rect(rect.x, rect.y, rect.size, rect.size).fill({
+          fogLayer.rect(rect.x, rect.y, rect.size, rect.size).fill({
             color,
             alpha
           });
@@ -224,7 +237,7 @@ export function usePixiOverlays(options: {
 
           const rect = cellRect(x, y);
           const alpha = visibility === 1 ? 0.35 : 0.6;
-          pathLayer.rect(rect.x, rect.y, rect.size, rect.size).fill({
+          fogLayer.rect(rect.x, rect.y, rect.size, rect.size).fill({
             color: 0x000000,
             alpha
           });
