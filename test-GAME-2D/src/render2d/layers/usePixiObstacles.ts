@@ -55,6 +55,26 @@ export function usePixiObstacles(options: {
     return palette.layers[layerKey] ?? null;
   };
 
+  const getFootprintGrid = (def: ObstacleTypeDefinition | null): { tilesX: number; tilesY: number } | null => {
+    if (!def?.variants?.length) return null;
+    let minX = Number.POSITIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+    for (const variant of def.variants) {
+      for (const cell of variant.footprint ?? []) {
+        if (cell.x < minX) minX = cell.x;
+        if (cell.y < minY) minY = cell.y;
+        if (cell.x > maxX) maxX = cell.x;
+        if (cell.y > maxY) maxY = cell.y;
+      }
+    }
+    if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) {
+      return null;
+    }
+    return { tilesX: Math.max(1, Math.round(maxX - minX + 1)), tilesY: Math.max(1, Math.round(maxY - minY + 1)) };
+  };
+
   useEffect(() => {
     const depthLayer = options.depthLayerRef.current;
     if (!depthLayer) return;
@@ -90,6 +110,20 @@ export function usePixiObstacles(options: {
         : 0x8e5a2b;
       const container = new Container();
 
+      const center =
+        occupied.length > 0
+          ? occupied
+              .map(cell => gridToScreenForGrid(cell.x, cell.y, options.grid.cols, options.grid.rows))
+              .reduce(
+                (acc, pt) => ({ x: acc.x + pt.x, y: acc.y + pt.y }),
+                { x: 0, y: 0 }
+              )
+          : gridToScreenForGrid(obs.x, obs.y, options.grid.cols, options.grid.rows);
+      if (occupied.length > 0) {
+        center.x /= occupied.length;
+        center.y /= occupied.length;
+      }
+
       const isAnyTokenBelow = occupied.some(cell => tokenOccupied.has(cellKey(cell.x, cell.y)));
       const layers =
         def?.appearance?.layers && def.appearance.layers.length > 0
@@ -99,6 +133,7 @@ export function usePixiObstacles(options: {
             : [];
 
       if (layers.length > 0) {
+        const footprintGrid = getFootprintGrid(def);
         const sorted = [...layers].sort((a, b) => (a.z ?? 0) - (b.z ?? 0));
         for (const layer of sorted) {
           const visibleRule = layer.visible ?? "always";
@@ -112,7 +147,6 @@ export function usePixiObstacles(options: {
           }
           const spriteUrl = getObstaclePngUrl(layer.spriteKey);
           if (!spriteUrl) continue;
-          const center = gridToScreenForGrid(obs.x, obs.y, options.grid.cols, options.grid.rows);
           const sprite = Sprite.from(spriteUrl);
           sprite.anchor.set(0.5, 0.5);
           const orientation = obs.orientation ?? "right";
@@ -120,10 +154,11 @@ export function usePixiObstacles(options: {
           const scaleBase = typeof obs.tokenScale === "number" ? obs.tokenScale / 100 : 1;
           const scaleLayer = typeof layer.scale === "number" ? layer.scale : 1;
           const scaleAppearance = typeof def?.appearance?.scale === "number" ? def.appearance.scale : 1;
-          const gridSpec = layer.spriteGrid ?? def?.appearance?.spriteGrid ?? null;
+          const gridSpec = layer.spriteGrid ?? def?.appearance?.spriteGrid ?? footprintGrid ?? null;
           if (gridSpec && sprite.texture.width > 0 && sprite.texture.height > 0) {
-            const targetW = gridSpec.tilesX * TILE_SIZE;
-            const targetH = gridSpec.tilesY * TILE_SIZE;
+            const tileSize = typeof gridSpec.tileSize === "number" && gridSpec.tileSize > 0 ? gridSpec.tileSize : TILE_SIZE;
+            const targetW = gridSpec.tilesX * tileSize;
+            const targetH = gridSpec.tilesY * tileSize;
             const scaleX = targetW / sprite.texture.width;
             const scaleY = targetH / sprite.texture.height;
             sprite.scale.set(scaleX * scaleBase * scaleLayer * scaleAppearance, scaleY * scaleBase * scaleLayer * scaleAppearance);

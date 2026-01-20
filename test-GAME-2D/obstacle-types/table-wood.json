@@ -22,10 +22,8 @@
       "id": "base",
       "label": "Table",
       "footprint": [
-        {
-          "x": 0,
-          "y": 0
-        }
+        { "x": 0, "y": 0 },
+        { "x": 0, "y": 1 }
       ],
       "rotatable": true
     }
@@ -36,9 +34,9 @@
     "tint": 16777215,
     "heightClass": "medium",
     "tokenScale": {
-      "min": 75,
-      "default": 70,
-      "max": 80
+      "min": 100,
+      "default": 100,
+      "max": 100
     }
   },
   "spawnRules": {

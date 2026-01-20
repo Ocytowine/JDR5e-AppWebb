@@ -19,7 +19,8 @@ export type LayoutId =
   | "forest_clearing"
   | "city_street"
   | "building_tiered"
-  | "generic_scatter";
+  | "generic_scatter"
+  | "test_obstacles";
 
 export type EntranceSide = "north" | "south" | "west" | "east";
 export type EntrancePosition = "center" | "start" | "end";
@@ -158,31 +159,6 @@ export interface MapBuildContext {
   enemyTypes: EnemyTypeDefinition[];
   obstacleTypes: ObstacleTypeDefinition[];
   wallTypes: WallTypeDefinition[];
-}
-
-export interface ManualMapBorderMask {
-  north: boolean;
-  south: boolean;
-  west: boolean;
-  east: boolean;
-}
-
-export interface ManualMapOptions {
-  walls: boolean;
-  density: "low" | "medium" | "high";
-  corridors: boolean;
-  entrances: number;
-  lighting: "low" | "normal" | "bright";
-  theme: MapTheme;
-  borderMask: ManualMapBorderMask;
-  patterns?: string[];
-}
-
-export interface ManualMapConfig {
-  presetId: string;
-  grid: { cols: number; rows: number };
-  obstacles: { typeId: string; count: number }[];
-  options: ManualMapOptions;
 }
 
 export interface MapBuildResult {

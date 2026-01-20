@@ -350,6 +350,7 @@ export function parsePromptToSpec(params: {
   const text = norm(raw);
   const notes: string[] = [];
   const obstacleRequests = extractObstacleRequests(raw, text);
+  const wantsTestObstacles = hasAny(text, [/\btest obstacles?\b/]);
 
   const isDungeon = hasAny(text, [
     /\bdonjon\b/,
@@ -378,6 +379,7 @@ export function parsePromptToSpec(params: {
   if (isDungeon) theme = "dungeon";
   else if (isForest) theme = "forest";
   else if (isCity) theme = "city";
+  if (wantsTestObstacles) theme = "generic";
 
   const isDay = hasAny(text, [/\bil fait jour\b/, /\bjour\b/]);
   const isNight = hasAny(text, [/\bnuit\b/, /\bobscur\b/, /\bsombre\b/]);
@@ -463,14 +465,15 @@ export function parsePromptToSpec(params: {
 
   let layoutId: MapSpec["layoutId"] = "generic_scatter";
 
-  if (theme === "dungeon" && (wantsSquareRoom || wantsRectRoom)) layoutId = "dungeon_square_room";
+  if (wantsTestObstacles) layoutId = "test_obstacles";
+  else if (theme === "dungeon" && (wantsSquareRoom || wantsRectRoom)) layoutId = "dungeon_square_room";
   else if (theme === "dungeon" && wantsCircularRoom) layoutId = "dungeon_circular_room";
   else if (theme === "forest" && wantsClearing) layoutId = "forest_clearing";
   else if (theme === "city" && wantsStreet) layoutId = "city_street";
   else if (theme === "dungeon") layoutId = "dungeon_circular_room"; // défaut donjon = salle
   else if (theme === "forest") layoutId = "forest_clearing";
   else if (theme === "city") layoutId = "city_street";
-  if (wantsBuildingLayout && !wantsStreet) layoutId = "building_tiered";
+  if (!wantsTestObstacles && wantsBuildingLayout && !wantsStreet) layoutId = "building_tiered";
 
   const spec: MapSpec = {
     prompt: promptWithTime,

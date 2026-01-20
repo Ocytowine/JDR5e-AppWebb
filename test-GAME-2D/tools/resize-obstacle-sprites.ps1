@@ -59,19 +59,43 @@ if ($UseSpriteGrid) {
     $spriteGridByFile[$fileName] = $entry
   }
 
+  function Get-FootprintGrid($variants) {
+    if (-not $variants) { return $null }
+    $minX = 999999
+    $minY = 999999
+    $maxX = -999999
+    $maxY = -999999
+    foreach ($variant in $variants) {
+      foreach ($cell in ($variant.footprint ?? @())) {
+        if ($cell.x -lt $minX) { $minX = $cell.x }
+        if ($cell.y -lt $minY) { $minY = $cell.y }
+        if ($cell.x -gt $maxX) { $maxX = $cell.x }
+        if ($cell.y -gt $maxY) { $maxY = $cell.y }
+      }
+    }
+    if ($maxX -lt $minX -or $maxY -lt $minY) { return $null }
+    return @{
+      tilesX = [int]($maxX - $minX + 1)
+      tilesY = [int]($maxY - $minY + 1)
+      tileSize = 0
+    }
+  }
+
   foreach ($jsonFile in $jsonFiles) {
     $json = Get-Content -Raw -Path $jsonFile.FullName | ConvertFrom-Json
     $appearance = $json.appearance
     if (-not $appearance) { continue }
     $appearanceGrid = $appearance.spriteGrid
+    $footprintGrid = Get-FootprintGrid $json.variants
 
     if ($appearance.spriteKey) {
-      Register-Grid $appearance.spriteKey $appearanceGrid
+      $grid = if ($appearanceGrid) { $appearanceGrid } else { $footprintGrid }
+      Register-Grid $appearance.spriteKey $grid
     }
 
     if ($appearance.layers) {
       foreach ($layer in $appearance.layers) {
-        $grid = if ($layer.spriteGrid) { $layer.spriteGrid } else { $appearanceGrid }
+        $grid = if ($layer.spriteGrid) { $layer.spriteGrid } elseif ($appearanceGrid) { $appearanceGrid } else { $footprintGrid }
         Register-Grid $layer.spriteKey $grid
       }
     }

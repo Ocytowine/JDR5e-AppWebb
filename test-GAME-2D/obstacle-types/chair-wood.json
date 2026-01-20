@@ -36,9 +36,9 @@
     "tint": 16777215,
     "heightClass": "low",
     "tokenScale": {
-      "default": 70,
-      "min": 65,
-      "max": 75
+      "default": 100,
+      "min": 100,
+      "max": 100
     }
   },
   "spawnRules": {

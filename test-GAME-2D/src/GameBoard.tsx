@@ -45,8 +45,7 @@ import { generateBattleMap } from "./game/mapEngine";
 import { getHeightAtGrid, type TerrainCell } from "./game/map/draft";
 import { getFloorMaterial } from "./game/map/floors/catalog";
 import type { DecorInstance } from "./game/decorTypes";
-import type { ManualMapConfig, MapTheme } from "./game/map/types";
-import { MANUAL_MAP_PRESETS, getManualPresetById } from "./game/map/presets";
+import type { MapTheme } from "./game/map/types";
 import { buildObstacleBlockingSets, getObstacleOccupiedCells } from "./game/obstacleRuntime";
 import {
   distanceBetweenCells,
@@ -183,35 +182,6 @@ function buildCellKey(x: number, y: number): string {
 // -------------------------------------------------------------
 // Helpers
 // -------------------------------------------------------------
-
-function buildManualConfig(
-  presetId: string,
-  obstacleTypes: ObstacleTypeDefinition[]
-): ManualMapConfig {
-  const preset = getManualPresetById(presetId);
-  const obstacles = obstacleTypes
-    .filter(t => t.appearance?.spriteKey && t.category !== "wall")
-    .map(t => ({ typeId: t.id, count: 0 }));
-
-  return {
-    presetId: preset.id,
-    grid: { ...preset.grid },
-    options: { ...preset.options },
-    obstacles
-  };
-}
-
-function syncManualConfigObstacles(
-  config: ManualMapConfig,
-  obstacleTypes: ObstacleTypeDefinition[]
-): ManualMapConfig {
-  const byId = new Map(config.obstacles.map(o => [o.typeId, o.count]));
-  const obstacles = obstacleTypes
-    .filter(t => t.appearance?.spriteKey && t.category !== "wall")
-    .map(t => ({ typeId: t.id, count: byId.get(t.id) ?? 0 }));
-
-  return { ...config, obstacles };
-}
 
 function loadEnemyTypesFromIndex(): EnemyTypeDefinition[] {
   const indexed = Array.isArray((enemyTypesIndex as any).types)
@@ -389,10 +359,6 @@ export const GameBoard: React.FC = () => {
   const [isCombatConfigured, setIsCombatConfigured] = useState<boolean>(false);
   const [configEnemyCount, setConfigEnemyCount] = useState<number>(3);
   const [mapPrompt, setMapPrompt] = useState<string>("");
-  const [mapMode, setMapMode] = useState<"prompt" | "manual">("prompt");
-  const [manualConfig, setManualConfig] = useState<ManualMapConfig>(() =>
-    buildManualConfig("arena_medium", [])
-  );
 
   const ZOOM_MIN = 0.5;
   const ZOOM_MAX = 4;
@@ -1501,11 +1467,8 @@ export const GameBoard: React.FC = () => {
       return;
     }
 
-    const isManual = mapMode === "manual";
-    let grid = isManual ? { ...manualConfig.grid } : { ...mapGrid };
+    let grid = { ...mapGrid };
     let map = generateBattleMap({
-      mode: mapMode,
-      manualConfig: isManual ? manualConfig : undefined,
       prompt: mapPrompt,
       grid,
       enemyCount: configEnemyCount,
@@ -1514,25 +1477,21 @@ export const GameBoard: React.FC = () => {
       wallTypes
     });
 
-    if (!isManual) {
-      let safety = 0;
-      while (safety < 3) {
-        const rec = map.recommendedGrid;
-        if (!rec || (rec.cols <= grid.cols && rec.rows <= grid.rows)) break;
-        pushLog(`[map] Redimensionnement automatique: ${grid.cols}x${grid.rows} -> ${rec.cols}x${rec.rows} (${rec.reason}).`);
-        grid = { cols: rec.cols, rows: rec.rows };
-        map = generateBattleMap({
-          mode: mapMode,
-          manualConfig: undefined,
-          prompt: mapPrompt,
-          grid,
-          enemyCount: configEnemyCount,
-          enemyTypes,
-          obstacleTypes,
-          wallTypes
-        });
-        safety++;
-      }
+    let safety = 0;
+    while (safety < 3) {
+      const rec = map.recommendedGrid;
+      if (!rec || (rec.cols <= grid.cols && rec.rows <= grid.rows)) break;
+      pushLog(`[map] Redimensionnement automatique: ${grid.cols}x${grid.rows} -> ${rec.cols}x${rec.rows} (${rec.reason}).`);
+      grid = { cols: rec.cols, rows: rec.rows };
+      map = generateBattleMap({
+        prompt: mapPrompt,
+        grid,
+        enemyCount: configEnemyCount,
+        enemyTypes,
+        obstacleTypes,
+        wallTypes
+      });
+      safety++;
     }
 
     const generationLines = Array.isArray(map.generationLog)
@@ -1778,10 +1737,6 @@ export const GameBoard: React.FC = () => {
     setWallTypes(loadedTypes);
   }, []);
 
-  useEffect(() => {
-    if (obstacleTypes.length === 0) return;
-    setManualConfig(prev => syncManualConfigObstacles(prev, obstacleTypes));
-  }, [obstacleTypes]);
 
   useEffect(() => {
     if (!isCombatConfigured) return;
@@ -4813,12 +4768,6 @@ function handleEndPlayerTurn() {
     if (!isCombatConfigured) {
       return (
         <CombatSetupScreen
-          mode={mapMode}
-          manualConfig={manualConfig}
-          manualPresets={MANUAL_MAP_PRESETS}
-          obstacleTypes={obstacleTypes}
-          onChangeMode={setMapMode}
-          onChangeManualConfig={setManualConfig}
           configEnemyCount={configEnemyCount}
           enemyTypeCount={enemyTypes.length}
           gridCols={mapGrid.cols}

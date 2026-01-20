@@ -1,5 +1,5 @@
 import type { GridPosition } from "../../types";
-import type { MapBuildContext, MapBuildResult, ManualMapConfig, MapSpec } from "./types";
+import type { MapBuildContext, MapBuildResult, MapSpec } from "./types";
 import type { MapDraft } from "./draft";
 import { getHeightAtGrid, key } from "./draft";
 import { parsePromptToSpec } from "./promptParser";
@@ -15,7 +15,7 @@ import { generateForestClearing } from "./modules/forestClearing";
 import { generateCityStreet } from "./modules/cityStreet";
 import { generateTieredBuilding } from "./modules/tieredBuilding";
 import { generateGenericScatter } from "./modules/genericScatter";
-import { generateManualArena } from "./modules/manualArena";
+import { generateTestObstacles } from "./modules/testObstacles";
 
 export function buildMapFromPrompt(params: {
   prompt: string;
@@ -62,6 +62,8 @@ export function generateFromSpec(params: {
       return generateCityStreet({ spec, ctx, rand });
     case "building_tiered":
       return generateTieredBuilding({ spec, ctx, rand });
+    case "test_obstacles":
+      return generateTestObstacles({ spec, ctx, rand });
     default:
       return generateGenericScatter({ spec, ctx, rand });
   }
@@ -189,6 +191,8 @@ export function runGenerationPipeline(params: {
               ? "Layout: foret (clairiere)."
               : spec.layoutId === "city_street"
                 ? "Layout: ville (rue)."
+                : spec.layoutId === "test_obstacles"
+                  ? "Layout: test obstacles."
                 : "Layout: basique."
   );
   summaryParts.push(`Obstacles: ${draft.obstacles.length}. Murs: ${draft.wallSegments.length}. Ennemis: ${enemySpawns.length}.`);
@@ -232,63 +236,6 @@ export function runGenerationPipeline(params: {
     decorations: draft.decorations,
     roofOpenCells: Array.from(draft.roofOpenCells),
     recommendedGrid: recommendedGrid ?? undefined
-  };
-}
-
-export function runManualGenerationPipeline(params: {
-  manualConfig: ManualMapConfig;
-  ctx: MapBuildContext;
-}): MapBuildResult {
-  const { manualConfig, ctx } = params;
-
-  const seed = hashStringToSeed(JSON.stringify(manualConfig));
-  const rand = mulberry32(seed);
-
-  const { draft, playerStart } = generateManualArena({ manualConfig, ctx, rand });
-  const resolvedPlayerStart = resolvePlayerStart(draft, playerStart);
-
-  const { enemySpawns, log: spawnLog } = spawnEnemies({
-    draft,
-    playerStart: resolvedPlayerStart,
-    enemyCount: ctx.enemyCount,
-    enemyTypes: ctx.enemyTypes,
-    rand
-  });
-
-  const summaryParts: string[] = [];
-  const generationLog: string[] = [];
-
-  summaryParts.push(`Manual preset: ${manualConfig.presetId}.`);
-  summaryParts.push(`Obstacles: ${draft.obstacles.length}. Murs: ${draft.wallSegments.length}. Ennemis: ${enemySpawns.length}.`);
-
-  generationLog.push(
-    `[manual] preset=${manualConfig.presetId} grid=${manualConfig.grid.cols}x${manualConfig.grid.rows}`
-  );
-  generationLog.push(...draft.log.map(l => `[gen] ${l}`));
-  generationLog.push(...spawnLog.map(l => `[spawn] ${l}`));
-
-  const wallSegmentMap = new Map<string, import("./walls/types").WallSegment>();
-  for (const seg of draft.wallSegments) {
-    wallSegmentMap.set(wallEdgeKeyForSegment(seg), seg);
-  }
-
-  return {
-    summaryParts,
-    generationLog,
-    grid: { cols: draft.cols, rows: draft.rows },
-    theme: manualConfig.options.theme,
-    paletteId: undefined,
-    playerStart: resolvedPlayerStart,
-    enemySpawns,
-    playableCells: Array.from(draft.playable),
-    obstacles: draft.obstacles,
-    wallSegments: Array.from(wallSegmentMap.values()),
-    terrain: draft.layers.terrain,
-    height: draft.layers.height,
-    light: draft.layers.light,
-    decorations: draft.decorations,
-    roofOpenCells: Array.from(draft.roofOpenCells),
-    recommendedGrid: undefined
   };
 }
 

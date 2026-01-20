@@ -1,7 +1,6 @@
 import React from "react";
 import type { TurnEntry } from "../game/turnTypes";
 import type { TokenState } from "../types";
-import { buildTokenSvgDataUrl } from "../svgTokenHelper";
 import { isTokenDead } from "../game/combatUtils";
 
 export function InitiativePanel(props: {
@@ -58,15 +57,14 @@ export function InitiativePanel(props: {
             entry.id === props.activeEntry.id &&
             entry.kind === props.activeEntry.kind;
           const isPlayer = entry.kind === "player";
-          const tokenSvg = buildTokenSvgDataUrl(isPlayer ? "player" : "enemy");
           const tokenState =
             entry.kind === "player"
               ? props.player
               : props.enemies.find(e => e.id === entry.id) || null;
           const isDead = tokenState ? isTokenDead(tokenState) : false;
           const token = isPlayer
-            ? { svg: tokenSvg, label: "PJ" }
-            : { svg: tokenSvg, label: entry.id };
+            ? { label: "PJ", color: "#7dc4ff" }
+            : { label: entry.id, color: "#ff6b6b" };
 
           return (
             <div
@@ -82,20 +80,26 @@ export function InitiativePanel(props: {
                 minWidth: 48
               }}
             >
-              <img
-                src={token.svg}
-                alt={token.label}
+              <div
+                aria-hidden="true"
                 style={{
                   width: 32,
                   height: 32,
-                  objectFit: "contain",
-                  filter: isDead
-                    ? "grayscale(1)"
-                    : isPlayer
-                      ? "none"
-                      : "grayscale(0.2)"
+                  borderRadius: "50%",
+                  background: isDead ? "#2b2b38" : token.color,
+                  border: "1px solid rgba(255,255,255,0.18)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: "#0b0b12",
+                  textTransform: "uppercase",
+                  filter: isDead ? "grayscale(1)" : "none"
                 }}
-              />
+              >
+                {token.label.slice(0, 2)}
+              </div>
               <span
                 style={{
                   fontSize: 10,
