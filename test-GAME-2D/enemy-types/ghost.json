@@ -19,6 +19,10 @@
     "attackDamage": 3,
     "armorClass": 12
   },
+  "appearance": {
+    "spriteKey": "ghost",
+    "tokenScale": 100
+  },
   "movement": {
     "type": "ghost",
     "speed": 4,

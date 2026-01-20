@@ -19,6 +19,10 @@
     "attackDamage": 3,
     "armorClass": 15
   },
+  "appearance": {
+    "spriteKey": "assassin",
+    "tokenScale": 100
+  },
   "movement": {
     "type": "ground",
     "speed": 3,

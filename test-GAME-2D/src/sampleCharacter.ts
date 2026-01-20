@@ -52,6 +52,10 @@ export const sampleCharacter: Personnage = {
     apertureDeg: 180,
     lightVision: "normal"
   },
+  appearance: {
+    spriteKey: "character",
+    tokenScale: 100
+  },
   // Keep competences empty in this mini-game to avoid
   // encoding issues with accented keys.
   competences: {} as any,

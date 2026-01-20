@@ -21,6 +21,10 @@
     "attackRange": 1,
     "maxAttacksPerTurn": 2
   },
+  "appearance": {
+    "spriteKey": "brute",
+    "tokenScale": 100
+  },
   "movement": {
     "type": "ground",
     "speed": 3,

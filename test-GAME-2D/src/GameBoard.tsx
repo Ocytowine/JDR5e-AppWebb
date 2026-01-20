@@ -156,6 +156,7 @@ import {
   type MovementModeDefinition
 } from "./game/movementModes";
 import { preloadObstaclePngTextures } from "./obstacleTextureHelper";
+import { preloadTokenPngTextures } from "./tokenTextureHelper";
 
 const ACTION_MODULES: Record<string, ActionDefinition> = {
   "./melee-strike.json": meleeStrike as ActionDefinition,
@@ -205,11 +206,11 @@ function loadEnemyTypesFromIndex(): EnemyTypeDefinition[] {
   return loaded;
 }
 
-function createEnemy(
-  index: number,
-  enemyType: EnemyTypeDefinition,
-  position: { x: number; y: number }
-): TokenState {
+  function createEnemy(
+    index: number,
+    enemyType: EnemyTypeDefinition,
+    position: { x: number; y: number }
+  ): TokenState {
   const { x, y } = position;
   const base = enemyType.baseStats;
   return {
@@ -218,11 +219,12 @@ function createEnemy(
     enemyTypeId: enemyType.id,
     enemyTypeLabel: enemyType.label,
     aiRole: enemyType.aiRole,
-    actionIds: Array.isArray((enemyType as any).actions)
-      ? ((enemyType as any).actions as string[])
-      : null,
-    speechProfile: enemyType.speechProfile ?? null,
-    moveRange: base.moveRange,
+      actionIds: Array.isArray((enemyType as any).actions)
+        ? ((enemyType as any).actions as string[])
+        : null,
+      appearance: enemyType.appearance,
+      speechProfile: enemyType.speechProfile ?? null,
+      moveRange: base.moveRange,
     attackDamage: base.attackDamage,
     attackRange: typeof base.attackRange === "number" ? base.attackRange : 1,
     maxAttacksPerTurn:
@@ -316,11 +318,12 @@ export const GameBoard: React.FC = () => {
   const [narrativeLog, setNarrativeLog] = useState<string[]>([]);
   const [speechBubbles, setSpeechBubbles] = useState<SpeechBubbleEntry[]>([]);
 
-  const [player, setPlayer] = useState<TokenState>({
-    id: "player-1",
-    type: "player",
-    x: 0,
-    y: Math.floor(GRID_ROWS / 2),
+    const [player, setPlayer] = useState<TokenState>({
+      id: "player-1",
+      type: "player",
+      appearance: sampleCharacter.appearance,
+      x: 0,
+      y: Math.floor(GRID_ROWS / 2),
     facing: "right",
     movementProfile: defaultMovementProfile,
     moveRange: defaultMovementProfile.speed,
@@ -906,6 +909,7 @@ export const GameBoard: React.FC = () => {
 
   useEffect(() => {
     void preloadObstaclePngTextures();
+    void preloadTokenPngTextures();
   }, []);
 
   usePixiWalls({

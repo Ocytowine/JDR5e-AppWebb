@@ -1,10 +1,15 @@
 import { useEffect } from "react";
-import { Container, Graphics } from "pixi.js";
+import { Container, Graphics, Sprite } from "pixi.js";
 import type { RefObject } from "react";
 import type { TokenState } from "../../types";
 import { TILE_SIZE, gridToScreenForGrid } from "../../boardConfig";
 import { isTokenDead } from "../../game/combatUtils";
-import { getTokenOccupiedCells } from "../../game/footprint";
+import {
+  getDefaultOrientationForToken,
+  getTokenOccupiedCells,
+  orientationToRotationDeg
+} from "../../game/footprint";
+import { getTokenSpriteUrl } from "../../tokenTextureHelper";
 
 export function usePixiTokens(options: {
   depthLayerRef: RefObject<Container | null>;
@@ -17,6 +22,35 @@ export function usePixiTokens(options: {
   visibleCells?: Set<string> | null;
   showAllLevels?: boolean;
 }): void {
+  const getTokenGridSpec = (token: TokenState): { tilesX: number; tilesY: number } => {
+    const spec = token.footprint;
+    if (spec?.kind === "rect") {
+      return {
+        tilesX: Math.max(1, Math.floor(spec.width)),
+        tilesY: Math.max(1, Math.floor(spec.height))
+      };
+    }
+    if (spec?.kind === "cells" && spec.cells.length > 0) {
+      let minX = Number.POSITIVE_INFINITY;
+      let minY = Number.POSITIVE_INFINITY;
+      let maxX = Number.NEGATIVE_INFINITY;
+      let maxY = Number.NEGATIVE_INFINITY;
+      for (const cell of spec.cells) {
+        minX = Math.min(minX, cell.x);
+        minY = Math.min(minY, cell.y);
+        maxX = Math.max(maxX, cell.x);
+        maxY = Math.max(maxY, cell.y);
+      }
+      if (Number.isFinite(minX) && Number.isFinite(minY) && Number.isFinite(maxX) && Number.isFinite(maxY)) {
+        return {
+          tilesX: Math.max(1, Math.round(maxX - minX + 1)),
+          tilesY: Math.max(1, Math.round(maxY - minY + 1))
+        };
+      }
+    }
+    return { tilesX: 1, tilesY: 1 };
+  };
+
   useEffect(() => {
     const depthLayer = options.depthLayerRef.current;
     if (!depthLayer) return;
@@ -43,15 +77,47 @@ export function usePixiTokens(options: {
 
       const center = gridToScreenForGrid(token.x, token.y, options.grid.cols, options.grid.rows);
       const container = new Container();
-      const color = token.type === "player" ? 0x2ecc71 : 0xe74c3c;
-      const radius = TILE_SIZE * 0.3;
+      const spriteKey = token.appearance?.spriteKey;
+      const spriteUrl = getTokenSpriteUrl(spriteKey, token.id, token.appearance?.spriteVariants);
+      const dead = isTokenDead(token);
 
-      const disc = new Graphics();
-      disc.circle(0, 0, radius).fill({
-        color: isTokenDead(token) ? 0x666666 : color,
-        alpha: isTokenDead(token) ? 0.6 : 0.95
-      });
-      container.addChild(disc);
+      if (spriteUrl) {
+        const sprite = Sprite.from(spriteUrl);
+        sprite.anchor.set(0.5, 0.5);
+        const orientation = getDefaultOrientationForToken(token);
+        const orientationDeg = orientationToRotationDeg(orientation);
+        const screenDeg = (360 - orientationDeg) % 360;
+        const spriteFacingScreenDeg = (360 - orientationToRotationDeg("up")) % 360;
+        const rotationDeg = screenDeg - spriteFacingScreenDeg;
+        sprite.rotation = (rotationDeg * Math.PI) / 180;
+        const gridSpec = getTokenGridSpec(token);
+        const scaleBase = typeof token.appearance?.tokenScale === "number"
+          ? token.appearance.tokenScale / 100
+          : 1;
+        if (sprite.texture.width > 0 && sprite.texture.height > 0) {
+          const targetW = gridSpec.tilesX * TILE_SIZE;
+          const targetH = gridSpec.tilesY * TILE_SIZE;
+          const scaleX = targetW / sprite.texture.width;
+          const scaleY = targetH / sprite.texture.height;
+          sprite.scale.set(scaleX * scaleBase, scaleY * scaleBase);
+        } else {
+        sprite.scale.set(scaleBase);
+        }
+        sprite.alpha = dead ? 0.6 : 0.95;
+        sprite.tint = dead ? 0x666666 : 0xffffff;
+        sprite.x = 0;
+        sprite.y = 0;
+        container.addChild(sprite);
+      } else {
+        const color = token.type === "player" ? 0x2ecc71 : 0xe74c3c;
+        const radius = TILE_SIZE * 0.3;
+        const disc = new Graphics();
+        disc.circle(0, 0, radius).fill({
+          color: dead ? 0x666666 : color,
+          alpha: dead ? 0.6 : 0.95
+        });
+        container.addChild(disc);
+      }
 
       container.x = center.x;
       container.y = center.y;

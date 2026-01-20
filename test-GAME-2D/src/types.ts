@@ -21,6 +21,7 @@ export interface Personnage {
     [key: string]: any;
   };
   visionProfile?: VisionProfile;
+  appearance?: TokenAppearance;
   [key: string]: any;
 }
 
@@ -30,6 +31,19 @@ export type TokenType = "player" | "enemy";
 export interface GridPosition {
   x: number;
   y: number;
+}
+
+export interface TokenAppearance {
+  spriteKey?: string;
+  /**
+   * List of allowed sprite variant indices (ex: [1, 2, 4]).
+   * When omitted, all existing variants are eligible.
+   */
+  spriteVariants?: number[];
+  /**
+   * Percentage scale, 100 = normal size.
+   */
+  tokenScale?: number;
 }
 
 export type FootprintSpec =
@@ -95,6 +109,7 @@ export interface VisionProfile {
 export interface TokenState {
   id: string;
   type: TokenType;
+  appearance?: TokenAppearance;
   enemyTypeId?: string;
   enemyTypeLabel?: string;
   aiRole?: string | null;

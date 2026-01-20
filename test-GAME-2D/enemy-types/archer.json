@@ -21,6 +21,10 @@
     "attackRange": 6,
     "maxAttacksPerTurn": 1
   },
+  "appearance": {
+    "spriteKey": "archer",
+    "tokenScale": 100
+  },
   "movement": {
     "type": "ground",
     "speed": 2,
