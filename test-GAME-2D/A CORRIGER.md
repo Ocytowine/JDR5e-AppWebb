@@ -1,7 +1,6 @@
 A corriger :
 - une action est décompté que si elle est accomplie jusqu'au bout (meme si l'action rate (jet de touche) elle est considéré comme décompté)
 - une somme de déplacement est valable par tour de jeu (actuellemnt, revient à 0 a chaque fin déplacment)
-- les ennemie ne savent pas tourné la tête, donc il ont tendance à ne pas voir efficacement la cible. il faut revoir leur faculté.
 -il faut forcer l'ia à modifier les ennemie au chargement, qu'il puisse les personliser.
 
 Murs et étages :
@@ -10,8 +9,7 @@ Murs et étages :
     - Mur non visible : pas assombris sur les faces
     - Quand joueur dans batiment (inclur une détection "en batiment", ou derriere un mur ( donc caché))
 A créer :
-Les type de sol :
-Le générateur dois avoir accès à différents types de sol, ayant leur propriété (déplacement, dégât, impactabilité (s'il peuvent être recouvert, modifiés, détruit)) , eau, terre, herbe, air, lave, roche, carreau, plancher...
+
 
 Effet de frappe :
  "si touche" "si raté" les lancé, tir, sort (coloration par type). Un visuel qui peut avoir plusieurs aspect modifiable par les actions (forme, épaisseur, couleurs, bruit d'impact "onomatopé”)
