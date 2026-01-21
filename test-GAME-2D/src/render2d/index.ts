@@ -1,5 +1,6 @@
 export { usePixiBoard } from "./board/usePixiBoard";
 export { usePixiDecorations } from "./layers/usePixiDecorations";
+export { usePixiEffects } from "./layers/usePixiEffects";
 export { usePixiGridLabels } from "./layers/usePixiGridLabels";
 export { usePixiObstacles } from "./layers/usePixiObstacles";
 export { usePixiOverlays } from "./layers/usePixiOverlays";

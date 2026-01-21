@@ -4,10 +4,17 @@ import type { ActionDefinition } from "../game/actionTypes";
 
 export function DicePanel(props: {
   validatedAction: ActionDefinition | null;
+  pendingHazard?: {
+    label: string;
+    formula: string;
+    cells: number;
+    statusRoll?: { die: number; trigger: number; statusId?: string };
+  } | null;
   advantageMode: AdvantageMode;
   onSetAdvantageMode: (mode: AdvantageMode) => void;
   onRollAttack: () => void;
   onRollDamage: () => void;
+  onRollHazardDamage: () => void;
   onAutoResolve: () => void;
   attackRoll: AttackRollResult | null;
   damageRoll: DamageRollResult | null;
@@ -30,6 +37,47 @@ export function DicePanel(props: {
         Choisir une action, la valider, puis lancer le jet de touche et/ou de dégâts. Mode
         auto: enchaîne touche + dégâts.
       </p>
+      {props.pendingHazard && (
+        <div
+          style={{
+            background: "#1a1424",
+            border: "1px solid #3b2d4a",
+            borderRadius: 6,
+            padding: "6px 8px",
+            fontSize: 12
+          }}
+        >
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>
+            Danger: {props.pendingHazard.label}
+          </div>
+          <div>
+            Cases traversees: {props.pendingHazard.cells} | Jet requis:{" "}
+            {props.pendingHazard.formula}
+          </div>
+          {props.pendingHazard.statusRoll && (
+            <div style={{ marginTop: 2, opacity: 0.85 }}>
+              Etat: d{props.pendingHazard.statusRoll.die} =={" "}
+              {props.pendingHazard.statusRoll.trigger}
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={props.onRollHazardDamage}
+            style={{
+              marginTop: 6,
+              padding: "4px 8px",
+              background: "#c0392b",
+              color: "#fff",
+              border: "none",
+              borderRadius: 4,
+              cursor: "pointer",
+              fontSize: 12
+            }}
+          >
+            Lancer degats environnement
+          </button>
+        </div>
+      )}
       <div style={{ fontSize: 12 }}>
         Action validée :{" "}
         {props.validatedAction

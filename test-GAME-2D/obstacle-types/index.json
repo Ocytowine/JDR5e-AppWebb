@@ -15,6 +15,7 @@
     "./statue-stone.json",
     "./torch-wall.json",
     "./brazier.json",
+    "./fire-only.json",
     "./pillar-stone.json",
     "./stairs-stone.json",
     "./charette-wood.json"

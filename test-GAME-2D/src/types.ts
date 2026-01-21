@@ -170,6 +170,10 @@ export interface TokenState {
    * 0 = au sol, >0 = en elevation.
    */
   elevation?: number;
+  statuses?: Array<{
+    id: string;
+    remainingTurns: number;
+  }>;
   x: number;
   y: number;
   hp: number;

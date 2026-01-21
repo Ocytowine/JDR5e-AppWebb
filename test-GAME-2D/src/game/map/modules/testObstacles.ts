@@ -60,9 +60,12 @@ export function generateTestObstacles(params: {
   const padding = 1;
   const startX = 2;
   const startY = 1;
+  const effectZoneW = 5;
+  const effectZoneH = 5;
 
+  const fireOnly = ctx.obstacleTypes.find(type => type.id === "fire-only") ?? null;
   const items = ctx.obstacleTypes
-    .slice()
+    .filter(type => type.id !== "fire-only")
     .sort((a, b) => a.id.localeCompare(b.id))
     .map(type => {
       const variant = type.variants.find(v => v.id === "base") ?? type.variants[0];
@@ -84,6 +87,7 @@ export function generateTestObstacles(params: {
   let cursorY = 0;
   let rowH = 0;
   const placements: Array<{ item: (typeof items)[number]; x: number; y: number }> = [];
+  let maxPlacedX = startX;
 
   for (const item of items) {
     if (cursorX > 0 && cursorX + item.bounds.w > usableCols) {
@@ -92,12 +96,16 @@ export function generateTestObstacles(params: {
       rowH = 0;
     }
     placements.push({ item, x: startX + cursorX, y: startY + cursorY });
+    maxPlacedX = Math.max(maxPlacedX, startX + cursorX + item.bounds.w - 1);
     cursorX += item.bounds.w + padding;
     rowH = Math.max(rowH, item.bounds.h);
   }
 
   const rowsNeeded = startY + cursorY + rowH + 1;
-  const rows = Math.max(1, Math.floor(spec.grid.rows), rowsNeeded);
+  const effectZoneX = maxPlacedX + padding + 2;
+  const effectZoneY = startY;
+  cols = Math.max(cols, effectZoneX + effectZoneW + 1);
+  const rows = Math.max(1, Math.floor(spec.grid.rows), rowsNeeded, effectZoneY + effectZoneH + 1);
   const draft = createDraft({ cols, rows, reserved: new Set(), seedPrefix: "testobs" });
 
   for (let y = 0; y < rows; y++) {
@@ -127,6 +135,25 @@ export function generateTestObstacles(params: {
     if (!ok) {
       draft.log.push(`Test obstacle ignore: ${item.type.id}`);
     }
+  }
+
+  for (let y = effectZoneY; y < effectZoneY + effectZoneH; y++) {
+    for (let x = effectZoneX; x < effectZoneX + effectZoneW; x++) {
+      setTerrain(draft, x, y, "floor");
+    }
+  }
+
+  if (fireOnly) {
+    const centerX = effectZoneX + Math.floor(effectZoneW / 2);
+    const centerY = effectZoneY + Math.floor(effectZoneH / 2);
+    tryPlaceObstacle({
+      draft,
+      type: fireOnly,
+      x: centerX,
+      y: centerY,
+      variantId: "base",
+      rotation: 0
+    });
   }
 
   const playerStart: GridPosition = { x: 0, y: 0 };

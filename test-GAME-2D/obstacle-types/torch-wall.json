@@ -31,7 +31,14 @@
     }
   ],
   "appearance": {
-    "spriteKey": "obstacle:torch-wall",
+    "layers": [
+      {
+        "id": "flame",
+        "spriteKey": "effect:fire",
+        "animationSpeed": 0.2,
+        "scale": 0.55
+      }
+    ],
     "tint": 16777215,
     "heightClass": "low",
     "tokenScale": {
@@ -40,6 +47,12 @@
       "max": 150
     }
   },
+  "effects": [
+    {
+      "id": "fire",
+      "enabled": true
+    }
+  ],
   "spawnRules": {
     "weight": 1,
     "cluster": {
@@ -48,9 +61,5 @@
     },
     "shapeHint": "line",
     "avoidNearTokens": false
-  },
-  "light": {
-    "radius": 3,
-    "color": 16756045
   }
 }

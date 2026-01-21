@@ -21,6 +21,12 @@ export function ActionContextWindow(props: {
   stage: "draft" | "active";
   action: ActionDefinition | null;
   availability: ActionAvailability | null;
+  pendingHazard?: {
+    label: string;
+    formula: string;
+    cells: number;
+    statusRoll?: { die: number; trigger: number; statusId?: string };
+  } | null;
   player: TokenState;
   enemies: TokenState[];
   validatedAction: ActionDefinition | null;
@@ -33,6 +39,7 @@ export function ActionContextWindow(props: {
   onSetAdvantageMode: (mode: AdvantageMode) => void;
   onRollAttack: () => void;
   onRollDamage: () => void;
+  onRollHazardDamage?: () => void;
   onAutoResolve: () => void;
   attackRoll: AttackRollResult | null;
   damageRoll: DamageRollResult | null;
@@ -54,6 +61,7 @@ export function ActionContextWindow(props: {
   const action = props.action;
   const availability = props.availability;
   const isBlocked = availability ? !availability.enabled : false;
+  const hasHazard = Boolean(props.pendingHazard);
 
   useLayoutEffect(() => {
     if (!props.open) return;
@@ -118,7 +126,7 @@ export function ActionContextWindow(props: {
   const showTargeting = Boolean(actionNeedsTarget);
 
   if (!props.open) return null;
-  if (!action) return null;
+  if (!action && !hasHazard) return null;
 
   return (
     <div
@@ -170,8 +178,11 @@ export function ActionContextWindow(props: {
           }}
           title="Glisser pour deplacer"
         >
-          <div style={{ fontSize: 13, fontWeight: 900, color: "#fff" }}>{action.name}</div>
+          <div style={{ fontSize: 13, fontWeight: 900, color: "#fff" }}>
+            {action ? action.name : "Danger environnement"}
+          </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6 }}>
+            {action && (
             <span
               style={{
                 fontSize: 11,
@@ -184,6 +195,8 @@ export function ActionContextWindow(props: {
             >
               {action.actionCost.actionType}
             </span>
+            )}
+            {action && (
             <span
               style={{
                 fontSize: 11,
@@ -197,18 +210,25 @@ export function ActionContextWindow(props: {
             >
               {action.category}
             </span>
+            )}
             <span
               style={{
                 fontSize: 11,
                 padding: "2px 6px",
                 borderRadius: 6,
-                background: isBlocked ? "rgba(231,76,60,0.25)" : "rgba(46,204,113,0.18)",
-                border: `1px solid ${isBlocked ? "rgba(231,76,60,0.55)" : "rgba(46,204,113,0.45)"}`,
-                color: isBlocked ? "#ffb2aa" : "#bdf6d2",
+                background: action
+                  ? isBlocked
+                    ? "rgba(231,76,60,0.25)"
+                    : "rgba(46,204,113,0.18)"
+                  : "rgba(255,255,255,0.08)",
+                border: action
+                  ? `1px solid ${isBlocked ? "rgba(231,76,60,0.55)" : "rgba(46,204,113,0.45)"}`
+                  : "1px solid rgba(255,255,255,0.12)",
+                color: action ? (isBlocked ? "#ffb2aa" : "#bdf6d2") : "rgba(255,255,255,0.85)",
                 fontWeight: 800
               }}
             >
-              {availability ? (availability.enabled ? "Disponible" : "Bloquee") : "Etat inconnu"}
+              {action ? (availability ? (availability.enabled ? "Disponible" : "Bloquee") : "Etat inconnu") : "Hazard"}
             </span>
           </div>
         </div>
@@ -235,11 +255,13 @@ export function ActionContextWindow(props: {
         </button>
       </div>
 
-      <div style={{ marginTop: 10, fontSize: 12, color: "rgba(255,255,255,0.82)" }}>
-        {action.summary || "Aucun resume."}
-      </div>
+      {action && (
+        <div style={{ marginTop: 10, fontSize: 12, color: "rgba(255,255,255,0.82)" }}>
+          {action.summary || "Aucun resume."}
+        </div>
+      )}
 
-      {availability && !availability.enabled && (
+      {action && availability && !availability.enabled && (
         <div style={{ marginTop: 10 }}>
           <div style={{ fontSize: 12, fontWeight: 800, color: "#ffb2aa" }}>Pourquoi c&apos;est bloque</div>
           <ul style={{ margin: "6px 0 0", paddingLeft: 18, color: "rgba(255,255,255,0.85)", fontSize: 12 }}>
@@ -250,7 +272,8 @@ export function ActionContextWindow(props: {
         </div>
       )}
 
-      <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+      {action && (
+        <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
         {props.stage === "draft" && (
           <button
             type="button"
@@ -278,9 +301,10 @@ export function ActionContextWindow(props: {
             Action validee: suivez les etapes ci-dessous.
           </span>
         )}
-      </div>
+        </div>
+      )}
 
-      {showTargeting && (
+      {action && showTargeting && (
         <div style={{ marginTop: 12 }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
             <div style={{ fontSize: 12, fontWeight: 900, color: "#fff" }}>Cible</div>
@@ -321,7 +345,50 @@ export function ActionContextWindow(props: {
         </div>
       )}
 
-      {props.stage === "active" && (
+      {hasHazard && (
+        <div
+          style={{
+            marginTop: 12,
+            padding: 8,
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(255,255,255,0.04)"
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 900, color: "#fff" }}>
+            Danger: {props.pendingHazard?.label}
+          </div>
+          <div style={{ marginTop: 6, fontSize: 12, color: "rgba(255,255,255,0.85)" }}>
+            Cases traversees: {props.pendingHazard?.cells} | Jet requis: {props.pendingHazard?.formula}
+          </div>
+          {props.pendingHazard?.statusRoll && (
+            <div style={{ marginTop: 4, fontSize: 11, color: "rgba(255,255,255,0.7)" }}>
+              Etat: d{props.pendingHazard.statusRoll.die} == {props.pendingHazard.statusRoll.trigger}
+            </div>
+          )}
+          {props.onRollHazardDamage && (
+            <button
+              type="button"
+              onClick={props.onRollHazardDamage}
+              style={{
+                marginTop: 8,
+                padding: "6px 10px",
+                background: "#c0392b",
+                color: "#fff",
+                border: "1px solid rgba(255,255,255,0.12)",
+                borderRadius: 10,
+                cursor: "pointer",
+                fontSize: 12,
+                fontWeight: 900
+              }}
+            >
+              Lancer degats environnement
+            </button>
+          )}
+        </div>
+      )}
+
+      {action && props.stage === "active" && (
         <div style={{ marginTop: 12 }}>
           <div style={{ fontSize: 12, fontWeight: 900, color: "#fff", marginBottom: 6 }}>Jets</div>
 

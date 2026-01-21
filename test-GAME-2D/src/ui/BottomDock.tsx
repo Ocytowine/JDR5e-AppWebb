@@ -14,6 +14,7 @@ export function BottomDock(props: {
   collapsedHeight?: number;
   collapsible?: boolean;
   collapsedByDefault?: boolean;
+  forcedTabId?: string | null;
 }): React.ReactNode {
   const visibleTabs = useMemo(() => props.tabs.filter(t => !t.hidden), [props.tabs]);
   const defaultTabId = props.defaultTabId ?? visibleTabs[0]?.id ?? "tab";
@@ -28,6 +29,12 @@ export function BottomDock(props: {
     if (visibleTabs.some(t => t.id === activeTabId)) return;
     setActiveTabId(defaultTabId);
   }, [activeTabId, defaultTabId, visibleTabs]);
+
+  useEffect(() => {
+    if (!props.forcedTabId) return;
+    if (!visibleTabs.some(t => t.id === props.forcedTabId)) return;
+    setActiveTabId(props.forcedTabId);
+  }, [props.forcedTabId, visibleTabs]);
 
   const activeTab = activeTabId ? visibleTabs.find(t => t.id === activeTabId) : undefined;
   const expandedHeight = props.expandedHeight ?? 320;

@@ -16,6 +16,7 @@ import chairWood from "../../obstacle-types/chair-wood.json";
 import statueStone from "../../obstacle-types/statue-stone.json";
 import torchWall from "../../obstacle-types/torch-wall.json";
 import brazier from "../../obstacle-types/brazier.json";
+import fireOnly from "../../obstacle-types/fire-only.json";
 import pillarStone from "../../obstacle-types/pillar-stone.json";
 import stairsStone from "../../obstacle-types/stairs-stone.json";
 import charetteWood from "../../obstacle-types/charette-wood.json";
@@ -35,6 +36,7 @@ const OBSTACLE_TYPE_MODULES: Record<string, ObstacleTypeDefinition> = {
   "./statue-stone.json": statueStone as ObstacleTypeDefinition,
   "./torch-wall.json": torchWall as ObstacleTypeDefinition,
   "./brazier.json": brazier as ObstacleTypeDefinition,
+  "./fire-only.json": fireOnly as ObstacleTypeDefinition,
   "./pillar-stone.json": pillarStone as ObstacleTypeDefinition,
   "./stairs-stone.json": stairsStone as ObstacleTypeDefinition,
   "./charette-wood.json": charetteWood as ObstacleTypeDefinition

@@ -29,6 +29,8 @@ export interface ObstacleAppearance {
   spriteKey?: string;
   tint?: number;
   spriteGrid?: { tilesX: number; tilesY: number; tileSize?: number };
+  animationSpeed?: number;
+  animationLoop?: boolean;
   paletteId?: string;
   palettes?: Record<
     string,
@@ -58,6 +60,8 @@ export interface ObstacleAppearance {
     z?: number;
     visible?: "always" | "hideWhenTokenBelow";
     spriteGrid?: { tilesX: number; tilesY: number; tileSize?: number };
+    animationSpeed?: number;
+    animationLoop?: boolean;
   }>;
   tokenScale?: { default: number; min: number; max: number };
   scale?: number;
@@ -89,6 +93,10 @@ export interface ObstacleTypeDefinition {
   appearance?: ObstacleAppearance;
   spawnRules?: ObstacleSpawnRules;
   light?: ObstacleLight;
+  effects?: Array<{
+    id: string;
+    enabled?: boolean;
+  }>;
   connects?: { from: number; to: number };
   interactions?: InteractionSpec[];
   /**

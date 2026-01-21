@@ -1,0 +1,6 @@
+{
+  "id": "burning",
+  "label": "En feu",
+  "durationTurns": 3,
+  "damagePerTurnFormula": "1d4"
+}

@@ -1,4 +1,4 @@
-import { Assets, SCALE_MODES } from "pixi.js";
+import { Assets } from "pixi.js";
 
 const pngModules = import.meta.glob("../wall/*.png", {
   query: "?url",
@@ -35,8 +35,8 @@ export async function preloadWallTextures(): Promise<void> {
     src: url,
     data: {
       autoGenerateMipmaps: true,
-      scaleMode: SCALE_MODES.LINEAR,
-      mipmapFilter: SCALE_MODES.LINEAR,
+      scaleMode: "linear",
+      mipmapFilter: "linear",
       maxAnisotropy: 4
     }
   }));

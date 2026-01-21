@@ -38,8 +38,12 @@ import archerType from "../enemy-types/archer.json";
 import assassinType from "../enemy-types/assassin.json";
 import ghostType from "../enemy-types/ghost.json";
 import { loadObstacleTypesFromIndex } from "./game/obstacleCatalog";
+import { loadEffectTypesFromIndex } from "./game/effectCatalog";
+import { loadStatusTypesFromIndex } from "./game/statusCatalog";
 import { loadWallTypesFromIndex } from "./game/wallCatalog";
 import type { ObstacleInstance, ObstacleTypeDefinition } from "./game/obstacleTypes";
+import type { EffectInstance, EffectTypeDefinition } from "./game/effectTypes";
+import type { StatusDefinition } from "./game/statusTypes";
 import type { WallTypeDefinition } from "./game/wallTypes";
 import { generateBattleMap } from "./game/mapEngine";
 import { getHeightAtGrid, type TerrainCell } from "./game/map/draft";
@@ -65,6 +69,7 @@ import enemyBowShot from "../action-game/actions/enemy-bow-shot.json";
 import {
   rollAttack,
   rollDamage,
+  rollDie,
   type AttackRollResult,
   type DamageRollResult,
   type AdvantageMode
@@ -75,6 +80,7 @@ import {
   GRID_ROWS,
   getBoardHeight,
   getBoardWidth,
+  gridToScreenForGrid,
   isCellInsideGrid,
   screenToGridForGrid
 } from "./boardConfig";
@@ -124,6 +130,7 @@ import { isWallDestructible } from "./game/map/walls/durability";
 import {
   usePixiBoard,
   usePixiDecorations,
+  usePixiEffects,
   usePixiGridLabels,
   usePixiObstacles,
   usePixiOverlays,
@@ -133,20 +140,14 @@ import {
   type LightSource
 } from "./render2d";
 import { CombatSetupScreen } from "./ui/CombatSetupScreen";
-import { CombatStatusPanel } from "./ui/CombatStatusPanel";
-import { EnemiesPanel } from "./ui/EnemiesPanel";
 import { GameOverOverlay } from "./ui/GameOverOverlay";
 import { InitiativePanel } from "./ui/InitiativePanel";
-import { NarrationPanel } from "./ui/NarrationPanel";
-import { ActionsPanel } from "./ui/ActionsPanel";
-import { DicePanel } from "./ui/DicePanel";
 import { EffectsPanel } from "./ui/EffectsPanel";
 import { LogPanel } from "./ui/LogPanel";
 import { ActionWheelMenu } from "./ui/ActionWheelMenu";
 import type { WheelMenuItem } from "./ui/RadialWheelMenu";
 import { ActionContextWindow } from "./ui/ActionContextWindow";
 import { InteractionContextWindow } from "./ui/InteractionContextWindow";
-import { BottomDock } from "./ui/BottomDock";
 import { boardThemeColor, colorToCssHex } from "./boardTheme";
 import type { InteractionCost, InteractionSpec } from "./game/interactions";
 import {
@@ -204,6 +205,31 @@ function loadEnemyTypesFromIndex(): EnemyTypeDefinition[] {
   }
 
   return loaded;
+}
+
+function scaleDiceFormula(formula: string, multiplier: number): string | null {
+  if (!Number.isFinite(multiplier) || multiplier <= 0) return null;
+  const cleaned = formula.replace(/\s+/g, "");
+  const tokens = cleaned.split(/(?=[+-])/);
+  const out: string[] = [];
+  for (const raw of tokens) {
+    if (!raw) continue;
+    const sign = raw.startsWith("-") ? "-" : "";
+    const token = raw.replace(/^[+-]/, "");
+    const diceMatch = token.match(/^(\d*)d(\d+)$/i);
+    if (diceMatch) {
+      const count = diceMatch[1] ? Number.parseInt(diceMatch[1], 10) : 1;
+      if (!Number.isFinite(count)) return null;
+      out.push(`${sign}${count * multiplier}d${diceMatch[2]}`);
+      continue;
+    }
+    if (!Number.isNaN(Number.parseInt(token, 10))) {
+      out.push(`${sign}${token}`);
+      continue;
+    }
+    return null;
+  }
+  return out.join("");
 }
 
   function createEnemy(
@@ -300,6 +326,8 @@ export const GameBoard: React.FC = () => {
   const pixiContainerRef = useRef<HTMLDivElement | null>(null);
   const narrationPendingRef = useRef<boolean>(false);
   const playerBubbleTimeoutRef = useRef<number | null>(null);
+  const playerThoughtRef = useRef<string | null>(null);
+  const playerBubbleOverrideRef = useRef<boolean>(false);
   const movementModes = useMemo(
     () => getMovementModesForCharacter(sampleCharacter),
     []
@@ -336,6 +364,9 @@ export const GameBoard: React.FC = () => {
   const [enemies, setEnemies] = useState<TokenState[]>([]);
   const [obstacleTypes, setObstacleTypes] = useState<ObstacleTypeDefinition[]>([]);
   const [obstacles, setObstacles] = useState<ObstacleInstance[]>([]);
+  const [effectTypes, setEffectTypes] = useState<EffectTypeDefinition[]>([]);
+  const [effects, setEffects] = useState<EffectInstance[]>([]);
+  const [statusTypes, setStatusTypes] = useState<StatusDefinition[]>([]);
   const [wallTypes, setWallTypes] = useState<WallTypeDefinition[]>([]);
   const [wallSegments, setWallSegments] = useState<WallSegment[]>([]);
   const [decorations, setDecorations] = useState<DecorInstance[]>([]);
@@ -404,6 +435,7 @@ export const GameBoard: React.FC = () => {
   const [attackRoll, setAttackRoll] = useState<AttackRollResult | null>(null);
   const [damageRoll, setDamageRoll] = useState<DamageRollResult | null>(null);
   const [diceLogs, setDiceLogs] = useState<string[]>([]);
+  const [pendingHazardRoll, setPendingHazardRoll] = useState<PendingHazardRoll | null>(null);
   const [hasRolledAttackForCurrentAction, setHasRolledAttackForCurrentAction] =
     useState<boolean>(false);
   const [turnActionUsage, setTurnActionUsage] = useState<{
@@ -445,6 +477,13 @@ export const GameBoard: React.FC = () => {
     | "inspect-select"
     | "look-select"
     | "interact-select";
+  type PendingHazardRoll = {
+    id: string;
+    label: string;
+    formula: string;
+    cells: number;
+    statusRoll?: { die: number; trigger: number; statusId?: string };
+  };
   const [interactionMode, setInteractionMode] =
     useState<BoardInteractionMode>("idle");
   type InteractionTarget =
@@ -464,18 +503,21 @@ export const GameBoard: React.FC = () => {
     () => new Set()
   );
   const [radialMenu, setRadialMenu] = useState<{
-    open: boolean;
-    anchorX: number;
-    anchorY: number;
-    cell: { x: number; y: number };
+    cell: { x: number; y: number } | null;
     token: TokenState | null;
-  } | null>(null);
+  }>({
+    cell: null,
+    token: null
+  });
   const [actionContext, setActionContext] = useState<{
     anchorX: number;
     anchorY: number;
     actionId: string;
     stage: "draft" | "active";
   } | null>(null);
+  const [hazardAnchor, setHazardAnchor] = useState<{ anchorX: number; anchorY: number } | null>(
+    null
+  );
 
   // Area-of-effect specs attached to the player
   const [effectSpecs, setEffectSpecs] = useState<EffectSpec[]>([]);
@@ -484,6 +526,7 @@ export const GameBoard: React.FC = () => {
   const [showAllLevels, setShowAllLevels] = useState<boolean>(false);
   const [playerTorchOn, setPlayerTorchOn] = useState<boolean>(false);
   const [showCellIds, setShowCellIds] = useState<boolean>(false);
+  const [floatingPanel, setFloatingPanel] = useState<"effects" | "logs" | null>(null);
 
   // Debug IA ennemie : dernier ??tat envoy?? / d??cisions / erreur
   const [aiLastState, setAiLastState] =
@@ -524,6 +567,16 @@ export const GameBoard: React.FC = () => {
     for (const t of obstacleTypes) map.set(t.id, t);
     return map;
   }, [obstacleTypes]);
+  const effectTypeById = useMemo(() => {
+    const map = new Map<string, EffectTypeDefinition>();
+    for (const t of effectTypes) map.set(t.id, t);
+    return map;
+  }, [effectTypes]);
+  const statusTypeById = useMemo(() => {
+    const map = new Map<string, StatusDefinition>();
+    for (const t of statusTypes) map.set(t.id, t);
+    return map;
+  }, [statusTypes]);
   const wallTypeById = useMemo(() => {
     const map = new Map<string, WallTypeDefinition>();
     for (const t of wallTypes) map.set(t.id, t);
@@ -540,6 +593,95 @@ export const GameBoard: React.FC = () => {
       return (def?.interactions ?? []).length > 0;
     });
   }, [obstacleTypeById, obstacles, wallSegments, wallTypeById]);
+
+  const isEffectAllowedOnFloor = (
+    effectDef: EffectTypeDefinition,
+    floorId: string | null | undefined
+  ): boolean => {
+    const placement = effectDef.placement;
+    if (!placement) return true;
+    const material = getFloorMaterial(floorId);
+    const tags = material?.tags ?? [];
+    if (placement.avoidLiquid && material?.liquid) return false;
+    if (placement.allowedFloors && placement.allowedFloors.length > 0) {
+      if (!floorId || !placement.allowedFloors.includes(floorId)) return false;
+    }
+    if (placement.blockedFloors && placement.blockedFloors.length > 0) {
+      if (floorId && placement.blockedFloors.includes(floorId)) return false;
+    }
+    if (placement.allowedFloorTags && placement.allowedFloorTags.length > 0) {
+      if (!tags.some(tag => placement.allowedFloorTags?.includes(tag))) return false;
+    }
+    if (placement.blockedFloorTags && placement.blockedFloorTags.length > 0) {
+      if (tags.some(tag => placement.blockedFloorTags?.includes(tag))) return false;
+    }
+    return true;
+  };
+
+  const buildEffectsFromObstacles = (params: {
+    obstacles: ObstacleInstance[];
+    terrain: TerrainCell[];
+    grid: { cols: number; rows: number };
+  }): EffectInstance[] => {
+    const results: EffectInstance[] = [];
+    const { obstacles, terrain, grid } = params;
+
+    for (const obstacle of obstacles) {
+      const def = obstacleTypeById.get(obstacle.typeId) ?? null;
+      if (!def) continue;
+
+      const effectEntries =
+        def.effects && def.effects.length > 0
+          ? def.effects
+          : def.tags?.includes("fire")
+            ? [{ id: "fire", enabled: true }]
+            : [];
+
+      if (!effectEntries.length) continue;
+
+      for (const entry of effectEntries) {
+        if (entry.enabled === false) continue;
+        const effectDef = effectTypeById.get(entry.id);
+        if (!effectDef) continue;
+        const idx = obstacle.y * grid.cols + obstacle.x;
+        const floorId = idx >= 0 && idx < terrain.length ? terrain[idx] : null;
+        if (!isEffectAllowedOnFloor(effectDef, floorId)) continue;
+        results.push({
+          id: `effect-${obstacle.id}-${entry.id}`,
+          typeId: entry.id,
+          x: obstacle.x,
+          y: obstacle.y,
+          active: true,
+          sourceObstacleId: obstacle.id
+        });
+      }
+    }
+
+    return results;
+  };
+
+  useEffect(() => {
+    if (effectTypes.length === 0) return;
+    if (!Array.isArray(obstacles) || obstacles.length === 0) return;
+    if (!Array.isArray(mapTerrain) || mapTerrain.length === 0) return;
+    const desired = buildEffectsFromObstacles({
+      obstacles,
+      terrain: mapTerrain,
+      grid: mapGrid
+    });
+    const currentById = new Map<string, EffectInstance>();
+    for (const effect of effects) currentById.set(effect.id, effect);
+    const merged = desired.map(effect => {
+      const existing = currentById.get(effect.id);
+      if (!existing) return effect;
+      return { ...effect, active: existing.active };
+    });
+    const currentKey = effects.map(e => `${e.id}:${e.typeId}:${e.x}:${e.y}:${e.active}`).join("|");
+    const mergedKey = merged.map(e => `${e.id}:${e.typeId}:${e.x}:${e.y}:${e.active}`).join("|");
+    if (currentKey !== mergedKey) {
+      setEffects(merged);
+    }
+  }, [effectTypes.length, obstacles, mapTerrain, mapGrid.cols, mapGrid.rows, effects]);
   const obstacleLegend = useMemo(() => {
     return obstacles
       .filter(o => o.hp > 0)
@@ -555,16 +697,16 @@ export const GameBoard: React.FC = () => {
   }, [obstacleTypeById, obstacles]);
   const lightSources = useMemo(() => {
     const sources: LightSource[] = [];
-    for (const obs of obstacles) {
-      if (obs.hp <= 0) continue;
-      const def = obstacleTypeById.get(obs.typeId);
+    for (const effect of effects) {
+      if (effect.active === false) continue;
+      const def = effectTypeById.get(effect.typeId);
       const radiusRaw = def?.light?.radius;
       const radius = Number.isFinite(radiusRaw) ? Math.floor(radiusRaw as number) : 0;
       if (radius <= 0) continue;
-      sources.push({ x: obs.x, y: obs.y, radius, color: def?.light?.color });
+      sources.push({ x: effect.x, y: effect.y, radius, color: def?.light?.color });
     }
     return sources;
-  }, [obstacles, obstacleTypeById]);
+  }, [effects, effectTypeById]);
   const activeLightSources = useMemo(() => {
     const sources = [...lightSources];
     if (playerTorchOn) {
@@ -945,6 +1087,15 @@ export const GameBoard: React.FC = () => {
     visibleCells: visibleCellsFull,
     showAllLevels
   });
+  usePixiEffects({
+    depthLayerRef,
+    effects,
+    effectTypes,
+    pixiReadyTick,
+    grid: mapGrid,
+    visibleCells: visibleCellsFull,
+    showAllLevels
+  });
   usePixiTokens({
     depthLayerRef,
     player,
@@ -1016,12 +1167,22 @@ export const GameBoard: React.FC = () => {
   const INSPECT_RANGE = 10;
 
   function closeRadialMenu() {
-    setRadialMenu(current => (current ? { ...current, open: false } : null));
+    setRadialMenu({ cell: null, token: null });
     if (interactionMode === "interact-select") {
       setInteractionMode("idle");
     }
     setInteractionMenuItems([]);
     closeInteractionContext();
+  }
+
+  function resolveWheelAnchor(): { x: number; y: number } {
+    const container = pixiContainerRef.current;
+    const margin = 110;
+    if (!container) return { x: margin, y: margin };
+    const rect = container.getBoundingClientRect();
+    const clampedX = Math.max(margin, Math.min(rect.width - margin, margin));
+    const clampedY = Math.max(margin, rect.height - margin);
+    return { x: clampedX, y: clampedY };
   }
 
   function closeInteractionContext() {
@@ -1523,6 +1684,15 @@ export const GameBoard: React.FC = () => {
     setRoofOpenCells(new Set(map.roofOpenCells ?? []));
     setActiveLevel(0);
     setDecorations(Array.isArray(map.decorations) ? map.decorations : []);
+    setEffects(
+      buildEffectsFromObstacles({
+        obstacles: map.obstacles ?? [],
+        terrain: Array.isArray(map.terrain) ? map.terrain : [],
+        grid
+      })
+    );
+    setPendingHazardRoll(null);
+    setHazardAnchor(null);
 
     const newEnemies: TokenState[] = map.enemySpawns.map((spawn, i) =>
       createEnemy(i, spawn.enemyType, spawn.position)
@@ -1661,6 +1831,13 @@ export const GameBoard: React.FC = () => {
     setSpeechBubbles(prev => prev.filter(b => b.tokenId !== enemyId));
   }
 
+  function applyPlayerBubble(text: string | null, updatedAtRound = round) {
+    setSpeechBubbles(prev => {
+      const filtered = prev.filter(b => b.tokenId !== player.id);
+      return text ? [...filtered, { tokenId: player.id, text, updatedAtRound }] : filtered;
+    });
+  }
+
   function setPlayerBubble(textInput: string) {
     const text = (textInput ?? "").trim();
     if (!text) return;
@@ -1670,15 +1847,23 @@ export const GameBoard: React.FC = () => {
       playerBubbleTimeoutRef.current = null;
     }
 
-    setSpeechBubbles(prev => {
-      const filtered = prev.filter(b => b.tokenId !== player.id);
-      return [...filtered, { tokenId: player.id, text, updatedAtRound: round }];
-    });
+    playerBubbleOverrideRef.current = true;
+    applyPlayerBubble(text, round);
 
     playerBubbleTimeoutRef.current = window.setTimeout(() => {
-      setSpeechBubbles(prev => prev.filter(b => b.tokenId !== player.id));
+      playerBubbleOverrideRef.current = false;
+      applyPlayerBubble(playerThoughtRef.current, round);
     }, 2600);
   }
+
+  useEffect(() => {
+    const lines = narrativeLog.slice(-3);
+    const header = `tour-${round}`;
+    const text = lines.length > 0 ? [header, ...lines].join("\n") : header;
+    playerThoughtRef.current = text;
+    if (playerBubbleOverrideRef.current) return;
+    applyPlayerBubble(text, round);
+  }, [narrativeLog, round, player.id]);
 
   function buildCombatStateSummaryFrom(
     focusSide: CombatSide,
@@ -1734,6 +1919,16 @@ export const GameBoard: React.FC = () => {
   useEffect(() => {
     const loadedTypes = loadObstacleTypesFromIndex();
     setObstacleTypes(loadedTypes);
+  }, []);
+
+  useEffect(() => {
+    const loadedTypes = loadEffectTypesFromIndex();
+    setEffectTypes(loadedTypes);
+  }, []);
+
+  useEffect(() => {
+    const loadedTypes = loadStatusTypesFromIndex();
+    setStatusTypes(loadedTypes);
   }, []);
 
   useEffect(() => {
@@ -1807,14 +2002,15 @@ export const GameBoard: React.FC = () => {
       setPathLimit(5);
       setHasRolledAttackForCurrentAction(false);
       setAttackRoll(null);
-      setDamageRoll(null);
+        setDamageRoll(null);
 
-      narrationPendingRef.current = false;
-      beginRoundNarrationBuffer(round, buildCombatStateSummary("player"));
-      recordCombatEvent({
-        round,
-        phase: "player",
-        kind: "turn_start",
+        narrationPendingRef.current = false;
+        beginRoundNarrationBuffer(round, buildCombatStateSummary("player"));
+        setPlayer(prev => applyStartOfTurnStatuses({ token: prev, side: "player" }));
+        recordCombatEvent({
+          round,
+          phase: "player",
+          kind: "turn_start",
         actorId: player.id,
         actorKind: "player",
         summary: `Debut du tour du heros (round ${round}).`
@@ -2510,6 +2706,7 @@ export const GameBoard: React.FC = () => {
   }
 
   function actionNeedsDiceUI(action: ActionDefinition | null): boolean {
+    if (pendingHazardRoll) return true;
     if (!action) return false;
     if (action.attack || action.damage || action.skillCheck) return true;
 
@@ -2615,6 +2812,76 @@ export const GameBoard: React.FC = () => {
       );
     }
   }
+
+  function handleRollHazardDamage() {
+    if (isGameOver) return;
+    if (isTokenDead(player)) return;
+    if (!pendingHazardRoll) {
+      pushLog("Aucun danger en attente.");
+      return;
+    }
+
+    const result = rollDamage(pendingHazardRoll.formula);
+    setDamageRoll(result);
+    const diceText = result.dice.map(d => d.rolls.join("+")).join(" | ");
+    const totalDamage = result.total;
+
+    pushDiceLog(
+      `Degats (${pendingHazardRoll.label}) : ${diceText || "0"} + ${
+        result.flatModifier
+      } = ${totalDamage}`
+    );
+
+    setPlayer(prev => {
+      const beforeHp = prev.hp;
+      const afterHp = Math.max(0, beforeHp - totalDamage);
+      recordCombatEvent({
+        round,
+        phase,
+        kind: "damage",
+        actorId: prev.id,
+        actorKind: "player",
+        targetId: prev.id,
+        targetKind: "player",
+        summary: `Le heros subit ${totalDamage} degats (${pendingHazardRoll.label}) (PV ${beforeHp} -> ${afterHp}).`,
+        data: {
+          hazardId: pendingHazardRoll.id,
+          damage: totalDamage,
+          formula: pendingHazardRoll.formula,
+          targetHpBefore: beforeHp,
+          targetHpAfter: afterHp
+        }
+      });
+      return { ...prev, hp: afterHp };
+    });
+
+    if (pendingHazardRoll.statusRoll) {
+      const roll = rollDie(pendingHazardRoll.statusRoll.die);
+      const trigger = pendingHazardRoll.statusRoll.trigger;
+      const statusId = pendingHazardRoll.statusRoll.statusId ?? "status";
+      pushDiceLog(
+        `Jet d'etat (${statusId}) : d${pendingHazardRoll.statusRoll.die} = ${roll.total}`
+      );
+      if (roll.total === trigger) {
+        setPlayer(prev => addStatusToToken(prev, statusId));
+        pushLog(`Etat ${statusId} declenche.`);
+        recordCombatEvent({
+          round,
+          phase,
+          kind: "status",
+          actorId: player.id,
+          actorKind: "player",
+          targetId: player.id,
+          targetKind: "player",
+          summary: `Le heros prend l'etat ${statusId}.`,
+          data: { statusId }
+        });
+      }
+      }
+
+      setPendingHazardRoll(null);
+      setHazardAnchor(null);
+    }
 
   function handleRollDamage() {
     if (isGameOver) return;
@@ -3227,14 +3494,7 @@ export const GameBoard: React.FC = () => {
       const tokens = getTokensOnActiveLevel([player, ...enemies]);
       const token = getTokenAt({ x: targetX, y: targetY }, tokens) ?? null;
 
-      // Fixed-size wheel; allow it to overflow (no clamping).
-      const anchorX = localX;
-      const anchorY = localY;
-
       setRadialMenu({
-        open: true,
-        anchorX,
-        anchorY,
         cell: { x: targetX, y: targetY },
         token
       });
@@ -3318,11 +3578,39 @@ export const GameBoard: React.FC = () => {
   // Player actions: validate / reset movement
   // -----------------------------------------------------------
 
+  function resolveAnchorForCell(cell: { x: number; y: number }): { anchorX: number; anchorY: number } | null {
+    const container = pixiContainerRef.current;
+    if (!container) return null;
+    const viewport = viewportRef.current;
+    if (!viewport) {
+      const rect = container.getBoundingClientRect();
+      return { anchorX: rect.width / 2, anchorY: rect.height / 2 };
+    }
+    const center = gridToScreenForGrid(cell.x, cell.y, mapGrid.cols, mapGrid.rows);
+    return {
+      anchorX: viewport.offsetX + center.x * viewport.scale,
+      anchorY: viewport.offsetY + center.y * viewport.scale
+    };
+  }
+
     function handleValidatePath() {
-      if (phase !== "player") return;
-      if (isGameOver) return;
-      if (isTokenDead(player)) return;
-    if (selectedPath.length === 0) return;
+    if (phase !== "player") return;
+    if (isGameOver) return;
+    if (isTokenDead(player)) return;
+    if (selectedPath.length === 0) {
+      const hazardRoll = buildHazardRollFromPath([], { x: player.x, y: player.y });
+      if (hazardRoll) {
+        setPendingHazardRoll(hazardRoll);
+        const anchor = resolveAnchorForCell({ x: player.x, y: player.y });
+        setHazardAnchor(anchor);
+        pushLog(
+          `Danger: ${hazardRoll.label} traverse (${hazardRoll.cells} case${
+            hazardRoll.cells > 1 ? "s" : ""
+          }). Jet de degats ${hazardRoll.formula} requis.`
+        );
+      }
+      return;
+    }
 
     const last = selectedPath[selectedPath.length - 1];
     const from = { x: player.x, y: player.y };
@@ -3348,6 +3636,18 @@ export const GameBoard: React.FC = () => {
       summary: `Le heros se deplace de (${from.x}, ${from.y}) vers (${last.x}, ${last.y}).`,
       data: { from, to: { x: last.x, y: last.y }, steps: selectedPath.length }
     });
+
+    const hazardRoll = buildHazardRollFromPath(selectedPath, { x: player.x, y: player.y });
+    if (hazardRoll) {
+      setPendingHazardRoll(hazardRoll);
+      const anchor = resolveAnchorForCell(last);
+      setHazardAnchor(anchor);
+      pushLog(
+        `Danger: ${hazardRoll.label} traverse (${hazardRoll.cells} case${
+          hazardRoll.cells > 1 ? "s" : ""
+        }). Jet de degats ${hazardRoll.formula} requis.`
+      );
+    }
 
     setSelectedPath([]);
     setInteractionMode("idle");
@@ -3376,9 +3676,229 @@ export const GameBoard: React.FC = () => {
     setPlayer(prev => ({
       ...prev,
       facing: direction
-    }));
-    pushLog(`Orientation du joueur mise a jour: ${direction}.`);
-  }
+      }));
+      pushLog(`Orientation du joueur mise a jour: ${direction}.`);
+    }
+
+    const addStatusToToken = (token: TokenState, statusId: string): TokenState => {
+      const def = statusTypeById.get(statusId);
+      if (!def) return token;
+      const duration = Math.max(1, Math.floor(def.durationTurns || 1));
+      const current = Array.isArray(token.statuses) ? token.statuses : [];
+      const existingIndex = current.findIndex(s => s.id === statusId);
+      const next = [...current];
+      if (existingIndex >= 0) {
+        next[existingIndex] = { ...next[existingIndex], remainingTurns: duration };
+      } else {
+        next.push({ id: statusId, remainingTurns: duration });
+      }
+      return { ...token, statuses: next };
+    };
+
+    const applyStartOfTurnStatuses = (params: {
+      token: TokenState;
+      side: "player" | "enemies";
+    }): TokenState => {
+      const { token, side } = params;
+      if (!token.statuses || token.statuses.length === 0) return token;
+      let nextToken = { ...token, statuses: [...token.statuses] };
+      const remaining: typeof nextToken.statuses = [];
+
+      for (const status of nextToken.statuses) {
+        const def = statusTypeById.get(status.id);
+        if (def?.damagePerTurnFormula && nextToken.hp > 0) {
+          const result = rollDamage(def.damagePerTurnFormula);
+          const diceText = result.dice.map(d => d.rolls.join("+")).join(" | ");
+          pushDiceLog(
+            `Degats (${def.label}) : ${diceText || "0"} + ${result.flatModifier} = ${result.total}`
+          );
+          const beforeHp = nextToken.hp;
+          nextToken.hp = Math.max(0, nextToken.hp - result.total);
+          pushLog(`${nextToken.id} subit ${result.total} degats (${def.label}).`);
+          recordCombatEvent({
+            round,
+            phase: side,
+            kind: "damage",
+            actorId: nextToken.id,
+            actorKind: side === "player" ? "player" : "enemy",
+            targetId: nextToken.id,
+            targetKind: side === "player" ? "player" : "enemy",
+            summary: `${nextToken.id} subit ${result.total} degats (${def.label}) (PV ${beforeHp} -> ${nextToken.hp}).`,
+            data: {
+              statusId: status.id,
+              damage: result.total,
+              formula: def.damagePerTurnFormula
+            }
+          });
+        }
+
+        const nextRemaining = status.remainingTurns - 1;
+        if (nextRemaining > 0) {
+          remaining.push({ ...status, remainingTurns: nextRemaining });
+        } else if (def) {
+          pushLog(`${nextToken.id}: etat termine (${def.label}).`);
+        }
+      }
+
+      nextToken.statuses = remaining;
+      return nextToken;
+    };
+
+  const collectHazardsFromPath = (params: {
+    path: { x: number; y: number }[];
+    start?: { x: number; y: number } | null;
+  }): { counts: Map<string, number>; defs: Map<string, EffectTypeDefinition> } => {
+    const { path, start } = params;
+    const counts = new Map<string, number>();
+    const defs = new Map<string, EffectTypeDefinition>();
+    const effectByCell = new Map<string, EffectInstance[]>();
+    const cellKey = (x: number, y: number) => `${x},${y}`;
+    const sourceByKey = new Map<string, EffectInstance>();
+
+    for (const effect of effects) {
+      const key = `${effect.typeId}:${cellKey(effect.x, effect.y)}`;
+      sourceByKey.set(key, effect);
+    }
+
+    if (effectTypes.length > 0 && obstacles.length > 0 && mapTerrain.length > 0) {
+      const derived = buildEffectsFromObstacles({
+        obstacles,
+        terrain: mapTerrain,
+        grid: mapGrid
+      });
+      for (const effect of derived) {
+        const key = `${effect.typeId}:${cellKey(effect.x, effect.y)}`;
+        if (!sourceByKey.has(key)) {
+          sourceByKey.set(key, effect);
+        }
+      }
+    }
+
+    for (const effect of sourceByKey.values()) {
+      if (effect.active === false) continue;
+      const def = effectTypeById.get(effect.typeId);
+      if (!def?.hazard?.onTraverse) continue;
+      defs.set(effect.typeId, def);
+      const key = cellKey(effect.x, effect.y);
+      const list = effectByCell.get(key) ?? [];
+      list.push(effect);
+      effectByCell.set(key, list);
+    }
+
+    for (let i = 0; i < path.length; i++) {
+      const cell = path[i];
+      if (i === 0 && start && cell.x === start.x && cell.y === start.y) {
+        continue;
+      }
+      const key = cellKey(cell.x, cell.y);
+      const list = effectByCell.get(key);
+      if (!list || list.length === 0) continue;
+      for (const effect of list) {
+        const count = counts.get(effect.typeId) ?? 0;
+        counts.set(effect.typeId, count + 1);
+      }
+    }
+
+    return { counts, defs };
+  };
+
+  const buildHazardRollFromPath = (
+    path: { x: number; y: number }[],
+    start?: { x: number; y: number } | null
+  ): PendingHazardRoll | null => {
+    if (!path.length && !start) return null;
+    const pathCells = path.length > 0 ? path : start ? [start] : [];
+    const { counts, defs } = collectHazardsFromPath({ path: pathCells, start });
+
+      let chosenType: string | null = null;
+      let chosenCount = 0;
+      for (const [typeId, count] of counts.entries()) {
+        if (count > chosenCount) {
+          chosenType = typeId;
+          chosenCount = count;
+        }
+      }
+
+      if (!chosenType || chosenCount <= 0) return null;
+      const def = defs.get(chosenType);
+    if (!def?.hazard) return null;
+    const formula = scaleDiceFormula(def.hazard.damageFormula, chosenCount);
+    if (!formula) return null;
+      return {
+        id: `hazard-${chosenType}-${Date.now()}`,
+        label: def.label,
+        formula,
+        cells: chosenCount,
+        statusRoll: def.hazard.statusRoll
+      };
+    };
+
+    const applyHazardsToTokenFromPath = (params: {
+      token: TokenState;
+      path: { x: number; y: number }[];
+      start?: { x: number; y: number } | null;
+      side: "player" | "enemies";
+    }): TokenState => {
+      const { token, path, start, side } = params;
+      if (!path.length) return token;
+      const pathCells = path.length > 0 ? path : start ? [start] : [];
+      const { counts, defs } = collectHazardsFromPath({ path: pathCells, start });
+      let nextToken = { ...token };
+
+      for (const [typeId, count] of counts.entries()) {
+        const def = defs.get(typeId);
+        if (!def?.hazard) continue;
+        const formula = scaleDiceFormula(def.hazard.damageFormula, count);
+        if (!formula) continue;
+        const result = rollDamage(formula);
+        const diceText = result.dice.map(d => d.rolls.join("+")).join(" | ");
+        pushDiceLog(
+          `Degats (${def.label}) : ${diceText || "0"} + ${result.flatModifier} = ${result.total}`
+        );
+        const beforeHp = nextToken.hp;
+        nextToken.hp = Math.max(0, nextToken.hp - result.total);
+        pushLog(`${nextToken.id} traverse ${def.label}: ${result.total} degats.`);
+        recordCombatEvent({
+          round,
+          phase: side,
+          kind: "damage",
+          actorId: nextToken.id,
+          actorKind: side === "player" ? "player" : "enemy",
+          targetId: nextToken.id,
+          targetKind: side === "player" ? "player" : "enemy",
+          summary: `${nextToken.id} subit ${result.total} degats (${def.label}) (PV ${beforeHp} -> ${nextToken.hp}).`,
+          data: {
+            hazardId: typeId,
+            damage: result.total,
+            formula
+          }
+        });
+
+        if (def.hazard.statusRoll) {
+          const roll = rollDie(def.hazard.statusRoll.die);
+          const trigger = def.hazard.statusRoll.trigger;
+          const statusId = def.hazard.statusRoll.statusId ?? "status";
+          pushDiceLog(`Jet d'etat (${statusId}) : d${def.hazard.statusRoll.die} = ${roll.total}`);
+          if (roll.total === trigger) {
+            nextToken = addStatusToToken(nextToken, statusId);
+            pushLog(`${nextToken.id}: etat ${statusId} declenche.`);
+            recordCombatEvent({
+              round,
+              phase: side,
+              kind: "status",
+              actorId: nextToken.id,
+              actorKind: side === "player" ? "player" : "enemy",
+              targetId: nextToken.id,
+              targetKind: side === "player" ? "player" : "enemy",
+              summary: `${nextToken.id} prend l'etat ${statusId}.`,
+              data: { statusId }
+            });
+          }
+        }
+      }
+
+      return nextToken;
+    };
 
   // -----------------------------------------------------------
   // Enemy turn: call backend AI or fallback to local logic
@@ -4322,12 +4842,33 @@ export const GameBoard: React.FC = () => {
     const enemiesCopy = enemies.map(e => ({ ...e }));
     let playerCopy = { ...player };
 
-    const activeEnemy = enemiesCopy.find(e => e.id === activeEnemyId);
-    if (!activeEnemy || isTokenDead(activeEnemy)) {
-      setIsResolvingEnemies(false);
-      advanceTurn();
-      return;
-    }
+      const activeEnemy = enemiesCopy.find(e => e.id === activeEnemyId);
+      if (!activeEnemy || isTokenDead(activeEnemy)) {
+        setIsResolvingEnemies(false);
+        advanceTurn();
+        return;
+      }
+      const refreshedEnemy = applyStartOfTurnStatuses({ token: activeEnemy, side: "enemies" });
+      const enemyIndex = enemiesCopy.findIndex(e => e.id === activeEnemyId);
+      if (enemyIndex >= 0) {
+        enemiesCopy[enemyIndex] = refreshedEnemy;
+      }
+      if (isTokenDead(refreshedEnemy)) {
+        pushLog(`${refreshedEnemy.id} succombe a ses blessures.`);
+        recordCombatEvent({
+          round,
+          phase: "enemies",
+          kind: "death",
+          actorId: refreshedEnemy.id,
+          actorKind: "enemy",
+          summary: `${refreshedEnemy.id} s'effondre, hors de combat.`
+        });
+        setEnemies(enemiesCopy);
+        setIsResolvingEnemies(false);
+        advanceTurn();
+        return;
+      }
+      const activeEnemyStart = { x: refreshedEnemy.x, y: refreshedEnemy.y };
 
     const summary = buildEnemyAiSummary();
     const intents = await requestEnemyAiIntents(summary);
@@ -4628,8 +5169,29 @@ export const GameBoard: React.FC = () => {
       }
     }
 
-    setPlayer(playerCopy);
-    setEnemies(enemiesCopy);
+      const finalEnemy = enemiesCopy.find(e => e.id === activeEnemyId) ?? null;
+      if (finalEnemy) {
+        const planned = Array.isArray(finalEnemy.plannedPath) ? finalEnemy.plannedPath : [];
+        const moved =
+          finalEnemy.x !== activeEnemyStart.x || finalEnemy.y !== activeEnemyStart.y;
+        const fallbackPath = moved
+          ? [activeEnemyStart, { x: finalEnemy.x, y: finalEnemy.y }]
+          : [];
+        const hazardPath = planned.length > 0 ? planned : fallbackPath;
+        if (hazardPath.length > 0) {
+          const updatedEnemy = applyHazardsToTokenFromPath({
+            token: finalEnemy,
+            path: hazardPath,
+            start: activeEnemyStart,
+            side: "enemies"
+          });
+          const idx = enemiesCopy.findIndex(e => e.id === activeEnemyId);
+          if (idx >= 0) enemiesCopy[idx] = updatedEnemy;
+        }
+      }
+
+      setPlayer(playerCopy);
+      setEnemies(enemiesCopy);
 
     try {
       await updateEnemySpeechAfterTurn(activeEnemyId, playerCopy, enemiesCopy);
@@ -4896,8 +5458,9 @@ function handleEndPlayerTurn() {
     phase === "player" && !isGameOver && !isTokenDead(player);
 
   function openActionContextFromWheel(action: ActionDefinition) {
-    const anchorX = radialMenu?.anchorX ?? 0;
-    const anchorY = radialMenu?.anchorY ?? 0;
+    const anchor = resolveWheelAnchor();
+    const anchorX = anchor.x;
+    const anchorY = anchor.y;
     setSelectedActionId(action.id);
     setActionContext({ anchorX, anchorY, actionId: action.id, stage: "draft" });
   }
@@ -4905,6 +5468,10 @@ function handleEndPlayerTurn() {
   function closeActionContext() {
     setActionContext(null);
     setTargetMode("none");
+    if (pendingHazardRoll) {
+      setPendingHazardRoll(null);
+      setHazardAnchor(null);
+    }
   }
 
   function handleValidateActionFromContext(action: ActionDefinition) {
@@ -5054,104 +5621,6 @@ function handleEndPlayerTurn() {
     pushLog("Se cacher: (a integrer).");
   }
 
-  const dockTabs = [
-    {
-      id: "combat",
-      label: "Combat",
-      content: (
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
-          <div style={{ flex: "1 1 340px", minWidth: 340 }}>
-            <CombatStatusPanel
-              round={round}
-              phase={phase}
-              playerInitiative={playerInitiative}
-              player={player}
-              selectedPath={selectedPath}
-              sampleCharacter={sampleCharacter}
-              aiLastState={aiLastState}
-              aiLastIntents={aiLastIntents}
-              aiUsedFallback={aiUsedFallback}
-              aiLastError={aiLastError}
-            />
-          </div>
-          <div style={{ flex: "1 1 340px", minWidth: 340 }}>
-            <EnemiesPanel
-              enemies={enemies}
-              player={player}
-              revealedEnemyIds={revealedEnemyIds}
-              capabilities={ENEMY_CAPABILITIES}
-              validatedAction={validatedAction}
-              selectedTargetId={selectedTargetId}
-              describeEnemyLastDecision={describeEnemyLastDecision}
-              validateEnemyTargetForAction={validateEnemyTargetForAction}
-              onSelectTargetId={enemyId => {
-                setSelectedTargetId(enemyId);
-                setSelectedObstacleTarget(null);
-                setSelectedWallTarget(null);
-              }}
-              onSetTargetMode={setTargetMode}
-              onLog={pushLog}
-            />
-          </div>
-          <div style={{ flex: "1 1 340px", minWidth: 340 }}>
-            <ActionsPanel
-              actions={actions}
-              selectedAction={selectedAction}
-              selectedAvailability={selectedAvailability}
-              computeActionAvailability={computeActionAvailability}
-              onSelectActionId={setSelectedActionId}
-              describeRange={describeRange}
-              describeUsage={describeUsage}
-              conditionLabel={conditionLabel}
-              effectLabel={effectLabel}
-              onPreviewActionArea={previewActionArea}
-              onValidateAction={handleUseAction}
-            />
-          </div>
-          {showDicePanel && (
-            <div style={{ flex: "1 1 340px", minWidth: 340 }}>
-              <DicePanel
-                validatedAction={validatedAction}
-                advantageMode={advantageMode}
-                onSetAdvantageMode={setAdvantageMode}
-                onRollAttack={handleRollAttack}
-                onRollDamage={handleRollDamage}
-                onAutoResolve={handleAutoResolveRolls}
-                attackRoll={attackRoll}
-                damageRoll={damageRoll}
-                diceLogs={diceLogs}
-              />
-            </div>
-          )}
-        </div>
-      )
-    },
-    {
-      id: "effects",
-      label: "Effets",
-      content: (
-        <div style={{ maxWidth: 520 }}>
-          <EffectsPanel
-            showVisionDebug={showVisionDebug}
-            showLightOverlay={showLightOverlay}
-            showCellIds={showCellIds}
-            showAllLevels={showAllLevels}
-            visionLegend={visionLegend}
-            onShowCircle={handleShowCircleEffect}
-            onShowRectangle={handleShowRectangleEffect}
-            onShowCone={handleShowConeEffect}
-            onToggleVisionDebug={() => setShowVisionDebug(prev => !prev)}
-            onToggleLightOverlay={() => setShowLightOverlay(prev => !prev)}
-            onToggleCellIds={() => setShowCellIds(prev => !prev)}
-            onToggleShowAllLevels={() => setShowAllLevels(prev => !prev)}
-            onClear={handleClearEffects}
-          />
-        </div>
-      )
-    },
-    { id: "logs", label: "Logs", content: <LogPanel log={log} /> }
-  ];
-
   const interactionAvailability = interactionContext
     ? getInteractionAvailability(interactionContext.interaction, interactionContext.target)
     : null;
@@ -5162,6 +5631,7 @@ function handleEndPlayerTurn() {
         ? "menu"
         : "select"
       : "idle";
+  const wheelAnchor = resolveWheelAnchor();
 
   return (
       <div
@@ -5413,15 +5883,106 @@ function handleEndPlayerTurn() {
                 >
                   1??
                 </button>
+                <div
+                  style={{
+                    width: "100%",
+                    height: 1,
+                    background: "rgba(255,255,255,0.12)",
+                    margin: "2px 0"
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFloatingPanel(current => (current === "effects" ? null : "effects"))
+                  }
+                  style={{
+                    width: 34,
+                    height: 28,
+                    borderRadius: 10,
+                    border: "1px solid rgba(255,255,255,0.14)",
+                    background:
+                      floatingPanel === "effects" ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.06)",
+                    color: "rgba(255,255,255,0.85)",
+                    cursor: "pointer",
+                    fontSize: 10,
+                    fontWeight: 900,
+                    letterSpacing: 0.4
+                  }}
+                  title="Effets"
+                >
+                  FX
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFloatingPanel(current => (current === "logs" ? null : "logs"))
+                  }
+                  style={{
+                    width: 34,
+                    height: 28,
+                    borderRadius: 10,
+                    border: "1px solid rgba(255,255,255,0.14)",
+                    background:
+                      floatingPanel === "logs" ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.06)",
+                    color: "rgba(255,255,255,0.85)",
+                    cursor: "pointer",
+                    fontSize: 10,
+                    fontWeight: 900,
+                    letterSpacing: 0.4
+                  }}
+                  title="Logs"
+                >
+                  LOG
+                </button>
               </div>
+              {floatingPanel && (
+                <div
+                  onMouseDown={event => event.stopPropagation()}
+                  style={{
+                    position: "absolute",
+                    right: 60,
+                    top: 12,
+                    zIndex: 45,
+                    width: 360,
+                    maxWidth: "70vw",
+                    maxHeight: "60vh",
+                    overflow: "hidden",
+                    padding: 10,
+                    borderRadius: 12,
+                    background: "rgba(10,10,16,0.92)",
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    boxShadow: "0 18px 60px rgba(0,0,0,0.45)"
+                  }}
+                >
+                  {floatingPanel === "effects" && (
+                    <EffectsPanel
+                      showVisionDebug={showVisionDebug}
+                      showLightOverlay={showLightOverlay}
+                      showCellIds={showCellIds}
+                      showAllLevels={showAllLevels}
+                      visionLegend={visionLegend}
+                      onShowCircle={handleShowCircleEffect}
+                      onShowRectangle={handleShowRectangleEffect}
+                      onShowCone={handleShowConeEffect}
+                      onToggleVisionDebug={() => setShowVisionDebug(prev => !prev)}
+                      onToggleLightOverlay={() => setShowLightOverlay(prev => !prev)}
+                      onToggleCellIds={() => setShowCellIds(prev => !prev)}
+                      onToggleShowAllLevels={() => setShowAllLevels(prev => !prev)}
+                      onClear={handleClearEffects}
+                    />
+                  )}
+                  {floatingPanel === "logs" && <LogPanel log={log} />}
+                </div>
+              )}
 
               <ActionWheelMenu
-                open={Boolean(radialMenu?.open)}
-                anchorX={radialMenu?.anchorX ?? 0}
-                anchorY={radialMenu?.anchorY ?? 0}
+                open={isCombatConfigured}
+                anchorX={wheelAnchor.x}
+                anchorY={wheelAnchor.y}
                 size={240}
                 canInteractWithBoard={canInteractWithBoard}
-                hasCell={Boolean(radialMenu?.cell)}
+                hasCell={Boolean(radialMenu.cell)}
                 selectedPathLength={selectedPath.length}
                 isResolvingEnemies={isResolvingEnemies}
                 actions={actions}
@@ -5451,12 +6012,13 @@ function handleEndPlayerTurn() {
                 onPickAction={openActionContextFromWheel}
               />
               <ActionContextWindow
-                open={Boolean(actionContext)}
-                anchorX={actionContext?.anchorX ?? 0}
-                anchorY={actionContext?.anchorY ?? 0}
-                stage={actionContext?.stage ?? "draft"}
+                open={Boolean(actionContext) || Boolean(pendingHazardRoll)}
+                anchorX={actionContext?.anchorX ?? hazardAnchor?.anchorX ?? 0}
+                anchorY={actionContext?.anchorY ?? hazardAnchor?.anchorY ?? 0}
+                stage={actionContext?.stage ?? "active"}
                 action={contextAction}
                 availability={contextAvailability}
+                pendingHazard={pendingHazardRoll}
                 player={player}
                 enemies={enemies}
                 validatedAction={validatedAction}
@@ -5473,6 +6035,7 @@ function handleEndPlayerTurn() {
                 onSetAdvantageMode={setAdvantageMode}
                 onRollAttack={handleRollAttack}
                 onRollDamage={handleRollDamage}
+                onRollHazardDamage={handleRollHazardDamage}
                 onAutoResolve={handleAutoResolveRolls}
                 attackRoll={attackRoll}
                 damageRoll={damageRoll}
@@ -5500,17 +6063,8 @@ function handleEndPlayerTurn() {
             </div>
           </div>
 
-          <NarrationPanel round={round} narrativeLog={narrativeLog} />
         </div>
 
-      <BottomDock
-        tabs={dockTabs}
-        defaultTabId="combat"
-        collapsible={true}
-        collapsedByDefault={true}
-        collapsedHeight={52}
-        expandedHeight={320}
-      />
     </div>
   );
 };

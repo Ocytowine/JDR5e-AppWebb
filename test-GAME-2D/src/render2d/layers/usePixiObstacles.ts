@@ -1,10 +1,10 @@
 import { useEffect } from "react";
-import { Container, Graphics, Sprite } from "pixi.js";
+import { AnimatedSprite, Container, Graphics, Sprite, Texture } from "pixi.js";
 import type { RefObject } from "react";
 import type { ObstacleInstance, ObstacleTypeDefinition } from "../../game/obstacleTypes";
 import { getObstacleOccupiedCells } from "../../game/obstacleRuntime";
 import { TILE_SIZE, gridToScreenForGrid } from "../../boardConfig";
-import { getObstaclePngUrl } from "../../obstacleTextureHelper";
+import { getObstacleAnimationFrames, getObstaclePngUrl } from "../../obstacleTextureHelper";
 import { getTokenOccupiedCells, orientationToRotationDeg } from "../../game/footprint";
 
 export function usePixiObstacles(options: {
@@ -146,8 +146,31 @@ export function usePixiObstacles(options: {
             continue;
           }
           const spriteUrl = getObstaclePngUrl(layer.spriteKey);
-          if (!spriteUrl) continue;
-          const sprite = Sprite.from(spriteUrl);
+          const animationFrames = spriteUrl ? null : getObstacleAnimationFrames(layer.spriteKey);
+          if (!spriteUrl && (!animationFrames || animationFrames.length === 0)) continue;
+          let sprite: Sprite | AnimatedSprite;
+          if (animationFrames && animationFrames.length > 0) {
+            const textures = animationFrames.map(frame => Texture.from(frame));
+            const anim = new AnimatedSprite(textures);
+            const speed =
+              typeof layer.animationSpeed === "number"
+                ? layer.animationSpeed
+                : typeof def?.appearance?.animationSpeed === "number"
+                  ? def.appearance.animationSpeed
+                  : 0.15;
+            const loop =
+              typeof layer.animationLoop === "boolean"
+                ? layer.animationLoop
+                : typeof def?.appearance?.animationLoop === "boolean"
+                  ? def.appearance.animationLoop
+                  : true;
+            anim.animationSpeed = speed;
+            anim.loop = loop;
+            anim.play();
+            sprite = anim;
+          } else {
+            sprite = Sprite.from(spriteUrl as string);
+          }
           sprite.anchor.set(0.5, 0.5);
           const orientation = obs.orientation ?? "right";
           sprite.rotation = (orientationToRotationDeg(orientation) * Math.PI) / 180;

@@ -31,15 +31,32 @@
     }
   ],
   "appearance": {
-    "spriteKey": "obstacle:brazier",
+    "layers": [
+      {
+        "id": "base",
+        "spriteKey": "obstacle:brazier"
+      },
+      {
+        "id": "flame",
+        "spriteKey": "effect:fire",
+        "animationSpeed": 0.2,
+        "scale": 0.8
+      }
+    ],
     "tint": 16777215,
     "heightClass": "medium",
     "tokenScale": {
       "min": 80,
-      "default": 100,
-      "max": 150
+      "default": 80,
+      "max": 80
     }
   },
+  "effects": [
+    {
+      "id": "fire",
+      "enabled": true
+    }
+  ],
   "spawnRules": {
     "weight": 1,
     "cluster": {
@@ -48,9 +65,5 @@
     },
     "shapeHint": "room",
     "avoidNearTokens": true
-  },
-  "light": {
-    "radius": 4,
-    "color": 16759863
   }
 }

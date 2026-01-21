@@ -1,4 +1,4 @@
-import { Assets, SCALE_MODES } from "pixi.js";
+import { Assets } from "pixi.js";
 
 type TokenSpriteEntry = { url: string; index: number; name: string };
 
@@ -69,8 +69,8 @@ export async function preloadTokenPngTextures(): Promise<void> {
       src: entry.url,
       data: {
         autoGenerateMipmaps: true,
-        scaleMode: SCALE_MODES.LINEAR,
-        mipmapFilter: SCALE_MODES.LINEAR,
+        scaleMode: "linear",
+        mipmapFilter: "linear",
         maxAnisotropy: 4
       }
     }))
