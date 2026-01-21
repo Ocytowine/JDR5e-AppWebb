@@ -58,6 +58,7 @@ export interface ObstacleAppearance {
     alpha?: number;
     scale?: number;
     z?: number;
+    renderLayer?: "base" | "overhead" | string;
     visible?: "always" | "hideWhenTokenBelow";
     spriteGrid?: { tilesX: number; tilesY: number; tileSize?: number };
     animationSpeed?: number;

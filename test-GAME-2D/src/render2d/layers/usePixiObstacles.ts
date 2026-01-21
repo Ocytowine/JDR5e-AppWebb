@@ -6,6 +6,7 @@ import { getObstacleOccupiedCells } from "../../game/obstacleRuntime";
 import { TILE_SIZE, gridToScreenForGrid } from "../../boardConfig";
 import { getObstacleAnimationFrames, getObstaclePngUrl } from "../../obstacleTextureHelper";
 import { getTokenOccupiedCells, orientationToRotationDeg } from "../../game/footprint";
+import { DEPTH_Z } from "./depthOrdering";
 
 export function usePixiObstacles(options: {
   depthLayerRef: RefObject<Container | null>;
@@ -80,7 +81,7 @@ export function usePixiObstacles(options: {
     if (!depthLayer) return;
 
     for (const child of [...depthLayer.children]) {
-      if (child.label === "obstacle") {
+      if (child.label === "obstacle" || child.label === "obstacle-layer") {
         depthLayer.removeChild(child);
         child.destroy?.();
       }
@@ -108,8 +109,6 @@ export function usePixiObstacles(options: {
       const tint = Number.isFinite(def?.appearance?.tint as number)
         ? (def?.appearance?.tint as number)
         : 0x8e5a2b;
-      const container = new Container();
-
       const center =
         occupied.length > 0
           ? occupied
@@ -132,6 +131,7 @@ export function usePixiObstacles(options: {
             ? [{ spriteKey: def.appearance.spriteKey }]
             : [];
 
+      let renderedLayers = 0;
       if (layers.length > 0) {
         const footprintGrid = getFootprintGrid(def);
         const sorted = [...layers].sort((a, b) => (a.z ?? 0) - (b.z ?? 0));
@@ -210,11 +210,15 @@ export function usePixiObstacles(options: {
           sprite.tint = tint ?? 0xffffff;
           sprite.x = center.x;
           sprite.y = center.y;
-          container.addChild(sprite);
+          sprite.label = "obstacle-layer";
+          const baseLayer = layer.renderLayer === "overhead" ? DEPTH_Z.overhead : DEPTH_Z.obstacleBase;
+          sprite.zIndex = center.y + baseLayer + (layer.z ?? 0);
+          depthLayer.addChild(sprite);
+          renderedLayers += 1;
         }
       }
 
-      if (container.children.length === 0) {
+      if (renderedLayers === 0) {
         for (const cell of occupied) {
           const key = cellKey(cell.x, cell.y);
           const isVisible = showAll || (visibleCells?.has(key) ?? true);
@@ -228,13 +232,10 @@ export function usePixiObstacles(options: {
             color: tint,
             alpha: 0.85
           });
-          container.addChild(g);
+          g.label = "obstacle-layer";
+          g.zIndex = center.y + DEPTH_Z.obstacleBase;
+          depthLayer.addChild(g);
         }
-      }
-
-      if (container.children.length > 0) {
-        container.label = "obstacle";
-        depthLayer.addChild(container);
       }
     }
   }, [

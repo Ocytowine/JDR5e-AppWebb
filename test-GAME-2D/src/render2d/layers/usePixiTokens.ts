@@ -10,6 +10,7 @@ import {
   orientationToRotationDeg
 } from "../../game/footprint";
 import { getTokenSpriteUrl } from "../../tokenTextureHelper";
+import { DEPTH_Z } from "./depthOrdering";
 
 export function usePixiTokens(options: {
   depthLayerRef: RefObject<Container | null>;
@@ -122,6 +123,7 @@ export function usePixiTokens(options: {
       container.x = center.x;
       container.y = center.y;
       container.label = "token";
+      container.zIndex = center.y + DEPTH_Z.tokens;
 
       depthLayer.addChild(container);
     }

@@ -93,6 +93,7 @@
         "id": "canopy",
         "spriteKey": "obstacle:tree-oak-canopy",
         "z": 1,
+        "renderLayer": "overhead",
         "visible": "hideWhenTokenBelow"
       }
     ],

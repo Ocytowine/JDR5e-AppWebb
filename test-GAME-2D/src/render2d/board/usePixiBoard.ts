@@ -249,6 +249,7 @@ export function usePixiBoard(options: {
       labelLayerRef.current = labelLayer;
 
       const depthLayer = new Container();
+      depthLayer.sortableChildren = true;
       root.addChild(depthLayer);
       depthLayerRef.current = depthLayer;
 

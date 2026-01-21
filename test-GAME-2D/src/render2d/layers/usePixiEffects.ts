@@ -4,6 +4,7 @@ import type { RefObject } from "react";
 import type { EffectInstance, EffectTypeDefinition } from "../../game/effectTypes";
 import { gridToScreenForGrid } from "../../boardConfig";
 import { getObstacleAnimationFrames, getObstaclePngUrl } from "../../obstacleTextureHelper";
+import { DEPTH_Z } from "./depthOrdering";
 
 export function usePixiEffects(options: {
   depthLayerRef: RefObject<Container | null>;
@@ -117,6 +118,7 @@ export function usePixiEffects(options: {
       const container = new Container();
       container.label = "effect";
       container.addChild(sprite);
+      container.zIndex = center.y + DEPTH_Z.effects;
       depthLayer.addChild(container);
     }
   }, [

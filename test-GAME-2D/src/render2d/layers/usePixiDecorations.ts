@@ -3,6 +3,7 @@ import { Container, Graphics } from "pixi.js";
 import type { RefObject } from "react";
 import type { DecorInstance } from "../../game/decorTypes";
 import { TILE_SIZE, gridToScreenForGrid } from "../../boardConfig";
+import { DEPTH_Z } from "./depthOrdering";
 
 export function usePixiDecorations(options: {
   depthLayerRef: RefObject<Container | null>;
@@ -47,6 +48,7 @@ export function usePixiDecorations(options: {
       });
 
       g.label = "decor";
+      g.zIndex = center.y + DEPTH_Z.decor;
       depthLayer.addChild(g);
     }
   }, [

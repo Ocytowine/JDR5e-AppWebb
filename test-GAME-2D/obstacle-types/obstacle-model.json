@@ -42,6 +42,7 @@
         "id": "base",
         "spriteKey": "obstacle:placeholder",
         "z": 0,
+        "renderLayer": "base",
         "visible": "always"
       }
     ],

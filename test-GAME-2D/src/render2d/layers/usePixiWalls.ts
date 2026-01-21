@@ -4,6 +4,7 @@ import type { RefObject } from "react";
 import type { WallSegment } from "../../game/map/walls/types";
 import { TILE_SIZE } from "../../boardConfig";
 import { getAdjacentCellsForEdge } from "../../game/map/walls/grid";
+import { DEPTH_Z } from "./depthOrdering";
 
 const WALL_COLORS: Record<WallSegment["kind"], number> = {
   wall: 0xded7c8,
@@ -209,6 +210,7 @@ export function usePixiWalls(options: {
     }
 
     g.label = "wall";
+    g.zIndex = DEPTH_Z.walls;
     depthLayer.addChild(g);
   }, [
     options.depthLayerRef,
