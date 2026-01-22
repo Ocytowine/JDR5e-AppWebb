@@ -156,8 +156,9 @@ import {
   getMovementModesForCharacter,
   type MovementModeDefinition
 } from "./game/movementModes";
-import { preloadObstaclePngTextures } from "./obstacleTextureHelper";
-import { preloadTokenPngTextures } from "./tokenTextureHelper";
+import { preloadObstaclePngTexturesFor } from "./obstacleTextureHelper";
+import { preloadTokenPngTexturesFor, type TokenSpriteRequest } from "./tokenTextureHelper";
+import { preloadDecorTexturesFor } from "./svgDecorHelper";
 
 const ACTION_MODULES: Record<string, ActionDefinition> = {
   "./melee-strike.json": meleeStrike as ActionDefinition,
@@ -402,27 +403,11 @@ export const GameBoard: React.FC = () => {
   const [boardPan, setBoardPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isPanningBoard, setIsPanningBoard] = useState<boolean>(false);
   const panDragRef = useRef<{ x: number; y: number } | null>(null);
+  const BOARD_FPS_IDLE = 8;
+  const BOARD_FPS_ACTIVE = 20;
+  const [renderTick, setRenderTick] = useState<number>(0);
 
   const boardBackgroundColor = boardThemeColor(mapTheme);
-
-  const {
-    depthLayerRef,
-    pathLayerRef,
-    speechLayerRef,
-    labelLayerRef,
-    viewportRef,
-    pixiReadyTick
-  } = usePixiBoard({
-    enabled: isCombatConfigured,
-    containerRef: pixiContainerRef,
-    zoom: boardZoom,
-    panX: boardPan.x,
-    panY: boardPan.y,
-    backgroundColor: boardBackgroundColor,
-    playableCells,
-    terrain: mapTerrain,
-    grid: mapGrid
-  });
 
   // Actions loaded from JSON
   const [actionsCatalog, setActionsCatalog] = useState<ActionDefinition[]>([]);
@@ -519,6 +504,56 @@ export const GameBoard: React.FC = () => {
     null
   );
 
+  const isBoardIdle = useMemo(() => {
+    if (!isCombatConfigured) return true;
+    if (isResolvingEnemies) return false;
+    if (isPanningBoard) return false;
+    if (interactionMode !== "idle") return false;
+    if (selectedPath.length > 0) return false;
+    if (actionContext) return false;
+    if (interactionContext) return false;
+    if (pendingHazardRoll) return false;
+    if (radialMenu.cell || radialMenu.token) return false;
+    return true;
+  }, [
+    isCombatConfigured,
+    isResolvingEnemies,
+    isPanningBoard,
+    interactionMode,
+    selectedPath.length,
+    actionContext,
+    interactionContext,
+    pendingHazardRoll,
+    radialMenu.cell,
+    radialMenu.token
+  ]);
+  const shouldAnimateBoard = hasAnimatedSprites && !isTextureLoading;
+  const boardMaxFps = shouldAnimateBoard
+    ? (isBoardIdle ? BOARD_FPS_IDLE : BOARD_FPS_ACTIVE)
+    : 0;
+  const {
+    staticDepthLayerRef,
+    dynamicDepthLayerRef,
+    pathLayerRef,
+    speechLayerRef,
+    labelLayerRef,
+    viewportRef,
+    pixiReadyTick
+  } = usePixiBoard({
+    enabled: isCombatConfigured,
+    containerRef: pixiContainerRef,
+    zoom: boardZoom,
+    panX: boardPan.x,
+    panY: boardPan.y,
+    backgroundColor: boardBackgroundColor,
+    playableCells,
+    terrain: mapTerrain,
+    grid: mapGrid,
+    animate: shouldAnimateBoard,
+    maxFps: boardMaxFps,
+    renderTick
+  });
+
   // Area-of-effect specs attached to the player
   const [effectSpecs, setEffectSpecs] = useState<EffectSpec[]>([]);
   const [showVisionDebug, setShowVisionDebug] = useState<boolean>(false);
@@ -527,6 +562,9 @@ export const GameBoard: React.FC = () => {
   const [playerTorchOn, setPlayerTorchOn] = useState<boolean>(false);
   const [showCellIds, setShowCellIds] = useState<boolean>(false);
   const [floatingPanel, setFloatingPanel] = useState<"effects" | "logs" | null>(null);
+  const textureLoadingCounterRef = useRef<number>(0);
+  const [isTextureLoading, setIsTextureLoading] = useState<boolean>(false);
+  const [textureLoadingHint, setTextureLoadingHint] = useState<string | null>(null);
 
   // Debug IA ennemie : dernier ??tat envoy?? / d??cisions / erreur
   const [aiLastState, setAiLastState] =
@@ -582,6 +620,23 @@ export const GameBoard: React.FC = () => {
     for (const t of wallTypes) map.set(t.id, t);
     return map;
   }, [wallTypes]);
+  const hasAnimatedSprites = useMemo(() => {
+    if (!isCombatConfigured) return false;
+    for (const effect of effects) {
+      const def = effectTypeById.get(effect.typeId);
+      const key = def?.appearance?.spriteKey;
+      if (key && key.startsWith("effect:")) return true;
+    }
+    for (const obstacle of obstacles) {
+      const def = obstacleTypeById.get(obstacle.typeId) ?? null;
+      const appearance = def?.appearance ?? null;
+      if (appearance?.spriteKey && appearance.spriteKey.startsWith("effect:")) return true;
+      for (const layer of appearance?.layers ?? []) {
+        if (layer?.spriteKey && layer.spriteKey.startsWith("effect:")) return true;
+      }
+    }
+    return false;
+  }, [effectTypeById, isCombatConfigured, obstacles, obstacleTypeById, effects]);
   const hasAnyInteractionSource = useMemo(() => {
     const wallHas = wallSegments.some(seg => {
       const def = seg.typeId ? wallTypeById.get(seg.typeId) ?? null : null;
@@ -1030,6 +1085,38 @@ export const GameBoard: React.FC = () => {
       : `Vision: joueur=${playerMode}`;
   }, [enemyTypes, player.visionProfile]);
 
+  useEffect(() => {
+    if (shouldAnimateBoard) return;
+    setRenderTick(t => t + 1);
+  }, [
+    shouldAnimateBoard,
+    mapGrid,
+    mapTerrain,
+    playableCells,
+    mapHeight,
+    mapLight,
+    obstacles,
+    wallSegments,
+    decorations,
+    effects,
+    player,
+    enemies,
+    selectedPath,
+    selectedTargetId,
+    selectedObstacleTarget,
+    selectedWallTarget,
+    visibilityLevels,
+    showAllLevels,
+    showLightOverlay,
+    showVisionDebug,
+    activeLevel,
+    speechBubbles,
+    isTextureLoading,
+    boardZoom,
+    boardPan.x,
+    boardPan.y
+  ]);
+
   function clampActiveLevel(value: number): number {
     return Math.max(levelRange.min, Math.min(levelRange.max, value));
   }
@@ -1049,13 +1136,8 @@ export const GameBoard: React.FC = () => {
     setActiveLevel(prev => clampActiveLevel(prev));
   }, [levelRange.min, levelRange.max]);
 
-  useEffect(() => {
-    void preloadObstaclePngTextures();
-    void preloadTokenPngTextures();
-  }, []);
-
   usePixiWalls({
-    depthLayerRef,
+    depthLayerRef: staticDepthLayerRef,
     walls: wallSegments,
     pixiReadyTick,
     grid: mapGrid,
@@ -1065,7 +1147,7 @@ export const GameBoard: React.FC = () => {
     showAllLevels
   });
   usePixiObstacles({
-    depthLayerRef,
+    depthLayerRef: staticDepthLayerRef,
     obstacleTypes,
     obstacles,
     tokens: [player, ...enemies],
@@ -1075,10 +1157,11 @@ export const GameBoard: React.FC = () => {
     activeLevel,
     visibleCells: visibleCellsFull,
     showAllLevels,
-    paletteId: mapPaletteId
+    paletteId: mapPaletteId,
+    suspendRendering: isTextureLoading
   });
   usePixiDecorations({
-    depthLayerRef,
+    depthLayerRef: staticDepthLayerRef,
     decorations,
     pixiReadyTick,
     grid: mapGrid,
@@ -1088,16 +1171,17 @@ export const GameBoard: React.FC = () => {
     showAllLevels
   });
   usePixiEffects({
-    depthLayerRef,
+    depthLayerRef: dynamicDepthLayerRef,
     effects,
     effectTypes,
     pixiReadyTick,
     grid: mapGrid,
     visibleCells: visibleCellsFull,
-    showAllLevels
+    showAllLevels,
+    suspendRendering: isTextureLoading
   });
   usePixiTokens({
-    depthLayerRef,
+    depthLayerRef: dynamicDepthLayerRef,
     player,
     enemies,
     pixiReadyTick,
@@ -1105,7 +1189,8 @@ export const GameBoard: React.FC = () => {
     heightMap: mapHeight,
     activeLevel,
     visibleCells: visibleCellsFull,
-    showAllLevels
+    showAllLevels,
+    suspendRendering: isTextureLoading
   });
   usePixiSpeechBubbles({
     speechLayerRef,
@@ -1624,6 +1709,90 @@ export const GameBoard: React.FC = () => {
     return intent.actionId;
   }
 
+  async function queueMapTexturePreload(params: {
+    player: TokenState;
+    enemies: TokenState[];
+    obstacles: ObstacleInstance[];
+    effects: EffectInstance[];
+    decorations: DecorInstance[];
+  }) {
+    const tokenRequests: TokenSpriteRequest[] = [];
+    const addToken = (token: TokenState | null | undefined) => {
+      const spriteKey = token?.appearance?.spriteKey;
+      if (!spriteKey) return;
+      tokenRequests.push({
+        spriteKey,
+        variants: token?.appearance?.spriteVariants ?? null
+      });
+    };
+
+    addToken(params.player);
+    for (const enemy of params.enemies) addToken(enemy);
+
+    const obstacleSpriteKeys = new Set<string>();
+    for (const obstacle of params.obstacles) {
+      const def = obstacleTypeById.get(obstacle.typeId) ?? null;
+      const appearance = def?.appearance ?? null;
+      if (appearance?.spriteKey) obstacleSpriteKeys.add(appearance.spriteKey);
+      for (const layer of appearance?.layers ?? []) {
+        if (layer?.spriteKey) obstacleSpriteKeys.add(layer.spriteKey);
+      }
+    }
+
+    const effectSpriteKeys = new Set<string>();
+    for (const effect of params.effects) {
+      const def = effectTypeById.get(effect.typeId);
+      const spriteKey = def?.appearance?.spriteKey;
+      if (spriteKey) effectSpriteKeys.add(spriteKey);
+    }
+
+    const decorSpriteKeys = new Set<string>();
+    for (const decor of params.decorations) {
+      if (decor?.spriteKey) decorSpriteKeys.add(decor.spriteKey);
+    }
+
+    const obstacleKeys = new Set<string>([...obstacleSpriteKeys, ...effectSpriteKeys]);
+    const totalCount =
+      tokenRequests.length + obstacleKeys.size + decorSpriteKeys.size;
+    if (totalCount === 0) return;
+
+    const hint = `textures: ${tokenRequests.length} tokens, ${obstacleKeys.size} obstacles/effects, ${decorSpriteKeys.size} decors`;
+    textureLoadingCounterRef.current += 1;
+    if (textureLoadingCounterRef.current === 1) {
+      setIsTextureLoading(true);
+    }
+    setTextureLoadingHint(hint);
+
+    const start = typeof performance !== "undefined" ? performance.now() : Date.now();
+    const minDurationMs = 350;
+    try {
+      const tasks: Promise<void>[] = [];
+      if (tokenRequests.length > 0) {
+        tasks.push(preloadTokenPngTexturesFor(tokenRequests));
+      }
+      if (obstacleKeys.size > 0) {
+        tasks.push(preloadObstaclePngTexturesFor([...obstacleKeys]));
+      }
+      if (decorSpriteKeys.size > 0) {
+        tasks.push(preloadDecorTexturesFor([...decorSpriteKeys]));
+      }
+      await Promise.all(tasks);
+    } catch (error) {
+      console.warn("[textures] preload failed:", error);
+    } finally {
+      const end = typeof performance !== "undefined" ? performance.now() : Date.now();
+      const elapsed = end - start;
+      if (elapsed < minDurationMs) {
+        await new Promise(resolve => setTimeout(resolve, minDurationMs - elapsed));
+      }
+      textureLoadingCounterRef.current = Math.max(0, textureLoadingCounterRef.current - 1);
+      if (textureLoadingCounterRef.current === 0) {
+        setIsTextureLoading(false);
+        setTextureLoadingHint(null);
+      }
+    }
+  }
+
   function handleStartCombat() {
     if (enemyTypes.length === 0) {
       pushLog(
@@ -1683,14 +1852,14 @@ export const GameBoard: React.FC = () => {
     setMapLight(Array.isArray(map.light) ? map.light : []);
     setRoofOpenCells(new Set(map.roofOpenCells ?? []));
     setActiveLevel(0);
-    setDecorations(Array.isArray(map.decorations) ? map.decorations : []);
-    setEffects(
-      buildEffectsFromObstacles({
-        obstacles: map.obstacles ?? [],
-        terrain: Array.isArray(map.terrain) ? map.terrain : [],
-        grid
-      })
-    );
+    const nextDecorations = Array.isArray(map.decorations) ? map.decorations : [];
+    setDecorations(nextDecorations);
+    const nextEffects = buildEffectsFromObstacles({
+      obstacles: map.obstacles ?? [],
+      terrain: Array.isArray(map.terrain) ? map.terrain : [],
+      grid
+    });
+    setEffects(nextEffects);
     setPendingHazardRoll(null);
     setHazardAnchor(null);
 
@@ -1700,6 +1869,13 @@ export const GameBoard: React.FC = () => {
     setEnemies(newEnemies);
     setRevealedEnemyIds(new Set());
     setRevealedCells(new Set());
+    void queueMapTexturePreload({
+      player,
+      enemies: newEnemies,
+      obstacles: map.obstacles ?? [],
+      effects: nextEffects,
+      decorations: nextDecorations
+    });
 
     setRound(1);
     setHasRolledInitiative(false);
@@ -5649,6 +5825,68 @@ function handleEndPlayerTurn() {
           position: "relative"
         }}
       >
+        <style>{`
+          @keyframes texturePulse {
+            0% { opacity: 0.55; transform: translateY(0) scale(0.98); }
+            50% { opacity: 1; transform: translateY(-2px) scale(1); }
+            100% { opacity: 0.55; transform: translateY(0) scale(0.98); }
+          }
+          @keyframes textureDot {
+            0% { transform: translateY(0); opacity: 0.45; }
+            50% { transform: translateY(-4px); opacity: 1; }
+            100% { transform: translateY(0); opacity: 0.45; }
+          }
+        `}</style>
+        {isTextureLoading && (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              zIndex: 80,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background:
+                "radial-gradient(circle at 30% 20%, rgba(120,90,30,0.25), transparent 55%), rgba(6,6,10,0.75)",
+              backdropFilter: "blur(6px)",
+              pointerEvents: "auto"
+            }}
+          >
+            <div
+              style={{
+                padding: "18px 22px",
+                borderRadius: 16,
+                background: "rgba(12,12,18,0.94)",
+                border: "1px solid rgba(255,255,255,0.14)",
+                boxShadow: "0 18px 60px rgba(0,0,0,0.45)",
+                minWidth: 220,
+                textAlign: "center",
+                animation: "texturePulse 1.6s ease-in-out infinite"
+              }}
+            >
+              <div style={{ fontSize: 12, letterSpacing: 1, fontWeight: 700, opacity: 0.9 }}>
+                CHARGEMENT TEXTURES
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  gap: 8,
+                  marginTop: 10,
+                  marginBottom: 6,
+                  fontSize: 20
+                }}
+              >
+                <span style={{ animation: "textureDot 1s ease-in-out infinite" }}>•</span>
+                <span style={{ animation: "textureDot 1s ease-in-out infinite", animationDelay: "0.15s" }}>•</span>
+                <span style={{ animation: "textureDot 1s ease-in-out infinite", animationDelay: "0.3s" }}>•</span>
+              </div>
+              {textureLoadingHint && (
+                <div style={{ fontSize: 11, opacity: 0.7 }}>{textureLoadingHint}</div>
+              )}
+            </div>
+          </div>
+        )}
         {isGameOver && (
           <GameOverOverlay onRestart={() => window.location.reload()} />
         )}

@@ -85,9 +85,13 @@ export function usePixiBoard(options: {
   playableCells?: Set<string> | null;
   terrain?: TerrainCell[] | null;
   grid: { cols: number; rows: number };
+  animate?: boolean;
+  maxFps?: number;
+  renderTick?: number;
 }): {
   appRef: RefObject<Application | null>;
-  depthLayerRef: RefObject<Container | null>;
+  staticDepthLayerRef: RefObject<Container | null>;
+  dynamicDepthLayerRef: RefObject<Container | null>;
   pathLayerRef: RefObject<Graphics | null>;
   speechLayerRef: RefObject<Container | null>;
   labelLayerRef: RefObject<Container | null>;
@@ -95,7 +99,8 @@ export function usePixiBoard(options: {
   pixiReadyTick: number;
 } {
   const appRef = useRef<Application | null>(null);
-  const depthLayerRef = useRef<Container | null>(null);
+  const staticDepthLayerRef = useRef<Container | null>(null);
+  const dynamicDepthLayerRef = useRef<Container | null>(null);
   const pathLayerRef = useRef<Graphics | null>(null);
   const speechLayerRef = useRef<Container | null>(null);
   const labelLayerRef = useRef<Container | null>(null);
@@ -103,6 +108,8 @@ export function usePixiBoard(options: {
   const [pixiReadyTick, setPixiReadyTick] = useState(0);
   const resizeRef = useRef<(() => void) | null>(null);
   const drawGridRef = useRef<(() => void) | null>(null);
+  const animateRef = useRef<boolean>(options.animate ?? true);
+  const appReadyRef = useRef<boolean>(false);
   const playableCellsRef = useRef<Set<string> | null>(null);
   const terrainRef = useRef<TerrainCell[] | null>(null);
   const gridRef = useRef<{ cols: number; rows: number }>({
@@ -120,6 +127,7 @@ export function usePixiBoard(options: {
     x: typeof options.panX === "number" ? options.panX : 0,
     y: typeof options.panY === "number" ? options.panY : 0
   };
+  animateRef.current = options.animate ?? true;
   playableCellsRef.current = options.playableCells ?? null;
   terrainRef.current = Array.isArray(options.terrain) ? options.terrain : null;
   gridRef.current = {
@@ -164,6 +172,7 @@ export function usePixiBoard(options: {
       });
 
       initialized = true;
+      appReadyRef.current = true;
 
       if (destroyed) return;
 
@@ -194,6 +203,7 @@ export function usePixiBoard(options: {
       root.addChild(gridLayer);
 
       const drawGrid = () => {
+        gridLayer.cacheAsBitmap = false;
         gridLayer.clear();
 
         const { cols, rows } = gridRef.current;
@@ -235,6 +245,7 @@ export function usePixiBoard(options: {
             }
           }
         }
+        gridLayer.cacheAsBitmap = true;
       };
 
       drawGridRef.current = drawGrid;
@@ -248,10 +259,15 @@ export function usePixiBoard(options: {
       root.addChild(labelLayer);
       labelLayerRef.current = labelLayer;
 
-      const depthLayer = new Container();
-      depthLayer.sortableChildren = true;
-      root.addChild(depthLayer);
-      depthLayerRef.current = depthLayer;
+      const staticDepthLayer = new Container();
+      staticDepthLayer.sortableChildren = true;
+      root.addChild(staticDepthLayer);
+      staticDepthLayerRef.current = staticDepthLayer;
+
+      const dynamicDepthLayer = new Container();
+      dynamicDepthLayer.sortableChildren = true;
+      root.addChild(dynamicDepthLayer);
+      dynamicDepthLayerRef.current = dynamicDepthLayer;
 
       const speechLayer = new Container();
       root.addChild(speechLayer);
@@ -286,6 +302,9 @@ export function usePixiBoard(options: {
         canvas.style.width = "100%";
         canvas.style.height = "100%";
         canvas.style.display = "block";
+        if (!animateRef.current) {
+          app.render();
+        }
       };
 
       resizeHandler = resize;
@@ -301,13 +320,15 @@ export function usePixiBoard(options: {
 
     return () => {
       destroyed = true;
+      appReadyRef.current = false;
       if (resizeObserver) resizeObserver.disconnect();
       if (resizeHandler) window.removeEventListener("resize", resizeHandler);
       if (initialized && appRef.current) {
         appRef.current.destroy(true);
       }
       appRef.current = null;
-      depthLayerRef.current = null;
+      staticDepthLayerRef.current = null;
+      dynamicDepthLayerRef.current = null;
       pathLayerRef.current = null;
       speechLayerRef.current = null;
       labelLayerRef.current = null;
@@ -326,9 +347,32 @@ export function usePixiBoard(options: {
         : BOARD_BACKGROUND_COLOR;
   }, [options.backgroundColor]);
 
+  useEffect(() => {
+    const app = appRef.current;
+    if (!app || !app.ticker || !appReadyRef.current) return;
+    const animate = options.animate ?? true;
+    const maxFps = typeof options.maxFps === "number" ? options.maxFps : 0;
+    app.ticker.maxFPS = maxFps > 0 ? maxFps : 0;
+    if (animate) {
+      if (!app.ticker.started) app.ticker.start();
+    } else {
+      if (app.ticker.started) app.ticker.stop();
+      app.render();
+    }
+  }, [options.animate, options.maxFps, pixiReadyTick]);
+
+  useEffect(() => {
+    const app = appRef.current;
+    if (!app || !appReadyRef.current) return;
+    if (options.animate ?? true) return;
+    if (typeof options.renderTick !== "number") return;
+    app.render();
+  }, [options.renderTick, options.animate]);
+
   return {
     appRef,
-    depthLayerRef,
+    staticDepthLayerRef,
+    dynamicDepthLayerRef,
     pathLayerRef,
     speechLayerRef,
     labelLayerRef,

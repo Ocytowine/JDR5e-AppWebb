@@ -22,6 +22,8 @@ export function getDecorPngUrl(spriteKey: string | null | undefined): string | n
 }
 
 let decorTexturesPreloadPromise: Promise<void> | null = null;
+const loadedDecorAliases = new Set<string>();
+const pendingDecorAliases = new Set<string>();
 
 export async function preloadDecorTextures(): Promise<void> {
   if (decorTexturesPreloadPromise) return decorTexturesPreloadPromise;
@@ -40,4 +42,37 @@ export async function preloadDecorTextures(): Promise<void> {
   })();
 
   return decorTexturesPreloadPromise;
+}
+
+export async function preloadDecorTexturesFor(spriteKeys: string[]): Promise<void> {
+  if (!Array.isArray(spriteKeys) || spriteKeys.length === 0) return;
+
+  const assets = new Map<string, { alias: string; src: string }>();
+  for (const spriteKey of spriteKeys) {
+    if (!spriteKey) continue;
+    const url = DECOR_PNG_BY_KEY[spriteKey];
+    if (!url) continue;
+    if (loadedDecorAliases.has(spriteKey) || pendingDecorAliases.has(spriteKey)) continue;
+    assets.set(spriteKey, { alias: spriteKey, src: url });
+    pendingDecorAliases.add(spriteKey);
+  }
+
+  if (assets.size === 0) return;
+
+  try {
+    for (const asset of assets.values()) {
+      Assets.add(asset);
+    }
+    const aliases = [...assets.keys()];
+    await Assets.load(aliases);
+    for (const alias of aliases) {
+      loadedDecorAliases.add(alias);
+      pendingDecorAliases.delete(alias);
+    }
+  } catch (error) {
+    for (const alias of assets.keys()) {
+      pendingDecorAliases.delete(alias);
+    }
+    throw error;
+  }
 }

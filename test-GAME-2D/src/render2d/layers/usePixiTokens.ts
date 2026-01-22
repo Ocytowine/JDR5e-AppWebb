@@ -22,6 +22,7 @@ export function usePixiTokens(options: {
   activeLevel: number;
   visibleCells?: Set<string> | null;
   showAllLevels?: boolean;
+  suspendRendering?: boolean;
 }): void {
   const getTokenGridSpec = (token: TokenState): { tilesX: number; tilesY: number } => {
     const spec = token.footprint;
@@ -62,6 +63,8 @@ export function usePixiTokens(options: {
         child.destroy?.();
       }
     }
+
+    if (options.suspendRendering) return;
 
     const allTokens: TokenState[] = [options.player, ...options.enemies];
     const cellKey = (x: number, y: number) => `${x},${y}`;

@@ -14,6 +14,7 @@ export function usePixiEffects(options: {
   grid: { cols: number; rows: number };
   visibleCells?: Set<string> | null;
   showAllLevels?: boolean;
+  suspendRendering?: boolean;
 }): void {
   const hashString01 = (input: string): number => {
     let hash = 2166136261;
@@ -47,6 +48,8 @@ export function usePixiEffects(options: {
         child.destroy?.();
       }
     }
+
+    if (options.suspendRendering) return;
 
     const typeById = new Map<string, EffectTypeDefinition>();
     for (const t of options.effectTypes) typeById.set(t.id, t);

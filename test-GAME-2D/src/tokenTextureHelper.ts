@@ -1,6 +1,10 @@
 import { Assets } from "pixi.js";
 
 type TokenSpriteEntry = { url: string; index: number; name: string };
+export type TokenSpriteRequest = {
+  spriteKey: string;
+  variants?: number[] | null;
+};
 
 const pngModules = import.meta.glob("../action-game/model/*.png", {
   query: "?url",
@@ -59,6 +63,20 @@ export function getTokenSpriteUrl(
 }
 
 let tokenPngPreloadPromise: Promise<void> | null = null;
+const loadedTokenAliases = new Set<string>();
+const pendingTokenAliases = new Set<string>();
+
+function resolveTokenEntries(
+  spriteKey: string,
+  variants?: number[] | null
+): TokenSpriteEntry[] {
+  const entries = TOKEN_PNG_BY_BASE[spriteKey];
+  if (!entries || entries.length === 0) return [];
+  if (Array.isArray(variants) && variants.length > 0) {
+    return entries.filter(entry => variants.includes(entry.index));
+  }
+  return entries;
+}
 
 export async function preloadTokenPngTextures(): Promise<void> {
   if (tokenPngPreloadPromise) return tokenPngPreloadPromise;
@@ -84,4 +102,55 @@ export async function preloadTokenPngTextures(): Promise<void> {
   })();
 
   return tokenPngPreloadPromise;
+}
+
+export async function preloadTokenPngTexturesFor(
+  requests: TokenSpriteRequest[]
+): Promise<void> {
+  if (!Array.isArray(requests) || requests.length === 0) return;
+
+  const assets = new Map<
+    string,
+    { alias: string; src: string; data: { autoGenerateMipmaps: boolean; scaleMode: string; mipmapFilter: string; maxAnisotropy: number } }
+  >();
+
+  for (const request of requests) {
+    const spriteKey = request?.spriteKey;
+    if (!spriteKey) continue;
+    const entries = resolveTokenEntries(spriteKey, request.variants ?? null);
+    for (const entry of entries) {
+      const alias = entry.url;
+      if (loadedTokenAliases.has(alias) || pendingTokenAliases.has(alias)) continue;
+      assets.set(alias, {
+        alias,
+        src: entry.url,
+        data: {
+          autoGenerateMipmaps: true,
+          scaleMode: "linear",
+          mipmapFilter: "linear",
+          maxAnisotropy: 4
+        }
+      });
+      pendingTokenAliases.add(alias);
+    }
+  }
+
+  if (assets.size === 0) return;
+
+  try {
+    for (const asset of assets.values()) {
+      Assets.add(asset);
+    }
+    const aliases = [...assets.keys()];
+    await Assets.load(aliases);
+    for (const alias of aliases) {
+      loadedTokenAliases.add(alias);
+      pendingTokenAliases.delete(alias);
+    }
+  } catch (error) {
+    for (const alias of assets.keys()) {
+      pendingTokenAliases.delete(alias);
+    }
+    throw error;
+  }
 }

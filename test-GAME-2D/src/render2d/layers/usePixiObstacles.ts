@@ -20,6 +20,7 @@ export function usePixiObstacles(options: {
   visibleCells?: Set<string> | null;
   showAllLevels?: boolean;
   paletteId?: string | null;
+  suspendRendering?: boolean;
 }): void {
   const hashString01 = (input: string): number => {
     let hash = 2166136261;
@@ -80,12 +81,15 @@ export function usePixiObstacles(options: {
     const depthLayer = options.depthLayerRef.current;
     if (!depthLayer) return;
 
+    depthLayer.cacheAsBitmap = false;
     for (const child of [...depthLayer.children]) {
       if (child.label === "obstacle" || child.label === "obstacle-layer") {
         depthLayer.removeChild(child);
         child.destroy?.();
       }
     }
+
+    if (options.suspendRendering) return;
 
     const typeById = new Map<string, ObstacleTypeDefinition>();
     for (const t of options.obstacleTypes) typeById.set(t.id, t);
@@ -102,6 +106,7 @@ export function usePixiObstacles(options: {
       }
     }
 
+    let hasAnyAnimatedLayer = false;
     for (const obs of options.obstacles) {
       if (obs.hp <= 0) continue;
       const def = typeById.get(obs.typeId) ?? null;
@@ -132,6 +137,7 @@ export function usePixiObstacles(options: {
             : [];
 
       let renderedLayers = 0;
+      let hasAnimatedLayer = false;
       if (layers.length > 0) {
         const footprintGrid = getFootprintGrid(def);
         const sorted = [...layers].sort((a, b) => (a.z ?? 0) - (b.z ?? 0));
@@ -150,6 +156,8 @@ export function usePixiObstacles(options: {
           if (!spriteUrl && (!animationFrames || animationFrames.length === 0)) continue;
           let sprite: Sprite | AnimatedSprite;
           if (animationFrames && animationFrames.length > 0) {
+            hasAnimatedLayer = true;
+            hasAnyAnimatedLayer = true;
             const textures = animationFrames.map(frame => Texture.from(frame));
             const anim = new AnimatedSprite(textures);
             const speed =
@@ -237,6 +245,9 @@ export function usePixiObstacles(options: {
           depthLayer.addChild(g);
         }
       }
+    }
+    if (!hasAnyAnimatedLayer) {
+      depthLayer.cacheAsBitmap = true;
     }
   }, [
     options.depthLayerRef,
