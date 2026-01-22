@@ -52,6 +52,19 @@ export const sampleCharacter: Personnage = {
     apertureDeg: 180,
     lightVision: "normal"
   },
+  actionIds: ["melee-strike", "dash", "second-wind", "throw-dagger", "torch-toggle"],
+  combatStats: {
+    level: 1,
+    mods: { str: 3, dex: 2, con: 2, int: 0, wis: 1, cha: 0 },
+    maxHp: 12,
+    armorClass: 16,
+    attackBonus: 5,
+    attackDamage: 6,
+    attackRange: 1,
+    moveRange: 3,
+    maxAttacksPerTurn: 1,
+    resources: {}
+  },
   appearance: {
     spriteKey: "character",
     tokenScale: 100

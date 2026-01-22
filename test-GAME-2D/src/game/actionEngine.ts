@@ -78,30 +78,59 @@ function resolveNumberVar(
   ctx: ActionEngineContext
 ): number | null {
   const actor = ctx.actor;
+  const stats = actor.combatStats;
+  const token = varName.toLowerCase();
 
-  if (varName.toLowerCase() === "attackdamage") {
-    return typeof actor.attackDamage === "number" ? actor.attackDamage : 0;
+  if (token === "attackdamage") {
+    return typeof stats?.attackDamage === "number"
+      ? stats.attackDamage
+      : typeof actor.attackDamage === "number"
+      ? actor.attackDamage
+      : 0;
   }
-  if (varName.toLowerCase() === "moverange") {
-    return typeof actor.moveRange === "number" ? actor.moveRange : 0;
+  if (token === "attackbonus") {
+    return typeof stats?.attackBonus === "number" ? stats.attackBonus : 0;
   }
-  if (varName.toLowerCase() === "attackrange") {
-    return typeof actor.attackRange === "number" ? actor.attackRange : 1;
+  if (token === "moverange") {
+    return typeof stats?.moveRange === "number"
+      ? stats.moveRange
+      : typeof actor.moveRange === "number"
+      ? actor.moveRange
+      : 0;
   }
-  if (varName.toLowerCase() === "niveau") {
-    const level = Number(ctx.sampleCharacter?.niveauGlobal ?? 1);
+  if (token === "attackrange") {
+    return typeof stats?.attackRange === "number"
+      ? stats.attackRange
+      : typeof actor.attackRange === "number"
+      ? actor.attackRange
+      : 1;
+  }
+  if (token === "level" || token === "niveau") {
+    const level = Number(stats?.level ?? ctx.sampleCharacter?.niveauGlobal ?? 1);
     return Number.isFinite(level) ? level : 1;
   }
-  if (varName.toLowerCase() === "modfor") {
-    const mod = Number(ctx.sampleCharacter?.caracs?.force?.modFOR ?? 0);
+  if (token === "modstr" || token === "modfor") {
+    const mod = Number(stats?.mods?.str ?? ctx.sampleCharacter?.caracs?.force?.modFOR ?? 0);
     return Number.isFinite(mod) ? mod : 0;
   }
-  if (varName.toLowerCase() === "moddex") {
-    const mod = Number(ctx.sampleCharacter?.caracs?.dexterite?.modDEX ?? 0);
+  if (token === "moddex") {
+    const mod = Number(stats?.mods?.dex ?? ctx.sampleCharacter?.caracs?.dexterite?.modDEX ?? 0);
     return Number.isFinite(mod) ? mod : 0;
   }
-  if (varName.toLowerCase() === "modcon") {
-    const mod = Number(ctx.sampleCharacter?.caracs?.constitution?.modCON ?? 0);
+  if (token === "modcon") {
+    const mod = Number(stats?.mods?.con ?? ctx.sampleCharacter?.caracs?.constitution?.modCON ?? 0);
+    return Number.isFinite(mod) ? mod : 0;
+  }
+  if (token === "modint") {
+    const mod = Number(stats?.mods?.int ?? ctx.sampleCharacter?.caracs?.intelligence?.modINT ?? 0);
+    return Number.isFinite(mod) ? mod : 0;
+  }
+  if (token === "modwis") {
+    const mod = Number(stats?.mods?.wis ?? ctx.sampleCharacter?.caracs?.sagesse?.modSAG ?? 0);
+    return Number.isFinite(mod) ? mod : 0;
+  }
+  if (token === "modcha") {
+    const mod = Number(stats?.mods?.cha ?? ctx.sampleCharacter?.caracs?.charisme?.modCHA ?? 0);
     return Number.isFinite(mod) ? mod : 0;
   }
 
@@ -139,6 +168,13 @@ export function getPrimaryTargetToken(
 ): TokenState | null {
   if (target.kind === "token") return target.token;
 
+  if (action.targeting?.target === "hostile") {
+    if (ctx.actor.type === "enemy") {
+      return ctx.player;
+    }
+    return null;
+  }
+
   if (action.targeting?.target === "player") {
     return ctx.player;
   }
@@ -149,13 +185,109 @@ export function getPrimaryTargetToken(
   return null;
 }
 
+function isHostileTarget(actor: TokenState, targetToken: TokenState): boolean {
+  return actor.type !== targetToken.type;
+}
+
+function isAllyTarget(actor: TokenState, targetToken: TokenState): boolean {
+  return actor.type === targetToken.type;
+}
+
+function validateTokenTarget(
+  action: ActionDefinition,
+  ctx: ActionEngineContext,
+  targetToken: TokenState
+): { ok: boolean; reason?: string } {
+  const actor = ctx.actor;
+  const allTokens: TokenState[] = [ctx.player, ...ctx.enemies];
+
+  if (targetToken.hp <= 0) {
+    return { ok: false, reason: "La cible est deja a terre." };
+  }
+
+  if (!areOnSameBaseLevel(ctx, actor, targetToken)) {
+    return { ok: false, reason: "Cible sur un autre niveau." };
+  }
+
+  const dist = distanceBetweenTokens(actor, targetToken);
+  const range = action.targeting?.range;
+
+  if (range) {
+    if (typeof range.min === "number" && dist < range.min) {
+      return {
+        ok: false,
+        reason: `Cible trop proche pour ${action.name} (distance ${dist}, min ${range.min}).`
+      };
+    }
+    if (typeof range.max === "number" && dist > range.max) {
+      return {
+        ok: false,
+        reason: `Cible hors portee pour ${action.name} (distance ${dist}, max ${range.max}).`
+      };
+    }
+  }
+
+  for (const cond of action.conditions || []) {
+    if (cond.type === "target_alive" && targetToken.hp <= 0) {
+      return {
+        ok: false,
+        reason: cond.reason || "La cible doit avoir des PV restants."
+      };
+    }
+    if (cond.type === "distance_max") {
+      if (typeof cond.max === "number" && dist > cond.max) {
+        return { ok: false, reason: cond.reason || `Distance cible > ${cond.max}.` };
+      }
+    }
+    if (cond.type === "distance_between") {
+      const min = typeof cond.min === "number" ? cond.min : range?.min ?? null;
+      const max = typeof cond.max === "number" ? cond.max : range?.max ?? null;
+      if (min !== null && dist < min) {
+        return { ok: false, reason: cond.reason || `Distance cible < ${min}.` };
+      }
+      if (max !== null && dist > max) {
+        return { ok: false, reason: cond.reason || `Distance cible > ${max}.` };
+      }
+    }
+  }
+
+  if (action.targeting?.requiresLos) {
+    const visible = isTargetVisible(
+      actor,
+      targetToken,
+      allTokens,
+      ctx.blockedVisionCells ?? null,
+      ctx.playableCells ?? null,
+      ctx.wallVisionEdges ?? null,
+      ctx.lightLevels ?? null,
+      ctx.grid ?? null
+    );
+    if (!visible) {
+      return { ok: false, reason: "Cible hors vision (ligne de vue requise)." };
+    }
+    const targetCell =
+      getClosestFootprintCellToPoint({ x: actor.x, y: actor.y }, targetToken) ??
+      { x: targetToken.x, y: targetToken.y };
+    const canHit = hasLineOfEffect(
+      { x: actor.x, y: actor.y },
+      targetCell,
+      ctx.blockedAttackCells ?? null,
+      ctx.wallVisionEdges ?? null
+    );
+    if (!canHit) {
+      return { ok: false, reason: "Trajectoire bloquee (obstacle entre l'attaquant et la cible)." };
+    }
+  }
+
+  return { ok: true };
+}
+
 export function validateActionTarget(
   action: ActionDefinition,
   ctx: ActionEngineContext,
   target: ActionTarget
 ): { ok: boolean; reason?: string } {
   const actor = ctx.actor;
-  const allTokens: TokenState[] = [ctx.player, ...ctx.enemies];
 
   const targeting = action.targeting;
   if (!targeting) return { ok: false, reason: "Action sans ciblage." };
@@ -168,170 +300,40 @@ export function validateActionTarget(
     if (target.kind !== "token" || target.token.type !== "enemy") {
       return { ok: false, reason: "Cible ennemi manquante." };
     }
-
-    const enemyToken = target.token;
-    if (enemyToken.hp <= 0) {
-      return { ok: false, reason: "La cible est deja a terre." };
-    }
-
-    if (!areOnSameBaseLevel(ctx, actor, enemyToken)) {
-      return { ok: false, reason: "Cible sur un autre niveau." };
-    }
-
-    const dist = distanceBetweenTokens(actor, enemyToken);
-    const range = targeting.range;
-
-    if (range) {
-      if (typeof range.min === "number" && dist < range.min) {
-        return {
-          ok: false,
-          reason: `Cible trop proche pour ${action.name} (distance ${dist}, min ${range.min}).`
-        };
-      }
-      if (typeof range.max === "number" && dist > range.max) {
-        return {
-          ok: false,
-          reason: `Cible hors portee pour ${action.name} (distance ${dist}, max ${range.max}).`
-        };
-      }
-    }
-
-    for (const cond of action.conditions || []) {
-      if (cond.type === "target_alive" && enemyToken.hp <= 0) {
-        return {
-          ok: false,
-          reason: cond.reason || "La cible doit avoir des PV restants."
-        };
-      }
-      if (cond.type === "distance_max") {
-        if (typeof cond.max === "number" && dist > cond.max) {
-          return { ok: false, reason: cond.reason || `Distance cible > ${cond.max}.` };
-        }
-      }
-      if (cond.type === "distance_between") {
-        const min = typeof cond.min === "number" ? cond.min : range?.min ?? null;
-        const max = typeof cond.max === "number" ? cond.max : range?.max ?? null;
-        if (min !== null && dist < min) {
-          return { ok: false, reason: cond.reason || `Distance cible < ${min}.` };
-        }
-        if (max !== null && dist > max) {
-          return { ok: false, reason: cond.reason || `Distance cible > ${max}.` };
-        }
-      }
-    }
-
-    if (targeting.requiresLos) {
-      const visible = isTargetVisible(
-        actor,
-        enemyToken,
-        allTokens,
-        ctx.blockedVisionCells ?? null,
-        ctx.playableCells ?? null,
-        ctx.wallVisionEdges ?? null,
-        ctx.lightLevels ?? null,
-        ctx.grid ?? null
-      );
-      if (!visible) {
-        return { ok: false, reason: "Cible hors vision (ligne de vue requise)." };
-      }
-      const targetCell =
-        getClosestFootprintCellToPoint({ x: actor.x, y: actor.y }, enemyToken) ??
-        { x: enemyToken.x, y: enemyToken.y };
-      const canHit = hasLineOfEffect(
-        { x: actor.x, y: actor.y },
-        targetCell,
-        ctx.blockedAttackCells ?? null,
-        ctx.wallVisionEdges ?? null
-      );
-      if (!canHit) {
-        return { ok: false, reason: "Trajectoire bloquee (obstacle entre l'attaquant et la cible)." };
-      }
-    }
-
-    return { ok: true };
+    return validateTokenTarget(action, ctx, target.token);
   }
 
   if (targeting.target === "player") {
-    const playerToken = ctx.player;
-    if (playerToken.hp <= 0) {
-      return { ok: false, reason: "Le joueur est deja a terre." };
+    const playerToken = target.kind === "token" ? target.token : ctx.player;
+    if (!playerToken || playerToken.type !== "player") {
+      return { ok: false, reason: "Cible joueur manquante." };
+    }
+    return validateTokenTarget(action, ctx, playerToken);
+  }
+
+  if (targeting.target === "hostile") {
+    let targetToken: TokenState | null = null;
+    if (target.kind === "token") {
+      targetToken = target.token;
+    } else if (actor.type === "enemy") {
+      targetToken = ctx.player;
     }
 
-    if (!areOnSameBaseLevel(ctx, actor, playerToken)) {
-      return { ok: false, reason: "Cible sur un autre niveau." };
+    if (!targetToken || !isHostileTarget(actor, targetToken)) {
+      return { ok: false, reason: "Cible hostile manquante." };
     }
 
-    const dist = distanceBetweenTokens(actor, playerToken);
-    const range = targeting.range;
+    return validateTokenTarget(action, ctx, targetToken);
+  }
 
-    if (range) {
-      if (typeof range.min === "number" && dist < range.min) {
-        return {
-          ok: false,
-          reason: `Cible trop proche pour ${action.name} (distance ${dist}, min ${range.min}).`
-        };
-      }
-      if (typeof range.max === "number" && dist > range.max) {
-        return {
-          ok: false,
-          reason: `Cible hors portee pour ${action.name} (distance ${dist}, max ${range.max}).`
-        };
-      }
+  if (targeting.target === "ally") {
+    if (target.kind !== "token") {
+      return { ok: false, reason: "Cible allie manquante." };
     }
-
-    for (const cond of action.conditions || []) {
-      if (cond.type === "target_alive" && playerToken.hp <= 0) {
-        return {
-          ok: false,
-          reason: cond.reason || "La cible doit avoir des PV restants."
-        };
-      }
-      if (cond.type === "distance_max") {
-        if (typeof cond.max === "number" && dist > cond.max) {
-          return { ok: false, reason: cond.reason || `Distance cible > ${cond.max}.` };
-        }
-      }
-      if (cond.type === "distance_between") {
-        const min = typeof cond.min === "number" ? cond.min : range?.min ?? null;
-        const max = typeof cond.max === "number" ? cond.max : range?.max ?? null;
-        if (min !== null && dist < min) {
-          return { ok: false, reason: cond.reason || `Distance cible < ${min}.` };
-        }
-        if (max !== null && dist > max) {
-          return { ok: false, reason: cond.reason || `Distance cible > ${max}.` };
-        }
-      }
+    if (!isAllyTarget(actor, target.token)) {
+      return { ok: false, reason: "Cible allie invalide." };
     }
-
-    if (targeting.requiresLos) {
-      const visible = isTargetVisible(
-        actor,
-        playerToken,
-        allTokens,
-        ctx.blockedVisionCells ?? null,
-        ctx.playableCells ?? null,
-        ctx.wallVisionEdges ?? null,
-        ctx.lightLevels ?? null,
-        ctx.grid ?? null
-      );
-      if (!visible) {
-        return { ok: false, reason: "Cible hors vision (ligne de vue requise)." };
-      }
-      const targetCell =
-        getClosestFootprintCellToPoint({ x: actor.x, y: actor.y }, playerToken) ??
-        { x: playerToken.x, y: playerToken.y };
-      const canHit = hasLineOfEffect(
-        { x: actor.x, y: actor.y },
-        targetCell,
-        ctx.blockedAttackCells ?? null,
-        ctx.wallVisionEdges ?? null
-      );
-      if (!canHit) {
-        return { ok: false, reason: "Trajectoire bloquee (obstacle entre l'attaquant et la cible)." };
-      }
-    }
-
-    return { ok: true };
+    return validateTokenTarget(action, ctx, target.token);
   }
 
   if (targeting.target === "emptyCell" || targeting.target === "cell") {

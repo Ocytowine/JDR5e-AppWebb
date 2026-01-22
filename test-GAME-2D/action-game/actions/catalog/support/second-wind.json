@@ -12,18 +12,17 @@
   },
   "usage": { "perTurn": null, "perEncounter": 1, "resource": null },
   "conditions": [
-    { "type": "phase", "mustBe": "player", "reason": "Tour joueur requis." },
     { "type": "stat_below_percent", "who": "self", "stat": "hp", "percentMax": 0.75, "reason": "Economiser tant que les PV sont hauts." }
   ],
   "effects": [
-    { "type": "heal", "target": "self", "formula": "1d10 + niveau", "min": 1 },
+    { "type": "heal", "target": "self", "formula": "1d10 + level", "min": 1 },
     { "type": "temp_hp", "target": "self", "amount": 2, "duration": "end_of_turn" },
     { "type": "log", "message": "Second souffle: soigne 1d10 + niveau." }
   ],
   "aiHints": {
     "priority": "survive",
     "successLog": "Second souffle declenche.",
-    "failureLog": "PV trop hauts ou tour non joueur."
+    "failureLog": "PV trop hauts."
   },
   "tags": ["soin", "defense", "survie"]
 }

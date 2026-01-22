@@ -1,18 +1,18 @@
 {
-  "id": "enemy-bow-shot",
-  "name": "Tir a l'arc (ennemi)",
-  "summary": "Tir a distance contre le joueur, prefere eviter la melee.",
+  "id": "bow-shot",
+  "name": "Tir a l'arc",
+  "summary": "Tir a distance contre une cible hostile, prefere eviter la melee.",
   "category": "attack",
   "actionCost": { "actionType": "action", "movementCost": 0 },
   "targeting": {
-    "target": "player",
+    "target": "hostile",
     "range": { "min": 2, "max": 6, "shape": "single" },
     "maxTargets": 1,
     "requiresLos": true
   },
   "usage": { "perTurn": 1, "perEncounter": null, "resource": null },
   "conditions": [
-    { "type": "target_alive", "target": "primary", "reason": "Le joueur doit etre en vie." }
+    { "type": "target_alive", "target": "primary", "reason": "La cible doit etre en vie." }
   ],
   "attack": { "bonus": 5, "critRange": 20 },
   "damage": { "formula": "attackDamage", "critRule": "double-dice", "damageType": "piercing" },
@@ -23,8 +23,8 @@
   "aiHints": {
     "priority": "poke_from_range",
     "successLog": "Tir a l'arc.",
-    "failureLog": "Joueur hors portee/ligne de vue ou trop proche."
+    "failureLog": "Cible hors portee/ligne de vue ou trop proche."
   },
-  "tags": ["enemy", "distance", "bow"]
+  "tags": ["distance", "bow"]
 }
 

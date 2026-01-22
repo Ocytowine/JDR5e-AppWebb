@@ -122,7 +122,8 @@ export function ActionContextWindow(props: {
     };
   }, [isDragging]);
 
-  const actionNeedsTarget = action?.targeting?.target === "enemy";
+  const targetKind = action?.targeting?.target;
+  const actionNeedsTarget = targetKind === "enemy" || targetKind === "hostile";
   const showTargeting = Boolean(actionNeedsTarget);
 
   if (!props.open) return null;

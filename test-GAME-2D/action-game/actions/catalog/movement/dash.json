@@ -11,9 +11,7 @@
     "requiresLos": false
   },
   "usage": { "perTurn": 1, "perEncounter": null, "resource": null },
-  "conditions": [
-    { "type": "phase", "mustBe": "player", "reason": "Tour joueur requis." }
-  ],
+  "conditions": [],
   "effects": [
     { "type": "modify_path_limit", "target": "self", "delta": 3, "duration": "this_turn" },
     { "type": "log", "message": "Course: +3 cases de mouvement pour ce tour." }

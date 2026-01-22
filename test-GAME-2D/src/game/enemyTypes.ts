@@ -1,4 +1,10 @@
-import type { FootprintSpec, MovementProfile, TokenAppearance, VisionProfile } from "../types";
+import type {
+  CombatStats,
+  FootprintSpec,
+  MovementProfile,
+  TokenAppearance,
+  VisionProfile
+} from "../types";
 
 export interface EnemyTypeDefinition {
   id: string;
@@ -12,14 +18,7 @@ export interface EnemyTypeDefinition {
     panicRange?: number;
   };
   speechProfile?: import("../narrationTypes").EnemySpeechProfile;
-  baseStats: {
-    hp: number;
-    moveRange: number;
-    attackDamage: number;
-    armorClass: number;
-    attackRange?: number;
-    maxAttacksPerTurn?: number;
-  };
+  combatStats: CombatStats;
   appearance?: TokenAppearance;
   footprint?: FootprintSpec;
   movement?: MovementProfile;

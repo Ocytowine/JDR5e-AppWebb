@@ -123,7 +123,7 @@ async function callOpenAiForEnemyIntents(stateSummary) {
     "Respecte strictement les contraintes suivantes : " +
     "- Utilise uniquement les enemyId fournis dans l'etat. " +
     "- Utilise uniquement des actionId presentes dans actionsCatalog ET dans enemy.actionIds. " +
-    "- Pour une action de deplacement (ex: enemy-move), renvoie target.kind='cell' avec x,y entiers dans la grille. " +
+    "- Pour une action de deplacement (ex: move), renvoie target.kind='cell' avec x,y entiers dans la grille. " +
     "- Pour une attaque ciblant le joueur, renvoie target.kind='token' avec tokenId = player.id. " +
     "- Integre aiRole pour le comportement: brute/assassin cherchent le contact, archer garde une distance et tire si possible. " +
     "Repond UNIQUEMENT avec un JSON valide de la forme { \"intents\": [ { \"enemyId\": \"...\", \"actionId\": \"...\", \"target\": { \"kind\": \"token\", \"tokenId\": \"...\" } } ] } sans aucun texte autour.";

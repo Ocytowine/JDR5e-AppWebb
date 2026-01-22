@@ -1,6 +1,6 @@
 {
-  "id": "enemy-move",
-  "name": "Deplacement (ennemi)",
+  "id": "move",
+  "name": "Deplacement",
   "summary": "Deplacement tactique vers une case cible (portee base: moveRange).",
   "category": "movement",
   "actionCost": { "actionType": "action", "movementCost": 0 },
@@ -14,13 +14,13 @@
   "conditions": [],
   "effects": [
     { "type": "move_to", "target": "self", "maxSteps": "moveRange" },
-    { "type": "log", "message": "L'ennemi se deplace." }
+    { "type": "log", "message": "Deplacement effectue." }
   ],
   "aiHints": {
     "priority": "positioning",
     "successLog": "Deplacement.",
     "failureLog": "Aucun chemin valide."
   },
-  "tags": ["enemy", "movement"]
+  "tags": ["movement"]
 }
 

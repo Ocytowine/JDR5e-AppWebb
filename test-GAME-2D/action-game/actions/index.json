@@ -1,13 +1,12 @@
 {
   "model": "../action-model.json",
   "actions": [
-    "./melee-strike.json",
-    "./dash.json",
-    "./second-wind.json",
-    "./throw-dagger.json",
-    "./torch-toggle.json",
-    "./enemy-move.json",
-    "./enemy-melee-strike.json",
-    "./enemy-bow-shot.json"
+    "./catalog/combat/melee-strike.json",
+    "./catalog/combat/throw-dagger.json",
+    "./catalog/combat/bow-shot.json",
+    "./catalog/movement/dash.json",
+    "./catalog/movement/move.json",
+    "./catalog/support/second-wind.json",
+    "./catalog/items/torch-toggle.json"
   ]
 }

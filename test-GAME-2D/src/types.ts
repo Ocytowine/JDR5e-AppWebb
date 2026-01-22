@@ -22,9 +22,31 @@ export interface Personnage {
   };
   visionProfile?: VisionProfile;
   appearance?: TokenAppearance;
+  actionIds?: string[];
+  combatStats?: CombatStats;
   [key: string]: any;
 }
 
+export interface CombatStats {
+  level: number;
+  mods: {
+    str: number;
+    dex: number;
+    con: number;
+    int: number;
+    wis: number;
+    cha: number;
+  };
+  maxHp: number;
+  armorClass: number;
+  attackBonus: number;
+  attackDamage: number;
+  attackRange: number;
+  moveRange: number;
+  maxAttacksPerTurn: number;
+  resources: Record<string, { current: number; max?: number }>;
+  tags?: string[];
+}
 
 export type TokenType = "player" | "enemy";
 
@@ -119,6 +141,10 @@ export interface TokenState {
    * Pour les ennemis, cela vient de enemy-types/*.json.
    */
   actionIds?: string[] | null;
+  /**
+   * Stats de combat standardisees partagees entre joueurs/ennemis.
+   */
+  combatStats?: CombatStats;
   /**
    * Profil RP pour guider les bulles de dialogue (enemy-types).
    */

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { sampleCharacter } from "./sampleCharacter";
-import type { MovementProfile, TokenState, VisionProfile } from "./types";
+import type { CombatStats, MovementProfile, TokenState, VisionProfile } from "./types";
 import type {
   ActionAvailability,
   ActionDefinition,
@@ -58,14 +58,13 @@ import {
   getTokenOccupiedCells
 } from "./game/footprint";
 import actionsIndex from "../action-game/actions/index.json";
-import meleeStrike from "../action-game/actions/melee-strike.json";
-import dashAction from "../action-game/actions/dash.json";
-import secondWind from "../action-game/actions/second-wind.json";
-import throwDagger from "../action-game/actions/throw-dagger.json";
-import torchToggle from "../action-game/actions/torch-toggle.json";
-import enemyMove from "../action-game/actions/enemy-move.json";
-import enemyMeleeStrike from "../action-game/actions/enemy-melee-strike.json";
-import enemyBowShot from "../action-game/actions/enemy-bow-shot.json";
+import meleeStrike from "../action-game/actions/catalog/combat/melee-strike.json";
+import throwDagger from "../action-game/actions/catalog/combat/throw-dagger.json";
+import bowShot from "../action-game/actions/catalog/combat/bow-shot.json";
+import dashAction from "../action-game/actions/catalog/movement/dash.json";
+import moveAction from "../action-game/actions/catalog/movement/move.json";
+import secondWind from "../action-game/actions/catalog/support/second-wind.json";
+import torchToggle from "../action-game/actions/catalog/items/torch-toggle.json";
 import {
   rollAttack,
   rollDamage,
@@ -161,14 +160,13 @@ import { preloadTokenPngTexturesFor, type TokenSpriteRequest } from "./tokenText
 import { preloadDecorTexturesFor } from "./svgDecorHelper";
 
 const ACTION_MODULES: Record<string, ActionDefinition> = {
-  "./melee-strike.json": meleeStrike as ActionDefinition,
-  "./dash.json": dashAction as ActionDefinition,
-  "./second-wind.json": secondWind as ActionDefinition,
-  "./throw-dagger.json": throwDagger as ActionDefinition,
-  "./torch-toggle.json": torchToggle as ActionDefinition,
-  "./enemy-move.json": enemyMove as ActionDefinition,
-  "./enemy-melee-strike.json": enemyMeleeStrike as ActionDefinition,
-  "./enemy-bow-shot.json": enemyBowShot as ActionDefinition
+  "./catalog/combat/melee-strike.json": meleeStrike as ActionDefinition,
+  "./catalog/combat/throw-dagger.json": throwDagger as ActionDefinition,
+  "./catalog/combat/bow-shot.json": bowShot as ActionDefinition,
+  "./catalog/movement/dash.json": dashAction as ActionDefinition,
+  "./catalog/movement/move.json": moveAction as ActionDefinition,
+  "./catalog/support/second-wind.json": secondWind as ActionDefinition,
+  "./catalog/items/torch-toggle.json": torchToggle as ActionDefinition
 };
 
 const ENEMY_TYPE_MODULES: Record<string, EnemyTypeDefinition> = {
@@ -180,6 +178,31 @@ const ENEMY_TYPE_MODULES: Record<string, EnemyTypeDefinition> = {
 
 function buildCellKey(x: number, y: number): string {
   return `${x},${y}`;
+}
+
+function buildCombatStatsFromCharacter(): CombatStats {
+  const level = Number(sampleCharacter.niveauGlobal ?? 1) || 1;
+  const mods = {
+    str: Number(sampleCharacter.caracs?.force?.modFOR ?? 0),
+    dex: Number(sampleCharacter.caracs?.dexterite?.modDEX ?? 0),
+    con: Number(sampleCharacter.caracs?.constitution?.modCON ?? 0),
+    int: Number(sampleCharacter.caracs?.intelligence?.modINT ?? 0),
+    wis: Number(sampleCharacter.caracs?.sagesse?.modSAG ?? 0),
+    cha: Number(sampleCharacter.caracs?.charisme?.modCHA ?? 0)
+  };
+
+  return {
+    level,
+    mods,
+    maxHp: Number(sampleCharacter.pvMax ?? 1) || 1,
+    armorClass: Number(sampleCharacter.CA ?? 10) || 10,
+    attackBonus: mods.str + 2,
+    attackDamage: Math.max(1, mods.str + 3),
+    attackRange: 1,
+    moveRange: 3,
+    maxAttacksPerTurn: 1,
+    resources: {}
+  };
 }
 
 // -------------------------------------------------------------
@@ -239,7 +262,7 @@ function scaleDiceFormula(formula: string, multiplier: number): string | null {
     position: { x: number; y: number }
   ): TokenState {
   const { x, y } = position;
-  const base = enemyType.baseStats;
+  const base = enemyType.combatStats;
   return {
     id: `enemy-${index + 1}`,
     type: "enemy",
@@ -251,6 +274,7 @@ function scaleDiceFormula(formula: string, multiplier: number): string | null {
         : null,
       appearance: enemyType.appearance,
       speechProfile: enemyType.speechProfile ?? null,
+    combatStats: base,
       moveRange: base.moveRange,
     attackDamage: base.attackDamage,
     attackRange: typeof base.attackRange === "number" ? base.attackRange : 1,
@@ -261,7 +285,7 @@ function scaleDiceFormula(formula: string, multiplier: number): string | null {
       ? (enemyType.movement as MovementProfile)
       : {
           type: "ground",
-          speed: enemyType.baseStats.moveRange,
+          speed: enemyType.combatStats.moveRange,
           canPassThroughWalls: false,
           canPassThroughEntities: false,
           canStopOnOccupiedTile: false
@@ -277,8 +301,8 @@ function scaleDiceFormula(formula: string, multiplier: number): string | null {
     footprint: enemyType.footprint,
     x,
     y,
-    hp: base.hp,
-    maxHp: base.hp
+    hp: base.maxHp,
+    maxHp: base.maxHp
   };
 }
 
@@ -335,6 +359,13 @@ export const GameBoard: React.FC = () => {
   );
   const defaultMovementMode = movementModes[0] ?? getDefaultMovementMode();
   const defaultMovementProfile = buildMovementProfileFromMode(defaultMovementMode);
+  const baseCombatStats: CombatStats =
+    sampleCharacter.combatStats ?? buildCombatStatsFromCharacter();
+  const playerCombatStats: CombatStats = {
+    ...baseCombatStats,
+    moveRange: defaultMovementProfile.speed,
+    maxHp: Number(sampleCharacter.pvMax ?? baseCombatStats.maxHp) || baseCombatStats.maxHp
+  };
   const defaultPlayerVisionProfile: VisionProfile =
     sampleCharacter.visionProfile ?? {
       shape: "cone",
@@ -348,17 +379,24 @@ export const GameBoard: React.FC = () => {
   const [speechBubbles, setSpeechBubbles] = useState<SpeechBubbleEntry[]>([]);
 
     const [player, setPlayer] = useState<TokenState>({
-      id: "player-1",
-      type: "player",
-      appearance: sampleCharacter.appearance,
-      x: 0,
-      y: Math.floor(GRID_ROWS / 2),
+    id: "player-1",
+    type: "player",
+    appearance: sampleCharacter.appearance,
+    actionIds: Array.isArray(sampleCharacter.actionIds)
+      ? sampleCharacter.actionIds
+      : [],
+    x: 0,
+    y: Math.floor(GRID_ROWS / 2),
     facing: "right",
     movementProfile: defaultMovementProfile,
-    moveRange: defaultMovementProfile.speed,
+    moveRange: playerCombatStats.moveRange,
     visionProfile: defaultPlayerVisionProfile,
+    combatStats: playerCombatStats,
+    attackDamage: playerCombatStats.attackDamage,
+    attackRange: playerCombatStats.attackRange,
+    maxAttacksPerTurn: playerCombatStats.maxAttacksPerTurn,
     hp: sampleCharacter.pvActuels,
-    maxHp: sampleCharacter.pvMax
+    maxHp: playerCombatStats.maxHp
   });
 
   const [enemyTypes, setEnemyTypes] = useState<EnemyTypeDefinition[]>([]);
@@ -411,7 +449,7 @@ export const GameBoard: React.FC = () => {
 
   // Actions loaded from JSON
   const [actionsCatalog, setActionsCatalog] = useState<ActionDefinition[]>([]);
-  // Player actions loaded from JSON (exclude enemy-tagged actions)
+  // Player actions loaded from JSON (filtered by actionIds)
   const [actions, setActions] = useState<ActionDefinition[]>([]);
   const [selectedActionId, setSelectedActionId] = useState<string | null>(null);
   const [validatedActionId, setValidatedActionId] = useState<string | null>(null);
@@ -504,56 +542,6 @@ export const GameBoard: React.FC = () => {
     null
   );
 
-  const isBoardIdle = useMemo(() => {
-    if (!isCombatConfigured) return true;
-    if (isResolvingEnemies) return false;
-    if (isPanningBoard) return false;
-    if (interactionMode !== "idle") return false;
-    if (selectedPath.length > 0) return false;
-    if (actionContext) return false;
-    if (interactionContext) return false;
-    if (pendingHazardRoll) return false;
-    if (radialMenu.cell || radialMenu.token) return false;
-    return true;
-  }, [
-    isCombatConfigured,
-    isResolvingEnemies,
-    isPanningBoard,
-    interactionMode,
-    selectedPath.length,
-    actionContext,
-    interactionContext,
-    pendingHazardRoll,
-    radialMenu.cell,
-    radialMenu.token
-  ]);
-  const shouldAnimateBoard = hasAnimatedSprites && !isTextureLoading;
-  const boardMaxFps = shouldAnimateBoard
-    ? (isBoardIdle ? BOARD_FPS_IDLE : BOARD_FPS_ACTIVE)
-    : 0;
-  const {
-    staticDepthLayerRef,
-    dynamicDepthLayerRef,
-    pathLayerRef,
-    speechLayerRef,
-    labelLayerRef,
-    viewportRef,
-    pixiReadyTick
-  } = usePixiBoard({
-    enabled: isCombatConfigured,
-    containerRef: pixiContainerRef,
-    zoom: boardZoom,
-    panX: boardPan.x,
-    panY: boardPan.y,
-    backgroundColor: boardBackgroundColor,
-    playableCells,
-    terrain: mapTerrain,
-    grid: mapGrid,
-    animate: shouldAnimateBoard,
-    maxFps: boardMaxFps,
-    renderTick
-  });
-
   // Area-of-effect specs attached to the player
   const [effectSpecs, setEffectSpecs] = useState<EffectSpec[]>([]);
   const [showVisionDebug, setShowVisionDebug] = useState<boolean>(false);
@@ -637,6 +625,29 @@ export const GameBoard: React.FC = () => {
     }
     return false;
   }, [effectTypeById, isCombatConfigured, obstacles, obstacleTypeById, effects]);
+  const isBoardIdle = useMemo(() => {
+    if (!isCombatConfigured) return true;
+    if (isResolvingEnemies) return false;
+    if (isPanningBoard) return false;
+    if (interactionMode !== "idle") return false;
+    if (selectedPath.length > 0) return false;
+    if (actionContext) return false;
+    if (interactionContext) return false;
+    if (pendingHazardRoll) return false;
+    if (radialMenu.cell || radialMenu.token) return false;
+    return true;
+  }, [
+    isCombatConfigured,
+    isResolvingEnemies,
+    isPanningBoard,
+    interactionMode,
+    selectedPath.length,
+    actionContext,
+    interactionContext,
+    pendingHazardRoll,
+    radialMenu.cell,
+    radialMenu.token
+  ]);
   const hasAnyInteractionSource = useMemo(() => {
     const wallHas = wallSegments.some(seg => {
       const def = seg.typeId ? wallTypeById.get(seg.typeId) ?? null : null;
@@ -1085,6 +1096,52 @@ export const GameBoard: React.FC = () => {
       : `Vision: joueur=${playerMode}`;
   }, [enemyTypes, player.visionProfile]);
 
+  function clampActiveLevel(value: number): number {
+    return Math.max(levelRange.min, Math.min(levelRange.max, value));
+  }
+
+  function getBaseHeightAt(x: number, y: number): number {
+    return getHeightAtGrid(mapHeight, mapGrid.cols, mapGrid.rows, x, y);
+  }
+
+  function isCellVisibleForPlayer(x: number, y: number): boolean {
+    if (showAllLevels) return true;
+    if (!visibilityLevels) return false;
+    const level = visibilityLevels.get(buildCellKey(x, y)) ?? 0;
+    return level > 0;
+  }
+
+  useEffect(() => {
+    setActiveLevel(prev => clampActiveLevel(prev));
+  }, [levelRange.min, levelRange.max]);
+
+  const shouldAnimateBoard = hasAnimatedSprites && !isTextureLoading;
+  const boardMaxFps = shouldAnimateBoard
+    ? (isBoardIdle ? BOARD_FPS_IDLE : BOARD_FPS_ACTIVE)
+    : 0;
+  const {
+    staticDepthLayerRef,
+    dynamicDepthLayerRef,
+    pathLayerRef,
+    speechLayerRef,
+    labelLayerRef,
+    viewportRef,
+    pixiReadyTick
+  } = usePixiBoard({
+    enabled: isCombatConfigured,
+    containerRef: pixiContainerRef,
+    zoom: boardZoom,
+    panX: boardPan.x,
+    panY: boardPan.y,
+    backgroundColor: boardBackgroundColor,
+    playableCells,
+    terrain: mapTerrain,
+    grid: mapGrid,
+    animate: shouldAnimateBoard,
+    maxFps: boardMaxFps,
+    renderTick
+  });
+
   useEffect(() => {
     if (shouldAnimateBoard) return;
     setRenderTick(t => t + 1);
@@ -1116,25 +1173,6 @@ export const GameBoard: React.FC = () => {
     boardPan.x,
     boardPan.y
   ]);
-
-  function clampActiveLevel(value: number): number {
-    return Math.max(levelRange.min, Math.min(levelRange.max, value));
-  }
-
-  function getBaseHeightAt(x: number, y: number): number {
-    return getHeightAtGrid(mapHeight, mapGrid.cols, mapGrid.rows, x, y);
-  }
-
-  function isCellVisibleForPlayer(x: number, y: number): boolean {
-    if (showAllLevels) return true;
-    if (!visibilityLevels) return false;
-    const level = visibilityLevels.get(buildCellKey(x, y)) ?? 0;
-    return level > 0;
-  }
-
-  useEffect(() => {
-    setActiveLevel(prev => clampActiveLevel(prev));
-  }, [levelRange.min, levelRange.max]);
 
   usePixiWalls({
     depthLayerRef: staticDepthLayerRef,
@@ -1534,7 +1572,10 @@ export const GameBoard: React.FC = () => {
     setPlayer(prev => ({
       ...prev,
       movementProfile: profile,
-      moveRange: profile.speed
+      moveRange: profile.speed,
+      combatStats: prev.combatStats
+        ? { ...prev.combatStats, moveRange: profile.speed }
+        : prev.combatStats
     }));
     setPathLimit(profile.speed);
     setInteractionMode("moving");
@@ -2155,7 +2196,11 @@ export const GameBoard: React.FC = () => {
 
     setActionsCatalog(loaded);
 
-    const playerVisible = loaded.filter(a => !(a.tags || []).includes("enemy"));
+    const playerActionIds = Array.isArray(player.actionIds) ? player.actionIds : [];
+    const playerVisible =
+      playerActionIds.length > 0
+        ? loaded.filter(a => playerActionIds.includes(a.id))
+        : loaded.filter(a => !(a.tags || []).includes("enemy"));
     setActions(playerVisible);
     setSelectedActionId(playerVisible.length ? playerVisible[0].id : null);
   }, []);
@@ -2235,10 +2280,11 @@ export const GameBoard: React.FC = () => {
     }
 
     const targeting = action.targeting;
-    if (!targeting || targeting.target !== "enemy") {
+    const isHostileTargeting = targeting?.target === "enemy" || targeting?.target === "hostile";
+    if (!targeting || !isHostileTargeting) {
       return {
         ok: false,
-        reason: "Cette action ne cible pas un ennemi."
+        reason: "Cette action ne cible pas une cible hostile."
       };
     }
 
@@ -2354,7 +2400,8 @@ export const GameBoard: React.FC = () => {
     }
 
     const targeting = action.targeting;
-    if (!targeting || targeting.target !== "enemy") {
+    const isHostileTargeting = targeting?.target === "enemy" || targeting?.target === "hostile";
+    if (!targeting || !isHostileTargeting) {
       return {
         ok: false,
         reason: "Cette action ne cible pas un ennemi/obstacle."
@@ -2469,7 +2516,8 @@ export const GameBoard: React.FC = () => {
     }
 
     const targeting = action.targeting;
-    if (!targeting || targeting.target !== "enemy") {
+    const isHostileTargeting = targeting?.target === "enemy" || targeting?.target === "hostile";
+    if (!targeting || !isHostileTargeting) {
       return {
         ok: false,
         reason: "Cette action ne cible pas un ennemi/obstacle."
@@ -2620,7 +2668,8 @@ export const GameBoard: React.FC = () => {
 
     const targeting = action.targeting?.target;
     const range = action.targeting?.range;
-    if (targeting === "enemy") {
+    const isHostileTargeting = targeting === "enemy" || targeting === "hostile";
+    if (isHostileTargeting) {
       const dist = minDistanceToAnyEnemy();
       if (dist === null) {
         reasons.push("Aucune cible ennemie presente.");
@@ -2646,13 +2695,13 @@ export const GameBoard: React.FC = () => {
           reasons.push(cond.reason || `PV trop hauts (>= ${Math.round(cond.percentMax * 100)}%).`);
         }
       }
-      if (cond.type === "distance_max" && targeting === "enemy") {
+      if (cond.type === "distance_max" && isHostileTargeting) {
         const dist = minDistanceToAnyEnemy();
         if (dist !== null && typeof cond.max === "number" && dist > cond.max) {
           reasons.push(cond.reason || `Distance > ${cond.max}.`);
         }
       }
-      if (cond.type === "distance_between" && targeting === "enemy") {
+      if (cond.type === "distance_between" && isHostileTargeting) {
         const dist = minDistanceToAnyEnemy();
         if (dist !== null) {
           if (typeof cond.min === "number" && dist < cond.min) {
@@ -2682,16 +2731,31 @@ export const GameBoard: React.FC = () => {
   }
 
   function resolvePlayerFormula(formula: string): string {
-    const level = Number(sampleCharacter.niveauGlobal || 1);
-    const modFOR = Number(sampleCharacter.caracs?.force?.modFOR || 0);
-    const modDEX = Number(sampleCharacter.caracs?.dexterite?.modDEX || 0);
-    const modCON = Number(sampleCharacter.caracs?.constitution?.modCON || 0);
+    const stats = player.combatStats;
+    const level = Number(stats?.level ?? sampleCharacter.niveauGlobal ?? 1) || 1;
+    const modSTR = Number(stats?.mods?.str ?? sampleCharacter.caracs?.force?.modFOR ?? 0);
+    const modDEX = Number(stats?.mods?.dex ?? sampleCharacter.caracs?.dexterite?.modDEX ?? 0);
+    const modCON = Number(stats?.mods?.con ?? sampleCharacter.caracs?.constitution?.modCON ?? 0);
+    const modINT = Number(stats?.mods?.int ?? sampleCharacter.caracs?.intelligence?.modINT ?? 0);
+    const modWIS = Number(stats?.mods?.wis ?? sampleCharacter.caracs?.sagesse?.modSAG ?? 0);
+    const modCHA = Number(stats?.mods?.cha ?? sampleCharacter.caracs?.charisme?.modCHA ?? 0);
+    const attackDamage = Number(stats?.attackDamage ?? player.attackDamage ?? 0);
+    const attackBonus = Number(stats?.attackBonus ?? 0);
+    const moveRange = Number(stats?.moveRange ?? player.moveRange ?? 0);
+    const attackRange = Number(stats?.attackRange ?? player.attackRange ?? 0);
     return formula
       .replace(/\s+/g, "")
-      .replace(/niveau/gi, String(level))
-      .replace(/modFOR/gi, String(modFOR))
+      .replace(/attackDamage/gi, String(attackDamage))
+      .replace(/attackBonus/gi, String(attackBonus))
+      .replace(/moveRange/gi, String(moveRange))
+      .replace(/attackRange/gi, String(attackRange))
+      .replace(/level/gi, String(level))
+      .replace(/modSTR/gi, String(modSTR))
       .replace(/modDEX/gi, String(modDEX))
-      .replace(/modCON/gi, String(modCON));
+      .replace(/modCON/gi, String(modCON))
+      .replace(/modINT/gi, String(modINT))
+      .replace(/modWIS/gi, String(modWIS))
+      .replace(/modCHA/gi, String(modCHA));
   }
 
   function describeUsage(usage: UsageSpec): string {
@@ -2863,7 +2927,7 @@ export const GameBoard: React.FC = () => {
       usedBonus: prev.usedBonus || isBonusAction
     }));
 
-    if (action.targeting?.target === "enemy") {
+    if (actionTargetsHostile(action)) {
       setTargetMode("selecting");
       setSelectedTargetId(null);
       setSelectedObstacleTarget(null);
@@ -2893,6 +2957,11 @@ export const GameBoard: React.FC = () => {
     return hasFormulaEffect;
   }
 
+  function actionTargetsHostile(action: ActionDefinition | null): boolean {
+    const target = action?.targeting?.target;
+    return target === "enemy" || target === "hostile";
+  }
+
   function handleRollAttack() {
     if (isGameOver) return;
     if (isTokenDead(player)) return;
@@ -2914,7 +2983,7 @@ export const GameBoard: React.FC = () => {
 
     let targetArmorClass: number | null = null;
     let targetLabel: string | null = null;
-    if (action.targeting?.target === "enemy") {
+    if (actionTargetsHostile(action)) {
       if (selectedTargetId) {
         const target = enemies.find(e => e.id === selectedTargetId);
         if (!target) {
@@ -2970,7 +3039,7 @@ export const GameBoard: React.FC = () => {
         : `${result.d20.rolls.join(" / ")} -> ${result.d20.total}`;
 
     const targetSuffix =
-      action.targeting?.target === "enemy" && targetLabel
+      actionTargetsHostile(action) && targetLabel
         ? ` sur ${targetLabel}`
         : "";
 
@@ -3083,7 +3152,7 @@ export const GameBoard: React.FC = () => {
     let targetArmorClass: number | null = null;
     let targetLabel: string | null = null;
     let obstacleTarget: ObstacleInstance | null = null;
-    if (action.targeting?.target === "enemy") {
+    if (actionTargetsHostile(action)) {
       if (selectedTargetId) {
         targetIndex = enemies.findIndex(e => e.id === selectedTargetId);
         if (targetIndex === -1) {
@@ -3134,7 +3203,7 @@ export const GameBoard: React.FC = () => {
       const isHit = totalAttack >= targetArmorClass || attackRoll.isCrit;
       if (!isHit) {
         const targetSuffix =
-          action.targeting?.target === "enemy" && targetLabel
+          actionTargetsHostile(action) && targetLabel
             ? ` sur ${targetLabel}`
             : "";
         pushLog(
@@ -3161,7 +3230,8 @@ export const GameBoard: React.FC = () => {
         return;
       }
     }
-    const result = rollDamage(action.damage.formula, {
+    const resolvedDamageFormula = resolvePlayerFormula(action.damage.formula);
+    const result = rollDamage(resolvedDamageFormula, {
       isCrit,
       critRule: action.damage.critRule
     });
@@ -3173,7 +3243,7 @@ export const GameBoard: React.FC = () => {
     const totalDamage = result.total;
 
     const targetSuffix =
-      action.targeting?.target === "enemy" && targetLabel
+      actionTargetsHostile(action) && targetLabel
         ? ` sur ${targetLabel}`
         : "";
 
@@ -5057,7 +5127,7 @@ export const GameBoard: React.FC = () => {
     const enemyActionIds =
       Array.isArray(activeEnemy.actionIds) && activeEnemy.actionIds.length
         ? activeEnemy.actionIds
-        : ["enemy-move", "enemy-melee-strike"];
+        : ["move", "melee-strike"];
 
     const getActionById = (id: string) => actionsCatalog.find(a => a.id === id) ?? null;
 
@@ -5162,9 +5232,9 @@ export const GameBoard: React.FC = () => {
       } else {
         const distToPlayer = distanceBetweenTokens(activeEnemy, playerCopy);
 
-        const hasBow = enemyActionIds.includes("enemy-bow-shot");
-        const hasMelee = enemyActionIds.includes("enemy-melee-strike");
-        const canMove = enemyActionIds.includes("enemy-move");
+        const hasBow = enemyActionIds.includes("bow-shot");
+        const hasMelee = enemyActionIds.includes("melee-strike");
+        const canMove = enemyActionIds.includes("move");
 
         const moveRange = typeof activeEnemy.moveRange === "number" ? activeEnemy.moveRange : 3;
         const isArcher = activeEnemy.aiRole === "archer";
@@ -5195,11 +5265,11 @@ export const GameBoard: React.FC = () => {
 
         // 1) Archer: tire si possible.
         if (!acted && playerCopy.hp > 0 && isArcher && hasBow) {
-          const bow = getActionById("enemy-bow-shot");
+          const bow = getActionById("bow-shot");
           const min = bow?.targeting?.range?.min ?? 2;
           const max = bow?.targeting?.range?.max ?? 6;
           if (distToPlayer >= min && distToPlayer <= max) {
-            const shot = tryResolve("enemy-bow-shot", { kind: "token", token: playerCopy });
+            const shot = tryResolve("bow-shot", { kind: "token", token: playerCopy });
             if (shot.ok) {
               recordCombatEvent({
                 round,
@@ -5222,7 +5292,7 @@ export const GameBoard: React.FC = () => {
           const destination = pickBestRetreatCell();
           if (destination) {
             const from = { x: activeEnemy.x, y: activeEnemy.y };
-            const moved = tryResolve("enemy-move", { kind: "cell", x: destination.x, y: destination.y });
+            const moved = tryResolve("move", { kind: "cell", x: destination.x, y: destination.y });
             if (moved.ok) {
               recordCombatEvent({
                 round,
@@ -5240,7 +5310,7 @@ export const GameBoard: React.FC = () => {
 
         // 3) Non-archer: melee si au contact.
         if (!acted && playerCopy.hp > 0 && !isArcher && hasMelee && distToPlayer <= 1) {
-          const melee = tryResolve("enemy-melee-strike", { kind: "token", token: playerCopy });
+          const melee = tryResolve("melee-strike", { kind: "token", token: playerCopy });
           if (melee.ok) {
             recordCombatEvent({
               round,
@@ -5308,7 +5378,7 @@ export const GameBoard: React.FC = () => {
 
           if (destination) {
             const from = { x: activeEnemy.x, y: activeEnemy.y };
-            const moved = tryResolve("enemy-move", { kind: "cell", x: destination.x, y: destination.y });
+            const moved = tryResolve("move", { kind: "cell", x: destination.x, y: destination.y });
             if (moved.ok) {
               recordCombatEvent({
                 round,
@@ -5326,7 +5396,7 @@ export const GameBoard: React.FC = () => {
 
         // 5) Derniere option: si archer au contact, tente melee.
         if (!acted && playerCopy.hp > 0 && isArcher && hasMelee && distToPlayer <= 1) {
-          const melee = tryResolve("enemy-melee-strike", { kind: "token", token: playerCopy });
+          const melee = tryResolve("melee-strike", { kind: "token", token: playerCopy });
           if (melee.ok) {
             recordCombatEvent({
               round,

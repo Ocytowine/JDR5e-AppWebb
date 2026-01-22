@@ -3,7 +3,7 @@
   "label": "Assassin",
   "description": "Frappeur rapide qui cherche a se rapprocher pour porter un coup decisif.",
   "aiRole": "assassin",
-  "actions": ["enemy-move", "enemy-melee-strike"],
+  "actions": ["move", "melee-strike"],
   "behavior": { "preferredRangeMin": 1, "preferredRangeMax": 1, "panicRange": 0 },
   "speechProfile": {
     "raceOrOrigin": "Assassin",
@@ -13,11 +13,17 @@
     "quirks": ["parle peu", "phrases courtes et precises"],
     "taboos": ["pas de modernisme", "pas de meta-jeu"]
   },
-  "baseStats": {
-    "hp": 6,
-    "moveRange": 3,
+  "combatStats": {
+    "level": 1,
+    "mods": { "str": 0, "dex": 0, "con": 0, "int": 0, "wis": 0, "cha": 0 },
+    "maxHp": 6,
+    "armorClass": 15,
+    "attackBonus": 0,
     "attackDamage": 3,
-    "armorClass": 15
+    "attackRange": 1,
+    "moveRange": 3,
+    "maxAttacksPerTurn": 1,
+    "resources": {}
   },
   "appearance": {
     "spriteKey": "assassin",

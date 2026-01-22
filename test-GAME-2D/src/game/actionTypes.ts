@@ -17,6 +17,7 @@ export interface ActionCost {
 export type TargetingKind =
   | "enemy"
   | "player"
+  | "hostile"
   | "ally"
   | "self"
   | "cell"

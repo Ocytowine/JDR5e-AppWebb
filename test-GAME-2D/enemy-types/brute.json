@@ -3,7 +3,7 @@
   "label": "Brute",
   "description": "Frontliner robuste qui avance pour engager le joueur.",
   "aiRole": "brute",
-  "actions": ["enemy-move", "enemy-melee-strike"],
+  "actions": ["move", "melee-strike"],
   "behavior": { "preferredRangeMin": 1, "preferredRangeMax": 1, "panicRange": 0 },
   "speechProfile": {
     "raceOrOrigin": "Brute mercenaire",
@@ -13,13 +13,17 @@
     "quirks": ["phrases courtes", "menaces simples"],
     "taboos": ["pas de modernisme", "pas de meta-jeu"]
   },
-  "baseStats": {
-    "hp": 10,
-    "moveRange": 3,
-    "attackDamage": 2,
+  "combatStats": {
+    "level": 1,
+    "mods": { "str": 0, "dex": 0, "con": 0, "int": 0, "wis": 0, "cha": 0 },
+    "maxHp": 10,
     "armorClass": 14,
+    "attackBonus": 0,
+    "attackDamage": 2,
     "attackRange": 1,
-    "maxAttacksPerTurn": 2
+    "moveRange": 3,
+    "maxAttacksPerTurn": 2,
+    "resources": {}
   },
   "appearance": {
     "spriteKey": "brute",

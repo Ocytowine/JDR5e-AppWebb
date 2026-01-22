@@ -3,7 +3,7 @@
   "label": "Archer",
   "description": "Tireur qui prefere garder une distance de securite avant de frapper.",
   "aiRole": "archer",
-  "actions": ["enemy-move", "enemy-bow-shot", "enemy-melee-strike"],
+  "actions": ["move", "bow-shot", "melee-strike"],
   "behavior": { "preferredRangeMin": 3, "preferredRangeMax": 6, "panicRange": 2 },
   "speechProfile": {
     "raceOrOrigin": "Archer de bande",
@@ -13,13 +13,17 @@
     "quirks": ["annonce ce qu'il voit", "donne des consignes courtes"],
     "taboos": ["pas de modernisme", "pas de meta-jeu"]
   },
-  "baseStats": {
-    "hp": 7,
-    "moveRange": 2,
-    "attackDamage": 2,
+  "combatStats": {
+    "level": 1,
+    "mods": { "str": 0, "dex": 0, "con": 0, "int": 0, "wis": 0, "cha": 0 },
+    "maxHp": 7,
     "armorClass": 13,
+    "attackBonus": 0,
+    "attackDamage": 2,
     "attackRange": 6,
-    "maxAttacksPerTurn": 1
+    "moveRange": 2,
+    "maxAttacksPerTurn": 1,
+    "resources": {}
   },
   "appearance": {
     "spriteKey": "archer",

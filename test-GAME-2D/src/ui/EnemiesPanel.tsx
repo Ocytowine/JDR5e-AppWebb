@@ -118,7 +118,9 @@ export function EnemiesPanel(props: {
               Ce qu&apos;il peut faire : {props.capabilities.map(cap => cap.label).join(" | ")}
             </div>
 
-            {validatedAction && validatedAction.targeting?.target === "enemy" && (
+            {validatedAction &&
+              (validatedAction.targeting?.target === "enemy" ||
+                validatedAction.targeting?.target === "hostile") && (
               (() => {
                 const validation = props.validateEnemyTargetForAction(
                   validatedAction,
