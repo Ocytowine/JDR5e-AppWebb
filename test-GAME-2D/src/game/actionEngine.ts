@@ -55,9 +55,12 @@ export interface ActionEngineContext {
   sampleCharacter?: {
     niveauGlobal?: number;
     caracs?: {
-      force?: { modFOR?: number };
-      dexterite?: { modDEX?: number };
-      constitution?: { modCON?: number };
+      force?: { FOR?: number; modFOR?: number };
+      dexterite?: { DEX?: number; modDEX?: number };
+      constitution?: { CON?: number; modCON?: number };
+      intelligence?: { INT?: number; modINT?: number };
+      sagesse?: { SAG?: number; modSAG?: number };
+      charisme?: { CHA?: number; modCHA?: number };
     };
   };
   /**
@@ -80,6 +83,16 @@ function resolveNumberVar(
   const actor = ctx.actor;
   const stats = actor.combatStats;
   const token = varName.toLowerCase();
+  const computeModFromScore = (score?: number) => {
+    if (!Number.isFinite(score)) return 0;
+    return Math.floor((Number(score) - 10) / 2);
+  };
+  const pickNumber = (...values: Array<number | undefined | null>) => {
+    for (const value of values) {
+      if (typeof value === "number" && Number.isFinite(value)) return value;
+    }
+    return 0;
+  };
 
   if (token === "attackdamage") {
     return typeof stats?.attackDamage === "number"
@@ -110,27 +123,51 @@ function resolveNumberVar(
     return Number.isFinite(level) ? level : 1;
   }
   if (token === "modstr" || token === "modfor") {
-    const mod = Number(stats?.mods?.str ?? ctx.sampleCharacter?.caracs?.force?.modFOR ?? 0);
+    const mod = pickNumber(
+      stats?.mods?.str,
+      ctx.sampleCharacter?.caracs?.force?.modFOR,
+      computeModFromScore(ctx.sampleCharacter?.caracs?.force?.FOR)
+    );
     return Number.isFinite(mod) ? mod : 0;
   }
   if (token === "moddex") {
-    const mod = Number(stats?.mods?.dex ?? ctx.sampleCharacter?.caracs?.dexterite?.modDEX ?? 0);
+    const mod = pickNumber(
+      stats?.mods?.dex,
+      ctx.sampleCharacter?.caracs?.dexterite?.modDEX,
+      computeModFromScore(ctx.sampleCharacter?.caracs?.dexterite?.DEX)
+    );
     return Number.isFinite(mod) ? mod : 0;
   }
   if (token === "modcon") {
-    const mod = Number(stats?.mods?.con ?? ctx.sampleCharacter?.caracs?.constitution?.modCON ?? 0);
+    const mod = pickNumber(
+      stats?.mods?.con,
+      ctx.sampleCharacter?.caracs?.constitution?.modCON,
+      computeModFromScore(ctx.sampleCharacter?.caracs?.constitution?.CON)
+    );
     return Number.isFinite(mod) ? mod : 0;
   }
   if (token === "modint") {
-    const mod = Number(stats?.mods?.int ?? ctx.sampleCharacter?.caracs?.intelligence?.modINT ?? 0);
+    const mod = pickNumber(
+      stats?.mods?.int,
+      ctx.sampleCharacter?.caracs?.intelligence?.modINT,
+      computeModFromScore(ctx.sampleCharacter?.caracs?.intelligence?.INT)
+    );
     return Number.isFinite(mod) ? mod : 0;
   }
   if (token === "modwis") {
-    const mod = Number(stats?.mods?.wis ?? ctx.sampleCharacter?.caracs?.sagesse?.modSAG ?? 0);
+    const mod = pickNumber(
+      stats?.mods?.wis,
+      ctx.sampleCharacter?.caracs?.sagesse?.modSAG,
+      computeModFromScore(ctx.sampleCharacter?.caracs?.sagesse?.SAG)
+    );
     return Number.isFinite(mod) ? mod : 0;
   }
   if (token === "modcha") {
-    const mod = Number(stats?.mods?.cha ?? ctx.sampleCharacter?.caracs?.charisme?.modCHA ?? 0);
+    const mod = pickNumber(
+      stats?.mods?.cha,
+      ctx.sampleCharacter?.caracs?.charisme?.modCHA,
+      computeModFromScore(ctx.sampleCharacter?.caracs?.charisme?.CHA)
+    );
     return Number.isFinite(mod) ? mod : 0;
   }
 

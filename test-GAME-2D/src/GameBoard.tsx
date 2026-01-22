@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { sampleCharacter } from "./sampleCharacter";
-import type { CombatStats, MovementProfile, TokenState, VisionProfile } from "./types";
+import type { CombatStats, MovementProfile, Personnage, TokenState, VisionProfile } from "./types";
 import type {
   ActionAvailability,
   ActionDefinition,
@@ -74,6 +74,7 @@ import {
   type AdvantageMode
 } from "./dice/roller";
 import { resolveAction, type ActionTarget } from "./game/actionEngine";
+import { buildActionPlan, type ActionPlan } from "./game/actionPlan";
 import {
   GRID_COLS,
   GRID_ROWS,
@@ -146,6 +147,7 @@ import { LogPanel } from "./ui/LogPanel";
 import { ActionWheelMenu } from "./ui/ActionWheelMenu";
 import type { WheelMenuItem } from "./ui/RadialWheelMenu";
 import { ActionContextWindow } from "./ui/ActionContextWindow";
+import { CharacterSheetWindow } from "./ui/CharacterSheetWindow";
 import { InteractionContextWindow } from "./ui/InteractionContextWindow";
 import { boardThemeColor, colorToCssHex } from "./boardTheme";
 import type { InteractionCost, InteractionSpec } from "./game/interactions";
@@ -180,22 +182,60 @@ function buildCellKey(x: number, y: number): string {
   return `${x},${y}`;
 }
 
+type AbilityKey = "str" | "dex" | "con" | "int" | "wis" | "cha";
+
+const ABILITY_CARAC_KEY: Record<AbilityKey, keyof Personnage["caracs"]> = {
+  str: "force",
+  dex: "dexterite",
+  con: "constitution",
+  int: "intelligence",
+  wis: "sagesse",
+  cha: "charisme"
+};
+
+const ABILITY_SCORE_KEY: Record<AbilityKey, string> = {
+  str: "FOR",
+  dex: "DEX",
+  con: "CON",
+  int: "INT",
+  wis: "SAG",
+  cha: "CHA"
+};
+
+function computeAbilityModFromScore(score?: number): number {
+  if (!Number.isFinite(score)) return 0;
+  return Math.floor((Number(score) - 10) / 2);
+}
+
+function getSampleAbilityMod(ability: AbilityKey): number {
+  const statMod = sampleCharacter.combatStats?.mods?.[ability];
+  if (typeof statMod === "number" && Number.isFinite(statMod)) {
+    return statMod;
+  }
+  const caracKey = ABILITY_CARAC_KEY[ability];
+  const scoreKey = ABILITY_SCORE_KEY[ability];
+  const score = (sampleCharacter.caracs?.[caracKey] as any)?.[scoreKey];
+  return computeAbilityModFromScore(score);
+}
+
 function buildCombatStatsFromCharacter(): CombatStats {
-  const level = Number(sampleCharacter.niveauGlobal ?? 1) || 1;
+  const level = Number(sampleCharacter.combatStats?.level ?? sampleCharacter.niveauGlobal ?? 1) || 1;
   const mods = {
-    str: Number(sampleCharacter.caracs?.force?.modFOR ?? 0),
-    dex: Number(sampleCharacter.caracs?.dexterite?.modDEX ?? 0),
-    con: Number(sampleCharacter.caracs?.constitution?.modCON ?? 0),
-    int: Number(sampleCharacter.caracs?.intelligence?.modINT ?? 0),
-    wis: Number(sampleCharacter.caracs?.sagesse?.modSAG ?? 0),
-    cha: Number(sampleCharacter.caracs?.charisme?.modCHA ?? 0)
+    str: getSampleAbilityMod("str"),
+    dex: getSampleAbilityMod("dex"),
+    con: getSampleAbilityMod("con"),
+    int: getSampleAbilityMod("int"),
+    wis: getSampleAbilityMod("wis"),
+    cha: getSampleAbilityMod("cha")
   };
+  const maxHp = Number(sampleCharacter.combatStats?.maxHp ?? sampleCharacter.pvActuels ?? 1) || 1;
+  const armorClass = Number(sampleCharacter.combatStats?.armorClass ?? sampleCharacter.CA ?? 10) || 10;
 
   return {
     level,
     mods,
-    maxHp: Number(sampleCharacter.pvMax ?? 1) || 1,
-    armorClass: Number(sampleCharacter.CA ?? 10) || 10,
+    maxHp,
+    armorClass,
     attackBonus: mods.str + 2,
     attackDamage: Math.max(1, mods.str + 3),
     attackRange: 1,
@@ -364,7 +404,10 @@ export const GameBoard: React.FC = () => {
   const playerCombatStats: CombatStats = {
     ...baseCombatStats,
     moveRange: defaultMovementProfile.speed,
-    maxHp: Number(sampleCharacter.pvMax ?? baseCombatStats.maxHp) || baseCombatStats.maxHp
+    maxHp: baseCombatStats.maxHp,
+    actionsPerTurn: baseCombatStats.actionsPerTurn ?? 1,
+    bonusActionsPerTurn: baseCombatStats.bonusActionsPerTurn ?? 1,
+    actionRules: baseCombatStats.actionRules ?? { forbidSecondAttack: true }
   };
   const defaultPlayerVisionProfile: VisionProfile =
     sampleCharacter.visionProfile ?? {
@@ -457,14 +500,16 @@ export const GameBoard: React.FC = () => {
     useState<AdvantageMode>("normal");
   const [attackRoll, setAttackRoll] = useState<AttackRollResult | null>(null);
   const [damageRoll, setDamageRoll] = useState<DamageRollResult | null>(null);
+  const [attackOutcome, setAttackOutcome] =
+    useState<"hit" | "miss" | null>(null);
   const [diceLogs, setDiceLogs] = useState<string[]>([]);
   const [pendingHazardRoll, setPendingHazardRoll] = useState<PendingHazardRoll | null>(null);
   const [hasRolledAttackForCurrentAction, setHasRolledAttackForCurrentAction] =
     useState<boolean>(false);
   const [turnActionUsage, setTurnActionUsage] = useState<{
-    usedAction: boolean;
-    usedBonus: boolean;
-  }>({ usedAction: false, usedBonus: false });
+    usedActionCount: number;
+    usedBonusCount: number;
+  }>({ usedActionCount: 0, usedBonusCount: 0 });
   const [actionUsageCounts, setActionUsageCounts] = useState<{
     turn: Record<string, number>;
     encounter: Record<string, number>;
@@ -538,6 +583,7 @@ export const GameBoard: React.FC = () => {
     actionId: string;
     stage: "draft" | "active";
   } | null>(null);
+  const [sheetOpen, setSheetOpen] = useState<boolean>(false);
   const [hazardAnchor, setHazardAnchor] = useState<{ anchorX: number; anchorY: number } | null>(
     null
   );
@@ -1441,10 +1487,10 @@ export const GameBoard: React.FC = () => {
     if (!canInteractWithBoard) {
       return { ok: false, reason: "Tour joueur requis." };
     }
-    if (cost === "action" && turnActionUsage.usedAction) {
+    if (cost === "action" && turnActionUsage.usedActionCount >= (player.combatStats?.actionsPerTurn ?? 1)) {
       return { ok: false, reason: "Action principale deja utilisee." };
     }
-    if (cost === "bonus" && turnActionUsage.usedBonus) {
+    if (cost === "bonus" && turnActionUsage.usedBonusCount >= (player.combatStats?.bonusActionsPerTurn ?? 1)) {
       return { ok: false, reason: "Action bonus deja utilisee." };
     }
     return { ok: true };
@@ -1455,8 +1501,8 @@ export const GameBoard: React.FC = () => {
     const isBonusAction = cost === "bonus";
     if (!isStandardAction && !isBonusAction) return;
     setTurnActionUsage(prev => ({
-      usedAction: prev.usedAction || isStandardAction,
-      usedBonus: prev.usedBonus || isBonusAction
+      usedActionCount: prev.usedActionCount + (isStandardAction ? 1 : 0),
+      usedBonusCount: prev.usedBonusCount + (isBonusAction ? 1 : 0)
     }));
   }
 
@@ -1924,7 +1970,7 @@ export const GameBoard: React.FC = () => {
     setCurrentTurnIndex(0);
     setIsCombatConfigured(true);
     setActionUsageCounts({ turn: {}, encounter: {} });
-    setTurnActionUsage({ usedAction: false, usedBonus: false });
+    setTurnActionUsage({ usedActionCount: 0, usedBonusCount: 0 });
     setPlayerResources({ "bandolier:dagger": 3, "gear:torch": 1 });
     setPathLimit(5);
   }
@@ -1960,7 +2006,7 @@ export const GameBoard: React.FC = () => {
   function rollInitialInitiativeIfNeeded() {
     if (hasRolledInitiative) return;
 
-    const playerMod = sampleCharacter.caracs.dexterite.modDEX ?? 0;
+    const playerMod = getSampleAbilityMod("dex");
     const rollD20 = () => Math.floor(Math.random() * 20) + 1;
 
     const pjRoll = rollD20();
@@ -2218,7 +2264,7 @@ export const GameBoard: React.FC = () => {
 
     if (entry.kind === "player") {
       setPhase("player");
-      setTurnActionUsage({ usedAction: false, usedBonus: false });
+      setTurnActionUsage({ usedActionCount: 0, usedBonusCount: 0 });
       setActionUsageCounts(prev => ({ ...prev, turn: {} }));
       setPathLimit(5);
       setHasRolledAttackForCurrentAction(false);
@@ -2625,7 +2671,7 @@ export const GameBoard: React.FC = () => {
     return { ok: true };
   }
 
-    function computeActionAvailability(action: ActionDefinition): ActionAvailability {
+  function computeActionAvailability(action: ActionDefinition): ActionAvailability {
     const reasons: string[] = [];
     const details: string[] = [];
 
@@ -2634,11 +2680,17 @@ export const GameBoard: React.FC = () => {
     }
 
     const costType = action.actionCost?.actionType;
-    if (costType === "action" && turnActionUsage.usedAction) {
-      reasons.push("Action principale deja utilisee ce tour.");
+    const isActiveAction =
+      actionContext?.stage === "active" && validatedActionId === action.id;
+    if (costType === "action" && turnActionUsage.usedActionCount >= (player.combatStats?.actionsPerTurn ?? 1)) {
+      if (!isActiveAction) {
+        reasons.push("Action principale deja utilisee ce tour.");
+      }
     }
-    if (costType === "bonus" && turnActionUsage.usedBonus) {
-      reasons.push("Action bonus deja utilisee ce tour.");
+    if (costType === "bonus" && turnActionUsage.usedBonusCount >= (player.combatStats?.bonusActionsPerTurn ?? 1)) {
+      if (!isActiveAction) {
+        reasons.push("Action bonus deja utilisee ce tour.");
+      }
     }
 
     const turnUses = typeof actionUsageCounts.turn[action.id] === "number" ? actionUsageCounts.turn[action.id] : 0;
@@ -2732,13 +2784,13 @@ export const GameBoard: React.FC = () => {
 
   function resolvePlayerFormula(formula: string): string {
     const stats = player.combatStats;
-    const level = Number(stats?.level ?? sampleCharacter.niveauGlobal ?? 1) || 1;
-    const modSTR = Number(stats?.mods?.str ?? sampleCharacter.caracs?.force?.modFOR ?? 0);
-    const modDEX = Number(stats?.mods?.dex ?? sampleCharacter.caracs?.dexterite?.modDEX ?? 0);
-    const modCON = Number(stats?.mods?.con ?? sampleCharacter.caracs?.constitution?.modCON ?? 0);
-    const modINT = Number(stats?.mods?.int ?? sampleCharacter.caracs?.intelligence?.modINT ?? 0);
-    const modWIS = Number(stats?.mods?.wis ?? sampleCharacter.caracs?.sagesse?.modSAG ?? 0);
-    const modCHA = Number(stats?.mods?.cha ?? sampleCharacter.caracs?.charisme?.modCHA ?? 0);
+    const level = Number(stats?.level ?? sampleCharacter.combatStats?.level ?? 1) || 1;
+    const modSTR = Number(stats?.mods?.str ?? getSampleAbilityMod("str"));
+    const modDEX = Number(stats?.mods?.dex ?? getSampleAbilityMod("dex"));
+    const modCON = Number(stats?.mods?.con ?? getSampleAbilityMod("con"));
+    const modINT = Number(stats?.mods?.int ?? getSampleAbilityMod("int"));
+    const modWIS = Number(stats?.mods?.wis ?? getSampleAbilityMod("wis"));
+    const modCHA = Number(stats?.mods?.cha ?? getSampleAbilityMod("cha"));
     const attackDamage = Number(stats?.attackDamage ?? player.attackDamage ?? 0);
     const attackBonus = Number(stats?.attackBonus ?? 0);
     const moveRange = Number(stats?.moveRange ?? player.moveRange ?? 0);
@@ -2853,13 +2905,13 @@ export const GameBoard: React.FC = () => {
     const isStandardAction = costType === "action";
     const isBonusAction = costType === "bonus";
 
-    if (isStandardAction && turnActionUsage.usedAction) {
+    if (isStandardAction && turnActionUsage.usedActionCount >= (player.combatStats?.actionsPerTurn ?? 1)) {
       pushLog(
         `Action ${action.name} refusee: action principale deja utilisee ce tour.`
       );
       return;
     }
-    if (isBonusAction && turnActionUsage.usedBonus) {
+    if (isBonusAction && turnActionUsage.usedBonusCount >= (player.combatStats?.bonusActionsPerTurn ?? 1)) {
       pushLog(
         `Action ${action.name} refusee: action bonus deja utilisee ce tour.`
       );
@@ -2918,13 +2970,14 @@ export const GameBoard: React.FC = () => {
       }
     }
 
-    setValidatedActionId(action.id);
     setAttackRoll(null);
     setDamageRoll(null);
+    setAttackOutcome(null);
     setHasRolledAttackForCurrentAction(false);
+    setValidatedActionId(action.id);
     setTurnActionUsage(prev => ({
-      usedAction: prev.usedAction || isStandardAction,
-      usedBonus: prev.usedBonus || isBonusAction
+      usedActionCount: prev.usedActionCount + (isStandardAction ? 1 : 0),
+      usedBonusCount: prev.usedBonusCount + (isBonusAction ? 1 : 0)
     }));
 
     if (actionTargetsHostile(action)) {
@@ -2948,18 +3001,25 @@ export const GameBoard: React.FC = () => {
   function actionNeedsDiceUI(action: ActionDefinition | null): boolean {
     if (pendingHazardRoll) return true;
     if (!action) return false;
-    if (action.attack || action.damage || action.skillCheck) return true;
-
-    const hasFormulaEffect = (action.effects || []).some(effect => {
-      return typeof effect.formula === "string" && effect.formula.trim().length > 0;
-    });
-
-    return hasFormulaEffect;
+    return Boolean(action.attack || action.damage || action.skillCheck);
   }
 
   function actionTargetsHostile(action: ActionDefinition | null): boolean {
     const target = action?.targeting?.target;
     return target === "enemy" || target === "hostile";
+  }
+
+  function getActionResourceInfo(
+    action: ActionDefinition | null
+  ): { label: string; current: number; min: number } | null {
+    if (!action?.usage?.resource?.name || typeof action.usage.resource.min !== "number") {
+      return null;
+    }
+    const resource = action.usage.resource;
+    const pool = typeof resource.pool === "string" ? resource.pool : null;
+    const current = getResourceAmount(resource.name, pool);
+    const label = pool ? `${pool}:${resource.name}` : resource.name;
+    return { label, current, min: resource.min };
   }
 
   function handleRollAttack() {
@@ -3051,10 +3111,15 @@ export const GameBoard: React.FC = () => {
         ? `TOUCHE (CA ${targetArmorClass})${result.isCrit ? " (critique!)" : ""}`
         : `RATE (CA ${targetArmorClass})`;
       pushDiceLog(`${baseLine} -> ${outcome}`);
+      setAttackOutcome(isHit ? "hit" : "miss");
+      if (!isHit) {
+        pushLog(`Action ${action.name}: attaque ratee.`);
+      }
     } else {
       pushDiceLog(
         `${baseLine}${result.isCrit ? " (critique!)" : ""}`
       );
+      setAttackOutcome("hit");
     }
   }
 
@@ -3227,6 +3292,7 @@ export const GameBoard: React.FC = () => {
             }
           });
         }
+        setAttackOutcome("miss");
         return;
       }
     }
@@ -3253,8 +3319,8 @@ export const GameBoard: React.FC = () => {
       } = ${totalDamage}${isCrit ? " (critique)" : ""}`
     );
 
-      if (typeof targetIndex === "number" && targetIndex >= 0) {
-        setEnemies(prev => {
+    if (typeof targetIndex === "number" && targetIndex >= 0) {
+      setEnemies(prev => {
           if (targetIndex === null || targetIndex < 0 || targetIndex >= prev.length) {
             return prev;
           }
@@ -3406,9 +3472,11 @@ export const GameBoard: React.FC = () => {
           }
 
           return copy.filter(w => w.hp === undefined || w.hp > 0);
-        });
-      }
+      });
     }
+
+    setValidatedActionId(action.id);
+  }
 
   function handleAutoResolveRolls() {
     const action = getValidatedAction();
@@ -5088,12 +5156,13 @@ export const GameBoard: React.FC = () => {
     const enemiesCopy = enemies.map(e => ({ ...e }));
     let playerCopy = { ...player };
 
-      const activeEnemy = enemiesCopy.find(e => e.id === activeEnemyId);
-      if (!activeEnemy || isTokenDead(activeEnemy)) {
-        setIsResolvingEnemies(false);
-        advanceTurn();
-        return;
-      }
+    const activeEnemy = enemiesCopy.find(e => e.id === activeEnemyId);
+    if (!activeEnemy || isTokenDead(activeEnemy)) {
+      setIsResolvingEnemies(false);
+      advanceTurn();
+      return;
+    }
+    const aiTurnLogs: string[] = [];
       const refreshedEnemy = applyStartOfTurnStatuses({ token: activeEnemy, side: "enemies" });
       const enemyIndex = enemiesCopy.findIndex(e => e.id === activeEnemyId);
       if (enemyIndex >= 0) {
@@ -5131,12 +5200,22 @@ export const GameBoard: React.FC = () => {
 
     const getActionById = (id: string) => actionsCatalog.find(a => a.id === id) ?? null;
 
+    const describeActionTarget = (target: ActionTarget): string => {
+      if (target.kind === "token") return target.token.id;
+      if (target.kind === "cell") return `cell(${target.x},${target.y})`;
+      return "aucune cible";
+    };
+
     const tryResolve = (actionId: string, target: ActionTarget, advantageMode?: AdvantageMode) => {
       const action = getActionById(actionId);
       if (!action) return { ok: false as const, reason: `Action inconnue: ${actionId}` };
       if (!enemyActionIds.includes(actionId)) {
         return { ok: false as const, reason: `Action non autorisee pour ${activeEnemy.id}: ${actionId}` };
       }
+
+      const beforePlayerHp = playerCopy.hp;
+      const beforeEnemyHp = new Map(enemiesCopy.map(e => [e.id, e.hp]));
+      const beforeActorPos = { x: activeEnemy.x, y: activeEnemy.y };
 
       const result = resolveAction(
         action,
@@ -5178,12 +5257,42 @@ export const GameBoard: React.FC = () => {
       );
 
       if (!result.ok || !result.playerAfter || !result.enemiesAfter) {
+        const msg = `[IA] ${activeEnemy.id}: ${action.name} sur ${describeActionTarget(target)} -> echec (${result.reason || "inconnu"}).`;
+        pushLog(msg);
+        aiTurnLogs.push(msg);
         return { ok: false as const, reason: result.reason || "Echec de resolution." };
       }
 
       playerCopy = result.playerAfter;
       for (let i = 0; i < enemiesCopy.length; i++) {
         enemiesCopy[i] = result.enemiesAfter[i] ?? enemiesCopy[i];
+      }
+      const targetDesc = describeActionTarget(target);
+      const damageToPlayer = beforePlayerHp - playerCopy.hp;
+      let damageToEnemy: number | null = null;
+      if (target.kind === "token" && target.token.type === "enemy") {
+        const afterHp = enemiesCopy.find(e => e.id === target.token.id)?.hp ?? null;
+        const beforeHp = beforeEnemyHp.get(target.token.id) ?? null;
+        if (beforeHp !== null && afterHp !== null) {
+          damageToEnemy = beforeHp - afterHp;
+        }
+      }
+      const moved =
+        activeEnemy.x !== beforeActorPos.x || activeEnemy.y !== beforeActorPos.y;
+      const details: string[] = [];
+      if (damageToPlayer > 0) details.push(`degats joueur: ${damageToPlayer}`);
+      if (damageToEnemy && damageToEnemy > 0) {
+        details.push(`degats ${targetDesc}: ${damageToEnemy}`);
+      }
+      if (moved) details.push(`deplacement -> (${activeEnemy.x},${activeEnemy.y})`);
+      const detailText = details.length > 0 ? ` (${details.join(", ")})` : "";
+      const okMsg = `[IA] ${activeEnemy.id}: ${action.name} sur ${targetDesc} -> ok${detailText}.`;
+      pushLog(okMsg);
+      aiTurnLogs.push(okMsg);
+      if (result.logs.length > 0) {
+        for (const line of result.logs) {
+          aiTurnLogs.push(`[IA] ${activeEnemy.id}: ${line}`);
+        }
       }
       return { ok: true as const, action };
     };
@@ -5439,6 +5548,13 @@ export const GameBoard: React.FC = () => {
       setPlayer(playerCopy);
       setEnemies(enemiesCopy);
 
+    if (aiTurnLogs.length > 0) {
+      pushLog(`[IA] ${activeEnemyId} recap:`);
+      for (const line of aiTurnLogs) {
+        pushLog(`- ${line}`);
+      }
+    }
+
     try {
       await updateEnemySpeechAfterTurn(activeEnemyId, playerCopy, enemiesCopy);
     } catch {
@@ -5572,6 +5688,32 @@ function handleEndPlayerTurn() {
     validatedActionId === contextAction.id
       ? { enabled: true, reasons: [], details: contextAvailabilityRaw?.details ?? [] }
       : contextAvailabilityRaw;
+  const selectedTargetLabel = getSelectedTargetLabel();
+  const contextResource = getActionResourceInfo(contextAction);
+  const contextNeedsTarget = actionTargetsHostile(contextAction);
+  const contextPlan: ActionPlan | null = contextAction
+    ? buildActionPlan({
+        action: contextAction,
+        availability: contextAvailability ?? null,
+        stage: actionContext?.stage ?? "draft",
+        needsTarget: contextNeedsTarget,
+        targetSelected: Boolean(selectedTargetLabel),
+        hasAttack: Boolean(contextAction.attack),
+        hasDamage: Boolean(contextAction.damage),
+        attackRoll,
+        damageRoll,
+        attackOutcome,
+        resource: contextResource
+      })
+    : null;
+  const contextSteps = contextPlan?.steps ?? [];
+  const contextComplete =
+    actionContext?.stage === "active" &&
+    Boolean(contextAction) &&
+    (attackOutcome === "miss" ||
+      (contextSteps.length === 0
+        ? true
+        : contextSteps.every(step => step.status === "done")));
 
   const isPlayerTurn = phase === "player";
   const activeEntry = getActiveTurnEntry();
@@ -5714,10 +5856,25 @@ function handleEndPlayerTurn() {
   function closeActionContext() {
     setActionContext(null);
     setTargetMode("none");
+    setAttackOutcome(null);
     if (pendingHazardRoll) {
       setPendingHazardRoll(null);
       setHazardAnchor(null);
     }
+  }
+
+  function openSheetFromWheel() {
+    if (!canInteractWithBoard) return;
+    setSheetOpen(true);
+  }
+
+  function handleFinishAction() {
+    setValidatedActionId(null);
+    setAttackRoll(null);
+    setDamageRoll(null);
+    setAttackOutcome(null);
+    setHasRolledAttackForCurrentAction(false);
+    closeActionContext();
   }
 
   function handleValidateActionFromContext(action: ActionDefinition) {
@@ -5769,7 +5926,7 @@ function handleEndPlayerTurn() {
       return;
     }
 
-    const modForce = Number(sampleCharacter.caracs?.force?.modFOR ?? 0);
+    const modForce = getSampleAbilityMod("str");
     const forceDc =
       typeof interaction.forceDc === "number" ? interaction.forceDc : null;
     const needsCheck = interaction.kind === "break" && forceDc !== null;
@@ -5863,14 +6020,12 @@ function handleEndPlayerTurn() {
     pushLog("Interagir: cliquez sur un element pour afficher ses interactions.");
   }
 
-  function handleHideFromWheel() {
-    pushLog("Se cacher: (a integrer).");
-  }
+  // Hide action removed; replaced by character sheet.
 
   const interactionAvailability = interactionContext
     ? getInteractionAvailability(interactionContext.interaction, interactionContext.target)
     : null;
-  const forceMod = Number(sampleCharacter.caracs?.force?.modFOR ?? 0);
+  const forceMod = getSampleAbilityMod("str");
   const interactionState =
     interactionMode === "interact-select"
       ? interactionMenuItems.length > 0
@@ -6313,11 +6468,28 @@ function handleEndPlayerTurn() {
                 onInspectCell={handleEnterInspectModeFromWheel}
                 onLook={handleEnterLookModeFromWheel}
                 onInteract={handleInteractFromWheel}
-                onHide={handleHideFromWheel}
+                onOpenSheet={openSheetFromWheel}
                 onEndTurn={() => {
                   handleEndPlayerTurn();
                 }}
                 onPickAction={openActionContextFromWheel}
+              />
+              <CharacterSheetWindow
+                open={sheetOpen}
+                anchorX={0}
+                anchorY={0}
+                character={sampleCharacter}
+                player={player}
+                actionsRemaining={Math.max(
+                  0,
+                  (player.combatStats?.actionsPerTurn ?? 1) - turnActionUsage.usedActionCount
+                )}
+                bonusRemaining={Math.max(
+                  0,
+                  (player.combatStats?.bonusActionsPerTurn ?? 1) - turnActionUsage.usedBonusCount
+                )}
+                resources={playerResources}
+                onClose={() => setSheetOpen(false)}
               />
               <ActionContextWindow
                 open={Boolean(actionContext) || Boolean(pendingHazardRoll)}
@@ -6332,7 +6504,9 @@ function handleEndPlayerTurn() {
                 validatedAction={validatedAction}
                 targetMode={targetMode}
                 selectedTargetId={selectedTargetId}
-                selectedTargetLabel={getSelectedTargetLabel()}
+                selectedTargetLabel={selectedTargetLabel}
+                plan={contextPlan}
+                isComplete={contextComplete}
                 onSelectTargetId={enemyId => {
                   setSelectedTargetId(enemyId);
                   setSelectedObstacleTarget(null);
@@ -6349,6 +6523,7 @@ function handleEndPlayerTurn() {
                 damageRoll={damageRoll}
                 diceLogs={diceLogs}
                 onValidateAction={handleValidateActionFromContext}
+                onFinishAction={handleFinishAction}
                 onClose={closeActionContext}
               />
               <InteractionContextWindow

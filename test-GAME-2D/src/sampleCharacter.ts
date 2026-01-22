@@ -9,12 +9,10 @@ export const sampleCharacter: Personnage = {
   sexe: "H",
   taille: 175,
   poids: 70,
-  vitesse: 9,
   langues: "Common",
   alignement: "Neutral Good",
   raceId: "human",
   backgroundId: "adventurer",
-  niveauGlobal: 1,
   classe: {
     1: { classeId: "fighter", subclasseId: "champion", niveau: 1 }
   },
@@ -22,36 +20,9 @@ export const sampleCharacter: Personnage = {
   dv: 10,
   maitriseBonus: 2,
   pvActuels: 12,
-  pvMax: 12,
   pvTmp: 0,
-  calculPvMax: {
-    classe1: { niveauGlobal_1: "10 + modCON", par_niveau_apres_1: "1d10 + modCON" },
-    classe2: { par_niveau_apres_1: "" }
-  },
-  CA: 16,
-  CalculCA: {
-    base: "10 + modDEX",
-    bonusArmure: "+ armor proficiency + shield"
-  },
   nivFatigueActuel: 0,
   nivFatigueMax: 3,
-  initiative: "modDEX",
-  besoin: [],
-  caracs: {
-    force: { FOR: 16, modFOR: 3 },
-    dexterite: { DEX: 14, modDEX: 2 },
-    constitution: { CON: 14, modCON: 2 },
-    intelligence: { INT: 10, modINT: 0 },
-    sagesse: { SAG: 12, modSAG: 1 },
-    charisme: { CHA: 10, modCHA: 0 }
-  },
-  movementModes: ["walk"],
-  visionProfile: {
-    shape: "cone",
-    range: 100,
-    apertureDeg: 180,
-    lightVision: "normal"
-  },
   actionIds: ["melee-strike", "dash", "second-wind", "throw-dagger", "torch-toggle"],
   combatStats: {
     level: 1,
@@ -63,7 +34,25 @@ export const sampleCharacter: Personnage = {
     attackRange: 1,
     moveRange: 3,
     maxAttacksPerTurn: 1,
+    actionsPerTurn: 1,
+    bonusActionsPerTurn: 1,
+    actionRules: { forbidSecondAttack: true },
     resources: {}
+  },
+  caracs: {
+    force: { FOR: 16 },
+    dexterite: { DEX: 14 },
+    constitution: { CON: 14 },
+    intelligence: { INT: 10 },
+    sagesse: { SAG: 12 },
+    charisme: { CHA: 10 }
+  },
+  movementModes: ["walk"],
+  visionProfile: {
+    shape: "cone",
+    range: 100,
+    apertureDeg: 180,
+    lightVision: "normal"
   },
   appearance: {
     spriteKey: "character",
@@ -72,6 +61,8 @@ export const sampleCharacter: Personnage = {
   // Keep competences empty in this mini-game to avoid
   // encoding issues with accented keys.
   competences: {} as any,
+  initiative: "modDEX",
+  besoin: [],
   percPassive: 11,
   proficiencies: {},
   savingThrows: ["force", "constitution"],
@@ -115,6 +106,14 @@ export const sampleCharacter: Personnage = {
   capaAvantMalus: 60,
   capaActuel: 0,
   StatEncombrement: "Not encumbered",
+  calculPvMax: {
+    classe1: { niveauGlobal_1: "10 + modCON", par_niveau_apres_1: "1d10 + modCON" },
+    classe2: { par_niveau_apres_1: "" }
+  },
+  CalculCA: {
+    base: "10 + modDEX",
+    bonusArmure: "+ armor proficiency + shield"
+  },
   descriptionPersonnage: {
     bio: "Test hero for the mini-game.",
     physique: "Athletic human in light armor.",

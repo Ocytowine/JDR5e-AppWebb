@@ -63,7 +63,7 @@ export function ActionWheelMenu(props: {
   onInspectCell: () => void;
   onLook: () => void;
   onInteract: () => void;
-  onHide: () => void;
+  onOpenSheet: () => void;
   onEndTurn: () => void;
   onPickAction: (action: ActionDefinition) => void;
   sliceOpacity?: number;
@@ -294,11 +294,11 @@ export function ActionWheelMenu(props: {
       },
       {
         id: "hide",
-        label: "Se cacher",
+        label: "Fiche personnage",
         color: "#34495e",
         disabled: !props.canInteractWithBoard,
         disabledReason: "Tour joueur requis",
-        onSelect: props.onHide
+        onSelect: props.onOpenSheet
       },
       {
         id: "end-turn",

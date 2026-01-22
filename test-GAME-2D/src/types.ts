@@ -8,16 +8,16 @@ export interface Personnage {
     prenom?: string;
     surnom?: string;
   };
-  niveauGlobal: number;
+  niveauGlobal?: number;
   classe: Record<
     string | number,
     { classeId: string; subclasseId?: string | null; niveau: number }
   >;
-  CA: number;
+  CA?: number;
   caracs: {
-    force: { FOR: number; modFOR: number };
-    dexterite: { DEX: number; modDEX: number };
-    constitution: { CON: number; modCON: number };
+    force: { FOR: number; modFOR?: number };
+    dexterite: { DEX: number; modDEX?: number };
+    constitution: { CON: number; modCON?: number };
     [key: string]: any;
   };
   visionProfile?: VisionProfile;
@@ -44,6 +44,11 @@ export interface CombatStats {
   attackRange: number;
   moveRange: number;
   maxAttacksPerTurn: number;
+  actionsPerTurn: number;
+  bonusActionsPerTurn: number;
+  actionRules?: {
+    forbidSecondAttack?: boolean;
+  };
   resources: Record<string, { current: number; max?: number }>;
   tags?: string[];
 }

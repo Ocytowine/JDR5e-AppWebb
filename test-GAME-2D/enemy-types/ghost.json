@@ -23,6 +23,8 @@
     "attackRange": 1,
     "moveRange": 4,
     "maxAttacksPerTurn": 1,
+    "actionsPerTurn": 1,
+    "bonusActionsPerTurn": 0,
     "resources": {}
   },
   "appearance": {

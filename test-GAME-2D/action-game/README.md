@@ -29,3 +29,18 @@ Conventions
 - Variables de formule standardisees:
   - `level`, `modSTR`, `modDEX`, `modCON`, `modINT`, `modWIS`, `modCHA`
   - `attackBonus`, `attackDamage`, `moveRange`, `attackRange`
+- Tour d'action:
+  - `combatStats.actionsPerTurn` et `combatStats.bonusActionsPerTurn` controlent les actions par tour.
+  - `combatStats.actionRules` reserve les regles futures (ex: interdiction de 2e attaque).
+
+UI action (etapes dynamiques)
+- Le plan d'etapes est genere par `src/game/actionPlan.ts`.
+- La fenetre contextuelle affiche uniquement les etapes presentes
+  (validation, ressource, ciblage, jet de touche, degats) via `src/ui/ActionContextWindow.tsx`.
+- Pour ajouter une nouvelle mecanique, ajouter un nouveau step dans
+  le plan et son rendu dans l'UI.
+
+Fiche personnage
+- La roue d'actions ouvre la fiche via `src/ui/ActionWheelMenu.tsx`.
+- La fenetre est rendue par `src/ui/CharacterSheetWindow.tsx`.
+- Les valeurs dynamiques proviennent de `player` et `turnActionUsage`.

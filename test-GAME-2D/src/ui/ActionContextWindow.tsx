@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ActionAvailability, ActionDefinition } from "../game/actionTypes";
+import type { ActionPlan, ActionStep } from "../game/actionPlan";
 import type { TokenState } from "../types";
 import type { AdvantageMode, AttackRollResult, DamageRollResult } from "../dice/roller";
 
@@ -21,6 +22,8 @@ export function ActionContextWindow(props: {
   stage: "draft" | "active";
   action: ActionDefinition | null;
   availability: ActionAvailability | null;
+  plan: ActionPlan | null;
+  isComplete: boolean;
   pendingHazard?: {
     label: string;
     formula: string;
@@ -45,6 +48,7 @@ export function ActionContextWindow(props: {
   damageRoll: DamageRollResult | null;
   diceLogs: string[];
   onValidateAction: (action: ActionDefinition) => void;
+  onFinishAction: () => void;
   onClose: () => void;
 }): React.ReactNode {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -57,6 +61,7 @@ export function ActionContextWindow(props: {
   } | null>(null);
   const hasUserMovedRef = useRef<boolean>(false);
   const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [finishReady, setFinishReady] = useState<boolean>(false);
 
   const action = props.action;
   const availability = props.availability;
@@ -72,19 +77,26 @@ export function ActionContextWindow(props: {
     const parent = el.parentElement;
     if (!parent) return;
 
-    const parentRect = parent.getBoundingClientRect();
-    const rect = el.getBoundingClientRect();
-    const desiredLeft = props.anchorX + 18;
-    const desiredTop = props.anchorY + 18;
-    const left = clamp(desiredLeft, 8, Math.max(8, parentRect.width - rect.width - 8));
-    const top = clamp(desiredTop, 8, Math.max(8, parentRect.height - rect.height - 8));
-    setPos({ left, top });
+    setPos({ left: 8, top: 8 });
   }, [props.anchorX, props.anchorY, props.open, action?.id]);
 
   useEffect(() => {
     if (!props.open) return;
     hasUserMovedRef.current = false;
   }, [props.open, action?.id]);
+
+  useEffect(() => {
+    if (!props.isComplete) {
+      setFinishReady(false);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setFinishReady(true);
+    }, 2000);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [props.isComplete, action?.id]);
 
   useEffect(() => {
     if (!isDragging) return;
@@ -122,9 +134,32 @@ export function ActionContextWindow(props: {
     };
   }, [isDragging]);
 
-  const targetKind = action?.targeting?.target;
-  const actionNeedsTarget = targetKind === "enemy" || targetKind === "hostile";
-  const showTargeting = Boolean(actionNeedsTarget);
+  const steps = props.plan?.steps ?? [];
+  const stepByType = useMemo(() => {
+    const map = new Map<string, ActionStep>();
+    for (const step of steps) {
+      map.set(step.type, step);
+    }
+    return map;
+  }, [steps]);
+  const getStep = (type: ActionStep["type"]) => stepByType.get(type) ?? null;
+  const validateStep = getStep("validate");
+  const resourceStep = getStep("resource");
+  const targetStep = getStep("target");
+  const attackStep = getStep("attack-roll");
+  const damageStep = getStep("damage-roll");
+  const isImpossible = steps.some(step => step.status === "blocked");
+  const statusLabel = isImpossible
+    ? "Action impossible"
+    : props.stage === "active"
+      ? "Action en cours"
+      : "Action possible";
+  const statusColor = isImpossible ? "#c0392b" : props.stage === "active" ? "#f39c12" : "#2ecc71";
+  const totalSteps = Math.max(1, steps.length);
+  const completedSteps = props.isComplete
+    ? totalSteps
+    : steps.filter(step => step.status === "done").length;
+  const progress = completedSteps / totalSteps;
 
   if (!props.open) return null;
   if (!action && !hasHazard) return null;
@@ -262,6 +297,44 @@ export function ActionContextWindow(props: {
         </div>
       )}
 
+      {action && (
+        <div style={{ marginTop: 10 }}>
+          <div
+            style={{
+              height: 18,
+              borderRadius: 9,
+              background: "rgba(255,255,255,0.08)",
+              border: "1px solid rgba(255,255,255,0.15)",
+              overflow: "hidden",
+              position: "relative"
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                width: `${Math.max(0, Math.min(1, progress)) * 100}%`,
+                background: statusColor,
+                opacity: 0.85
+              }}
+            />
+            <div
+              style={{
+                position: "relative",
+                zIndex: 1,
+                fontSize: 11,
+                fontWeight: 900,
+                color: "#0b0b12",
+                textAlign: "center",
+                lineHeight: "18px"
+              }}
+            >
+              {statusLabel}
+            </div>
+          </div>
+        </div>
+      )}
+
       {action && availability && !availability.enabled && (
         <div style={{ marginTop: 10 }}>
           <div style={{ fontSize: 12, fontWeight: 800, color: "#ffb2aa" }}>Pourquoi c&apos;est bloque</div>
@@ -273,7 +346,7 @@ export function ActionContextWindow(props: {
         </div>
       )}
 
-      {action && (
+      {action && validateStep && (
         <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
         {props.stage === "draft" && (
           <button
@@ -281,14 +354,14 @@ export function ActionContextWindow(props: {
             onClick={() => {
               props.onValidateAction(action);
             }}
-            disabled={Boolean(availability && !availability.enabled)}
+            disabled={validateStep.status !== "available"}
             style={{
               padding: "6px 10px",
               borderRadius: 10,
               border: "1px solid rgba(255,255,255,0.12)",
-              background: availability?.enabled ? "#2ecc71" : "rgba(90, 90, 100, 0.55)",
-              color: availability?.enabled ? "#0b0b12" : "rgba(255,255,255,0.75)",
-              cursor: availability?.enabled ? "pointer" : "not-allowed",
+              background: validateStep.status === "available" ? "#2ecc71" : "rgba(90, 90, 100, 0.55)",
+              color: validateStep.status === "available" ? "#0b0b12" : "rgba(255,255,255,0.75)",
+              cursor: validateStep.status === "available" ? "pointer" : "not-allowed",
               fontSize: 12,
               fontWeight: 900
             }}
@@ -305,7 +378,7 @@ export function ActionContextWindow(props: {
         </div>
       )}
 
-      {action && showTargeting && (
+      {action && targetStep && (
         <div style={{ marginTop: 12 }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
             <div style={{ fontSize: 12, fontWeight: 900, color: "#fff" }}>Cible</div>
@@ -315,14 +388,20 @@ export function ActionContextWindow(props: {
                 if (props.stage !== "active") return;
                 props.onSetTargetMode("selecting");
               }}
-              disabled={props.stage !== "active"}
+              disabled={targetStep.status === "locked" || targetStep.status === "blocked"}
               style={{
                 padding: "4px 8px",
                 borderRadius: 10,
                 border: "1px solid rgba(255,255,255,0.12)",
-                background: props.stage === "active" ? "rgba(255,255,255,0.06)" : "rgba(90, 90, 100, 0.35)",
+                background:
+                  targetStep.status === "locked" || targetStep.status === "blocked"
+                    ? "rgba(90, 90, 100, 0.35)"
+                    : "rgba(255,255,255,0.06)",
                 color: "#fff",
-                cursor: props.stage === "active" ? "pointer" : "not-allowed",
+                cursor:
+                  targetStep.status === "locked" || targetStep.status === "blocked"
+                    ? "not-allowed"
+                    : "pointer",
                 fontSize: 12,
                 fontWeight: 800
               }}
@@ -342,6 +421,26 @@ export function ActionContextWindow(props: {
             <div style={{ marginTop: 6, fontSize: 12, color: "rgba(255,255,255,0.70)" }}>
               Validez l&apos;action pour pouvoir selectionner une cible sur la grille.
             </div>
+          )}
+        </div>
+      )}
+
+      {resourceStep && (
+        <div
+          style={{
+            marginTop: 12,
+            padding: 8,
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(255,255,255,0.04)"
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 900, color: "#fff" }}>Ressource</div>
+          <div style={{ marginTop: 6, fontSize: 12, color: "rgba(255,255,255,0.85)" }}>
+            {resourceStep.title}
+          </div>
+          {resourceStep.detail && (
+            <div style={{ marginTop: 4, fontSize: 11, color: "#ffb2aa" }}>{resourceStep.detail}</div>
           )}
         </div>
       )}
@@ -389,74 +488,110 @@ export function ActionContextWindow(props: {
         </div>
       )}
 
-      {action && props.stage === "active" && (
+      {action && props.stage === "active" && (attackStep || damageStep) && (
         <div style={{ marginTop: 12 }}>
           <div style={{ fontSize: 12, fontWeight: 900, color: "#fff", marginBottom: 6 }}>Jets</div>
 
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {(["normal", "advantage", "disadvantage"] as AdvantageMode[]).map(mode => (
+          <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {attackStep && (
               <button
-                key={mode}
                 type="button"
-                onClick={() => props.onSetAdvantageMode(mode)}
+                onClick={props.onRollAttack}
+                disabled={attackStep.status !== "available"}
                 style={{
-                  padding: "4px 8px",
-                  background: props.advantageMode === mode ? "#8e44ad" : "rgba(255,255,255,0.06)",
+                  padding: "6px 10px",
+                  background: attackStep.status === "available" ? "#2980b9" : "rgba(90, 90, 100, 0.55)",
                   color: "#fff",
                   border: "1px solid rgba(255,255,255,0.12)",
                   borderRadius: 10,
-                  cursor: "pointer",
+                  cursor: attackStep.status === "available" ? "pointer" : "not-allowed",
                   fontSize: 12,
-                  fontWeight: 800
+                  fontWeight: 900
                 }}
               >
-                {mode}
+                Jet de touche
               </button>
-            ))}
+            )}
+            {damageStep && (
+              <button
+                type="button"
+                onClick={props.onRollDamage}
+                disabled={damageStep.status !== "available"}
+                style={{
+                  padding: "6px 10px",
+                  background: damageStep.status === "available" ? "#27ae60" : "rgba(90, 90, 100, 0.55)",
+                  color: "#fff",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  borderRadius: 10,
+                  cursor: damageStep.status === "available" ? "pointer" : "not-allowed",
+                  fontSize: 12,
+                  fontWeight: 900
+                }}
+              >
+                Degats
+              </button>
+            )}
           </div>
 
-          <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button
-              type="button"
-              onClick={props.onRollAttack}
-              disabled={!props.validatedAction?.attack}
+          {attackStep && props.attackRoll && (
+            <div
               style={{
-                padding: "6px 10px",
-                background: props.validatedAction?.attack ? "#2980b9" : "rgba(90, 90, 100, 0.55)",
-                color: "#fff",
-                border: "1px solid rgba(255,255,255,0.12)",
+                marginTop: 10,
+                padding: 8,
                 borderRadius: 10,
-                cursor: props.validatedAction?.attack ? "pointer" : "not-allowed",
-                fontSize: 12,
-                fontWeight: 900
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "rgba(255,255,255,0.04)"
               }}
             >
-              Jet de touche
-            </button>
-            <button
-              type="button"
-              onClick={props.onRollDamage}
-              disabled={!props.validatedAction?.damage}
+              <div style={{ fontSize: 11, fontWeight: 900, color: "rgba(255,255,255,0.85)" }}>
+                Jet de touche
+              </div>
+              <div style={{ marginTop: 4, fontSize: 12, color: "rgba(255,255,255,0.85)" }}>
+                {props.attackRoll.total}
+                {props.attackRoll.isCrit ? " (crit)" : ""}
+              </div>
+              {damageStep && damageStep.status === "blocked" && (
+                <div style={{ marginTop: 6, fontSize: 12, fontWeight: 900, color: "#ffb2aa" }}>
+                  RATE
+                </div>
+              )}
+              {damageStep && damageStep.status !== "blocked" && (
+                <div style={{ marginTop: 6, fontSize: 12, fontWeight: 900, color: "#bdf6d2" }}>
+                  REUSSI
+                </div>
+              )}
+            </div>
+          )}
+
+          {damageStep && props.damageRoll && (
+            <div
               style={{
-                padding: "6px 10px",
-                background: props.validatedAction?.damage ? "#27ae60" : "rgba(90, 90, 100, 0.55)",
-                color: "#fff",
-                border: "1px solid rgba(255,255,255,0.12)",
+                marginTop: 10,
+                padding: 8,
                 borderRadius: 10,
-                cursor: props.validatedAction?.damage ? "pointer" : "not-allowed",
-                fontSize: 12,
-                fontWeight: 900
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "rgba(255,255,255,0.04)"
               }}
             >
-              Degats
-            </button>
+              <div style={{ fontSize: 11, fontWeight: 900, color: "rgba(255,255,255,0.85)" }}>
+                Degats
+              </div>
+              <div style={{ marginTop: 4, fontSize: 12, color: "rgba(255,255,255,0.85)" }}>
+                {props.damageRoll.total}
+                {props.damageRoll.isCrit ? " (crit)" : ""}
+              </div>
+            </div>
+          )}
+
+          {finishReady && (
             <button
               type="button"
-              onClick={props.onAutoResolve}
+              onClick={props.onFinishAction}
               style={{
+                marginTop: 12,
                 padding: "6px 10px",
-                background: "#9b59b6",
-                color: "#fff",
+                background: "#2ecc71",
+                color: "#0b0b12",
                 border: "1px solid rgba(255,255,255,0.12)",
                 borderRadius: 10,
                 cursor: "pointer",
@@ -464,50 +599,8 @@ export function ActionContextWindow(props: {
                 fontWeight: 900
               }}
             >
-              Auto
+              Terminer
             </button>
-          </div>
-
-          <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            <div
-              style={{
-                padding: 8,
-                borderRadius: 10,
-                border: "1px solid rgba(255,255,255,0.12)",
-                background: "rgba(255,255,255,0.04)"
-              }}
-            >
-              <div style={{ fontSize: 11, fontWeight: 900, color: "rgba(255,255,255,0.85)" }}>Touche</div>
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", marginTop: 4 }}>
-                {props.attackRoll ? `${props.attackRoll.total}${props.attackRoll.isCrit ? " (crit)" : ""}` : "-"}
-              </div>
-            </div>
-            <div
-              style={{
-                padding: 8,
-                borderRadius: 10,
-                border: "1px solid rgba(255,255,255,0.12)",
-                background: "rgba(255,255,255,0.04)"
-              }}
-            >
-              <div style={{ fontSize: 11, fontWeight: 900, color: "rgba(255,255,255,0.85)" }}>Degats</div>
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", marginTop: 4 }}>
-                {props.damageRoll ? `${props.damageRoll.total}${props.damageRoll.isCrit ? " (crit)" : ""}` : "-"}
-              </div>
-            </div>
-          </div>
-
-          {props.diceLogs.length > 0 && (
-            <div style={{ marginTop: 10 }}>
-              <div style={{ fontSize: 11, fontWeight: 900, color: "rgba(255,255,255,0.75)" }}>Derniers jets</div>
-              <div style={{ marginTop: 4, display: "flex", flexDirection: "column", gap: 3 }}>
-                {props.diceLogs.slice(-4).map((entry, idx) => (
-                  <div key={idx} style={{ fontSize: 11, color: "rgba(255,255,255,0.78)" }}>
-                    - {entry}
-                  </div>
-                ))}
-              </div>
-            </div>
           )}
         </div>
       )}

@@ -37,14 +37,14 @@ export function CombatStatusPanel(props: {
         <strong>Nom :</strong> {props.sampleCharacter.nom.nomcomplet}
       </div>
       <div>
-        <strong>Niveau :</strong> {props.sampleCharacter.niveauGlobal} |{" "}
+        <strong>Niveau :</strong> {props.player.combatStats?.level ?? 1} |{" "}
         <strong>Classe :</strong> {props.sampleCharacter.classe[1].classeId}
       </div>
       <div>
         <strong>PV :</strong> {props.player.hp} / {props.player.maxHp}
       </div>
       <div>
-        <strong>CA :</strong> {props.sampleCharacter.CA}
+        <strong>CA :</strong> {props.player.combatStats?.armorClass ?? 10}
       </div>
       <div style={{ marginTop: 8 }}>
         <strong>Caracs :</strong> FOR {props.sampleCharacter.caracs.force.FOR} | DEX{" "}
