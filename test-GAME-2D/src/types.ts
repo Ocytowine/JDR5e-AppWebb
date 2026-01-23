@@ -23,6 +23,7 @@ export interface Personnage {
   visionProfile?: VisionProfile;
   appearance?: TokenAppearance;
   actionIds?: string[];
+  movementModes?: Record<string, number> | string[];
   combatStats?: CombatStats;
   [key: string]: any;
 }
@@ -42,7 +43,7 @@ export interface CombatStats {
   attackBonus: number;
   attackDamage: number;
   attackRange: number;
-  moveRange: number;
+  moveRange?: number;
   maxAttacksPerTurn: number;
   actionsPerTurn: number;
   bonusActionsPerTurn: number;

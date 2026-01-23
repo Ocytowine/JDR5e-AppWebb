@@ -21,6 +21,7 @@ export interface EnemyTypeDefinition {
   combatStats: CombatStats;
   appearance?: TokenAppearance;
   footprint?: FootprintSpec;
+  movementModes?: Record<string, number>;
   movement?: MovementProfile;
   vision?: VisionProfile;
 }

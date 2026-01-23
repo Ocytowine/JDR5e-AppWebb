@@ -14,6 +14,22 @@ function statRow(label: string, value: React.ReactNode) {
   );
 }
 
+function formatMovementModes(modes?: Record<string, number> | string[]): string | null {
+  if (!modes) return null;
+  if (Array.isArray(modes)) {
+    if (modes.length === 0) return null;
+    return modes.map(id => `${id.charAt(0).toUpperCase()}${id.slice(1)}`).join(", ");
+  }
+  const entries = Object.entries(modes);
+  if (entries.length === 0) return null;
+  return entries
+    .map(([key, value]) => {
+      const label = key ? `${key.charAt(0).toUpperCase()}${key.slice(1)}` : "Mode";
+      return `${label} ${value}`;
+    })
+    .join(", ");
+}
+
 export function CharacterSheetWindow(props: {
   open: boolean;
   anchorX: number;
@@ -84,6 +100,11 @@ export function CharacterSheetWindow(props: {
 
   const stats = props.player.combatStats;
   const charName = props.character?.nom?.nomcomplet ?? "Personnage";
+  const movementSummary =
+    formatMovementModes(props.character.movementModes) ??
+    (typeof stats?.moveRange === "number" || typeof props.player.moveRange === "number"
+      ? `Standard ${stats?.moveRange ?? props.player.moveRange ?? 0}`
+      : "Inconnu");
 
   return (
     <div
@@ -164,7 +185,7 @@ export function CharacterSheetWindow(props: {
         <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 6 }}>
           {statRow("Niveau", stats?.level ?? 1)}
           {statRow("CA", stats?.armorClass ?? 10)}
-          {statRow("Deplacement", stats?.moveRange ?? props.player.moveRange ?? 0)}
+          {statRow("Deplacements", movementSummary)}
           {statRow("Portee", stats?.attackRange ?? props.player.attackRange ?? 1)}
         </div>
       </div>

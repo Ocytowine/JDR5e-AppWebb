@@ -109,6 +109,8 @@ function resolveNumberVar(
       ? stats.moveRange
       : typeof actor.moveRange === "number"
       ? actor.moveRange
+      : typeof actor.movementProfile?.speed === "number"
+      ? actor.movementProfile.speed
       : 0;
   }
   if (token === "attackrange") {
@@ -620,7 +622,12 @@ export function resolveAction(
         maxSteps = Number.isFinite(parsed) ? parsed : null;
       }
       if (maxSteps === null) {
-        maxSteps = typeof actor.moveRange === "number" ? actor.moveRange : 3;
+        maxSteps =
+          typeof actor.moveRange === "number"
+            ? actor.moveRange
+            : typeof actor.movementProfile?.speed === "number"
+            ? actor.movementProfile.speed
+            : 3;
       }
 
       const cols = ctx.grid?.cols ?? GRID_COLS;

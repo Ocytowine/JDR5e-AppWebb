@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import type { ActionAvailability, ActionDefinition } from "../game/actionTypes";
-import type { MovementModeDefinition } from "../game/movementModes";
+import type { MoveTypeDefinition } from "../game/moveTypes";
 import { RadialWheelMenu, type WheelMenuItem } from "./RadialWheelMenu";
 
 type WheelView =
@@ -41,25 +41,21 @@ export function ActionWheelMenu(props: {
   size?: number;
   canInteractWithBoard: boolean;
   hasCell: boolean;
-  selectedPathLength: number;
   isResolvingEnemies: boolean;
+  blockWheel?: boolean;
+  blockEndTurn?: boolean;
   actions: ActionDefinition[];
-  movementModes: MovementModeDefinition[];
-  activeMovementModeId: string | null;
+  moveTypes: MoveTypeDefinition[];
   isMoving: boolean;
   interactionState: "idle" | "select" | "menu";
   interactionItems: WheelMenuItem[];
-  movementCostUsed?: number;
-  movementCostMax?: number;
   interactionPrompt?: string;
   onCancelInteract: () => void;
   computeActionAvailability: (action: ActionDefinition) => ActionAvailability;
   onClose: () => void;
-  onSelectMoveMode: (modeId: string) => void;
   onCancelMove: () => void;
-  onNoMovementModes: () => void;
+  onNoMoveTypes: () => void;
   onNoActions: () => void;
-  onValidateMove: () => void;
   onInspectCell: () => void;
   onLook: () => void;
   onInteract: () => void;
@@ -101,6 +97,18 @@ export function ActionWheelMenu(props: {
   }, [props.interactionState, view]);
 
   const items: WheelMenuItem[] = useMemo(() => {
+    if (props.blockWheel) {
+      return [
+        {
+          id: "action-in-progress",
+          label: "Action en cours",
+          color: "#7f8c8d",
+          disabled: true,
+          disabledReason: "Terminez ou reprenez l'action."
+        }
+      ];
+    }
+
     if (view === "interaction-select") {
       return [
         {
@@ -202,43 +210,25 @@ export function ActionWheelMenu(props: {
     }
 
     if (view === "movement") {
-      const costUsed = Number(props.movementCostUsed ?? 0);
-      const costMax = Number(props.movementCostMax ?? 0);
-      const costLabel = costMax > 0
-        ? `Cout: ${costUsed}/${costMax}`
-        : `Cout: ${costUsed}`;
-      const hasPath = props.selectedPathLength > 0;
-      const moveItems: WheelMenuItem[] = [
-        {
-          id: "move-cost",
-          label: costLabel,
-          color: "#34495e",
-          disabled: true,
-          disabledReason: "Budget de mouvement"
-        },
-        ...props.movementModes.map(mode => {
-        const isActive = mode.id === props.activeMovementModeId;
+      if (props.moveTypes.length === 0) {
+        props.onNoMoveTypes();
+        setView("root");
+        return [];
+      }
+
+      return props.moveTypes.map(moveType => {
+        const availability = props.computeActionAvailability(moveType);
+        const enabled = availability.enabled;
         return {
-          id: `move-${mode.id}`,
-          label: mode.label,
-          color: isActive ? "#2ecc71" : "#34495e",
+          id: `move-type-${moveType.id}`,
+          label: moveType.name,
+          color: enabled ? "#2ecc71" : "#e74c3c",
           onSelect: () => {
-            props.onSelectMoveMode(mode.id);
+            props.onPickAction(moveType);
+            setView("root");
           }
         };
-      })
-      ];
-
-      moveItems.push({
-        id: "validate-move",
-        label: "Valider trajet",
-        color: "#f1c40f",
-        disabled: !props.canInteractWithBoard || !hasPath,
-        disabledReason: !hasPath ? "Aucun trajet" : "Tour joueur requis",
-        onSelect: props.onValidateMove
       });
-
-      return moveItems;
     }
 
     const isMoveAvailable = props.canInteractWithBoard;
@@ -251,10 +241,6 @@ export function ActionWheelMenu(props: {
         disabled: !isMoveAvailable,
         disabledReason: "Tour joueur requis",
         onSelect: () => {
-          if (props.movementModes.length === 0) {
-            props.onNoMovementModes();
-            return;
-          }
           setView("movement");
         }
       },
@@ -304,8 +290,12 @@ export function ActionWheelMenu(props: {
         id: "end-turn",
         label: "Fin tour",
         color: "#ff7f50",
-        disabled: !props.canInteractWithBoard || props.isResolvingEnemies,
-        disabledReason: props.isResolvingEnemies ? "Tour des ennemis en cours" : "Tour joueur requis",
+        disabled: !props.canInteractWithBoard || props.isResolvingEnemies || props.blockEndTurn,
+        disabledReason: props.isResolvingEnemies
+          ? "Tour des ennemis en cours"
+          : props.blockEndTurn
+            ? "Action en cours"
+            : "Tour joueur requis",
         onSelect: props.onEndTurn
       }
     ];
@@ -349,7 +339,7 @@ export function ActionWheelMenu(props: {
       return { centerLabel: "Annuler", onCenterClick: () => setView("root") };
     }
     return { centerLabel: "Annuler", onCenterClick: () => setView("root") };
-  }, [props.onCancelInteract, props.onCancelMove, props.onClose, shouldFilterByCategory, view]);
+  }, [props.blockWheel, props.onCancelInteract, props.onCancelMove, props.onClose, shouldFilterByCategory, view]);
 
   const sliceOpacity =
     typeof props.sliceOpacity === "number"

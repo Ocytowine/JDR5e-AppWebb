@@ -21,7 +21,6 @@
     "attackBonus": 0,
     "attackDamage": 3,
     "attackRange": 1,
-    "moveRange": 3,
     "maxAttacksPerTurn": 1,
     "actionsPerTurn": 1,
     "bonusActionsPerTurn": 0,
@@ -30,6 +29,9 @@
   "appearance": {
     "spriteKey": "assassin",
     "tokenScale": 100
+  },
+  "movementModes": {
+    "walk": 3
   },
   "movement": {
     "type": "ground",

@@ -21,7 +21,6 @@
     "attackBonus": 0,
     "attackDamage": 2,
     "attackRange": 6,
-    "moveRange": 2,
     "maxAttacksPerTurn": 1,
     "actionsPerTurn": 1,
     "bonusActionsPerTurn": 0,
@@ -30,6 +29,9 @@
   "appearance": {
     "spriteKey": "archer",
     "tokenScale": 100
+  },
+  "movementModes": {
+    "walk": 2
   },
   "movement": {
     "type": "ground",

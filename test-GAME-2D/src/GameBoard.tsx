@@ -65,6 +65,9 @@ import dashAction from "../action-game/actions/catalog/movement/dash.json";
 import moveAction from "../action-game/actions/catalog/movement/move.json";
 import secondWind from "../action-game/actions/catalog/support/second-wind.json";
 import torchToggle from "../action-game/actions/catalog/items/torch-toggle.json";
+import moveTypesIndex from "../action-game/move-types/index.json";
+import walkMoveType from "../action-game/move-types/catalog/movement/walk.json";
+import sprintMoveType from "../action-game/move-types/catalog/movement/sprint.json";
 import {
   rollAttack,
   rollDamage,
@@ -157,6 +160,7 @@ import {
   getMovementModesForCharacter,
   type MovementModeDefinition
 } from "./game/movementModes";
+import { type MoveTypeDefinition, isMoveTypeAction } from "./game/moveTypes";
 import { preloadObstaclePngTexturesFor } from "./obstacleTextureHelper";
 import { preloadTokenPngTexturesFor, type TokenSpriteRequest } from "./tokenTextureHelper";
 import { preloadDecorTexturesFor } from "./svgDecorHelper";
@@ -169,6 +173,11 @@ const ACTION_MODULES: Record<string, ActionDefinition> = {
   "./catalog/movement/move.json": moveAction as ActionDefinition,
   "./catalog/support/second-wind.json": secondWind as ActionDefinition,
   "./catalog/items/torch-toggle.json": torchToggle as ActionDefinition
+};
+
+const MOVE_TYPE_MODULES: Record<string, MoveTypeDefinition> = {
+  "./catalog/movement/walk.json": walkMoveType as MoveTypeDefinition,
+  "./catalog/movement/sprint.json": sprintMoveType as MoveTypeDefinition
 };
 
 const ENEMY_TYPE_MODULES: Record<string, EnemyTypeDefinition> = {
@@ -219,6 +228,8 @@ function getSampleAbilityMod(ability: AbilityKey): number {
 }
 
 function buildCombatStatsFromCharacter(): CombatStats {
+  const movementModes = getMovementModesForCharacter(sampleCharacter);
+  const defaultSpeed = movementModes[0]?.speed ?? 3;
   const level = Number(sampleCharacter.combatStats?.level ?? sampleCharacter.niveauGlobal ?? 1) || 1;
   const mods = {
     str: getSampleAbilityMod("str"),
@@ -239,7 +250,7 @@ function buildCombatStatsFromCharacter(): CombatStats {
     attackBonus: mods.str + 2,
     attackDamage: Math.max(1, mods.str + 3),
     attackRange: 1,
-    moveRange: 3,
+    moveRange: defaultSpeed,
     maxAttacksPerTurn: 1,
     resources: {}
   };
@@ -296,13 +307,52 @@ function scaleDiceFormula(formula: string, multiplier: number): string | null {
   return out.join("");
 }
 
+function resolveEnemyMovementSpeed(enemyType: EnemyTypeDefinition): number {
+  const modes = enemyType.movementModes;
+  if (modes && typeof modes === "object") {
+    if (typeof modes.walk === "number" && Number.isFinite(modes.walk)) {
+      return Math.max(1, modes.walk);
+    }
+    const first = Object.values(modes).find(value => Number.isFinite(value));
+    if (typeof first === "number") return Math.max(1, first);
+  }
+  if (typeof enemyType.movement?.speed === "number") {
+    return Math.max(1, enemyType.movement.speed);
+  }
+  if (typeof enemyType.combatStats?.moveRange === "number") {
+    return Math.max(1, enemyType.combatStats.moveRange);
+  }
+  return 3;
+}
+
+function resolveEnemyMovementProfile(
+  enemyType: EnemyTypeDefinition,
+  speed: number
+): MovementProfile {
+  if (enemyType.movement) {
+    return { ...enemyType.movement, speed };
+  }
+  return {
+    type: "ground",
+    speed,
+    canPassThroughWalls: false,
+    canPassThroughEntities: false,
+    canStopOnOccupiedTile: false
+  };
+}
+
   function createEnemy(
     index: number,
     enemyType: EnemyTypeDefinition,
     position: { x: number; y: number }
   ): TokenState {
   const { x, y } = position;
-  const base = enemyType.combatStats;
+  const speed = resolveEnemyMovementSpeed(enemyType);
+  const base: CombatStats = {
+    ...enemyType.combatStats,
+    moveRange: speed
+  };
+  const movementProfile = resolveEnemyMovementProfile(enemyType, speed);
   return {
     id: `enemy-${index + 1}`,
     type: "enemy",
@@ -321,15 +371,7 @@ function scaleDiceFormula(formula: string, multiplier: number): string | null {
     maxAttacksPerTurn:
       typeof base.maxAttacksPerTurn === "number" ? base.maxAttacksPerTurn : 1,
     armorClass: base.armorClass,
-    movementProfile: enemyType.movement
-      ? (enemyType.movement as MovementProfile)
-      : {
-          type: "ground",
-          speed: enemyType.combatStats.moveRange,
-          canPassThroughWalls: false,
-          canPassThroughEntities: false,
-          canStopOnOccupiedTile: false
-        },
+    movementProfile,
     facing: "left",
     visionProfile: enemyType.vision
       ? (enemyType.vision as VisionProfile)
@@ -494,6 +536,7 @@ export const GameBoard: React.FC = () => {
   const [actionsCatalog, setActionsCatalog] = useState<ActionDefinition[]>([]);
   // Player actions loaded from JSON (filtered by actionIds)
   const [actions, setActions] = useState<ActionDefinition[]>([]);
+  const [moveTypes, setMoveTypes] = useState<MoveTypeDefinition[]>([]);
   const [selectedActionId, setSelectedActionId] = useState<string | null>(null);
   const [validatedActionId, setValidatedActionId] = useState<string | null>(null);
   const [advantageMode, setAdvantageMode] =
@@ -504,6 +547,12 @@ export const GameBoard: React.FC = () => {
     useState<"hit" | "miss" | null>(null);
   const [diceLogs, setDiceLogs] = useState<string[]>([]);
   const [pendingHazardRoll, setPendingHazardRoll] = useState<PendingHazardRoll | null>(null);
+  const [hazardResolution, setHazardResolution] = useState<{
+    damageTotal: number;
+    diceText: string;
+    statusId: string | null;
+    statusTriggered: boolean;
+  } | null>(null);
   const [hasRolledAttackForCurrentAction, setHasRolledAttackForCurrentAction] =
     useState<boolean>(false);
   const [turnActionUsage, setTurnActionUsage] = useState<{
@@ -514,11 +563,15 @@ export const GameBoard: React.FC = () => {
     turn: Record<string, number>;
     encounter: Record<string, number>;
   }>({ turn: {}, encounter: {} });
+  const [actionContextOpen, setActionContextOpen] = useState<boolean>(false);
+  const suppressBoardClickUntilRef = useRef<number>(0);
   const [playerResources, setPlayerResources] = useState<Record<string, number>>({
     "bandolier:dagger": 3,
     "gear:torch": 1
   });
   const [pathLimit, setPathLimit] = useState<number>(defaultMovementProfile.speed);
+  const [basePathLimit, setBasePathLimit] = useState<number>(defaultMovementProfile.speed);
+  const [movementSpent, setMovementSpent] = useState<number>(0);
   const [activeMovementModeId, setActiveMovementModeId] = useState<string>(
     defaultMovementMode.id
   );
@@ -1623,7 +1676,8 @@ export const GameBoard: React.FC = () => {
         ? { ...prev.combatStats, moveRange: profile.speed }
         : prev.combatStats
     }));
-    setPathLimit(profile.speed);
+    setBasePathLimit(profile.speed);
+    setPathLimit(Math.max(0, profile.speed - movementSpent));
     setInteractionMode("moving");
   }
 
@@ -1636,6 +1690,14 @@ export const GameBoard: React.FC = () => {
     setInteractionMode("idle");
     setInteractionMenuItems([]);
     closeInteractionContext();
+  }
+
+  function handleSelectPathFromContext() {
+    if (!canInteractWithBoard) return;
+    suppressBoardClickUntilRef.current = Date.now() + 220;
+    window.setTimeout(() => {
+      setInteractionMode("moving");
+    }, 120);
   }
 
   function resourceKey(name: string, pool?: string | null): string {
@@ -1655,12 +1717,12 @@ export const GameBoard: React.FC = () => {
     return getBaseHeightAt(a.x, a.y) === getBaseHeightAt(b.x, b.y);
   }
 
-  const selectedPathCost = useMemo(() => {
-    if (!selectedPath.length) return 0;
+  const computePathCost = (path: { x: number; y: number }[]): number => {
+    if (!path.length) return 0;
     const cols = mapGrid.cols;
     const rows = mapGrid.rows;
     let total = 0;
-    for (const cell of selectedPath) {
+    for (const cell of path) {
       if (!isCellInsideGrid(cell.x, cell.y, cols, rows)) continue;
       const idx = cell.y * cols + cell.x;
       if (idx < 0 || idx >= mapTerrain.length) continue;
@@ -1670,7 +1732,12 @@ export const GameBoard: React.FC = () => {
       total += cost;
     }
     return Math.round(total * 10) / 10;
-  }, [mapGrid, mapTerrain, selectedPath]);
+  };
+
+  const selectedPathCost = useMemo(
+    () => computePathCost(selectedPath),
+    [mapGrid, mapTerrain, selectedPath]
+  );
 
   useEffect(() => {
     if (phase !== "player" || isGameOver) {
@@ -1972,7 +2039,9 @@ export const GameBoard: React.FC = () => {
     setActionUsageCounts({ turn: {}, encounter: {} });
     setTurnActionUsage({ usedActionCount: 0, usedBonusCount: 0 });
     setPlayerResources({ "bandolier:dagger": 3, "gear:torch": 1 });
-    setPathLimit(5);
+    setPathLimit(defaultMovementProfile.speed);
+    setBasePathLimit(defaultMovementProfile.speed);
+    setMovementSpent(0);
   }
 
   function getActiveTurnEntry(): TurnEntry | null {
@@ -2247,8 +2316,31 @@ export const GameBoard: React.FC = () => {
       playerActionIds.length > 0
         ? loaded.filter(a => playerActionIds.includes(a.id))
         : loaded.filter(a => !(a.tags || []).includes("enemy"));
-    setActions(playerVisible);
-    setSelectedActionId(playerVisible.length ? playerVisible[0].id : null);
+    const filtered = playerVisible.filter(a => a.category !== "movement");
+    setActions(filtered);
+    setSelectedActionId(filtered.length ? filtered[0].id : null);
+  }, []);
+
+  useEffect(() => {
+    const indexed = Array.isArray((moveTypesIndex as any).moveTypes)
+      ? ((moveTypesIndex as any).moveTypes as string[])
+      : [];
+
+    const loaded: MoveTypeDefinition[] = [];
+    for (const path of indexed) {
+      const mod = MOVE_TYPE_MODULES[path];
+      if (mod) {
+        loaded.push(mod);
+      } else {
+        console.warn("[move-types] Move type path missing in bundle:", path);
+      }
+    }
+
+    if (loaded.length === 0) {
+      console.warn("[move-types] No move types loaded from index.json");
+    }
+
+    setMoveTypes(loaded);
   }, []);
 
   // -----------------------------------------------------------
@@ -2266,7 +2358,10 @@ export const GameBoard: React.FC = () => {
       setPhase("player");
       setTurnActionUsage({ usedActionCount: 0, usedBonusCount: 0 });
       setActionUsageCounts(prev => ({ ...prev, turn: {} }));
-      setPathLimit(5);
+      const speed = player.movementProfile?.speed ?? defaultMovementProfile.speed;
+      setBasePathLimit(speed);
+      setMovementSpent(0);
+      setPathLimit(speed);
       setHasRolledAttackForCurrentAction(false);
       setAttackRoll(null);
         setDamageRoll(null);
@@ -2900,7 +2995,7 @@ export const GameBoard: React.FC = () => {
     pushLog(`Previsualisation de portee pour ${action.name}.`);
   }
 
-  function handleUseAction(action: ActionDefinition) {
+  function handleUseAction(action: ActionDefinition): boolean {
     const costType = action.actionCost?.actionType;
     const isStandardAction = costType === "action";
     const isBonusAction = costType === "bonus";
@@ -2909,13 +3004,13 @@ export const GameBoard: React.FC = () => {
       pushLog(
         `Action ${action.name} refusee: action principale deja utilisee ce tour.`
       );
-      return;
+      return false;
     }
     if (isBonusAction && turnActionUsage.usedBonusCount >= (player.combatStats?.bonusActionsPerTurn ?? 1)) {
       pushLog(
         `Action ${action.name} refusee: action bonus deja utilisee ce tour.`
       );
-      return;
+      return false;
     }
 
     const availability = computeActionAvailability(action);
@@ -2923,7 +3018,7 @@ export const GameBoard: React.FC = () => {
       pushLog(
         `Action ${action.name} bloque: ${availability.reasons.join(" | ")}`
       );
-      return;
+      return false;
     }
 
     setActionUsageCounts(prev => ({
@@ -2933,7 +3028,8 @@ export const GameBoard: React.FC = () => {
 
     for (const effect of action.effects || []) {
       if (effect.type === "modify_path_limit" && typeof effect.delta === "number") {
-        setPathLimit(prev => Math.max(1, prev + effect.delta));
+        setBasePathLimit(prev => Math.max(0, prev + effect.delta));
+        setPathLimit(prev => Math.max(0, prev + effect.delta));
         if (typeof effect.delta === "number") {
           pushLog(`Mouvement: limite de trajet modifiee (${effect.delta >= 0 ? "+" : ""}${effect.delta}).`);
         }
@@ -2991,11 +3087,17 @@ export const GameBoard: React.FC = () => {
       setSelectedObstacleTarget(null);
       setSelectedWallTarget(null);
     }
+
+    return true;
+  }
+
+  function getActionById(id: string | null): ActionDefinition | null {
+    if (!id) return null;
+    return actions.find(a => a.id === id) || moveTypes.find(a => a.id === id) || null;
   }
 
   function getValidatedAction(): ActionDefinition | null {
-    if (!validatedActionId) return null;
-    return actions.find(a => a.id === validatedActionId) || null;
+    return getActionById(validatedActionId);
   }
 
   function actionNeedsDiceUI(action: ActionDefinition | null): boolean {
@@ -3123,21 +3225,14 @@ export const GameBoard: React.FC = () => {
     }
   }
 
-  function handleRollHazardDamage() {
-    if (isGameOver) return;
-    if (isTokenDead(player)) return;
-    if (!pendingHazardRoll) {
-      pushLog("Aucun danger en attente.");
-      return;
-    }
-
-    const result = rollDamage(pendingHazardRoll.formula);
+  function applyHazardRoll(hazard: PendingHazardRoll) {
+    const result = rollDamage(hazard.formula);
     setDamageRoll(result);
     const diceText = result.dice.map(d => d.rolls.join("+")).join(" | ");
     const totalDamage = result.total;
 
     pushDiceLog(
-      `Degats (${pendingHazardRoll.label}) : ${diceText || "0"} + ${
+      `Degats (${hazard.label}) : ${diceText || "0"} + ${
         result.flatModifier
       } = ${totalDamage}`
     );
@@ -3153,11 +3248,11 @@ export const GameBoard: React.FC = () => {
         actorKind: "player",
         targetId: prev.id,
         targetKind: "player",
-        summary: `Le heros subit ${totalDamage} degats (${pendingHazardRoll.label}) (PV ${beforeHp} -> ${afterHp}).`,
+        summary: `Le heros subit ${totalDamage} degats (${hazard.label}) (PV ${beforeHp} -> ${afterHp}).`,
         data: {
-          hazardId: pendingHazardRoll.id,
+          hazardId: hazard.id,
           damage: totalDamage,
-          formula: pendingHazardRoll.formula,
+          formula: hazard.formula,
           targetHpBefore: beforeHp,
           targetHpAfter: afterHp
         }
@@ -3165,16 +3260,19 @@ export const GameBoard: React.FC = () => {
       return { ...prev, hp: afterHp };
     });
 
-    if (pendingHazardRoll.statusRoll) {
-      const roll = rollDie(pendingHazardRoll.statusRoll.die);
-      const trigger = pendingHazardRoll.statusRoll.trigger;
-      const statusId = pendingHazardRoll.statusRoll.statusId ?? "status";
+    let statusId: string | null = null;
+    let statusTriggered = false;
+    if (hazard.statusRoll) {
+      const roll = rollDie(hazard.statusRoll.die);
+      const trigger = hazard.statusRoll.trigger;
+      statusId = hazard.statusRoll.statusId ?? "status";
       pushDiceLog(
-        `Jet d'etat (${statusId}) : d${pendingHazardRoll.statusRoll.die} = ${roll.total}`
+        `Jet d'etat (${statusId}) : d${hazard.statusRoll.die} = ${roll.total}`
       );
       if (roll.total === trigger) {
         setPlayer(prev => addStatusToToken(prev, statusId));
         pushLog(`Etat ${statusId} declenche.`);
+        statusTriggered = true;
         recordCombatEvent({
           round,
           phase,
@@ -3187,11 +3285,41 @@ export const GameBoard: React.FC = () => {
           data: { statusId }
         });
       }
-      }
-
-      setPendingHazardRoll(null);
-      setHazardAnchor(null);
     }
+
+    setHazardResolution({
+      damageTotal: totalDamage,
+      diceText,
+      statusId,
+      statusTriggered
+    });
+    setActionContextOpen(true);
+  }
+
+  function handleRollHazardDamage() {
+    if (isGameOver) return;
+    if (isTokenDead(player)) return;
+    if (!pendingHazardRoll) {
+      pushLog("Aucun danger en attente.");
+      return;
+    }
+    applyHazardRoll(pendingHazardRoll);
+  }
+
+  function resolveHazardRoll(hazard: PendingHazardRoll, anchorCell: { x: number; y: number }) {
+    setPendingHazardRoll(hazard);
+    setHazardResolution(null);
+    const anchor = resolveAnchorForCell(anchorCell);
+    setHazardAnchor(anchor);
+    applyHazardRoll(hazard);
+  }
+
+  function handleFinishHazard() {
+    setPendingHazardRoll(null);
+    setHazardAnchor(null);
+    setHazardResolution(null);
+    handleFinishAction();
+  }
 
   function handleRollDamage() {
     if (isGameOver) return;
@@ -3507,6 +3635,7 @@ export const GameBoard: React.FC = () => {
     if (phase !== "player") return;
     if (isGameOver) return;
     if (isTokenDead(player)) return;
+    if (Date.now() < suppressBoardClickUntilRef.current) return;
 
     const container = pixiContainerRef.current;
     if (!container) return;
@@ -3839,9 +3968,15 @@ export const GameBoard: React.FC = () => {
       return;
     }
 
+    if (pathLimit <= 0) {
+      pushLog("Deplacement impossible: budget de mouvement epuise.");
+      return;
+    }
+
     setSelectedPath(prev => {
-      const maxSteps = Math.max(1, pathLimit);
+      const maxSteps = Math.max(0, pathLimit);
       const path = [...prev];
+      const currentCost = computePathCost(path);
 
       if (path.length >= maxSteps) {
         pushLog(`Limite de ${maxSteps} cases atteinte pour ce tour.`);
@@ -3883,6 +4018,11 @@ export const GameBoard: React.FC = () => {
       }
 
       const appended = computed.slice(1);
+      const appendedCost = computePathCost(appended);
+      if (currentCost + appendedCost > pathLimit) {
+        pushLog("Budget de mouvement insuffisant pour ce trajet.");
+        return path;
+      }
       pushLog(`Trajectoire: +${appended.length} case(s) vers (${targetX}, ${targetY}).`);
       return path.concat(appended);
     });
@@ -3907,16 +4047,15 @@ export const GameBoard: React.FC = () => {
     };
   }
 
-    function handleValidatePath() {
+  function handleValidatePath() {
     if (phase !== "player") return;
     if (isGameOver) return;
     if (isTokenDead(player)) return;
+    suppressBoardClickUntilRef.current = Date.now() + 220;
     if (selectedPath.length === 0) {
       const hazardRoll = buildHazardRollFromPath([], { x: player.x, y: player.y });
       if (hazardRoll) {
-        setPendingHazardRoll(hazardRoll);
-        const anchor = resolveAnchorForCell({ x: player.x, y: player.y });
-        setHazardAnchor(anchor);
+        resolveHazardRoll(hazardRoll, { x: player.x, y: player.y });
         pushLog(
           `Danger: ${hazardRoll.label} traverse (${hazardRoll.cells} case${
             hazardRoll.cells > 1 ? "s" : ""
@@ -3952,19 +4091,25 @@ export const GameBoard: React.FC = () => {
     });
 
     const hazardRoll = buildHazardRollFromPath(selectedPath, { x: player.x, y: player.y });
+    const moveCost = selectedPathCost;
+    setSelectedPath([]);
+    setInteractionMode("idle");
+    setMovementSpent(prev => Math.max(0, prev + moveCost));
+    setPathLimit(prev => Math.max(0, prev - moveCost));
     if (hazardRoll) {
-      setPendingHazardRoll(hazardRoll);
-      const anchor = resolveAnchorForCell(last);
-      setHazardAnchor(anchor);
+      resolveHazardRoll(hazardRoll, last);
       pushLog(
         `Danger: ${hazardRoll.label} traverse (${hazardRoll.cells} case${
           hazardRoll.cells > 1 ? "s" : ""
         }). Jet de degats ${hazardRoll.formula} requis.`
       );
+      return;
     }
-
-    setSelectedPath([]);
-    setInteractionMode("idle");
+    if (isMoveTypeAction(getValidatedAction())) {
+      handleFinishAction();
+    } else {
+      setActionContextOpen(false);
+    }
   }
 
   function handleResetPath() {
@@ -5676,9 +5821,7 @@ function handleEndPlayerTurn() {
     : null;
   const validatedAction = getValidatedAction();
   const showDicePanel = actionNeedsDiceUI(validatedAction);
-  const contextAction = actionContext
-    ? actions.find(a => a.id === actionContext.actionId) || null
-    : null;
+  const contextAction = actionContext ? getActionById(actionContext.actionId) : null;
   const contextAvailabilityRaw = contextAction
     ? computeActionAvailability(contextAction)
     : null;
@@ -5715,6 +5858,25 @@ function handleEndPlayerTurn() {
         ? true
         : contextSteps.every(step => step.status === "done")));
 
+  const isActionInProgress =
+    (actionContext?.stage === "active" && Boolean(validatedActionId)) ||
+    Boolean(pendingHazardRoll);
+  const canInteractWithBoard =
+    phase === "player" && !isGameOver && !isTokenDead(player);
+  const showResumeAction = isActionInProgress && !actionContextOpen;
+  const contextMovement =
+    contextAction && isMoveTypeAction(contextAction)
+      ? {
+          costUsed: selectedPathCost,
+          costMax: pathLimit,
+          hasPath: selectedPath.length > 0,
+          isMoving: interactionMode === "moving",
+          canInteract: canInteractWithBoard,
+          onSelectPath: handleSelectPathFromContext,
+          onValidateMove: handleValidatePath,
+          onCancelMove: handleCancelMoveFromWheel
+        }
+      : null;
   const isPlayerTurn = phase === "player";
   const activeEntry = getActiveTurnEntry();
   const timelineEntries = turnOrder;
@@ -5842,25 +6004,33 @@ function handleEndPlayerTurn() {
 */
   }
 
-  const canInteractWithBoard =
-    phase === "player" && !isGameOver && !isTokenDead(player);
-
   function openActionContextFromWheel(action: ActionDefinition) {
     const anchor = resolveWheelAnchor();
     const anchorX = anchor.x;
     const anchorY = anchor.y;
-    setSelectedActionId(action.id);
+    if (actions.some(a => a.id === action.id)) {
+      setSelectedActionId(action.id);
+    }
     setActionContext({ anchorX, anchorY, actionId: action.id, stage: "draft" });
+    setActionContextOpen(true);
+  }
+
+  function resetActionContext() {
+    setActionContext(null);
+    setActionContextOpen(false);
+    setTargetMode("none");
+    setAttackOutcome(null);
+    setPendingHazardRoll(null);
+    setHazardAnchor(null);
+    setHazardResolution(null);
   }
 
   function closeActionContext() {
-    setActionContext(null);
-    setTargetMode("none");
-    setAttackOutcome(null);
-    if (pendingHazardRoll) {
-      setPendingHazardRoll(null);
-      setHazardAnchor(null);
+    if ((actionContext?.stage === "active" && validatedActionId) || pendingHazardRoll) {
+      setActionContextOpen(false);
+      return;
     }
+    resetActionContext();
   }
 
   function openSheetFromWheel() {
@@ -5874,12 +6044,41 @@ function handleEndPlayerTurn() {
     setDamageRoll(null);
     setAttackOutcome(null);
     setHasRolledAttackForCurrentAction(false);
-    closeActionContext();
+    resetActionContext();
   }
 
   function handleValidateActionFromContext(action: ActionDefinition) {
-    handleUseAction(action);
+    const accepted = handleUseAction(action);
+    if (!accepted) return;
+
+    if (isMoveTypeAction(action)) {
+      const multiplier = action.movement?.pathLimitMultiplier ?? 1;
+      let baseLimit = basePathLimit;
+      if (action.movement?.modeId) {
+        const mode = getMovementModeById(action.movement.modeId) ?? defaultMovementMode;
+        const profile = buildMovementProfileFromMode(mode);
+        baseLimit = profile.speed;
+        setActiveMovementModeId(mode.id);
+        setPlayer(prev => ({
+          ...prev,
+          movementProfile: profile,
+          moveRange: profile.speed,
+          combatStats: prev.combatStats
+            ? { ...prev.combatStats, moveRange: profile.speed }
+            : prev.combatStats
+        }));
+        setBasePathLimit(profile.speed);
+        baseLimit = profile.speed;
+      }
+      setSelectedPath([]);
+      const nextBase = Math.max(0, Math.round(baseLimit * multiplier));
+      setBasePathLimit(nextBase);
+      setPathLimit(Math.max(0, nextBase - movementSpent));
+      setInteractionMode("moving");
+    }
+
     setActionContext(current => (current ? { ...current, actionId: action.id, stage: "active" } : current));
+    setActionContextOpen(true);
   }
 
   function handleEnterInspectModeFromWheel() {
@@ -6185,7 +6384,7 @@ function handleEndPlayerTurn() {
                 Mini Donjon
               </span>
               <span style={{ fontSize: 12, color: "rgba(255,255,255,0.70)" }}>
-                Clic gauche: roue d&apos;actions ??? Deplacer: clics successifs (max 5)
+                Clic gauche: roue d&apos;actions ??? Deplacer: clics successifs (max {basePathLimit})
               </span>
             </div>
             <span style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
@@ -6439,6 +6638,43 @@ function handleEndPlayerTurn() {
                 </div>
               )}
 
+              {showResumeAction && (
+                <div
+                  onMouseDown={event => event.stopPropagation()}
+                  style={{
+                    position: "absolute",
+                    top: 16,
+                    left: 16,
+                    zIndex: 55,
+                    padding: "8px 10px",
+                    borderRadius: 10,
+                    background: "rgba(10,10,16,0.92)",
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    boxShadow: "0 12px 40px rgba(0,0,0,0.35)"
+                  }}
+                >
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", marginBottom: 6 }}>
+                    Action en cours
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActionContextOpen(true)}
+                    style={{
+                      padding: "6px 10px",
+                      borderRadius: 10,
+                      border: "1px solid rgba(255,255,255,0.12)",
+                      background: "rgba(255,255,255,0.08)",
+                      color: "rgba(255,255,255,0.9)",
+                      cursor: "pointer",
+                      fontSize: 12,
+                      fontWeight: 900
+                    }}
+                  >
+                    Reprendre l&apos;action
+                  </button>
+                </div>
+              )}
+
               <ActionWheelMenu
                 open={isCombatConfigured}
                 anchorX={wheelAnchor.x}
@@ -6446,25 +6682,21 @@ function handleEndPlayerTurn() {
                 size={240}
                 canInteractWithBoard={canInteractWithBoard}
                 hasCell={Boolean(radialMenu.cell)}
-                selectedPathLength={selectedPath.length}
                 isResolvingEnemies={isResolvingEnemies}
+                blockWheel={isActionInProgress}
+                blockEndTurn={showResumeAction}
                 actions={actions}
-                movementModes={movementModes}
-                activeMovementModeId={activeMovementModeId}
+                moveTypes={moveTypes}
                 isMoving={interactionMode === "moving"}
                 interactionState={interactionState}
                 interactionItems={interactionMenuItems}
-                movementCostUsed={selectedPathCost}
-                movementCostMax={pathLimit}
                 interactionPrompt="Selectionner la cible de l'interaction"
                 onCancelInteract={handleCancelInteractFromWheel}
                 computeActionAvailability={computeActionAvailability}
                 onClose={closeRadialMenu}
-                onSelectMoveMode={handleSelectMovementMode}
                 onCancelMove={handleCancelMoveFromWheel}
-                onNoMovementModes={() => pushLog("Deplacement: aucun mode disponible.")}
+                onNoMoveTypes={() => pushLog("Deplacement: aucun type disponible.")}
                 onNoActions={() => pushLog("Action: aucune action disponible.")}
-                onValidateMove={handleValidatePath}
                 onInspectCell={handleEnterInspectModeFromWheel}
                 onLook={handleEnterLookModeFromWheel}
                 onInteract={handleInteractFromWheel}
@@ -6492,13 +6724,14 @@ function handleEndPlayerTurn() {
                 onClose={() => setSheetOpen(false)}
               />
               <ActionContextWindow
-                open={Boolean(actionContext) || Boolean(pendingHazardRoll)}
+                open={actionContextOpen && (Boolean(actionContext) || Boolean(pendingHazardRoll))}
                 anchorX={actionContext?.anchorX ?? hazardAnchor?.anchorX ?? 0}
                 anchorY={actionContext?.anchorY ?? hazardAnchor?.anchorY ?? 0}
                 stage={actionContext?.stage ?? "active"}
                 action={contextAction}
                 availability={contextAvailability}
                 pendingHazard={pendingHazardRoll}
+                hazardResolution={hazardResolution}
                 player={player}
                 enemies={enemies}
                 validatedAction={validatedAction}
@@ -6507,6 +6740,8 @@ function handleEndPlayerTurn() {
                 selectedTargetLabel={selectedTargetLabel}
                 plan={contextPlan}
                 isComplete={contextComplete}
+                movement={contextMovement}
+                onFinishHazard={handleFinishHazard}
                 onSelectTargetId={enemyId => {
                   setSelectedTargetId(enemyId);
                   setSelectedObstacleTarget(null);
@@ -6517,7 +6752,6 @@ function handleEndPlayerTurn() {
                 onSetAdvantageMode={setAdvantageMode}
                 onRollAttack={handleRollAttack}
                 onRollDamage={handleRollDamage}
-                onRollHazardDamage={handleRollHazardDamage}
                 onAutoResolve={handleAutoResolveRolls}
                 attackRoll={attackRoll}
                 damageRoll={damageRoll}

@@ -1,0 +1,6 @@
+{
+  "moveTypes": [
+    "./catalog/movement/walk.json",
+    "./catalog/movement/sprint.json"
+  ]
+}

@@ -32,7 +32,6 @@ export const sampleCharacter: Personnage = {
     attackBonus: 5,
     attackDamage: 6,
     attackRange: 1,
-    moveRange: 3,
     maxAttacksPerTurn: 1,
     actionsPerTurn: 1,
     bonusActionsPerTurn: 1,
@@ -47,7 +46,7 @@ export const sampleCharacter: Personnage = {
     sagesse: { SAG: 12 },
     charisme: { CHA: 10 }
   },
-  movementModes: ["walk"],
+  movementModes: { walk: 6 },
   visionProfile: {
     shape: "cone",
     range: 100,

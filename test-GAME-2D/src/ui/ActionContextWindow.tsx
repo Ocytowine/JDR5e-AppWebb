@@ -30,6 +30,12 @@ export function ActionContextWindow(props: {
     cells: number;
     statusRoll?: { die: number; trigger: number; statusId?: string };
   } | null;
+  hazardResolution?: {
+    damageTotal: number;
+    diceText: string;
+    statusId: string | null;
+    statusTriggered: boolean;
+  } | null;
   player: TokenState;
   enemies: TokenState[];
   validatedAction: ActionDefinition | null;
@@ -47,6 +53,17 @@ export function ActionContextWindow(props: {
   attackRoll: AttackRollResult | null;
   damageRoll: DamageRollResult | null;
   diceLogs: string[];
+  movement?: {
+    costUsed: number;
+    costMax: number;
+    hasPath: boolean;
+    isMoving: boolean;
+    canInteract: boolean;
+    onSelectPath: () => void;
+    onValidateMove: () => void;
+    onCancelMove: () => void;
+  } | null;
+  onFinishHazard?: () => void;
   onValidateAction: (action: ActionDefinition) => void;
   onFinishAction: () => void;
   onClose: () => void;
@@ -62,11 +79,14 @@ export function ActionContextWindow(props: {
   const hasUserMovedRef = useRef<boolean>(false);
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [finishReady, setFinishReady] = useState<boolean>(false);
+  const [hazardFinishReady, setHazardFinishReady] = useState<boolean>(false);
 
   const action = props.action;
   const availability = props.availability;
   const isBlocked = availability ? !availability.enabled : false;
   const hasHazard = Boolean(props.pendingHazard);
+  const isMovementAction = Boolean(action?.tags?.includes("move-type"));
+  const movement = props.movement ?? null;
 
   useLayoutEffect(() => {
     if (!props.open) return;
@@ -97,6 +117,19 @@ export function ActionContextWindow(props: {
       window.clearTimeout(timer);
     };
   }, [props.isComplete, action?.id]);
+
+  useEffect(() => {
+    if (!props.hazardResolution) {
+      setHazardFinishReady(false);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setHazardFinishReady(true);
+    }, 2000);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [props.hazardResolution?.damageTotal, props.hazardResolution?.statusTriggered]);
 
   useEffect(() => {
     if (!isDragging) return;
@@ -168,6 +201,7 @@ export function ActionContextWindow(props: {
     <div
       ref={containerRef}
       onMouseDown={event => event.stopPropagation()}
+      onClick={event => event.stopPropagation()}
       style={{
         position: "absolute",
         left: pos.left,
@@ -346,6 +380,102 @@ export function ActionContextWindow(props: {
         </div>
       )}
 
+      {action && isMovementAction && movement && (
+        <div
+          style={{
+            marginTop: 12,
+            padding: 8,
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(255,255,255,0.04)"
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 900, color: "#fff" }}>Deplacement</div>
+          <div style={{ marginTop: 6, fontSize: 12, color: "rgba(255,255,255,0.85)" }}>
+            Trajet: {movement.costUsed}/{movement.costMax}
+          </div>
+          {props.stage === "active" ? (
+            <div style={{ marginTop: 6, fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+              Cliquez sur la grille pour tracer le trajet, puis validez.
+            </div>
+          ) : (
+            <div style={{ marginTop: 6, fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+              Validez l&apos;action pour commencer le trajet.
+            </div>
+          )}
+          <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={movement.onSelectPath}
+              disabled={!movement.canInteract || props.stage !== "active"}
+              style={{
+                padding: "6px 10px",
+                borderRadius: 10,
+                border: "1px solid rgba(255,255,255,0.12)",
+                background:
+                  movement.canInteract && props.stage === "active"
+                    ? "rgba(255,255,255,0.08)"
+                    : "rgba(90, 90, 100, 0.55)",
+                color:
+                  movement.canInteract && props.stage === "active"
+                    ? "rgba(255,255,255,0.9)"
+                    : "rgba(255,255,255,0.75)",
+                cursor:
+                  movement.canInteract && props.stage === "active" ? "pointer" : "not-allowed",
+                fontSize: 12,
+                fontWeight: 900
+              }}
+            >
+              Selectionner trajet
+            </button>
+            <button
+              type="button"
+              onClick={movement.onValidateMove}
+              disabled={!movement.canInteract || !movement.hasPath || props.stage !== "active"}
+              style={{
+                padding: "6px 10px",
+                borderRadius: 10,
+                border: "1px solid rgba(255,255,255,0.12)",
+                background:
+                  movement.canInteract && movement.hasPath && props.stage === "active"
+                    ? "#f1c40f"
+                    : "rgba(90, 90, 100, 0.55)",
+                color:
+                  movement.canInteract && movement.hasPath && props.stage === "active"
+                    ? "#0b0b12"
+                    : "rgba(255,255,255,0.75)",
+                cursor:
+                  movement.canInteract && movement.hasPath && props.stage === "active"
+                    ? "pointer"
+                    : "not-allowed",
+                fontSize: 12,
+                fontWeight: 900
+              }}
+            >
+              Valider deplacement
+            </button>
+            <button
+              type="button"
+              onClick={movement.onCancelMove}
+              disabled={!movement.isMoving && !movement.hasPath}
+              style={{
+                padding: "6px 10px",
+                borderRadius: 10,
+                border: "1px solid rgba(255,255,255,0.12)",
+                background:
+                  movement.isMoving || movement.hasPath ? "rgba(255,255,255,0.08)" : "rgba(90, 90, 100, 0.35)",
+                color: "rgba(255,255,255,0.85)",
+                cursor: movement.isMoving || movement.hasPath ? "pointer" : "not-allowed",
+                fontSize: 12,
+                fontWeight: 900
+              }}
+            >
+              Annuler trajet
+            </button>
+          </div>
+        </div>
+      )}
+
       {action && validateStep && (
         <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
         {props.stage === "draft" && (
@@ -466,7 +596,18 @@ export function ActionContextWindow(props: {
               Etat: d{props.pendingHazard.statusRoll.die} == {props.pendingHazard.statusRoll.trigger}
             </div>
           )}
-          {props.onRollHazardDamage && (
+          {props.hazardResolution && (
+            <div style={{ marginTop: 8, fontSize: 12, color: "rgba(255,255,255,0.85)" }}>
+              Resultat: {props.hazardResolution.damageTotal} degats
+              {props.hazardResolution.diceText ? ` (${props.hazardResolution.diceText})` : ""}
+            </div>
+          )}
+          {props.hazardResolution?.statusId && (
+            <div style={{ marginTop: 4, fontSize: 11, color: "rgba(255,255,255,0.75)" }}>
+              Etat {props.hazardResolution.statusId}: {props.hazardResolution.statusTriggered ? "declenche" : "non declenche"}
+            </div>
+          )}
+          {props.onRollHazardDamage && !props.hazardResolution && (
             <button
               type="button"
               onClick={props.onRollHazardDamage}
@@ -483,6 +624,25 @@ export function ActionContextWindow(props: {
               }}
             >
               Lancer degats environnement
+            </button>
+          )}
+          {hazardFinishReady && props.onFinishHazard && (
+            <button
+              type="button"
+              onClick={props.onFinishHazard}
+              style={{
+                marginTop: 10,
+                padding: "6px 10px",
+                background: "#2ecc71",
+                color: "#0b0b12",
+                border: "1px solid rgba(255,255,255,0.12)",
+                borderRadius: 10,
+                cursor: "pointer",
+                fontSize: 12,
+                fontWeight: 900
+              }}
+            >
+              Terminer
             </button>
           )}
         </div>

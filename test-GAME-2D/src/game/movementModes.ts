@@ -24,8 +24,29 @@ const MOVEMENT_MODE_CATALOG: Record<string, MovementModeDefinition> = {
       canPassThroughEntities: false,
       canStopOnOccupiedTile: false
     }
+  },
+  swim: {
+    id: "swim",
+    label: "Nager",
+    speed: 3,
+    directions: 8,
+    profile: {
+      type: "swim",
+      canPassThroughWalls: false,
+      canPassThroughEntities: false,
+      canStopOnOccupiedTile: false
+    }
   }
 };
+
+function getCatalogMode(id: string): MovementModeDefinition | null {
+  return MOVEMENT_MODE_CATALOG[id] ?? null;
+}
+
+function buildLabelFromId(id: string): string {
+  if (!id) return "Deplacement";
+  return id.charAt(0).toUpperCase() + id.slice(1);
+}
 
 export function getDefaultMovementMode(): MovementModeDefinition {
   return MOVEMENT_MODE_CATALOG[DEFAULT_MOVEMENT_MODE_ID];
@@ -75,6 +96,22 @@ export function getMovementModesForCharacter(
           profile: entry.profile
         });
       }
+    }
+    if (modes.length > 0) return modes;
+  }
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    const modes: MovementModeDefinition[] = [];
+    for (const [key, value] of Object.entries(raw)) {
+      const speed = Number.isFinite(value) ? Math.max(1, Number(value)) : null;
+      if (speed === null) continue;
+      const catalogMode = getCatalogMode(key);
+      modes.push({
+        id: key,
+        label: catalogMode?.label ?? buildLabelFromId(key),
+        speed,
+        directions: catalogMode?.directions ?? 8,
+        profile: catalogMode?.profile
+      });
     }
     if (modes.length > 0) return modes;
   }
