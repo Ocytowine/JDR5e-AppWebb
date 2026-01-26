@@ -2,9 +2,11 @@ import type { StatusDefinition } from "./statusTypes";
 
 import statusIndex from "../../status-types/index.json";
 import burning from "../../status-types/burning.json";
+import killerMark from "../../status-types/killer-mark.json";
 
 const STATUS_TYPE_MODULES: Record<string, StatusDefinition> = {
-  "./burning.json": burning as StatusDefinition
+  "./burning.json": burning as StatusDefinition,
+  "./killer-mark.json": killerMark as StatusDefinition
 };
 
 export function loadStatusTypesFromIndex(): StatusDefinition[] {

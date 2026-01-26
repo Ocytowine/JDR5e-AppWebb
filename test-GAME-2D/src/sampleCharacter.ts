@@ -24,6 +24,7 @@ export const sampleCharacter: Personnage = {
   nivFatigueActuel: 0,
   nivFatigueMax: 3,
   actionIds: ["melee-strike", "dash", "second-wind", "throw-dagger", "torch-toggle"],
+  reactionIds: ["opportunity-attack", "guard-strike", "killer-instinct"],
   combatStats: {
     level: 1,
     mods: { str: 3, dex: 2, con: 2, int: 0, wis: 1, cha: 0 },

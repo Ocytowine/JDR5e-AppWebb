@@ -4,6 +4,7 @@
   "description": "Esprit intangible capable de traverser les autres creatures.",
   "aiRole": "ghost",
   "actions": ["move", "melee-strike"],
+  "reactionIds": ["guard-strike"],
   "behavior": { "preferredRangeMin": 1, "preferredRangeMax": 1, "panicRange": 0 },
   "speechProfile": {
     "raceOrOrigin": "Esprit vengeur",

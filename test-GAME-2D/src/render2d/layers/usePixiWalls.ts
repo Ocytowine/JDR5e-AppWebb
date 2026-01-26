@@ -26,7 +26,7 @@ export function usePixiWalls(options: {
     const depthLayer = options.depthLayerRef.current;
     if (!depthLayer) return;
 
-    depthLayer.cacheAsBitmap = false;
+    depthLayer.cacheAsTexture = false;
     for (const child of [...depthLayer.children]) {
       if (child.label === "wall") {
         depthLayer.removeChild(child);
@@ -213,7 +213,7 @@ export function usePixiWalls(options: {
     g.label = "wall";
     g.zIndex = DEPTH_Z.walls;
     depthLayer.addChild(g);
-    depthLayer.cacheAsBitmap = true;
+    depthLayer.cacheAsTexture = true;
   }, [
     options.depthLayerRef,
     options.walls,

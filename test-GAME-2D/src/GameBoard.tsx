@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { sampleCharacter } from "./sampleCharacter";
 import type { CombatStats, MovementProfile, Personnage, TokenState, VisionProfile } from "./types";
 import type {
@@ -41,13 +41,17 @@ import { loadObstacleTypesFromIndex } from "./game/obstacleCatalog";
 import { loadEffectTypesFromIndex } from "./game/effectCatalog";
 import { loadStatusTypesFromIndex } from "./game/statusCatalog";
 import { loadWallTypesFromIndex } from "./game/wallCatalog";
+import { loadReactionTypesFromIndex } from "./game/reactionCatalog";
 import type { ObstacleInstance, ObstacleTypeDefinition } from "./game/obstacleTypes";
 import type { EffectInstance, EffectTypeDefinition } from "./game/effectTypes";
 import type { StatusDefinition } from "./game/statusTypes";
 import type { WallTypeDefinition } from "./game/wallTypes";
+import type { ReactionDefinition } from "./game/reactionTypes";
 import { generateBattleMap } from "./game/mapEngine";
 import { getHeightAtGrid, type TerrainCell } from "./game/map/draft";
-import { getFloorMaterial } from "./game/map/floors/catalog";
+import { buildTerrainMixLayer } from "./game/map/terrainMix";
+import { FLOOR_MATERIALS, getFloorMaterial } from "./game/map/floors/catalog";
+import type { FloorMaterial } from "./game/map/floors/types";
 import type { DecorInstance } from "./game/decorTypes";
 import type { MapTheme } from "./game/map/types";
 import { buildObstacleBlockingSets, getObstacleOccupiedCells } from "./game/obstacleRuntime";
@@ -135,9 +139,11 @@ import {
   usePixiDecorations,
   usePixiEffects,
   usePixiGridLabels,
+  usePixiNaturalTiling,
   usePixiObstacles,
   usePixiOverlays,
   usePixiSpeechBubbles,
+  usePixiTerrainFx,
   usePixiTokens,
   usePixiWalls,
   type LightSource
@@ -362,6 +368,9 @@ function resolveEnemyMovementProfile(
       actionIds: Array.isArray((enemyType as any).actions)
         ? ((enemyType as any).actions as string[])
         : null,
+      reactionIds: Array.isArray((enemyType as any).reactionIds)
+        ? ((enemyType as any).reactionIds as string[])
+        : null,
       appearance: enemyType.appearance,
       speechProfile: enemyType.speechProfile ?? null,
     combatStats: base,
@@ -470,6 +479,9 @@ export const GameBoard: React.FC = () => {
     actionIds: Array.isArray(sampleCharacter.actionIds)
       ? sampleCharacter.actionIds
       : [],
+    reactionIds: Array.isArray(sampleCharacter.reactionIds)
+      ? sampleCharacter.reactionIds
+      : [],
     x: 0,
     y: Math.floor(GRID_ROWS / 2),
     facing: "right",
@@ -537,6 +549,11 @@ export const GameBoard: React.FC = () => {
   // Player actions loaded from JSON (filtered by actionIds)
   const [actions, setActions] = useState<ActionDefinition[]>([]);
   const [moveTypes, setMoveTypes] = useState<MoveTypeDefinition[]>([]);
+  const [reactionCatalog, setReactionCatalog] = useState<ReactionDefinition[]>([]);
+  const [reactionQueue, setReactionQueue] = useState<ReactionInstance[]>([]);
+  const [reactionUsage, setReactionUsage] = useState<Record<string, number>>({});
+  const [reactionCombatUsage, setReactionCombatUsage] = useState<Record<string, number>>({});
+  const [killerInstinctTargetId, setKillerInstinctTargetId] = useState<string | null>(null);
   const [selectedActionId, setSelectedActionId] = useState<string | null>(null);
   const [validatedActionId, setValidatedActionId] = useState<string | null>(null);
   const [advantageMode, setAdvantageMode] =
@@ -605,6 +622,14 @@ export const GameBoard: React.FC = () => {
     cells: number;
     statusRoll?: { die: number; trigger: number; statusId?: string };
   };
+  type ReactionInstance = {
+    reactionId: string;
+    reactorId: string;
+    targetId: string | null;
+    actionId: string;
+    anchorX: number;
+    anchorY: number;
+  };
   const [interactionMode, setInteractionMode] =
     useState<BoardInteractionMode>("idle");
   type InteractionTarget =
@@ -635,6 +660,8 @@ export const GameBoard: React.FC = () => {
     anchorY: number;
     actionId: string;
     stage: "draft" | "active";
+    source?: "action" | "reaction";
+    reactionId?: string | null;
   } | null>(null);
   const [sheetOpen, setSheetOpen] = useState<boolean>(false);
   const [hazardAnchor, setHazardAnchor] = useState<{ anchorX: number; anchorY: number } | null>(
@@ -648,10 +675,36 @@ export const GameBoard: React.FC = () => {
   const [showAllLevels, setShowAllLevels] = useState<boolean>(false);
   const [playerTorchOn, setPlayerTorchOn] = useState<boolean>(false);
   const [showCellIds, setShowCellIds] = useState<boolean>(false);
+  const [showTerrainIds, setShowTerrainIds] = useState<boolean>(false);
+  const [showTerrainContours, setShowTerrainContours] = useState<boolean>(false);
+  const [bumpIntensity, setBumpIntensity] = useState<number>(0.45);
+  const [windSpeed, setWindSpeed] = useState<number>(0.06);
+  const [windStrength, setWindStrength] = useState<number>(1.0);
+  const [bumpDebug, setBumpDebug] = useState<boolean>(false);
   const [floatingPanel, setFloatingPanel] = useState<"effects" | "logs" | null>(null);
   const textureLoadingCounterRef = useRef<number>(0);
   const [isTextureLoading, setIsTextureLoading] = useState<boolean>(false);
   const [textureLoadingHint, setTextureLoadingHint] = useState<string | null>(null);
+  const seenTargetsByActorRef = useRef<Map<string, Set<string>>>(new Map());
+  const enemyTurnPauseRef = useRef<{ promise: Promise<void>; resolve: () => void } | null>(null);
+  const [hpPopups, setHpPopups] = useState<
+    Array<{ id: string; x: number; y: number; text: string; color: string }>
+  >([]);
+  const prevPlayerHpRef = useRef<number | null>(null);
+  const prevEnemyHpRef = useRef<Map<string, number>>(new Map());
+  const [reactionToast, setReactionToast] = useState<{
+    id: string;
+    text: string;
+    kind: "hit" | "miss" | "info";
+  } | null>(null);
+  const reactionToastTimerRef = useRef<number | null>(null);
+  const [combatToast, setCombatToast] = useState<{
+    id: string;
+    text: string;
+    kind: "hit" | "heal" | "info";
+  } | null>(null);
+  const combatToastTimerRef = useRef<number | null>(null);
+  const suppressCombatToastUntilRef = useRef<number>(0);
 
   // Debug IA ennemie : dernier ??tat envoy?? / d??cisions / erreur
   const [aiLastState, setAiLastState] =
@@ -677,6 +730,15 @@ export const GameBoard: React.FC = () => {
   const wallEdges = useMemo(
     () => buildWallEdgeSets(wallSegments),
     [wallSegments]
+  );
+
+  const reactionById = useMemo(
+    () => new Map(reactionCatalog.map(reaction => [reaction.id, reaction])),
+    [reactionCatalog]
+  );
+  const reactionActionById = useMemo(
+    () => new Map(reactionCatalog.map(reaction => [reaction.action.id, reaction.action])),
+    [reactionCatalog]
   );
   const closedCells = useMemo(() => {
     if (!wallSegments.length) return null;
@@ -707,6 +769,11 @@ export const GameBoard: React.FC = () => {
     for (const t of wallTypes) map.set(t.id, t);
     return map;
   }, [wallTypes]);
+  const floorMaterialById = useMemo(() => {
+    const map = new Map<string, FloorMaterial>();
+    for (const t of FLOOR_MATERIALS) map.set(t.id, t);
+    return map;
+  }, []);
   const hasAnimatedSprites = useMemo(() => {
     if (!isCombatConfigured) return false;
     for (const effect of effects) {
@@ -860,6 +927,57 @@ export const GameBoard: React.FC = () => {
         };
       });
   }, [obstacleTypeById, obstacles]);
+  const terrainLegend = useMemo(() => {
+    const entries: Array<{ id: string; label: string; index: number }> = [];
+    const idMap = new Map<string, number>();
+    const terrain = Array.isArray(mapTerrain) ? mapTerrain : null;
+    if (!terrain || terrain.length === 0) {
+      return { entries, idMap };
+    }
+
+    const { cols, rows } = mapGrid;
+    const playable = playableCells;
+    const unique = new Set<string>();
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        if (playable && playable.size > 0 && !playable.has(`${x},${y}`)) continue;
+        const index = y * cols + x;
+        const cellTerrain = terrain[index] ?? "unknown";
+        unique.add(cellTerrain);
+      }
+    }
+
+    const ordered: string[] = [];
+    const pending = new Set(unique);
+    for (const material of FLOOR_MATERIALS) {
+      if (pending.has(material.id)) {
+        ordered.push(material.id);
+        pending.delete(material.id);
+      }
+    }
+    const leftovers = Array.from(pending);
+    leftovers.sort();
+    ordered.push(...leftovers);
+
+    let nextId = 1;
+    for (const id of ordered) {
+      const label = getFloorMaterial(id)?.label ?? id;
+      idMap.set(id, nextId);
+      entries.push({ id, label, index: nextId });
+      nextId += 1;
+    }
+
+    return { entries, idMap };
+  }, [mapTerrain, mapGrid, playableCells]);
+  const terrainMixLayer = useMemo(() => {
+    if (!Array.isArray(mapTerrain) || mapTerrain.length === 0) return [];
+    return buildTerrainMixLayer({
+      terrain: mapTerrain,
+      cols: mapGrid.cols,
+      rows: mapGrid.rows,
+      playableCells
+    });
+  }, [mapTerrain, mapGrid.cols, mapGrid.rows, playableCells]);
   const lightSources = useMemo(() => {
     const sources: LightSource[] = [];
     for (const effect of effects) {
@@ -1218,10 +1336,18 @@ export const GameBoard: React.FC = () => {
   const boardMaxFps = shouldAnimateBoard
     ? (isBoardIdle ? BOARD_FPS_IDLE : BOARD_FPS_ACTIVE)
     : 0;
+  const invalidateBoard = useCallback(() => {
+    if (!shouldAnimateBoard) {
+      setRenderTick(t => t + 1);
+    }
+  }, [shouldAnimateBoard]);
   const {
     staticDepthLayerRef,
     dynamicDepthLayerRef,
     pathLayerRef,
+    terrainNaturalLayerRef,
+    terrainFxLayerRef,
+    terrainLabelLayerRef,
     speechLayerRef,
     labelLayerRef,
     viewportRef,
@@ -1235,10 +1361,41 @@ export const GameBoard: React.FC = () => {
     backgroundColor: boardBackgroundColor,
     playableCells,
     terrain: mapTerrain,
+    terrainMix: terrainMixLayer,
     grid: mapGrid,
     animate: shouldAnimateBoard,
     maxFps: boardMaxFps,
     renderTick
+  });
+
+  usePixiNaturalTiling({
+    layerRef: terrainNaturalLayerRef,
+    terrain: mapTerrain,
+    terrainMix: terrainMixLayer,
+    playableCells,
+    grid: mapGrid,
+    materials: floorMaterialById,
+    lightLevels,
+    lightMap: mapLight,
+    bumpIntensity,
+    windSpeed,
+    windStrength,
+    bumpDebug,
+    pixiReadyTick,
+    onInvalidate: invalidateBoard
+  });
+
+  usePixiTerrainFx({
+    terrainFxLayerRef,
+    terrainLabelLayerRef,
+    showTerrainIds,
+    showTerrainContours,
+    playableCells,
+    grid: mapGrid,
+    terrain: mapTerrain,
+    terrainMix: terrainMixLayer,
+    terrainIdMap: terrainLegend.idMap,
+    pixiReadyTick
   });
 
   useEffect(() => {
@@ -1248,6 +1405,7 @@ export const GameBoard: React.FC = () => {
     shouldAnimateBoard,
     mapGrid,
     mapTerrain,
+    terrainMixLayer,
     playableCells,
     mapHeight,
     mapLight,
@@ -1265,6 +1423,8 @@ export const GameBoard: React.FC = () => {
     showAllLevels,
     showLightOverlay,
     showVisionDebug,
+    showTerrainIds,
+    showTerrainContours,
     activeLevel,
     speechBubbles,
     isTextureLoading,
@@ -1704,9 +1864,107 @@ export const GameBoard: React.FC = () => {
     return `${pool ?? "default"}:${name}`;
   }
 
+  function getSeenTargetsForActor(actorId: string): Set<string> {
+    const existing = seenTargetsByActorRef.current.get(actorId);
+    if (existing) return existing;
+    const next = new Set<string>();
+    seenTargetsByActorRef.current.set(actorId, next);
+    return next;
+  }
+
+  function requestEnemyTurnPause() {
+    if (enemyTurnPauseRef.current) return;
+    let resolve: () => void = () => {};
+    const promise = new Promise<void>(res => {
+      resolve = res;
+    });
+    enemyTurnPauseRef.current = { promise, resolve };
+  }
+
+  async function waitForEnemyTurnResume(): Promise<void> {
+    const pause = enemyTurnPauseRef.current;
+    if (pause) {
+      await pause.promise;
+    }
+  }
+
+  function markTargetsSeen(actorId: string, targets: TokenState[]) {
+    const seen = getSeenTargetsForActor(actorId);
+    for (const target of targets) {
+      seen.add(target.id);
+    }
+  }
+
+  function pushHpPopup(token: TokenState, delta: number) {
+    if (!Number.isFinite(delta) || delta === 0) return;
+    const anchor = resolveAnchorForCell({ x: token.x, y: token.y });
+    if (!anchor) return;
+    const id = `hp-${token.id}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const text = delta > 0 ? `+${delta}` : `${delta}`;
+    const color = delta > 0 ? "#2ecc71" : "#e74c3c";
+    const x = anchor.anchorX;
+    const y = anchor.anchorY - 24;
+    setHpPopups(prev => [...prev, { id, x, y, text, color }]);
+    window.setTimeout(() => {
+      setHpPopups(prev => prev.filter(popup => popup.id !== id));
+    }, 2600);
+  }
+
+  function showReactionToast(text: string, kind: "hit" | "miss" | "info" = "info") {
+    if (!text) return;
+    if (reactionToastTimerRef.current) {
+      window.clearTimeout(reactionToastTimerRef.current);
+    }
+    const id = `reaction-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setReactionToast({ id, text, kind });
+    reactionToastTimerRef.current = window.setTimeout(() => {
+      setReactionToast(current => (current?.id === id ? null : current));
+      reactionToastTimerRef.current = null;
+    }, 3200);
+  }
+
+  function showCombatToast(text: string, kind: "hit" | "heal" | "info" = "info") {
+    if (!text) return;
+    if (combatToastTimerRef.current) {
+      window.clearTimeout(combatToastTimerRef.current);
+    }
+    const id = `combat-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setCombatToast({ id, text, kind });
+    combatToastTimerRef.current = window.setTimeout(() => {
+      setCombatToast(current => (current?.id === id ? null : current));
+      combatToastTimerRef.current = null;
+    }, 3200);
+  }
+
+  function reactionCombatKey(actorId: string, reactionId: string): string {
+    return `${actorId}:${reactionId}`;
+  }
+
   function getResourceAmount(name: string, pool?: string | null): number {
     const key = resourceKey(name, pool);
     return typeof playerResources[key] === "number" ? playerResources[key] : 0;
+  }
+
+  function canUseReaction(actorId: string): boolean {
+    return (reactionUsage[actorId] ?? 0) < 1;
+  }
+
+  function resetReactionUsageForActor(actorId: string) {
+    setReactionUsage(prev => ({ ...prev, [actorId]: 0 }));
+  }
+
+  function markReactionUsed(actorId: string) {
+    setReactionUsage(prev => ({ ...prev, [actorId]: (prev[actorId] ?? 0) + 1 }));
+  }
+
+  function hasReactionUsedInCombat(actorId: string, reactionId: string): boolean {
+    const key = reactionCombatKey(actorId, reactionId);
+    return (reactionCombatUsage[key] ?? 0) > 0;
+  }
+
+  function markReactionUsedInCombat(actorId: string, reactionId: string) {
+    const key = reactionCombatKey(actorId, reactionId);
+    setReactionCombatUsage(prev => ({ ...prev, [key]: (prev[key] ?? 0) + 1 }));
   }
 
   function getTokensOnActiveLevel(tokens: TokenState[]): TokenState[] {
@@ -2038,6 +2296,12 @@ export const GameBoard: React.FC = () => {
     setIsCombatConfigured(true);
     setActionUsageCounts({ turn: {}, encounter: {} });
     setTurnActionUsage({ usedActionCount: 0, usedBonusCount: 0 });
+    setReactionUsage({});
+    setReactionQueue([]);
+    setReactionCombatUsage({});
+    setKillerInstinctTargetId(null);
+    seenTargetsByActorRef.current.clear();
+    enemyTurnPauseRef.current = null;
     setPlayerResources({ "bandolier:dagger": 3, "gear:torch": 1 });
     setPathLimit(defaultMovementProfile.speed);
     setBasePathLimit(defaultMovementProfile.speed);
@@ -2286,6 +2550,57 @@ export const GameBoard: React.FC = () => {
     );
   }, [enemies, player.id]);
 
+  useEffect(() => {
+    if (!pixiContainerRef.current) return;
+    const prevPlayerHp = prevPlayerHpRef.current;
+    if (prevPlayerHp !== null && player.hp !== prevPlayerHp) {
+      const delta = player.hp - prevPlayerHp;
+      const now = Date.now();
+      pushHpPopup(player, delta);
+      if (now >= suppressCombatToastUntilRef.current) {
+        if (delta < 0) {
+          showCombatToast(`Vous avez subi ${Math.abs(delta)} degats.`, "hit");
+        } else if (delta > 0) {
+          showCombatToast(`Vous recuperez ${delta} PV.`, "heal");
+        }
+      }
+    }
+    prevPlayerHpRef.current = player.hp;
+
+    const prevEnemies = prevEnemyHpRef.current;
+    const nextEnemies = new Map<string, number>();
+    for (const enemy of enemies) {
+      const prevHp = prevEnemies.get(enemy.id);
+      if (prevHp !== undefined && enemy.hp !== prevHp) {
+        pushHpPopup(enemy, enemy.hp - prevHp);
+      }
+      nextEnemies.set(enemy.id, enemy.hp);
+    }
+    prevEnemyHpRef.current = nextEnemies;
+  }, [player, enemies]);
+
+  useEffect(() => {
+    if (!enemyTurnPauseRef.current) return;
+    if (phase !== "enemies") {
+      enemyTurnPauseRef.current.resolve();
+      enemyTurnPauseRef.current = null;
+      return;
+    }
+    if (!actionContext && reactionQueue.length === 0) {
+      enemyTurnPauseRef.current.resolve();
+      enemyTurnPauseRef.current = null;
+    }
+  }, [phase, actionContext, reactionQueue.length]);
+
+  useEffect(() => {
+    if (!killerInstinctTargetId) return;
+    const target = enemies.find(e => e.id === killerInstinctTargetId);
+    if (!target || target.hp <= 0) {
+      pushLog("Instinct de tueur: cible tombee, avantage termine.");
+      setKillerInstinctTargetId(null);
+    }
+  }, [enemies, killerInstinctTargetId]);
+
   // -----------------------------------------------------------
   // Load player actions from JSON modules
   // -----------------------------------------------------------
@@ -2343,6 +2658,123 @@ export const GameBoard: React.FC = () => {
     setMoveTypes(loaded);
   }, []);
 
+  useEffect(() => {
+    const loadedTypes = loadReactionTypesFromIndex();
+    setReactionCatalog(loadedTypes);
+  }, []);
+
+  useEffect(() => {
+    if (!isCombatConfigured) return;
+    if (isGameOver) return;
+    if (reactionCatalog.length === 0) return;
+
+    const allTokens = getTokensOnActiveLevel([player, ...enemies]);
+    const reactors = [player, ...enemies].filter(token => !isTokenDead(token));
+
+    for (const reactor of reactors) {
+      const reactionIds = Array.isArray(reactor.reactionIds) ? reactor.reactionIds : [];
+      if (reactionIds.length === 0) continue;
+
+      const visibilityReactions = reactionIds
+        .map(id => reactionById.get(id) ?? null)
+        .filter(reaction => reaction && reaction.trigger?.event === "visibility.first_seen") as ReactionDefinition[];
+      if (visibilityReactions.length === 0) continue;
+
+      const visibleTargets = getEntitiesInVision(
+        reactor,
+        allTokens,
+        visionBlockersActive,
+        playableCells,
+        wallEdges.vision,
+        lightLevels,
+        mapGrid
+      ).filter(target => target.id !== reactor.id && !isTokenDead(target));
+
+      const seenTargets = getSeenTargetsForActor(reactor.id);
+      const newlyVisible = visibleTargets.filter(target => !seenTargets.has(target.id));
+      if (newlyVisible.length === 0) continue;
+
+      if (reactor.id === player.id) {
+        setRevealedEnemyIds(prev => {
+          const next = new Set(prev);
+          for (const enemy of newlyVisible.filter(t => t.type === "enemy")) {
+            next.add(enemy.id);
+          }
+          return next;
+        });
+      }
+
+      for (const reaction of visibilityReactions) {
+        const candidates = newlyVisible.filter(target =>
+          reactionSourceMatches(reaction.trigger?.source, target, reactor)
+        );
+        if (candidates.length === 0) continue;
+
+        const closest = candidates
+          .map(target => ({ target, dist: distanceBetweenTokens(reactor, target) }))
+          .sort((a, b) => a.dist - b.dist)[0]?.target;
+
+        for (const target of candidates) {
+          const conditionCheck = checkReactionConditions({
+            reaction,
+            reactor,
+            target,
+            distance: distanceBetweenTokens(reactor, target),
+            isFirstSeen: true,
+            isClosestVisible: target.id === (closest?.id ?? null),
+            allTokens
+          });
+          if (!conditionCheck.ok) continue;
+
+          const handled = applyInstantReactionEffects({
+            reaction,
+            reactor,
+            target
+          });
+
+          if (!handled) {
+            const anchor = resolveAnchorForCell({ x: target.x, y: target.y });
+            const anchorX = anchor?.anchorX ?? 0;
+            const anchorY = anchor?.anchorY ?? 0;
+            const instance = {
+              reactionId: reaction.id,
+              reactorId: reactor.id,
+              targetId: target.id,
+              actionId: reaction.action.id,
+              anchorX,
+              anchorY
+            };
+
+            if (reactor.type === "player") {
+              tryStartReaction(instance);
+            } else {
+              autoResolveReaction({
+                reaction,
+                reactor,
+                target,
+                playerSnapshot: player,
+                enemiesSnapshot: enemies
+              });
+            }
+          }
+        }
+      }
+
+      markTargetsSeen(reactor.id, newlyVisible);
+    }
+  }, [
+    isCombatConfigured,
+    isGameOver,
+    player,
+    enemies,
+    reactionCatalog,
+    visionBlockersActive,
+    playableCells,
+    wallEdges.vision,
+    lightLevels,
+    mapGrid
+  ]);
+
   // -----------------------------------------------------------
   // Tour par tour : entit?? active (joueur / ennemi)
   // -----------------------------------------------------------
@@ -2356,6 +2788,7 @@ export const GameBoard: React.FC = () => {
 
     if (entry.kind === "player") {
       setPhase("player");
+      resetReactionUsageForActor(player.id);
       setTurnActionUsage({ usedActionCount: 0, usedBonusCount: 0 });
       setActionUsageCounts(prev => ({ ...prev, turn: {} }));
       const speed = player.movementProfile?.speed ?? defaultMovementProfile.speed;
@@ -2383,6 +2816,7 @@ export const GameBoard: React.FC = () => {
     // Tour d'un ennemi
     if (isResolvingEnemies) return;
     setPhase("enemies");
+    resetReactionUsageForActor(entry.id);
     void runSingleEnemyTurnV2(entry.id);
   }, [
     isCombatConfigured,
@@ -2770,13 +3204,12 @@ export const GameBoard: React.FC = () => {
     const reasons: string[] = [];
     const details: string[] = [];
 
-    if (phase !== "player") {
-      reasons.push("Action bloquee pendant le tour des ennemis.");
-    }
-
     const costType = action.actionCost?.actionType;
     const isActiveAction =
       actionContext?.stage === "active" && validatedActionId === action.id;
+    if (phase !== "player" && costType !== "reaction") {
+      reasons.push("Action bloquee pendant le tour des ennemis.");
+    }
     if (costType === "action" && turnActionUsage.usedActionCount >= (player.combatStats?.actionsPerTurn ?? 1)) {
       if (!isActiveAction) {
         reasons.push("Action principale deja utilisee ce tour.");
@@ -2786,6 +3219,9 @@ export const GameBoard: React.FC = () => {
       if (!isActiveAction) {
         reasons.push("Action bonus deja utilisee ce tour.");
       }
+    }
+    if (costType === "reaction" && !canUseReaction(player.id) && !isActiveAction) {
+      reasons.push("Reaction deja utilisee ce tour.");
     }
 
     const turnUses = typeof actionUsageCounts.turn[action.id] === "number" ? actionUsageCounts.turn[action.id] : 0;
@@ -2816,7 +3252,7 @@ export const GameBoard: React.FC = () => {
     const targeting = action.targeting?.target;
     const range = action.targeting?.range;
     const isHostileTargeting = targeting === "enemy" || targeting === "hostile";
-    if (isHostileTargeting) {
+    if (isHostileTargeting && costType !== "reaction") {
       const dist = minDistanceToAnyEnemy();
       if (dist === null) {
         reasons.push("Aucune cible ennemie presente.");
@@ -2999,6 +3435,7 @@ export const GameBoard: React.FC = () => {
     const costType = action.actionCost?.actionType;
     const isStandardAction = costType === "action";
     const isBonusAction = costType === "bonus";
+    const isReaction = costType === "reaction";
 
     if (isStandardAction && turnActionUsage.usedActionCount >= (player.combatStats?.actionsPerTurn ?? 1)) {
       pushLog(
@@ -3010,6 +3447,10 @@ export const GameBoard: React.FC = () => {
       pushLog(
         `Action ${action.name} refusee: action bonus deja utilisee ce tour.`
       );
+      return false;
+    }
+    if (isReaction && !canUseReaction(player.id)) {
+      pushLog(`Reaction ${action.name} refusee: reaction deja utilisee ce tour.`);
       return false;
     }
 
@@ -3075,6 +3516,12 @@ export const GameBoard: React.FC = () => {
       usedActionCount: prev.usedActionCount + (isStandardAction ? 1 : 0),
       usedBonusCount: prev.usedBonusCount + (isBonusAction ? 1 : 0)
     }));
+    if (isReaction) {
+      markReactionUsed(player.id);
+      if (actionContext?.reactionId) {
+        markReactionUsedInCombat(player.id, actionContext.reactionId);
+      }
+    }
 
     if (actionTargetsHostile(action)) {
       setTargetMode("selecting");
@@ -3093,6 +3540,8 @@ export const GameBoard: React.FC = () => {
 
   function getActionById(id: string | null): ActionDefinition | null {
     if (!id) return null;
+    const reactionAction = reactionActionById.get(id);
+    if (reactionAction) return reactionAction;
     return actions.find(a => a.id === id) || moveTypes.find(a => a.id === id) || null;
   }
 
@@ -3109,6 +3558,15 @@ export const GameBoard: React.FC = () => {
   function actionTargetsHostile(action: ActionDefinition | null): boolean {
     const target = action?.targeting?.target;
     return target === "enemy" || target === "hostile";
+  }
+
+  function resolvePlayerAdvantageMode(action: ActionDefinition | null): AdvantageMode {
+    if (!action || !actionTargetsHostile(action)) return advantageMode;
+    if (!selectedTargetId) return advantageMode;
+    if (selectedTargetId !== killerInstinctTargetId) return advantageMode;
+    const target = enemies.find(e => e.id === selectedTargetId) ?? null;
+    if (!target || isTokenDead(target)) return advantageMode;
+    return "advantage";
   }
 
   function getActionResourceInfo(
@@ -3187,9 +3645,10 @@ export const GameBoard: React.FC = () => {
       }
     }
 
+    const effectiveAdvantage = resolvePlayerAdvantageMode(action);
     const result = rollAttack(
       action.attack.bonus,
-      advantageMode,
+      effectiveAdvantage,
       action.attack.critRange ?? 20
     );
     setAttackRoll(result);
@@ -4047,10 +4506,337 @@ export const GameBoard: React.FC = () => {
     };
   }
 
+  function reactionSourceMatches(
+    source: ReactionDefinition["trigger"]["source"] | undefined,
+    mover: TokenState,
+    reactor: TokenState
+  ): boolean {
+    if (!source || source === "any") return true;
+    if (source === "self") return mover.id === reactor.id;
+    if (source === "player") return mover.type === "player";
+    if (source === "enemy") return mover.type === "enemy";
+    if (source === "hostile") return mover.type !== reactor.type;
+    if (source === "ally") return mover.type === reactor.type;
+    return true;
+  }
+
+  function checkReactionConditions(params: {
+    reaction: ReactionDefinition;
+    reactor: TokenState;
+    target: TokenState;
+    distance: number;
+    isFirstSeen: boolean;
+    isClosestVisible: boolean;
+    allTokens: TokenState[];
+  }): { ok: boolean; reason?: string } {
+    // Add new condition types here and document them in reaction-types/README.md.
+    const conditions = params.reaction.conditions ?? [];
+    for (const cond of conditions) {
+      if (cond.type === "actor_alive" && isTokenDead(params.reactor)) {
+        return { ok: false, reason: cond.reason || "Reactor is dead." };
+      }
+      if (cond.type === "target_alive" && isTokenDead(params.target)) {
+        return { ok: false, reason: cond.reason || "Target is dead." };
+      }
+      if (cond.type === "reaction_available" && !canUseReaction(params.reactor.id)) {
+        return { ok: false, reason: cond.reason || "Reaction already used." };
+      }
+      if (cond.type === "reaction_unused_combat") {
+        if (hasReactionUsedInCombat(params.reactor.id, params.reaction.id)) {
+          return { ok: false, reason: cond.reason || "Reaction already used this combat." };
+        }
+      }
+      if (cond.type === "target_first_seen" && !params.isFirstSeen) {
+        return { ok: false, reason: cond.reason || "Target already seen." };
+      }
+      if (cond.type === "target_is_closest_visible" && !params.isClosestVisible) {
+        return { ok: false, reason: cond.reason || "Target not closest." };
+      }
+      if (cond.type === "target_visible") {
+        const visible = isTargetVisible(
+          params.reactor,
+          params.target,
+          params.allTokens,
+          visionBlockersActive,
+          playableCells,
+          wallEdges.vision,
+          lightLevels,
+          mapGrid
+        );
+        if (!visible) {
+          return { ok: false, reason: cond.reason || "Target not visible." };
+        }
+      }
+      if (cond.type === "distance_max" && typeof cond.max === "number") {
+        if (params.distance > cond.max) {
+          return { ok: false, reason: cond.reason || "Target too far." };
+        }
+      }
+    }
+    return { ok: true };
+  }
+
+  function openReactionContext(instance: ReactionInstance) {
+    setSelectedTargetId(instance.targetId);
+    setSelectedObstacleTarget(null);
+    setSelectedWallTarget(null);
+    setTargetMode("none");
+    setActionContext({
+      anchorX: instance.anchorX,
+      anchorY: instance.anchorY,
+      actionId: instance.actionId,
+      stage: "draft",
+      source: "reaction",
+      reactionId: instance.reactionId
+    });
+    setActionContextOpen(true);
+  }
+
+  function enqueueReaction(instance: ReactionInstance) {
+    setReactionQueue(prev => [...prev, instance]);
+  }
+
+  function startNextReactionFromQueue(force?: boolean) {
+    setReactionQueue(prev => {
+      if (prev.length === 0) return prev;
+      const [next, ...rest] = prev;
+      if (!force && (actionContext || interactionContext || pendingHazardRoll || validatedActionId)) {
+        return prev;
+      }
+      openReactionContext(next);
+      return rest;
+    });
+  }
+
+  function tryStartReaction(instance: ReactionInstance) {
+    if (phase === "enemies" && instance.reactorId === player.id) {
+      requestEnemyTurnPause();
+    }
+    if (actionContext || interactionContext || pendingHazardRoll || validatedActionId) {
+      enqueueReaction(instance);
+      return;
+    }
+    openReactionContext(instance);
+  }
+
+  function autoResolveReaction(params: {
+    reaction: ReactionDefinition;
+    reactor: TokenState;
+    target: TokenState;
+    playerSnapshot: TokenState;
+    enemiesSnapshot: TokenState[];
+    ignoreRange?: boolean;
+  }) {
+    if (!canUseReaction(params.reactor.id)) return;
+    const baseAction = params.reaction.action;
+    let action = baseAction;
+    if (params.ignoreRange && baseAction.targeting?.range) {
+      const afterDistance = distanceBetweenTokens(params.reactor, params.target);
+      const nextRangeMax = Math.max(
+        baseAction.targeting.range.max,
+        afterDistance
+      );
+      action = {
+        ...baseAction,
+        targeting: {
+          ...baseAction.targeting,
+          range: { ...baseAction.targeting.range, max: nextRangeMax }
+        }
+      };
+    }
+    const context = {
+      round,
+      phase,
+      actor: params.reactor,
+      player: params.playerSnapshot,
+      enemies: params.enemiesSnapshot,
+      blockedMovementCells: obstacleBlocking.movement,
+      blockedMovementEdges: wallEdges.movement,
+      blockedVisionCells: visionBlockersActive,
+      blockedAttackCells: obstacleBlocking.attacks,
+      wallVisionEdges: wallEdges.vision,
+      lightLevels,
+      playableCells,
+      grid: mapGrid,
+      heightMap: mapHeight,
+      floorIds: mapTerrain,
+      activeLevel,
+      sampleCharacter,
+      onLog: pushLog,
+      emitEvent: evt => {
+        recordCombatEvent({
+          round,
+          phase,
+          kind: evt.kind,
+          actorId: evt.actorId,
+          actorKind: evt.actorKind,
+          targetId: evt.targetId ?? null,
+          targetKind: evt.targetKind ?? null,
+          summary: evt.summary,
+          data: evt.data ?? {}
+        });
+      }
+    };
+
+    const result = resolveAction(
+      action,
+      context,
+      { kind: "token", token: params.target }
+    );
+
+    if (!result.ok || !result.playerAfter || !result.enemiesAfter) {
+      pushLog(
+        `[IA] Reaction ${action.name} echec: ${result.reason || "inconnu"}.`
+      );
+      return;
+    }
+
+    setPlayer(result.playerAfter);
+    setEnemies(result.enemiesAfter);
+    markReactionUsed(params.reactor.id);
+    markReactionUsedInCombat(params.reactor.id, params.reaction.id);
+    pushLog(`[IA] Reaction resolue: ${action.name}.`);
+
+    const isEnemyReactionAgainstPlayer =
+      params.reactor.type === "enemy" && params.target.type === "player";
+    if (isEnemyReactionAgainstPlayer) {
+      const missed = result.logs.some(line => line.includes("rate sa cible"));
+      const hit = !missed;
+      const defaultHitMessage = `Vous avez subi une attaque de reaction: ${params.reaction.name}.`;
+      const defaultMissMessage = `Vous avez evite une attaque de reaction: ${params.reaction.name}.`;
+      const message = missed
+        ? params.reaction.uiMessageMiss || defaultMissMessage
+        : params.reaction.uiMessage || defaultHitMessage;
+      showReactionToast(message, hit ? "hit" : "miss");
+      suppressCombatToastUntilRef.current = Date.now() + 500;
+    }
+  }
+
+  function applyInstantReactionEffects(params: {
+    reaction: ReactionDefinition;
+    reactor: TokenState;
+    target: TokenState;
+  }): boolean {
+    const effects = params.reaction.action.effects ?? [];
+    let handled = false;
+
+    for (const effect of effects) {
+      if (effect.type === "set_killer_instinct_target") {
+        if (params.reactor.id !== player.id) continue;
+        if (killerInstinctTargetId) return true;
+        setKillerInstinctTargetId(params.target.id);
+        setSelectedTargetId(params.target.id);
+        setEnemies(prev =>
+          prev.map(enemy =>
+            enemy.id === params.target.id
+              ? addStatusToToken(enemy, "killer-mark", params.reactor.id)
+              : enemy
+          )
+        );
+        pushLog(
+          `Instinct de tueur: cible marquee -> ${params.target.id} (avantage jusqu'a sa mort).`
+        );
+        markReactionUsedInCombat(params.reactor.id, params.reaction.id);
+        handled = true;
+      }
+      if (effect.type === "log" && typeof effect.message === "string") {
+        pushLog(effect.message);
+      }
+    }
+
+    return handled;
+  }
+
+  function triggerMovementReactions(params: {
+    mover: TokenState;
+    from: { x: number; y: number };
+    to: { x: number; y: number };
+    playerSnapshot: TokenState;
+    enemiesSnapshot: TokenState[];
+  }) {
+    if (reactionById.size === 0) return;
+    const moverFrom = { ...params.mover, x: params.from.x, y: params.from.y };
+    const moverTo = { ...params.mover, x: params.to.x, y: params.to.y };
+    const allTokens = getTokensOnActiveLevel([
+      params.playerSnapshot,
+      ...params.enemiesSnapshot
+    ]);
+    const reactors = [params.playerSnapshot, ...params.enemiesSnapshot].filter(
+      token => token.id !== params.mover.id
+    );
+
+    for (const reactor of reactors) {
+      if (isTokenDead(reactor)) continue;
+      const reactionIds = Array.isArray(reactor.reactionIds) ? reactor.reactionIds : [];
+      if (reactionIds.length === 0) continue;
+      for (const reactionId of reactionIds) {
+        const reaction = reactionById.get(reactionId);
+        if (!reaction) continue;
+        const event = reaction.trigger?.event ?? "";
+        if (!event.startsWith("movement.")) continue;
+        if (!reactionSourceMatches(reaction.trigger?.source, moverTo, reactor)) {
+          continue;
+        }
+
+        const reach = getAttackRangeForToken(reactor);
+        const before = distanceBetweenTokens(reactor, moverFrom);
+        const after = distanceBetweenTokens(reactor, moverTo);
+        const isLeave = event === "movement.leave_reach";
+        const isEnter = event === "movement.enter_reach";
+        const matched =
+          (isLeave && before <= reach && after > reach) ||
+          (isEnter && before > reach && after <= reach);
+        if (!matched) continue;
+
+        const distanceForConditions = isLeave ? before : after;
+        const conditionCheck = checkReactionConditions({
+          reaction,
+          reactor,
+          target: moverTo,
+          distance: distanceForConditions,
+          isFirstSeen: true,
+          isClosestVisible: true,
+          allTokens
+        });
+        if (!conditionCheck.ok) continue;
+
+        const anchor = resolveAnchorForCell(params.to) ?? { anchorX: 0, anchorY: 0 };
+        const instance: ReactionInstance = {
+          reactionId: reaction.id,
+          reactorId: reactor.id,
+          targetId: params.mover.id,
+          actionId: reaction.action.id,
+          anchorX: anchor.anchorX,
+          anchorY: anchor.anchorY
+        };
+
+        if (reactor.type === "player") {
+          if (isGameOver || isTokenDead(reactor)) continue;
+          pushLog(`Reaction disponible: ${reaction.name} (cible ${params.mover.id}).`);
+          tryStartReaction(instance);
+        } else {
+          pushLog(`[IA] Reaction: ${reaction.name} sur ${params.mover.id}.`);
+          autoResolveReaction({
+            reaction,
+            reactor,
+            target: moverTo,
+            playerSnapshot: params.playerSnapshot,
+            enemiesSnapshot: params.enemiesSnapshot,
+            ignoreRange: event === "movement.leave_reach"
+          });
+        }
+      }
+    }
+  }
+
   function handleValidatePath() {
     if (phase !== "player") return;
     if (isGameOver) return;
     if (isTokenDead(player)) return;
+    if (pathLimit <= 0) {
+      pushLog("Deplacement impossible: budget de mouvement epuise.");
+      return;
+    }
     suppressBoardClickUntilRef.current = Date.now() + 220;
     if (selectedPath.length === 0) {
       const hazardRoll = buildHazardRollFromPath([], { x: player.x, y: player.y });
@@ -4072,6 +4858,7 @@ export const GameBoard: React.FC = () => {
         ? selectedPath[selectedPath.length - 2]
         : { x: player.x, y: player.y };
     const nextFacing = computeFacingTowards(facingFrom, last);
+    const playerAfterMove = { ...player, x: last.x, y: last.y, facing: nextFacing };
 
     setPlayer(prev => ({
       ...prev,
@@ -4088,6 +4875,14 @@ export const GameBoard: React.FC = () => {
       actorKind: "player",
       summary: `Le heros se deplace de (${from.x}, ${from.y}) vers (${last.x}, ${last.y}).`,
       data: { from, to: { x: last.x, y: last.y }, steps: selectedPath.length }
+    });
+
+    triggerMovementReactions({
+      mover: playerAfterMove,
+      from,
+      to: { x: last.x, y: last.y },
+      playerSnapshot: playerAfterMove,
+      enemiesSnapshot: enemies
     });
 
     const hazardRoll = buildHazardRollFromPath(selectedPath, { x: player.x, y: player.y });
@@ -4139,7 +4934,11 @@ export const GameBoard: React.FC = () => {
       pushLog(`Orientation du joueur mise a jour: ${direction}.`);
     }
 
-    const addStatusToToken = (token: TokenState, statusId: string): TokenState => {
+    const addStatusToToken = (
+      token: TokenState,
+      statusId: string,
+      sourceId?: string
+    ): TokenState => {
       const def = statusTypeById.get(statusId);
       if (!def) return token;
       const duration = Math.max(1, Math.floor(def.durationTurns || 1));
@@ -4147,9 +4946,13 @@ export const GameBoard: React.FC = () => {
       const existingIndex = current.findIndex(s => s.id === statusId);
       const next = [...current];
       if (existingIndex >= 0) {
-        next[existingIndex] = { ...next[existingIndex], remainingTurns: duration };
+        next[existingIndex] = {
+          ...next[existingIndex],
+          remainingTurns: duration,
+          sourceId: sourceId ?? next[existingIndex].sourceId
+        };
       } else {
-        next.push({ id: statusId, remainingTurns: duration });
+        next.push({ id: statusId, remainingTurns: duration, sourceId });
       }
       return { ...token, statuses: next };
     };
@@ -4191,6 +4994,10 @@ export const GameBoard: React.FC = () => {
           });
         }
 
+        if (def?.persistUntilDeath) {
+          remaining.push({ ...status });
+          continue;
+        }
         const nextRemaining = status.remainingTurns - 1;
         if (nextRemaining > 0) {
           remaining.push({ ...status, remainingTurns: nextRemaining });
@@ -4622,11 +5429,20 @@ export const GameBoard: React.FC = () => {
             continue;
           }
 
+            const from = { x: enemy.x, y: enemy.y };
             const destination = path[path.length - 1];
   
             enemy.x = destination.x;
             enemy.y = destination.y;
             enemy.facing = computeFacingTowards(enemy, playerCopy);
+
+            triggerMovementReactions({
+              mover: enemy,
+              from,
+              to: destination,
+              playerSnapshot: playerCopy as TokenState,
+              enemiesSnapshot: enemiesCopy
+            });
   
             const distToPlayer = distanceBetweenTokens(enemy, playerCopy);
             const attackRange = getAttackRangeForToken(enemy);
@@ -5351,10 +6167,18 @@ export const GameBoard: React.FC = () => {
       return "aucune cible";
     };
 
-    const tryResolve = (actionId: string, target: ActionTarget, advantageMode?: AdvantageMode) => {
+    const tryResolve = async (
+      actionId: string,
+      target: ActionTarget,
+      advantageMode?: AdvantageMode
+    ) => {
       const action = getActionById(actionId);
-      if (!action) return { ok: false as const, reason: `Action inconnue: ${actionId}` };
+      if (!action) {
+        await waitForEnemyTurnResume();
+        return { ok: false as const, reason: `Action inconnue: ${actionId}` };
+      }
       if (!enemyActionIds.includes(actionId)) {
+        await waitForEnemyTurnResume();
         return { ok: false as const, reason: `Action non autorisee pour ${activeEnemy.id}: ${actionId}` };
       }
 
@@ -5395,6 +6219,18 @@ export const GameBoard: React.FC = () => {
               summary: evt.summary,
               data: evt.data ?? {}
             });
+            if (evt.kind === "move" && evt.data && typeof evt.data === "object") {
+              const data = evt.data as { from?: { x: number; y: number }; to?: { x: number; y: number } };
+              if (data.from && data.to) {
+                triggerMovementReactions({
+                  mover: activeEnemy,
+                  from: data.from,
+                  to: data.to,
+                  playerSnapshot: playerCopy as TokenState,
+                  enemiesSnapshot: enemiesCopy
+                });
+              }
+            }
           }
         },
         target,
@@ -5405,6 +6241,7 @@ export const GameBoard: React.FC = () => {
         const msg = `[IA] ${activeEnemy.id}: ${action.name} sur ${describeActionTarget(target)} -> echec (${result.reason || "inconnu"}).`;
         pushLog(msg);
         aiTurnLogs.push(msg);
+        await waitForEnemyTurnResume();
         return { ok: false as const, reason: result.reason || "Echec de resolution." };
       }
 
@@ -5439,6 +6276,17 @@ export const GameBoard: React.FC = () => {
           aiTurnLogs.push(`[IA] ${activeEnemy.id}: ${line}`);
         }
       }
+      if (target.kind === "token" && target.token.type === "player") {
+        const didHit = damageToPlayer > 0;
+        const message = didHit
+          ? action.uiMessageHit || `Vous avez ete touche par ${action.name}.`
+          : action.uiMessageMiss || null;
+        if (message) {
+          showCombatToast(message, didHit ? "hit" : "info");
+          suppressCombatToastUntilRef.current = Date.now() + 500;
+        }
+      }
+      await waitForEnemyTurnResume();
       return { ok: true as const, action };
     };
 
@@ -5455,7 +6303,7 @@ export const GameBoard: React.FC = () => {
         target = { kind: "cell", x: targetSpec.x, y: targetSpec.y };
       }
 
-      const resolved = tryResolve(intent.actionId, target, intent.advantageMode as AdvantageMode);
+      const resolved = await tryResolve(intent.actionId, target, intent.advantageMode as AdvantageMode);
       if (!resolved.ok) {
         usedFallback = true;
         pushLog(`${activeEnemy.id}: intent IA invalide (${resolved.reason}).`);
@@ -5523,7 +6371,7 @@ export const GameBoard: React.FC = () => {
           const min = bow?.targeting?.range?.min ?? 2;
           const max = bow?.targeting?.range?.max ?? 6;
           if (distToPlayer >= min && distToPlayer <= max) {
-            const shot = tryResolve("bow-shot", { kind: "token", token: playerCopy });
+            const shot = await tryResolve("bow-shot", { kind: "token", token: playerCopy });
             if (shot.ok) {
               recordCombatEvent({
                 round,
@@ -5546,7 +6394,7 @@ export const GameBoard: React.FC = () => {
           const destination = pickBestRetreatCell();
           if (destination) {
             const from = { x: activeEnemy.x, y: activeEnemy.y };
-            const moved = tryResolve("move", { kind: "cell", x: destination.x, y: destination.y });
+            const moved = await tryResolve("move", { kind: "cell", x: destination.x, y: destination.y });
             if (moved.ok) {
               recordCombatEvent({
                 round,
@@ -5564,7 +6412,7 @@ export const GameBoard: React.FC = () => {
 
         // 3) Non-archer: melee si au contact.
         if (!acted && playerCopy.hp > 0 && !isArcher && hasMelee && distToPlayer <= 1) {
-          const melee = tryResolve("melee-strike", { kind: "token", token: playerCopy });
+          const melee = await tryResolve("melee-strike", { kind: "token", token: playerCopy });
           if (melee.ok) {
             recordCombatEvent({
               round,
@@ -5632,7 +6480,7 @@ export const GameBoard: React.FC = () => {
 
           if (destination) {
             const from = { x: activeEnemy.x, y: activeEnemy.y };
-            const moved = tryResolve("move", { kind: "cell", x: destination.x, y: destination.y });
+            const moved = await tryResolve("move", { kind: "cell", x: destination.x, y: destination.y });
             if (moved.ok) {
               recordCombatEvent({
                 round,
@@ -5650,7 +6498,7 @@ export const GameBoard: React.FC = () => {
 
         // 5) Derniere option: si archer au contact, tente melee.
         if (!acted && playerCopy.hp > 0 && isArcher && hasMelee && distToPlayer <= 1) {
-          const melee = tryResolve("melee-strike", { kind: "token", token: playerCopy });
+          const melee = await tryResolve("melee-strike", { kind: "token", token: playerCopy });
           if (melee.ok) {
             recordCombatEvent({
               round,
@@ -5857,6 +6705,23 @@ function handleEndPlayerTurn() {
       (contextSteps.length === 0
         ? true
         : contextSteps.every(step => step.status === "done")));
+  const selectedTargetStatuses = useMemo(() => {
+    if (!selectedTargetId) return [];
+    const target = enemies.find(enemy => enemy.id === selectedTargetId);
+    if (!target || !Array.isArray(target.statuses) || target.statuses.length === 0) {
+      return [];
+    }
+    return target.statuses.map(status => {
+      const def = statusTypeById.get(status.id);
+      return {
+        id: status.id,
+        label: def?.label ?? status.id,
+        remainingTurns: status.remainingTurns,
+        sourceId: status.sourceId ?? null,
+        isPersistent: Boolean(def?.persistUntilDeath)
+      };
+    });
+  }, [enemies, selectedTargetId, statusTypeById]);
 
   const isActionInProgress =
     (actionContext?.stage === "active" && Boolean(validatedActionId)) ||
@@ -5877,7 +6742,11 @@ function handleEndPlayerTurn() {
           onCancelMove: handleCancelMoveFromWheel
         }
       : null;
+  const effectiveAdvantageMode = resolvePlayerAdvantageMode(contextAction);
   const isPlayerTurn = phase === "player";
+  const phaseLabel = isPlayerTurn ? "Tour du joueur" : "Tour ennemi";
+  const showReactionBanner =
+    actionContext?.source === "reaction" || reactionQueue.length > 0;
   const activeEntry = getActiveTurnEntry();
   const timelineEntries = turnOrder;
 
@@ -6011,7 +6880,7 @@ function handleEndPlayerTurn() {
     if (actions.some(a => a.id === action.id)) {
       setSelectedActionId(action.id);
     }
-    setActionContext({ anchorX, anchorY, actionId: action.id, stage: "draft" });
+    setActionContext({ anchorX, anchorY, actionId: action.id, stage: "draft", source: "action" });
     setActionContextOpen(true);
   }
 
@@ -6031,6 +6900,7 @@ function handleEndPlayerTurn() {
       return;
     }
     resetActionContext();
+    startNextReactionFromQueue();
   }
 
   function openSheetFromWheel() {
@@ -6045,9 +6915,67 @@ function handleEndPlayerTurn() {
     setAttackOutcome(null);
     setHasRolledAttackForCurrentAction(false);
     resetActionContext();
+    startNextReactionFromQueue(true);
+  }
+
+  function handleCancelAction() {
+    const action = getValidatedAction();
+    if (action && isMoveTypeAction(action)) {
+      setSelectedPath([]);
+      setInteractionMode("idle");
+    }
+    if (action) {
+      const costType = action.actionCost?.actionType;
+      const isStandardAction = costType === "action";
+      const isBonusAction = costType === "bonus";
+      const isReaction = costType === "reaction";
+      setTurnActionUsage(prev => ({
+        usedActionCount: Math.max(0, prev.usedActionCount - (isStandardAction ? 1 : 0)),
+        usedBonusCount: Math.max(0, prev.usedBonusCount - (isBonusAction ? 1 : 0))
+      }));
+      if (isReaction) {
+        setReactionUsage(prev => ({
+          ...prev,
+          [player.id]: Math.max(0, (prev[player.id] ?? 0) - 1)
+        }));
+      }
+      setActionUsageCounts(prev => ({
+        turn: { ...prev.turn, [action.id]: Math.max(0, (prev.turn[action.id] ?? 0) - 1) },
+        encounter: {
+          ...prev.encounter,
+          [action.id]: Math.max(0, (prev.encounter[action.id] ?? 0) - 1)
+        }
+      }));
+    }
+    setValidatedActionId(null);
+    setAttackRoll(null);
+    setDamageRoll(null);
+    setAttackOutcome(null);
+    setHasRolledAttackForCurrentAction(false);
+    setSelectedTargetId(null);
+    setSelectedObstacleTarget(null);
+    setSelectedWallTarget(null);
+    resetActionContext();
+    startNextReactionFromQueue(true);
+    pushLog("Action annulee.");
   }
 
   function handleValidateActionFromContext(action: ActionDefinition) {
+    if (isMoveTypeAction(action)) {
+      const multiplier = action.movement?.pathLimitMultiplier ?? 1;
+      let baseLimit = basePathLimit;
+      if (action.movement?.modeId) {
+        const mode = getMovementModeById(action.movement.modeId) ?? defaultMovementMode;
+        const profile = buildMovementProfileFromMode(mode);
+        baseLimit = profile.speed;
+      }
+      const nextBase = Math.max(0, Math.round(baseLimit * multiplier));
+      const available = Math.max(0, nextBase - movementSpent);
+      if (available <= 0) {
+        pushLog("Deplacement impossible: budget de mouvement epuise.");
+        return;
+      }
+    }
     const accepted = handleUseAction(action);
     if (!accepted) return;
 
@@ -6260,6 +7188,17 @@ function handleEndPlayerTurn() {
             50% { transform: translateY(-4px); opacity: 1; }
             100% { transform: translateY(0); opacity: 0.45; }
           }
+          @keyframes hpPopupFloat {
+            0% { opacity: 0; transform: translate(-50%, -10%) scale(0.9); }
+            20% { opacity: 1; transform: translate(-50%, -30%) scale(1); }
+            100% { opacity: 0; transform: translate(-50%, -110%) scale(1.05); }
+          }
+          @keyframes reactionToastSlide {
+            0% { opacity: 0; transform: translate(-50%, -8px) scale(0.98); }
+            15% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+            85% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+            100% { opacity: 0; transform: translate(-50%, -8px) scale(0.98); }
+          }
         `}</style>
         {isTextureLoading && (
           <div
@@ -6340,6 +7279,32 @@ function handleEndPlayerTurn() {
             ))}
           </div>
         )}
+        {showTerrainIds && terrainLegend.entries.length > 0 && (
+          <div
+            style={{
+              position: "absolute",
+              top: 16,
+              left: 16,
+              zIndex: 50,
+              background: "rgba(10,10,16,0.92)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: 10,
+              padding: "10px 12px",
+              maxWidth: 260,
+              maxHeight: "40vh",
+              overflowY: "auto",
+              fontSize: 12,
+              lineHeight: 1.4
+            }}
+          >
+            <div style={{ fontWeight: 600, marginBottom: 6 }}>Legende sols</div>
+            {terrainLegend.entries.map(item => (
+              <div key={item.id}>
+                {item.index} - {item.label} ({item.id})
+              </div>
+            ))}
+          </div>
+        )}
         <div
           style={{
             flex: "1 1 auto",
@@ -6387,9 +7352,39 @@ function handleEndPlayerTurn() {
                 Clic gauche: roue d&apos;actions ??? Deplacer: clics successifs (max {basePathLimit})
               </span>
             </div>
-            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
-              {phase === "player" ? "Tour joueur" : "Tour ennemis"}
-            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span
+                style={{
+                  fontSize: 12,
+                  color: "rgba(255,255,255,0.85)",
+                  background: "rgba(255,255,255,0.08)",
+                  border: "1px solid rgba(255,255,255,0.18)",
+                  padding: "4px 10px",
+                  borderRadius: 999,
+                  fontWeight: 700,
+                  letterSpacing: 0.2
+                }}
+              >
+                {phaseLabel}
+              </span>
+              {showReactionBanner && (
+                <span
+                  style={{
+                    fontSize: 12,
+                    color: "#0b0b12",
+                    background: "#f1c40f",
+                    border: "1px solid rgba(255,255,255,0.18)",
+                    padding: "4px 10px",
+                    borderRadius: 999,
+                    fontWeight: 900,
+                    letterSpacing: 0.6,
+                    textTransform: "uppercase"
+                  }}
+                >
+                  Reaction !
+                </span>
+              )}
+            </div>
           </div>
           <div
             style={{
@@ -6452,6 +7447,95 @@ function handleEndPlayerTurn() {
                 cursor: isPanningBoard ? "grabbing" : "default"
               }}
             >
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  pointerEvents: "none",
+                  zIndex: 35
+                }}
+              >
+                {reactionToast && (
+                  <div
+                    key={reactionToast.id}
+                    style={{
+                      position: "absolute",
+                      left: "50%",
+                      top: 16,
+                      transform: "translateX(-50%)",
+                      padding: "10px 18px",
+                      borderRadius: 14,
+                      fontSize: 18,
+                      fontWeight: 900,
+                      letterSpacing: 0.4,
+                      background:
+                        reactionToast.kind === "miss"
+                          ? "rgba(46, 204, 113, 0.92)"
+                          : reactionToast.kind === "hit"
+                            ? "rgba(231, 76, 60, 0.92)"
+                            : "rgba(241, 196, 15, 0.92)",
+                      color: "#0b0b12",
+                      border: "1px solid rgba(255,255,255,0.35)",
+                      textShadow: "0 1px 6px rgba(0,0,0,0.35)",
+                      boxShadow: "0 12px 35px rgba(0,0,0,0.45)",
+                      animation: "reactionToastSlide 3.2s ease-out forwards"
+                    }}
+                  >
+                    {reactionToast.text}
+                  </div>
+                )}
+                {combatToast && (
+                  <div
+                    key={combatToast.id}
+                    style={{
+                      position: "absolute",
+                      left: "50%",
+                      top: reactionToast ? 60 : 16,
+                      transform: "translateX(-50%)",
+                      padding: "10px 18px",
+                      borderRadius: 14,
+                      fontSize: 18,
+                      fontWeight: 900,
+                      letterSpacing: 0.4,
+                      background:
+                        combatToast.kind === "heal"
+                          ? "rgba(46, 204, 113, 0.92)"
+                          : combatToast.kind === "hit"
+                            ? "rgba(231, 76, 60, 0.92)"
+                            : "rgba(241, 196, 15, 0.92)",
+                      color: "#0b0b12",
+                      border: "1px solid rgba(255,255,255,0.35)",
+                      textShadow: "0 1px 6px rgba(0,0,0,0.35)",
+                      boxShadow: "0 12px 35px rgba(0,0,0,0.45)",
+                      animation: "reactionToastSlide 3.2s ease-out forwards"
+                    }}
+                  >
+                    {combatToast.text}
+                  </div>
+                )}
+                {hpPopups.map(popup => (
+                  <div
+                    key={popup.id}
+                    style={{
+                      position: "absolute",
+                      left: popup.x,
+                      top: popup.y,
+                      color: popup.color,
+                      fontSize: 18,
+                      fontWeight: 900,
+                      padding: "4px 10px",
+                      borderRadius: 10,
+                      background: "rgba(8,8,12,0.82)",
+                      border: "1px solid rgba(255,255,255,0.2)",
+                      textShadow: "0 2px 6px rgba(0,0,0,0.6)",
+                      animation: "hpPopupFloat 2.6s ease-out forwards",
+                      willChange: "transform, opacity"
+                    }}
+                  >
+                    {popup.text}
+                  </div>
+                ))}
+              </div>
               <div
                 onMouseDown={event => event.stopPropagation()}
                 style={{
@@ -6623,6 +7707,12 @@ function handleEndPlayerTurn() {
                       showLightOverlay={showLightOverlay}
                       showCellIds={showCellIds}
                       showAllLevels={showAllLevels}
+                      showTerrainIds={showTerrainIds}
+                      showTerrainContours={showTerrainContours}
+                      bumpIntensity={bumpIntensity}
+                      windSpeed={windSpeed}
+                      windStrength={windStrength}
+                      bumpDebug={bumpDebug}
                       visionLegend={visionLegend}
                       onShowCircle={handleShowCircleEffect}
                       onShowRectangle={handleShowRectangleEffect}
@@ -6631,6 +7721,12 @@ function handleEndPlayerTurn() {
                       onToggleLightOverlay={() => setShowLightOverlay(prev => !prev)}
                       onToggleCellIds={() => setShowCellIds(prev => !prev)}
                       onToggleShowAllLevels={() => setShowAllLevels(prev => !prev)}
+                      onToggleTerrainIds={() => setShowTerrainIds(prev => !prev)}
+                      onToggleTerrainContours={() => setShowTerrainContours(prev => !prev)}
+                      onChangeBumpIntensity={value => setBumpIntensity(value)}
+                      onChangeWindSpeed={value => setWindSpeed(value)}
+                      onChangeWindStrength={value => setWindStrength(value)}
+                      onToggleBumpDebug={() => setBumpDebug(prev => !prev)}
                       onClear={handleClearEffects}
                     />
                   )}
@@ -6738,6 +7834,8 @@ function handleEndPlayerTurn() {
                 targetMode={targetMode}
                 selectedTargetId={selectedTargetId}
                 selectedTargetLabel={selectedTargetLabel}
+                targetStatuses={selectedTargetStatuses}
+                effectiveAdvantageMode={effectiveAdvantageMode}
                 plan={contextPlan}
                 isComplete={contextComplete}
                 movement={contextMovement}
@@ -6758,6 +7856,7 @@ function handleEndPlayerTurn() {
                 diceLogs={diceLogs}
                 onValidateAction={handleValidateActionFromContext}
                 onFinishAction={handleFinishAction}
+                onCancelAction={handleCancelAction}
                 onClose={closeActionContext}
               />
               <InteractionContextWindow

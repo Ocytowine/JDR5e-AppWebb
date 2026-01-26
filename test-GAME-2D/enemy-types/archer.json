@@ -4,6 +4,7 @@
   "description": "Tireur qui prefere garder une distance de securite avant de frapper.",
   "aiRole": "archer",
   "actions": ["move", "bow-shot", "melee-strike"],
+  "reactionIds": ["guard-strike"],
   "behavior": { "preferredRangeMin": 3, "preferredRangeMax": 6, "panicRange": 2 },
   "speechProfile": {
     "raceOrOrigin": "Archer de bande",

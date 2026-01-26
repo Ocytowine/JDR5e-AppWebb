@@ -70,8 +70,7 @@ export function usePixiGridLabels(options: {
           fontFamily: "Arial",
           fontSize,
           fill: 0xffffff,
-          stroke: 0x000000,
-          strokeThickness: 3,
+          stroke: { color: 0x000000, width: 3 },
           align: "center"
         });
         label.anchor.set(0.5, 0.5);

@@ -2,6 +2,8 @@
   "id": "throw-dagger",
   "name": "Lancer de dague",
   "summary": "Attaque a distance courte avec une dague a lancer.",
+  "uiMessageHit": "Vous avez ete touche par une dague lancee.",
+  "uiMessageMiss": "Vous evitez une dague lancee.",
   "category": "attack",
   "actionCost": { "actionType": "action", "movementCost": 0 },
   "targeting": {

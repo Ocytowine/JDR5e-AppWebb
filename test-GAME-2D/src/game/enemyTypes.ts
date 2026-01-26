@@ -12,6 +12,7 @@ export interface EnemyTypeDefinition {
   description: string;
   aiRole: string;
   actions?: string[];
+  reactionIds?: string[];
   behavior?: {
     preferredRangeMin?: number;
     preferredRangeMax?: number;

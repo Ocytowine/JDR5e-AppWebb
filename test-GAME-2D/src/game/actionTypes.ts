@@ -79,6 +79,8 @@ export interface ActionDefinition {
   id: string;
   name: string;
   summary?: string;
+  uiMessageHit?: string;
+  uiMessageMiss?: string;
   category: ActionCategory;
   actionCost: ActionCost;
   targeting: TargetingSpec;

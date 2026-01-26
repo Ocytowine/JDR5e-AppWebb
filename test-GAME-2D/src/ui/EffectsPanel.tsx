@@ -5,6 +5,12 @@ export function EffectsPanel(props: {
   showLightOverlay: boolean;
   showCellIds: boolean;
   showAllLevels: boolean;
+  showTerrainIds: boolean;
+  showTerrainContours: boolean;
+  bumpIntensity: number;
+  windSpeed: number;
+  windStrength: number;
+  bumpDebug: boolean;
   visionLegend?: string;
   onShowCircle: () => void;
   onShowRectangle: () => void;
@@ -13,6 +19,12 @@ export function EffectsPanel(props: {
   onToggleLightOverlay: () => void;
   onToggleCellIds: () => void;
   onToggleShowAllLevels: () => void;
+  onToggleTerrainIds: () => void;
+  onToggleTerrainContours: () => void;
+  onChangeBumpIntensity: (value: number) => void;
+  onChangeWindSpeed: (value: number) => void;
+  onChangeWindStrength: (value: number) => void;
+  onToggleBumpDebug: () => void;
   onClear: () => void;
 }): React.JSX.Element {
   return (
@@ -143,6 +155,90 @@ export function EffectsPanel(props: {
         >
           {props.showAllLevels ? "Masquer tout" : "Voir tout"}
         </button>
+        <button
+          type="button"
+          onClick={props.onToggleTerrainIds}
+          style={{
+            padding: "4px 8px",
+            background: props.showTerrainIds ? "#16a085" : "#555",
+            color: "#fff",
+            border: "none",
+            borderRadius: 4,
+            cursor: "pointer",
+            fontSize: 12
+          }}
+        >
+          {props.showTerrainIds ? "Masquer sol IDs" : "Afficher sol IDs"}
+        </button>
+        <button
+          type="button"
+          onClick={props.onToggleTerrainContours}
+          style={{
+            padding: "4px 8px",
+            background: props.showTerrainContours ? "#1abc9c" : "#555",
+            color: "#0b0b12",
+            border: "none",
+            borderRadius: 4,
+            cursor: "pointer",
+            fontSize: 12
+          }}
+        >
+          {props.showTerrainContours ? "Masquer contours sol" : "Afficher contours sol"}
+        </button>
+        <button
+          type="button"
+          onClick={props.onToggleBumpDebug}
+          style={{
+            padding: "4px 8px",
+            background: props.bumpDebug ? "#f1c40f" : "#555",
+            color: "#0b0b12",
+            border: "none",
+            borderRadius: 4,
+            cursor: "pointer",
+            fontSize: 12
+          }}
+        >
+          {props.bumpDebug ? "Masquer bump debug" : "Afficher bump debug"}
+        </button>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 180 }}>
+          <label style={{ fontSize: 11, color: "#bfc6d2" }}>
+            Bump: {props.bumpIntensity.toFixed(2)}
+          </label>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={props.bumpIntensity}
+            onChange={event => props.onChangeBumpIntensity(Number(event.target.value))}
+          />
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 180 }}>
+          <label style={{ fontSize: 11, color: "#bfc6d2" }}>
+            Vent vitesse: {props.windSpeed.toFixed(2)}
+          </label>
+          <input
+            type="range"
+            min="0"
+            max="0.2"
+            step="0.01"
+            value={props.windSpeed}
+            onChange={event => props.onChangeWindSpeed(Number(event.target.value))}
+          />
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 180 }}>
+          <label style={{ fontSize: 11, color: "#bfc6d2" }}>
+            Vent force: {props.windStrength.toFixed(2)}
+          </label>
+          <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.05"
+            value={props.windStrength}
+            onChange={event => props.onChangeWindStrength(Number(event.target.value))}
+          />
+        </div>
         <button
           type="button"
           onClick={props.onClear}

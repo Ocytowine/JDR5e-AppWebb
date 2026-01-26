@@ -2,6 +2,8 @@
   "id": "bow-shot",
   "name": "Tir a l'arc",
   "summary": "Tir a distance contre une cible hostile, prefere eviter la melee.",
+  "uiMessageHit": "Vous avez ete touche par une fleche.",
+  "uiMessageMiss": "Vous evitez une fleche.",
   "category": "attack",
   "actionCost": { "actionType": "action", "movementCost": 0 },
   "targeting": {

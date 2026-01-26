@@ -23,6 +23,7 @@ export interface Personnage {
   visionProfile?: VisionProfile;
   appearance?: TokenAppearance;
   actionIds?: string[];
+  reactionIds?: string[];
   movementModes?: Record<string, number> | string[];
   combatStats?: CombatStats;
   [key: string]: any;
@@ -148,6 +149,10 @@ export interface TokenState {
    */
   actionIds?: string[] | null;
   /**
+   * Liste de reactions que l'entite peut declencher (IDs ReactionDefinition).
+   */
+  reactionIds?: string[] | null;
+  /**
    * Stats de combat standardisees partagees entre joueurs/ennemis.
    */
   combatStats?: CombatStats;
@@ -205,6 +210,7 @@ export interface TokenState {
   statuses?: Array<{
     id: string;
     remainingTurns: number;
+    sourceId?: string;
   }>;
   x: number;
   y: number;

@@ -4,6 +4,7 @@
   "description": "Frontliner robuste qui avance pour engager le joueur.",
   "aiRole": "brute",
   "actions": ["move", "melee-strike"],
+  "reactionIds": ["opportunity-attack"],
   "behavior": { "preferredRangeMin": 1, "preferredRangeMax": 1, "panicRange": 0 },
   "speechProfile": {
     "raceOrOrigin": "Brute mercenaire",

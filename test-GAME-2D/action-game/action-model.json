@@ -2,6 +2,8 @@
   "id": "template-id",
   "name": "Template action name",
   "summary": "Short text used in logs and tooltips.",
+  "uiMessageHit": "Message affiche si l action touche le joueur.",
+  "uiMessageMiss": "Message affiche si l action rate le joueur.",
   "category": "attack | movement | support | defense | item | reaction",
   "actionCost": {
     "actionType": "action | bonus | reaction | free",

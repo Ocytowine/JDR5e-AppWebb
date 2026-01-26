@@ -42,6 +42,14 @@ export function ActionContextWindow(props: {
   targetMode: "none" | "selecting";
   selectedTargetId: string | null;
   selectedTargetLabel: string | null;
+  targetStatuses?: Array<{
+    id: string;
+    label: string;
+    remainingTurns: number;
+    sourceId: string | null;
+    isPersistent?: boolean;
+  }>;
+  effectiveAdvantageMode?: AdvantageMode;
   onSelectTargetId: (enemyId: string) => void;
   onSetTargetMode: (mode: "none" | "selecting") => void;
   advantageMode: AdvantageMode;
@@ -66,6 +74,7 @@ export function ActionContextWindow(props: {
   onFinishHazard?: () => void;
   onValidateAction: (action: ActionDefinition) => void;
   onFinishAction: () => void;
+  onCancelAction: () => void;
   onClose: () => void;
 }): React.ReactNode {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -87,6 +96,14 @@ export function ActionContextWindow(props: {
   const hasHazard = Boolean(props.pendingHazard);
   const isMovementAction = Boolean(action?.tags?.includes("move-type"));
   const movement = props.movement ?? null;
+  const canValidateMove = Boolean(
+    movement &&
+      movement.canInteract &&
+      movement.hasPath &&
+      props.stage === "active" &&
+      movement.costMax > 0
+  );
+  const showCancelAction = Boolean(action && props.stage === "active");
 
   useLayoutEffect(() => {
     if (!props.open) return;
@@ -330,6 +347,26 @@ export function ActionContextWindow(props: {
           {action.summary || "Aucun resume."}
         </div>
       )}
+      {showCancelAction && (
+        <div style={{ marginTop: 10 }}>
+          <button
+            type="button"
+            onClick={props.onCancelAction}
+            style={{
+              padding: "6px 10px",
+              borderRadius: 10,
+              border: "1px solid rgba(255,255,255,0.12)",
+              background: "rgba(231,76,60,0.18)",
+              color: "#ffb2aa",
+              cursor: "pointer",
+              fontSize: 12,
+              fontWeight: 900
+            }}
+          >
+            Annuler action
+          </button>
+        </div>
+      )}
 
       {action && (
         <div style={{ marginTop: 10 }}>
@@ -431,21 +468,21 @@ export function ActionContextWindow(props: {
             <button
               type="button"
               onClick={movement.onValidateMove}
-              disabled={!movement.canInteract || !movement.hasPath || props.stage !== "active"}
+              disabled={!canValidateMove}
               style={{
                 padding: "6px 10px",
                 borderRadius: 10,
                 border: "1px solid rgba(255,255,255,0.12)",
                 background:
-                  movement.canInteract && movement.hasPath && props.stage === "active"
+                  canValidateMove
                     ? "#f1c40f"
                     : "rgba(90, 90, 100, 0.55)",
                 color:
-                  movement.canInteract && movement.hasPath && props.stage === "active"
+                  canValidateMove
                     ? "#0b0b12"
                     : "rgba(255,255,255,0.75)",
                 cursor:
-                  movement.canInteract && movement.hasPath && props.stage === "active"
+                  canValidateMove
                     ? "pointer"
                     : "not-allowed",
                 fontSize: 12,
@@ -550,6 +587,42 @@ export function ActionContextWindow(props: {
           {props.stage !== "active" && (
             <div style={{ marginTop: 6, fontSize: 12, color: "rgba(255,255,255,0.70)" }}>
               Validez l&apos;action pour pouvoir selectionner une cible sur la grille.
+            </div>
+          )}
+          {props.targetStatuses && props.targetStatuses.length > 0 && (
+            <div
+              style={{
+                marginTop: 8,
+                padding: 8,
+                borderRadius: 10,
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "rgba(255,255,255,0.04)"
+              }}
+            >
+              <div style={{ fontSize: 11, fontWeight: 900, color: "#fff" }}>
+                Etats actifs sur la cible
+              </div>
+              <div style={{ marginTop: 6, display: "grid", gap: 6 }}>
+                {props.targetStatuses.map(status => (
+                  <div
+                    key={status.id}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 8,
+                      fontSize: 11,
+                      color: "rgba(255,255,255,0.82)"
+                    }}
+                  >
+                    <span style={{ fontWeight: 700 }}>{status.label}</span>
+                    <span style={{ color: "rgba(255,255,255,0.65)" }}>
+                      {status.sourceId ? `posee par ${status.sourceId}` : "source inconnue"} |{" "}
+                      {status.isPersistent ? "jusqua la mort" : `${status.remainingTurns} tour(s)`}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -692,6 +765,13 @@ export function ActionContextWindow(props: {
               </button>
             )}
           </div>
+          {attackStep && props.effectiveAdvantageMode && props.effectiveAdvantageMode !== "normal" && (
+            <div style={{ marginTop: 6, fontSize: 11, color: "rgba(255,255,255,0.75)" }}>
+              {props.effectiveAdvantageMode === "advantage"
+                ? "Avantage: lancer 2d20, garder le meilleur."
+                : "Desavantage: lancer 2d20, garder le pire."}
+            </div>
+          )}
 
           {attackStep && props.attackRoll && (
             <div
@@ -706,6 +786,13 @@ export function ActionContextWindow(props: {
               <div style={{ fontSize: 11, fontWeight: 900, color: "rgba(255,255,255,0.85)" }}>
                 Jet de touche
               </div>
+              {props.effectiveAdvantageMode && props.effectiveAdvantageMode !== "normal" && (
+                <div style={{ marginTop: 4, fontSize: 11, color: "rgba(255,255,255,0.7)" }}>
+                  {props.effectiveAdvantageMode === "advantage"
+                    ? "Avantage: 2d20, garder le meilleur."
+                    : "Desavantage: 2d20, garder le pire."}
+                </div>
+              )}
               <div style={{ marginTop: 4, fontSize: 12, color: "rgba(255,255,255,0.85)" }}>
                 {props.attackRoll.total}
                 {props.attackRoll.isCrit ? " (crit)" : ""}

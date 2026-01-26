@@ -4,6 +4,7 @@
   "description": "Frappeur rapide qui cherche a se rapprocher pour porter un coup decisif.",
   "aiRole": "assassin",
   "actions": ["move", "melee-strike"],
+  "reactionIds": ["opportunity-attack"],
   "behavior": { "preferredRangeMin": 1, "preferredRangeMax": 1, "panicRange": 0 },
   "speechProfile": {
     "raceOrOrigin": "Assassin",

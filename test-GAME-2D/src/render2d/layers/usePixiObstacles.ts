@@ -81,7 +81,7 @@ export function usePixiObstacles(options: {
     const depthLayer = options.depthLayerRef.current;
     if (!depthLayer) return;
 
-    depthLayer.cacheAsBitmap = false;
+    depthLayer.cacheAsTexture = false;
     for (const child of [...depthLayer.children]) {
       if (child.label === "obstacle" || child.label === "obstacle-layer") {
         depthLayer.removeChild(child);
@@ -247,7 +247,7 @@ export function usePixiObstacles(options: {
       }
     }
     if (!hasAnyAnimatedLayer) {
-      depthLayer.cacheAsBitmap = true;
+      depthLayer.cacheAsTexture = true;
     }
   }, [
     options.depthLayerRef,

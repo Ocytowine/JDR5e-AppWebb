@@ -2,6 +2,8 @@
   "id": "melee-strike",
   "name": "Frappe basique",
   "summary": "Attaque de melee simple contre une cible adjacente.",
+  "uiMessageHit": "Vous avez ete touche par une attaque au corps a corps.",
+  "uiMessageMiss": "Vous evitez une attaque au corps a corps.",
   "category": "attack",
   "actionCost": { "actionType": "action", "movementCost": 0 },
   "targeting": {

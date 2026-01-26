@@ -10,6 +10,7 @@ import {
   gridToScreenForGrid
 } from "../../boardConfig";
 import type { TerrainCell } from "../../game/map/draft";
+import type { TerrainMixCell } from "../../game/map/terrainMix";
 import { getFloorMaterial } from "../../game/map/floors/catalog";
 
 function hash01(x: number, y: number): number {
@@ -84,6 +85,7 @@ export function usePixiBoard(options: {
   backgroundColor?: number;
   playableCells?: Set<string> | null;
   terrain?: TerrainCell[] | null;
+  terrainMix?: Array<TerrainMixCell | null> | null;
   grid: { cols: number; rows: number };
   animate?: boolean;
   maxFps?: number;
@@ -93,6 +95,9 @@ export function usePixiBoard(options: {
   staticDepthLayerRef: RefObject<Container | null>;
   dynamicDepthLayerRef: RefObject<Container | null>;
   pathLayerRef: RefObject<Graphics | null>;
+  terrainNaturalLayerRef: RefObject<Container | null>;
+  terrainFxLayerRef: RefObject<Graphics | null>;
+  terrainLabelLayerRef: RefObject<Container | null>;
   speechLayerRef: RefObject<Container | null>;
   labelLayerRef: RefObject<Container | null>;
   viewportRef: RefObject<{ scale: number; offsetX: number; offsetY: number } | null>;
@@ -102,6 +107,9 @@ export function usePixiBoard(options: {
   const staticDepthLayerRef = useRef<Container | null>(null);
   const dynamicDepthLayerRef = useRef<Container | null>(null);
   const pathLayerRef = useRef<Graphics | null>(null);
+  const terrainNaturalLayerRef = useRef<Container | null>(null);
+  const terrainFxLayerRef = useRef<Graphics | null>(null);
+  const terrainLabelLayerRef = useRef<Container | null>(null);
   const speechLayerRef = useRef<Container | null>(null);
   const labelLayerRef = useRef<Container | null>(null);
   const viewportRef = useRef<{ scale: number; offsetX: number; offsetY: number } | null>(null);
@@ -112,6 +120,7 @@ export function usePixiBoard(options: {
   const appReadyRef = useRef<boolean>(false);
   const playableCellsRef = useRef<Set<string> | null>(null);
   const terrainRef = useRef<TerrainCell[] | null>(null);
+  const terrainMixRef = useRef<Array<TerrainMixCell | null> | null>(null);
   const gridRef = useRef<{ cols: number; rows: number }>({
     cols: options.grid.cols,
     rows: options.grid.rows
@@ -130,6 +139,7 @@ export function usePixiBoard(options: {
   animateRef.current = options.animate ?? true;
   playableCellsRef.current = options.playableCells ?? null;
   terrainRef.current = Array.isArray(options.terrain) ? options.terrain : null;
+  terrainMixRef.current = Array.isArray(options.terrainMix) ? options.terrainMix : null;
   gridRef.current = {
     cols: Math.max(1, Math.floor(options.grid.cols)),
     rows: Math.max(1, Math.floor(options.grid.rows))
@@ -142,7 +152,14 @@ export function usePixiBoard(options: {
   useEffect(() => {
     drawGridRef.current?.();
     resizeRef.current?.();
-  }, [options.playableCells, options.terrain, options.grid.cols, options.grid.rows, pixiReadyTick]);
+  }, [
+    options.playableCells,
+    options.terrain,
+    options.terrainMix,
+    options.grid.cols,
+    options.grid.rows,
+    pixiReadyTick
+  ]);
 
   useEffect(() => {
     if (!options.enabled) return;
@@ -167,6 +184,7 @@ export function usePixiBoard(options: {
         height: getBoardHeight(gridRef.current.rows),
         background: backgroundColor,
         antialias: true,
+        preference: "webgl",
         resolution: window.devicePixelRatio,
         autoDensity: true
       });
@@ -203,11 +221,12 @@ export function usePixiBoard(options: {
       root.addChild(gridLayer);
 
       const drawGrid = () => {
-        gridLayer.cacheAsBitmap = false;
+        gridLayer.cacheAsTexture = false;
         gridLayer.clear();
 
         const { cols, rows } = gridRef.current;
         const terrain = terrainRef.current;
+        const terrainMix = terrainMixRef.current;
         for (let gy = 0; gy < rows; gy++) {
           for (let gx = 0; gx < cols; gx++) {
             const playable = playableCellsRef.current;
@@ -221,10 +240,7 @@ export function usePixiBoard(options: {
                 ? (terrain[terrainIndex] as TerrainCell)
                 : "unknown";
             const floorColors = resolveFloorColors(cellTerrain);
-            const noise = hash01(gx, gy);
-            const baseColor = noise > 0.5 ? floorColors.base : floorColors.alt;
-            const variance = 1 + (noise - 0.5) * 0.18;
-            const tileColor = scaleColor(baseColor, variance);
+            const tileColor = floorColors.base;
 
             const center = gridToScreenForGrid(gx, gy, cols, rows);
             const x = center.x - TILE_SIZE / 2;
@@ -233,23 +249,52 @@ export function usePixiBoard(options: {
               color: tileColor,
               alpha: 1
             });
-            if (floorColors.textureId === "wood-plank") {
-              drawWoodPlankTile({
-                g: gridLayer,
-                x,
-                y,
-                baseColor: tileColor,
-                seedX: gx,
-                seedY: gy
-              });
+            const mix = terrainMix ? terrainMix[terrainIndex] ?? null : null;
+            if (mix) {
+              const blendColor = resolveFloorColors(mix.blend).base;
+              const left = x;
+              const top = y;
+              const right = x + TILE_SIZE;
+              const bottom = y + TILE_SIZE;
+              if (mix.corner === "NE") {
+                gridLayer.moveTo(left, top);
+                gridLayer.lineTo(right, top);
+                gridLayer.lineTo(right, bottom);
+              } else if (mix.corner === "SW") {
+                gridLayer.moveTo(left, top);
+                gridLayer.lineTo(right, bottom);
+                gridLayer.lineTo(left, bottom);
+              } else if (mix.corner === "NW") {
+                gridLayer.moveTo(left, top);
+                gridLayer.lineTo(right, top);
+                gridLayer.lineTo(left, bottom);
+              } else {
+                gridLayer.moveTo(right, top);
+                gridLayer.lineTo(right, bottom);
+                gridLayer.lineTo(left, bottom);
+              }
+              gridLayer.closePath();
+              gridLayer.fill({ color: blendColor, alpha: 1 });
             }
           }
         }
-        gridLayer.cacheAsBitmap = true;
+        gridLayer.cacheAsTexture = true;
       };
 
       drawGridRef.current = drawGrid;
       drawGrid();
+
+      const terrainNaturalLayer = new Container();
+      root.addChild(terrainNaturalLayer);
+      terrainNaturalLayerRef.current = terrainNaturalLayer;
+
+      const terrainFxLayer = new Graphics();
+      root.addChild(terrainFxLayer);
+      terrainFxLayerRef.current = terrainFxLayer;
+
+      const terrainLabelLayer = new Container();
+      root.addChild(terrainLabelLayer);
+      terrainLabelLayerRef.current = terrainLabelLayer;
 
       const pathLayer = new Graphics();
       root.addChild(pathLayer);
@@ -330,6 +375,9 @@ export function usePixiBoard(options: {
       staticDepthLayerRef.current = null;
       dynamicDepthLayerRef.current = null;
       pathLayerRef.current = null;
+      terrainNaturalLayerRef.current = null;
+      terrainFxLayerRef.current = null;
+      terrainLabelLayerRef.current = null;
       speechLayerRef.current = null;
       labelLayerRef.current = null;
       viewportRef.current = null;
@@ -374,6 +422,9 @@ export function usePixiBoard(options: {
     staticDepthLayerRef,
     dynamicDepthLayerRef,
     pathLayerRef,
+    terrainNaturalLayerRef,
+    terrainFxLayerRef,
+    terrainLabelLayerRef,
     speechLayerRef,
     labelLayerRef,
     viewportRef,
