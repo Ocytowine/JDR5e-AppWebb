@@ -153,6 +153,7 @@ import { GameOverOverlay } from "./ui/GameOverOverlay";
 import { InitiativePanel } from "./ui/InitiativePanel";
 import { EffectsPanel } from "./ui/EffectsPanel";
 import { LogPanel } from "./ui/LogPanel";
+import { NarrationPanel, type NarrationEntry } from "./ui/NarrationPanel";
 import { ActionWheelMenu } from "./ui/ActionWheelMenu";
 import type { WheelMenuItem } from "./ui/RadialWheelMenu";
 import { ActionContextWindow } from "./ui/ActionContextWindow";
@@ -441,6 +442,8 @@ const PLAYER_TORCH_RADIUS = 4;
 export const GameBoard: React.FC = () => {
   const pixiContainerRef = useRef<HTMLDivElement | null>(null);
   const narrationPendingRef = useRef<boolean>(false);
+  const narrationOpenRef = useRef<boolean>(false);
+  const narrationIdRef = useRef<number>(1);
   const playerBubbleTimeoutRef = useRef<number | null>(null);
   const playerThoughtRef = useRef<string | null>(null);
   const playerBubbleOverrideRef = useRef<boolean>(false);
@@ -469,7 +472,9 @@ export const GameBoard: React.FC = () => {
     };
 
   const [log, setLog] = useState<string[]>([]);
-  const [narrativeLog, setNarrativeLog] = useState<string[]>([]);
+  const [narrationEntries, setNarrationEntries] = useState<NarrationEntry[]>([]);
+  const [narrationUnread, setNarrationUnread] = useState<number>(0);
+  const [isNarrationOpen, setIsNarrationOpen] = useState<boolean>(false);
   const [speechBubbles, setSpeechBubbles] = useState<SpeechBubbleEntry[]>([]);
 
     const [player, setPlayer] = useState<TokenState>({
@@ -672,6 +677,7 @@ export const GameBoard: React.FC = () => {
   const [effectSpecs, setEffectSpecs] = useState<EffectSpec[]>([]);
   const [showVisionDebug, setShowVisionDebug] = useState<boolean>(false);
   const [showLightOverlay, setShowLightOverlay] = useState<boolean>(true);
+  const [showFogSegments, setShowFogSegments] = useState<boolean>(false);
   const [showAllLevels, setShowAllLevels] = useState<boolean>(false);
   const [playerTorchOn, setPlayerTorchOn] = useState<boolean>(false);
   const [showCellIds, setShowCellIds] = useState<boolean>(false);
@@ -716,6 +722,11 @@ export const GameBoard: React.FC = () => {
   const [aiLastError, setAiLastError] = useState<string | null>(null);
   const [aiUsedFallback, setAiUsedFallback] = useState<boolean>(false);
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
+
+  useEffect(() => {
+    narrationOpenRef.current = isNarrationOpen;
+    if (isNarrationOpen) setNarrationUnread(0);
+  }, [isNarrationOpen]);
 
   const obstacleBlocking = useMemo(() => {
     const obstacleSets = buildObstacleBlockingSets(obstacleTypes, obstacles);
@@ -1516,6 +1527,7 @@ export const GameBoard: React.FC = () => {
     wallVisionEdges: wallEdges.vision,
     closedCells,
     showVisionDebug,
+    showFogSegments,
     visibleCells: visibleCellsFull,
     visionCells: visionCellsFull,
     visibilityLevels,
@@ -2403,7 +2415,17 @@ export const GameBoard: React.FC = () => {
   }
 
   function pushNarrative(message: string) {
-    setNarrativeLog(prev => [message, ...prev].slice(0, 20));
+    const text = (message ?? "").trim();
+    if (!text) return;
+    const entry: NarrationEntry = {
+      id: `narr-${narrationIdRef.current++}`,
+      round,
+      text
+    };
+    setNarrationEntries(prev => [entry, ...prev].slice(0, 40));
+    if (!narrationOpenRef.current) {
+      setNarrationUnread(prev => Math.min(prev + 1, 99));
+    }
   }
 
   function pushDiceLog(message: string) {
@@ -2451,15 +2473,6 @@ export const GameBoard: React.FC = () => {
       applyPlayerBubble(playerThoughtRef.current, round);
     }, 2600);
   }
-
-  useEffect(() => {
-    const lines = narrativeLog.slice(-3);
-    const header = `tour-${round}`;
-    const text = lines.length > 0 ? [header, ...lines].join("\n") : header;
-    playerThoughtRef.current = text;
-    if (playerBubbleOverrideRef.current) return;
-    applyPlayerBubble(text, round);
-  }, [narrativeLog, round, player.id]);
 
   function buildCombatStateSummaryFrom(
     focusSide: CombatSide,
@@ -7639,9 +7652,10 @@ function handleEndPlayerTurn() {
                 />
                 <button
                   type="button"
-                  onClick={() =>
-                    setFloatingPanel(current => (current === "effects" ? null : "effects"))
-                  }
+                  onClick={() => {
+                    setIsNarrationOpen(false);
+                    setFloatingPanel(current => (current === "effects" ? null : "effects"));
+                  }}
                   style={{
                     width: 34,
                     height: 28,
@@ -7661,9 +7675,10 @@ function handleEndPlayerTurn() {
                 </button>
                 <button
                   type="button"
-                  onClick={() =>
-                    setFloatingPanel(current => (current === "logs" ? null : "logs"))
-                  }
+                  onClick={() => {
+                    setIsNarrationOpen(false);
+                    setFloatingPanel(current => (current === "logs" ? null : "logs"));
+                  }}
                   style={{
                     width: 34,
                     height: 28,
@@ -7680,6 +7695,51 @@ function handleEndPlayerTurn() {
                   title="Logs"
                 >
                   LOG
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFloatingPanel(null);
+                    setIsNarrationOpen(prev => !prev);
+                  }}
+                  style={{
+                    position: "relative",
+                    width: 34,
+                    height: 28,
+                    borderRadius: 10,
+                    border: "1px solid rgba(255,255,255,0.14)",
+                    background: isNarrationOpen ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.06)",
+                    color: "rgba(255,255,255,0.85)",
+                    cursor: "pointer",
+                    fontSize: 9,
+                    fontWeight: 900,
+                    letterSpacing: 0.3
+                  }}
+                  title="Narration"
+                >
+                  NAR
+                  {narrationUnread > 0 && (
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: -6,
+                        right: -6,
+                        minWidth: 16,
+                        height: 16,
+                        padding: "0 4px",
+                        borderRadius: 10,
+                        background: "#e74c3c",
+                        color: "#fff",
+                        fontSize: 10,
+                        fontWeight: 900,
+                        lineHeight: "16px",
+                        border: "1px solid rgba(255,255,255,0.4)",
+                        boxShadow: "0 6px 12px rgba(0,0,0,0.35)"
+                      }}
+                    >
+                      {narrationUnread > 9 ? "9+" : narrationUnread}
+                    </span>
+                  )}
                 </button>
               </div>
               {floatingPanel && (
@@ -7705,6 +7765,7 @@ function handleEndPlayerTurn() {
                     <EffectsPanel
                       showVisionDebug={showVisionDebug}
                       showLightOverlay={showLightOverlay}
+                      showFogSegments={showFogSegments}
                       showCellIds={showCellIds}
                       showAllLevels={showAllLevels}
                       showTerrainIds={showTerrainIds}
@@ -7719,6 +7780,7 @@ function handleEndPlayerTurn() {
                       onShowCone={handleShowConeEffect}
                       onToggleVisionDebug={() => setShowVisionDebug(prev => !prev)}
                       onToggleLightOverlay={() => setShowLightOverlay(prev => !prev)}
+                      onToggleFogSegments={() => setShowFogSegments(prev => !prev)}
                       onToggleCellIds={() => setShowCellIds(prev => !prev)}
                       onToggleShowAllLevels={() => setShowAllLevels(prev => !prev)}
                       onToggleTerrainIds={() => setShowTerrainIds(prev => !prev)}
@@ -7731,6 +7793,23 @@ function handleEndPlayerTurn() {
                     />
                   )}
                   {floatingPanel === "logs" && <LogPanel log={log} />}
+                </div>
+              )}
+              {isNarrationOpen && (
+                <div
+                  onMouseDown={event => event.stopPropagation()}
+                  style={{
+                    position: "absolute",
+                    right: 60,
+                    top: 12,
+                    zIndex: 45,
+                    width: 380,
+                    maxWidth: "72vw",
+                    maxHeight: "70vh",
+                    overflow: "hidden"
+                  }}
+                >
+                  <NarrationPanel entries={narrationEntries} />
                 </div>
               )}
 

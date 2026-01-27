@@ -8,8 +8,9 @@ import type { FloorMaterial } from "../../game/map/floors/types";
 import {
   getFloorBumpTexture,
   getFloorBumpUrl,
-  getFloorTilingTexture,
+  getFloorTilingTextureFromUrl,
   getFloorTilingUrl,
+  getFloorTilingVariantUrls,
   preloadFloorTilingTexturesFor
 } from "../../floorTilingHelper";
 
@@ -65,6 +66,15 @@ function parseHexColor(hex: string | null | undefined): number | null {
   if (!cleaned) return null;
   const value = Number.parseInt(cleaned, 16);
   return Number.isFinite(value) ? value : null;
+}
+
+function hashString(value: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i++) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
 }
 
 function isSamePoint(a: Point, b: Point): boolean {
@@ -423,33 +433,28 @@ export function usePixiNaturalTiling(options: {
     const lightTexture = buildLightTexture();
 
     for (const id of texturedIds) {
-      const url = getFloorTilingUrl(id);
-      const resizedTexture = url ? getFloorTilingTexture(id, 256) : null;
-      const baseTexture = url ? resizedTexture ?? (Assets.get(url) as Texture) ?? Texture.from(url) : Texture.WHITE;
-      if (baseTexture.source) {
-        baseTexture.source.scaleMode = "linear";
-        baseTexture.source.mipmapFilter = "linear";
-        baseTexture.source.autoGenerateMipmaps = true;
-        baseTexture.source.maxAnisotropy = 4;
-        baseTexture.source.addressMode = "repeat";
-      }
+      const variantUrls = getFloorTilingVariantUrls(id);
+      const fallbackUrl = getFloorTilingUrl(id);
+      const resolvedVariants =
+        variantUrls.length > 0 ? variantUrls : fallbackUrl ? [fallbackUrl] : [null];
+      const variantCount = resolvedVariants.length;
+      const variantSeed = hashString(id);
+      const hasVariants = variantCount > 1;
+      const variantIndices = [...Array(variantCount).keys()];
+
       const bumpUrl = getFloorBumpUrl(id);
       const resizedBump = getFloorBumpTexture(id, 256);
       const bumpTexture = resizedBump ?? (bumpUrl ? (Assets.get(bumpUrl) as Texture) ?? Texture.from(bumpUrl) : null);
       const material = options.materials.get(id);
       const fallbackColor = parseHexColor(material?.fallbackColor) ?? 0x3f6b3a;
-      const texture = bumpTexture ? Texture.WHITE : baseTexture;
-      const sprite = new TilingSprite({ texture, width: boardW, height: boardH });
-      sprite.x = 0;
-      sprite.y = 0;
-      if (bumpTexture) {
-        if (bumpTexture.source) {
-          bumpTexture.source.scaleMode = "linear";
-          bumpTexture.source.mipmapFilter = "linear";
-          bumpTexture.source.autoGenerateMipmaps = true;
-          bumpTexture.source.maxAnisotropy = 4;
-          bumpTexture.source.addressMode = "repeat";
-        }
+      const solidColor = parseHexColor(material?.solidColor ?? null);
+
+      if (bumpTexture?.source) {
+        bumpTexture.source.scaleMode = "linear";
+        bumpTexture.source.mipmapFilter = "linear";
+        bumpTexture.source.autoGenerateMipmaps = true;
+        bumpTexture.source.maxAnisotropy = 4;
+        bumpTexture.source.addressMode = "repeat";
         console.log(
           "[floor-tiling] bump",
           id,
@@ -466,86 +471,20 @@ export function usePixiNaturalTiling(options: {
       if (!bumpTexture && bumpUrl) {
         console.warn("[floor-tiling] bump texture missing for", id, "url", bumpUrl);
       }
-      if (bumpTexture) {
-        sprite.tint = fallbackColor;
-        const fragment = `
-          precision highp float;
-          in vec2 vTextureCoord;
-          out vec4 finalColor;
-          uniform sampler2D uTexture;
-          uniform sampler2D uBump;
-          uniform sampler2D uLightMap;
-          uniform vec2 uBumpScale;
-          uniform vec2 uLightMapSize;
-          uniform float uIntensity;
-          uniform float uTime;
-          uniform float uWindSpeed;
-          uniform float uWindStrength;
-          uniform float uLightEnabled;
-          uniform float uDebug;
-          void main(void){
-            vec4 base = texture(uTexture, vTextureCoord);
-            vec2 wind = vec2(uTime * uWindSpeed, uTime * uWindSpeed * 0.7);
-            vec2 bumpUV = vTextureCoord * uBumpScale + wind;
-            vec3 bump = texture(uBump, bumpUV).rgb;
-            float h = dot(bump, vec3(0.3333));
-            vec3 n = normalize(vec3(bump.r * 2.0 - 1.0, bump.g * 2.0 - 1.0, bump.b * 2.0 - 1.0));
-            vec3 lightDir = normalize(vec3(0.35, 0.6, 0.8));
-            float ndl = max(dot(n, lightDir), 0.0);
-            float light = mix(h, ndl, 0.65);
-            vec2 lightCoord = (floor(vTextureCoord * uLightMapSize) + 0.5) / uLightMapSize;
-            float lightSample = texture(uLightMap, lightCoord).r;
-            float lightFactor = mix(1.0, mix(0.35, 1.0, lightSample), step(0.5, uLightEnabled));
-            float signedLight = (light - 0.5) * (uIntensity * 2.0) * uWindStrength * lightFactor;
-            vec3 lit = base.rgb * (1.0 + signedLight);
-            vec3 debugColor = vec3(h);
-            vec3 outColor = mix(lit, debugColor, step(0.5, uDebug));
-            finalColor = vec4(outColor, base.a);
-          }
-        `;
-        const intensity = typeof options.bumpIntensity === "number" ? options.bumpIntensity : 0.45;
-        const windSpeed = typeof options.windSpeed === "number" ? options.windSpeed : 0.06;
-        const windStrength = typeof options.windStrength === "number" ? options.windStrength : 1.0;
-        const uniforms = new UniformGroup({
-          uBumpScale: { value: [cols, rows], type: "vec2<f32>" },
-          uLightMapSize: { value: [cols, rows], type: "vec2<f32>" },
-          uIntensity: { value: intensity, type: "f32" },
-          uTime: { value: 0, type: "f32" },
-          uWindSpeed: { value: windSpeed, type: "f32" },
-          uWindStrength: { value: windStrength, type: "f32" },
-          uLightEnabled: { value: lightTexture ? 1 : 0, type: "f32" },
-          uDebug: { value: options.bumpDebug ? 1 : 0, type: "f32" }
-        });
-        const glProgram = GlProgram.from({
-          vertex: DEFAULT_FILTER_VERT,
-          fragment
-        });
-        const filter = new Filter({
-          glProgram,
-          resources: {
-            uBump: bumpTexture,
-            uLightMap: lightTexture ?? Texture.WHITE,
-            bumpUniforms: uniforms
-          }
-        });
-        sprite.filters = [filter];
-        animatedFilters.push({ uniforms, startAt: performance.now() });
-      }
-      if (bumpTexture) {
-        sprite.tileScale.set(1, 1);
-      } else {
-        const texW = texture.width || TILE_SIZE;
-        const texH = texture.height || TILE_SIZE;
-        sprite.tileScale.set(TILE_SIZE / texW, TILE_SIZE / texH);
-      }
 
-      const maskCanvas = document.createElement("canvas");
-      maskCanvas.width = boardW;
-      maskCanvas.height = boardH;
-      const ctx = maskCanvas.getContext("2d");
-      if (!ctx) continue;
-      ctx.fillStyle = "#ffffff";
-      ctx.imageSmoothingEnabled = true;
+      const pickVariantIndex = (x: number, y: number): number => {
+        if (!hasVariants) return 0;
+        const t = hash01(x, y, variantSeed);
+        return Math.min(variantCount - 1, Math.floor(t * variantCount));
+      };
+
+      const baseMaskCanvas = document.createElement("canvas");
+      baseMaskCanvas.width = boardW;
+      baseMaskCanvas.height = boardH;
+      const baseCtx = baseMaskCanvas.getContext("2d");
+      if (!baseCtx) continue;
+      baseCtx.fillStyle = "#ffffff";
+      baseCtx.imageSmoothingEnabled = true;
 
       if (naturalIds.includes(id)) {
         const segments = collectBoundarySegments(id);
@@ -553,26 +492,26 @@ export function usePixiNaturalTiling(options: {
         const seed = 1337;
         const displacedLoops = loops.map(loop => displaceLoop(loop, 2, 0.22, seed));
         const smoothLoops = displacedLoops.map(loop => smoothClosedLoop(loop, 1));
-        ctx.beginPath();
+        baseCtx.beginPath();
         for (const loop of smoothLoops) {
           if (loop.length < 3) continue;
-          ctx.moveTo(loop[0].x * TILE_SIZE, loop[0].y * TILE_SIZE);
+          baseCtx.moveTo(loop[0].x * TILE_SIZE, loop[0].y * TILE_SIZE);
           for (let i = 1; i < loop.length; i++) {
-            ctx.lineTo(loop[i].x * TILE_SIZE, loop[i].y * TILE_SIZE);
+            baseCtx.lineTo(loop[i].x * TILE_SIZE, loop[i].y * TILE_SIZE);
           }
-          ctx.closePath();
+          baseCtx.closePath();
         }
-        ctx.save();
-        ctx.lineJoin = "round";
-        ctx.lineCap = "round";
-        ctx.lineWidth = TILE_SIZE * 0.6;
-        ctx.strokeStyle = "#ffffff";
-        ctx.stroke();
-        ctx.restore();
+        baseCtx.save();
+        baseCtx.lineJoin = "round";
+        baseCtx.lineCap = "round";
+        baseCtx.lineWidth = TILE_SIZE * 0.6;
+        baseCtx.strokeStyle = "#ffffff";
+        baseCtx.stroke();
+        baseCtx.restore();
         try {
-          ctx.fill("evenodd");
+          baseCtx.fill("evenodd");
         } catch {
-          ctx.fill();
+          baseCtx.fill();
         }
       } else {
         for (let y = 0; y < rows; y++) {
@@ -587,30 +526,170 @@ export function usePixiNaturalTiling(options: {
 
             if (!mix) {
               if (cell === id) {
-                ctx.fillRect(left, top, TILE_SIZE, TILE_SIZE);
+                baseCtx.fillRect(left, top, TILE_SIZE, TILE_SIZE);
               }
             } else {
               if (mix.blend === id) {
-                canvasBlendTriangle(ctx, mix.corner, left, top, right, bottom);
+                canvasBlendTriangle(baseCtx, mix.corner, left, top, right, bottom);
               }
               if (mix.base === id) {
-                canvasBaseTriangle(ctx, mix.corner, left, top, right, bottom);
+                canvasBaseTriangle(baseCtx, mix.corner, left, top, right, bottom);
               }
             }
           }
         }
       }
 
-      const maskTexture = Texture.from(maskCanvas);
-      const maskSprite = new Sprite(maskTexture);
-      maskSprite.x = 0;
-      maskSprite.y = 0;
-      maskSprite.alpha = 0.001;
-      maskSprite.label = `natural-mask:${id}`;
+      const baseMaskTexture = Texture.from(baseMaskCanvas);
+      const baseMaskSprite = new Sprite(baseMaskTexture);
+      baseMaskSprite.x = 0;
+      baseMaskSprite.y = 0;
+      baseMaskSprite.alpha = 0.001;
+      baseMaskSprite.label = `natural-mask:${id}:base`;
 
-      sprite.mask = maskSprite;
-      layer.addChild(sprite);
-      layer.addChild(maskSprite);
+      const materialContainer = new Container();
+      materialContainer.mask = baseMaskSprite;
+
+      layer.addChild(baseMaskSprite);
+      layer.addChild(materialContainer);
+
+      const hasAnyTexture = resolvedVariants.some(url => Boolean(url));
+      const backgroundTint = solidColor ?? fallbackColor;
+      if (solidColor !== null || (!bumpTexture && hasAnyTexture)) {
+        const backgroundSprite = new TilingSprite({ texture: Texture.WHITE, width: boardW, height: boardH });
+        backgroundSprite.tint = backgroundTint;
+        backgroundSprite.x = 0;
+        backgroundSprite.y = 0;
+        backgroundSprite.tileScale.set(1, 1);
+        materialContainer.addChild(backgroundSprite);
+      }
+
+      if (!hasAnyTexture) {
+        const solidSprite = new TilingSprite({ texture: Texture.WHITE, width: boardW, height: boardH });
+        solidSprite.tint = fallbackColor;
+        solidSprite.x = 0;
+        solidSprite.y = 0;
+        solidSprite.tileScale.set(1, 1);
+        materialContainer.addChild(solidSprite);
+        continue;
+      }
+
+      for (const variantIndex of variantIndices) {
+        const variantUrl = resolvedVariants[variantIndex] ?? null;
+        if (!variantUrl) continue;
+        const resizedTexture = getFloorTilingTextureFromUrl(variantUrl, 256);
+        const baseTexture = resizedTexture ?? (Assets.get(variantUrl) as Texture) ?? Texture.from(variantUrl);
+        if (baseTexture.source) {
+          baseTexture.source.scaleMode = "linear";
+          baseTexture.source.mipmapFilter = "linear";
+          baseTexture.source.autoGenerateMipmaps = true;
+          baseTexture.source.maxAnisotropy = 4;
+          baseTexture.source.addressMode = "repeat";
+        }
+
+        const sprite = new TilingSprite({ texture: baseTexture, width: boardW, height: boardH });
+        sprite.x = 0;
+        sprite.y = 0;
+
+        if (bumpTexture) {
+          const fragment = `
+            precision highp float;
+            in vec2 vTextureCoord;
+            out vec4 finalColor;
+            uniform sampler2D uTexture;
+            uniform sampler2D uBump;
+            uniform sampler2D uLightMap;
+            uniform vec2 uBumpScale;
+            uniform vec2 uLightMapSize;
+            uniform float uIntensity;
+            uniform float uTime;
+            uniform float uWindSpeed;
+            uniform float uWindStrength;
+            uniform float uLightEnabled;
+            uniform float uDebug;
+            void main(void){
+              vec4 base = texture(uTexture, vTextureCoord);
+              vec2 wind = vec2(uTime * uWindSpeed, uTime * uWindSpeed * 0.7);
+              vec2 bumpUV = vTextureCoord * uBumpScale + wind;
+              vec3 bump = texture(uBump, bumpUV).rgb;
+              float h = dot(bump, vec3(0.3333));
+              vec3 n = normalize(vec3(bump.r * 2.0 - 1.0, bump.g * 2.0 - 1.0, bump.b * 2.0 - 1.0));
+              vec3 lightDir = normalize(vec3(0.35, 0.6, 0.8));
+              float ndl = max(dot(n, lightDir), 0.0);
+              float light = mix(h, ndl, 0.65);
+              vec2 lightCoord = (floor(vTextureCoord * uLightMapSize) + 0.5) / uLightMapSize;
+              float lightSample = texture(uLightMap, lightCoord).r;
+              float lightFactor = mix(1.0, mix(0.35, 1.0, lightSample), step(0.5, uLightEnabled));
+              float signedLight = (light - 0.5) * (uIntensity * 2.0) * uWindStrength * lightFactor;
+              vec3 lit = base.rgb * (1.0 + signedLight);
+              vec3 debugColor = vec3(h);
+              vec3 outColor = mix(lit, debugColor, step(0.5, uDebug));
+              finalColor = vec4(outColor, base.a);
+            }
+          `;
+          const intensity = typeof options.bumpIntensity === "number" ? options.bumpIntensity : 0.45;
+          const windSpeed = typeof options.windSpeed === "number" ? options.windSpeed : 0.06;
+          const windStrength = typeof options.windStrength === "number" ? options.windStrength : 1.0;
+          const uniforms = new UniformGroup({
+            uBumpScale: { value: [cols, rows], type: "vec2<f32>" },
+            uLightMapSize: { value: [cols, rows], type: "vec2<f32>" },
+            uIntensity: { value: intensity, type: "f32" },
+            uTime: { value: 0, type: "f32" },
+            uWindSpeed: { value: windSpeed, type: "f32" },
+            uWindStrength: { value: windStrength, type: "f32" },
+            uLightEnabled: { value: lightTexture ? 1 : 0, type: "f32" },
+            uDebug: { value: options.bumpDebug ? 1 : 0, type: "f32" }
+          });
+          const glProgram = GlProgram.from({
+            vertex: DEFAULT_FILTER_VERT,
+            fragment
+          });
+          const filter = new Filter({
+            glProgram,
+            resources: {
+              uBump: bumpTexture,
+              uLightMap: lightTexture ?? Texture.WHITE,
+              bumpUniforms: uniforms
+            }
+          });
+          sprite.filters = [filter];
+          animatedFilters.push({ uniforms, startAt: performance.now() });
+        }
+
+        const texW = baseTexture.width || TILE_SIZE;
+        const texH = baseTexture.height || TILE_SIZE;
+        sprite.tileScale.set(TILE_SIZE / texW, TILE_SIZE / texH);
+
+        const maskCanvas = document.createElement("canvas");
+        maskCanvas.width = boardW;
+        maskCanvas.height = boardH;
+        const ctx = maskCanvas.getContext("2d");
+        if (!ctx) continue;
+        ctx.fillStyle = "#ffffff";
+        ctx.imageSmoothingEnabled = true;
+        for (let y = 0; y < rows; y++) {
+          for (let x = 0; x < cols; x++) {
+            if (!isPlayable(x, y)) continue;
+            const cell = getTerrainAt(x, y);
+            const mix = getMixAt(x, y);
+            const hasId = !mix ? cell === id : mix.base === id || mix.blend === id;
+            if (!hasId) continue;
+            if (hasVariants && pickVariantIndex(x, y) !== variantIndex) continue;
+            ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+          }
+        }
+
+        const maskTexture = Texture.from(maskCanvas);
+        const maskSprite = new Sprite(maskTexture);
+        maskSprite.x = 0;
+        maskSprite.y = 0;
+        maskSprite.alpha = 0.001;
+        maskSprite.label = `natural-mask:${id}:v${variantIndex}`;
+
+        sprite.mask = maskSprite;
+        materialContainer.addChild(sprite);
+        materialContainer.addChild(maskSprite);
+      }
     }
 
     let rafId: number | null = null;

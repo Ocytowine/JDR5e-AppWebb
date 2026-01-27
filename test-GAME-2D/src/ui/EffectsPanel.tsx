@@ -3,6 +3,7 @@ import React from "react";
 export function EffectsPanel(props: {
   showVisionDebug: boolean;
   showLightOverlay: boolean;
+  showFogSegments: boolean;
   showCellIds: boolean;
   showAllLevels: boolean;
   showTerrainIds: boolean;
@@ -17,6 +18,7 @@ export function EffectsPanel(props: {
   onShowCone: () => void;
   onToggleVisionDebug: () => void;
   onToggleLightOverlay: () => void;
+  onToggleFogSegments: () => void;
   onToggleCellIds: () => void;
   onToggleShowAllLevels: () => void;
   onToggleTerrainIds: () => void;
@@ -124,6 +126,21 @@ export function EffectsPanel(props: {
           }}
         >
           {props.showLightOverlay ? "Masquer lumiere" : "Afficher lumiere"}
+        </button>
+        <button
+          type="button"
+          onClick={props.onToggleFogSegments}
+          style={{
+            padding: "4px 8px",
+            background: props.showFogSegments ? "#ecf0f1" : "#555",
+            color: props.showFogSegments ? "#111" : "#fff",
+            border: "none",
+            borderRadius: 4,
+            cursor: "pointer",
+            fontSize: 12
+          }}
+        >
+          {props.showFogSegments ? "Masquer segments fog" : "Tracer segments fog"}
         </button>
         <button
           type="button"

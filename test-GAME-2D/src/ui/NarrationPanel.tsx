@@ -1,9 +1,43 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
+
+export type NarrationEntry = {
+  id: string;
+  round: number;
+  text: string;
+};
 
 export function NarrationPanel(props: {
-  round: number;
-  narrativeLog: string[];
+  entries: NarrationEntry[];
 }): React.JSX.Element {
+  const rounds = useMemo(() => {
+    const seen = new Map<number, NarrationEntry[]>();
+    const ordered: number[] = [];
+    for (const entry of props.entries) {
+      if (!seen.has(entry.round)) {
+        seen.set(entry.round, []);
+        ordered.push(entry.round);
+      }
+      seen.get(entry.round)?.push(entry);
+    }
+    return ordered.map(round => ({
+      round,
+      entries: seen.get(round) ?? []
+    }));
+  }, [props.entries]);
+
+  const [expandedRounds, setExpandedRounds] = useState<Set<number>>(() => new Set());
+
+  useEffect(() => {
+    const latest = props.entries[0]?.round;
+    if (latest == null) return;
+    setExpandedRounds(prev => {
+      if (prev.has(latest)) return prev;
+      const next = new Set(prev);
+      next.add(latest);
+      return next;
+    });
+  }, [props.entries]);
+
   return (
     <div
       style={{
@@ -17,7 +51,7 @@ export function NarrationPanel(props: {
         flexDirection: "column",
         gap: 4,
         maxWidth: "100%",
-        height: 170,
+        height: 240,
         fontFamily:
           "\"Iowan Old Style\", \"Palatino Linotype\", Palatino, Garamond, \"Times New Roman\", serif"
       }}
@@ -31,10 +65,10 @@ export function NarrationPanel(props: {
         }}
       >
         <span style={{ fontSize: 13, color: "rgba(255,255,255,0.82)", fontWeight: 700 }}>
-          Chronique du tour
+          Chronique
         </span>
         <span style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
-          Round {props.round}
+          Tours {rounds.length}
         </span>
       </div>
       <div
@@ -48,16 +82,93 @@ export function NarrationPanel(props: {
           paddingRight: 4
         }}
       >
-        {props.narrativeLog.length === 0 && (
+        {props.entries.length === 0 && (
           <span style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
-            En attente d&apos;actions pour raconter le tour...
+            En attente d'actions pour raconter le tour...
           </span>
         )}
-        {props.narrativeLog.slice(0, 20).map((line, idx) => (
-          <span key={idx} style={{ fontSize: 13, color: "rgba(255,255,255,0.88)" }}>
-            — {line}
-          </span>
-        ))}
+        {rounds.map(group => {
+          const isExpanded = expandedRounds.has(group.round);
+          return (
+            <div
+              key={group.round}
+              style={{
+                borderRadius: 10,
+                border: "1px solid rgba(255,255,255,0.08)",
+                background: "rgba(8,8,12,0.55)",
+                overflow: "hidden"
+              }}
+            >
+              <button
+                type="button"
+                onClick={() =>
+                  setExpandedRounds(prev => {
+                    const next = new Set(prev);
+                    if (next.has(group.round)) {
+                      next.delete(group.round);
+                    } else {
+                      next.add(group.round);
+                    }
+                    return next;
+                  })
+                }
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 8,
+                  padding: "6px 10px",
+                  background: "transparent",
+                  border: "none",
+                  color: "rgba(255,255,255,0.9)",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  fontWeight: 800,
+                  letterSpacing: 0.3
+                }}
+              >
+                <span>Tour {group.round}</span>
+                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
+                  {isExpanded ? "replier" : "deplier"} ({group.entries.length})
+                </span>
+              </button>
+              {isExpanded && (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 6,
+                    padding: "6px 10px 10px",
+                    fontSize: 13,
+                    color: "rgba(255,255,255,0.88)",
+                    maxHeight: 220,
+                    overflowY: "auto",
+                    paddingRight: 6
+                  }}
+                >
+                  {group.entries.map(entry => (
+                    <div
+                      key={entry.id}
+                      style={{
+                        padding: "6px 8px",
+                        borderRadius: 8,
+                        border: "1px solid rgba(255,255,255,0.06)",
+                        background: "rgba(20,14,10,0.7)",
+                        maxHeight: 140,
+                        overflowY: "auto",
+                        lineHeight: 1.35,
+                        whiteSpace: "pre-wrap"
+                      }}
+                    >
+                      {entry.text}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

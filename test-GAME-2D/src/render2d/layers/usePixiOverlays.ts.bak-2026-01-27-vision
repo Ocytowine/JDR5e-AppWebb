@@ -224,8 +224,6 @@ export function usePixiOverlays(options: {
     const isVisibleAtPointForFog = (gx: number, gy: number) => {
       const fx = Math.floor(gx);
       const fy = Math.floor(gy);
-      const primaryVis = visibilityLevelAt(fx, fy);
-      if (primaryVis >= 1 && isCellPlayable(fx, fy)) return true;
       for (let oy = 0; oy <= 1; oy++) {
         for (let ox = 0; ox <= 1; ox++) {
           const cx = fx + ox;
@@ -235,8 +233,7 @@ export function usePixiOverlays(options: {
           }
           if (!isCellPlayable(cx, cy)) continue;
           if (options.visibilityLevels) {
-            // Neighbor visibility can bleed past obstacles; require full visibility.
-            if (visibilityLevelAt(cx, cy) >= 2) return true;
+            if (visibilityLevelAt(cx, cy) >= 1) return true;
             continue;
           }
           const key = buildCellKey(cx, cy);
@@ -328,112 +325,35 @@ export function usePixiOverlays(options: {
         const segments = profile.shape === "circle" ? 360 : 520;
         const step = 0.1;
 
-        const minX = -0.5;
-        const minY = -0.5;
-        const maxX = cols - 0.5;
-        const maxY = rows - 0.5;
-        const EPS = 1e-4;
-
-        type Segment = { ax: number; ay: number; bx: number; by: number };
-
-        const opaque = options.obstacleVisionCells ?? null;
-        const isOpaque = (x: number, y: number) =>
-          Boolean(opaque && opaque.has(buildCellKey(x, y)));
-
-        const blockerSegments: Segment[] = [];
-        if (opaque && opaque.size > 0) {
-          const pushEdge = (ax: number, ay: number, bx: number, by: number) => {
-            blockerSegments.push({ ax, ay, bx, by });
-          };
-          for (const key of opaque) {
-            const [xs, ys] = key.split(",");
-            const x = Number(xs);
-            const y = Number(ys);
-            if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
-            if (!isCellPlayable(x, y)) continue;
-            const left = x - 0.5;
-            const right = x + 0.5;
-            const top = y - 0.5;
-            const bottom = y + 0.5;
-            if (!isOpaque(x, y - 1)) pushEdge(left, top, right, top);
-            if (!isOpaque(x + 1, y)) pushEdge(right, top, right, bottom);
-            if (!isOpaque(x, y + 1)) pushEdge(right, bottom, left, bottom);
-            if (!isOpaque(x - 1, y)) pushEdge(left, bottom, left, top);
-          }
-        }
-
-        const wallSegments: Segment[] = [];
-        if (options.wallVisionEdges && options.wallVisionEdges.size > 0) {
-          for (const wall of options.wallVisionEdges.values()) {
-            const x = wall.x;
-            const y = wall.y;
-            const left = x - 0.5;
-            const right = x + 0.5;
-            const top = y - 0.5;
-            const bottom = y + 0.5;
-            switch (wall.dir) {
-              case "N":
-                wallSegments.push({ ax: left, ay: top, bx: right, by: top });
-                break;
-              case "E":
-                wallSegments.push({ ax: right, ay: top, bx: right, by: bottom });
-                break;
-              case "S":
-                wallSegments.push({ ax: left, ay: bottom, bx: right, by: bottom });
-                break;
-              case "W":
-                wallSegments.push({ ax: left, ay: top, bx: left, by: bottom });
-                break;
-              default:
-                break;
-            }
-          }
-        }
-
-        const boundarySegments: Segment[] = [
-          { ax: minX, ay: minY, bx: maxX, by: minY },
-          { ax: maxX, ay: minY, bx: maxX, by: maxY },
-          { ax: maxX, ay: maxY, bx: minX, by: maxY },
-          { ax: minX, ay: maxY, bx: minX, by: minY }
-        ];
-
-        const segmentsAll: Segment[] = [
-          ...boundarySegments,
-          ...blockerSegments,
-          ...wallSegments
-        ];
-
-        const intersectRaySegment = (angle: number, seg: Segment): number | null => {
+        const rayToBounds = (angle: number) => {
           const dx = Math.cos(angle);
           const dy = Math.sin(angle);
-          const sx = seg.bx - seg.ax;
-          const sy = seg.by - seg.ay;
-          const det = dx * sy - dy * sx;
-          if (Math.abs(det) < 1e-8) return null;
-          const ox = seg.ax - centerGrid.x;
-          const oy = seg.ay - centerGrid.y;
-          const t = (ox * sy - oy * sx) / det;
-          const u = (ox * dy - oy * dx) / det;
-          if (t < 0) return null;
-          if (u < -EPS || u > 1 + EPS) return null;
-          return t;
-        };
-
-        const nearestHit = (angle: number, segs: Segment[]) => {
-          let best: number | null = null;
-          for (const seg of segs) {
-            const t = intersectRaySegment(angle, seg);
-            if (t === null) continue;
-            if (best === null || t < best) best = t;
+          // Grid coordinates are cell centers; map bounds are half a cell beyond edges.
+          const minX = -0.5;
+          const minY = -0.5;
+          const maxX = cols - 0.5;
+          const maxY = rows - 0.5;
+          const candidates: { t: number; x: number; y: number }[] = [];
+          if (Math.abs(dx) > 1e-6) {
+            const t0 = (minX - centerGrid.x) / dx;
+            const y0 = centerGrid.y + dy * t0;
+            if (t0 > 0 && y0 >= minY && y0 <= maxY) candidates.push({ t: t0, x: minX, y: y0 });
+            const t1 = (maxX - centerGrid.x) / dx;
+            const y1 = centerGrid.y + dy * t1;
+            if (t1 > 0 && y1 >= minY && y1 <= maxY) candidates.push({ t: t1, x: maxX, y: y1 });
           }
-          return best;
+          if (Math.abs(dy) > 1e-6) {
+            const t2 = (minY - centerGrid.y) / dy;
+            const x2 = centerGrid.x + dx * t2;
+            if (t2 > 0 && x2 >= minX && x2 <= maxX) candidates.push({ t: t2, x: x2, y: minY });
+            const t3 = (maxY - centerGrid.y) / dy;
+            const x3 = centerGrid.x + dx * t3;
+            if (t3 > 0 && x3 >= minX && x3 <= maxX) candidates.push({ t: t3, x: x3, y: maxY });
+          }
+          const hit = candidates.sort((a, b) => a.t - b.t)[0];
+          if (!hit) return { t: range, x: centerGrid.x + dx * range, y: centerGrid.y + dy * range };
+          return hit;
         };
-
-        const farBoundForAngle = (angle: number) =>
-          Math.max(0, nearestHit(angle, boundarySegments) ?? range);
-
-        const visibilityCapFromLevels = (_angle: number, farDist: number) =>
-          Math.min(farDist, range);
 
         const samples: Array<{
           angle: number;
@@ -443,17 +363,21 @@ export function usePixiOverlays(options: {
         }> = [];
 
         const makeSample = (angle: number, forceInCone?: boolean) => {
-          const farDist = Math.min(farBoundForAngle(angle), range);
+          const boundsHit = rayToBounds(angle);
+          const farDist = Math.max(0, boundsHit.t);
           const inCone = forceInCone ?? isAngleInCone(angle);
-          if (!inCone) {
-            return { angle, clearDist: 0, farDist, inCone: false } as const;
+          let lastVisible = 0;
+          if (inCone) {
+            const distMax = Math.min(farDist, range);
+            for (let dist = 0; dist <= distMax; dist += step) {
+              const gx = centerGrid.x + Math.cos(angle) * dist;
+              const gy = centerGrid.y + Math.sin(angle) * dist;
+              if (!isVisibleAtPointForFog(gx, gy)) break;
+              lastVisible = dist;
+            }
           }
-          const hitAll = nearestHit(angle, segmentsAll);
-          const geomVisible =
-            hitAll === null ? farDist : Math.max(0, Math.min(hitAll, farDist));
-          const capVisible = visibilityCapFromLevels(angle, farDist);
-          const clearDist = Math.max(0, Math.min(geomVisible, capVisible));
-          return { angle, clearDist, farDist, inCone: true } as const;
+          const clearDist = inCone ? Math.min(lastVisible, range) : 0;
+          return { angle, clearDist, farDist, inCone } as const;
         };
 
         const angles: number[] = [];
@@ -461,20 +385,13 @@ export function usePixiOverlays(options: {
           const t = segments === 0 ? 0 : i / segments;
           angles.push(startAngle + (endAngle - startAngle) * t);
         }
-        const endpointAngles: number[] = [];
-        for (const seg of [...blockerSegments, ...wallSegments]) {
-          const a1 = Math.atan2(seg.ay - centerGrid.y, seg.ax - centerGrid.x);
-          const a2 = Math.atan2(seg.by - centerGrid.y, seg.bx - centerGrid.x);
-          endpointAngles.push(a1 - EPS, a1, a1 + EPS, a2 - EPS, a2, a2 + EPS);
-        }
         // Ensure cone edge rays exist to avoid fog bleeding across boundaries.
         if (profile.shape !== "circle") {
           angles.push(angleCenter - apertureRad / 2, angleCenter + apertureRad / 2);
         }
-        const allAngles = [...angles, ...endpointAngles];
-        allAngles.sort((a, b) => a - b);
+        angles.sort((a, b) => a - b);
 
-        for (const angle of allAngles) {
+        for (const angle of angles) {
           samples.push(makeSample(angle));
         }
 
@@ -504,16 +421,36 @@ export function usePixiOverlays(options: {
         }
         if (currentRegion.length > 1) regions.push(currentRegion);
 
-        const baseMin = 0.55;
+        const dilateRegion = (region: typeof samples, radius: number) => {
+          if (radius <= 0 || region.length <= 2) return region;
+          // Erode the clear distance slightly so fog follows the visible boundary.
+          const baseMin = 0.55;
+          const dilated = region.map(s => ({ ...s }));
+          for (let i = 0; i < region.length; i++) {
+            let best = region[i].clearDist;
+            const start = Math.max(0, i - radius);
+            const end = Math.min(region.length - 1, i + radius);
+            for (let j = start; j <= end; j++) {
+              if (region[j].clearDist < best) best = region[j].clearDist;
+            }
+            let nextClear = Math.max(0, Math.min(best, dilated[i].farDist));
+            // Keep a small "point" at the base so 1-cell-thick rays are not erased.
+            if (dilated[i].inCone && region[i].clearDist > 0) {
+              nextClear = Math.max(baseMin, nextClear);
+            }
+            dilated[i].clearDist = nextClear;
+          }
+          return dilated;
+        };
 
         const drawRegionFog = (region: typeof samples) => {
-          for (let i = 0; i < region.length - 1; i++) {
-            const a = region[i];
-            const b = region[i + 1];
-            let startA = Math.max(0, Math.min(a.clearDist, a.farDist));
-            let startB = Math.max(0, Math.min(b.clearDist, b.farDist));
-            if (a.inCone && a.clearDist > 0) startA = Math.max(baseMin, startA);
-            if (b.inCone && b.clearDist > 0) startB = Math.max(baseMin, startB);
+          // Use a small angular dilation so the fog boundary follows the visible contour.
+          const dilated = dilateRegion(region, 2);
+          for (let i = 0; i < dilated.length - 1; i++) {
+            const a = dilated[i];
+            const b = dilated[i + 1];
+            const startA = Math.max(0, Math.min(a.clearDist, a.farDist));
+            const startB = Math.max(0, Math.min(b.clearDist, b.farDist));
             if (a.farDist - startA <= 0.01 && b.farDist - startB <= 0.01) continue;
             const p1 = toScreenAt(a.angle, startA);
             const p2 = toScreenAt(b.angle, startB);
@@ -535,12 +472,13 @@ export function usePixiOverlays(options: {
         if (options.showFogSegments) {
           pathLayer.setStrokeStyle({ width: 2, color: 0xffffff, alpha: 0.85 });
           const coneRegion = regions.find(r => r.some(s => s.inCone)) ?? samples;
-          const coneSamples = coneRegion.filter(s => s.inCone && s.clearDist > 0);
+          const coneSamples = dilateRegion(coneRegion, 2).filter(
+            s => s.inCone && s.clearDist > 0
+          );
           if (coneSamples.length > 0) {
             pathLayer.moveTo(centerScreen.x, centerScreen.y);
             for (const s of coneSamples) {
-              const dist = Math.max(baseMin, s.clearDist);
-              const p = toScreenAt(s.angle, dist);
+              const p = toScreenAt(s.angle, s.clearDist);
               pathLayer.lineTo(p.x, p.y);
             }
             pathLayer.closePath();

@@ -24,6 +24,22 @@ export function usePixiTokens(options: {
   showAllLevels?: boolean;
   suspendRendering?: boolean;
 }): void {
+  const resolveTokenShadowSpec = (token: TokenState): { offsetX: number; offsetY: number; alpha: number } => {
+    const footprint = token.footprint;
+    const sizeFactor =
+      footprint?.kind === "rect"
+        ? Math.max(1, Math.max(footprint.width, footprint.height))
+        : footprint?.kind === "cells"
+          ? Math.max(1, footprint.cells.length)
+          : 1;
+    const scale = Math.min(2.2, Math.max(1, sizeFactor));
+    return {
+      offsetX: Math.max(4, Math.round(TILE_SIZE * 0.12 * scale)),
+      offsetY: Math.max(6, Math.round(TILE_SIZE * 0.16 * scale)),
+      alpha: 0.28
+    };
+  };
+
   const getTokenGridSpec = (token: TokenState): { tilesX: number; tilesY: number } => {
     const spec = token.footprint;
     if (spec?.kind === "rect") {
@@ -84,6 +100,8 @@ export function usePixiTokens(options: {
       const spriteKey = token.appearance?.spriteKey;
       const spriteUrl = getTokenSpriteUrl(spriteKey, token.id, token.appearance?.spriteVariants);
       const dead = isTokenDead(token);
+      const shadowSpec = resolveTokenShadowSpec(token);
+      const shadowAlpha = dead ? shadowSpec.alpha * 0.6 : shadowSpec.alpha;
 
       if (spriteUrl) {
         const sprite = Sprite.from(spriteUrl);
@@ -105,17 +123,32 @@ export function usePixiTokens(options: {
           const scaleY = targetH / sprite.texture.height;
           sprite.scale.set(scaleX * scaleBase, scaleY * scaleBase);
         } else {
-        sprite.scale.set(scaleBase);
+          sprite.scale.set(scaleBase);
         }
         sprite.alpha = dead ? 0.6 : 0.95;
         sprite.tint = dead ? 0x666666 : 0xffffff;
         sprite.x = 0;
         sprite.y = 0;
+        const shadow = Sprite.from(sprite.texture);
+        shadow.anchor.set(0.5, 0.5);
+        shadow.rotation = sprite.rotation;
+        shadow.scale.set(sprite.scale.x, sprite.scale.y);
+        shadow.alpha = Math.max(0.05, Math.min(0.5, shadowAlpha));
+        shadow.tint = 0x000000;
+        shadow.x = shadowSpec.offsetX;
+        shadow.y = shadowSpec.offsetY;
+        container.addChild(shadow);
         container.addChild(sprite);
       } else {
         const color = token.type === "player" ? 0x2ecc71 : 0xe74c3c;
         const radius = TILE_SIZE * 0.3;
         const disc = new Graphics();
+        const shadow = new Graphics();
+        shadow.circle(shadowSpec.offsetX, shadowSpec.offsetY, radius * 0.95).fill({
+          color: 0x000000,
+          alpha: Math.max(0.05, Math.min(0.5, shadowAlpha))
+        });
+        container.addChild(shadow);
         disc.circle(0, 0, radius).fill({
           color: dead ? 0x666666 : color,
           alpha: dead ? 0.6 : 0.95

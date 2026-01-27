@@ -9,3 +9,4 @@ Definitions for floor materials and their texture hints.
 Notes:
 - Floor IDs are the values stored in the map layer (see `map/draft`).
 - `textureId` is optional; rendering can fall back to `fallbackColor`.
+- `solidColor` can force a base fill under textures (useful for transparent PNGs).

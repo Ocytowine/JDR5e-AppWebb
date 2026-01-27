@@ -57,6 +57,42 @@ export function usePixiObstacles(options: {
     return palette.layers[layerKey] ?? null;
   };
 
+  const resolveShadowSpec = (def: ObstacleTypeDefinition | null): { offsetX: number; offsetY: number; alpha: number } => {
+    const heightClass = String(def?.appearance?.heightClass ?? "medium").toLowerCase();
+    if (heightClass === "low") {
+      return {
+        offsetX: Math.max(3, Math.round(TILE_SIZE * 0.08)),
+        offsetY: Math.max(5, Math.round(TILE_SIZE * 0.1)),
+        alpha: 0.22
+      };
+    }
+    if (heightClass === "tall") {
+      return {
+        offsetX: Math.max(6, Math.round(TILE_SIZE * 0.16)),
+        offsetY: Math.max(9, Math.round(TILE_SIZE * 0.2)),
+        alpha: 0.36
+      };
+    }
+    return {
+      offsetX: Math.max(4, Math.round(TILE_SIZE * 0.12)),
+      offsetY: Math.max(7, Math.round(TILE_SIZE * 0.16)),
+      alpha: 0.3
+    };
+  };
+
+  const isCanopyLayer = (layer: { id?: string; spriteKey: string } | null): boolean => {
+    if (!layer?.spriteKey) return false;
+    const id = String(layer.id ?? "").toLowerCase();
+    const key = layer.spriteKey.toLowerCase();
+    return id.includes("canopy") || key.includes("canopy");
+  };
+
+  const shouldRenderShadowForLayer = (layer: { id?: string; spriteKey: string; renderLayer?: string } | null): boolean => {
+    if (!layer?.spriteKey) return false;
+    if (layer.renderLayer === "overhead" && !isCanopyLayer(layer)) return false;
+    return layer.spriteKey.startsWith("obstacle:");
+  };
+
   const getFootprintGrid = (def: ObstacleTypeDefinition | null): { tilesX: number; tilesY: number } | null => {
     if (!def?.variants?.length) return null;
     let minX = Number.POSITIVE_INFINITY;
@@ -83,7 +119,7 @@ export function usePixiObstacles(options: {
 
     depthLayer.cacheAsTexture = false;
     for (const child of [...depthLayer.children]) {
-      if (child.label === "obstacle" || child.label === "obstacle-layer") {
+      if (child.label === "obstacle" || child.label === "obstacle-layer" || child.label === "obstacle-shadow") {
         depthLayer.removeChild(child);
         child.destroy?.();
       }
@@ -221,6 +257,23 @@ export function usePixiObstacles(options: {
           sprite.label = "obstacle-layer";
           const baseLayer = layer.renderLayer === "overhead" ? DEPTH_Z.overhead : DEPTH_Z.obstacleBase;
           sprite.zIndex = center.y + baseLayer + (layer.z ?? 0);
+
+          if (!hasAnimatedLayer && shouldRenderShadowForLayer(layer)) {
+            const shadowSpec = resolveShadowSpec(def);
+            const shadow = Sprite.from(sprite.texture);
+            shadow.anchor.set(0.5, 0.5);
+            shadow.rotation = sprite.rotation;
+            shadow.scale.set(sprite.scale.x, sprite.scale.y);
+            const alphaScale = isCanopyLayer(layer) ? 1 : Number.isFinite(alpha) ? alpha : 1;
+            shadow.alpha = Math.max(0.05, Math.min(0.55, shadowSpec.alpha * alphaScale));
+            shadow.tint = 0x000000;
+            shadow.x = center.x + shadowSpec.offsetX;
+            shadow.y = center.y + shadowSpec.offsetY;
+            shadow.label = "obstacle-shadow";
+            shadow.zIndex = center.y + baseLayer + (layer.z ?? 0) - 2;
+            depthLayer.addChild(shadow);
+          }
+
           depthLayer.addChild(sprite);
           renderedLayers += 1;
         }

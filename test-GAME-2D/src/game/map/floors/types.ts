@@ -17,6 +17,7 @@ export interface FloorMaterial {
   label: string;
   textureId?: string;
   fallbackColor?: string;
+  solidColor?: string;
   tags?: string[];
   passable?: boolean;
   moveCost?: number;
