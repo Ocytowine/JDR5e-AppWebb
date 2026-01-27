@@ -154,7 +154,6 @@ export function usePixiOverlays(options: {
       const blocked = options.obstacleVisionCells ?? null;
       for (let y = 0; y < options.grid.rows; y++) {
         for (let x = 0; x < options.grid.cols; x++) {
-          if (!isCellInView(x, y)) continue;
           if (!isCellPlayable(x, y)) continue;
 
           let light = baseLightAt(x, y);
@@ -197,7 +196,6 @@ export function usePixiOverlays(options: {
       const strength = options.lightTints.strength;
       for (let y = 0; y < options.grid.rows; y++) {
         for (let x = 0; x < options.grid.cols; x++) {
-          if (!isCellInView(x, y)) continue;
           if (!isCellPlayable(x, y)) continue;
           const key = buildCellKey(x, y);
           if (visibleCells && visibleCells.size > 0 && !visibleCells.has(key)) continue;
