@@ -247,26 +247,6 @@ export function usePixiOverlays(options: {
       }
       return false;
     };
-    const isVisibleCellForFog = (x: number, y: number) => {
-      if (x < 0 || y < 0 || x >= options.grid.cols || y >= options.grid.rows) {
-        return false;
-      }
-      if (!isCellPlayable(x, y)) return false;
-      if (options.visibilityLevels) {
-        // Treat partially visible (level 1) cells as visible for fog purposes.
-        return visibilityLevelAt(x, y) >= 1;
-      }
-      const key = buildCellKey(x, y);
-      if (visionCells || visibleCells) {
-        const inVision = visionCells ? visionCells.has(key) : true;
-        const perceivable = visibleCells ? visibleCells.has(key) : true;
-        return inVision && perceivable;
-      }
-      if (options.visibilityLevels) {
-        return (options.visibilityLevels.get(key) ?? 0) >= 2;
-      }
-      return true;
-    };
 
     const gridToScreenRaw = (x: number, y: number) => ({
       x: x * TILE_SIZE + TILE_SIZE / 2,
