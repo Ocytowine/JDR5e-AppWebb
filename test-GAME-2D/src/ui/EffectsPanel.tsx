@@ -8,6 +8,7 @@ export function EffectsPanel(props: {
   showAllLevels: boolean;
   showTerrainIds: boolean;
   showTerrainContours: boolean;
+  shadowLightAngleDeg: number;
   bumpIntensity: number;
   windSpeed: number;
   windStrength: number;
@@ -23,6 +24,7 @@ export function EffectsPanel(props: {
   onToggleShowAllLevels: () => void;
   onToggleTerrainIds: () => void;
   onToggleTerrainContours: () => void;
+  onChangeShadowLightAngleDeg: (value: number) => void;
   onChangeBumpIntensity: (value: number) => void;
   onChangeWindSpeed: (value: number) => void;
   onChangeWindStrength: (value: number) => void;
@@ -38,7 +40,9 @@ export function EffectsPanel(props: {
         border: "1px solid #333",
         display: "flex",
         flexDirection: "column",
-        gap: 8
+        gap: 8,
+        maxHeight: "100%",
+        overflowY: "auto"
       }}
     >
       <h2 style={{ margin: "0 0 4px" }}>Zones d&apos;effet (demo)</h2>
@@ -217,6 +221,19 @@ export function EffectsPanel(props: {
         >
           {props.bumpDebug ? "Masquer bump debug" : "Afficher bump debug"}
         </button>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 180 }}>
+          <label style={{ fontSize: 11, color: "#bfc6d2" }}>
+            Lumiere angle: {Math.round(props.shadowLightAngleDeg)}°
+          </label>
+          <input
+            type="range"
+            min="0"
+            max="360"
+            step="1"
+            value={props.shadowLightAngleDeg}
+            onChange={event => props.onChangeShadowLightAngleDeg(Number(event.target.value))}
+          />
+        </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 180 }}>
           <label style={{ fontSize: 11, color: "#bfc6d2" }}>
             Bump: {props.bumpIntensity.toFixed(2)}

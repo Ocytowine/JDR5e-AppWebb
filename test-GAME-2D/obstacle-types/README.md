@@ -28,10 +28,12 @@ Ce dossier contient les definitions JSON des obstacles. Chaque fichier decrit un
 
 - `spriteKey`: sprite par defaut (si pas de `layers`).
 - `spriteGrid`: taille en cases de la sprite (`tilesX`, `tilesY`, option `tileSize`).
+- `preserveAspect`: conserve les proportions de l'image quand `spriteGrid` est actif.
 - `paletteId`: palette par defaut pour cet obstacle (ex: `default`).
 - `palettes`: dictionnaire de palettes (par id).
 - `randomRotation`: rotation aleatoire a la generation (true/false).
 - `heightClass`: `low`, `medium`, `tall` (visuel/LOS).
+- `shadowStretch`: multiplicateur d'etirement des ombres (1 = par defaut).
 - `layers`: liste de calques (sprite + options).
 - `tokenScale`: plage de variation visuelle (en %).
 - `scale`: multiplicateur global.
@@ -47,6 +49,7 @@ Ce dossier contient les definitions JSON des obstacles. Chaque fichier decrit un
 - `z`: ordre de rendu.
 - `visible`: `always` ou `hideWhenTokenBelow`.
 - `spriteGrid`: taille en cases specifique au calque.
+- `preserveAspect`: conserve les proportions (override local).
 
 ### Palettes
 

@@ -82,6 +82,7 @@
       "tilesY": 3
     },
     "heightClass": "tall",
+    "shadowStretch": 6,
     "layers": [
       {
         "id": "trunk",

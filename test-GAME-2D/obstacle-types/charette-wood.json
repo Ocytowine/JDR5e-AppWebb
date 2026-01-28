@@ -32,6 +32,7 @@
     "spriteKey": "obstacle:charette-wood",
     "tint": 13395558,
     "heightClass": "medium",
+    "shadowStretch": 1,
     "tokenScale": {
       "min": 90,
       "default": 110,

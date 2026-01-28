@@ -35,6 +35,7 @@
     "spriteKey": "obstacle:rubble",
     "tint": 16777215,
     "heightClass": "low",
+    "shadowStretch": 1,
     "tokenScale": {
       "min": 80,
       "default": 100,

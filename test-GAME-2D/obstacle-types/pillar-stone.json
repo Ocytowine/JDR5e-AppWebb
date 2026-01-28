@@ -34,6 +34,7 @@
     "spriteKey": "obstacle:pillar-stone",
     "tint": 16777215,
     "heightClass": "tall",
+    "shadowStretch": 1,
     "tokenScale": {
       "min": 80,
       "default": 100,

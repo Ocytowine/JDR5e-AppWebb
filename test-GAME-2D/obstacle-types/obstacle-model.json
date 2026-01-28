@@ -37,6 +37,7 @@
     },
     "randomRotation": false,
     "heightClass": "medium",
+    "shadowStretch": 1,
     "layers": [
       {
         "id": "base",

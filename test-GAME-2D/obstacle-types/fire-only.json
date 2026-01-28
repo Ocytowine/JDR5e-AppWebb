@@ -29,7 +29,8 @@
         "scale": 0.9
       }
     ],
-    "heightClass": "low"
+    "heightClass": "low",
+    "shadowStretch": 1
   },
   "effects": [
     {

@@ -20,6 +20,7 @@ export function usePixiObstacles(options: {
   visibleCells?: Set<string> | null;
   showAllLevels?: boolean;
   paletteId?: string | null;
+  lightAngleDeg?: number;
   suspendRendering?: boolean;
 }): void {
   const hashString01 = (input: string): number => {
@@ -57,26 +58,30 @@ export function usePixiObstacles(options: {
     return palette.layers[layerKey] ?? null;
   };
 
-  const resolveShadowSpec = (def: ObstacleTypeDefinition | null): { offsetX: number; offsetY: number; alpha: number } => {
+  const resolveShadowSpec = (
+    def: ObstacleTypeDefinition | null
+  ): { alpha: number; lengthPx: number } => {
     const heightClass = String(def?.appearance?.heightClass ?? "medium").toLowerCase();
+    const stretchRaw = Number.isFinite(def?.appearance?.shadowStretch)
+      ? (def?.appearance?.shadowStretch as number)
+      : 1;
+    const stretchClamped = Math.min(12, Math.max(0, stretchRaw));
+    const lengthPx = Math.max(2, Math.round(stretchClamped * TILE_SIZE));
     if (heightClass === "low") {
       return {
-        offsetX: Math.max(3, Math.round(TILE_SIZE * 0.08)),
-        offsetY: Math.max(5, Math.round(TILE_SIZE * 0.1)),
-        alpha: 0.22
+        alpha: 0.22,
+        lengthPx
       };
     }
     if (heightClass === "tall") {
       return {
-        offsetX: Math.max(6, Math.round(TILE_SIZE * 0.16)),
-        offsetY: Math.max(9, Math.round(TILE_SIZE * 0.2)),
-        alpha: 0.36
+        alpha: 0.36,
+        lengthPx
       };
     }
     return {
-      offsetX: Math.max(4, Math.round(TILE_SIZE * 0.12)),
-      offsetY: Math.max(7, Math.round(TILE_SIZE * 0.16)),
-      alpha: 0.3
+      alpha: 0.3,
+      lengthPx
     };
   };
 
@@ -222,13 +227,25 @@ export function usePixiObstacles(options: {
           const scaleLayer = typeof layer.scale === "number" ? layer.scale : 1;
           const scaleAppearance = typeof def?.appearance?.scale === "number" ? def.appearance.scale : 1;
           const gridSpec = layer.spriteGrid ?? def?.appearance?.spriteGrid ?? footprintGrid ?? null;
+          const preserveAspect =
+            typeof layer.preserveAspect === "boolean"
+              ? layer.preserveAspect
+              : Boolean(def?.appearance?.preserveAspect);
           if (gridSpec && sprite.texture.width > 0 && sprite.texture.height > 0) {
             const tileSize = typeof gridSpec.tileSize === "number" && gridSpec.tileSize > 0 ? gridSpec.tileSize : TILE_SIZE;
             const targetW = gridSpec.tilesX * tileSize;
             const targetH = gridSpec.tilesY * tileSize;
             const scaleX = targetW / sprite.texture.width;
             const scaleY = targetH / sprite.texture.height;
-            sprite.scale.set(scaleX * scaleBase * scaleLayer * scaleAppearance, scaleY * scaleBase * scaleLayer * scaleAppearance);
+            const scale = preserveAspect ? Math.min(scaleX, scaleY) : null;
+            if (scale) {
+              sprite.scale.set(scale * scaleBase * scaleLayer * scaleAppearance);
+            } else {
+              sprite.scale.set(
+                scaleX * scaleBase * scaleLayer * scaleAppearance,
+                scaleY * scaleBase * scaleLayer * scaleAppearance
+              );
+            }
           } else {
             sprite.scale.set(scaleBase * scaleLayer * scaleAppearance);
           }
@@ -261,17 +278,44 @@ export function usePixiObstacles(options: {
           if (!hasAnimatedLayer && shouldRenderShadowForLayer(layer)) {
             const shadowSpec = resolveShadowSpec(def);
             const shadow = Sprite.from(sprite.texture);
+            const shadowGroup = new Container();
+            const lightAngleDeg = typeof options.lightAngleDeg === "number" ? options.lightAngleDeg : 90;
+            const lightAngle = (lightAngleDeg * Math.PI) / 180;
+            shadowGroup.x = center.x;
+            shadowGroup.y = center.y;
+            shadowGroup.rotation = lightAngle;
             shadow.anchor.set(0.5, 0.5);
-            shadow.rotation = sprite.rotation;
-            shadow.scale.set(sprite.scale.x, sprite.scale.y);
+            shadow.rotation = sprite.rotation - lightAngle;
+            const baseWidth =
+              sprite.width > 0
+                ? sprite.width
+                : shadow.texture.width > 0
+                  ? shadow.texture.width * sprite.scale.x
+                  : 0;
+            const baseHeight =
+              sprite.height > 0
+                ? sprite.height
+                : shadow.texture.height > 0
+                  ? shadow.texture.height * sprite.scale.y
+                  : 0;
+            if (baseWidth > 0 && baseHeight > 0) {
+              shadow.width = baseWidth;
+              shadow.height = baseHeight;
+              shadowGroup.scale.y = shadowSpec.lengthPx / baseHeight;
+            } else {
+              shadow.scale.set(sprite.scale.x, sprite.scale.y);
+              shadowGroup.scale.y = 1;
+            }
+            shadow.x = 0;
+            shadow.y = 0;
             const alphaScale = isCanopyLayer(layer) ? 1 : Number.isFinite(alpha) ? alpha : 1;
             shadow.alpha = Math.max(0.05, Math.min(0.55, shadowSpec.alpha * alphaScale));
             shadow.tint = 0x000000;
-            shadow.x = center.x + shadowSpec.offsetX;
-            shadow.y = center.y + shadowSpec.offsetY;
             shadow.label = "obstacle-shadow";
-            shadow.zIndex = center.y + baseLayer + (layer.z ?? 0) - 2;
-            depthLayer.addChild(shadow);
+            shadowGroup.label = "obstacle-shadow";
+            shadowGroup.zIndex = center.y + baseLayer + (layer.z ?? 0) - 2;
+            shadowGroup.addChild(shadow);
+            depthLayer.addChild(shadowGroup);
           }
 
           depthLayer.addChild(sprite);
@@ -312,6 +356,7 @@ export function usePixiObstacles(options: {
     options.heightMap,
     options.activeLevel,
     options.visibleCells,
-    options.showAllLevels
+    options.showAllLevels,
+    options.lightAngleDeg
   ]);
 }

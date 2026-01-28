@@ -25,6 +25,22 @@
         {
           "x": 0,
           "y": 0
+        },
+        {
+          "x": 1,
+          "y": 0
+        },
+        {
+          "x": 2,
+          "y": 0
+        },
+        {
+          "x": 3,
+          "y": 0
+        },
+        {
+          "x": 4,
+          "y": 0
         }
       ],
       "rotatable": true
@@ -34,11 +50,17 @@
     "randomRotation": true,
     "spriteKey": "obstacle:log",
     "tint": 16777215,
+    "spriteGrid": {
+      "tilesX": 5,
+      "tilesY": 1
+    },
+    "preserveAspect": false,
     "heightClass": "low",
+    "shadowStretch": 1,
     "tokenScale": {
-      "min": 80,
+      "min": 100,
       "default": 100,
-      "max": 150
+      "max": 100
     }
   },
   "spawnRules": {

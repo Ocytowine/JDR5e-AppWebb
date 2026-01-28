@@ -35,6 +35,7 @@
     "spriteKey": "obstacle:chair-wood",
     "tint": 16777215,
     "heightClass": "low",
+    "shadowStretch": 1,
     "tokenScale": {
       "default": 100,
       "min": 100,

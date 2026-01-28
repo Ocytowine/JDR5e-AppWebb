@@ -29,6 +29,7 @@ export interface ObstacleAppearance {
   spriteKey?: string;
   tint?: number;
   spriteGrid?: { tilesX: number; tilesY: number; tileSize?: number };
+  preserveAspect?: boolean;
   animationSpeed?: number;
   animationLoop?: boolean;
   paletteId?: string;
@@ -51,6 +52,10 @@ export interface ObstacleAppearance {
    * Used for visuals and later for cover/LOS heuristics if needed.
    */
   heightClass?: "low" | "medium" | "tall" | string;
+  /**
+   * Stretch multiplier for obstacle shadow rendering (1 = default).
+   */
+  shadowStretch?: number;
   layers?: Array<{
     id?: string;
     spriteKey: string;
@@ -61,6 +66,7 @@ export interface ObstacleAppearance {
     renderLayer?: "base" | "overhead" | string;
     visible?: "always" | "hideWhenTokenBelow";
     spriteGrid?: { tilesX: number; tilesY: number; tileSize?: number };
+    preserveAspect?: boolean;
     animationSpeed?: number;
     animationLoop?: boolean;
   }>;

@@ -711,6 +711,7 @@ export const GameBoard: React.FC = () => {
   const [showCellIds, setShowCellIds] = useState<boolean>(false);
   const [showTerrainIds, setShowTerrainIds] = useState<boolean>(false);
   const [showTerrainContours, setShowTerrainContours] = useState<boolean>(false);
+  const [shadowLightAngleDeg, setShadowLightAngleDeg] = useState<number>(90);
   const [bumpIntensity, setBumpIntensity] = useState<number>(0.45);
   const [windSpeed, setWindSpeed] = useState<number>(0.06);
   const [windStrength, setWindStrength] = useState<number>(1.0);
@@ -1501,6 +1502,7 @@ export const GameBoard: React.FC = () => {
     visibleCells: visibleCellsFull,
     showAllLevels,
     paletteId: mapPaletteId,
+    lightAngleDeg: shadowLightAngleDeg,
     suspendRendering: isTextureLoading
   });
   usePixiDecorations({
@@ -8097,6 +8099,7 @@ function handleEndPlayerTurn() {
                       showAllLevels={showAllLevels}
                       showTerrainIds={showTerrainIds}
                       showTerrainContours={showTerrainContours}
+                      shadowLightAngleDeg={shadowLightAngleDeg}
                       bumpIntensity={bumpIntensity}
                       windSpeed={windSpeed}
                       windStrength={windStrength}
@@ -8112,6 +8115,7 @@ function handleEndPlayerTurn() {
                       onToggleShowAllLevels={() => setShowAllLevels(prev => !prev)}
                       onToggleTerrainIds={() => setShowTerrainIds(prev => !prev)}
                       onToggleTerrainContours={() => setShowTerrainContours(prev => !prev)}
+                      onChangeShadowLightAngleDeg={value => setShadowLightAngleDeg(value)}
                       onChangeBumpIntensity={value => setBumpIntensity(value)}
                       onChangeWindSpeed={value => setWindSpeed(value)}
                       onChangeWindStrength={value => setWindStrength(value)}

@@ -1,4 +1,6 @@
 import type { GridPosition } from "../../../types";
+import type { ObstacleInstance, ObstacleTypeDefinition } from "../../obstacleTypes";
+import { getObstacleOccupiedCells } from "../../obstacleRuntime";
 import type { MapBuildContext, MapSpec } from "../types";
 import { createDraft, key, setLight, setTerrain, tryPlaceObstacle } from "../draft";
 
@@ -11,15 +13,15 @@ type FootprintBounds = {
   h: number;
 };
 
-function getFootprintBounds(footprint: Array<{ x: number; y: number }> | undefined): FootprintBounds {
-  if (!footprint || footprint.length === 0) {
+function getFootprintBounds(cells: Array<{ x: number; y: number }> | undefined): FootprintBounds {
+  if (!cells || cells.length === 0) {
     return { minX: 0, minY: 0, maxX: 0, maxY: 0, w: 1, h: 1 };
   }
   let minX = Number.POSITIVE_INFINITY;
   let minY = Number.POSITIVE_INFINITY;
   let maxX = Number.NEGATIVE_INFINITY;
   let maxY = Number.NEGATIVE_INFINITY;
-  for (const cell of footprint) {
+  for (const cell of cells) {
     if (cell.x < minX) minX = cell.x;
     if (cell.y < minY) minY = cell.y;
     if (cell.x > maxX) maxX = cell.x;
@@ -31,6 +33,21 @@ function getFootprintBounds(footprint: Array<{ x: number; y: number }> | undefin
   const w = Math.max(1, Math.round(maxX - minX + 1));
   const h = Math.max(1, Math.round(maxY - minY + 1));
   return { minX, minY, maxX, maxY, w, h };
+}
+
+function getOccupiedBounds(type: ObstacleTypeDefinition, variantId: string): FootprintBounds {
+  const instance: ObstacleInstance = {
+    id: "bounds",
+    typeId: type.id,
+    variantId,
+    x: 0,
+    y: 0,
+    rotation: 0,
+    hp: 1,
+    maxHp: 1
+  };
+  const cells = getObstacleOccupiedCells(instance, type);
+  return getFootprintBounds(cells);
 }
 
 function getSpriteGridSize(type: { appearance?: { spriteGrid?: { tilesX: number; tilesY: number }; layers?: Array<{ spriteGrid?: { tilesX: number; tilesY: number } }> } }): { w: number; h: number } | null {
@@ -69,7 +86,7 @@ export function generateTestObstacles(params: {
     .sort((a, b) => a.id.localeCompare(b.id))
     .map(type => {
       const variant = type.variants.find(v => v.id === "base") ?? type.variants[0];
-      const bounds = getFootprintBounds(variant?.footprint);
+      const bounds = getOccupiedBounds(type, variant?.id ?? "base");
       const spriteGrid = getSpriteGridSize(type);
       if (spriteGrid) {
         bounds.w = Math.max(bounds.w, spriteGrid.w);
