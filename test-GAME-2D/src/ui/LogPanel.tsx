@@ -10,7 +10,10 @@ export function LogPanel(props: { log: string[] }): React.JSX.Element {
         border: "1px solid #333",
         flex: "1 1 auto",
         display: "flex",
-        flexDirection: "column"
+        flexDirection: "column",
+        height: "100%",
+        maxHeight: "100%",
+        minHeight: 0
       }}
     >
       <h2 style={{ margin: "0 0 8px" }}>Log</h2>
@@ -19,7 +22,8 @@ export function LogPanel(props: { log: string[] }): React.JSX.Element {
           flex: "1 1 auto",
           overflowY: "auto",
           fontSize: 12,
-          lineHeight: 1.4
+          lineHeight: 1.4,
+          minHeight: 0
         }}
       >
         {props.log.map((line, idx) => (

@@ -5,6 +5,16 @@
   "aiRole": "assassin",
   "actions": ["move", "melee-strike"],
   "reactionIds": ["opportunity-attack"],
+  "combatProfile": {
+    "primaryStyle": "melee",
+    "allowedStyles": ["melee"],
+    "preferredAbilities": ["dex"],
+    "preferredRangeMin": 1,
+    "preferredRangeMax": 1,
+    "intelligence": 2,
+    "awareness": 1,
+    "tactics": ["flank", "avoid_opportunity"]
+  },
   "behavior": { "preferredRangeMin": 1, "preferredRangeMax": 1, "panicRange": 0 },
   "speechProfile": {
     "raceOrOrigin": "Assassin",

@@ -5,6 +5,18 @@
   "aiRole": "archer",
   "actions": ["move", "bow-shot", "melee-strike"],
   "reactionIds": ["guard-strike"],
+  "combatProfile": {
+    "primaryStyle": "ranged",
+    "allowedStyles": ["ranged", "melee"],
+    "preferredAbilities": ["dex"],
+    "preferredRangeMin": 3,
+    "preferredRangeMax": 6,
+    "avoidRangeMin": 0,
+    "avoidRangeMax": 2,
+    "intelligence": 1,
+    "awareness": 1,
+    "tactics": ["avoid_opportunity", "poke_from_range"]
+  },
   "behavior": { "preferredRangeMin": 3, "preferredRangeMax": 6, "panicRange": 2 },
   "speechProfile": {
     "raceOrOrigin": "Archer de bande",

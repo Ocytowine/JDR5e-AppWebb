@@ -135,6 +135,21 @@ export interface VisionProfile {
   lightVision?: "normal" | "lowlight" | "darkvision";
 }
 
+export type EnemyCombatStyle = "melee" | "ranged" | "support";
+
+export interface EnemyCombatProfile {
+  primaryStyle?: EnemyCombatStyle;
+  allowedStyles?: EnemyCombatStyle[];
+  preferredAbilities?: Array<"str" | "dex" | "con" | "int" | "wis" | "cha">;
+  preferredRangeMin?: number;
+  preferredRangeMax?: number;
+  avoidRangeMin?: number;
+  avoidRangeMax?: number;
+  intelligence?: 0 | 1 | 2;
+  awareness?: 0 | 1 | 2;
+  tactics?: string[];
+}
+
 export interface TokenState {
   id: string;
   type: TokenType;

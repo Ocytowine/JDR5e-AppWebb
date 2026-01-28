@@ -1,6 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { sampleCharacter } from "./sampleCharacter";
-import type { CombatStats, MovementProfile, Personnage, TokenState, VisionProfile } from "./types";
+import type {
+  CombatStats,
+  EnemyCombatProfile,
+  EnemyCombatStyle,
+  MovementProfile,
+  Personnage,
+  TokenState,
+  VisionProfile
+} from "./types";
 import type {
   ActionAvailability,
   ActionDefinition,
@@ -80,7 +88,12 @@ import {
   type DamageRollResult,
   type AdvantageMode
 } from "./dice/roller";
-import { resolveAction, type ActionTarget } from "./game/actionEngine";
+import {
+  computeAvailabilityForActor,
+  resolveAction,
+  validateActionTarget,
+  type ActionTarget
+} from "./game/actionEngine";
 import { buildActionPlan, type ActionPlan } from "./game/actionPlan";
 import {
   GRID_COLS,
@@ -635,6 +648,21 @@ export const GameBoard: React.FC = () => {
     anchorX: number;
     anchorY: number;
   };
+  type EnemyMemory = {
+    lastSeenPos?: { x: number; y: number };
+    lastSeenRound?: number;
+    lastFailedReason?: string;
+    lastFailedActionId?: string;
+    lastEffectiveActionId?: string;
+    lastOpportunityRound?: number;
+  };
+  type TeamAlert = {
+    sourceId: string;
+    position: { x: number; y: number };
+    createdRound: number;
+    expiresRound: number;
+    confidence: number;
+  };
   const [interactionMode, setInteractionMode] =
     useState<BoardInteractionMode>("idle");
   type InteractionTarget =
@@ -704,6 +732,8 @@ export const GameBoard: React.FC = () => {
     kind: "hit" | "miss" | "info";
   } | null>(null);
   const reactionToastTimerRef = useRef<number | null>(null);
+  const enemyMemoryRef = useRef<Map<string, EnemyMemory>>(new Map());
+  const teamAlertRef = useRef<TeamAlert | null>(null);
   const [combatToast, setCombatToast] = useState<{
     id: string;
     text: string;
@@ -751,6 +781,11 @@ export const GameBoard: React.FC = () => {
     () => new Map(reactionCatalog.map(reaction => [reaction.action.id, reaction.action])),
     [reactionCatalog]
   );
+  const enemyTypeById = useMemo(() => {
+    const map = new Map<string, EnemyTypeDefinition>();
+    for (const t of enemyTypes) map.set(t.id, t);
+    return map;
+  }, [enemyTypes]);
   const closedCells = useMemo(() => {
     if (!wallSegments.length) return null;
     return computeClosedCells({
@@ -1987,6 +2022,189 @@ export const GameBoard: React.FC = () => {
     return getBaseHeightAt(a.x, a.y) === getBaseHeightAt(b.x, b.y);
   }
 
+  function getEnemyTypeForToken(token: TokenState): EnemyTypeDefinition | null {
+    if (token.type !== "enemy") return null;
+    const id = token.enemyTypeId ?? "";
+    return enemyTypeById.get(id) ?? null;
+  }
+
+  function resolveCombatProfile(token: TokenState): EnemyCombatProfile & {
+    primaryStyle: EnemyCombatStyle;
+    allowedStyles: EnemyCombatStyle[];
+    preferredAbilities: Array<"str" | "dex" | "con" | "int" | "wis" | "cha">;
+    preferredRangeMin: number;
+    preferredRangeMax: number;
+    intelligence: 0 | 1 | 2;
+    awareness: 0 | 1 | 2;
+    tactics: string[];
+  } {
+    const enemyType = getEnemyTypeForToken(token);
+    const raw = enemyType?.combatProfile ?? {};
+    const fallbackPrimary: EnemyCombatStyle =
+      token.aiRole === "archer" ? "ranged" : "melee";
+    const primaryStyle = raw.primaryStyle ?? fallbackPrimary;
+    const allowedStyles =
+      raw.allowedStyles && raw.allowedStyles.length > 0
+        ? raw.allowedStyles
+        : [primaryStyle];
+    const preferredAbilities =
+      raw.preferredAbilities && raw.preferredAbilities.length > 0
+        ? raw.preferredAbilities
+        : [primaryStyle === "ranged" ? "dex" : "str"];
+    const preferredRangeMin =
+      raw.preferredRangeMin ??
+      enemyType?.behavior?.preferredRangeMin ??
+      (primaryStyle === "ranged" ? 2 : 1);
+    const preferredRangeMax =
+      raw.preferredRangeMax ??
+      enemyType?.behavior?.preferredRangeMax ??
+      (primaryStyle === "ranged" ? 6 : 1);
+    const intelligence = (raw.intelligence ?? 0) as 0 | 1 | 2;
+    const awareness = (raw.awareness ?? 0) as 0 | 1 | 2;
+    const tactics = Array.isArray(raw.tactics) ? raw.tactics : [];
+    return {
+      ...raw,
+      primaryStyle,
+      allowedStyles,
+      preferredAbilities,
+      preferredRangeMin,
+      preferredRangeMax,
+      intelligence,
+      awareness,
+      tactics
+    };
+  }
+
+  function getEnemyMemory(enemyId: string): EnemyMemory {
+    const existing = enemyMemoryRef.current.get(enemyId);
+    if (existing) return existing;
+    const next: EnemyMemory = {};
+    enemyMemoryRef.current.set(enemyId, next);
+    return next;
+  }
+
+  function updateEnemyMemory(enemyId: string, patch: Partial<EnemyMemory>) {
+    const current = getEnemyMemory(enemyId);
+    enemyMemoryRef.current.set(enemyId, { ...current, ...patch });
+  }
+
+  function classifyFailureReason(reason?: string | null): string {
+    const text = (reason ?? "").toLowerCase();
+    if (!text) return "unknown";
+    if (text.includes("portee") || text.includes("distance")) return "out_of_range";
+    if (text.includes("vision") || text.includes("ligne")) return "no_los";
+    if (text.includes("cible")) return "no_target";
+    return "other";
+  }
+
+  function getActiveTeamAlert(): TeamAlert | null {
+    const alert = teamAlertRef.current;
+    if (!alert) return null;
+    if (round > alert.expiresRound) {
+      teamAlertRef.current = null;
+      return null;
+    }
+    return alert;
+  }
+
+  function fuzzAlertPosition(pos: { x: number; y: number }): { x: number; y: number } {
+    const dx = Math.round((Math.random() * 2) - 1);
+    const dy = Math.round((Math.random() * 2) - 1);
+    const x = clamp(pos.x + dx, 0, mapGrid.cols - 1);
+    const y = clamp(pos.y + dy, 0, mapGrid.rows - 1);
+    if (isCellPlayable(x, y)) return { x, y };
+    return { x: pos.x, y: pos.y };
+  }
+
+  function broadcastTeamAlert(
+    source: TokenState,
+    position: { x: number; y: number },
+    confidence: number
+  ) {
+    const payload: TeamAlert = {
+      sourceId: source.id,
+      position,
+      createdRound: round,
+      expiresRound: round + 2,
+      confidence
+    };
+    teamAlertRef.current = payload;
+    setEnemyBubble(source.id, "Je l'ai repere, par la !");
+  }
+
+  function getActionStyle(action: ActionDefinition): EnemyCombatStyle | "move" | "other" {
+    if (action.category === "movement" || action.tags?.includes("movement")) {
+      return "move";
+    }
+    if (action.category === "support") return "support";
+    const rangeMax = action.targeting?.range?.max ?? 1;
+    if (action.tags?.includes("melee") || rangeMax <= 1) return "melee";
+    if (action.tags?.includes("distance") || rangeMax > 1) return "ranged";
+    return "other";
+  }
+
+  function scoreActionForEnemy(params: {
+    action: ActionDefinition;
+    profile: ReturnType<typeof resolveCombatProfile>;
+    distanceToPlayer: number;
+    memory: EnemyMemory;
+  }): number {
+    const { action, profile, distanceToPlayer, memory } = params;
+    const style = getActionStyle(action);
+    if (style === "move" || style === "other") return -100;
+    if (!profile.allowedStyles.includes(style as EnemyCombatStyle)) return -100;
+    let score = 0;
+    if (style === profile.primaryStyle) score += 30;
+    if (profile.preferredAbilities.includes("str") && style === "melee") score += 10;
+    if (profile.preferredAbilities.includes("dex") && style === "ranged") score += 10;
+    const range = action.targeting?.range;
+    const min = range?.min ?? 0;
+    const max = range?.max ?? 1;
+    const inRange = distanceToPlayer >= min && distanceToPlayer <= max;
+    score += inRange ? 15 : -25;
+    const preferredMin = profile.preferredRangeMin;
+    const preferredMax = profile.preferredRangeMax;
+    if (distanceToPlayer >= preferredMin && distanceToPlayer <= preferredMax) {
+      score += 8;
+    } else {
+      score -= 8;
+    }
+    if (memory.lastFailedReason === "out_of_range" && !inRange) {
+      score -= 20;
+    }
+    if (memory.lastEffectiveActionId === action.id) {
+      score += 4;
+    }
+    return score;
+  }
+
+  function buildEnemyActionContext(params: {
+    actor: TokenState;
+    playerSnapshot: TokenState;
+    enemiesSnapshot: TokenState[];
+  }) {
+    return {
+      round,
+      phase: "enemies" as const,
+      actor: params.actor,
+      player: params.playerSnapshot,
+      enemies: params.enemiesSnapshot,
+      blockedMovementCells: obstacleBlocking.movement,
+      blockedMovementEdges: wallEdges.movement,
+      blockedVisionCells: visionBlockersActive,
+      blockedAttackCells: obstacleBlocking.attacks,
+      wallVisionEdges: wallEdges.vision,
+      lightLevels,
+      playableCells,
+      grid: mapGrid,
+      heightMap: mapHeight,
+      floorIds: mapTerrain,
+      activeLevel,
+      sampleCharacter,
+      onLog: pushLog
+    };
+  }
+
   const computePathCost = (path: { x: number; y: number }[]): number => {
     if (!path.length) return 0;
     const cols = mapGrid.cols;
@@ -2738,6 +2956,14 @@ export const GameBoard: React.FC = () => {
             allTokens
           });
           if (!conditionCheck.ok) continue;
+          const actionCheck = checkReactionActionEligibility({
+            reaction,
+            reactor,
+            target,
+            playerSnapshot: player,
+            enemiesSnapshot: enemies
+          });
+          if (!actionCheck.ok) continue;
 
           const handled = applyInstantReactionEffects({
             reaction,
@@ -4657,39 +4883,11 @@ export const GameBoard: React.FC = () => {
         }
       };
     }
-    const context = {
-      round,
-      phase,
-      actor: params.reactor,
-      player: params.playerSnapshot,
-      enemies: params.enemiesSnapshot,
-      blockedMovementCells: obstacleBlocking.movement,
-      blockedMovementEdges: wallEdges.movement,
-      blockedVisionCells: visionBlockersActive,
-      blockedAttackCells: obstacleBlocking.attacks,
-      wallVisionEdges: wallEdges.vision,
-      lightLevels,
-      playableCells,
-      grid: mapGrid,
-      heightMap: mapHeight,
-      floorIds: mapTerrain,
-      activeLevel,
-      sampleCharacter,
-      onLog: pushLog,
-      emitEvent: evt => {
-        recordCombatEvent({
-          round,
-          phase,
-          kind: evt.kind,
-          actorId: evt.actorId,
-          actorKind: evt.actorKind,
-          targetId: evt.targetId ?? null,
-          targetKind: evt.targetKind ?? null,
-          summary: evt.summary,
-          data: evt.data ?? {}
-        });
-      }
-    };
+    const context = buildReactionActionContext({
+      reactor: params.reactor,
+      playerSnapshot: params.playerSnapshot,
+      enemiesSnapshot: params.enemiesSnapshot
+    });
 
     const result = resolveAction(
       action,
@@ -4723,6 +4921,93 @@ export const GameBoard: React.FC = () => {
       showReactionToast(message, hit ? "hit" : "miss");
       suppressCombatToastUntilRef.current = Date.now() + 500;
     }
+  }
+
+  function buildReactionActionContext(params: {
+    reactor: TokenState;
+    playerSnapshot: TokenState;
+    enemiesSnapshot: TokenState[];
+  }) {
+    return {
+      round,
+      phase,
+      actor: params.reactor,
+      player: params.playerSnapshot,
+      enemies: params.enemiesSnapshot,
+      blockedMovementCells: obstacleBlocking.movement,
+      blockedMovementEdges: wallEdges.movement,
+      blockedVisionCells: visionBlockersActive,
+      blockedAttackCells: obstacleBlocking.attacks,
+      wallVisionEdges: wallEdges.vision,
+      lightLevels,
+      playableCells,
+      grid: mapGrid,
+      heightMap: mapHeight,
+      floorIds: mapTerrain,
+      activeLevel,
+      sampleCharacter,
+      onLog: pushLog,
+      emitEvent: evt => {
+        recordCombatEvent({
+          round,
+          phase,
+          kind: evt.kind,
+          actorId: evt.actorId,
+          actorKind: evt.actorKind,
+          targetId: evt.targetId ?? null,
+          targetKind: evt.targetKind ?? null,
+          summary: evt.summary,
+          data: evt.data ?? {}
+        });
+      }
+    };
+  }
+
+  function checkReactionActionEligibility(params: {
+    reaction: ReactionDefinition;
+    reactor: TokenState;
+    target: TokenState;
+    playerSnapshot: TokenState;
+    enemiesSnapshot: TokenState[];
+    ignoreRange?: boolean;
+  }): { ok: boolean; reason?: string } {
+    const baseAction = params.reaction.action;
+    let action = baseAction;
+    if (params.ignoreRange && baseAction.targeting?.range) {
+      const afterDistance = distanceBetweenTokens(params.reactor, params.target);
+      const nextRangeMax = Math.max(
+        baseAction.targeting.range.max,
+        afterDistance
+      );
+      action = {
+        ...baseAction,
+        targeting: {
+          ...baseAction.targeting,
+          range: { ...baseAction.targeting.range, max: nextRangeMax }
+        }
+      };
+    }
+
+    const context = buildReactionActionContext({
+      reactor: params.reactor,
+      playerSnapshot: params.playerSnapshot,
+      enemiesSnapshot: params.enemiesSnapshot
+    });
+
+    const availability = computeAvailabilityForActor(action, context);
+    if (!availability.enabled) {
+      return { ok: false, reason: availability.reasons.join(" | ") };
+    }
+
+    const validation = validateActionTarget(action, context, {
+      kind: "token",
+      token: params.target
+    });
+    if (!validation.ok) {
+      return { ok: false, reason: validation.reason };
+    }
+
+    return { ok: true };
   }
 
   function applyInstantReactionEffects(params: {
@@ -4791,7 +5076,11 @@ export const GameBoard: React.FC = () => {
           continue;
         }
 
-        const reach = getAttackRangeForToken(reactor);
+        const reactionRangeMax = reaction.action?.targeting?.range?.max;
+        const reach =
+          typeof reactionRangeMax === "number" && Number.isFinite(reactionRangeMax)
+            ? reactionRangeMax
+            : getAttackRangeForToken(reactor);
         const before = distanceBetweenTokens(reactor, moverFrom);
         const after = distanceBetweenTokens(reactor, moverTo);
         const isLeave = event === "movement.leave_reach";
@@ -4799,6 +5088,11 @@ export const GameBoard: React.FC = () => {
         const matched =
           (isLeave && before <= reach && after > reach) ||
           (isEnter && before > reach && after <= reach);
+        if (matched) {
+          pushLog(
+            `[REACTION DEBUG] ${reaction.id} event=${event} reactor=${reactor.id} target=${params.mover.id} from=(${moverFrom.x},${moverFrom.y}) to=(${moverTo.x},${moverTo.y}) reach=${reach} distBefore=${before} distAfter=${after}`
+          );
+        }
         if (!matched) continue;
 
         const distanceForConditions = isLeave ? before : after;
@@ -4811,7 +5105,26 @@ export const GameBoard: React.FC = () => {
           isClosestVisible: true,
           allTokens
         });
-        if (!conditionCheck.ok) continue;
+        if (!conditionCheck.ok) {
+          pushLog(
+            `[REACTION DEBUG] ${reaction.id} conditions reject reactor=${reactor.id} target=${params.mover.id} reason=${conditionCheck.reason || "unknown"}`
+          );
+          continue;
+        }
+        const actionCheck = checkReactionActionEligibility({
+          reaction,
+          reactor,
+          target: moverTo,
+          playerSnapshot: params.playerSnapshot,
+          enemiesSnapshot: params.enemiesSnapshot,
+          ignoreRange: isLeave
+        });
+        if (!actionCheck.ok) {
+          pushLog(
+            `[REACTION DEBUG] ${reaction.id} action reject reactor=${reactor.id} target=${params.mover.id} reason=${actionCheck.reason || "unknown"}`
+          );
+          continue;
+        }
 
         const anchor = resolveAnchorForCell(params.to) ?? { anchorX: 0, anchorY: 0 };
         const instance: ReactionInstance = {
@@ -6167,6 +6480,33 @@ export const GameBoard: React.FC = () => {
       playerCopy as TokenState,
       ...enemiesCopy
     ]);
+    const combatProfile = resolveCombatProfile(refreshedEnemy);
+    const memory = getEnemyMemory(refreshedEnemy.id);
+    const canSeePlayer =
+      areTokensOnSameLevel(refreshedEnemy, playerCopy as TokenState) &&
+      canEnemySeePlayer(
+        refreshedEnemy,
+        playerCopy as TokenState,
+        allTokens,
+        visionBlockersActive,
+        playableCells,
+        wallEdges.vision,
+        lightLevels,
+        mapGrid
+      );
+    if (canSeePlayer) {
+      updateEnemyMemory(refreshedEnemy.id, {
+        lastSeenPos: { x: playerCopy.x, y: playerCopy.y },
+        lastSeenRound: round
+      });
+      if (combatProfile.awareness > 0) {
+        const approximate = fuzzAlertPosition({ x: playerCopy.x, y: playerCopy.y });
+        const existingAlert = getActiveTeamAlert();
+        if (!existingAlert || existingAlert.sourceId !== refreshedEnemy.id) {
+          broadcastTeamAlert(refreshedEnemy, approximate, 0.7);
+        }
+      }
+    }
     const enemyActionIds =
       Array.isArray(activeEnemy.actionIds) && activeEnemy.actionIds.length
         ? activeEnemy.actionIds
@@ -6232,18 +6572,6 @@ export const GameBoard: React.FC = () => {
               summary: evt.summary,
               data: evt.data ?? {}
             });
-            if (evt.kind === "move" && evt.data && typeof evt.data === "object") {
-              const data = evt.data as { from?: { x: number; y: number }; to?: { x: number; y: number } };
-              if (data.from && data.to) {
-                triggerMovementReactions({
-                  mover: activeEnemy,
-                  from: data.from,
-                  to: data.to,
-                  playerSnapshot: playerCopy as TokenState,
-                  enemiesSnapshot: enemiesCopy
-                });
-              }
-            }
           }
         },
         target,
@@ -6254,6 +6582,10 @@ export const GameBoard: React.FC = () => {
         const msg = `[IA] ${activeEnemy.id}: ${action.name} sur ${describeActionTarget(target)} -> echec (${result.reason || "inconnu"}).`;
         pushLog(msg);
         aiTurnLogs.push(msg);
+        updateEnemyMemory(activeEnemy.id, {
+          lastFailedReason: classifyFailureReason(result.reason),
+          lastFailedActionId: action.id
+        });
         await waitForEnemyTurnResume();
         return { ok: false as const, reason: result.reason || "Echec de resolution." };
       }
@@ -6261,6 +6593,22 @@ export const GameBoard: React.FC = () => {
       playerCopy = result.playerAfter;
       for (let i = 0; i < enemiesCopy.length; i++) {
         enemiesCopy[i] = result.enemiesAfter[i] ?? enemiesCopy[i];
+      }
+      setPlayer(playerCopy);
+      setEnemies(enemiesCopy);
+      const afterActor = enemiesCopy.find(e => e.id === activeEnemy.id) ?? null;
+      if (
+        afterActor &&
+        action.category === "movement" &&
+        (afterActor.x !== beforeActorPos.x || afterActor.y !== beforeActorPos.y)
+      ) {
+        triggerMovementReactions({
+          mover: afterActor,
+          from: beforeActorPos,
+          to: { x: afterActor.x, y: afterActor.y },
+          playerSnapshot: playerCopy as TokenState,
+          enemiesSnapshot: enemiesCopy
+        });
       }
       const targetDesc = describeActionTarget(target);
       const damageToPlayer = beforePlayerHp - playerCopy.hp;
@@ -6284,6 +6632,11 @@ export const GameBoard: React.FC = () => {
       const okMsg = `[IA] ${activeEnemy.id}: ${action.name} sur ${targetDesc} -> ok${detailText}.`;
       pushLog(okMsg);
       aiTurnLogs.push(okMsg);
+      updateEnemyMemory(activeEnemy.id, {
+        lastFailedReason: undefined,
+        lastFailedActionId: undefined,
+        lastEffectiveActionId: action.id
+      });
       if (result.logs.length > 0) {
         for (const line of result.logs) {
           aiTurnLogs.push(`[IA] ${activeEnemy.id}: ${line}`);
@@ -6306,66 +6659,77 @@ export const GameBoard: React.FC = () => {
     let usedFallback = false;
 
     if (filtered.length > 0) {
-      const intent = filtered[0];
-      const targetSpec = intent.target;
-      let target: ActionTarget = { kind: "none" };
-      if (targetSpec.kind === "token") {
-        const token = allTokens.find(t => t.id === targetSpec.tokenId) ?? null;
-        if (token) target = { kind: "token", token };
-      } else if (targetSpec.kind === "cell") {
-        target = { kind: "cell", x: targetSpec.x, y: targetSpec.y };
-      }
-
-      const resolved = await tryResolve(intent.actionId, target, intent.advantageMode as AdvantageMode);
-      if (!resolved.ok) {
-        usedFallback = true;
-        pushLog(`${activeEnemy.id}: intent IA invalide (${resolved.reason}).`);
-      } else {
+      const context = buildEnemyActionContext({
+        actor: activeEnemy,
+        playerSnapshot: playerCopy,
+        enemiesSnapshot: enemiesCopy
+      });
+      let resolvedIntent = false;
+      for (const intent of filtered) {
+        const action = getActionById(intent.actionId);
+        if (!action) continue;
+        const style = getActionStyle(action);
+        if (style !== "move" && style !== "other") {
+          if (!combatProfile.allowedStyles.includes(style as EnemyCombatStyle)) {
+            continue;
+          }
+        }
+        const targetSpec = intent.target;
+        let target: ActionTarget = { kind: "none" };
+        if (targetSpec.kind === "token") {
+          const token = allTokens.find(t => t.id === targetSpec.tokenId) ?? null;
+          if (token) target = { kind: "token", token };
+        } else if (targetSpec.kind === "cell") {
+          target = { kind: "cell", x: targetSpec.x, y: targetSpec.y };
+        }
+        const availability = computeAvailabilityForActor(action, context);
+        if (!availability.enabled) continue;
+        const validation = validateActionTarget(action, context, target);
+        if (!validation.ok) continue;
+        const resolved = await tryResolve(
+          intent.actionId,
+          target,
+          intent.advantageMode as AdvantageMode
+        );
+        if (!resolved.ok) {
+          usedFallback = true;
+          pushLog(`${activeEnemy.id}: intent IA invalide (${resolved.reason}).`);
+          break;
+        }
         setAiUsedFallback(false);
+        resolvedIntent = true;
+        break;
       }
+      if (!resolvedIntent) usedFallback = true;
     } else {
       usedFallback = true;
     }
 
     if (usedFallback) {
       setAiUsedFallback(true);
+      const alert = combatProfile.intelligence > 0 ? getActiveTeamAlert() : null;
+      const lastSeen = combatProfile.intelligence > 0 ? memory.lastSeenPos ?? null : null;
+      const targetPos = canSeePlayer
+        ? { x: playerCopy.x, y: playerCopy.y }
+        : alert?.position ?? lastSeen;
 
-      const canSee =
-        areTokensOnSameLevel(activeEnemy, playerCopy as TokenState) &&
-          canEnemySeePlayer(
-            activeEnemy,
-            playerCopy as TokenState,
-            allTokens,
-            visionBlockersActive,
-            playableCells,
-            wallEdges.vision,
-            lightLevels,
-            mapGrid
-          );
-      if (!canSee) {
+      if (!canSeePlayer && !targetPos) {
         pushLog(`${activeEnemy.id} ne voit pas le joueur et reste en alerte.`);
       } else {
         const distToPlayer = distanceBetweenTokens(activeEnemy, playerCopy);
-
-        const hasBow = enemyActionIds.includes("bow-shot");
-        const hasMelee = enemyActionIds.includes("melee-strike");
         const canMove = enemyActionIds.includes("move");
-
         const moveRange = typeof activeEnemy.moveRange === "number" ? activeEnemy.moveRange : 3;
-        const isArcher = activeEnemy.aiRole === "archer";
-        const preferredMin = isArcher ? 3 : 1;
-        const panicRange = isArcher ? 2 : 0;
         let acted = false;
 
-        const pickBestRetreatCell = () => {
+        const pickBestRetreatCell = (from: { x: number; y: number }) => {
           let best: { x: number; y: number } | null = null;
           let bestDist = -1;
           for (let dx = -moveRange; dx <= moveRange; dx++) {
             for (let dy = -moveRange; dy <= moveRange; dy++) {
               const steps = Math.abs(dx) + Math.abs(dy);
               if (steps === 0 || steps > moveRange) continue;
-              const x = activeEnemy.x + dx;
-              const y = activeEnemy.y + dy;
+              const x = from.x + dx;
+              const y = from.y + dy;
               if (!isCellPlayable(x, y)) continue;
               if (getTokenAt({ x, y }, allTokens)) continue;
               const d = distanceFromPointToToken({ x, y }, playerCopy);
@@ -6378,14 +6742,45 @@ export const GameBoard: React.FC = () => {
           return best;
         };
 
-        // 1) Archer: tire si possible.
-        if (!acted && playerCopy.hp > 0 && isArcher && hasBow) {
-          const bow = getActionById("bow-shot");
-          const min = bow?.targeting?.range?.min ?? 2;
-          const max = bow?.targeting?.range?.max ?? 6;
-          if (distToPlayer >= min && distToPlayer <= max) {
-            const shot = await tryResolve("bow-shot", { kind: "token", token: playerCopy });
-            if (shot.ok) {
+        const shouldMoveFirst =
+          combatProfile.intelligence > 0 && memory.lastFailedReason === "out_of_range";
+
+        if (!acted && canSeePlayer && !shouldMoveFirst) {
+          const context = buildEnemyActionContext({
+            actor: activeEnemy,
+            playerSnapshot: playerCopy,
+            enemiesSnapshot: enemiesCopy
+          });
+          let bestAttack: { action: ActionDefinition; score: number } | null = null;
+          for (const actionId of enemyActionIds) {
+            const action = getActionById(actionId);
+            if (!action || action.category !== "attack") continue;
+            const style = getActionStyle(action);
+            if (style !== "melee" && style !== "ranged" && style !== "support") continue;
+            if (!combatProfile.allowedStyles.includes(style as EnemyCombatStyle)) continue;
+            const availability = computeAvailabilityForActor(action, context);
+            if (!availability.enabled) continue;
+            const validation = validateActionTarget(action, context, {
+              kind: "token",
+              token: playerCopy
+            });
+            if (!validation.ok) continue;
+            const score = scoreActionForEnemy({
+              action,
+              profile: combatProfile,
+              distanceToPlayer: distToPlayer,
+              memory
+            });
+            if (!bestAttack || score > bestAttack.score) {
+              bestAttack = { action, score };
+            }
+          }
+          if (bestAttack) {
+            const attack = await tryResolve(bestAttack.action.id, {
+              kind: "token",
+              token: playerCopy
+            });
+            if (attack.ok) {
               recordCombatEvent({
                 round,
                 phase: "enemies",
@@ -6394,87 +6789,31 @@ export const GameBoard: React.FC = () => {
                 actorKind: "enemy",
                 targetId: playerCopy.id,
                 targetKind: "player",
-                summary: `${activeEnemy.id} tire a distance (${shot.action.name}).`,
-                data: { actionId: shot.action.id, fallback: true }
+                summary: `${activeEnemy.id} attaque (${bestAttack.action.name}).`,
+                data: { actionId: bestAttack.action.id, fallback: true }
               });
               acted = true;
             }
           }
         }
 
-        // 2) Archer trop proche: recule.
-        if (!acted && playerCopy.hp > 0 && isArcher && canMove && distToPlayer <= panicRange) {
-          const destination = pickBestRetreatCell();
-          if (destination) {
-            const from = { x: activeEnemy.x, y: activeEnemy.y };
-            const moved = await tryResolve("move", { kind: "cell", x: destination.x, y: destination.y });
-            if (moved.ok) {
-              recordCombatEvent({
-                round,
-                phase: "enemies",
-                kind: "move",
-                actorId: activeEnemy.id,
-                actorKind: "enemy",
-                summary: `${activeEnemy.id} recule de (${from.x}, ${from.y}) vers (${destination.x}, ${destination.y}).`,
-                data: { from, to: destination, fallback: true, actionId: moved.action.id }
-              });
-              acted = true;
-            }
-          }
-        }
-
-        // 3) Non-archer: melee si au contact.
-        if (!acted && playerCopy.hp > 0 && !isArcher && hasMelee && distToPlayer <= 1) {
-          const melee = await tryResolve("melee-strike", { kind: "token", token: playerCopy });
-          if (melee.ok) {
-            recordCombatEvent({
-              round,
-              phase: "enemies",
-              kind: "enemy_attack",
-              actorId: activeEnemy.id,
-              actorKind: "enemy",
-              targetId: playerCopy.id,
-              targetKind: "player",
-              summary: `${activeEnemy.id} attaque au contact (${melee.action.name}).`,
-              data: { actionId: melee.action.id, fallback: true }
-            });
-            acted = true;
-          }
-        }
-
-        // 4) Sinon: deplacement (archer: vers une distance preferee, sinon: vers le joueur).
-        if (!acted && playerCopy.hp > 0 && canMove) {
+        if (!acted && canMove && targetPos) {
+          const desiredMin = combatProfile.preferredRangeMin;
+          const desiredMax = combatProfile.preferredRangeMax;
+          const shouldRetreat =
+            distToPlayer < desiredMin ||
+            (combatProfile.avoidRangeMax !== undefined && distToPlayer <= combatProfile.avoidRangeMax);
+          const shouldApproach =
+            distToPlayer > desiredMax || memory.lastFailedReason === "out_of_range";
           let destination: { x: number; y: number } | null = null;
 
-          if (isArcher) {
-            // Simple: si trop loin, s'approche; si trop proche (mais > panicRange), cherche une case >= preferredMin.
-            if (distToPlayer > preferredMin) {
-              const tokensForPath = getTokensOnActiveLevel(allTokens);
-              const path = computePathTowards(
-                activeEnemy,
-                { x: playerCopy.x, y: playerCopy.y },
-                tokensForPath,
-                {
-                  maxDistance: moveRange,
-                  allowTargetOccupied: false,
-                  blockedCells: obstacleBlocking.movement,
-                  wallEdges: wallEdges.movement,
-                  playableCells,
-                  grid: mapGrid,
-                  heightMap: mapHeight,
-                  floorIds: mapTerrain,
-                  activeLevel
-                }
-              );
-              if (path.length) destination = path[path.length - 1];
-            } else {
-              destination = pickBestRetreatCell();
-            }
-          } else {
+          if (shouldRetreat) {
+            destination = pickBestRetreatCell({ x: activeEnemy.x, y: activeEnemy.y });
+          } else if (shouldApproach) {
             const tokensForPath = getTokensOnActiveLevel(allTokens);
             const path = computePathTowards(
               activeEnemy,
-              { x: playerCopy.x, y: playerCopy.y },
+              { x: targetPos.x, y: targetPos.y },
               tokensForPath,
               {
                 maxDistance: moveRange,
@@ -6493,7 +6832,11 @@ export const GameBoard: React.FC = () => {
 
           if (destination) {
             const from = { x: activeEnemy.x, y: activeEnemy.y };
-            const moved = await tryResolve("move", { kind: "cell", x: destination.x, y: destination.y });
+            const moved = await tryResolve("move", {
+              kind: "cell",
+              x: destination.x,
+              y: destination.y
+            });
             if (moved.ok) {
               recordCombatEvent({
                 round,
@@ -6506,25 +6849,6 @@ export const GameBoard: React.FC = () => {
               });
               acted = true;
             }
-          }
-        }
-
-        // 5) Derniere option: si archer au contact, tente melee.
-        if (!acted && playerCopy.hp > 0 && isArcher && hasMelee && distToPlayer <= 1) {
-          const melee = await tryResolve("melee-strike", { kind: "token", token: playerCopy });
-          if (melee.ok) {
-            recordCombatEvent({
-              round,
-              phase: "enemies",
-              kind: "enemy_attack",
-              actorId: activeEnemy.id,
-              actorKind: "enemy",
-              targetId: playerCopy.id,
-              targetKind: "player",
-              summary: `${activeEnemy.id} attaque au contact (${melee.action.name}).`,
-              data: { actionId: melee.action.id, fallback: true }
-            });
-            acted = true;
           }
         }
       }
@@ -7753,12 +8077,15 @@ function handleEndPlayerTurn() {
                     width: 360,
                     maxWidth: "70vw",
                     maxHeight: "60vh",
+                    height: "60vh",
                     overflow: "hidden",
                     padding: 10,
                     borderRadius: 12,
                     background: "rgba(10,10,16,0.92)",
                     border: "1px solid rgba(255,255,255,0.12)",
-                    boxShadow: "0 18px 60px rgba(0,0,0,0.45)"
+                    boxShadow: "0 18px 60px rgba(0,0,0,0.45)",
+                    display: "flex",
+                    flexDirection: "column"
                   }}
                 >
                   {floatingPanel === "effects" && (

@@ -285,36 +285,44 @@ export function usePixiBoard(options: {
       drawGrid();
 
       const terrainNaturalLayer = new Container();
+      terrainNaturalLayer.name = "terrainNaturalLayer";
       root.addChild(terrainNaturalLayer);
       terrainNaturalLayerRef.current = terrainNaturalLayer;
 
       const terrainFxLayer = new Graphics();
+      terrainFxLayer.name = "terrainFxLayer";
       root.addChild(terrainFxLayer);
       terrainFxLayerRef.current = terrainFxLayer;
 
       const terrainLabelLayer = new Container();
+      terrainLabelLayer.name = "terrainLabelLayer";
       root.addChild(terrainLabelLayer);
       terrainLabelLayerRef.current = terrainLabelLayer;
 
       const pathLayer = new Graphics();
+      pathLayer.name = "pathLayer";
       root.addChild(pathLayer);
       pathLayerRef.current = pathLayer;
 
       const labelLayer = new Container();
+      labelLayer.name = "labelLayer";
       root.addChild(labelLayer);
       labelLayerRef.current = labelLayer;
 
       const staticDepthLayer = new Container();
+      staticDepthLayer.name = "staticDepthLayer";
       staticDepthLayer.sortableChildren = true;
       root.addChild(staticDepthLayer);
       staticDepthLayerRef.current = staticDepthLayer;
 
       const dynamicDepthLayer = new Container();
+      dynamicDepthLayer.name = "dynamicDepthLayer";
       dynamicDepthLayer.sortableChildren = true;
       root.addChild(dynamicDepthLayer);
       dynamicDepthLayerRef.current = dynamicDepthLayer;
 
       const speechLayer = new Container();
+      speechLayer.name = "speechLayer";
       root.addChild(speechLayer);
       speechLayerRef.current = speechLayer;
 

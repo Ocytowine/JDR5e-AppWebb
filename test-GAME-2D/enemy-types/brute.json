@@ -5,6 +5,16 @@
   "aiRole": "brute",
   "actions": ["move", "melee-strike"],
   "reactionIds": ["opportunity-attack"],
+  "combatProfile": {
+    "primaryStyle": "melee",
+    "allowedStyles": ["melee"],
+    "preferredAbilities": ["str"],
+    "preferredRangeMin": 1,
+    "preferredRangeMax": 1,
+    "intelligence": 1,
+    "awareness": 1,
+    "tactics": ["hold_line"]
+  },
   "behavior": { "preferredRangeMin": 1, "preferredRangeMax": 1, "panicRange": 0 },
   "speechProfile": {
     "raceOrOrigin": "Brute mercenaire",

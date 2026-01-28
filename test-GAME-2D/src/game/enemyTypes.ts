@@ -1,5 +1,6 @@
 import type {
   CombatStats,
+  EnemyCombatProfile,
   FootprintSpec,
   MovementProfile,
   TokenAppearance,
@@ -13,6 +14,7 @@ export interface EnemyTypeDefinition {
   aiRole: string;
   actions?: string[];
   reactionIds?: string[];
+  combatProfile?: EnemyCombatProfile;
   behavior?: {
     preferredRangeMin?: number;
     preferredRangeMax?: number;

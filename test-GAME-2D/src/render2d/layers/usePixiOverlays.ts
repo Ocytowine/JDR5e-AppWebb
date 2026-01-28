@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import type { RefObject } from "react";
-import { BlurFilter, Graphics } from "pixi.js";
+import { BlurFilter, Graphics, Sprite, Texture } from "pixi.js";
 import type { TokenState } from "../../types";
 import type { EffectSpec } from "../../game/turnTypes";
 import type { BoardEffect } from "../../boardEffects";
@@ -67,9 +67,38 @@ export function usePixiOverlays(options: {
       parent.addChild(layer);
       return layer;
     })();
+    const lightLayer: Graphics = (() => {
+      const parent = pathLayer.parent as any;
+      if (!parent) return pathLayer;
+      const existing = parent.__lightLayer as Graphics | undefined;
+      const desiredIndex = parent.children.findIndex(
+        (child: any) => child && typeof child.name === "string" && child.name === "staticDepthLayer"
+      );
+      if (existing) {
+        if (desiredIndex >= 0) {
+          const targetIndex = Math.max(0, desiredIndex);
+          if (parent.getChildIndex(existing) !== targetIndex) {
+            parent.setChildIndex(existing, targetIndex);
+          }
+        }
+        return existing;
+      }
+      const layer = new Graphics();
+      layer.filters = [new BlurFilter({ strength: 6, quality: 3 })];
+      (layer as any).blendMode = "add";
+      parent.__lightLayer = layer;
+      if (desiredIndex >= 0) {
+        parent.addChildAt(layer, Math.max(0, desiredIndex));
+      } else {
+        parent.addChild(layer);
+      }
+      return layer;
+    })();
 
     pathLayer.clear();
     fogLayer.clear();
+    lightLayer.clear();
+    lightLayer.removeChildren();
 
     const activeEffects: BoardEffect[] = options.effectSpecs.map(spec => {
       switch (spec.kind) {
@@ -150,66 +179,198 @@ export function usePixiOverlays(options: {
       });
     }
 
-    if (options.showLightOverlay) {
+    const gridToScreenRaw = (x: number, y: number) => ({
+      x: x * TILE_SIZE + TILE_SIZE / 2,
+      y: y * TILE_SIZE + TILE_SIZE / 2
+    });
+
+    const buildSegmentsForLighting = () => {
+      const minX = -0.5;
+      const minY = -0.5;
+      const maxX = options.grid.cols - 0.5;
+      const maxY = options.grid.rows - 0.5;
+      type Segment = { ax: number; ay: number; bx: number; by: number };
+      const segments: Segment[] = [
+        { ax: minX, ay: minY, bx: maxX, by: minY },
+        { ax: maxX, ay: minY, bx: maxX, by: maxY },
+        { ax: maxX, ay: maxY, bx: minX, by: maxY },
+        { ax: minX, ay: maxY, bx: minX, by: minY }
+      ];
       const blocked = options.obstacleVisionCells ?? null;
-      for (let y = 0; y < options.grid.rows; y++) {
-        for (let x = 0; x < options.grid.cols; x++) {
+      if (blocked && blocked.size > 0) {
+        const isBlocked = (x: number, y: number) => blocked.has(buildCellKey(x, y));
+        const pushEdge = (ax: number, ay: number, bx: number, by: number) => {
+          segments.push({ ax, ay, bx, by });
+        };
+        for (const key of blocked) {
+          const [xs, ys] = key.split(",");
+          const x = Number(xs);
+          const y = Number(ys);
+          if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
           if (!isCellPlayable(x, y)) continue;
-
-          let light = baseLightAt(x, y);
-          if (Array.isArray(options.lightLevels) && options.lightLevels.length > 0) {
-            const idx = y * options.grid.cols + x;
-            const value = options.lightLevels[idx];
-            light = Number.isFinite(value) ? clamp01(value) : light;
-          } else {
-            for (const source of activeSources) {
-              const dx = x - source.x;
-              const dy = y - source.y;
-              const dist = Math.sqrt(dx * dx + dy * dy);
-              if (dist > source.radius) continue;
-              if (blocked && blocked.size > 0) {
-                const hasLos = hasLineOfSight(
-                  { x: source.x, y: source.y },
-                  { x, y },
-                  blocked,
-                  options.wallVisionEdges ?? null
-                );
-                if (!hasLos) continue;
-              }
-              light = Math.max(light, 1);
-            }
+          const left = x - 0.5;
+          const right = x + 0.5;
+          const top = y - 0.5;
+          const bottom = y + 0.5;
+          if (!isBlocked(x, y - 1)) pushEdge(left, top, right, top);
+          if (!isBlocked(x + 1, y)) pushEdge(right, top, right, bottom);
+          if (!isBlocked(x, y + 1)) pushEdge(right, bottom, left, bottom);
+          if (!isBlocked(x - 1, y)) pushEdge(left, bottom, left, top);
+        }
+      }
+      if (options.wallVisionEdges && options.wallVisionEdges.size > 0) {
+        for (const wall of options.wallVisionEdges.values()) {
+          const x = wall.x;
+          const y = wall.y;
+          const left = x - 0.5;
+          const right = x + 0.5;
+          const top = y - 0.5;
+          const bottom = y + 0.5;
+          switch (wall.dir) {
+            case "N":
+              segments.push({ ax: left, ay: top, bx: right, by: top });
+              break;
+            case "E":
+              segments.push({ ax: right, ay: top, bx: right, by: bottom });
+              break;
+            case "S":
+              segments.push({ ax: left, ay: bottom, bx: right, by: bottom });
+              break;
+            case "W":
+              segments.push({ ax: left, ay: top, bx: left, by: bottom });
+              break;
+            default:
+              break;
           }
+        }
+      }
+      return segments;
+    };
 
-          const darkness = clamp01(1 - light) * 0.75;
-          if (darkness <= 0.01) continue;
-          const rect = cellRect(x, y);
-          pathLayer.rect(rect.x, rect.y, rect.size, rect.size).fill({
-            color: 0x000000,
-            alpha: darkness
-          });
+    const lightSegments = buildSegmentsForLighting();
+    const intersectRaySegment = (
+      origin: { x: number; y: number },
+      angle: number,
+      seg: { ax: number; ay: number; bx: number; by: number }
+    ): number | null => {
+      const dx = Math.cos(angle);
+      const dy = Math.sin(angle);
+      const sx = seg.bx - seg.ax;
+      const sy = seg.by - seg.ay;
+      const det = dx * sy - dy * sx;
+      if (Math.abs(det) < 1e-8) return null;
+      const ox = seg.ax - origin.x;
+      const oy = seg.ay - origin.y;
+      const t = (ox * sy - oy * sx) / det;
+      const u = (ox * dy - oy * dx) / det;
+      if (t < 0) return null;
+      if (u < -1e-4 || u > 1 + 1e-4) return null;
+      return t;
+    };
+
+    const traceLightPolygon = (source: LightSource) => {
+      const origin = { x: source.x, y: source.y };
+      const maxDist = Math.max(0.5, source.radius);
+      const angles: number[] = [];
+      const baseSegments = 140;
+      for (let i = 0; i <= baseSegments; i++) {
+        angles.push((i / baseSegments) * Math.PI * 2 - Math.PI);
+      }
+      const EPS = 1e-4;
+      for (const seg of lightSegments) {
+        const a1 = Math.atan2(seg.ay - origin.y, seg.ax - origin.x);
+        const a2 = Math.atan2(seg.by - origin.y, seg.bx - origin.x);
+        angles.push(a1 - EPS, a1, a1 + EPS, a2 - EPS, a2, a2 + EPS);
+      }
+      angles.sort((a, b) => a - b);
+      const pts = angles.map(angle => {
+        let best: number | null = null;
+        for (const seg of lightSegments) {
+          const t = intersectRaySegment(origin, angle, seg);
+          if (t === null) continue;
+          if (best === null || t < best) best = t;
+        }
+        const dist = Math.min(best ?? maxDist, maxDist);
+        return {
+          x: origin.x + Math.cos(angle) * dist,
+          y: origin.y + Math.sin(angle) * dist
+        };
+      });
+      return pts.map(p => gridToScreenRaw(p.x, p.y));
+    };
+
+    const getLightGradientTexture = () => {
+      const parent = pathLayer.parent as any;
+      if (parent?.__lightGradientTexture) return parent.__lightGradientTexture as Texture;
+      const size = 256;
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        const fallback = Texture.WHITE;
+        if (parent) parent.__lightGradientTexture = fallback;
+        return fallback;
+      }
+      const cx = size / 2;
+      const cy = size / 2;
+      const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, size / 2);
+      grad.addColorStop(0, "rgba(255,255,255,1)");
+      grad.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, size, size);
+      const texture = Texture.from(canvas);
+      if (parent) parent.__lightGradientTexture = texture;
+      return texture;
+    };
+
+    // Light overlay is now drawn as smooth shapes in lightLayer (no per-cell rendering).
+
+    if (activeSources.length > 0) {
+      const gradientTexture = getLightGradientTexture();
+      const minAlpha = 0.1;
+      const maxAlpha = 0.7;
+      const extraAlpha = Math.max(0, maxAlpha - minAlpha);
+      for (const source of activeSources) {
+        const pts = traceLightPolygon(source);
+        if (pts.length < 3) continue;
+        const color = source.color ?? 0xfff1cc;
+        const center = gridToScreenRaw(source.x, source.y);
+        const radiusPx = Math.max(1, source.radius) * TILE_SIZE;
+
+        const baseSprite = new Sprite(gradientTexture);
+        baseSprite.anchor.set(0.5);
+        baseSprite.position.set(center.x, center.y);
+        baseSprite.width = radiusPx * 2;
+        baseSprite.height = radiusPx * 2;
+        baseSprite.tint = color;
+        baseSprite.alpha = minAlpha;
+        lightLayer.addChild(baseSprite);
+
+        if (extraAlpha > 0.01) {
+          const mask = new Graphics();
+          mask.moveTo(pts[0].x, pts[0].y);
+          for (let i = 1; i < pts.length; i++) {
+            mask.lineTo(pts[i].x, pts[i].y);
+          }
+          mask.closePath();
+          mask.fill({ color: 0xffffff, alpha: 1 });
+
+          const litSprite = new Sprite(gradientTexture);
+          litSprite.anchor.set(0.5);
+          litSprite.position.set(center.x, center.y);
+          litSprite.width = radiusPx * 2;
+          litSprite.height = radiusPx * 2;
+          litSprite.tint = color;
+          litSprite.alpha = extraAlpha;
+          litSprite.mask = mask;
+
+          lightLayer.addChild(litSprite);
+          lightLayer.addChild(mask);
         }
       }
     }
-
-    if (options.lightTints && isNight) {
-      const colors = options.lightTints.colors;
-      const strength = options.lightTints.strength;
-      for (let y = 0; y < options.grid.rows; y++) {
-        for (let x = 0; x < options.grid.cols; x++) {
-          if (!isCellPlayable(x, y)) continue;
-          const key = buildCellKey(x, y);
-          if (visibleCells && visibleCells.size > 0 && !visibleCells.has(key)) continue;
-          const idx = y * options.grid.cols + x;
-          const alpha = clamp01(strength[idx] ?? 0) * 0.35;
-          if (alpha <= 0.01) continue;
-          const rect = cellRect(x, y);
-          pathLayer.rect(rect.x, rect.y, rect.size, rect.size).fill({
-            color: colors[idx] ?? 0xffffff,
-            alpha
-          });
-        }
-      }
-    }
+    // Light tints are handled by the smooth light shapes; skip per-cell tinting.
 
     const fogColor = isNight ? 0x000000 : 0xffffff;
     const fogAlpha = isNight ? 0 : 0.35;
@@ -245,11 +406,6 @@ export function usePixiOverlays(options: {
       }
       return false;
     };
-
-    const gridToScreenRaw = (x: number, y: number) => ({
-      x: x * TILE_SIZE + TILE_SIZE / 2,
-      y: y * TILE_SIZE + TILE_SIZE / 2
-    });
 
     const directionToAngleRad = (dir: string) => {
       switch (dir) {

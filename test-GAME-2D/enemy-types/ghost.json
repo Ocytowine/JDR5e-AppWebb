@@ -5,6 +5,16 @@
   "aiRole": "ghost",
   "actions": ["move", "melee-strike"],
   "reactionIds": ["guard-strike"],
+  "combatProfile": {
+    "primaryStyle": "melee",
+    "allowedStyles": ["melee"],
+    "preferredAbilities": ["wis"],
+    "preferredRangeMin": 1,
+    "preferredRangeMax": 1,
+    "intelligence": 1,
+    "awareness": 1,
+    "tactics": ["haunt"]
+  },
   "behavior": { "preferredRangeMin": 1, "preferredRangeMax": 1, "panicRange": 0 },
   "speechProfile": {
     "raceOrOrigin": "Esprit vengeur",
