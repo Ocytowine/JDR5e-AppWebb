@@ -1,0 +1,49 @@
+{
+  "id": "nunchaku",
+  "name": "Nunchaku",
+  "type": "arme",
+  "subtype": "monastique",
+  "category": "melee",
+  "descriptionCourte": "Arme souple en bois relie par une corde.",
+  "descriptionLongue": "",
+  "allow_stack": false,
+  "harmonisable": false,
+  "focalisateur": false,
+  "weight": 0.8,
+  "size": 0.8,
+  "value": { "gold": 3, "silver": 0, "copper": 0 },
+  "rarity": "commune",
+  "tags": ["arme", "melee", "contondant"],
+  "properties": {
+    "finesse": true,
+    "light": true,
+    "heavy": false,
+    "two_handed": false,
+    "reach": 1,
+    "versatile": null,
+    "thrown": null,
+    "ammunition": false,
+    "loading": false,
+    "reload": null,
+    "range": { "normal": 1, "long": 1 },
+    "special": "monastic"
+  },
+  "attack": {
+    "mod": "mod.DEX",
+    "bonus": "bonus_maitrise"
+  },
+  "damage": {
+    "dice": "1d6",
+    "damage_type": "Contondant",
+    "alt": null
+  },
+  "effectOnHit": {
+    "mod": "mod.DEX",
+    "damage": "1d6",
+    "damage_type": "Contondant"
+  },
+  "links": {
+    "actionId": "melee-strike",
+    "effectId": "melee-slash"
+  }
+}

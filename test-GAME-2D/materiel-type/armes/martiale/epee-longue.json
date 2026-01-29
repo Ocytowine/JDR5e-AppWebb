@@ -1,0 +1,49 @@
+{
+  "id": "epee-longue",
+  "name": "Epee longue",
+  "type": "arme",
+  "subtype": "martiale",
+  "category": "melee",
+  "descriptionCourte": "Lame d'acier polyvalente, classique.",
+  "descriptionLongue": "",
+  "allow_stack": false,
+  "harmonisable": false,
+  "focalisateur": false,
+  "weight": 1.5,
+  "size": 1.0,
+  "value": { "gold": 15, "silver": 0, "copper": 0 },
+  "rarity": "commune",
+  "tags": ["arme", "melee", "tranchant"],
+  "properties": {
+    "finesse": false,
+    "light": false,
+    "heavy": false,
+    "two_handed": false,
+    "reach": 1,
+    "versatile": "1d10",
+    "thrown": null,
+    "ammunition": false,
+    "loading": false,
+    "reload": null,
+    "range": { "normal": 1, "long": 1 },
+    "special": null
+  },
+  "attack": {
+    "mod": "mod.STR",
+    "bonus": "bonus_maitrise"
+  },
+  "damage": {
+    "dice": "1d8",
+    "damage_type": "Tranchant",
+    "alt": { "dice": "1d10", "condition": "two_handed" }
+  },
+  "effectOnHit": {
+    "mod": "mod.STR",
+    "damage": "1d8",
+    "damage_type": "Tranchant"
+  },
+  "links": {
+    "actionId": "melee-strike",
+    "effectId": "melee-slash"
+  }
+}

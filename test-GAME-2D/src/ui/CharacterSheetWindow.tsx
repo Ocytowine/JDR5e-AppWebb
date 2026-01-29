@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Personnage, TokenState } from "../types";
+import type { WeaponTypeDefinition } from "../game/weaponTypes";
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -36,6 +37,7 @@ export function CharacterSheetWindow(props: {
   anchorY: number;
   character: Personnage;
   player: TokenState;
+  equippedWeapons: WeaponTypeDefinition[];
   actionsRemaining: number;
   bonusRemaining: number;
   resources: Record<string, number>;
@@ -105,6 +107,7 @@ export function CharacterSheetWindow(props: {
     (typeof stats?.moveRange === "number" || typeof props.player.moveRange === "number"
       ? `Standard ${stats?.moveRange ?? props.player.moveRange ?? 0}`
       : "Inconnu");
+  const equippedWeapons = props.equippedWeapons ?? [];
 
   return (
     <div
@@ -211,6 +214,36 @@ export function CharacterSheetWindow(props: {
           {Object.entries(props.resources).map(([key, value]) =>
             statRow(key, value)
           )}
+        </div>
+      </div>
+
+      <div style={{ marginTop: 12 }}>
+        <div style={{ fontSize: 12, fontWeight: 900, color: "#fff" }}>Armes equipees</div>
+        <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 6 }}>
+          {equippedWeapons.length === 0 && (
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
+              Aucune arme equipee.
+            </div>
+          )}
+          {equippedWeapons.map(weapon => {
+            const damage = weapon.damage?.dice ?? "?";
+            const damageType = weapon.damage?.damage_type ?? "";
+            const subtitle = damageType ? `${damage} ${damageType}` : damage;
+            return (
+              <div
+                key={weapon.id}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  fontSize: 12
+                }}
+              >
+                <span style={{ color: "rgba(255,255,255,0.75)" }}>{weapon.name}</span>
+                <span style={{ color: "#fff", fontWeight: 800 }}>{subtitle}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

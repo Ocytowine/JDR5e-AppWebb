@@ -29,8 +29,7 @@
     }
   ],
   "appearance": {
-    "heightClass": "low",
-    "shadowStretch": 1
+    "heightClass": "low"
   },
   "spawnRules": {
     "weight": 0,

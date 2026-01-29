@@ -43,15 +43,27 @@
         "scale": 0.8
       }
     ],
-    "tint": 16777215,
-    "heightClass": "medium",
-    "shadowStretch": 1,
     "tokenScale": {
-      "min": 80,
-      "default": 80,
-      "max": 80
+      "default": 80
     }
   },
+  "litByDefault": true,
+  "interactions": [
+    {
+      "id": "brazier-light",
+      "label": "Allumer",
+      "kind": "toggle",
+      "cost": "bonus",
+      "setLit": true
+    },
+    {
+      "id": "brazier-extinguish",
+      "label": "Eteindre",
+      "kind": "toggle",
+      "cost": "bonus",
+      "setLit": false
+    }
+  ],
   "effects": [
     {
       "id": "fire",

@@ -6,7 +6,7 @@ const pngModules = import.meta.glob("../obstacle-types/Sprite/*.png", {
   eager: true
 });
 
-const effectAnimationModules = import.meta.glob("../action-game/model/effect/animate/*.png", {
+const effectAnimationModules = import.meta.glob("../action-game/model/effect/**/*.png", {
   query: "?url",
   import: "default",
   eager: true
@@ -55,6 +55,10 @@ export function getObstacleAnimationFrames(spriteKey: string | null | undefined)
   if (!spriteKey) return null;
   const frames = EFFECT_ANIMATION_FRAMES_BY_KEY[spriteKey];
   return frames ?? null;
+}
+
+export function getEffectAnimationKeys(): string[] {
+  return Object.keys(EFFECT_ANIMATION_FRAMES_BY_KEY);
 }
 
 let obstaclePngPreloadPromise: Promise<void> | null = null;

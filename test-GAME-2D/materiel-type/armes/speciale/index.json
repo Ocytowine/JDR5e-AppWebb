@@ -1,0 +1,7 @@
+{
+  "types": [
+    "./epee-elfique.json",
+    "./fouet-demon.json",
+    "./arbalete-repetee.json"
+  ]
+}

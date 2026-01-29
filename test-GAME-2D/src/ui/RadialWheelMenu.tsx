@@ -58,6 +58,21 @@ function donutSlicePath(
   ].join(" ");
 }
 
+function fullDonutPath(outerRadius: number, innerRadius: number): string {
+  const outerTop = polarToCartesian(outerRadius, -Math.PI / 2);
+  const outerBottom = polarToCartesian(outerRadius, Math.PI / 2);
+  const innerTop = polarToCartesian(innerRadius, -Math.PI / 2);
+  const innerBottom = polarToCartesian(innerRadius, Math.PI / 2);
+  return [
+    `M ${outerTop.x} ${outerTop.y}`,
+    `A ${outerRadius} ${outerRadius} 0 1 1 ${outerBottom.x} ${outerBottom.y}`,
+    `A ${outerRadius} ${outerRadius} 0 1 1 ${outerTop.x} ${outerTop.y}`,
+    `M ${innerTop.x} ${innerTop.y}`,
+    `A ${innerRadius} ${innerRadius} 0 1 0 ${innerBottom.x} ${innerBottom.y}`,
+    `A ${innerRadius} ${innerRadius} 0 1 0 ${innerTop.x} ${innerTop.y}`
+  ].join(" ");
+}
+
 export function RadialWheelMenu(props: {
   open: boolean;
   anchorX: number;
@@ -82,6 +97,7 @@ export function RadialWheelMenu(props: {
   const labelRadius = Math.max(innerRadius + 12, outerRadius - 18);
 
   const itemCount = Math.max(1, props.items.length);
+  const isSingleItem = itemCount === 1;
   const useArcLabels = itemCount > 1;
   const angleStep = (Math.PI * 2) / itemCount;
   const startAngle = -Math.PI / 2;
@@ -164,7 +180,9 @@ export function RadialWheelMenu(props: {
             const labelEnd = isBottom ? a0 : a1;
             const labelPos = polarToCartesian((innerRadius + outerRadius) / 2, mid);
 
-            const pathD = donutSlicePath(innerRadius, outerRadius, a0, a1);
+            const pathD = isSingleItem
+              ? fullDonutPath(outerRadius, innerRadius)
+              : donutSlicePath(innerRadius, outerRadius, a0, a1);
             const labelStartPos = polarToCartesian(labelRadius, labelStart);
             const labelEndPos = polarToCartesian(labelRadius, labelEnd);
             const delta = labelEnd - labelStart;
@@ -191,8 +209,9 @@ export function RadialWheelMenu(props: {
                 <path
                   d={pathD}
                   fill={isDisabled ? "rgba(90, 90, 100, 0.75)" : item.color}
-                  stroke="rgba(255,255,255,0.22)"
-                  strokeWidth={1}
+                  fillRule={isSingleItem ? "evenodd" : undefined}
+                  stroke={isSingleItem ? "none" : "rgba(255,255,255,0.22)"}
+                  strokeWidth={isSingleItem ? 0 : 1}
                   style={{
                     cursor: isDisabled ? "not-allowed" : "pointer",
                     transition: "filter 120ms ease, opacity 120ms ease"

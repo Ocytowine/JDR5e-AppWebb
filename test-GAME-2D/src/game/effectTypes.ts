@@ -3,6 +3,7 @@ export interface EffectAppearance {
   animationSpeed?: number;
   animationLoop?: boolean;
   scale?: number;
+  targetSize?: number;
   scaleRange?: { min: number; max: number };
   tint?: number;
   tintRange?: { dark: number; light: number };
@@ -47,4 +48,5 @@ export interface EffectInstance {
   y: number;
   active?: boolean;
   sourceObstacleId?: string;
+  rotationDeg?: number;
 }

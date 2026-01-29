@@ -2,7 +2,10 @@
   "id": "fire-only",
   "label": "Feu (test)",
   "category": "effect",
-  "tags": ["fire", "effect"],
+  "tags": [
+    "fire",
+    "effect"
+  ],
   "blocking": {
     "movement": false,
     "vision": false,
@@ -16,7 +19,12 @@
     {
       "id": "base",
       "label": "Feu",
-      "footprint": [{ "x": 0, "y": 0 }],
+      "footprint": [
+        {
+          "x": 0,
+          "y": 0
+        }
+      ],
       "rotatable": false
     }
   ],
@@ -29,8 +37,7 @@
         "scale": 0.9
       }
     ],
-    "heightClass": "low",
-    "shadowStretch": 1
+    "heightClass": "low"
   },
   "effects": [
     {

@@ -33,9 +33,6 @@
   "appearance": {
     "randomRotation": true,
     "spriteKey": "obstacle:rock",
-    "tint": 16777215,
-    "heightClass": "medium",
-    "shadowStretch": 1,
     "tokenScale": {
       "min": 80,
       "default": 100,

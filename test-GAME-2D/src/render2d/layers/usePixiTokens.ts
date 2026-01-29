@@ -22,6 +22,7 @@ export function usePixiTokens(options: {
   activeLevel: number;
   visibleCells?: Set<string> | null;
   showAllLevels?: boolean;
+  lightAngleDeg?: number;
   suspendRendering?: boolean;
 }): void {
   const resolveTokenShadowSpec = (token: TokenState): { offsetX: number; offsetY: number; alpha: number } => {
@@ -86,6 +87,8 @@ export function usePixiTokens(options: {
     const cellKey = (x: number, y: number) => `${x},${y}`;
     const showAll = Boolean(options.showAllLevels);
     const visibleCells = options.visibleCells ?? null;
+    const lightAngleDeg = typeof options.lightAngleDeg === "number" ? options.lightAngleDeg : 90;
+    const lightAngle = (lightAngleDeg * Math.PI) / 180;
 
     for (const token of allTokens) {
       const occupied = getTokenOccupiedCells(token);
@@ -102,6 +105,7 @@ export function usePixiTokens(options: {
       const dead = isTokenDead(token);
       const shadowSpec = resolveTokenShadowSpec(token);
       const shadowAlpha = dead ? shadowSpec.alpha * 0.6 : shadowSpec.alpha;
+      const shadowDistance = Math.max(2, Math.round(Math.hypot(shadowSpec.offsetX, shadowSpec.offsetY)));
 
       if (spriteUrl) {
         const sprite = Sprite.from(spriteUrl);
@@ -116,6 +120,29 @@ export function usePixiTokens(options: {
         const scaleBase = typeof token.appearance?.tokenScale === "number"
           ? token.appearance.tokenScale / 100
           : 1;
+        const needsFallback =
+          !sprite.texture.valid ||
+          sprite.texture.width <= 1 ||
+          sprite.texture.height <= 1;
+        if (needsFallback) {
+          const color = token.type === "player" ? 0x2ecc71 : 0xe74c3c;
+          const radius = TILE_SIZE * 0.3;
+          const disc = new Graphics();
+          const fallbackShadowGroup = new Container();
+          fallbackShadowGroup.rotation = lightAngle;
+          const shadow = new Graphics();
+          shadow.circle(0, shadowDistance, radius * 0.95).fill({
+            color: 0x000000,
+            alpha: Math.max(0.05, Math.min(0.5, shadowAlpha))
+          });
+          fallbackShadowGroup.addChild(shadow);
+          container.addChild(fallbackShadowGroup);
+          disc.circle(0, 0, radius).fill({
+            color: dead ? 0x666666 : color,
+            alpha: dead ? 0.6 : 0.95
+          });
+          container.addChild(disc);
+        }
         if (sprite.texture.width > 0 && sprite.texture.height > 0) {
           const targetW = gridSpec.tilesX * TILE_SIZE;
           const targetH = gridSpec.tilesY * TILE_SIZE;
@@ -129,26 +156,32 @@ export function usePixiTokens(options: {
         sprite.tint = dead ? 0x666666 : 0xffffff;
         sprite.x = 0;
         sprite.y = 0;
+        const shadowGroup = new Container();
+        shadowGroup.rotation = lightAngle;
         const shadow = Sprite.from(sprite.texture);
         shadow.anchor.set(0.5, 0.5);
-        shadow.rotation = sprite.rotation;
+        shadow.rotation = sprite.rotation - lightAngle;
         shadow.scale.set(sprite.scale.x, sprite.scale.y);
         shadow.alpha = Math.max(0.05, Math.min(0.5, shadowAlpha));
         shadow.tint = 0x000000;
-        shadow.x = shadowSpec.offsetX;
-        shadow.y = shadowSpec.offsetY;
-        container.addChild(shadow);
+        shadow.x = 0;
+        shadow.y = shadowDistance;
+        shadowGroup.addChild(shadow);
+        container.addChild(shadowGroup);
         container.addChild(sprite);
       } else {
         const color = token.type === "player" ? 0x2ecc71 : 0xe74c3c;
         const radius = TILE_SIZE * 0.3;
         const disc = new Graphics();
+        const shadowGroup = new Container();
+        shadowGroup.rotation = lightAngle;
         const shadow = new Graphics();
-        shadow.circle(shadowSpec.offsetX, shadowSpec.offsetY, radius * 0.95).fill({
+        shadow.circle(0, shadowDistance, radius * 0.95).fill({
           color: 0x000000,
           alpha: Math.max(0.05, Math.min(0.5, shadowAlpha))
         });
-        container.addChild(shadow);
+        shadowGroup.addChild(shadow);
+        container.addChild(shadowGroup);
         disc.circle(0, 0, radius).fill({
           color: dead ? 0x666666 : color,
           alpha: dead ? 0.6 : 0.95
@@ -172,6 +205,8 @@ export function usePixiTokens(options: {
     options.heightMap,
     options.activeLevel,
     options.visibleCells,
-    options.showAllLevels
+    options.showAllLevels,
+    options.lightAngleDeg,
+    options.suspendRendering
   ]);
 }

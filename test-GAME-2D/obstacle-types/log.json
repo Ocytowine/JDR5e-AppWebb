@@ -49,19 +49,11 @@
   "appearance": {
     "randomRotation": true,
     "spriteKey": "obstacle:log",
-    "tint": 16777215,
     "spriteGrid": {
       "tilesX": 5,
       "tilesY": 1
     },
-    "preserveAspect": false,
-    "heightClass": "low",
-    "shadowStretch": 1,
-    "tokenScale": {
-      "min": 100,
-      "default": 100,
-      "max": 100
-    }
+    "heightClass": "low"
   },
   "spawnRules": {
     "weight": 2,

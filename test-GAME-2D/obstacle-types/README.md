@@ -32,12 +32,15 @@ Ce dossier contient les definitions JSON des obstacles. Chaque fichier decrit un
 - `paletteId`: palette par defaut pour cet obstacle (ex: `default`).
 - `palettes`: dictionnaire de palettes (par id).
 - `randomRotation`: rotation aleatoire a la generation (true/false).
+- `shadowMode`: `default` (defaut) ou `tall` pour ancrer l'ombre au bas du sprite et l'etirer le long de son axe.
+- `shadowSpriteLeafy` / `shadowSpriteLeafless`: sprites d'ombre alternatifs (ex: arbre avec/sans feuilles).
 - `heightClass`: `low`, `medium`, `tall` (visuel/LOS).
 - `shadowStretch`: multiplicateur d'etirement des ombres (1 = par defaut).
 - `layers`: liste de calques (sprite + options).
-- `tokenScale`: plage de variation visuelle (en %).
-- `scale`: multiplicateur global.
-- `scaleRange`, `scaleVariants`, `variantWeights`: variations avancees.
+- `tokenScale`: variation de taille (en %) appliquee a la pose.
+- `scale`: multiplicateur global applique au rendu.
+- `animationSpeed` / `animationLoop`: valeurs par defaut pour les calques animes.
+- `shadowStretch`: longueur d'ombre de base (en cases).
 
 ### Layers
 
@@ -48,8 +51,10 @@ Ce dossier contient les definitions JSON des obstacles. Chaque fichier decrit un
 - `scale`: multiplicateur local.
 - `z`: ordre de rendu.
 - `visible`: `always` ou `hideWhenTokenBelow`.
+- `renderLayer`: `overhead` pour dessiner au-dessus des tokens (sinon base).
 - `spriteGrid`: taille en cases specifique au calque.
 - `preserveAspect`: conserve les proportions (override local).
+- `animationSpeed` / `animationLoop`: override local pour sprites animes.
 
 ### Palettes
 
@@ -103,3 +108,6 @@ Exemple:
 - Les palettes sont appliquees au rendu, sans modifier les PNG sur disque.
 - Le prompt peut choisir une palette globale (ex: "automne" -> `autumn`).
 - `randomRotation` applique une rotation aleatoire (pas de 45°) si la variante est `rotatable`.
+- Si `layers` est absent mais `spriteKey` present, un calque implicite est cree.
+- `tokenScale` est en %, applique lors du placement (min/max aleatoire, fallback `default`). Omettre = 100%.
+- Valeurs par defaut: `heightClass=medium`, `shadowStretch=1`, `tint=0xffffff`, `visible=always`.

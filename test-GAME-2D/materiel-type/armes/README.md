@@ -1,0 +1,55 @@
+# Suivi equipement - Armes
+
+Objectif: definir un format unique pour les armes, leurs dependances, et leur impact gameplay.
+
+## Emplacement des fichiers
+- Base: test-GAME-2D/materiel-type/
+- Armes par categorie: test-GAME-2D/materiel-type/armes/simple, test-GAME-2D/materiel-type/armes/martiale, test-GAME-2D/materiel-type/armes/speciale, test-GAME-2D/materiel-type/armes/monastique
+- Exemple de template: test-GAME-2D/materiel-type/armes/weapon-template.json
+
+## Champs recommandes (resume)
+- id: identifiant unique (slug)
+- name: nom affiche
+- type: "arme"
+- subtype: type de maitrise requis (simple | martiale | speciale | monastique)
+- category: melee | distance | polyvalent
+- descriptionCourte / descriptionLongue
+- weight / size / value / rarity
+- tags: liste de tags gameplay (ex: arme, melee, tranchant)
+- properties: proprietes DnD (finesse, light, heavy, two_handed, reach, versatile, thrown, ammunition, loading, reload, range, special)
+- attack: mod + bonus de maitrise si arme maitrisee
+- damage: dice + damage_type (+ alt pour polyvalente)
+- effectOnHit: format court d'impact (compat template items)
+- links: ponts vers action / effect visuel
+
+## Types de degats (reference)
+Physique:
+- Tranchant
+- Perforant
+- Contondant
+
+Elementaire:
+- Feu
+- Froid
+- Acide
+- Foudre
+- Poison
+- Tonnerre
+
+Magique / energetique:
+- Force
+- Radiant
+- Necrotique
+- Psychique
+
+Note: les fichiers d'armes peuvent utiliser les libelles FR ou EN. Le chargement normalise vers
+les ids EN utilises par les actions (ex: Tranchant -> slashing, Perforant -> piercing).
+
+## Maitrises (rappel)
+- Si arme non maitrisee: jet sans bonus de maitrise et desavantage selon regles (voir docs projet/Gestion et Creation de donnees/Maitrise et competence.md)
+- Les armes et armures portent "subtype" avec le type de maitrise requis
+
+## Notes d'integration
+- Conserver les references des degats en une seule source (docs projet/Gestion et Creation de donnees/Degats types.md)
+- Les proprietes doivent piloter les actions (ex: thrown => action de jet; ammunition => besoin de munitions)
+- Les champs restent extensibles pour ajouter des effets (critique, on-hit, status, etc.)

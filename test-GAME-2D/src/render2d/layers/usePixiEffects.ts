@@ -90,12 +90,27 @@ export function usePixiEffects(options: {
       const t = hashString01(seed);
 
       const scaleBase = typeof appearance.scale === "number" ? appearance.scale : 1;
+      if (typeof appearance.targetSize === "number" && appearance.targetSize > 0) {
+        const texture =
+          sprite instanceof AnimatedSprite
+            ? sprite.textures[0]
+            : (sprite as Sprite).texture;
+        const baseWidth = texture?.width ?? 0;
+        const baseHeight = texture?.height ?? 0;
+        const baseSize = Math.max(baseWidth, baseHeight);
+        if (baseSize > 0) {
+          const fitScale = appearance.targetSize / baseSize;
+          sprite.scale.set(scaleBase * fitScale);
+        } else {
+          sprite.scale.set(scaleBase);
+        }
+      } else {
+        sprite.scale.set(scaleBase);
+      }
       if (appearance.scaleRange) {
         const { min, max } = appearance.scaleRange;
         const scale = min + (max - min) * t;
-        sprite.scale.set(scaleBase * scale);
-      } else {
-        sprite.scale.set(scaleBase);
+        sprite.scale.set(sprite.scale.x * scale, sprite.scale.y * scale);
       }
 
       const alphaBase = typeof appearance.alpha === "number" ? appearance.alpha : 1;
@@ -117,6 +132,11 @@ export function usePixiEffects(options: {
       const center = gridToScreenForGrid(effect.x, effect.y, options.grid.cols, options.grid.rows);
       sprite.x = center.x;
       sprite.y = center.y;
+      if (typeof effect.rotationDeg === "number") {
+        sprite.rotation = (effect.rotationDeg * Math.PI) / 180;
+      } else {
+        sprite.rotation = 0;
+      }
 
       const container = new Container();
       container.label = "effect";

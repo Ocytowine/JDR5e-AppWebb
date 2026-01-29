@@ -1,0 +1,49 @@
+{
+  "id": "kama",
+  "name": "Kama",
+  "type": "arme",
+  "subtype": "monastique",
+  "category": "melee",
+  "descriptionCourte": "Faucille courte pour combat rapproche.",
+  "descriptionLongue": "",
+  "allow_stack": false,
+  "harmonisable": false,
+  "focalisateur": false,
+  "weight": 0.7,
+  "size": 0.6,
+  "value": { "gold": 2, "silver": 0, "copper": 0 },
+  "rarity": "commune",
+  "tags": ["arme", "melee", "tranchant"],
+  "properties": {
+    "finesse": true,
+    "light": true,
+    "heavy": false,
+    "two_handed": false,
+    "reach": 1,
+    "versatile": null,
+    "thrown": null,
+    "ammunition": false,
+    "loading": false,
+    "reload": null,
+    "range": { "normal": 1, "long": 1 },
+    "special": "monastic"
+  },
+  "attack": {
+    "mod": "mod.DEX",
+    "bonus": "bonus_maitrise"
+  },
+  "damage": {
+    "dice": "1d6",
+    "damage_type": "Tranchant",
+    "alt": null
+  },
+  "effectOnHit": {
+    "mod": "mod.DEX",
+    "damage": "1d6",
+    "damage_type": "Tranchant"
+  },
+  "links": {
+    "actionId": "melee-strike",
+    "effectId": "melee-slash"
+  }
+}

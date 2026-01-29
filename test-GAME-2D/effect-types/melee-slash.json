@@ -1,0 +1,14 @@
+{
+  "id": "melee-slash",
+  "label": "Entaille",
+  "tags": ["attack", "melee"],
+  "appearance": {
+    "spriteKey": "effect:sword",
+    "animationSpeed": 0.32,
+    "animationLoop": false,
+    "targetSize": 128,
+    "scale": 1.0,
+    "alpha": 1.0
+  },
+  "durationMs": 420
+}

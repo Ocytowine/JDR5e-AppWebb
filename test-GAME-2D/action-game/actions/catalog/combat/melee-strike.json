@@ -21,6 +21,7 @@
   "damage": { "formula": "attackDamage", "critRule": "double-dice", "damageType": "slashing" },
   "effects": [
     { "type": "damage", "target": "primary", "formula": "attackDamage", "damageType": "slashing" },
+    { "type": "visual_effect", "effectId": "melee-slash", "anchor": "target", "orientation": "to_target", "rotationOffsetDeg": -135 },
     { "type": "log", "message": "Frappe au contact." }
   ],
   "aiHints": {

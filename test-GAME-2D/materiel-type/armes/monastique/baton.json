@@ -1,0 +1,49 @@
+{
+  "id": "baton",
+  "name": "Baton",
+  "type": "arme",
+  "subtype": "monastique",
+  "category": "melee",
+  "descriptionCourte": "Baton d'entrainement, polyvalent.",
+  "descriptionLongue": "",
+  "allow_stack": false,
+  "harmonisable": false,
+  "focalisateur": false,
+  "weight": 1.0,
+  "size": 1.2,
+  "value": { "gold": 1, "silver": 0, "copper": 0 },
+  "rarity": "commune",
+  "tags": ["arme", "melee", "contondant"],
+  "properties": {
+    "finesse": false,
+    "light": false,
+    "heavy": false,
+    "two_handed": true,
+    "reach": 1,
+    "versatile": "1d8",
+    "thrown": null,
+    "ammunition": false,
+    "loading": false,
+    "reload": null,
+    "range": { "normal": 1, "long": 1 },
+    "special": "monastic"
+  },
+  "attack": {
+    "mod": "mod.STR",
+    "bonus": "bonus_maitrise"
+  },
+  "damage": {
+    "dice": "1d6",
+    "damage_type": "Contondant",
+    "alt": { "dice": "1d8", "condition": "two_handed" }
+  },
+  "effectOnHit": {
+    "mod": "mod.STR",
+    "damage": "1d6",
+    "damage_type": "Contondant"
+  },
+  "links": {
+    "actionId": "melee-strike",
+    "effectId": "melee-slash"
+  }
+}

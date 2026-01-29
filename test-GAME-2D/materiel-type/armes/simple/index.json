@@ -1,0 +1,7 @@
+{
+  "types": [
+    "./dague.json",
+    "./massue.json",
+    "./arc-court.json"
+  ]
+}

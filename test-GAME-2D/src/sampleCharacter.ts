@@ -91,8 +91,8 @@ export const sampleCharacter: Personnage = {
     accessoire: null
   },
   armesDefaut: {
-    main_droite: null,
-    main_gauche: null,
+    main_droite: "epee-longue",
+    main_gauche: "dague",
     mains: null
   },
   Inventaire: {

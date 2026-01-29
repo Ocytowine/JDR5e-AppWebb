@@ -1,0 +1,16 @@
+{
+  "types": [
+    "./simple/dague.json",
+    "./simple/massue.json",
+    "./simple/arc-court.json",
+    "./martiale/epee-longue.json",
+    "./martiale/hache-bataille.json",
+    "./martiale/arc-long.json",
+    "./speciale/epee-elfique.json",
+    "./speciale/fouet-demon.json",
+    "./speciale/arbalete-repetee.json",
+    "./monastique/baton.json",
+    "./monastique/nunchaku.json",
+    "./monastique/kama.json"
+  ]
+}

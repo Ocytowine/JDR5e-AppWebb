@@ -30,52 +30,53 @@
       "rotatable": true
     }
   ],
-"appearance": {
+  "appearance": {
     "randomRotation": true,
+    "heightClass": "low",
+    "shadowStretch": 1.2,
     "paletteId": "default",
     "palettes": {
       "default": {
         "layers": {
-          "canopy": {
-            "alpha": 0.60,
+          "bush": {
             "tintRange": {
-              "dark": 3107631,
-              "light": 7323487
-            }
-          },
-          "trunk": {
-            "tintRange": {
-              "dark": 5978654,
-              "light": 9132587
+              "dark": 2926900,
+              "light": 7063940
             }
           }
         }
       },
       "autumn": {
         "layers": {
-          "canopy": {
-            "alpha": 0.75,
+          "bush": {
             "tintRange": {
-              "dark": 10709547,
-              "light": 15778138
-            }
-          },
-          "trunk": {
-            "tintRange": {
-              "dark": 5978654,
-              "light": 9132587
+              "dark": 10246534,
+              "light": 15243711
             }
           }
         }
       },
       "leafless": {
         "layers": {
-          "canopy": {
-            "alpha": 0.75,
-            "visible": false
+          "bush": {
+            "tintRange": {
+              "dark": 5723992,
+              "light": 10790052
+            }
           }
         }
       }
+    },
+    "layers": [
+      {
+        "id": "bush",
+        "spriteKey": "obstacle:bush"
+      }
+    ],
+    "tokenScale": {
+      "min": 100,
+      "default": 120,
+      "max": 135
     }
   },
   "spawnRules": {

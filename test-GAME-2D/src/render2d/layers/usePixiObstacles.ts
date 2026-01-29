@@ -85,6 +85,83 @@ export function usePixiObstacles(options: {
     };
   };
 
+  const resolveShadowOffset = (heightClass: string, lengthPx: number): number => {
+    const base = Math.max(2, Math.round(lengthPx * 0.18));
+    if (heightClass === "low") return Math.max(2, Math.round(base * 0.85));
+    if (heightClass === "tall") return Math.max(3, Math.round(base * 1.35));
+    return base;
+  };
+
+  const shadowAnchorCache = new WeakMap<Texture, { x: number; y: number }>();
+  const resolveShadowAnchor = (texture: Texture): { x: number; y: number } => {
+    const cached = shadowAnchorCache.get(texture);
+    if (cached) return cached;
+
+    const fallback = { x: 0.5, y: 1 };
+    const source = (texture as any).source?.resource ?? (texture as any).resource ?? null;
+    const image =
+      source?.source ??
+      (source && typeof source.width === "number" && typeof source.height === "number" ? source : null);
+    if (!image) {
+      shadowAnchorCache.set(texture, fallback);
+      return fallback;
+    }
+
+    const width = image.width ?? 0;
+    const height = image.height ?? 0;
+    if (width <= 0 || height <= 0) {
+      shadowAnchorCache.set(texture, fallback);
+      return fallback;
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      shadowAnchorCache.set(texture, fallback);
+      return fallback;
+    }
+
+    try {
+      ctx.drawImage(image, 0, 0);
+      const data = ctx.getImageData(0, 0, width, height).data;
+      let minX = width;
+      let minY = height;
+      let maxX = 0;
+      let maxY = 0;
+      let found = false;
+      for (let y = 0; y < height; y++) {
+        const row = y * width * 4;
+        for (let x = 0; x < width; x++) {
+          const alpha = data[row + x * 4 + 3];
+          if (alpha > 8) {
+            found = true;
+            if (x < minX) minX = x;
+            if (y < minY) minY = y;
+            if (x > maxX) maxX = x;
+            if (y > maxY) maxY = y;
+          }
+        }
+      }
+      if (!found) {
+        shadowAnchorCache.set(texture, fallback);
+        return fallback;
+      }
+      const centerX = (minX + maxX) / 2;
+      const bottomY = maxY;
+      const anchor = {
+        x: width > 1 ? centerX / (width - 1) : 0.5,
+        y: height > 1 ? bottomY / (height - 1) : 1
+      };
+      shadowAnchorCache.set(texture, anchor);
+      return anchor;
+    } catch {
+      shadowAnchorCache.set(texture, fallback);
+      return fallback;
+    }
+  };
+
   const isCanopyLayer = (layer: { id?: string; spriteKey: string } | null): boolean => {
     if (!layer?.spriteKey) return false;
     const id = String(layer.id ?? "").toLowerCase();
@@ -151,6 +228,7 @@ export function usePixiObstacles(options: {
     for (const obs of options.obstacles) {
       if (obs.hp <= 0) continue;
       const def = typeById.get(obs.typeId) ?? null;
+      const isTree = def?.id === "tree-oak";
       const occupied = getObstacleOccupiedCells(obs, def);
       const tint = Number.isFinite(def?.appearance?.tint as number)
         ? (def?.appearance?.tint as number)
@@ -176,6 +254,22 @@ export function usePixiObstacles(options: {
           : def?.appearance?.spriteKey
             ? [{ spriteKey: def.appearance.spriteKey }]
             : [];
+      let treeCanopyVisible = false;
+      const paletteKey = String(options.paletteId ?? def?.appearance?.paletteId ?? "default").toLowerCase();
+      const forceLeaflessShadow = isTree && (paletteKey === "winter" || paletteKey === "dead" || paletteKey === "leafless");
+      if (isTree && layers.length > 0) {
+        for (const layer of layers) {
+          if (!isCanopyLayer(layer)) continue;
+          const visibleRule = layer.visible ?? "always";
+          if (visibleRule === "hideWhenTokenBelow" && isAnyTokenBelow) continue;
+          const layerKey = layer.id ?? layer.spriteKey;
+          const paletteLayer = resolvePaletteLayer(def, layerKey, options.paletteId);
+          if (paletteLayer?.visible === false) continue;
+          treeCanopyVisible = true;
+          break;
+        }
+      }
+      const treeUseLeaflessShadow = forceLeaflessShadow || !treeCanopyVisible;
 
       let renderedLayers = 0;
       let hasAnimatedLayer = false;
@@ -185,6 +279,16 @@ export function usePixiObstacles(options: {
         for (const layer of sorted) {
           const visibleRule = layer.visible ?? "always";
           if (visibleRule === "hideWhenTokenBelow" && isAnyTokenBelow) {
+            continue;
+          }
+          const isLit = obs.state?.lit !== false;
+          const layerId = String(layer.id ?? "").toLowerCase();
+          if (
+            !isLit &&
+            (layerId.includes("flame") ||
+              layerId.includes("fire") ||
+              layer.spriteKey.toLowerCase().startsWith("effect:"))
+          ) {
             continue;
           }
           const layerKey = layer.id ?? layer.spriteKey;
@@ -231,8 +335,11 @@ export function usePixiObstacles(options: {
             typeof layer.preserveAspect === "boolean"
               ? layer.preserveAspect
               : Boolean(def?.appearance?.preserveAspect);
+          const tileSize =
+            gridSpec && typeof gridSpec.tileSize === "number" && gridSpec.tileSize > 0
+              ? gridSpec.tileSize
+              : TILE_SIZE;
           if (gridSpec && sprite.texture.width > 0 && sprite.texture.height > 0) {
-            const tileSize = typeof gridSpec.tileSize === "number" && gridSpec.tileSize > 0 ? gridSpec.tileSize : TILE_SIZE;
             const targetW = gridSpec.tilesX * tileSize;
             const targetH = gridSpec.tilesY * tileSize;
             const scaleX = targetW / sprite.texture.width;
@@ -276,38 +383,90 @@ export function usePixiObstacles(options: {
           sprite.zIndex = center.y + baseLayer + (layer.z ?? 0);
 
           if (!hasAnimatedLayer && shouldRenderShadowForLayer(layer)) {
+            if (def?.id === "brazier" && isLit) {
+              depthLayer.addChild(sprite);
+              renderedLayers += 1;
+              continue;
+            }
             const shadowSpec = resolveShadowSpec(def);
-            const shadow = Sprite.from(sprite.texture);
+            const shadowMode = def?.appearance?.shadowMode ?? "default";
+            const useTreeShadow =
+              isTree && (isCanopyLayer(layer) || String(layer.id ?? "").toLowerCase().includes("trunk"));
+            let shadowTexture = sprite.texture;
+            if (useTreeShadow) {
+              const key = treeUseLeaflessShadow
+                ? def?.appearance?.shadowSpriteLeafless ?? "obstacle:tree-oak-trunk-shadow"
+                : def?.appearance?.shadowSpriteLeafy ?? "obstacle:tree-oak-canopy-shadow";
+              const url = getObstaclePngUrl(key);
+              if (url) shadowTexture = Texture.from(url);
+            }
+            if (useTreeShadow) {
+              if (!treeUseLeaflessShadow && !isCanopyLayer(layer)) {
+                // Only render one shadow for leafy trees (use canopy layer).
+                depthLayer.addChild(sprite);
+                renderedLayers += 1;
+                continue;
+              }
+              if (treeUseLeaflessShadow && isCanopyLayer(layer)) {
+                // Leafless trees use trunk shadow only.
+                depthLayer.addChild(sprite);
+                renderedLayers += 1;
+                continue;
+              }
+            }
+            const shadow = new Sprite(shadowTexture);
             const shadowGroup = new Container();
             const lightAngleDeg = typeof options.lightAngleDeg === "number" ? options.lightAngleDeg : 90;
             const lightAngle = (lightAngleDeg * Math.PI) / 180;
+            const shadowAngle = shadowMode === "tall" ? lightAngle + Math.PI : lightAngle;
             shadowGroup.x = center.x;
             shadowGroup.y = center.y;
-            shadowGroup.rotation = lightAngle;
+            shadowGroup.rotation = shadowAngle;
             shadow.anchor.set(0.5, 0.5);
-            shadow.rotation = sprite.rotation - lightAngle;
+            // In tall mode, ignore obstacle orientation so all shadows project uniformly.
+            shadow.rotation = shadowMode === "tall" ? 0 : sprite.rotation - lightAngle;
+            const gridBaseWidth =
+              gridSpec && Number.isFinite(gridSpec.tilesX)
+                ? gridSpec.tilesX * tileSize * scaleBase * scaleLayer * scaleAppearance
+                : 0;
+            const gridBaseHeight =
+              gridSpec && Number.isFinite(gridSpec.tilesY)
+                ? gridSpec.tilesY * tileSize * scaleBase * scaleLayer * scaleAppearance
+                : 0;
             const baseWidth =
-              sprite.width > 0
-                ? sprite.width
-                : shadow.texture.width > 0
-                  ? shadow.texture.width * sprite.scale.x
-                  : 0;
+              gridBaseWidth > 0
+                ? gridBaseWidth
+                : sprite.width > 0
+                  ? sprite.width
+                  : shadow.texture.width > 0
+                    ? shadow.texture.width * sprite.scale.x
+                    : 0;
             const baseHeight =
-              sprite.height > 0
-                ? sprite.height
-                : shadow.texture.height > 0
-                  ? shadow.texture.height * sprite.scale.y
-                  : 0;
+              gridBaseHeight > 0
+                ? gridBaseHeight
+                : sprite.height > 0
+                  ? sprite.height
+                  : shadow.texture.height > 0
+                    ? shadow.texture.height * sprite.scale.y
+                    : 0;
+            const heightClass = String(def?.appearance?.heightClass ?? "medium").toLowerCase();
+            if (shadowMode === "tall") {
+              const anchor = resolveShadowAnchor(shadowTexture);
+              shadow.anchor.set(anchor.x, anchor.y);
+            }
             if (baseWidth > 0 && baseHeight > 0) {
               shadow.width = baseWidth;
               shadow.height = baseHeight;
-              shadowGroup.scale.y = shadowSpec.lengthPx / baseHeight;
+              const sizeFactor = Math.max(1, baseHeight / TILE_SIZE);
+              const desiredLength = shadowSpec.lengthPx * sizeFactor;
+              shadowGroup.scale.y = desiredLength / baseHeight;
             } else {
               shadow.scale.set(sprite.scale.x, sprite.scale.y);
               shadowGroup.scale.y = 1;
             }
+            const offsetPx = shadowMode === "tall" ? 0 : resolveShadowOffset(heightClass, shadowSpec.lengthPx);
             shadow.x = 0;
-            shadow.y = 0;
+            shadow.y = offsetPx;
             const alphaScale = isCanopyLayer(layer) ? 1 : Number.isFinite(alpha) ? alpha : 1;
             shadow.alpha = Math.max(0.05, Math.min(0.55, shadowSpec.alpha * alphaScale));
             shadow.tint = 0x000000;

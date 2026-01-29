@@ -49,6 +49,15 @@ export interface ObstacleAppearance {
   >;
   randomRotation?: boolean;
   /**
+   * Controls how shadows are anchored/scaled for large obstacles (e.g., trees).
+   */
+  shadowMode?: "default" | "tall";
+  /**
+   * Optional shadow sprite keys for obstacles with seasonal foliage.
+   */
+  shadowSpriteLeafy?: string;
+  shadowSpriteLeafless?: string;
+  /**
    * Used for visuals and later for cover/LOS heuristics if needed.
    */
   heightClass?: "low" | "medium" | "tall" | string;
@@ -98,6 +107,7 @@ export interface ObstacleTypeDefinition {
   durability: ObstacleDurability;
   variants: ObstacleVariant[];
   appearance?: ObstacleAppearance;
+  litByDefault?: boolean;
   spawnRules?: ObstacleSpawnRules;
   light?: ObstacleLight;
   effects?: Array<{
@@ -125,6 +135,7 @@ export interface ObstacleInstance {
    */
   rotation?: number;
   tokenScale?: number;
+  state?: { lit?: boolean };
   hp: number;
   maxHp: number;
 }

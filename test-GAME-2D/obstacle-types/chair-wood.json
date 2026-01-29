@@ -31,16 +31,8 @@
     }
   ],
   "appearance": {
-    "randomRotation": false,
     "spriteKey": "obstacle:chair-wood",
-    "tint": 16777215,
-    "heightClass": "low",
-    "shadowStretch": 1,
-    "tokenScale": {
-      "default": 100,
-      "min": 100,
-      "max": 100
-    }
+    "heightClass": "low"
   },
   "spawnRules": {
     "weight": 2,

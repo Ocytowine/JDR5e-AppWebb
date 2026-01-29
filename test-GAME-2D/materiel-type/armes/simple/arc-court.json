@@ -1,0 +1,49 @@
+{
+  "id": "arc-court",
+  "name": "Arc court",
+  "type": "arme",
+  "subtype": "simple",
+  "category": "distance",
+  "descriptionCourte": "Arc leger a courte portee.",
+  "descriptionLongue": "",
+  "allow_stack": false,
+  "harmonisable": false,
+  "focalisateur": false,
+  "weight": 1.0,
+  "size": 1.0,
+  "value": { "gold": 25, "silver": 0, "copper": 0 },
+  "rarity": "commune",
+  "tags": ["arme", "distance", "perforant"],
+  "properties": {
+    "finesse": false,
+    "light": false,
+    "heavy": false,
+    "two_handed": true,
+    "reach": 0,
+    "versatile": null,
+    "thrown": null,
+    "ammunition": true,
+    "loading": false,
+    "reload": null,
+    "range": { "normal": 16, "long": 64 },
+    "special": null
+  },
+  "attack": {
+    "mod": "mod.DEX",
+    "bonus": "bonus_maitrise"
+  },
+  "damage": {
+    "dice": "1d6",
+    "damage_type": "Perforant",
+    "alt": null
+  },
+  "effectOnHit": {
+    "mod": "mod.DEX",
+    "damage": "1d6",
+    "damage_type": "Perforant"
+  },
+  "links": {
+    "actionId": "bow-shot",
+    "effectId": "melee-slash"
+  }
+}

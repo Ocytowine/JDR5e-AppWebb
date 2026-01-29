@@ -264,6 +264,10 @@ export function tryPlaceObstacle(params: {
       const resolved = resolveTokenScale(type, params.tokenScale);
       return resolved === null ? undefined : Math.round(resolved);
     })(),
+    state:
+      typeof type.litByDefault === "boolean"
+        ? { lit: type.litByDefault }
+        : undefined,
     hp: maxHp,
     maxHp
   };

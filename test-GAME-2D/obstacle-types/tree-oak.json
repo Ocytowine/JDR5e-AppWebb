@@ -1,6 +1,6 @@
 {
   "id": "tree-oak",
-  "label": "Ch\u00eane",
+  "label": "Chêne",
   "category": "vegetation",
   "tags": [
     "tree",
@@ -37,7 +37,7 @@
       "default": {
         "layers": {
           "canopy": {
-            "alpha": 0.60,
+            "alpha": 0.6,
             "tintRange": {
               "dark": 3107631,
               "light": 7323487
@@ -81,14 +81,15 @@
       "tilesX": 3,
       "tilesY": 3
     },
+    "shadowSpriteLeafy": "obstacle:tree-oak-canopy-shadow",
+    "shadowSpriteLeafless": "obstacle:tree-oak-trunk-shadow",
+    "shadowMode": "tall",
     "heightClass": "tall",
-    "shadowStretch": 6,
+    "shadowStretch": 1,
     "layers": [
       {
         "id": "trunk",
-        "spriteKey": "obstacle:tree-oak-trunk",
-        "z": 0,
-        "visible": "always"
+        "spriteKey": "obstacle:tree-oak-trunk"
       },
       {
         "id": "canopy",

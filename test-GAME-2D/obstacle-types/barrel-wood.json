@@ -32,12 +32,9 @@
   ],
   "appearance": {
     "spriteKey": "obstacle:barrel-wood",
-    "tint": 16777215,
-    "heightClass": "medium",
-    "shadowStretch": 1,
     "tokenScale": {
-      "default": 50,
       "min": 40,
+      "default": 50,
       "max": 55
     }
   },

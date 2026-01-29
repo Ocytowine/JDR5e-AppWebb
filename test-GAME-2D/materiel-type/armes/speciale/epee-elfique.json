@@ -1,0 +1,49 @@
+{
+  "id": "epee-elfique",
+  "name": "Epee elfique",
+  "type": "arme",
+  "subtype": "speciale",
+  "category": "melee",
+  "descriptionCourte": "Lame fine et precise, forgee par les elfes.",
+  "descriptionLongue": "",
+  "allow_stack": false,
+  "harmonisable": false,
+  "focalisateur": false,
+  "weight": 1.2,
+  "size": 1.0,
+  "value": { "gold": 75, "silver": 0, "copper": 0 },
+  "rarity": "rare",
+  "tags": ["arme", "melee", "tranchant"],
+  "properties": {
+    "finesse": true,
+    "light": false,
+    "heavy": false,
+    "two_handed": false,
+    "reach": 1,
+    "versatile": null,
+    "thrown": null,
+    "ammunition": false,
+    "loading": false,
+    "reload": null,
+    "range": { "normal": 1, "long": 1 },
+    "special": "precision"
+  },
+  "attack": {
+    "mod": "mod.DEX",
+    "bonus": "bonus_maitrise"
+  },
+  "damage": {
+    "dice": "1d8",
+    "damage_type": "Tranchant",
+    "alt": null
+  },
+  "effectOnHit": {
+    "mod": "mod.DEX",
+    "damage": "1d8",
+    "damage_type": "Tranchant"
+  },
+  "links": {
+    "actionId": "melee-strike",
+    "effectId": "melee-slash"
+  }
+}

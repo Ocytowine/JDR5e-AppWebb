@@ -50,11 +50,13 @@ import { loadEffectTypesFromIndex } from "./game/effectCatalog";
 import { loadStatusTypesFromIndex } from "./game/statusCatalog";
 import { loadWallTypesFromIndex } from "./game/wallCatalog";
 import { loadReactionTypesFromIndex } from "./game/reactionCatalog";
+import { loadWeaponTypesFromIndex } from "./game/weaponCatalog";
 import type { ObstacleInstance, ObstacleTypeDefinition } from "./game/obstacleTypes";
 import type { EffectInstance, EffectTypeDefinition } from "./game/effectTypes";
 import type { StatusDefinition } from "./game/statusTypes";
 import type { WallTypeDefinition } from "./game/wallTypes";
 import type { ReactionDefinition } from "./game/reactionTypes";
+import type { WeaponTypeDefinition } from "./game/weaponTypes";
 import { generateBattleMap } from "./game/mapEngine";
 import { getHeightAtGrid, type TerrainCell } from "./game/map/draft";
 import { buildTerrainMixLayer } from "./game/map/terrainMix";
@@ -146,7 +148,11 @@ import {
   computeClosedCells
 } from "./game/map/walls/runtime";
 import { getAdjacentCellsForEdge } from "./game/map/walls/grid";
-import { isWallDestructible } from "./game/map/walls/durability";
+import {
+  applyInteraction,
+  getInteractionAvailability,
+  type InteractionTarget
+} from "./game/interactionHandlers";
 import {
   usePixiBoard,
   usePixiDecorations,
@@ -181,7 +187,11 @@ import {
   type MovementModeDefinition
 } from "./game/movementModes";
 import { type MoveTypeDefinition, isMoveTypeAction } from "./game/moveTypes";
-import { preloadObstaclePngTexturesFor } from "./obstacleTextureHelper";
+import {
+  getEffectAnimationKeys,
+  getObstacleAnimationFrames,
+  preloadObstaclePngTexturesFor
+} from "./obstacleTextureHelper";
 import { preloadTokenPngTexturesFor, type TokenSpriteRequest } from "./tokenTextureHelper";
 import { preloadDecorTexturesFor } from "./svgDecorHelper";
 
@@ -211,6 +221,18 @@ function buildCellKey(x: number, y: number): string {
   return `${x},${y}`;
 }
 
+function getEquippedWeaponIds(character: Personnage | null | undefined): string[] {
+  const slots = character?.armesDefaut as
+    | { main_droite?: string | null; main_gauche?: string | null; mains?: string | null }
+    | null
+    | undefined;
+  if (!slots) return [];
+  const ids = [slots.main_droite, slots.main_gauche, slots.mains].filter(
+    (value): value is string => typeof value === "string" && value.length > 0
+  );
+  return Array.from(new Set(ids));
+}
+
 type AbilityKey = "str" | "dex" | "con" | "int" | "wis" | "cha";
 
 const ABILITY_CARAC_KEY: Record<AbilityKey, keyof Personnage["caracs"]> = {
@@ -236,31 +258,31 @@ function computeAbilityModFromScore(score?: number): number {
   return Math.floor((Number(score) - 10) / 2);
 }
 
-function getSampleAbilityMod(ability: AbilityKey): number {
-  const statMod = sampleCharacter.combatStats?.mods?.[ability];
+function getCharacterAbilityMod(character: Personnage, ability: AbilityKey): number {
+  const statMod = character.combatStats?.mods?.[ability];
   if (typeof statMod === "number" && Number.isFinite(statMod)) {
     return statMod;
   }
   const caracKey = ABILITY_CARAC_KEY[ability];
   const scoreKey = ABILITY_SCORE_KEY[ability];
-  const score = (sampleCharacter.caracs?.[caracKey] as any)?.[scoreKey];
+  const score = (character.caracs?.[caracKey] as any)?.[scoreKey];
   return computeAbilityModFromScore(score);
 }
 
-function buildCombatStatsFromCharacter(): CombatStats {
-  const movementModes = getMovementModesForCharacter(sampleCharacter);
+function buildCombatStatsFromCharacter(character: Personnage): CombatStats {
+  const movementModes = getMovementModesForCharacter(character);
   const defaultSpeed = movementModes[0]?.speed ?? 3;
-  const level = Number(sampleCharacter.combatStats?.level ?? sampleCharacter.niveauGlobal ?? 1) || 1;
+  const level = Number(character.combatStats?.level ?? character.niveauGlobal ?? 1) || 1;
   const mods = {
-    str: getSampleAbilityMod("str"),
-    dex: getSampleAbilityMod("dex"),
-    con: getSampleAbilityMod("con"),
-    int: getSampleAbilityMod("int"),
-    wis: getSampleAbilityMod("wis"),
-    cha: getSampleAbilityMod("cha")
+    str: getCharacterAbilityMod(character, "str"),
+    dex: getCharacterAbilityMod(character, "dex"),
+    con: getCharacterAbilityMod(character, "con"),
+    int: getCharacterAbilityMod(character, "int"),
+    wis: getCharacterAbilityMod(character, "wis"),
+    cha: getCharacterAbilityMod(character, "cha")
   };
-  const maxHp = Number(sampleCharacter.combatStats?.maxHp ?? sampleCharacter.pvActuels ?? 1) || 1;
-  const armorClass = Number(sampleCharacter.combatStats?.armorClass ?? sampleCharacter.CA ?? 10) || 10;
+  const maxHp = Number(character.combatStats?.maxHp ?? character.pvActuels ?? 1) || 1;
+  const armorClass = Number(character.combatStats?.armorClass ?? character.CA ?? 10) || 10;
 
   return {
     level,
@@ -460,29 +482,43 @@ export const GameBoard: React.FC = () => {
   const playerBubbleTimeoutRef = useRef<number | null>(null);
   const playerThoughtRef = useRef<string | null>(null);
   const playerBubbleOverrideRef = useRef<boolean>(false);
+  const [characterConfig, setCharacterConfig] = useState<Personnage>(() =>
+    JSON.parse(JSON.stringify(sampleCharacter))
+  );
   const movementModes = useMemo(
-    () => getMovementModesForCharacter(sampleCharacter),
-    []
+    () => getMovementModesForCharacter(characterConfig),
+    [characterConfig]
   );
   const defaultMovementMode = movementModes[0] ?? getDefaultMovementMode();
-  const defaultMovementProfile = buildMovementProfileFromMode(defaultMovementMode);
-  const baseCombatStats: CombatStats =
-    sampleCharacter.combatStats ?? buildCombatStatsFromCharacter();
-  const playerCombatStats: CombatStats = {
-    ...baseCombatStats,
-    moveRange: defaultMovementProfile.speed,
-    maxHp: baseCombatStats.maxHp,
-    actionsPerTurn: baseCombatStats.actionsPerTurn ?? 1,
-    bonusActionsPerTurn: baseCombatStats.bonusActionsPerTurn ?? 1,
-    actionRules: baseCombatStats.actionRules ?? { forbidSecondAttack: true }
-  };
-  const defaultPlayerVisionProfile: VisionProfile =
-    sampleCharacter.visionProfile ?? {
-      shape: "cone",
-      range: 100,
-      apertureDeg: 180,
-      lightVision: "normal"
-    };
+  const defaultMovementProfile = useMemo(
+    () => buildMovementProfileFromMode(defaultMovementMode),
+    [defaultMovementMode]
+  );
+  const baseCombatStats: CombatStats = useMemo(
+    () => characterConfig.combatStats ?? buildCombatStatsFromCharacter(characterConfig),
+    [characterConfig]
+  );
+  const playerCombatStats: CombatStats = useMemo(
+    () => ({
+      ...baseCombatStats,
+      moveRange: defaultMovementProfile.speed,
+      maxHp: baseCombatStats.maxHp,
+      actionsPerTurn: baseCombatStats.actionsPerTurn ?? 1,
+      bonusActionsPerTurn: baseCombatStats.bonusActionsPerTurn ?? 1,
+      actionRules: baseCombatStats.actionRules ?? { forbidSecondAttack: true }
+    }),
+    [baseCombatStats, defaultMovementProfile.speed]
+  );
+  const defaultPlayerVisionProfile: VisionProfile = useMemo(
+    () =>
+      characterConfig.visionProfile ?? {
+        shape: "cone",
+        range: 100,
+        apertureDeg: 180,
+        lightVision: "normal"
+      },
+    [characterConfig]
+  );
 
   const [log, setLog] = useState<string[]>([]);
   const [narrationEntries, setNarrationEntries] = useState<NarrationEntry[]>([]);
@@ -490,15 +526,15 @@ export const GameBoard: React.FC = () => {
   const [isNarrationOpen, setIsNarrationOpen] = useState<boolean>(false);
   const [speechBubbles, setSpeechBubbles] = useState<SpeechBubbleEntry[]>([]);
 
-    const [player, setPlayer] = useState<TokenState>({
+  const [player, setPlayer] = useState<TokenState>({
     id: "player-1",
     type: "player",
-    appearance: sampleCharacter.appearance,
-    actionIds: Array.isArray(sampleCharacter.actionIds)
-      ? sampleCharacter.actionIds
+    appearance: characterConfig.appearance,
+    actionIds: Array.isArray(characterConfig.actionIds)
+      ? characterConfig.actionIds
       : [],
-    reactionIds: Array.isArray(sampleCharacter.reactionIds)
-      ? sampleCharacter.reactionIds
+    reactionIds: Array.isArray(characterConfig.reactionIds)
+      ? characterConfig.reactionIds
       : [],
     x: 0,
     y: Math.floor(GRID_ROWS / 2),
@@ -510,7 +546,7 @@ export const GameBoard: React.FC = () => {
     attackDamage: playerCombatStats.attackDamage,
     attackRange: playerCombatStats.attackRange,
     maxAttacksPerTurn: playerCombatStats.maxAttacksPerTurn,
-    hp: sampleCharacter.pvActuels,
+    hp: characterConfig.pvActuels,
     maxHp: playerCombatStats.maxHp
   });
 
@@ -520,6 +556,7 @@ export const GameBoard: React.FC = () => {
   const [obstacles, setObstacles] = useState<ObstacleInstance[]>([]);
   const [effectTypes, setEffectTypes] = useState<EffectTypeDefinition[]>([]);
   const [effects, setEffects] = useState<EffectInstance[]>([]);
+  const [actionEffects, setActionEffects] = useState<Array<EffectInstance & { expiresAt: number }>>([]);
   const [statusTypes, setStatusTypes] = useState<StatusDefinition[]>([]);
   const [wallTypes, setWallTypes] = useState<WallTypeDefinition[]>([]);
   const [wallSegments, setWallSegments] = useState<WallSegment[]>([]);
@@ -544,9 +581,39 @@ export const GameBoard: React.FC = () => {
   const [playerInitiative, setPlayerInitiative] = useState<number | null>(null);
   const [turnOrder, setTurnOrder] = useState<TurnEntry[]>([]);
   const [currentTurnIndex, setCurrentTurnIndex] = useState<number>(0);
+  const [turnTick, setTurnTick] = useState<number>(0);
   const [isCombatConfigured, setIsCombatConfigured] = useState<boolean>(false);
   const [configEnemyCount, setConfigEnemyCount] = useState<number>(3);
   const [mapPrompt, setMapPrompt] = useState<string>("");
+
+  useEffect(() => {
+    if (isCombatConfigured) return;
+    setPlayer(prev => ({
+      ...prev,
+      appearance: characterConfig.appearance,
+      actionIds: Array.isArray(characterConfig.actionIds)
+        ? characterConfig.actionIds
+        : [],
+      reactionIds: Array.isArray(characterConfig.reactionIds)
+        ? characterConfig.reactionIds
+        : [],
+      movementProfile: defaultMovementProfile,
+      moveRange: playerCombatStats.moveRange,
+      visionProfile: defaultPlayerVisionProfile,
+      combatStats: playerCombatStats,
+      attackDamage: playerCombatStats.attackDamage,
+      attackRange: playerCombatStats.attackRange,
+      maxAttacksPerTurn: playerCombatStats.maxAttacksPerTurn,
+      hp: characterConfig.pvActuels,
+      maxHp: playerCombatStats.maxHp
+    }));
+  }, [
+    characterConfig,
+    defaultMovementProfile,
+    defaultPlayerVisionProfile,
+    playerCombatStats,
+    isCombatConfigured
+  ]);
 
   const ZOOM_MIN = 0.5;
   const ZOOM_MAX = 4;
@@ -567,6 +634,7 @@ export const GameBoard: React.FC = () => {
   // Player actions loaded from JSON (filtered by actionIds)
   const [actions, setActions] = useState<ActionDefinition[]>([]);
   const [moveTypes, setMoveTypes] = useState<MoveTypeDefinition[]>([]);
+  const [weaponTypes, setWeaponTypes] = useState<WeaponTypeDefinition[]>([]);
   const [reactionCatalog, setReactionCatalog] = useState<ReactionDefinition[]>([]);
   const [reactionQueue, setReactionQueue] = useState<ReactionInstance[]>([]);
   const [reactionUsage, setReactionUsage] = useState<Record<string, number>>({});
@@ -665,9 +733,6 @@ export const GameBoard: React.FC = () => {
   };
   const [interactionMode, setInteractionMode] =
     useState<BoardInteractionMode>("idle");
-  type InteractionTarget =
-    | { kind: "wall"; segmentId: string; cell: { x: number; y: number } }
-    | { kind: "obstacle"; obstacleId: string; cell: { x: number; y: number } };
   const [interactionContext, setInteractionContext] = useState<{
     anchorX: number;
     anchorY: number;
@@ -695,6 +760,7 @@ export const GameBoard: React.FC = () => {
     stage: "draft" | "active";
     source?: "action" | "reaction";
     reactionId?: string | null;
+    cycleId?: number;
   } | null>(null);
   const [sheetOpen, setSheetOpen] = useState<boolean>(false);
   const [hazardAnchor, setHazardAnchor] = useState<{ anchorX: number; anchorY: number } | null>(
@@ -720,6 +786,10 @@ export const GameBoard: React.FC = () => {
   const textureLoadingCounterRef = useRef<number>(0);
   const [isTextureLoading, setIsTextureLoading] = useState<boolean>(false);
   const [textureLoadingHint, setTextureLoadingHint] = useState<string | null>(null);
+  const actionEffectTimersRef = useRef<Map<string, number>>(new Map());
+  const lastActionVfxKeyRef = useRef<string | null>(null);
+  const actionCycleIdRef = useRef<number>(0);
+  const contextCompleteRef = useRef<boolean>(false);
   const seenTargetsByActorRef = useRef<Map<string, Set<string>>>(new Map());
   const enemyTurnPauseRef = useRef<{ promise: Promise<void>; resolve: () => void } | null>(null);
   const [hpPopups, setHpPopups] = useState<
@@ -755,6 +825,15 @@ export const GameBoard: React.FC = () => {
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
 
   useEffect(() => {
+    return () => {
+      for (const timer of actionEffectTimersRef.current.values()) {
+        window.clearTimeout(timer);
+      }
+      actionEffectTimersRef.current.clear();
+    };
+  }, []);
+
+  useEffect(() => {
     narrationOpenRef.current = isNarrationOpen;
     if (isNarrationOpen) setNarrationUnread(0);
   }, [isNarrationOpen]);
@@ -782,6 +861,11 @@ export const GameBoard: React.FC = () => {
     () => new Map(reactionCatalog.map(reaction => [reaction.action.id, reaction.action])),
     [reactionCatalog]
   );
+  const actionCatalogById = useMemo(() => {
+    const map = new Map<string, ActionDefinition>();
+    for (const action of actionsCatalog) map.set(action.id, action);
+    return map;
+  }, [actionsCatalog]);
   const enemyTypeById = useMemo(() => {
     const map = new Map<string, EnemyTypeDefinition>();
     for (const t of enemyTypes) map.set(t.id, t);
@@ -806,6 +890,21 @@ export const GameBoard: React.FC = () => {
     for (const t of effectTypes) map.set(t.id, t);
     return map;
   }, [effectTypes]);
+  const weaponTypeById = useMemo(() => {
+    const map = new Map<string, WeaponTypeDefinition>();
+    for (const t of weaponTypes) map.set(t.id, t);
+    return map;
+  }, [weaponTypes]);
+  const weaponActionById = useMemo(() => {
+    const map = new Map<string, ActionDefinition>();
+    for (const weapon of weaponTypes) {
+      const actionId = weapon.links?.actionId;
+      if (!actionId) continue;
+      const action = actionCatalogById.get(actionId);
+      if (action) map.set(weapon.id, action);
+    }
+    return map;
+  }, [weaponTypes, actionCatalogById]);
   const statusTypeById = useMemo(() => {
     const map = new Map<string, StatusDefinition>();
     for (const t of statusTypes) map.set(t.id, t);
@@ -816,6 +915,16 @@ export const GameBoard: React.FC = () => {
     for (const t of wallTypes) map.set(t.id, t);
     return map;
   }, [wallTypes]);
+  const equippedWeaponIds = useMemo(() => getEquippedWeaponIds(characterConfig), [
+    characterConfig
+  ]);
+  const equippedWeapons = useMemo(
+    () =>
+      equippedWeaponIds
+        .map(id => weaponTypeById.get(id) ?? null)
+        .filter((weapon): weapon is WeaponTypeDefinition => Boolean(weapon)),
+    [equippedWeaponIds, weaponTypeById]
+  );
   const floorMaterialById = useMemo(() => {
     const map = new Map<string, FloorMaterial>();
     for (const t of FLOOR_MATERIALS) map.set(t.id, t);
@@ -909,12 +1018,13 @@ export const GameBoard: React.FC = () => {
       const def = obstacleTypeById.get(obstacle.typeId) ?? null;
       if (!def) continue;
 
-      const effectEntries =
-        def.effects && def.effects.length > 0
-          ? def.effects
-          : def.tags?.includes("fire")
-            ? [{ id: "fire", enabled: true }]
-            : [];
+        const effectEntries =
+          def.effects && def.effects.length > 0
+            ? def.effects
+            : def.tags?.includes("fire")
+              ? [{ id: "fire", enabled: true }]
+              : [];
+        if (obstacle.state?.lit === false) continue;
 
       if (!effectEntries.length) continue;
 
@@ -1515,9 +1625,18 @@ export const GameBoard: React.FC = () => {
     visibleCells: visibleCellsFull,
     showAllLevels
   });
+  const renderEffects = useMemo(
+    () => [...effects, ...actionEffects],
+    [effects, actionEffects]
+  );
+  const fxAnimations = useMemo(() => {
+    return getEffectAnimationKeys()
+      .map(key => ({ key, frames: getObstacleAnimationFrames(key) ?? [] }))
+      .filter(entry => entry.frames.length > 0);
+  }, []);
   usePixiEffects({
     depthLayerRef: dynamicDepthLayerRef,
-    effects,
+    effects: renderEffects,
     effectTypes,
     pixiReadyTick,
     grid: mapGrid,
@@ -1535,6 +1654,7 @@ export const GameBoard: React.FC = () => {
     activeLevel,
     visibleCells: visibleCellsFull,
     showAllLevels,
+    lightAngleDeg: shadowLightAngleDeg,
     suspendRendering: isTextureLoading
   });
   usePixiSpeechBubbles({
@@ -1766,90 +1886,6 @@ export const GameBoard: React.FC = () => {
       usedActionCount: prev.usedActionCount + (isStandardAction ? 1 : 0),
       usedBonusCount: prev.usedBonusCount + (isBonusAction ? 1 : 0)
     }));
-  }
-
-  function resolveInteractionAvailabilityForWall(
-    interaction: InteractionSpec,
-    segment: WallSegment,
-    def: WallTypeDefinition | null
-  ): { ok: boolean; reason?: string } {
-    const costCheck = canPayInteractionCost(interaction.cost);
-    if (!costCheck.ok) return costCheck;
-
-    if (interaction.kind === "open") {
-      if (segment.kind !== "door") {
-        return { ok: false, reason: "Interaction reservee aux portes." };
-      }
-      if (segment.state === "open") {
-        return { ok: false, reason: "La porte est deja ouverte." };
-      }
-      return { ok: true };
-    }
-
-    if (interaction.kind === "break") {
-      if (segment.kind !== "door") {
-        return { ok: false, reason: "Interaction reservee aux portes." };
-      }
-      if (segment.state === "open") {
-        return { ok: false, reason: "La porte est deja ouverte." };
-      }
-      if (!isWallDestructible(def)) {
-        return { ok: false, reason: "Porte indestructible." };
-      }
-      if (typeof interaction.forceDc !== "number") {
-        return { ok: false, reason: "DD de force manquant." };
-      }
-      return { ok: true };
-    }
-
-    return { ok: true };
-  }
-
-  function resolveInteractionAvailabilityForObstacle(
-    interaction: InteractionSpec,
-    obstacle: ObstacleInstance,
-    def: ObstacleTypeDefinition | null
-  ): { ok: boolean; reason?: string } {
-    const costCheck = canPayInteractionCost(interaction.cost);
-    if (!costCheck.ok) return costCheck;
-
-    if (interaction.kind === "open") {
-      return { ok: false, reason: "Interaction reservee aux portes." };
-    }
-
-    if (interaction.kind === "break") {
-      if (def?.durability?.destructible === false) {
-        return { ok: false, reason: "Obstacle indestructible." };
-      }
-      if (obstacle.hp <= 0) {
-        return { ok: false, reason: "Obstacle deja detruit." };
-      }
-      if (typeof interaction.forceDc !== "number") {
-        return { ok: false, reason: "DD de force manquant." };
-      }
-    }
-
-    return { ok: true };
-  }
-
-  function getInteractionAvailability(
-    interaction: InteractionSpec,
-    target: InteractionTarget
-  ): { ok: boolean; reason?: string } {
-    if (target.kind === "wall") {
-      const wall = wallSegments.find(w => w.id === target.segmentId) ?? null;
-      if (!wall) return { ok: false, reason: "Mur introuvable." };
-      const def = wall.typeId ? wallTypeById.get(wall.typeId) ?? null : null;
-      const dist = getWallSegmentChebyshevDistance(player, wall);
-      if (dist > 1) return { ok: false, reason: "Trop loin." };
-      return resolveInteractionAvailabilityForWall(interaction, wall, def);
-    }
-    const obstacle = obstacles.find(o => o.id === target.obstacleId) ?? null;
-    if (!obstacle) return { ok: false, reason: "Obstacle introuvable." };
-    const def = obstacleTypeById.get(obstacle.typeId) ?? null;
-    const dist = getObstacleChebyshevDistance(player, obstacle, def, target.cell);
-    if (dist > 1) return { ok: false, reason: "Trop loin." };
-    return resolveInteractionAvailabilityForObstacle(interaction, obstacle, def);
   }
 
   function getSelectedTargetLabel(): string | null {
@@ -2202,7 +2238,7 @@ export const GameBoard: React.FC = () => {
       heightMap: mapHeight,
       floorIds: mapTerrain,
       activeLevel,
-      sampleCharacter,
+      sampleCharacter: characterConfig,
       onLog: pushLog
     };
   }
@@ -2378,6 +2414,8 @@ export const GameBoard: React.FC = () => {
       const def = obstacleTypeById.get(obstacle.typeId) ?? null;
       const appearance = def?.appearance ?? null;
       if (appearance?.spriteKey) obstacleSpriteKeys.add(appearance.spriteKey);
+      if (appearance?.shadowSpriteLeafy) obstacleSpriteKeys.add(appearance.shadowSpriteLeafy);
+      if (appearance?.shadowSpriteLeafless) obstacleSpriteKeys.add(appearance.shadowSpriteLeafless);
       for (const layer of appearance?.layers ?? []) {
         if (layer?.spriteKey) obstacleSpriteKeys.add(layer.spriteKey);
       }
@@ -2538,6 +2576,10 @@ export const GameBoard: React.FC = () => {
     setPathLimit(defaultMovementProfile.speed);
     setBasePathLimit(defaultMovementProfile.speed);
     setMovementSpent(0);
+
+    if (newEnemies.length === 0) {
+      rollSoloInitiative();
+    }
   }
 
   function getActiveTurnEntry(): TurnEntry | null {
@@ -2566,12 +2608,13 @@ export const GameBoard: React.FC = () => {
       }
       return next;
     });
+    setTurnTick(tick => tick + 1);
   }
 
   function rollInitialInitiativeIfNeeded() {
     if (hasRolledInitiative) return;
 
-    const playerMod = getSampleAbilityMod("dex");
+    const playerMod = getCharacterAbilityMod(characterConfig, "dex");
     const rollD20 = () => Math.floor(Math.random() * 20) + 1;
 
     const pjRoll = rollD20();
@@ -2765,13 +2808,18 @@ export const GameBoard: React.FC = () => {
     setWallTypes(loadedTypes);
   }, []);
 
+  useEffect(() => {
+    const loadedTypes = loadWeaponTypesFromIndex();
+    setWeaponTypes(loadedTypes);
+  }, []);
+
 
   useEffect(() => {
     if (!isCombatConfigured) return;
-    if (!hasRolledInitiative && enemies.length > 0) {
-      rollInitialInitiativeIfNeeded();
-    }
-  }, [isCombatConfigured, hasRolledInitiative, enemies.length]);
+    if (hasRolledInitiative) return;
+    if (configEnemyCount > 0 && enemies.length === 0) return;
+    rollInitialInitiativeIfNeeded();
+  }, [isCombatConfigured, hasRolledInitiative, enemies.length, configEnemyCount]);
 
   useEffect(() => {
     setSpeechBubbles(prev =>
@@ -2858,16 +2906,23 @@ export const GameBoard: React.FC = () => {
     }
 
     setActionsCatalog(loaded);
+  }, []);
 
+  useEffect(() => {
+    if (actionsCatalog.length === 0) return;
     const playerActionIds = Array.isArray(player.actionIds) ? player.actionIds : [];
+    const weaponActionIds = equippedWeaponIds
+      .map(id => weaponActionById.get(id)?.id ?? null)
+      .filter((id): id is string => Boolean(id));
+    const visibleIds = new Set<string>([...playerActionIds, ...weaponActionIds]);
     const playerVisible =
-      playerActionIds.length > 0
-        ? loaded.filter(a => playerActionIds.includes(a.id))
-        : loaded.filter(a => !(a.tags || []).includes("enemy"));
+      visibleIds.size > 0
+        ? actionsCatalog.filter(a => visibleIds.has(a.id))
+        : actionsCatalog.filter(a => !(a.tags || []).includes("enemy"));
     const filtered = playerVisible.filter(a => a.category !== "movement");
     setActions(filtered);
     setSelectedActionId(filtered.length ? filtered[0].id : null);
-  }, []);
+  }, [actionsCatalog, equippedWeaponIds, weaponActionById, player.actionIds]);
 
   useEffect(() => {
     const indexed = Array.isArray((moveTypesIndex as any).moveTypes)
@@ -2890,6 +2945,31 @@ export const GameBoard: React.FC = () => {
 
     setMoveTypes(loaded);
   }, []);
+
+  useEffect(() => {
+    if (weaponTypes.length === 0) return;
+    for (const weapon of weaponTypes) {
+      const actionId = weapon.links?.actionId;
+      const linkedAction = actionId ? weaponActionById.get(weapon.id) ?? null : null;
+      if (actionId && !linkedAction) {
+        console.warn(
+          "[weapon-types] Linked action missing for weapon:",
+          weapon.id,
+          "->",
+          actionId
+        );
+      }
+      const effectId = weapon.links?.effectId;
+      if (effectId && !effectTypeById.has(effectId)) {
+        console.warn(
+          "[weapon-types] Linked effect missing for weapon:",
+          weapon.id,
+          "->",
+          effectId
+        );
+      }
+    }
+  }, [weaponTypes, actionCatalogById, effectTypeById]);
 
   useEffect(() => {
     const loadedTypes = loadReactionTypesFromIndex();
@@ -3064,6 +3144,7 @@ export const GameBoard: React.FC = () => {
     hasRolledInitiative,
     turnOrder,
     currentTurnIndex,
+    turnTick,
     isResolvingEnemies
   ]);
 
@@ -3077,6 +3158,76 @@ export const GameBoard: React.FC = () => {
       }
     }
     return best;
+  }
+
+  function rollSoloInitiative() {
+    const playerMod = getCharacterAbilityMod(characterConfig, "dex");
+    const rollD20 = () => Math.floor(Math.random() * 20) + 1;
+    const pjRoll = rollD20();
+    const pjTotal = pjRoll + playerMod;
+    const entries: TurnEntry[] = [
+      {
+        id: player.id,
+        kind: "player",
+        initiative: pjTotal
+      }
+    ];
+
+    setPlayerInitiative(pjTotal);
+    setTurnOrder(entries);
+    setCurrentTurnIndex(0);
+    setHasRolledInitiative(true);
+    pushLog(
+      `Initiative: Joueur ${pjTotal} (d20=${pjRoll}, mod=${playerMod}) ??? le joueur commence.`
+    );
+  }
+
+  function minDistanceToAnyObstacle(): number | null {
+    if (obstacles.length === 0) return null;
+    let best: number | null = null;
+    for (const obstacle of obstacles) {
+      if (obstacle.hp <= 0) continue;
+      if (getBaseHeightAt(obstacle.x, obstacle.y) !== activeLevel) continue;
+      const def = obstacleTypeById.get(obstacle.typeId) ?? null;
+      const dist = getObstacleDistance(player, obstacle, def, {
+        x: obstacle.x,
+        y: obstacle.y
+      });
+      if (best === null || dist < best) {
+        best = dist;
+      }
+    }
+    return best;
+  }
+
+  function minDistanceToAnyWall(): number | null {
+    if (wallSegments.length === 0) return null;
+    let best: number | null = null;
+    for (const seg of wallSegments) {
+      if (typeof seg.hp === "number" && seg.hp <= 0) continue;
+      const def = seg.typeId ? wallTypeById.get(seg.typeId) ?? null : null;
+      if (!isWallDestructible(def)) continue;
+      const cells = getAdjacentCellsForEdge(seg);
+      const levelA = getBaseHeightAt(cells.a.x, cells.a.y);
+      const levelB = getBaseHeightAt(cells.b.x, cells.b.y);
+      if (levelA !== activeLevel && levelB !== activeLevel) continue;
+      const dist = getWallSegmentDistance(player, seg);
+      if (best === null || dist < best) {
+        best = dist;
+      }
+    }
+    return best;
+  }
+
+  function minDistanceToAnyHostileTarget(): number | null {
+    const enemyDist = minDistanceToAnyEnemy();
+    const obstacleDist = minDistanceToAnyObstacle();
+    const wallDist = minDistanceToAnyWall();
+    const distances = [enemyDist, obstacleDist, wallDist].filter(
+      (value): value is number => typeof value === "number" && Number.isFinite(value)
+    );
+    if (distances.length === 0) return null;
+    return Math.min(...distances);
   }
 
   function validateEnemyTargetForAction(
@@ -3304,10 +3455,21 @@ export const GameBoard: React.FC = () => {
             "Cible hors du champ de vision ou derriere un obstacle (ligne de vue requise)."
         };
       }
+      let attackBlockers = obstacleBlocking.attacks;
+      if (attackBlockers.size > 0) {
+        const cells = def ? getObstacleOccupiedCells(obstacle, def) : [targetCell];
+        if (cells.length > 0) {
+          const trimmed = new Set(attackBlockers);
+          for (const cell of cells) {
+            trimmed.delete(cellKey(cell.x, cell.y));
+          }
+          attackBlockers = trimmed;
+        }
+      }
       const canHit = hasLineOfEffect(
         { x: actor.x, y: actor.y },
         { x: targetCell.x, y: targetCell.y },
-        obstacleBlocking.attacks,
+        attackBlockers,
         wallEdges.vision
       );
       if (!canHit) {
@@ -3494,11 +3656,11 @@ export const GameBoard: React.FC = () => {
     const range = action.targeting?.range;
     const isHostileTargeting = targeting === "enemy" || targeting === "hostile";
     if (isHostileTargeting && costType !== "reaction") {
-      const dist = minDistanceToAnyEnemy();
+      const dist = minDistanceToAnyHostileTarget();
       if (dist === null) {
-        reasons.push("Aucune cible ennemie presente.");
+        reasons.push("Aucune cible hostile presente.");
       } else {
-        details.push(`Distance mini ennemie: ${dist}`);
+        details.push(`Distance mini cible hostile: ${dist}`);
         if (typeof range?.min === "number" && dist < range.min) {
           reasons.push(`Trop proche (< ${range.min}).`);
         }
@@ -3520,13 +3682,13 @@ export const GameBoard: React.FC = () => {
         }
       }
       if (cond.type === "distance_max" && isHostileTargeting) {
-        const dist = minDistanceToAnyEnemy();
+        const dist = minDistanceToAnyHostileTarget();
         if (dist !== null && typeof cond.max === "number" && dist > cond.max) {
           reasons.push(cond.reason || `Distance > ${cond.max}.`);
         }
       }
       if (cond.type === "distance_between" && isHostileTargeting) {
-        const dist = minDistanceToAnyEnemy();
+        const dist = minDistanceToAnyHostileTarget();
         if (dist !== null) {
           if (typeof cond.min === "number" && dist < cond.min) {
             reasons.push(cond.reason || `Distance < ${cond.min}.`);
@@ -3556,13 +3718,14 @@ export const GameBoard: React.FC = () => {
 
   function resolvePlayerFormula(formula: string): string {
     const stats = player.combatStats;
-    const level = Number(stats?.level ?? sampleCharacter.combatStats?.level ?? 1) || 1;
-    const modSTR = Number(stats?.mods?.str ?? getSampleAbilityMod("str"));
-    const modDEX = Number(stats?.mods?.dex ?? getSampleAbilityMod("dex"));
-    const modCON = Number(stats?.mods?.con ?? getSampleAbilityMod("con"));
-    const modINT = Number(stats?.mods?.int ?? getSampleAbilityMod("int"));
-    const modWIS = Number(stats?.mods?.wis ?? getSampleAbilityMod("wis"));
-    const modCHA = Number(stats?.mods?.cha ?? getSampleAbilityMod("cha"));
+    const fallbackStats = characterConfig.combatStats ?? null;
+    const level = Number(stats?.level ?? fallbackStats?.level ?? 1) || 1;
+    const modSTR = Number(stats?.mods?.str ?? getCharacterAbilityMod(characterConfig, "str"));
+    const modDEX = Number(stats?.mods?.dex ?? getCharacterAbilityMod(characterConfig, "dex"));
+    const modCON = Number(stats?.mods?.con ?? getCharacterAbilityMod(characterConfig, "con"));
+    const modINT = Number(stats?.mods?.int ?? getCharacterAbilityMod(characterConfig, "int"));
+    const modWIS = Number(stats?.mods?.wis ?? getCharacterAbilityMod(characterConfig, "wis"));
+    const modCHA = Number(stats?.mods?.cha ?? getCharacterAbilityMod(characterConfig, "cha"));
     const attackDamage = Number(stats?.attackDamage ?? player.attackDamage ?? 0);
     const attackBonus = Number(stats?.attackBonus ?? 0);
     const moveRange = Number(stats?.moveRange ?? player.moveRange ?? 0);
@@ -3799,6 +3962,181 @@ export const GameBoard: React.FC = () => {
   function actionTargetsHostile(action: ActionDefinition | null): boolean {
     const target = action?.targeting?.target;
     return target === "enemy" || target === "hostile";
+  }
+
+  type ActionVisualEffectSpec = {
+    effectId: string;
+    anchor?: "target" | "self" | "actor";
+    offset?: { x: number; y: number };
+    orientation?: "to_target" | "to_actor" | "none";
+    rotationOffsetDeg?: number;
+    onlyOnHit?: boolean;
+    onlyOnMiss?: boolean;
+    durationMs?: number;
+  };
+
+  function getActionVisualEffects(action: ActionDefinition | null): ActionVisualEffectSpec[] {
+    if (!action || !Array.isArray(action.effects)) return [];
+    return action.effects
+      .filter(effect => effect?.type === "visual_effect" && typeof effect.effectId === "string")
+      .map(effect => ({
+        effectId: String(effect.effectId),
+        anchor: effect.anchor,
+        offset: effect.offset,
+        orientation: effect.orientation,
+        rotationOffsetDeg: effect.rotationOffsetDeg,
+        onlyOnHit: Boolean(effect.onlyOnHit),
+        onlyOnMiss: Boolean(effect.onlyOnMiss),
+        durationMs: typeof effect.durationMs === "number" ? effect.durationMs : undefined
+      }));
+  }
+
+  function resolveActionEffectOrientation(
+    action: ActionDefinition,
+    spec: ActionVisualEffectSpec
+  ): number | null {
+    const orientation =
+      spec.orientation ??
+      (actionTargetsHostile(action) ? "to_target" : "none");
+    if (orientation === "none") return null;
+
+    const actorPos = { x: player.x, y: player.y };
+    let targetPos: { x: number; y: number } | null = null;
+
+    if (selectedTargetId) {
+      const target = enemies.find(e => e.id === selectedTargetId) ?? null;
+      if (target) targetPos = { x: target.x, y: target.y };
+    } else if (selectedObstacleTarget) {
+      targetPos = { x: selectedObstacleTarget.x, y: selectedObstacleTarget.y };
+    } else if (selectedWallTarget) {
+      targetPos = { x: selectedWallTarget.x, y: selectedWallTarget.y };
+    }
+
+    if (!targetPos) return null;
+
+    const from = orientation === "to_target" ? actorPos : targetPos;
+    const to = orientation === "to_target" ? targetPos : actorPos;
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    if (dx === 0 && dy === 0) return null;
+    const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
+    const offset = typeof spec.rotationOffsetDeg === "number" ? spec.rotationOffsetDeg : 0;
+    return angleDeg + offset;
+  }
+
+  function resolveActionEffectAnchor(
+    action: ActionDefinition,
+    spec: ActionVisualEffectSpec
+  ): { x: number; y: number } | null {
+    const anchor =
+      spec.anchor ??
+      (actionTargetsHostile(action) ? "target" : "self");
+
+    if (anchor === "target") {
+      if (selectedTargetId) {
+        const target = enemies.find(e => e.id === selectedTargetId) ?? null;
+        if (target) return { x: target.x, y: target.y };
+      }
+      if (selectedObstacleTarget) {
+        return { x: selectedObstacleTarget.x, y: selectedObstacleTarget.y };
+      }
+      if (selectedWallTarget) {
+        return { x: selectedWallTarget.x, y: selectedWallTarget.y };
+      }
+      return { x: player.x, y: player.y };
+    }
+
+    return { x: player.x, y: player.y };
+  }
+
+  function computeActionEffectDurationMs(params: {
+    spec: ActionVisualEffectSpec;
+    def: EffectTypeDefinition | null;
+    appearance: EffectTypeDefinition["appearance"] | null;
+  }): number {
+    if (typeof params.spec.durationMs === "number") {
+      return Math.max(120, params.spec.durationMs);
+    }
+    const defDuration = params.def?.durationMs;
+    if (typeof defDuration === "number") {
+      return Math.max(120, defDuration);
+    }
+    const spriteKey = params.appearance?.spriteKey;
+    const frames = spriteKey ? getObstacleAnimationFrames(spriteKey) : null;
+    if (frames && frames.length > 0) {
+      const speed = typeof params.appearance?.animationSpeed === "number"
+        ? params.appearance.animationSpeed
+        : 0.15;
+      const framesPerSecond = Math.max(1, speed * 60);
+      return Math.max(160, Math.round((frames.length / framesPerSecond) * 1000));
+    }
+    return 450;
+  }
+
+  function scheduleActionEffectRemoval(effectId: string, durationMs: number) {
+    const timer = window.setTimeout(() => {
+      setActionEffects(prev => prev.filter(effect => effect.id !== effectId));
+      actionEffectTimersRef.current.delete(effectId);
+    }, durationMs);
+    actionEffectTimersRef.current.set(effectId, timer);
+  }
+
+  async function spawnActionVisualEffects(action: ActionDefinition): Promise<boolean> {
+    const specs = getActionVisualEffects(action);
+    if (specs.length === 0) return false;
+
+    const entries: Array<{
+      spec: ActionVisualEffectSpec;
+      def: EffectTypeDefinition | null;
+      appearance: EffectTypeDefinition["appearance"] | null;
+    }> = [];
+    const spriteKeys = new Set<string>();
+
+    specs.forEach(spec => {
+      if (spec.onlyOnHit && attackOutcome !== "hit") return;
+      if (spec.onlyOnMiss && attackOutcome !== "miss") return;
+      const def = effectTypeById.get(spec.effectId) ?? null;
+      const appearance = def?.appearance ?? null;
+      if (!appearance?.spriteKey) return;
+      entries.push({ spec, def, appearance });
+      spriteKeys.add(appearance.spriteKey);
+    });
+
+    if (entries.length === 0) return false;
+
+    try {
+      await preloadObstaclePngTexturesFor([...spriteKeys]);
+    } catch (error) {
+      console.warn("[actions] VFX preload failed:", error);
+      return false;
+    }
+
+    const created: Array<EffectInstance & { expiresAt: number }> = [];
+    entries.forEach((entry, index) => {
+      const { spec, def, appearance } = entry;
+      const anchor = resolveActionEffectAnchor(action, spec);
+      if (!anchor) return;
+      const offset = spec.offset ?? { x: 0, y: 0 };
+      const x = Math.max(0, Math.min(mapGrid.cols - 1, anchor.x + offset.x));
+      const y = Math.max(0, Math.min(mapGrid.rows - 1, anchor.y + offset.y));
+      const rotationDeg = resolveActionEffectOrientation(action, spec);
+      const id = `action-effect-${action.id}-${Date.now()}-${index}`;
+      const durationMs = computeActionEffectDurationMs({ spec, def, appearance });
+      created.push({
+        id,
+        typeId: spec.effectId,
+        x,
+        y,
+        active: true,
+        rotationDeg: typeof rotationDeg === "number" ? rotationDeg : undefined,
+        expiresAt: Date.now() + durationMs
+      });
+      scheduleActionEffectRemoval(id, durationMs);
+    });
+
+    if (created.length === 0) return false;
+    setActionEffects(prev => [...prev, ...created]);
+    return true;
   }
 
   function resolvePlayerAdvantageMode(action: ActionDefinition | null): AdvantageMode {
@@ -4547,11 +4885,18 @@ export const GameBoard: React.FC = () => {
         const available: InteractionSpec[] = [];
         const reasons: string[] = [];
         for (const interaction of interactions) {
-          const check = resolveInteractionAvailabilityForWall(
+          const check = getInteractionAvailability({
             interaction,
-            wallHit.segment,
-            wallHit.def
-          );
+            target: { kind: "wall", segmentId: wallHit.segment.id, cell: wallHit.cell },
+            player,
+            wallSegments,
+            obstacles,
+            wallTypeById,
+            obstacleTypeById,
+            canPayCost: canPayInteractionCost,
+            getWallDistance: getWallSegmentChebyshevDistance,
+            getObstacleDistance: getObstacleChebyshevDistance
+          });
           if (check.ok) {
             available.push(interaction);
           } else if (check.reason) {
@@ -4597,11 +4942,18 @@ export const GameBoard: React.FC = () => {
         const available: InteractionSpec[] = [];
         const reasons: string[] = [];
         for (const interaction of interactions) {
-          const check = resolveInteractionAvailabilityForObstacle(
+          const check = getInteractionAvailability({
             interaction,
-            obstacleHit.instance,
-            obstacleHit.def
-          );
+            target: { kind: "obstacle", obstacleId: obstacleHit.instance.id, cell: obstacleHit.cell },
+            player,
+            wallSegments,
+            obstacles,
+            wallTypeById,
+            obstacleTypeById,
+            canPayCost: canPayInteractionCost,
+            getWallDistance: getWallSegmentChebyshevDistance,
+            getObstacleDistance: getObstacleChebyshevDistance
+          });
           if (check.ok) {
             available.push(interaction);
           } else if (check.reason) {
@@ -4947,7 +5299,7 @@ export const GameBoard: React.FC = () => {
       heightMap: mapHeight,
       floorIds: mapTerrain,
       activeLevel,
-      sampleCharacter,
+      sampleCharacter: characterConfig,
       onLog: pushLog,
       emitEvent: evt => {
         recordCombatEvent({
@@ -6560,7 +6912,7 @@ export const GameBoard: React.FC = () => {
           heightMap: mapHeight,
           floorIds: mapTerrain,
           activeLevel,
-          sampleCharacter,
+          sampleCharacter: characterConfig,
           onLog: pushLog,
           emitEvent: evt => {
             recordCombatEvent({
@@ -7044,6 +7396,9 @@ function handleEndPlayerTurn() {
       (contextSteps.length === 0
         ? true
         : contextSteps.every(step => step.status === "done")));
+  useEffect(() => {
+    contextCompleteRef.current = contextComplete;
+  }, [contextComplete]);
   const selectedTargetStatuses = useMemo(() => {
     if (!selectedTargetId) return [];
     const target = enemies.find(enemy => enemy.id === selectedTargetId);
@@ -7097,6 +7452,9 @@ function handleEndPlayerTurn() {
           gridCols={mapGrid.cols}
           gridRows={mapGrid.rows}
           mapPrompt={mapPrompt}
+          character={characterConfig}
+          weaponTypes={weaponTypes}
+          onChangeCharacter={setCharacterConfig}
           onChangeMapPrompt={setMapPrompt}
           onChangeEnemyCount={setConfigEnemyCount}
           onNoEnemyTypes={() =>
@@ -7233,8 +7591,28 @@ function handleEndPlayerTurn() {
     setHazardResolution(null);
   }
 
+  function maybeTriggerActionVisuals(reason: "close" | "finish") {
+    if (!actionContext || actionContext.stage !== "active") return;
+    const action = getActionById(actionContext.actionId);
+    if (!action) return;
+    if (!contextCompleteRef.current) return;
+    const key = actionContext.cycleId
+      ? `cycle:${actionContext.cycleId}`
+      : `${action.id}:${round}:${validatedActionId ?? "none"}:${attackOutcome ?? "none"}`;
+    if (lastActionVfxKeyRef.current === key) return;
+    lastActionVfxKeyRef.current = key;
+    void spawnActionVisualEffects(action).then(spawned => {
+      if (!spawned && reason === "finish") {
+        return;
+      }
+    });
+  }
+
   function closeActionContext() {
     if ((actionContext?.stage === "active" && validatedActionId) || pendingHazardRoll) {
+      if (!pendingHazardRoll) {
+        maybeTriggerActionVisuals("close");
+      }
       setActionContextOpen(false);
       return;
     }
@@ -7248,6 +7626,7 @@ function handleEndPlayerTurn() {
   }
 
   function handleFinishAction() {
+    maybeTriggerActionVisuals("finish");
     setValidatedActionId(null);
     setAttackRoll(null);
     setDamageRoll(null);
@@ -7344,7 +7723,13 @@ function handleEndPlayerTurn() {
       setInteractionMode("moving");
     }
 
-    setActionContext(current => (current ? { ...current, actionId: action.id, stage: "active" } : current));
+    const nextCycleId = actionCycleIdRef.current + 1;
+    actionCycleIdRef.current = nextCycleId;
+    setActionContext(current =>
+      current
+        ? { ...current, actionId: action.id, stage: "active", cycleId: nextCycleId }
+        : current
+    );
     setActionContextOpen(true);
   }
 
@@ -7386,13 +7771,24 @@ function handleEndPlayerTurn() {
     interaction: InteractionSpec,
     target: InteractionTarget
   ) {
-    const availability = getInteractionAvailability(interaction, target);
+    const availability = getInteractionAvailability({
+      interaction,
+      target,
+      player,
+      wallSegments,
+      obstacles,
+      wallTypeById,
+      obstacleTypeById,
+      canPayCost: canPayInteractionCost,
+      getWallDistance: getWallSegmentChebyshevDistance,
+      getObstacleDistance: getObstacleChebyshevDistance
+    });
     if (!availability.ok) {
       pushLog(`Interaction ${interaction.label}: ${availability.reason ?? "indisponible"}.`);
       return;
     }
 
-    const modForce = getSampleAbilityMod("str");
+    const modForce = getCharacterAbilityMod(characterConfig, "str");
     const forceDc =
       typeof interaction.forceDc === "number" ? interaction.forceDc : null;
     const needsCheck = interaction.kind === "break" && forceDc !== null;
@@ -7411,64 +7807,13 @@ function handleEndPlayerTurn() {
       }
     }
 
-    if (target.kind === "wall") {
-      setWallSegments(prev => {
-        const idx = prev.findIndex(w => w.id === target.segmentId);
-        if (idx === -1) return prev;
-        const copy = [...prev];
-        const segment = { ...copy[idx] };
-        const def = segment.typeId ? wallTypeById.get(segment.typeId) ?? null : null;
-
-        if (interaction.kind === "open") {
-          if (segment.kind === "door" && segment.state !== "open") {
-            segment.state = "open";
-            copy[idx] = segment;
-          }
-        } else if (interaction.kind === "break") {
-          if (segment.kind === "door" && segment.state !== "open" && isWallDestructible(def)) {
-            const maxHp =
-              typeof segment.maxHp === "number"
-                ? segment.maxHp
-                : typeof segment.hp === "number"
-                  ? segment.hp
-                  : null;
-            if (maxHp !== null) {
-              const fraction =
-                typeof interaction.damageFraction === "number"
-                  ? interaction.damageFraction
-                  : 0.5;
-              const damage = Math.max(0, Math.round(maxHp * fraction));
-              const beforeHp = typeof segment.hp === "number" ? segment.hp : maxHp;
-              segment.hp = Math.max(0, beforeHp - damage);
-              segment.maxHp = maxHp;
-            }
-            segment.state = "open";
-            copy[idx] = segment;
-          }
-        }
-
-        return copy.filter(w => w.hp === undefined || w.hp > 0);
-      });
-    } else if (target.kind === "obstacle") {
-      setObstacles(prev => {
-        const idx = prev.findIndex(o => o.id === target.obstacleId);
-        if (idx === -1) return prev;
-        const copy = [...prev];
-        const obstacle = { ...copy[idx] };
-        if (interaction.kind === "break" && obstacle.hp > 0) {
-          const fraction =
-            typeof interaction.damageFraction === "number"
-              ? interaction.damageFraction
-              : 0.5;
-          const maxHp =
-            typeof obstacle.maxHp === "number" ? obstacle.maxHp : obstacle.hp;
-          const damage = Math.max(0, Math.round(maxHp * fraction));
-          obstacle.hp = Math.max(0, obstacle.hp - damage);
-          copy[idx] = obstacle;
-        }
-        return copy.filter(o => o.hp > 0);
-      });
-    }
+    applyInteraction({
+      interaction,
+      target,
+      wallTypeById,
+      setWallSegments,
+      setObstacles
+    });
 
     applyInteractionCost(interaction.cost);
     pushLog(`Interaction ${interaction.label} executee.`);
@@ -7489,9 +7834,20 @@ function handleEndPlayerTurn() {
   // Hide action removed; replaced by character sheet.
 
   const interactionAvailability = interactionContext
-    ? getInteractionAvailability(interactionContext.interaction, interactionContext.target)
+    ? getInteractionAvailability({
+        interaction: interactionContext.interaction,
+        target: interactionContext.target,
+        player,
+        wallSegments,
+        obstacles,
+        wallTypeById,
+        obstacleTypeById,
+        canPayCost: canPayInteractionCost,
+        getWallDistance: getWallSegmentChebyshevDistance,
+        getObstacleDistance: getObstacleChebyshevDistance
+      })
     : null;
-  const forceMod = getSampleAbilityMod("str");
+  const forceMod = getCharacterAbilityMod(characterConfig, "str");
   const interactionState =
     interactionMode === "interact-select"
       ? interactionMenuItems.length > 0
@@ -8121,6 +8477,7 @@ function handleEndPlayerTurn() {
                       onChangeWindStrength={value => setWindStrength(value)}
                       onToggleBumpDebug={() => setBumpDebug(prev => !prev)}
                       onClear={handleClearEffects}
+                      fxAnimations={fxAnimations}
                     />
                   )}
                   {floatingPanel === "logs" && <LogPanel log={log} />}
@@ -8216,8 +8573,9 @@ function handleEndPlayerTurn() {
                 open={sheetOpen}
                 anchorX={0}
                 anchorY={0}
-                character={sampleCharacter}
+                character={characterConfig}
                 player={player}
+                equippedWeapons={equippedWeapons}
                 actionsRemaining={Math.max(
                   0,
                   (player.combatStats?.actionsPerTurn ?? 1) - turnActionUsage.usedActionCount
