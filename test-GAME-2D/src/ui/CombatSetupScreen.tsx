@@ -640,7 +640,29 @@ export function CombatSetupScreen(props: {
     });
   };
 
-  const setScores = (scores: Record<string, number>) => {
+  const STAT_KEYS = ["FOR", "DEX", "CON", "INT", "SAG", "CHA"] as const;
+  const getStatBonuses = () => {
+    const bonuses: Array<{ stat: typeof STAT_KEYS[number]; value: number; source: string }> =
+      [];
+    if ((choiceSelections as any)?.background?.statBonusApplied) {
+      bonuses.push({ stat: "FOR", value: 1, source: "background" });
+    }
+    return bonuses;
+  };
+  const statBonuses = getStatBonuses();
+  const statsBase = ((choiceSelections as any)?.statsBase ?? {}) as Record<string, number>;
+  const getBonusSumForStat = (key: typeof STAT_KEYS[number]) =>
+    statBonuses.reduce((sum, bonus) => (bonus.stat === key ? sum + bonus.value : sum), 0);
+  const getStatSources = (key: typeof STAT_KEYS[number]) =>
+    statBonuses.filter(bonus => bonus.stat === key).map(bonus => bonus.source);
+  const getBaseScore = (key: typeof STAT_KEYS[number]) => {
+    const stored = statsBase[key];
+    if (Number.isFinite(stored)) return Number(stored);
+    const current = getScore(key);
+    return Math.max(1, current - getBonusSumForStat(key));
+  };
+
+  const buildCaracsFromTotals = (scores: Record<string, number>) => {
     const mapping: Record<string, keyof Personnage["caracs"]> = {
       FOR: "force",
       DEX: "dexterite",
@@ -676,8 +698,26 @@ export function CombatSetupScreen(props: {
       ...(props.character.combatStats ?? {}),
       mods: nextMods
     };
+    return { nextCaracs, nextCombatStats };
+  };
+
+  const setBaseScores = (scores: Record<string, number>) => {
+    const totals: Record<string, number> = {};
+    STAT_KEYS.forEach(key => {
+      const bonus = getBonusSumForStat(key);
+      const base = Math.max(1, Math.min(30, Math.floor(scores[key] || 1)));
+      let total = base + bonus;
+      if (total > 30) total = 30;
+      totals[key] = total;
+    });
+    const { nextCaracs, nextCombatStats } = buildCaracsFromTotals(totals);
+    const nextChoiceSelections = {
+      ...choiceSelections,
+      statsBase: { ...statsBase, ...scores }
+    };
     props.onChangeCharacter({
       ...props.character,
+      choiceSelections: nextChoiceSelections,
       caracs: nextCaracs,
       combatStats: nextCombatStats
     });
@@ -685,7 +725,7 @@ export function CombatSetupScreen(props: {
 
   const resetStats = () => {
     if (!initialStatsRef.current) return;
-    setScores(initialStatsRef.current);
+    setBaseScores(initialStatsRef.current);
   };
 
   const resetSkills = () => {
@@ -737,7 +777,24 @@ export function CombatSetupScreen(props: {
         new Set([...(currentProfs.tools ?? []), ...(bg.toolProficiencies ?? [])])
       )
     };
-    const nextChoiceSelections = { ...choiceSelections, background: { ...(choiceSelections as any).background } };
+    const nextChoiceSelections = {
+      ...choiceSelections,
+      background: { ...(choiceSelections as any).background }
+    };
+    let nextCaracs = props.character.caracs;
+    const bonusApplied = Boolean((choiceSelections as any)?.background?.statBonusApplied);
+    if (bonusApplied && bg.id !== "veteran-de-guerre") {
+      const current = (props.character.caracs?.force as any)?.FOR ?? 10;
+      nextCaracs = {
+        ...props.character.caracs,
+        force: { ...(props.character.caracs?.force ?? {}), FOR: current - 1 }
+      };
+      (nextChoiceSelections as any).background.statBonusApplied = false;
+      (nextChoiceSelections as any).statsBase = {
+        ...statsBase,
+        FOR: Number.isFinite(statsBase.FOR) ? statsBase.FOR : current - 1
+      };
+    }
     const nextAuto = Array.isArray(bg.equipment) ? bg.equipment : [];
     const manualIds = equipmentManual;
     const nextInventory = buildInventoryFromAutoManual(nextAuto, manualIds);
@@ -747,6 +804,7 @@ export function CombatSetupScreen(props: {
       competences: nextSkills,
       proficiencies: nextProfs,
       choiceSelections: nextChoiceSelections,
+      caracs: nextCaracs,
       equipmentAuto: nextAuto,
       inventoryItems: nextInventory
     });
@@ -884,13 +942,30 @@ export function CombatSetupScreen(props: {
     };
     const nextPending = { ...pendingLocks };
     if (pendingLocks.backgrounds) delete nextPending.backgrounds;
+    let nextCaracs = props.character.caracs;
+    let nextLocks = creationLocks;
+    if (pendingLocks.backgrounds) {
+      nextLocks = { ...creationLocks, backgrounds: true };
+      const bonusApplied = Boolean((choiceSelections as any)?.background?.statBonusApplied);
+      if (!bonusApplied && selectedBackgroundId === "veteran-de-guerre") {
+        const current = (props.character.caracs?.force as any)?.FOR ?? 10;
+        nextCaracs = {
+          ...props.character.caracs,
+          force: { ...(props.character.caracs?.force ?? {}), FOR: current + 1 }
+        };
+        (nextChoiceSelections as any).background.statBonusApplied = true;
+        (nextChoiceSelections as any).statsBase = {
+          ...statsBase,
+          FOR: Number.isFinite(statsBase.FOR) ? statsBase.FOR : current
+        };
+      }
+    }
     props.onChangeCharacter({
       ...props.character,
       choiceSelections: { ...nextChoiceSelections, pendingLocks: nextPending },
       proficiencies: nextProfs,
-      creationLocks: pendingLocks.backgrounds
-        ? { ...creationLocks, backgrounds: true }
-        : creationLocks
+      creationLocks: nextLocks,
+      caracs: nextCaracs
     });
   };
 
@@ -908,13 +983,30 @@ export function CombatSetupScreen(props: {
     const nextLangues = Array.from(new Set([...currentList, ...selected]));
     const nextPending = { ...pendingLocks };
     if (pendingLocks.backgrounds) delete nextPending.backgrounds;
+    let nextCaracs = props.character.caracs;
+    let nextLocks = creationLocks;
+    if (pendingLocks.backgrounds) {
+      nextLocks = { ...creationLocks, backgrounds: true };
+      const bonusApplied = Boolean((choiceSelections as any)?.background?.statBonusApplied);
+      if (!bonusApplied && selectedBackgroundId === "veteran-de-guerre") {
+        const current = (props.character.caracs?.force as any)?.FOR ?? 10;
+        nextCaracs = {
+          ...props.character.caracs,
+          force: { ...(props.character.caracs?.force ?? {}), FOR: current + 1 }
+        };
+        (nextChoiceSelections as any).background.statBonusApplied = true;
+        (nextChoiceSelections as any).statsBase = {
+          ...statsBase,
+          FOR: Number.isFinite(statsBase.FOR) ? statsBase.FOR : current
+        };
+      }
+    }
     props.onChangeCharacter({
       ...props.character,
       choiceSelections: { ...nextChoiceSelections, pendingLocks: nextPending },
       langues: nextLangues,
-      creationLocks: pendingLocks.backgrounds
-        ? { ...creationLocks, backgrounds: true }
-        : creationLocks
+      creationLocks: nextLocks,
+      caracs: nextCaracs
     });
   };
 
@@ -1290,12 +1382,26 @@ export function CombatSetupScreen(props: {
           ...choiceSelections,
           background: {}
         };
+        let nextCaracs = props.character.caracs;
+        const bonusApplied = Boolean((choiceSelections as any)?.background?.statBonusApplied);
+        if (bonusApplied) {
+          const current = (props.character.caracs?.force as any)?.FOR ?? 10;
+          nextCaracs = {
+            ...props.character.caracs,
+            force: { ...(props.character.caracs?.force ?? {}), FOR: current - 1 }
+          };
+          (nextChoiceSelections as any).statsBase = {
+            ...statsBase,
+            FOR: Number.isFinite(statsBase.FOR) ? statsBase.FOR : current - 1
+          };
+        }
         props.onChangeCharacter({
           ...props.character,
           creationLocks: nextLocks,
           choiceSelections: nextChoiceSelections,
           competences: nextCompetences,
-          classLock: false
+          classLock: false,
+          caracs: nextCaracs
         });
         applyBackgroundSelection(bg);
         resetMateriel();
@@ -1420,58 +1526,25 @@ export function CombatSetupScreen(props: {
   const initialStatsRef = useRef<Record<string, number> | null>(null);
   if (!initialStatsRef.current) {
     initialStatsRef.current = {
-      FOR: getScore("FOR"),
-      DEX: getScore("DEX"),
-      CON: getScore("CON"),
-      INT: getScore("INT"),
-      SAG: getScore("SAG"),
-      CHA: getScore("CHA")
+      FOR: getBaseScore("FOR"),
+      DEX: getBaseScore("DEX"),
+      CON: getBaseScore("CON"),
+      INT: getBaseScore("INT"),
+      SAG: getBaseScore("SAG"),
+      CHA: getBaseScore("CHA")
     };
   }
 
   const computeMod = (score: number): number => Math.floor((score - 10) / 2);
 
   const setScore = (key: "FOR" | "DEX" | "CON" | "INT" | "SAG" | "CHA", value: number) => {
-    const nextScore = Math.max(1, Math.min(30, Math.floor(value || 1)));
-    const mapping: Record<string, keyof Personnage["caracs"]> = {
-      FOR: "force",
-      DEX: "dexterite",
-      CON: "constitution",
-      INT: "intelligence",
-      SAG: "sagesse",
-      CHA: "charisme"
-    };
-    const caracKey = mapping[key];
-    const nextCaracs = {
-      ...props.character.caracs,
-      [caracKey]: {
-        ...(props.character.caracs?.[caracKey] ?? {}),
-        [key]: nextScore
-      }
-    };
-    const nextMods = {
-      ...(props.character.combatStats?.mods ?? {}),
-      [key === "FOR"
-        ? "str"
-        : key === "DEX"
-          ? "dex"
-          : key === "CON"
-            ? "con"
-            : key === "INT"
-              ? "int"
-              : key === "SAG"
-                ? "wis"
-                : "cha"]: computeMod(nextScore)
-    } as any;
-    const nextCombatStats = {
-      ...(props.character.combatStats ?? {}),
-      mods: nextMods
-    };
-    props.onChangeCharacter({
-      ...props.character,
-      caracs: nextCaracs,
-      combatStats: nextCombatStats
-    });
+    const desiredTotal = Math.max(1, Math.min(30, Math.floor(value || 1)));
+    const bonus = getBonusSumForStat(key);
+    let base = desiredTotal - bonus;
+    if (base < 1) base = 1;
+    if (base > 30) base = 30;
+    const nextBase = { ...statsBase, [key]: base };
+    setBaseScores(nextBase);
   };
 
   const competenceOptions = [
@@ -2246,9 +2319,12 @@ export function CombatSetupScreen(props: {
                   gap: 10
                 }}
               >
-                {(["FOR", "DEX", "CON", "INT", "SAG", "CHA"] as const).map(stat => {
-                  const score = getScore(stat);
-                  const mod = computeMod(score);
+                {STAT_KEYS.map(stat => {
+                  const baseScore = getBaseScore(stat);
+                  const bonus = getBonusSumForStat(stat);
+                  const totalScore = Math.max(1, Math.min(30, baseScore + bonus));
+                  const mod = computeMod(totalScore);
+                  const sources = getStatSources(stat);
                   return (
                     <div
                       key={stat}
@@ -2262,7 +2338,10 @@ export function CombatSetupScreen(props: {
                         gap: 6
                       }}
                     >
-                      <div style={{ fontSize: 12, fontWeight: 700 }}>{stat}</div>
+                      <div style={{ fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
+                        {stat}
+                        {sources.length > 0 && renderSourceDots(sources)}
+                      </div>
                       <div
                         style={{
                           display: "grid",
@@ -2273,7 +2352,7 @@ export function CombatSetupScreen(props: {
                       >
                         <button
                           type="button"
-                          onClick={() => !isSectionLocked("stats") && setScore(stat, score - 1)}
+                          onClick={() => !isSectionLocked("stats") && setScore(stat, totalScore - 1)}
                           disabled={isSectionLocked("stats")}
                           style={{
                             width: 30,
@@ -2296,7 +2375,7 @@ export function CombatSetupScreen(props: {
                           type="number"
                           min={1}
                           max={30}
-                          value={score}
+                          value={totalScore}
                           onChange={e =>
                             !isSectionLocked("stats") && setScore(stat, Number(e.target.value))
                           }
@@ -2316,7 +2395,7 @@ export function CombatSetupScreen(props: {
                         />
                         <button
                           type="button"
-                          onClick={() => !isSectionLocked("stats") && setScore(stat, score + 1)}
+                          onClick={() => !isSectionLocked("stats") && setScore(stat, totalScore + 1)}
                           disabled={isSectionLocked("stats")}
                           style={{
                             width: 30,
@@ -2336,6 +2415,15 @@ export function CombatSetupScreen(props: {
                             <rect x="5.25" y="2" width="1.5" height="8" fill="currentColor" />
                           </svg>
                         </button>
+                      </div>
+                      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
+                        Base: {baseScore}
+                        {bonus !== 0 && (
+                          <span style={{ marginLeft: 6 }}>
+                            Bonus: {bonus > 0 ? `+${bonus}` : bonus}
+                          </span>
+                        )}
+                        <span style={{ marginLeft: 6 }}>Total: {totalScore}</span>
                       </div>
                       <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
                         Modificateur: {mod >= 0 ? `+${mod}` : mod}
@@ -3200,11 +3288,64 @@ export function CombatSetupScreen(props: {
                 type="button"
                 onClick={() => {
                   if (isSectionLocked("backgrounds")) {
-                    setSectionLock("backgrounds", false);
+                    const bonusApplied = Boolean(
+                      (choiceSelections as any)?.background?.statBonusApplied
+                    );
+                    if (!bonusApplied) {
+                      setSectionLock("backgrounds", false);
+                      return;
+                    }
+                    const current = (props.character.caracs?.force as any)?.FOR ?? 10;
+                    const nextCaracs = {
+                      ...props.character.caracs,
+                      force: { ...(props.character.caracs?.force ?? {}), FOR: current - 1 }
+                    };
+                    const nextChoiceSelections = {
+                      ...choiceSelections,
+                      background: {
+                        ...(choiceSelections as any).background,
+                        statBonusApplied: false
+                      },
+                      statsBase: {
+                        ...statsBase,
+                        FOR: Number.isFinite(statsBase.FOR) ? statsBase.FOR : current - 1
+                      }
+                    };
+                    props.onChangeCharacter({
+                      ...props.character,
+                      creationLocks: { ...creationLocks, backgrounds: false },
+                      choiceSelections: nextChoiceSelections,
+                      caracs: nextCaracs
+                    });
                     return;
                   }
                   if (!requireBackgroundChoices()) {
-                    setSectionLock("backgrounds", true);
+                    const bonusApplied = Boolean(
+                      (choiceSelections as any)?.background?.statBonusApplied
+                    );
+                    let nextCaracs = props.character.caracs;
+                    const nextChoiceSelections = {
+                      ...choiceSelections,
+                      background: { ...(choiceSelections as any).background }
+                    };
+                    if (!bonusApplied && selectedBackgroundId === "veteran-de-guerre") {
+                      const current = (props.character.caracs?.force as any)?.FOR ?? 10;
+                      nextCaracs = {
+                        ...props.character.caracs,
+                        force: { ...(props.character.caracs?.force ?? {}), FOR: current + 1 }
+                      };
+                      (nextChoiceSelections as any).background.statBonusApplied = true;
+                      (nextChoiceSelections as any).statsBase = {
+                        ...statsBase,
+                        FOR: Number.isFinite(statsBase.FOR) ? statsBase.FOR : current
+                      };
+                    }
+                    props.onChangeCharacter({
+                      ...props.character,
+                      creationLocks: { ...creationLocks, backgrounds: true },
+                      choiceSelections: nextChoiceSelections,
+                      caracs: nextCaracs
+                    });
                   } else {
                     props.onChangeCharacter({
                       ...props.character,
