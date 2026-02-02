@@ -85,14 +85,20 @@ export const sampleCharacter: Personnage = {
     platine: 0
   },
   materielSlots: {
-    Ceinture_gauche: null,
-    Ceinture_droite: null,
-    Dos_gauche: null,
-    Dos_droit: null,
-    Armure: null,
-    Vetement: null,
-    paquetage: null,
-    accessoire: null
+    corps: null,
+    tete: null,
+    gants: null,
+    bottes: null,
+    ceinture_gauche: null,
+    ceinture_droite: null,
+    dos_gauche: null,
+    dos_droit: null,
+    anneau_1: null,
+    anneau_2: null,
+    collier: null,
+    bijou_1: null,
+    bijou_2: null,
+    paquetage: null
   },
   armesDefaut: {
     main_droite: "epee-longue",
@@ -107,10 +113,42 @@ export const sampleCharacter: Personnage = {
   ],
   equipmentManual: [],
   inventoryItems: [
-    { id: "obj_arme_endommagee", type: "object", qty: 1, source: "auto", equippedSlot: null },
-    { id: "obj_insigne_unite", type: "object", qty: 1, source: "auto", equippedSlot: null },
-    { id: "obj_vetements_voyage", type: "object", qty: 1, source: "auto", equippedSlot: null },
-    { id: "obj_bourse_10po", type: "object", qty: 1, source: "auto", equippedSlot: null }
+    {
+      id: "obj_arme_endommagee",
+      type: "object",
+      qty: 1,
+      source: "auto",
+      equippedSlot: null,
+      storedIn: null,
+      isPrimaryWeapon: false
+    },
+    {
+      id: "obj_insigne_unite",
+      type: "object",
+      qty: 1,
+      source: "auto",
+      equippedSlot: null,
+      storedIn: null,
+      isPrimaryWeapon: false
+    },
+    {
+      id: "obj_vetements_voyage",
+      type: "object",
+      qty: 1,
+      source: "auto",
+      equippedSlot: null,
+      storedIn: null,
+      isPrimaryWeapon: false
+    },
+    {
+      id: "obj_bourse_10po",
+      type: "object",
+      qty: 1,
+      source: "auto",
+      equippedSlot: null,
+      storedIn: null,
+      isPrimaryWeapon: false
+    }
   ],
   Inventaire: {
     id: "",

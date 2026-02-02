@@ -9,7 +9,8 @@
     "obj_grimoire",
     "obj_plume_encre",
     "obj_tenue_academique",
-    "obj_bourse_10po"
+    "obj_bourse_10po",
+    "obj_besace"
   ],
   "feature": {
     "name": "Acces au Savoir",

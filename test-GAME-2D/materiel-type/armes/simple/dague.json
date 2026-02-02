@@ -11,9 +11,18 @@
   "focalisateur": false,
   "weight": 0.5,
   "size": 0.4,
-  "value": { "gold": 2, "silver": 0, "copper": 0 },
+  "value": {
+    "gold": 2,
+    "silver": 0,
+    "copper": 0
+  },
   "rarity": "commune",
-  "tags": ["arme", "melee", "perforant", "jet"],
+  "tags": [
+    "arme",
+    "melee",
+    "perforant",
+    "jet"
+  ],
   "properties": {
     "finesse": true,
     "light": true,
@@ -21,11 +30,17 @@
     "two_handed": false,
     "reach": 1,
     "versatile": null,
-    "thrown": { "normal": 4, "long": 12 },
+    "thrown": {
+      "normal": 4,
+      "long": 12
+    },
     "ammunition": false,
     "loading": false,
     "reload": null,
-    "range": { "normal": 1, "long": 1 },
+    "range": {
+      "normal": 1,
+      "long": 1
+    },
     "special": null
   },
   "attack": {
@@ -45,5 +60,6 @@
   "links": {
     "actionId": "melee-strike",
     "effectId": "melee-slash"
-  }
+  },
+  "label": "Dague"
 }

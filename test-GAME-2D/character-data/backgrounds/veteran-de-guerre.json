@@ -13,7 +13,8 @@
     "obj_arme_endommagee",
     "obj_insigne_unite",
     "obj_vetements_voyage",
-    "obj_bourse_10po"
+    "obj_bourse_10po",
+    "obj_sac_voyage"
   ],
   "feature": {
     "name": "Freres et Soeurs d'Armes",

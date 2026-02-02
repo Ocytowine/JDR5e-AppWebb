@@ -7,6 +7,10 @@
   "dexCap": 2,
   "weight": 20,
   "priceGp": 750,
-  "tags": ["armure", "intermediaire"],
-  "description": "Armure intermediaire avec plaques partielles."
+  "tags": [
+    "armure",
+    "intermediaire"
+  ],
+  "description": "Armure intermediaire avec plaques partielles.",
+  "category": "armor_body"
 }

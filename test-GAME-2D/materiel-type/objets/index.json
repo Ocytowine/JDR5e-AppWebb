@@ -9,6 +9,9 @@
     "./obj-souvenir-vole.json",
     "./obj-arme-endommagee.json",
     "./obj-insigne-unite.json",
-    "./obj-vetements-voyage.json"
+    "./obj-vetements-voyage.json",
+    "./obj-sac-voyage.json",
+    "./obj-besace.json",
+    "./obj-sac-a-dos.json"
   ]
-}*** End Patch"}}
+}

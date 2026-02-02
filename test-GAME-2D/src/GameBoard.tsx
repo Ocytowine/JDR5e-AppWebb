@@ -236,6 +236,32 @@ function buildCellKey(x: number, y: number): string {
 }
 
 function getEquippedWeaponIds(character: Personnage | null | undefined): string[] {
+  const inventory = Array.isArray((character as any)?.inventoryItems)
+    ? ((character as any).inventoryItems as Array<any>)
+    : [];
+  const carriedSlots = new Set(["ceinture_gauche", "ceinture_droite", "dos_gauche", "dos_droit"]);
+  const equippedWeaponIds = inventory
+    .filter(
+      item =>
+        item?.type === "weapon" &&
+        item?.equippedSlot &&
+        carriedSlots.has(item.equippedSlot)
+    )
+    .map(item => item.id)
+    .filter((value): value is string => typeof value === "string" && value.length > 0);
+  const primary = inventory.find(
+    item =>
+      item?.type === "weapon" &&
+      item?.isPrimaryWeapon &&
+      item?.equippedSlot &&
+      carriedSlots.has(item.equippedSlot)
+  );
+  if (primary?.id) {
+    return Array.from(new Set([primary.id, ...equippedWeaponIds]));
+  }
+  if (equippedWeaponIds.length > 0) {
+    return Array.from(new Set(equippedWeaponIds));
+  }
   const slots = character?.armesDefaut as
     | { main_droite?: string | null; main_gauche?: string | null; mains?: string | null }
     | null
@@ -283,7 +309,10 @@ function getCharacterAbilityMod(character: Personnage, ability: AbilityKey): num
   return computeAbilityModFromScore(score);
 }
 
-function buildCombatStatsFromCharacter(character: Personnage): CombatStats {
+function buildCombatStatsFromCharacter(
+  character: Personnage,
+  armorItemsById: Map<string, ArmorItemDefinition>
+): CombatStats {
   const movementModes = getMovementModesForCharacter(character);
   const defaultSpeed = movementModes[0]?.speed ?? 3;
   const level = Number(character.combatStats?.level ?? character.niveauGlobal ?? 1) || 1;
@@ -296,7 +325,7 @@ function buildCombatStatsFromCharacter(character: Personnage): CombatStats {
     cha: getCharacterAbilityMod(character, "cha")
   };
   const maxHp = Number(character.combatStats?.maxHp ?? character.pvActuels ?? 1) || 1;
-  const armorClass = Number(character.combatStats?.armorClass ?? character.CA ?? 10) || 10;
+  const armorClass = computeArmorClassFromEquipment(character, armorItemsById, mods.dex);
 
   return {
     level,
@@ -310,6 +339,39 @@ function buildCombatStatsFromCharacter(character: Personnage): CombatStats {
     maxAttacksPerTurn: 1,
     resources: {}
   };
+}
+
+function computeArmorClassFromEquipment(
+  character: Personnage,
+  armorItemsById: Map<string, ArmorItemDefinition>,
+  dexMod: number
+): number {
+  const inventory = Array.isArray((character as any)?.inventoryItems)
+    ? ((character as any).inventoryItems as Array<any>)
+    : [];
+  const equippedArmor = inventory.filter(
+    item => item?.type === "armor" && item?.equippedSlot
+  );
+  const base = 10 + dexMod;
+  let armorBase = base;
+  let shieldBonus = 0;
+
+  for (const item of equippedArmor) {
+    const def = armorItemsById.get(item.id);
+    if (!def) continue;
+    if (def.armorCategory === "shield") {
+      shieldBonus = Math.max(shieldBonus, def.baseAC ?? 2);
+      continue;
+    }
+    const baseAC = typeof def.baseAC === "number" ? def.baseAC : 10;
+    const dexCap =
+      def.dexCap === null || typeof def.dexCap === "undefined"
+        ? dexMod
+        : Math.max(0, Math.min(dexMod, def.dexCap));
+    armorBase = Math.max(armorBase, baseAC + dexCap);
+  }
+
+  return Math.max(1, armorBase + shieldBonus);
 }
 
 // -------------------------------------------------------------
@@ -508,9 +570,26 @@ export const GameBoard: React.FC = () => {
     () => buildMovementProfileFromMode(defaultMovementMode),
     [defaultMovementMode]
   );
+  const [armorItems, setArmorItems] = useState<ArmorItemDefinition[]>([]);
+  const armorItemsById = useMemo(() => {
+    const map = new Map<string, ArmorItemDefinition>();
+    for (const item of armorItems) {
+      if (!item?.id) continue;
+      map.set(item.id, item);
+    }
+    return map;
+  }, [armorItems]);
   const baseCombatStats: CombatStats = useMemo(
-    () => characterConfig.combatStats ?? buildCombatStatsFromCharacter(characterConfig),
-    [characterConfig]
+    () => {
+      const built = buildCombatStatsFromCharacter(characterConfig, armorItemsById);
+      if (!characterConfig.combatStats) return built;
+      return {
+        ...built,
+        ...characterConfig.combatStats,
+        armorClass: built.armorClass
+      };
+    },
+    [characterConfig, armorItemsById]
   );
   const playerCombatStats: CombatStats = useMemo(
     () => ({
@@ -656,7 +735,6 @@ export const GameBoard: React.FC = () => {
   const [languageTypes, setLanguageTypes] = useState<LanguageDefinition[]>([]);
   const [toolItems, setToolItems] = useState<ToolItemDefinition[]>([]);
   const [objectItems, setObjectItems] = useState<ObjectItemDefinition[]>([]);
-  const [armorItems, setArmorItems] = useState<ArmorItemDefinition[]>([]);
   const [reactionCatalog, setReactionCatalog] = useState<ReactionDefinition[]>([]);
   const [reactionQueue, setReactionQueue] = useState<ReactionInstance[]>([]);
   const [reactionUsage, setReactionUsage] = useState<Record<string, number>>({});

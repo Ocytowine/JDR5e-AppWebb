@@ -2,9 +2,11 @@
   "id": "obj_vetements_communs",
   "label": "Vetements communs",
   "type": "object",
-  "category": "clothing",
+  "category": "clothing_body",
   "weight": 1.5,
   "priceGp": 0.5,
-  "tags": ["vetement"],
+  "tags": [
+    "vetement"
+  ],
   "description": "Tenue simple et pratique."
 }

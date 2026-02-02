@@ -11,9 +11,17 @@
   "focalisateur": false,
   "weight": 2.2,
   "size": 1.1,
-  "value": { "gold": 120, "silver": 0, "copper": 0 },
+  "value": {
+    "gold": 120,
+    "silver": 0,
+    "copper": 0
+  },
   "rarity": "rare",
-  "tags": ["arme", "distance", "perforant"],
+  "tags": [
+    "arme",
+    "distance",
+    "perforant"
+  ],
   "properties": {
     "finesse": false,
     "light": false,
@@ -25,7 +33,10 @@
     "ammunition": true,
     "loading": true,
     "reload": 5,
-    "range": { "normal": 20, "long": 80 },
+    "range": {
+      "normal": 20,
+      "long": 80
+    },
     "special": "repetition"
   },
   "attack": {
@@ -45,5 +56,6 @@
   "links": {
     "actionId": "bow-shot",
     "effectId": "melee-slash"
-  }
+  },
+  "label": "Arbalete repetee"
 }

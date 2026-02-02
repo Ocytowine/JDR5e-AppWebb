@@ -11,9 +11,17 @@
   "focalisateur": false,
   "weight": 1.0,
   "size": 1.0,
-  "value": { "gold": 25, "silver": 0, "copper": 0 },
+  "value": {
+    "gold": 25,
+    "silver": 0,
+    "copper": 0
+  },
   "rarity": "commune",
-  "tags": ["arme", "distance", "perforant"],
+  "tags": [
+    "arme",
+    "distance",
+    "perforant"
+  ],
   "properties": {
     "finesse": false,
     "light": false,
@@ -25,7 +33,10 @@
     "ammunition": true,
     "loading": false,
     "reload": null,
-    "range": { "normal": 16, "long": 64 },
+    "range": {
+      "normal": 16,
+      "long": 64
+    },
     "special": null
   },
   "attack": {
@@ -45,5 +56,6 @@
   "links": {
     "actionId": "bow-shot",
     "effectId": "melee-slash"
-  }
+  },
+  "label": "Arc court"
 }

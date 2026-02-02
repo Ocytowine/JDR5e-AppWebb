@@ -43,15 +43,8 @@ export function CombatSetupScreen(props: {
     | "masteries"
   >("species");
   const [activeClassTab, setActiveClassTab] = useState<"primary" | "secondary">("primary");
-  const equipped = (props.character?.armesDefaut ?? {
-    main_droite: null,
-    main_gauche: null,
-    mains: null
-  }) as {
-    main_droite?: string | null;
-    main_gauche?: string | null;
-    mains?: string | null;
-  };
+  const [equipSubTab, setEquipSubTab] = useState<"slots" | "loot">("slots");
+  const [equipMessage, setEquipMessage] = useState<string | null>(null);
   const weaponOptions = useMemo(() => {
     const list = Array.isArray(props.weaponTypes) ? [...props.weaponTypes] : [];
     list.sort((a, b) => {
@@ -160,25 +153,273 @@ export function CombatSetupScreen(props: {
   const weaponMasteries = Array.isArray(profs.weapons) ? profs.weapons : [];
   const armorMasteries = Array.isArray(profs.armors) ? profs.armors : [];
   const toolMasteries = Array.isArray(profs.tools) ? profs.tools : [];
-
-  const setWeaponSlot = (slot: "main_droite" | "main_gauche" | "mains", value: string | null) => {
-    const nextSlots = {
-      main_droite: equipped.main_droite ?? null,
-      main_gauche: equipped.main_gauche ?? null,
-      mains: equipped.mains ?? null
-    };
-    if (slot === "mains") {
-      nextSlots.mains = value;
-      if (value) {
-        nextSlots.main_droite = null;
-        nextSlots.main_gauche = null;
-      }
-    } else {
-      (nextSlots as any)[slot] = value;
-      if (value) nextSlots.mains = null;
-    }
-    props.onChangeCharacter({ ...props.character, armesDefaut: nextSlots });
+  const DEFAULT_MATERIEL_SLOTS: Record<string, string | null> = {
+    corps: null,
+    tete: null,
+    gants: null,
+    bottes: null,
+    ceinture_gauche: null,
+    ceinture_droite: null,
+    dos_gauche: null,
+    dos_droit: null,
+    anneau_1: null,
+    anneau_2: null,
+    collier: null,
+    bijou_1: null,
+    bijou_2: null,
+    paquetage: null
   };
+  const materielSlots = useMemo(() => {
+    const current = props.character?.materielSlots ?? {};
+    return { ...DEFAULT_MATERIEL_SLOTS, ...(current as Record<string, any>) };
+  }, [props.character?.materielSlots]);
+  const EQUIPMENT_SLOTS: Array<{
+    id: string;
+    label: string;
+    accepts: string[];
+    requiresClothingBody?: boolean;
+  }> = [
+    { id: "corps", label: "Corps (armure ou vetement)", accepts: ["armor_body", "clothing_body"] },
+    {
+      id: "tete",
+      label: "Tete (vetement)",
+      accepts: ["clothing_head"],
+      requiresClothingBody: true
+    },
+    {
+      id: "gants",
+      label: "Gants (vetement)",
+      accepts: ["clothing_gloves"],
+      requiresClothingBody: true
+    },
+    {
+      id: "bottes",
+      label: "Bottes (vetement)",
+      accepts: ["clothing_boots"],
+      requiresClothingBody: true
+    },
+    {
+      id: "ceinture_gauche",
+      label: "Ceinture gauche",
+      accepts: ["weapon_short", "weapon_long", "weapon_ranged", "shield"]
+    },
+    {
+      id: "ceinture_droite",
+      label: "Ceinture droite",
+      accepts: ["weapon_short", "weapon_long", "weapon_ranged", "shield"]
+    },
+    {
+      id: "dos_gauche",
+      label: "Dos gauche",
+      accepts: ["weapon_long", "weapon_ranged", "shield"]
+    },
+    {
+      id: "dos_droit",
+      label: "Dos droit",
+      accepts: ["weapon_long", "weapon_ranged", "shield"]
+    },
+    { id: "anneau_1", label: "Anneau 1", accepts: ["ring"] },
+    { id: "anneau_2", label: "Anneau 2", accepts: ["ring"] },
+    { id: "collier", label: "Collier", accepts: ["necklace"] },
+    { id: "bijou_1", label: "Bijou 1", accepts: ["jewel"] },
+    { id: "bijou_2", label: "Bijou 2", accepts: ["jewel"] },
+    { id: "paquetage", label: "Paquetage (sac)", accepts: ["pack"] }
+  ];
+  const weaponCarrySlots = useMemo(
+    () => new Set(["ceinture_gauche", "ceinture_droite", "dos_gauche", "dos_droit"]),
+    []
+  );
+  const clothingSubSlots = useMemo(() => new Set(["tete", "gants", "bottes"]), []);
+  const humanizeId = (value: string) => {
+    const cleaned = value
+      .replace(/^obj_/, "")
+      .replace(/^weapon_/, "")
+      .replace(/^armor_/, "")
+      .replace(/^tool_/, "")
+      .replace(/[_-]+/g, " ")
+      .trim();
+    return cleaned.length > 0 ? cleaned.charAt(0).toUpperCase() + cleaned.slice(1) : value;
+  };
+  const getItemLabel = (item: any) => {
+    const fallback = humanizeId(item?.id ?? "item");
+    if (item?.type === "object") return objectItemMap.get(item.id)?.label ?? fallback;
+    if (item?.type === "armor") return armorItemMap.get(item.id)?.label ?? fallback;
+    if (item?.type === "tool") return toolItemMap.get(item.id)?.label ?? fallback;
+    if (item?.type === "weapon") return weaponItemMap.get(item.id)?.name ?? fallback;
+    return fallback;
+  };
+  const getWeaponCategories = (weapon?: WeaponTypeDefinition | null) => {
+    if (!weapon) return [];
+    const categories = new Set<string>();
+    const props = weapon.properties ?? {};
+    if (props.two_handed || props.heavy) {
+      categories.add("weapon_long");
+    } else if (props.light) {
+      categories.add("weapon_short");
+    } else {
+      categories.add("weapon_long");
+    }
+    if (weapon.category === "ranged" || props.ammunition) {
+      categories.add("weapon_ranged");
+    }
+    return Array.from(categories);
+  };
+  const getItemCategories = (item: any) => {
+    if (!item) return [];
+    if (item.type === "object") {
+      const def = objectItemMap.get(item.id);
+      return def?.category ? [def.category] : [];
+    }
+    if (item.type === "armor") {
+      const def = armorItemMap.get(item.id);
+      return def?.category ? [def.category] : [];
+    }
+    if (item.type === "weapon") {
+      const def = weaponItemMap.get(item.id);
+      return getWeaponCategories(def);
+    }
+    if (item.type === "tool") {
+      return ["tool"];
+    }
+    return [];
+  };
+  const getItemWeight = (item: any) => {
+    if (!item) return 0;
+    if (item.type === "object") return objectItemMap.get(item.id)?.weight ?? 0;
+    if (item.type === "armor") return armorItemMap.get(item.id)?.weight ?? 0;
+    if (item.type === "weapon") return weaponItemMap.get(item.id)?.weight ?? 0;
+    if (item.type === "tool") return toolItemMap.get(item.id)?.weight ?? 0;
+    return 0;
+  };
+  const getBagId = () => (materielSlots?.paquetage as string | null) ?? null;
+  const getBagCapacity = (bagId: string | null) => {
+    if (!bagId) return 0;
+    const bag = objectItemMap.get(bagId);
+    return bag?.capacityWeight ?? 0;
+  };
+  const getStoredWeight = (bagId: string | null) => {
+    if (!bagId) return 0;
+    return inventoryItems.reduce((sum, item) => {
+      if (item?.storedIn !== bagId) return sum;
+      return sum + getItemWeight(item) * (Number(item?.qty ?? 1) || 1);
+    }, 0);
+  };
+  const getBodyCategory = () => {
+    const bodyId = materielSlots?.corps;
+    if (!bodyId) return null;
+    const item = inventoryItems.find(entry => entry.id === bodyId && entry.equippedSlot === "corps");
+    const categories = getItemCategories(item);
+    return categories.length > 0 ? categories[0] : null;
+  };
+  const canUseClothingPieces = getBodyCategory() === "clothing_body";
+  const slotGroups = useMemo(
+    () => ({
+      body: ["corps", "tete", "gants", "bottes"],
+      weapons: ["ceinture_gauche", "ceinture_droite", "dos_gauche", "dos_droit"],
+      jewelry: ["anneau_1", "anneau_2", "collier", "bijou_1", "bijou_2"],
+      bag: ["paquetage"]
+    }),
+    []
+  );
+  const getEligibleItemsForSlot = (slotId: string) => {
+    const slotDef = EQUIPMENT_SLOTS.find(s => s.id === slotId);
+    if (!slotDef) return [];
+    if (slotDef.requiresClothingBody && !canUseClothingPieces) return [];
+    return inventoryItems
+      .map((item, idx) => ({ item, idx }))
+      .filter(({ item }) => {
+        const categories = getItemCategories(item);
+        return categories.some(cat => slotDef.accepts.includes(cat));
+      });
+  };
+  const bagId = getBagId();
+  const bagCapacity = getBagCapacity(bagId);
+  const storedWeight = getStoredWeight(bagId);
+  const slotItemIndexMap = useMemo(() => {
+    const map = new Map<string, number>();
+    inventoryItems.forEach((item, idx) => {
+      if (item?.equippedSlot) map.set(item.equippedSlot, idx);
+    });
+    return map;
+  }, [inventoryItems]);
+  const renderSlotGroup = (slotIds: string[], title: string, note?: string) => (
+    <div
+      style={{
+        borderRadius: 8,
+        border: "1px solid rgba(255,255,255,0.12)",
+        background: "rgba(12,12,18,0.75)",
+        padding: 10,
+        display: "flex",
+        flexDirection: "column",
+        gap: 8
+      }}
+    >
+      <div style={{ fontSize: 12, fontWeight: 700 }}>{title}</div>
+      {note && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>{note}</div>}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+          gap: 8
+        }}
+      >
+        {slotIds.map(slotId => {
+          const slot = EQUIPMENT_SLOTS.find(entry => entry.id === slotId);
+          if (!slot) return null;
+          const currentIndex = slotItemIndexMap.get(slot.id);
+          const eligible = getEligibleItemsForSlot(slot.id);
+          const disabled =
+            isSectionLocked("equip") ||
+            (slot.requiresClothingBody && !canUseClothingPieces);
+          return (
+            <label
+              key={slot.id}
+              style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 6 }}
+            >
+              <span style={{ color: disabled ? "rgba(255,255,255,0.4)" : "#f5f5f5" }}>
+                {slot.label}
+              </span>
+              <select
+                value={typeof currentIndex === "number" ? String(currentIndex) : ""}
+                onChange={event => {
+                  const value = event.target.value;
+                  if (!value) {
+                    if (typeof currentIndex === "number") {
+                      updateItemSlot(currentIndex, null);
+                    }
+                    return;
+                  }
+                  updateItemSlot(Number(value), slot.id);
+                }}
+                disabled={disabled}
+                style={{
+                  background: "#0f0f19",
+                  color: "#f5f5f5",
+                  border: "1px solid #333",
+                  borderRadius: 6,
+                  padding: "6px 8px",
+                  fontSize: 12,
+                  opacity: disabled ? 0.6 : 1
+                }}
+              >
+                <option value="">Vide</option>
+                {eligible.map(({ item, idx }) => (
+                  <option key={`slot-${slot.id}-${idx}`} value={String(idx)}>
+                    {getItemLabel(item)}
+                  </option>
+                ))}
+              </select>
+              {slot.requiresClothingBody && !canUseClothingPieces && (
+                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }}>
+                  Requiert un vetement au corps
+                </span>
+              )}
+            </label>
+          );
+        })}
+      </div>
+    </div>
+  );
 
   const setNameField = (key: "prenom" | "nomcomplet" | "surnom", value: string) => {
     const nextNom = {
@@ -732,13 +973,7 @@ export function CombatSetupScreen(props: {
   };
 
   const resetMateriel = () => {
-    const nextMaterielSlots =
-      props.character?.materielSlots && typeof props.character.materielSlots === "object"
-        ? Object.keys(props.character.materielSlots).reduce((acc, key) => {
-            (acc as any)[key] = null;
-            return acc;
-          }, {} as Record<string, any>)
-        : props.character.materielSlots;
+    const nextMaterielSlots = { ...DEFAULT_MATERIEL_SLOTS };
     const nextArmesDefaut = {
       main_droite: null,
       main_gauche: null,
@@ -752,7 +987,9 @@ export function CombatSetupScreen(props: {
       inventoryItems: Array.isArray((props.character as any)?.inventoryItems)
         ? ((props.character as any).inventoryItems as Array<any>).map(item => ({
             ...item,
-            equippedSlot: null
+            equippedSlot: null,
+            storedIn: null,
+            isPrimaryWeapon: false
           }))
         : []
     });
@@ -769,19 +1006,32 @@ export function CombatSetupScreen(props: {
     if (weaponItemMap.has(rawId)) return { type: "weapon", id: rawId };
     return { type: "object", id: rawId };
   };
+  const formatEquipmentLabel = (rawId: string) => {
+    const resolved = resolveItemType(rawId);
+    const fallback = humanizeId(resolved.id);
+    if (resolved.type === "object") return objectItemMap.get(resolved.id)?.label ?? fallback;
+    if (resolved.type === "armor") return armorItemMap.get(resolved.id)?.label ?? fallback;
+    if (resolved.type === "tool") return toolItemMap.get(resolved.id)?.label ?? fallback;
+    if (resolved.type === "weapon") return weaponItemMap.get(resolved.id)?.name ?? fallback;
+    return fallback;
+  };
 
   const buildInventoryFromAutoManual = (autoIds: string[], manualIds: string[]) => {
     const autoItems = autoIds.map(id => ({
       ...resolveItemType(id),
       qty: 1,
       source: "auto",
-      equippedSlot: null
+      equippedSlot: null,
+      storedIn: null,
+      isPrimaryWeapon: false
     }));
     const manualItems = manualIds.map(id => ({
       ...resolveItemType(id),
       qty: 1,
       source: "manual",
-      equippedSlot: null
+      equippedSlot: null,
+      storedIn: null,
+      isPrimaryWeapon: false
     }));
     return [...autoItems, ...manualItems];
   };
@@ -790,7 +1040,14 @@ export function CombatSetupScreen(props: {
     const nextManual = [...equipmentManual, id];
     const nextInventory = [
       ...inventoryItems,
-      { ...resolveItemType(id), qty: 1, source: "manual", equippedSlot: null }
+      {
+        ...resolveItemType(id),
+        qty: 1,
+        source: "manual",
+        equippedSlot: null,
+        storedIn: null,
+        isPrimaryWeapon: false
+      }
     ];
     props.onChangeCharacter({
       ...props.character,
@@ -799,40 +1056,156 @@ export function CombatSetupScreen(props: {
     });
   };
 
-  const removeManualItem = (index: number) => {
-    const nextManual = equipmentManual.filter((_, idx) => idx !== index);
-    let manualIndex = -1;
-    const nextInventory = inventoryItems.filter(item => {
-      if (item.source !== "manual") return true;
-      manualIndex += 1;
-      return manualIndex !== index;
+  const removeManualItem = (inventoryIndex: number) => {
+    const target = inventoryItems[inventoryIndex];
+    if (!target) return;
+    const entryId = `${target.type}:${target.id}`;
+    let removed = false;
+    const nextManual = equipmentManual.filter(entry => {
+      if (removed) return true;
+      if (entry === entryId || entry === target.id) {
+        removed = true;
+        return false;
+      }
+      return true;
     });
+    const slots = { ...materielSlots };
+    if (target.equippedSlot && slots[target.equippedSlot]) {
+      slots[target.equippedSlot] = null;
+    }
+    const nextInventory = inventoryItems.filter((_, idx) => idx !== inventoryIndex);
     props.onChangeCharacter({
       ...props.character,
       equipmentManual: nextManual,
+      materielSlots: slots,
       inventoryItems: nextInventory
     });
   };
 
   const updateItemSlot = (index: number, slot: string | null) => {
-    const slots = { ...(props.character.materielSlots ?? {}) } as Record<string, any>;
-    const nextInventory = inventoryItems.map((item, idx) => {
-      if (idx !== index) {
-        if (slot && item.equippedSlot === slot) {
-          return { ...item, equippedSlot: null };
-        }
-        return item;
-      }
-      return { ...item, equippedSlot: slot };
-    });
+    const targetItem = inventoryItems[index];
+    if (!targetItem) return;
+    if (slot && !EQUIPMENT_SLOTS.find(s => s.id === slot)) return;
+    const categories = getItemCategories(targetItem);
     if (slot) {
-      slots[slot] = inventoryItems[index]?.id ?? null;
+      const slotDef = EQUIPMENT_SLOTS.find(s => s.id === slot);
+      if (!slotDef) return;
+      if (slotDef.requiresClothingBody && !canUseClothingPieces) return;
+      if (!categories.some(cat => slotDef.accepts.includes(cat))) return;
+    }
+    const slots = { ...materielSlots };
+    const nextInventory = inventoryItems.map((item, idx) => {
+      if (idx === index) return item;
+      if (slot && item.equippedSlot === slot) {
+        return { ...item, equippedSlot: null };
+      }
+      return item;
+    });
+    const keepPrimary =
+      targetItem.type === "weapon" && slot && weaponCarrySlots.has(slot)
+        ? Boolean(targetItem.isPrimaryWeapon)
+        : false;
+    const nextForTarget = {
+      ...targetItem,
+      equippedSlot: slot,
+      storedIn: null,
+      isPrimaryWeapon: keepPrimary
+    };
+    nextInventory[index] = nextForTarget;
+    if (targetItem.equippedSlot && slots[targetItem.equippedSlot]) {
+      slots[targetItem.equippedSlot] = null;
+    }
+    if (slot) {
+      slots[slot] = targetItem.id ?? null;
+    }
+    if (slot === "corps") {
+      const isArmor = categories.includes("armor_body");
+      if (isArmor) {
+        for (const subSlot of clothingSubSlots) {
+          const subId = slots[subSlot];
+          if (subId) {
+            slots[subSlot] = null;
+            for (let i = 0; i < nextInventory.length; i += 1) {
+              if (nextInventory[i]?.equippedSlot === subSlot) {
+                nextInventory[i] = { ...nextInventory[i], equippedSlot: null };
+              }
+            }
+          }
+        }
+      }
+    }
+    if (slot === "paquetage") {
+      const bagId = targetItem.id ?? null;
+      for (let i = 0; i < nextInventory.length; i += 1) {
+        if (nextInventory[i]?.storedIn && nextInventory[i].storedIn !== bagId) {
+          nextInventory[i] = { ...nextInventory[i], storedIn: null };
+        }
+      }
+    }
+    if (!slot && targetItem.equippedSlot === "paquetage") {
+      for (let i = 0; i < nextInventory.length; i += 1) {
+        if (nextInventory[i]?.storedIn) {
+          nextInventory[i] = { ...nextInventory[i], storedIn: null };
+        }
+      }
     }
     props.onChangeCharacter({
       ...props.character,
       materielSlots: slots,
       inventoryItems: nextInventory
     });
+  };
+  const storeItemInBag = (index: number) => {
+    const bagId = getBagId();
+    const bagCapacity = getBagCapacity(bagId);
+    if (!bagId || bagCapacity <= 0) return;
+    const item = inventoryItems[index];
+    if (!item) return;
+    const itemWeight = getItemWeight(item) * (Number(item?.qty ?? 1) || 1);
+    const storedWeight = getStoredWeight(bagId);
+    if (item.storedIn !== bagId && storedWeight + itemWeight > bagCapacity) {
+      setEquipMessage("Capacite du sac depassee.");
+      return;
+    }
+    const slots = { ...materielSlots };
+    if (item.equippedSlot && slots[item.equippedSlot]) {
+      slots[item.equippedSlot] = null;
+    }
+    const nextInventory = inventoryItems.map((entry, idx) => {
+      if (idx !== index) return entry;
+      return { ...entry, equippedSlot: null, storedIn: bagId, isPrimaryWeapon: false };
+    });
+    props.onChangeCharacter({
+      ...props.character,
+      materielSlots: slots,
+      inventoryItems: nextInventory
+    });
+  };
+  const setPrimaryWeapon = (index: number) => {
+    const item = inventoryItems[index];
+    if (!item || item.type !== "weapon") return;
+    if (!item.equippedSlot || !weaponCarrySlots.has(item.equippedSlot)) {
+      setEquipMessage("L'arme principale doit etre equipee a la ceinture ou au dos.");
+      return;
+    }
+    const weapon = weaponItemMap.get(item.id);
+    const isTwoHanded = Boolean(weapon?.properties?.two_handed || weapon?.properties?.heavy);
+    if (isTwoHanded) {
+      const hasShield = inventoryItems.some(entry => {
+        if (entry?.type !== "armor") return false;
+        if (!entry.equippedSlot || !weaponCarrySlots.has(entry.equippedSlot)) return false;
+        return getItemCategories(entry).includes("shield");
+      });
+      if (hasShield) {
+        setEquipMessage("Une arme a deux mains ne peut pas etre principale avec un bouclier equipe.");
+        return;
+      }
+    }
+    const nextInventory = inventoryItems.map((entry, idx) => ({
+      ...entry,
+      isPrimaryWeapon: idx === index
+    }));
+    props.onChangeCharacter({ ...props.character, inventoryItems: nextInventory });
   };
 
   useEffect(() => {
@@ -843,7 +1216,6 @@ export function CombatSetupScreen(props: {
       props.onChangeCharacter({ ...props.character, inventoryItems: nextInventory });
     }
   }, [inventoryItems.length, equipmentAuto, equipmentManual, props.character, props.onChangeCharacter]);
-  };
 
   const handleSpeciesSelect = (raceId: string) => {
     if (!isSectionLocked("species")) {
@@ -1427,7 +1799,7 @@ export function CombatSetupScreen(props: {
             <>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div style={{ fontSize: 12, color: "#b0b8c4" }}>
-                Choisissez les armes equipees. Les actions disponibles s&apos;adapteront a ces choix.
+                Equipez les objets compatibles dans chaque slot. Les selections respectent les categories.
               </div>
               <button
                 type="button"
@@ -1449,315 +1821,377 @@ export function CombatSetupScreen(props: {
                 {isSectionLocked("equip") ? "Deverouiller" : "Verouiller"}
               </button>
             </div>
-            {[
-              { id: "main_droite", label: "Main droite" },
-              { id: "main_gauche", label: "Main gauche" },
-              { id: "mains", label: "Deux mains" }
-            ].map(slot => (
-              <label
-                key={slot.id}
-                style={{ fontSize: 13, display: "flex", flexDirection: "column", gap: 6 }}
-              >
-                {slot.label} :
-                <select
-                  value={(equipped as any)[slot.id] ?? ""}
-                  onChange={e =>
-                    setWeaponSlot(
-                      slot.id as "main_droite" | "main_gauche" | "mains",
-                      e.target.value ? e.target.value : null
-                    )
-                  }
-                  disabled={isSectionLocked("equip")}
+            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+              {([
+                { id: "slots", label: "Equipement" },
+                { id: "loot", label: "Boite a loot" }
+              ] as const).map(tab => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setEquipSubTab(tab.id)}
                   style={{
-                    background: "#0f0f19",
+                    padding: "4px 10px",
+                    borderRadius: 8,
+                    border: "1px solid rgba(255,255,255,0.15)",
+                    background:
+                      equipSubTab === tab.id
+                        ? "rgba(46, 204, 113, 0.18)"
+                        : "rgba(255,255,255,0.06)",
                     color: "#f5f5f5",
-                    border: "1px solid #333",
-                    borderRadius: 6,
-                    padding: "6px 8px",
-                    fontSize: 12,
-                    opacity: isSectionLocked("equip") ? 0.6 : 1
+                    cursor: "pointer",
+                    fontSize: 11,
+                    fontWeight: 700
                   }}
                 >
-                  <option value="">Aucune</option>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            {equipMessage && (
+              <div
+                style={{
+                  marginTop: 6,
+                  padding: "6px 10px",
+                  borderRadius: 8,
+                  border: "1px solid rgba(255,255,255,0.18)",
+                  background: "rgba(231, 76, 60, 0.18)",
+                  fontSize: 11,
+                  color: "#f5f5f5",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8
+                }}
+              >
+                <span>{equipMessage}</span>
+                <button
+                  type="button"
+                  onClick={() => setEquipMessage(null)}
+                  style={{
+                    marginLeft: "auto",
+                    border: "none",
+                    background: "transparent",
+                    color: "#f5f5f5",
+                    cursor: "pointer",
+                    fontSize: 12,
+                    fontWeight: 700
+                  }}
+                >
+                  OK
+                </button>
+              </div>
+            )}
+            {equipSubTab === "slots" && (
+              <>
+                <div
+                  style={{
+                    marginTop: 8,
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+                    gap: 10
+                  }}
+                >
+                  {renderSlotGroup(
+                    slotGroups.body,
+                    "Vetements / Armures",
+                    "Corps: armure ou vetement. Vetements secondaires actifs si vetement au corps."
+                  )}
+                  {renderSlotGroup(slotGroups.weapons, "Armes et protections")}
+                  {renderSlotGroup(slotGroups.jewelry, "Bijoux")}
+                  {renderSlotGroup(slotGroups.bag, "Paquetage")}
+                </div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginTop: 6 }}>
+                  Paquetage:{" "}
+                  {bagId
+                    ? `${storedWeight.toFixed(1)} / ${bagCapacity.toFixed(1)} poids`
+                    : "aucun sac equipe"}
+                </div>
+                <div
+                  style={{
+                    marginTop: 10,
+                    borderRadius: 8,
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    background: "rgba(12,12,18,0.75)",
+                    padding: 10,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8
+                  }}
+                >
+                  <div style={{ fontSize: 12, fontWeight: 700 }}>Inventaire</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
+                    Equiper un slot ou ranger dans le sac (si disponible).
+                  </div>
+                  {inventoryItems.length === 0 && (
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                      Aucun item pour l'instant.
+                    </div>
+                  )}
+                  {inventoryItems.map((item, idx) => {
+                    const sourceLabel = item.source === "auto" ? "Auto" : "Manuel";
+                    const eligibleSlots = EQUIPMENT_SLOTS.filter(slot => {
+                      if (slot.requiresClothingBody && !canUseClothingPieces) return false;
+                      const categories = getItemCategories(item);
+                      return categories.some(cat => slot.accepts.includes(cat));
+                    });
+                    const canStore =
+                      bagId && bagCapacity > 0
+                        ? (() => {
+                            const itemWeight =
+                              getItemWeight(item) * (Number(item?.qty ?? 1) || 1);
+                            if (item.storedIn === bagId) return true;
+                            return storedWeight + itemWeight <= bagCapacity;
+                          })()
+                        : false;
+                    return (
+                      <div
+                        key={`inv-${idx}`}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "1fr auto auto auto",
+                          gap: 8,
+                          alignItems: "center",
+                          fontSize: 12
+                        }}
+                      >
+                        <span>
+                          {getItemLabel(item)}{" "}
+                          <span style={{ color: "rgba(255,255,255,0.5)" }}>
+                            ({sourceLabel})
+                          </span>
+                        </span>
+                        <select
+                          value={
+                            item.storedIn
+                              ? "__bag__"
+                              : item.equippedSlot
+                                ? item.equippedSlot
+                                : ""
+                          }
+                          onChange={e => {
+                            const value = e.target.value;
+                            if (value === "__bag__") {
+                              storeItemInBag(idx);
+                              return;
+                            }
+                            if (!value) {
+                              updateItemSlot(idx, null);
+                              return;
+                            }
+                            updateItemSlot(idx, value);
+                          }}
+                          style={{
+                            background: "#0f0f19",
+                            color: "#f5f5f5",
+                            border: "1px solid #333",
+                            borderRadius: 6,
+                            padding: "2px 6px",
+                            fontSize: 11
+                          }}
+                          disabled={isSectionLocked("equip")}
+                        >
+                          <option value="">Non equipe</option>
+                          {eligibleSlots.map(slot => (
+                            <option key={`item-slot-${idx}-${slot.id}`} value={slot.id}>
+                              {slot.label}
+                            </option>
+                          ))}
+                          {bagId && (
+                            <option value="__bag__" disabled={!canStore}>
+                              Ranger dans le sac
+                            </option>
+                          )}
+                        </select>
+                        {item.type === "weapon" && (
+                          <button
+                            type="button"
+                            onClick={() => setPrimaryWeapon(idx)}
+                            style={{
+                              borderRadius: 6,
+                              border: "1px solid rgba(255,255,255,0.2)",
+                              background: item.isPrimaryWeapon
+                                ? "rgba(241, 196, 15, 0.25)"
+                                : "rgba(255,255,255,0.08)",
+                              color: item.isPrimaryWeapon ? "#f8e58c" : "#f5f5f5",
+                              cursor: "pointer",
+                              fontSize: 12,
+                              padding: "2px 6px",
+                              fontWeight: 700
+                            }}
+                            title="Definir comme arme principale"
+                          >
+                            ★
+                          </button>
+                        )}
+                        {item.source === "manual" && (
+                          <button
+                            type="button"
+                            onClick={() => removeManualItem(idx)}
+                            style={{
+                              padding: "2px 6px",
+                              borderRadius: 6,
+                              border: "1px solid rgba(255,255,255,0.2)",
+                              background: "rgba(231,76,60,0.18)",
+                              color: "#f5f5f5",
+                              cursor: "pointer",
+                              fontSize: 11
+                            }}
+                          >
+                            Retirer
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+            {equipSubTab === "loot" && (
+              <div
+                style={{
+                  marginTop: 10,
+                  borderRadius: 8,
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  background: "rgba(12,12,18,0.75)",
+                  padding: 10,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8
+                }}
+              >
+                <div style={{ fontSize: 12, fontWeight: 700 }}>Boite a loot infinie</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
+                  Ajoutez des items pour tester.
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 700, marginTop: 4 }}>Armes</div>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                    gap: 6
+                  }}
+                >
                   {weaponOptions.map(weapon => (
-                    <option key={weapon.id} value={weapon.id}>
-                      {weapon.name} ({weapon.subtype})
-                    </option>
+                    <button
+                      key={`loot-weapon-${weapon.id}`}
+                      type="button"
+                      onClick={() => addManualItem(`weapon:${weapon.id}`)}
+                      style={{
+                        textAlign: "left",
+                        borderRadius: 8,
+                        border: "1px solid rgba(255,255,255,0.12)",
+                        background: "rgba(10,10,16,0.8)",
+                        color: "#f5f5f5",
+                        padding: "6px 8px",
+                        cursor: "pointer",
+                        fontSize: 12
+                      }}
+                    >
+                      + {weapon.name} ({weapon.subtype})
+                    </button>
                   ))}
-                </select>
-              </label>
-            ))}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-                gap: 12
-              }}
-            >
-              <div
-                style={{
-                  borderRadius: 8,
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  background: "rgba(12,12,18,0.75)",
-                  padding: 10,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 8
-                }}
-              >
-                <div style={{ fontSize: 12, fontWeight: 700 }}>Equipement auto</div>
-                {equipmentAuto.length === 0 && (
-                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                    Aucun equipement automatique.
-                  </div>
-                )}
-                {inventoryItems
-                  .map((item, idx) => ({ item, idx }))
-                  .filter(entry => entry.item.source === "auto")
-                  .map(({ item, idx }) => {
-                    const label =
-                      item.type === "object"
-                        ? objectItemMap.get(item.id)?.label ?? item.id
-                        : item.type === "armor"
-                          ? armorItemMap.get(item.id)?.label ?? item.id
-                          : item.type === "tool"
-                            ? toolItemMap.get(item.id)?.label ?? item.id
-                            : item.type === "weapon"
-                              ? weaponItemMap.get(item.id)?.name ?? item.id
-                              : item.id;
-                    return (
-                      <div
-                        key={`auto-${idx}`}
-                        style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}
-                      >
-                        <span>• {label}</span>
-                        <select
-                          value={item.equippedSlot ?? ""}
-                          onChange={e =>
-                            updateItemSlot(idx, e.target.value ? e.target.value : null)
-                          }
-                          style={{
-                            background: "#0f0f19",
-                            color: "#f5f5f5",
-                            border: "1px solid #333",
-                            borderRadius: 6,
-                            padding: "2px 6px",
-                            fontSize: 11,
-                            marginLeft: "auto"
-                          }}
-                        >
-                          <option value="">Ranger</option>
-                          {props.character?.materielSlots &&
-                            Object.keys(props.character.materielSlots).map(slot => (
-                              <option key={slot} value={slot}>
-                                {slot}
-                              </option>
-                            ))}
-                        </select>
-                      </div>
-                    );
-                  })}
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 700, marginTop: 6 }}>Outils</div>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                    gap: 6
+                  }}
+                >
+                  {toolItems.map(tool => (
+                    <button
+                      key={`loot-tool-${tool.id}`}
+                      type="button"
+                      onClick={() => addManualItem(`tool:${tool.id}`)}
+                      style={{
+                        textAlign: "left",
+                        borderRadius: 8,
+                        border: "1px solid rgba(255,255,255,0.12)",
+                        background: "rgba(10,10,16,0.8)",
+                        color: "#f5f5f5",
+                        padding: "6px 8px",
+                        cursor: "pointer",
+                        fontSize: 12
+                      }}
+                    >
+                      + {tool.label}
+                    </button>
+                  ))}
+                  {toolItems.length === 0 && (
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                      Aucun outil disponible.
+                    </div>
+                  )}
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 700, marginTop: 6 }}>Armures</div>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                    gap: 6
+                  }}
+                >
+                  {armorItems.map(armor => (
+                    <button
+                      key={`loot-armor-${armor.id}`}
+                      type="button"
+                      onClick={() => addManualItem(`armor:${armor.id}`)}
+                      style={{
+                        textAlign: "left",
+                        borderRadius: 8,
+                        border: "1px solid rgba(255,255,255,0.12)",
+                        background: "rgba(10,10,16,0.8)",
+                        color: "#f5f5f5",
+                        padding: "6px 8px",
+                        cursor: "pointer",
+                        fontSize: 12
+                      }}
+                    >
+                      + {armor.label}
+                    </button>
+                  ))}
+                  {armorItems.length === 0 && (
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                      Aucune armure chargee pour l'instant.
+                    </div>
+                  )}
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 700, marginTop: 6 }}>Autres</div>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                    gap: 6
+                  }}
+                >
+                  {objectItems.map(obj => (
+                    <button
+                      key={`loot-object-${obj.id}`}
+                      type="button"
+                      onClick={() => addManualItem(`object:${obj.id}`)}
+                      style={{
+                        textAlign: "left",
+                        borderRadius: 8,
+                        border: "1px solid rgba(255,255,255,0.12)",
+                        background: "rgba(10,10,16,0.8)",
+                        color: "#f5f5f5",
+                        padding: "6px 8px",
+                        cursor: "pointer",
+                        fontSize: 12
+                      }}
+                    >
+                      + {obj.label}
+                    </button>
+                  ))}
+                  {objectItems.length === 0 && (
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                      Aucun autre item charge pour l'instant.
+                    </div>
+                  )}
+                </div>
               </div>
-              <div
-                style={{
-                  borderRadius: 8,
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  background: "rgba(12,12,18,0.75)",
-                  padding: 10,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 8
-                }}
-              >
-                <div style={{ fontSize: 12, fontWeight: 700 }}>Inventaire manuel</div>
-                {equipmentManual.length === 0 && (
-                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                    Aucun item ajoute.
-                  </div>
-                )}
-                {inventoryItems
-                  .map((item, idx) => ({ item, idx }))
-                  .filter(entry => entry.item.source === "manual")
-                  .map(({ item, idx }, manualIndex) => {
-                    let label = item.id;
-                    if (item.type === "object") {
-                      label = objectItemMap.get(item.id)?.label ?? item.id;
-                    } else if (item.type === "tool") {
-                      label = toolItemMap.get(item.id)?.label ?? item.id;
-                    } else if (item.type === "armor") {
-                      label = armorItemMap.get(item.id)?.label ?? item.id;
-                    } else if (item.type === "weapon") {
-                      label = weaponItemMap.get(item.id)?.name ?? item.id;
-                    }
-                    return (
-                      <div
-                        key={`manual-${idx}`}
-                        style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}
-                      >
-                        <span>{label}</span>
-                        <select
-                          value={item.equippedSlot ?? ""}
-                          onChange={e =>
-                            updateItemSlot(idx, e.target.value ? e.target.value : null)
-                          }
-                          style={{
-                            background: "#0f0f19",
-                            color: "#f5f5f5",
-                            border: "1px solid #333",
-                            borderRadius: 6,
-                            padding: "2px 6px",
-                            fontSize: 11
-                          }}
-                        >
-                          <option value="">Ranger</option>
-                          {props.character?.materielSlots &&
-                            Object.keys(props.character.materielSlots).map(slot => (
-                              <option key={slot} value={slot}>
-                                {slot}
-                              </option>
-                            ))}
-                        </select>
-                        <button
-                          type="button"
-                          onClick={() => removeManualItem(manualIndex)}
-                          style={{
-                            marginLeft: "auto",
-                            padding: "2px 6px",
-                            borderRadius: 6,
-                            border: "1px solid rgba(255,255,255,0.2)",
-                            background: "rgba(231,76,60,0.18)",
-                            color: "#f5f5f5",
-                            cursor: "pointer",
-                            fontSize: 11
-                          }}
-                        >
-                          Retirer
-                        </button>
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-            <div
-              style={{
-                marginTop: 6,
-                borderRadius: 8,
-                border: "1px solid rgba(255,255,255,0.12)",
-                background: "rgba(12,12,18,0.75)",
-                padding: 10,
-                display: "flex",
-                flexDirection: "column",
-                gap: 8
-              }}
-            >
-              <div style={{ fontSize: 12, fontWeight: 700 }}>Boite a loot infinie</div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
-                Ajoutez des items pour tester.
-              </div>
-              <div style={{ fontSize: 12, fontWeight: 700, marginTop: 4 }}>Armes</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 6 }}>
-                {weaponOptions.map(weapon => (
-                  <button
-                    key={`loot-weapon-${weapon.id}`}
-                    type="button"
-                    onClick={() => addManualItem(`weapon:${weapon.id}`)}
-                    style={{
-                      textAlign: "left",
-                      borderRadius: 8,
-                      border: "1px solid rgba(255,255,255,0.12)",
-                      background: "rgba(10,10,16,0.8)",
-                      color: "#f5f5f5",
-                      padding: "6px 8px",
-                      cursor: "pointer",
-                      fontSize: 12
-                    }}
-                  >
-                    + {weapon.name} ({weapon.subtype})
-                  </button>
-                ))}
-              </div>
-              <div style={{ fontSize: 12, fontWeight: 700, marginTop: 6 }}>Outils</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 6 }}>
-                {toolItems.map(tool => (
-                  <button
-                    key={`loot-tool-${tool.id}`}
-                    type="button"
-                    onClick={() => addManualItem(`tool:${tool.id}`)}
-                    style={{
-                      textAlign: "left",
-                      borderRadius: 8,
-                      border: "1px solid rgba(255,255,255,0.12)",
-                      background: "rgba(10,10,16,0.8)",
-                      color: "#f5f5f5",
-                      padding: "6px 8px",
-                      cursor: "pointer",
-                      fontSize: 12
-                    }}
-                  >
-                    + {tool.label}
-                  </button>
-                ))}
-                {toolItems.length === 0 && (
-                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                    Aucun outil disponible.
-                  </div>
-                )}
-              </div>
-              <div style={{ fontSize: 12, fontWeight: 700, marginTop: 6 }}>Armures</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 6 }}>
-                {armorItems.map(armor => (
-                  <button
-                    key={`loot-armor-${armor.id}`}
-                    type="button"
-                    onClick={() => addManualItem(`armor:${armor.id}`)}
-                    style={{
-                      textAlign: "left",
-                      borderRadius: 8,
-                      border: "1px solid rgba(255,255,255,0.12)",
-                      background: "rgba(10,10,16,0.8)",
-                      color: "#f5f5f5",
-                      padding: "6px 8px",
-                      cursor: "pointer",
-                      fontSize: 12
-                    }}
-                  >
-                    + {armor.label}
-                  </button>
-                ))}
-                {armorItems.length === 0 && (
-                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                    Aucune armure chargee pour l'instant.
-                  </div>
-                )}
-              </div>
-              <div style={{ fontSize: 12, fontWeight: 700, marginTop: 6 }}>Autres</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 6 }}>
-                {objectItems.map(obj => (
-                  <button
-                    key={`loot-object-${obj.id}`}
-                    type="button"
-                    onClick={() => addManualItem(`object:${obj.id}`)}
-                    style={{
-                      textAlign: "left",
-                      borderRadius: 8,
-                      border: "1px solid rgba(255,255,255,0.12)",
-                      background: "rgba(10,10,16,0.8)",
-                      color: "#f5f5f5",
-                      padding: "6px 8px",
-                      cursor: "pointer",
-                      fontSize: 12
-                    }}
-                  >
-                    + {obj.label}
-                  </button>
-                ))}
-                {objectItems.length === 0 && (
-                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                    Aucun autre item charge pour l'instant.
-                  </div>
-                )}
-              </div>
-            </div>
+            )}
             </>
           )}
 
@@ -2537,9 +2971,6 @@ export function CombatSetupScreen(props: {
                         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
                           {cls.description}
                         </div>
-                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
-                          ID: {cls.id}
-                        </div>
                       </button>
                     );
                   })}
@@ -2748,9 +3179,6 @@ export function CombatSetupScreen(props: {
                               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
                                 {sub.description}
                               </div>
-                              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
-                                ID: {sub.id}
-                              </div>
                             </button>
                           );
                         })}
@@ -2849,9 +3277,6 @@ export function CombatSetupScreen(props: {
                         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
                           {bg.description}
                         </div>
-                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
-                          ID: {bg.id}
-                        </div>
                       </button>
                     );
                   })}
@@ -2935,7 +3360,7 @@ export function CombatSetupScreen(props: {
                   )}
                   {activeBackground?.equipment && activeBackground.equipment.length > 0 && (
                     <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                      Materiel: {activeBackground.equipment.join(", ")}
+                      Materiel: {activeBackground.equipment.map(formatEquipmentLabel).join(", ")}
                     </div>
                   )}
                   {activeBackground?.feature && (

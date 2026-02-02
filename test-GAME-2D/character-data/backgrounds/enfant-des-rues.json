@@ -13,7 +13,8 @@
     "obj_petit_couteau",
     "obj_bourse_10po",
     "obj_vetements_communs",
-    "obj_souvenir_vole"
+    "obj_souvenir_vole",
+    "obj_sac_a_dos"
   ],
   "feature": {
     "name": "Reseau des Ombres",

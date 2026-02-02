@@ -2,9 +2,11 @@
   "id": "obj_souvenir_vole",
   "label": "Souvenir d'enfance vole",
   "type": "object",
-  "category": "trinket",
+  "category": "jewel",
   "weight": 0.1,
   "priceGp": 0,
-  "tags": ["souvenir"],
+  "tags": [
+    "souvenir"
+  ],
   "description": "Petit objet sentimental, sans grande valeur marchande."
 }

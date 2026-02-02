@@ -7,6 +7,10 @@
   "dexCap": null,
   "weight": 5,
   "priceGp": 10,
-  "tags": ["armure", "legere"],
-  "description": "Armure legere en cuir."
+  "tags": [
+    "armure",
+    "legere"
+  ],
+  "description": "Armure legere en cuir.",
+  "category": "armor_body"
 }

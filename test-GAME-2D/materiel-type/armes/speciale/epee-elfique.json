@@ -11,9 +11,17 @@
   "focalisateur": false,
   "weight": 1.2,
   "size": 1.0,
-  "value": { "gold": 75, "silver": 0, "copper": 0 },
+  "value": {
+    "gold": 75,
+    "silver": 0,
+    "copper": 0
+  },
   "rarity": "rare",
-  "tags": ["arme", "melee", "tranchant"],
+  "tags": [
+    "arme",
+    "melee",
+    "tranchant"
+  ],
   "properties": {
     "finesse": true,
     "light": false,
@@ -25,7 +33,10 @@
     "ammunition": false,
     "loading": false,
     "reload": null,
-    "range": { "normal": 1, "long": 1 },
+    "range": {
+      "normal": 1,
+      "long": 1
+    },
     "special": "precision"
   },
   "attack": {
@@ -45,5 +56,6 @@
   "links": {
     "actionId": "melee-strike",
     "effectId": "melee-slash"
-  }
+  },
+  "label": "Epee elfique"
 }

@@ -2,9 +2,12 @@
   "id": "obj_arme_endommagee",
   "label": "Arme endommagee",
   "type": "object",
-  "category": "weapon",
+  "category": "weapon_short",
   "weight": 2,
   "priceGp": 0,
-  "tags": ["arme", "endommagee"],
+  "tags": [
+    "arme",
+    "endommagee"
+  ],
   "description": "Une arme simple ou martiale abimee, utilisable pour l'histoire."
 }

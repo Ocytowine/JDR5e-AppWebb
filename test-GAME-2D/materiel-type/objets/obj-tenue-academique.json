@@ -2,9 +2,11 @@
   "id": "obj_tenue_academique",
   "label": "Tenue academique",
   "type": "object",
-  "category": "clothing",
+  "category": "clothing_body",
   "weight": 1.5,
   "priceGp": 2,
-  "tags": ["vetement"],
+  "tags": [
+    "vetement"
+  ],
   "description": "Robe ou tenue propre aux milieux savants."
 }

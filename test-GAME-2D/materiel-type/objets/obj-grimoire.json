@@ -2,9 +2,11 @@
   "id": "obj_grimoire",
   "label": "Grimoire ou carnet de recherches",
   "type": "object",
-  "category": "book",
+  "category": "misc",
   "weight": 1,
   "priceGp": 5,
-  "tags": ["academique"],
+  "tags": [
+    "academique"
+  ],
   "description": "Notes, formules et recherches personnelles."
 }
