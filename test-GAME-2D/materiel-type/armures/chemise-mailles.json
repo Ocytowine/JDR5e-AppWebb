@@ -1,0 +1,12 @@
+{
+  "id": "chemise_mailles",
+  "label": "Chemise de mailles",
+  "type": "armor",
+  "armorCategory": "medium",
+  "baseAC": 13,
+  "dexCap": 2,
+  "weight": 10,
+  "priceGp": 50,
+  "tags": ["armure", "intermediaire"],
+  "description": "Cotte de mailles legere portee sous des vetements."
+}

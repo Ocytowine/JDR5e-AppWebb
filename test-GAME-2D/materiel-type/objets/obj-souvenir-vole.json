@@ -1,0 +1,10 @@
+{
+  "id": "obj_souvenir_vole",
+  "label": "Souvenir d'enfance vole",
+  "type": "object",
+  "category": "trinket",
+  "weight": 0.1,
+  "priceGp": 0,
+  "tags": ["souvenir"],
+  "description": "Petit objet sentimental, sans grande valeur marchande."
+}

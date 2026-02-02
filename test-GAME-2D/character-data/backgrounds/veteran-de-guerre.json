@@ -1,0 +1,44 @@
+{
+  "id": "veteran-de-guerre",
+  "label": "Veteran de Guerre",
+  "description": "Ancien soldat marque par la guerre, discipline et endurance a toute epreuve.",
+  "skillProficiencies": ["athletisme", "intimidation"],
+  "toolProficiencies": ["outils_vehicules"],
+  "toolChoices": {
+    "count": 1,
+    "options": ["outils_jeux"]
+  },
+  "languageChoices": { "count": 1 },
+  "equipment": [
+    "obj_arme_endommagee",
+    "obj_insigne_unite",
+    "obj_vetements_voyage",
+    "obj_bourse_10po"
+  ],
+  "feature": {
+    "name": "Freres et Soeurs d'Armes",
+    "description": "Tu peux obtenir abri, aide basique ou informations militaires d'anciens soldats."
+  },
+  "traits": {
+    "personality": [
+      "Je reste calme en toute situation.",
+      "J'analyse toujours le terrain.",
+      "J'ai du mal a me detendre.",
+      "Je protege instinctivement les plus faibles.",
+      "Je deteste le gaspillage.",
+      "Je parle peu, mais efficacement.",
+      "Je suis hante par mes souvenirs.",
+      "Je respecte la chaine de commandement."
+    ],
+    "ideals": [
+      "Devoir — On n'abandonne jamais sa mission.",
+      "Protection — Les innocents doivent etre defendus.",
+      "Honneur — Mes actes me definissent.",
+      "Redemption — Je veux reparer le passe.",
+      "Ordre — Le chaos mene a la souffrance.",
+      "Fraternite — Aucun combat ne se gagne seul."
+    ],
+    "bond": "Un ancien compagnon d'armes compte toujours sur moi.",
+    "flaw": "Je reagis parfois trop violemment face aux menaces."
+  }
+}

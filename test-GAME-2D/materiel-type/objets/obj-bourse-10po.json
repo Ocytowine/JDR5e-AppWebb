@@ -1,0 +1,10 @@
+{
+  "id": "obj_bourse_10po",
+  "label": "Bourse (10 po)",
+  "type": "object",
+  "category": "money",
+  "weight": 0.1,
+  "priceGp": 10,
+  "tags": ["or"],
+  "description": "Une petite bourse contenant 10 pieces d'or."
+}

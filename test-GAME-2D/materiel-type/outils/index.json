@@ -1,0 +1,9 @@
+{
+  "types": [
+    "./outils-artisan.json",
+    "./outils-jeux.json",
+    "./outils-instruments.json",
+    "./outils-autres.json",
+    "./outils-vehicules.json"
+  ]
+}

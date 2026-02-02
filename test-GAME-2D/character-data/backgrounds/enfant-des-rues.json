@@ -1,0 +1,44 @@
+{
+  "id": "enfant-des-rues",
+  "label": "Enfant des Rues",
+  "description": "Survivant des ruelles et des toits, malin, discret et opportuniste.",
+  "skillProficiencies": ["discretion", "escamotage"],
+  "toolProficiencies": ["outils_autres"],
+  "toolChoices": {
+    "count": 1,
+    "options": ["outils_instruments", "outils_jeux"]
+  },
+  "languageChoices": { "count": 1 },
+  "equipment": [
+    "obj_petit_couteau",
+    "obj_bourse_10po",
+    "obj_vetements_communs",
+    "obj_souvenir_vole"
+  ],
+  "feature": {
+    "name": "Reseau des Ombres",
+    "description": "Tu peux trouver un contact des bas-fonds pour une aide simple ou une info mineure."
+  },
+  "traits": {
+    "personality": [
+      "Je me fie toujours a mon instinct.",
+      "J'ai du mal a faire confiance, mais quand c'est fait, c'est total.",
+      "Je plaisante quand la situation devient tendue.",
+      "Je garde toujours un plan de secours.",
+      "Je suis mefiant envers l'autorite.",
+      "J'observe tout, meme quand je semble distrait.",
+      "Je deteste devoir quelque chose a quelqu'un.",
+      "Je prefere agir seul, mais j'ai besoin d'un groupe."
+    ],
+    "ideals": [
+      "Liberte — Personne ne m'enchainera jamais.",
+      "Survie — Les faibles n'ont pas le luxe de la morale.",
+      "Loyaute — Mon clan passe avant tout.",
+      "Ambition — Je merite mieux que ce que j'ai eu.",
+      "Justice — Personne ne devrait vivre comme j'ai vecu.",
+      "Opportunite — Chaque instant est une chance a saisir."
+    ],
+    "bond": "Quelqu'un des rues m'a sauve la vie, et je lui dois beaucoup.",
+    "flaw": "Je prends parfois des risques inutiles pour un gain rapide."
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "id": "cuir_cloute",
+  "label": "Armure de cuir cloute",
+  "type": "armor",
+  "armorCategory": "light",
+  "baseAC": 12,
+  "dexCap": null,
+  "weight": 6.5,
+  "priceGp": 45,
+  "tags": ["armure", "legere"],
+  "description": "Armure de cuir renforcee par des rivets."
+}

@@ -59,3 +59,152 @@ Maitrise d'outils:
         Outils de navigation : Lire les étoiles, naviguer en mer	Survie, exploration
 
         Outils de cartographe : Dessiner des cartes, estimer une distance	Exploration, survie
+
+        # 🧙 D&D 5e (2024) — Aide-mémoire des Compétences
+
+# 🧙 D&D 5e (2024) — Aide-mémoire des Compétences
+
+## 📌 Principe général
+Une **compétence** est une spécialisation d’une **caractéristique**.  
+Quand une action est incertaine et a un enjeu, le MJ demande un **test de compétence**.
+
+---
+
+## 🎲 Test de compétence
+
+**Formule :**  
+1d20 + modificateur de caractéristique + bonus de maîtrise (si compétent)
+
+- **1d20** : jet de dé.
+- **Modificateur** : lié à la caractéristique utilisée.
+- **Bonus de maîtrise** : ajouté uniquement si le personnage est compétent.
+- **Expertise** : certains traits doublent le bonus de maîtrise.
+
+**Avec expertise :**  
+1d20 + modificateur + (bonus de maîtrise × 2)
+
+---
+
+## 🎯 Classe de difficulté (DC)
+
+Succès si : résultat ≥ DC
+
+| Difficulté | DC |
+|-----------|----|
+| Très facile | 5 |
+| Facile | 10 |
+| Moyenne | 15 |
+| Difficile | 20 |
+| Très difficile | 25 |
+| Presque impossible | 30 |
+
+---
+
+## 🧠 Scores passifs
+
+Utilisés sans lancer de dé.
+
+**Formule :**  
+10 + modificateur + bonus de maîtrise (si compétent)
+
+Exemples : Perception passive, Investigation passive.
+
+---
+
+## 🔁 Variante : compétence avec une autre caractéristique
+
+Le MJ peut changer la caractéristique si l’approche du joueur le justifie.
+
+Exemples :
+- Force (Intimidation) → intimidation physique
+- Intelligence (Persuasion) → argumentation logique
+- Sagesse (Survie) → lecture instinctive du terrain
+
+---
+
+# 📜 Liste des 18 compétences
+
+## 🛡️ Force (STR)
+
+### Athlétisme
+Escalader, nager, sauter, pousser, tirer, porter, lutte physique.
+
+---
+
+## 🤸 Dextérité (DEX)
+
+### Acrobaties
+Équilibre, pirouettes, éviter une chute, manœuvres agiles.
+
+### Escamotage (Sleight of Hand)
+Vol à la tire, manipulations discrètes, cacher ou subtiliser un objet.
+
+### Discrétion (Stealth)
+Se cacher, se déplacer sans bruit, éviter d’être repéré.
+
+---
+
+## 🧠 Intelligence (INT)
+
+### Arcanes (Arcana)
+Magie, traditions mystiques, runes, objets magiques, plans.
+
+### Histoire
+Événements passés, empires, cultures, figures historiques.
+
+### Investigation
+Analyser une scène, déduire, trouver des indices logiques.
+
+### Nature
+Animaux, plantes, climat, terrains, phénomènes naturels.
+
+### Religion
+Dieux, rites, dogmes, cultes, morts-vivants (selon contexte).
+
+---
+
+## 👁️ Sagesse (WIS)
+
+### Intuition (Insight)
+Lire les intentions, détecter un mensonge, comprendre un comportement.
+
+### Médecine
+Stabiliser un mourant, diagnostiquer blessures et maladies.
+
+### Perception
+Voir, entendre ou sentir un danger, un objet ou un détail caché.
+
+### Survie
+Pister, s’orienter, chasser, trouver eau et nourriture, éviter dangers naturels.
+
+### Dressage (Animal Handling)
+Calmer, diriger ou contrôler un animal ou une monture.
+
+---
+
+## 💬 Charisme (CHA)
+
+### Intimidation
+Menacer, imposer par la peur, pression verbale ou psychologique.
+
+### Persuasion
+Convaincre honnêtement, négocier, diplomatie.
+
+### Tromperie (Deception)
+Mentir, bluffer, manipuler, fausse identité.
+
+### Représentation (Performance)
+Chanter, jouer, danser, conter, divertir un public.
+
+---
+
+## ✅ Résumé rapide
+
+- 18 compétences
+- Test = 1d20 + mod (+ maîtrise si compétent)
+- Expertise = maîtrise ×2
+- Passif = 10 + mod (+ maîtrise si compétent)
+- DC fixée par le MJ
+- La caractéristique peut changer selon l’approche
+
+---

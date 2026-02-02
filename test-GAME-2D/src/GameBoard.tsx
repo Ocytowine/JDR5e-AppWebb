@@ -51,12 +51,26 @@ import { loadStatusTypesFromIndex } from "./game/statusCatalog";
 import { loadWallTypesFromIndex } from "./game/wallCatalog";
 import { loadReactionTypesFromIndex } from "./game/reactionCatalog";
 import { loadWeaponTypesFromIndex } from "./game/weaponCatalog";
+import { loadRaceTypesFromIndex } from "./game/raceCatalog";
+import { loadClassTypesFromIndex, loadSubclassTypesFromIndex } from "./game/classCatalog";
+import { loadBackgroundTypesFromIndex } from "./game/backgroundCatalog";
+import { loadLanguageTypesFromIndex } from "./game/languageCatalog";
+import { loadToolItemsFromIndex } from "./game/toolCatalog";
+import { loadObjectItemsFromIndex } from "./game/objectCatalog";
+import { loadArmorItemsFromIndex } from "./game/armorCatalog";
 import type { ObstacleInstance, ObstacleTypeDefinition } from "./game/obstacleTypes";
 import type { EffectInstance, EffectTypeDefinition } from "./game/effectTypes";
 import type { StatusDefinition } from "./game/statusTypes";
 import type { WallTypeDefinition } from "./game/wallTypes";
 import type { ReactionDefinition } from "./game/reactionTypes";
 import type { WeaponTypeDefinition } from "./game/weaponTypes";
+import type { RaceDefinition } from "./game/raceTypes";
+import type { ClassDefinition, SubclassDefinition } from "./game/classTypes";
+import type { BackgroundDefinition } from "./game/backgroundTypes";
+import type { LanguageDefinition } from "./game/languageTypes";
+import type { ToolItemDefinition } from "./game/toolTypes";
+import type { ObjectItemDefinition } from "./game/objectTypes";
+import type { ArmorItemDefinition } from "./game/armorTypes";
 import { generateBattleMap } from "./game/mapEngine";
 import { getHeightAtGrid, type TerrainCell } from "./game/map/draft";
 import { buildTerrainMixLayer } from "./game/map/terrainMix";
@@ -635,6 +649,14 @@ export const GameBoard: React.FC = () => {
   const [actions, setActions] = useState<ActionDefinition[]>([]);
   const [moveTypes, setMoveTypes] = useState<MoveTypeDefinition[]>([]);
   const [weaponTypes, setWeaponTypes] = useState<WeaponTypeDefinition[]>([]);
+  const [raceTypes, setRaceTypes] = useState<RaceDefinition[]>([]);
+  const [classTypes, setClassTypes] = useState<ClassDefinition[]>([]);
+  const [subclassTypes, setSubclassTypes] = useState<SubclassDefinition[]>([]);
+  const [backgroundTypes, setBackgroundTypes] = useState<BackgroundDefinition[]>([]);
+  const [languageTypes, setLanguageTypes] = useState<LanguageDefinition[]>([]);
+  const [toolItems, setToolItems] = useState<ToolItemDefinition[]>([]);
+  const [objectItems, setObjectItems] = useState<ObjectItemDefinition[]>([]);
+  const [armorItems, setArmorItems] = useState<ArmorItemDefinition[]>([]);
   const [reactionCatalog, setReactionCatalog] = useState<ReactionDefinition[]>([]);
   const [reactionQueue, setReactionQueue] = useState<ReactionInstance[]>([]);
   const [reactionUsage, setReactionUsage] = useState<Record<string, number>>({});
@@ -2811,6 +2833,43 @@ export const GameBoard: React.FC = () => {
   useEffect(() => {
     const loadedTypes = loadWeaponTypesFromIndex();
     setWeaponTypes(loadedTypes);
+  }, []);
+
+  useEffect(() => {
+    const loadedTypes = loadRaceTypesFromIndex();
+    setRaceTypes(loadedTypes);
+  }, []);
+
+  useEffect(() => {
+    const loadedTypes = loadClassTypesFromIndex();
+    setClassTypes(loadedTypes);
+    const loadedSubclasses = loadSubclassTypesFromIndex();
+    setSubclassTypes(loadedSubclasses);
+  }, []);
+
+  useEffect(() => {
+    const loadedTypes = loadBackgroundTypesFromIndex();
+    setBackgroundTypes(loadedTypes);
+  }, []);
+
+  useEffect(() => {
+    const loadedTypes = loadLanguageTypesFromIndex();
+    setLanguageTypes(loadedTypes);
+  }, []);
+
+  useEffect(() => {
+    const loadedTypes = loadToolItemsFromIndex();
+    setToolItems(loadedTypes);
+  }, []);
+
+  useEffect(() => {
+    const loadedTypes = loadObjectItemsFromIndex();
+    setObjectItems(loadedTypes);
+  }, []);
+
+  useEffect(() => {
+    const loadedTypes = loadArmorItemsFromIndex();
+    setArmorItems(loadedTypes);
   }, []);
 
 
@@ -7454,6 +7513,14 @@ function handleEndPlayerTurn() {
           mapPrompt={mapPrompt}
           character={characterConfig}
           weaponTypes={weaponTypes}
+          raceTypes={raceTypes}
+          classTypes={classTypes}
+          subclassTypes={subclassTypes}
+          backgroundTypes={backgroundTypes}
+          languageTypes={languageTypes}
+          toolItems={toolItems}
+          objectItems={objectItems}
+          armorItems={armorItems}
           onChangeCharacter={setCharacterConfig}
           onChangeMapPrompt={setMapPrompt}
           onChangeEnemyCount={setConfigEnemyCount}

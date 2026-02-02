@@ -12,7 +12,7 @@ export const sampleCharacter: Personnage = {
   langues: "Common",
   alignement: "Neutral Good",
   raceId: "human",
-  backgroundId: "adventurer",
+  backgroundId: "veteran-de-guerre",
   classe: {
     1: { classeId: "fighter", subclasseId: "champion", niveau: 1 }
   },
@@ -58,13 +58,17 @@ export const sampleCharacter: Personnage = {
     spriteKey: "character",
     tokenScale: 100
   },
-  // Keep competences empty in this mini-game to avoid
-  // encoding issues with accented keys.
-  competences: {} as any,
+  // Competences / expertises use technical ids (no accents).
+  competences: ["athletisme", "perception", "survie"],
+  expertises: ["perception"],
   initiative: "modDEX",
   besoin: [],
   percPassive: 11,
-  proficiencies: {},
+  proficiencies: {
+    weapons: ["simple", "martiale"],
+    armors: ["legere", "intermediaire", "bouclier"],
+    tools: ["outils_vehicules"]
+  },
   savingThrows: ["force", "constitution"],
   inspiration: false,
   traits: ["Veteran soldier", "Brave"],
@@ -95,6 +99,19 @@ export const sampleCharacter: Personnage = {
     main_gauche: "dague",
     mains: null
   },
+  equipmentAuto: [
+    "obj_arme_endommagee",
+    "obj_insigne_unite",
+    "obj_vetements_voyage",
+    "obj_bourse_10po"
+  ],
+  equipmentManual: [],
+  inventoryItems: [
+    { id: "obj_arme_endommagee", type: "object", qty: 1, source: "auto", equippedSlot: null },
+    { id: "obj_insigne_unite", type: "object", qty: 1, source: "auto", equippedSlot: null },
+    { id: "obj_vetements_voyage", type: "object", qty: 1, source: "auto", equippedSlot: null },
+    { id: "obj_bourse_10po", type: "object", qty: 1, source: "auto", equippedSlot: null }
+  ],
   Inventaire: {
     id: "",
     idUnique: "",
@@ -116,11 +133,17 @@ export const sampleCharacter: Personnage = {
   },
   descriptionPersonnage: {
     bio: "Test hero for the mini-game.",
-    physique: "Athletic human in light armor.",
+    physique: "Athletic human in light armor, posture calme et vigilante.",
     personnalite: "Calm and determined.",
     objectifs: "Explore the test dungeon.",
     relations: "",
     defauts: "Too reckless."
+  },
+  profileDetails: {
+    visage: "Traits marques, regard concentre",
+    cheveux: "Cheveux bruns courts",
+    yeux: "Yeux verts",
+    silhouette: "Silhouette athletique"
   },
   uiClasse: {
     ui_template1: "fighter_base",

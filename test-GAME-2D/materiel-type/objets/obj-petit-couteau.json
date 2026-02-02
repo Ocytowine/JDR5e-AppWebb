@@ -1,0 +1,10 @@
+{
+  "id": "obj_petit_couteau",
+  "label": "Petit couteau",
+  "type": "object",
+  "category": "tool",
+  "weight": 0.5,
+  "priceGp": 1,
+  "tags": ["outil", "improvise"],
+  "description": "Petit couteau utilitaire, pas une arme de combat principale."
+}

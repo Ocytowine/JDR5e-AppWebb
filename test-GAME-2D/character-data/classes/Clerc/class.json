@@ -1,0 +1,11 @@
+{
+  "id": "cleric",
+  "label": "Clerc",
+  "description": "Un guide spirituel capable de soigner et de canaliser la puissance divine.",
+  "subclassLevel": 1,
+  "subclassIds": ["peace-domain"],
+  "proficiencies": {
+    "weapons": ["simple"],
+    "armors": ["legere", "intermediaire", "bouclier"]
+  }
+}

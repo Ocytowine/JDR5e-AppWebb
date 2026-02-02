@@ -1,0 +1,19 @@
+{
+  "id": "minor-ward",
+  "name": "Garde Mineure",
+  "summary": "Placeholder: protection temporaire.",
+  "category": "support",
+  "actionCost": { "actionType": "action", "movementCost": 0 },
+  "targeting": {
+    "target": "self",
+    "range": { "min": 0, "max": 0, "shape": "single" },
+    "maxTargets": 1,
+    "requiresLos": false
+  },
+  "usage": { "perTurn": 1, "perEncounter": null, "resource": null },
+  "effects": [
+    { "type": "status_apply", "target": "self", "statusId": "guarded", "durationTurns": 1 },
+    { "type": "log", "message": "Garde mineure activee." }
+  ],
+  "tags": ["spell", "defense"]
+}

@@ -1,0 +1,10 @@
+{
+  "id": "obj_template",
+  "label": "Nom de l'objet",
+  "type": "object",
+  "category": "misc",
+  "weight": 0,
+  "priceGp": 0,
+  "tags": [],
+  "description": "Description courte."
+}

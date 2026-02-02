@@ -1,0 +1,10 @@
+{
+  "types": [
+    "./commun.json",
+    "./elfique.json",
+    "./nain.json",
+    "./halfelin.json",
+    "./gnome.json",
+    "./orc.json"
+  ]
+}
