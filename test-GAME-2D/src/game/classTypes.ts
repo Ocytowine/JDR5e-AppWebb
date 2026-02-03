@@ -29,4 +29,16 @@ export interface SubclassDefinition {
   classId: string;
   label: string;
   description: string;
+  progression?: Record<
+    string,
+    {
+      grants?: Array<{
+        kind: string;
+        ids: string[];
+        source?: string;
+        meta?: Record<string, unknown>;
+      }>;
+      notes?: string;
+    }
+  >;
 }

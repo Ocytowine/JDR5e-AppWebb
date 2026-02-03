@@ -1,4 +1,4 @@
-const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/browserAll-BbOu7EpF.js","assets/webworkerAll-d58YKXcL.js","assets/colorToUniform-B2b8-1Ah.js","assets/WebGPURenderer-CJu-vT5T.js","assets/SharedSystems-DyL0xESt.js","assets/WebGLRenderer-WjCCdc2P.js"])))=>i.map(i=>d[i]);
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/browserAll-B_sKugSq.js","assets/webworkerAll-QDt5Et_O.js","assets/colorToUniform-B2b8-1Ah.js","assets/WebGPURenderer-8U9N8YVR.js","assets/SharedSystems-lxmQR0Pw.js","assets/WebGLRenderer-D6V-1Lhv.js"])))=>i.map(i=>d[i]);
 var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key2, value2) => key2 in obj ? __defProp(obj, key2, { enumerable: true, configurable: true, writable: true, value: value2 }) : obj[key2] = value2;
 var __publicField = (obj, key2, value2) => __defNormalProp(obj, typeof key2 !== "symbol" ? key2 + "" : key2, value2);
@@ -17059,7 +17059,7 @@ const browserExt = {
   },
   test: () => true,
   load: async () => {
-    await __vitePreload(() => import("./browserAll-BbOu7EpF.js"), true ? __vite__mapDeps([0,1,2]) : void 0);
+    await __vitePreload(() => import("./browserAll-B_sKugSq.js"), true ? __vite__mapDeps([0,1,2]) : void 0);
   }
 };
 const webworkerExt = {
@@ -17070,7 +17070,7 @@ const webworkerExt = {
   },
   test: () => typeof self !== "undefined" && self.WorkerGlobalScope !== void 0,
   load: async () => {
-    await __vitePreload(() => import("./webworkerAll-d58YKXcL.js"), true ? __vite__mapDeps([1,2]) : void 0);
+    await __vitePreload(() => import("./webworkerAll-QDt5Et_O.js"), true ? __vite__mapDeps([1,2]) : void 0);
   }
 };
 class ObservablePoint {
@@ -29398,7 +29398,7 @@ async function autoDetectRenderer(options) {
     const rendererType = preferredOrder[i2];
     if (rendererType === "webgpu" && await isWebGPUSupported()) {
       const { WebGPURenderer } = await __vitePreload(async () => {
-        const { WebGPURenderer: WebGPURenderer2 } = await import("./WebGPURenderer-CJu-vT5T.js");
+        const { WebGPURenderer: WebGPURenderer2 } = await import("./WebGPURenderer-8U9N8YVR.js");
         return { WebGPURenderer: WebGPURenderer2 };
       }, true ? __vite__mapDeps([3,2,4]) : void 0);
       RendererClass = WebGPURenderer;
@@ -29408,7 +29408,7 @@ async function autoDetectRenderer(options) {
       options.failIfMajorPerformanceCaveat ?? AbstractRenderer.defaultOptions.failIfMajorPerformanceCaveat
     )) {
       const { WebGLRenderer } = await __vitePreload(async () => {
-        const { WebGLRenderer: WebGLRenderer2 } = await import("./WebGLRenderer-WjCCdc2P.js");
+        const { WebGLRenderer: WebGLRenderer2 } = await import("./WebGLRenderer-D6V-1Lhv.js");
         return { WebGLRenderer: WebGLRenderer2 };
       }, true ? __vite__mapDeps([5,2,4]) : void 0);
       RendererClass = WebGLRenderer;
@@ -47341,7 +47341,7 @@ function usePixiWalls(options) {
   ]);
 }
 function CombatSetupScreen(props) {
-  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z;
+  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B, _C, _D;
   const [activeMainTab, setActiveMainTab] = reactExports.useState("map");
   const [activePlayerTab, setActivePlayerTab] = reactExports.useState("species");
   const [activeClassTab, setActiveClassTab] = reactExports.useState("primary");
@@ -47380,9 +47380,19 @@ function CombatSetupScreen(props) {
     return list;
   }, [props.languageTypes]);
   const creationLocks = ((_c = props.character) == null ? void 0 : _c.creationLocks) ?? {};
+  const classLocks = ((_d = props.character) == null ? void 0 : _d.classLocks) ?? {};
+  const legacyClassLock = Boolean((_e = props.character) == null ? void 0 : _e.classLock);
+  const isPrimaryClassLocked = typeof classLocks.primary === "boolean" ? classLocks.primary : legacyClassLock;
+  const isSecondaryClassLocked = Boolean(classLocks.secondary);
   const isSectionLocked = (id2) => {
-    var _a2;
-    if (id2 === "classes") return Boolean((_a2 = props.character) == null ? void 0 : _a2.classLock);
+    var _a2, _b2;
+    if (id2 === "classes") {
+      const secondaryEnabled = Boolean((_b2 = (_a2 = props.character) == null ? void 0 : _a2.classe) == null ? void 0 : _b2[2]);
+      if (secondaryEnabled) {
+        return resolvedClassTab === "secondary" ? isSecondaryClassLocked : isPrimaryClassLocked;
+      }
+      return isPrimaryClassLocked;
+    }
     return Boolean(creationLocks == null ? void 0 : creationLocks[id2]);
   };
   const setSectionLock = (id2, value2) => {
@@ -47400,22 +47410,22 @@ function CombatSetupScreen(props) {
   const subclassOptions = reactExports.useMemo(() => {
     return Array.isArray(props.subclassTypes) ? [...props.subclassTypes] : [];
   }, [props.subclassTypes]);
-  const classEntry = ((_e = (_d = props.character) == null ? void 0 : _d.classe) == null ? void 0 : _e[1]) ?? null;
-  const secondaryClassEntry = ((_g = (_f = props.character) == null ? void 0 : _f.classe) == null ? void 0 : _g[2]) ?? null;
+  const classEntry = ((_g = (_f = props.character) == null ? void 0 : _f.classe) == null ? void 0 : _g[1]) ?? null;
+  const secondaryClassEntry = ((_i = (_h = props.character) == null ? void 0 : _h.classe) == null ? void 0 : _i[2]) ?? null;
+  const isSecondaryEnabled = Boolean(secondaryClassEntry);
   const selectedClassId = (classEntry == null ? void 0 : classEntry.classeId) ?? "";
   const selectedSubclassId = (classEntry == null ? void 0 : classEntry.subclasseId) ?? "";
   const selectedSecondaryClassId = (secondaryClassEntry == null ? void 0 : secondaryClassEntry.classeId) ?? "";
   const selectedSecondarySubclassId = (secondaryClassEntry == null ? void 0 : secondaryClassEntry.subclasseId) ?? "";
-  const isClassLocked = Boolean((_h = props.character) == null ? void 0 : _h.classLock);
   const activeRace = raceOptions.find((race) => race.id === selectedRaceId) ?? null;
   const activeBackground = backgroundOptions.find((bg) => bg.id === selectedBackgroundId) ?? null;
-  const profileDetails = ((_i = props.character) == null ? void 0 : _i.profileDetails) ?? {};
+  const profileDetails = ((_j = props.character) == null ? void 0 : _j.profileDetails) ?? {};
   const classPrimary = classOptions.find((cls) => cls.id === selectedClassId) ?? null;
   const classSecondary = classOptions.find((cls) => cls.id === selectedSecondaryClassId) ?? null;
-  const choiceSelections = ((_j = props.character) == null ? void 0 : _j.choiceSelections) ?? {};
-  const equipmentAuto = Array.isArray((_k = props.character) == null ? void 0 : _k.equipmentAuto) ? props.character.equipmentAuto : [];
-  const equipmentManual = Array.isArray((_l = props.character) == null ? void 0 : _l.equipmentManual) ? props.character.equipmentManual : [];
-  const inventoryItems = Array.isArray((_m = props.character) == null ? void 0 : _m.inventoryItems) ? props.character.inventoryItems : [];
+  const choiceSelections = ((_k = props.character) == null ? void 0 : _k.choiceSelections) ?? {};
+  const equipmentAuto = Array.isArray((_l = props.character) == null ? void 0 : _l.equipmentAuto) ? props.character.equipmentAuto : [];
+  const equipmentManual = Array.isArray((_m = props.character) == null ? void 0 : _m.equipmentManual) ? props.character.equipmentManual : [];
+  const inventoryItems = Array.isArray((_n = props.character) == null ? void 0 : _n.inventoryItems) ? props.character.inventoryItems : [];
   const objectItemMap = reactExports.useMemo(() => {
     const map = /* @__PURE__ */ new Map();
     for (const item of objectItems) map.set(item.id, item);
@@ -47438,9 +47448,9 @@ function CombatSetupScreen(props) {
   }, [weaponOptions]);
   const inventoryInitRef = reactExports.useRef(false);
   const pendingLocks = (choiceSelections == null ? void 0 : choiceSelections.pendingLocks) ?? {};
-  const competences = Array.isArray((_n = props.character) == null ? void 0 : _n.competences) ? props.character.competences : [];
-  const expertises = Array.isArray((_o = props.character) == null ? void 0 : _o.expertises) ? props.character.expertises : [];
-  const profs = ((_p = props.character) == null ? void 0 : _p.proficiencies) ?? {};
+  const competences = Array.isArray((_o = props.character) == null ? void 0 : _o.competences) ? props.character.competences : [];
+  const expertises = Array.isArray((_p = props.character) == null ? void 0 : _p.expertises) ? props.character.expertises : [];
+  const profs = ((_q = props.character) == null ? void 0 : _q.proficiencies) ?? {};
   const weaponMasteries = Array.isArray(profs.weapons) ? profs.weapons : [];
   const armorMasteries = Array.isArray(profs.armors) ? profs.armors : [];
   const toolMasteries = Array.isArray(profs.tools) ? profs.tools : [];
@@ -47464,7 +47474,7 @@ function CombatSetupScreen(props) {
     var _a2;
     const current = ((_a2 = props.character) == null ? void 0 : _a2.materielSlots) ?? {};
     return { ...DEFAULT_MATERIEL_SLOTS, ...current };
-  }, [(_q = props.character) == null ? void 0 : _q.materielSlots]);
+  }, [(_r = props.character) == null ? void 0 : _r.materielSlots]);
   const EQUIPMENT_SLOTS = [
     { id: "corps", label: "Corps (armure ou vetement)", accepts: ["armor_body", "clothing_body"] },
     {
@@ -47754,18 +47764,22 @@ function CombatSetupScreen(props) {
     return 1;
   };
   const resolvedClassTab = resolveLevel() > 2 ? activeClassTab : "primary";
+  const activeClassSlot = resolvedClassTab === "secondary" ? 2 : 1;
+  const isActiveClassLocked = activeClassSlot === 2 ? isSecondaryClassLocked : isPrimaryClassLocked;
   const setLevel = (nextLevelRaw) => {
-    var _a2, _b2;
+    var _a2, _b2, _c2, _d2, _e2, _f2, _g2, _h2, _i2;
     const nextLevel = Math.max(1, Math.min(20, Math.floor(nextLevelRaw || 1)));
     const nextCombatStats = {
       ...props.character.combatStats ?? {},
       level: nextLevel
     };
     const currentClasse = ((_a2 = props.character) == null ? void 0 : _a2.classe) && typeof props.character.classe === "object" ? props.character.classe : {};
+    const prevPrimaryLevel = Number((_b2 = currentClasse == null ? void 0 : currentClasse[1]) == null ? void 0 : _b2.niveau) || 0;
+    const prevSecondaryLevel = Number((_c2 = currentClasse == null ? void 0 : currentClasse[2]) == null ? void 0 : _c2.niveau) || 0;
     const hasSecondary = Boolean(currentClasse == null ? void 0 : currentClasse[2]);
     let nextClasse = { ...currentClasse };
     if (hasSecondary && nextLevel > 2) {
-      const primaryLevel = Number((_b2 = currentClasse == null ? void 0 : currentClasse[1]) == null ? void 0 : _b2.niveau) || 1;
+      const primaryLevel = Number((_d2 = currentClasse == null ? void 0 : currentClasse[1]) == null ? void 0 : _d2.niveau) || 1;
       const clampedPrimary = Math.max(1, Math.min(nextLevel - 1, primaryLevel));
       const secondaryLevel = Math.max(1, nextLevel - clampedPrimary);
       nextClasse = {
@@ -47782,32 +47796,86 @@ function CombatSetupScreen(props) {
         delete nextClasse[2];
       }
     }
+    let nextChoiceSelections = choiceSelections;
+    let nextClassLocks = classLocks;
+    if (((_e2 = nextClasse == null ? void 0 : nextClasse[1]) == null ? void 0 : _e2.classeId) && ((_f2 = nextClasse == null ? void 0 : nextClasse[1]) == null ? void 0 : _f2.niveau) < prevPrimaryLevel) {
+      const classId2 = (_g2 = nextClasse == null ? void 0 : nextClasse[1]) == null ? void 0 : _g2.classeId;
+      const allowed = new Set(getAsiKeysForClassLevel(classId2, ((_h2 = nextClasse == null ? void 0 : nextClasse[1]) == null ? void 0 : _h2.niveau) || 0));
+      const nextAsi = { ...asiSelections };
+      Object.keys(nextAsi).forEach((key2) => {
+        if (!key2.startsWith(`${classId2}:`)) return;
+        if (!allowed.has(key2)) {
+          delete nextAsi[key2];
+        }
+      });
+      nextChoiceSelections = {
+        ...nextChoiceSelections,
+        asi: nextAsi,
+        pendingLocks: (() => {
+          const nextPending = { ...pendingLocks };
+          delete nextPending.classes;
+          delete nextPending.classesSlot;
+          return nextPending;
+        })()
+      };
+      nextClassLocks = { ...nextClassLocks, primary: false };
+      const threshold = getSubclassThresholdForClassId(classId2);
+      if (threshold !== null && (((_i2 = nextClasse == null ? void 0 : nextClasse[1]) == null ? void 0 : _i2.niveau) ?? 0) < threshold) {
+        nextClasse = {
+          ...nextClasse,
+          1: { ...(nextClasse == null ? void 0 : nextClasse[1]) ?? {}, subclasseId: null }
+        };
+      }
+    }
+    if (!(nextClasse == null ? void 0 : nextClasse[2]) && prevSecondaryLevel > 0) {
+      nextClassLocks = { ...nextClassLocks, secondary: false };
+      const nextPending = { ...pendingLocks };
+      delete nextPending.classes;
+      delete nextPending.classesSlot;
+      nextChoiceSelections = { ...nextChoiceSelections, pendingLocks: nextPending };
+    }
     props.onChangeCharacter({
       ...props.character,
       niveauGlobal: nextLevel,
       classe: nextClasse,
-      combatStats: nextCombatStats
+      combatStats: nextCombatStats,
+      classLocks: nextLevel <= 2 ? { ...nextClassLocks, secondary: false } : { ...nextClassLocks },
+      choiceSelections: nextChoiceSelections
     });
     if (nextLevel <= 2) {
       setActiveClassTab("primary");
     }
   };
   const setClassSelection = (cls, slot) => {
-    var _a2, _b2, _c2, _d2, _e2, _f2;
+    var _a2, _b2, _c2, _d2, _e2, _f2, _g2;
     const current = ((_a2 = props.character) == null ? void 0 : _a2.classe) ?? {};
-    const existingLevel = Number((_b2 = current == null ? void 0 : current[slot]) == null ? void 0 : _b2.niveau);
+    const previousId = ((_b2 = current == null ? void 0 : current[slot]) == null ? void 0 : _b2.classeId) ?? null;
+    let nextAsi = asiSelections;
+    let nextPendingLocks = pendingLocks;
+    if (previousId && previousId !== cls.id) {
+      nextAsi = { ...asiSelections };
+      Object.keys(nextAsi).forEach((key2) => {
+        if (key2.startsWith(`${previousId}:`)) {
+          delete nextAsi[key2];
+        }
+      });
+      nextPendingLocks = { ...pendingLocks };
+      delete nextPendingLocks.classes;
+      delete nextPendingLocks.classesSlot;
+    }
+    const existingLevel = Number((_c2 = current == null ? void 0 : current[slot]) == null ? void 0 : _c2.niveau);
     const fallbackLevel = slot === 1 ? resolveLevel() : 1;
     const nextLevel = Number.isFinite(existingLevel) && existingLevel > 0 ? existingLevel : fallbackLevel;
-    const currentProfs = ((_c2 = props.character) == null ? void 0 : _c2.proficiencies) ?? {};
+    const currentProfs = ((_d2 = props.character) == null ? void 0 : _d2.proficiencies) ?? {};
     const nextProfs = {
       weapons: Array.from(
-        /* @__PURE__ */ new Set([...currentProfs.weapons ?? [], ...((_d2 = cls.proficiencies) == null ? void 0 : _d2.weapons) ?? []])
+        /* @__PURE__ */ new Set([...currentProfs.weapons ?? [], ...((_e2 = cls.proficiencies) == null ? void 0 : _e2.weapons) ?? []])
       ),
       armors: Array.from(
-        /* @__PURE__ */ new Set([...currentProfs.armors ?? [], ...((_e2 = cls.proficiencies) == null ? void 0 : _e2.armors) ?? []])
+        /* @__PURE__ */ new Set([...currentProfs.armors ?? [], ...((_f2 = cls.proficiencies) == null ? void 0 : _f2.armors) ?? []])
       ),
       tools: Array.from(
-        /* @__PURE__ */ new Set([...currentProfs.tools ?? [], ...((_f2 = cls.proficiencies) == null ? void 0 : _f2.tools) ?? []])
+        /* @__PURE__ */ new Set([...currentProfs.tools ?? [], ...((_g2 = cls.proficiencies) == null ? void 0 : _g2.tools) ?? []])
       )
     };
     const nextEntry = {
@@ -47817,10 +47885,16 @@ function CombatSetupScreen(props) {
       niveau: nextLevel
     };
     const nextClasse = { ...current, [slot]: nextEntry };
+    const nextChoiceSelections = {
+      ...choiceSelections,
+      asi: nextAsi,
+      pendingLocks: nextPendingLocks
+    };
     props.onChangeCharacter({
       ...props.character,
       classe: nextClasse,
-      proficiencies: nextProfs
+      proficiencies: nextProfs,
+      choiceSelections: nextChoiceSelections
     });
   };
   const setSubclassSelection = (subclassId, slot) => {
@@ -47835,7 +47909,7 @@ function CombatSetupScreen(props) {
     props.onChangeCharacter({ ...props.character, classe: nextClasse });
   };
   const setClassLevel = (slot, nextLevelRaw) => {
-    var _a2;
+    var _a2, _b2, _c2;
     const globalLevel = resolveLevel();
     const current = ((_a2 = props.character) == null ? void 0 : _a2.classe) ?? {};
     if (slot === 1 && !(current == null ? void 0 : current[1])) return;
@@ -47851,14 +47925,52 @@ function CombatSetupScreen(props) {
       props.onChangeCharacter({ ...props.character, classe: nextClasse2 });
       return;
     }
+    const prevLevel = Number((_b2 = current == null ? void 0 : current[slot]) == null ? void 0 : _b2.niveau) || 0;
     const nextLevel = Math.max(1, Math.min(globalLevel - 1, Math.floor(nextLevelRaw || 1)));
     const otherLevel = Math.max(1, globalLevel - nextLevel);
+    const classId2 = ((_c2 = current == null ? void 0 : current[slot]) == null ? void 0 : _c2.classeId) ?? null;
     const nextClasse = {
       ...current,
       [slot]: { ...(current == null ? void 0 : current[slot]) ?? {}, niveau: nextLevel },
       [otherSlot]: { ...(current == null ? void 0 : current[otherSlot]) ?? {}, niveau: otherLevel }
     };
-    props.onChangeCharacter({ ...props.character, classe: nextClasse });
+    let nextChoiceSelections = choiceSelections;
+    let nextClassLocks = classLocks;
+    if (classId2 && nextLevel < prevLevel) {
+      const allowed = new Set(getAsiKeysForClassLevel(classId2, nextLevel));
+      const nextAsi = { ...asiSelections };
+      Object.keys(nextAsi).forEach((key2) => {
+        if (!key2.startsWith(`${classId2}:`)) return;
+        if (!allowed.has(key2)) {
+          delete nextAsi[key2];
+        }
+      });
+      nextChoiceSelections = {
+        ...choiceSelections,
+        asi: nextAsi,
+        pendingLocks: (() => {
+          const nextPending = { ...pendingLocks };
+          delete nextPending.classes;
+          delete nextPending.classesSlot;
+          return nextPending;
+        })()
+      };
+      nextClassLocks = {
+        ...classLocks,
+        primary: slot === 1 ? false : classLocks.primary,
+        secondary: slot === 2 ? false : classLocks.secondary
+      };
+      const threshold = getSubclassThresholdForClassId(classId2);
+      if (threshold !== null && nextLevel < threshold) {
+        nextClasse[slot] = { ...nextClasse[slot] ?? {}, subclasseId: null };
+      }
+    }
+    props.onChangeCharacter({
+      ...props.character,
+      classe: nextClasse,
+      choiceSelections: nextChoiceSelections,
+      classLocks: nextClassLocks
+    });
   };
   const enableSecondaryClass = () => {
     var _a2;
@@ -47872,7 +47984,11 @@ function CombatSetupScreen(props) {
       1: { ...(current == null ? void 0 : current[1]) ?? {}, niveau: primaryLevel },
       2: { classeId: "", subclasseId: null, niveau: secondaryLevel }
     };
-    props.onChangeCharacter({ ...props.character, classe: nextClasse });
+    props.onChangeCharacter({
+      ...props.character,
+      classe: nextClasse,
+      classLocks: { ...classLocks, secondary: false }
+    });
     setActiveClassTab("secondary");
   };
   const removeSecondaryClass = () => {
@@ -47884,25 +48000,214 @@ function CombatSetupScreen(props) {
       1: { ...(current == null ? void 0 : current[1]) ?? {}, niveau: globalLevel }
     };
     if (nextClasse == null ? void 0 : nextClasse[2]) delete nextClasse[2];
-    props.onChangeCharacter({ ...props.character, classe: nextClasse });
-    setActiveClassTab("primary");
-  };
-  const setClassLock = (value2) => {
     props.onChangeCharacter({
       ...props.character,
-      classLock: value2
+      classe: nextClasse,
+      classLocks: { ...classLocks, secondary: false }
+    });
+    setActiveClassTab("primary");
+  };
+  const setClassLockForSlot = (slot, value2) => {
+    const nextLocks = {
+      ...classLocks,
+      primary: slot === 1 ? value2 : classLocks.primary,
+      secondary: slot === 2 ? value2 : classLocks.secondary
+    };
+    const nextCharacter = {
+      ...props.character,
+      classLocks: nextLocks
+    };
+    if (slot === 1) {
+      nextCharacter.classLock = value2;
+    }
+    props.onChangeCharacter(nextCharacter);
+  };
+  const clearPendingLocks = (keys) => {
+    const nextPending = { ...pendingLocks };
+    let changed = false;
+    for (const key2 of keys) {
+      if (key2 in nextPending) {
+        delete nextPending[key2];
+        changed = true;
+      }
+    }
+    if (!changed) return;
+    props.onChangeCharacter({
+      ...props.character,
+      choiceSelections: { ...choiceSelections, pendingLocks: nextPending }
     });
   };
+  const removeAsiForClassId = (classId2) => {
+    if (!classId2) return;
+    const nextAsi = { ...asiSelections };
+    Object.keys(nextAsi).forEach((key2) => {
+      if (key2.startsWith(`${classId2}:`)) {
+        delete nextAsi[key2];
+      }
+    });
+    props.onChangeCharacter({
+      ...props.character,
+      choiceSelections: { ...choiceSelections, asi: nextAsi }
+    });
+  };
+  const resetClassImpactsForSlot = (slot) => {
+    var _a2;
+    const current = ((_a2 = props.character) == null ? void 0 : _a2.classe) ?? {};
+    const entry = (current == null ? void 0 : current[slot]) ?? {};
+    if (entry == null ? void 0 : entry.subclasseId) {
+      const nextClasse = { ...current, [slot]: { ...entry, subclasseId: null } };
+      props.onChangeCharacter({ ...props.character, classe: nextClasse });
+    }
+    removeAsiForClassId(entry == null ? void 0 : entry.classeId);
+    setClassLockForSlot(slot, false);
+    clearPendingLocks(["classes", "classesSlot"]);
+    resetMasteries();
+    resetSkills();
+  };
+  const resetSpeciesImpacts = () => {
+    var _a2;
+    const adaptableSkill = (_a2 = choiceSelections == null ? void 0 : choiceSelections.race) == null ? void 0 : _a2.adaptableSkill;
+    const nextCompetences = adaptableSkill ? competences.filter((skill) => skill !== adaptableSkill) : competences;
+    const nextChoiceSelections = {
+      ...choiceSelections,
+      race: { ...choiceSelections.race }
+    };
+    if (adaptableSkill) {
+      delete nextChoiceSelections.race.adaptableSkill;
+    }
+    props.onChangeCharacter({
+      ...props.character,
+      creationLocks: { ...creationLocks, species: false },
+      choiceSelections: nextChoiceSelections,
+      competences: nextCompetences
+    });
+    clearPendingLocks(["species"]);
+  };
+  const resetBackgroundImpacts = () => {
+    var _a2, _b2, _c2, _d2, _e2;
+    const backgroundChoices = (choiceSelections == null ? void 0 : choiceSelections.background) ?? {};
+    const bonusApplied = Boolean(backgroundChoices.statBonusApplied);
+    const toolChoices2 = Array.isArray(backgroundChoices.tools) ? backgroundChoices.tools : [];
+    const languageChoices2 = Array.isArray(backgroundChoices.languages) ? backgroundChoices.languages : [];
+    const currentLangues = (_a2 = props.character) == null ? void 0 : _a2.langues;
+    const currentList = Array.isArray(currentLangues) ? currentLangues : typeof currentLangues === "string" ? currentLangues.split(",").map((item) => item.trim()).filter(Boolean) : [];
+    const nextLangues = currentList.filter((lang) => !languageChoices2.includes(lang));
+    const currentProfs = ((_b2 = props.character) == null ? void 0 : _b2.proficiencies) ?? {};
+    const nextTools = Array.isArray(currentProfs.tools) ? currentProfs.tools.filter((tool) => !toolChoices2.includes(tool)) : [];
+    let nextCaracs = props.character.caracs;
+    const nextChoiceSelections = {
+      ...choiceSelections,
+      background: {}
+    };
+    if (bonusApplied) {
+      const current = ((_d2 = (_c2 = props.character.caracs) == null ? void 0 : _c2.force) == null ? void 0 : _d2.FOR) ?? 10;
+      nextCaracs = {
+        ...props.character.caracs,
+        force: { ...((_e2 = props.character.caracs) == null ? void 0 : _e2.force) ?? {}, FOR: current - 1 }
+      };
+      nextChoiceSelections.statsBase = {
+        ...statsBase,
+        FOR: Number.isFinite(statsBase.FOR) ? statsBase.FOR : current - 1
+      };
+    }
+    props.onChangeCharacter({
+      ...props.character,
+      creationLocks: { ...creationLocks, backgrounds: false },
+      choiceSelections: nextChoiceSelections,
+      langues: nextLangues,
+      proficiencies: { ...currentProfs, tools: nextTools },
+      caracs: nextCaracs
+    });
+    clearPendingLocks(["backgrounds"]);
+  };
   const STAT_KEYS = ["FOR", "DEX", "CON", "INT", "SAG", "CHA"];
+  const parseStatBonusId = (id2) => {
+    const trimmed = String(id2 ?? "").trim();
+    const match = trimmed.match(/^(?:stat|carac)[:.](FOR|DEX|CON|INT|SAG|CHA)[:.]([+-]?\d+)$/i);
+    if (!match) return null;
+    const stat = match[1].toUpperCase();
+    const value2 = Number.parseInt(match[2], 10);
+    if (!Number.isFinite(value2) || value2 === 0) return null;
+    return { stat, value: value2 };
+  };
+  const collectProgressionBonuses = (definition, level, source2) => {
+    const bonuses = [];
+    if (!definition || !definition.progression) return bonuses;
+    Object.keys(definition.progression).map((key2) => Number(key2)).filter((lvl) => Number.isFinite(lvl) && lvl > 0 && lvl <= level).forEach((lvl) => {
+      var _a2, _b2;
+      const grants2 = ((_b2 = (_a2 = definition.progression) == null ? void 0 : _a2[String(lvl)]) == null ? void 0 : _b2.grants) ?? [];
+      for (const grant of grants2) {
+        if ((grant == null ? void 0 : grant.kind) !== "bonus") continue;
+        const ids = Array.isArray(grant.ids) ? grant.ids : [];
+        for (const id2 of ids) {
+          if (id2 === "asi-or-feat") continue;
+          const parsed = parseStatBonusId(id2);
+          if (!parsed) continue;
+          bonuses.push({ ...parsed, source: source2 });
+        }
+      }
+    });
+    return bonuses;
+  };
   const getStatBonuses = () => {
     var _a2;
     const bonuses = [];
     if ((_a2 = choiceSelections == null ? void 0 : choiceSelections.background) == null ? void 0 : _a2.statBonusApplied) {
       bonuses.push({ stat: "FOR", value: 1, source: "background" });
     }
+    if (activeRace && (activeRace == null ? void 0 : activeRace.statBonuses)) {
+      const statBonuses2 = activeRace.statBonuses;
+      Object.entries(statBonuses2).forEach(([stat, value2]) => {
+        const key2 = String(stat).toUpperCase();
+        if (!STAT_KEYS.includes(key2)) return;
+        const amount = Number(value2) || 0;
+        if (amount === 0) return;
+        bonuses.push({ stat: key2, value: amount, source: "race" });
+      });
+    }
+    const primaryLevel = Number((classEntry == null ? void 0 : classEntry.niveau) ?? 0);
+    if (primaryLevel > 0 && classPrimary) {
+      bonuses.push(...collectProgressionBonuses(classPrimary, primaryLevel, "classPrimary"));
+    }
+    if (primaryLevel > 0 && selectedSubclassId) {
+      const sub = subclassOptions.find((item) => item.id === selectedSubclassId) ?? null;
+      bonuses.push(...collectProgressionBonuses(sub, primaryLevel, "subclassPrimary"));
+    }
+    const secondaryLevel = Number((secondaryClassEntry == null ? void 0 : secondaryClassEntry.niveau) ?? 0);
+    if (secondaryLevel > 0 && classSecondary) {
+      bonuses.push(...collectProgressionBonuses(classSecondary, secondaryLevel, "classSecondary"));
+    }
+    if (secondaryLevel > 0 && selectedSecondarySubclassId) {
+      const sub = subclassOptions.find((item) => item.id === selectedSecondarySubclassId) ?? null;
+      bonuses.push(...collectProgressionBonuses(sub, secondaryLevel, "subclassSecondary"));
+    }
+    const extraBonuses = (choiceSelections == null ? void 0 : choiceSelections.statBonuses) ?? [];
+    if (Array.isArray(extraBonuses)) {
+      extraBonuses.forEach((entry) => {
+        const key2 = String(entry.stat ?? "").toUpperCase();
+        if (!STAT_KEYS.includes(key2)) return;
+        const amount = Number(entry.value) || 0;
+        if (amount === 0) return;
+        bonuses.push({
+          stat: key2,
+          value: amount,
+          source: entry.source ?? "bonus"
+        });
+      });
+    }
     return bonuses;
   };
-  const statBonuses = getStatBonuses();
+  const statBonuses = reactExports.useMemo(() => getStatBonuses(), [
+    choiceSelections,
+    activeRace,
+    classPrimary,
+    classSecondary,
+    selectedSubclassId,
+    selectedSecondarySubclassId,
+    classEntry == null ? void 0 : classEntry.niveau,
+    secondaryClassEntry == null ? void 0 : secondaryClassEntry.niveau,
+    subclassOptions
+  ]);
   const asiSelections = (choiceSelections == null ? void 0 : choiceSelections.asi) ?? {};
   const statsBase = (choiceSelections == null ? void 0 : choiceSelections.statsBase) ?? {};
   const getNonAsiBonusSumForStat = (key2) => statBonuses.reduce((sum, bonus) => bonus.stat === key2 ? sum + bonus.value : sum, 0);
@@ -47920,11 +48225,23 @@ function CombatSetupScreen(props) {
     const score = (_b2 = (_a2 = props.character.caracs) == null ? void 0 : _a2[caracKey]) == null ? void 0 : _b2[key2];
     return Number.isFinite(score) ? Number(score) : 10;
   };
+  const getRequestedAsiBonus = (key2) => {
+    let total = 0;
+    Object.values(asiSelections).forEach((entry) => {
+      if (!entry || entry.type !== "asi" || !entry.stats) return;
+      const raw = entry.stats[key2];
+      const value2 = Number(raw) || 0;
+      if (value2 > 0) total += value2;
+    });
+    return total;
+  };
   const getBaseScore = (key2) => {
     const stored = statsBase[key2];
     if (Number.isFinite(stored)) return Number(stored);
     const current = getScore(key2);
-    return Math.max(1, current - getNonAsiBonusSumForStat(key2));
+    const nonAsi = getNonAsiBonusSumForStat(key2);
+    const requestedAsi = getRequestedAsiBonus(key2);
+    return Math.max(1, current - nonAsi - requestedAsi);
   };
   const getAsiBonusMap = () => {
     const requested = {};
@@ -47947,7 +48264,12 @@ function CombatSetupScreen(props) {
     });
     return capped;
   };
-  const asiBonusMap = getAsiBonusMap();
+  const asiBonusMap = reactExports.useMemo(() => getAsiBonusMap(), [
+    asiSelections,
+    statBonuses,
+    statsBase,
+    (_s = props.character) == null ? void 0 : _s.caracs
+  ]);
   const getBonusSumForStat = (key2) => getNonAsiBonusSumForStat(key2) + (asiBonusMap[key2] ?? 0);
   reactExports.useEffect(() => {
     if (!(classPrimary == null ? void 0 : classPrimary.id)) return;
@@ -47970,10 +48292,13 @@ function CombatSetupScreen(props) {
       choiceSelections: { ...choiceSelections, asi: nextAsi }
     });
   }, [asiSelections, classPrimary == null ? void 0 : classPrimary.id, props.character, props.onChangeCharacter, choiceSelections]);
-  const getStatSources = (key2) => [
-    ...statBonuses.filter((bonus) => bonus.stat === key2).map((bonus) => bonus.source),
-    ...asiBonusMap[key2] ? ["asi"] : []
-  ];
+  const getStatSources = (key2) => {
+    const sources2 = [
+      ...statBonuses.filter((bonus) => bonus.stat === key2).map((bonus) => bonus.source),
+      ...asiBonusMap[key2] ? ["asi"] : []
+    ];
+    return Array.from(new Set(sources2.filter(Boolean)));
+  };
   const buildCaracsFromTotals = (scores) => {
     var _a2;
     const mapping = {
@@ -48023,6 +48348,25 @@ function CombatSetupScreen(props) {
       combatStats: nextCombatStats
     });
   };
+  reactExports.useEffect(() => {
+    const baseScores = getBaseScoresSnapshot();
+    const totals = {};
+    let changed = false;
+    STAT_KEYS.forEach((key2) => {
+      const bonus = getBonusSumForStat(key2);
+      const base = Math.max(1, Math.min(30, Math.floor(baseScores[key2] || 1)));
+      const total = Math.max(1, Math.min(30, Math.floor(base + bonus)));
+      totals[key2] = total;
+      if (getScore(key2) !== total) changed = true;
+    });
+    if (!changed) return;
+    const { nextCaracs, nextCombatStats } = buildCaracsFromTotals(totals);
+    props.onChangeCharacter({
+      ...props.character,
+      caracs: nextCaracs,
+      combatStats: nextCombatStats
+    });
+  }, [statBonuses, asiBonusMap, statsBase, (_t = props.character) == null ? void 0 : _t.caracs, (_u = props.character) == null ? void 0 : _u.id]);
   const resetStats = () => {
     if (!initialStatsRef.current) return;
     setBaseScores(initialStatsRef.current);
@@ -48123,7 +48467,12 @@ function CombatSetupScreen(props) {
     race: "#2ecc71",
     background: "#f1c40f",
     classPrimary: "#4f7df2",
-    classSecondary: "#7dc7ff"
+    subclassPrimary: "#6e8cff",
+    classSecondary: "#7dc7ff",
+    subclassSecondary: "#9ad4ff",
+    asi: "#9b59b6",
+    feat: "#e67e22",
+    equipment: "#16a085"
   };
   const renderSourceDots = (sources2) => {
     if (sources2.length === 0) return null;
@@ -48220,10 +48569,13 @@ function CombatSetupScreen(props) {
       tools: Array.from(/* @__PURE__ */ new Set([...currentProfs.tools ?? [], ...selected]))
     };
     const nextPending = { ...pendingLocks };
-    if (pendingLocks.backgrounds) delete nextPending.backgrounds;
     let nextCaracs = props.character.caracs;
     let nextLocks = creationLocks;
-    if (pendingLocks.backgrounds) {
+    const remainingChoicesAfter = getPendingBackgroundChoiceCount(
+      nextChoiceSelections.background ?? {}
+    );
+    if (pendingLocks.backgrounds && remainingChoicesAfter <= 0) {
+      delete nextPending.backgrounds;
       nextLocks = { ...creationLocks, backgrounds: true };
       const bonusApplied = Boolean((_b2 = choiceSelections == null ? void 0 : choiceSelections.background) == null ? void 0 : _b2.statBonusApplied);
       if (!bonusApplied && selectedBackgroundId === "veteran-de-guerre") {
@@ -48246,6 +48598,9 @@ function CombatSetupScreen(props) {
       creationLocks: nextLocks,
       caracs: nextCaracs
     });
+    if (pendingLocks.backgrounds) {
+      requireBackgroundChoices();
+    }
   };
   const applyBackgroundLanguageChoices = (selected) => {
     var _a2, _b2, _c2, _d2, _e2;
@@ -48257,10 +48612,13 @@ function CombatSetupScreen(props) {
     const currentList = Array.isArray(currentLangues) ? currentLangues : typeof currentLangues === "string" ? currentLangues.split(",").map((item) => item.trim()).filter(Boolean) : [];
     const nextLangues = Array.from(/* @__PURE__ */ new Set([...currentList, ...selected]));
     const nextPending = { ...pendingLocks };
-    if (pendingLocks.backgrounds) delete nextPending.backgrounds;
     let nextCaracs = props.character.caracs;
     let nextLocks = creationLocks;
-    if (pendingLocks.backgrounds) {
+    const remainingChoicesAfter = getPendingBackgroundChoiceCount(
+      nextChoiceSelections.background ?? {}
+    );
+    if (pendingLocks.backgrounds && remainingChoicesAfter <= 0) {
+      delete nextPending.backgrounds;
       nextLocks = { ...creationLocks, backgrounds: true };
       const bonusApplied = Boolean((_b2 = choiceSelections == null ? void 0 : choiceSelections.background) == null ? void 0 : _b2.statBonusApplied);
       if (!bonusApplied && selectedBackgroundId === "veteran-de-guerre") {
@@ -48283,6 +48641,9 @@ function CombatSetupScreen(props) {
       creationLocks: nextLocks,
       caracs: nextCaracs
     });
+    if (pendingLocks.backgrounds) {
+      requireBackgroundChoices();
+    }
   };
   const requireRaceChoices = () => {
     var _a2;
@@ -48615,6 +48976,7 @@ function CombatSetupScreen(props) {
           raceId,
           creationLocks: nextLocks,
           classLock: false,
+          classLocks: { primary: false, secondary: false },
           choiceSelections: nextChoiceSelections,
           competences: nextCompetences
         });
@@ -48664,6 +49026,7 @@ function CombatSetupScreen(props) {
           choiceSelections: nextChoiceSelections,
           competences: nextCompetences,
           classLock: false,
+          classLocks: { primary: false, secondary: false },
           caracs: nextCaracs
         });
         applyBackgroundSelection(bg);
@@ -48694,6 +49057,7 @@ function CombatSetupScreen(props) {
           ...props.character,
           creationLocks: nextLocks,
           classLock: false,
+          classLocks: { primary: false, secondary: false },
           choiceSelections: nextChoiceSelections
         });
         setClassSelection(cls, slot);
@@ -48703,7 +49067,21 @@ function CombatSetupScreen(props) {
       }
     });
   };
-  const requireSubclassChoiceForSlot = (slot) => {
+  const hasSubclassChoicePending = (slot) => {
+    const clsId = slot === 1 ? selectedClassId : selectedSecondaryClassId;
+    const entry = slot === 1 ? classEntry : secondaryClassEntry;
+    const cls = classOptions.find((c2) => c2.id === clsId);
+    if (!cls || !entry) return false;
+    const threshold = cls.subclassLevel ?? 1;
+    const level = Number(entry == null ? void 0 : entry.niveau) || 0;
+    if (level < threshold) return false;
+    const selectedSub = slot === 1 ? selectedSubclassId : selectedSecondarySubclassId;
+    if (selectedSub) return false;
+    const allowedIds = Array.isArray(cls.subclassIds) ? cls.subclassIds : [];
+    const options = subclassOptions.filter((sub) => sub.classId === cls.id).filter((sub) => allowedIds.length === 0 || allowedIds.includes(sub.id)).map((sub) => ({ id: sub.id, label: sub.label }));
+    return options.length > 0;
+  };
+  const promptSubclassChoiceForSlot = (slot, onDone) => {
     const clsId = slot === 1 ? selectedClassId : selectedSecondaryClassId;
     const entry = slot === 1 ? classEntry : secondaryClassEntry;
     const cls = classOptions.find((c2) => c2.id === clsId);
@@ -48724,23 +49102,202 @@ function CombatSetupScreen(props) {
       multi: false,
       onConfirm: (selected) => {
         setSubclassSelection(selected[0], slot);
-        if (pendingLocks.classes) {
-          setClassLock(true);
+        if (onDone) onDone();
+      }
+    });
+    return true;
+  };
+  const getOtherAsiSumForStat = (stat, entryKey, overrides) => {
+    let total = 0;
+    Object.entries(asiSelections).forEach(([key2, entry]) => {
+      if (key2 === entryKey) return;
+      const override = (overrides == null ? void 0 : overrides[key2]) ?? null;
+      const effective = override ?? entry;
+      if (!effective || effective.type !== "asi" || !effective.stats) return;
+      total += Number(effective.stats[stat] ?? 0) || 0;
+    });
+    return total;
+  };
+  const canAllocateMoreAsi = (entryKey, stats, overrides) => {
+    const spent = Object.values(stats).reduce((sum, value2) => sum + (Number(value2) || 0), 0);
+    const remaining = Math.max(0, 2 - spent);
+    if (remaining <= 0) return false;
+    return STAT_KEYS.some((stat) => {
+      const current = Number(stats[stat] ?? 0) || 0;
+      if (current >= 2) return false;
+      const base = getBaseScore(stat);
+      const nonAsi = getNonAsiBonusSumForStat(stat);
+      const otherAsi = getOtherAsiSumForStat(stat, entryKey, overrides);
+      const total = base + nonAsi + otherAsi + current;
+      return total < 20;
+    });
+  };
+  const isAsiEntryComplete = (entry, entryKey, overrides) => {
+    if (!entry) return false;
+    if (entry.type === "feat") return true;
+    const stats = entry.stats ?? {};
+    const total = Object.values(stats).reduce(
+      (sum, value2) => sum + (Number(value2) || 0),
+      0
+    );
+    if (total >= 2) return true;
+    if (!entryKey) return false;
+    return !canAllocateMoreAsi(entryKey, stats, overrides);
+  };
+  const getMissingAsiEntries = (overrides) => {
+    const entries = getClassAsiLevels();
+    return entries.filter((entryInfo) => {
+      const override = (overrides == null ? void 0 : overrides[entryInfo.key]) ?? null;
+      const entry = override ?? getAsiEntryForLevel(entryInfo);
+      return !isAsiEntryComplete(entry, entryInfo.key, overrides);
+    });
+  };
+  const hasMissingAsiForSlot = (slot) => {
+    const classId2 = slot === 1 ? classPrimary == null ? void 0 : classPrimary.id : classSecondary == null ? void 0 : classSecondary.id;
+    if (!classId2) return false;
+    return getMissingAsiEntries().some((entry) => entry.classId === classId2);
+  };
+  const getMissingAsiEntryForSlot = (slot) => {
+    const classId2 = slot === 1 ? classPrimary == null ? void 0 : classPrimary.id : classSecondary == null ? void 0 : classSecondary.id;
+    if (!classId2) return null;
+    return getMissingAsiEntries().find((entry) => entry.classId === classId2) ?? null;
+  };
+  const hasPendingClassChoicesForSlot = (slot) => hasSubclassChoicePending(slot) || hasMissingAsiForSlot(slot);
+  const hasPendingRaceChoices = () => {
+    var _a2;
+    if (selectedRaceId !== "human") return false;
+    const adaptableSkill = (_a2 = choiceSelections == null ? void 0 : choiceSelections.race) == null ? void 0 : _a2.adaptableSkill;
+    return !adaptableSkill;
+  };
+  const getPendingBackgroundChoiceCount = (overrides) => {
+    if (!activeBackground) return 0;
+    const backgroundChoices = overrides ?? (choiceSelections == null ? void 0 : choiceSelections.background) ?? {};
+    let count2 = 0;
+    if (activeBackground.toolChoices) {
+      const existing = Array.isArray(backgroundChoices.tools) ? backgroundChoices.tools : [];
+      if (existing.length < activeBackground.toolChoices.count) {
+        count2 += activeBackground.toolChoices.count - existing.length;
+      }
+    }
+    if (activeBackground.languageChoices) {
+      const existing = Array.isArray(backgroundChoices.languages) ? backgroundChoices.languages : [];
+      if (existing.length < activeBackground.languageChoices.count) {
+        count2 += activeBackground.languageChoices.count - existing.length;
+      }
+    }
+    return count2;
+  };
+  const hasPendingBackgroundChoices = () => getPendingBackgroundChoiceCount() > 0;
+  const getPendingRaceChoiceCount = () => hasPendingRaceChoices() ? 1 : 0;
+  const getPendingClassChoiceCount = (slot) => {
+    let count2 = 0;
+    if (hasSubclassChoicePending(slot)) count2 += 1;
+    const classId2 = slot === 1 ? classPrimary == null ? void 0 : classPrimary.id : classSecondary == null ? void 0 : classSecondary.id;
+    if (classId2) {
+      count2 += getMissingAsiEntries().filter((entry) => entry.classId === classId2).length;
+    }
+    return count2;
+  };
+  const getLockButtonState = (id2) => {
+    const locked = isSectionLocked(id2);
+    let needsDefine = false;
+    if (!locked) {
+      if (id2 === "species") needsDefine = hasPendingRaceChoices();
+      if (id2 === "backgrounds") needsDefine = hasPendingBackgroundChoices();
+    }
+    return {
+      locked,
+      needsDefine,
+      label: locked ? "Deverouiller" : needsDefine ? "Definir" : "Verouiller",
+      background: locked ? "rgba(231,76,60,0.18)" : needsDefine ? "rgba(243, 156, 18, 0.22)" : "rgba(46, 204, 113, 0.16)"
+    };
+  };
+  const getClassLockButtonState = () => {
+    const locked = isActiveClassLocked;
+    const needsDefine = !locked && hasPendingClassChoicesForSlot(activeClassSlot);
+    return {
+      locked,
+      needsDefine,
+      label: locked ? "Deverouiller" : needsDefine ? "Definir" : "Verouiller",
+      background: locked ? "rgba(231,76,60,0.18)" : needsDefine ? "rgba(243, 156, 18, 0.22)" : "rgba(46, 204, 113, 0.16)"
+    };
+  };
+  const getPendingCountForSection = (id2) => {
+    if (id2 === "species") return getPendingRaceChoiceCount();
+    if (id2 === "backgrounds") return getPendingBackgroundChoiceCount();
+    if (id2 === "classes") return getPendingClassChoiceCount(activeClassSlot);
+    return 0;
+  };
+  const renderPendingBadge = (count2) => {
+    if (count2 <= 0) return null;
+    return /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "span",
+      {
+        style: {
+          marginLeft: 6,
+          minWidth: 16,
+          height: 16,
+          padding: "0 4px",
+          borderRadius: 999,
+          background: "#f39c12",
+          color: "#0b0b12",
+          fontSize: 10,
+          fontWeight: 800,
+          lineHeight: "16px",
+          textAlign: "center",
+          display: "inline-block"
+        },
+        children: count2 > 9 ? "9+" : count2
+      }
+    );
+  };
+  const startBackgroundDefine = () => {
+    if (!activeBackground) return;
+    props.onChangeCharacter({
+      ...props.character,
+      choiceSelections: {
+        ...choiceSelections,
+        pendingLocks: { ...pendingLocks, backgrounds: true }
+      }
+    });
+    requireBackgroundChoices();
+  };
+  const startClassDefine = (slot) => {
+    props.onChangeCharacter({
+      ...props.character,
+      choiceSelections: {
+        ...choiceSelections,
+        pendingLocks: {
+          ...pendingLocks,
+          classes: true,
+          classesSlot: slot
+        }
+      }
+    });
+    const openNextAsi = () => {
+      const nextEntry = getMissingAsiEntryForSlot(slot);
+      if (nextEntry) {
+        openAsiModal(nextEntry);
+        return true;
+      }
+      return false;
+    };
+    if (hasSubclassChoicePending(slot)) {
+      promptSubclassChoiceForSlot(slot, () => {
+        if (!openNextAsi()) {
+          setClassLockForSlot(slot, true);
           const nextPending = { ...pendingLocks };
           delete nextPending.classes;
+          delete nextPending.classesSlot;
           props.onChangeCharacter({
             ...props.character,
             choiceSelections: { ...choiceSelections, pendingLocks: nextPending }
           });
         }
-      }
-    });
-    return true;
-  };
-  const requireClassChoices = () => {
-    const needsPrimary = requireSubclassChoiceForSlot(1);
-    const needsSecondary = isSecondaryEnabled && resolvedClassTab === "secondary" ? requireSubclassChoiceForSlot(2) : isSecondaryEnabled ? requireSubclassChoiceForSlot(2) : false;
-    return needsPrimary || needsSecondary;
+      });
+      return;
+    }
+    openNextAsi();
   };
   const getTabLockColor = (id2) => {
     if (!isSectionLocked(id2)) return null;
@@ -48776,7 +49333,7 @@ function CombatSetupScreen(props) {
       SAG: getBaseScore("SAG"),
       CHA: getBaseScore("CHA")
     };
-  }, [(_r = props.character) == null ? void 0 : _r.id]);
+  }, [(_v = props.character) == null ? void 0 : _v.id]);
   const computeMod = (score) => Math.floor((score - 10) / 2);
   const canEditSkills = !isSectionLocked("skills") && skillsMode !== "normal";
   const canEditMasteries = !isSectionLocked("masteries") && masteriesMode !== "normal";
@@ -48784,17 +49341,6 @@ function CombatSetupScreen(props) {
     const nextAsi = { ...asiSelections, [key2]: next };
     const nextChoiceSelections = { ...choiceSelections, asi: nextAsi };
     props.onChangeCharacter({ ...props.character, choiceSelections: nextChoiceSelections });
-  };
-  const clearAsiSelection = (key2) => {
-    const nextAsi = { ...asiSelections };
-    delete nextAsi[key2];
-    const nextChoiceSelections = { ...choiceSelections, asi: nextAsi };
-    props.onChangeCharacter({ ...props.character, choiceSelections: nextChoiceSelections });
-  };
-  const formatAsiStats = (stats) => {
-    if (!stats) return "";
-    const entries = Object.entries(stats).filter(([, value2]) => Number(value2) > 0).map(([stat, value2]) => `${stat}+${Number(value2)}`);
-    return entries.join(" / ");
   };
   const getClassAsiLevels = () => {
     const entries = [];
@@ -48824,6 +49370,23 @@ function CombatSetupScreen(props) {
     return entries.sort(
       (a2, b2) => a2.level === b2.level ? a2.classLabel.localeCompare(b2.classLabel) : a2.level - b2.level
     );
+  };
+  const getAsiKeysForClassLevel = (classId2, level) => {
+    const cls = classOptions.find((item) => item.id === classId2);
+    if (!cls || !cls.progression) return [];
+    return Object.keys(cls.progression).map((key2) => Number(key2)).filter((lvl) => Number.isFinite(lvl) && lvl > 0 && lvl <= level).filter((lvl) => {
+      var _a2, _b2;
+      const grants2 = ((_b2 = (_a2 = cls.progression) == null ? void 0 : _a2[String(lvl)]) == null ? void 0 : _b2.grants) ?? [];
+      return grants2.some(
+        (grant) => (grant == null ? void 0 : grant.kind) === "bonus" && ((grant == null ? void 0 : grant.ids) ?? []).includes("asi-or-feat")
+      );
+    }).map((lvl) => `${classId2}:${lvl}`);
+  };
+  const getSubclassThresholdForClassId = (classId2) => {
+    if (!classId2) return null;
+    const cls = classOptions.find((item) => item.id === classId2);
+    if (!cls) return null;
+    return typeof cls.subclassLevel === "number" ? cls.subclassLevel : 1;
   };
   const getAsiEntryForLevel = (entryInfo) => {
     return asiSelections[entryInfo.key] ?? (entryInfo.classId === (classPrimary == null ? void 0 : classPrimary.id) ? asiSelections[String(entryInfo.level)] : null) ?? null;
@@ -48863,17 +49426,76 @@ function CombatSetupScreen(props) {
   };
   const confirmAsiModalType = () => {
     if (!asiModal.entry) return;
+    const slot = asiModal.entry.classId === (classPrimary == null ? void 0 : classPrimary.id) ? 1 : 2;
     if (asiModal.type === "feat") {
-      setAsiSelection(asiModal.entry.key, { type: "feat" });
+      const nextEntry = { type: "feat" };
+      const overrides = { [asiModal.entry.key]: nextEntry };
+      let otherMissing = [];
+      setAsiSelection(asiModal.entry.key, nextEntry);
+      if (pendingLocks.classes) {
+        otherMissing = getMissingAsiEntries(overrides).filter(
+          (entry) => {
+            var _a2, _b2;
+            return entry.classId === ((_a2 = asiModal.entry) == null ? void 0 : _a2.classId) && entry.key !== ((_b2 = asiModal.entry) == null ? void 0 : _b2.key);
+          }
+        );
+        if (!hasSubclassChoicePending(slot) && otherMissing.length === 0) {
+          setClassLockForSlot(slot, true);
+          const nextPending = { ...pendingLocks };
+          delete nextPending.classes;
+          delete nextPending.classesSlot;
+          props.onChangeCharacter({
+            ...props.character,
+            choiceSelections: { ...choiceSelections, pendingLocks: nextPending }
+          });
+        }
+      }
       setAsiModal((prev) => ({ ...prev, step: "feat" }));
+      if (pendingLocks.classes) {
+        if (otherMissing.length > 0) {
+          setTimeout(() => openAsiModal(otherMissing[0]), 0);
+        }
+      }
       return;
     }
     setAsiModal((prev) => ({ ...prev, step: "asi" }));
   };
   const confirmAsiModalStats = () => {
     if (!asiModal.entry) return;
-    setAsiSelection(asiModal.entry.key, { type: "asi", stats: { ...asiModal.stats } });
+    const slot = asiModal.entry.classId === (classPrimary == null ? void 0 : classPrimary.id) ? 1 : 2;
+    const nextEntry = { type: "asi", stats: { ...asiModal.stats } };
+    const overrides = { [asiModal.entry.key]: nextEntry };
+    setAsiSelection(asiModal.entry.key, nextEntry);
+    if (pendingLocks.classes) {
+      const otherMissing = getMissingAsiEntries(overrides).filter(
+        (entry) => {
+          var _a2, _b2;
+          return entry.classId === ((_a2 = asiModal.entry) == null ? void 0 : _a2.classId) && entry.key !== ((_b2 = asiModal.entry) == null ? void 0 : _b2.key);
+        }
+      );
+      if (isAsiEntryComplete(nextEntry, asiModal.entry.key, overrides) && !hasSubclassChoicePending(slot) && otherMissing.length === 0) {
+        setClassLockForSlot(slot, true);
+        const nextPending = { ...pendingLocks };
+        delete nextPending.classes;
+        delete nextPending.classesSlot;
+        props.onChangeCharacter({
+          ...props.character,
+          choiceSelections: { ...choiceSelections, pendingLocks: nextPending }
+        });
+      }
+    }
     closeAsiModal();
+    if (pendingLocks.classes) {
+      const remaining = getMissingAsiEntries(overrides).filter(
+        (entry) => {
+          var _a2, _b2;
+          return entry.classId === ((_a2 = asiModal.entry) == null ? void 0 : _a2.classId) && entry.key !== ((_b2 = asiModal.entry) == null ? void 0 : _b2.key);
+        }
+      );
+      if (remaining.length > 0) {
+        setTimeout(() => openAsiModal(remaining[0]), 0);
+      }
+    }
   };
   const POINT_BUY_COSTS = {
     8: 0,
@@ -48963,7 +49585,7 @@ function CombatSetupScreen(props) {
     if (!hasAll || !isPointBuyStateValid(snapshot)) {
       setBaseScores(DEFAULT_POINT_BUY_BASE);
     }
-  }, [statsMode, (_s = props.character) == null ? void 0 : _s.id]);
+  }, [statsMode, (_w = props.character) == null ? void 0 : _w.id]);
   const competenceOptions = [
     { id: "athletisme", label: "Athletisme" },
     { id: "acrobaties", label: "Acrobaties" },
@@ -49023,8 +49645,6 @@ function CombatSetupScreen(props) {
     { id: "outils_autres", label: "Autres outils" },
     { id: "outils_vehicules", label: "Vehicules" }
   ];
-  const isSecondaryEnabled = Boolean(secondaryClassEntry);
-  const activeClassSlot = resolvedClassTab === "secondary" ? 2 : 1;
   const activeClassEntry = activeClassSlot === 1 ? classEntry : secondaryClassEntry;
   const activeClassId = activeClassSlot === 1 ? selectedClassId : selectedSecondaryClassId;
   const activeSubclassId = activeClassSlot === 1 ? selectedSubclassId : selectedSecondarySubclassId;
@@ -49290,7 +49910,7 @@ function CombatSetupScreen(props) {
                     activeMainTab === "player" && activePlayerTab === "equip" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
                       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
                         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "#b0b8c4" }, children: "Equipez les objets compatibles dans chaque slot. Les selections respectent les categories." }),
-                        /* @__PURE__ */ jsxRuntimeExports.jsx(
+                        /* @__PURE__ */ jsxRuntimeExports.jsxs(
                           "button",
                           {
                             type: "button",
@@ -49300,13 +49920,16 @@ function CombatSetupScreen(props) {
                               padding: "4px 8px",
                               borderRadius: 8,
                               border: "1px solid rgba(255,255,255,0.15)",
-                              background: isSectionLocked("equip") ? "rgba(231,76,60,0.18)" : "rgba(46, 204, 113, 0.16)",
+                              background: getLockButtonState("equip").background,
                               color: "#f5f5f5",
                               cursor: "pointer",
                               fontSize: 11,
                               fontWeight: 700
                             },
-                            children: isSectionLocked("equip") ? "Deverouiller" : "Verouiller"
+                            children: [
+                              getLockButtonState("equip").label,
+                              renderPendingBadge(getPendingCountForSection("equip"))
+                            ]
                           }
                         )
                       ] }),
@@ -49731,7 +50354,7 @@ function CombatSetupScreen(props) {
                             children: "Reset"
                           }
                         ),
-                        /* @__PURE__ */ jsxRuntimeExports.jsx(
+                        /* @__PURE__ */ jsxRuntimeExports.jsxs(
                           "button",
                           {
                             type: "button",
@@ -49741,13 +50364,16 @@ function CombatSetupScreen(props) {
                               padding: "4px 8px",
                               borderRadius: 8,
                               border: "1px solid rgba(255,255,255,0.15)",
-                              background: isSectionLocked("stats") ? "rgba(231,76,60,0.18)" : "rgba(46, 204, 113, 0.16)",
+                              background: getLockButtonState("stats").background,
                               color: "#f5f5f5",
                               cursor: "pointer",
                               fontSize: 11,
                               fontWeight: 700
                             },
-                            children: isSectionLocked("stats") ? "Deverouiller" : "Verouiller"
+                            children: [
+                              getLockButtonState("stats").label,
+                              renderPendingBadge(getPendingCountForSection("stats"))
+                            ]
                           }
                         )
                       ] }),
@@ -49990,7 +50616,7 @@ function CombatSetupScreen(props) {
                             children: "Reset"
                           }
                         ),
-                        /* @__PURE__ */ jsxRuntimeExports.jsx(
+                        /* @__PURE__ */ jsxRuntimeExports.jsxs(
                           "button",
                           {
                             type: "button",
@@ -50000,13 +50626,16 @@ function CombatSetupScreen(props) {
                               padding: "4px 8px",
                               borderRadius: 8,
                               border: "1px solid rgba(255,255,255,0.15)",
-                              background: isSectionLocked("skills") ? "rgba(231,76,60,0.18)" : "rgba(46, 204, 113, 0.16)",
+                              background: getLockButtonState("skills").background,
                               color: "#f5f5f5",
                               cursor: "pointer",
                               fontSize: 11,
                               fontWeight: 700
                             },
-                            children: isSectionLocked("skills") ? "Deverouiller" : "Verouiller"
+                            children: [
+                              getLockButtonState("skills").label,
+                              renderPendingBadge(getPendingCountForSection("skills"))
+                            ]
                           }
                         )
                       ] }),
@@ -50130,7 +50759,7 @@ function CombatSetupScreen(props) {
                             children: "Reset"
                           }
                         ),
-                        /* @__PURE__ */ jsxRuntimeExports.jsx(
+                        /* @__PURE__ */ jsxRuntimeExports.jsxs(
                           "button",
                           {
                             type: "button",
@@ -50140,13 +50769,16 @@ function CombatSetupScreen(props) {
                               padding: "4px 8px",
                               borderRadius: 8,
                               border: "1px solid rgba(255,255,255,0.15)",
-                              background: isSectionLocked("masteries") ? "rgba(231,76,60,0.18)" : "rgba(46, 204, 113, 0.16)",
+                              background: getLockButtonState("masteries").background,
                               color: "#f5f5f5",
                               cursor: "pointer",
                               fontSize: 11,
                               fontWeight: 700
                             },
-                            children: isSectionLocked("masteries") ? "Deverouiller" : "Verouiller"
+                            children: [
+                              getLockButtonState("masteries").label,
+                              renderPendingBadge(getPendingCountForSection("masteries"))
+                            ]
                           }
                         )
                       ] }),
@@ -50196,18 +50828,16 @@ function CombatSetupScreen(props) {
                     activeMainTab === "player" && activePlayerTab === "species" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
                       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
                         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "#b0b8c4" }, children: "Choisissez une espece. Ce choix met a jour raceId dans le personnage." }),
-                        /* @__PURE__ */ jsxRuntimeExports.jsx(
+                        /* @__PURE__ */ jsxRuntimeExports.jsxs(
                           "button",
                           {
                             type: "button",
                             onClick: () => {
                               if (isSectionLocked("species")) {
-                                setSectionLock("species", false);
+                                resetSpeciesImpacts();
                                 return;
                               }
-                              if (!requireRaceChoices()) {
-                                setSectionLock("species", true);
-                              } else {
+                              if (hasPendingRaceChoices()) {
                                 props.onChangeCharacter({
                                   ...props.character,
                                   choiceSelections: {
@@ -50215,20 +50845,26 @@ function CombatSetupScreen(props) {
                                     pendingLocks: { ...pendingLocks, species: true }
                                   }
                                 });
+                                requireRaceChoices();
+                                return;
                               }
+                              setSectionLock("species", true);
                             },
                             style: {
                               marginLeft: "auto",
                               padding: "4px 8px",
                               borderRadius: 8,
                               border: "1px solid rgba(255,255,255,0.15)",
-                              background: isSectionLocked("species") ? "rgba(231,76,60,0.18)" : "rgba(46, 204, 113, 0.16)",
+                              background: getLockButtonState("species").background,
                               color: "#f5f5f5",
                               cursor: "pointer",
                               fontSize: 11,
                               fontWeight: 700
                             },
-                            children: isSectionLocked("species") ? "Deverouiller" : "Verouiller"
+                            children: [
+                              getLockButtonState("species").label,
+                              renderPendingBadge(getPendingCountForSection("species"))
+                            ]
                           }
                         )
                       ] }),
@@ -50330,7 +50966,7 @@ function CombatSetupScreen(props) {
                                     "Traits: ",
                                     activeRace.traits.map((trait) => trait.label).join(", ")
                                   ] }),
-                                  activeRace && ((_t = activeRace.vision) == null ? void 0 : _t.mode) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
+                                  activeRace && ((_x = activeRace.vision) == null ? void 0 : _x.mode) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
                                     "Vision: ",
                                     activeRace.vision.mode,
                                     activeRace.vision.range ? ` ${activeRace.vision.range}ft` : ""
@@ -50363,8 +50999,8 @@ function CombatSetupScreen(props) {
                                 "button",
                                 {
                                   type: "button",
-                                  onClick: () => !isClassLocked && setLevel(resolveLevel() - 1),
-                                  disabled: isClassLocked,
+                                  onClick: () => !isSectionLocked("classes") && setLevel(resolveLevel() - 1),
+                                  disabled: isSectionLocked("classes"),
                                   style: {
                                     width: 30,
                                     height: 30,
@@ -50372,10 +51008,10 @@ function CombatSetupScreen(props) {
                                     border: "1px solid #333",
                                     background: "#141421",
                                     color: "#f5f5f5",
-                                    cursor: isClassLocked ? "not-allowed" : "pointer",
+                                    cursor: isSectionLocked("classes") ? "not-allowed" : "pointer",
                                     display: "grid",
                                     placeItems: "center",
-                                    opacity: isClassLocked ? 0.6 : 1
+                                    opacity: isSectionLocked("classes") ? 0.6 : 1
                                   },
                                   "aria-label": "Diminuer le niveau",
                                   children: /* @__PURE__ */ jsxRuntimeExports.jsx("svg", { width: "12", height: "12", viewBox: "0 0 12 12", "aria-hidden": "true", children: /* @__PURE__ */ jsxRuntimeExports.jsx("rect", { x: "2", y: "5.25", width: "8", height: "1.5", fill: "currentColor" }) })
@@ -50388,8 +51024,8 @@ function CombatSetupScreen(props) {
                                   min: 1,
                                   max: 20,
                                   value: resolveLevel(),
-                                  onChange: (e2) => !isClassLocked && setLevel(Number(e2.target.value)),
-                                  disabled: isClassLocked,
+                                  onChange: (e2) => !isSectionLocked("classes") && setLevel(Number(e2.target.value)),
+                                  disabled: isSectionLocked("classes"),
                                   style: {
                                     width: 60,
                                     background: "#0f0f19",
@@ -50401,7 +51037,7 @@ function CombatSetupScreen(props) {
                                     appearance: "textfield",
                                     WebkitAppearance: "textfield",
                                     MozAppearance: "textfield",
-                                    opacity: isClassLocked ? 0.6 : 1
+                                    opacity: isSectionLocked("classes") ? 0.6 : 1
                                   }
                                 }
                               ),
@@ -50409,8 +51045,8 @@ function CombatSetupScreen(props) {
                                 "button",
                                 {
                                   type: "button",
-                                  onClick: () => !isClassLocked && setLevel(resolveLevel() + 1),
-                                  disabled: isClassLocked,
+                                  onClick: () => !isSectionLocked("classes") && setLevel(resolveLevel() + 1),
+                                  disabled: isSectionLocked("classes"),
                                   style: {
                                     width: 30,
                                     height: 30,
@@ -50418,10 +51054,10 @@ function CombatSetupScreen(props) {
                                     border: "1px solid #333",
                                     background: "#141421",
                                     color: "#f5f5f5",
-                                    cursor: isClassLocked ? "not-allowed" : "pointer",
+                                    cursor: isSectionLocked("classes") ? "not-allowed" : "pointer",
                                     display: "grid",
                                     placeItems: "center",
-                                    opacity: isClassLocked ? 0.6 : 1
+                                    opacity: isSectionLocked("classes") ? 0.6 : 1
                                   },
                                   "aria-label": "Augmenter le niveau",
                                   children: /* @__PURE__ */ jsxRuntimeExports.jsxs("svg", { width: "12", height: "12", viewBox: "0 0 12 12", "aria-hidden": "true", children: [
@@ -50437,39 +51073,36 @@ function CombatSetupScreen(props) {
                           "Bonus de maitrise: +",
                           2 + Math.floor((resolveLevel() - 1) / 4)
                         ] }),
-                        /* @__PURE__ */ jsxRuntimeExports.jsx(
+                        /* @__PURE__ */ jsxRuntimeExports.jsxs(
                           "button",
                           {
                             type: "button",
                             onClick: () => {
-                              if (isClassLocked) {
-                                setClassLock(false);
+                              if (isActiveClassLocked) {
+                                resetClassImpactsForSlot(activeClassSlot);
                                 return;
                               }
-                              if (!requireClassChoices()) {
-                                setClassLock(true);
-                              } else {
-                                props.onChangeCharacter({
-                                  ...props.character,
-                                  choiceSelections: {
-                                    ...choiceSelections,
-                                    pendingLocks: { ...pendingLocks, classes: true }
-                                  }
-                                });
+                              if (hasPendingClassChoicesForSlot(activeClassSlot)) {
+                                startClassDefine(activeClassSlot);
+                                return;
                               }
+                              setClassLockForSlot(activeClassSlot, true);
                             },
                             style: {
                               marginLeft: "auto",
                               padding: "6px 10px",
                               borderRadius: 8,
                               border: "1px solid rgba(255,255,255,0.15)",
-                              background: isClassLocked ? "rgba(231,76,60,0.18)" : "rgba(46, 204, 113, 0.16)",
+                              background: getClassLockButtonState().background,
                               color: "#f5f5f5",
                               cursor: "pointer",
                               fontSize: 12,
                               fontWeight: 700
                             },
-                            children: isClassLocked ? "Deverouiller" : "Verouiller"
+                            children: [
+                              getClassLockButtonState().label,
+                              renderPendingBadge(getPendingCountForSection("classes"))
+                            ]
                           }
                         )
                       ] }),
@@ -50535,8 +51168,8 @@ function CombatSetupScreen(props) {
                                     "button",
                                     {
                                       type: "button",
-                                      onClick: () => !isClassLocked && enableSecondaryClass(),
-                                      disabled: isClassLocked,
+                                      onClick: () => !isActiveClassLocked && enableSecondaryClass(),
+                                      disabled: isActiveClassLocked,
                                       style: {
                                         textAlign: "center",
                                         borderRadius: 12,
@@ -50544,7 +51177,7 @@ function CombatSetupScreen(props) {
                                         background: "rgba(12,12,18,0.6)",
                                         color: "#f5f5f5",
                                         padding: 14,
-                                        cursor: isClassLocked ? "not-allowed" : "pointer",
+                                        cursor: isActiveClassLocked ? "not-allowed" : "pointer",
                                         display: "flex",
                                         flexDirection: "column",
                                         gap: 10,
@@ -50575,7 +51208,7 @@ function CombatSetupScreen(props) {
                                   ),
                                   classOptions.map((cls) => {
                                     const isSelected = activeClassId === cls.id;
-                                    const isDisabled = isClassLocked || resolvedClassTab === "secondary" && !isSecondaryEnabled;
+                                    const isDisabled = isActiveClassLocked || resolvedClassTab === "secondary" && !isSecondaryEnabled;
                                     return /* @__PURE__ */ jsxRuntimeExports.jsxs(
                                       "button",
                                       {
@@ -50644,8 +51277,8 @@ function CombatSetupScreen(props) {
                                           "button",
                                           {
                                             type: "button",
-                                            onClick: () => !isClassLocked && setClassLevel(activeClassSlot, (Number(activeClassEntry == null ? void 0 : activeClassEntry.niveau) || 1) - 1),
-                                            disabled: isClassLocked || resolvedClassTab === "secondary" && !isSecondaryEnabled,
+                                            onClick: () => !isActiveClassLocked && setClassLevel(activeClassSlot, (Number(activeClassEntry == null ? void 0 : activeClassEntry.niveau) || 1) - 1),
+                                            disabled: isActiveClassLocked || resolvedClassTab === "secondary" && !isSecondaryEnabled,
                                             style: {
                                               width: 30,
                                               height: 30,
@@ -50653,10 +51286,10 @@ function CombatSetupScreen(props) {
                                               border: "1px solid #333",
                                               background: "#141421",
                                               color: "#f5f5f5",
-                                              cursor: isClassLocked ? "not-allowed" : "pointer",
+                                              cursor: isActiveClassLocked ? "not-allowed" : "pointer",
                                               display: "grid",
                                               placeItems: "center",
-                                              opacity: isClassLocked ? 0.6 : 1
+                                              opacity: isActiveClassLocked ? 0.6 : 1
                                             },
                                             "aria-label": "Diminuer le niveau de classe",
                                             children: /* @__PURE__ */ jsxRuntimeExports.jsx("svg", { width: "12", height: "12", viewBox: "0 0 12 12", "aria-hidden": "true", children: /* @__PURE__ */ jsxRuntimeExports.jsx("rect", { x: "2", y: "5.25", width: "8", height: "1.5", fill: "currentColor" }) })
@@ -50669,8 +51302,8 @@ function CombatSetupScreen(props) {
                                             min: 1,
                                             max: isSecondaryEnabled ? Math.max(1, resolveLevel() - 1) : resolveLevel(),
                                             value: (activeClassEntry == null ? void 0 : activeClassEntry.niveau) ?? (activeClassSlot === 1 ? resolveLevel() : 0),
-                                            onChange: (e2) => !isClassLocked && setClassLevel(activeClassSlot, Number(e2.target.value)),
-                                            disabled: isClassLocked || resolvedClassTab === "secondary" && !isSecondaryEnabled,
+                                            onChange: (e2) => !isActiveClassLocked && setClassLevel(activeClassSlot, Number(e2.target.value)),
+                                            disabled: isActiveClassLocked || resolvedClassTab === "secondary" && !isSecondaryEnabled,
                                             style: {
                                               width: 60,
                                               background: "#0f0f19",
@@ -50682,7 +51315,7 @@ function CombatSetupScreen(props) {
                                               appearance: "textfield",
                                               WebkitAppearance: "textfield",
                                               MozAppearance: "textfield",
-                                              opacity: isClassLocked ? 0.6 : 1
+                                              opacity: isActiveClassLocked ? 0.6 : 1
                                             }
                                           }
                                         ),
@@ -50690,8 +51323,8 @@ function CombatSetupScreen(props) {
                                           "button",
                                           {
                                             type: "button",
-                                            onClick: () => !isClassLocked && setClassLevel(activeClassSlot, (Number(activeClassEntry == null ? void 0 : activeClassEntry.niveau) || 1) + 1),
-                                            disabled: isClassLocked || resolvedClassTab === "secondary" && !isSecondaryEnabled,
+                                            onClick: () => !isActiveClassLocked && setClassLevel(activeClassSlot, (Number(activeClassEntry == null ? void 0 : activeClassEntry.niveau) || 1) + 1),
+                                            disabled: isActiveClassLocked || resolvedClassTab === "secondary" && !isSecondaryEnabled,
                                             style: {
                                               width: 30,
                                               height: 30,
@@ -50699,10 +51332,10 @@ function CombatSetupScreen(props) {
                                               border: "1px solid #333",
                                               background: "#141421",
                                               color: "#f5f5f5",
-                                              cursor: isClassLocked ? "not-allowed" : "pointer",
+                                              cursor: isActiveClassLocked ? "not-allowed" : "pointer",
                                               display: "grid",
                                               placeItems: "center",
-                                              opacity: isClassLocked ? 0.6 : 1
+                                              opacity: isActiveClassLocked ? 0.6 : 1
                                             },
                                             "aria-label": "Augmenter le niveau de classe",
                                             children: /* @__PURE__ */ jsxRuntimeExports.jsxs("svg", { width: "12", height: "12", viewBox: "0 0 12 12", "aria-hidden": "true", children: [
@@ -50714,106 +51347,12 @@ function CombatSetupScreen(props) {
                                       ]
                                     }
                                   ),
-                                  (() => {
-                                    const asiLevels = getClassAsiLevels();
-                                    if (asiLevels.length === 0) return null;
-                                    return /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                                      "div",
-                                      {
-                                        style: {
-                                          marginTop: 10,
-                                          borderRadius: 8,
-                                          border: "1px solid rgba(255,255,255,0.12)",
-                                          background: "rgba(12,12,18,0.75)",
-                                          padding: 10,
-                                          display: "flex",
-                                          flexDirection: "column",
-                                          gap: 8
-                                        },
-                                        children: [
-                                          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, fontWeight: 700 }, children: "Amelioration / Don" }),
-                                          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.6)" }, children: "Choisissez une amelioration de caracteristiques (+2 ou +1/+1), ou un don (non disponible pour l'instant)." }),
-                                          asiLevels.map((entryInfo) => {
-                                            const entry = getAsiEntryForLevel(entryInfo);
-                                            const type2 = (entry == null ? void 0 : entry.type) ?? "asi";
-                                            const label2 = type2 === "feat" ? "Don" : (entry == null ? void 0 : entry.stats) && Object.keys(entry.stats).length > 0 ? formatAsiStats(entry.stats) : "Non choisi";
-                                            return /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                                              "div",
-                                              {
-                                                style: {
-                                                  borderRadius: 6,
-                                                  border: "1px solid rgba(255,255,255,0.12)",
-                                                  background: "rgba(10,10,16,0.8)",
-                                                  padding: 8,
-                                                  display: "flex",
-                                                  flexDirection: "column",
-                                                  gap: 6
-                                                },
-                                                children: [
-                                                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, fontWeight: 700 }, children: [
-                                                    "Niveau ",
-                                                    entryInfo.level,
-                                                    " — ",
-                                                    entryInfo.classLabel
-                                                  ] }),
-                                                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.7)" }, children: [
-                                                    "Choix actuel: ",
-                                                    label2
-                                                  ] }),
-                                                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: 6 }, children: [
-                                                    /* @__PURE__ */ jsxRuntimeExports.jsx(
-                                                      "button",
-                                                      {
-                                                        type: "button",
-                                                        onClick: () => openAsiModal(entryInfo),
-                                                        style: {
-                                                          padding: "4px 8px",
-                                                          borderRadius: 8,
-                                                          border: "1px solid rgba(255,255,255,0.15)",
-                                                          background: "rgba(255,255,255,0.06)",
-                                                          color: "#f5f5f5",
-                                                          cursor: "pointer",
-                                                          fontSize: 11,
-                                                          fontWeight: 700
-                                                        },
-                                                        children: "Choisir"
-                                                      }
-                                                    ),
-                                                    /* @__PURE__ */ jsxRuntimeExports.jsx(
-                                                      "button",
-                                                      {
-                                                        type: "button",
-                                                        onClick: () => clearAsiSelection(entryInfo.key),
-                                                        style: {
-                                                          marginLeft: "auto",
-                                                          padding: "4px 8px",
-                                                          borderRadius: 8,
-                                                          border: "1px solid rgba(255,255,255,0.15)",
-                                                          background: "rgba(255,255,255,0.06)",
-                                                          color: "#f5f5f5",
-                                                          cursor: "pointer",
-                                                          fontSize: 11,
-                                                          fontWeight: 700
-                                                        },
-                                                        children: "Reset"
-                                                      }
-                                                    )
-                                                  ] })
-                                                ]
-                                              },
-                                              `asi-entry-${entryInfo.key}`
-                                            );
-                                          })
-                                        ]
-                                      }
-                                    );
-                                  })(),
                                   resolvedClassTab === "secondary" && isSecondaryEnabled && /* @__PURE__ */ jsxRuntimeExports.jsx(
                                     "button",
                                     {
                                       type: "button",
-                                      onClick: () => !isClassLocked && removeSecondaryClass(),
-                                      disabled: isClassLocked,
+                                      onClick: () => !isActiveClassLocked && removeSecondaryClass(),
+                                      disabled: isActiveClassLocked,
                                       style: {
                                         marginTop: 8,
                                         alignSelf: "flex-start",
@@ -50822,10 +51361,10 @@ function CombatSetupScreen(props) {
                                         border: "1px solid rgba(255,255,255,0.15)",
                                         background: "rgba(231,76,60,0.14)",
                                         color: "#f5f5f5",
-                                        cursor: isClassLocked ? "not-allowed" : "pointer",
+                                        cursor: isActiveClassLocked ? "not-allowed" : "pointer",
                                         fontSize: 12,
                                         fontWeight: 700,
-                                        opacity: isClassLocked ? 0.6 : 1
+                                        opacity: isActiveClassLocked ? 0.6 : 1
                                       },
                                       children: "Supprimer la 2eme classe"
                                     }
@@ -50875,10 +51414,10 @@ function CombatSetupScreen(props) {
                                             {
                                               type: "button",
                                               onClick: () => {
-                                                if (!isAllowed || isClassLocked) return;
+                                                if (!isAllowed || isActiveClassLocked) return;
                                                 setSubclassSelection(sub.id, activeClassSlot);
                                               },
-                                              disabled: !isAllowed || isClassLocked,
+                                              disabled: !isAllowed || isActiveClassLocked,
                                               style: {
                                                 textAlign: "left",
                                                 borderRadius: 10,
@@ -50886,12 +51425,12 @@ function CombatSetupScreen(props) {
                                                 background: isSelected ? "rgba(241, 196, 15, 0.14)" : "rgba(12,12,18,0.75)",
                                                 color: "#f5f5f5",
                                                 padding: 12,
-                                                cursor: isAllowed && !isClassLocked ? "pointer" : "not-allowed",
+                                                cursor: isAllowed && !isActiveClassLocked ? "pointer" : "not-allowed",
                                                 display: "flex",
                                                 flexDirection: "column",
                                                 gap: 6,
                                                 minHeight: 110,
-                                                opacity: isAllowed && !isClassLocked ? 1 : 0.5
+                                                opacity: isAllowed && !isActiveClassLocked ? 1 : 0.5
                                               },
                                               children: [
                                                 /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 13, fontWeight: 800 }, children: sub.label }),
@@ -50914,93 +51453,62 @@ function CombatSetupScreen(props) {
                     activeMainTab === "player" && activePlayerTab === "backgrounds" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
                       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
                         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "#b0b8c4" }, children: "Choisissez un historique. Un seul background peut etre actif." }),
-                        /* @__PURE__ */ jsxRuntimeExports.jsx(
+                        /* @__PURE__ */ jsxRuntimeExports.jsxs(
                           "button",
                           {
                             type: "button",
                             onClick: () => {
-                              var _a2, _b2, _c2, _d2, _e2, _f2, _g2, _h2;
+                              var _a2, _b2, _c2, _d2;
                               if (isSectionLocked("backgrounds")) {
-                                const bonusApplied = Boolean(
-                                  (_a2 = choiceSelections == null ? void 0 : choiceSelections.background) == null ? void 0 : _a2.statBonusApplied
-                                );
-                                if (!bonusApplied) {
-                                  setSectionLock("backgrounds", false);
-                                  return;
-                                }
-                                const current = ((_c2 = (_b2 = props.character.caracs) == null ? void 0 : _b2.force) == null ? void 0 : _c2.FOR) ?? 10;
-                                const nextCaracs = {
-                                  ...props.character.caracs,
-                                  force: { ...((_d2 = props.character.caracs) == null ? void 0 : _d2.force) ?? {}, FOR: current - 1 }
-                                };
-                                const nextChoiceSelections = {
-                                  ...choiceSelections,
-                                  background: {
-                                    ...choiceSelections.background,
-                                    statBonusApplied: false
-                                  },
-                                  statsBase: {
-                                    ...statsBase,
-                                    FOR: Number.isFinite(statsBase.FOR) ? statsBase.FOR : current - 1
-                                  }
-                                };
-                                props.onChangeCharacter({
-                                  ...props.character,
-                                  creationLocks: { ...creationLocks, backgrounds: false },
-                                  choiceSelections: nextChoiceSelections,
-                                  caracs: nextCaracs
-                                });
+                                resetBackgroundImpacts();
                                 return;
                               }
-                              if (!requireBackgroundChoices()) {
-                                const bonusApplied = Boolean(
-                                  (_e2 = choiceSelections == null ? void 0 : choiceSelections.background) == null ? void 0 : _e2.statBonusApplied
-                                );
-                                let nextCaracs = props.character.caracs;
-                                const nextChoiceSelections = {
-                                  ...choiceSelections,
-                                  background: { ...choiceSelections.background }
-                                };
-                                if (!bonusApplied && selectedBackgroundId === "veteran-de-guerre") {
-                                  const current = ((_g2 = (_f2 = props.character.caracs) == null ? void 0 : _f2.force) == null ? void 0 : _g2.FOR) ?? 10;
-                                  nextCaracs = {
-                                    ...props.character.caracs,
-                                    force: { ...((_h2 = props.character.caracs) == null ? void 0 : _h2.force) ?? {}, FOR: current + 1 }
-                                  };
-                                  nextChoiceSelections.background.statBonusApplied = true;
-                                  nextChoiceSelections.statsBase = {
-                                    ...statsBase,
-                                    FOR: Number.isFinite(statsBase.FOR) ? statsBase.FOR : current
-                                  };
-                                }
-                                props.onChangeCharacter({
-                                  ...props.character,
-                                  creationLocks: { ...creationLocks, backgrounds: true },
-                                  choiceSelections: nextChoiceSelections,
-                                  caracs: nextCaracs
-                                });
-                              } else {
-                                props.onChangeCharacter({
-                                  ...props.character,
-                                  choiceSelections: {
-                                    ...choiceSelections,
-                                    pendingLocks: { ...pendingLocks, backgrounds: true }
-                                  }
-                                });
+                              if (hasPendingBackgroundChoices()) {
+                                startBackgroundDefine();
+                                return;
                               }
+                              const bonusApplied = Boolean(
+                                (_a2 = choiceSelections == null ? void 0 : choiceSelections.background) == null ? void 0 : _a2.statBonusApplied
+                              );
+                              let nextCaracs = props.character.caracs;
+                              const nextChoiceSelections = {
+                                ...choiceSelections,
+                                background: { ...choiceSelections.background }
+                              };
+                              if (!bonusApplied && selectedBackgroundId === "veteran-de-guerre") {
+                                const current = ((_c2 = (_b2 = props.character.caracs) == null ? void 0 : _b2.force) == null ? void 0 : _c2.FOR) ?? 10;
+                                nextCaracs = {
+                                  ...props.character.caracs,
+                                  force: { ...((_d2 = props.character.caracs) == null ? void 0 : _d2.force) ?? {}, FOR: current + 1 }
+                                };
+                                nextChoiceSelections.background.statBonusApplied = true;
+                                nextChoiceSelections.statsBase = {
+                                  ...statsBase,
+                                  FOR: Number.isFinite(statsBase.FOR) ? statsBase.FOR : current
+                                };
+                              }
+                              props.onChangeCharacter({
+                                ...props.character,
+                                creationLocks: { ...creationLocks, backgrounds: true },
+                                choiceSelections: nextChoiceSelections,
+                                caracs: nextCaracs
+                              });
                             },
                             style: {
                               marginLeft: "auto",
                               padding: "4px 8px",
                               borderRadius: 8,
                               border: "1px solid rgba(255,255,255,0.15)",
-                              background: isSectionLocked("backgrounds") ? "rgba(231,76,60,0.18)" : "rgba(46, 204, 113, 0.16)",
+                              background: getLockButtonState("backgrounds").background,
                               color: "#f5f5f5",
                               cursor: "pointer",
                               fontSize: 11,
                               fontWeight: 700
                             },
-                            children: isSectionLocked("backgrounds") ? "Deverouiller" : "Verouiller"
+                            children: [
+                              getLockButtonState("backgrounds").label,
+                              renderPendingBadge(getPendingCountForSection("backgrounds"))
+                            ]
                           }
                         )
                       ] }),
@@ -51136,11 +51644,11 @@ function CombatSetupScreen(props) {
                                     activeBackground.feature.name,
                                     activeBackground.feature.description ? ` — ${activeBackground.feature.description}` : ""
                                   ] }),
-                                  ((_u = activeBackground == null ? void 0 : activeBackground.traits) == null ? void 0 : _u.bond) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
+                                  ((_y = activeBackground == null ? void 0 : activeBackground.traits) == null ? void 0 : _y.bond) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
                                     "Lien: ",
                                     activeBackground.traits.bond
                                   ] }),
-                                  ((_v = activeBackground == null ? void 0 : activeBackground.traits) == null ? void 0 : _v.flaw) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
+                                  ((_z = activeBackground == null ? void 0 : activeBackground.traits) == null ? void 0 : _z.flaw) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
                                     "Defaut: ",
                                     activeBackground.traits.flaw
                                   ] })
@@ -51154,7 +51662,7 @@ function CombatSetupScreen(props) {
                     activeMainTab === "player" && activePlayerTab === "profile" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
                       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
                         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "#b0b8c4" }, children: "Renseignez le profil du personnage (pre-rempli)." }),
-                        /* @__PURE__ */ jsxRuntimeExports.jsx(
+                        /* @__PURE__ */ jsxRuntimeExports.jsxs(
                           "button",
                           {
                             type: "button",
@@ -51164,13 +51672,16 @@ function CombatSetupScreen(props) {
                               padding: "4px 8px",
                               borderRadius: 8,
                               border: "1px solid rgba(255,255,255,0.15)",
-                              background: isSectionLocked("profile") ? "rgba(231,76,60,0.18)" : "rgba(46, 204, 113, 0.16)",
+                              background: getLockButtonState("profile").background,
                               color: "#f5f5f5",
                               cursor: "pointer",
                               fontSize: 11,
                               fontWeight: 700
                             },
-                            children: isSectionLocked("profile") ? "Deverouiller" : "Verouiller"
+                            children: [
+                              getLockButtonState("profile").label,
+                              renderPendingBadge(getPendingCountForSection("profile"))
+                            ]
                           }
                         )
                       ] }),
@@ -51189,7 +51700,7 @@ function CombatSetupScreen(props) {
                                 "input",
                                 {
                                   type: "text",
-                                  value: ((_w = props.character.nom) == null ? void 0 : _w.prenom) ?? "",
+                                  value: ((_A = props.character.nom) == null ? void 0 : _A.prenom) ?? "",
                                   onChange: (e2) => setNameField("prenom", e2.target.value),
                                   disabled: isSectionLocked("profile"),
                                   style: {
@@ -51210,7 +51721,7 @@ function CombatSetupScreen(props) {
                                 "input",
                                 {
                                   type: "text",
-                                  value: ((_x = props.character.nom) == null ? void 0 : _x.nomcomplet) ?? "",
+                                  value: ((_B = props.character.nom) == null ? void 0 : _B.nomcomplet) ?? "",
                                   onChange: (e2) => setNameField("nomcomplet", e2.target.value),
                                   disabled: isSectionLocked("profile"),
                                   style: {
@@ -51231,7 +51742,7 @@ function CombatSetupScreen(props) {
                                 "input",
                                 {
                                   type: "text",
-                                  value: ((_y = props.character.nom) == null ? void 0 : _y.surnom) ?? "",
+                                  value: ((_C = props.character.nom) == null ? void 0 : _C.surnom) ?? "",
                                   onChange: (e2) => setNameField("surnom", e2.target.value),
                                   disabled: isSectionLocked("profile"),
                                   style: {
@@ -51254,7 +51765,7 @@ function CombatSetupScreen(props) {
                         /* @__PURE__ */ jsxRuntimeExports.jsx(
                           "textarea",
                           {
-                            value: ((_z = props.character.descriptionPersonnage) == null ? void 0 : _z.physique) ?? "",
+                            value: ((_D = props.character.descriptionPersonnage) == null ? void 0 : _D.physique) ?? "",
                             onChange: (e2) => setPhysiqueDetail(e2.target.value),
                             disabled: isSectionLocked("profile"),
                             rows: 3,
@@ -51454,14 +51965,17 @@ function CombatSetupScreen(props) {
                     ] })
                   ] }),
                   asiModal.step === "asi" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
-                      "Capital disponible :",
-                      " ",
-                      2 - Object.values(asiModal.stats).reduce(
+                    (() => {
+                      const spent = Object.values(asiModal.stats).reduce(
                         (sum, value2) => sum + (Number(value2) || 0),
                         0
-                      )
-                    ] }),
+                      );
+                      const remaining = Math.max(0, 2 - spent);
+                      return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
+                        "Capital disponible : ",
+                        remaining
+                      ] });
+                    })(),
                     /* @__PURE__ */ jsxRuntimeExports.jsx(
                       "div",
                       {
@@ -51563,6 +52077,15 @@ function CombatSetupScreen(props) {
                       }
                     ),
                     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: 8, justifyContent: "flex-end" }, children: [
+                      (() => {
+                        const spent = Object.values(asiModal.stats).reduce(
+                          (sum, value2) => sum + (Number(value2) || 0),
+                          0
+                        );
+                        const remaining = Math.max(0, 2 - spent);
+                        const canAllocateMore = asiModal.entry && canAllocateMoreAsi(asiModal.entry.key, asiModal.stats);
+                        return remaining > 0 && canAllocateMore ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { alignSelf: "center", fontSize: 11, color: "rgba(255,255,255,0.6)" }, children: "Utilisez les 2 points." }) : null;
+                      })(),
                       /* @__PURE__ */ jsxRuntimeExports.jsx(
                         "button",
                         {
@@ -51586,13 +52109,40 @@ function CombatSetupScreen(props) {
                         {
                           type: "button",
                           onClick: confirmAsiModalStats,
+                          disabled: (() => {
+                            const spent = Object.values(asiModal.stats).reduce(
+                              (sum, value2) => sum + (Number(value2) || 0),
+                              0
+                            );
+                            if (spent >= 2) return false;
+                            if (!asiModal.entry) return true;
+                            return canAllocateMoreAsi(asiModal.entry.key, asiModal.stats);
+                          })(),
                           style: {
                             padding: "6px 10px",
                             borderRadius: 8,
                             border: "1px solid rgba(255,255,255,0.15)",
-                            background: "rgba(46, 204, 113, 0.16)",
+                            background: (() => {
+                              const spent = Object.values(asiModal.stats).reduce(
+                                (sum, value2) => sum + (Number(value2) || 0),
+                                0
+                              );
+                              if (spent >= 2) return "rgba(46, 204, 113, 0.16)";
+                              if (!asiModal.entry) return "rgba(80,80,90,0.55)";
+                              const canAllocateMore = canAllocateMoreAsi(asiModal.entry.key, asiModal.stats);
+                              return canAllocateMore ? "rgba(80,80,90,0.55)" : "rgba(46, 204, 113, 0.16)";
+                            })(),
                             color: "#f5f5f5",
-                            cursor: "pointer",
+                            cursor: (() => {
+                              const spent = Object.values(asiModal.stats).reduce(
+                                (sum, value2) => sum + (Number(value2) || 0),
+                                0
+                              );
+                              if (spent >= 2) return "pointer";
+                              if (!asiModal.entry) return "not-allowed";
+                              const canAllocateMore = canAllocateMoreAsi(asiModal.entry.key, asiModal.stats);
+                              return canAllocateMore ? "not-allowed" : "pointer";
+                            })(),
                             fontSize: 12,
                             fontWeight: 700
                           },
@@ -61070,4 +61620,4 @@ export {
   BigPool as y,
   getGlobalBounds as z
 };
-//# sourceMappingURL=index-CJxnRcQD.js.map
+//# sourceMappingURL=index-DZhex6rW.js.map
