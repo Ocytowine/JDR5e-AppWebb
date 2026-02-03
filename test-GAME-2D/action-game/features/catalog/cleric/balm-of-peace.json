@@ -1,0 +1,17 @@
+{
+  "id": "balm-of-peace",
+  "label": "Balm of Peace",
+  "summary": "Move without opportunity attacks and heal allies you pass.",
+  "kind": "action",
+  "tags": ["cleric", "domain", "peace", "channel-divinity"],
+  "grants": [
+    {
+      "kind": "action",
+      "ids": ["balm-of-peace"],
+      "source": "balm-of-peace"
+    }
+  ],
+  "rules": {
+    "text": "Action. Uses Channel Divinity. You move, healing allies you pass."
+  }
+}

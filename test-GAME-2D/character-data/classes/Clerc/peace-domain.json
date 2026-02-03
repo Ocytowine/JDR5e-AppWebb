@@ -2,5 +2,48 @@
   "id": "peace-domain",
   "classId": "cleric",
   "label": "Domaine de la Paix",
-  "description": "Lien divin entre allies, soutien defensif et magie de protection."
+  "description": "Lien divin entre allies, soutien defensif et magie de protection.",
+  "progression": {
+    "1": {
+      "grants": [
+        { "kind": "feature", "ids": ["peace-bond"] },
+        { "kind": "spell", "ids": ["heroism", "sanctuary"] }
+      ]
+    },
+    "2": {
+      "grants": [
+        { "kind": "feature", "ids": ["balm-of-peace"] }
+      ]
+    },
+    "3": {
+      "grants": [
+        { "kind": "spell", "ids": ["aid", "warding-bond"] }
+      ]
+    },
+    "5": {
+      "grants": [
+        { "kind": "spell", "ids": ["beacon-of-hope", "sending"] }
+      ]
+    },
+    "6": {
+      "grants": [
+        { "kind": "feature", "ids": ["protective-bond"] }
+      ]
+    },
+    "7": {
+      "grants": [
+        { "kind": "spell", "ids": ["aura-of-purity", "resilient-sphere"] }
+      ]
+    },
+    "9": {
+      "grants": [
+        { "kind": "spell", "ids": ["greater-restoration", "rarys-telepathic-bond"] }
+      ]
+    },
+    "17": {
+      "grants": [
+        { "kind": "feature", "ids": ["expansive-bond"] }
+      ]
+    }
+  }
 }

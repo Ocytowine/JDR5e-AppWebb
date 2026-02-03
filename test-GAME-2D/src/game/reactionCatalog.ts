@@ -1,9 +1,9 @@
 import type { ReactionDefinition } from "./reactionTypes";
 
-import reactionsIndex from "../../reaction-types/index.json";
-import opportunityAttack from "../../reaction-types/opportunity-attack.json";
-import guardStrike from "../../reaction-types/guard-strike.json";
-import killerInstinct from "../../reaction-types/killer-instinct.json";
+import reactionsIndex from "../../action-game/reactions/index.json";
+import opportunityAttack from "../../action-game/reactions/opportunity-attack.json";
+import guardStrike from "../../action-game/reactions/guard-strike.json";
+import killerInstinct from "../../action-game/reactions/killer-instinct.json";
 
 const REACTION_TYPE_MODULES: Record<string, ReactionDefinition> = {
   "./opportunity-attack.json": opportunityAttack as ReactionDefinition,
@@ -22,12 +22,12 @@ export function loadReactionTypesFromIndex(): ReactionDefinition[] {
     if (mod) {
       loaded.push(mod);
     } else {
-      console.warn("[reaction-types] Type path missing in bundle:", path);
+      console.warn("[reactions] Type path missing in bundle:", path);
     }
   }
 
   if (loaded.length === 0) {
-    console.warn("[reaction-types] No reaction types loaded from index.json");
+    console.warn("[reactions] No reaction types loaded from index.json");
   }
 
   return loaded;

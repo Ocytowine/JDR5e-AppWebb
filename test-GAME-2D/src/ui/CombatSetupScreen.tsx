@@ -45,6 +45,9 @@ export function CombatSetupScreen(props: {
   const [activeClassTab, setActiveClassTab] = useState<"primary" | "secondary">("primary");
   const [equipSubTab, setEquipSubTab] = useState<"slots" | "loot">("slots");
   const [equipMessage, setEquipMessage] = useState<string | null>(null);
+  const [statsMode, setStatsMode] = useState<"normal" | "manual">("normal");
+  const [skillsMode, setSkillsMode] = useState<"normal" | "manual">("normal");
+  const [masteriesMode, setMasteriesMode] = useState<"normal" | "manual">("normal");
   const weaponOptions = useMemo(() => {
     const list = Array.isArray(props.weaponTypes) ? [...props.weaponTypes] : [];
     list.sort((a, b) => {
@@ -259,7 +262,7 @@ export function CombatSetupScreen(props: {
     } else {
       categories.add("weapon_long");
     }
-    if (weapon.category === "ranged" || props.ammunition) {
+    if (weapon.category === "distance" || props.ammunition) {
       categories.add("weapon_ranged");
     }
     return Array.from(categories);
@@ -650,17 +653,83 @@ export function CombatSetupScreen(props: {
     return bonuses;
   };
   const statBonuses = getStatBonuses();
+  const asiSelections = ((choiceSelections as any)?.asi ?? {}) as Record<
+    string,
+    { type: "asi" | "feat"; stats?: Record<string, number> }
+  >;
   const statsBase = ((choiceSelections as any)?.statsBase ?? {}) as Record<string, number>;
-  const getBonusSumForStat = (key: typeof STAT_KEYS[number]) =>
+  const getNonAsiBonusSumForStat = (key: typeof STAT_KEYS[number]) =>
     statBonuses.reduce((sum, bonus) => (bonus.stat === key ? sum + bonus.value : sum), 0);
-  const getStatSources = (key: typeof STAT_KEYS[number]) =>
-    statBonuses.filter(bonus => bonus.stat === key).map(bonus => bonus.source);
+  const getScore = (key: "FOR" | "DEX" | "CON" | "INT" | "SAG" | "CHA"): number => {
+    const mapping: Record<string, keyof Personnage["caracs"]> = {
+      FOR: "force",
+      DEX: "dexterite",
+      CON: "constitution",
+      INT: "intelligence",
+      SAG: "sagesse",
+      CHA: "charisme"
+    };
+    const caracKey = mapping[key];
+    const score = (props.character.caracs?.[caracKey] as any)?.[key];
+    return Number.isFinite(score) ? Number(score) : 10;
+  };
   const getBaseScore = (key: typeof STAT_KEYS[number]) => {
     const stored = statsBase[key];
     if (Number.isFinite(stored)) return Number(stored);
     const current = getScore(key);
-    return Math.max(1, current - getBonusSumForStat(key));
+    return Math.max(1, current - getNonAsiBonusSumForStat(key));
   };
+  const getAsiBonusMap = () => {
+    const requested: Record<string, number> = {};
+    Object.values(asiSelections).forEach(entry => {
+      if (!entry || entry.type !== "asi" || !entry.stats) return;
+      Object.entries(entry.stats).forEach(([stat, value]) => {
+        const amount = Number(value) || 0;
+        if (amount <= 0) return;
+        requested[stat] = (requested[stat] ?? 0) + amount;
+      });
+    });
+    const capped: Record<string, number> = {};
+    STAT_KEYS.forEach(stat => {
+      const base = getBaseScore(stat);
+      const other = getNonAsiBonusSumForStat(stat);
+      const cap = 20 - (base + other);
+      const available = cap > 0 ? cap : 0;
+      const want = requested[stat] ?? 0;
+      capped[stat] = Math.max(0, Math.min(want, available));
+    });
+    return capped;
+  };
+  const asiBonusMap = getAsiBonusMap();
+  const getBonusSumForStat = (key: typeof STAT_KEYS[number]) =>
+    getNonAsiBonusSumForStat(key) + (asiBonusMap[key] ?? 0);
+
+  useEffect(() => {
+    if (!classPrimary?.id) return;
+    const legacyKeys = Object.keys(asiSelections).filter(key => /^\d+$/.test(key));
+    if (legacyKeys.length === 0) return;
+    const nextAsi = { ...asiSelections };
+    let changed = false;
+    for (const levelKey of legacyKeys) {
+      const newKey = `${classPrimary.id}:${levelKey}`;
+      if (!nextAsi[newKey]) {
+        nextAsi[newKey] = nextAsi[levelKey];
+        changed = true;
+      }
+      delete nextAsi[levelKey];
+      changed = true;
+    }
+    if (!changed) return;
+    props.onChangeCharacter({
+      ...props.character,
+      choiceSelections: { ...choiceSelections, asi: nextAsi }
+    });
+  }, [asiSelections, classPrimary?.id, props.character, props.onChangeCharacter, choiceSelections]);
+  const getStatSources = (key: typeof STAT_KEYS[number]) =>
+    [
+      ...statBonuses.filter(bonus => bonus.stat === key).map(bonus => bonus.source),
+      ...(asiBonusMap[key] ? ["asi"] : [])
+    ];
 
   const buildCaracsFromTotals = (scores: Record<string, number>) => {
     const mapping: Record<string, keyof Personnage["caracs"]> = {
@@ -795,6 +864,21 @@ export function CombatSetupScreen(props: {
         FOR: Number.isFinite(statsBase.FOR) ? statsBase.FOR : current - 1
       };
     }
+    if (!bonusApplied && bg.id === "veteran-de-guerre") {
+      const needsImmediateBonus = !bg.toolChoices && !bg.languageChoices;
+      if (needsImmediateBonus) {
+        const current = (props.character.caracs?.force as any)?.FOR ?? 10;
+        nextCaracs = {
+          ...props.character.caracs,
+          force: { ...(props.character.caracs?.force ?? {}), FOR: current + 1 }
+        };
+        (nextChoiceSelections as any).background.statBonusApplied = true;
+        (nextChoiceSelections as any).statsBase = {
+          ...statsBase,
+          FOR: Number.isFinite(statsBase.FOR) ? statsBase.FOR : current
+        };
+      }
+    }
     const nextAuto = Array.isArray(bg.equipment) ? bg.equipment : [];
     const manualIds = equipmentManual;
     const nextInventory = buildInventoryFromAutoManual(nextAuto, manualIds);
@@ -888,6 +972,21 @@ export function CombatSetupScreen(props: {
     title: "",
     message: "",
     onConfirm: () => undefined
+  });
+  const [asiModal, setAsiModal] = useState<{
+    open: boolean;
+    entry: { key: string; level: number; classId: string; classLabel: string } | null;
+    step: "type" | "asi" | "feat";
+    type: "asi" | "feat";
+    stats: Record<string, number>;
+    originalStats: Record<string, number>;
+  }>({
+    open: false,
+    entry: null,
+    step: "type",
+    type: "asi",
+    stats: {},
+    originalStats: {}
   });
 
   const openChoiceModal = (config: {
@@ -1509,20 +1608,6 @@ export function CombatSetupScreen(props: {
     </svg>
   );
 
-  const getScore = (key: "FOR" | "DEX" | "CON" | "INT" | "SAG" | "CHA"): number => {
-    const mapping: Record<string, keyof Personnage["caracs"]> = {
-      FOR: "force",
-      DEX: "dexterite",
-      CON: "constitution",
-      INT: "intelligence",
-      SAG: "sagesse",
-      CHA: "charisme"
-    };
-    const caracKey = mapping[key];
-    const score = (props.character.caracs?.[caracKey] as any)?.[key];
-    return Number.isFinite(score) ? Number(score) : 10;
-  };
-
   const initialStatsRef = useRef<Record<string, number> | null>(null);
   if (!initialStatsRef.current) {
     initialStatsRef.current = {
@@ -1534,18 +1619,234 @@ export function CombatSetupScreen(props: {
       CHA: getBaseScore("CHA")
     };
   }
+  useEffect(() => {
+    initialStatsRef.current = {
+      FOR: getBaseScore("FOR"),
+      DEX: getBaseScore("DEX"),
+      CON: getBaseScore("CON"),
+      INT: getBaseScore("INT"),
+      SAG: getBaseScore("SAG"),
+      CHA: getBaseScore("CHA")
+    };
+  }, [props.character?.id]);
 
   const computeMod = (score: number): number => Math.floor((score - 10) / 2);
+  const canEditSkills = !isSectionLocked("skills") && skillsMode !== "normal";
+  const canEditMasteries = !isSectionLocked("masteries") && masteriesMode !== "normal";
+  const setAsiSelection = (
+    key: string,
+    next: { type: "asi" | "feat"; stats?: Record<string, number> }
+  ) => {
+    const nextAsi = { ...asiSelections, [key]: next };
+    const nextChoiceSelections = { ...choiceSelections, asi: nextAsi };
+    props.onChangeCharacter({ ...props.character, choiceSelections: nextChoiceSelections });
+  };
+  const clearAsiSelection = (key: string) => {
+    const nextAsi = { ...asiSelections };
+    delete nextAsi[key];
+    const nextChoiceSelections = { ...choiceSelections, asi: nextAsi };
+    props.onChangeCharacter({ ...props.character, choiceSelections: nextChoiceSelections });
+  };
+  const formatAsiStats = (stats?: Record<string, number>) => {
+    if (!stats) return "";
+    const entries = Object.entries(stats)
+      .filter(([, value]) => Number(value) > 0)
+      .map(([stat, value]) => `${stat}+${Number(value)}`);
+    return entries.join(" / ");
+  };
+  const getClassAsiLevels = () => {
+    const entries: Array<{
+      key: string;
+      level: number;
+      classId: string;
+      classLabel: string;
+    }> = [];
+    const collect = (cls: ClassDefinition | null, level: number) => {
+      if (!cls || !cls.id) return;
+      const progression = (cls as any)?.progression ?? {};
+      Object.keys(progression)
+        .map(key => Number(key))
+        .filter(lvl => Number.isFinite(lvl) && lvl > 0 && lvl <= level)
+        .filter(lvl => {
+          const grants = progression[String(lvl)]?.grants ?? [];
+          return grants.some(
+            (grant: any) => grant?.kind === "bonus" && (grant?.ids ?? []).includes("asi-or-feat")
+          );
+        })
+        .forEach(lvl => {
+          const key = `${cls.id}:${lvl}`;
+          entries.push({
+            key,
+            level: lvl,
+            classId: cls.id,
+            classLabel: cls.label ?? cls.id
+          });
+        });
+    };
+    const primaryLevel = Number(classEntry?.niveau ?? 0);
+    if (primaryLevel > 0) collect(classPrimary, primaryLevel);
+    const secondaryLevel = Number(secondaryClassEntry?.niveau ?? 0);
+    if (secondaryLevel > 0) collect(classSecondary, secondaryLevel);
+    return entries.sort((a, b) =>
+      a.level === b.level ? a.classLabel.localeCompare(b.classLabel) : a.level - b.level
+    );
+  };
+  const getAsiEntryForLevel = (entryInfo: {
+    key: string;
+    level: number;
+    classId: string;
+    classLabel: string;
+  }) => {
+    return (
+      asiSelections[entryInfo.key] ??
+      (entryInfo.classId === classPrimary?.id ? asiSelections[String(entryInfo.level)] : null) ??
+      null
+    );
+  };
+  const openAsiModal = (entryInfo: {
+    key: string;
+    level: number;
+    classId: string;
+    classLabel: string;
+  }) => {
+    const entry = getAsiEntryForLevel(entryInfo);
+    const type = entry?.type === "feat" ? "feat" : "asi";
+    const stats = type === "asi" && entry?.stats ? { ...entry.stats } : {};
+    setAsiModal({
+      open: true,
+      entry: entryInfo,
+      step: "type",
+      type,
+      stats,
+      originalStats: { ...stats }
+    });
+  };
+  const closeAsiModal = () => {
+    setAsiModal(prev => ({ ...prev, open: false }));
+  };
+  const setAsiModalType = (type: "asi" | "feat") => {
+    setAsiModal(prev => ({ ...prev, type }));
+  };
+  const updateAsiModalStat = (stat: string, delta: number) => {
+    setAsiModal(prev => {
+      if (!prev.entry) return prev;
+      const current = Number(prev.stats[stat] ?? 0);
+      const nextValue = Math.max(0, Math.min(2, current + delta));
+      const nextStats = { ...prev.stats };
+      if (nextValue <= 0) {
+        delete nextStats[stat];
+      } else {
+        nextStats[stat] = nextValue;
+      }
+      return { ...prev, stats: nextStats };
+    });
+  };
+  const confirmAsiModalType = () => {
+    if (!asiModal.entry) return;
+    if (asiModal.type === "feat") {
+      setAsiSelection(asiModal.entry.key, { type: "feat" });
+      setAsiModal(prev => ({ ...prev, step: "feat" }));
+      return;
+    }
+    setAsiModal(prev => ({ ...prev, step: "asi" }));
+  };
+  const confirmAsiModalStats = () => {
+    if (!asiModal.entry) return;
+    setAsiSelection(asiModal.entry.key, { type: "asi", stats: { ...asiModal.stats } });
+    closeAsiModal();
+  };
+
+  const POINT_BUY_COSTS: Record<number, number> = {
+    8: 0,
+    9: 1,
+    10: 2,
+    11: 3,
+    12: 4,
+    13: 5,
+    14: 7,
+    15: 9
+  };
+  const getPointBuyCost = (score: number) => {
+    const cost = POINT_BUY_COSTS[score];
+    return Number.isFinite(cost) ? cost : null;
+  };
+  const getBaseScoresSnapshot = () => {
+    const snapshot: Record<string, number> = {};
+    STAT_KEYS.forEach(key => {
+      snapshot[key] = getBaseScore(key);
+    });
+    return snapshot;
+  };
+  const DEFAULT_POINT_BUY_BASE: Record<string, number> = {
+    FOR: 15,
+    DEX: 14,
+    CON: 13,
+    INT: 12,
+    SAG: 10,
+    CHA: 8
+  };
+  const isPointBuyStateValid = (bases: Record<string, number>) => {
+    const summary = getPointBuySummary(bases);
+    if (summary.invalid) return false;
+    return summary.remaining !== null && summary.remaining >= 0;
+  };
+  const getPointBuySummary = (overrides?: Record<string, number>) => {
+    let total = 0;
+    let invalid = false;
+    STAT_KEYS.forEach(key => {
+      const base = overrides?.[key] ?? getBaseScore(key);
+      const cost = getPointBuyCost(base);
+      if (cost === null) {
+        invalid = true;
+        return;
+      }
+      total += cost;
+    });
+    const remaining = invalid ? null : 27 - total;
+    return { total, remaining, invalid };
+  };
+  const canAdjustPointBuy = (key: typeof STAT_KEYS[number], delta: number) => {
+    const currentBases = getBaseScoresSnapshot();
+    const current = currentBases[key];
+    const next = current + delta;
+    if (next < 8 || next > 15) return false;
+    const nextBases = { ...currentBases, [key]: next };
+    const summary = getPointBuySummary(nextBases);
+    if (summary.invalid) return false;
+    return summary.remaining !== null && summary.remaining >= 0;
+  };
 
   const setScore = (key: "FOR" | "DEX" | "CON" | "INT" | "SAG" | "CHA", value: number) => {
     const desiredTotal = Math.max(1, Math.min(30, Math.floor(value || 1)));
     const bonus = getBonusSumForStat(key);
+    if (statsMode === "normal") {
+      let base = desiredTotal - bonus;
+      if (base < 8) base = 8;
+      if (base > 15) base = 15;
+      const currentBases = getBaseScoresSnapshot();
+      const nextBase = { ...currentBases, [key]: base };
+      const summary = getPointBuySummary(nextBase);
+      if (summary.invalid || (summary.remaining !== null && summary.remaining < 0)) {
+        return;
+      }
+      setBaseScores(nextBase);
+      return;
+    }
     let base = desiredTotal - bonus;
     if (base < 1) base = 1;
     if (base > 30) base = 30;
     const nextBase = { ...statsBase, [key]: base };
     setBaseScores(nextBase);
   };
+
+  useEffect(() => {
+    if (statsMode !== "normal") return;
+    const snapshot = getBaseScoresSnapshot();
+    const hasAll = STAT_KEYS.every(key => Number.isFinite(snapshot[key]));
+    if (!hasAll || !isPointBuyStateValid(snapshot)) {
+      setBaseScores(DEFAULT_POINT_BUY_BASE);
+    }
+  }, [statsMode, props.character?.id]);
 
   const competenceOptions = [
     { id: "athletisme", label: "Athletisme" },
@@ -2274,6 +2575,33 @@ export function CombatSetupScreen(props: {
                 <div style={{ fontSize: 12, color: "#b0b8c4" }}>
                   Ajustez les caracteristiques. Le modificateur se met a jour.
                 </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {([
+                    { id: "normal", label: "Normal" },
+                    { id: "manual", label: "Manuel" }
+                  ] as const).map(mode => (
+                    <button
+                      key={mode.id}
+                      type="button"
+                      onClick={() => setStatsMode(mode.id)}
+                      style={{
+                        padding: "4px 8px",
+                        borderRadius: 8,
+                        border: "1px solid rgba(255,255,255,0.15)",
+                        background:
+                          statsMode === mode.id
+                            ? "rgba(79,125,242,0.2)"
+                            : "rgba(255,255,255,0.06)",
+                        color: "#f5f5f5",
+                        cursor: "pointer",
+                        fontSize: 11,
+                        fontWeight: 700
+                      }}
+                    >
+                      {mode.label}
+                    </button>
+                  ))}
+                </div>
                 <button
                   type="button"
                   onClick={() => !isSectionLocked("stats") && resetStats()}
@@ -2312,6 +2640,59 @@ export function CombatSetupScreen(props: {
                   {isSectionLocked("stats") ? "Deverouiller" : "Verouiller"}
                 </button>
               </div>
+              {(() => {
+                const summary = getPointBuySummary();
+                if (statsMode !== "normal") {
+                  return (
+                    <div
+                      style={{
+                        marginTop: 6,
+                        fontSize: 11,
+                        color: "rgba(255,255,255,0.7)",
+                        display: "flex",
+                        gap: 10,
+                        alignItems: "center"
+                      }}
+                    >
+                      <span>Capital: illimite (mode manuel)</span>
+                    </div>
+                  );
+                }
+                return (
+                  <div
+                    style={{
+                      marginTop: 6,
+                      fontSize: 11,
+                      color: "rgba(255,255,255,0.7)",
+                      display: "flex",
+                      gap: 10,
+                      alignItems: "center"
+                    }}
+                  >
+                    <span>Points: 27</span>
+                    {summary.invalid ? (
+                      <span style={{ color: "#f1c40f" }}>Hors barème (8-15)</span>
+                    ) : (
+                      <>
+                        <span>Utilises: {summary.total}</span>
+                        <span
+                          style={{
+                            color:
+                              summary.remaining !== null && summary.remaining < 0
+                                ? "#e74c3c"
+                                : "#6fd3a8"
+                          }}
+                        >
+                          Restants: {summary.remaining ?? "-"}
+                        </span>
+                      </>
+                    )}
+                    <span>
+                      Regle: acquisition par points (8-15). Bonus via classe/historique/espece.
+                    </span>
+                  </div>
+                );
+              })()}
               <div
                 style={{
                   display: "grid",
@@ -2325,6 +2706,12 @@ export function CombatSetupScreen(props: {
                   const totalScore = Math.max(1, Math.min(30, baseScore + bonus));
                   const mod = computeMod(totalScore);
                   const sources = getStatSources(stat);
+                  const canDecrease =
+                    !isSectionLocked("stats") &&
+                    (statsMode !== "normal" || canAdjustPointBuy(stat, -1));
+                  const canIncrease =
+                    !isSectionLocked("stats") &&
+                    (statsMode !== "normal" || canAdjustPointBuy(stat, 1));
                   return (
                     <div
                       key={stat}
@@ -2352,8 +2739,8 @@ export function CombatSetupScreen(props: {
                       >
                         <button
                           type="button"
-                          onClick={() => !isSectionLocked("stats") && setScore(stat, totalScore - 1)}
-                          disabled={isSectionLocked("stats")}
+                          onClick={() => canDecrease && setScore(stat, totalScore - 1)}
+                          disabled={!canDecrease}
                           style={{
                             width: 30,
                             height: 30,
@@ -2361,7 +2748,8 @@ export function CombatSetupScreen(props: {
                             border: "1px solid #333",
                             background: "#141421",
                             color: "#f5f5f5",
-                            cursor: "pointer",
+                            cursor: canDecrease ? "pointer" : "not-allowed",
+                            opacity: canDecrease ? 1 : 0.5,
                             display: "grid",
                             placeItems: "center"
                           }}
@@ -2373,8 +2761,8 @@ export function CombatSetupScreen(props: {
                         </button>
                         <input
                           type="number"
-                          min={1}
-                          max={30}
+                          min={statsMode === "normal" ? 8 : 1}
+                          max={statsMode === "normal" ? 15 : 30}
                           value={totalScore}
                           onChange={e =>
                             !isSectionLocked("stats") && setScore(stat, Number(e.target.value))
@@ -2395,8 +2783,8 @@ export function CombatSetupScreen(props: {
                         />
                         <button
                           type="button"
-                          onClick={() => !isSectionLocked("stats") && setScore(stat, totalScore + 1)}
-                          disabled={isSectionLocked("stats")}
+                          onClick={() => canIncrease && setScore(stat, totalScore + 1)}
+                          disabled={!canIncrease}
                           style={{
                             width: 30,
                             height: 30,
@@ -2404,7 +2792,8 @@ export function CombatSetupScreen(props: {
                             border: "1px solid #333",
                             background: "#141421",
                             color: "#f5f5f5",
-                            cursor: "pointer",
+                            cursor: canIncrease ? "pointer" : "not-allowed",
+                            opacity: canIncrease ? 1 : 0.5,
                             display: "grid",
                             placeItems: "center"
                           }}
@@ -2440,6 +2829,33 @@ export function CombatSetupScreen(props: {
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div style={{ fontSize: 12, color: "#b0b8c4" }}>
                 Cochez les competences pour simuler les impacts de jeu.
+              </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                {([
+                  { id: "normal", label: "Normal" },
+                  { id: "manual", label: "Manuel" }
+                ] as const).map(mode => (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    onClick={() => setSkillsMode(mode.id)}
+                    style={{
+                      padding: "4px 8px",
+                      borderRadius: 8,
+                      border: "1px solid rgba(255,255,255,0.15)",
+                      background:
+                        skillsMode === mode.id
+                          ? "rgba(79,125,242,0.2)"
+                          : "rgba(255,255,255,0.06)",
+                      color: "#f5f5f5",
+                      cursor: "pointer",
+                      fontSize: 11,
+                      fontWeight: 700
+                    }}
+                  >
+                    {mode.label}
+                  </button>
+                ))}
               </div>
               <button
                 type="button"
@@ -2511,8 +2927,8 @@ export function CombatSetupScreen(props: {
                       <input
                         type="checkbox"
                         checked={competences.includes(skill.id)}
-                        onChange={() => !isSectionLocked("skills") && toggleCompetence(skill.id)}
-                        disabled={isSectionLocked("skills")}
+                        onChange={() => canEditSkills && toggleCompetence(skill.id)}
+                        disabled={!canEditSkills}
                         style={{ accentColor: "#4f7df2" }}
                       />
                       <span style={{ fontSize: 12 }}>Maitrise</span>
@@ -2521,8 +2937,8 @@ export function CombatSetupScreen(props: {
                       <input
                         type="checkbox"
                         checked={expertises.includes(skill.id)}
-                        onChange={() => !isSectionLocked("skills") && toggleExpertise(skill.id)}
-                        disabled={isSectionLocked("skills") || !competences.includes(skill.id)}
+                        onChange={() => canEditSkills && toggleExpertise(skill.id)}
+                        disabled={!canEditSkills || !competences.includes(skill.id)}
                         style={{ accentColor: "#f1c40f" }}
                       />
                       <span style={{ fontSize: 12 }}>Expertise</span>
@@ -2563,6 +2979,33 @@ export function CombatSetupScreen(props: {
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div style={{ fontSize: 12, color: "#b0b8c4" }}>
                 Selectionnez les maitrises. Elles influenceront les bonus et malus.
+              </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                {([
+                  { id: "normal", label: "Normal" },
+                  { id: "manual", label: "Manuel" }
+                ] as const).map(mode => (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    onClick={() => setMasteriesMode(mode.id)}
+                    style={{
+                      padding: "4px 8px",
+                      borderRadius: 8,
+                      border: "1px solid rgba(255,255,255,0.15)",
+                      background:
+                        masteriesMode === mode.id
+                          ? "rgba(79,125,242,0.2)"
+                          : "rgba(255,255,255,0.06)",
+                      color: "#f5f5f5",
+                      cursor: "pointer",
+                      fontSize: 11,
+                      fontWeight: 700
+                    }}
+                  >
+                    {mode.label}
+                  </button>
+                ))}
               </div>
               <button
                 type="button"
@@ -2610,9 +3053,9 @@ export function CombatSetupScreen(props: {
                     type="checkbox"
                     checked={weaponMasteries.includes(value.id)}
                     onChange={() =>
-                      !isSectionLocked("masteries") && toggleMastery("weapons", value.id)
+                      canEditMasteries && toggleMastery("weapons", value.id)
                     }
-                    disabled={isSectionLocked("masteries")}
+                    disabled={!canEditMasteries}
                   />
                   {value.label}
                   {renderSourceDots(getMasterySources("weapons", value.id))}
@@ -2627,9 +3070,9 @@ export function CombatSetupScreen(props: {
                     type="checkbox"
                     checked={armorMasteries.includes(value.id)}
                     onChange={() =>
-                      !isSectionLocked("masteries") && toggleMastery("armors", value.id)
+                      canEditMasteries && toggleMastery("armors", value.id)
                     }
-                    disabled={isSectionLocked("masteries")}
+                    disabled={!canEditMasteries}
                   />
                   {value.label}
                   {renderSourceDots(getMasterySources("armors", value.id))}
@@ -2644,9 +3087,9 @@ export function CombatSetupScreen(props: {
                     type="checkbox"
                     checked={toolMasteries.includes(value.id)}
                     onChange={() =>
-                      !isSectionLocked("masteries") && toggleMastery("tools", value.id)
+                      canEditMasteries && toggleMastery("tools", value.id)
                     }
-                    disabled={isSectionLocked("masteries")}
+                    disabled={!canEditMasteries}
                   />
                   {value.label}
                   {renderSourceDots(getMasterySources("tools", value.id))}
@@ -3172,6 +3615,99 @@ export function CombatSetupScreen(props: {
                     </button>
                   </div>
 
+                  {(() => {
+                    const asiLevels = getClassAsiLevels();
+                    if (asiLevels.length === 0) return null;
+                    return (
+                      <div
+                        style={{
+                          marginTop: 10,
+                          borderRadius: 8,
+                          border: "1px solid rgba(255,255,255,0.12)",
+                          background: "rgba(12,12,18,0.75)",
+                          padding: 10,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 8
+                        }}
+                      >
+                        <div style={{ fontSize: 12, fontWeight: 700 }}>
+                          Amelioration / Don
+                        </div>
+                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
+                          Choisissez une amelioration de caracteristiques (+2 ou +1/+1),
+                          ou un don (non disponible pour l'instant).
+                        </div>
+                        {asiLevels.map(entryInfo => {
+                          const entry = getAsiEntryForLevel(entryInfo);
+                          const type = entry?.type ?? "asi";
+                          const label =
+                            type === "feat"
+                              ? "Don"
+                              : entry?.stats && Object.keys(entry.stats).length > 0
+                                ? formatAsiStats(entry.stats)
+                                : "Non choisi";
+                          return (
+                            <div
+                              key={`asi-entry-${entryInfo.key}`}
+                              style={{
+                                borderRadius: 6,
+                                border: "1px solid rgba(255,255,255,0.12)",
+                                background: "rgba(10,10,16,0.8)",
+                                padding: 8,
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 6
+                              }}
+                            >
+                              <div style={{ fontSize: 12, fontWeight: 700 }}>
+                                Niveau {entryInfo.level} — {entryInfo.classLabel}
+                              </div>
+                              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}>
+                                Choix actuel: {label}
+                              </div>
+                              <div style={{ display: "flex", gap: 6 }}>
+                                <button
+                                  type="button"
+                                  onClick={() => openAsiModal(entryInfo)}
+                                  style={{
+                                    padding: "4px 8px",
+                                    borderRadius: 8,
+                                    border: "1px solid rgba(255,255,255,0.15)",
+                                    background: "rgba(255,255,255,0.06)",
+                                    color: "#f5f5f5",
+                                    cursor: "pointer",
+                                    fontSize: 11,
+                                    fontWeight: 700
+                                  }}
+                                >
+                                  Choisir
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => clearAsiSelection(entryInfo.key)}
+                                  style={{
+                                    marginLeft: "auto",
+                                    padding: "4px 8px",
+                                    borderRadius: 8,
+                                    border: "1px solid rgba(255,255,255,0.15)",
+                                    background: "rgba(255,255,255,0.06)",
+                                    color: "#f5f5f5",
+                                    cursor: "pointer",
+                                    fontSize: 11,
+                                    fontWeight: 700
+                                  }}
+                                >
+                                  Reset
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+
                   {resolvedClassTab === "secondary" && isSecondaryEnabled && (
                     <button
                       type="button"
@@ -3675,6 +4211,283 @@ export function CombatSetupScreen(props: {
           )}
         </div>
       </div>
+          {asiModal.open && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.55)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000
+          }}
+        >
+          <div
+            style={{
+              width: "min(560px, 92vw)",
+              background: "#141421",
+              border: "1px solid rgba(255,255,255,0.18)",
+              borderRadius: 12,
+              padding: 16,
+              display: "flex",
+              flexDirection: "column",
+              gap: 12
+            }}
+          >
+            <div style={{ fontSize: 14, fontWeight: 800 }}>
+              {asiModal.entry
+                ? `Niveau ${asiModal.entry.level} — ${asiModal.entry.classLabel}`
+                : "Choix d'amelioration"}
+            </div>
+            {asiModal.step === "type" && (
+              <>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                  Souhaitez-vous augmenter les caracteristiques ou choisir un don ?
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {([
+                    { id: "asi", label: "Augmenter les caracteristiques" },
+                    { id: "feat", label: "Choisir un don" }
+                  ] as const).map(opt => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setAsiModalType(opt.id)}
+                      style={{
+                        padding: "6px 10px",
+                        borderRadius: 8,
+                        border: "1px solid rgba(255,255,255,0.15)",
+                        background:
+                          asiModal.type === opt.id
+                            ? "rgba(79,125,242,0.2)"
+                            : "rgba(255,255,255,0.06)",
+                        color: "#f5f5f5",
+                        cursor: "pointer",
+                        fontSize: 12,
+                        fontWeight: 700
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                  <button
+                    type="button"
+                    onClick={closeAsiModal}
+                    style={{
+                      padding: "6px 10px",
+                      borderRadius: 8,
+                      border: "1px solid rgba(255,255,255,0.15)",
+                      background: "rgba(255,255,255,0.06)",
+                      color: "#f5f5f5",
+                      cursor: "pointer",
+                      fontSize: 12,
+                      fontWeight: 700
+                    }}
+                  >
+                    Fermer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirmAsiModalType}
+                    style={{
+                      padding: "6px 10px",
+                      borderRadius: 8,
+                      border: "1px solid rgba(255,255,255,0.15)",
+                      background: "rgba(46, 204, 113, 0.16)",
+                      color: "#f5f5f5",
+                      cursor: "pointer",
+                      fontSize: 12,
+                      fontWeight: 700
+                    }}
+                  >
+                    Valider
+                  </button>
+                </div>
+              </>
+            )}
+            {asiModal.step === "feat" && (
+              <>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                  Dons indisponibles pour l'instant.
+                </div>
+                <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                  <button
+                    type="button"
+                    onClick={() => setAsiModal(prev => ({ ...prev, step: "type" }))}
+                    style={{
+                      padding: "6px 10px",
+                      borderRadius: 8,
+                      border: "1px solid rgba(255,255,255,0.15)",
+                      background: "rgba(255,255,255,0.06)",
+                      color: "#f5f5f5",
+                      cursor: "pointer",
+                      fontSize: 12,
+                      fontWeight: 700
+                    }}
+                  >
+                    Retour
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closeAsiModal}
+                    style={{
+                      padding: "6px 10px",
+                      borderRadius: 8,
+                      border: "1px solid rgba(255,255,255,0.15)",
+                      background: "rgba(255,255,255,0.06)",
+                      color: "#f5f5f5",
+                      cursor: "pointer",
+                      fontSize: 12,
+                      fontWeight: 700
+                    }}
+                  >
+                    Fermer
+                  </button>
+                </div>
+              </>
+            )}
+            {asiModal.step === "asi" && (
+              <>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                  Capital disponible :{" "}
+                  {2 -
+                    Object.values(asiModal.stats).reduce(
+                      (sum, value) => sum + (Number(value) || 0),
+                      0
+                    )}
+                </div>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                    gap: 8
+                  }}
+                >
+                  {STAT_KEYS.map(stat => {
+                    const base = getBaseScore(stat);
+                    const nonAsi = getNonAsiBonusSumForStat(stat);
+                    const original = Number(asiModal.originalStats[stat] ?? 0) || 0;
+                    const totalAsi = Number(asiBonusMap[stat] ?? 0) || 0;
+                    const otherAsi = Math.max(0, totalAsi - original);
+                    const current = Number(asiModal.stats[stat] ?? 0) || 0;
+                    const total = base + nonAsi + otherAsi + current;
+                    const spent = Object.values(asiModal.stats).reduce(
+                      (sum, value) => sum + (Number(value) || 0),
+                      0
+                    );
+                    const remaining = Math.max(0, 2 - spent);
+                    const canIncrease = remaining > 0 && current < 2 && total < 20;
+                    const canDecrease = current > 0;
+                    return (
+                      <div
+                        key={`asi-modal-${stat}`}
+                        style={{
+                          borderRadius: 8,
+                          border: "1px solid rgba(255,255,255,0.12)",
+                          background: "rgba(10,10,16,0.8)",
+                          padding: 8,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 6
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700 }}>{stat}</div>
+                          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
+                            Total: {Math.min(20, total)}
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <button
+                            type="button"
+                            onClick={() => canDecrease && updateAsiModalStat(stat, -1)}
+                            disabled={!canDecrease}
+                            style={{
+                              width: 26,
+                              height: 26,
+                              borderRadius: 6,
+                              border: "1px solid #333",
+                              background: canDecrease ? "#141421" : "rgba(80,80,90,0.55)",
+                              color: "#f5f5f5",
+                              cursor: canDecrease ? "pointer" : "not-allowed",
+                              display: "grid",
+                              placeItems: "center",
+                              fontSize: 12,
+                              fontWeight: 700
+                            }}
+                          >
+                            -
+                          </button>
+                          <div style={{ minWidth: 24, textAlign: "center", fontSize: 12 }}>
+                            +{current}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => canIncrease && updateAsiModalStat(stat, 1)}
+                            disabled={!canIncrease}
+                            style={{
+                              width: 26,
+                              height: 26,
+                              borderRadius: 6,
+                              border: "1px solid #333",
+                              background: canIncrease ? "#141421" : "rgba(80,80,90,0.55)",
+                              color: "#f5f5f5",
+                              cursor: canIncrease ? "pointer" : "not-allowed",
+                              display: "grid",
+                              placeItems: "center",
+                              fontSize: 12,
+                              fontWeight: 700
+                            }}
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                  <button
+                    type="button"
+                    onClick={() => setAsiModal(prev => ({ ...prev, step: "type" }))}
+                    style={{
+                      padding: "6px 10px",
+                      borderRadius: 8,
+                      border: "1px solid rgba(255,255,255,0.15)",
+                      background: "rgba(255,255,255,0.06)",
+                      color: "#f5f5f5",
+                      cursor: "pointer",
+                      fontSize: 12,
+                      fontWeight: 700
+                    }}
+                  >
+                    Retour
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirmAsiModalStats}
+                    style={{
+                      padding: "6px 10px",
+                      borderRadius: 8,
+                      border: "1px solid rgba(255,255,255,0.15)",
+                      background: "rgba(46, 204, 113, 0.16)",
+                      color: "#f5f5f5",
+                      cursor: "pointer",
+                      fontSize: 12,
+                      fontWeight: 700
+                    }}
+                  >
+                    Valider
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
           {choiceModal.open && (
         <div
           style={{

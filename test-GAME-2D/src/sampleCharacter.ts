@@ -59,15 +59,15 @@ export const sampleCharacter: Personnage = {
     tokenScale: 100
   },
   // Competences / expertises use technical ids (no accents).
-  competences: ["athletisme", "perception", "survie"],
-  expertises: ["perception"],
+  competences: [],
+  expertises: [],
   initiative: "modDEX",
   besoin: [],
   percPassive: 11,
   proficiencies: {
-    weapons: ["simple", "martiale"],
-    armors: ["legere", "intermediaire", "bouclier"],
-    tools: ["outils_vehicules"]
+    weapons: [],
+    armors: [],
+    tools: []
   },
   savingThrows: ["force", "constitution"],
   inspiration: false,

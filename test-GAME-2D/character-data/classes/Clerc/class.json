@@ -7,5 +7,56 @@
   "proficiencies": {
     "weapons": ["simple"],
     "armors": ["legere", "intermediaire", "bouclier"]
+  },
+  "progression": {
+    "1": {
+      "grants": [
+        { "kind": "feature", "ids": ["channel-divinity"] }
+      ],
+      "notes": "Incantation divine et lancement de sorts geres ailleurs."
+    },
+    "2": {
+      "grants": [
+        { "kind": "feature", "ids": ["channel-divinity"] },
+        { "kind": "feature", "ids": ["turn-undead"] }
+      ]
+    },
+    "4": {
+      "grants": [
+        { "kind": "bonus", "ids": ["asi-or-feat"] }
+      ],
+      "notes": "Amelioration de caracteristiques (ASI) ou choix de don."
+    },
+    "8": {
+      "grants": [
+        { "kind": "bonus", "ids": ["asi-or-feat"] }
+      ]
+    },
+    "12": {
+      "grants": [
+        { "kind": "bonus", "ids": ["asi-or-feat"] }
+      ]
+    },
+    "16": {
+      "grants": [
+        { "kind": "bonus", "ids": ["asi-or-feat"] }
+      ]
+    },
+    "19": {
+      "grants": [
+        { "kind": "bonus", "ids": ["asi-or-feat"] }
+      ]
+    },
+    "10": {
+      "grants": [
+        { "kind": "feature", "ids": ["divine-intervention"] }
+      ]
+    },
+    "20": {
+      "grants": [
+        { "kind": "feature", "ids": ["divine-intervention"] }
+      ],
+      "notes": "Intervention divine amelioree."
+    }
   }
 }

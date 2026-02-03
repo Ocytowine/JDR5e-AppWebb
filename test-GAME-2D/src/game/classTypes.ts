@@ -10,6 +10,18 @@ export interface ClassDefinition {
     tools?: string[];
     skills?: string[];
   };
+  progression?: Record<
+    string,
+    {
+      grants?: Array<{
+        kind: string;
+        ids: string[];
+        source?: string;
+        meta?: Record<string, unknown>;
+      }>;
+      notes?: string;
+    }
+  >;
 }
 
 export interface SubclassDefinition {

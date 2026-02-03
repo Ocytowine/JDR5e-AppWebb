@@ -1,0 +1,34 @@
+export type FeatureKind = "passive" | "action" | "reaction" | "resource" | "feature";
+
+export type FeatureGrantKind =
+  | "action"
+  | "reaction"
+  | "passif"
+  | "feature"
+  | "spell"
+  | "resource"
+  | "bonus";
+
+export interface FeatureGrant {
+  kind: FeatureGrantKind;
+  ids: string[];
+  source?: string;
+  meta?: Record<string, unknown>;
+}
+
+export interface FeatureDefinition {
+  id: string;
+  label: string;
+  summary?: string;
+  kind?: FeatureKind;
+  tags?: string[];
+  grants?: FeatureGrant[];
+  rules?: {
+    text?: string;
+    triggers?: Array<{
+      event: string;
+      notes?: string;
+    }>;
+  };
+  [key: string]: unknown;
+}

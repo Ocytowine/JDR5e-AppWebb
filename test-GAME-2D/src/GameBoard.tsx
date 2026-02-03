@@ -48,6 +48,7 @@ import ghostType from "../enemy-types/ghost.json";
 import { loadObstacleTypesFromIndex } from "./game/obstacleCatalog";
 import { loadEffectTypesFromIndex } from "./game/effectCatalog";
 import { loadStatusTypesFromIndex } from "./game/statusCatalog";
+import { loadFeatureTypesFromIndex } from "./game/featureCatalog";
 import { loadWallTypesFromIndex } from "./game/wallCatalog";
 import { loadReactionTypesFromIndex } from "./game/reactionCatalog";
 import { loadWeaponTypesFromIndex } from "./game/weaponCatalog";
@@ -61,6 +62,7 @@ import { loadArmorItemsFromIndex } from "./game/armorCatalog";
 import type { ObstacleInstance, ObstacleTypeDefinition } from "./game/obstacleTypes";
 import type { EffectInstance, EffectTypeDefinition } from "./game/effectTypes";
 import type { StatusDefinition } from "./game/statusTypes";
+import type { FeatureDefinition } from "./game/featureTypes";
 import type { WallTypeDefinition } from "./game/wallTypes";
 import type { ReactionDefinition } from "./game/reactionTypes";
 import type { WeaponTypeDefinition } from "./game/weaponTypes";
@@ -651,6 +653,7 @@ export const GameBoard: React.FC = () => {
   const [effects, setEffects] = useState<EffectInstance[]>([]);
   const [actionEffects, setActionEffects] = useState<Array<EffectInstance & { expiresAt: number }>>([]);
   const [statusTypes, setStatusTypes] = useState<StatusDefinition[]>([]);
+  const [featureTypes, setFeatureTypes] = useState<FeatureDefinition[]>([]);
   const [wallTypes, setWallTypes] = useState<WallTypeDefinition[]>([]);
   const [wallSegments, setWallSegments] = useState<WallSegment[]>([]);
   const [decorations, setDecorations] = useState<DecorInstance[]>([]);
@@ -2948,6 +2951,11 @@ export const GameBoard: React.FC = () => {
   useEffect(() => {
     const loadedTypes = loadArmorItemsFromIndex();
     setArmorItems(loadedTypes);
+  }, []);
+
+  useEffect(() => {
+    const loadedTypes = loadFeatureTypesFromIndex();
+    setFeatureTypes(loadedTypes);
   }, []);
 
 
@@ -5259,7 +5267,7 @@ export const GameBoard: React.FC = () => {
     isClosestVisible: boolean;
     allTokens: TokenState[];
   }): { ok: boolean; reason?: string } {
-    // Add new condition types here and document them in reaction-types/README.md.
+    // Add new condition types here and document them in action-game/reactions/README.md.
     const conditions = params.reaction.conditions ?? [];
     for (const cond of conditions) {
       if (cond.type === "actor_alive" && isTokenDead(params.reactor)) {

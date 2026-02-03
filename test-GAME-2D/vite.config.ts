@@ -8,6 +8,9 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5174
+  },
+  build: {
+    sourcemap: true,
+    minify: false
   }
 });
-

@@ -15,6 +15,9 @@ Structure
   - movement/: deplacements, dash, etc.
   - support/: soins, buffs, defausses.
   - items/: bascules et objets (ex: torche).
+- reactions/: catalogue des reactions (model + index).
+- passifs/: statuts continus / effets passifs (index + definitions).
+- features/: capacites declaratives (reserve aux progressions de classe).
 
 Regles de standardisation (prototype actuel)
 - Le joueur declare `actionIds` dans sa fiche (`src/sampleCharacter.ts`).

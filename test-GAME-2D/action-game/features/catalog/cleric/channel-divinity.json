@@ -1,0 +1,25 @@
+{
+  "id": "channel-divinity",
+  "label": "Channel Divinity",
+  "summary": "Divine power usable a limited number of times per rest.",
+  "kind": "resource",
+  "tags": ["cleric", "resource"],
+  "grants": [
+    {
+      "kind": "resource",
+      "ids": ["channel-divinity"],
+      "source": "channel-divinity",
+      "meta": {
+        "maxByLevel": {
+          "2": 1,
+          "6": 2,
+          "18": 3
+        },
+        "recharge": "short_rest"
+      }
+    }
+  ],
+  "rules": {
+    "text": "Channel Divinity uses are regained on a short rest."
+  }
+}
