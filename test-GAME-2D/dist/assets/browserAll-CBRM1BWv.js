@@ -1,5 +1,5 @@
-import { T as Ticker, U as UPDATE_PRIORITY, P as Point, r as removeItems, E as ExtensionType, a as EventEmitter, w as warn, e as extensions, C as Container } from "./index-DZhex6rW.js";
-import "./webworkerAll-QDt5Et_O.js";
+import { T as Ticker, U as UPDATE_PRIORITY, P as Point, r as removeItems, E as ExtensionType, a as EventEmitter, w as warn, e as extensions, C as Container } from "./index-Bvscn_Bc.js";
+import "./webworkerAll-CeqkJI0U.js";
 import "./colorToUniform-B2b8-1Ah.js";
 class CanvasObserver {
   constructor(options) {
@@ -2844,4 +2844,4 @@ extensions.mixin(Container, accessibilityTarget);
 extensions.add(EventSystem);
 extensions.mixin(Container, FederatedContainer);
 extensions.add(DOMPipe);
-//# sourceMappingURL=browserAll-B_sKugSq.js.map
+//# sourceMappingURL=browserAll-CBRM1BWv.js.map

@@ -2,13 +2,6 @@
   "id": "veteran-de-guerre",
   "label": "Veteran de Guerre",
   "description": "Ancien soldat marque par la guerre, discipline et endurance a toute epreuve.",
-  "skillProficiencies": ["athletisme", "intimidation"],
-  "toolProficiencies": ["outils_vehicules"],
-  "toolChoices": {
-    "count": 1,
-    "options": ["outils_jeux"]
-  },
-  "languageChoices": { "count": 1 },
   "equipment": [
     "obj_arme_endommagee",
     "obj_insigne_unite",
@@ -16,10 +9,20 @@
     "obj_bourse_10po",
     "obj_sac_voyage"
   ],
-  "feature": {
-    "name": "Freres et Soeurs d'Armes",
-    "description": "Tu peux obtenir abri, aide basique ou informations militaires d'anciens soldats."
-  },
+  "grants": [
+    { "kind": "skill", "ids": ["athletisme", "intimidation"] },
+    { "kind": "tool", "ids": ["outils_vehicules"] },
+    { "kind": "tool-choice", "ids": [], "meta": { "count": 1, "options": ["outils_jeux"] } },
+    { "kind": "language-choice", "ids": [], "meta": { "count": 1 } },
+    {
+      "kind": "feature",
+      "ids": ["freres-et-soeurs-d-armes"],
+      "meta": {
+        "label": "Freres et Soeurs d'Armes",
+        "description": "Tu peux obtenir abri, aide basique ou informations militaires d'anciens soldats."
+      }
+    }
+  ],
   "traits": {
     "personality": [
       "Je reste calme en toute situation.",

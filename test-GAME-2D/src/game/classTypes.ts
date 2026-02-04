@@ -2,6 +2,7 @@ export interface ClassDefinition {
   id: string;
   label: string;
   description: string;
+  hitDie?: number;
   subclassLevel?: number;
   subclassIds?: string[];
   proficiencies?: {
@@ -10,6 +11,7 @@ export interface ClassDefinition {
     tools?: string[];
     skills?: string[];
   };
+  equipment?: string[];
   progression?: Record<
     string,
     {
@@ -19,9 +21,17 @@ export interface ClassDefinition {
         source?: string;
         meta?: Record<string, unknown>;
       }>;
-      notes?: string;
+      description?: string;
     }
   >;
+  spellcasting?: {
+    ability: "SAG" | "INT" | "CHA";
+    preparation: "prepared" | "known";
+    storage: "memory" | "innate" | "grimoire";
+    focusTypes?: string[];
+    casterProgression: "full" | "half" | "third" | "none";
+    slotsByLevel?: Record<string, number[]>;
+  };
 }
 
 export interface SubclassDefinition {
@@ -38,7 +48,15 @@ export interface SubclassDefinition {
         source?: string;
         meta?: Record<string, unknown>;
       }>;
-      notes?: string;
+      description?: string;
     }
   >;
+  spellcasting?: {
+    ability: "SAG" | "INT" | "CHA";
+    preparation: "prepared" | "known";
+    storage: "memory" | "innate" | "grimoire";
+    focusTypes?: string[];
+    casterProgression: "full" | "half" | "third" | "none";
+    slotsByLevel?: Record<string, number[]>;
+  };
 }

@@ -1,6 +1,6 @@
-import { S as State, E as ExtensionType, B as BufferUsage, w as warn, D as DOMAdapter, L as getAttributeInfoFromFormat, v as GlProgram, s as Shader, t as Texture, a7 as Geometry, k as TextureSource, a8 as checkMaxIfStatementsInShader, b as STENCIL_MODES, V as Rectangle, j as CanvasSource, i as CLEAR, l as UniformGroup, M as Matrix, a9 as compileHighShaderGlProgram, aa as colorBitGl, ab as generateTextureBatchBitGl, ac as roundPixelsBitGl, ad as getBatchSamplersUniformGroup, A as AbstractRenderer, R as RendererType, e as extensions } from "./index-DZhex6rW.js";
+import { S as State, E as ExtensionType, B as BufferUsage, w as warn, D as DOMAdapter, L as getAttributeInfoFromFormat, v as GlProgram, s as Shader, t as Texture, a7 as Geometry, k as TextureSource, a8 as checkMaxIfStatementsInShader, b as STENCIL_MODES, V as Rectangle, j as CanvasSource, i as CLEAR, l as UniformGroup, M as Matrix, a9 as compileHighShaderGlProgram, aa as colorBitGl, ab as generateTextureBatchBitGl, ac as roundPixelsBitGl, ad as getBatchSamplersUniformGroup, A as AbstractRenderer, R as RendererType, e as extensions } from "./index-Bvscn_Bc.js";
 import { b as localUniformBitGl } from "./colorToUniform-B2b8-1Ah.js";
-import { e as ensureAttributes, G as GpuStencilModesToPixi, c as createUboSyncFunction, b as uboSyncFunctionsSTD40, U as UboSystem, R as RenderTargetSystem, B as BufferResource, d as uniformParsers, f as textureBitGl, S as SharedSystems, a as SharedRenderPipes } from "./SharedSystems-lxmQR0Pw.js";
+import { e as ensureAttributes, G as GpuStencilModesToPixi, c as createUboSyncFunction, b as uboSyncFunctionsSTD40, U as UboSystem, R as RenderTargetSystem, B as BufferResource, d as uniformParsers, f as textureBitGl, S as SharedSystems, a as SharedRenderPipes } from "./SharedSystems-CZtCX14E.js";
 class GlBatchAdaptor {
   constructor() {
     this._tempState = State.for2d();
@@ -3565,4 +3565,4 @@ class WebGLRenderer extends AbstractRenderer {
 export {
   WebGLRenderer
 };
-//# sourceMappingURL=WebGLRenderer-D6V-1Lhv.js.map
+//# sourceMappingURL=WebGLRenderer-DHnecu6Q.js.map

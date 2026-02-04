@@ -1,12 +1,12 @@
-import type { LanguageDefinition } from "./languageTypes";
+import type { LanguageDefinition } from "../../game/languageTypes";
 
-import languagesIndex from "../../character-data/languages/index.json";
-import common from "../../character-data/languages/commun.json";
-import elvish from "../../character-data/languages/elfique.json";
-import dwarf from "../../character-data/languages/nain.json";
-import halfling from "../../character-data/languages/halfelin.json";
-import gnome from "../../character-data/languages/gnome.json";
-import orc from "../../character-data/languages/orc.json";
+import languagesIndex from "../../../character-data/languages/index.json";
+import common from "../../../character-data/languages/commun.json";
+import elvish from "../../../character-data/languages/elfique.json";
+import dwarf from "../../../character-data/languages/nain.json";
+import halfling from "../../../character-data/languages/halfelin.json";
+import gnome from "../../../character-data/languages/gnome.json";
+import orc from "../../../character-data/languages/orc.json";
 
 const LANGUAGE_MODULES: Record<string, LanguageDefinition> = {
   "./commun.json": common as LanguageDefinition,

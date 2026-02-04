@@ -51,14 +51,17 @@ import { loadStatusTypesFromIndex } from "./game/statusCatalog";
 import { loadFeatureTypesFromIndex } from "./game/featureCatalog";
 import { loadWallTypesFromIndex } from "./game/wallCatalog";
 import { loadReactionTypesFromIndex } from "./game/reactionCatalog";
-import { loadWeaponTypesFromIndex } from "./game/weaponCatalog";
-import { loadRaceTypesFromIndex } from "./game/raceCatalog";
-import { loadClassTypesFromIndex, loadSubclassTypesFromIndex } from "./game/classCatalog";
-import { loadBackgroundTypesFromIndex } from "./game/backgroundCatalog";
-import { loadLanguageTypesFromIndex } from "./game/languageCatalog";
-import { loadToolItemsFromIndex } from "./game/toolCatalog";
-import { loadObjectItemsFromIndex } from "./game/objectCatalog";
-import { loadArmorItemsFromIndex } from "./game/armorCatalog";
+import { loadWeaponTypesFromIndex } from "./PlayerCharacterCreator/catalogs/weaponCatalog";
+import { loadRaceTypesFromIndex } from "./PlayerCharacterCreator/catalogs/raceCatalog";
+import {
+  loadClassTypesFromIndex,
+  loadSubclassTypesFromIndex
+} from "./PlayerCharacterCreator/catalogs/classCatalog";
+import { loadBackgroundTypesFromIndex } from "./PlayerCharacterCreator/catalogs/backgroundCatalog";
+import { loadLanguageTypesFromIndex } from "./PlayerCharacterCreator/catalogs/languageCatalog";
+import { loadToolItemsFromIndex } from "./PlayerCharacterCreator/catalogs/toolCatalog";
+import { loadObjectItemsFromIndex } from "./PlayerCharacterCreator/catalogs/objectCatalog";
+import { loadArmorItemsFromIndex } from "./PlayerCharacterCreator/catalogs/armorCatalog";
 import type { ObstacleInstance, ObstacleTypeDefinition } from "./game/obstacleTypes";
 import type { EffectInstance, EffectTypeDefinition } from "./game/effectTypes";
 import type { StatusDefinition } from "./game/statusTypes";
@@ -183,7 +186,7 @@ import {
   usePixiWalls,
   type LightSource
 } from "./render2d";
-import { CombatSetupScreen } from "./ui/CombatSetupScreen";
+import { CombatSetupScreen } from "./PlayerCharacterCreator/CombatSetupScreen";
 import { GameOverOverlay } from "./ui/GameOverOverlay";
 import { InitiativePanel } from "./ui/InitiativePanel";
 import { EffectsPanel } from "./ui/EffectsPanel";

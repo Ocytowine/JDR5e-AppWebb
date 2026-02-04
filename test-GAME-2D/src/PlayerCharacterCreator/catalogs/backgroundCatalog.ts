@@ -1,9 +1,9 @@
-import type { BackgroundDefinition } from "./backgroundTypes";
+import type { BackgroundDefinition } from "../../game/backgroundTypes";
 
-import backgroundsIndex from "../../character-data/backgrounds/index.json";
-import academic from "../../character-data/backgrounds/apprenti-academique.json";
-import streetKid from "../../character-data/backgrounds/enfant-des-rues.json";
-import veteran from "../../character-data/backgrounds/veteran-de-guerre.json";
+import backgroundsIndex from "../../../character-data/backgrounds/index.json";
+import academic from "../../../character-data/backgrounds/apprenti-academique.json";
+import streetKid from "../../../character-data/backgrounds/enfant-des-rues.json";
+import veteran from "../../../character-data/backgrounds/veteran-de-guerre.json";
 
 const BACKGROUND_MODULES: Record<string, BackgroundDefinition> = {
   "./apprenti-academique.json": academic as BackgroundDefinition,

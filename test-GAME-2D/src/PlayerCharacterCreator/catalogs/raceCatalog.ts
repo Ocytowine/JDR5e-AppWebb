@@ -1,9 +1,9 @@
-import type { RaceDefinition } from "./raceTypes";
+import type { RaceDefinition } from "../../game/raceTypes";
 
-import racesIndex from "../../character-data/races/index.json";
-import human from "../../character-data/races/human.json";
-import elf from "../../character-data/races/elf.json";
-import dwarf from "../../character-data/races/dwarf.json";
+import racesIndex from "../../../character-data/races/index.json";
+import human from "../../../character-data/races/human.json";
+import elf from "../../../character-data/races/elf.json";
+import dwarf from "../../../character-data/races/dwarf.json";
 
 const RACE_MODULES: Record<string, RaceDefinition> = {
   "./human.json": human as RaceDefinition,

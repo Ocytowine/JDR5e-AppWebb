@@ -12,6 +12,7 @@
     "./obj-vetements-voyage.json",
     "./obj-sac-voyage.json",
     "./obj-besace.json",
-    "./obj-sac-a-dos.json"
+    "./obj-sac-a-dos.json",
+    "./obj-symbole-sacre.json"
   ]
 }

@@ -1,19 +1,20 @@
-import type { ObjectItemDefinition } from "./objectTypes";
+import type { ObjectItemDefinition } from "../../game/objectTypes";
 
-import objectsIndex from "../../materiel-type/objets/index.json";
-import grimoire from "../../materiel-type/objets/obj-grimoire.json";
-import plumeEncre from "../../materiel-type/objets/obj-plume-encre.json";
-import tenueAcademique from "../../materiel-type/objets/obj-tenue-academique.json";
-import bourse10 from "../../materiel-type/objets/obj-bourse-10po.json";
-import petitCouteau from "../../materiel-type/objets/obj-petit-couteau.json";
-import vetementsCommuns from "../../materiel-type/objets/obj-vetements-communs.json";
-import souvenirVole from "../../materiel-type/objets/obj-souvenir-vole.json";
-import armeEndommagee from "../../materiel-type/objets/obj-arme-endommagee.json";
-import insigneUnite from "../../materiel-type/objets/obj-insigne-unite.json";
-import vetementsVoyage from "../../materiel-type/objets/obj-vetements-voyage.json";
-import sacVoyage from "../../materiel-type/objets/obj-sac-voyage.json";
-import besace from "../../materiel-type/objets/obj-besace.json";
-import sacADos from "../../materiel-type/objets/obj-sac-a-dos.json";
+import objectsIndex from "../../../materiel-type/objets/index.json";
+import grimoire from "../../../materiel-type/objets/obj-grimoire.json";
+import plumeEncre from "../../../materiel-type/objets/obj-plume-encre.json";
+import tenueAcademique from "../../../materiel-type/objets/obj-tenue-academique.json";
+import bourse10 from "../../../materiel-type/objets/obj-bourse-10po.json";
+import petitCouteau from "../../../materiel-type/objets/obj-petit-couteau.json";
+import vetementsCommuns from "../../../materiel-type/objets/obj-vetements-communs.json";
+import souvenirVole from "../../../materiel-type/objets/obj-souvenir-vole.json";
+import armeEndommagee from "../../../materiel-type/objets/obj-arme-endommagee.json";
+import insigneUnite from "../../../materiel-type/objets/obj-insigne-unite.json";
+import vetementsVoyage from "../../../materiel-type/objets/obj-vetements-voyage.json";
+import sacVoyage from "../../../materiel-type/objets/obj-sac-voyage.json";
+import besace from "../../../materiel-type/objets/obj-besace.json";
+import sacADos from "../../../materiel-type/objets/obj-sac-a-dos.json";
+import symboleSacre from "../../../materiel-type/objets/obj-symbole-sacre.json";
 
 const OBJECT_MODULES: Record<string, ObjectItemDefinition> = {
   "./obj-grimoire.json": grimoire as ObjectItemDefinition,
@@ -28,7 +29,8 @@ const OBJECT_MODULES: Record<string, ObjectItemDefinition> = {
   "./obj-vetements-voyage.json": vetementsVoyage as ObjectItemDefinition,
   "./obj-sac-voyage.json": sacVoyage as ObjectItemDefinition,
   "./obj-besace.json": besace as ObjectItemDefinition,
-  "./obj-sac-a-dos.json": sacADos as ObjectItemDefinition
+  "./obj-sac-a-dos.json": sacADos as ObjectItemDefinition,
+  "./obj-symbole-sacre.json": symboleSacre as ObjectItemDefinition
 };
 
 export function loadObjectItemsFromIndex(): ObjectItemDefinition[] {

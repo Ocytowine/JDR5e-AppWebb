@@ -38,9 +38,11 @@ export function CombatSetupScreen(props: {
     | "profile"
     | "stats"
     | "classes"
+    | "magic"
     | "equip"
     | "skills"
     | "masteries"
+    | "sheet"
   >("species");
   const [activeClassTab, setActiveClassTab] = useState<"primary" | "secondary">("primary");
   const [equipSubTab, setEquipSubTab] = useState<"slots" | "loot">("slots");
@@ -63,12 +65,90 @@ export function CombatSetupScreen(props: {
     return list;
   }, [props.raceTypes]);
   const selectedRaceId = (props.character as any)?.raceId ?? "";
+  const getRaceTraitIds = (race: RaceDefinition | null) => {
+    if (!race) return [];
+    const grants = Array.isArray((race as any)?.grants) ? (race as any).grants : [];
+    const ids: string[] = [];
+    grants.forEach((grant: any) => {
+      if (grant?.kind !== "trait") return;
+      const list = Array.isArray(grant?.ids) ? grant.ids : [];
+      list.forEach((id: string) => ids.push(id));
+    });
+    return Array.from(new Set(ids));
+  };
+  const getRaceTraits = (race: RaceDefinition | null) => {
+    if (!race) return [];
+    const traits = Array.isArray(race.traits) ? race.traits : [];
+    const grantedIds = getRaceTraitIds(race);
+    if (grantedIds.length === 0) return traits;
+    const byId = new Map(traits.map(trait => [trait.id, trait]));
+    return grantedIds.map(id => byId.get(id) ?? { id, label: id, description: "" });
+  };
+  const hasRaceTrait = (traitId: string) => {
+    const traits = getRaceTraits(activeRace);
+    return traits.some(trait => trait.id === traitId);
+  };
   const backgroundOptions = useMemo(() => {
     const list = Array.isArray(props.backgroundTypes) ? [...props.backgroundTypes] : [];
     list.sort((a, b) => a.label.toLowerCase().localeCompare(b.label.toLowerCase()));
     return list;
   }, [props.backgroundTypes]);
   const selectedBackgroundId = (props.character as any)?.backgroundId ?? "";
+  const getBackgroundGrants = (bg: BackgroundDefinition | null) => {
+    if (!bg) return [];
+    const list = Array.isArray((bg as any)?.grants) ? (bg as any).grants : [];
+    return list
+      .filter((grant: any) => grant && grant.kind)
+      .map((grant: any) => ({
+        kind: String(grant.kind),
+        ids: Array.isArray(grant.ids) ? grant.ids : [],
+        meta: grant.meta
+      }));
+  };
+  const getBackgroundSkillProficiencies = (bg: BackgroundDefinition | null) => {
+    if (!bg) return [];
+    const grantIds = getBackgroundGrants(bg)
+      .filter(grant => grant.kind === "skill")
+      .flatMap(grant => grant.ids);
+    if (grantIds.length > 0) return Array.from(new Set(grantIds));
+    return [];
+  };
+  const getBackgroundToolProficiencies = (bg: BackgroundDefinition | null) => {
+    if (!bg) return [];
+    const grantIds = getBackgroundGrants(bg)
+      .filter(grant => grant.kind === "tool")
+      .flatMap(grant => grant.ids);
+    if (grantIds.length > 0) return Array.from(new Set(grantIds));
+    return [];
+  };
+  const getBackgroundToolChoice = (bg: BackgroundDefinition | null) => {
+    if (!bg) return null;
+    const grant = getBackgroundGrants(bg).find(item => item.kind === "tool-choice") ?? null;
+    if (grant) {
+      const count = Number((grant.meta as any)?.count ?? 0);
+      const options = Array.isArray((grant.meta as any)?.options) ? (grant.meta as any).options : [];
+      return { count, options };
+    }
+    return null;
+  };
+  const getBackgroundLanguageChoice = (bg: BackgroundDefinition | null) => {
+    if (!bg) return null;
+    const grant = getBackgroundGrants(bg).find(item => item.kind === "language-choice") ?? null;
+    if (grant) {
+      const count = Number((grant.meta as any)?.count ?? 0);
+      return { count };
+    }
+    return null;
+  };
+  const getBackgroundFeatureInfo = (bg: BackgroundDefinition | null) => {
+    if (!bg) return null;
+    const grant = getBackgroundGrants(bg).find(item => item.kind === "feature") ?? null;
+    if (!grant) return null;
+    const meta = (grant.meta ?? {}) as { label?: string; description?: string };
+    const label = meta.label ?? grant.ids?.[0] ?? "";
+    const description = meta.description ?? "";
+    return { label, description };
+  };
   const toolItems = Array.isArray(props.toolItems) ? props.toolItems : [];
   const objectItems = Array.isArray(props.objectItems) ? props.objectItems : [];
   const armorItems = Array.isArray(props.armorItems) ? props.armorItems : [];
@@ -164,6 +244,15 @@ export function CombatSetupScreen(props: {
   const expertises = Array.isArray((props.character as any)?.expertises)
     ? ((props.character as any).expertises as string[])
     : [];
+
+  useEffect(() => {
+    if (skillsMode !== "normal") return;
+    const adaptableSkill = (choiceSelections as any)?.race?.adaptableSkill;
+    if (!adaptableSkill) return;
+    if (competences.includes(adaptableSkill)) return;
+    const nextSkills = Array.from(new Set([...(competences ?? []), adaptableSkill]));
+    props.onChangeCharacter({ ...props.character, competences: nextSkills });
+  }, [skillsMode, choiceSelections, competences, props.character, props.onChangeCharacter]);
   const profs = (props.character?.proficiencies ?? {}) as {
     weapons?: string[];
     armors?: string[];
@@ -172,6 +261,26 @@ export function CombatSetupScreen(props: {
   const weaponMasteries = Array.isArray(profs.weapons) ? profs.weapons : [];
   const armorMasteries = Array.isArray(profs.armors) ? profs.armors : [];
   const toolMasteries = Array.isArray(profs.tools) ? profs.tools : [];
+  const getClassEquipment = (cls: ClassDefinition | null) => {
+    const list = Array.isArray(cls?.equipment) ? (cls?.equipment as string[]) : [];
+    return list.filter(Boolean);
+  };
+  const dedupeList = (items: string[]) => {
+    const seen = new Set<string>();
+    return items.filter(item => {
+      if (!item) return false;
+      if (seen.has(item)) return false;
+      seen.add(item);
+      return true;
+    });
+  };
+  const arraysEqual = (left: string[], right: string[]) => {
+    if (left.length !== right.length) return false;
+    for (let i = 0; i < left.length; i += 1) {
+      if (left[i] !== right[i]) return false;
+    }
+    return true;
+  };
   const DEFAULT_MATERIEL_SLOTS: Record<string, string | null> = {
     corps: null,
     tete: null,
@@ -694,9 +803,12 @@ export function CombatSetupScreen(props: {
           delete nextAsi[key];
         }
       });
+      const sourcesToDrop = slot === 1 ? ["classPrimary", "subclassPrimary"] : ["classSecondary", "subclassSecondary"];
+      const nextStatBonuses = pruneStatBonusesBySource(sourcesToDrop);
       nextChoiceSelections = {
         ...choiceSelections,
         asi: nextAsi,
+        ...(nextStatBonuses ? { statBonuses: nextStatBonuses } : null),
         pendingLocks: (() => {
           const nextPending = { ...pendingLocks };
           delete nextPending.classes;
@@ -726,6 +838,7 @@ export function CombatSetupScreen(props: {
     const current = (props.character as any)?.classe ?? {};
     const globalLevel = resolveLevel();
     if (globalLevel <= 2) return;
+    const prevPrimaryLevel = Number(current?.[1]?.niveau ?? 0);
     const primaryLevel = Math.max(1, globalLevel - 1);
     const secondaryLevel = Math.max(1, globalLevel - primaryLevel);
     const nextClasse = {
@@ -733,10 +846,44 @@ export function CombatSetupScreen(props: {
       1: { ...(current?.[1] ?? {}), niveau: primaryLevel },
       2: { classeId: "", subclasseId: null, niveau: secondaryLevel }
     };
+    let nextChoiceSelections = choiceSelections;
+    let nextClassLocks = { ...classLocks, secondary: false };
+    if (prevPrimaryLevel > 0 && primaryLevel < prevPrimaryLevel) {
+      const classId = current?.[1]?.classeId ?? null;
+      if (classId) {
+        const allowed = new Set(getAsiKeysForClassLevel(classId, primaryLevel));
+        const nextAsi = { ...asiSelections };
+        Object.keys(nextAsi).forEach(key => {
+          if (!key.startsWith(`${classId}:`)) return;
+          if (!allowed.has(key)) {
+            delete nextAsi[key];
+          }
+        });
+        const sourcesToDrop = ["classPrimary", "subclassPrimary"];
+        const nextStatBonuses = pruneStatBonusesBySource(sourcesToDrop);
+        nextChoiceSelections = {
+          ...choiceSelections,
+          asi: nextAsi,
+          ...(nextStatBonuses ? { statBonuses: nextStatBonuses } : null),
+          pendingLocks: (() => {
+            const nextPending = { ...pendingLocks };
+            delete nextPending.classes;
+            delete nextPending.classesSlot;
+            return nextPending;
+          })()
+        };
+        const threshold = getSubclassThresholdForClassId(classId);
+        if (threshold !== null && primaryLevel < threshold) {
+          nextClasse[1] = { ...(nextClasse[1] ?? {}), subclasseId: null };
+        }
+        nextClassLocks = { ...nextClassLocks, primary: false };
+      }
+    }
     props.onChangeCharacter({
       ...props.character,
       classe: nextClasse,
-      classLocks: { ...classLocks, secondary: false }
+      classLocks: nextClassLocks,
+      choiceSelections: nextChoiceSelections
     });
     setActiveClassTab("secondary");
   };
@@ -802,16 +949,95 @@ export function CombatSetupScreen(props: {
   };
   const resetClassImpactsForSlot = (slot: 1 | 2) => {
     const current = (props.character as any)?.classe ?? {};
-    const entry = current?.[slot] ?? {};
-    if (entry?.subclasseId) {
-      const nextClasse = { ...current, [slot]: { ...entry, subclasseId: null } };
-      props.onChangeCharacter({ ...props.character, classe: nextClasse });
+    const nextClasse = { ...current };
+    const affectedClassIds: string[] = [];
+    const affectedSources: string[] = [];
+    const globalLevel = resolveLevel();
+    if (slot === 1) {
+      if (nextClasse?.[1]) {
+        const entry = nextClasse[1];
+        affectedClassIds.push(entry?.classeId ?? "");
+        affectedSources.push("classPrimary", "subclassPrimary");
+        nextClasse[1] = { ...entry, subclasseId: null };
+      }
+      if (nextClasse?.[2]) {
+        const entry = nextClasse[2];
+        affectedClassIds.push(entry?.classeId ?? "");
+        affectedSources.push("classSecondary", "subclassSecondary");
+        delete nextClasse[2];
+        nextClasse[1] = { ...(nextClasse?.[1] ?? {}), niveau: globalLevel };
+      }
+    } else {
+      if (nextClasse?.[2]) {
+        const entry = nextClasse[2];
+        affectedClassIds.push(entry?.classeId ?? "");
+        affectedSources.push("classSecondary", "subclassSecondary");
+        delete nextClasse[2];
+        nextClasse[1] = { ...(nextClasse?.[1] ?? {}), niveau: globalLevel };
+      }
     }
-    removeAsiForClassId(entry?.classeId);
-    setClassLockForSlot(slot, false);
-    clearPendingLocks(["classes", "classesSlot"]);
-    resetMasteries();
-    resetSkills();
+    const nextAsi = { ...asiSelections };
+    affectedClassIds.filter(Boolean).forEach(classId => {
+      Object.keys(nextAsi).forEach(key => {
+        if (key.startsWith(`${classId}:`)) {
+          delete nextAsi[key];
+        }
+      });
+    });
+    const nextPending = { ...pendingLocks };
+    delete nextPending.classes;
+    delete nextPending.classesSlot;
+    const nextStatBonuses = pruneStatBonusesBySource(affectedSources);
+    const nextChoiceSelections = {
+      ...choiceSelections,
+      asi: nextAsi,
+      ...(nextStatBonuses ? { statBonuses: nextStatBonuses } : null),
+      pendingLocks: nextPending
+    };
+    const primaryId = nextClasse?.[1]?.classeId ?? "";
+    const secondaryId = nextClasse?.[2]?.classeId ?? "";
+    const primaryCls = classOptions.find(cls => cls.id === primaryId) ?? null;
+    const secondaryCls = classOptions.find(cls => cls.id === secondaryId) ?? null;
+    const backgroundTools = [
+      ...getBackgroundToolProficiencies(activeBackground),
+      ...(((choiceSelections as any)?.background?.tools ?? []) as string[])
+    ];
+    const nextProfs = {
+      weapons: Array.from(
+        new Set([...(primaryCls?.proficiencies?.weapons ?? []), ...(secondaryCls?.proficiencies?.weapons ?? [])])
+      ),
+      armors: Array.from(
+        new Set([...(primaryCls?.proficiencies?.armors ?? []), ...(secondaryCls?.proficiencies?.armors ?? [])])
+      ),
+      tools: Array.from(
+        new Set([
+          ...(primaryCls?.proficiencies?.tools ?? []),
+          ...(secondaryCls?.proficiencies?.tools ?? []),
+          ...backgroundTools
+        ])
+      )
+    };
+    const baseSkills = getBackgroundSkillProficiencies(activeBackground);
+    const nextCompetences = [...baseSkills];
+    const nextExpertises: string[] = [];
+    const nextClassLocks = {
+      ...classLocks,
+      primary: slot === 1 ? false : classLocks.primary,
+      secondary: false
+    };
+    const nextCharacter: Personnage & { classLocks?: typeof nextClassLocks; classLock?: boolean } = {
+      ...props.character,
+      classe: nextClasse,
+      classLocks: nextClassLocks,
+      choiceSelections: nextChoiceSelections,
+      proficiencies: nextProfs,
+      competences: nextCompetences,
+      expertises: nextExpertises
+    };
+    if (slot === 1) {
+      nextCharacter.classLock = false;
+    }
+    props.onChangeCharacter(nextCharacter);
   };
   const resetSpeciesImpacts = () => {
     const adaptableSkill = (choiceSelections as any)?.race?.adaptableSkill;
@@ -1162,9 +1388,13 @@ export function CombatSetupScreen(props: {
     if (!initialStatsRef.current) return;
     setBaseScores(initialStatsRef.current);
   };
+  const resetStatsFromBase = () => {
+    const snapshot = getBaseScoresSnapshot();
+    setBaseScores(snapshot);
+  };
 
   const resetSkills = () => {
-    const baseSkills = activeBackground?.skillProficiencies ?? [];
+    const baseSkills = getBackgroundSkillProficiencies(activeBackground);
     props.onChangeCharacter({
       ...props.character,
       competences: [...baseSkills],
@@ -1176,7 +1406,7 @@ export function CombatSetupScreen(props: {
     const primaryProfs = classPrimary?.proficiencies ?? {};
     const secondaryProfs = classSecondary?.proficiencies ?? {};
     const backgroundTools = [
-      ...(activeBackground?.toolProficiencies ?? []),
+      ...getBackgroundToolProficiencies(activeBackground),
       ...(((choiceSelections as any)?.background?.tools ?? []) as string[])
     ];
     const nextProfs = {
@@ -1197,9 +1427,33 @@ export function CombatSetupScreen(props: {
     props.onChangeCharacter({ ...props.character, proficiencies: nextProfs });
   };
 
+  const pruneStatBonusesBySource = (sources: string[]) => {
+    const existing = ((choiceSelections as any)?.statBonuses ?? []) as Array<{
+      stat: string;
+      value: number;
+      source?: string;
+    }>;
+    if (!Array.isArray(existing) || existing.length === 0) return null;
+    const next = existing.filter(entry => !sources.includes(String(entry.source ?? "")));
+    if (next.length === existing.length) return null;
+    return next;
+  };
+
+  const getAutoEquipmentIds = (bgOverride?: BackgroundDefinition | null) => {
+    const bgRef = typeof bgOverride === "undefined" ? activeBackground : bgOverride;
+    const bgEquip = Array.isArray(bgRef?.equipment)
+      ? (bgRef?.equipment as string[])
+      : [];
+    const classEquip = [
+      ...getClassEquipment(classPrimary),
+      ...getClassEquipment(classSecondary)
+    ];
+    return dedupeList([...bgEquip, ...classEquip]);
+  };
+
   const applyBackgroundSelection = (bg: BackgroundDefinition) => {
     const nextSkills = Array.from(
-      new Set([...(competences ?? []), ...(bg.skillProficiencies ?? [])])
+      new Set([...(competences ?? []), ...getBackgroundSkillProficiencies(bg)])
     );
     const currentProfs = (props.character?.proficiencies ?? {}) as {
       weapons?: string[];
@@ -1209,7 +1463,7 @@ export function CombatSetupScreen(props: {
     const nextProfs = {
       ...currentProfs,
       tools: Array.from(
-        new Set([...(currentProfs.tools ?? []), ...(bg.toolProficiencies ?? [])])
+        new Set([...(currentProfs.tools ?? []), ...getBackgroundToolProficiencies(bg)])
       )
     };
     const nextChoiceSelections = {
@@ -1231,7 +1485,8 @@ export function CombatSetupScreen(props: {
       };
     }
     if (!bonusApplied && bg.id === "veteran-de-guerre") {
-      const needsImmediateBonus = !bg.toolChoices && !bg.languageChoices;
+      const needsImmediateBonus =
+        !getBackgroundToolChoice(bg) && !getBackgroundLanguageChoice(bg);
       if (needsImmediateBonus) {
         const current = (props.character.caracs?.force as any)?.FOR ?? 10;
         nextCaracs = {
@@ -1245,9 +1500,9 @@ export function CombatSetupScreen(props: {
         };
       }
     }
-    const nextAuto = Array.isArray(bg.equipment) ? bg.equipment : [];
+    const nextAuto = getAutoEquipmentIds(bg);
     const manualIds = equipmentManual;
-    const nextInventory = buildInventoryFromAutoManual(nextAuto, manualIds);
+    const nextInventory = syncInventoryFromAutoManual(nextAuto, manualIds, inventoryItems);
     props.onChangeCharacter({
       ...props.character,
       backgroundId: bg.id,
@@ -1260,6 +1515,26 @@ export function CombatSetupScreen(props: {
     });
   };
 
+  useEffect(() => {
+    const nextAuto = getAutoEquipmentIds();
+    if (arraysEqual(nextAuto, equipmentAuto)) return;
+    const nextInventory = syncInventoryFromAutoManual(nextAuto, equipmentManual, inventoryItems);
+    props.onChangeCharacter({
+      ...props.character,
+      equipmentAuto: nextAuto,
+      inventoryItems: nextInventory
+    });
+  }, [
+    activeBackground?.id,
+    classPrimary?.id,
+    classSecondary?.id,
+    equipmentManual,
+    inventoryItems,
+    equipmentAuto,
+    props.character,
+    props.onChangeCharacter
+  ]);
+
   const sourceColors: Record<string, string> = {
     race: "#2ecc71",
     background: "#f1c40f",
@@ -1270,6 +1545,29 @@ export function CombatSetupScreen(props: {
     asi: "#9b59b6",
     feat: "#e67e22",
     equipment: "#16a085"
+  };
+  const tabAccentColors: Record<string, string> = {
+    species: sourceColors.race,
+    backgrounds: sourceColors.background,
+    classes: sourceColors.classPrimary,
+    profile: "#e67e22",
+    stats: "#f39c12",
+    magic: "#8e44ad",
+    equip: sourceColors.equipment,
+    skills: "#3498db",
+    masteries: "#1abc9c"
+  };
+  const toRgba = (hex: string, alpha: number) => {
+    if (!hex || typeof hex !== "string") return `rgba(255,255,255,${alpha})`;
+    const normalized = hex.replace("#", "");
+    if (normalized.length !== 6) return `rgba(255,255,255,${alpha})`;
+    const r = parseInt(normalized.slice(0, 2), 16);
+    const g = parseInt(normalized.slice(2, 4), 16);
+    const b = parseInt(normalized.slice(4, 6), 16);
+    if (!Number.isFinite(r) || !Number.isFinite(g) || !Number.isFinite(b)) {
+      return `rgba(255,255,255,${alpha})`;
+    }
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   };
 
   const renderSourceDots = (sources: string[]) => {
@@ -1296,7 +1594,7 @@ export function CombatSetupScreen(props: {
   const getSkillSources = (skillId: string) => {
     const sources: string[] = [];
     if ((choiceSelections as any)?.race?.adaptableSkill === skillId) sources.push("race");
-    if (activeBackground?.skillProficiencies?.includes(skillId)) sources.push("background");
+    if (getBackgroundSkillProficiencies(activeBackground).includes(skillId)) sources.push("background");
     if (classPrimary?.proficiencies?.skills?.includes(skillId)) sources.push("classPrimary");
     if (classSecondary?.proficiencies?.skills?.includes(skillId)) sources.push("classSecondary");
     return sources;
@@ -1308,7 +1606,7 @@ export function CombatSetupScreen(props: {
     if (classSecondary?.proficiencies?.[kind]?.includes(id)) sources.push("classSecondary");
     if (
       kind === "tools" &&
-      (activeBackground?.toolProficiencies?.includes(id) ||
+      (getBackgroundToolProficiencies(activeBackground).includes(id) ||
         ((choiceSelections as any)?.background?.tools ?? []).includes(id))
     ) {
       sources.push("background");
@@ -1359,6 +1657,33 @@ export function CombatSetupScreen(props: {
     stats: {},
     originalStats: {}
   });
+  const getSectionValidated = (id: string) => {
+    if (id === "classes") {
+      const hasSecondary = Boolean(secondaryClassEntry?.classeId);
+      return Boolean(classLocks.primary) && (!hasSecondary || Boolean(classLocks.secondary));
+    }
+    return isSectionLocked(id);
+  };
+  const renderValidatedBadge = (validated: boolean) => {
+    if (!validated) return null;
+    return (
+      <span
+        style={{
+          marginLeft: "auto",
+          padding: "2px 6px",
+          borderRadius: 999,
+          border: "1px solid rgba(46, 204, 113, 0.6)",
+          background: "rgba(46, 204, 113, 0.16)",
+          color: "#e8fff2",
+          fontSize: 10,
+          fontWeight: 800,
+          letterSpacing: 0.2
+        }}
+      >
+        Valide
+      </span>
+    );
+  };
 
   const openChoiceModal = (config: {
     title: string;
@@ -1493,11 +1818,11 @@ export function CombatSetupScreen(props: {
   };
 
   const requireRaceChoices = () => {
-    if (selectedRaceId !== "human") return false;
+    if (!hasRaceTrait("adaptable")) return false;
     const adaptableSkill = (choiceSelections as any)?.race?.adaptableSkill;
     if (!adaptableSkill) {
       openChoiceModal({
-        title: "Humain - Choisir une competence",
+        title: `${activeRace?.label ?? "Espece"} - Choisir une competence`,
         options: competenceOptions.map(skill => ({ id: skill.id, label: skill.label })),
         selected: [],
         count: 1,
@@ -1512,32 +1837,34 @@ export function CombatSetupScreen(props: {
   const requireBackgroundChoices = () => {
     if (!activeBackground) return false;
     const backgroundChoices = (choiceSelections as any)?.background ?? {};
-    if (activeBackground.toolChoices) {
+    const toolChoices = getBackgroundToolChoice(activeBackground);
+    if (toolChoices && toolChoices.count > 0) {
       const existing = Array.isArray(backgroundChoices.tools) ? backgroundChoices.tools : [];
-      if (existing.length < activeBackground.toolChoices.count) {
+      if (existing.length < toolChoices.count) {
         openChoiceModal({
           title: "Historique - Choisir un outil",
-          options: (activeBackground.toolChoices.options ?? []).map(id => ({
+          options: (toolChoices.options ?? []).map(id => ({
             id,
             label: toolMasteryOptions.find(opt => opt.id === id)?.label ?? id
           })),
           selected: existing,
-          count: activeBackground.toolChoices.count,
-          multi: activeBackground.toolChoices.count > 1,
+          count: toolChoices.count,
+          multi: toolChoices.count > 1,
           onConfirm: selected => applyBackgroundToolChoices(selected)
         });
         return true;
       }
     }
-    if (activeBackground.languageChoices) {
+    const languageChoices = getBackgroundLanguageChoice(activeBackground);
+    if (languageChoices && languageChoices.count > 0) {
       const existing = Array.isArray(backgroundChoices.languages) ? backgroundChoices.languages : [];
-      if (existing.length < activeBackground.languageChoices.count) {
+      if (existing.length < languageChoices.count) {
         openChoiceModal({
           title: "Historique - Choisir des langues",
           options: languageOptions.map(lang => ({ id: lang.id, label: lang.label })),
           selected: existing,
-          count: activeBackground.languageChoices.count,
-          multi: activeBackground.languageChoices.count > 1,
+          count: languageChoices.count,
+          multi: languageChoices.count > 1,
           onConfirm: selected => applyBackgroundLanguageChoices(selected)
         });
         return true;
@@ -1608,6 +1935,42 @@ export function CombatSetupScreen(props: {
       isPrimaryWeapon: false
     }));
     return [...autoItems, ...manualItems];
+  };
+  const syncInventoryFromAutoManual = (
+    autoIds: string[],
+    manualIds: string[],
+    current: Array<any>
+  ) => {
+    const desired = [
+      ...autoIds.map(id => ({ ...resolveItemType(id), source: "auto" })),
+      ...manualIds.map(id => ({ ...resolveItemType(id), source: "manual" }))
+    ];
+    const buckets = new Map<string, Array<any>>();
+    current.forEach(item => {
+      const key = `${item?.source ?? "auto"}:${item?.type ?? "object"}:${item?.id ?? ""}`;
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key)?.push(item);
+    });
+    return desired.map(entry => {
+      const key = `${entry.source}:${entry.type}:${entry.id}`;
+      const bucket = buckets.get(key);
+      if (bucket && bucket.length > 0) {
+        const existing = bucket.shift();
+        return {
+          ...existing,
+          source: entry.source,
+          type: entry.type,
+          id: entry.id
+        };
+      }
+      return {
+        ...entry,
+        qty: 1,
+        equippedSlot: null,
+        storedIn: null,
+        isPrimaryWeapon: false
+      };
+    });
   };
 
   const addManualItem = (id: string) => {
@@ -1857,7 +2220,7 @@ export function CombatSetupScreen(props: {
           delete nextLocks[key];
         });
         const prevBackground = activeBackground;
-        const prevSkills = prevBackground?.skillProficiencies ?? [];
+        const prevSkills = getBackgroundSkillProficiencies(prevBackground);
         const nextCompetences = prevSkills.length
           ? competences.filter(skill => !prevSkills.includes(skill))
           : competences;
@@ -2074,7 +2437,7 @@ export function CombatSetupScreen(props: {
     hasSubclassChoicePending(slot) || hasMissingAsiForSlot(slot);
 
   const hasPendingRaceChoices = () => {
-    if (selectedRaceId !== "human") return false;
+    if (!hasRaceTrait("adaptable")) return false;
     const adaptableSkill = (choiceSelections as any)?.race?.adaptableSkill;
     return !adaptableSkill;
   };
@@ -2082,18 +2445,20 @@ export function CombatSetupScreen(props: {
     if (!activeBackground) return 0;
     const backgroundChoices = overrides ?? (choiceSelections as any)?.background ?? {};
     let count = 0;
-    if (activeBackground.toolChoices) {
+    const toolChoices = getBackgroundToolChoice(activeBackground);
+    if (toolChoices && toolChoices.count > 0) {
       const existing = Array.isArray(backgroundChoices.tools) ? backgroundChoices.tools : [];
-      if (existing.length < activeBackground.toolChoices.count) {
-        count += activeBackground.toolChoices.count - existing.length;
+      if (existing.length < toolChoices.count) {
+        count += toolChoices.count - existing.length;
       }
     }
-    if (activeBackground.languageChoices) {
+    const languageChoices = getBackgroundLanguageChoice(activeBackground);
+    if (languageChoices && languageChoices.count > 0) {
       const existing = Array.isArray(backgroundChoices.languages)
         ? backgroundChoices.languages
         : [];
-      if (existing.length < activeBackground.languageChoices.count) {
-        count += activeBackground.languageChoices.count - existing.length;
+      if (existing.length < languageChoices.count) {
+        count += languageChoices.count - existing.length;
       }
     }
     return count;
@@ -2258,7 +2623,259 @@ export function CombatSetupScreen(props: {
     };
   }, [props.character?.id]);
 
+  const prevClassStateRef = useRef<{
+    primaryLevel: number;
+    secondaryLevel: number;
+    primarySubclassId: string;
+    secondarySubclassId: string;
+  } | null>(null);
+  useEffect(() => {
+    const current = {
+      primaryLevel: Number(classEntry?.niveau ?? 0),
+      secondaryLevel: Number(secondaryClassEntry?.niveau ?? 0),
+      primarySubclassId: selectedSubclassId ?? "",
+      secondarySubclassId: selectedSecondarySubclassId ?? ""
+    };
+    const prev = prevClassStateRef.current;
+    if (prev) {
+      const primaryDropped = current.primaryLevel < prev.primaryLevel;
+      const secondaryDropped = current.secondaryLevel < prev.secondaryLevel;
+      const primarySubclassLost = Boolean(prev.primarySubclassId) && !current.primarySubclassId;
+      const secondarySubclassLost = Boolean(prev.secondarySubclassId) && !current.secondarySubclassId;
+      if (primaryDropped || secondaryDropped || primarySubclassLost || secondarySubclassLost) {
+        resetStatsFromBase();
+      }
+    }
+    prevClassStateRef.current = current;
+  }, [
+    classEntry?.niveau,
+    secondaryClassEntry?.niveau,
+    selectedSubclassId,
+    selectedSecondarySubclassId
+  ]);
+
   const computeMod = (score: number): number => Math.floor((score - 10) / 2);
+  const averageHitDie = (die: number | null | undefined) => {
+    switch (die) {
+      case 6:
+        return 4;
+      case 8:
+        return 5;
+      case 10:
+        return 6;
+      case 12:
+        return 7;
+      default:
+        return 0;
+    }
+  };
+  const computeArmorClassFromEquipment = () => {
+    const dexMod = computeMod(getScore("DEX"));
+    const base = 10 + dexMod;
+    let armorBase = base;
+    let shieldBonus = 0;
+    const equippedArmor = inventoryItems.filter(
+      item => item?.type === "armor" && item?.equippedSlot
+    );
+    for (const item of equippedArmor) {
+      const def = armorItemMap.get(item.id);
+      if (!def) continue;
+      if ((def as any).armorCategory === "shield") {
+        shieldBonus = Math.max(shieldBonus, Number((def as any).baseAC ?? 2) || 2);
+        continue;
+      }
+      const baseAC = typeof (def as any).baseAC === "number" ? (def as any).baseAC : 10;
+      const dexCap =
+        (def as any).dexCap === null || typeof (def as any).dexCap === "undefined"
+          ? dexMod
+          : Math.max(0, Math.min(dexMod, Number((def as any).dexCap) || 0));
+      armorBase = Math.max(armorBase, baseAC + dexCap);
+    }
+    return Math.max(1, armorBase + shieldBonus);
+  };
+  const computeMaxHp = () => {
+    const conMod = computeMod(getScore("CON"));
+    const primaryLevel = Number(classEntry?.niveau) || 0;
+    const secondaryLevel = Number(secondaryClassEntry?.niveau) || 0;
+    const primaryDie = classPrimary?.hitDie ?? null;
+    const secondaryDie = classSecondary?.hitDie ?? null;
+    if (!primaryLevel || !primaryDie) return Math.max(1, conMod + 1);
+    let total = Math.max(1, primaryDie + conMod);
+    if (primaryLevel > 1) {
+      const avg = averageHitDie(primaryDie);
+      const perLevel = Math.max(1, avg + conMod);
+      total += perLevel * (primaryLevel - 1);
+    }
+    if (secondaryLevel > 0 && secondaryDie) {
+      const avg = averageHitDie(secondaryDie);
+      const perLevel = Math.max(1, avg + conMod);
+      total += perLevel * secondaryLevel;
+    }
+    return Math.max(1, Math.floor(total));
+  };
+  const spellcastingSelections = ((choiceSelections as any)?.spellcasting ?? {}) as Record<
+    string,
+    {
+      knownSpells?: string[];
+      preparedSpells?: string[];
+      focusItemId?: string | null;
+      storage?: "memory" | "innate" | "grimoire";
+      grimoireItemId?: string | null;
+    }
+  >;
+  const updateSpellcastingSelection = (
+    key: string,
+    patch: Partial<{
+      knownSpells: string[];
+      preparedSpells: string[];
+      focusItemId: string | null;
+      storage: "memory" | "innate" | "grimoire";
+      grimoireItemId: string | null;
+    }>
+  ) => {
+    const next = { ...spellcastingSelections, [key]: { ...(spellcastingSelections[key] ?? {}), ...patch } };
+    props.onChangeCharacter({
+      ...props.character,
+      choiceSelections: { ...choiceSelections, spellcasting: next }
+    });
+  };
+  const getCasterContribution = (progression: "full" | "half" | "third" | "none", level: number) => {
+    if (progression === "full") return level;
+    if (progression === "half") return Math.floor(level / 2);
+    if (progression === "third") return Math.floor(level / 3);
+    return 0;
+  };
+  const collectSpellGrants = (progression?: Record<string, any>, level?: number) => {
+    if (!progression) return [];
+    const max = Number(level) || 0;
+    const ids: string[] = [];
+    Object.keys(progression)
+      .map(key => Number(key))
+      .filter(lvl => Number.isFinite(lvl) && lvl > 0 && lvl <= max)
+      .forEach(lvl => {
+        const grants = progression[String(lvl)]?.grants ?? [];
+        grants.forEach((grant: any) => {
+          if (grant?.kind !== "spell") return;
+          const list = Array.isArray(grant?.ids) ? grant.ids : [];
+          list.forEach((id: string) => ids.push(id));
+        });
+      });
+    return Array.from(new Set(ids));
+  };
+  const getItemTags = (item: any): string[] => {
+    if (!item) return [];
+    const tags = (item as any).tags;
+    return Array.isArray(tags) ? tags.map(tag => String(tag)) : [];
+  };
+  const resolveItemTags = (itemId: string): string[] => {
+    const resolved = resolveItemType(itemId);
+    if (resolved.type === "weapon") {
+      return getItemTags(weaponItemMap.get(resolved.id));
+    }
+    if (resolved.type === "armor") {
+      return getItemTags(armorItemMap.get(resolved.id));
+    }
+    if (resolved.type === "tool") {
+      return getItemTags(toolItemMap.get(resolved.id));
+    }
+    return getItemTags(objectItemMap.get(resolved.id));
+  };
+  const magicSources = (() => {
+    const sources: Array<{
+      key: string;
+      label: string;
+      ability: "SAG" | "INT" | "CHA";
+      preparation: "prepared" | "known";
+      storage: "memory" | "innate" | "grimoire";
+      focusTypes?: string[];
+      casterProgression: "full" | "half" | "third" | "none";
+      slotsByLevel?: Record<string, number[]>;
+      classLevel: number;
+      spellIds: string[];
+    }> = [];
+    const primarySub = selectedSubclassId
+      ? subclassOptions.find(sub => sub.id === selectedSubclassId) ?? null
+      : null;
+    const secondarySub = selectedSecondarySubclassId
+      ? subclassOptions.find(sub => sub.id === selectedSecondarySubclassId) ?? null
+      : null;
+    if (classLocks.primary && classPrimary?.spellcasting) {
+      const classLevel = Number(classEntry?.niveau) || 0;
+      const classSpells = collectSpellGrants(classPrimary.progression, classLevel);
+      const subclassSpells =
+        primarySub && !primarySub.spellcasting
+          ? collectSpellGrants(primarySub.progression, classLevel)
+          : [];
+      sources.push({
+        key: `class:${classPrimary.id}`,
+        label: classPrimary.label,
+        ability: classPrimary.spellcasting.ability,
+        preparation: classPrimary.spellcasting.preparation,
+        storage: classPrimary.spellcasting.storage,
+        focusTypes: classPrimary.spellcasting.focusTypes,
+        casterProgression: classPrimary.spellcasting.casterProgression,
+        slotsByLevel: classPrimary.spellcasting.slotsByLevel,
+        classLevel,
+        spellIds: Array.from(new Set([...classSpells, ...subclassSpells]))
+      });
+    }
+    if (classLocks.primary && primarySub?.spellcasting) {
+      sources.push({
+        key: `subclass:${primarySub.id}`,
+        label: `${classPrimary?.label ?? "Classe"} — ${primarySub.label}`,
+        ability: primarySub.spellcasting.ability,
+        preparation: primarySub.spellcasting.preparation,
+        storage: primarySub.spellcasting.storage,
+        focusTypes: primarySub.spellcasting.focusTypes,
+        casterProgression: primarySub.spellcasting.casterProgression,
+        slotsByLevel: primarySub.spellcasting.slotsByLevel,
+        classLevel: Number(classEntry?.niveau) || 0,
+        spellIds: collectSpellGrants(primarySub.progression, Number(classEntry?.niveau) || 0)
+      });
+    }
+    if (classLocks.secondary && classSecondary?.spellcasting) {
+      const classLevel = Number(secondaryClassEntry?.niveau) || 0;
+      const classSpells = collectSpellGrants(classSecondary.progression, classLevel);
+      const subclassSpells =
+        secondarySub && !secondarySub.spellcasting
+          ? collectSpellGrants(secondarySub.progression, classLevel)
+          : [];
+      sources.push({
+        key: `class:${classSecondary.id}`,
+        label: classSecondary.label,
+        ability: classSecondary.spellcasting.ability,
+        preparation: classSecondary.spellcasting.preparation,
+        storage: classSecondary.spellcasting.storage,
+        focusTypes: classSecondary.spellcasting.focusTypes,
+        casterProgression: classSecondary.spellcasting.casterProgression,
+        slotsByLevel: classSecondary.spellcasting.slotsByLevel,
+        classLevel,
+        spellIds: Array.from(new Set([...classSpells, ...subclassSpells]))
+      });
+    }
+    if (classLocks.secondary && secondarySub?.spellcasting) {
+      sources.push({
+        key: `subclass:${secondarySub.id}`,
+        label: `${classSecondary?.label ?? "Classe"} — ${secondarySub.label}`,
+        ability: secondarySub.spellcasting.ability,
+        preparation: secondarySub.spellcasting.preparation,
+        storage: secondarySub.spellcasting.storage,
+        focusTypes: secondarySub.spellcasting.focusTypes,
+        casterProgression: secondarySub.spellcasting.casterProgression,
+        slotsByLevel: secondarySub.spellcasting.slotsByLevel,
+        classLevel: Number(secondaryClassEntry?.niveau) || 0,
+        spellIds: collectSpellGrants(secondarySub.progression, Number(secondaryClassEntry?.niveau) || 0)
+      });
+    }
+    return sources;
+  })();
+  const [activeMagicTab, setActiveMagicTab] = useState(0);
+  const [spellInputByKey, setSpellInputByKey] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (activeMagicTab >= magicSources.length) {
+      setActiveMagicTab(0);
+    }
+  }, [magicSources.length, activeMagicTab]);
   const canEditSkills = !isSectionLocked("skills") && skillsMode !== "normal";
   const canEditMasteries = !isSectionLocked("masteries") && masteriesMode !== "normal";
   const setAsiSelection = (
@@ -2389,21 +3006,39 @@ export function CombatSetupScreen(props: {
       const nextEntry = { type: "feat" as const };
       const overrides = { [asiModal.entry.key]: nextEntry };
       let otherMissing: ReturnType<typeof getMissingAsiEntries> = [];
-      setAsiSelection(asiModal.entry.key, nextEntry);
+      const nextAsi = { ...asiSelections, [asiModal.entry.key]: nextEntry };
+      const nextChoiceSelections = { ...choiceSelections, asi: nextAsi };
       if (pendingLocks.classes) {
         otherMissing = getMissingAsiEntries(overrides).filter(
           entry => entry.classId === asiModal.entry?.classId && entry.key !== asiModal.entry?.key
         );
         if (!hasSubclassChoicePending(slot) && otherMissing.length === 0) {
-          setClassLockForSlot(slot, true);
           const nextPending = { ...pendingLocks };
           delete nextPending.classes;
           delete nextPending.classesSlot;
+          const nextLocks = {
+            ...classLocks,
+            primary: slot === 1 ? true : classLocks.primary,
+            secondary: slot === 2 ? true : classLocks.secondary
+          };
+          const nextCharacter: Personnage & { classLocks?: typeof nextLocks; classLock?: boolean } = {
+            ...props.character,
+            classLocks: nextLocks,
+            choiceSelections: { ...nextChoiceSelections, pendingLocks: nextPending }
+          };
+          if (slot === 1) nextCharacter.classLock = true;
+          props.onChangeCharacter(nextCharacter);
+        } else {
           props.onChangeCharacter({
             ...props.character,
-            choiceSelections: { ...choiceSelections, pendingLocks: nextPending }
+            choiceSelections: nextChoiceSelections
           });
         }
+      } else {
+        props.onChangeCharacter({
+          ...props.character,
+          choiceSelections: nextChoiceSelections
+        });
       }
       setAsiModal(prev => ({ ...prev, step: "feat" }));
       if (pendingLocks.classes) {
@@ -2420,7 +3055,8 @@ export function CombatSetupScreen(props: {
     const slot = asiModal.entry.classId === classPrimary?.id ? 1 : 2;
     const nextEntry = { type: "asi" as const, stats: { ...asiModal.stats } };
     const overrides = { [asiModal.entry.key]: nextEntry };
-    setAsiSelection(asiModal.entry.key, nextEntry);
+    const nextAsi = { ...asiSelections, [asiModal.entry.key]: nextEntry };
+    const nextChoiceSelections = { ...choiceSelections, asi: nextAsi };
     if (pendingLocks.classes) {
       const otherMissing = getMissingAsiEntries(overrides).filter(
         entry => entry.classId === asiModal.entry?.classId && entry.key !== asiModal.entry?.key
@@ -2430,15 +3066,32 @@ export function CombatSetupScreen(props: {
         !hasSubclassChoicePending(slot) &&
         otherMissing.length === 0
       ) {
-        setClassLockForSlot(slot, true);
         const nextPending = { ...pendingLocks };
         delete nextPending.classes;
         delete nextPending.classesSlot;
+        const nextLocks = {
+          ...classLocks,
+          primary: slot === 1 ? true : classLocks.primary,
+          secondary: slot === 2 ? true : classLocks.secondary
+        };
+        const nextCharacter: Personnage & { classLocks?: typeof nextLocks; classLock?: boolean } = {
+          ...props.character,
+          classLocks: nextLocks,
+          choiceSelections: { ...nextChoiceSelections, pendingLocks: nextPending }
+        };
+        if (slot === 1) nextCharacter.classLock = true;
+        props.onChangeCharacter(nextCharacter);
+      } else {
         props.onChangeCharacter({
           ...props.character,
-          choiceSelections: { ...choiceSelections, pendingLocks: nextPending }
+          choiceSelections: nextChoiceSelections
         });
       }
+    } else {
+      props.onChangeCharacter({
+        ...props.character,
+        choiceSelections: nextChoiceSelections
+      });
     }
     closeAsiModal();
     if (pendingLocks.classes) {
@@ -2687,11 +3340,18 @@ export function CombatSetupScreen(props: {
               { id: "profile", label: "Profil" },
               { id: "stats", label: "Stats" },
               { id: "classes", label: "Classes" },
+              ...(magicSources.length > 0 ? [{ id: "magic", label: "Magie" }] : []),
               { id: "equip", label: "Equipement" },
               { id: "skills", label: "Competences" },
-              { id: "masteries", label: "Maitrises" }
+              { id: "masteries", label: "Maitrises" },
+              { id: "sheet", label: "Fiche complete" }
             ].map(tab => {
               const isActive = activePlayerTab === tab.id;
+              const tabAccent = tabAccentColors[tab.id] ?? "#6fd3a8";
+              const borderColor = toRgba(tabAccent, isActive ? 0.9 : 0.55);
+              const lockedBackground = isSectionLocked(tab.id)
+                ? toRgba(tabAccent, isActive ? 0.22 : 0.12)
+                : null;
               return (
                 <button
                   key={tab.id}
@@ -2700,20 +3360,23 @@ export function CombatSetupScreen(props: {
                   style={{
                     padding: "6px 10px",
                     borderRadius: 6,
-                    border: `1px solid ${
-                      isSectionLocked(tab.id) ? getTabLockColor(tab.id) ?? "#6fd3a8" : isActive ? "#6fd3a8" : "#333"
-                    }`,
-                    background: isActive ? "rgba(46, 204, 113, 0.16)" : "#0f0f19",
-                    color: isActive ? "#dff6e8" : "#c9cfdd",
+                    border: `1px solid ${borderColor}`,
+                    background: lockedBackground ?? (isActive ? toRgba(tabAccent, 0.18) : "#0f0f19"),
+                    color: isActive ? "#f0f7ff" : "#c9cfdd",
                     cursor: "pointer",
                     fontSize: 12,
-                    fontWeight: 700
+                    fontWeight: 700,
+                    minWidth: 120,
+                    justifyContent: "center",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6
                   }}
                 >
                   {tab.label}
                   {isSectionLocked(tab.id) && (
-                    <span style={{ marginLeft: 6, display: "inline-flex" }}>
-                      <LockIcon color={getTabLockColor(tab.id) ?? "#6fd3a8"} />
+                    <span style={{ display: "inline-flex" }}>
+                      <LockIcon color={tabAccent} />
                     </span>
                   )}
                 </button>
@@ -3920,9 +4583,9 @@ export function CombatSetupScreen(props: {
                     Vitesse: {activeRace.speed ?? "?"} | Taille: {activeRace.size ?? "?"}
                   </div>
                 )}
-                {activeRace && activeRace.traits && activeRace.traits.length > 0 && (
+                {activeRace && getRaceTraits(activeRace).length > 0 && (
                   <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                    Traits: {activeRace.traits.map(trait => trait.label).join(", ")}
+                    Traits: {getRaceTraits(activeRace).map(trait => trait.label).join(", ")}
                   </div>
                 )}
                 {activeRace && activeRace.vision?.mode && (
@@ -4558,20 +5221,20 @@ export function CombatSetupScreen(props: {
                       ? activeBackground.description
                       : "Selectionnez un historique pour voir les details."}
                   </div>
-                  {activeBackground?.skillProficiencies &&
-                    activeBackground.skillProficiencies.length > 0 && (
+                  {activeBackground &&
+                    getBackgroundSkillProficiencies(activeBackground).length > 0 && (
                       <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
                         Competences:{" "}
-                        {activeBackground.skillProficiencies
+                        {getBackgroundSkillProficiencies(activeBackground)
                           .map(id => competenceOptions.find(c => c.id === id)?.label ?? id)
                           .join(", ")}
                       </div>
                     )}
-                  {activeBackground?.toolProficiencies &&
-                    activeBackground.toolProficiencies.length > 0 && (
+                  {activeBackground &&
+                    getBackgroundToolProficiencies(activeBackground).length > 0 && (
                       <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
                         Outils:{" "}
-                        {activeBackground.toolProficiencies
+                        {getBackgroundToolProficiencies(activeBackground)
                           .map(
                             id =>
                               toolMasteryOptions.find(t => t.id === id)?.label ?? id
@@ -4579,10 +5242,10 @@ export function CombatSetupScreen(props: {
                           .join(", ")}
                       </div>
                     )}
-                  {activeBackground?.toolChoices && (
+                  {getBackgroundToolChoice(activeBackground) && (
                     <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                      Outils (choix {activeBackground.toolChoices.count}):{" "}
-                      {(activeBackground.toolChoices.options ?? [])
+                      Outils (choix {getBackgroundToolChoice(activeBackground)?.count ?? 0}):{" "}
+                      {(getBackgroundToolChoice(activeBackground)?.options ?? [])
                         .map(
                           id =>
                             toolMasteryOptions.find(t => t.id === id)?.label ?? id
@@ -4595,9 +5258,9 @@ export function CombatSetupScreen(props: {
                       Outils: {activeBackground.toolNotes.join(", ")}
                     </div>
                   )}
-                  {activeBackground?.languageChoices && (
+                  {getBackgroundLanguageChoice(activeBackground) && (
                     <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                      Langues: {activeBackground.languageChoices.count} au choix
+                      Langues: {getBackgroundLanguageChoice(activeBackground)?.count ?? 0} au choix
                     </div>
                   )}
                   {activeBackground?.equipment && activeBackground.equipment.length > 0 && (
@@ -4605,11 +5268,11 @@ export function CombatSetupScreen(props: {
                       Materiel: {activeBackground.equipment.map(formatEquipmentLabel).join(", ")}
                     </div>
                   )}
-                  {activeBackground?.feature && (
+                  {getBackgroundFeatureInfo(activeBackground) && (
                     <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-                      Aptitude: {activeBackground.feature.name}
-                      {activeBackground.feature.description
-                        ? ` — ${activeBackground.feature.description}`
+                      Aptitude: {getBackgroundFeatureInfo(activeBackground)?.label ?? ""}
+                      {getBackgroundFeatureInfo(activeBackground)?.description
+                        ? ` — ${getBackgroundFeatureInfo(activeBackground)?.description}`
                         : ""}
                     </div>
                   )}
@@ -4770,6 +5433,882 @@ export function CombatSetupScreen(props: {
                     />
                   </label>
                 ))}
+              </div>
+            </>
+          )}
+
+          {activeMainTab === "player" && activePlayerTab === "magic" && magicSources.length > 0 && (
+            <>
+              <div style={{ fontSize: 12, color: "#b0b8c4" }}>
+                Gestion de la magie selon les sources verrouillees.
+              </div>
+              {magicSources.length > 1 && (
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {magicSources.map((source, idx) => (
+                    <button
+                      key={`magic-tab-${source.key}`}
+                      type="button"
+                      onClick={() => setActiveMagicTab(idx)}
+                      style={{
+                        padding: "6px 10px",
+                        borderRadius: 6,
+                        border: `1px solid ${
+                          idx === activeMagicTab ? "#8e44ad" : "rgba(255,255,255,0.12)"
+                        }`,
+                        background:
+                          idx === activeMagicTab ? "rgba(142, 68, 173, 0.2)" : "#0f0f19",
+                        color: "#c9cfdd",
+                        cursor: "pointer",
+                        fontSize: 12,
+                        fontWeight: 700
+                      }}
+                    >
+                      {source.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {(() => {
+                const source = magicSources[activeMagicTab] ?? magicSources[0];
+                if (!source) return null;
+                const selection = spellcastingSelections[source.key] ?? {};
+                const knownSpells = Array.isArray(selection.knownSpells) ? selection.knownSpells : [];
+                const preparedSpells = Array.isArray(selection.preparedSpells)
+                  ? selection.preparedSpells
+                  : [];
+                const focusItemId = selection.focusItemId ?? "";
+                const storage = source.storage ?? selection.storage ?? "memory";
+                const grimoireItemId = selection.grimoireItemId ?? "";
+                const totalCasterLevel = magicSources.reduce(
+                  (sum, item) => sum + getCasterContribution(item.casterProgression, item.classLevel),
+                  0
+                );
+                const slotsTable =
+                  magicSources.find(item => item.slotsByLevel)?.slotsByLevel ?? null;
+                const slots = slotsTable
+                  ? slotsTable[String(Math.max(0, totalCasterLevel))] ?? []
+                  : [];
+                const dc =
+                  8 + computeMod(getScore(source.ability)) + (2 + Math.floor((resolveLevel() - 1) / 4));
+                const spellAttack =
+                  computeMod(getScore(source.ability)) + (2 + Math.floor((resolveLevel() - 1) / 4));
+                const focusTypes = Array.isArray(source.focusTypes) ? source.focusTypes : [];
+                const focusOptions = inventoryItems.filter(item => {
+                  if (focusTypes.length === 0) return true;
+                  const tags = resolveItemTags(item.id);
+                  return focusTypes.some(tag => tags.includes(tag));
+                });
+                const storageLabel =
+                  storage === "memory" ? "Memoire" : storage === "innate" ? "Inne" : "Grimoire";
+                return (
+                  <div
+                    style={{
+                      borderRadius: 10,
+                      border: "1px solid rgba(255,255,255,0.12)",
+                      background: "rgba(12,12,18,0.75)",
+                      padding: 12,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 10
+                    }}
+                  >
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+                      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                        Carac principale: {source.ability}
+                      </div>
+                      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                        Methode: {source.preparation === "prepared" ? "Prepare" : "Connu"}
+                      </div>
+                      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                        Niveau lanceur total: {totalCasterLevel}
+                      </div>
+                      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                        DD sort: {dc} | Attaque magique: {spellAttack >= 0 ? `+${spellAttack}` : spellAttack}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                      Emplacements (total):{" "}
+                      {slots.length > 0
+                        ? slots
+                            .map((count, idx) =>
+                              count > 0 ? `${idx + 1}: ${count}` : null
+                            )
+                            .filter(Boolean)
+                            .join(" | ")
+                        : "—"}
+                    </div>
+                    {source.spellIds.length > 0 && (
+                      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                        Sorts de progression: {source.spellIds.join(", ")}
+                      </div>
+                    )}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 6 }}>
+                          {storage === "memory"
+                            ? "Sorts memorises"
+                            : source.preparation === "prepared"
+                              ? "Sorts prepares"
+                              : "Sorts connus"}
+                        </div>
+                        <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                          <input
+                            type="text"
+                            placeholder="Ajouter un sort (id)"
+                            value={spellInputByKey[source.key] ?? ""}
+                            onChange={e =>
+                              setSpellInputByKey(prev => ({ ...prev, [source.key]: e.target.value }))
+                            }
+                            style={{
+                              flex: 1,
+                              background: "#0f0f19",
+                              color: "#f5f5f5",
+                              border: "1px solid #333",
+                              borderRadius: 6,
+                              padding: "6px 8px",
+                              fontSize: 12
+                            }}
+                            onKeyDown={e => {
+                              if (e.key !== "Enter") return;
+                              const value = (e.currentTarget.value || "").trim();
+                              if (!value) return;
+                              const list = source.preparation === "prepared" ? preparedSpells : knownSpells;
+                              if (list.includes(value)) return;
+                              const next = [...list, value];
+                              if (source.preparation === "prepared") {
+                                updateSpellcastingSelection(source.key, { preparedSpells: next });
+                              } else {
+                                updateSpellcastingSelection(source.key, { knownSpells: next });
+                              }
+                              setSpellInputByKey(prev => ({ ...prev, [source.key]: "" }));
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={e => {
+                              const value = (spellInputByKey[source.key] ?? "").trim();
+                              if (!value) return;
+                              const list = source.preparation === "prepared" ? preparedSpells : knownSpells;
+                              if (list.includes(value)) return;
+                              const next = [...list, value];
+                              if (source.preparation === "prepared") {
+                                updateSpellcastingSelection(source.key, { preparedSpells: next });
+                              } else {
+                                updateSpellcastingSelection(source.key, { knownSpells: next });
+                              }
+                              setSpellInputByKey(prev => ({ ...prev, [source.key]: "" }));
+                            }}
+                            style={{
+                              padding: "6px 10px",
+                              borderRadius: 6,
+                              border: "1px solid rgba(255,255,255,0.15)",
+                              background: "rgba(255,255,255,0.08)",
+                              color: "#f5f5f5",
+                              cursor: "pointer",
+                              fontSize: 12,
+                              fontWeight: 700
+                            }}
+                          >
+                            Ajouter
+                          </button>
+                        </div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                          {(source.preparation === "prepared" ? preparedSpells : knownSpells).map(spell => (
+                            <span
+                              key={`spell-${source.key}-${spell}`}
+                              style={{
+                                padding: "2px 6px",
+                                borderRadius: 999,
+                                border: "1px solid rgba(255,255,255,0.18)",
+                                background: "rgba(142, 68, 173, 0.12)",
+                                fontSize: 11,
+                                color: "rgba(255,255,255,0.75)",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 6
+                              }}
+                            >
+                              {spell}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const list = source.preparation === "prepared" ? preparedSpells : knownSpells;
+                                  const next = list.filter(item => item !== spell);
+                                  if (source.preparation === "prepared") {
+                                    updateSpellcastingSelection(source.key, { preparedSpells: next });
+                                  } else {
+                                    updateSpellcastingSelection(source.key, { knownSpells: next });
+                                  }
+                                }}
+                                style={{
+                                  border: "none",
+                                  background: "transparent",
+                                  color: "rgba(255,255,255,0.7)",
+                                  cursor: "pointer",
+                                  fontSize: 12
+                                }}
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 6 }}>
+                          Focalisateur
+                        </div>
+                        <select
+                          value={focusItemId}
+                          onChange={e =>
+                            updateSpellcastingSelection(source.key, {
+                              focusItemId: e.target.value || null
+                            })
+                          }
+                          style={{
+                            width: "100%",
+                            background: "#0f0f19",
+                            color: "#f5f5f5",
+                            border: "1px solid #333",
+                            borderRadius: 6,
+                            padding: "6px 8px",
+                            fontSize: 12
+                          }}
+                        >
+                          <option value="">Aucun</option>
+                          {focusOptions.map(item => (
+                            <option key={`focus-${item.id}`} value={item.id}>
+                              {formatEquipmentLabel(item.id)}
+                            </option>
+                          ))}
+                        </select>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 10 }}>
+                          Stockage des sorts: {storageLabel}
+                        </div>
+                        {storage === "grimoire" && (
+                          <select
+                            value={grimoireItemId}
+                            onChange={e =>
+                              updateSpellcastingSelection(source.key, {
+                                grimoireItemId: e.target.value || null
+                              })
+                            }
+                            style={{
+                              width: "100%",
+                              background: "#0f0f19",
+                              color: "#f5f5f5",
+                              border: "1px solid #333",
+                              borderRadius: 6,
+                              padding: "6px 8px",
+                              fontSize: 12,
+                              marginTop: 6
+                            }}
+                          >
+                            <option value="">Choisir un grimoire</option>
+                            {inventoryItems
+                              .filter(item => item.type === "object")
+                              .map(item => (
+                                <option key={`grimoire-${item.id}`} value={item.id}>
+                                  {formatEquipmentLabel(item.id)}
+                                </option>
+                              ))}
+                          </select>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </>
+          )}
+
+          {activeMainTab === "player" && activePlayerTab === "sheet" && (
+            <>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
+                {(() => {
+                  const statLabels: Record<string, string> = {
+                    FOR: "Force",
+                    DEX: "Dexterite",
+                    CON: "Constitution",
+                    INT: "Intelligence",
+                    SAG: "Sagesse",
+                    CHA: "Charisme"
+                  };
+                  const backgroundChoices = (choiceSelections as any)?.background ?? {};
+                  const backgroundTools = Array.isArray(backgroundChoices.tools)
+                    ? backgroundChoices.tools
+                    : [];
+                  const backgroundLanguages = Array.isArray(backgroundChoices.languages)
+                    ? backgroundChoices.languages
+                    : [];
+                  const adaptableSkill = (choiceSelections as any)?.race?.adaptableSkill ?? "";
+                  const classAsiEntries = getClassAsiLevels();
+                  const formatAsiEntry = (entryInfo: {
+                    key: string;
+                    level: number;
+                    classId: string;
+                    classLabel: string;
+                  }) => {
+                    const entry = getAsiEntryForLevel(entryInfo);
+                    if (!entry) return `Niveau ${entryInfo.level}: non choisi`;
+                    if (entry.type === "feat") return `Niveau ${entryInfo.level}: Don`;
+                    const stats = entry.stats ?? {};
+                    const parts = Object.entries(stats)
+                      .map(([stat, value]) => `+${value} ${statLabels[stat] ?? stat}`)
+                      .join(", ");
+                    return `Niveau ${entryInfo.level}: ${parts || "non choisi"}`;
+                  };
+                  const buildProgressionLines = (progression?: Record<string, any>, maxLevel?: number) => {
+                    if (!progression) return [];
+                    const levels = Object.keys(progression)
+                      .map(key => Number(key))
+                      .filter(level => Number.isFinite(level))
+                      .sort((a, b) => a - b);
+                    return levels
+                      .filter(level => (typeof maxLevel === "number" ? level <= maxLevel : true))
+                      .map(level => {
+                      const entry = progression[String(level)] ?? {};
+                      const grants = Array.isArray(entry.grants) ? entry.grants : [];
+                      const desc = entry.description ? entry.description : "";
+                      const hasAsi = grants.some(
+                        (grant: any) => grant?.kind === "bonus" && (grant?.ids ?? []).includes("asi-or-feat")
+                      );
+                      const baseLabel = desc || (hasAsi ? "Amelioration de caracteristiques (ASI) ou choix de don" : "Progression");
+                      return { level, hasAsi, baseLabel };
+                    });
+                  };
+                  const buildClassProgressionDisplay = (
+                    cls: ClassDefinition | null,
+                    subclass: SubclassDefinition | null,
+                    level: number
+                  ) => {
+                    if (!cls || level <= 0) return [];
+                    const lines: string[] = [];
+                    const clsLines = buildProgressionLines(cls.progression, level);
+                    const subLines = subclass ? buildProgressionLines(subclass.progression, level) : [];
+                    const formatLine = (entry: { level: number; hasAsi: boolean; baseLabel: string }) => {
+                      let suffix = "";
+                      if (entry.hasAsi) {
+                        const key = `${cls.id}:${entry.level}`;
+                        const asiEntry = asiSelections[key] ?? (cls.id === classPrimary?.id ? asiSelections[String(entry.level)] : null);
+                        if (asiEntry?.type === "feat") {
+                          suffix = " : Don";
+                        } else if (asiEntry?.type === "asi") {
+                          const stats = asiEntry.stats ?? {};
+                          const parts = Object.entries(stats)
+                            .map(([stat, value]) => `+${value} ${statLabels[stat] ?? stat}`)
+                            .join(", ");
+                          suffix = parts ? ` : ${parts}` : " : non choisi";
+                        } else {
+                          suffix = " : non choisi";
+                        }
+                      }
+                      return `Niveau ${entry.level} — ${entry.baseLabel}${suffix}`;
+                    };
+                    clsLines.forEach(entry => lines.push(formatLine(entry)));
+                    subLines.forEach(entry => lines.push(formatLine(entry)));
+                    return lines;
+                  };
+                  const primarySubclass = selectedSubclassId
+                    ? subclassOptions.find(sub => sub.id === selectedSubclassId) ?? null
+                    : null;
+                  const secondarySubclass = selectedSecondarySubclassId
+                    ? subclassOptions.find(sub => sub.id === selectedSecondarySubclassId) ?? null
+                    : null;
+                  const primaryLevel = Number(classEntry?.niveau) || 0;
+                  const secondaryLevel = Number(secondaryClassEntry?.niveau) || 0;
+                  const primaryProgressionLines = buildClassProgressionDisplay(
+                    classPrimary,
+                    primarySubclass,
+                    primaryLevel
+                  );
+                  const secondaryProgressionLines = buildClassProgressionDisplay(
+                    classSecondary,
+                    secondarySubclass,
+                    secondaryLevel
+                  );
+                  return (
+                    <>
+                      <div
+                        style={{
+                          borderRadius: 10,
+                          border: "1px solid rgba(255,255,255,0.12)",
+                          background: "rgba(12,12,18,0.75)",
+                          padding: 12,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 8
+                        }}
+                      >
+                        <div style={{ fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }}>
+                          Identite
+                          {renderValidatedBadge(getSectionValidated("profile"))}
+                        </div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                          Nom: {props.character?.nom?.nomcomplet ?? "—"}
+                        </div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                          Prenom: {props.character?.nom?.prenom ?? "—"} | Surnom:{" "}
+                          {props.character?.nom?.surnom ?? "—"}
+                        </div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                          Age: {props.character?.age ?? "—"} | Sexe: {props.character?.sexe ?? "—"}
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          borderRadius: 10,
+                          border: "1px solid rgba(255,255,255,0.12)",
+                          background: "rgba(12,12,18,0.75)",
+                          padding: 12,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 8
+                        }}
+                      >
+                        <div style={{ fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }}>
+                          Espece
+                          {renderValidatedBadge(getSectionValidated("species"))}
+                        </div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                          {activeRace ? `${activeRace.label} (${activeRace.id})` : "—"}
+                        </div>
+                        {getRaceTraits(activeRace).length > 0 && (
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                            {getRaceTraits(activeRace).map(trait => (
+                              <span
+                                key={`trait-${trait.id}`}
+                                style={{
+                                  padding: "2px 6px",
+                                  borderRadius: 999,
+                                  border: "1px solid rgba(255,255,255,0.18)",
+                                  background: "rgba(46, 204, 113, 0.12)",
+                                  fontSize: 11,
+                                  color: "rgba(255,255,255,0.75)"
+                                }}
+                              >
+                                {trait.label}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                          Traits: {getRaceTraits(activeRace).map(trait => trait.label).join(", ") || "—"}
+                        </div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                          Choix adapte: {adaptableSkill ? (competenceOptions.find(c => c.id === adaptableSkill)?.label ?? adaptableSkill) : "—"}
+                        </div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                          Vitesse: {activeRace?.speed ?? "—"} | Taille: {activeRace?.size ?? "—"}
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          borderRadius: 10,
+                          border: "1px solid rgba(255,255,255,0.12)",
+                          background: "rgba(12,12,18,0.75)",
+                          padding: 12,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 8
+                        }}
+                      >
+                        <div style={{ fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }}>
+                          Historique
+                          {renderValidatedBadge(getSectionValidated("backgrounds"))}
+                        </div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                          {activeBackground ? `${activeBackground.label} (${activeBackground.id})` : "—"}
+                        </div>
+                        {getBackgroundFeatureInfo(activeBackground) && (
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                            <span
+                              style={{
+                                padding: "2px 6px",
+                                borderRadius: 999,
+                                border: "1px solid rgba(255,255,255,0.18)",
+                                background: "rgba(241, 196, 15, 0.16)",
+                                fontSize: 11,
+                                color: "rgba(255,255,255,0.75)"
+                              }}
+                            >
+                              {getBackgroundFeatureInfo(activeBackground)?.label ?? "Aptitude"}
+                            </span>
+                          </div>
+                        )}
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                          Competences:{" "}
+                          {getBackgroundSkillProficiencies(activeBackground)
+                            .map(id => competenceOptions.find(c => c.id === id)?.label ?? id)
+                            .join(", ") || "—"}
+                        </div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                          Outils:{" "}
+                          {getBackgroundToolProficiencies(activeBackground)
+                            .map(id => toolMasteryOptions.find(t => t.id === id)?.label ?? id)
+                            .join(", ") || "—"}
+                        </div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                          Choix outils:{" "}
+                          {backgroundTools.length
+                            ? backgroundTools
+                                .map(id => toolMasteryOptions.find(t => t.id === id)?.label ?? id)
+                                .join(", ")
+                            : "—"}
+                        </div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                          Choix langues: {backgroundLanguages.join(", ") || "—"}
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          borderRadius: 10,
+                          border: "1px solid rgba(255,255,255,0.12)",
+                          background: "rgba(12,12,18,0.75)",
+                          padding: 12,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 8
+                        }}
+                      >
+                        <div style={{ fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }}>
+                          Classes
+                          {renderValidatedBadge(getSectionValidated("classes"))}
+                        </div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                          Classe principale:{" "}
+                          {classPrimary
+                            ? `${classPrimary.label}${primarySubclass ? ` — ${primarySubclass.label}` : ""} (niv ${primaryLevel})`
+                            : "—"}
+                        </div>
+                        {primaryProgressionLines.length > 0 && (
+                          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                            Progression:
+                            {primaryProgressionLines.map(line => (
+                              <div key={`prog-primary-${line}`} style={{ marginTop: 4 }}>
+                                {line}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {classSecondary && secondaryLevel > 0 && (
+                          <>
+                            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                              Classe secondaire:{" "}
+                              {classSecondary
+                                ? `${classSecondary.label}${secondarySubclass ? ` — ${secondarySubclass.label}` : ""} (niv ${secondaryLevel})`
+                                : "—"}
+                            </div>
+                            {secondaryProgressionLines.length > 0 && (
+                              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                                Progression:
+                                {secondaryProgressionLines.map(line => (
+                                  <div key={`prog-secondary-${line}`} style={{ marginTop: 4 }}>
+                                    {line}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+
+                      <div
+                        style={{
+                          borderRadius: 10,
+                          border: "1px solid rgba(255,255,255,0.12)",
+                          background: "rgba(12,12,18,0.75)",
+                          padding: 12,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 8
+                        }}
+                      >
+                        <div style={{ fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }}>
+                          Caracteristiques
+                          {renderValidatedBadge(getSectionValidated("stats"))}
+                        </div>
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(2, minmax(140px, 1fr))",
+                            gap: 8
+                          }}
+                        >
+                          {([
+                            { id: "FOR", label: "Force" },
+                            { id: "DEX", label: "Dexterite" },
+                            { id: "CON", label: "Constitution" },
+                            { id: "INT", label: "Intelligence" },
+                            { id: "SAG", label: "Sagesse" },
+                            { id: "CHA", label: "Charisme" }
+                          ] as const).map(stat => {
+                            const value = getScore(stat.id);
+                            const mod = computeMod(value);
+                            const modLabel = mod >= 0 ? `+${mod}` : `${mod}`;
+                            return (
+                              <div
+                                key={`stat-sheet-${stat.id}`}
+                                style={{
+                                  borderRadius: 8,
+                                  border: "1px solid rgba(255,255,255,0.12)",
+                                  background: "rgba(10,10,16,0.8)",
+                                  padding: "6px 8px",
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  alignItems: "center",
+                                  gap: 8
+                                }}
+                              >
+                                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                                  {stat.label}
+                                </span>
+                                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", fontWeight: 700 }}>
+                                  {value} {modLabel}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 8 }}>
+                          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                            CA (dynamique): {computeArmorClassFromEquipment()}
+                          </div>
+                          {Boolean((choiceSelections as any)?.sheetValidated) && (
+                            <>
+                              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                                PV max: {props.character?.combatStats?.maxHp ?? "—"}
+                              </div>
+                              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                                Des de vie: {classPrimary?.hitDie ? `d${classPrimary.hitDie} x${Number(classEntry?.niveau) || 0}` : "—"}
+                                {classSecondary?.hitDie && Number(secondaryClassEntry?.niveau)
+                                  ? ` + d${classSecondary.hitDie} x${Number(secondaryClassEntry?.niveau) || 0}`
+                                  : ""}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          borderRadius: 10,
+                          border: "1px solid rgba(255,255,255,0.12)",
+                          background: "rgba(12,12,18,0.75)",
+                          padding: 12,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 8
+                        }}
+                      >
+                        <div style={{ fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }}>
+                          Competences
+                          {renderValidatedBadge(getSectionValidated("skills"))}
+                        </div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                          Maitrises:{" "}
+                          {competences.length
+                            ? competences
+                                .map(id => competenceOptions.find(c => c.id === id)?.label ?? id)
+                                .join(", ")
+                            : "—"}
+                        </div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                          Expertises:{" "}
+                          {expertises.length
+                            ? expertises
+                                .map(id => competenceOptions.find(c => c.id === id)?.label ?? id)
+                                .join(", ")
+                            : "—"}
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          borderRadius: 10,
+                          border: "1px solid rgba(255,255,255,0.12)",
+                          background: "rgba(12,12,18,0.75)",
+                          padding: 12,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 8
+                        }}
+                      >
+                        <div style={{ fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }}>
+                          Maitrises
+                          {renderValidatedBadge(getSectionValidated("masteries"))}
+                        </div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                          Armes: {weaponMasteries.join(", ") || "—"}
+                        </div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                          Armures: {armorMasteries.join(", ") || "—"}
+                        </div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                          Outils: {toolMasteries.join(", ") || "—"}
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          borderRadius: 10,
+                          border: "1px solid rgba(255,255,255,0.12)",
+                          background: "rgba(12,12,18,0.75)",
+                          padding: 12,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 8
+                        }}
+                      >
+                        <div style={{ fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }}>
+                          Materiel
+                          {renderValidatedBadge(getSectionValidated("equip"))}
+                        </div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                          Slots equipes:
+                          {EQUIPMENT_SLOTS.filter(slot => Boolean(materielSlots[slot.id])).length > 0
+                            ? EQUIPMENT_SLOTS.filter(slot => Boolean(materielSlots[slot.id])).map(slot => (
+                                <div key={`slot-${slot.id}`} style={{ marginTop: 4 }}>
+                                  {slot.label}: {formatEquipmentLabel(String(materielSlots[slot.id]))}
+                                </div>
+                              ))
+                            : " —"}
+                        </div>
+                        {(() => {
+                          const bagId = materielSlots.paquetage ?? null;
+                          if (!bagId) {
+                            return (
+                              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                                Sac: —
+                              </div>
+                            );
+                          }
+                          const bagDef = objectItemMap.get(bagId);
+                          const bagCapacity = Number((bagDef as any)?.capacityWeight ?? 0) || 0;
+                          const bagContents = inventoryItems.filter(item => item.storedIn === bagId);
+                          const getItemWeight = (item: any) => {
+                            const resolved = resolveItemType(item.id);
+                            if (resolved.type === "weapon") {
+                              return Number(weaponItemMap.get(resolved.id)?.weight ?? 0) || 0;
+                            }
+                            if (resolved.type === "armor") {
+                              return Number(armorItemMap.get(resolved.id)?.weight ?? 0) || 0;
+                            }
+                            if (resolved.type === "tool") {
+                              return Number(toolItemMap.get(resolved.id)?.weight ?? 0) || 0;
+                            }
+                            if (resolved.type === "object") {
+                              return Number(objectItemMap.get(resolved.id)?.weight ?? 0) || 0;
+                            }
+                            return 0;
+                          };
+                          const bagWeight = bagContents.reduce((sum, item) => {
+                            const qty = Number(item.qty ?? 1) || 1;
+                            return sum + getItemWeight(item) * qty;
+                          }, 0);
+                          return (
+                            <>
+                              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                                Sac: {formatEquipmentLabel(bagId)}
+                              </div>
+                              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                                Capacite: {bagWeight.toFixed(1)} /{" "}
+                                {bagCapacity > 0 ? bagCapacity.toFixed(1) : "?"}
+                              </div>
+                              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                                Contenu du sac:
+                                {bagContents.length > 0
+                                  ? bagContents.map(item => (
+                                      <div key={`bag-${item.id}`} style={{ marginTop: 4 }}>
+                                        {formatEquipmentLabel(item.id)} x{item.qty ?? 1}
+                                      </div>
+                                    ))
+                                  : " —"}
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+
+                      <div
+                        style={{
+                          borderRadius: 10,
+                          border: "1px solid rgba(255,255,255,0.12)",
+                          background: "rgba(12,12,18,0.75)",
+                          padding: 12,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 8
+                        }}
+                      >
+                        <div style={{ fontSize: 13, fontWeight: 800 }}>Validation fiche</div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                          PV calcules avec les des de vie et le mod CON.
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const maxHp = computeMaxHp();
+                            const nextCombatStats = {
+                              ...(props.character.combatStats ?? {}),
+                              maxHp,
+                              level: resolveLevel()
+                            };
+                            const nextChoiceSelections = {
+                              ...choiceSelections,
+                              sheetValidated: true
+                            };
+                            props.onChangeCharacter({
+                              ...props.character,
+                              pvActuels: maxHp,
+                              combatStats: nextCombatStats,
+                              choiceSelections: nextChoiceSelections
+                            });
+                          }}
+                          disabled={
+                            ![
+                              "species",
+                              "backgrounds",
+                              "classes",
+                              "stats",
+                              "skills",
+                              "masteries",
+                              "equip",
+                              "profile"
+                            ].every(section => getSectionValidated(section))
+                          }
+                          style={{
+                            padding: "8px 12px",
+                            borderRadius: 8,
+                            border: "1px solid rgba(255,255,255,0.15)",
+                            background: "rgba(46, 204, 113, 0.16)",
+                            color: "#f5f5f5",
+                            cursor: "pointer",
+                            fontSize: 12,
+                            fontWeight: 800,
+                            opacity: [
+                              "species",
+                              "backgrounds",
+                              "classes",
+                              "stats",
+                              "skills",
+                              "masteries",
+                              "equip",
+                              "profile"
+                            ].every(section => getSectionValidated(section))
+                              ? 1
+                              : 0.5
+                          }}
+                        >
+                          Valider la fiche complete
+                        </button>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             </>
           )}

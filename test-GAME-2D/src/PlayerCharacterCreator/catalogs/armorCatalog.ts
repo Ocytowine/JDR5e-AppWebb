@@ -1,13 +1,13 @@
-import type { ArmorItemDefinition } from "./armorTypes";
+import type { ArmorItemDefinition } from "../../game/armorTypes";
 
-import armorsIndex from "../../materiel-type/armures/index.json";
-import cuir from "../../materiel-type/armures/cuir.json";
-import cuirCloute from "../../materiel-type/armures/cuir-cloute.json";
-import chemiseMailles from "../../materiel-type/armures/chemise-mailles.json";
-import demiPlaque from "../../materiel-type/armures/demi-plaque.json";
-import cotteMailles from "../../materiel-type/armures/cotte-mailles.json";
-import harnois from "../../materiel-type/armures/harnois.json";
-import bouclier from "../../materiel-type/armures/bouclier.json";
+import armorsIndex from "../../../materiel-type/armures/index.json";
+import cuir from "../../../materiel-type/armures/cuir.json";
+import cuirCloute from "../../../materiel-type/armures/cuir-cloute.json";
+import chemiseMailles from "../../../materiel-type/armures/chemise-mailles.json";
+import demiPlaque from "../../../materiel-type/armures/demi-plaque.json";
+import cotteMailles from "../../../materiel-type/armures/cotte-mailles.json";
+import harnois from "../../../materiel-type/armures/harnois.json";
+import bouclier from "../../../materiel-type/armures/bouclier.json";
 
 const ARMOR_MODULES: Record<string, ArmorItemDefinition> = {
   "./cuir.json": cuir as ArmorItemDefinition,

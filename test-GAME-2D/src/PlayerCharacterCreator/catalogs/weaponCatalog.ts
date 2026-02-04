@@ -1,19 +1,19 @@
-import type { WeaponTypeDefinition } from "./weaponTypes";
-import { normalizeDamageType } from "./damageTypes";
+import type { WeaponTypeDefinition } from "../../game/weaponTypes";
+import { normalizeDamageType } from "../../game/damageTypes";
 
-import weaponsIndex from "../../materiel-type/armes/index.json";
-import dagger from "../../materiel-type/armes/simple/dague.json";
-import club from "../../materiel-type/armes/simple/massue.json";
-import shortbow from "../../materiel-type/armes/simple/arc-court.json";
-import longsword from "../../materiel-type/armes/martiale/epee-longue.json";
-import battleaxe from "../../materiel-type/armes/martiale/hache-bataille.json";
-import longbow from "../../materiel-type/armes/martiale/arc-long.json";
-import elvenSword from "../../materiel-type/armes/speciale/epee-elfique.json";
-import demonWhip from "../../materiel-type/armes/speciale/fouet-demon.json";
-import repeatingCrossbow from "../../materiel-type/armes/speciale/arbalete-repetee.json";
-import staff from "../../materiel-type/armes/monastique/baton.json";
-import nunchaku from "../../materiel-type/armes/monastique/nunchaku.json";
-import kama from "../../materiel-type/armes/monastique/kama.json";
+import weaponsIndex from "../../../materiel-type/armes/index.json";
+import dagger from "../../../materiel-type/armes/simple/dague.json";
+import club from "../../../materiel-type/armes/simple/massue.json";
+import shortbow from "../../../materiel-type/armes/simple/arc-court.json";
+import longsword from "../../../materiel-type/armes/martiale/epee-longue.json";
+import battleaxe from "../../../materiel-type/armes/martiale/hache-bataille.json";
+import longbow from "../../../materiel-type/armes/martiale/arc-long.json";
+import elvenSword from "../../../materiel-type/armes/speciale/epee-elfique.json";
+import demonWhip from "../../../materiel-type/armes/speciale/fouet-demon.json";
+import repeatingCrossbow from "../../../materiel-type/armes/speciale/arbalete-repetee.json";
+import staff from "../../../materiel-type/armes/monastique/baton.json";
+import nunchaku from "../../../materiel-type/armes/monastique/nunchaku.json";
+import kama from "../../../materiel-type/armes/monastique/kama.json";
 
 const WEAPON_TYPE_MODULES: Record<string, WeaponTypeDefinition> = {
   "./simple/dague.json": dagger as WeaponTypeDefinition,

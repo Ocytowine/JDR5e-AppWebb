@@ -11,5 +11,6 @@
       "label": "Sens aiguises",
       "description": "Avantage sur les tests de Perception basee sur la vue ou l'ouie."
     }
-  ]
+  ],
+  "grants": [{ "kind": "trait", "ids": ["keen_senses"] }]
 }

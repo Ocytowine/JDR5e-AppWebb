@@ -10,5 +10,6 @@
       "label": "Adaptable",
       "description": "Choisit une competence au choix."
     }
-  ]
+  ],
+  "grants": [{ "kind": "trait", "ids": ["adaptable"] }]
 }

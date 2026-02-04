@@ -15,4 +15,10 @@ export interface RaceDefinition {
     range?: number;
   };
   traits?: RaceTraitDefinition[];
+  grants?: Array<{
+    kind: string;
+    ids: string[];
+    source?: string;
+    meta?: Record<string, unknown>;
+  }>;
 }

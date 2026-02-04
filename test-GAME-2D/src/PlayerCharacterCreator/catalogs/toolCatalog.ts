@@ -1,11 +1,11 @@
-import type { ToolItemDefinition } from "./toolTypes";
+import type { ToolItemDefinition } from "../../game/toolTypes";
 
-import toolsIndex from "../../materiel-type/outils/index.json";
-import artisan from "../../materiel-type/outils/outils-artisan.json";
-import games from "../../materiel-type/outils/outils-jeux.json";
-import instruments from "../../materiel-type/outils/outils-instruments.json";
-import misc from "../../materiel-type/outils/outils-autres.json";
-import vehicles from "../../materiel-type/outils/outils-vehicules.json";
+import toolsIndex from "../../../materiel-type/outils/index.json";
+import artisan from "../../../materiel-type/outils/outils-artisan.json";
+import games from "../../../materiel-type/outils/outils-jeux.json";
+import instruments from "../../../materiel-type/outils/outils-instruments.json";
+import misc from "../../../materiel-type/outils/outils-autres.json";
+import vehicles from "../../../materiel-type/outils/outils-vehicules.json";
 
 const TOOL_MODULES: Record<string, ToolItemDefinition> = {
   "./outils-artisan.json": artisan as ToolItemDefinition,

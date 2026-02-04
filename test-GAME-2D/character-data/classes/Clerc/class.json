@@ -2,61 +2,100 @@
   "id": "cleric",
   "label": "Clerc",
   "description": "Un guide spirituel capable de soigner et de canaliser la puissance divine.",
+  "hitDie": 8,
   "subclassLevel": 1,
   "subclassIds": ["peace-domain"],
   "proficiencies": {
     "weapons": ["simple"],
     "armors": ["legere", "intermediaire", "bouclier"]
   },
+  "equipment": [
+    "obj_symbole_sacre"
+  ],
+  "spellcasting": {
+    "ability": "SAG",
+    "preparation": "prepared",
+    "storage": "memory",
+    "focusTypes": ["holy_symbol"],
+    "casterProgression": "full",
+    "slotsByLevel": {
+      "1": [2, 0, 0, 0, 0, 0, 0, 0, 0],
+      "2": [3, 0, 0, 0, 0, 0, 0, 0, 0],
+      "3": [4, 2, 0, 0, 0, 0, 0, 0, 0],
+      "4": [4, 3, 0, 0, 0, 0, 0, 0, 0],
+      "5": [4, 3, 2, 0, 0, 0, 0, 0, 0],
+      "6": [4, 3, 3, 0, 0, 0, 0, 0, 0],
+      "7": [4, 3, 3, 1, 0, 0, 0, 0, 0],
+      "8": [4, 3, 3, 2, 0, 0, 0, 0, 0],
+      "9": [4, 3, 3, 3, 1, 0, 0, 0, 0],
+      "10": [4, 3, 3, 3, 2, 0, 0, 0, 0],
+      "11": [4, 3, 3, 3, 2, 1, 0, 0, 0],
+      "12": [4, 3, 3, 3, 2, 1, 0, 0, 0],
+      "13": [4, 3, 3, 3, 2, 1, 1, 0, 0],
+      "14": [4, 3, 3, 3, 2, 1, 1, 0, 0],
+      "15": [4, 3, 3, 3, 2, 1, 1, 1, 0],
+      "16": [4, 3, 3, 3, 2, 1, 1, 1, 0],
+      "17": [4, 3, 3, 3, 2, 1, 1, 1, 1],
+      "18": [4, 3, 3, 3, 3, 1, 1, 1, 1],
+      "19": [4, 3, 3, 3, 3, 2, 1, 1, 1],
+      "20": [4, 3, 3, 3, 3, 2, 2, 1, 1]
+    }
+  },
   "progression": {
     "1": {
       "grants": [
         { "kind": "feature", "ids": ["channel-divinity"] }
       ],
-      "notes": "Incantation divine et lancement de sorts geres ailleurs."
+      "description": "Incantation divine et lancement de sorts geres ailleurs."
     },
     "2": {
       "grants": [
         { "kind": "feature", "ids": ["channel-divinity"] },
         { "kind": "feature", "ids": ["turn-undead"] }
-      ]
+      ],
+      "description": "Canalisation d'energie divine et Renvoi des morts-vivants."
     },
     "4": {
       "grants": [
         { "kind": "bonus", "ids": ["asi-or-feat"] }
       ],
-      "notes": "Amelioration de caracteristiques (ASI) ou choix de don."
+      "description": "Amelioration de caracteristiques ou choix de don."
     },
     "8": {
       "grants": [
         { "kind": "bonus", "ids": ["asi-or-feat"] }
-      ]
+      ],
+      "description": "Amelioration de caracteristiques ou choix de don."
     },
     "12": {
       "grants": [
         { "kind": "bonus", "ids": ["asi-or-feat"] }
-      ]
+      ],
+      "description": "Amelioration de caracteristiques ou choix de don."
     },
     "16": {
       "grants": [
         { "kind": "bonus", "ids": ["asi-or-feat"] }
-      ]
+      ],
+      "description": "Amelioration de caracteristiques ou choix de don."
     },
     "19": {
       "grants": [
         { "kind": "bonus", "ids": ["asi-or-feat"] }
-      ]
+      ],
+      "description": "Amelioration de caracteristiques choix de don."
     },
     "10": {
       "grants": [
         { "kind": "feature", "ids": ["divine-intervention"] }
-      ]
+      ],
+      "description": "Intervention divine."
     },
     "20": {
       "grants": [
         { "kind": "feature", "ids": ["divine-intervention"] }
       ],
-      "notes": "Intervention divine amelioree."
+      "description": "Intervention divine amelioree."
     }
   }
 }
