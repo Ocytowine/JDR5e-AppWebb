@@ -17,6 +17,8 @@
     "preparation": "prepared",
     "storage": "memory",
     "focusTypes": ["holy_symbol"],
+    "spellFilterTags": ["cleric"],
+    "freePreparedFromGrants": true,
     "casterProgression": "full",
     "slotsByLevel": {
       "1": [2, 0, 0, 0, 0, 0, 0, 0, 0],

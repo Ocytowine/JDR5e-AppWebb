@@ -1,22 +1,26 @@
+// AUTO-GENERATED FILE. DO NOT EDIT MANUALLY.
+// Source of truth: materiel-type/armures (generated indexes)
+
 import type { ArmorItemDefinition } from "../../game/armorTypes";
 
+
 import armorsIndex from "../../../materiel-type/armures/index.json";
-import cuir from "../../../materiel-type/armures/cuir.json";
-import cuirCloute from "../../../materiel-type/armures/cuir-cloute.json";
-import chemiseMailles from "../../../materiel-type/armures/chemise-mailles.json";
-import demiPlaque from "../../../materiel-type/armures/demi-plaque.json";
-import cotteMailles from "../../../materiel-type/armures/cotte-mailles.json";
-import harnois from "../../../materiel-type/armures/harnois.json";
-import bouclier from "../../../materiel-type/armures/bouclier.json";
+import Bouclier from "../../../materiel-type/armures/bouclier.json";
+import ChemiseMailles from "../../../materiel-type/armures/chemise-mailles.json";
+import CotteMailles from "../../../materiel-type/armures/cotte-mailles.json";
+import CuirCloute from "../../../materiel-type/armures/cuir-cloute.json";
+import Cuir from "../../../materiel-type/armures/cuir.json";
+import DemiPlaque from "../../../materiel-type/armures/demi-plaque.json";
+import Harnois from "../../../materiel-type/armures/harnois.json";
 
 const ARMOR_MODULES: Record<string, ArmorItemDefinition> = {
-  "./cuir.json": cuir as ArmorItemDefinition,
-  "./cuir-cloute.json": cuirCloute as ArmorItemDefinition,
-  "./chemise-mailles.json": chemiseMailles as ArmorItemDefinition,
-  "./demi-plaque.json": demiPlaque as ArmorItemDefinition,
-  "./cotte-mailles.json": cotteMailles as ArmorItemDefinition,
-  "./harnois.json": harnois as ArmorItemDefinition,
-  "./bouclier.json": bouclier as ArmorItemDefinition
+  "./bouclier.json": Bouclier as ArmorItemDefinition,
+  "./chemise-mailles.json": ChemiseMailles as ArmorItemDefinition,
+  "./cotte-mailles.json": CotteMailles as ArmorItemDefinition,
+  "./cuir-cloute.json": CuirCloute as ArmorItemDefinition,
+  "./cuir.json": Cuir as ArmorItemDefinition,
+  "./demi-plaque.json": DemiPlaque as ArmorItemDefinition,
+  "./harnois.json": Harnois as ArmorItemDefinition
 };
 
 export function loadArmorItemsFromIndex(): ArmorItemDefinition[] {
@@ -32,6 +36,10 @@ export function loadArmorItemsFromIndex(): ArmorItemDefinition[] {
     } else {
       console.warn("[armors] Type path missing in bundle:", path);
     }
+  }
+
+  if (loaded.length === 0) {
+    console.warn("[armors] No armors loaded from index.json");
   }
 
   return loaded;

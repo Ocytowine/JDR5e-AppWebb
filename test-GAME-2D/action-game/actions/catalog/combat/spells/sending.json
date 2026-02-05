@@ -1,6 +1,9 @@
 {
   "id": "sending",
   "name": "Message",
+  "level": 3,
+  "school": "evocation",
+  "components": { "verbal": true, "somatic": true, "material": true },
   "summary": "Envoie un message magique a distance.",
   "category": "support",
   "actionCost": { "actionType": "action", "movementCost": 0 },
@@ -14,5 +17,5 @@
   "effects": [
     { "type": "log", "message": "Message envoye." }
   ],
-  "tags": ["spell", "utility"]
+  "tags": ["spell", "utility", "cleric"]
 }

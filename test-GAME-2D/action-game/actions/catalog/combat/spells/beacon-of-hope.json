@@ -1,6 +1,9 @@
 {
   "id": "beacon-of-hope",
   "name": "Flamme d'espoir",
+  "level": 3,
+  "school": "abjuration",
+  "components": { "verbal": true, "somatic": true, "material": false },
   "summary": "Renforce les soins et la determination.",
   "category": "support",
   "actionCost": { "actionType": "action", "movementCost": 0 },
@@ -15,5 +18,5 @@
     { "type": "status_apply", "target": "primary", "statusId": "beacon-of-hope", "durationTurns": 10 },
     { "type": "log", "message": "Flamme d'espoir appliquee." }
   ],
-  "tags": ["spell", "support"]
+  "tags": ["spell", "support", "cleric"]
 }

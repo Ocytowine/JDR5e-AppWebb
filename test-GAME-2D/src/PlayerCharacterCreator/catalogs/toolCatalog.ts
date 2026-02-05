@@ -1,18 +1,22 @@
+// AUTO-GENERATED FILE. DO NOT EDIT MANUALLY.
+// Source of truth: materiel-type/outils (generated indexes)
+
 import type { ToolItemDefinition } from "../../game/toolTypes";
 
+
 import toolsIndex from "../../../materiel-type/outils/index.json";
-import artisan from "../../../materiel-type/outils/outils-artisan.json";
-import games from "../../../materiel-type/outils/outils-jeux.json";
-import instruments from "../../../materiel-type/outils/outils-instruments.json";
-import misc from "../../../materiel-type/outils/outils-autres.json";
-import vehicles from "../../../materiel-type/outils/outils-vehicules.json";
+import OutilsArtisan from "../../../materiel-type/outils/outils-artisan.json";
+import OutilsAutres from "../../../materiel-type/outils/outils-autres.json";
+import OutilsInstruments from "../../../materiel-type/outils/outils-instruments.json";
+import OutilsJeux from "../../../materiel-type/outils/outils-jeux.json";
+import OutilsVehicules from "../../../materiel-type/outils/outils-vehicules.json";
 
 const TOOL_MODULES: Record<string, ToolItemDefinition> = {
-  "./outils-artisan.json": artisan as ToolItemDefinition,
-  "./outils-jeux.json": games as ToolItemDefinition,
-  "./outils-instruments.json": instruments as ToolItemDefinition,
-  "./outils-autres.json": misc as ToolItemDefinition,
-  "./outils-vehicules.json": vehicles as ToolItemDefinition
+  "./outils-artisan.json": OutilsArtisan as ToolItemDefinition,
+  "./outils-autres.json": OutilsAutres as ToolItemDefinition,
+  "./outils-instruments.json": OutilsInstruments as ToolItemDefinition,
+  "./outils-jeux.json": OutilsJeux as ToolItemDefinition,
+  "./outils-vehicules.json": OutilsVehicules as ToolItemDefinition
 };
 
 export function loadToolItemsFromIndex(): ToolItemDefinition[] {

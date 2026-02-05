@@ -1,7 +1,9 @@
 {
   "types": [
+    "./arc-court.json",
+    "./arme-endommagee.json",
     "./dague.json",
     "./massue.json",
-    "./arc-court.json"
+    "./petit-couteau.json"
   ]
 }

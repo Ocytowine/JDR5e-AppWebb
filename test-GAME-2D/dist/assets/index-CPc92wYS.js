@@ -1,4 +1,4 @@
-const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/browserAll-cDDJYriK.js","assets/webworkerAll-BGIBy6qI.js","assets/colorToUniform-B2b8-1Ah.js","assets/WebGPURenderer-CBWyNK8t.js","assets/SharedSystems-CGtKPOKy.js","assets/WebGLRenderer-DI7RQcje.js"])))=>i.map(i=>d[i]);
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/browserAll-Dj_mhGax.js","assets/webworkerAll-aA1420LX.js","assets/colorToUniform-B2b8-1Ah.js","assets/WebGPURenderer-Btr_naJT.js","assets/SharedSystems-Bhwr4gTt.js","assets/WebGLRenderer-BJPsstto.js"])))=>i.map(i=>d[i]);
 var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key2, value2) => key2 in obj ? __defProp(obj, key2, { enumerable: true, configurable: true, writable: true, value: value2 }) : obj[key2] = value2;
 var __publicField = (obj, key2, value2) => __defNormalProp(obj, typeof key2 !== "symbol" ? key2 + "" : key2, value2);
@@ -8043,10 +8043,10 @@ function isInsideBounds(x2, y2, grid, playableCells) {
   if (playableCells && playableCells.size > 0) return playableCells.has(`${x2},${y2}`);
   return true;
 }
-function setVisibility(map, x2, y2, level) {
+function setVisibility(map, x2, y2, level2) {
   const k2 = `${x2},${y2}`;
   const prev = map.get(k2) ?? 0;
-  if (level > prev) map.set(k2, level);
+  if (level2 > prev) map.set(k2, level2);
 }
 function computeShadowcastVisibility(params) {
   const {
@@ -8233,7 +8233,7 @@ const types$c = ["./brute.json", "./archer.json", "./assassin.json", "./ghost.js
 const enemyTypesIndex = {
   types: types$c
 };
-const id$1_ = "brute";
+const id$2a = "brute";
 const label$1O = "Brute";
 const description$F = "Frontliner robuste qui avance pour engager le joueur.";
 const aiRole$3 = "brute";
@@ -8248,7 +8248,7 @@ const movementModes$3 = { "walk": 3 };
 const movement$5 = { "type": "ground", "speed": 3, "canPassThroughWalls": false, "canPassThroughEntities": false, "canStopOnOccupiedTile": false };
 const vision$5 = { "shape": "cone", "range": 100, "apertureDeg": 180, "canSeeInDark": false, "lightVision": "normal" };
 const bruteType = {
-  id: id$1_,
+  id: id$2a,
   label: label$1O,
   description: description$F,
   aiRole: aiRole$3,
@@ -8263,7 +8263,7 @@ const bruteType = {
   movement: movement$5,
   vision: vision$5
 };
-const id$1Z = "archer";
+const id$29 = "archer";
 const label$1N = "Archer";
 const description$E = "Tireur qui prefere garder une distance de securite avant de frapper.";
 const aiRole$2 = "archer";
@@ -8278,7 +8278,7 @@ const movementModes$2 = { "walk": 2 };
 const movement$4 = { "type": "ground", "speed": 2, "canPassThroughWalls": false, "canPassThroughEntities": false, "canStopOnOccupiedTile": false };
 const vision$4 = { "shape": "cone", "range": 100, "apertureDeg": 180, "canSeeInDark": false, "lightVision": "normal" };
 const archerType = {
-  id: id$1Z,
+  id: id$29,
   label: label$1N,
   description: description$E,
   aiRole: aiRole$2,
@@ -8293,7 +8293,7 @@ const archerType = {
   movement: movement$4,
   vision: vision$4
 };
-const id$1Y = "assassin";
+const id$28 = "assassin";
 const label$1M = "Assassin";
 const description$D = "Frappeur rapide qui cherche a se rapprocher pour porter un coup decisif.";
 const aiRole$1 = "assassin";
@@ -8308,7 +8308,7 @@ const movementModes$1 = { "walk": 3 };
 const movement$3 = { "type": "ground", "speed": 3, "canPassThroughWalls": false, "canPassThroughEntities": true, "canStopOnOccupiedTile": false };
 const vision$3 = { "shape": "cone", "range": 100, "apertureDeg": 180, "canSeeInDark": false, "lightVision": "normal" };
 const assassinType = {
-  id: id$1Y,
+  id: id$28,
   label: label$1M,
   description: description$D,
   aiRole: aiRole$1,
@@ -8323,7 +8323,7 @@ const assassinType = {
   movement: movement$3,
   vision: vision$3
 };
-const id$1X = "ghost";
+const id$27 = "ghost";
 const label$1L = "Fantome";
 const description$C = "Esprit intangible capable de traverser les autres creatures.";
 const aiRole = "ghost";
@@ -8338,7 +8338,7 @@ const movementModes = { "ghost": 4 };
 const movement$2 = { "type": "ghost", "speed": 4, "canPassThroughWalls": true, "canPassThroughEntities": true, "canStopOnOccupiedTile": false };
 const vision$2 = { "shape": "circle", "range": 100, "canSeeInDark": true, "lightVision": "darkvision" };
 const ghostType = {
-  id: id$1X,
+  id: id$27,
   label: label$1L,
   description: description$C,
   aiRole,
@@ -8357,338 +8357,338 @@ const types$b = ["./fence-wood.json", "./tree-oak.json", "./bush.json", "./log.j
 const obstaclesIndex = {
   types: types$b
 };
-const id$1W = "fence-wood";
+const id$26 = "fence-wood";
 const label$1K = "Cloture en bois";
-const category$1a = "structure";
-const tags$1z = ["fence", "wood", "structure"];
+const category$1m = "structure";
+const tags$1L = ["fence", "wood", "structure"];
 const blocking$n = { "movement": true, "vision": false, "attacks": false };
 const durability$n = { "destructible": true, "maxHp": 8, "ac": 10 };
 const variants$n = [{ "id": "1", "label": "Segment 1", "footprint": [{ "x": 0, "y": 0 }], "rotatable": true }, { "id": "2", "label": "Segment 2", "footprint": [{ "x": 0, "y": 0 }, { "x": 1, "y": 0 }], "rotatable": true }];
 const appearance$p = { "spriteKey": "obstacle:fence-wood", "heightClass": "low", "tokenScale": { "min": 80, "default": 100, "max": 150 } };
 const spawnRules$g = { "weight": 2, "cluster": { "min": 1, "max": 6 }, "shapeHint": "line", "avoidNearTokens": true };
 const fenceWood = {
-  id: id$1W,
+  id: id$26,
   label: label$1K,
-  category: category$1a,
-  tags: tags$1z,
+  category: category$1m,
+  tags: tags$1L,
   blocking: blocking$n,
   durability: durability$n,
   variants: variants$n,
   appearance: appearance$p,
   spawnRules: spawnRules$g
 };
-const id$1V = "tree-oak";
+const id$25 = "tree-oak";
 const label$1J = "Chêne";
-const category$19 = "vegetation";
-const tags$1y = ["tree", "vegetation", "wood"];
+const category$1l = "vegetation";
+const tags$1K = ["tree", "vegetation", "wood"];
 const blocking$m = { "movement": true, "vision": true, "attacks": true };
 const durability$m = { "destructible": true, "maxHp": 22, "ac": 12 };
 const variants$m = [{ "id": "base", "label": "Tronc", "footprint": [{ "x": 0, "y": 0 }], "rotatable": true }];
 const appearance$o = { "randomRotation": true, "paletteId": "default", "palettes": { "default": { "layers": { "canopy": { "alpha": 0.6, "tintRange": { "dark": 3107631, "light": 7323487 } }, "trunk": { "tintRange": { "dark": 5978654, "light": 9132587 } } } }, "autumn": { "layers": { "canopy": { "alpha": 0.75, "tintRange": { "dark": 10709547, "light": 15778138 } }, "trunk": { "tintRange": { "dark": 5978654, "light": 9132587 } } } }, "leafless": { "layers": { "canopy": { "alpha": 0.75, "visible": false } } } }, "spriteGrid": { "tilesX": 3, "tilesY": 3 }, "shadowSpriteLeafy": "obstacle:tree-oak-canopy-shadow", "shadowSpriteLeafless": "obstacle:tree-oak-trunk-shadow", "shadowMode": "tall", "heightClass": "tall", "shadowStretch": 1, "layers": [{ "id": "trunk", "spriteKey": "obstacle:tree-oak-trunk" }, { "id": "canopy", "spriteKey": "obstacle:tree-oak-canopy", "z": 1, "renderLayer": "overhead", "visible": "hideWhenTokenBelow" }], "tokenScale": { "min": 80, "default": 90, "max": 100 } };
 const spawnRules$f = { "weight": 6, "cluster": { "min": 1, "max": 5 }, "shapeHint": "scatter", "avoidNearTokens": true };
 const treeOak = {
-  id: id$1V,
+  id: id$25,
   label: label$1J,
-  category: category$19,
-  tags: tags$1y,
+  category: category$1l,
+  tags: tags$1K,
   blocking: blocking$m,
   durability: durability$m,
   variants: variants$m,
   appearance: appearance$o,
   spawnRules: spawnRules$f
 };
-const id$1U = "bush";
+const id$24 = "bush";
 const label$1I = "Buisson";
-const category$18 = "vegetation";
-const tags$1x = ["bush", "vegetation", "nature"];
+const category$1k = "vegetation";
+const tags$1J = ["bush", "vegetation", "nature"];
 const blocking$l = { "movement": true, "vision": false, "attacks": false };
 const durability$l = { "destructible": true, "maxHp": 5, "ac": 10 };
 const variants$l = [{ "id": "base", "label": "Buisson", "footprint": [{ "x": 0, "y": 0 }], "rotatable": true }];
 const appearance$n = { "randomRotation": true, "heightClass": "low", "shadowStretch": 1.2, "paletteId": "default", "palettes": { "default": { "layers": { "bush": { "tintRange": { "dark": 2926900, "light": 7063940 } } } }, "autumn": { "layers": { "bush": { "tintRange": { "dark": 10246534, "light": 15243711 } } } }, "leafless": { "layers": { "bush": { "tintRange": { "dark": 5723992, "light": 10790052 } } } } }, "layers": [{ "id": "bush", "spriteKey": "obstacle:bush" }], "tokenScale": { "min": 100, "default": 120, "max": 135 } };
 const spawnRules$e = { "weight": 4, "cluster": { "min": 1, "max": 6 }, "shapeHint": "scatter", "avoidNearTokens": true };
 const bush = {
-  id: id$1U,
+  id: id$24,
   label: label$1I,
-  category: category$18,
-  tags: tags$1x,
+  category: category$1k,
+  tags: tags$1J,
   blocking: blocking$l,
   durability: durability$l,
   variants: variants$l,
   appearance: appearance$n,
   spawnRules: spawnRules$e
 };
-const id$1T = "log";
+const id$23 = "log";
 const label$1H = "Tronc";
-const category$17 = "prop";
-const tags$1w = ["log", "wood", "prop"];
+const category$1j = "prop";
+const tags$1I = ["log", "wood", "prop"];
 const blocking$k = { "movement": true, "vision": false, "attacks": false };
 const durability$k = { "destructible": true, "maxHp": 10, "ac": 11 };
 const variants$k = [{ "id": "base", "label": "Tronc", "footprint": [{ "x": 0, "y": 0 }, { "x": 1, "y": 0 }, { "x": 2, "y": 0 }, { "x": 3, "y": 0 }, { "x": 4, "y": 0 }], "rotatable": true }];
 const appearance$m = { "randomRotation": true, "spriteKey": "obstacle:log", "spriteGrid": { "tilesX": 5, "tilesY": 1 }, "heightClass": "low" };
 const spawnRules$d = { "weight": 2, "cluster": { "min": 1, "max": 3 }, "shapeHint": "scatter", "avoidNearTokens": true };
 const log = {
-  id: id$1T,
+  id: id$23,
   label: label$1H,
-  category: category$17,
-  tags: tags$1w,
+  category: category$1j,
+  tags: tags$1I,
   blocking: blocking$k,
   durability: durability$k,
   variants: variants$k,
   appearance: appearance$m,
   spawnRules: spawnRules$d
 };
-const id$1S = "rock";
+const id$22 = "rock";
 const label$1G = "Roche";
-const category$16 = "structure";
-const tags$1v = ["rock", "stone", "structure"];
+const category$1i = "structure";
+const tags$1H = ["rock", "stone", "structure"];
 const blocking$j = { "movement": true, "vision": true, "attacks": true };
 const durability$j = { "destructible": true, "maxHp": 18, "ac": 13 };
 const variants$j = [{ "id": "base", "label": "Roche", "footprint": [{ "x": 0, "y": 0 }], "rotatable": true }];
 const appearance$l = { "randomRotation": true, "spriteKey": "obstacle:rock", "tokenScale": { "min": 80, "default": 100, "max": 150 } };
 const spawnRules$c = { "weight": 3, "cluster": { "min": 1, "max": 3 }, "shapeHint": "scatter", "avoidNearTokens": true };
 const rock = {
-  id: id$1S,
+  id: id$22,
   label: label$1G,
-  category: category$16,
-  tags: tags$1v,
+  category: category$1i,
+  tags: tags$1H,
   blocking: blocking$j,
   durability: durability$j,
   variants: variants$j,
   appearance: appearance$l,
   spawnRules: spawnRules$c
 };
-const id$1R = "rubble";
+const id$21 = "rubble";
 const label$1F = "Gravats";
-const category$15 = "prop";
-const tags$1u = ["rubble", "stone", "prop"];
+const category$1h = "prop";
+const tags$1G = ["rubble", "stone", "prop"];
 const blocking$i = { "movement": true, "vision": false, "attacks": false };
 const durability$i = { "destructible": true, "maxHp": 8, "ac": 11 };
 const variants$i = [{ "id": "base", "label": "Gravats", "footprint": [{ "x": 0, "y": 0 }], "rotatable": true }];
 const appearance$k = { "randomRotation": true, "spriteKey": "obstacle:rubble", "heightClass": "low", "tokenScale": { "min": 80, "default": 100, "max": 150 } };
 const spawnRules$b = { "weight": 2, "cluster": { "min": 1, "max": 4 }, "shapeHint": "scatter", "avoidNearTokens": true };
 const rubble = {
-  id: id$1R,
+  id: id$21,
   label: label$1F,
-  category: category$15,
-  tags: tags$1u,
+  category: category$1h,
+  tags: tags$1G,
   blocking: blocking$i,
   durability: durability$i,
   variants: variants$i,
   appearance: appearance$k,
   spawnRules: spawnRules$b
 };
-const id$1Q = "stalagmite";
+const id$20 = "stalagmite";
 const label$1E = "Stalagmite";
-const category$14 = "structure";
-const tags$1t = ["stalagmite", "cave", "stone", "structure"];
+const category$1g = "structure";
+const tags$1F = ["stalagmite", "cave", "stone", "structure"];
 const blocking$h = { "movement": true, "vision": true, "attacks": true };
 const durability$h = { "destructible": true, "maxHp": 16, "ac": 13 };
 const variants$h = [{ "id": "base", "label": "Stalagmite", "footprint": [{ "x": 0, "y": 0 }], "rotatable": true }];
 const appearance$j = { "randomRotation": true, "spriteKey": "obstacle:stalagmite", "heightClass": "tall", "tokenScale": { "min": 80, "default": 100, "max": 150 } };
 const spawnRules$a = { "weight": 2, "cluster": { "min": 1, "max": 4 }, "shapeHint": "scatter", "avoidNearTokens": true };
 const stalagmite = {
-  id: id$1Q,
+  id: id$20,
   label: label$1E,
-  category: category$14,
-  tags: tags$1t,
+  category: category$1g,
+  tags: tags$1F,
   blocking: blocking$h,
   durability: durability$h,
   variants: variants$h,
   appearance: appearance$j,
   spawnRules: spawnRules$a
 };
-const id$1P = "barrel-wood";
+const id$1$ = "barrel-wood";
 const label$1D = "Tonneau";
-const category$13 = "prop";
-const tags$1s = ["barrel", "wood", "prop"];
+const category$1f = "prop";
+const tags$1E = ["barrel", "wood", "prop"];
 const blocking$g = { "movement": true, "vision": false, "attacks": false };
 const durability$g = { "destructible": true, "maxHp": 8, "ac": 10 };
 const variants$g = [{ "id": "base", "label": "Tonneau", "footprint": [{ "x": 0, "y": 0 }], "rotatable": true }];
 const appearance$i = { "spriteKey": "obstacle:barrel-wood", "tokenScale": { "min": 40, "default": 50, "max": 55 } };
 const spawnRules$9 = { "weight": 1, "cluster": { "min": 1, "max": 3 }, "shapeHint": "scatter", "avoidNearTokens": true };
 const barrelWood = {
-  id: id$1P,
+  id: id$1$,
   label: label$1D,
-  category: category$13,
-  tags: tags$1s,
+  category: category$1f,
+  tags: tags$1E,
   blocking: blocking$g,
   durability: durability$g,
   variants: variants$g,
   appearance: appearance$i,
   spawnRules: spawnRules$9
 };
-const id$1O = "crate-wood";
+const id$1_ = "crate-wood";
 const label$1C = "Caisse";
-const category$12 = "prop";
-const tags$1r = ["crate", "wood", "prop"];
+const category$1e = "prop";
+const tags$1D = ["crate", "wood", "prop"];
 const blocking$f = { "movement": true, "vision": false, "attacks": false };
 const durability$f = { "destructible": true, "maxHp": 6, "ac": 10 };
 const variants$f = [{ "id": "base", "label": "Caisse", "footprint": [{ "x": 0, "y": 0 }], "rotatable": true }];
 const appearance$h = { "spriteKey": "obstacle:crate-wood", "tokenScale": { "min": 80, "default": 100, "max": 150 } };
 const spawnRules$8 = { "weight": 3, "cluster": { "min": 1, "max": 4 }, "shapeHint": "scatter", "avoidNearTokens": true };
 const crateWood = {
-  id: id$1O,
+  id: id$1_,
   label: label$1C,
-  category: category$12,
-  tags: tags$1r,
+  category: category$1e,
+  tags: tags$1D,
   blocking: blocking$f,
   durability: durability$f,
   variants: variants$f,
   appearance: appearance$h,
   spawnRules: spawnRules$8
 };
-const id$1N = "table-wood";
+const id$1Z = "table-wood";
 const label$1B = "Table";
-const category$11 = "prop";
-const tags$1q = ["table", "wood", "prop"];
+const category$1d = "prop";
+const tags$1C = ["table", "wood", "prop"];
 const blocking$e = { "movement": true, "vision": false, "attacks": false };
 const durability$e = { "destructible": true, "maxHp": 10, "ac": 11 };
 const variants$e = [{ "id": "base", "label": "Table", "footprint": [{ "x": 0, "y": 0 }, { "x": 0, "y": 1 }], "rotatable": true }];
 const appearance$g = { "spriteKey": "obstacle:table-wood", "heightClass": "medium", "shadowStretch": 1.2 };
 const spawnRules$7 = { "weight": 2, "cluster": { "min": 1, "max": 3 }, "shapeHint": "room", "avoidNearTokens": true };
 const tableWood = {
-  id: id$1N,
+  id: id$1Z,
   label: label$1B,
-  category: category$11,
-  tags: tags$1q,
+  category: category$1d,
+  tags: tags$1C,
   blocking: blocking$e,
   durability: durability$e,
   variants: variants$e,
   appearance: appearance$g,
   spawnRules: spawnRules$7
 };
-const id$1M = "chair-wood";
+const id$1Y = "chair-wood";
 const label$1A = "Chaise";
-const category$10 = "prop";
-const tags$1p = ["chair", "wood", "prop"];
+const category$1c = "prop";
+const tags$1B = ["chair", "wood", "prop"];
 const blocking$d = { "movement": true, "vision": false, "attacks": false };
 const durability$d = { "destructible": true, "maxHp": 4, "ac": 10 };
 const variants$d = [{ "id": "base", "label": "Chaise", "footprint": [{ "x": 0, "y": 0 }], "rotatable": true }];
 const appearance$f = { "spriteKey": "obstacle:chair-wood", "heightClass": "low" };
 const spawnRules$6 = { "weight": 2, "cluster": { "min": 1, "max": 4 }, "shapeHint": "room", "avoidNearTokens": true };
 const chairWood = {
-  id: id$1M,
+  id: id$1Y,
   label: label$1A,
-  category: category$10,
-  tags: tags$1p,
+  category: category$1c,
+  tags: tags$1B,
   blocking: blocking$d,
   durability: durability$d,
   variants: variants$d,
   appearance: appearance$f,
   spawnRules: spawnRules$6
 };
-const id$1L = "statue-stone";
+const id$1X = "statue-stone";
 const label$1z = "Statue de pierre";
-const category$$ = "prop";
-const tags$1o = ["statue", "stone", "prop"];
+const category$1b = "prop";
+const tags$1A = ["statue", "stone", "prop"];
 const blocking$c = { "movement": true, "vision": true, "attacks": true };
 const durability$c = { "destructible": true, "maxHp": 20, "ac": 14 };
 const variants$c = [{ "id": "base", "label": "Statue", "footprint": [{ "x": 0, "y": 0 }], "rotatable": true }];
 const appearance$e = { "spriteKey": "obstacle:statue-stone", "heightClass": "tall", "tokenScale": { "min": 80, "default": 100, "max": 150 } };
 const spawnRules$5 = { "weight": 1, "cluster": { "min": 1, "max": 2 }, "shapeHint": "room", "avoidNearTokens": true };
 const statueStone = {
-  id: id$1L,
+  id: id$1X,
   label: label$1z,
-  category: category$$,
-  tags: tags$1o,
+  category: category$1b,
+  tags: tags$1A,
   blocking: blocking$c,
   durability: durability$c,
   variants: variants$c,
   appearance: appearance$e,
   spawnRules: spawnRules$5
 };
-const id$1K = "torch-wall";
+const id$1W = "torch-wall";
 const label$1y = "Torche murale";
-const category$_ = "structure";
-const tags$1n = ["torch", "fire", "structure"];
+const category$1a = "structure";
+const tags$1z = ["torch", "fire", "structure"];
 const blocking$b = { "movement": false, "vision": false, "attacks": false };
 const durability$b = { "destructible": true, "maxHp": 3, "ac": 10 };
 const variants$b = [{ "id": "base", "label": "Torche", "footprint": [{ "x": 0, "y": 0 }], "rotatable": true }];
 const appearance$d = { "layers": [{ "id": "flame", "spriteKey": "effect:fire", "animationSpeed": 0.2, "scale": 0.55 }], "heightClass": "low", "tokenScale": { "min": 80, "default": 100, "max": 150 } };
-const effects$c = [{ "id": "fire", "enabled": true }];
+const effects$o = [{ "id": "fire", "enabled": true }];
 const spawnRules$4 = { "weight": 1, "cluster": { "min": 1, "max": 4 }, "shapeHint": "line", "avoidNearTokens": false };
 const torchWall = {
-  id: id$1K,
+  id: id$1W,
   label: label$1y,
-  category: category$_,
-  tags: tags$1n,
+  category: category$1a,
+  tags: tags$1z,
   blocking: blocking$b,
   durability: durability$b,
   variants: variants$b,
   appearance: appearance$d,
-  effects: effects$c,
+  effects: effects$o,
   spawnRules: spawnRules$4
 };
-const id$1J = "brazier";
+const id$1V = "brazier";
 const label$1x = "Brasero";
-const category$Z = "prop";
-const tags$1m = ["brazier", "fire", "prop"];
+const category$19 = "prop";
+const tags$1y = ["brazier", "fire", "prop"];
 const blocking$a = { "movement": true, "vision": false, "attacks": false };
 const durability$a = { "destructible": true, "maxHp": 6, "ac": 10 };
 const variants$a = [{ "id": "base", "label": "Brasero", "footprint": [{ "x": 0, "y": 0 }], "rotatable": true }];
 const appearance$c = { "layers": [{ "id": "base", "spriteKey": "obstacle:brazier" }, { "id": "flame", "spriteKey": "effect:fire", "animationSpeed": 0.2, "scale": 0.8 }], "tokenScale": { "default": 80 } };
 const litByDefault = true;
 const interactions = [{ "id": "brazier-light", "label": "Allumer", "kind": "toggle", "cost": "bonus", "setLit": true }, { "id": "brazier-extinguish", "label": "Eteindre", "kind": "toggle", "cost": "bonus", "setLit": false }];
-const effects$b = [{ "id": "fire", "enabled": true }];
+const effects$n = [{ "id": "fire", "enabled": true }];
 const spawnRules$3 = { "weight": 1, "cluster": { "min": 1, "max": 2 }, "shapeHint": "room", "avoidNearTokens": true };
 const brazier = {
-  id: id$1J,
+  id: id$1V,
   label: label$1x,
-  category: category$Z,
-  tags: tags$1m,
+  category: category$19,
+  tags: tags$1y,
   blocking: blocking$a,
   durability: durability$a,
   variants: variants$a,
   appearance: appearance$c,
   litByDefault,
   interactions,
-  effects: effects$b,
+  effects: effects$n,
   spawnRules: spawnRules$3
 };
-const id$1I = "fire-only";
+const id$1U = "fire-only";
 const label$1w = "Feu (test)";
-const category$Y = "effect";
-const tags$1l = ["fire", "effect"];
+const category$18 = "effect";
+const tags$1x = ["fire", "effect"];
 const blocking$9 = { "movement": false, "vision": false, "attacks": false };
 const durability$9 = { "destructible": false, "maxHp": 1 };
 const variants$9 = [{ "id": "base", "label": "Feu", "footprint": [{ "x": 0, "y": 0 }], "rotatable": false }];
 const appearance$b = { "layers": [{ "id": "flame", "spriteKey": "effect:fire", "animationSpeed": 0.2, "scale": 0.9 }], "heightClass": "low" };
-const effects$a = [{ "id": "fire", "enabled": true }];
+const effects$m = [{ "id": "fire", "enabled": true }];
 const fireOnly = {
-  id: id$1I,
+  id: id$1U,
   label: label$1w,
-  category: category$Y,
-  tags: tags$1l,
+  category: category$18,
+  tags: tags$1x,
   blocking: blocking$9,
   durability: durability$9,
   variants: variants$9,
   appearance: appearance$b,
-  effects: effects$a
+  effects: effects$m
 };
-const id$1H = "pillar-stone";
+const id$1T = "pillar-stone";
 const label$1v = "Pilier de pierre";
-const category$X = "structure";
-const tags$1k = ["pillar", "stone", "structure"];
+const category$17 = "structure";
+const tags$1w = ["pillar", "stone", "structure"];
 const blocking$8 = { "movement": true, "vision": true, "attacks": true };
 const durability$8 = { "destructible": true, "maxHp": 28, "ac": 14 };
 const variants$8 = [{ "id": "base", "label": "Pilier", "footprint": [{ "x": 0, "y": 0 }], "rotatable": true }];
 const appearance$a = { "spriteKey": "obstacle:pillar-stone", "heightClass": "tall", "tokenScale": { "min": 80, "default": 100, "max": 150 } };
 const spawnRules$2 = { "weight": 2, "cluster": { "min": 1, "max": 2 }, "shapeHint": "scatter", "avoidNearTokens": true };
 const pillarStone = {
-  id: id$1H,
+  id: id$1T,
   label: label$1v,
-  category: category$X,
-  tags: tags$1k,
+  category: category$17,
+  tags: tags$1w,
   blocking: blocking$8,
   durability: durability$8,
   variants: variants$8,
   appearance: appearance$a,
   spawnRules: spawnRules$2
 };
-const id$1G = "stairs-stone";
+const id$1S = "stairs-stone";
 const label$1u = "Escalier";
-const category$W = "structure";
-const tags$1j = ["stairs", "connector"];
+const category$16 = "structure";
+const tags$1v = ["stairs", "connector"];
 const blocking$7 = { "movement": false, "vision": false, "attacks": false };
 const durability$7 = { "destructible": false, "maxHp": 1 };
 const variants$7 = [{ "id": "base", "label": "Base", "footprint": [{ "x": 0, "y": 0 }], "rotatable": true }];
@@ -8696,10 +8696,10 @@ const appearance$9 = { "heightClass": "low" };
 const spawnRules$1 = { "weight": 0, "cluster": { "min": 1, "max": 1 }, "avoidNearTokens": false };
 const connects = { "from": 0, "to": 1 };
 const stairsStone = {
-  id: id$1G,
+  id: id$1S,
   label: label$1u,
-  category: category$W,
-  tags: tags$1j,
+  category: category$16,
+  tags: tags$1v,
   blocking: blocking$7,
   durability: durability$7,
   variants: variants$7,
@@ -8707,20 +8707,20 @@ const stairsStone = {
   spawnRules: spawnRules$1,
   connects
 };
-const id$1F = "charette-wood";
+const id$1R = "charette-wood";
 const label$1t = "Charette";
-const category$V = "prop";
-const tags$1i = ["prop"];
+const category$15 = "prop";
+const tags$1u = ["prop"];
 const blocking$6 = { "movement": true, "vision": false, "attacks": false };
 const durability$6 = { "destructible": true, "maxHp": 18, "ac": 10 };
 const variants$6 = [{ "id": "base", "label": "Base", "footprint": [{ "x": -1, "y": -1 }, { "x": 0, "y": -1 }, { "x": -1, "y": 0 }, { "x": 0, "y": 0 }, { "x": -1, "y": 1 }, { "x": 0, "y": 1 }], "rotatable": true }];
 const appearance$8 = { "spriteKey": "obstacle:charette-wood", "tint": 13395558, "heightClass": "medium", "shadowStretch": 1.4, "spriteGrid": { "tilesX": 2, "tilesY": 3 }, "tokenScale": { "min": 90, "default": 110, "max": 140 } };
 const spawnRules = { "weight": 1, "cluster": { "min": 1, "max": 1 }, "avoidNearTokens": true };
 const charetteWood = {
-  id: id$1F,
+  id: id$1R,
   label: label$1t,
-  category: category$V,
-  tags: tags$1i,
+  category: category$15,
+  tags: tags$1u,
   blocking: blocking$6,
   durability: durability$6,
   variants: variants$6,
@@ -8767,31 +8767,31 @@ const types$a = ["./fire.json", "./melee-slash.json"];
 const effectsIndex = {
   types: types$a
 };
-const id$1E = "fire";
+const id$1Q = "fire";
 const label$1s = "Feu";
-const tags$1h = ["fire", "hazard"];
+const tags$1t = ["fire", "hazard"];
 const appearance$7 = { "spriteKey": "effect:fire", "animationSpeed": 0.2, "animationLoop": true, "scaleRange": { "min": 0.8, "max": 1.15 }, "tintRange": { "dark": 16742912, "light": 16768256 }, "alphaRange": { "min": 0.85, "max": 1 } };
 const placement = { "blockedFloorTags": ["liquid"], "avoidLiquid": true };
 const hazard = { "damageFormula": "1d4", "statusRoll": { "die": 20, "trigger": 1, "statusId": "burning" }, "onTraverse": true };
 const light = { "radius": 3, "color": 16756045 };
 const fire = {
-  id: id$1E,
+  id: id$1Q,
   label: label$1s,
-  tags: tags$1h,
+  tags: tags$1t,
   appearance: appearance$7,
   placement,
   hazard,
   light
 };
-const id$1D = "melee-slash";
+const id$1P = "melee-slash";
 const label$1r = "Entaille";
-const tags$1g = ["attack", "melee"];
+const tags$1s = ["attack", "melee"];
 const appearance$6 = { "spriteKey": "effect:sword", "animationSpeed": 0.32, "animationLoop": false, "targetSize": 128, "scale": 1, "alpha": 1 };
 const durationMs = 420;
 const meleeSlash = {
-  id: id$1D,
+  id: id$1P,
   label: label$1r,
-  tags: tags$1g,
+  tags: tags$1s,
   appearance: appearance$6,
   durationMs
 };
@@ -8819,22 +8819,22 @@ const types$9 = ["./burning.json", "./killer-mark.json"];
 const statusIndex = {
   types: types$9
 };
-const id$1C = "burning";
+const id$1O = "burning";
 const label$1q = "En feu";
 const durationTurns$1 = 3;
 const damagePerTurnFormula = "1d4";
 const burning = {
-  id: id$1C,
+  id: id$1O,
   label: label$1q,
   durationTurns: durationTurns$1,
   damagePerTurnFormula
 };
-const id$1B = "killer-mark";
+const id$1N = "killer-mark";
 const label$1p = "Marque du tueur";
 const durationTurns = 9999;
 const persistUntilDeath = true;
 const killerMark = {
-  id: id$1B,
+  id: id$1N,
   label: label$1p,
   durationTurns,
   persistUntilDeath
@@ -8863,115 +8863,115 @@ const features = ["./catalog/cleric/channel-divinity.json", "./catalog/cleric/tu
 const featuresIndex = {
   features
 };
-const id$1A = "channel-divinity";
+const id$1M = "channel-divinity";
 const label$1o = "Channel Divinity";
-const summary$i = "Divine power usable a limited number of times per rest.";
+const summary$u = "Divine power usable a limited number of times per rest.";
 const kind$6 = "resource";
-const tags$1f = ["cleric", "resource"];
+const tags$1r = ["cleric", "resource"];
 const grants$c = [{ "kind": "resource", "ids": ["channel-divinity"], "source": "channel-divinity", "meta": { "maxByLevel": { "2": 1, "6": 2, "18": 3 }, "recharge": "short_rest" } }];
 const rules$6 = { "text": "Channel Divinity uses are regained on a short rest." };
 const channelDivinity = {
-  id: id$1A,
+  id: id$1M,
   label: label$1o,
-  summary: summary$i,
+  summary: summary$u,
   kind: kind$6,
-  tags: tags$1f,
+  tags: tags$1r,
   grants: grants$c,
   rules: rules$6
 };
-const id$1z = "turn-undead";
+const id$1L = "turn-undead";
 const label$1n = "Turn Undead";
-const summary$h = "Channel Divinity option that forces undead to flee.";
+const summary$t = "Channel Divinity option that forces undead to flee.";
 const kind$5 = "action";
-const tags$1e = ["cleric", "channel-divinity"];
+const tags$1q = ["cleric", "channel-divinity"];
 const grants$b = [{ "kind": "action", "ids": ["turn-undead"], "source": "turn-undead" }];
 const rules$5 = { "text": "Requires Channel Divinity. Undead within range must flee.", "triggers": [{ "event": "on_action", "notes": "Uses Channel Divinity resource." }] };
 const turnUndead = {
-  id: id$1z,
+  id: id$1L,
   label: label$1n,
-  summary: summary$h,
+  summary: summary$t,
   kind: kind$5,
-  tags: tags$1e,
+  tags: tags$1q,
   grants: grants$b,
   rules: rules$5
 };
-const id$1y = "divine-intervention";
+const id$1K = "divine-intervention";
 const label$1m = "Divine Intervention";
-const summary$g = "Call on your deity for aid once per rest.";
+const summary$s = "Call on your deity for aid once per rest.";
 const kind$4 = "feature";
-const tags$1d = ["cleric"];
+const tags$1p = ["cleric"];
 const grants$a = [];
 const rules$4 = { "text": "At higher levels, intervention succeeds automatically." };
 const divineIntervention = {
-  id: id$1y,
+  id: id$1K,
   label: label$1m,
-  summary: summary$g,
+  summary: summary$s,
   kind: kind$4,
-  tags: tags$1d,
+  tags: tags$1p,
   grants: grants$a,
   rules: rules$4
 };
-const id$1x = "peace-bond";
+const id$1J = "peace-bond";
 const label$1l = "Peace Bond";
-const summary$f = "Link allies to share support bonuses.";
+const summary$r = "Link allies to share support bonuses.";
 const kind$3 = "passive";
-const tags$1c = ["cleric", "domain", "peace"];
+const tags$1o = ["cleric", "domain", "peace"];
 const grants$9 = [];
 const rules$3 = { "text": "Linked allies gain +1d4 once per turn to an attack, check, or save. No concentration.", "triggers": [{ "event": "on_roll", "notes": "Applies once per turn to linked allies within range." }] };
 const peaceBond = {
-  id: id$1x,
+  id: id$1J,
   label: label$1l,
-  summary: summary$f,
+  summary: summary$r,
   kind: kind$3,
-  tags: tags$1c,
+  tags: tags$1o,
   grants: grants$9,
   rules: rules$3
 };
-const id$1w = "balm-of-peace";
+const id$1I = "balm-of-peace";
 const label$1k = "Balm of Peace";
-const summary$e = "Move without opportunity attacks and heal allies you pass.";
+const summary$q = "Move without opportunity attacks and heal allies you pass.";
 const kind$2 = "action";
-const tags$1b = ["cleric", "domain", "peace", "channel-divinity"];
+const tags$1n = ["cleric", "domain", "peace", "channel-divinity"];
 const grants$8 = [{ "kind": "action", "ids": ["balm-of-peace"], "source": "balm-of-peace" }];
 const rules$2 = { "text": "Action. Uses Channel Divinity. You move, healing allies you pass." };
 const balmOfPeace = {
-  id: id$1w,
+  id: id$1I,
   label: label$1k,
-  summary: summary$e,
+  summary: summary$q,
   kind: kind$2,
-  tags: tags$1b,
+  tags: tags$1n,
   grants: grants$8,
   rules: rules$2
 };
-const id$1v = "protective-bond";
+const id$1H = "protective-bond";
 const label$1j = "Protective Bond";
-const summary$d = "Linked ally can teleport and take damage for another ally.";
+const summary$p = "Linked ally can teleport and take damage for another ally.";
 const kind$1 = "reaction";
-const tags$1a = ["cleric", "domain", "peace"];
+const tags$1m = ["cleric", "domain", "peace"];
 const grants$7 = [{ "kind": "reaction", "ids": ["protective-bond"], "source": "protective-bond" }];
 const rules$1 = { "text": "Reaction when a linked ally takes damage. Teleport and take damage instead." };
 const protectiveBond = {
-  id: id$1v,
+  id: id$1H,
   label: label$1j,
-  summary: summary$d,
+  summary: summary$p,
   kind: kind$1,
-  tags: tags$1a,
+  tags: tags$1m,
   grants: grants$7,
   rules: rules$1
 };
-const id$1u = "expansive-bond";
+const id$1G = "expansive-bond";
 const label$1i = "Expansive Bond";
-const summary$c = "Linked allies share damage and gain broad resistance.";
+const summary$o = "Linked allies share damage and gain broad resistance.";
 const kind = "passive";
-const tags$19 = ["cleric", "domain", "peace"];
+const tags$1l = ["cleric", "domain", "peace"];
 const grants$6 = [];
 const rules = { "text": "Linked allies gain broad resistance and improved damage sharing." };
 const expansiveBond = {
-  id: id$1u,
+  id: id$1G,
   label: label$1i,
-  summary: summary$c,
+  summary: summary$o,
   kind,
-  tags: tags$19,
+  tags: tags$1l,
   grants: grants$6,
   rules
 };
@@ -9004,120 +9004,120 @@ const types$8 = ["./wall-stone.json", "./wall-stone-door.json", "./wall-wood.jso
 const wallsIndex = {
   types: types$8
 };
-const id$1t = "wall-stone";
+const id$1F = "wall-stone";
 const label$1h = "Mur de pierre";
-const category$U = "wall";
-const tags$18 = ["wall", "stone"];
+const category$14 = "wall";
+const tags$1k = ["wall", "stone"];
 const blocking$5 = { "movement": true, "vision": true, "attacks": true };
 const durability$5 = { "destructible": true, "maxHp": 35, "ac": 15 };
 const variants$5 = [{ "id": "1", "label": "Segment 1", "footprint": [{ "x": 0, "y": 0 }], "rotatable": false }, { "id": "2", "label": "Segment 2", "footprint": [{ "x": 0, "y": 0 }, { "x": 1, "y": 0 }], "rotatable": true }, { "id": "3", "label": "Segment 3", "footprint": [{ "x": 0, "y": 0 }, { "x": 1, "y": 0 }, { "x": 2, "y": 0 }], "rotatable": true }];
 const appearance$5 = { "textureKey": "wall:walloldsimple", "heightClass": "tall" };
 const behavior$5 = { "kind": "solid" };
 const wallStone = {
-  id: id$1t,
+  id: id$1F,
   label: label$1h,
-  category: category$U,
-  tags: tags$18,
+  category: category$14,
+  tags: tags$1k,
   blocking: blocking$5,
   durability: durability$5,
   variants: variants$5,
   appearance: appearance$5,
   behavior: behavior$5
 };
-const id$1s = "wall-stone-door";
+const id$1E = "wall-stone-door";
 const label$1g = "Mur de pierre (porte)";
-const category$T = "wall";
-const tags$17 = ["wall", "stone", "door"];
+const category$13 = "wall";
+const tags$1j = ["wall", "stone", "door"];
 const blocking$4 = { "movement": true, "vision": true, "attacks": true };
 const durability$4 = { "destructible": true, "maxHp": 30, "ac": 15 };
 const variants$4 = [{ "id": "1", "label": "Segment 1", "footprint": [{ "x": 0, "y": 0 }], "rotatable": false }];
 const appearance$4 = { "textureKey": "wall:wallolddoor", "heightClass": "tall" };
 const behavior$4 = { "kind": "door", "interactions": [{ "id": "open", "label": "Ouvrir", "kind": "open", "cost": "bonus" }, { "id": "break", "label": "Defoncer", "kind": "break", "cost": "action", "forceDc": 15, "damageFraction": 0.5 }] };
 const wallStoneDoor = {
-  id: id$1s,
+  id: id$1E,
   label: label$1g,
-  category: category$T,
-  tags: tags$17,
+  category: category$13,
+  tags: tags$1j,
   blocking: blocking$4,
   durability: durability$4,
   variants: variants$4,
   appearance: appearance$4,
   behavior: behavior$4
 };
-const id$1r = "wall-wood";
+const id$1D = "wall-wood";
 const label$1f = "Mur en bois";
-const category$S = "wall";
-const tags$16 = ["wall", "wood"];
+const category$12 = "wall";
+const tags$1i = ["wall", "wood"];
 const blocking$3 = { "movement": true, "vision": true, "attacks": true };
 const durability$3 = { "destructible": true, "maxHp": 22, "ac": 12 };
 const variants$3 = [{ "id": "1", "label": "Segment 1", "footprint": [{ "x": 0, "y": 0 }], "rotatable": false }, { "id": "2", "label": "Segment 2", "footprint": [{ "x": 0, "y": 0 }, { "x": 1, "y": 0 }], "rotatable": true }, { "id": "3", "label": "Segment 3", "footprint": [{ "x": 0, "y": 0 }, { "x": 1, "y": 0 }, { "x": 2, "y": 0 }], "rotatable": true }];
 const appearance$3 = { "textureKey": "wall:texture-plate", "heightClass": "tall" };
 const behavior$3 = { "kind": "solid" };
 const wallWood = {
-  id: id$1r,
+  id: id$1D,
   label: label$1f,
-  category: category$S,
-  tags: tags$16,
+  category: category$12,
+  tags: tags$1i,
   blocking: blocking$3,
   durability: durability$3,
   variants: variants$3,
   appearance: appearance$3,
   behavior: behavior$3
 };
-const id$1q = "wall-wood-door";
+const id$1C = "wall-wood-door";
 const label$1e = "Mur en bois (porte)";
-const category$R = "wall";
-const tags$15 = ["wall", "wood", "door"];
+const category$11 = "wall";
+const tags$1h = ["wall", "wood", "door"];
 const blocking$2 = { "movement": true, "vision": true, "attacks": true };
 const durability$2 = { "destructible": true, "maxHp": 14, "ac": 12 };
 const variants$2 = [{ "id": "1", "label": "Segment 1", "footprint": [{ "x": 0, "y": 0 }], "rotatable": false }];
 const appearance$2 = { "textureKey": "wall:texture-plate", "heightClass": "tall" };
 const behavior$2 = { "kind": "door", "interactions": [{ "id": "open", "label": "Ouvrir", "kind": "open", "cost": "bonus" }, { "id": "break", "label": "Defoncer", "kind": "break", "cost": "action", "forceDc": 12, "damageFraction": 0.5 }] };
 const wallWoodDoor = {
-  id: id$1q,
+  id: id$1C,
   label: label$1e,
-  category: category$R,
-  tags: tags$15,
+  category: category$11,
+  tags: tags$1h,
   blocking: blocking$2,
   durability: durability$2,
   variants: variants$2,
   appearance: appearance$2,
   behavior: behavior$2
 };
-const id$1p = "low-wall-stone";
+const id$1B = "low-wall-stone";
 const label$1d = "Muret de pierre";
-const category$Q = "wall";
-const tags$14 = ["wall", "stone", "low"];
+const category$10 = "wall";
+const tags$1g = ["wall", "stone", "low"];
 const blocking$1 = { "movement": true, "vision": false, "attacks": false };
 const durability$1 = { "destructible": true, "maxHp": 18, "ac": 13 };
 const variants$1 = [{ "id": "1", "label": "Segment 1", "footprint": [{ "x": 0, "y": 0 }], "rotatable": false }, { "id": "2", "label": "Segment 2", "footprint": [{ "x": 0, "y": 0 }, { "x": 1, "y": 0 }], "rotatable": true }];
 const appearance$1 = { "textureKey": "wall:walloldsimple", "heightClass": "low" };
 const behavior$1 = { "kind": "solid" };
 const lowWallStone = {
-  id: id$1p,
+  id: id$1B,
   label: label$1d,
-  category: category$Q,
-  tags: tags$14,
+  category: category$10,
+  tags: tags$1g,
   blocking: blocking$1,
   durability: durability$1,
   variants: variants$1,
   appearance: appearance$1,
   behavior: behavior$1
 };
-const id$1o = "low-wall-wood";
+const id$1A = "low-wall-wood";
 const label$1c = "Muret en bois";
-const category$P = "wall";
-const tags$13 = ["wall", "wood", "low"];
+const category$$ = "wall";
+const tags$1f = ["wall", "wood", "low"];
 const blocking = { "movement": true, "vision": false, "attacks": false };
 const durability = { "destructible": true, "maxHp": 12, "ac": 11 };
 const variants = [{ "id": "1", "label": "Segment 1", "footprint": [{ "x": 0, "y": 0 }], "rotatable": false }, { "id": "2", "label": "Segment 2", "footprint": [{ "x": 0, "y": 0 }, { "x": 1, "y": 0 }], "rotatable": true }];
 const appearance = { "textureKey": "wall:texture-plate", "heightClass": "low" };
 const behavior = { "kind": "solid" };
 const lowWallWood = {
-  id: id$1o,
+  id: id$1A,
   label: label$1c,
-  category: category$P,
-  tags: tags$13,
+  category: category$$,
+  tags: tags$1f,
   blocking,
   durability,
   variants,
@@ -9152,61 +9152,61 @@ const reactions = ["./opportunity-attack.json", "./guard-strike.json", "./killer
 const reactionsIndex = {
   reactions
 };
-const id$1n = "opportunity-attack";
-const name$p = "Opportunity Attack";
-const summary$b = "Strike a hostile that leaves your reach.";
+const id$1z = "opportunity-attack";
+const name$B = "Opportunity Attack";
+const summary$n = "Strike a hostile that leaves your reach.";
 const uiMessage$1 = "Vous avez subi une attaque d opportunite.";
 const uiMessageMiss$4 = "Vous avez evite une attaque d opportunite.";
 const trigger$2 = { "event": "movement.leave_reach", "source": "hostile" };
 const conditions$b = [{ "type": "actor_alive", "reason": "Reactor must be alive." }, { "type": "reaction_available", "reason": "Reaction already used." }, { "type": "target_visible", "reason": "Target not visible." }];
 const action$2 = { "id": "reaction-opportunity-attack", "name": "Opportunity Attack", "summary": "Melee strike triggered by a fleeing target.", "category": "reaction", "actionCost": { "actionType": "reaction", "movementCost": 0 }, "targeting": { "target": "hostile", "range": { "min": 0, "max": 1, "shape": "single" }, "maxTargets": 1, "requiresLos": true }, "usage": { "perTurn": 1, "perEncounter": null, "resource": null }, "conditions": [{ "type": "target_alive", "target": "primary", "reason": "Target must be alive." }], "attack": { "bonus": 5, "critRange": 20 }, "damage": { "formula": "attackDamage", "critRule": "double-dice", "damageType": "slashing" }, "effects": [{ "type": "damage", "target": "primary", "formula": "attackDamage", "damageType": "slashing" }, { "type": "log", "message": "Opportunity attack triggered." }], "tags": ["reaction", "melee", "opportunity"] };
-const tags$12 = ["reaction"];
+const tags$1e = ["reaction"];
 const opportunityAttack = {
-  id: id$1n,
-  name: name$p,
-  summary: summary$b,
+  id: id$1z,
+  name: name$B,
+  summary: summary$n,
   uiMessage: uiMessage$1,
   uiMessageMiss: uiMessageMiss$4,
   trigger: trigger$2,
   conditions: conditions$b,
   action: action$2,
-  tags: tags$12
+  tags: tags$1e
 };
-const id$1m = "guard-strike";
-const name$o = "Guard Strike";
-const summary$a = "Strike a hostile that enters your reach.";
+const id$1y = "guard-strike";
+const name$A = "Guard Strike";
+const summary$m = "Strike a hostile that enters your reach.";
 const uiMessage = "Vous avez subi une attaque de garde.";
 const uiMessageMiss$3 = "Vous avez evite une attaque de garde.";
 const trigger$1 = { "event": "movement.enter_reach", "source": "hostile" };
 const conditions$a = [{ "type": "actor_alive", "reason": "Reactor must be alive." }, { "type": "reaction_available", "reason": "Reaction already used." }];
 const action$1 = { "id": "reaction-guard-strike", "name": "Guard Strike", "summary": "Prepared strike when a hostile closes in.", "category": "reaction", "actionCost": { "actionType": "reaction", "movementCost": 0 }, "targeting": { "target": "hostile", "range": { "min": 0, "max": 1, "shape": "single" }, "maxTargets": 1, "requiresLos": true }, "usage": { "perTurn": 1, "perEncounter": null, "resource": null }, "conditions": [{ "type": "target_alive", "target": "primary", "reason": "Target must be alive." }], "attack": { "bonus": 4, "critRange": 20 }, "damage": { "formula": "attackDamage", "critRule": "double-dice", "damageType": "piercing" }, "effects": [{ "type": "damage", "target": "primary", "formula": "attackDamage", "damageType": "piercing" }, { "type": "log", "message": "Guard strike triggered." }], "tags": ["reaction", "melee", "guard"] };
-const tags$11 = ["reaction"];
+const tags$1d = ["reaction"];
 const guardStrike = {
-  id: id$1m,
-  name: name$o,
-  summary: summary$a,
+  id: id$1y,
+  name: name$A,
+  summary: summary$m,
   uiMessage,
   uiMessageMiss: uiMessageMiss$3,
   trigger: trigger$1,
   conditions: conditions$a,
   action: action$1,
-  tags: tags$11
+  tags: tags$1d
 };
-const id$1l = "killer-instinct";
-const name$n = "Instinct de tueur";
-const summary$9 = "Marque la premiere cible visible et accorde l'avantage jusqu'a sa mort.";
+const id$1x = "killer-instinct";
+const name$z = "Instinct de tueur";
+const summary$l = "Marque la premiere cible visible et accorde l'avantage jusqu'a sa mort.";
 const trigger = { "event": "visibility.first_seen", "source": "enemy" };
 const conditions$9 = [{ "type": "actor_alive", "reason": "Reactor must be alive." }, { "type": "reaction_unused_combat", "reason": "Deja utilise ce combat." }, { "type": "target_alive", "reason": "Target must be alive." }, { "type": "target_first_seen", "reason": "Target already revealed." }, { "type": "target_is_closest_visible", "reason": "Target not closest." }];
 const action = { "id": "reaction-killer-instinct", "name": "Instinct de tueur", "summary": "Marquer la cible pour avantage permanent.", "category": "reaction", "actionCost": { "actionType": "reaction", "movementCost": 0 }, "targeting": { "target": "hostile", "range": { "min": 0, "max": 99, "shape": "single" }, "maxTargets": 1, "requiresLos": true }, "usage": { "perTurn": 1, "perEncounter": null, "resource": null }, "conditions": [], "effects": [{ "type": "set_killer_instinct_target" }, { "type": "log", "message": "Instinct de tueur: cible marquee." }], "tags": ["reaction", "passive"] };
-const tags$10 = ["reaction", "visibility"];
+const tags$1c = ["reaction", "visibility"];
 const killerInstinct = {
-  id: id$1l,
-  name: name$n,
-  summary: summary$9,
+  id: id$1x,
+  name: name$z,
+  summary: summary$l,
   trigger,
   conditions: conditions$9,
   action,
-  tags: tags$10
+  tags: tags$1c
 };
 const REACTION_TYPE_MODULES = {
   "./opportunity-attack.json": opportunityAttack,
@@ -9262,37 +9262,37 @@ function normalizeDamageType(value2) {
   const key2 = normalizeKey(String(value2));
   return DAMAGE_TYPE_ALIASES[key2] ?? null;
 }
-const types$7 = ["./simple/dague.json", "./simple/petit-couteau.json", "./simple/arme-endommagee.json", "./simple/massue.json", "./simple/arc-court.json", "./martiale/epee-longue.json", "./martiale/hache-bataille.json", "./martiale/arc-long.json", "./speciale/epee-elfique.json", "./speciale/fouet-demon.json", "./speciale/arbalete-repetee.json", "./monastique/baton.json", "./monastique/nunchaku.json", "./monastique/kama.json"];
+const types$7 = ["./martiale/arc-long.json", "./martiale/epee-longue.json", "./martiale/hache-bataille.json", "./monastique/baton.json", "./monastique/kama.json", "./monastique/nunchaku.json", "./simple/arc-court.json", "./simple/arme-endommagee.json", "./simple/dague.json", "./simple/massue.json", "./simple/petit-couteau.json", "./speciale/arbalete-repetee.json", "./speciale/epee-elfique.json", "./speciale/fouet-demon.json"];
 const weaponsIndex = {
   types: types$7
 };
-const id$1k = "dague";
-const name$m = "Dague";
+const id$1w = "arc-long";
+const name$y = "Arc long";
 const type$F = "arme";
-const subtype$d = "simple";
-const category$O = "melee";
-const descriptionCourte$d = "Lame courte et legere, facile a dissimuler.";
+const subtype$d = "martiale";
+const category$_ = "distance";
+const descriptionCourte$d = "Arc puissant a longue portee.";
 const descriptionLongue$d = "";
 const allow_stack$d = false;
 const harmonisable$d = false;
 const focalisateur$d = false;
-const weight$A = 0.5;
-const size$g = 0.4;
-const value$i = { "gold": 2, "silver": 0, "copper": 0 };
+const weight$A = 1.5;
+const size$g = 1.2;
+const value$i = { "gold": 50, "silver": 0, "copper": 0 };
 const rarity$d = "commune";
-const tags$$ = ["arme", "melee", "perforant", "jet"];
-const properties$d = { "finesse": true, "light": true, "heavy": false, "two_handed": false, "reach": 1, "versatile": null, "thrown": { "normal": 4, "long": 12 }, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": null };
-const attack$g = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
-const damage$g = { "dice": "1d4", "damage_type": "Perforant", "alt": null };
-const effectOnHit$d = { "mod": "mod.DEX", "damage": "1d4", "damage_type": "Perforant" };
-const links$d = { "actionId": "melee-strike", "effectId": "melee-slash" };
-const label$1b = "Dague";
-const dagger = {
-  id: id$1k,
-  name: name$m,
+const tags$1b = ["arme", "distance", "perforant"];
+const properties$d = { "finesse": false, "light": false, "heavy": true, "two_handed": true, "reach": 0, "versatile": null, "thrown": null, "ammunition": true, "loading": false, "reload": null, "range": { "normal": 24, "long": 96 }, "special": null };
+const attack$h = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
+const damage$h = { "dice": "1d8", "damage_type": "Perforant", "alt": null };
+const effectOnHit$d = { "mod": "mod.DEX", "damage": "1d8", "damage_type": "Perforant" };
+const links$d = { "actionId": "bow-shot", "effectId": "melee-slash" };
+const label$1b = "Arc long";
+const MartialeArcLong = {
+  id: id$1w,
+  name: name$y,
   type: type$F,
   subtype: subtype$d,
-  category: category$O,
+  category: category$_,
   descriptionCourte: descriptionCourte$d,
   descriptionLongue: descriptionLongue$d,
   allow_stack: allow_stack$d,
@@ -9302,41 +9302,41 @@ const dagger = {
   size: size$g,
   value: value$i,
   rarity: rarity$d,
-  tags: tags$$,
+  tags: tags$1b,
   properties: properties$d,
-  attack: attack$g,
-  damage: damage$g,
+  attack: attack$h,
+  damage: damage$h,
   effectOnHit: effectOnHit$d,
   links: links$d,
   label: label$1b
 };
-const id$1j = "obj_petit_couteau";
-const name$l = "Petit couteau";
+const id$1v = "epee-longue";
+const name$x = "Epee longue";
 const type$E = "arme";
-const subtype$c = "simple";
-const category$N = "melee";
-const descriptionCourte$c = "Petit couteau utilitaire, pas une arme de combat principale.";
+const subtype$c = "martiale";
+const category$Z = "melee";
+const descriptionCourte$c = "Lame d'acier polyvalente, classique.";
 const descriptionLongue$c = "";
 const allow_stack$c = false;
 const harmonisable$c = false;
 const focalisateur$c = false;
-const weight$z = 0.5;
-const size$f = 0.3;
-const value$h = { "gold": 0, "silver": 2, "copper": 0 };
+const weight$z = 1.5;
+const size$f = 1;
+const value$h = { "gold": 15, "silver": 0, "copper": 0 };
 const rarity$c = "commune";
-const tags$_ = ["arme", "melee", "tranchant", "improvise"];
-const properties$c = { "finesse": true, "light": true, "heavy": false, "two_handed": false, "reach": 1, "versatile": null, "thrown": { "normal": 4, "long": 12 }, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": "utilitaire" };
-const attack$f = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
-const damage$f = { "dice": "1d4", "damage_type": "Tranchant", "alt": null };
-const effectOnHit$c = { "mod": "mod.DEX", "damage": "1d4", "damage_type": "Tranchant" };
+const tags$1a = ["arme", "melee", "tranchant"];
+const properties$c = { "finesse": false, "light": false, "heavy": false, "two_handed": false, "reach": 1, "versatile": "1d10", "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": null };
+const attack$g = { "mod": "mod.STR", "bonus": "bonus_maitrise" };
+const damage$g = { "dice": "1d8", "damage_type": "Tranchant", "alt": { "dice": "1d10", "condition": "two_handed" } };
+const effectOnHit$c = { "mod": "mod.STR", "damage": "1d8", "damage_type": "Tranchant" };
 const links$c = { "actionId": "melee-strike", "effectId": "melee-slash" };
-const label$1a = "Petit couteau";
-const petitCouteau = {
-  id: id$1j,
-  name: name$l,
+const label$1a = "Epee longue";
+const MartialeEpeeLongue = {
+  id: id$1v,
+  name: name$x,
   type: type$E,
   subtype: subtype$c,
-  category: category$N,
+  category: category$Z,
   descriptionCourte: descriptionCourte$c,
   descriptionLongue: descriptionLongue$c,
   allow_stack: allow_stack$c,
@@ -9346,41 +9346,41 @@ const petitCouteau = {
   size: size$f,
   value: value$h,
   rarity: rarity$c,
-  tags: tags$_,
+  tags: tags$1a,
   properties: properties$c,
-  attack: attack$f,
-  damage: damage$f,
+  attack: attack$g,
+  damage: damage$g,
   effectOnHit: effectOnHit$c,
   links: links$c,
   label: label$1a
 };
-const id$1i = "obj_arme_endommagee";
-const name$k = "Arme endommagee";
+const id$1u = "hache-bataille";
+const name$w = "Hache de bataille";
 const type$D = "arme";
-const subtype$b = "simple";
-const category$M = "melee";
-const descriptionCourte$b = "Une arme simple ou martiale abimee, utilisable pour l'histoire.";
+const subtype$b = "martiale";
+const category$Y = "melee";
+const descriptionCourte$b = "Hache lourde a double tranchant.";
 const descriptionLongue$b = "";
 const allow_stack$b = false;
 const harmonisable$b = false;
 const focalisateur$b = false;
 const weight$y = 2;
-const size$e = 0.8;
-const value$g = { "gold": 0, "silver": 5, "copper": 0 };
+const size$e = 1;
+const value$g = { "gold": 10, "silver": 0, "copper": 0 };
 const rarity$b = "commune";
-const tags$Z = ["arme", "melee", "endommagee"];
-const properties$b = { "finesse": false, "light": false, "heavy": false, "two_handed": false, "reach": 1, "versatile": null, "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": "abimee" };
-const attack$e = { "mod": "mod.STR", "bonus": "bonus_maitrise" };
-const damage$e = { "dice": "1d4", "damage_type": "Tranchant", "alt": null };
-const effectOnHit$b = { "mod": "mod.STR", "damage": "1d4", "damage_type": "Tranchant" };
+const tags$19 = ["arme", "melee", "tranchant"];
+const properties$b = { "finesse": false, "light": false, "heavy": false, "two_handed": false, "reach": 1, "versatile": "1d10", "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": null };
+const attack$f = { "mod": "mod.STR", "bonus": "bonus_maitrise" };
+const damage$f = { "dice": "1d8", "damage_type": "Tranchant", "alt": { "dice": "1d10", "condition": "two_handed" } };
+const effectOnHit$b = { "mod": "mod.STR", "damage": "1d8", "damage_type": "Tranchant" };
 const links$b = { "actionId": "melee-strike", "effectId": "melee-slash" };
-const label$19 = "Arme endommagee";
-const armeEndommagee = {
-  id: id$1i,
-  name: name$k,
+const label$19 = "Hache de bataille";
+const MartialeHacheBataille = {
+  id: id$1u,
+  name: name$w,
   type: type$D,
   subtype: subtype$b,
-  category: category$M,
+  category: category$Y,
   descriptionCourte: descriptionCourte$b,
   descriptionLongue: descriptionLongue$b,
   allow_stack: allow_stack$b,
@@ -9390,41 +9390,41 @@ const armeEndommagee = {
   size: size$e,
   value: value$g,
   rarity: rarity$b,
-  tags: tags$Z,
+  tags: tags$19,
   properties: properties$b,
-  attack: attack$e,
-  damage: damage$e,
+  attack: attack$f,
+  damage: damage$f,
   effectOnHit: effectOnHit$b,
   links: links$b,
   label: label$19
 };
-const id$1h = "massue";
-const name$j = "Massue";
+const id$1t = "baton";
+const name$v = "Baton";
 const type$C = "arme";
-const subtype$a = "simple";
-const category$L = "melee";
-const descriptionCourte$a = "Baton lourd renforce, frappe contondante.";
+const subtype$a = "monastique";
+const category$X = "melee";
+const descriptionCourte$a = "Baton d'entrainement, polyvalent.";
 const descriptionLongue$a = "";
 const allow_stack$a = false;
 const harmonisable$a = false;
 const focalisateur$a = false;
-const weight$x = 1.8;
-const size$d = 1;
+const weight$x = 1;
+const size$d = 1.2;
 const value$f = { "gold": 1, "silver": 0, "copper": 0 };
 const rarity$a = "commune";
-const tags$Y = ["arme", "melee", "contondant"];
-const properties$a = { "finesse": false, "light": false, "heavy": false, "two_handed": false, "reach": 1, "versatile": null, "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": null };
-const attack$d = { "mod": "mod.STR", "bonus": "bonus_maitrise" };
-const damage$d = { "dice": "1d6", "damage_type": "Contondant", "alt": null };
+const tags$18 = ["arme", "melee", "contondant"];
+const properties$a = { "finesse": false, "light": false, "heavy": false, "two_handed": true, "reach": 1, "versatile": "1d8", "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": "monastic" };
+const attack$e = { "mod": "mod.STR", "bonus": "bonus_maitrise" };
+const damage$e = { "dice": "1d6", "damage_type": "Contondant", "alt": { "dice": "1d8", "condition": "two_handed" } };
 const effectOnHit$a = { "mod": "mod.STR", "damage": "1d6", "damage_type": "Contondant" };
 const links$a = { "actionId": "melee-strike", "effectId": "melee-slash" };
-const label$18 = "Massue";
-const club = {
-  id: id$1h,
-  name: name$j,
+const label$18 = "Baton";
+const MonastiqueBaton = {
+  id: id$1t,
+  name: name$v,
   type: type$C,
   subtype: subtype$a,
-  category: category$L,
+  category: category$X,
   descriptionCourte: descriptionCourte$a,
   descriptionLongue: descriptionLongue$a,
   allow_stack: allow_stack$a,
@@ -9434,41 +9434,41 @@ const club = {
   size: size$d,
   value: value$f,
   rarity: rarity$a,
-  tags: tags$Y,
+  tags: tags$18,
   properties: properties$a,
-  attack: attack$d,
-  damage: damage$d,
+  attack: attack$e,
+  damage: damage$e,
   effectOnHit: effectOnHit$a,
   links: links$a,
   label: label$18
 };
-const id$1g = "arc-court";
-const name$i = "Arc court";
+const id$1s = "kama";
+const name$u = "Kama";
 const type$B = "arme";
-const subtype$9 = "simple";
-const category$K = "distance";
-const descriptionCourte$9 = "Arc leger a courte portee.";
+const subtype$9 = "monastique";
+const category$W = "melee";
+const descriptionCourte$9 = "Faucille courte pour combat rapproche.";
 const descriptionLongue$9 = "";
 const allow_stack$9 = false;
 const harmonisable$9 = false;
 const focalisateur$9 = false;
-const weight$w = 1;
-const size$c = 1;
-const value$e = { "gold": 25, "silver": 0, "copper": 0 };
+const weight$w = 0.7;
+const size$c = 0.6;
+const value$e = { "gold": 2, "silver": 0, "copper": 0 };
 const rarity$9 = "commune";
-const tags$X = ["arme", "distance", "perforant"];
-const properties$9 = { "finesse": false, "light": false, "heavy": false, "two_handed": true, "reach": 0, "versatile": null, "thrown": null, "ammunition": true, "loading": false, "reload": null, "range": { "normal": 16, "long": 64 }, "special": null };
-const attack$c = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
-const damage$c = { "dice": "1d6", "damage_type": "Perforant", "alt": null };
-const effectOnHit$9 = { "mod": "mod.DEX", "damage": "1d6", "damage_type": "Perforant" };
-const links$9 = { "actionId": "bow-shot", "effectId": "melee-slash" };
-const label$17 = "Arc court";
-const shortbow = {
-  id: id$1g,
-  name: name$i,
+const tags$17 = ["arme", "melee", "tranchant"];
+const properties$9 = { "finesse": true, "light": true, "heavy": false, "two_handed": false, "reach": 1, "versatile": null, "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": "monastic" };
+const attack$d = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
+const damage$d = { "dice": "1d6", "damage_type": "Tranchant", "alt": null };
+const effectOnHit$9 = { "mod": "mod.DEX", "damage": "1d6", "damage_type": "Tranchant" };
+const links$9 = { "actionId": "melee-strike", "effectId": "melee-slash" };
+const label$17 = "Kama";
+const MonastiqueKama = {
+  id: id$1s,
+  name: name$u,
   type: type$B,
   subtype: subtype$9,
-  category: category$K,
+  category: category$W,
   descriptionCourte: descriptionCourte$9,
   descriptionLongue: descriptionLongue$9,
   allow_stack: allow_stack$9,
@@ -9478,41 +9478,41 @@ const shortbow = {
   size: size$c,
   value: value$e,
   rarity: rarity$9,
-  tags: tags$X,
+  tags: tags$17,
   properties: properties$9,
-  attack: attack$c,
-  damage: damage$c,
+  attack: attack$d,
+  damage: damage$d,
   effectOnHit: effectOnHit$9,
   links: links$9,
   label: label$17
 };
-const id$1f = "epee-longue";
-const name$h = "Epee longue";
+const id$1r = "nunchaku";
+const name$t = "Nunchaku";
 const type$A = "arme";
-const subtype$8 = "martiale";
-const category$J = "melee";
-const descriptionCourte$8 = "Lame d'acier polyvalente, classique.";
+const subtype$8 = "monastique";
+const category$V = "melee";
+const descriptionCourte$8 = "Arme souple en bois relie par une corde.";
 const descriptionLongue$8 = "";
 const allow_stack$8 = false;
 const harmonisable$8 = false;
 const focalisateur$8 = false;
-const weight$v = 1.5;
-const size$b = 1;
-const value$d = { "gold": 15, "silver": 0, "copper": 0 };
+const weight$v = 0.8;
+const size$b = 0.8;
+const value$d = { "gold": 3, "silver": 0, "copper": 0 };
 const rarity$8 = "commune";
-const tags$W = ["arme", "melee", "tranchant"];
-const properties$8 = { "finesse": false, "light": false, "heavy": false, "two_handed": false, "reach": 1, "versatile": "1d10", "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": null };
-const attack$b = { "mod": "mod.STR", "bonus": "bonus_maitrise" };
-const damage$b = { "dice": "1d8", "damage_type": "Tranchant", "alt": { "dice": "1d10", "condition": "two_handed" } };
-const effectOnHit$8 = { "mod": "mod.STR", "damage": "1d8", "damage_type": "Tranchant" };
+const tags$16 = ["arme", "melee", "contondant"];
+const properties$8 = { "finesse": true, "light": true, "heavy": false, "two_handed": false, "reach": 1, "versatile": null, "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": "monastic" };
+const attack$c = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
+const damage$c = { "dice": "1d6", "damage_type": "Contondant", "alt": null };
+const effectOnHit$8 = { "mod": "mod.DEX", "damage": "1d6", "damage_type": "Contondant" };
 const links$8 = { "actionId": "melee-strike", "effectId": "melee-slash" };
-const label$16 = "Epee longue";
-const longsword = {
-  id: id$1f,
-  name: name$h,
+const label$16 = "Nunchaku";
+const MonastiqueNunchaku = {
+  id: id$1r,
+  name: name$t,
   type: type$A,
   subtype: subtype$8,
-  category: category$J,
+  category: category$V,
   descriptionCourte: descriptionCourte$8,
   descriptionLongue: descriptionLongue$8,
   allow_stack: allow_stack$8,
@@ -9522,41 +9522,41 @@ const longsword = {
   size: size$b,
   value: value$d,
   rarity: rarity$8,
-  tags: tags$W,
+  tags: tags$16,
   properties: properties$8,
-  attack: attack$b,
-  damage: damage$b,
+  attack: attack$c,
+  damage: damage$c,
   effectOnHit: effectOnHit$8,
   links: links$8,
   label: label$16
 };
-const id$1e = "hache-bataille";
-const name$g = "Hache de bataille";
+const id$1q = "arc-court";
+const name$s = "Arc court";
 const type$z = "arme";
-const subtype$7 = "martiale";
-const category$I = "melee";
-const descriptionCourte$7 = "Hache lourde a double tranchant.";
+const subtype$7 = "simple";
+const category$U = "distance";
+const descriptionCourte$7 = "Arc leger a courte portee.";
 const descriptionLongue$7 = "";
 const allow_stack$7 = false;
 const harmonisable$7 = false;
 const focalisateur$7 = false;
-const weight$u = 2;
+const weight$u = 1;
 const size$a = 1;
-const value$c = { "gold": 10, "silver": 0, "copper": 0 };
+const value$c = { "gold": 25, "silver": 0, "copper": 0 };
 const rarity$7 = "commune";
-const tags$V = ["arme", "melee", "tranchant"];
-const properties$7 = { "finesse": false, "light": false, "heavy": false, "two_handed": false, "reach": 1, "versatile": "1d10", "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": null };
-const attack$a = { "mod": "mod.STR", "bonus": "bonus_maitrise" };
-const damage$a = { "dice": "1d8", "damage_type": "Tranchant", "alt": { "dice": "1d10", "condition": "two_handed" } };
-const effectOnHit$7 = { "mod": "mod.STR", "damage": "1d8", "damage_type": "Tranchant" };
-const links$7 = { "actionId": "melee-strike", "effectId": "melee-slash" };
-const label$15 = "Hache de bataille";
-const battleaxe = {
-  id: id$1e,
-  name: name$g,
+const tags$15 = ["arme", "distance", "perforant"];
+const properties$7 = { "finesse": false, "light": false, "heavy": false, "two_handed": true, "reach": 0, "versatile": null, "thrown": null, "ammunition": true, "loading": false, "reload": null, "range": { "normal": 16, "long": 64 }, "special": null };
+const attack$b = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
+const damage$b = { "dice": "1d6", "damage_type": "Perforant", "alt": null };
+const effectOnHit$7 = { "mod": "mod.DEX", "damage": "1d6", "damage_type": "Perforant" };
+const links$7 = { "actionId": "bow-shot", "effectId": "melee-slash" };
+const label$15 = "Arc court";
+const SimpleArcCourt = {
+  id: id$1q,
+  name: name$s,
   type: type$z,
   subtype: subtype$7,
-  category: category$I,
+  category: category$U,
   descriptionCourte: descriptionCourte$7,
   descriptionLongue: descriptionLongue$7,
   allow_stack: allow_stack$7,
@@ -9566,41 +9566,41 @@ const battleaxe = {
   size: size$a,
   value: value$c,
   rarity: rarity$7,
-  tags: tags$V,
+  tags: tags$15,
   properties: properties$7,
-  attack: attack$a,
-  damage: damage$a,
+  attack: attack$b,
+  damage: damage$b,
   effectOnHit: effectOnHit$7,
   links: links$7,
   label: label$15
 };
-const id$1d = "arc-long";
-const name$f = "Arc long";
+const id$1p = "obj_arme_endommagee";
+const name$r = "Arme endommagee";
 const type$y = "arme";
-const subtype$6 = "martiale";
-const category$H = "distance";
-const descriptionCourte$6 = "Arc puissant a longue portee.";
+const subtype$6 = "simple";
+const category$T = "melee";
+const descriptionCourte$6 = "Une arme simple ou martiale abimee, utilisable pour l'histoire.";
 const descriptionLongue$6 = "";
 const allow_stack$6 = false;
 const harmonisable$6 = false;
 const focalisateur$6 = false;
-const weight$t = 1.5;
-const size$9 = 1.2;
-const value$b = { "gold": 50, "silver": 0, "copper": 0 };
+const weight$t = 2;
+const size$9 = 0.8;
+const value$b = { "gold": 0, "silver": 5, "copper": 0 };
 const rarity$6 = "commune";
-const tags$U = ["arme", "distance", "perforant"];
-const properties$6 = { "finesse": false, "light": false, "heavy": true, "two_handed": true, "reach": 0, "versatile": null, "thrown": null, "ammunition": true, "loading": false, "reload": null, "range": { "normal": 24, "long": 96 }, "special": null };
-const attack$9 = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
-const damage$9 = { "dice": "1d8", "damage_type": "Perforant", "alt": null };
-const effectOnHit$6 = { "mod": "mod.DEX", "damage": "1d8", "damage_type": "Perforant" };
-const links$6 = { "actionId": "bow-shot", "effectId": "melee-slash" };
-const label$14 = "Arc long";
-const longbow = {
-  id: id$1d,
-  name: name$f,
+const tags$14 = ["arme", "melee", "endommagee"];
+const properties$6 = { "finesse": false, "light": false, "heavy": false, "two_handed": false, "reach": 1, "versatile": null, "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": "abimee" };
+const attack$a = { "mod": "mod.STR", "bonus": "bonus_maitrise" };
+const damage$a = { "dice": "1d4", "damage_type": "Tranchant", "alt": null };
+const effectOnHit$6 = { "mod": "mod.STR", "damage": "1d4", "damage_type": "Tranchant" };
+const links$6 = { "actionId": "melee-strike", "effectId": "melee-slash" };
+const label$14 = "Arme endommagee";
+const SimpleArmeEndommagee = {
+  id: id$1p,
+  name: name$r,
   type: type$y,
   subtype: subtype$6,
-  category: category$H,
+  category: category$T,
   descriptionCourte: descriptionCourte$6,
   descriptionLongue: descriptionLongue$6,
   allow_stack: allow_stack$6,
@@ -9610,41 +9610,41 @@ const longbow = {
   size: size$9,
   value: value$b,
   rarity: rarity$6,
-  tags: tags$U,
+  tags: tags$14,
   properties: properties$6,
-  attack: attack$9,
-  damage: damage$9,
+  attack: attack$a,
+  damage: damage$a,
   effectOnHit: effectOnHit$6,
   links: links$6,
   label: label$14
 };
-const id$1c = "epee-elfique";
-const name$e = "Epee elfique";
+const id$1o = "dague";
+const name$q = "Dague";
 const type$x = "arme";
-const subtype$5 = "speciale";
-const category$G = "melee";
-const descriptionCourte$5 = "Lame fine et precise, forgee par les elfes.";
+const subtype$5 = "simple";
+const category$S = "melee";
+const descriptionCourte$5 = "Lame courte et legere, facile a dissimuler.";
 const descriptionLongue$5 = "";
 const allow_stack$5 = false;
 const harmonisable$5 = false;
 const focalisateur$5 = false;
-const weight$s = 1.2;
-const size$8 = 1;
-const value$a = { "gold": 75, "silver": 0, "copper": 0 };
-const rarity$5 = "rare";
-const tags$T = ["arme", "melee", "tranchant"];
-const properties$5 = { "finesse": true, "light": false, "heavy": false, "two_handed": false, "reach": 1, "versatile": null, "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": "precision" };
-const attack$8 = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
-const damage$8 = { "dice": "1d8", "damage_type": "Tranchant", "alt": null };
-const effectOnHit$5 = { "mod": "mod.DEX", "damage": "1d8", "damage_type": "Tranchant" };
+const weight$s = 0.5;
+const size$8 = 0.4;
+const value$a = { "gold": 2, "silver": 0, "copper": 0 };
+const rarity$5 = "commune";
+const tags$13 = ["arme", "melee", "perforant", "jet"];
+const properties$5 = { "finesse": true, "light": true, "heavy": false, "two_handed": false, "reach": 1, "versatile": null, "thrown": { "normal": 4, "long": 12 }, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": null };
+const attack$9 = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
+const damage$9 = { "dice": "1d4", "damage_type": "Perforant", "alt": null };
+const effectOnHit$5 = { "mod": "mod.DEX", "damage": "1d4", "damage_type": "Perforant" };
 const links$5 = { "actionId": "melee-strike", "effectId": "melee-slash" };
-const label$13 = "Epee elfique";
-const elvenSword = {
-  id: id$1c,
-  name: name$e,
+const label$13 = "Dague";
+const SimpleDague = {
+  id: id$1o,
+  name: name$q,
   type: type$x,
   subtype: subtype$5,
-  category: category$G,
+  category: category$S,
   descriptionCourte: descriptionCourte$5,
   descriptionLongue: descriptionLongue$5,
   allow_stack: allow_stack$5,
@@ -9654,41 +9654,41 @@ const elvenSword = {
   size: size$8,
   value: value$a,
   rarity: rarity$5,
-  tags: tags$T,
+  tags: tags$13,
   properties: properties$5,
-  attack: attack$8,
-  damage: damage$8,
+  attack: attack$9,
+  damage: damage$9,
   effectOnHit: effectOnHit$5,
   links: links$5,
   label: label$13
 };
-const id$1b = "fouet-demon";
-const name$d = "Fouet demon";
+const id$1n = "massue";
+const name$p = "Massue";
 const type$w = "arme";
-const subtype$4 = "speciale";
-const category$F = "melee";
-const descriptionCourte$4 = "Fouet d'arme a portee etrange.";
+const subtype$4 = "simple";
+const category$R = "melee";
+const descriptionCourte$4 = "Baton lourd renforce, frappe contondante.";
 const descriptionLongue$4 = "";
 const allow_stack$4 = false;
 const harmonisable$4 = false;
 const focalisateur$4 = false;
-const weight$r = 1;
-const size$7 = 1.3;
-const value$9 = { "gold": 90, "silver": 0, "copper": 0 };
-const rarity$4 = "rare";
-const tags$S = ["arme", "melee", "tranchant"];
-const properties$4 = { "finesse": true, "light": false, "heavy": false, "two_handed": false, "reach": 2, "versatile": null, "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 2, "long": 2 }, "special": "reach" };
-const attack$7 = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
-const damage$7 = { "dice": "1d6", "damage_type": "Tranchant", "alt": null };
-const effectOnHit$4 = { "mod": "mod.DEX", "damage": "1d6", "damage_type": "Tranchant" };
+const weight$r = 1.8;
+const size$7 = 1;
+const value$9 = { "gold": 1, "silver": 0, "copper": 0 };
+const rarity$4 = "commune";
+const tags$12 = ["arme", "melee", "contondant"];
+const properties$4 = { "finesse": false, "light": false, "heavy": false, "two_handed": false, "reach": 1, "versatile": null, "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": null };
+const attack$8 = { "mod": "mod.STR", "bonus": "bonus_maitrise" };
+const damage$8 = { "dice": "1d6", "damage_type": "Contondant", "alt": null };
+const effectOnHit$4 = { "mod": "mod.STR", "damage": "1d6", "damage_type": "Contondant" };
 const links$4 = { "actionId": "melee-strike", "effectId": "melee-slash" };
-const label$12 = "Fouet demon";
-const demonWhip = {
-  id: id$1b,
-  name: name$d,
+const label$12 = "Massue";
+const SimpleMassue = {
+  id: id$1n,
+  name: name$p,
   type: type$w,
   subtype: subtype$4,
-  category: category$F,
+  category: category$R,
   descriptionCourte: descriptionCourte$4,
   descriptionLongue: descriptionLongue$4,
   allow_stack: allow_stack$4,
@@ -9698,41 +9698,41 @@ const demonWhip = {
   size: size$7,
   value: value$9,
   rarity: rarity$4,
-  tags: tags$S,
+  tags: tags$12,
   properties: properties$4,
-  attack: attack$7,
-  damage: damage$7,
+  attack: attack$8,
+  damage: damage$8,
   effectOnHit: effectOnHit$4,
   links: links$4,
   label: label$12
 };
-const id$1a = "arbalete-repetee";
-const name$c = "Arbalete repetee";
+const id$1m = "obj_petit_couteau";
+const name$o = "Petit couteau";
 const type$v = "arme";
-const subtype$3 = "speciale";
-const category$E = "distance";
-const descriptionCourte$3 = "Arbalete a charge rapide.";
+const subtype$3 = "simple";
+const category$Q = "melee";
+const descriptionCourte$3 = "Petit couteau utilitaire, pas une arme de combat principale.";
 const descriptionLongue$3 = "";
 const allow_stack$3 = false;
 const harmonisable$3 = false;
 const focalisateur$3 = false;
-const weight$q = 2.2;
-const size$6 = 1.1;
-const value$8 = { "gold": 120, "silver": 0, "copper": 0 };
-const rarity$3 = "rare";
-const tags$R = ["arme", "distance", "perforant"];
-const properties$3 = { "finesse": false, "light": false, "heavy": true, "two_handed": true, "reach": 0, "versatile": null, "thrown": null, "ammunition": true, "loading": true, "reload": 5, "range": { "normal": 20, "long": 80 }, "special": "repetition" };
-const attack$6 = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
-const damage$6 = { "dice": "1d8", "damage_type": "Perforant", "alt": null };
-const effectOnHit$3 = { "mod": "mod.DEX", "damage": "1d8", "damage_type": "Perforant" };
-const links$3 = { "actionId": "bow-shot", "effectId": "melee-slash" };
-const label$11 = "Arbalete repetee";
-const repeatingCrossbow = {
-  id: id$1a,
-  name: name$c,
+const weight$q = 0.5;
+const size$6 = 0.3;
+const value$8 = { "gold": 0, "silver": 2, "copper": 0 };
+const rarity$3 = "commune";
+const tags$11 = ["arme", "melee", "tranchant", "improvise"];
+const properties$3 = { "finesse": true, "light": true, "heavy": false, "two_handed": false, "reach": 1, "versatile": null, "thrown": { "normal": 4, "long": 12 }, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": "utilitaire" };
+const attack$7 = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
+const damage$7 = { "dice": "1d4", "damage_type": "Tranchant", "alt": null };
+const effectOnHit$3 = { "mod": "mod.DEX", "damage": "1d4", "damage_type": "Tranchant" };
+const links$3 = { "actionId": "melee-strike", "effectId": "melee-slash" };
+const label$11 = "Petit couteau";
+const SimplePetitCouteau = {
+  id: id$1m,
+  name: name$o,
   type: type$v,
   subtype: subtype$3,
-  category: category$E,
+  category: category$Q,
   descriptionCourte: descriptionCourte$3,
   descriptionLongue: descriptionLongue$3,
   allow_stack: allow_stack$3,
@@ -9742,41 +9742,41 @@ const repeatingCrossbow = {
   size: size$6,
   value: value$8,
   rarity: rarity$3,
-  tags: tags$R,
+  tags: tags$11,
   properties: properties$3,
-  attack: attack$6,
-  damage: damage$6,
+  attack: attack$7,
+  damage: damage$7,
   effectOnHit: effectOnHit$3,
   links: links$3,
   label: label$11
 };
-const id$19 = "baton";
-const name$b = "Baton";
+const id$1l = "arbalete-repetee";
+const name$n = "Arbalete repetee";
 const type$u = "arme";
-const subtype$2 = "monastique";
-const category$D = "melee";
-const descriptionCourte$2 = "Baton d'entrainement, polyvalent.";
+const subtype$2 = "speciale";
+const category$P = "distance";
+const descriptionCourte$2 = "Arbalete a charge rapide.";
 const descriptionLongue$2 = "";
 const allow_stack$2 = false;
 const harmonisable$2 = false;
 const focalisateur$2 = false;
-const weight$p = 1;
-const size$5 = 1.2;
-const value$7 = { "gold": 1, "silver": 0, "copper": 0 };
-const rarity$2 = "commune";
-const tags$Q = ["arme", "melee", "contondant"];
-const properties$2 = { "finesse": false, "light": false, "heavy": false, "two_handed": true, "reach": 1, "versatile": "1d8", "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": "monastic" };
-const attack$5 = { "mod": "mod.STR", "bonus": "bonus_maitrise" };
-const damage$5 = { "dice": "1d6", "damage_type": "Contondant", "alt": { "dice": "1d8", "condition": "two_handed" } };
-const effectOnHit$2 = { "mod": "mod.STR", "damage": "1d6", "damage_type": "Contondant" };
-const links$2 = { "actionId": "melee-strike", "effectId": "melee-slash" };
-const label$10 = "Baton";
-const staff = {
-  id: id$19,
-  name: name$b,
+const weight$p = 2.2;
+const size$5 = 1.1;
+const value$7 = { "gold": 120, "silver": 0, "copper": 0 };
+const rarity$2 = "rare";
+const tags$10 = ["arme", "distance", "perforant"];
+const properties$2 = { "finesse": false, "light": false, "heavy": true, "two_handed": true, "reach": 0, "versatile": null, "thrown": null, "ammunition": true, "loading": true, "reload": 5, "range": { "normal": 20, "long": 80 }, "special": "repetition" };
+const attack$6 = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
+const damage$6 = { "dice": "1d8", "damage_type": "Perforant", "alt": null };
+const effectOnHit$2 = { "mod": "mod.DEX", "damage": "1d8", "damage_type": "Perforant" };
+const links$2 = { "actionId": "bow-shot", "effectId": "melee-slash" };
+const label$10 = "Arbalete repetee";
+const SpecialeArbaleteRepetee = {
+  id: id$1l,
+  name: name$n,
   type: type$u,
   subtype: subtype$2,
-  category: category$D,
+  category: category$P,
   descriptionCourte: descriptionCourte$2,
   descriptionLongue: descriptionLongue$2,
   allow_stack: allow_stack$2,
@@ -9786,41 +9786,41 @@ const staff = {
   size: size$5,
   value: value$7,
   rarity: rarity$2,
-  tags: tags$Q,
+  tags: tags$10,
   properties: properties$2,
-  attack: attack$5,
-  damage: damage$5,
+  attack: attack$6,
+  damage: damage$6,
   effectOnHit: effectOnHit$2,
   links: links$2,
   label: label$10
 };
-const id$18 = "nunchaku";
-const name$a = "Nunchaku";
+const id$1k = "epee-elfique";
+const name$m = "Epee elfique";
 const type$t = "arme";
-const subtype$1 = "monastique";
-const category$C = "melee";
-const descriptionCourte$1 = "Arme souple en bois relie par une corde.";
+const subtype$1 = "speciale";
+const category$O = "melee";
+const descriptionCourte$1 = "Lame fine et precise, forgee par les elfes.";
 const descriptionLongue$1 = "";
 const allow_stack$1 = false;
 const harmonisable$1 = false;
 const focalisateur$1 = false;
-const weight$o = 0.8;
-const size$4 = 0.8;
-const value$6 = { "gold": 3, "silver": 0, "copper": 0 };
-const rarity$1 = "commune";
-const tags$P = ["arme", "melee", "contondant"];
-const properties$1 = { "finesse": true, "light": true, "heavy": false, "two_handed": false, "reach": 1, "versatile": null, "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": "monastic" };
-const attack$4 = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
-const damage$4 = { "dice": "1d6", "damage_type": "Contondant", "alt": null };
-const effectOnHit$1 = { "mod": "mod.DEX", "damage": "1d6", "damage_type": "Contondant" };
+const weight$o = 1.2;
+const size$4 = 1;
+const value$6 = { "gold": 75, "silver": 0, "copper": 0 };
+const rarity$1 = "rare";
+const tags$$ = ["arme", "melee", "tranchant"];
+const properties$1 = { "finesse": true, "light": false, "heavy": false, "two_handed": false, "reach": 1, "versatile": null, "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": "precision" };
+const attack$5 = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
+const damage$5 = { "dice": "1d8", "damage_type": "Tranchant", "alt": null };
+const effectOnHit$1 = { "mod": "mod.DEX", "damage": "1d8", "damage_type": "Tranchant" };
 const links$1 = { "actionId": "melee-strike", "effectId": "melee-slash" };
-const label$$ = "Nunchaku";
-const nunchaku = {
-  id: id$18,
-  name: name$a,
+const label$$ = "Epee elfique";
+const SpecialeEpeeElfique = {
+  id: id$1k,
+  name: name$m,
   type: type$t,
   subtype: subtype$1,
-  category: category$C,
+  category: category$O,
   descriptionCourte: descriptionCourte$1,
   descriptionLongue: descriptionLongue$1,
   allow_stack: allow_stack$1,
@@ -9830,41 +9830,41 @@ const nunchaku = {
   size: size$4,
   value: value$6,
   rarity: rarity$1,
-  tags: tags$P,
+  tags: tags$$,
   properties: properties$1,
-  attack: attack$4,
-  damage: damage$4,
+  attack: attack$5,
+  damage: damage$5,
   effectOnHit: effectOnHit$1,
   links: links$1,
   label: label$$
 };
-const id$17 = "kama";
-const name$9 = "Kama";
+const id$1j = "fouet-demon";
+const name$l = "Fouet demon";
 const type$s = "arme";
-const subtype = "monastique";
-const category$B = "melee";
-const descriptionCourte = "Faucille courte pour combat rapproche.";
+const subtype = "speciale";
+const category$N = "melee";
+const descriptionCourte = "Fouet d'arme a portee etrange.";
 const descriptionLongue = "";
 const allow_stack = false;
 const harmonisable = false;
 const focalisateur = false;
-const weight$n = 0.7;
-const size$3 = 0.6;
-const value$5 = { "gold": 2, "silver": 0, "copper": 0 };
-const rarity = "commune";
-const tags$O = ["arme", "melee", "tranchant"];
-const properties = { "finesse": true, "light": true, "heavy": false, "two_handed": false, "reach": 1, "versatile": null, "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": "monastic" };
-const attack$3 = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
-const damage$3 = { "dice": "1d6", "damage_type": "Tranchant", "alt": null };
+const weight$n = 1;
+const size$3 = 1.3;
+const value$5 = { "gold": 90, "silver": 0, "copper": 0 };
+const rarity = "rare";
+const tags$_ = ["arme", "melee", "tranchant"];
+const properties = { "finesse": true, "light": false, "heavy": false, "two_handed": false, "reach": 2, "versatile": null, "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 2, "long": 2 }, "special": "reach" };
+const attack$4 = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
+const damage$4 = { "dice": "1d6", "damage_type": "Tranchant", "alt": null };
 const effectOnHit = { "mod": "mod.DEX", "damage": "1d6", "damage_type": "Tranchant" };
 const links = { "actionId": "melee-strike", "effectId": "melee-slash" };
-const label$_ = "Kama";
-const kama = {
-  id: id$17,
-  name: name$9,
+const label$_ = "Fouet demon";
+const SpecialeFouetDemon = {
+  id: id$1j,
+  name: name$l,
   type: type$s,
   subtype,
-  category: category$B,
+  category: category$N,
   descriptionCourte,
   descriptionLongue,
   allow_stack,
@@ -9874,29 +9874,29 @@ const kama = {
   size: size$3,
   value: value$5,
   rarity,
-  tags: tags$O,
+  tags: tags$_,
   properties,
-  attack: attack$3,
-  damage: damage$3,
+  attack: attack$4,
+  damage: damage$4,
   effectOnHit,
   links,
   label: label$_
 };
-const WEAPON_TYPE_MODULES = {
-  "./simple/dague.json": dagger,
-  "./simple/petit-couteau.json": petitCouteau,
-  "./simple/arme-endommagee.json": armeEndommagee,
-  "./simple/massue.json": club,
-  "./simple/arc-court.json": shortbow,
-  "./martiale/epee-longue.json": longsword,
-  "./martiale/hache-bataille.json": battleaxe,
-  "./martiale/arc-long.json": longbow,
-  "./speciale/epee-elfique.json": elvenSword,
-  "./speciale/fouet-demon.json": demonWhip,
-  "./speciale/arbalete-repetee.json": repeatingCrossbow,
-  "./monastique/baton.json": staff,
-  "./monastique/nunchaku.json": nunchaku,
-  "./monastique/kama.json": kama
+const WEAPON_MODULES = {
+  "./martiale/arc-long.json": MartialeArcLong,
+  "./martiale/epee-longue.json": MartialeEpeeLongue,
+  "./martiale/hache-bataille.json": MartialeHacheBataille,
+  "./monastique/baton.json": MonastiqueBaton,
+  "./monastique/kama.json": MonastiqueKama,
+  "./monastique/nunchaku.json": MonastiqueNunchaku,
+  "./simple/arc-court.json": SimpleArcCourt,
+  "./simple/arme-endommagee.json": SimpleArmeEndommagee,
+  "./simple/dague.json": SimpleDague,
+  "./simple/massue.json": SimpleMassue,
+  "./simple/petit-couteau.json": SimplePetitCouteau,
+  "./speciale/arbalete-repetee.json": SpecialeArbaleteRepetee,
+  "./speciale/epee-elfique.json": SpecialeEpeeElfique,
+  "./speciale/fouet-demon.json": SpecialeFouetDemon
 };
 function normalizeWeaponDamageTypes(def) {
   const damage2 = def.damage;
@@ -9935,7 +9935,7 @@ function loadWeaponTypesFromIndex() {
   const indexed = Array.isArray(weaponsIndex.types) ? weaponsIndex.types : [];
   const loaded = [];
   for (const path2 of indexed) {
-    const mod = WEAPON_TYPE_MODULES[path2];
+    const mod = WEAPON_MODULES[path2];
     if (mod) {
       loaded.push(normalizeWeaponDamageTypes(mod));
     } else {
@@ -9943,7 +9943,7 @@ function loadWeaponTypesFromIndex() {
     }
   }
   if (loaded.length === 0) {
-    console.warn("[weapon-types] No weapon types loaded from index.json");
+    console.warn("[weapon-types] No weapons loaded from index.json");
   }
   return loaded;
 }
@@ -9951,7 +9951,7 @@ const types$6 = ["./human.json", "./elf.json", "./dwarf.json"];
 const racesIndex = {
   types: types$6
 };
-const id$16 = "human";
+const id$1i = "human";
 const label$Z = "Humain";
 const description$B = "Polyvalent et adaptable, l'humain apprend vite et s'integre partout.";
 const size$2 = "medium";
@@ -9959,7 +9959,7 @@ const speed$2 = 6;
 const traits$5 = [{ "id": "adaptable", "label": "Adaptable", "description": "Choisit une competence au choix." }];
 const grants$5 = [{ "kind": "trait", "ids": ["adaptable"] }];
 const human = {
-  id: id$16,
+  id: id$1i,
   label: label$Z,
   description: description$B,
   size: size$2,
@@ -9967,7 +9967,7 @@ const human = {
   traits: traits$5,
   grants: grants$5
 };
-const id$15 = "elf";
+const id$1h = "elf";
 const label$Y = "Elfe";
 const description$A = "Grace et perception affutee, l'elfe a une affinite naturelle avec la magie.";
 const size$1 = "medium";
@@ -9976,7 +9976,7 @@ const vision$1 = { "mode": "darkvision", "range": 60 };
 const traits$4 = [{ "id": "keen_senses", "label": "Sens aiguises", "description": "Avantage sur les tests de Perception basee sur la vue ou l'ouie." }];
 const grants$4 = [{ "kind": "trait", "ids": ["keen_senses"] }];
 const elf = {
-  id: id$15,
+  id: id$1h,
   label: label$Y,
   description: description$A,
   size: size$1,
@@ -9985,7 +9985,7 @@ const elf = {
   traits: traits$4,
   grants: grants$4
 };
-const id$14 = "dwarf";
+const id$1g = "dwarf";
 const label$X = "Nain";
 const description$z = "Robuste et endurant, le nain excelle dans la defense et le travail du metal.";
 const size = "medium";
@@ -9994,7 +9994,7 @@ const vision = { "mode": "darkvision", "range": 60 };
 const traits$3 = [{ "id": "dwarven_resilience", "label": "Endurance naine", "description": "Avantage contre le poison et resistance aux degats de poison." }];
 const grants$3 = [{ "kind": "trait", "ids": ["dwarven_resilience"] }];
 const dwarf$1 = {
-  id: id$14,
+  id: id$1g,
   label: label$X,
   description: description$z,
   size,
@@ -10028,7 +10028,7 @@ const types$5 = ["./Clerc/class.json", "./Clerc/peace-domain.json", "./Guerrier/
 const classesIndex = {
   types: types$5
 };
-const id$13 = "cleric";
+const id$1f = "cleric";
 const label$W = "Clerc";
 const description$y = "Un guide spirituel capable de soigner et de canaliser la puissance divine.";
 const hitDie$1 = 8;
@@ -10036,10 +10036,10 @@ const subclassLevel$1 = 1;
 const subclassIds$1 = ["peace-domain"];
 const proficiencies$1 = { "weapons": ["simple"], "armors": ["legere", "intermediaire", "bouclier"] };
 const equipment$3 = ["obj_symbole_sacre"];
-const spellcasting$1 = { "ability": "SAG", "preparation": "prepared", "storage": "memory", "focusTypes": ["holy_symbol"], "casterProgression": "full", "slotsByLevel": { "1": [2, 0, 0, 0, 0, 0, 0, 0, 0], "2": [3, 0, 0, 0, 0, 0, 0, 0, 0], "3": [4, 2, 0, 0, 0, 0, 0, 0, 0], "4": [4, 3, 0, 0, 0, 0, 0, 0, 0], "5": [4, 3, 2, 0, 0, 0, 0, 0, 0], "6": [4, 3, 3, 0, 0, 0, 0, 0, 0], "7": [4, 3, 3, 1, 0, 0, 0, 0, 0], "8": [4, 3, 3, 2, 0, 0, 0, 0, 0], "9": [4, 3, 3, 3, 1, 0, 0, 0, 0], "10": [4, 3, 3, 3, 2, 0, 0, 0, 0], "11": [4, 3, 3, 3, 2, 1, 0, 0, 0], "12": [4, 3, 3, 3, 2, 1, 0, 0, 0], "13": [4, 3, 3, 3, 2, 1, 1, 0, 0], "14": [4, 3, 3, 3, 2, 1, 1, 0, 0], "15": [4, 3, 3, 3, 2, 1, 1, 1, 0], "16": [4, 3, 3, 3, 2, 1, 1, 1, 0], "17": [4, 3, 3, 3, 2, 1, 1, 1, 1], "18": [4, 3, 3, 3, 3, 1, 1, 1, 1], "19": [4, 3, 3, 3, 3, 2, 1, 1, 1], "20": [4, 3, 3, 3, 3, 2, 2, 1, 1] } };
+const spellcasting$1 = { "ability": "SAG", "preparation": "prepared", "storage": "memory", "focusTypes": ["holy_symbol"], "spellFilterTags": ["cleric"], "freePreparedFromGrants": true, "casterProgression": "full", "slotsByLevel": { "1": [2, 0, 0, 0, 0, 0, 0, 0, 0], "2": [3, 0, 0, 0, 0, 0, 0, 0, 0], "3": [4, 2, 0, 0, 0, 0, 0, 0, 0], "4": [4, 3, 0, 0, 0, 0, 0, 0, 0], "5": [4, 3, 2, 0, 0, 0, 0, 0, 0], "6": [4, 3, 3, 0, 0, 0, 0, 0, 0], "7": [4, 3, 3, 1, 0, 0, 0, 0, 0], "8": [4, 3, 3, 2, 0, 0, 0, 0, 0], "9": [4, 3, 3, 3, 1, 0, 0, 0, 0], "10": [4, 3, 3, 3, 2, 0, 0, 0, 0], "11": [4, 3, 3, 3, 2, 1, 0, 0, 0], "12": [4, 3, 3, 3, 2, 1, 0, 0, 0], "13": [4, 3, 3, 3, 2, 1, 1, 0, 0], "14": [4, 3, 3, 3, 2, 1, 1, 0, 0], "15": [4, 3, 3, 3, 2, 1, 1, 1, 0], "16": [4, 3, 3, 3, 2, 1, 1, 1, 0], "17": [4, 3, 3, 3, 2, 1, 1, 1, 1], "18": [4, 3, 3, 3, 3, 1, 1, 1, 1], "19": [4, 3, 3, 3, 3, 2, 1, 1, 1], "20": [4, 3, 3, 3, 3, 2, 2, 1, 1] } };
 const progression$1 = { "1": { "grants": [{ "kind": "feature", "ids": ["channel-divinity"] }], "description": "Incantation divine et lancement de sorts geres ailleurs." }, "2": { "grants": [{ "kind": "feature", "ids": ["channel-divinity"] }, { "kind": "feature", "ids": ["turn-undead"] }], "description": "Canalisation d'energie divine et Renvoi des morts-vivants." }, "4": { "grants": [{ "kind": "bonus", "ids": ["asi-or-feat"] }], "description": "Amelioration de caracteristiques ou choix de don." }, "8": { "grants": [{ "kind": "bonus", "ids": ["asi-or-feat"] }], "description": "Amelioration de caracteristiques ou choix de don." }, "10": { "grants": [{ "kind": "feature", "ids": ["divine-intervention"] }], "description": "Intervention divine." }, "12": { "grants": [{ "kind": "bonus", "ids": ["asi-or-feat"] }], "description": "Amelioration de caracteristiques ou choix de don." }, "16": { "grants": [{ "kind": "bonus", "ids": ["asi-or-feat"] }], "description": "Amelioration de caracteristiques ou choix de don." }, "19": { "grants": [{ "kind": "bonus", "ids": ["asi-or-feat"] }], "description": "Amelioration de caracteristiques choix de don." }, "20": { "grants": [{ "kind": "feature", "ids": ["divine-intervention"] }], "description": "Intervention divine amelioree." } };
-const cleric = {
-  id: id$13,
+const ClercClass = {
+  id: id$1f,
   label: label$W,
   description: description$y,
   hitDie: hitDie$1,
@@ -10050,53 +10050,53 @@ const cleric = {
   spellcasting: spellcasting$1,
   progression: progression$1
 };
-const id$12 = "fighter";
-const label$V = "Guerrier";
-const description$x = "Un combattant maitre des armes, robuste et polyvalent sur le champ de bataille.";
+const id$1e = "peace-domain";
+const classId$1 = "cleric";
+const label$V = "Domaine de la Paix";
+const description$x = "Lien divin entre allies, soutien defensif et magie de protection.";
+const progression = { "1": { "grants": [{ "kind": "feature", "ids": ["peace-bond"] }, { "kind": "spell", "ids": ["heroism", "sanctuary"] }], "description": "Lien de paix et sorts disponibles : Heroisme, Sanctuaire." }, "2": { "grants": [{ "kind": "feature", "ids": ["balm-of-peace"] }], "description": "Baume de la paix." }, "3": { "grants": [{ "kind": "spell", "ids": ["aid", "warding-bond"] }], "description": "Sorts disponibles : Aide, Lien protecteur." }, "5": { "grants": [{ "kind": "spell", "ids": ["beacon-of-hope", "sending"] }], "description": "Sorts disponibles : Flamme d'espoir, Message." }, "6": { "grants": [{ "kind": "feature", "ids": ["protective-bond"] }], "description": "Lien protecteur." }, "7": { "grants": [{ "kind": "spell", "ids": ["aura-of-purity", "resilient-sphere"] }], "description": "Sorts disponibles : Aura de purete, Sphere resiliente." }, "9": { "grants": [{ "kind": "spell", "ids": ["greater-restoration", "rarys-telepathic-bond"] }], "description": "Sorts disponibles : Restauration superieure, Lien telepathique de Rary." }, "17": { "grants": [{ "kind": "feature", "ids": ["expansive-bond"] }], "description": "Lien expansif." } };
+const ClercPeaceDomain = {
+  id: id$1e,
+  classId: classId$1,
+  label: label$V,
+  description: description$x,
+  progression
+};
+const id$1d = "fighter";
+const label$U = "Guerrier";
+const description$w = "Un combattant maitre des armes, robuste et polyvalent sur le champ de bataille.";
 const hitDie = 10;
 const subclassLevel = 3;
 const subclassIds = ["eldritch-knight"];
 const proficiencies = { "weapons": ["simple", "martiale"], "armors": ["legere", "intermediaire", "lourde", "bouclier"] };
-const fighter = {
-  id: id$12,
-  label: label$V,
-  description: description$x,
+const GuerrierClass = {
+  id: id$1d,
+  label: label$U,
+  description: description$w,
   hitDie,
   subclassLevel,
   subclassIds,
   proficiencies
 };
-const id$11 = "peace-domain";
-const classId$1 = "cleric";
-const label$U = "Domaine de la Paix";
-const description$w = "Lien divin entre allies, soutien defensif et magie de protection.";
-const progression = { "1": { "grants": [{ "kind": "feature", "ids": ["peace-bond"] }, { "kind": "spell", "ids": ["heroism", "sanctuary"] }], "description": "Lien de paix et sorts disponibles : Heroisme, Sanctuaire." }, "2": { "grants": [{ "kind": "feature", "ids": ["balm-of-peace"] }], "description": "Baume de la paix." }, "3": { "grants": [{ "kind": "spell", "ids": ["aid", "warding-bond"] }], "description": "Sorts disponibles : Aide, Lien protecteur." }, "5": { "grants": [{ "kind": "spell", "ids": ["beacon-of-hope", "sending"] }], "description": "Sorts disponibles : Flamme d'espoir, Message." }, "6": { "grants": [{ "kind": "feature", "ids": ["protective-bond"] }], "description": "Lien protecteur." }, "7": { "grants": [{ "kind": "spell", "ids": ["aura-of-purity", "resilient-sphere"] }], "description": "Sorts disponibles : Aura de purete, Sphere resiliente." }, "9": { "grants": [{ "kind": "spell", "ids": ["greater-restoration", "rarys-telepathic-bond"] }], "description": "Sorts disponibles : Restauration superieure, Lien telepathique de Rary." }, "17": { "grants": [{ "kind": "feature", "ids": ["expansive-bond"] }], "description": "Lien expansif." } };
-const peaceDomain = {
-  id: id$11,
-  classId: classId$1,
-  label: label$U,
-  description: description$w,
-  progression
-};
-const id$10 = "eldritch-knight";
+const id$1c = "eldritch-knight";
 const classId = "fighter";
 const label$T = "Chevalier Occulte";
 const description$v = "Combattant martial avec magie de magicien, abjuration et evocation.";
 const spellcasting = { "ability": "INT", "preparation": "known", "storage": "memory", "focusTypes": ["arcane_focus", "component_pouch"], "casterProgression": "third", "slotsByLevel": { "1": [2, 0, 0, 0, 0, 0, 0, 0, 0], "2": [3, 0, 0, 0, 0, 0, 0, 0, 0], "3": [4, 2, 0, 0, 0, 0, 0, 0, 0], "4": [4, 3, 0, 0, 0, 0, 0, 0, 0], "5": [4, 3, 2, 0, 0, 0, 0, 0, 0], "6": [4, 3, 3, 0, 0, 0, 0, 0, 0], "7": [4, 3, 3, 1, 0, 0, 0, 0, 0], "8": [4, 3, 3, 2, 0, 0, 0, 0, 0], "9": [4, 3, 3, 3, 1, 0, 0, 0, 0], "10": [4, 3, 3, 3, 2, 0, 0, 0, 0], "11": [4, 3, 3, 3, 2, 1, 0, 0, 0], "12": [4, 3, 3, 3, 2, 1, 0, 0, 0], "13": [4, 3, 3, 3, 2, 1, 1, 0, 0], "14": [4, 3, 3, 3, 2, 1, 1, 0, 0], "15": [4, 3, 3, 3, 2, 1, 1, 1, 0], "16": [4, 3, 3, 3, 2, 1, 1, 1, 0], "17": [4, 3, 3, 3, 2, 1, 1, 1, 1], "18": [4, 3, 3, 3, 3, 1, 1, 1, 1], "19": [4, 3, 3, 3, 3, 2, 1, 1, 1], "20": [4, 3, 3, 3, 3, 2, 2, 1, 1] } };
-const eldritchKnight = {
-  id: id$10,
+const GuerrierEldritchKnight = {
+  id: id$1c,
   classId,
   label: label$T,
   description: description$v,
   spellcasting
 };
 const CLASS_MODULES = {
-  "./Clerc/class.json": cleric,
-  "./Guerrier/class.json": fighter
+  "./Clerc/class.json": ClercClass,
+  "./Guerrier/class.json": GuerrierClass
 };
 const SUBCLASS_MODULES = {
-  "./Clerc/peace-domain.json": peaceDomain,
-  "./Guerrier/eldritch-knight.json": eldritchKnight
+  "./Clerc/peace-domain.json": ClercPeaceDomain,
+  "./Guerrier/eldritch-knight.json": GuerrierEldritchKnight
 };
 function loadClassTypesFromIndex() {
   const indexed = Array.isArray(classesIndex.types) ? classesIndex.types : [];
@@ -10138,42 +10138,42 @@ const types$4 = ["./apprenti-academique.json", "./enfant-des-rues.json", "./vete
 const backgroundsIndex = {
   types: types$4
 };
-const id$$ = "apprenti-academique";
+const id$1b = "apprenti-academique";
 const label$S = "Apprenti Academique";
 const description$u = "Eleve d'une academie ou d'un maitre, curieux, studieux et avide de savoir.";
 const equipment$2 = ["obj_grimoire", "obj_plume_encre", "obj_tenue_academique", "obj_bourse", "object:obj_piece_or:10", "obj_besace"];
 const grants$2 = [{ "kind": "skill", "ids": ["arcanes", "histoire"] }, { "kind": "tool", "ids": ["outils_artisan"] }, { "kind": "language-choice", "ids": [], "meta": { "count": 2 } }, { "kind": "feature", "ids": ["acces-au-savoir"], "meta": { "label": "Acces au Savoir", "description": "Tu sais ou trouver l'information et obtenir un acces raisonnable aux sources savantes." } }];
 const traits$2 = { "personality": ["Je corrige instinctivement les erreurs des autres.", "J'ai une curiosite insatiable.", "Je parle parfois trop techniquement.", "Je prends des notes sur tout.", "Je suis fascine par l'inconnu.", "Je doute souvent de mes capacites pratiques.", "J'adore debattre.", "Je suis plus a l'aise avec les livres qu'avec les gens."], "ideals": ["Connaissance — Le savoir est la cle de tout.", "Progres — Le monde doit evoluer.", "Verite — Les faits comptent plus que les croyances.", "Responsabilite — Le savoir impose un devoir.", "Pouvoir — Comprendre, c'est dominer.", "Transmission — Le savoir doit etre partage."], "bond": "Mon maitre a disparu, laissant des recherches inachevees.", "flaw": "Je sous-estime souvent les dangers pratiques." };
 const academic = {
-  id: id$$,
+  id: id$1b,
   label: label$S,
   description: description$u,
   equipment: equipment$2,
   grants: grants$2,
   traits: traits$2
 };
-const id$_ = "enfant-des-rues";
+const id$1a = "enfant-des-rues";
 const label$R = "Enfant des Rues";
 const description$t = "Survivant des ruelles et des toits, malin, discret et opportuniste.";
 const equipment$1 = ["obj_petit_couteau", "obj_bourse", "object:obj_piece_or:10", "obj_vetements_communs", "obj_souvenir_vole", "obj_sac_a_dos"];
 const grants$1 = [{ "kind": "skill", "ids": ["discretion", "escamotage"] }, { "kind": "tool", "ids": ["outils_autres"] }, { "kind": "tool-choice", "ids": [], "meta": { "count": 1, "options": ["outils_instruments", "outils_jeux"] } }, { "kind": "language-choice", "ids": [], "meta": { "count": 1 } }, { "kind": "feature", "ids": ["reseau-des-ombres"], "meta": { "label": "Reseau des Ombres", "description": "Tu peux trouver un contact des bas-fonds pour une aide simple ou une info mineure." } }];
 const traits$1 = { "personality": ["Je me fie toujours a mon instinct.", "J'ai du mal a faire confiance, mais quand c'est fait, c'est total.", "Je plaisante quand la situation devient tendue.", "Je garde toujours un plan de secours.", "Je suis mefiant envers l'autorite.", "J'observe tout, meme quand je semble distrait.", "Je deteste devoir quelque chose a quelqu'un.", "Je prefere agir seul, mais j'ai besoin d'un groupe."], "ideals": ["Liberte — Personne ne m'enchainera jamais.", "Survie — Les faibles n'ont pas le luxe de la morale.", "Loyaute — Mon clan passe avant tout.", "Ambition — Je merite mieux que ce que j'ai eu.", "Justice — Personne ne devrait vivre comme j'ai vecu.", "Opportunite — Chaque instant est une chance a saisir."], "bond": "Quelqu'un des rues m'a sauve la vie, et je lui dois beaucoup.", "flaw": "Je prends parfois des risques inutiles pour un gain rapide." };
 const streetKid = {
-  id: id$_,
+  id: id$1a,
   label: label$R,
   description: description$t,
   equipment: equipment$1,
   grants: grants$1,
   traits: traits$1
 };
-const id$Z = "veteran-de-guerre";
+const id$19 = "veteran-de-guerre";
 const label$Q = "Veteran de Guerre";
 const description$s = "Ancien soldat marque par la guerre, discipline et endurance a toute epreuve.";
 const equipment = ["obj_arme_endommagee", "obj_insigne_unite", "obj_vetements_voyage", "obj_bourse", "object:obj_piece_or:10", "obj_sac_voyage"];
 const grants = [{ "kind": "skill", "ids": ["athletisme", "intimidation"] }, { "kind": "tool", "ids": ["outils_vehicules"] }, { "kind": "tool-choice", "ids": [], "meta": { "count": 1, "options": ["outils_jeux"] } }, { "kind": "language-choice", "ids": [], "meta": { "count": 1 } }, { "kind": "feature", "ids": ["freres-et-soeurs-d-armes"], "meta": { "label": "Freres et Soeurs d'Armes", "description": "Tu peux obtenir abri, aide basique ou informations militaires d'anciens soldats." } }];
 const traits = { "personality": ["Je reste calme en toute situation.", "J'analyse toujours le terrain.", "J'ai du mal a me detendre.", "Je protege instinctivement les plus faibles.", "Je deteste le gaspillage.", "Je parle peu, mais efficacement.", "Je suis hante par mes souvenirs.", "Je respecte la chaine de commandement."], "ideals": ["Devoir — On n'abandonne jamais sa mission.", "Protection — Les innocents doivent etre defendus.", "Honneur — Mes actes me definissent.", "Redemption — Je veux reparer le passe.", "Ordre — Le chaos mene a la souffrance.", "Fraternite — Aucun combat ne se gagne seul."], "bond": "Un ancien compagnon d'armes compte toujours sur moi.", "flaw": "Je reagis parfois trop violemment face aux menaces." };
 const veteran = {
-  id: id$Z,
+  id: id$19,
   label: label$Q,
   description: description$s,
   equipment,
@@ -10205,40 +10205,40 @@ const types$3 = ["./commun.json", "./elfique.json", "./nain.json", "./halfelin.j
 const languagesIndex = {
   types: types$3
 };
-const id$Y = "commun";
+const id$18 = "commun";
 const label$P = "Commun";
 const common = {
-  id: id$Y,
+  id: id$18,
   label: label$P
 };
-const id$X = "elfique";
+const id$17 = "elfique";
 const label$O = "Elfique";
 const elvish = {
-  id: id$X,
+  id: id$17,
   label: label$O
 };
-const id$W = "nain";
+const id$16 = "nain";
 const label$N = "Nain";
 const dwarf = {
-  id: id$W,
+  id: id$16,
   label: label$N
 };
-const id$V = "halfelin";
+const id$15 = "halfelin";
 const label$M = "Halfelin";
 const halfling = {
-  id: id$V,
+  id: id$15,
   label: label$M
 };
-const id$U = "gnome";
+const id$14 = "gnome";
 const label$L = "Gnome";
 const gnome = {
-  id: id$U,
+  id: id$14,
   label: label$L
 };
-const id$T = "orc";
+const id$13 = "orc";
 const label$K = "Orc";
 const orc = {
-  id: id$T,
+  id: id$13,
   label: label$K
 };
 const LANGUAGE_MODULES = {
@@ -10265,76 +10265,76 @@ function loadLanguageTypesFromIndex() {
   }
   return loaded;
 }
-const types$2 = ["./outils-artisan.json", "./outils-jeux.json", "./outils-instruments.json", "./outils-autres.json", "./outils-vehicules.json"];
+const types$2 = ["./outils-artisan.json", "./outils-autres.json", "./outils-instruments.json", "./outils-jeux.json", "./outils-vehicules.json"];
 const toolsIndex = {
   types: types$2
 };
-const id$S = "outils_artisan";
+const id$12 = "outils_artisan";
 const label$J = "Outils d'artisan";
 const type$r = "tool";
-const category$A = "artisan";
+const category$M = "artisan";
 const description$r = "Categorie regroupant les outils d'artisan (alchimiste, forgeron, menuisier, etc.).";
-const artisan = {
-  id: id$S,
+const OutilsArtisan = {
+  id: id$12,
   label: label$J,
   type: type$r,
-  category: category$A,
+  category: category$M,
   description: description$r
 };
-const id$R = "outils_jeux";
-const label$I = "Boite de jeux";
+const id$11 = "outils_autres";
+const label$I = "Autres outils";
 const type$q = "tool";
-const category$z = "games";
-const description$q = "Categorie des jeux (des, cartes, echecs, etc.).";
-const games = {
-  id: id$R,
+const category$L = "misc";
+const description$q = "Categorie des autres outils (deguisement, contrefacon, herboriste, empoisonneur, voleur, navigateur).";
+const OutilsAutres = {
+  id: id$11,
   label: label$I,
   type: type$q,
-  category: category$z,
+  category: category$L,
   description: description$q
 };
-const id$Q = "outils_instruments";
+const id$10 = "outils_instruments";
 const label$H = "Instruments de musique";
 const type$p = "tool";
-const category$y = "music";
+const category$K = "music";
 const description$p = "Categorie des instruments de musique.";
-const instruments = {
-  id: id$Q,
+const OutilsInstruments = {
+  id: id$10,
   label: label$H,
   type: type$p,
-  category: category$y,
+  category: category$K,
   description: description$p
 };
-const id$P = "outils_autres";
-const label$G = "Autres outils";
+const id$$ = "outils_jeux";
+const label$G = "Boite de jeux";
 const type$o = "tool";
-const category$x = "misc";
-const description$o = "Categorie des autres outils (deguisement, contrefacon, herboriste, empoisonneur, voleur, navigateur).";
-const misc = {
-  id: id$P,
+const category$J = "games";
+const description$o = "Categorie des jeux (des, cartes, echecs, etc.).";
+const OutilsJeux = {
+  id: id$$,
   label: label$G,
   type: type$o,
-  category: category$x,
+  category: category$J,
   description: description$o
 };
-const id$O = "outils_vehicules";
+const id$_ = "outils_vehicules";
 const label$F = "Vehicules";
 const type$n = "tool";
-const category$w = "vehicles";
+const category$I = "vehicles";
 const description$n = "Categorie des vehicules (terrestres, aquatiques).";
-const vehicles = {
-  id: id$O,
+const OutilsVehicules = {
+  id: id$_,
   label: label$F,
   type: type$n,
-  category: category$w,
+  category: category$I,
   description: description$n
 };
 const TOOL_MODULES = {
-  "./outils-artisan.json": artisan,
-  "./outils-jeux.json": games,
-  "./outils-instruments.json": instruments,
-  "./outils-autres.json": misc,
-  "./outils-vehicules.json": vehicles
+  "./outils-artisan.json": OutilsArtisan,
+  "./outils-autres.json": OutilsAutres,
+  "./outils-instruments.json": OutilsInstruments,
+  "./outils-jeux.json": OutilsJeux,
+  "./outils-vehicules.json": OutilsVehicules
 };
 function loadToolItemsFromIndex() {
   const indexed = Array.isArray(toolsIndex.types) ? toolsIndex.types : [];
@@ -10352,323 +10352,323 @@ function loadToolItemsFromIndex() {
   }
   return loaded;
 }
-const types$1 = ["./obj-grimoire.json", "./obj-plume-encre.json", "./obj-tenue-academique.json", "./obj-bourse.json", "./piece-platine.json", "./piece-or.json", "./piece-argent.json", "./piece-cuivre.json", "./obj-vetements-communs.json", "./obj-souvenir-vole.json", "./obj-insigne-unite.json", "./obj-vetements-voyage.json", "./obj-sac-voyage.json", "./obj-besace.json", "./obj-sac-a-dos.json", "./obj-symbole-sacre.json"];
+const types$1 = ["./obj-besace.json", "./obj-bourse.json", "./obj-grimoire.json", "./obj-insigne-unite.json", "./obj-plume-encre.json", "./obj-sac-a-dos.json", "./obj-sac-voyage.json", "./obj-souvenir-vole.json", "./obj-symbole-sacre.json", "./obj-tenue-academique.json", "./obj-vetements-communs.json", "./obj-vetements-voyage.json", "./piece-argent.json", "./piece-cuivre.json", "./piece-or.json", "./piece-platine.json"];
 const objectsIndex = {
   types: types$1
 };
-const id$N = "obj_grimoire";
-const label$E = "Grimoire ou carnet de recherches";
+const id$Z = "obj_besace";
+const label$E = "Besace";
 const type$m = "object";
-const category$v = "misc";
-const weight$m = 1;
-const priceGp$h = 5;
-const tags$N = ["academique"];
-const description$m = "Notes, formules et recherches personnelles.";
-const grimoire = {
-  id: id$N,
+const category$H = "pack";
+const weight$m = 0.8;
+const priceGp$h = 1;
+const capacityWeight$3 = 10;
+const tags$Z = ["sac", "paquetage"];
+const description$m = "Petite besace souple pour le quotidien.";
+const ObjBesace = {
+  id: id$Z,
   label: label$E,
   type: type$m,
-  category: category$v,
+  category: category$H,
   weight: weight$m,
   priceGp: priceGp$h,
-  tags: tags$N,
+  capacityWeight: capacityWeight$3,
+  tags: tags$Z,
   description: description$m
 };
-const id$M = "obj_plume_encre";
-const label$D = "Plume et encre";
+const id$Y = "obj_bourse";
+const label$D = "Bourse";
 const type$l = "object";
-const category$u = "misc";
+const category$G = "pack";
 const weight$l = 0.2;
-const priceGp$g = 1;
-const tags$M = ["ecriture"];
-const description$l = "Outils de base pour ecrire et prendre des notes.";
-const plumeEncre = {
-  id: id$M,
+const value$4 = { "po": 1 };
+const capacityWeight$2 = 5;
+const tags$Y = ["bourse", "sac", "paquetage"];
+const description$l = "Petite bourse destinee aux pieces et petits objets.";
+const ObjBourse = {
+  id: id$Y,
   label: label$D,
   type: type$l,
-  category: category$u,
+  category: category$G,
   weight: weight$l,
-  priceGp: priceGp$g,
-  tags: tags$M,
+  value: value$4,
+  capacityWeight: capacityWeight$2,
+  tags: tags$Y,
   description: description$l
 };
-const id$L = "obj_tenue_academique";
-const label$C = "Tenue academique";
+const id$X = "obj_grimoire";
+const label$C = "Grimoire ou carnet de recherches";
 const type$k = "object";
-const category$t = "clothing_body";
-const weight$k = 1.5;
-const priceGp$f = 2;
-const tags$L = ["vetement"];
-const description$k = "Robe ou tenue propre aux milieux savants.";
-const tenueAcademique = {
-  id: id$L,
+const category$F = "misc";
+const weight$k = 1;
+const priceGp$g = 5;
+const tags$X = ["academique"];
+const description$k = "Notes, formules et recherches personnelles.";
+const ObjGrimoire = {
+  id: id$X,
   label: label$C,
   type: type$k,
-  category: category$t,
+  category: category$F,
   weight: weight$k,
-  priceGp: priceGp$f,
-  tags: tags$L,
+  priceGp: priceGp$g,
+  tags: tags$X,
   description: description$k
 };
-const id$K = "obj_bourse";
-const label$B = "Bourse";
+const id$W = "obj_insigne_unite";
+const label$B = "Insigne d'ancienne unite";
 const type$j = "object";
-const category$s = "pack";
-const weight$j = 0.2;
-const value$4 = { "po": 1 };
-const capacityWeight$3 = 5;
-const tags$K = ["bourse", "sac", "paquetage"];
-const description$j = "Petite bourse destinee aux pieces et petits objets.";
-const bourse = {
-  id: id$K,
+const category$E = "jewel";
+const weight$j = 0.1;
+const priceGp$f = 0;
+const tags$W = ["insigne", "militaire"];
+const description$j = "Symbole d'appartenance a une ancienne unite.";
+const ObjInsigneUnite = {
+  id: id$W,
   label: label$B,
   type: type$j,
-  category: category$s,
+  category: category$E,
   weight: weight$j,
-  value: value$4,
-  capacityWeight: capacityWeight$3,
-  tags: tags$K,
+  priceGp: priceGp$f,
+  tags: tags$W,
   description: description$j
 };
-const id$J = "obj_piece_platine";
-const label$A = "Piece de platine";
+const id$V = "obj_plume_encre";
+const label$A = "Plume et encre";
 const type$i = "object";
-const category$r = "currency";
-const weight$i = 0.01;
-const value$3 = { "pp": 1 };
-const tags$J = ["monnaie", "piece"];
-const description$i = "Piece de platine.";
-const piecePlatine = {
-  id: id$J,
+const category$D = "misc";
+const weight$i = 0.2;
+const priceGp$e = 1;
+const tags$V = ["ecriture"];
+const description$i = "Outils de base pour ecrire et prendre des notes.";
+const ObjPlumeEncre = {
+  id: id$V,
   label: label$A,
   type: type$i,
-  category: category$r,
+  category: category$D,
   weight: weight$i,
-  value: value$3,
-  tags: tags$J,
+  priceGp: priceGp$e,
+  tags: tags$V,
   description: description$i
 };
-const id$I = "obj_piece_or";
-const label$z = "Piece d'or";
+const id$U = "obj_sac_a_dos";
+const label$z = "Sac a dos";
 const type$h = "object";
-const category$q = "currency";
-const weight$h = 0.01;
-const value$2 = { "po": 1 };
-const tags$I = ["monnaie", "piece"];
-const description$h = "Piece d'or.";
-const pieceOr = {
-  id: id$I,
+const category$C = "pack";
+const weight$h = 1.5;
+const priceGp$d = 2;
+const capacityWeight$1 = 18;
+const tags$U = ["sac", "paquetage"];
+const description$h = "Sac a dos pratique pour transporter du materiel.";
+const ObjSacADos = {
+  id: id$U,
   label: label$z,
   type: type$h,
-  category: category$q,
+  category: category$C,
   weight: weight$h,
-  value: value$2,
-  tags: tags$I,
+  priceGp: priceGp$d,
+  capacityWeight: capacityWeight$1,
+  tags: tags$U,
   description: description$h
 };
-const id$H = "obj_piece_argent";
-const label$y = "Piece d'argent";
+const id$T = "obj_sac_voyage";
+const label$y = "Sac de voyage";
 const type$g = "object";
-const category$p = "currency";
-const weight$g = 0.01;
-const value$1 = { "pa": 1 };
-const tags$H = ["monnaie", "piece"];
-const description$g = "Piece d'argent.";
-const pieceArgent = {
-  id: id$H,
+const category$B = "pack";
+const weight$g = 2;
+const priceGp$c = 4;
+const capacityWeight = 25;
+const tags$T = ["sac", "paquetage"];
+const description$g = "Sac robuste pour longs deplacements.";
+const ObjSacVoyage = {
+  id: id$T,
   label: label$y,
   type: type$g,
-  category: category$p,
+  category: category$B,
   weight: weight$g,
-  value: value$1,
-  tags: tags$H,
+  priceGp: priceGp$c,
+  capacityWeight,
+  tags: tags$T,
   description: description$g
 };
-const id$G = "obj_piece_cuivre";
-const label$x = "Piece de cuivre";
+const id$S = "obj_souvenir_vole";
+const label$x = "Souvenir d'enfance vole";
 const type$f = "object";
-const category$o = "currency";
-const weight$f = 0.01;
-const value = { "pc": 1 };
-const tags$G = ["monnaie", "piece"];
-const description$f = "Piece de cuivre.";
-const pieceCuivre = {
-  id: id$G,
+const category$A = "jewel";
+const weight$f = 0.1;
+const priceGp$b = 0;
+const tags$S = ["souvenir"];
+const description$f = "Petit objet sentimental, sans grande valeur marchande.";
+const ObjSouvenirVole = {
+  id: id$S,
   label: label$x,
   type: type$f,
-  category: category$o,
+  category: category$A,
   weight: weight$f,
-  value,
-  tags: tags$G,
+  priceGp: priceGp$b,
+  tags: tags$S,
   description: description$f
 };
-const id$F = "obj_vetements_communs";
-const label$w = "Vetements communs";
+const id$R = "obj_symbole_sacre";
+const label$w = "Symbole sacre";
 const type$e = "object";
-const category$n = "clothing_body";
-const weight$e = 1.5;
-const priceGp$e = 0.5;
-const tags$F = ["vetement"];
-const description$e = "Tenue simple et pratique.";
-const vetementsCommuns = {
-  id: id$F,
+const category$z = "misc";
+const weight$e = 1;
+const priceGp$a = 5;
+const tags$R = ["holy_symbol"];
+const description$e = "Symbole sacre utilise comme focalisateur divin.";
+const ObjSymboleSacre = {
+  id: id$R,
   label: label$w,
   type: type$e,
-  category: category$n,
+  category: category$z,
   weight: weight$e,
-  priceGp: priceGp$e,
-  tags: tags$F,
+  priceGp: priceGp$a,
+  tags: tags$R,
   description: description$e
 };
-const id$E = "obj_souvenir_vole";
-const label$v = "Souvenir d'enfance vole";
+const id$Q = "obj_tenue_academique";
+const label$v = "Tenue academique";
 const type$d = "object";
-const category$m = "jewel";
-const weight$d = 0.1;
-const priceGp$d = 0;
-const tags$E = ["souvenir"];
-const description$d = "Petit objet sentimental, sans grande valeur marchande.";
-const souvenirVole = {
-  id: id$E,
+const category$y = "clothing_body";
+const weight$d = 1.5;
+const priceGp$9 = 2;
+const tags$Q = ["vetement"];
+const description$d = "Robe ou tenue propre aux milieux savants.";
+const ObjTenueAcademique = {
+  id: id$Q,
   label: label$v,
   type: type$d,
-  category: category$m,
+  category: category$y,
   weight: weight$d,
-  priceGp: priceGp$d,
-  tags: tags$E,
+  priceGp: priceGp$9,
+  tags: tags$Q,
   description: description$d
 };
-const id$D = "obj_insigne_unite";
-const label$u = "Insigne d'ancienne unite";
+const id$P = "obj_vetements_communs";
+const label$u = "Vetements communs";
 const type$c = "object";
-const category$l = "jewel";
-const weight$c = 0.1;
-const priceGp$c = 0;
-const tags$D = ["insigne", "militaire"];
-const description$c = "Symbole d'appartenance a une ancienne unite.";
-const insigneUnite = {
-  id: id$D,
+const category$x = "clothing_body";
+const weight$c = 1.5;
+const priceGp$8 = 0.5;
+const tags$P = ["vetement"];
+const description$c = "Tenue simple et pratique.";
+const ObjVetementsCommuns = {
+  id: id$P,
   label: label$u,
   type: type$c,
-  category: category$l,
+  category: category$x,
   weight: weight$c,
-  priceGp: priceGp$c,
-  tags: tags$D,
+  priceGp: priceGp$8,
+  tags: tags$P,
   description: description$c
 };
-const id$C = "obj_vetements_voyage";
+const id$O = "obj_vetements_voyage";
 const label$t = "Vetements de voyage";
 const type$b = "object";
-const category$k = "clothing_body";
+const category$w = "clothing_body";
 const weight$b = 2;
-const priceGp$b = 1;
-const tags$C = ["vetement"];
+const priceGp$7 = 1;
+const tags$O = ["vetement"];
 const description$b = "Tenue robuste pour le voyage.";
-const vetementsVoyage = {
-  id: id$C,
+const ObjVetementsVoyage = {
+  id: id$O,
   label: label$t,
   type: type$b,
-  category: category$k,
+  category: category$w,
   weight: weight$b,
-  priceGp: priceGp$b,
-  tags: tags$C,
+  priceGp: priceGp$7,
+  tags: tags$O,
   description: description$b
 };
-const id$B = "obj_sac_voyage";
-const label$s = "Sac de voyage";
+const id$N = "obj_piece_argent";
+const label$s = "Piece d'argent";
 const type$a = "object";
-const category$j = "pack";
-const weight$a = 2;
-const priceGp$a = 4;
-const capacityWeight$2 = 25;
-const tags$B = ["sac", "paquetage"];
-const description$a = "Sac robuste pour longs deplacements.";
-const sacVoyage = {
-  id: id$B,
+const category$v = "currency";
+const weight$a = 0.01;
+const value$3 = { "pa": 1 };
+const tags$N = ["monnaie", "piece"];
+const description$a = "Piece d'argent.";
+const PieceArgent = {
+  id: id$N,
   label: label$s,
   type: type$a,
-  category: category$j,
+  category: category$v,
   weight: weight$a,
-  priceGp: priceGp$a,
-  capacityWeight: capacityWeight$2,
-  tags: tags$B,
+  value: value$3,
+  tags: tags$N,
   description: description$a
 };
-const id$A = "obj_besace";
-const label$r = "Besace";
+const id$M = "obj_piece_cuivre";
+const label$r = "Piece de cuivre";
 const type$9 = "object";
-const category$i = "pack";
-const weight$9 = 0.8;
-const priceGp$9 = 1;
-const capacityWeight$1 = 10;
-const tags$A = ["sac", "paquetage"];
-const description$9 = "Petite besace souple pour le quotidien.";
-const besace = {
-  id: id$A,
+const category$u = "currency";
+const weight$9 = 0.01;
+const value$2 = { "pc": 1 };
+const tags$M = ["monnaie", "piece"];
+const description$9 = "Piece de cuivre.";
+const PieceCuivre = {
+  id: id$M,
   label: label$r,
   type: type$9,
-  category: category$i,
+  category: category$u,
   weight: weight$9,
-  priceGp: priceGp$9,
-  capacityWeight: capacityWeight$1,
-  tags: tags$A,
+  value: value$2,
+  tags: tags$M,
   description: description$9
 };
-const id$z = "obj_sac_a_dos";
-const label$q = "Sac a dos";
+const id$L = "obj_piece_or";
+const label$q = "Piece d'or";
 const type$8 = "object";
-const category$h = "pack";
-const weight$8 = 1.5;
-const priceGp$8 = 2;
-const capacityWeight = 18;
-const tags$z = ["sac", "paquetage"];
-const description$8 = "Sac a dos pratique pour transporter du materiel.";
-const sacADos = {
-  id: id$z,
+const category$t = "currency";
+const weight$8 = 0.01;
+const value$1 = { "po": 1 };
+const tags$L = ["monnaie", "piece"];
+const description$8 = "Piece d'or.";
+const PieceOr = {
+  id: id$L,
   label: label$q,
   type: type$8,
-  category: category$h,
+  category: category$t,
   weight: weight$8,
-  priceGp: priceGp$8,
-  capacityWeight,
-  tags: tags$z,
+  value: value$1,
+  tags: tags$L,
   description: description$8
 };
-const id$y = "obj_symbole_sacre";
-const label$p = "Symbole sacre";
+const id$K = "obj_piece_platine";
+const label$p = "Piece de platine";
 const type$7 = "object";
-const category$g = "misc";
-const weight$7 = 1;
-const priceGp$7 = 5;
-const tags$y = ["holy_symbol"];
-const description$7 = "Symbole sacre utilise comme focalisateur divin.";
-const symboleSacre = {
-  id: id$y,
+const category$s = "currency";
+const weight$7 = 0.01;
+const value = { "pp": 1 };
+const tags$K = ["monnaie", "piece"];
+const description$7 = "Piece de platine.";
+const PiecePlatine = {
+  id: id$K,
   label: label$p,
   type: type$7,
-  category: category$g,
+  category: category$s,
   weight: weight$7,
-  priceGp: priceGp$7,
-  tags: tags$y,
+  value,
+  tags: tags$K,
   description: description$7
 };
 const OBJECT_MODULES = {
-  "./obj-grimoire.json": grimoire,
-  "./obj-plume-encre.json": plumeEncre,
-  "./obj-tenue-academique.json": tenueAcademique,
-  "./obj-bourse.json": bourse,
-  "./piece-platine.json": piecePlatine,
-  "./piece-or.json": pieceOr,
-  "./piece-argent.json": pieceArgent,
-  "./piece-cuivre.json": pieceCuivre,
-  "./obj-vetements-communs.json": vetementsCommuns,
-  "./obj-souvenir-vole.json": souvenirVole,
-  "./obj-insigne-unite.json": insigneUnite,
-  "./obj-vetements-voyage.json": vetementsVoyage,
-  "./obj-sac-voyage.json": sacVoyage,
-  "./obj-besace.json": besace,
-  "./obj-sac-a-dos.json": sacADos,
-  "./obj-symbole-sacre.json": symboleSacre
+  "./obj-besace.json": ObjBesace,
+  "./obj-bourse.json": ObjBourse,
+  "./obj-grimoire.json": ObjGrimoire,
+  "./obj-insigne-unite.json": ObjInsigneUnite,
+  "./obj-plume-encre.json": ObjPlumeEncre,
+  "./obj-sac-a-dos.json": ObjSacADos,
+  "./obj-sac-voyage.json": ObjSacVoyage,
+  "./obj-souvenir-vole.json": ObjSouvenirVole,
+  "./obj-symbole-sacre.json": ObjSymboleSacre,
+  "./obj-tenue-academique.json": ObjTenueAcademique,
+  "./obj-vetements-communs.json": ObjVetementsCommuns,
+  "./obj-vetements-voyage.json": ObjVetementsVoyage,
+  "./piece-argent.json": PieceArgent,
+  "./piece-cuivre.json": PieceCuivre,
+  "./piece-or.json": PieceOr,
+  "./piece-platine.json": PiecePlatine
 };
 function loadObjectItemsFromIndex() {
   const indexed = Array.isArray(objectsIndex.types) ? objectsIndex.types : [];
@@ -10686,23 +10686,23 @@ function loadObjectItemsFromIndex() {
   }
   return loaded;
 }
-const types = ["./cuir.json", "./cuir-cloute.json", "./chemise-mailles.json", "./demi-plaque.json", "./cotte-mailles.json", "./harnois.json", "./bouclier.json"];
+const types = ["./bouclier.json", "./chemise-mailles.json", "./cotte-mailles.json", "./cuir-cloute.json", "./cuir.json", "./demi-plaque.json", "./harnois.json"];
 const armorsIndex = {
   types
 };
-const id$x = "cuir";
-const label$o = "Armure de cuir";
+const id$J = "bouclier";
+const label$o = "Bouclier";
 const type$6 = "armor";
-const armorCategory$6 = "light";
-const baseAC$6 = 11;
+const armorCategory$6 = "shield";
+const baseAC$6 = 2;
 const dexCap$6 = null;
-const weight$6 = 5;
+const weight$6 = 3;
 const priceGp$6 = 10;
-const tags$x = ["armure", "legere"];
-const description$6 = "Armure legere en cuir.";
-const category$f = "armor_body";
-const cuir = {
-  id: id$x,
+const tags$J = ["armure", "bouclier"];
+const description$6 = "Bouclier offrant un bonus de CA.";
+const category$r = "shield";
+const Bouclier = {
+  id: id$J,
   label: label$o,
   type: type$6,
   armorCategory: armorCategory$6,
@@ -10710,23 +10710,23 @@ const cuir = {
   dexCap: dexCap$6,
   weight: weight$6,
   priceGp: priceGp$6,
-  tags: tags$x,
+  tags: tags$J,
   description: description$6,
-  category: category$f
+  category: category$r
 };
-const id$w = "cuir_cloute";
-const label$n = "Armure de cuir cloute";
+const id$I = "chemise_mailles";
+const label$n = "Chemise de mailles";
 const type$5 = "armor";
-const armorCategory$5 = "light";
-const baseAC$5 = 12;
-const dexCap$5 = null;
-const weight$5 = 6.5;
-const priceGp$5 = 45;
-const tags$w = ["armure", "legere"];
-const description$5 = "Armure de cuir renforcee par des rivets.";
-const category$e = "armor_body";
-const cuirCloute = {
-  id: id$w,
+const armorCategory$5 = "medium";
+const baseAC$5 = 13;
+const dexCap$5 = 2;
+const weight$5 = 10;
+const priceGp$5 = 50;
+const tags$I = ["armure", "intermediaire"];
+const description$5 = "Cotte de mailles legere portee sous des vetements.";
+const category$q = "armor_body";
+const ChemiseMailles = {
+  id: id$I,
   label: label$n,
   type: type$5,
   armorCategory: armorCategory$5,
@@ -10734,23 +10734,23 @@ const cuirCloute = {
   dexCap: dexCap$5,
   weight: weight$5,
   priceGp: priceGp$5,
-  tags: tags$w,
+  tags: tags$I,
   description: description$5,
-  category: category$e
+  category: category$q
 };
-const id$v = "chemise_mailles";
-const label$m = "Chemise de mailles";
+const id$H = "cotte_mailles";
+const label$m = "Cotte de mailles";
 const type$4 = "armor";
-const armorCategory$4 = "medium";
-const baseAC$4 = 13;
-const dexCap$4 = 2;
-const weight$4 = 10;
-const priceGp$4 = 50;
-const tags$v = ["armure", "intermediaire"];
-const description$4 = "Cotte de mailles legere portee sous des vetements.";
-const category$d = "armor_body";
-const chemiseMailles = {
-  id: id$v,
+const armorCategory$4 = "heavy";
+const baseAC$4 = 16;
+const dexCap$4 = 0;
+const weight$4 = 27.5;
+const priceGp$4 = 75;
+const tags$H = ["armure", "lourde"];
+const description$4 = "Armure lourde en anneaux de metal.";
+const category$p = "armor_body";
+const CotteMailles = {
+  id: id$H,
   label: label$m,
   type: type$4,
   armorCategory: armorCategory$4,
@@ -10758,23 +10758,23 @@ const chemiseMailles = {
   dexCap: dexCap$4,
   weight: weight$4,
   priceGp: priceGp$4,
-  tags: tags$v,
+  tags: tags$H,
   description: description$4,
-  category: category$d
+  category: category$p
 };
-const id$u = "demi_plaque";
-const label$l = "Demi-plaque";
+const id$G = "cuir_cloute";
+const label$l = "Armure de cuir cloute";
 const type$3 = "armor";
-const armorCategory$3 = "medium";
-const baseAC$3 = 15;
-const dexCap$3 = 2;
-const weight$3 = 20;
-const priceGp$3 = 750;
-const tags$u = ["armure", "intermediaire"];
-const description$3 = "Armure intermediaire avec plaques partielles.";
-const category$c = "armor_body";
-const demiPlaque = {
-  id: id$u,
+const armorCategory$3 = "light";
+const baseAC$3 = 12;
+const dexCap$3 = null;
+const weight$3 = 6.5;
+const priceGp$3 = 45;
+const tags$G = ["armure", "legere"];
+const description$3 = "Armure de cuir renforcee par des rivets.";
+const category$o = "armor_body";
+const CuirCloute = {
+  id: id$G,
   label: label$l,
   type: type$3,
   armorCategory: armorCategory$3,
@@ -10782,23 +10782,23 @@ const demiPlaque = {
   dexCap: dexCap$3,
   weight: weight$3,
   priceGp: priceGp$3,
-  tags: tags$u,
+  tags: tags$G,
   description: description$3,
-  category: category$c
+  category: category$o
 };
-const id$t = "cotte_mailles";
-const label$k = "Cotte de mailles";
+const id$F = "cuir";
+const label$k = "Armure de cuir";
 const type$2 = "armor";
-const armorCategory$2 = "heavy";
-const baseAC$2 = 16;
-const dexCap$2 = 0;
-const weight$2 = 27.5;
-const priceGp$2 = 75;
-const tags$t = ["armure", "lourde"];
-const description$2 = "Armure lourde en anneaux de metal.";
-const category$b = "armor_body";
-const cotteMailles = {
-  id: id$t,
+const armorCategory$2 = "light";
+const baseAC$2 = 11;
+const dexCap$2 = null;
+const weight$2 = 5;
+const priceGp$2 = 10;
+const tags$F = ["armure", "legere"];
+const description$2 = "Armure legere en cuir.";
+const category$n = "armor_body";
+const Cuir = {
+  id: id$F,
   label: label$k,
   type: type$2,
   armorCategory: armorCategory$2,
@@ -10806,23 +10806,23 @@ const cotteMailles = {
   dexCap: dexCap$2,
   weight: weight$2,
   priceGp: priceGp$2,
-  tags: tags$t,
+  tags: tags$F,
   description: description$2,
-  category: category$b
+  category: category$n
 };
-const id$s = "harnois";
-const label$j = "Harnois";
+const id$E = "demi_plaque";
+const label$j = "Demi-plaque";
 const type$1 = "armor";
-const armorCategory$1 = "heavy";
-const baseAC$1 = 18;
-const dexCap$1 = 0;
-const weight$1 = 30;
-const priceGp$1 = 1500;
-const tags$s = ["armure", "lourde"];
-const description$1 = "Armure lourde complete en plaques.";
-const category$a = "armor_body";
-const harnois = {
-  id: id$s,
+const armorCategory$1 = "medium";
+const baseAC$1 = 15;
+const dexCap$1 = 2;
+const weight$1 = 20;
+const priceGp$1 = 750;
+const tags$E = ["armure", "intermediaire"];
+const description$1 = "Armure intermediaire avec plaques partielles.";
+const category$m = "armor_body";
+const DemiPlaque = {
+  id: id$E,
   label: label$j,
   type: type$1,
   armorCategory: armorCategory$1,
@@ -10830,23 +10830,23 @@ const harnois = {
   dexCap: dexCap$1,
   weight: weight$1,
   priceGp: priceGp$1,
-  tags: tags$s,
+  tags: tags$E,
   description: description$1,
-  category: category$a
+  category: category$m
 };
-const id$r = "bouclier";
-const label$i = "Bouclier";
+const id$D = "harnois";
+const label$i = "Harnois";
 const type = "armor";
-const armorCategory = "shield";
-const baseAC = 2;
-const dexCap = null;
-const weight = 3;
-const priceGp = 10;
-const tags$r = ["armure", "bouclier"];
-const description = "Bouclier offrant un bonus de CA.";
-const category$9 = "shield";
-const bouclier = {
-  id: id$r,
+const armorCategory = "heavy";
+const baseAC = 18;
+const dexCap = 0;
+const weight = 30;
+const priceGp = 1500;
+const tags$D = ["armure", "lourde"];
+const description = "Armure lourde complete en plaques.";
+const category$l = "armor_body";
+const Harnois = {
+  id: id$D,
   label: label$i,
   type,
   armorCategory,
@@ -10854,18 +10854,18 @@ const bouclier = {
   dexCap,
   weight,
   priceGp,
-  tags: tags$r,
+  tags: tags$D,
   description,
-  category: category$9
+  category: category$l
 };
 const ARMOR_MODULES = {
-  "./cuir.json": cuir,
-  "./cuir-cloute.json": cuirCloute,
-  "./chemise-mailles.json": chemiseMailles,
-  "./demi-plaque.json": demiPlaque,
-  "./cotte-mailles.json": cotteMailles,
-  "./harnois.json": harnois,
-  "./bouclier.json": bouclier
+  "./bouclier.json": Bouclier,
+  "./chemise-mailles.json": ChemiseMailles,
+  "./cotte-mailles.json": CotteMailles,
+  "./cuir-cloute.json": CuirCloute,
+  "./cuir.json": Cuir,
+  "./demi-plaque.json": DemiPlaque,
+  "./harnois.json": Harnois
 };
 function loadArmorItemsFromIndex() {
   const indexed = Array.isArray(armorsIndex.types) ? armorsIndex.types : [];
@@ -10877,6 +10877,9 @@ function loadArmorItemsFromIndex() {
     } else {
       console.warn("[armors] Type path missing in bundle:", path2);
     }
+  }
+  if (loaded.length === 0) {
+    console.warn("[armors] No armors loaded from index.json");
   }
   return loaded;
 }
@@ -11928,10 +11931,10 @@ const patterns = ["./street-house-front-3x5.json", "./street-market-stall-3x4.js
 const patternsIndex = {
   patterns
 };
-const id$q = "street-house-front-3x5";
+const id$C = "street-house-front-3x5";
 const label$h = "Facade maison 3x5";
 const theme$8 = "city";
-const tags$q = ["house", "street", "wall"];
+const tags$C = ["house", "street", "wall"];
 const footprint$8 = { "w": 11, "h": 3 };
 const anchor$8 = "bottomLeft";
 const constraints$8 = { "needsClearArea": true, "avoidBorder": { "top": 0, "left": 0, "right": 0, "bottom": 0 } };
@@ -11941,10 +11944,10 @@ const wallAscii$2 = ["###########", "#         #", "###########"];
 const wallDoors$2 = [{ "x": 2, "y": 2, "dir": "S", "state": "closed" }];
 const floorPaint$2 = { "mode": "interior", "terrain": "floor" };
 const streetHouseFront = {
-  id: id$q,
+  id: id$C,
   label: label$h,
   theme: theme$8,
-  tags: tags$q,
+  tags: tags$C,
   footprint: footprint$8,
   anchor: anchor$8,
   constraints: constraints$8,
@@ -11954,118 +11957,118 @@ const streetHouseFront = {
   wallDoors: wallDoors$2,
   floorPaint: floorPaint$2
 };
-const id$p = "street_market_stall_3x4";
+const id$B = "street_market_stall_3x4";
 const label$g = "Etal de marche 3x4";
 const theme$7 = "city";
-const tags$p = ["market", "stall", "street"];
+const tags$B = ["market", "stall", "street"];
 const footprint$7 = { "w": 4, "h": 3 };
 const anchor$7 = "bottomLeft";
 const constraints$7 = { "needsClearArea": true, "avoidBorder": { "top": 0, "left": 0, "right": 0, "bottom": 0 } };
 const elements$7 = [{ "type": "obstacle", "typeId": "fence-wood", "x": 0, "y": 0, "variant": "1", "rotation": 0 }, { "type": "obstacle", "typeId": "fence-wood", "x": 1, "y": 0, "variant": "1", "rotation": 0 }, { "type": "obstacle", "typeId": "fence-wood", "x": 2, "y": 0, "variant": "1", "rotation": 0 }, { "type": "obstacle", "typeId": "table-wood", "x": 1, "y": 1, "variant": "base", "rotation": 0 }, { "type": "obstacle", "typeId": "crate-wood", "x": 0, "y": 1, "variant": "base", "rotation": 0 }, { "type": "obstacle", "typeId": "barrel-wood", "x": 3, "y": 1, "variant": "base", "rotation": 0 }];
 const streetMarketStall = {
-  id: id$p,
+  id: id$B,
   label: label$g,
   theme: theme$7,
-  tags: tags$p,
+  tags: tags$B,
   footprint: footprint$7,
   anchor: anchor$7,
   constraints: constraints$7,
   elements: elements$7
 };
-const id$o = "interior_table_set";
+const id$A = "interior_table_set";
 const label$f = "Table et chaises";
 const theme$6 = "generic";
-const tags$o = ["interior", "furniture"];
+const tags$A = ["interior", "furniture"];
 const footprint$6 = { "w": 3, "h": 3 };
 const anchor$6 = "center";
 const constraints$6 = { "needsClearArea": true };
 const elements$6 = [{ "type": "obstacle", "typeId": "table-wood", "x": 1, "y": 1, "variant": "base", "rotation": 0 }, { "type": "obstacle", "typeId": "chair-wood", "x": 1, "y": 0, "variant": "base", "rotation": 180 }, { "type": "obstacle", "typeId": "chair-wood", "x": 1, "y": 2, "variant": "base", "rotation": 0 }, { "type": "obstacle", "typeId": "chair-wood", "x": 0, "y": 1, "variant": "base", "rotation": 90 }, { "type": "obstacle", "typeId": "chair-wood", "x": 2, "y": 1, "variant": "base", "rotation": 270 }];
 const interiorTableSet = {
-  id: id$o,
+  id: id$A,
   label: label$f,
   theme: theme$6,
-  tags: tags$o,
+  tags: tags$A,
   footprint: footprint$6,
   anchor: anchor$6,
   constraints: constraints$6,
   elements: elements$6
 };
-const id$n = "interior_tavern_corner";
+const id$z = "interior_tavern_corner";
 const label$e = "Coin taverne";
 const theme$5 = "generic";
-const tags$n = ["interior", "tavern", "furniture"];
+const tags$z = ["interior", "tavern", "furniture"];
 const footprint$5 = { "w": 4, "h": 4 };
 const anchor$5 = "bottomLeft";
 const constraints$5 = { "needsClearArea": true };
 const elements$5 = [{ "type": "obstacle", "typeId": "table-wood", "x": 1, "y": 1, "variant": "base", "rotation": 0 }, { "type": "obstacle", "typeId": "chair-wood", "x": 1, "y": 0, "variant": "base", "rotation": 180 }, { "type": "obstacle", "typeId": "chair-wood", "x": 2, "y": 1, "variant": "base", "rotation": 270 }, { "type": "obstacle", "typeId": "barrel-wood", "x": 3, "y": 0, "variant": "base", "rotation": 0 }, { "type": "obstacle", "typeId": "crate-wood", "x": 3, "y": 1, "variant": "base", "rotation": 0 }];
 const interiorTavernCorner = {
-  id: id$n,
+  id: id$z,
   label: label$e,
   theme: theme$5,
-  tags: tags$n,
+  tags: tags$z,
   footprint: footprint$5,
   anchor: anchor$5,
   constraints: constraints$5,
   elements: elements$5
 };
-const id$m = "forest_alley_2x8";
+const id$y = "forest_alley_2x8";
 const label$d = "Allee d'arbres";
 const theme$4 = "forest";
-const tags$m = ["alley", "trees"];
+const tags$y = ["alley", "trees"];
 const footprint$4 = { "w": 8, "h": 4 };
 const anchor$4 = "topLeft";
 const constraints$4 = { "needsClearArea": true, "avoidBorder": { "left": 1, "right": 1, "top": 1, "bottom": 1 } };
 const elements$4 = [{ "type": "obstacle", "typeId": "tree-oak", "x": 0, "y": 0, "variant": "base", "rotation": 0 }, { "type": "obstacle", "typeId": "tree-oak", "x": 0, "y": 3, "variant": "base", "rotation": 0 }, { "type": "obstacle", "typeId": "tree-oak", "x": 2, "y": 0, "variant": "base", "rotation": 0 }, { "type": "obstacle", "typeId": "tree-oak", "x": 2, "y": 3, "variant": "base", "rotation": 0 }, { "type": "obstacle", "typeId": "tree-oak", "x": 4, "y": 0, "variant": "base", "rotation": 0 }, { "type": "obstacle", "typeId": "tree-oak", "x": 4, "y": 3, "variant": "base", "rotation": 0 }, { "type": "obstacle", "typeId": "tree-oak", "x": 6, "y": 0, "variant": "base", "rotation": 0 }, { "type": "obstacle", "typeId": "tree-oak", "x": 6, "y": 3, "variant": "base", "rotation": 0 }];
 const forestAlley = {
-  id: id$m,
+  id: id$y,
   label: label$d,
   theme: theme$4,
-  tags: tags$m,
+  tags: tags$y,
   footprint: footprint$4,
   anchor: anchor$4,
   constraints: constraints$4,
   elements: elements$4
 };
-const id$l = "forest_grove_3x3";
+const id$x = "forest_grove_3x3";
 const label$c = "Petit bosquet";
 const theme$3 = "forest";
-const tags$l = ["grove", "trees"];
+const tags$x = ["grove", "trees"];
 const footprint$3 = { "w": 3, "h": 3 };
 const anchor$3 = "center";
 const constraints$3 = { "needsClearArea": true };
 const elements$3 = [{ "type": "obstacle", "typeId": "tree-oak", "x": 0, "y": 0, "variant": "base", "rotation": 0 }, { "type": "obstacle", "typeId": "tree-oak", "x": 2, "y": 0, "variant": "base", "rotation": 0 }, { "type": "obstacle", "typeId": "tree-oak", "x": 0, "y": 2, "variant": "base", "rotation": 0 }, { "type": "obstacle", "typeId": "tree-oak", "x": 2, "y": 2, "variant": "base", "rotation": 0 }, { "type": "obstacle", "typeId": "bush", "x": 1, "y": 1, "variant": "base", "rotation": 0 }];
 const forestGrove = {
-  id: id$l,
+  id: id$x,
   label: label$c,
   theme: theme$3,
-  tags: tags$l,
+  tags: tags$x,
   footprint: footprint$3,
   anchor: anchor$3,
   constraints: constraints$3,
   elements: elements$3
 };
-const id$k = "dungeon_altar_nook";
+const id$w = "dungeon_altar_nook";
 const label$b = "Alcove d'autel";
 const theme$2 = "dungeon";
-const tags$k = ["altar", "dungeon", "ritual"];
+const tags$w = ["altar", "dungeon", "ritual"];
 const footprint$2 = { "w": 4, "h": 4 };
 const anchor$2 = "bottomLeft";
 const constraints$2 = { "needsClearArea": true };
 const elements$2 = [{ "type": "obstacle", "typeId": "statue-stone", "x": 1, "y": 1, "variant": "base", "rotation": 0 }, { "type": "obstacle", "typeId": "brazier", "x": 0, "y": 1, "variant": "base", "rotation": 0 }, { "type": "obstacle", "typeId": "brazier", "x": 3, "y": 1, "variant": "base", "rotation": 0 }, { "type": "obstacle", "typeId": "torch-wall", "x": 0, "y": 3, "variant": "base", "rotation": 0 }, { "type": "obstacle", "typeId": "torch-wall", "x": 3, "y": 3, "variant": "base", "rotation": 0 }, { "type": "obstacle", "typeId": "pillar-stone", "x": 0, "y": 0, "variant": "base", "rotation": 0 }, { "type": "obstacle", "typeId": "pillar-stone", "x": 3, "y": 0, "variant": "base", "rotation": 0 }];
 const dungeonAltarNook = {
-  id: id$k,
+  id: id$w,
   label: label$b,
   theme: theme$2,
-  tags: tags$k,
+  tags: tags$w,
   footprint: footprint$2,
   anchor: anchor$2,
   constraints: constraints$2,
   elements: elements$2
 };
-const id$j = "house-tiered-open";
+const id$v = "house-tiered-open";
 const label$a = "Maison terrasse ouverte";
 const theme$1 = "city";
-const tags$j = ["maison", "terrasse", "balcon", "toit", "etage", "ouvert", "roof-open", "house"];
+const tags$v = ["maison", "terrasse", "balcon", "toit", "etage", "ouvert", "roof-open", "house"];
 const footprint$1 = { "w": 6, "h": 5 };
 const anchor$1 = "bottomLeft";
 const constraints$1 = { "needsClearArea": true, "avoidBorder": { "top": 1, "bottom": 1, "left": 1, "right": 1 } };
@@ -12075,10 +12078,10 @@ const wallDoors$1 = [{ "x": 3, "y": 4, "dir": "S", "state": "open" }];
 const floorPaint$1 = { "mode": "interior", "terrain": "floor", "height": 1 };
 const elements$1 = [{ "type": "obstacle", "typeId": "stairs-stone", "x": 2, "y": 3, "variant": "base", "rotation": 0 }];
 const houseTieredOpen = {
-  id: id$j,
+  id: id$v,
   label: label$a,
   theme: theme$1,
-  tags: tags$j,
+  tags: tags$v,
   footprint: footprint$1,
   anchor: anchor$1,
   constraints: constraints$1,
@@ -12088,10 +12091,10 @@ const houseTieredOpen = {
   floorPaint: floorPaint$1,
   elements: elements$1
 };
-const id$i = "house-tiered-closed";
+const id$u = "house-tiered-closed";
 const label$9 = "Maison etage clos";
 const theme = "city";
-const tags$i = ["maison", "etage", "ferme", "clos", "interieur", "toit", "roof-closed", "house"];
+const tags$u = ["maison", "etage", "ferme", "clos", "interieur", "toit", "roof-closed", "house"];
 const footprint = { "w": 6, "h": 5 };
 const anchor = "bottomLeft";
 const constraints = { "needsClearArea": true, "avoidBorder": { "top": 1, "bottom": 1, "left": 1, "right": 1 } };
@@ -12101,10 +12104,10 @@ const wallDoors = [{ "x": 2, "y": 4, "dir": "S", "state": "closed" }];
 const floorPaint = { "mode": "interior", "terrain": "floor", "height": 1 };
 const elements = [{ "type": "obstacle", "typeId": "stairs-stone", "x": 2, "y": 3, "variant": "base", "rotation": 0 }];
 const houseTieredClosed = {
-  id: id$i,
+  id: id$u,
   label: label$9,
   theme,
-  tags: tags$i,
+  tags: tags$u,
   footprint,
   anchor,
   constraints,
@@ -13551,7 +13554,7 @@ function buildSegmentsFromAscii(params) {
     { dx: 0, dy: 1 },
     { dx: 0, dy: -1 }
   ];
-  const components = [];
+  const components2 = [];
   for (let y2 = 0; y2 < baseH; y2++) {
     for (let x2 = 0; x2 < baseW; x2++) {
       if (!isWallCell(x2, y2)) continue;
@@ -13573,10 +13576,10 @@ function buildSegmentsFromAscii(params) {
           queue.push({ x: nx, y: ny });
         }
       }
-      components.push({ cells });
+      components2.push({ cells });
     }
   }
-  for (const comp of components) {
+  for (const comp of components2) {
     let minX = baseW;
     let maxX = 0;
     let minY = baseH;
@@ -15158,147 +15161,147 @@ function buildTerrainMixLayer(params) {
   }
   return result;
 }
-const id$h = "unknown";
+const id$t = "unknown";
 const label$8 = "Unknown";
 const fallbackColor$8 = "#1d1d30";
 const passable$8 = true;
 const moveCost$7 = 1;
-const tags$h = ["debug"];
+const tags$t = ["debug"];
 const unknown = {
-  id: id$h,
+  id: id$t,
   label: label$8,
   fallbackColor: fallbackColor$8,
   passable: passable$8,
   moveCost: moveCost$7,
-  tags: tags$h
+  tags: tags$t
 };
-const id$g = "stone";
+const id$s = "stone";
 const label$7 = "Stone";
 const textureId$3 = "stone-basic";
 const fallbackColor$7 = "#6b6f74";
 const passable$7 = true;
 const moveCost$6 = 1;
-const tags$g = ["hard", "rock"];
+const tags$s = ["hard", "rock"];
 const stone = {
-  id: id$g,
+  id: id$s,
   label: label$7,
   textureId: textureId$3,
   fallbackColor: fallbackColor$7,
   passable: passable$7,
   moveCost: moveCost$6,
-  tags: tags$g
+  tags: tags$s
 };
-const id$f = "road";
+const id$r = "road";
 const label$6 = "Road";
 const textureId$2 = "road-basic";
 const fallbackColor$6 = "#5a4a3a";
 const passable$6 = true;
 const moveCost$5 = 1;
-const tags$f = ["path"];
+const tags$r = ["path"];
 const road = {
-  id: id$f,
+  id: id$r,
   label: label$6,
   textureId: textureId$2,
   fallbackColor: fallbackColor$6,
   passable: passable$6,
   moveCost: moveCost$5,
-  tags: tags$f
+  tags: tags$r
 };
-const id$e = "grass";
+const id$q = "grass";
 const label$5 = "Grass";
 const textureId$1 = "grass-basic";
 const fallbackColor$5 = "#3f6b3a";
 const passable$5 = true;
 const moveCost$4 = 1;
-const tags$e = ["soft", "nature"];
+const tags$q = ["soft", "nature"];
 const grass = {
-  id: id$e,
+  id: id$q,
   label: label$5,
   textureId: textureId$1,
   fallbackColor: fallbackColor$5,
   passable: passable$5,
   moveCost: moveCost$4,
-  tags: tags$e
+  tags: tags$q
 };
-const id$d = "floor";
+const id$p = "floor";
 const label$4 = "Wood Floor";
 const textureId = "wood-plank";
 const fallbackColor$4 = "#7a5c3b";
 const passable$4 = true;
 const moveCost$3 = 1;
-const tags$d = ["interior", "wood"];
+const tags$p = ["interior", "wood"];
 const floor = {
-  id: id$d,
+  id: id$p,
   label: label$4,
   textureId,
   fallbackColor: fallbackColor$4,
   passable: passable$4,
   moveCost: moveCost$3,
-  tags: tags$d
+  tags: tags$p
 };
-const id$c = "dirt";
+const id$o = "dirt";
 const label$3 = "Dirt";
 const fallbackColor$3 = "#6a4b2a";
 const passable$3 = true;
 const moveCost$2 = 1;
-const tags$c = ["soft", "earth"];
+const tags$o = ["soft", "earth"];
 const dirt = {
-  id: id$c,
+  id: id$o,
   label: label$3,
   fallbackColor: fallbackColor$3,
   passable: passable$3,
   moveCost: moveCost$2,
-  tags: tags$c
+  tags: tags$o
 };
-const id$b = "mud";
+const id$n = "mud";
 const label$2 = "Mud";
 const fallbackColor$2 = "#58452a";
 const passable$2 = true;
 const moveCost$1 = 1.6;
-const tags$b = ["soft", "wet", "slow"];
-const effects$9 = ["slow"];
+const tags$n = ["soft", "wet", "slow"];
+const effects$l = ["slow"];
 const mud = {
-  id: id$b,
+  id: id$n,
   label: label$2,
   fallbackColor: fallbackColor$2,
   passable: passable$2,
   moveCost: moveCost$1,
-  tags: tags$b,
-  effects: effects$9
+  tags: tags$n,
+  effects: effects$l
 };
-const id$a = "water";
+const id$m = "water";
 const label$1 = "Water";
 const fallbackColor$1 = "#2b4f8c";
 const passable$1 = true;
 const moveCost = 1.8;
 const liquid$1 = true;
 const depth$1 = 1;
-const tags$a = ["wet"];
+const tags$m = ["wet"];
 const water = {
-  id: id$a,
+  id: id$m,
   label: label$1,
   fallbackColor: fallbackColor$1,
   passable: passable$1,
   moveCost,
   liquid: liquid$1,
   depth: depth$1,
-  tags: tags$a
+  tags: tags$m
 };
-const id$9 = "deepWater";
+const id$l = "deepWater";
 const label = "Deep Water";
 const fallbackColor = "#1f3b6d";
 const passable = false;
 const liquid = true;
 const depth = 3;
-const tags$9 = ["wet", "hazard"];
+const tags$l = ["wet", "hazard"];
 const deepWater = {
-  id: id$9,
+  id: id$l,
   label,
   fallbackColor,
   passable,
   liquid,
   depth,
-  tags: tags$9
+  tags: tags$l
 };
 const FLOOR_MATERIALS = [
   unknown,
@@ -15320,247 +15323,247 @@ const actions = ["./catalog/combat/melee-strike.json", "./catalog/combat/throw-d
 const actionsIndex = {
   actions
 };
-const id$8 = "melee-strike";
-const name$8 = "Frappe basique";
-const summary$8 = "Attaque de melee simple contre une cible adjacente.";
+const id$k = "melee-strike";
+const name$k = "Frappe basique";
+const summary$k = "Attaque de melee simple contre une cible adjacente.";
 const uiMessageHit$2 = "Vous avez ete touche par une attaque au corps a corps.";
 const uiMessageMiss$2 = "Vous evitez une attaque au corps a corps.";
-const category$8 = "attack";
-const actionCost$8 = { "actionType": "action", "movementCost": 0 };
-const targeting$8 = { "target": "hostile", "range": { "min": 0, "max": 1, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
-const usage$8 = { "perTurn": 1, "perEncounter": null, "resource": null };
+const category$k = "attack";
+const actionCost$k = { "actionType": "action", "movementCost": 0 };
+const targeting$k = { "target": "hostile", "range": { "min": 0, "max": 1, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
+const usage$k = { "perTurn": 1, "perEncounter": null, "resource": null };
 const conditions$8 = [{ "type": "distance_max", "target": "primary", "max": 1, "reason": "Portee de melee uniquement." }, { "type": "target_alive", "target": "primary", "reason": "La cible doit avoir des PV restants." }];
-const attack$2 = { "bonus": 5, "critRange": 20 };
-const damage$2 = { "formula": "attackDamage", "critRule": "double-dice", "damageType": "slashing" };
-const effects$8 = [{ "type": "damage", "target": "primary", "formula": "attackDamage", "damageType": "slashing" }, { "type": "visual_effect", "effectId": "melee-slash", "anchor": "target", "orientation": "to_target", "rotationOffsetDeg": -135 }, { "type": "log", "message": "Frappe au contact." }];
+const attack$3 = { "bonus": 5, "critRange": 20 };
+const damage$3 = { "formula": "attackDamage", "critRule": "double-dice", "damageType": "slashing" };
+const effects$k = [{ "type": "damage", "target": "primary", "formula": "attackDamage", "damageType": "slashing" }, { "type": "visual_effect", "effectId": "melee-slash", "anchor": "target", "orientation": "to_target", "rotationOffsetDeg": -135 }, { "type": "log", "message": "Frappe au contact." }];
 const aiHints$5 = { "priority": "finish_low_hp_target", "successLog": "Frappe au contact.", "failureLog": "Cible hors portee ou non visible." };
-const tags$8 = ["melee"];
+const tags$k = ["melee"];
 const meleeStrike = {
-  id: id$8,
-  name: name$8,
-  summary: summary$8,
+  id: id$k,
+  name: name$k,
+  summary: summary$k,
   uiMessageHit: uiMessageHit$2,
   uiMessageMiss: uiMessageMiss$2,
-  category: category$8,
-  actionCost: actionCost$8,
-  targeting: targeting$8,
-  usage: usage$8,
+  category: category$k,
+  actionCost: actionCost$k,
+  targeting: targeting$k,
+  usage: usage$k,
   conditions: conditions$8,
-  attack: attack$2,
-  damage: damage$2,
-  effects: effects$8,
+  attack: attack$3,
+  damage: damage$3,
+  effects: effects$k,
   aiHints: aiHints$5,
-  tags: tags$8
+  tags: tags$k
 };
-const id$7 = "throw-dagger";
-const name$7 = "Lancer de dague";
-const summary$7 = "Attaque a distance courte avec une dague a lancer.";
+const id$j = "throw-dagger";
+const name$j = "Lancer de dague";
+const summary$j = "Attaque a distance courte avec une dague a lancer.";
 const uiMessageHit$1 = "Vous avez ete touche par une dague lancee.";
 const uiMessageMiss$1 = "Vous evitez une dague lancee.";
-const category$7 = "attack";
-const actionCost$7 = { "actionType": "action", "movementCost": 0 };
-const targeting$7 = { "target": "hostile", "range": { "min": 1, "max": 4, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
-const usage$7 = { "perTurn": 1, "perEncounter": null, "resource": { "name": "dagger", "pool": "bandolier", "min": 1 } };
+const category$j = "attack";
+const actionCost$j = { "actionType": "action", "movementCost": 0 };
+const targeting$j = { "target": "hostile", "range": { "min": 1, "max": 4, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
+const usage$j = { "perTurn": 1, "perEncounter": null, "resource": { "name": "dagger", "pool": "bandolier", "min": 1 } };
 const conditions$7 = [{ "type": "distance_between", "target": "primary", "min": 1, "max": 4, "reason": "Hors de melee mais a portee de lancer." }, { "type": "resource_at_least", "resource": "dagger", "pool": "bandolier", "value": 1, "reason": "Besoin d'une dague a lancer." }];
-const attack$1 = { "bonus": 4, "critRange": 20 };
-const damage$1 = { "formula": "1d4+2", "critRule": "double-dice", "damageType": "piercing" };
-const effects$7 = [{ "type": "damage", "target": "primary", "formula": "1d4 + modDEX", "damageType": "piercing" }, { "type": "resource_spend", "resource": "dagger", "pool": "bandolier", "amount": 1 }, { "type": "log", "message": "Dague lancee: 1d4+DEX degats perforants." }];
+const attack$2 = { "bonus": 4, "critRange": 20 };
+const damage$2 = { "formula": "1d4+2", "critRule": "double-dice", "damageType": "piercing" };
+const effects$j = [{ "type": "damage", "target": "primary", "formula": "1d4 + modDEX", "damageType": "piercing" }, { "type": "resource_spend", "resource": "dagger", "pool": "bandolier", "amount": 1 }, { "type": "log", "message": "Dague lancee: 1d4+DEX degats perforants." }];
 const aiHints$4 = { "priority": "poke_from_range", "successLog": "Dague lancee.", "failureLog": "Pas de dague ou cible hors portee." };
-const tags$7 = ["distance", "arme", "jet"];
+const tags$j = ["distance", "arme", "jet"];
 const throwDagger = {
-  id: id$7,
-  name: name$7,
-  summary: summary$7,
+  id: id$j,
+  name: name$j,
+  summary: summary$j,
   uiMessageHit: uiMessageHit$1,
   uiMessageMiss: uiMessageMiss$1,
-  category: category$7,
-  actionCost: actionCost$7,
-  targeting: targeting$7,
-  usage: usage$7,
+  category: category$j,
+  actionCost: actionCost$j,
+  targeting: targeting$j,
+  usage: usage$j,
   conditions: conditions$7,
-  attack: attack$1,
-  damage: damage$1,
-  effects: effects$7,
+  attack: attack$2,
+  damage: damage$2,
+  effects: effects$j,
   aiHints: aiHints$4,
-  tags: tags$7
+  tags: tags$j
 };
-const id$6 = "bow-shot";
-const name$6 = "Tir a l'arc";
-const summary$6 = "Tir a distance contre une cible hostile, prefere eviter la melee.";
+const id$i = "bow-shot";
+const name$i = "Tir a l'arc";
+const summary$i = "Tir a distance contre une cible hostile, prefere eviter la melee.";
 const uiMessageHit = "Vous avez ete touche par une fleche.";
 const uiMessageMiss = "Vous evitez une fleche.";
-const category$6 = "attack";
-const actionCost$6 = { "actionType": "action", "movementCost": 0 };
-const targeting$6 = { "target": "hostile", "range": { "min": 2, "max": 6, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
-const usage$6 = { "perTurn": 1, "perEncounter": null, "resource": null };
+const category$i = "attack";
+const actionCost$i = { "actionType": "action", "movementCost": 0 };
+const targeting$i = { "target": "hostile", "range": { "min": 2, "max": 6, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
+const usage$i = { "perTurn": 1, "perEncounter": null, "resource": null };
 const conditions$6 = [{ "type": "target_alive", "target": "primary", "reason": "La cible doit etre en vie." }];
-const attack = { "bonus": 5, "critRange": 20 };
-const damage = { "formula": "attackDamage", "critRule": "double-dice", "damageType": "piercing" };
-const effects$6 = [{ "type": "damage", "target": "primary", "formula": "attackDamage", "damageType": "piercing" }, { "type": "log", "message": "Une fleche siffle dans l'air." }];
+const attack$1 = { "bonus": 5, "critRange": 20 };
+const damage$1 = { "formula": "attackDamage", "critRule": "double-dice", "damageType": "piercing" };
+const effects$i = [{ "type": "damage", "target": "primary", "formula": "attackDamage", "damageType": "piercing" }, { "type": "log", "message": "Une fleche siffle dans l'air." }];
 const aiHints$3 = { "priority": "poke_from_range", "successLog": "Tir a l'arc.", "failureLog": "Cible hors portee/ligne de vue ou trop proche." };
-const tags$6 = ["distance", "bow"];
+const tags$i = ["distance", "bow"];
 const bowShot = {
-  id: id$6,
-  name: name$6,
-  summary: summary$6,
+  id: id$i,
+  name: name$i,
+  summary: summary$i,
   uiMessageHit,
   uiMessageMiss,
-  category: category$6,
-  actionCost: actionCost$6,
-  targeting: targeting$6,
-  usage: usage$6,
+  category: category$i,
+  actionCost: actionCost$i,
+  targeting: targeting$i,
+  usage: usage$i,
   conditions: conditions$6,
-  attack,
-  damage,
-  effects: effects$6,
+  attack: attack$1,
+  damage: damage$1,
+  effects: effects$i,
   aiHints: aiHints$3,
-  tags: tags$6
+  tags: tags$i
 };
-const id$5 = "dash";
-const name$5 = "Course";
-const summary$5 = "Transforme l'action en 3 cases de mouvement en plus.";
-const category$5 = "movement";
-const actionCost$5 = { "actionType": "action", "movementCost": 0 };
-const targeting$5 = { "target": "self", "range": { "min": 0, "max": 0, "shape": "self" }, "maxTargets": 1, "requiresLos": false };
-const usage$5 = { "perTurn": 1, "perEncounter": null, "resource": null };
+const id$h = "dash";
+const name$h = "Course";
+const summary$h = "Transforme l'action en 3 cases de mouvement en plus.";
+const category$h = "movement";
+const actionCost$h = { "actionType": "action", "movementCost": 0 };
+const targeting$h = { "target": "self", "range": { "min": 0, "max": 0, "shape": "self" }, "maxTargets": 1, "requiresLos": false };
+const usage$h = { "perTurn": 1, "perEncounter": null, "resource": null };
 const conditions$5 = [];
-const effects$5 = [{ "type": "modify_path_limit", "target": "self", "delta": 3, "duration": "this_turn" }, { "type": "log", "message": "Course: +3 cases de mouvement pour ce tour." }];
+const effects$h = [{ "type": "modify_path_limit", "target": "self", "delta": 3, "duration": "this_turn" }, { "type": "log", "message": "Course: +3 cases de mouvement pour ce tour." }];
 const aiHints$2 = { "priority": "close_gap", "successLog": "Course utilisee pour approcher.", "failureLog": "Deja a portee, course ignoree." };
-const tags$5 = ["mobilite", "deplacement"];
+const tags$h = ["mobilite", "deplacement"];
 const dashAction = {
-  id: id$5,
-  name: name$5,
-  summary: summary$5,
-  category: category$5,
-  actionCost: actionCost$5,
-  targeting: targeting$5,
-  usage: usage$5,
+  id: id$h,
+  name: name$h,
+  summary: summary$h,
+  category: category$h,
+  actionCost: actionCost$h,
+  targeting: targeting$h,
+  usage: usage$h,
   conditions: conditions$5,
-  effects: effects$5,
+  effects: effects$h,
   aiHints: aiHints$2,
-  tags: tags$5
+  tags: tags$h
 };
-const id$4 = "move";
-const name$4 = "Deplacement";
-const summary$4 = "Deplacement tactique vers une case cible (portee base: moveRange).";
-const category$4 = "movement";
-const actionCost$4 = { "actionType": "action", "movementCost": 0 };
-const targeting$4 = { "target": "emptyCell", "range": { "min": 1, "max": 3, "shape": "single" }, "maxTargets": 1, "requiresLos": false };
-const usage$4 = { "perTurn": 1, "perEncounter": null, "resource": null };
+const id$g = "move";
+const name$g = "Deplacement";
+const summary$g = "Deplacement tactique vers une case cible (portee base: moveRange).";
+const category$g = "movement";
+const actionCost$g = { "actionType": "action", "movementCost": 0 };
+const targeting$g = { "target": "emptyCell", "range": { "min": 1, "max": 3, "shape": "single" }, "maxTargets": 1, "requiresLos": false };
+const usage$g = { "perTurn": 1, "perEncounter": null, "resource": null };
 const conditions$4 = [];
-const effects$4 = [{ "type": "move_to", "target": "self", "maxSteps": "moveRange" }, { "type": "log", "message": "Deplacement effectue." }];
+const effects$g = [{ "type": "move_to", "target": "self", "maxSteps": "moveRange" }, { "type": "log", "message": "Deplacement effectue." }];
 const aiHints$1 = { "priority": "positioning", "successLog": "Deplacement.", "failureLog": "Aucun chemin valide." };
-const tags$4 = ["movement"];
+const tags$g = ["movement"];
 const moveAction = {
-  id: id$4,
-  name: name$4,
-  summary: summary$4,
-  category: category$4,
-  actionCost: actionCost$4,
-  targeting: targeting$4,
-  usage: usage$4,
+  id: id$g,
+  name: name$g,
+  summary: summary$g,
+  category: category$g,
+  actionCost: actionCost$g,
+  targeting: targeting$g,
+  usage: usage$g,
   conditions: conditions$4,
-  effects: effects$4,
+  effects: effects$g,
   aiHints: aiHints$1,
-  tags: tags$4
+  tags: tags$g
 };
-const id$3 = "second-wind";
-const name$3 = "Second souffle";
-const summary$3 = "Restaure une partie des PV en bonus action.";
-const category$3 = "support";
-const actionCost$3 = { "actionType": "bonus", "movementCost": 0 };
-const targeting$3 = { "target": "self", "range": { "min": 0, "max": 0, "shape": "self" }, "maxTargets": 1, "requiresLos": false };
-const usage$3 = { "perTurn": null, "perEncounter": 1, "resource": null };
+const id$f = "second-wind";
+const name$f = "Second souffle";
+const summary$f = "Restaure une partie des PV en bonus action.";
+const category$f = "support";
+const actionCost$f = { "actionType": "bonus", "movementCost": 0 };
+const targeting$f = { "target": "self", "range": { "min": 0, "max": 0, "shape": "self" }, "maxTargets": 1, "requiresLos": false };
+const usage$f = { "perTurn": null, "perEncounter": 1, "resource": null };
 const conditions$3 = [{ "type": "stat_below_percent", "who": "self", "stat": "hp", "percentMax": 0.75, "reason": "Economiser tant que les PV sont hauts." }];
-const effects$3 = [{ "type": "heal", "target": "self", "formula": "1d10 + level", "min": 1 }, { "type": "temp_hp", "target": "self", "amount": 2, "duration": "end_of_turn" }, { "type": "log", "message": "Second souffle: soigne 1d10 + niveau." }];
+const effects$f = [{ "type": "heal", "target": "self", "formula": "1d10 + level", "min": 1 }, { "type": "temp_hp", "target": "self", "amount": 2, "duration": "end_of_turn" }, { "type": "log", "message": "Second souffle: soigne 1d10 + niveau." }];
 const aiHints = { "priority": "survive", "successLog": "Second souffle declenche.", "failureLog": "PV trop hauts." };
-const tags$3 = ["soin", "defense", "survie"];
+const tags$f = ["soin", "defense", "survie"];
 const secondWind = {
-  id: id$3,
-  name: name$3,
-  summary: summary$3,
-  category: category$3,
-  actionCost: actionCost$3,
-  targeting: targeting$3,
-  usage: usage$3,
+  id: id$f,
+  name: name$f,
+  summary: summary$f,
+  category: category$f,
+  actionCost: actionCost$f,
+  targeting: targeting$f,
+  usage: usage$f,
   conditions: conditions$3,
-  effects: effects$3,
+  effects: effects$f,
   aiHints,
-  tags: tags$3
+  tags: tags$f
 };
-const id$2 = "torch-toggle";
-const name$2 = "Allumer la torche";
-const summary$2 = "Allume ou eteint la torche du joueur pour eclairer autour de lui.";
-const category$2 = "item";
-const actionCost$2 = { "actionType": "bonus", "movementCost": 0 };
-const targeting$2 = { "target": "self", "range": { "min": 0, "max": 0, "shape": "self" }, "maxTargets": 1, "requiresLos": false };
-const usage$2 = { "perTurn": null, "perEncounter": null, "resource": { "name": "torch", "pool": "gear", "min": 1 } };
+const id$e = "torch-toggle";
+const name$e = "Allumer la torche";
+const summary$e = "Allume ou eteint la torche du joueur pour eclairer autour de lui.";
+const category$e = "item";
+const actionCost$e = { "actionType": "bonus", "movementCost": 0 };
+const targeting$e = { "target": "self", "range": { "min": 0, "max": 0, "shape": "self" }, "maxTargets": 1, "requiresLos": false };
+const usage$e = { "perTurn": null, "perEncounter": null, "resource": { "name": "torch", "pool": "gear", "min": 1 } };
 const conditions$2 = [{ "type": "phase", "mustBe": "player", "reason": "Tour joueur requis." }, { "type": "resource_at_least", "resource": "torch", "pool": "gear", "value": 1, "reason": "Besoin d'une torche." }];
-const effects$2 = [{ "type": "toggle_torch" }, { "type": "log", "message": "Torche: etat bascule." }];
-const tags$2 = ["lumiere", "objet", "utilitaire"];
+const effects$e = [{ "type": "toggle_torch" }, { "type": "log", "message": "Torche: etat bascule." }];
+const tags$e = ["lumiere", "objet", "utilitaire"];
 const torchToggle = {
-  id: id$2,
-  name: name$2,
-  summary: summary$2,
-  category: category$2,
-  actionCost: actionCost$2,
-  targeting: targeting$2,
-  usage: usage$2,
+  id: id$e,
+  name: name$e,
+  summary: summary$e,
+  category: category$e,
+  actionCost: actionCost$e,
+  targeting: targeting$e,
+  usage: usage$e,
   conditions: conditions$2,
-  effects: effects$2,
-  tags: tags$2
+  effects: effects$e,
+  tags: tags$e
 };
 const moveTypes = ["./catalog/movement/walk.json", "./catalog/movement/sprint.json"];
 const moveTypesIndex = {
   moveTypes
 };
-const id$1 = "move-walk";
-const name$1 = "Marcher";
-const summary$1 = "Deplacement standard sans depenser d'action.";
-const category$1 = "movement";
-const actionCost$1 = { "actionType": "free", "movementCost": 0 };
-const targeting$1 = { "target": "self", "range": { "min": 0, "max": 0, "shape": "self" }, "maxTargets": 1, "requiresLos": false };
-const usage$1 = { "perTurn": null, "perEncounter": null, "resource": null };
+const id$d = "move-walk";
+const name$d = "Marcher";
+const summary$d = "Deplacement standard sans depenser d'action.";
+const category$d = "movement";
+const actionCost$d = { "actionType": "free", "movementCost": 0 };
+const targeting$d = { "target": "self", "range": { "min": 0, "max": 0, "shape": "self" }, "maxTargets": 1, "requiresLos": false };
+const usage$d = { "perTurn": null, "perEncounter": null, "resource": null };
 const conditions$1 = [];
-const effects$1 = [{ "type": "log", "message": "Mode marche: selectionnez un trajet." }];
+const effects$d = [{ "type": "log", "message": "Mode marche: selectionnez un trajet." }];
 const movement$1 = { "pathLimitMultiplier": 1 };
-const tags$1 = ["movement", "move-type"];
+const tags$d = ["movement", "move-type"];
 const walkMoveType = {
-  id: id$1,
-  name: name$1,
-  summary: summary$1,
-  category: category$1,
-  actionCost: actionCost$1,
-  targeting: targeting$1,
-  usage: usage$1,
+  id: id$d,
+  name: name$d,
+  summary: summary$d,
+  category: category$d,
+  actionCost: actionCost$d,
+  targeting: targeting$d,
+  usage: usage$d,
   conditions: conditions$1,
-  effects: effects$1,
+  effects: effects$d,
   movement: movement$1,
-  tags: tags$1
+  tags: tags$d
 };
-const id = "move-sprint";
-const name = "Sprint";
-const summary = "Depense 1 action pour doubler le deplacement.";
-const category = "movement";
-const actionCost = { "actionType": "action", "movementCost": 0 };
-const targeting = { "target": "self", "range": { "min": 0, "max": 0, "shape": "self" }, "maxTargets": 1, "requiresLos": false };
-const usage = { "perTurn": null, "perEncounter": null, "resource": null };
+const id$c = "move-sprint";
+const name$c = "Sprint";
+const summary$c = "Depense 1 action pour doubler le deplacement.";
+const category$c = "movement";
+const actionCost$c = { "actionType": "action", "movementCost": 0 };
+const targeting$c = { "target": "self", "range": { "min": 0, "max": 0, "shape": "self" }, "maxTargets": 1, "requiresLos": false };
+const usage$c = { "perTurn": null, "perEncounter": null, "resource": null };
 const conditions = [];
-const effects = [{ "type": "log", "message": "Sprint: deplacement double pour ce tour." }];
+const effects$c = [{ "type": "log", "message": "Sprint: deplacement double pour ce tour." }];
 const movement = { "pathLimitMultiplier": 2 };
-const tags = ["movement", "move-type"];
+const tags$c = ["movement", "move-type"];
 const sprintMoveType = {
-  id,
-  name,
-  summary,
-  category,
-  actionCost,
-  targeting,
-  usage,
+  id: id$c,
+  name: name$c,
+  summary: summary$c,
+  category: category$c,
+  actionCost: actionCost$c,
+  targeting: targeting$c,
+  usage: usage$c,
   conditions,
-  effects,
+  effects: effects$c,
   movement,
-  tags
+  tags: tags$c
 };
 function rollDie(sides, count2 = 1) {
   const rolls = [];
@@ -15999,8 +16002,8 @@ function resolveNumberVar(varName, ctx) {
     return typeof (stats == null ? void 0 : stats.attackRange) === "number" ? stats.attackRange : typeof actor.attackRange === "number" ? actor.attackRange : 1;
   }
   if (token === "level" || token === "niveau") {
-    const level = Number((stats == null ? void 0 : stats.level) ?? ((_b = ctx.sampleCharacter) == null ? void 0 : _b.niveauGlobal) ?? 1);
-    return Number.isFinite(level) ? level : 1;
+    const level2 = Number((stats == null ? void 0 : stats.level) ?? ((_b = ctx.sampleCharacter) == null ? void 0 : _b.niveauGlobal) ?? 1);
+    return Number.isFinite(level2) ? level2 : 1;
   }
   if (token === "modstr" || token === "modfor") {
     const mod = pickNumber(
@@ -17160,7 +17163,7 @@ const browserExt = {
   },
   test: () => true,
   load: async () => {
-    await __vitePreload(() => import("./browserAll-cDDJYriK.js"), true ? __vite__mapDeps([0,1,2]) : void 0);
+    await __vitePreload(() => import("./browserAll-Dj_mhGax.js"), true ? __vite__mapDeps([0,1,2]) : void 0);
   }
 };
 const webworkerExt = {
@@ -17171,7 +17174,7 @@ const webworkerExt = {
   },
   test: () => typeof self !== "undefined" && self.WorkerGlobalScope !== void 0,
   load: async () => {
-    await __vitePreload(() => import("./webworkerAll-BGIBy6qI.js"), true ? __vite__mapDeps([1,2]) : void 0);
+    await __vitePreload(() => import("./webworkerAll-aA1420LX.js"), true ? __vite__mapDeps([1,2]) : void 0);
   }
 };
 class ObservablePoint {
@@ -29499,7 +29502,7 @@ async function autoDetectRenderer(options) {
     const rendererType = preferredOrder[i2];
     if (rendererType === "webgpu" && await isWebGPUSupported()) {
       const { WebGPURenderer } = await __vitePreload(async () => {
-        const { WebGPURenderer: WebGPURenderer2 } = await import("./WebGPURenderer-CBWyNK8t.js");
+        const { WebGPURenderer: WebGPURenderer2 } = await import("./WebGPURenderer-Btr_naJT.js");
         return { WebGPURenderer: WebGPURenderer2 };
       }, true ? __vite__mapDeps([3,2,4]) : void 0);
       RendererClass = WebGPURenderer;
@@ -29509,7 +29512,7 @@ async function autoDetectRenderer(options) {
       options.failIfMajorPerformanceCaveat ?? AbstractRenderer.defaultOptions.failIfMajorPerformanceCaveat
     )) {
       const { WebGLRenderer } = await __vitePreload(async () => {
-        const { WebGLRenderer: WebGLRenderer2 } = await import("./WebGLRenderer-DI7RQcje.js");
+        const { WebGLRenderer: WebGLRenderer2 } = await import("./WebGLRenderer-BJPsstto.js");
         return { WebGLRenderer: WebGLRenderer2 };
       }, true ? __vite__mapDeps([5,2,4]) : void 0);
       RendererClass = WebGLRenderer;
@@ -35043,8 +35046,8 @@ function begin$1(sX, sY, cp1x, cp1y, cp2x, cp2y, eX, eY, points, distanceToleran
   recursive$1(sX, sY, cp1x, cp1y, cp2x, cp2y, eX, eY, points, distanceTolerance, 0);
   points.push(eX, eY);
 }
-function recursive$1(x1, y1, x2, y2, x3, y3, x4, y4, points, distanceTolerance, level) {
-  if (level > RECURSION_LIMIT$1) {
+function recursive$1(x1, y1, x2, y2, x3, y3, x4, y4, points, distanceTolerance, level2) {
+  if (level2 > RECURSION_LIMIT$1) {
     return;
   }
   const x12 = (x1 + x2) / 2;
@@ -35059,7 +35062,7 @@ function recursive$1(x1, y1, x2, y2, x3, y3, x4, y4, points, distanceTolerance, 
   const y234 = (y23 + y34) / 2;
   const x1234 = (x123 + x234) / 2;
   const y1234 = (y123 + y234) / 2;
-  if (level > 0) {
+  if (level2 > 0) {
     let dx = x4 - x1;
     let dy = y4 - y1;
     const d2 = Math.abs((x2 - x4) * dy - (y2 - y4) * dx);
@@ -35094,8 +35097,8 @@ function recursive$1(x1, y1, x2, y2, x3, y3, x4, y4, points, distanceTolerance, 
       }
     }
   }
-  recursive$1(x1, y1, x12, y12, x123, y123, x1234, y1234, points, distanceTolerance, level + 1);
-  recursive$1(x1234, y1234, x234, y234, x34, y34, x4, y4, points, distanceTolerance, level + 1);
+  recursive$1(x1, y1, x12, y12, x123, y123, x1234, y1234, points, distanceTolerance, level2 + 1);
+  recursive$1(x1234, y1234, x234, y234, x34, y34, x4, y4, points, distanceTolerance, level2 + 1);
 }
 const RECURSION_LIMIT = 8;
 const FLT_EPSILON = 11920929e-14;
@@ -35116,8 +35119,8 @@ function begin(sX, sY, cp1x, cp1y, eX, eY, points, distanceTolerance) {
   recursive(points, sX, sY, cp1x, cp1y, eX, eY, distanceTolerance, 0);
   points.push(eX, eY);
 }
-function recursive(points, x1, y1, x2, y2, x3, y3, distanceTolerance, level) {
-  if (level > RECURSION_LIMIT) {
+function recursive(points, x1, y1, x2, y2, x3, y3, distanceTolerance, level2) {
+  if (level2 > RECURSION_LIMIT) {
     return;
   }
   const x12 = (x1 + x2) / 2;
@@ -35144,8 +35147,8 @@ function recursive(points, x1, y1, x2, y2, x3, y3, distanceTolerance, level) {
       return;
     }
   }
-  recursive(points, x1, y1, x12, y12, x123, y123, distanceTolerance, level + 1);
-  recursive(points, x123, y123, x23, y23, x3, y3, distanceTolerance, level + 1);
+  recursive(points, x1, y1, x12, y12, x123, y123, distanceTolerance, level2 + 1);
+  recursive(points, x123, y123, x23, y23, x3, y3, distanceTolerance, level2 + 1);
 }
 function buildArc(points, x2, y2, radius, start, end, clockwise, steps) {
   let dist = Math.abs(start - end);
@@ -48636,307 +48639,6 @@ const appendInventoryEntries = (base, entries) => {
   });
   return next;
 };
-function MagicTab(props) {
-  const {
-    magicSources,
-    activeMagicTab,
-    setActiveMagicTab,
-    spellcastingSelections,
-    spellInputByKey,
-    setSpellInputByKey,
-    updateSpellcastingSelection,
-    computeMod,
-    getScore,
-    resolveLevel,
-    getCasterContribution,
-    resolveItemTags,
-    inventoryItems,
-    formatEquipmentLabel,
-    getSpellId,
-    getSpellKey,
-    makeSpellEntry
-  } = props;
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "#b0b8c4" }, children: "Gestion de la magie selon les sources verrouillees." }),
-    magicSources.length > 1 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" }, children: magicSources.map((source2, idx) => /* @__PURE__ */ jsxRuntimeExports.jsx(
-      "button",
-      {
-        type: "button",
-        onClick: () => setActiveMagicTab(idx),
-        style: {
-          padding: "6px 10px",
-          borderRadius: 6,
-          border: `1px solid ${idx === activeMagicTab ? "#8e44ad" : "rgba(255,255,255,0.12)"}`,
-          background: idx === activeMagicTab ? "rgba(142, 68, 173, 0.2)" : "#0f0f19",
-          color: "#c9cfdd",
-          cursor: "pointer",
-          fontSize: 12,
-          fontWeight: 700
-        },
-        children: source2.label
-      },
-      `magic-tab-${source2.key}`
-    )) }),
-    (() => {
-      var _a;
-      const source2 = magicSources[activeMagicTab] ?? magicSources[0];
-      if (!source2) return null;
-      const selection = spellcastingSelections[source2.key] ?? {};
-      const knownSpells = Array.isArray(selection.knownSpells) ? selection.knownSpells : [];
-      const preparedSpells = Array.isArray(selection.preparedSpells) ? selection.preparedSpells : [];
-      const grantedSpells = Array.isArray(selection.grantedSpells) ? selection.grantedSpells : [];
-      const focusItemId = selection.focusItemId ?? "";
-      const storage = source2.storage ?? selection.storage ?? "memory";
-      const grimoireItemId = selection.grimoireItemId ?? "";
-      const totalCasterLevel = magicSources.reduce(
-        (sum, item) => sum + getCasterContribution(item.casterProgression, item.classLevel),
-        0
-      );
-      const slotsTable = ((_a = magicSources.find((item) => item.slotsByLevel)) == null ? void 0 : _a.slotsByLevel) ?? null;
-      const slots = slotsTable ? slotsTable[String(Math.max(0, totalCasterLevel))] ?? [] : [];
-      const dc = 8 + computeMod(getScore(source2.ability)) + (2 + Math.floor((resolveLevel() - 1) / 4));
-      const spellAttack = computeMod(getScore(source2.ability)) + (2 + Math.floor((resolveLevel() - 1) / 4));
-      const focusTypes = Array.isArray(source2.focusTypes) ? source2.focusTypes : [];
-      const focusOptions = inventoryItems.filter((item) => {
-        if (focusTypes.length === 0) return true;
-        const tags2 = resolveItemTags(item.id);
-        return focusTypes.some((tag) => tags2.includes(tag));
-      });
-      const storageLabel = storage === "memory" ? "Memoire" : storage === "innate" ? "Inne" : "Grimoire";
-      return /* @__PURE__ */ jsxRuntimeExports.jsxs(
-        "div",
-        {
-          style: {
-            borderRadius: 10,
-            border: "1px solid rgba(255,255,255,0.12)",
-            background: "rgba(12,12,18,0.75)",
-            padding: 12,
-            display: "flex",
-            flexDirection: "column",
-            gap: 10
-          },
-          children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", flexWrap: "wrap", gap: 12 }, children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
-                "Carac principale: ",
-                source2.ability
-              ] }),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
-                "Methode: ",
-                source2.preparation === "prepared" ? "Prepare" : "Connu"
-              ] }),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
-                "Niveau lanceur total: ",
-                totalCasterLevel
-              ] }),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
-                "DD sort: ",
-                dc,
-                " | Attaque magique: ",
-                spellAttack >= 0 ? `+${spellAttack}` : spellAttack
-              ] })
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
-              "Emplacements (total):",
-              " ",
-              slots.length > 0 ? slots.map((count2, idx) => count2 > 0 ? `${idx + 1}: ${count2}` : null).filter(Boolean).join(" | ") : "—"
-            ] }),
-            (source2.spellIds.length > 0 || grantedSpells.length > 0) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
-              "Sorts de progression:",
-              " ",
-              (grantedSpells.length > 0 ? grantedSpells.map((spell) => getSpellId(spell)) : source2.spellIds).join(", ")
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs(
-              "div",
-              {
-                style: {
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                  gap: 12
-                },
-                children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 6 }, children: storage === "memory" ? "Sorts memorises" : source2.preparation === "prepared" ? "Sorts prepares" : "Sorts connus" }),
-                    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: 6, marginBottom: 6 }, children: [
-                      /* @__PURE__ */ jsxRuntimeExports.jsx(
-                        "input",
-                        {
-                          type: "text",
-                          placeholder: "Ajouter un sort (id)",
-                          value: spellInputByKey[source2.key] ?? "",
-                          onChange: (e2) => setSpellInputByKey((prev) => ({ ...prev, [source2.key]: e2.target.value })),
-                          style: {
-                            flex: 1,
-                            background: "#0f0f19",
-                            color: "#f5f5f5",
-                            border: "1px solid #333",
-                            borderRadius: 6,
-                            padding: "6px 8px",
-                            fontSize: 12
-                          },
-                          onKeyDown: (e2) => {
-                            if (e2.key !== "Enter") return;
-                            const value2 = (e2.currentTarget.value || "").trim();
-                            if (!value2) return;
-                            const list = source2.preparation === "prepared" ? preparedSpells : knownSpells;
-                            if (list.some((spell) => getSpellId(spell) === value2)) return;
-                            const next = [
-                              ...list,
-                              makeSpellEntry(value2, { kind: "manual", sourceKey: source2.key })
-                            ];
-                            if (source2.preparation === "prepared") {
-                              updateSpellcastingSelection(source2.key, { preparedSpells: next });
-                            } else {
-                              updateSpellcastingSelection(source2.key, { knownSpells: next });
-                            }
-                            setSpellInputByKey((prev) => ({ ...prev, [source2.key]: "" }));
-                          }
-                        }
-                      ),
-                      /* @__PURE__ */ jsxRuntimeExports.jsx(
-                        "button",
-                        {
-                          type: "button",
-                          onClick: () => {
-                            const value2 = (spellInputByKey[source2.key] ?? "").trim();
-                            if (!value2) return;
-                            const list = source2.preparation === "prepared" ? preparedSpells : knownSpells;
-                            if (list.some((spell) => getSpellId(spell) === value2)) return;
-                            const next = [
-                              ...list,
-                              makeSpellEntry(value2, { kind: "manual", sourceKey: source2.key })
-                            ];
-                            if (source2.preparation === "prepared") {
-                              updateSpellcastingSelection(source2.key, { preparedSpells: next });
-                            } else {
-                              updateSpellcastingSelection(source2.key, { knownSpells: next });
-                            }
-                            setSpellInputByKey((prev) => ({ ...prev, [source2.key]: "" }));
-                          },
-                          style: {
-                            padding: "6px 10px",
-                            borderRadius: 6,
-                            border: "1px solid rgba(255,255,255,0.15)",
-                            background: "rgba(255,255,255,0.08)",
-                            color: "#f5f5f5",
-                            cursor: "pointer",
-                            fontSize: 12,
-                            fontWeight: 700
-                          },
-                          children: "Ajouter"
-                        }
-                      )
-                    ] }),
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", flexWrap: "wrap", gap: 6 }, children: (source2.preparation === "prepared" ? preparedSpells : knownSpells).map((spell) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                      "span",
-                      {
-                        style: {
-                          padding: "2px 6px",
-                          borderRadius: 999,
-                          border: "1px solid rgba(255,255,255,0.18)",
-                          background: "rgba(142, 68, 173, 0.12)",
-                          fontSize: 11,
-                          color: "rgba(255,255,255,0.75)",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 6
-                        },
-                        children: [
-                          getSpellId(spell),
-                          /* @__PURE__ */ jsxRuntimeExports.jsx(
-                            "button",
-                            {
-                              type: "button",
-                              onClick: () => {
-                                const list = source2.preparation === "prepared" ? preparedSpells : knownSpells;
-                                const next = list.filter((item) => {
-                                  if (typeof spell === "string") {
-                                    return getSpellId(item) !== spell;
-                                  }
-                                  return typeof item === "string" ? true : item.instanceId !== spell.instanceId;
-                                });
-                                if (source2.preparation === "prepared") {
-                                  updateSpellcastingSelection(source2.key, { preparedSpells: next });
-                                } else {
-                                  updateSpellcastingSelection(source2.key, { knownSpells: next });
-                                }
-                              },
-                              style: {
-                                border: "none",
-                                background: "transparent",
-                                color: "rgba(255,255,255,0.7)",
-                                cursor: "pointer",
-                                fontSize: 12
-                              },
-                              children: "×"
-                            }
-                          )
-                        ]
-                      },
-                      `spell-${source2.key}-${getSpellKey(spell)}`
-                    )) })
-                  ] }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 6 }, children: "Focalisateur" }),
-                    /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                      "select",
-                      {
-                        value: focusItemId,
-                        onChange: (e2) => updateSpellcastingSelection(source2.key, {
-                          focusItemId: e2.target.value || null
-                        }),
-                        style: {
-                          width: "100%",
-                          background: "#0f0f19",
-                          color: "#f5f5f5",
-                          border: "1px solid #333",
-                          borderRadius: 6,
-                          padding: "6px 8px",
-                          fontSize: 12
-                        },
-                        children: [
-                          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "Aucun" }),
-                          focusOptions.map((item) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: item.id, children: formatEquipmentLabel(item.id) }, `focus-${item.id}`))
-                        ]
-                      }
-                    ),
-                    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 10 }, children: [
-                      "Stockage des sorts: ",
-                      storageLabel
-                    ] }),
-                    storage === "grimoire" && /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                      "select",
-                      {
-                        value: grimoireItemId,
-                        onChange: (e2) => updateSpellcastingSelection(source2.key, {
-                          grimoireItemId: e2.target.value || null
-                        }),
-                        style: {
-                          width: "100%",
-                          background: "#0f0f19",
-                          color: "#f5f5f5",
-                          border: "1px solid #333",
-                          borderRadius: 6,
-                          padding: "6px 8px",
-                          fontSize: 12,
-                          marginTop: 6
-                        },
-                        children: [
-                          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "Choisir un grimoire" }),
-                          inventoryItems.filter((item) => item.type === "object").map((item) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: item.id, children: formatEquipmentLabel(item.id) }, `grimoire-${item.id}`))
-                        ]
-                      }
-                    )
-                  ] })
-                ]
-              }
-            )
-          ]
-        }
-      );
-    })()
-  ] });
-}
 function StatsTab(props) {
   const {
     statsMode,
@@ -49318,8 +49020,8 @@ function SkillsTab(props) {
         children: competenceOptions.map((skill) => {
           const isExpert = expertises.includes(skill.id);
           const isProf = competences.includes(skill.id);
-          const level = resolveLevel();
-          const prof = 2 + Math.floor((level - 1) / 4);
+          const level2 = resolveLevel();
+          const prof = 2 + Math.floor((level2 - 1) / 4);
           const abilityKey = skillAbilityMap[skill.id];
           const scoreKey = abilityKey === "STR" ? "FOR" : abilityKey === "DEX" ? "DEX" : abilityKey === "CON" ? "CON" : abilityKey === "INT" ? "INT" : abilityKey === "WIS" ? "SAG" : "CHA";
           const mod = computeMod(getScore(scoreKey));
@@ -50195,8 +49897,8 @@ function ClassesTab(props) {
                     return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: "Choisissez d'abord une classe." });
                   }
                   const threshold = cls.subclassLevel ?? 1;
-                  const level = Number(activeClassEntry == null ? void 0 : activeClassEntry.niveau) || (activeClassSlot === 1 ? resolveLevel() : 0);
-                  if (level < threshold) {
+                  const level2 = Number(activeClassEntry == null ? void 0 : activeClassEntry.niveau) || (activeClassSlot === 1 ? resolveLevel() : 0);
+                  if (level2 < threshold) {
                     return /* @__PURE__ */ jsxRuntimeExports.jsxs(
                       "div",
                       {
@@ -50271,8 +49973,1945 @@ function ClassesTab(props) {
     )
   ] });
 }
+function SpeciesTab(props) {
+  var _a;
+  const {
+    isSectionLocked,
+    lockButtonBaseStyle,
+    getLockButtonState,
+    renderPendingBadge,
+    getPendingCountForSection,
+    onLockClick,
+    raceOptions,
+    selectedRaceId,
+    handleSpeciesSelect,
+    activeRace,
+    getRaceTraits
+  } = props;
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "#b0b8c4" }, children: "Choisissez une espece. Ce choix met a jour raceId dans le personnage." }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "button",
+        {
+          type: "button",
+          onClick: onLockClick,
+          style: {
+            ...lockButtonBaseStyle,
+            marginLeft: "auto",
+            background: getLockButtonState("species").background
+          },
+          children: [
+            getLockButtonState("species").label,
+            renderPendingBadge(getPendingCountForSection("species"))
+          ]
+        }
+      )
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "div",
+      {
+        style: {
+          display: "grid",
+          gridTemplateColumns: "minmax(220px, 1.1fr) minmax(240px, 1fr)",
+          gap: 12,
+          alignItems: "start"
+        },
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "div",
+            {
+              style: {
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                gap: 10,
+                alignContent: "start"
+              },
+              children: raceOptions.map((race) => {
+                const isSelected = selectedRaceId === race.id;
+                return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                  "button",
+                  {
+                    type: "button",
+                    onClick: () => handleSpeciesSelect(race.id),
+                    disabled: isSectionLocked("species"),
+                    style: {
+                      textAlign: "left",
+                      borderRadius: 10,
+                      border: `1px solid ${isSelected ? "#6fd3a8" : "rgba(255,255,255,0.12)"}`,
+                      background: isSelected ? "rgba(46, 204, 113, 0.14)" : "rgba(12,12,18,0.75)",
+                      color: "#f5f5f5",
+                      padding: 12,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 6,
+                      minHeight: 120,
+                      opacity: isSectionLocked("species") ? 0.6 : 1,
+                      cursor: isSectionLocked("species") ? "not-allowed" : "pointer"
+                    },
+                    children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 13, fontWeight: 800 }, children: race.label }),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: race.description }),
+                      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.5)" }, children: [
+                        "ID: ",
+                        race.id
+                      ] })
+                    ]
+                  },
+                  race.id
+                );
+              })
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "div",
+            {
+              style: {
+                borderRadius: 12,
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "rgba(12,12,18,0.75)",
+                padding: 12,
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+                minHeight: 260
+              },
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "div",
+                  {
+                    style: {
+                      width: "100%",
+                      aspectRatio: "16 / 9",
+                      borderRadius: 10,
+                      border: "1px dashed rgba(255,255,255,0.18)",
+                      background: "rgba(8,8,12,0.65)",
+                      display: "grid",
+                      placeItems: "center",
+                      color: "rgba(255,255,255,0.35)",
+                      fontSize: 12
+                    },
+                    children: "Image 16:9"
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 14, fontWeight: 800 }, children: activeRace ? activeRace.label : "Selectionnez une espece" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.75)" }, children: activeRace ? activeRace.description : "Selectionnez une espece pour voir les details." }),
+                activeRace && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
+                  "Vitesse: ",
+                  activeRace.speed ?? "?",
+                  " | Taille: ",
+                  activeRace.size ?? "?"
+                ] }),
+                activeRace && getRaceTraits(activeRace).length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
+                  "Traits: ",
+                  getRaceTraits(activeRace).map((trait) => trait.label).join(", ")
+                ] }),
+                activeRace && ((_a = activeRace.vision) == null ? void 0 : _a.mode) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
+                  "Vision: ",
+                  activeRace.vision.mode,
+                  activeRace.vision.range ? ` ${activeRace.vision.range}ft` : ""
+                ] })
+              ]
+            }
+          )
+        ]
+      }
+    )
+  ] });
+}
+function ProfileTab(props) {
+  var _a, _b, _c, _d;
+  const {
+    character,
+    profileDetails,
+    setNameField,
+    setPhysiqueDetail,
+    setProfileDetail,
+    isSectionLocked,
+    toggleSectionLock,
+    lockButtonBaseStyle,
+    getLockButtonState,
+    renderPendingBadge,
+    getPendingCountForSection
+  } = props;
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "#b0b8c4" }, children: "Renseignez le profil du personnage (pre-rempli)." }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "button",
+        {
+          type: "button",
+          onClick: () => toggleSectionLock("profile"),
+          style: {
+            ...lockButtonBaseStyle,
+            marginLeft: "auto",
+            background: getLockButtonState("profile").background
+          },
+          children: [
+            getLockButtonState("profile").label,
+            renderPendingBadge(getPendingCountForSection("profile"))
+          ]
+        }
+      )
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "div",
+      {
+        style: {
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gap: 10
+        },
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { style: { fontSize: 12, display: "flex", flexDirection: "column", gap: 6 }, children: [
+            "Prenom",
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                type: "text",
+                value: ((_a = character.nom) == null ? void 0 : _a.prenom) ?? "",
+                onChange: (e2) => setNameField("prenom", e2.target.value),
+                disabled: isSectionLocked("profile"),
+                style: {
+                  background: "#0f0f19",
+                  color: "#f5f5f5",
+                  border: "1px solid #333",
+                  borderRadius: 6,
+                  padding: "6px 8px",
+                  fontSize: 12,
+                  opacity: isSectionLocked("profile") ? 0.6 : 1
+                }
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { style: { fontSize: 12, display: "flex", flexDirection: "column", gap: 6 }, children: [
+            "Nom complet",
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                type: "text",
+                value: ((_b = character.nom) == null ? void 0 : _b.nomcomplet) ?? "",
+                onChange: (e2) => setNameField("nomcomplet", e2.target.value),
+                disabled: isSectionLocked("profile"),
+                style: {
+                  background: "#0f0f19",
+                  color: "#f5f5f5",
+                  border: "1px solid #333",
+                  borderRadius: 6,
+                  padding: "6px 8px",
+                  fontSize: 12,
+                  opacity: isSectionLocked("profile") ? 0.6 : 1
+                }
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { style: { fontSize: 12, display: "flex", flexDirection: "column", gap: 6 }, children: [
+            "Surnom",
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                type: "text",
+                value: ((_c = character.nom) == null ? void 0 : _c.surnom) ?? "",
+                onChange: (e2) => setNameField("surnom", e2.target.value),
+                disabled: isSectionLocked("profile"),
+                style: {
+                  background: "#0f0f19",
+                  color: "#f5f5f5",
+                  border: "1px solid #333",
+                  borderRadius: 6,
+                  padding: "6px 8px",
+                  fontSize: 12,
+                  opacity: isSectionLocked("profile") ? 0.6 : 1
+                }
+              }
+            )
+          ] })
+        ]
+      }
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { style: { fontSize: 12, display: "flex", flexDirection: "column", gap: 6 }, children: [
+      "Traits physiques (general)",
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "textarea",
+        {
+          value: ((_d = character.descriptionPersonnage) == null ? void 0 : _d.physique) ?? "",
+          onChange: (e2) => setPhysiqueDetail(e2.target.value),
+          disabled: isSectionLocked("profile"),
+          rows: 3,
+          style: {
+            resize: "vertical",
+            minHeight: 70,
+            background: "#0f0f19",
+            color: "#f5f5f5",
+            border: "1px solid #333",
+            borderRadius: 6,
+            padding: "8px 10px",
+            fontSize: 12,
+            opacity: isSectionLocked("profile") ? 0.6 : 1
+          }
+        }
+      )
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "div",
+      {
+        style: {
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gap: 10
+        },
+        children: [
+          { id: "visage", label: "Visage" },
+          { id: "cheveux", label: "Cheveux" },
+          { id: "yeux", label: "Yeux" },
+          { id: "silhouette", label: "Silhouette" }
+        ].map((field) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "label",
+          {
+            style: { fontSize: 12, display: "flex", flexDirection: "column", gap: 6 },
+            children: [
+              field.label,
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "input",
+                {
+                  type: "text",
+                  value: profileDetails[field.id] ?? "",
+                  onChange: (e2) => setProfileDetail(field.id, e2.target.value),
+                  disabled: isSectionLocked("profile"),
+                  style: {
+                    background: "#0f0f19",
+                    color: "#f5f5f5",
+                    border: "1px solid #333",
+                    borderRadius: 6,
+                    padding: "6px 8px",
+                    fontSize: 12,
+                    opacity: isSectionLocked("profile") ? 0.6 : 1
+                  }
+                }
+              )
+            ]
+          },
+          field.id
+        ))
+      }
+    )
+  ] });
+}
+const id$b = "aid";
+const name$b = "Aide";
+const level$b = 2;
+const school$b = "abjuration";
+const components$b = { "verbal": true, "somatic": true, "material": true };
+const summary$b = "Renforce la vigueur d'un groupe d'allies.";
+const category$b = "support";
+const actionCost$b = { "actionType": "action", "movementCost": 0 };
+const targeting$b = { "target": "ally", "range": { "min": 0, "max": 6, "shape": "single" }, "maxTargets": 3, "requiresLos": true };
+const usage$b = { "perTurn": 1, "perEncounter": null, "resource": null };
+const effects$b = [{ "type": "status_apply", "target": "primary", "statusId": "aid", "durationTurns": 60 }, { "type": "log", "message": "Aide appliquee." }];
+const tags$b = ["spell", "support", "cleric"];
+const aid = {
+  id: id$b,
+  name: name$b,
+  level: level$b,
+  school: school$b,
+  components: components$b,
+  summary: summary$b,
+  category: category$b,
+  actionCost: actionCost$b,
+  targeting: targeting$b,
+  usage: usage$b,
+  effects: effects$b,
+  tags: tags$b
+};
+const id$a = "arcane-bolt";
+const name$a = "Trait Arcanique";
+const level$a = 1;
+const school$a = "evocation";
+const components$a = { "verbal": true, "somatic": true, "material": false };
+const summary$a = "Placeholder: petit projectile magique.";
+const category$a = "attack";
+const actionCost$a = { "actionType": "action", "movementCost": 0 };
+const targeting$a = { "target": "hostile", "range": { "min": 1, "max": 6, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
+const usage$a = { "perTurn": 1, "perEncounter": null, "resource": null };
+const attack = { "bonus": 0, "critRange": 20 };
+const damage = { "formula": "1d8", "critRule": "double-dice", "damageType": "force" };
+const effects$a = [{ "type": "damage", "target": "primary", "formula": "1d8", "damageType": "force" }, { "type": "log", "message": "Trait arcanique." }];
+const tags$a = ["spell", "ranged"];
+const arcaneBolt = {
+  id: id$a,
+  name: name$a,
+  level: level$a,
+  school: school$a,
+  components: components$a,
+  summary: summary$a,
+  category: category$a,
+  actionCost: actionCost$a,
+  targeting: targeting$a,
+  usage: usage$a,
+  attack,
+  damage,
+  effects: effects$a,
+  tags: tags$a
+};
+const id$9 = "aura-of-purity";
+const name$9 = "Aura de purete";
+const level$9 = 4;
+const school$9 = "abjuration";
+const components$9 = { "verbal": true, "somatic": true, "material": true };
+const summary$9 = "Aura protectrice contre maladies et effets nefastes.";
+const category$9 = "support";
+const actionCost$9 = { "actionType": "action", "movementCost": 0 };
+const targeting$9 = { "target": "self", "range": { "min": 0, "max": 0, "shape": "single" }, "maxTargets": 1, "requiresLos": false };
+const usage$9 = { "perTurn": 1, "perEncounter": null, "resource": null };
+const effects$9 = [{ "type": "status_apply", "target": "self", "statusId": "aura-of-purity", "durationTurns": 10 }, { "type": "log", "message": "Aura de purete activee." }];
+const tags$9 = ["spell", "defense", "cleric"];
+const auraOfPurity = {
+  id: id$9,
+  name: name$9,
+  level: level$9,
+  school: school$9,
+  components: components$9,
+  summary: summary$9,
+  category: category$9,
+  actionCost: actionCost$9,
+  targeting: targeting$9,
+  usage: usage$9,
+  effects: effects$9,
+  tags: tags$9
+};
+const id$8 = "beacon-of-hope";
+const name$8 = "Flamme d'espoir";
+const level$8 = 3;
+const school$8 = "abjuration";
+const components$8 = { "verbal": true, "somatic": true, "material": false };
+const summary$8 = "Renforce les soins et la determination.";
+const category$8 = "support";
+const actionCost$8 = { "actionType": "action", "movementCost": 0 };
+const targeting$8 = { "target": "ally", "range": { "min": 0, "max": 6, "shape": "single" }, "maxTargets": 3, "requiresLos": true };
+const usage$8 = { "perTurn": 1, "perEncounter": null, "resource": null };
+const effects$8 = [{ "type": "status_apply", "target": "primary", "statusId": "beacon-of-hope", "durationTurns": 10 }, { "type": "log", "message": "Flamme d'espoir appliquee." }];
+const tags$8 = ["spell", "support", "cleric"];
+const beaconOfHope = {
+  id: id$8,
+  name: name$8,
+  level: level$8,
+  school: school$8,
+  components: components$8,
+  summary: summary$8,
+  category: category$8,
+  actionCost: actionCost$8,
+  targeting: targeting$8,
+  usage: usage$8,
+  effects: effects$8,
+  tags: tags$8
+};
+const id$7 = "greater-restoration";
+const name$7 = "Restauration superieure";
+const level$7 = 5;
+const school$7 = "abjuration";
+const components$7 = { "verbal": true, "somatic": true, "material": true };
+const summary$7 = "Supprime des afflictions majeures sur une cible.";
+const category$7 = "support";
+const actionCost$7 = { "actionType": "action", "movementCost": 0 };
+const targeting$7 = { "target": "ally", "range": { "min": 0, "max": 6, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
+const usage$7 = { "perTurn": 1, "perEncounter": null, "resource": null };
+const effects$7 = [{ "type": "status_apply", "target": "primary", "statusId": "greater-restoration", "durationTurns": 1 }, { "type": "log", "message": "Restauration superieure appliquee." }];
+const tags$7 = ["spell", "support", "cleric"];
+const greaterRestoration = {
+  id: id$7,
+  name: name$7,
+  level: level$7,
+  school: school$7,
+  components: components$7,
+  summary: summary$7,
+  category: category$7,
+  actionCost: actionCost$7,
+  targeting: targeting$7,
+  usage: usage$7,
+  effects: effects$7,
+  tags: tags$7
+};
+const id$6 = "heroism";
+const name$6 = "Heroisme";
+const level$6 = 1;
+const school$6 = "enchantment";
+const components$6 = { "verbal": true, "somatic": true, "material": false };
+const summary$6 = "Insuffle du courage et protege contre la peur.";
+const category$6 = "support";
+const actionCost$6 = { "actionType": "action", "movementCost": 0 };
+const targeting$6 = { "target": "ally", "range": { "min": 0, "max": 6, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
+const usage$6 = { "perTurn": 1, "perEncounter": null, "resource": null };
+const effects$6 = [{ "type": "status_apply", "target": "primary", "statusId": "heroism", "durationTurns": 10 }, { "type": "log", "message": "Heroisme applique." }];
+const tags$6 = ["spell", "support", "cleric"];
+const heroism = {
+  id: id$6,
+  name: name$6,
+  level: level$6,
+  school: school$6,
+  components: components$6,
+  summary: summary$6,
+  category: category$6,
+  actionCost: actionCost$6,
+  targeting: targeting$6,
+  usage: usage$6,
+  effects: effects$6,
+  tags: tags$6
+};
+const id$5 = "minor-ward";
+const name$5 = "Garde Mineure";
+const level$5 = 1;
+const school$5 = "abjuration";
+const components$5 = { "verbal": true, "somatic": true, "material": false };
+const summary$5 = "Placeholder: protection temporaire.";
+const category$5 = "support";
+const actionCost$5 = { "actionType": "action", "movementCost": 0 };
+const targeting$5 = { "target": "self", "range": { "min": 0, "max": 0, "shape": "single" }, "maxTargets": 1, "requiresLos": false };
+const usage$5 = { "perTurn": 1, "perEncounter": null, "resource": null };
+const effects$5 = [{ "type": "status_apply", "target": "self", "statusId": "guarded", "durationTurns": 1 }, { "type": "log", "message": "Garde mineure activee." }];
+const tags$5 = ["spell", "defense", "cleric"];
+const minorWard = {
+  id: id$5,
+  name: name$5,
+  level: level$5,
+  school: school$5,
+  components: components$5,
+  summary: summary$5,
+  category: category$5,
+  actionCost: actionCost$5,
+  targeting: targeting$5,
+  usage: usage$5,
+  effects: effects$5,
+  tags: tags$5
+};
+const id$4 = "rarys-telepathic-bond";
+const name$4 = "Lien telepathique de Rary";
+const level$4 = 5;
+const school$4 = "divination";
+const components$4 = { "verbal": true, "somatic": true, "material": true };
+const summary$4 = "Lie telepathiquement plusieurs allies.";
+const category$4 = "support";
+const actionCost$4 = { "actionType": "action", "movementCost": 0 };
+const targeting$4 = { "target": "ally", "range": { "min": 0, "max": 6, "shape": "single" }, "maxTargets": 6, "requiresLos": true };
+const usage$4 = { "perTurn": 1, "perEncounter": null, "resource": null };
+const effects$4 = [{ "type": "status_apply", "target": "primary", "statusId": "telepathic-bond", "durationTurns": 60 }, { "type": "log", "message": "Lien telepathique etabli." }];
+const tags$4 = ["spell", "support", "cleric"];
+const rarysTelepathicBond = {
+  id: id$4,
+  name: name$4,
+  level: level$4,
+  school: school$4,
+  components: components$4,
+  summary: summary$4,
+  category: category$4,
+  actionCost: actionCost$4,
+  targeting: targeting$4,
+  usage: usage$4,
+  effects: effects$4,
+  tags: tags$4
+};
+const id$3 = "resilient-sphere";
+const name$3 = "Sphere resiliente";
+const level$3 = 4;
+const school$3 = "evocation";
+const components$3 = { "verbal": true, "somatic": true, "material": true };
+const summary$3 = "Emprisonne une cible dans une sphere protectrice.";
+const category$3 = "control";
+const actionCost$3 = { "actionType": "action", "movementCost": 0 };
+const targeting$3 = { "target": "hostile", "range": { "min": 0, "max": 6, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
+const usage$3 = { "perTurn": 1, "perEncounter": null, "resource": null };
+const effects$3 = [{ "type": "status_apply", "target": "primary", "statusId": "resilient-sphere", "durationTurns": 10 }, { "type": "log", "message": "Sphere resiliente appliquee." }];
+const tags$3 = ["spell", "control", "cleric"];
+const resilientSphere = {
+  id: id$3,
+  name: name$3,
+  level: level$3,
+  school: school$3,
+  components: components$3,
+  summary: summary$3,
+  category: category$3,
+  actionCost: actionCost$3,
+  targeting: targeting$3,
+  usage: usage$3,
+  effects: effects$3,
+  tags: tags$3
+};
+const id$2 = "sanctuary";
+const name$2 = "Sanctuaire";
+const level$2 = 1;
+const school$2 = "abjuration";
+const components$2 = { "verbal": true, "somatic": true, "material": true };
+const summary$2 = "Protege une cible contre les attaques directes.";
+const category$2 = "support";
+const actionCost$2 = { "actionType": "action", "movementCost": 0 };
+const targeting$2 = { "target": "ally", "range": { "min": 0, "max": 6, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
+const usage$2 = { "perTurn": 1, "perEncounter": null, "resource": null };
+const effects$2 = [{ "type": "status_apply", "target": "primary", "statusId": "sanctuary", "durationTurns": 10 }, { "type": "log", "message": "Sanctuaire applique." }];
+const tags$2 = ["spell", "defense", "cleric"];
+const sanctuary = {
+  id: id$2,
+  name: name$2,
+  level: level$2,
+  school: school$2,
+  components: components$2,
+  summary: summary$2,
+  category: category$2,
+  actionCost: actionCost$2,
+  targeting: targeting$2,
+  usage: usage$2,
+  effects: effects$2,
+  tags: tags$2
+};
+const id$1 = "sending";
+const name$1 = "Message";
+const level$1 = 3;
+const school$1 = "evocation";
+const components$1 = { "verbal": true, "somatic": true, "material": true };
+const summary$1 = "Envoie un message magique a distance.";
+const category$1 = "support";
+const actionCost$1 = { "actionType": "action", "movementCost": 0 };
+const targeting$1 = { "target": "ally", "range": { "min": 0, "max": 20, "shape": "single" }, "maxTargets": 1, "requiresLos": false };
+const usage$1 = { "perTurn": 1, "perEncounter": null, "resource": null };
+const effects$1 = [{ "type": "log", "message": "Message envoye." }];
+const tags$1 = ["spell", "utility", "cleric"];
+const sending = {
+  id: id$1,
+  name: name$1,
+  level: level$1,
+  school: school$1,
+  components: components$1,
+  summary: summary$1,
+  category: category$1,
+  actionCost: actionCost$1,
+  targeting: targeting$1,
+  usage: usage$1,
+  effects: effects$1,
+  tags: tags$1
+};
+const id = "warding-bond";
+const name = "Lien protecteur";
+const level = 2;
+const school = "abjuration";
+const components = { "verbal": true, "somatic": true, "material": true };
+const summary = "Lie le lanceur a un allie pour partager les degats.";
+const category = "support";
+const actionCost = { "actionType": "action", "movementCost": 0 };
+const targeting = { "target": "ally", "range": { "min": 0, "max": 6, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
+const usage = { "perTurn": 1, "perEncounter": null, "resource": null };
+const effects = [{ "type": "status_apply", "target": "primary", "statusId": "warding-bond", "durationTurns": 60 }, { "type": "log", "message": "Lien protecteur applique." }];
+const tags = ["spell", "support", "cleric"];
+const wardingBond = {
+  id,
+  name,
+  level,
+  school,
+  components,
+  summary,
+  category,
+  actionCost,
+  targeting,
+  usage,
+  effects,
+  tags
+};
+const spellCatalogList = [
+  aid,
+  arcaneBolt,
+  auraOfPurity,
+  beaconOfHope,
+  greaterRestoration,
+  heroism,
+  minorWard,
+  rarysTelepathicBond,
+  resilientSphere,
+  sanctuary,
+  sending,
+  wardingBond
+];
+const spellCatalogById = new Map(spellCatalogList.map((spell) => [spell.id, spell]));
+const spellCatalog = {
+  list: spellCatalogList,
+  byId: spellCatalogById
+};
+function SheetTab(props) {
+  const {
+    character,
+    onChangeCharacter,
+    choiceSelections,
+    magicSources,
+    spellcastingSelections,
+    renderValidatedBadge,
+    getSectionValidated,
+    activeRace,
+    getRaceTraits,
+    activeBackground,
+    getBackgroundFeatureInfo,
+    getBackgroundSkillProficiencies,
+    getBackgroundToolProficiencies,
+    competenceOptions,
+    toolMasteryOptions,
+    classPrimary,
+    classSecondary,
+    classEntry,
+    secondaryClassEntry,
+    selectedSubclassId,
+    selectedSecondarySubclassId,
+    subclassOptions,
+    asiSelections,
+    getScore,
+    computeMod,
+    resolveLevel,
+    computeArmorClassFromEquipment: computeArmorClassFromEquipment2,
+    computeMaxHp,
+    competences,
+    expertises,
+    skillAbilityMap,
+    weaponMasteries,
+    armorMasteries,
+    toolMasteries,
+    EQUIPMENT_SLOTS,
+    materielSlots,
+    packSlots,
+    packSlotStatus,
+    inventoryItems,
+    getSlotLabel,
+    formatEquipmentLabel
+  } = props;
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(jsxRuntimeExports.Fragment, { children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }, children: (() => {
+    var _a, _b, _c, _d, _e, _f, _g, _h;
+    const statLabels = {
+      FOR: "Force",
+      DEX: "Dexterite",
+      CON: "Constitution",
+      INT: "Intelligence",
+      SAG: "Sagesse",
+      CHA: "Charisme"
+    };
+    const getSpellId = (entry) => typeof entry === "string" ? entry : entry.id;
+    const getSpellName = (id2) => {
+      var _a2;
+      return ((_a2 = spellCatalog.byId.get(id2)) == null ? void 0 : _a2.name) ?? id2;
+    };
+    const getCasterContribution = (progression2, level2) => {
+      if (progression2 === "full") return level2;
+      if (progression2 === "half") return Math.floor(level2 / 2);
+      if (progression2 === "third") return Math.floor(level2 / 3);
+      return 0;
+    };
+    const totalCasterLevel = magicSources.reduce(
+      (sum, item) => sum + getCasterContribution(item.casterProgression, item.classLevel),
+      0
+    );
+    const slotsTable = ((_a = magicSources.find((item) => item.slotsByLevel)) == null ? void 0 : _a.slotsByLevel) ?? null;
+    const slots = slotsTable ? slotsTable[String(Math.max(0, totalCasterLevel))] ?? [] : [];
+    const slotsSummary = slots.length > 0 ? slots.map((count2, idx) => count2 > 0 ? `${idx + 1}: ${count2}` : null).filter(Boolean).join(" | ") : "—";
+    const backgroundChoices = (choiceSelections == null ? void 0 : choiceSelections.background) ?? {};
+    const backgroundTools = Array.isArray(backgroundChoices.tools) ? backgroundChoices.tools : [];
+    const backgroundLanguages = Array.isArray(backgroundChoices.languages) ? backgroundChoices.languages : [];
+    const adaptableSkill = ((_b = choiceSelections == null ? void 0 : choiceSelections.race) == null ? void 0 : _b.adaptableSkill) ?? "";
+    const buildProgressionLines = (progression2, maxLevel) => {
+      if (!progression2) return [];
+      const levels = Object.keys(progression2).map((key2) => Number(key2)).filter((level2) => Number.isFinite(level2)).sort((a2, b2) => a2 - b2);
+      return levels.filter((level2) => typeof maxLevel === "number" ? level2 <= maxLevel : true).map((level2) => {
+        const entry = progression2[String(level2)] ?? {};
+        const grants2 = Array.isArray(entry.grants) ? entry.grants : [];
+        const desc = entry.description ? entry.description : "";
+        const hasAsi = grants2.some(
+          (grant) => (grant == null ? void 0 : grant.kind) === "bonus" && ((grant == null ? void 0 : grant.ids) ?? []).includes("asi-or-feat")
+        );
+        const baseLabel = desc || (hasAsi ? "Amelioration de caracteristiques (ASI) ou choix de don" : "Progression");
+        return { level: level2, hasAsi, baseLabel };
+      });
+    };
+    const buildClassProgressionDisplay = (cls, subclass, level2) => {
+      if (!cls || level2 <= 0) return [];
+      const lines = [];
+      const clsLines = buildProgressionLines(cls.progression, level2);
+      const subLines = subclass ? buildProgressionLines(subclass.progression, level2) : [];
+      const formatLine = (entry) => {
+        let suffix = "";
+        if (entry.hasAsi) {
+          const key2 = `${cls.id}:${entry.level}`;
+          const asiEntry = asiSelections[key2] ?? (cls.id === (classPrimary == null ? void 0 : classPrimary.id) ? asiSelections[String(entry.level)] : null);
+          if ((asiEntry == null ? void 0 : asiEntry.type) === "feat") {
+            suffix = " : Don";
+          } else if ((asiEntry == null ? void 0 : asiEntry.type) === "asi") {
+            const stats = asiEntry.stats ?? {};
+            const parts = Object.entries(stats).map(([stat, value2]) => `+${value2} ${statLabels[stat] ?? stat}`).join(", ");
+            suffix = parts ? ` : ${parts}` : " : non choisi";
+          } else {
+            suffix = " : non choisi";
+          }
+        }
+        return `Niveau ${entry.level} — ${entry.baseLabel}${suffix}`;
+      };
+      clsLines.forEach((entry) => lines.push(formatLine(entry)));
+      subLines.forEach((entry) => lines.push(formatLine(entry)));
+      return lines;
+    };
+    const primarySubclass = selectedSubclassId ? subclassOptions.find((sub) => sub.id === selectedSubclassId) ?? null : null;
+    const secondarySubclass = selectedSecondarySubclassId ? subclassOptions.find((sub) => sub.id === selectedSecondarySubclassId) ?? null : null;
+    const primaryLevel = Number(classEntry == null ? void 0 : classEntry.niveau) || 0;
+    const secondaryLevel = Number(secondaryClassEntry == null ? void 0 : secondaryClassEntry.niveau) || 0;
+    const primaryProgressionLines = buildClassProgressionDisplay(
+      classPrimary,
+      primarySubclass,
+      primaryLevel
+    );
+    const secondaryProgressionLines = buildClassProgressionDisplay(
+      classSecondary,
+      secondarySubclass,
+      secondaryLevel
+    );
+    return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          style: {
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(12,12,18,0.75)",
+            padding: 12,
+            display: "flex",
+            flexDirection: "column",
+            gap: 8
+          },
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }, children: [
+              "Identite",
+              renderValidatedBadge(getSectionValidated("profile"))
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
+              "Nom: ",
+              ((_c = character == null ? void 0 : character.nom) == null ? void 0 : _c.nomcomplet) ?? "—"
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
+              "Prenom: ",
+              ((_d = character == null ? void 0 : character.nom) == null ? void 0 : _d.prenom) ?? "—",
+              " | Surnom:",
+              " ",
+              ((_e = character == null ? void 0 : character.nom) == null ? void 0 : _e.surnom) ?? "—"
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
+              "Age: ",
+              (character == null ? void 0 : character.age) ?? "—",
+              " | Sexe: ",
+              (character == null ? void 0 : character.sexe) ?? "—"
+            ] })
+          ]
+        }
+      ),
+      magicSources.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          style: {
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(12,12,18,0.75)",
+            padding: 12,
+            display: "flex",
+            flexDirection: "column",
+            gap: 8
+          },
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }, children: [
+              "Magie",
+              renderValidatedBadge(getSectionValidated("magic"))
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
+              "Emplacements (total): ",
+              slotsSummary
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "grid", gap: 10 }, children: magicSources.map((source2) => {
+              const selection = spellcastingSelections[source2.key] ?? {};
+              const knownSpells = Array.isArray(selection.knownSpells) ? selection.knownSpells : [];
+              const preparedSpells = Array.isArray(selection.preparedSpells) ? selection.preparedSpells : [];
+              const grantedSpells = Array.isArray(selection.grantedSpells) ? selection.grantedSpells : [];
+              const preparedList = source2.preparation === "prepared" ? preparedSpells : knownSpells;
+              const preparedIds = new Set(preparedList.map((spell) => getSpellId(spell)));
+              const grantedIds = new Set(grantedSpells.map((spell) => getSpellId(spell)));
+              const freePreparedFromGrants = Boolean(source2.freePreparedFromGrants);
+              const preparedCount = Array.from(preparedIds).filter(
+                (id2) => !(freePreparedFromGrants && grantedIds.has(id2))
+              ).length;
+              const preparedLimit = source2.preparation === "prepared" ? Math.max(0, source2.classLevel) : null;
+              const storageLabel = source2.storage === "memory" ? "Memoire" : source2.storage === "innate" ? "Inne" : "Grimoire";
+              const grantedNames = grantedSpells.length > 0 ? grantedSpells.map((spell) => getSpellName(getSpellId(spell))) : source2.spellIds.map((id2) => getSpellName(id2));
+              const preparedNames = preparedList.map((spell) => getSpellName(getSpellId(spell)));
+              return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                "div",
+                {
+                  style: {
+                    borderRadius: 8,
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    background: "rgba(10,10,16,0.8)",
+                    padding: "8px 10px",
+                    display: "grid",
+                    gap: 6
+                  },
+                  children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, fontWeight: 700, color: "#f5f5f5" }, children: [
+                      source2.label,
+                      " (niv ",
+                      source2.classLevel,
+                      ")"
+                    ] }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.65)" }, children: [
+                      "Methode: ",
+                      source2.preparation === "prepared" ? "Prepare" : "Connu",
+                      " | Stockage:",
+                      " ",
+                      storageLabel
+                    ] }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.65)" }, children: source2.preparation === "prepared" ? `Sorts prepares: ${preparedCount}${preparedLimit !== null ? ` / ${preparedLimit}` : ""}` : `Sorts connus: ${preparedIds.size}` }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.65)" }, children: [
+                      "Sorts ",
+                      source2.preparation === "prepared" ? "prepares" : "connus",
+                      ":",
+                      " ",
+                      preparedNames.join(", ") || "—"
+                    ] }),
+                    grantedNames.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.55)" }, children: [
+                      "Sorts imposes: ",
+                      grantedNames.join(", ")
+                    ] })
+                  ]
+                },
+                `sheet-magic-${source2.key}`
+              );
+            }) })
+          ]
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          style: {
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(12,12,18,0.75)",
+            padding: 12,
+            display: "flex",
+            flexDirection: "column",
+            gap: 8
+          },
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }, children: [
+              "Espece",
+              renderValidatedBadge(getSectionValidated("species"))
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: activeRace ? `${activeRace.label} (${activeRace.id})` : "—" }),
+            getRaceTraits(activeRace).length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", flexWrap: "wrap", gap: 6 }, children: getRaceTraits(activeRace).map((trait) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "span",
+              {
+                style: {
+                  padding: "2px 6px",
+                  borderRadius: 999,
+                  border: "1px solid rgba(255,255,255,0.18)",
+                  background: "rgba(46, 204, 113, 0.12)",
+                  fontSize: 11,
+                  color: "rgba(255,255,255,0.75)"
+                },
+                children: trait.label
+              },
+              `trait-${trait.id}`
+            )) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
+              "Traits: ",
+              getRaceTraits(activeRace).map((trait) => trait.label).join(", ") || "—"
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
+              "Choix adapte: ",
+              adaptableSkill ? ((_f = competenceOptions.find((c2) => c2.id === adaptableSkill)) == null ? void 0 : _f.label) ?? adaptableSkill : "—"
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
+              "Vitesse: ",
+              (activeRace == null ? void 0 : activeRace.speed) ?? "—",
+              " | Taille: ",
+              (activeRace == null ? void 0 : activeRace.size) ?? "—"
+            ] })
+          ]
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          style: {
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(12,12,18,0.75)",
+            padding: 12,
+            display: "flex",
+            flexDirection: "column",
+            gap: 8
+          },
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }, children: [
+              "Historique",
+              renderValidatedBadge(getSectionValidated("backgrounds"))
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: activeBackground ? `${activeBackground.label} (${activeBackground.id})` : "—" }),
+            getBackgroundFeatureInfo(activeBackground) && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", flexWrap: "wrap", gap: 6 }, children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "span",
+              {
+                style: {
+                  padding: "2px 6px",
+                  borderRadius: 999,
+                  border: "1px solid rgba(255,255,255,0.18)",
+                  background: "rgba(241, 196, 15, 0.16)",
+                  fontSize: 11,
+                  color: "rgba(255,255,255,0.75)"
+                },
+                children: ((_g = getBackgroundFeatureInfo(activeBackground)) == null ? void 0 : _g.label) ?? "Aptitude"
+              }
+            ) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
+              "Competences:",
+              " ",
+              getBackgroundSkillProficiencies(activeBackground).map((id2) => {
+                var _a2;
+                return ((_a2 = competenceOptions.find((c2) => c2.id === id2)) == null ? void 0 : _a2.label) ?? id2;
+              }).join(", ") || "—"
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
+              "Outils:",
+              " ",
+              getBackgroundToolProficiencies(activeBackground).map((id2) => {
+                var _a2;
+                return ((_a2 = toolMasteryOptions.find((t2) => t2.id === id2)) == null ? void 0 : _a2.label) ?? id2;
+              }).join(", ") || "—"
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
+              "Choix outils:",
+              " ",
+              backgroundTools.length ? backgroundTools.map((id2) => {
+                var _a2;
+                return ((_a2 = toolMasteryOptions.find((t2) => t2.id === id2)) == null ? void 0 : _a2.label) ?? id2;
+              }).join(", ") : "—"
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
+              "Choix langues: ",
+              backgroundLanguages.join(", ") || "—"
+            ] })
+          ]
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          style: {
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(12,12,18,0.75)",
+            padding: 12,
+            display: "flex",
+            flexDirection: "column",
+            gap: 8
+          },
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }, children: [
+              "Classes",
+              renderValidatedBadge(getSectionValidated("classes"))
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
+              "Classe principale:",
+              " ",
+              classPrimary ? `${classPrimary.label}${primarySubclass ? ` — ${primarySubclass.label}` : ""} (niv ${primaryLevel})` : "—"
+            ] }),
+            primaryProgressionLines.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
+              "Progression:",
+              primaryProgressionLines.map((line) => /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { marginTop: 4 }, children: line }, `prog-primary-${line}`))
+            ] }),
+            classSecondary && secondaryLevel > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
+                "Classe secondaire:",
+                " ",
+                classSecondary ? `${classSecondary.label}${secondarySubclass ? ` — ${secondarySubclass.label}` : ""} (niv ${secondaryLevel})` : "—"
+              ] }),
+              secondaryProgressionLines.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
+                "Progression:",
+                secondaryProgressionLines.map((line) => /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { marginTop: 4 }, children: line }, `prog-secondary-${line}`))
+              ] })
+            ] })
+          ]
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          style: {
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(12,12,18,0.75)",
+            padding: 12,
+            display: "flex",
+            flexDirection: "column",
+            gap: 8
+          },
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }, children: [
+              "Caracteristiques",
+              renderValidatedBadge(getSectionValidated("stats"))
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "div",
+              {
+                style: {
+                  display: "grid",
+                  gridTemplateColumns: "repeat(2, minmax(140px, 1fr))",
+                  gap: 8
+                },
+                children: [
+                  { id: "FOR", label: "Force" },
+                  { id: "DEX", label: "Dexterite" },
+                  { id: "CON", label: "Constitution" },
+                  { id: "INT", label: "Intelligence" },
+                  { id: "SAG", label: "Sagesse" },
+                  { id: "CHA", label: "Charisme" }
+                ].map((stat) => {
+                  const value2 = getScore(stat.id);
+                  const mod = computeMod(value2);
+                  const modLabel = mod >= 0 ? `+${mod}` : `${mod}`;
+                  return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                    "div",
+                    {
+                      style: {
+                        borderRadius: 8,
+                        border: "1px solid rgba(255,255,255,0.12)",
+                        background: "rgba(10,10,16,0.8)",
+                        padding: "6px 8px",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: 8
+                      },
+                      children: [
+                        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: stat.label }),
+                        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { style: { fontSize: 12, color: "rgba(255,255,255,0.85)", fontWeight: 700 }, children: [
+                          value2,
+                          " ",
+                          modLabel
+                        ] })
+                      ]
+                    },
+                    `stat-sheet-${stat.id}`
+                  );
+                })
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "div",
+              {
+                style: {
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                  gap: 8
+                },
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                    "div",
+                    {
+                      style: {
+                        fontSize: 13,
+                        fontWeight: 800,
+                        color: "#cfe4ff",
+                        background: "rgba(79,125,242,0.18)",
+                        border: "1px solid rgba(79,125,242,0.5)",
+                        borderRadius: 8,
+                        padding: "6px 8px"
+                      },
+                      children: [
+                        "CA (dynamique): ",
+                        computeArmorClassFromEquipment2()
+                      ]
+                    }
+                  ),
+                  Boolean(choiceSelections == null ? void 0 : choiceSelections.sheetValidated) && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                      "div",
+                      {
+                        style: {
+                          fontSize: 13,
+                          fontWeight: 800,
+                          color: "#ffe9a6",
+                          background: "rgba(241,196,15,0.16)",
+                          border: "1px solid rgba(241,196,15,0.5)",
+                          borderRadius: 8,
+                          padding: "6px 8px"
+                        },
+                        children: [
+                          "PV max: ",
+                          ((_h = character == null ? void 0 : character.combatStats) == null ? void 0 : _h.maxHp) ?? "—"
+                        ]
+                      }
+                    ),
+                    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
+                      "Des de vie: ",
+                      (classPrimary == null ? void 0 : classPrimary.hitDie) ? `d${classPrimary.hitDie} x${Number(classEntry == null ? void 0 : classEntry.niveau) || 0}` : "—",
+                      (classSecondary == null ? void 0 : classSecondary.hitDie) && Number(secondaryClassEntry == null ? void 0 : secondaryClassEntry.niveau) ? ` + d${classSecondary.hitDie} x${Number(secondaryClassEntry == null ? void 0 : secondaryClassEntry.niveau) || 0}` : ""
+                    ] })
+                  ] })
+                ]
+              }
+            )
+          ]
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          style: {
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(12,12,18,0.75)",
+            padding: 12,
+            display: "flex",
+            flexDirection: "column",
+            gap: 8
+          },
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }, children: [
+              "Competences",
+              renderValidatedBadge(getSectionValidated("skills"))
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "div",
+              {
+                style: {
+                  fontSize: 18,
+                  fontWeight: 800,
+                  color: "#4f7df2",
+                  textAlign: "center"
+                },
+                children: [
+                  "Bonus de maitrise: ",
+                  (() => {
+                    const level2 = resolveLevel();
+                    const prof = 2 + Math.floor((level2 - 1) / 4);
+                    return prof >= 0 ? `+${prof}` : prof;
+                  })()
+                ]
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: (() => {
+              const merged = Array.from(
+                /* @__PURE__ */ new Set([...competences ?? [], ...expertises ?? []])
+              );
+              if (merged.length === 0) return "—";
+              return merged.map((id2) => {
+                var _a2;
+                const label2 = ((_a2 = competenceOptions.find((c2) => c2.id === id2)) == null ? void 0 : _a2.label) ?? id2;
+                const abilityKey = skillAbilityMap[id2];
+                const scoreKey = abilityKey === "STR" ? "FOR" : abilityKey === "DEX" ? "DEX" : abilityKey === "CON" ? "CON" : abilityKey === "INT" ? "INT" : abilityKey === "WIS" ? "SAG" : "CHA";
+                const mod = computeMod(getScore(scoreKey));
+                const level2 = resolveLevel();
+                const prof = 2 + Math.floor((level2 - 1) / 4);
+                const isExpert = expertises.includes(id2);
+                const isProf = competences.includes(id2);
+                const bonus = mod + (isExpert ? prof * 2 : isProf ? prof : 0);
+                const bonusLabel = bonus >= 0 ? `+${bonus}` : bonus;
+                const suffix = isExpert ? " (Expertise)" : "";
+                return `${label2}${suffix}: ${bonusLabel}`;
+              }).join(", ");
+            })() })
+          ]
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          style: {
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(12,12,18,0.75)",
+            padding: 12,
+            display: "flex",
+            flexDirection: "column",
+            gap: 8
+          },
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }, children: [
+              "Maitrises",
+              renderValidatedBadge(getSectionValidated("masteries"))
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
+              "Armes: ",
+              weaponMasteries.join(", ") || "—"
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
+              "Armures: ",
+              armorMasteries.join(", ") || "—"
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
+              "Outils: ",
+              toolMasteries.join(", ") || "—"
+            ] })
+          ]
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          style: {
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(12,12,18,0.75)",
+            padding: 12,
+            display: "flex",
+            flexDirection: "column",
+            gap: 8
+          },
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }, children: [
+              "Materiel",
+              renderValidatedBadge(getSectionValidated("equip"))
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: EQUIPMENT_SLOTS.filter((slot) => Boolean(materielSlots[slot.id])).length > 0 ? EQUIPMENT_SLOTS.filter((slot) => Boolean(materielSlots[slot.id])).map((slot) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { marginTop: 4 }, children: [
+              slot.label,
+              ": ",
+              formatEquipmentLabel(String(materielSlots[slot.id]))
+            ] }, `slot-${slot.id}`)) : "—" }),
+            (() => {
+              const packEntries = Array.from(packSlots).map((slotId) => {
+                const status = packSlotStatus(slotId);
+                if (!status.bagId) return null;
+                const bagContents = inventoryItems.filter((item) => {
+                  const inSlot = (item == null ? void 0 : item.storedIn) === slotId || slotId === "paquetage" && status.bagId && (item == null ? void 0 : item.storedIn) === status.bagId;
+                  return inSlot;
+                });
+                return {
+                  slotId,
+                  status,
+                  contents: bagContents,
+                  label: getSlotLabel(slotId)
+                };
+              }).filter(Boolean);
+              if (packEntries.length === 0) return null;
+              return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                "div",
+                {
+                  style: {
+                    marginTop: 6,
+                    padding: 8,
+                    borderRadius: 8,
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    background: "rgba(10,10,16,0.7)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8
+                  },
+                  children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, fontWeight: 800 }, children: "Sacs" }),
+                    packEntries.map((entry) => {
+                      const capacityLabel = entry.status.capacity > 0 ? entry.status.capacity.toFixed(1) : "?";
+                      return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "grid", gap: 4 }, children: [
+                        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                          "div",
+                          {
+                            style: { fontSize: 12, color: "rgba(255,255,255,0.7)" },
+                            children: [
+                              entry.label,
+                              ": ",
+                              formatEquipmentLabel(entry.status.bagId ?? "")
+                            ]
+                          }
+                        ),
+                        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                          "div",
+                          {
+                            style: { fontSize: 12, color: "rgba(255,255,255,0.6)" },
+                            children: [
+                              "Capacite: ",
+                              entry.status.storedWeight.toFixed(1),
+                              " /",
+                              " ",
+                              capacityLabel
+                            ]
+                          }
+                        ),
+                        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                          "div",
+                          {
+                            style: { fontSize: 12, color: "rgba(255,255,255,0.6)" },
+                            children: [
+                              "Contenu:",
+                              entry.contents.length > 0 ? entry.contents.map((item) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                                "div",
+                                {
+                                  style: { marginTop: 4 },
+                                  children: [
+                                    formatEquipmentLabel(item.id),
+                                    " x",
+                                    item.qty ?? 1
+                                  ]
+                                },
+                                `bag-${entry.slotId}-${item.id}`
+                              )) : " —"
+                            ]
+                          }
+                        )
+                      ] }, `bag-${entry.slotId}`);
+                    })
+                  ]
+                }
+              );
+            })()
+          ]
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          style: {
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(12,12,18,0.75)",
+            padding: 12,
+            display: "flex",
+            flexDirection: "column",
+            gap: 8
+          },
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 13, fontWeight: 800 }, children: "Validation fiche" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: "PV calcules avec les des de vie et le mod CON." }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "button",
+              {
+                type: "button",
+                onClick: () => {
+                  const maxHp = computeMaxHp();
+                  const nextCombatStats = {
+                    ...character.combatStats ?? {},
+                    maxHp,
+                    level: resolveLevel()
+                  };
+                  const nextChoiceSelections = {
+                    ...choiceSelections,
+                    sheetValidated: true
+                  };
+                  onChangeCharacter({
+                    ...character,
+                    pvActuels: maxHp,
+                    combatStats: nextCombatStats,
+                    choiceSelections: nextChoiceSelections
+                  });
+                },
+                disabled: ![
+                  "species",
+                  "backgrounds",
+                  "classes",
+                  "stats",
+                  "skills",
+                  "masteries",
+                  "equip",
+                  "profile",
+                  ...magicSources.length > 0 ? ["magic"] : []
+                ].every((section) => getSectionValidated(section)),
+                style: {
+                  padding: "8px 12px",
+                  borderRadius: 8,
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  background: "rgba(46, 204, 113, 0.16)",
+                  color: "#f5f5f5",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  fontWeight: 800,
+                  opacity: [
+                    "species",
+                    "backgrounds",
+                    "classes",
+                    "stats",
+                    "skills",
+                    "masteries",
+                    "equip",
+                    "profile",
+                    ...magicSources.length > 0 ? ["magic"] : []
+                  ].every((section) => getSectionValidated(section)) ? 1 : 0.5
+                },
+                children: "Valider la fiche complete"
+              }
+            )
+          ]
+        }
+      )
+    ] });
+  })() }) });
+}
+function MagicTab(props) {
+  const {
+    magicSources,
+    activeMagicTab,
+    setActiveMagicTab,
+    isSectionLocked,
+    toggleSectionLock,
+    lockButtonBaseStyle,
+    getLockButtonState,
+    spellcastingSelections,
+    updateSpellcastingSelection,
+    computeMod,
+    getScore,
+    resolveLevel,
+    getCasterContribution,
+    resolveItemTags,
+    inventoryItems,
+    formatEquipmentLabel,
+    getSpellId,
+    makeSpellEntry
+  } = props;
+  const magicLocked = isSectionLocked("magic");
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "#b0b8c4" }, children: "Gestion de la magie selon les sources verrouillees." }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          type: "button",
+          onClick: () => toggleSectionLock("magic"),
+          style: {
+            ...lockButtonBaseStyle,
+            marginLeft: "auto",
+            background: getLockButtonState("magic").background
+          },
+          children: getLockButtonState("magic").label
+        }
+      )
+    ] }),
+    magicSources.length > 1 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" }, children: magicSources.map((source2, idx) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "button",
+      {
+        type: "button",
+        onClick: () => setActiveMagicTab(idx),
+        disabled: magicLocked,
+        style: {
+          padding: "6px 10px",
+          borderRadius: 6,
+          border: `1px solid ${idx === activeMagicTab ? "#8e44ad" : "rgba(255,255,255,0.12)"}`,
+          background: idx === activeMagicTab ? "rgba(142, 68, 173, 0.2)" : "#0f0f19",
+          color: "#c9cfdd",
+          cursor: magicLocked ? "not-allowed" : "pointer",
+          fontSize: 12,
+          fontWeight: 700,
+          opacity: magicLocked ? 0.6 : 1
+        },
+        children: source2.label
+      },
+      `magic-tab-${source2.key}`
+    )) }),
+    (() => {
+      var _a;
+      const source2 = magicSources[activeMagicTab] ?? magicSources[0];
+      if (!source2) return null;
+      const selection = spellcastingSelections[source2.key] ?? {};
+      const knownSpells = Array.isArray(selection.knownSpells) ? selection.knownSpells : [];
+      const preparedSpells = Array.isArray(selection.preparedSpells) ? selection.preparedSpells : [];
+      const grantedSpells = Array.isArray(selection.grantedSpells) ? selection.grantedSpells : [];
+      const focusItemId = selection.focusItemId ?? "";
+      const storage = source2.storage ?? selection.storage ?? "memory";
+      const grimoireItemId = selection.grimoireItemId ?? "";
+      const totalCasterLevel = magicSources.reduce(
+        (sum, item) => sum + getCasterContribution(item.casterProgression, item.classLevel),
+        0
+      );
+      const slotsTable = ((_a = magicSources.find((item) => item.slotsByLevel)) == null ? void 0 : _a.slotsByLevel) ?? null;
+      const slots = slotsTable ? slotsTable[String(Math.max(0, totalCasterLevel))] ?? [] : [];
+      const dc = 8 + computeMod(getScore(source2.ability)) + (2 + Math.floor((resolveLevel() - 1) / 4));
+      const spellAttack = computeMod(getScore(source2.ability)) + (2 + Math.floor((resolveLevel() - 1) / 4));
+      const focusTypes = Array.isArray(source2.focusTypes) ? source2.focusTypes : [];
+      const focusOptions = inventoryItems.filter((item) => {
+        if (focusTypes.length === 0) return true;
+        const tags2 = resolveItemTags(item.id);
+        return focusTypes.some((tag) => tags2.includes(tag));
+      });
+      const storageLabel = storage === "memory" ? "Memoire" : storage === "innate" ? "Inne" : "Grimoire";
+      const preparedList = source2.preparation === "prepared" ? preparedSpells : knownSpells;
+      const preparedIds = new Set(preparedList.map((spell) => getSpellId(spell)));
+      const grantedIds = new Set(grantedSpells.map((spell) => getSpellId(spell)));
+      const spellFilterTags = Array.isArray(source2.spellFilterTags) ? source2.spellFilterTags.map((tag) => String(tag).toLowerCase()) : [];
+      const availableSpells = spellCatalog.list.filter((spell) => {
+        if (spellFilterTags.length === 0) return true;
+        const tags2 = Array.isArray(spell.tags) ? spell.tags.map((tag) => String(tag).toLowerCase()) : [];
+        return spellFilterTags.some((tag) => tags2.includes(tag));
+      }).filter((spell) => {
+        if (source2.preparation !== "prepared") return true;
+        if (preparedIds.has(spell.id) || grantedIds.has(spell.id)) return true;
+        if (typeof spell.level !== "number") return true;
+        return spell.level <= source2.classLevel;
+      }).sort((a2, b2) => {
+        const levelA = typeof a2.level === "number" ? a2.level : 0;
+        const levelB = typeof b2.level === "number" ? b2.level : 0;
+        if (levelA !== levelB) return levelA - levelB;
+        return (a2.name || "").localeCompare(b2.name || "");
+      });
+      const freePreparedFromGrants = Boolean(source2.freePreparedFromGrants);
+      const preparedCount = Array.from(preparedIds).filter(
+        (id2) => !(freePreparedFromGrants && grantedIds.has(id2))
+      ).length;
+      const preparedLimit = source2.preparation === "prepared" ? Math.max(0, source2.classLevel) : null;
+      const canPrepareMore = preparedLimit === null ? true : preparedCount < preparedLimit;
+      const canEditMagic = !magicLocked;
+      return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          style: {
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(12,12,18,0.75)",
+            padding: 12,
+            display: "flex",
+            flexDirection: "column",
+            gap: 10
+          },
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", flexWrap: "wrap", gap: 12 }, children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
+                "Carac principale: ",
+                source2.ability
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
+                "Methode: ",
+                source2.preparation === "prepared" ? "Prepare" : "Connu"
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
+                "Niveau lanceur total: ",
+                totalCasterLevel
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
+                "DD sort: ",
+                dc,
+                " | Attaque magique: ",
+                spellAttack >= 0 ? `+${spellAttack}` : spellAttack
+              ] })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: "Emplacements (total)" }),
+            slots.length > 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "div",
+              {
+                style: {
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+                  gap: 8
+                },
+                children: slots.map((count2, idx) => {
+                  if (count2 <= 0) return null;
+                  return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                    "div",
+                    {
+                      style: {
+                        borderRadius: 8,
+                        border: "1px solid rgba(255,255,255,0.12)",
+                        padding: "6px 8px",
+                        background: "rgba(15,15,25,0.6)"
+                      },
+                      children: [
+                        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.7)" }, children: [
+                          "Niveau ",
+                          idx + 1
+                        ] }),
+                        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }, children: Array.from({ length: count2 }).map((_, slotIdx) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+                          "span",
+                          {
+                            style: {
+                              width: 14,
+                              height: 14,
+                              borderRadius: 3,
+                              border: "1px solid rgba(255,255,255,0.35)",
+                              background: "rgba(255,255,255,0.08)",
+                              display: "inline-block"
+                            }
+                          },
+                          `slot-${source2.key}-${idx}-${slotIdx}`
+                        )) })
+                      ]
+                    },
+                    `slots-${source2.key}-${idx}`
+                  );
+                })
+              }
+            ) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.5)" }, children: "—" }),
+            (source2.spellIds.length > 0 || grantedSpells.length > 0) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
+              "Sorts de progression:",
+              " ",
+              (grantedSpells.length > 0 ? grantedSpells.map((spell) => {
+                var _a2;
+                const id2 = getSpellId(spell);
+                return ((_a2 = spellCatalog.byId.get(id2)) == null ? void 0 : _a2.name) ?? id2;
+              }) : source2.spellIds.map((id2) => {
+                var _a2;
+                return ((_a2 = spellCatalog.byId.get(id2)) == null ? void 0 : _a2.name) ?? id2;
+              })).join(", ")
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "div",
+              {
+                style: {
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                  gap: 12
+                },
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 6 }, children: storage === "memory" ? "Sorts memorises" : source2.preparation === "prepared" ? "Sorts prepares" : "Sorts connus" }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                      "div",
+                      {
+                        style: {
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          gap: 8,
+                          marginBottom: 6
+                        },
+                        children: [
+                          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.65)" }, children: source2.preparation === "prepared" ? `Preparation: ${preparedCount}${preparedLimit !== null ? ` / ${preparedLimit}` : ""}` : `Connus: ${preparedIds.size}` }),
+                          grantedSpells.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.55)" }, children: [
+                            "Sorts imposes: ",
+                            grantedSpells.length
+                          ] })
+                        ]
+                      }
+                    ),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx(
+                      "div",
+                      {
+                        style: {
+                          display: "grid",
+                          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                          gap: 8
+                        },
+                        children: availableSpells.map((spell) => {
+                          const spellId = spell.id;
+                          const isGranted = grantedIds.has(spellId);
+                          const isPrepared = preparedIds.has(spellId) || isGranted;
+                          const canToggle = !isGranted && (isPrepared || canPrepareMore);
+                          const levelLabel = spell.level === 0 ? "Cantrip" : `Niv ${spell.level}`;
+                          const components2 = spell.components ?? {};
+                          const componentLabel = [
+                            components2.verbal ? "V" : null,
+                            components2.somatic ? "S" : null,
+                            components2.material ? "M" : null
+                          ].filter(Boolean).join("/");
+                          return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                            "div",
+                            {
+                              style: {
+                                borderRadius: 8,
+                                border: "1px solid rgba(255,255,255,0.12)",
+                                background: "rgba(12,12,18,0.7)",
+                                padding: "8px 10px",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 6
+                              },
+                              children: [
+                                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", justifyContent: "space-between", gap: 8 }, children: [
+                                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, fontWeight: 700, color: "#f5f5f5" }, children: spell.name || spell.id }),
+                                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }, children: [
+                                    /* @__PURE__ */ jsxRuntimeExports.jsx(
+                                      "span",
+                                      {
+                                        style: {
+                                          fontSize: 10,
+                                          padding: "2px 6px",
+                                          borderRadius: 999,
+                                          background: "rgba(255,255,255,0.12)",
+                                          color: "rgba(255,255,255,0.7)"
+                                        },
+                                        children: levelLabel
+                                      }
+                                    ),
+                                    /* @__PURE__ */ jsxRuntimeExports.jsx(
+                                      "span",
+                                      {
+                                        style: {
+                                          fontSize: 10,
+                                          padding: "2px 6px",
+                                          borderRadius: 999,
+                                          background: "rgba(255,255,255,0.12)",
+                                          color: "rgba(255,255,255,0.7)"
+                                        },
+                                        children: spell.school
+                                      }
+                                    ),
+                                    spell.category && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                                      "span",
+                                      {
+                                        style: {
+                                          fontSize: 10,
+                                          padding: "2px 6px",
+                                          borderRadius: 999,
+                                          background: "rgba(255,255,255,0.12)",
+                                          color: "rgba(255,255,255,0.7)"
+                                        },
+                                        children: spell.category
+                                      }
+                                    )
+                                  ] })
+                                ] }),
+                                spell.summary && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.65)" }, children: spell.summary }),
+                                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", justifyContent: "space-between", gap: 8 }, children: [
+                                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 10, color: "rgba(255,255,255,0.55)" }, children: isGranted ? "Impose" : isPrepared ? "Prepare" : "Disponible" }),
+                                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 10, color: "rgba(255,255,255,0.55)" }, children: componentLabel ? `Composantes: ${componentLabel}` : "Composantes: —" }),
+                                  !isGranted && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                                    "button",
+                                    {
+                                      type: "button",
+                                      onClick: () => {
+                                        const list = source2.preparation === "prepared" ? preparedSpells : knownSpells;
+                                        if (isPrepared) {
+                                          const next2 = list.filter((item) => getSpellId(item) !== spellId);
+                                          if (source2.preparation === "prepared") {
+                                            updateSpellcastingSelection(source2.key, { preparedSpells: next2 });
+                                          } else {
+                                            updateSpellcastingSelection(source2.key, { knownSpells: next2 });
+                                          }
+                                          return;
+                                        }
+                                        if (!canPrepareMore) return;
+                                        const next = [
+                                          ...list,
+                                          makeSpellEntry(spellId, { kind: "manual", sourceKey: source2.key })
+                                        ];
+                                        if (source2.preparation === "prepared") {
+                                          updateSpellcastingSelection(source2.key, { preparedSpells: next });
+                                        } else {
+                                          updateSpellcastingSelection(source2.key, { knownSpells: next });
+                                        }
+                                      },
+                                      disabled: !canToggle || !canEditMagic,
+                                      style: {
+                                        padding: "4px 8px",
+                                        borderRadius: 6,
+                                        border: "1px solid rgba(255,255,255,0.18)",
+                                        background: isPrepared ? "rgba(231, 76, 60, 0.2)" : "rgba(46, 204, 113, 0.18)",
+                                        color: "#f5f5f5",
+                                        cursor: canToggle && canEditMagic ? "pointer" : "not-allowed",
+                                        fontSize: 11,
+                                        fontWeight: 700,
+                                        opacity: canToggle && canEditMagic ? 1 : 0.5
+                                      },
+                                      children: isPrepared ? "Retirer" : "Preparer"
+                                    }
+                                  )
+                                ] })
+                              ]
+                            },
+                            `spell-card-${source2.key}-${spellId}`
+                          );
+                        })
+                      }
+                    )
+                  ] }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 6 }, children: "Focalisateur" }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                      "select",
+                      {
+                        value: focusItemId,
+                        onChange: (e2) => updateSpellcastingSelection(source2.key, {
+                          focusItemId: e2.target.value || null
+                        }),
+                        disabled: magicLocked,
+                        style: {
+                          width: "100%",
+                          background: "#0f0f19",
+                          color: "#f5f5f5",
+                          border: "1px solid #333",
+                          borderRadius: 6,
+                          padding: "6px 8px",
+                          fontSize: 12,
+                          opacity: magicLocked ? 0.6 : 1
+                        },
+                        children: [
+                          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "Aucun" }),
+                          focusOptions.map((item) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: item.id, children: formatEquipmentLabel(item.id) }, `focus-${item.id}`))
+                        ]
+                      }
+                    ),
+                    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 10 }, children: [
+                      "Stockage des sorts: ",
+                      storageLabel
+                    ] }),
+                    storage === "grimoire" && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                      "select",
+                      {
+                        value: grimoireItemId,
+                        onChange: (e2) => updateSpellcastingSelection(source2.key, {
+                          grimoireItemId: e2.target.value || null
+                        }),
+                        disabled: magicLocked,
+                        style: {
+                          width: "100%",
+                          background: "#0f0f19",
+                          color: "#f5f5f5",
+                          border: "1px solid #333",
+                          borderRadius: 6,
+                          padding: "6px 8px",
+                          fontSize: 12,
+                          marginTop: 6,
+                          opacity: magicLocked ? 0.6 : 1
+                        },
+                        children: [
+                          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "Choisir un grimoire" }),
+                          inventoryItems.filter((item) => item.type === "object").map((item) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: item.id, children: formatEquipmentLabel(item.id) }, `grimoire-${item.id}`))
+                        ]
+                      }
+                    )
+                  ] })
+                ]
+              }
+            )
+          ]
+        }
+      );
+    })()
+  ] });
+}
+function MagicPanel(props) {
+  const {
+    magicSources,
+    activeMagicTab,
+    setActiveMagicTab,
+    isSectionLocked,
+    toggleSectionLock,
+    lockButtonBaseStyle,
+    getLockButtonState,
+    spellcastingSelections,
+    updateSpellcastingSelection,
+    computeMod,
+    getScore,
+    resolveLevel,
+    getCasterContribution,
+    resolveItemTags,
+    inventoryItems,
+    formatEquipmentLabel,
+    getSpellId,
+    makeSpellEntry
+  } = props;
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(
+    MagicTab,
+    {
+      magicSources,
+      activeMagicTab,
+      setActiveMagicTab,
+      isSectionLocked,
+      toggleSectionLock,
+      lockButtonBaseStyle,
+      getLockButtonState,
+      spellcastingSelections,
+      updateSpellcastingSelection,
+      computeMod,
+      getScore,
+      resolveLevel,
+      getCasterContribution,
+      resolveItemTags,
+      inventoryItems,
+      formatEquipmentLabel,
+      getSpellId,
+      makeSpellEntry
+    }
+  );
+}
 function CombatSetupScreen(props) {
-  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B;
+  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w;
   const [activeMainTab, setActiveMainTab] = reactExports.useState("map");
   const [activePlayerTab, setActivePlayerTab] = reactExports.useState("species");
   const [activeClassTab, setActiveClassTab] = reactExports.useState("primary");
@@ -50403,7 +52042,11 @@ function CombatSetupScreen(props) {
   };
   const setSectionLock = (id2, value2) => {
     const nextLocks = { ...creationLocks, [id2]: value2 };
-    props.onChangeCharacter({ ...props.character, creationLocks: nextLocks });
+    let nextCharacter = { ...props.character, creationLocks: nextLocks };
+    if (value2 && id2 === "equip") {
+      nextCharacter = applySkillsAndMasteriesReset(nextCharacter);
+    }
+    props.onChangeCharacter(nextCharacter);
   };
   const toggleSectionLock = (id2) => {
     setSectionLock(id2, !(creationLocks == null ? void 0 : creationLocks[id2]));
@@ -51180,7 +52823,9 @@ function CombatSetupScreen(props) {
       secondary: slot === 2 ? value2 : classLocks.secondary
     };
     if (value2 && !wasLocked) {
-      const nextCharacter2 = buildClassLockCharacter(slot, choiceSelections);
+      const nextCharacter2 = applySkillsAndMasteriesReset(
+        buildClassLockCharacter(slot, choiceSelections)
+      );
       props.onChangeCharacter(nextCharacter2);
       return;
     }
@@ -51375,10 +53020,10 @@ function CombatSetupScreen(props) {
     if (!Number.isFinite(value2) || value2 === 0) return null;
     return { stat, value: value2 };
   };
-  const collectProgressionBonuses = (definition, level, source2) => {
+  const collectProgressionBonuses = (definition, level2, source2) => {
     const bonuses = [];
     if (!definition || !definition.progression) return bonuses;
-    Object.keys(definition.progression).map((key2) => Number(key2)).filter((lvl) => Number.isFinite(lvl) && lvl > 0 && lvl <= level).forEach((lvl) => {
+    Object.keys(definition.progression).map((key2) => Number(key2)).filter((lvl) => Number.isFinite(lvl) && lvl > 0 && lvl <= level2).forEach((lvl) => {
       var _a2, _b2;
       const grants2 = ((_b2 = (_a2 = definition.progression) == null ? void 0 : _a2[String(lvl)]) == null ? void 0 : _b2.grants) ?? [];
       for (const grant of grants2) {
@@ -51661,6 +53306,37 @@ function CombatSetupScreen(props) {
     };
     props.onChangeCharacter({ ...props.character, proficiencies: nextProfs });
   };
+  const applySkillsAndMasteriesReset = (base) => {
+    var _a2;
+    const baseSkills = getBackgroundSkillProficiencies(activeBackground);
+    const primaryProfs = (classPrimary == null ? void 0 : classPrimary.proficiencies) ?? {};
+    const secondaryProfs = (classSecondary == null ? void 0 : classSecondary.proficiencies) ?? {};
+    const backgroundTools = [
+      ...getBackgroundToolProficiencies(activeBackground),
+      ...((_a2 = choiceSelections == null ? void 0 : choiceSelections.background) == null ? void 0 : _a2.tools) ?? []
+    ];
+    const nextProfs = {
+      weapons: Array.from(
+        /* @__PURE__ */ new Set([...primaryProfs.weapons ?? [], ...secondaryProfs.weapons ?? []])
+      ),
+      armors: Array.from(
+        /* @__PURE__ */ new Set([...primaryProfs.armors ?? [], ...secondaryProfs.armors ?? []])
+      ),
+      tools: Array.from(
+        /* @__PURE__ */ new Set([
+          ...primaryProfs.tools ?? [],
+          ...secondaryProfs.tools ?? [],
+          ...backgroundTools
+        ])
+      )
+    };
+    return {
+      ...base,
+      competences: [...baseSkills],
+      expertises: [],
+      proficiencies: nextProfs
+    };
+  };
   const pruneStatBonusesBySource = (sources2) => {
     const existing = (choiceSelections == null ? void 0 : choiceSelections.statBonuses) ?? [];
     if (!Array.isArray(existing) || existing.length === 0) return null;
@@ -51750,7 +53426,7 @@ function CombatSetupScreen(props) {
       backgroundEquip,
       { kind: "background", id: activeBackground.id }
     );
-    props.onChangeCharacter({
+    const nextCharacter = applySkillsAndMasteriesReset({
       ...props.character,
       creationLocks: { ...creationLocks, backgrounds: true },
       choiceSelections: nextChoiceSelections,
@@ -51758,6 +53434,7 @@ function CombatSetupScreen(props) {
       equipmentAuto: nextAuto,
       inventoryItems: nextInventory
     });
+    props.onChangeCharacter(nextCharacter);
   };
   const sourceColors = {
     race: "#2ecc71",
@@ -52631,8 +54308,8 @@ function CombatSetupScreen(props) {
     const cls = classOptions.find((c2) => c2.id === clsId);
     if (!cls || !entry) return false;
     const threshold = cls.subclassLevel ?? 1;
-    const level = Number(entry == null ? void 0 : entry.niveau) || 0;
-    if (level < threshold) return false;
+    const level2 = Number(entry == null ? void 0 : entry.niveau) || 0;
+    if (level2 < threshold) return false;
     const selectedSub = slot === 1 ? selectedSubclassId : selectedSecondarySubclassId;
     if (selectedSub) return false;
     const allowedIds = Array.isArray(cls.subclassIds) ? cls.subclassIds : [];
@@ -52645,8 +54322,8 @@ function CombatSetupScreen(props) {
     const cls = classOptions.find((c2) => c2.id === clsId);
     if (!cls || !entry) return false;
     const threshold = cls.subclassLevel ?? 1;
-    const level = Number(entry == null ? void 0 : entry.niveau) || 0;
-    if (level < threshold) return false;
+    const level2 = Number(entry == null ? void 0 : entry.niveau) || 0;
+    if (level2 < threshold) return false;
     const selectedSub = slot === 1 ? selectedSubclassId : selectedSecondarySubclassId;
     if (selectedSub) return false;
     const allowedIds = Array.isArray(cls.subclassIds) ? cls.subclassIds : [];
@@ -52770,7 +54447,7 @@ function CombatSetupScreen(props) {
       locked,
       needsDefine,
       label: locked ? "Deverouiller" : needsDefine ? "Definir" : "Verouiller",
-      background: locked ? "rgba(231,76,60,0.18)" : needsDefine ? "rgba(243, 156, 18, 0.22)" : "rgba(46, 204, 113, 0.16)"
+      background: locked ? "rgba(46, 204, 113, 0.22)" : needsDefine ? "rgba(243, 156, 18, 0.24)" : "rgba(231, 76, 60, 0.22)"
     };
   };
   const getClassLockButtonState = () => {
@@ -52780,7 +54457,7 @@ function CombatSetupScreen(props) {
       locked,
       needsDefine,
       label: locked ? "Deverouiller" : needsDefine ? "Definir" : "Verouiller",
-      background: locked ? "rgba(231,76,60,0.18)" : needsDefine ? "rgba(243, 156, 18, 0.22)" : "rgba(46, 204, 113, 0.16)"
+      background: locked ? "rgba(46, 204, 113, 0.22)" : needsDefine ? "rgba(243, 156, 18, 0.24)" : "rgba(231, 76, 60, 0.22)"
     };
   };
   const getPendingCountForSection = (id2) => {
@@ -52790,7 +54467,7 @@ function CombatSetupScreen(props) {
     return 0;
   };
   const lockButtonBaseStyle = {
-    padding: "4px 8px",
+    padding: "0 10px",
     borderRadius: 8,
     border: "1px solid rgba(255,255,255,0.15)",
     color: "#f5f5f5",
@@ -52800,6 +54477,8 @@ function CombatSetupScreen(props) {
     width: 120,
     minWidth: 120,
     maxWidth: 120,
+    height: 26,
+    minHeight: 26,
     textAlign: "center",
     display: "inline-flex",
     alignItems: "center",
@@ -52814,6 +54493,7 @@ function CombatSetupScreen(props) {
       {
         style: {
           marginLeft: 6,
+          flex: "0 0 auto",
           minWidth: 16,
           height: 16,
           padding: "0 4px",
@@ -52824,7 +54504,10 @@ function CombatSetupScreen(props) {
           fontWeight: 800,
           lineHeight: "16px",
           textAlign: "center",
-          display: "inline-block"
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          verticalAlign: "middle"
         },
         children: count2 > 9 ? "9+" : count2
       }
@@ -52996,15 +54679,15 @@ function CombatSetupScreen(props) {
       choiceSelections: { ...choiceSelections, spellcasting: next }
     });
   };
-  const getCasterContribution = (progression2, level) => {
-    if (progression2 === "full") return level;
-    if (progression2 === "half") return Math.floor(level / 2);
-    if (progression2 === "third") return Math.floor(level / 3);
+  const getCasterContribution = (progression2, level2) => {
+    if (progression2 === "full") return level2;
+    if (progression2 === "half") return Math.floor(level2 / 2);
+    if (progression2 === "third") return Math.floor(level2 / 3);
     return 0;
   };
-  const collectSpellGrants = (progression2, level) => {
+  const collectSpellGrants = (progression2, level2) => {
     if (!progression2) return [];
-    const max = Number(level) || 0;
+    const max = Number(level2) || 0;
     const ids = [];
     Object.keys(progression2).map((key2) => Number(key2)).filter((lvl) => Number.isFinite(lvl) && lvl > 0 && lvl <= max).forEach((lvl) => {
       var _a2;
@@ -53018,7 +54701,6 @@ function CombatSetupScreen(props) {
     return Array.from(new Set(ids));
   };
   const getSpellId = (entry) => typeof entry === "string" ? entry : entry.id;
-  const getSpellKey = (entry) => typeof entry === "string" ? `spell-${entry}` : entry.instanceId;
   const makeSpellEntry = (id2, origin) => ({
     id: id2,
     instanceId: createInstanceId("spell"),
@@ -53103,6 +54785,8 @@ function CombatSetupScreen(props) {
         preparation: classPrimary.spellcasting.preparation,
         storage: classPrimary.spellcasting.storage,
         focusTypes: classPrimary.spellcasting.focusTypes,
+        spellFilterTags: classPrimary.spellcasting.spellFilterTags,
+        freePreparedFromGrants: classPrimary.spellcasting.freePreparedFromGrants,
         casterProgression: classPrimary.spellcasting.casterProgression,
         slotsByLevel: classPrimary.spellcasting.slotsByLevel,
         classLevel,
@@ -53117,6 +54801,8 @@ function CombatSetupScreen(props) {
         preparation: primarySub.spellcasting.preparation,
         storage: primarySub.spellcasting.storage,
         focusTypes: primarySub.spellcasting.focusTypes,
+        spellFilterTags: primarySub.spellcasting.spellFilterTags,
+        freePreparedFromGrants: primarySub.spellcasting.freePreparedFromGrants,
         casterProgression: primarySub.spellcasting.casterProgression,
         slotsByLevel: primarySub.spellcasting.slotsByLevel,
         classLevel: Number(classEntry == null ? void 0 : classEntry.niveau) || 0,
@@ -53134,6 +54820,8 @@ function CombatSetupScreen(props) {
         preparation: classSecondary.spellcasting.preparation,
         storage: classSecondary.spellcasting.storage,
         focusTypes: classSecondary.spellcasting.focusTypes,
+        spellFilterTags: classSecondary.spellcasting.spellFilterTags,
+        freePreparedFromGrants: classSecondary.spellcasting.freePreparedFromGrants,
         casterProgression: classSecondary.spellcasting.casterProgression,
         slotsByLevel: classSecondary.spellcasting.slotsByLevel,
         classLevel,
@@ -53148,6 +54836,8 @@ function CombatSetupScreen(props) {
         preparation: secondarySub.spellcasting.preparation,
         storage: secondarySub.spellcasting.storage,
         focusTypes: secondarySub.spellcasting.focusTypes,
+        spellFilterTags: secondarySub.spellcasting.spellFilterTags,
+        freePreparedFromGrants: secondarySub.spellcasting.freePreparedFromGrants,
         casterProgression: secondarySub.spellcasting.casterProgression,
         slotsByLevel: secondarySub.spellcasting.slotsByLevel,
         classLevel: Number(secondaryClassEntry == null ? void 0 : secondaryClassEntry.niveau) || 0,
@@ -53157,7 +54847,6 @@ function CombatSetupScreen(props) {
     return sources2;
   })();
   const [activeMagicTab, setActiveMagicTab] = reactExports.useState(0);
-  const [spellInputByKey, setSpellInputByKey] = reactExports.useState({});
   reactExports.useEffect(() => {
     if (activeMagicTab >= magicSources.length) {
       setActiveMagicTab(0);
@@ -53167,10 +54856,10 @@ function CombatSetupScreen(props) {
   const canEditMasteries = !isSectionLocked("masteries") && masteriesMode !== "normal";
   const getClassAsiLevels = () => {
     const entries = [];
-    const collect = (cls, level) => {
+    const collect = (cls, level2) => {
       if (!cls || !cls.id) return;
       const progression2 = (cls == null ? void 0 : cls.progression) ?? {};
-      Object.keys(progression2).map((key2) => Number(key2)).filter((lvl) => Number.isFinite(lvl) && lvl > 0 && lvl <= level).filter((lvl) => {
+      Object.keys(progression2).map((key2) => Number(key2)).filter((lvl) => Number.isFinite(lvl) && lvl > 0 && lvl <= level2).filter((lvl) => {
         var _a2;
         const grants2 = ((_a2 = progression2[String(lvl)]) == null ? void 0 : _a2.grants) ?? [];
         return grants2.some(
@@ -53194,10 +54883,10 @@ function CombatSetupScreen(props) {
       (a2, b2) => a2.level === b2.level ? a2.classLabel.localeCompare(b2.classLabel) : a2.level - b2.level
     );
   };
-  const getAsiKeysForClassLevel = (classId2, level) => {
+  const getAsiKeysForClassLevel = (classId2, level2) => {
     const cls = classOptions.find((item) => item.id === classId2);
     if (!cls || !cls.progression) return [];
-    return Object.keys(cls.progression).map((key2) => Number(key2)).filter((lvl) => Number.isFinite(lvl) && lvl > 0 && lvl <= level).filter((lvl) => {
+    return Object.keys(cls.progression).map((key2) => Number(key2)).filter((lvl) => Number.isFinite(lvl) && lvl > 0 && lvl <= level2).filter((lvl) => {
       var _a2, _b2;
       const grants2 = ((_b2 = (_a2 = cls.progression) == null ? void 0 : _a2[String(lvl)]) == null ? void 0 : _b2.grants) ?? [];
       return grants2.some(
@@ -53893,153 +55582,39 @@ function CombatSetupScreen(props) {
                         getMasterySources
                       }
                     ),
-                    activeMainTab === "player" && activePlayerTab === "species" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-                      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
-                        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "#b0b8c4" }, children: "Choisissez une espece. Ce choix met a jour raceId dans le personnage." }),
-                        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                          "button",
-                          {
-                            type: "button",
-                            onClick: () => {
-                              if (isSectionLocked("species")) {
-                                resetSpeciesImpacts();
-                                return;
-                              }
-                              if (hasPendingRaceChoices()) {
-                                props.onChangeCharacter({
-                                  ...props.character,
-                                  choiceSelections: {
-                                    ...choiceSelections,
-                                    pendingLocks: { ...pendingLocks, species: true }
-                                  }
-                                });
-                                requireRaceChoices();
-                                return;
-                              }
-                              setSectionLock("species", true);
-                            },
-                            style: {
-                              ...lockButtonBaseStyle,
-                              marginLeft: "auto",
-                              background: getLockButtonState("species").background
-                            },
-                            children: [
-                              getLockButtonState("species").label,
-                              renderPendingBadge(getPendingCountForSection("species"))
-                            ]
+                    activeMainTab === "player" && activePlayerTab === "species" && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                      SpeciesTab,
+                      {
+                        isSectionLocked,
+                        lockButtonBaseStyle,
+                        getLockButtonState,
+                        renderPendingBadge,
+                        getPendingCountForSection,
+                        onLockClick: () => {
+                          if (isSectionLocked("species")) {
+                            resetSpeciesImpacts();
+                            return;
                           }
-                        )
-                      ] }),
-                      /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                        "div",
-                        {
-                          style: {
-                            display: "grid",
-                            gridTemplateColumns: "minmax(220px, 1.1fr) minmax(240px, 1fr)",
-                            gap: 12,
-                            alignItems: "start"
-                          },
-                          children: [
-                            /* @__PURE__ */ jsxRuntimeExports.jsx(
-                              "div",
-                              {
-                                style: {
-                                  display: "grid",
-                                  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                                  gap: 10,
-                                  alignContent: "start"
-                                },
-                                children: raceOptions.map((race) => {
-                                  const isSelected = selectedRaceId === race.id;
-                                  return /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                                    "button",
-                                    {
-                                      type: "button",
-                                      onClick: () => handleSpeciesSelect(race.id),
-                                      disabled: isSectionLocked("species"),
-                                      style: {
-                                        textAlign: "left",
-                                        borderRadius: 10,
-                                        border: `1px solid ${isSelected ? "#6fd3a8" : "rgba(255,255,255,0.12)"}`,
-                                        background: isSelected ? "rgba(46, 204, 113, 0.14)" : "rgba(12,12,18,0.75)",
-                                        color: "#f5f5f5",
-                                        padding: 12,
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        gap: 6,
-                                        minHeight: 120,
-                                        opacity: isSectionLocked("species") ? 0.6 : 1,
-                                        cursor: isSectionLocked("species") ? "not-allowed" : "pointer"
-                                      },
-                                      children: [
-                                        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 13, fontWeight: 800 }, children: race.label }),
-                                        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: race.description }),
-                                        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.5)" }, children: [
-                                          "ID: ",
-                                          race.id
-                                        ] })
-                                      ]
-                                    },
-                                    race.id
-                                  );
-                                })
+                          if (hasPendingRaceChoices()) {
+                            props.onChangeCharacter({
+                              ...props.character,
+                              choiceSelections: {
+                                ...choiceSelections,
+                                pendingLocks: { ...pendingLocks, species: true }
                               }
-                            ),
-                            /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                              "div",
-                              {
-                                style: {
-                                  borderRadius: 12,
-                                  border: "1px solid rgba(255,255,255,0.12)",
-                                  background: "rgba(12,12,18,0.75)",
-                                  padding: 12,
-                                  display: "flex",
-                                  flexDirection: "column",
-                                  gap: 10,
-                                  minHeight: 260
-                                },
-                                children: [
-                                  /* @__PURE__ */ jsxRuntimeExports.jsx(
-                                    "div",
-                                    {
-                                      style: {
-                                        width: "100%",
-                                        aspectRatio: "16 / 9",
-                                        borderRadius: 10,
-                                        border: "1px dashed rgba(255,255,255,0.18)",
-                                        background: "rgba(8,8,12,0.65)",
-                                        display: "grid",
-                                        placeItems: "center",
-                                        color: "rgba(255,255,255,0.35)",
-                                        fontSize: 12
-                                      },
-                                      children: "Image 16:9"
-                                    }
-                                  ),
-                                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 14, fontWeight: 800 }, children: activeRace ? activeRace.label : "Selectionnez une espece" }),
-                                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.75)" }, children: activeRace ? activeRace.description : "Selectionnez une espece pour voir les details." }),
-                                  activeRace && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
-                                    "Vitesse: ",
-                                    activeRace.speed ?? "?",
-                                    " | Taille: ",
-                                    activeRace.size ?? "?"
-                                  ] }),
-                                  activeRace && getRaceTraits(activeRace).length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
-                                    "Traits: ",
-                                    getRaceTraits(activeRace).map((trait) => trait.label).join(", ")
-                                  ] }),
-                                  activeRace && ((_x = activeRace.vision) == null ? void 0 : _x.mode) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
-                                    "Vision: ",
-                                    activeRace.vision.mode,
-                                    activeRace.vision.range ? ` ${activeRace.vision.range}ft` : ""
-                                  ] })
-                                ]
-                              }
-                            )
-                          ]
-                        }
-                      )
-                    ] }),
+                            });
+                            requireRaceChoices();
+                            return;
+                          }
+                          setSectionLock("species", true);
+                        },
+                        raceOptions,
+                        selectedRaceId,
+                        handleSpeciesSelect,
+                        activeRace,
+                        getRaceTraits
+                      }
+                    ),
                     activeMainTab === "player" && activePlayerTab === "classes" && /* @__PURE__ */ jsxRuntimeExports.jsx(
                       ClassesTab,
                       {
@@ -54105,177 +55680,33 @@ function CombatSetupScreen(props) {
                         competenceOptions
                       }
                     ),
-                    activeMainTab === "player" && activePlayerTab === "profile" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-                      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
-                        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "#b0b8c4" }, children: "Renseignez le profil du personnage (pre-rempli)." }),
-                        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                          "button",
-                          {
-                            type: "button",
-                            onClick: () => toggleSectionLock("profile"),
-                            style: {
-                              ...lockButtonBaseStyle,
-                              marginLeft: "auto",
-                              background: getLockButtonState("profile").background
-                            },
-                            children: [
-                              getLockButtonState("profile").label,
-                              renderPendingBadge(getPendingCountForSection("profile"))
-                            ]
-                          }
-                        )
-                      ] }),
-                      /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                        "div",
-                        {
-                          style: {
-                            display: "grid",
-                            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                            gap: 10
-                          },
-                          children: [
-                            /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { style: { fontSize: 12, display: "flex", flexDirection: "column", gap: 6 }, children: [
-                              "Prenom",
-                              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                                "input",
-                                {
-                                  type: "text",
-                                  value: ((_y = props.character.nom) == null ? void 0 : _y.prenom) ?? "",
-                                  onChange: (e2) => setNameField("prenom", e2.target.value),
-                                  disabled: isSectionLocked("profile"),
-                                  style: {
-                                    background: "#0f0f19",
-                                    color: "#f5f5f5",
-                                    border: "1px solid #333",
-                                    borderRadius: 6,
-                                    padding: "6px 8px",
-                                    fontSize: 12,
-                                    opacity: isSectionLocked("profile") ? 0.6 : 1
-                                  }
-                                }
-                              )
-                            ] }),
-                            /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { style: { fontSize: 12, display: "flex", flexDirection: "column", gap: 6 }, children: [
-                              "Nom complet",
-                              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                                "input",
-                                {
-                                  type: "text",
-                                  value: ((_z = props.character.nom) == null ? void 0 : _z.nomcomplet) ?? "",
-                                  onChange: (e2) => setNameField("nomcomplet", e2.target.value),
-                                  disabled: isSectionLocked("profile"),
-                                  style: {
-                                    background: "#0f0f19",
-                                    color: "#f5f5f5",
-                                    border: "1px solid #333",
-                                    borderRadius: 6,
-                                    padding: "6px 8px",
-                                    fontSize: 12,
-                                    opacity: isSectionLocked("profile") ? 0.6 : 1
-                                  }
-                                }
-                              )
-                            ] }),
-                            /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { style: { fontSize: 12, display: "flex", flexDirection: "column", gap: 6 }, children: [
-                              "Surnom",
-                              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                                "input",
-                                {
-                                  type: "text",
-                                  value: ((_A = props.character.nom) == null ? void 0 : _A.surnom) ?? "",
-                                  onChange: (e2) => setNameField("surnom", e2.target.value),
-                                  disabled: isSectionLocked("profile"),
-                                  style: {
-                                    background: "#0f0f19",
-                                    color: "#f5f5f5",
-                                    border: "1px solid #333",
-                                    borderRadius: 6,
-                                    padding: "6px 8px",
-                                    fontSize: 12,
-                                    opacity: isSectionLocked("profile") ? 0.6 : 1
-                                  }
-                                }
-                              )
-                            ] })
-                          ]
-                        }
-                      ),
-                      /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { style: { fontSize: 12, display: "flex", flexDirection: "column", gap: 6 }, children: [
-                        "Traits physiques (general)",
-                        /* @__PURE__ */ jsxRuntimeExports.jsx(
-                          "textarea",
-                          {
-                            value: ((_B = props.character.descriptionPersonnage) == null ? void 0 : _B.physique) ?? "",
-                            onChange: (e2) => setPhysiqueDetail(e2.target.value),
-                            disabled: isSectionLocked("profile"),
-                            rows: 3,
-                            style: {
-                              resize: "vertical",
-                              minHeight: 70,
-                              background: "#0f0f19",
-                              color: "#f5f5f5",
-                              border: "1px solid #333",
-                              borderRadius: 6,
-                              padding: "8px 10px",
-                              fontSize: 12,
-                              opacity: isSectionLocked("profile") ? 0.6 : 1
-                            }
-                          }
-                        )
-                      ] }),
-                      /* @__PURE__ */ jsxRuntimeExports.jsx(
-                        "div",
-                        {
-                          style: {
-                            display: "grid",
-                            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                            gap: 10
-                          },
-                          children: [
-                            { id: "visage", label: "Visage" },
-                            { id: "cheveux", label: "Cheveux" },
-                            { id: "yeux", label: "Yeux" },
-                            { id: "silhouette", label: "Silhouette" }
-                          ].map((field) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                            "label",
-                            {
-                              style: { fontSize: 12, display: "flex", flexDirection: "column", gap: 6 },
-                              children: [
-                                field.label,
-                                /* @__PURE__ */ jsxRuntimeExports.jsx(
-                                  "input",
-                                  {
-                                    type: "text",
-                                    value: profileDetails[field.id] ?? "",
-                                    onChange: (e2) => setProfileDetail(field.id, e2.target.value),
-                                    disabled: isSectionLocked("profile"),
-                                    style: {
-                                      background: "#0f0f19",
-                                      color: "#f5f5f5",
-                                      border: "1px solid #333",
-                                      borderRadius: 6,
-                                      padding: "6px 8px",
-                                      fontSize: 12,
-                                      opacity: isSectionLocked("profile") ? 0.6 : 1
-                                    }
-                                  }
-                                )
-                              ]
-                            },
-                            field.id
-                          ))
-                        }
-                      )
-                    ] }),
+                    activeMainTab === "player" && activePlayerTab === "profile" && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                      ProfileTab,
+                      {
+                        character: props.character,
+                        profileDetails,
+                        setNameField,
+                        setPhysiqueDetail,
+                        setProfileDetail,
+                        isSectionLocked,
+                        toggleSectionLock,
+                        lockButtonBaseStyle,
+                        getLockButtonState,
+                        renderPendingBadge,
+                        getPendingCountForSection
+                      }
+                    ),
                     activeMainTab === "player" && activePlayerTab === "magic" && magicSources.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx(
-                      MagicTab,
+                      MagicPanel,
                       {
                         magicSources,
                         activeMagicTab,
                         setActiveMagicTab,
+                        isSectionLocked,
+                        toggleSectionLock,
+                        lockButtonBaseStyle,
+                        getLockButtonState,
                         spellcastingSelections,
-                        spellInputByKey,
-                        setSpellInputByKey,
                         updateSpellcastingSelection,
                         computeMod,
                         getScore,
@@ -54285,668 +55716,55 @@ function CombatSetupScreen(props) {
                         inventoryItems,
                         formatEquipmentLabel,
                         getSpellId,
-                        getSpellKey,
                         makeSpellEntry
                       }
                     ),
-                    activeMainTab === "player" && activePlayerTab === "sheet" && /* @__PURE__ */ jsxRuntimeExports.jsx(jsxRuntimeExports.Fragment, { children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }, children: (() => {
-                      var _a2, _b2, _c2, _d2, _e2, _f2, _g2, _h2, _i2, _j2, _k2, _l2, _m2;
-                      const statLabels = {
-                        FOR: "Force",
-                        DEX: "Dexterite",
-                        CON: "Constitution",
-                        INT: "Intelligence",
-                        SAG: "Sagesse",
-                        CHA: "Charisme"
-                      };
-                      const backgroundChoices = (choiceSelections == null ? void 0 : choiceSelections.background) ?? {};
-                      const backgroundTools = Array.isArray(backgroundChoices.tools) ? backgroundChoices.tools : [];
-                      const backgroundLanguages = Array.isArray(backgroundChoices.languages) ? backgroundChoices.languages : [];
-                      const adaptableSkill = ((_a2 = choiceSelections == null ? void 0 : choiceSelections.race) == null ? void 0 : _a2.adaptableSkill) ?? "";
-                      getClassAsiLevels();
-                      const buildProgressionLines = (progression2, maxLevel) => {
-                        if (!progression2) return [];
-                        const levels = Object.keys(progression2).map((key2) => Number(key2)).filter((level) => Number.isFinite(level)).sort((a2, b2) => a2 - b2);
-                        return levels.filter((level) => typeof maxLevel === "number" ? level <= maxLevel : true).map((level) => {
-                          const entry = progression2[String(level)] ?? {};
-                          const grants2 = Array.isArray(entry.grants) ? entry.grants : [];
-                          const desc = entry.description ? entry.description : "";
-                          const hasAsi = grants2.some(
-                            (grant) => (grant == null ? void 0 : grant.kind) === "bonus" && ((grant == null ? void 0 : grant.ids) ?? []).includes("asi-or-feat")
-                          );
-                          const baseLabel = desc || (hasAsi ? "Amelioration de caracteristiques (ASI) ou choix de don" : "Progression");
-                          return { level, hasAsi, baseLabel };
-                        });
-                      };
-                      const buildClassProgressionDisplay = (cls, subclass, level) => {
-                        if (!cls || level <= 0) return [];
-                        const lines = [];
-                        const clsLines = buildProgressionLines(cls.progression, level);
-                        const subLines = subclass ? buildProgressionLines(subclass.progression, level) : [];
-                        const formatLine = (entry) => {
-                          let suffix = "";
-                          if (entry.hasAsi) {
-                            const key2 = `${cls.id}:${entry.level}`;
-                            const asiEntry = asiSelections[key2] ?? (cls.id === (classPrimary == null ? void 0 : classPrimary.id) ? asiSelections[String(entry.level)] : null);
-                            if ((asiEntry == null ? void 0 : asiEntry.type) === "feat") {
-                              suffix = " : Don";
-                            } else if ((asiEntry == null ? void 0 : asiEntry.type) === "asi") {
-                              const stats = asiEntry.stats ?? {};
-                              const parts = Object.entries(stats).map(([stat, value2]) => `+${value2} ${statLabels[stat] ?? stat}`).join(", ");
-                              suffix = parts ? ` : ${parts}` : " : non choisi";
-                            } else {
-                              suffix = " : non choisi";
-                            }
-                          }
-                          return `Niveau ${entry.level} — ${entry.baseLabel}${suffix}`;
-                        };
-                        clsLines.forEach((entry) => lines.push(formatLine(entry)));
-                        subLines.forEach((entry) => lines.push(formatLine(entry)));
-                        return lines;
-                      };
-                      const primarySubclass = selectedSubclassId ? subclassOptions.find((sub) => sub.id === selectedSubclassId) ?? null : null;
-                      const secondarySubclass = selectedSecondarySubclassId ? subclassOptions.find((sub) => sub.id === selectedSecondarySubclassId) ?? null : null;
-                      const primaryLevel = Number(classEntry == null ? void 0 : classEntry.niveau) || 0;
-                      const secondaryLevel = Number(secondaryClassEntry == null ? void 0 : secondaryClassEntry.niveau) || 0;
-                      const primaryProgressionLines = buildClassProgressionDisplay(
+                    activeMainTab === "player" && activePlayerTab === "sheet" && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                      SheetTab,
+                      {
+                        character: props.character,
+                        onChangeCharacter: props.onChangeCharacter,
+                        choiceSelections,
+                        magicSources,
+                        spellcastingSelections,
+                        renderValidatedBadge,
+                        getSectionValidated,
+                        activeRace,
+                        getRaceTraits,
+                        activeBackground,
+                        getBackgroundFeatureInfo,
+                        getBackgroundSkillProficiencies,
+                        getBackgroundToolProficiencies,
+                        competenceOptions,
+                        toolMasteryOptions,
                         classPrimary,
-                        primarySubclass,
-                        primaryLevel
-                      );
-                      const secondaryProgressionLines = buildClassProgressionDisplay(
                         classSecondary,
-                        secondarySubclass,
-                        secondaryLevel
-                      );
-                      return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-                        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                          "div",
-                          {
-                            style: {
-                              borderRadius: 10,
-                              border: "1px solid rgba(255,255,255,0.12)",
-                              background: "rgba(12,12,18,0.75)",
-                              padding: 12,
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: 8
-                            },
-                            children: [
-                              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }, children: [
-                                "Identite",
-                                renderValidatedBadge(getSectionValidated("profile"))
-                              ] }),
-                              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
-                                "Nom: ",
-                                ((_c2 = (_b2 = props.character) == null ? void 0 : _b2.nom) == null ? void 0 : _c2.nomcomplet) ?? "—"
-                              ] }),
-                              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
-                                "Prenom: ",
-                                ((_e2 = (_d2 = props.character) == null ? void 0 : _d2.nom) == null ? void 0 : _e2.prenom) ?? "—",
-                                " | Surnom:",
-                                " ",
-                                ((_g2 = (_f2 = props.character) == null ? void 0 : _f2.nom) == null ? void 0 : _g2.surnom) ?? "—"
-                              ] }),
-                              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
-                                "Age: ",
-                                ((_h2 = props.character) == null ? void 0 : _h2.age) ?? "—",
-                                " | Sexe: ",
-                                ((_i2 = props.character) == null ? void 0 : _i2.sexe) ?? "—"
-                              ] })
-                            ]
-                          }
-                        ),
-                        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                          "div",
-                          {
-                            style: {
-                              borderRadius: 10,
-                              border: "1px solid rgba(255,255,255,0.12)",
-                              background: "rgba(12,12,18,0.75)",
-                              padding: 12,
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: 8
-                            },
-                            children: [
-                              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }, children: [
-                                "Espece",
-                                renderValidatedBadge(getSectionValidated("species"))
-                              ] }),
-                              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: activeRace ? `${activeRace.label} (${activeRace.id})` : "—" }),
-                              getRaceTraits(activeRace).length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", flexWrap: "wrap", gap: 6 }, children: getRaceTraits(activeRace).map((trait) => /* @__PURE__ */ jsxRuntimeExports.jsx(
-                                "span",
-                                {
-                                  style: {
-                                    padding: "2px 6px",
-                                    borderRadius: 999,
-                                    border: "1px solid rgba(255,255,255,0.18)",
-                                    background: "rgba(46, 204, 113, 0.12)",
-                                    fontSize: 11,
-                                    color: "rgba(255,255,255,0.75)"
-                                  },
-                                  children: trait.label
-                                },
-                                `trait-${trait.id}`
-                              )) }),
-                              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
-                                "Traits: ",
-                                getRaceTraits(activeRace).map((trait) => trait.label).join(", ") || "—"
-                              ] }),
-                              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
-                                "Choix adapte: ",
-                                adaptableSkill ? ((_j2 = competenceOptions.find((c2) => c2.id === adaptableSkill)) == null ? void 0 : _j2.label) ?? adaptableSkill : "—"
-                              ] }),
-                              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
-                                "Vitesse: ",
-                                (activeRace == null ? void 0 : activeRace.speed) ?? "—",
-                                " | Taille: ",
-                                (activeRace == null ? void 0 : activeRace.size) ?? "—"
-                              ] })
-                            ]
-                          }
-                        ),
-                        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                          "div",
-                          {
-                            style: {
-                              borderRadius: 10,
-                              border: "1px solid rgba(255,255,255,0.12)",
-                              background: "rgba(12,12,18,0.75)",
-                              padding: 12,
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: 8
-                            },
-                            children: [
-                              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }, children: [
-                                "Historique",
-                                renderValidatedBadge(getSectionValidated("backgrounds"))
-                              ] }),
-                              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: activeBackground ? `${activeBackground.label} (${activeBackground.id})` : "—" }),
-                              getBackgroundFeatureInfo(activeBackground) && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", flexWrap: "wrap", gap: 6 }, children: /* @__PURE__ */ jsxRuntimeExports.jsx(
-                                "span",
-                                {
-                                  style: {
-                                    padding: "2px 6px",
-                                    borderRadius: 999,
-                                    border: "1px solid rgba(255,255,255,0.18)",
-                                    background: "rgba(241, 196, 15, 0.16)",
-                                    fontSize: 11,
-                                    color: "rgba(255,255,255,0.75)"
-                                  },
-                                  children: ((_k2 = getBackgroundFeatureInfo(activeBackground)) == null ? void 0 : _k2.label) ?? "Aptitude"
-                                }
-                              ) }),
-                              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
-                                "Competences:",
-                                " ",
-                                getBackgroundSkillProficiencies(activeBackground).map((id2) => {
-                                  var _a3;
-                                  return ((_a3 = competenceOptions.find((c2) => c2.id === id2)) == null ? void 0 : _a3.label) ?? id2;
-                                }).join(", ") || "—"
-                              ] }),
-                              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
-                                "Outils:",
-                                " ",
-                                getBackgroundToolProficiencies(activeBackground).map((id2) => {
-                                  var _a3;
-                                  return ((_a3 = toolMasteryOptions.find((t2) => t2.id === id2)) == null ? void 0 : _a3.label) ?? id2;
-                                }).join(", ") || "—"
-                              ] }),
-                              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
-                                "Choix outils:",
-                                " ",
-                                backgroundTools.length ? backgroundTools.map((id2) => {
-                                  var _a3;
-                                  return ((_a3 = toolMasteryOptions.find((t2) => t2.id === id2)) == null ? void 0 : _a3.label) ?? id2;
-                                }).join(", ") : "—"
-                              ] }),
-                              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
-                                "Choix langues: ",
-                                backgroundLanguages.join(", ") || "—"
-                              ] })
-                            ]
-                          }
-                        ),
-                        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                          "div",
-                          {
-                            style: {
-                              borderRadius: 10,
-                              border: "1px solid rgba(255,255,255,0.12)",
-                              background: "rgba(12,12,18,0.75)",
-                              padding: 12,
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: 8
-                            },
-                            children: [
-                              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }, children: [
-                                "Classes",
-                                renderValidatedBadge(getSectionValidated("classes"))
-                              ] }),
-                              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
-                                "Classe principale:",
-                                " ",
-                                classPrimary ? `${classPrimary.label}${primarySubclass ? ` — ${primarySubclass.label}` : ""} (niv ${primaryLevel})` : "—"
-                              ] }),
-                              primaryProgressionLines.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
-                                "Progression:",
-                                primaryProgressionLines.map((line) => /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { marginTop: 4 }, children: line }, `prog-primary-${line}`))
-                              ] }),
-                              classSecondary && secondaryLevel > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-                                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
-                                  "Classe secondaire:",
-                                  " ",
-                                  classSecondary ? `${classSecondary.label}${secondarySubclass ? ` — ${secondarySubclass.label}` : ""} (niv ${secondaryLevel})` : "—"
-                                ] }),
-                                secondaryProgressionLines.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
-                                  "Progression:",
-                                  secondaryProgressionLines.map((line) => /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { marginTop: 4 }, children: line }, `prog-secondary-${line}`))
-                                ] })
-                              ] })
-                            ]
-                          }
-                        ),
-                        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                          "div",
-                          {
-                            style: {
-                              borderRadius: 10,
-                              border: "1px solid rgba(255,255,255,0.12)",
-                              background: "rgba(12,12,18,0.75)",
-                              padding: 12,
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: 8
-                            },
-                            children: [
-                              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }, children: [
-                                "Caracteristiques",
-                                renderValidatedBadge(getSectionValidated("stats"))
-                              ] }),
-                              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                                "div",
-                                {
-                                  style: {
-                                    display: "grid",
-                                    gridTemplateColumns: "repeat(2, minmax(140px, 1fr))",
-                                    gap: 8
-                                  },
-                                  children: [
-                                    { id: "FOR", label: "Force" },
-                                    { id: "DEX", label: "Dexterite" },
-                                    { id: "CON", label: "Constitution" },
-                                    { id: "INT", label: "Intelligence" },
-                                    { id: "SAG", label: "Sagesse" },
-                                    { id: "CHA", label: "Charisme" }
-                                  ].map((stat) => {
-                                    const value2 = getScore(stat.id);
-                                    const mod = computeMod(value2);
-                                    const modLabel = mod >= 0 ? `+${mod}` : `${mod}`;
-                                    return /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                                      "div",
-                                      {
-                                        style: {
-                                          borderRadius: 8,
-                                          border: "1px solid rgba(255,255,255,0.12)",
-                                          background: "rgba(10,10,16,0.8)",
-                                          padding: "6px 8px",
-                                          display: "flex",
-                                          justifyContent: "space-between",
-                                          alignItems: "center",
-                                          gap: 8
-                                        },
-                                        children: [
-                                          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: stat.label }),
-                                          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { style: { fontSize: 12, color: "rgba(255,255,255,0.85)", fontWeight: 700 }, children: [
-                                            value2,
-                                            " ",
-                                            modLabel
-                                          ] })
-                                        ]
-                                      },
-                                      `stat-sheet-${stat.id}`
-                                    );
-                                  })
-                                }
-                              ),
-                              /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                                "div",
-                                {
-                                  style: {
-                                    display: "grid",
-                                    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                                    gap: 8
-                                  },
-                                  children: [
-                                    /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                                      "div",
-                                      {
-                                        style: {
-                                          fontSize: 13,
-                                          fontWeight: 800,
-                                          color: "#cfe4ff",
-                                          background: "rgba(79,125,242,0.18)",
-                                          border: "1px solid rgba(79,125,242,0.5)",
-                                          borderRadius: 8,
-                                          padding: "6px 8px"
-                                        },
-                                        children: [
-                                          "CA (dynamique): ",
-                                          computeArmorClassFromEquipment2()
-                                        ]
-                                      }
-                                    ),
-                                    Boolean(choiceSelections == null ? void 0 : choiceSelections.sheetValidated) && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-                                      /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                                        "div",
-                                        {
-                                          style: {
-                                            fontSize: 13,
-                                            fontWeight: 800,
-                                            color: "#ffe9a6",
-                                            background: "rgba(241,196,15,0.16)",
-                                            border: "1px solid rgba(241,196,15,0.5)",
-                                            borderRadius: 8,
-                                            padding: "6px 8px"
-                                          },
-                                          children: [
-                                            "PV max: ",
-                                            ((_m2 = (_l2 = props.character) == null ? void 0 : _l2.combatStats) == null ? void 0 : _m2.maxHp) ?? "—"
-                                          ]
-                                        }
-                                      ),
-                                      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
-                                        "Des de vie: ",
-                                        (classPrimary == null ? void 0 : classPrimary.hitDie) ? `d${classPrimary.hitDie} x${Number(classEntry == null ? void 0 : classEntry.niveau) || 0}` : "—",
-                                        (classSecondary == null ? void 0 : classSecondary.hitDie) && Number(secondaryClassEntry == null ? void 0 : secondaryClassEntry.niveau) ? ` + d${classSecondary.hitDie} x${Number(secondaryClassEntry == null ? void 0 : secondaryClassEntry.niveau) || 0}` : ""
-                                      ] })
-                                    ] })
-                                  ]
-                                }
-                              )
-                            ]
-                          }
-                        ),
-                        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                          "div",
-                          {
-                            style: {
-                              borderRadius: 10,
-                              border: "1px solid rgba(255,255,255,0.12)",
-                              background: "rgba(12,12,18,0.75)",
-                              padding: 12,
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: 8
-                            },
-                            children: [
-                              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }, children: [
-                                "Competences",
-                                renderValidatedBadge(getSectionValidated("skills"))
-                              ] }),
-                              /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                                "div",
-                                {
-                                  style: {
-                                    fontSize: 18,
-                                    fontWeight: 800,
-                                    color: "#4f7df2",
-                                    textAlign: "center"
-                                  },
-                                  children: [
-                                    "Bonus de maitrise: ",
-                                    (() => {
-                                      const level = resolveLevel();
-                                      const prof = 2 + Math.floor((level - 1) / 4);
-                                      return prof >= 0 ? `+${prof}` : prof;
-                                    })()
-                                  ]
-                                }
-                              ),
-                              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: (() => {
-                                const merged = Array.from(
-                                  /* @__PURE__ */ new Set([...competences ?? [], ...expertises ?? []])
-                                );
-                                if (merged.length === 0) return "—";
-                                return merged.map((id2) => {
-                                  var _a3;
-                                  const label2 = ((_a3 = competenceOptions.find((c2) => c2.id === id2)) == null ? void 0 : _a3.label) ?? id2;
-                                  const abilityKey = skillAbilityMap[id2];
-                                  const scoreKey = abilityKey === "STR" ? "FOR" : abilityKey === "DEX" ? "DEX" : abilityKey === "CON" ? "CON" : abilityKey === "INT" ? "INT" : abilityKey === "WIS" ? "SAG" : "CHA";
-                                  const mod = computeMod(getScore(scoreKey));
-                                  const level = resolveLevel();
-                                  const prof = 2 + Math.floor((level - 1) / 4);
-                                  const isExpert = expertises.includes(id2);
-                                  const isProf = competences.includes(id2);
-                                  const bonus = mod + (isExpert ? prof * 2 : isProf ? prof : 0);
-                                  const bonusLabel = bonus >= 0 ? `+${bonus}` : bonus;
-                                  const suffix = isExpert ? " (Expertise)" : "";
-                                  return `${label2}${suffix}: ${bonusLabel}`;
-                                }).join(", ");
-                              })() })
-                            ]
-                          }
-                        ),
-                        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                          "div",
-                          {
-                            style: {
-                              borderRadius: 10,
-                              border: "1px solid rgba(255,255,255,0.12)",
-                              background: "rgba(12,12,18,0.75)",
-                              padding: 12,
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: 8
-                            },
-                            children: [
-                              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }, children: [
-                                "Maitrises",
-                                renderValidatedBadge(getSectionValidated("masteries"))
-                              ] }),
-                              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
-                                "Armes: ",
-                                weaponMasteries.join(", ") || "—"
-                              ] }),
-                              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
-                                "Armures: ",
-                                armorMasteries.join(", ") || "—"
-                              ] }),
-                              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
-                                "Outils: ",
-                                toolMasteries.join(", ") || "—"
-                              ] })
-                            ]
-                          }
-                        ),
-                        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                          "div",
-                          {
-                            style: {
-                              borderRadius: 10,
-                              border: "1px solid rgba(255,255,255,0.12)",
-                              background: "rgba(12,12,18,0.75)",
-                              padding: 12,
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: 8
-                            },
-                            children: [
-                              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }, children: [
-                                "Materiel",
-                                renderValidatedBadge(getSectionValidated("equip"))
-                              ] }),
-                              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: EQUIPMENT_SLOTS.filter((slot) => Boolean(materielSlots[slot.id])).length > 0 ? EQUIPMENT_SLOTS.filter((slot) => Boolean(materielSlots[slot.id])).map((slot) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { marginTop: 4 }, children: [
-                                slot.label,
-                                ": ",
-                                formatEquipmentLabel(String(materielSlots[slot.id]))
-                              ] }, `slot-${slot.id}`)) : "—" }),
-                              (() => {
-                                const packEntries = Array.from(packSlots).map((slotId) => {
-                                  const status = packSlotStatus(slotId);
-                                  if (!status.bagId) return null;
-                                  const bagContents = inventoryItems.filter((item) => {
-                                    const inSlot = (item == null ? void 0 : item.storedIn) === slotId || slotId === "paquetage" && status.bagId && (item == null ? void 0 : item.storedIn) === status.bagId;
-                                    return inSlot;
-                                  });
-                                  return {
-                                    slotId,
-                                    status,
-                                    contents: bagContents,
-                                    label: getSlotLabel(slotId)
-                                  };
-                                }).filter(Boolean);
-                                if (packEntries.length === 0) return null;
-                                return /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                                  "div",
-                                  {
-                                    style: {
-                                      marginTop: 6,
-                                      padding: 8,
-                                      borderRadius: 8,
-                                      border: "1px solid rgba(255,255,255,0.12)",
-                                      background: "rgba(10,10,16,0.7)",
-                                      display: "flex",
-                                      flexDirection: "column",
-                                      gap: 8
-                                    },
-                                    children: [
-                                      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, fontWeight: 800 }, children: "Sacs" }),
-                                      packEntries.map((entry) => {
-                                        const capacityLabel = entry.status.capacity > 0 ? entry.status.capacity.toFixed(1) : "?";
-                                        return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "grid", gap: 4 }, children: [
-                                          /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                                            "div",
-                                            {
-                                              style: { fontSize: 12, color: "rgba(255,255,255,0.7)" },
-                                              children: [
-                                                entry.label,
-                                                ": ",
-                                                formatEquipmentLabel(entry.status.bagId ?? "")
-                                              ]
-                                            }
-                                          ),
-                                          /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                                            "div",
-                                            {
-                                              style: { fontSize: 12, color: "rgba(255,255,255,0.6)" },
-                                              children: [
-                                                "Capacite: ",
-                                                entry.status.storedWeight.toFixed(1),
-                                                " /",
-                                                " ",
-                                                capacityLabel
-                                              ]
-                                            }
-                                          ),
-                                          /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                                            "div",
-                                            {
-                                              style: { fontSize: 12, color: "rgba(255,255,255,0.6)" },
-                                              children: [
-                                                "Contenu:",
-                                                entry.contents.length > 0 ? entry.contents.map((item) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                                                  "div",
-                                                  {
-                                                    style: { marginTop: 4 },
-                                                    children: [
-                                                      formatEquipmentLabel(item.id),
-                                                      " x",
-                                                      item.qty ?? 1
-                                                    ]
-                                                  },
-                                                  `bag-${entry.slotId}-${item.id}`
-                                                )) : " —"
-                                              ]
-                                            }
-                                          )
-                                        ] }, `bag-${entry.slotId}`);
-                                      })
-                                    ]
-                                  }
-                                );
-                              })()
-                            ]
-                          }
-                        ),
-                        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                          "div",
-                          {
-                            style: {
-                              borderRadius: 10,
-                              border: "1px solid rgba(255,255,255,0.12)",
-                              background: "rgba(12,12,18,0.75)",
-                              padding: 12,
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: 8
-                            },
-                            children: [
-                              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 13, fontWeight: 800 }, children: "Validation fiche" }),
-                              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: "PV calcules avec les des de vie et le mod CON." }),
-                              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                                "button",
-                                {
-                                  type: "button",
-                                  onClick: () => {
-                                    const maxHp = computeMaxHp();
-                                    const nextCombatStats = {
-                                      ...props.character.combatStats ?? {},
-                                      maxHp,
-                                      level: resolveLevel()
-                                    };
-                                    const nextChoiceSelections = {
-                                      ...choiceSelections,
-                                      sheetValidated: true
-                                    };
-                                    props.onChangeCharacter({
-                                      ...props.character,
-                                      pvActuels: maxHp,
-                                      combatStats: nextCombatStats,
-                                      choiceSelections: nextChoiceSelections
-                                    });
-                                  },
-                                  disabled: ![
-                                    "species",
-                                    "backgrounds",
-                                    "classes",
-                                    "stats",
-                                    "skills",
-                                    "masteries",
-                                    "equip",
-                                    "profile"
-                                  ].every((section) => getSectionValidated(section)),
-                                  style: {
-                                    padding: "8px 12px",
-                                    borderRadius: 8,
-                                    border: "1px solid rgba(255,255,255,0.15)",
-                                    background: "rgba(46, 204, 113, 0.16)",
-                                    color: "#f5f5f5",
-                                    cursor: "pointer",
-                                    fontSize: 12,
-                                    fontWeight: 800,
-                                    opacity: [
-                                      "species",
-                                      "backgrounds",
-                                      "classes",
-                                      "stats",
-                                      "skills",
-                                      "masteries",
-                                      "equip",
-                                      "profile"
-                                    ].every((section) => getSectionValidated(section)) ? 1 : 0.5
-                                  },
-                                  children: "Valider la fiche complete"
-                                }
-                              )
-                            ]
-                          }
-                        )
-                      ] });
-                    })() }) })
+                        classEntry,
+                        secondaryClassEntry,
+                        selectedSubclassId,
+                        selectedSecondarySubclassId,
+                        subclassOptions,
+                        asiSelections,
+                        getScore,
+                        computeMod,
+                        resolveLevel,
+                        computeArmorClassFromEquipment: computeArmorClassFromEquipment2,
+                        computeMaxHp,
+                        competences,
+                        expertises,
+                        skillAbilityMap,
+                        weaponMasteries,
+                        armorMasteries,
+                        toolMasteries,
+                        EQUIPMENT_SLOTS,
+                        materielSlots,
+                        packSlots,
+                        packSlotStatus,
+                        inventoryItems,
+                        getSlotLabel,
+                        formatEquipmentLabel
+                      }
+                    )
                   ]
                 }
               )
@@ -57757,7 +58575,7 @@ function buildCombatStatsFromCharacter(character, armorItemsById) {
   var _a, _b, _c;
   const movementModes2 = getMovementModesForCharacter(character);
   const defaultSpeed = ((_a = movementModes2[0]) == null ? void 0 : _a.speed) ?? 3;
-  const level = Number(((_b = character.combatStats) == null ? void 0 : _b.level) ?? character.niveauGlobal ?? 1) || 1;
+  const level2 = Number(((_b = character.combatStats) == null ? void 0 : _b.level) ?? character.niveauGlobal ?? 1) || 1;
   const mods = {
     str: getCharacterAbilityMod(character, "str"),
     dex: getCharacterAbilityMod(character, "dex"),
@@ -57769,7 +58587,7 @@ function buildCombatStatsFromCharacter(character, armorItemsById) {
   const maxHp = Number(((_c = character.combatStats) == null ? void 0 : _c.maxHp) ?? character.pvActuels ?? 1) || 1;
   const armorClass = computeArmorClassFromEquipment(character, armorItemsById, mods.dex);
   return {
-    level,
+    level: level2,
     mods,
     maxHp,
     armorClass,
@@ -58515,11 +59333,11 @@ const GameBoard = () => {
     const cols = mapGrid.cols;
     const rows = mapGrid.rows;
     if (!Array.isArray(mapTerrain) || mapTerrain.length === 0) return blockers;
-    const addBlocker = (level, x2, y2) => {
-      let set = blockers.get(level);
+    const addBlocker = (level2, x2, y2) => {
+      let set = blockers.get(level2);
       if (!set) {
         set = /* @__PURE__ */ new Set();
-        blockers.set(level, set);
+        blockers.set(level2, set);
       }
       set.add(buildCellKey(x2, y2));
     };
@@ -58530,8 +59348,8 @@ const GameBoard = () => {
         const floorId = mapTerrain[idx];
         const mat = getFloorMaterial(floorId);
         if (!(mat == null ? void 0 : mat.blocksVision)) continue;
-        const level = getHeightAtGrid(mapHeight, cols, rows, x2, y2);
-        addBlocker(level, x2, y2);
+        const level2 = getHeightAtGrid(mapHeight, cols, rows, x2, y2);
+        addBlocker(level2, x2, y2);
       }
     }
     return blockers;
@@ -58539,11 +59357,11 @@ const GameBoard = () => {
   const visionBlockersByLevel = reactExports.useMemo(() => {
     var _a2;
     const blockers = /* @__PURE__ */ new Map();
-    const addBlocker = (level, x2, y2) => {
-      let set = blockers.get(level);
+    const addBlocker = (level2, x2, y2) => {
+      let set = blockers.get(level2);
       if (!set) {
         set = /* @__PURE__ */ new Set();
-        blockers.set(level, set);
+        blockers.set(level2, set);
       }
       set.add(buildCellKey(x2, y2));
     };
@@ -58554,15 +59372,15 @@ const GameBoard = () => {
       if (!((_a2 = def == null ? void 0 : def.blocking) == null ? void 0 : _a2.vision)) continue;
       const cells = getObstacleOccupiedCells(obs, def);
       for (const cell of cells) {
-        const level = heightAt(cell.x, cell.y);
-        addBlocker(level, cell.x, cell.y);
+        const level2 = heightAt(cell.x, cell.y);
+        addBlocker(level2, cell.x, cell.y);
       }
     }
-    for (const [level, cells] of floorVisionBlockersByLevel.entries()) {
-      let set = blockers.get(level);
+    for (const [level2, cells] of floorVisionBlockersByLevel.entries()) {
+      let set = blockers.get(level2);
       if (!set) {
         set = /* @__PURE__ */ new Set();
-        blockers.set(level, set);
+        blockers.set(level2, set);
       }
       for (const cell of cells) {
         set.add(cell);
@@ -58612,17 +59430,17 @@ const GameBoard = () => {
   const visionBlockersForVisibility = reactExports.useMemo(() => {
     const combined = /* @__PURE__ */ new Map();
     const activeBlockers = visionBlockersByLevel.get(activeLevel) ?? /* @__PURE__ */ new Set();
-    for (let level = levelRange.min; level <= levelRange.max; level++) {
-      const levelBlockers = visionBlockersByLevel.get(level) ?? /* @__PURE__ */ new Set();
-      if (level === activeLevel || activeBlockers.size === 0) {
-        combined.set(level, levelBlockers);
+    for (let level2 = levelRange.min; level2 <= levelRange.max; level2++) {
+      const levelBlockers = visionBlockersByLevel.get(level2) ?? /* @__PURE__ */ new Set();
+      if (level2 === activeLevel || activeBlockers.size === 0) {
+        combined.set(level2, levelBlockers);
         continue;
       }
       if (levelBlockers.size === 0) {
-        combined.set(level, activeBlockers);
+        combined.set(level2, activeBlockers);
         continue;
       }
-      combined.set(level, /* @__PURE__ */ new Set([...activeBlockers, ...levelBlockers]));
+      combined.set(level2, /* @__PURE__ */ new Set([...activeBlockers, ...levelBlockers]));
     }
     return combined;
   }, [activeLevel, levelRange.min, levelRange.max, visionBlockersByLevel]);
@@ -58630,8 +59448,8 @@ const GameBoard = () => {
     if (showAllLevels) return null;
     const perLevel = /* @__PURE__ */ new Map();
     const hasLight = lightLevels.length > 0;
-    for (let level = levelRange.min; level <= levelRange.max; level++) {
-      const blockers = visionBlockersForVisibility.get(level) ?? /* @__PURE__ */ new Set();
+    for (let level2 = levelRange.min; level2 <= levelRange.max; level2++) {
+      const blockers = visionBlockersForVisibility.get(level2) ?? /* @__PURE__ */ new Set();
       const baseVisibility = computeVisibilityLevelsForToken({
         token: player,
         playableCells: playableCells ?? null,
@@ -58651,7 +59469,7 @@ const GameBoard = () => {
           if (!isLightVisible(light2, playerLightMode)) continue;
         }
         const cellLevel = getHeightAtGrid(mapHeight, mapGrid.cols, mapGrid.rows, x2, y2);
-        if (cellLevel !== level) continue;
+        if (cellLevel !== level2) continue;
         filtered.set(key2, vis);
       }
       const playerLevel = getHeightAtGrid(
@@ -58661,10 +59479,10 @@ const GameBoard = () => {
         player.x,
         player.y
       );
-      if (playerLevel === level) {
+      if (playerLevel === level2) {
         filtered.set(buildCellKey(player.x, player.y), 2);
       }
-      perLevel.set(level, filtered);
+      perLevel.set(level2, filtered);
     }
     return perLevel;
   }, [
@@ -58684,8 +59502,8 @@ const GameBoard = () => {
   const visionByLevel = reactExports.useMemo(() => {
     if (showAllLevels) return null;
     const perLevel = /* @__PURE__ */ new Map();
-    for (let level = levelRange.min; level <= levelRange.max; level++) {
-      const blockers = visionBlockersForVisibility.get(level) ?? /* @__PURE__ */ new Set();
+    for (let level2 = levelRange.min; level2 <= levelRange.max; level2++) {
+      const blockers = visionBlockersForVisibility.get(level2) ?? /* @__PURE__ */ new Set();
       const baseVisibility = computeVisibilityLevelsForToken({
         token: player,
         playableCells: playableCells ?? null,
@@ -58700,7 +59518,7 @@ const GameBoard = () => {
         const y2 = Number(ys);
         if (!Number.isFinite(x2) || !Number.isFinite(y2)) continue;
         const cellLevel = getHeightAtGrid(mapHeight, mapGrid.cols, mapGrid.rows, x2, y2);
-        if (cellLevel !== level) continue;
+        if (cellLevel !== level2) continue;
         filtered.set(key2, vis);
       }
       const playerLevel = getHeightAtGrid(
@@ -58710,10 +59528,10 @@ const GameBoard = () => {
         player.x,
         player.y
       );
-      if (playerLevel === level) {
+      if (playerLevel === level2) {
         filtered.set(buildCellKey(player.x, player.y), 2);
       }
-      perLevel.set(level, filtered);
+      perLevel.set(level2, filtered);
     }
     return perLevel;
   }, [
@@ -58778,8 +59596,8 @@ const GameBoard = () => {
   function isCellVisibleForPlayer(x2, y2) {
     if (showAllLevels) return true;
     if (!visibilityLevels) return false;
-    const level = visibilityLevels.get(buildCellKey(x2, y2)) ?? 0;
-    return level > 0;
+    const level2 = visibilityLevels.get(buildCellKey(x2, y2)) ?? 0;
+    return level2 > 0;
   }
   reactExports.useEffect(() => {
     setActiveLevel((prev) => clampActiveLevel(prev));
@@ -60645,7 +61463,7 @@ const GameBoard = () => {
     var _a2, _b2, _c, _d, _e, _f;
     const stats = player.combatStats;
     const fallbackStats = characterConfig.combatStats ?? null;
-    const level = Number((stats == null ? void 0 : stats.level) ?? (fallbackStats == null ? void 0 : fallbackStats.level) ?? 1) || 1;
+    const level2 = Number((stats == null ? void 0 : stats.level) ?? (fallbackStats == null ? void 0 : fallbackStats.level) ?? 1) || 1;
     const modSTR = Number(((_a2 = stats == null ? void 0 : stats.mods) == null ? void 0 : _a2.str) ?? getCharacterAbilityMod(characterConfig, "str"));
     const modDEX = Number(((_b2 = stats == null ? void 0 : stats.mods) == null ? void 0 : _b2.dex) ?? getCharacterAbilityMod(characterConfig, "dex"));
     const modCON = Number(((_c = stats == null ? void 0 : stats.mods) == null ? void 0 : _c.con) ?? getCharacterAbilityMod(characterConfig, "con"));
@@ -60656,7 +61474,7 @@ const GameBoard = () => {
     const attackBonus = Number((stats == null ? void 0 : stats.attackBonus) ?? 0);
     const moveRange = Number((stats == null ? void 0 : stats.moveRange) ?? player.moveRange ?? 0);
     const attackRange = Number((stats == null ? void 0 : stats.attackRange) ?? player.attackRange ?? 0);
-    return formula.replace(/\s+/g, "").replace(/attackDamage/gi, String(attackDamage)).replace(/attackBonus/gi, String(attackBonus)).replace(/moveRange/gi, String(moveRange)).replace(/attackRange/gi, String(attackRange)).replace(/level/gi, String(level)).replace(/modSTR/gi, String(modSTR)).replace(/modDEX/gi, String(modDEX)).replace(/modCON/gi, String(modCON)).replace(/modINT/gi, String(modINT)).replace(/modWIS/gi, String(modWIS)).replace(/modCHA/gi, String(modCHA));
+    return formula.replace(/\s+/g, "").replace(/attackDamage/gi, String(attackDamage)).replace(/attackBonus/gi, String(attackBonus)).replace(/moveRange/gi, String(moveRange)).replace(/attackRange/gi, String(attackRange)).replace(/level/gi, String(level2)).replace(/modSTR/gi, String(modSTR)).replace(/modDEX/gi, String(modDEX)).replace(/modCON/gi, String(modCON)).replace(/modINT/gi, String(modINT)).replace(/modWIS/gi, String(modWIS)).replace(/modCHA/gi, String(modCHA));
   }
   function handleUseAction(action2) {
     var _a2, _b2, _c;
@@ -64270,4 +65088,4 @@ export {
   BigPool as y,
   getGlobalBounds as z
 };
-//# sourceMappingURL=index-i7bIZnin.js.map
+//# sourceMappingURL=index-CPc92wYS.js.map

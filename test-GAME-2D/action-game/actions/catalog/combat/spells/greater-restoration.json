@@ -1,6 +1,9 @@
 {
   "id": "greater-restoration",
   "name": "Restauration superieure",
+  "level": 5,
+  "school": "abjuration",
+  "components": { "verbal": true, "somatic": true, "material": true },
   "summary": "Supprime des afflictions majeures sur une cible.",
   "category": "support",
   "actionCost": { "actionType": "action", "movementCost": 0 },
@@ -15,5 +18,5 @@
     { "type": "status_apply", "target": "primary", "statusId": "greater-restoration", "durationTurns": 1 },
     { "type": "log", "message": "Restauration superieure appliquee." }
   ],
-  "tags": ["spell", "support"]
+  "tags": ["spell", "support", "cleric"]
 }

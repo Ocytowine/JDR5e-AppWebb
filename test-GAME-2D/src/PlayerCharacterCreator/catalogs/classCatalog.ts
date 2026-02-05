@@ -1,19 +1,22 @@
+// AUTO-GENERATED FILE. DO NOT EDIT MANUALLY.
+// Source of truth: character-data/classes/index.json
+
 import type { ClassDefinition, SubclassDefinition } from "../../game/classTypes";
 
 import classesIndex from "../../../character-data/classes/index.json";
-import cleric from "../../../character-data/classes/Clerc/class.json";
-import fighter from "../../../character-data/classes/Guerrier/class.json";
-import peaceDomain from "../../../character-data/classes/Clerc/peace-domain.json";
-import eldritchKnight from "../../../character-data/classes/Guerrier/eldritch-knight.json";
+import ClercClass from "../../../character-data/classes/Clerc/class.json";
+import ClercPeaceDomain from "../../../character-data/classes/Clerc/peace-domain.json";
+import GuerrierClass from "../../../character-data/classes/Guerrier/class.json";
+import GuerrierEldritchKnight from "../../../character-data/classes/Guerrier/eldritch-knight.json";
 
 const CLASS_MODULES: Record<string, ClassDefinition> = {
-  "./Clerc/class.json": cleric as ClassDefinition,
-  "./Guerrier/class.json": fighter as ClassDefinition
+  "./Clerc/class.json": ClercClass as ClassDefinition,
+  "./Guerrier/class.json": GuerrierClass as ClassDefinition
 };
 
 const SUBCLASS_MODULES: Record<string, SubclassDefinition> = {
-  "./Clerc/peace-domain.json": peaceDomain as SubclassDefinition,
-  "./Guerrier/eldritch-knight.json": eldritchKnight as SubclassDefinition
+  "./Clerc/peace-domain.json": ClercPeaceDomain as SubclassDefinition,
+  "./Guerrier/eldritch-knight.json": GuerrierEldritchKnight as SubclassDefinition
 };
 
 export function loadClassTypesFromIndex(): ClassDefinition[] {

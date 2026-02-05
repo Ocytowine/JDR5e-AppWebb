@@ -1,7 +1,7 @@
 {
   "types": [
+    "./arc-long.json",
     "./epee-longue.json",
-    "./hache-bataille.json",
-    "./arc-long.json"
+    "./hache-bataille.json"
   ]
 }

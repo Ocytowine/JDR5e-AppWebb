@@ -1,6 +1,9 @@
 {
   "id": "arcane-bolt",
   "name": "Trait Arcanique",
+  "level": 1,
+  "school": "evocation",
+  "components": { "verbal": true, "somatic": true, "material": false },
   "summary": "Placeholder: petit projectile magique.",
   "category": "attack",
   "actionCost": { "actionType": "action", "movementCost": 0 },

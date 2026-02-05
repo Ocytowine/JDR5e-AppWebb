@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "node server.js",
-    "build": "vite build",
+    "build": "node scripts/gen-materiel-catalog.js && node scripts/gen-class-catalog.js && vite build",
+    "gen:class-catalog": "node scripts/gen-class-catalog.js",
+    "gen:materiel-catalog": "node scripts/gen-materiel-catalog.js",
     "preview": "vite preview"
   },
   "dependencies": {

@@ -1,6 +1,9 @@
 {
   "id": "minor-ward",
   "name": "Garde Mineure",
+  "level": 1,
+  "school": "abjuration",
+  "components": { "verbal": true, "somatic": true, "material": false },
   "summary": "Placeholder: protection temporaire.",
   "category": "support",
   "actionCost": { "actionType": "action", "movementCost": 0 },
@@ -15,5 +18,5 @@
     { "type": "status_apply", "target": "self", "statusId": "guarded", "durationTurns": 1 },
     { "type": "log", "message": "Garde mineure activee." }
   ],
-  "tags": ["spell", "defense"]
+  "tags": ["spell", "defense", "cleric"]
 }

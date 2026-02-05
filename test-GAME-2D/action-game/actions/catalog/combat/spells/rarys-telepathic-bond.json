@@ -1,6 +1,9 @@
 {
   "id": "rarys-telepathic-bond",
   "name": "Lien telepathique de Rary",
+  "level": 5,
+  "school": "divination",
+  "components": { "verbal": true, "somatic": true, "material": true },
   "summary": "Lie telepathiquement plusieurs allies.",
   "category": "support",
   "actionCost": { "actionType": "action", "movementCost": 0 },
@@ -15,5 +18,5 @@
     { "type": "status_apply", "target": "primary", "statusId": "telepathic-bond", "durationTurns": 60 },
     { "type": "log", "message": "Lien telepathique etabli." }
   ],
-  "tags": ["spell", "support"]
+  "tags": ["spell", "support", "cleric"]
 }

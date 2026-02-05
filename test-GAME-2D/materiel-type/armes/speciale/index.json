@@ -1,7 +1,7 @@
 {
   "types": [
+    "./arbalete-repetee.json",
     "./epee-elfique.json",
-    "./fouet-demon.json",
-    "./arbalete-repetee.json"
+    "./fouet-demon.json"
   ]
 }

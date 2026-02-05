@@ -1,20 +1,20 @@
 {
   "types": [
-    "./obj-grimoire.json",
-    "./obj-plume-encre.json",
-    "./obj-tenue-academique.json",
+    "./obj-besace.json",
     "./obj-bourse.json",
-    "./piece-platine.json",
-    "./piece-or.json",
+    "./obj-grimoire.json",
+    "./obj-insigne-unite.json",
+    "./obj-plume-encre.json",
+    "./obj-sac-a-dos.json",
+    "./obj-sac-voyage.json",
+    "./obj-souvenir-vole.json",
+    "./obj-symbole-sacre.json",
+    "./obj-tenue-academique.json",
+    "./obj-vetements-communs.json",
+    "./obj-vetements-voyage.json",
     "./piece-argent.json",
     "./piece-cuivre.json",
-    "./obj-vetements-communs.json",
-    "./obj-souvenir-vole.json",
-    "./obj-insigne-unite.json",
-    "./obj-vetements-voyage.json",
-    "./obj-sac-voyage.json",
-    "./obj-besace.json",
-    "./obj-sac-a-dos.json",
-    "./obj-symbole-sacre.json"
+    "./piece-or.json",
+    "./piece-platine.json"
   ]
 }

@@ -1,6 +1,9 @@
 {
   "id": "resilient-sphere",
   "name": "Sphere resiliente",
+  "level": 4,
+  "school": "evocation",
+  "components": { "verbal": true, "somatic": true, "material": true },
   "summary": "Emprisonne une cible dans une sphere protectrice.",
   "category": "control",
   "actionCost": { "actionType": "action", "movementCost": 0 },
@@ -15,5 +18,5 @@
     { "type": "status_apply", "target": "primary", "statusId": "resilient-sphere", "durationTurns": 10 },
     { "type": "log", "message": "Sphere resiliente appliquee." }
   ],
-  "tags": ["spell", "control"]
+  "tags": ["spell", "control", "cleric"]
 }

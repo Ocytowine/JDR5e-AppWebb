@@ -1,7 +1,7 @@
 {
   "types": [
     "./baton.json",
-    "./nunchaku.json",
-    "./kama.json"
+    "./kama.json",
+    "./nunchaku.json"
   ]
 }

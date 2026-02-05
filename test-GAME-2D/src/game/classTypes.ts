@@ -29,6 +29,8 @@ export interface ClassDefinition {
     preparation: "prepared" | "known";
     storage: "memory" | "innate" | "grimoire";
     focusTypes?: string[];
+    spellFilterTags?: string[];
+    freePreparedFromGrants?: boolean;
     casterProgression: "full" | "half" | "third" | "none";
     slotsByLevel?: Record<string, number[]>;
   };
@@ -56,6 +58,8 @@ export interface SubclassDefinition {
     preparation: "prepared" | "known";
     storage: "memory" | "innate" | "grimoire";
     focusTypes?: string[];
+    spellFilterTags?: string[];
+    freePreparedFromGrants?: boolean;
     casterProgression: "full" | "half" | "third" | "none";
     slotsByLevel?: Record<string, number[]>;
   };

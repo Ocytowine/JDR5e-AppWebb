@@ -1,6 +1,9 @@
 {
   "id": "sanctuary",
   "name": "Sanctuaire",
+  "level": 1,
+  "school": "abjuration",
+  "components": { "verbal": true, "somatic": true, "material": true },
   "summary": "Protege une cible contre les attaques directes.",
   "category": "support",
   "actionCost": { "actionType": "action", "movementCost": 0 },
@@ -15,5 +18,5 @@
     { "type": "status_apply", "target": "primary", "statusId": "sanctuary", "durationTurns": 10 },
     { "type": "log", "message": "Sanctuaire applique." }
   ],
-  "tags": ["spell", "defense"]
+  "tags": ["spell", "defense", "cleric"]
 }
