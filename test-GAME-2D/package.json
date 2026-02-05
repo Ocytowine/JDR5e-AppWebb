@@ -3,8 +3,9 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev": "node server.js",
-    "build": "node scripts/gen-materiel-catalog.js && node scripts/gen-class-catalog.js && vite build",
+    "dev": "node scripts/gen-action-catalog.js && node scripts/gen-materiel-catalog.js && node scripts/gen-class-catalog.js && node server.js",
+    "build": "node scripts/gen-action-catalog.js && node scripts/gen-materiel-catalog.js && node scripts/gen-class-catalog.js && vite build",
+    "gen:action-catalog": "node scripts/gen-action-catalog.js",
     "gen:class-catalog": "node scripts/gen-class-catalog.js",
     "gen:materiel-catalog": "node scripts/gen-materiel-catalog.js",
     "preview": "vite preview"

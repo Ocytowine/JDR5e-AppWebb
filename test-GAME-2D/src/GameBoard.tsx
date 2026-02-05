@@ -90,14 +90,7 @@ import {
   orientationFromRotationDeg,
   getTokenOccupiedCells
 } from "./game/footprint";
-import actionsIndex from "../action-game/actions/index.json";
-import meleeStrike from "../action-game/actions/catalog/combat/melee-strike.json";
-import throwDagger from "../action-game/actions/catalog/combat/throw-dagger.json";
-import bowShot from "../action-game/actions/catalog/combat/bow-shot.json";
-import dashAction from "../action-game/actions/catalog/movement/dash.json";
-import moveAction from "../action-game/actions/catalog/movement/move.json";
-import secondWind from "../action-game/actions/catalog/support/second-wind.json";
-import torchToggle from "../action-game/actions/catalog/items/torch-toggle.json";
+import { loadActionTypesFromIndex } from "./game/actionCatalog";
 import moveTypesIndex from "../action-game/move-types/index.json";
 import walkMoveType from "../action-game/move-types/catalog/movement/walk.json";
 import sprintMoveType from "../action-game/move-types/catalog/movement/sprint.json";
@@ -213,16 +206,6 @@ import {
 } from "./obstacleTextureHelper";
 import { preloadTokenPngTexturesFor, type TokenSpriteRequest } from "./tokenTextureHelper";
 import { preloadDecorTexturesFor } from "./svgDecorHelper";
-
-const ACTION_MODULES: Record<string, ActionDefinition> = {
-  "./catalog/combat/melee-strike.json": meleeStrike as ActionDefinition,
-  "./catalog/combat/throw-dagger.json": throwDagger as ActionDefinition,
-  "./catalog/combat/bow-shot.json": bowShot as ActionDefinition,
-  "./catalog/movement/dash.json": dashAction as ActionDefinition,
-  "./catalog/movement/move.json": moveAction as ActionDefinition,
-  "./catalog/support/second-wind.json": secondWind as ActionDefinition,
-  "./catalog/items/torch-toggle.json": torchToggle as ActionDefinition
-};
 
 const MOVE_TYPE_MODULES: Record<string, MoveTypeDefinition> = {
   "./catalog/movement/walk.json": walkMoveType as MoveTypeDefinition,
@@ -566,9 +549,11 @@ export const GameBoard: React.FC = () => {
   const [characterConfig, setCharacterConfig] = useState<Personnage>(() =>
     JSON.parse(JSON.stringify(sampleCharacter))
   );
+  const [combatCharacterConfig, setCombatCharacterConfig] = useState<Personnage | null>(null);
+  const activeCharacterConfig = combatCharacterConfig ?? characterConfig;
   const movementModes = useMemo(
-    () => getMovementModesForCharacter(characterConfig),
-    [characterConfig]
+    () => getMovementModesForCharacter(activeCharacterConfig),
+    [activeCharacterConfig]
   );
   const defaultMovementMode = movementModes[0] ?? getDefaultMovementMode();
   const defaultMovementProfile = useMemo(
@@ -586,15 +571,15 @@ export const GameBoard: React.FC = () => {
   }, [armorItems]);
   const baseCombatStats: CombatStats = useMemo(
     () => {
-      const built = buildCombatStatsFromCharacter(characterConfig, armorItemsById);
-      if (!characterConfig.combatStats) return built;
+      const built = buildCombatStatsFromCharacter(activeCharacterConfig, armorItemsById);
+      if (!activeCharacterConfig.combatStats) return built;
       return {
         ...built,
-        ...characterConfig.combatStats,
+        ...activeCharacterConfig.combatStats,
         armorClass: built.armorClass
       };
     },
-    [characterConfig, armorItemsById]
+    [activeCharacterConfig, armorItemsById]
   );
   const playerCombatStats: CombatStats = useMemo(
     () => ({
@@ -609,13 +594,13 @@ export const GameBoard: React.FC = () => {
   );
   const defaultPlayerVisionProfile: VisionProfile = useMemo(
     () =>
-      characterConfig.visionProfile ?? {
+      activeCharacterConfig.visionProfile ?? {
         shape: "cone",
         range: 100,
         apertureDeg: 180,
         lightVision: "normal"
       },
-    [characterConfig]
+    [activeCharacterConfig]
   );
 
   const [log, setLog] = useState<string[]>([]);
@@ -627,12 +612,12 @@ export const GameBoard: React.FC = () => {
   const [player, setPlayer] = useState<TokenState>({
     id: "player-1",
     type: "player",
-    appearance: characterConfig.appearance,
-    actionIds: Array.isArray(characterConfig.actionIds)
-      ? characterConfig.actionIds
+    appearance: activeCharacterConfig.appearance,
+    actionIds: Array.isArray(activeCharacterConfig.actionIds)
+      ? activeCharacterConfig.actionIds
       : [],
-    reactionIds: Array.isArray(characterConfig.reactionIds)
-      ? characterConfig.reactionIds
+    reactionIds: Array.isArray(activeCharacterConfig.reactionIds)
+      ? activeCharacterConfig.reactionIds
       : [],
     x: 0,
     y: Math.floor(GRID_ROWS / 2),
@@ -644,7 +629,7 @@ export const GameBoard: React.FC = () => {
     attackDamage: playerCombatStats.attackDamage,
     attackRange: playerCombatStats.attackRange,
     maxAttacksPerTurn: playerCombatStats.maxAttacksPerTurn,
-    hp: characterConfig.pvActuels,
+    hp: activeCharacterConfig.pvActuels,
     maxHp: playerCombatStats.maxHp
   });
 
@@ -689,12 +674,12 @@ export const GameBoard: React.FC = () => {
     if (isCombatConfigured) return;
     setPlayer(prev => ({
       ...prev,
-      appearance: characterConfig.appearance,
-      actionIds: Array.isArray(characterConfig.actionIds)
-        ? characterConfig.actionIds
+      appearance: activeCharacterConfig.appearance,
+      actionIds: Array.isArray(activeCharacterConfig.actionIds)
+        ? activeCharacterConfig.actionIds
         : [],
-      reactionIds: Array.isArray(characterConfig.reactionIds)
-        ? characterConfig.reactionIds
+      reactionIds: Array.isArray(activeCharacterConfig.reactionIds)
+        ? activeCharacterConfig.reactionIds
         : [],
       movementProfile: defaultMovementProfile,
       moveRange: playerCombatStats.moveRange,
@@ -703,11 +688,11 @@ export const GameBoard: React.FC = () => {
       attackDamage: playerCombatStats.attackDamage,
       attackRange: playerCombatStats.attackRange,
       maxAttacksPerTurn: playerCombatStats.maxAttacksPerTurn,
-      hp: characterConfig.pvActuels,
+      hp: activeCharacterConfig.pvActuels,
       maxHp: playerCombatStats.maxHp
     }));
   }, [
-    characterConfig,
+    activeCharacterConfig,
     defaultMovementProfile,
     defaultPlayerVisionProfile,
     playerCombatStats,
@@ -1021,8 +1006,8 @@ export const GameBoard: React.FC = () => {
     for (const t of wallTypes) map.set(t.id, t);
     return map;
   }, [wallTypes]);
-  const equippedWeaponIds = useMemo(() => getEquippedWeaponIds(characterConfig), [
-    characterConfig
+  const equippedWeaponIds = useMemo(() => getEquippedWeaponIds(activeCharacterConfig), [
+    activeCharacterConfig
   ]);
   const equippedWeapons = useMemo(
     () =>
@@ -2344,7 +2329,7 @@ export const GameBoard: React.FC = () => {
       heightMap: mapHeight,
       floorIds: mapTerrain,
       activeLevel,
-      sampleCharacter: characterConfig,
+      sampleCharacter: activeCharacterConfig,
       onLog: pushLog
     };
   }
@@ -2588,6 +2573,47 @@ export const GameBoard: React.FC = () => {
       );
       return;
     }
+    const loadActiveSavedCharacter = () => {
+      if (typeof window === "undefined") return null;
+      try {
+        const activeId = window.localStorage.getItem("jdr5e_active_sheet");
+        if (!activeId) return null;
+        const raw = window.localStorage.getItem("jdr5e_saved_sheets");
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return null;
+        const entry = parsed.find(item => item && item.id === activeId);
+        return entry?.character ?? null;
+      } catch {
+        return null;
+      }
+    };
+    const savedCharacter = loadActiveSavedCharacter();
+    const sheetValidated = Boolean((characterConfig.choiceSelections as any)?.sheetValidated);
+    const combatCharacter = savedCharacter ?? (sheetValidated ? characterConfig : sampleCharacter);
+    setCombatCharacterConfig(JSON.parse(JSON.stringify(combatCharacter)));
+    const combatMovementModes = getMovementModesForCharacter(combatCharacter);
+    const combatDefaultMovementMode = combatMovementModes[0] ?? getDefaultMovementMode();
+    const combatDefaultMovementProfile = buildMovementProfileFromMode(combatDefaultMovementMode);
+    const combatVisionProfile =
+      combatCharacter.visionProfile ?? {
+        shape: "cone",
+        range: 100,
+        apertureDeg: 180,
+        lightVision: "normal"
+      };
+    const combatBuiltStats = buildCombatStatsFromCharacter(combatCharacter, armorItemsById);
+    const combatBaseStats = combatCharacter.combatStats
+      ? { ...combatBuiltStats, ...combatCharacter.combatStats, armorClass: combatBuiltStats.armorClass }
+      : combatBuiltStats;
+    const combatPlayerStats: CombatStats = {
+      ...combatBaseStats,
+      moveRange: combatDefaultMovementProfile.speed,
+      maxHp: combatBaseStats.maxHp,
+      actionsPerTurn: combatBaseStats.actionsPerTurn ?? 1,
+      bonusActionsPerTurn: combatBaseStats.bonusActionsPerTurn ?? 1,
+      actionRules: combatBaseStats.actionRules ?? { forbidSecondAttack: true }
+    };
 
     let grid = { ...mapGrid };
     let map = generateBattleMap({
@@ -2627,6 +2653,18 @@ export const GameBoard: React.FC = () => {
 
     setPlayer(prev => ({
       ...prev,
+      appearance: combatCharacter.appearance,
+      actionIds: Array.isArray(combatCharacter.actionIds) ? combatCharacter.actionIds : [],
+      reactionIds: Array.isArray(combatCharacter.reactionIds) ? combatCharacter.reactionIds : [],
+      movementProfile: combatDefaultMovementProfile,
+      moveRange: combatPlayerStats.moveRange,
+      visionProfile: combatVisionProfile,
+      combatStats: combatPlayerStats,
+      attackDamage: combatPlayerStats.attackDamage,
+      attackRange: combatPlayerStats.attackRange,
+      maxAttacksPerTurn: combatPlayerStats.maxAttacksPerTurn,
+      hp: combatCharacter.pvActuels,
+      maxHp: combatPlayerStats.maxHp,
       x: map.playerStart.x,
       y: map.playerStart.y
     }));
@@ -2679,8 +2717,8 @@ export const GameBoard: React.FC = () => {
     seenTargetsByActorRef.current.clear();
     enemyTurnPauseRef.current = null;
     setPlayerResources({ "bandolier:dagger": 3, "gear:torch": 1 });
-    setPathLimit(defaultMovementProfile.speed);
-    setBasePathLimit(defaultMovementProfile.speed);
+    setPathLimit(combatDefaultMovementProfile.speed);
+    setBasePathLimit(combatDefaultMovementProfile.speed);
     setMovementSpent(0);
 
     if (newEnemies.length === 0) {
@@ -2720,7 +2758,7 @@ export const GameBoard: React.FC = () => {
   function rollInitialInitiativeIfNeeded() {
     if (hasRolledInitiative) return;
 
-    const playerMod = getCharacterAbilityMod(characterConfig, "dex");
+    const playerMod = getCharacterAbilityMod(activeCharacterConfig, "dex");
     const rollD20 = () => Math.floor(Math.random() * 20) + 1;
 
     const pjRoll = rollD20();
@@ -3035,25 +3073,7 @@ export const GameBoard: React.FC = () => {
   // -----------------------------------------------------------
 
   useEffect(() => {
-    const indexed = Array.isArray((actionsIndex as any).actions)
-      ? ((actionsIndex as any).actions as string[])
-      : [];
-
-    const loaded: ActionDefinition[] = [];
-    for (const path of indexed) {
-      const mod = ACTION_MODULES[path];
-      if (mod) {
-        loaded.push(mod);
-      } else {
-        console.warn("[actions] Action path missing in bundle:", path);
-      }
-    }
-
-    if (loaded.length === 0) {
-      console.warn("[actions] No actions loaded from index.json");
-    }
-
-    setActionsCatalog(loaded);
+    setActionsCatalog(loadActionTypesFromIndex());
   }, []);
 
   useEffect(() => {
@@ -3309,7 +3329,7 @@ export const GameBoard: React.FC = () => {
   }
 
   function rollSoloInitiative() {
-    const playerMod = getCharacterAbilityMod(characterConfig, "dex");
+    const playerMod = getCharacterAbilityMod(activeCharacterConfig, "dex");
     const rollD20 = () => Math.floor(Math.random() * 20) + 1;
     const pjRoll = rollD20();
     const pjTotal = pjRoll + playerMod;
@@ -3866,14 +3886,14 @@ export const GameBoard: React.FC = () => {
 
   function resolvePlayerFormula(formula: string): string {
     const stats = player.combatStats;
-    const fallbackStats = characterConfig.combatStats ?? null;
+    const fallbackStats = activeCharacterConfig.combatStats ?? null;
     const level = Number(stats?.level ?? fallbackStats?.level ?? 1) || 1;
-    const modSTR = Number(stats?.mods?.str ?? getCharacterAbilityMod(characterConfig, "str"));
-    const modDEX = Number(stats?.mods?.dex ?? getCharacterAbilityMod(characterConfig, "dex"));
-    const modCON = Number(stats?.mods?.con ?? getCharacterAbilityMod(characterConfig, "con"));
-    const modINT = Number(stats?.mods?.int ?? getCharacterAbilityMod(characterConfig, "int"));
-    const modWIS = Number(stats?.mods?.wis ?? getCharacterAbilityMod(characterConfig, "wis"));
-    const modCHA = Number(stats?.mods?.cha ?? getCharacterAbilityMod(characterConfig, "cha"));
+    const modSTR = Number(stats?.mods?.str ?? getCharacterAbilityMod(activeCharacterConfig, "str"));
+    const modDEX = Number(stats?.mods?.dex ?? getCharacterAbilityMod(activeCharacterConfig, "dex"));
+    const modCON = Number(stats?.mods?.con ?? getCharacterAbilityMod(activeCharacterConfig, "con"));
+    const modINT = Number(stats?.mods?.int ?? getCharacterAbilityMod(activeCharacterConfig, "int"));
+    const modWIS = Number(stats?.mods?.wis ?? getCharacterAbilityMod(activeCharacterConfig, "wis"));
+    const modCHA = Number(stats?.mods?.cha ?? getCharacterAbilityMod(activeCharacterConfig, "cha"));
     const attackDamage = Number(stats?.attackDamage ?? player.attackDamage ?? 0);
     const attackBonus = Number(stats?.attackBonus ?? 0);
     const moveRange = Number(stats?.moveRange ?? player.moveRange ?? 0);
@@ -5447,7 +5467,7 @@ export const GameBoard: React.FC = () => {
       heightMap: mapHeight,
       floorIds: mapTerrain,
       activeLevel,
-      sampleCharacter: characterConfig,
+      sampleCharacter: activeCharacterConfig,
       onLog: pushLog,
       emitEvent: evt => {
         recordCombatEvent({
@@ -7060,7 +7080,7 @@ export const GameBoard: React.FC = () => {
           heightMap: mapHeight,
           floorIds: mapTerrain,
           activeLevel,
-          sampleCharacter: characterConfig,
+      sampleCharacter: activeCharacterConfig,
           onLog: pushLog,
           emitEvent: evt => {
             recordCombatEvent({
@@ -7944,7 +7964,7 @@ function handleEndPlayerTurn() {
       return;
     }
 
-    const modForce = getCharacterAbilityMod(characterConfig, "str");
+    const modForce = getCharacterAbilityMod(activeCharacterConfig, "str");
     const forceDc =
       typeof interaction.forceDc === "number" ? interaction.forceDc : null;
     const needsCheck = interaction.kind === "break" && forceDc !== null;
@@ -8003,7 +8023,7 @@ function handleEndPlayerTurn() {
         getObstacleDistance: getObstacleChebyshevDistance
       })
     : null;
-  const forceMod = getCharacterAbilityMod(characterConfig, "str");
+  const forceMod = getCharacterAbilityMod(activeCharacterConfig, "str");
   const interactionState =
     interactionMode === "interact-select"
       ? interactionMenuItems.length > 0
@@ -8729,7 +8749,7 @@ function handleEndPlayerTurn() {
                 open={sheetOpen}
                 anchorX={0}
                 anchorY={0}
-                character={characterConfig}
+                character={activeCharacterConfig}
                 player={player}
                 equippedWeapons={equippedWeapons}
                 actionsRemaining={Math.max(

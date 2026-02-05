@@ -46,6 +46,7 @@ export function CharacterSheetWindow(props: {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [pos, setPos] = useState<{ left: number; top: number }>({ left: 8, top: 8 });
   const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [showCharacterJson, setShowCharacterJson] = useState<boolean>(false);
   const dragRef = useRef<{
     startClientX: number;
     startClientY: number;
@@ -173,6 +174,43 @@ export function CharacterSheetWindow(props: {
           ×
         </button>
       </div>
+      <div style={{ marginTop: 8, display: "flex", justifyContent: "flex-end" }}>
+        <button
+          type="button"
+          onClick={() => setShowCharacterJson(prev => !prev)}
+          style={{
+            padding: "6px 10px",
+            borderRadius: 8,
+            border: "1px solid rgba(255,255,255,0.15)",
+            background: "rgba(255,255,255,0.08)",
+            color: "#f5f5f5",
+            cursor: "pointer",
+            fontSize: 12,
+            fontWeight: 700
+          }}
+        >
+          {showCharacterJson ? "Masquer le JSON" : "Afficher le JSON"}
+        </button>
+      </div>
+      {showCharacterJson && (
+        <pre
+          style={{
+            marginTop: 8,
+            maxHeight: 260,
+            overflow: "auto",
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+            fontSize: 11,
+            color: "rgba(255,255,255,0.8)",
+            background: "#0f0f19",
+            border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: 8,
+            padding: 8
+          }}
+        >
+          {JSON.stringify(props.character, null, 2)}
+        </pre>
+      )}
 
       <div style={{ marginTop: 10 }}>
         <div style={{ fontSize: 12, fontWeight: 900, color: "#fff" }}>Etat</div>

@@ -3479,6 +3479,83 @@ export function CombatSetupScreen(props: {
   }, [magicSources.length, activeMagicTab]);
   const canEditSkills = !isSectionLocked("skills") && skillsMode !== "normal";
   const canEditMasteries = !isSectionLocked("masteries") && masteriesMode !== "normal";
+
+  const SAVED_SHEETS_KEY = "jdr5e_saved_sheets";
+  const ACTIVE_SHEET_KEY = "jdr5e_active_sheet";
+  type SavedSheet = {
+    id: string;
+    name: string;
+    updatedAt: string;
+    character: Personnage;
+  };
+  const [savedSheets, setSavedSheets] = useState<SavedSheet[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = window.localStorage.getItem(SAVED_SHEETS_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? (parsed as SavedSheet[]) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [activeSheetId, setActiveSheetId] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    return window.localStorage.getItem(ACTIVE_SHEET_KEY) ?? "";
+  });
+  const [sheetNameInput, setSheetNameInput] = useState("");
+
+  const persistSheets = (next: SavedSheet[]) => {
+    setSavedSheets(next);
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(SAVED_SHEETS_KEY, JSON.stringify(next));
+    } catch {
+      // ignore storage errors
+    }
+  };
+  const persistActiveSheetId = (id: string) => {
+    setActiveSheetId(id);
+    if (typeof window === "undefined") return;
+    try {
+      if (!id) {
+        window.localStorage.removeItem(ACTIVE_SHEET_KEY);
+      } else {
+        window.localStorage.setItem(ACTIVE_SHEET_KEY, id);
+      }
+    } catch {
+      // ignore storage errors
+    }
+  };
+  const saveCurrentSheet = () => {
+    const nameRaw = sheetNameInput.trim();
+    const name =
+      nameRaw ||
+      `Fiche ${new Date().toLocaleString("fr-FR", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit"
+      })}`;
+    const entry: SavedSheet = {
+      id: createInstanceId("sheet"),
+      name,
+      updatedAt: new Date().toISOString(),
+      character: JSON.parse(JSON.stringify(props.character))
+    };
+    const next = [entry, ...savedSheets];
+    persistSheets(next);
+    setSheetNameInput("");
+    persistActiveSheetId(entry.id);
+  };
+  const deleteSheet = (id: string) => {
+    const next = savedSheets.filter(sheet => sheet.id !== id);
+    persistSheets(next);
+    if (activeSheetId === id) {
+      persistActiveSheetId("");
+    }
+  };
   const setAsiSelection = (
     key: string,
     next: { type: "asi" | "feat"; stats?: Record<string, number> }
@@ -3894,6 +3971,140 @@ export function CombatSetupScreen(props: {
           gap: 12
         }}
       >
+        <div
+          style={{
+            borderRadius: 8,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(10,10,16,0.7)",
+            padding: 10,
+            display: "flex",
+            flexDirection: "column",
+            gap: 8
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 800 }}>Fiches sauvegardees</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <input
+              type="text"
+              placeholder="Nom de la fiche"
+              value={sheetNameInput}
+              onChange={e => setSheetNameInput(e.target.value)}
+              style={{
+                flex: "1 1 220px",
+                background: "#0f0f19",
+                color: "#f5f5f5",
+                border: "1px solid #333",
+                borderRadius: 6,
+                padding: "6px 8px",
+                fontSize: 12
+              }}
+            />
+            <button
+              type="button"
+              onClick={saveCurrentSheet}
+              style={{
+                padding: "6px 10px",
+                borderRadius: 6,
+                border: "1px solid rgba(255,255,255,0.15)",
+                background: "rgba(46, 204, 113, 0.16)",
+                color: "#f5f5f5",
+                cursor: "pointer",
+                fontSize: 12,
+                fontWeight: 700
+              }}
+            >
+              Sauvegarder
+            </button>
+            {activeSheetId && (
+              <button
+                type="button"
+                onClick={() => persistActiveSheetId("")}
+                style={{
+                  padding: "6px 10px",
+                  borderRadius: 6,
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  background: "rgba(231, 76, 60, 0.18)",
+                  color: "#f5f5f5",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  fontWeight: 700
+                }}
+              >
+                Desactiver
+              </button>
+            )}
+          </div>
+          {savedSheets.length === 0 ? (
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+              Aucune fiche sauvegardee.
+            </div>
+          ) : (
+            <div style={{ display: "grid", gap: 6 }}>
+              {savedSheets.map(sheet => (
+                <div
+                  key={sheet.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 8,
+                    padding: "6px 8px",
+                    borderRadius: 6,
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    background:
+                      sheet.id === activeSheetId ? "rgba(79,125,242,0.18)" : "rgba(12,12,18,0.6)"
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700 }}>
+                      {sheet.name}
+                    </div>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.6)" }}>
+                      {new Date(sheet.updatedAt).toLocaleString("fr-FR")}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button
+                      type="button"
+                      onClick={() => persistActiveSheetId(sheet.id)}
+                      style={{
+                        padding: "4px 8px",
+                        borderRadius: 6,
+                        border: "1px solid rgba(255,255,255,0.15)",
+                        background:
+                          sheet.id === activeSheetId
+                            ? "rgba(46, 204, 113, 0.18)"
+                            : "rgba(255,255,255,0.08)",
+                        color: "#f5f5f5",
+                        cursor: "pointer",
+                        fontSize: 11,
+                        fontWeight: 700
+                      }}
+                    >
+                      {sheet.id === activeSheetId ? "Active" : "Activer"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteSheet(sheet.id)}
+                      style={{
+                        padding: "4px 8px",
+                        borderRadius: 6,
+                        border: "1px solid rgba(255,255,255,0.15)",
+                        background: "rgba(255,255,255,0.08)",
+                        color: "#f5f5f5",
+                        cursor: "pointer",
+                        fontSize: 11,
+                        fontWeight: 700
+                      }}
+                    >
+                      Supprimer
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {[{ id: "map", label: "Carte" }, { id: "player", label: "Joueur" }].map(
             tab => {

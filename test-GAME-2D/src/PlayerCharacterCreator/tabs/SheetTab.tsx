@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { spellCatalog } from "../../game/spellCatalog";
 import type { Personnage } from "../../types";
 import type { ClassDefinition, SubclassDefinition } from "../../game/classTypes";
@@ -126,6 +126,7 @@ export function SheetTab(props: {
     getSlotLabel,
     formatEquipmentLabel
   } = props;
+  const [showCharacterJson, setShowCharacterJson] = useState(false);
 
   return (
 <>
@@ -897,6 +898,41 @@ export function SheetTab(props: {
                         >
                           Valider la fiche complete
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowCharacterJson(prev => !prev)}
+                          style={{
+                            padding: "6px 10px",
+                            borderRadius: 8,
+                            border: "1px solid rgba(255,255,255,0.15)",
+                            background: "rgba(255,255,255,0.08)",
+                            color: "#f5f5f5",
+                            cursor: "pointer",
+                            fontSize: 12,
+                            fontWeight: 700
+                          }}
+                        >
+                          {showCharacterJson ? "Masquer le JSON" : "Afficher le JSON"}
+                        </button>
+                        {showCharacterJson && (
+                          <pre
+                            style={{
+                              margin: 0,
+                              maxHeight: 280,
+                              overflow: "auto",
+                              whiteSpace: "pre-wrap",
+                              wordBreak: "break-word",
+                              fontSize: 11,
+                              color: "rgba(255,255,255,0.8)",
+                              background: "#0f0f19",
+                              border: "1px solid rgba(255,255,255,0.12)",
+                              borderRadius: 8,
+                              padding: 8
+                            }}
+                          >
+                            {JSON.stringify({ ...character, choiceSelections }, null, 2)}
+                          </pre>
+                        )}
                       </div>
                     </>
                   );
