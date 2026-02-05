@@ -1,0 +1,10 @@
+Monnaies
+Les pièces communes ont différentes dénominations en fonction de la valeur du métal à partir duquel elles sont fabriquées. Les trois pièces de monnaie les plus courantes sont la pièce d'or (po), la pièce d'argent (pa) et la pièce de cuivre (pc).
+
+Avec une pièce d'or, un personnage peut acheter un sac de couchage, 15 mètres de bonne corde ou une chèvre. Un artisan qualifié (mais pas exceptionnel) peut gagner une pièce d'or par jour. La pièce d'or est l'unité de mesure standard de la richesse, même si la pièce elle-même n'est pas couramment utilisée. Lorsque les marchands discutent d'opérations impliquant des biens ou des services d'une valeur de centaines ou de milliers de pièces d'or, les transactions n'impliquent généralement pas l'échange de pièces physiques. La pièce en or est plutôt une mesure standard de la valeur, et l'échange réel est en lingots d'or, lettres de crédit ou biens de valeur. Une pièce d'or vaut dix pièces d'argent, la pièce la plus répandue parmi les gens du peuple. Une pièce d'argent est le salaire d'un ouvrier pour une demi-journée, une fiole d'huile pour une lampe ou une nuit de repos dans une auberge pauvre. Une pièce d'argent vaut dix pièces de cuivre, la pièce la plus courante chez les ouvriers et les mendiants. Un seul morceau de cuivre achète une bougie, une torche ou un morceau de craie.
+
+Il existe également des pièces moins communes faites d'autres métaux précieux et qui apparaissent parfois dans les trésors. La pièce d'électrum (pe) et la pièce de platine (pp) proviennent d'empires déchus et de royaumes perdus, c'est pourquoi elles suscitent parfois méfiance et scepticisme lorsqu'elles sont utilisées dans les transactions. Une pièce d'électrum vaut cinq pièces d'argent, et une pièce de platine vaut dix pièces d'or.
+
+Une pièce standard pèse environ 10 grammes, donc cent pièces pèsent un kilogramme.
+
+Change standard : 1 po = 10 pa = 100 pc et 1 pp = 10 po = 20 pe

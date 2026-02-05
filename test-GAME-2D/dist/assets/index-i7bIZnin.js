@@ -1,4 +1,4 @@
-const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/browserAll-CBRM1BWv.js","assets/webworkerAll-CeqkJI0U.js","assets/colorToUniform-B2b8-1Ah.js","assets/WebGPURenderer-BaT0JHcV.js","assets/SharedSystems-CZtCX14E.js","assets/WebGLRenderer-DHnecu6Q.js"])))=>i.map(i=>d[i]);
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/browserAll-cDDJYriK.js","assets/webworkerAll-BGIBy6qI.js","assets/colorToUniform-B2b8-1Ah.js","assets/WebGPURenderer-CBWyNK8t.js","assets/SharedSystems-CGtKPOKy.js","assets/WebGLRenderer-DI7RQcje.js"])))=>i.map(i=>d[i]);
 var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key2, value2) => key2 in obj ? __defProp(obj, key2, { enumerable: true, configurable: true, writable: true, value: value2 }) : obj[key2] = value2;
 var __publicField = (obj, key2, value2) => __defNormalProp(obj, typeof key2 !== "symbol" ? key2 + "" : key2, value2);
@@ -7156,58 +7156,18 @@ const sampleCharacter = {
     collier: null,
     bijou_1: null,
     bijou_2: null,
-    paquetage: null
+    paquetage: null,
+    ceinture_bourse_1: null,
+    ceinture_bourse_2: null
   },
   armesDefaut: {
     main_droite: "epee-longue",
     main_gauche: "dague",
     mains: null
   },
-  equipmentAuto: [
-    "obj_arme_endommagee",
-    "obj_insigne_unite",
-    "obj_vetements_voyage",
-    "obj_bourse_10po"
-  ],
+  equipmentAuto: [],
   equipmentManual: [],
-  inventoryItems: [
-    {
-      id: "obj_arme_endommagee",
-      type: "object",
-      qty: 1,
-      source: "auto",
-      equippedSlot: null,
-      storedIn: null,
-      isPrimaryWeapon: false
-    },
-    {
-      id: "obj_insigne_unite",
-      type: "object",
-      qty: 1,
-      source: "auto",
-      equippedSlot: null,
-      storedIn: null,
-      isPrimaryWeapon: false
-    },
-    {
-      id: "obj_vetements_voyage",
-      type: "object",
-      qty: 1,
-      source: "auto",
-      equippedSlot: null,
-      storedIn: null,
-      isPrimaryWeapon: false
-    },
-    {
-      id: "obj_bourse_10po",
-      type: "object",
-      qty: 1,
-      source: "auto",
-      equippedSlot: null,
-      storedIn: null,
-      isPrimaryWeapon: false
-    }
-  ],
+  inventoryItems: [],
   Inventaire: {
     id: "",
     idUnique: "",
@@ -8273,9 +8233,9 @@ const types$c = ["./brute.json", "./archer.json", "./assassin.json", "./ghost.js
 const enemyTypesIndex = {
   types: types$c
 };
-const id$1W = "brute";
-const label$1K = "Brute";
-const description$D = "Frontliner robuste qui avance pour engager le joueur.";
+const id$1_ = "brute";
+const label$1O = "Brute";
+const description$F = "Frontliner robuste qui avance pour engager le joueur.";
 const aiRole$3 = "brute";
 const actions$4 = ["move", "melee-strike"];
 const reactionIds$3 = ["opportunity-attack"];
@@ -8288,9 +8248,9 @@ const movementModes$3 = { "walk": 3 };
 const movement$5 = { "type": "ground", "speed": 3, "canPassThroughWalls": false, "canPassThroughEntities": false, "canStopOnOccupiedTile": false };
 const vision$5 = { "shape": "cone", "range": 100, "apertureDeg": 180, "canSeeInDark": false, "lightVision": "normal" };
 const bruteType = {
-  id: id$1W,
-  label: label$1K,
-  description: description$D,
+  id: id$1_,
+  label: label$1O,
+  description: description$F,
   aiRole: aiRole$3,
   actions: actions$4,
   reactionIds: reactionIds$3,
@@ -8303,9 +8263,9 @@ const bruteType = {
   movement: movement$5,
   vision: vision$5
 };
-const id$1V = "archer";
-const label$1J = "Archer";
-const description$C = "Tireur qui prefere garder une distance de securite avant de frapper.";
+const id$1Z = "archer";
+const label$1N = "Archer";
+const description$E = "Tireur qui prefere garder une distance de securite avant de frapper.";
 const aiRole$2 = "archer";
 const actions$3 = ["move", "bow-shot", "melee-strike"];
 const reactionIds$2 = ["guard-strike"];
@@ -8318,9 +8278,9 @@ const movementModes$2 = { "walk": 2 };
 const movement$4 = { "type": "ground", "speed": 2, "canPassThroughWalls": false, "canPassThroughEntities": false, "canStopOnOccupiedTile": false };
 const vision$4 = { "shape": "cone", "range": 100, "apertureDeg": 180, "canSeeInDark": false, "lightVision": "normal" };
 const archerType = {
-  id: id$1V,
-  label: label$1J,
-  description: description$C,
+  id: id$1Z,
+  label: label$1N,
+  description: description$E,
   aiRole: aiRole$2,
   actions: actions$3,
   reactionIds: reactionIds$2,
@@ -8333,9 +8293,9 @@ const archerType = {
   movement: movement$4,
   vision: vision$4
 };
-const id$1U = "assassin";
-const label$1I = "Assassin";
-const description$B = "Frappeur rapide qui cherche a se rapprocher pour porter un coup decisif.";
+const id$1Y = "assassin";
+const label$1M = "Assassin";
+const description$D = "Frappeur rapide qui cherche a se rapprocher pour porter un coup decisif.";
 const aiRole$1 = "assassin";
 const actions$2 = ["move", "melee-strike"];
 const reactionIds$1 = ["opportunity-attack"];
@@ -8348,9 +8308,9 @@ const movementModes$1 = { "walk": 3 };
 const movement$3 = { "type": "ground", "speed": 3, "canPassThroughWalls": false, "canPassThroughEntities": true, "canStopOnOccupiedTile": false };
 const vision$3 = { "shape": "cone", "range": 100, "apertureDeg": 180, "canSeeInDark": false, "lightVision": "normal" };
 const assassinType = {
-  id: id$1U,
-  label: label$1I,
-  description: description$B,
+  id: id$1Y,
+  label: label$1M,
+  description: description$D,
   aiRole: aiRole$1,
   actions: actions$2,
   reactionIds: reactionIds$1,
@@ -8363,9 +8323,9 @@ const assassinType = {
   movement: movement$3,
   vision: vision$3
 };
-const id$1T = "ghost";
-const label$1H = "Fantome";
-const description$A = "Esprit intangible capable de traverser les autres creatures.";
+const id$1X = "ghost";
+const label$1L = "Fantome";
+const description$C = "Esprit intangible capable de traverser les autres creatures.";
 const aiRole = "ghost";
 const actions$1 = ["move", "melee-strike"];
 const reactionIds = ["guard-strike"];
@@ -8378,9 +8338,9 @@ const movementModes = { "ghost": 4 };
 const movement$2 = { "type": "ghost", "speed": 4, "canPassThroughWalls": true, "canPassThroughEntities": true, "canStopOnOccupiedTile": false };
 const vision$2 = { "shape": "circle", "range": 100, "canSeeInDark": true, "lightVision": "darkvision" };
 const ghostType = {
-  id: id$1T,
-  label: label$1H,
-  description: description$A,
+  id: id$1X,
+  label: label$1L,
+  description: description$C,
   aiRole,
   actions: actions$1,
   reactionIds,
@@ -8397,338 +8357,338 @@ const types$b = ["./fence-wood.json", "./tree-oak.json", "./bush.json", "./log.j
 const obstaclesIndex = {
   types: types$b
 };
-const id$1S = "fence-wood";
-const label$1G = "Cloture en bois";
-const category$16 = "structure";
-const tags$1v = ["fence", "wood", "structure"];
+const id$1W = "fence-wood";
+const label$1K = "Cloture en bois";
+const category$1a = "structure";
+const tags$1z = ["fence", "wood", "structure"];
 const blocking$n = { "movement": true, "vision": false, "attacks": false };
 const durability$n = { "destructible": true, "maxHp": 8, "ac": 10 };
 const variants$n = [{ "id": "1", "label": "Segment 1", "footprint": [{ "x": 0, "y": 0 }], "rotatable": true }, { "id": "2", "label": "Segment 2", "footprint": [{ "x": 0, "y": 0 }, { "x": 1, "y": 0 }], "rotatable": true }];
 const appearance$p = { "spriteKey": "obstacle:fence-wood", "heightClass": "low", "tokenScale": { "min": 80, "default": 100, "max": 150 } };
 const spawnRules$g = { "weight": 2, "cluster": { "min": 1, "max": 6 }, "shapeHint": "line", "avoidNearTokens": true };
 const fenceWood = {
-  id: id$1S,
-  label: label$1G,
-  category: category$16,
-  tags: tags$1v,
+  id: id$1W,
+  label: label$1K,
+  category: category$1a,
+  tags: tags$1z,
   blocking: blocking$n,
   durability: durability$n,
   variants: variants$n,
   appearance: appearance$p,
   spawnRules: spawnRules$g
 };
-const id$1R = "tree-oak";
-const label$1F = "Chêne";
-const category$15 = "vegetation";
-const tags$1u = ["tree", "vegetation", "wood"];
+const id$1V = "tree-oak";
+const label$1J = "Chêne";
+const category$19 = "vegetation";
+const tags$1y = ["tree", "vegetation", "wood"];
 const blocking$m = { "movement": true, "vision": true, "attacks": true };
 const durability$m = { "destructible": true, "maxHp": 22, "ac": 12 };
 const variants$m = [{ "id": "base", "label": "Tronc", "footprint": [{ "x": 0, "y": 0 }], "rotatable": true }];
 const appearance$o = { "randomRotation": true, "paletteId": "default", "palettes": { "default": { "layers": { "canopy": { "alpha": 0.6, "tintRange": { "dark": 3107631, "light": 7323487 } }, "trunk": { "tintRange": { "dark": 5978654, "light": 9132587 } } } }, "autumn": { "layers": { "canopy": { "alpha": 0.75, "tintRange": { "dark": 10709547, "light": 15778138 } }, "trunk": { "tintRange": { "dark": 5978654, "light": 9132587 } } } }, "leafless": { "layers": { "canopy": { "alpha": 0.75, "visible": false } } } }, "spriteGrid": { "tilesX": 3, "tilesY": 3 }, "shadowSpriteLeafy": "obstacle:tree-oak-canopy-shadow", "shadowSpriteLeafless": "obstacle:tree-oak-trunk-shadow", "shadowMode": "tall", "heightClass": "tall", "shadowStretch": 1, "layers": [{ "id": "trunk", "spriteKey": "obstacle:tree-oak-trunk" }, { "id": "canopy", "spriteKey": "obstacle:tree-oak-canopy", "z": 1, "renderLayer": "overhead", "visible": "hideWhenTokenBelow" }], "tokenScale": { "min": 80, "default": 90, "max": 100 } };
 const spawnRules$f = { "weight": 6, "cluster": { "min": 1, "max": 5 }, "shapeHint": "scatter", "avoidNearTokens": true };
 const treeOak = {
-  id: id$1R,
-  label: label$1F,
-  category: category$15,
-  tags: tags$1u,
+  id: id$1V,
+  label: label$1J,
+  category: category$19,
+  tags: tags$1y,
   blocking: blocking$m,
   durability: durability$m,
   variants: variants$m,
   appearance: appearance$o,
   spawnRules: spawnRules$f
 };
-const id$1Q = "bush";
-const label$1E = "Buisson";
-const category$14 = "vegetation";
-const tags$1t = ["bush", "vegetation", "nature"];
+const id$1U = "bush";
+const label$1I = "Buisson";
+const category$18 = "vegetation";
+const tags$1x = ["bush", "vegetation", "nature"];
 const blocking$l = { "movement": true, "vision": false, "attacks": false };
 const durability$l = { "destructible": true, "maxHp": 5, "ac": 10 };
 const variants$l = [{ "id": "base", "label": "Buisson", "footprint": [{ "x": 0, "y": 0 }], "rotatable": true }];
 const appearance$n = { "randomRotation": true, "heightClass": "low", "shadowStretch": 1.2, "paletteId": "default", "palettes": { "default": { "layers": { "bush": { "tintRange": { "dark": 2926900, "light": 7063940 } } } }, "autumn": { "layers": { "bush": { "tintRange": { "dark": 10246534, "light": 15243711 } } } }, "leafless": { "layers": { "bush": { "tintRange": { "dark": 5723992, "light": 10790052 } } } } }, "layers": [{ "id": "bush", "spriteKey": "obstacle:bush" }], "tokenScale": { "min": 100, "default": 120, "max": 135 } };
 const spawnRules$e = { "weight": 4, "cluster": { "min": 1, "max": 6 }, "shapeHint": "scatter", "avoidNearTokens": true };
 const bush = {
-  id: id$1Q,
-  label: label$1E,
-  category: category$14,
-  tags: tags$1t,
+  id: id$1U,
+  label: label$1I,
+  category: category$18,
+  tags: tags$1x,
   blocking: blocking$l,
   durability: durability$l,
   variants: variants$l,
   appearance: appearance$n,
   spawnRules: spawnRules$e
 };
-const id$1P = "log";
-const label$1D = "Tronc";
-const category$13 = "prop";
-const tags$1s = ["log", "wood", "prop"];
+const id$1T = "log";
+const label$1H = "Tronc";
+const category$17 = "prop";
+const tags$1w = ["log", "wood", "prop"];
 const blocking$k = { "movement": true, "vision": false, "attacks": false };
 const durability$k = { "destructible": true, "maxHp": 10, "ac": 11 };
 const variants$k = [{ "id": "base", "label": "Tronc", "footprint": [{ "x": 0, "y": 0 }, { "x": 1, "y": 0 }, { "x": 2, "y": 0 }, { "x": 3, "y": 0 }, { "x": 4, "y": 0 }], "rotatable": true }];
 const appearance$m = { "randomRotation": true, "spriteKey": "obstacle:log", "spriteGrid": { "tilesX": 5, "tilesY": 1 }, "heightClass": "low" };
 const spawnRules$d = { "weight": 2, "cluster": { "min": 1, "max": 3 }, "shapeHint": "scatter", "avoidNearTokens": true };
 const log = {
-  id: id$1P,
-  label: label$1D,
-  category: category$13,
-  tags: tags$1s,
+  id: id$1T,
+  label: label$1H,
+  category: category$17,
+  tags: tags$1w,
   blocking: blocking$k,
   durability: durability$k,
   variants: variants$k,
   appearance: appearance$m,
   spawnRules: spawnRules$d
 };
-const id$1O = "rock";
-const label$1C = "Roche";
-const category$12 = "structure";
-const tags$1r = ["rock", "stone", "structure"];
+const id$1S = "rock";
+const label$1G = "Roche";
+const category$16 = "structure";
+const tags$1v = ["rock", "stone", "structure"];
 const blocking$j = { "movement": true, "vision": true, "attacks": true };
 const durability$j = { "destructible": true, "maxHp": 18, "ac": 13 };
 const variants$j = [{ "id": "base", "label": "Roche", "footprint": [{ "x": 0, "y": 0 }], "rotatable": true }];
 const appearance$l = { "randomRotation": true, "spriteKey": "obstacle:rock", "tokenScale": { "min": 80, "default": 100, "max": 150 } };
 const spawnRules$c = { "weight": 3, "cluster": { "min": 1, "max": 3 }, "shapeHint": "scatter", "avoidNearTokens": true };
 const rock = {
-  id: id$1O,
-  label: label$1C,
-  category: category$12,
-  tags: tags$1r,
+  id: id$1S,
+  label: label$1G,
+  category: category$16,
+  tags: tags$1v,
   blocking: blocking$j,
   durability: durability$j,
   variants: variants$j,
   appearance: appearance$l,
   spawnRules: spawnRules$c
 };
-const id$1N = "rubble";
-const label$1B = "Gravats";
-const category$11 = "prop";
-const tags$1q = ["rubble", "stone", "prop"];
+const id$1R = "rubble";
+const label$1F = "Gravats";
+const category$15 = "prop";
+const tags$1u = ["rubble", "stone", "prop"];
 const blocking$i = { "movement": true, "vision": false, "attacks": false };
 const durability$i = { "destructible": true, "maxHp": 8, "ac": 11 };
 const variants$i = [{ "id": "base", "label": "Gravats", "footprint": [{ "x": 0, "y": 0 }], "rotatable": true }];
 const appearance$k = { "randomRotation": true, "spriteKey": "obstacle:rubble", "heightClass": "low", "tokenScale": { "min": 80, "default": 100, "max": 150 } };
 const spawnRules$b = { "weight": 2, "cluster": { "min": 1, "max": 4 }, "shapeHint": "scatter", "avoidNearTokens": true };
 const rubble = {
-  id: id$1N,
-  label: label$1B,
-  category: category$11,
-  tags: tags$1q,
+  id: id$1R,
+  label: label$1F,
+  category: category$15,
+  tags: tags$1u,
   blocking: blocking$i,
   durability: durability$i,
   variants: variants$i,
   appearance: appearance$k,
   spawnRules: spawnRules$b
 };
-const id$1M = "stalagmite";
-const label$1A = "Stalagmite";
-const category$10 = "structure";
-const tags$1p = ["stalagmite", "cave", "stone", "structure"];
+const id$1Q = "stalagmite";
+const label$1E = "Stalagmite";
+const category$14 = "structure";
+const tags$1t = ["stalagmite", "cave", "stone", "structure"];
 const blocking$h = { "movement": true, "vision": true, "attacks": true };
 const durability$h = { "destructible": true, "maxHp": 16, "ac": 13 };
 const variants$h = [{ "id": "base", "label": "Stalagmite", "footprint": [{ "x": 0, "y": 0 }], "rotatable": true }];
 const appearance$j = { "randomRotation": true, "spriteKey": "obstacle:stalagmite", "heightClass": "tall", "tokenScale": { "min": 80, "default": 100, "max": 150 } };
 const spawnRules$a = { "weight": 2, "cluster": { "min": 1, "max": 4 }, "shapeHint": "scatter", "avoidNearTokens": true };
 const stalagmite = {
-  id: id$1M,
-  label: label$1A,
-  category: category$10,
-  tags: tags$1p,
+  id: id$1Q,
+  label: label$1E,
+  category: category$14,
+  tags: tags$1t,
   blocking: blocking$h,
   durability: durability$h,
   variants: variants$h,
   appearance: appearance$j,
   spawnRules: spawnRules$a
 };
-const id$1L = "barrel-wood";
-const label$1z = "Tonneau";
-const category$$ = "prop";
-const tags$1o = ["barrel", "wood", "prop"];
+const id$1P = "barrel-wood";
+const label$1D = "Tonneau";
+const category$13 = "prop";
+const tags$1s = ["barrel", "wood", "prop"];
 const blocking$g = { "movement": true, "vision": false, "attacks": false };
 const durability$g = { "destructible": true, "maxHp": 8, "ac": 10 };
 const variants$g = [{ "id": "base", "label": "Tonneau", "footprint": [{ "x": 0, "y": 0 }], "rotatable": true }];
 const appearance$i = { "spriteKey": "obstacle:barrel-wood", "tokenScale": { "min": 40, "default": 50, "max": 55 } };
 const spawnRules$9 = { "weight": 1, "cluster": { "min": 1, "max": 3 }, "shapeHint": "scatter", "avoidNearTokens": true };
 const barrelWood = {
-  id: id$1L,
-  label: label$1z,
-  category: category$$,
-  tags: tags$1o,
+  id: id$1P,
+  label: label$1D,
+  category: category$13,
+  tags: tags$1s,
   blocking: blocking$g,
   durability: durability$g,
   variants: variants$g,
   appearance: appearance$i,
   spawnRules: spawnRules$9
 };
-const id$1K = "crate-wood";
-const label$1y = "Caisse";
-const category$_ = "prop";
-const tags$1n = ["crate", "wood", "prop"];
+const id$1O = "crate-wood";
+const label$1C = "Caisse";
+const category$12 = "prop";
+const tags$1r = ["crate", "wood", "prop"];
 const blocking$f = { "movement": true, "vision": false, "attacks": false };
 const durability$f = { "destructible": true, "maxHp": 6, "ac": 10 };
 const variants$f = [{ "id": "base", "label": "Caisse", "footprint": [{ "x": 0, "y": 0 }], "rotatable": true }];
 const appearance$h = { "spriteKey": "obstacle:crate-wood", "tokenScale": { "min": 80, "default": 100, "max": 150 } };
 const spawnRules$8 = { "weight": 3, "cluster": { "min": 1, "max": 4 }, "shapeHint": "scatter", "avoidNearTokens": true };
 const crateWood = {
-  id: id$1K,
-  label: label$1y,
-  category: category$_,
-  tags: tags$1n,
+  id: id$1O,
+  label: label$1C,
+  category: category$12,
+  tags: tags$1r,
   blocking: blocking$f,
   durability: durability$f,
   variants: variants$f,
   appearance: appearance$h,
   spawnRules: spawnRules$8
 };
-const id$1J = "table-wood";
-const label$1x = "Table";
-const category$Z = "prop";
-const tags$1m = ["table", "wood", "prop"];
+const id$1N = "table-wood";
+const label$1B = "Table";
+const category$11 = "prop";
+const tags$1q = ["table", "wood", "prop"];
 const blocking$e = { "movement": true, "vision": false, "attacks": false };
 const durability$e = { "destructible": true, "maxHp": 10, "ac": 11 };
 const variants$e = [{ "id": "base", "label": "Table", "footprint": [{ "x": 0, "y": 0 }, { "x": 0, "y": 1 }], "rotatable": true }];
 const appearance$g = { "spriteKey": "obstacle:table-wood", "heightClass": "medium", "shadowStretch": 1.2 };
 const spawnRules$7 = { "weight": 2, "cluster": { "min": 1, "max": 3 }, "shapeHint": "room", "avoidNearTokens": true };
 const tableWood = {
-  id: id$1J,
-  label: label$1x,
-  category: category$Z,
-  tags: tags$1m,
+  id: id$1N,
+  label: label$1B,
+  category: category$11,
+  tags: tags$1q,
   blocking: blocking$e,
   durability: durability$e,
   variants: variants$e,
   appearance: appearance$g,
   spawnRules: spawnRules$7
 };
-const id$1I = "chair-wood";
-const label$1w = "Chaise";
-const category$Y = "prop";
-const tags$1l = ["chair", "wood", "prop"];
+const id$1M = "chair-wood";
+const label$1A = "Chaise";
+const category$10 = "prop";
+const tags$1p = ["chair", "wood", "prop"];
 const blocking$d = { "movement": true, "vision": false, "attacks": false };
 const durability$d = { "destructible": true, "maxHp": 4, "ac": 10 };
 const variants$d = [{ "id": "base", "label": "Chaise", "footprint": [{ "x": 0, "y": 0 }], "rotatable": true }];
 const appearance$f = { "spriteKey": "obstacle:chair-wood", "heightClass": "low" };
 const spawnRules$6 = { "weight": 2, "cluster": { "min": 1, "max": 4 }, "shapeHint": "room", "avoidNearTokens": true };
 const chairWood = {
-  id: id$1I,
-  label: label$1w,
-  category: category$Y,
-  tags: tags$1l,
+  id: id$1M,
+  label: label$1A,
+  category: category$10,
+  tags: tags$1p,
   blocking: blocking$d,
   durability: durability$d,
   variants: variants$d,
   appearance: appearance$f,
   spawnRules: spawnRules$6
 };
-const id$1H = "statue-stone";
-const label$1v = "Statue de pierre";
-const category$X = "prop";
-const tags$1k = ["statue", "stone", "prop"];
+const id$1L = "statue-stone";
+const label$1z = "Statue de pierre";
+const category$$ = "prop";
+const tags$1o = ["statue", "stone", "prop"];
 const blocking$c = { "movement": true, "vision": true, "attacks": true };
 const durability$c = { "destructible": true, "maxHp": 20, "ac": 14 };
 const variants$c = [{ "id": "base", "label": "Statue", "footprint": [{ "x": 0, "y": 0 }], "rotatable": true }];
 const appearance$e = { "spriteKey": "obstacle:statue-stone", "heightClass": "tall", "tokenScale": { "min": 80, "default": 100, "max": 150 } };
 const spawnRules$5 = { "weight": 1, "cluster": { "min": 1, "max": 2 }, "shapeHint": "room", "avoidNearTokens": true };
 const statueStone = {
-  id: id$1H,
-  label: label$1v,
-  category: category$X,
-  tags: tags$1k,
+  id: id$1L,
+  label: label$1z,
+  category: category$$,
+  tags: tags$1o,
   blocking: blocking$c,
   durability: durability$c,
   variants: variants$c,
   appearance: appearance$e,
   spawnRules: spawnRules$5
 };
-const id$1G = "torch-wall";
-const label$1u = "Torche murale";
-const category$W = "structure";
-const tags$1j = ["torch", "fire", "structure"];
+const id$1K = "torch-wall";
+const label$1y = "Torche murale";
+const category$_ = "structure";
+const tags$1n = ["torch", "fire", "structure"];
 const blocking$b = { "movement": false, "vision": false, "attacks": false };
 const durability$b = { "destructible": true, "maxHp": 3, "ac": 10 };
 const variants$b = [{ "id": "base", "label": "Torche", "footprint": [{ "x": 0, "y": 0 }], "rotatable": true }];
 const appearance$d = { "layers": [{ "id": "flame", "spriteKey": "effect:fire", "animationSpeed": 0.2, "scale": 0.55 }], "heightClass": "low", "tokenScale": { "min": 80, "default": 100, "max": 150 } };
-const effects$b = [{ "id": "fire", "enabled": true }];
+const effects$c = [{ "id": "fire", "enabled": true }];
 const spawnRules$4 = { "weight": 1, "cluster": { "min": 1, "max": 4 }, "shapeHint": "line", "avoidNearTokens": false };
 const torchWall = {
-  id: id$1G,
-  label: label$1u,
-  category: category$W,
-  tags: tags$1j,
+  id: id$1K,
+  label: label$1y,
+  category: category$_,
+  tags: tags$1n,
   blocking: blocking$b,
   durability: durability$b,
   variants: variants$b,
   appearance: appearance$d,
-  effects: effects$b,
+  effects: effects$c,
   spawnRules: spawnRules$4
 };
-const id$1F = "brazier";
-const label$1t = "Brasero";
-const category$V = "prop";
-const tags$1i = ["brazier", "fire", "prop"];
+const id$1J = "brazier";
+const label$1x = "Brasero";
+const category$Z = "prop";
+const tags$1m = ["brazier", "fire", "prop"];
 const blocking$a = { "movement": true, "vision": false, "attacks": false };
 const durability$a = { "destructible": true, "maxHp": 6, "ac": 10 };
 const variants$a = [{ "id": "base", "label": "Brasero", "footprint": [{ "x": 0, "y": 0 }], "rotatable": true }];
 const appearance$c = { "layers": [{ "id": "base", "spriteKey": "obstacle:brazier" }, { "id": "flame", "spriteKey": "effect:fire", "animationSpeed": 0.2, "scale": 0.8 }], "tokenScale": { "default": 80 } };
 const litByDefault = true;
 const interactions = [{ "id": "brazier-light", "label": "Allumer", "kind": "toggle", "cost": "bonus", "setLit": true }, { "id": "brazier-extinguish", "label": "Eteindre", "kind": "toggle", "cost": "bonus", "setLit": false }];
-const effects$a = [{ "id": "fire", "enabled": true }];
+const effects$b = [{ "id": "fire", "enabled": true }];
 const spawnRules$3 = { "weight": 1, "cluster": { "min": 1, "max": 2 }, "shapeHint": "room", "avoidNearTokens": true };
 const brazier = {
-  id: id$1F,
-  label: label$1t,
-  category: category$V,
-  tags: tags$1i,
+  id: id$1J,
+  label: label$1x,
+  category: category$Z,
+  tags: tags$1m,
   blocking: blocking$a,
   durability: durability$a,
   variants: variants$a,
   appearance: appearance$c,
   litByDefault,
   interactions,
-  effects: effects$a,
+  effects: effects$b,
   spawnRules: spawnRules$3
 };
-const id$1E = "fire-only";
-const label$1s = "Feu (test)";
-const category$U = "effect";
-const tags$1h = ["fire", "effect"];
+const id$1I = "fire-only";
+const label$1w = "Feu (test)";
+const category$Y = "effect";
+const tags$1l = ["fire", "effect"];
 const blocking$9 = { "movement": false, "vision": false, "attacks": false };
 const durability$9 = { "destructible": false, "maxHp": 1 };
 const variants$9 = [{ "id": "base", "label": "Feu", "footprint": [{ "x": 0, "y": 0 }], "rotatable": false }];
 const appearance$b = { "layers": [{ "id": "flame", "spriteKey": "effect:fire", "animationSpeed": 0.2, "scale": 0.9 }], "heightClass": "low" };
-const effects$9 = [{ "id": "fire", "enabled": true }];
+const effects$a = [{ "id": "fire", "enabled": true }];
 const fireOnly = {
-  id: id$1E,
-  label: label$1s,
-  category: category$U,
-  tags: tags$1h,
+  id: id$1I,
+  label: label$1w,
+  category: category$Y,
+  tags: tags$1l,
   blocking: blocking$9,
   durability: durability$9,
   variants: variants$9,
   appearance: appearance$b,
-  effects: effects$9
+  effects: effects$a
 };
-const id$1D = "pillar-stone";
-const label$1r = "Pilier de pierre";
-const category$T = "structure";
-const tags$1g = ["pillar", "stone", "structure"];
+const id$1H = "pillar-stone";
+const label$1v = "Pilier de pierre";
+const category$X = "structure";
+const tags$1k = ["pillar", "stone", "structure"];
 const blocking$8 = { "movement": true, "vision": true, "attacks": true };
 const durability$8 = { "destructible": true, "maxHp": 28, "ac": 14 };
 const variants$8 = [{ "id": "base", "label": "Pilier", "footprint": [{ "x": 0, "y": 0 }], "rotatable": true }];
 const appearance$a = { "spriteKey": "obstacle:pillar-stone", "heightClass": "tall", "tokenScale": { "min": 80, "default": 100, "max": 150 } };
 const spawnRules$2 = { "weight": 2, "cluster": { "min": 1, "max": 2 }, "shapeHint": "scatter", "avoidNearTokens": true };
 const pillarStone = {
-  id: id$1D,
-  label: label$1r,
-  category: category$T,
-  tags: tags$1g,
+  id: id$1H,
+  label: label$1v,
+  category: category$X,
+  tags: tags$1k,
   blocking: blocking$8,
   durability: durability$8,
   variants: variants$8,
   appearance: appearance$a,
   spawnRules: spawnRules$2
 };
-const id$1C = "stairs-stone";
-const label$1q = "Escalier";
-const category$S = "structure";
-const tags$1f = ["stairs", "connector"];
+const id$1G = "stairs-stone";
+const label$1u = "Escalier";
+const category$W = "structure";
+const tags$1j = ["stairs", "connector"];
 const blocking$7 = { "movement": false, "vision": false, "attacks": false };
 const durability$7 = { "destructible": false, "maxHp": 1 };
 const variants$7 = [{ "id": "base", "label": "Base", "footprint": [{ "x": 0, "y": 0 }], "rotatable": true }];
@@ -8736,10 +8696,10 @@ const appearance$9 = { "heightClass": "low" };
 const spawnRules$1 = { "weight": 0, "cluster": { "min": 1, "max": 1 }, "avoidNearTokens": false };
 const connects = { "from": 0, "to": 1 };
 const stairsStone = {
-  id: id$1C,
-  label: label$1q,
-  category: category$S,
-  tags: tags$1f,
+  id: id$1G,
+  label: label$1u,
+  category: category$W,
+  tags: tags$1j,
   blocking: blocking$7,
   durability: durability$7,
   variants: variants$7,
@@ -8747,20 +8707,20 @@ const stairsStone = {
   spawnRules: spawnRules$1,
   connects
 };
-const id$1B = "charette-wood";
-const label$1p = "Charette";
-const category$R = "prop";
-const tags$1e = ["prop"];
+const id$1F = "charette-wood";
+const label$1t = "Charette";
+const category$V = "prop";
+const tags$1i = ["prop"];
 const blocking$6 = { "movement": true, "vision": false, "attacks": false };
 const durability$6 = { "destructible": true, "maxHp": 18, "ac": 10 };
 const variants$6 = [{ "id": "base", "label": "Base", "footprint": [{ "x": -1, "y": -1 }, { "x": 0, "y": -1 }, { "x": -1, "y": 0 }, { "x": 0, "y": 0 }, { "x": -1, "y": 1 }, { "x": 0, "y": 1 }], "rotatable": true }];
 const appearance$8 = { "spriteKey": "obstacle:charette-wood", "tint": 13395558, "heightClass": "medium", "shadowStretch": 1.4, "spriteGrid": { "tilesX": 2, "tilesY": 3 }, "tokenScale": { "min": 90, "default": 110, "max": 140 } };
 const spawnRules = { "weight": 1, "cluster": { "min": 1, "max": 1 }, "avoidNearTokens": true };
 const charetteWood = {
-  id: id$1B,
-  label: label$1p,
-  category: category$R,
-  tags: tags$1e,
+  id: id$1F,
+  label: label$1t,
+  category: category$V,
+  tags: tags$1i,
   blocking: blocking$6,
   durability: durability$6,
   variants: variants$6,
@@ -8807,31 +8767,31 @@ const types$a = ["./fire.json", "./melee-slash.json"];
 const effectsIndex = {
   types: types$a
 };
-const id$1A = "fire";
-const label$1o = "Feu";
-const tags$1d = ["fire", "hazard"];
+const id$1E = "fire";
+const label$1s = "Feu";
+const tags$1h = ["fire", "hazard"];
 const appearance$7 = { "spriteKey": "effect:fire", "animationSpeed": 0.2, "animationLoop": true, "scaleRange": { "min": 0.8, "max": 1.15 }, "tintRange": { "dark": 16742912, "light": 16768256 }, "alphaRange": { "min": 0.85, "max": 1 } };
 const placement = { "blockedFloorTags": ["liquid"], "avoidLiquid": true };
 const hazard = { "damageFormula": "1d4", "statusRoll": { "die": 20, "trigger": 1, "statusId": "burning" }, "onTraverse": true };
 const light = { "radius": 3, "color": 16756045 };
 const fire = {
-  id: id$1A,
-  label: label$1o,
-  tags: tags$1d,
+  id: id$1E,
+  label: label$1s,
+  tags: tags$1h,
   appearance: appearance$7,
   placement,
   hazard,
   light
 };
-const id$1z = "melee-slash";
-const label$1n = "Entaille";
-const tags$1c = ["attack", "melee"];
+const id$1D = "melee-slash";
+const label$1r = "Entaille";
+const tags$1g = ["attack", "melee"];
 const appearance$6 = { "spriteKey": "effect:sword", "animationSpeed": 0.32, "animationLoop": false, "targetSize": 128, "scale": 1, "alpha": 1 };
 const durationMs = 420;
 const meleeSlash = {
-  id: id$1z,
-  label: label$1n,
-  tags: tags$1c,
+  id: id$1D,
+  label: label$1r,
+  tags: tags$1g,
   appearance: appearance$6,
   durationMs
 };
@@ -8859,23 +8819,23 @@ const types$9 = ["./burning.json", "./killer-mark.json"];
 const statusIndex = {
   types: types$9
 };
-const id$1y = "burning";
-const label$1m = "En feu";
+const id$1C = "burning";
+const label$1q = "En feu";
 const durationTurns$1 = 3;
 const damagePerTurnFormula = "1d4";
 const burning = {
-  id: id$1y,
-  label: label$1m,
+  id: id$1C,
+  label: label$1q,
   durationTurns: durationTurns$1,
   damagePerTurnFormula
 };
-const id$1x = "killer-mark";
-const label$1l = "Marque du tueur";
+const id$1B = "killer-mark";
+const label$1p = "Marque du tueur";
 const durationTurns = 9999;
 const persistUntilDeath = true;
 const killerMark = {
-  id: id$1x,
-  label: label$1l,
+  id: id$1B,
+  label: label$1p,
   durationTurns,
   persistUntilDeath
 };
@@ -8903,115 +8863,115 @@ const features = ["./catalog/cleric/channel-divinity.json", "./catalog/cleric/tu
 const featuresIndex = {
   features
 };
-const id$1w = "channel-divinity";
-const label$1k = "Channel Divinity";
+const id$1A = "channel-divinity";
+const label$1o = "Channel Divinity";
 const summary$i = "Divine power usable a limited number of times per rest.";
 const kind$6 = "resource";
-const tags$1b = ["cleric", "resource"];
+const tags$1f = ["cleric", "resource"];
 const grants$c = [{ "kind": "resource", "ids": ["channel-divinity"], "source": "channel-divinity", "meta": { "maxByLevel": { "2": 1, "6": 2, "18": 3 }, "recharge": "short_rest" } }];
 const rules$6 = { "text": "Channel Divinity uses are regained on a short rest." };
 const channelDivinity = {
-  id: id$1w,
-  label: label$1k,
+  id: id$1A,
+  label: label$1o,
   summary: summary$i,
   kind: kind$6,
-  tags: tags$1b,
+  tags: tags$1f,
   grants: grants$c,
   rules: rules$6
 };
-const id$1v = "turn-undead";
-const label$1j = "Turn Undead";
+const id$1z = "turn-undead";
+const label$1n = "Turn Undead";
 const summary$h = "Channel Divinity option that forces undead to flee.";
 const kind$5 = "action";
-const tags$1a = ["cleric", "channel-divinity"];
+const tags$1e = ["cleric", "channel-divinity"];
 const grants$b = [{ "kind": "action", "ids": ["turn-undead"], "source": "turn-undead" }];
 const rules$5 = { "text": "Requires Channel Divinity. Undead within range must flee.", "triggers": [{ "event": "on_action", "notes": "Uses Channel Divinity resource." }] };
 const turnUndead = {
-  id: id$1v,
-  label: label$1j,
+  id: id$1z,
+  label: label$1n,
   summary: summary$h,
   kind: kind$5,
-  tags: tags$1a,
+  tags: tags$1e,
   grants: grants$b,
   rules: rules$5
 };
-const id$1u = "divine-intervention";
-const label$1i = "Divine Intervention";
+const id$1y = "divine-intervention";
+const label$1m = "Divine Intervention";
 const summary$g = "Call on your deity for aid once per rest.";
 const kind$4 = "feature";
-const tags$19 = ["cleric"];
+const tags$1d = ["cleric"];
 const grants$a = [];
 const rules$4 = { "text": "At higher levels, intervention succeeds automatically." };
 const divineIntervention = {
-  id: id$1u,
-  label: label$1i,
+  id: id$1y,
+  label: label$1m,
   summary: summary$g,
   kind: kind$4,
-  tags: tags$19,
+  tags: tags$1d,
   grants: grants$a,
   rules: rules$4
 };
-const id$1t = "peace-bond";
-const label$1h = "Peace Bond";
+const id$1x = "peace-bond";
+const label$1l = "Peace Bond";
 const summary$f = "Link allies to share support bonuses.";
 const kind$3 = "passive";
-const tags$18 = ["cleric", "domain", "peace"];
+const tags$1c = ["cleric", "domain", "peace"];
 const grants$9 = [];
 const rules$3 = { "text": "Linked allies gain +1d4 once per turn to an attack, check, or save. No concentration.", "triggers": [{ "event": "on_roll", "notes": "Applies once per turn to linked allies within range." }] };
 const peaceBond = {
-  id: id$1t,
-  label: label$1h,
+  id: id$1x,
+  label: label$1l,
   summary: summary$f,
   kind: kind$3,
-  tags: tags$18,
+  tags: tags$1c,
   grants: grants$9,
   rules: rules$3
 };
-const id$1s = "balm-of-peace";
-const label$1g = "Balm of Peace";
+const id$1w = "balm-of-peace";
+const label$1k = "Balm of Peace";
 const summary$e = "Move without opportunity attacks and heal allies you pass.";
 const kind$2 = "action";
-const tags$17 = ["cleric", "domain", "peace", "channel-divinity"];
+const tags$1b = ["cleric", "domain", "peace", "channel-divinity"];
 const grants$8 = [{ "kind": "action", "ids": ["balm-of-peace"], "source": "balm-of-peace" }];
 const rules$2 = { "text": "Action. Uses Channel Divinity. You move, healing allies you pass." };
 const balmOfPeace = {
-  id: id$1s,
-  label: label$1g,
+  id: id$1w,
+  label: label$1k,
   summary: summary$e,
   kind: kind$2,
-  tags: tags$17,
+  tags: tags$1b,
   grants: grants$8,
   rules: rules$2
 };
-const id$1r = "protective-bond";
-const label$1f = "Protective Bond";
+const id$1v = "protective-bond";
+const label$1j = "Protective Bond";
 const summary$d = "Linked ally can teleport and take damage for another ally.";
 const kind$1 = "reaction";
-const tags$16 = ["cleric", "domain", "peace"];
+const tags$1a = ["cleric", "domain", "peace"];
 const grants$7 = [{ "kind": "reaction", "ids": ["protective-bond"], "source": "protective-bond" }];
 const rules$1 = { "text": "Reaction when a linked ally takes damage. Teleport and take damage instead." };
 const protectiveBond = {
-  id: id$1r,
-  label: label$1f,
+  id: id$1v,
+  label: label$1j,
   summary: summary$d,
   kind: kind$1,
-  tags: tags$16,
+  tags: tags$1a,
   grants: grants$7,
   rules: rules$1
 };
-const id$1q = "expansive-bond";
-const label$1e = "Expansive Bond";
+const id$1u = "expansive-bond";
+const label$1i = "Expansive Bond";
 const summary$c = "Linked allies share damage and gain broad resistance.";
 const kind = "passive";
-const tags$15 = ["cleric", "domain", "peace"];
+const tags$19 = ["cleric", "domain", "peace"];
 const grants$6 = [];
 const rules = { "text": "Linked allies gain broad resistance and improved damage sharing." };
 const expansiveBond = {
-  id: id$1q,
-  label: label$1e,
+  id: id$1u,
+  label: label$1i,
   summary: summary$c,
   kind,
-  tags: tags$15,
+  tags: tags$19,
   grants: grants$6,
   rules
 };
@@ -9044,120 +9004,120 @@ const types$8 = ["./wall-stone.json", "./wall-stone-door.json", "./wall-wood.jso
 const wallsIndex = {
   types: types$8
 };
-const id$1p = "wall-stone";
-const label$1d = "Mur de pierre";
-const category$Q = "wall";
-const tags$14 = ["wall", "stone"];
+const id$1t = "wall-stone";
+const label$1h = "Mur de pierre";
+const category$U = "wall";
+const tags$18 = ["wall", "stone"];
 const blocking$5 = { "movement": true, "vision": true, "attacks": true };
 const durability$5 = { "destructible": true, "maxHp": 35, "ac": 15 };
 const variants$5 = [{ "id": "1", "label": "Segment 1", "footprint": [{ "x": 0, "y": 0 }], "rotatable": false }, { "id": "2", "label": "Segment 2", "footprint": [{ "x": 0, "y": 0 }, { "x": 1, "y": 0 }], "rotatable": true }, { "id": "3", "label": "Segment 3", "footprint": [{ "x": 0, "y": 0 }, { "x": 1, "y": 0 }, { "x": 2, "y": 0 }], "rotatable": true }];
 const appearance$5 = { "textureKey": "wall:walloldsimple", "heightClass": "tall" };
 const behavior$5 = { "kind": "solid" };
 const wallStone = {
-  id: id$1p,
-  label: label$1d,
-  category: category$Q,
-  tags: tags$14,
+  id: id$1t,
+  label: label$1h,
+  category: category$U,
+  tags: tags$18,
   blocking: blocking$5,
   durability: durability$5,
   variants: variants$5,
   appearance: appearance$5,
   behavior: behavior$5
 };
-const id$1o = "wall-stone-door";
-const label$1c = "Mur de pierre (porte)";
-const category$P = "wall";
-const tags$13 = ["wall", "stone", "door"];
+const id$1s = "wall-stone-door";
+const label$1g = "Mur de pierre (porte)";
+const category$T = "wall";
+const tags$17 = ["wall", "stone", "door"];
 const blocking$4 = { "movement": true, "vision": true, "attacks": true };
 const durability$4 = { "destructible": true, "maxHp": 30, "ac": 15 };
 const variants$4 = [{ "id": "1", "label": "Segment 1", "footprint": [{ "x": 0, "y": 0 }], "rotatable": false }];
 const appearance$4 = { "textureKey": "wall:wallolddoor", "heightClass": "tall" };
 const behavior$4 = { "kind": "door", "interactions": [{ "id": "open", "label": "Ouvrir", "kind": "open", "cost": "bonus" }, { "id": "break", "label": "Defoncer", "kind": "break", "cost": "action", "forceDc": 15, "damageFraction": 0.5 }] };
 const wallStoneDoor = {
-  id: id$1o,
-  label: label$1c,
-  category: category$P,
-  tags: tags$13,
+  id: id$1s,
+  label: label$1g,
+  category: category$T,
+  tags: tags$17,
   blocking: blocking$4,
   durability: durability$4,
   variants: variants$4,
   appearance: appearance$4,
   behavior: behavior$4
 };
-const id$1n = "wall-wood";
-const label$1b = "Mur en bois";
-const category$O = "wall";
-const tags$12 = ["wall", "wood"];
+const id$1r = "wall-wood";
+const label$1f = "Mur en bois";
+const category$S = "wall";
+const tags$16 = ["wall", "wood"];
 const blocking$3 = { "movement": true, "vision": true, "attacks": true };
 const durability$3 = { "destructible": true, "maxHp": 22, "ac": 12 };
 const variants$3 = [{ "id": "1", "label": "Segment 1", "footprint": [{ "x": 0, "y": 0 }], "rotatable": false }, { "id": "2", "label": "Segment 2", "footprint": [{ "x": 0, "y": 0 }, { "x": 1, "y": 0 }], "rotatable": true }, { "id": "3", "label": "Segment 3", "footprint": [{ "x": 0, "y": 0 }, { "x": 1, "y": 0 }, { "x": 2, "y": 0 }], "rotatable": true }];
 const appearance$3 = { "textureKey": "wall:texture-plate", "heightClass": "tall" };
 const behavior$3 = { "kind": "solid" };
 const wallWood = {
-  id: id$1n,
-  label: label$1b,
-  category: category$O,
-  tags: tags$12,
+  id: id$1r,
+  label: label$1f,
+  category: category$S,
+  tags: tags$16,
   blocking: blocking$3,
   durability: durability$3,
   variants: variants$3,
   appearance: appearance$3,
   behavior: behavior$3
 };
-const id$1m = "wall-wood-door";
-const label$1a = "Mur en bois (porte)";
-const category$N = "wall";
-const tags$11 = ["wall", "wood", "door"];
+const id$1q = "wall-wood-door";
+const label$1e = "Mur en bois (porte)";
+const category$R = "wall";
+const tags$15 = ["wall", "wood", "door"];
 const blocking$2 = { "movement": true, "vision": true, "attacks": true };
 const durability$2 = { "destructible": true, "maxHp": 14, "ac": 12 };
 const variants$2 = [{ "id": "1", "label": "Segment 1", "footprint": [{ "x": 0, "y": 0 }], "rotatable": false }];
 const appearance$2 = { "textureKey": "wall:texture-plate", "heightClass": "tall" };
 const behavior$2 = { "kind": "door", "interactions": [{ "id": "open", "label": "Ouvrir", "kind": "open", "cost": "bonus" }, { "id": "break", "label": "Defoncer", "kind": "break", "cost": "action", "forceDc": 12, "damageFraction": 0.5 }] };
 const wallWoodDoor = {
-  id: id$1m,
-  label: label$1a,
-  category: category$N,
-  tags: tags$11,
+  id: id$1q,
+  label: label$1e,
+  category: category$R,
+  tags: tags$15,
   blocking: blocking$2,
   durability: durability$2,
   variants: variants$2,
   appearance: appearance$2,
   behavior: behavior$2
 };
-const id$1l = "low-wall-stone";
-const label$19 = "Muret de pierre";
-const category$M = "wall";
-const tags$10 = ["wall", "stone", "low"];
+const id$1p = "low-wall-stone";
+const label$1d = "Muret de pierre";
+const category$Q = "wall";
+const tags$14 = ["wall", "stone", "low"];
 const blocking$1 = { "movement": true, "vision": false, "attacks": false };
 const durability$1 = { "destructible": true, "maxHp": 18, "ac": 13 };
 const variants$1 = [{ "id": "1", "label": "Segment 1", "footprint": [{ "x": 0, "y": 0 }], "rotatable": false }, { "id": "2", "label": "Segment 2", "footprint": [{ "x": 0, "y": 0 }, { "x": 1, "y": 0 }], "rotatable": true }];
 const appearance$1 = { "textureKey": "wall:walloldsimple", "heightClass": "low" };
 const behavior$1 = { "kind": "solid" };
 const lowWallStone = {
-  id: id$1l,
-  label: label$19,
-  category: category$M,
-  tags: tags$10,
+  id: id$1p,
+  label: label$1d,
+  category: category$Q,
+  tags: tags$14,
   blocking: blocking$1,
   durability: durability$1,
   variants: variants$1,
   appearance: appearance$1,
   behavior: behavior$1
 };
-const id$1k = "low-wall-wood";
-const label$18 = "Muret en bois";
-const category$L = "wall";
-const tags$$ = ["wall", "wood", "low"];
+const id$1o = "low-wall-wood";
+const label$1c = "Muret en bois";
+const category$P = "wall";
+const tags$13 = ["wall", "wood", "low"];
 const blocking = { "movement": true, "vision": false, "attacks": false };
 const durability = { "destructible": true, "maxHp": 12, "ac": 11 };
 const variants = [{ "id": "1", "label": "Segment 1", "footprint": [{ "x": 0, "y": 0 }], "rotatable": false }, { "id": "2", "label": "Segment 2", "footprint": [{ "x": 0, "y": 0 }, { "x": 1, "y": 0 }], "rotatable": true }];
 const appearance = { "textureKey": "wall:texture-plate", "heightClass": "low" };
 const behavior = { "kind": "solid" };
 const lowWallWood = {
-  id: id$1k,
-  label: label$18,
-  category: category$L,
-  tags: tags$$,
+  id: id$1o,
+  label: label$1c,
+  category: category$P,
+  tags: tags$13,
   blocking,
   durability,
   variants,
@@ -9192,61 +9152,61 @@ const reactions = ["./opportunity-attack.json", "./guard-strike.json", "./killer
 const reactionsIndex = {
   reactions
 };
-const id$1j = "opportunity-attack";
-const name$n = "Opportunity Attack";
+const id$1n = "opportunity-attack";
+const name$p = "Opportunity Attack";
 const summary$b = "Strike a hostile that leaves your reach.";
 const uiMessage$1 = "Vous avez subi une attaque d opportunite.";
 const uiMessageMiss$4 = "Vous avez evite une attaque d opportunite.";
 const trigger$2 = { "event": "movement.leave_reach", "source": "hostile" };
 const conditions$b = [{ "type": "actor_alive", "reason": "Reactor must be alive." }, { "type": "reaction_available", "reason": "Reaction already used." }, { "type": "target_visible", "reason": "Target not visible." }];
 const action$2 = { "id": "reaction-opportunity-attack", "name": "Opportunity Attack", "summary": "Melee strike triggered by a fleeing target.", "category": "reaction", "actionCost": { "actionType": "reaction", "movementCost": 0 }, "targeting": { "target": "hostile", "range": { "min": 0, "max": 1, "shape": "single" }, "maxTargets": 1, "requiresLos": true }, "usage": { "perTurn": 1, "perEncounter": null, "resource": null }, "conditions": [{ "type": "target_alive", "target": "primary", "reason": "Target must be alive." }], "attack": { "bonus": 5, "critRange": 20 }, "damage": { "formula": "attackDamage", "critRule": "double-dice", "damageType": "slashing" }, "effects": [{ "type": "damage", "target": "primary", "formula": "attackDamage", "damageType": "slashing" }, { "type": "log", "message": "Opportunity attack triggered." }], "tags": ["reaction", "melee", "opportunity"] };
-const tags$_ = ["reaction"];
+const tags$12 = ["reaction"];
 const opportunityAttack = {
-  id: id$1j,
-  name: name$n,
+  id: id$1n,
+  name: name$p,
   summary: summary$b,
   uiMessage: uiMessage$1,
   uiMessageMiss: uiMessageMiss$4,
   trigger: trigger$2,
   conditions: conditions$b,
   action: action$2,
-  tags: tags$_
+  tags: tags$12
 };
-const id$1i = "guard-strike";
-const name$m = "Guard Strike";
+const id$1m = "guard-strike";
+const name$o = "Guard Strike";
 const summary$a = "Strike a hostile that enters your reach.";
 const uiMessage = "Vous avez subi une attaque de garde.";
 const uiMessageMiss$3 = "Vous avez evite une attaque de garde.";
 const trigger$1 = { "event": "movement.enter_reach", "source": "hostile" };
 const conditions$a = [{ "type": "actor_alive", "reason": "Reactor must be alive." }, { "type": "reaction_available", "reason": "Reaction already used." }];
 const action$1 = { "id": "reaction-guard-strike", "name": "Guard Strike", "summary": "Prepared strike when a hostile closes in.", "category": "reaction", "actionCost": { "actionType": "reaction", "movementCost": 0 }, "targeting": { "target": "hostile", "range": { "min": 0, "max": 1, "shape": "single" }, "maxTargets": 1, "requiresLos": true }, "usage": { "perTurn": 1, "perEncounter": null, "resource": null }, "conditions": [{ "type": "target_alive", "target": "primary", "reason": "Target must be alive." }], "attack": { "bonus": 4, "critRange": 20 }, "damage": { "formula": "attackDamage", "critRule": "double-dice", "damageType": "piercing" }, "effects": [{ "type": "damage", "target": "primary", "formula": "attackDamage", "damageType": "piercing" }, { "type": "log", "message": "Guard strike triggered." }], "tags": ["reaction", "melee", "guard"] };
-const tags$Z = ["reaction"];
+const tags$11 = ["reaction"];
 const guardStrike = {
-  id: id$1i,
-  name: name$m,
+  id: id$1m,
+  name: name$o,
   summary: summary$a,
   uiMessage,
   uiMessageMiss: uiMessageMiss$3,
   trigger: trigger$1,
   conditions: conditions$a,
   action: action$1,
-  tags: tags$Z
+  tags: tags$11
 };
-const id$1h = "killer-instinct";
-const name$l = "Instinct de tueur";
+const id$1l = "killer-instinct";
+const name$n = "Instinct de tueur";
 const summary$9 = "Marque la premiere cible visible et accorde l'avantage jusqu'a sa mort.";
 const trigger = { "event": "visibility.first_seen", "source": "enemy" };
 const conditions$9 = [{ "type": "actor_alive", "reason": "Reactor must be alive." }, { "type": "reaction_unused_combat", "reason": "Deja utilise ce combat." }, { "type": "target_alive", "reason": "Target must be alive." }, { "type": "target_first_seen", "reason": "Target already revealed." }, { "type": "target_is_closest_visible", "reason": "Target not closest." }];
 const action = { "id": "reaction-killer-instinct", "name": "Instinct de tueur", "summary": "Marquer la cible pour avantage permanent.", "category": "reaction", "actionCost": { "actionType": "reaction", "movementCost": 0 }, "targeting": { "target": "hostile", "range": { "min": 0, "max": 99, "shape": "single" }, "maxTargets": 1, "requiresLos": true }, "usage": { "perTurn": 1, "perEncounter": null, "resource": null }, "conditions": [], "effects": [{ "type": "set_killer_instinct_target" }, { "type": "log", "message": "Instinct de tueur: cible marquee." }], "tags": ["reaction", "passive"] };
-const tags$Y = ["reaction", "visibility"];
+const tags$10 = ["reaction", "visibility"];
 const killerInstinct = {
-  id: id$1h,
-  name: name$l,
+  id: id$1l,
+  name: name$n,
   summary: summary$9,
   trigger,
   conditions: conditions$9,
   action,
-  tags: tags$Y
+  tags: tags$10
 };
 const REACTION_TYPE_MODULES = {
   "./opportunity-attack.json": opportunityAttack,
@@ -9302,540 +9262,630 @@ function normalizeDamageType(value2) {
   const key2 = normalizeKey(String(value2));
   return DAMAGE_TYPE_ALIASES[key2] ?? null;
 }
-const types$7 = ["./simple/dague.json", "./simple/massue.json", "./simple/arc-court.json", "./martiale/epee-longue.json", "./martiale/hache-bataille.json", "./martiale/arc-long.json", "./speciale/epee-elfique.json", "./speciale/fouet-demon.json", "./speciale/arbalete-repetee.json", "./monastique/baton.json", "./monastique/nunchaku.json", "./monastique/kama.json"];
+const types$7 = ["./simple/dague.json", "./simple/petit-couteau.json", "./simple/arme-endommagee.json", "./simple/massue.json", "./simple/arc-court.json", "./martiale/epee-longue.json", "./martiale/hache-bataille.json", "./martiale/arc-long.json", "./speciale/epee-elfique.json", "./speciale/fouet-demon.json", "./speciale/arbalete-repetee.json", "./monastique/baton.json", "./monastique/nunchaku.json", "./monastique/kama.json"];
 const weaponsIndex = {
   types: types$7
 };
-const id$1g = "dague";
-const name$k = "Dague";
-const type$B = "arme";
+const id$1k = "dague";
+const name$m = "Dague";
+const type$F = "arme";
+const subtype$d = "simple";
+const category$O = "melee";
+const descriptionCourte$d = "Lame courte et legere, facile a dissimuler.";
+const descriptionLongue$d = "";
+const allow_stack$d = false;
+const harmonisable$d = false;
+const focalisateur$d = false;
+const weight$A = 0.5;
+const size$g = 0.4;
+const value$i = { "gold": 2, "silver": 0, "copper": 0 };
+const rarity$d = "commune";
+const tags$$ = ["arme", "melee", "perforant", "jet"];
+const properties$d = { "finesse": true, "light": true, "heavy": false, "two_handed": false, "reach": 1, "versatile": null, "thrown": { "normal": 4, "long": 12 }, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": null };
+const attack$g = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
+const damage$g = { "dice": "1d4", "damage_type": "Perforant", "alt": null };
+const effectOnHit$d = { "mod": "mod.DEX", "damage": "1d4", "damage_type": "Perforant" };
+const links$d = { "actionId": "melee-strike", "effectId": "melee-slash" };
+const label$1b = "Dague";
+const dagger = {
+  id: id$1k,
+  name: name$m,
+  type: type$F,
+  subtype: subtype$d,
+  category: category$O,
+  descriptionCourte: descriptionCourte$d,
+  descriptionLongue: descriptionLongue$d,
+  allow_stack: allow_stack$d,
+  harmonisable: harmonisable$d,
+  focalisateur: focalisateur$d,
+  weight: weight$A,
+  size: size$g,
+  value: value$i,
+  rarity: rarity$d,
+  tags: tags$$,
+  properties: properties$d,
+  attack: attack$g,
+  damage: damage$g,
+  effectOnHit: effectOnHit$d,
+  links: links$d,
+  label: label$1b
+};
+const id$1j = "obj_petit_couteau";
+const name$l = "Petit couteau";
+const type$E = "arme";
+const subtype$c = "simple";
+const category$N = "melee";
+const descriptionCourte$c = "Petit couteau utilitaire, pas une arme de combat principale.";
+const descriptionLongue$c = "";
+const allow_stack$c = false;
+const harmonisable$c = false;
+const focalisateur$c = false;
+const weight$z = 0.5;
+const size$f = 0.3;
+const value$h = { "gold": 0, "silver": 2, "copper": 0 };
+const rarity$c = "commune";
+const tags$_ = ["arme", "melee", "tranchant", "improvise"];
+const properties$c = { "finesse": true, "light": true, "heavy": false, "two_handed": false, "reach": 1, "versatile": null, "thrown": { "normal": 4, "long": 12 }, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": "utilitaire" };
+const attack$f = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
+const damage$f = { "dice": "1d4", "damage_type": "Tranchant", "alt": null };
+const effectOnHit$c = { "mod": "mod.DEX", "damage": "1d4", "damage_type": "Tranchant" };
+const links$c = { "actionId": "melee-strike", "effectId": "melee-slash" };
+const label$1a = "Petit couteau";
+const petitCouteau = {
+  id: id$1j,
+  name: name$l,
+  type: type$E,
+  subtype: subtype$c,
+  category: category$N,
+  descriptionCourte: descriptionCourte$c,
+  descriptionLongue: descriptionLongue$c,
+  allow_stack: allow_stack$c,
+  harmonisable: harmonisable$c,
+  focalisateur: focalisateur$c,
+  weight: weight$z,
+  size: size$f,
+  value: value$h,
+  rarity: rarity$c,
+  tags: tags$_,
+  properties: properties$c,
+  attack: attack$f,
+  damage: damage$f,
+  effectOnHit: effectOnHit$c,
+  links: links$c,
+  label: label$1a
+};
+const id$1i = "obj_arme_endommagee";
+const name$k = "Arme endommagee";
+const type$D = "arme";
 const subtype$b = "simple";
-const category$K = "melee";
-const descriptionCourte$b = "Lame courte et legere, facile a dissimuler.";
+const category$M = "melee";
+const descriptionCourte$b = "Une arme simple ou martiale abimee, utilisable pour l'histoire.";
 const descriptionLongue$b = "";
 const allow_stack$b = false;
 const harmonisable$b = false;
 const focalisateur$b = false;
-const weight$w = 0.5;
-const size$e = 0.4;
-const value$b = { "gold": 2, "silver": 0, "copper": 0 };
+const weight$y = 2;
+const size$e = 0.8;
+const value$g = { "gold": 0, "silver": 5, "copper": 0 };
 const rarity$b = "commune";
-const tags$X = ["arme", "melee", "perforant", "jet"];
-const properties$b = { "finesse": true, "light": true, "heavy": false, "two_handed": false, "reach": 1, "versatile": null, "thrown": { "normal": 4, "long": 12 }, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": null };
-const attack$e = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
-const damage$e = { "dice": "1d4", "damage_type": "Perforant", "alt": null };
-const effectOnHit$b = { "mod": "mod.DEX", "damage": "1d4", "damage_type": "Perforant" };
+const tags$Z = ["arme", "melee", "endommagee"];
+const properties$b = { "finesse": false, "light": false, "heavy": false, "two_handed": false, "reach": 1, "versatile": null, "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": "abimee" };
+const attack$e = { "mod": "mod.STR", "bonus": "bonus_maitrise" };
+const damage$e = { "dice": "1d4", "damage_type": "Tranchant", "alt": null };
+const effectOnHit$b = { "mod": "mod.STR", "damage": "1d4", "damage_type": "Tranchant" };
 const links$b = { "actionId": "melee-strike", "effectId": "melee-slash" };
-const label$17 = "Dague";
-const dagger = {
-  id: id$1g,
+const label$19 = "Arme endommagee";
+const armeEndommagee = {
+  id: id$1i,
   name: name$k,
-  type: type$B,
+  type: type$D,
   subtype: subtype$b,
-  category: category$K,
+  category: category$M,
   descriptionCourte: descriptionCourte$b,
   descriptionLongue: descriptionLongue$b,
   allow_stack: allow_stack$b,
   harmonisable: harmonisable$b,
   focalisateur: focalisateur$b,
-  weight: weight$w,
+  weight: weight$y,
   size: size$e,
-  value: value$b,
+  value: value$g,
   rarity: rarity$b,
-  tags: tags$X,
+  tags: tags$Z,
   properties: properties$b,
   attack: attack$e,
   damage: damage$e,
   effectOnHit: effectOnHit$b,
   links: links$b,
-  label: label$17
+  label: label$19
 };
-const id$1f = "massue";
+const id$1h = "massue";
 const name$j = "Massue";
-const type$A = "arme";
+const type$C = "arme";
 const subtype$a = "simple";
-const category$J = "melee";
+const category$L = "melee";
 const descriptionCourte$a = "Baton lourd renforce, frappe contondante.";
 const descriptionLongue$a = "";
 const allow_stack$a = false;
 const harmonisable$a = false;
 const focalisateur$a = false;
-const weight$v = 1.8;
+const weight$x = 1.8;
 const size$d = 1;
-const value$a = { "gold": 1, "silver": 0, "copper": 0 };
+const value$f = { "gold": 1, "silver": 0, "copper": 0 };
 const rarity$a = "commune";
-const tags$W = ["arme", "melee", "contondant"];
+const tags$Y = ["arme", "melee", "contondant"];
 const properties$a = { "finesse": false, "light": false, "heavy": false, "two_handed": false, "reach": 1, "versatile": null, "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": null };
 const attack$d = { "mod": "mod.STR", "bonus": "bonus_maitrise" };
 const damage$d = { "dice": "1d6", "damage_type": "Contondant", "alt": null };
 const effectOnHit$a = { "mod": "mod.STR", "damage": "1d6", "damage_type": "Contondant" };
 const links$a = { "actionId": "melee-strike", "effectId": "melee-slash" };
-const label$16 = "Massue";
+const label$18 = "Massue";
 const club = {
-  id: id$1f,
+  id: id$1h,
   name: name$j,
-  type: type$A,
+  type: type$C,
   subtype: subtype$a,
-  category: category$J,
+  category: category$L,
   descriptionCourte: descriptionCourte$a,
   descriptionLongue: descriptionLongue$a,
   allow_stack: allow_stack$a,
   harmonisable: harmonisable$a,
   focalisateur: focalisateur$a,
-  weight: weight$v,
+  weight: weight$x,
   size: size$d,
-  value: value$a,
+  value: value$f,
   rarity: rarity$a,
-  tags: tags$W,
+  tags: tags$Y,
   properties: properties$a,
   attack: attack$d,
   damage: damage$d,
   effectOnHit: effectOnHit$a,
   links: links$a,
-  label: label$16
+  label: label$18
 };
-const id$1e = "arc-court";
+const id$1g = "arc-court";
 const name$i = "Arc court";
-const type$z = "arme";
+const type$B = "arme";
 const subtype$9 = "simple";
-const category$I = "distance";
+const category$K = "distance";
 const descriptionCourte$9 = "Arc leger a courte portee.";
 const descriptionLongue$9 = "";
 const allow_stack$9 = false;
 const harmonisable$9 = false;
 const focalisateur$9 = false;
-const weight$u = 1;
+const weight$w = 1;
 const size$c = 1;
-const value$9 = { "gold": 25, "silver": 0, "copper": 0 };
+const value$e = { "gold": 25, "silver": 0, "copper": 0 };
 const rarity$9 = "commune";
-const tags$V = ["arme", "distance", "perforant"];
+const tags$X = ["arme", "distance", "perforant"];
 const properties$9 = { "finesse": false, "light": false, "heavy": false, "two_handed": true, "reach": 0, "versatile": null, "thrown": null, "ammunition": true, "loading": false, "reload": null, "range": { "normal": 16, "long": 64 }, "special": null };
 const attack$c = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
 const damage$c = { "dice": "1d6", "damage_type": "Perforant", "alt": null };
 const effectOnHit$9 = { "mod": "mod.DEX", "damage": "1d6", "damage_type": "Perforant" };
 const links$9 = { "actionId": "bow-shot", "effectId": "melee-slash" };
-const label$15 = "Arc court";
+const label$17 = "Arc court";
 const shortbow = {
-  id: id$1e,
+  id: id$1g,
   name: name$i,
-  type: type$z,
+  type: type$B,
   subtype: subtype$9,
-  category: category$I,
+  category: category$K,
   descriptionCourte: descriptionCourte$9,
   descriptionLongue: descriptionLongue$9,
   allow_stack: allow_stack$9,
   harmonisable: harmonisable$9,
   focalisateur: focalisateur$9,
-  weight: weight$u,
+  weight: weight$w,
   size: size$c,
-  value: value$9,
+  value: value$e,
   rarity: rarity$9,
-  tags: tags$V,
+  tags: tags$X,
   properties: properties$9,
   attack: attack$c,
   damage: damage$c,
   effectOnHit: effectOnHit$9,
   links: links$9,
-  label: label$15
+  label: label$17
 };
-const id$1d = "epee-longue";
+const id$1f = "epee-longue";
 const name$h = "Epee longue";
-const type$y = "arme";
+const type$A = "arme";
 const subtype$8 = "martiale";
-const category$H = "melee";
+const category$J = "melee";
 const descriptionCourte$8 = "Lame d'acier polyvalente, classique.";
 const descriptionLongue$8 = "";
 const allow_stack$8 = false;
 const harmonisable$8 = false;
 const focalisateur$8 = false;
-const weight$t = 1.5;
+const weight$v = 1.5;
 const size$b = 1;
-const value$8 = { "gold": 15, "silver": 0, "copper": 0 };
+const value$d = { "gold": 15, "silver": 0, "copper": 0 };
 const rarity$8 = "commune";
-const tags$U = ["arme", "melee", "tranchant"];
+const tags$W = ["arme", "melee", "tranchant"];
 const properties$8 = { "finesse": false, "light": false, "heavy": false, "two_handed": false, "reach": 1, "versatile": "1d10", "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": null };
 const attack$b = { "mod": "mod.STR", "bonus": "bonus_maitrise" };
 const damage$b = { "dice": "1d8", "damage_type": "Tranchant", "alt": { "dice": "1d10", "condition": "two_handed" } };
 const effectOnHit$8 = { "mod": "mod.STR", "damage": "1d8", "damage_type": "Tranchant" };
 const links$8 = { "actionId": "melee-strike", "effectId": "melee-slash" };
-const label$14 = "Epee longue";
+const label$16 = "Epee longue";
 const longsword = {
-  id: id$1d,
+  id: id$1f,
   name: name$h,
-  type: type$y,
+  type: type$A,
   subtype: subtype$8,
-  category: category$H,
+  category: category$J,
   descriptionCourte: descriptionCourte$8,
   descriptionLongue: descriptionLongue$8,
   allow_stack: allow_stack$8,
   harmonisable: harmonisable$8,
   focalisateur: focalisateur$8,
-  weight: weight$t,
+  weight: weight$v,
   size: size$b,
-  value: value$8,
+  value: value$d,
   rarity: rarity$8,
-  tags: tags$U,
+  tags: tags$W,
   properties: properties$8,
   attack: attack$b,
   damage: damage$b,
   effectOnHit: effectOnHit$8,
   links: links$8,
-  label: label$14
+  label: label$16
 };
-const id$1c = "hache-bataille";
+const id$1e = "hache-bataille";
 const name$g = "Hache de bataille";
-const type$x = "arme";
+const type$z = "arme";
 const subtype$7 = "martiale";
-const category$G = "melee";
+const category$I = "melee";
 const descriptionCourte$7 = "Hache lourde a double tranchant.";
 const descriptionLongue$7 = "";
 const allow_stack$7 = false;
 const harmonisable$7 = false;
 const focalisateur$7 = false;
-const weight$s = 2;
+const weight$u = 2;
 const size$a = 1;
-const value$7 = { "gold": 10, "silver": 0, "copper": 0 };
+const value$c = { "gold": 10, "silver": 0, "copper": 0 };
 const rarity$7 = "commune";
-const tags$T = ["arme", "melee", "tranchant"];
+const tags$V = ["arme", "melee", "tranchant"];
 const properties$7 = { "finesse": false, "light": false, "heavy": false, "two_handed": false, "reach": 1, "versatile": "1d10", "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": null };
 const attack$a = { "mod": "mod.STR", "bonus": "bonus_maitrise" };
 const damage$a = { "dice": "1d8", "damage_type": "Tranchant", "alt": { "dice": "1d10", "condition": "two_handed" } };
 const effectOnHit$7 = { "mod": "mod.STR", "damage": "1d8", "damage_type": "Tranchant" };
 const links$7 = { "actionId": "melee-strike", "effectId": "melee-slash" };
-const label$13 = "Hache de bataille";
+const label$15 = "Hache de bataille";
 const battleaxe = {
-  id: id$1c,
+  id: id$1e,
   name: name$g,
-  type: type$x,
+  type: type$z,
   subtype: subtype$7,
-  category: category$G,
+  category: category$I,
   descriptionCourte: descriptionCourte$7,
   descriptionLongue: descriptionLongue$7,
   allow_stack: allow_stack$7,
   harmonisable: harmonisable$7,
   focalisateur: focalisateur$7,
-  weight: weight$s,
+  weight: weight$u,
   size: size$a,
-  value: value$7,
+  value: value$c,
   rarity: rarity$7,
-  tags: tags$T,
+  tags: tags$V,
   properties: properties$7,
   attack: attack$a,
   damage: damage$a,
   effectOnHit: effectOnHit$7,
   links: links$7,
-  label: label$13
+  label: label$15
 };
-const id$1b = "arc-long";
+const id$1d = "arc-long";
 const name$f = "Arc long";
-const type$w = "arme";
+const type$y = "arme";
 const subtype$6 = "martiale";
-const category$F = "distance";
+const category$H = "distance";
 const descriptionCourte$6 = "Arc puissant a longue portee.";
 const descriptionLongue$6 = "";
 const allow_stack$6 = false;
 const harmonisable$6 = false;
 const focalisateur$6 = false;
-const weight$r = 1.5;
+const weight$t = 1.5;
 const size$9 = 1.2;
-const value$6 = { "gold": 50, "silver": 0, "copper": 0 };
+const value$b = { "gold": 50, "silver": 0, "copper": 0 };
 const rarity$6 = "commune";
-const tags$S = ["arme", "distance", "perforant"];
+const tags$U = ["arme", "distance", "perforant"];
 const properties$6 = { "finesse": false, "light": false, "heavy": true, "two_handed": true, "reach": 0, "versatile": null, "thrown": null, "ammunition": true, "loading": false, "reload": null, "range": { "normal": 24, "long": 96 }, "special": null };
 const attack$9 = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
 const damage$9 = { "dice": "1d8", "damage_type": "Perforant", "alt": null };
 const effectOnHit$6 = { "mod": "mod.DEX", "damage": "1d8", "damage_type": "Perforant" };
 const links$6 = { "actionId": "bow-shot", "effectId": "melee-slash" };
-const label$12 = "Arc long";
+const label$14 = "Arc long";
 const longbow = {
-  id: id$1b,
+  id: id$1d,
   name: name$f,
-  type: type$w,
+  type: type$y,
   subtype: subtype$6,
-  category: category$F,
+  category: category$H,
   descriptionCourte: descriptionCourte$6,
   descriptionLongue: descriptionLongue$6,
   allow_stack: allow_stack$6,
   harmonisable: harmonisable$6,
   focalisateur: focalisateur$6,
-  weight: weight$r,
+  weight: weight$t,
   size: size$9,
-  value: value$6,
+  value: value$b,
   rarity: rarity$6,
-  tags: tags$S,
+  tags: tags$U,
   properties: properties$6,
   attack: attack$9,
   damage: damage$9,
   effectOnHit: effectOnHit$6,
   links: links$6,
-  label: label$12
+  label: label$14
 };
-const id$1a = "epee-elfique";
+const id$1c = "epee-elfique";
 const name$e = "Epee elfique";
-const type$v = "arme";
+const type$x = "arme";
 const subtype$5 = "speciale";
-const category$E = "melee";
+const category$G = "melee";
 const descriptionCourte$5 = "Lame fine et precise, forgee par les elfes.";
 const descriptionLongue$5 = "";
 const allow_stack$5 = false;
 const harmonisable$5 = false;
 const focalisateur$5 = false;
-const weight$q = 1.2;
+const weight$s = 1.2;
 const size$8 = 1;
-const value$5 = { "gold": 75, "silver": 0, "copper": 0 };
+const value$a = { "gold": 75, "silver": 0, "copper": 0 };
 const rarity$5 = "rare";
-const tags$R = ["arme", "melee", "tranchant"];
+const tags$T = ["arme", "melee", "tranchant"];
 const properties$5 = { "finesse": true, "light": false, "heavy": false, "two_handed": false, "reach": 1, "versatile": null, "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": "precision" };
 const attack$8 = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
 const damage$8 = { "dice": "1d8", "damage_type": "Tranchant", "alt": null };
 const effectOnHit$5 = { "mod": "mod.DEX", "damage": "1d8", "damage_type": "Tranchant" };
 const links$5 = { "actionId": "melee-strike", "effectId": "melee-slash" };
-const label$11 = "Epee elfique";
+const label$13 = "Epee elfique";
 const elvenSword = {
-  id: id$1a,
+  id: id$1c,
   name: name$e,
-  type: type$v,
+  type: type$x,
   subtype: subtype$5,
-  category: category$E,
+  category: category$G,
   descriptionCourte: descriptionCourte$5,
   descriptionLongue: descriptionLongue$5,
   allow_stack: allow_stack$5,
   harmonisable: harmonisable$5,
   focalisateur: focalisateur$5,
-  weight: weight$q,
+  weight: weight$s,
   size: size$8,
-  value: value$5,
+  value: value$a,
   rarity: rarity$5,
-  tags: tags$R,
+  tags: tags$T,
   properties: properties$5,
   attack: attack$8,
   damage: damage$8,
   effectOnHit: effectOnHit$5,
   links: links$5,
-  label: label$11
+  label: label$13
 };
-const id$19 = "fouet-demon";
+const id$1b = "fouet-demon";
 const name$d = "Fouet demon";
-const type$u = "arme";
+const type$w = "arme";
 const subtype$4 = "speciale";
-const category$D = "melee";
+const category$F = "melee";
 const descriptionCourte$4 = "Fouet d'arme a portee etrange.";
 const descriptionLongue$4 = "";
 const allow_stack$4 = false;
 const harmonisable$4 = false;
 const focalisateur$4 = false;
-const weight$p = 1;
+const weight$r = 1;
 const size$7 = 1.3;
-const value$4 = { "gold": 90, "silver": 0, "copper": 0 };
+const value$9 = { "gold": 90, "silver": 0, "copper": 0 };
 const rarity$4 = "rare";
-const tags$Q = ["arme", "melee", "tranchant"];
+const tags$S = ["arme", "melee", "tranchant"];
 const properties$4 = { "finesse": true, "light": false, "heavy": false, "two_handed": false, "reach": 2, "versatile": null, "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 2, "long": 2 }, "special": "reach" };
 const attack$7 = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
 const damage$7 = { "dice": "1d6", "damage_type": "Tranchant", "alt": null };
 const effectOnHit$4 = { "mod": "mod.DEX", "damage": "1d6", "damage_type": "Tranchant" };
 const links$4 = { "actionId": "melee-strike", "effectId": "melee-slash" };
-const label$10 = "Fouet demon";
+const label$12 = "Fouet demon";
 const demonWhip = {
-  id: id$19,
+  id: id$1b,
   name: name$d,
-  type: type$u,
+  type: type$w,
   subtype: subtype$4,
-  category: category$D,
+  category: category$F,
   descriptionCourte: descriptionCourte$4,
   descriptionLongue: descriptionLongue$4,
   allow_stack: allow_stack$4,
   harmonisable: harmonisable$4,
   focalisateur: focalisateur$4,
-  weight: weight$p,
+  weight: weight$r,
   size: size$7,
-  value: value$4,
+  value: value$9,
   rarity: rarity$4,
-  tags: tags$Q,
+  tags: tags$S,
   properties: properties$4,
   attack: attack$7,
   damage: damage$7,
   effectOnHit: effectOnHit$4,
   links: links$4,
-  label: label$10
+  label: label$12
 };
-const id$18 = "arbalete-repetee";
+const id$1a = "arbalete-repetee";
 const name$c = "Arbalete repetee";
-const type$t = "arme";
+const type$v = "arme";
 const subtype$3 = "speciale";
-const category$C = "distance";
+const category$E = "distance";
 const descriptionCourte$3 = "Arbalete a charge rapide.";
 const descriptionLongue$3 = "";
 const allow_stack$3 = false;
 const harmonisable$3 = false;
 const focalisateur$3 = false;
-const weight$o = 2.2;
+const weight$q = 2.2;
 const size$6 = 1.1;
-const value$3 = { "gold": 120, "silver": 0, "copper": 0 };
+const value$8 = { "gold": 120, "silver": 0, "copper": 0 };
 const rarity$3 = "rare";
-const tags$P = ["arme", "distance", "perforant"];
+const tags$R = ["arme", "distance", "perforant"];
 const properties$3 = { "finesse": false, "light": false, "heavy": true, "two_handed": true, "reach": 0, "versatile": null, "thrown": null, "ammunition": true, "loading": true, "reload": 5, "range": { "normal": 20, "long": 80 }, "special": "repetition" };
 const attack$6 = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
 const damage$6 = { "dice": "1d8", "damage_type": "Perforant", "alt": null };
 const effectOnHit$3 = { "mod": "mod.DEX", "damage": "1d8", "damage_type": "Perforant" };
 const links$3 = { "actionId": "bow-shot", "effectId": "melee-slash" };
-const label$$ = "Arbalete repetee";
+const label$11 = "Arbalete repetee";
 const repeatingCrossbow = {
-  id: id$18,
+  id: id$1a,
   name: name$c,
-  type: type$t,
+  type: type$v,
   subtype: subtype$3,
-  category: category$C,
+  category: category$E,
   descriptionCourte: descriptionCourte$3,
   descriptionLongue: descriptionLongue$3,
   allow_stack: allow_stack$3,
   harmonisable: harmonisable$3,
   focalisateur: focalisateur$3,
-  weight: weight$o,
+  weight: weight$q,
   size: size$6,
-  value: value$3,
+  value: value$8,
   rarity: rarity$3,
-  tags: tags$P,
+  tags: tags$R,
   properties: properties$3,
   attack: attack$6,
   damage: damage$6,
   effectOnHit: effectOnHit$3,
   links: links$3,
-  label: label$$
+  label: label$11
 };
-const id$17 = "baton";
+const id$19 = "baton";
 const name$b = "Baton";
-const type$s = "arme";
+const type$u = "arme";
 const subtype$2 = "monastique";
-const category$B = "melee";
+const category$D = "melee";
 const descriptionCourte$2 = "Baton d'entrainement, polyvalent.";
 const descriptionLongue$2 = "";
 const allow_stack$2 = false;
 const harmonisable$2 = false;
 const focalisateur$2 = false;
-const weight$n = 1;
+const weight$p = 1;
 const size$5 = 1.2;
-const value$2 = { "gold": 1, "silver": 0, "copper": 0 };
+const value$7 = { "gold": 1, "silver": 0, "copper": 0 };
 const rarity$2 = "commune";
-const tags$O = ["arme", "melee", "contondant"];
+const tags$Q = ["arme", "melee", "contondant"];
 const properties$2 = { "finesse": false, "light": false, "heavy": false, "two_handed": true, "reach": 1, "versatile": "1d8", "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": "monastic" };
 const attack$5 = { "mod": "mod.STR", "bonus": "bonus_maitrise" };
 const damage$5 = { "dice": "1d6", "damage_type": "Contondant", "alt": { "dice": "1d8", "condition": "two_handed" } };
 const effectOnHit$2 = { "mod": "mod.STR", "damage": "1d6", "damage_type": "Contondant" };
 const links$2 = { "actionId": "melee-strike", "effectId": "melee-slash" };
-const label$_ = "Baton";
+const label$10 = "Baton";
 const staff = {
-  id: id$17,
+  id: id$19,
   name: name$b,
-  type: type$s,
+  type: type$u,
   subtype: subtype$2,
-  category: category$B,
+  category: category$D,
   descriptionCourte: descriptionCourte$2,
   descriptionLongue: descriptionLongue$2,
   allow_stack: allow_stack$2,
   harmonisable: harmonisable$2,
   focalisateur: focalisateur$2,
-  weight: weight$n,
+  weight: weight$p,
   size: size$5,
-  value: value$2,
+  value: value$7,
   rarity: rarity$2,
-  tags: tags$O,
+  tags: tags$Q,
   properties: properties$2,
   attack: attack$5,
   damage: damage$5,
   effectOnHit: effectOnHit$2,
   links: links$2,
-  label: label$_
+  label: label$10
 };
-const id$16 = "nunchaku";
+const id$18 = "nunchaku";
 const name$a = "Nunchaku";
-const type$r = "arme";
+const type$t = "arme";
 const subtype$1 = "monastique";
-const category$A = "melee";
+const category$C = "melee";
 const descriptionCourte$1 = "Arme souple en bois relie par une corde.";
 const descriptionLongue$1 = "";
 const allow_stack$1 = false;
 const harmonisable$1 = false;
 const focalisateur$1 = false;
-const weight$m = 0.8;
+const weight$o = 0.8;
 const size$4 = 0.8;
-const value$1 = { "gold": 3, "silver": 0, "copper": 0 };
+const value$6 = { "gold": 3, "silver": 0, "copper": 0 };
 const rarity$1 = "commune";
-const tags$N = ["arme", "melee", "contondant"];
+const tags$P = ["arme", "melee", "contondant"];
 const properties$1 = { "finesse": true, "light": true, "heavy": false, "two_handed": false, "reach": 1, "versatile": null, "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": "monastic" };
 const attack$4 = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
 const damage$4 = { "dice": "1d6", "damage_type": "Contondant", "alt": null };
 const effectOnHit$1 = { "mod": "mod.DEX", "damage": "1d6", "damage_type": "Contondant" };
 const links$1 = { "actionId": "melee-strike", "effectId": "melee-slash" };
-const label$Z = "Nunchaku";
+const label$$ = "Nunchaku";
 const nunchaku = {
-  id: id$16,
+  id: id$18,
   name: name$a,
-  type: type$r,
+  type: type$t,
   subtype: subtype$1,
-  category: category$A,
+  category: category$C,
   descriptionCourte: descriptionCourte$1,
   descriptionLongue: descriptionLongue$1,
   allow_stack: allow_stack$1,
   harmonisable: harmonisable$1,
   focalisateur: focalisateur$1,
-  weight: weight$m,
+  weight: weight$o,
   size: size$4,
-  value: value$1,
+  value: value$6,
   rarity: rarity$1,
-  tags: tags$N,
+  tags: tags$P,
   properties: properties$1,
   attack: attack$4,
   damage: damage$4,
   effectOnHit: effectOnHit$1,
   links: links$1,
-  label: label$Z
+  label: label$$
 };
-const id$15 = "kama";
+const id$17 = "kama";
 const name$9 = "Kama";
-const type$q = "arme";
+const type$s = "arme";
 const subtype = "monastique";
-const category$z = "melee";
+const category$B = "melee";
 const descriptionCourte = "Faucille courte pour combat rapproche.";
 const descriptionLongue = "";
 const allow_stack = false;
 const harmonisable = false;
 const focalisateur = false;
-const weight$l = 0.7;
+const weight$n = 0.7;
 const size$3 = 0.6;
-const value = { "gold": 2, "silver": 0, "copper": 0 };
+const value$5 = { "gold": 2, "silver": 0, "copper": 0 };
 const rarity = "commune";
-const tags$M = ["arme", "melee", "tranchant"];
+const tags$O = ["arme", "melee", "tranchant"];
 const properties = { "finesse": true, "light": true, "heavy": false, "two_handed": false, "reach": 1, "versatile": null, "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": "monastic" };
 const attack$3 = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
 const damage$3 = { "dice": "1d6", "damage_type": "Tranchant", "alt": null };
 const effectOnHit = { "mod": "mod.DEX", "damage": "1d6", "damage_type": "Tranchant" };
 const links = { "actionId": "melee-strike", "effectId": "melee-slash" };
-const label$Y = "Kama";
+const label$_ = "Kama";
 const kama = {
-  id: id$15,
+  id: id$17,
   name: name$9,
-  type: type$q,
+  type: type$s,
   subtype,
-  category: category$z,
+  category: category$B,
   descriptionCourte,
   descriptionLongue,
   allow_stack,
   harmonisable,
   focalisateur,
-  weight: weight$l,
+  weight: weight$n,
   size: size$3,
-  value,
+  value: value$5,
   rarity,
-  tags: tags$M,
+  tags: tags$O,
   properties,
   attack: attack$3,
   damage: damage$3,
   effectOnHit,
   links,
-  label: label$Y
+  label: label$_
 };
 const WEAPON_TYPE_MODULES = {
   "./simple/dague.json": dagger,
+  "./simple/petit-couteau.json": petitCouteau,
+  "./simple/arme-endommagee.json": armeEndommagee,
   "./simple/massue.json": club,
   "./simple/arc-court.json": shortbow,
   "./martiale/epee-longue.json": longsword,
@@ -9901,52 +9951,52 @@ const types$6 = ["./human.json", "./elf.json", "./dwarf.json"];
 const racesIndex = {
   types: types$6
 };
-const id$14 = "human";
-const label$X = "Humain";
-const description$z = "Polyvalent et adaptable, l'humain apprend vite et s'integre partout.";
+const id$16 = "human";
+const label$Z = "Humain";
+const description$B = "Polyvalent et adaptable, l'humain apprend vite et s'integre partout.";
 const size$2 = "medium";
 const speed$2 = 6;
 const traits$5 = [{ "id": "adaptable", "label": "Adaptable", "description": "Choisit une competence au choix." }];
 const grants$5 = [{ "kind": "trait", "ids": ["adaptable"] }];
 const human = {
-  id: id$14,
-  label: label$X,
-  description: description$z,
+  id: id$16,
+  label: label$Z,
+  description: description$B,
   size: size$2,
   speed: speed$2,
   traits: traits$5,
   grants: grants$5
 };
-const id$13 = "elf";
-const label$W = "Elfe";
-const description$y = "Grace et perception affutee, l'elfe a une affinite naturelle avec la magie.";
+const id$15 = "elf";
+const label$Y = "Elfe";
+const description$A = "Grace et perception affutee, l'elfe a une affinite naturelle avec la magie.";
 const size$1 = "medium";
 const speed$1 = 6;
 const vision$1 = { "mode": "darkvision", "range": 60 };
 const traits$4 = [{ "id": "keen_senses", "label": "Sens aiguises", "description": "Avantage sur les tests de Perception basee sur la vue ou l'ouie." }];
 const grants$4 = [{ "kind": "trait", "ids": ["keen_senses"] }];
 const elf = {
-  id: id$13,
-  label: label$W,
-  description: description$y,
+  id: id$15,
+  label: label$Y,
+  description: description$A,
   size: size$1,
   speed: speed$1,
   vision: vision$1,
   traits: traits$4,
   grants: grants$4
 };
-const id$12 = "dwarf";
-const label$V = "Nain";
-const description$x = "Robuste et endurant, le nain excelle dans la defense et le travail du metal.";
+const id$14 = "dwarf";
+const label$X = "Nain";
+const description$z = "Robuste et endurant, le nain excelle dans la defense et le travail du metal.";
 const size = "medium";
 const speed = 5;
 const vision = { "mode": "darkvision", "range": 60 };
 const traits$3 = [{ "id": "dwarven_resilience", "label": "Endurance naine", "description": "Avantage contre le poison et resistance aux degats de poison." }];
 const grants$3 = [{ "kind": "trait", "ids": ["dwarven_resilience"] }];
 const dwarf$1 = {
-  id: id$12,
-  label: label$V,
-  description: description$x,
+  id: id$14,
+  label: label$X,
+  description: description$z,
   size,
   speed,
   vision,
@@ -9978,9 +10028,9 @@ const types$5 = ["./Clerc/class.json", "./Clerc/peace-domain.json", "./Guerrier/
 const classesIndex = {
   types: types$5
 };
-const id$11 = "cleric";
-const label$U = "Clerc";
-const description$w = "Un guide spirituel capable de soigner et de canaliser la puissance divine.";
+const id$13 = "cleric";
+const label$W = "Clerc";
+const description$y = "Un guide spirituel capable de soigner et de canaliser la puissance divine.";
 const hitDie$1 = 8;
 const subclassLevel$1 = 1;
 const subclassIds$1 = ["peace-domain"];
@@ -9989,9 +10039,9 @@ const equipment$3 = ["obj_symbole_sacre"];
 const spellcasting$1 = { "ability": "SAG", "preparation": "prepared", "storage": "memory", "focusTypes": ["holy_symbol"], "casterProgression": "full", "slotsByLevel": { "1": [2, 0, 0, 0, 0, 0, 0, 0, 0], "2": [3, 0, 0, 0, 0, 0, 0, 0, 0], "3": [4, 2, 0, 0, 0, 0, 0, 0, 0], "4": [4, 3, 0, 0, 0, 0, 0, 0, 0], "5": [4, 3, 2, 0, 0, 0, 0, 0, 0], "6": [4, 3, 3, 0, 0, 0, 0, 0, 0], "7": [4, 3, 3, 1, 0, 0, 0, 0, 0], "8": [4, 3, 3, 2, 0, 0, 0, 0, 0], "9": [4, 3, 3, 3, 1, 0, 0, 0, 0], "10": [4, 3, 3, 3, 2, 0, 0, 0, 0], "11": [4, 3, 3, 3, 2, 1, 0, 0, 0], "12": [4, 3, 3, 3, 2, 1, 0, 0, 0], "13": [4, 3, 3, 3, 2, 1, 1, 0, 0], "14": [4, 3, 3, 3, 2, 1, 1, 0, 0], "15": [4, 3, 3, 3, 2, 1, 1, 1, 0], "16": [4, 3, 3, 3, 2, 1, 1, 1, 0], "17": [4, 3, 3, 3, 2, 1, 1, 1, 1], "18": [4, 3, 3, 3, 3, 1, 1, 1, 1], "19": [4, 3, 3, 3, 3, 2, 1, 1, 1], "20": [4, 3, 3, 3, 3, 2, 2, 1, 1] } };
 const progression$1 = { "1": { "grants": [{ "kind": "feature", "ids": ["channel-divinity"] }], "description": "Incantation divine et lancement de sorts geres ailleurs." }, "2": { "grants": [{ "kind": "feature", "ids": ["channel-divinity"] }, { "kind": "feature", "ids": ["turn-undead"] }], "description": "Canalisation d'energie divine et Renvoi des morts-vivants." }, "4": { "grants": [{ "kind": "bonus", "ids": ["asi-or-feat"] }], "description": "Amelioration de caracteristiques ou choix de don." }, "8": { "grants": [{ "kind": "bonus", "ids": ["asi-or-feat"] }], "description": "Amelioration de caracteristiques ou choix de don." }, "10": { "grants": [{ "kind": "feature", "ids": ["divine-intervention"] }], "description": "Intervention divine." }, "12": { "grants": [{ "kind": "bonus", "ids": ["asi-or-feat"] }], "description": "Amelioration de caracteristiques ou choix de don." }, "16": { "grants": [{ "kind": "bonus", "ids": ["asi-or-feat"] }], "description": "Amelioration de caracteristiques ou choix de don." }, "19": { "grants": [{ "kind": "bonus", "ids": ["asi-or-feat"] }], "description": "Amelioration de caracteristiques choix de don." }, "20": { "grants": [{ "kind": "feature", "ids": ["divine-intervention"] }], "description": "Intervention divine amelioree." } };
 const cleric = {
-  id: id$11,
-  label: label$U,
-  description: description$w,
+  id: id$13,
+  label: label$W,
+  description: description$y,
   hitDie: hitDie$1,
   subclassLevel: subclassLevel$1,
   subclassIds: subclassIds$1,
@@ -10000,44 +10050,44 @@ const cleric = {
   spellcasting: spellcasting$1,
   progression: progression$1
 };
-const id$10 = "fighter";
-const label$T = "Guerrier";
-const description$v = "Un combattant maitre des armes, robuste et polyvalent sur le champ de bataille.";
+const id$12 = "fighter";
+const label$V = "Guerrier";
+const description$x = "Un combattant maitre des armes, robuste et polyvalent sur le champ de bataille.";
 const hitDie = 10;
 const subclassLevel = 3;
 const subclassIds = ["eldritch-knight"];
 const proficiencies = { "weapons": ["simple", "martiale"], "armors": ["legere", "intermediaire", "lourde", "bouclier"] };
 const fighter = {
-  id: id$10,
-  label: label$T,
-  description: description$v,
+  id: id$12,
+  label: label$V,
+  description: description$x,
   hitDie,
   subclassLevel,
   subclassIds,
   proficiencies
 };
-const id$$ = "peace-domain";
+const id$11 = "peace-domain";
 const classId$1 = "cleric";
-const label$S = "Domaine de la Paix";
-const description$u = "Lien divin entre allies, soutien defensif et magie de protection.";
+const label$U = "Domaine de la Paix";
+const description$w = "Lien divin entre allies, soutien defensif et magie de protection.";
 const progression = { "1": { "grants": [{ "kind": "feature", "ids": ["peace-bond"] }, { "kind": "spell", "ids": ["heroism", "sanctuary"] }], "description": "Lien de paix et sorts disponibles : Heroisme, Sanctuaire." }, "2": { "grants": [{ "kind": "feature", "ids": ["balm-of-peace"] }], "description": "Baume de la paix." }, "3": { "grants": [{ "kind": "spell", "ids": ["aid", "warding-bond"] }], "description": "Sorts disponibles : Aide, Lien protecteur." }, "5": { "grants": [{ "kind": "spell", "ids": ["beacon-of-hope", "sending"] }], "description": "Sorts disponibles : Flamme d'espoir, Message." }, "6": { "grants": [{ "kind": "feature", "ids": ["protective-bond"] }], "description": "Lien protecteur." }, "7": { "grants": [{ "kind": "spell", "ids": ["aura-of-purity", "resilient-sphere"] }], "description": "Sorts disponibles : Aura de purete, Sphere resiliente." }, "9": { "grants": [{ "kind": "spell", "ids": ["greater-restoration", "rarys-telepathic-bond"] }], "description": "Sorts disponibles : Restauration superieure, Lien telepathique de Rary." }, "17": { "grants": [{ "kind": "feature", "ids": ["expansive-bond"] }], "description": "Lien expansif." } };
 const peaceDomain = {
-  id: id$$,
+  id: id$11,
   classId: classId$1,
-  label: label$S,
-  description: description$u,
+  label: label$U,
+  description: description$w,
   progression
 };
-const id$_ = "eldritch-knight";
+const id$10 = "eldritch-knight";
 const classId = "fighter";
-const label$R = "Chevalier Occulte";
-const description$t = "Combattant martial avec magie de magicien, abjuration et evocation.";
+const label$T = "Chevalier Occulte";
+const description$v = "Combattant martial avec magie de magicien, abjuration et evocation.";
 const spellcasting = { "ability": "INT", "preparation": "known", "storage": "memory", "focusTypes": ["arcane_focus", "component_pouch"], "casterProgression": "third", "slotsByLevel": { "1": [2, 0, 0, 0, 0, 0, 0, 0, 0], "2": [3, 0, 0, 0, 0, 0, 0, 0, 0], "3": [4, 2, 0, 0, 0, 0, 0, 0, 0], "4": [4, 3, 0, 0, 0, 0, 0, 0, 0], "5": [4, 3, 2, 0, 0, 0, 0, 0, 0], "6": [4, 3, 3, 0, 0, 0, 0, 0, 0], "7": [4, 3, 3, 1, 0, 0, 0, 0, 0], "8": [4, 3, 3, 2, 0, 0, 0, 0, 0], "9": [4, 3, 3, 3, 1, 0, 0, 0, 0], "10": [4, 3, 3, 3, 2, 0, 0, 0, 0], "11": [4, 3, 3, 3, 2, 1, 0, 0, 0], "12": [4, 3, 3, 3, 2, 1, 0, 0, 0], "13": [4, 3, 3, 3, 2, 1, 1, 0, 0], "14": [4, 3, 3, 3, 2, 1, 1, 0, 0], "15": [4, 3, 3, 3, 2, 1, 1, 1, 0], "16": [4, 3, 3, 3, 2, 1, 1, 1, 0], "17": [4, 3, 3, 3, 2, 1, 1, 1, 1], "18": [4, 3, 3, 3, 3, 1, 1, 1, 1], "19": [4, 3, 3, 3, 3, 2, 1, 1, 1], "20": [4, 3, 3, 3, 3, 2, 2, 1, 1] } };
 const eldritchKnight = {
-  id: id$_,
+  id: id$10,
   classId,
-  label: label$R,
-  description: description$t,
+  label: label$T,
+  description: description$v,
   spellcasting
 };
 const CLASS_MODULES = {
@@ -10088,44 +10138,44 @@ const types$4 = ["./apprenti-academique.json", "./enfant-des-rues.json", "./vete
 const backgroundsIndex = {
   types: types$4
 };
-const id$Z = "apprenti-academique";
-const label$Q = "Apprenti Academique";
-const description$s = "Eleve d'une academie ou d'un maitre, curieux, studieux et avide de savoir.";
-const equipment$2 = ["obj_grimoire", "obj_plume_encre", "obj_tenue_academique", "obj_bourse_10po", "obj_besace"];
+const id$$ = "apprenti-academique";
+const label$S = "Apprenti Academique";
+const description$u = "Eleve d'une academie ou d'un maitre, curieux, studieux et avide de savoir.";
+const equipment$2 = ["obj_grimoire", "obj_plume_encre", "obj_tenue_academique", "obj_bourse", "object:obj_piece_or:10", "obj_besace"];
 const grants$2 = [{ "kind": "skill", "ids": ["arcanes", "histoire"] }, { "kind": "tool", "ids": ["outils_artisan"] }, { "kind": "language-choice", "ids": [], "meta": { "count": 2 } }, { "kind": "feature", "ids": ["acces-au-savoir"], "meta": { "label": "Acces au Savoir", "description": "Tu sais ou trouver l'information et obtenir un acces raisonnable aux sources savantes." } }];
 const traits$2 = { "personality": ["Je corrige instinctivement les erreurs des autres.", "J'ai une curiosite insatiable.", "Je parle parfois trop techniquement.", "Je prends des notes sur tout.", "Je suis fascine par l'inconnu.", "Je doute souvent de mes capacites pratiques.", "J'adore debattre.", "Je suis plus a l'aise avec les livres qu'avec les gens."], "ideals": ["Connaissance — Le savoir est la cle de tout.", "Progres — Le monde doit evoluer.", "Verite — Les faits comptent plus que les croyances.", "Responsabilite — Le savoir impose un devoir.", "Pouvoir — Comprendre, c'est dominer.", "Transmission — Le savoir doit etre partage."], "bond": "Mon maitre a disparu, laissant des recherches inachevees.", "flaw": "Je sous-estime souvent les dangers pratiques." };
 const academic = {
-  id: id$Z,
-  label: label$Q,
-  description: description$s,
+  id: id$$,
+  label: label$S,
+  description: description$u,
   equipment: equipment$2,
   grants: grants$2,
   traits: traits$2
 };
-const id$Y = "enfant-des-rues";
-const label$P = "Enfant des Rues";
-const description$r = "Survivant des ruelles et des toits, malin, discret et opportuniste.";
-const equipment$1 = ["obj_petit_couteau", "obj_bourse_10po", "obj_vetements_communs", "obj_souvenir_vole", "obj_sac_a_dos"];
+const id$_ = "enfant-des-rues";
+const label$R = "Enfant des Rues";
+const description$t = "Survivant des ruelles et des toits, malin, discret et opportuniste.";
+const equipment$1 = ["obj_petit_couteau", "obj_bourse", "object:obj_piece_or:10", "obj_vetements_communs", "obj_souvenir_vole", "obj_sac_a_dos"];
 const grants$1 = [{ "kind": "skill", "ids": ["discretion", "escamotage"] }, { "kind": "tool", "ids": ["outils_autres"] }, { "kind": "tool-choice", "ids": [], "meta": { "count": 1, "options": ["outils_instruments", "outils_jeux"] } }, { "kind": "language-choice", "ids": [], "meta": { "count": 1 } }, { "kind": "feature", "ids": ["reseau-des-ombres"], "meta": { "label": "Reseau des Ombres", "description": "Tu peux trouver un contact des bas-fonds pour une aide simple ou une info mineure." } }];
 const traits$1 = { "personality": ["Je me fie toujours a mon instinct.", "J'ai du mal a faire confiance, mais quand c'est fait, c'est total.", "Je plaisante quand la situation devient tendue.", "Je garde toujours un plan de secours.", "Je suis mefiant envers l'autorite.", "J'observe tout, meme quand je semble distrait.", "Je deteste devoir quelque chose a quelqu'un.", "Je prefere agir seul, mais j'ai besoin d'un groupe."], "ideals": ["Liberte — Personne ne m'enchainera jamais.", "Survie — Les faibles n'ont pas le luxe de la morale.", "Loyaute — Mon clan passe avant tout.", "Ambition — Je merite mieux que ce que j'ai eu.", "Justice — Personne ne devrait vivre comme j'ai vecu.", "Opportunite — Chaque instant est une chance a saisir."], "bond": "Quelqu'un des rues m'a sauve la vie, et je lui dois beaucoup.", "flaw": "Je prends parfois des risques inutiles pour un gain rapide." };
 const streetKid = {
-  id: id$Y,
-  label: label$P,
-  description: description$r,
+  id: id$_,
+  label: label$R,
+  description: description$t,
   equipment: equipment$1,
   grants: grants$1,
   traits: traits$1
 };
-const id$X = "veteran-de-guerre";
-const label$O = "Veteran de Guerre";
-const description$q = "Ancien soldat marque par la guerre, discipline et endurance a toute epreuve.";
-const equipment = ["obj_arme_endommagee", "obj_insigne_unite", "obj_vetements_voyage", "obj_bourse_10po", "obj_sac_voyage"];
+const id$Z = "veteran-de-guerre";
+const label$Q = "Veteran de Guerre";
+const description$s = "Ancien soldat marque par la guerre, discipline et endurance a toute epreuve.";
+const equipment = ["obj_arme_endommagee", "obj_insigne_unite", "obj_vetements_voyage", "obj_bourse", "object:obj_piece_or:10", "obj_sac_voyage"];
 const grants = [{ "kind": "skill", "ids": ["athletisme", "intimidation"] }, { "kind": "tool", "ids": ["outils_vehicules"] }, { "kind": "tool-choice", "ids": [], "meta": { "count": 1, "options": ["outils_jeux"] } }, { "kind": "language-choice", "ids": [], "meta": { "count": 1 } }, { "kind": "feature", "ids": ["freres-et-soeurs-d-armes"], "meta": { "label": "Freres et Soeurs d'Armes", "description": "Tu peux obtenir abri, aide basique ou informations militaires d'anciens soldats." } }];
 const traits = { "personality": ["Je reste calme en toute situation.", "J'analyse toujours le terrain.", "J'ai du mal a me detendre.", "Je protege instinctivement les plus faibles.", "Je deteste le gaspillage.", "Je parle peu, mais efficacement.", "Je suis hante par mes souvenirs.", "Je respecte la chaine de commandement."], "ideals": ["Devoir — On n'abandonne jamais sa mission.", "Protection — Les innocents doivent etre defendus.", "Honneur — Mes actes me definissent.", "Redemption — Je veux reparer le passe.", "Ordre — Le chaos mene a la souffrance.", "Fraternite — Aucun combat ne se gagne seul."], "bond": "Un ancien compagnon d'armes compte toujours sur moi.", "flaw": "Je reagis parfois trop violemment face aux menaces." };
 const veteran = {
-  id: id$X,
-  label: label$O,
-  description: description$q,
+  id: id$Z,
+  label: label$Q,
+  description: description$s,
   equipment,
   grants,
   traits
@@ -10155,41 +10205,41 @@ const types$3 = ["./commun.json", "./elfique.json", "./nain.json", "./halfelin.j
 const languagesIndex = {
   types: types$3
 };
-const id$W = "commun";
-const label$N = "Commun";
+const id$Y = "commun";
+const label$P = "Commun";
 const common = {
+  id: id$Y,
+  label: label$P
+};
+const id$X = "elfique";
+const label$O = "Elfique";
+const elvish = {
+  id: id$X,
+  label: label$O
+};
+const id$W = "nain";
+const label$N = "Nain";
+const dwarf = {
   id: id$W,
   label: label$N
 };
-const id$V = "elfique";
-const label$M = "Elfique";
-const elvish = {
+const id$V = "halfelin";
+const label$M = "Halfelin";
+const halfling = {
   id: id$V,
   label: label$M
 };
-const id$U = "nain";
-const label$L = "Nain";
-const dwarf = {
+const id$U = "gnome";
+const label$L = "Gnome";
+const gnome = {
   id: id$U,
   label: label$L
 };
-const id$T = "halfelin";
-const label$K = "Halfelin";
-const halfling = {
+const id$T = "orc";
+const label$K = "Orc";
+const orc = {
   id: id$T,
   label: label$K
-};
-const id$S = "gnome";
-const label$J = "Gnome";
-const gnome = {
-  id: id$S,
-  label: label$J
-};
-const id$R = "orc";
-const label$I = "Orc";
-const orc = {
-  id: id$R,
-  label: label$I
 };
 const LANGUAGE_MODULES = {
   "./commun.json": common,
@@ -10219,65 +10269,65 @@ const types$2 = ["./outils-artisan.json", "./outils-jeux.json", "./outils-instru
 const toolsIndex = {
   types: types$2
 };
-const id$Q = "outils_artisan";
-const label$H = "Outils d'artisan";
-const type$p = "tool";
-const category$y = "artisan";
-const description$p = "Categorie regroupant les outils d'artisan (alchimiste, forgeron, menuisier, etc.).";
+const id$S = "outils_artisan";
+const label$J = "Outils d'artisan";
+const type$r = "tool";
+const category$A = "artisan";
+const description$r = "Categorie regroupant les outils d'artisan (alchimiste, forgeron, menuisier, etc.).";
 const artisan = {
+  id: id$S,
+  label: label$J,
+  type: type$r,
+  category: category$A,
+  description: description$r
+};
+const id$R = "outils_jeux";
+const label$I = "Boite de jeux";
+const type$q = "tool";
+const category$z = "games";
+const description$q = "Categorie des jeux (des, cartes, echecs, etc.).";
+const games = {
+  id: id$R,
+  label: label$I,
+  type: type$q,
+  category: category$z,
+  description: description$q
+};
+const id$Q = "outils_instruments";
+const label$H = "Instruments de musique";
+const type$p = "tool";
+const category$y = "music";
+const description$p = "Categorie des instruments de musique.";
+const instruments = {
   id: id$Q,
   label: label$H,
   type: type$p,
   category: category$y,
   description: description$p
 };
-const id$P = "outils_jeux";
-const label$G = "Boite de jeux";
+const id$P = "outils_autres";
+const label$G = "Autres outils";
 const type$o = "tool";
-const category$x = "games";
-const description$o = "Categorie des jeux (des, cartes, echecs, etc.).";
-const games = {
+const category$x = "misc";
+const description$o = "Categorie des autres outils (deguisement, contrefacon, herboriste, empoisonneur, voleur, navigateur).";
+const misc = {
   id: id$P,
   label: label$G,
   type: type$o,
   category: category$x,
   description: description$o
 };
-const id$O = "outils_instruments";
-const label$F = "Instruments de musique";
+const id$O = "outils_vehicules";
+const label$F = "Vehicules";
 const type$n = "tool";
-const category$w = "music";
-const description$n = "Categorie des instruments de musique.";
-const instruments = {
+const category$w = "vehicles";
+const description$n = "Categorie des vehicules (terrestres, aquatiques).";
+const vehicles = {
   id: id$O,
   label: label$F,
   type: type$n,
   category: category$w,
   description: description$n
-};
-const id$N = "outils_autres";
-const label$E = "Autres outils";
-const type$m = "tool";
-const category$v = "misc";
-const description$m = "Categorie des autres outils (deguisement, contrefacon, herboriste, empoisonneur, voleur, navigateur).";
-const misc = {
-  id: id$N,
-  label: label$E,
-  type: type$m,
-  category: category$v,
-  description: description$m
-};
-const id$M = "outils_vehicules";
-const label$D = "Vehicules";
-const type$l = "tool";
-const category$u = "vehicles";
-const description$l = "Categorie des vehicules (terrestres, aquatiques).";
-const vehicles = {
-  id: id$M,
-  label: label$D,
-  type: type$l,
-  category: category$u,
-  description: description$l
 };
 const TOOL_MODULES = {
   "./outils-artisan.json": artisan,
@@ -10302,127 +10352,165 @@ function loadToolItemsFromIndex() {
   }
   return loaded;
 }
-const types$1 = ["./obj-grimoire.json", "./obj-plume-encre.json", "./obj-tenue-academique.json", "./obj-bourse-10po.json", "./obj-petit-couteau.json", "./obj-vetements-communs.json", "./obj-souvenir-vole.json", "./obj-arme-endommagee.json", "./obj-insigne-unite.json", "./obj-vetements-voyage.json", "./obj-sac-voyage.json", "./obj-besace.json", "./obj-sac-a-dos.json", "./obj-symbole-sacre.json"];
+const types$1 = ["./obj-grimoire.json", "./obj-plume-encre.json", "./obj-tenue-academique.json", "./obj-bourse.json", "./piece-platine.json", "./piece-or.json", "./piece-argent.json", "./piece-cuivre.json", "./obj-vetements-communs.json", "./obj-souvenir-vole.json", "./obj-insigne-unite.json", "./obj-vetements-voyage.json", "./obj-sac-voyage.json", "./obj-besace.json", "./obj-sac-a-dos.json", "./obj-symbole-sacre.json"];
 const objectsIndex = {
   types: types$1
 };
-const id$L = "obj_grimoire";
-const label$C = "Grimoire ou carnet de recherches";
-const type$k = "object";
-const category$t = "misc";
-const weight$k = 1;
-const priceGp$k = 5;
-const tags$L = ["academique"];
-const description$k = "Notes, formules et recherches personnelles.";
+const id$N = "obj_grimoire";
+const label$E = "Grimoire ou carnet de recherches";
+const type$m = "object";
+const category$v = "misc";
+const weight$m = 1;
+const priceGp$h = 5;
+const tags$N = ["academique"];
+const description$m = "Notes, formules et recherches personnelles.";
 const grimoire = {
+  id: id$N,
+  label: label$E,
+  type: type$m,
+  category: category$v,
+  weight: weight$m,
+  priceGp: priceGp$h,
+  tags: tags$N,
+  description: description$m
+};
+const id$M = "obj_plume_encre";
+const label$D = "Plume et encre";
+const type$l = "object";
+const category$u = "misc";
+const weight$l = 0.2;
+const priceGp$g = 1;
+const tags$M = ["ecriture"];
+const description$l = "Outils de base pour ecrire et prendre des notes.";
+const plumeEncre = {
+  id: id$M,
+  label: label$D,
+  type: type$l,
+  category: category$u,
+  weight: weight$l,
+  priceGp: priceGp$g,
+  tags: tags$M,
+  description: description$l
+};
+const id$L = "obj_tenue_academique";
+const label$C = "Tenue academique";
+const type$k = "object";
+const category$t = "clothing_body";
+const weight$k = 1.5;
+const priceGp$f = 2;
+const tags$L = ["vetement"];
+const description$k = "Robe ou tenue propre aux milieux savants.";
+const tenueAcademique = {
   id: id$L,
   label: label$C,
   type: type$k,
   category: category$t,
   weight: weight$k,
-  priceGp: priceGp$k,
+  priceGp: priceGp$f,
   tags: tags$L,
   description: description$k
 };
-const id$K = "obj_plume_encre";
-const label$B = "Plume et encre";
+const id$K = "obj_bourse";
+const label$B = "Bourse";
 const type$j = "object";
-const category$s = "misc";
+const category$s = "pack";
 const weight$j = 0.2;
-const priceGp$j = 1;
-const tags$K = ["ecriture"];
-const description$j = "Outils de base pour ecrire et prendre des notes.";
-const plumeEncre = {
+const value$4 = { "po": 1 };
+const capacityWeight$3 = 5;
+const tags$K = ["bourse", "sac", "paquetage"];
+const description$j = "Petite bourse destinee aux pieces et petits objets.";
+const bourse = {
   id: id$K,
   label: label$B,
   type: type$j,
   category: category$s,
   weight: weight$j,
-  priceGp: priceGp$j,
+  value: value$4,
+  capacityWeight: capacityWeight$3,
   tags: tags$K,
   description: description$j
 };
-const id$J = "obj_tenue_academique";
-const label$A = "Tenue academique";
+const id$J = "obj_piece_platine";
+const label$A = "Piece de platine";
 const type$i = "object";
-const category$r = "clothing_body";
-const weight$i = 1.5;
-const priceGp$i = 2;
-const tags$J = ["vetement"];
-const description$i = "Robe ou tenue propre aux milieux savants.";
-const tenueAcademique = {
+const category$r = "currency";
+const weight$i = 0.01;
+const value$3 = { "pp": 1 };
+const tags$J = ["monnaie", "piece"];
+const description$i = "Piece de platine.";
+const piecePlatine = {
   id: id$J,
   label: label$A,
   type: type$i,
   category: category$r,
   weight: weight$i,
-  priceGp: priceGp$i,
+  value: value$3,
   tags: tags$J,
   description: description$i
 };
-const id$I = "obj_bourse_10po";
-const label$z = "Bourse (10 po)";
+const id$I = "obj_piece_or";
+const label$z = "Piece d'or";
 const type$h = "object";
-const category$q = "pouch";
-const weight$h = 0.1;
-const priceGp$h = 10;
-const tags$I = ["or"];
-const description$h = "Une petite bourse contenant 10 pieces d'or.";
-const bourse10 = {
+const category$q = "currency";
+const weight$h = 0.01;
+const value$2 = { "po": 1 };
+const tags$I = ["monnaie", "piece"];
+const description$h = "Piece d'or.";
+const pieceOr = {
   id: id$I,
   label: label$z,
   type: type$h,
   category: category$q,
   weight: weight$h,
-  priceGp: priceGp$h,
+  value: value$2,
   tags: tags$I,
   description: description$h
 };
-const id$H = "obj_petit_couteau";
-const label$y = "Petit couteau";
+const id$H = "obj_piece_argent";
+const label$y = "Piece d'argent";
 const type$g = "object";
-const category$p = "weapon_short";
-const weight$g = 0.5;
-const priceGp$g = 1;
-const tags$H = ["outil", "improvise"];
-const description$g = "Petit couteau utilitaire, pas une arme de combat principale.";
-const petitCouteau = {
+const category$p = "currency";
+const weight$g = 0.01;
+const value$1 = { "pa": 1 };
+const tags$H = ["monnaie", "piece"];
+const description$g = "Piece d'argent.";
+const pieceArgent = {
   id: id$H,
   label: label$y,
   type: type$g,
   category: category$p,
   weight: weight$g,
-  priceGp: priceGp$g,
+  value: value$1,
   tags: tags$H,
   description: description$g
 };
-const id$G = "obj_vetements_communs";
-const label$x = "Vetements communs";
+const id$G = "obj_piece_cuivre";
+const label$x = "Piece de cuivre";
 const type$f = "object";
-const category$o = "clothing_body";
-const weight$f = 1.5;
-const priceGp$f = 0.5;
-const tags$G = ["vetement"];
-const description$f = "Tenue simple et pratique.";
-const vetementsCommuns = {
+const category$o = "currency";
+const weight$f = 0.01;
+const value = { "pc": 1 };
+const tags$G = ["monnaie", "piece"];
+const description$f = "Piece de cuivre.";
+const pieceCuivre = {
   id: id$G,
   label: label$x,
   type: type$f,
   category: category$o,
   weight: weight$f,
-  priceGp: priceGp$f,
+  value,
   tags: tags$G,
   description: description$f
 };
-const id$F = "obj_souvenir_vole";
-const label$w = "Souvenir d'enfance vole";
+const id$F = "obj_vetements_communs";
+const label$w = "Vetements communs";
 const type$e = "object";
-const category$n = "jewel";
-const weight$e = 0.1;
-const priceGp$e = 0;
-const tags$F = ["souvenir"];
-const description$e = "Petit objet sentimental, sans grande valeur marchande.";
-const souvenirVole = {
+const category$n = "clothing_body";
+const weight$e = 1.5;
+const priceGp$e = 0.5;
+const tags$F = ["vetement"];
+const description$e = "Tenue simple et pratique.";
+const vetementsCommuns = {
   id: id$F,
   label: label$w,
   type: type$e,
@@ -10432,15 +10520,15 @@ const souvenirVole = {
   tags: tags$F,
   description: description$e
 };
-const id$E = "obj_arme_endommagee";
-const label$v = "Arme endommagee";
+const id$E = "obj_souvenir_vole";
+const label$v = "Souvenir d'enfance vole";
 const type$d = "object";
-const category$m = "weapon_short";
-const weight$d = 2;
+const category$m = "jewel";
+const weight$d = 0.1;
 const priceGp$d = 0;
-const tags$E = ["arme", "endommagee"];
-const description$d = "Une arme simple ou martiale abimee, utilisable pour l'histoire.";
-const armeEndommagee = {
+const tags$E = ["souvenir"];
+const description$d = "Petit objet sentimental, sans grande valeur marchande.";
+const souvenirVole = {
   id: id$E,
   label: label$v,
   type: type$d,
@@ -10568,11 +10656,13 @@ const OBJECT_MODULES = {
   "./obj-grimoire.json": grimoire,
   "./obj-plume-encre.json": plumeEncre,
   "./obj-tenue-academique.json": tenueAcademique,
-  "./obj-bourse-10po.json": bourse10,
-  "./obj-petit-couteau.json": petitCouteau,
+  "./obj-bourse.json": bourse,
+  "./piece-platine.json": piecePlatine,
+  "./piece-or.json": pieceOr,
+  "./piece-argent.json": pieceArgent,
+  "./piece-cuivre.json": pieceCuivre,
   "./obj-vetements-communs.json": vetementsCommuns,
   "./obj-souvenir-vole.json": souvenirVole,
-  "./obj-arme-endommagee.json": armeEndommagee,
   "./obj-insigne-unite.json": insigneUnite,
   "./obj-vetements-voyage.json": vetementsVoyage,
   "./obj-sac-voyage.json": sacVoyage,
@@ -15070,147 +15160,145 @@ function buildTerrainMixLayer(params) {
 }
 const id$h = "unknown";
 const label$8 = "Unknown";
-const fallbackColor$8 = "#4a4a4a";
-const tags$h = ["default"];
+const fallbackColor$8 = "#1d1d30";
 const passable$8 = true;
-const moveCost$8 = 1;
+const moveCost$7 = 1;
+const tags$h = ["debug"];
 const unknown = {
   id: id$h,
   label: label$8,
   fallbackColor: fallbackColor$8,
-  tags: tags$h,
   passable: passable$8,
-  moveCost: moveCost$8
+  moveCost: moveCost$7,
+  tags: tags$h
 };
 const id$g = "stone";
 const label$7 = "Stone";
 const textureId$3 = "stone-basic";
 const fallbackColor$7 = "#6b6f74";
-const tags$g = ["rock", "interior"];
 const passable$7 = true;
-const moveCost$7 = 1;
+const moveCost$6 = 1;
+const tags$g = ["hard", "rock"];
 const stone = {
   id: id$g,
   label: label$7,
   textureId: textureId$3,
   fallbackColor: fallbackColor$7,
-  tags: tags$g,
   passable: passable$7,
-  moveCost: moveCost$7
+  moveCost: moveCost$6,
+  tags: tags$g
 };
 const id$f = "road";
 const label$6 = "Road";
 const textureId$2 = "road-basic";
 const fallbackColor$6 = "#5a4a3a";
-const tags$f = ["exterior", "path"];
 const passable$6 = true;
-const moveCost$6 = 1;
+const moveCost$5 = 1;
+const tags$f = ["path"];
 const road = {
   id: id$f,
   label: label$6,
   textureId: textureId$2,
   fallbackColor: fallbackColor$6,
-  tags: tags$f,
   passable: passable$6,
-  moveCost: moveCost$6
+  moveCost: moveCost$5,
+  tags: tags$f
 };
 const id$e = "grass";
 const label$5 = "Grass";
 const textureId$1 = "grass-basic";
-const fallbackColor$5 = "#35962a";
-const solidColor = "#35962a";
-const tags$e = ["exterior", "nature"];
+const fallbackColor$5 = "#3f6b3a";
 const passable$5 = true;
-const moveCost$5 = 1;
+const moveCost$4 = 1;
+const tags$e = ["soft", "nature"];
 const grass = {
   id: id$e,
   label: label$5,
   textureId: textureId$1,
   fallbackColor: fallbackColor$5,
-  solidColor,
-  tags: tags$e,
   passable: passable$5,
-  moveCost: moveCost$5
+  moveCost: moveCost$4,
+  tags: tags$e
 };
 const id$d = "floor";
-const label$4 = "Wood floor";
+const label$4 = "Wood Floor";
 const textureId = "wood-plank";
-const fallbackColor$4 = "#8b6a47";
-const tags$d = ["interior", "wood"];
+const fallbackColor$4 = "#7a5c3b";
 const passable$4 = true;
-const moveCost$4 = 1;
+const moveCost$3 = 1;
+const tags$d = ["interior", "wood"];
 const floor = {
   id: id$d,
   label: label$4,
   textureId,
   fallbackColor: fallbackColor$4,
-  tags: tags$d,
   passable: passable$4,
-  moveCost: moveCost$4
+  moveCost: moveCost$3,
+  tags: tags$d
 };
 const id$c = "dirt";
 const label$3 = "Dirt";
-const fallbackColor$3 = "#6a5536";
-const tags$c = ["exterior", "nature"];
+const fallbackColor$3 = "#6a4b2a";
 const passable$3 = true;
-const moveCost$3 = 1;
+const moveCost$2 = 1;
+const tags$c = ["soft", "earth"];
 const dirt = {
   id: id$c,
   label: label$3,
   fallbackColor: fallbackColor$3,
-  tags: tags$c,
   passable: passable$3,
-  moveCost: moveCost$3
+  moveCost: moveCost$2,
+  tags: tags$c
 };
 const id$b = "mud";
 const label$2 = "Mud";
-const fallbackColor$2 = "#5a4433";
-const tags$b = ["exterior", "wet"];
+const fallbackColor$2 = "#58452a";
 const passable$2 = true;
-const moveCost$2 = 2;
+const moveCost$1 = 1.6;
+const tags$b = ["soft", "wet", "slow"];
+const effects$9 = ["slow"];
 const mud = {
   id: id$b,
   label: label$2,
   fallbackColor: fallbackColor$2,
-  tags: tags$b,
   passable: passable$2,
-  moveCost: moveCost$2
+  moveCost: moveCost$1,
+  tags: tags$b,
+  effects: effects$9
 };
 const id$a = "water";
 const label$1 = "Water";
-const fallbackColor$1 = "#2f5d8a";
-const tags$a = ["liquid"];
+const fallbackColor$1 = "#2b4f8c";
 const passable$1 = true;
-const moveCost$1 = 2;
+const moveCost = 1.8;
 const liquid$1 = true;
 const depth$1 = 1;
+const tags$a = ["wet"];
 const water = {
   id: id$a,
   label: label$1,
   fallbackColor: fallbackColor$1,
-  tags: tags$a,
   passable: passable$1,
-  moveCost: moveCost$1,
+  moveCost,
   liquid: liquid$1,
-  depth: depth$1
+  depth: depth$1,
+  tags: tags$a
 };
-const id$9 = "deep-water";
-const label = "Deep water";
-const fallbackColor = "#1f3b63";
-const tags$9 = ["liquid"];
-const passable = true;
-const moveCost = 3;
+const id$9 = "deepWater";
+const label = "Deep Water";
+const fallbackColor = "#1f3b6d";
+const passable = false;
 const liquid = true;
 const depth = 3;
+const tags$9 = ["wet", "hazard"];
 const deepWater = {
   id: id$9,
   label,
   fallbackColor,
-  tags: tags$9,
   passable,
-  moveCost,
   liquid,
-  depth
+  depth,
+  tags: tags$9
 };
 const FLOOR_MATERIALS = [
   unknown,
@@ -17072,7 +17160,7 @@ const browserExt = {
   },
   test: () => true,
   load: async () => {
-    await __vitePreload(() => import("./browserAll-CBRM1BWv.js"), true ? __vite__mapDeps([0,1,2]) : void 0);
+    await __vitePreload(() => import("./browserAll-cDDJYriK.js"), true ? __vite__mapDeps([0,1,2]) : void 0);
   }
 };
 const webworkerExt = {
@@ -17083,7 +17171,7 @@ const webworkerExt = {
   },
   test: () => typeof self !== "undefined" && self.WorkerGlobalScope !== void 0,
   load: async () => {
-    await __vitePreload(() => import("./webworkerAll-CeqkJI0U.js"), true ? __vite__mapDeps([1,2]) : void 0);
+    await __vitePreload(() => import("./webworkerAll-BGIBy6qI.js"), true ? __vite__mapDeps([1,2]) : void 0);
   }
 };
 class ObservablePoint {
@@ -29411,7 +29499,7 @@ async function autoDetectRenderer(options) {
     const rendererType = preferredOrder[i2];
     if (rendererType === "webgpu" && await isWebGPUSupported()) {
       const { WebGPURenderer } = await __vitePreload(async () => {
-        const { WebGPURenderer: WebGPURenderer2 } = await import("./WebGPURenderer-BaT0JHcV.js");
+        const { WebGPURenderer: WebGPURenderer2 } = await import("./WebGPURenderer-CBWyNK8t.js");
         return { WebGPURenderer: WebGPURenderer2 };
       }, true ? __vite__mapDeps([3,2,4]) : void 0);
       RendererClass = WebGPURenderer;
@@ -29421,7 +29509,7 @@ async function autoDetectRenderer(options) {
       options.failIfMajorPerformanceCaveat ?? AbstractRenderer.defaultOptions.failIfMajorPerformanceCaveat
     )) {
       const { WebGLRenderer } = await __vitePreload(async () => {
-        const { WebGLRenderer: WebGLRenderer2 } = await import("./WebGLRenderer-DHnecu6Q.js");
+        const { WebGLRenderer: WebGLRenderer2 } = await import("./WebGLRenderer-DI7RQcje.js");
         return { WebGLRenderer: WebGLRenderer2 };
       }, true ? __vite__mapDeps([5,2,4]) : void 0);
       RendererClass = WebGLRenderer;
@@ -45319,7 +45407,7 @@ function usePixiNaturalTiling(options) {
       const bumpTexture = resizedBump ?? (bumpUrl ? Assets.get(bumpUrl) ?? Texture.from(bumpUrl) : null);
       const material = options.materials.get(id2);
       const fallbackColor2 = parseHexColor(material == null ? void 0 : material.fallbackColor) ?? 4156218;
-      const solidColor2 = parseHexColor((material == null ? void 0 : material.solidColor) ?? null);
+      const solidColor = parseHexColor((material == null ? void 0 : material.solidColor) ?? null);
       if (bumpTexture == null ? void 0 : bumpTexture.source) {
         bumpTexture.source.scaleMode = "linear";
         bumpTexture.source.mipmapFilter = "linear";
@@ -45417,8 +45505,8 @@ function usePixiNaturalTiling(options) {
       layer.addChild(baseMaskSprite);
       layer.addChild(materialContainer);
       const hasAnyTexture = resolvedVariants.some((url) => Boolean(url));
-      const backgroundTint = solidColor2 ?? fallbackColor2;
-      if (solidColor2 !== null || !bumpTexture && hasAnyTexture) {
+      const backgroundTint = solidColor ?? fallbackColor2;
+      if (solidColor !== null || !bumpTexture && hasAnyTexture) {
         const backgroundSprite = new TilingSprite({ texture: Texture.WHITE, width: boardW, height: boardH });
         backgroundSprite.tint = backgroundTint;
         backgroundSprite.x = 0;
@@ -47353,8 +47441,2838 @@ function usePixiWalls(options) {
     options.showAllLevels
   ]);
 }
+const COIN_IDS = {
+  pp: "obj_piece_platine",
+  po: "obj_piece_or",
+  pa: "obj_piece_argent",
+  pc: "obj_piece_cuivre"
+};
+const COIN_VALUES_CP = {
+  pp: 1e3,
+  po: 100,
+  pa: 10
+};
+function isCoinId(id2) {
+  return Object.values(COIN_IDS).includes(id2);
+}
+function moneyToCopper(value2) {
+  if (!value2) return 0;
+  const pp = Number(value2.pp ?? 0) || 0;
+  const po = Number(value2.po ?? 0) || 0;
+  const pa = Number(value2.pa ?? 0) || 0;
+  const pc = Number(value2.pc ?? 0) || 0;
+  return pp * COIN_VALUES_CP.pp + po * COIN_VALUES_CP.po + pa * COIN_VALUES_CP.pa + pc;
+}
+function copperToMoney(total) {
+  let remaining = Math.max(0, Math.floor(total || 0));
+  const pp = Math.floor(remaining / COIN_VALUES_CP.pp);
+  remaining -= pp * COIN_VALUES_CP.pp;
+  const po = Math.floor(remaining / COIN_VALUES_CP.po);
+  remaining -= po * COIN_VALUES_CP.po;
+  const pa = Math.floor(remaining / COIN_VALUES_CP.pa);
+  remaining -= pa * COIN_VALUES_CP.pa;
+  const pc = remaining;
+  return { pp, po, pa, pc };
+}
+function normalizeMoney(value2) {
+  return copperToMoney(moneyToCopper(value2));
+}
+function scaleMoney(value2, factor) {
+  return copperToMoney(moneyToCopper(value2) * Math.max(0, Math.floor(factor)));
+}
+function moneyToCoinStacks(value2) {
+  const normalized = normalizeMoney(value2);
+  return Object.keys(COIN_IDS).map((denom) => ({
+    id: COIN_IDS[denom],
+    qty: Number(normalized[denom] ?? 0) || 0
+  })).filter((entry) => entry.qty > 0);
+}
+function EquipmentTab(props) {
+  const {
+    toggleSectionLock,
+    getLockButtonState,
+    renderPendingBadge,
+    getPendingCountForSection,
+    lockButtonBaseStyle,
+    equipSubTab,
+    setEquipSubTab,
+    equipMessage,
+    setEquipMessage,
+    slotGroups,
+    renderSlotGroup,
+    packSlotStatus,
+    inventoryItems,
+    getItemLabel,
+    getItemCategories,
+    canUseClothingPieces,
+    equipmentSlots,
+    resolveStoredSlotId,
+    packSlots,
+    getSlotLabel,
+    getItemWeight,
+    storeItemInPack,
+    updateItemSlot,
+    isSectionLocked,
+    getItemUnitValue,
+    isCurrencyItem,
+    moneyToCopper: moneyToCopper2,
+    formatMoneyValue: formatMoneyValue2,
+    onSellRequest,
+    setPrimaryWeapon,
+    removeManualItem,
+    renderSourceDotsWithLabels,
+    getItemSources,
+    carryWeight,
+    carryCapacityMax,
+    weaponOptions,
+    toolItems,
+    armorItems,
+    objectItems,
+    addManualItem
+  } = props;
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "#b0b8c4" }, children: "Equipez les objets compatibles dans chaque slot. Les selections respectent les categories." }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "button",
+        {
+          type: "button",
+          onClick: () => toggleSectionLock("equip"),
+          style: {
+            ...lockButtonBaseStyle,
+            marginLeft: "auto",
+            background: getLockButtonState("equip").background
+          },
+          children: [
+            getLockButtonState("equip").label,
+            renderPendingBadge(getPendingCountForSection("equip"))
+          ]
+        }
+      )
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", gap: 8, marginTop: 8 }, children: [
+      { id: "slots", label: "Equipement" },
+      { id: "loot", label: "Boite a loot" }
+    ].map((tab) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "button",
+      {
+        type: "button",
+        onClick: () => setEquipSubTab(tab.id),
+        style: {
+          padding: "4px 10px",
+          borderRadius: 8,
+          border: "1px solid rgba(255,255,255,0.15)",
+          background: equipSubTab === tab.id ? "rgba(46, 204, 113, 0.18)" : "rgba(255,255,255,0.06)",
+          color: "#f5f5f5",
+          cursor: "pointer",
+          fontSize: 11,
+          fontWeight: 700
+        },
+        children: tab.label
+      },
+      tab.id
+    )) }),
+    equipMessage && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "div",
+      {
+        style: {
+          marginTop: 6,
+          padding: "6px 10px",
+          borderRadius: 8,
+          border: "1px solid rgba(255,255,255,0.18)",
+          background: "rgba(231, 76, 60, 0.18)",
+          fontSize: 11,
+          color: "#f5f5f5",
+          display: "flex",
+          alignItems: "center",
+          gap: 8
+        },
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: equipMessage }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              type: "button",
+              onClick: () => setEquipMessage(null),
+              style: {
+                marginLeft: "auto",
+                border: "none",
+                background: "transparent",
+                color: "#f5f5f5",
+                cursor: "pointer",
+                fontSize: 12,
+                fontWeight: 700
+              },
+              children: "OK"
+            }
+          )
+        ]
+      }
+    ),
+    equipSubTab === "slots" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          style: {
+            marginTop: 8,
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+            gap: 10
+          },
+          children: [
+            renderSlotGroup(
+              slotGroups.body,
+              "Vetements / Armures",
+              "Corps: armure ou vetement. Vetements secondaires actifs si vetement au corps."
+            ),
+            renderSlotGroup(slotGroups.weapons, "Armes et protections"),
+            renderSlotGroup(slotGroups.jewelry, "Bijoux"),
+            renderSlotGroup(slotGroups.bag, "Paquetage"),
+            renderSlotGroup(slotGroups.beltPacks, "Ceinture (bourses)")
+          ]
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.6)", marginTop: 6 }, children: (() => {
+        const mainBag = packSlotStatus("paquetage");
+        const belt1 = packSlotStatus("ceinture_bourse_1");
+        const belt2 = packSlotStatus("ceinture_bourse_2");
+        const mainLabel = mainBag.bagId ? `${mainBag.storedWeight.toFixed(1)} / ${mainBag.capacity.toFixed(1)} poids` : "aucun sac equipe";
+        const belt1Label = belt1.bagId ? `${belt1.storedWeight.toFixed(1)} / ${belt1.capacity.toFixed(1)} poids` : "—";
+        const belt2Label = belt2.bagId ? `${belt2.storedWeight.toFixed(1)} / ${belt2.capacity.toFixed(1)} poids` : "—";
+        return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            "Paquetage: ",
+            mainLabel
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            "Ceinture: bourse 1 ",
+            belt1Label,
+            " · bourse 2 ",
+            belt2Label
+          ] })
+        ] });
+      })() }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          style: {
+            marginTop: 10,
+            borderRadius: 8,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(12,12,18,0.75)",
+            padding: 10,
+            display: "flex",
+            flexDirection: "column",
+            gap: 8
+          },
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, fontWeight: 700 }, children: "Inventaire" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.6)" }, children: "Equiper un slot ou ranger dans un sac (si disponible)." }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.6)" }, children: [
+              "Capacite de port: ",
+              carryWeight.toFixed(1),
+              " / ",
+              carryCapacityMax.toFixed(1),
+              " kg"
+            ] }),
+            inventoryItems.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: "Aucun item pour l'instant." }),
+            inventoryItems.map((item, idx) => {
+              const eligibleSlots = equipmentSlots.filter((slot) => {
+                if (slot.requiresClothingBody && !canUseClothingPieces) return false;
+                const categories = getItemCategories(item);
+                return categories.some((cat) => slot.accepts.includes(cat));
+              });
+              const itemSources = getItemSources(item);
+              const storedSlotId = resolveStoredSlotId(item);
+              const packOptions = Array.from(packSlots).map((slotId) => {
+                const status = packSlotStatus(slotId);
+                if (!status.bagId || status.capacity <= 0) return null;
+                const containerItem = inventoryItems.find(
+                  (entry) => (entry == null ? void 0 : entry.equippedSlot) === slotId && (entry == null ? void 0 : entry.id) === status.bagId
+                );
+                const itemWeight = getItemWeight(item) * (Number((item == null ? void 0 : item.qty) ?? 1) || 1);
+                const alreadyStored = storedSlotId === slotId;
+                const bagWeight = status.totalWeight - status.storedWeight;
+                const capacityOk = alreadyStored || status.storedWeight + itemWeight <= status.capacity;
+                const totalOk = typeof status.maxTotal === "number" ? alreadyStored || bagWeight + status.storedWeight + itemWeight <= status.maxTotal : true;
+                const selfOk = !containerItem || containerItem !== item;
+                return {
+                  slotId,
+                  label: getSlotLabel(slotId),
+                  canStore: Boolean(selfOk && capacityOk && totalOk)
+                };
+              }).filter(Boolean);
+              const itemValue = getItemUnitValue(item);
+              const canSell = !isCurrencyItem(item) && !isSectionLocked("equip") && itemValue && moneyToCopper2(itemValue) > 0;
+              const qtyLabel = ((item == null ? void 0 : item.qty) ?? 1) > 1 ? ` x${item.qty}` : "";
+              return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                "div",
+                {
+                  style: {
+                    display: "grid",
+                    gridTemplateColumns: "1fr auto auto auto auto",
+                    gap: 8,
+                    alignItems: "center",
+                    fontSize: 12
+                  },
+                  children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { style: { display: "inline-flex", alignItems: "center", gap: 6 }, children: [
+                      getItemLabel(item),
+                      qtyLabel,
+                      renderSourceDotsWithLabels(itemSources)
+                    ] }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                      "select",
+                      {
+                        value: storedSlotId ? `__pack:${storedSlotId}` : item.equippedSlot ? item.equippedSlot : "",
+                        onChange: (e2) => {
+                          const value2 = e2.target.value;
+                          if (value2.startsWith("__pack:")) {
+                            const slotId = value2.replace("__pack:", "");
+                            storeItemInPack(idx, slotId);
+                            return;
+                          }
+                          if (!value2) {
+                            updateItemSlot(idx, null);
+                            return;
+                          }
+                          updateItemSlot(idx, value2);
+                        },
+                        style: {
+                          background: "#0f0f19",
+                          color: "#f5f5f5",
+                          border: "1px solid #333",
+                          borderRadius: 6,
+                          padding: "2px 6px",
+                          fontSize: 11
+                        },
+                        disabled: isSectionLocked("equip"),
+                        children: [
+                          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "Non equipe" }),
+                          eligibleSlots.map((slot) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: slot.id, children: slot.label }, `item-slot-${idx}-${slot.id}`)),
+                          packOptions.map((option) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                            "option",
+                            {
+                              value: `__pack:${option.slotId}`,
+                              disabled: !option.canStore,
+                              children: [
+                                "Ranger dans ",
+                                option.label
+                              ]
+                            },
+                            `item-pack-${idx}-${option.slotId}`
+                          ))
+                        ]
+                      }
+                    ),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx(
+                      "button",
+                      {
+                        type: "button",
+                        onClick: () => {
+                          if (!canSell) return;
+                          onSellRequest(idx, item, itemValue);
+                        },
+                        disabled: !canSell,
+                        style: {
+                          borderRadius: 6,
+                          border: "1px solid rgba(255,255,255,0.2)",
+                          background: canSell ? "rgba(241, 196, 15, 0.2)" : "rgba(255,255,255,0.06)",
+                          color: canSell ? "#f8e58c" : "rgba(255,255,255,0.5)",
+                          cursor: canSell ? "pointer" : "not-allowed",
+                          fontSize: 12,
+                          padding: "2px 6px",
+                          fontWeight: 700
+                        },
+                        title: "Vendre",
+                        children: /* @__PURE__ */ jsxRuntimeExports.jsxs("svg", { width: "14", height: "14", viewBox: "0 0 24 24", "aria-hidden": "true", children: [
+                          /* @__PURE__ */ jsxRuntimeExports.jsx(
+                            "circle",
+                            {
+                              cx: "12",
+                              cy: "12",
+                              r: "8",
+                              fill: "none",
+                              stroke: "currentColor",
+                              strokeWidth: "2"
+                            }
+                          ),
+                          /* @__PURE__ */ jsxRuntimeExports.jsx(
+                            "path",
+                            {
+                              d: "M9 12h6m-3-3v6",
+                              stroke: "currentColor",
+                              strokeWidth: "2",
+                              strokeLinecap: "round"
+                            }
+                          )
+                        ] })
+                      }
+                    ),
+                    item.type === "weapon" && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                      "button",
+                      {
+                        type: "button",
+                        onClick: () => setPrimaryWeapon(idx),
+                        style: {
+                          borderRadius: 6,
+                          border: "1px solid rgba(255,255,255,0.2)",
+                          background: item.isPrimaryWeapon ? "rgba(241, 196, 15, 0.25)" : "rgba(255,255,255,0.08)",
+                          color: item.isPrimaryWeapon ? "#f8e58c" : "#f5f5f5",
+                          cursor: "pointer",
+                          fontSize: 12,
+                          padding: "2px 6px",
+                          fontWeight: 700
+                        },
+                        title: "Definir comme arme principale",
+                        children: "★"
+                      }
+                    ),
+                    item.source === "manual" && !isCurrencyItem(item) && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                      "button",
+                      {
+                        type: "button",
+                        onClick: () => removeManualItem(idx),
+                        style: {
+                          padding: "2px 6px",
+                          borderRadius: 6,
+                          border: "1px solid rgba(255,255,255,0.2)",
+                          background: "rgba(231,76,60,0.18)",
+                          color: "#f5f5f5",
+                          cursor: "pointer",
+                          fontSize: 11
+                        },
+                        children: "Retirer"
+                      }
+                    )
+                  ]
+                },
+                `inv-${idx}`
+              );
+            })
+          ]
+        }
+      )
+    ] }),
+    equipSubTab === "loot" && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "div",
+      {
+        style: {
+          marginTop: 10,
+          borderRadius: 8,
+          border: "1px solid rgba(255,255,255,0.12)",
+          background: "rgba(12,12,18,0.75)",
+          padding: 10,
+          display: "flex",
+          flexDirection: "column",
+          gap: 8
+        },
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, fontWeight: 700 }, children: "Boite a loot infinie" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.6)" }, children: "Ajoutez des items pour tester." }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, fontWeight: 700, marginTop: 4 }, children: "Armes" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "div",
+            {
+              style: {
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                gap: 6
+              },
+              children: weaponOptions.map((weapon) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                "button",
+                {
+                  type: "button",
+                  onClick: () => addManualItem(`weapon:${weapon.id}`),
+                  style: {
+                    textAlign: "left",
+                    borderRadius: 8,
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    background: "rgba(10,10,16,0.8)",
+                    color: "#f5f5f5",
+                    padding: "6px 8px",
+                    cursor: "pointer",
+                    fontSize: 12
+                  },
+                  children: [
+                    "+ ",
+                    weapon.name,
+                    " (",
+                    weapon.subtype,
+                    ")"
+                  ]
+                },
+                `loot-weapon-${weapon.id}`
+              ))
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, fontWeight: 700, marginTop: 6 }, children: "Outils" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "div",
+            {
+              style: {
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                gap: 6
+              },
+              children: [
+                toolItems.map((tool) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                  "button",
+                  {
+                    type: "button",
+                    onClick: () => addManualItem(`tool:${tool.id}`),
+                    style: {
+                      textAlign: "left",
+                      borderRadius: 8,
+                      border: "1px solid rgba(255,255,255,0.12)",
+                      background: "rgba(10,10,16,0.8)",
+                      color: "#f5f5f5",
+                      padding: "6px 8px",
+                      cursor: "pointer",
+                      fontSize: 12
+                    },
+                    children: [
+                      "+ ",
+                      tool.label
+                    ]
+                  },
+                  `loot-tool-${tool.id}`
+                )),
+                toolItems.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: "Aucun outil disponible." })
+              ]
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, fontWeight: 700, marginTop: 6 }, children: "Armures" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "div",
+            {
+              style: {
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                gap: 6
+              },
+              children: [
+                armorItems.map((armor) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                  "button",
+                  {
+                    type: "button",
+                    onClick: () => addManualItem(`armor:${armor.id}`),
+                    style: {
+                      textAlign: "left",
+                      borderRadius: 8,
+                      border: "1px solid rgba(255,255,255,0.12)",
+                      background: "rgba(10,10,16,0.8)",
+                      color: "#f5f5f5",
+                      padding: "6px 8px",
+                      cursor: "pointer",
+                      fontSize: 12
+                    },
+                    children: [
+                      "+ ",
+                      armor.label
+                    ]
+                  },
+                  `loot-armor-${armor.id}`
+                )),
+                armorItems.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: "Aucune armure chargee pour l'instant." })
+              ]
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, fontWeight: 700, marginTop: 6 }, children: "Autres" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "div",
+            {
+              style: {
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                gap: 6
+              },
+              children: [
+                objectItems.map((obj) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                  "button",
+                  {
+                    type: "button",
+                    onClick: () => addManualItem(`object:${obj.id}`),
+                    style: {
+                      textAlign: "left",
+                      borderRadius: 8,
+                      border: "1px solid rgba(255,255,255,0.12)",
+                      background: "rgba(10,10,16,0.8)",
+                      color: "#f5f5f5",
+                      padding: "6px 8px",
+                      cursor: "pointer",
+                      fontSize: 12
+                    },
+                    children: [
+                      "+ ",
+                      obj.label
+                    ]
+                  },
+                  `loot-object-${obj.id}`
+                )),
+                objectItems.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: "Aucun autre item charge pour l'instant." })
+              ]
+            }
+          )
+        ]
+      }
+    )
+  ] });
+}
+function ChoiceModal(props) {
+  const { open, title, options, selected, count: count2, onToggle, onClose, onConfirm } = props;
+  if (!open) return null;
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(
+    "div",
+    {
+      style: {
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.55)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 999
+      },
+      children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          style: {
+            width: "min(520px, 92vw)",
+            background: "#141421",
+            border: "1px solid rgba(255,255,255,0.18)",
+            borderRadius: 12,
+            padding: 16,
+            display: "flex",
+            flexDirection: "column",
+            gap: 12
+          },
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 14, fontWeight: 800 }, children: title }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
+              "Choix requis: ",
+              count2,
+              " ",
+              count2 > 1 ? "elements" : "element"
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "div",
+              {
+                style: {
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                  gap: 8
+                },
+                children: options.map((option) => {
+                  const isSelected = selected.includes(option.id);
+                  return /* @__PURE__ */ jsxRuntimeExports.jsx(
+                    "button",
+                    {
+                      type: "button",
+                      onClick: () => onToggle(option.id),
+                      style: {
+                        textAlign: "left",
+                        borderRadius: 8,
+                        border: `1px solid ${isSelected ? "#6fd3a8" : "rgba(255,255,255,0.12)"}`,
+                        background: isSelected ? "rgba(46, 204, 113, 0.14)" : "rgba(12,12,18,0.75)",
+                        color: "#f5f5f5",
+                        padding: "8px 10px",
+                        cursor: "pointer",
+                        fontSize: 12
+                      },
+                      children: option.label
+                    },
+                    option.id
+                  );
+                })
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: 8, justifyContent: "flex-end" }, children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  type: "button",
+                  onClick: onClose,
+                  style: {
+                    padding: "6px 10px",
+                    borderRadius: 8,
+                    border: "1px solid rgba(255,255,255,0.15)",
+                    background: "rgba(255,255,255,0.06)",
+                    color: "#f5f5f5",
+                    cursor: "pointer",
+                    fontSize: 12,
+                    fontWeight: 700
+                  },
+                  children: "Fermer"
+                }
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  type: "button",
+                  onClick: onConfirm,
+                  disabled: selected.length < count2,
+                  style: {
+                    padding: "6px 10px",
+                    borderRadius: 8,
+                    border: "1px solid rgba(255,255,255,0.15)",
+                    background: selected.length < count2 ? "rgba(80,80,90,0.55)" : "rgba(46, 204, 113, 0.16)",
+                    color: "#f5f5f5",
+                    cursor: selected.length < count2 ? "not-allowed" : "pointer",
+                    fontSize: 12,
+                    fontWeight: 700
+                  },
+                  children: "Valider"
+                }
+              )
+            ] })
+          ]
+        }
+      )
+    }
+  );
+}
+function ConfirmModal(props) {
+  const { open, title, message, onCancel, onConfirm } = props;
+  if (!open) return null;
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(
+    "div",
+    {
+      style: {
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.55)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 998
+      },
+      children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          style: {
+            width: "min(480px, 92vw)",
+            background: "#141421",
+            border: "1px solid rgba(255,255,255,0.18)",
+            borderRadius: 12,
+            padding: 16,
+            display: "flex",
+            flexDirection: "column",
+            gap: 12
+          },
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 14, fontWeight: 800 }, children: title }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: message }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: 8, justifyContent: "flex-end" }, children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  type: "button",
+                  onClick: onCancel,
+                  style: {
+                    padding: "6px 10px",
+                    borderRadius: 8,
+                    border: "1px solid rgba(255,255,255,0.15)",
+                    background: "rgba(255,255,255,0.06)",
+                    color: "#f5f5f5",
+                    cursor: "pointer",
+                    fontSize: 12,
+                    fontWeight: 700
+                  },
+                  children: "Annuler"
+                }
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  type: "button",
+                  onClick: onConfirm,
+                  style: {
+                    padding: "6px 10px",
+                    borderRadius: 8,
+                    border: "1px solid rgba(255,255,255,0.15)",
+                    background: "rgba(231, 76, 60, 0.2)",
+                    color: "#f5f5f5",
+                    cursor: "pointer",
+                    fontSize: 12,
+                    fontWeight: 700
+                  },
+                  children: "Continuer"
+                }
+              )
+            ] })
+          ]
+        }
+      )
+    }
+  );
+}
+function AsiModal(props) {
+  const {
+    open,
+    entry,
+    step,
+    type: type2,
+    stats,
+    originalStats,
+    statKeys,
+    asiBonusMap,
+    getBaseScore,
+    getNonAsiBonusSumForStat,
+    setType,
+    setStep,
+    onClose,
+    onConfirmType,
+    onConfirmStats,
+    updateStat,
+    canAllocateMoreAsi
+  } = props;
+  if (!open) return null;
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(
+    "div",
+    {
+      style: {
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.55)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1e3
+      },
+      children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          style: {
+            width: "min(560px, 92vw)",
+            background: "#141421",
+            border: "1px solid rgba(255,255,255,0.18)",
+            borderRadius: 12,
+            padding: 16,
+            display: "flex",
+            flexDirection: "column",
+            gap: 12
+          },
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 14, fontWeight: 800 }, children: entry ? `Niveau ${entry.level} — ${entry.classLabel}` : "Choix d'amelioration" }),
+            step === "type" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: "Souhaitez-vous augmenter les caracteristiques ou choisir un don ?" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", gap: 8 }, children: [
+                { id: "asi", label: "Augmenter les caracteristiques" },
+                { id: "feat", label: "Choisir un don" }
+              ].map((opt) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  type: "button",
+                  onClick: () => setType(opt.id),
+                  style: {
+                    padding: "6px 10px",
+                    borderRadius: 8,
+                    border: "1px solid rgba(255,255,255,0.15)",
+                    background: type2 === opt.id ? "rgba(79,125,242,0.2)" : "rgba(255,255,255,0.06)",
+                    color: "#f5f5f5",
+                    cursor: "pointer",
+                    fontSize: 12,
+                    fontWeight: 700
+                  },
+                  children: opt.label
+                },
+                opt.id
+              )) }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: 8, justifyContent: "flex-end" }, children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    type: "button",
+                    onClick: onClose,
+                    style: {
+                      padding: "6px 10px",
+                      borderRadius: 8,
+                      border: "1px solid rgba(255,255,255,0.15)",
+                      background: "rgba(255,255,255,0.06)",
+                      color: "#f5f5f5",
+                      cursor: "pointer",
+                      fontSize: 12,
+                      fontWeight: 700
+                    },
+                    children: "Fermer"
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    type: "button",
+                    onClick: onConfirmType,
+                    style: {
+                      padding: "6px 10px",
+                      borderRadius: 8,
+                      border: "1px solid rgba(255,255,255,0.15)",
+                      background: "rgba(46, 204, 113, 0.16)",
+                      color: "#f5f5f5",
+                      cursor: "pointer",
+                      fontSize: 12,
+                      fontWeight: 700
+                    },
+                    children: "Valider"
+                  }
+                )
+              ] })
+            ] }),
+            step === "feat" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: "Dons indisponibles pour l'instant." }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: 8, justifyContent: "flex-end" }, children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    type: "button",
+                    onClick: () => setStep("type"),
+                    style: {
+                      padding: "6px 10px",
+                      borderRadius: 8,
+                      border: "1px solid rgba(255,255,255,0.15)",
+                      background: "rgba(255,255,255,0.06)",
+                      color: "#f5f5f5",
+                      cursor: "pointer",
+                      fontSize: 12,
+                      fontWeight: 700
+                    },
+                    children: "Retour"
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    type: "button",
+                    onClick: onClose,
+                    style: {
+                      padding: "6px 10px",
+                      borderRadius: 8,
+                      border: "1px solid rgba(255,255,255,0.15)",
+                      background: "rgba(255,255,255,0.06)",
+                      color: "#f5f5f5",
+                      cursor: "pointer",
+                      fontSize: 12,
+                      fontWeight: 700
+                    },
+                    children: "Fermer"
+                  }
+                )
+              ] })
+            ] }),
+            step === "asi" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+              (() => {
+                const spent = Object.values(stats).reduce(
+                  (sum, value2) => sum + (Number(value2) || 0),
+                  0
+                );
+                const remaining = Math.max(0, 2 - spent);
+                return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
+                  "Capital disponible : ",
+                  remaining
+                ] });
+              })(),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "div",
+                {
+                  style: {
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                    gap: 8
+                  },
+                  children: statKeys.map((stat) => {
+                    const base = getBaseScore(stat);
+                    const nonAsi = getNonAsiBonusSumForStat(stat);
+                    const original = Number(originalStats[stat] ?? 0) || 0;
+                    const totalAsi = Number(asiBonusMap[stat] ?? 0) || 0;
+                    const otherAsi = Math.max(0, totalAsi - original);
+                    const current = Number(stats[stat] ?? 0) || 0;
+                    const total = base + nonAsi + otherAsi + current;
+                    const spent = Object.values(stats).reduce(
+                      (sum, value2) => sum + (Number(value2) || 0),
+                      0
+                    );
+                    const remaining = Math.max(0, 2 - spent);
+                    const canIncrease = remaining > 0 && current < 2 && total < 20;
+                    const canDecrease = current > 0;
+                    return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                      "div",
+                      {
+                        style: {
+                          borderRadius: 8,
+                          border: "1px solid rgba(255,255,255,0.12)",
+                          background: "rgba(10,10,16,0.8)",
+                          padding: 8,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 6
+                        },
+                        children: [
+                          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 6 }, children: [
+                            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, fontWeight: 700 }, children: stat }),
+                            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.6)" }, children: [
+                              "Total: ",
+                              Math.min(20, total)
+                            ] })
+                          ] }),
+                          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 6 }, children: [
+                            /* @__PURE__ */ jsxRuntimeExports.jsx(
+                              "button",
+                              {
+                                type: "button",
+                                onClick: () => canDecrease && updateStat(stat, -1),
+                                disabled: !canDecrease,
+                                style: {
+                                  width: 26,
+                                  height: 26,
+                                  borderRadius: 6,
+                                  border: "1px solid #333",
+                                  background: canDecrease ? "#141421" : "rgba(80,80,90,0.55)",
+                                  color: "#f5f5f5",
+                                  cursor: canDecrease ? "pointer" : "not-allowed",
+                                  display: "grid",
+                                  placeItems: "center",
+                                  fontSize: 12,
+                                  fontWeight: 700
+                                },
+                                children: "-"
+                              }
+                            ),
+                            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { minWidth: 24, textAlign: "center", fontSize: 12 }, children: [
+                              "+",
+                              current
+                            ] }),
+                            /* @__PURE__ */ jsxRuntimeExports.jsx(
+                              "button",
+                              {
+                                type: "button",
+                                onClick: () => canIncrease && updateStat(stat, 1),
+                                disabled: !canIncrease,
+                                style: {
+                                  width: 26,
+                                  height: 26,
+                                  borderRadius: 6,
+                                  border: "1px solid #333",
+                                  background: canIncrease ? "#141421" : "rgba(80,80,90,0.55)",
+                                  color: "#f5f5f5",
+                                  cursor: canIncrease ? "pointer" : "not-allowed",
+                                  display: "grid",
+                                  placeItems: "center",
+                                  fontSize: 12,
+                                  fontWeight: 700
+                                },
+                                children: "+"
+                              }
+                            )
+                          ] })
+                        ]
+                      },
+                      `asi-modal-${stat}`
+                    );
+                  })
+                }
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: 8, justifyContent: "flex-end" }, children: [
+                (() => {
+                  const spent = Object.values(stats).reduce(
+                    (sum, value2) => sum + (Number(value2) || 0),
+                    0
+                  );
+                  const remaining = Math.max(0, 2 - spent);
+                  const canAllocateMore = entry && canAllocateMoreAsi(entry.key, stats);
+                  return remaining > 0 && canAllocateMore ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+                    "span",
+                    {
+                      style: { alignSelf: "center", fontSize: 11, color: "rgba(255,255,255,0.6)" },
+                      children: "Utilisez les 2 points."
+                    }
+                  ) : null;
+                })(),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    type: "button",
+                    onClick: () => setStep("type"),
+                    style: {
+                      padding: "6px 10px",
+                      borderRadius: 8,
+                      border: "1px solid rgba(255,255,255,0.15)",
+                      background: "rgba(255,255,255,0.06)",
+                      color: "#f5f5f5",
+                      cursor: "pointer",
+                      fontSize: 12,
+                      fontWeight: 700
+                    },
+                    children: "Retour"
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    type: "button",
+                    onClick: onConfirmStats,
+                    disabled: (() => {
+                      const spent = Object.values(stats).reduce(
+                        (sum, value2) => sum + (Number(value2) || 0),
+                        0
+                      );
+                      if (spent >= 2) return false;
+                      if (!entry) return true;
+                      return canAllocateMoreAsi(entry.key, stats);
+                    })(),
+                    style: {
+                      padding: "6px 10px",
+                      borderRadius: 8,
+                      border: "1px solid rgba(255,255,255,0.15)",
+                      background: (() => {
+                        const spent = Object.values(stats).reduce(
+                          (sum, value2) => sum + (Number(value2) || 0),
+                          0
+                        );
+                        if (spent >= 2) return "rgba(46, 204, 113, 0.16)";
+                        if (!entry) return "rgba(80,80,90,0.55)";
+                        const canAllocateMore = canAllocateMoreAsi(entry.key, stats);
+                        return canAllocateMore ? "rgba(80,80,90,0.55)" : "rgba(46, 204, 113, 0.16)";
+                      })(),
+                      color: "#f5f5f5",
+                      cursor: (() => {
+                        const spent = Object.values(stats).reduce(
+                          (sum, value2) => sum + (Number(value2) || 0),
+                          0
+                        );
+                        if (spent >= 2) return "pointer";
+                        if (!entry) return "not-allowed";
+                        const canAllocateMore = canAllocateMoreAsi(entry.key, stats);
+                        return canAllocateMore ? "not-allowed" : "pointer";
+                      })(),
+                      fontSize: 12,
+                      fontWeight: 700
+                    },
+                    children: "Valider"
+                  }
+                )
+              ] })
+            ] })
+          ]
+        }
+      )
+    }
+  );
+}
+const isCurrencySpec = (type2, id2) => type2 === "object" && isCoinId(id2);
+const updateEquipmentListQty = (list, resolveItemType, buildItemSpec, type2, id2, delta) => {
+  let updated = false;
+  const next = list.map((entry) => {
+    if (updated) return entry;
+    const resolved = resolveItemType(entry);
+    if (resolved.type !== type2 || resolved.id !== id2) return entry;
+    updated = true;
+    const nextQty = (resolved.qty ?? 1) + delta;
+    if (nextQty <= 0) return null;
+    return buildItemSpec(type2, id2, nextQty);
+  }).filter(Boolean);
+  return next;
+};
+const formatMoneyValue = (money) => {
+  const parts = [];
+  const pp = Number(money.pp ?? 0) || 0;
+  const po = Number(money.po ?? 0) || 0;
+  const pa = Number(money.pa ?? 0) || 0;
+  const pc = Number(money.pc ?? 0) || 0;
+  if (pp) parts.push(`${pp} pp`);
+  if (po) parts.push(`${po} po`);
+  if (pa) parts.push(`${pa} pa`);
+  if (pc) parts.push(`${pc} pc`);
+  return parts.length > 0 ? parts.join(" ") : "0";
+};
+const buildInventoryEntries = (specs, source2, origin, createInstanceId) => {
+  const entries = [];
+  specs.forEach((spec) => {
+    const qty = Math.max(1, Math.floor(Number(spec.qty || 1)));
+    if (isCurrencySpec(spec.type, spec.id)) {
+      entries.push({
+        type: spec.type,
+        id: spec.id,
+        qty,
+        source: source2,
+        equippedSlot: null,
+        storedIn: null,
+        isPrimaryWeapon: false
+      });
+      return;
+    }
+    for (let i2 = 0; i2 < qty; i2 += 1) {
+      entries.push({
+        type: spec.type,
+        id: spec.id,
+        qty: 1,
+        source: source2,
+        origin,
+        instanceId: createInstanceId("item"),
+        equippedSlot: null,
+        storedIn: null,
+        isPrimaryWeapon: false
+      });
+    }
+  });
+  return entries;
+};
+const appendInventoryEntries = (base, entries) => {
+  let next = [...base];
+  entries.forEach((entry) => {
+    if (isCurrencySpec(entry.type, entry.id)) {
+      const existingIndex = next.findIndex(
+        (item) => (item == null ? void 0 : item.type) === "object" && (item == null ? void 0 : item.id) === entry.id && ((item == null ? void 0 : item.storedIn) ?? null) === ((entry == null ? void 0 : entry.storedIn) ?? null)
+      );
+      if (existingIndex >= 0) {
+        const existing = next[existingIndex];
+        next[existingIndex] = {
+          ...existing,
+          qty: ((existing == null ? void 0 : existing.qty) ?? 1) + ((entry == null ? void 0 : entry.qty) ?? 1)
+        };
+        return;
+      }
+    }
+    next = [...next, entry];
+  });
+  return next;
+};
+function MagicTab(props) {
+  const {
+    magicSources,
+    activeMagicTab,
+    setActiveMagicTab,
+    spellcastingSelections,
+    spellInputByKey,
+    setSpellInputByKey,
+    updateSpellcastingSelection,
+    computeMod,
+    getScore,
+    resolveLevel,
+    getCasterContribution,
+    resolveItemTags,
+    inventoryItems,
+    formatEquipmentLabel,
+    getSpellId,
+    getSpellKey,
+    makeSpellEntry
+  } = props;
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "#b0b8c4" }, children: "Gestion de la magie selon les sources verrouillees." }),
+    magicSources.length > 1 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" }, children: magicSources.map((source2, idx) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "button",
+      {
+        type: "button",
+        onClick: () => setActiveMagicTab(idx),
+        style: {
+          padding: "6px 10px",
+          borderRadius: 6,
+          border: `1px solid ${idx === activeMagicTab ? "#8e44ad" : "rgba(255,255,255,0.12)"}`,
+          background: idx === activeMagicTab ? "rgba(142, 68, 173, 0.2)" : "#0f0f19",
+          color: "#c9cfdd",
+          cursor: "pointer",
+          fontSize: 12,
+          fontWeight: 700
+        },
+        children: source2.label
+      },
+      `magic-tab-${source2.key}`
+    )) }),
+    (() => {
+      var _a;
+      const source2 = magicSources[activeMagicTab] ?? magicSources[0];
+      if (!source2) return null;
+      const selection = spellcastingSelections[source2.key] ?? {};
+      const knownSpells = Array.isArray(selection.knownSpells) ? selection.knownSpells : [];
+      const preparedSpells = Array.isArray(selection.preparedSpells) ? selection.preparedSpells : [];
+      const grantedSpells = Array.isArray(selection.grantedSpells) ? selection.grantedSpells : [];
+      const focusItemId = selection.focusItemId ?? "";
+      const storage = source2.storage ?? selection.storage ?? "memory";
+      const grimoireItemId = selection.grimoireItemId ?? "";
+      const totalCasterLevel = magicSources.reduce(
+        (sum, item) => sum + getCasterContribution(item.casterProgression, item.classLevel),
+        0
+      );
+      const slotsTable = ((_a = magicSources.find((item) => item.slotsByLevel)) == null ? void 0 : _a.slotsByLevel) ?? null;
+      const slots = slotsTable ? slotsTable[String(Math.max(0, totalCasterLevel))] ?? [] : [];
+      const dc = 8 + computeMod(getScore(source2.ability)) + (2 + Math.floor((resolveLevel() - 1) / 4));
+      const spellAttack = computeMod(getScore(source2.ability)) + (2 + Math.floor((resolveLevel() - 1) / 4));
+      const focusTypes = Array.isArray(source2.focusTypes) ? source2.focusTypes : [];
+      const focusOptions = inventoryItems.filter((item) => {
+        if (focusTypes.length === 0) return true;
+        const tags2 = resolveItemTags(item.id);
+        return focusTypes.some((tag) => tags2.includes(tag));
+      });
+      const storageLabel = storage === "memory" ? "Memoire" : storage === "innate" ? "Inne" : "Grimoire";
+      return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          style: {
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(12,12,18,0.75)",
+            padding: 12,
+            display: "flex",
+            flexDirection: "column",
+            gap: 10
+          },
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", flexWrap: "wrap", gap: 12 }, children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
+                "Carac principale: ",
+                source2.ability
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
+                "Methode: ",
+                source2.preparation === "prepared" ? "Prepare" : "Connu"
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
+                "Niveau lanceur total: ",
+                totalCasterLevel
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
+                "DD sort: ",
+                dc,
+                " | Attaque magique: ",
+                spellAttack >= 0 ? `+${spellAttack}` : spellAttack
+              ] })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
+              "Emplacements (total):",
+              " ",
+              slots.length > 0 ? slots.map((count2, idx) => count2 > 0 ? `${idx + 1}: ${count2}` : null).filter(Boolean).join(" | ") : "—"
+            ] }),
+            (source2.spellIds.length > 0 || grantedSpells.length > 0) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
+              "Sorts de progression:",
+              " ",
+              (grantedSpells.length > 0 ? grantedSpells.map((spell) => getSpellId(spell)) : source2.spellIds).join(", ")
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "div",
+              {
+                style: {
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                  gap: 12
+                },
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 6 }, children: storage === "memory" ? "Sorts memorises" : source2.preparation === "prepared" ? "Sorts prepares" : "Sorts connus" }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: 6, marginBottom: 6 }, children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsx(
+                        "input",
+                        {
+                          type: "text",
+                          placeholder: "Ajouter un sort (id)",
+                          value: spellInputByKey[source2.key] ?? "",
+                          onChange: (e2) => setSpellInputByKey((prev) => ({ ...prev, [source2.key]: e2.target.value })),
+                          style: {
+                            flex: 1,
+                            background: "#0f0f19",
+                            color: "#f5f5f5",
+                            border: "1px solid #333",
+                            borderRadius: 6,
+                            padding: "6px 8px",
+                            fontSize: 12
+                          },
+                          onKeyDown: (e2) => {
+                            if (e2.key !== "Enter") return;
+                            const value2 = (e2.currentTarget.value || "").trim();
+                            if (!value2) return;
+                            const list = source2.preparation === "prepared" ? preparedSpells : knownSpells;
+                            if (list.some((spell) => getSpellId(spell) === value2)) return;
+                            const next = [
+                              ...list,
+                              makeSpellEntry(value2, { kind: "manual", sourceKey: source2.key })
+                            ];
+                            if (source2.preparation === "prepared") {
+                              updateSpellcastingSelection(source2.key, { preparedSpells: next });
+                            } else {
+                              updateSpellcastingSelection(source2.key, { knownSpells: next });
+                            }
+                            setSpellInputByKey((prev) => ({ ...prev, [source2.key]: "" }));
+                          }
+                        }
+                      ),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx(
+                        "button",
+                        {
+                          type: "button",
+                          onClick: () => {
+                            const value2 = (spellInputByKey[source2.key] ?? "").trim();
+                            if (!value2) return;
+                            const list = source2.preparation === "prepared" ? preparedSpells : knownSpells;
+                            if (list.some((spell) => getSpellId(spell) === value2)) return;
+                            const next = [
+                              ...list,
+                              makeSpellEntry(value2, { kind: "manual", sourceKey: source2.key })
+                            ];
+                            if (source2.preparation === "prepared") {
+                              updateSpellcastingSelection(source2.key, { preparedSpells: next });
+                            } else {
+                              updateSpellcastingSelection(source2.key, { knownSpells: next });
+                            }
+                            setSpellInputByKey((prev) => ({ ...prev, [source2.key]: "" }));
+                          },
+                          style: {
+                            padding: "6px 10px",
+                            borderRadius: 6,
+                            border: "1px solid rgba(255,255,255,0.15)",
+                            background: "rgba(255,255,255,0.08)",
+                            color: "#f5f5f5",
+                            cursor: "pointer",
+                            fontSize: 12,
+                            fontWeight: 700
+                          },
+                          children: "Ajouter"
+                        }
+                      )
+                    ] }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", flexWrap: "wrap", gap: 6 }, children: (source2.preparation === "prepared" ? preparedSpells : knownSpells).map((spell) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                      "span",
+                      {
+                        style: {
+                          padding: "2px 6px",
+                          borderRadius: 999,
+                          border: "1px solid rgba(255,255,255,0.18)",
+                          background: "rgba(142, 68, 173, 0.12)",
+                          fontSize: 11,
+                          color: "rgba(255,255,255,0.75)",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6
+                        },
+                        children: [
+                          getSpellId(spell),
+                          /* @__PURE__ */ jsxRuntimeExports.jsx(
+                            "button",
+                            {
+                              type: "button",
+                              onClick: () => {
+                                const list = source2.preparation === "prepared" ? preparedSpells : knownSpells;
+                                const next = list.filter((item) => {
+                                  if (typeof spell === "string") {
+                                    return getSpellId(item) !== spell;
+                                  }
+                                  return typeof item === "string" ? true : item.instanceId !== spell.instanceId;
+                                });
+                                if (source2.preparation === "prepared") {
+                                  updateSpellcastingSelection(source2.key, { preparedSpells: next });
+                                } else {
+                                  updateSpellcastingSelection(source2.key, { knownSpells: next });
+                                }
+                              },
+                              style: {
+                                border: "none",
+                                background: "transparent",
+                                color: "rgba(255,255,255,0.7)",
+                                cursor: "pointer",
+                                fontSize: 12
+                              },
+                              children: "×"
+                            }
+                          )
+                        ]
+                      },
+                      `spell-${source2.key}-${getSpellKey(spell)}`
+                    )) })
+                  ] }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 6 }, children: "Focalisateur" }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                      "select",
+                      {
+                        value: focusItemId,
+                        onChange: (e2) => updateSpellcastingSelection(source2.key, {
+                          focusItemId: e2.target.value || null
+                        }),
+                        style: {
+                          width: "100%",
+                          background: "#0f0f19",
+                          color: "#f5f5f5",
+                          border: "1px solid #333",
+                          borderRadius: 6,
+                          padding: "6px 8px",
+                          fontSize: 12
+                        },
+                        children: [
+                          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "Aucun" }),
+                          focusOptions.map((item) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: item.id, children: formatEquipmentLabel(item.id) }, `focus-${item.id}`))
+                        ]
+                      }
+                    ),
+                    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 10 }, children: [
+                      "Stockage des sorts: ",
+                      storageLabel
+                    ] }),
+                    storage === "grimoire" && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                      "select",
+                      {
+                        value: grimoireItemId,
+                        onChange: (e2) => updateSpellcastingSelection(source2.key, {
+                          grimoireItemId: e2.target.value || null
+                        }),
+                        style: {
+                          width: "100%",
+                          background: "#0f0f19",
+                          color: "#f5f5f5",
+                          border: "1px solid #333",
+                          borderRadius: 6,
+                          padding: "6px 8px",
+                          fontSize: 12,
+                          marginTop: 6
+                        },
+                        children: [
+                          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "Choisir un grimoire" }),
+                          inventoryItems.filter((item) => item.type === "object").map((item) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: item.id, children: formatEquipmentLabel(item.id) }, `grimoire-${item.id}`))
+                        ]
+                      }
+                    )
+                  ] })
+                ]
+              }
+            )
+          ]
+        }
+      );
+    })()
+  ] });
+}
+function StatsTab(props) {
+  const {
+    statsMode,
+    setStatsMode,
+    canLockStats,
+    toggleSectionLock,
+    resetStats,
+    isSectionLocked,
+    lockButtonBaseStyle,
+    getLockButtonState,
+    renderPendingBadge,
+    getPendingCountForSection,
+    getPointBuySummary,
+    statKeys,
+    getBaseScore,
+    getBonusSumForStat,
+    computeMod,
+    getStatSources,
+    renderSourceDots,
+    setScore,
+    canAdjustPointBuy
+  } = props;
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "#b0b8c4" }, children: "Ajustez les caracteristiques. Le modificateur se met a jour." }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", gap: 6 }, children: [
+        { id: "normal", label: "Normal" },
+        { id: "manual", label: "Manuel" }
+      ].map((mode) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          type: "button",
+          onClick: () => setStatsMode(mode.id),
+          style: {
+            padding: "4px 8px",
+            borderRadius: 8,
+            border: "1px solid rgba(255,255,255,0.15)",
+            background: statsMode === mode.id ? "rgba(79,125,242,0.2)" : "rgba(255,255,255,0.06)",
+            color: "#f5f5f5",
+            cursor: "pointer",
+            fontSize: 11,
+            fontWeight: 700
+          },
+          children: mode.label
+        },
+        mode.id
+      )) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          type: "button",
+          onClick: () => !isSectionLocked("stats") && resetStats(),
+          disabled: isSectionLocked("stats"),
+          style: {
+            padding: "4px 8px",
+            borderRadius: 8,
+            border: "1px solid rgba(255,255,255,0.15)",
+            background: "rgba(255,255,255,0.08)",
+            color: "#f5f5f5",
+            cursor: isSectionLocked("stats") ? "not-allowed" : "pointer",
+            fontSize: 11,
+            fontWeight: 700,
+            opacity: isSectionLocked("stats") ? 0.6 : 1
+          },
+          children: "Reset"
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "button",
+        {
+          type: "button",
+          onClick: () => {
+            if (!canLockStats()) return;
+            toggleSectionLock("stats");
+          },
+          style: {
+            ...lockButtonBaseStyle,
+            marginLeft: "auto",
+            background: getLockButtonState("stats").background,
+            cursor: canLockStats() ? "pointer" : "not-allowed",
+            opacity: canLockStats() ? 1 : 0.7
+          },
+          children: [
+            getLockButtonState("stats").label,
+            renderPendingBadge(getPendingCountForSection("stats"))
+          ]
+        }
+      )
+    ] }),
+    (() => {
+      const summary2 = getPointBuySummary();
+      if (statsMode !== "normal") {
+        return /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "div",
+          {
+            style: {
+              marginTop: 6,
+              fontSize: 11,
+              color: "rgba(255,255,255,0.7)",
+              display: "flex",
+              gap: 10,
+              alignItems: "center"
+            },
+            children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Capital: illimite (mode manuel)" })
+          }
+        );
+      }
+      return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          style: {
+            marginTop: 6,
+            fontSize: 11,
+            color: "rgba(255,255,255,0.7)",
+            display: "flex",
+            gap: 10,
+            alignItems: "center"
+          },
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Points: 27" }),
+            summary2.invalid ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { color: "#f1c40f" }, children: "Hors barème (8-15)" }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
+                "Utilises: ",
+                summary2.total
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                "span",
+                {
+                  style: {
+                    color: summary2.remaining !== null && summary2.remaining < 0 ? "#e74c3c" : "#6fd3a8"
+                  },
+                  children: [
+                    "Restants: ",
+                    summary2.remaining ?? "-"
+                  ]
+                }
+              )
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Regle: acquisition par points (8-15). Bonus via classe/historique/espece." })
+          ]
+        }
+      );
+    })(),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "div",
+      {
+        style: {
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+          gap: 10
+        },
+        children: statKeys.map((stat) => {
+          const baseScore = getBaseScore(stat);
+          const bonus = getBonusSumForStat(stat);
+          const totalScore = Math.max(1, Math.min(30, baseScore + bonus));
+          const mod = computeMod(totalScore);
+          const sources2 = getStatSources(stat);
+          const canDecrease = !isSectionLocked("stats") && (statsMode !== "normal" || canAdjustPointBuy(stat, -1));
+          const canIncrease = !isSectionLocked("stats") && (statsMode !== "normal" || canAdjustPointBuy(stat, 1));
+          return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "div",
+            {
+              style: {
+                padding: 10,
+                borderRadius: 8,
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "rgba(12,12,18,0.75)",
+                display: "flex",
+                flexDirection: "column",
+                gap: 6
+              },
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }, children: [
+                  stat,
+                  sources2.length > 0 && renderSourceDots(sources2)
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                  "div",
+                  {
+                    style: {
+                      display: "grid",
+                      gridTemplateColumns: "30px 1fr 30px",
+                      gap: 6,
+                      alignItems: "center"
+                    },
+                    children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsx(
+                        "button",
+                        {
+                          type: "button",
+                          onClick: () => canDecrease && setScore(stat, totalScore - 1),
+                          disabled: !canDecrease,
+                          style: {
+                            width: 30,
+                            height: 30,
+                            borderRadius: 6,
+                            border: "1px solid #333",
+                            background: "#141421",
+                            color: "#f5f5f5",
+                            cursor: canDecrease ? "pointer" : "not-allowed",
+                            opacity: canDecrease ? 1 : 0.5,
+                            display: "grid",
+                            placeItems: "center"
+                          },
+                          "aria-label": `Diminuer ${stat}`,
+                          children: /* @__PURE__ */ jsxRuntimeExports.jsx("svg", { width: "12", height: "12", viewBox: "0 0 12 12", "aria-hidden": "true", children: /* @__PURE__ */ jsxRuntimeExports.jsx("rect", { x: "2", y: "5.25", width: "8", height: "1.5", fill: "currentColor" }) })
+                        }
+                      ),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx(
+                        "input",
+                        {
+                          type: "number",
+                          min: statsMode === "normal" ? 8 : 1,
+                          max: statsMode === "normal" ? 15 : 30,
+                          value: totalScore,
+                          onChange: (e2) => !isSectionLocked("stats") && setScore(stat, Number(e2.target.value)),
+                          disabled: isSectionLocked("stats"),
+                          style: {
+                            width: "100%",
+                            background: "#0f0f19",
+                            color: "#f5f5f5",
+                            border: "1px solid #333",
+                            borderRadius: 6,
+                            padding: "4px 6px",
+                            textAlign: "center",
+                            appearance: "textfield",
+                            WebkitAppearance: "textfield",
+                            MozAppearance: "textfield"
+                          }
+                        }
+                      ),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx(
+                        "button",
+                        {
+                          type: "button",
+                          onClick: () => canIncrease && setScore(stat, totalScore + 1),
+                          disabled: !canIncrease,
+                          style: {
+                            width: 30,
+                            height: 30,
+                            borderRadius: 6,
+                            border: "1px solid #333",
+                            background: "#141421",
+                            color: "#f5f5f5",
+                            cursor: canIncrease ? "pointer" : "not-allowed",
+                            opacity: canIncrease ? 1 : 0.5,
+                            display: "grid",
+                            placeItems: "center"
+                          },
+                          "aria-label": `Augmenter ${stat}`,
+                          children: /* @__PURE__ */ jsxRuntimeExports.jsxs("svg", { width: "12", height: "12", viewBox: "0 0 12 12", "aria-hidden": "true", children: [
+                            /* @__PURE__ */ jsxRuntimeExports.jsx("rect", { x: "2", y: "5.25", width: "8", height: "1.5", fill: "currentColor" }),
+                            /* @__PURE__ */ jsxRuntimeExports.jsx("rect", { x: "5.25", y: "2", width: "1.5", height: "8", fill: "currentColor" })
+                          ] })
+                        }
+                      )
+                    ]
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.6)" }, children: [
+                  "Base: ",
+                  baseScore,
+                  bonus !== 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { style: { marginLeft: 6 }, children: [
+                    "Bonus: ",
+                    bonus > 0 ? `+${bonus}` : bonus
+                  ] }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { style: { marginLeft: 6 }, children: [
+                    "Total: ",
+                    totalScore
+                  ] })
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
+                  "Modificateur: ",
+                  mod >= 0 ? `+${mod}` : mod
+                ] })
+              ]
+            },
+            stat
+          );
+        })
+      }
+    )
+  ] });
+}
+function SkillsTab(props) {
+  const {
+    skillsMode,
+    setSkillsMode,
+    resetSkills,
+    isSectionLocked,
+    toggleSectionLock,
+    lockButtonBaseStyle,
+    getLockButtonState,
+    renderPendingBadge,
+    getPendingCountForSection,
+    competenceOptions,
+    expertises,
+    competences,
+    resolveLevel,
+    computeMod,
+    getScore,
+    skillAbilityMap,
+    renderSourceDots,
+    getSkillSources,
+    canEditSkills,
+    toggleCompetence,
+    toggleExpertise
+  } = props;
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "#b0b8c4" }, children: "Cochez les competences pour simuler les impacts de jeu." }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", gap: 6 }, children: [
+        { id: "normal", label: "Normal" },
+        { id: "manual", label: "Manuel" }
+      ].map((mode) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          type: "button",
+          onClick: () => setSkillsMode(mode.id),
+          style: {
+            padding: "4px 8px",
+            borderRadius: 8,
+            border: "1px solid rgba(255,255,255,0.15)",
+            background: skillsMode === mode.id ? "rgba(79,125,242,0.2)" : "rgba(255,255,255,0.06)",
+            color: "#f5f5f5",
+            cursor: "pointer",
+            fontSize: 11,
+            fontWeight: 700
+          },
+          children: mode.label
+        },
+        mode.id
+      )) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          type: "button",
+          onClick: () => !isSectionLocked("skills") && resetSkills(),
+          disabled: isSectionLocked("skills"),
+          style: {
+            padding: "4px 8px",
+            borderRadius: 8,
+            border: "1px solid rgba(255,255,255,0.15)",
+            background: "rgba(255,255,255,0.08)",
+            color: "#f5f5f5",
+            cursor: isSectionLocked("skills") ? "not-allowed" : "pointer",
+            fontSize: 11,
+            fontWeight: 700,
+            opacity: isSectionLocked("skills") ? 0.6 : 1
+          },
+          children: "Reset"
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "button",
+        {
+          type: "button",
+          onClick: () => toggleSectionLock("skills"),
+          style: {
+            ...lockButtonBaseStyle,
+            marginLeft: "auto",
+            background: getLockButtonState("skills").background
+          },
+          children: [
+            getLockButtonState("skills").label,
+            renderPendingBadge(getPendingCountForSection("skills"))
+          ]
+        }
+      )
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "div",
+      {
+        style: {
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+          gap: 10
+        },
+        children: competenceOptions.map((skill) => {
+          const isExpert = expertises.includes(skill.id);
+          const isProf = competences.includes(skill.id);
+          const level = resolveLevel();
+          const prof = 2 + Math.floor((level - 1) / 4);
+          const abilityKey = skillAbilityMap[skill.id];
+          const scoreKey = abilityKey === "STR" ? "FOR" : abilityKey === "DEX" ? "DEX" : abilityKey === "CON" ? "CON" : abilityKey === "INT" ? "INT" : abilityKey === "WIS" ? "SAG" : "CHA";
+          const mod = computeMod(getScore(scoreKey));
+          const bonus = mod + (isExpert ? prof * 2 : isProf ? prof : 0);
+          const bonusLabel = bonus >= 0 ? `+${bonus}` : bonus;
+          const cardBackground = isExpert ? "rgba(241, 196, 15, 0.18)" : isProf ? "rgba(79,125,242,0.2)" : "rgba(12,12,18,0.75)";
+          const cardBorder = isExpert ? "1px solid rgba(241,196,15,0.55)" : isProf ? "1px solid rgba(79,125,242,0.55)" : "1px solid rgba(255,255,255,0.12)";
+          const cardShadow = isExpert ? "0 0 12px rgba(241,196,15,0.45)" : "none";
+          return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "div",
+            {
+              style: {
+                padding: 10,
+                borderRadius: 8,
+                border: cardBorder,
+                background: cardBackground,
+                boxShadow: cardShadow,
+                display: "flex",
+                flexDirection: "column",
+                gap: 8
+              },
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                  "div",
+                  {
+                    style: {
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 8,
+                      alignItems: "center"
+                    },
+                    children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, fontWeight: 700 }, children: skill.label }),
+                      renderSourceDots(getSkillSources(skill.id)),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.6)" }, children: skillAbilityMap[skill.id] })
+                    ]
+                  }
+                ),
+                skillsMode === "normal" ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "div",
+                  {
+                    style: {
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      minHeight: 40
+                    },
+                    children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+                      "div",
+                      {
+                        style: {
+                          fontSize: 20,
+                          fontWeight: 800,
+                          color: isExpert ? "#f1c40f" : isProf ? "#4f7df2" : "#f5f5f5"
+                        },
+                        children: bonusLabel
+                      }
+                    )
+                  }
+                ) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: 10, alignItems: "center" }, children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { style: { display: "flex", gap: 6, alignItems: "center" }, children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsx(
+                        "input",
+                        {
+                          type: "checkbox",
+                          checked: competences.includes(skill.id),
+                          onChange: () => canEditSkills && toggleCompetence(skill.id),
+                          disabled: !canEditSkills,
+                          style: { accentColor: "#4f7df2" }
+                        }
+                      ),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { fontSize: 12 }, children: "Maitrise" })
+                    ] }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { style: { display: "flex", gap: 6, alignItems: "center" }, children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsx(
+                        "input",
+                        {
+                          type: "checkbox",
+                          checked: expertises.includes(skill.id),
+                          onChange: () => canEditSkills && toggleExpertise(skill.id),
+                          disabled: !canEditSkills || !competences.includes(skill.id),
+                          style: { accentColor: "#f1c40f" }
+                        }
+                      ),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { fontSize: 12 }, children: "Expertise" })
+                    ] })
+                  ] }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
+                    "Bonus: ",
+                    bonusLabel
+                  ] })
+                ] })
+              ]
+            },
+            skill.id
+          );
+        })
+      }
+    )
+  ] });
+}
+function MasteriesTab(props) {
+  const {
+    masteriesMode,
+    setMasteriesMode,
+    resetMasteries,
+    isSectionLocked,
+    toggleSectionLock,
+    lockButtonBaseStyle,
+    getLockButtonState,
+    renderPendingBadge,
+    getPendingCountForSection,
+    weaponMasteryOptions,
+    armorMasteryOptions,
+    toolMasteryOptions,
+    weaponMasteries,
+    armorMasteries,
+    toolMasteries,
+    toggleWeaponMastery,
+    toggleArmorMastery,
+    toggleToolMastery,
+    canEditMasteries,
+    renderSourceDots,
+    getMasterySources
+  } = props;
+  const renderMasteryGrid = (title, items, selected, onToggle, kind2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, fontWeight: 700, marginTop: 6 }, children: title }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "div",
+      {
+        style: {
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+          gap: 8,
+          marginTop: 6
+        },
+        children: items.map((item) => {
+          const isActive = selected.includes(item.id);
+          return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "button",
+            {
+              type: "button",
+              onClick: () => canEditMasteries && onToggle(item.id),
+              disabled: !canEditMasteries,
+              style: {
+                textAlign: "left",
+                borderRadius: 8,
+                border: `1px solid ${isActive ? "rgba(79,125,242,0.6)" : "rgba(255,255,255,0.12)"}`,
+                background: isActive ? "rgba(79,125,242,0.18)" : "rgba(12,12,18,0.75)",
+                color: "#f5f5f5",
+                padding: "8px 10px",
+                cursor: canEditMasteries ? "pointer" : "not-allowed",
+                fontSize: 12,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 6
+              },
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: item.label }),
+                renderSourceDots(getMasterySources(kind2, item.id))
+              ]
+            },
+            item.id
+          );
+        })
+      }
+    )
+  ] });
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "#b0b8c4" }, children: "Selectionnez les maitrises. Elles influenceront les bonus et malus." }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", gap: 6 }, children: [
+        { id: "normal", label: "Normal" },
+        { id: "manual", label: "Manuel" }
+      ].map((mode) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          type: "button",
+          onClick: () => setMasteriesMode(mode.id),
+          style: {
+            padding: "4px 8px",
+            borderRadius: 8,
+            border: "1px solid rgba(255,255,255,0.15)",
+            background: masteriesMode === mode.id ? "rgba(79,125,242,0.2)" : "rgba(255,255,255,0.06)",
+            color: "#f5f5f5",
+            cursor: "pointer",
+            fontSize: 11,
+            fontWeight: 700
+          },
+          children: mode.label
+        },
+        mode.id
+      )) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          type: "button",
+          onClick: () => !isSectionLocked("masteries") && resetMasteries(),
+          disabled: isSectionLocked("masteries"),
+          style: {
+            padding: "4px 8px",
+            borderRadius: 8,
+            border: "1px solid rgba(255,255,255,0.15)",
+            background: "rgba(255,255,255,0.08)",
+            color: "#f5f5f5",
+            cursor: isSectionLocked("masteries") ? "not-allowed" : "pointer",
+            fontSize: 11,
+            fontWeight: 700,
+            opacity: isSectionLocked("masteries") ? 0.6 : 1
+          },
+          children: "Reset"
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "button",
+        {
+          type: "button",
+          onClick: () => toggleSectionLock("masteries"),
+          style: {
+            ...lockButtonBaseStyle,
+            marginLeft: "auto",
+            background: getLockButtonState("masteries").background
+          },
+          children: [
+            getLockButtonState("masteries").label,
+            renderPendingBadge(getPendingCountForSection("masteries"))
+          ]
+        }
+      )
+    ] }),
+    renderMasteryGrid(
+      "Armes",
+      weaponMasteryOptions,
+      weaponMasteries,
+      toggleWeaponMastery,
+      "weapons"
+    ),
+    renderMasteryGrid(
+      "Armures",
+      armorMasteryOptions,
+      armorMasteries,
+      toggleArmorMastery,
+      "armors"
+    ),
+    renderMasteryGrid("Outils", toolMasteryOptions, toolMasteries, toggleToolMastery, "tools")
+  ] });
+}
+function BackgroundsTab(props) {
+  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j;
+  const {
+    isSectionLocked,
+    lockButtonBaseStyle,
+    getLockButtonState,
+    renderPendingBadge,
+    getPendingCountForSection,
+    backgroundOptions,
+    selectedBackgroundId,
+    handleBackgroundSelect,
+    onLockClick,
+    activeBackground,
+    getBackgroundFeatureInfo,
+    getBackgroundToolChoice,
+    getBackgroundLanguageChoice,
+    getBackgroundSkillProficiencies,
+    getBackgroundToolProficiencies,
+    formatEquipmentLabel,
+    toolMasteryOptions,
+    competenceOptions
+  } = props;
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "#b0b8c4" }, children: "Choisissez un historique. Un seul background peut etre actif." }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "button",
+        {
+          type: "button",
+          onClick: onLockClick,
+          style: {
+            ...lockButtonBaseStyle,
+            marginLeft: "auto",
+            background: getLockButtonState("backgrounds").background
+          },
+          children: [
+            getLockButtonState("backgrounds").label,
+            renderPendingBadge(getPendingCountForSection("backgrounds"))
+          ]
+        }
+      )
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "div",
+      {
+        style: {
+          display: "grid",
+          gridTemplateColumns: "minmax(220px, 1.1fr) minmax(240px, 1fr)",
+          gap: 12,
+          alignItems: "start"
+        },
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "div",
+            {
+              style: {
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                gap: 10,
+                alignContent: "start"
+              },
+              children: backgroundOptions.map((bg) => {
+                const isSelected = selectedBackgroundId === bg.id;
+                return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                  "button",
+                  {
+                    type: "button",
+                    onClick: () => handleBackgroundSelect(bg),
+                    disabled: isSectionLocked("backgrounds"),
+                    style: {
+                      textAlign: "left",
+                      borderRadius: 10,
+                      border: `1px solid ${isSelected ? "#6fd3a8" : "rgba(255,255,255,0.12)"}`,
+                      background: isSelected ? "rgba(46, 204, 113, 0.14)" : "rgba(12,12,18,0.75)",
+                      color: "#f5f5f5",
+                      padding: 12,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 6,
+                      minHeight: 120,
+                      opacity: isSectionLocked("backgrounds") ? 0.6 : 1,
+                      cursor: isSectionLocked("backgrounds") ? "not-allowed" : "pointer"
+                    },
+                    children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 13, fontWeight: 800 }, children: bg.label }),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: bg.description })
+                    ]
+                  },
+                  bg.id
+                );
+              })
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "div",
+            {
+              style: {
+                borderRadius: 12,
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "rgba(12,12,18,0.75)",
+                padding: 12,
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+                minHeight: 260
+              },
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "div",
+                  {
+                    style: {
+                      width: "100%",
+                      aspectRatio: "16 / 9",
+                      borderRadius: 10,
+                      border: "1px dashed rgba(255,255,255,0.18)",
+                      background: "rgba(8,8,12,0.65)",
+                      display: "grid",
+                      placeItems: "center",
+                      color: "rgba(255,255,255,0.35)",
+                      fontSize: 12
+                    },
+                    children: "Image 16:9"
+                  }
+                ),
+                activeBackground ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 13, fontWeight: 800 }, children: activeBackground.label }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: activeBackground.description }),
+                  getBackgroundFeatureInfo(activeBackground) && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                    "div",
+                    {
+                      style: {
+                        padding: 8,
+                        borderRadius: 8,
+                        border: "1px solid rgba(255,255,255,0.12)",
+                        background: "rgba(10,10,16,0.8)",
+                        fontSize: 12,
+                        color: "rgba(255,255,255,0.7)"
+                      },
+                      children: [
+                        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontWeight: 700, marginBottom: 4 }, children: (_a = getBackgroundFeatureInfo(activeBackground)) == null ? void 0 : _a.label }),
+                        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { children: (_b = getBackgroundFeatureInfo(activeBackground)) == null ? void 0 : _b.description })
+                      ]
+                    }
+                  ),
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
+                    "Competences: ",
+                    getBackgroundSkillProficiencies(activeBackground).map((id2) => {
+                      var _a2;
+                      return ((_a2 = competenceOptions.find((c2) => c2.id === id2)) == null ? void 0 : _a2.label) ?? id2;
+                    }).join(", ") || "—"
+                  ] }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
+                    "Outils: ",
+                    getBackgroundToolProficiencies(activeBackground).map((id2) => {
+                      var _a2;
+                      return ((_a2 = toolMasteryOptions.find((t2) => t2.id === id2)) == null ? void 0 : _a2.label) ?? id2;
+                    }).join(", ") || "—"
+                  ] }),
+                  getBackgroundToolChoice(activeBackground) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
+                    "Outils (choix ",
+                    ((_c = getBackgroundToolChoice(activeBackground)) == null ? void 0 : _c.count) ?? 0,
+                    "):",
+                    " ",
+                    (((_d = getBackgroundToolChoice(activeBackground)) == null ? void 0 : _d.options) ?? []).map((id2) => {
+                      var _a2;
+                      return ((_a2 = toolMasteryOptions.find((t2) => t2.id === id2)) == null ? void 0 : _a2.label) ?? id2;
+                    }).join(", ")
+                  ] }),
+                  (activeBackground == null ? void 0 : activeBackground.toolNotes) && activeBackground.toolNotes.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
+                    "Outils: ",
+                    activeBackground.toolNotes.join(", ")
+                  ] }),
+                  getBackgroundLanguageChoice(activeBackground) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
+                    "Langues: ",
+                    ((_e = getBackgroundLanguageChoice(activeBackground)) == null ? void 0 : _e.count) ?? 0,
+                    " au choix"
+                  ] }),
+                  (activeBackground == null ? void 0 : activeBackground.equipment) && activeBackground.equipment.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
+                    "Materiel: ",
+                    activeBackground.equipment.map(formatEquipmentLabel).join(", ")
+                  ] }),
+                  getBackgroundFeatureInfo(activeBackground) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
+                    "Aptitude: ",
+                    ((_f = getBackgroundFeatureInfo(activeBackground)) == null ? void 0 : _f.label) ?? "",
+                    ((_g = getBackgroundFeatureInfo(activeBackground)) == null ? void 0 : _g.description) ? ` — ${(_h = getBackgroundFeatureInfo(activeBackground)) == null ? void 0 : _h.description}` : ""
+                  ] }),
+                  ((_i = activeBackground == null ? void 0 : activeBackground.traits) == null ? void 0 : _i.bond) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
+                    "Lien: ",
+                    activeBackground.traits.bond
+                  ] }),
+                  ((_j = activeBackground == null ? void 0 : activeBackground.traits) == null ? void 0 : _j.flaw) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
+                    "Defaut: ",
+                    activeBackground.traits.flaw
+                  ] })
+                ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: "Aucun historique selectionne." })
+              ]
+            }
+          )
+        ]
+      }
+    )
+  ] });
+}
+function ClassesTab(props) {
+  const {
+    activeClassTab,
+    resolvedClassTab,
+    setActiveClassTab,
+    isSectionLocked,
+    lockButtonBaseStyle,
+    getClassLockButtonState,
+    renderPendingBadge,
+    getPendingCountForSection,
+    resetClassImpactsForSlot,
+    hasPendingClassChoicesForSlot,
+    startClassDefine,
+    setClassLockForSlot,
+    resolveLevel,
+    setLevel,
+    classOptions,
+    subclassOptions,
+    isActiveClassLocked,
+    activeClassSlot,
+    activeClassId,
+    activeSubclassId,
+    activeClassEntry,
+    handleClassSelect,
+    setSubclassSelection,
+    setClassLevel,
+    isSecondaryEnabled,
+    enableSecondaryClass,
+    removeSecondaryClass
+  } = props;
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "#b0b8c4" }, children: "Definissez le niveau global, puis choisissez vos classes." }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 13, display: "flex", alignItems: "center", gap: 10 }, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Niveau global :" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          style: {
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "4px 6px",
+            borderRadius: 8,
+            border: "1px solid #2a2a3a",
+            background: "#0f0f19"
+          },
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "button",
+              {
+                type: "button",
+                onClick: () => !isSectionLocked("classes") && setLevel(resolveLevel() - 1),
+                disabled: isSectionLocked("classes"),
+                style: {
+                  width: 30,
+                  height: 30,
+                  borderRadius: 6,
+                  border: "1px solid #333",
+                  background: "#141421",
+                  color: "#f5f5f5",
+                  cursor: isSectionLocked("classes") ? "not-allowed" : "pointer",
+                  display: "grid",
+                  placeItems: "center",
+                  opacity: isSectionLocked("classes") ? 0.6 : 1
+                },
+                "aria-label": "Diminuer le niveau",
+                children: /* @__PURE__ */ jsxRuntimeExports.jsx("svg", { width: "12", height: "12", viewBox: "0 0 12 12", "aria-hidden": "true", children: /* @__PURE__ */ jsxRuntimeExports.jsx("rect", { x: "2", y: "5.25", width: "8", height: "1.5", fill: "currentColor" }) })
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                type: "number",
+                min: 1,
+                max: 20,
+                value: resolveLevel(),
+                onChange: (e2) => !isSectionLocked("classes") && setLevel(Number(e2.target.value)),
+                disabled: isSectionLocked("classes"),
+                style: {
+                  width: 60,
+                  background: "#0f0f19",
+                  color: "#f5f5f5",
+                  border: "1px solid #333",
+                  borderRadius: 6,
+                  padding: "4px 6px",
+                  textAlign: "center",
+                  appearance: "textfield",
+                  WebkitAppearance: "textfield",
+                  MozAppearance: "textfield",
+                  opacity: isSectionLocked("classes") ? 0.6 : 1
+                }
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "button",
+              {
+                type: "button",
+                onClick: () => !isSectionLocked("classes") && setLevel(resolveLevel() + 1),
+                disabled: isSectionLocked("classes"),
+                style: {
+                  width: 30,
+                  height: 30,
+                  borderRadius: 6,
+                  border: "1px solid #333",
+                  background: "#141421",
+                  color: "#f5f5f5",
+                  cursor: isSectionLocked("classes") ? "not-allowed" : "pointer",
+                  display: "grid",
+                  placeItems: "center",
+                  opacity: isSectionLocked("classes") ? 0.6 : 1
+                },
+                "aria-label": "Augmenter le niveau",
+                children: /* @__PURE__ */ jsxRuntimeExports.jsxs("svg", { width: "12", height: "12", viewBox: "0 0 12 12", "aria-hidden": "true", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("rect", { x: "2", y: "5.25", width: "8", height: "1.5", fill: "currentColor" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("rect", { x: "5.25", y: "2", width: "1.5", height: "8", fill: "currentColor" })
+                ] })
+              }
+            )
+          ]
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
+        "Bonus de maitrise: +",
+        2 + Math.floor((resolveLevel() - 1) / 4)
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "button",
+        {
+          type: "button",
+          onClick: () => {
+            if (isActiveClassLocked) {
+              resetClassImpactsForSlot(activeClassSlot);
+              return;
+            }
+            if (hasPendingClassChoicesForSlot(activeClassSlot)) {
+              startClassDefine(activeClassSlot);
+              return;
+            }
+            setClassLockForSlot(activeClassSlot, true);
+          },
+          style: {
+            ...lockButtonBaseStyle,
+            marginLeft: "auto",
+            padding: "6px 10px",
+            background: getClassLockButtonState().background,
+            fontSize: 12
+          },
+          children: [
+            getClassLockButtonState().label,
+            renderPendingBadge(getPendingCountForSection("classes"))
+          ]
+        }
+      )
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          type: "button",
+          onClick: () => setActiveClassTab("primary"),
+          style: {
+            padding: "6px 10px",
+            borderRadius: 6,
+            border: `1px solid ${resolvedClassTab === "primary" ? "#6fd3a8" : "#333"}`,
+            background: resolvedClassTab === "primary" ? "rgba(46, 204, 113, 0.16)" : "#0f0f19",
+            color: "#c9cfdd",
+            cursor: "pointer",
+            fontSize: 12,
+            fontWeight: 700
+          },
+          children: "Classe principale"
+        }
+      ),
+      resolveLevel() > 2 && /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          type: "button",
+          onClick: () => setActiveClassTab("secondary"),
+          style: {
+            padding: "6px 10px",
+            borderRadius: 6,
+            border: `1px solid ${resolvedClassTab === "secondary" ? "#6fd3a8" : "#333"}`,
+            background: resolvedClassTab === "secondary" ? "rgba(46, 204, 113, 0.16)" : "#0f0f19",
+            color: "#c9cfdd",
+            cursor: "pointer",
+            fontSize: 12,
+            fontWeight: 700
+          },
+          children: "2eme classe"
+        }
+      )
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "div",
+      {
+        style: {
+          display: "grid",
+          gridTemplateColumns: "minmax(220px, 1.1fr) minmax(240px, 1fr)",
+          gap: 12,
+          alignItems: "start"
+        },
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "div",
+            {
+              style: {
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                gap: 10,
+                alignContent: "start"
+              },
+              children: [
+                resolvedClassTab === "secondary" && !isSecondaryEnabled && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                  "button",
+                  {
+                    type: "button",
+                    onClick: () => !isActiveClassLocked && enableSecondaryClass(),
+                    disabled: isActiveClassLocked,
+                    style: {
+                      textAlign: "center",
+                      borderRadius: 12,
+                      border: "1px dashed rgba(255,255,255,0.25)",
+                      background: "rgba(12,12,18,0.6)",
+                      color: "#f5f5f5",
+                      padding: 14,
+                      cursor: isActiveClassLocked ? "not-allowed" : "pointer",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 10,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      minHeight: 180
+                    },
+                    children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsx(
+                        "div",
+                        {
+                          style: {
+                            width: 46,
+                            height: 46,
+                            borderRadius: 12,
+                            border: "1px solid rgba(255,255,255,0.25)",
+                            display: "grid",
+                            placeItems: "center",
+                            fontSize: 28,
+                            fontWeight: 700
+                          },
+                          children: "+"
+                        }
+                      ),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: "Activer une 2eme classe" })
+                    ]
+                  }
+                ),
+                classOptions.map((cls) => {
+                  const isSelected = activeClassId === cls.id;
+                  const isDisabled = isActiveClassLocked || resolvedClassTab === "secondary" && !isSecondaryEnabled;
+                  return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                    "button",
+                    {
+                      type: "button",
+                      onClick: () => {
+                        if (isDisabled) return;
+                        handleClassSelect(cls, activeClassSlot);
+                      },
+                      disabled: isDisabled,
+                      style: {
+                        textAlign: "left",
+                        borderRadius: 10,
+                        border: `1px solid ${isSelected ? "#6fd3a8" : "rgba(255,255,255,0.12)"}`,
+                        background: isSelected ? "rgba(46, 204, 113, 0.14)" : "rgba(12,12,18,0.75)",
+                        color: "#f5f5f5",
+                        padding: 12,
+                        cursor: isDisabled ? "not-allowed" : "pointer",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 6,
+                        minHeight: 120,
+                        opacity: isDisabled ? 0.55 : 1
+                      },
+                      children: [
+                        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 13, fontWeight: 800 }, children: cls.label }),
+                        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: cls.description })
+                      ]
+                    },
+                    `${resolvedClassTab}-${cls.id}`
+                  );
+                })
+              ]
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "div",
+            {
+              style: {
+                borderRadius: 12,
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "rgba(12,12,18,0.75)",
+                padding: 12,
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+                minHeight: 260
+              },
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 14, fontWeight: 800 }, children: resolvedClassTab === "secondary" ? "2eme classe" : "Classe principale" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: "Niveau dans cette classe :" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                  "div",
+                  {
+                    style: {
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "4px 6px",
+                      borderRadius: 8,
+                      border: "1px solid #2a2a3a",
+                      background: "#0f0f19",
+                      width: "fit-content"
+                    },
+                    children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsx(
+                        "button",
+                        {
+                          type: "button",
+                          onClick: () => !isActiveClassLocked && setClassLevel(activeClassSlot, (Number(activeClassEntry == null ? void 0 : activeClassEntry.niveau) || 1) - 1),
+                          disabled: isActiveClassLocked || resolvedClassTab === "secondary" && !isSecondaryEnabled,
+                          style: {
+                            width: 30,
+                            height: 30,
+                            borderRadius: 6,
+                            border: "1px solid #333",
+                            background: "#141421",
+                            color: "#f5f5f5",
+                            cursor: isActiveClassLocked ? "not-allowed" : "pointer",
+                            display: "grid",
+                            placeItems: "center",
+                            opacity: isActiveClassLocked ? 0.6 : 1
+                          },
+                          "aria-label": "Diminuer le niveau de classe",
+                          children: /* @__PURE__ */ jsxRuntimeExports.jsx("svg", { width: "12", height: "12", viewBox: "0 0 12 12", "aria-hidden": "true", children: /* @__PURE__ */ jsxRuntimeExports.jsx("rect", { x: "2", y: "5.25", width: "8", height: "1.5", fill: "currentColor" }) })
+                        }
+                      ),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx(
+                        "input",
+                        {
+                          type: "number",
+                          min: 1,
+                          max: isSecondaryEnabled ? Math.max(1, resolveLevel() - 1) : resolveLevel(),
+                          value: (activeClassEntry == null ? void 0 : activeClassEntry.niveau) ?? (activeClassSlot === 1 ? resolveLevel() : 0),
+                          onChange: (e2) => !isActiveClassLocked && setClassLevel(activeClassSlot, Number(e2.target.value)),
+                          disabled: isActiveClassLocked || resolvedClassTab === "secondary" && !isSecondaryEnabled,
+                          style: {
+                            width: 60,
+                            background: "#0f0f19",
+                            color: "#f5f5f5",
+                            border: "1px solid #333",
+                            borderRadius: 6,
+                            padding: "4px 6px",
+                            textAlign: "center",
+                            appearance: "textfield",
+                            WebkitAppearance: "textfield",
+                            MozAppearance: "textfield",
+                            opacity: isActiveClassLocked ? 0.6 : 1
+                          }
+                        }
+                      ),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx(
+                        "button",
+                        {
+                          type: "button",
+                          onClick: () => !isActiveClassLocked && setClassLevel(activeClassSlot, (Number(activeClassEntry == null ? void 0 : activeClassEntry.niveau) || 1) + 1),
+                          disabled: isActiveClassLocked || resolvedClassTab === "secondary" && !isSecondaryEnabled,
+                          style: {
+                            width: 30,
+                            height: 30,
+                            borderRadius: 6,
+                            border: "1px solid #333",
+                            background: "#141421",
+                            color: "#f5f5f5",
+                            cursor: isActiveClassLocked ? "not-allowed" : "pointer",
+                            display: "grid",
+                            placeItems: "center",
+                            opacity: isActiveClassLocked ? 0.6 : 1
+                          },
+                          "aria-label": "Augmenter le niveau de classe",
+                          children: /* @__PURE__ */ jsxRuntimeExports.jsxs("svg", { width: "12", height: "12", viewBox: "0 0 12 12", "aria-hidden": "true", children: [
+                            /* @__PURE__ */ jsxRuntimeExports.jsx("rect", { x: "2", y: "5.25", width: "8", height: "1.5", fill: "currentColor" }),
+                            /* @__PURE__ */ jsxRuntimeExports.jsx("rect", { x: "5.25", y: "2", width: "1.5", height: "8", fill: "currentColor" })
+                          ] })
+                        }
+                      )
+                    ]
+                  }
+                ),
+                resolvedClassTab === "secondary" && isSecondaryEnabled && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    type: "button",
+                    onClick: () => !isActiveClassLocked && removeSecondaryClass(),
+                    disabled: isActiveClassLocked,
+                    style: {
+                      marginTop: 8,
+                      alignSelf: "flex-start",
+                      padding: "6px 10px",
+                      borderRadius: 8,
+                      border: "1px solid rgba(255,255,255,0.15)",
+                      background: "rgba(231,76,60,0.14)",
+                      color: "#f5f5f5",
+                      cursor: isActiveClassLocked ? "not-allowed" : "pointer",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      opacity: isActiveClassLocked ? 0.6 : 1
+                    },
+                    children: "Supprimer la 2eme classe"
+                  }
+                ),
+                (() => {
+                  const cls = classOptions.find((c2) => c2.id === activeClassId);
+                  if (!cls) {
+                    return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: "Choisissez d'abord une classe." });
+                  }
+                  const threshold = cls.subclassLevel ?? 1;
+                  const level = Number(activeClassEntry == null ? void 0 : activeClassEntry.niveau) || (activeClassSlot === 1 ? resolveLevel() : 0);
+                  if (level < threshold) {
+                    return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                      "div",
+                      {
+                        style: {
+                          padding: 10,
+                          borderRadius: 10,
+                          border: "1px dashed rgba(255,255,255,0.2)",
+                          background: "rgba(8,8,12,0.6)",
+                          color: "rgba(255,255,255,0.6)",
+                          fontSize: 12
+                        },
+                        children: [
+                          "Sous-classe verrouillee jusqu'au niveau ",
+                          threshold,
+                          "."
+                        ]
+                      }
+                    );
+                  }
+                  const allowedIds = Array.isArray(cls.subclassIds) ? cls.subclassIds : [];
+                  const subclasses = subclassOptions.filter((sub) => sub.classId === cls.id);
+                  return /* @__PURE__ */ jsxRuntimeExports.jsx(
+                    "div",
+                    {
+                      style: {
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                        gap: 10
+                      },
+                      children: subclasses.map((sub) => {
+                        const isAllowed = allowedIds.length === 0 || allowedIds.includes(sub.id);
+                        const isSelected = activeSubclassId === sub.id;
+                        return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                          "button",
+                          {
+                            type: "button",
+                            onClick: () => {
+                              if (!isAllowed || isActiveClassLocked) return;
+                              setSubclassSelection(sub.id, activeClassSlot);
+                            },
+                            disabled: !isAllowed || isActiveClassLocked,
+                            style: {
+                              textAlign: "left",
+                              borderRadius: 10,
+                              border: `1px solid ${isSelected ? "#f1c40f" : "rgba(255,255,255,0.12)"}`,
+                              background: isSelected ? "rgba(241, 196, 15, 0.14)" : "rgba(12,12,18,0.75)",
+                              color: "#f5f5f5",
+                              padding: 12,
+                              cursor: isAllowed && !isActiveClassLocked ? "pointer" : "not-allowed",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 6,
+                              minHeight: 110,
+                              opacity: isAllowed && !isActiveClassLocked ? 1 : 0.5
+                            },
+                            children: [
+                              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 13, fontWeight: 800 }, children: sub.label }),
+                              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: sub.description })
+                            ]
+                          },
+                          `${activeClassSlot}-${sub.id}`
+                        );
+                      })
+                    }
+                  );
+                })()
+              ]
+            }
+          )
+        ]
+      }
+    )
+  ] });
+}
 function CombatSetupScreen(props) {
-  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B, _C, _D, _E, _F, _G, _H, _I, _J;
+  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B;
   const [activeMainTab, setActiveMainTab] = reactExports.useState("map");
   const [activePlayerTab, setActivePlayerTab] = reactExports.useState("species");
   const [activeClassTab, setActiveClassTab] = reactExports.useState("primary");
@@ -47535,6 +50453,10 @@ function CombatSetupScreen(props) {
     return map;
   }, [weaponOptions]);
   const inventoryInitRef = reactExports.useRef(false);
+  const instanceSeedRef = reactExports.useRef(
+    `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+  );
+  const instanceCounterRef = reactExports.useRef(0);
   const pendingLocks = (choiceSelections == null ? void 0 : choiceSelections.pendingLocks) ?? {};
   const competences = Array.isArray((_o = props.character) == null ? void 0 : _o.competences) ? props.character.competences : [];
   const expertises = Array.isArray((_p = props.character) == null ? void 0 : _p.expertises) ? props.character.expertises : [];
@@ -47555,22 +50477,6 @@ function CombatSetupScreen(props) {
     const list = Array.isArray(cls == null ? void 0 : cls.equipment) ? cls == null ? void 0 : cls.equipment : [];
     return list.filter(Boolean);
   };
-  const dedupeList = (items) => {
-    const seen2 = /* @__PURE__ */ new Set();
-    return items.filter((item) => {
-      if (!item) return false;
-      if (seen2.has(item)) return false;
-      seen2.add(item);
-      return true;
-    });
-  };
-  const arraysEqual = (left, right) => {
-    if (left.length !== right.length) return false;
-    for (let i2 = 0; i2 < left.length; i2 += 1) {
-      if (left[i2] !== right[i2]) return false;
-    }
-    return true;
-  };
   const DEFAULT_MATERIEL_SLOTS = {
     corps: null,
     tete: null,
@@ -47585,7 +50491,9 @@ function CombatSetupScreen(props) {
     collier: null,
     bijou_1: null,
     bijou_2: null,
-    paquetage: null
+    paquetage: null,
+    ceinture_bourse_1: null,
+    ceinture_bourse_2: null
   };
   const materielSlots = reactExports.useMemo(() => {
     var _a2;
@@ -47637,13 +50545,24 @@ function CombatSetupScreen(props) {
     { id: "collier", label: "Collier", accepts: ["necklace"] },
     { id: "bijou_1", label: "Bijou 1", accepts: ["jewel"] },
     { id: "bijou_2", label: "Bijou 2", accepts: ["jewel"] },
-    { id: "paquetage", label: "Paquetage (sac)", accepts: ["pack"] }
+    { id: "paquetage", label: "Paquetage (sac)", accepts: ["pack"] },
+    { id: "ceinture_bourse_1", label: "Ceinture - bourse 1", accepts: ["pack"] },
+    { id: "ceinture_bourse_2", label: "Ceinture - bourse 2", accepts: ["pack"] }
   ];
   const weaponCarrySlots = reactExports.useMemo(
     () => /* @__PURE__ */ new Set(["ceinture_gauche", "ceinture_droite", "dos_gauche", "dos_droit"]),
     []
   );
   const clothingSubSlots = reactExports.useMemo(() => /* @__PURE__ */ new Set(["tete", "gants", "bottes"]), []);
+  const packSlots = reactExports.useMemo(
+    () => /* @__PURE__ */ new Set(["paquetage", "ceinture_bourse_1", "ceinture_bourse_2"]),
+    []
+  );
+  const packSlotMaxWeight = {
+    paquetage: null,
+    ceinture_bourse_1: 5.2,
+    ceinture_bourse_2: 5.2
+  };
   const humanizeId = (value2) => {
     const cleaned = value2.replace(/^obj_/, "").replace(/^weapon_/, "").replace(/^armor_/, "").replace(/^tool_/, "").replace(/[_-]+/g, " ").trim();
     return cleaned.length > 0 ? cleaned.charAt(0).toUpperCase() + cleaned.slice(1) : value2;
@@ -47701,18 +50620,41 @@ function CombatSetupScreen(props) {
     if (item.type === "tool") return ((_d2 = toolItemMap.get(item.id)) == null ? void 0 : _d2.weight) ?? 0;
     return 0;
   };
-  const getBagId = () => (materielSlots == null ? void 0 : materielSlots.paquetage) ?? null;
-  const getBagCapacity = (bagId2) => {
-    if (!bagId2) return 0;
-    const bag = objectItemMap.get(bagId2);
+  const createInstanceId = (prefix) => {
+    const next = instanceCounterRef.current + 1;
+    instanceCounterRef.current = next;
+    return `${prefix}-${instanceSeedRef.current}-${next}`;
+  };
+  const getPackSlotItemId = (slotId) => (materielSlots == null ? void 0 : materielSlots[slotId]) ?? null;
+  const getPackCapacity = (slotId) => {
+    const bagId = getPackSlotItemId(slotId);
+    if (!bagId) return 0;
+    const bag = objectItemMap.get(bagId);
     return (bag == null ? void 0 : bag.capacityWeight) ?? 0;
   };
-  const getStoredWeight = (bagId2) => {
-    if (!bagId2) return 0;
+  const getStoredWeightForSlot = (slotId) => {
+    const bagId = getPackSlotItemId(slotId);
     return inventoryItems.reduce((sum, item) => {
-      if ((item == null ? void 0 : item.storedIn) !== bagId2) return sum;
+      const isStoredInSlot = (item == null ? void 0 : item.storedIn) === slotId || slotId === "paquetage" && bagId && (item == null ? void 0 : item.storedIn) === bagId;
+      if (!isStoredInSlot) return sum;
       return sum + getItemWeight(item) * (Number((item == null ? void 0 : item.qty) ?? 1) || 1);
     }, 0);
+  };
+  const getPackTotalWeightForItem = (item) => {
+    if (!item) return 0;
+    const base = getItemWeight(item);
+    const slotId = (item == null ? void 0 : item.equippedSlot) && packSlots.has(item.equippedSlot) ? item.equippedSlot : null;
+    const contents = slotId ? getStoredWeightForSlot(slotId) : 0;
+    return base + contents;
+  };
+  const getPackTotalWeightForSlot = (slotId) => {
+    const bagId = getPackSlotItemId(slotId);
+    if (!bagId) return 0;
+    const bagItem = inventoryItems.find(
+      (item) => (item == null ? void 0 : item.equippedSlot) === slotId && (item == null ? void 0 : item.id) === bagId
+    );
+    if (!bagItem) return 0;
+    return getItemWeight(bagItem) + getStoredWeightForSlot(slotId);
   };
   const getBodyCategory = () => {
     const bodyId = materielSlots == null ? void 0 : materielSlots.corps;
@@ -47727,7 +50669,8 @@ function CombatSetupScreen(props) {
       body: ["corps", "tete", "gants", "bottes"],
       weapons: ["ceinture_gauche", "ceinture_droite", "dos_gauche", "dos_droit"],
       jewelry: ["anneau_1", "anneau_2", "collier", "bijou_1", "bijou_2"],
-      bag: ["paquetage"]
+      bag: ["paquetage"],
+      beltPacks: ["ceinture_bourse_1", "ceinture_bourse_2"]
     }),
     []
   );
@@ -47737,12 +50680,36 @@ function CombatSetupScreen(props) {
     if (slotDef.requiresClothingBody && !canUseClothingPieces) return [];
     return inventoryItems.map((item, idx) => ({ item, idx })).filter(({ item }) => {
       const categories = getItemCategories(item);
-      return categories.some((cat) => slotDef.accepts.includes(cat));
+      if (!categories.some((cat) => slotDef.accepts.includes(cat))) return false;
+      if (packSlots.has(slotId)) {
+        const limit = packSlotMaxWeight[slotId];
+        if (typeof limit === "number") {
+          const totalWeight = getPackTotalWeightForItem(item);
+          if (totalWeight > limit) return false;
+        }
+      }
+      return true;
     });
   };
-  const bagId = getBagId();
-  const bagCapacity = getBagCapacity(bagId);
-  const storedWeight = getStoredWeight(bagId);
+  const packSlotStatus = (slotId) => {
+    const bagId = getPackSlotItemId(slotId);
+    const capacity = getPackCapacity(slotId);
+    const storedWeight = getStoredWeightForSlot(slotId);
+    const totalWeight = getPackTotalWeightForSlot(slotId);
+    const maxTotal = packSlotMaxWeight[slotId];
+    return { bagId, capacity, storedWeight, totalWeight, maxTotal };
+  };
+  const getSlotLabel = (slotId) => {
+    var _a2;
+    return ((_a2 = EQUIPMENT_SLOTS.find((slot) => slot.id === slotId)) == null ? void 0 : _a2.label) ?? slotId;
+  };
+  const resolveStoredSlotId = (item) => {
+    if (!(item == null ? void 0 : item.storedIn)) return null;
+    if (packSlots.has(item.storedIn)) return item.storedIn;
+    const mainBagId = getPackSlotItemId("paquetage");
+    if (mainBagId && item.storedIn === mainBagId) return "paquetage";
+    return null;
+  };
   const slotItemIndexMap = reactExports.useMemo(() => {
     const map = /* @__PURE__ */ new Map();
     inventoryItems.forEach((item, idx) => {
@@ -48162,19 +51129,66 @@ function CombatSetupScreen(props) {
     });
     setActiveClassTab("primary");
   };
+  const buildClassLockCharacter = (slot, baseChoiceSelections, pendingOverride) => {
+    const wasLocked = slot === 1 ? Boolean(classLocks.primary) : Boolean(classLocks.secondary);
+    const nextLocks = {
+      ...classLocks,
+      primary: slot === 1 ? true : classLocks.primary,
+      secondary: slot === 2 ? true : classLocks.secondary
+    };
+    const nextChoiceSelections = pendingOverride ? { ...baseChoiceSelections, pendingLocks: pendingOverride } : baseChoiceSelections;
+    const nextCharacter = {
+      ...props.character,
+      classLocks: nextLocks,
+      choiceSelections: nextChoiceSelections
+    };
+    if (slot === 1) {
+      nextCharacter.classLock = true;
+    }
+    if (!wasLocked) {
+      const cls = slot === 1 ? classPrimary : classSecondary;
+      const classEquip = getClassEquipment(cls);
+      const autoResult = addAutoItemsToState(
+        equipmentAuto,
+        inventoryItems,
+        classEquip,
+        { kind: "class", id: (cls == null ? void 0 : cls.id) ?? "" }
+      );
+      const baseSpellcasting = (nextChoiceSelections == null ? void 0 : nextChoiceSelections.spellcasting) ?? {};
+      const nextSpellcasting = { ...baseSpellcasting };
+      const grantedBySource = buildSpellGrantsForClassSlot(slot);
+      Object.entries(grantedBySource).forEach(([key2, grants2]) => {
+        nextSpellcasting[key2] = {
+          ...nextSpellcasting[key2] ?? {},
+          grantedSpells: grants2
+        };
+      });
+      nextCharacter.equipmentAuto = autoResult.nextAuto;
+      nextCharacter.inventoryItems = autoResult.nextInventory;
+      nextCharacter.choiceSelections = {
+        ...nextChoiceSelections,
+        spellcasting: nextSpellcasting
+      };
+    }
+    return nextCharacter;
+  };
   const setClassLockForSlot = (slot, value2) => {
+    const wasLocked = slot === 1 ? Boolean(classLocks.primary) : Boolean(classLocks.secondary);
     const nextLocks = {
       ...classLocks,
       primary: slot === 1 ? value2 : classLocks.primary,
       secondary: slot === 2 ? value2 : classLocks.secondary
     };
+    if (value2 && !wasLocked) {
+      const nextCharacter2 = buildClassLockCharacter(slot, choiceSelections);
+      props.onChangeCharacter(nextCharacter2);
+      return;
+    }
     const nextCharacter = {
       ...props.character,
       classLocks: nextLocks
     };
-    if (slot === 1) {
-      nextCharacter.classLock = value2;
-    }
+    if (slot === 1) nextCharacter.classLock = value2;
     props.onChangeCharacter(nextCharacter);
   };
   const clearPendingLocks = (keys) => {
@@ -48278,7 +51292,12 @@ function CombatSetupScreen(props) {
       choiceSelections: nextChoiceSelections,
       proficiencies: nextProfs,
       competences: nextCompetences,
-      expertises: nextExpertises
+      expertises: nextExpertises,
+      materielSlots: { ...DEFAULT_MATERIEL_SLOTS },
+      armesDefaut: { main_droite: null, main_gauche: null, mains: null },
+      equipmentAuto: [],
+      equipmentManual: [],
+      inventoryItems: []
     };
     if (slot === 1) {
       nextCharacter.classLock = false;
@@ -48337,7 +51356,12 @@ function CombatSetupScreen(props) {
       choiceSelections: nextChoiceSelections,
       langues: nextLangues,
       proficiencies: { ...currentProfs, tools: nextTools },
-      caracs: nextCaracs
+      caracs: nextCaracs,
+      materielSlots: { ...DEFAULT_MATERIEL_SLOTS },
+      armesDefaut: { main_droite: null, main_gauche: null, mains: null },
+      equipmentAuto: [],
+      equipmentManual: [],
+      inventoryItems: []
     });
     clearPendingLocks(["backgrounds"]);
   };
@@ -48446,6 +51470,14 @@ function CombatSetupScreen(props) {
     const score = (_b2 = (_a2 = props.character.caracs) == null ? void 0 : _a2[caracKey]) == null ? void 0 : _b2[key2];
     return Number.isFinite(score) ? Number(score) : 10;
   };
+  const carryWeight = reactExports.useMemo(
+    () => inventoryItems.reduce(
+      (sum, item) => sum + getItemWeight(item) * (Number((item == null ? void 0 : item.qty) ?? 1) || 1),
+      0
+    ),
+    [inventoryItems, objectItemMap, armorItemMap, weaponItemMap, toolItemMap]
+  );
+  const carryCapacityMax = getScore("FOR") * 7.5;
   const getRequestedAsiBonus = (key2) => {
     let total = 0;
     Object.values(asiSelections).forEach((entry) => {
@@ -48636,15 +51668,6 @@ function CombatSetupScreen(props) {
     if (next.length === existing.length) return null;
     return next;
   };
-  const getAutoEquipmentIds = (bgOverride) => {
-    const bgRef = typeof bgOverride === "undefined" ? activeBackground : bgOverride;
-    const bgEquip = Array.isArray(bgRef == null ? void 0 : bgRef.equipment) ? bgRef == null ? void 0 : bgRef.equipment : [];
-    const classEquip = [
-      ...getClassEquipment(classPrimary),
-      ...getClassEquipment(classSecondary)
-    ];
-    return dedupeList([...bgEquip, ...classEquip]);
-  };
   const applyBackgroundSelection = (bg) => {
     var _a2, _b2, _c2, _d2, _e2, _f2, _g2, _h2;
     const nextSkills = Array.from(
@@ -48690,39 +51713,52 @@ function CombatSetupScreen(props) {
         };
       }
     }
-    const nextAuto = getAutoEquipmentIds(bg);
-    const manualIds = equipmentManual;
-    const nextInventory = syncInventoryFromAutoManual(nextAuto, manualIds, inventoryItems);
     props.onChangeCharacter({
       ...props.character,
       backgroundId: bg.id,
       competences: nextSkills,
       proficiencies: nextProfs,
       choiceSelections: nextChoiceSelections,
+      caracs: nextCaracs
+    });
+  };
+  const lockBackgroundAndCreateEquipment = () => {
+    var _a2, _b2, _c2, _d2;
+    if (!activeBackground) return;
+    const bonusApplied = Boolean((_a2 = choiceSelections == null ? void 0 : choiceSelections.background) == null ? void 0 : _a2.statBonusApplied);
+    let nextCaracs = props.character.caracs;
+    const nextChoiceSelections = {
+      ...choiceSelections,
+      background: { ...choiceSelections.background }
+    };
+    if (!bonusApplied && selectedBackgroundId === "veteran-de-guerre") {
+      const current = ((_c2 = (_b2 = props.character.caracs) == null ? void 0 : _b2.force) == null ? void 0 : _c2.FOR) ?? 10;
+      nextCaracs = {
+        ...props.character.caracs,
+        force: { ...((_d2 = props.character.caracs) == null ? void 0 : _d2.force) ?? {}, FOR: current + 1 }
+      };
+      nextChoiceSelections.background.statBonusApplied = true;
+      nextChoiceSelections.statsBase = {
+        ...statsBase,
+        FOR: Number.isFinite(statsBase.FOR) ? statsBase.FOR : current
+      };
+    }
+    const backgroundEquip = Array.isArray(activeBackground.equipment) ? activeBackground.equipment : [];
+    const { nextAuto, nextInventory } = addAutoItemsToState(
+      equipmentAuto,
+      inventoryItems,
+      backgroundEquip,
+      { kind: "background", id: activeBackground.id }
+    );
+    props.onChangeCharacter({
+      ...props.character,
+      creationLocks: { ...creationLocks, backgrounds: true },
+      choiceSelections: nextChoiceSelections,
       caracs: nextCaracs,
       equipmentAuto: nextAuto,
       inventoryItems: nextInventory
     });
   };
-  reactExports.useEffect(() => {
-    const nextAuto = getAutoEquipmentIds();
-    if (arraysEqual(nextAuto, equipmentAuto)) return;
-    const nextInventory = syncInventoryFromAutoManual(nextAuto, equipmentManual, inventoryItems);
-    props.onChangeCharacter({
-      ...props.character,
-      equipmentAuto: nextAuto,
-      inventoryItems: nextInventory
-    });
-  }, [
-    activeBackground == null ? void 0 : activeBackground.id,
-    classPrimary == null ? void 0 : classPrimary.id,
-    classSecondary == null ? void 0 : classSecondary.id,
-    equipmentManual,
-    inventoryItems,
-    equipmentAuto,
-    props.character,
-    props.onChangeCharacter
-  ]);
   const sourceColors = {
     race: "#2ecc71",
     background: "#f1c40f",
@@ -48772,6 +51808,23 @@ function CombatSetupScreen(props) {
         }
       },
       source2
+    )) });
+  };
+  const renderSourceDotsWithLabels = (sources2) => {
+    if (sources2.length === 0) return null;
+    return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", gap: 4 }, children: sources2.map((source2) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "span",
+      {
+        title: source2.label,
+        style: {
+          width: 8,
+          height: 8,
+          borderRadius: 999,
+          background: sourceColors[source2.key] ?? "#999",
+          display: "inline-block"
+        }
+      },
+      source2.key
     )) });
   };
   const getSkillSources = (skillId) => {
@@ -48851,6 +51904,23 @@ function CombatSetupScreen(props) {
   };
   const closeConfirmModal = () => {
     setConfirmModal((prev) => ({ ...prev, open: false }));
+  };
+  const handleChoiceToggle = (id2) => {
+    setChoiceModal((prev) => {
+      const already = prev.selected.includes(id2);
+      let next = prev.selected;
+      if (prev.multi) {
+        next = already ? next.filter((item) => item !== id2) : [...next, id2];
+      } else {
+        next = already ? [] : [id2];
+      }
+      return { ...prev, selected: next };
+    });
+  };
+  const handleChoiceConfirm = () => {
+    if (choiceModal.selected.length < choiceModal.count) return;
+    choiceModal.onConfirm(choiceModal.selected.slice(0, choiceModal.count));
+    closeChoiceModal();
   };
   const applyHumanAdaptableSkill = (skillId) => {
     const nextChoiceSelections = {
@@ -49034,16 +52104,35 @@ function CombatSetupScreen(props) {
       })) : []
     });
   };
+  const parseItemSpec = (rawId) => {
+    const parts = rawId.split(":");
+    if (parts.length >= 2) {
+      const [prefix, id2, qtyRaw] = parts;
+      if (prefix === "weapon" || prefix === "armor" || prefix === "tool" || prefix === "object") {
+        const qty = Math.max(1, Math.floor(Number(qtyRaw || 1)));
+        return { type: prefix, id: id2, qty };
+      }
+    }
+    return { type: null, id: rawId, qty: 1 };
+  };
+  const buildItemSpec = (type2, id2, qty) => {
+    const safeQty = Math.max(1, Math.floor(Number(qty || 1)));
+    if (type2 === "object" && (safeQty > 1 || isCoinId(id2))) {
+      return `object:${id2}:${safeQty}`;
+    }
+    return safeQty > 1 ? `${type2}:${id2}:${safeQty}` : id2;
+  };
   const resolveItemType = (rawId) => {
-    if (rawId.startsWith("weapon:")) return { type: "weapon", id: rawId.replace("weapon:", "") };
-    if (rawId.startsWith("armor:")) return { type: "armor", id: rawId.replace("armor:", "") };
-    if (rawId.startsWith("tool:")) return { type: "tool", id: rawId.replace("tool:", "") };
-    if (rawId.startsWith("object:")) return { type: "object", id: rawId.replace("object:", "") };
-    if (objectItemMap.has(rawId)) return { type: "object", id: rawId };
-    if (armorItemMap.has(rawId)) return { type: "armor", id: rawId };
-    if (toolItemMap.has(rawId)) return { type: "tool", id: rawId };
-    if (weaponItemMap.has(rawId)) return { type: "weapon", id: rawId };
-    return { type: "object", id: rawId };
+    const parsed = parseItemSpec(rawId);
+    if (parsed.type === "weapon") return { type: "weapon", id: parsed.id, qty: parsed.qty };
+    if (parsed.type === "armor") return { type: "armor", id: parsed.id, qty: parsed.qty };
+    if (parsed.type === "tool") return { type: "tool", id: parsed.id, qty: parsed.qty };
+    if (parsed.type === "object") return { type: "object", id: parsed.id, qty: parsed.qty };
+    if (objectItemMap.has(parsed.id)) return { type: "object", id: parsed.id, qty: parsed.qty };
+    if (armorItemMap.has(parsed.id)) return { type: "armor", id: parsed.id, qty: parsed.qty };
+    if (toolItemMap.has(parsed.id)) return { type: "tool", id: parsed.id, qty: parsed.qty };
+    if (weaponItemMap.has(parsed.id)) return { type: "weapon", id: parsed.id, qty: parsed.qty };
+    return { type: "object", id: parsed.id, qty: parsed.qty };
   };
   const formatEquipmentLabel = (rawId) => {
     var _a2, _b2, _c2, _d2;
@@ -49055,71 +52144,32 @@ function CombatSetupScreen(props) {
     if (resolved.type === "weapon") return ((_d2 = weaponItemMap.get(resolved.id)) == null ? void 0 : _d2.name) ?? fallback;
     return fallback;
   };
-  const buildInventoryFromAutoManual = (autoIds, manualIds) => {
-    const autoItems = autoIds.map((id2) => ({
-      ...resolveItemType(id2),
-      qty: 1,
-      source: "auto",
-      equippedSlot: null,
-      storedIn: null,
-      isPrimaryWeapon: false
-    }));
-    const manualItems = manualIds.map((id2) => ({
-      ...resolveItemType(id2),
-      qty: 1,
-      source: "manual",
-      equippedSlot: null,
-      storedIn: null,
-      isPrimaryWeapon: false
-    }));
-    return [...autoItems, ...manualItems];
-  };
-  const syncInventoryFromAutoManual = (autoIds, manualIds, current) => {
-    const desired = [
-      ...autoIds.map((id2) => ({ ...resolveItemType(id2), source: "auto" })),
-      ...manualIds.map((id2) => ({ ...resolveItemType(id2), source: "manual" }))
-    ];
-    const buckets = /* @__PURE__ */ new Map();
-    current.forEach((item) => {
-      var _a2;
-      const key2 = `${(item == null ? void 0 : item.source) ?? "auto"}:${(item == null ? void 0 : item.type) ?? "object"}:${(item == null ? void 0 : item.id) ?? ""}`;
-      if (!buckets.has(key2)) buckets.set(key2, []);
-      (_a2 = buckets.get(key2)) == null ? void 0 : _a2.push(item);
-    });
-    return desired.map((entry) => {
-      const key2 = `${entry.source}:${entry.type}:${entry.id}`;
-      const bucket = buckets.get(key2);
-      if (bucket && bucket.length > 0) {
-        const existing = bucket.shift();
-        return {
-          ...existing,
-          source: entry.source,
-          type: entry.type,
-          id: entry.id
-        };
-      }
-      return {
-        ...entry,
-        qty: 1,
-        equippedSlot: null,
-        storedIn: null,
-        isPrimaryWeapon: false
-      };
-    });
+  const addAutoItemsToState = (baseAuto, baseInventory, specIds, origin) => {
+    if (!specIds || specIds.length === 0) {
+      return { nextAuto: baseAuto, nextInventory: baseInventory };
+    }
+    const resolvedSpecs = specIds.map((raw) => resolveItemType(raw));
+    const entries = buildInventoryEntries(
+      resolvedSpecs.map((spec) => ({ type: spec.type, id: spec.id, qty: spec.qty ?? 1 })),
+      "auto",
+      origin,
+      createInstanceId
+    );
+    return {
+      nextAuto: [...baseAuto, ...specIds],
+      nextInventory: appendInventoryEntries(baseInventory, entries)
+    };
   };
   const addManualItem = (id2) => {
     const nextManual = [...equipmentManual, id2];
-    const nextInventory = [
-      ...inventoryItems,
-      {
-        ...resolveItemType(id2),
-        qty: 1,
-        source: "manual",
-        equippedSlot: null,
-        storedIn: null,
-        isPrimaryWeapon: false
-      }
-    ];
+    const resolved = resolveItemType(id2);
+    const entries = buildInventoryEntries(
+      [{ type: resolved.type, id: resolved.id, qty: resolved.qty ?? 1 }],
+      "manual",
+      { kind: "manual" },
+      createInstanceId
+    );
+    const nextInventory = appendInventoryEntries(inventoryItems, entries);
     props.onChangeCharacter({
       ...props.character,
       equipmentManual: nextManual,
@@ -49129,16 +52179,33 @@ function CombatSetupScreen(props) {
   const removeManualItem = (inventoryIndex) => {
     const target = inventoryItems[inventoryIndex];
     if (!target) return;
-    const entryId = `${target.type}:${target.id}`;
-    let removed = false;
-    const nextManual = equipmentManual.filter((entry) => {
-      if (removed) return true;
-      if (entry === entryId || entry === target.id) {
-        removed = true;
-        return false;
-      }
-      return true;
-    });
+    if ((target.qty ?? 1) > 1) {
+      const nextManual2 = updateEquipmentListQty(
+        equipmentManual,
+        resolveItemType,
+        buildItemSpec,
+        target.type,
+        target.id,
+        -1
+      );
+      const nextInventory2 = inventoryItems.map(
+        (item, idx) => idx === inventoryIndex ? { ...item, qty: (item.qty ?? 1) - 1 } : item
+      );
+      props.onChangeCharacter({
+        ...props.character,
+        equipmentManual: nextManual2,
+        inventoryItems: nextInventory2
+      });
+      return;
+    }
+    const nextManual = updateEquipmentListQty(
+      equipmentManual,
+      resolveItemType,
+      buildItemSpec,
+      target.type,
+      target.id,
+      -1
+    );
     const slots = { ...materielSlots };
     if (target.equippedSlot && slots[target.equippedSlot]) {
       slots[target.equippedSlot] = null;
@@ -49151,8 +52218,108 @@ function CombatSetupScreen(props) {
       inventoryItems: nextInventory
     });
   };
+  const isCurrencyItem = (item) => (item == null ? void 0 : item.type) === "object" && isCoinId((item == null ? void 0 : item.id) ?? "");
+  const getItemUnitValue = (item) => {
+    if (!item) return null;
+    if (item.type === "weapon") {
+      const def = weaponItemMap.get(item.id);
+      const value2 = def == null ? void 0 : def.value;
+      if (!value2) return null;
+      return {
+        po: Number(value2.gold ?? 0) || 0,
+        pa: Number(value2.silver ?? 0) || 0,
+        pc: Number(value2.copper ?? 0) || 0
+      };
+    }
+    if (item.type === "armor") {
+      const def = armorItemMap.get(item.id);
+      if (def == null ? void 0 : def.value) return def.value;
+      if (Number.isFinite(def == null ? void 0 : def.priceGp)) {
+        return { po: Number((def == null ? void 0 : def.priceGp) ?? 0) || 0 };
+      }
+      return null;
+    }
+    if (item.type === "object") {
+      const def = objectItemMap.get(item.id);
+      if (def == null ? void 0 : def.value) return def.value;
+      if (Number.isFinite(def == null ? void 0 : def.priceGp)) {
+        return { po: Number((def == null ? void 0 : def.priceGp) ?? 0) || 0 };
+      }
+      return null;
+    }
+    return null;
+  };
+  const addMoneyToInventory = (money, baseManual, baseInventory) => {
+    const stacks = moneyToCoinStacks(money);
+    if (stacks.length === 0) return { nextManual: baseManual, nextInventory: baseInventory };
+    const entries = buildInventoryEntries(
+      stacks.map((stack) => ({ type: "object", id: stack.id, qty: stack.qty })),
+      "loot",
+      void 0,
+      createInstanceId
+    );
+    const nextInventory = appendInventoryEntries(baseInventory, entries);
+    return { nextManual: baseManual, nextInventory };
+  };
+  const sellInventoryItem = (inventoryIndex) => {
+    const target = inventoryItems[inventoryIndex];
+    if (!target || isSectionLocked("equip")) return;
+    if (isCurrencyItem(target)) return;
+    const unitValue = getItemUnitValue(target);
+    if (!unitValue || moneyToCopper(unitValue) <= 0) return;
+    const soldValue = scaleMoney(unitValue, 1);
+    const nextAuto = target.source === "auto" ? updateEquipmentListQty(
+      equipmentAuto,
+      resolveItemType,
+      buildItemSpec,
+      target.type,
+      target.id,
+      -1
+    ) : equipmentAuto;
+    const nextManual = target.source === "manual" ? updateEquipmentListQty(
+      equipmentManual,
+      resolveItemType,
+      buildItemSpec,
+      target.type,
+      target.id,
+      -1
+    ) : equipmentManual;
+    const slots = { ...materielSlots };
+    let nextInventory = [...inventoryItems];
+    if ((target.qty ?? 1) > 1) {
+      nextInventory = nextInventory.map(
+        (item, idx) => idx === inventoryIndex ? { ...item, qty: (item.qty ?? 1) - 1 } : item
+      );
+    } else {
+      if (target.equippedSlot && slots[target.equippedSlot]) {
+        slots[target.equippedSlot] = null;
+      }
+      nextInventory = nextInventory.filter((_, idx) => idx !== inventoryIndex);
+    }
+    const moneyResult = addMoneyToInventory(soldValue, nextManual, nextInventory);
+    props.onChangeCharacter({
+      ...props.character,
+      equipmentAuto: nextAuto,
+      equipmentManual: moneyResult.nextManual,
+      materielSlots: slots,
+      inventoryItems: moneyResult.nextInventory
+    });
+  };
+  const handleSellRequest = (index, item, itemValue) => {
+    const label2 = getItemLabel(item);
+    const valueLabel = itemValue ? formatMoneyValue(itemValue) : "0";
+    setConfirmModal({
+      open: true,
+      title: "Avertissement",
+      message: `Vendre ${label2} ? Gains: ${valueLabel}. L'objet sera supprime de l'inventaire.`,
+      onConfirm: () => {
+        sellInventoryItem(index);
+        closeConfirmModal();
+      }
+    });
+  };
   const updateItemSlot = (index, slot) => {
-    var _a2, _b2, _c2;
+    var _a2;
     const targetItem = inventoryItems[index];
     if (!targetItem) return;
     if (slot && !EQUIPMENT_SLOTS.find((s2) => s2.id === slot)) return;
@@ -49162,9 +52329,20 @@ function CombatSetupScreen(props) {
       if (!slotDef) return;
       if (slotDef.requiresClothingBody && !canUseClothingPieces) return;
       if (!categories.some((cat) => slotDef.accepts.includes(cat))) return;
+      if (packSlots.has(slot)) {
+        const limit = packSlotMaxWeight[slot];
+        if (typeof limit === "number") {
+          const totalWeight = getPackTotalWeightForItem(targetItem);
+          if (totalWeight > limit) {
+            setEquipMessage("Ce sac depasse la limite de 5.2kg pour la ceinture.");
+            return;
+          }
+        }
+      }
     }
+    const previousSlots = { ...materielSlots };
     const slots = { ...materielSlots };
-    const nextInventory = inventoryItems.map((item, idx) => {
+    let nextInventory = inventoryItems.map((item, idx) => {
       if (idx === index) return item;
       if (slot && item.equippedSlot === slot) {
         return { ...item, equippedSlot: null };
@@ -49201,20 +52379,35 @@ function CombatSetupScreen(props) {
         }
       }
     }
-    if (slot === "paquetage") {
-      const bagId2 = targetItem.id ?? null;
-      for (let i2 = 0; i2 < nextInventory.length; i2 += 1) {
-        if (((_b2 = nextInventory[i2]) == null ? void 0 : _b2.storedIn) && nextInventory[i2].storedIn !== bagId2) {
-          nextInventory[i2] = { ...nextInventory[i2], storedIn: null };
-        }
+    const wasPackSlot = targetItem.equippedSlot && packSlots.has(targetItem.equippedSlot);
+    const isPackSlot = slot && packSlots.has(slot);
+    if (isPackSlot) {
+      const destPrevBagId = previousSlots[slot] ?? null;
+      if (destPrevBagId && slot !== targetItem.equippedSlot) {
+        nextInventory = nextInventory.map((item) => {
+          const inDest = (item == null ? void 0 : item.storedIn) === slot || slot === "paquetage" && (item == null ? void 0 : item.storedIn) === destPrevBagId;
+          if (!inDest) return item;
+          return { ...item, storedIn: null };
+        });
+      }
+      if (wasPackSlot && targetItem.equippedSlot && targetItem.equippedSlot !== slot) {
+        const fromSlot = targetItem.equippedSlot;
+        const fromBagId = previousSlots[fromSlot] ?? null;
+        nextInventory = nextInventory.map((item) => {
+          const inFrom = (item == null ? void 0 : item.storedIn) === fromSlot || fromSlot === "paquetage" && fromBagId && (item == null ? void 0 : item.storedIn) === fromBagId;
+          if (!inFrom) return item;
+          return { ...item, storedIn: slot };
+        });
       }
     }
-    if (!slot && targetItem.equippedSlot === "paquetage") {
-      for (let i2 = 0; i2 < nextInventory.length; i2 += 1) {
-        if ((_c2 = nextInventory[i2]) == null ? void 0 : _c2.storedIn) {
-          nextInventory[i2] = { ...nextInventory[i2], storedIn: null };
-        }
-      }
+    if (!slot && wasPackSlot && targetItem.equippedSlot) {
+      const fromSlot = targetItem.equippedSlot;
+      const fromBagId = previousSlots[fromSlot] ?? null;
+      nextInventory = nextInventory.map((item) => {
+        const inFrom = (item == null ? void 0 : item.storedIn) === fromSlot || fromSlot === "paquetage" && fromBagId && (item == null ? void 0 : item.storedIn) === fromBagId;
+        if (!inFrom) return item;
+        return { ...item, storedIn: null };
+      });
     }
     props.onChangeCharacter({
       ...props.character,
@@ -49222,26 +52415,50 @@ function CombatSetupScreen(props) {
       inventoryItems: nextInventory
     });
   };
-  const storeItemInBag = (index) => {
-    const bagId2 = getBagId();
-    const bagCapacity2 = getBagCapacity(bagId2);
-    if (!bagId2 || bagCapacity2 <= 0) return;
+  const storeItemInPack = (index, slotId) => {
+    if (!packSlots.has(slotId)) return;
+    const previousSlots = { ...materielSlots };
+    const bagId = getPackSlotItemId(slotId);
+    const bagCapacity = getPackCapacity(slotId);
+    if (!bagId || bagCapacity <= 0) return;
     const item = inventoryItems[index];
     if (!item) return;
+    const containerItem = inventoryItems.find(
+      (entry) => (entry == null ? void 0 : entry.equippedSlot) === slotId && (entry == null ? void 0 : entry.id) === bagId
+    );
+    if (containerItem && containerItem === item) {
+      setEquipMessage("Impossible de ranger un sac dans lui-meme.");
+      return;
+    }
     const itemWeight = getItemWeight(item) * (Number((item == null ? void 0 : item.qty) ?? 1) || 1);
-    const storedWeight2 = getStoredWeight(bagId2);
-    if (item.storedIn !== bagId2 && storedWeight2 + itemWeight > bagCapacity2) {
+    const storedWeight = getStoredWeightForSlot(slotId);
+    const slotLimit = packSlotMaxWeight[slotId];
+    const bagWeight = containerItem ? getItemWeight(containerItem) : 0;
+    if (item.storedIn !== slotId && storedWeight + itemWeight > bagCapacity) {
       setEquipMessage("Capacite du sac depassee.");
       return;
     }
-    const slots = { ...materielSlots };
-    if (item.equippedSlot && slots[item.equippedSlot]) {
-      slots[item.equippedSlot] = null;
+    if (typeof slotLimit === "number" && item.storedIn !== slotId && bagWeight + storedWeight + itemWeight > slotLimit) {
+      setEquipMessage("Ce sac depasse la limite de 5.2kg pour la ceinture.");
+      return;
     }
-    const nextInventory = inventoryItems.map((entry, idx) => {
+    const slots = { ...materielSlots };
+    let nextInventory = inventoryItems.map((entry, idx) => {
       if (idx !== index) return entry;
-      return { ...entry, equippedSlot: null, storedIn: bagId2, isPrimaryWeapon: false };
+      return { ...entry, equippedSlot: null, storedIn: slotId, isPrimaryWeapon: false };
     });
+    if (item.equippedSlot && slots[item.equippedSlot]) {
+      const fromSlot = item.equippedSlot;
+      slots[fromSlot] = null;
+      if (packSlots.has(fromSlot)) {
+        const fromBagId = previousSlots[fromSlot] ?? null;
+        nextInventory = nextInventory.map((entry) => {
+          const inFrom = (entry == null ? void 0 : entry.storedIn) === fromSlot || fromSlot === "paquetage" && fromBagId && (entry == null ? void 0 : entry.storedIn) === fromBagId;
+          if (!inFrom) return entry;
+          return { ...entry, storedIn: null };
+        });
+      }
+    }
     props.onChangeCharacter({
       ...props.character,
       materielSlots: slots,
@@ -49277,12 +52494,8 @@ function CombatSetupScreen(props) {
   };
   reactExports.useEffect(() => {
     if (inventoryInitRef.current) return;
-    if (inventoryItems.length === 0 && (equipmentAuto.length > 0 || equipmentManual.length > 0)) {
-      const nextInventory = buildInventoryFromAutoManual(equipmentAuto, equipmentManual);
-      inventoryInitRef.current = true;
-      props.onChangeCharacter({ ...props.character, inventoryItems: nextInventory });
-    }
-  }, [inventoryItems.length, equipmentAuto, equipmentManual, props.character, props.onChangeCharacter]);
+    inventoryInitRef.current = true;
+  }, []);
   const handleSpeciesSelect = (raceId) => {
     if (!isSectionLocked("species")) {
       props.onChangeCharacter({ ...props.character, raceId });
@@ -49551,6 +52764,7 @@ function CombatSetupScreen(props) {
     if (!locked) {
       if (id2 === "species") needsDefine = hasPendingRaceChoices();
       if (id2 === "backgrounds") needsDefine = hasPendingBackgroundChoices();
+      if (id2 === "stats") needsDefine = !canLockStats();
     }
     return {
       locked,
@@ -49574,6 +52788,24 @@ function CombatSetupScreen(props) {
     if (id2 === "backgrounds") return getPendingBackgroundChoiceCount();
     if (id2 === "classes") return getPendingClassChoiceCount(activeClassSlot);
     return 0;
+  };
+  const lockButtonBaseStyle = {
+    padding: "4px 8px",
+    borderRadius: 8,
+    border: "1px solid rgba(255,255,255,0.15)",
+    color: "#f5f5f5",
+    cursor: "pointer",
+    fontSize: 11,
+    fontWeight: 700,
+    width: 120,
+    minWidth: 120,
+    maxWidth: 120,
+    textAlign: "center",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    whiteSpace: "nowrap"
   };
   const renderPendingBadge = (count2) => {
     if (count2 <= 0) return null;
@@ -49632,14 +52864,15 @@ function CombatSetupScreen(props) {
     if (hasSubclassChoicePending(slot)) {
       promptSubclassChoiceForSlot(slot, () => {
         if (!openNextAsi()) {
-          setClassLockForSlot(slot, true);
           const nextPending = { ...pendingLocks };
           delete nextPending.classes;
           delete nextPending.classesSlot;
-          props.onChangeCharacter({
-            ...props.character,
-            choiceSelections: { ...choiceSelections, pendingLocks: nextPending }
-          });
+          const nextCharacter = buildClassLockCharacter(
+            slot,
+            choiceSelections,
+            nextPending
+          );
+          props.onChangeCharacter(nextCharacter);
         }
       });
       return;
@@ -49783,6 +53016,59 @@ function CombatSetupScreen(props) {
       });
     });
     return Array.from(new Set(ids));
+  };
+  const getSpellId = (entry) => typeof entry === "string" ? entry : entry.id;
+  const getSpellKey = (entry) => typeof entry === "string" ? `spell-${entry}` : entry.instanceId;
+  const makeSpellEntry = (id2, origin) => ({
+    id: id2,
+    instanceId: createInstanceId("spell"),
+    origin
+  });
+  const buildSpellGrantsForClassSlot = (slot) => {
+    const grants2 = {};
+    const cls = slot === 1 ? classPrimary : classSecondary;
+    const entry = slot === 1 ? classEntry : secondaryClassEntry;
+    const subclassId = slot === 1 ? selectedSubclassId : selectedSecondarySubclassId;
+    const subclass = subclassId ? subclassOptions.find((sub) => sub.id === subclassId) ?? null : null;
+    const classLevel = Number(entry == null ? void 0 : entry.niveau) || 0;
+    if ((cls == null ? void 0 : cls.spellcasting) && cls.id) {
+      const classSpells = collectSpellGrants(cls.progression, classLevel);
+      const subclassSpells = subclass && !subclass.spellcasting ? collectSpellGrants(subclass.progression, classLevel) : [];
+      const spellIds = Array.from(/* @__PURE__ */ new Set([...classSpells, ...subclassSpells]));
+      if (spellIds.length > 0) {
+        const sourceKey = `class:${cls.id}`;
+        grants2[sourceKey] = spellIds.map(
+          (id2) => makeSpellEntry(id2, { kind: "class", id: cls.id, sourceKey })
+        );
+      }
+    }
+    if ((subclass == null ? void 0 : subclass.spellcasting) && subclass.id) {
+      const spellIds = collectSpellGrants(subclass.progression, classLevel);
+      if (spellIds.length > 0) {
+        const sourceKey = `subclass:${subclass.id}`;
+        grants2[sourceKey] = spellIds.map(
+          (id2) => makeSpellEntry(id2, { kind: "subclass", id: subclass.id, sourceKey })
+        );
+      }
+    }
+    return grants2;
+  };
+  const getItemSources = (item) => {
+    if (!item || isCurrencyItem(item)) return [];
+    const origin = item.origin;
+    if (!origin || !origin.kind) return [];
+    if (origin.kind === "background") {
+      const label2 = `Historique${origin.id ? `: ${origin.id}` : ""}`;
+      return [{ key: "background", label: label2 }];
+    }
+    if (origin.kind === "class") {
+      const label2 = `Classe${origin.id ? `: ${origin.id}` : ""}`;
+      return [{ key: "classPrimary", label: label2 }];
+    }
+    if (origin.kind === "manual") {
+      return [{ key: "equipment", label: "Ajoute manuellement" }];
+    }
+    return [];
   };
   const getItemTags = (item) => {
     if (!item) return [];
@@ -49944,6 +53230,9 @@ function CombatSetupScreen(props) {
   const closeAsiModal = () => {
     setAsiModal((prev) => ({ ...prev, open: false }));
   };
+  const setAsiModalStep = (step) => {
+    setAsiModal((prev) => ({ ...prev, step }));
+  };
   const setAsiModalType = (type2) => {
     setAsiModal((prev) => ({ ...prev, type: type2 }));
   };
@@ -49981,17 +53270,11 @@ function CombatSetupScreen(props) {
           const nextPending = { ...pendingLocks };
           delete nextPending.classes;
           delete nextPending.classesSlot;
-          const nextLocks = {
-            ...classLocks,
-            primary: slot === 1 ? true : classLocks.primary,
-            secondary: slot === 2 ? true : classLocks.secondary
-          };
-          const nextCharacter = {
-            ...props.character,
-            classLocks: nextLocks,
-            choiceSelections: { ...nextChoiceSelections, pendingLocks: nextPending }
-          };
-          if (slot === 1) nextCharacter.classLock = true;
+          const nextCharacter = buildClassLockCharacter(
+            slot,
+            nextChoiceSelections,
+            nextPending
+          );
           props.onChangeCharacter(nextCharacter);
         } else {
           props.onChangeCharacter({
@@ -50033,17 +53316,11 @@ function CombatSetupScreen(props) {
         const nextPending = { ...pendingLocks };
         delete nextPending.classes;
         delete nextPending.classesSlot;
-        const nextLocks = {
-          ...classLocks,
-          primary: slot === 1 ? true : classLocks.primary,
-          secondary: slot === 2 ? true : classLocks.secondary
-        };
-        const nextCharacter = {
-          ...props.character,
-          classLocks: nextLocks,
-          choiceSelections: { ...nextChoiceSelections, pendingLocks: nextPending }
-        };
-        if (slot === 1) nextCharacter.classLock = true;
+        const nextCharacter = buildClassLockCharacter(
+          slot,
+          nextChoiceSelections,
+          nextPending
+        );
         props.onChangeCharacter(nextCharacter);
       } else {
         props.onChangeCharacter({
@@ -50118,6 +53395,11 @@ function CombatSetupScreen(props) {
     });
     const remaining = invalid ? null : 27 - total;
     return { total, remaining, invalid };
+  };
+  const canLockStats = () => {
+    if (statsMode !== "normal") return true;
+    const summary2 = getPointBuySummary();
+    return !summary2.invalid && summary2.remaining === 0;
   };
   const canAdjustPointBuy = (key2, delta) => {
     const currentBases = getBaseScoresSnapshot();
@@ -50490,924 +53772,127 @@ function CombatSetupScreen(props) {
                         }
                       )
                     ] }),
-                    activeMainTab === "player" && activePlayerTab === "equip" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-                      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
-                        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "#b0b8c4" }, children: "Equipez les objets compatibles dans chaque slot. Les selections respectent les categories." }),
-                        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                          "button",
-                          {
-                            type: "button",
-                            onClick: () => toggleSectionLock("equip"),
-                            style: {
-                              marginLeft: "auto",
-                              padding: "4px 8px",
-                              borderRadius: 8,
-                              border: "1px solid rgba(255,255,255,0.15)",
-                              background: getLockButtonState("equip").background,
-                              color: "#f5f5f5",
-                              cursor: "pointer",
-                              fontSize: 11,
-                              fontWeight: 700
-                            },
-                            children: [
-                              getLockButtonState("equip").label,
-                              renderPendingBadge(getPendingCountForSection("equip"))
-                            ]
-                          }
-                        )
-                      ] }),
-                      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", gap: 8, marginTop: 8 }, children: [
-                        { id: "slots", label: "Equipement" },
-                        { id: "loot", label: "Boite a loot" }
-                      ].map((tab) => /* @__PURE__ */ jsxRuntimeExports.jsx(
-                        "button",
-                        {
-                          type: "button",
-                          onClick: () => setEquipSubTab(tab.id),
-                          style: {
-                            padding: "4px 10px",
-                            borderRadius: 8,
-                            border: "1px solid rgba(255,255,255,0.15)",
-                            background: equipSubTab === tab.id ? "rgba(46, 204, 113, 0.18)" : "rgba(255,255,255,0.06)",
-                            color: "#f5f5f5",
-                            cursor: "pointer",
-                            fontSize: 11,
-                            fontWeight: 700
-                          },
-                          children: tab.label
-                        },
-                        tab.id
-                      )) }),
-                      equipMessage && /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                        "div",
-                        {
-                          style: {
-                            marginTop: 6,
-                            padding: "6px 10px",
-                            borderRadius: 8,
-                            border: "1px solid rgba(255,255,255,0.18)",
-                            background: "rgba(231, 76, 60, 0.18)",
-                            fontSize: 11,
-                            color: "#f5f5f5",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 8
-                          },
-                          children: [
-                            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: equipMessage }),
-                            /* @__PURE__ */ jsxRuntimeExports.jsx(
-                              "button",
-                              {
-                                type: "button",
-                                onClick: () => setEquipMessage(null),
-                                style: {
-                                  marginLeft: "auto",
-                                  border: "none",
-                                  background: "transparent",
-                                  color: "#f5f5f5",
-                                  cursor: "pointer",
-                                  fontSize: 12,
-                                  fontWeight: 700
-                                },
-                                children: "OK"
-                              }
-                            )
-                          ]
-                        }
-                      ),
-                      equipSubTab === "slots" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-                        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                          "div",
-                          {
-                            style: {
-                              marginTop: 8,
-                              display: "grid",
-                              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-                              gap: 10
-                            },
-                            children: [
-                              renderSlotGroup(
-                                slotGroups.body,
-                                "Vetements / Armures",
-                                "Corps: armure ou vetement. Vetements secondaires actifs si vetement au corps."
-                              ),
-                              renderSlotGroup(slotGroups.weapons, "Armes et protections"),
-                              renderSlotGroup(slotGroups.jewelry, "Bijoux"),
-                              renderSlotGroup(slotGroups.bag, "Paquetage")
-                            ]
-                          }
-                        ),
-                        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.6)", marginTop: 6 }, children: [
-                          "Paquetage:",
-                          " ",
-                          bagId ? `${storedWeight.toFixed(1)} / ${bagCapacity.toFixed(1)} poids` : "aucun sac equipe"
-                        ] }),
-                        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                          "div",
-                          {
-                            style: {
-                              marginTop: 10,
-                              borderRadius: 8,
-                              border: "1px solid rgba(255,255,255,0.12)",
-                              background: "rgba(12,12,18,0.75)",
-                              padding: 10,
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: 8
-                            },
-                            children: [
-                              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, fontWeight: 700 }, children: "Inventaire" }),
-                              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.6)" }, children: "Equiper un slot ou ranger dans le sac (si disponible)." }),
-                              inventoryItems.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: "Aucun item pour l'instant." }),
-                              inventoryItems.map((item, idx) => {
-                                const sourceLabel = item.source === "auto" ? "Auto" : "Manuel";
-                                const eligibleSlots = EQUIPMENT_SLOTS.filter((slot) => {
-                                  if (slot.requiresClothingBody && !canUseClothingPieces) return false;
-                                  const categories = getItemCategories(item);
-                                  return categories.some((cat) => slot.accepts.includes(cat));
-                                });
-                                const canStore = bagId && bagCapacity > 0 ? (() => {
-                                  const itemWeight = getItemWeight(item) * (Number((item == null ? void 0 : item.qty) ?? 1) || 1);
-                                  if (item.storedIn === bagId) return true;
-                                  return storedWeight + itemWeight <= bagCapacity;
-                                })() : false;
-                                return /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                                  "div",
-                                  {
-                                    style: {
-                                      display: "grid",
-                                      gridTemplateColumns: "1fr auto auto auto",
-                                      gap: 8,
-                                      alignItems: "center",
-                                      fontSize: 12
-                                    },
-                                    children: [
-                                      /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
-                                        getItemLabel(item),
-                                        " ",
-                                        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { style: { color: "rgba(255,255,255,0.5)" }, children: [
-                                          "(",
-                                          sourceLabel,
-                                          ")"
-                                        ] })
-                                      ] }),
-                                      /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                                        "select",
-                                        {
-                                          value: item.storedIn ? "__bag__" : item.equippedSlot ? item.equippedSlot : "",
-                                          onChange: (e2) => {
-                                            const value2 = e2.target.value;
-                                            if (value2 === "__bag__") {
-                                              storeItemInBag(idx);
-                                              return;
-                                            }
-                                            if (!value2) {
-                                              updateItemSlot(idx, null);
-                                              return;
-                                            }
-                                            updateItemSlot(idx, value2);
-                                          },
-                                          style: {
-                                            background: "#0f0f19",
-                                            color: "#f5f5f5",
-                                            border: "1px solid #333",
-                                            borderRadius: 6,
-                                            padding: "2px 6px",
-                                            fontSize: 11
-                                          },
-                                          disabled: isSectionLocked("equip"),
-                                          children: [
-                                            /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "Non equipe" }),
-                                            eligibleSlots.map((slot) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: slot.id, children: slot.label }, `item-slot-${idx}-${slot.id}`)),
-                                            bagId && /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "__bag__", disabled: !canStore, children: "Ranger dans le sac" })
-                                          ]
-                                        }
-                                      ),
-                                      item.type === "weapon" && /* @__PURE__ */ jsxRuntimeExports.jsx(
-                                        "button",
-                                        {
-                                          type: "button",
-                                          onClick: () => setPrimaryWeapon(idx),
-                                          style: {
-                                            borderRadius: 6,
-                                            border: "1px solid rgba(255,255,255,0.2)",
-                                            background: item.isPrimaryWeapon ? "rgba(241, 196, 15, 0.25)" : "rgba(255,255,255,0.08)",
-                                            color: item.isPrimaryWeapon ? "#f8e58c" : "#f5f5f5",
-                                            cursor: "pointer",
-                                            fontSize: 12,
-                                            padding: "2px 6px",
-                                            fontWeight: 700
-                                          },
-                                          title: "Definir comme arme principale",
-                                          children: "★"
-                                        }
-                                      ),
-                                      item.source === "manual" && /* @__PURE__ */ jsxRuntimeExports.jsx(
-                                        "button",
-                                        {
-                                          type: "button",
-                                          onClick: () => removeManualItem(idx),
-                                          style: {
-                                            padding: "2px 6px",
-                                            borderRadius: 6,
-                                            border: "1px solid rgba(255,255,255,0.2)",
-                                            background: "rgba(231,76,60,0.18)",
-                                            color: "#f5f5f5",
-                                            cursor: "pointer",
-                                            fontSize: 11
-                                          },
-                                          children: "Retirer"
-                                        }
-                                      )
-                                    ]
-                                  },
-                                  `inv-${idx}`
-                                );
-                              })
-                            ]
-                          }
-                        )
-                      ] }),
-                      equipSubTab === "loot" && /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                        "div",
-                        {
-                          style: {
-                            marginTop: 10,
-                            borderRadius: 8,
-                            border: "1px solid rgba(255,255,255,0.12)",
-                            background: "rgba(12,12,18,0.75)",
-                            padding: 10,
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: 8
-                          },
-                          children: [
-                            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, fontWeight: 700 }, children: "Boite a loot infinie" }),
-                            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.6)" }, children: "Ajoutez des items pour tester." }),
-                            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, fontWeight: 700, marginTop: 4 }, children: "Armes" }),
-                            /* @__PURE__ */ jsxRuntimeExports.jsx(
-                              "div",
-                              {
-                                style: {
-                                  display: "grid",
-                                  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                                  gap: 6
-                                },
-                                children: weaponOptions.map((weapon) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                                  "button",
-                                  {
-                                    type: "button",
-                                    onClick: () => addManualItem(`weapon:${weapon.id}`),
-                                    style: {
-                                      textAlign: "left",
-                                      borderRadius: 8,
-                                      border: "1px solid rgba(255,255,255,0.12)",
-                                      background: "rgba(10,10,16,0.8)",
-                                      color: "#f5f5f5",
-                                      padding: "6px 8px",
-                                      cursor: "pointer",
-                                      fontSize: 12
-                                    },
-                                    children: [
-                                      "+ ",
-                                      weapon.name,
-                                      " (",
-                                      weapon.subtype,
-                                      ")"
-                                    ]
-                                  },
-                                  `loot-weapon-${weapon.id}`
-                                ))
-                              }
-                            ),
-                            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, fontWeight: 700, marginTop: 6 }, children: "Outils" }),
-                            /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                              "div",
-                              {
-                                style: {
-                                  display: "grid",
-                                  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                                  gap: 6
-                                },
-                                children: [
-                                  toolItems.map((tool) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                                    "button",
-                                    {
-                                      type: "button",
-                                      onClick: () => addManualItem(`tool:${tool.id}`),
-                                      style: {
-                                        textAlign: "left",
-                                        borderRadius: 8,
-                                        border: "1px solid rgba(255,255,255,0.12)",
-                                        background: "rgba(10,10,16,0.8)",
-                                        color: "#f5f5f5",
-                                        padding: "6px 8px",
-                                        cursor: "pointer",
-                                        fontSize: 12
-                                      },
-                                      children: [
-                                        "+ ",
-                                        tool.label
-                                      ]
-                                    },
-                                    `loot-tool-${tool.id}`
-                                  )),
-                                  toolItems.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: "Aucun outil disponible." })
-                                ]
-                              }
-                            ),
-                            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, fontWeight: 700, marginTop: 6 }, children: "Armures" }),
-                            /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                              "div",
-                              {
-                                style: {
-                                  display: "grid",
-                                  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                                  gap: 6
-                                },
-                                children: [
-                                  armorItems.map((armor) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                                    "button",
-                                    {
-                                      type: "button",
-                                      onClick: () => addManualItem(`armor:${armor.id}`),
-                                      style: {
-                                        textAlign: "left",
-                                        borderRadius: 8,
-                                        border: "1px solid rgba(255,255,255,0.12)",
-                                        background: "rgba(10,10,16,0.8)",
-                                        color: "#f5f5f5",
-                                        padding: "6px 8px",
-                                        cursor: "pointer",
-                                        fontSize: 12
-                                      },
-                                      children: [
-                                        "+ ",
-                                        armor.label
-                                      ]
-                                    },
-                                    `loot-armor-${armor.id}`
-                                  )),
-                                  armorItems.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: "Aucune armure chargee pour l'instant." })
-                                ]
-                              }
-                            ),
-                            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, fontWeight: 700, marginTop: 6 }, children: "Autres" }),
-                            /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                              "div",
-                              {
-                                style: {
-                                  display: "grid",
-                                  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                                  gap: 6
-                                },
-                                children: [
-                                  objectItems.map((obj) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                                    "button",
-                                    {
-                                      type: "button",
-                                      onClick: () => addManualItem(`object:${obj.id}`),
-                                      style: {
-                                        textAlign: "left",
-                                        borderRadius: 8,
-                                        border: "1px solid rgba(255,255,255,0.12)",
-                                        background: "rgba(10,10,16,0.8)",
-                                        color: "#f5f5f5",
-                                        padding: "6px 8px",
-                                        cursor: "pointer",
-                                        fontSize: 12
-                                      },
-                                      children: [
-                                        "+ ",
-                                        obj.label
-                                      ]
-                                    },
-                                    `loot-object-${obj.id}`
-                                  )),
-                                  objectItems.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: "Aucun autre item charge pour l'instant." })
-                                ]
-                              }
-                            )
-                          ]
-                        }
-                      )
-                    ] }),
-                    activeMainTab === "player" && activePlayerTab === "stats" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-                      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
-                        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "#b0b8c4" }, children: "Ajustez les caracteristiques. Le modificateur se met a jour." }),
-                        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", gap: 6 }, children: [
-                          { id: "normal", label: "Normal" },
-                          { id: "manual", label: "Manuel" }
-                        ].map((mode) => /* @__PURE__ */ jsxRuntimeExports.jsx(
-                          "button",
-                          {
-                            type: "button",
-                            onClick: () => setStatsMode(mode.id),
-                            style: {
-                              padding: "4px 8px",
-                              borderRadius: 8,
-                              border: "1px solid rgba(255,255,255,0.15)",
-                              background: statsMode === mode.id ? "rgba(79,125,242,0.2)" : "rgba(255,255,255,0.06)",
-                              color: "#f5f5f5",
-                              cursor: "pointer",
-                              fontSize: 11,
-                              fontWeight: 700
-                            },
-                            children: mode.label
-                          },
-                          mode.id
-                        )) }),
-                        /* @__PURE__ */ jsxRuntimeExports.jsx(
-                          "button",
-                          {
-                            type: "button",
-                            onClick: () => !isSectionLocked("stats") && resetStats(),
-                            disabled: isSectionLocked("stats"),
-                            style: {
-                              padding: "4px 8px",
-                              borderRadius: 8,
-                              border: "1px solid rgba(255,255,255,0.15)",
-                              background: "rgba(255,255,255,0.08)",
-                              color: "#f5f5f5",
-                              cursor: isSectionLocked("stats") ? "not-allowed" : "pointer",
-                              fontSize: 11,
-                              fontWeight: 700,
-                              opacity: isSectionLocked("stats") ? 0.6 : 1
-                            },
-                            children: "Reset"
-                          }
-                        ),
-                        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                          "button",
-                          {
-                            type: "button",
-                            onClick: () => toggleSectionLock("stats"),
-                            style: {
-                              marginLeft: "auto",
-                              padding: "4px 8px",
-                              borderRadius: 8,
-                              border: "1px solid rgba(255,255,255,0.15)",
-                              background: getLockButtonState("stats").background,
-                              color: "#f5f5f5",
-                              cursor: "pointer",
-                              fontSize: 11,
-                              fontWeight: 700
-                            },
-                            children: [
-                              getLockButtonState("stats").label,
-                              renderPendingBadge(getPendingCountForSection("stats"))
-                            ]
-                          }
-                        )
-                      ] }),
-                      (() => {
-                        const summary2 = getPointBuySummary();
-                        if (statsMode !== "normal") {
-                          return /* @__PURE__ */ jsxRuntimeExports.jsx(
-                            "div",
-                            {
-                              style: {
-                                marginTop: 6,
-                                fontSize: 11,
-                                color: "rgba(255,255,255,0.7)",
-                                display: "flex",
-                                gap: 10,
-                                alignItems: "center"
-                              },
-                              children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Capital: illimite (mode manuel)" })
-                            }
-                          );
-                        }
-                        return /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                          "div",
-                          {
-                            style: {
-                              marginTop: 6,
-                              fontSize: 11,
-                              color: "rgba(255,255,255,0.7)",
-                              display: "flex",
-                              gap: 10,
-                              alignItems: "center"
-                            },
-                            children: [
-                              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Points: 27" }),
-                              summary2.invalid ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { color: "#f1c40f" }, children: "Hors barème (8-15)" }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-                                /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
-                                  "Utilises: ",
-                                  summary2.total
-                                ] }),
-                                /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                                  "span",
-                                  {
-                                    style: {
-                                      color: summary2.remaining !== null && summary2.remaining < 0 ? "#e74c3c" : "#6fd3a8"
-                                    },
-                                    children: [
-                                      "Restants: ",
-                                      summary2.remaining ?? "-"
-                                    ]
-                                  }
-                                )
-                              ] }),
-                              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Regle: acquisition par points (8-15). Bonus via classe/historique/espece." })
-                            ]
-                          }
-                        );
-                      })(),
-                      /* @__PURE__ */ jsxRuntimeExports.jsx(
-                        "div",
-                        {
-                          style: {
-                            display: "grid",
-                            gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-                            gap: 10
-                          },
-                          children: STAT_KEYS.map((stat) => {
-                            const baseScore = getBaseScore(stat);
-                            const bonus = getBonusSumForStat(stat);
-                            const totalScore = Math.max(1, Math.min(30, baseScore + bonus));
-                            const mod = computeMod(totalScore);
-                            const sources2 = getStatSources(stat);
-                            const canDecrease = !isSectionLocked("stats") && (statsMode !== "normal" || canAdjustPointBuy(stat, -1));
-                            const canIncrease = !isSectionLocked("stats") && (statsMode !== "normal" || canAdjustPointBuy(stat, 1));
-                            return /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                              "div",
-                              {
-                                style: {
-                                  padding: 10,
-                                  borderRadius: 8,
-                                  border: "1px solid rgba(255,255,255,0.12)",
-                                  background: "rgba(12,12,18,0.75)",
-                                  display: "flex",
-                                  flexDirection: "column",
-                                  gap: 6
-                                },
-                                children: [
-                                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }, children: [
-                                    stat,
-                                    sources2.length > 0 && renderSourceDots(sources2)
-                                  ] }),
-                                  /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                                    "div",
-                                    {
-                                      style: {
-                                        display: "grid",
-                                        gridTemplateColumns: "30px 1fr 30px",
-                                        gap: 6,
-                                        alignItems: "center"
-                                      },
-                                      children: [
-                                        /* @__PURE__ */ jsxRuntimeExports.jsx(
-                                          "button",
-                                          {
-                                            type: "button",
-                                            onClick: () => canDecrease && setScore(stat, totalScore - 1),
-                                            disabled: !canDecrease,
-                                            style: {
-                                              width: 30,
-                                              height: 30,
-                                              borderRadius: 6,
-                                              border: "1px solid #333",
-                                              background: "#141421",
-                                              color: "#f5f5f5",
-                                              cursor: canDecrease ? "pointer" : "not-allowed",
-                                              opacity: canDecrease ? 1 : 0.5,
-                                              display: "grid",
-                                              placeItems: "center"
-                                            },
-                                            "aria-label": `Diminuer ${stat}`,
-                                            children: /* @__PURE__ */ jsxRuntimeExports.jsx("svg", { width: "12", height: "12", viewBox: "0 0 12 12", "aria-hidden": "true", children: /* @__PURE__ */ jsxRuntimeExports.jsx("rect", { x: "2", y: "5.25", width: "8", height: "1.5", fill: "currentColor" }) })
-                                          }
-                                        ),
-                                        /* @__PURE__ */ jsxRuntimeExports.jsx(
-                                          "input",
-                                          {
-                                            type: "number",
-                                            min: statsMode === "normal" ? 8 : 1,
-                                            max: statsMode === "normal" ? 15 : 30,
-                                            value: totalScore,
-                                            onChange: (e2) => !isSectionLocked("stats") && setScore(stat, Number(e2.target.value)),
-                                            disabled: isSectionLocked("stats"),
-                                            style: {
-                                              width: "100%",
-                                              background: "#0f0f19",
-                                              color: "#f5f5f5",
-                                              border: "1px solid #333",
-                                              borderRadius: 6,
-                                              padding: "4px 6px",
-                                              textAlign: "center",
-                                              appearance: "textfield",
-                                              WebkitAppearance: "textfield",
-                                              MozAppearance: "textfield"
-                                            }
-                                          }
-                                        ),
-                                        /* @__PURE__ */ jsxRuntimeExports.jsx(
-                                          "button",
-                                          {
-                                            type: "button",
-                                            onClick: () => canIncrease && setScore(stat, totalScore + 1),
-                                            disabled: !canIncrease,
-                                            style: {
-                                              width: 30,
-                                              height: 30,
-                                              borderRadius: 6,
-                                              border: "1px solid #333",
-                                              background: "#141421",
-                                              color: "#f5f5f5",
-                                              cursor: canIncrease ? "pointer" : "not-allowed",
-                                              opacity: canIncrease ? 1 : 0.5,
-                                              display: "grid",
-                                              placeItems: "center"
-                                            },
-                                            "aria-label": `Augmenter ${stat}`,
-                                            children: /* @__PURE__ */ jsxRuntimeExports.jsxs("svg", { width: "12", height: "12", viewBox: "0 0 12 12", "aria-hidden": "true", children: [
-                                              /* @__PURE__ */ jsxRuntimeExports.jsx("rect", { x: "2", y: "5.25", width: "8", height: "1.5", fill: "currentColor" }),
-                                              /* @__PURE__ */ jsxRuntimeExports.jsx("rect", { x: "5.25", y: "2", width: "1.5", height: "8", fill: "currentColor" })
-                                            ] })
-                                          }
-                                        )
-                                      ]
-                                    }
-                                  ),
-                                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.6)" }, children: [
-                                    "Base: ",
-                                    baseScore,
-                                    bonus !== 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { style: { marginLeft: 6 }, children: [
-                                      "Bonus: ",
-                                      bonus > 0 ? `+${bonus}` : bonus
-                                    ] }),
-                                    /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { style: { marginLeft: 6 }, children: [
-                                      "Total: ",
-                                      totalScore
-                                    ] })
-                                  ] }),
-                                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
-                                    "Modificateur: ",
-                                    mod >= 0 ? `+${mod}` : mod
-                                  ] })
-                                ]
-                              },
-                              stat
-                            );
-                          })
-                        }
-                      )
-                    ] }),
-                    activeMainTab === "player" && activePlayerTab === "skills" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-                      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
-                        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "#b0b8c4" }, children: "Cochez les competences pour simuler les impacts de jeu." }),
-                        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", gap: 6 }, children: [
-                          { id: "normal", label: "Normal" },
-                          { id: "manual", label: "Manuel" }
-                        ].map((mode) => /* @__PURE__ */ jsxRuntimeExports.jsx(
-                          "button",
-                          {
-                            type: "button",
-                            onClick: () => setSkillsMode(mode.id),
-                            style: {
-                              padding: "4px 8px",
-                              borderRadius: 8,
-                              border: "1px solid rgba(255,255,255,0.15)",
-                              background: skillsMode === mode.id ? "rgba(79,125,242,0.2)" : "rgba(255,255,255,0.06)",
-                              color: "#f5f5f5",
-                              cursor: "pointer",
-                              fontSize: 11,
-                              fontWeight: 700
-                            },
-                            children: mode.label
-                          },
-                          mode.id
-                        )) }),
-                        /* @__PURE__ */ jsxRuntimeExports.jsx(
-                          "button",
-                          {
-                            type: "button",
-                            onClick: () => !isSectionLocked("skills") && resetSkills(),
-                            disabled: isSectionLocked("skills"),
-                            style: {
-                              padding: "4px 8px",
-                              borderRadius: 8,
-                              border: "1px solid rgba(255,255,255,0.15)",
-                              background: "rgba(255,255,255,0.08)",
-                              color: "#f5f5f5",
-                              cursor: isSectionLocked("skills") ? "not-allowed" : "pointer",
-                              fontSize: 11,
-                              fontWeight: 700,
-                              opacity: isSectionLocked("skills") ? 0.6 : 1
-                            },
-                            children: "Reset"
-                          }
-                        ),
-                        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                          "button",
-                          {
-                            type: "button",
-                            onClick: () => toggleSectionLock("skills"),
-                            style: {
-                              marginLeft: "auto",
-                              padding: "4px 8px",
-                              borderRadius: 8,
-                              border: "1px solid rgba(255,255,255,0.15)",
-                              background: getLockButtonState("skills").background,
-                              color: "#f5f5f5",
-                              cursor: "pointer",
-                              fontSize: 11,
-                              fontWeight: 700
-                            },
-                            children: [
-                              getLockButtonState("skills").label,
-                              renderPendingBadge(getPendingCountForSection("skills"))
-                            ]
-                          }
-                        )
-                      ] }),
-                      /* @__PURE__ */ jsxRuntimeExports.jsx(
-                        "div",
-                        {
-                          style: {
-                            display: "grid",
-                            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-                            gap: 10
-                          },
-                          children: competenceOptions.map((skill) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                            "div",
-                            {
-                              style: {
-                                padding: 10,
-                                borderRadius: 8,
-                                border: "1px solid rgba(255,255,255,0.12)",
-                                background: "rgba(12,12,18,0.75)",
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: 8
-                              },
-                              children: [
-                                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", justifyContent: "space-between", gap: 8 }, children: [
-                                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, fontWeight: 700 }, children: skill.label }),
-                                  renderSourceDots(getSkillSources(skill.id)),
-                                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.6)" }, children: skillAbilityMap[skill.id] })
-                                ] }),
-                                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: 10, alignItems: "center" }, children: [
-                                  /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { style: { display: "flex", gap: 6, alignItems: "center" }, children: [
-                                    /* @__PURE__ */ jsxRuntimeExports.jsx(
-                                      "input",
-                                      {
-                                        type: "checkbox",
-                                        checked: competences.includes(skill.id),
-                                        onChange: () => canEditSkills && toggleCompetence(skill.id),
-                                        disabled: !canEditSkills,
-                                        style: { accentColor: "#4f7df2" }
-                                      }
-                                    ),
-                                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { fontSize: 12 }, children: "Maitrise" })
-                                  ] }),
-                                  /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { style: { display: "flex", gap: 6, alignItems: "center" }, children: [
-                                    /* @__PURE__ */ jsxRuntimeExports.jsx(
-                                      "input",
-                                      {
-                                        type: "checkbox",
-                                        checked: expertises.includes(skill.id),
-                                        onChange: () => canEditSkills && toggleExpertise(skill.id),
-                                        disabled: !canEditSkills || !competences.includes(skill.id),
-                                        style: { accentColor: "#f1c40f" }
-                                      }
-                                    ),
-                                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { fontSize: 12 }, children: "Expertise" })
-                                  ] })
-                                ] }),
-                                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
-                                  "Bonus: ",
-                                  (() => {
-                                    const level = resolveLevel();
-                                    const prof = 2 + Math.floor((level - 1) / 4);
-                                    const abilityKey = skillAbilityMap[skill.id];
-                                    const scoreKey = abilityKey === "STR" ? "FOR" : abilityKey === "DEX" ? "DEX" : abilityKey === "CON" ? "CON" : abilityKey === "INT" ? "INT" : abilityKey === "WIS" ? "SAG" : "CHA";
-                                    const mod = computeMod(getScore(scoreKey));
-                                    const isExpert = expertises.includes(skill.id);
-                                    const isProf = competences.includes(skill.id);
-                                    const bonus = mod + (isExpert ? prof * 2 : isProf ? prof : 0);
-                                    return bonus >= 0 ? `+${bonus}` : bonus;
-                                  })()
-                                ] })
-                              ]
-                            },
-                            skill.id
-                          ))
-                        }
-                      )
-                    ] }),
-                    activeMainTab === "player" && activePlayerTab === "masteries" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-                      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
-                        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "#b0b8c4" }, children: "Selectionnez les maitrises. Elles influenceront les bonus et malus." }),
-                        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", gap: 6 }, children: [
-                          { id: "normal", label: "Normal" },
-                          { id: "manual", label: "Manuel" }
-                        ].map((mode) => /* @__PURE__ */ jsxRuntimeExports.jsx(
-                          "button",
-                          {
-                            type: "button",
-                            onClick: () => setMasteriesMode(mode.id),
-                            style: {
-                              padding: "4px 8px",
-                              borderRadius: 8,
-                              border: "1px solid rgba(255,255,255,0.15)",
-                              background: masteriesMode === mode.id ? "rgba(79,125,242,0.2)" : "rgba(255,255,255,0.06)",
-                              color: "#f5f5f5",
-                              cursor: "pointer",
-                              fontSize: 11,
-                              fontWeight: 700
-                            },
-                            children: mode.label
-                          },
-                          mode.id
-                        )) }),
-                        /* @__PURE__ */ jsxRuntimeExports.jsx(
-                          "button",
-                          {
-                            type: "button",
-                            onClick: () => !isSectionLocked("masteries") && resetMasteries(),
-                            disabled: isSectionLocked("masteries"),
-                            style: {
-                              padding: "4px 8px",
-                              borderRadius: 8,
-                              border: "1px solid rgba(255,255,255,0.15)",
-                              background: "rgba(255,255,255,0.08)",
-                              color: "#f5f5f5",
-                              cursor: isSectionLocked("masteries") ? "not-allowed" : "pointer",
-                              fontSize: 11,
-                              fontWeight: 700,
-                              opacity: isSectionLocked("masteries") ? 0.6 : 1
-                            },
-                            children: "Reset"
-                          }
-                        ),
-                        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                          "button",
-                          {
-                            type: "button",
-                            onClick: () => toggleSectionLock("masteries"),
-                            style: {
-                              marginLeft: "auto",
-                              padding: "4px 8px",
-                              borderRadius: 8,
-                              border: "1px solid rgba(255,255,255,0.15)",
-                              background: getLockButtonState("masteries").background,
-                              color: "#f5f5f5",
-                              cursor: "pointer",
-                              fontSize: 11,
-                              fontWeight: 700
-                            },
-                            children: [
-                              getLockButtonState("masteries").label,
-                              renderPendingBadge(getPendingCountForSection("masteries"))
-                            ]
-                          }
-                        )
-                      ] }),
-                      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, fontWeight: 700, marginTop: 6 }, children: "Armes" }),
-                      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" }, children: weaponMasteryOptions.map((value2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { style: { fontSize: 12, display: "flex", gap: 6 }, children: [
-                        /* @__PURE__ */ jsxRuntimeExports.jsx(
-                          "input",
-                          {
-                            type: "checkbox",
-                            checked: weaponMasteries.includes(value2.id),
-                            onChange: () => canEditMasteries && toggleMastery("weapons", value2.id),
-                            disabled: !canEditMasteries
-                          }
-                        ),
-                        value2.label,
-                        renderSourceDots(getMasterySources("weapons", value2.id))
-                      ] }, value2.id)) }),
-                      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, fontWeight: 700, marginTop: 10 }, children: "Armures" }),
-                      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" }, children: armorMasteryOptions.map((value2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { style: { fontSize: 12, display: "flex", gap: 6 }, children: [
-                        /* @__PURE__ */ jsxRuntimeExports.jsx(
-                          "input",
-                          {
-                            type: "checkbox",
-                            checked: armorMasteries.includes(value2.id),
-                            onChange: () => canEditMasteries && toggleMastery("armors", value2.id),
-                            disabled: !canEditMasteries
-                          }
-                        ),
-                        value2.label,
-                        renderSourceDots(getMasterySources("armors", value2.id))
-                      ] }, value2.id)) }),
-                      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, fontWeight: 700, marginTop: 10 }, children: "Outils" }),
-                      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" }, children: toolMasteryOptions.map((value2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { style: { fontSize: 12, display: "flex", gap: 6 }, children: [
-                        /* @__PURE__ */ jsxRuntimeExports.jsx(
-                          "input",
-                          {
-                            type: "checkbox",
-                            checked: toolMasteries.includes(value2.id),
-                            onChange: () => canEditMasteries && toggleMastery("tools", value2.id),
-                            disabled: !canEditMasteries
-                          }
-                        ),
-                        value2.label,
-                        renderSourceDots(getMasterySources("tools", value2.id))
-                      ] }, value2.id)) })
-                    ] }),
+                    activeMainTab === "player" && activePlayerTab === "equip" && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                      EquipmentTab,
+                      {
+                        toggleSectionLock,
+                        getLockButtonState,
+                        renderPendingBadge,
+                        getPendingCountForSection,
+                        lockButtonBaseStyle,
+                        equipSubTab,
+                        setEquipSubTab,
+                        equipMessage,
+                        setEquipMessage,
+                        slotGroups,
+                        renderSlotGroup,
+                        packSlotStatus,
+                        inventoryItems,
+                        getItemLabel,
+                        getItemCategories,
+                        canUseClothingPieces,
+                        equipmentSlots: EQUIPMENT_SLOTS,
+                        resolveStoredSlotId,
+                        packSlots,
+                        getSlotLabel,
+                        getItemWeight,
+                        storeItemInPack,
+                        updateItemSlot,
+                        isSectionLocked,
+                        getItemUnitValue,
+                        isCurrencyItem,
+                        moneyToCopper,
+                        formatMoneyValue,
+                        onSellRequest: handleSellRequest,
+                        setPrimaryWeapon,
+                        removeManualItem,
+                        renderSourceDotsWithLabels,
+                        getItemSources,
+                        carryWeight,
+                        carryCapacityMax,
+                        weaponOptions,
+                        toolItems,
+                        armorItems,
+                        objectItems,
+                        addManualItem
+                      }
+                    ),
+                    activeMainTab === "player" && activePlayerTab === "stats" && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                      StatsTab,
+                      {
+                        statsMode,
+                        setStatsMode,
+                        canLockStats,
+                        toggleSectionLock,
+                        resetStats,
+                        isSectionLocked,
+                        lockButtonBaseStyle,
+                        getLockButtonState,
+                        renderPendingBadge,
+                        getPendingCountForSection,
+                        getPointBuySummary,
+                        statKeys: STAT_KEYS,
+                        getBaseScore,
+                        getBonusSumForStat,
+                        computeMod,
+                        getStatSources,
+                        renderSourceDots,
+                        setScore,
+                        canAdjustPointBuy
+                      }
+                    ),
+                    activeMainTab === "player" && activePlayerTab === "skills" && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                      SkillsTab,
+                      {
+                        skillsMode,
+                        setSkillsMode,
+                        resetSkills,
+                        isSectionLocked,
+                        toggleSectionLock,
+                        lockButtonBaseStyle,
+                        getLockButtonState,
+                        renderPendingBadge,
+                        getPendingCountForSection,
+                        competenceOptions,
+                        expertises,
+                        competences,
+                        resolveLevel,
+                        computeMod,
+                        getScore,
+                        skillAbilityMap,
+                        renderSourceDots,
+                        getSkillSources,
+                        canEditSkills,
+                        toggleCompetence,
+                        toggleExpertise
+                      }
+                    ),
+                    activeMainTab === "player" && activePlayerTab === "masteries" && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                      MasteriesTab,
+                      {
+                        masteriesMode,
+                        setMasteriesMode,
+                        resetMasteries,
+                        isSectionLocked,
+                        toggleSectionLock,
+                        lockButtonBaseStyle,
+                        getLockButtonState,
+                        renderPendingBadge,
+                        getPendingCountForSection,
+                        weaponMasteryOptions,
+                        armorMasteryOptions,
+                        toolMasteryOptions,
+                        weaponMasteries,
+                        armorMasteries,
+                        toolMasteries,
+                        toggleWeaponMastery: (value2) => canEditMasteries && toggleMastery("weapons", value2),
+                        toggleArmorMastery: (value2) => canEditMasteries && toggleMastery("armors", value2),
+                        toggleToolMastery: (value2) => canEditMasteries && toggleMastery("tools", value2),
+                        canEditMasteries,
+                        renderSourceDots,
+                        getMasterySources
+                      }
+                    ),
                     activeMainTab === "player" && activePlayerTab === "species" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
                       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
                         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "#b0b8c4" }, children: "Choisissez une espece. Ce choix met a jour raceId dans le personnage." }),
@@ -51434,15 +53919,9 @@ function CombatSetupScreen(props) {
                               setSectionLock("species", true);
                             },
                             style: {
+                              ...lockButtonBaseStyle,
                               marginLeft: "auto",
-                              padding: "4px 8px",
-                              borderRadius: 8,
-                              border: "1px solid rgba(255,255,255,0.15)",
-                              background: getLockButtonState("species").background,
-                              color: "#f5f5f5",
-                              cursor: "pointer",
-                              fontSize: 11,
-                              fontWeight: 700
+                              background: getLockButtonState("species").background
                             },
                             children: [
                               getLockButtonState("species").label,
@@ -51561,687 +54040,71 @@ function CombatSetupScreen(props) {
                         }
                       )
                     ] }),
-                    activeMainTab === "player" && activePlayerTab === "classes" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-                      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "#b0b8c4" }, children: "Definissez le niveau global, puis choisissez vos classes." }),
-                      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 13, display: "flex", alignItems: "center", gap: 10 }, children: [
-                        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Niveau global :" }),
-                        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                          "div",
-                          {
-                            style: {
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 6,
-                              padding: "4px 6px",
-                              borderRadius: 8,
-                              border: "1px solid #2a2a3a",
-                              background: "#0f0f19"
-                            },
-                            children: [
-                              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                                "button",
-                                {
-                                  type: "button",
-                                  onClick: () => !isSectionLocked("classes") && setLevel(resolveLevel() - 1),
-                                  disabled: isSectionLocked("classes"),
-                                  style: {
-                                    width: 30,
-                                    height: 30,
-                                    borderRadius: 6,
-                                    border: "1px solid #333",
-                                    background: "#141421",
-                                    color: "#f5f5f5",
-                                    cursor: isSectionLocked("classes") ? "not-allowed" : "pointer",
-                                    display: "grid",
-                                    placeItems: "center",
-                                    opacity: isSectionLocked("classes") ? 0.6 : 1
-                                  },
-                                  "aria-label": "Diminuer le niveau",
-                                  children: /* @__PURE__ */ jsxRuntimeExports.jsx("svg", { width: "12", height: "12", viewBox: "0 0 12 12", "aria-hidden": "true", children: /* @__PURE__ */ jsxRuntimeExports.jsx("rect", { x: "2", y: "5.25", width: "8", height: "1.5", fill: "currentColor" }) })
-                                }
-                              ),
-                              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                                "input",
-                                {
-                                  type: "number",
-                                  min: 1,
-                                  max: 20,
-                                  value: resolveLevel(),
-                                  onChange: (e2) => !isSectionLocked("classes") && setLevel(Number(e2.target.value)),
-                                  disabled: isSectionLocked("classes"),
-                                  style: {
-                                    width: 60,
-                                    background: "#0f0f19",
-                                    color: "#f5f5f5",
-                                    border: "1px solid #333",
-                                    borderRadius: 6,
-                                    padding: "4px 6px",
-                                    textAlign: "center",
-                                    appearance: "textfield",
-                                    WebkitAppearance: "textfield",
-                                    MozAppearance: "textfield",
-                                    opacity: isSectionLocked("classes") ? 0.6 : 1
-                                  }
-                                }
-                              ),
-                              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                                "button",
-                                {
-                                  type: "button",
-                                  onClick: () => !isSectionLocked("classes") && setLevel(resolveLevel() + 1),
-                                  disabled: isSectionLocked("classes"),
-                                  style: {
-                                    width: 30,
-                                    height: 30,
-                                    borderRadius: 6,
-                                    border: "1px solid #333",
-                                    background: "#141421",
-                                    color: "#f5f5f5",
-                                    cursor: isSectionLocked("classes") ? "not-allowed" : "pointer",
-                                    display: "grid",
-                                    placeItems: "center",
-                                    opacity: isSectionLocked("classes") ? 0.6 : 1
-                                  },
-                                  "aria-label": "Augmenter le niveau",
-                                  children: /* @__PURE__ */ jsxRuntimeExports.jsxs("svg", { width: "12", height: "12", viewBox: "0 0 12 12", "aria-hidden": "true", children: [
-                                    /* @__PURE__ */ jsxRuntimeExports.jsx("rect", { x: "2", y: "5.25", width: "8", height: "1.5", fill: "currentColor" }),
-                                    /* @__PURE__ */ jsxRuntimeExports.jsx("rect", { x: "5.25", y: "2", width: "1.5", height: "8", fill: "currentColor" })
-                                  ] })
-                                }
-                              )
-                            ]
+                    activeMainTab === "player" && activePlayerTab === "classes" && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                      ClassesTab,
+                      {
+                        activeClassTab,
+                        resolvedClassTab,
+                        setActiveClassTab,
+                        isSectionLocked,
+                        lockButtonBaseStyle,
+                        getClassLockButtonState,
+                        renderPendingBadge,
+                        getPendingCountForSection,
+                        resetClassImpactsForSlot,
+                        hasPendingClassChoicesForSlot,
+                        startClassDefine,
+                        setClassLockForSlot,
+                        resolveLevel,
+                        setLevel,
+                        classOptions,
+                        subclassOptions,
+                        isActiveClassLocked,
+                        activeClassSlot,
+                        activeClassId,
+                        activeSubclassId,
+                        activeClassEntry,
+                        handleClassSelect,
+                        setSubclassSelection,
+                        setClassLevel,
+                        isSecondaryEnabled,
+                        enableSecondaryClass,
+                        removeSecondaryClass
+                      }
+                    ),
+                    activeMainTab === "player" && activePlayerTab === "backgrounds" && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                      BackgroundsTab,
+                      {
+                        isSectionLocked,
+                        lockButtonBaseStyle,
+                        getLockButtonState,
+                        renderPendingBadge,
+                        getPendingCountForSection,
+                        backgroundOptions,
+                        selectedBackgroundId,
+                        handleBackgroundSelect,
+                        onLockClick: () => {
+                          if (isSectionLocked("backgrounds")) {
+                            resetBackgroundImpacts();
+                            return;
                           }
-                        ),
-                        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
-                          "Bonus de maitrise: +",
-                          2 + Math.floor((resolveLevel() - 1) / 4)
-                        ] }),
-                        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                          "button",
-                          {
-                            type: "button",
-                            onClick: () => {
-                              if (isActiveClassLocked) {
-                                resetClassImpactsForSlot(activeClassSlot);
-                                return;
-                              }
-                              if (hasPendingClassChoicesForSlot(activeClassSlot)) {
-                                startClassDefine(activeClassSlot);
-                                return;
-                              }
-                              setClassLockForSlot(activeClassSlot, true);
-                            },
-                            style: {
-                              marginLeft: "auto",
-                              padding: "6px 10px",
-                              borderRadius: 8,
-                              border: "1px solid rgba(255,255,255,0.15)",
-                              background: getClassLockButtonState().background,
-                              color: "#f5f5f5",
-                              cursor: "pointer",
-                              fontSize: 12,
-                              fontWeight: 700
-                            },
-                            children: [
-                              getClassLockButtonState().label,
-                              renderPendingBadge(getPendingCountForSection("classes"))
-                            ]
+                          if (hasPendingBackgroundChoices()) {
+                            startBackgroundDefine();
+                            return;
                           }
-                        )
-                      ] }),
-                      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }, children: [
-                        /* @__PURE__ */ jsxRuntimeExports.jsx(
-                          "button",
-                          {
-                            type: "button",
-                            onClick: () => setActiveClassTab("primary"),
-                            style: {
-                              padding: "6px 10px",
-                              borderRadius: 6,
-                              border: `1px solid ${resolvedClassTab === "primary" ? "#6fd3a8" : "#333"}`,
-                              background: resolvedClassTab === "primary" ? "rgba(46, 204, 113, 0.16)" : "#0f0f19",
-                              color: "#c9cfdd",
-                              cursor: "pointer",
-                              fontSize: 12,
-                              fontWeight: 700
-                            },
-                            children: "Classe principale"
-                          }
-                        ),
-                        resolveLevel() > 2 && /* @__PURE__ */ jsxRuntimeExports.jsx(
-                          "button",
-                          {
-                            type: "button",
-                            onClick: () => setActiveClassTab("secondary"),
-                            style: {
-                              padding: "6px 10px",
-                              borderRadius: 6,
-                              border: `1px solid ${resolvedClassTab === "secondary" ? "#6fd3a8" : "#333"}`,
-                              background: resolvedClassTab === "secondary" ? "rgba(46, 204, 113, 0.16)" : "#0f0f19",
-                              color: "#c9cfdd",
-                              cursor: "pointer",
-                              fontSize: 12,
-                              fontWeight: 700
-                            },
-                            children: "2eme classe"
-                          }
-                        )
-                      ] }),
-                      /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                        "div",
-                        {
-                          style: {
-                            display: "grid",
-                            gridTemplateColumns: "minmax(220px, 1.1fr) minmax(240px, 1fr)",
-                            gap: 12,
-                            alignItems: "start"
-                          },
-                          children: [
-                            /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                              "div",
-                              {
-                                style: {
-                                  display: "grid",
-                                  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                                  gap: 10,
-                                  alignContent: "start"
-                                },
-                                children: [
-                                  resolvedClassTab === "secondary" && !isSecondaryEnabled && /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                                    "button",
-                                    {
-                                      type: "button",
-                                      onClick: () => !isActiveClassLocked && enableSecondaryClass(),
-                                      disabled: isActiveClassLocked,
-                                      style: {
-                                        textAlign: "center",
-                                        borderRadius: 12,
-                                        border: "1px dashed rgba(255,255,255,0.25)",
-                                        background: "rgba(12,12,18,0.6)",
-                                        color: "#f5f5f5",
-                                        padding: 14,
-                                        cursor: isActiveClassLocked ? "not-allowed" : "pointer",
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        gap: 10,
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        minHeight: 180
-                                      },
-                                      children: [
-                                        /* @__PURE__ */ jsxRuntimeExports.jsx(
-                                          "div",
-                                          {
-                                            style: {
-                                              width: 46,
-                                              height: 46,
-                                              borderRadius: 12,
-                                              border: "1px solid rgba(255,255,255,0.25)",
-                                              display: "grid",
-                                              placeItems: "center",
-                                              fontSize: 28,
-                                              fontWeight: 700
-                                            },
-                                            children: "+"
-                                          }
-                                        ),
-                                        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: "Activer une 2eme classe" })
-                                      ]
-                                    }
-                                  ),
-                                  classOptions.map((cls) => {
-                                    const isSelected = activeClassId === cls.id;
-                                    const isDisabled = isActiveClassLocked || resolvedClassTab === "secondary" && !isSecondaryEnabled;
-                                    return /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                                      "button",
-                                      {
-                                        type: "button",
-                                        onClick: () => {
-                                          if (isDisabled) return;
-                                          handleClassSelect(cls, activeClassSlot);
-                                        },
-                                        disabled: isDisabled,
-                                        style: {
-                                          textAlign: "left",
-                                          borderRadius: 10,
-                                          border: `1px solid ${isSelected ? "#6fd3a8" : "rgba(255,255,255,0.12)"}`,
-                                          background: isSelected ? "rgba(46, 204, 113, 0.14)" : "rgba(12,12,18,0.75)",
-                                          color: "#f5f5f5",
-                                          padding: 12,
-                                          cursor: isDisabled ? "not-allowed" : "pointer",
-                                          display: "flex",
-                                          flexDirection: "column",
-                                          gap: 6,
-                                          minHeight: 120,
-                                          opacity: isDisabled ? 0.55 : 1
-                                        },
-                                        children: [
-                                          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 13, fontWeight: 800 }, children: cls.label }),
-                                          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: cls.description })
-                                        ]
-                                      },
-                                      `${resolvedClassTab}-${cls.id}`
-                                    );
-                                  })
-                                ]
-                              }
-                            ),
-                            /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                              "div",
-                              {
-                                style: {
-                                  borderRadius: 12,
-                                  border: "1px solid rgba(255,255,255,0.12)",
-                                  background: "rgba(12,12,18,0.75)",
-                                  padding: 12,
-                                  display: "flex",
-                                  flexDirection: "column",
-                                  gap: 10,
-                                  minHeight: 260
-                                },
-                                children: [
-                                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 14, fontWeight: 800 }, children: resolvedClassTab === "secondary" ? "2eme classe" : "Classe principale" }),
-                                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: "Niveau dans cette classe :" }),
-                                  /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                                    "div",
-                                    {
-                                      style: {
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: 6,
-                                        padding: "4px 6px",
-                                        borderRadius: 8,
-                                        border: "1px solid #2a2a3a",
-                                        background: "#0f0f19",
-                                        width: "fit-content"
-                                      },
-                                      children: [
-                                        /* @__PURE__ */ jsxRuntimeExports.jsx(
-                                          "button",
-                                          {
-                                            type: "button",
-                                            onClick: () => !isActiveClassLocked && setClassLevel(activeClassSlot, (Number(activeClassEntry == null ? void 0 : activeClassEntry.niveau) || 1) - 1),
-                                            disabled: isActiveClassLocked || resolvedClassTab === "secondary" && !isSecondaryEnabled,
-                                            style: {
-                                              width: 30,
-                                              height: 30,
-                                              borderRadius: 6,
-                                              border: "1px solid #333",
-                                              background: "#141421",
-                                              color: "#f5f5f5",
-                                              cursor: isActiveClassLocked ? "not-allowed" : "pointer",
-                                              display: "grid",
-                                              placeItems: "center",
-                                              opacity: isActiveClassLocked ? 0.6 : 1
-                                            },
-                                            "aria-label": "Diminuer le niveau de classe",
-                                            children: /* @__PURE__ */ jsxRuntimeExports.jsx("svg", { width: "12", height: "12", viewBox: "0 0 12 12", "aria-hidden": "true", children: /* @__PURE__ */ jsxRuntimeExports.jsx("rect", { x: "2", y: "5.25", width: "8", height: "1.5", fill: "currentColor" }) })
-                                          }
-                                        ),
-                                        /* @__PURE__ */ jsxRuntimeExports.jsx(
-                                          "input",
-                                          {
-                                            type: "number",
-                                            min: 1,
-                                            max: isSecondaryEnabled ? Math.max(1, resolveLevel() - 1) : resolveLevel(),
-                                            value: (activeClassEntry == null ? void 0 : activeClassEntry.niveau) ?? (activeClassSlot === 1 ? resolveLevel() : 0),
-                                            onChange: (e2) => !isActiveClassLocked && setClassLevel(activeClassSlot, Number(e2.target.value)),
-                                            disabled: isActiveClassLocked || resolvedClassTab === "secondary" && !isSecondaryEnabled,
-                                            style: {
-                                              width: 60,
-                                              background: "#0f0f19",
-                                              color: "#f5f5f5",
-                                              border: "1px solid #333",
-                                              borderRadius: 6,
-                                              padding: "4px 6px",
-                                              textAlign: "center",
-                                              appearance: "textfield",
-                                              WebkitAppearance: "textfield",
-                                              MozAppearance: "textfield",
-                                              opacity: isActiveClassLocked ? 0.6 : 1
-                                            }
-                                          }
-                                        ),
-                                        /* @__PURE__ */ jsxRuntimeExports.jsx(
-                                          "button",
-                                          {
-                                            type: "button",
-                                            onClick: () => !isActiveClassLocked && setClassLevel(activeClassSlot, (Number(activeClassEntry == null ? void 0 : activeClassEntry.niveau) || 1) + 1),
-                                            disabled: isActiveClassLocked || resolvedClassTab === "secondary" && !isSecondaryEnabled,
-                                            style: {
-                                              width: 30,
-                                              height: 30,
-                                              borderRadius: 6,
-                                              border: "1px solid #333",
-                                              background: "#141421",
-                                              color: "#f5f5f5",
-                                              cursor: isActiveClassLocked ? "not-allowed" : "pointer",
-                                              display: "grid",
-                                              placeItems: "center",
-                                              opacity: isActiveClassLocked ? 0.6 : 1
-                                            },
-                                            "aria-label": "Augmenter le niveau de classe",
-                                            children: /* @__PURE__ */ jsxRuntimeExports.jsxs("svg", { width: "12", height: "12", viewBox: "0 0 12 12", "aria-hidden": "true", children: [
-                                              /* @__PURE__ */ jsxRuntimeExports.jsx("rect", { x: "2", y: "5.25", width: "8", height: "1.5", fill: "currentColor" }),
-                                              /* @__PURE__ */ jsxRuntimeExports.jsx("rect", { x: "5.25", y: "2", width: "1.5", height: "8", fill: "currentColor" })
-                                            ] })
-                                          }
-                                        )
-                                      ]
-                                    }
-                                  ),
-                                  resolvedClassTab === "secondary" && isSecondaryEnabled && /* @__PURE__ */ jsxRuntimeExports.jsx(
-                                    "button",
-                                    {
-                                      type: "button",
-                                      onClick: () => !isActiveClassLocked && removeSecondaryClass(),
-                                      disabled: isActiveClassLocked,
-                                      style: {
-                                        marginTop: 8,
-                                        alignSelf: "flex-start",
-                                        padding: "6px 10px",
-                                        borderRadius: 8,
-                                        border: "1px solid rgba(255,255,255,0.15)",
-                                        background: "rgba(231,76,60,0.14)",
-                                        color: "#f5f5f5",
-                                        cursor: isActiveClassLocked ? "not-allowed" : "pointer",
-                                        fontSize: 12,
-                                        fontWeight: 700,
-                                        opacity: isActiveClassLocked ? 0.6 : 1
-                                      },
-                                      children: "Supprimer la 2eme classe"
-                                    }
-                                  ),
-                                  (() => {
-                                    const cls = classOptions.find((c2) => c2.id === activeClassId);
-                                    if (!cls) {
-                                      return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: "Choisissez d'abord une classe." });
-                                    }
-                                    const threshold = cls.subclassLevel ?? 1;
-                                    const level = Number(activeClassEntry == null ? void 0 : activeClassEntry.niveau) || (activeClassSlot === 1 ? resolveLevel() : 0);
-                                    if (level < threshold) {
-                                      return /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                                        "div",
-                                        {
-                                          style: {
-                                            padding: 10,
-                                            borderRadius: 10,
-                                            border: "1px dashed rgba(255,255,255,0.2)",
-                                            background: "rgba(8,8,12,0.6)",
-                                            color: "rgba(255,255,255,0.6)",
-                                            fontSize: 12
-                                          },
-                                          children: [
-                                            "Sous-classe verrouillee jusqu'au niveau ",
-                                            threshold,
-                                            "."
-                                          ]
-                                        }
-                                      );
-                                    }
-                                    const allowedIds = Array.isArray(cls.subclassIds) ? cls.subclassIds : [];
-                                    const subclasses = subclassOptions.filter((sub) => sub.classId === cls.id);
-                                    return /* @__PURE__ */ jsxRuntimeExports.jsx(
-                                      "div",
-                                      {
-                                        style: {
-                                          display: "grid",
-                                          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-                                          gap: 10
-                                        },
-                                        children: subclasses.map((sub) => {
-                                          const isAllowed = allowedIds.length === 0 || allowedIds.includes(sub.id);
-                                          const isSelected = activeSubclassId === sub.id;
-                                          return /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                                            "button",
-                                            {
-                                              type: "button",
-                                              onClick: () => {
-                                                if (!isAllowed || isActiveClassLocked) return;
-                                                setSubclassSelection(sub.id, activeClassSlot);
-                                              },
-                                              disabled: !isAllowed || isActiveClassLocked,
-                                              style: {
-                                                textAlign: "left",
-                                                borderRadius: 10,
-                                                border: `1px solid ${isSelected ? "#f1c40f" : "rgba(255,255,255,0.12)"}`,
-                                                background: isSelected ? "rgba(241, 196, 15, 0.14)" : "rgba(12,12,18,0.75)",
-                                                color: "#f5f5f5",
-                                                padding: 12,
-                                                cursor: isAllowed && !isActiveClassLocked ? "pointer" : "not-allowed",
-                                                display: "flex",
-                                                flexDirection: "column",
-                                                gap: 6,
-                                                minHeight: 110,
-                                                opacity: isAllowed && !isActiveClassLocked ? 1 : 0.5
-                                              },
-                                              children: [
-                                                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 13, fontWeight: 800 }, children: sub.label }),
-                                                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: sub.description })
-                                              ]
-                                            },
-                                            `${activeClassSlot}-${sub.id}`
-                                          );
-                                        })
-                                      }
-                                    );
-                                  })()
-                                ]
-                              }
-                            )
-                          ]
-                        }
-                      )
-                    ] }),
-                    activeMainTab === "player" && activePlayerTab === "backgrounds" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-                      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
-                        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "#b0b8c4" }, children: "Choisissez un historique. Un seul background peut etre actif." }),
-                        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                          "button",
-                          {
-                            type: "button",
-                            onClick: () => {
-                              var _a2, _b2, _c2, _d2;
-                              if (isSectionLocked("backgrounds")) {
-                                resetBackgroundImpacts();
-                                return;
-                              }
-                              if (hasPendingBackgroundChoices()) {
-                                startBackgroundDefine();
-                                return;
-                              }
-                              const bonusApplied = Boolean(
-                                (_a2 = choiceSelections == null ? void 0 : choiceSelections.background) == null ? void 0 : _a2.statBonusApplied
-                              );
-                              let nextCaracs = props.character.caracs;
-                              const nextChoiceSelections = {
-                                ...choiceSelections,
-                                background: { ...choiceSelections.background }
-                              };
-                              if (!bonusApplied && selectedBackgroundId === "veteran-de-guerre") {
-                                const current = ((_c2 = (_b2 = props.character.caracs) == null ? void 0 : _b2.force) == null ? void 0 : _c2.FOR) ?? 10;
-                                nextCaracs = {
-                                  ...props.character.caracs,
-                                  force: { ...((_d2 = props.character.caracs) == null ? void 0 : _d2.force) ?? {}, FOR: current + 1 }
-                                };
-                                nextChoiceSelections.background.statBonusApplied = true;
-                                nextChoiceSelections.statsBase = {
-                                  ...statsBase,
-                                  FOR: Number.isFinite(statsBase.FOR) ? statsBase.FOR : current
-                                };
-                              }
-                              props.onChangeCharacter({
-                                ...props.character,
-                                creationLocks: { ...creationLocks, backgrounds: true },
-                                choiceSelections: nextChoiceSelections,
-                                caracs: nextCaracs
-                              });
-                            },
-                            style: {
-                              marginLeft: "auto",
-                              padding: "4px 8px",
-                              borderRadius: 8,
-                              border: "1px solid rgba(255,255,255,0.15)",
-                              background: getLockButtonState("backgrounds").background,
-                              color: "#f5f5f5",
-                              cursor: "pointer",
-                              fontSize: 11,
-                              fontWeight: 700
-                            },
-                            children: [
-                              getLockButtonState("backgrounds").label,
-                              renderPendingBadge(getPendingCountForSection("backgrounds"))
-                            ]
-                          }
-                        )
-                      ] }),
-                      /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                        "div",
-                        {
-                          style: {
-                            display: "grid",
-                            gridTemplateColumns: "minmax(220px, 1.1fr) minmax(240px, 1fr)",
-                            gap: 12,
-                            alignItems: "start"
-                          },
-                          children: [
-                            /* @__PURE__ */ jsxRuntimeExports.jsx(
-                              "div",
-                              {
-                                style: {
-                                  display: "grid",
-                                  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                                  gap: 10,
-                                  alignContent: "start"
-                                },
-                                children: backgroundOptions.map((bg) => {
-                                  const isSelected = selectedBackgroundId === bg.id;
-                                  return /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                                    "button",
-                                    {
-                                      type: "button",
-                                      onClick: () => handleBackgroundSelect(bg),
-                                      disabled: isSectionLocked("backgrounds"),
-                                      style: {
-                                        textAlign: "left",
-                                        borderRadius: 10,
-                                        border: `1px solid ${isSelected ? "#6fd3a8" : "rgba(255,255,255,0.12)"}`,
-                                        background: isSelected ? "rgba(46, 204, 113, 0.14)" : "rgba(12,12,18,0.75)",
-                                        color: "#f5f5f5",
-                                        padding: 12,
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        gap: 6,
-                                        minHeight: 120,
-                                        opacity: isSectionLocked("backgrounds") ? 0.6 : 1,
-                                        cursor: isSectionLocked("backgrounds") ? "not-allowed" : "pointer"
-                                      },
-                                      children: [
-                                        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 13, fontWeight: 800 }, children: bg.label }),
-                                        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: bg.description })
-                                      ]
-                                    },
-                                    bg.id
-                                  );
-                                })
-                              }
-                            ),
-                            /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                              "div",
-                              {
-                                style: {
-                                  borderRadius: 12,
-                                  border: "1px solid rgba(255,255,255,0.12)",
-                                  background: "rgba(12,12,18,0.75)",
-                                  padding: 12,
-                                  display: "flex",
-                                  flexDirection: "column",
-                                  gap: 10,
-                                  minHeight: 260
-                                },
-                                children: [
-                                  /* @__PURE__ */ jsxRuntimeExports.jsx(
-                                    "div",
-                                    {
-                                      style: {
-                                        width: "100%",
-                                        aspectRatio: "16 / 9",
-                                        borderRadius: 10,
-                                        border: "1px dashed rgba(255,255,255,0.18)",
-                                        background: "rgba(8,8,12,0.65)",
-                                        display: "grid",
-                                        placeItems: "center",
-                                        color: "rgba(255,255,255,0.35)",
-                                        fontSize: 12
-                                      },
-                                      children: "Image 16:9"
-                                    }
-                                  ),
-                                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 14, fontWeight: 800 }, children: activeBackground ? activeBackground.label : "Selectionnez un historique" }),
-                                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.75)" }, children: activeBackground ? activeBackground.description : "Selectionnez un historique pour voir les details." }),
-                                  activeBackground && getBackgroundSkillProficiencies(activeBackground).length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
-                                    "Competences:",
-                                    " ",
-                                    getBackgroundSkillProficiencies(activeBackground).map((id2) => {
-                                      var _a2;
-                                      return ((_a2 = competenceOptions.find((c2) => c2.id === id2)) == null ? void 0 : _a2.label) ?? id2;
-                                    }).join(", ")
-                                  ] }),
-                                  activeBackground && getBackgroundToolProficiencies(activeBackground).length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
-                                    "Outils:",
-                                    " ",
-                                    getBackgroundToolProficiencies(activeBackground).map(
-                                      (id2) => {
-                                        var _a2;
-                                        return ((_a2 = toolMasteryOptions.find((t2) => t2.id === id2)) == null ? void 0 : _a2.label) ?? id2;
-                                      }
-                                    ).join(", ")
-                                  ] }),
-                                  getBackgroundToolChoice(activeBackground) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
-                                    "Outils (choix ",
-                                    ((_y = getBackgroundToolChoice(activeBackground)) == null ? void 0 : _y.count) ?? 0,
-                                    "):",
-                                    " ",
-                                    (((_z = getBackgroundToolChoice(activeBackground)) == null ? void 0 : _z.options) ?? []).map(
-                                      (id2) => {
-                                        var _a2;
-                                        return ((_a2 = toolMasteryOptions.find((t2) => t2.id === id2)) == null ? void 0 : _a2.label) ?? id2;
-                                      }
-                                    ).join(", ")
-                                  ] }),
-                                  (activeBackground == null ? void 0 : activeBackground.toolNotes) && activeBackground.toolNotes.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
-                                    "Outils: ",
-                                    activeBackground.toolNotes.join(", ")
-                                  ] }),
-                                  getBackgroundLanguageChoice(activeBackground) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
-                                    "Langues: ",
-                                    ((_A = getBackgroundLanguageChoice(activeBackground)) == null ? void 0 : _A.count) ?? 0,
-                                    " au choix"
-                                  ] }),
-                                  (activeBackground == null ? void 0 : activeBackground.equipment) && activeBackground.equipment.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
-                                    "Materiel: ",
-                                    activeBackground.equipment.map(formatEquipmentLabel).join(", ")
-                                  ] }),
-                                  getBackgroundFeatureInfo(activeBackground) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
-                                    "Aptitude: ",
-                                    ((_B = getBackgroundFeatureInfo(activeBackground)) == null ? void 0 : _B.label) ?? "",
-                                    ((_C = getBackgroundFeatureInfo(activeBackground)) == null ? void 0 : _C.description) ? ` — ${(_D = getBackgroundFeatureInfo(activeBackground)) == null ? void 0 : _D.description}` : ""
-                                  ] }),
-                                  ((_E = activeBackground == null ? void 0 : activeBackground.traits) == null ? void 0 : _E.bond) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
-                                    "Lien: ",
-                                    activeBackground.traits.bond
-                                  ] }),
-                                  ((_F = activeBackground == null ? void 0 : activeBackground.traits) == null ? void 0 : _F.flaw) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
-                                    "Defaut: ",
-                                    activeBackground.traits.flaw
-                                  ] })
-                                ]
-                              }
-                            )
-                          ]
-                        }
-                      )
-                    ] }),
+                          lockBackgroundAndCreateEquipment();
+                        },
+                        activeBackground,
+                        getBackgroundFeatureInfo,
+                        getBackgroundToolChoice,
+                        getBackgroundLanguageChoice,
+                        getBackgroundSkillProficiencies,
+                        getBackgroundToolProficiencies,
+                        formatEquipmentLabel,
+                        toolMasteryOptions,
+                        competenceOptions
+                      }
+                    ),
                     activeMainTab === "player" && activePlayerTab === "profile" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
                       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
                         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "#b0b8c4" }, children: "Renseignez le profil du personnage (pre-rempli)." }),
@@ -52251,15 +54114,9 @@ function CombatSetupScreen(props) {
                             type: "button",
                             onClick: () => toggleSectionLock("profile"),
                             style: {
+                              ...lockButtonBaseStyle,
                               marginLeft: "auto",
-                              padding: "4px 8px",
-                              borderRadius: 8,
-                              border: "1px solid rgba(255,255,255,0.15)",
-                              background: getLockButtonState("profile").background,
-                              color: "#f5f5f5",
-                              cursor: "pointer",
-                              fontSize: 11,
-                              fontWeight: 700
+                              background: getLockButtonState("profile").background
                             },
                             children: [
                               getLockButtonState("profile").label,
@@ -52283,7 +54140,7 @@ function CombatSetupScreen(props) {
                                 "input",
                                 {
                                   type: "text",
-                                  value: ((_G = props.character.nom) == null ? void 0 : _G.prenom) ?? "",
+                                  value: ((_y = props.character.nom) == null ? void 0 : _y.prenom) ?? "",
                                   onChange: (e2) => setNameField("prenom", e2.target.value),
                                   disabled: isSectionLocked("profile"),
                                   style: {
@@ -52304,7 +54161,7 @@ function CombatSetupScreen(props) {
                                 "input",
                                 {
                                   type: "text",
-                                  value: ((_H = props.character.nom) == null ? void 0 : _H.nomcomplet) ?? "",
+                                  value: ((_z = props.character.nom) == null ? void 0 : _z.nomcomplet) ?? "",
                                   onChange: (e2) => setNameField("nomcomplet", e2.target.value),
                                   disabled: isSectionLocked("profile"),
                                   style: {
@@ -52325,7 +54182,7 @@ function CombatSetupScreen(props) {
                                 "input",
                                 {
                                   type: "text",
-                                  value: ((_I = props.character.nom) == null ? void 0 : _I.surnom) ?? "",
+                                  value: ((_A = props.character.nom) == null ? void 0 : _A.surnom) ?? "",
                                   onChange: (e2) => setNameField("surnom", e2.target.value),
                                   disabled: isSectionLocked("profile"),
                                   style: {
@@ -52348,7 +54205,7 @@ function CombatSetupScreen(props) {
                         /* @__PURE__ */ jsxRuntimeExports.jsx(
                           "textarea",
                           {
-                            value: ((_J = props.character.descriptionPersonnage) == null ? void 0 : _J.physique) ?? "",
+                            value: ((_B = props.character.descriptionPersonnage) == null ? void 0 : _B.physique) ?? "",
                             onChange: (e2) => setPhysiqueDetail(e2.target.value),
                             disabled: isSectionLocked("profile"),
                             rows: 3,
@@ -52410,265 +54267,28 @@ function CombatSetupScreen(props) {
                         }
                       )
                     ] }),
-                    activeMainTab === "player" && activePlayerTab === "magic" && magicSources.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-                      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "#b0b8c4" }, children: "Gestion de la magie selon les sources verrouillees." }),
-                      magicSources.length > 1 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" }, children: magicSources.map((source2, idx) => /* @__PURE__ */ jsxRuntimeExports.jsx(
-                        "button",
-                        {
-                          type: "button",
-                          onClick: () => setActiveMagicTab(idx),
-                          style: {
-                            padding: "6px 10px",
-                            borderRadius: 6,
-                            border: `1px solid ${idx === activeMagicTab ? "#8e44ad" : "rgba(255,255,255,0.12)"}`,
-                            background: idx === activeMagicTab ? "rgba(142, 68, 173, 0.2)" : "#0f0f19",
-                            color: "#c9cfdd",
-                            cursor: "pointer",
-                            fontSize: 12,
-                            fontWeight: 700
-                          },
-                          children: source2.label
-                        },
-                        `magic-tab-${source2.key}`
-                      )) }),
-                      (() => {
-                        var _a2;
-                        const source2 = magicSources[activeMagicTab] ?? magicSources[0];
-                        if (!source2) return null;
-                        const selection = spellcastingSelections[source2.key] ?? {};
-                        const knownSpells = Array.isArray(selection.knownSpells) ? selection.knownSpells : [];
-                        const preparedSpells = Array.isArray(selection.preparedSpells) ? selection.preparedSpells : [];
-                        const focusItemId = selection.focusItemId ?? "";
-                        const storage = source2.storage ?? selection.storage ?? "memory";
-                        const grimoireItemId = selection.grimoireItemId ?? "";
-                        const totalCasterLevel = magicSources.reduce(
-                          (sum, item) => sum + getCasterContribution(item.casterProgression, item.classLevel),
-                          0
-                        );
-                        const slotsTable = ((_a2 = magicSources.find((item) => item.slotsByLevel)) == null ? void 0 : _a2.slotsByLevel) ?? null;
-                        const slots = slotsTable ? slotsTable[String(Math.max(0, totalCasterLevel))] ?? [] : [];
-                        const dc = 8 + computeMod(getScore(source2.ability)) + (2 + Math.floor((resolveLevel() - 1) / 4));
-                        const spellAttack = computeMod(getScore(source2.ability)) + (2 + Math.floor((resolveLevel() - 1) / 4));
-                        const focusTypes = Array.isArray(source2.focusTypes) ? source2.focusTypes : [];
-                        const focusOptions = inventoryItems.filter((item) => {
-                          if (focusTypes.length === 0) return true;
-                          const tags2 = resolveItemTags(item.id);
-                          return focusTypes.some((tag) => tags2.includes(tag));
-                        });
-                        const storageLabel = storage === "memory" ? "Memoire" : storage === "innate" ? "Inne" : "Grimoire";
-                        return /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                          "div",
-                          {
-                            style: {
-                              borderRadius: 10,
-                              border: "1px solid rgba(255,255,255,0.12)",
-                              background: "rgba(12,12,18,0.75)",
-                              padding: 12,
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: 10
-                            },
-                            children: [
-                              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", flexWrap: "wrap", gap: 12 }, children: [
-                                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
-                                  "Carac principale: ",
-                                  source2.ability
-                                ] }),
-                                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
-                                  "Methode: ",
-                                  source2.preparation === "prepared" ? "Prepare" : "Connu"
-                                ] }),
-                                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
-                                  "Niveau lanceur total: ",
-                                  totalCasterLevel
-                                ] }),
-                                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
-                                  "DD sort: ",
-                                  dc,
-                                  " | Attaque magique: ",
-                                  spellAttack >= 0 ? `+${spellAttack}` : spellAttack
-                                ] })
-                              ] }),
-                              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
-                                "Emplacements (total):",
-                                " ",
-                                slots.length > 0 ? slots.map(
-                                  (count2, idx) => count2 > 0 ? `${idx + 1}: ${count2}` : null
-                                ).filter(Boolean).join(" | ") : "—"
-                              ] }),
-                              source2.spellIds.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
-                                "Sorts de progression: ",
-                                source2.spellIds.join(", ")
-                              ] }),
-                              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }, children: [
-                                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-                                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 6 }, children: storage === "memory" ? "Sorts memorises" : source2.preparation === "prepared" ? "Sorts prepares" : "Sorts connus" }),
-                                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: 6, marginBottom: 6 }, children: [
-                                    /* @__PURE__ */ jsxRuntimeExports.jsx(
-                                      "input",
-                                      {
-                                        type: "text",
-                                        placeholder: "Ajouter un sort (id)",
-                                        value: spellInputByKey[source2.key] ?? "",
-                                        onChange: (e2) => setSpellInputByKey((prev) => ({ ...prev, [source2.key]: e2.target.value })),
-                                        style: {
-                                          flex: 1,
-                                          background: "#0f0f19",
-                                          color: "#f5f5f5",
-                                          border: "1px solid #333",
-                                          borderRadius: 6,
-                                          padding: "6px 8px",
-                                          fontSize: 12
-                                        },
-                                        onKeyDown: (e2) => {
-                                          if (e2.key !== "Enter") return;
-                                          const value2 = (e2.currentTarget.value || "").trim();
-                                          if (!value2) return;
-                                          const list = source2.preparation === "prepared" ? preparedSpells : knownSpells;
-                                          if (list.includes(value2)) return;
-                                          const next = [...list, value2];
-                                          if (source2.preparation === "prepared") {
-                                            updateSpellcastingSelection(source2.key, { preparedSpells: next });
-                                          } else {
-                                            updateSpellcastingSelection(source2.key, { knownSpells: next });
-                                          }
-                                          setSpellInputByKey((prev) => ({ ...prev, [source2.key]: "" }));
-                                        }
-                                      }
-                                    ),
-                                    /* @__PURE__ */ jsxRuntimeExports.jsx(
-                                      "button",
-                                      {
-                                        type: "button",
-                                        onClick: (e2) => {
-                                          const value2 = (spellInputByKey[source2.key] ?? "").trim();
-                                          if (!value2) return;
-                                          const list = source2.preparation === "prepared" ? preparedSpells : knownSpells;
-                                          if (list.includes(value2)) return;
-                                          const next = [...list, value2];
-                                          if (source2.preparation === "prepared") {
-                                            updateSpellcastingSelection(source2.key, { preparedSpells: next });
-                                          } else {
-                                            updateSpellcastingSelection(source2.key, { knownSpells: next });
-                                          }
-                                          setSpellInputByKey((prev) => ({ ...prev, [source2.key]: "" }));
-                                        },
-                                        style: {
-                                          padding: "6px 10px",
-                                          borderRadius: 6,
-                                          border: "1px solid rgba(255,255,255,0.15)",
-                                          background: "rgba(255,255,255,0.08)",
-                                          color: "#f5f5f5",
-                                          cursor: "pointer",
-                                          fontSize: 12,
-                                          fontWeight: 700
-                                        },
-                                        children: "Ajouter"
-                                      }
-                                    )
-                                  ] }),
-                                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", flexWrap: "wrap", gap: 6 }, children: (source2.preparation === "prepared" ? preparedSpells : knownSpells).map((spell) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                                    "span",
-                                    {
-                                      style: {
-                                        padding: "2px 6px",
-                                        borderRadius: 999,
-                                        border: "1px solid rgba(255,255,255,0.18)",
-                                        background: "rgba(142, 68, 173, 0.12)",
-                                        fontSize: 11,
-                                        color: "rgba(255,255,255,0.75)",
-                                        display: "inline-flex",
-                                        alignItems: "center",
-                                        gap: 6
-                                      },
-                                      children: [
-                                        spell,
-                                        /* @__PURE__ */ jsxRuntimeExports.jsx(
-                                          "button",
-                                          {
-                                            type: "button",
-                                            onClick: () => {
-                                              const list = source2.preparation === "prepared" ? preparedSpells : knownSpells;
-                                              const next = list.filter((item) => item !== spell);
-                                              if (source2.preparation === "prepared") {
-                                                updateSpellcastingSelection(source2.key, { preparedSpells: next });
-                                              } else {
-                                                updateSpellcastingSelection(source2.key, { knownSpells: next });
-                                              }
-                                            },
-                                            style: {
-                                              border: "none",
-                                              background: "transparent",
-                                              color: "rgba(255,255,255,0.7)",
-                                              cursor: "pointer",
-                                              fontSize: 12
-                                            },
-                                            children: "×"
-                                          }
-                                        )
-                                      ]
-                                    },
-                                    `spell-${source2.key}-${spell}`
-                                  )) })
-                                ] }),
-                                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-                                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 6 }, children: "Focalisateur" }),
-                                  /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                                    "select",
-                                    {
-                                      value: focusItemId,
-                                      onChange: (e2) => updateSpellcastingSelection(source2.key, {
-                                        focusItemId: e2.target.value || null
-                                      }),
-                                      style: {
-                                        width: "100%",
-                                        background: "#0f0f19",
-                                        color: "#f5f5f5",
-                                        border: "1px solid #333",
-                                        borderRadius: 6,
-                                        padding: "6px 8px",
-                                        fontSize: 12
-                                      },
-                                      children: [
-                                        /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "Aucun" }),
-                                        focusOptions.map((item) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: item.id, children: formatEquipmentLabel(item.id) }, `focus-${item.id}`))
-                                      ]
-                                    }
-                                  ),
-                                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 10 }, children: [
-                                    "Stockage des sorts: ",
-                                    storageLabel
-                                  ] }),
-                                  storage === "grimoire" && /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                                    "select",
-                                    {
-                                      value: grimoireItemId,
-                                      onChange: (e2) => updateSpellcastingSelection(source2.key, {
-                                        grimoireItemId: e2.target.value || null
-                                      }),
-                                      style: {
-                                        width: "100%",
-                                        background: "#0f0f19",
-                                        color: "#f5f5f5",
-                                        border: "1px solid #333",
-                                        borderRadius: 6,
-                                        padding: "6px 8px",
-                                        fontSize: 12,
-                                        marginTop: 6
-                                      },
-                                      children: [
-                                        /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "Choisir un grimoire" }),
-                                        inventoryItems.filter((item) => item.type === "object").map((item) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: item.id, children: formatEquipmentLabel(item.id) }, `grimoire-${item.id}`))
-                                      ]
-                                    }
-                                  )
-                                ] })
-                              ] })
-                            ]
-                          }
-                        );
-                      })()
-                    ] }),
+                    activeMainTab === "player" && activePlayerTab === "magic" && magicSources.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                      MagicTab,
+                      {
+                        magicSources,
+                        activeMagicTab,
+                        setActiveMagicTab,
+                        spellcastingSelections,
+                        spellInputByKey,
+                        setSpellInputByKey,
+                        updateSpellcastingSelection,
+                        computeMod,
+                        getScore,
+                        resolveLevel,
+                        getCasterContribution,
+                        resolveItemTags,
+                        inventoryItems,
+                        formatEquipmentLabel,
+                        getSpellId,
+                        getSpellKey,
+                        makeSpellEntry
+                      }
+                    ),
                     activeMainTab === "player" && activePlayerTab === "sheet" && /* @__PURE__ */ jsxRuntimeExports.jsx(jsxRuntimeExports.Fragment, { children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }, children: (() => {
                       var _a2, _b2, _c2, _d2, _e2, _f2, _g2, _h2, _i2, _j2, _k2, _l2, _m2;
                       const statLabels = {
@@ -52992,23 +54612,61 @@ function CombatSetupScreen(props) {
                                   })
                                 }
                               ),
-                              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 8 }, children: [
-                                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
-                                  "CA (dynamique): ",
-                                  computeArmorClassFromEquipment2()
-                                ] }),
-                                Boolean(choiceSelections == null ? void 0 : choiceSelections.sheetValidated) && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-                                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
-                                    "PV max: ",
-                                    ((_m2 = (_l2 = props.character) == null ? void 0 : _l2.combatStats) == null ? void 0 : _m2.maxHp) ?? "—"
-                                  ] }),
-                                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
-                                    "Des de vie: ",
-                                    (classPrimary == null ? void 0 : classPrimary.hitDie) ? `d${classPrimary.hitDie} x${Number(classEntry == null ? void 0 : classEntry.niveau) || 0}` : "—",
-                                    (classSecondary == null ? void 0 : classSecondary.hitDie) && Number(secondaryClassEntry == null ? void 0 : secondaryClassEntry.niveau) ? ` + d${classSecondary.hitDie} x${Number(secondaryClassEntry == null ? void 0 : secondaryClassEntry.niveau) || 0}` : ""
-                                  ] })
-                                ] })
-                              ] })
+                              /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                                "div",
+                                {
+                                  style: {
+                                    display: "grid",
+                                    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                                    gap: 8
+                                  },
+                                  children: [
+                                    /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                                      "div",
+                                      {
+                                        style: {
+                                          fontSize: 13,
+                                          fontWeight: 800,
+                                          color: "#cfe4ff",
+                                          background: "rgba(79,125,242,0.18)",
+                                          border: "1px solid rgba(79,125,242,0.5)",
+                                          borderRadius: 8,
+                                          padding: "6px 8px"
+                                        },
+                                        children: [
+                                          "CA (dynamique): ",
+                                          computeArmorClassFromEquipment2()
+                                        ]
+                                      }
+                                    ),
+                                    Boolean(choiceSelections == null ? void 0 : choiceSelections.sheetValidated) && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+                                      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                                        "div",
+                                        {
+                                          style: {
+                                            fontSize: 13,
+                                            fontWeight: 800,
+                                            color: "#ffe9a6",
+                                            background: "rgba(241,196,15,0.16)",
+                                            border: "1px solid rgba(241,196,15,0.5)",
+                                            borderRadius: 8,
+                                            padding: "6px 8px"
+                                          },
+                                          children: [
+                                            "PV max: ",
+                                            ((_m2 = (_l2 = props.character) == null ? void 0 : _l2.combatStats) == null ? void 0 : _m2.maxHp) ?? "—"
+                                          ]
+                                        }
+                                      ),
+                                      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
+                                        "Des de vie: ",
+                                        (classPrimary == null ? void 0 : classPrimary.hitDie) ? `d${classPrimary.hitDie} x${Number(classEntry == null ? void 0 : classEntry.niveau) || 0}` : "—",
+                                        (classSecondary == null ? void 0 : classSecondary.hitDie) && Number(secondaryClassEntry == null ? void 0 : secondaryClassEntry.niveau) ? ` + d${classSecondary.hitDie} x${Number(secondaryClassEntry == null ? void 0 : secondaryClassEntry.niveau) || 0}` : ""
+                                      ] })
+                                    ] })
+                                  ]
+                                }
+                              )
                             ]
                           }
                         ),
@@ -53029,22 +54687,46 @@ function CombatSetupScreen(props) {
                                 "Competences",
                                 renderValidatedBadge(getSectionValidated("skills"))
                               ] }),
-                              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
-                                "Maitrises:",
-                                " ",
-                                competences.length ? competences.map((id2) => {
+                              /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                                "div",
+                                {
+                                  style: {
+                                    fontSize: 18,
+                                    fontWeight: 800,
+                                    color: "#4f7df2",
+                                    textAlign: "center"
+                                  },
+                                  children: [
+                                    "Bonus de maitrise: ",
+                                    (() => {
+                                      const level = resolveLevel();
+                                      const prof = 2 + Math.floor((level - 1) / 4);
+                                      return prof >= 0 ? `+${prof}` : prof;
+                                    })()
+                                  ]
+                                }
+                              ),
+                              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: (() => {
+                                const merged = Array.from(
+                                  /* @__PURE__ */ new Set([...competences ?? [], ...expertises ?? []])
+                                );
+                                if (merged.length === 0) return "—";
+                                return merged.map((id2) => {
                                   var _a3;
-                                  return ((_a3 = competenceOptions.find((c2) => c2.id === id2)) == null ? void 0 : _a3.label) ?? id2;
-                                }).join(", ") : "—"
-                              ] }),
-                              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
-                                "Expertises:",
-                                " ",
-                                expertises.length ? expertises.map((id2) => {
-                                  var _a3;
-                                  return ((_a3 = competenceOptions.find((c2) => c2.id === id2)) == null ? void 0 : _a3.label) ?? id2;
-                                }).join(", ") : "—"
-                              ] })
+                                  const label2 = ((_a3 = competenceOptions.find((c2) => c2.id === id2)) == null ? void 0 : _a3.label) ?? id2;
+                                  const abilityKey = skillAbilityMap[id2];
+                                  const scoreKey = abilityKey === "STR" ? "FOR" : abilityKey === "DEX" ? "DEX" : abilityKey === "CON" ? "CON" : abilityKey === "INT" ? "INT" : abilityKey === "WIS" ? "SAG" : "CHA";
+                                  const mod = computeMod(getScore(scoreKey));
+                                  const level = resolveLevel();
+                                  const prof = 2 + Math.floor((level - 1) / 4);
+                                  const isExpert = expertises.includes(id2);
+                                  const isProf = competences.includes(id2);
+                                  const bonus = mod + (isExpert ? prof * 2 : isProf ? prof : 0);
+                                  const bonusLabel = bonus >= 0 ? `+${bonus}` : bonus;
+                                  const suffix = isExpert ? " (Expertise)" : "";
+                                  return `${label2}${suffix}: ${bonusLabel}`;
+                                }).join(", ");
+                              })() })
                             ]
                           }
                         ),
@@ -53097,64 +54779,95 @@ function CombatSetupScreen(props) {
                                 "Materiel",
                                 renderValidatedBadge(getSectionValidated("equip"))
                               ] }),
-                              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
-                                "Slots equipes:",
-                                EQUIPMENT_SLOTS.filter((slot) => Boolean(materielSlots[slot.id])).length > 0 ? EQUIPMENT_SLOTS.filter((slot) => Boolean(materielSlots[slot.id])).map((slot) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { marginTop: 4 }, children: [
-                                  slot.label,
-                                  ": ",
-                                  formatEquipmentLabel(String(materielSlots[slot.id]))
-                                ] }, `slot-${slot.id}`)) : " —"
-                              ] }),
+                              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: EQUIPMENT_SLOTS.filter((slot) => Boolean(materielSlots[slot.id])).length > 0 ? EQUIPMENT_SLOTS.filter((slot) => Boolean(materielSlots[slot.id])).map((slot) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { marginTop: 4 }, children: [
+                                slot.label,
+                                ": ",
+                                formatEquipmentLabel(String(materielSlots[slot.id]))
+                              ] }, `slot-${slot.id}`)) : "—" }),
                               (() => {
-                                const bagId2 = materielSlots.paquetage ?? null;
-                                if (!bagId2) {
-                                  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: "Sac: —" });
-                                }
-                                const bagDef = objectItemMap.get(bagId2);
-                                const bagCapacity2 = Number((bagDef == null ? void 0 : bagDef.capacityWeight) ?? 0) || 0;
-                                const bagContents = inventoryItems.filter((item) => item.storedIn === bagId2);
-                                const getItemWeight2 = (item) => {
-                                  var _a3, _b3, _c3, _d3;
-                                  const resolved = resolveItemType(item.id);
-                                  if (resolved.type === "weapon") {
-                                    return Number(((_a3 = weaponItemMap.get(resolved.id)) == null ? void 0 : _a3.weight) ?? 0) || 0;
+                                const packEntries = Array.from(packSlots).map((slotId) => {
+                                  const status = packSlotStatus(slotId);
+                                  if (!status.bagId) return null;
+                                  const bagContents = inventoryItems.filter((item) => {
+                                    const inSlot = (item == null ? void 0 : item.storedIn) === slotId || slotId === "paquetage" && status.bagId && (item == null ? void 0 : item.storedIn) === status.bagId;
+                                    return inSlot;
+                                  });
+                                  return {
+                                    slotId,
+                                    status,
+                                    contents: bagContents,
+                                    label: getSlotLabel(slotId)
+                                  };
+                                }).filter(Boolean);
+                                if (packEntries.length === 0) return null;
+                                return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                                  "div",
+                                  {
+                                    style: {
+                                      marginTop: 6,
+                                      padding: 8,
+                                      borderRadius: 8,
+                                      border: "1px solid rgba(255,255,255,0.12)",
+                                      background: "rgba(10,10,16,0.7)",
+                                      display: "flex",
+                                      flexDirection: "column",
+                                      gap: 8
+                                    },
+                                    children: [
+                                      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, fontWeight: 800 }, children: "Sacs" }),
+                                      packEntries.map((entry) => {
+                                        const capacityLabel = entry.status.capacity > 0 ? entry.status.capacity.toFixed(1) : "?";
+                                        return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "grid", gap: 4 }, children: [
+                                          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                                            "div",
+                                            {
+                                              style: { fontSize: 12, color: "rgba(255,255,255,0.7)" },
+                                              children: [
+                                                entry.label,
+                                                ": ",
+                                                formatEquipmentLabel(entry.status.bagId ?? "")
+                                              ]
+                                            }
+                                          ),
+                                          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                                            "div",
+                                            {
+                                              style: { fontSize: 12, color: "rgba(255,255,255,0.6)" },
+                                              children: [
+                                                "Capacite: ",
+                                                entry.status.storedWeight.toFixed(1),
+                                                " /",
+                                                " ",
+                                                capacityLabel
+                                              ]
+                                            }
+                                          ),
+                                          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                                            "div",
+                                            {
+                                              style: { fontSize: 12, color: "rgba(255,255,255,0.6)" },
+                                              children: [
+                                                "Contenu:",
+                                                entry.contents.length > 0 ? entry.contents.map((item) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                                                  "div",
+                                                  {
+                                                    style: { marginTop: 4 },
+                                                    children: [
+                                                      formatEquipmentLabel(item.id),
+                                                      " x",
+                                                      item.qty ?? 1
+                                                    ]
+                                                  },
+                                                  `bag-${entry.slotId}-${item.id}`
+                                                )) : " —"
+                                              ]
+                                            }
+                                          )
+                                        ] }, `bag-${entry.slotId}`);
+                                      })
+                                    ]
                                   }
-                                  if (resolved.type === "armor") {
-                                    return Number(((_b3 = armorItemMap.get(resolved.id)) == null ? void 0 : _b3.weight) ?? 0) || 0;
-                                  }
-                                  if (resolved.type === "tool") {
-                                    return Number(((_c3 = toolItemMap.get(resolved.id)) == null ? void 0 : _c3.weight) ?? 0) || 0;
-                                  }
-                                  if (resolved.type === "object") {
-                                    return Number(((_d3 = objectItemMap.get(resolved.id)) == null ? void 0 : _d3.weight) ?? 0) || 0;
-                                  }
-                                  return 0;
-                                };
-                                const bagWeight = bagContents.reduce((sum, item) => {
-                                  const qty = Number(item.qty ?? 1) || 1;
-                                  return sum + getItemWeight2(item) * qty;
-                                }, 0);
-                                return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-                                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
-                                    "Sac: ",
-                                    formatEquipmentLabel(bagId2)
-                                  ] }),
-                                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
-                                    "Capacite: ",
-                                    bagWeight.toFixed(1),
-                                    " /",
-                                    " ",
-                                    bagCapacity2 > 0 ? bagCapacity2.toFixed(1) : "?"
-                                  ] }),
-                                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.6)" }, children: [
-                                    "Contenu du sac:",
-                                    bagContents.length > 0 ? bagContents.map((item) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { marginTop: 4 }, children: [
-                                      formatEquipmentLabel(item.id),
-                                      " x",
-                                      item.qty ?? 1
-                                    ] }, `bag-${item.id}`)) : " —"
-                                  ] })
-                                ] });
+                                );
                               })()
                             ]
                           }
@@ -53240,520 +54953,50 @@ function CombatSetupScreen(props) {
             ]
           }
         ),
-        asiModal.open && /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "div",
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          AsiModal,
           {
-            style: {
-              position: "fixed",
-              inset: 0,
-              background: "rgba(0,0,0,0.55)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 1e3
-            },
-            children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
-              "div",
-              {
-                style: {
-                  width: "min(560px, 92vw)",
-                  background: "#141421",
-                  border: "1px solid rgba(255,255,255,0.18)",
-                  borderRadius: 12,
-                  padding: 16,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 12
-                },
-                children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 14, fontWeight: 800 }, children: asiModal.entry ? `Niveau ${asiModal.entry.level} — ${asiModal.entry.classLabel}` : "Choix d'amelioration" }),
-                  asiModal.step === "type" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: "Souhaitez-vous augmenter les caracteristiques ou choisir un don ?" }),
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", gap: 8 }, children: [
-                      { id: "asi", label: "Augmenter les caracteristiques" },
-                      { id: "feat", label: "Choisir un don" }
-                    ].map((opt) => /* @__PURE__ */ jsxRuntimeExports.jsx(
-                      "button",
-                      {
-                        type: "button",
-                        onClick: () => setAsiModalType(opt.id),
-                        style: {
-                          padding: "6px 10px",
-                          borderRadius: 8,
-                          border: "1px solid rgba(255,255,255,0.15)",
-                          background: asiModal.type === opt.id ? "rgba(79,125,242,0.2)" : "rgba(255,255,255,0.06)",
-                          color: "#f5f5f5",
-                          cursor: "pointer",
-                          fontSize: 12,
-                          fontWeight: 700
-                        },
-                        children: opt.label
-                      },
-                      opt.id
-                    )) }),
-                    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: 8, justifyContent: "flex-end" }, children: [
-                      /* @__PURE__ */ jsxRuntimeExports.jsx(
-                        "button",
-                        {
-                          type: "button",
-                          onClick: closeAsiModal,
-                          style: {
-                            padding: "6px 10px",
-                            borderRadius: 8,
-                            border: "1px solid rgba(255,255,255,0.15)",
-                            background: "rgba(255,255,255,0.06)",
-                            color: "#f5f5f5",
-                            cursor: "pointer",
-                            fontSize: 12,
-                            fontWeight: 700
-                          },
-                          children: "Fermer"
-                        }
-                      ),
-                      /* @__PURE__ */ jsxRuntimeExports.jsx(
-                        "button",
-                        {
-                          type: "button",
-                          onClick: confirmAsiModalType,
-                          style: {
-                            padding: "6px 10px",
-                            borderRadius: 8,
-                            border: "1px solid rgba(255,255,255,0.15)",
-                            background: "rgba(46, 204, 113, 0.16)",
-                            color: "#f5f5f5",
-                            cursor: "pointer",
-                            fontSize: 12,
-                            fontWeight: 700
-                          },
-                          children: "Valider"
-                        }
-                      )
-                    ] })
-                  ] }),
-                  asiModal.step === "feat" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: "Dons indisponibles pour l'instant." }),
-                    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: 8, justifyContent: "flex-end" }, children: [
-                      /* @__PURE__ */ jsxRuntimeExports.jsx(
-                        "button",
-                        {
-                          type: "button",
-                          onClick: () => setAsiModal((prev) => ({ ...prev, step: "type" })),
-                          style: {
-                            padding: "6px 10px",
-                            borderRadius: 8,
-                            border: "1px solid rgba(255,255,255,0.15)",
-                            background: "rgba(255,255,255,0.06)",
-                            color: "#f5f5f5",
-                            cursor: "pointer",
-                            fontSize: 12,
-                            fontWeight: 700
-                          },
-                          children: "Retour"
-                        }
-                      ),
-                      /* @__PURE__ */ jsxRuntimeExports.jsx(
-                        "button",
-                        {
-                          type: "button",
-                          onClick: closeAsiModal,
-                          style: {
-                            padding: "6px 10px",
-                            borderRadius: 8,
-                            border: "1px solid rgba(255,255,255,0.15)",
-                            background: "rgba(255,255,255,0.06)",
-                            color: "#f5f5f5",
-                            cursor: "pointer",
-                            fontSize: 12,
-                            fontWeight: 700
-                          },
-                          children: "Fermer"
-                        }
-                      )
-                    ] })
-                  ] }),
-                  asiModal.step === "asi" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-                    (() => {
-                      const spent = Object.values(asiModal.stats).reduce(
-                        (sum, value2) => sum + (Number(value2) || 0),
-                        0
-                      );
-                      const remaining = Math.max(0, 2 - spent);
-                      return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
-                        "Capital disponible : ",
-                        remaining
-                      ] });
-                    })(),
-                    /* @__PURE__ */ jsxRuntimeExports.jsx(
-                      "div",
-                      {
-                        style: {
-                          display: "grid",
-                          gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                          gap: 8
-                        },
-                        children: STAT_KEYS.map((stat) => {
-                          const base = getBaseScore(stat);
-                          const nonAsi = getNonAsiBonusSumForStat(stat);
-                          const original = Number(asiModal.originalStats[stat] ?? 0) || 0;
-                          const totalAsi = Number(asiBonusMap[stat] ?? 0) || 0;
-                          const otherAsi = Math.max(0, totalAsi - original);
-                          const current = Number(asiModal.stats[stat] ?? 0) || 0;
-                          const total = base + nonAsi + otherAsi + current;
-                          const spent = Object.values(asiModal.stats).reduce(
-                            (sum, value2) => sum + (Number(value2) || 0),
-                            0
-                          );
-                          const remaining = Math.max(0, 2 - spent);
-                          const canIncrease = remaining > 0 && current < 2 && total < 20;
-                          const canDecrease = current > 0;
-                          return /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                            "div",
-                            {
-                              style: {
-                                borderRadius: 8,
-                                border: "1px solid rgba(255,255,255,0.12)",
-                                background: "rgba(10,10,16,0.8)",
-                                padding: 8,
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: 6
-                              },
-                              children: [
-                                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 6 }, children: [
-                                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, fontWeight: 700 }, children: stat }),
-                                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.6)" }, children: [
-                                    "Total: ",
-                                    Math.min(20, total)
-                                  ] })
-                                ] }),
-                                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 6 }, children: [
-                                  /* @__PURE__ */ jsxRuntimeExports.jsx(
-                                    "button",
-                                    {
-                                      type: "button",
-                                      onClick: () => canDecrease && updateAsiModalStat(stat, -1),
-                                      disabled: !canDecrease,
-                                      style: {
-                                        width: 26,
-                                        height: 26,
-                                        borderRadius: 6,
-                                        border: "1px solid #333",
-                                        background: canDecrease ? "#141421" : "rgba(80,80,90,0.55)",
-                                        color: "#f5f5f5",
-                                        cursor: canDecrease ? "pointer" : "not-allowed",
-                                        display: "grid",
-                                        placeItems: "center",
-                                        fontSize: 12,
-                                        fontWeight: 700
-                                      },
-                                      children: "-"
-                                    }
-                                  ),
-                                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { minWidth: 24, textAlign: "center", fontSize: 12 }, children: [
-                                    "+",
-                                    current
-                                  ] }),
-                                  /* @__PURE__ */ jsxRuntimeExports.jsx(
-                                    "button",
-                                    {
-                                      type: "button",
-                                      onClick: () => canIncrease && updateAsiModalStat(stat, 1),
-                                      disabled: !canIncrease,
-                                      style: {
-                                        width: 26,
-                                        height: 26,
-                                        borderRadius: 6,
-                                        border: "1px solid #333",
-                                        background: canIncrease ? "#141421" : "rgba(80,80,90,0.55)",
-                                        color: "#f5f5f5",
-                                        cursor: canIncrease ? "pointer" : "not-allowed",
-                                        display: "grid",
-                                        placeItems: "center",
-                                        fontSize: 12,
-                                        fontWeight: 700
-                                      },
-                                      children: "+"
-                                    }
-                                  )
-                                ] })
-                              ]
-                            },
-                            `asi-modal-${stat}`
-                          );
-                        })
-                      }
-                    ),
-                    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: 8, justifyContent: "flex-end" }, children: [
-                      (() => {
-                        const spent = Object.values(asiModal.stats).reduce(
-                          (sum, value2) => sum + (Number(value2) || 0),
-                          0
-                        );
-                        const remaining = Math.max(0, 2 - spent);
-                        const canAllocateMore = asiModal.entry && canAllocateMoreAsi(asiModal.entry.key, asiModal.stats);
-                        return remaining > 0 && canAllocateMore ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { alignSelf: "center", fontSize: 11, color: "rgba(255,255,255,0.6)" }, children: "Utilisez les 2 points." }) : null;
-                      })(),
-                      /* @__PURE__ */ jsxRuntimeExports.jsx(
-                        "button",
-                        {
-                          type: "button",
-                          onClick: () => setAsiModal((prev) => ({ ...prev, step: "type" })),
-                          style: {
-                            padding: "6px 10px",
-                            borderRadius: 8,
-                            border: "1px solid rgba(255,255,255,0.15)",
-                            background: "rgba(255,255,255,0.06)",
-                            color: "#f5f5f5",
-                            cursor: "pointer",
-                            fontSize: 12,
-                            fontWeight: 700
-                          },
-                          children: "Retour"
-                        }
-                      ),
-                      /* @__PURE__ */ jsxRuntimeExports.jsx(
-                        "button",
-                        {
-                          type: "button",
-                          onClick: confirmAsiModalStats,
-                          disabled: (() => {
-                            const spent = Object.values(asiModal.stats).reduce(
-                              (sum, value2) => sum + (Number(value2) || 0),
-                              0
-                            );
-                            if (spent >= 2) return false;
-                            if (!asiModal.entry) return true;
-                            return canAllocateMoreAsi(asiModal.entry.key, asiModal.stats);
-                          })(),
-                          style: {
-                            padding: "6px 10px",
-                            borderRadius: 8,
-                            border: "1px solid rgba(255,255,255,0.15)",
-                            background: (() => {
-                              const spent = Object.values(asiModal.stats).reduce(
-                                (sum, value2) => sum + (Number(value2) || 0),
-                                0
-                              );
-                              if (spent >= 2) return "rgba(46, 204, 113, 0.16)";
-                              if (!asiModal.entry) return "rgba(80,80,90,0.55)";
-                              const canAllocateMore = canAllocateMoreAsi(asiModal.entry.key, asiModal.stats);
-                              return canAllocateMore ? "rgba(80,80,90,0.55)" : "rgba(46, 204, 113, 0.16)";
-                            })(),
-                            color: "#f5f5f5",
-                            cursor: (() => {
-                              const spent = Object.values(asiModal.stats).reduce(
-                                (sum, value2) => sum + (Number(value2) || 0),
-                                0
-                              );
-                              if (spent >= 2) return "pointer";
-                              if (!asiModal.entry) return "not-allowed";
-                              const canAllocateMore = canAllocateMoreAsi(asiModal.entry.key, asiModal.stats);
-                              return canAllocateMore ? "not-allowed" : "pointer";
-                            })(),
-                            fontSize: 12,
-                            fontWeight: 700
-                          },
-                          children: "Valider"
-                        }
-                      )
-                    ] })
-                  ] })
-                ]
-              }
-            )
+            open: asiModal.open,
+            entry: asiModal.entry,
+            step: asiModal.step,
+            type: asiModal.type,
+            stats: asiModal.stats,
+            originalStats: asiModal.originalStats,
+            statKeys: STAT_KEYS,
+            asiBonusMap,
+            getBaseScore,
+            getNonAsiBonusSumForStat,
+            setType: setAsiModalType,
+            setStep: setAsiModalStep,
+            onClose: closeAsiModal,
+            onConfirmType: confirmAsiModalType,
+            onConfirmStats: confirmAsiModalStats,
+            updateStat: updateAsiModalStat,
+            canAllocateMoreAsi
           }
         ),
-        choiceModal.open && /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "div",
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          ChoiceModal,
           {
-            style: {
-              position: "fixed",
-              inset: 0,
-              background: "rgba(0,0,0,0.55)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 999
-            },
-            children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
-              "div",
-              {
-                style: {
-                  width: "min(520px, 92vw)",
-                  background: "#141421",
-                  border: "1px solid rgba(255,255,255,0.18)",
-                  borderRadius: 12,
-                  padding: 16,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 12
-                },
-                children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 14, fontWeight: 800 }, children: choiceModal.title }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: [
-                    "Choix requis: ",
-                    choiceModal.count,
-                    " ",
-                    choiceModal.count > 1 ? "elements" : "element"
-                  ] }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx(
-                    "div",
-                    {
-                      style: {
-                        display: "grid",
-                        gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                        gap: 8
-                      },
-                      children: choiceModal.options.map((option) => {
-                        const isSelected = choiceModal.selected.includes(option.id);
-                        return /* @__PURE__ */ jsxRuntimeExports.jsx(
-                          "button",
-                          {
-                            type: "button",
-                            onClick: () => {
-                              const already = choiceModal.selected.includes(option.id);
-                              let next = choiceModal.selected;
-                              if (choiceModal.multi) {
-                                next = already ? next.filter((item) => item !== option.id) : [...next, option.id];
-                              } else {
-                                next = already ? [] : [option.id];
-                              }
-                              setChoiceModal((prev) => ({ ...prev, selected: next }));
-                            },
-                            style: {
-                              textAlign: "left",
-                              borderRadius: 8,
-                              border: `1px solid ${isSelected ? "#6fd3a8" : "rgba(255,255,255,0.12)"}`,
-                              background: isSelected ? "rgba(46, 204, 113, 0.14)" : "rgba(12,12,18,0.75)",
-                              color: "#f5f5f5",
-                              padding: "8px 10px",
-                              cursor: "pointer",
-                              fontSize: 12
-                            },
-                            children: option.label
-                          },
-                          option.id
-                        );
-                      })
-                    }
-                  ),
-                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: 8, justifyContent: "flex-end" }, children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsx(
-                      "button",
-                      {
-                        type: "button",
-                        onClick: closeChoiceModal,
-                        style: {
-                          padding: "6px 10px",
-                          borderRadius: 8,
-                          border: "1px solid rgba(255,255,255,0.15)",
-                          background: "rgba(255,255,255,0.06)",
-                          color: "#f5f5f5",
-                          cursor: "pointer",
-                          fontSize: 12,
-                          fontWeight: 700
-                        },
-                        children: "Fermer"
-                      }
-                    ),
-                    /* @__PURE__ */ jsxRuntimeExports.jsx(
-                      "button",
-                      {
-                        type: "button",
-                        onClick: () => {
-                          if (choiceModal.selected.length < choiceModal.count) return;
-                          choiceModal.onConfirm(choiceModal.selected.slice(0, choiceModal.count));
-                          closeChoiceModal();
-                        },
-                        disabled: choiceModal.selected.length < choiceModal.count,
-                        style: {
-                          padding: "6px 10px",
-                          borderRadius: 8,
-                          border: "1px solid rgba(255,255,255,0.15)",
-                          background: choiceModal.selected.length < choiceModal.count ? "rgba(80,80,90,0.55)" : "rgba(46, 204, 113, 0.16)",
-                          color: "#f5f5f5",
-                          cursor: choiceModal.selected.length < choiceModal.count ? "not-allowed" : "pointer",
-                          fontSize: 12,
-                          fontWeight: 700
-                        },
-                        children: "Valider"
-                      }
-                    )
-                  ] })
-                ]
-              }
-            )
+            open: choiceModal.open,
+            title: choiceModal.title,
+            options: choiceModal.options,
+            selected: choiceModal.selected,
+            count: choiceModal.count,
+            multi: choiceModal.multi,
+            onToggle: handleChoiceToggle,
+            onClose: closeChoiceModal,
+            onConfirm: handleChoiceConfirm
           }
         ),
-        confirmModal.open && /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "div",
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          ConfirmModal,
           {
-            style: {
-              position: "fixed",
-              inset: 0,
-              background: "rgba(0,0,0,0.55)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 998
-            },
-            children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
-              "div",
-              {
-                style: {
-                  width: "min(480px, 92vw)",
-                  background: "#141421",
-                  border: "1px solid rgba(255,255,255,0.18)",
-                  borderRadius: 12,
-                  padding: 16,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 12
-                },
-                children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 14, fontWeight: 800 }, children: confirmModal.title }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: confirmModal.message }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: 8, justifyContent: "flex-end" }, children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsx(
-                      "button",
-                      {
-                        type: "button",
-                        onClick: closeConfirmModal,
-                        style: {
-                          padding: "6px 10px",
-                          borderRadius: 8,
-                          border: "1px solid rgba(255,255,255,0.15)",
-                          background: "rgba(255,255,255,0.06)",
-                          color: "#f5f5f5",
-                          cursor: "pointer",
-                          fontSize: 12,
-                          fontWeight: 700
-                        },
-                        children: "Annuler"
-                      }
-                    ),
-                    /* @__PURE__ */ jsxRuntimeExports.jsx(
-                      "button",
-                      {
-                        type: "button",
-                        onClick: () => confirmModal.onConfirm(),
-                        style: {
-                          padding: "6px 10px",
-                          borderRadius: 8,
-                          border: "1px solid rgba(255,255,255,0.15)",
-                          background: "rgba(231, 76, 60, 0.2)",
-                          color: "#f5f5f5",
-                          cursor: "pointer",
-                          fontSize: 12,
-                          fontWeight: 700
-                        },
-                        children: "Continuer"
-                      }
-                    )
-                  ] })
-                ]
-              }
-            )
+            open: confirmModal.open,
+            title: confirmModal.title,
+            message: confirmModal.message,
+            onCancel: closeConfirmModal,
+            onConfirm: confirmModal.onConfirm
           }
         )
       ]
@@ -63027,4 +64270,4 @@ export {
   BigPool as y,
   getGlobalBounds as z
 };
-//# sourceMappingURL=index-Bvscn_Bc.js.map
+//# sourceMappingURL=index-i7bIZnin.js.map

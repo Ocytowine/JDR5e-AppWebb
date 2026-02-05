@@ -4,7 +4,8 @@
   "description": "Survivant des ruelles et des toits, malin, discret et opportuniste.",
   "equipment": [
     "obj_petit_couteau",
-    "obj_bourse_10po",
+    "obj_bourse",
+    "object:obj_piece_or:10",
     "obj_vetements_communs",
     "obj_souvenir_vole",
     "obj_sac_a_dos"

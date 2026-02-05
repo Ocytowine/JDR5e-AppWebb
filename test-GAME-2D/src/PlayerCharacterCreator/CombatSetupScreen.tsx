@@ -8,6 +8,29 @@ import type { LanguageDefinition } from "../game/languageTypes";
 import type { ToolItemDefinition } from "../game/toolTypes";
 import type { ObjectItemDefinition } from "../game/objectTypes";
 import type { ArmorItemDefinition } from "../game/armorTypes";
+import {
+  isCoinId,
+  moneyToCoinStacks,
+  moneyToCopper,
+  scaleMoney
+} from "../game/currency";
+import { EquipmentTab } from "./tabs/EquipmentTab";
+import { ChoiceModal } from "./modals/ChoiceModal";
+import { ConfirmModal } from "./modals/ConfirmModal";
+import { AsiModal } from "./modals/AsiModal";
+import {
+  appendInventoryEntries,
+  buildInventoryEntries,
+  formatMoneyValue,
+  isCurrencySpec,
+  updateEquipmentListQty
+} from "./characterEquipment";
+import { MagicTab } from "./tabs/MagicTab";
+import { StatsTab } from "./tabs/StatsTab";
+import { SkillsTab } from "./tabs/SkillsTab";
+import { MasteriesTab } from "./tabs/MasteriesTab";
+import { BackgroundsTab } from "./tabs/BackgroundsTab";
+import { ClassesTab } from "./tabs/ClassesTab";
 
 export function CombatSetupScreen(props: {
   configEnemyCount: number;
@@ -237,6 +260,10 @@ export function CombatSetupScreen(props: {
     return map;
   }, [weaponOptions]);
   const inventoryInitRef = useRef(false);
+  const instanceSeedRef = useRef(
+    `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+  );
+  const instanceCounterRef = useRef(0);
   const pendingLocks = ((choiceSelections as any)?.pendingLocks ?? {}) as Record<string, any>;
   const competences = Array.isArray(props.character?.competences)
     ? (props.character.competences as string[])
@@ -295,7 +322,9 @@ export function CombatSetupScreen(props: {
     collier: null,
     bijou_1: null,
     bijou_2: null,
-    paquetage: null
+    paquetage: null,
+    ceinture_bourse_1: null,
+    ceinture_bourse_2: null
   };
   const materielSlots = useMemo(() => {
     const current = props.character?.materielSlots ?? {};
@@ -351,13 +380,24 @@ export function CombatSetupScreen(props: {
     { id: "collier", label: "Collier", accepts: ["necklace"] },
     { id: "bijou_1", label: "Bijou 1", accepts: ["jewel"] },
     { id: "bijou_2", label: "Bijou 2", accepts: ["jewel"] },
-    { id: "paquetage", label: "Paquetage (sac)", accepts: ["pack"] }
+    { id: "paquetage", label: "Paquetage (sac)", accepts: ["pack"] },
+    { id: "ceinture_bourse_1", label: "Ceinture - bourse 1", accepts: ["pack"] },
+    { id: "ceinture_bourse_2", label: "Ceinture - bourse 2", accepts: ["pack"] }
   ];
   const weaponCarrySlots = useMemo(
     () => new Set(["ceinture_gauche", "ceinture_droite", "dos_gauche", "dos_droit"]),
     []
   );
   const clothingSubSlots = useMemo(() => new Set(["tete", "gants", "bottes"]), []);
+  const packSlots = useMemo(
+    () => new Set(["paquetage", "ceinture_bourse_1", "ceinture_bourse_2"]),
+    []
+  );
+  const packSlotMaxWeight: Record<string, number | null> = {
+    paquetage: null,
+    ceinture_bourse_1: 5.2,
+    ceinture_bourse_2: 5.2
+  };
   const humanizeId = (value: string) => {
     const cleaned = value
       .replace(/^obj_/, "")
@@ -419,18 +459,45 @@ export function CombatSetupScreen(props: {
     if (item.type === "tool") return toolItemMap.get(item.id)?.weight ?? 0;
     return 0;
   };
-  const getBagId = () => (materielSlots?.paquetage as string | null) ?? null;
-  const getBagCapacity = (bagId: string | null) => {
+  const createInstanceId = (prefix: string) => {
+    const next = instanceCounterRef.current + 1;
+    instanceCounterRef.current = next;
+    return `${prefix}-${instanceSeedRef.current}-${next}`;
+  };
+  const getPackSlotItemId = (slotId: string) =>
+    (materielSlots?.[slotId] as string | null) ?? null;
+  const getPackCapacity = (slotId: string) => {
+    const bagId = getPackSlotItemId(slotId);
     if (!bagId) return 0;
     const bag = objectItemMap.get(bagId);
     return bag?.capacityWeight ?? 0;
   };
-  const getStoredWeight = (bagId: string | null) => {
-    if (!bagId) return 0;
+  const getStoredWeightForSlot = (slotId: string) => {
+    const bagId = getPackSlotItemId(slotId);
     return inventoryItems.reduce((sum, item) => {
-      if (item?.storedIn !== bagId) return sum;
+      const isStoredInSlot =
+        item?.storedIn === slotId ||
+        (slotId === "paquetage" && bagId && item?.storedIn === bagId);
+      if (!isStoredInSlot) return sum;
       return sum + getItemWeight(item) * (Number(item?.qty ?? 1) || 1);
     }, 0);
+  };
+  const getPackTotalWeightForItem = (item: any) => {
+    if (!item) return 0;
+    const base = getItemWeight(item);
+    const slotId =
+      item?.equippedSlot && packSlots.has(item.equippedSlot) ? item.equippedSlot : null;
+    const contents = slotId ? getStoredWeightForSlot(slotId) : 0;
+    return base + contents;
+  };
+  const getPackTotalWeightForSlot = (slotId: string) => {
+    const bagId = getPackSlotItemId(slotId);
+    if (!bagId) return 0;
+    const bagItem = inventoryItems.find(
+      item => item?.equippedSlot === slotId && item?.id === bagId
+    );
+    if (!bagItem) return 0;
+    return getItemWeight(bagItem) + getStoredWeightForSlot(slotId);
   };
   const getBodyCategory = () => {
     const bodyId = materielSlots?.corps;
@@ -445,7 +512,8 @@ export function CombatSetupScreen(props: {
       body: ["corps", "tete", "gants", "bottes"],
       weapons: ["ceinture_gauche", "ceinture_droite", "dos_gauche", "dos_droit"],
       jewelry: ["anneau_1", "anneau_2", "collier", "bijou_1", "bijou_2"],
-      bag: ["paquetage"]
+      bag: ["paquetage"],
+      beltPacks: ["ceinture_bourse_1", "ceinture_bourse_2"]
     }),
     []
   );
@@ -457,12 +525,34 @@ export function CombatSetupScreen(props: {
       .map((item, idx) => ({ item, idx }))
       .filter(({ item }) => {
         const categories = getItemCategories(item);
-        return categories.some(cat => slotDef.accepts.includes(cat));
+        if (!categories.some(cat => slotDef.accepts.includes(cat))) return false;
+        if (packSlots.has(slotId)) {
+          const limit = packSlotMaxWeight[slotId];
+          if (typeof limit === "number") {
+            const totalWeight = getPackTotalWeightForItem(item);
+            if (totalWeight > limit) return false;
+          }
+        }
+        return true;
       });
   };
-  const bagId = getBagId();
-  const bagCapacity = getBagCapacity(bagId);
-  const storedWeight = getStoredWeight(bagId);
+  const packSlotStatus = (slotId: string) => {
+    const bagId = getPackSlotItemId(slotId);
+    const capacity = getPackCapacity(slotId);
+    const storedWeight = getStoredWeightForSlot(slotId);
+    const totalWeight = getPackTotalWeightForSlot(slotId);
+    const maxTotal = packSlotMaxWeight[slotId];
+    return { bagId, capacity, storedWeight, totalWeight, maxTotal };
+  };
+  const getSlotLabel = (slotId: string) =>
+    EQUIPMENT_SLOTS.find(slot => slot.id === slotId)?.label ?? slotId;
+  const resolveStoredSlotId = (item: any) => {
+    if (!item?.storedIn) return null;
+    if (packSlots.has(item.storedIn)) return item.storedIn;
+    const mainBagId = getPackSlotItemId("paquetage");
+    if (mainBagId && item.storedIn === mainBagId) return "paquetage";
+    return null;
+  };
   const slotItemIndexMap = useMemo(() => {
     const map = new Map<string, number>();
     inventoryItems.forEach((item, idx) => {
@@ -904,19 +994,76 @@ export function CombatSetupScreen(props: {
     setActiveClassTab("primary");
   };
 
+  const buildClassLockCharacter = (
+    slot: 1 | 2,
+    baseChoiceSelections: Record<string, any>,
+    pendingOverride?: Record<string, any>
+  ) => {
+    const wasLocked = slot === 1 ? Boolean(classLocks.primary) : Boolean(classLocks.secondary);
+    const nextLocks = {
+      ...classLocks,
+      primary: slot === 1 ? true : classLocks.primary,
+      secondary: slot === 2 ? true : classLocks.secondary
+    };
+    const nextChoiceSelections = pendingOverride
+      ? { ...baseChoiceSelections, pendingLocks: pendingOverride }
+      : baseChoiceSelections;
+    const nextCharacter: Personnage & { classLocks?: typeof nextLocks; classLock?: boolean } = {
+      ...props.character,
+      classLocks: nextLocks,
+      choiceSelections: nextChoiceSelections
+    };
+    if (slot === 1) {
+      nextCharacter.classLock = true;
+    }
+    if (!wasLocked) {
+      const cls = slot === 1 ? classPrimary : classSecondary;
+      const classEquip = getClassEquipment(cls);
+      const autoResult = addAutoItemsToState(
+        equipmentAuto,
+        inventoryItems,
+        classEquip,
+        { kind: "class", id: cls?.id ?? "" }
+      );
+      const baseSpellcasting = ((nextChoiceSelections as any)?.spellcasting ?? {}) as Record<
+        string,
+        any
+      >;
+      const nextSpellcasting = { ...baseSpellcasting };
+      const grantedBySource = buildSpellGrantsForClassSlot(slot);
+      Object.entries(grantedBySource).forEach(([key, grants]) => {
+        nextSpellcasting[key] = {
+          ...(nextSpellcasting[key] ?? {}),
+          grantedSpells: grants
+        };
+      });
+      nextCharacter.equipmentAuto = autoResult.nextAuto;
+      nextCharacter.inventoryItems = autoResult.nextInventory;
+      nextCharacter.choiceSelections = {
+        ...nextChoiceSelections,
+        spellcasting: nextSpellcasting
+      };
+    }
+    return nextCharacter;
+  };
+
   const setClassLockForSlot = (slot: 1 | 2, value: boolean) => {
+    const wasLocked = slot === 1 ? Boolean(classLocks.primary) : Boolean(classLocks.secondary);
     const nextLocks = {
       ...classLocks,
       primary: slot === 1 ? value : classLocks.primary,
       secondary: slot === 2 ? value : classLocks.secondary
     };
+    if (value && !wasLocked) {
+      const nextCharacter = buildClassLockCharacter(slot, choiceSelections);
+      props.onChangeCharacter(nextCharacter);
+      return;
+    }
     const nextCharacter: Personnage & { classLocks?: typeof nextLocks; classLock?: boolean } = {
       ...props.character,
       classLocks: nextLocks
     };
-    if (slot === 1) {
-      nextCharacter.classLock = value;
-    }
+    if (slot === 1) nextCharacter.classLock = value;
     props.onChangeCharacter(nextCharacter);
   };
   const clearPendingLocks = (keys: string[]) => {
@@ -1032,7 +1179,12 @@ export function CombatSetupScreen(props: {
       choiceSelections: nextChoiceSelections,
       proficiencies: nextProfs,
       competences: nextCompetences,
-      expertises: nextExpertises
+      expertises: nextExpertises,
+      materielSlots: { ...DEFAULT_MATERIEL_SLOTS },
+      armesDefaut: { main_droite: null, main_gauche: null, mains: null },
+      equipmentAuto: [],
+      equipmentManual: [],
+      inventoryItems: []
     };
     if (slot === 1) {
       nextCharacter.classLock = false;
@@ -1103,7 +1255,12 @@ export function CombatSetupScreen(props: {
       choiceSelections: nextChoiceSelections,
       langues: nextLangues,
       proficiencies: { ...currentProfs, tools: nextTools },
-      caracs: nextCaracs
+      caracs: nextCaracs,
+      materielSlots: { ...DEFAULT_MATERIEL_SLOTS },
+      armesDefaut: { main_droite: null, main_gauche: null, mains: null },
+      equipmentAuto: [],
+      equipmentManual: [],
+      inventoryItems: []
     });
     clearPendingLocks(["backgrounds"]);
   };
@@ -1226,6 +1383,15 @@ export function CombatSetupScreen(props: {
     const score = (props.character.caracs?.[caracKey] as any)?.[key];
     return Number.isFinite(score) ? Number(score) : 10;
   };
+  const carryWeight = useMemo(
+    () =>
+      inventoryItems.reduce(
+        (sum, item) => sum + getItemWeight(item) * (Number(item?.qty ?? 1) || 1),
+        0
+      ),
+    [inventoryItems, objectItemMap, armorItemMap, weaponItemMap, toolItemMap]
+  );
+  const carryCapacityMax = getScore("FOR") * 7.5;
   const getRequestedAsiBonus = (key: typeof STAT_KEYS[number]) => {
     let total = 0;
     Object.values(asiSelections).forEach(entry => {
@@ -1500,40 +1666,53 @@ export function CombatSetupScreen(props: {
         };
       }
     }
-    const nextAuto = getAutoEquipmentIds(bg);
-    const manualIds = equipmentManual;
-    const nextInventory = syncInventoryFromAutoManual(nextAuto, manualIds, inventoryItems);
     props.onChangeCharacter({
       ...props.character,
       backgroundId: bg.id,
       competences: nextSkills,
       proficiencies: nextProfs,
       choiceSelections: nextChoiceSelections,
+      caracs: nextCaracs
+    });
+  };
+  const lockBackgroundAndCreateEquipment = () => {
+    if (!activeBackground) return;
+    const bonusApplied = Boolean((choiceSelections as any)?.background?.statBonusApplied);
+    let nextCaracs = props.character.caracs;
+    const nextChoiceSelections = {
+      ...choiceSelections,
+      background: { ...(choiceSelections as any).background }
+    };
+    if (!bonusApplied && selectedBackgroundId === "veteran-de-guerre") {
+      const current = (props.character.caracs?.force as any)?.FOR ?? 10;
+      nextCaracs = {
+        ...props.character.caracs,
+        force: { ...(props.character.caracs?.force ?? {}), FOR: current + 1 }
+      };
+      (nextChoiceSelections as any).background.statBonusApplied = true;
+      (nextChoiceSelections as any).statsBase = {
+        ...statsBase,
+        FOR: Number.isFinite(statsBase.FOR) ? statsBase.FOR : current
+      };
+    }
+    const backgroundEquip = Array.isArray(activeBackground.equipment)
+      ? (activeBackground.equipment as string[])
+      : [];
+    const { nextAuto, nextInventory } = addAutoItemsToState(
+      equipmentAuto,
+      inventoryItems,
+      backgroundEquip,
+      { kind: "background", id: activeBackground.id }
+    );
+    props.onChangeCharacter({
+      ...props.character,
+      creationLocks: { ...creationLocks, backgrounds: true },
+      choiceSelections: nextChoiceSelections,
       caracs: nextCaracs,
       equipmentAuto: nextAuto,
       inventoryItems: nextInventory
     });
   };
-
-  useEffect(() => {
-    const nextAuto = getAutoEquipmentIds();
-    if (arraysEqual(nextAuto, equipmentAuto)) return;
-    const nextInventory = syncInventoryFromAutoManual(nextAuto, equipmentManual, inventoryItems);
-    props.onChangeCharacter({
-      ...props.character,
-      equipmentAuto: nextAuto,
-      inventoryItems: nextInventory
-    });
-  }, [
-    activeBackground?.id,
-    classPrimary?.id,
-    classSecondary?.id,
-    equipmentManual,
-    inventoryItems,
-    equipmentAuto,
-    props.character,
-    props.onChangeCharacter
-  ]);
 
   const sourceColors: Record<string, string> = {
     race: "#2ecc71",
@@ -1583,6 +1762,26 @@ export function CombatSetupScreen(props: {
               height: 8,
               borderRadius: 999,
               background: sourceColors[source] ?? "#999",
+              display: "inline-block"
+            }}
+          />
+        ))}
+      </div>
+    );
+  };
+  const renderSourceDotsWithLabels = (sources: Array<{ key: string; label: string }>) => {
+    if (sources.length === 0) return null;
+    return (
+      <div style={{ display: "flex", gap: 4 }}>
+        {sources.map(source => (
+          <span
+            key={source.key}
+            title={source.label}
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: 999,
+              background: sourceColors[source.key] ?? "#999",
               display: "inline-block"
             }}
           />
@@ -1701,6 +1900,23 @@ export function CombatSetupScreen(props: {
   };
   const closeConfirmModal = () => {
     setConfirmModal(prev => ({ ...prev, open: false }));
+  };
+  const handleChoiceToggle = (id: string) => {
+    setChoiceModal(prev => {
+      const already = prev.selected.includes(id);
+      let next = prev.selected;
+      if (prev.multi) {
+        next = already ? next.filter(item => item !== id) : [...next, id];
+      } else {
+        next = already ? [] : [id];
+      }
+      return { ...prev, selected: next };
+    });
+  };
+  const handleChoiceConfirm = () => {
+    if (choiceModal.selected.length < choiceModal.count) return;
+    choiceModal.onConfirm(choiceModal.selected.slice(0, choiceModal.count));
+    closeChoiceModal();
   };
 
   const applyHumanAdaptableSkill = (skillId: string) => {
@@ -1896,16 +2112,41 @@ export function CombatSetupScreen(props: {
     });
   };
 
+  const parseItemSpec = (rawId: string) => {
+    const parts = rawId.split(":");
+    if (parts.length >= 2) {
+      const [prefix, id, qtyRaw] = parts;
+      if (prefix === "weapon" || prefix === "armor" || prefix === "tool" || prefix === "object") {
+        const qty = Math.max(1, Math.floor(Number(qtyRaw || 1)));
+        return { type: prefix, id, qty };
+      }
+    }
+    return { type: null as null | "weapon" | "armor" | "tool" | "object", id: rawId, qty: 1 };
+  };
+
+  const buildItemSpec = (
+    type: "weapon" | "armor" | "tool" | "object",
+    id: string,
+    qty: number
+  ) => {
+    const safeQty = Math.max(1, Math.floor(Number(qty || 1)));
+    if (type === "object" && (safeQty > 1 || isCoinId(id))) {
+      return `object:${id}:${safeQty}`;
+    }
+    return safeQty > 1 ? `${type}:${id}:${safeQty}` : id;
+  };
+
   const resolveItemType = (rawId: string) => {
-    if (rawId.startsWith("weapon:")) return { type: "weapon", id: rawId.replace("weapon:", "") };
-    if (rawId.startsWith("armor:")) return { type: "armor", id: rawId.replace("armor:", "") };
-    if (rawId.startsWith("tool:")) return { type: "tool", id: rawId.replace("tool:", "") };
-    if (rawId.startsWith("object:")) return { type: "object", id: rawId.replace("object:", "") };
-    if (objectItemMap.has(rawId)) return { type: "object", id: rawId };
-    if (armorItemMap.has(rawId)) return { type: "armor", id: rawId };
-    if (toolItemMap.has(rawId)) return { type: "tool", id: rawId };
-    if (weaponItemMap.has(rawId)) return { type: "weapon", id: rawId };
-    return { type: "object", id: rawId };
+    const parsed = parseItemSpec(rawId);
+    if (parsed.type === "weapon") return { type: "weapon", id: parsed.id, qty: parsed.qty };
+    if (parsed.type === "armor") return { type: "armor", id: parsed.id, qty: parsed.qty };
+    if (parsed.type === "tool") return { type: "tool", id: parsed.id, qty: parsed.qty };
+    if (parsed.type === "object") return { type: "object", id: parsed.id, qty: parsed.qty };
+    if (objectItemMap.has(parsed.id)) return { type: "object", id: parsed.id, qty: parsed.qty };
+    if (armorItemMap.has(parsed.id)) return { type: "armor", id: parsed.id, qty: parsed.qty };
+    if (toolItemMap.has(parsed.id)) return { type: "tool", id: parsed.id, qty: parsed.qty };
+    if (weaponItemMap.has(parsed.id)) return { type: "weapon", id: parsed.id, qty: parsed.qty };
+    return { type: "object", id: parsed.id, qty: parsed.qty };
   };
   const formatEquipmentLabel = (rawId: string) => {
     const resolved = resolveItemType(rawId);
@@ -1918,22 +2159,20 @@ export function CombatSetupScreen(props: {
   };
 
   const buildInventoryFromAutoManual = (autoIds: string[], manualIds: string[]) => {
-    const autoItems = autoIds.map(id => ({
-      ...resolveItemType(id),
-      qty: 1,
-      source: "auto",
-      equippedSlot: null,
-      storedIn: null,
-      isPrimaryWeapon: false
-    }));
-    const manualItems = manualIds.map(id => ({
-      ...resolveItemType(id),
-      qty: 1,
-      source: "manual",
-      equippedSlot: null,
-      storedIn: null,
-      isPrimaryWeapon: false
-    }));
+    const autoSpecs = autoIds.map(id => resolveItemType(id));
+    const manualSpecs = manualIds.map(id => resolveItemType(id));
+    const autoItems = buildInventoryEntries(
+      autoSpecs,
+      "auto",
+      { kind: "auto" },
+      createInstanceId
+    );
+    const manualItems = buildInventoryEntries(
+      manualSpecs,
+      "manual",
+      { kind: "manual" },
+      createInstanceId
+    );
     return [...autoItems, ...manualItems];
   };
   const syncInventoryFromAutoManual = (
@@ -1942,8 +2181,8 @@ export function CombatSetupScreen(props: {
     current: Array<any>
   ) => {
     const desired = [
-      ...autoIds.map(id => ({ ...resolveItemType(id), source: "auto" })),
-      ...manualIds.map(id => ({ ...resolveItemType(id), source: "manual" }))
+      ...autoIds.map(id => ({ ...resolveItemType(id), source: "auto" as const })),
+      ...manualIds.map(id => ({ ...resolveItemType(id), source: "manual" as const }))
     ];
     const buckets = new Map<string, Array<any>>();
     current.forEach(item => {
@@ -1951,7 +2190,14 @@ export function CombatSetupScreen(props: {
       if (!buckets.has(key)) buckets.set(key, []);
       buckets.get(key)?.push(item);
     });
-    return desired.map(entry => {
+    const desiredExpanded = desired.flatMap(entry => {
+      const qty = Math.max(1, Math.floor(Number(entry.qty || 1)));
+      if (isCurrencySpec(entry.type, entry.id)) {
+        return [{ ...entry, qty }];
+      }
+      return Array.from({ length: qty }).map(() => ({ ...entry, qty: 1 }));
+    });
+    return desiredExpanded.map(entry => {
       const key = `${entry.source}:${entry.type}:${entry.id}`;
       const bucket = buckets.get(key);
       if (bucket && bucket.length > 0) {
@@ -1960,12 +2206,16 @@ export function CombatSetupScreen(props: {
           ...existing,
           source: entry.source,
           type: entry.type,
-          id: entry.id
+          id: entry.id,
+          qty: entry.qty ?? existing?.qty ?? 1
         };
       }
       return {
         ...entry,
-        qty: 1,
+        qty: entry.qty ?? 1,
+        ...(isCurrencySpec(entry.type, entry.id)
+          ? null
+          : { origin: { kind: entry.source }, instanceId: createInstanceId("item") }),
         equippedSlot: null,
         storedIn: null,
         isPrimaryWeapon: false
@@ -1973,19 +2223,38 @@ export function CombatSetupScreen(props: {
     });
   };
 
+  const addAutoItemsToState = (
+    baseAuto: string[],
+    baseInventory: Array<any>,
+    specIds: string[],
+    origin?: { kind: string; id?: string }
+  ) => {
+    if (!specIds || specIds.length === 0) {
+      return { nextAuto: baseAuto, nextInventory: baseInventory };
+    }
+    const resolvedSpecs = specIds.map(raw => resolveItemType(raw));
+    const entries = buildInventoryEntries(
+      resolvedSpecs.map(spec => ({ type: spec.type, id: spec.id, qty: spec.qty ?? 1 })),
+      "auto",
+      origin,
+      createInstanceId
+    );
+    return {
+      nextAuto: [...baseAuto, ...specIds],
+      nextInventory: appendInventoryEntries(baseInventory, entries)
+    };
+  };
+
   const addManualItem = (id: string) => {
     const nextManual = [...equipmentManual, id];
-    const nextInventory = [
-      ...inventoryItems,
-      {
-        ...resolveItemType(id),
-        qty: 1,
-        source: "manual",
-        equippedSlot: null,
-        storedIn: null,
-        isPrimaryWeapon: false
-      }
-    ];
+    const resolved = resolveItemType(id);
+    const entries = buildInventoryEntries(
+      [{ type: resolved.type, id: resolved.id, qty: resolved.qty ?? 1 }],
+      "manual",
+      { kind: "manual" },
+      createInstanceId
+    );
+    const nextInventory = appendInventoryEntries(inventoryItems, entries);
     props.onChangeCharacter({
       ...props.character,
       equipmentManual: nextManual,
@@ -1996,16 +2265,33 @@ export function CombatSetupScreen(props: {
   const removeManualItem = (inventoryIndex: number) => {
     const target = inventoryItems[inventoryIndex];
     if (!target) return;
-    const entryId = `${target.type}:${target.id}`;
-    let removed = false;
-    const nextManual = equipmentManual.filter(entry => {
-      if (removed) return true;
-      if (entry === entryId || entry === target.id) {
-        removed = true;
-        return false;
-      }
-      return true;
-    });
+    if ((target.qty ?? 1) > 1) {
+      const nextManual = updateEquipmentListQty(
+        equipmentManual,
+        resolveItemType,
+        buildItemSpec,
+        target.type,
+        target.id,
+        -1
+      );
+      const nextInventory = inventoryItems.map((item, idx) =>
+        idx === inventoryIndex ? { ...item, qty: (item.qty ?? 1) - 1 } : item
+      );
+      props.onChangeCharacter({
+        ...props.character,
+        equipmentManual: nextManual,
+        inventoryItems: nextInventory
+      });
+      return;
+    }
+    const nextManual = updateEquipmentListQty(
+      equipmentManual,
+      resolveItemType,
+      buildItemSpec,
+      target.type,
+      target.id,
+      -1
+    );
     const slots = { ...materielSlots };
     if (target.equippedSlot && slots[target.equippedSlot]) {
       slots[target.equippedSlot] = null;
@@ -2019,6 +2305,120 @@ export function CombatSetupScreen(props: {
     });
   };
 
+  const isCurrencyItem = (item: any) => item?.type === "object" && isCoinId(item?.id ?? "");
+
+  const getItemUnitValue = (item: any) => {
+    if (!item) return null;
+    if (item.type === "weapon") {
+      const def = weaponItemMap.get(item.id);
+      const value = def?.value;
+      if (!value) return null;
+      return {
+        po: Number(value.gold ?? 0) || 0,
+        pa: Number(value.silver ?? 0) || 0,
+        pc: Number(value.copper ?? 0) || 0
+      };
+    }
+    if (item.type === "armor") {
+      const def = armorItemMap.get(item.id);
+      if (def?.value) return def.value;
+      if (Number.isFinite(def?.priceGp)) {
+        return { po: Number(def?.priceGp ?? 0) || 0 };
+      }
+      return null;
+    }
+    if (item.type === "object") {
+      const def = objectItemMap.get(item.id);
+      if (def?.value) return def.value;
+      if (Number.isFinite(def?.priceGp)) {
+        return { po: Number(def?.priceGp ?? 0) || 0 };
+      }
+      return null;
+    }
+    return null;
+  };
+
+  const addMoneyToInventory = (
+    money: { pp?: number; po?: number; pa?: number; pc?: number },
+    baseManual: string[],
+    baseInventory: Array<any>
+  ) => {
+    const stacks = moneyToCoinStacks(money);
+    if (stacks.length === 0) return { nextManual: baseManual, nextInventory: baseInventory };
+    const entries = buildInventoryEntries(
+      stacks.map(stack => ({ type: "object", id: stack.id, qty: stack.qty })),
+      "loot",
+      undefined,
+      createInstanceId
+    );
+    const nextInventory = appendInventoryEntries(baseInventory, entries);
+    return { nextManual: baseManual, nextInventory };
+  };
+
+  const sellInventoryItem = (inventoryIndex: number) => {
+    const target = inventoryItems[inventoryIndex];
+    if (!target || isSectionLocked("equip")) return;
+    if (isCurrencyItem(target)) return;
+    const unitValue = getItemUnitValue(target);
+    if (!unitValue || moneyToCopper(unitValue) <= 0) return;
+    const soldValue = scaleMoney(unitValue, 1);
+    const nextAuto =
+      target.source === "auto"
+        ? updateEquipmentListQty(
+            equipmentAuto,
+            resolveItemType,
+            buildItemSpec,
+            target.type,
+            target.id,
+            -1
+          )
+        : equipmentAuto;
+    const nextManual =
+      target.source === "manual"
+        ? updateEquipmentListQty(
+            equipmentManual,
+            resolveItemType,
+            buildItemSpec,
+            target.type,
+            target.id,
+            -1
+          )
+        : equipmentManual;
+    const slots = { ...materielSlots };
+    let nextInventory = [...inventoryItems];
+    if ((target.qty ?? 1) > 1) {
+      nextInventory = nextInventory.map((item, idx) =>
+        idx === inventoryIndex ? { ...item, qty: (item.qty ?? 1) - 1 } : item
+      );
+    } else {
+      if (target.equippedSlot && slots[target.equippedSlot]) {
+        slots[target.equippedSlot] = null;
+      }
+      nextInventory = nextInventory.filter((_, idx) => idx !== inventoryIndex);
+    }
+    const moneyResult = addMoneyToInventory(soldValue, nextManual, nextInventory);
+    props.onChangeCharacter({
+      ...props.character,
+      equipmentAuto: nextAuto,
+      equipmentManual: moneyResult.nextManual,
+      materielSlots: slots,
+      inventoryItems: moneyResult.nextInventory
+    });
+  };
+  const handleSellRequest = (index: number, item: any, itemValue: any) => {
+    const label = getItemLabel(item);
+    const valueLabel = itemValue ? formatMoneyValue(itemValue) : "0";
+    setConfirmModal({
+      open: true,
+      title: "Avertissement",
+      message: `Vendre ${label} ? Gains: ${valueLabel}. L'objet sera supprime de l'inventaire.`,
+      onConfirm: () => {
+        sellInventoryItem(index);
+        closeConfirmModal();
+      }
+    });
+  };
+
   const updateItemSlot = (index: number, slot: string | null) => {
     const targetItem = inventoryItems[index];
     if (!targetItem) return;
@@ -2029,9 +2429,20 @@ export function CombatSetupScreen(props: {
       if (!slotDef) return;
       if (slotDef.requiresClothingBody && !canUseClothingPieces) return;
       if (!categories.some(cat => slotDef.accepts.includes(cat))) return;
+      if (packSlots.has(slot)) {
+        const limit = packSlotMaxWeight[slot];
+        if (typeof limit === "number") {
+          const totalWeight = getPackTotalWeightForItem(targetItem);
+          if (totalWeight > limit) {
+            setEquipMessage("Ce sac depasse la limite de 5.2kg pour la ceinture.");
+            return;
+          }
+        }
+      }
     }
+    const previousSlots = { ...materielSlots };
     const slots = { ...materielSlots };
-    const nextInventory = inventoryItems.map((item, idx) => {
+    let nextInventory = inventoryItems.map((item, idx) => {
       if (idx === index) return item;
       if (slot && item.equippedSlot === slot) {
         return { ...item, equippedSlot: null };
@@ -2071,20 +2482,42 @@ export function CombatSetupScreen(props: {
         }
       }
     }
-    if (slot === "paquetage") {
-      const bagId = targetItem.id ?? null;
-      for (let i = 0; i < nextInventory.length; i += 1) {
-        if (nextInventory[i]?.storedIn && nextInventory[i].storedIn !== bagId) {
-          nextInventory[i] = { ...nextInventory[i], storedIn: null };
-        }
+    const wasPackSlot =
+      targetItem.equippedSlot && packSlots.has(targetItem.equippedSlot);
+    const isPackSlot = slot && packSlots.has(slot);
+    if (isPackSlot) {
+      const destPrevBagId = previousSlots[slot] ?? null;
+      if (destPrevBagId && slot !== targetItem.equippedSlot) {
+        nextInventory = nextInventory.map(item => {
+          const inDest =
+            item?.storedIn === slot ||
+            (slot === "paquetage" && item?.storedIn === destPrevBagId);
+          if (!inDest) return item;
+          return { ...item, storedIn: null };
+        });
+      }
+      if (wasPackSlot && targetItem.equippedSlot && targetItem.equippedSlot !== slot) {
+        const fromSlot = targetItem.equippedSlot;
+        const fromBagId = previousSlots[fromSlot] ?? null;
+        nextInventory = nextInventory.map(item => {
+          const inFrom =
+            item?.storedIn === fromSlot ||
+            (fromSlot === "paquetage" && fromBagId && item?.storedIn === fromBagId);
+          if (!inFrom) return item;
+          return { ...item, storedIn: slot };
+        });
       }
     }
-    if (!slot && targetItem.equippedSlot === "paquetage") {
-      for (let i = 0; i < nextInventory.length; i += 1) {
-        if (nextInventory[i]?.storedIn) {
-          nextInventory[i] = { ...nextInventory[i], storedIn: null };
-        }
-      }
+    if (!slot && wasPackSlot && targetItem.equippedSlot) {
+      const fromSlot = targetItem.equippedSlot;
+      const fromBagId = previousSlots[fromSlot] ?? null;
+      nextInventory = nextInventory.map(item => {
+        const inFrom =
+          item?.storedIn === fromSlot ||
+          (fromSlot === "paquetage" && fromBagId && item?.storedIn === fromBagId);
+        if (!inFrom) return item;
+        return { ...item, storedIn: null };
+      });
     }
     props.onChangeCharacter({
       ...props.character,
@@ -2092,26 +2525,56 @@ export function CombatSetupScreen(props: {
       inventoryItems: nextInventory
     });
   };
-  const storeItemInBag = (index: number) => {
-    const bagId = getBagId();
-    const bagCapacity = getBagCapacity(bagId);
+  const storeItemInPack = (index: number, slotId: string) => {
+    if (!packSlots.has(slotId)) return;
+    const previousSlots = { ...materielSlots };
+    const bagId = getPackSlotItemId(slotId);
+    const bagCapacity = getPackCapacity(slotId);
     if (!bagId || bagCapacity <= 0) return;
     const item = inventoryItems[index];
     if (!item) return;
+    const containerItem = inventoryItems.find(
+      entry => entry?.equippedSlot === slotId && entry?.id === bagId
+    );
+    if (containerItem && containerItem === item) {
+      setEquipMessage("Impossible de ranger un sac dans lui-meme.");
+      return;
+    }
     const itemWeight = getItemWeight(item) * (Number(item?.qty ?? 1) || 1);
-    const storedWeight = getStoredWeight(bagId);
-    if (item.storedIn !== bagId && storedWeight + itemWeight > bagCapacity) {
+    const storedWeight = getStoredWeightForSlot(slotId);
+    const slotLimit = packSlotMaxWeight[slotId];
+    const bagWeight = containerItem ? getItemWeight(containerItem) : 0;
+    if (item.storedIn !== slotId && storedWeight + itemWeight > bagCapacity) {
       setEquipMessage("Capacite du sac depassee.");
       return;
     }
-    const slots = { ...materielSlots };
-    if (item.equippedSlot && slots[item.equippedSlot]) {
-      slots[item.equippedSlot] = null;
+    if (
+      typeof slotLimit === "number" &&
+      item.storedIn !== slotId &&
+      bagWeight + storedWeight + itemWeight > slotLimit
+    ) {
+      setEquipMessage("Ce sac depasse la limite de 5.2kg pour la ceinture.");
+      return;
     }
-    const nextInventory = inventoryItems.map((entry, idx) => {
+    const slots = { ...materielSlots };
+    let nextInventory = inventoryItems.map((entry, idx) => {
       if (idx !== index) return entry;
-      return { ...entry, equippedSlot: null, storedIn: bagId, isPrimaryWeapon: false };
+      return { ...entry, equippedSlot: null, storedIn: slotId, isPrimaryWeapon: false };
     });
+    if (item.equippedSlot && slots[item.equippedSlot]) {
+      const fromSlot = item.equippedSlot;
+      slots[fromSlot] = null;
+      if (packSlots.has(fromSlot)) {
+        const fromBagId = previousSlots[fromSlot] ?? null;
+        nextInventory = nextInventory.map(entry => {
+          const inFrom =
+            entry?.storedIn === fromSlot ||
+            (fromSlot === "paquetage" && fromBagId && entry?.storedIn === fromBagId);
+          if (!inFrom) return entry;
+          return { ...entry, storedIn: null };
+        });
+      }
+    }
     props.onChangeCharacter({
       ...props.character,
       materielSlots: slots,
@@ -2147,12 +2610,8 @@ export function CombatSetupScreen(props: {
 
   useEffect(() => {
     if (inventoryInitRef.current) return;
-    if (inventoryItems.length === 0 && (equipmentAuto.length > 0 || equipmentManual.length > 0)) {
-      const nextInventory = buildInventoryFromAutoManual(equipmentAuto, equipmentManual);
-      inventoryInitRef.current = true;
-      props.onChangeCharacter({ ...props.character, inventoryItems: nextInventory });
-    }
-  }, [inventoryItems.length, equipmentAuto, equipmentManual, props.character, props.onChangeCharacter]);
+    inventoryInitRef.current = true;
+  }, []);
 
   const handleSpeciesSelect = (raceId: string) => {
     if (!isSectionLocked("species")) {
@@ -2480,6 +2939,7 @@ export function CombatSetupScreen(props: {
     if (!locked) {
       if (id === "species") needsDefine = hasPendingRaceChoices();
       if (id === "backgrounds") needsDefine = hasPendingBackgroundChoices();
+      if (id === "stats") needsDefine = !canLockStats();
     }
     return {
       locked,
@@ -2511,6 +2971,24 @@ export function CombatSetupScreen(props: {
     if (id === "backgrounds") return getPendingBackgroundChoiceCount();
     if (id === "classes") return getPendingClassChoiceCount(activeClassSlot);
     return 0;
+  };
+  const lockButtonBaseStyle: React.CSSProperties = {
+    padding: "4px 8px",
+    borderRadius: 8,
+    border: "1px solid rgba(255,255,255,0.15)",
+    color: "#f5f5f5",
+    cursor: "pointer",
+    fontSize: 11,
+    fontWeight: 700,
+    width: 120,
+    minWidth: 120,
+    maxWidth: 120,
+    textAlign: "center",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    whiteSpace: "nowrap"
   };
   const renderPendingBadge = (count: number) => {
     if (count <= 0) return null;
@@ -2569,14 +3047,15 @@ export function CombatSetupScreen(props: {
     if (hasSubclassChoicePending(slot)) {
       promptSubclassChoiceForSlot(slot, () => {
         if (!openNextAsi()) {
-          setClassLockForSlot(slot, true);
           const nextPending = { ...pendingLocks };
           delete nextPending.classes;
           delete nextPending.classesSlot;
-          props.onChangeCharacter({
-            ...props.character,
-            choiceSelections: { ...choiceSelections, pendingLocks: nextPending }
-          });
+          const nextCharacter = buildClassLockCharacter(
+            slot,
+            choiceSelections,
+            nextPending
+          );
+          props.onChangeCharacter(nextCharacter);
         }
       });
       return;
@@ -2713,11 +3192,19 @@ export function CombatSetupScreen(props: {
     }
     return Math.max(1, Math.floor(total));
   };
+  type SpellEntry =
+    | string
+    | {
+        id: string;
+        instanceId: string;
+        origin?: { kind: string; id?: string; sourceKey?: string };
+      };
   const spellcastingSelections = ((choiceSelections as any)?.spellcasting ?? {}) as Record<
     string,
     {
-      knownSpells?: string[];
-      preparedSpells?: string[];
+      knownSpells?: SpellEntry[];
+      preparedSpells?: SpellEntry[];
+      grantedSpells?: SpellEntry[];
       focusItemId?: string | null;
       storage?: "memory" | "innate" | "grimoire";
       grimoireItemId?: string | null;
@@ -2726,8 +3213,9 @@ export function CombatSetupScreen(props: {
   const updateSpellcastingSelection = (
     key: string,
     patch: Partial<{
-      knownSpells: string[];
-      preparedSpells: string[];
+      knownSpells: SpellEntry[];
+      preparedSpells: SpellEntry[];
+      grantedSpells: SpellEntry[];
       focusItemId: string | null;
       storage: "memory" | "innate" | "grimoire";
       grimoireItemId: string | null;
@@ -2761,6 +3249,65 @@ export function CombatSetupScreen(props: {
         });
       });
     return Array.from(new Set(ids));
+  };
+  const getSpellId = (entry: SpellEntry) => (typeof entry === "string" ? entry : entry.id);
+  const getSpellKey = (entry: SpellEntry) =>
+    typeof entry === "string" ? `spell-${entry}` : entry.instanceId;
+  const makeSpellEntry = (id: string, origin?: { kind: string; id?: string; sourceKey?: string }) => ({
+    id,
+    instanceId: createInstanceId("spell"),
+    origin
+  });
+  const buildSpellGrantsForClassSlot = (slot: 1 | 2) => {
+    const grants: Record<string, SpellEntry[]> = {};
+    const cls = slot === 1 ? classPrimary : classSecondary;
+    const entry = slot === 1 ? classEntry : secondaryClassEntry;
+    const subclassId = slot === 1 ? selectedSubclassId : selectedSecondarySubclassId;
+    const subclass = subclassId
+      ? subclassOptions.find(sub => sub.id === subclassId) ?? null
+      : null;
+    const classLevel = Number(entry?.niveau) || 0;
+    if (cls?.spellcasting && cls.id) {
+      const classSpells = collectSpellGrants(cls.progression, classLevel);
+      const subclassSpells =
+        subclass && !subclass.spellcasting
+          ? collectSpellGrants(subclass.progression, classLevel)
+          : [];
+      const spellIds = Array.from(new Set([...classSpells, ...subclassSpells]));
+      if (spellIds.length > 0) {
+        const sourceKey = `class:${cls.id}`;
+        grants[sourceKey] = spellIds.map(id =>
+          makeSpellEntry(id, { kind: "class", id: cls.id, sourceKey })
+        );
+      }
+    }
+    if (subclass?.spellcasting && subclass.id) {
+      const spellIds = collectSpellGrants(subclass.progression, classLevel);
+      if (spellIds.length > 0) {
+        const sourceKey = `subclass:${subclass.id}`;
+        grants[sourceKey] = spellIds.map(id =>
+          makeSpellEntry(id, { kind: "subclass", id: subclass.id, sourceKey })
+        );
+      }
+    }
+    return grants;
+  };
+  const getItemSources = (item: any) => {
+    if (!item || isCurrencyItem(item)) return [];
+    const origin = item.origin;
+    if (!origin || !origin.kind) return [];
+    if (origin.kind === "background") {
+      const label = `Historique${origin.id ? `: ${origin.id}` : ""}`;
+      return [{ key: "background", label }];
+    }
+    if (origin.kind === "class") {
+      const label = `Classe${origin.id ? `: ${origin.id}` : ""}`;
+      return [{ key: "classPrimary", label }];
+    }
+    if (origin.kind === "manual") {
+      return [{ key: "equipment", label: "Ajoute manuellement" }];
+    }
+    return [];
   };
   const getItemTags = (item: any): string[] => {
     if (!item) return [];
@@ -2982,6 +3529,9 @@ export function CombatSetupScreen(props: {
   const closeAsiModal = () => {
     setAsiModal(prev => ({ ...prev, open: false }));
   };
+  const setAsiModalStep = (step: "type" | "feat" | "asi") => {
+    setAsiModal(prev => ({ ...prev, step }));
+  };
   const setAsiModalType = (type: "asi" | "feat") => {
     setAsiModal(prev => ({ ...prev, type }));
   };
@@ -3016,17 +3566,11 @@ export function CombatSetupScreen(props: {
           const nextPending = { ...pendingLocks };
           delete nextPending.classes;
           delete nextPending.classesSlot;
-          const nextLocks = {
-            ...classLocks,
-            primary: slot === 1 ? true : classLocks.primary,
-            secondary: slot === 2 ? true : classLocks.secondary
-          };
-          const nextCharacter: Personnage & { classLocks?: typeof nextLocks; classLock?: boolean } = {
-            ...props.character,
-            classLocks: nextLocks,
-            choiceSelections: { ...nextChoiceSelections, pendingLocks: nextPending }
-          };
-          if (slot === 1) nextCharacter.classLock = true;
+          const nextCharacter = buildClassLockCharacter(
+            slot,
+            nextChoiceSelections,
+            nextPending
+          );
           props.onChangeCharacter(nextCharacter);
         } else {
           props.onChangeCharacter({
@@ -3069,17 +3613,11 @@ export function CombatSetupScreen(props: {
         const nextPending = { ...pendingLocks };
         delete nextPending.classes;
         delete nextPending.classesSlot;
-        const nextLocks = {
-          ...classLocks,
-          primary: slot === 1 ? true : classLocks.primary,
-          secondary: slot === 2 ? true : classLocks.secondary
-        };
-        const nextCharacter: Personnage & { classLocks?: typeof nextLocks; classLock?: boolean } = {
-          ...props.character,
-          classLocks: nextLocks,
-          choiceSelections: { ...nextChoiceSelections, pendingLocks: nextPending }
-        };
-        if (slot === 1) nextCharacter.classLock = true;
+        const nextCharacter = buildClassLockCharacter(
+          slot,
+          nextChoiceSelections,
+          nextPending
+        );
         props.onChangeCharacter(nextCharacter);
       } else {
         props.onChangeCharacter({
@@ -3152,6 +3690,11 @@ export function CombatSetupScreen(props: {
     });
     const remaining = invalid ? null : 27 - total;
     return { total, remaining, invalid };
+  };
+  const canLockStats = () => {
+    if (statsMode !== "normal") return true;
+    const summary = getPointBuySummary();
+    return !summary.invalid && summary.remaining === 0;
   };
   const canAdjustPointBuy = (key: typeof STAT_KEYS[number], delta: number) => {
     const currentBases = getBaseScoresSnapshot();
@@ -3526,929 +4069,124 @@ export function CombatSetupScreen(props: {
           )}
 
           {activeMainTab === "player" && activePlayerTab === "equip" && (
-            <>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ fontSize: 12, color: "#b0b8c4" }}>
-                Equipez les objets compatibles dans chaque slot. Les selections respectent les categories.
-              </div>
-              <button
-                type="button"
-                onClick={() => toggleSectionLock("equip")}
-                style={{
-                  marginLeft: "auto",
-                  padding: "4px 8px",
-                  borderRadius: 8,
-                  border: "1px solid rgba(255,255,255,0.15)",
-                  background: getLockButtonState("equip").background,
-                  color: "#f5f5f5",
-                  cursor: "pointer",
-                  fontSize: 11,
-                  fontWeight: 700
-                }}
-                >
-                  {getLockButtonState("equip").label}
-                  {renderPendingBadge(getPendingCountForSection("equip"))}
-                </button>
-            </div>
-            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-              {([
-                { id: "slots", label: "Equipement" },
-                { id: "loot", label: "Boite a loot" }
-              ] as const).map(tab => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setEquipSubTab(tab.id)}
-                  style={{
-                    padding: "4px 10px",
-                    borderRadius: 8,
-                    border: "1px solid rgba(255,255,255,0.15)",
-                    background:
-                      equipSubTab === tab.id
-                        ? "rgba(46, 204, 113, 0.18)"
-                        : "rgba(255,255,255,0.06)",
-                    color: "#f5f5f5",
-                    cursor: "pointer",
-                    fontSize: 11,
-                    fontWeight: 700
-                  }}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-            {equipMessage && (
-              <div
-                style={{
-                  marginTop: 6,
-                  padding: "6px 10px",
-                  borderRadius: 8,
-                  border: "1px solid rgba(255,255,255,0.18)",
-                  background: "rgba(231, 76, 60, 0.18)",
-                  fontSize: 11,
-                  color: "#f5f5f5",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8
-                }}
-              >
-                <span>{equipMessage}</span>
-                <button
-                  type="button"
-                  onClick={() => setEquipMessage(null)}
-                  style={{
-                    marginLeft: "auto",
-                    border: "none",
-                    background: "transparent",
-                    color: "#f5f5f5",
-                    cursor: "pointer",
-                    fontSize: 12,
-                    fontWeight: 700
-                  }}
-                >
-                  OK
-                </button>
-              </div>
-            )}
-            {equipSubTab === "slots" && (
-              <>
-                <div
-                  style={{
-                    marginTop: 8,
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-                    gap: 10
-                  }}
-                >
-                  {renderSlotGroup(
-                    slotGroups.body,
-                    "Vetements / Armures",
-                    "Corps: armure ou vetement. Vetements secondaires actifs si vetement au corps."
-                  )}
-                  {renderSlotGroup(slotGroups.weapons, "Armes et protections")}
-                  {renderSlotGroup(slotGroups.jewelry, "Bijoux")}
-                  {renderSlotGroup(slotGroups.bag, "Paquetage")}
-                </div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginTop: 6 }}>
-                  Paquetage:{" "}
-                  {bagId
-                    ? `${storedWeight.toFixed(1)} / ${bagCapacity.toFixed(1)} poids`
-                    : "aucun sac equipe"}
-                </div>
-                <div
-                  style={{
-                    marginTop: 10,
-                    borderRadius: 8,
-                    border: "1px solid rgba(255,255,255,0.12)",
-                    background: "rgba(12,12,18,0.75)",
-                    padding: 10,
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 8
-                  }}
-                >
-                  <div style={{ fontSize: 12, fontWeight: 700 }}>Inventaire</div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
-                    Equiper un slot ou ranger dans le sac (si disponible).
-                  </div>
-                  {inventoryItems.length === 0 && (
-                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                      Aucun item pour l'instant.
-                    </div>
-                  )}
-                  {inventoryItems.map((item, idx) => {
-                    const sourceLabel = item.source === "auto" ? "Auto" : "Manuel";
-                    const eligibleSlots = EQUIPMENT_SLOTS.filter(slot => {
-                      if (slot.requiresClothingBody && !canUseClothingPieces) return false;
-                      const categories = getItemCategories(item);
-                      return categories.some(cat => slot.accepts.includes(cat));
-                    });
-                    const canStore =
-                      bagId && bagCapacity > 0
-                        ? (() => {
-                            const itemWeight =
-                              getItemWeight(item) * (Number(item?.qty ?? 1) || 1);
-                            if (item.storedIn === bagId) return true;
-                            return storedWeight + itemWeight <= bagCapacity;
-                          })()
-                        : false;
-                    return (
-                      <div
-                        key={`inv-${idx}`}
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "1fr auto auto auto",
-                          gap: 8,
-                          alignItems: "center",
-                          fontSize: 12
-                        }}
-                      >
-                        <span>
-                          {getItemLabel(item)}{" "}
-                          <span style={{ color: "rgba(255,255,255,0.5)" }}>
-                            ({sourceLabel})
-                          </span>
-                        </span>
-                        <select
-                          value={
-                            item.storedIn
-                              ? "__bag__"
-                              : item.equippedSlot
-                                ? item.equippedSlot
-                                : ""
-                          }
-                          onChange={e => {
-                            const value = e.target.value;
-                            if (value === "__bag__") {
-                              storeItemInBag(idx);
-                              return;
-                            }
-                            if (!value) {
-                              updateItemSlot(idx, null);
-                              return;
-                            }
-                            updateItemSlot(idx, value);
-                          }}
-                          style={{
-                            background: "#0f0f19",
-                            color: "#f5f5f5",
-                            border: "1px solid #333",
-                            borderRadius: 6,
-                            padding: "2px 6px",
-                            fontSize: 11
-                          }}
-                          disabled={isSectionLocked("equip")}
-                        >
-                          <option value="">Non equipe</option>
-                          {eligibleSlots.map(slot => (
-                            <option key={`item-slot-${idx}-${slot.id}`} value={slot.id}>
-                              {slot.label}
-                            </option>
-                          ))}
-                          {bagId && (
-                            <option value="__bag__" disabled={!canStore}>
-                              Ranger dans le sac
-                            </option>
-                          )}
-                        </select>
-                        {item.type === "weapon" && (
-                          <button
-                            type="button"
-                            onClick={() => setPrimaryWeapon(idx)}
-                            style={{
-                              borderRadius: 6,
-                              border: "1px solid rgba(255,255,255,0.2)",
-                              background: item.isPrimaryWeapon
-                                ? "rgba(241, 196, 15, 0.25)"
-                                : "rgba(255,255,255,0.08)",
-                              color: item.isPrimaryWeapon ? "#f8e58c" : "#f5f5f5",
-                              cursor: "pointer",
-                              fontSize: 12,
-                              padding: "2px 6px",
-                              fontWeight: 700
-                            }}
-                            title="Definir comme arme principale"
-                          >
-                            ★
-                          </button>
-                        )}
-                        {item.source === "manual" && (
-                          <button
-                            type="button"
-                            onClick={() => removeManualItem(idx)}
-                            style={{
-                              padding: "2px 6px",
-                              borderRadius: 6,
-                              border: "1px solid rgba(255,255,255,0.2)",
-                              background: "rgba(231,76,60,0.18)",
-                              color: "#f5f5f5",
-                              cursor: "pointer",
-                              fontSize: 11
-                            }}
-                          >
-                            Retirer
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-            {equipSubTab === "loot" && (
-              <div
-                style={{
-                  marginTop: 10,
-                  borderRadius: 8,
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  background: "rgba(12,12,18,0.75)",
-                  padding: 10,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 8
-                }}
-              >
-                <div style={{ fontSize: 12, fontWeight: 700 }}>Boite a loot infinie</div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
-                  Ajoutez des items pour tester.
-                </div>
-                <div style={{ fontSize: 12, fontWeight: 700, marginTop: 4 }}>Armes</div>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                    gap: 6
-                  }}
-                >
-                  {weaponOptions.map(weapon => (
-                    <button
-                      key={`loot-weapon-${weapon.id}`}
-                      type="button"
-                      onClick={() => addManualItem(`weapon:${weapon.id}`)}
-                      style={{
-                        textAlign: "left",
-                        borderRadius: 8,
-                        border: "1px solid rgba(255,255,255,0.12)",
-                        background: "rgba(10,10,16,0.8)",
-                        color: "#f5f5f5",
-                        padding: "6px 8px",
-                        cursor: "pointer",
-                        fontSize: 12
-                      }}
-                    >
-                      + {weapon.name} ({weapon.subtype})
-                    </button>
-                  ))}
-                </div>
-                <div style={{ fontSize: 12, fontWeight: 700, marginTop: 6 }}>Outils</div>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                    gap: 6
-                  }}
-                >
-                  {toolItems.map(tool => (
-                    <button
-                      key={`loot-tool-${tool.id}`}
-                      type="button"
-                      onClick={() => addManualItem(`tool:${tool.id}`)}
-                      style={{
-                        textAlign: "left",
-                        borderRadius: 8,
-                        border: "1px solid rgba(255,255,255,0.12)",
-                        background: "rgba(10,10,16,0.8)",
-                        color: "#f5f5f5",
-                        padding: "6px 8px",
-                        cursor: "pointer",
-                        fontSize: 12
-                      }}
-                    >
-                      + {tool.label}
-                    </button>
-                  ))}
-                  {toolItems.length === 0 && (
-                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                      Aucun outil disponible.
-                    </div>
-                  )}
-                </div>
-                <div style={{ fontSize: 12, fontWeight: 700, marginTop: 6 }}>Armures</div>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                    gap: 6
-                  }}
-                >
-                  {armorItems.map(armor => (
-                    <button
-                      key={`loot-armor-${armor.id}`}
-                      type="button"
-                      onClick={() => addManualItem(`armor:${armor.id}`)}
-                      style={{
-                        textAlign: "left",
-                        borderRadius: 8,
-                        border: "1px solid rgba(255,255,255,0.12)",
-                        background: "rgba(10,10,16,0.8)",
-                        color: "#f5f5f5",
-                        padding: "6px 8px",
-                        cursor: "pointer",
-                        fontSize: 12
-                      }}
-                    >
-                      + {armor.label}
-                    </button>
-                  ))}
-                  {armorItems.length === 0 && (
-                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                      Aucune armure chargee pour l'instant.
-                    </div>
-                  )}
-                </div>
-                <div style={{ fontSize: 12, fontWeight: 700, marginTop: 6 }}>Autres</div>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                    gap: 6
-                  }}
-                >
-                  {objectItems.map(obj => (
-                    <button
-                      key={`loot-object-${obj.id}`}
-                      type="button"
-                      onClick={() => addManualItem(`object:${obj.id}`)}
-                      style={{
-                        textAlign: "left",
-                        borderRadius: 8,
-                        border: "1px solid rgba(255,255,255,0.12)",
-                        background: "rgba(10,10,16,0.8)",
-                        color: "#f5f5f5",
-                        padding: "6px 8px",
-                        cursor: "pointer",
-                        fontSize: 12
-                      }}
-                    >
-                      + {obj.label}
-                    </button>
-                  ))}
-                  {objectItems.length === 0 && (
-                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                      Aucun autre item charge pour l'instant.
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-            </>
+            <EquipmentTab
+              toggleSectionLock={toggleSectionLock}
+              getLockButtonState={getLockButtonState}
+              renderPendingBadge={renderPendingBadge}
+              getPendingCountForSection={getPendingCountForSection}
+              lockButtonBaseStyle={lockButtonBaseStyle}
+              equipSubTab={equipSubTab}
+              setEquipSubTab={setEquipSubTab}
+              equipMessage={equipMessage}
+              setEquipMessage={setEquipMessage}
+              slotGroups={slotGroups}
+              renderSlotGroup={renderSlotGroup}
+              packSlotStatus={packSlotStatus}
+              inventoryItems={inventoryItems}
+              getItemLabel={getItemLabel}
+              getItemCategories={getItemCategories}
+              canUseClothingPieces={canUseClothingPieces}
+              equipmentSlots={EQUIPMENT_SLOTS}
+              resolveStoredSlotId={resolveStoredSlotId}
+              packSlots={packSlots}
+              getSlotLabel={getSlotLabel}
+              getItemWeight={getItemWeight}
+              storeItemInPack={storeItemInPack}
+              updateItemSlot={updateItemSlot}
+              isSectionLocked={isSectionLocked}
+              getItemUnitValue={getItemUnitValue}
+              isCurrencyItem={isCurrencyItem}
+              moneyToCopper={moneyToCopper}
+              formatMoneyValue={formatMoneyValue}
+              onSellRequest={handleSellRequest}
+              setPrimaryWeapon={setPrimaryWeapon}
+              removeManualItem={removeManualItem}
+              renderSourceDotsWithLabels={renderSourceDotsWithLabels}
+              getItemSources={getItemSources}
+              carryWeight={carryWeight}
+              carryCapacityMax={carryCapacityMax}
+              weaponOptions={weaponOptions}
+              toolItems={toolItems}
+              armorItems={armorItems}
+              objectItems={objectItems}
+              addManualItem={addManualItem}
+            />
           )}
 
           {activeMainTab === "player" && activePlayerTab === "stats" && (
-            <>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ fontSize: 12, color: "#b0b8c4" }}>
-                  Ajustez les caracteristiques. Le modificateur se met a jour.
-                </div>
-                <div style={{ display: "flex", gap: 6 }}>
-                  {([
-                    { id: "normal", label: "Normal" },
-                    { id: "manual", label: "Manuel" }
-                  ] as const).map(mode => (
-                    <button
-                      key={mode.id}
-                      type="button"
-                      onClick={() => setStatsMode(mode.id)}
-                      style={{
-                        padding: "4px 8px",
-                        borderRadius: 8,
-                        border: "1px solid rgba(255,255,255,0.15)",
-                        background:
-                          statsMode === mode.id
-                            ? "rgba(79,125,242,0.2)"
-                            : "rgba(255,255,255,0.06)",
-                        color: "#f5f5f5",
-                        cursor: "pointer",
-                        fontSize: 11,
-                        fontWeight: 700
-                      }}
-                    >
-                      {mode.label}
-                    </button>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => !isSectionLocked("stats") && resetStats()}
-                  disabled={isSectionLocked("stats")}
-                  style={{
-                    padding: "4px 8px",
-                    borderRadius: 8,
-                    border: "1px solid rgba(255,255,255,0.15)",
-                    background: "rgba(255,255,255,0.08)",
-                    color: "#f5f5f5",
-                    cursor: isSectionLocked("stats") ? "not-allowed" : "pointer",
-                    fontSize: 11,
-                    fontWeight: 700,
-                    opacity: isSectionLocked("stats") ? 0.6 : 1
-                  }}
-                >
-                  Reset
-                </button>
-                <button
-                  type="button"
-                  onClick={() => toggleSectionLock("stats")}
-                  style={{
-                    marginLeft: "auto",
-                    padding: "4px 8px",
-                    borderRadius: 8,
-                    border: "1px solid rgba(255,255,255,0.15)",
-                    background: getLockButtonState("stats").background,
-                    color: "#f5f5f5",
-                    cursor: "pointer",
-                    fontSize: 11,
-                    fontWeight: 700
-                  }}
-                >
-                  {getLockButtonState("stats").label}
-                  {renderPendingBadge(getPendingCountForSection("stats"))}
-                </button>
-              </div>
-              {(() => {
-                const summary = getPointBuySummary();
-                if (statsMode !== "normal") {
-                  return (
-                    <div
-                      style={{
-                        marginTop: 6,
-                        fontSize: 11,
-                        color: "rgba(255,255,255,0.7)",
-                        display: "flex",
-                        gap: 10,
-                        alignItems: "center"
-                      }}
-                    >
-                      <span>Capital: illimite (mode manuel)</span>
-                    </div>
-                  );
-                }
-                return (
-                  <div
-                    style={{
-                      marginTop: 6,
-                      fontSize: 11,
-                      color: "rgba(255,255,255,0.7)",
-                      display: "flex",
-                      gap: 10,
-                      alignItems: "center"
-                    }}
-                  >
-                    <span>Points: 27</span>
-                    {summary.invalid ? (
-                      <span style={{ color: "#f1c40f" }}>Hors barème (8-15)</span>
-                    ) : (
-                      <>
-                        <span>Utilises: {summary.total}</span>
-                        <span
-                          style={{
-                            color:
-                              summary.remaining !== null && summary.remaining < 0
-                                ? "#e74c3c"
-                                : "#6fd3a8"
-                          }}
-                        >
-                          Restants: {summary.remaining ?? "-"}
-                        </span>
-                      </>
-                    )}
-                    <span>
-                      Regle: acquisition par points (8-15). Bonus via classe/historique/espece.
-                    </span>
-                  </div>
-                );
-              })()}
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-                  gap: 10
-                }}
-              >
-                {STAT_KEYS.map(stat => {
-                  const baseScore = getBaseScore(stat);
-                  const bonus = getBonusSumForStat(stat);
-                  const totalScore = Math.max(1, Math.min(30, baseScore + bonus));
-                  const mod = computeMod(totalScore);
-                  const sources = getStatSources(stat);
-                  const canDecrease =
-                    !isSectionLocked("stats") &&
-                    (statsMode !== "normal" || canAdjustPointBuy(stat, -1));
-                  const canIncrease =
-                    !isSectionLocked("stats") &&
-                    (statsMode !== "normal" || canAdjustPointBuy(stat, 1));
-                  return (
-                    <div
-                      key={stat}
-                      style={{
-                        padding: 10,
-                        borderRadius: 8,
-                        border: "1px solid rgba(255,255,255,0.12)",
-                        background: "rgba(12,12,18,0.75)",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 6
-                      }}
-                    >
-                      <div style={{ fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
-                        {stat}
-                        {sources.length > 0 && renderSourceDots(sources)}
-                      </div>
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "30px 1fr 30px",
-                          gap: 6,
-                          alignItems: "center"
-                        }}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => canDecrease && setScore(stat, totalScore - 1)}
-                          disabled={!canDecrease}
-                          style={{
-                            width: 30,
-                            height: 30,
-                            borderRadius: 6,
-                            border: "1px solid #333",
-                            background: "#141421",
-                            color: "#f5f5f5",
-                            cursor: canDecrease ? "pointer" : "not-allowed",
-                            opacity: canDecrease ? 1 : 0.5,
-                            display: "grid",
-                            placeItems: "center"
-                          }}
-                          aria-label={`Diminuer ${stat}`}
-                        >
-                          <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-                            <rect x="2" y="5.25" width="8" height="1.5" fill="currentColor" />
-                          </svg>
-                        </button>
-                        <input
-                          type="number"
-                          min={statsMode === "normal" ? 8 : 1}
-                          max={statsMode === "normal" ? 15 : 30}
-                          value={totalScore}
-                          onChange={e =>
-                            !isSectionLocked("stats") && setScore(stat, Number(e.target.value))
-                          }
-                          disabled={isSectionLocked("stats")}
-                          style={{
-                            width: "100%",
-                            background: "#0f0f19",
-                            color: "#f5f5f5",
-                            border: "1px solid #333",
-                            borderRadius: 6,
-                            padding: "4px 6px",
-                            textAlign: "center",
-                            appearance: "textfield",
-                            WebkitAppearance: "textfield",
-                            MozAppearance: "textfield"
-                          }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => canIncrease && setScore(stat, totalScore + 1)}
-                          disabled={!canIncrease}
-                          style={{
-                            width: 30,
-                            height: 30,
-                            borderRadius: 6,
-                            border: "1px solid #333",
-                            background: "#141421",
-                            color: "#f5f5f5",
-                            cursor: canIncrease ? "pointer" : "not-allowed",
-                            opacity: canIncrease ? 1 : 0.5,
-                            display: "grid",
-                            placeItems: "center"
-                          }}
-                          aria-label={`Augmenter ${stat}`}
-                        >
-                          <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-                            <rect x="2" y="5.25" width="8" height="1.5" fill="currentColor" />
-                            <rect x="5.25" y="2" width="1.5" height="8" fill="currentColor" />
-                          </svg>
-                        </button>
-                      </div>
-                      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
-                        Base: {baseScore}
-                        {bonus !== 0 && (
-                          <span style={{ marginLeft: 6 }}>
-                            Bonus: {bonus > 0 ? `+${bonus}` : bonus}
-                          </span>
-                        )}
-                        <span style={{ marginLeft: 6 }}>Total: {totalScore}</span>
-                      </div>
-                      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-                        Modificateur: {mod >= 0 ? `+${mod}` : mod}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </>
+            <StatsTab
+              statsMode={statsMode}
+              setStatsMode={setStatsMode}
+              canLockStats={canLockStats}
+              toggleSectionLock={toggleSectionLock}
+              resetStats={resetStats}
+              isSectionLocked={isSectionLocked}
+              lockButtonBaseStyle={lockButtonBaseStyle}
+              getLockButtonState={getLockButtonState}
+              renderPendingBadge={renderPendingBadge}
+              getPendingCountForSection={getPendingCountForSection}
+              getPointBuySummary={getPointBuySummary}
+              statKeys={STAT_KEYS}
+              getBaseScore={getBaseScore}
+              getBonusSumForStat={getBonusSumForStat}
+              computeMod={computeMod}
+              getStatSources={getStatSources}
+              renderSourceDots={renderSourceDots}
+              setScore={setScore}
+              canAdjustPointBuy={canAdjustPointBuy}
+            />
           )}
 
           {activeMainTab === "player" && activePlayerTab === "skills" && (
-            <>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ fontSize: 12, color: "#b0b8c4" }}>
-                Cochez les competences pour simuler les impacts de jeu.
-              </div>
-              <div style={{ display: "flex", gap: 6 }}>
-                {([
-                  { id: "normal", label: "Normal" },
-                  { id: "manual", label: "Manuel" }
-                ] as const).map(mode => (
-                  <button
-                    key={mode.id}
-                    type="button"
-                    onClick={() => setSkillsMode(mode.id)}
-                    style={{
-                      padding: "4px 8px",
-                      borderRadius: 8,
-                      border: "1px solid rgba(255,255,255,0.15)",
-                      background:
-                        skillsMode === mode.id
-                          ? "rgba(79,125,242,0.2)"
-                          : "rgba(255,255,255,0.06)",
-                      color: "#f5f5f5",
-                      cursor: "pointer",
-                      fontSize: 11,
-                      fontWeight: 700
-                    }}
-                  >
-                    {mode.label}
-                  </button>
-                ))}
-              </div>
-              <button
-                type="button"
-                onClick={() => !isSectionLocked("skills") && resetSkills()}
-                disabled={isSectionLocked("skills")}
-                style={{
-                  padding: "4px 8px",
-                  borderRadius: 8,
-                  border: "1px solid rgba(255,255,255,0.15)",
-                  background: "rgba(255,255,255,0.08)",
-                  color: "#f5f5f5",
-                  cursor: isSectionLocked("skills") ? "not-allowed" : "pointer",
-                  fontSize: 11,
-                  fontWeight: 700,
-                  opacity: isSectionLocked("skills") ? 0.6 : 1
-                }}
-              >
-                Reset
-              </button>
-              <button
-                type="button"
-                onClick={() => toggleSectionLock("skills")}
-                style={{
-                  marginLeft: "auto",
-                  padding: "4px 8px",
-                  borderRadius: 8,
-                  border: "1px solid rgba(255,255,255,0.15)",
-                  background: getLockButtonState("skills").background,
-                  color: "#f5f5f5",
-                  cursor: "pointer",
-                  fontSize: 11,
-                  fontWeight: 700
-                }}
-              >
-                {getLockButtonState("skills").label}
-                {renderPendingBadge(getPendingCountForSection("skills"))}
-              </button>
-            </div>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-                gap: 10
-              }}
-            >
-              {competenceOptions.map(skill => (
-                <div
-                  key={skill.id}
-                  style={{
-                    padding: 10,
-                    borderRadius: 8,
-                    border: "1px solid rgba(255,255,255,0.12)",
-                    background: "rgba(12,12,18,0.75)",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 8
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700 }}>{skill.label}</div>
-                    {renderSourceDots(getSkillSources(skill.id))}
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
-                      {skillAbilityMap[skill.id]}
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                    <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                      <input
-                        type="checkbox"
-                        checked={competences.includes(skill.id)}
-                        onChange={() => canEditSkills && toggleCompetence(skill.id)}
-                        disabled={!canEditSkills}
-                        style={{ accentColor: "#4f7df2" }}
-                      />
-                      <span style={{ fontSize: 12 }}>Maitrise</span>
-                    </label>
-                    <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                      <input
-                        type="checkbox"
-                        checked={expertises.includes(skill.id)}
-                        onChange={() => canEditSkills && toggleExpertise(skill.id)}
-                        disabled={!canEditSkills || !competences.includes(skill.id)}
-                        style={{ accentColor: "#f1c40f" }}
-                      />
-                      <span style={{ fontSize: 12 }}>Expertise</span>
-                    </label>
-                  </div>
-                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-                    Bonus: {(() => {
-                      const level = resolveLevel();
-                      const prof = 2 + Math.floor((level - 1) / 4);
-                      const abilityKey = skillAbilityMap[skill.id];
-                      const scoreKey =
-                        abilityKey === "STR"
-                          ? "FOR"
-                          : abilityKey === "DEX"
-                            ? "DEX"
-                            : abilityKey === "CON"
-                              ? "CON"
-                              : abilityKey === "INT"
-                                ? "INT"
-                                : abilityKey === "WIS"
-                                  ? "SAG"
-                                  : "CHA";
-                      const mod = computeMod(getScore(scoreKey));
-                      const isExpert = expertises.includes(skill.id);
-                      const isProf = competences.includes(skill.id);
-                      const bonus = mod + (isExpert ? prof * 2 : isProf ? prof : 0);
-                      return bonus >= 0 ? `+${bonus}` : bonus;
-                    })()}
-                  </div>
-                </div>
-              ))}
-            </div>
-            </>
+            <SkillsTab
+              skillsMode={skillsMode}
+              setSkillsMode={setSkillsMode}
+              resetSkills={resetSkills}
+              isSectionLocked={isSectionLocked}
+              toggleSectionLock={toggleSectionLock}
+              lockButtonBaseStyle={lockButtonBaseStyle}
+              getLockButtonState={getLockButtonState}
+              renderPendingBadge={renderPendingBadge}
+              getPendingCountForSection={getPendingCountForSection}
+              competenceOptions={competenceOptions}
+              expertises={expertises}
+              competences={competences}
+              resolveLevel={resolveLevel}
+              computeMod={computeMod}
+              getScore={getScore}
+              skillAbilityMap={skillAbilityMap}
+              renderSourceDots={renderSourceDots}
+              getSkillSources={getSkillSources}
+              canEditSkills={canEditSkills}
+              toggleCompetence={toggleCompetence}
+              toggleExpertise={toggleExpertise}
+            />
           )}
 
           {activeMainTab === "player" && activePlayerTab === "masteries" && (
-            <>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ fontSize: 12, color: "#b0b8c4" }}>
-                Selectionnez les maitrises. Elles influenceront les bonus et malus.
-              </div>
-              <div style={{ display: "flex", gap: 6 }}>
-                {([
-                  { id: "normal", label: "Normal" },
-                  { id: "manual", label: "Manuel" }
-                ] as const).map(mode => (
-                  <button
-                    key={mode.id}
-                    type="button"
-                    onClick={() => setMasteriesMode(mode.id)}
-                    style={{
-                      padding: "4px 8px",
-                      borderRadius: 8,
-                      border: "1px solid rgba(255,255,255,0.15)",
-                      background:
-                        masteriesMode === mode.id
-                          ? "rgba(79,125,242,0.2)"
-                          : "rgba(255,255,255,0.06)",
-                      color: "#f5f5f5",
-                      cursor: "pointer",
-                      fontSize: 11,
-                      fontWeight: 700
-                    }}
-                  >
-                    {mode.label}
-                  </button>
-                ))}
-              </div>
-              <button
-                type="button"
-                onClick={() => !isSectionLocked("masteries") && resetMasteries()}
-                disabled={isSectionLocked("masteries")}
-                style={{
-                  padding: "4px 8px",
-                  borderRadius: 8,
-                  border: "1px solid rgba(255,255,255,0.15)",
-                  background: "rgba(255,255,255,0.08)",
-                  color: "#f5f5f5",
-                  cursor: isSectionLocked("masteries") ? "not-allowed" : "pointer",
-                  fontSize: 11,
-                  fontWeight: 700,
-                  opacity: isSectionLocked("masteries") ? 0.6 : 1
-                }}
-              >
-                Reset
-              </button>
-              <button
-                type="button"
-                onClick={() => toggleSectionLock("masteries")}
-                style={{
-                  marginLeft: "auto",
-                  padding: "4px 8px",
-                  borderRadius: 8,
-                  border: "1px solid rgba(255,255,255,0.15)",
-                  background: getLockButtonState("masteries").background,
-                  color: "#f5f5f5",
-                  cursor: "pointer",
-                  fontSize: 11,
-                  fontWeight: 700
-                }}
-              >
-                {getLockButtonState("masteries").label}
-                {renderPendingBadge(getPendingCountForSection("masteries"))}
-              </button>
-            </div>
-            <div style={{ fontSize: 12, fontWeight: 700, marginTop: 6 }}>Armes</div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {weaponMasteryOptions.map(value => (
-                <label key={value.id} style={{ fontSize: 12, display: "flex", gap: 6 }}>
-                  <input
-                    type="checkbox"
-                    checked={weaponMasteries.includes(value.id)}
-                    onChange={() =>
-                      canEditMasteries && toggleMastery("weapons", value.id)
-                    }
-                    disabled={!canEditMasteries}
-                  />
-                  {value.label}
-                  {renderSourceDots(getMasterySources("weapons", value.id))}
-                </label>
-              ))}
-            </div>
-            <div style={{ fontSize: 12, fontWeight: 700, marginTop: 10 }}>Armures</div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {armorMasteryOptions.map(value => (
-                <label key={value.id} style={{ fontSize: 12, display: "flex", gap: 6 }}>
-                  <input
-                    type="checkbox"
-                    checked={armorMasteries.includes(value.id)}
-                    onChange={() =>
-                      canEditMasteries && toggleMastery("armors", value.id)
-                    }
-                    disabled={!canEditMasteries}
-                  />
-                  {value.label}
-                  {renderSourceDots(getMasterySources("armors", value.id))}
-                </label>
-              ))}
-            </div>
-            <div style={{ fontSize: 12, fontWeight: 700, marginTop: 10 }}>Outils</div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {toolMasteryOptions.map(value => (
-                <label key={value.id} style={{ fontSize: 12, display: "flex", gap: 6 }}>
-                  <input
-                    type="checkbox"
-                    checked={toolMasteries.includes(value.id)}
-                    onChange={() =>
-                      canEditMasteries && toggleMastery("tools", value.id)
-                    }
-                    disabled={!canEditMasteries}
-                  />
-                  {value.label}
-                  {renderSourceDots(getMasterySources("tools", value.id))}
-                </label>
-              ))}
-            </div>
-            </>
+            <MasteriesTab
+              masteriesMode={masteriesMode}
+              setMasteriesMode={setMasteriesMode}
+              resetMasteries={resetMasteries}
+              isSectionLocked={isSectionLocked}
+              toggleSectionLock={toggleSectionLock}
+              lockButtonBaseStyle={lockButtonBaseStyle}
+              getLockButtonState={getLockButtonState}
+              renderPendingBadge={renderPendingBadge}
+              getPendingCountForSection={getPendingCountForSection}
+              weaponMasteryOptions={weaponMasteryOptions}
+              armorMasteryOptions={armorMasteryOptions}
+              toolMasteryOptions={toolMasteryOptions}
+              weaponMasteries={weaponMasteries}
+              armorMasteries={armorMasteries}
+              toolMasteries={toolMasteries}
+              toggleWeaponMastery={value => canEditMasteries && toggleMastery("weapons", value)}
+              toggleArmorMastery={value => canEditMasteries && toggleMastery("armors", value)}
+              toggleToolMastery={value => canEditMasteries && toggleMastery("tools", value)}
+              canEditMasteries={canEditMasteries}
+              renderSourceDots={renderSourceDots}
+              getMasterySources={getMasterySources}
+            />
           )}
 
           {activeMainTab === "player" && activePlayerTab === "species" && (
@@ -4478,15 +4216,9 @@ export function CombatSetupScreen(props: {
                   setSectionLock("species", true);
                 }}
                 style={{
+                    ...lockButtonBaseStyle,
                     marginLeft: "auto",
-                    padding: "4px 8px",
-                    borderRadius: 8,
-                    border: "1px solid rgba(255,255,255,0.15)",
-                    background: getLockButtonState("species").background,
-                    color: "#f5f5f5",
-                    cursor: "pointer",
-                    fontSize: 11,
-                    fontWeight: 700
+                    background: getLockButtonState("species").background
                   }}
                 >
                   {getLockButtonState("species").label}
@@ -4600,695 +4332,68 @@ export function CombatSetupScreen(props: {
           )}
 
           {activeMainTab === "player" && activePlayerTab === "classes" && (
-            <>
-              <div style={{ fontSize: 12, color: "#b0b8c4" }}>
-                Definissez le niveau global, puis choisissez vos classes.
-              </div>
-              <div style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 10 }}>
-                <span>Niveau global :</span>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "4px 6px",
-                    borderRadius: 8,
-                    border: "1px solid #2a2a3a",
-                    background: "#0f0f19"
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => !isSectionLocked("classes") && setLevel(resolveLevel() - 1)}
-                    disabled={isSectionLocked("classes")}
-                    style={{
-                      width: 30,
-                      height: 30,
-                      borderRadius: 6,
-                      border: "1px solid #333",
-                      background: "#141421",
-                      color: "#f5f5f5",
-                      cursor: isSectionLocked("classes") ? "not-allowed" : "pointer",
-                      display: "grid",
-                      placeItems: "center",
-                      opacity: isSectionLocked("classes") ? 0.6 : 1
-                    }}
-                    aria-label="Diminuer le niveau"
-                  >
-                    <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-                      <rect x="2" y="5.25" width="8" height="1.5" fill="currentColor" />
-                    </svg>
-                  </button>
-                  <input
-                    type="number"
-                    min={1}
-                    max={20}
-                    value={resolveLevel()}
-                    onChange={e => !isSectionLocked("classes") && setLevel(Number(e.target.value))}
-                    disabled={isSectionLocked("classes")}
-                    style={{
-                      width: 60,
-                      background: "#0f0f19",
-                      color: "#f5f5f5",
-                      border: "1px solid #333",
-                      borderRadius: 6,
-                      padding: "4px 6px",
-                      textAlign: "center",
-                      appearance: "textfield",
-                      WebkitAppearance: "textfield",
-                      MozAppearance: "textfield",
-                      opacity: isSectionLocked("classes") ? 0.6 : 1
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => !isSectionLocked("classes") && setLevel(resolveLevel() + 1)}
-                    disabled={isSectionLocked("classes")}
-                    style={{
-                      width: 30,
-                      height: 30,
-                      borderRadius: 6,
-                      border: "1px solid #333",
-                      background: "#141421",
-                      color: "#f5f5f5",
-                      cursor: isSectionLocked("classes") ? "not-allowed" : "pointer",
-                      display: "grid",
-                      placeItems: "center",
-                      opacity: isSectionLocked("classes") ? 0.6 : 1
-                    }}
-                    aria-label="Augmenter le niveau"
-                  >
-                    <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-                      <rect x="2" y="5.25" width="8" height="1.5" fill="currentColor" />
-                      <rect x="5.25" y="2" width="1.5" height="8" fill="currentColor" />
-                    </svg>
-                  </button>
-                </div>
-                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-                  Bonus de maitrise: +{2 + Math.floor((resolveLevel() - 1) / 4)}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (isActiveClassLocked) {
-                      resetClassImpactsForSlot(activeClassSlot);
-                      return;
-                    }
-                    if (hasPendingClassChoicesForSlot(activeClassSlot)) {
-                      startClassDefine(activeClassSlot);
-                      return;
-                    }
-                    setClassLockForSlot(activeClassSlot, true);
-                  }}
-                  style={{
-                    marginLeft: "auto",
-                    padding: "6px 10px",
-                    borderRadius: 8,
-                    border: "1px solid rgba(255,255,255,0.15)",
-                    background: getClassLockButtonState().background,
-                    color: "#f5f5f5",
-                    cursor: "pointer",
-                    fontSize: 12,
-                    fontWeight: 700
-                  }}
-                >
-                  {getClassLockButtonState().label}
-                  {renderPendingBadge(getPendingCountForSection("classes"))}
-                </button>
-              </div>
-
-              <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-                <button
-                  type="button"
-                  onClick={() => setActiveClassTab("primary")}
-                  style={{
-                    padding: "6px 10px",
-                    borderRadius: 6,
-                    border: `1px solid ${
-                      resolvedClassTab === "primary" ? "#6fd3a8" : "#333"
-                    }`,
-                    background:
-                      resolvedClassTab === "primary" ? "rgba(46, 204, 113, 0.16)" : "#0f0f19",
-                    color: "#c9cfdd",
-                    cursor: "pointer",
-                    fontSize: 12,
-                    fontWeight: 700
-                  }}
-                >
-                  Classe principale
-                </button>
-                {resolveLevel() > 2 && (
-                  <button
-                    type="button"
-                    onClick={() => setActiveClassTab("secondary")}
-                    style={{
-                      padding: "6px 10px",
-                      borderRadius: 6,
-                      border: `1px solid ${
-                        resolvedClassTab === "secondary" ? "#6fd3a8" : "#333"
-                      }`,
-                      background:
-                        resolvedClassTab === "secondary" ? "rgba(46, 204, 113, 0.16)" : "#0f0f19",
-                      color: "#c9cfdd",
-                      cursor: "pointer",
-                      fontSize: 12,
-                      fontWeight: 700
-                    }}
-                  >
-                    2eme classe
-                  </button>
-                )}
-              </div>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "minmax(220px, 1.1fr) minmax(240px, 1fr)",
-                  gap: 12,
-                  alignItems: "start"
-                }}
-              >
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                    gap: 10,
-                    alignContent: "start"
-                  }}
-                >
-                  {resolvedClassTab === "secondary" && !isSecondaryEnabled && (
-                    <button
-                      type="button"
-                      onClick={() => !isActiveClassLocked && enableSecondaryClass()}
-                      disabled={isActiveClassLocked}
-                      style={{
-                        textAlign: "center",
-                        borderRadius: 12,
-                        border: "1px dashed rgba(255,255,255,0.25)",
-                        background: "rgba(12,12,18,0.6)",
-                        color: "#f5f5f5",
-                        padding: 14,
-                        cursor: isActiveClassLocked ? "not-allowed" : "pointer",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 10,
-                        alignItems: "center",
-                        justifyContent: "center",
-                        minHeight: 180
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: 46,
-                          height: 46,
-                          borderRadius: 12,
-                          border: "1px solid rgba(255,255,255,0.25)",
-                          display: "grid",
-                          placeItems: "center",
-                          fontSize: 28,
-                          fontWeight: 700
-                        }}
-                      >
-                        +
-                      </div>
-                      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-                        Activer une 2eme classe
-                      </div>
-                    </button>
-                  )}
-                  {classOptions.map(cls => {
-                    const isSelected = activeClassId === cls.id;
-                    const isDisabled =
-                      isActiveClassLocked || (resolvedClassTab === "secondary" && !isSecondaryEnabled);
-                    return (
-                      <button
-                        key={`${resolvedClassTab}-${cls.id}`}
-                        type="button"
-                        onClick={() => {
-                          if (isDisabled) return;
-                          handleClassSelect(cls, activeClassSlot);
-                        }}
-                        disabled={isDisabled}
-                        style={{
-                          textAlign: "left",
-                          borderRadius: 10,
-                          border: `1px solid ${isSelected ? "#6fd3a8" : "rgba(255,255,255,0.12)"}`,
-                          background: isSelected
-                            ? "rgba(46, 204, 113, 0.14)"
-                            : "rgba(12,12,18,0.75)",
-                          color: "#f5f5f5",
-                          padding: 12,
-                          cursor: isDisabled ? "not-allowed" : "pointer",
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: 6,
-                          minHeight: 120,
-                          opacity: isDisabled ? 0.55 : 1
-                        }}
-                      >
-                        <div style={{ fontSize: 13, fontWeight: 800 }}>{cls.label}</div>
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-                          {cls.description}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-                <div
-                  style={{
-                    borderRadius: 12,
-                    border: "1px solid rgba(255,255,255,0.12)",
-                    background: "rgba(12,12,18,0.75)",
-                    padding: 12,
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 10,
-                    minHeight: 260
-                  }}
-                >
-                  <div style={{ fontSize: 14, fontWeight: 800 }}>
-                    {resolvedClassTab === "secondary" ? "2eme classe" : "Classe principale"}
-                  </div>
-                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                    Niveau dans cette classe :
-                  </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      padding: "4px 6px",
-                      borderRadius: 8,
-                      border: "1px solid #2a2a3a",
-                      background: "#0f0f19",
-                      width: "fit-content"
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() =>
-                        !isActiveClassLocked &&
-                        setClassLevel(activeClassSlot, (Number(activeClassEntry?.niveau) || 1) - 1)
-                      }
-                      disabled={
-                        isActiveClassLocked || (resolvedClassTab === "secondary" && !isSecondaryEnabled)
-                      }
-                      style={{
-                        width: 30,
-                        height: 30,
-                        borderRadius: 6,
-                        border: "1px solid #333",
-                        background: "#141421",
-                        color: "#f5f5f5",
-                        cursor: isActiveClassLocked ? "not-allowed" : "pointer",
-                        display: "grid",
-                        placeItems: "center",
-                        opacity: isActiveClassLocked ? 0.6 : 1
-                      }}
-                      aria-label="Diminuer le niveau de classe"
-                    >
-                      <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-                        <rect x="2" y="5.25" width="8" height="1.5" fill="currentColor" />
-                      </svg>
-                    </button>
-                    <input
-                      type="number"
-                      min={1}
-                      max={isSecondaryEnabled ? Math.max(1, resolveLevel() - 1) : resolveLevel()}
-                      value={
-                        activeClassEntry?.niveau ??
-                        (activeClassSlot === 1 ? resolveLevel() : 0)
-                      }
-                      onChange={e =>
-                        !isActiveClassLocked && setClassLevel(activeClassSlot, Number(e.target.value))
-                      }
-                      disabled={
-                        isActiveClassLocked || (resolvedClassTab === "secondary" && !isSecondaryEnabled)
-                      }
-                      style={{
-                        width: 60,
-                        background: "#0f0f19",
-                        color: "#f5f5f5",
-                        border: "1px solid #333",
-                        borderRadius: 6,
-                        padding: "4px 6px",
-                        textAlign: "center",
-                        appearance: "textfield",
-                        WebkitAppearance: "textfield",
-                        MozAppearance: "textfield",
-                        opacity: isActiveClassLocked ? 0.6 : 1
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        !isActiveClassLocked &&
-                        setClassLevel(activeClassSlot, (Number(activeClassEntry?.niveau) || 1) + 1)
-                      }
-                      disabled={
-                        isActiveClassLocked || (resolvedClassTab === "secondary" && !isSecondaryEnabled)
-                      }
-                      style={{
-                        width: 30,
-                        height: 30,
-                        borderRadius: 6,
-                        border: "1px solid #333",
-                        background: "#141421",
-                        color: "#f5f5f5",
-                        cursor: isActiveClassLocked ? "not-allowed" : "pointer",
-                        display: "grid",
-                        placeItems: "center",
-                        opacity: isActiveClassLocked ? 0.6 : 1
-                      }}
-                      aria-label="Augmenter le niveau de classe"
-                    >
-                      <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-                        <rect x="2" y="5.25" width="8" height="1.5" fill="currentColor" />
-                        <rect x="5.25" y="2" width="1.5" height="8" fill="currentColor" />
-                      </svg>
-                    </button>
-                  </div>
-
-
-
-                  {resolvedClassTab === "secondary" && isSecondaryEnabled && (
-                    <button
-                      type="button"
-                      onClick={() => !isActiveClassLocked && removeSecondaryClass()}
-                      disabled={isActiveClassLocked}
-                      style={{
-                        marginTop: 8,
-                        alignSelf: "flex-start",
-                        padding: "6px 10px",
-                        borderRadius: 8,
-                        border: "1px solid rgba(255,255,255,0.15)",
-                        background: "rgba(231,76,60,0.14)",
-                        color: "#f5f5f5",
-                        cursor: isActiveClassLocked ? "not-allowed" : "pointer",
-                        fontSize: 12,
-                        fontWeight: 700,
-                        opacity: isActiveClassLocked ? 0.6 : 1
-                      }}
-                    >
-                      Supprimer la 2eme classe
-                    </button>
-                  )}
-
-                  {(() => {
-                    const cls = classOptions.find(c => c.id === activeClassId);
-                    if (!cls) {
-                      return (
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                          Choisissez d'abord une classe.
-                        </div>
-                      );
-                    }
-                    const threshold = cls.subclassLevel ?? 1;
-                    const level = Number(activeClassEntry?.niveau) || (activeClassSlot === 1 ? resolveLevel() : 0);
-                    if (level < threshold) {
-                      return (
-                        <div
-                          style={{
-                            padding: 10,
-                            borderRadius: 10,
-                            border: "1px dashed rgba(255,255,255,0.2)",
-                            background: "rgba(8,8,12,0.6)",
-                            color: "rgba(255,255,255,0.6)",
-                            fontSize: 12
-                          }}
-                        >
-                          Sous-classe verrouillee jusqu'au niveau {threshold}.
-                        </div>
-                      );
-                    }
-                    const allowedIds = Array.isArray(cls.subclassIds) ? cls.subclassIds : [];
-                    const subclasses = subclassOptions.filter(sub => sub.classId === cls.id);
-                    return (
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-                          gap: 10
-                        }}
-                      >
-                        {subclasses.map(sub => {
-                          const isAllowed = allowedIds.length === 0 || allowedIds.includes(sub.id);
-                          const isSelected = activeSubclassId === sub.id;
-                          return (
-                            <button
-                              key={`${activeClassSlot}-${sub.id}`}
-                              type="button"
-                              onClick={() => {
-                                if (!isAllowed || isActiveClassLocked) return;
-                                setSubclassSelection(sub.id, activeClassSlot);
-                              }}
-                              disabled={!isAllowed || isActiveClassLocked}
-                              style={{
-                                textAlign: "left",
-                                borderRadius: 10,
-                                border: `1px solid ${
-                                  isSelected ? "#f1c40f" : "rgba(255,255,255,0.12)"
-                                }`,
-                                background: isSelected
-                                  ? "rgba(241, 196, 15, 0.14)"
-                                  : "rgba(12,12,18,0.75)",
-                                color: "#f5f5f5",
-                                padding: 12,
-                                cursor: isAllowed && !isActiveClassLocked ? "pointer" : "not-allowed",
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: 6,
-                                minHeight: 110,
-                                opacity: isAllowed && !isActiveClassLocked ? 1 : 0.5
-                              }}
-                            >
-                              <div style={{ fontSize: 13, fontWeight: 800 }}>{sub.label}</div>
-                              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-                                {sub.description}
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    );
-                  })()}
-                </div>
-              </div>
-            </>
+            <ClassesTab
+              activeClassTab={activeClassTab}
+              resolvedClassTab={resolvedClassTab}
+              setActiveClassTab={setActiveClassTab}
+              isSectionLocked={isSectionLocked}
+              lockButtonBaseStyle={lockButtonBaseStyle}
+              getClassLockButtonState={getClassLockButtonState}
+              renderPendingBadge={renderPendingBadge}
+              getPendingCountForSection={getPendingCountForSection}
+              resetClassImpactsForSlot={resetClassImpactsForSlot}
+              hasPendingClassChoicesForSlot={hasPendingClassChoicesForSlot}
+              startClassDefine={startClassDefine}
+              setClassLockForSlot={setClassLockForSlot}
+              resolveLevel={resolveLevel}
+              setLevel={setLevel}
+              classOptions={classOptions}
+              subclassOptions={subclassOptions}
+              isActiveClassLocked={isActiveClassLocked}
+              activeClassSlot={activeClassSlot}
+              activeClassId={activeClassId}
+              activeSubclassId={activeSubclassId}
+              activeClassEntry={activeClassEntry}
+              handleClassSelect={handleClassSelect}
+              setSubclassSelection={setSubclassSelection}
+              setClassLevel={setClassLevel}
+              isSecondaryEnabled={isSecondaryEnabled}
+              enableSecondaryClass={enableSecondaryClass}
+              removeSecondaryClass={removeSecondaryClass}
+            />
           )}
 
           {activeMainTab === "player" && activePlayerTab === "backgrounds" && (
-            <>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ fontSize: 12, color: "#b0b8c4" }}>
-                  Choisissez un historique. Un seul background peut etre actif.
-                </div>
-              <button
-                type="button"
-                onClick={() => {
-                  if (isSectionLocked("backgrounds")) {
-                    resetBackgroundImpacts();
-                    return;
-                  }
-                  if (hasPendingBackgroundChoices()) {
-                    startBackgroundDefine();
-                    return;
-                  }
-                  const bonusApplied = Boolean(
-                    (choiceSelections as any)?.background?.statBonusApplied
-                  );
-                  let nextCaracs = props.character.caracs;
-                  const nextChoiceSelections = {
-                    ...choiceSelections,
-                    background: { ...(choiceSelections as any).background }
-                  };
-                  if (!bonusApplied && selectedBackgroundId === "veteran-de-guerre") {
-                    const current = (props.character.caracs?.force as any)?.FOR ?? 10;
-                    nextCaracs = {
-                      ...props.character.caracs,
-                      force: { ...(props.character.caracs?.force ?? {}), FOR: current + 1 }
-                    };
-                    (nextChoiceSelections as any).background.statBonusApplied = true;
-                    (nextChoiceSelections as any).statsBase = {
-                      ...statsBase,
-                      FOR: Number.isFinite(statsBase.FOR) ? statsBase.FOR : current
-                    };
-                  }
-                  props.onChangeCharacter({
-                    ...props.character,
-                    creationLocks: { ...creationLocks, backgrounds: true },
-                    choiceSelections: nextChoiceSelections,
-                    caracs: nextCaracs
-                  });
-                }}
-                style={{
-                    marginLeft: "auto",
-                    padding: "4px 8px",
-                    borderRadius: 8,
-                    border: "1px solid rgba(255,255,255,0.15)",
-                    background: getLockButtonState("backgrounds").background,
-                    color: "#f5f5f5",
-                    cursor: "pointer",
-                    fontSize: 11,
-                    fontWeight: 700
-                  }}
-                >
-                  {getLockButtonState("backgrounds").label}
-                  {renderPendingBadge(getPendingCountForSection("backgrounds"))}
-                </button>
-              </div>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "minmax(220px, 1.1fr) minmax(240px, 1fr)",
-                  gap: 12,
-                  alignItems: "start"
-                }}
-              >
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                    gap: 10,
-                    alignContent: "start"
-                  }}
-                >
-                  {backgroundOptions.map(bg => {
-                    const isSelected = selectedBackgroundId === bg.id;
-                    return (
-                    <button
-                      key={bg.id}
-                      type="button"
-                      onClick={() => handleBackgroundSelect(bg)}
-                      disabled={isSectionLocked("backgrounds")}
-                      style={{
-                          textAlign: "left",
-                          borderRadius: 10,
-                          border: `1px solid ${isSelected ? "#6fd3a8" : "rgba(255,255,255,0.12)"}`,
-                          background: isSelected
-                            ? "rgba(46, 204, 113, 0.14)"
-                            : "rgba(12,12,18,0.75)",
-                          color: "#f5f5f5",
-                          padding: 12,
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: 6,
-                        minHeight: 120,
-                        opacity: isSectionLocked("backgrounds") ? 0.6 : 1,
-                        cursor: isSectionLocked("backgrounds") ? "not-allowed" : "pointer"
-                      }}
-                    >
-                        <div style={{ fontSize: 13, fontWeight: 800 }}>{bg.label}</div>
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-                          {bg.description}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-                <div
-                  style={{
-                    borderRadius: 12,
-                    border: "1px solid rgba(255,255,255,0.12)",
-                    background: "rgba(12,12,18,0.75)",
-                    padding: 12,
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 10,
-                    minHeight: 260
-                  }}
-                >
-                  <div
-                    style={{
-                      width: "100%",
-                      aspectRatio: "16 / 9",
-                      borderRadius: 10,
-                      border: "1px dashed rgba(255,255,255,0.18)",
-                      background: "rgba(8,8,12,0.65)",
-                      display: "grid",
-                      placeItems: "center",
-                      color: "rgba(255,255,255,0.35)",
-                      fontSize: 12
-                    }}
-                  >
-                    Image 16:9
-                  </div>
-                  <div style={{ fontSize: 14, fontWeight: 800 }}>
-                    {activeBackground ? activeBackground.label : "Selectionnez un historique"}
-                  </div>
-                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.75)" }}>
-                    {activeBackground
-                      ? activeBackground.description
-                      : "Selectionnez un historique pour voir les details."}
-                  </div>
-                  {activeBackground &&
-                    getBackgroundSkillProficiencies(activeBackground).length > 0 && (
-                      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                        Competences:{" "}
-                        {getBackgroundSkillProficiencies(activeBackground)
-                          .map(id => competenceOptions.find(c => c.id === id)?.label ?? id)
-                          .join(", ")}
-                      </div>
-                    )}
-                  {activeBackground &&
-                    getBackgroundToolProficiencies(activeBackground).length > 0 && (
-                      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                        Outils:{" "}
-                        {getBackgroundToolProficiencies(activeBackground)
-                          .map(
-                            id =>
-                              toolMasteryOptions.find(t => t.id === id)?.label ?? id
-                          )
-                          .join(", ")}
-                      </div>
-                    )}
-                  {getBackgroundToolChoice(activeBackground) && (
-                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                      Outils (choix {getBackgroundToolChoice(activeBackground)?.count ?? 0}):{" "}
-                      {(getBackgroundToolChoice(activeBackground)?.options ?? [])
-                        .map(
-                          id =>
-                            toolMasteryOptions.find(t => t.id === id)?.label ?? id
-                        )
-                        .join(", ")}
-                    </div>
-                  )}
-                  {activeBackground?.toolNotes && activeBackground.toolNotes.length > 0 && (
-                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                      Outils: {activeBackground.toolNotes.join(", ")}
-                    </div>
-                  )}
-                  {getBackgroundLanguageChoice(activeBackground) && (
-                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                      Langues: {getBackgroundLanguageChoice(activeBackground)?.count ?? 0} au choix
-                    </div>
-                  )}
-                  {activeBackground?.equipment && activeBackground.equipment.length > 0 && (
-                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                      Materiel: {activeBackground.equipment.map(formatEquipmentLabel).join(", ")}
-                    </div>
-                  )}
-                  {getBackgroundFeatureInfo(activeBackground) && (
-                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-                      Aptitude: {getBackgroundFeatureInfo(activeBackground)?.label ?? ""}
-                      {getBackgroundFeatureInfo(activeBackground)?.description
-                        ? ` — ${getBackgroundFeatureInfo(activeBackground)?.description}`
-                        : ""}
-                    </div>
-                  )}
-                  {activeBackground?.traits?.bond && (
-                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                      Lien: {activeBackground.traits.bond}
-                    </div>
-                  )}
-                  {activeBackground?.traits?.flaw && (
-                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                      Defaut: {activeBackground.traits.flaw}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </>
+            <BackgroundsTab
+              isSectionLocked={isSectionLocked}
+              lockButtonBaseStyle={lockButtonBaseStyle}
+              getLockButtonState={getLockButtonState}
+              renderPendingBadge={renderPendingBadge}
+              getPendingCountForSection={getPendingCountForSection}
+              backgroundOptions={backgroundOptions}
+              selectedBackgroundId={selectedBackgroundId}
+              handleBackgroundSelect={handleBackgroundSelect}
+              onLockClick={() => {
+                if (isSectionLocked("backgrounds")) {
+                  resetBackgroundImpacts();
+                  return;
+                }
+                if (hasPendingBackgroundChoices()) {
+                  startBackgroundDefine();
+                  return;
+                }
+                lockBackgroundAndCreateEquipment();
+              }}
+              activeBackground={activeBackground}
+              getBackgroundFeatureInfo={getBackgroundFeatureInfo}
+              getBackgroundToolChoice={getBackgroundToolChoice}
+              getBackgroundLanguageChoice={getBackgroundLanguageChoice}
+              getBackgroundSkillProficiencies={getBackgroundSkillProficiencies}
+              getBackgroundToolProficiencies={getBackgroundToolProficiencies}
+              formatEquipmentLabel={formatEquipmentLabel}
+              toolMasteryOptions={toolMasteryOptions}
+              competenceOptions={competenceOptions}
+            />
           )}
 
           {activeMainTab === "player" && activePlayerTab === "profile" && (
@@ -5301,15 +4406,9 @@ export function CombatSetupScreen(props: {
                   type="button"
                   onClick={() => toggleSectionLock("profile")}
                   style={{
+                    ...lockButtonBaseStyle,
                     marginLeft: "auto",
-                    padding: "4px 8px",
-                    borderRadius: 8,
-                    border: "1px solid rgba(255,255,255,0.15)",
-                    background: getLockButtonState("profile").background,
-                    color: "#f5f5f5",
-                    cursor: "pointer",
-                    fontSize: 11,
-                    fontWeight: 700
+                    background: getLockButtonState("profile").background
                   }}
                 >
                   {getLockButtonState("profile").label}
@@ -5438,288 +4537,25 @@ export function CombatSetupScreen(props: {
           )}
 
           {activeMainTab === "player" && activePlayerTab === "magic" && magicSources.length > 0 && (
-            <>
-              <div style={{ fontSize: 12, color: "#b0b8c4" }}>
-                Gestion de la magie selon les sources verrouillees.
-              </div>
-              {magicSources.length > 1 && (
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {magicSources.map((source, idx) => (
-                    <button
-                      key={`magic-tab-${source.key}`}
-                      type="button"
-                      onClick={() => setActiveMagicTab(idx)}
-                      style={{
-                        padding: "6px 10px",
-                        borderRadius: 6,
-                        border: `1px solid ${
-                          idx === activeMagicTab ? "#8e44ad" : "rgba(255,255,255,0.12)"
-                        }`,
-                        background:
-                          idx === activeMagicTab ? "rgba(142, 68, 173, 0.2)" : "#0f0f19",
-                        color: "#c9cfdd",
-                        cursor: "pointer",
-                        fontSize: 12,
-                        fontWeight: 700
-                      }}
-                    >
-                      {source.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {(() => {
-                const source = magicSources[activeMagicTab] ?? magicSources[0];
-                if (!source) return null;
-                const selection = spellcastingSelections[source.key] ?? {};
-                const knownSpells = Array.isArray(selection.knownSpells) ? selection.knownSpells : [];
-                const preparedSpells = Array.isArray(selection.preparedSpells)
-                  ? selection.preparedSpells
-                  : [];
-                const focusItemId = selection.focusItemId ?? "";
-                const storage = source.storage ?? selection.storage ?? "memory";
-                const grimoireItemId = selection.grimoireItemId ?? "";
-                const totalCasterLevel = magicSources.reduce(
-                  (sum, item) => sum + getCasterContribution(item.casterProgression, item.classLevel),
-                  0
-                );
-                const slotsTable =
-                  magicSources.find(item => item.slotsByLevel)?.slotsByLevel ?? null;
-                const slots = slotsTable
-                  ? slotsTable[String(Math.max(0, totalCasterLevel))] ?? []
-                  : [];
-                const dc =
-                  8 + computeMod(getScore(source.ability)) + (2 + Math.floor((resolveLevel() - 1) / 4));
-                const spellAttack =
-                  computeMod(getScore(source.ability)) + (2 + Math.floor((resolveLevel() - 1) / 4));
-                const focusTypes = Array.isArray(source.focusTypes) ? source.focusTypes : [];
-                const focusOptions = inventoryItems.filter(item => {
-                  if (focusTypes.length === 0) return true;
-                  const tags = resolveItemTags(item.id);
-                  return focusTypes.some(tag => tags.includes(tag));
-                });
-                const storageLabel =
-                  storage === "memory" ? "Memoire" : storage === "innate" ? "Inne" : "Grimoire";
-                return (
-                  <div
-                    style={{
-                      borderRadius: 10,
-                      border: "1px solid rgba(255,255,255,0.12)",
-                      background: "rgba(12,12,18,0.75)",
-                      padding: 12,
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 10
-                    }}
-                  >
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-                      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-                        Carac principale: {source.ability}
-                      </div>
-                      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-                        Methode: {source.preparation === "prepared" ? "Prepare" : "Connu"}
-                      </div>
-                      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-                        Niveau lanceur total: {totalCasterLevel}
-                      </div>
-                      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-                        DD sort: {dc} | Attaque magique: {spellAttack >= 0 ? `+${spellAttack}` : spellAttack}
-                      </div>
-                    </div>
-                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                      Emplacements (total):{" "}
-                      {slots.length > 0
-                        ? slots
-                            .map((count, idx) =>
-                              count > 0 ? `${idx + 1}: ${count}` : null
-                            )
-                            .filter(Boolean)
-                            .join(" | ")
-                        : "—"}
-                    </div>
-                    {source.spellIds.length > 0 && (
-                      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                        Sorts de progression: {source.spellIds.join(", ")}
-                      </div>
-                    )}
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
-                      <div>
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 6 }}>
-                          {storage === "memory"
-                            ? "Sorts memorises"
-                            : source.preparation === "prepared"
-                              ? "Sorts prepares"
-                              : "Sorts connus"}
-                        </div>
-                        <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                          <input
-                            type="text"
-                            placeholder="Ajouter un sort (id)"
-                            value={spellInputByKey[source.key] ?? ""}
-                            onChange={e =>
-                              setSpellInputByKey(prev => ({ ...prev, [source.key]: e.target.value }))
-                            }
-                            style={{
-                              flex: 1,
-                              background: "#0f0f19",
-                              color: "#f5f5f5",
-                              border: "1px solid #333",
-                              borderRadius: 6,
-                              padding: "6px 8px",
-                              fontSize: 12
-                            }}
-                            onKeyDown={e => {
-                              if (e.key !== "Enter") return;
-                              const value = (e.currentTarget.value || "").trim();
-                              if (!value) return;
-                              const list = source.preparation === "prepared" ? preparedSpells : knownSpells;
-                              if (list.includes(value)) return;
-                              const next = [...list, value];
-                              if (source.preparation === "prepared") {
-                                updateSpellcastingSelection(source.key, { preparedSpells: next });
-                              } else {
-                                updateSpellcastingSelection(source.key, { knownSpells: next });
-                              }
-                              setSpellInputByKey(prev => ({ ...prev, [source.key]: "" }));
-                            }}
-                          />
-                          <button
-                            type="button"
-                            onClick={e => {
-                              const value = (spellInputByKey[source.key] ?? "").trim();
-                              if (!value) return;
-                              const list = source.preparation === "prepared" ? preparedSpells : knownSpells;
-                              if (list.includes(value)) return;
-                              const next = [...list, value];
-                              if (source.preparation === "prepared") {
-                                updateSpellcastingSelection(source.key, { preparedSpells: next });
-                              } else {
-                                updateSpellcastingSelection(source.key, { knownSpells: next });
-                              }
-                              setSpellInputByKey(prev => ({ ...prev, [source.key]: "" }));
-                            }}
-                            style={{
-                              padding: "6px 10px",
-                              borderRadius: 6,
-                              border: "1px solid rgba(255,255,255,0.15)",
-                              background: "rgba(255,255,255,0.08)",
-                              color: "#f5f5f5",
-                              cursor: "pointer",
-                              fontSize: 12,
-                              fontWeight: 700
-                            }}
-                          >
-                            Ajouter
-                          </button>
-                        </div>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                          {(source.preparation === "prepared" ? preparedSpells : knownSpells).map(spell => (
-                            <span
-                              key={`spell-${source.key}-${spell}`}
-                              style={{
-                                padding: "2px 6px",
-                                borderRadius: 999,
-                                border: "1px solid rgba(255,255,255,0.18)",
-                                background: "rgba(142, 68, 173, 0.12)",
-                                fontSize: 11,
-                                color: "rgba(255,255,255,0.75)",
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: 6
-                              }}
-                            >
-                              {spell}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const list = source.preparation === "prepared" ? preparedSpells : knownSpells;
-                                  const next = list.filter(item => item !== spell);
-                                  if (source.preparation === "prepared") {
-                                    updateSpellcastingSelection(source.key, { preparedSpells: next });
-                                  } else {
-                                    updateSpellcastingSelection(source.key, { knownSpells: next });
-                                  }
-                                }}
-                                style={{
-                                  border: "none",
-                                  background: "transparent",
-                                  color: "rgba(255,255,255,0.7)",
-                                  cursor: "pointer",
-                                  fontSize: 12
-                                }}
-                              >
-                                ×
-                              </button>
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 6 }}>
-                          Focalisateur
-                        </div>
-                        <select
-                          value={focusItemId}
-                          onChange={e =>
-                            updateSpellcastingSelection(source.key, {
-                              focusItemId: e.target.value || null
-                            })
-                          }
-                          style={{
-                            width: "100%",
-                            background: "#0f0f19",
-                            color: "#f5f5f5",
-                            border: "1px solid #333",
-                            borderRadius: 6,
-                            padding: "6px 8px",
-                            fontSize: 12
-                          }}
-                        >
-                          <option value="">Aucun</option>
-                          {focusOptions.map(item => (
-                            <option key={`focus-${item.id}`} value={item.id}>
-                              {formatEquipmentLabel(item.id)}
-                            </option>
-                          ))}
-                        </select>
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 10 }}>
-                          Stockage des sorts: {storageLabel}
-                        </div>
-                        {storage === "grimoire" && (
-                          <select
-                            value={grimoireItemId}
-                            onChange={e =>
-                              updateSpellcastingSelection(source.key, {
-                                grimoireItemId: e.target.value || null
-                              })
-                            }
-                            style={{
-                              width: "100%",
-                              background: "#0f0f19",
-                              color: "#f5f5f5",
-                              border: "1px solid #333",
-                              borderRadius: 6,
-                              padding: "6px 8px",
-                              fontSize: 12,
-                              marginTop: 6
-                            }}
-                          >
-                            <option value="">Choisir un grimoire</option>
-                            {inventoryItems
-                              .filter(item => item.type === "object")
-                              .map(item => (
-                                <option key={`grimoire-${item.id}`} value={item.id}>
-                                  {formatEquipmentLabel(item.id)}
-                                </option>
-                              ))}
-                          </select>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-            </>
+            <MagicTab
+              magicSources={magicSources}
+              activeMagicTab={activeMagicTab}
+              setActiveMagicTab={setActiveMagicTab}
+              spellcastingSelections={spellcastingSelections}
+              spellInputByKey={spellInputByKey}
+              setSpellInputByKey={setSpellInputByKey}
+              updateSpellcastingSelection={updateSpellcastingSelection}
+              computeMod={computeMod}
+              getScore={getScore}
+              resolveLevel={resolveLevel}
+              getCasterContribution={getCasterContribution}
+              resolveItemTags={resolveItemTags}
+              inventoryItems={inventoryItems}
+              formatEquipmentLabel={formatEquipmentLabel}
+              getSpellId={getSpellId}
+              getSpellKey={getSpellKey}
+              makeSpellEntry={makeSpellEntry}
+            />
           )}
 
           {activeMainTab === "player" && activePlayerTab === "sheet" && (
@@ -6073,13 +4909,39 @@ export function CombatSetupScreen(props: {
                             );
                           })}
                         </div>
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 8 }}>
-                          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                            gap: 8
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 800,
+                              color: "#cfe4ff",
+                              background: "rgba(79,125,242,0.18)",
+                              border: "1px solid rgba(79,125,242,0.5)",
+                              borderRadius: 8,
+                              padding: "6px 8px"
+                            }}
+                          >
                             CA (dynamique): {computeArmorClassFromEquipment()}
                           </div>
                           {Boolean((choiceSelections as any)?.sheetValidated) && (
                             <>
-                              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                              <div
+                                style={{
+                                  fontSize: 13,
+                                  fontWeight: 800,
+                                  color: "#ffe9a6",
+                                  background: "rgba(241,196,15,0.16)",
+                                  border: "1px solid rgba(241,196,15,0.5)",
+                                  borderRadius: 8,
+                                  padding: "6px 8px"
+                                }}
+                              >
                                 PV max: {props.character?.combatStats?.maxHp ?? "—"}
                               </div>
                               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
@@ -6108,21 +4970,52 @@ export function CombatSetupScreen(props: {
                           Competences
                           {renderValidatedBadge(getSectionValidated("skills"))}
                         </div>
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-                          Maitrises:{" "}
-                          {competences.length
-                            ? competences
-                                .map(id => competenceOptions.find(c => c.id === id)?.label ?? id)
-                                .join(", ")
-                            : "—"}
+                        <div
+                          style={{
+                            fontSize: 18,
+                            fontWeight: 800,
+                            color: "#4f7df2",
+                            textAlign: "center"
+                          }}
+                        >
+                          Bonus de maitrise: {(() => {
+                            const level = resolveLevel();
+                            const prof = 2 + Math.floor((level - 1) / 4);
+                            return prof >= 0 ? `+${prof}` : prof;
+                          })()}
                         </div>
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                          Expertises:{" "}
-                          {expertises.length
-                            ? expertises
-                                .map(id => competenceOptions.find(c => c.id === id)?.label ?? id)
-                                .join(", ")
-                            : "—"}
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                          {(() => {
+                            const merged = Array.from(
+                              new Set([...(competences ?? []), ...(expertises ?? [])])
+                            );
+                            if (merged.length === 0) return "—";
+                            return merged.map(id => {
+                              const label = competenceOptions.find(c => c.id === id)?.label ?? id;
+                              const abilityKey = skillAbilityMap[id];
+                              const scoreKey =
+                                abilityKey === "STR"
+                                  ? "FOR"
+                                  : abilityKey === "DEX"
+                                    ? "DEX"
+                                    : abilityKey === "CON"
+                                      ? "CON"
+                                      : abilityKey === "INT"
+                                        ? "INT"
+                                        : abilityKey === "WIS"
+                                          ? "SAG"
+                                          : "CHA";
+                              const mod = computeMod(getScore(scoreKey));
+                              const level = resolveLevel();
+                              const prof = 2 + Math.floor((level - 1) / 4);
+                              const isExpert = expertises.includes(id);
+                              const isProf = competences.includes(id);
+                              const bonus = mod + (isExpert ? prof * 2 : isProf ? prof : 0);
+                              const bonusLabel = bonus >= 0 ? `+${bonus}` : bonus;
+                              const suffix = isExpert ? " (Expertise)" : "";
+                              return `${label}${suffix}: ${bonusLabel}`;
+                            }).join(", ");
+                          })()}
                         </div>
                       </div>
 
@@ -6168,67 +5061,92 @@ export function CombatSetupScreen(props: {
                           {renderValidatedBadge(getSectionValidated("equip"))}
                         </div>
                         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                          Slots equipes:
                           {EQUIPMENT_SLOTS.filter(slot => Boolean(materielSlots[slot.id])).length > 0
                             ? EQUIPMENT_SLOTS.filter(slot => Boolean(materielSlots[slot.id])).map(slot => (
                                 <div key={`slot-${slot.id}`} style={{ marginTop: 4 }}>
                                   {slot.label}: {formatEquipmentLabel(String(materielSlots[slot.id]))}
                                 </div>
                               ))
-                            : " —"}
+                            : "—"}
                         </div>
                         {(() => {
-                          const bagId = materielSlots.paquetage ?? null;
-                          if (!bagId) {
-                            return (
-                              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                                Sac: —
-                              </div>
-                            );
-                          }
-                          const bagDef = objectItemMap.get(bagId);
-                          const bagCapacity = Number((bagDef as any)?.capacityWeight ?? 0) || 0;
-                          const bagContents = inventoryItems.filter(item => item.storedIn === bagId);
-                          const getItemWeight = (item: any) => {
-                            const resolved = resolveItemType(item.id);
-                            if (resolved.type === "weapon") {
-                              return Number(weaponItemMap.get(resolved.id)?.weight ?? 0) || 0;
-                            }
-                            if (resolved.type === "armor") {
-                              return Number(armorItemMap.get(resolved.id)?.weight ?? 0) || 0;
-                            }
-                            if (resolved.type === "tool") {
-                              return Number(toolItemMap.get(resolved.id)?.weight ?? 0) || 0;
-                            }
-                            if (resolved.type === "object") {
-                              return Number(objectItemMap.get(resolved.id)?.weight ?? 0) || 0;
-                            }
-                            return 0;
-                          };
-                          const bagWeight = bagContents.reduce((sum, item) => {
-                            const qty = Number(item.qty ?? 1) || 1;
-                            return sum + getItemWeight(item) * qty;
-                          }, 0);
+                          const packEntries = Array.from(packSlots)
+                            .map(slotId => {
+                              const status = packSlotStatus(slotId);
+                              if (!status.bagId) return null;
+                              const bagContents = inventoryItems.filter(item => {
+                                const inSlot =
+                                  item?.storedIn === slotId ||
+                                  (slotId === "paquetage" &&
+                                    status.bagId &&
+                                    item?.storedIn === status.bagId);
+                                return inSlot;
+                              });
+                              return {
+                                slotId,
+                                status,
+                                contents: bagContents,
+                                label: getSlotLabel(slotId)
+                              };
+                            })
+                            .filter(Boolean) as Array<{
+                            slotId: string;
+                            status: ReturnType<typeof packSlotStatus>;
+                            contents: Array<any>;
+                            label: string;
+                          }>;
+                          if (packEntries.length === 0) return null;
                           return (
-                            <>
-                              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                                Sac: {formatEquipmentLabel(bagId)}
-                              </div>
-                              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                                Capacite: {bagWeight.toFixed(1)} /{" "}
-                                {bagCapacity > 0 ? bagCapacity.toFixed(1) : "?"}
-                              </div>
-                              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                                Contenu du sac:
-                                {bagContents.length > 0
-                                  ? bagContents.map(item => (
-                                      <div key={`bag-${item.id}`} style={{ marginTop: 4 }}>
-                                        {formatEquipmentLabel(item.id)} x{item.qty ?? 1}
-                                      </div>
-                                    ))
-                                  : " —"}
-                              </div>
-                            </>
+                            <div
+                              style={{
+                                marginTop: 6,
+                                padding: 8,
+                                borderRadius: 8,
+                                border: "1px solid rgba(255,255,255,0.12)",
+                                background: "rgba(10,10,16,0.7)",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 8
+                              }}
+                            >
+                              <div style={{ fontSize: 12, fontWeight: 800 }}>Sacs</div>
+                              {packEntries.map(entry => {
+                                const capacityLabel =
+                                  entry.status.capacity > 0
+                                    ? entry.status.capacity.toFixed(1)
+                                    : "?";
+                                return (
+                                  <div key={`bag-${entry.slotId}`} style={{ display: "grid", gap: 4 }}>
+                                    <div
+                                      style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}
+                                    >
+                                      {entry.label}: {formatEquipmentLabel(entry.status.bagId ?? "")}
+                                    </div>
+                                    <div
+                                      style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}
+                                    >
+                                      Capacite: {entry.status.storedWeight.toFixed(1)} /{" "}
+                                      {capacityLabel}
+                                    </div>
+                                    <div
+                                      style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}
+                                    >
+                                      Contenu:
+                                      {entry.contents.length > 0
+                                        ? entry.contents.map(item => (
+                                            <div
+                                              key={`bag-${entry.slotId}-${item.id}`}
+                                              style={{ marginTop: 4 }}
+                                            >
+                                              {formatEquipmentLabel(item.id)} x{item.qty ?? 1}
+                                            </div>
+                                          ))
+                                        : " —"}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           );
                         })()}
                       </div>
@@ -6314,510 +5232,43 @@ export function CombatSetupScreen(props: {
           )}
         </div>
       </div>
-          {asiModal.open && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.55)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000
-          }}
-        >
-          <div
-            style={{
-              width: "min(560px, 92vw)",
-              background: "#141421",
-              border: "1px solid rgba(255,255,255,0.18)",
-              borderRadius: 12,
-              padding: 16,
-              display: "flex",
-              flexDirection: "column",
-              gap: 12
-            }}
-          >
-            <div style={{ fontSize: 14, fontWeight: 800 }}>
-              {asiModal.entry
-                ? `Niveau ${asiModal.entry.level} — ${asiModal.entry.classLabel}`
-                : "Choix d'amelioration"}
-            </div>
-            {asiModal.step === "type" && (
-              <>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-                  Souhaitez-vous augmenter les caracteristiques ou choisir un don ?
-                </div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  {([
-                    { id: "asi", label: "Augmenter les caracteristiques" },
-                    { id: "feat", label: "Choisir un don" }
-                  ] as const).map(opt => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setAsiModalType(opt.id)}
-                      style={{
-                        padding: "6px 10px",
-                        borderRadius: 8,
-                        border: "1px solid rgba(255,255,255,0.15)",
-                        background:
-                          asiModal.type === opt.id
-                            ? "rgba(79,125,242,0.2)"
-                            : "rgba(255,255,255,0.06)",
-                        color: "#f5f5f5",
-                        cursor: "pointer",
-                        fontSize: 12,
-                        fontWeight: 700
-                      }}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-                <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                  <button
-                    type="button"
-                    onClick={closeAsiModal}
-                    style={{
-                      padding: "6px 10px",
-                      borderRadius: 8,
-                      border: "1px solid rgba(255,255,255,0.15)",
-                      background: "rgba(255,255,255,0.06)",
-                      color: "#f5f5f5",
-                      cursor: "pointer",
-                      fontSize: 12,
-                      fontWeight: 700
-                    }}
-                  >
-                    Fermer
-                  </button>
-                  <button
-                    type="button"
-                    onClick={confirmAsiModalType}
-                    style={{
-                      padding: "6px 10px",
-                      borderRadius: 8,
-                      border: "1px solid rgba(255,255,255,0.15)",
-                      background: "rgba(46, 204, 113, 0.16)",
-                      color: "#f5f5f5",
-                      cursor: "pointer",
-                      fontSize: 12,
-                      fontWeight: 700
-                    }}
-                  >
-                    Valider
-                  </button>
-                </div>
-              </>
-            )}
-            {asiModal.step === "feat" && (
-              <>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-                  Dons indisponibles pour l'instant.
-                </div>
-                <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                  <button
-                    type="button"
-                    onClick={() => setAsiModal(prev => ({ ...prev, step: "type" }))}
-                    style={{
-                      padding: "6px 10px",
-                      borderRadius: 8,
-                      border: "1px solid rgba(255,255,255,0.15)",
-                      background: "rgba(255,255,255,0.06)",
-                      color: "#f5f5f5",
-                      cursor: "pointer",
-                      fontSize: 12,
-                      fontWeight: 700
-                    }}
-                  >
-                    Retour
-                  </button>
-                  <button
-                    type="button"
-                    onClick={closeAsiModal}
-                    style={{
-                      padding: "6px 10px",
-                      borderRadius: 8,
-                      border: "1px solid rgba(255,255,255,0.15)",
-                      background: "rgba(255,255,255,0.06)",
-                      color: "#f5f5f5",
-                      cursor: "pointer",
-                      fontSize: 12,
-                      fontWeight: 700
-                    }}
-                  >
-                    Fermer
-                  </button>
-                </div>
-              </>
-            )}
-            {asiModal.step === "asi" && (
-              <>
-                {(() => {
-                  const spent = Object.values(asiModal.stats).reduce(
-                    (sum, value) => sum + (Number(value) || 0),
-                    0
-                  );
-                  const remaining = Math.max(0, 2 - spent);
-                  return (
-                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-                      Capital disponible : {remaining}
-                    </div>
-                  );
-                })()}
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                    gap: 8
-                  }}
-                >
-                  {STAT_KEYS.map(stat => {
-                    const base = getBaseScore(stat);
-                    const nonAsi = getNonAsiBonusSumForStat(stat);
-                    const original = Number(asiModal.originalStats[stat] ?? 0) || 0;
-                    const totalAsi = Number(asiBonusMap[stat] ?? 0) || 0;
-                    const otherAsi = Math.max(0, totalAsi - original);
-                    const current = Number(asiModal.stats[stat] ?? 0) || 0;
-                    const total = base + nonAsi + otherAsi + current;
-                    const spent = Object.values(asiModal.stats).reduce(
-                      (sum, value) => sum + (Number(value) || 0),
-                      0
-                    );
-                    const remaining = Math.max(0, 2 - spent);
-                    const canIncrease = remaining > 0 && current < 2 && total < 20;
-                    const canDecrease = current > 0;
-                    return (
-                      <div
-                        key={`asi-modal-${stat}`}
-                        style={{
-                          borderRadius: 8,
-                          border: "1px solid rgba(255,255,255,0.12)",
-                          background: "rgba(10,10,16,0.8)",
-                          padding: 8,
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: 6
-                        }}
-                      >
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <div style={{ fontSize: 12, fontWeight: 700 }}>{stat}</div>
-                          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
-                            Total: {Math.min(20, total)}
-                          </div>
-                        </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <button
-                            type="button"
-                            onClick={() => canDecrease && updateAsiModalStat(stat, -1)}
-                            disabled={!canDecrease}
-                            style={{
-                              width: 26,
-                              height: 26,
-                              borderRadius: 6,
-                              border: "1px solid #333",
-                              background: canDecrease ? "#141421" : "rgba(80,80,90,0.55)",
-                              color: "#f5f5f5",
-                              cursor: canDecrease ? "pointer" : "not-allowed",
-                              display: "grid",
-                              placeItems: "center",
-                              fontSize: 12,
-                              fontWeight: 700
-                            }}
-                          >
-                            -
-                          </button>
-                          <div style={{ minWidth: 24, textAlign: "center", fontSize: 12 }}>
-                            +{current}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => canIncrease && updateAsiModalStat(stat, 1)}
-                            disabled={!canIncrease}
-                            style={{
-                              width: 26,
-                              height: 26,
-                              borderRadius: 6,
-                              border: "1px solid #333",
-                              background: canIncrease ? "#141421" : "rgba(80,80,90,0.55)",
-                              color: "#f5f5f5",
-                              cursor: canIncrease ? "pointer" : "not-allowed",
-                              display: "grid",
-                              placeItems: "center",
-                              fontSize: 12,
-                              fontWeight: 700
-                            }}
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                  {(() => {
-                    const spent = Object.values(asiModal.stats).reduce(
-                      (sum, value) => sum + (Number(value) || 0),
-                      0
-                    );
-                    const remaining = Math.max(0, 2 - spent);
-                    const canAllocateMore =
-                      asiModal.entry && canAllocateMoreAsi(asiModal.entry.key, asiModal.stats);
-                    return remaining > 0 && canAllocateMore ? (
-                      <span style={{ alignSelf: "center", fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
-                        Utilisez les 2 points.
-                      </span>
-                    ) : null;
-                  })()}
-                  <button
-                    type="button"
-                    onClick={() => setAsiModal(prev => ({ ...prev, step: "type" }))}
-                    style={{
-                      padding: "6px 10px",
-                      borderRadius: 8,
-                      border: "1px solid rgba(255,255,255,0.15)",
-                      background: "rgba(255,255,255,0.06)",
-                      color: "#f5f5f5",
-                      cursor: "pointer",
-                      fontSize: 12,
-                      fontWeight: 700
-                    }}
-                  >
-                    Retour
-                  </button>
-                  <button
-                    type="button"
-                    onClick={confirmAsiModalStats}
-                    disabled={(() => {
-                      const spent = Object.values(asiModal.stats).reduce(
-                        (sum, value) => sum + (Number(value) || 0),
-                        0
-                      );
-                      if (spent >= 2) return false;
-                      if (!asiModal.entry) return true;
-                      return canAllocateMoreAsi(asiModal.entry.key, asiModal.stats);
-                    })()}
-                    style={{
-                      padding: "6px 10px",
-                      borderRadius: 8,
-                      border: "1px solid rgba(255,255,255,0.15)",
-                      background: (() => {
-                        const spent = Object.values(asiModal.stats).reduce(
-                          (sum, value) => sum + (Number(value) || 0),
-                          0
-                        );
-                        if (spent >= 2) return "rgba(46, 204, 113, 0.16)";
-                        if (!asiModal.entry) return "rgba(80,80,90,0.55)";
-                        const canAllocateMore = canAllocateMoreAsi(asiModal.entry.key, asiModal.stats);
-                        return canAllocateMore ? "rgba(80,80,90,0.55)" : "rgba(46, 204, 113, 0.16)";
-                      })(),
-                      color: "#f5f5f5",
-                      cursor: (() => {
-                        const spent = Object.values(asiModal.stats).reduce(
-                          (sum, value) => sum + (Number(value) || 0),
-                          0
-                        );
-                        if (spent >= 2) return "pointer";
-                        if (!asiModal.entry) return "not-allowed";
-                        const canAllocateMore = canAllocateMoreAsi(asiModal.entry.key, asiModal.stats);
-                        return canAllocateMore ? "not-allowed" : "pointer";
-                      })(),
-                      fontSize: 12,
-                      fontWeight: 700
-                    }}
-                  >
-                    Valider
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-          {choiceModal.open && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.55)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 999
-          }}
-        >
-          <div
-            style={{
-              width: "min(520px, 92vw)",
-              background: "#141421",
-              border: "1px solid rgba(255,255,255,0.18)",
-              borderRadius: 12,
-              padding: 16,
-              display: "flex",
-              flexDirection: "column",
-              gap: 12
-            }}
-          >
-            <div style={{ fontSize: 14, fontWeight: 800 }}>{choiceModal.title}</div>
-            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-              Choix requis: {choiceModal.count} {choiceModal.count > 1 ? "elements" : "element"}
-            </div>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                gap: 8
-              }}
-            >
-              {choiceModal.options.map(option => {
-                const isSelected = choiceModal.selected.includes(option.id);
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => {
-                      const already = choiceModal.selected.includes(option.id);
-                      let next = choiceModal.selected;
-                      if (choiceModal.multi) {
-                        next = already
-                          ? next.filter(item => item !== option.id)
-                          : [...next, option.id];
-                      } else {
-                        next = already ? [] : [option.id];
-                      }
-                      setChoiceModal(prev => ({ ...prev, selected: next }));
-                    }}
-                    style={{
-                      textAlign: "left",
-                      borderRadius: 8,
-                      border: `1px solid ${isSelected ? "#6fd3a8" : "rgba(255,255,255,0.12)"}`,
-                      background: isSelected
-                        ? "rgba(46, 204, 113, 0.14)"
-                        : "rgba(12,12,18,0.75)",
-                      color: "#f5f5f5",
-                      padding: "8px 10px",
-                      cursor: "pointer",
-                      fontSize: 12
-                    }}
-                  >
-                    {option.label}
-                  </button>
-                );
-              })}
-            </div>
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button
-                type="button"
-                onClick={closeChoiceModal}
-                style={{
-                  padding: "6px 10px",
-                  borderRadius: 8,
-                  border: "1px solid rgba(255,255,255,0.15)",
-                  background: "rgba(255,255,255,0.06)",
-                  color: "#f5f5f5",
-                  cursor: "pointer",
-                  fontSize: 12,
-                  fontWeight: 700
-                }}
-              >
-                Fermer
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (choiceModal.selected.length < choiceModal.count) return;
-                  choiceModal.onConfirm(choiceModal.selected.slice(0, choiceModal.count));
-                  closeChoiceModal();
-                }}
-                disabled={choiceModal.selected.length < choiceModal.count}
-                style={{
-                  padding: "6px 10px",
-                  borderRadius: 8,
-                  border: "1px solid rgba(255,255,255,0.15)",
-                  background:
-                    choiceModal.selected.length < choiceModal.count
-                      ? "rgba(80,80,90,0.55)"
-                      : "rgba(46, 204, 113, 0.16)",
-                  color: "#f5f5f5",
-                  cursor:
-                    choiceModal.selected.length < choiceModal.count ? "not-allowed" : "pointer",
-                  fontSize: 12,
-                  fontWeight: 700
-                }}
-              >
-                Valider
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {confirmModal.open && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.55)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 998
-          }}
-        >
-          <div
-            style={{
-              width: "min(480px, 92vw)",
-              background: "#141421",
-              border: "1px solid rgba(255,255,255,0.18)",
-              borderRadius: 12,
-              padding: 16,
-              display: "flex",
-              flexDirection: "column",
-              gap: 12
-            }}
-          >
-            <div style={{ fontSize: 14, fontWeight: 800 }}>{confirmModal.title}</div>
-            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-              {confirmModal.message}
-            </div>
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button
-                type="button"
-                onClick={closeConfirmModal}
-                style={{
-                  padding: "6px 10px",
-                  borderRadius: 8,
-                  border: "1px solid rgba(255,255,255,0.15)",
-                  background: "rgba(255,255,255,0.06)",
-                  color: "#f5f5f5",
-                  cursor: "pointer",
-                  fontSize: 12,
-                  fontWeight: 700
-                }}
-              >
-                Annuler
-              </button>
-              <button
-                type="button"
-                onClick={() => confirmModal.onConfirm()}
-                style={{
-                  padding: "6px 10px",
-                  borderRadius: 8,
-                  border: "1px solid rgba(255,255,255,0.15)",
-                  background: "rgba(231, 76, 60, 0.2)",
-                  color: "#f5f5f5",
-                  cursor: "pointer",
-                  fontSize: 12,
-                  fontWeight: 700
-                }}
-              >
-                Continuer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AsiModal
+        open={asiModal.open}
+        entry={asiModal.entry}
+        step={asiModal.step}
+        type={asiModal.type}
+        stats={asiModal.stats}
+        originalStats={asiModal.originalStats}
+        statKeys={STAT_KEYS}
+        asiBonusMap={asiBonusMap}
+        getBaseScore={getBaseScore}
+        getNonAsiBonusSumForStat={getNonAsiBonusSumForStat}
+        setType={setAsiModalType}
+        setStep={setAsiModalStep}
+        onClose={closeAsiModal}
+        onConfirmType={confirmAsiModalType}
+        onConfirmStats={confirmAsiModalStats}
+        updateStat={updateAsiModalStat}
+        canAllocateMoreAsi={canAllocateMoreAsi}
+      />
+      <ChoiceModal
+        open={choiceModal.open}
+        title={choiceModal.title}
+        options={choiceModal.options}
+        selected={choiceModal.selected}
+        count={choiceModal.count}
+        multi={choiceModal.multi}
+        onToggle={handleChoiceToggle}
+        onClose={closeChoiceModal}
+        onConfirm={handleChoiceConfirm}
+      />
+      <ConfirmModal
+        open={confirmModal.open}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        onCancel={closeConfirmModal}
+        onConfirm={confirmModal.onConfirm}
+      />
     </div>
   );
 }

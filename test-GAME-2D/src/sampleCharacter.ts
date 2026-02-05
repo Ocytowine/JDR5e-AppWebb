@@ -98,58 +98,18 @@ export const sampleCharacter: Personnage = {
     collier: null,
     bijou_1: null,
     bijou_2: null,
-    paquetage: null
+    paquetage: null,
+    ceinture_bourse_1: null,
+    ceinture_bourse_2: null
   },
   armesDefaut: {
     main_droite: "epee-longue",
     main_gauche: "dague",
     mains: null
   },
-  equipmentAuto: [
-    "obj_arme_endommagee",
-    "obj_insigne_unite",
-    "obj_vetements_voyage",
-    "obj_bourse_10po"
-  ],
+  equipmentAuto: [],
   equipmentManual: [],
-  inventoryItems: [
-    {
-      id: "obj_arme_endommagee",
-      type: "object",
-      qty: 1,
-      source: "auto",
-      equippedSlot: null,
-      storedIn: null,
-      isPrimaryWeapon: false
-    },
-    {
-      id: "obj_insigne_unite",
-      type: "object",
-      qty: 1,
-      source: "auto",
-      equippedSlot: null,
-      storedIn: null,
-      isPrimaryWeapon: false
-    },
-    {
-      id: "obj_vetements_voyage",
-      type: "object",
-      qty: 1,
-      source: "auto",
-      equippedSlot: null,
-      storedIn: null,
-      isPrimaryWeapon: false
-    },
-    {
-      id: "obj_bourse_10po",
-      type: "object",
-      qty: 1,
-      source: "auto",
-      equippedSlot: null,
-      storedIn: null,
-      isPrimaryWeapon: false
-    }
-  ],
+  inventoryItems: [],
   Inventaire: {
     id: "",
     idUnique: "",

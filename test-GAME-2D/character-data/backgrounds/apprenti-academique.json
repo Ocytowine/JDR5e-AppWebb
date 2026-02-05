@@ -6,7 +6,8 @@
     "obj_grimoire",
     "obj_plume_encre",
     "obj_tenue_academique",
-    "obj_bourse_10po",
+    "obj_bourse",
+    "object:obj_piece_or:10",
     "obj_besace"
   ],
   "grants": [

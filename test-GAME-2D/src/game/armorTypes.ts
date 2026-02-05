@@ -8,6 +8,7 @@ export interface ArmorItemDefinition {
   dexCap?: number | null;
   weight?: number;
   priceGp?: number;
+  value?: { pp?: number; po?: number; pa?: number; pc?: number };
   tags?: string[];
   description?: string;
 }

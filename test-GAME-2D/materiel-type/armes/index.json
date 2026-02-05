@@ -1,6 +1,8 @@
 {
   "types": [
     "./simple/dague.json",
+    "./simple/petit-couteau.json",
+    "./simple/arme-endommagee.json",
     "./simple/massue.json",
     "./simple/arc-court.json",
     "./martiale/epee-longue.json",

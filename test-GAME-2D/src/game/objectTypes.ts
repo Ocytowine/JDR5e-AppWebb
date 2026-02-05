@@ -5,6 +5,7 @@ export interface ObjectItemDefinition {
   category?: string;
   weight?: number;
   priceGp?: number;
+  value?: { pp?: number; po?: number; pa?: number; pc?: number };
   capacityWeight?: number;
   tags?: string[];
   description?: string;

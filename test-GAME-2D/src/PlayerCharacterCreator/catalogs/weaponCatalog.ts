@@ -3,6 +3,8 @@ import { normalizeDamageType } from "../../game/damageTypes";
 
 import weaponsIndex from "../../../materiel-type/armes/index.json";
 import dagger from "../../../materiel-type/armes/simple/dague.json";
+import petitCouteau from "../../../materiel-type/armes/simple/petit-couteau.json";
+import armeEndommagee from "../../../materiel-type/armes/simple/arme-endommagee.json";
 import club from "../../../materiel-type/armes/simple/massue.json";
 import shortbow from "../../../materiel-type/armes/simple/arc-court.json";
 import longsword from "../../../materiel-type/armes/martiale/epee-longue.json";
@@ -17,6 +19,8 @@ import kama from "../../../materiel-type/armes/monastique/kama.json";
 
 const WEAPON_TYPE_MODULES: Record<string, WeaponTypeDefinition> = {
   "./simple/dague.json": dagger as WeaponTypeDefinition,
+  "./simple/petit-couteau.json": petitCouteau as WeaponTypeDefinition,
+  "./simple/arme-endommagee.json": armeEndommagee as WeaponTypeDefinition,
   "./simple/massue.json": club as WeaponTypeDefinition,
   "./simple/arc-court.json": shortbow as WeaponTypeDefinition,
   "./martiale/epee-longue.json": longsword as WeaponTypeDefinition,
