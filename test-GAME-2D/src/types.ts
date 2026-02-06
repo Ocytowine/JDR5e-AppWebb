@@ -160,7 +160,7 @@ export interface TokenState {
   /**
    * Liste d'actions que l'entite peut utiliser (IDs ActionDefinition).
    * Pour le joueur, cela correspond au catalogue d'actions charge.
-   * Pour les ennemis, cela vient de enemy-types/*.json.
+   * Pour les ennemis, cela vient de src/data/enemies/*.json.
    */
   actionIds?: string[] | null;
   /**
@@ -172,7 +172,7 @@ export interface TokenState {
    */
   combatStats?: CombatStats;
   /**
-   * Profil RP pour guider les bulles de dialogue (enemy-types).
+   * Profil RP pour guider les bulles de dialogue (src/data/enemies).
    */
   speechProfile?: EnemySpeechProfile | null;
   moveRange?: number;
@@ -189,7 +189,7 @@ export interface TokenState {
   maxAttacksPerTurn?: number;
   armorClass?: number;
   /**
-   * Profil de deplacement derive des JSON enemy-types
+   * Profil de deplacement derive des JSON src/data/enemies
    * ou des capacites du personnage joueur.
    */
   movementProfile?: MovementProfile;

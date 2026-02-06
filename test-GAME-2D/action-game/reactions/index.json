@@ -1,8 +1,0 @@
-{
-  "model": "./reaction-model.json",
-  "reactions": [
-    "./opportunity-attack.json",
-    "./guard-strike.json",
-    "./killer-instinct.json"
-  ]
-}

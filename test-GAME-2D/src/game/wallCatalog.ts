@@ -1,13 +1,13 @@
 import type { WallTypeDefinition } from "./wallTypes";
 
-import wallsIndex from "../../wall-types/index.json";
+import wallsIndex from "../../data/maps/walls/index.json";
 
-import wallStone from "../../wall-types/wall-stone.json";
-import wallStoneDoor from "../../wall-types/wall-stone-door.json";
-import wallWood from "../../wall-types/wall-wood.json";
-import wallWoodDoor from "../../wall-types/wall-wood-door.json";
-import lowWallStone from "../../wall-types/low-wall-stone.json";
-import lowWallWood from "../../wall-types/low-wall-wood.json";
+import wallStone from "../../data/maps/walls/wall-stone.json";
+import wallStoneDoor from "../../data/maps/walls/wall-stone-door.json";
+import wallWood from "../../data/maps/walls/wall-wood.json";
+import wallWoodDoor from "../../data/maps/walls/wall-wood-door.json";
+import lowWallStone from "../../data/maps/walls/low-wall-stone.json";
+import lowWallWood from "../../data/maps/walls/low-wall-wood.json";
 
 const WALL_TYPE_MODULES: Record<string, WallTypeDefinition> = {
   "./wall-stone.json": wallStone as WallTypeDefinition,

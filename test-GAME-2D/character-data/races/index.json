@@ -1,3 +1,0 @@
-{
-  "types": ["./human.json", "./elf.json", "./dwarf.json"]
-}

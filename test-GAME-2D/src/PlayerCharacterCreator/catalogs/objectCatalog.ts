@@ -1,26 +1,26 @@
 // AUTO-GENERATED FILE. DO NOT EDIT MANUALLY.
-// Source of truth: materiel-type/objets (generated indexes)
+// Source of truth: src/data/items/objets (generated indexes)
 
 import type { ObjectItemDefinition } from "../../game/objectTypes";
 
 
-import objectsIndex from "../../../materiel-type/objets/index.json";
-import ObjBesace from "../../../materiel-type/objets/obj-besace.json";
-import ObjBourse from "../../../materiel-type/objets/obj-bourse.json";
-import ObjGrimoire from "../../../materiel-type/objets/obj-grimoire.json";
-import ObjInsigneUnite from "../../../materiel-type/objets/obj-insigne-unite.json";
-import ObjPlumeEncre from "../../../materiel-type/objets/obj-plume-encre.json";
-import ObjSacADos from "../../../materiel-type/objets/obj-sac-a-dos.json";
-import ObjSacVoyage from "../../../materiel-type/objets/obj-sac-voyage.json";
-import ObjSouvenirVole from "../../../materiel-type/objets/obj-souvenir-vole.json";
-import ObjSymboleSacre from "../../../materiel-type/objets/obj-symbole-sacre.json";
-import ObjTenueAcademique from "../../../materiel-type/objets/obj-tenue-academique.json";
-import ObjVetementsCommuns from "../../../materiel-type/objets/obj-vetements-communs.json";
-import ObjVetementsVoyage from "../../../materiel-type/objets/obj-vetements-voyage.json";
-import PieceArgent from "../../../materiel-type/objets/piece-argent.json";
-import PieceCuivre from "../../../materiel-type/objets/piece-cuivre.json";
-import PieceOr from "../../../materiel-type/objets/piece-or.json";
-import PiecePlatine from "../../../materiel-type/objets/piece-platine.json";
+import objectsIndex from "../../../data/items/objets/index.json";
+import ObjBesace from "../../../data/items/objets/obj-besace.json";
+import ObjBourse from "../../../data/items/objets/obj-bourse.json";
+import ObjGrimoire from "../../../data/items/objets/obj-grimoire.json";
+import ObjInsigneUnite from "../../../data/items/objets/obj-insigne-unite.json";
+import ObjPlumeEncre from "../../../data/items/objets/obj-plume-encre.json";
+import ObjSacADos from "../../../data/items/objets/obj-sac-a-dos.json";
+import ObjSacVoyage from "../../../data/items/objets/obj-sac-voyage.json";
+import ObjSouvenirVole from "../../../data/items/objets/obj-souvenir-vole.json";
+import ObjSymboleSacre from "../../../data/items/objets/obj-symbole-sacre.json";
+import ObjTenueAcademique from "../../../data/items/objets/obj-tenue-academique.json";
+import ObjVetementsCommuns from "../../../data/items/objets/obj-vetements-communs.json";
+import ObjVetementsVoyage from "../../../data/items/objets/obj-vetements-voyage.json";
+import PieceArgent from "../../../data/items/objets/piece-argent.json";
+import PieceCuivre from "../../../data/items/objets/piece-cuivre.json";
+import PieceOr from "../../../data/items/objets/piece-or.json";
+import PiecePlatine from "../../../data/items/objets/piece-platine.json";
 
 const OBJECT_MODULES: Record<string, ObjectItemDefinition> = {
   "./obj-besace.json": ObjBesace as ObjectItemDefinition,

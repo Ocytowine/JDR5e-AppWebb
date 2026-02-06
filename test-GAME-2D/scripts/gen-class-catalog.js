@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 
 const projectRoot = path.resolve(__dirname, "..");
-const indexPath = path.join(projectRoot, "character-data", "classes", "index.json");
+const indexPath = path.join(projectRoot, "src", "data", "characters", "classes", "index.json");
 const outputPath = path.join(
   projectRoot,
   "src",
@@ -57,7 +57,7 @@ types.forEach(entry => {
     .replace(/\.json$/i, "");
   const candidate = toIdentifier(baseName);
   const importName = uniqueName(candidate, usedNames);
-  imports.push(`import ${importName} from "../../../character-data/classes/${baseName}.json";`);
+  imports.push(`import ${importName} from "../../../data/characters/classes/${baseName}.json";`);
   if (isClass) {
     classEntries.push(`  "${relPath}": ${importName} as ClassDefinition`);
   } else {
@@ -66,11 +66,11 @@ types.forEach(entry => {
 });
 
 const content = `// AUTO-GENERATED FILE. DO NOT EDIT MANUALLY.
-// Source of truth: character-data/classes/index.json
+// Source of truth: src/data/characters/classes/index.json
 
 import type { ClassDefinition, SubclassDefinition } from "../../game/classTypes";
 
-import classesIndex from "../../../character-data/classes/index.json";
+import classesIndex from "../../../data/characters/classes/index.json";
 ${imports.join("\n")}
 
 const CLASS_MODULES: Record<string, ClassDefinition> = {

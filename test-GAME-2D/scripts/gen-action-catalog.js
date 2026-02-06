@@ -2,9 +2,12 @@ const fs = require("fs");
 const path = require("path");
 
 const projectRoot = path.resolve(__dirname, "..");
-const actionsRoot = path.join(projectRoot, "action-game", "actions");
-const catalogRoot = path.join(actionsRoot, "catalog");
-const indexPath = path.join(actionsRoot, "index.json");
+const dataRoot = path.join(projectRoot, "src", "data");
+const actionsIndexDir = path.join(dataRoot, "actions");
+const actionRoots = ["spells", "attacks", "moves", "supports", "items"].map(dir =>
+  path.join(dataRoot, dir)
+);
+const indexPath = path.join(actionsIndexDir, "index.json");
 const outputPath = path.join(projectRoot, "src", "game", "actionCatalog.ts");
 
 function isJsonFile(file) {
@@ -21,8 +24,13 @@ function listJsonFilesRecursive(dir) {
   for (const entry of entries) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
+      if (full.includes(path.join("items", "armes"))) continue;
+      if (full.includes(path.join("items", "armures"))) continue;
+      if (full.includes(path.join("items", "objets"))) continue;
+      if (full.includes(path.join("items", "outils"))) continue;
       files.push(...listJsonFilesRecursive(full));
     } else if (entry.isFile() && isJsonFile(entry.name) && !isIndexFile(entry.name)) {
+      if (full.includes(path.join("moves", "types"))) continue;
       files.push(full);
     }
   }
@@ -102,10 +110,15 @@ function validateAction(filePath, data) {
 }
 
 function main() {
-  const files = listJsonFilesRecursive(catalogRoot);
+  const files = [];
+  for (const root of actionRoots) {
+    if (!fs.existsSync(root)) continue;
+    files.push(...listJsonFilesRecursive(root));
+  }
   const actions = files.map(file => ({
     file,
-    rel: normalizeRel(actionsRoot, file)
+    relFromIndex: normalizeRel(actionsIndexDir, file),
+    relFromData: normalizeRel(dataRoot, file)
   }));
 
   const allErrors = [];
@@ -114,15 +127,15 @@ function main() {
     const data = readJson(entry.file);
     const errors = validateAction(entry.file, data);
     if (errors.length > 0) {
-      allErrors.push(`${entry.rel}: ${errors.join(" ")}`);
+      allErrors.push(`${entry.relFromIndex}: ${errors.join(" ")}`);
     }
     if (data && typeof data.id === "string") {
       if (seenIds.has(data.id)) {
         allErrors.push(
-          `ID en double: "${data.id}" -> ${seenIds.get(data.id)} et ${entry.rel}`
+          `ID en double: "${data.id}" -> ${seenIds.get(data.id)} et ${entry.relFromIndex}`
         );
       } else {
-        seenIds.set(data.id, entry.rel);
+        seenIds.set(data.id, entry.relFromIndex);
       }
     }
   }
@@ -134,10 +147,10 @@ function main() {
   }
 
   const actionList = actions
-    .map(entry => entry.rel.replace(/\\/g, "/"))
+    .map(entry => entry.relFromIndex.replace(/\\/g, "/"))
     .sort((a, b) => a.localeCompare(b));
 
-  let modelPath = "../action-model.json";
+  let modelPath = "../models/action-model.json";
   if (fs.existsSync(indexPath)) {
     const existing = readJson(indexPath);
     if (existing && typeof existing.model === "string") {
@@ -151,19 +164,19 @@ function main() {
   const usedNames = new Set();
   const imports = [];
   const entries = [];
-  for (const rel of actionList) {
-    const modulePath = rel.replace(/^\.\//, "");
+  for (const entry of actions) {
+    const modulePath = entry.relFromData.replace(/^\.\//, "");
     const baseName = modulePath.replace(/\.json$/i, "");
     const importName = uniqueName(toIdentifier(baseName), usedNames);
-    imports.push(`import ${importName} from "../../action-game/actions/${baseName}.json";`);
-    entries.push(`  "${rel}": ${importName} as ActionDefinition`);
+    imports.push(`import ${importName} from "../../data/${baseName}.json";`);
+    entries.push(`  "${entry.relFromIndex.replace(/\\\\/g, "/")}": ${importName} as ActionDefinition`);
   }
 
   const content = `// AUTO-GENERATED FILE. DO NOT EDIT MANUALLY.
-// Source of truth: action-game/actions/catalog (generated index)
+// Source of truth: src/data (generated index)
 
 import type { ActionDefinition } from "./actionTypes";
-import actionsIndex from "../../action-game/actions/index.json";
+import actionsIndex from "../../data/actions/index.json";
 ${imports.join("\n")}
 
 const ACTION_MODULES: Record<string, ActionDefinition> = {

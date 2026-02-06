@@ -1,12 +1,12 @@
 import { Assets } from "pixi.js";
 
-const pngModules = import.meta.glob("../obstacle-types/Sprite/*.png", {
+const pngModules = import.meta.glob("./data/maps/obstacles/sprite/*.png", {
   query: "?url",
   import: "default",
   eager: true
 });
 
-const effectAnimationModules = import.meta.glob("../action-game/model/effect/**/*.png", {
+const effectAnimationModules = import.meta.glob("./data/effects/sprite/**/*.png", {
   query: "?url",
   import: "default",
   eager: true

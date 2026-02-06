@@ -1,6 +1,6 @@
 param(
-  [string]$InputDir = "test-GAME-2D/obstacle-types/Sprite",
-  [string]$OutputDir = "test-GAME-2D/obstacle-types/Sprite/colorized",
+  [string]$InputDir = "test-GAME-2D/src/data/maps/obstacles/sprite",
+  [string]$OutputDir = "test-GAME-2D/src/data/maps/obstacles/sprite/colorized",
   [switch]$InPlace,
   [string]$CanopyLight = "#6fbf5f",
   [string]$CanopyDark = "#2f6b2f",

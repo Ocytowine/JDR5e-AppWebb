@@ -1,24 +1,24 @@
 // AUTO-GENERATED FILE. DO NOT EDIT MANUALLY.
-// Source of truth: materiel-type/armes (generated indexes)
+// Source of truth: src/data/items/armes (generated indexes)
 
 import type { WeaponTypeDefinition } from "../../game/weaponTypes";
 import { normalizeDamageType } from "../../game/damageTypes";
 
-import weaponsIndex from "../../../materiel-type/armes/index.json";
-import MartialeArcLong from "../../../materiel-type/armes/martiale/arc-long.json";
-import MartialeEpeeLongue from "../../../materiel-type/armes/martiale/epee-longue.json";
-import MartialeHacheBataille from "../../../materiel-type/armes/martiale/hache-bataille.json";
-import MonastiqueBaton from "../../../materiel-type/armes/monastique/baton.json";
-import MonastiqueKama from "../../../materiel-type/armes/monastique/kama.json";
-import MonastiqueNunchaku from "../../../materiel-type/armes/monastique/nunchaku.json";
-import SimpleArcCourt from "../../../materiel-type/armes/simple/arc-court.json";
-import SimpleArmeEndommagee from "../../../materiel-type/armes/simple/arme-endommagee.json";
-import SimpleDague from "../../../materiel-type/armes/simple/dague.json";
-import SimpleMassue from "../../../materiel-type/armes/simple/massue.json";
-import SimplePetitCouteau from "../../../materiel-type/armes/simple/petit-couteau.json";
-import SpecialeArbaleteRepetee from "../../../materiel-type/armes/speciale/arbalete-repetee.json";
-import SpecialeEpeeElfique from "../../../materiel-type/armes/speciale/epee-elfique.json";
-import SpecialeFouetDemon from "../../../materiel-type/armes/speciale/fouet-demon.json";
+import weaponsIndex from "../../../data/items/armes/index.json";
+import MartialeArcLong from "../../../data/items/armes/martiale/arc-long.json";
+import MartialeEpeeLongue from "../../../data/items/armes/martiale/epee-longue.json";
+import MartialeHacheBataille from "../../../data/items/armes/martiale/hache-bataille.json";
+import MonastiqueBaton from "../../../data/items/armes/monastique/baton.json";
+import MonastiqueKama from "../../../data/items/armes/monastique/kama.json";
+import MonastiqueNunchaku from "../../../data/items/armes/monastique/nunchaku.json";
+import SimpleArcCourt from "../../../data/items/armes/simple/arc-court.json";
+import SimpleArmeEndommagee from "../../../data/items/armes/simple/arme-endommagee.json";
+import SimpleDague from "../../../data/items/armes/simple/dague.json";
+import SimpleMassue from "../../../data/items/armes/simple/massue.json";
+import SimplePetitCouteau from "../../../data/items/armes/simple/petit-couteau.json";
+import SpecialeArbaleteRepetee from "../../../data/items/armes/speciale/arbalete-repetee.json";
+import SpecialeEpeeElfique from "../../../data/items/armes/speciale/epee-elfique.json";
+import SpecialeFouetDemon from "../../../data/items/armes/speciale/fouet-demon.json";
 
 const WEAPON_MODULES: Record<string, WeaponTypeDefinition> = {
   "./martiale/arc-long.json": MartialeArcLong as WeaponTypeDefinition,

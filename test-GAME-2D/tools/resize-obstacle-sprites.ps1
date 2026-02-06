@@ -1,6 +1,6 @@
 param(
-  [string]$InputDir = "test-GAME-2D/obstacle-types/Sprite",
-  [string]$OutputDir = "test-GAME-2D/obstacle-types/Sprite/resized",
+  [string]$InputDir = "test-GAME-2D/src/data/maps/obstacles/sprite",
+  [string]$OutputDir = "test-GAME-2D/src/data/maps/obstacles/sprite/resized",
   [int]$TilesX = 3,
   [int]$TilesY = 3,
   [int]$TileSize = 64,

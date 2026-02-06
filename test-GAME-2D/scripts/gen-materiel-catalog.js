@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 
 const projectRoot = path.resolve(__dirname, "..");
-const materielRoot = path.join(projectRoot, "materiel-type");
+const materielRoot = path.join(projectRoot, "src", "data", "items");
 
 const CATEGORY_CONFIG = [
   { folder: "armes", type: "arme", nameKey: "name", indexName: "weapon", tsType: "WeaponTypeDefinition" },
@@ -149,7 +149,7 @@ function generateCatalog(options) {
     const modulePath = rel.replace(/^\.\//, "");
     const baseName = modulePath.replace(/\.json$/i, "");
     const importName = uniqueName(toIdentifier(baseName), used);
-    imports.push(`import ${importName} from "../../../materiel-type/${folder}/${modulePath}";`);
+    imports.push(`import ${importName} from "../../../data/items/${folder}/${modulePath}";`);
     entries.push(`  "${rel}": ${importName} as ${tsType}`);
   }
   const filePath = path.join(
@@ -160,12 +160,12 @@ function generateCatalog(options) {
     `${indexName}Catalog.ts`
   );
   const content = `// AUTO-GENERATED FILE. DO NOT EDIT MANUALLY.
-// Source of truth: materiel-type/${folder} (generated indexes)
+// Source of truth: src/data/items/${folder} (generated indexes)
 
 import type { ${tsType} } from "../../game/${indexName}Types";
 ${extraImports.join("\n")}
 
-import ${indexName}sIndex from "../../../materiel-type/${folder}/index.json";
+import ${indexName}sIndex from "../../../data/items/${folder}/index.json";
 ${imports.join("\n")}
 
 const ${indexName.toUpperCase()}_MODULES: Record<string, ${tsType}> = {

@@ -8,7 +8,7 @@ Files:
 - map-pattern.schema.json: optional JSON schema.
 
 Notes:
-- typeId must match obstacle-types ids.
+- typeId must match src/data/maps/obstacles ids.
 - x,y are relative to the pattern top-left.
 - anchor picks which pattern cell is aligned on the map.
 - rotation in degrees (0/90/180/270).

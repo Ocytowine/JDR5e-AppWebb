@@ -1,48 +1,48 @@
 // AUTO-GENERATED FILE. DO NOT EDIT MANUALLY.
-// Source of truth: action-game/actions/catalog (generated index)
+// Source of truth: src/data (generated index)
 
 import type { ActionDefinition } from "./actionTypes";
-import actionsIndex from "../../action-game/actions/index.json";
-import CatalogCombatBowShot from "../../action-game/actions/catalog/combat/bow-shot.json";
-import CatalogCombatMeleeStrike from "../../action-game/actions/catalog/combat/melee-strike.json";
-import CatalogCombatSpellsAid from "../../action-game/actions/catalog/combat/spells/aid.json";
-import CatalogCombatSpellsArcaneBolt from "../../action-game/actions/catalog/combat/spells/arcane-bolt.json";
-import CatalogCombatSpellsAuraOfPurity from "../../action-game/actions/catalog/combat/spells/aura-of-purity.json";
-import CatalogCombatSpellsBeaconOfHope from "../../action-game/actions/catalog/combat/spells/beacon-of-hope.json";
-import CatalogCombatSpellsGreaterRestoration from "../../action-game/actions/catalog/combat/spells/greater-restoration.json";
-import CatalogCombatSpellsHeroism from "../../action-game/actions/catalog/combat/spells/heroism.json";
-import CatalogCombatSpellsMinorWard from "../../action-game/actions/catalog/combat/spells/minor-ward.json";
-import CatalogCombatSpellsRarysTelepathicBond from "../../action-game/actions/catalog/combat/spells/rarys-telepathic-bond.json";
-import CatalogCombatSpellsResilientSphere from "../../action-game/actions/catalog/combat/spells/resilient-sphere.json";
-import CatalogCombatSpellsSanctuary from "../../action-game/actions/catalog/combat/spells/sanctuary.json";
-import CatalogCombatSpellsSending from "../../action-game/actions/catalog/combat/spells/sending.json";
-import CatalogCombatSpellsWardingBond from "../../action-game/actions/catalog/combat/spells/warding-bond.json";
-import CatalogCombatThrowDagger from "../../action-game/actions/catalog/combat/throw-dagger.json";
-import CatalogItemsTorchToggle from "../../action-game/actions/catalog/items/torch-toggle.json";
-import CatalogMovementDash from "../../action-game/actions/catalog/movement/dash.json";
-import CatalogMovementMove from "../../action-game/actions/catalog/movement/move.json";
-import CatalogSupportSecondWind from "../../action-game/actions/catalog/support/second-wind.json";
+import actionsIndex from "../../data/actions/index.json";
+import AttacksBowShot from "../../data/attacks/bow-shot.json";
+import AttacksMeleeStrike from "../../data/attacks/melee-strike.json";
+import SpellsAid from "../../data/spells/aid.json";
+import SpellsArcaneBolt from "../../data/spells/arcane-bolt.json";
+import SpellsAuraOfPurity from "../../data/spells/aura-of-purity.json";
+import SpellsBeaconOfHope from "../../data/spells/beacon-of-hope.json";
+import SpellsGreaterRestoration from "../../data/spells/greater-restoration.json";
+import SpellsHeroism from "../../data/spells/heroism.json";
+import SpellsMinorWard from "../../data/spells/minor-ward.json";
+import SpellsRarysTelepathicBond from "../../data/spells/rarys-telepathic-bond.json";
+import SpellsResilientSphere from "../../data/spells/resilient-sphere.json";
+import SpellsSanctuary from "../../data/spells/sanctuary.json";
+import SpellsSending from "../../data/spells/sending.json";
+import SpellsWardingBond from "../../data/spells/warding-bond.json";
+import AttacksThrowDagger from "../../data/attacks/throw-dagger.json";
+import ItemsTorchToggle from "../../data/items/torch-toggle.json";
+import MovesDash from "../../data/moves/dash.json";
+import MovesMove from "../../data/moves/move.json";
+import SupportsSecondWind from "../../data/supports/second-wind.json";
 
 const ACTION_MODULES: Record<string, ActionDefinition> = {
-  "./catalog/combat/bow-shot.json": CatalogCombatBowShot as ActionDefinition,
-  "./catalog/combat/melee-strike.json": CatalogCombatMeleeStrike as ActionDefinition,
-  "./catalog/combat/spells/aid.json": CatalogCombatSpellsAid as ActionDefinition,
-  "./catalog/combat/spells/arcane-bolt.json": CatalogCombatSpellsArcaneBolt as ActionDefinition,
-  "./catalog/combat/spells/aura-of-purity.json": CatalogCombatSpellsAuraOfPurity as ActionDefinition,
-  "./catalog/combat/spells/beacon-of-hope.json": CatalogCombatSpellsBeaconOfHope as ActionDefinition,
-  "./catalog/combat/spells/greater-restoration.json": CatalogCombatSpellsGreaterRestoration as ActionDefinition,
-  "./catalog/combat/spells/heroism.json": CatalogCombatSpellsHeroism as ActionDefinition,
-  "./catalog/combat/spells/minor-ward.json": CatalogCombatSpellsMinorWard as ActionDefinition,
-  "./catalog/combat/spells/rarys-telepathic-bond.json": CatalogCombatSpellsRarysTelepathicBond as ActionDefinition,
-  "./catalog/combat/spells/resilient-sphere.json": CatalogCombatSpellsResilientSphere as ActionDefinition,
-  "./catalog/combat/spells/sanctuary.json": CatalogCombatSpellsSanctuary as ActionDefinition,
-  "./catalog/combat/spells/sending.json": CatalogCombatSpellsSending as ActionDefinition,
-  "./catalog/combat/spells/warding-bond.json": CatalogCombatSpellsWardingBond as ActionDefinition,
-  "./catalog/combat/throw-dagger.json": CatalogCombatThrowDagger as ActionDefinition,
-  "./catalog/items/torch-toggle.json": CatalogItemsTorchToggle as ActionDefinition,
-  "./catalog/movement/dash.json": CatalogMovementDash as ActionDefinition,
-  "./catalog/movement/move.json": CatalogMovementMove as ActionDefinition,
-  "./catalog/support/second-wind.json": CatalogSupportSecondWind as ActionDefinition
+  "../attacks/bow-shot.json": AttacksBowShot as ActionDefinition,
+  "../attacks/melee-strike.json": AttacksMeleeStrike as ActionDefinition,
+  "../spells/aid.json": SpellsAid as ActionDefinition,
+  "../spells/arcane-bolt.json": SpellsArcaneBolt as ActionDefinition,
+  "../spells/aura-of-purity.json": SpellsAuraOfPurity as ActionDefinition,
+  "../spells/beacon-of-hope.json": SpellsBeaconOfHope as ActionDefinition,
+  "../spells/greater-restoration.json": SpellsGreaterRestoration as ActionDefinition,
+  "../spells/heroism.json": SpellsHeroism as ActionDefinition,
+  "../spells/minor-ward.json": SpellsMinorWard as ActionDefinition,
+  "../spells/rarys-telepathic-bond.json": SpellsRarysTelepathicBond as ActionDefinition,
+  "../spells/resilient-sphere.json": SpellsResilientSphere as ActionDefinition,
+  "../spells/sanctuary.json": SpellsSanctuary as ActionDefinition,
+  "../spells/sending.json": SpellsSending as ActionDefinition,
+  "../spells/warding-bond.json": SpellsWardingBond as ActionDefinition,
+  "../attacks/throw-dagger.json": AttacksThrowDagger as ActionDefinition,
+  "../items/torch-toggle.json": ItemsTorchToggle as ActionDefinition,
+  "../moves/dash.json": MovesDash as ActionDefinition,
+  "../moves/move.json": MovesMove as ActionDefinition,
+  "../supports/second-wind.json": SupportsSecondWind as ActionDefinition
 };
 
 export function loadActionTypesFromIndex(): ActionDefinition[] {

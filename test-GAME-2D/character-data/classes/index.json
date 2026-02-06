@@ -1,8 +1,0 @@
-{
-  "types": [
-    "./Clerc/class.json",
-    "./Clerc/peace-domain.json",
-    "./Guerrier/class.json",
-    "./Guerrier/eldritch-knight.json"
-  ]
-}

@@ -1,7 +1,0 @@
-{
-  "id": "outils_artisan",
-  "label": "Outils d'artisan",
-  "type": "tool",
-  "category": "artisan",
-  "description": "Categorie regroupant les outils d'artisan (alchimiste, forgeron, menuisier, etc.)."
-}

@@ -1,15 +1,15 @@
 // AUTO-GENERATED FILE. DO NOT EDIT MANUALLY.
-// Source of truth: materiel-type/outils (generated indexes)
+// Source of truth: src/data/items/outils (generated indexes)
 
 import type { ToolItemDefinition } from "../../game/toolTypes";
 
 
-import toolsIndex from "../../../materiel-type/outils/index.json";
-import OutilsArtisan from "../../../materiel-type/outils/outils-artisan.json";
-import OutilsAutres from "../../../materiel-type/outils/outils-autres.json";
-import OutilsInstruments from "../../../materiel-type/outils/outils-instruments.json";
-import OutilsJeux from "../../../materiel-type/outils/outils-jeux.json";
-import OutilsVehicules from "../../../materiel-type/outils/outils-vehicules.json";
+import toolsIndex from "../../../data/items/outils/index.json";
+import OutilsArtisan from "../../../data/items/outils/outils-artisan.json";
+import OutilsAutres from "../../../data/items/outils/outils-autres.json";
+import OutilsInstruments from "../../../data/items/outils/outils-instruments.json";
+import OutilsJeux from "../../../data/items/outils/outils-jeux.json";
+import OutilsVehicules from "../../../data/items/outils/outils-vehicules.json";
 
 const TOOL_MODULES: Record<string, ToolItemDefinition> = {
   "./outils-artisan.json": OutilsArtisan as ToolItemDefinition,

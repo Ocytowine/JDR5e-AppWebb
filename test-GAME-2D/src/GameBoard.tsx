@@ -40,11 +40,11 @@ import {
   isTokenDead,
   canEnemySeePlayer
 } from "./game/combatUtils";
-import enemyTypesIndex from "../enemy-types/index.json";
-import bruteType from "../enemy-types/brute.json";
-import archerType from "../enemy-types/archer.json";
-import assassinType from "../enemy-types/assassin.json";
-import ghostType from "../enemy-types/ghost.json";
+import enemyTypesIndex from "./data/enemies/index.json";
+import bruteType from "./data/enemies/brute.json";
+import archerType from "./data/enemies/archer.json";
+import assassinType from "./data/enemies/assassin.json";
+import ghostType from "./data/enemies/ghost.json";
 import { loadObstacleTypesFromIndex } from "./game/obstacleCatalog";
 import { loadEffectTypesFromIndex } from "./game/effectCatalog";
 import { loadStatusTypesFromIndex } from "./game/statusCatalog";
@@ -91,9 +91,9 @@ import {
   getTokenOccupiedCells
 } from "./game/footprint";
 import { loadActionTypesFromIndex } from "./game/actionCatalog";
-import moveTypesIndex from "../action-game/move-types/index.json";
-import walkMoveType from "../action-game/move-types/catalog/movement/walk.json";
-import sprintMoveType from "../action-game/move-types/catalog/movement/sprint.json";
+import moveTypesIndex from "./data/moves/index.json";
+import walkMoveType from "./data/moves/types/walk.json";
+import sprintMoveType from "./data/moves/types/sprint.json";
 import {
   rollAttack,
   rollDamage,
@@ -5290,7 +5290,7 @@ export const GameBoard: React.FC = () => {
     isClosestVisible: boolean;
     allTokens: TokenState[];
   }): { ok: boolean; reason?: string } {
-    // Add new condition types here and document them in action-game/reactions/README.md.
+    // Add new condition types here and document them in src/data/reactions/README.md.
     const conditions = params.reaction.conditions ?? [];
     for (const cond of conditions) {
       if (cond.type === "actor_alive" && isTokenDead(params.reactor)) {

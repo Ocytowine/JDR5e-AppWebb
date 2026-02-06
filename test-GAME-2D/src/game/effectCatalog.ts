@@ -1,8 +1,8 @@
 import type { EffectTypeDefinition } from "./effectTypes";
 
-import effectsIndex from "../../effect-types/index.json";
-import fire from "../../effect-types/fire.json";
-import meleeSlash from "../../effect-types/melee-slash.json";
+import effectsIndex from "../../data/effects/index.json";
+import fire from "../../data/effects/fire.json";
+import meleeSlash from "../../data/effects/melee-slash.json";
 
 const EFFECT_TYPE_MODULES: Record<string, EffectTypeDefinition> = {
   "./fire.json": fire as EffectTypeDefinition,

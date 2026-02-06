@@ -1,7 +1,0 @@
-{
-  "types": [
-    "./arc-long.json",
-    "./epee-longue.json",
-    "./hache-bataille.json"
-  ]
-}

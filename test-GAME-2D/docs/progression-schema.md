@@ -12,9 +12,9 @@ Objectif : rendre le passage de niveau effectif en jeu, sans logique hardcodee d
 
 Chaque JSON de definition (`class.json`, `subclass.json`, `race.json`) peut inclure :
 - `progression` : une table niveau -> gains
-- `features` : catalogue local optionnel (ou reference vers `action-game/features`)
-- `grants` declaratifs qui peuvent pointer vers `action-game/actions`, `action-game/reactions`,
-  `action-game/passifs` et `action-game/features`.
+- `features` : catalogue local optionnel (ou reference vers `src/data/features`)
+- `grants` declaratifs qui peuvent pointer vers `src/data/actions`, `src/data/reactions`,
+  `src/data/passifs` et `src/data/features`.
 
 ---
 
@@ -68,28 +68,28 @@ Chaque JSON de definition (`class.json`, `subclass.json`, `race.json`) peut incl
 ## Correspondance avec les donnees actuelles
 
 ### Actions
-Utiliser `action-game/actions/index.json` et les ids d action existants.
+Utiliser `src/data/actions/index.json` et les ids d action existants.
 
 ```json
 { "kind": "action", "ids": ["dash", "melee-strike"] }
 ```
 
 ### Reactions
-Utiliser `action-game/reactions/index.json`.
+Utiliser `src/data/reactions/index.json`.
 
 ```json
 { "kind": "reaction", "ids": ["opportunity-attack"] }
 ```
 
 ### Passifs (Status types)
-Utiliser `action-game/passifs/index.json`.
+Utiliser `src/data/passifs/index.json`.
 
 ```json
 { "kind": "passif", "ids": ["burning"] }
 ```
 
 ### Features (nouveau)
-Utiliser `action-game/features`. Ces elements sont declaratifs et decrivent des regles, des triggers ou des effets passifs.
+Utiliser `src/data/features`. Ces elements sont declaratifs et decrivent des regles, des triggers ou des effets passifs.
 
 ```json
 { "kind": "feature", "ids": ["peace-bond"] }

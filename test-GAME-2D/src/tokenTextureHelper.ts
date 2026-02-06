@@ -6,11 +6,18 @@ export type TokenSpriteRequest = {
   variants?: number[] | null;
 };
 
-const pngModules = import.meta.glob("../action-game/model/*.png", {
-  query: "?url",
-  import: "default",
-  eager: true
-});
+const pngModules = {
+  ...import.meta.glob("./data/characters/sprite/*.png", {
+    query: "?url",
+    import: "default",
+    eager: true
+  }),
+  ...import.meta.glob("./data/enemies/sprite/*.png", {
+    query: "?url",
+    import: "default",
+    eager: true
+  })
+};
 
 const TOKEN_PNG_BY_BASE: Record<string, TokenSpriteEntry[]> = {};
 

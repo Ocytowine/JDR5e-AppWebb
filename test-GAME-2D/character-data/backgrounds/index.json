@@ -1,7 +1,0 @@
-{
-  "types": [
-    "./apprenti-academique.json",
-    "./enfant-des-rues.json",
-    "./veteran-de-guerre.json"
-  ]
-}

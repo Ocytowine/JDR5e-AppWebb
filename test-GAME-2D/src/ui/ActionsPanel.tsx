@@ -31,7 +31,7 @@ export function ActionsPanel(props: {
     >
       <h2 style={{ margin: "0 0 4px" }}>Actions détaillées</h2>
       <p style={{ margin: 0, fontSize: 12, opacity: 0.85 }}>
-        Source: <code>action-game/actions/index.json</code>. Liste chargée et vérifiée
+        Source: <code>src/data/actions/index.json</code>. Liste chargée et vérifiée
         localement (phase, distance).
       </p>
       <div

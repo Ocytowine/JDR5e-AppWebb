@@ -1,25 +1,25 @@
 import type { ObstacleTypeDefinition } from "./obstacleTypes";
 
-import obstaclesIndex from "../../obstacle-types/index.json";
+import obstaclesIndex from "../../data/maps/obstacles/index.json";
 
-import fenceWood from "../../obstacle-types/fence-wood.json";
-import treeOak from "../../obstacle-types/tree-oak.json";
-import bush from "../../obstacle-types/bush.json";
-import log from "../../obstacle-types/log.json";
-import rock from "../../obstacle-types/rock.json";
-import rubble from "../../obstacle-types/rubble.json";
-import stalagmite from "../../obstacle-types/stalagmite.json";
-import barrelWood from "../../obstacle-types/barrel-wood.json";
-import crateWood from "../../obstacle-types/crate-wood.json";
-import tableWood from "../../obstacle-types/table-wood.json";
-import chairWood from "../../obstacle-types/chair-wood.json";
-import statueStone from "../../obstacle-types/statue-stone.json";
-import torchWall from "../../obstacle-types/torch-wall.json";
-import brazier from "../../obstacle-types/brazier.json";
-import fireOnly from "../../obstacle-types/fire-only.json";
-import pillarStone from "../../obstacle-types/pillar-stone.json";
-import stairsStone from "../../obstacle-types/stairs-stone.json";
-import charetteWood from "../../obstacle-types/charette-wood.json";
+import fenceWood from "../../data/maps/obstacles/fence-wood.json";
+import treeOak from "../../data/maps/obstacles/tree-oak.json";
+import bush from "../../data/maps/obstacles/bush.json";
+import log from "../../data/maps/obstacles/log.json";
+import rock from "../../data/maps/obstacles/rock.json";
+import rubble from "../../data/maps/obstacles/rubble.json";
+import stalagmite from "../../data/maps/obstacles/stalagmite.json";
+import barrelWood from "../../data/maps/obstacles/barrel-wood.json";
+import crateWood from "../../data/maps/obstacles/crate-wood.json";
+import tableWood from "../../data/maps/obstacles/table-wood.json";
+import chairWood from "../../data/maps/obstacles/chair-wood.json";
+import statueStone from "../../data/maps/obstacles/statue-stone.json";
+import torchWall from "../../data/maps/obstacles/torch-wall.json";
+import brazier from "../../data/maps/obstacles/brazier.json";
+import fireOnly from "../../data/maps/obstacles/fire-only.json";
+import pillarStone from "../../data/maps/obstacles/pillar-stone.json";
+import stairsStone from "../../data/maps/obstacles/stairs-stone.json";
+import charetteWood from "../../data/maps/obstacles/charette-wood.json";
 
 const OBSTACLE_TYPE_MODULES: Record<string, ObstacleTypeDefinition> = {
   "./fence-wood.json": fenceWood as ObstacleTypeDefinition,

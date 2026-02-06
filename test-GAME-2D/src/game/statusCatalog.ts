@@ -1,8 +1,8 @@
 import type { StatusDefinition } from "./statusTypes";
 
-import statusIndex from "../../action-game/passifs/index.json";
-import burning from "../../action-game/passifs/burning.json";
-import killerMark from "../../action-game/passifs/killer-mark.json";
+import statusIndex from "../../data/passifs/index.json";
+import burning from "../../data/passifs/burning.json";
+import killerMark from "../../data/passifs/killer-mark.json";
 
 const STATUS_TYPE_MODULES: Record<string, StatusDefinition> = {
   "./burning.json": burning as StatusDefinition,
