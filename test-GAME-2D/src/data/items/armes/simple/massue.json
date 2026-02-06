@@ -1,0 +1,61 @@
+{
+  "id": "massue",
+  "name": "Massue",
+  "type": "arme",
+  "subtype": "simple",
+  "category": "melee",
+  "descriptionCourte": "Baton lourd renforce, frappe contondante.",
+  "descriptionLongue": "",
+  "allowStack": false,
+  "harmonisable": false,
+  "focalisateur": false,
+  "weight": 1.8,
+  "size": 1.0,
+  "value": {
+    "gold": 1,
+    "silver": 0,
+    "copper": 0
+  },
+  "rarity": "commune",
+  "tags": [
+    "arme",
+    "melee",
+    "contondant"
+  ],
+  "properties": {
+    "finesse": false,
+    "light": false,
+    "heavy": false,
+    "twoHanded": false,
+    "reach": 1,
+    "versatile": null,
+    "thrown": null,
+    "ammunition": false,
+    "loading": false,
+    "reload": null,
+    "range": {
+      "normal": 1,
+      "long": 1
+    },
+    "special": null
+  },
+  "attack": {
+    "mod": "mod.STR",
+    "bonus": "bonus_maitrise"
+  },
+  "damage": {
+    "dice": "1d6",
+    "damageType": "Contondant",
+    "alt": null
+  },
+  "effectOnHit": {
+    "mod": "mod.STR",
+    "damage": "1d6",
+    "damageType": "Contondant"
+  },
+  "links": {
+    "actionId": "melee-strike",
+    "effectId": "melee-slash"
+  },
+  "label": "Massue"
+}

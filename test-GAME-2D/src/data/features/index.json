@@ -1,0 +1,12 @@
+{
+  "model": "../models/feature-model.json",
+  "features": [
+    "./cleric/channel-divinity.json",
+    "./cleric/turn-undead.json",
+    "./cleric/divine-intervention.json",
+    "./cleric/peace-bond.json",
+    "./cleric/balm-of-peace.json",
+    "./cleric/protective-bond.json",
+    "./cleric/expansive-bond.json"
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "id": "chair-wood",
+  "label": "Chaise",
+  "category": "prop",
+  "tags": [
+    "chair",
+    "wood",
+    "prop"
+  ],
+  "blocking": {
+    "movement": true,
+    "vision": false,
+    "attacks": false
+  },
+  "durability": {
+    "destructible": true,
+    "maxHp": 4,
+    "ac": 10
+  },
+  "variants": [
+    {
+      "id": "base",
+      "label": "Chaise",
+      "footprint": [
+        {
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "rotatable": true
+    }
+  ],
+  "appearance": {
+    "spriteKey": "obstacle:chair-wood",
+    "heightClass": "low"
+  },
+  "spawnRules": {
+    "weight": 2,
+    "cluster": {
+      "min": 1,
+      "max": 4
+    },
+    "shapeHint": "room",
+    "avoidNearTokens": true
+  }
+}

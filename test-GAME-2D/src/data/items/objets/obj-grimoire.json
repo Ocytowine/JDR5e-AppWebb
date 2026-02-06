@@ -1,0 +1,12 @@
+{
+  "id": "obj_grimoire",
+  "label": "Grimoire ou carnet de recherches",
+  "type": "object",
+  "category": "misc",
+  "weight": 1,
+  "priceGp": 5,
+  "tags": [
+    "academique"
+  ],
+  "description": "Notes, formules et recherches personnelles."
+}

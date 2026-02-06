@@ -1,0 +1,16 @@
+{
+  "id": "dwarf",
+  "label": "Nain",
+  "description": "Robuste et endurant, le nain excelle dans la defense et le travail du metal.",
+  "size": "medium",
+  "speed": 5,
+  "vision": { "mode": "darkvision", "range": 60 },
+  "traits": [
+    {
+      "id": "dwarven_resilience",
+      "label": "Endurance naine",
+      "description": "Avantage contre le poison et resistance aux degats de poison."
+    }
+  ],
+  "grants": [{ "kind": "trait", "ids": ["dwarven_resilience"] }]
+}

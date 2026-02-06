@@ -1,0 +1,20 @@
+{
+  "id": "move-walk",
+  "name": "Marcher",
+  "summary": "Deplacement standard sans depenser d'action.",
+  "category": "movement",
+  "actionCost": { "actionType": "free", "movementCost": 0 },
+  "targeting": {
+    "target": "self",
+    "range": { "min": 0, "max": 0, "shape": "self" },
+    "maxTargets": 1,
+    "requiresLos": false
+  },
+  "usage": { "perTurn": null, "perEncounter": null, "resource": null },
+  "conditions": [],
+  "effects": [
+    { "type": "log", "message": "Mode marche: selectionnez un trajet." }
+  ],
+  "movement": { "pathLimitMultiplier": 1 },
+  "tags": ["movement", "move-type"]
+}

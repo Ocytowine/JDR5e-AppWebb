@@ -1,0 +1,48 @@
+{
+  "id": "fire-only",
+  "label": "Feu (test)",
+  "category": "effect",
+  "tags": [
+    "fire",
+    "effect"
+  ],
+  "blocking": {
+    "movement": false,
+    "vision": false,
+    "attacks": false
+  },
+  "durability": {
+    "destructible": false,
+    "maxHp": 1
+  },
+  "variants": [
+    {
+      "id": "base",
+      "label": "Feu",
+      "footprint": [
+        {
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "rotatable": false
+    }
+  ],
+  "appearance": {
+    "layers": [
+      {
+        "id": "flame",
+        "spriteKey": "effect:fire",
+        "animationSpeed": 0.2,
+        "scale": 0.9
+      }
+    ],
+    "heightClass": "low"
+  },
+  "effects": [
+    {
+      "id": "fire",
+      "enabled": true
+    }
+  ]
+}

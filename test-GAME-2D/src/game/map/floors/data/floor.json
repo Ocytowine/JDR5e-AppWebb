@@ -1,0 +1,9 @@
+{
+  "id": "floor",
+  "label": "Wood floor",
+  "textureId": "wood-plank",
+  "fallbackColor": "#8b6a47",
+  "tags": ["interior", "wood"],
+  "passable": true,
+  "moveCost": 1
+}

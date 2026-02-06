@@ -1,0 +1,12 @@
+{
+  "id": "fighter",
+  "label": "Guerrier",
+  "description": "Un combattant maitre des armes, robuste et polyvalent sur le champ de bataille.",
+  "hitDie": 10,
+  "subclassLevel": 3,
+  "subclassIds": ["eldritch-knight"],
+  "proficiencies": {
+    "weapons": ["simple", "martiale"],
+    "armors": ["legere", "intermediaire", "lourde", "bouclier"]
+  }
+}

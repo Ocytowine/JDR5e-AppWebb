@@ -1,0 +1,34 @@
+{
+  "id": "melee-strike",
+  "name": "Frappe basique",
+  "summary": "Attaque de melee simple contre une cible adjacente.",
+  "uiMessageHit": "Vous avez ete touche par une attaque au corps a corps.",
+  "uiMessageMiss": "Vous evitez une attaque au corps a corps.",
+  "category": "attack",
+  "actionCost": { "actionType": "action", "movementCost": 0 },
+  "targeting": {
+    "target": "hostile",
+    "range": { "min": 0, "max": 1, "shape": "single" },
+    "maxTargets": 1,
+    "requiresLos": true
+  },
+  "usage": { "perTurn": 1, "perEncounter": null, "resource": null },
+  "conditions": [
+    { "type": "distance_max", "target": "primary", "max": 1, "reason": "Portee de melee uniquement." },
+    { "type": "target_alive", "target": "primary", "reason": "La cible doit avoir des PV restants." }
+  ],
+  "attack": { "bonus": 5, "critRange": 20 },
+  "damage": { "formula": "attackDamage", "critRule": "double-dice", "damageType": "slashing" },
+  "effects": [
+    { "type": "damage", "target": "primary", "formula": "attackDamage", "damageType": "slashing" },
+    { "type": "visual_effect", "effectId": "melee-slash", "anchor": "target", "orientation": "to_target", "rotationOffsetDeg": -135 },
+    { "type": "log", "message": "Frappe au contact." }
+  ],
+  "aiHints": {
+    "priority": "finish_low_hp_target",
+    "successLog": "Frappe au contact.",
+    "failureLog": "Cible hors portee ou non visible."
+  },
+  "tags": ["melee"]
+}
+

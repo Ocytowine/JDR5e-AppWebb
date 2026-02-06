@@ -1,0 +1,10 @@
+{
+  "id": "grass",
+  "label": "Grass",
+  "textureId": "grass-basic",
+  "fallbackColor": "#35962a",
+  "solidColor": "#35962a",
+  "tags": ["exterior", "nature"],
+  "passable": true,
+  "moveCost": 1
+}

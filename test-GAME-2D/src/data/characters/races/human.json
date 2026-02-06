@@ -1,0 +1,15 @@
+{
+  "id": "human",
+  "label": "Humain",
+  "description": "Polyvalent et adaptable, l'humain apprend vite et s'integre partout.",
+  "size": "medium",
+  "speed": 6,
+  "traits": [
+    {
+      "id": "adaptable",
+      "label": "Adaptable",
+      "description": "Choisit une competence au choix."
+    }
+  ],
+  "grants": [{ "kind": "trait", "ids": ["adaptable"] }]
+}

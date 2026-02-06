@@ -1,0 +1,16 @@
+{
+  "id": "harnois",
+  "label": "Harnois",
+  "type": "armor",
+  "armorCategory": "heavy",
+  "baseAC": 18,
+  "dexCap": 0,
+  "weight": 30,
+  "priceGp": 1500,
+  "tags": [
+    "armure",
+    "lourde"
+  ],
+  "description": "Armure lourde complete en plaques.",
+  "category": "armor_body"
+}

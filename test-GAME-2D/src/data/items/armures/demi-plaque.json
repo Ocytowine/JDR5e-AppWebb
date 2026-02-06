@@ -1,0 +1,16 @@
+{
+  "id": "demi_plaque",
+  "label": "Demi-plaque",
+  "type": "armor",
+  "armorCategory": "medium",
+  "baseAC": 15,
+  "dexCap": 2,
+  "weight": 20,
+  "priceGp": 750,
+  "tags": [
+    "armure",
+    "intermediaire"
+  ],
+  "description": "Armure intermediaire avec plaques partielles.",
+  "category": "armor_body"
+}

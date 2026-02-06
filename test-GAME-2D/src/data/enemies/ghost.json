@@ -1,0 +1,61 @@
+{
+  "id": "ghost",
+  "label": "Fantome",
+  "description": "Esprit intangible capable de traverser les autres creatures.",
+  "aiRole": "ghost",
+  "actions": ["move", "melee-strike"],
+  "reactionIds": ["guard-strike"],
+  "combatProfile": {
+    "primaryStyle": "melee",
+    "allowedStyles": ["melee"],
+    "preferredAbilities": ["wis"],
+    "preferredRangeMin": 1,
+    "preferredRangeMax": 1,
+    "intelligence": 1,
+    "awareness": 1,
+    "tactics": ["haunt"]
+  },
+  "behavior": { "preferredRangeMin": 1, "preferredRangeMax": 1, "panicRange": 0 },
+  "speechProfile": {
+    "raceOrOrigin": "Esprit vengeur",
+    "register": "soutenu",
+    "tone": ["cryptique", "mena??ant", "surnaturel"],
+    "vocabulary": ["je te sens", "au-dela", "froideur", "souffle"],
+    "quirks": ["parle en images", "phrases etranges mais courtes"],
+    "taboos": ["pas de modernisme", "pas de meta-jeu"]
+  },
+  "combatStats": {
+    "level": 1,
+    "mods": { "str": 0, "dex": 0, "con": 0, "int": 0, "wis": 0, "cha": 0 },
+    "maxHp": 8,
+    "armorClass": 12,
+    "attackBonus": 0,
+    "attackDamage": 3,
+    "attackRange": 1,
+    "maxAttacksPerTurn": 1,
+    "actionsPerTurn": 1,
+    "bonusActionsPerTurn": 0,
+    "resources": {}
+  },
+  "appearance": {
+    "spriteKey": "ghost",
+    "tokenScale": 100
+  },
+  "movementModes": {
+    "ghost": 4
+  },
+  "movement": {
+    "type": "ghost",
+    "speed": 4,
+    "canPassThroughWalls": true,
+    "canPassThroughEntities": true,
+    "canStopOnOccupiedTile": false
+  },
+  "vision": {
+    "shape": "circle",
+    "range": 100,
+    "canSeeInDark": true,
+    "lightVision": "darkvision"
+  }
+}
+

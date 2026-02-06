@@ -1,0 +1,6 @@
+{
+  "types": [
+    "./burning.json",
+    "./killer-mark.json"
+  ]
+}

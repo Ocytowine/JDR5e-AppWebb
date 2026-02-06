@@ -1,0 +1,13 @@
+{
+  "id": "obj_insigne_unite",
+  "label": "Insigne d'ancienne unite",
+  "type": "object",
+  "category": "jewel",
+  "weight": 0.1,
+  "priceGp": 0,
+  "tags": [
+    "insigne",
+    "militaire"
+  ],
+  "description": "Symbole d'appartenance a une ancienne unite."
+}

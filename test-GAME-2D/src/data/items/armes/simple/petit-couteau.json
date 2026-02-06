@@ -1,0 +1,65 @@
+{
+  "id": "obj_petit_couteau",
+  "name": "Petit couteau",
+  "type": "arme",
+  "subtype": "simple",
+  "category": "melee",
+  "descriptionCourte": "Petit couteau utilitaire, pas une arme de combat principale.",
+  "descriptionLongue": "",
+  "allowStack": false,
+  "harmonisable": false,
+  "focalisateur": false,
+  "weight": 0.5,
+  "size": 0.3,
+  "value": {
+    "gold": 0,
+    "silver": 2,
+    "copper": 0
+  },
+  "rarity": "commune",
+  "tags": [
+    "arme",
+    "melee",
+    "tranchant",
+    "improvise"
+  ],
+  "properties": {
+    "finesse": true,
+    "light": true,
+    "heavy": false,
+    "twoHanded": false,
+    "reach": 1,
+    "versatile": null,
+    "thrown": {
+      "normal": 4,
+      "long": 12
+    },
+    "ammunition": false,
+    "loading": false,
+    "reload": null,
+    "range": {
+      "normal": 1,
+      "long": 1
+    },
+    "special": "utilitaire"
+  },
+  "attack": {
+    "mod": "mod.DEX",
+    "bonus": "bonus_maitrise"
+  },
+  "damage": {
+    "dice": "1d4",
+    "damageType": "Tranchant",
+    "alt": null
+  },
+  "effectOnHit": {
+    "mod": "mod.DEX",
+    "damage": "1d4",
+    "damageType": "Tranchant"
+  },
+  "links": {
+    "actionId": "melee-strike",
+    "effectId": "melee-slash"
+  },
+  "label": "Petit couteau"
+}

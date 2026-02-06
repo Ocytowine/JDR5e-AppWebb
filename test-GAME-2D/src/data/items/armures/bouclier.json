@@ -1,0 +1,16 @@
+{
+  "id": "bouclier",
+  "label": "Bouclier",
+  "type": "armor",
+  "armorCategory": "shield",
+  "baseAC": 2,
+  "dexCap": null,
+  "weight": 3,
+  "priceGp": 10,
+  "tags": [
+    "armure",
+    "bouclier"
+  ],
+  "description": "Bouclier offrant un bonus de CA.",
+  "category": "shield"
+}

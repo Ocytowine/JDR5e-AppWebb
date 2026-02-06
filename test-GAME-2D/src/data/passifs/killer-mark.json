@@ -1,0 +1,6 @@
+{
+  "id": "killer-mark",
+  "label": "Marque du tueur",
+  "durationTurns": 9999,
+  "persistUntilDeath": true
+}

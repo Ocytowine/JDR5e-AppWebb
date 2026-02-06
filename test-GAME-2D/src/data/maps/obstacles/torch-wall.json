@@ -1,0 +1,64 @@
+{
+  "id": "torch-wall",
+  "label": "Torche murale",
+  "category": "structure",
+  "tags": [
+    "torch",
+    "fire",
+    "structure"
+  ],
+  "blocking": {
+    "movement": false,
+    "vision": false,
+    "attacks": false
+  },
+  "durability": {
+    "destructible": true,
+    "maxHp": 3,
+    "ac": 10
+  },
+  "variants": [
+    {
+      "id": "base",
+      "label": "Torche",
+      "footprint": [
+        {
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "rotatable": true
+    }
+  ],
+  "appearance": {
+    "layers": [
+      {
+        "id": "flame",
+        "spriteKey": "effect:fire",
+        "animationSpeed": 0.2,
+        "scale": 0.55
+      }
+    ],
+    "heightClass": "low",
+    "tokenScale": {
+      "min": 80,
+      "default": 100,
+      "max": 150
+    }
+  },
+  "effects": [
+    {
+      "id": "fire",
+      "enabled": true
+    }
+  ],
+  "spawnRules": {
+    "weight": 1,
+    "cluster": {
+      "min": 1,
+      "max": 4
+    },
+    "shapeHint": "line",
+    "avoidNearTokens": false
+  }
+}

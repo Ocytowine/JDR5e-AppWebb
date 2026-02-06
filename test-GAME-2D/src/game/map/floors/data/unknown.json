@@ -1,0 +1,8 @@
+{
+  "id": "unknown",
+  "label": "Unknown",
+  "fallbackColor": "#4a4a4a",
+  "tags": ["default"],
+  "passable": true,
+  "moveCost": 1
+}

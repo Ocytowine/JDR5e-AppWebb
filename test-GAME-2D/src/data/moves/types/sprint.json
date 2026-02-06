@@ -1,0 +1,20 @@
+{
+  "id": "move-sprint",
+  "name": "Sprint",
+  "summary": "Depense 1 action pour doubler le deplacement.",
+  "category": "movement",
+  "actionCost": { "actionType": "action", "movementCost": 0 },
+  "targeting": {
+    "target": "self",
+    "range": { "min": 0, "max": 0, "shape": "self" },
+    "maxTargets": 1,
+    "requiresLos": false
+  },
+  "usage": { "perTurn": null, "perEncounter": null, "resource": null },
+  "conditions": [],
+  "effects": [
+    { "type": "log", "message": "Sprint: deplacement double pour ce tour." }
+  ],
+  "movement": { "pathLimitMultiplier": 2 },
+  "tags": ["movement", "move-type"]
+}

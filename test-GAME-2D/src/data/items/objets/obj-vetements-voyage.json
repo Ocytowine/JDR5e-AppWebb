@@ -1,0 +1,12 @@
+{
+  "id": "obj_vetements_voyage",
+  "label": "Vetements de voyage",
+  "type": "object",
+  "category": "clothing_body",
+  "weight": 2,
+  "priceGp": 1,
+  "tags": [
+    "vetement"
+  ],
+  "description": "Tenue robuste pour le voyage."
+}

@@ -1,0 +1,10 @@
+{
+  "id": "water",
+  "label": "Water",
+  "fallbackColor": "#2f5d8a",
+  "tags": ["liquid"],
+  "passable": true,
+  "moveCost": 2,
+  "liquid": true,
+  "depth": 1
+}

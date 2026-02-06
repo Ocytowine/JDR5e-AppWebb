@@ -1,0 +1,48 @@
+{
+  "id": "apprenti-academique",
+  "label": "Apprenti Academique",
+  "description": "Eleve d'une academie ou d'un maitre, curieux, studieux et avide de savoir.",
+  "equipment": [
+    "obj_grimoire",
+    "obj_plume_encre",
+    "obj_tenue_academique",
+    "obj_bourse",
+    "object:obj_piece_or:10",
+    "obj_besace"
+  ],
+  "grants": [
+    { "kind": "skill", "ids": ["arcanes", "histoire"] },
+    { "kind": "tool", "ids": ["outils_artisan"] },
+    { "kind": "language-choice", "ids": [], "meta": { "count": 2 } },
+    {
+      "kind": "feature",
+      "ids": ["acces-au-savoir"],
+      "meta": {
+        "label": "Acces au Savoir",
+        "description": "Tu sais ou trouver l'information et obtenir un acces raisonnable aux sources savantes."
+      }
+    }
+  ],
+  "traits": {
+    "personality": [
+      "Je corrige instinctivement les erreurs des autres.",
+      "J'ai une curiosite insatiable.",
+      "Je parle parfois trop techniquement.",
+      "Je prends des notes sur tout.",
+      "Je suis fascine par l'inconnu.",
+      "Je doute souvent de mes capacites pratiques.",
+      "J'adore debattre.",
+      "Je suis plus a l'aise avec les livres qu'avec les gens."
+    ],
+    "ideals": [
+      "Connaissance — Le savoir est la cle de tout.",
+      "Progres — Le monde doit evoluer.",
+      "Verite — Les faits comptent plus que les croyances.",
+      "Responsabilite — Le savoir impose un devoir.",
+      "Pouvoir — Comprendre, c'est dominer.",
+      "Transmission — Le savoir doit etre partage."
+    ],
+    "bond": "Mon maitre a disparu, laissant des recherches inachevees.",
+    "flaw": "Je sous-estime souvent les dangers pratiques."
+  }
+}

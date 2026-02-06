@@ -1,0 +1,21 @@
+{
+  "id": "sending",
+  "name": "Message",
+  "level": 3,
+  "school": "evocation",
+  "components": { "verbal": true, "somatic": true, "material": true },
+  "summary": "Envoie un message magique a distance.",
+  "category": "support",
+  "actionCost": { "actionType": "action", "movementCost": 0 },
+  "targeting": {
+    "target": "ally",
+    "range": { "min": 0, "max": 20, "shape": "single" },
+    "maxTargets": 1,
+    "requiresLos": false
+  },
+  "usage": { "perTurn": 1, "perEncounter": null, "resource": null },
+  "effects": [
+    { "type": "log", "message": "Message envoye." }
+  ],
+  "tags": ["spell", "utility", "cleric"]
+}

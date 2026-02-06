@@ -1,0 +1,8 @@
+{
+  "id": "mud",
+  "label": "Mud",
+  "fallbackColor": "#5a4433",
+  "tags": ["exterior", "wet"],
+  "passable": true,
+  "moveCost": 2
+}

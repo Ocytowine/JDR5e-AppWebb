@@ -1,0 +1,91 @@
+{
+  "id": "bush",
+  "label": "Buisson",
+  "category": "vegetation",
+  "tags": [
+    "bush",
+    "vegetation",
+    "nature"
+  ],
+  "blocking": {
+    "movement": true,
+    "vision": false,
+    "attacks": false
+  },
+  "durability": {
+    "destructible": true,
+    "maxHp": 5,
+    "ac": 10
+  },
+  "variants": [
+    {
+      "id": "base",
+      "label": "Buisson",
+      "footprint": [
+        {
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "rotatable": true
+    }
+  ],
+  "appearance": {
+    "randomRotation": true,
+    "heightClass": "low",
+    "shadowStretch": 1.2,
+    "paletteId": "default",
+    "palettes": {
+      "default": {
+        "layers": {
+          "bush": {
+            "tintRange": {
+              "dark": 2926900,
+              "light": 7063940
+            }
+          }
+        }
+      },
+      "autumn": {
+        "layers": {
+          "bush": {
+            "tintRange": {
+              "dark": 10246534,
+              "light": 15243711
+            }
+          }
+        }
+      },
+      "leafless": {
+        "layers": {
+          "bush": {
+            "tintRange": {
+              "dark": 5723992,
+              "light": 10790052
+            }
+          }
+        }
+      }
+    },
+    "layers": [
+      {
+        "id": "bush",
+        "spriteKey": "obstacle:bush"
+      }
+    ],
+    "tokenScale": {
+      "min": 100,
+      "default": 120,
+      "max": 135
+    }
+  },
+  "spawnRules": {
+    "weight": 4,
+    "cluster": {
+      "min": 1,
+      "max": 6
+    },
+    "shapeHint": "scatter",
+    "avoidNearTokens": true
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "id": "obstacle-id",
+  "label": "Obstacle",
+  "category": "prop",
+  "tags": [
+    "prop"
+  ],
+  "blocking": {
+    "movement": true,
+    "vision": false,
+    "attacks": false
+  },
+  "durability": {
+    "destructible": true,
+    "maxHp": 10,
+    "ac": 10
+  },
+  "variants": [
+    {
+      "id": "base",
+      "label": "Base",
+      "footprint": [
+        {
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "rotatable": true
+    }
+  ],
+  "appearance": {
+    "spriteKey": "obstacle:placeholder",
+    "paletteId": "default",
+    "palettes": {
+      "default": {
+        "layers": {
+          "base": {
+            "tintRange": {
+              "dark": 7829367,
+              "light": 11776947
+            }
+          }
+        }
+      }
+    },
+    "layers": [
+      {
+        "id": "base",
+        "spriteKey": "obstacle:placeholder"
+      }
+    ],
+    "tokenScale": {
+      "min": 80,
+      "default": 100,
+      "max": 150
+    }
+  },
+  "spawnRules": {
+    "weight": 1,
+    "cluster": {
+      "min": 1,
+      "max": 1
+    },
+    "avoidNearTokens": true,
+    "shapeHint": "scatter"
+  },
+  "light": {
+    "radius": 0
+  },
+  "connects": {
+    "from": 0,
+    "to": 0
+  },
+  "interactions": []
+}

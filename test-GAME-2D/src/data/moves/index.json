@@ -1,0 +1,7 @@
+{
+  "model": "../models/move-type-model.json",
+  "moveTypes": [
+    "./types/walk.json",
+    "./types/sprint.json"
+  ]
+}

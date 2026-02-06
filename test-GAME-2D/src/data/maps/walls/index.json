@@ -1,0 +1,11 @@
+{
+  "model": "../../models/wall-model.json",
+  "types": [
+    "./wall-stone.json",
+    "./wall-stone-door.json",
+    "./wall-wood.json",
+    "./wall-wood-door.json",
+    "./low-wall-stone.json",
+    "./low-wall-wood.json"
+  ]
+}

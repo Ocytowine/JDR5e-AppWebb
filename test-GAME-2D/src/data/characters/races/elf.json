@@ -1,0 +1,16 @@
+{
+  "id": "elf",
+  "label": "Elfe",
+  "description": "Grace et perception affutee, l'elfe a une affinite naturelle avec la magie.",
+  "size": "medium",
+  "speed": 6,
+  "vision": { "mode": "darkvision", "range": 60 },
+  "traits": [
+    {
+      "id": "keen_senses",
+      "label": "Sens aiguises",
+      "description": "Avantage sur les tests de Perception basee sur la vue ou l'ouie."
+    }
+  ],
+  "grants": [{ "kind": "trait", "ids": ["keen_senses"] }]
+}

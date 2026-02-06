@@ -1,0 +1,14 @@
+{
+  "types": [
+    "./bagarreur-de-tavernes.json",
+    "./chanceux.json",
+    "./doue.json",
+    "./faconneur.json",
+    "./guerisseur.json",
+    "./initie-a-la-magie.json",
+    "./musicien.json",
+    "./robuste.json",
+    "./sauvagerie-martiale.json",
+    "./vigilant.json"
+  ]
+}

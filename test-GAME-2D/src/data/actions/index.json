@@ -1,0 +1,24 @@
+{
+  "model": "../models/action-model.json",
+  "actions": [
+    "../attacks/bow-shot.json",
+    "../attacks/melee-strike.json",
+    "../attacks/throw-dagger.json",
+    "../items/torch-toggle.json",
+    "../moves/dash.json",
+    "../moves/move.json",
+    "../spells/aid.json",
+    "../spells/arcane-bolt.json",
+    "../spells/aura-of-purity.json",
+    "../spells/beacon-of-hope.json",
+    "../spells/greater-restoration.json",
+    "../spells/heroism.json",
+    "../spells/minor-ward.json",
+    "../spells/rarys-telepathic-bond.json",
+    "../spells/resilient-sphere.json",
+    "../spells/sanctuary.json",
+    "../spells/sending.json",
+    "../spells/warding-bond.json",
+    "../supports/second-wind.json"
+  ]
+}

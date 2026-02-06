@@ -1,0 +1,64 @@
+{
+  "id": "hache-bataille",
+  "name": "Hache de bataille",
+  "type": "arme",
+  "subtype": "martiale",
+  "category": "melee",
+  "descriptionCourte": "Hache lourde a double tranchant.",
+  "descriptionLongue": "",
+  "allowStack": false,
+  "harmonisable": false,
+  "focalisateur": false,
+  "weight": 2.0,
+  "size": 1.0,
+  "value": {
+    "gold": 10,
+    "silver": 0,
+    "copper": 0
+  },
+  "rarity": "commune",
+  "tags": [
+    "arme",
+    "melee",
+    "tranchant"
+  ],
+  "properties": {
+    "finesse": false,
+    "light": false,
+    "heavy": false,
+    "twoHanded": false,
+    "reach": 1,
+    "versatile": "1d10",
+    "thrown": null,
+    "ammunition": false,
+    "loading": false,
+    "reload": null,
+    "range": {
+      "normal": 1,
+      "long": 1
+    },
+    "special": null
+  },
+  "attack": {
+    "mod": "mod.STR",
+    "bonus": "bonus_maitrise"
+  },
+  "damage": {
+    "dice": "1d8",
+    "damageType": "Tranchant",
+    "alt": {
+      "dice": "1d10",
+      "condition": "twoHanded"
+    }
+  },
+  "effectOnHit": {
+    "mod": "mod.STR",
+    "damage": "1d8",
+    "damageType": "Tranchant"
+  },
+  "links": {
+    "actionId": "melee-strike",
+    "effectId": "melee-slash"
+  },
+  "label": "Hache de bataille"
+}

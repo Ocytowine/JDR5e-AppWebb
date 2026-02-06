@@ -1,0 +1,7 @@
+{
+  "id": "outils_vehicules",
+  "label": "Vehicules",
+  "type": "tool",
+  "category": "vehicles",
+  "description": "Categorie des vehicules (terrestres, aquatiques)."
+}

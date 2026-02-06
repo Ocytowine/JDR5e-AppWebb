@@ -1,0 +1,14 @@
+{
+  "id": "obj_besace",
+  "label": "Besace",
+  "type": "object",
+  "category": "pack",
+  "weight": 0.8,
+  "priceGp": 1,
+  "capacityWeight": 10,
+  "tags": [
+    "sac",
+    "paquetage"
+  ],
+  "description": "Petite besace souple pour le quotidien."
+}

@@ -1,0 +1,37 @@
+{
+  "id": "move-type-id",
+  "name": "Move type name",
+  "summary": "Short description for the movement mode.",
+  "category": "movement",
+  "actionCost": {
+    "actionType": "free",
+    "movementCost": 0
+  },
+  "targeting": {
+    "target": "self",
+    "range": {
+      "min": 0,
+      "max": 0,
+      "shape": "self"
+    },
+    "maxTargets": 1,
+    "requiresLos": false
+  },
+  "usage": {
+    "perTurn": null,
+    "perEncounter": null,
+    "resource": null
+  },
+  "conditions": [],
+  "effects": [
+    {
+      "type": "log",
+      "message": "Mode deplacement: choisissez un trajet."
+    }
+  ],
+  "movement": {
+    "pathLimitMultiplier": 1,
+    "modeId": "walk"
+  },
+  "tags": ["movement", "move-type"]
+}

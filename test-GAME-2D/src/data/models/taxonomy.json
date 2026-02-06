@@ -1,0 +1,308 @@
+{
+  "id": "data-taxonomy",
+  "version": 1,
+  "description": "Source de verite des champs, enums et conventions pour les JSONs de gameplay.",
+  "sources": {
+    "actionTypes": "src/game/actionTypes.ts",
+    "actionEngine": "src/game/actionEngine.ts",
+    "reactionTypes": "src/game/reactionTypes.ts",
+    "effectTypes": "src/game/effectTypes.ts",
+    "damageTypes": "src/game/damageTypes.ts",
+    "gameBoard": "src/GameBoard.tsx"
+  },
+  "action": {
+    "model": "./action-model.json",
+    "category": [
+      "attack",
+      "movement",
+      "support",
+      "defense",
+      "item",
+      "reaction"
+    ],
+    "actionCost": {
+      "actionType": ["action", "bonus", "reaction", "free"],
+      "movementCost": "number"
+    },
+    "targeting": {
+      "target": [
+        "enemy",
+        "player",
+        "hostile",
+        "ally",
+        "self",
+        "cell",
+        "emptyCell"
+      ],
+      "range.shape": [
+        "single",
+        "line",
+        "cone",
+        "circle",
+        "rectangle",
+        "self"
+      ],
+      "range.min": "number",
+      "range.max": "number",
+      "maxTargets": "number",
+      "requiresLos": "boolean"
+    },
+    "usage": {
+      "perTurn": "number|null",
+      "perEncounter": "number|null",
+      "resource": {
+        "name": "string",
+        "pool": "string|null",
+        "min": "number|null"
+      }
+    },
+    "attack": {
+      "bonus": "number",
+      "critRange": "number (default 20)"
+    },
+    "damage": {
+      "formula": "string",
+      "critRule": ["double-dice", "double-total"],
+      "damageType": "damageTypeId"
+    },
+    "conditions": {
+      "types": [
+        "phase",
+        "target_alive",
+        "distance_max",
+        "distance_between",
+        "stat_at_least",
+        "stat_below_percent",
+        "resource_at_least"
+      ]
+    },
+    "effects": {
+      "types": [
+        "damage",
+        "heal",
+        "log",
+        "move_to",
+        "move",
+        "resource_spend",
+        "modify_path_limit",
+        "toggle_torch",
+        "status",
+        "status_apply",
+        "temp_hp",
+        "set_killer_instinct_target",
+        "visual_effect"
+      ]
+    },
+    "tags": {
+      "reserved": ["move-type"]
+    }
+  },
+  "moveType": {
+    "model": "./move-type-model.json",
+    "extends": "action",
+    "requiredTags": ["move-type"],
+    "movement": {
+      "pathLimitMultiplier": "number",
+      "modeId": "string"
+    }
+  },
+  "weapon": {
+    "model": "./weapon-model.json",
+    "type": ["arme"],
+    "subtype": ["simple", "martiale", "speciale", "monastique"],
+    "category": ["melee", "distance", "polyvalent"],
+    "rarity": ["commune", "peu_commune", "rare", "tres_rare", "legendaire"],
+    "fields": {
+      "id": "string",
+      "name": "string",
+      "label": "string",
+      "descriptionCourte": "string",
+      "descriptionLongue": "string",
+      "allowStack": "boolean",
+      "harmonisable": "boolean",
+      "focalisateur": "boolean",
+      "weight": "number",
+      "size": "number",
+      "value": { "gold": "number", "silver": "number", "copper": "number" },
+      "tags": "string[]",
+      "properties": {
+        "finesse": "boolean",
+        "light": "boolean",
+        "heavy": "boolean",
+        "twoHanded": "boolean",
+        "reach": "number",
+        "versatile": "string|null",
+        "thrown": { "normal": "number", "long": "number" },
+        "ammunition": "boolean",
+        "loading": "boolean",
+        "reload": "number|null",
+        "range": { "normal": "number", "long": "number" },
+        "special": "string|null"
+      },
+      "attack": {
+        "mod": "string",
+        "bonus": "string|number|null"
+      },
+      "damage": {
+        "dice": "string",
+        "damageType": "damageTypeId",
+        "damageTypeId": "damageTypeId|null",
+        "alt": { "dice": "string", "condition": "string" }
+      },
+      "effectOnHit": {
+        "mod": "string",
+        "damage": "string",
+        "damageType": "damageTypeId",
+        "damageTypeId": "damageTypeId|null"
+      },
+      "links": {
+        "actionId": "string|null",
+        "effectId": "string|null"
+      }
+    }
+  },
+  "reaction": {
+    "model": "./reaction-model.json",
+    "trigger": {
+      "event": [
+        "movement.leave_reach",
+        "movement.enter_reach",
+        "visibility.first_seen"
+      ],
+      "source": ["hostile", "ally", "player", "enemy", "self", "any"]
+    },
+    "conditions": {
+      "types": [
+        "actor_alive",
+        "target_alive",
+        "reaction_available",
+        "reaction_unused_combat",
+        "distance_max",
+        "target_first_seen",
+        "target_is_closest_visible",
+        "target_visible"
+      ]
+    }
+  },
+  "effectType": {
+    "definition": {
+      "id": "string",
+      "label": "string",
+      "tags": "string[]",
+      "appearance": {
+        "spriteKey": "string",
+        "animationSpeed": "number",
+        "animationLoop": "boolean",
+        "scale": "number",
+        "targetSize": "number",
+        "scaleRange": { "min": "number", "max": "number" },
+        "tint": "number",
+        "tintRange": { "dark": "number", "light": "number" },
+        "alpha": "number",
+        "alphaRange": { "min": "number", "max": "number" }
+      },
+      "placement": {
+        "allowedFloors": "string[]",
+        "blockedFloors": "string[]",
+        "allowedFloorTags": "string[]",
+        "blockedFloorTags": "string[]",
+        "avoidLiquid": "boolean"
+      },
+      "hazard": {
+        "damageFormula": "string",
+        "statusRoll": { "die": "number", "trigger": "number", "statusId": "string" },
+        "onTraverse": "boolean"
+      },
+      "light": { "radius": "number", "color": "number" }
+    }
+  },
+  "damageTypes": {
+    "ids": [
+      "slashing",
+      "piercing",
+      "bludgeoning",
+      "fire",
+      "cold",
+      "acid",
+      "lightning",
+      "poison",
+      "thunder",
+      "force",
+      "radiant",
+      "necrotic",
+      "psychic"
+    ]
+  },
+  "formulaTokens": {
+    "tokens": [
+      "attackDamage",
+      "attackBonus",
+      "moveRange",
+      "attackRange",
+      "level",
+      "niveau",
+      "modSTR",
+      "modFOR",
+      "modDEX",
+      "modCON",
+      "modINT",
+      "modWIS",
+      "modSAG",
+      "modCHA"
+    ]
+  },
+  "runtimeSupport": {
+    "actionEffects": {
+      "supportedByActionEngine": ["log", "resource_spend", "damage", "move_to"],
+      "supportedByGameBoard": [
+        "modify_path_limit",
+        "resource_spend",
+        "toggle_torch",
+        "heal",
+        "log",
+        "set_killer_instinct_target"
+      ],
+      "knownInData": [
+        "damage",
+        "heal",
+        "log",
+        "modify_path_limit",
+        "move",
+        "move_to",
+        "resource_spend",
+        "set_killer_instinct_target",
+        "status",
+        "status_apply",
+        "temp_hp",
+        "toggle_torch",
+        "visual_effect"
+      ]
+    },
+    "conditions": {
+      "supportedByActionEngine": [
+        "phase",
+        "target_alive",
+        "distance_max",
+        "distance_between"
+      ],
+      "supportedByGameBoard": [
+        "phase",
+        "target_alive",
+        "distance_max",
+        "distance_between",
+        "stat_below_percent",
+        "resource_at_least"
+      ],
+      "supportedByReactionResolver": [
+        "actor_alive",
+        "target_alive",
+        "reaction_available",
+        "reaction_unused_combat",
+        "distance_max",
+        "target_first_seen",
+        "target_is_closest_visible",
+        "target_visible"
+      ]
+    }
+  }
+}

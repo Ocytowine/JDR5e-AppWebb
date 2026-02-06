@@ -1,0 +1,11 @@
+{
+  "types": [
+    "./bouclier.json",
+    "./chemise-mailles.json",
+    "./cotte-mailles.json",
+    "./cuir-cloute.json",
+    "./cuir.json",
+    "./demi-plaque.json",
+    "./harnois.json"
+  ]
+}
