@@ -1,6 +1,6 @@
-import { S as State, g as getTextureBatchBindGroup, E as ExtensionType, f as fastCopy, D as DOMAdapter, b as STENCIL_MODES, B as BufferUsage, c as Buffer, d as BindGroup, h as createIdFromString, w as warn, i as CLEAR, j as CanvasSource, k as TextureSource, l as UniformGroup, m as CanvasPool, M as Matrix, n as compileHighShaderGpuProgram, o as colorBit, p as generateTextureBatchBit, q as roundPixelsBit, s as Shader, t as Texture, A as AbstractRenderer, R as RendererType, e as extensions } from "./index-BrCnMeTO.js";
+import { S as State, g as getTextureBatchBindGroup, E as ExtensionType, f as fastCopy, D as DOMAdapter, b as STENCIL_MODES, B as BufferUsage, c as Buffer, d as BindGroup, h as createIdFromString, w as warn, i as CLEAR, j as CanvasSource, k as TextureSource, l as UniformGroup, m as CanvasPool, M as Matrix, n as compileHighShaderGpuProgram, o as colorBit, p as generateTextureBatchBit, q as roundPixelsBit, s as Shader, t as Texture, A as AbstractRenderer, R as RendererType, e as extensions } from "./index-DhHKW0sP.js";
 import { l as localUniformBitGroup2, a as localUniformBit } from "./colorToUniform-B2b8-1Ah.js";
-import { c as createUboSyncFunction, u as uboSyncFunctionsWGSL, U as UboSystem, B as BufferResource, G as GpuStencilModesToPixi, e as ensureAttributes, R as RenderTargetSystem, t as textureBit, S as SharedSystems, a as SharedRenderPipes } from "./SharedSystems-Cut8Dx5u.js";
+import { c as createUboSyncFunction, u as uboSyncFunctionsWGSL, U as UboSystem, B as BufferResource, G as GpuStencilModesToPixi, e as ensureAttributes, R as RenderTargetSystem, t as textureBit, S as SharedSystems, a as SharedRenderPipes } from "./SharedSystems-BB8iyiQ6.js";
 const tempState = State.for2d();
 class GpuBatchAdaptor {
   start(batchPipe, geometry, shader) {
@@ -2097,4 +2097,4 @@ class WebGPURenderer extends AbstractRenderer {
 export {
   WebGPURenderer
 };
-//# sourceMappingURL=WebGPURenderer-D9_1io_G.js.map
+//# sourceMappingURL=WebGPURenderer-DApywaWt.js.map

@@ -149,7 +149,7 @@ function generateCatalog(options) {
     const modulePath = rel.replace(/^\.\//, "");
     const baseName = modulePath.replace(/\.json$/i, "");
     const importName = uniqueName(toIdentifier(baseName), used);
-    imports.push(`import ${importName} from "../../../data/items/${folder}/${modulePath}";`);
+    imports.push(`import ${importName} from "../../data/items/${folder}/${modulePath}";`);
     entries.push(`  "${rel}": ${importName} as ${tsType}`);
   }
   const filePath = path.join(
@@ -165,7 +165,7 @@ function generateCatalog(options) {
 import type { ${tsType} } from "../../game/${indexName}Types";
 ${extraImports.join("\n")}
 
-import ${indexName}sIndex from "../../../data/items/${folder}/index.json";
+import ${indexName}sIndex from "../../data/items/${folder}/index.json";
 ${imports.join("\n")}
 
 const ${indexName.toUpperCase()}_MODULES: Record<string, ${tsType}> = {
@@ -251,23 +251,23 @@ function main() {
 function normalizeWeaponDamageTypes(def: WeaponTypeDefinition): WeaponTypeDefinition {
   const damage = def.damage;
   const effectOnHit = def.effectOnHit;
-  const damageTypeId = normalizeDamageType(damage?.damage_type ?? null);
-  const onHitDamageTypeId = normalizeDamageType(effectOnHit?.damage_type ?? null);
+  const damageTypeId = normalizeDamageType(damage?.damageType ?? null);
+  const onHitDamageTypeId = normalizeDamageType(effectOnHit?.damageType ?? null);
 
-  if (damage?.damage_type && !damageTypeId) {
+  if (damage?.damageType && !damageTypeId) {
     console.warn(
       "[weapon-types] Unknown damage type for weapon:",
       def.id,
       "->",
-      damage.damage_type
+      damage.damageType
     );
   }
-  if (effectOnHit?.damage_type && !onHitDamageTypeId) {
+  if (effectOnHit?.damageType && !onHitDamageTypeId) {
     console.warn(
       "[weapon-types] Unknown on-hit damage type for weapon:",
       def.id,
       "->",
-      effectOnHit.damage_type
+      effectOnHit.damageType
     );
   }
 
@@ -276,13 +276,13 @@ function normalizeWeaponDamageTypes(def: WeaponTypeDefinition): WeaponTypeDefini
     damage: damage
       ? {
           ...damage,
-          damage_type_id: damageTypeId
+          damageTypeId
         }
       : damage,
     effectOnHit: effectOnHit
       ? {
           ...effectOnHit,
-          damage_type_id: onHitDamageTypeId
+          damageTypeId: onHitDamageTypeId
         }
       : effectOnHit
   };

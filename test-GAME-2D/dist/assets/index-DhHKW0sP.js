@@ -1,4 +1,4 @@
-const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/browserAll-BMezh5yZ.js","assets/webworkerAll-DbVJLoX7.js","assets/colorToUniform-B2b8-1Ah.js","assets/WebGPURenderer-D9_1io_G.js","assets/SharedSystems-Cut8Dx5u.js","assets/WebGLRenderer-Bi1mzpYY.js"])))=>i.map(i=>d[i]);
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/browserAll-jExBqAfJ.js","assets/webworkerAll-DEmzzBa3.js","assets/colorToUniform-B2b8-1Ah.js","assets/WebGPURenderer-DApywaWt.js","assets/SharedSystems-BB8iyiQ6.js","assets/WebGLRenderer-BdA-1n9-.js"])))=>i.map(i=>d[i]);
 var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key2, value2) => key2 in obj ? __defProp(obj, key2, { enumerable: true, configurable: true, writable: true, value: value2 }) : obj[key2] = value2;
 var __publicField = (obj, key2, value2) => __defNormalProp(obj, typeof key2 !== "symbol" ? key2 + "" : key2, value2);
@@ -8859,7 +8859,7 @@ function loadStatusTypesFromIndex() {
   }
   return loaded;
 }
-const features = ["./catalog/cleric/channel-divinity.json", "./catalog/cleric/turn-undead.json", "./catalog/cleric/divine-intervention.json", "./catalog/cleric/peace-bond.json", "./catalog/cleric/balm-of-peace.json", "./catalog/cleric/protective-bond.json", "./catalog/cleric/expansive-bond.json"];
+const features = ["./cleric/channel-divinity.json", "./cleric/turn-undead.json", "./cleric/divine-intervention.json", "./cleric/peace-bond.json", "./cleric/balm-of-peace.json", "./cleric/protective-bond.json", "./cleric/expansive-bond.json"];
 const featuresIndex = {
   features
 };
@@ -8976,13 +8976,13 @@ const expansiveBond = {
   rules
 };
 const FEATURE_MODULES = {
-  "./catalog/cleric/channel-divinity.json": channelDivinity,
-  "./catalog/cleric/turn-undead.json": turnUndead,
-  "./catalog/cleric/divine-intervention.json": divineIntervention,
-  "./catalog/cleric/peace-bond.json": peaceBond,
-  "./catalog/cleric/balm-of-peace.json": balmOfPeace,
-  "./catalog/cleric/protective-bond.json": protectiveBond,
-  "./catalog/cleric/expansive-bond.json": expansiveBond
+  "./cleric/channel-divinity.json": channelDivinity,
+  "./cleric/turn-undead.json": turnUndead,
+  "./cleric/divine-intervention.json": divineIntervention,
+  "./cleric/peace-bond.json": peaceBond,
+  "./cleric/balm-of-peace.json": balmOfPeace,
+  "./cleric/protective-bond.json": protectiveBond,
+  "./cleric/expansive-bond.json": expansiveBond
 };
 function loadFeatureTypesFromIndex() {
   const indexed = Array.isArray(featuresIndex.features) ? featuresIndex.features : [];
@@ -15321,92 +15321,84 @@ function getFloorMaterial(id2) {
   if (!id2) return null;
   return floorMaterialMap.get(id2) ?? null;
 }
-const actions = ["./catalog/combat/bow-shot.json", "./catalog/combat/melee-strike.json", "./catalog/combat/spells/aid.json", "./catalog/combat/spells/arcane-bolt.json", "./catalog/combat/spells/aura-of-purity.json", "./catalog/combat/spells/beacon-of-hope.json", "./catalog/combat/spells/greater-restoration.json", "./catalog/combat/spells/heroism.json", "./catalog/combat/spells/minor-ward.json", "./catalog/combat/spells/rarys-telepathic-bond.json", "./catalog/combat/spells/resilient-sphere.json", "./catalog/combat/spells/sanctuary.json", "./catalog/combat/spells/sending.json", "./catalog/combat/spells/warding-bond.json", "./catalog/combat/throw-dagger.json", "./catalog/items/torch-toggle.json", "./catalog/movement/dash.json", "./catalog/movement/move.json", "./catalog/support/second-wind.json"];
+const actions = ["../attacks/bow-shot.json", "../attacks/melee-strike.json", "../attacks/throw-dagger.json", "../items/torch-toggle.json", "../moves/dash.json", "../moves/move.json", "../spells/aid.json", "../spells/arcane-bolt.json", "../spells/aura-of-purity.json", "../spells/beacon-of-hope.json", "../spells/greater-restoration.json", "../spells/heroism.json", "../spells/minor-ward.json", "../spells/rarys-telepathic-bond.json", "../spells/resilient-sphere.json", "../spells/sanctuary.json", "../spells/sending.json", "../spells/warding-bond.json", "../supports/second-wind.json"];
 const actionsIndex = {
   actions
 };
-const id$k = "bow-shot";
-const name$k = "Tir a l'arc";
-const summary$k = "Tir a distance contre une cible hostile, prefere eviter la melee.";
-const uiMessageHit$2 = "Vous avez ete touche par une fleche.";
-const uiMessageMiss$2 = "Vous evitez une fleche.";
-const category$k = "attack";
+const id$k = "aid";
+const name$k = "Aide";
+const level$b = 2;
+const school$b = "abjuration";
+const components$b = { "verbal": true, "somatic": true, "material": true };
+const summary$k = "Renforce la vigueur d'un groupe d'allies.";
+const category$k = "support";
 const actionCost$k = { "actionType": "action", "movementCost": 0 };
-const targeting$k = { "target": "hostile", "range": { "min": 2, "max": 6, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
+const targeting$k = { "target": "ally", "range": { "min": 0, "max": 6, "shape": "single" }, "maxTargets": 3, "requiresLos": true };
 const usage$k = { "perTurn": 1, "perEncounter": null, "resource": null };
-const conditions$8 = [{ "type": "target_alive", "target": "primary", "reason": "La cible doit etre en vie." }];
-const attack$3 = { "bonus": 5, "critRange": 20 };
-const damage$3 = { "formula": "attackDamage", "critRule": "double-dice", "damageType": "piercing" };
-const effects$k = [{ "type": "damage", "target": "primary", "formula": "attackDamage", "damageType": "piercing" }, { "type": "log", "message": "Une fleche siffle dans l'air." }];
-const aiHints$5 = { "priority": "poke_from_range", "successLog": "Tir a l'arc.", "failureLog": "Cible hors portee/ligne de vue ou trop proche." };
-const tags$k = ["distance", "bow"];
-const CatalogCombatBowShot = {
+const effects$k = [{ "type": "status_apply", "target": "primary", "statusId": "aid", "durationTurns": 60 }, { "type": "log", "message": "Aide appliquee." }];
+const tags$k = ["spell", "support", "cleric"];
+const aid = {
   id: id$k,
   name: name$k,
+  level: level$b,
+  school: school$b,
+  components: components$b,
   summary: summary$k,
-  uiMessageHit: uiMessageHit$2,
-  uiMessageMiss: uiMessageMiss$2,
   category: category$k,
   actionCost: actionCost$k,
   targeting: targeting$k,
   usage: usage$k,
-  conditions: conditions$8,
-  attack: attack$3,
-  damage: damage$3,
   effects: effects$k,
-  aiHints: aiHints$5,
   tags: tags$k
 };
-const id$j = "melee-strike";
-const name$j = "Frappe basique";
-const summary$j = "Attaque de melee simple contre une cible adjacente.";
-const uiMessageHit$1 = "Vous avez ete touche par une attaque au corps a corps.";
-const uiMessageMiss$1 = "Vous evitez une attaque au corps a corps.";
+const id$j = "arcane-bolt";
+const name$j = "Trait Arcanique";
+const level$a = 1;
+const school$a = "evocation";
+const components$a = { "verbal": true, "somatic": true, "material": false };
+const summary$j = "Placeholder: petit projectile magique.";
 const category$j = "attack";
 const actionCost$j = { "actionType": "action", "movementCost": 0 };
-const targeting$j = { "target": "hostile", "range": { "min": 0, "max": 1, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
+const targeting$j = { "target": "hostile", "range": { "min": 1, "max": 6, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
 const usage$j = { "perTurn": 1, "perEncounter": null, "resource": null };
-const conditions$7 = [{ "type": "distance_max", "target": "primary", "max": 1, "reason": "Portee de melee uniquement." }, { "type": "target_alive", "target": "primary", "reason": "La cible doit avoir des PV restants." }];
-const attack$2 = { "bonus": 5, "critRange": 20 };
-const damage$2 = { "formula": "attackDamage", "critRule": "double-dice", "damageType": "slashing" };
-const effects$j = [{ "type": "damage", "target": "primary", "formula": "attackDamage", "damageType": "slashing" }, { "type": "visual_effect", "effectId": "melee-slash", "anchor": "target", "orientation": "to_target", "rotationOffsetDeg": -135 }, { "type": "log", "message": "Frappe au contact." }];
-const aiHints$4 = { "priority": "finish_low_hp_target", "successLog": "Frappe au contact.", "failureLog": "Cible hors portee ou non visible." };
-const tags$j = ["melee"];
-const CatalogCombatMeleeStrike = {
+const attack$3 = { "bonus": 0, "critRange": 20 };
+const damage$3 = { "formula": "1d8", "critRule": "double-dice", "damageType": "force" };
+const effects$j = [{ "type": "damage", "target": "primary", "formula": "1d8", "damageType": "force" }, { "type": "log", "message": "Trait arcanique." }];
+const tags$j = ["spell", "ranged"];
+const arcaneBolt = {
   id: id$j,
   name: name$j,
+  level: level$a,
+  school: school$a,
+  components: components$a,
   summary: summary$j,
-  uiMessageHit: uiMessageHit$1,
-  uiMessageMiss: uiMessageMiss$1,
   category: category$j,
   actionCost: actionCost$j,
   targeting: targeting$j,
   usage: usage$j,
-  conditions: conditions$7,
-  attack: attack$2,
-  damage: damage$2,
+  attack: attack$3,
+  damage: damage$3,
   effects: effects$j,
-  aiHints: aiHints$4,
   tags: tags$j
 };
-const id$i = "aid";
-const name$i = "Aide";
-const level$b = 2;
-const school$b = "abjuration";
-const components$b = { "verbal": true, "somatic": true, "material": true };
-const summary$i = "Renforce la vigueur d'un groupe d'allies.";
+const id$i = "aura-of-purity";
+const name$i = "Aura de purete";
+const level$9 = 4;
+const school$9 = "abjuration";
+const components$9 = { "verbal": true, "somatic": true, "material": true };
+const summary$i = "Aura protectrice contre maladies et effets nefastes.";
 const category$i = "support";
 const actionCost$i = { "actionType": "action", "movementCost": 0 };
-const targeting$i = { "target": "ally", "range": { "min": 0, "max": 6, "shape": "single" }, "maxTargets": 3, "requiresLos": true };
+const targeting$i = { "target": "self", "range": { "min": 0, "max": 0, "shape": "single" }, "maxTargets": 1, "requiresLos": false };
 const usage$i = { "perTurn": 1, "perEncounter": null, "resource": null };
-const effects$i = [{ "type": "status_apply", "target": "primary", "statusId": "aid", "durationTurns": 60 }, { "type": "log", "message": "Aide appliquee." }];
-const tags$i = ["spell", "support", "cleric"];
-const aid = {
+const effects$i = [{ "type": "status_apply", "target": "self", "statusId": "aura-of-purity", "durationTurns": 10 }, { "type": "log", "message": "Aura de purete activee." }];
+const tags$i = ["spell", "defense", "cleric"];
+const auraOfPurity = {
   id: id$i,
   name: name$i,
-  level: level$b,
-  school: school$b,
-  components: components$b,
+  level: level$9,
+  school: school$9,
+  components: components$9,
   summary: summary$i,
   category: category$i,
   actionCost: actionCost$i,
@@ -15415,54 +15407,50 @@ const aid = {
   effects: effects$i,
   tags: tags$i
 };
-const id$h = "arcane-bolt";
-const name$h = "Trait Arcanique";
-const level$a = 1;
-const school$a = "evocation";
-const components$a = { "verbal": true, "somatic": true, "material": false };
-const summary$h = "Placeholder: petit projectile magique.";
-const category$h = "attack";
+const id$h = "beacon-of-hope";
+const name$h = "Flamme d'espoir";
+const level$8 = 3;
+const school$8 = "abjuration";
+const components$8 = { "verbal": true, "somatic": true, "material": false };
+const summary$h = "Renforce les soins et la determination.";
+const category$h = "support";
 const actionCost$h = { "actionType": "action", "movementCost": 0 };
-const targeting$h = { "target": "hostile", "range": { "min": 1, "max": 6, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
+const targeting$h = { "target": "ally", "range": { "min": 0, "max": 6, "shape": "single" }, "maxTargets": 3, "requiresLos": true };
 const usage$h = { "perTurn": 1, "perEncounter": null, "resource": null };
-const attack$1 = { "bonus": 0, "critRange": 20 };
-const damage$1 = { "formula": "1d8", "critRule": "double-dice", "damageType": "force" };
-const effects$h = [{ "type": "damage", "target": "primary", "formula": "1d8", "damageType": "force" }, { "type": "log", "message": "Trait arcanique." }];
-const tags$h = ["spell", "ranged"];
-const arcaneBolt = {
+const effects$h = [{ "type": "status_apply", "target": "primary", "statusId": "beacon-of-hope", "durationTurns": 10 }, { "type": "log", "message": "Flamme d'espoir appliquee." }];
+const tags$h = ["spell", "support", "cleric"];
+const beaconOfHope = {
   id: id$h,
   name: name$h,
-  level: level$a,
-  school: school$a,
-  components: components$a,
+  level: level$8,
+  school: school$8,
+  components: components$8,
   summary: summary$h,
   category: category$h,
   actionCost: actionCost$h,
   targeting: targeting$h,
   usage: usage$h,
-  attack: attack$1,
-  damage: damage$1,
   effects: effects$h,
   tags: tags$h
 };
-const id$g = "aura-of-purity";
-const name$g = "Aura de purete";
-const level$9 = 4;
-const school$9 = "abjuration";
-const components$9 = { "verbal": true, "somatic": true, "material": true };
-const summary$g = "Aura protectrice contre maladies et effets nefastes.";
+const id$g = "greater-restoration";
+const name$g = "Restauration superieure";
+const level$7 = 5;
+const school$7 = "abjuration";
+const components$7 = { "verbal": true, "somatic": true, "material": true };
+const summary$g = "Supprime des afflictions majeures sur une cible.";
 const category$g = "support";
 const actionCost$g = { "actionType": "action", "movementCost": 0 };
-const targeting$g = { "target": "self", "range": { "min": 0, "max": 0, "shape": "single" }, "maxTargets": 1, "requiresLos": false };
+const targeting$g = { "target": "ally", "range": { "min": 0, "max": 6, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
 const usage$g = { "perTurn": 1, "perEncounter": null, "resource": null };
-const effects$g = [{ "type": "status_apply", "target": "self", "statusId": "aura-of-purity", "durationTurns": 10 }, { "type": "log", "message": "Aura de purete activee." }];
-const tags$g = ["spell", "defense", "cleric"];
-const auraOfPurity = {
+const effects$g = [{ "type": "status_apply", "target": "primary", "statusId": "greater-restoration", "durationTurns": 1 }, { "type": "log", "message": "Restauration superieure appliquee." }];
+const tags$g = ["spell", "support", "cleric"];
+const greaterRestoration = {
   id: id$g,
   name: name$g,
-  level: level$9,
-  school: school$9,
-  components: components$9,
+  level: level$7,
+  school: school$7,
+  components: components$7,
   summary: summary$g,
   category: category$g,
   actionCost: actionCost$g,
@@ -15471,24 +15459,24 @@ const auraOfPurity = {
   effects: effects$g,
   tags: tags$g
 };
-const id$f = "beacon-of-hope";
-const name$f = "Flamme d'espoir";
-const level$8 = 3;
-const school$8 = "abjuration";
-const components$8 = { "verbal": true, "somatic": true, "material": false };
-const summary$f = "Renforce les soins et la determination.";
+const id$f = "heroism";
+const name$f = "Heroisme";
+const level$6 = 1;
+const school$6 = "enchantment";
+const components$6 = { "verbal": true, "somatic": true, "material": false };
+const summary$f = "Insuffle du courage et protege contre la peur.";
 const category$f = "support";
 const actionCost$f = { "actionType": "action", "movementCost": 0 };
-const targeting$f = { "target": "ally", "range": { "min": 0, "max": 6, "shape": "single" }, "maxTargets": 3, "requiresLos": true };
+const targeting$f = { "target": "ally", "range": { "min": 0, "max": 6, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
 const usage$f = { "perTurn": 1, "perEncounter": null, "resource": null };
-const effects$f = [{ "type": "status_apply", "target": "primary", "statusId": "beacon-of-hope", "durationTurns": 10 }, { "type": "log", "message": "Flamme d'espoir appliquee." }];
+const effects$f = [{ "type": "status_apply", "target": "primary", "statusId": "heroism", "durationTurns": 10 }, { "type": "log", "message": "Heroisme applique." }];
 const tags$f = ["spell", "support", "cleric"];
-const beaconOfHope = {
+const heroism = {
   id: id$f,
   name: name$f,
-  level: level$8,
-  school: school$8,
-  components: components$8,
+  level: level$6,
+  school: school$6,
+  components: components$6,
   summary: summary$f,
   category: category$f,
   actionCost: actionCost$f,
@@ -15497,24 +15485,24 @@ const beaconOfHope = {
   effects: effects$f,
   tags: tags$f
 };
-const id$e = "greater-restoration";
-const name$e = "Restauration superieure";
-const level$7 = 5;
-const school$7 = "abjuration";
-const components$7 = { "verbal": true, "somatic": true, "material": true };
-const summary$e = "Supprime des afflictions majeures sur une cible.";
+const id$e = "minor-ward";
+const name$e = "Garde Mineure";
+const level$5 = 1;
+const school$5 = "abjuration";
+const components$5 = { "verbal": true, "somatic": true, "material": false };
+const summary$e = "Placeholder: protection temporaire.";
 const category$e = "support";
 const actionCost$e = { "actionType": "action", "movementCost": 0 };
-const targeting$e = { "target": "ally", "range": { "min": 0, "max": 6, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
+const targeting$e = { "target": "self", "range": { "min": 0, "max": 0, "shape": "single" }, "maxTargets": 1, "requiresLos": false };
 const usage$e = { "perTurn": 1, "perEncounter": null, "resource": null };
-const effects$e = [{ "type": "status_apply", "target": "primary", "statusId": "greater-restoration", "durationTurns": 1 }, { "type": "log", "message": "Restauration superieure appliquee." }];
-const tags$e = ["spell", "support", "cleric"];
-const greaterRestoration = {
+const effects$e = [{ "type": "status_apply", "target": "self", "statusId": "guarded", "durationTurns": 1 }, { "type": "log", "message": "Garde mineure activee." }];
+const tags$e = ["spell", "defense", "cleric"];
+const minorWard = {
   id: id$e,
   name: name$e,
-  level: level$7,
-  school: school$7,
-  components: components$7,
+  level: level$5,
+  school: school$5,
+  components: components$5,
   summary: summary$e,
   category: category$e,
   actionCost: actionCost$e,
@@ -15523,24 +15511,24 @@ const greaterRestoration = {
   effects: effects$e,
   tags: tags$e
 };
-const id$d = "heroism";
-const name$d = "Heroisme";
-const level$6 = 1;
-const school$6 = "enchantment";
-const components$6 = { "verbal": true, "somatic": true, "material": false };
-const summary$d = "Insuffle du courage et protege contre la peur.";
+const id$d = "rarys-telepathic-bond";
+const name$d = "Lien telepathique de Rary";
+const level$4 = 5;
+const school$4 = "divination";
+const components$4 = { "verbal": true, "somatic": true, "material": true };
+const summary$d = "Lie telepathiquement plusieurs allies.";
 const category$d = "support";
 const actionCost$d = { "actionType": "action", "movementCost": 0 };
-const targeting$d = { "target": "ally", "range": { "min": 0, "max": 6, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
+const targeting$d = { "target": "ally", "range": { "min": 0, "max": 6, "shape": "single" }, "maxTargets": 6, "requiresLos": true };
 const usage$d = { "perTurn": 1, "perEncounter": null, "resource": null };
-const effects$d = [{ "type": "status_apply", "target": "primary", "statusId": "heroism", "durationTurns": 10 }, { "type": "log", "message": "Heroisme applique." }];
+const effects$d = [{ "type": "status_apply", "target": "primary", "statusId": "telepathic-bond", "durationTurns": 60 }, { "type": "log", "message": "Lien telepathique etabli." }];
 const tags$d = ["spell", "support", "cleric"];
-const heroism = {
+const rarysTelepathicBond = {
   id: id$d,
   name: name$d,
-  level: level$6,
-  school: school$6,
-  components: components$6,
+  level: level$4,
+  school: school$4,
+  components: components$4,
   summary: summary$d,
   category: category$d,
   actionCost: actionCost$d,
@@ -15549,24 +15537,24 @@ const heroism = {
   effects: effects$d,
   tags: tags$d
 };
-const id$c = "minor-ward";
-const name$c = "Garde Mineure";
-const level$5 = 1;
-const school$5 = "abjuration";
-const components$5 = { "verbal": true, "somatic": true, "material": false };
-const summary$c = "Placeholder: protection temporaire.";
-const category$c = "support";
+const id$c = "resilient-sphere";
+const name$c = "Sphere resiliente";
+const level$3 = 4;
+const school$3 = "evocation";
+const components$3 = { "verbal": true, "somatic": true, "material": true };
+const summary$c = "Emprisonne une cible dans une sphere protectrice.";
+const category$c = "control";
 const actionCost$c = { "actionType": "action", "movementCost": 0 };
-const targeting$c = { "target": "self", "range": { "min": 0, "max": 0, "shape": "single" }, "maxTargets": 1, "requiresLos": false };
+const targeting$c = { "target": "hostile", "range": { "min": 0, "max": 6, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
 const usage$c = { "perTurn": 1, "perEncounter": null, "resource": null };
-const effects$c = [{ "type": "status_apply", "target": "self", "statusId": "guarded", "durationTurns": 1 }, { "type": "log", "message": "Garde mineure activee." }];
-const tags$c = ["spell", "defense", "cleric"];
-const minorWard = {
+const effects$c = [{ "type": "status_apply", "target": "primary", "statusId": "resilient-sphere", "durationTurns": 10 }, { "type": "log", "message": "Sphere resiliente appliquee." }];
+const tags$c = ["spell", "control", "cleric"];
+const resilientSphere = {
   id: id$c,
   name: name$c,
-  level: level$5,
-  school: school$5,
-  components: components$5,
+  level: level$3,
+  school: school$3,
+  components: components$3,
   summary: summary$c,
   category: category$c,
   actionCost: actionCost$c,
@@ -15575,24 +15563,24 @@ const minorWard = {
   effects: effects$c,
   tags: tags$c
 };
-const id$b = "rarys-telepathic-bond";
-const name$b = "Lien telepathique de Rary";
-const level$4 = 5;
-const school$4 = "divination";
-const components$4 = { "verbal": true, "somatic": true, "material": true };
-const summary$b = "Lie telepathiquement plusieurs allies.";
+const id$b = "sanctuary";
+const name$b = "Sanctuaire";
+const level$2 = 1;
+const school$2 = "abjuration";
+const components$2 = { "verbal": true, "somatic": true, "material": true };
+const summary$b = "Protege une cible contre les attaques directes.";
 const category$b = "support";
 const actionCost$b = { "actionType": "action", "movementCost": 0 };
-const targeting$b = { "target": "ally", "range": { "min": 0, "max": 6, "shape": "single" }, "maxTargets": 6, "requiresLos": true };
+const targeting$b = { "target": "ally", "range": { "min": 0, "max": 6, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
 const usage$b = { "perTurn": 1, "perEncounter": null, "resource": null };
-const effects$b = [{ "type": "status_apply", "target": "primary", "statusId": "telepathic-bond", "durationTurns": 60 }, { "type": "log", "message": "Lien telepathique etabli." }];
-const tags$b = ["spell", "support", "cleric"];
-const rarysTelepathicBond = {
+const effects$b = [{ "type": "status_apply", "target": "primary", "statusId": "sanctuary", "durationTurns": 10 }, { "type": "log", "message": "Sanctuaire applique." }];
+const tags$b = ["spell", "defense", "cleric"];
+const sanctuary = {
   id: id$b,
   name: name$b,
-  level: level$4,
-  school: school$4,
-  components: components$4,
+  level: level$2,
+  school: school$2,
+  components: components$2,
   summary: summary$b,
   category: category$b,
   actionCost: actionCost$b,
@@ -15601,24 +15589,24 @@ const rarysTelepathicBond = {
   effects: effects$b,
   tags: tags$b
 };
-const id$a = "resilient-sphere";
-const name$a = "Sphere resiliente";
-const level$3 = 4;
-const school$3 = "evocation";
-const components$3 = { "verbal": true, "somatic": true, "material": true };
-const summary$a = "Emprisonne une cible dans une sphere protectrice.";
-const category$a = "control";
+const id$a = "sending";
+const name$a = "Message";
+const level$1 = 3;
+const school$1 = "evocation";
+const components$1 = { "verbal": true, "somatic": true, "material": true };
+const summary$a = "Envoie un message magique a distance.";
+const category$a = "support";
 const actionCost$a = { "actionType": "action", "movementCost": 0 };
-const targeting$a = { "target": "hostile", "range": { "min": 0, "max": 6, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
+const targeting$a = { "target": "ally", "range": { "min": 0, "max": 20, "shape": "single" }, "maxTargets": 1, "requiresLos": false };
 const usage$a = { "perTurn": 1, "perEncounter": null, "resource": null };
-const effects$a = [{ "type": "status_apply", "target": "primary", "statusId": "resilient-sphere", "durationTurns": 10 }, { "type": "log", "message": "Sphere resiliente appliquee." }];
-const tags$a = ["spell", "control", "cleric"];
-const resilientSphere = {
+const effects$a = [{ "type": "log", "message": "Message envoye." }];
+const tags$a = ["spell", "utility", "cleric"];
+const sending = {
   id: id$a,
   name: name$a,
-  level: level$3,
-  school: school$3,
-  components: components$3,
+  level: level$1,
+  school: school$1,
+  components: components$1,
   summary: summary$a,
   category: category$a,
   actionCost: actionCost$a,
@@ -15627,24 +15615,24 @@ const resilientSphere = {
   effects: effects$a,
   tags: tags$a
 };
-const id$9 = "sanctuary";
-const name$9 = "Sanctuaire";
-const level$2 = 1;
-const school$2 = "abjuration";
-const components$2 = { "verbal": true, "somatic": true, "material": true };
-const summary$9 = "Protege une cible contre les attaques directes.";
+const id$9 = "warding-bond";
+const name$9 = "Lien protecteur";
+const level = 2;
+const school = "abjuration";
+const components = { "verbal": true, "somatic": true, "material": true };
+const summary$9 = "Lie le lanceur a un allie pour partager les degats.";
 const category$9 = "support";
 const actionCost$9 = { "actionType": "action", "movementCost": 0 };
 const targeting$9 = { "target": "ally", "range": { "min": 0, "max": 6, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
 const usage$9 = { "perTurn": 1, "perEncounter": null, "resource": null };
-const effects$9 = [{ "type": "status_apply", "target": "primary", "statusId": "sanctuary", "durationTurns": 10 }, { "type": "log", "message": "Sanctuaire applique." }];
-const tags$9 = ["spell", "defense", "cleric"];
-const sanctuary = {
+const effects$9 = [{ "type": "status_apply", "target": "primary", "statusId": "warding-bond", "durationTurns": 60 }, { "type": "log", "message": "Lien protecteur applique." }];
+const tags$9 = ["spell", "support", "cleric"];
+const wardingBond = {
   id: id$9,
   name: name$9,
-  level: level$2,
-  school: school$2,
-  components: components$2,
+  level,
+  school,
+  components,
   summary: summary$9,
   category: category$9,
   actionCost: actionCost$9,
@@ -15653,56 +15641,68 @@ const sanctuary = {
   effects: effects$9,
   tags: tags$9
 };
-const id$8 = "sending";
-const name$8 = "Message";
-const level$1 = 3;
-const school$1 = "evocation";
-const components$1 = { "verbal": true, "somatic": true, "material": true };
-const summary$8 = "Envoie un message magique a distance.";
-const category$8 = "support";
+const id$8 = "bow-shot";
+const name$8 = "Tir a l'arc";
+const summary$8 = "Tir a distance contre une cible hostile, prefere eviter la melee.";
+const uiMessageHit$2 = "Vous avez ete touche par une fleche.";
+const uiMessageMiss$2 = "Vous evitez une fleche.";
+const category$8 = "attack";
 const actionCost$8 = { "actionType": "action", "movementCost": 0 };
-const targeting$8 = { "target": "ally", "range": { "min": 0, "max": 20, "shape": "single" }, "maxTargets": 1, "requiresLos": false };
+const targeting$8 = { "target": "hostile", "range": { "min": 2, "max": 6, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
 const usage$8 = { "perTurn": 1, "perEncounter": null, "resource": null };
-const effects$8 = [{ "type": "log", "message": "Message envoye." }];
-const tags$8 = ["spell", "utility", "cleric"];
-const sending = {
+const conditions$8 = [{ "type": "target_alive", "target": "primary", "reason": "La cible doit etre en vie." }];
+const attack$2 = { "bonus": 5, "critRange": 20 };
+const damage$2 = { "formula": "attackDamage", "critRule": "double-dice", "damageType": "piercing" };
+const effects$8 = [{ "type": "damage", "target": "primary", "formula": "attackDamage", "damageType": "piercing" }, { "type": "log", "message": "Une fleche siffle dans l'air." }];
+const aiHints$5 = { "priority": "poke_from_range", "successLog": "Tir a l'arc.", "failureLog": "Cible hors portee/ligne de vue ou trop proche." };
+const tags$8 = ["distance", "bow"];
+const AttacksBowShot = {
   id: id$8,
   name: name$8,
-  level: level$1,
-  school: school$1,
-  components: components$1,
   summary: summary$8,
+  uiMessageHit: uiMessageHit$2,
+  uiMessageMiss: uiMessageMiss$2,
   category: category$8,
   actionCost: actionCost$8,
   targeting: targeting$8,
   usage: usage$8,
+  conditions: conditions$8,
+  attack: attack$2,
+  damage: damage$2,
   effects: effects$8,
+  aiHints: aiHints$5,
   tags: tags$8
 };
-const id$7 = "warding-bond";
-const name$7 = "Lien protecteur";
-const level = 2;
-const school = "abjuration";
-const components = { "verbal": true, "somatic": true, "material": true };
-const summary$7 = "Lie le lanceur a un allie pour partager les degats.";
-const category$7 = "support";
+const id$7 = "melee-strike";
+const name$7 = "Frappe basique";
+const summary$7 = "Attaque de melee simple contre une cible adjacente.";
+const uiMessageHit$1 = "Vous avez ete touche par une attaque au corps a corps.";
+const uiMessageMiss$1 = "Vous evitez une attaque au corps a corps.";
+const category$7 = "attack";
 const actionCost$7 = { "actionType": "action", "movementCost": 0 };
-const targeting$7 = { "target": "ally", "range": { "min": 0, "max": 6, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
+const targeting$7 = { "target": "hostile", "range": { "min": 0, "max": 1, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
 const usage$7 = { "perTurn": 1, "perEncounter": null, "resource": null };
-const effects$7 = [{ "type": "status_apply", "target": "primary", "statusId": "warding-bond", "durationTurns": 60 }, { "type": "log", "message": "Lien protecteur applique." }];
-const tags$7 = ["spell", "support", "cleric"];
-const wardingBond = {
+const conditions$7 = [{ "type": "distance_max", "target": "primary", "max": 1, "reason": "Portee de melee uniquement." }, { "type": "target_alive", "target": "primary", "reason": "La cible doit avoir des PV restants." }];
+const attack$1 = { "bonus": 5, "critRange": 20 };
+const damage$1 = { "formula": "attackDamage", "critRule": "double-dice", "damageType": "slashing" };
+const effects$7 = [{ "type": "damage", "target": "primary", "formula": "attackDamage", "damageType": "slashing" }, { "type": "visual_effect", "effectId": "melee-slash", "anchor": "target", "orientation": "to_target", "rotationOffsetDeg": -135 }, { "type": "log", "message": "Frappe au contact." }];
+const aiHints$4 = { "priority": "finish_low_hp_target", "successLog": "Frappe au contact.", "failureLog": "Cible hors portee ou non visible." };
+const tags$7 = ["melee"];
+const AttacksMeleeStrike = {
   id: id$7,
   name: name$7,
-  level,
-  school,
-  components,
   summary: summary$7,
+  uiMessageHit: uiMessageHit$1,
+  uiMessageMiss: uiMessageMiss$1,
   category: category$7,
   actionCost: actionCost$7,
   targeting: targeting$7,
   usage: usage$7,
+  conditions: conditions$7,
+  attack: attack$1,
+  damage: damage$1,
   effects: effects$7,
+  aiHints: aiHints$4,
   tags: tags$7
 };
 const id$6 = "throw-dagger";
@@ -15720,7 +15720,7 @@ const damage = { "formula": "1d4+2", "critRule": "double-dice", "damageType": "p
 const effects$6 = [{ "type": "damage", "target": "primary", "formula": "1d4 + modDEX", "damageType": "piercing" }, { "type": "resource_spend", "resource": "dagger", "pool": "bandolier", "amount": 1 }, { "type": "log", "message": "Dague lancee: 1d4+DEX degats perforants." }];
 const aiHints$3 = { "priority": "poke_from_range", "successLog": "Dague lancee.", "failureLog": "Pas de dague ou cible hors portee." };
 const tags$6 = ["distance", "arme", "jet"];
-const CatalogCombatThrowDagger = {
+const AttacksThrowDagger = {
   id: id$6,
   name: name$6,
   summary: summary$6,
@@ -15737,17 +15737,18 @@ const CatalogCombatThrowDagger = {
   aiHints: aiHints$3,
   tags: tags$6
 };
-const id$5 = "torch-toggle";
-const name$5 = "Allumer la torche";
-const summary$5 = "Allume ou eteint la torche du joueur pour eclairer autour de lui.";
-const category$5 = "item";
-const actionCost$5 = { "actionType": "bonus", "movementCost": 0 };
+const id$5 = "dash";
+const name$5 = "Course";
+const summary$5 = "Transforme l'action en 3 cases de mouvement en plus.";
+const category$5 = "movement";
+const actionCost$5 = { "actionType": "action", "movementCost": 0 };
 const targeting$5 = { "target": "self", "range": { "min": 0, "max": 0, "shape": "self" }, "maxTargets": 1, "requiresLos": false };
-const usage$5 = { "perTurn": null, "perEncounter": null, "resource": { "name": "torch", "pool": "gear", "min": 1 } };
-const conditions$5 = [{ "type": "phase", "mustBe": "player", "reason": "Tour joueur requis." }, { "type": "resource_at_least", "resource": "torch", "pool": "gear", "value": 1, "reason": "Besoin d'une torche." }];
-const effects$5 = [{ "type": "toggle_torch" }, { "type": "log", "message": "Torche: etat bascule." }];
-const tags$5 = ["lumiere", "objet", "utilitaire"];
-const CatalogItemsTorchToggle = {
+const usage$5 = { "perTurn": 1, "perEncounter": null, "resource": null };
+const conditions$5 = [];
+const effects$5 = [{ "type": "modify_path_limit", "target": "self", "delta": 3, "duration": "this_turn" }, { "type": "log", "message": "Course: +3 cases de mouvement pour ce tour." }];
+const aiHints$2 = { "priority": "close_gap", "successLog": "Course utilisee pour approcher.", "failureLog": "Deja a portee, course ignoree." };
+const tags$5 = ["mobilite", "deplacement"];
+const MovesDash = {
   id: id$5,
   name: name$5,
   summary: summary$5,
@@ -15757,20 +15758,21 @@ const CatalogItemsTorchToggle = {
   usage: usage$5,
   conditions: conditions$5,
   effects: effects$5,
+  aiHints: aiHints$2,
   tags: tags$5
 };
-const id$4 = "dash";
-const name$4 = "Course";
-const summary$4 = "Transforme l'action en 3 cases de mouvement en plus.";
+const id$4 = "move";
+const name$4 = "Deplacement";
+const summary$4 = "Deplacement tactique vers une case cible (portee base: moveRange).";
 const category$4 = "movement";
 const actionCost$4 = { "actionType": "action", "movementCost": 0 };
-const targeting$4 = { "target": "self", "range": { "min": 0, "max": 0, "shape": "self" }, "maxTargets": 1, "requiresLos": false };
+const targeting$4 = { "target": "emptyCell", "range": { "min": 1, "max": 3, "shape": "single" }, "maxTargets": 1, "requiresLos": false };
 const usage$4 = { "perTurn": 1, "perEncounter": null, "resource": null };
 const conditions$4 = [];
-const effects$4 = [{ "type": "modify_path_limit", "target": "self", "delta": 3, "duration": "this_turn" }, { "type": "log", "message": "Course: +3 cases de mouvement pour ce tour." }];
-const aiHints$2 = { "priority": "close_gap", "successLog": "Course utilisee pour approcher.", "failureLog": "Deja a portee, course ignoree." };
-const tags$4 = ["mobilite", "deplacement"];
-const CatalogMovementDash = {
+const effects$4 = [{ "type": "move_to", "target": "self", "maxSteps": "moveRange" }, { "type": "log", "message": "Deplacement effectue." }];
+const aiHints$1 = { "priority": "positioning", "successLog": "Deplacement.", "failureLog": "Aucun chemin valide." };
+const tags$4 = ["movement"];
+const MovesMove = {
   id: id$4,
   name: name$4,
   summary: summary$4,
@@ -15780,21 +15782,21 @@ const CatalogMovementDash = {
   usage: usage$4,
   conditions: conditions$4,
   effects: effects$4,
-  aiHints: aiHints$2,
+  aiHints: aiHints$1,
   tags: tags$4
 };
-const id$3 = "move";
-const name$3 = "Deplacement";
-const summary$3 = "Deplacement tactique vers une case cible (portee base: moveRange).";
-const category$3 = "movement";
-const actionCost$3 = { "actionType": "action", "movementCost": 0 };
-const targeting$3 = { "target": "emptyCell", "range": { "min": 1, "max": 3, "shape": "single" }, "maxTargets": 1, "requiresLos": false };
-const usage$3 = { "perTurn": 1, "perEncounter": null, "resource": null };
-const conditions$3 = [];
-const effects$3 = [{ "type": "move_to", "target": "self", "maxSteps": "moveRange" }, { "type": "log", "message": "Deplacement effectue." }];
-const aiHints$1 = { "priority": "positioning", "successLog": "Deplacement.", "failureLog": "Aucun chemin valide." };
-const tags$3 = ["movement"];
-const CatalogMovementMove = {
+const id$3 = "second-wind";
+const name$3 = "Second souffle";
+const summary$3 = "Restaure une partie des PV en bonus action.";
+const category$3 = "support";
+const actionCost$3 = { "actionType": "bonus", "movementCost": 0 };
+const targeting$3 = { "target": "self", "range": { "min": 0, "max": 0, "shape": "self" }, "maxTargets": 1, "requiresLos": false };
+const usage$3 = { "perTurn": null, "perEncounter": 1, "resource": null };
+const conditions$3 = [{ "type": "stat_below_percent", "who": "self", "stat": "hp", "percentMax": 0.75, "reason": "Economiser tant que les PV sont hauts." }];
+const effects$3 = [{ "type": "heal", "target": "self", "formula": "1d10 + level", "min": 1 }, { "type": "temp_hp", "target": "self", "amount": 2, "duration": "end_of_turn" }, { "type": "log", "message": "Second souffle: soigne 1d10 + niveau." }];
+const aiHints = { "priority": "survive", "successLog": "Second souffle declenche.", "failureLog": "PV trop hauts." };
+const tags$3 = ["soin", "defense", "survie"];
+const SupportsSecondWind = {
   id: id$3,
   name: name$3,
   summary: summary$3,
@@ -15804,21 +15806,20 @@ const CatalogMovementMove = {
   usage: usage$3,
   conditions: conditions$3,
   effects: effects$3,
-  aiHints: aiHints$1,
+  aiHints,
   tags: tags$3
 };
-const id$2 = "second-wind";
-const name$2 = "Second souffle";
-const summary$2 = "Restaure une partie des PV en bonus action.";
-const category$2 = "support";
+const id$2 = "torch-toggle";
+const name$2 = "Allumer la torche";
+const summary$2 = "Allume ou eteint la torche du joueur pour eclairer autour de lui.";
+const category$2 = "item";
 const actionCost$2 = { "actionType": "bonus", "movementCost": 0 };
 const targeting$2 = { "target": "self", "range": { "min": 0, "max": 0, "shape": "self" }, "maxTargets": 1, "requiresLos": false };
-const usage$2 = { "perTurn": null, "perEncounter": 1, "resource": null };
-const conditions$2 = [{ "type": "stat_below_percent", "who": "self", "stat": "hp", "percentMax": 0.75, "reason": "Economiser tant que les PV sont hauts." }];
-const effects$2 = [{ "type": "heal", "target": "self", "formula": "1d10 + level", "min": 1 }, { "type": "temp_hp", "target": "self", "amount": 2, "duration": "end_of_turn" }, { "type": "log", "message": "Second souffle: soigne 1d10 + niveau." }];
-const aiHints = { "priority": "survive", "successLog": "Second souffle declenche.", "failureLog": "PV trop hauts." };
-const tags$2 = ["soin", "defense", "survie"];
-const CatalogSupportSecondWind = {
+const usage$2 = { "perTurn": null, "perEncounter": null, "resource": { "name": "torch", "pool": "gear", "min": 1 } };
+const conditions$2 = [{ "type": "phase", "mustBe": "player", "reason": "Tour joueur requis." }, { "type": "resource_at_least", "resource": "torch", "pool": "gear", "value": 1, "reason": "Besoin d'une torche." }];
+const effects$2 = [{ "type": "toggle_torch" }, { "type": "log", "message": "Torche: etat bascule." }];
+const tags$2 = ["lumiere", "objet", "utilitaire"];
+const ItemsTorchToggle = {
   id: id$2,
   name: name$2,
   summary: summary$2,
@@ -15828,29 +15829,28 @@ const CatalogSupportSecondWind = {
   usage: usage$2,
   conditions: conditions$2,
   effects: effects$2,
-  aiHints,
   tags: tags$2
 };
 const ACTION_MODULES = {
-  "./catalog/combat/bow-shot.json": CatalogCombatBowShot,
-  "./catalog/combat/melee-strike.json": CatalogCombatMeleeStrike,
-  "./catalog/combat/spells/aid.json": aid,
-  "./catalog/combat/spells/arcane-bolt.json": arcaneBolt,
-  "./catalog/combat/spells/aura-of-purity.json": auraOfPurity,
-  "./catalog/combat/spells/beacon-of-hope.json": beaconOfHope,
-  "./catalog/combat/spells/greater-restoration.json": greaterRestoration,
-  "./catalog/combat/spells/heroism.json": heroism,
-  "./catalog/combat/spells/minor-ward.json": minorWard,
-  "./catalog/combat/spells/rarys-telepathic-bond.json": rarysTelepathicBond,
-  "./catalog/combat/spells/resilient-sphere.json": resilientSphere,
-  "./catalog/combat/spells/sanctuary.json": sanctuary,
-  "./catalog/combat/spells/sending.json": sending,
-  "./catalog/combat/spells/warding-bond.json": wardingBond,
-  "./catalog/combat/throw-dagger.json": CatalogCombatThrowDagger,
-  "./catalog/items/torch-toggle.json": CatalogItemsTorchToggle,
-  "./catalog/movement/dash.json": CatalogMovementDash,
-  "./catalog/movement/move.json": CatalogMovementMove,
-  "./catalog/support/second-wind.json": CatalogSupportSecondWind
+  "../spells/aid.json": aid,
+  "../spells/arcane-bolt.json": arcaneBolt,
+  "../spells/aura-of-purity.json": auraOfPurity,
+  "../spells/beacon-of-hope.json": beaconOfHope,
+  "../spells/greater-restoration.json": greaterRestoration,
+  "../spells/heroism.json": heroism,
+  "../spells/minor-ward.json": minorWard,
+  "../spells/rarys-telepathic-bond.json": rarysTelepathicBond,
+  "../spells/resilient-sphere.json": resilientSphere,
+  "../spells/sanctuary.json": sanctuary,
+  "../spells/sending.json": sending,
+  "../spells/warding-bond.json": wardingBond,
+  "../attacks/bow-shot.json": AttacksBowShot,
+  "../attacks/melee-strike.json": AttacksMeleeStrike,
+  "../attacks/throw-dagger.json": AttacksThrowDagger,
+  "../moves/dash.json": MovesDash,
+  "../moves/move.json": MovesMove,
+  "../supports/second-wind.json": SupportsSecondWind,
+  "../items/torch-toggle.json": ItemsTorchToggle
 };
 function loadActionTypesFromIndex() {
   const indexed = Array.isArray(actionsIndex.actions) ? actionsIndex.actions : [];
@@ -15868,7 +15868,7 @@ function loadActionTypesFromIndex() {
   }
   return loaded;
 }
-const moveTypes = ["./catalog/movement/walk.json", "./catalog/movement/sprint.json"];
+const moveTypes = ["./types/walk.json", "./types/sprint.json"];
 const moveTypesIndex = {
   moveTypes
 };
@@ -17518,7 +17518,7 @@ const browserExt = {
   },
   test: () => true,
   load: async () => {
-    await __vitePreload(() => import("./browserAll-BMezh5yZ.js"), true ? __vite__mapDeps([0,1,2]) : void 0);
+    await __vitePreload(() => import("./browserAll-jExBqAfJ.js"), true ? __vite__mapDeps([0,1,2]) : void 0);
   }
 };
 const webworkerExt = {
@@ -17529,7 +17529,7 @@ const webworkerExt = {
   },
   test: () => typeof self !== "undefined" && self.WorkerGlobalScope !== void 0,
   load: async () => {
-    await __vitePreload(() => import("./webworkerAll-DbVJLoX7.js"), true ? __vite__mapDeps([1,2]) : void 0);
+    await __vitePreload(() => import("./webworkerAll-DEmzzBa3.js"), true ? __vite__mapDeps([1,2]) : void 0);
   }
 };
 class ObservablePoint {
@@ -29857,7 +29857,7 @@ async function autoDetectRenderer(options) {
     const rendererType = preferredOrder[i2];
     if (rendererType === "webgpu" && await isWebGPUSupported()) {
       const { WebGPURenderer } = await __vitePreload(async () => {
-        const { WebGPURenderer: WebGPURenderer2 } = await import("./WebGPURenderer-D9_1io_G.js");
+        const { WebGPURenderer: WebGPURenderer2 } = await import("./WebGPURenderer-DApywaWt.js");
         return { WebGPURenderer: WebGPURenderer2 };
       }, true ? __vite__mapDeps([3,2,4]) : void 0);
       RendererClass = WebGPURenderer;
@@ -29867,7 +29867,7 @@ async function autoDetectRenderer(options) {
       options.failIfMajorPerformanceCaveat ?? AbstractRenderer.defaultOptions.failIfMajorPerformanceCaveat
     )) {
       const { WebGLRenderer } = await __vitePreload(async () => {
-        const { WebGLRenderer: WebGLRenderer2 } = await import("./WebGLRenderer-Bi1mzpYY.js");
+        const { WebGLRenderer: WebGLRenderer2 } = await import("./WebGLRenderer-BdA-1n9-.js");
         return { WebGLRenderer: WebGLRenderer2 };
       }, true ? __vite__mapDeps([5,2,4]) : void 0);
       RendererClass = WebGLRenderer;
@@ -44889,42 +44889,42 @@ function usePixiDecorations(options) {
   ]);
 }
 const __vite_glob_0_0$2 = "/assets/brazier-Bdb9cdt5.png";
-const __vite_glob_0_1$2 = "/assets/bush-DRumHcsT.png";
-const __vite_glob_0_2$2 = "/assets/chair-wood-CHKrC39s.png";
-const __vite_glob_0_3$2 = "/assets/charette-wood-D1AY6TMb.png";
-const __vite_glob_0_4$2 = "/assets/log-DUetiJOF.png";
+const __vite_glob_0_1$1 = "/assets/bush-DRumHcsT.png";
+const __vite_glob_0_2$1 = "/assets/chair-wood-CHKrC39s.png";
+const __vite_glob_0_3$1 = "/assets/charette-wood-D1AY6TMb.png";
+const __vite_glob_0_4$1 = "/assets/log-DUetiJOF.png";
 const __vite_glob_0_5 = "/assets/table-wood-C1MEGPWE.png";
 const __vite_glob_0_6 = "/assets/tree-oak-canopy-shadow-DLOt3fwP.png";
 const __vite_glob_0_7 = "/assets/tree-oak-canopy-DfHX1yEy.png";
 const __vite_glob_0_8 = "/assets/tree-oak-trunk-shadow-2eBSH8AZ.png";
 const __vite_glob_0_9 = "/assets/tree-oak-trunk-D9sZ5gKu.png";
-const __vite_glob_1_0 = "/assets/fire-1-CFpuDXDr.png";
-const __vite_glob_1_1 = "/assets/fire-2-0i6lg8hn.png";
-const __vite_glob_1_2 = "/assets/fire-3-BkBszcLR.png";
-const __vite_glob_1_3 = "/assets/sword-1-CQHRu9MN.png";
+const __vite_glob_1_0$1 = "/assets/fire-1-CFpuDXDr.png";
+const __vite_glob_1_1$1 = "/assets/fire-2-0i6lg8hn.png";
+const __vite_glob_1_2$1 = "/assets/fire-3-BkBszcLR.png";
+const __vite_glob_1_3$1 = "/assets/sword-1-CQHRu9MN.png";
 const __vite_glob_1_4 = "/assets/sword-2-BSXf_6uJ.png";
 const __vite_glob_1_5 = "/assets/sword-3-XgvILPli.png";
 const __vite_glob_1_6 = "/assets/sword-4-Bxo5Z0xN.png";
 const pngModules$2 = /* @__PURE__ */ Object.assign({
-  "../obstacle-types/Sprite/brazier.png": __vite_glob_0_0$2,
-  "../obstacle-types/Sprite/bush.png": __vite_glob_0_1$2,
-  "../obstacle-types/Sprite/chair-wood.png": __vite_glob_0_2$2,
-  "../obstacle-types/Sprite/charette-wood.png": __vite_glob_0_3$2,
-  "../obstacle-types/Sprite/log.png": __vite_glob_0_4$2,
-  "../obstacle-types/Sprite/table-wood.png": __vite_glob_0_5,
-  "../obstacle-types/Sprite/tree-oak-canopy-shadow.png": __vite_glob_0_6,
-  "../obstacle-types/Sprite/tree-oak-canopy.png": __vite_glob_0_7,
-  "../obstacle-types/Sprite/tree-oak-trunk-shadow.png": __vite_glob_0_8,
-  "../obstacle-types/Sprite/tree-oak-trunk.png": __vite_glob_0_9
+  "./data/maps/obstacles/sprite/brazier.png": __vite_glob_0_0$2,
+  "./data/maps/obstacles/sprite/bush.png": __vite_glob_0_1$1,
+  "./data/maps/obstacles/sprite/chair-wood.png": __vite_glob_0_2$1,
+  "./data/maps/obstacles/sprite/charette-wood.png": __vite_glob_0_3$1,
+  "./data/maps/obstacles/sprite/log.png": __vite_glob_0_4$1,
+  "./data/maps/obstacles/sprite/table-wood.png": __vite_glob_0_5,
+  "./data/maps/obstacles/sprite/tree-oak-canopy-shadow.png": __vite_glob_0_6,
+  "./data/maps/obstacles/sprite/tree-oak-canopy.png": __vite_glob_0_7,
+  "./data/maps/obstacles/sprite/tree-oak-trunk-shadow.png": __vite_glob_0_8,
+  "./data/maps/obstacles/sprite/tree-oak-trunk.png": __vite_glob_0_9
 });
 const effectAnimationModules = /* @__PURE__ */ Object.assign({
-  "../action-game/model/effect/animate/fire-1.png": __vite_glob_1_0,
-  "../action-game/model/effect/animate/fire-2.png": __vite_glob_1_1,
-  "../action-game/model/effect/animate/fire-3.png": __vite_glob_1_2,
-  "../action-game/model/effect/fight/sword-1.png": __vite_glob_1_3,
-  "../action-game/model/effect/fight/sword-2.png": __vite_glob_1_4,
-  "../action-game/model/effect/fight/sword-3.png": __vite_glob_1_5,
-  "../action-game/model/effect/fight/sword-4.png": __vite_glob_1_6
+  "./data/effects/sprite/animate/fire-1.png": __vite_glob_1_0$1,
+  "./data/effects/sprite/animate/fire-2.png": __vite_glob_1_1$1,
+  "./data/effects/sprite/animate/fire-3.png": __vite_glob_1_2$1,
+  "./data/effects/sprite/fight/sword-1.png": __vite_glob_1_3$1,
+  "./data/effects/sprite/fight/sword-2.png": __vite_glob_1_4,
+  "./data/effects/sprite/fight/sword-3.png": __vite_glob_1_5,
+  "./data/effects/sprite/fight/sword-4.png": __vite_glob_1_6
 });
 const OBSTACLE_PNG_BY_KEY = {};
 const EFFECT_ANIMATION_FRAMES_BY_KEY = {};
@@ -45220,16 +45220,16 @@ obs:${obstacleIds.join(",")}` : `${x2},${y2}`;
   ]);
 }
 const __vite_glob_0_0$1 = "/assets/dirt-LTjHs14a.png";
-const __vite_glob_0_1$1 = "/assets/grass-ezd6-yvM.png";
-const __vite_glob_0_2$1 = "/assets/grass1-BhKGjZDt.png";
-const __vite_glob_0_3$1 = "/assets/grass2-DwO1ZHjA.png";
-const __vite_glob_0_4$1 = "/assets/mud-DbHiHwwD.png";
+const __vite_glob_0_1 = "/assets/grass-ezd6-yvM.png";
+const __vite_glob_0_2 = "/assets/grass1-BhKGjZDt.png";
+const __vite_glob_0_3 = "/assets/grass2-DwO1ZHjA.png";
+const __vite_glob_0_4 = "/assets/mud-DbHiHwwD.png";
 const tilingModules = /* @__PURE__ */ Object.assign({
   "./game/map/floors/tiling/dirt.png": __vite_glob_0_0$1,
-  "./game/map/floors/tiling/grass.png": __vite_glob_0_1$1,
-  "./game/map/floors/tiling/grass1.png": __vite_glob_0_2$1,
-  "./game/map/floors/tiling/grass2.png": __vite_glob_0_3$1,
-  "./game/map/floors/tiling/mud.png": __vite_glob_0_4$1
+  "./game/map/floors/tiling/grass.png": __vite_glob_0_1,
+  "./game/map/floors/tiling/grass1.png": __vite_glob_0_2,
+  "./game/map/floors/tiling/grass2.png": __vite_glob_0_3,
+  "./game/map/floors/tiling/mud.png": __vite_glob_0_4
 });
 const FLOOR_TILING_BY_ID = {};
 const FLOOR_TILING_VARIANTS_BY_ID = {};
@@ -47366,18 +47366,22 @@ function usePixiSpeechBubbles(options) {
     options.showAllLevels
   ]);
 }
-const __vite_glob_0_0 = "/assets/archer-1-tTUzWM2l.png";
-const __vite_glob_0_1 = "/assets/assassin-1-CKsLE6ez.png";
-const __vite_glob_0_2 = "/assets/brute-1-DWEKbL2R.png";
-const __vite_glob_0_3 = "/assets/character-1-CN68FcGi.png";
-const __vite_glob_0_4 = "/assets/ghost-1-BuTxPqFA.png";
-const pngModules$1 = /* @__PURE__ */ Object.assign({
-  "../action-game/model/archer-1.png": __vite_glob_0_0,
-  "../action-game/model/assassin-1.png": __vite_glob_0_1,
-  "../action-game/model/brute-1.png": __vite_glob_0_2,
-  "../action-game/model/character-1.png": __vite_glob_0_3,
-  "../action-game/model/ghost-1.png": __vite_glob_0_4
-});
+const __vite_glob_0_0 = "/assets/character-CN68FcGi.png";
+const __vite_glob_1_0 = "/assets/archer-1-tTUzWM2l.png";
+const __vite_glob_1_1 = "/assets/assassin-1-CKsLE6ez.png";
+const __vite_glob_1_2 = "/assets/brute-1-DWEKbL2R.png";
+const __vite_glob_1_3 = "/assets/ghost-1-BuTxPqFA.png";
+const pngModules$1 = {
+  .../* @__PURE__ */ Object.assign({
+    "./data/characters/sprite/character.png": __vite_glob_0_0
+  }),
+  .../* @__PURE__ */ Object.assign({
+    "./data/enemies/sprite/archer-1.png": __vite_glob_1_0,
+    "./data/enemies/sprite/assassin-1.png": __vite_glob_1_1,
+    "./data/enemies/sprite/brute-1.png": __vite_glob_1_2,
+    "./data/enemies/sprite/ghost-1.png": __vite_glob_1_3
+  })
+};
 const TOKEN_PNG_BY_BASE = {};
 for (const [path2, url] of Object.entries(pngModules$1)) {
   const file = path2.split("/").pop() ?? "";
@@ -65432,4 +65436,4 @@ export {
   BigPool as y,
   getGlobalBounds as z
 };
-//# sourceMappingURL=index-BrCnMeTO.js.map
+//# sourceMappingURL=index-DhHKW0sP.js.map

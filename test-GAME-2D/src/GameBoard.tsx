@@ -208,8 +208,8 @@ import { preloadTokenPngTexturesFor, type TokenSpriteRequest } from "./tokenText
 import { preloadDecorTexturesFor } from "./svgDecorHelper";
 
 const MOVE_TYPE_MODULES: Record<string, MoveTypeDefinition> = {
-  "./catalog/movement/walk.json": walkMoveType as MoveTypeDefinition,
-  "./catalog/movement/sprint.json": sprintMoveType as MoveTypeDefinition
+  "./types/walk.json": walkMoveType as MoveTypeDefinition,
+  "./types/sprint.json": sprintMoveType as MoveTypeDefinition
 };
 
 const ENEMY_TYPE_MODULES: Record<string, EnemyTypeDefinition> = {

@@ -1,8 +1,8 @@
-import type { EffectTypeDefinition } from "./effectTypes";
+﻿import type { EffectTypeDefinition } from "./effectTypes";
 
-import effectsIndex from "../../data/effects/index.json";
-import fire from "../../data/effects/fire.json";
-import meleeSlash from "../../data/effects/melee-slash.json";
+import effectsIndex from "../data/effects/index.json";
+import fire from "../data/effects/fire.json";
+import meleeSlash from "../data/effects/melee-slash.json";
 
 const EFFECT_TYPE_MODULES: Record<string, EffectTypeDefinition> = {
   "./fire.json": fire as EffectTypeDefinition,
@@ -30,3 +30,4 @@ export function loadEffectTypesFromIndex(): EffectTypeDefinition[] {
 
   return loaded;
 }
+

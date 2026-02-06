@@ -1,13 +1,13 @@
-import type { FeatureDefinition } from "./featureTypes";
+﻿import type { FeatureDefinition } from "./featureTypes";
 
-import featuresIndex from "../../data/features/index.json";
-import channelDivinity from "../../data/features/cleric/channel-divinity.json";
-import turnUndead from "../../data/features/cleric/turn-undead.json";
-import divineIntervention from "../../data/features/cleric/divine-intervention.json";
-import peaceBond from "../../data/features/cleric/peace-bond.json";
-import balmOfPeace from "../../data/features/cleric/balm-of-peace.json";
-import protectiveBond from "../../data/features/cleric/protective-bond.json";
-import expansiveBond from "../../data/features/cleric/expansive-bond.json";
+import featuresIndex from "../data/features/index.json";
+import channelDivinity from "../data/features/cleric/channel-divinity.json";
+import turnUndead from "../data/features/cleric/turn-undead.json";
+import divineIntervention from "../data/features/cleric/divine-intervention.json";
+import peaceBond from "../data/features/cleric/peace-bond.json";
+import balmOfPeace from "../data/features/cleric/balm-of-peace.json";
+import protectiveBond from "../data/features/cleric/protective-bond.json";
+import expansiveBond from "../data/features/cleric/expansive-bond.json";
 
 const FEATURE_MODULES: Record<string, FeatureDefinition> = {
   "./cleric/channel-divinity.json": channelDivinity as FeatureDefinition,
@@ -40,3 +40,4 @@ export function loadFeatureTypesFromIndex(): FeatureDefinition[] {
 
   return loaded;
 }
+

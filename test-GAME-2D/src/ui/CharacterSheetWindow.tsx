@@ -265,7 +265,7 @@ export function CharacterSheetWindow(props: {
           )}
           {equippedWeapons.map(weapon => {
             const damage = weapon.damage?.dice ?? "?";
-            const damageType = weapon.damage?.damage_type ?? "";
+            const damageType = weapon.damage?.damageType ?? "";
             const subtitle = damageType ? `${damage} ${damageType}` : damage;
             return (
               <div

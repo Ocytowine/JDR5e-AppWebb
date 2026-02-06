@@ -1,9 +1,9 @@
-import type { ReactionDefinition } from "./reactionTypes";
+﻿import type { ReactionDefinition } from "./reactionTypes";
 
-import reactionsIndex from "../../data/reactions/index.json";
-import opportunityAttack from "../../data/reactions/opportunity-attack.json";
-import guardStrike from "../../data/reactions/guard-strike.json";
-import killerInstinct from "../../data/reactions/killer-instinct.json";
+import reactionsIndex from "../data/reactions/index.json";
+import opportunityAttack from "../data/reactions/opportunity-attack.json";
+import guardStrike from "../data/reactions/guard-strike.json";
+import killerInstinct from "../data/reactions/killer-instinct.json";
 
 const REACTION_TYPE_MODULES: Record<string, ReactionDefinition> = {
   "./opportunity-attack.json": opportunityAttack as ReactionDefinition,
@@ -32,3 +32,4 @@ export function loadReactionTypesFromIndex(): ReactionDefinition[] {
 
   return loaded;
 }
+

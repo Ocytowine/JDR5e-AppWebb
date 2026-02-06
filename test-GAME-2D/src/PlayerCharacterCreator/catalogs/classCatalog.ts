@@ -3,11 +3,11 @@
 
 import type { ClassDefinition, SubclassDefinition } from "../../game/classTypes";
 
-import classesIndex from "../../../data/characters/classes/index.json";
-import ClercClass from "../../../data/characters/classes/Clerc/class.json";
-import ClercPeaceDomain from "../../../data/characters/classes/Clerc/peace-domain.json";
-import GuerrierClass from "../../../data/characters/classes/Guerrier/class.json";
-import GuerrierEldritchKnight from "../../../data/characters/classes/Guerrier/eldritch-knight.json";
+import classesIndex from "../../data/characters/classes/index.json";
+import ClercClass from "../../data/characters/classes/Clerc/class.json";
+import ClercPeaceDomain from "../../data/characters/classes/Clerc/peace-domain.json";
+import GuerrierClass from "../../data/characters/classes/Guerrier/class.json";
+import GuerrierEldritchKnight from "../../data/characters/classes/Guerrier/eldritch-knight.json";
 
 const CLASS_MODULES: Record<string, ClassDefinition> = {
   "./Clerc/class.json": ClercClass as ClassDefinition,

@@ -1,15 +1,15 @@
-import aid from "../../data/spells/aid.json";
-import arcaneBolt from "../../data/spells/arcane-bolt.json";
-import auraOfPurity from "../../data/spells/aura-of-purity.json";
-import beaconOfHope from "../../data/spells/beacon-of-hope.json";
-import greaterRestoration from "../../data/spells/greater-restoration.json";
-import heroism from "../../data/spells/heroism.json";
-import minorWard from "../../data/spells/minor-ward.json";
-import rarysTelepathicBond from "../../data/spells/rarys-telepathic-bond.json";
-import resilientSphere from "../../data/spells/resilient-sphere.json";
-import sanctuary from "../../data/spells/sanctuary.json";
-import sending from "../../data/spells/sending.json";
-import wardingBond from "../../data/spells/warding-bond.json";
+﻿import aid from "../data/spells/aid.json";
+import arcaneBolt from "../data/spells/arcane-bolt.json";
+import auraOfPurity from "../data/spells/aura-of-purity.json";
+import beaconOfHope from "../data/spells/beacon-of-hope.json";
+import greaterRestoration from "../data/spells/greater-restoration.json";
+import heroism from "../data/spells/heroism.json";
+import minorWard from "../data/spells/minor-ward.json";
+import rarysTelepathicBond from "../data/spells/rarys-telepathic-bond.json";
+import resilientSphere from "../data/spells/resilient-sphere.json";
+import sanctuary from "../data/spells/sanctuary.json";
+import sending from "../data/spells/sending.json";
+import wardingBond from "../data/spells/warding-bond.json";
 
 export type SpellDefinition = {
   id: string;
@@ -47,3 +47,4 @@ export const spellCatalog = {
   list: spellCatalogList,
   byId: spellCatalogById
 };
+

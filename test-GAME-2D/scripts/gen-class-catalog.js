@@ -57,7 +57,7 @@ types.forEach(entry => {
     .replace(/\.json$/i, "");
   const candidate = toIdentifier(baseName);
   const importName = uniqueName(candidate, usedNames);
-  imports.push(`import ${importName} from "../../../data/characters/classes/${baseName}.json";`);
+  imports.push(`import ${importName} from "../../data/characters/classes/${baseName}.json";`);
   if (isClass) {
     classEntries.push(`  "${relPath}": ${importName} as ClassDefinition`);
   } else {
@@ -70,7 +70,7 @@ const content = `// AUTO-GENERATED FILE. DO NOT EDIT MANUALLY.
 
 import type { ClassDefinition, SubclassDefinition } from "../../game/classTypes";
 
-import classesIndex from "../../../data/characters/classes/index.json";
+import classesIndex from "../../data/characters/classes/index.json";
 ${imports.join("\n")}
 
 const CLASS_MODULES: Record<string, ClassDefinition> = {

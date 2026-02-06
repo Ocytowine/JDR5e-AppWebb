@@ -168,7 +168,7 @@ function main() {
     const modulePath = entry.relFromData.replace(/^\.\//, "");
     const baseName = modulePath.replace(/\.json$/i, "");
     const importName = uniqueName(toIdentifier(baseName), usedNames);
-    imports.push(`import ${importName} from "../../data/${baseName}.json";`);
+    imports.push(`import ${importName} from "../data/${baseName}.json";`);
     entries.push(`  "${entry.relFromIndex.replace(/\\\\/g, "/")}": ${importName} as ActionDefinition`);
   }
 
@@ -176,7 +176,7 @@ function main() {
 // Source of truth: src/data (generated index)
 
 import type { ActionDefinition } from "./actionTypes";
-import actionsIndex from "../../data/actions/index.json";
+import actionsIndex from "../data/actions/index.json";
 ${imports.join("\n")}
 
 const ACTION_MODULES: Record<string, ActionDefinition> = {

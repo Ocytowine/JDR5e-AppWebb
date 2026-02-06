@@ -17,7 +17,7 @@ export type WeaponProperties = {
   finesse?: boolean;
   light?: boolean;
   heavy?: boolean;
-  two_handed?: boolean;
+  twoHanded?: boolean;
   reach?: number;
   versatile?: string | null;
   thrown?: WeaponThrownRange | null;
@@ -40,16 +40,16 @@ export type WeaponDamageAlt = {
 
 export type WeaponDamageProfile = {
   dice: string;
-  damage_type: string;
-  damage_type_id?: DamageTypeId | null;
+  damageType: string;
+  damageTypeId?: DamageTypeId | null;
   alt?: WeaponDamageAlt | null;
 };
 
 export type WeaponOnHitProfile = {
   mod: string;
   damage: string;
-  damage_type: string;
-  damage_type_id?: DamageTypeId | null;
+  damageType: string;
+  damageTypeId?: DamageTypeId | null;
 };
 
 export type WeaponLinks = {
@@ -65,7 +65,7 @@ export interface WeaponTypeDefinition {
   category: WeaponCategory;
   descriptionCourte?: string;
   descriptionLongue?: string;
-  allow_stack?: boolean;
+  allowStack?: boolean;
   harmonisable?: boolean;
   focalisateur?: boolean;
   weight?: number;

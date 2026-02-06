@@ -4,21 +4,21 @@
 import type { WeaponTypeDefinition } from "../../game/weaponTypes";
 import { normalizeDamageType } from "../../game/damageTypes";
 
-import weaponsIndex from "../../../data/items/armes/index.json";
-import MartialeArcLong from "../../../data/items/armes/martiale/arc-long.json";
-import MartialeEpeeLongue from "../../../data/items/armes/martiale/epee-longue.json";
-import MartialeHacheBataille from "../../../data/items/armes/martiale/hache-bataille.json";
-import MonastiqueBaton from "../../../data/items/armes/monastique/baton.json";
-import MonastiqueKama from "../../../data/items/armes/monastique/kama.json";
-import MonastiqueNunchaku from "../../../data/items/armes/monastique/nunchaku.json";
-import SimpleArcCourt from "../../../data/items/armes/simple/arc-court.json";
-import SimpleArmeEndommagee from "../../../data/items/armes/simple/arme-endommagee.json";
-import SimpleDague from "../../../data/items/armes/simple/dague.json";
-import SimpleMassue from "../../../data/items/armes/simple/massue.json";
-import SimplePetitCouteau from "../../../data/items/armes/simple/petit-couteau.json";
-import SpecialeArbaleteRepetee from "../../../data/items/armes/speciale/arbalete-repetee.json";
-import SpecialeEpeeElfique from "../../../data/items/armes/speciale/epee-elfique.json";
-import SpecialeFouetDemon from "../../../data/items/armes/speciale/fouet-demon.json";
+import weaponsIndex from "../../data/items/armes/index.json";
+import MartialeArcLong from "../../data/items/armes/martiale/arc-long.json";
+import MartialeEpeeLongue from "../../data/items/armes/martiale/epee-longue.json";
+import MartialeHacheBataille from "../../data/items/armes/martiale/hache-bataille.json";
+import MonastiqueBaton from "../../data/items/armes/monastique/baton.json";
+import MonastiqueKama from "../../data/items/armes/monastique/kama.json";
+import MonastiqueNunchaku from "../../data/items/armes/monastique/nunchaku.json";
+import SimpleArcCourt from "../../data/items/armes/simple/arc-court.json";
+import SimpleArmeEndommagee from "../../data/items/armes/simple/arme-endommagee.json";
+import SimpleDague from "../../data/items/armes/simple/dague.json";
+import SimpleMassue from "../../data/items/armes/simple/massue.json";
+import SimplePetitCouteau from "../../data/items/armes/simple/petit-couteau.json";
+import SpecialeArbaleteRepetee from "../../data/items/armes/speciale/arbalete-repetee.json";
+import SpecialeEpeeElfique from "../../data/items/armes/speciale/epee-elfique.json";
+import SpecialeFouetDemon from "../../data/items/armes/speciale/fouet-demon.json";
 
 const WEAPON_MODULES: Record<string, WeaponTypeDefinition> = {
   "./martiale/arc-long.json": MartialeArcLong as WeaponTypeDefinition,
@@ -40,23 +40,23 @@ const WEAPON_MODULES: Record<string, WeaponTypeDefinition> = {
 function normalizeWeaponDamageTypes(def: WeaponTypeDefinition): WeaponTypeDefinition {
   const damage = def.damage;
   const effectOnHit = def.effectOnHit;
-  const damageTypeId = normalizeDamageType(damage?.damage_type ?? null);
-  const onHitDamageTypeId = normalizeDamageType(effectOnHit?.damage_type ?? null);
+  const damageTypeId = normalizeDamageType(damage?.damageType ?? null);
+  const onHitDamageTypeId = normalizeDamageType(effectOnHit?.damageType ?? null);
 
-  if (damage?.damage_type && !damageTypeId) {
+  if (damage?.damageType && !damageTypeId) {
     console.warn(
       "[weapon-types] Unknown damage type for weapon:",
       def.id,
       "->",
-      damage.damage_type
+      damage.damageType
     );
   }
-  if (effectOnHit?.damage_type && !onHitDamageTypeId) {
+  if (effectOnHit?.damageType && !onHitDamageTypeId) {
     console.warn(
       "[weapon-types] Unknown on-hit damage type for weapon:",
       def.id,
       "->",
-      effectOnHit.damage_type
+      effectOnHit.damageType
     );
   }
 
@@ -65,13 +65,13 @@ function normalizeWeaponDamageTypes(def: WeaponTypeDefinition): WeaponTypeDefini
     damage: damage
       ? {
           ...damage,
-          damage_type_id: damageTypeId
+          damageTypeId
         }
       : damage,
     effectOnHit: effectOnHit
       ? {
           ...effectOnHit,
-          damage_type_id: onHitDamageTypeId
+          damageTypeId: onHitDamageTypeId
         }
       : effectOnHit
   };

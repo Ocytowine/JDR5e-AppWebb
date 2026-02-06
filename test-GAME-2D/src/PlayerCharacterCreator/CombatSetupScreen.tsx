@@ -427,7 +427,7 @@ export function CombatSetupScreen(props: {
     if (!weapon) return [];
     const categories = new Set<string>();
     const props = weapon.properties ?? {};
-    if (props.two_handed || props.heavy) {
+    if (props.twoHanded || props.heavy) {
       categories.add("weapon_long");
     } else if (props.light) {
       categories.add("weapon_short");
@@ -2630,7 +2630,7 @@ export function CombatSetupScreen(props: {
       return;
     }
     const weapon = weaponItemMap.get(item.id);
-    const isTwoHanded = Boolean(weapon?.properties?.two_handed || weapon?.properties?.heavy);
+    const isTwoHanded = Boolean(weapon?.properties?.twoHanded || weapon?.properties?.heavy);
     if (isTwoHanded) {
       const hasShield = inventoryItems.some(entry => {
         if (entry?.type !== "armor") return false;
