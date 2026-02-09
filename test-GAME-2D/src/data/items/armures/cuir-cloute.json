@@ -6,11 +6,16 @@
   "baseAC": 12,
   "dexCap": null,
   "weight": 6.5,
-  "priceGp": 45,
   "tags": [
     "armure",
     "legere"
   ],
   "description": "Armure de cuir renforcee par des rivets.",
-  "category": "armor_body"
+  "category": "armor_body",
+  "value": {
+    "platinum": 0,
+    "gold": 45.0,
+    "silver": 0,
+    "copper": 0
+  }
 }

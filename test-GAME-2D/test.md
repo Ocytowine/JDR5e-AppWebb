@@ -1,7 +1,7 @@
 {
   "id": "pj-1",
   "nom": {
-    "nomcomplet": "clerc",
+    "nomcomplet": "Test Hero",
     "prenom": "Aryn",
     "surnom": "the Blue"
   },
@@ -11,7 +11,7 @@
   "poids": 70,
   "langues": [
     "Common",
-    "elfique"
+    "nain"
   ],
   "alignement": "Neutral Good",
   "raceId": "human",
@@ -20,13 +20,13 @@
     "1": {
       "classeId": "cleric",
       "subclasseId": "peace-domain",
-      "niveau": 5
+      "niveau": 4
     }
   },
   "xp": 0,
   "dv": 10,
   "maitriseBonus": 2,
-  "pvActuels": 33,
+  "pvActuels": 27,
   "pvTmp": 0,
   "nivFatigueActuel": 0,
   "nivFatigueMax": 3,
@@ -43,20 +43,24 @@
     "killer-instinct"
   ],
   "combatStats": {
-    "level": 5,
+    "level": 4,
     "mods": {
-      "str": 2,
+      "modFOR": 3,
+      "modDEX": 2,
+      "modCON": 2,
+      "modINT": 0,
+      "modSAG": 1,
+      "modCHA": 0,
+      "str": 3,
       "dex": 2,
       "con": 1,
       "int": 1,
-      "wis": 2,
+      "wis": 1,
       "cha": -1
     },
-    "maxHp": 33,
+    "maxHp": 27,
     "armorClass": 16,
     "attackBonus": 5,
-    "attackDamage": 6,
-    "attackRange": 1,
     "maxAttacksPerTurn": 1,
     "actionsPerTurn": 1,
     "bonusActionsPerTurn": 1,
@@ -67,7 +71,7 @@
   },
   "caracs": {
     "force": {
-      "FOR": 14
+      "FOR": 16
     },
     "dexterite": {
       "DEX": 14
@@ -79,10 +83,10 @@
       "INT": 12
     },
     "sagesse": {
-      "SAG": 15
+      "SAG": 12
     },
     "charisme": {
-      "CHA": 9
+      "CHA": 8
     }
   },
   "movementModes": {
@@ -101,7 +105,7 @@
   "competences": [
     "athletisme",
     "intimidation",
-    "histoire"
+    "investigation"
   ],
   "expertises": [],
   "initiative": "modDEX",
@@ -109,11 +113,13 @@
   "percPassive": 11,
   "proficiencies": {
     "weapons": [
-      "simple"
+      "simple",
+      "martiale"
     ],
     "armors": [
       "legere",
       "intermediaire",
+      "lourde",
       "bouclier"
     ],
     "tools": [
@@ -185,7 +191,7 @@
         "kind": "background",
         "id": "veteran-de-guerre"
       },
-      "instanceId": "item-ml9u68kc-rlbzre-1",
+      "instanceId": "item-mlf8tk1m-xfpkm1-1",
       "equippedSlot": "ceinture_gauche",
       "storedIn": null,
       "isPrimaryWeapon": true
@@ -199,7 +205,7 @@
         "kind": "background",
         "id": "veteran-de-guerre"
       },
-      "instanceId": "item-ml9u68kc-rlbzre-2",
+      "instanceId": "item-mlf8tk1m-xfpkm1-2",
       "equippedSlot": "bijou_1",
       "storedIn": null,
       "isPrimaryWeapon": false
@@ -213,7 +219,7 @@
         "kind": "background",
         "id": "veteran-de-guerre"
       },
-      "instanceId": "item-ml9u68kc-rlbzre-3",
+      "instanceId": "item-mlf8tk1m-xfpkm1-3",
       "equippedSlot": "corps",
       "storedIn": null,
       "isPrimaryWeapon": false
@@ -227,7 +233,7 @@
         "kind": "background",
         "id": "veteran-de-guerre"
       },
-      "instanceId": "item-ml9u68kc-rlbzre-4",
+      "instanceId": "item-mlf8tk1m-xfpkm1-4",
       "equippedSlot": "ceinture_bourse_1",
       "storedIn": null,
       "isPrimaryWeapon": false
@@ -250,7 +256,7 @@
         "kind": "background",
         "id": "veteran-de-guerre"
       },
-      "instanceId": "item-ml9u68kc-rlbzre-5",
+      "instanceId": "item-mlf8tk1m-xfpkm1-5",
       "equippedSlot": "paquetage",
       "storedIn": null,
       "isPrimaryWeapon": false
@@ -264,9 +270,9 @@
         "kind": "class",
         "id": "cleric"
       },
-      "instanceId": "item-ml9u68kc-rlbzre-6",
+      "instanceId": "item-mlf8tk1m-xfpkm1-6",
       "equippedSlot": null,
-      "storedIn": "ceinture_bourse_1",
+      "storedIn": null,
       "isPrimaryWeapon": false
     }
   ],
@@ -323,15 +329,15 @@
   },
   "choiceSelections": {
     "statsBase": {
-      "FOR": 13,
+      "FOR": 15,
       "DEX": 14,
       "CON": 13,
       "INT": 12,
-      "SAG": 13,
-      "CHA": 9
+      "SAG": 10,
+      "CHA": 8
     },
     "race": {
-      "adaptableSkill": "histoire"
+      "adaptableSkill": "investigation"
     },
     "pendingLocks": {},
     "background": {
@@ -339,7 +345,7 @@
         "outils_jeux"
       ],
       "languages": [
-        "elfique"
+        "nain"
       ],
       "statBonusApplied": true
     },
@@ -356,7 +362,7 @@
         "grantedSpells": [
           {
             "id": "heroism",
-            "instanceId": "spell-ml9u68kc-rlbzre-7",
+            "instanceId": "spell-mlf8tk1m-xfpkm1-7",
             "origin": {
               "kind": "class",
               "id": "cleric",
@@ -365,7 +371,7 @@
           },
           {
             "id": "sanctuary",
-            "instanceId": "spell-ml9u68kc-rlbzre-8",
+            "instanceId": "spell-mlf8tk1m-xfpkm1-8",
             "origin": {
               "kind": "class",
               "id": "cleric",
@@ -374,7 +380,7 @@
           },
           {
             "id": "aid",
-            "instanceId": "spell-ml9u68kc-rlbzre-9",
+            "instanceId": "spell-mlf8tk1m-xfpkm1-9",
             "origin": {
               "kind": "class",
               "id": "cleric",
@@ -383,25 +389,7 @@
           },
           {
             "id": "warding-bond",
-            "instanceId": "spell-ml9u68kc-rlbzre-10",
-            "origin": {
-              "kind": "class",
-              "id": "cleric",
-              "sourceKey": "class:cleric"
-            }
-          },
-          {
-            "id": "beacon-of-hope",
-            "instanceId": "spell-ml9u68kc-rlbzre-11",
-            "origin": {
-              "kind": "class",
-              "id": "cleric",
-              "sourceKey": "class:cleric"
-            }
-          },
-          {
-            "id": "sending",
-            "instanceId": "spell-ml9u68kc-rlbzre-12",
+            "instanceId": "spell-mlf8tk1m-xfpkm1-10",
             "origin": {
               "kind": "class",
               "id": "cleric",
@@ -412,15 +400,23 @@
         "preparedSpells": [
           {
             "id": "minor-ward",
-            "instanceId": "spell-ml9u68kc-rlbzre-13",
+            "instanceId": "spell-mlf8tk1m-xfpkm1-11",
             "origin": {
               "kind": "manual",
               "sourceKey": "class:cleric"
             }
           },
           {
-            "id": "resilient-sphere",
-            "instanceId": "spell-ml9u68kc-rlbzre-14",
+            "id": "sending",
+            "instanceId": "spell-mlf8tk1m-xfpkm1-12",
+            "origin": {
+              "kind": "manual",
+              "sourceKey": "class:cleric"
+            }
+          },
+          {
+            "id": "beacon-of-hope",
+            "instanceId": "spell-mlf8tk1m-xfpkm1-13",
             "origin": {
               "kind": "manual",
               "sourceKey": "class:cleric"
@@ -428,49 +424,32 @@
           },
           {
             "id": "aura-of-purity",
-            "instanceId": "spell-ml9u68kc-rlbzre-15",
-            "origin": {
-              "kind": "manual",
-              "sourceKey": "class:cleric"
-            }
-          },
-          {
-            "id": "greater-restoration",
-            "instanceId": "spell-ml9u68kc-rlbzre-16",
-            "origin": {
-              "kind": "manual",
-              "sourceKey": "class:cleric"
-            }
-          },
-          {
-            "id": "rarys-telepathic-bond",
-            "instanceId": "spell-ml9u68kc-rlbzre-17",
+            "instanceId": "spell-mlf8tk1m-xfpkm1-14",
             "origin": {
               "kind": "manual",
               "sourceKey": "class:cleric"
             }
           }
-        ]
+        ],
+        "focusItemId": "obj_symbole_sacre"
       }
     },
     "sheetValidated": true
   },
   "creationLocks": {
-    "species": true,
     "backgrounds": true,
-    "profile": true,
+    "species": true,
     "equip": true,
-    "stats": true,
     "magic": true,
     "skills": true,
-    "masteries": true
+    "masteries": true,
+    "stats": true,
+    "profile": true
   },
-  "niveauGlobal": 5,
+  "niveauGlobal": 4,
   "classLocks": {
     "secondary": false,
     "primary": true
   },
   "classLock": true
 }
-Etat
-PV

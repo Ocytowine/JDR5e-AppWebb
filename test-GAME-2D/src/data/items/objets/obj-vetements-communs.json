@@ -4,9 +4,14 @@
   "type": "object",
   "category": "clothing_body",
   "weight": 1.5,
-  "priceGp": 0.5,
   "tags": [
     "vetement"
   ],
-  "description": "Tenue simple et pratique."
+  "description": "Tenue simple et pratique.",
+  "value": {
+    "platinum": 0,
+    "gold": 0.5,
+    "silver": 0,
+    "copper": 0
+  }
 }

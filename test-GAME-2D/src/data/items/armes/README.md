@@ -14,36 +14,40 @@ Objectif: definir un format unique pour les armes, leurs dependances, et leur im
 - subtype: type de maitrise requis (simple | martiale | speciale | monastique)
 - category: melee | distance | polyvalent
 - descriptionCourte / descriptionLongue
-- weight / size / value / rarity
-- tags: liste de tags gameplay (ex: arme, melee, tranchant)
+- weight (kg) / size / value / rarity
+- tags: liste de tags gameplay (ex: arme, melee, slashing)
 - properties: proprietes DnD (finesse, light, heavy, twoHanded, reach, versatile, thrown, ammunition, loading, reload, range, special)
 - attack: mod + bonus de maitrise si arme maitrisee
 - damage: dice + damageType (+ alt pour polyvalente)
 - effectOnHit: format court d'impact (compat template items)
 - links: ponts vers action / effect visuel
+- harmonisable: true/false (uniformise l'acces a la notion d'objet harmonisable)
 
 ## Types de degats (reference)
 Physique:
-- Tranchant
-- Perforant
-- Contondant
+- slashing
+- piercing
+- bludgeoning
 
 Elementaire:
-- Feu
-- Froid
-- Acide
-- Foudre
-- Poison
-- Tonnerre
+- fire
+- cold
+- acid
+- lightning
+- poison
+- thunder
 
 Magique / energetique:
-- Force
-- Radiant
-- Necrotique
-- Psychique
+- force
+- radiant
+- necrotic
+- psychic
 
-Note: les fichiers d'armes peuvent utiliser les libelles FR ou EN. Le chargement normalise vers
-les ids EN utilises par les actions (ex: Tranchant -> slashing, Perforant -> piercing).
+Note: les fichiers d'armes utilisent uniquement les ids EN (strict enum).
+
+## Unites
+- distances (reach, range, thrown): metres
+- poids (weight): kg
 
 ## Maitrises (rappel)
 - Si arme non maitrisee: jet sans bonus de maitrise et desavantage selon regles (voir docs projet/Gestion et Creation de donnees/Maitrise et competence.md)

@@ -10,32 +10,33 @@
   "harmonisable": false,
   "focalisateur": false,
   "weight": 1.2,
-  "size": 1.0,
+  "size": 1,
   "value": {
     "gold": 75,
     "silver": 0,
-    "copper": 0
+    "copper": 0,
+    "platinum": 0
   },
   "rarity": "rare",
   "tags": [
     "arme",
     "melee",
-    "tranchant"
+    "slashing"
   ],
   "properties": {
     "finesse": true,
     "light": false,
     "heavy": false,
     "twoHanded": false,
-    "reach": 1,
+    "reach": 1.5,
     "versatile": null,
     "thrown": null,
     "ammunition": false,
     "loading": false,
     "reload": null,
     "range": {
-      "normal": 1,
-      "long": 1
+      "normal": 1.5,
+      "long": 1.5
     },
     "special": "precision"
   },
@@ -45,13 +46,13 @@
   },
   "damage": {
     "dice": "1d8",
-    "damageType": "Tranchant",
+    "damageType": "SLASHING",
     "alt": null
   },
   "effectOnHit": {
     "mod": "mod.DEX",
     "damage": "1d8",
-    "damageType": "Tranchant"
+    "damageType": "SLASHING"
   },
   "links": {
     "actionId": "melee-strike",

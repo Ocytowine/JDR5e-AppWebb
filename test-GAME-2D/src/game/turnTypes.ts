@@ -38,8 +38,6 @@ export interface EnemySummary {
   type?: string;
   aiRole?: string | null;
   moveRange?: number | null;
-  attackDamage?: number | null;
-  attackRange?: number | null;
   maxAttacksPerTurn?: number | null;
   actionIds?: string[] | null;
 }

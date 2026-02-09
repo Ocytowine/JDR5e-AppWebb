@@ -6,11 +6,16 @@
   "baseAC": 11,
   "dexCap": null,
   "weight": 5,
-  "priceGp": 10,
   "tags": [
     "armure",
     "legere"
   ],
   "description": "Armure legere en cuir.",
-  "category": "armor_body"
+  "category": "armor_body",
+  "value": {
+    "platinum": 0,
+    "gold": 10.0,
+    "silver": 0,
+    "copper": 0
+  }
 }

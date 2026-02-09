@@ -3,22 +3,73 @@
   "name": "Trait Arcanique",
   "level": 1,
   "school": "evocation",
-  "components": { "verbal": true, "somatic": true, "material": false },
+  "components": {
+    "verbal": true,
+    "somatic": true,
+    "material": false
+  },
   "summary": "Placeholder: petit projectile magique.",
   "category": "attack",
-  "actionCost": { "actionType": "action", "movementCost": 0 },
+  "actionCost": {
+    "actionType": "action",
+    "movementCost": 0
+  },
   "targeting": {
     "target": "hostile",
-    "range": { "min": 1, "max": 6, "shape": "single" },
+    "range": {
+      "min": 1.5,
+      "max": 9,
+      "shape": "SPHERE"
+    },
     "maxTargets": 1,
     "requiresLos": true
   },
-  "usage": { "perTurn": 1, "perEncounter": null, "resource": null },
-  "attack": { "bonus": 0, "critRange": 20 },
-  "damage": { "formula": "1d8", "critRule": "double-dice", "damageType": "force" },
-  "effects": [
-    { "type": "damage", "target": "primary", "formula": "1d8", "damageType": "force" },
-    { "type": "log", "message": "Trait arcanique." }
-  ],
-  "tags": ["spell", "ranged"]
+  "usage": {
+    "perTurn": 1,
+    "perEncounter": null,
+    "resource": null
+  },
+  "attack": {
+    "bonus": 0,
+    "critRange": 20
+  },
+  "damage": {
+    "formula": "1d8",
+    "critRule": "double-dice",
+    "damageType": "FORCE"
+  },
+  "resolution": {
+    "kind": "ATTACK_ROLL",
+    "bonus": 0,
+    "critRange": 20,
+    "critRule": "double-dice"
+  },
+  "ops": {
+    "onHit": [
+      {
+        "op": "DealDamage",
+        "target": "primary",
+        "formula": "1d8",
+        "damageType": "FORCE"
+      },
+      {
+        "op": "DealDamage",
+        "target": "primary",
+        "formula": "1d8",
+        "damageType": "FORCE"
+      }
+    ],
+    "onResolve": [
+      {
+        "op": "LogEvent",
+        "message": "Trait arcanique."
+      }
+    ]
+  },
+  "tags": [
+    "spell",
+    "ranged"
+  ]
 }
+
+

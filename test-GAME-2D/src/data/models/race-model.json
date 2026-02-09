@@ -1,0 +1,23 @@
+{
+  "id": "race-id",
+  "label": "Nom race",
+  "description": "Description courte.",
+  "size": "small | medium | large",
+  "speed": 6,
+  "vision": { "mode": "normal | lowlight | darkvision", "range": 60 },
+  "traits": [
+    {
+      "id": "trait-id",
+      "label": "Nom trait",
+      "description": "Description trait."
+    }
+  ],
+  "grants": [
+    {
+      "kind": "trait | feature | feat | skill | language",
+      "ids": ["trait-id"],
+      "source": "race-id",
+      "meta": {}
+    }
+  ]
+}

@@ -15,8 +15,9 @@ import type { WallSegment } from "./game/map/walls/types";
 import { getClosestFootprintCellToPoint, getTokenOccupiedCells } from "./game/footprint";
 import { isLightVisible, resolveLightVisionMode } from "./lighting";
 import type { LightVisionMode } from "./lighting";
+import { metersToCells } from "./game/units";
 
-const DEFAULT_VISION_RANGE = 100;
+const DEFAULT_VISION_RANGE = 150;
 
 const DEFAULT_CONE_VISION: VisionProfile = {
   shape: "cone",
@@ -53,7 +54,9 @@ export function computeVisionEffectForToken(
   const facing = getFacingForToken(token);
   const id = `vision-${token.id}`;
 
-  if (profile.range <= 0) {
+  const rangeCells = metersToCells(profile.range);
+
+  if (rangeCells <= 0) {
     return {
       id,
       type: profile.shape === "circle" ? "circle" : "cone",
@@ -62,7 +65,7 @@ export function computeVisionEffectForToken(
   }
 
   if (profile.shape === "circle") {
-    return generateCircleEffect(id, token.x, token.y, profile.range, {
+    return generateCircleEffect(id, token.x, token.y, rangeCells, {
       playableCells: playableCells ?? null
     });
   }
@@ -71,7 +74,7 @@ export function computeVisionEffectForToken(
     id,
     token.x,
     token.y,
-    profile.range,
+    rangeCells,
     facing,
     profile.apertureDeg,
     { playableCells: playableCells ?? null }

@@ -14,6 +14,16 @@ export interface EnemyTypeDefinition {
   aiRole: string;
   actions?: string[];
   reactionIds?: string[];
+  armesDefaut?: {
+    main_droite?: string | null;
+    main_gauche?: string | null;
+    mains?: string | null;
+  };
+  proficiencies?: {
+    weapons?: string[];
+    armors?: string[];
+    tools?: string[];
+  };
   combatProfile?: EnemyCombatProfile;
   behavior?: {
     preferredRangeMin?: number;

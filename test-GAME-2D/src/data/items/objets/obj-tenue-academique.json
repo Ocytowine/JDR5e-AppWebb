@@ -4,9 +4,14 @@
   "type": "object",
   "category": "clothing_body",
   "weight": 1.5,
-  "priceGp": 2,
   "tags": [
     "vetement"
   ],
-  "description": "Robe ou tenue propre aux milieux savants."
+  "description": "Robe ou tenue propre aux milieux savants.",
+  "value": {
+    "platinum": 0,
+    "gold": 2.0,
+    "silver": 0,
+    "copper": 0
+  }
 }

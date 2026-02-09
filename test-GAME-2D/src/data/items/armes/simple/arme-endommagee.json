@@ -14,7 +14,8 @@
   "value": {
     "gold": 0,
     "silver": 5,
-    "copper": 0
+    "copper": 0,
+    "platinum": 0
   },
   "rarity": "commune",
   "tags": [
@@ -27,31 +28,31 @@
     "light": false,
     "heavy": false,
     "twoHanded": false,
-    "reach": 1,
+    "reach": 1.5,
     "versatile": null,
     "thrown": null,
     "ammunition": false,
     "loading": false,
     "reload": null,
     "range": {
-      "normal": 1,
-      "long": 1
+      "normal": 1.5,
+      "long": 1.5
     },
     "special": "abimee"
   },
   "attack": {
-    "mod": "mod.STR",
+    "mod": "mod.FOR",
     "bonus": "bonus_maitrise"
   },
   "damage": {
     "dice": "1d4",
-    "damageType": "Tranchant",
+    "damageType": "SLASHING",
     "alt": null
   },
   "effectOnHit": {
-    "mod": "mod.STR",
+    "mod": "mod.FOR",
     "damage": "1d4",
-    "damageType": "Tranchant"
+    "damageType": "SLASHING"
   },
   "links": {
     "actionId": "melee-strike",

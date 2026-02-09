@@ -32,18 +32,16 @@ export interface Personnage {
 export interface CombatStats {
   level: number;
   mods: {
-    str: number;
-    dex: number;
-    con: number;
-    int: number;
-    wis: number;
-    cha: number;
+    modFOR: number;
+    modDEX: number;
+    modCON: number;
+    modINT: number;
+    modSAG: number;
+    modCHA: number;
   };
   maxHp: number;
   armorClass: number;
   attackBonus: number;
-  attackDamage: number;
-  attackRange: number;
   moveRange?: number;
   maxAttacksPerTurn: number;
   actionsPerTurn: number;
@@ -140,7 +138,7 @@ export type EnemyCombatStyle = "melee" | "ranged" | "support";
 export interface EnemyCombatProfile {
   primaryStyle?: EnemyCombatStyle;
   allowedStyles?: EnemyCombatStyle[];
-  preferredAbilities?: Array<"str" | "dex" | "con" | "int" | "wis" | "cha">;
+  preferredAbilities?: Array<"FOR" | "DEX" | "CON" | "INT" | "SAG" | "CHA">;
   preferredRangeMin?: number;
   preferredRangeMax?: number;
   avoidRangeMin?: number;
@@ -176,12 +174,6 @@ export interface TokenState {
    */
   speechProfile?: EnemySpeechProfile | null;
   moveRange?: number;
-  attackDamage?: number;
-  /**
-   * Portee d'attaque de base (en cases).
-   * 1 = corps a corps, >1 = attaque a distance.
-   */
-  attackRange?: number;
   /**
    * Nombre maximum d'attaques que l'entite
    * peut effectuer pendant son tour.
@@ -231,4 +223,5 @@ export interface TokenState {
   y: number;
   hp: number;
   maxHp: number;
+  tempHp?: number;
 }

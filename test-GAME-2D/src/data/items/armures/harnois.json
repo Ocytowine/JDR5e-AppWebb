@@ -6,11 +6,16 @@
   "baseAC": 18,
   "dexCap": 0,
   "weight": 30,
-  "priceGp": 1500,
   "tags": [
     "armure",
     "lourde"
   ],
   "description": "Armure lourde complete en plaques.",
-  "category": "armor_body"
+  "category": "armor_body",
+  "value": {
+    "platinum": 0,
+    "gold": 1500.0,
+    "silver": 0,
+    "copper": 0
+  }
 }

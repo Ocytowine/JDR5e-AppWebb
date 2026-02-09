@@ -109,6 +109,19 @@ export function CharacterSheetWindow(props: {
       ? `Standard ${stats?.moveRange ?? props.player.moveRange ?? 0}`
       : "Inconnu");
   const equippedWeapons = props.equippedWeapons ?? [];
+  const attackRange =
+    equippedWeapons.length === 0
+      ? 1.5
+      : Math.max(
+          1.5,
+          ...equippedWeapons.map(weapon => {
+            const reach = weapon.properties?.reach;
+            if (typeof reach === "number" && reach > 0) return reach;
+            const range = weapon.properties?.range?.normal;
+            if (typeof range === "number" && range > 0) return range;
+            return 1.5;
+          })
+        );
 
   return (
     <div
@@ -227,7 +240,7 @@ export function CharacterSheetWindow(props: {
           {statRow("Niveau", stats?.level ?? 1)}
           {statRow("CA", stats?.armorClass ?? 10)}
           {statRow("Deplacements", movementSummary)}
-          {statRow("Portee", stats?.attackRange ?? props.player.attackRange ?? 1)}
+          {statRow("Portee", attackRange)}
         </div>
       </div>
 

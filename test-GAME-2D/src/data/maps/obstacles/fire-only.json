@@ -38,11 +38,5 @@
       }
     ],
     "heightClass": "low"
-  },
-  "effects": [
-    {
-      "id": "fire",
-      "enabled": true
-    }
-  ]
+  }
 }

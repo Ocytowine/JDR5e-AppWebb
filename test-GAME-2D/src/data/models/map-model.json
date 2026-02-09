@@ -1,0 +1,27 @@
+{
+  "summary": "Résumé de la map.",
+  "grid": { "cols": 16, "rows": 12 },
+  "theme": "dungeon | forest | city | generic",
+  "timeOfDay": "day | night | unknown",
+  "paletteId": "optional-palette-id",
+  "playerStart": { "x": 0, "y": 0 },
+  "enemySpawns": [
+    { "enemyTypeId": "archer", "position": { "x": 5, "y": 5 } }
+  ],
+  "playableCells": ["0,0", "0,1"],
+  "obstacles": [
+    { "id": "obstacle-id", "typeId": "crate", "x": 3, "y": 4, "orientation": 0, "rotationDeg": 0 }
+  ],
+  "wallSegments": [
+    { "x": 0, "y": 0, "dir": "N", "typeId": "stone", "height": 1 }
+  ],
+  "terrain": ["grass", "dirt"],
+  "height": [0, 0],
+  "light": [1, 1],
+  "decorations": [
+    { "id": "decor-id", "typeId": "torch", "x": 2, "y": 2, "rotationDeg": 0 }
+  ],
+  "roofOpenCells": ["1,1"],
+  "recommendedGrid": { "cols": 20, "rows": 14, "reason": "Prompt grande zone." },
+  "generationLog": ["[spec] ...", "[gen] ..."]
+}

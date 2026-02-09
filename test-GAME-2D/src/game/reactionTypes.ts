@@ -21,14 +21,14 @@ export interface ReactionTrigger {
 
 export interface ReactionCondition {
   type:
-    | "actor_alive"
-    | "target_alive"
-    | "reaction_available"
-    | "reaction_unused_combat"
-    | "distance_max"
-    | "target_first_seen"
-    | "target_is_closest_visible"
-    | "target_visible"
+    | "ACTOR_ALIVE"
+    | "TARGET_ALIVE"
+    | "REACTION_AVAILABLE"
+    | "REACTION_UNUSED_COMBAT"
+    | "DISTANCE_MAX"
+    | "TARGET_FIRST_SEEN"
+    | "TARGET_IS_CLOSEST_VISIBLE"
+    | "TARGET_VISIBLE"
     | string;
   max?: number;
   reason?: string;

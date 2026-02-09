@@ -64,12 +64,6 @@
       "setLit": false
     }
   ],
-  "effects": [
-    {
-      "id": "fire",
-      "enabled": true
-    }
-  ],
   "spawnRules": {
     "weight": 1,
     "cluster": {

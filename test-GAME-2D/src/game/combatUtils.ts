@@ -4,6 +4,7 @@ import {
   distanceToCells,
   getTokenOccupiedCells
 } from "./footprint";
+import { cellsToMeters } from "./units";
 import { isTargetVisible } from "../vision";
 
 export function clamp(value: number, min: number, max: number): number {
@@ -27,12 +28,12 @@ export function gridDistance(
 export function distanceBetweenTokens(a: TokenState, b: TokenState): number {
   const aCells = getTokenOccupiedCells(a);
   const bCells = getTokenOccupiedCells(b);
-  return distanceBetweenCells(aCells, bCells);
+  return cellsToMeters(distanceBetweenCells(aCells, bCells));
 }
 
 export function distanceFromPointToToken(point: GridPosition, token: TokenState): number {
   const cells = getTokenOccupiedCells(token);
-  return distanceToCells(point, cells);
+  return cellsToMeters(distanceToCells(point, cells));
 }
 
 export function isTokenDead(token: TokenState): boolean {
@@ -40,10 +41,7 @@ export function isTokenDead(token: TokenState): boolean {
 }
 
 export function getAttackRangeForToken(token: TokenState): number {
-  if (typeof token.attackRange === "number" && token.attackRange > 0) {
-    return token.attackRange;
-  }
-  return 1;
+  return 1.5;
 }
 
 export function getMaxAttacksForToken(token: TokenState): number {

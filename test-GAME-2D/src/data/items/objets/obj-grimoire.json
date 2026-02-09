@@ -4,9 +4,14 @@
   "type": "object",
   "category": "misc",
   "weight": 1,
-  "priceGp": 5,
   "tags": [
     "academique"
   ],
-  "description": "Notes, formules et recherches personnelles."
+  "description": "Notes, formules et recherches personnelles.",
+  "value": {
+    "platinum": 0,
+    "gold": 5.0,
+    "silver": 0,
+    "copper": 0
+  }
 }

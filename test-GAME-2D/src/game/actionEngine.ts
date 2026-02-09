@@ -4,11 +4,17 @@ import { isTargetVisible } from "../vision";
 import { clamp, distanceBetweenTokens } from "./combatUtils";
 import { computePathTowards } from "../pathfinding";
 import { GRID_COLS, GRID_ROWS, isCellInsideGrid } from "../boardConfig";
-import { rollAttack, rollDamage, type AdvantageMode } from "../dice/roller";
+import { type AdvantageMode } from "../dice/roller";
+import { compileActionPlan } from "./engine/actionCompile";
+import { executePlan } from "./engine/actionExecute";
+import { actionDefinitionToActionSpec } from "./engine/actionAdapter";
 import { hasLineOfEffect } from "../lineOfSight";
 import type { WallSegment } from "./map/walls/types";
 import { getHeightAtGrid, type TerrainCell } from "./map/draft";
 import { getClosestFootprintCellToPoint } from "./footprint";
+import { metersToCells } from "./units";
+import { evaluateAllConditions } from "./engine/conditionEval";
+import type { ConditionExpr } from "./conditions";
 
 export interface ActionEngineContext {
   round: number;
@@ -69,112 +75,24 @@ export interface ActionEngineContext {
   getResourceAmount?: (name: string, pool?: string | null) => number;
   spendResource?: (name: string, pool: string | null, amount: number) => void;
   onLog?: (message: string) => void;
+  onModifyPathLimit?: (delta: number) => void;
+  onToggleTorch?: () => void;
+  onSetKillerInstinctTarget?: (targetId: string) => void;
+  onGrantTempHp?: (params: { targetId: string; amount: number; durationTurns?: number | string }) => void;
+  onPlayVisualEffect?: (params: {
+    effectId: string;
+    anchor?: "target" | "self" | "actor";
+    offset?: { x: number; y: number };
+    orientation?: "to_target" | "to_actor" | "none";
+    rotationOffsetDeg?: number;
+    durationMs?: number;
+  }) => void;
 }
 
 export type ActionTarget =
   | { kind: "token"; token: TokenState }
   | { kind: "cell"; x: number; y: number }
   | { kind: "none" };
-
-function resolveNumberVar(
-  varName: string,
-  ctx: ActionEngineContext
-): number | null {
-  const actor = ctx.actor;
-  const stats = actor.combatStats;
-  const token = varName.toLowerCase();
-  const computeModFromScore = (score?: number) => {
-    if (!Number.isFinite(score)) return 0;
-    return Math.floor((Number(score) - 10) / 2);
-  };
-  const pickNumber = (...values: Array<number | undefined | null>) => {
-    for (const value of values) {
-      if (typeof value === "number" && Number.isFinite(value)) return value;
-    }
-    return 0;
-  };
-
-  if (token === "attackdamage") {
-    return typeof stats?.attackDamage === "number"
-      ? stats.attackDamage
-      : typeof actor.attackDamage === "number"
-      ? actor.attackDamage
-      : 0;
-  }
-  if (token === "attackbonus") {
-    return typeof stats?.attackBonus === "number" ? stats.attackBonus : 0;
-  }
-  if (token === "moverange") {
-    return typeof stats?.moveRange === "number"
-      ? stats.moveRange
-      : typeof actor.moveRange === "number"
-      ? actor.moveRange
-      : typeof actor.movementProfile?.speed === "number"
-      ? actor.movementProfile.speed
-      : 0;
-  }
-  if (token === "attackrange") {
-    return typeof stats?.attackRange === "number"
-      ? stats.attackRange
-      : typeof actor.attackRange === "number"
-      ? actor.attackRange
-      : 1;
-  }
-  if (token === "level" || token === "niveau") {
-    const level = Number(stats?.level ?? ctx.sampleCharacter?.niveauGlobal ?? 1);
-    return Number.isFinite(level) ? level : 1;
-  }
-  if (token === "modstr" || token === "modfor") {
-    const mod = pickNumber(
-      stats?.mods?.str,
-      ctx.sampleCharacter?.caracs?.force?.modFOR,
-      computeModFromScore(ctx.sampleCharacter?.caracs?.force?.FOR)
-    );
-    return Number.isFinite(mod) ? mod : 0;
-  }
-  if (token === "moddex") {
-    const mod = pickNumber(
-      stats?.mods?.dex,
-      ctx.sampleCharacter?.caracs?.dexterite?.modDEX,
-      computeModFromScore(ctx.sampleCharacter?.caracs?.dexterite?.DEX)
-    );
-    return Number.isFinite(mod) ? mod : 0;
-  }
-  if (token === "modcon") {
-    const mod = pickNumber(
-      stats?.mods?.con,
-      ctx.sampleCharacter?.caracs?.constitution?.modCON,
-      computeModFromScore(ctx.sampleCharacter?.caracs?.constitution?.CON)
-    );
-    return Number.isFinite(mod) ? mod : 0;
-  }
-  if (token === "modint") {
-    const mod = pickNumber(
-      stats?.mods?.int,
-      ctx.sampleCharacter?.caracs?.intelligence?.modINT,
-      computeModFromScore(ctx.sampleCharacter?.caracs?.intelligence?.INT)
-    );
-    return Number.isFinite(mod) ? mod : 0;
-  }
-  if (token === "modwis") {
-    const mod = pickNumber(
-      stats?.mods?.wis,
-      ctx.sampleCharacter?.caracs?.sagesse?.modSAG,
-      computeModFromScore(ctx.sampleCharacter?.caracs?.sagesse?.SAG)
-    );
-    return Number.isFinite(mod) ? mod : 0;
-  }
-  if (token === "modcha") {
-    const mod = pickNumber(
-      stats?.mods?.cha,
-      ctx.sampleCharacter?.caracs?.charisme?.modCHA,
-      computeModFromScore(ctx.sampleCharacter?.caracs?.charisme?.CHA)
-    );
-    return Number.isFinite(mod) ? mod : 0;
-  }
-
-  return null;
-}
 
 function areOnSameBaseLevel(
   ctx: ActionEngineContext,
@@ -189,40 +107,6 @@ function areOnSameBaseLevel(
   return ha === hb;
 }
 
-export function resolveFormula(formula: string, ctx: ActionEngineContext): string {
-  const raw = String(formula ?? "");
-  if (!raw.trim()) return "0";
-
-  // Replace tokens like "attackDamage" or "modDEX".
-  return raw.replace(/[A-Za-z_][A-Za-z0-9_]*/g, token => {
-    const value = resolveNumberVar(token, ctx);
-    return value === null ? token : String(value);
-  });
-}
-
-export function getPrimaryTargetToken(
-  action: ActionDefinition,
-  ctx: ActionEngineContext,
-  target: ActionTarget
-): TokenState | null {
-  if (target.kind === "token") return target.token;
-
-  if (action.targeting?.target === "hostile") {
-    if (ctx.actor.type === "enemy") {
-      return ctx.player;
-    }
-    return null;
-  }
-
-  if (action.targeting?.target === "player") {
-    return ctx.player;
-  }
-  if (action.targeting?.target === "enemy") {
-    return null;
-  }
-
-  return null;
-}
 
 function isHostileTarget(actor: TokenState, targetToken: TokenState): boolean {
   return actor.type !== targetToken.type;
@@ -266,27 +150,17 @@ function validateTokenTarget(
     }
   }
 
-  for (const cond of action.conditions || []) {
-    if (cond.type === "target_alive" && targetToken.hp <= 0) {
-      return {
-        ok: false,
-        reason: cond.reason || "La cible doit avoir des PV restants."
-      };
-    }
-    if (cond.type === "distance_max") {
-      if (typeof cond.max === "number" && dist > cond.max) {
-        return { ok: false, reason: cond.reason || `Distance cible > ${cond.max}.` };
-      }
-    }
-    if (cond.type === "distance_between") {
-      const min = typeof cond.min === "number" ? cond.min : range?.min ?? null;
-      const max = typeof cond.max === "number" ? cond.max : range?.max ?? null;
-      if (min !== null && dist < min) {
-        return { ok: false, reason: cond.reason || `Distance cible < ${min}.` };
-      }
-      if (max !== null && dist > max) {
-        return { ok: false, reason: cond.reason || `Distance cible > ${max}.` };
-      }
+  if (Array.isArray(action.conditions) && action.conditions.length > 0) {
+    const ok = evaluateAllConditions(action.conditions as ConditionExpr[], {
+      actor,
+      target: targetToken,
+      distance: dist,
+      phase: ctx.phase,
+      getResourceAmount: ctx.getResourceAmount
+    });
+    if (!ok) {
+      const firstReason = action.conditions.find(cond => cond.reason)?.reason;
+      return { ok: false, reason: firstReason || "Conditions non remplies." };
     }
   }
 
@@ -403,10 +277,26 @@ export function computeAvailabilityForActor(
   const reasons: string[] = [];
   const details: string[] = [];
 
-  // Phase condition is supported only if present; enemy actions should generally omit it.
-  for (const cond of action.conditions || []) {
-    if (cond.type === "phase" && cond.mustBe && cond.mustBe !== ctx.phase) {
-      reasons.push(cond.reason || "Phase incorrecte.");
+  // Conditions sans cible (evite d'exiger une cible pour la disponibilite).
+  const availabilityConditions = (action.conditions || []).filter(cond => {
+    return !["TARGET_ALIVE", "DISTANCE_MAX", "DISTANCE_BETWEEN"].includes(cond.type);
+  }) as ConditionExpr[];
+  if (availabilityConditions.length > 0) {
+    const ok = evaluateAllConditions(availabilityConditions, {
+      actor: ctx.actor,
+      target: ctx.player,
+      phase: ctx.phase,
+      getResourceAmount: ctx.getResourceAmount,
+      valueLookup: {
+        actor: {
+          hp: ctx.actor.hp,
+          maxHp: ctx.actor.maxHp
+        }
+      }
+    });
+    if (!ok) {
+      const firstReason = availabilityConditions.find(cond => (cond as any).reason)?.reason;
+      reasons.push(firstReason || "Conditions non remplies.");
     }
   }
 
@@ -436,13 +326,20 @@ export interface ActionResolutionResult {
   actorAfter?: TokenState;
   playerAfter?: TokenState;
   enemiesAfter?: TokenState[];
+  outcomeKind?: "hit" | "miss" | "crit" | "saveSuccess" | "saveFail";
 }
 
-export function resolveAction(
+export function resolveActionUnified(
   action: ActionDefinition,
   ctx: ActionEngineContext,
   target: ActionTarget,
-  opts?: { advantageMode?: AdvantageMode }
+  opts?: {
+    advantageMode?: AdvantageMode;
+    rollOverrides?: {
+      attack?: import("../dice/roller").AttackRollResult | null;
+      consumeDamageRoll?: () => import("../dice/roller").DamageRollResult | null;
+    };
+  }
 ): ActionResolutionResult {
   const logs: string[] = [];
   const log = (m: string) => {
@@ -464,246 +361,133 @@ export function resolveAction(
   let player = { ...ctx.player };
   const enemies = ctx.enemies.map(e => ({ ...e }));
 
-  const emit = (evt: Parameters<NonNullable<ActionEngineContext["emitEvent"]>>[0]) => {
-    ctx.emitEvent?.(evt);
-  };
+  const actionSpec = actionDefinitionToActionSpec(action);
+  const plan = compileActionPlan({
+    action: actionSpec,
+    actor,
+    target:
+      target.kind === "token"
+        ? target.token
+        : target.kind === "cell"
+        ? { x: target.x, y: target.y }
+        : null
+  });
 
-  // Helper: update enemy in list if actor is enemy.
-  const replaceActorInEnemies = () => {
-    if (actor.type !== "enemy") return;
-    const idx = enemies.findIndex(e => e.id === actor.id);
-    if (idx >= 0) enemies[idx] = actor;
-  };
-
-  for (const effect of action.effects || []) {
-    if (effect.type === "log" && typeof effect.message === "string") {
-      log(effect.message);
-      continue;
+  const applyMoveTo = (params: {
+    state: { actor: TokenState; player: TokenState; enemies: TokenState[] };
+    targetCell: { x: number; y: number };
+    maxSteps?: number | null;
+  }) => {
+    const { state, targetCell } = params;
+    const targetX = targetCell.x;
+    const targetY = targetCell.y;
+    let maxSteps = params.maxSteps ?? null;
+    if (typeof maxSteps === "number") {
+      maxSteps = metersToCells(maxSteps);
+    }
+    if (maxSteps === null) {
+      maxSteps =
+        typeof state.actor.moveRange === "number"
+          ? metersToCells(state.actor.moveRange)
+          : typeof state.actor.movementProfile?.speed === "number"
+          ? metersToCells(state.actor.movementProfile.speed)
+          : 3;
     }
 
-    if (effect.type === "resource_spend" && effect.resource && ctx.spendResource) {
-      const pool = typeof effect.pool === "string" ? effect.pool : null;
-      const amount = typeof effect.amount === "number" ? effect.amount : 1;
-      ctx.spendResource(String(effect.resource), pool, amount);
-      continue;
+    const cols = ctx.grid?.cols ?? GRID_COLS;
+    const rows = ctx.grid?.rows ?? GRID_ROWS;
+    const clampedX = clamp(targetX, 0, cols - 1);
+    const clampedY = clamp(targetY, 0, rows - 1);
+    if (!isCellInsideGrid(clampedX, clampedY, cols, rows)) return;
+    if (ctx.playableCells && ctx.playableCells.size > 0) {
+      const k = `${clampedX},${clampedY}`;
+      if (!ctx.playableCells.has(k)) return;
     }
 
-    if (effect.type === "damage" && effect.target === "primary") {
-      const targetToken = getPrimaryTargetToken(action, ctx, target);
-      if (!targetToken) continue;
-
-      const advantageMode = (opts?.advantageMode ?? "normal") as AdvantageMode;
-      const critRule = action.damage?.critRule ?? "double-dice";
-      const resolvedDamageFormula = resolveFormula(effect.formula ?? action.damage?.formula ?? "0", ctx);
-
-      let isHit = true;
-      let isCrit = false;
-      let attackRollTotal: number | null = null;
-      let targetAC: number | null = null;
-
-      const targetArmorClass =
-        typeof targetToken.armorClass === "number" ? targetToken.armorClass : null;
-      targetAC = targetArmorClass;
-
-      if (action.attack) {
-        const attackRoll = rollAttack(action.attack.bonus, advantageMode, action.attack.critRange ?? 20);
-        isCrit = attackRoll.isCrit;
-        attackRollTotal = attackRoll.total;
-        if (targetArmorClass !== null) {
-          isHit = attackRoll.total >= targetArmorClass || attackRoll.isCrit;
-        }
-        const rollsText =
-          attackRoll.mode === "normal"
-            ? `${attackRoll.d20.total}`
-            : `${attackRoll.d20.rolls.join(" / ")} -> ${attackRoll.d20.total}`;
-        log(
-          `Jet de touche (${action.name}) : ${rollsText} + ${attackRoll.bonus} = ${attackRoll.total}` +
-            (targetArmorClass !== null ? ` vs CA ${targetArmorClass}` : "") +
-            (attackRoll.isCrit ? " (critique!)" : "")
-        );
+    const tokensForPath: TokenState[] = (() => {
+      if (!ctx.heightMap || typeof ctx.activeLevel !== "number") {
+        return [state.player as TokenState, ...state.enemies];
       }
-
-      if (!isHit) {
-        log(`L'attaque (${action.name}) rate sa cible. Pas de degats.`);
-        const attackKind =
-          actor.type === "enemy" ? "enemy_attack" : "player_attack";
-        emit({
-          kind: attackKind,
-          actorId: actor.id,
-          actorKind: actor.type,
-          targetId: targetToken.id,
-          targetKind: targetToken.type,
-          summary: `${actor.id} rate ${targetToken.id} avec ${action.name}.`,
-          data: {
-            actionId: action.id,
-            actionName: action.name,
-            isHit: false,
-            isCrit: false,
-            damage: 0,
-            attackRollTotal,
-            targetArmorClass: targetAC
-          }
-        });
-        continue;
-      }
-
-      const dmg = rollDamage(resolvedDamageFormula, { isCrit, critRule });
-      const before = targetToken.hp;
-      const afterHp = Math.max(0, before - dmg.total);
-
-      if (targetToken.type === "player") {
-        player = { ...player, hp: afterHp };
-        log(`${action.name} inflige ${dmg.total} degats au joueur (PV ${before} -> ${afterHp}).`);
-      } else {
-        const idx = enemies.findIndex(e => e.id === targetToken.id);
-        if (idx >= 0) {
-          enemies[idx] = { ...enemies[idx], hp: afterHp };
-          log(`${action.name} inflige ${dmg.total} degats a ${targetToken.id} (PV ${before} -> ${afterHp}).`);
-        }
-      }
-
-      const attackKind =
-        actor.type === "enemy" ? "enemy_attack" : "player_attack";
-      emit({
-        kind: attackKind,
-        actorId: actor.id,
-        actorKind: actor.type,
-        targetId: targetToken.id,
-        targetKind: targetToken.type,
-        summary:
-          dmg.total > 0
-            ? `${actor.id} touche ${targetToken.id} avec ${action.name} et inflige ${dmg.total} degats (PV ${before} -> ${afterHp}).`
-            : `${actor.id} touche ${targetToken.id} avec ${action.name} (pas de degats).`,
-        data: {
-          actionId: action.id,
-          actionName: action.name,
-          isHit: true,
-          isCrit,
-          damage: dmg.total,
-          damageFormula: dmg.formula,
-          attackRollTotal,
-          targetArmorClass: targetAC,
-          targetHpBefore: before,
-          targetHpAfter: afterHp
-        }
-      });
-
-      emit({
-        kind: "damage",
-        actorId: actor.id,
-        actorKind: actor.type,
-        targetId: targetToken.id,
-        targetKind: targetToken.type,
-        summary: `${targetToken.id} subit ${dmg.total} degats (${action.name}).`,
-        data: {
-          sourceActionId: action.id,
-          sourceActionName: action.name,
-          damage: dmg.total,
-          isCrit,
-          targetHpBefore: before,
-          targetHpAfter: afterHp
-        }
-      });
-      continue;
-    }
-
-    if (effect.type === "move_to" && effect.target === "self") {
-      if (target.kind !== "cell") {
-        return { ok: false, reason: "Move: cible de case manquante.", logs };
-      }
-
-      const maxStepsRaw = effect.maxSteps;
-      let maxSteps: number | null = null;
-      if (typeof maxStepsRaw === "number") {
-        maxSteps = maxStepsRaw;
-      } else if (typeof maxStepsRaw === "string") {
-        const resolved = resolveFormula(maxStepsRaw, ctx);
-        const parsed = Number.parseInt(resolved, 10);
-        maxSteps = Number.isFinite(parsed) ? parsed : null;
-      }
-      if (maxSteps === null) {
-        maxSteps =
-          typeof actor.moveRange === "number"
-            ? actor.moveRange
-            : typeof actor.movementProfile?.speed === "number"
-            ? actor.movementProfile.speed
-            : 3;
-      }
-
       const cols = ctx.grid?.cols ?? GRID_COLS;
       const rows = ctx.grid?.rows ?? GRID_ROWS;
-      const clampedX = clamp(target.x, 0, cols - 1);
-      const clampedY = clamp(target.y, 0, rows - 1);
-      if (!isCellInsideGrid(clampedX, clampedY, cols, rows)) {
-        return { ok: false, reason: "Move: case hors plateau.", logs };
-      }
-      if (ctx.playableCells && ctx.playableCells.size > 0) {
-        const k = `${clampedX},${clampedY}`;
-        if (!ctx.playableCells.has(k)) {
-          return { ok: false, reason: "Move: case hors zone jouable.", logs };
-        }
-      }
-
-      const tokensForPath: TokenState[] = (() => {
-        if (!ctx.heightMap || typeof ctx.activeLevel !== "number") {
-          return [player as TokenState, ...enemies];
-        }
-        const cols = ctx.grid?.cols ?? GRID_COLS;
-        const rows = ctx.grid?.rows ?? GRID_ROWS;
-        return [player as TokenState, ...enemies].filter(t => {
-          const baseHeight = getHeightAtGrid(ctx.heightMap as number[], cols, rows, t.x, t.y);
-          return baseHeight === ctx.activeLevel;
-        });
-      })();
-      const path = computePathTowards(actor, { x: clampedX, y: clampedY }, tokensForPath, {
-        maxDistance: Math.max(0, maxSteps),
-        allowTargetOccupied: false,
-        blockedCells: ctx.blockedMovementCells ?? null,
-        wallEdges: ctx.blockedMovementEdges ?? null,
-        playableCells: ctx.playableCells ?? null,
-        grid: ctx.grid ?? null,
-        heightMap: ctx.heightMap ?? null,
-        floorIds: ctx.floorIds ?? null,
-        activeLevel: ctx.activeLevel ?? null
+      return [state.player as TokenState, ...state.enemies].filter(t => {
+        const baseHeight = getHeightAtGrid(ctx.heightMap as number[], cols, rows, t.x, t.y);
+        return baseHeight === ctx.activeLevel;
       });
-
-      actor.plannedPath = path;
-      if (path.length === 0) {
-        return { ok: false, reason: "Move: aucun chemin valide.", logs };
-      }
-
-      const from = { x: actor.x, y: actor.y };
-      const destination = path[path.length - 1];
-      actor.x = destination.x;
-      actor.y = destination.y;
-      replaceActorInEnemies();
-      if (actor.type === "player") {
-        log(`${actor.id} se deplace vers (${destination.x}, ${destination.y}).`);
-      }
-      emit({
-        kind: "move",
-        actorId: actor.id,
-        actorKind: actor.type,
-        summary: `${actor.id} se deplace de (${from.x}, ${from.y}) vers (${destination.x}, ${destination.y}).`,
-        data: {
-          actionId: action.id,
-          actionName: action.name,
-          from,
-          to: destination,
-          path
-        }
-      });
-      continue;
+    })();
+    const path = computePathTowards(state.actor, { x: clampedX, y: clampedY }, tokensForPath, {
+      maxDistance: Math.max(0, maxSteps),
+      allowTargetOccupied: false,
+      blockedCells: ctx.blockedMovementCells ?? null,
+      wallEdges: ctx.blockedMovementEdges ?? null,
+      playableCells: ctx.playableCells ?? null,
+      grid: ctx.grid ?? null,
+      heightMap: ctx.heightMap ?? null,
+      floorIds: ctx.floorIds ?? null,
+      activeLevel: ctx.activeLevel ?? null
+    });
+    state.actor.plannedPath = path;
+    if (path.length === 0) return;
+    const destination = path[path.length - 1];
+    state.actor.x = destination.x;
+    state.actor.y = destination.y;
+    if (state.actor.type === "enemy") {
+      const idx = state.enemies.findIndex(e => e.id === state.actor.id);
+      if (idx >= 0) state.enemies[idx] = state.actor;
+    } else {
+      state.player = state.actor;
     }
+  };
+
+  const exec = executePlan({
+    plan,
+    state: {
+      round: ctx.round,
+      phase: ctx.phase,
+      actor,
+      player,
+      enemies,
+      effects: []
+    },
+    opts: {
+      getResourceAmount: ctx.getResourceAmount,
+      spendResource: ctx.spendResource,
+      rollOverrides: opts?.rollOverrides,
+      onLog: log,
+      onMoveTo: applyMoveTo,
+      onModifyPathLimit: ctx.onModifyPathLimit,
+      onToggleTorch: ctx.onToggleTorch,
+      onSetKillerInstinctTarget: ctx.onSetKillerInstinctTarget,
+      onGrantTempHp: ctx.onGrantTempHp,
+      onPlayVisualEffect: ctx.onPlayVisualEffect
+    },
+    advantageMode: opts?.advantageMode
+  });
+
+  if (!exec.ok) {
+    return {
+      ok: false,
+      reason: exec.interrupted ? "Interruption par reaction." : "Echec de resolution.",
+      logs: exec.logs.length ? exec.logs : logs
+    };
   }
 
-  replaceActorInEnemies();
+  player = exec.state.player;
+  for (let i = 0; i < enemies.length; i++) {
+    enemies[i] = exec.state.enemies[i] ?? enemies[i];
+  }
+
+  const actorAfter =
+    actor.type === "player"
+      ? exec.state.player
+      : exec.state.enemies.find(e => e.id === actor.id) ?? actor;
 
   return {
     ok: true,
-    logs,
-    actorAfter: actor,
+    logs: exec.logs.length ? exec.logs : logs,
+    actorAfter,
     playerAfter: player,
-    enemiesAfter: enemies
+    enemiesAfter: enemies,
+    outcomeKind: exec.outcome?.kind
   };
 }

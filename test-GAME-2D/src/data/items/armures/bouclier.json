@@ -6,11 +6,16 @@
   "baseAC": 2,
   "dexCap": null,
   "weight": 3,
-  "priceGp": 10,
   "tags": [
     "armure",
     "bouclier"
   ],
   "description": "Bouclier offrant un bonus de CA.",
-  "category": "shield"
+  "category": "shield",
+  "value": {
+    "platinum": 0,
+    "gold": 10.0,
+    "silver": 0,
+    "copper": 0
+  }
 }

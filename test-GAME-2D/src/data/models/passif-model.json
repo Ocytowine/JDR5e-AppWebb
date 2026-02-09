@@ -1,0 +1,7 @@
+{
+  "id": "passif-id",
+  "label": "Nom passif",
+  "durationTurns": 3,
+  "damagePerTurnFormula": "1d4",
+  "tags": ["status", "damage"]
+}

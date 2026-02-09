@@ -3,20 +3,51 @@
   "name": "Aide",
   "level": 2,
   "school": "abjuration",
-  "components": { "verbal": true, "somatic": true, "material": true },
+  "components": {
+    "verbal": true,
+    "somatic": true,
+    "material": true
+  },
   "summary": "Renforce la vigueur d'un groupe d'allies.",
   "category": "support",
-  "actionCost": { "actionType": "action", "movementCost": 0 },
+  "actionCost": {
+    "actionType": "action",
+    "movementCost": 0
+  },
   "targeting": {
     "target": "ally",
-    "range": { "min": 0, "max": 6, "shape": "single" },
+    "range": {
+      "min": 0,
+      "max": 9,
+      "shape": "SPHERE"
+    },
     "maxTargets": 3,
     "requiresLos": true
   },
-  "usage": { "perTurn": 1, "perEncounter": null, "resource": null },
-  "effects": [
-    { "type": "status_apply", "target": "primary", "statusId": "aid", "durationTurns": 60 },
-    { "type": "log", "message": "Aide appliquee." }
+  "usage": {
+    "perTurn": 1,
+    "perEncounter": null,
+    "resource": null
+  },
+  "tags": [
+    "spell",
+    "support",
+    "cleric"
   ],
-  "tags": ["spell", "support", "cleric"]
+  "ops": {
+    "onResolve": [
+      {
+        "op": "ApplyCondition",
+        "target": "primary",
+        "statusId": "aid",
+        "durationTurns": 60
+      },
+      {
+        "op": "LogEvent",
+        "message": "Aide appliquee."
+      }
+    ]
+  }
 }
+
+

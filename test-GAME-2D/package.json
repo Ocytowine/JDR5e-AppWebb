@@ -8,7 +8,8 @@
     "gen:action-catalog": "node scripts/gen-action-catalog.js",
     "gen:class-catalog": "node scripts/gen-class-catalog.js",
     "gen:materiel-catalog": "node scripts/gen-materiel-catalog.js",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "validate:content": "node scripts/validate-content.js"
   },
   "dependencies": {
     "pixi.js": "^8.5.2",

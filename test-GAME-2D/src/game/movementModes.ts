@@ -16,7 +16,7 @@ const MOVEMENT_MODE_CATALOG: Record<string, MovementModeDefinition> = {
   walk: {
     id: "walk",
     label: "Marcher",
-    speed: 6,
+    speed: 9,
     directions: 8,
     profile: {
       type: "ground",
@@ -28,7 +28,7 @@ const MOVEMENT_MODE_CATALOG: Record<string, MovementModeDefinition> = {
   swim: {
     id: "swim",
     label: "Nager",
-    speed: 3,
+    speed: 4.5,
     directions: 8,
     profile: {
       type: "swim",
@@ -85,7 +85,7 @@ export function getMovementModesForCharacter(
       if (entry && typeof entry === "object") {
         const id = String(entry.id || entry.label || "custom");
         const label = String(entry.label || entry.id || "Deplacement");
-        const speed = Number.isFinite(entry.speed) ? Math.max(1, Number(entry.speed)) : 6;
+        const speed = Number.isFinite(entry.speed) ? Math.max(1, Number(entry.speed)) : 9;
         const directions: MovementDirections =
           entry.directions === 4 ? 4 : 8;
         modes.push({

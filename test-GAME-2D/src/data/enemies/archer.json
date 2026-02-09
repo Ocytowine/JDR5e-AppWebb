@@ -3,37 +3,82 @@
   "label": "Archer",
   "description": "Tireur qui prefere garder une distance de securite avant de frapper.",
   "aiRole": "archer",
-  "actions": ["move", "bow-shot", "melee-strike"],
-  "reactionIds": ["guard-strike"],
+  "actions": [
+    "move",
+    "bow-shot",
+    "melee-strike"
+  ],
+  "reactionIds": [
+    "guard-strike"
+  ],
+  "armesDefaut": {
+    "main_droite": "arc-long",
+    "main_gauche": null,
+    "mains": null
+  },
+  "proficiencies": {
+    "weapons": ["martiale"],
+    "armors": []
+  },
   "combatProfile": {
     "primaryStyle": "ranged",
-    "allowedStyles": ["ranged", "melee"],
-    "preferredAbilities": ["dex"],
-    "preferredRangeMin": 3,
-    "preferredRangeMax": 6,
+    "allowedStyles": [
+      "ranged",
+      "melee"
+    ],
+    "preferredAbilities": ["DEX"],
+    "preferredRangeMin": 4.5,
+    "preferredRangeMax": 9,
     "avoidRangeMin": 0,
-    "avoidRangeMax": 2,
+    "avoidRangeMax": 3,
     "intelligence": 1,
     "awareness": 1,
-    "tactics": ["avoid_opportunity", "poke_from_range"]
+    "tactics": [
+      "avoid_opportunity",
+      "poke_from_range"
+    ]
   },
-  "behavior": { "preferredRangeMin": 3, "preferredRangeMax": 6, "panicRange": 2 },
+  "behavior": {
+    "preferredRangeMin": 4.5,
+    "preferredRangeMax": 9,
+    "panicRange": 3
+  },
   "speechProfile": {
     "raceOrOrigin": "Archer de bande",
     "register": "neutre",
-    "tone": ["tactique", "moqueur", "vigilant"],
-    "vocabulary": ["a couvert", "recule", "je l'ai en vue", "distance"],
-    "quirks": ["annonce ce qu'il voit", "donne des consignes courtes"],
-    "taboos": ["pas de modernisme", "pas de meta-jeu"]
+    "tone": [
+      "tactique",
+      "moqueur",
+      "vigilant"
+    ],
+    "vocabulary": [
+      "a couvert",
+      "recule",
+      "je l'ai en vue",
+      "distance"
+    ],
+    "quirks": [
+      "annonce ce qu'il voit",
+      "donne des consignes courtes"
+    ],
+    "taboos": [
+      "pas de modernisme",
+      "pas de meta-jeu"
+    ]
   },
   "combatStats": {
     "level": 1,
-    "mods": { "str": 0, "dex": 0, "con": 0, "int": 0, "wis": 0, "cha": 0 },
+    "mods": {
+      "modFOR": 0,
+      "modDEX": 0,
+      "modCON": 0,
+      "modINT": 0,
+      "modSAG": 0,
+      "modCHA": 0
+    },
     "maxHp": 7,
     "armorClass": 13,
     "attackBonus": 0,
-    "attackDamage": 2,
-    "attackRange": 6,
     "maxAttacksPerTurn": 1,
     "actionsPerTurn": 1,
     "bonusActionsPerTurn": 0,
@@ -44,18 +89,18 @@
     "tokenScale": 100
   },
   "movementModes": {
-    "walk": 2
+    "walk": 3
   },
   "movement": {
     "type": "ground",
-    "speed": 2,
+    "speed": 3,
     "canPassThroughWalls": false,
     "canPassThroughEntities": false,
     "canStopOnOccupiedTile": false
   },
   "vision": {
     "shape": "cone",
-    "range": 100,
+    "range": 150,
     "apertureDeg": 180,
     "canSeeInDark": false,
     "lightVision": "normal"

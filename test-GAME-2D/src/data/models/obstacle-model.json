@@ -1,10 +1,15 @@
 {
   "id": "obstacle-id",
   "label": "Obstacle",
+  "source": {
+    "book": "PHB2024",
+    "page": 0
+  },
   "category": "prop",
   "tags": [
     "prop"
   ],
+  "requirements": [],
   "blocking": {
     "movement": true,
     "vision": false,

@@ -3,21 +3,60 @@
   "name": "Allumer la torche",
   "summary": "Allume ou eteint la torche du joueur pour eclairer autour de lui.",
   "category": "item",
-  "actionCost": { "actionType": "bonus", "movementCost": 0 },
+  "actionCost": {
+    "actionType": "bonus",
+    "movementCost": 0
+  },
   "targeting": {
     "target": "self",
-    "range": { "min": 0, "max": 0, "shape": "self" },
+    "range": {
+      "min": 0,
+      "max": 0,
+      "shape": "SPHERE"
+    },
     "maxTargets": 1,
     "requiresLos": false
   },
-  "usage": { "perTurn": null, "perEncounter": null, "resource": { "name": "torch", "pool": "gear", "min": 1 } },
+  "usage": {
+    "perTurn": null,
+    "perEncounter": null,
+    "resource": {
+      "name": "torch",
+      "pool": "gear",
+      "min": 1
+    }
+  },
   "conditions": [
-    { "type": "phase", "mustBe": "player", "reason": "Tour joueur requis." },
-    { "type": "resource_at_least", "resource": "torch", "pool": "gear", "value": 1, "reason": "Besoin d'une torche." }
+    {
+      "type": "PHASE_IS",
+      "value": "player",
+      "reason": "Tour joueur requis."
+    },
+    {
+      "type": "RESOURCE_AT_LEAST",
+      "resource": "torch",
+      "pool": "gear",
+      "value": 1,
+      "reason": "Besoin d'une torche."
+    }
   ],
-  "effects": [
-    { "type": "toggle_torch" },
-    { "type": "log", "message": "Torche: etat bascule." }
+  "tags": [
+    "lumiere",
+    "objet",
+    "utilitaire"
   ],
-  "tags": ["lumiere", "objet", "utilitaire"]
+  "ops": {
+    "onResolve": [
+      {
+        "op": "ToggleTorch"
+      },
+      {
+        "op": "LogEvent",
+        "message": "Torche: etat bascule."
+      }
+    ]
+  }
 }
+
+
+

@@ -6,11 +6,16 @@
   "baseAC": 16,
   "dexCap": 0,
   "weight": 27.5,
-  "priceGp": 75,
   "tags": [
     "armure",
     "lourde"
   ],
   "description": "Armure lourde en anneaux de metal.",
-  "category": "armor_body"
+  "category": "armor_body",
+  "value": {
+    "platinum": 0,
+    "gold": 75.0,
+    "silver": 0,
+    "copper": 0
+  }
 }

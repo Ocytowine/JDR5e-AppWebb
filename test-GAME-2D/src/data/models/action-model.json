@@ -2,9 +2,18 @@
   "id": "template-id",
   "name": "Template action name",
   "summary": "Short text used in logs and tooltips.",
+  "source": {
+    "book": "PHB2024",
+    "page": 0
+  },
+  "tags": [
+    "starter",
+    "example"
+  ],
+  "requirements": [],
   "uiMessageHit": "Message affiche si l action touche le joueur.",
   "uiMessageMiss": "Message affiche si l action rate le joueur.",
-  "category": "attack | movement | support | defense | item | reaction",
+  "category": "attack | movement | support | control | defense | item | reaction",
   "actionCost": {
     "actionType": "action | bonus | reaction | free",
     "movementCost": 0
@@ -13,8 +22,8 @@
     "target": "hostile | ally | self | cell | emptyCell",
     "range": {
       "min": 0,
-      "max": 1,
-      "shape": "single | line | cone | circle | rectangle"
+      "max": 1.5,
+      "shape": "SPHERE | CONE | LINE | CUBE | CYLINDER"
     },
     "maxTargets": 1,
     "requiresLos": true
@@ -24,62 +33,57 @@
     "perEncounter": null,
     "resource": null
   },
+  "resolution": {
+    "kind": "ATTACK_ROLL | SAVING_THROW | ABILITY_CHECK | NO_ROLL",
+    "bonus": 0,
+    "critRange": 20,
+    "critRule": "double-dice",
+    "save": {
+      "ability": "FOR|DEX|CON|INT|SAG|CHA",
+      "dc": 10
+    },
+    "check": {
+      "ability": "FOR|DEX|CON|INT|SAG|CHA",
+      "dc": 10
+    }
+  },
+  "ops": {
+    "onResolve": [],
+    "onHit": [],
+    "onMiss": [],
+    "onCrit": [],
+    "onSaveSuccess": [],
+    "onSaveFail": []
+  },
+  "reactionWindows": [
+    "pre",
+    "post"
+  ],
+  "hooks": [],
   "conditions": [
     {
-      "type": "phase",
-      "mustBe": "player",
+      "type": "PHASE_IS",
+      "value": "player",
       "reason": "Only usable on player turn."
     },
     {
-      "type": "distance_max",
+      "type": "DISTANCE_MAX",
       "target": "primary",
-      "max": 1,
+      "max": 1.5,
       "reason": "Stay within reach."
     },
     {
-      "type": "stat_at_least",
-      "who": "self",
-      "stat": "hp",
-      "value": 1,
-      "reason": "Cannot act at 0 hp."
-    }
-  ],
-  "effects": [
-    {
-      "type": "damage",
+      "type": "TARGET_ALIVE",
       "target": "primary",
-      "formula": "1d6 + modSTR",
-      "damageType": "slashing"
-    },
-    {
-      "type": "heal",
-      "target": "self",
-      "formula": "1d4 + 2"
-    },
-    {
-      "type": "status",
-      "target": "primary",
-      "status": "prone",
-      "duration": 1,
-      "chance": 0.25
-    },
-    {
-      "type": "move",
-      "target": "self",
-      "maxSteps": 3,
-      "direction": "toward target"
-    },
-    {
-      "type": "temp_hp",
-      "target": "self",
-      "amount": 3,
-      "duration": "end_of_turn"
+      "reason": "Target must be alive."
     }
   ],
   "aiHints": {
     "priority": "finish_low_hp_target | close_gap | survive",
     "successLog": "What to log when resolved.",
     "failureLog": "What to log when blocked."
-  },
-  "tags": ["starter", "example"]
+  }
 }
+
+
+

@@ -3,35 +3,78 @@
   "label": "Assassin",
   "description": "Frappeur rapide qui cherche a se rapprocher pour porter un coup decisif.",
   "aiRole": "assassin",
-  "actions": ["move", "melee-strike"],
-  "reactionIds": ["opportunity-attack"],
+  "actions": [
+    "move",
+    "melee-strike"
+  ],
+  "reactionIds": [
+    "opportunity-attack"
+  ],
+  "armesDefaut": {
+    "main_droite": "dague",
+    "main_gauche": null,
+    "mains": null
+  },
+  "proficiencies": {
+    "weapons": ["simple"],
+    "armors": []
+  },
   "combatProfile": {
     "primaryStyle": "melee",
-    "allowedStyles": ["melee"],
-    "preferredAbilities": ["dex"],
-    "preferredRangeMin": 1,
-    "preferredRangeMax": 1,
+    "allowedStyles": [
+      "melee"
+    ],
+    "preferredAbilities": ["DEX"],
+    "preferredRangeMin": 1.5,
+    "preferredRangeMax": 1.5,
     "intelligence": 2,
     "awareness": 1,
-    "tactics": ["flank", "avoid_opportunity"]
+    "tactics": [
+      "flank",
+      "avoid_opportunity"
+    ]
   },
-  "behavior": { "preferredRangeMin": 1, "preferredRangeMax": 1, "panicRange": 0 },
+  "behavior": {
+    "preferredRangeMin": 1.5,
+    "preferredRangeMax": 1.5,
+    "panicRange": 0
+  },
   "speechProfile": {
     "raceOrOrigin": "Assassin",
     "register": "soutenu",
-    "tone": ["froid", "tranchant", "calme"],
-    "vocabulary": ["silence", "cible", "dans l'ombre", "fin"],
-    "quirks": ["parle peu", "phrases courtes et precises"],
-    "taboos": ["pas de modernisme", "pas de meta-jeu"]
+    "tone": [
+      "froid",
+      "tranchant",
+      "calme"
+    ],
+    "vocabulary": [
+      "silence",
+      "cible",
+      "dans l'ombre",
+      "fin"
+    ],
+    "quirks": [
+      "parle peu",
+      "phrases courtes et precises"
+    ],
+    "taboos": [
+      "pas de modernisme",
+      "pas de meta-jeu"
+    ]
   },
   "combatStats": {
     "level": 1,
-    "mods": { "str": 0, "dex": 0, "con": 0, "int": 0, "wis": 0, "cha": 0 },
+    "mods": {
+      "modFOR": 0,
+      "modDEX": 0,
+      "modCON": 0,
+      "modINT": 0,
+      "modSAG": 0,
+      "modCHA": 0
+    },
     "maxHp": 6,
     "armorClass": 15,
     "attackBonus": 0,
-    "attackDamage": 3,
-    "attackRange": 1,
     "maxAttacksPerTurn": 1,
     "actionsPerTurn": 1,
     "bonusActionsPerTurn": 0,
@@ -42,18 +85,18 @@
     "tokenScale": 100
   },
   "movementModes": {
-    "walk": 3
+    "walk": 4.5
   },
   "movement": {
     "type": "ground",
-    "speed": 3,
+    "speed": 4.5,
     "canPassThroughWalls": false,
     "canPassThroughEntities": true,
     "canStopOnOccupiedTile": false
   },
   "vision": {
     "shape": "cone",
-    "range": 100,
+    "range": 150,
     "apertureDeg": 180,
     "canSeeInDark": false,
     "lightVision": "normal"

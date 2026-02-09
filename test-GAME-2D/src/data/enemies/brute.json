@@ -3,35 +3,77 @@
   "label": "Brute",
   "description": "Frontliner robuste qui avance pour engager le joueur.",
   "aiRole": "brute",
-  "actions": ["move", "melee-strike"],
-  "reactionIds": ["opportunity-attack"],
+  "actions": [
+    "move",
+    "melee-strike"
+  ],
+  "reactionIds": [
+    "opportunity-attack"
+  ],
+  "armesDefaut": {
+    "main_droite": "hache-bataille",
+    "main_gauche": null,
+    "mains": null
+  },
+  "proficiencies": {
+    "weapons": ["martiale"],
+    "armors": []
+  },
   "combatProfile": {
     "primaryStyle": "melee",
-    "allowedStyles": ["melee"],
-    "preferredAbilities": ["str"],
-    "preferredRangeMin": 1,
-    "preferredRangeMax": 1,
+    "allowedStyles": [
+      "melee"
+    ],
+    "preferredAbilities": ["FOR"],
+    "preferredRangeMin": 1.5,
+    "preferredRangeMax": 1.5,
     "intelligence": 1,
     "awareness": 1,
-    "tactics": ["hold_line"]
+    "tactics": [
+      "hold_line"
+    ]
   },
-  "behavior": { "preferredRangeMin": 1, "preferredRangeMax": 1, "panicRange": 0 },
+  "behavior": {
+    "preferredRangeMin": 1.5,
+    "preferredRangeMax": 1.5,
+    "panicRange": 0
+  },
   "speechProfile": {
     "raceOrOrigin": "Brute mercenaire",
     "register": "familier",
-    "tone": ["agressif", "direct", "impatient"],
-    "vocabulary": ["charge", "ecrase", "avance", "finissons-en"],
-    "quirks": ["phrases courtes", "menaces simples"],
-    "taboos": ["pas de modernisme", "pas de meta-jeu"]
+    "tone": [
+      "agressif",
+      "direct",
+      "impatient"
+    ],
+    "vocabulary": [
+      "charge",
+      "ecrase",
+      "avance",
+      "finissons-en"
+    ],
+    "quirks": [
+      "phrases courtes",
+      "menaces simples"
+    ],
+    "taboos": [
+      "pas de modernisme",
+      "pas de meta-jeu"
+    ]
   },
   "combatStats": {
     "level": 1,
-    "mods": { "str": 0, "dex": 0, "con": 0, "int": 0, "wis": 0, "cha": 0 },
+    "mods": {
+      "modFOR": 0,
+      "modDEX": 0,
+      "modCON": 0,
+      "modINT": 0,
+      "modSAG": 0,
+      "modCHA": 0
+    },
     "maxHp": 10,
     "armorClass": 14,
     "attackBonus": 0,
-    "attackDamage": 2,
-    "attackRange": 1,
     "maxAttacksPerTurn": 2,
     "actionsPerTurn": 1,
     "bonusActionsPerTurn": 0,
@@ -42,18 +84,18 @@
     "tokenScale": 100
   },
   "movementModes": {
-    "walk": 3
+    "walk": 4.5
   },
   "movement": {
     "type": "ground",
-    "speed": 3,
+    "speed": 4.5,
     "canPassThroughWalls": false,
     "canPassThroughEntities": false,
     "canStopOnOccupiedTile": false
   },
   "vision": {
     "shape": "cone",
-    "range": 100,
+    "range": 150,
     "apertureDeg": 180,
     "canSeeInDark": false,
     "lightVision": "normal"

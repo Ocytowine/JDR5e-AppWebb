@@ -4,7 +4,16 @@
   "type": "object",
   "category": "currency",
   "weight": 0.01,
-  "value": { "pp": 1 },
-  "tags": ["monnaie", "piece"],
+  "value": {
+    "pp": 1,
+    "platinum": 0,
+    "gold": 0,
+    "silver": 0,
+    "copper": 0
+  },
+  "tags": [
+    "monnaie",
+    "piece"
+  ],
   "description": "Piece de platine."
 }

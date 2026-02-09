@@ -5,28 +5,66 @@
   "uiMessageHit": "Vous avez ete touche par une fleche.",
   "uiMessageMiss": "Vous evitez une fleche.",
   "category": "attack",
-  "actionCost": { "actionType": "action", "movementCost": 0 },
+  "actionCost": {
+    "actionType": "action",
+    "movementCost": 0
+  },
   "targeting": {
     "target": "hostile",
-    "range": { "min": 2, "max": 6, "shape": "single" },
+    "range": {
+      "min": 3,
+      "max": 9,
+      "shape": "SPHERE"
+    },
     "maxTargets": 1,
     "requiresLos": true
   },
-  "usage": { "perTurn": 1, "perEncounter": null, "resource": null },
+  "usage": {
+    "perTurn": 1,
+    "perEncounter": null,
+    "resource": null
+  },
   "conditions": [
-    { "type": "target_alive", "target": "primary", "reason": "La cible doit etre en vie." }
+    {
+      "type": "TARGET_ALIVE",
+      "target": "primary",
+      "reason": "La cible doit etre en vie."
+    }
   ],
-  "attack": { "bonus": 5, "critRange": 20 },
-  "damage": { "formula": "attackDamage", "critRule": "double-dice", "damageType": "piercing" },
-  "effects": [
-    { "type": "damage", "target": "primary", "formula": "attackDamage", "damageType": "piercing" },
-    { "type": "log", "message": "Une fleche siffle dans l'air." }
-  ],
+  "attack": {
+    "bonus": 5,
+    "critRange": 20
+  },
+  "damage": {
+    "formula": "1d4 + modDEX",
+    "critRule": "double-dice",
+    "damageType": "PIERCING"
+  },
   "aiHints": {
     "priority": "poke_from_range",
     "successLog": "Tir a l'arc.",
     "failureLog": "Cible hors portee/ligne de vue ou trop proche."
   },
-  "tags": ["distance", "bow"]
+  "tags": [
+    "distance",
+    "bow"
+  ],
+  "ops": {
+    "onHit": [
+      {
+        "op": "DealDamage",
+        "target": "primary",
+        "formula": "1d4 + modDEX",
+        "damageType": "PIERCING"
+      }
+    ],
+    "onResolve": [
+      {
+        "op": "LogEvent",
+        "message": "Une fleche siffle dans l'air."
+      }
+    ]
+  }
 }
+
 

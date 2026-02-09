@@ -8,14 +8,14 @@ Ce dossier contient les definitions JSON des reactions et le modele partage.
 - visibility.first_seen
 
 ## Tests de conditions
-- actor_alive: le reacteur doit etre vivant.
-- target_alive: la cible doit etre vivante.
-- reaction_available: reaction pas encore utilisee ce tour.
-- reaction_unused_combat: reaction pas encore utilisee dans ce combat.
-- distance_max: distance a la cible <= max.
-- target_first_seen: cible vue pour la premiere fois dans ce combat.
-- target_is_closest_visible: cible la plus proche parmi les nouvelles visibles.
-- target_visible: la cible doit etre visible par le reacteur.
+- ACTOR_ALIVE: le reacteur doit etre vivant.
+- TARGET_ALIVE: la cible doit etre vivante.
+- REACTION_AVAILABLE: reaction pas encore utilisee ce tour.
+- REACTION_UNUSED_COMBAT: reaction pas encore utilisee dans ce combat.
+- DISTANCE_MAX: distance a la cible <= max.
+- TARGET_FIRST_SEEN: cible vue pour la premiere fois dans ce combat.
+- TARGET_IS_CLOSEST_VISIBLE: cible la plus proche parmi les nouvelles visibles.
+- TARGET_VISIBLE: la cible doit etre visible par le reacteur.
 
 ## Effets instantanes
 - set_killer_instinct_target: marque la cible et donne l'avantage jusqu'a sa mort.
@@ -28,3 +28,4 @@ Ce dossier contient les definitions JSON des reactions et le modele partage.
 - Mettre a jour ce README quand on ajoute un nouveau type de condition ou d'effet.
 - Les declencheurs de mouvement sont detectes sur les deplacements joueur et ennemis.
 - visibility.first_seen est evalue cote joueur quand un ennemi devient visible.
+

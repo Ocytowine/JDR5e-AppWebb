@@ -10,48 +10,49 @@
   "harmonisable": false,
   "focalisateur": false,
   "weight": 1.8,
-  "size": 1.0,
+  "size": 1,
   "value": {
     "gold": 1,
     "silver": 0,
-    "copper": 0
+    "copper": 0,
+    "platinum": 0
   },
   "rarity": "commune",
   "tags": [
     "arme",
     "melee",
-    "contondant"
+    "bludgeoning"
   ],
   "properties": {
     "finesse": false,
     "light": false,
     "heavy": false,
     "twoHanded": false,
-    "reach": 1,
+    "reach": 1.5,
     "versatile": null,
     "thrown": null,
     "ammunition": false,
     "loading": false,
     "reload": null,
     "range": {
-      "normal": 1,
-      "long": 1
+      "normal": 1.5,
+      "long": 1.5
     },
     "special": null
   },
   "attack": {
-    "mod": "mod.STR",
+    "mod": "mod.FOR",
     "bonus": "bonus_maitrise"
   },
   "damage": {
     "dice": "1d6",
-    "damageType": "Contondant",
+    "damageType": "BLUDGEONING",
     "alt": null
   },
   "effectOnHit": {
-    "mod": "mod.STR",
+    "mod": "mod.FOR",
     "damage": "1d6",
-    "damageType": "Contondant"
+    "damageType": "BLUDGEONING"
   },
   "links": {
     "actionId": "melee-strike",

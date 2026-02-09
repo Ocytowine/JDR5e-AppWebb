@@ -2,6 +2,10 @@
   "id": "move-type-id",
   "name": "Move type name",
   "summary": "Short description for the movement mode.",
+  "source": {
+    "book": "PHB2024",
+    "page": 0
+  },
   "category": "movement",
   "actionCost": {
     "actionType": "free",
@@ -12,7 +16,7 @@
     "range": {
       "min": 0,
       "max": 0,
-      "shape": "self"
+      "shape": "SPHERE"
     },
     "maxTargets": 1,
     "requiresLos": false
@@ -22,13 +26,8 @@
     "perEncounter": null,
     "resource": null
   },
+  "requirements": [],
   "conditions": [],
-  "effects": [
-    {
-      "type": "log",
-      "message": "Mode deplacement: choisissez un trajet."
-    }
-  ],
   "movement": {
     "pathLimitMultiplier": 1,
     "modeId": "walk"

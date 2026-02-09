@@ -1,4 +1,4 @@
-const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/browserAll-jExBqAfJ.js","assets/webworkerAll-DEmzzBa3.js","assets/colorToUniform-B2b8-1Ah.js","assets/WebGPURenderer-DApywaWt.js","assets/SharedSystems-BB8iyiQ6.js","assets/WebGLRenderer-BdA-1n9-.js"])))=>i.map(i=>d[i]);
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/browserAll-KyNgpSiV.js","assets/webworkerAll-BmnnHyGY.js","assets/colorToUniform-B2b8-1Ah.js","assets/WebGPURenderer-BQyCUtyU.js","assets/SharedSystems-DOsFOn6s.js","assets/WebGLRenderer-Cdh7EBoR.js"])))=>i.map(i=>d[i]);
 var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key2, value2) => key2 in obj ? __defProp(obj, key2, { enumerable: true, configurable: true, writable: true, value: value2 }) : obj[key2] = value2;
 var __publicField = (obj, key2, value2) => __defNormalProp(obj, typeof key2 !== "symbol" ? key2 + "" : key2, value2);
@@ -7085,12 +7085,10 @@ const sampleCharacter = {
   reactionIds: ["opportunity-attack", "guard-strike", "killer-instinct"],
   combatStats: {
     level: 1,
-    mods: { str: 3, dex: 2, con: 2, int: 0, wis: 1, cha: 0 },
+    mods: { modFOR: 3, modDEX: 2, modCON: 2, modINT: 0, modSAG: 1, modCHA: 0 },
     maxHp: 12,
     armorClass: 16,
     attackBonus: 5,
-    attackDamage: 6,
-    attackRange: 1,
     maxAttacksPerTurn: 1,
     actionsPerTurn: 1,
     bonusActionsPerTurn: 1,
@@ -7123,7 +7121,7 @@ const sampleCharacter = {
   besoin: [],
   percPassive: 11,
   proficiencies: {
-    weapons: [],
+    weapons: ["simple", "martiale"],
     armors: [],
     tools: []
   },
@@ -7391,6 +7389,15 @@ function getClosestCellToPoint(point, cells) {
 function getClosestFootprintCellToPoint(point, token) {
   const cells = getTokenOccupiedCells(token);
   return getClosestCellToPoint(point, cells);
+}
+const CELL_SIZE_M = 1.5;
+function metersToCells(meters) {
+  if (!Number.isFinite(meters)) return 0;
+  return Math.max(0, Math.round(meters / CELL_SIZE_M));
+}
+function cellsToMeters(cells) {
+  if (!Number.isFinite(cells)) return 0;
+  return cells * CELL_SIZE_M;
 }
 const GRID_COLS = 12;
 const GRID_ROWS = 8;
@@ -7890,7 +7897,7 @@ function isLightVisible(light2, mode) {
   if (mode === "darkvision") return true;
   return light2 >= LIGHT_LEVEL_SHADOW_MIN;
 }
-const DEFAULT_VISION_RANGE = 100;
+const DEFAULT_VISION_RANGE = 150;
 const DEFAULT_CONE_VISION = {
   shape: "cone",
   range: DEFAULT_VISION_RANGE,
@@ -7915,7 +7922,8 @@ function computeVisionEffectForToken(token, playableCells) {
   const profile = getVisionProfileForToken(token);
   const facing = getFacingForToken(token);
   const id2 = `vision-${token.id}`;
-  if (profile.range <= 0) {
+  const rangeCells = metersToCells(profile.range);
+  if (rangeCells <= 0) {
     return {
       id: id2,
       type: profile.shape === "circle" ? "circle" : "cone",
@@ -7923,7 +7931,7 @@ function computeVisionEffectForToken(token, playableCells) {
     };
   }
   if (profile.shape === "circle") {
-    return generateCircleEffect(id2, token.x, token.y, profile.range, {
+    return generateCircleEffect(id2, token.x, token.y, rangeCells, {
       playableCells: playableCells ?? null
     });
   }
@@ -7931,7 +7939,7 @@ function computeVisionEffectForToken(token, playableCells) {
     id2,
     token.x,
     token.y,
-    profile.range,
+    rangeCells,
     facing,
     profile.apertureDeg,
     { playableCells: playableCells ?? null }
@@ -8184,20 +8192,14 @@ function clamp$5(value2, min, max) {
 function distanceBetweenTokens(a2, b2) {
   const aCells = getTokenOccupiedCells(a2);
   const bCells = getTokenOccupiedCells(b2);
-  return distanceBetweenCells(aCells, bCells);
+  return cellsToMeters(distanceBetweenCells(aCells, bCells));
 }
 function distanceFromPointToToken(point, token) {
   const cells = getTokenOccupiedCells(token);
-  return distanceToCells(point, cells);
+  return cellsToMeters(distanceToCells(point, cells));
 }
 function isTokenDead(token) {
   return token.hp <= 0;
-}
-function getAttackRangeForToken(token) {
-  if (typeof token.attackRange === "number" && token.attackRange > 0) {
-    return token.attackRange;
-  }
-  return 1;
 }
 function canEnemySeePlayer(enemy, playerToken, allTokens, opaqueCells, playableCells, wallVisionEdges, lightLevels, grid) {
   if (isTokenDead(enemy) || isTokenDead(playerToken)) return false;
@@ -8229,6 +8231,89 @@ function computeFacingTowards(from, to) {
   if (dx < 0 && dy > 0) return "down-left";
   return "up-left";
 }
+function resolveNumberVar(varName, ctx) {
+  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B, _C, _D, _E, _F, _G, _H, _I, _J, _K, _L, _M, _N, _O, _P, _Q, _R;
+  const actor = ctx.actor;
+  const stats = actor.combatStats;
+  const token = varName.toLowerCase();
+  const computeModFromScore = (score) => {
+    if (!Number.isFinite(score)) return 0;
+    return Math.floor((Number(score) - 10) / 2);
+  };
+  const pickNumber = (...values) => {
+    for (const value2 of values) {
+      if (typeof value2 === "number" && Number.isFinite(value2)) return value2;
+    }
+    return 0;
+  };
+  if (token === "attackbonus") {
+    return typeof (stats == null ? void 0 : stats.attackBonus) === "number" ? stats.attackBonus : 0;
+  }
+  if (token === "moverange") {
+    return typeof (stats == null ? void 0 : stats.moveRange) === "number" ? stats.moveRange : typeof actor.moveRange === "number" ? actor.moveRange : typeof ((_a = actor.movementProfile) == null ? void 0 : _a.speed) === "number" ? actor.movementProfile.speed : 0;
+  }
+  if (token === "level" || token === "niveau") {
+    const level2 = Number((stats == null ? void 0 : stats.level) ?? ((_b = ctx.sampleCharacter) == null ? void 0 : _b.niveauGlobal) ?? 1);
+    return Number.isFinite(level2) ? level2 : 1;
+  }
+  if (token === "modfor") {
+    const mod = pickNumber(
+      (_c = stats == null ? void 0 : stats.mods) == null ? void 0 : _c.modFOR,
+      (_f = (_e = (_d = ctx.sampleCharacter) == null ? void 0 : _d.caracs) == null ? void 0 : _e.force) == null ? void 0 : _f.modFOR,
+      computeModFromScore((_i = (_h = (_g = ctx.sampleCharacter) == null ? void 0 : _g.caracs) == null ? void 0 : _h.force) == null ? void 0 : _i.FOR)
+    );
+    return Number.isFinite(mod) ? mod : 0;
+  }
+  if (token === "moddex") {
+    const mod = pickNumber(
+      (_j = stats == null ? void 0 : stats.mods) == null ? void 0 : _j.modDEX,
+      (_m = (_l = (_k = ctx.sampleCharacter) == null ? void 0 : _k.caracs) == null ? void 0 : _l.dexterite) == null ? void 0 : _m.modDEX,
+      computeModFromScore((_p = (_o = (_n = ctx.sampleCharacter) == null ? void 0 : _n.caracs) == null ? void 0 : _o.dexterite) == null ? void 0 : _p.DEX)
+    );
+    return Number.isFinite(mod) ? mod : 0;
+  }
+  if (token === "modcon") {
+    const mod = pickNumber(
+      (_q = stats == null ? void 0 : stats.mods) == null ? void 0 : _q.modCON,
+      (_t = (_s = (_r = ctx.sampleCharacter) == null ? void 0 : _r.caracs) == null ? void 0 : _s.constitution) == null ? void 0 : _t.modCON,
+      computeModFromScore((_w = (_v = (_u = ctx.sampleCharacter) == null ? void 0 : _u.caracs) == null ? void 0 : _v.constitution) == null ? void 0 : _w.CON)
+    );
+    return Number.isFinite(mod) ? mod : 0;
+  }
+  if (token === "modint") {
+    const mod = pickNumber(
+      (_x = stats == null ? void 0 : stats.mods) == null ? void 0 : _x.modINT,
+      (_A = (_z = (_y = ctx.sampleCharacter) == null ? void 0 : _y.caracs) == null ? void 0 : _z.intelligence) == null ? void 0 : _A.modINT,
+      computeModFromScore((_D = (_C = (_B = ctx.sampleCharacter) == null ? void 0 : _B.caracs) == null ? void 0 : _C.intelligence) == null ? void 0 : _D.INT)
+    );
+    return Number.isFinite(mod) ? mod : 0;
+  }
+  if (token === "modsag") {
+    const mod = pickNumber(
+      (_E = stats == null ? void 0 : stats.mods) == null ? void 0 : _E.modSAG,
+      (_H = (_G = (_F = ctx.sampleCharacter) == null ? void 0 : _F.caracs) == null ? void 0 : _G.sagesse) == null ? void 0 : _H.modSAG,
+      computeModFromScore((_K = (_J = (_I = ctx.sampleCharacter) == null ? void 0 : _I.caracs) == null ? void 0 : _J.sagesse) == null ? void 0 : _K.SAG)
+    );
+    return Number.isFinite(mod) ? mod : 0;
+  }
+  if (token === "modcha") {
+    const mod = pickNumber(
+      (_L = stats == null ? void 0 : stats.mods) == null ? void 0 : _L.modCHA,
+      (_O = (_N = (_M = ctx.sampleCharacter) == null ? void 0 : _M.caracs) == null ? void 0 : _N.charisme) == null ? void 0 : _O.modCHA,
+      computeModFromScore((_R = (_Q = (_P = ctx.sampleCharacter) == null ? void 0 : _P.caracs) == null ? void 0 : _Q.charisme) == null ? void 0 : _R.CHA)
+    );
+    return Number.isFinite(mod) ? mod : 0;
+  }
+  return null;
+}
+function resolveFormula(formula, ctx) {
+  const raw = String(formula ?? "");
+  if (!raw.trim()) return "0";
+  return raw.replace(/[A-Za-z_][A-Za-z0-9_]*/g, (token) => {
+    const value2 = resolveNumberVar(token, ctx);
+    return value2 === null ? token : String(value2);
+  });
+}
 const types$c = ["./brute.json", "./archer.json", "./assassin.json", "./ghost.json"];
 const enemyTypesIndex = {
   types: types$c
@@ -8239,14 +8324,16 @@ const description$F = "Frontliner robuste qui avance pour engager le joueur.";
 const aiRole$3 = "brute";
 const actions$4 = ["move", "melee-strike"];
 const reactionIds$3 = ["opportunity-attack"];
-const combatProfile$3 = { "primaryStyle": "melee", "allowedStyles": ["melee"], "preferredAbilities": ["str"], "preferredRangeMin": 1, "preferredRangeMax": 1, "intelligence": 1, "awareness": 1, "tactics": ["hold_line"] };
-const behavior$9 = { "preferredRangeMin": 1, "preferredRangeMax": 1, "panicRange": 0 };
+const armesDefaut$3 = { "main_droite": "hache-bataille", "main_gauche": null, "mains": null };
+const proficiencies$5 = { "weapons": ["martiale"], "armors": [] };
+const combatProfile$3 = { "primaryStyle": "melee", "allowedStyles": ["melee"], "preferredAbilities": ["FOR"], "preferredRangeMin": 1.5, "preferredRangeMax": 1.5, "intelligence": 1, "awareness": 1, "tactics": ["hold_line"] };
+const behavior$9 = { "preferredRangeMin": 1.5, "preferredRangeMax": 1.5, "panicRange": 0 };
 const speechProfile$3 = { "raceOrOrigin": "Brute mercenaire", "register": "familier", "tone": ["agressif", "direct", "impatient"], "vocabulary": ["charge", "ecrase", "avance", "finissons-en"], "quirks": ["phrases courtes", "menaces simples"], "taboos": ["pas de modernisme", "pas de meta-jeu"] };
-const combatStats$3 = { "level": 1, "mods": { "str": 0, "dex": 0, "con": 0, "int": 0, "wis": 0, "cha": 0 }, "maxHp": 10, "armorClass": 14, "attackBonus": 0, "attackDamage": 2, "attackRange": 1, "maxAttacksPerTurn": 2, "actionsPerTurn": 1, "bonusActionsPerTurn": 0, "resources": {} };
+const combatStats$3 = { "level": 1, "mods": { "modFOR": 0, "modDEX": 0, "modCON": 0, "modINT": 0, "modSAG": 0, "modCHA": 0 }, "maxHp": 10, "armorClass": 14, "attackBonus": 0, "maxAttacksPerTurn": 2, "actionsPerTurn": 1, "bonusActionsPerTurn": 0, "resources": {} };
 const appearance$t = { "spriteKey": "brute", "tokenScale": 100 };
-const movementModes$3 = { "walk": 3 };
-const movement$5 = { "type": "ground", "speed": 3, "canPassThroughWalls": false, "canPassThroughEntities": false, "canStopOnOccupiedTile": false };
-const vision$5 = { "shape": "cone", "range": 100, "apertureDeg": 180, "canSeeInDark": false, "lightVision": "normal" };
+const movementModes$3 = { "walk": 4.5 };
+const movement$5 = { "type": "ground", "speed": 4.5, "canPassThroughWalls": false, "canPassThroughEntities": false, "canStopOnOccupiedTile": false };
+const vision$5 = { "shape": "cone", "range": 150, "apertureDeg": 180, "canSeeInDark": false, "lightVision": "normal" };
 const bruteType = {
   id: id$2a,
   label: label$1O,
@@ -8254,6 +8341,8 @@ const bruteType = {
   aiRole: aiRole$3,
   actions: actions$4,
   reactionIds: reactionIds$3,
+  armesDefaut: armesDefaut$3,
+  proficiencies: proficiencies$5,
   combatProfile: combatProfile$3,
   behavior: behavior$9,
   speechProfile: speechProfile$3,
@@ -8269,14 +8358,16 @@ const description$E = "Tireur qui prefere garder une distance de securite avant 
 const aiRole$2 = "archer";
 const actions$3 = ["move", "bow-shot", "melee-strike"];
 const reactionIds$2 = ["guard-strike"];
-const combatProfile$2 = { "primaryStyle": "ranged", "allowedStyles": ["ranged", "melee"], "preferredAbilities": ["dex"], "preferredRangeMin": 3, "preferredRangeMax": 6, "avoidRangeMin": 0, "avoidRangeMax": 2, "intelligence": 1, "awareness": 1, "tactics": ["avoid_opportunity", "poke_from_range"] };
-const behavior$8 = { "preferredRangeMin": 3, "preferredRangeMax": 6, "panicRange": 2 };
+const armesDefaut$2 = { "main_droite": "arc-long", "main_gauche": null, "mains": null };
+const proficiencies$4 = { "weapons": ["martiale"], "armors": [] };
+const combatProfile$2 = { "primaryStyle": "ranged", "allowedStyles": ["ranged", "melee"], "preferredAbilities": ["DEX"], "preferredRangeMin": 4.5, "preferredRangeMax": 9, "avoidRangeMin": 0, "avoidRangeMax": 3, "intelligence": 1, "awareness": 1, "tactics": ["avoid_opportunity", "poke_from_range"] };
+const behavior$8 = { "preferredRangeMin": 4.5, "preferredRangeMax": 9, "panicRange": 3 };
 const speechProfile$2 = { "raceOrOrigin": "Archer de bande", "register": "neutre", "tone": ["tactique", "moqueur", "vigilant"], "vocabulary": ["a couvert", "recule", "je l'ai en vue", "distance"], "quirks": ["annonce ce qu'il voit", "donne des consignes courtes"], "taboos": ["pas de modernisme", "pas de meta-jeu"] };
-const combatStats$2 = { "level": 1, "mods": { "str": 0, "dex": 0, "con": 0, "int": 0, "wis": 0, "cha": 0 }, "maxHp": 7, "armorClass": 13, "attackBonus": 0, "attackDamage": 2, "attackRange": 6, "maxAttacksPerTurn": 1, "actionsPerTurn": 1, "bonusActionsPerTurn": 0, "resources": {} };
+const combatStats$2 = { "level": 1, "mods": { "modFOR": 0, "modDEX": 0, "modCON": 0, "modINT": 0, "modSAG": 0, "modCHA": 0 }, "maxHp": 7, "armorClass": 13, "attackBonus": 0, "maxAttacksPerTurn": 1, "actionsPerTurn": 1, "bonusActionsPerTurn": 0, "resources": {} };
 const appearance$s = { "spriteKey": "archer", "tokenScale": 100 };
-const movementModes$2 = { "walk": 2 };
-const movement$4 = { "type": "ground", "speed": 2, "canPassThroughWalls": false, "canPassThroughEntities": false, "canStopOnOccupiedTile": false };
-const vision$4 = { "shape": "cone", "range": 100, "apertureDeg": 180, "canSeeInDark": false, "lightVision": "normal" };
+const movementModes$2 = { "walk": 3 };
+const movement$4 = { "type": "ground", "speed": 3, "canPassThroughWalls": false, "canPassThroughEntities": false, "canStopOnOccupiedTile": false };
+const vision$4 = { "shape": "cone", "range": 150, "apertureDeg": 180, "canSeeInDark": false, "lightVision": "normal" };
 const archerType = {
   id: id$29,
   label: label$1N,
@@ -8284,6 +8375,8 @@ const archerType = {
   aiRole: aiRole$2,
   actions: actions$3,
   reactionIds: reactionIds$2,
+  armesDefaut: armesDefaut$2,
+  proficiencies: proficiencies$4,
   combatProfile: combatProfile$2,
   behavior: behavior$8,
   speechProfile: speechProfile$2,
@@ -8299,14 +8392,16 @@ const description$D = "Frappeur rapide qui cherche a se rapprocher pour porter u
 const aiRole$1 = "assassin";
 const actions$2 = ["move", "melee-strike"];
 const reactionIds$1 = ["opportunity-attack"];
-const combatProfile$1 = { "primaryStyle": "melee", "allowedStyles": ["melee"], "preferredAbilities": ["dex"], "preferredRangeMin": 1, "preferredRangeMax": 1, "intelligence": 2, "awareness": 1, "tactics": ["flank", "avoid_opportunity"] };
-const behavior$7 = { "preferredRangeMin": 1, "preferredRangeMax": 1, "panicRange": 0 };
+const armesDefaut$1 = { "main_droite": "dague", "main_gauche": null, "mains": null };
+const proficiencies$3 = { "weapons": ["simple"], "armors": [] };
+const combatProfile$1 = { "primaryStyle": "melee", "allowedStyles": ["melee"], "preferredAbilities": ["DEX"], "preferredRangeMin": 1.5, "preferredRangeMax": 1.5, "intelligence": 2, "awareness": 1, "tactics": ["flank", "avoid_opportunity"] };
+const behavior$7 = { "preferredRangeMin": 1.5, "preferredRangeMax": 1.5, "panicRange": 0 };
 const speechProfile$1 = { "raceOrOrigin": "Assassin", "register": "soutenu", "tone": ["froid", "tranchant", "calme"], "vocabulary": ["silence", "cible", "dans l'ombre", "fin"], "quirks": ["parle peu", "phrases courtes et precises"], "taboos": ["pas de modernisme", "pas de meta-jeu"] };
-const combatStats$1 = { "level": 1, "mods": { "str": 0, "dex": 0, "con": 0, "int": 0, "wis": 0, "cha": 0 }, "maxHp": 6, "armorClass": 15, "attackBonus": 0, "attackDamage": 3, "attackRange": 1, "maxAttacksPerTurn": 1, "actionsPerTurn": 1, "bonusActionsPerTurn": 0, "resources": {} };
+const combatStats$1 = { "level": 1, "mods": { "modFOR": 0, "modDEX": 0, "modCON": 0, "modINT": 0, "modSAG": 0, "modCHA": 0 }, "maxHp": 6, "armorClass": 15, "attackBonus": 0, "maxAttacksPerTurn": 1, "actionsPerTurn": 1, "bonusActionsPerTurn": 0, "resources": {} };
 const appearance$r = { "spriteKey": "assassin", "tokenScale": 100 };
-const movementModes$1 = { "walk": 3 };
-const movement$3 = { "type": "ground", "speed": 3, "canPassThroughWalls": false, "canPassThroughEntities": true, "canStopOnOccupiedTile": false };
-const vision$3 = { "shape": "cone", "range": 100, "apertureDeg": 180, "canSeeInDark": false, "lightVision": "normal" };
+const movementModes$1 = { "walk": 4.5 };
+const movement$3 = { "type": "ground", "speed": 4.5, "canPassThroughWalls": false, "canPassThroughEntities": true, "canStopOnOccupiedTile": false };
+const vision$3 = { "shape": "cone", "range": 150, "apertureDeg": 180, "canSeeInDark": false, "lightVision": "normal" };
 const assassinType = {
   id: id$28,
   label: label$1M,
@@ -8314,6 +8409,8 @@ const assassinType = {
   aiRole: aiRole$1,
   actions: actions$2,
   reactionIds: reactionIds$1,
+  armesDefaut: armesDefaut$1,
+  proficiencies: proficiencies$3,
   combatProfile: combatProfile$1,
   behavior: behavior$7,
   speechProfile: speechProfile$1,
@@ -8329,14 +8426,16 @@ const description$C = "Esprit intangible capable de traverser les autres creatur
 const aiRole = "ghost";
 const actions$1 = ["move", "melee-strike"];
 const reactionIds = ["guard-strike"];
-const combatProfile = { "primaryStyle": "melee", "allowedStyles": ["melee"], "preferredAbilities": ["wis"], "preferredRangeMin": 1, "preferredRangeMax": 1, "intelligence": 1, "awareness": 1, "tactics": ["haunt"] };
-const behavior$6 = { "preferredRangeMin": 1, "preferredRangeMax": 1, "panicRange": 0 };
+const armesDefaut = { "main_droite": null, "main_gauche": null, "mains": null };
+const proficiencies$2 = { "weapons": [], "armors": [] };
+const combatProfile = { "primaryStyle": "melee", "allowedStyles": ["melee"], "preferredAbilities": ["SAG"], "preferredRangeMin": 1.5, "preferredRangeMax": 1.5, "intelligence": 1, "awareness": 1, "tactics": ["haunt"] };
+const behavior$6 = { "preferredRangeMin": 1.5, "preferredRangeMax": 1.5, "panicRange": 0 };
 const speechProfile = { "raceOrOrigin": "Esprit vengeur", "register": "soutenu", "tone": ["cryptique", "mena??ant", "surnaturel"], "vocabulary": ["je te sens", "au-dela", "froideur", "souffle"], "quirks": ["parle en images", "phrases etranges mais courtes"], "taboos": ["pas de modernisme", "pas de meta-jeu"] };
-const combatStats = { "level": 1, "mods": { "str": 0, "dex": 0, "con": 0, "int": 0, "wis": 0, "cha": 0 }, "maxHp": 8, "armorClass": 12, "attackBonus": 0, "attackDamage": 3, "attackRange": 1, "maxAttacksPerTurn": 1, "actionsPerTurn": 1, "bonusActionsPerTurn": 0, "resources": {} };
+const combatStats = { "level": 1, "mods": { "modFOR": 0, "modDEX": 0, "modCON": 0, "modINT": 0, "modSAG": 0, "modCHA": 0 }, "maxHp": 8, "armorClass": 12, "attackBonus": 0, "maxAttacksPerTurn": 1, "actionsPerTurn": 1, "bonusActionsPerTurn": 0, "resources": {} };
 const appearance$q = { "spriteKey": "ghost", "tokenScale": 100 };
-const movementModes = { "ghost": 4 };
-const movement$2 = { "type": "ghost", "speed": 4, "canPassThroughWalls": true, "canPassThroughEntities": true, "canStopOnOccupiedTile": false };
-const vision$2 = { "shape": "circle", "range": 100, "canSeeInDark": true, "lightVision": "darkvision" };
+const movementModes = { "ghost": 6 };
+const movement$2 = { "type": "ghost", "speed": 6, "canPassThroughWalls": true, "canPassThroughEntities": true, "canStopOnOccupiedTile": false };
+const vision$2 = { "shape": "circle", "range": 150, "canSeeInDark": true, "lightVision": "darkvision" };
 const ghostType = {
   id: id$27,
   label: label$1L,
@@ -8344,6 +8443,8 @@ const ghostType = {
   aiRole,
   actions: actions$1,
   reactionIds,
+  armesDefaut,
+  proficiencies: proficiencies$2,
   combatProfile,
   behavior: behavior$6,
   speechProfile,
@@ -8605,7 +8706,6 @@ const blocking$b = { "movement": false, "vision": false, "attacks": false };
 const durability$b = { "destructible": true, "maxHp": 3, "ac": 10 };
 const variants$b = [{ "id": "base", "label": "Torche", "footprint": [{ "x": 0, "y": 0 }], "rotatable": true }];
 const appearance$d = { "layers": [{ "id": "flame", "spriteKey": "effect:fire", "animationSpeed": 0.2, "scale": 0.55 }], "heightClass": "low", "tokenScale": { "min": 80, "default": 100, "max": 150 } };
-const effects$n = [{ "id": "fire", "enabled": true }];
 const spawnRules$4 = { "weight": 1, "cluster": { "min": 1, "max": 4 }, "shapeHint": "line", "avoidNearTokens": false };
 const torchWall = {
   id: id$1W,
@@ -8616,7 +8716,6 @@ const torchWall = {
   durability: durability$b,
   variants: variants$b,
   appearance: appearance$d,
-  effects: effects$n,
   spawnRules: spawnRules$4
 };
 const id$1V = "brazier";
@@ -8629,7 +8728,6 @@ const variants$a = [{ "id": "base", "label": "Brasero", "footprint": [{ "x": 0, 
 const appearance$c = { "layers": [{ "id": "base", "spriteKey": "obstacle:brazier" }, { "id": "flame", "spriteKey": "effect:fire", "animationSpeed": 0.2, "scale": 0.8 }], "tokenScale": { "default": 80 } };
 const litByDefault = true;
 const interactions = [{ "id": "brazier-light", "label": "Allumer", "kind": "toggle", "cost": "bonus", "setLit": true }, { "id": "brazier-extinguish", "label": "Eteindre", "kind": "toggle", "cost": "bonus", "setLit": false }];
-const effects$m = [{ "id": "fire", "enabled": true }];
 const spawnRules$3 = { "weight": 1, "cluster": { "min": 1, "max": 2 }, "shapeHint": "room", "avoidNearTokens": true };
 const brazier = {
   id: id$1V,
@@ -8642,7 +8740,6 @@ const brazier = {
   appearance: appearance$c,
   litByDefault,
   interactions,
-  effects: effects$m,
   spawnRules: spawnRules$3
 };
 const id$1U = "fire-only";
@@ -8653,7 +8750,6 @@ const blocking$9 = { "movement": false, "vision": false, "attacks": false };
 const durability$9 = { "destructible": false, "maxHp": 1 };
 const variants$9 = [{ "id": "base", "label": "Feu", "footprint": [{ "x": 0, "y": 0 }], "rotatable": false }];
 const appearance$b = { "layers": [{ "id": "flame", "spriteKey": "effect:fire", "animationSpeed": 0.2, "scale": 0.9 }], "heightClass": "low" };
-const effects$l = [{ "id": "fire", "enabled": true }];
 const fireOnly = {
   id: id$1U,
   label: label$1w,
@@ -8662,8 +8758,7 @@ const fireOnly = {
   blocking: blocking$9,
   durability: durability$9,
   variants: variants$9,
-  appearance: appearance$b,
-  effects: effects$l
+  appearance: appearance$b
 };
 const id$1T = "pillar-stone";
 const label$1v = "Pilier de pierre";
@@ -9158,8 +9253,8 @@ const summary$n = "Strike a hostile that leaves your reach.";
 const uiMessage$1 = "Vous avez subi une attaque d opportunite.";
 const uiMessageMiss$4 = "Vous avez evite une attaque d opportunite.";
 const trigger$2 = { "event": "movement.leave_reach", "source": "hostile" };
-const conditions$b = [{ "type": "actor_alive", "reason": "Reactor must be alive." }, { "type": "reaction_available", "reason": "Reaction already used." }, { "type": "target_visible", "reason": "Target not visible." }];
-const action$2 = { "id": "reaction-opportunity-attack", "name": "Opportunity Attack", "summary": "Melee strike triggered by a fleeing target.", "category": "reaction", "actionCost": { "actionType": "reaction", "movementCost": 0 }, "targeting": { "target": "hostile", "range": { "min": 0, "max": 1, "shape": "single" }, "maxTargets": 1, "requiresLos": true }, "usage": { "perTurn": 1, "perEncounter": null, "resource": null }, "conditions": [{ "type": "target_alive", "target": "primary", "reason": "Target must be alive." }], "attack": { "bonus": 5, "critRange": 20 }, "damage": { "formula": "attackDamage", "critRule": "double-dice", "damageType": "slashing" }, "effects": [{ "type": "damage", "target": "primary", "formula": "attackDamage", "damageType": "slashing" }, { "type": "log", "message": "Opportunity attack triggered." }], "tags": ["reaction", "melee", "opportunity"] };
+const conditions$b = [{ "type": "ACTOR_ALIVE", "reason": "Reactor must be alive." }, { "type": "REACTION_AVAILABLE", "reason": "Reaction already used." }, { "type": "TARGET_VISIBLE", "reason": "Target not visible." }];
+const action$2 = { "id": "reaction-opportunity-attack", "name": "Opportunity Attack", "summary": "Melee strike triggered by a fleeing target.", "category": "reaction", "actionCost": { "actionType": "reaction", "movementCost": 0 }, "targeting": { "target": "hostile", "range": { "min": 0, "max": 1.5, "shape": "SPHERE" }, "maxTargets": 1, "requiresLos": true }, "usage": { "perTurn": 1, "perEncounter": null, "resource": null }, "conditions": [{ "type": "TARGET_ALIVE", "target": "primary", "reason": "Target must be alive." }], "attack": { "bonus": 5, "critRange": 20 }, "damage": { "formula": "1d4 + modFOR", "critRule": "double-dice", "damageType": "SLASHING" }, "resolution": { "kind": "ATTACK_ROLL", "bonus": 5, "critRange": 20, "critRule": "double-dice" }, "ops": { "onHit": [{ "op": "DealDamage", "target": "primary", "formula": "1d4 + modFOR", "damageType": "SLASHING" }, { "op": "DealDamage", "target": "primary", "formula": "1d4 + modFOR", "damageType": "SLASHING" }], "onResolve": [{ "op": "LogEvent", "message": "Opportunity attack triggered." }] }, "tags": ["reaction", "melee", "opportunity"] };
 const tags$1e = ["reaction"];
 const opportunityAttack = {
   id: id$1z,
@@ -9178,8 +9273,8 @@ const summary$m = "Strike a hostile that enters your reach.";
 const uiMessage = "Vous avez subi une attaque de garde.";
 const uiMessageMiss$3 = "Vous avez evite une attaque de garde.";
 const trigger$1 = { "event": "movement.enter_reach", "source": "hostile" };
-const conditions$a = [{ "type": "actor_alive", "reason": "Reactor must be alive." }, { "type": "reaction_available", "reason": "Reaction already used." }];
-const action$1 = { "id": "reaction-guard-strike", "name": "Guard Strike", "summary": "Prepared strike when a hostile closes in.", "category": "reaction", "actionCost": { "actionType": "reaction", "movementCost": 0 }, "targeting": { "target": "hostile", "range": { "min": 0, "max": 1, "shape": "single" }, "maxTargets": 1, "requiresLos": true }, "usage": { "perTurn": 1, "perEncounter": null, "resource": null }, "conditions": [{ "type": "target_alive", "target": "primary", "reason": "Target must be alive." }], "attack": { "bonus": 4, "critRange": 20 }, "damage": { "formula": "attackDamage", "critRule": "double-dice", "damageType": "piercing" }, "effects": [{ "type": "damage", "target": "primary", "formula": "attackDamage", "damageType": "piercing" }, { "type": "log", "message": "Guard strike triggered." }], "tags": ["reaction", "melee", "guard"] };
+const conditions$a = [{ "type": "ACTOR_ALIVE", "reason": "Reactor must be alive." }, { "type": "REACTION_AVAILABLE", "reason": "Reaction already used." }];
+const action$1 = { "id": "reaction-guard-strike", "name": "Guard Strike", "summary": "Prepared strike when a hostile closes in.", "category": "reaction", "actionCost": { "actionType": "reaction", "movementCost": 0 }, "targeting": { "target": "hostile", "range": { "min": 0, "max": 1.5, "shape": "SPHERE" }, "maxTargets": 1, "requiresLos": true }, "usage": { "perTurn": 1, "perEncounter": null, "resource": null }, "conditions": [{ "type": "TARGET_ALIVE", "target": "primary", "reason": "Target must be alive." }], "attack": { "bonus": 4, "critRange": 20 }, "damage": { "formula": "1d4 + modFOR", "critRule": "double-dice", "damageType": "PIERCING" }, "tags": ["reaction", "melee", "guard"], "ops": { "onHit": [{ "op": "DealDamage", "target": "primary", "formula": "1d4 + modFOR", "damageType": "PIERCING" }], "onResolve": [{ "op": "LogEvent", "message": "Guard strike triggered." }] } };
 const tags$1d = ["reaction"];
 const guardStrike = {
   id: id$1y,
@@ -9196,8 +9291,8 @@ const id$1x = "killer-instinct";
 const name$z = "Instinct de tueur";
 const summary$l = "Marque la premiere cible visible et accorde l'avantage jusqu'a sa mort.";
 const trigger = { "event": "visibility.first_seen", "source": "enemy" };
-const conditions$9 = [{ "type": "actor_alive", "reason": "Reactor must be alive." }, { "type": "reaction_unused_combat", "reason": "Deja utilise ce combat." }, { "type": "target_alive", "reason": "Target must be alive." }, { "type": "target_first_seen", "reason": "Target already revealed." }, { "type": "target_is_closest_visible", "reason": "Target not closest." }];
-const action = { "id": "reaction-killer-instinct", "name": "Instinct de tueur", "summary": "Marquer la cible pour avantage permanent.", "category": "reaction", "actionCost": { "actionType": "reaction", "movementCost": 0 }, "targeting": { "target": "hostile", "range": { "min": 0, "max": 99, "shape": "single" }, "maxTargets": 1, "requiresLos": true }, "usage": { "perTurn": 1, "perEncounter": null, "resource": null }, "conditions": [], "effects": [{ "type": "set_killer_instinct_target" }, { "type": "log", "message": "Instinct de tueur: cible marquee." }], "tags": ["reaction", "passive"] };
+const conditions$9 = [{ "type": "ACTOR_ALIVE", "reason": "Reactor must be alive." }, { "type": "REACTION_UNUSED_COMBAT", "reason": "Deja utilise ce combat." }, { "type": "TARGET_ALIVE", "reason": "Target must be alive." }, { "type": "TARGET_FIRST_SEEN", "reason": "Target already revealed." }, { "type": "TARGET_IS_CLOSEST_VISIBLE", "reason": "Target not closest." }];
+const action = { "id": "reaction-killer-instinct", "name": "Instinct de tueur", "summary": "Marquer la cible pour avantage permanent.", "category": "reaction", "actionCost": { "actionType": "reaction", "movementCost": 0 }, "targeting": { "target": "hostile", "range": { "min": 0, "max": 148.5, "shape": "SPHERE" }, "maxTargets": 1, "requiresLos": true }, "usage": { "perTurn": 1, "perEncounter": null, "resource": null }, "conditions": [], "tags": ["reaction", "passive"], "ops": { "onResolve": [{ "op": "SetKillerInstinctTarget", "target": "primary" }, { "op": "LogEvent", "message": "Instinct de tueur: cible marquee." }] } };
 const tags$1c = ["reaction", "visibility"];
 const killerInstinct = {
   id: id$1x,
@@ -9230,29 +9325,29 @@ function loadReactionTypesFromIndex() {
   return loaded;
 }
 const DAMAGE_TYPE_ALIASES = {
-  slashing: "slashing",
-  tranchant: "slashing",
-  piercing: "piercing",
-  perforant: "piercing",
-  bludgeoning: "bludgeoning",
-  contondant: "bludgeoning",
-  fire: "fire",
-  feu: "fire",
-  cold: "cold",
-  froid: "cold",
-  acid: "acid",
-  acide: "acid",
-  lightning: "lightning",
-  foudre: "lightning",
-  poison: "poison",
-  thunder: "thunder",
-  tonnerre: "thunder",
-  force: "force",
-  radiant: "radiant",
-  necrotic: "necrotic",
-  necrotique: "necrotic",
-  psychic: "psychic",
-  psychique: "psychic"
+  slashing: "SLASHING",
+  tranchant: "SLASHING",
+  piercing: "PIERCING",
+  perforant: "PIERCING",
+  bludgeoning: "BLUDGEONING",
+  contondant: "BLUDGEONING",
+  fire: "FIRE",
+  feu: "FIRE",
+  cold: "COLD",
+  froid: "COLD",
+  acid: "ACID",
+  acide: "ACID",
+  lightning: "LIGHTNING",
+  foudre: "LIGHTNING",
+  poison: "POISON",
+  thunder: "THUNDER",
+  tonnerre: "THUNDER",
+  force: "FORCE",
+  radiant: "RADIANT",
+  necrotic: "NECROTIC",
+  necrotique: "NECROTIC",
+  psychic: "PSYCHIC",
+  psychique: "PSYCHIC"
 };
 function normalizeKey(value2) {
   return value2.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -9273,18 +9368,18 @@ const subtype$d = "martiale";
 const category$_ = "distance";
 const descriptionCourte$d = "Arc puissant a longue portee.";
 const descriptionLongue$d = "";
-const allow_stack$d = false;
+const allowStack$d = false;
 const harmonisable$d = false;
 const focalisateur$d = false;
 const weight$A = 1.5;
 const size$g = 1.2;
-const value$i = { "gold": 50, "silver": 0, "copper": 0 };
+const value$A = { "gold": 50, "silver": 0, "copper": 0, "platinum": 0 };
 const rarity$d = "commune";
-const tags$1b = ["arme", "distance", "perforant"];
-const properties$d = { "finesse": false, "light": false, "heavy": true, "two_handed": true, "reach": 0, "versatile": null, "thrown": null, "ammunition": true, "loading": false, "reload": null, "range": { "normal": 24, "long": 96 }, "special": null };
+const tags$1b = ["arme", "distance", "piercing"];
+const properties$d = { "finesse": false, "light": false, "heavy": true, "twoHanded": true, "reach": 0, "versatile": null, "thrown": null, "ammunition": true, "loading": false, "reload": null, "range": { "normal": 36, "long": 144 }, "special": null };
 const attack$h = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
-const damage$h = { "dice": "1d8", "damage_type": "Perforant", "alt": null };
-const effectOnHit$d = { "mod": "mod.DEX", "damage": "1d8", "damage_type": "Perforant" };
+const damage$h = { "dice": "1d8", "damageType": "PIERCING", "alt": null };
+const effectOnHit$d = { "mod": "mod.DEX", "damage": "1d8", "damageType": "PIERCING" };
 const links$d = { "actionId": "bow-shot", "effectId": "melee-slash" };
 const label$1b = "Arc long";
 const MartialeArcLong = {
@@ -9295,12 +9390,12 @@ const MartialeArcLong = {
   category: category$_,
   descriptionCourte: descriptionCourte$d,
   descriptionLongue: descriptionLongue$d,
-  allow_stack: allow_stack$d,
+  allowStack: allowStack$d,
   harmonisable: harmonisable$d,
   focalisateur: focalisateur$d,
   weight: weight$A,
   size: size$g,
-  value: value$i,
+  value: value$A,
   rarity: rarity$d,
   tags: tags$1b,
   properties: properties$d,
@@ -9317,18 +9412,18 @@ const subtype$c = "martiale";
 const category$Z = "melee";
 const descriptionCourte$c = "Lame d'acier polyvalente, classique.";
 const descriptionLongue$c = "";
-const allow_stack$c = false;
+const allowStack$c = false;
 const harmonisable$c = false;
 const focalisateur$c = false;
 const weight$z = 1.5;
 const size$f = 1;
-const value$h = { "gold": 15, "silver": 0, "copper": 0 };
+const value$z = { "gold": 15, "silver": 0, "copper": 0, "platinum": 0 };
 const rarity$c = "commune";
-const tags$1a = ["arme", "melee", "tranchant"];
-const properties$c = { "finesse": false, "light": false, "heavy": false, "two_handed": false, "reach": 1, "versatile": "1d10", "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": null };
-const attack$g = { "mod": "mod.STR", "bonus": "bonus_maitrise" };
-const damage$g = { "dice": "1d8", "damage_type": "Tranchant", "alt": { "dice": "1d10", "condition": "two_handed" } };
-const effectOnHit$c = { "mod": "mod.STR", "damage": "1d8", "damage_type": "Tranchant" };
+const tags$1a = ["arme", "melee", "slashing"];
+const properties$c = { "finesse": false, "light": false, "heavy": false, "twoHanded": false, "reach": 1.5, "versatile": "1d10", "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1.5, "long": 1.5 }, "special": null };
+const attack$g = { "mod": "mod.FOR", "bonus": "bonus_maitrise" };
+const damage$g = { "dice": "1d8", "damageType": "SLASHING", "alt": { "dice": "1d10", "condition": "twoHanded" } };
+const effectOnHit$c = { "mod": "mod.FOR", "damage": "1d8", "damageType": "SLASHING" };
 const links$c = { "actionId": "melee-strike", "effectId": "melee-slash" };
 const label$1a = "Epee longue";
 const MartialeEpeeLongue = {
@@ -9339,12 +9434,12 @@ const MartialeEpeeLongue = {
   category: category$Z,
   descriptionCourte: descriptionCourte$c,
   descriptionLongue: descriptionLongue$c,
-  allow_stack: allow_stack$c,
+  allowStack: allowStack$c,
   harmonisable: harmonisable$c,
   focalisateur: focalisateur$c,
   weight: weight$z,
   size: size$f,
-  value: value$h,
+  value: value$z,
   rarity: rarity$c,
   tags: tags$1a,
   properties: properties$c,
@@ -9361,18 +9456,18 @@ const subtype$b = "martiale";
 const category$Y = "melee";
 const descriptionCourte$b = "Hache lourde a double tranchant.";
 const descriptionLongue$b = "";
-const allow_stack$b = false;
+const allowStack$b = false;
 const harmonisable$b = false;
 const focalisateur$b = false;
 const weight$y = 2;
 const size$e = 1;
-const value$g = { "gold": 10, "silver": 0, "copper": 0 };
+const value$y = { "gold": 10, "silver": 0, "copper": 0, "platinum": 0 };
 const rarity$b = "commune";
-const tags$19 = ["arme", "melee", "tranchant"];
-const properties$b = { "finesse": false, "light": false, "heavy": false, "two_handed": false, "reach": 1, "versatile": "1d10", "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": null };
-const attack$f = { "mod": "mod.STR", "bonus": "bonus_maitrise" };
-const damage$f = { "dice": "1d8", "damage_type": "Tranchant", "alt": { "dice": "1d10", "condition": "two_handed" } };
-const effectOnHit$b = { "mod": "mod.STR", "damage": "1d8", "damage_type": "Tranchant" };
+const tags$19 = ["arme", "melee", "slashing"];
+const properties$b = { "finesse": false, "light": false, "heavy": false, "twoHanded": false, "reach": 1.5, "versatile": "1d10", "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1.5, "long": 1.5 }, "special": null };
+const attack$f = { "mod": "mod.FOR", "bonus": "bonus_maitrise" };
+const damage$f = { "dice": "1d8", "damageType": "SLASHING", "alt": { "dice": "1d10", "condition": "twoHanded" } };
+const effectOnHit$b = { "mod": "mod.FOR", "damage": "1d8", "damageType": "SLASHING" };
 const links$b = { "actionId": "melee-strike", "effectId": "melee-slash" };
 const label$19 = "Hache de bataille";
 const MartialeHacheBataille = {
@@ -9383,12 +9478,12 @@ const MartialeHacheBataille = {
   category: category$Y,
   descriptionCourte: descriptionCourte$b,
   descriptionLongue: descriptionLongue$b,
-  allow_stack: allow_stack$b,
+  allowStack: allowStack$b,
   harmonisable: harmonisable$b,
   focalisateur: focalisateur$b,
   weight: weight$y,
   size: size$e,
-  value: value$g,
+  value: value$y,
   rarity: rarity$b,
   tags: tags$19,
   properties: properties$b,
@@ -9405,18 +9500,18 @@ const subtype$a = "monastique";
 const category$X = "melee";
 const descriptionCourte$a = "Baton d'entrainement, polyvalent.";
 const descriptionLongue$a = "";
-const allow_stack$a = false;
+const allowStack$a = false;
 const harmonisable$a = false;
 const focalisateur$a = false;
 const weight$x = 1;
 const size$d = 1.2;
-const value$f = { "gold": 1, "silver": 0, "copper": 0 };
+const value$x = { "gold": 1, "silver": 0, "copper": 0, "platinum": 0 };
 const rarity$a = "commune";
-const tags$18 = ["arme", "melee", "contondant"];
-const properties$a = { "finesse": false, "light": false, "heavy": false, "two_handed": true, "reach": 1, "versatile": "1d8", "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": "monastic" };
-const attack$e = { "mod": "mod.STR", "bonus": "bonus_maitrise" };
-const damage$e = { "dice": "1d6", "damage_type": "Contondant", "alt": { "dice": "1d8", "condition": "two_handed" } };
-const effectOnHit$a = { "mod": "mod.STR", "damage": "1d6", "damage_type": "Contondant" };
+const tags$18 = ["arme", "melee", "bludgeoning"];
+const properties$a = { "finesse": false, "light": false, "heavy": false, "twoHanded": true, "reach": 1.5, "versatile": "1d8", "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1.5, "long": 1.5 }, "special": "monastic" };
+const attack$e = { "mod": "mod.FOR", "bonus": "bonus_maitrise" };
+const damage$e = { "dice": "1d6", "damageType": "BLUDGEONING", "alt": { "dice": "1d8", "condition": "twoHanded" } };
+const effectOnHit$a = { "mod": "mod.FOR", "damage": "1d6", "damageType": "BLUDGEONING" };
 const links$a = { "actionId": "melee-strike", "effectId": "melee-slash" };
 const label$18 = "Baton";
 const MonastiqueBaton = {
@@ -9427,12 +9522,12 @@ const MonastiqueBaton = {
   category: category$X,
   descriptionCourte: descriptionCourte$a,
   descriptionLongue: descriptionLongue$a,
-  allow_stack: allow_stack$a,
+  allowStack: allowStack$a,
   harmonisable: harmonisable$a,
   focalisateur: focalisateur$a,
   weight: weight$x,
   size: size$d,
-  value: value$f,
+  value: value$x,
   rarity: rarity$a,
   tags: tags$18,
   properties: properties$a,
@@ -9449,18 +9544,18 @@ const subtype$9 = "monastique";
 const category$W = "melee";
 const descriptionCourte$9 = "Faucille courte pour combat rapproche.";
 const descriptionLongue$9 = "";
-const allow_stack$9 = false;
+const allowStack$9 = false;
 const harmonisable$9 = false;
 const focalisateur$9 = false;
 const weight$w = 0.7;
 const size$c = 0.6;
-const value$e = { "gold": 2, "silver": 0, "copper": 0 };
+const value$w = { "gold": 2, "silver": 0, "copper": 0, "platinum": 0 };
 const rarity$9 = "commune";
-const tags$17 = ["arme", "melee", "tranchant"];
-const properties$9 = { "finesse": true, "light": true, "heavy": false, "two_handed": false, "reach": 1, "versatile": null, "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": "monastic" };
+const tags$17 = ["arme", "melee", "slashing"];
+const properties$9 = { "finesse": true, "light": true, "heavy": false, "twoHanded": false, "reach": 1.5, "versatile": null, "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1.5, "long": 1.5 }, "special": "monastic" };
 const attack$d = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
-const damage$d = { "dice": "1d6", "damage_type": "Tranchant", "alt": null };
-const effectOnHit$9 = { "mod": "mod.DEX", "damage": "1d6", "damage_type": "Tranchant" };
+const damage$d = { "dice": "1d6", "damageType": "SLASHING", "alt": null };
+const effectOnHit$9 = { "mod": "mod.DEX", "damage": "1d6", "damageType": "SLASHING" };
 const links$9 = { "actionId": "melee-strike", "effectId": "melee-slash" };
 const label$17 = "Kama";
 const MonastiqueKama = {
@@ -9471,12 +9566,12 @@ const MonastiqueKama = {
   category: category$W,
   descriptionCourte: descriptionCourte$9,
   descriptionLongue: descriptionLongue$9,
-  allow_stack: allow_stack$9,
+  allowStack: allowStack$9,
   harmonisable: harmonisable$9,
   focalisateur: focalisateur$9,
   weight: weight$w,
   size: size$c,
-  value: value$e,
+  value: value$w,
   rarity: rarity$9,
   tags: tags$17,
   properties: properties$9,
@@ -9493,18 +9588,18 @@ const subtype$8 = "monastique";
 const category$V = "melee";
 const descriptionCourte$8 = "Arme souple en bois relie par une corde.";
 const descriptionLongue$8 = "";
-const allow_stack$8 = false;
+const allowStack$8 = false;
 const harmonisable$8 = false;
 const focalisateur$8 = false;
 const weight$v = 0.8;
 const size$b = 0.8;
-const value$d = { "gold": 3, "silver": 0, "copper": 0 };
+const value$v = { "gold": 3, "silver": 0, "copper": 0, "platinum": 0 };
 const rarity$8 = "commune";
-const tags$16 = ["arme", "melee", "contondant"];
-const properties$8 = { "finesse": true, "light": true, "heavy": false, "two_handed": false, "reach": 1, "versatile": null, "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": "monastic" };
+const tags$16 = ["arme", "melee", "bludgeoning"];
+const properties$8 = { "finesse": true, "light": true, "heavy": false, "twoHanded": false, "reach": 1.5, "versatile": null, "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1.5, "long": 1.5 }, "special": "monastic" };
 const attack$c = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
-const damage$c = { "dice": "1d6", "damage_type": "Contondant", "alt": null };
-const effectOnHit$8 = { "mod": "mod.DEX", "damage": "1d6", "damage_type": "Contondant" };
+const damage$c = { "dice": "1d6", "damageType": "BLUDGEONING", "alt": null };
+const effectOnHit$8 = { "mod": "mod.DEX", "damage": "1d6", "damageType": "BLUDGEONING" };
 const links$8 = { "actionId": "melee-strike", "effectId": "melee-slash" };
 const label$16 = "Nunchaku";
 const MonastiqueNunchaku = {
@@ -9515,12 +9610,12 @@ const MonastiqueNunchaku = {
   category: category$V,
   descriptionCourte: descriptionCourte$8,
   descriptionLongue: descriptionLongue$8,
-  allow_stack: allow_stack$8,
+  allowStack: allowStack$8,
   harmonisable: harmonisable$8,
   focalisateur: focalisateur$8,
   weight: weight$v,
   size: size$b,
-  value: value$d,
+  value: value$v,
   rarity: rarity$8,
   tags: tags$16,
   properties: properties$8,
@@ -9537,18 +9632,18 @@ const subtype$7 = "simple";
 const category$U = "distance";
 const descriptionCourte$7 = "Arc leger a courte portee.";
 const descriptionLongue$7 = "";
-const allow_stack$7 = false;
+const allowStack$7 = false;
 const harmonisable$7 = false;
 const focalisateur$7 = false;
 const weight$u = 1;
 const size$a = 1;
-const value$c = { "gold": 25, "silver": 0, "copper": 0 };
+const value$u = { "gold": 25, "silver": 0, "copper": 0, "platinum": 0 };
 const rarity$7 = "commune";
-const tags$15 = ["arme", "distance", "perforant"];
-const properties$7 = { "finesse": false, "light": false, "heavy": false, "two_handed": true, "reach": 0, "versatile": null, "thrown": null, "ammunition": true, "loading": false, "reload": null, "range": { "normal": 16, "long": 64 }, "special": null };
+const tags$15 = ["arme", "distance", "piercing"];
+const properties$7 = { "finesse": false, "light": false, "heavy": false, "twoHanded": true, "reach": 0, "versatile": null, "thrown": null, "ammunition": true, "loading": false, "reload": null, "range": { "normal": 24, "long": 96 }, "special": null };
 const attack$b = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
-const damage$b = { "dice": "1d6", "damage_type": "Perforant", "alt": null };
-const effectOnHit$7 = { "mod": "mod.DEX", "damage": "1d6", "damage_type": "Perforant" };
+const damage$b = { "dice": "1d6", "damageType": "PIERCING", "alt": null };
+const effectOnHit$7 = { "mod": "mod.DEX", "damage": "1d6", "damageType": "PIERCING" };
 const links$7 = { "actionId": "bow-shot", "effectId": "melee-slash" };
 const label$15 = "Arc court";
 const SimpleArcCourt = {
@@ -9559,12 +9654,12 @@ const SimpleArcCourt = {
   category: category$U,
   descriptionCourte: descriptionCourte$7,
   descriptionLongue: descriptionLongue$7,
-  allow_stack: allow_stack$7,
+  allowStack: allowStack$7,
   harmonisable: harmonisable$7,
   focalisateur: focalisateur$7,
   weight: weight$u,
   size: size$a,
-  value: value$c,
+  value: value$u,
   rarity: rarity$7,
   tags: tags$15,
   properties: properties$7,
@@ -9581,18 +9676,18 @@ const subtype$6 = "simple";
 const category$T = "melee";
 const descriptionCourte$6 = "Une arme simple ou martiale abimee, utilisable pour l'histoire.";
 const descriptionLongue$6 = "";
-const allow_stack$6 = false;
+const allowStack$6 = false;
 const harmonisable$6 = false;
 const focalisateur$6 = false;
 const weight$t = 2;
 const size$9 = 0.8;
-const value$b = { "gold": 0, "silver": 5, "copper": 0 };
+const value$t = { "gold": 0, "silver": 5, "copper": 0, "platinum": 0 };
 const rarity$6 = "commune";
 const tags$14 = ["arme", "melee", "endommagee"];
-const properties$6 = { "finesse": false, "light": false, "heavy": false, "two_handed": false, "reach": 1, "versatile": null, "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": "abimee" };
-const attack$a = { "mod": "mod.STR", "bonus": "bonus_maitrise" };
-const damage$a = { "dice": "1d4", "damage_type": "Tranchant", "alt": null };
-const effectOnHit$6 = { "mod": "mod.STR", "damage": "1d4", "damage_type": "Tranchant" };
+const properties$6 = { "finesse": false, "light": false, "heavy": false, "twoHanded": false, "reach": 1.5, "versatile": null, "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1.5, "long": 1.5 }, "special": "abimee" };
+const attack$a = { "mod": "mod.FOR", "bonus": "bonus_maitrise" };
+const damage$a = { "dice": "1d4", "damageType": "SLASHING", "alt": null };
+const effectOnHit$6 = { "mod": "mod.FOR", "damage": "1d4", "damageType": "SLASHING" };
 const links$6 = { "actionId": "melee-strike", "effectId": "melee-slash" };
 const label$14 = "Arme endommagee";
 const SimpleArmeEndommagee = {
@@ -9603,12 +9698,12 @@ const SimpleArmeEndommagee = {
   category: category$T,
   descriptionCourte: descriptionCourte$6,
   descriptionLongue: descriptionLongue$6,
-  allow_stack: allow_stack$6,
+  allowStack: allowStack$6,
   harmonisable: harmonisable$6,
   focalisateur: focalisateur$6,
   weight: weight$t,
   size: size$9,
-  value: value$b,
+  value: value$t,
   rarity: rarity$6,
   tags: tags$14,
   properties: properties$6,
@@ -9625,18 +9720,18 @@ const subtype$5 = "simple";
 const category$S = "melee";
 const descriptionCourte$5 = "Lame courte et legere, facile a dissimuler.";
 const descriptionLongue$5 = "";
-const allow_stack$5 = false;
+const allowStack$5 = false;
 const harmonisable$5 = false;
 const focalisateur$5 = false;
 const weight$s = 0.5;
 const size$8 = 0.4;
-const value$a = { "gold": 2, "silver": 0, "copper": 0 };
+const value$s = { "gold": 2, "silver": 0, "copper": 0, "platinum": 0 };
 const rarity$5 = "commune";
-const tags$13 = ["arme", "melee", "perforant", "jet"];
-const properties$5 = { "finesse": true, "light": true, "heavy": false, "two_handed": false, "reach": 1, "versatile": null, "thrown": { "normal": 4, "long": 12 }, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": null };
+const tags$13 = ["arme", "melee", "piercing", "jet"];
+const properties$5 = { "finesse": true, "light": true, "heavy": false, "twoHanded": false, "reach": 1.5, "versatile": null, "thrown": { "normal": 6, "long": 18 }, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1.5, "long": 1.5 }, "special": null };
 const attack$9 = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
-const damage$9 = { "dice": "1d4", "damage_type": "Perforant", "alt": null };
-const effectOnHit$5 = { "mod": "mod.DEX", "damage": "1d4", "damage_type": "Perforant" };
+const damage$9 = { "dice": "1d4", "damageType": "PIERCING", "alt": null };
+const effectOnHit$5 = { "mod": "mod.DEX", "damage": "1d4", "damageType": "PIERCING" };
 const links$5 = { "actionId": "melee-strike", "effectId": "melee-slash" };
 const label$13 = "Dague";
 const SimpleDague = {
@@ -9647,12 +9742,12 @@ const SimpleDague = {
   category: category$S,
   descriptionCourte: descriptionCourte$5,
   descriptionLongue: descriptionLongue$5,
-  allow_stack: allow_stack$5,
+  allowStack: allowStack$5,
   harmonisable: harmonisable$5,
   focalisateur: focalisateur$5,
   weight: weight$s,
   size: size$8,
-  value: value$a,
+  value: value$s,
   rarity: rarity$5,
   tags: tags$13,
   properties: properties$5,
@@ -9669,18 +9764,18 @@ const subtype$4 = "simple";
 const category$R = "melee";
 const descriptionCourte$4 = "Baton lourd renforce, frappe contondante.";
 const descriptionLongue$4 = "";
-const allow_stack$4 = false;
+const allowStack$4 = false;
 const harmonisable$4 = false;
 const focalisateur$4 = false;
 const weight$r = 1.8;
 const size$7 = 1;
-const value$9 = { "gold": 1, "silver": 0, "copper": 0 };
+const value$r = { "gold": 1, "silver": 0, "copper": 0, "platinum": 0 };
 const rarity$4 = "commune";
-const tags$12 = ["arme", "melee", "contondant"];
-const properties$4 = { "finesse": false, "light": false, "heavy": false, "two_handed": false, "reach": 1, "versatile": null, "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": null };
-const attack$8 = { "mod": "mod.STR", "bonus": "bonus_maitrise" };
-const damage$8 = { "dice": "1d6", "damage_type": "Contondant", "alt": null };
-const effectOnHit$4 = { "mod": "mod.STR", "damage": "1d6", "damage_type": "Contondant" };
+const tags$12 = ["arme", "melee", "bludgeoning"];
+const properties$4 = { "finesse": false, "light": false, "heavy": false, "twoHanded": false, "reach": 1.5, "versatile": null, "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1.5, "long": 1.5 }, "special": null };
+const attack$8 = { "mod": "mod.FOR", "bonus": "bonus_maitrise" };
+const damage$8 = { "dice": "1d6", "damageType": "BLUDGEONING", "alt": null };
+const effectOnHit$4 = { "mod": "mod.FOR", "damage": "1d6", "damageType": "BLUDGEONING" };
 const links$4 = { "actionId": "melee-strike", "effectId": "melee-slash" };
 const label$12 = "Massue";
 const SimpleMassue = {
@@ -9691,12 +9786,12 @@ const SimpleMassue = {
   category: category$R,
   descriptionCourte: descriptionCourte$4,
   descriptionLongue: descriptionLongue$4,
-  allow_stack: allow_stack$4,
+  allowStack: allowStack$4,
   harmonisable: harmonisable$4,
   focalisateur: focalisateur$4,
   weight: weight$r,
   size: size$7,
-  value: value$9,
+  value: value$r,
   rarity: rarity$4,
   tags: tags$12,
   properties: properties$4,
@@ -9713,18 +9808,18 @@ const subtype$3 = "simple";
 const category$Q = "melee";
 const descriptionCourte$3 = "Petit couteau utilitaire, pas une arme de combat principale.";
 const descriptionLongue$3 = "";
-const allow_stack$3 = false;
+const allowStack$3 = false;
 const harmonisable$3 = false;
 const focalisateur$3 = false;
 const weight$q = 0.5;
 const size$6 = 0.3;
-const value$8 = { "gold": 0, "silver": 2, "copper": 0 };
+const value$q = { "gold": 0, "silver": 2, "copper": 0, "platinum": 0 };
 const rarity$3 = "commune";
-const tags$11 = ["arme", "melee", "tranchant", "improvise"];
-const properties$3 = { "finesse": true, "light": true, "heavy": false, "two_handed": false, "reach": 1, "versatile": null, "thrown": { "normal": 4, "long": 12 }, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": "utilitaire" };
+const tags$11 = ["arme", "melee", "slashing", "improvise"];
+const properties$3 = { "finesse": true, "light": true, "heavy": false, "twoHanded": false, "reach": 1.5, "versatile": null, "thrown": { "normal": 6, "long": 18 }, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1.5, "long": 1.5 }, "special": "utilitaire" };
 const attack$7 = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
-const damage$7 = { "dice": "1d4", "damage_type": "Tranchant", "alt": null };
-const effectOnHit$3 = { "mod": "mod.DEX", "damage": "1d4", "damage_type": "Tranchant" };
+const damage$7 = { "dice": "1d4", "damageType": "SLASHING", "alt": null };
+const effectOnHit$3 = { "mod": "mod.DEX", "damage": "1d4", "damageType": "SLASHING" };
 const links$3 = { "actionId": "melee-strike", "effectId": "melee-slash" };
 const label$11 = "Petit couteau";
 const SimplePetitCouteau = {
@@ -9735,12 +9830,12 @@ const SimplePetitCouteau = {
   category: category$Q,
   descriptionCourte: descriptionCourte$3,
   descriptionLongue: descriptionLongue$3,
-  allow_stack: allow_stack$3,
+  allowStack: allowStack$3,
   harmonisable: harmonisable$3,
   focalisateur: focalisateur$3,
   weight: weight$q,
   size: size$6,
-  value: value$8,
+  value: value$q,
   rarity: rarity$3,
   tags: tags$11,
   properties: properties$3,
@@ -9757,18 +9852,18 @@ const subtype$2 = "speciale";
 const category$P = "distance";
 const descriptionCourte$2 = "Arbalete a charge rapide.";
 const descriptionLongue$2 = "";
-const allow_stack$2 = false;
+const allowStack$2 = false;
 const harmonisable$2 = false;
 const focalisateur$2 = false;
 const weight$p = 2.2;
 const size$5 = 1.1;
-const value$7 = { "gold": 120, "silver": 0, "copper": 0 };
+const value$p = { "gold": 120, "silver": 0, "copper": 0, "platinum": 0 };
 const rarity$2 = "rare";
-const tags$10 = ["arme", "distance", "perforant"];
-const properties$2 = { "finesse": false, "light": false, "heavy": true, "two_handed": true, "reach": 0, "versatile": null, "thrown": null, "ammunition": true, "loading": true, "reload": 5, "range": { "normal": 20, "long": 80 }, "special": "repetition" };
+const tags$10 = ["arme", "distance", "piercing"];
+const properties$2 = { "finesse": false, "light": false, "heavy": true, "twoHanded": true, "reach": 0, "versatile": null, "thrown": null, "ammunition": true, "loading": true, "reload": 5, "range": { "normal": 30, "long": 120 }, "special": "repetition" };
 const attack$6 = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
-const damage$6 = { "dice": "1d8", "damage_type": "Perforant", "alt": null };
-const effectOnHit$2 = { "mod": "mod.DEX", "damage": "1d8", "damage_type": "Perforant" };
+const damage$6 = { "dice": "1d8", "damageType": "PIERCING", "alt": null };
+const effectOnHit$2 = { "mod": "mod.DEX", "damage": "1d8", "damageType": "PIERCING" };
 const links$2 = { "actionId": "bow-shot", "effectId": "melee-slash" };
 const label$10 = "Arbalete repetee";
 const SpecialeArbaleteRepetee = {
@@ -9779,12 +9874,12 @@ const SpecialeArbaleteRepetee = {
   category: category$P,
   descriptionCourte: descriptionCourte$2,
   descriptionLongue: descriptionLongue$2,
-  allow_stack: allow_stack$2,
+  allowStack: allowStack$2,
   harmonisable: harmonisable$2,
   focalisateur: focalisateur$2,
   weight: weight$p,
   size: size$5,
-  value: value$7,
+  value: value$p,
   rarity: rarity$2,
   tags: tags$10,
   properties: properties$2,
@@ -9801,18 +9896,18 @@ const subtype$1 = "speciale";
 const category$O = "melee";
 const descriptionCourte$1 = "Lame fine et precise, forgee par les elfes.";
 const descriptionLongue$1 = "";
-const allow_stack$1 = false;
+const allowStack$1 = false;
 const harmonisable$1 = false;
 const focalisateur$1 = false;
 const weight$o = 1.2;
 const size$4 = 1;
-const value$6 = { "gold": 75, "silver": 0, "copper": 0 };
+const value$o = { "gold": 75, "silver": 0, "copper": 0, "platinum": 0 };
 const rarity$1 = "rare";
-const tags$$ = ["arme", "melee", "tranchant"];
-const properties$1 = { "finesse": true, "light": false, "heavy": false, "two_handed": false, "reach": 1, "versatile": null, "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1, "long": 1 }, "special": "precision" };
+const tags$$ = ["arme", "melee", "slashing"];
+const properties$1 = { "finesse": true, "light": false, "heavy": false, "twoHanded": false, "reach": 1.5, "versatile": null, "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 1.5, "long": 1.5 }, "special": "precision" };
 const attack$5 = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
-const damage$5 = { "dice": "1d8", "damage_type": "Tranchant", "alt": null };
-const effectOnHit$1 = { "mod": "mod.DEX", "damage": "1d8", "damage_type": "Tranchant" };
+const damage$5 = { "dice": "1d8", "damageType": "SLASHING", "alt": null };
+const effectOnHit$1 = { "mod": "mod.DEX", "damage": "1d8", "damageType": "SLASHING" };
 const links$1 = { "actionId": "melee-strike", "effectId": "melee-slash" };
 const label$$ = "Epee elfique";
 const SpecialeEpeeElfique = {
@@ -9823,12 +9918,12 @@ const SpecialeEpeeElfique = {
   category: category$O,
   descriptionCourte: descriptionCourte$1,
   descriptionLongue: descriptionLongue$1,
-  allow_stack: allow_stack$1,
+  allowStack: allowStack$1,
   harmonisable: harmonisable$1,
   focalisateur: focalisateur$1,
   weight: weight$o,
   size: size$4,
-  value: value$6,
+  value: value$o,
   rarity: rarity$1,
   tags: tags$$,
   properties: properties$1,
@@ -9845,18 +9940,18 @@ const subtype = "speciale";
 const category$N = "melee";
 const descriptionCourte = "Fouet d'arme a portee etrange.";
 const descriptionLongue = "";
-const allow_stack = false;
+const allowStack = false;
 const harmonisable = false;
 const focalisateur = false;
 const weight$n = 1;
 const size$3 = 1.3;
-const value$5 = { "gold": 90, "silver": 0, "copper": 0 };
+const value$n = { "gold": 90, "silver": 0, "copper": 0, "platinum": 0 };
 const rarity = "rare";
-const tags$_ = ["arme", "melee", "tranchant"];
-const properties = { "finesse": true, "light": false, "heavy": false, "two_handed": false, "reach": 2, "versatile": null, "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 2, "long": 2 }, "special": "reach" };
+const tags$_ = ["arme", "melee", "slashing"];
+const properties = { "finesse": true, "light": false, "heavy": false, "twoHanded": false, "reach": 3, "versatile": null, "thrown": null, "ammunition": false, "loading": false, "reload": null, "range": { "normal": 3, "long": 3 }, "special": "reach" };
 const attack$4 = { "mod": "mod.DEX", "bonus": "bonus_maitrise" };
-const damage$4 = { "dice": "1d6", "damage_type": "Tranchant", "alt": null };
-const effectOnHit = { "mod": "mod.DEX", "damage": "1d6", "damage_type": "Tranchant" };
+const damage$4 = { "dice": "1d6", "damageType": "SLASHING", "alt": null };
+const effectOnHit = { "mod": "mod.DEX", "damage": "1d6", "damageType": "SLASHING" };
 const links = { "actionId": "melee-strike", "effectId": "melee-slash" };
 const label$_ = "Fouet demon";
 const SpecialeFouetDemon = {
@@ -9867,12 +9962,12 @@ const SpecialeFouetDemon = {
   category: category$N,
   descriptionCourte,
   descriptionLongue,
-  allow_stack,
+  allowStack,
   harmonisable,
   focalisateur,
   weight: weight$n,
   size: size$3,
-  value: value$5,
+  value: value$n,
   rarity,
   tags: tags$_,
   properties,
@@ -9901,33 +9996,33 @@ const WEAPON_MODULES = {
 function normalizeWeaponDamageTypes(def) {
   const damage2 = def.damage;
   const effectOnHit2 = def.effectOnHit;
-  const damageTypeId = normalizeDamageType((damage2 == null ? void 0 : damage2.damage_type) ?? null);
-  const onHitDamageTypeId = normalizeDamageType((effectOnHit2 == null ? void 0 : effectOnHit2.damage_type) ?? null);
-  if ((damage2 == null ? void 0 : damage2.damage_type) && !damageTypeId) {
+  const damageTypeId = normalizeDamageType((damage2 == null ? void 0 : damage2.damageType) ?? null);
+  const onHitDamageTypeId = normalizeDamageType((effectOnHit2 == null ? void 0 : effectOnHit2.damageType) ?? null);
+  if ((damage2 == null ? void 0 : damage2.damageType) && !damageTypeId) {
     console.warn(
       "[weapon-types] Unknown damage type for weapon:",
       def.id,
       "->",
-      damage2.damage_type
+      damage2.damageType
     );
   }
-  if ((effectOnHit2 == null ? void 0 : effectOnHit2.damage_type) && !onHitDamageTypeId) {
+  if ((effectOnHit2 == null ? void 0 : effectOnHit2.damageType) && !onHitDamageTypeId) {
     console.warn(
       "[weapon-types] Unknown on-hit damage type for weapon:",
       def.id,
       "->",
-      effectOnHit2.damage_type
+      effectOnHit2.damageType
     );
   }
   return {
     ...def,
     damage: damage2 ? {
       ...damage2,
-      damage_type_id: damageTypeId
+      damageTypeId
     } : damage2,
     effectOnHit: effectOnHit2 ? {
       ...effectOnHit2,
-      damage_type_id: onHitDamageTypeId
+      damageTypeId: onHitDamageTypeId
     } : effectOnHit2
   };
 }
@@ -10361,27 +10456,27 @@ const label$E = "Besace";
 const type$m = "object";
 const category$H = "pack";
 const weight$m = 0.8;
-const priceGp$h = 1;
 const capacityWeight$3 = 10;
 const tags$Z = ["sac", "paquetage"];
 const description$m = "Petite besace souple pour le quotidien.";
+const value$m = { "platinum": 0, "gold": 1, "silver": 0, "copper": 0 };
 const ObjBesace = {
   id: id$Z,
   label: label$E,
   type: type$m,
   category: category$H,
   weight: weight$m,
-  priceGp: priceGp$h,
   capacityWeight: capacityWeight$3,
   tags: tags$Z,
-  description: description$m
+  description: description$m,
+  value: value$m
 };
 const id$Y = "obj_bourse";
 const label$D = "Bourse";
 const type$l = "object";
 const category$G = "pack";
 const weight$l = 0.2;
-const value$4 = { "po": 1 };
+const value$l = { "po": 1, "platinum": 0, "gold": 0, "silver": 0, "copper": 0 };
 const capacityWeight$2 = 5;
 const tags$Y = ["bourse", "sac", "paquetage"];
 const description$l = "Petite bourse destinee aux pieces et petits objets.";
@@ -10391,7 +10486,7 @@ const ObjBourse = {
   type: type$l,
   category: category$G,
   weight: weight$l,
-  value: value$4,
+  value: value$l,
   capacityWeight: capacityWeight$2,
   tags: tags$Y,
   description: description$l
@@ -10401,191 +10496,191 @@ const label$C = "Grimoire ou carnet de recherches";
 const type$k = "object";
 const category$F = "misc";
 const weight$k = 1;
-const priceGp$g = 5;
 const tags$X = ["academique"];
 const description$k = "Notes, formules et recherches personnelles.";
+const value$k = { "platinum": 0, "gold": 5, "silver": 0, "copper": 0 };
 const ObjGrimoire = {
   id: id$X,
   label: label$C,
   type: type$k,
   category: category$F,
   weight: weight$k,
-  priceGp: priceGp$g,
   tags: tags$X,
-  description: description$k
+  description: description$k,
+  value: value$k
 };
 const id$W = "obj_insigne_unite";
 const label$B = "Insigne d'ancienne unite";
 const type$j = "object";
 const category$E = "jewel";
 const weight$j = 0.1;
-const priceGp$f = 0;
 const tags$W = ["insigne", "militaire"];
 const description$j = "Symbole d'appartenance a une ancienne unite.";
+const value$j = { "platinum": 0, "gold": 0, "silver": 0, "copper": 0 };
 const ObjInsigneUnite = {
   id: id$W,
   label: label$B,
   type: type$j,
   category: category$E,
   weight: weight$j,
-  priceGp: priceGp$f,
   tags: tags$W,
-  description: description$j
+  description: description$j,
+  value: value$j
 };
 const id$V = "obj_plume_encre";
 const label$A = "Plume et encre";
 const type$i = "object";
 const category$D = "misc";
 const weight$i = 0.2;
-const priceGp$e = 1;
 const tags$V = ["ecriture"];
 const description$i = "Outils de base pour ecrire et prendre des notes.";
+const value$i = { "platinum": 0, "gold": 1, "silver": 0, "copper": 0 };
 const ObjPlumeEncre = {
   id: id$V,
   label: label$A,
   type: type$i,
   category: category$D,
   weight: weight$i,
-  priceGp: priceGp$e,
   tags: tags$V,
-  description: description$i
+  description: description$i,
+  value: value$i
 };
 const id$U = "obj_sac_a_dos";
 const label$z = "Sac a dos";
 const type$h = "object";
 const category$C = "pack";
 const weight$h = 1.5;
-const priceGp$d = 2;
 const capacityWeight$1 = 18;
 const tags$U = ["sac", "paquetage"];
 const description$h = "Sac a dos pratique pour transporter du materiel.";
+const value$h = { "platinum": 0, "gold": 2, "silver": 0, "copper": 0 };
 const ObjSacADos = {
   id: id$U,
   label: label$z,
   type: type$h,
   category: category$C,
   weight: weight$h,
-  priceGp: priceGp$d,
   capacityWeight: capacityWeight$1,
   tags: tags$U,
-  description: description$h
+  description: description$h,
+  value: value$h
 };
 const id$T = "obj_sac_voyage";
 const label$y = "Sac de voyage";
 const type$g = "object";
 const category$B = "pack";
 const weight$g = 2;
-const priceGp$c = 4;
 const capacityWeight = 25;
 const tags$T = ["sac", "paquetage"];
 const description$g = "Sac robuste pour longs deplacements.";
+const value$g = { "platinum": 0, "gold": 4, "silver": 0, "copper": 0 };
 const ObjSacVoyage = {
   id: id$T,
   label: label$y,
   type: type$g,
   category: category$B,
   weight: weight$g,
-  priceGp: priceGp$c,
   capacityWeight,
   tags: tags$T,
-  description: description$g
+  description: description$g,
+  value: value$g
 };
 const id$S = "obj_souvenir_vole";
 const label$x = "Souvenir d'enfance vole";
 const type$f = "object";
 const category$A = "jewel";
 const weight$f = 0.1;
-const priceGp$b = 0;
 const tags$S = ["souvenir"];
 const description$f = "Petit objet sentimental, sans grande valeur marchande.";
+const value$f = { "platinum": 0, "gold": 0, "silver": 0, "copper": 0 };
 const ObjSouvenirVole = {
   id: id$S,
   label: label$x,
   type: type$f,
   category: category$A,
   weight: weight$f,
-  priceGp: priceGp$b,
   tags: tags$S,
-  description: description$f
+  description: description$f,
+  value: value$f
 };
 const id$R = "obj_symbole_sacre";
 const label$w = "Symbole sacre";
 const type$e = "object";
 const category$z = "misc";
 const weight$e = 1;
-const priceGp$a = 5;
 const tags$R = ["holy_symbol"];
 const description$e = "Symbole sacre utilise comme focalisateur divin.";
+const value$e = { "platinum": 0, "gold": 5, "silver": 0, "copper": 0 };
 const ObjSymboleSacre = {
   id: id$R,
   label: label$w,
   type: type$e,
   category: category$z,
   weight: weight$e,
-  priceGp: priceGp$a,
   tags: tags$R,
-  description: description$e
+  description: description$e,
+  value: value$e
 };
 const id$Q = "obj_tenue_academique";
 const label$v = "Tenue academique";
 const type$d = "object";
 const category$y = "clothing_body";
 const weight$d = 1.5;
-const priceGp$9 = 2;
 const tags$Q = ["vetement"];
 const description$d = "Robe ou tenue propre aux milieux savants.";
+const value$d = { "platinum": 0, "gold": 2, "silver": 0, "copper": 0 };
 const ObjTenueAcademique = {
   id: id$Q,
   label: label$v,
   type: type$d,
   category: category$y,
   weight: weight$d,
-  priceGp: priceGp$9,
   tags: tags$Q,
-  description: description$d
+  description: description$d,
+  value: value$d
 };
 const id$P = "obj_vetements_communs";
 const label$u = "Vetements communs";
 const type$c = "object";
 const category$x = "clothing_body";
 const weight$c = 1.5;
-const priceGp$8 = 0.5;
 const tags$P = ["vetement"];
 const description$c = "Tenue simple et pratique.";
+const value$c = { "platinum": 0, "gold": 0.5, "silver": 0, "copper": 0 };
 const ObjVetementsCommuns = {
   id: id$P,
   label: label$u,
   type: type$c,
   category: category$x,
   weight: weight$c,
-  priceGp: priceGp$8,
   tags: tags$P,
-  description: description$c
+  description: description$c,
+  value: value$c
 };
 const id$O = "obj_vetements_voyage";
 const label$t = "Vetements de voyage";
 const type$b = "object";
 const category$w = "clothing_body";
 const weight$b = 2;
-const priceGp$7 = 1;
 const tags$O = ["vetement"];
 const description$b = "Tenue robuste pour le voyage.";
+const value$b = { "platinum": 0, "gold": 1, "silver": 0, "copper": 0 };
 const ObjVetementsVoyage = {
   id: id$O,
   label: label$t,
   type: type$b,
   category: category$w,
   weight: weight$b,
-  priceGp: priceGp$7,
   tags: tags$O,
-  description: description$b
+  description: description$b,
+  value: value$b
 };
 const id$N = "obj_piece_argent";
 const label$s = "Piece d'argent";
 const type$a = "object";
 const category$v = "currency";
 const weight$a = 0.01;
-const value$3 = { "pa": 1 };
+const value$a = { "pa": 1, "platinum": 0, "gold": 0, "silver": 0, "copper": 0 };
 const tags$N = ["monnaie", "piece"];
 const description$a = "Piece d'argent.";
 const PieceArgent = {
@@ -10594,7 +10689,7 @@ const PieceArgent = {
   type: type$a,
   category: category$v,
   weight: weight$a,
-  value: value$3,
+  value: value$a,
   tags: tags$N,
   description: description$a
 };
@@ -10603,7 +10698,7 @@ const label$r = "Piece de cuivre";
 const type$9 = "object";
 const category$u = "currency";
 const weight$9 = 0.01;
-const value$2 = { "pc": 1 };
+const value$9 = { "pc": 1, "platinum": 0, "gold": 0, "silver": 0, "copper": 0 };
 const tags$M = ["monnaie", "piece"];
 const description$9 = "Piece de cuivre.";
 const PieceCuivre = {
@@ -10612,7 +10707,7 @@ const PieceCuivre = {
   type: type$9,
   category: category$u,
   weight: weight$9,
-  value: value$2,
+  value: value$9,
   tags: tags$M,
   description: description$9
 };
@@ -10621,7 +10716,7 @@ const label$q = "Piece d'or";
 const type$8 = "object";
 const category$t = "currency";
 const weight$8 = 0.01;
-const value$1 = { "po": 1 };
+const value$8 = { "po": 1, "platinum": 0, "gold": 0, "silver": 0, "copper": 0 };
 const tags$L = ["monnaie", "piece"];
 const description$8 = "Piece d'or.";
 const PieceOr = {
@@ -10630,7 +10725,7 @@ const PieceOr = {
   type: type$8,
   category: category$t,
   weight: weight$8,
-  value: value$1,
+  value: value$8,
   tags: tags$L,
   description: description$8
 };
@@ -10639,7 +10734,7 @@ const label$p = "Piece de platine";
 const type$7 = "object";
 const category$s = "currency";
 const weight$7 = 0.01;
-const value = { "pp": 1 };
+const value$7 = { "pp": 1, "platinum": 0, "gold": 0, "silver": 0, "copper": 0 };
 const tags$K = ["monnaie", "piece"];
 const description$7 = "Piece de platine.";
 const PiecePlatine = {
@@ -10648,7 +10743,7 @@ const PiecePlatine = {
   type: type$7,
   category: category$s,
   weight: weight$7,
-  value,
+  value: value$7,
   tags: tags$K,
   description: description$7
 };
@@ -10697,10 +10792,10 @@ const armorCategory$6 = "shield";
 const baseAC$6 = 2;
 const dexCap$6 = null;
 const weight$6 = 3;
-const priceGp$6 = 10;
 const tags$J = ["armure", "bouclier"];
 const description$6 = "Bouclier offrant un bonus de CA.";
 const category$r = "shield";
+const value$6 = { "platinum": 0, "gold": 10, "silver": 0, "copper": 0 };
 const Bouclier = {
   id: id$J,
   label: label$o,
@@ -10709,10 +10804,10 @@ const Bouclier = {
   baseAC: baseAC$6,
   dexCap: dexCap$6,
   weight: weight$6,
-  priceGp: priceGp$6,
   tags: tags$J,
   description: description$6,
-  category: category$r
+  category: category$r,
+  value: value$6
 };
 const id$I = "chemise_mailles";
 const label$n = "Chemise de mailles";
@@ -10721,10 +10816,10 @@ const armorCategory$5 = "medium";
 const baseAC$5 = 13;
 const dexCap$5 = 2;
 const weight$5 = 10;
-const priceGp$5 = 50;
 const tags$I = ["armure", "intermediaire"];
 const description$5 = "Cotte de mailles legere portee sous des vetements.";
 const category$q = "armor_body";
+const value$5 = { "platinum": 0, "gold": 50, "silver": 0, "copper": 0 };
 const ChemiseMailles = {
   id: id$I,
   label: label$n,
@@ -10733,10 +10828,10 @@ const ChemiseMailles = {
   baseAC: baseAC$5,
   dexCap: dexCap$5,
   weight: weight$5,
-  priceGp: priceGp$5,
   tags: tags$I,
   description: description$5,
-  category: category$q
+  category: category$q,
+  value: value$5
 };
 const id$H = "cotte_mailles";
 const label$m = "Cotte de mailles";
@@ -10745,10 +10840,10 @@ const armorCategory$4 = "heavy";
 const baseAC$4 = 16;
 const dexCap$4 = 0;
 const weight$4 = 27.5;
-const priceGp$4 = 75;
 const tags$H = ["armure", "lourde"];
 const description$4 = "Armure lourde en anneaux de metal.";
 const category$p = "armor_body";
+const value$4 = { "platinum": 0, "gold": 75, "silver": 0, "copper": 0 };
 const CotteMailles = {
   id: id$H,
   label: label$m,
@@ -10757,10 +10852,10 @@ const CotteMailles = {
   baseAC: baseAC$4,
   dexCap: dexCap$4,
   weight: weight$4,
-  priceGp: priceGp$4,
   tags: tags$H,
   description: description$4,
-  category: category$p
+  category: category$p,
+  value: value$4
 };
 const id$G = "cuir_cloute";
 const label$l = "Armure de cuir cloute";
@@ -10769,10 +10864,10 @@ const armorCategory$3 = "light";
 const baseAC$3 = 12;
 const dexCap$3 = null;
 const weight$3 = 6.5;
-const priceGp$3 = 45;
 const tags$G = ["armure", "legere"];
 const description$3 = "Armure de cuir renforcee par des rivets.";
 const category$o = "armor_body";
+const value$3 = { "platinum": 0, "gold": 45, "silver": 0, "copper": 0 };
 const CuirCloute = {
   id: id$G,
   label: label$l,
@@ -10781,10 +10876,10 @@ const CuirCloute = {
   baseAC: baseAC$3,
   dexCap: dexCap$3,
   weight: weight$3,
-  priceGp: priceGp$3,
   tags: tags$G,
   description: description$3,
-  category: category$o
+  category: category$o,
+  value: value$3
 };
 const id$F = "cuir";
 const label$k = "Armure de cuir";
@@ -10793,10 +10888,10 @@ const armorCategory$2 = "light";
 const baseAC$2 = 11;
 const dexCap$2 = null;
 const weight$2 = 5;
-const priceGp$2 = 10;
 const tags$F = ["armure", "legere"];
 const description$2 = "Armure legere en cuir.";
 const category$n = "armor_body";
+const value$2 = { "platinum": 0, "gold": 10, "silver": 0, "copper": 0 };
 const Cuir = {
   id: id$F,
   label: label$k,
@@ -10805,10 +10900,10 @@ const Cuir = {
   baseAC: baseAC$2,
   dexCap: dexCap$2,
   weight: weight$2,
-  priceGp: priceGp$2,
   tags: tags$F,
   description: description$2,
-  category: category$n
+  category: category$n,
+  value: value$2
 };
 const id$E = "demi_plaque";
 const label$j = "Demi-plaque";
@@ -10817,10 +10912,10 @@ const armorCategory$1 = "medium";
 const baseAC$1 = 15;
 const dexCap$1 = 2;
 const weight$1 = 20;
-const priceGp$1 = 750;
 const tags$E = ["armure", "intermediaire"];
 const description$1 = "Armure intermediaire avec plaques partielles.";
 const category$m = "armor_body";
+const value$1 = { "platinum": 0, "gold": 750, "silver": 0, "copper": 0 };
 const DemiPlaque = {
   id: id$E,
   label: label$j,
@@ -10829,10 +10924,10 @@ const DemiPlaque = {
   baseAC: baseAC$1,
   dexCap: dexCap$1,
   weight: weight$1,
-  priceGp: priceGp$1,
   tags: tags$E,
   description: description$1,
-  category: category$m
+  category: category$m,
+  value: value$1
 };
 const id$D = "harnois";
 const label$i = "Harnois";
@@ -10841,10 +10936,10 @@ const armorCategory = "heavy";
 const baseAC = 18;
 const dexCap = 0;
 const weight = 30;
-const priceGp = 1500;
 const tags$D = ["armure", "lourde"];
 const description = "Armure lourde complete en plaques.";
 const category$l = "armor_body";
+const value = { "platinum": 0, "gold": 1500, "silver": 0, "copper": 0 };
 const Harnois = {
   id: id$D,
   label: label$i,
@@ -10853,10 +10948,10 @@ const Harnois = {
   baseAC,
   dexCap,
   weight,
-  priceGp,
   tags: tags$D,
   description,
-  category: category$l
+  category: category$l,
+  value
 };
 const ARMOR_MODULES = {
   "./bouclier.json": Bouclier,
@@ -15333,10 +15428,10 @@ const components$b = { "verbal": true, "somatic": true, "material": true };
 const summary$k = "Renforce la vigueur d'un groupe d'allies.";
 const category$k = "support";
 const actionCost$k = { "actionType": "action", "movementCost": 0 };
-const targeting$k = { "target": "ally", "range": { "min": 0, "max": 6, "shape": "single" }, "maxTargets": 3, "requiresLos": true };
+const targeting$k = { "target": "ally", "range": { "min": 0, "max": 9, "shape": "SPHERE" }, "maxTargets": 3, "requiresLos": true };
 const usage$k = { "perTurn": 1, "perEncounter": null, "resource": null };
-const effects$k = [{ "type": "status_apply", "target": "primary", "statusId": "aid", "durationTurns": 60 }, { "type": "log", "message": "Aide appliquee." }];
 const tags$k = ["spell", "support", "cleric"];
+const ops$k = { "onResolve": [{ "op": "ApplyCondition", "target": "primary", "statusId": "aid", "durationTurns": 60 }, { "op": "LogEvent", "message": "Aide appliquee." }] };
 const aid = {
   id: id$k,
   name: name$k,
@@ -15348,8 +15443,8 @@ const aid = {
   actionCost: actionCost$k,
   targeting: targeting$k,
   usage: usage$k,
-  effects: effects$k,
-  tags: tags$k
+  tags: tags$k,
+  ops: ops$k
 };
 const id$j = "arcane-bolt";
 const name$j = "Trait Arcanique";
@@ -15359,11 +15454,12 @@ const components$a = { "verbal": true, "somatic": true, "material": false };
 const summary$j = "Placeholder: petit projectile magique.";
 const category$j = "attack";
 const actionCost$j = { "actionType": "action", "movementCost": 0 };
-const targeting$j = { "target": "hostile", "range": { "min": 1, "max": 6, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
+const targeting$j = { "target": "hostile", "range": { "min": 1.5, "max": 9, "shape": "SPHERE" }, "maxTargets": 1, "requiresLos": true };
 const usage$j = { "perTurn": 1, "perEncounter": null, "resource": null };
 const attack$3 = { "bonus": 0, "critRange": 20 };
-const damage$3 = { "formula": "1d8", "critRule": "double-dice", "damageType": "force" };
-const effects$j = [{ "type": "damage", "target": "primary", "formula": "1d8", "damageType": "force" }, { "type": "log", "message": "Trait arcanique." }];
+const damage$3 = { "formula": "1d8", "critRule": "double-dice", "damageType": "FORCE" };
+const resolution$1 = { "kind": "ATTACK_ROLL", "bonus": 0, "critRange": 20, "critRule": "double-dice" };
+const ops$j = { "onHit": [{ "op": "DealDamage", "target": "primary", "formula": "1d8", "damageType": "FORCE" }, { "op": "DealDamage", "target": "primary", "formula": "1d8", "damageType": "FORCE" }], "onResolve": [{ "op": "LogEvent", "message": "Trait arcanique." }] };
 const tags$j = ["spell", "ranged"];
 const arcaneBolt = {
   id: id$j,
@@ -15378,7 +15474,8 @@ const arcaneBolt = {
   usage: usage$j,
   attack: attack$3,
   damage: damage$3,
-  effects: effects$j,
+  resolution: resolution$1,
+  ops: ops$j,
   tags: tags$j
 };
 const id$i = "aura-of-purity";
@@ -15389,10 +15486,10 @@ const components$9 = { "verbal": true, "somatic": true, "material": true };
 const summary$i = "Aura protectrice contre maladies et effets nefastes.";
 const category$i = "support";
 const actionCost$i = { "actionType": "action", "movementCost": 0 };
-const targeting$i = { "target": "self", "range": { "min": 0, "max": 0, "shape": "single" }, "maxTargets": 1, "requiresLos": false };
+const targeting$i = { "target": "self", "range": { "min": 0, "max": 0, "shape": "SPHERE" }, "maxTargets": 1, "requiresLos": false };
 const usage$i = { "perTurn": 1, "perEncounter": null, "resource": null };
-const effects$i = [{ "type": "status_apply", "target": "self", "statusId": "aura-of-purity", "durationTurns": 10 }, { "type": "log", "message": "Aura de purete activee." }];
 const tags$i = ["spell", "defense", "cleric"];
+const ops$i = { "onResolve": [{ "op": "ApplyCondition", "target": "self", "statusId": "aura-of-purity", "durationTurns": 10 }, { "op": "LogEvent", "message": "Aura de purete activee." }] };
 const auraOfPurity = {
   id: id$i,
   name: name$i,
@@ -15404,8 +15501,8 @@ const auraOfPurity = {
   actionCost: actionCost$i,
   targeting: targeting$i,
   usage: usage$i,
-  effects: effects$i,
-  tags: tags$i
+  tags: tags$i,
+  ops: ops$i
 };
 const id$h = "beacon-of-hope";
 const name$h = "Flamme d'espoir";
@@ -15415,10 +15512,10 @@ const components$8 = { "verbal": true, "somatic": true, "material": false };
 const summary$h = "Renforce les soins et la determination.";
 const category$h = "support";
 const actionCost$h = { "actionType": "action", "movementCost": 0 };
-const targeting$h = { "target": "ally", "range": { "min": 0, "max": 6, "shape": "single" }, "maxTargets": 3, "requiresLos": true };
+const targeting$h = { "target": "ally", "range": { "min": 0, "max": 9, "shape": "SPHERE" }, "maxTargets": 3, "requiresLos": true };
 const usage$h = { "perTurn": 1, "perEncounter": null, "resource": null };
-const effects$h = [{ "type": "status_apply", "target": "primary", "statusId": "beacon-of-hope", "durationTurns": 10 }, { "type": "log", "message": "Flamme d'espoir appliquee." }];
 const tags$h = ["spell", "support", "cleric"];
+const ops$h = { "onResolve": [{ "op": "ApplyCondition", "target": "primary", "statusId": "beacon-of-hope", "durationTurns": 10 }, { "op": "LogEvent", "message": "Flamme d'espoir appliquee." }] };
 const beaconOfHope = {
   id: id$h,
   name: name$h,
@@ -15430,8 +15527,8 @@ const beaconOfHope = {
   actionCost: actionCost$h,
   targeting: targeting$h,
   usage: usage$h,
-  effects: effects$h,
-  tags: tags$h
+  tags: tags$h,
+  ops: ops$h
 };
 const id$g = "greater-restoration";
 const name$g = "Restauration superieure";
@@ -15441,10 +15538,10 @@ const components$7 = { "verbal": true, "somatic": true, "material": true };
 const summary$g = "Supprime des afflictions majeures sur une cible.";
 const category$g = "support";
 const actionCost$g = { "actionType": "action", "movementCost": 0 };
-const targeting$g = { "target": "ally", "range": { "min": 0, "max": 6, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
+const targeting$g = { "target": "ally", "range": { "min": 0, "max": 9, "shape": "SPHERE" }, "maxTargets": 1, "requiresLos": true };
 const usage$g = { "perTurn": 1, "perEncounter": null, "resource": null };
-const effects$g = [{ "type": "status_apply", "target": "primary", "statusId": "greater-restoration", "durationTurns": 1 }, { "type": "log", "message": "Restauration superieure appliquee." }];
 const tags$g = ["spell", "support", "cleric"];
+const ops$g = { "onResolve": [{ "op": "ApplyCondition", "target": "primary", "statusId": "greater-restoration", "durationTurns": 1 }, { "op": "LogEvent", "message": "Restauration superieure appliquee." }] };
 const greaterRestoration = {
   id: id$g,
   name: name$g,
@@ -15456,8 +15553,8 @@ const greaterRestoration = {
   actionCost: actionCost$g,
   targeting: targeting$g,
   usage: usage$g,
-  effects: effects$g,
-  tags: tags$g
+  tags: tags$g,
+  ops: ops$g
 };
 const id$f = "heroism";
 const name$f = "Heroisme";
@@ -15467,10 +15564,10 @@ const components$6 = { "verbal": true, "somatic": true, "material": false };
 const summary$f = "Insuffle du courage et protege contre la peur.";
 const category$f = "support";
 const actionCost$f = { "actionType": "action", "movementCost": 0 };
-const targeting$f = { "target": "ally", "range": { "min": 0, "max": 6, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
+const targeting$f = { "target": "ally", "range": { "min": 0, "max": 9, "shape": "SPHERE" }, "maxTargets": 1, "requiresLos": true };
 const usage$f = { "perTurn": 1, "perEncounter": null, "resource": null };
-const effects$f = [{ "type": "status_apply", "target": "primary", "statusId": "heroism", "durationTurns": 10 }, { "type": "log", "message": "Heroisme applique." }];
 const tags$f = ["spell", "support", "cleric"];
+const ops$f = { "onResolve": [{ "op": "ApplyCondition", "target": "primary", "statusId": "heroism", "durationTurns": 10 }, { "op": "LogEvent", "message": "Heroisme applique." }] };
 const heroism = {
   id: id$f,
   name: name$f,
@@ -15482,8 +15579,8 @@ const heroism = {
   actionCost: actionCost$f,
   targeting: targeting$f,
   usage: usage$f,
-  effects: effects$f,
-  tags: tags$f
+  tags: tags$f,
+  ops: ops$f
 };
 const id$e = "minor-ward";
 const name$e = "Garde Mineure";
@@ -15493,10 +15590,10 @@ const components$5 = { "verbal": true, "somatic": true, "material": false };
 const summary$e = "Placeholder: protection temporaire.";
 const category$e = "support";
 const actionCost$e = { "actionType": "action", "movementCost": 0 };
-const targeting$e = { "target": "self", "range": { "min": 0, "max": 0, "shape": "single" }, "maxTargets": 1, "requiresLos": false };
+const targeting$e = { "target": "self", "range": { "min": 0, "max": 0, "shape": "SPHERE" }, "maxTargets": 1, "requiresLos": false };
 const usage$e = { "perTurn": 1, "perEncounter": null, "resource": null };
-const effects$e = [{ "type": "status_apply", "target": "self", "statusId": "guarded", "durationTurns": 1 }, { "type": "log", "message": "Garde mineure activee." }];
 const tags$e = ["spell", "defense", "cleric"];
+const ops$e = { "onResolve": [{ "op": "ApplyCondition", "target": "self", "statusId": "guarded", "durationTurns": 1 }, { "op": "LogEvent", "message": "Garde mineure activee." }] };
 const minorWard = {
   id: id$e,
   name: name$e,
@@ -15508,8 +15605,8 @@ const minorWard = {
   actionCost: actionCost$e,
   targeting: targeting$e,
   usage: usage$e,
-  effects: effects$e,
-  tags: tags$e
+  tags: tags$e,
+  ops: ops$e
 };
 const id$d = "rarys-telepathic-bond";
 const name$d = "Lien telepathique de Rary";
@@ -15519,10 +15616,10 @@ const components$4 = { "verbal": true, "somatic": true, "material": true };
 const summary$d = "Lie telepathiquement plusieurs allies.";
 const category$d = "support";
 const actionCost$d = { "actionType": "action", "movementCost": 0 };
-const targeting$d = { "target": "ally", "range": { "min": 0, "max": 6, "shape": "single" }, "maxTargets": 6, "requiresLos": true };
+const targeting$d = { "target": "ally", "range": { "min": 0, "max": 9, "shape": "SPHERE" }, "maxTargets": 6, "requiresLos": true };
 const usage$d = { "perTurn": 1, "perEncounter": null, "resource": null };
-const effects$d = [{ "type": "status_apply", "target": "primary", "statusId": "telepathic-bond", "durationTurns": 60 }, { "type": "log", "message": "Lien telepathique etabli." }];
 const tags$d = ["spell", "support", "cleric"];
+const ops$d = { "onResolve": [{ "op": "ApplyCondition", "target": "primary", "statusId": "telepathic-bond", "durationTurns": 60 }, { "op": "LogEvent", "message": "Lien telepathique etabli." }] };
 const rarysTelepathicBond = {
   id: id$d,
   name: name$d,
@@ -15534,8 +15631,8 @@ const rarysTelepathicBond = {
   actionCost: actionCost$d,
   targeting: targeting$d,
   usage: usage$d,
-  effects: effects$d,
-  tags: tags$d
+  tags: tags$d,
+  ops: ops$d
 };
 const id$c = "resilient-sphere";
 const name$c = "Sphere resiliente";
@@ -15545,10 +15642,10 @@ const components$3 = { "verbal": true, "somatic": true, "material": true };
 const summary$c = "Emprisonne une cible dans une sphere protectrice.";
 const category$c = "control";
 const actionCost$c = { "actionType": "action", "movementCost": 0 };
-const targeting$c = { "target": "hostile", "range": { "min": 0, "max": 6, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
+const targeting$c = { "target": "hostile", "range": { "min": 0, "max": 9, "shape": "SPHERE" }, "maxTargets": 1, "requiresLos": true };
 const usage$c = { "perTurn": 1, "perEncounter": null, "resource": null };
-const effects$c = [{ "type": "status_apply", "target": "primary", "statusId": "resilient-sphere", "durationTurns": 10 }, { "type": "log", "message": "Sphere resiliente appliquee." }];
 const tags$c = ["spell", "control", "cleric"];
+const ops$c = { "onResolve": [{ "op": "ApplyCondition", "target": "primary", "statusId": "resilient-sphere", "durationTurns": 10 }, { "op": "LogEvent", "message": "Sphere resiliente appliquee." }] };
 const resilientSphere = {
   id: id$c,
   name: name$c,
@@ -15560,8 +15657,8 @@ const resilientSphere = {
   actionCost: actionCost$c,
   targeting: targeting$c,
   usage: usage$c,
-  effects: effects$c,
-  tags: tags$c
+  tags: tags$c,
+  ops: ops$c
 };
 const id$b = "sanctuary";
 const name$b = "Sanctuaire";
@@ -15571,10 +15668,10 @@ const components$2 = { "verbal": true, "somatic": true, "material": true };
 const summary$b = "Protege une cible contre les attaques directes.";
 const category$b = "support";
 const actionCost$b = { "actionType": "action", "movementCost": 0 };
-const targeting$b = { "target": "ally", "range": { "min": 0, "max": 6, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
+const targeting$b = { "target": "ally", "range": { "min": 0, "max": 9, "shape": "SPHERE" }, "maxTargets": 1, "requiresLos": true };
 const usage$b = { "perTurn": 1, "perEncounter": null, "resource": null };
-const effects$b = [{ "type": "status_apply", "target": "primary", "statusId": "sanctuary", "durationTurns": 10 }, { "type": "log", "message": "Sanctuaire applique." }];
 const tags$b = ["spell", "defense", "cleric"];
+const ops$b = { "onResolve": [{ "op": "ApplyCondition", "target": "primary", "statusId": "sanctuary", "durationTurns": 10 }, { "op": "LogEvent", "message": "Sanctuaire applique." }] };
 const sanctuary = {
   id: id$b,
   name: name$b,
@@ -15586,8 +15683,8 @@ const sanctuary = {
   actionCost: actionCost$b,
   targeting: targeting$b,
   usage: usage$b,
-  effects: effects$b,
-  tags: tags$b
+  tags: tags$b,
+  ops: ops$b
 };
 const id$a = "sending";
 const name$a = "Message";
@@ -15597,10 +15694,10 @@ const components$1 = { "verbal": true, "somatic": true, "material": true };
 const summary$a = "Envoie un message magique a distance.";
 const category$a = "support";
 const actionCost$a = { "actionType": "action", "movementCost": 0 };
-const targeting$a = { "target": "ally", "range": { "min": 0, "max": 20, "shape": "single" }, "maxTargets": 1, "requiresLos": false };
+const targeting$a = { "target": "ally", "range": { "min": 0, "max": 30, "shape": "SPHERE" }, "maxTargets": 1, "requiresLos": false };
 const usage$a = { "perTurn": 1, "perEncounter": null, "resource": null };
-const effects$a = [{ "type": "log", "message": "Message envoye." }];
 const tags$a = ["spell", "utility", "cleric"];
+const ops$a = { "onResolve": [{ "op": "LogEvent", "message": "Message envoye." }] };
 const sending = {
   id: id$a,
   name: name$a,
@@ -15612,8 +15709,8 @@ const sending = {
   actionCost: actionCost$a,
   targeting: targeting$a,
   usage: usage$a,
-  effects: effects$a,
-  tags: tags$a
+  tags: tags$a,
+  ops: ops$a
 };
 const id$9 = "warding-bond";
 const name$9 = "Lien protecteur";
@@ -15623,10 +15720,10 @@ const components = { "verbal": true, "somatic": true, "material": true };
 const summary$9 = "Lie le lanceur a un allie pour partager les degats.";
 const category$9 = "support";
 const actionCost$9 = { "actionType": "action", "movementCost": 0 };
-const targeting$9 = { "target": "ally", "range": { "min": 0, "max": 6, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
+const targeting$9 = { "target": "ally", "range": { "min": 0, "max": 9, "shape": "SPHERE" }, "maxTargets": 1, "requiresLos": true };
 const usage$9 = { "perTurn": 1, "perEncounter": null, "resource": null };
-const effects$9 = [{ "type": "status_apply", "target": "primary", "statusId": "warding-bond", "durationTurns": 60 }, { "type": "log", "message": "Lien protecteur applique." }];
 const tags$9 = ["spell", "support", "cleric"];
+const ops$9 = { "onResolve": [{ "op": "ApplyCondition", "target": "primary", "statusId": "warding-bond", "durationTurns": 60 }, { "op": "LogEvent", "message": "Lien protecteur applique." }] };
 const wardingBond = {
   id: id$9,
   name: name$9,
@@ -15638,8 +15735,8 @@ const wardingBond = {
   actionCost: actionCost$9,
   targeting: targeting$9,
   usage: usage$9,
-  effects: effects$9,
-  tags: tags$9
+  tags: tags$9,
+  ops: ops$9
 };
 const id$8 = "bow-shot";
 const name$8 = "Tir a l'arc";
@@ -15648,14 +15745,14 @@ const uiMessageHit$2 = "Vous avez ete touche par une fleche.";
 const uiMessageMiss$2 = "Vous evitez une fleche.";
 const category$8 = "attack";
 const actionCost$8 = { "actionType": "action", "movementCost": 0 };
-const targeting$8 = { "target": "hostile", "range": { "min": 2, "max": 6, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
+const targeting$8 = { "target": "hostile", "range": { "min": 3, "max": 9, "shape": "SPHERE" }, "maxTargets": 1, "requiresLos": true };
 const usage$8 = { "perTurn": 1, "perEncounter": null, "resource": null };
-const conditions$8 = [{ "type": "target_alive", "target": "primary", "reason": "La cible doit etre en vie." }];
+const conditions$8 = [{ "type": "TARGET_ALIVE", "target": "primary", "reason": "La cible doit etre en vie." }];
 const attack$2 = { "bonus": 5, "critRange": 20 };
-const damage$2 = { "formula": "attackDamage", "critRule": "double-dice", "damageType": "piercing" };
-const effects$8 = [{ "type": "damage", "target": "primary", "formula": "attackDamage", "damageType": "piercing" }, { "type": "log", "message": "Une fleche siffle dans l'air." }];
+const damage$2 = { "formula": "1d4 + modDEX", "critRule": "double-dice", "damageType": "PIERCING" };
 const aiHints$5 = { "priority": "poke_from_range", "successLog": "Tir a l'arc.", "failureLog": "Cible hors portee/ligne de vue ou trop proche." };
 const tags$8 = ["distance", "bow"];
+const ops$8 = { "onHit": [{ "op": "DealDamage", "target": "primary", "formula": "1d4 + modDEX", "damageType": "PIERCING" }], "onResolve": [{ "op": "LogEvent", "message": "Une fleche siffle dans l'air." }] };
 const AttacksBowShot = {
   id: id$8,
   name: name$8,
@@ -15669,9 +15766,9 @@ const AttacksBowShot = {
   conditions: conditions$8,
   attack: attack$2,
   damage: damage$2,
-  effects: effects$8,
   aiHints: aiHints$5,
-  tags: tags$8
+  tags: tags$8,
+  ops: ops$8
 };
 const id$7 = "melee-strike";
 const name$7 = "Frappe basique";
@@ -15680,12 +15777,13 @@ const uiMessageHit$1 = "Vous avez ete touche par une attaque au corps a corps.";
 const uiMessageMiss$1 = "Vous evitez une attaque au corps a corps.";
 const category$7 = "attack";
 const actionCost$7 = { "actionType": "action", "movementCost": 0 };
-const targeting$7 = { "target": "hostile", "range": { "min": 0, "max": 1, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
+const targeting$7 = { "target": "hostile", "range": { "min": 0, "max": 1.5, "shape": "SPHERE" }, "maxTargets": 1, "requiresLos": true };
 const usage$7 = { "perTurn": 1, "perEncounter": null, "resource": null };
-const conditions$7 = [{ "type": "distance_max", "target": "primary", "max": 1, "reason": "Portee de melee uniquement." }, { "type": "target_alive", "target": "primary", "reason": "La cible doit avoir des PV restants." }];
+const conditions$7 = [{ "type": "DISTANCE_MAX", "target": "primary", "max": 1.5, "reason": "Portee de melee uniquement." }, { "type": "TARGET_ALIVE", "target": "primary", "reason": "La cible doit avoir des PV restants." }];
 const attack$1 = { "bonus": 5, "critRange": 20 };
-const damage$1 = { "formula": "attackDamage", "critRule": "double-dice", "damageType": "slashing" };
-const effects$7 = [{ "type": "damage", "target": "primary", "formula": "attackDamage", "damageType": "slashing" }, { "type": "visual_effect", "effectId": "melee-slash", "anchor": "target", "orientation": "to_target", "rotationOffsetDeg": -135 }, { "type": "log", "message": "Frappe au contact." }];
+const damage$1 = { "formula": "1d4 + modFOR", "critRule": "double-dice", "damageType": "SLASHING" };
+const resolution = { "kind": "ATTACK_ROLL", "bonus": 5, "critRange": 20, "critRule": "double-dice" };
+const ops$7 = { "onHit": [{ "op": "DealDamage", "target": "primary", "formula": "1d4 + modFOR", "damageType": "SLASHING" }, { "op": "DealDamage", "target": "primary", "formula": "1d4 + modFOR", "damageType": "SLASHING" }], "onResolve": [{ "op": "PlayVisualEffect", "effectId": "melee-slash", "anchor": "target", "orientation": "to_target", "rotationOffsetDeg": -135 }, { "op": "LogEvent", "message": "Frappe au contact." }] };
 const aiHints$4 = { "priority": "finish_low_hp_target", "successLog": "Frappe au contact.", "failureLog": "Cible hors portee ou non visible." };
 const tags$7 = ["melee"];
 const AttacksMeleeStrike = {
@@ -15701,7 +15799,8 @@ const AttacksMeleeStrike = {
   conditions: conditions$7,
   attack: attack$1,
   damage: damage$1,
-  effects: effects$7,
+  resolution,
+  ops: ops$7,
   aiHints: aiHints$4,
   tags: tags$7
 };
@@ -15712,14 +15811,14 @@ const uiMessageHit = "Vous avez ete touche par une dague lancee.";
 const uiMessageMiss = "Vous evitez une dague lancee.";
 const category$6 = "attack";
 const actionCost$6 = { "actionType": "action", "movementCost": 0 };
-const targeting$6 = { "target": "hostile", "range": { "min": 1, "max": 4, "shape": "single" }, "maxTargets": 1, "requiresLos": true };
+const targeting$6 = { "target": "hostile", "range": { "min": 1.5, "max": 6, "shape": "SPHERE" }, "maxTargets": 1, "requiresLos": true };
 const usage$6 = { "perTurn": 1, "perEncounter": null, "resource": { "name": "dagger", "pool": "bandolier", "min": 1 } };
-const conditions$6 = [{ "type": "distance_between", "target": "primary", "min": 1, "max": 4, "reason": "Hors de melee mais a portee de lancer." }, { "type": "resource_at_least", "resource": "dagger", "pool": "bandolier", "value": 1, "reason": "Besoin d'une dague a lancer." }];
+const conditions$6 = [{ "type": "DISTANCE_BETWEEN", "target": "primary", "min": 1.5, "max": 6, "reason": "Hors de melee mais a portee de lancer." }, { "type": "RESOURCE_AT_LEAST", "resource": "dagger", "pool": "bandolier", "value": 1, "reason": "Besoin d'une dague a lancer." }];
 const attack = { "bonus": 4, "critRange": 20 };
-const damage = { "formula": "1d4+2", "critRule": "double-dice", "damageType": "piercing" };
-const effects$6 = [{ "type": "damage", "target": "primary", "formula": "1d4 + modDEX", "damageType": "piercing" }, { "type": "resource_spend", "resource": "dagger", "pool": "bandolier", "amount": 1 }, { "type": "log", "message": "Dague lancee: 1d4+DEX degats perforants." }];
+const damage = { "formula": "1d4 + modDEX", "critRule": "double-dice", "damageType": "PIERCING" };
 const aiHints$3 = { "priority": "poke_from_range", "successLog": "Dague lancee.", "failureLog": "Pas de dague ou cible hors portee." };
 const tags$6 = ["distance", "arme", "jet"];
+const ops$6 = { "onHit": [{ "op": "DealDamage", "target": "primary", "formula": "1d4 + modDEX", "damageType": "PIERCING" }], "onResolve": [{ "op": "SpendResource", "name": "dagger", "pool": "bandolier", "amount": 1 }, { "op": "LogEvent", "message": "Dague lancee: 1d4+DEX degats perforants." }] };
 const AttacksThrowDagger = {
   id: id$6,
   name: name$6,
@@ -15733,21 +15832,21 @@ const AttacksThrowDagger = {
   conditions: conditions$6,
   attack,
   damage,
-  effects: effects$6,
   aiHints: aiHints$3,
-  tags: tags$6
+  tags: tags$6,
+  ops: ops$6
 };
 const id$5 = "dash";
 const name$5 = "Course";
 const summary$5 = "Transforme l'action en 3 cases de mouvement en plus.";
 const category$5 = "movement";
 const actionCost$5 = { "actionType": "action", "movementCost": 0 };
-const targeting$5 = { "target": "self", "range": { "min": 0, "max": 0, "shape": "self" }, "maxTargets": 1, "requiresLos": false };
+const targeting$5 = { "target": "self", "range": { "min": 0, "max": 0, "shape": "SPHERE" }, "maxTargets": 1, "requiresLos": false };
 const usage$5 = { "perTurn": 1, "perEncounter": null, "resource": null };
 const conditions$5 = [];
-const effects$5 = [{ "type": "modify_path_limit", "target": "self", "delta": 3, "duration": "this_turn" }, { "type": "log", "message": "Course: +3 cases de mouvement pour ce tour." }];
 const aiHints$2 = { "priority": "close_gap", "successLog": "Course utilisee pour approcher.", "failureLog": "Deja a portee, course ignoree." };
 const tags$5 = ["mobilite", "deplacement"];
+const ops$5 = { "onResolve": [{ "op": "ModifyPathLimit", "delta": 3 }, { "op": "LogEvent", "message": "Course: +3 cases de mouvement pour ce tour." }] };
 const MovesDash = {
   id: id$5,
   name: name$5,
@@ -15757,21 +15856,21 @@ const MovesDash = {
   targeting: targeting$5,
   usage: usage$5,
   conditions: conditions$5,
-  effects: effects$5,
   aiHints: aiHints$2,
-  tags: tags$5
+  tags: tags$5,
+  ops: ops$5
 };
 const id$4 = "move";
 const name$4 = "Deplacement";
 const summary$4 = "Deplacement tactique vers une case cible (portee base: moveRange).";
 const category$4 = "movement";
 const actionCost$4 = { "actionType": "action", "movementCost": 0 };
-const targeting$4 = { "target": "emptyCell", "range": { "min": 1, "max": 3, "shape": "single" }, "maxTargets": 1, "requiresLos": false };
+const targeting$4 = { "target": "emptyCell", "range": { "min": 1.5, "max": 4.5, "shape": "SPHERE" }, "maxTargets": 1, "requiresLos": false };
 const usage$4 = { "perTurn": 1, "perEncounter": null, "resource": null };
 const conditions$4 = [];
-const effects$4 = [{ "type": "move_to", "target": "self", "maxSteps": "moveRange" }, { "type": "log", "message": "Deplacement effectue." }];
 const aiHints$1 = { "priority": "positioning", "successLog": "Deplacement.", "failureLog": "Aucun chemin valide." };
 const tags$4 = ["movement"];
+const ops$4 = { "onResolve": [{ "op": "MoveTo", "target": "self", "maxSteps": "moveRange" }, { "op": "LogEvent", "message": "Deplacement effectue." }] };
 const MovesMove = {
   id: id$4,
   name: name$4,
@@ -15781,21 +15880,21 @@ const MovesMove = {
   targeting: targeting$4,
   usage: usage$4,
   conditions: conditions$4,
-  effects: effects$4,
   aiHints: aiHints$1,
-  tags: tags$4
+  tags: tags$4,
+  ops: ops$4
 };
 const id$3 = "second-wind";
 const name$3 = "Second souffle";
 const summary$3 = "Restaure une partie des PV en bonus action.";
 const category$3 = "support";
 const actionCost$3 = { "actionType": "bonus", "movementCost": 0 };
-const targeting$3 = { "target": "self", "range": { "min": 0, "max": 0, "shape": "self" }, "maxTargets": 1, "requiresLos": false };
+const targeting$3 = { "target": "self", "range": { "min": 0, "max": 0, "shape": "SPHERE" }, "maxTargets": 1, "requiresLos": false };
 const usage$3 = { "perTurn": null, "perEncounter": 1, "resource": null };
-const conditions$3 = [{ "type": "stat_below_percent", "who": "self", "stat": "hp", "percentMax": 0.75, "reason": "Economiser tant que les PV sont hauts." }];
-const effects$3 = [{ "type": "heal", "target": "self", "formula": "1d10 + level", "min": 1 }, { "type": "temp_hp", "target": "self", "amount": 2, "duration": "end_of_turn" }, { "type": "log", "message": "Second souffle: soigne 1d10 + niveau." }];
+const conditions$3 = [{ "type": "STAT_BELOW_PERCENT", "who": "self", "stat": "hp", "percentMax": 0.75, "reason": "Economiser tant que les PV sont hauts." }];
 const aiHints = { "priority": "survive", "successLog": "Second souffle declenche.", "failureLog": "PV trop hauts." };
 const tags$3 = ["soin", "defense", "survie"];
+const ops$3 = { "onResolve": [{ "op": "Heal", "target": "self", "formula": "1d10 + level" }, { "op": "GrantTempHp", "target": "self", "amount": 2 }, { "op": "LogEvent", "message": "Second souffle: soigne 1d10 + niveau." }] };
 const SupportsSecondWind = {
   id: id$3,
   name: name$3,
@@ -15805,20 +15904,20 @@ const SupportsSecondWind = {
   targeting: targeting$3,
   usage: usage$3,
   conditions: conditions$3,
-  effects: effects$3,
   aiHints,
-  tags: tags$3
+  tags: tags$3,
+  ops: ops$3
 };
 const id$2 = "torch-toggle";
 const name$2 = "Allumer la torche";
 const summary$2 = "Allume ou eteint la torche du joueur pour eclairer autour de lui.";
 const category$2 = "item";
 const actionCost$2 = { "actionType": "bonus", "movementCost": 0 };
-const targeting$2 = { "target": "self", "range": { "min": 0, "max": 0, "shape": "self" }, "maxTargets": 1, "requiresLos": false };
+const targeting$2 = { "target": "self", "range": { "min": 0, "max": 0, "shape": "SPHERE" }, "maxTargets": 1, "requiresLos": false };
 const usage$2 = { "perTurn": null, "perEncounter": null, "resource": { "name": "torch", "pool": "gear", "min": 1 } };
-const conditions$2 = [{ "type": "phase", "mustBe": "player", "reason": "Tour joueur requis." }, { "type": "resource_at_least", "resource": "torch", "pool": "gear", "value": 1, "reason": "Besoin d'une torche." }];
-const effects$2 = [{ "type": "toggle_torch" }, { "type": "log", "message": "Torche: etat bascule." }];
+const conditions$2 = [{ "type": "PHASE_IS", "value": "player", "reason": "Tour joueur requis." }, { "type": "RESOURCE_AT_LEAST", "resource": "torch", "pool": "gear", "value": 1, "reason": "Besoin d'une torche." }];
 const tags$2 = ["lumiere", "objet", "utilitaire"];
+const ops$2 = { "onResolve": [{ "op": "ToggleTorch" }, { "op": "LogEvent", "message": "Torche: etat bascule." }] };
 const ItemsTorchToggle = {
   id: id$2,
   name: name$2,
@@ -15828,8 +15927,8 @@ const ItemsTorchToggle = {
   targeting: targeting$2,
   usage: usage$2,
   conditions: conditions$2,
-  effects: effects$2,
-  tags: tags$2
+  tags: tags$2,
+  ops: ops$2
 };
 const ACTION_MODULES = {
   "../spells/aid.json": aid,
@@ -15877,12 +15976,12 @@ const name$1 = "Marcher";
 const summary$1 = "Deplacement standard sans depenser d'action.";
 const category$1 = "movement";
 const actionCost$1 = { "actionType": "free", "movementCost": 0 };
-const targeting$1 = { "target": "self", "range": { "min": 0, "max": 0, "shape": "self" }, "maxTargets": 1, "requiresLos": false };
+const targeting$1 = { "target": "self", "range": { "min": 0, "max": 0, "shape": "SPHERE" }, "maxTargets": 1, "requiresLos": false };
 const usage$1 = { "perTurn": null, "perEncounter": null, "resource": null };
 const conditions$1 = [];
-const effects$1 = [{ "type": "log", "message": "Mode marche: selectionnez un trajet." }];
 const movement$1 = { "pathLimitMultiplier": 1 };
 const tags$1 = ["movement", "move-type"];
+const ops$1 = { "onResolve": [{ "op": "LogEvent", "message": "Mode marche: selectionnez un trajet." }] };
 const walkMoveType = {
   id: id$1,
   name: name$1,
@@ -15892,21 +15991,21 @@ const walkMoveType = {
   targeting: targeting$1,
   usage: usage$1,
   conditions: conditions$1,
-  effects: effects$1,
   movement: movement$1,
-  tags: tags$1
+  tags: tags$1,
+  ops: ops$1
 };
 const id = "move-sprint";
 const name = "Sprint";
 const summary = "Depense 1 action pour doubler le deplacement.";
 const category = "movement";
 const actionCost = { "actionType": "action", "movementCost": 0 };
-const targeting = { "target": "self", "range": { "min": 0, "max": 0, "shape": "self" }, "maxTargets": 1, "requiresLos": false };
+const targeting = { "target": "self", "range": { "min": 0, "max": 0, "shape": "SPHERE" }, "maxTargets": 1, "requiresLos": false };
 const usage = { "perTurn": null, "perEncounter": null, "resource": null };
 const conditions = [];
-const effects = [{ "type": "log", "message": "Sprint: deplacement double pour ce tour." }];
 const movement = { "pathLimitMultiplier": 2 };
 const tags = ["movement", "move-type"];
+const ops = { "onResolve": [{ "op": "LogEvent", "message": "Sprint: deplacement double pour ce tour." }] };
 const sprintMoveType = {
   id,
   name,
@@ -15916,9 +16015,9 @@ const sprintMoveType = {
   targeting,
   usage,
   conditions,
-  effects,
   movement,
-  tags
+  tags,
+  ops
 };
 function rollDie(sides, count2 = 1) {
   const rolls = [];
@@ -16069,11 +16168,16 @@ class MinHeap {
   }
 }
 function getMovementProfile(entity) {
-  if (entity.movementProfile) return entity.movementProfile;
+  if (entity.movementProfile) {
+    return {
+      ...entity.movementProfile,
+      speed: metersToCells(entity.movementProfile.speed)
+    };
+  }
   if (typeof entity.moveRange === "number") {
     return {
       type: "ground",
-      speed: entity.moveRange,
+      speed: metersToCells(entity.moveRange),
       directions: 8,
       canPassThroughWalls: false,
       canPassThroughEntities: false,
@@ -16329,86 +16433,589 @@ function computePathTowards(entity, target, tokens, options) {
   const path2 = pathReversed.reverse();
   return path2;
 }
-function resolveNumberVar(varName, ctx) {
-  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B, _C, _D, _E, _F, _G, _H, _I, _J, _K, _L, _M, _N, _O, _P, _Q, _R;
-  const actor = ctx.actor;
-  const stats = actor.combatStats;
-  const token = varName.toLowerCase();
-  const computeModFromScore = (score) => {
-    if (!Number.isFinite(score)) return 0;
-    return Math.floor((Number(score) - 10) / 2);
+function compileActionPlan(params) {
+  const hooks = params.action.hooks ?? [];
+  const reactionWindows = params.action.reactionWindows ?? [];
+  return {
+    action: params.action,
+    actor: params.actor,
+    target: params.target ?? null,
+    hooks,
+    reactionWindows
   };
-  const pickNumber = (...values) => {
-    for (const value2 of values) {
-      if (typeof value2 === "number" && Number.isFinite(value2)) return value2;
-    }
-    return 0;
+}
+function beginTransaction(state) {
+  return {
+    state: {
+      ...state,
+      actor: { ...state.actor },
+      player: { ...state.player },
+      enemies: state.enemies.map((enemy) => ({ ...enemy })),
+      effects: state.effects.map((effect) => ({ ...effect }))
+    },
+    logs: []
   };
-  if (token === "attackdamage") {
-    return typeof (stats == null ? void 0 : stats.attackDamage) === "number" ? stats.attackDamage : typeof actor.attackDamage === "number" ? actor.attackDamage : 0;
-  }
-  if (token === "attackbonus") {
-    return typeof (stats == null ? void 0 : stats.attackBonus) === "number" ? stats.attackBonus : 0;
-  }
-  if (token === "moverange") {
-    return typeof (stats == null ? void 0 : stats.moveRange) === "number" ? stats.moveRange : typeof actor.moveRange === "number" ? actor.moveRange : typeof ((_a = actor.movementProfile) == null ? void 0 : _a.speed) === "number" ? actor.movementProfile.speed : 0;
-  }
-  if (token === "attackrange") {
-    return typeof (stats == null ? void 0 : stats.attackRange) === "number" ? stats.attackRange : typeof actor.attackRange === "number" ? actor.attackRange : 1;
-  }
-  if (token === "level" || token === "niveau") {
-    const level2 = Number((stats == null ? void 0 : stats.level) ?? ((_b = ctx.sampleCharacter) == null ? void 0 : _b.niveauGlobal) ?? 1);
-    return Number.isFinite(level2) ? level2 : 1;
-  }
-  if (token === "modstr" || token === "modfor") {
-    const mod = pickNumber(
-      (_c = stats == null ? void 0 : stats.mods) == null ? void 0 : _c.str,
-      (_f = (_e = (_d = ctx.sampleCharacter) == null ? void 0 : _d.caracs) == null ? void 0 : _e.force) == null ? void 0 : _f.modFOR,
-      computeModFromScore((_i = (_h = (_g = ctx.sampleCharacter) == null ? void 0 : _g.caracs) == null ? void 0 : _h.force) == null ? void 0 : _i.FOR)
-    );
-    return Number.isFinite(mod) ? mod : 0;
-  }
-  if (token === "moddex") {
-    const mod = pickNumber(
-      (_j = stats == null ? void 0 : stats.mods) == null ? void 0 : _j.dex,
-      (_m = (_l = (_k = ctx.sampleCharacter) == null ? void 0 : _k.caracs) == null ? void 0 : _l.dexterite) == null ? void 0 : _m.modDEX,
-      computeModFromScore((_p = (_o = (_n = ctx.sampleCharacter) == null ? void 0 : _n.caracs) == null ? void 0 : _o.dexterite) == null ? void 0 : _p.DEX)
-    );
-    return Number.isFinite(mod) ? mod : 0;
-  }
-  if (token === "modcon") {
-    const mod = pickNumber(
-      (_q = stats == null ? void 0 : stats.mods) == null ? void 0 : _q.con,
-      (_t = (_s = (_r = ctx.sampleCharacter) == null ? void 0 : _r.caracs) == null ? void 0 : _s.constitution) == null ? void 0 : _t.modCON,
-      computeModFromScore((_w = (_v = (_u = ctx.sampleCharacter) == null ? void 0 : _u.caracs) == null ? void 0 : _v.constitution) == null ? void 0 : _w.CON)
-    );
-    return Number.isFinite(mod) ? mod : 0;
-  }
-  if (token === "modint") {
-    const mod = pickNumber(
-      (_x = stats == null ? void 0 : stats.mods) == null ? void 0 : _x.int,
-      (_A = (_z = (_y = ctx.sampleCharacter) == null ? void 0 : _y.caracs) == null ? void 0 : _z.intelligence) == null ? void 0 : _A.modINT,
-      computeModFromScore((_D = (_C = (_B = ctx.sampleCharacter) == null ? void 0 : _B.caracs) == null ? void 0 : _C.intelligence) == null ? void 0 : _D.INT)
-    );
-    return Number.isFinite(mod) ? mod : 0;
-  }
-  if (token === "modwis") {
-    const mod = pickNumber(
-      (_E = stats == null ? void 0 : stats.mods) == null ? void 0 : _E.wis,
-      (_H = (_G = (_F = ctx.sampleCharacter) == null ? void 0 : _F.caracs) == null ? void 0 : _G.sagesse) == null ? void 0 : _H.modSAG,
-      computeModFromScore((_K = (_J = (_I = ctx.sampleCharacter) == null ? void 0 : _I.caracs) == null ? void 0 : _J.sagesse) == null ? void 0 : _K.SAG)
-    );
-    return Number.isFinite(mod) ? mod : 0;
-  }
-  if (token === "modcha") {
-    const mod = pickNumber(
-      (_L = stats == null ? void 0 : stats.mods) == null ? void 0 : _L.cha,
-      (_O = (_N = (_M = ctx.sampleCharacter) == null ? void 0 : _M.caracs) == null ? void 0 : _N.charisme) == null ? void 0 : _O.modCHA,
-      computeModFromScore((_R = (_Q = (_P = ctx.sampleCharacter) == null ? void 0 : _P.caracs) == null ? void 0 : _Q.charisme) == null ? void 0 : _R.CHA)
-    );
-    return Number.isFinite(mod) ? mod : 0;
+}
+function logTransaction(tx, message, onLog) {
+  tx.logs.push(message);
+  onLog == null ? void 0 : onLog(message);
+}
+function pickTarget(state, selector, explicitTarget) {
+  if (selector === "self") return state.actor;
+  if (explicitTarget && explicitTarget.kind === "token") {
+    const targetId = explicitTarget.token.id;
+    if (state.player.id === targetId) return state.player;
+    return state.enemies.find((enemy) => enemy.id === targetId) ?? null;
   }
   return null;
+}
+function applyOperation(params) {
+  var _a, _b, _c, _d, _e, _f, _g, _h, _i;
+  const { op, tx, state, explicitTarget, opts } = params;
+  if (op.op === "LogEvent") {
+    logTransaction(tx, op.message, opts.onLog);
+    return;
+  }
+  if (op.op === "SpendResource") {
+    (_a = opts.spendResource) == null ? void 0 : _a.call(opts, op.name, op.pool ?? null, op.amount);
+    logTransaction(tx, `Ressource depensee: ${op.name} -${op.amount}`, opts.onLog);
+    return;
+  }
+  if (op.op === "CreateZone") {
+    const targetCell = op.target === "self" ? { x: state.actor.x, y: state.actor.y } : (explicitTarget == null ? void 0 : explicitTarget.kind) === "token" ? (() => {
+      const targetId = explicitTarget.token.id;
+      if (state.player.id === targetId) return { x: state.player.x, y: state.player.y };
+      const enemy = state.enemies.find((e2) => e2.id === targetId);
+      return enemy ? { x: enemy.x, y: enemy.y } : null;
+    })() : null;
+    if (!targetCell) return;
+    const id2 = `zone-${op.effectTypeId}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    tx.state.effects.push({
+      id: id2,
+      typeId: op.effectTypeId,
+      x: targetCell.x,
+      y: targetCell.y,
+      active: true
+    });
+    logTransaction(tx, `Zone creee: ${op.effectTypeId}`, opts.onLog);
+    return;
+  }
+  const targetToken = pickTarget(state, op.target, explicitTarget);
+  if (!targetToken) return;
+  if (op.op === "DealDamage") {
+    const formula = resolveFormula(op.formula, { actor: state.actor, sampleCharacter: void 0 });
+    const override = ((_c = (_b = opts.rollOverrides) == null ? void 0 : _b.consumeDamageRoll) == null ? void 0 : _c.call(_b)) ?? null;
+    const roll = override ?? rollDamage(formula, { isCrit: false, critRule: "double-dice" });
+    const total = op.scale === "half" ? Math.floor(roll.total / 2) : roll.total;
+    const tempHp = typeof targetToken.tempHp === "number" ? targetToken.tempHp : 0;
+    if (tempHp > 0) {
+      const remaining = Math.max(0, total - tempHp);
+      targetToken.tempHp = Math.max(0, tempHp - total);
+      targetToken.hp = Math.max(0, targetToken.hp - remaining);
+    } else {
+      targetToken.hp = Math.max(0, targetToken.hp - total);
+    }
+    logTransaction(tx, `Degats: ${total} (${formula})`, opts.onLog);
+    return;
+  }
+  if (op.op === "Heal") {
+    const formula = resolveFormula(op.formula, { actor: state.actor, sampleCharacter: void 0 });
+    const roll = rollDamage(formula, { isCrit: false, critRule: "double-dice" });
+    const total = roll.total;
+    targetToken.hp = Math.min(targetToken.maxHp, targetToken.hp + total);
+    logTransaction(tx, `Soin: +${total} (${formula})`, opts.onLog);
+    return;
+  }
+  if (op.op === "ApplyCondition") {
+    const statuses = targetToken.statuses ? [...targetToken.statuses] : [];
+    statuses.push({ id: op.statusId, remainingTurns: op.durationTurns, sourceId: state.actor.id });
+    targetToken.statuses = statuses;
+    logTransaction(tx, `Etat applique: ${op.statusId} (${op.durationTurns} tours)`, opts.onLog);
+    return;
+  }
+  if (op.op === "GrantTempHp") {
+    const amount = typeof op.amount === "number" ? op.amount : 0;
+    if (amount <= 0) return;
+    targetToken.tempHp = Math.max(targetToken.tempHp ?? 0, amount);
+    (_d = opts.onGrantTempHp) == null ? void 0 : _d.call(opts, { targetId: targetToken.id, amount, durationTurns: op.durationTurns });
+    logTransaction(tx, `PV temporaires: +${amount}`, opts.onLog);
+    return;
+  }
+  if (op.op === "MoveForced") {
+    if (!op.to) return;
+    targetToken.x = op.to.x;
+    targetToken.y = op.to.y;
+    logTransaction(tx, `Deplacement force vers (${op.to.x}, ${op.to.y})`, opts.onLog);
+    return;
+  }
+  if (op.op === "MoveTo") {
+    if ((explicitTarget == null ? void 0 : explicitTarget.kind) !== "cell") return;
+    let maxSteps = null;
+    if (typeof op.maxSteps === "number") {
+      maxSteps = op.maxSteps;
+    } else if (typeof op.maxSteps === "string") {
+      const resolved = resolveFormula(op.maxSteps, { actor: state.actor, sampleCharacter: void 0 });
+      const parsed = Number.parseFloat(resolved);
+      if (Number.isFinite(parsed)) maxSteps = parsed;
+    }
+    (_e = opts.onMoveTo) == null ? void 0 : _e.call(opts, {
+      state: tx.state,
+      targetCell: { x: explicitTarget.x, y: explicitTarget.y },
+      maxSteps
+    });
+    return;
+  }
+  if (op.op === "ModifyPathLimit") {
+    if (typeof op.delta === "number") {
+      (_f = opts.onModifyPathLimit) == null ? void 0 : _f.call(opts, op.delta);
+      logTransaction(tx, `Limite de trajet modifiee (${op.delta >= 0 ? "+" : ""}${op.delta})`, opts.onLog);
+    }
+    return;
+  }
+  if (op.op === "ToggleTorch") {
+    (_g = opts.onToggleTorch) == null ? void 0 : _g.call(opts);
+    return;
+  }
+  if (op.op === "SetKillerInstinctTarget") {
+    (_h = opts.onSetKillerInstinctTarget) == null ? void 0 : _h.call(opts, targetToken.id);
+    logTransaction(tx, `Instinct de tueur: cible ${targetToken.id}`, opts.onLog);
+    return;
+  }
+  if (op.op === "PlayVisualEffect") {
+    if (op.effectId) {
+      (_i = opts.onPlayVisualEffect) == null ? void 0 : _i.call(opts, {
+        effectId: op.effectId,
+        anchor: op.anchor,
+        offset: op.offset,
+        orientation: op.orientation,
+        rotationOffsetDeg: op.rotationOffsetDeg,
+        durationMs: op.durationMs
+      });
+    }
+    return;
+  }
+}
+function compare(cmp, left, right) {
+  switch (cmp) {
+    case "EQ":
+      return left === right;
+    case "NE":
+      return left !== right;
+    case "LT":
+      return left < right;
+    case "LTE":
+      return left <= right;
+    case "GT":
+      return left > right;
+    case "GTE":
+      return left >= right;
+    default:
+      return false;
+  }
+}
+function getTags(token) {
+  var _a;
+  const tags2 = ((_a = token.combatStats) == null ? void 0 : _a.tags) ?? [];
+  const extra = token.tags ?? [];
+  return [...tags2, ...extra];
+}
+function getStatuses(token) {
+  return token.statuses ?? [];
+}
+function getResourceAmountFallback(token, name2) {
+  var _a, _b;
+  const pool = (_b = (_a = token.combatStats) == null ? void 0 : _a.resources) == null ? void 0 : _b[name2];
+  if (!pool) return 0;
+  return Number(pool.current ?? 0);
+}
+function outcomeHasFlag(outcome, flag) {
+  if (!outcome) return false;
+  if (flag === "HIT") return outcome.kind === "hit";
+  if (flag === "MISS") return outcome.kind === "miss";
+  if (flag === "CRIT") return outcome.kind === "crit";
+  if (flag === "SAVE_SUCCESS") return outcome.kind === "saveSuccess";
+  if (flag === "SAVE_FAIL") return outcome.kind === "saveFail";
+  return false;
+}
+function getCreatureType(token) {
+  var _a;
+  const anyToken = token;
+  return ((_a = anyToken.creature) == null ? void 0 : _a.type) ?? null;
+}
+function getCreatureTags(token) {
+  var _a;
+  const anyToken = token;
+  return ((_a = anyToken.creature) == null ? void 0 : _a.tags) ?? [];
+}
+function getSize(token) {
+  var _a;
+  const anyToken = token;
+  return ((_a = anyToken.creature) == null ? void 0 : _a.size) ?? null;
+}
+function canMove(token, move) {
+  var _a;
+  const targetMove = move.toLowerCase();
+  if (token.movementModes && typeof token.movementModes === "object") {
+    return Object.keys(token.movementModes).some((key2) => key2.toLowerCase() === targetMove);
+  }
+  const movementType = (_a = token.movementProfile) == null ? void 0 : _a.type;
+  if (!movementType) return false;
+  if (movementType === "flying") return targetMove === "fly";
+  if (movementType === "ground") return targetMove === "walk";
+  return movementType.toLowerCase() === targetMove;
+}
+function getDamageDefenses(token) {
+  var _a;
+  const anyToken = token;
+  return ((_a = anyToken.defenses) == null ? void 0 : _a.damage) ?? null;
+}
+function getValue(token, key2, values) {
+  if (values && typeof values[key2] === "number") return values[key2];
+  const anyToken = token;
+  const raw = anyToken[key2];
+  if (typeof raw === "number") return raw;
+  return null;
+}
+function evaluateConditionExpr(condition, ctx) {
+  var _a, _b, _c, _d, _e, _f, _g, _h;
+  switch (condition.type) {
+    case "AND":
+      return condition.all.every((cond) => evaluateConditionExpr(cond, ctx));
+    case "OR":
+      return condition.any.some((cond) => evaluateConditionExpr(cond, ctx));
+    case "NOT":
+      return !evaluateConditionExpr(condition.expr, ctx);
+    case "PHASE_IS": {
+      const expected = condition.value ?? condition.mustBe;
+      if (!expected) return true;
+      return ctx.phase === expected;
+    }
+    case "OUTCOME_HAS":
+      return outcomeHasFlag(ctx.outcome, condition.flag);
+    case "TARGET_ALIVE":
+      return !!ctx.target && ctx.target.hp > 0;
+    case "DISTANCE_MAX":
+      return typeof ctx.distance === "number" ? ctx.distance <= condition.max : false;
+    case "DISTANCE_BETWEEN": {
+      if (typeof ctx.distance !== "number") return false;
+      if (typeof condition.min === "number" && ctx.distance < condition.min) return false;
+      if (typeof condition.max === "number" && ctx.distance > condition.max) return false;
+      return true;
+    }
+    case "STAT_BELOW_PERCENT": {
+      const who = condition.who === "target" ? ctx.target : ctx.actor;
+      if (!who) return false;
+      if (condition.stat !== "hp") return false;
+      const maxHp = who.maxHp ?? 0;
+      const curHp = who.hp ?? 0;
+      if (maxHp <= 0) return false;
+      return curHp / maxHp < condition.percentMax;
+    }
+    case "RESOURCE_AT_LEAST": {
+      const amount = ctx.getResourceAmount ? ctx.getResourceAmount(condition.resource, condition.pool ?? null) : getResourceAmountFallback(ctx.actor, condition.resource);
+      return amount >= condition.value;
+    }
+    case "ACTOR_HAS_RESOURCE": {
+      const amount = getResourceAmountFallback(ctx.actor, condition.key);
+      return compare(condition.cmp, amount, condition.value);
+    }
+    case "TARGET_HAS_RESOURCE": {
+      if (!ctx.target) return false;
+      const amount = getResourceAmountFallback(ctx.target, condition.key);
+      return compare(condition.cmp, amount, condition.value);
+    }
+    case "ACTOR_HAS_TAG":
+      return getTags(ctx.actor).includes(condition.tag);
+    case "TARGET_HAS_TAG":
+      return !!ctx.target && getTags(ctx.target).includes(condition.tag);
+    case "ACTOR_HAS_CONDITION":
+      return getStatuses(ctx.actor).some((status) => status.id === condition.condition);
+    case "TARGET_HAS_CONDITION":
+      return !!ctx.target && getStatuses(ctx.target).some((status) => status.id === condition.condition);
+    case "ACTOR_CONDITION_STACKS": {
+      const stacks = getStatuses(ctx.actor).filter((status) => status.id === condition.condition).length;
+      return compare(condition.cmp, stacks, condition.value);
+    }
+    case "TARGET_CONDITION_STACKS": {
+      if (!ctx.target) return false;
+      const stacks = getStatuses(ctx.target).filter((status) => status.id === condition.condition).length;
+      return compare(condition.cmp, stacks, condition.value);
+    }
+    case "ACTOR_CREATURE_TYPE_IS":
+      return getCreatureType(ctx.actor) === condition.value;
+    case "TARGET_CREATURE_TYPE_IS":
+      return !!ctx.target && getCreatureType(ctx.target) === condition.value;
+    case "ACTOR_CREATURE_HAS_TAG":
+      return getCreatureTags(ctx.actor).includes(condition.tag);
+    case "TARGET_CREATURE_HAS_TAG":
+      return !!ctx.target && getCreatureTags(ctx.target).includes(condition.tag);
+    case "ACTOR_SIZE_IS":
+      return getSize(ctx.actor) === condition.value;
+    case "TARGET_SIZE_IS":
+      return !!ctx.target && getSize(ctx.target) === condition.value;
+    case "ACTOR_CAN_MOVE":
+      return canMove(ctx.actor, condition.move);
+    case "TARGET_CAN_MOVE":
+      return !!ctx.target && canMove(ctx.target, condition.move);
+    case "ACTOR_DAMAGE_IMMUNE": {
+      const defenses = getDamageDefenses(ctx.actor);
+      return !!((_a = defenses == null ? void 0 : defenses.immune) == null ? void 0 : _a.includes(condition.damageType));
+    }
+    case "TARGET_DAMAGE_IMMUNE": {
+      const defenses = ctx.target ? getDamageDefenses(ctx.target) : null;
+      return !!((_b = defenses == null ? void 0 : defenses.immune) == null ? void 0 : _b.includes(condition.damageType));
+    }
+    case "ACTOR_DAMAGE_RESIST": {
+      const defenses = getDamageDefenses(ctx.actor);
+      return !!((_c = defenses == null ? void 0 : defenses.resist) == null ? void 0 : _c.includes(condition.damageType));
+    }
+    case "TARGET_DAMAGE_RESIST": {
+      const defenses = ctx.target ? getDamageDefenses(ctx.target) : null;
+      return !!((_d = defenses == null ? void 0 : defenses.resist) == null ? void 0 : _d.includes(condition.damageType));
+    }
+    case "ACTOR_DAMAGE_VULNERABLE": {
+      const defenses = getDamageDefenses(ctx.actor);
+      return !!((_e = defenses == null ? void 0 : defenses.vulnerable) == null ? void 0 : _e.includes(condition.damageType));
+    }
+    case "TARGET_DAMAGE_VULNERABLE": {
+      const defenses = ctx.target ? getDamageDefenses(ctx.target) : null;
+      return !!((_f = defenses == null ? void 0 : defenses.vulnerable) == null ? void 0 : _f.includes(condition.damageType));
+    }
+    case "ACTOR_VALUE": {
+      const value2 = getValue(ctx.actor, condition.key, (_g = ctx.valueLookup) == null ? void 0 : _g.actor);
+      if (value2 === null) return false;
+      return compare(condition.cmp, value2, condition.value);
+    }
+    case "TARGET_VALUE": {
+      if (!ctx.target) return false;
+      const value2 = getValue(ctx.target, condition.key, (_h = ctx.valueLookup) == null ? void 0 : _h.target);
+      if (value2 === null) return false;
+      return compare(condition.cmp, value2, condition.value);
+    }
+    default:
+      return false;
+  }
+}
+function evaluateAllConditions(conditions2, ctx) {
+  if (!conditions2 || conditions2.length === 0) return true;
+  return conditions2.every((cond) => evaluateConditionExpr(cond, ctx));
+}
+function shouldApplyHook(hook, ctx, opts) {
+  return evaluateAllConditions(hook.if, {
+    actor: ctx.actor,
+    target: ctx.target,
+    outcome: ctx.outcome,
+    getResourceAmount: opts.getResourceAmount
+  });
+}
+function resolvePromptDecision(hook, opts) {
+  if (!hook.prompt) return "accept";
+  if (opts.promptHandler) return opts.promptHandler(hook.prompt);
+  return hook.prompt.defaultDecision ?? "reject";
+}
+function resolveOutcome(params) {
+  var _a, _b, _c, _d, _e;
+  const { plan, state } = params;
+  const resolution2 = plan.action.resolution ?? { kind: "none" };
+  const target = plan.target && "id" in plan.target ? plan.target : null;
+  if (resolution2.kind === "attack") {
+    const bonus = resolution2.bonus ?? 0;
+    const critRange = resolution2.critRange ?? 20;
+    const roll = ((_a = params.rollOverrides) == null ? void 0 : _a.attack) ?? rollAttack(bonus, params.advantageMode ?? "normal", critRange);
+    const targetAC = target && typeof target.armorClass === "number" ? target.armorClass : null;
+    const isHit = targetAC === null ? true : roll.total >= targetAC || roll.isCrit;
+    const kind2 = roll.isCrit ? "crit" : isHit ? "hit" : "miss";
+    return {
+      outcome: { kind: kind2, roll: roll.d20.total, total: roll.total, isCrit: roll.isCrit },
+      target
+    };
+  }
+  if (resolution2.kind === "save" && resolution2.save) {
+    const ability = resolution2.save.ability;
+    const dc = resolution2.save.dc;
+    const mod = ((_c = (_b = target == null ? void 0 : target.combatStats) == null ? void 0 : _b.mods) == null ? void 0 : _c[ability]) ?? 0;
+    const roll = rollDamage("1d20", { isCrit: false, critRule: "double-dice" });
+    const total = roll.total + mod;
+    const success = total >= dc;
+    const kind2 = success ? "saveSuccess" : "saveFail";
+    return {
+      outcome: { kind: kind2, roll: roll.total, total },
+      target
+    };
+  }
+  if (resolution2.kind === "check" && resolution2.check) {
+    const ability = resolution2.check.ability;
+    const dc = resolution2.check.dc;
+    const mod = ((_e = (_d = state.actor.combatStats) == null ? void 0 : _d.mods) == null ? void 0 : _e[ability]) ?? 0;
+    const roll = rollDamage("1d20", { isCrit: false, critRule: "double-dice" });
+    const total = roll.total + mod;
+    const success = total >= dc;
+    const kind2 = success ? "hit" : "miss";
+    return {
+      outcome: { kind: kind2, roll: roll.total, total },
+      target
+    };
+  }
+  return {
+    outcome: { kind: "hit", roll: 0, total: 0 },
+    target
+  };
+}
+function collectOperations(effects, outcome) {
+  const ops2 = [];
+  if (effects == null ? void 0 : effects.onResolve) ops2.push(...effects.onResolve);
+  if (outcome.kind === "hit" && (effects == null ? void 0 : effects.onHit)) ops2.push(...effects.onHit);
+  if (outcome.kind === "miss" && (effects == null ? void 0 : effects.onMiss)) ops2.push(...effects.onMiss);
+  if (outcome.kind === "crit") {
+    if (effects == null ? void 0 : effects.onHit) ops2.push(...effects.onHit);
+    if (effects == null ? void 0 : effects.onCrit) ops2.push(...effects.onCrit);
+  }
+  if (outcome.kind === "saveSuccess" && (effects == null ? void 0 : effects.onSaveSuccess)) ops2.push(...effects.onSaveSuccess);
+  if (outcome.kind === "saveFail" && (effects == null ? void 0 : effects.onSaveFail)) ops2.push(...effects.onSaveFail);
+  return ops2;
+}
+function executePlan(params) {
+  var _a, _b, _c, _d;
+  const { plan, state, opts } = params;
+  const tx = beginTransaction(state);
+  if (plan.reactionWindows.includes("pre")) {
+    const result = ((_a = opts.onReactionWindow) == null ? void 0 : _a.call(opts, "pre")) ?? "continue";
+    if (result === "interrupt") {
+      return {
+        ok: false,
+        logs: tx.logs,
+        state: tx.state,
+        interrupted: true,
+        outcome: { kind: "miss", roll: 0, total: 0 }
+      };
+    }
+  }
+  const { outcome, target } = resolveOutcome({
+    plan,
+    state: tx.state,
+    advantageMode: params.advantageMode,
+    rollOverrides: opts.rollOverrides
+  });
+  if (((_b = plan.action.resolution) == null ? void 0 : _b.kind) === "attack") {
+    const targetAC = target && typeof target.armorClass === "number" ? target.armorClass : null;
+    logTransaction(
+      tx,
+      `Jet de touche (${plan.action.name}) : ${outcome.roll} + ${((_c = plan.action.resolution) == null ? void 0 : _c.bonus) ?? 0} = ${outcome.total}` + (targetAC !== null ? ` vs CA ${targetAC}` : "") + (outcome.isCrit ? " (critique!)" : ""),
+      opts.onLog
+    );
+    if (outcome.kind === "miss") {
+      logTransaction(
+        tx,
+        `L'attaque (${plan.action.name}) rate sa cible. Pas de degats.`,
+        opts.onLog
+      );
+    }
+  }
+  const hookContext = { actor: tx.state.actor, target, outcome };
+  const hooks = plan.hooks ?? [];
+  for (const hook of hooks) {
+    if (hook.when !== "on_outcome") continue;
+    if (!shouldApplyHook(hook, hookContext, opts)) continue;
+    const decision = resolvePromptDecision(hook, opts);
+    if (decision === "accept") {
+      for (const op of hook.apply) {
+        applyOperation({
+          op,
+          tx,
+          state: tx.state,
+          explicitTarget: target ? { kind: "token", token: target } : null,
+          opts
+        });
+      }
+    }
+  }
+  const ops2 = collectOperations(plan.action.effects, outcome);
+  const explicitTarget = plan.target && "id" in plan.target ? { kind: "token", token: plan.target } : plan.target && "x" in plan.target ? { kind: "cell", x: plan.target.x, y: plan.target.y } : null;
+  for (const op of ops2) {
+    applyOperation({
+      op,
+      tx,
+      state: tx.state,
+      explicitTarget: explicitTarget ?? (target ? { kind: "token", token: target } : null),
+      opts
+    });
+  }
+  if (plan.reactionWindows.includes("post")) {
+    const result = ((_d = opts.onReactionWindow) == null ? void 0 : _d.call(opts, "post")) ?? "continue";
+    if (result === "interrupt") {
+      return { ok: false, logs: tx.logs, state: tx.state, interrupted: true, outcome };
+    }
+  }
+  return { ok: true, logs: tx.logs, state: tx.state, outcome };
+}
+const kindMap = {
+  ATTACK_ROLL: "attack",
+  SAVING_THROW: "save",
+  ABILITY_CHECK: "check",
+  NO_ROLL: "none",
+  attack: "attack",
+  save: "save",
+  check: "check",
+  none: "none"
+};
+const abilityMap = {
+  STR: "str",
+  FOR: "str",
+  DEX: "dex",
+  CON: "con",
+  INT: "int",
+  WIS: "wis",
+  SAG: "wis",
+  CHA: "cha",
+  str: "str",
+  dex: "dex",
+  con: "con",
+  int: "int",
+  wis: "wis",
+  cha: "cha"
+};
+function mapResolution(action2) {
+  var _a, _b, _c;
+  if (action2.resolution) {
+    const res = action2.resolution;
+    const normalized = { ...res };
+    if (typeof res.kind === "string" && kindMap[res.kind]) {
+      normalized.kind = kindMap[res.kind];
+    }
+    if (((_a = res.save) == null ? void 0 : _a.ability) && abilityMap[String(res.save.ability)]) {
+      normalized.save = { ...res.save, ability: abilityMap[String(res.save.ability)] };
+    }
+    if (((_b = res.check) == null ? void 0 : _b.ability) && abilityMap[String(res.check.ability)]) {
+      normalized.check = { ...res.check, ability: abilityMap[String(res.check.ability)] };
+    }
+    return normalized;
+  }
+  if (action2.attack) {
+    return {
+      kind: "attack",
+      bonus: action2.attack.bonus,
+      critRange: action2.attack.critRange ?? 20,
+      critRule: ((_c = action2.damage) == null ? void 0 : _c.critRule) ?? "double-dice"
+    };
+  }
+  return { kind: "none" };
+}
+function mapEffects(action2) {
+  if (!action2.ops) return void 0;
+  return action2.ops;
+}
+function actionDefinitionToActionSpec(action2) {
+  return {
+    id: action2.id,
+    name: action2.name,
+    summary: action2.summary,
+    targeting: action2.targeting,
+    resolution: mapResolution(action2),
+    effects: mapEffects(action2),
+    reactionWindows: action2.reactionWindows ?? [],
+    hooks: action2.hooks ?? [],
+    tags: action2.tags ?? []
+  };
 }
 function areOnSameBaseLevel(ctx, a2, b2) {
   var _a, _b;
@@ -16419,31 +17026,6 @@ function areOnSameBaseLevel(ctx, a2, b2) {
   const hb = getHeightAtGrid(ctx.heightMap, cols, rows, b2.x, b2.y);
   return ha === hb;
 }
-function resolveFormula(formula, ctx) {
-  const raw = String(formula ?? "");
-  if (!raw.trim()) return "0";
-  return raw.replace(/[A-Za-z_][A-Za-z0-9_]*/g, (token) => {
-    const value2 = resolveNumberVar(token, ctx);
-    return value2 === null ? token : String(value2);
-  });
-}
-function getPrimaryTargetToken(action2, ctx, target) {
-  var _a, _b, _c;
-  if (target.kind === "token") return target.token;
-  if (((_a = action2.targeting) == null ? void 0 : _a.target) === "hostile") {
-    if (ctx.actor.type === "enemy") {
-      return ctx.player;
-    }
-    return null;
-  }
-  if (((_b = action2.targeting) == null ? void 0 : _b.target) === "player") {
-    return ctx.player;
-  }
-  if (((_c = action2.targeting) == null ? void 0 : _c.target) === "enemy") {
-    return null;
-  }
-  return null;
-}
 function isHostileTarget(actor, targetToken) {
   return actor.type !== targetToken.type;
 }
@@ -16451,7 +17033,7 @@ function isAllyTarget(actor, targetToken) {
   return actor.type === targetToken.type;
 }
 function validateTokenTarget(action2, ctx, targetToken) {
-  var _a, _b;
+  var _a, _b, _c;
   const actor = ctx.actor;
   const allTokens = [ctx.player, ...ctx.enemies];
   if (targetToken.hp <= 0) {
@@ -16476,30 +17058,20 @@ function validateTokenTarget(action2, ctx, targetToken) {
       };
     }
   }
-  for (const cond of action2.conditions || []) {
-    if (cond.type === "target_alive" && targetToken.hp <= 0) {
-      return {
-        ok: false,
-        reason: cond.reason || "La cible doit avoir des PV restants."
-      };
-    }
-    if (cond.type === "distance_max") {
-      if (typeof cond.max === "number" && dist > cond.max) {
-        return { ok: false, reason: cond.reason || `Distance cible > ${cond.max}.` };
-      }
-    }
-    if (cond.type === "distance_between") {
-      const min = typeof cond.min === "number" ? cond.min : (range == null ? void 0 : range.min) ?? null;
-      const max = typeof cond.max === "number" ? cond.max : (range == null ? void 0 : range.max) ?? null;
-      if (min !== null && dist < min) {
-        return { ok: false, reason: cond.reason || `Distance cible < ${min}.` };
-      }
-      if (max !== null && dist > max) {
-        return { ok: false, reason: cond.reason || `Distance cible > ${max}.` };
-      }
+  if (Array.isArray(action2.conditions) && action2.conditions.length > 0) {
+    const ok = evaluateAllConditions(action2.conditions, {
+      actor,
+      target: targetToken,
+      distance: dist,
+      phase: ctx.phase,
+      getResourceAmount: ctx.getResourceAmount
+    });
+    if (!ok) {
+      const firstReason = (_b = action2.conditions.find((cond) => cond.reason)) == null ? void 0 : _b.reason;
+      return { ok: false, reason: firstReason || "Conditions non remplies." };
     }
   }
-  if ((_b = action2.targeting) == null ? void 0 : _b.requiresLos) {
+  if ((_c = action2.targeting) == null ? void 0 : _c.requiresLos) {
     const visible = isTargetVisible(
       actor,
       targetToken,
@@ -16588,15 +17160,31 @@ function validateActionTarget(action2, ctx, target) {
   return { ok: false, reason: "Type de ciblage non supporte." };
 }
 function computeAvailabilityForActor(action2, ctx) {
-  var _a;
+  var _a, _b;
   const reasons = [];
   const details = [];
-  for (const cond of action2.conditions || []) {
-    if (cond.type === "phase" && cond.mustBe && cond.mustBe !== ctx.phase) {
-      reasons.push(cond.reason || "Phase incorrecte.");
+  const availabilityConditions = (action2.conditions || []).filter((cond) => {
+    return !["TARGET_ALIVE", "DISTANCE_MAX", "DISTANCE_BETWEEN"].includes(cond.type);
+  });
+  if (availabilityConditions.length > 0) {
+    const ok = evaluateAllConditions(availabilityConditions, {
+      actor: ctx.actor,
+      target: ctx.player,
+      phase: ctx.phase,
+      getResourceAmount: ctx.getResourceAmount,
+      valueLookup: {
+        actor: {
+          hp: ctx.actor.hp,
+          maxHp: ctx.actor.maxHp
+        }
+      }
+    });
+    if (!ok) {
+      const firstReason = (_a = availabilityConditions.find((cond) => cond.reason)) == null ? void 0 : _a.reason;
+      reasons.push(firstReason || "Conditions non remplies.");
     }
   }
-  const usageResource = (_a = action2.usage) == null ? void 0 : _a.resource;
+  const usageResource = (_b = action2.usage) == null ? void 0 : _b.resource;
   if (ctx.getResourceAmount && (usageResource == null ? void 0 : usageResource.name) && typeof usageResource.min === "number") {
     const amount = ctx.getResourceAmount(usageResource.name, usageResource.pool ?? null);
     if (amount < usageResource.min) {
@@ -16608,8 +17196,8 @@ function computeAvailabilityForActor(action2, ctx) {
   }
   return { enabled: reasons.length === 0, reasons, details };
 }
-function resolveAction(action2, ctx, target, opts) {
-  var _a, _b, _c, _d, _e;
+function resolveActionUnified(action2, ctx, target, opts) {
+  var _a;
   const logs = [];
   const log2 = (m2) => {
     var _a2;
@@ -16627,211 +17215,111 @@ function resolveAction(action2, ctx, target, opts) {
   const actor = { ...ctx.actor };
   let player = { ...ctx.player };
   const enemies = ctx.enemies.map((e2) => ({ ...e2 }));
-  const emit = (evt) => {
-    var _a2;
-    (_a2 = ctx.emitEvent) == null ? void 0 : _a2.call(ctx, evt);
+  const actionSpec = actionDefinitionToActionSpec(action2);
+  const plan = compileActionPlan({
+    action: actionSpec,
+    actor,
+    target: target.kind === "token" ? target.token : target.kind === "cell" ? { x: target.x, y: target.y } : null
+  });
+  const applyMoveTo = (params) => {
+    var _a2, _b, _c;
+    const { state, targetCell } = params;
+    const targetX = targetCell.x;
+    const targetY = targetCell.y;
+    let maxSteps = params.maxSteps ?? null;
+    if (typeof maxSteps === "number") {
+      maxSteps = metersToCells(maxSteps);
+    }
+    if (maxSteps === null) {
+      maxSteps = typeof state.actor.moveRange === "number" ? metersToCells(state.actor.moveRange) : typeof ((_a2 = state.actor.movementProfile) == null ? void 0 : _a2.speed) === "number" ? metersToCells(state.actor.movementProfile.speed) : 3;
+    }
+    const cols = ((_b = ctx.grid) == null ? void 0 : _b.cols) ?? GRID_COLS;
+    const rows = ((_c = ctx.grid) == null ? void 0 : _c.rows) ?? GRID_ROWS;
+    const clampedX = clamp$5(targetX, 0, cols - 1);
+    const clampedY = clamp$5(targetY, 0, rows - 1);
+    if (!isCellInsideGrid(clampedX, clampedY, cols, rows)) return;
+    if (ctx.playableCells && ctx.playableCells.size > 0) {
+      const k2 = `${clampedX},${clampedY}`;
+      if (!ctx.playableCells.has(k2)) return;
+    }
+    const tokensForPath = (() => {
+      var _a3, _b2;
+      if (!ctx.heightMap || typeof ctx.activeLevel !== "number") {
+        return [state.player, ...state.enemies];
+      }
+      const cols2 = ((_a3 = ctx.grid) == null ? void 0 : _a3.cols) ?? GRID_COLS;
+      const rows2 = ((_b2 = ctx.grid) == null ? void 0 : _b2.rows) ?? GRID_ROWS;
+      return [state.player, ...state.enemies].filter((t2) => {
+        const baseHeight = getHeightAtGrid(ctx.heightMap, cols2, rows2, t2.x, t2.y);
+        return baseHeight === ctx.activeLevel;
+      });
+    })();
+    const path2 = computePathTowards(state.actor, { x: clampedX, y: clampedY }, tokensForPath, {
+      maxDistance: Math.max(0, maxSteps),
+      allowTargetOccupied: false,
+      blockedCells: ctx.blockedMovementCells ?? null,
+      wallEdges: ctx.blockedMovementEdges ?? null,
+      playableCells: ctx.playableCells ?? null,
+      grid: ctx.grid ?? null,
+      heightMap: ctx.heightMap ?? null,
+      floorIds: ctx.floorIds ?? null,
+      activeLevel: ctx.activeLevel ?? null
+    });
+    state.actor.plannedPath = path2;
+    if (path2.length === 0) return;
+    const destination = path2[path2.length - 1];
+    state.actor.x = destination.x;
+    state.actor.y = destination.y;
+    if (state.actor.type === "enemy") {
+      const idx = state.enemies.findIndex((e2) => e2.id === state.actor.id);
+      if (idx >= 0) state.enemies[idx] = state.actor;
+    } else {
+      state.player = state.actor;
+    }
   };
-  const replaceActorInEnemies = () => {
-    if (actor.type !== "enemy") return;
-    const idx = enemies.findIndex((e2) => e2.id === actor.id);
-    if (idx >= 0) enemies[idx] = actor;
-  };
-  for (const effect of action2.effects || []) {
-    if (effect.type === "log" && typeof effect.message === "string") {
-      log2(effect.message);
-      continue;
-    }
-    if (effect.type === "resource_spend" && effect.resource && ctx.spendResource) {
-      const pool = typeof effect.pool === "string" ? effect.pool : null;
-      const amount = typeof effect.amount === "number" ? effect.amount : 1;
-      ctx.spendResource(String(effect.resource), pool, amount);
-      continue;
-    }
-    if (effect.type === "damage" && effect.target === "primary") {
-      const targetToken = getPrimaryTargetToken(action2, ctx, target);
-      if (!targetToken) continue;
-      const advantageMode = (opts == null ? void 0 : opts.advantageMode) ?? "normal";
-      const critRule = ((_a = action2.damage) == null ? void 0 : _a.critRule) ?? "double-dice";
-      const resolvedDamageFormula = resolveFormula(effect.formula ?? ((_b = action2.damage) == null ? void 0 : _b.formula) ?? "0", ctx);
-      let isHit = true;
-      let isCrit = false;
-      let attackRollTotal = null;
-      let targetAC = null;
-      const targetArmorClass = typeof targetToken.armorClass === "number" ? targetToken.armorClass : null;
-      targetAC = targetArmorClass;
-      if (action2.attack) {
-        const attackRoll = rollAttack(action2.attack.bonus, advantageMode, action2.attack.critRange ?? 20);
-        isCrit = attackRoll.isCrit;
-        attackRollTotal = attackRoll.total;
-        if (targetArmorClass !== null) {
-          isHit = attackRoll.total >= targetArmorClass || attackRoll.isCrit;
-        }
-        const rollsText = attackRoll.mode === "normal" ? `${attackRoll.d20.total}` : `${attackRoll.d20.rolls.join(" / ")} -> ${attackRoll.d20.total}`;
-        log2(
-          `Jet de touche (${action2.name}) : ${rollsText} + ${attackRoll.bonus} = ${attackRoll.total}` + (targetArmorClass !== null ? ` vs CA ${targetArmorClass}` : "") + (attackRoll.isCrit ? " (critique!)" : "")
-        );
-      }
-      if (!isHit) {
-        log2(`L'attaque (${action2.name}) rate sa cible. Pas de degats.`);
-        const attackKind2 = actor.type === "enemy" ? "enemy_attack" : "player_attack";
-        emit({
-          kind: attackKind2,
-          actorId: actor.id,
-          actorKind: actor.type,
-          targetId: targetToken.id,
-          targetKind: targetToken.type,
-          summary: `${actor.id} rate ${targetToken.id} avec ${action2.name}.`,
-          data: {
-            actionId: action2.id,
-            actionName: action2.name,
-            isHit: false,
-            isCrit: false,
-            damage: 0,
-            attackRollTotal,
-            targetArmorClass: targetAC
-          }
-        });
-        continue;
-      }
-      const dmg = rollDamage(resolvedDamageFormula, { isCrit, critRule });
-      const before = targetToken.hp;
-      const afterHp = Math.max(0, before - dmg.total);
-      if (targetToken.type === "player") {
-        player = { ...player, hp: afterHp };
-        log2(`${action2.name} inflige ${dmg.total} degats au joueur (PV ${before} -> ${afterHp}).`);
-      } else {
-        const idx = enemies.findIndex((e2) => e2.id === targetToken.id);
-        if (idx >= 0) {
-          enemies[idx] = { ...enemies[idx], hp: afterHp };
-          log2(`${action2.name} inflige ${dmg.total} degats a ${targetToken.id} (PV ${before} -> ${afterHp}).`);
-        }
-      }
-      const attackKind = actor.type === "enemy" ? "enemy_attack" : "player_attack";
-      emit({
-        kind: attackKind,
-        actorId: actor.id,
-        actorKind: actor.type,
-        targetId: targetToken.id,
-        targetKind: targetToken.type,
-        summary: dmg.total > 0 ? `${actor.id} touche ${targetToken.id} avec ${action2.name} et inflige ${dmg.total} degats (PV ${before} -> ${afterHp}).` : `${actor.id} touche ${targetToken.id} avec ${action2.name} (pas de degats).`,
-        data: {
-          actionId: action2.id,
-          actionName: action2.name,
-          isHit: true,
-          isCrit,
-          damage: dmg.total,
-          damageFormula: dmg.formula,
-          attackRollTotal,
-          targetArmorClass: targetAC,
-          targetHpBefore: before,
-          targetHpAfter: afterHp
-        }
-      });
-      emit({
-        kind: "damage",
-        actorId: actor.id,
-        actorKind: actor.type,
-        targetId: targetToken.id,
-        targetKind: targetToken.type,
-        summary: `${targetToken.id} subit ${dmg.total} degats (${action2.name}).`,
-        data: {
-          sourceActionId: action2.id,
-          sourceActionName: action2.name,
-          damage: dmg.total,
-          isCrit,
-          targetHpBefore: before,
-          targetHpAfter: afterHp
-        }
-      });
-      continue;
-    }
-    if (effect.type === "move_to" && effect.target === "self") {
-      if (target.kind !== "cell") {
-        return { ok: false, reason: "Move: cible de case manquante.", logs };
-      }
-      const maxStepsRaw = effect.maxSteps;
-      let maxSteps = null;
-      if (typeof maxStepsRaw === "number") {
-        maxSteps = maxStepsRaw;
-      } else if (typeof maxStepsRaw === "string") {
-        const resolved = resolveFormula(maxStepsRaw, ctx);
-        const parsed = Number.parseInt(resolved, 10);
-        maxSteps = Number.isFinite(parsed) ? parsed : null;
-      }
-      if (maxSteps === null) {
-        maxSteps = typeof actor.moveRange === "number" ? actor.moveRange : typeof ((_c = actor.movementProfile) == null ? void 0 : _c.speed) === "number" ? actor.movementProfile.speed : 3;
-      }
-      const cols = ((_d = ctx.grid) == null ? void 0 : _d.cols) ?? GRID_COLS;
-      const rows = ((_e = ctx.grid) == null ? void 0 : _e.rows) ?? GRID_ROWS;
-      const clampedX = clamp$5(target.x, 0, cols - 1);
-      const clampedY = clamp$5(target.y, 0, rows - 1);
-      if (!isCellInsideGrid(clampedX, clampedY, cols, rows)) {
-        return { ok: false, reason: "Move: case hors plateau.", logs };
-      }
-      if (ctx.playableCells && ctx.playableCells.size > 0) {
-        const k2 = `${clampedX},${clampedY}`;
-        if (!ctx.playableCells.has(k2)) {
-          return { ok: false, reason: "Move: case hors zone jouable.", logs };
-        }
-      }
-      const tokensForPath = (() => {
-        var _a2, _b2;
-        if (!ctx.heightMap || typeof ctx.activeLevel !== "number") {
-          return [player, ...enemies];
-        }
-        const cols2 = ((_a2 = ctx.grid) == null ? void 0 : _a2.cols) ?? GRID_COLS;
-        const rows2 = ((_b2 = ctx.grid) == null ? void 0 : _b2.rows) ?? GRID_ROWS;
-        return [player, ...enemies].filter((t2) => {
-          const baseHeight = getHeightAtGrid(ctx.heightMap, cols2, rows2, t2.x, t2.y);
-          return baseHeight === ctx.activeLevel;
-        });
-      })();
-      const path2 = computePathTowards(actor, { x: clampedX, y: clampedY }, tokensForPath, {
-        maxDistance: Math.max(0, maxSteps),
-        allowTargetOccupied: false,
-        blockedCells: ctx.blockedMovementCells ?? null,
-        wallEdges: ctx.blockedMovementEdges ?? null,
-        playableCells: ctx.playableCells ?? null,
-        grid: ctx.grid ?? null,
-        heightMap: ctx.heightMap ?? null,
-        floorIds: ctx.floorIds ?? null,
-        activeLevel: ctx.activeLevel ?? null
-      });
-      actor.plannedPath = path2;
-      if (path2.length === 0) {
-        return { ok: false, reason: "Move: aucun chemin valide.", logs };
-      }
-      const from = { x: actor.x, y: actor.y };
-      const destination = path2[path2.length - 1];
-      actor.x = destination.x;
-      actor.y = destination.y;
-      replaceActorInEnemies();
-      if (actor.type === "player") {
-        log2(`${actor.id} se deplace vers (${destination.x}, ${destination.y}).`);
-      }
-      emit({
-        kind: "move",
-        actorId: actor.id,
-        actorKind: actor.type,
-        summary: `${actor.id} se deplace de (${from.x}, ${from.y}) vers (${destination.x}, ${destination.y}).`,
-        data: {
-          actionId: action2.id,
-          actionName: action2.name,
-          from,
-          to: destination,
-          path: path2
-        }
-      });
-      continue;
-    }
+  const exec = executePlan({
+    plan,
+    state: {
+      round: ctx.round,
+      phase: ctx.phase,
+      actor,
+      player,
+      enemies,
+      effects: []
+    },
+    opts: {
+      getResourceAmount: ctx.getResourceAmount,
+      spendResource: ctx.spendResource,
+      rollOverrides: opts == null ? void 0 : opts.rollOverrides,
+      onLog: log2,
+      onMoveTo: applyMoveTo,
+      onModifyPathLimit: ctx.onModifyPathLimit,
+      onToggleTorch: ctx.onToggleTorch,
+      onSetKillerInstinctTarget: ctx.onSetKillerInstinctTarget,
+      onGrantTempHp: ctx.onGrantTempHp,
+      onPlayVisualEffect: ctx.onPlayVisualEffect
+    },
+    advantageMode: opts == null ? void 0 : opts.advantageMode
+  });
+  if (!exec.ok) {
+    return {
+      ok: false,
+      reason: exec.interrupted ? "Interruption par reaction." : "Echec de resolution.",
+      logs: exec.logs.length ? exec.logs : logs
+    };
   }
-  replaceActorInEnemies();
+  player = exec.state.player;
+  for (let i2 = 0; i2 < enemies.length; i2++) {
+    enemies[i2] = exec.state.enemies[i2] ?? enemies[i2];
+  }
+  const actorAfter = actor.type === "player" ? exec.state.player : exec.state.enemies.find((e2) => e2.id === actor.id) ?? actor;
   return {
     ok: true,
-    logs,
-    actorAfter: actor,
+    logs: exec.logs.length ? exec.logs : logs,
+    actorAfter,
     playerAfter: player,
-    enemiesAfter: enemies
+    enemiesAfter: enemies,
+    outcomeKind: (_a = exec.outcome) == null ? void 0 : _a.kind
   };
 }
 function buildActionPlan(params) {
@@ -17518,7 +18006,7 @@ const browserExt = {
   },
   test: () => true,
   load: async () => {
-    await __vitePreload(() => import("./browserAll-jExBqAfJ.js"), true ? __vite__mapDeps([0,1,2]) : void 0);
+    await __vitePreload(() => import("./browserAll-KyNgpSiV.js"), true ? __vite__mapDeps([0,1,2]) : void 0);
   }
 };
 const webworkerExt = {
@@ -17529,7 +18017,7 @@ const webworkerExt = {
   },
   test: () => typeof self !== "undefined" && self.WorkerGlobalScope !== void 0,
   load: async () => {
-    await __vitePreload(() => import("./webworkerAll-DEmzzBa3.js"), true ? __vite__mapDeps([1,2]) : void 0);
+    await __vitePreload(() => import("./webworkerAll-BmnnHyGY.js"), true ? __vite__mapDeps([1,2]) : void 0);
   }
 };
 class ObservablePoint {
@@ -19628,11 +20116,11 @@ class Rectangle {
    * @see {@link Rectangle.fit} For constraining to bounds
    * @see {@link Rectangle.enlarge} For growing dimensions
    */
-  ceil(resolution = 1, eps = 1e-3) {
-    const x2 = Math.ceil((this.x + this.width - eps) * resolution) / resolution;
-    const y2 = Math.ceil((this.y + this.height - eps) * resolution) / resolution;
-    this.x = Math.floor((this.x + eps) * resolution) / resolution;
-    this.y = Math.floor((this.y + eps) * resolution) / resolution;
+  ceil(resolution2 = 1, eps = 1e-3) {
+    const x2 = Math.ceil((this.x + this.width - eps) * resolution2) / resolution2;
+    const y2 = Math.ceil((this.y + this.height - eps) * resolution2) / resolution2;
+    this.x = Math.floor((this.x + eps) * resolution2) / resolution2;
+    this.y = Math.floor((this.y + eps) * resolution2) / resolution2;
     this.width = x2 - this.x;
     this.height = y2 - this.y;
     return this;
@@ -20095,8 +20583,8 @@ const _TextureSource = class _TextureSource2 extends EventEmitter {
   /** call this if you have modified the texture outside of the constructor */
   update() {
     if (this.resource) {
-      const resolution = this._resolution;
-      const didResize = this.resize(this.resourceWidth / resolution, this.resourceHeight / resolution);
+      const resolution2 = this._resolution;
+      const didResize = this.resize(this.resourceWidth / resolution2, this.resourceHeight / resolution2);
       if (didResize)
         return;
     }
@@ -20144,12 +20632,12 @@ const _TextureSource = class _TextureSource2 extends EventEmitter {
   get resolution() {
     return this._resolution;
   }
-  set resolution(resolution) {
-    if (this._resolution === resolution)
+  set resolution(resolution2) {
+    if (this._resolution === resolution2)
       return;
-    this._resolution = resolution;
-    this.width = this.pixelWidth / resolution;
-    this.height = this.pixelHeight / resolution;
+    this._resolution = resolution2;
+    this.width = this.pixelWidth / resolution2;
+    this.height = this.pixelHeight / resolution2;
   }
   /**
    * Resize the texture, this is handy if you want to use the texture as a render texture
@@ -20158,15 +20646,15 @@ const _TextureSource = class _TextureSource2 extends EventEmitter {
    * @param resolution - the new resolution of the texture
    * @returns - if the texture was resized
    */
-  resize(width, height, resolution) {
-    resolution || (resolution = this._resolution);
+  resize(width, height, resolution2) {
+    resolution2 || (resolution2 = this._resolution);
     width || (width = this.width);
     height || (height = this.height);
-    const newPixelWidth = Math.round(width * resolution);
-    const newPixelHeight = Math.round(height * resolution);
-    this.width = newPixelWidth / resolution;
-    this.height = newPixelHeight / resolution;
-    this._resolution = resolution;
+    const newPixelWidth = Math.round(width * resolution2);
+    const newPixelHeight = Math.round(height * resolution2);
+    this.width = newPixelWidth / resolution2;
+    this.height = newPixelHeight / resolution2;
+    this._resolution = resolution2;
     if (this.pixelWidth === newPixelWidth && this.pixelHeight === newPixelHeight) {
       return false;
     }
@@ -23337,9 +23825,9 @@ class TexturePoolClass {
    * @param antialias
    * @returns The new render texture.
    */
-  getOptimalTexture(frameWidth, frameHeight, resolution = 1, antialias) {
-    let po2Width = Math.ceil(frameWidth * resolution - 1e-6);
-    let po2Height = Math.ceil(frameHeight * resolution - 1e-6);
+  getOptimalTexture(frameWidth, frameHeight, resolution2 = 1, antialias) {
+    let po2Width = Math.ceil(frameWidth * resolution2 - 1e-6);
+    let po2Height = Math.ceil(frameHeight * resolution2 - 1e-6);
     po2Width = nextPow2(po2Width);
     po2Height = nextPow2(po2Height);
     const key2 = (po2Width << 17) + (po2Height << 1) + (antialias ? 1 : 0);
@@ -23350,9 +23838,9 @@ class TexturePoolClass {
     if (!texture) {
       texture = this.createTexture(po2Width, po2Height, antialias);
     }
-    texture.source._resolution = resolution;
-    texture.source.width = po2Width / resolution;
-    texture.source.height = po2Height / resolution;
+    texture.source._resolution = resolution2;
+    texture.source.width = po2Width / resolution2;
+    texture.source.height = po2Height / resolution2;
     texture.source.pixelWidth = po2Width;
     texture.source.pixelHeight = po2Height;
     texture.frame.x = 0;
@@ -25275,8 +25763,8 @@ class CanvasSource extends TextureSource {
       this.resource.height = this.pixelHeight;
     }
   }
-  resize(width = this.width, height = this.height, resolution = this._resolution) {
-    const didResize = super.resize(width, height, resolution);
+  resize(width = this.width, height = this.height, resolution2 = this._resolution) {
+    const didResize = super.resize(width, height, resolution2);
     if (didResize) {
       this.resizeCanvas();
     }
@@ -29554,12 +30042,12 @@ const _AbstractRenderer = class _AbstractRenderer2 extends EventEmitter {
    * @param desiredScreenHeight - The desired height of the screen.
    * @param resolution - The resolution / device pixel ratio of the renderer.
    */
-  resize(desiredScreenWidth, desiredScreenHeight, resolution) {
+  resize(desiredScreenWidth, desiredScreenHeight, resolution2) {
     const previousResolution = this.view.resolution;
-    this.view.resize(desiredScreenWidth, desiredScreenHeight, resolution);
+    this.view.resize(desiredScreenWidth, desiredScreenHeight, resolution2);
     this.emit("resize", this.view.screen.width, this.view.screen.height, this.view.resolution);
-    if (resolution !== void 0 && resolution !== previousResolution) {
-      this.runners.resolutionChange.emit(resolution);
+    if (resolution2 !== void 0 && resolution2 !== previousResolution) {
+      this.runners.resolutionChange.emit(resolution2);
     }
   }
   /**
@@ -29857,7 +30345,7 @@ async function autoDetectRenderer(options) {
     const rendererType = preferredOrder[i2];
     if (rendererType === "webgpu" && await isWebGPUSupported()) {
       const { WebGPURenderer } = await __vitePreload(async () => {
-        const { WebGPURenderer: WebGPURenderer2 } = await import("./WebGPURenderer-DApywaWt.js");
+        const { WebGPURenderer: WebGPURenderer2 } = await import("./WebGPURenderer-BQyCUtyU.js");
         return { WebGPURenderer: WebGPURenderer2 };
       }, true ? __vite__mapDeps([3,2,4]) : void 0);
       RendererClass = WebGPURenderer;
@@ -29867,7 +30355,7 @@ async function autoDetectRenderer(options) {
       options.failIfMajorPerformanceCaveat ?? AbstractRenderer.defaultOptions.failIfMajorPerformanceCaveat
     )) {
       const { WebGLRenderer } = await __vitePreload(async () => {
-        const { WebGLRenderer: WebGLRenderer2 } = await import("./WebGLRenderer-BdA-1n9-.js");
+        const { WebGLRenderer: WebGLRenderer2 } = await import("./WebGLRenderer-Cdh7EBoR.js");
         return { WebGLRenderer: WebGLRenderer2 };
       }, true ? __vite__mapDeps([5,2,4]) : void 0);
       RendererClass = WebGLRenderer;
@@ -38605,9 +39093,9 @@ class CanvasPoolClass {
    * @param resolution - The resolution of the render texture.
    * @returns The new render texture.
    */
-  getOptimalCanvasAndContext(minWidth, minHeight, resolution = 1) {
-    minWidth = Math.ceil(minWidth * resolution - 1e-6);
-    minHeight = Math.ceil(minHeight * resolution - 1e-6);
+  getOptimalCanvasAndContext(minWidth, minHeight, resolution2 = 1) {
+    minWidth = Math.ceil(minWidth * resolution2 - 1e-6);
+    minHeight = Math.ceil(minHeight * resolution2 - 1e-6);
     minWidth = nextPow2(minWidth);
     minHeight = nextPow2(minHeight);
     const key2 = (minWidth << 17) + (minHeight << 1);
@@ -38892,11 +39380,11 @@ const _DynamicBitmapFont = class _DynamicBitmapFont2 extends AbstractBitmapFont 
       textureResolution
     );
     this._setupContext(canvasAndContext.context, this._style, textureResolution);
-    const resolution = textureResolution * (this.baseRenderedFontSize / this.baseMeasurementFontSize);
+    const resolution2 = textureResolution * (this.baseRenderedFontSize / this.baseMeasurementFontSize);
     const texture = new Texture({
       source: new ImageSource({
         resource: canvasAndContext.canvas,
-        resolution,
+        resolution: resolution2,
         alphaMode: "premultiply-alpha-on-upload",
         autoGenerateMipmaps: this._mipmap
       })
@@ -38912,9 +39400,9 @@ const _DynamicBitmapFont = class _DynamicBitmapFont2 extends AbstractBitmapFont 
     return pageData;
   }
   // canvas style!
-  _setupContext(context2, style, resolution) {
+  _setupContext(context2, style, resolution2) {
     style.fontSize = this.baseRenderedFontSize;
-    context2.scale(resolution, resolution);
+    context2.scale(resolution2, resolution2);
     context2.font = fontStringFromTextStyle(style);
     style.fontSize = this.baseMeasurementFontSize;
     context2.textBaseline = style.textBaseline;
@@ -38932,8 +39420,8 @@ const _DynamicBitmapFont = class _DynamicBitmapFont2 extends AbstractBitmapFont 
     if (style.dropShadow) {
       const shadowOptions = style.dropShadow;
       const rgb = Color.shared.setValue(shadowOptions.color).toArray();
-      const dropShadowBlur = shadowOptions.blur * resolution;
-      const dropShadowDistance = shadowOptions.distance * resolution;
+      const dropShadowBlur = shadowOptions.blur * resolution2;
+      const dropShadowDistance = shadowOptions.distance * resolution2;
       context2.shadowColor = `rgba(${rgb[0] * 255},${rgb[1] * 255},${rgb[2] * 255},${shadowOptions.alpha})`;
       context2.shadowBlur = dropShadowBlur;
       context2.shadowOffsetX = Math.cos(shadowOptions.angle) * dropShadowDistance;
@@ -40250,9 +40738,9 @@ const loadWebFont = {
 };
 function getResolutionOfUrl(url, defaultValue = 1) {
   var _a;
-  const resolution = (_a = Resolver.RETINA_PREFIX) == null ? void 0 : _a.exec(url);
-  if (resolution) {
-    return parseFloat(resolution[1]);
+  const resolution2 = (_a = Resolver.RETINA_PREFIX) == null ? void 0 : _a.exec(url);
+  if (resolution2) {
+    return parseFloat(resolution2[1]);
   }
   return defaultValue;
 }
@@ -40321,19 +40809,19 @@ async function loadAsTexture(url, asset, loader, crossOrigin2) {
   await image.decode();
   const width = ((_a = asset.data) == null ? void 0 : _a.width) ?? image.width;
   const height = ((_b = asset.data) == null ? void 0 : _b.height) ?? image.height;
-  const resolution = ((_c = asset.data) == null ? void 0 : _c.resolution) || getResolutionOfUrl(url);
-  const canvasWidth = Math.ceil(width * resolution);
-  const canvasHeight = Math.ceil(height * resolution);
+  const resolution2 = ((_c = asset.data) == null ? void 0 : _c.resolution) || getResolutionOfUrl(url);
+  const canvasWidth = Math.ceil(width * resolution2);
+  const canvasHeight = Math.ceil(height * resolution2);
   const canvas = DOMAdapter.get().createCanvas(canvasWidth, canvasHeight);
   const context2 = canvas.getContext("2d");
   context2.imageSmoothingEnabled = true;
   context2.imageSmoothingQuality = "high";
-  context2.drawImage(image, 0, 0, width * resolution, height * resolution);
+  context2.drawImage(image, 0, 0, width * resolution2, height * resolution2);
   const { parseAsGraphicsContext: _p, ...rest } = asset.data ?? {};
   const base = new ImageSource({
     resource: canvas,
     alphaMode: "premultiply-alpha-on-upload",
-    resolution,
+    resolution: resolution2,
     ...rest
   });
   return createTexture(base, loader, url);
@@ -40882,7 +41370,7 @@ class AssetsClass {
       this.resolver.addManifest(manifest);
     }
     const resolutionPref = ((_a = options.texturePreference) == null ? void 0 : _a.resolution) ?? 1;
-    const resolution = typeof resolutionPref === "number" ? [resolutionPref] : resolutionPref;
+    const resolution2 = typeof resolutionPref === "number" ? [resolutionPref] : resolutionPref;
     const formats = await this._detectFormats({
       preferredFormats: (_b = options.texturePreference) == null ? void 0 : _b.format,
       skipDetections: options.skipDetections,
@@ -40891,7 +41379,7 @@ class AssetsClass {
     this.resolver.prefer({
       params: {
         format: formats,
-        resolution
+        resolution: resolution2
       }
     });
     if (options.preferences) {
@@ -43876,7 +44364,7 @@ _TilingSprite.defaultOptions = {
 let TilingSprite = _TilingSprite;
 class AbstractText extends ViewContainer {
   constructor(options, styleClass) {
-    const { text, resolution, style, anchor: anchor2, width, height, roundPixels, ...rest } = options;
+    const { text, resolution: resolution2, style, anchor: anchor2, width, height, roundPixels, ...rest } = options;
     super({
       ...rest
     });
@@ -43887,7 +44375,7 @@ class AbstractText extends ViewContainer {
     this._styleClass = styleClass;
     this.text = text ?? "";
     this.style = style;
-    this.resolution = resolution ?? null;
+    this.resolution = resolution2 ?? null;
     this.allowChildren = false;
     this._anchor = new ObservablePoint(
       {
@@ -44266,7 +44754,7 @@ function getCanvasBoundingBox(...args) {
     options = { canvas: args[0], resolution: args[1] };
   }
   const { canvas } = options;
-  const resolution = Math.min(options.resolution ?? 1, 1);
+  const resolution2 = Math.min(options.resolution ?? 1, 1);
   const width = options.width ?? canvas.width;
   const height = options.height ?? canvas.height;
   let output = options.output;
@@ -44282,8 +44770,8 @@ function getCanvasBoundingBox(...args) {
     height,
     0,
     0,
-    width * resolution,
-    height * resolution
+    width * resolution2,
+    height * resolution2
   );
   const imageData = _internalContext.getImageData(0, 0, width, height);
   const data = imageData.data;
@@ -44307,7 +44795,7 @@ function getCanvasBoundingBox(...args) {
   _internalContext.strokeRect(left, top, right - left, bottom - top);
   _internalContext.globalCompositeOperation = "copy";
   output ?? (output = new Rectangle());
-  output.set(left / resolution, top / resolution, (right - left) / resolution, (bottom - top) / resolution);
+  output.set(left / resolution2, top / resolution2, (right - left) / resolution2, (bottom - top) / resolution2);
   return output;
 }
 const tempRect = new Rectangle();
@@ -44328,13 +44816,13 @@ class CanvasTextGeneratorClass {
    * @returns An object containing the canvas/context and the frame (bounds) of the text
    */
   getCanvasAndContext(options) {
-    const { text, style, resolution = 1 } = options;
+    const { text, style, resolution: resolution2 = 1 } = options;
     const padding = style._getFinalPadding();
     const measured = CanvasTextMetrics.measureText(text || " ", style);
-    const width = Math.ceil(Math.ceil(Math.max(1, measured.width) + padding * 2) * resolution);
-    const height = Math.ceil(Math.ceil(Math.max(1, measured.height) + padding * 2) * resolution);
+    const width = Math.ceil(Math.ceil(Math.max(1, measured.width) + padding * 2) * resolution2);
+    const height = Math.ceil(Math.ceil(Math.max(1, measured.height) + padding * 2) * resolution2);
     const canvasAndContext = CanvasPool.getOptimalCanvasAndContext(width, height);
-    this._renderTextToCanvas(text, style, padding, resolution, canvasAndContext);
+    this._renderTextToCanvas(text, style, padding, resolution2, canvasAndContext);
     const frame = style.trim ? getCanvasBoundingBox({ canvas: canvasAndContext.canvas, width, height, resolution: 1, output: tempRect }) : tempRect.set(0, 0, width, height);
     return {
       canvasAndContext,
@@ -44359,7 +44847,7 @@ class CanvasTextGeneratorClass {
    * @param resolution - The resolution of the text
    * @param canvasAndContext - The canvas and context to render the text to
    */
-  _renderTextToCanvas(text, style, padding, resolution, canvasAndContext) {
+  _renderTextToCanvas(text, style, padding, resolution2, canvasAndContext) {
     var _a, _b, _c, _d;
     const { canvas, context: context2 } = canvasAndContext;
     const font = fontStringFromTextStyle(style);
@@ -44371,7 +44859,7 @@ class CanvasTextGeneratorClass {
     const fontProperties = measured.fontProperties;
     const height = canvas.height;
     context2.resetTransform();
-    context2.scale(resolution, resolution);
+    context2.scale(resolution2, resolution2);
     context2.textBaseline = style.textBaseline;
     if ((_a = style._stroke) == null ? void 0 : _a.width) {
       const strokeStyle = style._stroke;
@@ -44387,7 +44875,7 @@ class CanvasTextGeneratorClass {
     for (let i2 = 0; i2 < passesCount; ++i2) {
       const isShadowPass = style.dropShadow && i2 === 0;
       const dsOffsetText = isShadowPass ? Math.ceil(Math.max(1, height) + padding * 2) : 0;
-      const dsOffsetShadow = dsOffsetText * resolution;
+      const dsOffsetShadow = dsOffsetText * resolution2;
       if (isShadowPass) {
         context2.fillStyle = "black";
         context2.strokeStyle = "black";
@@ -44395,8 +44883,8 @@ class CanvasTextGeneratorClass {
         const dropShadowColor = shadowOptions.color;
         const dropShadowAlpha = shadowOptions.alpha;
         context2.shadowColor = Color.shared.setValue(dropShadowColor).setAlpha(dropShadowAlpha).toRgbaString();
-        const dropShadowBlur = shadowOptions.blur * resolution;
-        const dropShadowDistance = shadowOptions.distance * resolution;
+        const dropShadowBlur = shadowOptions.blur * resolution2;
+        const dropShadowDistance = shadowOptions.distance * resolution2;
         context2.shadowBlur = dropShadowBlur;
         context2.shadowOffsetX = Math.cos(shadowOptions.angle) * dropShadowDistance;
         context2.shadowOffsetY = Math.sin(shadowOptions.angle) * dropShadowDistance + dsOffsetShadow;
@@ -52304,7 +52792,7 @@ function CombatSetupScreen(props) {
     if (!weapon) return [];
     const categories = /* @__PURE__ */ new Set();
     const props2 = weapon.properties ?? {};
-    if (props2.two_handed || props2.heavy) {
+    if (props2.twoHanded || props2.heavy) {
       categories.add("weapon_long");
     } else if (props2.light) {
       categories.add("weapon_short");
@@ -54232,7 +54720,7 @@ function CombatSetupScreen(props) {
       return;
     }
     const weapon = weaponItemMap.get(item.id);
-    const isTwoHanded = Boolean(((_a2 = weapon == null ? void 0 : weapon.properties) == null ? void 0 : _a2.two_handed) || ((_b2 = weapon == null ? void 0 : weapon.properties) == null ? void 0 : _b2.heavy));
+    const isTwoHanded = Boolean(((_a2 = weapon == null ? void 0 : weapon.properties) == null ? void 0 : _a2.twoHanded) || ((_b2 = weapon == null ? void 0 : weapon.properties) == null ? void 0 : _b2.heavy));
     if (isTwoHanded) {
       const hasShield = inventoryItems.some((entry) => {
         if ((entry == null ? void 0 : entry.type) !== "armor") return false;
@@ -58276,6 +58764,17 @@ function CharacterSheetWindow(props) {
   const charName = ((_b = (_a = props.character) == null ? void 0 : _a.nom) == null ? void 0 : _b.nomcomplet) ?? "Personnage";
   const movementSummary = formatMovementModes(props.character.movementModes) ?? (typeof (stats == null ? void 0 : stats.moveRange) === "number" || typeof props.player.moveRange === "number" ? `Standard ${(stats == null ? void 0 : stats.moveRange) ?? props.player.moveRange ?? 0}` : "Inconnu");
   const equippedWeapons = props.equippedWeapons ?? [];
+  const attackRange = equippedWeapons.length === 0 ? 1.5 : Math.max(
+    1.5,
+    ...equippedWeapons.map((weapon) => {
+      var _a2, _b2, _c2;
+      const reach = (_a2 = weapon.properties) == null ? void 0 : _a2.reach;
+      if (typeof reach === "number" && reach > 0) return reach;
+      const range = (_c2 = (_b2 = weapon.properties) == null ? void 0 : _b2.range) == null ? void 0 : _c2.normal;
+      if (typeof range === "number" && range > 0) return range;
+      return 1.5;
+    })
+  );
   return /* @__PURE__ */ jsxRuntimeExports.jsxs(
     "div",
     {
@@ -58396,7 +58895,7 @@ function CharacterSheetWindow(props) {
             statRow("Niveau", (stats == null ? void 0 : stats.level) ?? 1),
             statRow("CA", (stats == null ? void 0 : stats.armorClass) ?? 10),
             statRow("Deplacements", movementSummary),
-            statRow("Portee", (stats == null ? void 0 : stats.attackRange) ?? props.player.attackRange ?? 1)
+            statRow("Portee", attackRange)
           ] })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { marginTop: 12 }, children: [
@@ -58426,7 +58925,7 @@ function CharacterSheetWindow(props) {
             equippedWeapons.map((weapon) => {
               var _a2, _b2;
               const damage2 = ((_a2 = weapon.damage) == null ? void 0 : _a2.dice) ?? "?";
-              const damageType = ((_b2 = weapon.damage) == null ? void 0 : _b2.damage_type) ?? "";
+              const damageType = ((_b2 = weapon.damage) == null ? void 0 : _b2.damageType) ?? "";
               const subtitle = damageType ? `${damage2} ${damageType}` : damage2;
               return /* @__PURE__ */ jsxRuntimeExports.jsxs(
                 "div",
@@ -58678,7 +59177,7 @@ const MOVEMENT_MODE_CATALOG = {
   walk: {
     id: "walk",
     label: "Marcher",
-    speed: 6,
+    speed: 9,
     directions: 8,
     profile: {
       type: "ground",
@@ -58690,7 +59189,7 @@ const MOVEMENT_MODE_CATALOG = {
   swim: {
     id: "swim",
     label: "Nager",
-    speed: 3,
+    speed: 4.5,
     directions: 8,
     profile: {
       type: "swim",
@@ -58739,7 +59238,7 @@ function getMovementModesForCharacter(character) {
       if (entry && typeof entry === "object") {
         const id2 = String(entry.id || entry.label || "custom");
         const label2 = String(entry.label || entry.id || "Deplacement");
-        const speed2 = Number.isFinite(entry.speed) ? Math.max(1, Number(entry.speed)) : 6;
+        const speed2 = Number.isFinite(entry.speed) ? Math.max(1, Number(entry.speed)) : 9;
         const directions = entry.directions === 4 ? 4 : 8;
         modes.push({
           id: id2,
@@ -58814,8 +59313,8 @@ async function preloadDecorTexturesFor(spriteKeys) {
   }
 }
 const MOVE_TYPE_MODULES = {
-  "./catalog/movement/walk.json": walkMoveType,
-  "./catalog/movement/sprint.json": sprintMoveType
+  "./types/walk.json": walkMoveType,
+  "./types/sprint.json": sprintMoveType
 };
 const ENEMY_TYPE_MODULES = {
   "./brute.json": bruteType,
@@ -58849,34 +59348,34 @@ function getEquippedWeaponIds(character) {
   return Array.from(new Set(ids));
 }
 const ABILITY_CARAC_KEY = {
-  str: "force",
-  dex: "dexterite",
-  con: "constitution",
-  int: "intelligence",
-  wis: "sagesse",
-  cha: "charisme"
+  FOR: "force",
+  DEX: "dexterite",
+  CON: "constitution",
+  INT: "intelligence",
+  SAG: "sagesse",
+  CHA: "charisme"
 };
 const ABILITY_SCORE_KEY = {
-  str: "FOR",
-  dex: "DEX",
-  con: "CON",
-  int: "INT",
-  wis: "SAG",
-  cha: "CHA"
+  FOR: "FOR",
+  DEX: "DEX",
+  CON: "CON",
+  INT: "INT",
+  SAG: "SAG",
+  CHA: "CHA"
 };
 function computeAbilityModFromScore(score) {
   if (!Number.isFinite(score)) return 0;
   return Math.floor((Number(score) - 10) / 2);
 }
 function getCharacterAbilityMod(character, ability) {
-  var _a, _b, _c, _d;
-  const statMod = (_b = (_a = character.combatStats) == null ? void 0 : _a.mods) == null ? void 0 : _b[ability];
+  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n;
+  const statMod = ability === "FOR" ? (_b = (_a = character.combatStats) == null ? void 0 : _a.mods) == null ? void 0 : _b.modFOR : ability === "DEX" ? (_d = (_c = character.combatStats) == null ? void 0 : _c.mods) == null ? void 0 : _d.modDEX : ability === "CON" ? (_f = (_e = character.combatStats) == null ? void 0 : _e.mods) == null ? void 0 : _f.modCON : ability === "INT" ? (_h = (_g = character.combatStats) == null ? void 0 : _g.mods) == null ? void 0 : _h.modINT : ability === "SAG" ? (_j = (_i = character.combatStats) == null ? void 0 : _i.mods) == null ? void 0 : _j.modSAG : (_l = (_k = character.combatStats) == null ? void 0 : _k.mods) == null ? void 0 : _l.modCHA;
   if (typeof statMod === "number" && Number.isFinite(statMod)) {
     return statMod;
   }
   const caracKey = ABILITY_CARAC_KEY[ability];
   const scoreKey = ABILITY_SCORE_KEY[ability];
-  const score = (_d = (_c = character.caracs) == null ? void 0 : _c[caracKey]) == null ? void 0 : _d[scoreKey];
+  const score = (_n = (_m = character.caracs) == null ? void 0 : _m[caracKey]) == null ? void 0 : _n[scoreKey];
   return computeAbilityModFromScore(score);
 }
 function buildCombatStatsFromCharacter(character, armorItemsById) {
@@ -58885,23 +59384,21 @@ function buildCombatStatsFromCharacter(character, armorItemsById) {
   const defaultSpeed = ((_a = movementModes2[0]) == null ? void 0 : _a.speed) ?? 3;
   const level2 = Number(((_b = character.combatStats) == null ? void 0 : _b.level) ?? character.niveauGlobal ?? 1) || 1;
   const mods = {
-    str: getCharacterAbilityMod(character, "str"),
-    dex: getCharacterAbilityMod(character, "dex"),
-    con: getCharacterAbilityMod(character, "con"),
-    int: getCharacterAbilityMod(character, "int"),
-    wis: getCharacterAbilityMod(character, "wis"),
-    cha: getCharacterAbilityMod(character, "cha")
+    modFOR: getCharacterAbilityMod(character, "FOR"),
+    modDEX: getCharacterAbilityMod(character, "DEX"),
+    modCON: getCharacterAbilityMod(character, "CON"),
+    modINT: getCharacterAbilityMod(character, "INT"),
+    modSAG: getCharacterAbilityMod(character, "SAG"),
+    modCHA: getCharacterAbilityMod(character, "CHA")
   };
   const maxHp = Number(((_c = character.combatStats) == null ? void 0 : _c.maxHp) ?? character.pvActuels ?? 1) || 1;
-  const armorClass = computeArmorClassFromEquipment(character, armorItemsById, mods.dex);
+  const armorClass = computeArmorClassFromEquipment(character, armorItemsById, mods.modDEX);
   return {
     level: level2,
     mods,
     maxHp,
     armorClass,
-    attackBonus: mods.str + 2,
-    attackDamage: Math.max(1, mods.str + 3),
-    attackRange: 1,
+    attackBonus: mods.modFOR + 2,
     moveRange: defaultSpeed,
     maxAttacksPerTurn: 1,
     resources: {}
@@ -59018,8 +59515,6 @@ function createEnemy(index, enemyType, position) {
     speechProfile: enemyType.speechProfile ?? null,
     combatStats: base,
     moveRange: base.moveRange,
-    attackDamage: base.attackDamage,
-    attackRange: typeof base.attackRange === "number" ? base.attackRange : 1,
     maxAttacksPerTurn: typeof base.maxAttacksPerTurn === "number" ? base.maxAttacksPerTurn : 1,
     armorClass: base.armorClass,
     movementProfile,
@@ -59119,8 +59614,6 @@ const GameBoard = () => {
     moveRange: playerCombatStats.moveRange,
     visionProfile: defaultPlayerVisionProfile,
     combatStats: playerCombatStats,
-    attackDamage: playerCombatStats.attackDamage,
-    attackRange: playerCombatStats.attackRange,
     maxAttacksPerTurn: playerCombatStats.maxAttacksPerTurn,
     hp: activeCharacterConfig.pvActuels,
     maxHp: playerCombatStats.maxHp
@@ -59130,7 +59623,7 @@ const GameBoard = () => {
   const [obstacleTypes, setObstacleTypes] = reactExports.useState([]);
   const [obstacles, setObstacles] = reactExports.useState([]);
   const [effectTypes, setEffectTypes] = reactExports.useState([]);
-  const [effects2, setEffects] = reactExports.useState([]);
+  const [effects, setEffects] = reactExports.useState([]);
   const [actionEffects, setActionEffects] = reactExports.useState([]);
   const [statusTypes, setStatusTypes] = reactExports.useState([]);
   const [featureTypes, setFeatureTypes] = reactExports.useState([]);
@@ -59171,8 +59664,6 @@ const GameBoard = () => {
       moveRange: playerCombatStats.moveRange,
       visionProfile: defaultPlayerVisionProfile,
       combatStats: playerCombatStats,
-      attackDamage: playerCombatStats.attackDamage,
-      attackRange: playerCombatStats.attackRange,
       maxAttacksPerTurn: playerCombatStats.maxAttacksPerTurn,
       hp: activeCharacterConfig.pvActuels,
       maxHp: playerCombatStats.maxHp
@@ -59230,8 +59721,12 @@ const GameBoard = () => {
     "bandolier:dagger": 3,
     "gear:torch": 1
   });
-  const [pathLimit, setPathLimit] = reactExports.useState(defaultMovementProfile.speed);
-  const [basePathLimit, setBasePathLimit] = reactExports.useState(defaultMovementProfile.speed);
+  const [pathLimit, setPathLimit] = reactExports.useState(
+    metersToCells(defaultMovementProfile.speed)
+  );
+  const [basePathLimit, setBasePathLimit] = reactExports.useState(
+    metersToCells(defaultMovementProfile.speed)
+  );
   const [movementSpent, setMovementSpent] = reactExports.useState(0);
   const [activeMovementModeId, setActiveMovementModeId] = reactExports.useState(
     defaultMovementMode.id
@@ -59404,7 +59899,7 @@ const GameBoard = () => {
   const hasAnimatedSprites = reactExports.useMemo(() => {
     var _a2;
     if (!isCombatConfigured) return false;
-    for (const effect of effects2) {
+    for (const effect of effects) {
       const def = effectTypeById.get(effect.typeId);
       const key2 = (_a2 = def == null ? void 0 : def.appearance) == null ? void 0 : _a2.spriteKey;
       if (key2 && key2.startsWith("effect:")) return true;
@@ -59418,7 +59913,7 @@ const GameBoard = () => {
       }
     }
     return false;
-  }, [effectTypeById, isCombatConfigured, obstacles, obstacleTypeById, effects2]);
+  }, [effectTypeById, isCombatConfigured, obstacles, obstacleTypeById, effects]);
   const isBoardIdle = reactExports.useMemo(() => {
     if (!isCombatConfigured) return true;
     if (isResolvingEnemies) return false;
@@ -59519,18 +60014,18 @@ const GameBoard = () => {
       grid: mapGrid
     });
     const currentById = /* @__PURE__ */ new Map();
-    for (const effect of effects2) currentById.set(effect.id, effect);
+    for (const effect of effects) currentById.set(effect.id, effect);
     const merged = desired.map((effect) => {
       const existing = currentById.get(effect.id);
       if (!existing) return effect;
       return { ...effect, active: existing.active };
     });
-    const currentKey = effects2.map((e2) => `${e2.id}:${e2.typeId}:${e2.x}:${e2.y}:${e2.active}`).join("|");
+    const currentKey = effects.map((e2) => `${e2.id}:${e2.typeId}:${e2.x}:${e2.y}:${e2.active}`).join("|");
     const mergedKey = merged.map((e2) => `${e2.id}:${e2.typeId}:${e2.x}:${e2.y}:${e2.active}`).join("|");
     if (currentKey !== mergedKey) {
       setEffects(merged);
     }
-  }, [effectTypes.length, obstacles, mapTerrain, mapGrid.cols, mapGrid.rows, effects2]);
+  }, [effectTypes.length, obstacles, mapTerrain, mapGrid.cols, mapGrid.rows, effects]);
   const obstacleLegend = reactExports.useMemo(() => {
     return obstacles.filter((o2) => o2.hp > 0).map((o2) => {
       const def = obstacleTypeById.get(o2.typeId) ?? null;
@@ -59593,7 +60088,7 @@ const GameBoard = () => {
   const lightSources = reactExports.useMemo(() => {
     var _a2, _b2;
     const sources2 = [];
-    for (const effect of effects2) {
+    for (const effect of effects) {
       if (effect.active === false) continue;
       const def = effectTypeById.get(effect.typeId);
       const radiusRaw = (_a2 = def == null ? void 0 : def.light) == null ? void 0 : _a2.radius;
@@ -59602,7 +60097,7 @@ const GameBoard = () => {
       sources2.push({ x: effect.x, y: effect.y, radius, color: (_b2 = def == null ? void 0 : def.light) == null ? void 0 : _b2.color });
     }
     return sources2;
-  }, [effects2, effectTypeById]);
+  }, [effects, effectTypeById]);
   const activeLightSources = reactExports.useMemo(() => {
     const sources2 = [...lightSources];
     if (playerTorchOn) {
@@ -59987,7 +60482,7 @@ const GameBoard = () => {
     obstacles,
     wallSegments,
     decorations,
-    effects2,
+    effects,
     player,
     enemies,
     selectedPath,
@@ -60043,8 +60538,8 @@ const GameBoard = () => {
     showAllLevels
   });
   const renderEffects = reactExports.useMemo(
-    () => [...effects2, ...actionEffects],
-    [effects2, actionEffects]
+    () => [...effects, ...actionEffects],
+    [effects, actionEffects]
   );
   const fxAnimations = reactExports.useMemo(() => {
     return getEffectAnimationKeys().map((key2) => ({ key: key2, frames: getObstacleAnimationFrames(key2) ?? [] })).filter((entry) => entry.frames.length > 0);
@@ -60402,7 +60897,7 @@ const GameBoard = () => {
     const fallbackPrimary = token.aiRole === "archer" ? "ranged" : "melee";
     const primaryStyle = raw.primaryStyle ?? fallbackPrimary;
     const allowedStyles = raw.allowedStyles && raw.allowedStyles.length > 0 ? raw.allowedStyles : [primaryStyle];
-    const preferredAbilities = raw.preferredAbilities && raw.preferredAbilities.length > 0 ? raw.preferredAbilities : [primaryStyle === "ranged" ? "dex" : "str"];
+    const preferredAbilities = raw.preferredAbilities && raw.preferredAbilities.length > 0 ? raw.preferredAbilities : [primaryStyle === "ranged" ? "DEX" : "FOR"];
     const preferredRangeMin = raw.preferredRangeMin ?? ((_a2 = enemyType == null ? void 0 : enemyType.behavior) == null ? void 0 : _a2.preferredRangeMin) ?? (primaryStyle === "ranged" ? 2 : 1);
     const preferredRangeMax = raw.preferredRangeMax ?? ((_b2 = enemyType == null ? void 0 : enemyType.behavior) == null ? void 0 : _b2.preferredRangeMax) ?? (primaryStyle === "ranged" ? 6 : 1);
     const intelligence = raw.intelligence ?? 0;
@@ -60474,8 +60969,8 @@ const GameBoard = () => {
     }
     if (action2.category === "support") return "support";
     const rangeMax = ((_c = (_b2 = action2.targeting) == null ? void 0 : _b2.range) == null ? void 0 : _c.max) ?? 1;
-    if (((_d = action2.tags) == null ? void 0 : _d.includes("melee")) || rangeMax <= 1) return "melee";
-    if (((_e = action2.tags) == null ? void 0 : _e.includes("distance")) || rangeMax > 1) return "ranged";
+    if (((_d = action2.tags) == null ? void 0 : _d.includes("melee")) || rangeMax <= 1.5) return "melee";
+    if (((_e = action2.tags) == null ? void 0 : _e.includes("distance")) || rangeMax > 1.5) return "ranged";
     return "other";
   }
   function scoreActionForEnemy(params) {
@@ -60486,8 +60981,8 @@ const GameBoard = () => {
     if (!profile.allowedStyles.includes(style)) return -100;
     let score = 0;
     if (style === profile.primaryStyle) score += 30;
-    if (profile.preferredAbilities.includes("str") && style === "melee") score += 10;
-    if (profile.preferredAbilities.includes("dex") && style === "ranged") score += 10;
+    if (profile.preferredAbilities.includes("FOR") && style === "melee") score += 10;
+    if (profile.preferredAbilities.includes("DEX") && style === "ranged") score += 10;
     const range = (_a2 = action2.targeting) == null ? void 0 : _a2.range;
     const min = (range == null ? void 0 : range.min) ?? 0;
     const max = (range == null ? void 0 : range.max) ?? 1;
@@ -60777,8 +61272,6 @@ const GameBoard = () => {
       moveRange: combatPlayerStats.moveRange,
       visionProfile: combatVisionProfile,
       combatStats: combatPlayerStats,
-      attackDamage: combatPlayerStats.attackDamage,
-      attackRange: combatPlayerStats.attackRange,
       maxAttacksPerTurn: combatPlayerStats.maxAttacksPerTurn,
       hp: combatCharacter.pvActuels,
       maxHp: combatPlayerStats.maxHp,
@@ -60863,7 +61356,7 @@ const GameBoard = () => {
   }
   function rollInitialInitiativeIfNeeded() {
     if (hasRolledInitiative) return;
-    const playerMod = getCharacterAbilityMod(activeCharacterConfig, "dex");
+    const playerMod = getCharacterAbilityMod(activeCharacterConfig, "DEX");
     const rollD20 = () => Math.floor(Math.random() * 20) + 1;
     const pjRoll = rollD20();
     const pjTotal = pjRoll + playerMod;
@@ -61122,16 +61615,12 @@ const GameBoard = () => {
   reactExports.useEffect(() => {
     if (actionsCatalog.length === 0) return;
     const playerActionIds = Array.isArray(player.actionIds) ? player.actionIds : [];
-    const weaponActionIds = equippedWeaponIds.map((id2) => {
-      var _a2;
-      return ((_a2 = weaponActionById.get(id2)) == null ? void 0 : _a2.id) ?? null;
-    }).filter((id2) => Boolean(id2));
-    const visibleIds = /* @__PURE__ */ new Set([...playerActionIds, ...weaponActionIds]);
+    const visibleIds = new Set(playerActionIds);
     const playerVisible = visibleIds.size > 0 ? actionsCatalog.filter((a2) => visibleIds.has(a2.id)) : actionsCatalog.filter((a2) => !(a2.tags || []).includes("enemy"));
     const filtered = playerVisible.filter((a2) => a2.category !== "movement");
     setActions(filtered);
     setSelectedActionId(filtered.length ? filtered[0].id : null);
-  }, [actionsCatalog, equippedWeaponIds, weaponActionById, player.actionIds]);
+  }, [actionsCatalog, player.actionIds]);
   reactExports.useEffect(() => {
     const indexed = Array.isArray(moveTypesIndex.moveTypes) ? moveTypesIndex.moveTypes : [];
     const loaded = [];
@@ -61341,7 +61830,7 @@ const GameBoard = () => {
     return best;
   }
   function rollSoloInitiative() {
-    const playerMod = getCharacterAbilityMod(activeCharacterConfig, "dex");
+    const playerMod = getCharacterAbilityMod(activeCharacterConfig, "DEX");
     const rollD20 = () => Math.floor(Math.random() * 20) + 1;
     const pjRoll = rollD20();
     const pjTotal = pjRoll + playerMod;
@@ -61440,7 +61929,7 @@ const GameBoard = () => {
       }
     }
     for (const cond of action2.conditions || []) {
-      if (cond.type === "distance_max") {
+      if (cond.type === "DISTANCE_MAX") {
         if (typeof cond.max === "number" && dist > cond.max) {
           return {
             ok: false,
@@ -61448,7 +61937,7 @@ const GameBoard = () => {
           };
         }
       }
-      if (cond.type === "distance_between") {
+      if (cond.type === "DISTANCE_BETWEEN") {
         const min = typeof cond.min === "number" ? cond.min : typeof (range == null ? void 0 : range.min) === "number" ? range.min : null;
         const max = typeof cond.max === "number" ? cond.max : typeof (range == null ? void 0 : range.max) === "number" ? range.max : null;
         if (min !== null && dist < min) {
@@ -61464,7 +61953,7 @@ const GameBoard = () => {
           };
         }
       }
-      if (cond.type === "target_alive" && enemy.hp <= 0) {
+      if (cond.type === "TARGET_ALIVE" && enemy.hp <= 0) {
         return {
           ok: false,
           reason: cond.reason || "La cible doit avoir des PV restants."
@@ -61534,7 +62023,7 @@ const GameBoard = () => {
       }
     }
     for (const cond of action2.conditions || []) {
-      if (cond.type === "distance_max") {
+      if (cond.type === "DISTANCE_MAX") {
         if (typeof cond.max === "number" && dist > cond.max) {
           return {
             ok: false,
@@ -61542,7 +62031,7 @@ const GameBoard = () => {
           };
         }
       }
-      if (cond.type === "distance_between") {
+      if (cond.type === "DISTANCE_BETWEEN") {
         const min = typeof cond.min === "number" ? cond.min : typeof (range == null ? void 0 : range.min) === "number" ? range.min : null;
         const max = typeof cond.max === "number" ? cond.max : typeof (range == null ? void 0 : range.max) === "number" ? range.max : null;
         if (min !== null && dist < min) {
@@ -61558,7 +62047,7 @@ const GameBoard = () => {
           };
         }
       }
-      if (cond.type === "target_alive" && obstacle.hp <= 0) {
+      if (cond.type === "TARGET_ALIVE" && obstacle.hp <= 0) {
         return {
           ok: false,
           reason: cond.reason || "La cible doit avoir des PV restants."
@@ -61640,7 +62129,7 @@ const GameBoard = () => {
       }
     }
     for (const cond of action2.conditions || []) {
-      if (cond.type === "distance_max") {
+      if (cond.type === "DISTANCE_MAX") {
         if (typeof cond.max === "number" && dist > cond.max) {
           return {
             ok: false,
@@ -61648,7 +62137,7 @@ const GameBoard = () => {
           };
         }
       }
-      if (cond.type === "distance_between") {
+      if (cond.type === "DISTANCE_BETWEEN") {
         const min = typeof cond.min === "number" ? cond.min : typeof (range == null ? void 0 : range.min) === "number" ? range.min : null;
         const max = typeof cond.max === "number" ? cond.max : typeof (range == null ? void 0 : range.max) === "number" ? range.max : null;
         if (min !== null && dist < min) {
@@ -61664,7 +62153,7 @@ const GameBoard = () => {
           };
         }
       }
-      if (cond.type === "target_alive" && typeof segment.hp === "number" && segment.hp <= 0) {
+      if (cond.type === "TARGET_ALIVE" && typeof segment.hp === "number" && segment.hp <= 0) {
         return {
           ok: false,
           reason: cond.reason || "La cible doit avoir des PV restants."
@@ -61764,23 +62253,23 @@ const GameBoard = () => {
       }
     }
     for (const cond of action2.conditions || []) {
-      if (cond.type === "phase" && cond.mustBe && cond.mustBe !== phase) {
+      if (cond.type === "PHASE_IS" && cond.mustBe && cond.mustBe !== phase) {
         reasons.push(cond.reason || "Phase incorrecte.");
       }
-      if (cond.type === "stat_below_percent" && cond.who === "self" && cond.stat === "hp") {
+      if (cond.type === "STAT_BELOW_PERCENT" && cond.who === "self" && cond.stat === "hp") {
         const max = Math.max(1, player.maxHp || 1);
         const ratio = player.hp / max;
         if (typeof cond.percentMax === "number" && ratio >= cond.percentMax) {
           reasons.push(cond.reason || `PV trop hauts (>= ${Math.round(cond.percentMax * 100)}%).`);
         }
       }
-      if (cond.type === "distance_max" && isHostileTargeting) {
+      if (cond.type === "DISTANCE_MAX" && isHostileTargeting) {
         const dist = minDistanceToAnyHostileTarget();
         if (dist !== null && typeof cond.max === "number" && dist > cond.max) {
           reasons.push(cond.reason || `Distance > ${cond.max}.`);
         }
       }
-      if (cond.type === "distance_between" && isHostileTargeting) {
+      if (cond.type === "DISTANCE_BETWEEN" && isHostileTargeting) {
         const dist = minDistanceToAnyHostileTarget();
         if (dist !== null) {
           if (typeof cond.min === "number" && dist < cond.min) {
@@ -61791,7 +62280,7 @@ const GameBoard = () => {
           }
         }
       }
-      if (cond.type === "resource_at_least" && cond.resource) {
+      if (cond.type === "RESOURCE_AT_LEAST" && cond.resource) {
         const pool = typeof cond.pool === "string" ? cond.pool : void 0;
         const amount = getResourceAmount(String(cond.resource), pool);
         const needed = typeof cond.value === "number" ? cond.value : 1;
@@ -61812,17 +62301,15 @@ const GameBoard = () => {
     const stats = player.combatStats;
     const fallbackStats = activeCharacterConfig.combatStats ?? null;
     const level2 = Number((stats == null ? void 0 : stats.level) ?? (fallbackStats == null ? void 0 : fallbackStats.level) ?? 1) || 1;
-    const modSTR = Number(((_a2 = stats == null ? void 0 : stats.mods) == null ? void 0 : _a2.str) ?? getCharacterAbilityMod(activeCharacterConfig, "str"));
-    const modDEX = Number(((_b2 = stats == null ? void 0 : stats.mods) == null ? void 0 : _b2.dex) ?? getCharacterAbilityMod(activeCharacterConfig, "dex"));
-    const modCON = Number(((_c = stats == null ? void 0 : stats.mods) == null ? void 0 : _c.con) ?? getCharacterAbilityMod(activeCharacterConfig, "con"));
-    const modINT = Number(((_d = stats == null ? void 0 : stats.mods) == null ? void 0 : _d.int) ?? getCharacterAbilityMod(activeCharacterConfig, "int"));
-    const modWIS = Number(((_e = stats == null ? void 0 : stats.mods) == null ? void 0 : _e.wis) ?? getCharacterAbilityMod(activeCharacterConfig, "wis"));
-    const modCHA = Number(((_f = stats == null ? void 0 : stats.mods) == null ? void 0 : _f.cha) ?? getCharacterAbilityMod(activeCharacterConfig, "cha"));
-    const attackDamage = Number((stats == null ? void 0 : stats.attackDamage) ?? player.attackDamage ?? 0);
+    const modSTR = Number(((_a2 = stats == null ? void 0 : stats.mods) == null ? void 0 : _a2.modFOR) ?? getCharacterAbilityMod(activeCharacterConfig, "FOR"));
+    const modDEX = Number(((_b2 = stats == null ? void 0 : stats.mods) == null ? void 0 : _b2.modDEX) ?? getCharacterAbilityMod(activeCharacterConfig, "DEX"));
+    const modCON = Number(((_c = stats == null ? void 0 : stats.mods) == null ? void 0 : _c.modCON) ?? getCharacterAbilityMod(activeCharacterConfig, "CON"));
+    const modINT = Number(((_d = stats == null ? void 0 : stats.mods) == null ? void 0 : _d.modINT) ?? getCharacterAbilityMod(activeCharacterConfig, "INT"));
+    const modWIS = Number(((_e = stats == null ? void 0 : stats.mods) == null ? void 0 : _e.modSAG) ?? getCharacterAbilityMod(activeCharacterConfig, "SAG"));
+    const modCHA = Number(((_f = stats == null ? void 0 : stats.mods) == null ? void 0 : _f.modCHA) ?? getCharacterAbilityMod(activeCharacterConfig, "CHA"));
     const attackBonus = Number((stats == null ? void 0 : stats.attackBonus) ?? 0);
     const moveRange = Number((stats == null ? void 0 : stats.moveRange) ?? player.moveRange ?? 0);
-    const attackRange = Number((stats == null ? void 0 : stats.attackRange) ?? player.attackRange ?? 0);
-    return formula.replace(/\s+/g, "").replace(/attackDamage/gi, String(attackDamage)).replace(/attackBonus/gi, String(attackBonus)).replace(/moveRange/gi, String(moveRange)).replace(/attackRange/gi, String(attackRange)).replace(/level/gi, String(level2)).replace(/modSTR/gi, String(modSTR)).replace(/modDEX/gi, String(modDEX)).replace(/modCON/gi, String(modCON)).replace(/modINT/gi, String(modINT)).replace(/modWIS/gi, String(modWIS)).replace(/modCHA/gi, String(modCHA));
+    return formula.replace(/\s+/g, "").replace(/attackBonus/gi, String(attackBonus)).replace(/moveRange/gi, String(moveRange)).replace(/level/gi, String(level2)).replace(/modFOR/gi, String(modSTR)).replace(/modDEX/gi, String(modDEX)).replace(/modCON/gi, String(modCON)).replace(/modINT/gi, String(modINT)).replace(/modSAG/gi, String(modWIS)).replace(/modCHA/gi, String(modCHA));
   }
   function handleUseAction(action2) {
     var _a2, _b2, _c;
@@ -61857,45 +62344,6 @@ const GameBoard = () => {
       turn: { ...prev.turn, [action2.id]: (prev.turn[action2.id] ?? 0) + 1 },
       encounter: { ...prev.encounter, [action2.id]: (prev.encounter[action2.id] ?? 0) + 1 }
     }));
-    for (const effect of action2.effects || []) {
-      if (effect.type === "modify_path_limit" && typeof effect.delta === "number") {
-        setBasePathLimit((prev) => Math.max(0, prev + effect.delta));
-        setPathLimit((prev) => Math.max(0, prev + effect.delta));
-        if (typeof effect.delta === "number") {
-          pushLog(`Mouvement: limite de trajet modifiee (${effect.delta >= 0 ? "+" : ""}${effect.delta}).`);
-        }
-      }
-      if (effect.type === "resource_spend" && effect.resource) {
-        const pool = typeof effect.pool === "string" ? effect.pool : null;
-        const amount = typeof effect.amount === "number" ? effect.amount : 1;
-        const key2 = resourceKey(String(effect.resource), pool);
-        setPlayerResources((prev) => ({
-          ...prev,
-          [key2]: Math.max(0, (prev[key2] ?? 0) - amount)
-        }));
-      }
-      if (effect.type === "toggle_torch") {
-        setPlayerTorchOn((prev) => {
-          const next = !prev;
-          pushLog(`Torche: ${next ? "allumee" : "eteinte"}.`);
-          return next;
-        });
-      }
-      if (effect.type === "heal" && typeof effect.formula === "string") {
-        const resolved = resolvePlayerFormula(effect.formula);
-        const result = rollDamage(resolved, { isCrit: false, critRule: "double-dice" });
-        const minHeal = typeof effect.min === "number" ? effect.min : null;
-        const healAmount = minHeal !== null ? Math.max(minHeal, result.total) : result.total;
-        setPlayer((prev) => ({
-          ...prev,
-          hp: Math.min(prev.maxHp, prev.hp + healAmount)
-        }));
-        pushDiceLog(`Soin (${action2.name}) : ${resolved} -> +${healAmount} PV`);
-      }
-      if (effect.type === "log" && typeof effect.message === "string") {
-        pushLog(effect.message);
-      }
-    }
     setAttackRoll(null);
     setDamageRoll(null);
     setAttackOutcome(null);
@@ -61930,8 +62378,177 @@ const GameBoard = () => {
     if (reactionAction) return reactionAction;
     return actions2.find((a2) => a2.id === id2) || moveTypes2.find((a2) => a2.id === id2) || null;
   }
+  function normalizeWeaponModToken(mod) {
+    if (!mod) return null;
+    const cleaned = String(mod).replace(/\s+/g, "");
+    if (cleaned === "mod.FOR" || cleaned === "modFOR") return "modFOR";
+    if (cleaned === "mod.DEX" || cleaned === "modDEX") return "modDEX";
+    if (cleaned === "mod.CON" || cleaned === "modCON") return "modCON";
+    if (cleaned === "mod.INT" || cleaned === "modINT") return "modINT";
+    if (cleaned === "mod.SAG" || cleaned === "modSAG" || cleaned === "mod.WIS" || cleaned === "modWIS") return "modSAG";
+    if (cleaned === "mod.CHA" || cleaned === "modCHA") return "modCHA";
+    return null;
+  }
+  function getEnemyWeaponIds(enemy) {
+    const enemyType = enemyTypeById.get(enemy.enemyTypeId ?? "") ?? null;
+    const slots = (enemyType == null ? void 0 : enemyType.armesDefaut) ?? null;
+    if (!slots) return [];
+    const ids = [slots.main_droite, slots.main_gauche, slots.mains].filter(
+      (value2) => typeof value2 === "string" && value2.length > 0
+    );
+    return Array.from(new Set(ids));
+  }
+  function getWeaponsForActor(actor) {
+    if (actor.type === "player") return equippedWeapons;
+    const ids = getEnemyWeaponIds(actor);
+    return ids.map((id2) => weaponTypeById.get(id2) ?? null).filter((weapon) => Boolean(weapon));
+  }
+  function getWeaponProficienciesForActor(actor) {
+    var _a2, _b2, _c, _d;
+    if (actor.type === "player") {
+      return Array.isArray((_a2 = activeCharacterConfig.proficiencies) == null ? void 0 : _a2.weapons) ? (_b2 = activeCharacterConfig.proficiencies) == null ? void 0 : _b2.weapons : [];
+    }
+    const enemyType = enemyTypeById.get(actor.enemyTypeId ?? "") ?? null;
+    return Array.isArray((_c = enemyType == null ? void 0 : enemyType.proficiencies) == null ? void 0 : _c.weapons) ? (_d = enemyType == null ? void 0 : enemyType.proficiencies) == null ? void 0 : _d.weapons : [];
+  }
+  function getActorLevel(actor) {
+    var _a2, _b2;
+    if (actor.type === "player") {
+      return Number((activeCharacterConfig == null ? void 0 : activeCharacterConfig.niveauGlobal) ?? ((_a2 = actor.combatStats) == null ? void 0 : _a2.level) ?? 1) || 1;
+    }
+    return Number(((_b2 = actor.combatStats) == null ? void 0 : _b2.level) ?? 1) || 1;
+  }
+  function getProficiencyBonusForActor(actor) {
+    const level2 = getActorLevel(actor);
+    if (level2 <= 4) return 2;
+    if (level2 <= 8) return 3;
+    if (level2 <= 12) return 4;
+    if (level2 <= 16) return 5;
+    return 6;
+  }
+  function getAbilityModForActor(actor, modToken) {
+    var _a2;
+    if (!modToken) return 0;
+    if (actor.type === "player") {
+      if (modToken === "modFOR") return getCharacterAbilityMod(activeCharacterConfig, "FOR");
+      if (modToken === "modDEX") return getCharacterAbilityMod(activeCharacterConfig, "DEX");
+      if (modToken === "modCON") return getCharacterAbilityMod(activeCharacterConfig, "CON");
+      if (modToken === "modINT") return getCharacterAbilityMod(activeCharacterConfig, "INT");
+      if (modToken === "modSAG") return getCharacterAbilityMod(activeCharacterConfig, "SAG");
+      if (modToken === "modCHA") return getCharacterAbilityMod(activeCharacterConfig, "CHA");
+    }
+    const mods = (_a2 = actor.combatStats) == null ? void 0 : _a2.mods;
+    if (!mods) return 0;
+    if (modToken === "modFOR") return Number(mods.modFOR ?? 0);
+    if (modToken === "modDEX") return Number(mods.modDEX ?? 0);
+    if (modToken === "modCON") return Number(mods.modCON ?? 0);
+    if (modToken === "modINT") return Number(mods.modINT ?? 0);
+    if (modToken === "modSAG") return Number(mods.modSAG ?? 0);
+    if (modToken === "modCHA") return Number(mods.modCHA ?? 0);
+    return 0;
+  }
+  function pickWeaponForAction(action2, actor) {
+    var _a2, _b2;
+    const weapons = getWeaponsForActor(actor);
+    if (!weapons || weapons.length === 0) return null;
+    const tags2 = action2.tags ?? [];
+    const wantsRanged = tags2.includes("ranged") || ((_b2 = (_a2 = action2.targeting) == null ? void 0 : _a2.range) == null ? void 0 : _b2.max) > 1.5;
+    if (wantsRanged) {
+      return weapons.find((w2) => w2.category === "distance") ?? weapons.find((w2) => {
+        var _a3, _b3;
+        return (_b3 = (_a3 = w2.properties) == null ? void 0 : _a3.range) == null ? void 0 : _b3.normal;
+      }) ?? null;
+    }
+    return weapons.find((w2) => w2.category === "melee" || w2.category === "polyvalent") ?? weapons[0] ?? null;
+  }
+  function computeWeaponAttackBonus(actor, weapon) {
+    var _a2, _b2;
+    const modToken = normalizeWeaponModToken(((_a2 = weapon.attack) == null ? void 0 : _a2.mod) ?? null);
+    const abilityMod = getAbilityModForActor(actor, modToken);
+    const profs = getWeaponProficienciesForActor(actor);
+    const proficient = profs.includes(weapon.subtype);
+    const profBonus = proficient ? getProficiencyBonusForActor(actor) : 0;
+    const bonusSpec = (_b2 = weapon.attack) == null ? void 0 : _b2.bonus;
+    const extraBonus = typeof bonusSpec === "number" ? bonusSpec : typeof bonusSpec === "string" && bonusSpec === "bonus_maitrise" ? profBonus : 0;
+    return abilityMod + extraBonus;
+  }
+  function applyWeaponOverrideForActor(action2, actor) {
+    var _a2, _b2, _c, _d, _e, _f, _g, _h, _i;
+    if (action2.category !== "attack") return action2;
+    const weapon = pickWeaponForAction(action2, actor);
+    if (!weapon) return action2;
+    const damageDice = ((_a2 = weapon.effectOnHit) == null ? void 0 : _a2.damage) ?? ((_b2 = weapon.damage) == null ? void 0 : _b2.dice) ?? null;
+    const damageType = ((_c = weapon.effectOnHit) == null ? void 0 : _c.damageType) ?? ((_d = weapon.damage) == null ? void 0 : _d.damageType) ?? null;
+    const modToken = normalizeWeaponModToken(((_e = weapon.effectOnHit) == null ? void 0 : _e.mod) ?? ((_f = weapon.attack) == null ? void 0 : _f.mod));
+    if (!damageDice) return action2;
+    const formula = modToken ? `${damageDice} + ${modToken}` : damageDice;
+    const attackBonus = computeWeaponAttackBonus(actor, weapon);
+    const nextAction = {
+      ...action2,
+      attack: action2.attack ? { ...action2.attack, bonus: attackBonus } : { bonus: attackBonus, critRange: 20 },
+      damage: action2.damage ? { ...action2.damage, formula, damageType: damageType ?? action2.damage.damageType } : action2.damage,
+      targeting: action2.targeting ? {
+        ...action2.targeting,
+        range: {
+          ...action2.targeting.range,
+          max: ((_h = (_g = weapon.properties) == null ? void 0 : _g.range) == null ? void 0 : _h.normal) ?? ((_i = weapon.properties) == null ? void 0 : _i.reach) ?? action2.targeting.range.max
+        }
+      } : action2.targeting,
+      ops: action2.ops ? Object.fromEntries(
+        Object.entries(action2.ops).map(([key2, list]) => [
+          key2,
+          Array.isArray(list) ? list.map((op) => {
+            var _a3;
+            if ((op == null ? void 0 : op.op) !== "DealDamage") return op;
+            const currentFormula = String(op.formula ?? "");
+            const shouldOverride = currentFormula === ((_a3 = action2.damage) == null ? void 0 : _a3.formula);
+            if (!shouldOverride) return op;
+            return {
+              ...op,
+              formula,
+              damageType: damageType ?? op.damageType
+            };
+          }) : list
+        ])
+      ) : action2.ops
+    };
+    return nextAction;
+  }
+  function getEnemyAttackAction(enemy) {
+    const ids = Array.isArray(enemy.actionIds) ? enemy.actionIds : [];
+    const candidates = ids.map((id2) => getActionById(id2)).filter((a2) => Boolean(a2)).filter((a2) => a2.category === "attack");
+    if (candidates.length === 0) return null;
+    const overridden = candidates.map((a2) => applyWeaponOverrideForActor(a2, enemy));
+    return overridden.reduce((best, cur) => {
+      var _a2, _b2, _c, _d;
+      const bestRange = ((_b2 = (_a2 = best.targeting) == null ? void 0 : _a2.range) == null ? void 0 : _b2.max) ?? 1.5;
+      const curRange = ((_d = (_c = cur.targeting) == null ? void 0 : _c.range) == null ? void 0 : _d.max) ?? 1.5;
+      return curRange > bestRange ? cur : best;
+    }, overridden[0]);
+  }
+  function getEnemyAttackRange(enemy) {
+    var _a2, _b2;
+    const action2 = getEnemyAttackAction(enemy);
+    return typeof ((_b2 = (_a2 = action2 == null ? void 0 : action2.targeting) == null ? void 0 : _a2.range) == null ? void 0 : _b2.max) === "number" ? action2.targeting.range.max : 1.5;
+  }
+  function getActorDefaultReach(actor) {
+    if (actor.type === "enemy") return getEnemyAttackRange(actor);
+    const weapons = getWeaponsForActor(actor);
+    if (!weapons || weapons.length === 0) return 1.5;
+    const reachValues = weapons.map((weapon) => {
+      var _a2, _b2, _c;
+      const reach = (_a2 = weapon.properties) == null ? void 0 : _a2.reach;
+      if (typeof reach === "number" && reach > 0) return reach;
+      const range = (_c = (_b2 = weapon.properties) == null ? void 0 : _b2.range) == null ? void 0 : _c.normal;
+      if (typeof range === "number" && range > 0) return range;
+      return 1.5;
+    });
+    return Math.max(1.5, ...reachValues);
+  }
   function getValidatedAction() {
-    return getActionById(validatedActionId);
+    const action2 = getActionById(validatedActionId);
+    if (!action2) return null;
+    return applyWeaponOverrideForActor(action2, player);
   }
   function actionNeedsDiceUI(action2) {
     if (pendingHazardRoll) return true;
@@ -61944,17 +62561,20 @@ const GameBoard = () => {
     return target === "enemy" || target === "hostile";
   }
   function getActionVisualEffects(action2) {
-    if (!action2 || !Array.isArray(action2.effects)) return [];
-    return action2.effects.filter((effect) => (effect == null ? void 0 : effect.type) === "visual_effect" && typeof effect.effectId === "string").map((effect) => ({
-      effectId: String(effect.effectId),
-      anchor: effect.anchor,
-      offset: effect.offset,
-      orientation: effect.orientation,
-      rotationOffsetDeg: effect.rotationOffsetDeg,
-      onlyOnHit: Boolean(effect.onlyOnHit),
-      onlyOnMiss: Boolean(effect.onlyOnMiss),
-      durationMs: typeof effect.durationMs === "number" ? effect.durationMs : void 0
-    }));
+    if (!action2) return [];
+    const v2Ops = action2.ops ? Object.entries(action2.ops).flatMap(
+      ([key2, list]) => Array.isArray(list) ? list.filter((op) => (op == null ? void 0 : op.op) === "PlayVisualEffect" && typeof op.effectId === "string").map((op) => ({
+        effectId: String(op.effectId),
+        anchor: op.anchor,
+        offset: op.offset,
+        orientation: op.orientation,
+        rotationOffsetDeg: op.rotationOffsetDeg,
+        durationMs: typeof op.durationMs === "number" ? op.durationMs : void 0,
+        onlyOnHit: key2 === "onHit",
+        onlyOnMiss: key2 === "onMiss"
+      })) : []
+    ) : [];
+    return v2Ops;
   }
   function resolveActionEffectOrientation(action2, spec) {
     const orientation = spec.orientation ?? (actionTargetsHostile(action2) ? "to_target" : "none");
@@ -62086,6 +62706,161 @@ const GameBoard = () => {
     const current = getResourceAmount(resource.name, pool);
     const label2 = pool ? `${pool}:${resource.name}` : resource.name;
     return { label: label2, current, min: resource.min };
+  }
+  function resolvePlayerActionTarget(action2) {
+    var _a2;
+    const target = (_a2 = action2.targeting) == null ? void 0 : _a2.target;
+    if (target === "self") return { kind: "token", token: player };
+    if (target === "cell" || target === "emptyCell") {
+      if (selectedPath.length > 0) {
+        const last = selectedPath[selectedPath.length - 1];
+        return { kind: "cell", x: last.x, y: last.y };
+      }
+      if (selectedObstacleTarget) {
+        return { kind: "cell", x: selectedObstacleTarget.x, y: selectedObstacleTarget.y };
+      }
+      if (selectedWallTarget) {
+        return { kind: "cell", x: selectedWallTarget.x, y: selectedWallTarget.y };
+      }
+      return null;
+    }
+    if (selectedTargetId) {
+      const targetToken = enemies.find((e2) => e2.id === selectedTargetId) ?? null;
+      if (targetToken) return { kind: "token", token: targetToken };
+    }
+    return null;
+  }
+  async function playVisualEffectFromOp(op) {
+    if (!op.effectId) return;
+    const def = effectTypeById.get(op.effectId) ?? null;
+    const appearance2 = (def == null ? void 0 : def.appearance) ?? null;
+    if (!(appearance2 == null ? void 0 : appearance2.spriteKey)) return;
+    try {
+      await preloadObstaclePngTexturesFor([appearance2.spriteKey]);
+    } catch (error) {
+      console.warn("[actions] VFX preload failed:", error);
+    }
+    const anchor2 = op.anchor === "self" || op.anchor === "actor" ? { x: player.x, y: player.y } : selectedTargetId ? (() => {
+      const target = enemies.find((e2) => e2.id === selectedTargetId) ?? null;
+      return target ? { x: target.x, y: target.y } : { x: player.x, y: player.y };
+    })() : selectedObstacleTarget ? { x: selectedObstacleTarget.x, y: selectedObstacleTarget.y } : selectedWallTarget ? { x: selectedWallTarget.x, y: selectedWallTarget.y } : { x: player.x, y: player.y };
+    const offset = op.offset ?? { x: 0, y: 0 };
+    const x2 = Math.max(0, Math.min(mapGrid.cols - 1, anchor2.x + offset.x));
+    const y2 = Math.max(0, Math.min(mapGrid.rows - 1, anchor2.y + offset.y));
+    const id2 = `op-effect-${op.effectId}-${Date.now()}`;
+    const durationMs2 = typeof op.durationMs === "number" ? op.durationMs : 800;
+    setActionEffects((prev) => [
+      ...prev,
+      { id: id2, typeId: op.effectId, x: x2, y: y2, active: true, expiresAt: Date.now() + durationMs2 }
+    ]);
+    scheduleActionEffectRemoval(id2, durationMs2);
+  }
+  function resolvePlayerActionV2(action2, overrides) {
+    var _a2;
+    const target = resolvePlayerActionTarget(action2);
+    if (((_a2 = action2.targeting) == null ? void 0 : _a2.target) !== "self" && !target) {
+      pushLog("Cible manquante pour l'action.");
+      return false;
+    }
+    const attackOverride = (overrides == null ? void 0 : overrides.attackRoll) ?? attackRoll ?? null;
+    let damageUsed = false;
+    const damageOverride = (overrides == null ? void 0 : overrides.damageRoll) ?? damageRoll ?? null;
+    const result = resolveActionUnified(
+      action2,
+      {
+        round: round2,
+        phase: "player",
+        actor: player,
+        player,
+        enemies,
+        blockedMovementCells: obstacleBlocking.movement,
+        blockedMovementEdges: wallEdges.movement,
+        blockedVisionCells: visionBlockersActive,
+        blockedAttackCells: obstacleBlocking.attacks,
+        wallVisionEdges: wallEdges.vision,
+        lightLevels,
+        playableCells,
+        grid: mapGrid,
+        heightMap: mapHeight,
+        floorIds: mapTerrain,
+        activeLevel,
+        sampleCharacter: activeCharacterConfig,
+        getResourceAmount,
+        spendResource: (name2, pool, amount) => {
+          const key2 = resourceKey(name2, pool);
+          setPlayerResources((prev) => ({
+            ...prev,
+            [key2]: Math.max(0, (prev[key2] ?? 0) - amount)
+          }));
+        },
+        onLog: pushLog,
+        onModifyPathLimit: (delta) => {
+          setBasePathLimit((prev) => Math.max(0, prev + delta));
+          setPathLimit((prev) => Math.max(0, prev + delta));
+        },
+        onToggleTorch: () => {
+          setPlayerTorchOn((prev) => !prev);
+        },
+        onSetKillerInstinctTarget: (targetId) => {
+          if (killerInstinctTargetId) return;
+          setKillerInstinctTargetId(targetId);
+          setSelectedTargetId(targetId);
+          setEnemies(
+            (prev) => prev.map(
+              (enemy) => enemy.id === targetId ? addStatusToToken(enemy, "killer-mark", player.id) : enemy
+            )
+          );
+        },
+        onGrantTempHp: ({ targetId, amount }) => {
+          if (targetId === player.id) {
+            setPlayer((prev) => ({ ...prev, tempHp: Math.max(prev.tempHp ?? 0, amount) }));
+          } else {
+            setEnemies(
+              (prev) => prev.map(
+                (e2) => e2.id === targetId ? { ...e2, tempHp: Math.max(e2.tempHp ?? 0, amount) } : e2
+              )
+            );
+          }
+        },
+        onPlayVisualEffect: (op) => {
+          void playVisualEffectFromOp(op);
+        },
+        emitEvent: (evt) => {
+          recordCombatEvent({
+            round: round2,
+            phase,
+            kind: evt.kind,
+            actorId: evt.actorId,
+            actorKind: evt.actorKind,
+            targetId: evt.targetId ?? null,
+            targetKind: evt.targetKind ?? null,
+            summary: evt.summary,
+            data: evt.data ?? {}
+          });
+        }
+      },
+      target ?? { kind: "none" },
+      {
+        rollOverrides: {
+          attack: attackOverride,
+          consumeDamageRoll: () => {
+            if (damageUsed || !damageOverride) return null;
+            damageUsed = true;
+            return damageOverride;
+          }
+        }
+      }
+    );
+    if (!result.ok || !result.playerAfter || !result.enemiesAfter) {
+      pushLog(`Action V2 echec: ${result.reason || "inconnu"}.`);
+      return false;
+    }
+    setPlayer(result.playerAfter);
+    setEnemies(result.enemiesAfter);
+    if (result.outcomeKind) {
+      setAttackOutcome(result.outcomeKind === "miss" ? "miss" : "hit");
+    }
+    return true;
   }
   function handleRollAttack() {
     var _a2, _b2;
@@ -62251,7 +63026,6 @@ const GameBoard = () => {
     handleFinishAction();
   }
   function handleRollDamage() {
-    var _a2, _b2;
     if (isGameOver) return;
     if (isTokenDead(player)) return;
     const action2 = getValidatedAction();
@@ -62264,243 +63038,23 @@ const GameBoard = () => {
       return;
     }
     if (action2.attack && !attackRoll) {
-      pushLog(
-        "Un jet de touche est requis avant les degats pour cette action."
-      );
+      pushLog("Un jet de touche est requis avant les degats pour cette action.");
       return;
-    }
-    let targetIndex = null;
-    let targetArmorClass = null;
-    let targetLabel = null;
-    let obstacleTarget = null;
-    if (actionTargetsHostile(action2)) {
-      if (selectedTargetId) {
-        targetIndex = enemies.findIndex((e2) => e2.id === selectedTargetId);
-        if (targetIndex === -1) {
-          pushLog("Cible ennemie introuvable ou deja vaincue.");
-          return;
-        }
-        const target = enemies[targetIndex];
-        targetArmorClass = typeof target.armorClass === "number" ? target.armorClass : null;
-        targetLabel = target.id;
-      } else if (selectedObstacleTarget) {
-        obstacleTarget = obstacles.find((o2) => o2.id === selectedObstacleTarget.id) ?? null;
-        if (!obstacleTarget || obstacleTarget.hp <= 0) {
-          pushLog("Obstacle introuvable ou deja detruit.");
-          return;
-        }
-        const def = obstacleTypeById.get(obstacleTarget.typeId) ?? null;
-        targetArmorClass = typeof ((_a2 = def == null ? void 0 : def.durability) == null ? void 0 : _a2.ac) === "number" ? def.durability.ac : null;
-        targetLabel = (def == null ? void 0 : def.label) ?? obstacleTarget.typeId ?? "obstacle";
-      } else if (selectedWallTarget) {
-        const wall = wallSegments.find((w2) => w2.id === selectedWallTarget.id) ?? null;
-        if (!wall || typeof wall.hp === "number" && wall.hp <= 0) {
-          pushLog("Mur introuvable ou deja detruit.");
-          return;
-        }
-        const def = wall.typeId ? wallTypeById.get(wall.typeId) ?? null : null;
-        if (!isWallDestructible(def)) {
-          pushLog("Ce mur est indestructible.");
-          return;
-        }
-        targetArmorClass = typeof ((_b2 = def == null ? void 0 : def.durability) == null ? void 0 : _b2.ac) === "number" ? def.durability.ac : null;
-        targetLabel = (def == null ? void 0 : def.label) ?? wall.typeId ?? "mur";
-      } else {
-        pushLog(
-          "Aucune cible selectionnee pour cette action. Selectionnez une cible avant le jet de degats."
-        );
-        return;
-      }
-    }
-    const isCrit = Boolean(attackRoll == null ? void 0 : attackRoll.isCrit);
-    if (targetArmorClass !== null && action2.attack && attackRoll) {
-      const totalAttack = attackRoll.total;
-      const isHit = totalAttack >= targetArmorClass || attackRoll.isCrit;
-      if (!isHit) {
-        const targetSuffix2 = actionTargetsHostile(action2) && targetLabel ? ` sur ${targetLabel}` : "";
-        pushLog(
-          `L'attaque (${action2.name})${targetSuffix2} a manque la cible (CA ${targetArmorClass}). Pas de degats.`
-        );
-        if (selectedTargetId) {
-          recordCombatEvent({
-            round: round2,
-            phase,
-            kind: "player_attack",
-            actorId: player.id,
-            actorKind: "player",
-            targetId: selectedTargetId,
-            targetKind: "enemy",
-            summary: `Le heros attaque ${selectedTargetId} (${action2.name}) mais manque (CA ${targetArmorClass}).`,
-            data: {
-              actionId: action2.id,
-              attackTotal: totalAttack,
-              targetArmorClass,
-              hit: false
-            }
-          });
-        }
-        setAttackOutcome("miss");
-        return;
-      }
     }
     const resolvedDamageFormula = resolvePlayerFormula(action2.damage.formula);
     const result = rollDamage(resolvedDamageFormula, {
-      isCrit,
+      isCrit: Boolean(attackRoll == null ? void 0 : attackRoll.isCrit),
       critRule: action2.damage.critRule
     });
     setDamageRoll(result);
     const diceText = result.dice.map((d2) => d2.rolls.join("+")).join(" | ");
-    const totalDamage = result.total;
-    const targetSuffix = actionTargetsHostile(action2) && targetLabel ? ` sur ${targetLabel}` : "";
     pushDiceLog(
-      `Degats (${action2.name})${targetSuffix} : ${diceText || "0"} + ${result.flatModifier} = ${totalDamage}${isCrit ? " (critique)" : ""}`
+      `Degats (${action2.name}) : ${diceText || "0"} + ${result.flatModifier} = ${result.total}${(attackRoll == null ? void 0 : attackRoll.isCrit) ? " (critique)" : ""}`
     );
-    if (typeof targetIndex === "number" && targetIndex >= 0) {
-      setEnemies((prev) => {
-        if (targetIndex === null || targetIndex < 0 || targetIndex >= prev.length) {
-          return prev;
-        }
-        const copy = [...prev];
-        const target = { ...copy[targetIndex] };
-        const beforeHp = target.hp;
-        target.hp = Math.max(0, target.hp - totalDamage);
-        copy[targetIndex] = target;
-        recordCombatEvent({
-          round: round2,
-          phase,
-          kind: "player_attack",
-          actorId: player.id,
-          actorKind: "player",
-          targetId: target.id,
-          targetKind: "enemy",
-          summary: `Le heros frappe ${target.id} et inflige ${totalDamage} degats (PV ${beforeHp} -> ${target.hp}).`,
-          data: {
-            actionId: action2.id,
-            damage: totalDamage,
-            isCrit,
-            targetHpBefore: beforeHp,
-            targetHpAfter: target.hp
-          }
-        });
-        if (target.hp <= 0 && beforeHp > 0) {
-          recordCombatEvent({
-            round: round2,
-            phase,
-            kind: "death",
-            actorId: target.id,
-            actorKind: "enemy",
-            summary: `${target.id} s'effondre, hors de combat.`,
-            targetId: target.id,
-            targetKind: "enemy",
-            data: {
-              killedBy: player.id
-            }
-          });
-        }
-        return copy;
-      });
-    } else if (obstacleTarget && selectedObstacleTarget) {
-      const targetId = obstacleTarget.id;
-      const def = obstacleTypeById.get(obstacleTarget.typeId) ?? null;
-      const label2 = (def == null ? void 0 : def.label) ?? obstacleTarget.typeId ?? "obstacle";
-      setObstacles((prev) => {
-        const idx = prev.findIndex((o2) => o2.id === targetId);
-        if (idx === -1) return prev;
-        const copy = [...prev];
-        const target = { ...copy[idx] };
-        const beforeHp = target.hp;
-        target.hp = Math.max(0, target.hp - totalDamage);
-        copy[idx] = target;
-        recordCombatEvent({
-          round: round2,
-          phase,
-          kind: "player_attack",
-          actorId: player.id,
-          actorKind: "player",
-          summary: `Le heros frappe ${label2} et inflige ${totalDamage} degats (PV ${beforeHp} -> ${target.hp}).`,
-          data: {
-            actionId: action2.id,
-            damage: totalDamage,
-            isCrit,
-            targetHpBefore: beforeHp,
-            targetHpAfter: target.hp,
-            obstacleId: targetId,
-            obstacleTypeId: target.typeId
-          }
-        });
-        if (target.hp <= 0 && beforeHp > 0) {
-          recordCombatEvent({
-            round: round2,
-            phase,
-            kind: "death",
-            actorId: targetId,
-            actorKind: "player",
-            summary: `${label2} est detruit.`,
-            data: {
-              destroyedBy: player.id,
-              obstacleId: targetId,
-              obstacleTypeId: target.typeId
-            }
-          });
-        }
-        return copy;
-      });
-    } else if (selectedWallTarget) {
-      const wall = wallSegments.find((w2) => w2.id === selectedWallTarget.id) ?? null;
-      if (!wall) return;
-      const def = wall.typeId ? wallTypeById.get(wall.typeId) ?? null : null;
-      if (!isWallDestructible(def)) {
-        pushLog("Ce mur est indestructible.");
-        return;
-      }
-      const label2 = (def == null ? void 0 : def.label) ?? wall.typeId ?? "mur";
-      setWallSegments((prev) => {
-        const idx = prev.findIndex((w2) => w2.id === wall.id);
-        if (idx === -1) return prev;
-        const copy = [...prev];
-        const target = { ...copy[idx] };
-        const beforeHp = typeof target.hp === "number" ? target.hp : 0;
-        const maxHp = typeof target.maxHp === "number" ? target.maxHp : beforeHp;
-        const nextHp = Math.max(0, beforeHp - totalDamage);
-        target.hp = nextHp;
-        target.maxHp = maxHp;
-        copy[idx] = target;
-        recordCombatEvent({
-          round: round2,
-          phase,
-          kind: "player_attack",
-          actorId: player.id,
-          actorKind: "player",
-          summary: `Le heros frappe ${label2} et inflige ${totalDamage} degats (PV ${beforeHp} -> ${nextHp}).`,
-          data: {
-            actionId: action2.id,
-            damage: totalDamage,
-            isCrit,
-            targetHpBefore: beforeHp,
-            targetHpAfter: nextHp,
-            wallId: target.id,
-            wallTypeId: target.typeId ?? null
-          }
-        });
-        if (nextHp <= 0 && beforeHp > 0) {
-          recordCombatEvent({
-            round: round2,
-            phase,
-            kind: "death",
-            actorId: target.id,
-            actorKind: "player",
-            summary: `${label2} est detruit.`,
-            data: {
-              destroyedBy: player.id,
-              wallId: target.id,
-              wallTypeId: target.typeId ?? null
-            }
-          });
-        }
-        return copy.filter((w2) => w2.hp === void 0 || w2.hp > 0);
-      });
+    const ok = resolvePlayerActionV2(action2, { attackRoll, damageRoll: result });
+    if (ok) {
+      handleFinishAction();
     }
-    setValidatedActionId(action2.id);
   }
   function handleAutoResolveRolls() {
     const action2 = getValidatedAction();
@@ -62910,27 +63464,27 @@ Etat: PV ${token.hp}/${token.maxHp}`;
   function checkReactionConditions(params) {
     const conditions2 = params.reaction.conditions ?? [];
     for (const cond of conditions2) {
-      if (cond.type === "actor_alive" && isTokenDead(params.reactor)) {
+      if (cond.type === "ACTOR_ALIVE" && isTokenDead(params.reactor)) {
         return { ok: false, reason: cond.reason || "Reactor is dead." };
       }
-      if (cond.type === "target_alive" && isTokenDead(params.target)) {
+      if (cond.type === "TARGET_ALIVE" && isTokenDead(params.target)) {
         return { ok: false, reason: cond.reason || "Target is dead." };
       }
-      if (cond.type === "reaction_available" && !canUseReaction(params.reactor.id)) {
+      if (cond.type === "REACTION_AVAILABLE" && !canUseReaction(params.reactor.id)) {
         return { ok: false, reason: cond.reason || "Reaction already used." };
       }
-      if (cond.type === "reaction_unused_combat") {
+      if (cond.type === "REACTION_UNUSED_COMBAT") {
         if (hasReactionUsedInCombat(params.reactor.id, params.reaction.id)) {
           return { ok: false, reason: cond.reason || "Reaction already used this combat." };
         }
       }
-      if (cond.type === "target_first_seen" && !params.isFirstSeen) {
+      if (cond.type === "TARGET_FIRST_SEEN" && !params.isFirstSeen) {
         return { ok: false, reason: cond.reason || "Target already seen." };
       }
-      if (cond.type === "target_is_closest_visible" && !params.isClosestVisible) {
+      if (cond.type === "TARGET_IS_CLOSEST_VISIBLE" && !params.isClosestVisible) {
         return { ok: false, reason: cond.reason || "Target not closest." };
       }
-      if (cond.type === "target_visible") {
+      if (cond.type === "TARGET_VISIBLE") {
         const visible = isTargetVisible(
           params.reactor,
           params.target,
@@ -62945,7 +63499,7 @@ Etat: PV ${token.hp}/${token.maxHp}`;
           return { ok: false, reason: cond.reason || "Target not visible." };
         }
       }
-      if (cond.type === "distance_max" && typeof cond.max === "number") {
+      if (cond.type === "DISTANCE_MAX" && typeof cond.max === "number") {
         if (params.distance > cond.max) {
           return { ok: false, reason: cond.reason || "Target too far." };
         }
@@ -62995,7 +63549,7 @@ Etat: PV ${token.hp}/${token.maxHp}`;
   function autoResolveReaction(params) {
     var _a2;
     if (!canUseReaction(params.reactor.id)) return;
-    const baseAction = params.reaction.action;
+    const baseAction = applyWeaponOverrideForActor(params.reaction.action, params.reactor);
     let action2 = baseAction;
     if (params.ignoreRange && ((_a2 = baseAction.targeting) == null ? void 0 : _a2.range)) {
       const afterDistance = distanceBetweenTokens(params.reactor, params.target);
@@ -63016,7 +63570,7 @@ Etat: PV ${token.hp}/${token.maxHp}`;
       playerSnapshot: params.playerSnapshot,
       enemiesSnapshot: params.enemiesSnapshot
     });
-    const result = resolveAction(
+    const result = resolveActionUnified(
       action2,
       context2,
       { kind: "token", token: params.target }
@@ -63080,7 +63634,7 @@ Etat: PV ${token.hp}/${token.maxHp}`;
   }
   function checkReactionActionEligibility(params) {
     var _a2;
-    const baseAction = params.reaction.action;
+    const baseAction = applyWeaponOverrideForActor(params.reaction.action, params.reactor);
     let action2 = baseAction;
     if (params.ignoreRange && ((_a2 = baseAction.targeting) == null ? void 0 : _a2.range)) {
       const afterDistance = distanceBetweenTokens(params.reactor, params.target);
@@ -63115,10 +63669,11 @@ Etat: PV ${token.hp}/${token.maxHp}`;
     return { ok: true };
   }
   function applyInstantReactionEffects(params) {
-    const effects22 = params.reaction.action.effects ?? [];
+    var _a2;
+    const ops2 = ((_a2 = params.reaction.action.ops) == null ? void 0 : _a2.onResolve) && Array.isArray(params.reaction.action.ops.onResolve) ? params.reaction.action.ops.onResolve : [];
     let handled = false;
-    for (const effect of effects22) {
-      if (effect.type === "set_killer_instinct_target") {
+    for (const op of ops2) {
+      if ((op == null ? void 0 : op.op) === "SetKillerInstinctTarget") {
         if (params.reactor.id !== player.id) continue;
         if (killerInstinctTargetId) return true;
         setKillerInstinctTargetId(params.target.id);
@@ -63134,8 +63689,8 @@ Etat: PV ${token.hp}/${token.maxHp}`;
         markReactionUsedInCombat(params.reactor.id, params.reaction.id);
         handled = true;
       }
-      if (effect.type === "log" && typeof effect.message === "string") {
-        pushLog(effect.message);
+      if ((op == null ? void 0 : op.op) === "LogEvent" && typeof op.message === "string") {
+        pushLog(op.message);
       }
     }
     return handled;
@@ -63165,7 +63720,7 @@ Etat: PV ${token.hp}/${token.maxHp}`;
           continue;
         }
         const reactionRangeMax = (_e = (_d = (_c = reaction.action) == null ? void 0 : _c.targeting) == null ? void 0 : _d.range) == null ? void 0 : _e.max;
-        const reach = typeof reactionRangeMax === "number" && Number.isFinite(reactionRangeMax) ? reactionRangeMax : getAttackRangeForToken(reactor);
+        const reach = typeof reactionRangeMax === "number" && Number.isFinite(reactionRangeMax) ? reactionRangeMax : getActorDefaultReach(reactor);
         const before = distanceBetweenTokens(reactor, moverFrom);
         const after = distanceBetweenTokens(reactor, moverTo);
         const isLeave = event === "movement.leave_reach";
@@ -63386,7 +63941,7 @@ Etat: PV ${token.hp}/${token.maxHp}`;
     const effectByCell = /* @__PURE__ */ new Map();
     const cellKey2 = (x2, y2) => `${x2},${y2}`;
     const sourceByKey = /* @__PURE__ */ new Map();
-    for (const effect of effects2) {
+    for (const effect of effects) {
       const key2 = `${effect.typeId}:${cellKey2(effect.x, effect.y)}`;
       sourceByKey.set(key2, effect);
     }
@@ -63528,8 +64083,6 @@ Etat: PV ${token.hp}/${token.maxHp}`;
       type: e2.enemyTypeId,
       aiRole: e2.aiRole ?? null,
       moveRange: e2.moveRange ?? null,
-      attackDamage: e2.attackDamage ?? null,
-      attackRange: e2.attackRange ?? null,
       maxAttacksPerTurn: e2.maxAttacksPerTurn ?? null,
       actionIds: e2.actionIds ?? null
     }));
@@ -63746,7 +64299,8 @@ Etat: PV ${token.hp}/${token.maxHp}`;
     };
     const tryResolve = async (actionId, target, advantageMode2) => {
       var _a3;
-      const action2 = getActionById2(actionId);
+      const baseAction = getActionById2(actionId);
+      const action2 = baseAction ? applyWeaponOverrideForActor(baseAction, activeEnemy) : null;
       if (!action2) {
         await waitForEnemyTurnResume();
         return { ok: false, reason: `Action inconnue: ${actionId}` };
@@ -63758,7 +64312,7 @@ Etat: PV ${token.hp}/${token.maxHp}`;
       const beforePlayerHp = playerCopy.hp;
       const beforeEnemyHp = new Map(enemiesCopy.map((e2) => [e2.id, e2.hp]));
       const beforeActorPos = { x: activeEnemy.x, y: activeEnemy.y };
-      const result = resolveAction(
+      const result = resolveActionUnified(
         action2,
         {
           round: round2,
@@ -63921,16 +64475,17 @@ Etat: PV ${token.hp}/${token.maxHp}`;
         pushLog(`${activeEnemy.id} ne voit pas le joueur et reste en alerte.`);
       } else {
         const distToPlayer = distanceBetweenTokens(activeEnemy, playerCopy);
-        const canMove = enemyActionIds.includes("move");
+        const canMove2 = enemyActionIds.includes("move");
         const moveRange = typeof activeEnemy.moveRange === "number" ? activeEnemy.moveRange : 3;
+        const moveRangeCells = metersToCells(moveRange);
         let acted = false;
         const pickBestRetreatCell = (from) => {
           let best = null;
           let bestDist = -1;
-          for (let dx = -moveRange; dx <= moveRange; dx++) {
-            for (let dy = -moveRange; dy <= moveRange; dy++) {
+          for (let dx = -moveRangeCells; dx <= moveRangeCells; dx++) {
+            for (let dy = -moveRangeCells; dy <= moveRangeCells; dy++) {
               const steps = Math.abs(dx) + Math.abs(dy);
-              if (steps === 0 || steps > moveRange) continue;
+              if (steps === 0 || steps > moveRangeCells) continue;
               const x2 = from.x + dx;
               const y2 = from.y + dy;
               if (!isCellPlayable(x2, y2)) continue;
@@ -63996,7 +64551,7 @@ Etat: PV ${token.hp}/${token.maxHp}`;
             }
           }
         }
-        if (!acted && canMove && targetPos) {
+        if (!acted && canMove2 && targetPos) {
           const desiredMin = combatProfile2.preferredRangeMin;
           const desiredMax = combatProfile2.preferredRangeMax;
           const shouldRetreat = distToPlayer < desiredMin || combatProfile2.avoidRangeMax !== void 0 && distToPlayer <= combatProfile2.avoidRangeMax;
@@ -64011,7 +64566,7 @@ Etat: PV ${token.hp}/${token.maxHp}`;
               { x: targetPos.x, y: targetPos.y },
               tokensForPath,
               {
-                maxDistance: moveRange,
+                maxDistance: moveRangeCells,
                 allowTargetOccupied: false,
                 blockedCells: obstacleBlocking.movement,
                 wallEdges: wallEdges.movement,
@@ -64356,14 +64911,14 @@ Etat: PV ${token.hp}/${token.maxHp}`;
     pushLog("Action annulee.");
   }
   function handleValidateActionFromContext(action2) {
-    var _a2, _b2, _c, _d;
+    var _a2, _b2, _c, _d, _e;
     if (isMoveTypeAction(action2)) {
       const multiplier = ((_a2 = action2.movement) == null ? void 0 : _a2.pathLimitMultiplier) ?? 1;
       let baseLimit = basePathLimit;
       if ((_b2 = action2.movement) == null ? void 0 : _b2.modeId) {
         const mode = getMovementModeById(action2.movement.modeId) ?? defaultMovementMode;
         const profile = buildMovementProfileFromMode(mode);
-        baseLimit = profile.speed;
+        baseLimit = metersToCells(profile.speed);
       }
       const nextBase = Math.max(0, Math.round(baseLimit * multiplier));
       const available = Math.max(0, nextBase - movementSpent);
@@ -64374,13 +64929,20 @@ Etat: PV ${token.hp}/${token.maxHp}`;
     }
     const accepted = handleUseAction(action2);
     if (!accepted) return;
+    if (!action2.attack && !action2.damage && !isMoveTypeAction(action2) && ((_c = action2.targeting) == null ? void 0 : _c.target) === "self") {
+      const ok = resolvePlayerActionV2(action2);
+      if (ok) {
+        handleFinishAction();
+      }
+      return;
+    }
     if (isMoveTypeAction(action2)) {
-      const multiplier = ((_c = action2.movement) == null ? void 0 : _c.pathLimitMultiplier) ?? 1;
+      const multiplier = ((_d = action2.movement) == null ? void 0 : _d.pathLimitMultiplier) ?? 1;
       let baseLimit = basePathLimit;
-      if ((_d = action2.movement) == null ? void 0 : _d.modeId) {
+      if ((_e = action2.movement) == null ? void 0 : _e.modeId) {
         const mode = getMovementModeById(action2.movement.modeId) ?? defaultMovementMode;
         const profile = buildMovementProfileFromMode(mode);
-        baseLimit = profile.speed;
+        baseLimit = metersToCells(profile.speed);
         setActiveMovementModeId(mode.id);
         setPlayer((prev) => ({
           ...prev,
@@ -64388,8 +64950,8 @@ Etat: PV ${token.hp}/${token.maxHp}`;
           moveRange: profile.speed,
           combatStats: prev.combatStats ? { ...prev.combatStats, moveRange: profile.speed } : prev.combatStats
         }));
-        setBasePathLimit(profile.speed);
-        baseLimit = profile.speed;
+        setBasePathLimit(metersToCells(profile.speed));
+        baseLimit = metersToCells(profile.speed);
       }
       setSelectedPath([]);
       const nextBase = Math.max(0, Math.round(baseLimit * multiplier));
@@ -64447,7 +65009,7 @@ Etat: PV ${token.hp}/${token.maxHp}`;
       pushLog(`Interaction ${interaction.label}: ${availability.reason ?? "indisponible"}.`);
       return;
     }
-    const modForce = getCharacterAbilityMod(activeCharacterConfig, "str");
+    const modForce = getCharacterAbilityMod(activeCharacterConfig, "FOR");
     const forceDc = typeof interaction.forceDc === "number" ? interaction.forceDc : null;
     const needsCheck = interaction.kind === "break" && forceDc !== null;
     if (needsCheck) {
@@ -64496,7 +65058,7 @@ Etat: PV ${token.hp}/${token.maxHp}`;
     getWallDistance: getWallSegmentChebyshevDistance,
     getObstacleDistance: getObstacleChebyshevDistance
   }) : null;
-  const forceMod = getCharacterAbilityMod(activeCharacterConfig, "str");
+  const forceMod = getCharacterAbilityMod(activeCharacterConfig, "FOR");
   const interactionState = interactionMode === "interact-select" ? interactionMenuItems.length > 0 ? "menu" : "select" : "idle";
   const wheelAnchor = resolveWheelAnchor();
   return /* @__PURE__ */ jsxRuntimeExports.jsxs(
@@ -65436,4 +65998,4 @@ export {
   BigPool as y,
   getGlobalBounds as z
 };
-//# sourceMappingURL=index-DhHKW0sP.js.map
+//# sourceMappingURL=index-wWJXD7f7.js.map

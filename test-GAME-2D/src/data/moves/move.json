@@ -3,24 +3,47 @@
   "name": "Deplacement",
   "summary": "Deplacement tactique vers une case cible (portee base: moveRange).",
   "category": "movement",
-  "actionCost": { "actionType": "action", "movementCost": 0 },
+  "actionCost": {
+    "actionType": "action",
+    "movementCost": 0
+  },
   "targeting": {
     "target": "emptyCell",
-    "range": { "min": 1, "max": 3, "shape": "single" },
+    "range": {
+      "min": 1.5,
+      "max": 4.5,
+      "shape": "SPHERE"
+    },
     "maxTargets": 1,
     "requiresLos": false
   },
-  "usage": { "perTurn": 1, "perEncounter": null, "resource": null },
+  "usage": {
+    "perTurn": 1,
+    "perEncounter": null,
+    "resource": null
+  },
   "conditions": [],
-  "effects": [
-    { "type": "move_to", "target": "self", "maxSteps": "moveRange" },
-    { "type": "log", "message": "Deplacement effectue." }
-  ],
   "aiHints": {
     "priority": "positioning",
     "successLog": "Deplacement.",
     "failureLog": "Aucun chemin valide."
   },
-  "tags": ["movement"]
+  "tags": [
+    "movement"
+  ],
+  "ops": {
+    "onResolve": [
+      {
+        "op": "MoveTo",
+        "target": "self",
+        "maxSteps": "moveRange"
+      },
+      {
+        "op": "LogEvent",
+        "message": "Deplacement effectue."
+      }
+    ]
+  }
 }
+
 

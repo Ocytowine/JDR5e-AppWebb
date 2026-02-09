@@ -4,9 +4,14 @@
   "type": "object",
   "category": "misc",
   "weight": 1,
-  "priceGp": 5,
   "tags": [
     "holy_symbol"
   ],
-  "description": "Symbole sacre utilise comme focalisateur divin."
+  "description": "Symbole sacre utilise comme focalisateur divin.",
+  "value": {
+    "platinum": 0,
+    "gold": 5.0,
+    "silver": 0,
+    "copper": 0
+  }
 }

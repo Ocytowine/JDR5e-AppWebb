@@ -2,6 +2,45 @@
   "id": "data-taxonomy",
   "version": 1,
   "description": "Source de verite des champs, enums et conventions pour les JSONs de gameplay.",
+  "units": {
+    "distance": "m",
+    "weight": "kg",
+    "time": [
+      "tour",
+      "minute",
+      "heure",
+      "jour"
+    ]
+  },
+  "unitsFields": {
+    "distanceMeters": [
+      "action.targeting.range.min",
+      "action.targeting.range.max",
+      "action.conditions.distance_max.max",
+      "action.conditions.distance_between.min",
+      "action.conditions.distance_between.max",
+      "weapon.properties.reach",
+      "weapon.properties.range.normal",
+      "weapon.properties.range.long",
+      "weapon.properties.thrown.normal",
+      "weapon.properties.thrown.long",
+      "enemy.combatStats.moveRange",
+      "enemy.movement.speed",
+      "enemy.vision.range",
+      "enemy.combatProfile.preferredRangeMin",
+      "enemy.combatProfile.preferredRangeMax",
+      "enemy.combatProfile.avoidRangeMin",
+      "enemy.combatProfile.avoidRangeMax",
+      "enemy.behavior.preferredRangeMin",
+      "enemy.behavior.preferredRangeMax",
+      "enemy.behavior.panicRange"
+    ],
+    "weightKg": [
+      "weapon.weight",
+      "armor.weight",
+      "object.weight"
+    ]
+  },
   "sources": {
     "actionTypes": "src/game/actionTypes.ts",
     "actionEngine": "src/game/actionEngine.ts",
@@ -10,18 +49,169 @@
     "damageTypes": "src/game/damageTypes.ts",
     "gameBoard": "src/GameBoard.tsx"
   },
+  "creatureTypes": [
+    "ABERRATION",
+    "BEAST",
+    "CELESTIAL",
+    "CONSTRUCT",
+    "DRAGON",
+    "ELEMENTAL",
+    "FEY",
+    "FIEND",
+    "GIANT",
+    "HUMANOID",
+    "MONSTROSITY",
+    "OOZE",
+    "PLANT",
+    "UNDEAD"
+  ],
+  "sizeCategories": [
+    "TINY",
+    "SMALL",
+    "MEDIUM",
+    "LARGE",
+    "HUGE",
+    "GARGANTUAN"
+  ],
+  "movementTypes": [
+    "WALK",
+    "CLIMB",
+    "SWIM",
+    "FLY",
+    "BURROW"
+  ],
+  "damageTypes": [
+    "ACID",
+    "BLUDGEONING",
+    "COLD",
+    "FIRE",
+    "FORCE",
+    "LIGHTNING",
+    "NECROTIC",
+    "PIERCING",
+    "POISON",
+    "PSYCHIC",
+    "RADIANT",
+    "SLASHING",
+    "THUNDER"
+  ],
+  "damageTags": [
+    "MAGICAL",
+    "NON_MAGICAL",
+    "SILVERED",
+    "ADAMANTINE",
+    "SPELL",
+    "WEAPON",
+    "MELEE",
+    "RANGED",
+    "AREA"
+  ],
+  "conditionTypes": [
+    "BLINDED",
+    "CHARMED",
+    "DEAFENED",
+    "FRIGHTENED",
+    "GRAPPLED",
+    "INCAPACITATED",
+    "INVISIBLE",
+    "PARALYZED",
+    "PETRIFIED",
+    "POISONED",
+    "PRONE",
+    "RESTRAINED",
+    "STUNNED",
+    "UNCONSCIOUS",
+    "EXHAUSTION"
+  ],
+  "senses": [
+    "BLINDSIGHT",
+    "DARKVISION",
+    "TREMORSENSE",
+    "TRUESIGHT",
+    "SCENT"
+  ],
+  "abilities": [
+    "FOR",
+    "DEX",
+    "CON",
+    "INT",
+    "SAG",
+    "CHA"
+  ],
+  "resolutionTypes": [
+    "ATTACK_ROLL",
+    "SAVING_THROW",
+    "ABILITY_CHECK",
+    "NO_ROLL"
+  ],
+  "attackKinds": [
+    "MELEE_WEAPON",
+    "RANGED_WEAPON",
+    "MELEE_SPELL",
+    "RANGED_SPELL",
+    "SPECIAL"
+  ],
+  "outcomeFlags": [
+    "HIT",
+    "MISS",
+    "CRIT",
+    "SAVE_SUCCESS",
+    "SAVE_FAIL",
+    "AUTO_SUCCESS",
+    "AUTO_FAIL",
+    "PARTIAL"
+  ],
+  "targetingConstraints": [
+    "LINE_OF_SIGHT",
+    "LINE_OF_EFFECT",
+    "HOSTILE_ONLY",
+    "ALLY_ONLY",
+    "NOT_SELF",
+    "NOT_UNCONSCIOUS",
+    "WITHIN_REACH",
+    "WITHIN_RANGE",
+    "REQUIRES_FREE_HAND",
+    "REQUIRES_SPEECH",
+    "REQUIRES_COMPONENTS"
+  ],
+  "areaShapes": [
+    "SPHERE",
+    "CONE",
+    "LINE",
+    "CUBE",
+    "CYLINDER"
+  ],
+  "enginePhases": [
+    "BUILD_INTENT",
+    "GATHER_OPTIONS",
+    "VALIDATE_LEGALITY",
+    "TARGETING",
+    "PRE_RESOLUTION_WINDOW",
+    "RESOLVE_CHECK",
+    "ON_OUTCOME",
+    "APPLY_TARGET_EFFECTS",
+    "APPLY_WORLD_EFFECTS",
+    "POST_RESOLUTION_WINDOW",
+    "COMMIT"
+  ],
   "action": {
     "model": "./action-model.json",
     "category": [
       "attack",
       "movement",
       "support",
+      "control",
       "defense",
       "item",
       "reaction"
     ],
     "actionCost": {
-      "actionType": ["action", "bonus", "reaction", "free"],
+      "actionType": [
+        "action",
+        "bonus",
+        "reaction",
+        "free"
+      ],
       "movementCost": "number"
     },
     "targeting": {
@@ -35,12 +225,11 @@
         "emptyCell"
       ],
       "range.shape": [
-        "single",
-        "line",
-        "cone",
-        "circle",
-        "rectangle",
-        "self"
+        "SPHERE",
+        "CONE",
+        "LINE",
+        "CUBE",
+        "CYLINDER"
       ],
       "range.min": "number",
       "range.max": "number",
@@ -56,62 +245,161 @@
         "min": "number|null"
       }
     },
+    "resolution": {
+      "kind": [
+        "ATTACK_ROLL",
+        "SAVING_THROW",
+        "ABILITY_CHECK",
+        "NO_ROLL"
+      ],
+      "critRule": [
+        "double-dice",
+        "double-total"
+      ]
+    },
     "attack": {
       "bonus": "number",
       "critRange": "number (default 20)"
     },
     "damage": {
       "formula": "string",
-      "critRule": ["double-dice", "double-total"],
+      "critRule": [
+        "double-dice",
+        "double-total"
+      ],
       "damageType": "damageTypeId"
     },
     "conditions": {
       "types": [
-        "phase",
-        "target_alive",
-        "distance_max",
-        "distance_between",
-        "stat_at_least",
-        "stat_below_percent",
-        "resource_at_least"
+        "ACTOR_CREATURE_TYPE_IS",
+        "TARGET_CREATURE_TYPE_IS",
+        "ACTOR_HAS_TAG",
+        "TARGET_HAS_TAG",
+        "ACTOR_CREATURE_HAS_TAG",
+        "TARGET_CREATURE_HAS_TAG",
+        "ACTOR_HAS_CONDITION",
+        "TARGET_HAS_CONDITION",
+        "ACTOR_CONDITION_STACKS",
+        "TARGET_CONDITION_STACKS",
+        "ACTOR_DAMAGE_IMMUNE",
+        "TARGET_DAMAGE_IMMUNE",
+        "ACTOR_DAMAGE_RESIST",
+        "TARGET_DAMAGE_RESIST",
+        "ACTOR_DAMAGE_VULNERABLE",
+        "TARGET_DAMAGE_VULNERABLE",
+        "ACTOR_HAS_RESOURCE",
+        "TARGET_HAS_RESOURCE",
+        "ACTOR_SIZE_IS",
+        "TARGET_SIZE_IS",
+        "ACTOR_CAN_MOVE",
+        "TARGET_CAN_MOVE",
+        "TARGET_ALIVE",
+        "DISTANCE_MAX",
+        "DISTANCE_BETWEEN",
+        "RESOURCE_AT_LEAST",
+        "STAT_BELOW_PERCENT",
+        "OUTCOME_HAS",
+        "PHASE_IS",
+        "ACTOR_VALUE",
+        "TARGET_VALUE",
+        "AND",
+        "OR",
+        "NOT"
       ]
     },
-    "effects": {
-      "types": [
-        "damage",
-        "heal",
-        "log",
-        "move_to",
-        "move",
-        "resource_spend",
-        "modify_path_limit",
-        "toggle_torch",
-        "status",
-        "status_apply",
-        "temp_hp",
-        "set_killer_instinct_target",
-        "visual_effect"
+    "ops": [
+      "DealDamage",
+      "Heal",
+      "ApplyCondition",
+      "CreateZone",
+      "SpendResource",
+      "MoveForced",
+      "LogEvent",
+      "PlayVisualEffect",
+      "MoveTo",
+      "GrantTempHp",
+      "ModifyPathLimit",
+      "ToggleTorch",
+      "SetKillerInstinctTarget"
+    ],
+    "hooks": {
+      "phases": [
+        "BUILD_INTENT",
+        "GATHER_OPTIONS",
+        "VALIDATE_LEGALITY",
+        "TARGETING",
+        "PRE_RESOLUTION_WINDOW",
+        "RESOLVE_CHECK",
+        "ON_OUTCOME",
+        "APPLY_TARGET_EFFECTS",
+        "APPLY_WORLD_EFFECTS",
+        "POST_RESOLUTION_WINDOW",
+        "COMMIT"
       ]
     },
+    "outcomes": [
+      "HIT",
+      "MISS",
+      "CRIT",
+      "SAVE_SUCCESS",
+      "SAVE_FAIL",
+      "AUTO_SUCCESS",
+      "AUTO_FAIL",
+      "PARTIAL"
+    ],
     "tags": {
-      "reserved": ["move-type"]
+      "reserved": [
+        "move-type"
+      ]
     }
   },
   "moveType": {
     "model": "./move-type-model.json",
     "extends": "action",
-    "requiredTags": ["move-type"],
+    "requiredTags": [
+      "move-type"
+    ],
     "movement": {
       "pathLimitMultiplier": "number",
       "modeId": "string"
     }
   },
+  "enemy": {
+    "model": "./enemy-model.json",
+    "armesDefaut": {
+      "main_droite": "string|null",
+      "main_gauche": "string|null",
+      "mains": "string|null"
+    },
+    "proficiencies": {
+      "weapons": "string[]",
+      "armors": "string[]",
+      "tools": "string[]"
+    }
+  },
   "weapon": {
     "model": "./weapon-model.json",
-    "type": ["arme"],
-    "subtype": ["simple", "martiale", "speciale", "monastique"],
-    "category": ["melee", "distance", "polyvalent"],
-    "rarity": ["commune", "peu_commune", "rare", "tres_rare", "legendaire"],
+    "type": [
+      "arme"
+    ],
+    "subtype": [
+      "simple",
+      "martiale",
+      "speciale",
+      "monastique"
+    ],
+    "category": [
+      "melee",
+      "distance",
+      "polyvalent"
+    ],
+    "rarity": [
+      "commune",
+      "peu_commune",
+      "rare",
+      "tres_rare",
+      "legendaire"
+    ],
     "fields": {
       "id": "string",
       "name": "string",
@@ -123,7 +411,12 @@
       "focalisateur": "boolean",
       "weight": "number",
       "size": "number",
-      "value": { "gold": "number", "silver": "number", "copper": "number" },
+      "value": {
+        "platinum": "number",
+        "gold": "number",
+        "silver": "number",
+        "copper": "number"
+      },
       "tags": "string[]",
       "properties": {
         "finesse": "boolean",
@@ -132,11 +425,17 @@
         "twoHanded": "boolean",
         "reach": "number",
         "versatile": "string|null",
-        "thrown": { "normal": "number", "long": "number" },
+        "thrown": {
+          "normal": "number",
+          "long": "number"
+        },
         "ammunition": "boolean",
         "loading": "boolean",
         "reload": "number|null",
-        "range": { "normal": "number", "long": "number" },
+        "range": {
+          "normal": "number",
+          "long": "number"
+        },
         "special": "string|null"
       },
       "attack": {
@@ -146,14 +445,15 @@
       "damage": {
         "dice": "string",
         "damageType": "damageTypeId",
-        "damageTypeId": "damageTypeId|null",
-        "alt": { "dice": "string", "condition": "string" }
+        "alt": {
+          "dice": "string",
+          "condition": "string"
+        }
       },
       "effectOnHit": {
         "mod": "string",
         "damage": "string",
-        "damageType": "damageTypeId",
-        "damageTypeId": "damageTypeId|null"
+        "damageType": "damageTypeId"
       },
       "links": {
         "actionId": "string|null",
@@ -169,22 +469,30 @@
         "movement.enter_reach",
         "visibility.first_seen"
       ],
-      "source": ["hostile", "ally", "player", "enemy", "self", "any"]
+      "source": [
+        "hostile",
+        "ally",
+        "player",
+        "enemy",
+        "self",
+        "any"
+      ]
     },
     "conditions": {
       "types": [
-        "actor_alive",
-        "target_alive",
-        "reaction_available",
-        "reaction_unused_combat",
-        "distance_max",
-        "target_first_seen",
-        "target_is_closest_visible",
-        "target_visible"
+        "ACTOR_ALIVE",
+        "TARGET_ALIVE",
+        "REACTION_AVAILABLE",
+        "REACTION_UNUSED_COMBAT",
+        "DISTANCE_MAX",
+        "TARGET_FIRST_SEEN",
+        "TARGET_IS_CLOSEST_VISIBLE",
+        "TARGET_VISIBLE"
       ]
     }
   },
-  "effectType": {
+  "visualEffectType": {
+    "model": "./visual-effect-model.json",
     "definition": {
       "id": "string",
       "label": "string",
@@ -195,11 +503,20 @@
         "animationLoop": "boolean",
         "scale": "number",
         "targetSize": "number",
-        "scaleRange": { "min": "number", "max": "number" },
+        "scaleRange": {
+          "min": "number",
+          "max": "number"
+        },
         "tint": "number",
-        "tintRange": { "dark": "number", "light": "number" },
+        "tintRange": {
+          "dark": "number",
+          "light": "number"
+        },
         "alpha": "number",
-        "alphaRange": { "min": "number", "max": "number" }
+        "alphaRange": {
+          "min": "number",
+          "max": "number"
+        }
       },
       "placement": {
         "allowedFloors": "string[]",
@@ -210,99 +527,180 @@
       },
       "hazard": {
         "damageFormula": "string",
-        "statusRoll": { "die": "number", "trigger": "number", "statusId": "string" },
+        "statusRoll": {
+          "die": "number",
+          "trigger": "number",
+          "statusId": "string"
+        },
         "onTraverse": "boolean"
       },
-      "light": { "radius": "number", "color": "number" }
+      "light": {
+        "radius": "number",
+        "color": "number"
+      }
     }
   },
-  "damageTypes": {
-    "ids": [
-      "slashing",
-      "piercing",
-      "bludgeoning",
-      "fire",
-      "cold",
-      "acid",
-      "lightning",
-      "poison",
-      "thunder",
-      "force",
-      "radiant",
-      "necrotic",
-      "psychic"
-    ]
+  "map": {
+    "model": "./map-model.json"
+  },
+  "race": {
+    "model": "./race-model.json"
+  },
+  "passif": {
+    "model": "./passif-model.json"
+  },
+  "currency": {
+    "value": {
+      "platinum": "number",
+      "gold": "number",
+      "silver": "number",
+      "copper": "number"
+    }
+  },
+  "restTypes": [
+    "short_rest",
+    "long_rest"
+  ],
+  "commonFlags": {
+    "harmonisable": "boolean"
   },
   "formulaTokens": {
     "tokens": [
-      "attackDamage",
       "attackBonus",
       "moveRange",
-      "attackRange",
       "level",
       "niveau",
-      "modSTR",
       "modFOR",
       "modDEX",
       "modCON",
       "modINT",
-      "modWIS",
       "modSAG",
       "modCHA"
     ]
   },
   "runtimeSupport": {
-    "actionEffects": {
-      "supportedByActionEngine": ["log", "resource_spend", "damage", "move_to"],
+    "ops": {
+      "supportedByActionEngine": [
+        "DealDamage",
+        "Heal",
+        "ApplyCondition",
+        "CreateZone",
+        "SpendResource",
+        "MoveForced",
+        "MoveTo",
+        "GrantTempHp",
+        "LogEvent"
+      ],
       "supportedByGameBoard": [
-        "modify_path_limit",
-        "resource_spend",
-        "toggle_torch",
-        "heal",
-        "log",
-        "set_killer_instinct_target"
+        "ModifyPathLimit",
+        "ToggleTorch",
+        "SetKillerInstinctTarget",
+        "PlayVisualEffect"
       ],
       "knownInData": [
-        "damage",
-        "heal",
-        "log",
-        "modify_path_limit",
-        "move",
-        "move_to",
-        "resource_spend",
-        "set_killer_instinct_target",
-        "status",
-        "status_apply",
-        "temp_hp",
-        "toggle_torch",
-        "visual_effect"
-      ]
-    },
-    "conditions": {
-      "supportedByActionEngine": [
-        "phase",
-        "target_alive",
-        "distance_max",
-        "distance_between"
-      ],
-      "supportedByGameBoard": [
-        "phase",
-        "target_alive",
-        "distance_max",
-        "distance_between",
-        "stat_below_percent",
-        "resource_at_least"
-      ],
-      "supportedByReactionResolver": [
-        "actor_alive",
-        "target_alive",
-        "reaction_available",
-        "reaction_unused_combat",
-        "distance_max",
-        "target_first_seen",
-        "target_is_closest_visible",
-        "target_visible"
+        "LogEvent",
+        "DealDamage",
+        "Heal",
+        "ApplyCondition",
+        "CreateZone",
+        "SpendResource",
+        "MoveForced",
+        "MoveTo",
+        "GrantTempHp",
+        "ModifyPathLimit",
+        "ToggleTorch",
+        "SetKillerInstinctTarget",
+        "PlayVisualEffect"
       ]
     }
+  },
+  "tags": {
+    "allowed": [
+      "academique",
+      "arme",
+      "armure",
+      "attack",
+      "barrel",
+      "bludgeoning",
+      "bouclier",
+      "bourse",
+      "bow",
+      "brazier",
+      "bush",
+      "cave",
+      "chair",
+      "channel-divinity",
+      "class",
+      "cleric",
+      "connector",
+      "control",
+      "crate",
+      "defense",
+      "deplacement",
+      "distance",
+      "domain",
+      "door",
+      "ecriture",
+      "effect",
+      "endommagee",
+      "example",
+      "fence",
+      "fire",
+      "hazard",
+      "holy_symbol",
+      "improvise",
+      "insigne",
+      "intermediaire",
+      "jet",
+      "legere",
+      "log",
+      "lourde",
+      "low",
+      "lumiere",
+      "melee",
+      "militaire",
+      "mobilite",
+      "monnaie",
+      "move-type",
+      "movement",
+      "nature",
+      "objet",
+      "paquetage",
+      "peace",
+      "piece",
+      "piercing",
+      "pillar",
+      "prop",
+      "ranged",
+      "reaction",
+      "resource",
+      "rock",
+      "rubble",
+      "sac",
+      "slashing",
+      "soin",
+      "souvenir",
+      "spell",
+      "stairs",
+      "stalagmite",
+      "starter",
+      "statue",
+      "stone",
+      "structure",
+      "subclass",
+      "support",
+      "survie",
+      "table",
+      "torch",
+      "tree",
+      "utilitaire",
+      "utility",
+      "vegetation",
+      "vetement",
+      "visibility",
+      "wall",
+      "wood"
+    ]
   }
 }
+

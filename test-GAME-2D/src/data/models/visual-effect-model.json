@@ -1,0 +1,36 @@
+{
+  "id": "effect-id",
+  "label": "Nom effet visuel",
+  "tags": [
+    "fire",
+    "hazard"
+  ],
+  "appearance": {
+    "spriteKey": "effect:fire",
+    "animationSpeed": 0.2,
+    "animationLoop": true,
+    "scale": 1,
+    "targetSize": 1,
+    "scaleRange": { "min": 0.8, "max": 1.15 },
+    "tint": 16742912,
+    "tintRange": { "dark": 16742912, "light": 16768256 },
+    "alpha": 1,
+    "alphaRange": { "min": 0.85, "max": 1.0 }
+  },
+  "placement": {
+    "allowedFloors": [],
+    "blockedFloors": [],
+    "allowedFloorTags": [],
+    "blockedFloorTags": ["liquid"],
+    "avoidLiquid": true
+  },
+  "hazard": {
+    "damageFormula": "1d4",
+    "statusRoll": { "die": 20, "trigger": 1, "statusId": "burning" },
+    "onTraverse": true
+  },
+  "light": {
+    "radius": 3,
+    "color": 16756045
+  }
+}

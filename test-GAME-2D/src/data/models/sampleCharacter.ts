@@ -1,4 +1,4 @@
-import type { Personnage } from "./types";
+import type { Personnage } from "../../types";
 
 // Sample character for the mini game.
 // Text fields are kept ASCII-only to avoid encoding issues.
@@ -27,12 +27,10 @@ export const sampleCharacter: Personnage = {
   reactionIds: ["opportunity-attack", "guard-strike", "killer-instinct"],
   combatStats: {
     level: 1,
-    mods: { str: 3, dex: 2, con: 2, int: 0, wis: 1, cha: 0 },
+    mods: { modFOR: 3, modDEX: 2, modCON: 2, modINT: 0, modSAG: 1, modCHA: 0 },
     maxHp: 12,
     armorClass: 16,
     attackBonus: 5,
-    attackDamage: 6,
-    attackRange: 1,
     maxAttacksPerTurn: 1,
     actionsPerTurn: 1,
     bonusActionsPerTurn: 1,
@@ -65,7 +63,7 @@ export const sampleCharacter: Personnage = {
   besoin: [],
   percPassive: 11,
   proficiencies: {
-    weapons: [],
+    weapons: ["simple", "martiale"],
     armors: [],
     tools: []
   },

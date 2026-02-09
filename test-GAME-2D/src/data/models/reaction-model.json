@@ -2,19 +2,25 @@
   "id": "reaction-id",
   "name": "Reaction name",
   "summary": "Short summary used in logs and UI.",
+  "source": {
+    "book": "PHB2024",
+    "page": 0
+  },
   "uiMessage": "Custom toast message when the reaction hits the player.",
   "uiMessageMiss": "Custom toast message when the reaction misses the player.",
+  "tags": ["reaction", "example"],
+  "requirements": [],
   "trigger": {
     "event": "movement.leave_reach | movement.enter_reach | visibility.first_seen",
     "source": "hostile | ally | player | enemy | self | any"
   },
   "conditions": [
     {
-      "type": "actor_alive",
+      "type": "ACTOR_ALIVE",
       "reason": "Reactor must be alive."
     },
     {
-      "type": "reaction_available | reaction_unused_combat | target_first_seen | target_is_closest_visible | target_visible",
+      "type": "REACTION_AVAILABLE | REACTION_UNUSED_COMBAT | TARGET_FIRST_SEEN | TARGET_IS_CLOSEST_VISIBLE | TARGET_VISIBLE",
       "reason": "Reaction already used this turn."
     }
   ],
@@ -26,16 +32,18 @@
     "actionCost": { "actionType": "reaction", "movementCost": 0 },
     "targeting": {
       "target": "hostile | ally | self | cell | emptyCell",
-      "range": { "min": 0, "max": 1, "shape": "single | line | cone | circle | rectangle" },
+      "range": { "min": 0, "max": 1.5, "shape": "SPHERE | CONE | LINE | CUBE | CYLINDER" },
       "maxTargets": 1,
       "requiresLos": true
     },
     "usage": { "perTurn": 1, "perEncounter": null, "resource": null },
     "conditions": [],
-    "effects": [
-      { "type": "set_killer_instinct_target" },
-      { "type": "log", "message": "Reaction resolved." }
-    ]
+    "resolution": { "kind": "ATTACK_ROLL | SAVING_THROW | ABILITY_CHECK | NO_ROLL", "bonus": 0, "critRange": 20, "critRule": "double-dice" },
+    "ops": { "onResolve": [], "onHit": [], "onMiss": [], "onCrit": [], "onSaveSuccess": [], "onSaveFail": [] },
+    "reactionWindows": ["pre", "post"],
+    "hooks": []
   },
-  "tags": ["reaction", "example"]
+  "grants": []
 }
+
+

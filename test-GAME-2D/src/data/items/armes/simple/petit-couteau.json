@@ -14,13 +14,14 @@
   "value": {
     "gold": 0,
     "silver": 2,
-    "copper": 0
+    "copper": 0,
+    "platinum": 0
   },
   "rarity": "commune",
   "tags": [
     "arme",
     "melee",
-    "tranchant",
+    "slashing",
     "improvise"
   ],
   "properties": {
@@ -28,18 +29,18 @@
     "light": true,
     "heavy": false,
     "twoHanded": false,
-    "reach": 1,
+    "reach": 1.5,
     "versatile": null,
     "thrown": {
-      "normal": 4,
-      "long": 12
+      "normal": 6,
+      "long": 18
     },
     "ammunition": false,
     "loading": false,
     "reload": null,
     "range": {
-      "normal": 1,
-      "long": 1
+      "normal": 1.5,
+      "long": 1.5
     },
     "special": "utilitaire"
   },
@@ -49,13 +50,13 @@
   },
   "damage": {
     "dice": "1d4",
-    "damageType": "Tranchant",
+    "damageType": "SLASHING",
     "alt": null
   },
   "effectOnHit": {
     "mod": "mod.DEX",
     "damage": "1d4",
-    "damageType": "Tranchant"
+    "damageType": "SLASHING"
   },
   "links": {
     "actionId": "melee-strike",

@@ -3,6 +3,12 @@
   "classId": "template-class",
   "label": "Sous-classe Template",
   "description": "Description courte de la sous-classe.",
+  "source": {
+    "book": "PHB2024",
+    "page": 0
+  },
+  "tags": ["subclass", "example"],
+  "requirements": [],
   "progression": {
     "1": {
       "grants": [

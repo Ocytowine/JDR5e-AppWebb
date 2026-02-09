@@ -4,9 +4,14 @@
   "type": "object",
   "category": "misc",
   "weight": 0.2,
-  "priceGp": 1,
   "tags": [
     "ecriture"
   ],
-  "description": "Outils de base pour ecrire et prendre des notes."
+  "description": "Outils de base pour ecrire et prendre des notes.",
+  "value": {
+    "platinum": 0,
+    "gold": 1.0,
+    "silver": 0,
+    "copper": 0
+  }
 }

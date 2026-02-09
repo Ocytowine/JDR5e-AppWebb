@@ -2,16 +2,25 @@
   "id": "feature-id",
   "label": "Feature Name",
   "summary": "Short description used in UI or logs.",
+  "source": {
+    "book": "PHB2024",
+    "page": 0
+  },
   "kind": "passive | action | reaction | resource",
   "tags": ["cleric", "domain", "support"],
+  "requirements": [],
   "grants": [
     {
       "kind": "action | reaction | passif | feature | spell | resource | bonus",
       "ids": ["some-id"],
       "source": "feature-id",
-      "meta": {}
+      "meta": {
+        "maxByLevel": {},
+        "recharge": "short_rest | long_rest | none"
+      }
     }
   ],
+  "hooks": [],
   "rules": {
     "text": "Free-form description or mechanical notes.",
     "triggers": [
@@ -20,5 +29,8 @@
         "notes": "When it should apply."
       }
     ]
+  },
+  "usage": {
+    "perRest": { "type": "short_rest | long_rest", "max": 1 }
   }
 }

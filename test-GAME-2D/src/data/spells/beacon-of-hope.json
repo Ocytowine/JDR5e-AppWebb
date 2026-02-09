@@ -3,20 +3,51 @@
   "name": "Flamme d'espoir",
   "level": 3,
   "school": "abjuration",
-  "components": { "verbal": true, "somatic": true, "material": false },
+  "components": {
+    "verbal": true,
+    "somatic": true,
+    "material": false
+  },
   "summary": "Renforce les soins et la determination.",
   "category": "support",
-  "actionCost": { "actionType": "action", "movementCost": 0 },
+  "actionCost": {
+    "actionType": "action",
+    "movementCost": 0
+  },
   "targeting": {
     "target": "ally",
-    "range": { "min": 0, "max": 6, "shape": "single" },
+    "range": {
+      "min": 0,
+      "max": 9,
+      "shape": "SPHERE"
+    },
     "maxTargets": 3,
     "requiresLos": true
   },
-  "usage": { "perTurn": 1, "perEncounter": null, "resource": null },
-  "effects": [
-    { "type": "status_apply", "target": "primary", "statusId": "beacon-of-hope", "durationTurns": 10 },
-    { "type": "log", "message": "Flamme d'espoir appliquee." }
+  "usage": {
+    "perTurn": 1,
+    "perEncounter": null,
+    "resource": null
+  },
+  "tags": [
+    "spell",
+    "support",
+    "cleric"
   ],
-  "tags": ["spell", "support", "cleric"]
+  "ops": {
+    "onResolve": [
+      {
+        "op": "ApplyCondition",
+        "target": "primary",
+        "statusId": "beacon-of-hope",
+        "durationTurns": 10
+      },
+      {
+        "op": "LogEvent",
+        "message": "Flamme d'espoir appliquee."
+      }
+    ]
+  }
 }
+
+

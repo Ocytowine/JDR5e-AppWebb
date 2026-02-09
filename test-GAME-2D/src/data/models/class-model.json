@@ -2,6 +2,12 @@
   "id": "template-class",
   "label": "Classe Template",
   "description": "Description courte de la classe.",
+  "source": {
+    "book": "PHB2024",
+    "page": 0
+  },
+  "tags": ["class", "example"],
+  "requirements": [],
   "hitDie": 8,
   "subclassLevel": 1,
   "subclassIds": ["template-subclass"],

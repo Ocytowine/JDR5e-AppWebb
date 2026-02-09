@@ -1,11 +1,22 @@
 {
   "id": "obj_template",
   "label": "Nom de l'objet",
+  "source": {
+    "book": "PHB2024",
+    "page": 0
+  },
   "type": "object",
   "category": "misc",
   "weight": 0,
-  "priceGp": 0,
+  "harmonisable": false,
   "tags": [],
+  "requirements": [],
   "description": "Description courte.",
-  "capacityWeight": 0
+  "capacityWeight": 0,
+  "value": {
+    "platinum": 0,
+    "gold": 0.0,
+    "silver": 0,
+    "copper": 0
+  }
 }

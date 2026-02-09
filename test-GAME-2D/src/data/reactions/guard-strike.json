@@ -9,32 +9,81 @@
     "source": "hostile"
   },
   "conditions": [
-    { "type": "actor_alive", "reason": "Reactor must be alive." },
-    { "type": "reaction_available", "reason": "Reaction already used." }
+    {
+      "type": "ACTOR_ALIVE",
+      "reason": "Reactor must be alive."
+    },
+    {
+      "type": "REACTION_AVAILABLE",
+      "reason": "Reaction already used."
+    }
   ],
   "action": {
     "id": "reaction-guard-strike",
     "name": "Guard Strike",
     "summary": "Prepared strike when a hostile closes in.",
     "category": "reaction",
-    "actionCost": { "actionType": "reaction", "movementCost": 0 },
+    "actionCost": {
+      "actionType": "reaction",
+      "movementCost": 0
+    },
     "targeting": {
       "target": "hostile",
-      "range": { "min": 0, "max": 1, "shape": "single" },
+      "range": {
+        "min": 0,
+        "max": 1.5,
+        "shape": "SPHERE"
+      },
       "maxTargets": 1,
       "requiresLos": true
     },
-    "usage": { "perTurn": 1, "perEncounter": null, "resource": null },
+    "usage": {
+      "perTurn": 1,
+      "perEncounter": null,
+      "resource": null
+    },
     "conditions": [
-      { "type": "target_alive", "target": "primary", "reason": "Target must be alive." }
+      {
+        "type": "TARGET_ALIVE",
+        "target": "primary",
+        "reason": "Target must be alive."
+      }
     ],
-    "attack": { "bonus": 4, "critRange": 20 },
-    "damage": { "formula": "attackDamage", "critRule": "double-dice", "damageType": "piercing" },
-    "effects": [
-      { "type": "damage", "target": "primary", "formula": "attackDamage", "damageType": "piercing" },
-      { "type": "log", "message": "Guard strike triggered." }
+    "attack": {
+      "bonus": 4,
+      "critRange": 20
+    },
+    "damage": {
+      "formula": "1d4 + modFOR",
+      "critRule": "double-dice",
+      "damageType": "PIERCING"
+    },
+    "tags": [
+      "reaction",
+      "melee",
+      "guard"
     ],
-    "tags": ["reaction", "melee", "guard"]
+    "ops": {
+      "onHit": [
+        {
+          "op": "DealDamage",
+          "target": "primary",
+          "formula": "1d4 + modFOR",
+          "damageType": "PIERCING"
+        }
+      ],
+      "onResolve": [
+        {
+          "op": "LogEvent",
+          "message": "Guard strike triggered."
+        }
+      ]
+    }
   },
-  "tags": ["reaction"]
+  "tags": [
+    "reaction"
+  ]
 }
+
+
+

@@ -3,23 +3,47 @@
   "name": "Course",
   "summary": "Transforme l'action en 3 cases de mouvement en plus.",
   "category": "movement",
-  "actionCost": { "actionType": "action", "movementCost": 0 },
+  "actionCost": {
+    "actionType": "action",
+    "movementCost": 0
+  },
   "targeting": {
     "target": "self",
-    "range": { "min": 0, "max": 0, "shape": "self" },
+    "range": {
+      "min": 0,
+      "max": 0,
+      "shape": "SPHERE"
+    },
     "maxTargets": 1,
     "requiresLos": false
   },
-  "usage": { "perTurn": 1, "perEncounter": null, "resource": null },
+  "usage": {
+    "perTurn": 1,
+    "perEncounter": null,
+    "resource": null
+  },
   "conditions": [],
-  "effects": [
-    { "type": "modify_path_limit", "target": "self", "delta": 3, "duration": "this_turn" },
-    { "type": "log", "message": "Course: +3 cases de mouvement pour ce tour." }
-  ],
   "aiHints": {
     "priority": "close_gap",
     "successLog": "Course utilisee pour approcher.",
     "failureLog": "Deja a portee, course ignoree."
   },
-  "tags": ["mobilite", "deplacement"]
+  "tags": [
+    "mobilite",
+    "deplacement"
+  ],
+  "ops": {
+    "onResolve": [
+      {
+        "op": "ModifyPathLimit",
+        "delta": 3
+      },
+      {
+        "op": "LogEvent",
+        "message": "Course: +3 cases de mouvement pour ce tour."
+      }
+    ]
+  }
 }
+
+

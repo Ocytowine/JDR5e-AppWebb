@@ -6,11 +6,16 @@
   "baseAC": 15,
   "dexCap": 2,
   "weight": 20,
-  "priceGp": 750,
   "tags": [
     "armure",
     "intermediaire"
   ],
   "description": "Armure intermediaire avec plaques partielles.",
-  "category": "armor_body"
+  "category": "armor_body",
+  "value": {
+    "platinum": 0,
+    "gold": 750.0,
+    "silver": 0,
+    "copper": 0
+  }
 }

@@ -70,7 +70,7 @@ export interface WeaponTypeDefinition {
   focalisateur?: boolean;
   weight?: number;
   size?: number;
-  value?: { gold: number; silver: number; copper: number };
+  value?: { platinum?: number; gold: number; silver: number; copper: number };
   rarity?: string;
   tags?: string[];
   properties?: WeaponProperties;

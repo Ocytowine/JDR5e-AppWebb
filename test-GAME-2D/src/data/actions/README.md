@@ -25,14 +25,16 @@ Regles de standardisation (prototype actuel)
 - Les ennemis utilisent `src/data/enemies/*.json` -> `actions`.
 - Les actions ciblent `hostile` quand la cible depend du camp (joueur/ennemi).
 - Le filtrage principal reste `actionIds` (pas de separation joueur/ennemi dans le catalogue).
+- Les armes n'ajoutent pas d'actions: elles modifient les attaques de base (portee + formule de degats).
 
 Conventions
 - `id` et `tags` en minuscule avec tirets.
 - Les JSON restent declaratifs (aucun code, pas de logique imperative).
 - Les effets/conditions sont resolus par le moteur (`src/game/actionEngine.ts`).
+- Toutes les distances/portees sont en metres (1 case = 1.5 m).
 - Variables de formule standardisees:
-  - `level`, `modSTR`, `modDEX`, `modCON`, `modINT`, `modWIS`, `modCHA`
-  - `attackBonus`, `attackDamage`, `moveRange`, `attackRange`
+- `level`, `modFOR`, `modDEX`, `modCON`, `modINT`, `modSAG`, `modCHA`
+  - `attackBonus`, `moveRange`
 - Tour d'action:
   - `combatStats.actionsPerTurn` et `combatStats.bonusActionsPerTurn` controlent les actions par tour.
   - `combatStats.actionRules` reserve les regles futures (ex: interdiction de 2e attaque).

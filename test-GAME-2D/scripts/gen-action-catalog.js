@@ -100,8 +100,8 @@ function validateAction(filePath, data) {
   if (!data.usage || typeof data.usage !== "object") {
     errors.push("Champ `usage` manquant ou invalide.");
   }
-  if (!Array.isArray(data.effects)) {
-    errors.push("Champ `effects` doit etre un tableau.");
+  if (!data.ops || typeof data.ops !== "object") {
+    errors.push("Champ `ops` manquant ou invalide.");
   }
   if (typeof data.conditions !== "undefined" && !Array.isArray(data.conditions)) {
     errors.push("Champ `conditions` doit etre un tableau.");

@@ -7,6 +7,7 @@ import {
   getTokenOccupiedCells,
   getTokenOccupiedCellsAt
 } from "./game/footprint";
+import { metersToCells } from "./game/units";
 
 interface PathfindingOptions {
   /**
@@ -120,11 +121,16 @@ class MinHeap<T> {
 }
 
 function getMovementProfile(entity: TokenState): MovementProfile | null {
-  if (entity.movementProfile) return entity.movementProfile;
+  if (entity.movementProfile) {
+    return {
+      ...entity.movementProfile,
+      speed: metersToCells(entity.movementProfile.speed)
+    };
+  }
   if (typeof entity.moveRange === "number") {
     return {
       type: "ground",
-      speed: entity.moveRange,
+      speed: metersToCells(entity.moveRange),
       directions: 8,
       canPassThroughWalls: false,
       canPassThroughEntities: false,

@@ -6,11 +6,16 @@
   "baseAC": 13,
   "dexCap": 2,
   "weight": 10,
-  "priceGp": 50,
   "tags": [
     "armure",
     "intermediaire"
   ],
   "description": "Cotte de mailles legere portee sous des vetements.",
-  "category": "armor_body"
+  "category": "armor_body",
+  "value": {
+    "platinum": 0,
+    "gold": 50.0,
+    "silver": 0,
+    "copper": 0
+  }
 }

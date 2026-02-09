@@ -31,6 +31,11 @@ export type RangeShape =
   | "circle"
   | "rectangle"
   | "self"
+  | "SPHERE"
+  | "CONE"
+  | "LINE"
+  | "CUBE"
+  | "CYLINDER"
   | string;
 
 export interface RangeSpec {
@@ -58,15 +63,22 @@ export interface UsageSpec {
   resource?: ResourceUsage | null;
 }
 
-export interface Condition {
-  type: string;
-  [key: string]: any;
+export type Condition = import("./conditions").ConditionExpr & {
   reason?: string;
+};
+
+export interface ActionOp {
+  op: string;
+  [key: string]: any;
 }
 
-export interface Effect {
-  type: string;
-  [key: string]: any;
+export interface ConditionalOps {
+  onResolve?: ActionOp[];
+  onHit?: ActionOp[];
+  onMiss?: ActionOp[];
+  onCrit?: ActionOp[];
+  onSaveSuccess?: ActionOp[];
+  onSaveFail?: ActionOp[];
 }
 
 export interface AiHints {
@@ -86,7 +98,6 @@ export interface ActionDefinition {
   targeting: TargetingSpec;
   usage: UsageSpec;
   conditions: Condition[];
-  effects: Effect[];
   attack?: {
     bonus: number;
     critRange?: number;
@@ -99,6 +110,30 @@ export interface ActionDefinition {
   skillCheck?: {
     formula: string;
   };
+  resolution?: {
+    kind:
+      | "attack"
+      | "save"
+      | "check"
+      | "none"
+      | "ATTACK_ROLL"
+      | "SAVING_THROW"
+      | "ABILITY_CHECK"
+      | "NO_ROLL";
+    bonus?: number;
+    critRange?: number;
+    critRule?: "double-dice" | "double-total";
+    save?: {
+      ability: "str" | "dex" | "con" | "int" | "wis" | "cha" | "FOR" | "DEX" | "CON" | "INT" | "SAG" | "CHA";
+      dc: number;
+    };
+    check?: {
+      ability: "str" | "dex" | "con" | "int" | "wis" | "cha" | "FOR" | "DEX" | "CON" | "INT" | "SAG" | "CHA";
+      dc: number;
+    };
+  };
+  ops?: ConditionalOps;
+  reactionWindows?: Array<"pre" | "post">;
   aiHints?: AiHints;
   tags?: string[];
 }

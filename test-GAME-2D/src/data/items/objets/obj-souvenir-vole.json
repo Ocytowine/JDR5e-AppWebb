@@ -4,9 +4,14 @@
   "type": "object",
   "category": "jewel",
   "weight": 0.1,
-  "priceGp": 0,
   "tags": [
     "souvenir"
   ],
-  "description": "Petit objet sentimental, sans grande valeur marchande."
+  "description": "Petit objet sentimental, sans grande valeur marchande.",
+  "value": {
+    "platinum": 0,
+    "gold": 0.0,
+    "silver": 0,
+    "copper": 0
+  }
 }

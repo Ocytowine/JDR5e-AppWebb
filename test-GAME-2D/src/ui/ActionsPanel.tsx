@@ -10,7 +10,7 @@ export function ActionsPanel(props: {
   describeRange: (targeting: ActionDefinition["targeting"]) => string;
   describeUsage: (usage: ActionDefinition["usage"]) => string;
   conditionLabel: (cond: ActionDefinition["conditions"][number]) => string;
-  effectLabel: (effect: ActionDefinition["effects"][number]) => string;
+  getEffectLabels: (action: ActionDefinition) => string[];
   onPreviewActionArea: (action: ActionDefinition) => void;
   onValidateAction: (action: ActionDefinition) => void;
 }): React.JSX.Element {
@@ -234,9 +234,9 @@ export function ActionsPanel(props: {
                   marginTop: 4
                 }}
               >
-                {selectedAction.effects.map((effect, idx) => (
-                  <div key={`${effect.type}-${idx}`} style={{ color: "#cfd3ec" }}>
-                    {props.effectLabel(effect)}
+                {props.getEffectLabels(selectedAction).map((label, idx) => (
+                  <div key={`${selectedAction.id}-effect-${idx}`} style={{ color: "#cfd3ec" }}>
+                    {label}
                   </div>
                 ))}
               </div>

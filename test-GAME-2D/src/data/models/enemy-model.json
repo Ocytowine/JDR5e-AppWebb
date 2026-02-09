@@ -1,0 +1,86 @@
+{
+  "id": "enemy-id",
+  "label": "Nom ennemi",
+  "description": "Description courte.",
+  "aiRole": "archer",
+  "actions": ["move", "melee-strike"],
+  "reactionIds": ["guard-strike"],
+  "armesDefaut": {
+    "main_droite": "epee-longue",
+    "main_gauche": "dague",
+    "mains": null
+  },
+  "proficiencies": {
+    "weapons": ["simple", "martiale"],
+    "armors": []
+  },
+  "combatProfile": {
+    "primaryStyle": "ranged",
+    "allowedStyles": ["ranged", "melee"],
+    "preferredAbilities": ["DEX"],
+    "preferredRangeMin": 4.5,
+    "preferredRangeMax": 9,
+    "avoidRangeMin": 0,
+    "avoidRangeMax": 3,
+    "intelligence": 1,
+    "awareness": 1,
+    "tactics": ["avoid_opportunity"]
+  },
+  "behavior": {
+    "preferredRangeMin": 4.5,
+    "preferredRangeMax": 9,
+    "panicRange": 3
+  },
+  "speechProfile": {
+    "raceOrOrigin": "Origine RP",
+    "register": "neutre",
+    "tone": ["tactique"],
+    "vocabulary": ["court", "precis"],
+    "quirks": ["tic de langage"],
+    "taboos": ["pas de modernisme"]
+  },
+  "combatStats": {
+    "level": 1,
+    "mods": {
+      "modFOR": 0,
+      "modDEX": 0,
+      "modCON": 0,
+      "modINT": 0,
+      "modSAG": 0,
+      "modCHA": 0
+    },
+    "maxHp": 10,
+    "armorClass": 12,
+    "attackBonus": 0,
+    "maxAttacksPerTurn": 1,
+    "actionsPerTurn": 1,
+    "bonusActionsPerTurn": 0,
+    "resources": {}
+  },
+  "appearance": {
+    "spriteKey": "enemy-sprite",
+    "tokenScale": 100
+  },
+  "footprint": {
+    "kind": "rect",
+    "width": 1,
+    "height": 1
+  },
+  "movementModes": {
+    "walk": 3
+  },
+  "movement": {
+    "type": "ground",
+    "speed": 3,
+    "canPassThroughWalls": false,
+    "canPassThroughEntities": false,
+    "canStopOnOccupiedTile": false
+  },
+  "vision": {
+    "shape": "cone",
+    "range": 150,
+    "apertureDeg": 180,
+    "canSeeInDark": false,
+    "lightVision": "normal"
+  }
+}

@@ -14,13 +14,14 @@
   "value": {
     "gold": 120,
     "silver": 0,
-    "copper": 0
+    "copper": 0,
+    "platinum": 0
   },
   "rarity": "rare",
   "tags": [
     "arme",
     "distance",
-    "perforant"
+    "piercing"
   ],
   "properties": {
     "finesse": false,
@@ -34,8 +35,8 @@
     "loading": true,
     "reload": 5,
     "range": {
-      "normal": 20,
-      "long": 80
+      "normal": 30,
+      "long": 120
     },
     "special": "repetition"
   },
@@ -45,13 +46,13 @@
   },
   "damage": {
     "dice": "1d8",
-    "damageType": "Perforant",
+    "damageType": "PIERCING",
     "alt": null
   },
   "effectOnHit": {
     "mod": "mod.DEX",
     "damage": "1d8",
-    "damageType": "Perforant"
+    "damageType": "PIERCING"
   },
   "links": {
     "actionId": "bow-shot",
