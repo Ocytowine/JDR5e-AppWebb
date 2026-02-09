@@ -2653,8 +2653,18 @@ export function CombatSetupScreen(props: {
   }, []);
 
   const handleSpeciesSelect = (raceId: string) => {
+    const race = raceOptions.find(entry => entry.id === raceId) ?? null;
+    const baseActionIds = Array.isArray(race?.actionIds)
+      ? race?.actionIds.filter(Boolean)
+      : ["melee-strike", "dash"];
+    const nextActionIds = Array.from(new Set(baseActionIds));
     if (!isSectionLocked("species")) {
-      props.onChangeCharacter({ ...props.character, raceId });
+      props.onChangeCharacter({
+        ...props.character,
+        raceId,
+        actionIds: nextActionIds,
+        reactionIds: []
+      });
       return;
     }
     setConfirmModal({
@@ -2690,6 +2700,8 @@ export function CombatSetupScreen(props: {
         props.onChangeCharacter({
           ...props.character,
           raceId,
+          actionIds: nextActionIds,
+          reactionIds: [],
           creationLocks: nextLocks,
           classLock: false,
           classLocks: { primary: false, secondary: false },

@@ -3,6 +3,7 @@
   "label": "Nain",
   "description": "Robuste et endurant, le nain excelle dans la defense et le travail du metal.",
   "besoin": [],
+  "actionIds": ["melee-strike", "dash"],
   "size": "medium",
   "speed": 5,
   "vision": { "mode": "darkvision", "range": 60 },

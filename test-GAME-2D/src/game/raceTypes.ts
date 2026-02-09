@@ -9,6 +9,8 @@ export interface RaceDefinition {
   label: string;
   description: string;
   besoin?: string[];
+  actionIds?: string[];
+  reactionIds?: string[];
   size?: "small" | "medium" | "large" | string;
   speed?: number;
   vision?: {

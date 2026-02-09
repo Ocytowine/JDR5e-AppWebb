@@ -1,7 +1,7 @@
 {
   "id": "melee-strike",
   "name": "Frappe basique",
-  "summary": "Attaque de melee simple contre une cible adjacente.",
+  "summary": "Attaque de melee simple contre une cible adjacente (mains nues si aucune arme).",
   "uiMessageHit": "Vous avez ete touche par une attaque au corps a corps.",
   "uiMessageMiss": "Vous evitez une attaque au corps a corps.",
   "category": "attack",
@@ -44,7 +44,7 @@
   "damage": {
     "formula": "1d4 + modFOR",
     "critRule": "double-dice",
-    "damageType": "SLASHING"
+    "damageType": "BLUDGEONING"
   },
   "resolution": {
     "kind": "ATTACK_ROLL",
@@ -58,13 +58,7 @@
         "op": "DealDamage",
         "target": "primary",
         "formula": "1d4 + modFOR",
-        "damageType": "SLASHING"
-      },
-      {
-        "op": "DealDamage",
-        "target": "primary",
-        "formula": "1d4 + modFOR",
-        "damageType": "SLASHING"
+        "damageType": "BLUDGEONING"
       }
     ],
     "onResolve": [

@@ -3,6 +3,7 @@
   "label": "Humain",
   "description": "Polyvalent et adaptable, l'humain apprend vite et s'integre partout.",
   "besoin": [],
+  "actionIds": ["melee-strike", "dash"],
   "size": "medium",
   "speed": 6,
   "traits": [

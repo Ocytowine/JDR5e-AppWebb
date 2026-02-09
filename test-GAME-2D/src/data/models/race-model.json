@@ -3,6 +3,7 @@
   "label": "Nom race",
   "description": "Description courte.",
   "besoin": [],
+  "actionIds": ["melee-strike", "dash"],
   "size": "small | medium | large",
   "speed": 6,
   "vision": { "mode": "normal | lowlight | darkvision", "range": 60 },

@@ -1,4 +1,4 @@
-const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/browserAll-BHhBgt-m.js","assets/webworkerAll-CZKNStda.js","assets/colorToUniform-B2b8-1Ah.js","assets/WebGPURenderer-BcHUtKnd.js","assets/SharedSystems-CLFUwgM7.js","assets/WebGLRenderer-BjOdHkPh.js"])))=>i.map(i=>d[i]);
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/browserAll-CSAKY2a1.js","assets/webworkerAll-DgrUnqx4.js","assets/colorToUniform-B2b8-1Ah.js","assets/WebGPURenderer-CLtujJ2Y.js","assets/SharedSystems-qNlkVTsY.js","assets/WebGLRenderer-CmsVABJF.js"])))=>i.map(i=>d[i]);
 var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key2, value2) => key2 in obj ? __defProp(obj, key2, { enumerable: true, configurable: true, writable: true, value: value2 }) : obj[key2] = value2;
 var __publicField = (obj, key2, value2) => __defNormalProp(obj, typeof key2 !== "symbol" ? key2 + "" : key2, value2);
@@ -7097,12 +7097,12 @@ const sampleCharacter = {
     resources: {}
   },
   caracs: {
-    force: { FOR: 16 },
-    dexterite: { DEX: 14 },
-    constitution: { CON: 14 },
-    intelligence: { INT: 10 },
-    sagesse: { SAG: 12 },
-    charisme: { CHA: 10 }
+    force: { FOR: 16, modFOR: 3 },
+    dexterite: { DEX: 14, modDEX: 2 },
+    constitution: { CON: 14, modCON: 2 },
+    intelligence: { INT: 10, modINT: 0 },
+    sagesse: { SAG: 12, modSAG: 1 },
+    charisme: { CHA: 10, modCHA: 0 }
   },
   movementModes: { walk: 6 },
   visionProfile: {
@@ -18003,7 +18003,7 @@ const browserExt = {
   },
   test: () => true,
   load: async () => {
-    await __vitePreload(() => import("./browserAll-BHhBgt-m.js"), true ? __vite__mapDeps([0,1,2]) : void 0);
+    await __vitePreload(() => import("./browserAll-CSAKY2a1.js"), true ? __vite__mapDeps([0,1,2]) : void 0);
   }
 };
 const webworkerExt = {
@@ -18014,7 +18014,7 @@ const webworkerExt = {
   },
   test: () => typeof self !== "undefined" && self.WorkerGlobalScope !== void 0,
   load: async () => {
-    await __vitePreload(() => import("./webworkerAll-CZKNStda.js"), true ? __vite__mapDeps([1,2]) : void 0);
+    await __vitePreload(() => import("./webworkerAll-DgrUnqx4.js"), true ? __vite__mapDeps([1,2]) : void 0);
   }
 };
 class ObservablePoint {
@@ -30342,7 +30342,7 @@ async function autoDetectRenderer(options) {
     const rendererType = preferredOrder[i2];
     if (rendererType === "webgpu" && await isWebGPUSupported()) {
       const { WebGPURenderer } = await __vitePreload(async () => {
-        const { WebGPURenderer: WebGPURenderer2 } = await import("./WebGPURenderer-BcHUtKnd.js");
+        const { WebGPURenderer: WebGPURenderer2 } = await import("./WebGPURenderer-CLtujJ2Y.js");
         return { WebGPURenderer: WebGPURenderer2 };
       }, true ? __vite__mapDeps([3,2,4]) : void 0);
       RendererClass = WebGPURenderer;
@@ -30352,7 +30352,7 @@ async function autoDetectRenderer(options) {
       options.failIfMajorPerformanceCaveat ?? AbstractRenderer.defaultOptions.failIfMajorPerformanceCaveat
     )) {
       const { WebGLRenderer } = await __vitePreload(async () => {
-        const { WebGLRenderer: WebGLRenderer2 } = await import("./WebGLRenderer-BjOdHkPh.js");
+        const { WebGLRenderer: WebGLRenderer2 } = await import("./WebGLRenderer-CmsVABJF.js");
         return { WebGLRenderer: WebGLRenderer2 };
       }, true ? __vite__mapDeps([5,2,4]) : void 0);
       RendererClass = WebGLRenderer;
@@ -52080,6 +52080,7 @@ function MagicTab(props) {
       );
       const slotsTable = ((_b = magicSources.find((item) => item.slotsByLevel)) == null ? void 0 : _b.slotsByLevel) ?? null;
       const slots = slotsTable ? slotsTable[String(Math.max(0, totalCasterLevel))] ?? [] : [];
+      const maxSpellLevel = slots.reduce((max, count2, idx) => count2 > 0 ? idx + 1 : max, 0);
       const dc = 8 + computeMod(getScore(source2.ability)) + (2 + Math.floor((resolveLevel() - 1) / 4));
       const spellAttack = computeMod(getScore(source2.ability)) + (2 + Math.floor((resolveLevel() - 1) / 4));
       const focusTypes = Array.isArray(source2.focusTypes) ? source2.focusTypes : [];
@@ -52100,10 +52101,9 @@ function MagicTab(props) {
         const tags2 = Array.isArray(spell.tags) ? spell.tags.map((tag) => String(tag).toLowerCase()) : [];
         return spellFilterTags.some((tag) => tags2.includes(tag));
       }).filter((spell) => {
-        if (source2.preparation !== "prepared") return true;
         if (preparedIds.has(spell.id) || grantedIds.has(spell.id)) return true;
         if (typeof spell.level !== "number") return true;
-        return spell.level <= source2.classLevel;
+        return spell.level <= maxSpellLevel;
       }).sort((a2, b2) => {
         const levelA = typeof a2.level === "number" ? a2.level : 0;
         const levelB = typeof b2.level === "number" ? b2.level : 0;
@@ -53767,7 +53767,6 @@ function CombatSetupScreen(props) {
     return Array.from(new Set(sources2.filter(Boolean)));
   };
   const buildCaracsFromTotals = (scores) => {
-    var _a2;
     const mapping = {
       FOR: "force",
       DEX: "dexterite",
@@ -53777,16 +53776,25 @@ function CombatSetupScreen(props) {
       CHA: "charisme"
     };
     const nextCaracs = { ...props.character.caracs ?? {} };
-    const nextMods = { ...((_a2 = props.character.combatStats) == null ? void 0 : _a2.mods) ?? {} };
+    const nextMods = {
+      modFOR: 0,
+      modDEX: 0,
+      modCON: 0,
+      modINT: 0,
+      modSAG: 0,
+      modCHA: 0
+    };
     Object.keys(mapping).forEach((key2) => {
-      var _a3;
+      var _a2;
       const nextScore = Math.max(1, Math.min(30, Math.floor(scores[key2] || 1)));
       const caracKey = mapping[key2];
+      const modValue = computeMod(nextScore);
       nextCaracs[caracKey] = {
-        ...((_a3 = props.character.caracs) == null ? void 0 : _a3[caracKey]) ?? {},
-        [key2]: nextScore
+        ...((_a2 = props.character.caracs) == null ? void 0 : _a2[caracKey]) ?? {},
+        [key2]: nextScore,
+        [`mod${key2}`]: modValue
       };
-      nextMods[key2 === "FOR" ? "str" : key2 === "DEX" ? "dex" : key2 === "CON" ? "con" : key2 === "INT" ? "int" : key2 === "SAG" ? "wis" : "cha"] = computeMod(nextScore);
+      nextMods[`mod${key2}`] = modValue;
     });
     const nextCombatStats = {
       ...props.character.combatStats ?? {},
@@ -55590,6 +55598,10 @@ function CombatSetupScreen(props) {
     );
     const slotsTable = ((_a2 = magicSources.find((item) => item.slotsByLevel)) == null ? void 0 : _a2.slotsByLevel) ?? null;
     const slotsRow = slotsTable ? slotsTable[String(Math.max(0, totalCasterLevel))] ?? [] : [];
+    const maxSpellLevel = slotsRow.reduce(
+      (max, count2, idx) => count2 > 0 ? idx + 1 : max,
+      0
+    );
     const slots = {};
     slotsRow.forEach((count2, idx) => {
       if (count2 > 0) {
@@ -55601,9 +55613,18 @@ function CombatSetupScreen(props) {
     magicSources.forEach((source2) => {
       var _a3;
       const selection = spellcastingSelections[source2.key] ?? {};
-      const knownSpells = Array.isArray(selection.knownSpells) ? selection.knownSpells : [];
-      const preparedSpells = Array.isArray(selection.preparedSpells) ? selection.preparedSpells : [];
+      const knownSpellsRaw = Array.isArray(selection.knownSpells) ? selection.knownSpells : [];
+      const preparedSpellsRaw = Array.isArray(selection.preparedSpells) ? selection.preparedSpells : [];
       const grantedSpells = Array.isArray(selection.grantedSpells) ? selection.grantedSpells : [];
+      const filterByMaxLevel = (entry) => {
+        const id2 = getSpellId(entry);
+        const def = spellCatalog.byId.get(id2);
+        if (!def || typeof def.level !== "number") return true;
+        if (def.level === 0) return true;
+        return def.level <= maxSpellLevel;
+      };
+      const knownSpells = knownSpellsRaw.filter(filterByMaxLevel);
+      const preparedSpells = preparedSpellsRaw.filter(filterByMaxLevel);
       const resolvedFocusInstanceId = selection.focusInstanceId ?? (selection.focusItemId ? ((_a3 = inventoryItems.find((item) => (item == null ? void 0 : item.id) === selection.focusItemId)) == null ? void 0 : _a3.instanceId) ?? null : null);
       sources2[source2.key] = {
         ability: source2.ability,
@@ -55667,7 +55688,7 @@ function CombatSetupScreen(props) {
     return items;
   };
   const buildCharacterSave = () => {
-    var _a2, _b2, _c2, _d2, _e2, _f2, _g2, _h2, _i2, _j2, _k2, _l2, _m2, _n2, _o2, _p2, _q2, _r2, _s2, _t2, _u2, _v2, _w2, _x, _y, _z, _A, _B, _C, _D, _E, _F, _G, _H, _I, _J, _K, _L, _M, _N, _O;
+    var _a2, _b2, _c2, _d2, _e2, _f2, _g2, _h2, _i2, _j2, _k2, _l2, _m2, _n2, _o2, _p2, _q2, _r2, _s2, _t2, _u2, _v2, _w2, _x, _y, _z, _A, _B, _C, _D, _E, _F, _G, _H, _I, _J, _K, _L, _M, _N, _O, _P, _Q, _R, _S, _T;
     const normalizedLanguages = normalizeLanguages((_a2 = props.character) == null ? void 0 : _a2.langues);
     const derived = buildDerivedGrants();
     const spellcastingState = buildSpellcastingState();
@@ -55685,51 +55706,62 @@ function CombatSetupScreen(props) {
       });
     }
     const inventorySnapshot = buildInventorySnapshot();
+    const rawCombatStats = ((_c2 = props.character) == null ? void 0 : _c2.combatStats) ?? null;
+    const normalizedCombatStats = rawCombatStats ? {
+      ...rawCombatStats,
+      mods: {
+        modFOR: Number(((_d2 = rawCombatStats == null ? void 0 : rawCombatStats.mods) == null ? void 0 : _d2.modFOR) ?? 0),
+        modDEX: Number(((_e2 = rawCombatStats == null ? void 0 : rawCombatStats.mods) == null ? void 0 : _e2.modDEX) ?? 0),
+        modCON: Number(((_f2 = rawCombatStats == null ? void 0 : rawCombatStats.mods) == null ? void 0 : _f2.modCON) ?? 0),
+        modINT: Number(((_g2 = rawCombatStats == null ? void 0 : rawCombatStats.mods) == null ? void 0 : _g2.modINT) ?? 0),
+        modSAG: Number(((_h2 = rawCombatStats == null ? void 0 : rawCombatStats.mods) == null ? void 0 : _h2.modSAG) ?? 0),
+        modCHA: Number(((_i2 = rawCombatStats == null ? void 0 : rawCombatStats.mods) == null ? void 0 : _i2.modCHA) ?? 0)
+      }
+    } : rawCombatStats;
     return {
       id: props.character.id,
       nom: props.character.nom,
-      age: (_c2 = props.character) == null ? void 0 : _c2.age,
-      sexe: (_d2 = props.character) == null ? void 0 : _d2.sexe,
-      taille: (_e2 = props.character) == null ? void 0 : _e2.taille,
-      poids: (_f2 = props.character) == null ? void 0 : _f2.poids,
+      age: (_j2 = props.character) == null ? void 0 : _j2.age,
+      sexe: (_k2 = props.character) == null ? void 0 : _k2.sexe,
+      taille: (_l2 = props.character) == null ? void 0 : _l2.taille,
+      poids: (_m2 = props.character) == null ? void 0 : _m2.poids,
       langues: normalizedLanguages,
-      alignement: (_g2 = props.character) == null ? void 0 : _g2.alignement,
-      raceId: (_h2 = props.character) == null ? void 0 : _h2.raceId,
-      backgroundId: (_i2 = props.character) == null ? void 0 : _i2.backgroundId,
-      classe: ((_j2 = props.character) == null ? void 0 : _j2.classe) ?? {},
-      niveauGlobal: ((_k2 = props.character) == null ? void 0 : _k2.niveauGlobal) ?? resolveLevel(),
-      xp: ((_l2 = props.character) == null ? void 0 : _l2.xp) ?? 0,
-      dv: (_m2 = props.character) == null ? void 0 : _m2.dv,
-      maitriseBonus: (_n2 = props.character) == null ? void 0 : _n2.maitriseBonus,
-      pvActuels: (_o2 = props.character) == null ? void 0 : _o2.pvActuels,
-      pvTmp: (_p2 = props.character) == null ? void 0 : _p2.pvTmp,
-      nivFatigueActuel: (_q2 = props.character) == null ? void 0 : _q2.nivFatigueActuel,
-      nivFatigueMax: (_r2 = props.character) == null ? void 0 : _r2.nivFatigueMax,
-      actionIds: ((_s2 = props.character) == null ? void 0 : _s2.actionIds) ?? [],
-      reactionIds: ((_t2 = props.character) == null ? void 0 : _t2.reactionIds) ?? [],
-      combatStats: (_u2 = props.character) == null ? void 0 : _u2.combatStats,
+      alignement: (_n2 = props.character) == null ? void 0 : _n2.alignement,
+      raceId: (_o2 = props.character) == null ? void 0 : _o2.raceId,
+      backgroundId: (_p2 = props.character) == null ? void 0 : _p2.backgroundId,
+      classe: ((_q2 = props.character) == null ? void 0 : _q2.classe) ?? {},
+      niveauGlobal: ((_r2 = props.character) == null ? void 0 : _r2.niveauGlobal) ?? resolveLevel(),
+      xp: ((_s2 = props.character) == null ? void 0 : _s2.xp) ?? 0,
+      dv: (_t2 = props.character) == null ? void 0 : _t2.dv,
+      maitriseBonus: (_u2 = props.character) == null ? void 0 : _u2.maitriseBonus,
+      pvActuels: (_v2 = props.character) == null ? void 0 : _v2.pvActuels,
+      pvTmp: (_w2 = props.character) == null ? void 0 : _w2.pvTmp,
+      nivFatigueActuel: (_x = props.character) == null ? void 0 : _x.nivFatigueActuel,
+      nivFatigueMax: (_y = props.character) == null ? void 0 : _y.nivFatigueMax,
+      actionIds: ((_z = props.character) == null ? void 0 : _z.actionIds) ?? [],
+      reactionIds: ((_A = props.character) == null ? void 0 : _A.reactionIds) ?? [],
+      combatStats: normalizedCombatStats,
       caracs: props.character.caracs,
-      movementModes: (_v2 = props.character) == null ? void 0 : _v2.movementModes,
-      visionProfile: (_w2 = props.character) == null ? void 0 : _w2.visionProfile,
-      appearance: (_x = props.character) == null ? void 0 : _x.appearance,
-      competences: ((_y = props.character) == null ? void 0 : _y.competences) ?? [],
-      expertises: ((_z = props.character) == null ? void 0 : _z.expertises) ?? [],
-      initiative: (_A = props.character) == null ? void 0 : _A.initiative,
-      besoin: ((_B = props.character) == null ? void 0 : _B.besoin) ?? [],
-      percPassive: (_C = props.character) == null ? void 0 : _C.percPassive,
-      proficiencies: ((_D = props.character) == null ? void 0 : _D.proficiencies) ?? {},
-      savingThrows: ((_E = props.character) == null ? void 0 : _E.savingThrows) ?? [],
-      inspiration: ((_F = props.character) == null ? void 0 : _F.inspiration) ?? false,
-      notes: ((_G = props.character) == null ? void 0 : _G.notes) ?? "",
-      argent: ((_H = props.character) == null ? void 0 : _H.argent) ?? {},
-      materielSlots: ((_I = props.character) == null ? void 0 : _I.materielSlots) ?? {},
-      armesDefaut: ((_J = props.character) == null ? void 0 : _J.armesDefaut) ?? {},
+      movementModes: (_B = props.character) == null ? void 0 : _B.movementModes,
+      visionProfile: (_C = props.character) == null ? void 0 : _C.visionProfile,
+      appearance: (_D = props.character) == null ? void 0 : _D.appearance,
+      competences: ((_E = props.character) == null ? void 0 : _E.competences) ?? [],
+      expertises: ((_F = props.character) == null ? void 0 : _F.expertises) ?? [],
+      initiative: (_G = props.character) == null ? void 0 : _G.initiative,
+      besoin: ((_H = props.character) == null ? void 0 : _H.besoin) ?? [],
+      percPassive: (_I = props.character) == null ? void 0 : _I.percPassive,
+      proficiencies: ((_J = props.character) == null ? void 0 : _J.proficiencies) ?? {},
+      savingThrows: ((_K = props.character) == null ? void 0 : _K.savingThrows) ?? [],
+      inspiration: ((_L = props.character) == null ? void 0 : _L.inspiration) ?? false,
+      notes: ((_M = props.character) == null ? void 0 : _M.notes) ?? "",
+      argent: ((_N = props.character) == null ? void 0 : _N.argent) ?? {},
+      materielSlots: ((_O = props.character) == null ? void 0 : _O.materielSlots) ?? {},
       inventoryItems: inventorySnapshot,
-      descriptionPersonnage: (_K = props.character) == null ? void 0 : _K.descriptionPersonnage,
-      profileDetails: (_L = props.character) == null ? void 0 : _L.profileDetails,
-      choiceSelections: ((_M = props.character) == null ? void 0 : _M.choiceSelections) ?? {},
-      creationLocks: ((_N = props.character) == null ? void 0 : _N.creationLocks) ?? {},
-      classLocks: ((_O = props.character) == null ? void 0 : _O.classLocks) ?? {},
+      descriptionPersonnage: (_P = props.character) == null ? void 0 : _P.descriptionPersonnage,
+      profileDetails: (_Q = props.character) == null ? void 0 : _Q.profileDetails,
+      choiceSelections: ((_R = props.character) == null ? void 0 : _R.choiceSelections) ?? {},
+      creationLocks: ((_S = props.character) == null ? void 0 : _S.creationLocks) ?? {},
+      classLocks: ((_T = props.character) == null ? void 0 : _T.classLocks) ?? {},
       progressionHistory,
       spellcastingState,
       derived
@@ -59652,12 +59684,15 @@ function getEquippedWeaponIds(character) {
   if (equippedWeaponIds.length > 0) {
     return Array.from(new Set(equippedWeaponIds));
   }
-  const slots = character == null ? void 0 : character.armesDefaut;
-  if (!slots) return [];
-  const ids = [slots.main_droite, slots.main_gauche, slots.mains].filter(
-    (value2) => typeof value2 === "string" && value2.length > 0
-  );
-  return Array.from(new Set(ids));
+  return [];
+}
+function getPrimaryWeaponIds(character) {
+  const inventory = Array.isArray(character == null ? void 0 : character.inventoryItems) ? character.inventoryItems : [];
+  const carriedSlots = /* @__PURE__ */ new Set(["ceinture_gauche", "ceinture_droite", "dos_gauche", "dos_droit"]);
+  const primaryIds = inventory.filter(
+    (item) => (item == null ? void 0 : item.type) === "weapon" && (item == null ? void 0 : item.isPrimaryWeapon) && (item == null ? void 0 : item.equippedSlot) && carriedSlots.has(item.equippedSlot)
+  ).map((item) => item.id).filter((value2) => typeof value2 === "string" && value2.length > 0);
+  return Array.from(new Set(primaryIds));
 }
 const ABILITY_CARAC_KEY = {
   FOR: "force",
@@ -60199,9 +60234,16 @@ const GameBoard = () => {
   const equippedWeaponIds = reactExports.useMemo(() => getEquippedWeaponIds(activeCharacterConfig), [
     activeCharacterConfig
   ]);
+  const primaryWeaponIds = reactExports.useMemo(() => getPrimaryWeaponIds(activeCharacterConfig), [
+    activeCharacterConfig
+  ]);
   const equippedWeapons = reactExports.useMemo(
     () => equippedWeaponIds.map((id2) => weaponTypeById.get(id2) ?? null).filter((weapon) => Boolean(weapon)),
     [equippedWeaponIds, weaponTypeById]
+  );
+  const primaryWeapons = reactExports.useMemo(
+    () => primaryWeaponIds.map((id2) => weaponTypeById.get(id2) ?? null).filter((weapon) => Boolean(weapon)),
+    [primaryWeaponIds, weaponTypeById]
   );
   const floorMaterialById = reactExports.useMemo(() => {
     const map = /* @__PURE__ */ new Map();
@@ -62710,8 +62752,11 @@ const GameBoard = () => {
     );
     return Array.from(new Set(ids));
   }
-  function getWeaponsForActor(actor) {
-    if (actor.type === "player") return equippedWeapons;
+  function getWeaponsForActor(actor, options) {
+    if (actor.type === "player") {
+      if (options == null ? void 0 : options.reaction) return primaryWeapons;
+      return equippedWeapons;
+    }
     const ids = getEnemyWeaponIds(actor);
     return ids.map((id2) => weaponTypeById.get(id2) ?? null).filter((weapon) => Boolean(weapon));
   }
@@ -62759,9 +62804,9 @@ const GameBoard = () => {
     if (modToken === "modCHA") return Number(mods.modCHA ?? 0);
     return 0;
   }
-  function pickWeaponForAction(action2, actor) {
+  function pickWeaponForAction(action2, actor, options) {
     var _a2, _b2;
-    const weapons = getWeaponsForActor(actor);
+    const weapons = getWeaponsForActor(actor, options);
     if (!weapons || weapons.length === 0) return null;
     const tags2 = action2.tags ?? [];
     const wantsRanged = tags2.includes("ranged") || ((_b2 = (_a2 = action2.targeting) == null ? void 0 : _a2.range) == null ? void 0 : _b2.max) > 1.5;
@@ -62784,10 +62829,10 @@ const GameBoard = () => {
     const extraBonus = typeof bonusSpec === "number" ? bonusSpec : typeof bonusSpec === "string" && bonusSpec === "bonus_maitrise" ? profBonus : 0;
     return abilityMod + extraBonus;
   }
-  function applyWeaponOverrideForActor(action2, actor) {
+  function applyWeaponOverrideForActor(action2, actor, options) {
     var _a2, _b2, _c, _d, _e, _f, _g, _h, _i;
     if (action2.category !== "attack") return action2;
-    const weapon = pickWeaponForAction(action2, actor);
+    const weapon = pickWeaponForAction(action2, actor, options);
     if (!weapon) return action2;
     const damageDice = ((_a2 = weapon.effectOnHit) == null ? void 0 : _a2.damage) ?? ((_b2 = weapon.damage) == null ? void 0 : _b2.dice) ?? null;
     const damageType = ((_c = weapon.effectOnHit) == null ? void 0 : _c.damageType) ?? ((_d = weapon.damage) == null ? void 0 : _d.damageType) ?? null;
@@ -63861,7 +63906,9 @@ Etat: PV ${token.hp}/${token.maxHp}`;
   function autoResolveReaction(params) {
     var _a2;
     if (!canUseReaction(params.reactor.id)) return;
-    const baseAction = applyWeaponOverrideForActor(params.reaction.action, params.reactor);
+    const baseAction = applyWeaponOverrideForActor(params.reaction.action, params.reactor, {
+      reaction: true
+    });
     let action2 = baseAction;
     if (params.ignoreRange && ((_a2 = baseAction.targeting) == null ? void 0 : _a2.range)) {
       const afterDistance = distanceBetweenTokens(params.reactor, params.target);
@@ -63946,7 +63993,9 @@ Etat: PV ${token.hp}/${token.maxHp}`;
   }
   function checkReactionActionEligibility(params) {
     var _a2;
-    const baseAction = applyWeaponOverrideForActor(params.reaction.action, params.reactor);
+    const baseAction = applyWeaponOverrideForActor(params.reaction.action, params.reactor, {
+      reaction: true
+    });
     let action2 = baseAction;
     if (params.ignoreRange && ((_a2 = baseAction.targeting) == null ? void 0 : _a2.range)) {
       const afterDistance = distanceBetweenTokens(params.reactor, params.target);
@@ -66310,4 +66359,4 @@ export {
   BigPool as y,
   getGlobalBounds as z
 };
-//# sourceMappingURL=index-DUdEGKAu.js.map
+//# sourceMappingURL=index-C5-8rkZm.js.map
