@@ -38,6 +38,7 @@ export function SheetTab(props: {
       preparedSpells?: SpellEntry[];
       grantedSpells?: SpellEntry[];
       focusItemId?: string | null;
+      focusInstanceId?: string | null;
       storage?: "memory" | "innate" | "grimoire";
       grimoireItemId?: string | null;
     }

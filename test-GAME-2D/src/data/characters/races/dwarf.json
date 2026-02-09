@@ -2,6 +2,7 @@
   "id": "dwarf",
   "label": "Nain",
   "description": "Robuste et endurant, le nain excelle dans la defense et le travail du metal.",
+  "besoin": [],
   "size": "medium",
   "speed": 5,
   "vision": { "mode": "darkvision", "range": 60 },

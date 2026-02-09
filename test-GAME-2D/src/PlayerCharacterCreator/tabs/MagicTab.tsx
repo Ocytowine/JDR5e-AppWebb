@@ -39,6 +39,7 @@ export function MagicTab(props: {
       preparedSpells?: SpellEntry[];
       grantedSpells?: SpellEntry[];
       focusItemId?: string | null;
+      focusInstanceId?: string | null;
       storage?: "memory" | "innate" | "grimoire";
       grimoireItemId?: string | null;
     }
@@ -50,6 +51,7 @@ export function MagicTab(props: {
       preparedSpells: SpellEntry[];
       grantedSpells: SpellEntry[];
       focusItemId: string | null;
+      focusInstanceId: string | null;
       storage: "memory" | "innate" | "grimoire";
       grimoireItemId: string | null;
     }>
@@ -143,7 +145,12 @@ export function MagicTab(props: {
         const grantedSpells = Array.isArray(selection.grantedSpells)
           ? selection.grantedSpells
           : [];
-        const focusItemId = selection.focusItemId ?? "";
+        const legacyFocusItemId = selection.focusItemId ?? "";
+        const focusInstanceId =
+          selection.focusInstanceId ??
+          (legacyFocusItemId
+            ? inventoryItems.find(item => item?.id === legacyFocusItemId)?.instanceId ?? ""
+            : "");
         const storage = source.storage ?? selection.storage ?? "memory";
         const grimoireItemId = selection.grimoireItemId ?? "";
         const totalCasterLevel = magicSources.reduce(
@@ -154,12 +161,15 @@ export function MagicTab(props: {
         const slots = slotsTable
           ? slotsTable[String(Math.max(0, totalCasterLevel))] ?? []
           : [];
+        const maxSpellLevel = slots.reduce((max, count, idx) => (count > 0 ? idx + 1 : max), 0);
         const dc =
           8 + computeMod(getScore(source.ability)) + (2 + Math.floor((resolveLevel() - 1) / 4));
         const spellAttack =
           computeMod(getScore(source.ability)) + (2 + Math.floor((resolveLevel() - 1) / 4));
         const focusTypes = Array.isArray(source.focusTypes) ? source.focusTypes : [];
         const focusOptions = inventoryItems.filter(item => {
+          if (!item?.instanceId) return false;
+          if (!item?.equippedSlot) return false;
           if (focusTypes.length === 0) return true;
           const tags = resolveItemTags(item.id);
           return focusTypes.some(tag => tags.includes(tag));
@@ -179,10 +189,9 @@ export function MagicTab(props: {
             return spellFilterTags.some(tag => tags.includes(tag));
           })
           .filter(spell => {
-            if (source.preparation !== "prepared") return true;
             if (preparedIds.has(spell.id) || grantedIds.has(spell.id)) return true;
             if (typeof spell.level !== "number") return true;
-            return spell.level <= source.classLevel;
+            return spell.level <= maxSpellLevel;
           })
           .sort((a, b) => {
             const levelA = typeof a.level === "number" ? a.level : 0;
@@ -461,10 +470,10 @@ export function MagicTab(props: {
                   Focalisateur
                 </div>
                 <select
-                  value={focusItemId}
+                  value={focusInstanceId}
                   onChange={e =>
                     updateSpellcastingSelection(source.key, {
-                      focusItemId: e.target.value || null
+                      focusInstanceId: e.target.value || null
                     })
                   }
                   disabled={magicLocked}
@@ -481,7 +490,7 @@ export function MagicTab(props: {
                 >
                   <option value="">Aucun</option>
                   {focusOptions.map(item => (
-                    <option key={`focus-${item.id}`} value={item.id}>
+                    <option key={`focus-${item.instanceId}`} value={item.instanceId}>
                       {formatEquipmentLabel(item.id)}
                     </option>
                   ))}

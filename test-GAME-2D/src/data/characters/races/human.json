@@ -2,6 +2,7 @@
   "id": "human",
   "label": "Humain",
   "description": "Polyvalent et adaptable, l'humain apprend vite et s'integre partout.",
+  "besoin": [],
   "size": "medium",
   "speed": 6,
   "traits": [

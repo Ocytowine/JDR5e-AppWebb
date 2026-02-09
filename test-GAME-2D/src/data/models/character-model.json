@@ -1,0 +1,65 @@
+{
+  "id": "character-model",
+  "description": "Modele de fiche personnage (sauvegarde normalisee).",
+  "identity": {
+    "id": "string",
+    "nom": { "nomcomplet": "string", "prenom": "string?", "surnom": "string?" },
+    "age": "number?",
+    "sexe": "string?",
+    "taille": "number?",
+    "poids": "number?",
+    "alignement": "string?",
+    "raceId": "string",
+    "backgroundId": "string"
+  },
+  "progression": {
+    "classe": "Record<string|number, { classeId, subclasseId?, niveau }>",
+    "niveauGlobal": "number?",
+    "xp": "number?",
+    "maitriseBonus": "number?",
+    "progressionHistory": "Array<{ source, level, type, payload }>"
+  },
+  "stats": {
+    "caracs": "object (includes modFOR/modDEX/etc per ability)",
+    "competences": "string[]",
+    "expertises": "string[]",
+    "proficiencies": "object",
+    "savingThrows": "string[]",
+    "initiative": "string|number",
+    "percPassive": "number?"
+  },
+  "combat": {
+    "combatStats": "object",
+    "pvActuels": "number?",
+    "pvTmp": "number?",
+    "movementModes": "object|string[]",
+    "visionProfile": "object",
+    "actionIds": "string[]",
+    "reactionIds": "string[]"
+  },
+  "inventory": {
+    "inventoryItems": "Array<{ instanceId, storedIn?, contenu?, equippedSlot? }>",
+    "materielSlots": "object",
+    "argent": "object"
+  },
+  "choices": {
+    "choiceSelections": "object",
+    "creationLocks": "object",
+    "classLocks": "object"
+  },
+  "spellcastingState": {
+    "totalCasterLevel": "number",
+    "slots": "object",
+    "sources": "Record<string, { focusInstanceId?, slots?, preparedSpellIds?, knownSpellIds? }>",
+    "slotJustifications": "Array<{ source, classLevel, slotsByLevel }>"
+  },
+  "derived": {
+    "grants": "object"
+  },
+  "personalization": {
+    "appearance": "object",
+    "descriptionPersonnage": "object",
+    "profileDetails": "object",
+    "notes": "string?"
+  }
+}

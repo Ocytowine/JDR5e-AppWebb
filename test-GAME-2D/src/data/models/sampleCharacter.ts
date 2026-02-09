@@ -9,13 +9,14 @@ export const sampleCharacter: Personnage = {
   sexe: "H",
   taille: 175,
   poids: 70,
-  langues: "Common",
+  langues: ["commun"],
   alignement: "Neutral Good",
   raceId: "human",
   backgroundId: "veteran-de-guerre",
   classe: {
     1: { classeId: "fighter", subclasseId: "champion", niveau: 1 }
   },
+  niveauGlobal: 1,
   xp: 0,
   dv: 10,
   maitriseBonus: 2,
@@ -38,12 +39,12 @@ export const sampleCharacter: Personnage = {
     resources: {}
   },
   caracs: {
-    force: { FOR: 16 },
-    dexterite: { DEX: 14 },
-    constitution: { CON: 14 },
-    intelligence: { INT: 10 },
-    sagesse: { SAG: 12 },
-    charisme: { CHA: 10 }
+    force: { FOR: 16, modFOR: 3 },
+    dexterite: { DEX: 14, modDEX: 2 },
+    constitution: { CON: 14, modCON: 2 },
+    intelligence: { INT: 10, modINT: 0 },
+    sagesse: { SAG: 12, modSAG: 1 },
+    charisme: { CHA: 10, modCHA: 0 }
   },
   movementModes: { walk: 6 },
   visionProfile: {
@@ -69,12 +70,6 @@ export const sampleCharacter: Personnage = {
   },
   savingThrows: ["force", "constitution"],
   inspiration: false,
-  traits: ["Veteran soldier", "Brave"],
-  features: [],
-  compteur: {},
-  ressources: {},
-  etats: [],
-  historique: [],
   notes: "",
   argent: {
     cuivre: 0,
@@ -105,28 +100,7 @@ export const sampleCharacter: Personnage = {
     main_gauche: "dague",
     mains: null
   },
-  equipmentAuto: [],
-  equipmentManual: [],
   inventoryItems: [],
-  Inventaire: {
-    id: "",
-    idUnique: "",
-    quantite: 0,
-    mod: null,
-    conteneur: null
-  },
-  capaMax: 120,
-  capaAvantMalus: 60,
-  capaActuel: 0,
-  StatEncombrement: "Not encumbered",
-  calculPvMax: {
-    classe1: { niveauGlobal_1: "10 + modCON", par_niveau_apres_1: "1d10 + modCON" },
-    classe2: { par_niveau_apres_1: "" }
-  },
-  CalculCA: {
-    base: "10 + modDEX",
-    bonusArmure: "+ armor proficiency + shield"
-  },
   descriptionPersonnage: {
     bio: "Test hero for the mini-game.",
     physique: "Athletic human in light armor, posture calme et vigilante.",
@@ -141,17 +115,34 @@ export const sampleCharacter: Personnage = {
     yeux: "Yeux verts",
     silhouette: "Silhouette athletique"
   },
-  uiClasse: {
-    ui_template1: "fighter_base",
-    ui_template2: null
+  choiceSelections: {
+    statsBase: {
+      FOR: 16,
+      DEX: 14,
+      CON: 14,
+      INT: 10,
+      SAG: 12,
+      CHA: 10
+    }
   },
-  SpellcastingSpec: {
-    ability: null,
-    spellSaveDc: null,
-    spellAttackMod: null,
+  creationLocks: {},
+  classLocks: { primary: false, secondary: false },
+  progressionHistory: [],
+  spellcastingState: {
+    totalCasterLevel: 0,
     slots: {},
-    focusId: null,
-    description: null,
-    spellIds: []
+    sources: {},
+    slotJustifications: []
+  },
+  derived: {
+    grants: {
+      traits: [],
+      features: [],
+      feats: [],
+      skills: [],
+      tools: [],
+      languages: [],
+      spells: []
+    }
   }
 } as Personnage;

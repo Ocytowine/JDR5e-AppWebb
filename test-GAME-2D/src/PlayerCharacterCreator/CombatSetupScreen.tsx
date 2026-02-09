@@ -34,6 +34,7 @@ import { SpeciesTab } from "./tabs/SpeciesTab";
 import { ProfileTab } from "./tabs/ProfileTab";
 import { SheetTab } from "./tabs/SheetTab";
 import { MagicPanel } from "./tabs/MagicPanel";
+import { spellCatalog } from "../game/spellCatalog";
 
 export function CombatSetupScreen(props: {
   configEnemyCount: number;
@@ -1488,27 +1489,24 @@ export function CombatSetupScreen(props: {
       CHA: "charisme"
     };
     const nextCaracs: Personnage["caracs"] = { ...(props.character.caracs ?? {}) };
-    const nextMods: Record<string, number> = { ...(props.character.combatStats?.mods ?? {}) };
+    const nextMods: Record<string, number> = {
+      modFOR: 0,
+      modDEX: 0,
+      modCON: 0,
+      modINT: 0,
+      modSAG: 0,
+      modCHA: 0
+    };
     (Object.keys(mapping) as Array<keyof typeof mapping>).forEach(key => {
       const nextScore = Math.max(1, Math.min(30, Math.floor(scores[key] || 1)));
       const caracKey = mapping[key];
+      const modValue = computeMod(nextScore);
       nextCaracs[caracKey] = {
         ...(props.character.caracs?.[caracKey] ?? {}),
-        [key]: nextScore
+        [key]: nextScore,
+        [`mod${key}`]: modValue
       };
-      nextMods[
-        key === "FOR"
-          ? "str"
-          : key === "DEX"
-            ? "dex"
-            : key === "CON"
-              ? "con"
-              : key === "INT"
-                ? "int"
-                : key === "SAG"
-                  ? "wis"
-                  : "cha"
-      ] = computeMod(nextScore);
+      nextMods[`mod${key}`] = modValue;
     });
     const nextCombatStats = {
       ...(props.character.combatStats ?? {}),
@@ -3253,6 +3251,7 @@ export function CombatSetupScreen(props: {
       preparedSpells?: SpellEntry[];
       grantedSpells?: SpellEntry[];
       focusItemId?: string | null;
+      focusInstanceId?: string | null;
       storage?: "memory" | "innate" | "grimoire";
       grimoireItemId?: string | null;
     }
@@ -3264,6 +3263,7 @@ export function CombatSetupScreen(props: {
       preparedSpells: SpellEntry[];
       grantedSpells: SpellEntry[];
       focusItemId: string | null;
+      focusInstanceId: string | null;
       storage: "memory" | "innate" | "grimoire";
       grimoireItemId: string | null;
     }>
@@ -3480,6 +3480,392 @@ export function CombatSetupScreen(props: {
   const canEditSkills = !isSectionLocked("skills") && skillsMode !== "normal";
   const canEditMasteries = !isSectionLocked("masteries") && masteriesMode !== "normal";
 
+  const normalizeLanguages = (value: unknown) => {
+    const rawList = Array.isArray(value)
+      ? value
+      : typeof value === "string"
+        ? value.split(",").map(item => item.trim()).filter(Boolean)
+        : [];
+    const byId = new Map<string, string>();
+    const byLabel = new Map<string, string>();
+    languageOptions.forEach(lang => {
+      if (!lang?.id) return;
+      byId.set(String(lang.id).toLowerCase(), String(lang.id));
+      byLabel.set(String(lang.label ?? "").toLowerCase(), String(lang.id));
+    });
+    const normalized: string[] = [];
+    rawList.forEach(entry => {
+      const key = String(entry ?? "").trim();
+      if (!key) return;
+      const lower = key.toLowerCase();
+      const resolved = byId.get(lower) ?? byLabel.get(lower) ?? key;
+      normalized.push(resolved);
+    });
+    return Array.from(new Set(normalized));
+  };
+
+  const collectProgressionGrantEntries = (
+    progression: Record<string, any> | undefined,
+    level: number,
+    source: string
+  ) => {
+    if (!progression || level <= 0) return [];
+    const entries: Array<{ source: string; level: number; kind: string; ids: string[] }> = [];
+    Object.keys(progression)
+      .map(key => Number(key))
+      .filter(lvl => Number.isFinite(lvl) && lvl > 0 && lvl <= level)
+      .sort((a, b) => a - b)
+      .forEach(lvl => {
+        const grants = Array.isArray(progression[String(lvl)]?.grants)
+          ? progression[String(lvl)].grants
+          : [];
+        grants.forEach((grant: any) => {
+          if (!grant?.kind) return;
+          const ids = Array.isArray(grant.ids) ? grant.ids.filter(Boolean) : [];
+          if (ids.length === 0) return;
+          entries.push({ source, level: lvl, kind: String(grant.kind), ids });
+        });
+      });
+    return entries;
+  };
+
+  const buildProgressionHistory = () => {
+    const history: Array<{ source: string; level: number; type: string; payload: any }> = [];
+    const raceId = (props.character as any)?.raceId ?? "";
+    const backgroundId = (props.character as any)?.backgroundId ?? "";
+    const adaptableSkill = (choiceSelections as any)?.race?.adaptableSkill;
+    if (adaptableSkill) {
+      history.push({
+        source: `race:${raceId || "unknown"}`,
+        level: 1,
+        type: "choice",
+        payload: { kind: "skill", id: adaptableSkill }
+      });
+    }
+    const backgroundChoices = (choiceSelections as any)?.background ?? {};
+    const backgroundTools = Array.isArray(backgroundChoices.tools) ? backgroundChoices.tools : [];
+    const backgroundLanguages = Array.isArray(backgroundChoices.languages)
+      ? backgroundChoices.languages
+      : [];
+    backgroundTools.forEach((toolId: string) => {
+      history.push({
+        source: `background:${backgroundId || "unknown"}`,
+        level: 1,
+        type: "choice",
+        payload: { kind: "tool", id: toolId }
+      });
+    });
+    backgroundLanguages.forEach((langId: string) => {
+      history.push({
+        source: `background:${backgroundId || "unknown"}`,
+        level: 1,
+        type: "choice",
+        payload: { kind: "language", id: langId }
+      });
+    });
+    Object.entries(asiSelections).forEach(([key, entry]) => {
+      const match = key.match(/^(.+):(\d+)$/);
+      const level = match ? Number(match[2]) : null;
+      const classId = match ? match[1] : null;
+      if (!level || !classId) return;
+      history.push({
+        source: `class:${classId}`,
+        level,
+        type: entry?.type === "feat" ? "feat" : "asi",
+        payload: entry?.type === "asi" ? { stats: entry.stats ?? {} } : {}
+      });
+    });
+    const primaryLevel = Number(classEntry?.niveau) || 0;
+    const secondaryLevel = Number(secondaryClassEntry?.niveau) || 0;
+    if (classPrimary) {
+      collectProgressionGrantEntries(classPrimary.progression, primaryLevel, `class:${classPrimary.id}`)
+        .forEach(entry => {
+          history.push({ source: entry.source, level: entry.level, type: "grant", payload: entry });
+        });
+    }
+    if (selectedSubclassId) {
+      const sub = subclassOptions.find(item => item.id === selectedSubclassId) ?? null;
+      if (sub) {
+        collectProgressionGrantEntries(sub.progression, primaryLevel, `subclass:${sub.id}`)
+          .forEach(entry => {
+            history.push({ source: entry.source, level: entry.level, type: "grant", payload: entry });
+          });
+      }
+    }
+    if (classSecondary) {
+      collectProgressionGrantEntries(classSecondary.progression, secondaryLevel, `class:${classSecondary.id}`)
+        .forEach(entry => {
+          history.push({ source: entry.source, level: entry.level, type: "grant", payload: entry });
+        });
+    }
+    if (selectedSecondarySubclassId) {
+      const sub = subclassOptions.find(item => item.id === selectedSecondarySubclassId) ?? null;
+      if (sub) {
+        collectProgressionGrantEntries(sub.progression, secondaryLevel, `subclass:${sub.id}`)
+          .forEach(entry => {
+            history.push({ source: entry.source, level: entry.level, type: "grant", payload: entry });
+          });
+      }
+    }
+    return history;
+  };
+
+  const buildDerivedGrants = () => {
+    const grants: Record<string, string[]> = {
+      traits: [],
+      features: [],
+      feats: [],
+      skills: [],
+      tools: [],
+      languages: [],
+      spells: []
+    };
+    const add = (kind: string, ids: string[]) => {
+      if (!Array.isArray(ids) || ids.length === 0) return;
+      const key =
+        kind === "trait"
+          ? "traits"
+          : kind === "feature"
+            ? "features"
+            : kind === "feat"
+              ? "feats"
+              : kind === "skill"
+                ? "skills"
+                : kind === "tool"
+                  ? "tools"
+                  : kind === "language"
+                    ? "languages"
+                    : kind === "spell"
+                      ? "spells"
+                      : "";
+      if (!key) return;
+      grants[key] = Array.from(new Set([...(grants[key] ?? []), ...ids]));
+    };
+    const raceGrants = Array.isArray(activeRace?.grants) ? activeRace?.grants : [];
+    raceGrants.forEach((grant: any) => add(String(grant?.kind ?? ""), grant?.ids ?? []));
+    const backgroundGrants = Array.isArray(activeBackground?.grants) ? activeBackground?.grants : [];
+    backgroundGrants.forEach((grant: any) => add(String(grant?.kind ?? ""), grant?.ids ?? []));
+    const adaptableSkill = (choiceSelections as any)?.race?.adaptableSkill;
+    if (adaptableSkill) add("skill", [String(adaptableSkill)]);
+    const backgroundChoices = (choiceSelections as any)?.background ?? {};
+    const backgroundTools = Array.isArray(backgroundChoices.tools) ? backgroundChoices.tools : [];
+    const backgroundLanguages = Array.isArray(backgroundChoices.languages)
+      ? backgroundChoices.languages
+      : [];
+    if (backgroundTools.length > 0) add("tool", backgroundTools.map(id => String(id)));
+    if (backgroundLanguages.length > 0) add("language", backgroundLanguages.map(id => String(id)));
+    const primaryLevel = Number(classEntry?.niveau) || 0;
+    const secondaryLevel = Number(secondaryClassEntry?.niveau) || 0;
+    if (classPrimary) {
+      collectProgressionGrantEntries(classPrimary.progression, primaryLevel, `class:${classPrimary.id}`)
+        .forEach(entry => add(entry.kind, entry.ids));
+    }
+    if (selectedSubclassId) {
+      const sub = subclassOptions.find(item => item.id === selectedSubclassId) ?? null;
+      if (sub) {
+        collectProgressionGrantEntries(sub.progression, primaryLevel, `subclass:${sub.id}`)
+          .forEach(entry => add(entry.kind, entry.ids));
+      }
+    }
+    if (classSecondary) {
+      collectProgressionGrantEntries(classSecondary.progression, secondaryLevel, `class:${classSecondary.id}`)
+        .forEach(entry => add(entry.kind, entry.ids));
+    }
+    if (selectedSecondarySubclassId) {
+      const sub = subclassOptions.find(item => item.id === selectedSecondarySubclassId) ?? null;
+      if (sub) {
+        collectProgressionGrantEntries(sub.progression, secondaryLevel, `subclass:${sub.id}`)
+          .forEach(entry => add(entry.kind, entry.ids));
+      }
+    }
+    return { grants };
+  };
+
+  const buildSpellcastingState = () => {
+    const totalCasterLevel = magicSources.reduce(
+      (sum, item) => sum + getCasterContribution(item.casterProgression, item.classLevel),
+      0
+    );
+    const slotsTable = magicSources.find(item => item.slotsByLevel)?.slotsByLevel ?? null;
+    const slotsRow = slotsTable ? slotsTable[String(Math.max(0, totalCasterLevel))] ?? [] : [];
+    const maxSpellLevel = slotsRow.reduce(
+      (max, count, idx) => (count > 0 ? idx + 1 : max),
+      0
+    );
+    const slots: Record<string, { max: number; remaining: number; sources: string[] }> = {};
+    slotsRow.forEach((count, idx) => {
+      if (count > 0) {
+        slots[String(idx + 1)] = { max: count, remaining: count, sources: ["caster-total"] };
+      }
+    });
+    const sources: Record<string, any> = {};
+    const slotJustifications: Array<any> = [];
+    magicSources.forEach(source => {
+      const selection = spellcastingSelections[source.key] ?? {};
+      const knownSpellsRaw = Array.isArray(selection.knownSpells) ? selection.knownSpells : [];
+      const preparedSpellsRaw = Array.isArray(selection.preparedSpells)
+        ? selection.preparedSpells
+        : [];
+      const grantedSpells = Array.isArray(selection.grantedSpells) ? selection.grantedSpells : [];
+      const filterByMaxLevel = (entry: SpellEntry) => {
+        const id = getSpellId(entry);
+        const def = spellCatalog.byId.get(id);
+        if (!def || typeof def.level !== "number") return true;
+        if (def.level === 0) return true;
+        return def.level <= maxSpellLevel;
+      };
+      const knownSpells = knownSpellsRaw.filter(filterByMaxLevel);
+      const preparedSpells = preparedSpellsRaw.filter(filterByMaxLevel);
+      const resolvedFocusInstanceId =
+        selection.focusInstanceId ??
+        (selection.focusItemId
+          ? inventoryItems.find(item => item?.id === selection.focusItemId)?.instanceId ?? null
+          : null);
+      sources[source.key] = {
+        ability: source.ability,
+        preparation: source.preparation,
+        storage: source.storage,
+        casterProgression: source.casterProgression,
+        classLevel: source.classLevel,
+        focusInstanceId: resolvedFocusInstanceId ?? null,
+        preparedSpellIds: preparedSpells.map(entry => getSpellId(entry)),
+        knownSpellIds: knownSpells.map(entry => getSpellId(entry)),
+        grantedSpellIds: grantedSpells.map(entry => getSpellId(entry))
+      };
+      if (source.slotsByLevel) {
+        const row = source.slotsByLevel[String(Math.max(0, totalCasterLevel))] ?? [];
+        slotJustifications.push({
+          source: source.key,
+          classLevel: source.classLevel,
+          casterProgression: source.casterProgression,
+          slotsByLevel: row
+        });
+      }
+    });
+    return {
+      totalCasterLevel,
+      slots,
+      sources,
+      slotJustifications
+    };
+  };
+
+  const buildInventorySnapshot = () => {
+    const items = inventoryItems.map(item => ({ ...item }));
+    const containerIds = new Set<string>();
+    items.forEach(item => {
+      const def = objectItemMap.get(item?.id);
+      const tags = Array.isArray(def?.tags) ? def?.tags.map(tag => String(tag)) : [];
+      if (item?.instanceId && tags.includes("sac")) {
+        item.contenu = [];
+        containerIds.add(item.instanceId);
+      }
+    });
+    const getContainerInstanceIdForSlot = (slotId: string) => {
+      const bag = items.find(entry => entry?.equippedSlot === slotId && entry?.instanceId);
+      if (bag?.instanceId && containerIds.has(bag.instanceId)) return bag.instanceId;
+      return null;
+    };
+    items.forEach(item => {
+      const storedIn = item?.storedIn;
+      if (!storedIn || !item?.instanceId) return;
+      let containerId: string | null = null;
+      if (containerIds.has(storedIn)) {
+        containerId = storedIn;
+      } else if (packSlots.has(storedIn)) {
+        containerId = getContainerInstanceIdForSlot(storedIn);
+      }
+      if (!containerId) return;
+      const container = items.find(entry => entry?.instanceId === containerId);
+      if (!container) return;
+      if (!Array.isArray(container.contenu)) container.contenu = [];
+      container.contenu = Array.from(new Set([...container.contenu, item.instanceId]));
+    });
+    return items;
+  };
+
+  const buildCharacterSave = (): Personnage => {
+    const normalizedLanguages = normalizeLanguages((props.character as any)?.langues);
+    const derived = buildDerivedGrants();
+    const spellcastingState = buildSpellcastingState();
+    const progressionHistory = buildProgressionHistory();
+    if (spellcastingState.slotJustifications?.length) {
+      progressionHistory.push({
+        source: "spellcasting",
+        level: resolveLevel(),
+        type: "spell-slots",
+        payload: {
+          totalCasterLevel: spellcastingState.totalCasterLevel,
+          slots: spellcastingState.slots,
+          slotJustifications: spellcastingState.slotJustifications
+        }
+      });
+    }
+    const inventorySnapshot = buildInventorySnapshot();
+    const rawCombatStats = (props.character as any)?.combatStats ?? null;
+    const normalizedCombatStats = rawCombatStats
+      ? {
+          ...rawCombatStats,
+          mods: {
+            modFOR: Number(rawCombatStats?.mods?.modFOR ?? 0),
+            modDEX: Number(rawCombatStats?.mods?.modDEX ?? 0),
+            modCON: Number(rawCombatStats?.mods?.modCON ?? 0),
+            modINT: Number(rawCombatStats?.mods?.modINT ?? 0),
+            modSAG: Number(rawCombatStats?.mods?.modSAG ?? 0),
+            modCHA: Number(rawCombatStats?.mods?.modCHA ?? 0)
+          }
+        }
+      : rawCombatStats;
+    return {
+      id: props.character.id,
+      nom: props.character.nom,
+      age: (props.character as any)?.age,
+      sexe: (props.character as any)?.sexe,
+      taille: (props.character as any)?.taille,
+      poids: (props.character as any)?.poids,
+      langues: normalizedLanguages,
+      alignement: (props.character as any)?.alignement,
+      raceId: (props.character as any)?.raceId,
+      backgroundId: (props.character as any)?.backgroundId,
+      classe: (props.character as any)?.classe ?? {},
+      niveauGlobal: (props.character as any)?.niveauGlobal ?? resolveLevel(),
+      xp: (props.character as any)?.xp ?? 0,
+      dv: (props.character as any)?.dv,
+      maitriseBonus: (props.character as any)?.maitriseBonus,
+      pvActuels: (props.character as any)?.pvActuels,
+      pvTmp: (props.character as any)?.pvTmp,
+      nivFatigueActuel: (props.character as any)?.nivFatigueActuel,
+      nivFatigueMax: (props.character as any)?.nivFatigueMax,
+      actionIds: (props.character as any)?.actionIds ?? [],
+      reactionIds: (props.character as any)?.reactionIds ?? [],
+      combatStats: normalizedCombatStats,
+      caracs: props.character.caracs,
+      movementModes: (props.character as any)?.movementModes,
+      visionProfile: (props.character as any)?.visionProfile,
+      appearance: (props.character as any)?.appearance,
+      competences: (props.character as any)?.competences ?? [],
+      expertises: (props.character as any)?.expertises ?? [],
+      initiative: (props.character as any)?.initiative,
+      besoin: (props.character as any)?.besoin ?? [],
+      percPassive: (props.character as any)?.percPassive,
+      proficiencies: (props.character as any)?.proficiencies ?? {},
+      savingThrows: (props.character as any)?.savingThrows ?? [],
+      inspiration: (props.character as any)?.inspiration ?? false,
+      notes: (props.character as any)?.notes ?? "",
+      argent: (props.character as any)?.argent ?? {},
+      materielSlots: (props.character as any)?.materielSlots ?? {},
+      inventoryItems: inventorySnapshot,
+      descriptionPersonnage: (props.character as any)?.descriptionPersonnage,
+      profileDetails: (props.character as any)?.profileDetails,
+      choiceSelections: (props.character as any)?.choiceSelections ?? {},
+      creationLocks: (props.character as any)?.creationLocks ?? {},
+      classLocks: (props.character as any)?.classLocks ?? {},
+      progressionHistory,
+      spellcastingState,
+      derived
+    } as Personnage;
+  };
+
   const SAVED_SHEETS_KEY = "jdr5e_saved_sheets";
   const ACTIVE_SHEET_KEY = "jdr5e_active_sheet";
   type SavedSheet = {
@@ -3542,7 +3928,7 @@ export function CombatSetupScreen(props: {
       id: createInstanceId("sheet"),
       name,
       updatedAt: new Date().toISOString(),
-      character: JSON.parse(JSON.stringify(props.character))
+      character: JSON.parse(JSON.stringify(buildCharacterSave()))
     };
     const next = [entry, ...savedSheets];
     persistSheets(next);

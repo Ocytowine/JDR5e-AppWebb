@@ -250,15 +250,25 @@ function getEquippedWeaponIds(character: Personnage | null | undefined): string[
   if (equippedWeaponIds.length > 0) {
     return Array.from(new Set(equippedWeaponIds));
   }
-  const slots = character?.armesDefaut as
-    | { main_droite?: string | null; main_gauche?: string | null; mains?: string | null }
-    | null
-    | undefined;
-  if (!slots) return [];
-  const ids = [slots.main_droite, slots.main_gauche, slots.mains].filter(
-    (value): value is string => typeof value === "string" && value.length > 0
-  );
-  return Array.from(new Set(ids));
+  return [];
+}
+
+function getPrimaryWeaponIds(character: Personnage | null | undefined): string[] {
+  const inventory = Array.isArray((character as any)?.inventoryItems)
+    ? ((character as any).inventoryItems as Array<any>)
+    : [];
+  const carriedSlots = new Set(["ceinture_gauche", "ceinture_droite", "dos_gauche", "dos_droit"]);
+  const primaryIds = inventory
+    .filter(
+      item =>
+        item?.type === "weapon" &&
+        item?.isPrimaryWeapon &&
+        item?.equippedSlot &&
+        carriedSlots.has(item.equippedSlot)
+    )
+    .map(item => item.id)
+    .filter((value): value is string => typeof value === "string" && value.length > 0);
+  return Array.from(new Set(primaryIds));
 }
 
 type AbilityKey = "FOR" | "DEX" | "CON" | "INT" | "SAG" | "CHA";
@@ -1016,12 +1026,22 @@ export const GameBoard: React.FC = () => {
   const equippedWeaponIds = useMemo(() => getEquippedWeaponIds(activeCharacterConfig), [
     activeCharacterConfig
   ]);
+  const primaryWeaponIds = useMemo(() => getPrimaryWeaponIds(activeCharacterConfig), [
+    activeCharacterConfig
+  ]);
   const equippedWeapons = useMemo(
     () =>
       equippedWeaponIds
         .map(id => weaponTypeById.get(id) ?? null)
         .filter((weapon): weapon is WeaponTypeDefinition => Boolean(weapon)),
     [equippedWeaponIds, weaponTypeById]
+  );
+  const primaryWeapons = useMemo(
+    () =>
+      primaryWeaponIds
+        .map(id => weaponTypeById.get(id) ?? null)
+        .filter((weapon): weapon is WeaponTypeDefinition => Boolean(weapon)),
+    [primaryWeaponIds, weaponTypeById]
   );
   const floorMaterialById = useMemo(() => {
     const map = new Map<string, FloorMaterial>();
@@ -4130,8 +4150,14 @@ export const GameBoard: React.FC = () => {
     return Array.from(new Set(ids));
   }
 
-  function getWeaponsForActor(actor: TokenState): WeaponTypeDefinition[] {
-    if (actor.type === "player") return equippedWeapons;
+  function getWeaponsForActor(
+    actor: TokenState,
+    options?: { reaction?: boolean }
+  ): WeaponTypeDefinition[] {
+    if (actor.type === "player") {
+      if (options?.reaction) return primaryWeapons;
+      return equippedWeapons;
+    }
     const ids = getEnemyWeaponIds(actor);
     return ids
       .map(id => weaponTypeById.get(id) ?? null)
@@ -4187,8 +4213,12 @@ export const GameBoard: React.FC = () => {
     return 0;
   }
 
-  function pickWeaponForAction(action: ActionDefinition, actor: TokenState): WeaponTypeDefinition | null {
-    const weapons = getWeaponsForActor(actor);
+  function pickWeaponForAction(
+    action: ActionDefinition,
+    actor: TokenState,
+    options?: { reaction?: boolean }
+  ): WeaponTypeDefinition | null {
+    const weapons = getWeaponsForActor(actor, options);
     if (!weapons || weapons.length === 0) return null;
     const tags = action.tags ?? [];
     const wantsRanged = tags.includes("ranged") || action.targeting?.range?.max > 1.5;
@@ -4222,9 +4252,13 @@ export const GameBoard: React.FC = () => {
     return abilityMod + extraBonus;
   }
 
-  function applyWeaponOverrideForActor(action: ActionDefinition, actor: TokenState): ActionDefinition {
+  function applyWeaponOverrideForActor(
+    action: ActionDefinition,
+    actor: TokenState,
+    options?: { reaction?: boolean }
+  ): ActionDefinition {
     if (action.category !== "attack") return action;
-    const weapon = pickWeaponForAction(action, actor);
+    const weapon = pickWeaponForAction(action, actor, options);
     if (!weapon) return action;
 
     const damageDice = weapon.effectOnHit?.damage ?? weapon.damage?.dice ?? null;
@@ -5543,7 +5577,9 @@ export const GameBoard: React.FC = () => {
     ignoreRange?: boolean;
   }) {
     if (!canUseReaction(params.reactor.id)) return;
-    const baseAction = applyWeaponOverrideForActor(params.reaction.action, params.reactor);
+    const baseAction = applyWeaponOverrideForActor(params.reaction.action, params.reactor, {
+      reaction: true
+    });
     let action = baseAction;
     if (params.ignoreRange && baseAction.targeting?.range) {
       const afterDistance = distanceBetweenTokens(params.reactor, params.target);
@@ -5647,7 +5683,9 @@ export const GameBoard: React.FC = () => {
     enemiesSnapshot: TokenState[];
     ignoreRange?: boolean;
   }): { ok: boolean; reason?: string } {
-    const baseAction = applyWeaponOverrideForActor(params.reaction.action, params.reactor);
+    const baseAction = applyWeaponOverrideForActor(params.reaction.action, params.reactor, {
+      reaction: true
+    });
     let action = baseAction;
     if (params.ignoreRange && baseAction.targeting?.range) {
       const afterDistance = distanceBetweenTokens(params.reactor, params.target);
