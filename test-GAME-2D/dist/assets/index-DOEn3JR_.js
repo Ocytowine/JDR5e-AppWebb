@@ -1,4 +1,4 @@
-const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/browserAll-CSAKY2a1.js","assets/webworkerAll-DgrUnqx4.js","assets/colorToUniform-B2b8-1Ah.js","assets/WebGPURenderer-CLtujJ2Y.js","assets/SharedSystems-qNlkVTsY.js","assets/WebGLRenderer-CmsVABJF.js"])))=>i.map(i=>d[i]);
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/browserAll-HWtC5qX8.js","assets/webworkerAll-D7GgxxN0.js","assets/colorToUniform-B2b8-1Ah.js","assets/WebGPURenderer-D5AexvVB.js","assets/SharedSystems-CDB0ZGgR.js","assets/WebGLRenderer-l8KEVeM7.js"])))=>i.map(i=>d[i]);
 var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key2, value2) => key2 in obj ? __defProp(obj, key2, { enumerable: true, configurable: true, writable: true, value: value2 }) : obj[key2] = value2;
 var __publicField = (obj, key2, value2) => __defNormalProp(obj, typeof key2 !== "symbol" ? key2 + "" : key2, value2);
@@ -7082,8 +7082,8 @@ const sampleCharacter = {
   pvTmp: 0,
   nivFatigueActuel: 0,
   nivFatigueMax: 3,
-  actionIds: ["melee-strike", "dash", "second-wind", "throw-dagger", "torch-toggle"],
-  reactionIds: ["opportunity-attack", "guard-strike", "killer-instinct"],
+  actionIds: ["melee-strike", "dash"],
+  reactionIds: [],
   combatStats: {
     level: 1,
     mods: { modFOR: 3, modDEX: 2, modCON: 2, modINT: 0, modSAG: 1, modCHA: 0 },
@@ -8017,10 +8017,10 @@ function getEntitiesInVision(observer, allTokens, opaqueCells, playableCells, wa
     );
   });
 }
-function isTargetVisible(observer, target, allTokens, opaqueCells, playableCells, wallVisionEdges, lightLevels, grid) {
-  if (target.hp <= 0) return false;
+function isTargetVisible(observer, target2, allTokens, opaqueCells, playableCells, wallVisionEdges, lightLevels, grid) {
+  if (target2.hp <= 0) return false;
   if (playableCells && playableCells.size > 0) {
-    const targetCells = getTokenOccupiedCells(target);
+    const targetCells = getTokenOccupiedCells(target2);
     if (!targetCells.some((c2) => playableCells.has(key$2(c2)))) return false;
     if (!playableCells.has(key$2({ x: observer.x, y: observer.y }))) return false;
   }
@@ -8033,7 +8033,7 @@ function isTargetVisible(observer, target, allTokens, opaqueCells, playableCells
     lightLevels,
     grid
   );
-  const inCone = visibles.some((t2) => t2.id === target.id);
+  const inCone = visibles.some((t2) => t2.id === target2.id);
   if (!inCone) return false;
   return true;
 }
@@ -10041,6 +10041,7 @@ const id$1i = "human";
 const label$Z = "Humain";
 const description$B = "Polyvalent et adaptable, l'humain apprend vite et s'integre partout.";
 const besoin$2 = [];
+const actionIds$2 = ["melee-strike", "dash"];
 const size$2 = "medium";
 const speed$2 = 6;
 const traits$5 = [{ "id": "adaptable", "label": "Adaptable", "description": "Choisit une competence au choix." }];
@@ -10050,6 +10051,7 @@ const human = {
   label: label$Z,
   description: description$B,
   besoin: besoin$2,
+  actionIds: actionIds$2,
   size: size$2,
   speed: speed$2,
   traits: traits$5,
@@ -10059,6 +10061,7 @@ const id$1h = "elf";
 const label$Y = "Elfe";
 const description$A = "Grace et perception affutee, l'elfe a une affinite naturelle avec la magie.";
 const besoin$1 = [];
+const actionIds$1 = ["melee-strike", "dash"];
 const size$1 = "medium";
 const speed$1 = 6;
 const vision$1 = { "mode": "darkvision", "range": 60 };
@@ -10069,6 +10072,7 @@ const elf = {
   label: label$Y,
   description: description$A,
   besoin: besoin$1,
+  actionIds: actionIds$1,
   size: size$1,
   speed: speed$1,
   vision: vision$1,
@@ -10079,6 +10083,7 @@ const id$1g = "dwarf";
 const label$X = "Nain";
 const description$z = "Robuste et endurant, le nain excelle dans la defense et le travail du metal.";
 const besoin = [];
+const actionIds = ["melee-strike", "dash"];
 const size = "medium";
 const speed = 5;
 const vision = { "mode": "darkvision", "range": 60 };
@@ -10089,6 +10094,7 @@ const dwarf$1 = {
   label: label$X,
   description: description$z,
   besoin,
+  actionIds,
   size,
   speed,
   vision,
@@ -10603,7 +10609,7 @@ const ObjSouvenirVole = {
 const id$R = "obj_symbole_sacre";
 const label$w = "Symbole sacre";
 const type$e = "object";
-const category$z = "misc";
+const category$z = "necklace";
 const weight$e = 1;
 const tags$R = ["holy_symbol"];
 const description$e = "Symbole sacre utilise comme focalisateur divin.";
@@ -12556,15 +12562,15 @@ function resolveOpenings$1(params) {
       chosen.push(p2);
     }
   }
-  const target = Math.max(0, Math.floor(entrances.count ?? 0));
-  if (chosen.length >= target) return chosen.slice(0, target);
+  const target2 = Math.max(0, Math.floor(entrances.count ?? 0));
+  if (chosen.length >= target2) return chosen.slice(0, target2);
   const sideFilter = entrances.sides && entrances.sides.length ? entrances.sides.flatMap((side) => bySide[side] ?? []) : boundary;
   const remaining = sideFilter.filter((c2) => !chosenKeys.has(key(c2.x, c2.y)));
   const extra = chooseOpeningsOnMaskBoundary({
     cols,
     rows,
     boundary: remaining,
-    count: target - chosen.length,
+    count: target2 - chosen.length,
     rand
   });
   return chosen.concat(extra);
@@ -12918,13 +12924,13 @@ function resolveOpenings(params) {
       chosen.push(p2);
     }
   }
-  const target = Math.max(0, Math.floor(entrances.count ?? 0));
-  if (chosen.length >= target) return chosen.slice(0, target);
+  const target2 = Math.max(0, Math.floor(entrances.count ?? 0));
+  if (chosen.length >= target2) return chosen.slice(0, target2);
   const sideFilter = entrances.sides && entrances.sides.length ? entrances.sides.flatMap((side) => bySide[side] ?? []) : boundary;
   const remaining = sideFilter.filter((c2) => !chosenKeys.has(key(c2.x, c2.y)));
   const extra = chooseOpenings({
     boundary: remaining,
-    count: target - chosen.length,
+    count: target2 - chosen.length,
     rand
   });
   return chosen.concat(extra);
@@ -13198,10 +13204,10 @@ function fillRoomFallback(params) {
   const { draft, roomMask, ctx, rand } = params;
   const propTypes = weightedTypesForContext(ctx.obstacleTypes, (t2) => t2.category !== "wall");
   if (!propTypes.length) return;
-  const target = Math.max(0, Math.floor(roomMask.size / 80));
+  const target2 = Math.max(0, Math.floor(roomMask.size / 80));
   let placed = 0;
   let attempts = 0;
-  while (placed < target && attempts < 100) {
+  while (placed < target2 && attempts < 100) {
     attempts++;
     const chosen = ((_a = propTypes[Math.floor(rand() * propTypes.length)]) == null ? void 0 : _a.item) ?? null;
     if (!chosen) continue;
@@ -13888,8 +13894,8 @@ function pickElements(pattern, rand) {
 }
 function hasPatternTag(pattern, tag) {
   const tags2 = pattern.tags ?? [];
-  const target = String(tag).toLowerCase();
-  return tags2.some((t2) => String(t2).toLowerCase() === target);
+  const target2 = String(tag).toLowerCase();
+  return tags2.some((t2) => String(t2).toLowerCase() === target2);
 }
 function transformPoint(params) {
   const { w: w2, h: h2 } = params;
@@ -14384,8 +14390,8 @@ function generateForestClearing(params) {
   const density = forest.treesOnRing === "dense" ? 0.55 : 0.3;
   let placed = 0;
   let attempts = 0;
-  const target = clamp$4(Math.floor(cols * rows * density * 0.12), 3, 14);
-  while (placed < target && attempts < 400) {
+  const target2 = clamp$4(Math.floor(cols * rows * density * 0.12), 3, 14);
+  while (placed < target2 && attempts < 400) {
     attempts++;
     const x2 = Math.floor(rand() * cols);
     const y2 = Math.floor(rand() * rows);
@@ -15769,7 +15775,7 @@ const AttacksBowShot = {
 };
 const id$7 = "melee-strike";
 const name$7 = "Frappe basique";
-const summary$7 = "Attaque de melee simple contre une cible adjacente.";
+const summary$7 = "Attaque de melee simple contre une cible adjacente (mains nues si aucune arme).";
 const uiMessageHit$1 = "Vous avez ete touche par une attaque au corps a corps.";
 const uiMessageMiss$1 = "Vous evitez une attaque au corps a corps.";
 const category$7 = "attack";
@@ -15778,9 +15784,9 @@ const targeting$7 = { "target": "hostile", "range": { "min": 0, "max": 1.5, "sha
 const usage$7 = { "perTurn": 1, "perEncounter": null, "resource": null };
 const conditions$7 = [{ "type": "DISTANCE_MAX", "target": "primary", "max": 1.5, "reason": "Portee de melee uniquement." }, { "type": "TARGET_ALIVE", "target": "primary", "reason": "La cible doit avoir des PV restants." }];
 const attack$1 = { "bonus": 5, "critRange": 20 };
-const damage$1 = { "formula": "1d4 + modFOR", "critRule": "double-dice", "damageType": "SLASHING" };
+const damage$1 = { "formula": "1d4 + modFOR", "critRule": "double-dice", "damageType": "BLUDGEONING" };
 const resolution = { "kind": "ATTACK_ROLL", "bonus": 5, "critRange": 20, "critRule": "double-dice" };
-const ops$7 = { "onHit": [{ "op": "DealDamage", "target": "primary", "formula": "1d4 + modFOR", "damageType": "SLASHING" }, { "op": "DealDamage", "target": "primary", "formula": "1d4 + modFOR", "damageType": "SLASHING" }], "onResolve": [{ "op": "PlayVisualEffect", "effectId": "melee-slash", "anchor": "target", "orientation": "to_target", "rotationOffsetDeg": -135 }, { "op": "LogEvent", "message": "Frappe au contact." }] };
+const ops$7 = { "onHit": [{ "op": "DealDamage", "target": "primary", "formula": "1d4 + modFOR", "damageType": "BLUDGEONING" }], "onResolve": [{ "op": "PlayVisualEffect", "effectId": "melee-slash", "anchor": "target", "orientation": "to_target", "rotationOffsetDeg": -135 }, { "op": "LogEvent", "message": "Frappe au contact." }] };
 const aiHints$4 = { "priority": "finish_low_hp_target", "successLog": "Frappe au contact.", "failureLog": "Cible hors portee ou non visible." };
 const tags$7 = ["melee"];
 const AttacksMeleeStrike = {
@@ -16183,7 +16189,7 @@ function getMovementProfile(entity) {
   }
   return null;
 }
-function canEnterCell(entity, profile, x2, y2, occupiedByTokens, allowTargetOccupied, target, targetCells, blockedCells, playableCells, grid, heightMap, floorIds, activeLevel) {
+function canEnterCell(entity, profile, x2, y2, occupiedByTokens, allowTargetOccupied, target2, targetCells, blockedCells, playableCells, grid, heightMap, floorIds, activeLevel) {
   const cols = (grid == null ? void 0 : grid.cols) ?? GRID_COLS;
   const rows = (grid == null ? void 0 : grid.rows) ?? GRID_ROWS;
   const entityCells = getTokenOccupiedCellsAt(entity, { x: x2, y: y2 });
@@ -16214,7 +16220,7 @@ function canEnterCell(entity, profile, x2, y2, occupiedByTokens, allowTargetOccu
       }
     }
   }
-  const isTarget = x2 === target.x && y2 === target.y;
+  const isTarget = x2 === target2.x && y2 === target2.y;
   const overlaps = entityCells.some((c2) => occupiedByTokens.has(coordKey(c2.x, c2.y)));
   if (!overlaps) {
     return true;
@@ -16247,12 +16253,12 @@ function getMoveCostForCell(x2, y2, cols, rows, floorIds) {
   if (!Number.isFinite(cost) || cost <= 0) return 1;
   return cost;
 }
-function computePathTowards(entity, target, tokens, options) {
+function computePathTowards(entity, target2, tokens, options) {
   var _a, _b;
   const profile = getMovementProfile(entity);
   const maxCost = profile && profile.speed > 0 ? Math.min(options.maxDistance, profile.speed) : options.maxDistance;
   const start = { x: entity.x, y: entity.y };
-  if (start.x === target.x && start.y === target.y) {
+  if (start.x === target2.x && start.y === target2.y) {
     return [];
   }
   const occupiedByTokens = /* @__PURE__ */ new Set();
@@ -16312,7 +16318,7 @@ function computePathTowards(entity, target, tokens, options) {
         ny,
         occupiedByTokens,
         options.allowTargetOccupied ?? false,
-        target,
+        target2,
         targetCellsSet,
         options.blockedCells ?? null,
         options.playableCells ?? null,
@@ -16335,7 +16341,7 @@ function computePathTowards(entity, target, tokens, options) {
           current.y,
           occupiedByTokens,
           false,
-          target,
+          target2,
           targetCellsSet,
           options.blockedCells ?? null,
           options.playableCells ?? null,
@@ -16351,7 +16357,7 @@ function computePathTowards(entity, target, tokens, options) {
           current.y + dir.y,
           occupiedByTokens,
           false,
-          target,
+          target2,
           targetCellsSet,
           options.blockedCells ?? null,
           options.playableCells ?? null,
@@ -16390,7 +16396,7 @@ function computePathTowards(entity, target, tokens, options) {
         const node = { x: nx, y: ny };
         open.push(node, newCost);
       }
-      if (nx === target.x && ny === target.y) {
+      if (nx === target2.x && ny === target2.y) {
         foundTargetKey = key2;
         break;
       }
@@ -16404,7 +16410,7 @@ function computePathTowards(entity, target, tokens, options) {
     let bestCost = Number.POSITIVE_INFINITY;
     for (const key2 of costs.keys()) {
       const [sx, sy] = key2.split(",").map(Number);
-      const d2 = gridDistance({ x: sx, y: sy }, target);
+      const d2 = gridDistance({ x: sx, y: sy }, target2);
       const costFromStart = costs.get(key2) ?? 0;
       if (costFromStart === 0) continue;
       if (costFromStart > maxCost) continue;
@@ -16466,16 +16472,62 @@ function pickTarget(state, selector, explicitTarget) {
   }
   return null;
 }
+function ensureDefenseArray(token, mode) {
+  token.defenses = token.defenses ?? {};
+  token.defenses.damage = token.defenses.damage ?? {};
+  const key2 = mode === "resistance" ? "resist" : mode === "vulnerability" ? "vulnerable" : "immune";
+  token.defenses.damage[key2] = token.defenses.damage[key2] ?? [];
+  return token.defenses.damage[key2];
+}
+function moveTokenByDelta(token, dx, dy) {
+  token.x = (token.x ?? 0) + dx;
+  token.y = (token.y ?? 0) + dy;
+}
+function directionFromTo(from, to) {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  if (dx === 0 && dy === 0) return { x: 0, y: 0 };
+  const mag = Math.sqrt(dx * dx + dy * dy) || 1;
+  return { x: dx / mag, y: dy / mag };
+}
 function applyOperation(params) {
-  var _a, _b, _c, _d, _e, _f, _g, _h, _i;
+  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m;
   const { op, tx, state, explicitTarget, opts } = params;
   if (op.op === "LogEvent") {
     logTransaction(tx, op.message, opts.onLog);
     return;
   }
+  if (op.op === "EmitEvent") {
+    (_a = opts.onEmitEvent) == null ? void 0 : _a.call(opts, { kind: op.kind, data: op.data });
+    return;
+  }
   if (op.op === "SpendResource") {
-    (_a = opts.spendResource) == null ? void 0 : _a.call(opts, op.name, op.pool ?? null, op.amount);
+    (_b = opts.spendResource) == null ? void 0 : _b.call(opts, op.name, op.pool ?? null, op.amount);
     logTransaction(tx, `Ressource depensee: ${op.name} -${op.amount}`, opts.onLog);
+    return;
+  }
+  if (op.op === "RestoreResource") {
+    if (opts.restoreResource) {
+      opts.restoreResource(op.name, op.pool ?? null, op.amount);
+    } else if (opts.spendResource) {
+      opts.spendResource(op.name, op.pool ?? null, -op.amount);
+    }
+    logTransaction(tx, `Ressource restauree: ${op.name} +${op.amount}`, opts.onLog);
+    return;
+  }
+  if (op.op === "SetResource") {
+    (_c = opts.setResource) == null ? void 0 : _c.call(opts, op.name, op.pool ?? null, op.amount);
+    logTransaction(tx, `Ressource fixee: ${op.name} = ${op.amount}`, opts.onLog);
+    return;
+  }
+  if (op.op === "ConsumeSlot") {
+    (_d = opts.consumeSlot) == null ? void 0 : _d.call(opts, op.slot, op.level, op.amount);
+    logTransaction(tx, `Slot consomme: ${op.slot}${op.level ? ` (lvl ${op.level})` : ""}`, opts.onLog);
+    return;
+  }
+  if (op.op === "RestoreSlot") {
+    (_e = opts.restoreSlot) == null ? void 0 : _e.call(opts, op.slot, op.level, op.amount);
+    logTransaction(tx, `Slot restaure: ${op.slot}${op.level ? ` (lvl ${op.level})` : ""}`, opts.onLog);
     return;
   }
   if (op.op === "CreateZone") {
@@ -16497,11 +16549,63 @@ function applyOperation(params) {
     logTransaction(tx, `Zone creee: ${op.effectTypeId}`, opts.onLog);
     return;
   }
+  if (op.op === "RemoveZone") {
+    tx.state.effects = tx.state.effects.filter((effect) => {
+      if (op.zoneId && effect.id === op.zoneId) return false;
+      if (op.effectTypeId && effect.typeId === op.effectTypeId) return false;
+      return true;
+    });
+    logTransaction(tx, `Zone retiree`, opts.onLog);
+    return;
+  }
+  if (op.op === "ModifyZone") {
+    const effect = tx.state.effects.find((e2) => e2.id === op.zoneId);
+    if (effect) {
+      if (typeof op.active === "boolean") effect.active = op.active;
+      if (typeof op.x === "number") effect.x = op.x;
+      if (typeof op.y === "number") effect.y = op.y;
+      logTransaction(tx, `Zone modifiee: ${op.zoneId}`, opts.onLog);
+    }
+    return;
+  }
+  if (op.op === "CreateSurface") {
+    const targetCell = op.target === "self" ? { x: state.actor.x, y: state.actor.y } : (explicitTarget == null ? void 0 : explicitTarget.kind) === "token" ? (() => {
+      const targetId = explicitTarget.token.id;
+      if (state.player.id === targetId) return { x: state.player.x, y: state.player.y };
+      const enemy = state.enemies.find((e2) => e2.id === targetId);
+      return enemy ? { x: enemy.x, y: enemy.y } : null;
+    })() : null;
+    if (!targetCell) return;
+    const id2 = `surface-${op.effectTypeId}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    tx.state.effects.push({
+      id: id2,
+      typeId: op.effectTypeId,
+      x: targetCell.x,
+      y: targetCell.y,
+      active: true,
+      kind: "surface"
+    });
+    logTransaction(tx, `Surface creee: ${op.effectTypeId}`, opts.onLog);
+    return;
+  }
+  if (op.op === "RemoveSurface") {
+    tx.state.effects = tx.state.effects.filter((effect) => {
+      if (op.surfaceId && effect.id === op.surfaceId) return false;
+      if (op.effectTypeId && effect.typeId === op.effectTypeId) return false;
+      return true;
+    });
+    logTransaction(tx, `Surface retiree`, opts.onLog);
+    return;
+  }
+  if (op.op === "ApplyAura") {
+    logTransaction(tx, `Aura appliquee: ${op.effectTypeId}`, opts.onLog);
+    return;
+  }
   const targetToken = pickTarget(state, op.target, explicitTarget);
   if (!targetToken) return;
   if (op.op === "DealDamage") {
     const formula = resolveFormula(op.formula, { actor: state.actor, sampleCharacter: void 0 });
-    const override = ((_c = (_b = opts.rollOverrides) == null ? void 0 : _b.consumeDamageRoll) == null ? void 0 : _c.call(_b)) ?? null;
+    const override = ((_g = (_f = opts.rollOverrides) == null ? void 0 : _f.consumeDamageRoll) == null ? void 0 : _g.call(_f)) ?? null;
     const roll = override ?? rollDamage(formula, { isCrit: false, critRule: "double-dice" });
     const total = op.scale === "half" ? Math.floor(roll.total / 2) : roll.total;
     const tempHp = typeof targetToken.tempHp === "number" ? targetToken.tempHp : 0;
@@ -16513,6 +16617,27 @@ function applyOperation(params) {
       targetToken.hp = Math.max(0, targetToken.hp - total);
     }
     logTransaction(tx, `Degats: ${total} (${formula})`, opts.onLog);
+    return;
+  }
+  if (op.op === "DealDamageScaled") {
+    const formula = resolveFormula(op.formula, { actor: state.actor, sampleCharacter: void 0 });
+    const roll = rollDamage(formula, { isCrit: false, critRule: "double-dice" });
+    const total = op.scale === "quarter" ? Math.floor(roll.total / 4) : Math.floor(roll.total / 2);
+    const tempHp = typeof targetToken.tempHp === "number" ? targetToken.tempHp : 0;
+    if (tempHp > 0) {
+      const remaining = Math.max(0, total - tempHp);
+      targetToken.tempHp = Math.max(0, tempHp - total);
+      targetToken.hp = Math.max(0, targetToken.hp - remaining);
+    } else {
+      targetToken.hp = Math.max(0, targetToken.hp - total);
+    }
+    logTransaction(tx, `Degats reduits: ${total} (${formula})`, opts.onLog);
+    return;
+  }
+  if (op.op === "ApplyDamageTypeMod") {
+    const list = ensureDefenseArray(targetToken, op.mode);
+    if (!list.includes(op.damageType)) list.push(op.damageType);
+    logTransaction(tx, `Defense ${op.mode}: ${op.damageType}`, opts.onLog);
     return;
   }
   if (op.op === "Heal") {
@@ -16530,11 +16655,51 @@ function applyOperation(params) {
     logTransaction(tx, `Etat applique: ${op.statusId} (${op.durationTurns} tours)`, opts.onLog);
     return;
   }
+  if (op.op === "RemoveCondition") {
+    const statuses = targetToken.statuses ? [...targetToken.statuses] : [];
+    targetToken.statuses = statuses.filter((status) => status.id !== op.statusId);
+    logTransaction(tx, `Etat retire: ${op.statusId}`, opts.onLog);
+    return;
+  }
+  if (op.op === "ExtendCondition") {
+    const statuses = targetToken.statuses ? [...targetToken.statuses] : [];
+    for (const status of statuses) {
+      if (status.id === op.statusId) {
+        status.remainingTurns = Math.max(0, status.remainingTurns + op.durationTurns);
+      }
+    }
+    targetToken.statuses = statuses;
+    logTransaction(tx, `Etat prolonge: ${op.statusId} (+${op.durationTurns})`, opts.onLog);
+    return;
+  }
+  if (op.op === "SetConditionStack") {
+    const statuses = targetToken.statuses ? [...targetToken.statuses] : [];
+    const kept = statuses.filter((status) => status.id !== op.statusId);
+    for (let i2 = 0; i2 < op.stacks; i2++) {
+      kept.push({ id: op.statusId, remainingTurns: 1, sourceId: state.actor.id });
+    }
+    targetToken.statuses = kept;
+    logTransaction(tx, `Stacks etat: ${op.statusId} = ${op.stacks}`, opts.onLog);
+    return;
+  }
+  if (op.op === "StartConcentration") {
+    targetToken.concentration = {
+      sourceId: op.sourceId ?? state.actor.id,
+      effectId: op.effectId ?? null
+    };
+    logTransaction(tx, `Concentration demarree`, opts.onLog);
+    return;
+  }
+  if (op.op === "BreakConcentration") {
+    targetToken.concentration = null;
+    logTransaction(tx, `Concentration interrompue`, opts.onLog);
+    return;
+  }
   if (op.op === "GrantTempHp") {
     const amount = typeof op.amount === "number" ? op.amount : 0;
     if (amount <= 0) return;
     targetToken.tempHp = Math.max(targetToken.tempHp ?? 0, amount);
-    (_d = opts.onGrantTempHp) == null ? void 0 : _d.call(opts, { targetId: targetToken.id, amount, durationTurns: op.durationTurns });
+    (_h = opts.onGrantTempHp) == null ? void 0 : _h.call(opts, { targetId: targetToken.id, amount, durationTurns: op.durationTurns });
     logTransaction(tx, `PV temporaires: +${amount}`, opts.onLog);
     return;
   }
@@ -16543,6 +16708,36 @@ function applyOperation(params) {
     targetToken.x = op.to.x;
     targetToken.y = op.to.y;
     logTransaction(tx, `Deplacement force vers (${op.to.x}, ${op.to.y})`, opts.onLog);
+    return;
+  }
+  if (op.op === "Teleport") {
+    targetToken.x = op.to.x;
+    targetToken.y = op.to.y;
+    logTransaction(tx, `Teleportation vers (${op.to.x}, ${op.to.y})`, opts.onLog);
+    return;
+  }
+  if (op.op === "SwapPositions") {
+    const ax = state.actor.x;
+    const ay = state.actor.y;
+    state.actor.x = targetToken.x;
+    state.actor.y = targetToken.y;
+    targetToken.x = ax;
+    targetToken.y = ay;
+    logTransaction(tx, `Positions echangees`, opts.onLog);
+    return;
+  }
+  if (op.op === "Knockback" || op.op === "Push" || op.op === "Pull") {
+    const distance2 = op.distance ?? 0;
+    let dir = op.direction ?? null;
+    if (!dir) {
+      const from = op.op === "Pull" ? { x: targetToken.x, y: targetToken.y } : { x: state.actor.x, y: state.actor.y };
+      const to = op.op === "Pull" ? { x: state.actor.x, y: state.actor.y } : { x: targetToken.x, y: targetToken.y };
+      dir = directionFromTo(from, to);
+    }
+    const dx = Math.round(dir.x * distance2);
+    const dy = Math.round(dir.y * distance2);
+    moveTokenByDelta(targetToken, dx, dy);
+    logTransaction(tx, `${op.op} ${distance2} vers (${dx}, ${dy})`, opts.onLog);
     return;
   }
   if (op.op === "MoveTo") {
@@ -16555,32 +16750,112 @@ function applyOperation(params) {
       const parsed = Number.parseFloat(resolved);
       if (Number.isFinite(parsed)) maxSteps = parsed;
     }
-    (_e = opts.onMoveTo) == null ? void 0 : _e.call(opts, {
+    (_i = opts.onMoveTo) == null ? void 0 : _i.call(opts, {
       state: tx.state,
       targetCell: { x: explicitTarget.x, y: explicitTarget.y },
       maxSteps
     });
     return;
   }
+  if (op.op === "AddDice") {
+    const roll = rollDamage(op.formula, { isCrit: false, critRule: "double-dice" });
+    tx.state.rollContext = tx.state.rollContext ?? {};
+    tx.state.rollContext.bonusDelta = (tx.state.rollContext.bonusDelta ?? 0) + roll.total;
+    logTransaction(tx, `Bonus de jet: +${roll.total} (${op.formula})`, opts.onLog);
+    return;
+  }
+  if (op.op === "ReplaceRoll") {
+    tx.state.rollContext = tx.state.rollContext ?? {};
+    tx.state.rollContext.replaceRoll = op.value;
+    logTransaction(tx, `Jet remplace: ${op.value}`, opts.onLog);
+    return;
+  }
+  if (op.op === "Reroll") {
+    tx.state.rollContext = tx.state.rollContext ?? {};
+    tx.state.rollContext.reroll = op.mode ?? "max";
+    logTransaction(tx, `Relance jet (${op.mode ?? "max"})`, opts.onLog);
+    return;
+  }
+  if (op.op === "SetMinimumRoll") {
+    tx.state.rollContext = tx.state.rollContext ?? {};
+    tx.state.rollContext.minRoll = op.value;
+    logTransaction(tx, `Jet min: ${op.value}`, opts.onLog);
+    return;
+  }
+  if (op.op === "SetMaximumRoll") {
+    tx.state.rollContext = tx.state.rollContext ?? {};
+    tx.state.rollContext.maxRoll = op.value;
+    logTransaction(tx, `Jet max: ${op.value}`, opts.onLog);
+    return;
+  }
+  if (op.op === "ModifyBonus") {
+    tx.state.rollContext = tx.state.rollContext ?? {};
+    tx.state.rollContext.bonusDelta = (tx.state.rollContext.bonusDelta ?? 0) + op.delta;
+    logTransaction(tx, `Bonus modifie: ${op.delta >= 0 ? "+" : ""}${op.delta}`, opts.onLog);
+    return;
+  }
+  if (op.op === "ModifyDC") {
+    tx.state.rollContext = tx.state.rollContext ?? {};
+    tx.state.rollContext.dcDelta = (tx.state.rollContext.dcDelta ?? 0) + op.delta;
+    logTransaction(tx, `DC modifie: ${op.delta >= 0 ? "+" : ""}${op.delta}`, opts.onLog);
+    return;
+  }
+  if (op.op === "LockTarget" || op.op === "ExpandTargets" || op.op === "FilterTargets" || op.op === "Retarget") {
+    logTransaction(tx, `Ciblage modifie (${op.op})`, opts.onLog);
+    return;
+  }
+  if (op.op === "SpawnEntity") {
+    logTransaction(tx, `Entite invoquee: ${op.entityTypeId}`, opts.onLog);
+    return;
+  }
+  if (op.op === "DespawnEntity") {
+    logTransaction(tx, `Entite retiree: ${op.entityId}`, opts.onLog);
+    return;
+  }
+  if (op.op === "ControlSummon") {
+    logTransaction(tx, `Controle invocation: ${op.entityId}`, opts.onLog);
+    return;
+  }
+  if (op.op === "AddTag") {
+    const anyToken = targetToken;
+    anyToken.tags = Array.isArray(anyToken.tags) ? anyToken.tags : [];
+    if (!anyToken.tags.includes(op.tag)) anyToken.tags.push(op.tag);
+    logTransaction(tx, `Tag ajoute: ${op.tag}`, opts.onLog);
+    return;
+  }
+  if (op.op === "RemoveTag") {
+    const anyToken = targetToken;
+    anyToken.tags = Array.isArray(anyToken.tags) ? anyToken.tags : [];
+    anyToken.tags = anyToken.tags.filter((tag) => tag !== op.tag);
+    logTransaction(tx, `Tag retire: ${op.tag}`, opts.onLog);
+    return;
+  }
+  if (op.op === "SetFlag") {
+    const anyToken = targetToken;
+    anyToken.flags = anyToken.flags ?? {};
+    anyToken.flags[op.flag] = op.value;
+    logTransaction(tx, `Flag ${op.flag} = ${op.value}`, opts.onLog);
+    return;
+  }
   if (op.op === "ModifyPathLimit") {
     if (typeof op.delta === "number") {
-      (_f = opts.onModifyPathLimit) == null ? void 0 : _f.call(opts, op.delta);
+      (_j = opts.onModifyPathLimit) == null ? void 0 : _j.call(opts, op.delta);
       logTransaction(tx, `Limite de trajet modifiee (${op.delta >= 0 ? "+" : ""}${op.delta})`, opts.onLog);
     }
     return;
   }
   if (op.op === "ToggleTorch") {
-    (_g = opts.onToggleTorch) == null ? void 0 : _g.call(opts);
+    (_k = opts.onToggleTorch) == null ? void 0 : _k.call(opts);
     return;
   }
   if (op.op === "SetKillerInstinctTarget") {
-    (_h = opts.onSetKillerInstinctTarget) == null ? void 0 : _h.call(opts, targetToken.id);
+    (_l = opts.onSetKillerInstinctTarget) == null ? void 0 : _l.call(opts, targetToken.id);
     logTransaction(tx, `Instinct de tueur: cible ${targetToken.id}`, opts.onLog);
     return;
   }
   if (op.op === "PlayVisualEffect") {
     if (op.effectId) {
-      (_i = opts.onPlayVisualEffect) == null ? void 0 : _i.call(opts, {
+      (_m = opts.onPlayVisualEffect) == null ? void 0 : _m.call(opts, {
         effectId: op.effectId,
         anchor: op.anchor,
         offset: op.offset,
@@ -16606,6 +16881,10 @@ function compare(cmp, left, right) {
       return left > right;
     case "GTE":
       return left >= right;
+    case "IN":
+      return left === right;
+    case "NIN":
+      return left !== right;
     default:
       return false;
   }
@@ -16625,13 +16904,22 @@ function getResourceAmountFallback(token, name2) {
   if (!pool) return 0;
   return Number(pool.current ?? 0);
 }
-function outcomeHasFlag(outcome, flag) {
-  if (!outcome) return false;
-  if (flag === "HIT") return outcome.kind === "hit";
-  if (flag === "MISS") return outcome.kind === "miss";
-  if (flag === "CRIT") return outcome.kind === "crit";
-  if (flag === "SAVE_SUCCESS") return outcome.kind === "saveSuccess";
-  if (flag === "SAVE_FAIL") return outcome.kind === "saveFail";
+function outcomeHasFlag(outcome2, flag) {
+  if (!outcome2) return false;
+  if (flag === "HIT") return outcome2.kind === "hit";
+  if (flag === "MISS") return outcome2.kind === "miss";
+  if (flag === "CRIT") return outcome2.kind === "crit";
+  if (flag === "SAVE_SUCCESS") return outcome2.kind === "saveSuccess";
+  if (flag === "SAVE_FAIL") return outcome2.kind === "saveFail";
+  if (flag === "CHECK_SUCCESS") return outcome2.kind === "hit";
+  if (flag === "CHECK_FAIL") return outcome2.kind === "miss";
+  if (flag === "AUTO_SUCCESS") {
+    return outcome2.kind === "hit" && outcome2.roll === 0 && outcome2.total === 0;
+  }
+  if (flag === "AUTO_FAIL") {
+    return outcome2.kind === "miss" && outcome2.roll === 0 && outcome2.total === 0;
+  }
+  if (flag === "PARTIAL") return false;
   return false;
 }
 function getCreatureType(token) {
@@ -16673,8 +16961,25 @@ function getValue(token, key2, values) {
   if (typeof raw === "number") return raw;
   return null;
 }
+function getUsageCount(usage2, scope, key2) {
+  if (!usage2) return 0;
+  const map = usage2[scope];
+  if (!map) return 0;
+  const raw = map[key2];
+  return typeof raw === "number" ? raw : 0;
+}
+function isHpBelow(params) {
+  const { token, value: value2, mode } = params;
+  if (mode === "absolute") {
+    return (token.hp ?? 0) <= value2;
+  }
+  const maxHp = token.maxHp ?? 0;
+  const curHp = token.hp ?? 0;
+  if (maxHp <= 0) return false;
+  return curHp / maxHp < value2;
+}
 function evaluateConditionExpr(condition, ctx) {
-  var _a, _b, _c, _d, _e, _f, _g, _h;
+  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j;
   switch (condition.type) {
     case "AND":
       return condition.all.every((cond) => evaluateConditionExpr(cond, ctx));
@@ -16687,18 +16992,64 @@ function evaluateConditionExpr(condition, ctx) {
       if (!expected) return true;
       return ctx.phase === expected;
     }
+    case "OUTCOME_IS":
+      return !!ctx.outcome && outcomeHasFlag(ctx.outcome, condition.value);
+    case "OUTCOME_IN":
+      return !!ctx.outcome && condition.values.some((flag) => outcomeHasFlag(ctx.outcome, flag));
+    case "ROLL_AT_LEAST":
+      return typeof ((_a = ctx.outcome) == null ? void 0 : _a.roll) === "number" ? ctx.outcome.roll >= condition.value : false;
+    case "ROLL_AT_MOST":
+      return typeof ((_b = ctx.outcome) == null ? void 0 : _b.roll) === "number" ? ctx.outcome.roll <= condition.value : false;
     case "OUTCOME_HAS":
       return outcomeHasFlag(ctx.outcome, condition.flag);
     case "TARGET_ALIVE":
       return !!ctx.target && ctx.target.hp > 0;
+    case "TARGET_HP_BELOW":
+      return !!ctx.target && isHpBelow({ token: ctx.target, value: condition.value, mode: condition.mode });
+    case "ACTOR_HP_BELOW":
+      return isHpBelow({ token: ctx.actor, value: condition.value, mode: condition.mode });
     case "DISTANCE_MAX":
       return typeof ctx.distance === "number" ? ctx.distance <= condition.max : false;
+    case "DISTANCE_WITHIN":
+      if (typeof ctx.distance !== "number") return false;
+      if (typeof condition.min === "number" && ctx.distance < condition.min) return false;
+      if (typeof condition.max === "number" && ctx.distance > condition.max) return false;
+      return true;
     case "DISTANCE_BETWEEN": {
       if (typeof ctx.distance !== "number") return false;
       if (typeof condition.min === "number" && ctx.distance < condition.min) return false;
       if (typeof condition.max === "number" && ctx.distance > condition.max) return false;
       return true;
     }
+    case "HAS_LINE_OF_SIGHT":
+      if (typeof condition.value === "boolean") return (ctx.lineOfSight ?? false) === condition.value;
+      return !!ctx.lineOfSight;
+    case "SAME_LEVEL":
+      if (typeof condition.value === "boolean") return (ctx.sameLevel ?? false) === condition.value;
+      return !!ctx.sameLevel;
+    case "TARGET_IN_AREA":
+      if (typeof condition.value === "boolean") return (ctx.targetInArea ?? false) === condition.value;
+      return !!ctx.targetInArea;
+    case "ONCE_PER_TURN":
+      return getUsageCount(ctx.usage, "turn", condition.key) <= 0;
+    case "ONCE_PER_ROUND":
+      return getUsageCount(ctx.usage, "round", condition.key) <= 0;
+    case "ONCE_PER_COMBAT":
+      return getUsageCount(ctx.usage, "combat", condition.key) <= 0;
+    case "NOT_USED_THIS_TURN":
+      return getUsageCount(ctx.usage, "turn", condition.key) <= 0;
+    case "IS_REACTION_AVAILABLE":
+      if (typeof condition.value === "boolean") return (ctx.reactionAvailable ?? false) === condition.value;
+      return !!ctx.reactionAvailable;
+    case "IS_CONCENTRATING":
+      if (typeof condition.value === "boolean") return (ctx.concentrating ?? false) === condition.value;
+      return !!ctx.concentrating;
+    case "IS_SURPRISED":
+      if (typeof condition.value === "boolean") return (ctx.surprised ?? false) === condition.value;
+      return !!ctx.surprised;
+    case "IS_IN_LIGHT":
+      if (typeof condition.value === "boolean") return (ctx.inLight ?? false) === condition.value;
+      return !!ctx.inLight;
     case "STAT_BELOW_PERCENT": {
       const who = condition.who === "target" ? ctx.target : ctx.actor;
       if (!who) return false;
@@ -16711,6 +17062,22 @@ function evaluateConditionExpr(condition, ctx) {
     case "RESOURCE_AT_LEAST": {
       const amount = ctx.getResourceAmount ? ctx.getResourceAmount(condition.resource, condition.pool ?? null) : getResourceAmountFallback(ctx.actor, condition.resource);
       return amount >= condition.value;
+    }
+    case "RESOURCE_AT_MOST": {
+      const amount = ctx.getResourceAmount ? ctx.getResourceAmount(condition.resource, condition.pool ?? null) : getResourceAmountFallback(ctx.actor, condition.resource);
+      return amount <= condition.value;
+    }
+    case "HAS_RESOURCE": {
+      const token = condition.who === "target" ? ctx.target : ctx.actor;
+      if (!token) return false;
+      const amount = getResourceAmountFallback(token, condition.key);
+      return compare(condition.cmp, amount, condition.value);
+    }
+    case "SLOT_AVAILABLE": {
+      if (!ctx.getSlotAmount) return false;
+      const amount = ctx.getSlotAmount(condition.slot, condition.level);
+      const min = typeof condition.min === "number" ? condition.min : 1;
+      return amount >= min;
     }
     case "ACTOR_HAS_RESOURCE": {
       const amount = getResourceAmountFallback(ctx.actor, condition.key);
@@ -16756,36 +17123,36 @@ function evaluateConditionExpr(condition, ctx) {
       return !!ctx.target && canMove(ctx.target, condition.move);
     case "ACTOR_DAMAGE_IMMUNE": {
       const defenses = getDamageDefenses(ctx.actor);
-      return !!((_a = defenses == null ? void 0 : defenses.immune) == null ? void 0 : _a.includes(condition.damageType));
+      return !!((_c = defenses == null ? void 0 : defenses.immune) == null ? void 0 : _c.includes(condition.damageType));
     }
     case "TARGET_DAMAGE_IMMUNE": {
       const defenses = ctx.target ? getDamageDefenses(ctx.target) : null;
-      return !!((_b = defenses == null ? void 0 : defenses.immune) == null ? void 0 : _b.includes(condition.damageType));
+      return !!((_d = defenses == null ? void 0 : defenses.immune) == null ? void 0 : _d.includes(condition.damageType));
     }
     case "ACTOR_DAMAGE_RESIST": {
       const defenses = getDamageDefenses(ctx.actor);
-      return !!((_c = defenses == null ? void 0 : defenses.resist) == null ? void 0 : _c.includes(condition.damageType));
+      return !!((_e = defenses == null ? void 0 : defenses.resist) == null ? void 0 : _e.includes(condition.damageType));
     }
     case "TARGET_DAMAGE_RESIST": {
       const defenses = ctx.target ? getDamageDefenses(ctx.target) : null;
-      return !!((_d = defenses == null ? void 0 : defenses.resist) == null ? void 0 : _d.includes(condition.damageType));
+      return !!((_f = defenses == null ? void 0 : defenses.resist) == null ? void 0 : _f.includes(condition.damageType));
     }
     case "ACTOR_DAMAGE_VULNERABLE": {
       const defenses = getDamageDefenses(ctx.actor);
-      return !!((_e = defenses == null ? void 0 : defenses.vulnerable) == null ? void 0 : _e.includes(condition.damageType));
+      return !!((_g = defenses == null ? void 0 : defenses.vulnerable) == null ? void 0 : _g.includes(condition.damageType));
     }
     case "TARGET_DAMAGE_VULNERABLE": {
       const defenses = ctx.target ? getDamageDefenses(ctx.target) : null;
-      return !!((_f = defenses == null ? void 0 : defenses.vulnerable) == null ? void 0 : _f.includes(condition.damageType));
+      return !!((_h = defenses == null ? void 0 : defenses.vulnerable) == null ? void 0 : _h.includes(condition.damageType));
     }
     case "ACTOR_VALUE": {
-      const value2 = getValue(ctx.actor, condition.key, (_g = ctx.valueLookup) == null ? void 0 : _g.actor);
+      const value2 = getValue(ctx.actor, condition.key, (_i = ctx.valueLookup) == null ? void 0 : _i.actor);
       if (value2 === null) return false;
       return compare(condition.cmp, value2, condition.value);
     }
     case "TARGET_VALUE": {
       if (!ctx.target) return false;
-      const value2 = getValue(ctx.target, condition.key, (_h = ctx.valueLookup) == null ? void 0 : _h.target);
+      const value2 = getValue(ctx.target, condition.key, (_j = ctx.valueLookup) == null ? void 0 : _j.target);
       if (value2 === null) return false;
       return compare(condition.cmp, value2, condition.value);
     }
@@ -16810,71 +17177,246 @@ function resolvePromptDecision(hook, opts) {
   if (opts.promptHandler) return opts.promptHandler(hook.prompt);
   return hook.prompt.defaultDecision ?? "reject";
 }
+function normalizeHookWhen(when) {
+  switch (when) {
+    case "pre_resolution":
+    case "PRE_RESOLUTION_WINDOW":
+    case "preResolution":
+      return "preResolution";
+    case "on_outcome":
+    case "ON_OUTCOME":
+    case "onOutcome":
+      return "onOutcome";
+    case "on_apply":
+    case "APPLY_TARGET_EFFECTS":
+    case "APPLY_WORLD_EFFECTS":
+    case "afterApply":
+      return "afterApply";
+    case "post_resolution":
+    case "POST_RESOLUTION_WINDOW":
+    case "postResolution":
+      return "postResolution";
+    case "COMMIT":
+    case "beforeCommit":
+      return "beforeCommit";
+    case "afterCommit":
+      return "afterCommit";
+    case "onIntentBuild":
+    case "onOptionsResolve":
+    case "onValidate":
+    case "onTargeting":
+    case "onResolve":
+    case "beforeApply":
+      return when;
+    default:
+      return null;
+  }
+}
+function applyHooks(params) {
+  const { hooks, phase, state, target: target2, outcome: outcome2, explicitTarget, tx, opts } = params;
+  for (const hook of hooks ?? []) {
+    const normalized = normalizeHookWhen(hook.when);
+    if (normalized !== phase) continue;
+    const hookContext = { actor: state.actor, target: target2, outcome: outcome2 };
+    if (!shouldApplyHook(hook, hookContext, opts)) continue;
+    const decision = resolvePromptDecision(hook, opts);
+    if (decision === "accept") {
+      for (const op of hook.apply) {
+        applyOperation({
+          op,
+          tx,
+          state,
+          explicitTarget,
+          opts
+        });
+      }
+    }
+  }
+}
 function resolveOutcome(params) {
   var _a, _b, _c, _d, _e;
   const { plan, state } = params;
-  const resolution2 = plan.action.resolution ?? { kind: "none" };
-  const target = plan.target && "id" in plan.target ? plan.target : null;
-  if (resolution2.kind === "attack") {
-    const bonus = resolution2.bonus ?? 0;
+  const resolution2 = plan.action.resolution ?? { kind: "NO_ROLL" };
+  const target2 = params.target;
+  const rollContext = state.rollContext ?? {};
+  const abilityToModKey = (ability) => {
+    switch (ability) {
+      case "FOR":
+        return "modFOR";
+      case "DEX":
+        return "modDEX";
+      case "CON":
+        return "modCON";
+      case "INT":
+        return "modINT";
+      case "SAG":
+        return "modSAG";
+      case "CHA":
+        return "modCHA";
+      default:
+        return "modFOR";
+    }
+  };
+  if (resolution2.kind === "ATTACK_ROLL") {
+    const bonus = (resolution2.bonus ?? 0) + (rollContext.bonusDelta ?? 0);
     const critRange = resolution2.critRange ?? 20;
-    const roll = ((_a = params.rollOverrides) == null ? void 0 : _a.attack) ?? rollAttack(bonus, params.advantageMode ?? "normal", critRange);
-    const targetAC = target && typeof target.armorClass === "number" ? target.armorClass : null;
+    let roll = ((_a = params.rollOverrides) == null ? void 0 : _a.attack) ?? rollAttack(bonus, params.advantageMode ?? "normal", critRange);
+    if (rollContext.replaceRoll !== void 0) {
+      const d20 = rollContext.replaceRoll;
+      roll = {
+        ...roll,
+        d20: { total: d20 },
+        total: d20 + bonus,
+        isCrit: d20 >= critRange
+      };
+    }
+    if (rollContext.reroll) {
+      const reroll = rollAttack(bonus, params.advantageMode ?? "normal", critRange);
+      roll = rollContext.reroll === "min" ? reroll.total < roll.total ? reroll : roll : reroll.total > roll.total ? reroll : roll;
+    }
+    if (typeof rollContext.minRoll === "number") {
+      const d20 = Math.max(rollContext.minRoll, roll.d20.total);
+      roll = { ...roll, d20: { total: d20 }, total: d20 + bonus, isCrit: d20 >= critRange };
+    }
+    if (typeof rollContext.maxRoll === "number") {
+      const d20 = Math.min(rollContext.maxRoll, roll.d20.total);
+      roll = { ...roll, d20: { total: d20 }, total: d20 + bonus, isCrit: d20 >= critRange };
+    }
+    const targetAC = target2 && typeof target2.armorClass === "number" ? target2.armorClass : null;
     const isHit = targetAC === null ? true : roll.total >= targetAC || roll.isCrit;
     const kind2 = roll.isCrit ? "crit" : isHit ? "hit" : "miss";
     return {
       outcome: { kind: kind2, roll: roll.d20.total, total: roll.total, isCrit: roll.isCrit },
-      target
+      target: target2
     };
   }
-  if (resolution2.kind === "save" && resolution2.save) {
+  if (resolution2.kind === "SAVING_THROW" && resolution2.save) {
     const ability = resolution2.save.ability;
-    const dc = resolution2.save.dc;
-    const mod = ((_c = (_b = target == null ? void 0 : target.combatStats) == null ? void 0 : _b.mods) == null ? void 0 : _c[ability]) ?? 0;
-    const roll = rollDamage("1d20", { isCrit: false, critRule: "double-dice" });
+    const dc = resolution2.save.dc + (rollContext.dcDelta ?? 0);
+    const modKey = abilityToModKey(ability);
+    const mod = (((_c = (_b = target2 == null ? void 0 : target2.combatStats) == null ? void 0 : _b.mods) == null ? void 0 : _c[modKey]) ?? 0) + (rollContext.bonusDelta ?? 0);
+    let roll = rollDamage("1d20", { isCrit: false, critRule: "double-dice" });
+    if (rollContext.replaceRoll !== void 0) {
+      roll = { ...roll, total: rollContext.replaceRoll };
+    }
+    if (rollContext.reroll) {
+      const reroll = rollDamage("1d20", { isCrit: false, critRule: "double-dice" });
+      roll = rollContext.reroll === "min" ? reroll.total < roll.total ? reroll : roll : reroll.total > roll.total ? reroll : roll;
+    }
+    if (typeof rollContext.minRoll === "number") {
+      roll = { ...roll, total: Math.max(rollContext.minRoll, roll.total) };
+    }
+    if (typeof rollContext.maxRoll === "number") {
+      roll = { ...roll, total: Math.min(rollContext.maxRoll, roll.total) };
+    }
     const total = roll.total + mod;
     const success = total >= dc;
     const kind2 = success ? "saveSuccess" : "saveFail";
     return {
       outcome: { kind: kind2, roll: roll.total, total },
-      target
+      target: target2
     };
   }
-  if (resolution2.kind === "check" && resolution2.check) {
+  if (resolution2.kind === "ABILITY_CHECK" && resolution2.check) {
     const ability = resolution2.check.ability;
-    const dc = resolution2.check.dc;
-    const mod = ((_e = (_d = state.actor.combatStats) == null ? void 0 : _d.mods) == null ? void 0 : _e[ability]) ?? 0;
-    const roll = rollDamage("1d20", { isCrit: false, critRule: "double-dice" });
+    const dc = resolution2.check.dc + (rollContext.dcDelta ?? 0);
+    const modKey = abilityToModKey(ability);
+    const mod = (((_e = (_d = state.actor.combatStats) == null ? void 0 : _d.mods) == null ? void 0 : _e[modKey]) ?? 0) + (rollContext.bonusDelta ?? 0);
+    let roll = rollDamage("1d20", { isCrit: false, critRule: "double-dice" });
+    if (rollContext.replaceRoll !== void 0) {
+      roll = { ...roll, total: rollContext.replaceRoll };
+    }
+    if (rollContext.reroll) {
+      const reroll = rollDamage("1d20", { isCrit: false, critRule: "double-dice" });
+      roll = rollContext.reroll === "min" ? reroll.total < roll.total ? reroll : roll : reroll.total > roll.total ? reroll : roll;
+    }
+    if (typeof rollContext.minRoll === "number") {
+      roll = { ...roll, total: Math.max(rollContext.minRoll, roll.total) };
+    }
+    if (typeof rollContext.maxRoll === "number") {
+      roll = { ...roll, total: Math.min(rollContext.maxRoll, roll.total) };
+    }
     const total = roll.total + mod;
     const success = total >= dc;
     const kind2 = success ? "hit" : "miss";
     return {
       outcome: { kind: kind2, roll: roll.total, total },
-      target
+      target: target2
     };
   }
   return {
     outcome: { kind: "hit", roll: 0, total: 0 },
-    target
+    target: target2
   };
 }
-function collectOperations(effects, outcome) {
+function collectOperations(effects, outcome2) {
   const ops2 = [];
   if (effects == null ? void 0 : effects.onResolve) ops2.push(...effects.onResolve);
-  if (outcome.kind === "hit" && (effects == null ? void 0 : effects.onHit)) ops2.push(...effects.onHit);
-  if (outcome.kind === "miss" && (effects == null ? void 0 : effects.onMiss)) ops2.push(...effects.onMiss);
-  if (outcome.kind === "crit") {
+  if (outcome2.kind === "hit" && (effects == null ? void 0 : effects.onHit)) ops2.push(...effects.onHit);
+  if (outcome2.kind === "miss" && (effects == null ? void 0 : effects.onMiss)) ops2.push(...effects.onMiss);
+  if (outcome2.kind === "crit") {
     if (effects == null ? void 0 : effects.onHit) ops2.push(...effects.onHit);
     if (effects == null ? void 0 : effects.onCrit) ops2.push(...effects.onCrit);
   }
-  if (outcome.kind === "saveSuccess" && (effects == null ? void 0 : effects.onSaveSuccess)) ops2.push(...effects.onSaveSuccess);
-  if (outcome.kind === "saveFail" && (effects == null ? void 0 : effects.onSaveFail)) ops2.push(...effects.onSaveFail);
+  if (outcome2.kind === "saveSuccess" && (effects == null ? void 0 : effects.onSaveSuccess)) ops2.push(...effects.onSaveSuccess);
+  if (outcome2.kind === "saveFail" && (effects == null ? void 0 : effects.onSaveFail)) ops2.push(...effects.onSaveFail);
   return ops2;
 }
 function executePlan(params) {
-  var _a, _b, _c, _d;
+  var _a, _b, _c, _d, _e, _f;
   const { plan, state, opts } = params;
   const tx = beginTransaction(state);
+  const initialTarget = plan.target && "id" in plan.target ? plan.target : null;
+  applyHooks({
+    hooks: plan.hooks ?? [],
+    phase: "onIntentBuild",
+    state: tx.state,
+    target: initialTarget,
+    outcome: null,
+    explicitTarget: initialTarget ? { kind: "token", token: initialTarget } : null,
+    tx,
+    opts
+  });
+  applyHooks({
+    hooks: plan.hooks ?? [],
+    phase: "onOptionsResolve",
+    state: tx.state,
+    target: initialTarget,
+    outcome: null,
+    explicitTarget: initialTarget ? { kind: "token", token: initialTarget } : null,
+    tx,
+    opts
+  });
+  applyHooks({
+    hooks: plan.hooks ?? [],
+    phase: "onValidate",
+    state: tx.state,
+    target: initialTarget,
+    outcome: null,
+    explicitTarget: initialTarget ? { kind: "token", token: initialTarget } : null,
+    tx,
+    opts
+  });
+  applyHooks({
+    hooks: plan.hooks ?? [],
+    phase: "onTargeting",
+    state: tx.state,
+    target: initialTarget,
+    outcome: null,
+    explicitTarget: initialTarget ? { kind: "token", token: initialTarget } : null,
+    tx,
+    opts
+  });
+  applyHooks({
+    hooks: plan.hooks ?? [],
+    phase: "preResolution",
+    state: tx.state,
+    target: initialTarget,
+    outcome: null,
+    explicitTarget: initialTarget ? { kind: "token", token: initialTarget } : null,
+    tx,
+    opts
+  });
   if (plan.reactionWindows.includes("pre")) {
     const result = ((_a = opts.onReactionWindow) == null ? void 0 : _a.call(opts, "pre")) ?? "continue";
     if (result === "interrupt") {
@@ -16887,89 +17429,154 @@ function executePlan(params) {
       };
     }
   }
-  const { outcome, target } = resolveOutcome({
-    plan,
-    state: tx.state,
-    advantageMode: params.advantageMode,
-    rollOverrides: opts.rollOverrides
-  });
-  if (((_b = plan.action.resolution) == null ? void 0 : _b.kind) === "attack") {
-    const targetAC = target && typeof target.armorClass === "number" ? target.armorClass : null;
-    logTransaction(
-      tx,
-      `Jet de touche (${plan.action.name}) : ${outcome.roll} + ${((_c = plan.action.resolution) == null ? void 0 : _c.bonus) ?? 0} = ${outcome.total}` + (targetAC !== null ? ` vs CA ${targetAC}` : "") + (outcome.isCrit ? " (critique!)" : ""),
-      opts.onLog
-    );
-    if (outcome.kind === "miss") {
+  const targets = (() => {
+    if (plan.target && "kind" in plan.target && plan.target.kind === "tokens") {
+      return plan.target.tokens ?? [];
+    }
+    if (plan.target && "id" in plan.target) {
+      return [plan.target];
+    }
+    return [null].filter(Boolean);
+  })();
+  const resolvedOutcomes = targets.length ? targets.map(
+    (target2) => resolveOutcome({
+      plan,
+      state: tx.state,
+      advantageMode: params.advantageMode,
+      rollOverrides: opts.rollOverrides,
+      target: target2
+    })
+  ) : [
+    resolveOutcome({
+      plan,
+      state: tx.state,
+      advantageMode: params.advantageMode,
+      rollOverrides: opts.rollOverrides,
+      target: null
+    })
+  ];
+  for (const { outcome: outcome2, target: target2 } of resolvedOutcomes) {
+    if (((_b = plan.action.resolution) == null ? void 0 : _b.kind) === "ATTACK_ROLL") {
+      const targetAC = target2 && typeof target2.armorClass === "number" ? target2.armorClass : null;
       logTransaction(
         tx,
-        `L'attaque (${plan.action.name}) rate sa cible. Pas de degats.`,
+        `Jet de touche (${plan.action.name}) : ${outcome2.roll} + ${((_c = plan.action.resolution) == null ? void 0 : _c.bonus) ?? 0} = ${outcome2.total}` + (targetAC !== null ? ` vs CA ${targetAC}` : "") + (outcome2.isCrit ? " (critique!)" : ""),
         opts.onLog
       );
-    }
-  }
-  const hookContext = { actor: tx.state.actor, target, outcome };
-  const hooks = plan.hooks ?? [];
-  for (const hook of hooks) {
-    if (hook.when !== "on_outcome") continue;
-    if (!shouldApplyHook(hook, hookContext, opts)) continue;
-    const decision = resolvePromptDecision(hook, opts);
-    if (decision === "accept") {
-      for (const op of hook.apply) {
-        applyOperation({
-          op,
+      if (outcome2.kind === "miss") {
+        logTransaction(
           tx,
-          state: tx.state,
-          explicitTarget: target ? { kind: "token", token: target } : null,
-          opts
-        });
+          `L'attaque (${plan.action.name}) rate sa cible. Pas de degats.`,
+          opts.onLog
+        );
       }
     }
-  }
-  const ops2 = collectOperations(plan.action.effects, outcome);
-  const explicitTarget = plan.target && "id" in plan.target ? { kind: "token", token: plan.target } : plan.target && "x" in plan.target ? { kind: "cell", x: plan.target.x, y: plan.target.y } : null;
-  for (const op of ops2) {
-    applyOperation({
-      op,
-      tx,
+    applyHooks({
+      hooks: plan.hooks ?? [],
+      phase: "onResolve",
       state: tx.state,
-      explicitTarget: explicitTarget ?? (target ? { kind: "token", token: target } : null),
+      target: target2,
+      outcome: outcome2,
+      explicitTarget: target2 ? { kind: "token", token: target2 } : null,
+      tx,
+      opts
+    });
+    applyHooks({
+      hooks: plan.hooks ?? [],
+      phase: "onOutcome",
+      state: tx.state,
+      target: target2,
+      outcome: outcome2,
+      explicitTarget: target2 ? { kind: "token", token: target2 } : null,
+      tx,
+      opts
+    });
+    applyHooks({
+      hooks: plan.hooks ?? [],
+      phase: "beforeApply",
+      state: tx.state,
+      target: target2,
+      outcome: outcome2,
+      explicitTarget: target2 ? { kind: "token", token: target2 } : null,
+      tx,
+      opts
+    });
+    const ops2 = collectOperations(plan.action.effects, outcome2);
+    const explicitTarget = plan.target && "id" in plan.target ? { kind: "token", token: plan.target } : plan.target && "x" in plan.target ? { kind: "cell", x: plan.target.x, y: plan.target.y } : null;
+    for (const op of ops2) {
+      applyOperation({
+        op,
+        tx,
+        state: tx.state,
+        explicitTarget: explicitTarget ?? (target2 ? { kind: "token", token: target2 } : null),
+        opts
+      });
+    }
+    applyHooks({
+      hooks: plan.hooks ?? [],
+      phase: "afterApply",
+      state: tx.state,
+      target: target2,
+      outcome: outcome2,
+      explicitTarget: target2 ? { kind: "token", token: target2 } : null,
+      tx,
+      opts
+    });
+    applyHooks({
+      hooks: plan.hooks ?? [],
+      phase: "postResolution",
+      state: tx.state,
+      target: target2,
+      outcome: outcome2,
+      explicitTarget: target2 ? { kind: "token", token: target2 } : null,
+      tx,
       opts
     });
   }
   if (plan.reactionWindows.includes("post")) {
     const result = ((_d = opts.onReactionWindow) == null ? void 0 : _d.call(opts, "post")) ?? "continue";
     if (result === "interrupt") {
-      return { ok: false, logs: tx.logs, state: tx.state, interrupted: true, outcome };
+      const lastOutcome2 = ((_e = resolvedOutcomes[resolvedOutcomes.length - 1]) == null ? void 0 : _e.outcome) ?? { kind: "miss", roll: 0, total: 0 };
+      return { ok: false, logs: tx.logs, state: tx.state, interrupted: true, outcome: lastOutcome2 };
     }
   }
-  return { ok: true, logs: tx.logs, state: tx.state, outcome };
+  applyHooks({
+    hooks: plan.hooks ?? [],
+    phase: "beforeCommit",
+    state: tx.state,
+    target,
+    outcome,
+    explicitTarget: target ? { kind: "token", token: target } : null,
+    tx,
+    opts
+  });
+  applyHooks({
+    hooks: plan.hooks ?? [],
+    phase: "afterCommit",
+    state: tx.state,
+    target,
+    outcome,
+    explicitTarget: target ? { kind: "token", token: target } : null,
+    tx,
+    opts
+  });
+  const lastOutcome = ((_f = resolvedOutcomes[resolvedOutcomes.length - 1]) == null ? void 0 : _f.outcome) ?? { kind: "hit", roll: 0, total: 0 };
+  return { ok: true, logs: tx.logs, state: tx.state, outcome: lastOutcome };
 }
 const kindMap = {
-  ATTACK_ROLL: "attack",
-  SAVING_THROW: "save",
-  ABILITY_CHECK: "check",
-  NO_ROLL: "none",
-  attack: "attack",
-  save: "save",
-  check: "check",
-  none: "none"
+  ATTACK_ROLL: "ATTACK_ROLL",
+  SAVING_THROW: "SAVING_THROW",
+  ABILITY_CHECK: "ABILITY_CHECK",
+  CONTESTED_CHECK: "CONTESTED_CHECK",
+  NO_ROLL: "NO_ROLL"
 };
 const abilityMap = {
-  STR: "str",
-  FOR: "str",
-  DEX: "dex",
-  CON: "con",
-  INT: "int",
-  WIS: "wis",
-  SAG: "wis",
-  CHA: "cha",
-  str: "str",
-  dex: "dex",
-  con: "con",
-  int: "int",
-  wis: "wis",
-  cha: "cha"
+  FOR: "FOR",
+  DEX: "DEX",
+  CON: "CON",
+  INT: "INT",
+  SAG: "SAG",
+  CHA: "CHA"
 };
 function mapResolution(action2) {
   var _a, _b, _c;
@@ -16989,13 +17596,16 @@ function mapResolution(action2) {
   }
   if (action2.attack) {
     return {
-      kind: "attack",
+      kind: "ATTACK_ROLL",
       bonus: action2.attack.bonus,
       critRange: action2.attack.critRange ?? 20,
       critRule: ((_c = action2.damage) == null ? void 0 : _c.critRule) ?? "double-dice"
     };
   }
-  return { kind: "none" };
+  return { kind: "NO_ROLL" };
+}
+function normalizeTargeting(action2) {
+  return action2.targeting;
 }
 function mapEffects(action2) {
   if (!action2.ops) return void 0;
@@ -17006,7 +17616,7 @@ function actionDefinitionToActionSpec(action2) {
     id: action2.id,
     name: action2.name,
     summary: action2.summary,
-    targeting: action2.targeting,
+    targeting: normalizeTargeting(action2),
     resolution: mapResolution(action2),
     effects: mapEffects(action2),
     reactionWindows: action2.reactionWindows ?? [],
@@ -17030,7 +17640,7 @@ function isAllyTarget(actor, targetToken) {
   return actor.type === targetToken.type;
 }
 function validateTokenTarget(action2, ctx, targetToken) {
-  var _a, _b, _c;
+  var _a, _b, _c, _d;
   const actor = ctx.actor;
   const allTokens = [ctx.player, ...ctx.enemies];
   if (targetToken.hp <= 0) {
@@ -17060,15 +17670,26 @@ function validateTokenTarget(action2, ctx, targetToken) {
       actor,
       target: targetToken,
       distance: dist,
-      phase: ctx.phase,
+      phase: ctx.enginePhase ?? ctx.phase,
+      sameLevel: areOnSameBaseLevel(ctx, actor, targetToken),
+      lineOfSight: ((_b = action2.targeting) == null ? void 0 : _b.requiresLos) ? isTargetVisible(
+        actor,
+        targetToken,
+        allTokens,
+        ctx.blockedVisionCells ?? null,
+        ctx.playableCells ?? null,
+        ctx.wallVisionEdges ?? null,
+        ctx.lightLevels ?? null,
+        ctx.grid ?? null
+      ) : null,
       getResourceAmount: ctx.getResourceAmount
     });
     if (!ok) {
-      const firstReason = (_b = action2.conditions.find((cond) => cond.reason)) == null ? void 0 : _b.reason;
+      const firstReason = (_c = action2.conditions.find((cond) => cond.reason)) == null ? void 0 : _c.reason;
       return { ok: false, reason: firstReason || "Conditions non remplies." };
     }
   }
-  if ((_c = action2.targeting) == null ? void 0 : _c.requiresLos) {
+  if ((_d = action2.targeting) == null ? void 0 : _d.requiresLos) {
     const visible = isTargetVisible(
       actor,
       targetToken,
@@ -17095,7 +17716,7 @@ function validateTokenTarget(action2, ctx, targetToken) {
   }
   return { ok: true };
 }
-function validateActionTarget(action2, ctx, target) {
+function validateActionTarget(action2, ctx, target2) {
   var _a, _b;
   const actor = ctx.actor;
   const targeting2 = action2.targeting;
@@ -17104,13 +17725,25 @@ function validateActionTarget(action2, ctx, target) {
     return { ok: true };
   }
   if (targeting2.target === "enemy") {
-    if (target.kind !== "token" || target.token.type !== "enemy") {
+    if (target2.kind === "tokens") {
+      const tokens = target2.tokens.filter((t2) => t2.type === "enemy");
+      if (tokens.length === 0) return { ok: false, reason: "Cible ennemi manquante." };
+      if (typeof targeting2.maxTargets === "number" && tokens.length > targeting2.maxTargets) {
+        return { ok: false, reason: "Trop de cibles." };
+      }
+      for (const token of tokens) {
+        const res = validateTokenTarget(action2, ctx, token);
+        if (!res.ok) return res;
+      }
+      return { ok: true };
+    }
+    if (target2.kind !== "token" || target2.token.type !== "enemy") {
       return { ok: false, reason: "Cible ennemi manquante." };
     }
-    return validateTokenTarget(action2, ctx, target.token);
+    return validateTokenTarget(action2, ctx, target2.token);
   }
   if (targeting2.target === "player") {
-    const playerToken = target.kind === "token" ? target.token : ctx.player;
+    const playerToken = target2.kind === "token" ? target2.token : ctx.player;
     if (!playerToken || playerToken.type !== "player") {
       return { ok: false, reason: "Cible joueur manquante." };
     }
@@ -17118,8 +17751,20 @@ function validateActionTarget(action2, ctx, target) {
   }
   if (targeting2.target === "hostile") {
     let targetToken = null;
-    if (target.kind === "token") {
-      targetToken = target.token;
+    if (target2.kind === "tokens") {
+      const tokens = target2.tokens.filter((t2) => isHostileTarget(actor, t2));
+      if (tokens.length === 0) return { ok: false, reason: "Cible hostile manquante." };
+      if (typeof targeting2.maxTargets === "number" && tokens.length > targeting2.maxTargets) {
+        return { ok: false, reason: "Trop de cibles." };
+      }
+      for (const token of tokens) {
+        const res = validateTokenTarget(action2, ctx, token);
+        if (!res.ok) return res;
+      }
+      return { ok: true };
+    }
+    if (target2.kind === "token") {
+      targetToken = target2.token;
     } else if (actor.type === "enemy") {
       targetToken = ctx.player;
     }
@@ -17129,25 +17774,37 @@ function validateActionTarget(action2, ctx, target) {
     return validateTokenTarget(action2, ctx, targetToken);
   }
   if (targeting2.target === "ally") {
-    if (target.kind !== "token") {
+    if (target2.kind === "tokens") {
+      const tokens = target2.tokens.filter((t2) => isAllyTarget(actor, t2));
+      if (tokens.length === 0) return { ok: false, reason: "Cible allie manquante." };
+      if (typeof targeting2.maxTargets === "number" && tokens.length > targeting2.maxTargets) {
+        return { ok: false, reason: "Trop de cibles." };
+      }
+      for (const token of tokens) {
+        const res = validateTokenTarget(action2, ctx, token);
+        if (!res.ok) return res;
+      }
+      return { ok: true };
+    }
+    if (target2.kind !== "token") {
       return { ok: false, reason: "Cible allie manquante." };
     }
-    if (!isAllyTarget(actor, target.token)) {
+    if (!isAllyTarget(actor, target2.token)) {
       return { ok: false, reason: "Cible allie invalide." };
     }
-    return validateTokenTarget(action2, ctx, target.token);
+    return validateTokenTarget(action2, ctx, target2.token);
   }
   if (targeting2.target === "emptyCell" || targeting2.target === "cell") {
-    if (target.kind !== "cell") {
+    if (target2.kind !== "cell") {
       return { ok: false, reason: "Cible de case manquante." };
     }
     const cols = ((_a = ctx.grid) == null ? void 0 : _a.cols) ?? GRID_COLS;
     const rows = ((_b = ctx.grid) == null ? void 0 : _b.rows) ?? GRID_ROWS;
-    if (!isCellInsideGrid(target.x, target.y, cols, rows)) {
+    if (!isCellInsideGrid(target2.x, target2.y, cols, rows)) {
       return { ok: false, reason: "Case hors plateau." };
     }
     if (ctx.playableCells && ctx.playableCells.size > 0) {
-      const k2 = `${target.x},${target.y}`;
+      const k2 = `${target2.x},${target2.y}`;
       if (!ctx.playableCells.has(k2)) {
         return { ok: false, reason: "Case hors zone jouable." };
       }
@@ -17167,8 +17824,9 @@ function computeAvailabilityForActor(action2, ctx) {
     const ok = evaluateAllConditions(availabilityConditions, {
       actor: ctx.actor,
       target: ctx.player,
-      phase: ctx.phase,
+      phase: ctx.enginePhase ?? ctx.phase,
       getResourceAmount: ctx.getResourceAmount,
+      sameLevel: true,
       valueLookup: {
         actor: {
           hp: ctx.actor.hp,
@@ -17193,7 +17851,7 @@ function computeAvailabilityForActor(action2, ctx) {
   }
   return { enabled: reasons.length === 0, reasons, details };
 }
-function resolveActionUnified(action2, ctx, target, opts) {
+function resolveActionUnified(action2, ctx, target2, opts) {
   var _a;
   const logs = [];
   const log2 = (m2) => {
@@ -17205,7 +17863,7 @@ function resolveActionUnified(action2, ctx, target, opts) {
   if (!availability.enabled) {
     return { ok: false, reason: availability.reasons.join(" | "), logs };
   }
-  const validation = validateActionTarget(action2, ctx, target);
+  const validation = validateActionTarget(action2, ctx, target2);
   if (!validation.ok) {
     return { ok: false, reason: validation.reason, logs };
   }
@@ -17216,7 +17874,7 @@ function resolveActionUnified(action2, ctx, target, opts) {
   const plan = compileActionPlan({
     action: actionSpec,
     actor,
-    target: target.kind === "token" ? target.token : target.kind === "cell" ? { x: target.x, y: target.y } : null
+    target: target2.kind === "token" ? target2.token : target2.kind === "tokens" ? { kind: "tokens", tokens: target2.tokens } : target2.kind === "cell" ? { x: target2.x, y: target2.y } : null
   });
   const applyMoveTo = (params) => {
     var _a2, _b, _c;
@@ -17289,6 +17947,7 @@ function resolveActionUnified(action2, ctx, target, opts) {
       spendResource: ctx.spendResource,
       rollOverrides: opts == null ? void 0 : opts.rollOverrides,
       onLog: log2,
+      onEmitEvent: ctx.emitEvent,
       onMoveTo: applyMoveTo,
       onModifyPathLimit: ctx.onModifyPathLimit,
       onToggleTorch: ctx.onToggleTorch,
@@ -17520,7 +18179,7 @@ async function requestEnemySpeech(payload) {
 function getInteractionAvailability(params) {
   const {
     interaction,
-    target,
+    target: target2,
     player,
     wallSegments,
     obstacles,
@@ -17530,18 +18189,18 @@ function getInteractionAvailability(params) {
     getWallDistance,
     getObstacleDistance
   } = params;
-  if (target.kind === "wall") {
-    const wall = wallSegments.find((w2) => w2.id === target.segmentId) ?? null;
+  if (target2.kind === "wall") {
+    const wall = wallSegments.find((w2) => w2.id === target2.segmentId) ?? null;
     if (!wall) return { ok: false, reason: "Mur introuvable." };
     const def2 = wall.typeId ? wallTypeById.get(wall.typeId) ?? null : null;
     const dist2 = getWallDistance(player, wall);
     if (dist2 > 1) return { ok: false, reason: "Trop loin." };
     return resolveWallInteraction(interaction, wall, def2, canPayCost);
   }
-  const obstacle = obstacles.find((o2) => o2.id === target.obstacleId) ?? null;
+  const obstacle = obstacles.find((o2) => o2.id === target2.obstacleId) ?? null;
   if (!obstacle) return { ok: false, reason: "Obstacle introuvable." };
   const def = obstacleTypeById.get(obstacle.typeId) ?? null;
-  const dist = getObstacleDistance(player, obstacle, def, target.cell);
+  const dist = getObstacleDistance(player, obstacle, def, target2.cell);
   if (dist > 1) return { ok: false, reason: "Trop loin." };
   return resolveObstacleInteraction(interaction, obstacle, def, canPayCost);
 }
@@ -17604,10 +18263,10 @@ function resolveObstacleInteraction(interaction, obstacle, def, canPayCost) {
   return { ok: true };
 }
 function applyInteraction(params) {
-  const { interaction, target, wallTypeById, setWallSegments, setObstacles } = params;
-  if (target.kind === "wall") {
+  const { interaction, target: target2, wallTypeById, setWallSegments, setObstacles } = params;
+  if (target2.kind === "wall") {
     setWallSegments((prev) => {
-      const idx = prev.findIndex((w2) => w2.id === target.segmentId);
+      const idx = prev.findIndex((w2) => w2.id === target2.segmentId);
       if (idx === -1) return prev;
       const copy = [...prev];
       const segment = { ...copy[idx] };
@@ -17637,7 +18296,7 @@ function applyInteraction(params) {
   }
   setObstacles((prev) => {
     var _a;
-    const idx = prev.findIndex((o2) => o2.id === target.obstacleId);
+    const idx = prev.findIndex((o2) => o2.id === target2.obstacleId);
     if (idx === -1) return prev;
     const copy = [...prev];
     const obstacle = { ...copy[idx] };
@@ -18003,7 +18662,7 @@ const browserExt = {
   },
   test: () => true,
   load: async () => {
-    await __vitePreload(() => import("./browserAll-CSAKY2a1.js"), true ? __vite__mapDeps([0,1,2]) : void 0);
+    await __vitePreload(() => import("./browserAll-HWtC5qX8.js"), true ? __vite__mapDeps([0,1,2]) : void 0);
   }
 };
 const webworkerExt = {
@@ -18014,7 +18673,7 @@ const webworkerExt = {
   },
   test: () => typeof self !== "undefined" && self.WorkerGlobalScope !== void 0,
   load: async () => {
-    await __vitePreload(() => import("./webworkerAll-DgrUnqx4.js"), true ? __vite__mapDeps([1,2]) : void 0);
+    await __vitePreload(() => import("./webworkerAll-D7GgxxN0.js"), true ? __vite__mapDeps([1,2]) : void 0);
   }
 };
 class ObservablePoint {
@@ -23400,21 +24059,21 @@ const getFastGlobalBoundsMixin = {
     }
   }
 };
-function getGlobalBounds(target, skipUpdateTransform, bounds) {
+function getGlobalBounds(target2, skipUpdateTransform, bounds) {
   bounds.clear();
   let parentTransform;
   let pooledMatrix;
-  if (target.parent) {
+  if (target2.parent) {
     if (!skipUpdateTransform) {
       pooledMatrix = matrixPool.get().identity();
-      parentTransform = updateTransformBackwards(target, pooledMatrix);
+      parentTransform = updateTransformBackwards(target2, pooledMatrix);
     } else {
-      parentTransform = target.parent.worldTransform;
+      parentTransform = target2.parent.worldTransform;
     }
   } else {
     parentTransform = Matrix.IDENTITY;
   }
-  _getGlobalBounds(target, bounds, parentTransform, skipUpdateTransform);
+  _getGlobalBounds(target2, bounds, parentTransform, skipUpdateTransform);
   if (pooledMatrix) {
     matrixPool.return(pooledMatrix);
   }
@@ -23423,38 +24082,38 @@ function getGlobalBounds(target, skipUpdateTransform, bounds) {
   }
   return bounds;
 }
-function _getGlobalBounds(target, bounds, parentTransform, skipUpdateTransform) {
+function _getGlobalBounds(target2, bounds, parentTransform, skipUpdateTransform) {
   var _a, _b;
-  if (!target.visible || !target.measurable)
+  if (!target2.visible || !target2.measurable)
     return;
   let worldTransform;
   if (!skipUpdateTransform) {
-    target.updateLocalTransform();
+    target2.updateLocalTransform();
     worldTransform = matrixPool.get();
-    worldTransform.appendFrom(target.localTransform, parentTransform);
+    worldTransform.appendFrom(target2.localTransform, parentTransform);
   } else {
-    worldTransform = target.worldTransform;
+    worldTransform = target2.worldTransform;
   }
   const parentBounds = bounds;
-  const preserveBounds = !!target.effects.length;
+  const preserveBounds = !!target2.effects.length;
   if (preserveBounds) {
     bounds = boundsPool.get().clear();
   }
-  if (target.boundsArea) {
-    bounds.addRect(target.boundsArea, worldTransform);
+  if (target2.boundsArea) {
+    bounds.addRect(target2.boundsArea, worldTransform);
   } else {
-    const renderableBounds = target.bounds;
+    const renderableBounds = target2.bounds;
     if (renderableBounds && !renderableBounds.isEmpty()) {
       bounds.matrix = worldTransform;
       bounds.addBounds(renderableBounds);
     }
-    for (let i2 = 0; i2 < target.children.length; i2++) {
-      _getGlobalBounds(target.children[i2], bounds, worldTransform, skipUpdateTransform);
+    for (let i2 = 0; i2 < target2.children.length; i2++) {
+      _getGlobalBounds(target2.children[i2], bounds, worldTransform, skipUpdateTransform);
     }
   }
   if (preserveBounds) {
-    for (let i2 = 0; i2 < target.effects.length; i2++) {
-      (_b = (_a = target.effects[i2]).addBounds) == null ? void 0 : _b.call(_a, bounds);
+    for (let i2 = 0; i2 < target2.effects.length; i2++) {
+      (_b = (_a = target2.effects[i2]).addBounds) == null ? void 0 : _b.call(_a, bounds);
     }
     parentBounds.addBounds(bounds, Matrix.IDENTITY);
     boundsPool.return(bounds);
@@ -23463,8 +24122,8 @@ function _getGlobalBounds(target, bounds, parentTransform, skipUpdateTransform) 
     matrixPool.return(worldTransform);
   }
 }
-function updateTransformBackwards(target, parentTransform) {
-  const parent = target.parent;
+function updateTransformBackwards(target2, parentTransform) {
+  const parent = target2.parent;
   if (parent) {
     updateTransformBackwards(parent, parentTransform);
     parent.updateLocalTransform();
@@ -23551,23 +24210,23 @@ const getGlobalMixin = {
     return bgr2rgb(color);
   }
 };
-function getLocalBounds(target, bounds, relativeMatrix) {
+function getLocalBounds(target2, bounds, relativeMatrix) {
   bounds.clear();
   relativeMatrix || (relativeMatrix = Matrix.IDENTITY);
-  _getLocalBounds(target, bounds, relativeMatrix, target, true);
+  _getLocalBounds(target2, bounds, relativeMatrix, target2, true);
   if (!bounds.isValid) {
     bounds.set(0, 0, 0, 0);
   }
   return bounds;
 }
-function _getLocalBounds(target, bounds, parentTransform, rootContainer, isRoot) {
+function _getLocalBounds(target2, bounds, parentTransform, rootContainer, isRoot) {
   var _a, _b;
   let relativeTransform;
   if (!isRoot) {
-    if (!target.visible || !target.measurable)
+    if (!target2.visible || !target2.measurable)
       return;
-    target.updateLocalTransform();
-    const localTransform = target.localTransform;
+    target2.updateLocalTransform();
+    const localTransform = target2.localTransform;
     relativeTransform = matrixPool.get();
     relativeTransform.appendFrom(localTransform, parentTransform);
   } else {
@@ -23575,25 +24234,25 @@ function _getLocalBounds(target, bounds, parentTransform, rootContainer, isRoot)
     relativeTransform = parentTransform.copyTo(relativeTransform);
   }
   const parentBounds = bounds;
-  const preserveBounds = !!target.effects.length;
+  const preserveBounds = !!target2.effects.length;
   if (preserveBounds) {
     bounds = boundsPool.get().clear();
   }
-  if (target.boundsArea) {
-    bounds.addRect(target.boundsArea, relativeTransform);
+  if (target2.boundsArea) {
+    bounds.addRect(target2.boundsArea, relativeTransform);
   } else {
-    if (target.renderPipeId) {
+    if (target2.renderPipeId) {
       bounds.matrix = relativeTransform;
-      bounds.addBounds(target.bounds);
+      bounds.addBounds(target2.bounds);
     }
-    const children = target.children;
+    const children = target2.children;
     for (let i2 = 0; i2 < children.length; i2++) {
       _getLocalBounds(children[i2], bounds, relativeTransform, rootContainer, false);
     }
   }
   if (preserveBounds) {
-    for (let i2 = 0; i2 < target.effects.length; i2++) {
-      (_b = (_a = target.effects[i2]).addLocalBounds) == null ? void 0 : _b.call(_a, bounds, rootContainer);
+    for (let i2 = 0; i2 < target2.effects.length; i2++) {
+      (_b = (_a = target2.effects[i2]).addLocalBounds) == null ? void 0 : _b.call(_a, bounds, rootContainer);
     }
     parentBounds.addBounds(bounds, Matrix.IDENTITY);
     boundsPool.return(bounds);
@@ -24149,10 +24808,10 @@ class RenderGroup {
     return this._parentCacheAsTextureRenderGroup.textureOffsetInverseTransform;
   }
 }
-function assignWithIgnore(target, options, ignore = {}) {
+function assignWithIgnore(target2, options, ignore = {}) {
   for (const key2 in options) {
     if (!ignore[key2] && options[key2] !== void 0) {
-      target[key2] = options[key2];
+      target2[key2] = options[key2];
     }
   }
 }
@@ -25581,15 +26240,15 @@ function addMaskLocalBounds(mask, bounds, localRoot) {
   matrixPool.return(tempMatrix2);
   boundsPool.return(boundsToMask);
 }
-function getMatrixRelativeToParent(target, root, matrix) {
-  if (!target) {
+function getMatrixRelativeToParent(target2, root, matrix) {
+  if (!target2) {
     warn("Mask bounds, renderable is not inside the root container");
     return matrix;
   }
-  if (target !== root) {
-    getMatrixRelativeToParent(target.parent, root, matrix);
-    target.updateLocalTransform();
-    matrix.append(target.localTransform);
+  if (target2 !== root) {
+    getMatrixRelativeToParent(target2.parent, root, matrix);
+    target2.updateLocalTransform();
+    matrix.append(target2.localTransform);
   }
   return matrix;
 }
@@ -30060,9 +30719,9 @@ const _AbstractRenderer = class _AbstractRenderer2 extends EventEmitter {
     options.target || (options.target = renderer.renderTarget.renderTarget);
     options.clearColor || (options.clearColor = this.background.colorRgba);
     options.clear ?? (options.clear = CLEAR.ALL);
-    const { clear, clearColor, target } = options;
+    const { clear, clearColor, target: target2 } = options;
     Color.shared.setValue(clearColor ?? this.background.colorRgba);
-    renderer.renderTarget.clear(target, clear, Color.shared.toArray());
+    renderer.renderTarget.clear(target2, clear, Color.shared.toArray());
   }
   /** The resolution / device pixel ratio of the renderer. */
   get resolution() {
@@ -30342,7 +31001,7 @@ async function autoDetectRenderer(options) {
     const rendererType = preferredOrder[i2];
     if (rendererType === "webgpu" && await isWebGPUSupported()) {
       const { WebGPURenderer } = await __vitePreload(async () => {
-        const { WebGPURenderer: WebGPURenderer2 } = await import("./WebGPURenderer-CLtujJ2Y.js");
+        const { WebGPURenderer: WebGPURenderer2 } = await import("./WebGPURenderer-D5AexvVB.js");
         return { WebGPURenderer: WebGPURenderer2 };
       }, true ? __vite__mapDeps([3,2,4]) : void 0);
       RendererClass = WebGPURenderer;
@@ -30352,7 +31011,7 @@ async function autoDetectRenderer(options) {
       options.failIfMajorPerformanceCaveat ?? AbstractRenderer.defaultOptions.failIfMajorPerformanceCaveat
     )) {
       const { WebGLRenderer } = await __vitePreload(async () => {
-        const { WebGLRenderer: WebGLRenderer2 } = await import("./WebGLRenderer-CmsVABJF.js");
+        const { WebGLRenderer: WebGLRenderer2 } = await import("./WebGLRenderer-l8KEVeM7.js");
         return { WebGLRenderer: WebGLRenderer2 };
       }, true ? __vite__mapDeps([5,2,4]) : void 0);
       RendererClass = WebGLRenderer;
@@ -38969,10 +39628,10 @@ const _TextStyle = class _TextStyle2 extends EventEmitter {
   }
   _createProxy(value2, cb) {
     return new Proxy(value2, {
-      set: (target, property, newValue) => {
-        if (target[property] === newValue)
+      set: (target2, property, newValue) => {
+        if (target2[property] === newValue)
           return true;
-        target[property] = newValue;
+        target2[property] = newValue;
         cb == null ? void 0 : cb(property, newValue);
         this.update();
         return true;
@@ -40388,9 +41047,9 @@ const _Loader = class _Loader2 {
     this._parsers = [];
     this._parsersValidated = false;
     this.parsers = new Proxy(this._parsers, {
-      set: (target, key2, value2) => {
+      set: (target2, key2, value2) => {
         this._parsersValidated = false;
-        target[key2] = value2;
+        target2[key2] = value2;
         return true;
       }
     });
@@ -47522,10 +48181,12 @@ function usePixiOverlays(options) {
         });
       }
     }
-    if (options.selectedTargetId) {
-      const target = options.enemies.find((e2) => e2.id === options.selectedTargetId);
-      if (target) {
-        for (const cell of getTokenOccupiedCells(target)) {
+    const selectedIds = options.selectedTargetIds && options.selectedTargetIds.length > 0 ? options.selectedTargetIds : options.selectedTargetId ? [options.selectedTargetId] : [];
+    if (selectedIds.length > 0) {
+      for (const id2 of selectedIds) {
+        const target2 = options.enemies.find((e2) => e2.id === id2) ?? null;
+        if (!target2) continue;
+        for (const cell of getTokenOccupiedCells(target2)) {
           if (!isCellInView(cell.x, cell.y)) continue;
           const rect = cellRect(cell.x, cell.y);
           pathLayer.rect(rect.x, rect.y, rect.size, rect.size).fill({
@@ -47588,6 +48249,7 @@ function usePixiOverlays(options) {
     options.selectedPath,
     options.effectSpecs,
     options.selectedTargetId,
+    options.selectedTargetIds,
     options.selectedObstacleCell,
     options.showVisionDebug,
     options.showFogSegments,
@@ -54431,15 +55093,15 @@ function CombatSetupScreen(props) {
     });
   };
   const removeManualItem = (inventoryIndex) => {
-    const target = inventoryItems[inventoryIndex];
-    if (!target) return;
-    if ((target.qty ?? 1) > 1) {
+    const target2 = inventoryItems[inventoryIndex];
+    if (!target2) return;
+    if ((target2.qty ?? 1) > 1) {
       const nextManual2 = updateEquipmentListQty(
         equipmentManual,
         resolveItemType,
         buildItemSpec,
-        target.type,
-        target.id,
+        target2.type,
+        target2.id,
         -1
       );
       const nextInventory2 = inventoryItems.map(
@@ -54456,13 +55118,13 @@ function CombatSetupScreen(props) {
       equipmentManual,
       resolveItemType,
       buildItemSpec,
-      target.type,
-      target.id,
+      target2.type,
+      target2.id,
       -1
     );
     const slots = { ...materielSlots };
-    if (target.equippedSlot && slots[target.equippedSlot]) {
-      slots[target.equippedSlot] = null;
+    if (target2.equippedSlot && slots[target2.equippedSlot]) {
+      slots[target2.equippedSlot] = null;
     }
     const nextInventory = inventoryItems.filter((_, idx) => idx !== inventoryIndex);
     props.onChangeCharacter({
@@ -54516,37 +55178,37 @@ function CombatSetupScreen(props) {
     return { nextManual: baseManual, nextInventory };
   };
   const sellInventoryItem = (inventoryIndex) => {
-    const target = inventoryItems[inventoryIndex];
-    if (!target || isSectionLocked("equip")) return;
-    if (isCurrencyItem(target)) return;
-    const unitValue = getItemUnitValue(target);
+    const target2 = inventoryItems[inventoryIndex];
+    if (!target2 || isSectionLocked("equip")) return;
+    if (isCurrencyItem(target2)) return;
+    const unitValue = getItemUnitValue(target2);
     if (!unitValue || moneyToCopper(unitValue) <= 0) return;
     const soldValue = scaleMoney(unitValue, 1);
-    const nextAuto = target.source === "auto" ? updateEquipmentListQty(
+    const nextAuto = target2.source === "auto" ? updateEquipmentListQty(
       equipmentAuto,
       resolveItemType,
       buildItemSpec,
-      target.type,
-      target.id,
+      target2.type,
+      target2.id,
       -1
     ) : equipmentAuto;
-    const nextManual = target.source === "manual" ? updateEquipmentListQty(
+    const nextManual = target2.source === "manual" ? updateEquipmentListQty(
       equipmentManual,
       resolveItemType,
       buildItemSpec,
-      target.type,
-      target.id,
+      target2.type,
+      target2.id,
       -1
     ) : equipmentManual;
     const slots = { ...materielSlots };
     let nextInventory = [...inventoryItems];
-    if ((target.qty ?? 1) > 1) {
+    if ((target2.qty ?? 1) > 1) {
       nextInventory = nextInventory.map(
         (item, idx) => idx === inventoryIndex ? { ...item, qty: (item.qty ?? 1) - 1 } : item
       );
     } else {
-      if (target.equippedSlot && slots[target.equippedSlot]) {
-        slots[target.equippedSlot] = null;
+      if (target2.equippedSlot && slots[target2.equippedSlot]) {
+        slots[target2.equippedSlot] = null;
       }
       nextInventory = nextInventory.filter((_, idx) => idx !== inventoryIndex);
     }
@@ -54751,8 +55413,16 @@ function CombatSetupScreen(props) {
     inventoryInitRef.current = true;
   }, []);
   const handleSpeciesSelect = (raceId) => {
+    const race = raceOptions.find((entry) => entry.id === raceId) ?? null;
+    const baseActionIds = Array.isArray(race == null ? void 0 : race.actionIds) ? race == null ? void 0 : race.actionIds.filter(Boolean) : ["melee-strike", "dash"];
+    const nextActionIds = Array.from(new Set(baseActionIds));
     if (!isSectionLocked("species")) {
-      props.onChangeCharacter({ ...props.character, raceId });
+      props.onChangeCharacter({
+        ...props.character,
+        raceId,
+        actionIds: nextActionIds,
+        reactionIds: []
+      });
       return;
     }
     setConfirmModal({
@@ -54786,6 +55456,8 @@ function CombatSetupScreen(props) {
         props.onChangeCharacter({
           ...props.character,
           raceId,
+          actionIds: nextActionIds,
+          reactionIds: [],
           creationLocks: nextLocks,
           classLock: false,
           classLocks: { primary: false, secondary: false },
@@ -58784,12 +59456,86 @@ function ActionContextWindow(props) {
             )
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { marginTop: 6, fontSize: 12, color: "rgba(255,255,255,0.80)" }, children: [
-            "Cible selectionnee:",
+            "Cibles selectionnees:",
             " ",
-            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: props.selectedTargetLabel ? props.selectedTargetLabel : "aucune" }),
-            props.targetMode === "selecting" && props.stage === "active" && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { marginLeft: 8, color: "#cfd3ff" }, children: "(clique un ennemi ou un obstacle)" })
+            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: props.selectedTargetLabels.length > 0 ? "" : "aucune" }),
+            typeof props.maxTargets === "number" && props.maxTargets > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { style: { marginLeft: 6, color: "rgba(255,255,255,0.6)" }, children: [
+              "(",
+              props.selectedTargetIds.length,
+              "/",
+              props.maxTargets,
+              ")"
+            ] }),
+            props.targetMode === "selecting" && props.stage === "active" && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { marginLeft: 8, color: "#cfd3ff" }, children: "(clique pour ajouter/retirer)" })
           ] }),
+          props.selectedTargetLabels.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { marginTop: 6, display: "flex", flexWrap: "wrap", gap: 6 }, children: props.selectedTargetLabels.map((label2, idx) => {
+            const hasId = idx < props.selectedTargetIds.length;
+            const id2 = hasId ? props.selectedTargetIds[idx] : label2;
+            return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "div",
+              {
+                style: {
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "2px 8px",
+                  borderRadius: 999,
+                  background: "rgba(255,255,255,0.08)",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  fontSize: 11,
+                  fontWeight: 800,
+                  color: "rgba(255,255,255,0.85)"
+                },
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: label2 }),
+                  props.onToggleTargetId && hasId && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                    "button",
+                    {
+                      type: "button",
+                      onClick: () => {
+                        var _a2;
+                        return (_a2 = props.onToggleTargetId) == null ? void 0 : _a2.call(props, id2);
+                      },
+                      style: {
+                        width: 18,
+                        height: 18,
+                        borderRadius: 9,
+                        border: "1px solid rgba(255,255,255,0.2)",
+                        background: "rgba(255,255,255,0.08)",
+                        color: "rgba(255,255,255,0.9)",
+                        cursor: "pointer",
+                        fontSize: 10,
+                        lineHeight: "16px",
+                        padding: 0
+                      },
+                      title: "Retirer",
+                      children: "×"
+                    }
+                  )
+                ]
+              },
+              `${id2}-${idx}`
+            );
+          }) }),
           props.stage !== "active" && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { marginTop: 6, fontSize: 12, color: "rgba(255,255,255,0.70)" }, children: "Validez l'action pour pouvoir selectionner une cible sur la grille." }),
+          props.stage === "active" && props.targetMode === "selecting" && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { marginTop: 8 }, children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              type: "button",
+              onClick: () => props.onSetTargetMode("none"),
+              style: {
+                padding: "4px 8px",
+                borderRadius: 10,
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "rgba(255,255,255,0.06)",
+                color: "#fff",
+                cursor: "pointer",
+                fontSize: 11,
+                fontWeight: 800
+              },
+              children: "Terminer selection"
+            }
+          ) }),
           props.targetStatuses && props.targetStatuses.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(
             "div",
             {
@@ -59880,7 +60626,7 @@ function createEnemy(index, enemyType, position) {
 }
 const PLAYER_TORCH_RADIUS = 4;
 const GameBoard = () => {
-  var _a, _b;
+  var _a, _b, _c;
   const pixiContainerRef = reactExports.useRef(null);
   const narrationPendingRef = reactExports.useRef(false);
   const narrationOpenRef = reactExports.useRef(false);
@@ -60081,7 +60827,7 @@ const GameBoard = () => {
   const [selectedPath, setSelectedPath] = reactExports.useState(
     []
   );
-  const [selectedTargetId, setSelectedTargetId] = reactExports.useState(null);
+  const [selectedTargetIds, setSelectedTargetIds] = reactExports.useState([]);
   const [selectedObstacleTarget, setSelectedObstacleTarget] = reactExports.useState(null);
   const [selectedWallTarget, setSelectedWallTarget] = reactExports.useState(null);
   const [targetMode, setTargetMode] = reactExports.useState("none");
@@ -60840,7 +61586,7 @@ const GameBoard = () => {
     player,
     enemies,
     selectedPath,
-    selectedTargetId,
+    selectedTargetIds,
     selectedObstacleTarget,
     selectedWallTarget,
     visibilityLevels,
@@ -60934,13 +61680,14 @@ const GameBoard = () => {
     showAllLevels
   });
   const selectedStructureCell = selectedObstacleTarget ?? selectedWallTarget;
+  getPrimaryTargetId();
   usePixiOverlays({
     pathLayerRef,
     player,
     enemies,
     selectedPath,
     effectSpecs,
-    selectedTargetId,
+    selectedTargetIds,
     selectedObstacleCell: selectedStructureCell ? { x: selectedStructureCell.x, y: selectedStructureCell.y } : null,
     obstacleVisionCells: visionBlockersActive,
     wallVisionEdges: wallEdges.vision,
@@ -61105,21 +61852,37 @@ const GameBoard = () => {
       usedBonusCount: prev.usedBonusCount + (isBonusAction ? 1 : 0)
     }));
   }
-  function getSelectedTargetLabel() {
-    if (selectedTargetId) return selectedTargetId;
+  function getSelectedTargetLabels() {
+    if (selectedTargetIds.length > 0) return [...selectedTargetIds];
     if (selectedObstacleTarget) {
       const obstacle = obstacles.find((o2) => o2.id === selectedObstacleTarget.id) ?? null;
-      if (!obstacle) return "obstacle";
+      if (!obstacle) return ["obstacle"];
       const def = obstacleTypeById.get(obstacle.typeId) ?? null;
-      return (def == null ? void 0 : def.label) ?? obstacle.typeId ?? "obstacle";
+      return [(def == null ? void 0 : def.label) ?? obstacle.typeId ?? "obstacle"];
     }
     if (selectedWallTarget) {
       const wall = wallSegments.find((w2) => w2.id === selectedWallTarget.id) ?? null;
-      if (!wall) return "mur";
+      if (!wall) return ["mur"];
       const def = wall.typeId ? wallTypeById.get(wall.typeId) ?? null : null;
-      return (def == null ? void 0 : def.label) ?? wall.typeId ?? "mur";
+      return [(def == null ? void 0 : def.label) ?? wall.typeId ?? "mur"];
     }
-    return null;
+    return [];
+  }
+  function getPrimaryTargetId() {
+    return selectedTargetIds.length > 0 ? selectedTargetIds[0] : null;
+  }
+  function toggleSelectedTargetId(targetId, maxTargets) {
+    const cap = typeof maxTargets === "number" && maxTargets > 0 ? maxTargets : 1;
+    setSelectedTargetIds((prev) => {
+      if (prev.includes(targetId)) {
+        return prev.filter((id2) => id2 !== targetId);
+      }
+      if (prev.length >= cap) {
+        pushLog(`Maximum de cibles atteint (${cap}).`);
+        return prev;
+      }
+      return [...prev, targetId];
+    });
   }
   function getMovementModeById(id2) {
     return movementModes2.find((mode) => mode.id === id2) ?? null;
@@ -61167,8 +61930,8 @@ const GameBoard = () => {
   }
   function markTargetsSeen(actorId, targets) {
     const seen2 = getSeenTargetsForActor(actorId);
-    for (const target of targets) {
-      seen2.add(target.id);
+    for (const target2 of targets) {
+      seen2.add(target2.id);
     }
   }
   function pushHpPopup(token, delta) {
@@ -61317,12 +62080,12 @@ const GameBoard = () => {
     setEnemyBubble(source2.id, "Je l'ai repere, par la !");
   }
   function getActionStyle(action2) {
-    var _a2, _b2, _c, _d, _e;
+    var _a2, _b2, _c2, _d, _e;
     if (action2.category === "movement" || ((_a2 = action2.tags) == null ? void 0 : _a2.includes("movement"))) {
       return "move";
     }
     if (action2.category === "support") return "support";
-    const rangeMax = ((_c = (_b2 = action2.targeting) == null ? void 0 : _b2.range) == null ? void 0 : _c.max) ?? 1;
+    const rangeMax = ((_c2 = (_b2 = action2.targeting) == null ? void 0 : _b2.range) == null ? void 0 : _c2.max) ?? 1;
     if (((_d = action2.tags) == null ? void 0 : _d.includes("melee")) || rangeMax <= 1.5) return "melee";
     if (((_e = action2.tags) == null ? void 0 : _e.includes("distance")) || rangeMax > 1.5) return "ranged";
     return "other";
@@ -61435,9 +62198,9 @@ const GameBoard = () => {
       setBoardZoom(nextZoom);
       return;
     }
-    const target = event.currentTarget;
-    if (!(target instanceof HTMLDivElement)) return;
-    const rect = target.getBoundingClientRect();
+    const target2 = event.currentTarget;
+    if (!(target2 instanceof HTMLDivElement)) return;
+    const rect = target2.getBoundingClientRect();
     const localX = event.clientX - rect.left;
     const localY = event.clientY - rect.top;
     const { scale, offsetX, offsetY } = viewport;
@@ -61449,8 +62212,8 @@ const GameBoard = () => {
     const nextScale = baseScale * nextZoom;
     const nextOffsetX = localX - boardX * nextScale;
     const nextOffsetY = localY - boardY * nextScale;
-    const width = Math.max(1, target.clientWidth);
-    const height = Math.max(1, target.clientHeight);
+    const width = Math.max(1, target2.clientWidth);
+    const height = Math.max(1, target2.clientHeight);
     const nextPanX = nextOffsetX - (width - boardW * nextScale) / 2;
     const nextPanY = nextOffsetY - (height - boardH * nextScale) / 2;
     setBoardZoom(nextZoom);
@@ -61957,8 +62720,8 @@ const GameBoard = () => {
   }, [phase, actionContext, reactionQueue.length]);
   reactExports.useEffect(() => {
     if (!killerInstinctTargetId) return;
-    const target = enemies.find((e2) => e2.id === killerInstinctTargetId);
-    if (!target || target.hp <= 0) {
+    const target2 = enemies.find((e2) => e2.id === killerInstinctTargetId);
+    if (!target2 || target2.hp <= 0) {
       pushLog("Instinct de tueur: cible tombee, avantage termine.");
       setKillerInstinctTargetId(null);
     }
@@ -62043,9 +62806,9 @@ const GameBoard = () => {
         wallEdges.vision,
         lightLevels,
         mapGrid
-      ).filter((target) => target.id !== reactor.id && !isTokenDead(target));
+      ).filter((target2) => target2.id !== reactor.id && !isTokenDead(target2));
       const seenTargets = getSeenTargetsForActor(reactor.id);
-      const newlyVisible = visibleTargets.filter((target) => !seenTargets.has(target.id));
+      const newlyVisible = visibleTargets.filter((target2) => !seenTargets.has(target2.id));
       if (newlyVisible.length === 0) continue;
       if (reactor.id === player.id) {
         setRevealedEnemyIds((prev) => {
@@ -62058,28 +62821,28 @@ const GameBoard = () => {
       }
       for (const reaction of visibilityReactions) {
         const candidates = newlyVisible.filter(
-          (target) => {
+          (target2) => {
             var _a3;
-            return reactionSourceMatches((_a3 = reaction.trigger) == null ? void 0 : _a3.source, target, reactor);
+            return reactionSourceMatches((_a3 = reaction.trigger) == null ? void 0 : _a3.source, target2, reactor);
           }
         );
         if (candidates.length === 0) continue;
-        const closest = (_a2 = candidates.map((target) => ({ target, dist: distanceBetweenTokens(reactor, target) })).sort((a2, b2) => a2.dist - b2.dist)[0]) == null ? void 0 : _a2.target;
-        for (const target of candidates) {
+        const closest = (_a2 = candidates.map((target2) => ({ target: target2, dist: distanceBetweenTokens(reactor, target2) })).sort((a2, b2) => a2.dist - b2.dist)[0]) == null ? void 0 : _a2.target;
+        for (const target2 of candidates) {
           const conditionCheck = checkReactionConditions({
             reaction,
             reactor,
-            target,
-            distance: distanceBetweenTokens(reactor, target),
+            target: target2,
+            distance: distanceBetweenTokens(reactor, target2),
             isFirstSeen: true,
-            isClosestVisible: target.id === ((closest == null ? void 0 : closest.id) ?? null),
+            isClosestVisible: target2.id === ((closest == null ? void 0 : closest.id) ?? null),
             allTokens
           });
           if (!conditionCheck.ok) continue;
           const actionCheck = checkReactionActionEligibility({
             reaction,
             reactor,
-            target,
+            target: target2,
             playerSnapshot: player,
             enemiesSnapshot: enemies
           });
@@ -62087,16 +62850,16 @@ const GameBoard = () => {
           const handled = applyInstantReactionEffects({
             reaction,
             reactor,
-            target
+            target: target2
           });
           if (!handled) {
-            const anchor2 = resolveAnchorForCell({ x: target.x, y: target.y });
+            const anchor2 = resolveAnchorForCell({ x: target2.x, y: target2.y });
             const anchorX = (anchor2 == null ? void 0 : anchor2.anchorX) ?? 0;
             const anchorY = (anchor2 == null ? void 0 : anchor2.anchorY) ?? 0;
             const instance = {
               reactionId: reaction.id,
               reactorId: reactor.id,
-              targetId: target.id,
+              targetId: target2.id,
               actionId: reaction.action.id,
               anchorX,
               anchorY
@@ -62107,7 +62870,7 @@ const GameBoard = () => {
               autoResolveReaction({
                 reaction,
                 reactor,
-                target,
+                target: target2,
                 playerSnapshot: player,
                 enemiesSnapshot: enemies
               });
@@ -62266,8 +63029,18 @@ const GameBoard = () => {
         reason: "Cette action ne cible pas une cible hostile."
       };
     }
-    const dist = distanceBetweenTokens(actor, enemy);
-    const range = targeting2.range;
+    return validateTokenTargetForAction(action2, enemy, actor, allTokens);
+  }
+  function validateTokenTargetForAction(action2, token, actor, allTokens) {
+    if (token.hp <= 0) {
+      return { ok: false, reason: "La cible est deja a terre." };
+    }
+    if (!areTokensOnSameLevel(actor, token)) {
+      return { ok: false, reason: "Cible sur un autre niveau." };
+    }
+    const targeting2 = action2.targeting;
+    const dist = distanceBetweenTokens(actor, token);
+    const range = targeting2 == null ? void 0 : targeting2.range;
     if (range) {
       if (typeof range.min === "number" && dist < range.min) {
         return {
@@ -62307,17 +63080,17 @@ const GameBoard = () => {
           };
         }
       }
-      if (cond.type === "TARGET_ALIVE" && enemy.hp <= 0) {
+      if (cond.type === "TARGET_ALIVE" && token.hp <= 0) {
         return {
           ok: false,
           reason: cond.reason || "La cible doit avoir des PV restants."
         };
       }
     }
-    if (targeting2.requiresLos) {
+    if (targeting2 == null ? void 0 : targeting2.requiresLos) {
       const visible = isTargetVisible(
         actor,
-        enemy,
+        token,
         allTokens,
         visionBlockersActive,
         playableCells,
@@ -62331,7 +63104,7 @@ const GameBoard = () => {
           reason: "Cible hors du champ de vision ou derriere un obstacle (ligne de vue requise)."
         };
       }
-      const targetCell = getClosestFootprintCellToPoint({ x: actor.x, y: actor.y }, enemy) ?? { x: enemy.x, y: enemy.y };
+      const targetCell = getClosestFootprintCellToPoint({ x: actor.x, y: actor.y }, token) ?? { x: token.x, y: token.y };
       const canHit = hasLineOfEffect(
         { x: actor.x, y: actor.y },
         targetCell,
@@ -62546,7 +63319,7 @@ const GameBoard = () => {
     return { ok: true };
   }
   function computeActionAvailability(action2) {
-    var _a2, _b2, _c, _d, _e, _f, _g, _h;
+    var _a2, _b2, _c2, _d, _e, _f, _g, _h;
     const reasons = [];
     const details = [];
     const costType = (_a2 = action2.actionCost) == null ? void 0 : _a2.actionType;
@@ -62559,7 +63332,7 @@ const GameBoard = () => {
         reasons.push("Action principale deja utilisee ce tour.");
       }
     }
-    if (costType === "bonus" && turnActionUsage.usedBonusCount >= (((_c = player.combatStats) == null ? void 0 : _c.bonusActionsPerTurn) ?? 1)) {
+    if (costType === "bonus" && turnActionUsage.usedBonusCount >= (((_c2 = player.combatStats) == null ? void 0 : _c2.bonusActionsPerTurn) ?? 1)) {
       if (!isActiveAction) {
         reasons.push("Action bonus deja utilisee ce tour.");
       }
@@ -62651,13 +63424,13 @@ const GameBoard = () => {
     };
   }
   function resolvePlayerFormula(formula) {
-    var _a2, _b2, _c, _d, _e, _f;
+    var _a2, _b2, _c2, _d, _e, _f;
     const stats = player.combatStats;
     const fallbackStats = activeCharacterConfig.combatStats ?? null;
     const level2 = Number((stats == null ? void 0 : stats.level) ?? (fallbackStats == null ? void 0 : fallbackStats.level) ?? 1) || 1;
     const modSTR = Number(((_a2 = stats == null ? void 0 : stats.mods) == null ? void 0 : _a2.modFOR) ?? getCharacterAbilityMod(activeCharacterConfig, "FOR"));
     const modDEX = Number(((_b2 = stats == null ? void 0 : stats.mods) == null ? void 0 : _b2.modDEX) ?? getCharacterAbilityMod(activeCharacterConfig, "DEX"));
-    const modCON = Number(((_c = stats == null ? void 0 : stats.mods) == null ? void 0 : _c.modCON) ?? getCharacterAbilityMod(activeCharacterConfig, "CON"));
+    const modCON = Number(((_c2 = stats == null ? void 0 : stats.mods) == null ? void 0 : _c2.modCON) ?? getCharacterAbilityMod(activeCharacterConfig, "CON"));
     const modINT = Number(((_d = stats == null ? void 0 : stats.mods) == null ? void 0 : _d.modINT) ?? getCharacterAbilityMod(activeCharacterConfig, "INT"));
     const modWIS = Number(((_e = stats == null ? void 0 : stats.mods) == null ? void 0 : _e.modSAG) ?? getCharacterAbilityMod(activeCharacterConfig, "SAG"));
     const modCHA = Number(((_f = stats == null ? void 0 : stats.mods) == null ? void 0 : _f.modCHA) ?? getCharacterAbilityMod(activeCharacterConfig, "CHA"));
@@ -62666,7 +63439,7 @@ const GameBoard = () => {
     return formula.replace(/\s+/g, "").replace(/attackBonus/gi, String(attackBonus)).replace(/moveRange/gi, String(moveRange)).replace(/level/gi, String(level2)).replace(/modFOR/gi, String(modSTR)).replace(/modDEX/gi, String(modDEX)).replace(/modCON/gi, String(modCON)).replace(/modINT/gi, String(modINT)).replace(/modSAG/gi, String(modWIS)).replace(/modCHA/gi, String(modCHA));
   }
   function handleUseAction(action2) {
-    var _a2, _b2, _c;
+    var _a2, _b2, _c2;
     const costType = (_a2 = action2.actionCost) == null ? void 0 : _a2.actionType;
     const isStandardAction = costType === "action";
     const isBonusAction = costType === "bonus";
@@ -62677,7 +63450,7 @@ const GameBoard = () => {
       );
       return false;
     }
-    if (isBonusAction && turnActionUsage.usedBonusCount >= (((_c = player.combatStats) == null ? void 0 : _c.bonusActionsPerTurn) ?? 1)) {
+    if (isBonusAction && turnActionUsage.usedBonusCount >= (((_c2 = player.combatStats) == null ? void 0 : _c2.bonusActionsPerTurn) ?? 1)) {
       pushLog(
         `Action ${action2.name} refusee: action bonus deja utilisee ce tour.`
       );
@@ -62715,12 +63488,12 @@ const GameBoard = () => {
     }
     if (actionTargetsHostile(action2)) {
       setTargetMode("selecting");
-      setSelectedTargetId(null);
+      setSelectedTargetIds([]);
       setSelectedObstacleTarget(null);
       setSelectedWallTarget(null);
     } else {
       setTargetMode("none");
-      setSelectedTargetId(null);
+      setSelectedTargetIds([]);
       setSelectedObstacleTarget(null);
       setSelectedWallTarget(null);
     }
@@ -62761,12 +63534,12 @@ const GameBoard = () => {
     return ids.map((id2) => weaponTypeById.get(id2) ?? null).filter((weapon) => Boolean(weapon));
   }
   function getWeaponProficienciesForActor(actor) {
-    var _a2, _b2, _c, _d;
+    var _a2, _b2, _c2, _d;
     if (actor.type === "player") {
       return Array.isArray((_a2 = activeCharacterConfig.proficiencies) == null ? void 0 : _a2.weapons) ? (_b2 = activeCharacterConfig.proficiencies) == null ? void 0 : _b2.weapons : [];
     }
     const enemyType = enemyTypeById.get(actor.enemyTypeId ?? "") ?? null;
-    return Array.isArray((_c = enemyType == null ? void 0 : enemyType.proficiencies) == null ? void 0 : _c.weapons) ? (_d = enemyType == null ? void 0 : enemyType.proficiencies) == null ? void 0 : _d.weapons : [];
+    return Array.isArray((_c2 = enemyType == null ? void 0 : enemyType.proficiencies) == null ? void 0 : _c2.weapons) ? (_d = enemyType == null ? void 0 : enemyType.proficiencies) == null ? void 0 : _d.weapons : [];
   }
   function getActorLevel(actor) {
     var _a2, _b2;
@@ -62830,12 +63603,12 @@ const GameBoard = () => {
     return abilityMod + extraBonus;
   }
   function applyWeaponOverrideForActor(action2, actor, options) {
-    var _a2, _b2, _c, _d, _e, _f, _g, _h, _i;
+    var _a2, _b2, _c2, _d, _e, _f, _g, _h, _i;
     if (action2.category !== "attack") return action2;
     const weapon = pickWeaponForAction(action2, actor, options);
     if (!weapon) return action2;
     const damageDice = ((_a2 = weapon.effectOnHit) == null ? void 0 : _a2.damage) ?? ((_b2 = weapon.damage) == null ? void 0 : _b2.dice) ?? null;
-    const damageType = ((_c = weapon.effectOnHit) == null ? void 0 : _c.damageType) ?? ((_d = weapon.damage) == null ? void 0 : _d.damageType) ?? null;
+    const damageType = ((_c2 = weapon.effectOnHit) == null ? void 0 : _c2.damageType) ?? ((_d = weapon.damage) == null ? void 0 : _d.damageType) ?? null;
     const modToken = normalizeWeaponModToken(((_e = weapon.effectOnHit) == null ? void 0 : _e.mod) ?? ((_f = weapon.attack) == null ? void 0 : _f.mod));
     if (!damageDice) return action2;
     const formula = modToken ? `${damageDice} + ${modToken}` : damageDice;
@@ -62877,9 +63650,9 @@ const GameBoard = () => {
     if (candidates.length === 0) return null;
     const overridden = candidates.map((a2) => applyWeaponOverrideForActor(a2, enemy));
     return overridden.reduce((best, cur) => {
-      var _a2, _b2, _c, _d;
+      var _a2, _b2, _c2, _d;
       const bestRange = ((_b2 = (_a2 = best.targeting) == null ? void 0 : _a2.range) == null ? void 0 : _b2.max) ?? 1.5;
-      const curRange = ((_d = (_c = cur.targeting) == null ? void 0 : _c.range) == null ? void 0 : _d.max) ?? 1.5;
+      const curRange = ((_d = (_c2 = cur.targeting) == null ? void 0 : _c2.range) == null ? void 0 : _d.max) ?? 1.5;
       return curRange > bestRange ? cur : best;
     }, overridden[0]);
   }
@@ -62893,10 +63666,10 @@ const GameBoard = () => {
     const weapons = getWeaponsForActor(actor);
     if (!weapons || weapons.length === 0) return 1.5;
     const reachValues = weapons.map((weapon) => {
-      var _a2, _b2, _c;
+      var _a2, _b2, _c2;
       const reach = (_a2 = weapon.properties) == null ? void 0 : _a2.reach;
       if (typeof reach === "number" && reach > 0) return reach;
-      const range = (_c = (_b2 = weapon.properties) == null ? void 0 : _b2.range) == null ? void 0 : _c.normal;
+      const range = (_c2 = (_b2 = weapon.properties) == null ? void 0 : _b2.range) == null ? void 0 : _c2.normal;
       if (typeof range === "number" && range > 0) return range;
       return 1.5;
     });
@@ -62914,8 +63687,8 @@ const GameBoard = () => {
   }
   function actionTargetsHostile(action2) {
     var _a2;
-    const target = (_a2 = action2 == null ? void 0 : action2.targeting) == null ? void 0 : _a2.target;
-    return target === "enemy" || target === "hostile";
+    const target2 = (_a2 = action2 == null ? void 0 : action2.targeting) == null ? void 0 : _a2.target;
+    return target2 === "enemy" || target2 === "hostile";
   }
   function getActionVisualEffects(action2) {
     if (!action2) return [];
@@ -62938,9 +63711,10 @@ const GameBoard = () => {
     if (orientation === "none") return null;
     const actorPos = { x: player.x, y: player.y };
     let targetPos = null;
-    if (selectedTargetId) {
-      const target = enemies.find((e2) => e2.id === selectedTargetId) ?? null;
-      if (target) targetPos = { x: target.x, y: target.y };
+    const primaryTargetId2 = getPrimaryTargetId();
+    if (primaryTargetId2) {
+      const target2 = enemies.find((e2) => e2.id === primaryTargetId2) ?? null;
+      if (target2) targetPos = { x: target2.x, y: target2.y };
     } else if (selectedObstacleTarget) {
       targetPos = { x: selectedObstacleTarget.x, y: selectedObstacleTarget.y };
     } else if (selectedWallTarget) {
@@ -62959,9 +63733,10 @@ const GameBoard = () => {
   function resolveActionEffectAnchor(action2, spec) {
     const anchor2 = spec.anchor ?? (actionTargetsHostile(action2) ? "target" : "self");
     if (anchor2 === "target") {
-      if (selectedTargetId) {
-        const target = enemies.find((e2) => e2.id === selectedTargetId) ?? null;
-        if (target) return { x: target.x, y: target.y };
+      const primaryTargetId2 = getPrimaryTargetId();
+      if (primaryTargetId2) {
+        const target2 = enemies.find((e2) => e2.id === primaryTargetId2) ?? null;
+        if (target2) return { x: target2.x, y: target2.y };
       }
       if (selectedObstacleTarget) {
         return { x: selectedObstacleTarget.x, y: selectedObstacleTarget.y };
@@ -62974,7 +63749,7 @@ const GameBoard = () => {
     return { x: player.x, y: player.y };
   }
   function computeActionEffectDurationMs(params) {
-    var _a2, _b2, _c;
+    var _a2, _b2, _c2;
     if (typeof params.spec.durationMs === "number") {
       return Math.max(120, params.spec.durationMs);
     }
@@ -62985,7 +63760,7 @@ const GameBoard = () => {
     const spriteKey = (_b2 = params.appearance) == null ? void 0 : _b2.spriteKey;
     const frames = spriteKey ? getObstacleAnimationFrames(spriteKey) : null;
     if (frames && frames.length > 0) {
-      const speed2 = typeof ((_c = params.appearance) == null ? void 0 : _c.animationSpeed) === "number" ? params.appearance.animationSpeed : 0.15;
+      const speed2 = typeof ((_c2 = params.appearance) == null ? void 0 : _c2.animationSpeed) === "number" ? params.appearance.animationSpeed : 0.15;
       const framesPerSecond = Math.max(1, speed2 * 60);
       return Math.max(160, Math.round(frames.length / framesPerSecond * 1e3));
     }
@@ -63047,10 +63822,11 @@ const GameBoard = () => {
   }
   function resolvePlayerAdvantageMode(action2) {
     if (!action2 || !actionTargetsHostile(action2)) return advantageMode;
-    if (!selectedTargetId) return advantageMode;
-    if (selectedTargetId !== killerInstinctTargetId) return advantageMode;
-    const target = enemies.find((e2) => e2.id === selectedTargetId) ?? null;
-    if (!target || isTokenDead(target)) return advantageMode;
+    const primaryTargetId2 = getPrimaryTargetId();
+    if (!primaryTargetId2) return advantageMode;
+    if (primaryTargetId2 !== killerInstinctTargetId) return advantageMode;
+    const target2 = enemies.find((e2) => e2.id === primaryTargetId2) ?? null;
+    if (!target2 || isTokenDead(target2)) return advantageMode;
     return "advantage";
   }
   function getActionResourceInfo(action2) {
@@ -63066,9 +63842,9 @@ const GameBoard = () => {
   }
   function resolvePlayerActionTarget(action2) {
     var _a2;
-    const target = (_a2 = action2.targeting) == null ? void 0 : _a2.target;
-    if (target === "self") return { kind: "token", token: player };
-    if (target === "cell" || target === "emptyCell") {
+    const target2 = (_a2 = action2.targeting) == null ? void 0 : _a2.target;
+    if (target2 === "self") return { kind: "token", token: player };
+    if (target2 === "cell" || target2 === "emptyCell") {
       if (selectedPath.length > 0) {
         const last = selectedPath[selectedPath.length - 1];
         return { kind: "cell", x: last.x, y: last.y };
@@ -63081,9 +63857,11 @@ const GameBoard = () => {
       }
       return null;
     }
-    if (selectedTargetId) {
-      const targetToken = enemies.find((e2) => e2.id === selectedTargetId) ?? null;
-      if (targetToken) return { kind: "token", token: targetToken };
+    if (selectedTargetIds.length > 0) {
+      const allTokens = [player, ...enemies];
+      const tokens = selectedTargetIds.map((id2) => allTokens.find((t2) => t2.id === id2) ?? null).filter((value2) => Boolean(value2));
+      if (tokens.length > 1) return { kind: "tokens", tokens };
+      if (tokens.length === 1) return { kind: "token", token: tokens[0] };
     }
     return null;
   }
@@ -63097,9 +63875,10 @@ const GameBoard = () => {
     } catch (error) {
       console.warn("[actions] VFX preload failed:", error);
     }
-    const anchor2 = op.anchor === "self" || op.anchor === "actor" ? { x: player.x, y: player.y } : selectedTargetId ? (() => {
-      const target = enemies.find((e2) => e2.id === selectedTargetId) ?? null;
-      return target ? { x: target.x, y: target.y } : { x: player.x, y: player.y };
+    const primaryTargetId2 = getPrimaryTargetId();
+    const anchor2 = op.anchor === "self" || op.anchor === "actor" ? { x: player.x, y: player.y } : primaryTargetId2 ? (() => {
+      const target2 = enemies.find((e2) => e2.id === primaryTargetId2) ?? null;
+      return target2 ? { x: target2.x, y: target2.y } : { x: player.x, y: player.y };
     })() : selectedObstacleTarget ? { x: selectedObstacleTarget.x, y: selectedObstacleTarget.y } : selectedWallTarget ? { x: selectedWallTarget.x, y: selectedWallTarget.y } : { x: player.x, y: player.y };
     const offset = op.offset ?? { x: 0, y: 0 };
     const x2 = Math.max(0, Math.min(mapGrid.cols - 1, anchor2.x + offset.x));
@@ -63114,8 +63893,8 @@ const GameBoard = () => {
   }
   function resolvePlayerActionV2(action2, overrides) {
     var _a2;
-    const target = resolvePlayerActionTarget(action2);
-    if (((_a2 = action2.targeting) == null ? void 0 : _a2.target) !== "self" && !target) {
+    const target2 = resolvePlayerActionTarget(action2);
+    if (((_a2 = action2.targeting) == null ? void 0 : _a2.target) !== "self" && !target2) {
       pushLog("Cible manquante pour l'action.");
       return false;
     }
@@ -63161,7 +63940,7 @@ const GameBoard = () => {
         onSetKillerInstinctTarget: (targetId) => {
           if (killerInstinctTargetId) return;
           setKillerInstinctTargetId(targetId);
-          setSelectedTargetId(targetId);
+          setSelectedTargetIds([targetId]);
           setEnemies(
             (prev) => prev.map(
               (enemy) => enemy.id === targetId ? addStatusToToken(enemy, "killer-mark", player.id) : enemy
@@ -63196,7 +63975,7 @@ const GameBoard = () => {
           });
         }
       },
-      target ?? { kind: "none" },
+      target2 ?? { kind: "none" },
       {
         rollOverrides: {
           attack: attackOverride,
@@ -63241,14 +64020,15 @@ const GameBoard = () => {
     let targetArmorClass = null;
     let targetLabel = null;
     if (actionTargetsHostile(action2)) {
-      if (selectedTargetId) {
-        const target = enemies.find((e2) => e2.id === selectedTargetId);
-        if (!target) {
+      const primaryTargetId2 = getPrimaryTargetId();
+      if (primaryTargetId2) {
+        const target2 = enemies.find((e2) => e2.id === primaryTargetId2);
+        if (!target2) {
           pushLog("Cible ennemie introuvable ou deja vaincue.");
           return;
         }
-        targetArmorClass = typeof target.armorClass === "number" ? target.armorClass : null;
-        targetLabel = target.id;
+        targetArmorClass = typeof target2.armorClass === "number" ? target2.armorClass : null;
+        targetLabel = target2.id;
       } else if (selectedObstacleTarget) {
         const obstacle = obstacles.find((o2) => o2.id === selectedObstacleTarget.id) ?? null;
         if (!obstacle || obstacle.hp <= 0) {
@@ -63292,8 +64072,8 @@ const GameBoard = () => {
     const baseLine = `Jet de touche (${action2.name})${targetSuffix} : ${rollsText} + ${result.bonus} = ${result.total}`;
     if (targetArmorClass !== null) {
       const isHit = result.total >= targetArmorClass || result.isCrit;
-      const outcome = isHit ? `TOUCHE (CA ${targetArmorClass})${result.isCrit ? " (critique!)" : ""}` : `RATE (CA ${targetArmorClass})`;
-      pushDiceLog(`${baseLine} -> ${outcome}`);
+      const outcome2 = isHit ? `TOUCHE (CA ${targetArmorClass})${result.isCrit ? " (critique!)" : ""}` : `RATE (CA ${targetArmorClass})`;
+      pushDiceLog(`${baseLine} -> ${outcome2}`);
       setAttackOutcome(isHit ? "hit" : "miss");
       if (!isHit) {
         pushLog(`Action ${action2.name}: attaque ratee.`);
@@ -63434,7 +64214,7 @@ const GameBoard = () => {
     }, 50);
   }
   function handleBoardClick(event) {
-    var _a2, _b2, _c, _d, _e, _f, _g;
+    var _a2, _b2, _c2, _d, _e, _f, _g, _h, _i;
     if (phase !== "player") return;
     if (isGameOver) return;
     if (isTokenDead(player)) return;
@@ -63466,23 +64246,56 @@ const GameBoard = () => {
         return;
       }
       const tokens = getTokensOnActiveLevel([player, ...enemies]);
-      const target = getTokenAt({ x: targetX, y: targetY }, tokens);
-      if (target && target.type === "enemy") {
-        const validation = validateEnemyTargetForAction(
-          action2,
-          target,
-          player,
-          [player, ...enemies]
-        );
+      const target2 = getTokenAt({ x: targetX, y: targetY }, tokens);
+      if (target2) {
+        const targetType = (_a2 = action2.targeting) == null ? void 0 : _a2.target;
+        const isHostile = target2.type !== player.type;
+        const isAlly = target2.type === player.type;
+        const isPlayer = target2.type === "player";
+        const isEnemy = target2.type === "enemy";
+        const isAllowed = targetType === "enemy" ? isEnemy : targetType === "player" ? isPlayer : targetType === "hostile" ? isHostile : targetType === "ally" ? isAlly : targetType === "self" ? target2.id === player.id : false;
+        if (!isAllowed) {
+          pushLog("Cette cible n'est pas valide pour cette action.");
+          return;
+        }
+        const validation = isEnemy && (targetType === "enemy" || targetType === "hostile") ? validateEnemyTargetForAction(action2, target2, player, [player, ...enemies]) : validateTokenTargetForAction(action2, target2, player, [player, ...enemies]);
         if (!validation.ok) {
           pushLog(validation.reason || "Cette cible n'est pas valide pour cette action.");
           return;
         }
-        setSelectedTargetId(target.id);
+        const maxTargets = typeof ((_b2 = action2.targeting) == null ? void 0 : _b2.maxTargets) === "number" && action2.targeting.maxTargets > 0 ? action2.targeting.maxTargets : 1;
+        if (maxTargets <= 1) {
+          setSelectedTargetIds([target2.id]);
+          setSelectedObstacleTarget(null);
+          setSelectedWallTarget(null);
+          setTargetMode("none");
+          pushLog(`Cible selectionnee: ${target2.id}.`);
+          return;
+        }
+        let actionLabel = "ajoutee";
+        let didChange = true;
+        setSelectedTargetIds((prev) => {
+          const exists = prev.includes(target2.id);
+          if (exists) {
+            actionLabel = "retiree";
+            return prev.filter((id2) => id2 !== target2.id);
+          }
+          if (prev.length >= maxTargets) {
+            pushLog(`Maximum de cibles atteint (${maxTargets}).`);
+            didChange = false;
+            return prev;
+          }
+          actionLabel = "ajoutee";
+          if (prev.length + 1 >= maxTargets) {
+            setTargetMode("none");
+          }
+          return [...prev, target2.id];
+        });
         setSelectedObstacleTarget(null);
         setSelectedWallTarget(null);
-        setTargetMode("none");
-        pushLog(`Cible selectionnee: ${target.id}.`);
+        if (didChange) {
+          pushLog(`Cible ${target2.id} ${actionLabel}.`);
+        }
         return;
       }
       const obstacleHit = findObstacleAtCell(targetX, targetY);
@@ -63498,8 +64311,8 @@ const GameBoard = () => {
           pushLog(validation.reason || "Cette cible n'est pas valide pour cette action.");
           return;
         }
-        const label2 = ((_a2 = obstacleHit.def) == null ? void 0 : _a2.label) ?? obstacleHit.instance.typeId ?? "obstacle";
-        setSelectedTargetId(null);
+        const label2 = ((_c2 = obstacleHit.def) == null ? void 0 : _c2.label) ?? obstacleHit.instance.typeId ?? "obstacle";
+        setSelectedTargetIds([]);
         setSelectedObstacleTarget({ id: obstacleHit.instance.id, x: targetX, y: targetY });
         setSelectedWallTarget(null);
         setTargetMode("none");
@@ -63518,8 +64331,8 @@ const GameBoard = () => {
           pushLog(validation.reason || "Cette cible n'est pas valide pour cette action.");
           return;
         }
-        const label2 = ((_b2 = wallHit.def) == null ? void 0 : _b2.label) ?? wallHit.segment.typeId ?? "mur";
-        setSelectedTargetId(null);
+        const label2 = ((_d = wallHit.def) == null ? void 0 : _d.label) ?? wallHit.segment.typeId ?? "mur";
+        setSelectedTargetIds([]);
         setSelectedObstacleTarget(null);
         setSelectedWallTarget({ id: wallHit.segment.id, x: targetX, y: targetY });
         setTargetMode("none");
@@ -63550,7 +64363,7 @@ const GameBoard = () => {
       if (!token) {
         const obstacleHit = findObstacleAtCellAnyLevel(targetX, targetY);
         if (obstacleHit) {
-          const name2 = ((_c = obstacleHit.def) == null ? void 0 : _c.label) ?? obstacleHit.instance.typeId ?? "obstacle";
+          const name2 = ((_e = obstacleHit.def) == null ? void 0 : _e.label) ?? obstacleHit.instance.typeId ?? "obstacle";
           const text = `Inspection (${targetX},${targetY}) : ${name2}
 Etat: PV ${obstacleHit.instance.hp}/${obstacleHit.instance.maxHp}`;
           pushLog(
@@ -63562,7 +64375,7 @@ Etat: PV ${obstacleHit.instance.hp}/${obstacleHit.instance.maxHp}`;
         }
         const wallHit = findWallSegmentAtCellAnyLevel(targetX, targetY);
         if (wallHit) {
-          const name2 = ((_d = wallHit.def) == null ? void 0 : _d.label) ?? wallHit.segment.typeId ?? "mur";
+          const name2 = ((_f = wallHit.def) == null ? void 0 : _f.label) ?? wallHit.segment.typeId ?? "mur";
           const hp = typeof wallHit.segment.hp === "number" ? wallHit.segment.hp : null;
           const maxHp = typeof wallHit.segment.maxHp === "number" ? wallHit.segment.maxHp : null;
           const status = hp !== null && maxHp !== null ? `PV ${hp}/${maxHp}` : "indestructible";
@@ -63611,7 +64424,7 @@ Etat: PV ${token.hp}/${token.maxHp}`;
         return;
       }
       if (wallHit) {
-        const interactions2 = ((_f = (_e = wallHit.def) == null ? void 0 : _e.behavior) == null ? void 0 : _f.interactions) ?? [];
+        const interactions2 = ((_h = (_g = wallHit.def) == null ? void 0 : _g.behavior) == null ? void 0 : _h.interactions) ?? [];
         if (interactions2.length === 0) {
           pushLog("Interagir: aucune interaction disponible pour ce mur.");
           setInteractionMenuItems([]);
@@ -63658,7 +64471,7 @@ Etat: PV ${token.hp}/${token.maxHp}`;
         return;
       }
       if (obstacleHit) {
-        const interactions2 = ((_g = obstacleHit.def) == null ? void 0 : _g.interactions) ?? [];
+        const interactions2 = ((_i = obstacleHit.def) == null ? void 0 : _i.interactions) ?? [];
         if (interactions2.length === 0) {
           pushLog("Interagir: aucune interaction disponible pour cet obstacle.");
           setInteractionMenuItems([]);
@@ -63865,7 +64678,7 @@ Etat: PV ${token.hp}/${token.maxHp}`;
     return { ok: true };
   }
   function openReactionContext(instance) {
-    setSelectedTargetId(instance.targetId);
+    setSelectedTargetIds(instance.targetId ? [instance.targetId] : []);
     setSelectedObstacleTarget(null);
     setSelectedWallTarget(null);
     setTargetMode("none");
@@ -64038,7 +64851,7 @@ Etat: PV ${token.hp}/${token.maxHp}`;
         if (params.reactor.id !== player.id) continue;
         if (killerInstinctTargetId) return true;
         setKillerInstinctTargetId(params.target.id);
-        setSelectedTargetId(params.target.id);
+        setSelectedTargetIds([params.target.id]);
         setEnemies(
           (prev) => prev.map(
             (enemy) => enemy.id === params.target.id ? addStatusToToken(enemy, "killer-mark", params.reactor.id) : enemy
@@ -64057,7 +64870,7 @@ Etat: PV ${token.hp}/${token.maxHp}`;
     return handled;
   }
   function triggerMovementReactions(params) {
-    var _a2, _b2, _c, _d, _e;
+    var _a2, _b2, _c2, _d, _e;
     if (reactionById.size === 0) return;
     const moverFrom = { ...params.mover, x: params.from.x, y: params.from.y };
     const moverTo = { ...params.mover, x: params.to.x, y: params.to.y };
@@ -64080,7 +64893,7 @@ Etat: PV ${token.hp}/${token.maxHp}`;
         if (!reactionSourceMatches((_b2 = reaction.trigger) == null ? void 0 : _b2.source, moverTo, reactor)) {
           continue;
         }
-        const reactionRangeMax = (_e = (_d = (_c = reaction.action) == null ? void 0 : _c.targeting) == null ? void 0 : _d.range) == null ? void 0 : _e.max;
+        const reactionRangeMax = (_e = (_d = (_c2 = reaction.action) == null ? void 0 : _c2.targeting) == null ? void 0 : _d.range) == null ? void 0 : _e.max;
         const reach = typeof reactionRangeMax === "number" && Number.isFinite(reactionRangeMax) ? reactionRangeMax : getActorDefaultReach(reactor);
         const before = distanceBetweenTokens(reactor, moverFrom);
         const after = distanceBetweenTokens(reactor, moverTo);
@@ -64454,7 +65267,7 @@ Etat: PV ${token.hp}/${token.maxHp}`;
       player: playerSummary,
       enemies: enemiesSummary,
       actionsCatalog: actionsCatalog.map((a2) => {
-        var _a2, _b2, _c, _d, _e, _f, _g, _h;
+        var _a2, _b2, _c2, _d, _e, _f, _g, _h;
         return {
           id: a2.id,
           name: a2.name,
@@ -64462,7 +65275,7 @@ Etat: PV ${token.hp}/${token.maxHp}`;
           targeting: {
             target: String(((_a2 = a2.targeting) == null ? void 0 : _a2.target) ?? ""),
             range: {
-              min: Number(((_c = (_b2 = a2.targeting) == null ? void 0 : _b2.range) == null ? void 0 : _c.min) ?? 0),
+              min: Number(((_c2 = (_b2 = a2.targeting) == null ? void 0 : _b2.range) == null ? void 0 : _c2.min) ?? 0),
               max: Number(((_e = (_d = a2.targeting) == null ? void 0 : _d.range) == null ? void 0 : _e.max) ?? 0),
               shape: String(((_g = (_f = a2.targeting) == null ? void 0 : _f.range) == null ? void 0 : _g.shape) ?? "")
             },
@@ -64480,12 +65293,12 @@ Etat: PV ${token.hp}/${token.maxHp}`;
       if (typeof raw.enemyId !== "string" || !enemyIds.has(raw.enemyId)) continue;
       if (typeof raw.actionId !== "string" || !raw.actionId.trim()) continue;
       const t2 = raw.target;
-      let target = { kind: "none" };
+      let target2 = { kind: "none" };
       if (t2 && typeof t2 === "object") {
         if (t2.kind === "token" && typeof t2.tokenId === "string") {
-          target = { kind: "token", tokenId: t2.tokenId };
+          target2 = { kind: "token", tokenId: t2.tokenId };
         } else if (t2.kind === "cell" && typeof t2.x === "number" && typeof t2.y === "number") {
-          target = { kind: "cell", x: t2.x, y: t2.y };
+          target2 = { kind: "cell", x: t2.x, y: t2.y };
         }
       }
       const modeRaw = raw.advantageMode;
@@ -64493,7 +65306,7 @@ Etat: PV ${token.hp}/${token.maxHp}`;
       sanitized.push({
         enemyId: raw.enemyId,
         actionId: raw.actionId.trim(),
-        target,
+        target: target2,
         advantageMode: advantageMode2
       });
     }
@@ -64653,12 +65466,12 @@ Etat: PV ${token.hp}/${token.maxHp}`;
     }
     const enemyActionIds = Array.isArray(activeEnemy.actionIds) && activeEnemy.actionIds.length ? activeEnemy.actionIds : ["move", "melee-strike"];
     const getActionById2 = (id2) => actionsCatalog.find((a2) => a2.id === id2) ?? null;
-    const describeActionTarget = (target) => {
-      if (target.kind === "token") return target.token.id;
-      if (target.kind === "cell") return `cell(${target.x},${target.y})`;
+    const describeActionTarget = (target2) => {
+      if (target2.kind === "token") return target2.token.id;
+      if (target2.kind === "cell") return `cell(${target2.x},${target2.y})`;
       return "aucune cible";
     };
-    const tryResolve = async (actionId, target, advantageMode2) => {
+    const tryResolve = async (actionId, target2, advantageMode2) => {
       var _a3;
       const baseAction = getActionById2(actionId);
       const action2 = baseAction ? applyWeaponOverrideForActor(baseAction, activeEnemy) : null;
@@ -64708,11 +65521,11 @@ Etat: PV ${token.hp}/${token.maxHp}`;
             });
           }
         },
-        target,
+        target2,
         { advantageMode: advantageMode2 }
       );
       if (!result.ok || !result.playerAfter || !result.enemiesAfter) {
-        const msg = `[IA] ${activeEnemy.id}: ${action2.name} sur ${describeActionTarget(target)} -> echec (${result.reason || "inconnu"}).`;
+        const msg = `[IA] ${activeEnemy.id}: ${action2.name} sur ${describeActionTarget(target2)} -> echec (${result.reason || "inconnu"}).`;
         pushLog(msg);
         aiTurnLogs.push(msg);
         updateEnemyMemory(activeEnemy.id, {
@@ -64738,12 +65551,12 @@ Etat: PV ${token.hp}/${token.maxHp}`;
           enemiesSnapshot: enemiesCopy
         });
       }
-      const targetDesc = describeActionTarget(target);
+      const targetDesc = describeActionTarget(target2);
       const damageToPlayer = beforePlayerHp - playerCopy.hp;
       let damageToEnemy = null;
-      if (target.kind === "token" && target.token.type === "enemy") {
-        const afterHp = ((_a3 = enemiesCopy.find((e2) => e2.id === target.token.id)) == null ? void 0 : _a3.hp) ?? null;
-        const beforeHp = beforeEnemyHp.get(target.token.id) ?? null;
+      if (target2.kind === "token" && target2.token.type === "enemy") {
+        const afterHp = ((_a3 = enemiesCopy.find((e2) => e2.id === target2.token.id)) == null ? void 0 : _a3.hp) ?? null;
+        const beforeHp = beforeEnemyHp.get(target2.token.id) ?? null;
         if (beforeHp !== null && afterHp !== null) {
           damageToEnemy = beforeHp - afterHp;
         }
@@ -64769,7 +65582,7 @@ Etat: PV ${token.hp}/${token.maxHp}`;
           aiTurnLogs.push(`[IA] ${activeEnemy.id}: ${line}`);
         }
       }
-      if (target.kind === "token" && target.token.type === "player") {
+      if (target2.kind === "token" && target2.token.type === "player") {
         const didHit = damageToPlayer > 0;
         const message = didHit ? action2.uiMessageHit || `Vous avez ete touche par ${action2.name}.` : action2.uiMessageMiss || null;
         if (message) {
@@ -64798,20 +65611,20 @@ Etat: PV ${token.hp}/${token.maxHp}`;
           }
         }
         const targetSpec = intent.target;
-        let target = { kind: "none" };
+        let target2 = { kind: "none" };
         if (targetSpec.kind === "token") {
           const token = allTokens.find((t2) => t2.id === targetSpec.tokenId) ?? null;
-          if (token) target = { kind: "token", token };
+          if (token) target2 = { kind: "token", token };
         } else if (targetSpec.kind === "cell") {
-          target = { kind: "cell", x: targetSpec.x, y: targetSpec.y };
+          target2 = { kind: "cell", x: targetSpec.x, y: targetSpec.y };
         }
         const availability = computeAvailabilityForActor(action2, context2);
         if (!availability.enabled) continue;
-        const validation = validateActionTarget(action2, context2, target);
+        const validation = validateActionTarget(action2, context2, target2);
         if (!validation.ok) continue;
         const resolved = await tryResolve(
           intent.actionId,
-          target,
+          target2,
           intent.advantageMode
         );
         if (!resolved.ok) {
@@ -65085,7 +65898,7 @@ Etat: PV ${token.hp}/${token.maxHp}`;
   const contextAction = actionContext ? getActionById(actionContext.actionId) : null;
   const contextAvailabilityRaw = contextAction ? computeActionAvailability(contextAction) : null;
   const contextAvailability = (actionContext == null ? void 0 : actionContext.stage) === "active" && contextAction && validatedActionId === contextAction.id ? { enabled: true, reasons: [], details: (contextAvailabilityRaw == null ? void 0 : contextAvailabilityRaw.details) ?? [] } : contextAvailabilityRaw;
-  const selectedTargetLabel = getSelectedTargetLabel();
+  const selectedTargetLabels = getSelectedTargetLabels();
   const contextResource = getActionResourceInfo(contextAction);
   const contextNeedsTarget = actionTargetsHostile(contextAction);
   const contextPlan = contextAction ? buildActionPlan({
@@ -65093,7 +65906,7 @@ Etat: PV ${token.hp}/${token.maxHp}`;
     availability: contextAvailability ?? null,
     stage: (actionContext == null ? void 0 : actionContext.stage) ?? "draft",
     needsTarget: contextNeedsTarget,
-    targetSelected: Boolean(selectedTargetLabel),
+    targetSelected: selectedTargetLabels.length > 0,
     hasAttack: Boolean(contextAction.attack),
     hasDamage: Boolean(contextAction.damage),
     attackRoll,
@@ -65107,12 +65920,13 @@ Etat: PV ${token.hp}/${token.maxHp}`;
     contextCompleteRef.current = contextComplete;
   }, [contextComplete]);
   const selectedTargetStatuses = reactExports.useMemo(() => {
-    if (!selectedTargetId) return [];
-    const target = enemies.find((enemy) => enemy.id === selectedTargetId);
-    if (!target || !Array.isArray(target.statuses) || target.statuses.length === 0) {
+    const primaryTargetId2 = getPrimaryTargetId();
+    if (!primaryTargetId2) return [];
+    const target2 = [player, ...enemies].find((token) => token.id === primaryTargetId2);
+    if (!target2 || !Array.isArray(target2.statuses) || target2.statuses.length === 0) {
       return [];
     }
-    return target.statuses.map((status) => {
+    return target2.statuses.map((status) => {
       const def = statusTypeById.get(status.id);
       return {
         id: status.id,
@@ -65122,7 +65936,7 @@ Etat: PV ${token.hp}/${token.maxHp}`;
         isPersistent: Boolean(def == null ? void 0 : def.persistUntilDeath)
       };
     });
-  }, [enemies, selectedTargetId, statusTypeById]);
+  }, [enemies, selectedTargetIds, statusTypeById]);
   const isActionInProgress = (actionContext == null ? void 0 : actionContext.stage) === "active" && Boolean(validatedActionId) || Boolean(pendingHazardRoll);
   const canInteractWithBoard = phase === "player" && !isGameOver && !isTokenDead(player);
   const showResumeAction = isActionInProgress && !actionContextOpen;
@@ -65264,7 +66078,7 @@ Etat: PV ${token.hp}/${token.maxHp}`;
     setDamageRoll(null);
     setAttackOutcome(null);
     setHasRolledAttackForCurrentAction(false);
-    setSelectedTargetId(null);
+    setSelectedTargetIds([]);
     setSelectedObstacleTarget(null);
     setSelectedWallTarget(null);
     resetActionContext();
@@ -65272,7 +66086,7 @@ Etat: PV ${token.hp}/${token.maxHp}`;
     pushLog("Action annulee.");
   }
   function handleValidateActionFromContext(action2) {
-    var _a2, _b2, _c, _d, _e;
+    var _a2, _b2, _c2, _d, _e;
     if (isMoveTypeAction(action2)) {
       const multiplier = ((_a2 = action2.movement) == null ? void 0 : _a2.pathLimitMultiplier) ?? 1;
       let baseLimit = basePathLimit;
@@ -65290,7 +66104,7 @@ Etat: PV ${token.hp}/${token.maxHp}`;
     }
     const accepted = handleUseAction(action2);
     if (!accepted) return;
-    if (!action2.attack && !action2.damage && !isMoveTypeAction(action2) && ((_c = action2.targeting) == null ? void 0 : _c.target) === "self") {
+    if (!action2.attack && !action2.damage && !isMoveTypeAction(action2) && ((_c2 = action2.targeting) == null ? void 0 : _c2.target) === "self") {
       const ok = resolvePlayerActionV2(action2);
       if (ok) {
         handleFinishAction();
@@ -65341,22 +66155,22 @@ Etat: PV ${token.hp}/${token.maxHp}`;
     setInteractionMode("look-select");
     pushLog("Tourner le regard: cliquez sur une case pour orienter le champ de vision.");
   }
-  function openInteractionWheel(anchorX, anchorY, target, interactions2) {
+  function openInteractionWheel(anchorX, anchorY, target2, interactions2) {
     setInteractionContext(null);
     const items = interactions2.map((interaction) => ({
       id: `interaction-${interaction.id}`,
       label: interaction.label,
       color: "#9b59b6",
       onSelect: () => {
-        setInteractionContext({ anchorX, anchorY, interaction, target });
+        setInteractionContext({ anchorX, anchorY, interaction, target: target2 });
       }
     }));
     setInteractionMenuItems(items);
   }
-  function handleExecuteInteraction(interaction, target) {
+  function handleExecuteInteraction(interaction, target2) {
     const availability = getInteractionAvailability({
       interaction,
-      target,
+      target: target2,
       player,
       wallSegments,
       obstacles,
@@ -65377,9 +66191,9 @@ Etat: PV ${token.hp}/${token.maxHp}`;
       const result = rollAttack(modForce, "normal");
       const total = result.total;
       const base = result.d20.total;
-      const outcome = total >= forceDc ? "reussi" : "rate";
+      const outcome2 = total >= forceDc ? "reussi" : "rate";
       pushLog(
-        `Test de force (${interaction.label}) : ${base} + ${modForce} = ${total} vs DD ${forceDc} -> ${outcome}.`
+        `Test de force (${interaction.label}) : ${base} + ${modForce} = ${total} vs DD ${forceDc} -> ${outcome2}.`
       );
       if (total < forceDc) {
         applyInteractionCost(interaction.cost);
@@ -65388,7 +66202,7 @@ Etat: PV ${token.hp}/${token.maxHp}`;
     }
     applyInteraction({
       interaction,
-      target,
+      target: target2,
       wallTypeById,
       setWallSegments,
       setObstacles
@@ -66216,18 +67030,18 @@ Etat: PV ${token.hp}/${token.maxHp}`;
                             enemies,
                             validatedAction,
                             targetMode,
-                            selectedTargetId,
-                            selectedTargetLabel,
+                            selectedTargetIds,
+                            selectedTargetLabels,
+                            maxTargets: ((_c = contextAction == null ? void 0 : contextAction.targeting) == null ? void 0 : _c.maxTargets) ?? null,
                             targetStatuses: selectedTargetStatuses,
                             effectiveAdvantageMode,
                             plan: contextPlan,
                             isComplete: contextComplete,
                             movement: contextMovement,
                             onFinishHazard: handleFinishHazard,
-                            onSelectTargetId: (enemyId) => {
-                              setSelectedTargetId(enemyId);
-                              setSelectedObstacleTarget(null);
-                              setSelectedWallTarget(null);
+                            onToggleTargetId: (enemyId) => {
+                              var _a2;
+                              return toggleSelectedTargetId(enemyId, ((_a2 = contextAction == null ? void 0 : contextAction.targeting) == null ? void 0 : _a2.maxTargets) ?? null);
                             },
                             onSetTargetMode: setTargetMode,
                             advantageMode,
@@ -66359,4 +67173,4 @@ export {
   BigPool as y,
   getGlobalBounds as z
 };
-//# sourceMappingURL=index-C5-8rkZm.js.map
+//# sourceMappingURL=index-DOEn3JR_.js.map

@@ -36,6 +36,7 @@ Ce plan detaille les correctifs et l'ordre d'integration pour un pipeline comple
 4. Ajouter le moteur de hooks:
    - collectHooks
    - applyHooks
+   - phases taxo completes (done)
    - priorities si conflits
 
 ## 5) Support des ressources

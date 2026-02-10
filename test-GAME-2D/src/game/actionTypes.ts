@@ -112,23 +112,20 @@ export interface ActionDefinition {
   };
   resolution?: {
     kind:
-      | "attack"
-      | "save"
-      | "check"
-      | "none"
       | "ATTACK_ROLL"
       | "SAVING_THROW"
       | "ABILITY_CHECK"
+      | "CONTESTED_CHECK"
       | "NO_ROLL";
     bonus?: number;
     critRange?: number;
     critRule?: "double-dice" | "double-total";
     save?: {
-      ability: "str" | "dex" | "con" | "int" | "wis" | "cha" | "FOR" | "DEX" | "CON" | "INT" | "SAG" | "CHA";
+      ability: "FOR" | "DEX" | "CON" | "INT" | "SAG" | "CHA";
       dc: number;
     };
     check?: {
-      ability: "str" | "dex" | "con" | "int" | "wis" | "cha" | "FOR" | "DEX" | "CON" | "INT" | "SAG" | "CHA";
+      ability: "FOR" | "DEX" | "CON" | "INT" | "SAG" | "CHA";
       dc: number;
     };
   };

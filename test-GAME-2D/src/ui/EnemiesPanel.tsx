@@ -9,7 +9,7 @@ export function EnemiesPanel(props: {
   revealedEnemyIds: Set<string>;
   capabilities: { action: EnemyActionType; label: string; color: string }[];
   validatedAction: ActionDefinition | null;
-  selectedTargetId: string | null;
+  selectedTargetIds: string[];
   describeEnemyLastDecision: (enemyId: string) => string;
   validateEnemyTargetForAction: (
     action: ActionDefinition,
@@ -17,7 +17,7 @@ export function EnemiesPanel(props: {
     actor: TokenState,
     allTokens: TokenState[]
   ) => { ok: boolean; reason?: string };
-  onSelectTargetId: (enemyId: string) => void;
+  onToggleTargetId: (enemyId: string) => void;
   onSetTargetMode: (mode: "none" | "selecting") => void;
   onLog: (message: string) => void;
 }): React.JSX.Element {
@@ -129,7 +129,7 @@ export function EnemiesPanel(props: {
                   [player, ...enemies]
                 );
                 const canTarget = validation.ok;
-                const isCurrent = props.selectedTargetId === enemy.id;
+                const isCurrent = props.selectedTargetIds.includes(enemy.id);
                 return (
                   <button
                     type="button"
@@ -141,9 +141,8 @@ export function EnemiesPanel(props: {
                         );
                         return;
                       }
-                      props.onSelectTargetId(enemy.id);
-                      props.onSetTargetMode("none");
-                      props.onLog(`Cible selectionnee: ${enemy.id}.`);
+                      props.onToggleTargetId(enemy.id);
+                      props.onLog(`Cible basculee: ${enemy.id}.`);
                     }}
                     disabled={!canTarget}
                     style={{

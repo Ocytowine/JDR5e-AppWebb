@@ -791,7 +791,7 @@ export const GameBoard: React.FC = () => {
   const [selectedPath, setSelectedPath] = useState<{ x: number; y: number }[]>(
     []
   );
-  const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
+  const [selectedTargetIds, setSelectedTargetIds] = useState<string[]>([]);
   const [selectedObstacleTarget, setSelectedObstacleTarget] = useState<{
     id: string;
     x: number;
@@ -1691,7 +1691,7 @@ export const GameBoard: React.FC = () => {
     player,
     enemies,
     selectedPath,
-    selectedTargetId,
+    selectedTargetIds,
     selectedObstacleTarget,
     selectedWallTarget,
     visibilityLevels,
@@ -1788,13 +1788,14 @@ export const GameBoard: React.FC = () => {
     showAllLevels
   });
   const selectedStructureCell = selectedObstacleTarget ?? selectedWallTarget;
+  const primaryTargetId = getPrimaryTargetId();
   usePixiOverlays({
     pathLayerRef,
     player,
     enemies,
     selectedPath,
     effectSpecs,
-    selectedTargetId,
+    selectedTargetIds,
     selectedObstacleCell: selectedStructureCell
       ? { x: selectedStructureCell.x, y: selectedStructureCell.y }
       : null,
@@ -2006,21 +2007,39 @@ export const GameBoard: React.FC = () => {
     }));
   }
 
-  function getSelectedTargetLabel(): string | null {
-    if (selectedTargetId) return selectedTargetId;
+  function getSelectedTargetLabels(): string[] {
+    if (selectedTargetIds.length > 0) return [...selectedTargetIds];
     if (selectedObstacleTarget) {
       const obstacle = obstacles.find(o => o.id === selectedObstacleTarget.id) ?? null;
-      if (!obstacle) return "obstacle";
+      if (!obstacle) return ["obstacle"];
       const def = obstacleTypeById.get(obstacle.typeId) ?? null;
-      return def?.label ?? obstacle.typeId ?? "obstacle";
+      return [def?.label ?? obstacle.typeId ?? "obstacle"];
     }
     if (selectedWallTarget) {
       const wall = wallSegments.find(w => w.id === selectedWallTarget.id) ?? null;
-      if (!wall) return "mur";
+      if (!wall) return ["mur"];
       const def = wall.typeId ? wallTypeById.get(wall.typeId) ?? null : null;
-      return def?.label ?? wall.typeId ?? "mur";
+      return [def?.label ?? wall.typeId ?? "mur"];
     }
-    return null;
+    return [];
+  }
+
+  function getPrimaryTargetId(): string | null {
+    return selectedTargetIds.length > 0 ? selectedTargetIds[0] : null;
+  }
+
+  function toggleSelectedTargetId(targetId: string, maxTargets?: number | null) {
+    const cap = typeof maxTargets === "number" && maxTargets > 0 ? maxTargets : 1;
+    setSelectedTargetIds(prev => {
+      if (prev.includes(targetId)) {
+        return prev.filter(id => id !== targetId);
+      }
+      if (prev.length >= cap) {
+        pushLog(`Maximum de cibles atteint (${cap}).`);
+        return prev;
+      }
+      return [...prev, targetId];
+    });
   }
 
   function getMovementModeById(id: string): MovementModeDefinition | null {
@@ -3445,8 +3464,25 @@ export const GameBoard: React.FC = () => {
       };
     }
 
-    const dist = distanceBetweenTokens(actor, enemy);
-    const range = targeting.range;
+    return validateTokenTargetForAction(action, enemy, actor, allTokens);
+  }
+
+  function validateTokenTargetForAction(
+    action: ActionDefinition,
+    token: TokenState,
+    actor: TokenState,
+    allTokens: TokenState[]
+  ): { ok: boolean; reason?: string } {
+    if (token.hp <= 0) {
+      return { ok: false, reason: "La cible est deja a terre." };
+    }
+    if (!areTokensOnSameLevel(actor, token)) {
+      return { ok: false, reason: "Cible sur un autre niveau." };
+    }
+
+    const targeting = action.targeting;
+    const dist = distanceBetweenTokens(actor, token);
+    const range = targeting?.range;
 
     if (range) {
       if (typeof range.min === "number" && dist < range.min) {
@@ -3499,7 +3535,7 @@ export const GameBoard: React.FC = () => {
           };
         }
       }
-      if (cond.type === "TARGET_ALIVE" && enemy.hp <= 0) {
+      if (cond.type === "TARGET_ALIVE" && token.hp <= 0) {
         return {
           ok: false,
           reason: cond.reason || "La cible doit avoir des PV restants."
@@ -3507,10 +3543,10 @@ export const GameBoard: React.FC = () => {
       }
     }
 
-    if (targeting.requiresLos) {
+    if (targeting?.requiresLos) {
       const visible = isTargetVisible(
         actor,
-        enemy,
+        token,
         allTokens,
         visionBlockersActive,
         playableCells,
@@ -3526,8 +3562,8 @@ export const GameBoard: React.FC = () => {
         };
       }
       const targetCell =
-        getClosestFootprintCellToPoint({ x: actor.x, y: actor.y }, enemy) ??
-        { x: enemy.x, y: enemy.y };
+        getClosestFootprintCellToPoint({ x: actor.x, y: actor.y }, token) ??
+        { x: token.x, y: token.y };
       const canHit = hasLineOfEffect(
         { x: actor.x, y: actor.y },
         targetCell,
@@ -4108,12 +4144,12 @@ export const GameBoard: React.FC = () => {
 
     if (actionTargetsHostile(action)) {
       setTargetMode("selecting");
-      setSelectedTargetId(null);
+      setSelectedTargetIds([]);
       setSelectedObstacleTarget(null);
       setSelectedWallTarget(null);
     } else {
       setTargetMode("none");
-      setSelectedTargetId(null);
+      setSelectedTargetIds([]);
       setSelectedObstacleTarget(null);
       setSelectedWallTarget(null);
     }
@@ -4425,8 +4461,9 @@ export const GameBoard: React.FC = () => {
     const actorPos = { x: player.x, y: player.y };
     let targetPos: { x: number; y: number } | null = null;
 
-    if (selectedTargetId) {
-      const target = enemies.find(e => e.id === selectedTargetId) ?? null;
+    const primaryTargetId = getPrimaryTargetId();
+    if (primaryTargetId) {
+      const target = enemies.find(e => e.id === primaryTargetId) ?? null;
       if (target) targetPos = { x: target.x, y: target.y };
     } else if (selectedObstacleTarget) {
       targetPos = { x: selectedObstacleTarget.x, y: selectedObstacleTarget.y };
@@ -4455,8 +4492,9 @@ export const GameBoard: React.FC = () => {
       (actionTargetsHostile(action) ? "target" : "self");
 
     if (anchor === "target") {
-      if (selectedTargetId) {
-        const target = enemies.find(e => e.id === selectedTargetId) ?? null;
+      const primaryTargetId = getPrimaryTargetId();
+      if (primaryTargetId) {
+        const target = enemies.find(e => e.id === primaryTargetId) ?? null;
         if (target) return { x: target.x, y: target.y };
       }
       if (selectedObstacleTarget) {
@@ -4563,9 +4601,10 @@ export const GameBoard: React.FC = () => {
 
   function resolvePlayerAdvantageMode(action: ActionDefinition | null): AdvantageMode {
     if (!action || !actionTargetsHostile(action)) return advantageMode;
-    if (!selectedTargetId) return advantageMode;
-    if (selectedTargetId !== killerInstinctTargetId) return advantageMode;
-    const target = enemies.find(e => e.id === selectedTargetId) ?? null;
+    const primaryTargetId = getPrimaryTargetId();
+    if (!primaryTargetId) return advantageMode;
+    if (primaryTargetId !== killerInstinctTargetId) return advantageMode;
+    const target = enemies.find(e => e.id === primaryTargetId) ?? null;
     if (!target || isTokenDead(target)) return advantageMode;
     return "advantage";
   }
@@ -4599,9 +4638,13 @@ export const GameBoard: React.FC = () => {
       }
       return null;
     }
-    if (selectedTargetId) {
-      const targetToken = enemies.find(e => e.id === selectedTargetId) ?? null;
-      if (targetToken) return { kind: "token", token: targetToken };
+    if (selectedTargetIds.length > 0) {
+      const allTokens = [player, ...enemies];
+      const tokens = selectedTargetIds
+        .map(id => allTokens.find(t => t.id === id) ?? null)
+        .filter((value): value is TokenState => Boolean(value));
+      if (tokens.length > 1) return { kind: "tokens", tokens };
+      if (tokens.length === 1) return { kind: "token", token: tokens[0] };
     }
     return null;
   }
@@ -4625,12 +4668,13 @@ export const GameBoard: React.FC = () => {
       console.warn("[actions] VFX preload failed:", error);
     }
 
+    const primaryTargetId = getPrimaryTargetId();
     const anchor =
       op.anchor === "self" || op.anchor === "actor"
         ? { x: player.x, y: player.y }
-        : selectedTargetId
+        : primaryTargetId
         ? (() => {
-            const target = enemies.find(e => e.id === selectedTargetId) ?? null;
+            const target = enemies.find(e => e.id === primaryTargetId) ?? null;
             return target ? { x: target.x, y: target.y } : { x: player.x, y: player.y };
           })()
         : selectedObstacleTarget
@@ -4703,7 +4747,7 @@ export const GameBoard: React.FC = () => {
         onSetKillerInstinctTarget: targetId => {
           if (killerInstinctTargetId) return;
           setKillerInstinctTargetId(targetId);
-          setSelectedTargetId(targetId);
+          setSelectedTargetIds([targetId]);
           setEnemies(prev =>
             prev.map(enemy =>
               enemy.id === targetId
@@ -4788,8 +4832,9 @@ export const GameBoard: React.FC = () => {
     let targetArmorClass: number | null = null;
     let targetLabel: string | null = null;
     if (actionTargetsHostile(action)) {
-      if (selectedTargetId) {
-        const target = enemies.find(e => e.id === selectedTargetId);
+      const primaryTargetId = getPrimaryTargetId();
+      if (primaryTargetId) {
+        const target = enemies.find(e => e.id === primaryTargetId);
         if (!target) {
           pushLog("Cible ennemie introuvable ou deja vaincue.");
           return;
@@ -5069,23 +5114,76 @@ export const GameBoard: React.FC = () => {
       const tokens = getTokensOnActiveLevel([player, ...enemies]);
       const target = getTokenAt({ x: targetX, y: targetY }, tokens);
 
-      if (target && target.type === "enemy") {
-        const validation = validateEnemyTargetForAction(
-          action,
-          target,
-          player,
-          [player, ...enemies]
-        );
+      if (target) {
+        const targetType = action.targeting?.target;
+        const isHostile = target.type !== player.type;
+        const isAlly = target.type === player.type;
+        const isPlayer = target.type === "player";
+        const isEnemy = target.type === "enemy";
+
+        const isAllowed =
+          targetType === "enemy"
+            ? isEnemy
+            : targetType === "player"
+            ? isPlayer
+            : targetType === "hostile"
+            ? isHostile
+            : targetType === "ally"
+            ? isAlly
+            : targetType === "self"
+            ? target.id === player.id
+            : false;
+
+        if (!isAllowed) {
+          pushLog("Cette cible n'est pas valide pour cette action.");
+          return;
+        }
+
+        const validation =
+          isEnemy && (targetType === "enemy" || targetType === "hostile")
+            ? validateEnemyTargetForAction(action, target, player, [player, ...enemies])
+            : validateTokenTargetForAction(action, target, player, [player, ...enemies]);
         if (!validation.ok) {
           pushLog(validation.reason || "Cette cible n'est pas valide pour cette action.");
           return;
         }
 
-        setSelectedTargetId(target.id);
+        const maxTargets =
+          typeof action.targeting?.maxTargets === "number" && action.targeting.maxTargets > 0
+            ? action.targeting.maxTargets
+            : 1;
+        if (maxTargets <= 1) {
+          setSelectedTargetIds([target.id]);
+          setSelectedObstacleTarget(null);
+          setSelectedWallTarget(null);
+          setTargetMode("none");
+          pushLog(`Cible selectionnee: ${target.id}.`);
+          return;
+        }
+        let actionLabel = "ajoutee";
+        let didChange = true;
+        setSelectedTargetIds(prev => {
+          const exists = prev.includes(target.id);
+          if (exists) {
+            actionLabel = "retiree";
+            return prev.filter(id => id !== target.id);
+          }
+          if (prev.length >= maxTargets) {
+            pushLog(`Maximum de cibles atteint (${maxTargets}).`);
+            didChange = false;
+            return prev;
+          }
+          actionLabel = "ajoutee";
+          if (prev.length + 1 >= maxTargets) {
+            setTargetMode("none");
+          }
+          return [...prev, target.id];
+        });
         setSelectedObstacleTarget(null);
         setSelectedWallTarget(null);
-        setTargetMode("none");
-        pushLog(`Cible selectionnee: ${target.id}.`);
+        if (didChange) {
+          pushLog(`Cible ${target.id} ${actionLabel}.`);
+        }
         return;
       }
 
@@ -5104,7 +5202,7 @@ export const GameBoard: React.FC = () => {
         }
 
         const label = obstacleHit.def?.label ?? obstacleHit.instance.typeId ?? "obstacle";
-        setSelectedTargetId(null);
+        setSelectedTargetIds([]);
         setSelectedObstacleTarget({ id: obstacleHit.instance.id, x: targetX, y: targetY });
         setSelectedWallTarget(null);
         setTargetMode("none");
@@ -5126,7 +5224,7 @@ export const GameBoard: React.FC = () => {
         }
 
         const label = wallHit.def?.label ?? wallHit.segment.typeId ?? "mur";
-        setSelectedTargetId(null);
+        setSelectedTargetIds([]);
         setSelectedObstacleTarget(null);
         setSelectedWallTarget({ id: wallHit.segment.id, x: targetX, y: targetY });
         setTargetMode("none");
@@ -5526,7 +5624,7 @@ export const GameBoard: React.FC = () => {
   }
 
   function openReactionContext(instance: ReactionInstance) {
-    setSelectedTargetId(instance.targetId);
+    setSelectedTargetIds(instance.targetId ? [instance.targetId] : []);
     setSelectedObstacleTarget(null);
     setSelectedWallTarget(null);
     setTargetMode("none");
@@ -5740,7 +5838,7 @@ export const GameBoard: React.FC = () => {
         if (params.reactor.id !== player.id) continue;
         if (killerInstinctTargetId) return true;
         setKillerInstinctTargetId(params.target.id);
-        setSelectedTargetId(params.target.id);
+        setSelectedTargetIds([params.target.id]);
         setEnemies(prev =>
           prev.map(enemy =>
             enemy.id === params.target.id
@@ -7728,7 +7826,7 @@ function handleEndPlayerTurn() {
     validatedActionId === contextAction.id
       ? { enabled: true, reasons: [], details: contextAvailabilityRaw?.details ?? [] }
       : contextAvailabilityRaw;
-  const selectedTargetLabel = getSelectedTargetLabel();
+  const selectedTargetLabels = getSelectedTargetLabels();
   const contextResource = getActionResourceInfo(contextAction);
   const contextNeedsTarget = actionTargetsHostile(contextAction);
   const contextPlan: ActionPlan | null = contextAction
@@ -7737,7 +7835,7 @@ function handleEndPlayerTurn() {
         availability: contextAvailability ?? null,
         stage: actionContext?.stage ?? "draft",
         needsTarget: contextNeedsTarget,
-        targetSelected: Boolean(selectedTargetLabel),
+        targetSelected: selectedTargetLabels.length > 0,
         hasAttack: Boolean(contextAction.attack),
         hasDamage: Boolean(contextAction.damage),
         attackRoll,
@@ -7758,8 +7856,9 @@ function handleEndPlayerTurn() {
     contextCompleteRef.current = contextComplete;
   }, [contextComplete]);
   const selectedTargetStatuses = useMemo(() => {
-    if (!selectedTargetId) return [];
-    const target = enemies.find(enemy => enemy.id === selectedTargetId);
+    const primaryTargetId = getPrimaryTargetId();
+    if (!primaryTargetId) return [];
+    const target = [player, ...enemies].find(token => token.id === primaryTargetId);
     if (!target || !Array.isArray(target.statuses) || target.statuses.length === 0) {
       return [];
     }
@@ -7773,7 +7872,7 @@ function handleEndPlayerTurn() {
         isPersistent: Boolean(def?.persistUntilDeath)
       };
     });
-  }, [enemies, selectedTargetId, statusTypeById]);
+  }, [enemies, selectedTargetIds, statusTypeById]);
 
   const isActionInProgress =
     (actionContext?.stage === "active" && Boolean(validatedActionId)) ||
@@ -8036,7 +8135,7 @@ function handleEndPlayerTurn() {
     setDamageRoll(null);
     setAttackOutcome(null);
     setHasRolledAttackForCurrentAction(false);
-    setSelectedTargetId(null);
+    setSelectedTargetIds([]);
     setSelectedObstacleTarget(null);
     setSelectedWallTarget(null);
     resetActionContext();
@@ -8979,19 +9078,18 @@ function handleEndPlayerTurn() {
                 enemies={enemies}
                 validatedAction={validatedAction}
                 targetMode={targetMode}
-                selectedTargetId={selectedTargetId}
-                selectedTargetLabel={selectedTargetLabel}
+                selectedTargetIds={selectedTargetIds}
+                selectedTargetLabels={selectedTargetLabels}
+                maxTargets={contextAction?.targeting?.maxTargets ?? null}
                 targetStatuses={selectedTargetStatuses}
                 effectiveAdvantageMode={effectiveAdvantageMode}
                 plan={contextPlan}
                 isComplete={contextComplete}
                 movement={contextMovement}
                 onFinishHazard={handleFinishHazard}
-                onSelectTargetId={enemyId => {
-                  setSelectedTargetId(enemyId);
-                  setSelectedObstacleTarget(null);
-                  setSelectedWallTarget(null);
-                }}
+                onToggleTargetId={enemyId =>
+                  toggleSelectedTargetId(enemyId, contextAction?.targeting?.maxTargets ?? null)
+                }
                 onSetTargetMode={setTargetMode}
                 advantageMode={advantageMode}
                 onSetAdvantageMode={setAdvantageMode}

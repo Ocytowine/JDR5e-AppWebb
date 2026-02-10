@@ -27,7 +27,8 @@ export function usePixiOverlays(options: {
   enemies: TokenState[];
   selectedPath: { x: number; y: number }[];
   effectSpecs: EffectSpec[];
-  selectedTargetId: string | null;
+  selectedTargetId?: string | null;
+  selectedTargetIds?: string[];
   selectedObstacleCell: { x: number; y: number } | null;
   obstacleVisionCells?: Set<string> | null;
   wallVisionEdges?: Map<string, WallSegment> | null;
@@ -791,9 +792,16 @@ export function usePixiOverlays(options: {
       }
     }
 
-    if (options.selectedTargetId) {
-      const target = options.enemies.find(e => e.id === options.selectedTargetId);
-      if (target) {
+    const selectedIds =
+      options.selectedTargetIds && options.selectedTargetIds.length > 0
+        ? options.selectedTargetIds
+        : options.selectedTargetId
+        ? [options.selectedTargetId]
+        : [];
+    if (selectedIds.length > 0) {
+      for (const id of selectedIds) {
+        const target = options.enemies.find(e => e.id === id) ?? null;
+        if (!target) continue;
         for (const cell of getTokenOccupiedCells(target)) {
           if (!isCellInView(cell.x, cell.y)) continue;
           const rect = cellRect(cell.x, cell.y);
@@ -868,6 +876,7 @@ export function usePixiOverlays(options: {
     options.selectedPath,
     options.effectSpecs,
     options.selectedTargetId,
+    options.selectedTargetIds,
     options.selectedObstacleCell,
     options.showVisionDebug,
     options.showFogSegments,

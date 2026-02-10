@@ -14,11 +14,12 @@ import { getHeightAtGrid, type TerrainCell } from "./map/draft";
 import { getClosestFootprintCellToPoint } from "./footprint";
 import { metersToCells } from "./units";
 import { evaluateAllConditions } from "./engine/conditionEval";
-import type { ConditionExpr } from "./conditions";
+import type { ConditionExpr, EnginePhase } from "./conditions";
 
 export interface ActionEngineContext {
   round: number;
   phase: "player" | "enemies";
+  enginePhase?: EnginePhase;
   actor: TokenState;
   player: TokenState;
   enemies: TokenState[];
@@ -91,6 +92,7 @@ export interface ActionEngineContext {
 
 export type ActionTarget =
   | { kind: "token"; token: TokenState }
+  | { kind: "tokens"; tokens: TokenState[] }
   | { kind: "cell"; x: number; y: number }
   | { kind: "none" };
 
@@ -155,7 +157,20 @@ function validateTokenTarget(
       actor,
       target: targetToken,
       distance: dist,
-      phase: ctx.phase,
+      phase: ctx.enginePhase ?? ctx.phase,
+      sameLevel: areOnSameBaseLevel(ctx, actor, targetToken),
+      lineOfSight: action.targeting?.requiresLos
+        ? isTargetVisible(
+            actor,
+            targetToken,
+            allTokens,
+            ctx.blockedVisionCells ?? null,
+            ctx.playableCells ?? null,
+            ctx.wallVisionEdges ?? null,
+            ctx.lightLevels ?? null,
+            ctx.grid ?? null
+          )
+        : null,
       getResourceAmount: ctx.getResourceAmount
     });
     if (!ok) {
@@ -210,6 +225,18 @@ export function validateActionTarget(
   }
 
   if (targeting.target === "enemy") {
+    if (target.kind === "tokens") {
+      const tokens = target.tokens.filter(t => t.type === "enemy");
+      if (tokens.length === 0) return { ok: false, reason: "Cible ennemi manquante." };
+      if (typeof targeting.maxTargets === "number" && tokens.length > targeting.maxTargets) {
+        return { ok: false, reason: "Trop de cibles." };
+      }
+      for (const token of tokens) {
+        const res = validateTokenTarget(action, ctx, token);
+        if (!res.ok) return res;
+      }
+      return { ok: true };
+    }
     if (target.kind !== "token" || target.token.type !== "enemy") {
       return { ok: false, reason: "Cible ennemi manquante." };
     }
@@ -226,6 +253,18 @@ export function validateActionTarget(
 
   if (targeting.target === "hostile") {
     let targetToken: TokenState | null = null;
+    if (target.kind === "tokens") {
+      const tokens = target.tokens.filter(t => isHostileTarget(actor, t));
+      if (tokens.length === 0) return { ok: false, reason: "Cible hostile manquante." };
+      if (typeof targeting.maxTargets === "number" && tokens.length > targeting.maxTargets) {
+        return { ok: false, reason: "Trop de cibles." };
+      }
+      for (const token of tokens) {
+        const res = validateTokenTarget(action, ctx, token);
+        if (!res.ok) return res;
+      }
+      return { ok: true };
+    }
     if (target.kind === "token") {
       targetToken = target.token;
     } else if (actor.type === "enemy") {
@@ -240,6 +279,18 @@ export function validateActionTarget(
   }
 
   if (targeting.target === "ally") {
+    if (target.kind === "tokens") {
+      const tokens = target.tokens.filter(t => isAllyTarget(actor, t));
+      if (tokens.length === 0) return { ok: false, reason: "Cible allie manquante." };
+      if (typeof targeting.maxTargets === "number" && tokens.length > targeting.maxTargets) {
+        return { ok: false, reason: "Trop de cibles." };
+      }
+      for (const token of tokens) {
+        const res = validateTokenTarget(action, ctx, token);
+        if (!res.ok) return res;
+      }
+      return { ok: true };
+    }
     if (target.kind !== "token") {
       return { ok: false, reason: "Cible allie manquante." };
     }
@@ -285,8 +336,9 @@ export function computeAvailabilityForActor(
     const ok = evaluateAllConditions(availabilityConditions, {
       actor: ctx.actor,
       target: ctx.player,
-      phase: ctx.phase,
+      phase: ctx.enginePhase ?? ctx.phase,
       getResourceAmount: ctx.getResourceAmount,
+      sameLevel: true,
       valueLookup: {
         actor: {
           hp: ctx.actor.hp,
@@ -368,6 +420,8 @@ export function resolveActionUnified(
     target:
       target.kind === "token"
         ? target.token
+        : target.kind === "tokens"
+        ? { kind: "tokens", tokens: target.tokens }
         : target.kind === "cell"
         ? { x: target.x, y: target.y }
         : null
@@ -454,6 +508,7 @@ export function resolveActionUnified(
       spendResource: ctx.spendResource,
       rollOverrides: opts?.rollOverrides,
       onLog: log,
+      onEmitEvent: ctx.emitEvent,
       onMoveTo: applyMoveTo,
       onModifyPathLimit: ctx.onModifyPathLimit,
       onToggleTorch: ctx.onToggleTorch,

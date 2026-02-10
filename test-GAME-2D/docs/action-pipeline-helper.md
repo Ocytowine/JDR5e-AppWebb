@@ -16,6 +16,7 @@ Le pipeline est stable et ne doit pas etre modifie par les JSON. Les contenus de
 2. Les JSON de contenu decrivent des intentions, pas des etapes.
 3. Les operations sont atomiques et composees par des conditions/branches.
 4. Les hooks s'appliquent via un moteur de regles commun.
+5. Support complet des hooks taxo (noms courts + legacy).
 
 ## Phases du pipeline (rappel)
 
@@ -30,6 +31,34 @@ Le pipeline est stable et ne doit pas etre modifie par les JSON. Les contenus de
 9. Apply effects to world/context
 10. Post-resolution reaction window(s)
 11. Commit transaction + event log
+
+## Hooks supportes (moteur)
+
+Le moteur supporte les hooks suivants (taxo complete), ainsi que les alias legacy:
+
+- onIntentBuild
+- onOptionsResolve
+- onValidate
+- onTargeting
+- preResolution
+- onResolve
+- onOutcome
+- beforeApply
+- afterApply
+- postResolution
+- beforeCommit
+- afterCommit
+
+Alias legacy compatibles:
+- pre_resolution -> preResolution
+- on_outcome -> onOutcome
+- on_apply -> afterApply
+- post_resolution -> postResolution
+- PRE_RESOLUTION_WINDOW -> preResolution
+- ON_OUTCOME -> onOutcome
+- APPLY_TARGET_EFFECTS/APPLY_WORLD_EFFECTS -> afterApply
+- POST_RESOLUTION_WINDOW -> postResolution
+- COMMIT -> beforeCommit
 
 ## Modeles (concepts)
 
@@ -85,6 +114,7 @@ Utiliser des branches declarees:
 ### 4) Hooks
 - Features/items/status doivent ajouter des hooks declaratifs, pas modifier le pipeline.
 - Exemple: "onHit spend resource to add rider damage" devient un hook conditionnel.
+- Tous les hooks de la taxo sont acceptes dans `when`.
 
 ## Patterns de conversion
 

@@ -4,7 +4,7 @@ import type { TokenState } from "../../types";
 export function compileActionPlan(params: {
   action: ActionSpec;
   actor: TokenState;
-  target?: TokenState | { x: number; y: number } | null;
+  target?: TokenState | { x: number; y: number } | { kind: "tokens"; tokens: TokenState[] } | null;
 }): ActionPlan {
   const hooks = params.action.hooks ?? [];
   const reactionWindows = params.action.reactionWindows ?? [];

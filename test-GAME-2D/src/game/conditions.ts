@@ -44,12 +44,33 @@ export type ConditionExpr =
   | { type: "ACTOR_HAS_RESOURCE"; key: string; cmp: Comparator; value: number }
   | { type: "TARGET_HAS_RESOURCE"; key: string; cmp: Comparator; value: number }
   | { type: "RESOURCE_AT_LEAST"; resource: string; pool?: string | null; value: number }
+  | { type: "RESOURCE_AT_MOST"; resource: string; pool?: string | null; value: number }
+  | { type: "HAS_RESOURCE"; who: "actor" | "target"; key: string; cmp: Comparator; value: number }
+  | { type: "SLOT_AVAILABLE"; slot: string; level?: number; min?: number }
   | { type: "ACTOR_SIZE_IS"; value: string }
   | { type: "TARGET_SIZE_IS"; value: string }
   | { type: "ACTOR_CAN_MOVE"; move: string }
   | { type: "TARGET_CAN_MOVE"; move: string }
+  | { type: "OUTCOME_IS"; value: OutcomeFlag }
+  | { type: "OUTCOME_IN"; values: OutcomeFlag[] }
+  | { type: "ROLL_AT_LEAST"; value: number }
+  | { type: "ROLL_AT_MOST"; value: number }
   | { type: "OUTCOME_HAS"; flag: OutcomeFlag }
   | { type: "PHASE_IS"; value?: string; mustBe?: string }
+  | { type: "DISTANCE_WITHIN"; min?: number; max?: number; target?: "primary" | "self" | string }
+  | { type: "HAS_LINE_OF_SIGHT"; value?: boolean }
+  | { type: "SAME_LEVEL"; value?: boolean }
+  | { type: "TARGET_IN_AREA"; value?: boolean }
+  | { type: "ONCE_PER_TURN"; key: string }
+  | { type: "ONCE_PER_ROUND"; key: string }
+  | { type: "ONCE_PER_COMBAT"; key: string }
+  | { type: "NOT_USED_THIS_TURN"; key: string }
+  | { type: "IS_REACTION_AVAILABLE"; value?: boolean }
+  | { type: "IS_CONCENTRATING"; value?: boolean }
+  | { type: "IS_SURPRISED"; value?: boolean }
+  | { type: "IS_IN_LIGHT"; value?: boolean }
+  | { type: "TARGET_HP_BELOW"; value: number; mode?: "percent" | "absolute" }
+  | { type: "ACTOR_HP_BELOW"; value: number; mode?: "percent" | "absolute" }
   | { type: "TARGET_ALIVE"; target?: "primary" | "self" | string }
   | { type: "DISTANCE_MAX"; max: number; target?: "primary" | "self" | string }
   | { type: "DISTANCE_BETWEEN"; min?: number; max?: number; target?: "primary" | "self" | string }

@@ -1,6 +1,7 @@
-# Taxonomie complete du pipeline (D&D 2024)
+# Taxonomie officielle (taxonomy.json)
 
-Ce document decrit la taxonomie complete pour le pipeline d'actions. Il sert de reference pour migrer les JSON et garantir la compatibilite avec les mecanismes D&D 2024.
+Ce document decrit la taxonomie officielle telle que definie dans `src/data/models/taxonomy.json`.
+Objectif: fournir la reference exacte des champs et enums actuellement acceptes par les JSON de gameplay.
 
 ## Principes
 
@@ -23,184 +24,257 @@ Ce document decrit la taxonomie complete pour le pipeline d'actions. Il sert de 
 10. Post-resolution reaction window(s)
 11. Commit transaction + event log
 
+## Etat d'implementation (engine)
+
+Le moteur d'execution supporte:
+- La sequence complete des phases via hooks (onIntentBuild -> afterCommit).
+- Les alias legacy pour compatibilite ascendante.
+- Les hooks sont evaluates via `conditions` et peuvent appliquer des `operations`.
+
+## Champs globaux (taxonomy.json)
+
+- id
+- version
+- description
+- units
+- unitsFields
+- sources
+- creatureTypes
+- sizeCategories
+- movementTypes
+- damageTypes
+- damageTags
+- conditionTypes
+- senses
+- abilities
+- resolutionTypes
+- attackKinds
+- outcomeFlags
+- targetingConstraints
+- areaShapes
+- enginePhases
+- action
+- moveType
+- enemy
+- character
+- weapon
+- reaction
+- visualEffectType
+- map
+- race
+- passif
+- currency
+- restTypes
+- commonFlags
+- formulaTokens
+- runtimeSupport
+- tags
+
 ## Concepts
 
-### ActionSpec
-- Identite, economie, couts
-- Ciblage (target + range + maxTargets + requiresLos)
-- Resolution (attack/save/check/contested/none)
-- Effects conditionnels par issue
-- Reaction windows
-- Hooks additionnels
+### ActionSpec (section `action`)
+- model: "./action-model.json"
+- category:
+  - attack
+  - movement
+  - support
+  - control
+  - defense
+  - item
+  - reaction
+- actionCost:
+  - actionType: action | bonus | reaction | free
+  - movementCost: number
+- targeting:
+  - target: enemy | player | hostile | ally | self | cell | emptyCell
+  - range.shape: SPHERE | CONE | LINE | CUBE | CYLINDER
+  - range.min: number
+  - range.max: number
+  - maxTargets: number
+  - requiresLos: boolean
+- usage:
+  - perTurn: number|null
+  - perEncounter: number|null
+  - resource:
+    - name: string
+    - pool: string|null
+    - min: number|null
+- resolution:
+  - kind: ATTACK_ROLL | SAVING_THROW | ABILITY_CHECK | NO_ROLL
+  - critRule: double-dice | double-total
+- attack:
+  - bonus: number
+  - critRange: number (default 20)
+- damage:
+  - formula: string
+  - critRule: double-dice | double-total
+  - damageType: damageTypeId
+- conditions.types:
+  - ACTOR_CREATURE_TYPE_IS
+  - TARGET_CREATURE_TYPE_IS
+  - ACTOR_HAS_TAG
+  - TARGET_HAS_TAG
+  - ACTOR_CREATURE_HAS_TAG
+  - TARGET_CREATURE_HAS_TAG
+  - ACTOR_HAS_CONDITION
+  - TARGET_HAS_CONDITION
+  - ACTOR_CONDITION_STACKS
+  - TARGET_CONDITION_STACKS
+  - ACTOR_DAMAGE_IMMUNE
+  - TARGET_DAMAGE_IMMUNE
+  - ACTOR_DAMAGE_RESIST
+  - TARGET_DAMAGE_RESIST
+  - ACTOR_DAMAGE_VULNERABLE
+  - TARGET_DAMAGE_VULNERABLE
+  - ACTOR_HAS_RESOURCE
+  - TARGET_HAS_RESOURCE
+  - ACTOR_SIZE_IS
+  - TARGET_SIZE_IS
+  - ACTOR_CAN_MOVE
+  - TARGET_CAN_MOVE
+  - TARGET_ALIVE
+  - DISTANCE_MAX
+  - DISTANCE_BETWEEN
+  - RESOURCE_AT_LEAST
+  - STAT_BELOW_PERCENT
+  - OUTCOME_HAS
+  - PHASE_IS
+  - ACTOR_VALUE
+  - TARGET_VALUE
+  - AND
+  - OR
+  - NOT
+- ops:
+  - DealDamage
+  - Heal
+  - ApplyCondition
+  - CreateZone
+  - SpendResource
+  - MoveForced
+  - LogEvent
+  - PlayVisualEffect
+  - MoveTo
+  - GrantTempHp
+  - ModifyPathLimit
+  - ToggleTorch
+  - SetKillerInstinctTarget
+- hooks.phases:
+  - BUILD_INTENT
+  - GATHER_OPTIONS
+  - VALIDATE_LEGALITY
+  - TARGETING
+  - PRE_RESOLUTION_WINDOW
+  - RESOLVE_CHECK
+  - ON_OUTCOME
+  - APPLY_TARGET_EFFECTS
+  - APPLY_WORLD_EFFECTS
+  - POST_RESOLUTION_WINDOW
+  - COMMIT
+- outcomes:
+  - HIT
+  - MISS
+  - CRIT
+  - SAVE_SUCCESS
+  - SAVE_FAIL
+  - AUTO_SUCCESS
+  - AUTO_FAIL
+  - PARTIAL
+- tags.reserved:
+  - move-type
 
 ### FeatureSpec
-- Hooks declaratifs
-- Conditions et prompts optionnels
-- Operations appliquees si conditions valides
+Non formalise dans `taxonomy.json` (a documenter lors de l'extension).
 
 ### ActionPlan
-- Ciblage resolu
-- Resolution schema resolu
-- Hooks collectes
-- Operations ordonnees
-- Windows de reaction (pre/post)
+Non formalise dans `taxonomy.json` (a documenter lors de l'extension).
 
 ### Outcome
-Resultat d'une resolution:
-- kind: hit/miss/crit/saveSuccess/saveFail/checkSuccess/checkFail
-- roll/total
-- isCrit
+Les flags officiels sont listes dans `outcomeFlags` (voir `action.outcomes`).
 
 ### Operation
-Effet atomique applique a l'etat transactionnel.
+Liste officielle dans `action.ops`.
 
 ### Hook
-Regle declarative appliquee a une phase.
+Phases officielles dans `action.hooks.phases` (voir `enginePhases`).
 
-## Taxonomie des operations
+## Taxonomie des operations (officielle)
 
-### Degats/Soins
 - DealDamage
-- DealDamageScaled (half/quarter)
 - Heal
-- GrantTempHP
-- ApplyDamageTypeMod (resistance/vulnerability/immunity)
-
-### Conditions/Status
 - ApplyCondition
-- RemoveCondition
-- ExtendCondition
-- SetConditionStack
-- StartConcentration
-- BreakConcentration
-
-### Deplacements/Positions
-- MoveForced
-- Teleport
-- SwapPositions
-- Knockback
-- Pull
-- Push
-
-### Zone/Aura/Surface
 - CreateZone
-- RemoveZone
-- ModifyZone
-- CreateSurface
-- RemoveSurface
-- ApplyAura
-
-### Ressources
 - SpendResource
-- RestoreResource
-- ConsumeSlot
-- RestoreSlot
-- SetResource
-
-### Jets/Dices
-- AddDice
-- ReplaceRoll
-- Reroll
-- SetMinimumRoll
-- SetMaximumRoll
-- ModifyBonus
-- ModifyDC
-
-### Ciblage/Selection
-- LockTarget
-- ExpandTargets
-- FilterTargets
-- Retarget
-
-### Summons/Entities
-- SpawnEntity
-- DespawnEntity
-- ControlSummon
-
-### Flags/Tags
-- AddTag
-- RemoveTag
-- SetFlag
-
-### Logs/Events
+- MoveForced
 - LogEvent
-- EmitEvent
+- PlayVisualEffect
+- MoveTo
+- GrantTempHp
+- ModifyPathLimit
+- ToggleTorch
+- SetKillerInstinctTarget
 
-## Taxonomie des conditions (if)
+## Taxonomie des conditions (if) officielle
 
-### Resultat
-- OUTCOME_IS
-- OUTCOME_IN
-- ROLL_AT_LEAST
-- ROLL_AT_MOST
-
-### Cible/acteur
+- ACTOR_CREATURE_TYPE_IS
+- TARGET_CREATURE_TYPE_IS
 - ACTOR_HAS_TAG
 - TARGET_HAS_TAG
+- ACTOR_CREATURE_HAS_TAG
+- TARGET_CREATURE_HAS_TAG
 - ACTOR_HAS_CONDITION
 - TARGET_HAS_CONDITION
-- TARGET_HP_BELOW
-- ACTOR_HP_BELOW
-
-### Ressources
-- HAS_RESOURCE
+- ACTOR_CONDITION_STACKS
+- TARGET_CONDITION_STACKS
+- ACTOR_DAMAGE_IMMUNE
+- TARGET_DAMAGE_IMMUNE
+- ACTOR_DAMAGE_RESIST
+- TARGET_DAMAGE_RESIST
+- ACTOR_DAMAGE_VULNERABLE
+- TARGET_DAMAGE_VULNERABLE
+- ACTOR_HAS_RESOURCE
+- TARGET_HAS_RESOURCE
+- ACTOR_SIZE_IS
+- TARGET_SIZE_IS
+- ACTOR_CAN_MOVE
+- TARGET_CAN_MOVE
+- TARGET_ALIVE
+- DISTANCE_MAX
+- DISTANCE_BETWEEN
 - RESOURCE_AT_LEAST
-- RESOURCE_AT_MOST
-- SLOT_AVAILABLE
+- STAT_BELOW_PERCENT
+- OUTCOME_HAS
+- PHASE_IS
+- ACTOR_VALUE
+- TARGET_VALUE
+- AND
+- OR
+- NOT
 
-### Position/Ligne de vue
-- DISTANCE_WITHIN
-- HAS_LINE_OF_SIGHT
-- SAME_LEVEL
-- TARGET_IN_AREA
+## Taxonomie des hooks (when) officielle
 
-### Usage/Timing
-- ONCE_PER_TURN
-- ONCE_PER_ROUND
-- ONCE_PER_COMBAT
-- NOT_USED_THIS_TURN
+Les hooks utilisent les phases `enginePhases`:
+- BUILD_INTENT
+- GATHER_OPTIONS
+- VALIDATE_LEGALITY
+- TARGETING
+- PRE_RESOLUTION_WINDOW
+- RESOLVE_CHECK
+- ON_OUTCOME
+- APPLY_TARGET_EFFECTS
+- APPLY_WORLD_EFFECTS
+- POST_RESOLUTION_WINDOW
+- COMMIT
 
-### Etat du jeu
-- IS_REACTION_AVAILABLE
-- IS_CONCENTRATING
-- IS_SURPRISED
-- IS_IN_LIGHT
+## Outcomes (officiels)
 
-## Taxonomie des hooks (when)
-
-### Core phases
-- onIntentBuild
-- onOptionsResolve
-- onValidate
-- onTargeting
-- preResolution
-- onResolve
-- onOutcome
-- beforeApply
-- afterApply
-- postResolution
-- beforeCommit
-- afterCommit
-
-### Turn/round
-- onTurnStart
-- onTurnEnd
-- onRoundStart
-- onRoundEnd
-
-### Interrupts
-- onInterrupt
-- onCounter
-
-## Outcomes (standardises)
-
-- hit
-- miss
-- crit
-- saveSuccess
-- saveFail
-- checkSuccess
-- checkFail
+- HIT
+- MISS
+- CRIT
+- SAVE_SUCCESS
+- SAVE_FAIL
+- AUTO_SUCCESS
+- AUTO_FAIL
+- PARTIAL
 
 ## Ressources (examples)
 
@@ -232,7 +306,7 @@ Regle declarative appliquee a une phase.
     "maxTargets": 1,
     "requiresLos": true
   },
-  "resolution": { "kind": "attack", "bonus": 5, "critRange": 20 },
+  "resolution": { "kind": "ATTACK_ROLL", "bonus": 5, "critRange": 20 },
   "effects": {
     "onHit": [
       { "op": "DealDamage", "target": "primary", "formula": "1d8+modSTR", "damageType": "slashing" }

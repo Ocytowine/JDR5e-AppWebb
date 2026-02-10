@@ -1,32 +1,21 @@
-import type { ActionDefinition } from "../actionTypes";
+import type { ActionDefinition, TargetingSpec } from "../actionTypes";
 import type { ActionSpec, ConditionalEffects, ResolutionSpec } from "./types";
 
 const kindMap: Record<string, ResolutionSpec["kind"]> = {
-  ATTACK_ROLL: "attack",
-  SAVING_THROW: "save",
-  ABILITY_CHECK: "check",
-  NO_ROLL: "none",
-  attack: "attack",
-  save: "save",
-  check: "check",
-  none: "none"
+  ATTACK_ROLL: "ATTACK_ROLL",
+  SAVING_THROW: "SAVING_THROW",
+  ABILITY_CHECK: "ABILITY_CHECK",
+  CONTESTED_CHECK: "CONTESTED_CHECK",
+  NO_ROLL: "NO_ROLL"
 };
 
-const abilityMap: Record<string, "str" | "dex" | "con" | "int" | "wis" | "cha"> = {
-  STR: "str",
-  FOR: "str",
-  DEX: "dex",
-  CON: "con",
-  INT: "int",
-  WIS: "wis",
-  SAG: "wis",
-  CHA: "cha",
-  str: "str",
-  dex: "dex",
-  con: "con",
-  int: "int",
-  wis: "wis",
-  cha: "cha"
+const abilityMap: Record<string, "FOR" | "DEX" | "CON" | "INT" | "SAG" | "CHA"> = {
+  FOR: "FOR",
+  DEX: "DEX",
+  CON: "CON",
+  INT: "INT",
+  SAG: "SAG",
+  CHA: "CHA"
 };
 
 function mapResolution(action: ActionDefinition): ResolutionSpec | undefined {
@@ -47,14 +36,18 @@ function mapResolution(action: ActionDefinition): ResolutionSpec | undefined {
 
   if (action.attack) {
     return {
-      kind: "attack",
+      kind: "ATTACK_ROLL",
       bonus: action.attack.bonus,
       critRange: action.attack.critRange ?? 20,
       critRule: action.damage?.critRule ?? "double-dice"
     };
   }
 
-  return { kind: "none" };
+  return { kind: "NO_ROLL" };
+}
+
+function normalizeTargeting(action: ActionDefinition): TargetingSpec | undefined {
+  return action.targeting;
 }
 
 function mapEffects(action: ActionDefinition): ConditionalEffects | undefined {
@@ -67,7 +60,7 @@ export function actionDefinitionToActionSpec(action: ActionDefinition): ActionSp
     id: action.id,
     name: action.name,
     summary: action.summary,
-    targeting: action.targeting,
+    targeting: normalizeTargeting(action),
     resolution: mapResolution(action),
     effects: mapEffects(action),
     reactionWindows: action.reactionWindows ?? [],

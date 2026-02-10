@@ -40,8 +40,10 @@ export function ActionContextWindow(props: {
   enemies: TokenState[];
   validatedAction: ActionDefinition | null;
   targetMode: "none" | "selecting";
-  selectedTargetId: string | null;
-  selectedTargetLabel: string | null;
+  selectedTargetIds: string[];
+  selectedTargetLabels: string[];
+  maxTargets?: number | null;
+  onToggleTargetId?: (enemyId: string) => void;
   targetStatuses?: Array<{
     id: string;
     label: string;
@@ -50,7 +52,6 @@ export function ActionContextWindow(props: {
     isPersistent?: boolean;
   }>;
   effectiveAdvantageMode?: AdvantageMode;
-  onSelectTargetId: (enemyId: string) => void;
   onSetTargetMode: (mode: "none" | "selecting") => void;
   advantageMode: AdvantageMode;
   onSetAdvantageMode: (mode: AdvantageMode) => void;
@@ -578,15 +579,88 @@ export function ActionContextWindow(props: {
           </div>
 
           <div style={{ marginTop: 6, fontSize: 12, color: "rgba(255,255,255,0.80)" }}>
-            Cible selectionnee:{" "}
-            <strong>{props.selectedTargetLabel ? props.selectedTargetLabel : "aucune"}</strong>
+            Cibles selectionnees:{" "}
+            <strong>{props.selectedTargetLabels.length > 0 ? "" : "aucune"}</strong>
+            {typeof props.maxTargets === "number" && props.maxTargets > 0 && (
+              <span style={{ marginLeft: 6, color: "rgba(255,255,255,0.6)" }}>
+                ({props.selectedTargetIds.length}/{props.maxTargets})
+              </span>
+            )}
             {props.targetMode === "selecting" && props.stage === "active" && (
-              <span style={{ marginLeft: 8, color: "#cfd3ff" }}>(clique un ennemi ou un obstacle)</span>
+              <span style={{ marginLeft: 8, color: "#cfd3ff" }}>(clique pour ajouter/retirer)</span>
             )}
           </div>
+          {props.selectedTargetLabels.length > 0 && (
+            <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {props.selectedTargetLabels.map((label, idx) => {
+                const hasId = idx < props.selectedTargetIds.length;
+                const id = hasId ? props.selectedTargetIds[idx] : label;
+                return (
+                  <div
+                    key={`${id}-${idx}`}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "2px 8px",
+                      borderRadius: 999,
+                      background: "rgba(255,255,255,0.08)",
+                      border: "1px solid rgba(255,255,255,0.12)",
+                      fontSize: 11,
+                      fontWeight: 800,
+                      color: "rgba(255,255,255,0.85)"
+                    }}
+                  >
+                    <span>{label}</span>
+                    {props.onToggleTargetId && hasId && (
+                      <button
+                        type="button"
+                        onClick={() => props.onToggleTargetId?.(id)}
+                        style={{
+                          width: 18,
+                          height: 18,
+                          borderRadius: 9,
+                          border: "1px solid rgba(255,255,255,0.2)",
+                          background: "rgba(255,255,255,0.08)",
+                          color: "rgba(255,255,255,0.9)",
+                          cursor: "pointer",
+                          fontSize: 10,
+                          lineHeight: "16px",
+                          padding: 0
+                        }}
+                        title="Retirer"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
           {props.stage !== "active" && (
             <div style={{ marginTop: 6, fontSize: 12, color: "rgba(255,255,255,0.70)" }}>
               Validez l&apos;action pour pouvoir selectionner une cible sur la grille.
+            </div>
+          )}
+          {props.stage === "active" && props.targetMode === "selecting" && (
+            <div style={{ marginTop: 8 }}>
+              <button
+                type="button"
+                onClick={() => props.onSetTargetMode("none")}
+                style={{
+                  padding: "4px 8px",
+                  borderRadius: 10,
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  background: "rgba(255,255,255,0.06)",
+                  color: "#fff",
+                  cursor: "pointer",
+                  fontSize: 11,
+                  fontWeight: 800
+                }}
+              >
+                Terminer selection
+              </button>
             </div>
           )}
           {props.targetStatuses && props.targetStatuses.length > 0 && (

@@ -7,16 +7,16 @@ import type { ConditionExpr } from "../conditions";
 export type OutcomeKey = "hit" | "miss" | "crit" | "saveSuccess" | "saveFail";
 
 export interface ResolutionSpec {
-  kind: "attack" | "save" | "check" | "none";
+  kind: "ATTACK_ROLL" | "SAVING_THROW" | "ABILITY_CHECK" | "NO_ROLL" | "CONTESTED_CHECK";
   bonus?: number;
   critRange?: number;
   critRule?: "double-dice" | "double-total";
   save?: {
-    ability: "str" | "dex" | "con" | "int" | "wis" | "cha";
+    ability: "FOR" | "DEX" | "CON" | "INT" | "SAG" | "CHA";
     dc: number;
   };
   check?: {
-    ability: "str" | "dex" | "con" | "int" | "wis" | "cha";
+    ability: "FOR" | "DEX" | "CON" | "INT" | "SAG" | "CHA";
     dc: number;
   };
 }
@@ -34,7 +34,35 @@ interface PromptSpec {
 }
 
 export interface Hook {
-  when: "pre_resolution" | "post_resolution" | "on_outcome" | "on_apply";
+  when:
+    | "pre_resolution"
+    | "post_resolution"
+    | "on_outcome"
+    | "on_apply"
+    | "PRE_RESOLUTION_WINDOW"
+    | "POST_RESOLUTION_WINDOW"
+    | "ON_OUTCOME"
+    | "APPLY_TARGET_EFFECTS"
+    | "APPLY_WORLD_EFFECTS"
+    | "COMMIT"
+    | "onIntentBuild"
+    | "onOptionsResolve"
+    | "onValidate"
+    | "onTargeting"
+    | "preResolution"
+    | "onResolve"
+    | "onOutcome"
+    | "beforeApply"
+    | "afterApply"
+    | "postResolution"
+    | "beforeCommit"
+    | "afterCommit"
+    | "onTurnStart"
+    | "onTurnEnd"
+    | "onRoundStart"
+    | "onRoundEnd"
+    | "onInterrupt"
+    | "onCounter";
   if?: ConditionExpr[];
   prompt?: PromptSpec;
   apply: Operation[];
@@ -50,16 +78,65 @@ export type Operation =
       damageType?: string;
       scale?: "half";
     }
+  | {
+      op: "DealDamageScaled";
+      target: TargetSelector;
+      formula: string;
+      damageType?: string;
+      scale: "half" | "quarter";
+    }
+  | {
+      op: "ApplyDamageTypeMod";
+      target: TargetSelector;
+      mode: "resistance" | "vulnerability" | "immunity";
+      damageType: string;
+    }
   | { op: "Heal"; target: TargetSelector; formula: string }
   | { op: "ApplyCondition"; target: TargetSelector; statusId: string; durationTurns: number }
+  | { op: "RemoveCondition"; target: TargetSelector; statusId: string }
+  | { op: "ExtendCondition"; target: TargetSelector; statusId: string; durationTurns: number }
+  | { op: "SetConditionStack"; target: TargetSelector; statusId: string; stacks: number }
+  | { op: "StartConcentration"; target: TargetSelector; sourceId?: string; effectId?: string }
+  | { op: "BreakConcentration"; target: TargetSelector }
   | { op: "CreateZone"; effectTypeId: string; target: "cell" | "self" }
+  | { op: "RemoveZone"; zoneId?: string; effectTypeId?: string }
+  | { op: "ModifyZone"; zoneId: string; active?: boolean; x?: number; y?: number }
+  | { op: "CreateSurface"; effectTypeId: string; target: "cell" | "self" }
+  | { op: "RemoveSurface"; surfaceId?: string; effectTypeId?: string }
+  | { op: "ApplyAura"; effectTypeId: string; target: TargetSelector }
   | { op: "SpendResource"; name: string; pool?: string | null; amount: number }
+  | { op: "RestoreResource"; name: string; pool?: string | null; amount: number }
+  | { op: "ConsumeSlot"; slot: string; level?: number; amount?: number }
+  | { op: "RestoreSlot"; slot: string; level?: number; amount?: number }
+  | { op: "SetResource"; name: string; pool?: string | null; amount: number }
   | { op: "MoveForced"; target: TargetSelector; to?: { x: number; y: number } }
+  | { op: "Teleport"; target: TargetSelector; to: { x: number; y: number } }
+  | { op: "SwapPositions"; target: TargetSelector }
+  | { op: "Knockback"; target: TargetSelector; distance: number; direction?: { x: number; y: number } }
+  | { op: "Pull"; target: TargetSelector; distance: number; direction?: { x: number; y: number } }
+  | { op: "Push"; target: TargetSelector; distance: number; direction?: { x: number; y: number } }
   | { op: "MoveTo"; target: TargetSelector; maxSteps?: number }
   | { op: "GrantTempHp"; target: TargetSelector; amount: number; durationTurns?: number | string }
   | { op: "ModifyPathLimit"; delta: number }
   | { op: "ToggleTorch" }
   | { op: "SetKillerInstinctTarget"; target: TargetSelector }
+  | { op: "AddDice"; formula: string }
+  | { op: "ReplaceRoll"; value: number }
+  | { op: "Reroll"; mode?: "max" | "min" }
+  | { op: "SetMinimumRoll"; value: number }
+  | { op: "SetMaximumRoll"; value: number }
+  | { op: "ModifyBonus"; delta: number }
+  | { op: "ModifyDC"; delta: number }
+  | { op: "LockTarget"; target: TargetSelector }
+  | { op: "ExpandTargets"; count: number }
+  | { op: "FilterTargets"; tag?: string }
+  | { op: "Retarget"; target: TargetSelector }
+  | { op: "SpawnEntity"; entityTypeId: string; target?: TargetSelector }
+  | { op: "DespawnEntity"; entityId: string }
+  | { op: "ControlSummon"; entityId: string; ownerId?: string }
+  | { op: "AddTag"; target: TargetSelector; tag: string }
+  | { op: "RemoveTag"; target: TargetSelector; tag: string }
+  | { op: "SetFlag"; target: TargetSelector; flag: string; value: boolean }
   | {
       op: "PlayVisualEffect";
       effectId: string;
@@ -69,7 +146,8 @@ export type Operation =
       rotationOffsetDeg?: number;
       durationMs?: number;
     }
-  | { op: "LogEvent"; message: string };
+  | { op: "LogEvent"; message: string }
+  | { op: "EmitEvent"; kind: string; data?: Record<string, unknown> };
 
 export interface ConditionalEffects {
   onResolve?: Operation[];
@@ -95,7 +173,7 @@ export interface ActionSpec {
 export interface ActionPlan {
   action: ActionSpec;
   actor: TokenState;
-  target?: TokenState | { x: number; y: number } | null;
+  target?: TokenState | { x: number; y: number } | { kind: "tokens"; tokens: TokenState[] } | null;
   hooks: Hook[];
   reactionWindows: Array<"pre" | "post">;
 }
@@ -107,14 +185,28 @@ export interface EngineState {
   player: TokenState;
   enemies: TokenState[];
   effects: EffectInstance[];
+  rollContext?: {
+    bonusDelta?: number;
+    dcDelta?: number;
+    replaceRoll?: number;
+    reroll?: "max" | "min";
+    minRoll?: number;
+    maxRoll?: number;
+  };
 }
 
 export interface ExecuteOptions {
   getResourceAmount?: (name: string, pool?: string | null) => number;
   spendResource?: (name: string, pool: string | null, amount: number) => void;
+  restoreResource?: (name: string, pool: string | null, amount: number) => void;
+  setResource?: (name: string, pool: string | null, amount: number) => void;
+  consumeSlot?: (slot: string, level?: number, amount?: number) => void;
+  restoreSlot?: (slot: string, level?: number, amount?: number) => void;
+  getSlotAmount?: (slot: string, level?: number) => number;
   promptHandler?: (prompt: PromptSpec) => "accept" | "reject";
   onReactionWindow?: (phase: "pre" | "post") => "continue" | "interrupt";
   onLog?: (message: string) => void;
+  onEmitEvent?: (evt: { kind: string; data?: Record<string, unknown> }) => void;
   rollOverrides?: {
     attack?: AttackRollResult | null;
     consumeDamageRoll?: () => DamageRollResult | null;
