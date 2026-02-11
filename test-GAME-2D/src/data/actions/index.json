@@ -15,9 +15,11 @@
     "../spells/heroism.json",
     "../spells/minor-ward.json",
     "../spells/rarys-telepathic-bond.json",
+    "../spells/rayon-de-feu.json",
     "../spells/resilient-sphere.json",
     "../spells/sanctuary.json",
     "../spells/sending.json",
+    "../spells/vague-ardente.json",
     "../spells/warding-bond.json",
     "../supports/second-wind.json"
   ]

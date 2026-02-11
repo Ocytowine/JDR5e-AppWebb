@@ -1,0 +1,69 @@
+{
+  "id": "rayon-de-feu",
+  "name": "Rayon de feu",
+  "level": 0,
+  "school": "evocation",
+  "components": {
+    "verbal": true,
+    "somatic": true,
+    "material": false
+  },
+  "summary": "Un trait de feu qui brule une cible a distance.",
+  "category": "attack",
+  "actionCost": {
+    "actionType": "action",
+    "movementCost": 0
+  },
+  "targeting": {
+    "target": "hostile",
+    "range": {
+      "min": 0,
+      "max": 36,
+      "shape": "LINE"
+    },
+    "maxTargets": 1,
+    "requiresLos": true
+  },
+  "usage": {
+    "perTurn": null,
+    "perEncounter": null,
+    "resource": null
+  },
+  "conditions": [],
+  "attack": {
+    "bonus": 0,
+    "critRange": 20
+  },
+  "damage": {
+    "formula": "1d10",
+    "critRule": "double-dice",
+    "damageType": "FIRE"
+  },
+  "resolution": {
+    "kind": "ATTACK_ROLL",
+    "bonus": 0,
+    "critRange": 20,
+    "critRule": "double-dice"
+  },
+  "ops": {
+    "onHit": [
+      {
+        "op": "DealDamage",
+        "target": "primary",
+        "formula": "1d10",
+        "damageType": "FIRE"
+      }
+    ],
+    "onMiss": [
+      {
+        "op": "LogEvent",
+        "message": "Le rayon rate sa cible."
+      }
+    ]
+  },
+  "tags": [
+    "spell",
+    "ranged",
+    "fire"
+  ]
+}

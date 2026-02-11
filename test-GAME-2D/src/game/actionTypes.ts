@@ -93,6 +93,11 @@ export interface ActionDefinition {
   summary?: string;
   uiMessageHit?: string;
   uiMessageMiss?: string;
+  components?: {
+    verbal?: boolean;
+    somatic?: boolean;
+    material?: boolean;
+  };
   category: ActionCategory;
   actionCost: ActionCost;
   targeting: TargetingSpec;

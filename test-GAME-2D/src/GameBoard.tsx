@@ -192,6 +192,7 @@ import { NarrationPanel, type NarrationEntry } from "./ui/NarrationPanel";
 import { ActionWheelMenu } from "./ui/ActionWheelMenu";
 import type { WheelMenuItem } from "./ui/RadialWheelMenu";
 import { ActionContextWindow } from "./ui/ActionContextWindow";
+import { spellCatalog } from "./game/spellCatalog";
 import { CharacterSheetWindow } from "./ui/CharacterSheetWindow";
 import { InteractionContextWindow } from "./ui/InteractionContextWindow";
 import { boardThemeColor, colorToCssHex } from "./boardTheme";
@@ -1076,6 +1077,7 @@ export const GameBoard: React.FC = () => {
   const [showCellIds, setShowCellIds] = useState<boolean>(false);
   const [showTerrainIds, setShowTerrainIds] = useState<boolean>(false);
   const [showTerrainContours, setShowTerrainContours] = useState<boolean>(false);
+  const [showGridLines, setShowGridLines] = useState<boolean>(false);
   const [shadowLightAngleDeg, setShadowLightAngleDeg] = useState<number>(90);
   const [bumpIntensity, setBumpIntensity] = useState<number>(0.45);
   const [windSpeed, setWindSpeed] = useState<number>(0.06);
@@ -1166,6 +1168,13 @@ export const GameBoard: React.FC = () => {
     for (const action of actionsCatalog) map.set(action.id, action);
     return map;
   }, [actionsCatalog]);
+  const actionInfoById = useMemo(() => {
+    const map = new Map<string, ActionDefinition>(actionCatalogById);
+    for (const [id, action] of reactionActionById) {
+      map.set(id, action);
+    }
+    return map;
+  }, [actionCatalogById, reactionActionById]);
   const enemyTypeById = useMemo(() => {
     const map = new Map<string, EnemyTypeDefinition>();
     for (const t of enemyTypes) map.set(t.id, t);
@@ -2004,6 +2013,112 @@ export const GameBoard: React.FC = () => {
     visibleCells: visibleCellsFull,
     showAllLevels
   });
+  const overlayAction = actionContext ? getActionById(actionContext.actionId) : null;
+  const actionOverlaySpecs = useMemo(() => {
+    if (!actionContextOpen || !overlayAction) return [];
+    if (targetMode !== "selecting") return [];
+    const range = overlayAction.targeting?.range ?? null;
+    if (!range) return [];
+    const specs: EffectSpec[] = [];
+    const rangeCells = metersToCells(Math.max(0, range.max));
+
+    const targetCell = (() => {
+      const primaryTargetId = getPrimaryTargetId();
+      if (primaryTargetId) {
+        const target = [player, ...enemies].find(token => token.id === primaryTargetId);
+        if (target) return { x: target.x, y: target.y };
+      }
+      if (selectedObstacleTarget) return { x: selectedObstacleTarget.x, y: selectedObstacleTarget.y };
+      if (selectedWallTarget) return { x: selectedWallTarget.x, y: selectedWallTarget.y };
+      return null;
+    })();
+
+    const direction = (() => {
+      if (!targetCell) return "right" as const;
+      const dx = targetCell.x - player.x;
+      const dy = targetCell.y - player.y;
+      const absX = Math.abs(dx);
+      const absY = Math.abs(dy);
+      if (absX === absY) {
+        if (dx >= 0 && dy >= 0) return "down-right" as const;
+        if (dx >= 0 && dy < 0) return "up-right" as const;
+        if (dx < 0 && dy >= 0) return "down-left" as const;
+        return "up-left" as const;
+      }
+      return absX > absY ? (dx >= 0 ? "right" : "left") : dy >= 0 ? "down" : "up";
+    })();
+
+    if (range.shape === "rectangle" || range.shape === "CUBE") {
+      specs.push({
+        id: "action-range",
+        kind: "rectangle",
+        width: Math.max(1, rangeCells),
+        height: Math.max(1, rangeCells)
+      });
+    } else if (range.shape === "cone" || range.shape === "CONE") {
+      specs.push({
+        id: "action-range",
+        kind: "cone",
+        range: Math.max(1, rangeCells),
+        direction
+      });
+    } else {
+      specs.push({
+        id: "action-range",
+        kind: "circle",
+        radius: Math.max(1, rangeCells)
+      });
+    }
+
+    if (targetCell) {
+      const distCells = Math.max(Math.abs(targetCell.x - player.x), Math.abs(targetCell.y - player.y));
+      const dist = cellsToMeters(distCells);
+      const inRange =
+        (typeof range.min !== "number" || dist >= range.min) &&
+        (typeof range.max !== "number" || dist <= range.max);
+      const hasLoS = isCellVisible(
+        player,
+        targetCell,
+        visionBlockersActive,
+        playableCells,
+        wallEdges.vision,
+        lightLevels,
+        mapGrid
+      );
+      const hasLoE = hasLineOfEffect(
+        { x: player.x, y: player.y },
+        targetCell,
+        obstacleBlocking.attacks,
+        wallEdges.vision
+      );
+      const ok = inRange && hasLoS && hasLoE;
+      specs.push({
+        id: "action-line",
+        kind: "line",
+        toX: targetCell.x,
+        toY: targetCell.y,
+        color: ok ? 0x6fd27f : 0xe74c3c,
+        alpha: 0.9,
+        thickness: 2
+      });
+    }
+
+    return specs;
+  }, [
+    actionContextOpen,
+    overlayAction,
+    targetMode,
+    player,
+    enemies,
+    selectedObstacleTarget,
+    selectedWallTarget,
+    visionBlockersActive,
+    playableCells,
+    wallEdges.vision,
+    lightLevels,
+    mapGrid,
+    obstacleBlocking.attacks
+  ]);
   const selectedStructureCell = selectedObstacleTarget ?? selectedWallTarget;
   const primaryTargetId = getPrimaryTargetId();
   usePixiOverlays({
@@ -2011,7 +2126,7 @@ export const GameBoard: React.FC = () => {
     player,
     enemies,
     selectedPath,
-    effectSpecs,
+    effectSpecs: [...effectSpecs, ...actionOverlaySpecs],
     selectedTargetIds,
     selectedObstacleCell: selectedStructureCell
       ? { x: selectedStructureCell.x, y: selectedStructureCell.y }
@@ -2028,6 +2143,7 @@ export const GameBoard: React.FC = () => {
     lightMap: mapLight,
     lightSources,
     showLightOverlay,
+    showGridLines,
     lightLevels,
     lightTints,
     isNight,
@@ -3496,6 +3612,8 @@ export const GameBoard: React.FC = () => {
     const pjTotal = pjRoll + playerMod;
 
     const entries: TurnEntry[] = [];
+    const summonEntries: TurnEntry[] = [];
+    const afterPlayerSummons: TurnEntry[] = [];
 
     entries.push({
       id: player.id,
@@ -3515,18 +3633,19 @@ export const GameBoard: React.FC = () => {
           kind: "enemy",
           initiative: totalInit
         });
-      } else if (
-        enemy.summonOwnerType === "player" &&
-        shouldSummonHaveTurnEntry(enemy) &&
-        timing !== "after_player"
-      ) {
-        entries.push({
+      } else if (enemy.summonOwnerType === "player" && shouldSummonHaveTurnEntry(enemy)) {
+        const entry: TurnEntry = {
           id: enemy.id,
           kind: "summon",
           initiative: totalInit,
           ownerType: "player",
           ownerId: enemy.summonOwnerId ?? player.id
-        });
+        };
+        if (timing === "after_player") {
+          afterPlayerSummons.push(entry);
+        } else {
+          summonEntries.push(entry);
+        }
       }
 
       return {
@@ -4597,6 +4716,25 @@ export const GameBoard: React.FC = () => {
   function computeActionAvailability(action: ActionDefinition): ActionAvailability {
     const reasons: string[] = [];
     const details: string[] = [];
+    const speechBlockingStatuses = new Set([
+      "INCAPACITATED",
+      "UNCONSCIOUS",
+      "PARALYZED",
+      "PETRIFIED",
+      "STUNNED"
+    ]);
+    const handsBlockingStatuses = new Set([
+      "RESTRAINED",
+      "GRAPPLED",
+      "PARALYZED",
+      "PETRIFIED",
+      "UNCONSCIOUS",
+      "STUNNED",
+      "INCAPACITATED"
+    ]);
+    const actorStatuses = Array.isArray(player.statuses)
+      ? player.statuses.map(status => String(status.id))
+      : [];
 
     const costType = action.actionCost?.actionType;
     const isActiveAction =
@@ -4640,6 +4778,18 @@ export const GameBoard: React.FC = () => {
       if (amount < usageResource.min) {
         const poolSuffix = usageResource.pool ? ` (${usageResource.pool})` : "";
         reasons.push(`Ressource insuffisante: ${usageResource.name}${poolSuffix} (${amount}/${usageResource.min}).`);
+      }
+    }
+
+    const components = action.components ?? null;
+    if (components?.verbal) {
+      if (actorStatuses.some(status => speechBlockingStatuses.has(status))) {
+        reasons.push("Composante verbale impossible (incapable de parler).");
+      }
+    }
+    if (components?.somatic || components?.material) {
+      if (actorStatuses.some(status => handsBlockingStatuses.has(status))) {
+        reasons.push("Composante somatique/materiale impossible (mains entravees).");
       }
     }
 
@@ -6013,7 +6163,14 @@ export const GameBoard: React.FC = () => {
           setSelectedObstacleTarget(null);
           setSelectedWallTarget(null);
           setTargetMode("none");
-          pushLog(`Cible selectionnee: ${target.id}.`);
+          const dist = distanceBetweenTokens(player, target);
+          const statusLabels = Array.isArray(target.statuses)
+            ? target.statuses
+                .map(status => statusTypeById.get(status.id)?.label ?? status.id)
+                .filter(Boolean)
+            : [];
+          const statusText = statusLabels.length ? statusLabels.join(", ") : "aucun";
+          pushLog(`Cible selectionnee: ${target.id} | distance: ${dist} m | etats: ${statusText}.`);
           return;
         }
         let actionLabel = "ajoutee";
@@ -6038,7 +6195,14 @@ export const GameBoard: React.FC = () => {
         setSelectedObstacleTarget(null);
         setSelectedWallTarget(null);
         if (didChange) {
-          pushLog(`Cible ${target.id} ${actionLabel}.`);
+          const dist = distanceBetweenTokens(player, target);
+          const statusLabels = Array.isArray(target.statuses)
+            ? target.statuses
+                .map(status => statusTypeById.get(status.id)?.label ?? status.id)
+                .filter(Boolean)
+            : [];
+          const statusText = statusLabels.length ? statusLabels.join(", ") : "aucun";
+          pushLog(`Cible ${target.id} ${actionLabel} | distance: ${dist} m | etats: ${statusText}.`);
         }
         return;
       }
@@ -9232,6 +9396,9 @@ function handleEndPlayerTurn() {
     setDamageRoll(null);
     setAttackOutcome(null);
     setHasRolledAttackForCurrentAction(false);
+    setSelectedTargetIds([]);
+    setSelectedObstacleTarget(null);
+    setSelectedWallTarget(null);
     resetActionContext();
     startNextReactionFromQueue(true);
   }
@@ -10069,6 +10236,7 @@ function handleEndPlayerTurn() {
                       showAllLevels={showAllLevels}
                       showTerrainIds={showTerrainIds}
                       showTerrainContours={showTerrainContours}
+                      showGridLines={showGridLines}
                       shadowLightAngleDeg={shadowLightAngleDeg}
                       bumpIntensity={bumpIntensity}
                       windSpeed={windSpeed}
@@ -10085,6 +10253,7 @@ function handleEndPlayerTurn() {
                       onToggleShowAllLevels={() => setShowAllLevels(prev => !prev)}
                       onToggleTerrainIds={() => setShowTerrainIds(prev => !prev)}
                       onToggleTerrainContours={() => setShowTerrainContours(prev => !prev)}
+                      onToggleGridLines={() => setShowGridLines(prev => !prev)}
                       onChangeShadowLightAngleDeg={value => setShadowLightAngleDeg(value)}
                       onChangeBumpIntensity={value => setBumpIntensity(value)}
                       onChangeWindSpeed={value => setWindSpeed(value)}
@@ -10193,6 +10362,8 @@ function handleEndPlayerTurn() {
                   player={player}
                   equippedWeapons={equippedWeapons}
                   itemLabels={itemLabelMap}
+                  actionInfoById={actionInfoById}
+                  spellInfoById={spellCatalog.byId}
                   initiativeRoll={playerInitiativeRoll}
                   initiativeMod={playerInitiativeMod}
                   initiativeTotal={playerInitiative}

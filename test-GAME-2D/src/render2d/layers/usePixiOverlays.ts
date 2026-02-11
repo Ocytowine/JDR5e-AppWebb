@@ -38,6 +38,7 @@ export function usePixiOverlays(options: {
   lightMap?: number[] | null;
   lightSources?: LightSource[] | null;
   showLightOverlay: boolean;
+  showGridLines?: boolean;
   playerTorchOn: boolean;
   playerTorchRadius?: number;
   lightLevels?: number[] | null;
@@ -101,7 +102,22 @@ export function usePixiOverlays(options: {
     lightLayer.clear();
     lightLayer.removeChildren();
 
-    const activeEffects: BoardEffect[] = options.effectSpecs.map(spec => {
+    const lineSpecs = options.effectSpecs.filter(spec => spec.kind === "line");
+    for (const spec of lineSpecs) {
+      if (typeof spec.toX !== "number" || typeof spec.toY !== "number") continue;
+      const start = gridToScreenForGrid(options.player.x, options.player.y, options.grid.cols, options.grid.rows);
+      const end = gridToScreenForGrid(spec.toX, spec.toY, options.grid.cols, options.grid.rows);
+      const color = typeof spec.color === "number" ? spec.color : 0x6fd27f;
+      const alpha = typeof spec.alpha === "number" ? spec.alpha : 0.9;
+      const thickness = typeof spec.thickness === "number" ? spec.thickness : 2;
+      pathLayer.lineStyle(thickness, color, alpha);
+      pathLayer.moveTo(start.x, start.y);
+      pathLayer.lineTo(end.x, end.y);
+    }
+
+    const activeEffects: BoardEffect[] = options.effectSpecs
+      .filter(spec => spec.kind !== "line")
+      .map(spec => {
       switch (spec.kind) {
         case "circle":
           return generateCircleEffect(
@@ -852,6 +868,23 @@ export function usePixiOverlays(options: {
       pathLayer.stroke();
     }
 
+    if (options.showGridLines) {
+      const cols = options.grid.cols;
+      const rows = options.grid.rows;
+      pathLayer.setStrokeStyle({ width: 1, color: 0xffffff, alpha: 0.25 });
+      for (let x = 0; x <= cols; x++) {
+        const px = x * TILE_SIZE;
+        pathLayer.moveTo(px, 0);
+        pathLayer.lineTo(px, rows * TILE_SIZE);
+      }
+      for (let y = 0; y <= rows; y++) {
+        const py = y * TILE_SIZE;
+        pathLayer.moveTo(0, py);
+        pathLayer.lineTo(cols * TILE_SIZE, py);
+      }
+      pathLayer.stroke();
+    }
+
     if (options.selectedPath.length === 0) return;
 
     pathLayer.setStrokeStyle({
@@ -881,6 +914,7 @@ export function usePixiOverlays(options: {
     options.showVisionDebug,
     options.showFogSegments,
     options.showLightOverlay,
+    options.showGridLines,
     options.lightMap,
     options.lightSources,
     options.playerTorchOn,

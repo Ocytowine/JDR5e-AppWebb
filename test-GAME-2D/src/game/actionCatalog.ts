@@ -11,9 +11,11 @@ import SpellsGreaterRestoration from "../data/spells/greater-restoration.json";
 import SpellsHeroism from "../data/spells/heroism.json";
 import SpellsMinorWard from "../data/spells/minor-ward.json";
 import SpellsRarysTelepathicBond from "../data/spells/rarys-telepathic-bond.json";
+import SpellsRayonDeFeu from "../data/spells/rayon-de-feu.json";
 import SpellsResilientSphere from "../data/spells/resilient-sphere.json";
 import SpellsSanctuary from "../data/spells/sanctuary.json";
 import SpellsSending from "../data/spells/sending.json";
+import SpellsVagueArdente from "../data/spells/vague-ardente.json";
 import SpellsWardingBond from "../data/spells/warding-bond.json";
 import AttacksBowShot from "../data/attacks/bow-shot.json";
 import AttacksMeleeStrike from "../data/attacks/melee-strike.json";
@@ -32,9 +34,11 @@ const ACTION_MODULES: Record<string, ActionDefinition> = {
   "../spells/heroism.json": SpellsHeroism as ActionDefinition,
   "../spells/minor-ward.json": SpellsMinorWard as ActionDefinition,
   "../spells/rarys-telepathic-bond.json": SpellsRarysTelepathicBond as ActionDefinition,
+  "../spells/rayon-de-feu.json": SpellsRayonDeFeu as ActionDefinition,
   "../spells/resilient-sphere.json": SpellsResilientSphere as ActionDefinition,
   "../spells/sanctuary.json": SpellsSanctuary as ActionDefinition,
   "../spells/sending.json": SpellsSending as ActionDefinition,
+  "../spells/vague-ardente.json": SpellsVagueArdente as ActionDefinition,
   "../spells/warding-bond.json": SpellsWardingBond as ActionDefinition,
   "../attacks/bow-shot.json": AttacksBowShot as ActionDefinition,
   "../attacks/melee-strike.json": AttacksMeleeStrike as ActionDefinition,

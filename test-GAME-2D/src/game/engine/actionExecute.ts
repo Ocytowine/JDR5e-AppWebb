@@ -438,6 +438,41 @@ export function executePlan(params: {
         );
       }
     }
+    if (plan.action.resolution?.kind === "SAVING_THROW" && plan.action.resolution.save) {
+      const ability = plan.action.resolution.save.ability;
+      const dc = plan.action.resolution.save.dc + (tx.state.rollContext?.dcDelta ?? 0);
+      const modKey = `mod${ability}` as const;
+      const mod =
+        (target?.combatStats?.mods?.[modKey] ?? 0) + (tx.state.rollContext?.bonusDelta ?? 0);
+      logTransaction(
+        tx,
+        `Jet de sauvegarde (${ability}) : ${outcome.roll} + ${mod} = ${outcome.total} vs DD ${dc}`,
+        opts.onLog
+      );
+    }
+    if (plan.action.resolution?.kind === "ABILITY_CHECK" && plan.action.resolution.check) {
+      const ability = plan.action.resolution.check.ability;
+      const dc = plan.action.resolution.check.dc + (tx.state.rollContext?.dcDelta ?? 0);
+      const modKey = `mod${ability}` as const;
+      const mod =
+        (target?.combatStats?.mods?.[modKey] ?? 0) + (tx.state.rollContext?.bonusDelta ?? 0);
+      logTransaction(
+        tx,
+        `Jet de competence (${ability}) : ${outcome.roll} + ${mod} = ${outcome.total} vs DD ${dc}`,
+        opts.onLog
+      );
+    }
+    if (plan.action.resolution?.kind === "CONTESTED_CHECK" && outcome.contested) {
+      const actorRoll = outcome.contested.actorRoll;
+      const targetRoll = outcome.contested.targetRoll;
+      const actorTotal = outcome.contested.actorTotal;
+      const targetTotal = outcome.contested.targetTotal;
+      logTransaction(
+        tx,
+        `Jet oppose : acteur ${actorRoll} => ${actorTotal} vs cible ${targetRoll} => ${targetTotal}`,
+        opts.onLog
+      );
+    }
 
     applyHooks({
       hooks: plan.hooks ?? [],
@@ -519,13 +554,20 @@ export function executePlan(params: {
     }
   }
 
+  const lastResolved = resolvedOutcomes[resolvedOutcomes.length - 1] ?? {
+    outcome: { kind: "hit", roll: 0, total: 0 },
+    target: null
+  };
+  const finalTarget = lastResolved.target ?? null;
+  const finalOutcome = lastResolved.outcome;
+
   applyHooks({
     hooks: plan.hooks ?? [],
     phase: "beforeCommit",
     state: tx.state,
-    target,
-    outcome,
-    explicitTarget: target ? { kind: "token", token: target } : null,
+    target: finalTarget,
+    outcome: finalOutcome,
+    explicitTarget: finalTarget ? { kind: "token", token: finalTarget } : null,
     tx,
     opts
   });
@@ -534,13 +576,12 @@ export function executePlan(params: {
     hooks: plan.hooks ?? [],
     phase: "afterCommit",
     state: tx.state,
-    target,
-    outcome,
-    explicitTarget: target ? { kind: "token", token: target } : null,
+    target: finalTarget,
+    outcome: finalOutcome,
+    explicitTarget: finalTarget ? { kind: "token", token: finalTarget } : null,
     tx,
     opts
   });
 
-  const lastOutcome = resolvedOutcomes[resolvedOutcomes.length - 1]?.outcome ?? { kind: "hit", roll: 0, total: 0 };
-  return { ok: true, logs: tx.logs, state: tx.state, outcome: lastOutcome };
+  return { ok: true, logs: tx.logs, state: tx.state, outcome: finalOutcome };
 }

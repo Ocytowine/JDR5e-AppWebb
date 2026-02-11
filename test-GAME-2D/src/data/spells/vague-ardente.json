@@ -1,0 +1,77 @@
+{
+  "id": "vague-ardente",
+  "name": "Vague ardente",
+  "level": 2,
+  "school": "evocation",
+  "components": {
+    "verbal": true,
+    "somatic": true,
+    "material": false
+  },
+  "summary": "Une vague de flammes qui brule les ennemis dans un cone.",
+  "category": "control",
+  "actionCost": {
+    "actionType": "action",
+    "movementCost": 0
+  },
+  "targeting": {
+    "target": "hostile",
+    "range": {
+      "min": 0,
+      "max": 6,
+      "shape": "CONE"
+    },
+    "maxTargets": 3,
+    "requiresLos": true
+  },
+  "usage": {
+    "perTurn": null,
+    "perEncounter": null,
+    "resource": null
+  },
+  "conditions": [],
+  "resolution": {
+    "kind": "SAVING_THROW",
+    "save": {
+      "ability": "DEX",
+      "dc": 13
+    }
+  },
+  "ops": {
+    "onSaveFail": [
+      {
+        "op": "DealDamage",
+        "target": "primary",
+        "formula": "3d6",
+        "damageType": "FIRE"
+      },
+      {
+        "op": "ApplyCondition",
+        "target": "primary",
+        "statusId": "burning",
+        "durationTurns": 2
+      }
+    ],
+    "onSaveSuccess": [
+      {
+        "op": "DealDamageScaled",
+        "target": "primary",
+        "formula": "3d6",
+        "damageType": "FIRE",
+        "scale": "half"
+      }
+    ],
+    "onResolve": [
+      {
+        "op": "LogEvent",
+        "message": "Une vague ardente se dechaine."
+      }
+    ]
+  },
+  "tags": [
+    "spell",
+    "fire",
+    "area",
+    "control"
+  ]
+}

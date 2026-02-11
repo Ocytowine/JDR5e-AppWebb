@@ -1,6 +1,9 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Personnage, TokenState } from "../types";
 import type { WeaponTypeDefinition } from "../game/weaponTypes";
+import type { ActionDefinition } from "../game/actionTypes";
+import type { SpellDefinition } from "../game/spellCatalog";
+import { JsonInfoPanel } from "./JsonInfoPanel";
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -98,6 +101,45 @@ function ChipList(props: { items: string[]; accent?: boolean; emptyLabel?: strin
   );
 }
 
+function ChipButton(props: { label: string; onClick?: () => void; title?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={props.onClick}
+      title={props.title}
+      style={{
+        padding: "4px 8px",
+        borderRadius: 999,
+        fontSize: 11,
+        fontWeight: 700,
+        background: "rgba(255,255,255,0.08)",
+        color: "rgba(255,255,255,0.85)",
+        border: "1px solid rgba(255,255,255,0.12)",
+        cursor: "pointer"
+      }}
+    >
+      {props.label}
+    </button>
+  );
+}
+
+function ChipButtonList(props: {
+  items: string[];
+  emptyLabel?: string;
+  onSelect: (id: string) => void;
+}) {
+  if (!props.items || props.items.length === 0) {
+    return <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>{props.emptyLabel}</div>;
+  }
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+      {props.items.map(item => (
+        <ChipButton key={item} label={item} onClick={() => props.onSelect(item)} />
+      ))}
+    </div>
+  );
+}
+
 function formatCoins(coins?: Record<string, number>): string {
   if (!coins) return "-";
   const entries = Object.entries(coins).filter(([, value]) => typeof value === "number" && value !== 0);
@@ -129,6 +171,8 @@ export function CharacterSheetWindow(props: {
   player: TokenState;
   equippedWeapons: WeaponTypeDefinition[];
   itemLabels?: Record<string, string>;
+  actionInfoById?: Map<string, ActionDefinition>;
+  spellInfoById?: Map<string, SpellDefinition>;
   initiativeRoll?: number | null;
   initiativeMod?: number | null;
   initiativeTotal?: number | null;
@@ -141,6 +185,7 @@ export function CharacterSheetWindow(props: {
   const [pos, setPos] = useState<{ left: number; top: number }>({ left: 8, top: 8 });
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [showCharacterJson, setShowCharacterJson] = useState<boolean>(false);
+  const [infoPanel, setInfoPanel] = useState<{ title: string; subtitle?: string; data: unknown } | null>(null);
   const dragRef = useRef<{
     startClientX: number;
     startClientY: number;
@@ -246,6 +291,26 @@ export function CharacterSheetWindow(props: {
     if (!value) return "-";
     return props.itemLabels?.[value] ?? value;
   };
+  const actionInfoById = props.actionInfoById ?? new Map();
+  const spellInfoById = props.spellInfoById ?? new Map();
+
+  const openActionInfo = (id: string) => {
+    const def = actionInfoById.get(id);
+    if (!def) {
+      setInfoPanel({ title: `Action ${id}`, subtitle: "Non trouvee", data: { id } });
+      return;
+    }
+    setInfoPanel({ title: def.name ?? def.id, subtitle: `Action ${def.id}`, data: def });
+  };
+
+  const openSpellInfo = (id: string) => {
+    const def = spellInfoById.get(id);
+    if (!def) {
+      setInfoPanel({ title: `Sort ${id}`, subtitle: "Non trouve", data: { id } });
+      return;
+    }
+    setInfoPanel({ title: def.name ?? def.id, subtitle: `Sort ${def.id}`, data: def });
+  };
 
   const initiativeValue = (() => {
     const total = props.initiativeTotal;
@@ -287,6 +352,7 @@ export function CharacterSheetWindow(props: {
         padding: 12,
         boxShadow: "0 24px 70px rgba(0,0,0,0.6)",
         backdropFilter: "blur(8px)",
+        overflow: "hidden",
         display: "flex",
         flexDirection: "column",
         gap: 10
@@ -469,12 +535,17 @@ export function CharacterSheetWindow(props: {
           </Section>
 
           <Section title="Actions">
-            <ChipList items={props.character.actionIds ?? props.player.actionIds ?? []} emptyLabel="Aucune action." />
+            <ChipButtonList
+              items={props.character.actionIds ?? props.player.actionIds ?? []}
+              emptyLabel="Aucune action."
+              onSelect={openActionInfo}
+            />
             <div style={{ marginTop: 6 }}>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginBottom: 4 }}>Reactions</div>
-              <ChipList
+              <ChipButtonList
                 items={props.character.reactionIds ?? props.player.reactionIds ?? []}
                 emptyLabel="Aucune reaction."
+                onSelect={openActionInfo}
               />
             </div>
           </Section>
@@ -575,15 +646,30 @@ export function CharacterSheetWindow(props: {
           </div>
           <div style={{ marginTop: 8 }}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginBottom: 4 }}>Sorts prepares</div>
-            <ChipList items={spellSource?.preparedSpellIds ?? []} emptyLabel="Aucun sort prepare." />
+            <ChipButtonList
+              items={spellSource?.preparedSpellIds ?? []}
+              emptyLabel="Aucun sort prepare."
+              onSelect={openSpellInfo}
+            />
           </div>
           <div style={{ marginTop: 8 }}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginBottom: 4 }}>Sorts accordes</div>
-            <ChipList items={spellSource?.grantedSpellIds ?? []} emptyLabel="Aucun sort accorde." />
+            <ChipButtonList
+              items={spellSource?.grantedSpellIds ?? []}
+              emptyLabel="Aucun sort accorde."
+              onSelect={openSpellInfo}
+            />
           </div>
         </Section>
 
       </div>
+      <JsonInfoPanel
+        open={Boolean(infoPanel)}
+        title={infoPanel?.title ?? ""}
+        subtitle={infoPanel?.subtitle ?? null}
+        data={infoPanel?.data ?? {}}
+        onClose={() => setInfoPanel(null)}
+      />
     </div>
   );
 }

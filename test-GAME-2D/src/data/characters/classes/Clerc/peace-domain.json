@@ -7,9 +7,9 @@
     "1": {
       "grants": [
         { "kind": "feature", "ids": ["peace-bond"] },
-        { "kind": "spell", "ids": ["heroism", "sanctuary"] }
+        { "kind": "spell", "ids": ["heroism", "sanctuary", "rayon-de-feu"] }
       ],
-      "description": "Lien de paix et sorts disponibles : Heroisme, Sanctuaire."
+      "description": "Lien de paix et sorts disponibles : Heroisme, Sanctuaire, Rayon de feu."
     },
     "2": {
       "grants": [
@@ -19,9 +19,9 @@
     },
     "3": {
       "grants": [
-        { "kind": "spell", "ids": ["aid", "warding-bond"] }
+        { "kind": "spell", "ids": ["aid", "warding-bond", "vague-ardente"] }
       ],
-      "description": "Sorts disponibles : Aide, Lien protecteur."
+      "description": "Sorts disponibles : Aide, Lien protecteur, Vague ardente."
     },
     "5": {
       "grants": [

@@ -24,24 +24,25 @@ function isTemplateFile(file) {
   return name.includes("template");
 }
 
-function listDirsRecursive(dir) {
+function listDirsRecursive(dir, skipDirs = []) {
   const entries = fs.readdirSync(dir, { withFileTypes: true });
   const dirs = [dir];
   for (const entry of entries) {
-    if (entry.isDirectory()) {
-      dirs.push(...listDirsRecursive(path.join(dir, entry.name)));
-    }
+    if (!entry.isDirectory()) continue;
+    if (skipDirs.includes(entry.name)) continue;
+    dirs.push(...listDirsRecursive(path.join(dir, entry.name), skipDirs));
   }
   return dirs;
 }
 
-function listJsonFilesRecursive(dir) {
+function listJsonFilesRecursive(dir, skipDirs = []) {
   const entries = fs.readdirSync(dir, { withFileTypes: true });
   const files = [];
   for (const entry of entries) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      files.push(...listJsonFilesRecursive(full));
+      if (skipDirs.includes(entry.name)) continue;
+      files.push(...listJsonFilesRecursive(full, skipDirs));
     } else if (entry.isFile() && isJsonFile(entry.name) && !isIndexFile(entry.name) && !isTemplateFile(entry.name)) {
       files.push(full);
     }
@@ -203,8 +204,9 @@ function main() {
 
   for (const category of CATEGORY_CONFIG) {
     const baseDir = path.join(materielRoot, category.folder);
-    const dirs = listDirsRecursive(baseDir);
-    const files = listJsonFilesRecursive(baseDir);
+    const skipDirs = category.folder === "armes" ? ["munitions"] : [];
+    const dirs = listDirsRecursive(baseDir, skipDirs);
+    const files = listJsonFilesRecursive(baseDir, skipDirs);
 
     for (const file of files) {
       const data = readJson(file);
@@ -227,7 +229,7 @@ function main() {
     }
 
     for (const dir of dirs) {
-      const relPaths = listJsonFilesRecursive(dir)
+      const relPaths = listJsonFilesRecursive(dir, skipDirs)
         .map(file => normalizeRel(dir, file))
         .sort((a, b) => a.localeCompare(b));
       writeIndexJson(dir, relPaths);

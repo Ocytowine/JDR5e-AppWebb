@@ -395,6 +395,8 @@ export function applyOperation(params: {
       const override = opts.rollOverrides?.consumeDamageRoll?.() ?? null;
       const roll = override ?? rollDamage(formula, { isCrit: false, critRule: "double-dice" });
       const total = op.scale === "half" ? Math.floor(roll.total / 2) : roll.total;
+      const diceText = roll.dice.map(d => d.rolls.join("+")).join(" | ");
+      const detail = diceText || roll.flatModifier ? ` [${diceText}${roll.flatModifier ? ` + ${roll.flatModifier}` : ""}]` : "";
     const tempHp = typeof targetToken.tempHp === "number" ? targetToken.tempHp : 0;
     if (tempHp > 0) {
       const remaining = Math.max(0, total - tempHp);
@@ -403,7 +405,7 @@ export function applyOperation(params: {
       } else {
         targetToken.hp = Math.max(0, targetToken.hp - total);
       }
-      logTransaction(tx, `Degats: ${total} (${formula})`, opts.onLog);
+      logTransaction(tx, `Degats: ${total} (${formula})${detail}`, opts.onLog);
       maybeCheckConcentrationOnDamage({ state, tx, targetToken, damage: total, opts });
       return;
     }
@@ -412,6 +414,8 @@ export function applyOperation(params: {
       const formula = resolveFormula(op.formula, { actor: state.actor, sampleCharacter: undefined });
       const roll = rollDamage(formula, { isCrit: false, critRule: "double-dice" });
       const total = op.scale === "quarter" ? Math.floor(roll.total / 4) : Math.floor(roll.total / 2);
+      const diceText = roll.dice.map(d => d.rolls.join("+")).join(" | ");
+      const detail = diceText || roll.flatModifier ? ` [${diceText}${roll.flatModifier ? ` + ${roll.flatModifier}` : ""}]` : "";
     const tempHp = typeof targetToken.tempHp === "number" ? targetToken.tempHp : 0;
     if (tempHp > 0) {
       const remaining = Math.max(0, total - tempHp);
@@ -420,7 +424,7 @@ export function applyOperation(params: {
       } else {
         targetToken.hp = Math.max(0, targetToken.hp - total);
       }
-      logTransaction(tx, `Degats reduits: ${total} (${formula})`, opts.onLog);
+      logTransaction(tx, `Degats reduits: ${total} (${formula})${detail}`, opts.onLog);
       maybeCheckConcentrationOnDamage({ state, tx, targetToken, damage: total, opts });
       return;
     }
@@ -436,8 +440,10 @@ export function applyOperation(params: {
     const formula = resolveFormula(op.formula, { actor: state.actor, sampleCharacter: undefined });
     const roll = rollDamage(formula, { isCrit: false, critRule: "double-dice" });
     const total = roll.total;
+    const diceText = roll.dice.map(d => d.rolls.join("+")).join(" | ");
+    const detail = diceText || roll.flatModifier ? ` [${diceText}${roll.flatModifier ? ` + ${roll.flatModifier}` : ""}]` : "";
     targetToken.hp = Math.min(targetToken.maxHp, targetToken.hp + total);
-    logTransaction(tx, `Soin: +${total} (${formula})`, opts.onLog);
+    logTransaction(tx, `Soin: +${total} (${formula})${detail}`, opts.onLog);
     return;
   }
 

@@ -72,7 +72,7 @@ export interface SpeechBubbleEntry {
   updatedAtRound: number;
 }
 
-export type EffectSpecKind = "circle" | "rectangle" | "cone";
+export type EffectSpecKind = "circle" | "rectangle" | "cone" | "line";
 
 export interface EffectSpec {
   id: string;
@@ -82,4 +82,9 @@ export interface EffectSpec {
   height?: number;
   range?: number;
   direction?: "up" | "down" | "left" | "right";
+  toX?: number;
+  toY?: number;
+  color?: number;
+  alpha?: number;
+  thickness?: number;
 }

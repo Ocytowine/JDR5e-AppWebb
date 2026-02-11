@@ -8,6 +8,7 @@ export function EffectsPanel(props: {
   showAllLevels: boolean;
   showTerrainIds: boolean;
   showTerrainContours: boolean;
+  showGridLines: boolean;
   shadowLightAngleDeg: number;
   bumpIntensity: number;
   windSpeed: number;
@@ -24,6 +25,7 @@ export function EffectsPanel(props: {
   onToggleShowAllLevels: () => void;
   onToggleTerrainIds: () => void;
   onToggleTerrainContours: () => void;
+  onToggleGridLines: () => void;
   onChangeShadowLightAngleDeg: (value: number) => void;
   onChangeBumpIntensity: (value: number) => void;
   onChangeWindSpeed: (value: number) => void;
@@ -279,6 +281,21 @@ export function EffectsPanel(props: {
               }}
             >
               {props.showTerrainContours ? "Masquer contours sol" : "Afficher contours sol"}
+            </button>
+            <button
+              type="button"
+              onClick={props.onToggleGridLines}
+              style={{
+                padding: "4px 8px",
+                background: props.showGridLines ? "#3498db" : "#555",
+                color: props.showGridLines ? "#0b0b12" : "#fff",
+                border: "none",
+                borderRadius: 4,
+                cursor: "pointer",
+                fontSize: 12
+              }}
+            >
+              {props.showGridLines ? "Masquer grille" : "Afficher grille"}
             </button>
             <button
               type="button"

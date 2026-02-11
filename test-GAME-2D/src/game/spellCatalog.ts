@@ -1,5 +1,7 @@
 ﻿import aid from "../data/spells/aid.json";
 import arcaneBolt from "../data/spells/arcane-bolt.json";
+import rayonDeFeu from "../data/spells/rayon-de-feu.json";
+import vagueArdente from "../data/spells/vague-ardente.json";
 import auraOfPurity from "../data/spells/aura-of-purity.json";
 import beaconOfHope from "../data/spells/beacon-of-hope.json";
 import greaterRestoration from "../data/spells/greater-restoration.json";
@@ -29,6 +31,8 @@ export type SpellDefinition = {
 const spellCatalogList: SpellDefinition[] = [
   aid as SpellDefinition,
   arcaneBolt as SpellDefinition,
+  rayonDeFeu as SpellDefinition,
+  vagueArdente as SpellDefinition,
   auraOfPurity as SpellDefinition,
   beaconOfHope as SpellDefinition,
   greaterRestoration as SpellDefinition,
