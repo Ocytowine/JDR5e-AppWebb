@@ -716,15 +716,25 @@ export const GameBoard: React.FC = () => {
     [activeCharacterConfig, armorItemsById]
   );
   const playerCombatStats: CombatStats = useMemo(
-    () => ({
-      ...baseCombatStats,
-      moveRange: defaultMovementProfile.speed,
-      maxHp: baseCombatStats.maxHp,
-      actionsPerTurn: baseCombatStats.actionsPerTurn ?? 1,
-      bonusActionsPerTurn: baseCombatStats.bonusActionsPerTurn ?? 1,
-      actionRules: baseCombatStats.actionRules ?? { forbidSecondAttack: true }
-    }),
-    [baseCombatStats, defaultMovementProfile.speed]
+    () => {
+      const profs = (activeCharacterConfig.proficiencies ?? {}) as { weapons?: string[] };
+      const rawMasteries = Array.isArray(profs.weapons) ? profs.weapons : [];
+      const masterySet = new Set(weaponMasteryIds);
+      const weaponMasteries = rawMasteries.filter(id => masterySet.has(id));
+      const wmTags = weaponMasteries.map(id => `wm:${id}`);
+      const baseTags = Array.isArray(baseCombatStats.tags) ? baseCombatStats.tags : [];
+      const tags = Array.from(new Set([...baseTags, ...wmTags]));
+      return {
+        ...baseCombatStats,
+        moveRange: defaultMovementProfile.speed,
+        maxHp: baseCombatStats.maxHp,
+        actionsPerTurn: baseCombatStats.actionsPerTurn ?? 1,
+        bonusActionsPerTurn: baseCombatStats.bonusActionsPerTurn ?? 1,
+        actionRules: baseCombatStats.actionRules ?? { forbidSecondAttack: true },
+        tags
+      };
+    },
+    [baseCombatStats, defaultMovementProfile.speed, activeCharacterConfig, weaponMasteryIds]
   );
   const defaultPlayerVisionProfile: VisionProfile = useMemo(
     () =>
@@ -1168,6 +1178,31 @@ export const GameBoard: React.FC = () => {
     for (const action of actionsCatalog) map.set(action.id, action);
     return map;
   }, [actionsCatalog]);
+  const weaponMasteryActions = useMemo(
+    () =>
+      actionsCatalog.filter(
+        action => Array.isArray(action.tags) && action.tags.includes("weaponMastery")
+      ),
+    [actionsCatalog]
+  );
+  const weaponMasteryIds = useMemo(
+    () =>
+      weaponMasteryActions
+        .map(action => {
+          const id =
+            typeof action.id === "string" && action.id.startsWith("wm-")
+              ? action.id.slice("wm-".length)
+              : null;
+          if (id) return id;
+          const tags = Array.isArray(action.tags) ? action.tags : [];
+          const candidate = tags.find(
+            tag => tag !== "weaponMastery" && !tag.startsWith("wm-trigger:")
+          );
+          return candidate ?? null;
+        })
+        .filter((id): id is string => Boolean(id)),
+    [weaponMasteryActions]
+  );
   const actionInfoById = useMemo(() => {
     const map = new Map<string, ActionDefinition>(actionCatalogById);
     for (const [id, action] of reactionActionById) {
@@ -2723,6 +2758,12 @@ export const GameBoard: React.FC = () => {
 
     let playerCopy = { ...player };
     let enemiesCopy = enemies.map(e => ({ ...e }));
+    playerCopy = applyWeaponMasteryStartExpiryForToken(playerCopy, summonId);
+    enemiesCopy = enemiesCopy.map(enemy =>
+      applyWeaponMasteryStartExpiryForToken(enemy, summonId)
+    );
+    setPlayer(playerCopy);
+    setEnemies(enemiesCopy);
     const actor = enemiesCopy.find(e => e.id === summonId) ?? summon;
     const allTokens: TokenState[] = getTokensOnActiveLevel([playerCopy, ...enemiesCopy]);
     const hostiles = getHostileTokensFor(actor, allTokens).filter(t => t.id !== actor.id);
@@ -2779,7 +2820,8 @@ export const GameBoard: React.FC = () => {
           spawnEntity: createSummon,
           onLog: pushLog
         },
-        target
+        target,
+        { weaponMasteryActions }
       );
       if (!result.ok || !result.playerAfter || !result.enemiesAfter) return false;
       playerCopy = result.playerAfter;
@@ -4172,7 +4214,15 @@ export const GameBoard: React.FC = () => {
 
         narrationPendingRef.current = false;
         beginRoundNarrationBuffer(round, buildCombatStateSummary("player"));
-        setPlayer(prev => applyStartOfTurnStatuses({ token: prev, side: "player" }));
+        setPlayer(prev =>
+          applyStartOfTurnStatuses({
+            token: applyWeaponMasteryStartExpiryForToken(prev, player.id),
+            side: "player"
+          })
+        );
+        setEnemies(prev =>
+          prev.map(enemy => applyWeaponMasteryStartExpiryForToken(enemy, player.id))
+        );
         recordCombatEvent({
           round,
           phase: "player",
@@ -4189,12 +4239,18 @@ export const GameBoard: React.FC = () => {
         setPhase("player");
         resetReactionUsageForActor(entry.id);
         resetTurnUsageForActor(entry.id);
+        setPlayer(prev => applyWeaponMasteryStartExpiryForToken(prev, entry.id));
+        setEnemies(prev =>
+          prev.map(enemy => applyWeaponMasteryStartExpiryForToken(enemy, entry.id))
+        );
         void runSingleSummonTurn(entry.id);
         return;
       }
       setPhase("enemies");
       resetReactionUsageForActor(entry.id);
       resetTurnUsageForActor(entry.id);
+      setPlayer(prev => applyWeaponMasteryStartExpiryForToken(prev, entry.id));
+      setEnemies(prev => prev.map(enemy => applyWeaponMasteryStartExpiryForToken(enemy, entry.id)));
       void runSingleEnemyTurnV2(entry.id);
       return;
     }
@@ -5262,16 +5318,24 @@ export const GameBoard: React.FC = () => {
     const weapon = pickWeaponForAction(action, actor, options);
     if (!weapon) return action;
 
+    const weaponMasteries = Array.isArray(weapon.weaponMastery) ? weapon.weaponMastery : [];
+    const masteryTags = weaponMasteries.map(id => `wm-active:${id}`);
+    const weaponTags = weapon.properties?.light ? ["weapon:light"] : [];
+    const nextTags = Array.from(new Set([...(action.tags ?? []), ...masteryTags, ...weaponTags]));
+
     const damageDice = weapon.effectOnHit?.damage ?? weapon.damage?.dice ?? null;
     const damageType = weapon.effectOnHit?.damageType ?? weapon.damage?.damageType ?? null;
     const modToken = normalizeWeaponModToken(weapon.effectOnHit?.mod ?? weapon.attack?.mod);
-    if (!damageDice) return action;
+    if (!damageDice) {
+      return { ...action, tags: nextTags };
+    }
 
     const formula = modToken ? `${damageDice} + ${modToken}` : damageDice;
     const attackBonus = computeWeaponAttackBonus(actor, weapon);
 
     const nextAction: ActionDefinition = {
       ...action,
+      tags: nextTags,
       attack: action.attack
         ? { ...action.attack, bonus: attackBonus }
         : { bonus: attackBonus, critRange: 20 },
@@ -5781,6 +5845,7 @@ export const GameBoard: React.FC = () => {
       },
       target ?? { kind: "none" },
       {
+        weaponMasteryActions,
         rollOverrides: {
           attack: attackOverride,
           consumeDamageRoll: () => {
@@ -6737,7 +6802,8 @@ export const GameBoard: React.FC = () => {
     const result = resolveActionUnified(
       action,
       context,
-      { kind: "token", token: params.target }
+      { kind: "token", token: params.target },
+      { weaponMasteryActions }
     );
 
     if (!result.ok || !result.playerAfter || !result.enemiesAfter) {
@@ -7193,6 +7259,48 @@ export const GameBoard: React.FC = () => {
       return { ...token, statuses: next };
     };
 
+  const applyWeaponMasteryStartExpiryForToken = (
+    token: TokenState,
+    sourceId: string
+  ): TokenState => {
+    const anyToken = token as { tags?: string[] };
+    const currentTags = Array.isArray(anyToken.tags) ? anyToken.tags : [];
+    if (currentTags.length === 0) return token;
+    const sapeTag = `wm-sape:next:${sourceId}`;
+    const slowTag = `wm-ralentissement:${sourceId}`;
+    const ouvertureTag = `wm-ouverture:adv:${sourceId}`;
+    const expiringOuvertureTag = `${ouvertureTag}:expiring`;
+    let changed = false;
+    const nextTags: string[] = [];
+    for (const tag of currentTags) {
+      if (tag === sapeTag || tag === slowTag) {
+        changed = true;
+        continue;
+      }
+      if (tag === ouvertureTag) {
+        changed = true;
+        nextTags.push(expiringOuvertureTag);
+        continue;
+      }
+      nextTags.push(tag);
+    }
+    if (!changed) return token;
+    return { ...token, tags: nextTags };
+  };
+
+  const applyWeaponMasteryEndExpiryForToken = (
+    token: TokenState,
+    sourceId: string
+  ): TokenState => {
+    const anyToken = token as { tags?: string[] };
+    const currentTags = Array.isArray(anyToken.tags) ? anyToken.tags : [];
+    if (currentTags.length === 0) return token;
+    const expiringTag = `wm-ouverture:adv:${sourceId}:expiring`;
+    if (!currentTags.includes(expiringTag)) return token;
+    const nextTags = currentTags.filter(tag => tag !== expiringTag);
+    return { ...token, tags: nextTags };
+  };
+
   const applyTokenDurations = (params: {
     token: TokenState;
     side: "player" | "enemies";
@@ -7399,16 +7507,27 @@ export const GameBoard: React.FC = () => {
     const applyEndOfTurnDurations = (entry: TurnEntry | null) => {
       if (!entry) return;
       if (entry.kind === "player") {
-        setPlayer(prev => applyTokenDurations({ token: prev, side: "player", tick: "end" }));
+        setPlayer(prev =>
+          applyWeaponMasteryEndExpiryForToken(
+            applyTokenDurations({ token: prev, side: "player", tick: "end" }),
+            entry.id
+          )
+        );
+        setEnemies(prev =>
+          prev.map(enemy => applyWeaponMasteryEndExpiryForToken(enemy, entry.id))
+        );
         return;
       }
       if (entry.kind === "enemy" || entry.kind === "summon") {
+        setPlayer(prev => applyWeaponMasteryEndExpiryForToken(prev, entry.id));
         setEnemies(prev =>
-          prev.map(enemy =>
-            enemy.id === entry.id
-              ? applyTokenDurations({ token: enemy, side: "enemies", tick: "end" })
-              : enemy
-          )
+          prev.map(enemy => {
+            const next =
+              enemy.id === entry.id
+                ? applyTokenDurations({ token: enemy, side: "enemies", tick: "end" })
+                : enemy;
+            return applyWeaponMasteryEndExpiryForToken(next, entry.id);
+          })
         );
       }
     };
@@ -8527,7 +8646,18 @@ export const GameBoard: React.FC = () => {
       return;
     }
     const aiTurnLogs: string[] = [];
-      const refreshedEnemy = applyStartOfTurnStatuses({ token: activeEnemy, side: "enemies" });
+      playerCopy = applyWeaponMasteryStartExpiryForToken(playerCopy, activeEnemy.id);
+      enemiesCopy = enemiesCopy.map(enemy =>
+        applyWeaponMasteryStartExpiryForToken(enemy, activeEnemy.id)
+      );
+      setPlayer(playerCopy);
+      setEnemies(enemiesCopy);
+      const activeEnemyAfterExpiry =
+        enemiesCopy.find(enemy => enemy.id === activeEnemy.id) ?? activeEnemy;
+      const refreshedEnemy = applyStartOfTurnStatuses({
+        token: activeEnemyAfterExpiry,
+        side: "enemies"
+      });
       const enemyIndex = enemiesCopy.findIndex(e => e.id === activeEnemyId);
       if (enemyIndex >= 0) {
         enemiesCopy[enemyIndex] = refreshedEnemy;
@@ -8660,7 +8790,7 @@ export const GameBoard: React.FC = () => {
           }
         },
         target,
-        { advantageMode }
+        { advantageMode, weaponMasteryActions }
       );
 
       if (!result.ok || !result.playerAfter || !result.enemiesAfter) {

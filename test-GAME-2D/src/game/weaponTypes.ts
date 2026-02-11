@@ -77,5 +77,6 @@ export interface WeaponTypeDefinition {
   attack?: WeaponAttackProfile;
   damage?: WeaponDamageProfile;
   effectOnHit?: WeaponOnHitProfile;
+  weaponMastery?: string[];
   links?: WeaponLinks;
 }

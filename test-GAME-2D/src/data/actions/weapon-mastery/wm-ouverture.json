@@ -1,0 +1,21 @@
+﻿{
+  "id": "wm-ouverture",
+  "name": "Ouverture",
+  "summary": "Sur un hit, avantage sur la prochaine attaque contre la cible.",
+  "category": "item",
+  "tags": ["weaponMastery", "ouverture", "wm-trigger:on_hit"],
+  "resolution": { "kind": "NO_ROLL" },
+  "ops": {
+    "onResolve": [
+      {
+        "op": "EmitEvent",
+        "kind": "weaponMastery:ouverture",
+        "data": {
+          "masteryId": "ouverture",
+          "advantageAgainstTarget": true,
+          "duration": "until_end_of_next_turn"
+        }
+      }
+    ]
+  }
+}

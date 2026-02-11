@@ -1,6 +1,7 @@
 {
   "types": [
     "./burning.json",
-    "./killer-mark.json"
+    "./killer-mark.json",
+    "./prone.json"
   ]
 }

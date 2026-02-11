@@ -3,10 +3,12 @@
 import statusIndex from "../data/passifs/index.json";
 import burning from "../data/passifs/burning.json";
 import killerMark from "../data/passifs/killer-mark.json";
+import prone from "../data/passifs/prone.json";
 
 const STATUS_TYPE_MODULES: Record<string, StatusDefinition> = {
   "./burning.json": burning as StatusDefinition,
-  "./killer-mark.json": killerMark as StatusDefinition
+  "./killer-mark.json": killerMark as StatusDefinition,
+  "./prone.json": prone as StatusDefinition
 };
 
 export function loadStatusTypesFromIndex(): StatusDefinition[] {

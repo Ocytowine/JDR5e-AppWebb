@@ -17,6 +17,13 @@ Support realise:
 - Ops etendues (conditions, zones, ressources, des, tags).
 - Context de jets: bonus/DC, rerolls, min/max.
 - `EmitEvent` branche sur `ActionEngineContext.emitEvent`.
+- Weapon Mastery (data-driven):
+  - Actions `wm-*` chargees depuis `src/data/actions/weapon-mastery`.
+  - Hook generique injecte au runtime selon `wm-active:<id>` + `wm:<id>` + trigger `wm-trigger:*`.
+  - Effets executes dans l'engine (poussee, renversement, sape, ouverture, etc.).
+  - Tags runtime WM:
+    - `wm-ouverture:adv:<sourceId>` (devient `:expiring` au debut du tour suivant de la source, purge a la fin de ce tour).
+    - `wm-sape:next:<sourceId>` + `wm-ralentissement:<sourceId>` (purges au debut du tour suivant de la source).
 - Contextes avances branches (LOS/area/light/usage/slots) avec usage par acteur.
 - Ciblage multi-cibles dans le moteur + UI (selection + validation + execution par cible).
 - Ciblage avance (LockTarget/ExpandTargets/FilterTargets/Retarget) implemente.

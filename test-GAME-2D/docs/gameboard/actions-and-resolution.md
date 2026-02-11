@@ -30,6 +30,35 @@ Sources principales:
 - Applique les effets sur l'etat (player/enemies).
 - Peut emettre des evenements de combat.
 
+## Interaction GameBoard <-> Action Engine
+### Cote GameBoard
+- Prepare le contexte d'action (actor, player, enemies, grid, blockers, light).
+- Valide les cibles avant resolution (handlers locaux + `validateActionTarget`).
+- Ouvre les UI `ActionContextWindow` et `ActionWheelMenu`.
+- Gere les jets de des et passe les resultats a `resolveActionUnified`.
+- Met a jour `player`, `enemies`, `effects`, `logs` selon le resultat.
+- Gere les reactions (queue + auto-resolve) declenchees apres une action.
+
+### Cote actionEngine
+- Verifie disponibilite et conditions (ressources, etat, phase).
+- Applique les operations (move, damage, status, summon, etc.).
+- Retourne un snapshot des etats `playerAfter` et `enemiesAfter`.
+- Peut emettre des evenements via `emitEvent` (utilise par la narration).
+
+### Points d'accroche (hooks)
+- `emitEvent`: enregistre l'historique (narration, analytics).
+- `onLog`: trace le detail de resolution.
+- `spawnEntity`: invoque un token (summon).
+- `onPlayVisualEffect`: declenche un VFX sur le plateau.
+- `onModifyPathLimit`: consomme/ajuste le mouvement.
+
+### Flux resume
+1. Joueur choisit une action (roue/menu).
+2. GameBoard valide la cible et ouvre le contexte.
+3. Jets (attaque/degats) -> `resolveActionUnified`.
+4. Engine applique le plan, retourne etats.
+5. GameBoard setState + reactions + logs + rendu.
+
 ## Jets de des
 - `rollAttack` et `rollDamage` (dans `dice/roller.ts`).
 - Le contexte permet advantage/disadvantage.

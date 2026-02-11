@@ -1,0 +1,12 @@
+﻿{
+  "actions": [
+    "./wm-coup-double.json",
+    "./wm-ecorchure.json",
+    "./wm-enchainement.json",
+    "./wm-ouverture.json",
+    "./wm-poussee.json",
+    "./wm-ralentissement.json",
+    "./wm-renversement.json",
+    "./wm-sape.json"
+  ]
+}

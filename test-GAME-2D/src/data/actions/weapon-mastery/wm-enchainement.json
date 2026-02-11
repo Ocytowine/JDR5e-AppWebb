@@ -1,0 +1,23 @@
+﻿{
+  "id": "wm-enchainement",
+  "name": "Enchainement",
+  "summary": "Sur un hit melee, attaque une 2e cible proche (sans mod de degats).",
+  "category": "item",
+  "tags": ["weaponMastery", "enchainement", "wm-trigger:on_hit"],
+  "resolution": { "kind": "NO_ROLL" },
+  "ops": {
+    "onResolve": [
+      {
+        "op": "EmitEvent",
+        "kind": "weaponMastery:enchainement",
+        "data": {
+          "masteryId": "enchainement",
+          "radius": 1.5,
+          "extraAttack": true,
+          "damageAddAbilityMod": false,
+          "limit": "once_per_turn"
+        }
+      }
+    ]
+  }
+}

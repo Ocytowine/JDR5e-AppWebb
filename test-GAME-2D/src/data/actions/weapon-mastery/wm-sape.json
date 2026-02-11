@@ -1,0 +1,21 @@
+﻿{
+  "id": "wm-sape",
+  "name": "Sape",
+  "summary": "Sur un hit, desavantage sur la prochaine attaque de la cible.",
+  "category": "item",
+  "tags": ["weaponMastery", "sape", "wm-trigger:on_hit"],
+  "resolution": { "kind": "NO_ROLL" },
+  "ops": {
+    "onResolve": [
+      {
+        "op": "EmitEvent",
+        "kind": "weaponMastery:sape",
+        "data": {
+          "masteryId": "sape",
+          "disadvantageOnNextAttack": true,
+          "duration": "until_start_of_next_turn"
+        }
+      }
+    ]
+  }
+}

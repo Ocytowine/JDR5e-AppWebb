@@ -601,6 +601,7 @@ export function resolveActionUnified(
       attack?: import("../dice/roller").AttackRollResult | null;
       consumeDamageRoll?: () => import("../dice/roller").DamageRollResult | null;
     };
+    weaponMasteryActions?: ActionDefinition[];
   }
 ): ActionResolutionResult {
   const logs: string[] = [];
@@ -619,11 +620,48 @@ export function resolveActionUnified(
     return { ok: false, reason: validation.reason, logs };
   }
 
-  const actor = { ...ctx.actor };
+  const actor = {
+    ...ctx.actor,
+    tags: Array.isArray((ctx.actor as any).tags) ? [...((ctx.actor as any).tags as string[])] : [],
+    combatStats: ctx.actor.combatStats
+      ? {
+          ...ctx.actor.combatStats,
+          tags: Array.isArray(ctx.actor.combatStats.tags)
+            ? [...ctx.actor.combatStats.tags]
+            : []
+        }
+      : ctx.actor.combatStats
+  };
   let player = { ...ctx.player };
   const enemies = ctx.enemies.map(e => ({ ...e }));
 
   const actionSpec = actionDefinitionToActionSpec(action);
+  const activeMasteryIds = (actionSpec.tags ?? [])
+    .filter(tag => typeof tag === "string" && tag.startsWith("wm-active:"))
+    .map(tag => tag.replace(/^wm-active:/, ""))
+    .filter(Boolean);
+  if (activeMasteryIds.length > 0) {
+    const tagSet = new Set<string>(actor.tags ?? []);
+    activeMasteryIds.forEach(id => tagSet.add(`wm-active:${id}`));
+    actor.tags = Array.from(tagSet);
+  }
+  if (
+    Array.isArray(actor.tags) &&
+    actor.tags.some(tag => tag === "wm-ralentissement" || tag.startsWith("wm-ralentissement:"))
+  ) {
+    const baseRange = typeof actor.moveRange === "number" ? actor.moveRange : actor.combatStats?.moveRange;
+    if (typeof baseRange === "number") {
+      actor.moveRange = Math.max(0, baseRange - 3);
+    }
+  }
+  const masteryTriggerTags = buildWeaponMasteryTriggerTags({
+    activeMasteryIds,
+    masteryActions: opts?.weaponMasteryActions ?? []
+  });
+  if (masteryTriggerTags.length > 0) {
+    const currentTags = actionSpec.tags ?? [];
+    actionSpec.tags = Array.from(new Set([...currentTags, ...masteryTriggerTags]));
+  }
   const plan = compileActionPlan({
     action: actionSpec,
     actor,
@@ -794,4 +832,43 @@ export function resolveActionUnified(
     enemiesAfter,
     outcomeKind: exec.outcome?.kind
   };
+}
+
+function extractMasteryId(action: ActionDefinition): string | null {
+  if (typeof action.id === "string" && action.id.startsWith("wm-")) {
+    const id = action.id.slice("wm-".length);
+    return id || null;
+  }
+  const tags = Array.isArray(action.tags) ? action.tags : [];
+  const candidate = tags.find(tag => {
+    if (tag === "weaponMastery") return false;
+    if (tag.startsWith("wm-trigger:")) return false;
+    return true;
+  });
+  return candidate ?? null;
+}
+
+function getMasteryTrigger(action: ActionDefinition): "on_hit" | "on_miss" | "on_intent" {
+  const tags = Array.isArray(action.tags) ? action.tags : [];
+  const triggerTag = tags.find(tag => tag.startsWith("wm-trigger:"));
+  if (triggerTag === "wm-trigger:on_miss") return "on_miss";
+  if (triggerTag === "wm-trigger:on_intent") return "on_intent";
+  return "on_hit";
+}
+
+function buildWeaponMasteryTriggerTags(params: {
+  activeMasteryIds: string[];
+  masteryActions: ActionDefinition[];
+}): string[] {
+  const { activeMasteryIds, masteryActions } = params;
+  if (!activeMasteryIds.length || !masteryActions.length) return [];
+  const activeSet = new Set(activeMasteryIds);
+  const tags: string[] = [];
+  for (const mastery of masteryActions) {
+    const masteryId = extractMasteryId(mastery);
+    if (!masteryId || !activeSet.has(masteryId)) continue;
+    const trigger = getMasteryTrigger(mastery);
+    tags.push(`wm-trigger:${masteryId}:${trigger}`);
+  }
+  return tags;
 }

@@ -24,6 +24,14 @@ import MovesDash from "../data/moves/dash.json";
 import MovesMove from "../data/moves/move.json";
 import SupportsSecondWind from "../data/supports/second-wind.json";
 import ItemsTorchToggle from "../data/items/torch-toggle.json";
+import WeaponMasteryCoupDouble from "../data/actions/weapon-mastery/wm-coup-double.json";
+import WeaponMasteryEcorchure from "../data/actions/weapon-mastery/wm-ecorchure.json";
+import WeaponMasteryEnchainement from "../data/actions/weapon-mastery/wm-enchainement.json";
+import WeaponMasteryOuverture from "../data/actions/weapon-mastery/wm-ouverture.json";
+import WeaponMasteryPoussee from "../data/actions/weapon-mastery/wm-poussee.json";
+import WeaponMasteryRalentissement from "../data/actions/weapon-mastery/wm-ralentissement.json";
+import WeaponMasteryRenversement from "../data/actions/weapon-mastery/wm-renversement.json";
+import WeaponMasterySape from "../data/actions/weapon-mastery/wm-sape.json";
 
 const ACTION_MODULES: Record<string, ActionDefinition> = {
   "../spells/aid.json": SpellsAid as ActionDefinition,
@@ -46,7 +54,15 @@ const ACTION_MODULES: Record<string, ActionDefinition> = {
   "../moves/dash.json": MovesDash as ActionDefinition,
   "../moves/move.json": MovesMove as ActionDefinition,
   "../supports/second-wind.json": SupportsSecondWind as ActionDefinition,
-  "../items/torch-toggle.json": ItemsTorchToggle as ActionDefinition
+  "../items/torch-toggle.json": ItemsTorchToggle as ActionDefinition,
+  "./weapon-mastery/wm-coup-double.json": WeaponMasteryCoupDouble as ActionDefinition,
+  "./weapon-mastery/wm-ecorchure.json": WeaponMasteryEcorchure as ActionDefinition,
+  "./weapon-mastery/wm-enchainement.json": WeaponMasteryEnchainement as ActionDefinition,
+  "./weapon-mastery/wm-ouverture.json": WeaponMasteryOuverture as ActionDefinition,
+  "./weapon-mastery/wm-poussee.json": WeaponMasteryPoussee as ActionDefinition,
+  "./weapon-mastery/wm-ralentissement.json": WeaponMasteryRalentissement as ActionDefinition,
+  "./weapon-mastery/wm-renversement.json": WeaponMasteryRenversement as ActionDefinition,
+  "./weapon-mastery/wm-sape.json": WeaponMasterySape as ActionDefinition
 };
 
 export function loadActionTypesFromIndex(): ActionDefinition[] {

@@ -21,6 +21,14 @@
     "../spells/sending.json",
     "../spells/vague-ardente.json",
     "../spells/warding-bond.json",
-    "../supports/second-wind.json"
+    "../supports/second-wind.json",
+    "./weapon-mastery/wm-coup-double.json",
+    "./weapon-mastery/wm-ecorchure.json",
+    "./weapon-mastery/wm-enchainement.json",
+    "./weapon-mastery/wm-ouverture.json",
+    "./weapon-mastery/wm-poussee.json",
+    "./weapon-mastery/wm-ralentissement.json",
+    "./weapon-mastery/wm-renversement.json",
+    "./weapon-mastery/wm-sape.json"
   ]
 }

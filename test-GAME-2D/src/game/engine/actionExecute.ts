@@ -11,6 +11,8 @@ import type {
   OutcomeKey,
   Operation
 } from "./types";
+import { distanceBetweenTokens } from "../combatUtils";
+import { resolveFormula } from "./formulas";
 
 type HookPhase =
   | "onIntentBuild"
@@ -124,11 +126,16 @@ function resolveOutcome(params: {
   };
 
   if (resolution.kind === "ATTACK_ROLL") {
+    const effectiveAdvantage = resolveWeaponMasteryAdvantage({
+      base: params.advantageMode ?? "normal",
+      actor: state.actor,
+      target
+    });
     const bonus = (resolution.bonus ?? 0) + (rollContext.bonusDelta ?? 0);
     const critRange = resolution.critRange ?? 20;
     let roll =
       params.rollOverrides?.attack ??
-      rollAttack(bonus, params.advantageMode ?? "normal", critRange);
+      rollAttack(bonus, effectiveAdvantage, critRange);
     if (rollContext.replaceRoll !== undefined) {
       const d20 = rollContext.replaceRoll;
       roll = {
@@ -157,6 +164,11 @@ function resolveOutcome(params: {
       target && typeof target.armorClass === "number" ? target.armorClass : null;
     const isHit = targetAC === null ? true : roll.total >= targetAC || roll.isCrit;
     const kind: OutcomeKey = roll.isCrit ? "crit" : isHit ? "hit" : "miss";
+    consumeWeaponMasteryAdvantage({
+      actor: state.actor,
+      target,
+      advantageUsed: effectiveAdvantage !== "normal"
+    });
     return {
       outcome: { kind, roll: roll.d20.total, total: roll.total, isCrit: roll.isCrit },
       target
@@ -259,6 +271,289 @@ function resolveOutcome(params: {
     outcome: { kind: "hit", roll: 0, total: 0 },
     target
   };
+}
+
+function getTokenTags(token: TokenState | null): string[] {
+  if (!token) return [];
+  const tags = Array.isArray((token as any).tags) ? ((token as any).tags as string[]) : [];
+  const combatTags = Array.isArray(token.combatStats?.tags) ? token.combatStats?.tags ?? [] : [];
+  return [...tags, ...combatTags];
+}
+
+function addTokenTag(token: TokenState | null, tag: string) {
+  if (!token) return;
+  const anyToken = token as { tags?: string[] };
+  anyToken.tags = Array.isArray(anyToken.tags) ? anyToken.tags : [];
+  if (!anyToken.tags.includes(tag)) anyToken.tags.push(tag);
+}
+
+function removeTokenTag(token: TokenState | null, tag: string) {
+  if (!token) return;
+  const anyToken = token as { tags?: string[] };
+  if (!Array.isArray(anyToken.tags)) return;
+  anyToken.tags = anyToken.tags.filter(t => t !== tag);
+}
+
+function removeTokenTagsByPrefix(token: TokenState | null, prefix: string) {
+  if (!token) return;
+  const anyToken = token as { tags?: string[] };
+  if (!Array.isArray(anyToken.tags)) return;
+  const nextTags = anyToken.tags.filter(tag => !tag.startsWith(prefix));
+  if (nextTags.length === anyToken.tags.length) return;
+  anyToken.tags = nextTags;
+}
+
+function resolveWeaponMasteryAdvantage(params: {
+  base: AdvantageMode;
+  actor: TokenState;
+  target: TokenState | null;
+}): AdvantageMode {
+  const { base, actor, target } = params;
+  let score = base === "advantage" ? 1 : base === "disadvantage" ? -1 : 0;
+  const actorTags = getTokenTags(actor);
+  if (actorTags.some(tag => tag.startsWith("wm-sape:next:"))) score -= 1;
+  if (target) {
+    const targetTags = getTokenTags(target);
+    const advPrefix = `wm-ouverture:adv:${actor.id}`;
+    if (targetTags.some(tag => tag === advPrefix || tag.startsWith(`${advPrefix}:`))) {
+      score += 1;
+    }
+  }
+  if (score > 0) return "advantage";
+  if (score < 0) return "disadvantage";
+  return "normal";
+}
+
+function consumeWeaponMasteryAdvantage(params: {
+  actor: TokenState;
+  target: TokenState | null;
+  advantageUsed: boolean;
+}) {
+  const { actor, target, advantageUsed } = params;
+  if (!advantageUsed) return;
+  removeTokenTagsByPrefix(actor, "wm-sape:next:");
+  if (target) {
+    removeTokenTagsByPrefix(target, `wm-ouverture:adv:${actor.id}`);
+  }
+}
+
+function extractAbilityModToken(formula?: string | null): string | null {
+  if (!formula) return null;
+  const match = formula.match(/modFOR|modDEX|modCON|modINT|modSAG|modCHA/);
+  return match ? match[0] : null;
+}
+
+function abilityModFromToken(actor: TokenState, modToken: string | null): number {
+  if (!modToken) return 0;
+  const mods = actor.combatStats?.mods;
+  if (!mods) return 0;
+  if (modToken === "modFOR") return Number(mods.modFOR ?? 0);
+  if (modToken === "modDEX") return Number(mods.modDEX ?? 0);
+  if (modToken === "modCON") return Number(mods.modCON ?? 0);
+  if (modToken === "modINT") return Number(mods.modINT ?? 0);
+  if (modToken === "modSAG") return Number(mods.modSAG ?? 0);
+  if (modToken === "modCHA") return Number(mods.modCHA ?? 0);
+  return 0;
+}
+
+function stripAbilityMod(formula: string, modToken: string | null): string {
+  if (!modToken) return formula;
+  const cleaned = formula.replace(/\s+/g, "");
+  const pattern = new RegExp(`([+-])${modToken}`, "i");
+  const removed = cleaned.replace(pattern, "");
+  return removed.length > 0 ? removed : formula;
+}
+
+function getMasteryTriggerFromTags(tags: string[], masteryId: string): "on_hit" | "on_miss" | "on_intent" {
+  const token = `wm-trigger:${masteryId}:`;
+  const found = tags.find(tag => tag.startsWith(token));
+  if (found === `${token}on_miss`) return "on_miss";
+  if (found === `${token}on_intent`) return "on_intent";
+  return "on_hit";
+}
+
+function getProficiencyBonus(actor: TokenState): number {
+  const level = Number(actor.combatStats?.level ?? 1);
+  if (level <= 4) return 2;
+  if (level <= 8) return 3;
+  if (level <= 12) return 4;
+  if (level <= 16) return 5;
+  return 6;
+}
+
+function getHostileTargets(state: EngineState, actor: TokenState): TokenState[] {
+  if (actor.type === "player") return state.enemies ?? [];
+  return [state.player];
+}
+
+function applyWeaponMasteryEffects(params: {
+  plan: ActionPlan;
+  state: EngineState;
+  tx: import("./transaction").Transaction;
+  target: TokenState | null;
+  outcome: Outcome;
+  opts: ExecuteOptions;
+}) {
+  const { plan, state, tx, target, outcome, opts } = params;
+  const tags = plan.action.tags ?? [];
+  const activeMasteries = tags
+    .filter(tag => tag.startsWith("wm-active:"))
+    .map(tag => tag.replace("wm-active:", ""))
+    .filter(Boolean);
+  if (activeMasteries.length === 0) return;
+
+  const actorTags = getTokenTags(state.actor);
+  const damageFormula = plan.action.damage?.formula ?? "";
+  const damageType = plan.action.damage?.damageType ?? undefined;
+  const modToken = extractAbilityModToken(damageFormula);
+  const abilityMod = abilityModFromToken(state.actor, modToken);
+  const baseRange = plan.action.targeting?.range?.max ?? 1.5;
+
+  for (const masteryId of activeMasteries) {
+    if (!actorTags.includes(`wm:${masteryId}`)) continue;
+    const trigger = getMasteryTriggerFromTags(tags, masteryId);
+    if (trigger === "on_hit" && !(outcome.kind === "hit" || outcome.kind === "crit")) continue;
+    if (trigger === "on_miss" && outcome.kind !== "miss") continue;
+
+    if (masteryId === "ouverture") {
+      if (target) {
+        addTokenTag(target, `wm-ouverture:adv:${state.actor.id}`);
+        logTransaction(tx, "Botte d'arme: Ouverture (avantage prochain jet)", opts.onLog);
+      }
+      continue;
+    }
+
+    if (masteryId === "sape") {
+      if (target) {
+        addTokenTag(target, `wm-sape:next:${state.actor.id}`);
+        logTransaction(tx, "Botte d'arme: Sape (desavantage prochain jet)", opts.onLog);
+      }
+      continue;
+    }
+
+    if (masteryId === "poussee") {
+      if (target) {
+        applyOperation({
+          op: { op: "Push", target: "primary", distance: 3 },
+          tx,
+          state,
+          explicitTarget: { kind: "token", token: target },
+          opts
+        });
+      }
+      continue;
+    }
+
+    if (masteryId === "ralentissement") {
+      if (target) {
+        addTokenTag(target, `wm-ralentissement:${state.actor.id}`);
+        logTransaction(tx, "Botte d'arme: Ralentissement (-3m vitesse)", opts.onLog);
+      }
+      continue;
+    }
+
+    if (masteryId === "ecorchure") {
+      if (target && abilityMod > 0) {
+        applyOperation({
+          op: {
+            op: "DealDamage",
+            target: "primary",
+            formula: String(Math.max(0, abilityMod)),
+            damageType
+          },
+          tx,
+          state,
+          explicitTarget: { kind: "token", token: target },
+          opts
+        });
+        logTransaction(tx, "Botte d'arme: Ecorchure", opts.onLog);
+      }
+      continue;
+    }
+
+    if (masteryId === "renversement") {
+      if (target) {
+        const prof = getProficiencyBonus(state.actor);
+        const dc = 8 + abilityMod + prof;
+        const mod = target.combatStats?.mods?.modCON ?? 0;
+        const roll = rollDamage("1d20", { isCrit: false, critRule: "double-dice" });
+        const total = roll.total + mod;
+        logTransaction(tx, `Renversement: d20 ${roll.total} + ${mod} = ${total} vs DD ${dc}`, opts.onLog);
+        if (total < dc) {
+          applyOperation({
+            op: { op: "ApplyCondition", target: "primary", statusId: "prone", durationTurns: 1 },
+            tx,
+            state,
+            explicitTarget: { kind: "token", token: target },
+            opts
+          });
+        }
+      }
+      continue;
+    }
+
+    if (masteryId === "enchainement") {
+      const primary = target;
+      if (!primary) continue;
+      const hostiles = getHostileTargets(state, state.actor)
+        .filter(t => t.id !== primary.id && t.hp > 0)
+        .filter(t => distanceBetweenTokens(primary, t) <= 1.5)
+        .filter(t => distanceBetweenTokens(state.actor, t) <= baseRange);
+      if (hostiles.length === 0) continue;
+      const secondary = hostiles.sort(
+        (a, b) => distanceBetweenTokens(primary, a) - distanceBetweenTokens(primary, b)
+      )[0];
+      const bonus = plan.action.attack?.bonus ?? plan.action.resolution?.bonus ?? 0;
+      const critRange = plan.action.attack?.critRange ?? plan.action.resolution?.critRange ?? 20;
+      const roll = rollAttack(bonus, "normal", critRange);
+      const targetAC = typeof secondary.armorClass === "number" ? secondary.armorClass : null;
+      const hit = targetAC === null ? true : roll.total >= targetAC || roll.isCrit;
+      logTransaction(tx, `Enchainement: jet ${roll.total}${hit ? " (hit)" : " (miss)"}`, opts.onLog);
+      if (hit) {
+        const baseFormula =
+          damageFormula
+            ? abilityMod < 0
+              ? damageFormula
+              : stripAbilityMod(damageFormula, modToken)
+            : "";
+        if (baseFormula) {
+          const formula = resolveFormula(baseFormula, { actor: state.actor, sampleCharacter: undefined });
+          const dmg = rollDamage(formula, { isCrit: false, critRule: "double-dice" });
+          const total = dmg.total;
+          secondary.hp = Math.max(0, secondary.hp - total);
+          logTransaction(tx, `Enchainement: degats ${total} (${formula})`, opts.onLog);
+        }
+      }
+      continue;
+    }
+
+    if (masteryId === "coup_double") {
+      const hasLight = tags.includes("weapon:light");
+      if (!hasLight || !target) continue;
+      const bonus = plan.action.attack?.bonus ?? plan.action.resolution?.bonus ?? 0;
+      const critRange = plan.action.attack?.critRange ?? plan.action.resolution?.critRange ?? 20;
+      const roll = rollAttack(bonus, "normal", critRange);
+      const targetAC = typeof target.armorClass === "number" ? target.armorClass : null;
+      const hit = targetAC === null ? true : roll.total >= targetAC || roll.isCrit;
+      logTransaction(tx, `Coup double: jet ${roll.total}${hit ? " (hit)" : " (miss)"}`, opts.onLog);
+      if (hit) {
+        const baseFormula =
+          damageFormula
+            ? abilityMod < 0
+              ? damageFormula
+              : stripAbilityMod(damageFormula, modToken)
+            : "";
+        if (baseFormula) {
+          const formula = resolveFormula(baseFormula, { actor: state.actor, sampleCharacter: undefined });
+          const dmg = rollDamage(formula, { isCrit: false, critRule: "double-dice" });
+          const total = dmg.total;
+          target.hp = Math.max(0, target.hp - total);
+          logTransaction(tx, `Coup double: degats ${total} (${formula})`, opts.onLog);
+        }
+      }
+      continue;
+    }
+  }
 }
 
 function collectOperations(effects: ActionPlan["action"]["effects"], outcome: Outcome): Operation[] {
@@ -492,6 +787,15 @@ export function executePlan(params: {
       outcome,
       explicitTarget: target ? { kind: "token", token: target } : null,
       tx,
+      opts
+    });
+
+    applyWeaponMasteryEffects({
+      plan,
+      state: tx.state,
+      tx,
+      target,
+      outcome,
       opts
     });
 

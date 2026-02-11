@@ -55,6 +55,24 @@ Le moteur supporte les hooks suivants (taxo complete):
 
 Note: utiliser les noms de phases officiels (voir taxo).
 
+## Weapon Mastery (data-driven)
+
+Les bottes d'arme sont declarees comme **actions** `wm-*` dans:
+- `src/data/actions/weapon-mastery/`
+
+Le moteur applique un **hook generique** si:
+- l'action courante porte `wm-active:<id>` (arme equipee),
+- l'acteur a `wm:<id>` (maitrise debloquee),
+- le trigger runtime `wm-trigger:<id>:on_hit/on_miss/on_intent` correspond
+  (derive des tags `wm-trigger:on_*` des JSON WM).
+
+Le moteur utilise ces tags pour declencher les effets, mais **les effets sont integres cote engine**
+(pas d'injection dynamique d'ops).
+
+Tags runtime utilises par l'engine:
+- `wm-ouverture:adv:<sourceId>` (devient `:expiring` au debut du tour suivant de la source, purge a la fin de ce tour).
+- `wm-sape:next:<sourceId>` + `wm-ralentissement:<sourceId>` (purges au debut du tour suivant de la source).
+
 ## Modeles (concepts)
 
 ### ActionSpec

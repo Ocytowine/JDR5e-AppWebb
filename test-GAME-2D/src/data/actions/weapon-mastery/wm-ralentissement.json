@@ -1,0 +1,22 @@
+﻿{
+  "id": "wm-ralentissement",
+  "name": "Ralentissement",
+  "summary": "Sur un hit, reduit la vitesse de 3 m (max 3 m) jusqu'au debut du prochain tour.",
+  "category": "item",
+  "tags": ["weaponMastery", "ralentissement", "wm-trigger:on_hit"],
+  "resolution": { "kind": "NO_ROLL" },
+  "ops": {
+    "onResolve": [
+      {
+        "op": "EmitEvent",
+        "kind": "weaponMastery:ralentissement",
+        "data": {
+          "masteryId": "ralentissement",
+          "speedDelta": -3,
+          "duration": "until_start_of_next_turn",
+          "maxStack": 1
+        }
+      }
+    ]
+  }
+}

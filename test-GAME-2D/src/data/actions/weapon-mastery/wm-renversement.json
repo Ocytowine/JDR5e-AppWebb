@@ -1,0 +1,21 @@
+﻿{
+  "id": "wm-renversement",
+  "name": "Renversement",
+  "summary": "Sur un hit, force un jet de CON ou la cible tombe a terre.",
+  "category": "item",
+  "tags": ["weaponMastery", "renversement", "wm-trigger:on_hit"],
+  "resolution": { "kind": "NO_ROLL" },
+  "ops": {
+    "onResolve": [
+      {
+        "op": "EmitEvent",
+        "kind": "weaponMastery:renversement",
+        "data": {
+          "masteryId": "renversement",
+          "save": { "ability": "CON", "dc": "8 + attack_mod + prof" },
+          "onFail": { "condition": "prone", "durationTurns": 1 }
+        }
+      }
+    ]
+  }
+}

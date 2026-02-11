@@ -80,7 +80,7 @@ Un sort est compose de:
   - `perTurn`, `perEncounter`, `resource`.
 
 ### Portee & ciblage
-- `targeting.target`: type de cible (`enemy`, `hostile`, `ally`, `self`, `cell`).
+- `targeting.target`: type de cible (`enemy`, `player`, `hostile`, `ally`, `self`, `cell`, `emptyCell`).
 - `targeting.range`: `min`, `max`, `shape` (ex: `SPHERE`, `CONE`, `LINE`).
 - `targeting.maxTargets`: nombre max de cibles.
 - `targeting.requiresLos`: bloque si pas de LOS.
@@ -90,6 +90,7 @@ Un sort est compose de:
 - `resolution.bonus`: bonus d'attaque.
 - `resolution.save`: si `SAVING_THROW`, `ability` + `dc`.
 - `resolution.check`: si `ABILITY_CHECK`, `ability` + `dc`.
+- `resolution.contested`: si `CONTESTED_CHECK`, `actorAbility`, `targetAbility`, `tieWinner`.
 
 ### Effets (branches d'issue)
 - `ops.onHit`: executes si l'attaque touche.

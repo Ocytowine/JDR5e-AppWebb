@@ -19,6 +19,7 @@ Structure
   - reactions/: catalogue des reactions (model + index).
   - passifs/: statuts continus / effets passifs (index + definitions).
   - features/: capacites declaratives (reserve aux progressions de classe).
+  - actions/weapon-mastery/: actions data-driven des bottes d'arme (wm-*.json).
 
 Regles de standardisation (prototype actuel)
 - Le joueur declare `actionIds` dans sa fiche (`src/sampleCharacter.ts`).

@@ -1,0 +1,21 @@
+﻿{
+  "id": "wm-ecorchure",
+  "name": "Ecorchure",
+  "summary": "Sur un miss, inflige des degats egaux au modificateur utilise.",
+  "category": "item",
+  "tags": ["weaponMastery", "ecorchure", "wm-trigger:on_miss"],
+  "resolution": { "kind": "NO_ROLL" },
+  "ops": {
+    "onResolve": [
+      {
+        "op": "EmitEvent",
+        "kind": "weaponMastery:ecorchure",
+        "data": {
+          "masteryId": "ecorchure",
+          "damage": "attack_mod",
+          "damageType": "weapon"
+        }
+      }
+    ]
+  }
+}
