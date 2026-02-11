@@ -6,6 +6,7 @@ import type {
   EnemyCombatStyle,
   MovementProfile,
   Personnage,
+  TokenType,
   TokenState,
   VisionProfile
 } from "./types";
@@ -34,11 +35,12 @@ import {
   computeFacingTowards,
   distanceBetweenTokens,
   distanceFromPointToToken,
+  gridDistance,
   getMaxAttacksForToken,
   isTokenDead,
   canEnemySeePlayer
 } from "./game/combatUtils";
-import { metersToCells } from "./game/units";
+import { cellsToMeters, metersToCells } from "./game/units";
 import { resolveFormula } from "./game/engine/formulas";
 import enemyTypesIndex from "./data/enemies/index.json";
 import bruteType from "./data/enemies/brute.json";
@@ -62,6 +64,7 @@ import { loadLanguageTypesFromIndex } from "./PlayerCharacterCreator/catalogs/la
 import { loadToolItemsFromIndex } from "./PlayerCharacterCreator/catalogs/toolCatalog";
 import { loadObjectItemsFromIndex } from "./PlayerCharacterCreator/catalogs/objectCatalog";
 import { loadArmorItemsFromIndex } from "./PlayerCharacterCreator/catalogs/armorCatalog";
+import { loadAmmoTypesFromIndex } from "./game/ammoCatalog";
 import type { ObstacleInstance, ObstacleTypeDefinition } from "./game/obstacleTypes";
 import type { EffectInstance, EffectTypeDefinition } from "./game/effectTypes";
 import type { StatusDefinition } from "./game/statusTypes";
@@ -76,6 +79,7 @@ import type { LanguageDefinition } from "./game/languageTypes";
 import type { ToolItemDefinition } from "./game/toolTypes";
 import type { ObjectItemDefinition } from "./game/objectTypes";
 import type { ArmorItemDefinition } from "./game/armorTypes";
+import type { AmmoItemDefinition } from "./game/ammoTypes";
 import { generateBattleMap } from "./game/mapEngine";
 import { getHeightAtGrid, type TerrainCell } from "./game/map/draft";
 import { buildTerrainMixLayer } from "./game/map/terrainMix";
@@ -493,6 +497,7 @@ function resolveEnemyMovementProfile(
       appearance: enemyType.appearance,
       speechProfile: enemyType.speechProfile ?? null,
     combatStats: base,
+    spellcastingState: enemyType.spellcastingState,
     moveRange: base.moveRange,
     maxAttacksPerTurn:
       typeof base.maxAttacksPerTurn === "number" ? base.maxAttacksPerTurn : 1,
@@ -530,6 +535,75 @@ function computeEnemySpawnPosition(
   return { x, y };
 }
 
+  function createSummon(params: {
+    entityTypeId: string;
+    x: number;
+    y: number;
+    ownerId: string;
+    ownerType: TokenType;
+  }): TokenState | null {
+    const enemyType = enemyTypeById.get(params.entityTypeId) ?? null;
+    if (!enemyType) {
+      pushLog(`Invocation echouee: type inconnu (${params.entityTypeId}).`);
+      return null;
+    }
+    const summonBehavior = enemyType.summonBehavior ?? {};
+    const controlMode = summonBehavior.controlMode ?? "auto";
+    const turnTiming = summonBehavior.turnTiming ?? "after_player";
+    const initiativeMode = summonBehavior.initiativeMode ?? "roll_on_spawn";
+    const obeyChance =
+      typeof summonBehavior.obeyChance === "number" ? summonBehavior.obeyChance : 1;
+    const order = summonBehavior.order ?? { kind: "attack_nearest" };
+    const speed = resolveEnemyMovementSpeed(enemyType);
+    const base: CombatStats = {
+      ...enemyType.combatStats,
+      moveRange: speed
+    };
+    const movementProfile = resolveEnemyMovementProfile(enemyType, speed);
+    const id = `summon-${summonCounterRef.current++}`;
+    return {
+      id,
+      type: params.ownerType,
+      summonOwnerId: params.ownerId,
+      summonOwnerType: params.ownerType,
+      summonControlMode: controlMode,
+      summonTurnTiming: turnTiming,
+      summonInitiativeMode: initiativeMode,
+      summonObeyChance: obeyChance,
+      summonOrder: order,
+      enemyTypeId: enemyType.id,
+      enemyTypeLabel: enemyType.label,
+      aiRole: enemyType.aiRole ?? "summon",
+      actionIds: Array.isArray((enemyType as any).actions)
+        ? ((enemyType as any).actions as string[])
+        : null,
+      reactionIds: Array.isArray((enemyType as any).reactionIds)
+        ? ((enemyType as any).reactionIds as string[])
+        : null,
+      appearance: enemyType.appearance,
+      speechProfile: enemyType.speechProfile ?? null,
+      combatStats: base,
+      moveRange: base.moveRange,
+      maxAttacksPerTurn:
+        typeof base.maxAttacksPerTurn === "number" ? base.maxAttacksPerTurn : 1,
+      armorClass: base.armorClass,
+      movementProfile,
+      facing: params.ownerType === "enemy" ? "left" : "right",
+      visionProfile: enemyType.vision
+        ? (enemyType.vision as VisionProfile)
+        : {
+            shape: "cone",
+            range: 100,
+            apertureDeg: 180
+          },
+      footprint: enemyType.footprint,
+      x: params.x,
+      y: params.y,
+      hp: base.maxHp,
+      maxHp: base.maxHp
+    };
+  }
+
 const ENEMY_CAPABILITIES: { action: EnemyActionType; label: string; color: string }[] = [
   {
     action: "move",
@@ -549,6 +623,48 @@ const ENEMY_CAPABILITIES: { action: EnemyActionType; label: string; color: strin
 ];
 
 const PLAYER_TORCH_RADIUS = 4;
+
+function collectSpellActionIds(character: Personnage): string[] {
+  const ids = new Set<string>();
+  const state = character.spellcastingState;
+  const sources = state?.sources ?? {};
+  for (const source of Object.values(sources)) {
+    const prepared = Array.isArray((source as any).preparedSpellIds)
+      ? ((source as any).preparedSpellIds as string[])
+      : [];
+    const known = Array.isArray((source as any).knownSpellIds)
+      ? ((source as any).knownSpellIds as string[])
+      : [];
+    const granted = Array.isArray((source as any).grantedSpellIds)
+      ? ((source as any).grantedSpellIds as string[])
+      : [];
+    for (const id of [...prepared, ...known, ...granted]) {
+      if (id) ids.add(id);
+    }
+  }
+
+  const derivedGrants = (character as any)?.derived?.grants?.spells;
+  if (Array.isArray(derivedGrants)) {
+    for (const id of derivedGrants) {
+      if (id) ids.add(id);
+    }
+  }
+
+  const spellSelections = (character as any)?.choiceSelections?.spellcasting;
+  if (spellSelections && typeof spellSelections === "object") {
+    for (const entry of Object.values(spellSelections as Record<string, any>)) {
+      const granted = Array.isArray(entry?.grantedSpells) ? entry.grantedSpells : [];
+      const prepared = Array.isArray(entry?.preparedSpells) ? entry.preparedSpells : [];
+      const known = Array.isArray(entry?.knownSpells) ? entry.knownSpells : [];
+      for (const spell of [...granted, ...prepared, ...known]) {
+        const id = typeof spell === "string" ? spell : spell?.id;
+        if (id) ids.add(id);
+      }
+    }
+  }
+
+  return Array.from(ids);
+}
 
 
 // -------------------------------------------------------------
@@ -643,6 +759,7 @@ export const GameBoard: React.FC = () => {
     moveRange: playerCombatStats.moveRange,
     visionProfile: defaultPlayerVisionProfile,
     combatStats: playerCombatStats,
+    spellcastingState: activeCharacterConfig.spellcastingState,
     maxAttacksPerTurn: playerCombatStats.maxAttacksPerTurn,
     hp: activeCharacterConfig.pvActuels,
     maxHp: playerCombatStats.maxHp
@@ -676,8 +793,10 @@ export const GameBoard: React.FC = () => {
   const [phase, setPhase] = useState<TurnPhase>("player");
   const [round, setRound] = useState<number>(1);
   const [isResolvingEnemies, setIsResolvingEnemies] = useState<boolean>(false);
-  const [hasRolledInitiative, setHasRolledInitiative] = useState<boolean>(false);
-  const [playerInitiative, setPlayerInitiative] = useState<number | null>(null);
+    const [hasRolledInitiative, setHasRolledInitiative] = useState<boolean>(false);
+    const [playerInitiative, setPlayerInitiative] = useState<number | null>(null);
+    const [playerInitiativeRoll, setPlayerInitiativeRoll] = useState<number | null>(null);
+    const [playerInitiativeMod, setPlayerInitiativeMod] = useState<number | null>(null);
   const [turnOrder, setTurnOrder] = useState<TurnEntry[]>([]);
   const [currentTurnIndex, setCurrentTurnIndex] = useState<number>(0);
   const [turnTick, setTurnTick] = useState<number>(0);
@@ -700,6 +819,7 @@ export const GameBoard: React.FC = () => {
       moveRange: playerCombatStats.moveRange,
       visionProfile: defaultPlayerVisionProfile,
       combatStats: playerCombatStats,
+      spellcastingState: activeCharacterConfig.spellcastingState,
       maxAttacksPerTurn: playerCombatStats.maxAttacksPerTurn,
       hp: activeCharacterConfig.pvActuels,
       maxHp: playerCombatStats.maxHp
@@ -738,13 +858,33 @@ export const GameBoard: React.FC = () => {
   const [backgroundTypes, setBackgroundTypes] = useState<BackgroundDefinition[]>([]);
   const [languageTypes, setLanguageTypes] = useState<LanguageDefinition[]>([]);
   const [toolItems, setToolItems] = useState<ToolItemDefinition[]>([]);
-  const [objectItems, setObjectItems] = useState<ObjectItemDefinition[]>([]);
-  const [reactionCatalog, setReactionCatalog] = useState<ReactionDefinition[]>([]);
+    const [objectItems, setObjectItems] = useState<ObjectItemDefinition[]>([]);
+  const [ammoItems, setAmmoItems] = useState<AmmoItemDefinition[]>([]);
+    const [reactionCatalog, setReactionCatalog] = useState<ReactionDefinition[]>([]);
   const [reactionQueue, setReactionQueue] = useState<ReactionInstance[]>([]);
   const [reactionUsage, setReactionUsage] = useState<Record<string, number>>({});
   const [reactionCombatUsage, setReactionCombatUsage] = useState<Record<string, number>>({});
   const [killerInstinctTargetId, setKillerInstinctTargetId] = useState<string | null>(null);
-  const [selectedActionId, setSelectedActionId] = useState<string | null>(null);
+    const [selectedActionId, setSelectedActionId] = useState<string | null>(null);
+    const itemLabelMap = useMemo(() => {
+      const map: Record<string, string> = {};
+      for (const weapon of weaponTypes) {
+        if (weapon?.id) map[weapon.id] = weapon.name ?? weapon.id;
+      }
+      for (const armor of armorItems) {
+        if (armor?.id) map[armor.id] = armor.label ?? armor.id;
+      }
+      for (const obj of objectItems) {
+        if (obj?.id) map[obj.id] = obj.label ?? obj.id;
+      }
+      for (const ammo of ammoItems) {
+        if (ammo?.id) map[ammo.id] = ammo.label ?? ammo.name ?? ammo.id;
+      }
+      for (const tool of toolItems) {
+        if (tool?.id) map[tool.id] = tool.label ?? tool.id;
+      }
+      return map;
+    }, [weaponTypes, armorItems, objectItems, ammoItems, toolItems]);
   const [validatedActionId, setValidatedActionId] = useState<string | null>(null);
   const [advantageMode, setAdvantageMode] =
     useState<AdvantageMode>("normal");
@@ -770,12 +910,12 @@ export const GameBoard: React.FC = () => {
     turn: Record<string, number>;
     encounter: Record<string, number>;
   }>({ turn: {}, encounter: {} });
+  const [actionUsageByActor, setActionUsageByActor] = useState<
+    Record<string, { turn: Record<string, number>; combat: Record<string, number> }>
+  >({});
   const [actionContextOpen, setActionContextOpen] = useState<boolean>(false);
   const suppressBoardClickUntilRef = useRef<number>(0);
-  const [playerResources, setPlayerResources] = useState<Record<string, number>>({
-    "bandolier:dagger": 3,
-    "gear:torch": 1
-  });
+    const [playerResources, setPlayerResources] = useState<Record<string, number>>({});
   const [pathLimit, setPathLimit] = useState<number>(
     metersToCells(defaultMovementProfile.speed)
   );
@@ -875,6 +1015,57 @@ export const GameBoard: React.FC = () => {
     null
   );
 
+  const actionLabelById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const action of actionsCatalog) map.set(action.id, action.name);
+    for (const action of moveTypes) map.set(action.id, action.name);
+    for (const reaction of reactionCatalog) {
+      if (reaction?.action?.id) {
+        map.set(reaction.action.id, reaction.action.name);
+      }
+    }
+    return map;
+  }, [actionsCatalog, moveTypes, reactionCatalog]);
+
+  const actionUsageDebug = useMemo(() => {
+    const tokenById = new Map<string, TokenState>();
+    for (const token of [player, ...enemies]) tokenById.set(token.id, token);
+    const entries: Array<{
+      actorId: string;
+      actorLabel: string;
+      actions: Array<{ id: string; label: string; turn: number; combat: number }>;
+    }> = [];
+
+    for (const [actorId, usage] of Object.entries(actionUsageByActor)) {
+      const turn = usage?.turn ?? {};
+      const combat = usage?.combat ?? {};
+      const actionIds = new Set<string>([
+        ...Object.keys(turn),
+        ...Object.keys(combat)
+      ]);
+      const actions = Array.from(actionIds)
+        .map(id => ({
+          id,
+          label: actionLabelById.get(id) ?? id,
+          turn: Math.max(0, Number(turn[id] ?? 0)),
+          combat: Math.max(0, Number(combat[id] ?? 0))
+        }))
+        .filter(item => item.turn > 0 || item.combat > 0)
+        .sort((a, b) => a.label.localeCompare(b.label));
+
+      if (actions.length === 0) continue;
+      const token = tokenById.get(actorId);
+      const actorLabel = token
+        ? token.type === "player"
+          ? "Joueur"
+          : token.id
+        : actorId;
+      entries.push({ actorId, actorLabel, actions });
+    }
+
+    return entries;
+  }, [actionUsageByActor, actionLabelById, player, enemies]);
+
   // Area-of-effect specs attached to the player
   const [effectSpecs, setEffectSpecs] = useState<EffectSpec[]>([]);
   const [showVisionDebug, setShowVisionDebug] = useState<boolean>(false);
@@ -900,6 +1091,7 @@ export const GameBoard: React.FC = () => {
   const contextCompleteRef = useRef<boolean>(false);
   const seenTargetsByActorRef = useRef<Map<string, Set<string>>>(new Map());
   const enemyTurnPauseRef = useRef<{ promise: Promise<void>; resolve: () => void } | null>(null);
+  const summonCounterRef = useRef<number>(1);
   const [hpPopups, setHpPopups] = useState<
     Array<{ id: string; x: number; y: number; text: string; color: string }>
   >([]);
@@ -1048,9 +1240,34 @@ export const GameBoard: React.FC = () => {
     for (const t of FLOOR_MATERIALS) map.set(t.id, t);
     return map;
   }, []);
+  const resolveAnchoredEffects = useCallback(
+    (list: EffectInstance[]): EffectInstance[] => {
+      if (!list.length) return list;
+      const tokenById = new Map<string, TokenState>();
+      tokenById.set(player.id, player);
+      for (const enemy of enemies) tokenById.set(enemy.id, enemy);
+      let touched = false;
+      const resolved = list.map(effect => {
+        if (effect.kind !== "aura" || !effect.anchorTokenId) return effect;
+        const token = tokenById.get(effect.anchorTokenId);
+        if (!token) return effect;
+        if (effect.x === token.x && effect.y === token.y) return effect;
+        touched = true;
+        return { ...effect, x: token.x, y: token.y };
+      });
+      return touched ? resolved : list;
+    },
+    [player, enemies]
+  );
+
+  const resolvedEffects = useMemo(
+    () => resolveAnchoredEffects(effects),
+    [effects, resolveAnchoredEffects]
+  );
+
   const hasAnimatedSprites = useMemo(() => {
     if (!isCombatConfigured) return false;
-    for (const effect of effects) {
+    for (const effect of resolvedEffects) {
       const def = effectTypeById.get(effect.typeId);
       const key = def?.appearance?.spriteKey;
       if (key && key.startsWith("effect:")) return true;
@@ -1064,7 +1281,7 @@ export const GameBoard: React.FC = () => {
       }
     }
     return false;
-  }, [effectTypeById, isCombatConfigured, obstacles, obstacleTypeById, effects]);
+  }, [effectTypeById, isCombatConfigured, obstacles, obstacleTypeById, resolvedEffects]);
   const isBoardIdle = useMemo(() => {
     if (!isCombatConfigured) return true;
     if (isResolvingEnemies) return false;
@@ -1744,8 +1961,8 @@ export const GameBoard: React.FC = () => {
     showAllLevels
   });
   const renderEffects = useMemo(
-    () => [...effects, ...actionEffects],
-    [effects, actionEffects]
+    () => [...resolvedEffects, ...actionEffects],
+    [resolvedEffects, actionEffects]
   );
   const fxAnimations = useMemo(() => {
     return getEffectAnimationKeys()
@@ -2082,8 +2299,279 @@ export const GameBoard: React.FC = () => {
     }, 120);
   }
 
-  function resourceKey(name: string, pool?: string | null): string {
-    return `${pool ?? "default"}:${name}`;
+    function resourceKey(name: string, pool?: string | null): string {
+      return `${pool ?? "default"}:${name}`;
+    }
+
+    const objectItemMap = useMemo(() => {
+      const map = new Map<string, ObjectItemDefinition>();
+      for (const item of objectItems) {
+        if (item?.id) map.set(item.id, item);
+      }
+      return map;
+    }, [objectItems]);
+
+    const physicalResourceMap = useMemo(() => {
+      const map: Record<string, { itemIds: string[] }> = {
+        dagger: { itemIds: ["dague", "dagger"] },
+        torch: { itemIds: ["torch", "torche", "obj_torche", "obj_torch"] }
+      };
+      for (const ammo of ammoItems) {
+        const ammoId = String(ammo.id ?? "").toLowerCase();
+        if (!ammoId) continue;
+        const ammoType = String(ammo.ammoType ?? ammo.id ?? "").toLowerCase();
+        const attach = (key: string) => {
+          if (!key) return;
+          map[key] = map[key] ?? { itemIds: [] };
+          if (!map[key].itemIds.includes(ammoId)) map[key].itemIds.push(ammoId);
+        };
+        attach(ammoId);
+        attach(ammoType);
+      }
+      return map;
+    }, [ammoItems]);
+
+    function resolveObjectTags(itemId: string): string[] {
+      const def = objectItemMap.get(itemId);
+      if (!def?.tags) return [];
+      return def.tags.map(tag => String(tag).toLowerCase());
+    }
+
+    function findContainerForStoredItem(
+      items: Array<any>,
+      storedIn: string
+    ): any | null {
+      return (
+        items.find(item => item?.instanceId === storedIn) ??
+        items.find(item => item?.equippedSlot === storedIn) ??
+        null
+      );
+    }
+
+    function isAmmoContainer(item: any): boolean {
+      if (!item?.id) return false;
+      const tags = resolveObjectTags(String(item.id));
+      return tags.includes("ammo_container");
+    }
+
+    function isItemAccessible(item: any, allItems: Array<any>): boolean {
+      if (!item) return false;
+      if (item.equippedSlot && !item.storedIn) return true;
+      if (!item.storedIn) return false;
+      const container = findContainerForStoredItem(allItems, String(item.storedIn));
+      if (!container?.equippedSlot) return false;
+      return isAmmoContainer(container);
+    }
+
+    function getInventoryResourceCount(character: Personnage, resourceName: string): number {
+      const def = physicalResourceMap[resourceName.toLowerCase()];
+      if (!def) return 0;
+      const items = Array.isArray((character as any)?.inventoryItems)
+        ? ((character as any).inventoryItems as Array<any>)
+        : [];
+      let total = 0;
+      for (const item of items) {
+        const rawId = typeof item?.id === "string" ? item.id.toLowerCase() : "";
+        if (!rawId || !def.itemIds.includes(rawId)) continue;
+        if (!isItemAccessible(item, items)) continue;
+        const qty = typeof item?.qty === "number" ? item.qty : 1;
+        if (!Number.isFinite(qty) || qty <= 0) continue;
+        total += qty;
+      }
+      return total;
+    }
+
+    function spendInventoryResource(
+      character: Personnage,
+      resourceName: string,
+      amount: number
+    ): Personnage {
+      const def = physicalResourceMap[resourceName.toLowerCase()];
+      if (!def || amount <= 0) return character;
+      const items = Array.isArray((character as any)?.inventoryItems)
+        ? ((character as any).inventoryItems as Array<any>)
+        : [];
+      let remaining = amount;
+      const nextItems = items.map(item => ({ ...item }));
+
+      const candidates = nextItems
+        .filter(item => {
+          const rawId = typeof item?.id === "string" ? item.id.toLowerCase() : "";
+          return rawId && def.itemIds.includes(rawId) && isItemAccessible(item, nextItems);
+        })
+        .sort((a, b) => {
+          const aDirect = a.equippedSlot && !a.storedIn ? 0 : 1;
+          const bDirect = b.equippedSlot && !b.storedIn ? 0 : 1;
+          return aDirect - bDirect;
+        });
+
+      for (const item of candidates) {
+        if (remaining <= 0) break;
+        const qty = typeof item?.qty === "number" ? item.qty : 1;
+        const spend = Math.min(remaining, Math.max(0, qty));
+        if (spend <= 0) continue;
+        const nextQty = qty - spend;
+        remaining -= spend;
+        item.qty = nextQty;
+      }
+
+      const cleaned = nextItems.filter(item => {
+        const qty = typeof item?.qty === "number" ? item.qty : 1;
+        return qty > 0;
+      });
+
+      // Nettoie les contenus des conteneurs
+      const byInstance = new Map<string, any>();
+      for (const item of cleaned) {
+        if (item?.instanceId) byInstance.set(String(item.instanceId), item);
+      }
+      for (const item of cleaned) {
+        if (!Array.isArray(item?.contenu)) continue;
+        item.contenu = item.contenu.filter((id: string) => byInstance.has(String(id)));
+      }
+
+      return { ...character, inventoryItems: cleaned };
+    }
+
+  function getSlotAmountFromCharacter(
+    character: Personnage | null | undefined,
+    slot: string,
+    level?: number
+  ): number {
+    if (!character?.spellcastingState?.slots) return 0;
+    const slots = character.spellcastingState.slots as Record<string, any>;
+    const key = typeof level === "number" ? String(level) : slot;
+    const entry = slots[key];
+    if (typeof entry === "number") return entry;
+    if (entry && typeof entry === "object") {
+      const current = entry.current ?? entry.remaining ?? entry.value;
+      if (typeof current === "number") return current;
+    }
+    return 0;
+  }
+
+  function getActionUsageForActor(actorId: string): {
+    turn: Record<string, number>;
+    combat: Record<string, number>;
+  } {
+    const current = actionUsageByActor[actorId];
+    if (!current) return { turn: {}, combat: {} };
+    return { turn: current.turn ?? {}, combat: current.combat ?? {} };
+  }
+
+  function updateActionUsageForActor(actorId: string, actionId: string, delta: number) {
+    setActionUsageByActor(prev => {
+      const current = prev[actorId] ?? { turn: {}, combat: {} };
+      const nextTurn = { ...current.turn };
+      const nextCombat = { ...current.combat };
+      const applyDelta = (map: Record<string, number>) => {
+        const value = (map[actionId] ?? 0) + delta;
+        map[actionId] = Math.max(0, value);
+      };
+      applyDelta(nextTurn);
+      applyDelta(nextCombat);
+      return { ...prev, [actorId]: { turn: nextTurn, combat: nextCombat } };
+    });
+  }
+
+  function resetTurnUsageForActor(actorId: string) {
+    setActionUsageByActor(prev => {
+      const current = prev[actorId] ?? { turn: {}, combat: {} };
+      return { ...prev, [actorId]: { turn: {}, combat: current.combat ?? {} } };
+    });
+  }
+
+  function isSummonToken(token: TokenState): boolean {
+    return Boolean(token.summonOwnerId || token.summonOwnerType);
+  }
+
+  function shouldSummonHaveTurnEntry(token: TokenState): boolean {
+    const timing = token.summonTurnTiming ?? "after_player";
+    if (timing === "player_turn") return false;
+    if (token.summonInitiativeMode === "attach_to_player") return true;
+    return timing !== "player_turn";
+  }
+
+  function getSummonTurnTiming(token: TokenState): "after_player" | "initiative" {
+    if (token.summonInitiativeMode === "attach_to_player") return "after_player";
+    const timing = token.summonTurnTiming ?? "after_player";
+    return timing === "initiative" ? "initiative" : "after_player";
+  }
+
+  function applySummonTurnOrder(params: {
+    prevEnemies: TokenState[];
+    nextEnemies: TokenState[];
+  }): TokenState[] {
+    const prevIds = new Set(params.prevEnemies.map(e => e.id));
+    const nextIds = new Set(params.nextEnemies.map(e => e.id));
+    const removedSummons = params.prevEnemies.filter(
+      e => isSummonToken(e) && !nextIds.has(e.id)
+    );
+    const addedSummons = params.nextEnemies.filter(
+      e => isSummonToken(e) && !prevIds.has(e.id)
+    );
+
+    if (removedSummons.length > 0) {
+      setTurnOrder(prev => prev.filter(entry => !removedSummons.some(s => s.id === entry.id)));
+    }
+
+    if (!hasRolledInitiative || addedSummons.length === 0) {
+      return params.nextEnemies;
+    }
+
+    const nextEnemies = params.nextEnemies.map(enemy => ({ ...enemy }));
+    const rollD20 = () => Math.floor(Math.random() * 20) + 1;
+
+    for (const summon of addedSummons) {
+      if (!shouldSummonHaveTurnEntry(summon)) continue;
+      const timing = getSummonTurnTiming(summon);
+      let initiative = summon.initiative ?? null;
+      if (summon.summonInitiativeMode === "roll_on_spawn" || typeof initiative !== "number") {
+        initiative = rollD20();
+      }
+      const idx = nextEnemies.findIndex(e => e.id === summon.id);
+      if (idx >= 0) nextEnemies[idx] = { ...nextEnemies[idx], initiative };
+
+      if (timing === "after_player") {
+        setTurnOrder(prev => {
+          const playerIndex = prev.findIndex(entry => entry.kind === "player");
+          const insertIndex = playerIndex >= 0 ? playerIndex + 1 : prev.length;
+          const entry = {
+            id: summon.id,
+            kind: "summon" as const,
+            initiative,
+            ownerType: summon.summonOwnerType ?? summon.type,
+            ownerId: summon.summonOwnerId ?? player.id
+          };
+          const next = prev.filter(e => e.id !== summon.id);
+          next.splice(insertIndex, 0, entry);
+          return next;
+        });
+      } else {
+        setTurnOrder(prev => {
+          const entry = {
+            id: summon.id,
+            kind: "summon" as const,
+            initiative,
+            ownerType: summon.summonOwnerType ?? summon.type,
+            ownerId: summon.summonOwnerId ?? player.id
+          };
+          const next = [...prev.filter(e => e.id !== summon.id), entry];
+          next.sort((a, b) => b.initiative - a.initiative);
+          return next;
+        });
+      }
+    }
+
+    return nextEnemies;
+  }
+
+  function isTokenConcentrating(token: TokenState): boolean {
+    return Boolean((token as any).concentration);
+  }
+
+  function isTokenSurprised(token: TokenState): boolean {
+    return Boolean(token.statuses?.some(status => status.id === "surprised"));
   }
 
   function getSeenTargetsForActor(actorId: string): Set<string> {
@@ -2108,6 +2596,181 @@ export const GameBoard: React.FC = () => {
     if (pause) {
       await pause.promise;
     }
+  }
+
+  async function runSingleSummonTurn(summonId: string) {
+    const summon = enemies.find(e => e.id === summonId) ?? null;
+    if (!summon) {
+      advanceTurn();
+      return;
+    }
+
+    let playerCopy = { ...player };
+    let enemiesCopy = enemies.map(e => ({ ...e }));
+    const actor = enemiesCopy.find(e => e.id === summonId) ?? summon;
+    const allTokens: TokenState[] = getTokensOnActiveLevel([playerCopy, ...enemiesCopy]);
+    const hostiles = getHostileTokensFor(actor, allTokens).filter(t => t.id !== actor.id);
+
+    const order = resolveSummonOrderTarget({
+      summon: actor,
+      allTokens,
+      hostiles
+    });
+
+    if (order.kind === "hold") {
+      pushLog(`Summon ${actor.id}: reste en attente.`);
+      advanceTurn();
+      return;
+    }
+
+    const actionIds =
+      Array.isArray(actor.actionIds) && actor.actionIds.length
+        ? actor.actionIds
+        : ["move", "melee-strike"];
+    const getActionById = (id: string) =>
+      actionsCatalog.find(a => a.id === id) ?? null;
+
+    const tryResolve = (actionId: string, target: ActionTarget) => {
+      const baseAction = getActionById(actionId);
+      const action = baseAction ? applyWeaponOverrideForActor(baseAction, actor) : null;
+      if (!action) return false;
+      const result = resolveActionUnified(
+        action,
+        {
+          round,
+          phase: "player",
+          actor,
+          player: playerCopy,
+          enemies: enemiesCopy,
+          blockedMovementCells: obstacleBlocking.movement,
+          blockedMovementEdges: wallEdges.movement,
+          blockedVisionCells: visionBlockersActive,
+          blockedAttackCells: obstacleBlocking.attacks,
+          wallVisionEdges: wallEdges.vision,
+          lightLevels,
+          playableCells,
+          grid: mapGrid,
+          heightMap: mapHeight,
+          floorIds: mapTerrain,
+          activeLevel,
+          sampleCharacter: activeCharacterConfig,
+          getSlotAmount: (slot, level) =>
+            getSlotAmountFromCharacter(actor as unknown as Personnage, slot, level),
+          usage: getActionUsageForActor(actor.id),
+          reactionAvailable: canUseReaction(actor.id),
+          concentrating: isTokenConcentrating(actor),
+          surprised: isTokenSurprised(actor),
+          spawnEntity: createSummon,
+          onLog: pushLog
+        },
+        target
+      );
+      if (!result.ok || !result.playerAfter || !result.enemiesAfter) return false;
+      playerCopy = result.playerAfter;
+      enemiesCopy = applySummonTurnOrder({
+        prevEnemies: enemiesCopy,
+        nextEnemies: result.enemiesAfter
+      });
+      setPlayer(playerCopy);
+      setEnemies(enemiesCopy);
+      updateActionUsageForActor(actor.id, actionId, 1);
+      return true;
+    };
+
+    const targetToken = order.target ?? null;
+    const attackActions = actionIds
+      .map(id => getActionById(id))
+      .filter(action => action && action.category === "attack") as ActionDefinition[];
+
+    if (targetToken && attackActions.length > 0) {
+      for (const action of attackActions) {
+        const ok = tryResolve(action.id, { kind: "token", token: targetToken });
+        if (ok) {
+          advanceTurn();
+          return;
+        }
+      }
+    }
+
+    if (order.kind === "follow_owner" && targetToken) {
+      const moveActionId = actionIds.includes("move") ? "move" : null;
+      if (moveActionId) {
+        const path = computePathTowards(
+          actor,
+          { x: targetToken.x, y: targetToken.y },
+          allTokens,
+          {
+            maxDistance: metersToCells(actor.moveRange ?? 3),
+            allowTargetOccupied: false,
+            blockedCells: obstacleBlocking.movement,
+            wallEdges: wallEdges.movement,
+            playableCells,
+            grid: mapGrid,
+            heightMap: mapHeight,
+            floorIds: mapTerrain,
+            activeLevel
+          }
+        );
+        if (path.length) {
+          const destination = path[path.length - 1];
+          const ok = tryResolve(moveActionId, {
+            kind: "cell",
+            x: destination.x,
+            y: destination.y
+          });
+          if (ok) {
+            advanceTurn();
+            return;
+          }
+        }
+      }
+    }
+
+    pushLog(`Summon ${actor.id}: aucune action possible.`);
+    advanceTurn();
+  }
+
+  function getHostileTokensFor(actor: TokenState, allTokens: TokenState[]): TokenState[] {
+    const actorSide = actor.summonOwnerType ?? actor.type;
+    return allTokens.filter(token => {
+      const side = token.summonOwnerType ?? token.type;
+      return side !== actorSide;
+    });
+  }
+
+  function resolveSummonOrderTarget(params: {
+    summon: TokenState;
+    allTokens: TokenState[];
+    hostiles: TokenState[];
+  }): { kind: "hold" | "follow_owner" | "attack_nearest"; target?: TokenState | null } {
+    const { summon, allTokens, hostiles } = params;
+    const order = summon.summonOrder?.kind ?? "attack_nearest";
+    const obeyChance = typeof summon.summonObeyChance === "number" ? summon.summonObeyChance : 1;
+    const shouldObey = Math.random() <= Math.max(0, Math.min(1, obeyChance));
+    const effectiveOrder = shouldObey ? order : "attack_nearest";
+
+    if (effectiveOrder === "hold") {
+      return { kind: "hold" };
+    }
+    if (effectiveOrder === "follow_owner") {
+      const ownerId = summon.summonOwnerId;
+      const owner =
+        ownerId === player.id
+          ? player
+          : allTokens.find(token => token.id === ownerId) ?? null;
+      return { kind: "follow_owner", target: owner };
+    }
+    if (hostiles.length === 0) return { kind: "attack_nearest", target: null };
+    let best: TokenState | null = null;
+    let bestDist = Number.POSITIVE_INFINITY;
+    for (const hostile of hostiles) {
+      const dist = distanceBetweenTokens(summon, hostile);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = hostile;
+      }
+    }
+    return { kind: "attack_nearest", target: best };
   }
 
   function markTargetsSeen(actorId: string, targets: TokenState[]) {
@@ -2162,10 +2825,17 @@ export const GameBoard: React.FC = () => {
     return `${actorId}:${reactionId}`;
   }
 
-  function getResourceAmount(name: string, pool?: string | null): number {
-    const key = resourceKey(name, pool);
-    return typeof playerResources[key] === "number" ? playerResources[key] : 0;
-  }
+    function isPhysicalResource(name: string): boolean {
+      return Boolean(physicalResourceMap[name.toLowerCase()]);
+    }
+
+    function getResourceAmount(name: string, pool?: string | null): number {
+      if (isPhysicalResource(name)) {
+        return getInventoryResourceCount(activeCharacterConfig, name);
+      }
+      const key = resourceKey(name, pool);
+      return typeof playerResources[key] === "number" ? playerResources[key] : 0;
+    }
 
   function canUseReaction(actorId: string): boolean {
     return (reactionUsage[actorId] ?? 0) < 1;
@@ -2376,6 +3046,13 @@ export const GameBoard: React.FC = () => {
       floorIds: mapTerrain,
       activeLevel,
       sampleCharacter: activeCharacterConfig,
+      getSlotAmount: (slot: string, level?: number) =>
+        getSlotAmountFromCharacter(params.actor as unknown as Personnage, slot, level),
+      usage: getActionUsageForActor(params.actor.id),
+      reactionAvailable: canUseReaction(params.actor.id),
+      concentrating: isTokenConcentrating(params.actor),
+      surprised: isTokenSurprised(params.actor),
+      spawnEntity: createSummon,
       onLog: pushLog
     };
   }
@@ -2747,12 +3424,16 @@ export const GameBoard: React.FC = () => {
       decorations: nextDecorations
     });
 
-    setRound(1);
-    setHasRolledInitiative(false);
+      setRound(1);
+      setHasRolledInitiative(false);
+      setPlayerInitiative(null);
+      setPlayerInitiativeRoll(null);
+      setPlayerInitiativeMod(null);
     setTurnOrder([]);
     setCurrentTurnIndex(0);
     setIsCombatConfigured(true);
     setActionUsageCounts({ turn: {}, encounter: {} });
+    setActionUsageByActor({});
     setTurnActionUsage({ usedActionCount: 0, usedBonusCount: 0 });
     setReactionUsage({});
     setReactionQueue([]);
@@ -2760,7 +3441,7 @@ export const GameBoard: React.FC = () => {
     setKillerInstinctTargetId(null);
     seenTargetsByActorRef.current.clear();
     enemyTurnPauseRef.current = null;
-    setPlayerResources({ "bandolier:dagger": 3, "gear:torch": 1 });
+      setPlayerResources({});
     setPathLimit(combatDefaultMovementProfile.speed);
     setBasePathLimit(combatDefaultMovementProfile.speed);
     setMovementSpent(0);
@@ -2789,6 +3470,12 @@ export const GameBoard: React.FC = () => {
 
   function advanceTurn() {
     if (turnOrder.length === 0) return;
+    const currentEntry = turnOrder[currentTurnIndex] ?? null;
+    applyEndOfTurnDurations(currentEntry);
+    const willWrap = (currentTurnIndex + 1) % turnOrder.length === 0;
+    if (willWrap) {
+      applyEndOfRoundDurations();
+    }
     setCurrentTurnIndex(prev => {
       const next = (prev + 1) % turnOrder.length;
       if (next === 0) {
@@ -2819,12 +3506,28 @@ export const GameBoard: React.FC = () => {
     const enemiesWithInit = enemies.map(enemy => {
       const initRoll = rollD20();
       const totalInit = initRoll;
+      const side = enemy.summonOwnerType ?? enemy.type;
+      const timing = getSummonTurnTiming(enemy);
 
-      entries.push({
-        id: enemy.id,
-        kind: "enemy",
-        initiative: totalInit
-      });
+      if (side === "enemy") {
+        entries.push({
+          id: enemy.id,
+          kind: "enemy",
+          initiative: totalInit
+        });
+      } else if (
+        enemy.summonOwnerType === "player" &&
+        shouldSummonHaveTurnEntry(enemy) &&
+        timing !== "after_player"
+      ) {
+        entries.push({
+          id: enemy.id,
+          kind: "summon",
+          initiative: totalInit,
+          ownerType: "player",
+          ownerId: enemy.summonOwnerId ?? player.id
+        });
+      }
 
       return {
         ...enemy,
@@ -2832,10 +3535,18 @@ export const GameBoard: React.FC = () => {
       };
     });
 
-    setPlayerInitiative(pjTotal);
-    setEnemies(enemiesWithInit);
+      setPlayerInitiative(pjTotal);
+      setPlayerInitiativeRoll(pjRoll);
+      setPlayerInitiativeMod(playerMod);
+      setEnemies(enemiesWithInit);
 
+    entries.push(...summonEntries);
     entries.sort((a, b) => b.initiative - a.initiative);
+    if (afterPlayerSummons.length > 0) {
+      const playerIndex = entries.findIndex(entry => entry.kind === "player");
+      const insertIndex = playerIndex >= 0 ? playerIndex + 1 : entries.length;
+      entries.splice(insertIndex, 0, ...afterPlayerSummons);
+    }
 
     setTurnOrder(entries);
     setCurrentTurnIndex(0);
@@ -2847,6 +3558,10 @@ export const GameBoard: React.FC = () => {
     if (first.kind === "player") {
       pushLog(
         `Initiative: Joueur ${pjTotal} (d20=${pjRoll}, mod=${playerMod}) ??? le joueur commence.`
+      );
+    } else if (first.kind === "summon") {
+      pushLog(
+        `Initiative: Joueur ${pjTotal} (d20=${pjRoll}, mod=${playerMod}) ??? ${first.id} (summon) commence (initiative ${first.initiative}).`
       );
     } else {
       pushLog(
@@ -3034,6 +3749,11 @@ export const GameBoard: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    const loadedTypes = loadAmmoTypesFromIndex();
+    setAmmoItems(loadedTypes);
+  }, []);
+
+  useEffect(() => {
     const loadedTypes = loadArmorItemsFromIndex();
     setArmorItems(loadedTypes);
   }, []);
@@ -3123,7 +3843,8 @@ export const GameBoard: React.FC = () => {
   useEffect(() => {
     if (actionsCatalog.length === 0) return;
     const playerActionIds = Array.isArray(player.actionIds) ? player.actionIds : [];
-    const visibleIds = new Set<string>(playerActionIds);
+    const spellActionIds = collectSpellActionIds(activeCharacterConfig);
+    const visibleIds = new Set<string>([...playerActionIds, ...spellActionIds]);
     const playerVisible =
       visibleIds.size > 0
         ? actionsCatalog.filter(a => visibleIds.has(a.id))
@@ -3131,7 +3852,7 @@ export const GameBoard: React.FC = () => {
     const filtered = playerVisible.filter(a => a.category !== "movement");
     setActions(filtered);
     setSelectedActionId(filtered.length ? filtered[0].id : null);
-  }, [actionsCatalog, player.actionIds]);
+  }, [actionsCatalog, player.actionIds, activeCharacterConfig]);
 
   useEffect(() => {
     const indexed = Array.isArray((moveTypesIndex as any).moveTypes)
@@ -3319,6 +4040,7 @@ export const GameBoard: React.FC = () => {
     if (entry.kind === "player") {
       setPhase("player");
       resetReactionUsageForActor(player.id);
+      resetTurnUsageForActor(player.id);
       setTurnActionUsage({ usedActionCount: 0, usedBonusCount: 0 });
       setActionUsageCounts(prev => ({ ...prev, turn: {} }));
       const speed = player.movementProfile?.speed ?? defaultMovementProfile.speed;
@@ -3343,10 +4065,26 @@ export const GameBoard: React.FC = () => {
       return;
     }
 
+    if (entry.kind === "summon") {
+      if (entry.ownerType === "player") {
+        setPhase("player");
+        resetReactionUsageForActor(entry.id);
+        resetTurnUsageForActor(entry.id);
+        void runSingleSummonTurn(entry.id);
+        return;
+      }
+      setPhase("enemies");
+      resetReactionUsageForActor(entry.id);
+      resetTurnUsageForActor(entry.id);
+      void runSingleEnemyTurnV2(entry.id);
+      return;
+    }
+
     // Tour d'un ennemi
     if (isResolvingEnemies) return;
     setPhase("enemies");
     resetReactionUsageForActor(entry.id);
+    resetTurnUsageForActor(entry.id);
     void runSingleEnemyTurnV2(entry.id);
   }, [
     isCombatConfigured,
@@ -3361,6 +4099,7 @@ export const GameBoard: React.FC = () => {
     if (enemies.length === 0) return null;
     let best: number | null = null;
     for (const enemy of enemies) {
+      if (enemy.summonOwnerType === "player") continue;
       const dist = distanceBetweenTokens(player, enemy);
       if (best === null || dist < best) {
         best = dist;
@@ -3382,10 +4121,36 @@ export const GameBoard: React.FC = () => {
       }
     ];
 
-    setPlayerInitiative(pjTotal);
-    setTurnOrder(entries);
-    setCurrentTurnIndex(0);
-    setHasRolledInitiative(true);
+    const summonEntries: TurnEntry[] = [];
+    const afterPlayerSummons: TurnEntry[] = [];
+    for (const enemy of enemies) {
+      if (!enemy.summonOwnerType) continue;
+      if (!shouldSummonHaveTurnEntry(enemy)) continue;
+      const timing = getSummonTurnTiming(enemy);
+      let initiative = enemy.initiative ?? null;
+      if (enemy.summonInitiativeMode === "roll_on_spawn" || typeof initiative !== "number") {
+        initiative = rollD20();
+      }
+      const entry: TurnEntry = {
+        id: enemy.id,
+        kind: "summon",
+        initiative,
+        ownerType: enemy.summonOwnerType ?? enemy.type,
+        ownerId: enemy.summonOwnerId ?? player.id
+      };
+      if (timing === "after_player") {
+        afterPlayerSummons.push(entry);
+      } else {
+        summonEntries.push(entry);
+      }
+    }
+
+      setPlayerInitiative(pjTotal);
+      setPlayerInitiativeRoll(pjRoll);
+      setPlayerInitiativeMod(playerMod);
+      setTurnOrder(entries);
+      setCurrentTurnIndex(0);
+      setHasRolledInitiative(true);
     pushLog(
       `Initiative: Joueur ${pjTotal} (d20=${pjRoll}, mod=${playerMod}) ??? le joueur commence.`
     );
@@ -4272,6 +5037,56 @@ export const GameBoard: React.FC = () => {
     );
   }
 
+  function inferAmmoTypeFromWeapon(weapon: WeaponTypeDefinition): string | null {
+    const explicit = weapon.properties?.ammoType;
+    if (typeof explicit === "string" && explicit.trim()) return explicit;
+    const id = String(weapon.id ?? "").toLowerCase();
+    const name = String((weapon as any).name ?? "").toLowerCase();
+    const tags = Array.isArray(weapon.tags)
+      ? weapon.tags.map(tag => String(tag).toLowerCase())
+      : [];
+    const tokens = [id, name, ...tags].join(" ");
+    if (tokens.includes("arbalete") || tokens.includes("crossbow")) return "bolt";
+    if (tokens.includes("arc") || tokens.includes("bow")) return "arrow";
+    if (tokens.includes("fronde") || tokens.includes("sling")) return "stone";
+    if (tokens.includes("sarbacane") || tokens.includes("blowgun")) return "needle";
+    if (tokens.includes("dart") || tokens.includes("dard")) return "dart";
+    return null;
+  }
+
+  function resolveAmmoUsageForAction(
+    action: ActionDefinition,
+    actor: TokenState,
+    options?: { reaction?: boolean }
+  ): { ammoType: string; amount: number; weaponId: string | null } | null {
+    if (action.category !== "attack") return null;
+    const weapon = pickWeaponForAction(action, actor, options);
+    if (!weapon) return null;
+    const usesAmmo = Boolean(weapon.properties?.ammunition) || Boolean(weapon.properties?.ammoType);
+    if (!usesAmmo) return null;
+    const ammoType = inferAmmoTypeFromWeapon(weapon);
+    if (!ammoType) return null;
+    const amount =
+      typeof weapon.properties?.ammoPerShot === "number" && weapon.properties.ammoPerShot > 0
+        ? weapon.properties.ammoPerShot
+        : 1;
+    return { ammoType, amount, weaponId: weapon.id ?? null };
+  }
+
+  function actionSpendsResource(action: ActionDefinition, name: string): boolean {
+    if (!action.ops || !name) return false;
+    const match = name.toLowerCase();
+    return Object.values(action.ops).some(list =>
+      Array.isArray(list)
+        ? list.some(
+            op =>
+              op?.op === "SpendResource" &&
+              String(op.name ?? "").toLowerCase() === match
+          )
+        : false
+    );
+  }
+
   function computeWeaponAttackBonus(actor: TokenState, weapon: WeaponTypeDefinition): number {
     const modToken = normalizeWeaponModToken(weapon.attack?.mod ?? null);
     const abilityMod = getAbilityModForActor(actor, modToken);
@@ -4695,6 +5510,19 @@ export const GameBoard: React.FC = () => {
     scheduleActionEffectRemoval(id, durationMs);
   }
 
+  function spendPlayerResource(name: string, pool: string | null, amount: number) {
+    if (isPhysicalResource(name)) {
+      setCombatCharacterConfig(prev => (prev ? spendInventoryResource(prev, name, amount) : prev));
+      setCharacterConfig(prev => spendInventoryResource(prev, name, amount));
+      return;
+    }
+    const key = resourceKey(name, pool);
+    setPlayerResources(prev => ({
+      ...prev,
+      [key]: Math.max(0, (prev[key] ?? 0) - amount)
+    }));
+  }
+
   function resolvePlayerActionV2(
     action: ActionDefinition,
     overrides?: { attackRoll?: AttackRollResult | null; damageRoll?: DamageRollResult | null }
@@ -4707,6 +5535,23 @@ export const GameBoard: React.FC = () => {
     const attackOverride = overrides?.attackRoll ?? attackRoll ?? null;
     let damageUsed = false;
     const damageOverride = overrides?.damageRoll ?? damageRoll ?? null;
+    const ammoUsage = resolveAmmoUsageForAction(action, player);
+    const ammoSpendInOps = ammoUsage ? actionSpendsResource(action, ammoUsage.ammoType) : false;
+    if (ammoUsage && isPhysicalResource(ammoUsage.ammoType)) {
+      const available = activeCharacterConfig
+        ? getInventoryResourceCount(activeCharacterConfig, ammoUsage.ammoType)
+        : 0;
+      if (available < ammoUsage.amount) {
+        pushLog(
+          `Munitions insuffisantes (${ammoUsage.ammoType}).`
+        );
+        return false;
+      }
+    } else if (ammoUsage) {
+      pushLog(
+        `Munitions non referencees: ${ammoUsage.ammoType}.`
+      );
+    }
 
     const result = resolveActionUnified(
       action,
@@ -4729,12 +5574,14 @@ export const GameBoard: React.FC = () => {
         activeLevel,
         sampleCharacter: activeCharacterConfig,
         getResourceAmount,
+        getSlotAmount: (slot, level) => getSlotAmountFromCharacter(activeCharacterConfig, slot, level),
+        usage: getActionUsageForActor(player.id),
+        reactionAvailable: canUseReaction(player.id),
+        concentrating: isTokenConcentrating(player),
+        surprised: isTokenSurprised(player),
+        spawnEntity: createSummon,
         spendResource: (name, pool, amount) => {
-          const key = resourceKey(name, pool);
-          setPlayerResources(prev => ({
-            ...prev,
-            [key]: Math.max(0, (prev[key] ?? 0) - amount)
-          }));
+          spendPlayerResource(name, pool, amount);
         },
         onLog: pushLog,
         onModifyPathLimit: delta => {
@@ -4756,14 +5603,12 @@ export const GameBoard: React.FC = () => {
             )
           );
         },
-        onGrantTempHp: ({ targetId, amount }) => {
+        onGrantTempHp: ({ targetId, amount, durationTurns }) => {
           if (targetId === player.id) {
-            setPlayer(prev => ({ ...prev, tempHp: Math.max(prev.tempHp ?? 0, amount) }));
+            setPlayer(prev => applyTempHpToToken(prev, amount, durationTurns));
           } else {
             setEnemies(prev =>
-              prev.map(e =>
-                e.id === targetId ? { ...e, tempHp: Math.max(e.tempHp ?? 0, amount) } : e
-              )
+              prev.map(e => (e.id === targetId ? applyTempHpToToken(e, amount, durationTurns) : e))
             );
           }
         },
@@ -4802,8 +5647,19 @@ export const GameBoard: React.FC = () => {
       return false;
     }
 
+    if (ammoUsage && isPhysicalResource(ammoUsage.ammoType) && !ammoSpendInOps) {
+      spendPlayerResource(ammoUsage.ammoType, null, ammoUsage.amount);
+    }
+
+    updateActionUsageForActor(player.id, action.id, 1);
+
+    const nextEnemies = applySummonTurnOrder({
+      prevEnemies: enemies,
+      nextEnemies: result.enemiesAfter
+    });
+
     setPlayer(result.playerAfter);
-    setEnemies(result.enemiesAfter);
+    setEnemies(nextEnemies);
     if (result.outcomeKind) {
       setAttackOutcome(result.outcomeKind === "miss" ? "miss" : "hit");
     }
@@ -5118,7 +5974,7 @@ export const GameBoard: React.FC = () => {
         const targetType = action.targeting?.target;
         const isHostile = target.type !== player.type;
         const isAlly = target.type === player.type;
-        const isPlayer = target.type === "player";
+        const isPlayer = target.id === player.id;
         const isEnemy = target.type === "enemy";
 
         const isAllowed =
@@ -5693,6 +6549,21 @@ export const GameBoard: React.FC = () => {
         }
       };
     }
+    const ammoUsage = resolveAmmoUsageForAction(action, params.reactor, { reaction: true });
+    const ammoSpendInOps = ammoUsage ? actionSpendsResource(action, ammoUsage.ammoType) : false;
+    if (ammoUsage && params.reactor.type === "player") {
+      if (isPhysicalResource(ammoUsage.ammoType)) {
+        const available = activeCharacterConfig
+          ? getInventoryResourceCount(activeCharacterConfig, ammoUsage.ammoType)
+          : 0;
+        if (available < ammoUsage.amount) {
+          pushLog(`Reaction impossible: munitions insuffisantes (${ammoUsage.ammoType}).`);
+          return;
+        }
+      } else {
+        pushLog(`Reaction: munitions non referencees (${ammoUsage.ammoType}).`);
+      }
+    }
     const context = buildReactionActionContext({
       reactor: params.reactor,
       playerSnapshot: params.playerSnapshot,
@@ -5712,8 +6583,24 @@ export const GameBoard: React.FC = () => {
       return;
     }
 
+    if (
+      ammoUsage &&
+      params.reactor.type === "player" &&
+      isPhysicalResource(ammoUsage.ammoType) &&
+      !ammoSpendInOps
+    ) {
+      spendPlayerResource(ammoUsage.ammoType, null, ammoUsage.amount);
+    }
+
+    updateActionUsageForActor(params.reactor.id, action.id, 1);
+
+    const nextEnemies = applySummonTurnOrder({
+      prevEnemies: params.enemiesSnapshot,
+      nextEnemies: result.enemiesAfter
+    });
+
     setPlayer(result.playerAfter);
-    setEnemies(result.enemiesAfter);
+    setEnemies(nextEnemies);
     markReactionUsed(params.reactor.id);
     markReactionUsedInCombat(params.reactor.id, params.reaction.id);
     pushLog(`[IA] Reaction resolue: ${action.name}.`);
@@ -5756,6 +6643,13 @@ export const GameBoard: React.FC = () => {
       floorIds: mapTerrain,
       activeLevel,
       sampleCharacter: activeCharacterConfig,
+      getSlotAmount: (slot: string, level?: number) =>
+        getSlotAmountFromCharacter(params.reactor as unknown as Personnage, slot, level),
+      usage: getActionUsageForActor(params.reactor.id),
+      reactionAvailable: canUseReaction(params.reactor.id),
+      concentrating: isTokenConcentrating(params.reactor),
+      surprised: isTokenSurprised(params.reactor),
+      spawnEntity: createSummon,
       onLog: pushLog,
       emitEvent: evt => {
         recordCombatEvent({
@@ -6075,6 +6969,42 @@ export const GameBoard: React.FC = () => {
       pushLog(`Orientation du joueur mise a jour: ${direction}.`);
     }
 
+    type DurationTick = "start" | "end" | "round";
+
+    const parseDurationSpec = (
+      value?: number | string | null
+    ): { remainingTurns: number; tick: DurationTick } | null => {
+      if (typeof value === "number" && Number.isFinite(value)) {
+        return { remainingTurns: Math.max(1, Math.floor(value)), tick: "start" };
+      }
+      if (typeof value !== "string") return null;
+      const normalized = value.trim().toLowerCase();
+      if (!normalized) return null;
+      const [kind, countRaw] = normalized.split(":");
+      const count = Math.max(1, Number.parseInt(countRaw ?? "1", 10) || 1);
+      const tick =
+        kind === "end_of_turn" || kind === "end"
+          ? "end"
+          : kind === "start_of_turn" || kind === "start"
+          ? "start"
+          : kind === "end_of_round" || kind === "round" || kind === "round_end"
+          ? "round"
+          : null;
+      if (!tick) return null;
+      return { remainingTurns: count, tick };
+    };
+
+    const applyTempHpToToken = (
+      token: TokenState,
+      amount: number,
+      durationTurns?: number | string
+    ): TokenState => {
+      const next = { ...token, tempHp: Math.max(token.tempHp ?? 0, amount) };
+      const duration = parseDurationSpec(durationTurns ?? null);
+      if (duration) next.tempHpDuration = duration;
+      return next;
+    };
+
     const addStatusToToken = (
       token: TokenState,
       statusId: string,
@@ -6090,26 +7020,149 @@ export const GameBoard: React.FC = () => {
         next[existingIndex] = {
           ...next[existingIndex],
           remainingTurns: duration,
-          sourceId: sourceId ?? next[existingIndex].sourceId
+          sourceId: sourceId ?? next[existingIndex].sourceId,
+          durationTick: next[existingIndex].durationTick ?? "start"
         };
       } else {
-        next.push({ id: statusId, remainingTurns: duration, sourceId });
+        next.push({ id: statusId, remainingTurns: duration, sourceId, durationTick: "start" });
       }
       return { ...token, statuses: next };
     };
 
-    const applyStartOfTurnStatuses = (params: {
-      token: TokenState;
-      side: "player" | "enemies";
-    }): TokenState => {
-      const { token, side } = params;
-      if (!token.statuses || token.statuses.length === 0) return token;
-      let nextToken = { ...token, statuses: [...token.statuses] };
-      const remaining: typeof nextToken.statuses = [];
+  const applyTokenDurations = (params: {
+    token: TokenState;
+    side: "player" | "enemies";
+    tick: DurationTick;
+  }): TokenState => {
+      const { token, side, tick } = params;
+      let nextToken: TokenState = { ...token };
+      const currentStatuses = Array.isArray(token.statuses) ? token.statuses : [];
+      const remainingStatuses: typeof currentStatuses = [];
 
-      for (const status of nextToken.statuses) {
+      const effectsOnToken = resolvedEffects.filter(effect => {
+        if (effect.active === false) return false;
+        if (effect.kind === "aura") {
+          const def = effectTypeById.get(effect.typeId);
+          const radius = def?.aura?.radius ?? null;
+          if (!radius || radius <= 0) {
+            return effect.x === nextToken.x && effect.y === nextToken.y;
+          }
+          const shape = def?.aura?.shape ?? "SPHERE";
+          const anchor =
+            effect.anchorTokenId === player.id
+              ? player
+              : enemies.find(enemy => enemy.id === effect.anchorTokenId) ?? null;
+          const anchorPos = anchor
+            ? { x: anchor.x, y: anchor.y, facing: anchor.facing }
+            : { x: effect.x, y: effect.y, facing: undefined as TokenState["facing"] };
+          const cells = metersToCells(radius);
+          const dx = nextToken.x - anchorPos.x;
+          const dy = nextToken.y - anchorPos.y;
+          const inSquare = Math.max(Math.abs(dx), Math.abs(dy)) <= cells;
+          const inLine = (() => {
+            const facing = anchorPos.facing ?? "right";
+            if (facing === "left") return dx <= 0 && Math.abs(dy) <= 1 && Math.abs(dx) <= cells;
+            if (facing === "right") return dx >= 0 && Math.abs(dy) <= 1 && Math.abs(dx) <= cells;
+            if (facing === "up") return dy <= 0 && Math.abs(dx) <= 1 && Math.abs(dy) <= cells;
+            return dy >= 0 && Math.abs(dx) <= 1 && Math.abs(dy) <= cells;
+          })();
+          const inCone = (() => {
+            const facing = anchorPos.facing ?? "right";
+            if (facing === "left") return dx <= 0 && Math.abs(dx) >= Math.abs(dy) && Math.abs(dx) <= cells;
+            if (facing === "right") return dx >= 0 && Math.abs(dx) >= Math.abs(dy) && Math.abs(dx) <= cells;
+            if (facing === "up") return dy <= 0 && Math.abs(dy) >= Math.abs(dx) && Math.abs(dy) <= cells;
+            return dy >= 0 && Math.abs(dy) >= Math.abs(dx) && Math.abs(dy) <= cells;
+          })();
+          const inSphere = (() => {
+            if (anchor) return distanceBetweenTokens(nextToken, anchor) <= radius;
+            const distCells = gridDistance(
+              { x: nextToken.x, y: nextToken.y },
+              { x: anchorPos.x, y: anchorPos.y }
+            );
+            return cellsToMeters(distCells) <= radius;
+          })();
+          let inShape = false;
+          if (shape === "CUBE") inShape = inSquare;
+          else if (shape === "LINE") inShape = inLine;
+          else if (shape === "CONE") inShape = inCone;
+          else inShape = inSphere;
+          if (!inShape) return false;
+          if (anchor && anchor.id === nextToken.id && def?.aura?.includeSelf === false) return false;
+          return true;
+        }
+        return effect.x === nextToken.x && effect.y === nextToken.y;
+      });
+
+      if (effectsOnToken.length > 0) {
+        for (const effect of effectsOnToken) {
+          if (nextToken.hp <= 0) break;
+          const def = effectTypeById.get(effect.typeId);
+          const hazard = def?.hazard;
+          if (!hazard?.damageFormula) continue;
+          const hazardTick = hazard.tick ?? "start";
+          if (hazardTick !== tick) continue;
+          const result = rollDamage(hazard.damageFormula);
+          const diceText = result.dice.map(d => d.rolls.join("+")).join(" | ");
+          pushDiceLog(
+            `Degats (${def?.label ?? effect.typeId}) : ${diceText || "0"} + ${result.flatModifier} = ${result.total}`
+          );
+          const beforeHp = nextToken.hp;
+          const tempHp = typeof nextToken.tempHp === "number" ? nextToken.tempHp : 0;
+          if (tempHp > 0) {
+            const remaining = Math.max(0, result.total - tempHp);
+            nextToken.tempHp = Math.max(0, tempHp - result.total);
+            nextToken.hp = Math.max(0, nextToken.hp - remaining);
+          } else {
+            nextToken.hp = Math.max(0, nextToken.hp - result.total);
+          }
+          pushLog(
+            `${nextToken.id} subit ${result.total} degats (${def?.label ?? effect.typeId}).`
+          );
+          recordCombatEvent({
+            round,
+            phase: side,
+            kind: "damage",
+            actorId: nextToken.id,
+            actorKind: side === "player" ? "player" : "enemy",
+            targetId: nextToken.id,
+            targetKind: side === "player" ? "player" : "enemy",
+            summary: `${nextToken.id} subit ${result.total} degats (${def?.label ?? effect.typeId}) (PV ${beforeHp} -> ${nextToken.hp}).`,
+            data: {
+              effectId: effect.typeId,
+              damage: result.total,
+              formula: hazard.damageFormula
+            }
+          });
+          if (hazard.statusRoll?.statusId && hazard.statusRoll?.die && hazard.statusRoll?.trigger) {
+            const roll = rollDie(hazard.statusRoll.die);
+            if (roll === hazard.statusRoll.trigger) {
+              nextToken = addStatusToToken(nextToken, hazard.statusRoll.statusId, effect.sourceId);
+              pushLog(
+                `${nextToken.id} subit l'etat ${hazard.statusRoll.statusId} (${def?.label ?? effect.typeId}).`
+              );
+              recordCombatEvent({
+                round,
+                phase: side,
+                kind: "status",
+                actorId: nextToken.id,
+                actorKind: side === "player" ? "player" : "enemy",
+                targetId: nextToken.id,
+                targetKind: side === "player" ? "player" : "enemy",
+                summary: `${nextToken.id} subit l'etat ${hazard.statusRoll.statusId}.`,
+                data: {
+                  effectId: effect.typeId,
+                  statusId: hazard.statusRoll.statusId
+                }
+              });
+            }
+          }
+        }
+      }
+
+      for (const status of currentStatuses) {
         const def = statusTypeById.get(status.id);
-        if (def?.damagePerTurnFormula && nextToken.hp > 0) {
+        const statusTick = status.durationTick ?? "start";
+        if (tick === "start" && statusTick === "start" && def?.damagePerTurnFormula && nextToken.hp > 0) {
           const result = rollDamage(def.damagePerTurnFormula);
           const diceText = result.dice.map(d => d.rolls.join("+")).join(" | ");
           pushDiceLog(
@@ -6136,19 +7189,71 @@ export const GameBoard: React.FC = () => {
         }
 
         if (def?.persistUntilDeath) {
-          remaining.push({ ...status });
+          remainingStatuses.push({ ...status });
+          continue;
+        }
+        if (statusTick !== tick) {
+          remainingStatuses.push({ ...status });
           continue;
         }
         const nextRemaining = status.remainingTurns - 1;
         if (nextRemaining > 0) {
-          remaining.push({ ...status, remainingTurns: nextRemaining });
+          remainingStatuses.push({ ...status, remainingTurns: nextRemaining });
         } else if (def) {
           pushLog(`${nextToken.id}: etat termine (${def.label}).`);
         }
       }
 
-      nextToken.statuses = remaining;
+      const duration = nextToken.tempHpDuration;
+      if (duration) {
+        if ((nextToken.tempHp ?? 0) <= 0) {
+          nextToken.tempHp = 0;
+          nextToken.tempHpDuration = undefined;
+        } else if (duration.tick === tick) {
+          const nextRemaining = duration.remainingTurns - 1;
+          if (nextRemaining > 0) {
+            nextToken.tempHpDuration = { ...duration, remainingTurns: nextRemaining };
+          } else {
+            nextToken.tempHp = 0;
+            nextToken.tempHpDuration = undefined;
+            pushLog(`${nextToken.id}: PV temporaires termines.`);
+          }
+        }
+      }
+
+      if (currentStatuses.length > 0) {
+        nextToken.statuses = remainingStatuses;
+      }
       return nextToken;
+    };
+
+    const applyStartOfTurnStatuses = (params: {
+      token: TokenState;
+      side: "player" | "enemies";
+    }): TokenState => applyTokenDurations({ ...params, tick: "start" });
+
+    const applyEndOfTurnDurations = (entry: TurnEntry | null) => {
+      if (!entry) return;
+      if (entry.kind === "player") {
+        setPlayer(prev => applyTokenDurations({ token: prev, side: "player", tick: "end" }));
+        return;
+      }
+      if (entry.kind === "enemy" || entry.kind === "summon") {
+        setEnemies(prev =>
+          prev.map(enemy =>
+            enemy.id === entry.id
+              ? applyTokenDurations({ token: enemy, side: "enemies", tick: "end" })
+              : enemy
+          )
+        );
+      }
+    };
+
+    const applyEndOfRoundDurations = () => {
+      setPlayer(prev => applyTokenDurations({ token: prev, side: "player", tick: "round" }));
+      setEnemies(prev =>
+        prev.map(enemy => applyTokenDurations({ token: enemy, side: "enemies", tick: "round" }))
+      );
     };
 
   const collectHazardsFromPath = (params: {
@@ -6162,7 +7267,7 @@ export const GameBoard: React.FC = () => {
     const cellKey = (x: number, y: number) => `${x},${y}`;
     const sourceByKey = new Map<string, EffectInstance>();
 
-    for (const effect of effects) {
+    for (const effect of resolvedEffects) {
       const key = `${effect.typeId}:${cellKey(effect.x, effect.y)}`;
       sourceByKey.set(key, effect);
     }
@@ -7248,7 +8353,7 @@ export const GameBoard: React.FC = () => {
     setSelectedPath([]);
     setEffectSpecs([]);
 
-    const enemiesCopy = enemies.map(e => ({ ...e }));
+    let enemiesCopy = enemies.map(e => ({ ...e }));
     let playerCopy = { ...player };
 
     const activeEnemy = enemiesCopy.find(e => e.id === activeEnemyId);
@@ -7367,7 +8472,14 @@ export const GameBoard: React.FC = () => {
           heightMap: mapHeight,
           floorIds: mapTerrain,
           activeLevel,
-      sampleCharacter: activeCharacterConfig,
+          sampleCharacter: activeCharacterConfig,
+          getSlotAmount: (slot, level) =>
+            getSlotAmountFromCharacter(activeEnemy as unknown as Personnage, slot, level),
+          usage: getActionUsageForActor(activeEnemy.id),
+          reactionAvailable: canUseReaction(activeEnemy.id),
+          concentrating: isTokenConcentrating(activeEnemy),
+          surprised: isTokenSurprised(activeEnemy),
+          spawnEntity: createSummon,
           onLog: pushLog,
           emitEvent: evt => {
             recordCombatEvent({
@@ -7399,10 +8511,13 @@ export const GameBoard: React.FC = () => {
         return { ok: false as const, reason: result.reason || "Echec de resolution." };
       }
 
+      updateActionUsageForActor(activeEnemy.id, action.id, 1);
+
       playerCopy = result.playerAfter;
-      for (let i = 0; i < enemiesCopy.length; i++) {
-        enemiesCopy[i] = result.enemiesAfter[i] ?? enemiesCopy[i];
-      }
+      enemiesCopy = applySummonTurnOrder({
+        prevEnemies: enemiesCopy,
+        nextEnemies: result.enemiesAfter
+      }).map(enemy => ({ ...enemy }));
       setPlayer(playerCopy);
       setEnemies(enemiesCopy);
       const afterActor = enemiesCopy.find(e => e.id === activeEnemy.id) ?? null;
@@ -7828,6 +8943,26 @@ function handleEndPlayerTurn() {
       : contextAvailabilityRaw;
   const selectedTargetLabels = getSelectedTargetLabels();
   const contextResource = getActionResourceInfo(contextAction);
+  const contextAmmoInfo = useMemo(() => {
+    if (!contextAction) return null;
+    const usage = resolveAmmoUsageForAction(contextAction, player);
+    if (!usage) return null;
+    const key = String(usage.ammoType ?? "").toLowerCase();
+    if (!key) return null;
+    const label = itemLabelMap[key] ?? itemLabelMap[usage.ammoType] ?? usage.ammoType;
+    const unknown = !isPhysicalResource(key);
+    const available =
+      !unknown && activeCharacterConfig
+        ? getInventoryResourceCount(activeCharacterConfig, key)
+        : 0;
+    return {
+      label,
+      available,
+      required: usage.amount,
+      insufficient: !unknown && available < usage.amount,
+      unknown
+    };
+  }, [contextAction, player, itemLabelMap, activeCharacterConfig]);
   const contextNeedsTarget = actionTargetsHostile(contextAction);
   const contextPlan: ActionPlan | null = contextAction
     ? buildActionPlan({
@@ -8333,6 +9468,7 @@ function handleEndPlayerTurn() {
         : "select"
       : "idle";
   const wheelAnchor = resolveWheelAnchor();
+  const actionWheelCategoryThreshold = 6;
 
   return (
       <div
@@ -8956,6 +10092,7 @@ function handleEndPlayerTurn() {
                       onToggleBumpDebug={() => setBumpDebug(prev => !prev)}
                       onClear={handleClearEffects}
                       fxAnimations={fxAnimations}
+                      usageDebug={actionUsageDebug}
                     />
                   )}
                   {floatingPanel === "logs" && <LogPanel log={log} />}
@@ -9021,6 +10158,7 @@ function handleEndPlayerTurn() {
                 anchorX={wheelAnchor.x}
                 anchorY={wheelAnchor.y}
                 size={240}
+                categoryThreshold={actionWheelCategoryThreshold}
                 canInteractWithBoard={canInteractWithBoard}
                 hasCell={Boolean(radialMenu.cell)}
                 isResolvingEnemies={isResolvingEnemies}
@@ -9047,17 +10185,21 @@ function handleEndPlayerTurn() {
                 }}
                 onPickAction={openActionContextFromWheel}
               />
-              <CharacterSheetWindow
-                open={sheetOpen}
-                anchorX={0}
-                anchorY={0}
-                character={activeCharacterConfig}
-                player={player}
-                equippedWeapons={equippedWeapons}
-                actionsRemaining={Math.max(
-                  0,
-                  (player.combatStats?.actionsPerTurn ?? 1) - turnActionUsage.usedActionCount
-                )}
+                <CharacterSheetWindow
+                  open={sheetOpen}
+                  anchorX={0}
+                  anchorY={0}
+                  character={activeCharacterConfig}
+                  player={player}
+                  equippedWeapons={equippedWeapons}
+                  itemLabels={itemLabelMap}
+                  initiativeRoll={playerInitiativeRoll}
+                  initiativeMod={playerInitiativeMod}
+                  initiativeTotal={playerInitiative}
+                  actionsRemaining={Math.max(
+                    0,
+                    (player.combatStats?.actionsPerTurn ?? 1) - turnActionUsage.usedActionCount
+                  )}
                 bonusRemaining={Math.max(
                   0,
                   (player.combatStats?.bonusActionsPerTurn ?? 1) - turnActionUsage.usedBonusCount
@@ -9077,6 +10219,7 @@ function handleEndPlayerTurn() {
                 player={player}
                 enemies={enemies}
                 validatedAction={validatedAction}
+                ammoInfo={contextAmmoInfo}
                 targetMode={targetMode}
                 selectedTargetIds={selectedTargetIds}
                 selectedTargetLabels={selectedTargetLabels}

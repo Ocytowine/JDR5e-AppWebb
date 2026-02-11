@@ -459,6 +459,19 @@
       "main_gauche": "string|null",
       "mains": "string|null"
     },
+    "spellcastingState": {
+      "totalCasterLevel": "number",
+      "slots": "object",
+      "sources": "Record<string, { focusInstanceId?, slots?, preparedSpellIds?, knownSpellIds? }>",
+      "slotJustifications": "Array<{ source, classLevel, slotsByLevel }>"
+    },
+    "summonBehavior": {
+      "controlMode": "direct | auto | obedient | chaotic",
+      "turnTiming": "player_turn | after_player | initiative",
+      "initiativeMode": "existing_roll | roll_on_spawn | attach_to_player",
+      "obeyChance": "number",
+      "order": { "kind": "hold | follow_owner | attack_nearest" }
+    },
     "proficiencies": {
       "weapons": "string[]",
       "armors": "string[]",
@@ -586,6 +599,8 @@
           "long": "number"
         },
         "ammunition": "boolean",
+        "ammoType": "string|null",
+        "ammoPerShot": "number|null",
         "loading": "boolean",
         "reload": "number|null",
         "range": {
@@ -614,6 +629,57 @@
       "links": {
         "actionId": "string|null",
         "effectId": "string|null"
+      }
+    }
+  },
+  "ammo": {
+    "model": "./ammo-model.json",
+    "type": [
+      "munition"
+    ],
+    "subtype": [
+      "arrow",
+      "bolt",
+      "bullet",
+      "dart",
+      "stone",
+      "needle"
+    ],
+    "category": [
+      "projectile"
+    ],
+    "rarity": [
+      "commune",
+      "peu_commune",
+      "rare",
+      "tres_rare",
+      "legendaire"
+    ],
+    "fields": {
+      "id": "string",
+      "name": "string",
+      "label": "string",
+      "descriptionCourte": "string",
+      "descriptionLongue": "string",
+      "allowStack": "boolean",
+      "weight": "number",
+      "size": "number",
+      "value": {
+        "platinum": "number",
+        "gold": "number",
+        "silver": "number",
+        "copper": "number"
+      },
+      "tags": "string[]",
+      "ammoType": "string",
+      "bundleSize": "number",
+      "storage": {
+        "preferredSlot": "string|null",
+        "allowedSlots": "string[]|null"
+      },
+      "compatibility": {
+        "weaponAmmoTypes": "string[]",
+        "weaponTags": "string[]"
       }
     }
   },

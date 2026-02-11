@@ -1,0 +1,40 @@
+{
+  "id": "needle",
+  "name": "Aiguille",
+  "label": "Aiguille",
+  "type": "munition",
+  "subtype": "needle",
+  "category": "projectile",
+  "descriptionCourte": "Aiguille fine pour lanceur discret.",
+  "descriptionLongue": "",
+  "allowStack": true,
+  "weight": 0.01,
+  "size": 0.02,
+  "value": {
+    "gold": 0,
+    "silver": 1,
+    "copper": 0,
+    "platinum": 0
+  },
+  "rarity": "commune",
+  "tags": [
+    "munition",
+    "needle"
+  ],
+  "ammoType": "needle",
+  "bundleSize": 20,
+  "storage": {
+    "preferredSlot": "paquetage",
+    "allowedSlots": [
+      "paquetage"
+    ]
+  },
+  "compatibility": {
+    "weaponAmmoTypes": [
+      "needle"
+    ],
+    "weaponTags": [
+      "needle"
+    ]
+  }
+}

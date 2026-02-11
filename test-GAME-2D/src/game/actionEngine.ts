@@ -1,5 +1,5 @@
 import type { ActionAvailability, ActionDefinition } from "./actionTypes";
-import type { TokenState } from "../types";
+import type { TokenState, TokenType } from "../types";
 import { isTargetVisible } from "../vision";
 import { clamp, distanceBetweenTokens } from "./combatUtils";
 import { computePathTowards } from "../pathfinding";
@@ -11,6 +11,7 @@ import { actionDefinitionToActionSpec } from "./engine/actionAdapter";
 import { hasLineOfEffect } from "../lineOfSight";
 import type { WallSegment } from "./map/walls/types";
 import { getHeightAtGrid, type TerrainCell } from "./map/draft";
+import { isEdgeBlockedForMovement } from "./map/walls/runtime";
 import { getClosestFootprintCellToPoint } from "./footprint";
 import { metersToCells } from "./units";
 import { evaluateAllConditions } from "./engine/conditionEval";
@@ -75,6 +76,15 @@ export interface ActionEngineContext {
    */
   getResourceAmount?: (name: string, pool?: string | null) => number;
   spendResource?: (name: string, pool: string | null, amount: number) => void;
+  getSlotAmount?: (slot: string, level?: number) => number;
+  usage?: {
+    turn?: Record<string, number>;
+    round?: Record<string, number>;
+    combat?: Record<string, number>;
+  };
+  reactionAvailable?: boolean;
+  concentrating?: boolean;
+  surprised?: boolean;
   onLog?: (message: string) => void;
   onModifyPathLimit?: (delta: number) => void;
   onToggleTorch?: () => void;
@@ -88,6 +98,15 @@ export interface ActionEngineContext {
     rotationOffsetDeg?: number;
     durationMs?: number;
   }) => void;
+  spawnEntity?: (params: {
+    entityTypeId: string;
+    x: number;
+    y: number;
+    ownerId: string;
+    ownerType: TokenType;
+  }) => TokenState | null;
+  despawnEntity?: (entityId: string) => void;
+  controlSummon?: (params: { entityId: string; ownerId: string }) => void;
 }
 
 export type ActionTarget =
@@ -109,13 +128,188 @@ function areOnSameBaseLevel(
   return ha === hb;
 }
 
+function getLightAtToken(ctx: ActionEngineContext, token: TokenState): number | null {
+  if (!ctx.lightLevels || ctx.lightLevels.length === 0) return null;
+  const cols = ctx.grid?.cols ?? GRID_COLS;
+  const idx = token.y * cols + token.x;
+  const value = ctx.lightLevels[idx];
+  return Number.isFinite(value) ? value : null;
+}
+
+function isInLight(ctx: ActionEngineContext, token: TokenState): boolean | null {
+  const value = getLightAtToken(ctx, token);
+  if (value === null) return null;
+  return value > 0;
+}
+
+function isCellAllowed(params: {
+  ctx: ActionEngineContext;
+  state: { player: TokenState; enemies: TokenState[] };
+  x: number;
+  y: number;
+  excludeIds?: string[];
+}): boolean {
+  const { ctx, state, x, y, excludeIds } = params;
+  const cols = ctx.grid?.cols ?? GRID_COLS;
+  const rows = ctx.grid?.rows ?? GRID_ROWS;
+  if (!isCellInsideGrid(x, y, cols, rows)) return false;
+  if (ctx.playableCells && ctx.playableCells.size > 0) {
+    const key = `${x},${y}`;
+    if (!ctx.playableCells.has(key)) return false;
+  }
+  if (ctx.blockedMovementCells && ctx.blockedMovementCells.size > 0) {
+    const key = `${x},${y}`;
+    if (ctx.blockedMovementCells.has(key)) return false;
+  }
+  if (ctx.heightMap && typeof ctx.activeLevel === "number") {
+    const h = getHeightAtGrid(ctx.heightMap, cols, rows, x, y);
+    if (h !== ctx.activeLevel) return false;
+  }
+  const occupied = [state.player, ...state.enemies].some(
+    token => !excludeIds?.includes(token.id) && token.x === x && token.y === y
+  );
+  if (occupied) return false;
+  return true;
+}
+
+function updateTokenPosition(params: {
+  state: { player: TokenState; enemies: TokenState[] };
+  token: TokenState;
+  x: number;
+  y: number;
+}) {
+  const { state, token, x, y } = params;
+  token.x = x;
+  token.y = y;
+  if (token.id === state.player.id) {
+    state.player = token;
+    return;
+  }
+  const idx = state.enemies.findIndex(e => e.id === token.id);
+  if (idx >= 0) state.enemies[idx] = token;
+}
+
+function getTokensForPath(ctx: ActionEngineContext, state: { player: TokenState; enemies: TokenState[] }) {
+  if (!ctx.heightMap || typeof ctx.activeLevel !== "number") {
+    return [state.player, ...state.enemies];
+  }
+  const cols = ctx.grid?.cols ?? GRID_COLS;
+  const rows = ctx.grid?.rows ?? GRID_ROWS;
+  return [state.player, ...state.enemies].filter(token => {
+    const baseHeight = getHeightAtGrid(ctx.heightMap as number[], cols, rows, token.x, token.y);
+    return baseHeight === ctx.activeLevel;
+  });
+}
+
+function applyForcedMove(params: {
+  ctx: ActionEngineContext;
+  state: { player: TokenState; enemies: TokenState[] };
+  token: TokenState;
+  to: { x: number; y: number };
+}) {
+  const { ctx, state, token, to } = params;
+  const dx = to.x - token.x;
+  const dy = to.y - token.y;
+  const steps = Math.max(Math.abs(dx), Math.abs(dy));
+  if (steps === 0) return;
+
+  const tokensForPath = getTokensForPath(ctx, state);
+  const path = computePathTowards(token, { x: to.x, y: to.y }, tokensForPath, {
+    maxDistance: Math.max(0, steps),
+    allowTargetOccupied: false,
+    blockedCells: ctx.blockedMovementCells ?? null,
+    wallEdges: ctx.blockedMovementEdges ?? null,
+    playableCells: ctx.playableCells ?? null,
+    grid: ctx.grid ?? null,
+    heightMap: ctx.heightMap ?? null,
+    floorIds: ctx.floorIds ?? null,
+    activeLevel: ctx.activeLevel ?? null
+  });
+  if (path.length === 0) return;
+  const destination = path[path.length - 1];
+  updateTokenPosition({ state, token, x: destination.x, y: destination.y });
+}
+
+function applyTeleport(params: {
+  ctx: ActionEngineContext;
+  state: { player: TokenState; enemies: TokenState[] };
+  token: TokenState;
+  to: { x: number; y: number };
+}) {
+  const { ctx, state, token, to } = params;
+  if (!isCellAllowed({ ctx, state, x: to.x, y: to.y, excludeIds: [token.id] })) {
+    return;
+  }
+  updateTokenPosition({ state, token, x: to.x, y: to.y });
+}
+
+function applyDisplace(params: {
+  ctx: ActionEngineContext;
+  state: { player: TokenState; enemies: TokenState[] };
+  token: TokenState;
+  direction: { x: number; y: number };
+  distance: number;
+}) {
+  const { ctx, state, token, direction, distance } = params;
+  const steps = Math.max(0, Math.round(distance));
+  if (steps <= 0) return;
+  const stepX = direction.x === 0 ? 0 : direction.x > 0 ? 1 : -1;
+  const stepY = direction.y === 0 ? 0 : direction.y > 0 ? 1 : -1;
+  const targetX = token.x + stepX * steps;
+  const targetY = token.y + stepY * steps;
+
+  const tokensForPath = getTokensForPath(ctx, state);
+  const path = computePathTowards(token, { x: targetX, y: targetY }, tokensForPath, {
+    maxDistance: steps,
+    allowTargetOccupied: false,
+    blockedCells: ctx.blockedMovementCells ?? null,
+    wallEdges: ctx.blockedMovementEdges ?? null,
+    playableCells: ctx.playableCells ?? null,
+    grid: ctx.grid ?? null,
+    heightMap: ctx.heightMap ?? null,
+    floorIds: ctx.floorIds ?? null,
+    activeLevel: ctx.activeLevel ?? null
+  });
+  if (path.length === 0) return;
+  const destination = path[path.length - 1];
+  updateTokenPosition({ state, token, x: destination.x, y: destination.y });
+}
+
+function applySwapPositions(params: {
+  ctx: ActionEngineContext;
+  state: { player: TokenState; enemies: TokenState[] };
+  a: TokenState;
+  b: TokenState;
+}) {
+  const { ctx, state, a, b } = params;
+  if (
+    !isCellAllowed({ ctx, state, x: b.x, y: b.y, excludeIds: [a.id, b.id] }) ||
+    !isCellAllowed({ ctx, state, x: a.x, y: a.y, excludeIds: [a.id, b.id] })
+  ) {
+    return;
+  }
+  const ax = a.x;
+  const ay = a.y;
+  updateTokenPosition({ state, token: a, x: b.x, y: b.y });
+  updateTokenPosition({ state, token: b, x: ax, y: ay });
+}
+
+function resolveTokenInState(state: { player: TokenState; enemies: TokenState[] }, id: string) {
+  if (state.player.id === id) return state.player;
+  return state.enemies.find(e => e.id === id) ?? null;
+}
+
+
+function getTokenSide(token: TokenState): TokenType {
+  return token.summonOwnerType ?? token.type;
+}
 
 function isHostileTarget(actor: TokenState, targetToken: TokenState): boolean {
-  return actor.type !== targetToken.type;
+  return getTokenSide(actor) !== getTokenSide(targetToken);
 }
 
 function isAllyTarget(actor: TokenState, targetToken: TokenState): boolean {
-  return actor.type === targetToken.type;
+  return getTokenSide(actor) === getTokenSide(targetToken);
 }
 
 function validateTokenTarget(
@@ -159,6 +353,11 @@ function validateTokenTarget(
       distance: dist,
       phase: ctx.enginePhase ?? ctx.phase,
       sameLevel: areOnSameBaseLevel(ctx, actor, targetToken),
+      targetInArea:
+        action.targeting?.range?.shape && typeof action.targeting.range.max === "number"
+          ? dist <= action.targeting.range.max
+          : null,
+      inLight: isInLight(ctx, targetToken),
       lineOfSight: action.targeting?.requiresLos
         ? isTargetVisible(
             actor,
@@ -171,7 +370,12 @@ function validateTokenTarget(
             ctx.grid ?? null
           )
         : null,
-      getResourceAmount: ctx.getResourceAmount
+      getResourceAmount: ctx.getResourceAmount,
+      getSlotAmount: ctx.getSlotAmount,
+      usage: ctx.usage ?? null,
+      reactionAvailable: ctx.reactionAvailable ?? null,
+      concentrating: ctx.concentrating ?? null,
+      surprised: ctx.surprised ?? null
     });
     if (!ok) {
       const firstReason = action.conditions.find(cond => cond.reason)?.reason;
@@ -245,7 +449,7 @@ export function validateActionTarget(
 
   if (targeting.target === "player") {
     const playerToken = target.kind === "token" ? target.token : ctx.player;
-    if (!playerToken || playerToken.type !== "player") {
+    if (!playerToken || playerToken.id !== ctx.player.id) {
       return { ok: false, reason: "Cible joueur manquante." };
     }
     return validateTokenTarget(action, ctx, playerToken);
@@ -338,6 +542,12 @@ export function computeAvailabilityForActor(
       target: ctx.player,
       phase: ctx.enginePhase ?? ctx.phase,
       getResourceAmount: ctx.getResourceAmount,
+      getSlotAmount: ctx.getSlotAmount,
+      usage: ctx.usage ?? null,
+      reactionAvailable: ctx.reactionAvailable ?? null,
+      concentrating: ctx.concentrating ?? null,
+      surprised: ctx.surprised ?? null,
+      inLight: isInLight(ctx, ctx.actor),
       sameLevel: true,
       valueLookup: {
         actor: {
@@ -504,12 +714,53 @@ export function resolveActionUnified(
       effects: []
     },
     opts: {
+      isTargetAllowed: token => validateActionTarget(action, ctx, { kind: "token", token }).ok,
       getResourceAmount: ctx.getResourceAmount,
       spendResource: ctx.spendResource,
+      spawnEntity: ctx.spawnEntity,
+      despawnEntity: ctx.despawnEntity,
+      controlSummon: ctx.controlSummon,
       rollOverrides: opts?.rollOverrides,
       onLog: log,
       onEmitEvent: ctx.emitEvent,
       onMoveTo: applyMoveTo,
+      onMoveForced: params => {
+        const token = resolveTokenInState(params.state, params.targetId);
+        if (!token) return;
+        applyForcedMove({
+          ctx,
+          state: params.state,
+          token,
+          to: params.to
+        });
+      },
+      onTeleport: params => {
+        const token = resolveTokenInState(params.state, params.targetId);
+        if (!token) return;
+        applyTeleport({
+          ctx,
+          state: params.state,
+          token,
+          to: params.to
+        });
+      },
+      onSwapPositions: params => {
+        const a = resolveTokenInState(params.state, params.aId);
+        const b = resolveTokenInState(params.state, params.bId);
+        if (!a || !b) return;
+        applySwapPositions({ ctx, state: params.state, a, b });
+      },
+      onDisplace: params => {
+        const token = resolveTokenInState(params.state, params.targetId);
+        if (!token) return;
+        applyDisplace({
+          ctx,
+          state: params.state,
+          token,
+          direction: params.direction,
+          distance: params.distance
+        });
+      },
       onModifyPathLimit: ctx.onModifyPathLimit,
       onToggleTorch: ctx.onToggleTorch,
       onSetKillerInstinctTarget: ctx.onSetKillerInstinctTarget,
@@ -528,21 +779,19 @@ export function resolveActionUnified(
   }
 
   player = exec.state.player;
-  for (let i = 0; i < enemies.length; i++) {
-    enemies[i] = exec.state.enemies[i] ?? enemies[i];
-  }
+  const enemiesAfter = exec.state.enemies.map(enemy => ({ ...enemy }));
 
   const actorAfter =
     actor.type === "player"
       ? exec.state.player
-      : exec.state.enemies.find(e => e.id === actor.id) ?? actor;
+      : enemiesAfter.find(e => e.id === actor.id) ?? actor;
 
   return {
     ok: true,
     logs: exec.logs.length ? exec.logs : logs,
     actorAfter,
     playerAfter: player,
-    enemiesAfter: enemies,
+    enemiesAfter,
     outcomeKind: exec.outcome?.kind
   };
 }

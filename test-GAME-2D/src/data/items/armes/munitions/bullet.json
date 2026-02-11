@@ -1,0 +1,42 @@
+{
+  "id": "bullet",
+  "name": "Balle",
+  "label": "Balle",
+  "type": "munition",
+  "subtype": "bullet",
+  "category": "projectile",
+  "descriptionCourte": "Balle standard pour arme a feu.",
+  "descriptionLongue": "",
+  "allowStack": true,
+  "weight": 0.03,
+  "size": 0.05,
+  "value": {
+    "gold": 0,
+    "silver": 5,
+    "copper": 0,
+    "platinum": 0
+  },
+  "rarity": "commune",
+  "tags": [
+    "munition",
+    "bullet"
+  ],
+  "ammoType": "bullet",
+  "bundleSize": 10,
+  "storage": {
+    "preferredSlot": "paquetage",
+    "allowedSlots": [
+      "paquetage",
+      "ceinture_gauche",
+      "ceinture_droite"
+    ]
+  },
+  "compatibility": {
+    "weaponAmmoTypes": [
+      "bullet"
+    ],
+    "weaponTags": [
+      "firearm"
+    ]
+  }
+}

@@ -2,12 +2,14 @@ export type TurnPhase = "player" | "enemies";
 
 export type EnemyActionType = "move" | "attack" | "wait";
 
-export type TurnKind = "player" | "enemy";
+export type TurnKind = "player" | "enemy" | "summon";
 
 export interface TurnEntry {
   id: string;
   kind: TurnKind;
   initiative: number;
+  ownerType?: "player" | "enemy";
+  ownerId?: string;
 }
 
 export interface EnemyDecision {

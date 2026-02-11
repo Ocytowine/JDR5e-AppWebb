@@ -3,6 +3,7 @@ import type {
   EnemyCombatProfile,
   FootprintSpec,
   MovementProfile,
+  SpellcastingState,
   TokenAppearance,
   VisionProfile
 } from "../types";
@@ -32,9 +33,17 @@ export interface EnemyTypeDefinition {
   };
   speechProfile?: import("../narrationTypes").EnemySpeechProfile;
   combatStats: CombatStats;
+  spellcastingState?: SpellcastingState;
   appearance?: TokenAppearance;
   footprint?: FootprintSpec;
   movementModes?: Record<string, number>;
   movement?: MovementProfile;
   vision?: VisionProfile;
+  summonBehavior?: {
+    controlMode?: "direct" | "auto" | "obedient" | "chaotic";
+    turnTiming?: "player_turn" | "after_player" | "initiative";
+    initiativeMode?: "existing_roll" | "roll_on_spawn" | "attach_to_player";
+    obeyChance?: number;
+    order?: { kind: "hold" | "follow_owner" | "attack_nearest" };
+  };
 }

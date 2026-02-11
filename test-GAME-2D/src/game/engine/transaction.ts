@@ -12,7 +12,14 @@ export function beginTransaction(state: EngineState): Transaction {
       actor: { ...state.actor },
       player: { ...state.player },
       enemies: state.enemies.map(enemy => ({ ...enemy })),
-      effects: state.effects.map(effect => ({ ...effect }))
+      effects: state.effects.map(effect => ({ ...effect })),
+      targeting: state.targeting
+        ? {
+            targets: state.targeting.targets?.map(target => ({ ...target })) ?? [],
+            locked: state.targeting.locked ?? false
+          }
+        : undefined,
+      targetingConfig: state.targetingConfig ? { ...state.targetingConfig } : undefined
     },
     logs: []
   };

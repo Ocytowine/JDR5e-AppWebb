@@ -42,6 +42,7 @@ Fields not listed are allowed but ignored by the configurator.
         },
         "statsBase": {
           "type": "object",
+          "description": "Base point-buy interne UI (non source de verite). Optionnel a l'export.",
           "properties": {
             "FOR": { "type": "number" },
             "DEX": { "type": "number" },
@@ -82,13 +83,14 @@ Fields not listed are allowed but ignored by the configurator.
         "level": { "type": "number" },
         "mods": {
           "type": "object",
+          "description": "Modificateurs derives de caracs (optionnel, peut etre recalculé).",
           "properties": {
-            "str": { "type": "number" },
-            "dex": { "type": "number" },
-            "con": { "type": "number" },
-            "int": { "type": "number" },
-            "wis": { "type": "number" },
-            "cha": { "type": "number" }
+            "modFOR": { "type": "number" },
+            "modDEX": { "type": "number" },
+            "modCON": { "type": "number" },
+            "modINT": { "type": "number" },
+            "modSAG": { "type": "number" },
+            "modCHA": { "type": "number" }
           },
           "additionalProperties": true
         }
@@ -199,6 +201,8 @@ Fields not listed are allowed but ignored by the configurator.
 ```
 
 Notes:
-- `statsBase` is the point-buy base (8-15) before bonuses are applied.
+- `caracs` est la source de verite pour les attributs.
+- `combatStats.mods` est derive de `caracs` (optionnel a l'export).
+- `statsBase` est un cache UI (point-buy 8-15) et ne doit pas etre traite comme source de verite.
 - In normal mode, the configurator enforces 27 points using the 5e point-buy costs.
 - Bonuses from race/background/classes are applied on top of base stats and are stored in `caracs`.

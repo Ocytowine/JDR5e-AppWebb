@@ -79,6 +79,12 @@
     "bonusActionsPerTurn": 0,
     "resources": {}
   },
+  "spellcastingState": {
+    "totalCasterLevel": 0,
+    "slots": {},
+    "sources": {},
+    "slotJustifications": []
+  },
   "appearance": {
     "spriteKey": "brute",
     "tokenScale": 100

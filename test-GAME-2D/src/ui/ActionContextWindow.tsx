@@ -39,6 +39,13 @@ export function ActionContextWindow(props: {
   player: TokenState;
   enemies: TokenState[];
   validatedAction: ActionDefinition | null;
+  ammoInfo?: {
+    label: string;
+    available: number;
+    required: number;
+    insufficient: boolean;
+    unknown?: boolean;
+  } | null;
   targetMode: "none" | "selecting";
   selectedTargetIds: string[];
   selectedTargetLabels: string[];
@@ -196,6 +203,7 @@ export function ActionContextWindow(props: {
   const getStep = (type: ActionStep["type"]) => stepByType.get(type) ?? null;
   const validateStep = getStep("validate");
   const resourceStep = getStep("resource");
+  const ammoInfo = props.ammoInfo ?? null;
   const targetStep = getStep("target");
   const attackStep = getStep("attack-roll");
   const damageStep = getStep("damage-roll");
@@ -718,6 +726,33 @@ export function ActionContextWindow(props: {
           </div>
           {resourceStep.detail && (
             <div style={{ marginTop: 4, fontSize: 11, color: "#ffb2aa" }}>{resourceStep.detail}</div>
+          )}
+        </div>
+      )}
+
+      {ammoInfo && (
+        <div
+          style={{
+            marginTop: 12,
+            padding: 8,
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(255,255,255,0.04)"
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 900, color: "#fff" }}>Munitions</div>
+          <div style={{ marginTop: 6, fontSize: 12, color: "rgba(255,255,255,0.85)" }}>
+            {ammoInfo.label} : {ammoInfo.available} / {ammoInfo.required}
+          </div>
+          {ammoInfo.unknown && (
+            <div style={{ marginTop: 4, fontSize: 11, color: "#ffb2aa" }}>
+              Type de munition non reference dans le catalogue.
+            </div>
+          )}
+          {ammoInfo.insufficient && !ammoInfo.unknown && (
+            <div style={{ marginTop: 4, fontSize: 11, color: "#ffb2aa" }}>
+              Munitions insuffisantes pour cette action.
+            </div>
           )}
         </div>
       )}

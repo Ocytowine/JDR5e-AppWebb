@@ -1,0 +1,20 @@
+{
+  "id": "obj_sac_a_dos",
+  "label": "Sac a dos",
+  "type": "object",
+  "category": "pack",
+  "weight": 1.5,
+  "capacityWeight": 18,
+  "tags": [
+    "sac",
+    "paquetage",
+    "ammo_container"
+  ],
+  "description": "Sac a dos pratique pour transporter du materiel.",
+  "value": {
+    "platinum": 0,
+    "gold": 2.0,
+    "silver": 0,
+    "copper": 0
+  }
+}

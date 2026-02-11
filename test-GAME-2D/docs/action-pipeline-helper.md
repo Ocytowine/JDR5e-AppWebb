@@ -10,13 +10,17 @@ Le pipeline est stable et ne doit pas etre modifie par les JSON. Les contenus de
 - les hooks (features, items, status),
 - des operations atomiques (DealDamage, ApplyCondition, CreateZone, etc.).
 
+## Notice de creation d'action
+
+Voir `docs/action-creation-notice.md` pour le template complet, les explications champ par champ, et la fiche de test standard.
+
 ## Principes cle
 
 1. Le pipeline est immutable (phases fixes).
 2. Les JSON de contenu decrivent des intentions, pas des etapes.
 3. Les operations sont atomiques et composees par des conditions/branches.
 4. Les hooks s'appliquent via un moteur de regles commun.
-5. Support complet des hooks taxo (noms courts + legacy).
+5. Support complet des hooks taxo.
 
 ## Phases du pipeline (rappel)
 
@@ -34,7 +38,7 @@ Le pipeline est stable et ne doit pas etre modifie par les JSON. Les contenus de
 
 ## Hooks supportes (moteur)
 
-Le moteur supporte les hooks suivants (taxo complete), ainsi que les alias legacy:
+Le moteur supporte les hooks suivants (taxo complete):
 
 - onIntentBuild
 - onOptionsResolve
@@ -49,16 +53,7 @@ Le moteur supporte les hooks suivants (taxo complete), ainsi que les alias legac
 - beforeCommit
 - afterCommit
 
-Alias legacy compatibles:
-- pre_resolution -> preResolution
-- on_outcome -> onOutcome
-- on_apply -> afterApply
-- post_resolution -> postResolution
-- PRE_RESOLUTION_WINDOW -> preResolution
-- ON_OUTCOME -> onOutcome
-- APPLY_TARGET_EFFECTS/APPLY_WORLD_EFFECTS -> afterApply
-- POST_RESOLUTION_WINDOW -> postResolution
-- COMMIT -> beforeCommit
+Note: utiliser les noms de phases officiels (voir taxo).
 
 ## Modeles (concepts)
 
@@ -81,6 +76,7 @@ Resultat de la resolution (ex: attaque ou save):
 - isHit, isCrit
 - saveResult: success/fail
 - roll/total
+Note: dans les outcomes taxo, les flags officiels sont `HIT`, `MISS`, `CRIT`, `SAVE_SUCCESS`, `SAVE_FAIL`, etc.
 
 ### Operation (atomique)
 Exemples:
@@ -95,13 +91,13 @@ Exemples:
 
 ## Conventions de migration
 
-### 1) Actions legacy -> ActionSpec
+### 1) Actions existantes -> ActionSpec
 Mappe l'ancien schema sans changer la logique:
 - action.attack -> resolution.kind = attack
 - action.damage -> Operation(DealDamage) default onHit
-- effects[] -> Operation[] (adapter legacy)
+- effects[] -> Operation[] (adapter de compatibilite)
 
-### 2) Conditions legacy
+### 2) Conditions existantes
 - conditions[] reste supporte via adapter, mais deplacer vers if/when quand possible.
 
 ### 3) Effets conditionnels
@@ -119,30 +115,52 @@ Utiliser des branches declarees:
 ## Patterns de conversion
 
 ### A) Attaque classique (melee)
-Legacy:
+Avant:
 - attack + damage + effects
 
 Nouveau:
-- resolution: { kind: "attack", bonus, critRange }
+- resolution: { kind: "ATTACK_ROLL", bonus, critRange }
 - effects:
   - onHit: [ DealDamage{formula, type} ]
   - onMiss: [ LogEvent{...} ]
 
 ### B) Sort de sauvegarde
-- resolution: { kind: "save", ability: "DEX", dc: 14 }
+- resolution: { kind: "SAVING_THROW", ability: "DEX", dc: 14 }
 - onSaveFail: [ DealDamage{formula} ]
 - onSaveSuccess: [ DealDamage{formula, scale: "half"} ]
 
+### E) Contested check
+- resolution: { kind: "CONTESTED_CHECK", contested: { actorAbility: "FOR", targetAbility: "FOR", tieWinner: "actor" } }
+- onHit: [ ApplyCondition{...} ] (interprete "contested win")
+
+Exemple JSON (grapple):
+```json
+{
+  "id": "grapple",
+  "name": "Agripper",
+  "actionCost": { "actionType": "action" },
+  "targeting": { "target": "hostile", "range": { "min": 0, "max": 1, "shape": "SPHERE" } },
+  "resolution": {
+    "kind": "CONTESTED_CHECK",
+    "contested": { "actorAbility": "FOR", "targetAbility": "FOR", "tieWinner": "actor" }
+  },
+  "effects": {
+    "onHit": [ { "op": "ApplyCondition", "target": "primary", "statusId": "grappled", "durationTurns": 1 } ],
+    "onMiss": [ { "op": "LogEvent", "message": "Echec de l'agrippement." } ]
+  }
+}
+```
+
 ### C) Deplacement force
-- resolution: { kind: "none" }
+- resolution: { kind: "NO_ROLL" }
 - effects:
   - onResolve: [ MoveForced{distance, direction} ]
 
 ### D) Action avec option "rider"
 - Base action: onHit -> DealDamage
 - Hook feature:
-  - when: "afterOutcome"
-  - if: [ OUTCOME_IS: "hit", HAS_RESOURCE: "mana", ACTOR_HAS_TAG: "rogue" ]
+  - when: "onOutcome"
+  - if: [ OUTCOME_HAS: "HIT", ACTOR_HAS_RESOURCE: "mana", ACTOR_HAS_TAG: "rogue" ]
   - prompt: "Depenser 1 mana pour +1d6 ?"
   - apply: [ SpendResource{...}, DealDamage{formula:"1d6"} ]
 
@@ -172,17 +190,17 @@ Pour chaque action migree:
 ## Exemple JSON (pseudo)
 
 ```json
-{
-  "id": "melee-strike",
-  "name": "Frappe basique",
-  "economy": { "actionType": "action" },
-  "targeting": { "target": "hostile", "range": { "min": 0, "max": 1, "shape": "single" } },
-  "resolution": { "kind": "attack", "bonus": 5, "critRange": 20 },
-  "effects": {
-    "onHit": [ { "op": "DealDamage", "formula": "1d4 + modFOR", "type": "slashing" } ],
-    "onMiss": [ { "op": "LogEvent", "message": "Attaque ratee." } ]
-  },
-  "reactionWindows": ["pre", "post"]
-}
+  {
+    "id": "melee-strike",
+    "name": "Frappe basique",
+    "actionCost": { "actionType": "action" },
+    "targeting": { "target": "hostile", "range": { "min": 0, "max": 1, "shape": "SPHERE" } },
+    "resolution": { "kind": "ATTACK_ROLL", "bonus": 5, "critRange": 20 },
+    "effects": {
+      "onHit": [ { "op": "DealDamage", "target": "primary", "formula": "1d4 + modFOR", "damageType": "slashing" } ],
+      "onMiss": [ { "op": "LogEvent", "message": "Attaque ratee." } ]
+    },
+    "reactionWindows": ["pre", "post"]
+  }
 ```
 

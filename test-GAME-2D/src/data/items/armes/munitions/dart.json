@@ -1,0 +1,42 @@
+{
+  "id": "dart",
+  "name": "Dard",
+  "label": "Dard",
+  "type": "munition",
+  "subtype": "dart",
+  "category": "projectile",
+  "descriptionCourte": "Dard pour sarbacane ou projectile leger.",
+  "descriptionLongue": "",
+  "allowStack": true,
+  "weight": 0.02,
+  "size": 0.05,
+  "value": {
+    "gold": 0,
+    "silver": 1,
+    "copper": 0,
+    "platinum": 0
+  },
+  "rarity": "commune",
+  "tags": [
+    "munition",
+    "dart"
+  ],
+  "ammoType": "dart",
+  "bundleSize": 20,
+  "storage": {
+    "preferredSlot": "paquetage",
+    "allowedSlots": [
+      "paquetage",
+      "ceinture_gauche",
+      "ceinture_droite"
+    ]
+  },
+  "compatibility": {
+    "weaponAmmoTypes": [
+      "dart"
+    ],
+    "weaponTags": [
+      "blowgun"
+    ]
+  }
+}

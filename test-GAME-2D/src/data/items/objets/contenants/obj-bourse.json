@@ -1,0 +1,21 @@
+{
+  "id": "obj_bourse",
+  "label": "Bourse",
+  "type": "object",
+  "category": "pack",
+  "weight": 0.2,
+  "value": {
+    "po": 1,
+    "platinum": 0,
+    "gold": 0,
+    "silver": 0,
+    "copper": 0
+  },
+  "capacityWeight": 5,
+  "tags": [
+    "bourse",
+    "sac",
+    "paquetage"
+  ],
+  "description": "Petite bourse destinee aux pieces et petits objets."
+}

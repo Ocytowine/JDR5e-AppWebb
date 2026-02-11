@@ -1,0 +1,18 @@
+{
+  "id": "obj_torche",
+  "label": "Torche",
+  "type": "object",
+  "category": "gear",
+  "weight": 0.5,
+  "tags": [
+    "torche",
+    "consommable"
+  ],
+  "description": "Torche simple pour eclairer.",
+  "value": {
+    "platinum": 0,
+    "gold": 0,
+    "silver": 0,
+    "copper": 1
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "id": "arrow",
+  "name": "Fleche",
+  "label": "Fleche",
+  "type": "munition",
+  "subtype": "arrow",
+  "category": "projectile",
+  "descriptionCourte": "Fleche standard pour arc.",
+  "descriptionLongue": "",
+  "allowStack": true,
+  "weight": 0.05,
+  "size": 0.1,
+  "value": {
+    "gold": 0,
+    "silver": 1,
+    "copper": 0,
+    "platinum": 0
+  },
+  "rarity": "commune",
+  "tags": [
+    "munition",
+    "arrow"
+  ],
+  "ammoType": "arrow",
+  "bundleSize": 20,
+  "storage": {
+    "preferredSlot": "carquois",
+    "allowedSlots": [
+      "carquois",
+      "paquetage"
+    ]
+  },
+  "compatibility": {
+    "weaponAmmoTypes": [
+      "arrow"
+    ],
+    "weaponTags": [
+      "bow",
+      "longbow",
+      "shortbow"
+    ]
+  }
+}

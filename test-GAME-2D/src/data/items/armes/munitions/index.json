@@ -1,0 +1,10 @@
+{
+  "types": [
+    "./arrow.json",
+    "./bolt.json",
+    "./bullet.json",
+    "./dart.json",
+    "./stone.json",
+    "./needle.json"
+  ]
+}

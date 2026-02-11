@@ -6,7 +6,7 @@ Ce plan detaille les correctifs et l'ordre d'integration pour un pipeline comple
 
 1. Creer/valider la taxonomie complete (operations, hooks, conditions, outcomes).
 2. Documenter les conventions de JSON (schemas et exemples).
-3. Fixer la compatibilite ascendante (legacy adapter).
+3. Fixer la compatibilite ascendante (adapter de compatibilite).
 
 ## 2) Etendre les types
 
@@ -15,12 +15,12 @@ Ce plan detaille les correctifs et l'ordre d'integration pour un pipeline comple
    - attack
    - save
    - check
-   - contested
+   - contested (fait)
 3. Ajouter Outcome enrichi:
    - hit/miss/crit
    - saveSuccess/saveFail
-   - checkSuccess/checkFail
-   - contestedWin/contestedLose
+   - checkSuccess/checkFail (fait)
+   - contestedWin/contestedLose (fait)
 
 ## 3) Transaction et interruption
 
@@ -79,7 +79,7 @@ Ce plan detaille les correctifs et l'ordre d'integration pour un pipeline comple
 
 ## 10) Validation finale
 
-1. Comparer resultats pipeline V2 vs legacy (actions migrées).
+1. Comparer resultats pipeline V2 vs existant (actions migrees).
 2. Verifier les logs et event journal.
 3. Verifier l'UI (planning action + reactions).
 

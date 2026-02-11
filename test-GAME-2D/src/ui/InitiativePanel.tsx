@@ -38,7 +38,11 @@ export function InitiativePanel(props: {
         {props.activeEntry && (
           <span style={{ fontSize: 11, color: "#f1c40f" }}>
             Tour actuel :{" "}
-            {props.activeEntry.kind === "player" ? "Joueur" : props.activeEntry.id}
+            {props.activeEntry.kind === "player"
+              ? "Joueur"
+              : props.activeEntry.kind === "summon"
+              ? `Summon (${props.activeEntry.id})`
+              : props.activeEntry.id}
           </span>
         )}
       </div>
@@ -57,6 +61,7 @@ export function InitiativePanel(props: {
             entry.id === props.activeEntry.id &&
             entry.kind === props.activeEntry.kind;
           const isPlayer = entry.kind === "player";
+          const isSummon = entry.kind === "summon";
           const tokenState =
             entry.kind === "player"
               ? props.player
@@ -64,6 +69,11 @@ export function InitiativePanel(props: {
           const isDead = tokenState ? isTokenDead(tokenState) : false;
           const token = isPlayer
             ? { label: "PJ", color: "#7dc4ff" }
+            : isSummon
+            ? {
+                label: `SUM`,
+                color: entry.ownerType === "player" ? "#7dc4ff" : "#ff6b6b"
+              }
             : { label: entry.id, color: "#ff6b6b" };
 
           return (
@@ -109,7 +119,7 @@ export function InitiativePanel(props: {
                   textDecoration: isDead ? "line-through" : "none"
                 }}
               >
-                {token.label}
+                {isSummon ? `${token.label} ${entry.id}` : token.label}
               </span>
               <span
                 style={{

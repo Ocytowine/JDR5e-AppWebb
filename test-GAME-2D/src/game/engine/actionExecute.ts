@@ -212,9 +212,45 @@ function resolveOutcome(params: {
     }
     const total = roll.total + mod;
     const success = total >= dc;
-    const kind: OutcomeKey = success ? "hit" : "miss";
+    const kind: OutcomeKey = success ? "checkSuccess" : "checkFail";
     return {
       outcome: { kind, roll: roll.total, total },
+      target
+    };
+  }
+
+  if (resolution.kind === "CONTESTED_CHECK") {
+    const contested = resolution.contested;
+    const actorAbility = contested?.actorAbility ?? resolution.check?.ability ?? "FOR";
+    const targetAbility = contested?.targetAbility ?? resolution.save?.ability ?? "FOR";
+    const actorModKey = abilityToModKey(actorAbility);
+    const targetModKey = abilityToModKey(targetAbility);
+    const actorMod =
+      (state.actor.combatStats?.mods?.[actorModKey] ?? 0) +
+      (contested?.actorBonus ?? 0) +
+      (rollContext.bonusDelta ?? 0);
+    const targetMod =
+      (target?.combatStats?.mods?.[targetModKey] ?? 0) + (contested?.targetBonus ?? 0);
+
+    const actorRoll = rollDamage("1d20", { isCrit: false, critRule: "double-dice" });
+    const targetRoll = rollDamage("1d20", { isCrit: false, critRule: "double-dice" });
+    const actorTotal = actorRoll.total + actorMod;
+    const targetTotal = targetRoll.total + targetMod;
+    const tieWinner = contested?.tieWinner ?? "actor";
+    const actorWins = actorTotal > targetTotal || (actorTotal === targetTotal && tieWinner === "actor");
+    const kind: OutcomeKey = actorWins ? "contestedWin" : "contestedLose";
+    return {
+      outcome: {
+        kind,
+        roll: actorRoll.total,
+        total: actorTotal,
+        contested: {
+          actorRoll: actorRoll.total,
+          actorTotal,
+          targetRoll: targetRoll.total,
+          targetTotal
+        }
+      } as Outcome,
       target
     };
   }
@@ -228,8 +264,22 @@ function resolveOutcome(params: {
 function collectOperations(effects: ActionPlan["action"]["effects"], outcome: Outcome): Operation[] {
   const ops: Operation[] = [];
   if (effects?.onResolve) ops.push(...effects.onResolve);
-  if (outcome.kind === "hit" && effects?.onHit) ops.push(...effects.onHit);
-  if (outcome.kind === "miss" && effects?.onMiss) ops.push(...effects.onMiss);
+  if (
+    (outcome.kind === "hit" ||
+      outcome.kind === "checkSuccess" ||
+      outcome.kind === "contestedWin") &&
+    effects?.onHit
+  ) {
+    ops.push(...effects.onHit);
+  }
+  if (
+    (outcome.kind === "miss" ||
+      outcome.kind === "checkFail" ||
+      outcome.kind === "contestedLose") &&
+    effects?.onMiss
+  ) {
+    ops.push(...effects.onMiss);
+  }
   if (outcome.kind === "crit") {
     if (effects?.onHit) ops.push(...effects.onHit);
     if (effects?.onCrit) ops.push(...effects.onCrit);
@@ -253,9 +303,33 @@ export function executePlan(params: {
 } {
   const { plan, state, opts } = params;
   const tx = beginTransaction(state);
+  tx.state.targetingConfig = {
+    target: plan.action.targeting?.target ?? null,
+    maxTargets:
+      typeof plan.action.targeting?.maxTargets === "number"
+        ? plan.action.targeting.maxTargets
+        : null
+  };
 
   const initialTarget =
     plan.target && "id" in plan.target ? (plan.target as TokenState) : null;
+  const initialTargets: TokenState[] = (() => {
+    if (plan.target && "kind" in plan.target && plan.target.kind === "tokens") {
+      return plan.target.tokens ?? [];
+    }
+    if (plan.target && "id" in plan.target) {
+      return [plan.target as TokenState];
+    }
+    if (plan.action.targeting?.target === "self") {
+      return [tx.state.actor];
+    }
+    return [];
+  })();
+  tx.state.targeting = {
+    targets: initialTargets.filter(Boolean),
+    locked: false
+  };
+
   applyHooks({
     hooks: plan.hooks ?? [],
     phase: "onIntentBuild",
@@ -296,13 +370,14 @@ export function executePlan(params: {
     tx,
     opts
   });
+  const primaryTarget = tx.state.targeting?.targets?.[0] ?? initialTarget;
   applyHooks({
     hooks: plan.hooks ?? [],
     phase: "preResolution",
     state: tx.state,
-    target: initialTarget,
+    target: primaryTarget,
     outcome: null,
-    explicitTarget: initialTarget ? { kind: "token", token: initialTarget } : null,
+    explicitTarget: primaryTarget ? { kind: "token", token: primaryTarget } : null,
     tx,
     opts
   });
@@ -320,15 +395,7 @@ export function executePlan(params: {
     }
   }
 
-  const targets: TokenState[] = (() => {
-    if (plan.target && "kind" in plan.target && plan.target.kind === "tokens") {
-      return plan.target.tokens ?? [];
-    }
-    if (plan.target && "id" in plan.target) {
-      return [plan.target as TokenState];
-    }
-    return [null].filter(Boolean) as TokenState[];
-  })();
+  const targets: TokenState[] = (tx.state.targeting?.targets ?? []).filter(Boolean);
 
   const resolvedOutcomes = targets.length
     ? targets.map(target =>

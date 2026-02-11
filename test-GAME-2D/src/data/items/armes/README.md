@@ -5,6 +5,7 @@ Objectif: definir un format unique pour les armes, leurs dependances, et leur im
 ## Emplacement des fichiers
 - Base: test-GAME-2D/src/data/items/
 - Armes par categorie: test-GAME-2D/src/data/items/armes/simple, test-GAME-2D/src/data/items/armes/martiale, test-GAME-2D/src/data/items/armes/speciale, test-GAME-2D/src/data/items/armes/monastique
+- Munitions: test-GAME-2D/src/data/items/armes/munitions
 - Exemple de template: test-GAME-2D/src/data/items/armes/weapon-template.json
 
 ## Champs recommandes (resume)
@@ -16,7 +17,7 @@ Objectif: definir un format unique pour les armes, leurs dependances, et leur im
 - descriptionCourte / descriptionLongue
 - weight (kg) / size / value / rarity
 - tags: liste de tags gameplay (ex: arme, melee, slashing)
-- properties: proprietes DnD (finesse, light, heavy, twoHanded, reach, versatile, thrown, ammunition, loading, reload, range, special)
+- properties: proprietes DnD (finesse, light, heavy, twoHanded, reach, versatile, thrown, ammunition, loading, reload, range, special, ammoType, ammoPerShot)
 - attack: mod + bonus de maitrise si arme maitrisee
 - damage: dice + damageType (+ alt pour polyvalente)
 - effectOnHit: format court d'impact (compat template items)
@@ -55,5 +56,6 @@ Note: les fichiers d'armes utilisent uniquement les ids EN (strict enum).
 
 ## Notes d'integration
 - Conserver les references des degats en une seule source (docs projet/Gestion et Creation de donnees/Degats types.md)
-- Les proprietes doivent piloter les actions (ex: thrown => action de jet; ammunition => besoin de munitions)
+- Les proprietes doivent piloter les actions (ex: thrown => action de jet; ammunition => besoin de munitions).
+- `ammoType` et `ammoPerShot` pilotent la consommation auto d'inventaire (munitions dans `data/items/armes/munitions`, conteneurs tagges `ammo_container`).
 - Les champs restent extensibles pour ajouter des effets (critique, on-hit, status, etc.)

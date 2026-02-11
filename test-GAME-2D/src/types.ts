@@ -26,6 +26,7 @@ export interface Personnage {
   reactionIds?: string[];
   movementModes?: Record<string, number> | string[];
   combatStats?: CombatStats;
+  spellcastingState?: SpellcastingState;
   [key: string]: any;
 }
 
@@ -51,6 +52,25 @@ export interface CombatStats {
   };
   resources: Record<string, { current: number; max?: number }>;
   tags?: string[];
+}
+
+export interface SpellcastingState {
+  totalCasterLevel: number;
+  slots: Record<string, unknown>;
+  sources?: Record<
+    string,
+    {
+      focusInstanceId?: string;
+      slots?: Record<string, unknown>;
+      preparedSpellIds?: string[];
+      knownSpellIds?: string[];
+    }
+  >;
+  slotJustifications?: Array<{
+    source: string;
+    classLevel: number;
+    slotsByLevel: Record<string, unknown>;
+  }>;
 }
 
 export type TokenType = "player" | "enemy";
@@ -151,6 +171,13 @@ export interface EnemyCombatProfile {
 export interface TokenState {
   id: string;
   type: TokenType;
+  summonOwnerId?: string;
+  summonOwnerType?: TokenType;
+  summonControlMode?: "direct" | "auto" | "obedient" | "chaotic";
+  summonTurnTiming?: "player_turn" | "after_player" | "initiative";
+  summonInitiativeMode?: "existing_roll" | "roll_on_spawn" | "attach_to_player";
+  summonObeyChance?: number;
+  summonOrder?: { kind: "hold" | "follow_owner" | "attack_nearest" };
   appearance?: TokenAppearance;
   enemyTypeId?: string;
   enemyTypeLabel?: string;
@@ -218,10 +245,15 @@ export interface TokenState {
     id: string;
     remainingTurns: number;
     sourceId?: string;
+    durationTick?: "start" | "end" | "round";
+    concentrationSourceId?: string;
   }>;
+  spellcastingState?: SpellcastingState;
+  concentration?: { sourceId?: string; effectId?: string } | boolean;
   x: number;
   y: number;
   hp: number;
   maxHp: number;
   tempHp?: number;
+  tempHpDuration?: { remainingTurns: number; tick: "start" | "end" | "round" };
 }

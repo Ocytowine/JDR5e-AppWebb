@@ -1,0 +1,20 @@
+{
+  "id": "obj_carquois",
+  "label": "Carquois",
+  "type": "object",
+  "category": "pack",
+  "weight": 0.5,
+  "capacityWeight": 3,
+  "tags": [
+    "conteneur",
+    "ammo_container",
+    "carquois"
+  ],
+  "description": "Carquois pour transporter des munitions.",
+  "value": {
+    "platinum": 0,
+    "gold": 1.0,
+    "silver": 0,
+    "copper": 0
+  }
+}

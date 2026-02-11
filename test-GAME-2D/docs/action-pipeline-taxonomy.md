@@ -28,7 +28,6 @@ Objectif: fournir la reference exacte des champs et enums actuellement acceptes 
 
 Le moteur d'execution supporte:
 - La sequence complete des phases via hooks (onIntentBuild -> afterCommit).
-- Les alias legacy pour compatibilite ascendante.
 - Les hooks sont evaluates via `conditions` et peuvent appliquer des `operations`.
 
 ## Champs globaux (taxonomy.json)
@@ -100,8 +99,14 @@ Le moteur d'execution supporte:
     - pool: string|null
     - min: number|null
 - resolution:
-  - kind: ATTACK_ROLL | SAVING_THROW | ABILITY_CHECK | NO_ROLL
+  - kind: ATTACK_ROLL | SAVING_THROW | ABILITY_CHECK | CONTESTED_CHECK | NO_ROLL
   - critRule: double-dice | double-total
+  - contested (si kind = CONTESTED_CHECK):
+    - actorAbility: FOR|DEX|CON|INT|SAG|CHA
+    - targetAbility: FOR|DEX|CON|INT|SAG|CHA
+    - actorBonus?: number
+    - targetBonus?: number
+    - tieWinner?: actor | target
 - attack:
   - bonus: number
   - critRange: number (default 20)
@@ -132,7 +137,10 @@ Le moteur d'execution supporte:
   - TARGET_SIZE_IS
   - ACTOR_CAN_MOVE
   - TARGET_CAN_MOVE
+  - ACTOR_ALIVE
   - TARGET_ALIVE
+  - REACTION_AVAILABLE
+  - REACTION_UNUSED_COMBAT
   - DISTANCE_MAX
   - DISTANCE_BETWEEN
   - RESOURCE_AT_LEAST
@@ -141,23 +149,84 @@ Le moteur d'execution supporte:
   - PHASE_IS
   - ACTOR_VALUE
   - TARGET_VALUE
+  - TARGET_FIRST_SEEN
+  - TARGET_IS_CLOSEST_VISIBLE
+  - TARGET_IN_AREA
+  - SAME_LEVEL
+  - HAS_LINE_OF_SIGHT
+  - IS_IN_LIGHT
+  - IS_REACTION_AVAILABLE
+  - IS_CONCENTRATING
+  - IS_SURPRISED
+  - ONCE_PER_TURN
+  - ONCE_PER_ROUND
+  - ONCE_PER_COMBAT
+  - OUTCOME_IS
+  - OUTCOME_IN
+  - ROLL_IS
+  - ROLL_AT_LEAST
+  - ROLL_AT_MOST
+  - ROLL_BETWEEN
+  - ROLL_IN
+  - ROLL_NOT_IN
+  - HP_BELOW
+  - HAS_RESOURCE
+  - SLOT_AVAILABLE
+  - ACTOR_SENSES
   - AND
   - OR
   - NOT
 - ops:
   - DealDamage
+  - DealDamageScaled
   - Heal
   - ApplyCondition
+  - RemoveCondition
+  - ExtendCondition
+  - SetConditionStack
+  - StartConcentration
+  - BreakConcentration
   - CreateZone
+  - RemoveZone
+  - ModifyZone
+  - CreateSurface
+  - RemoveSurface
+  - ApplyAura
   - SpendResource
+  - RestoreResource
+  - SetResource
+  - ConsumeSlot
+  - RestoreSlot
   - MoveForced
-  - LogEvent
-  - PlayVisualEffect
+  - Teleport
+  - SwapPositions
+  - Knockback
+  - Pull
+  - Push
   - MoveTo
   - GrantTempHp
   - ModifyPathLimit
   - ToggleTorch
   - SetKillerInstinctTarget
+  - AddDice
+  - ReplaceRoll
+  - Reroll
+  - SetMinimumRoll
+  - SetMaximumRoll
+  - ModifyBonus
+  - ModifyDC
+  - AddTag
+  - RemoveTag
+  - SetFlag
+  - LogEvent
+  - EmitEvent
+  - LockTarget
+  - ExpandTargets
+  - FilterTargets
+  - Retarget
+  - SpawnEntity
+  - DespawnEntity
+  - ControlSummon
 - hooks.phases:
   - BUILD_INTENT
   - GATHER_OPTIONS
@@ -200,18 +269,55 @@ Phases officielles dans `action.hooks.phases` (voir `enginePhases`).
 ## Taxonomie des operations (officielle)
 
 - DealDamage
+- DealDamageScaled
 - Heal
 - ApplyCondition
+- RemoveCondition
+- ExtendCondition
+- SetConditionStack
+- StartConcentration
+- BreakConcentration
 - CreateZone
+- RemoveZone
+- ModifyZone
+- CreateSurface
+- RemoveSurface
+- ApplyAura
 - SpendResource
+- RestoreResource
+- SetResource
+- ConsumeSlot
+- RestoreSlot
 - MoveForced
-- LogEvent
-- PlayVisualEffect
+- Teleport
+- SwapPositions
+- Knockback
+- Pull
+- Push
 - MoveTo
 - GrantTempHp
 - ModifyPathLimit
 - ToggleTorch
 - SetKillerInstinctTarget
+- AddDice
+- ReplaceRoll
+- Reroll
+- SetMinimumRoll
+- SetMaximumRoll
+- ModifyBonus
+- ModifyDC
+- AddTag
+- RemoveTag
+- SetFlag
+- LogEvent
+- EmitEvent
+- LockTarget
+- ExpandTargets
+- FilterTargets
+- Retarget
+- SpawnEntity
+- DespawnEntity
+- ControlSummon
 
 ## Taxonomie des conditions (if) officielle
 
@@ -237,7 +343,10 @@ Phases officielles dans `action.hooks.phases` (voir `enginePhases`).
 - TARGET_SIZE_IS
 - ACTOR_CAN_MOVE
 - TARGET_CAN_MOVE
+- ACTOR_ALIVE
 - TARGET_ALIVE
+- REACTION_AVAILABLE
+- REACTION_UNUSED_COMBAT
 - DISTANCE_MAX
 - DISTANCE_BETWEEN
 - RESOURCE_AT_LEAST
@@ -246,6 +355,30 @@ Phases officielles dans `action.hooks.phases` (voir `enginePhases`).
 - PHASE_IS
 - ACTOR_VALUE
 - TARGET_VALUE
+- TARGET_FIRST_SEEN
+- TARGET_IS_CLOSEST_VISIBLE
+- TARGET_IN_AREA
+- SAME_LEVEL
+- HAS_LINE_OF_SIGHT
+- IS_IN_LIGHT
+- IS_REACTION_AVAILABLE
+- IS_CONCENTRATING
+- IS_SURPRISED
+- ONCE_PER_TURN
+- ONCE_PER_ROUND
+- ONCE_PER_COMBAT
+- OUTCOME_IS
+- OUTCOME_IN
+- ROLL_IS
+- ROLL_AT_LEAST
+- ROLL_AT_MOST
+- ROLL_BETWEEN
+- ROLL_IN
+- ROLL_NOT_IN
+- HP_BELOW
+- HAS_RESOURCE
+- SLOT_AVAILABLE
+- ACTOR_SENSES
 - AND
 - OR
 - NOT
@@ -275,6 +408,10 @@ Les hooks utilisent les phases `enginePhases`:
 - AUTO_SUCCESS
 - AUTO_FAIL
 - PARTIAL
+- CHECK_SUCCESS
+- CHECK_FAIL
+- CONTESTED_WIN
+- CONTESTED_LOSE
 
 ## Ressources (examples)
 
@@ -299,17 +436,17 @@ Les hooks utilisent les phases `enginePhases`:
 {
   "id": "melee-strike",
   "name": "Frappe basique",
-  "economy": { "actionType": "action" },
+  "actionCost": { "actionType": "action" },
   "targeting": {
     "target": "hostile",
-    "range": { "min": 0, "max": 1, "shape": "single" },
+    "range": { "min": 0, "max": 1, "shape": "SPHERE" },
     "maxTargets": 1,
     "requiresLos": true
   },
   "resolution": { "kind": "ATTACK_ROLL", "bonus": 5, "critRange": 20 },
   "effects": {
     "onHit": [
-      { "op": "DealDamage", "target": "primary", "formula": "1d8+modSTR", "damageType": "slashing" }
+      { "op": "DealDamage", "target": "primary", "formula": "1d8+modFOR", "damageType": "slashing" }
     ],
     "onCrit": [
       { "op": "DealDamage", "target": "primary", "formula": "1d8", "damageType": "slashing" }

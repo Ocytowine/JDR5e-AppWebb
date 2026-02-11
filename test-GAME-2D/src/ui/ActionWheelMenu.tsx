@@ -39,6 +39,7 @@ export function ActionWheelMenu(props: {
   anchorX: number;
   anchorY: number;
   size?: number;
+  categoryThreshold?: number;
   canInteractWithBoard: boolean;
   hasCell: boolean;
   isResolvingEnemies: boolean;
@@ -68,7 +69,9 @@ export function ActionWheelMenu(props: {
   const [view, setView] = useState<WheelView>("root");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  const shouldFilterByCategory = props.actions.length > 7;
+  const categoryThreshold =
+    typeof props.categoryThreshold === "number" ? props.categoryThreshold : 7;
+  const shouldFilterByCategory = props.actions.length > categoryThreshold;
   const categories = useMemo(() => {
     const set = new Set<string>();
     for (const action of props.actions) set.add(action.category);

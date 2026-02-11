@@ -23,6 +23,7 @@ export interface EffectHazard {
   damageFormula: string;
   statusRoll?: { die: number; trigger: number; statusId?: string };
   onTraverse?: boolean;
+  tick?: "start" | "end" | "round";
 }
 
 export interface EffectLight {
@@ -37,6 +38,11 @@ export interface EffectTypeDefinition {
   appearance: EffectAppearance;
   placement?: EffectPlacement;
   hazard?: EffectHazard;
+  aura?: {
+    radius: number;
+    shape?: "SPHERE" | "CONE" | "LINE" | "CUBE" | "CYLINDER";
+    includeSelf?: boolean;
+  };
   light?: EffectLight;
   [key: string]: unknown;
 }
@@ -49,4 +55,8 @@ export interface EffectInstance {
   active?: boolean;
   sourceObstacleId?: string;
   rotationDeg?: number;
+  kind?: "zone" | "surface" | "aura";
+  sourceId?: string;
+  anchorTokenId?: string;
+  concentrationSourceId?: string;
 }

@@ -31,6 +31,11 @@ export function EffectsPanel(props: {
   onToggleBumpDebug: () => void;
   onClear: () => void;
   fxAnimations: Array<{ key: string; frames: string[] }>;
+  usageDebug?: Array<{
+    actorId: string;
+    actorLabel: string;
+    actions: Array<{ id: string; label: string; turn: number; combat: number }>;
+  }>;
 }): React.JSX.Element {
   const [mode, setMode] = useState<"zones" | "animations">("zones");
   const sortedAnimations = useMemo(() => {
@@ -358,6 +363,38 @@ export function EffectsPanel(props: {
               Effacer zones
             </button>
           </div>
+          {props.usageDebug && props.usageDebug.length > 0 && (
+            <div
+              style={{
+                marginTop: 12,
+                paddingTop: 10,
+                borderTop: "1px solid rgba(255,255,255,0.08)"
+              }}
+            >
+              <h3 style={{ margin: "0 0 6px", fontSize: 13 }}>Usage actions (debug)</h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {props.usageDebug.map(actor => (
+                  <div key={actor.actorId} style={{ fontSize: 12 }}>
+                    <strong>{actor.actorLabel}</strong>
+                    {actor.actions.length === 0 ? (
+                      <div style={{ color: "#9aa0b5" }}>Aucun usage</div>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                        {actor.actions.map(action => (
+                          <div key={`${actor.actorId}-${action.id}`}>
+                            <code>{action.label}</code>{" "}
+                            <span style={{ color: "#9aa0b5" }}>
+                              (turn: {action.turn}, combat: {action.combat})
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </>
       )}
 

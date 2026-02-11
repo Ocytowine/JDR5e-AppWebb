@@ -72,13 +72,24 @@ function getResourceAmountFallback(
 
 function outcomeHasFlag(outcome: Outcome | null | undefined, flag: OutcomeFlag): boolean {
   if (!outcome) return false;
-  if (flag === "HIT") return outcome.kind === "hit";
-  if (flag === "MISS") return outcome.kind === "miss";
+  if (flag === "HIT") {
+    return (
+      outcome.kind === "hit" ||
+      outcome.kind === "crit" ||
+      outcome.kind === "checkSuccess" ||
+      outcome.kind === "contestedWin"
+    );
+  }
+  if (flag === "MISS") {
+    return outcome.kind === "miss" || outcome.kind === "checkFail" || outcome.kind === "contestedLose";
+  }
   if (flag === "CRIT") return outcome.kind === "crit";
   if (flag === "SAVE_SUCCESS") return outcome.kind === "saveSuccess";
   if (flag === "SAVE_FAIL") return outcome.kind === "saveFail";
-  if (flag === "CHECK_SUCCESS") return outcome.kind === "hit";
-  if (flag === "CHECK_FAIL") return outcome.kind === "miss";
+  if (flag === "CHECK_SUCCESS") return outcome.kind === "checkSuccess";
+  if (flag === "CHECK_FAIL") return outcome.kind === "checkFail";
+  if (flag === "CONTESTED_WIN") return outcome.kind === "contestedWin";
+  if (flag === "CONTESTED_LOSE") return outcome.kind === "contestedLose";
   if (flag === "AUTO_SUCCESS") {
     return outcome.kind === "hit" && outcome.roll === 0 && outcome.total === 0;
   }

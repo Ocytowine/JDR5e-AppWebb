@@ -1,0 +1,9 @@
+{
+  "types": [
+    "./obj-besace.json",
+    "./obj-bourse.json",
+    "./obj-carquois.json",
+    "./obj-sac-a-dos.json",
+    "./obj-sac-voyage.json"
+  ]
+}

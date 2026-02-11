@@ -1,10 +1,19 @@
 import type { TargetingSpec } from "../actionTypes";
-import type { TokenState } from "../../types";
+import type { TokenState, TokenType } from "../../types";
 import type { EffectInstance } from "../effectTypes";
 import type { AttackRollResult, DamageRollResult } from "../../dice/roller";
 import type { ConditionExpr } from "../conditions";
 
-export type OutcomeKey = "hit" | "miss" | "crit" | "saveSuccess" | "saveFail";
+export type OutcomeKey =
+  | "hit"
+  | "miss"
+  | "crit"
+  | "saveSuccess"
+  | "saveFail"
+  | "checkSuccess"
+  | "checkFail"
+  | "contestedWin"
+  | "contestedLose";
 
 export interface ResolutionSpec {
   kind: "ATTACK_ROLL" | "SAVING_THROW" | "ABILITY_CHECK" | "NO_ROLL" | "CONTESTED_CHECK";
@@ -19,6 +28,13 @@ export interface ResolutionSpec {
     ability: "FOR" | "DEX" | "CON" | "INT" | "SAG" | "CHA";
     dc: number;
   };
+  contested?: {
+    actorAbility: "FOR" | "DEX" | "CON" | "INT" | "SAG" | "CHA";
+    targetAbility: "FOR" | "DEX" | "CON" | "INT" | "SAG" | "CHA";
+    actorBonus?: number;
+    targetBonus?: number;
+    tieWinner?: "actor" | "target";
+  };
 }
 
 export interface Outcome {
@@ -26,6 +42,12 @@ export interface Outcome {
   roll: number;
   total: number;
   isCrit?: boolean;
+  contested?: {
+    actorRoll: number;
+    actorTotal: number;
+    targetRoll: number;
+    targetTotal: number;
+  };
 }
 
 interface PromptSpec {
@@ -178,6 +200,16 @@ export interface ActionPlan {
   reactionWindows: Array<"pre" | "post">;
 }
 
+export interface TargetingState {
+  targets?: TokenState[];
+  locked?: boolean;
+}
+
+export interface TargetingConfig {
+  target?: TargetingSpec["target"] | null;
+  maxTargets?: number | null;
+}
+
 export interface EngineState {
   round: number;
   phase: "player" | "enemies";
@@ -185,6 +217,9 @@ export interface EngineState {
   player: TokenState;
   enemies: TokenState[];
   effects: EffectInstance[];
+  targeting?: TargetingState;
+  targetingConfig?: TargetingConfig;
+  concentrationLink?: { sourceId: string; effectId?: string | null };
   rollContext?: {
     bonusDelta?: number;
     dcDelta?: number;
@@ -203,6 +238,16 @@ export interface ExecuteOptions {
   consumeSlot?: (slot: string, level?: number, amount?: number) => void;
   restoreSlot?: (slot: string, level?: number, amount?: number) => void;
   getSlotAmount?: (slot: string, level?: number) => number;
+  isTargetAllowed?: (token: TokenState) => boolean;
+  spawnEntity?: (params: {
+    entityTypeId: string;
+    x: number;
+    y: number;
+    ownerId: string;
+    ownerType: TokenType;
+  }) => TokenState | null;
+  despawnEntity?: (entityId: string) => void;
+  controlSummon?: (params: { entityId: string; ownerId: string }) => void;
   promptHandler?: (prompt: PromptSpec) => "accept" | "reject";
   onReactionWindow?: (phase: "pre" | "post") => "continue" | "interrupt";
   onLog?: (message: string) => void;
@@ -215,6 +260,19 @@ export interface ExecuteOptions {
     state: EngineState;
     targetCell: { x: number; y: number };
     maxSteps?: number | null;
+  }) => void;
+  onMoveForced?: (params: {
+    state: EngineState;
+    targetId: string;
+    to: { x: number; y: number };
+  }) => void;
+  onTeleport?: (params: { state: EngineState; targetId: string; to: { x: number; y: number } }) => void;
+  onSwapPositions?: (params: { state: EngineState; aId: string; bId: string }) => void;
+  onDisplace?: (params: {
+    state: EngineState;
+    targetId: string;
+    direction: { x: number; y: number };
+    distance: number;
   }) => void;
   onModifyPathLimit?: (delta: number) => void;
   onToggleTorch?: () => void;
