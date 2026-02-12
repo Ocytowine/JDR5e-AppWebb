@@ -27,6 +27,7 @@
     "melee",
     "slashing"
   ],
+  "grants": [],
   "requirements": [],
   "properties": {
     "finesse": false,
@@ -57,6 +58,13 @@
       "condition": "twoHanded"
     }
   },
+  "extraDamage": [
+    {
+      "dice": "1d4",
+      "damageType": "FIRE",
+      "when": "onHit"
+    }
+  ],
   "effectOnHit": {
     "mod": "mod.FOR",
     "damage": "1d8",

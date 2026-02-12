@@ -16,6 +16,7 @@ import { getClosestFootprintCellToPoint } from "./footprint";
 import { metersToCells } from "./units";
 import { evaluateAllConditions } from "./engine/conditionEval";
 import type { ConditionExpr, EnginePhase } from "./conditions";
+import { getWeaponLoadingUsageKey } from "./weaponRules";
 
 export interface ActionEngineContext {
   round: number;
@@ -578,6 +579,14 @@ export function computeAvailabilityForActor(
     }
   }
 
+  const loadingUsageKey = getWeaponLoadingUsageKey(action);
+  if (loadingUsageKey) {
+    const count = Number(ctx.usage?.turn?.[loadingUsageKey] ?? 0);
+    if (count >= 1) {
+      reasons.push("Arme a chargement: deja utilisee pour ce type d'action ce tour.");
+    }
+  }
+
   return { enabled: reasons.length === 0, reasons, details };
 }
 
@@ -589,6 +598,42 @@ export interface ActionResolutionResult {
   playerAfter?: TokenState;
   enemiesAfter?: TokenState[];
   outcomeKind?: "hit" | "miss" | "crit" | "saveSuccess" | "saveFail";
+}
+
+function parseWeaponTagNumber(tags: string[] | undefined, prefix: string): number | null {
+  if (!Array.isArray(tags)) return null;
+  const token = tags.find(tag => typeof tag === "string" && tag.startsWith(prefix));
+  if (!token) return null;
+  const raw = token.slice(prefix.length);
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : null;
+}
+
+function getAbilityScoreForActor(params: {
+  actor: TokenState;
+  ability: "FOR" | "DEX";
+  sampleCharacter?: ActionEngineContext["sampleCharacter"];
+}): number {
+  const { actor, ability, sampleCharacter } = params;
+  if (actor.type === "player") {
+    const score =
+      ability === "FOR"
+        ? sampleCharacter?.caracs?.force?.FOR
+        : sampleCharacter?.caracs?.dexterite?.DEX;
+    if (typeof score === "number" && Number.isFinite(score)) return score;
+  }
+  const mod =
+    ability === "FOR" ? actor.combatStats?.mods?.modFOR : actor.combatStats?.mods?.modDEX;
+  if (typeof mod === "number" && Number.isFinite(mod)) return Math.floor(mod * 2 + 10);
+  return 10;
+}
+
+function mergeAdvantageMode(base: AdvantageMode | undefined, scoreDelta: number): AdvantageMode {
+  const baseScore = base === "advantage" ? 1 : base === "disadvantage" ? -1 : 0;
+  const score = baseScore + scoreDelta;
+  if (score > 0) return "advantage";
+  if (score < 0) return "disadvantage";
+  return "normal";
 }
 
 export function resolveActionUnified(
@@ -674,6 +719,36 @@ export function resolveActionUnified(
         ? { x: target.x, y: target.y }
         : null
   });
+
+  let computedAdvantageMode = opts?.advantageMode;
+  if (action.category === "attack" && target.kind === "token") {
+    const tags = actionSpec.tags ?? [];
+    let penaltyScore = 0;
+    const normalRange = parseWeaponTagNumber(tags, "weapon:range-normal:");
+    if (typeof normalRange === "number" && normalRange > 0) {
+      const dist = distanceBetweenTokens(actor, target.token);
+      if (dist > normalRange) penaltyScore -= 1;
+    }
+    if (tags.includes("weapon:heavy")) {
+      const modeIsRanged = tags.includes("weapon:mode:ranged");
+      if (modeIsRanged) {
+        const dexScore = getAbilityScoreForActor({
+          actor,
+          ability: "DEX",
+          sampleCharacter: ctx.sampleCharacter
+        });
+        if (dexScore < 13) penaltyScore -= 1;
+      } else {
+        const strScore = getAbilityScoreForActor({
+          actor,
+          ability: "FOR",
+          sampleCharacter: ctx.sampleCharacter
+        });
+        if (strScore < 13) penaltyScore -= 1;
+      }
+    }
+    computedAdvantageMode = mergeAdvantageMode(opts?.advantageMode, penaltyScore);
+  }
 
   const applyMoveTo = (params: {
     state: { actor: TokenState; player: TokenState; enemies: TokenState[] };
@@ -805,7 +880,7 @@ export function resolveActionUnified(
       onGrantTempHp: ctx.onGrantTempHp,
       onPlayVisualEffect: ctx.onPlayVisualEffect
     },
-    advantageMode: opts?.advantageMode
+    advantageMode: computedAdvantageMode
   });
 
   if (!exec.ok) {

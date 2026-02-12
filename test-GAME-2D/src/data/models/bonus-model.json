@@ -1,0 +1,14 @@
+{
+  "id": "bonus-id",
+  "label": "Nom du bonus",
+  "summary": "Description courte du bonus.",
+  "stat": "modFOR",
+  "value": 1,
+  "mode": "add",
+  "tags": [],
+  "requirements": [],
+  "source": {
+    "book": "PHB2024",
+    "page": 0
+  }
+}

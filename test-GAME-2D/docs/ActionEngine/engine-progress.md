@@ -74,7 +74,7 @@ Actions:
 2. Injecter:
    - lineOfSight (via `isTargetVisible`)
    - sameLevel (via `areOnSameBaseLevel`)
-   - targetInArea (si action = AOE)
+   - targetInArea (si action = zone)
    - inLight (via `lightLevels` + `resolveLightVisionMode` si dispo)
    - usage (turn/round/combat) depuis GameBoard
    - reactionAvailable / concentrating / surprised (si stockes par actor)

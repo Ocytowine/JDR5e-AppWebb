@@ -6,6 +6,14 @@ tout en ajoutant des **gains par niveau** (features, actions, reactions, passifs
 
 Objectif : rendre le passage de niveau effectif en jeu, sans logique hardcodee dans le moteur.
 
+## Etat actuel (important)
+
+- **Fonctionnel**: Clerc (classe + sous-classe `peace-domain`) utilise `progression` + `grants` et est bien pris en compte par le PlayerCharacterCreator.
+- **Placeholders**: Guerrier + `eldritch-knight` n'ont pas encore de `progression` (JSON incomplets), donc non fonctionnels en progression.
+- **Races**: utilisent encore `grants` simples (traits) sans `progression` multi-niveaux.
+
+Ce document decrit la **cible** et le schema commun vise, mais l'implementation actuelle est **partielle**.
+
 ---
 
 ## Concept de base
@@ -82,7 +90,7 @@ Utiliser `src/data/reactions/index.json`.
 ```
 
 ### Passifs (Status types)
-Utiliser `src/data/passifs/index.json`.
+Utiliser `src/data/passifs/index.json` (un `passif` = un **status type** cote engine).
 
 ```json
 { "kind": "passif", "ids": ["burning"] }

@@ -56,7 +56,8 @@ Une action pipeline est composee de:
 - `id`: identifiant unique (slug stable). Utilise pour lier actions, logs, analytics.
 - `name`: nom affiche en UI.
 - `category`: typage de haut niveau (ex: `attack`, `support`, `move`). Sert a l'UI et aux choix IA.
-- `tags`: mots clefs libres (ex: `melee`, `ranged`, `spell`, `fire`). Utilises dans les conditions et hooks.
+- `tags`: mots clefs libres (ex: `melee`, `ranged`, `spell`, `fire`, `area`). Utilises dans les conditions et hooks.
+Note: `AOE` n'est pas lu par l'engine; preferer `area` si besoin descriptif.
 
 ### Cout d'action
 - `actionCost.actionType`: `action` | `bonus` | `reaction` | `free`.
@@ -169,4 +170,3 @@ Approuve:
 - Les effets conditionnels vont dans les branches, pas en logique externe.
 - Preferer des operations courtes et composables.
 - Toujours documenter un cas de test minimal.
-

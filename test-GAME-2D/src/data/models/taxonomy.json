@@ -81,19 +81,19 @@
     "BURROW"
   ],
   "damageTypes": [
-    "ACID",
-    "BLUDGEONING",
-    "COLD",
-    "FIRE",
-    "FORCE",
-    "LIGHTNING",
-    "NECROTIC",
-    "PIERCING",
-    "POISON",
-    "PSYCHIC",
-    "RADIANT",
-    "SLASHING",
-    "THUNDER"
+    "acid",
+    "bludgeoning",
+    "cold",
+    "fire",
+    "force",
+    "lightning",
+    "necrotic",
+    "piercing",
+    "poison",
+    "psychic",
+    "radiant",
+    "slashing",
+    "thunder"
   ],
   "damageTags": [
     "MAGICAL",
@@ -441,6 +441,24 @@
       ]
     }
   },
+  "grant": {
+    "kind": [
+      "action",
+      "reaction",
+      "passif",
+      "feature",
+      "spell",
+      "resource",
+      "bonus"
+    ],
+    "ids": "string[]",
+    "inline": "bonus[]",
+    "source": "string?",
+    "meta": {
+      "maxByLevel": "object",
+      "recharge": "short_rest | long_rest | none"
+    }
+  },
   "moveType": {
     "model": "./move-type-model.json",
     "extends": "action",
@@ -587,6 +605,7 @@
         "copper": "number"
       },
       "tags": "string[]",
+      "grants": "grant[]",
       "properties": {
         "finesse": "boolean",
         "light": "boolean",
@@ -621,6 +640,7 @@
           "condition": "string"
         }
       },
+      "extraDamage": "Array<{ dice: string, damageType: damageTypeId, when?: onHit|onCrit|onResolve|onMiss }>",
       "effectOnHit": {
         "mod": "string",
         "damage": "string",
@@ -629,6 +649,66 @@
       "links": {
         "actionId": "string|null",
         "effectId": "string|null"
+      }
+    }
+  },
+  "armor": {
+    "model": "./armor-model.json",
+    "type": [
+      "armor"
+    ],
+    "armorCategory": [
+      "light",
+      "medium",
+      "heavy",
+      "shield"
+    ],
+    "fields": {
+      "id": "string",
+      "label": "string",
+      "source": "object",
+      "type": "string",
+      "armorCategory": "string",
+      "baseAC": "number",
+      "dexCap": "number|null",
+      "weight": "number",
+      "harmonisable": "boolean",
+      "tags": "string[]",
+      "grants": "grant[]",
+      "requirements": "array",
+      "description": "string",
+      "category": "string",
+      "value": {
+        "platinum": "number",
+        "gold": "number",
+        "silver": "number",
+        "copper": "number"
+      }
+    }
+  },
+  "object": {
+    "model": "./object-model.json",
+    "type": [
+      "object"
+    ],
+    "fields": {
+      "id": "string",
+      "label": "string",
+      "source": "object",
+      "type": "string",
+      "category": "string",
+      "weight": "number",
+      "harmonisable": "boolean",
+      "tags": "string[]",
+      "grants": "grant[]",
+      "requirements": "array",
+      "description": "string",
+      "capacityWeight": "number",
+      "value": {
+        "platinum": "number",
+        "gold": "number",
+        "silver": "number",
+        "copper": "number"
       }
     }
   },
@@ -770,6 +850,29 @@
   },
   "passif": {
     "model": "./passif-model.json"
+  },
+  "bonus": {
+    "model": "./bonus-model.json",
+    "stat": [
+      "modFOR",
+      "modDEX",
+      "modCON",
+      "modINT",
+      "modSAG",
+      "modCHA",
+      "armorClass",
+      "maxHp",
+      "moveRange",
+      "attackBonus",
+      "maxAttacksPerTurn",
+      "actionsPerTurn",
+      "bonusActionsPerTurn"
+    ],
+    "mode": [
+      "add",
+      "set",
+      "max"
+    ]
   },
   "currency": {
     "value": {

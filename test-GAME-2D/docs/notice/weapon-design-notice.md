@@ -27,7 +27,8 @@ Ce document sert de reference pour creer des armes au format data item, avec var
   "size": 0.4,
   "value": { "gold": 2, "silver": 0, "copper": 0, "platinum": 0 },
   "rarity": "commune",
-  "tags": ["arme", "melee", "piercing", "material:metal"],
+  "tags": ["arme", "melee", "piercing", "metal"],
+  "grants": [],
   "properties": {
     "finesse": true,
     "light": true,
@@ -46,8 +47,9 @@ Ce document sert de reference pour creer des armes au format data item, avec var
   },
   "weaponMastery": ["coup_double"],
   "attack": { "mod": "mod.DEX", "bonus": "bonus_maitrise" },
-  "damage": { "dice": "1d4", "damageType": "PIERCING", "alt": null },
-  "effectOnHit": { "mod": "mod.DEX", "damage": "1d4", "damageType": "PIERCING" },
+  "damage": { "dice": "1d4", "damageType": "piercing", "alt": null },
+  "extraDamage": [{ "dice": "1d4", "damageType": "fire", "when": "onHit" }],
+  "effectOnHit": { "mod": "mod.DEX", "damage": "1d4", "damageType": "piercing" },
   "links": { "actionId": null, "effectId": "melee-slash" }
 }
 ```
@@ -61,14 +63,54 @@ Ce document sert de reference pour creer des armes au format data item, avec var
 - `category`: `melee` | `distance` | `polyvalent`.
 - `descriptionCourte` / `descriptionLongue`.
 - `weight`, `size`, `value`, `rarity`.
-- `tags`: tags gameplay + `material:<id>`.
+- `tags`: tags gameplay + tag de materiau (ex: `wood`, `metal`, `leather`).
+- `grants`: bonus/passifs/actions fournis quand l'arme est equipee (pattern `grant` de la taxo, mode hybride `ids|inline` pour `kind=bonus`).
 - `properties`: proprietes DnD (voir variantes).
 - `weaponMastery`: liste de bottes d'arme actives pour cette arme (voir liste).
 - `attack`: modificateur et bonus de maitrise.
 - `damage`: des et type.
+- `extraDamage`: degats additionnels (multi-types) appliques selon `when` (`onHit/onCrit/onResolve/onMiss`).
 - `effectOnHit`: format court d'impact (compat UI).
 - `links.actionId`: action propre a l'arme (optionnelle). Peut rester `null`.
 - `links.effectId`: effet visuel (optionnel).
+Note: pour les bonus, voir `docs/notice/bonus-design-notice.md`.
+
+## Grants bonus (hybride)
+
+### Bonus catalogue
+
+```json
+{
+  "grants": [
+    { "kind": "bonus", "ids": ["bonus-attack-1"] }
+  ]
+}
+```
+
+### Bonus inline (propre a l'arme)
+
+```json
+{
+  "grants": [
+    {
+      "kind": "bonus",
+      "inline": [
+        {
+          "id": "bonus-local-rapiere-precision",
+          "label": "+1 attaque",
+          "summary": "Bonus d'attaque tant que l'arme est equipee.",
+          "stat": "attackBonus",
+          "value": 1,
+          "mode": "add",
+          "tags": ["equip", "weapon"],
+          "requirements": [],
+          "source": { "book": "PHB2024", "page": 0 }
+        }
+      ]
+    }
+  ]
+}
+```
 
 ## Variantes de proprietes (patterns)
 
@@ -126,7 +168,7 @@ Ce document sert de reference pour creer des armes au format data item, avec var
 ```json
 {
   "properties": { "versatile": "1d10", "twoHanded": false },
-  "damage": { "dice": "1d8", "damageType": "SLASHING", "alt": "1d10" }
+  "damage": { "dice": "1d8", "damageType": "slashing", "alt": "1d10" }
 }
 ```
 
@@ -142,8 +184,8 @@ Ce document sert de reference pour creer des armes au format data item, avec var
 
 - `ammoType` + `ammoPerShot` pilotent la consommation auto (munitions).
 - `range` = portee melee ou tir (m) selon categorie.
-- Les tags de degats doivent rester en enum EN (ex: `SLASHING`, `PIERCING`).
-- `material:<id>` est obligatoire si le materiau est pertinent.
+- Les `damageType` sont en minuscules (ex: `slashing`, `piercing`).
+- Ajouter un tag de materiau si pertinent (ex: `wood`, `metal`, `leather`).
 
 ## Bottes d'arme (weaponMastery)
 

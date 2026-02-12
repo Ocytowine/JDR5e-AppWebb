@@ -19,7 +19,8 @@ Ce document sert de reference pour creer des armures au format data item, avec v
   "baseAC": 11,
   "dexCap": null,
   "weight": 5,
-  "tags": ["armure", "legere", "material:leather"],
+  "tags": ["armure", "legere", "leather"],
+  "grants": [],
   "description": "Armure legere en cuir.",
   "category": "armor_body",
   "value": { "platinum": 0, "gold": 10.0, "silver": 0, "copper": 0 }
@@ -35,10 +36,12 @@ Ce document sert de reference pour creer des armures au format data item, avec v
 - `baseAC`: bonus de CA de base.
 - `dexCap`: plafond du bonus Dex (null si pas de plafond).
 - `weight`: poids.
-- `tags`: tags gameplay + `material:<id>`.
+- `tags`: tags gameplay + tag de materiau (ex: `wood`, `metal`, `leather`).
+- `grants`: bonus/passifs/actions fournis quand l'armure est equipee (pattern `grant` de la taxo).
 - `description`: texte court.
 - `category`: `armor_body` | `shield` (selon l'item).
 - `value`: prix par devise.
+Note: pour les bonus, voir `docs/notice/bonus-design-notice.md`.
 
 ## Variantes (patterns)
 
@@ -49,7 +52,7 @@ Ce document sert de reference pour creer des armures au format data item, avec v
   "armorCategory": "light",
   "baseAC": 11,
   "dexCap": null,
-  "tags": ["armure", "legere", "material:leather"]
+  "tags": ["armure", "legere", "leather"]
 }
 ```
 
@@ -60,7 +63,7 @@ Ce document sert de reference pour creer des armures au format data item, avec v
   "armorCategory": "medium",
   "baseAC": 13,
   "dexCap": 2,
-  "tags": ["armure", "intermediaire", "material:metal"]
+  "tags": ["armure", "intermediaire", "metal"]
 }
 ```
 
@@ -71,7 +74,7 @@ Ce document sert de reference pour creer des armures au format data item, avec v
   "armorCategory": "heavy",
   "baseAC": 16,
   "dexCap": 0,
-  "tags": ["armure", "lourde", "material:metal"]
+  "tags": ["armure", "lourde", "metal"]
 }
 ```
 
@@ -83,7 +86,7 @@ Ce document sert de reference pour creer des armures au format data item, avec v
   "baseAC": 2,
   "dexCap": null,
   "category": "shield",
-  "tags": ["armure", "bouclier", "material:wood"]
+  "tags": ["armure", "bouclier", "wood"]
 }
 ```
 
@@ -91,4 +94,4 @@ Ce document sert de reference pour creer des armures au format data item, avec v
 
 - `baseAC` = contribution de l'armure a la CA (regle locale).
 - `dexCap` = plafond du bonus Dex si applicable.
-- Ajouter `material:<id>` (ex: `material:metal`, `material:leather`).
+- Ajouter un tag de materiau (ex: `metal`, `leather`).

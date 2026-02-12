@@ -41,7 +41,7 @@ Le moteur d'execution supporte:
 - creatureTypes
 - sizeCategories
 - movementTypes
-- damageTypes
+- damageTypes (lowercase)
 - damageTags
 - conditionTypes
 - senses
@@ -113,7 +113,7 @@ Le moteur d'execution supporte:
 - damage:
   - formula: string
   - critRule: double-dice | double-total
-  - damageType: damageTypeId
+  - damageType: damageTypeId (lowercase)
 - conditions.types:
   - ACTOR_CREATURE_TYPE_IS
   - TARGET_CREATURE_TYPE_IS
@@ -463,7 +463,7 @@ Les hooks utilisent les phases `enginePhases`:
  * dnd2024.taxonomy.ts
  * Single-file taxonomy for a D&D 2024-ish rules engine (data-driven).
  * - No examples included.
- * - Focus: creature typing, damage typing, conditions, tags, expressions, durations.
+* - Focus: creature typing, damage typing, conditions, tags, expressions, durations.
  * ========================================================================== */
 
 export type ID = string;

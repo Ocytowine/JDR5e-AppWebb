@@ -45,6 +45,13 @@ export type WeaponDamageProfile = {
   alt?: WeaponDamageAlt | null;
 };
 
+export type WeaponExtraDamageProfile = {
+  dice: string;
+  damageType: string;
+  damageTypeId?: DamageTypeId | null;
+  when?: "onHit" | "onCrit" | "onResolve" | "onMiss" | string;
+};
+
 export type WeaponOnHitProfile = {
   mod: string;
   damage: string;
@@ -76,6 +83,7 @@ export interface WeaponTypeDefinition {
   properties?: WeaponProperties;
   attack?: WeaponAttackProfile;
   damage?: WeaponDamageProfile;
+  extraDamage?: WeaponExtraDamageProfile[];
   effectOnHit?: WeaponOnHitProfile;
   weaponMastery?: string[];
   links?: WeaponLinks;

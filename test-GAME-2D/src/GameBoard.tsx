@@ -65,6 +65,7 @@ import { loadToolItemsFromIndex } from "./PlayerCharacterCreator/catalogs/toolCa
 import { loadObjectItemsFromIndex } from "./PlayerCharacterCreator/catalogs/objectCatalog";
 import { loadArmorItemsFromIndex } from "./PlayerCharacterCreator/catalogs/armorCatalog";
 import { loadAmmoTypesFromIndex } from "./game/ammoCatalog";
+import { loadBonusTypesFromIndex } from "./game/bonusCatalog";
 import type { ObstacleInstance, ObstacleTypeDefinition } from "./game/obstacleTypes";
 import type { EffectInstance, EffectTypeDefinition } from "./game/effectTypes";
 import type { StatusDefinition } from "./game/statusTypes";
@@ -80,6 +81,7 @@ import type { ToolItemDefinition } from "./game/toolTypes";
 import type { ObjectItemDefinition } from "./game/objectTypes";
 import type { ArmorItemDefinition } from "./game/armorTypes";
 import type { AmmoItemDefinition } from "./game/ammoTypes";
+import type { BonusDefinition } from "./game/bonusTypes";
 import { generateBattleMap } from "./game/mapEngine";
 import { getHeightAtGrid, type TerrainCell } from "./game/map/draft";
 import { buildTerrainMixLayer } from "./game/map/terrainMix";
@@ -113,6 +115,14 @@ import {
   type ActionTarget
 } from "./game/actionEngine";
 import { buildActionPlan, type ActionPlan } from "./game/actionPlan";
+import { applyEquipmentBonusesToCombatStats } from "./game/equipmentBonusResolver";
+import {
+  buildWeaponOverrideAction,
+  computeWeaponAttackBonus as computeWeaponAttackBonusFromRules,
+  getWeaponIdFromActionTags,
+  getWeaponLoadingUsageKey,
+  resolveWeaponModToken
+} from "./game/weaponRules";
 import {
   GRID_COLS,
   GRID_ROWS,
@@ -695,6 +705,8 @@ export const GameBoard: React.FC = () => {
     [defaultMovementMode]
   );
   const [armorItems, setArmorItems] = useState<ArmorItemDefinition[]>([]);
+  // Actions loaded from JSON
+  const [actionsCatalog, setActionsCatalog] = useState<ActionDefinition[]>([]);
   const armorItemsById = useMemo(() => {
     const map = new Map<string, ArmorItemDefinition>();
     for (const item of armorItems) {
@@ -703,15 +715,61 @@ export const GameBoard: React.FC = () => {
     }
     return map;
   }, [armorItems]);
+  const weaponMasteryActions = useMemo(
+    () =>
+      actionsCatalog.filter(
+        action => Array.isArray(action.tags) && action.tags.includes("weaponMastery")
+      ),
+    [actionsCatalog]
+  );
+  const weaponMasteryIds = useMemo(
+    () =>
+      weaponMasteryActions
+        .map(action => {
+          const id =
+            typeof action.id === "string" && action.id.startsWith("wm-")
+              ? action.id.slice("wm-".length)
+              : null;
+          if (id) return id;
+          const tags = Array.isArray(action.tags) ? action.tags : [];
+          const candidate = tags.find(
+            tag => tag !== "weaponMastery" && !tag.startsWith("wm-trigger:")
+          );
+          return candidate ?? null;
+        })
+        .filter((id): id is string => Boolean(id)),
+    [weaponMasteryActions]
+  );
   const baseCombatStats: CombatStats = useMemo(
     () => {
       const built = buildCombatStatsFromCharacter(activeCharacterConfig, armorItemsById);
-      if (!activeCharacterConfig.combatStats) return built;
-      return {
+      const merged = !activeCharacterConfig.combatStats
+        ? built
+        : {
         ...built,
         ...activeCharacterConfig.combatStats,
         armorClass: built.armorClass
       };
+      const weaponById = new Map<string, WeaponTypeDefinition>();
+      loadWeaponTypesFromIndex().forEach(def => {
+        if (def?.id) weaponById.set(def.id, def);
+      });
+      const objectById = new Map<string, ObjectItemDefinition>();
+      loadObjectItemsFromIndex().forEach(def => {
+        if (def?.id) objectById.set(def.id, def);
+      });
+      const bonusById = new Map<string, BonusDefinition>();
+      loadBonusTypesFromIndex().forEach(def => {
+        if (def?.id) bonusById.set(def.id, def);
+      });
+      return applyEquipmentBonusesToCombatStats({
+        character: activeCharacterConfig,
+        baseStats: merged,
+        weaponById,
+        armorById: armorItemsById,
+        objectById,
+        bonusById
+      }).stats;
     },
     [activeCharacterConfig, armorItemsById]
   );
@@ -857,8 +915,6 @@ export const GameBoard: React.FC = () => {
 
   const boardBackgroundColor = boardThemeColor(mapTheme);
 
-  // Actions loaded from JSON
-  const [actionsCatalog, setActionsCatalog] = useState<ActionDefinition[]>([]);
   // Player actions loaded from JSON (filtered by actionIds)
   const [actions, setActions] = useState<ActionDefinition[]>([]);
   const [moveTypes, setMoveTypes] = useState<MoveTypeDefinition[]>([]);
@@ -1178,31 +1234,6 @@ export const GameBoard: React.FC = () => {
     for (const action of actionsCatalog) map.set(action.id, action);
     return map;
   }, [actionsCatalog]);
-  const weaponMasteryActions = useMemo(
-    () =>
-      actionsCatalog.filter(
-        action => Array.isArray(action.tags) && action.tags.includes("weaponMastery")
-      ),
-    [actionsCatalog]
-  );
-  const weaponMasteryIds = useMemo(
-    () =>
-      weaponMasteryActions
-        .map(action => {
-          const id =
-            typeof action.id === "string" && action.id.startsWith("wm-")
-              ? action.id.slice("wm-".length)
-              : null;
-          if (id) return id;
-          const tags = Array.isArray(action.tags) ? action.tags : [];
-          const candidate = tags.find(
-            tag => tag !== "weaponMastery" && !tag.startsWith("wm-trigger:")
-          );
-          return candidate ?? null;
-        })
-        .filter((id): id is string => Boolean(id)),
-    [weaponMasteryActions]
-  );
   const actionInfoById = useMemo(() => {
     const map = new Map<string, ActionDefinition>(actionCatalogById);
     for (const [id, action] of reactionActionById) {
@@ -2831,7 +2862,8 @@ export const GameBoard: React.FC = () => {
       });
       setPlayer(playerCopy);
       setEnemies(enemiesCopy);
-      updateActionUsageForActor(actor.id, actionId, 1);
+      updateActionUsageForActor(actor.id, action.id, 1);
+      updateWeaponPropertyUsageForAction(actor.id, action, 1);
       return true;
     };
 
@@ -2973,10 +3005,38 @@ export const GameBoard: React.FC = () => {
     }
     const id = `combat-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     setCombatToast({ id, text, kind });
+    const COMBAT_TOAST_DURATION_MS = 5200;
     combatToastTimerRef.current = window.setTimeout(() => {
       setCombatToast(current => (current?.id === id ? null : current));
       combatToastTimerRef.current = null;
-    }, 3200);
+    }, COMBAT_TOAST_DURATION_MS);
+  }
+
+  function formatDamageTypeLabel(damageType?: string | null): string | null {
+    if (!damageType) return null;
+    const normalized = damageType.toString().trim().toUpperCase();
+    if (!normalized) return null;
+    const labels: Record<string, string> = {
+      BLUDGEONING: "contondant",
+      PIERCING: "perforant",
+      SLASHING: "tranchant",
+      FIRE: "feu",
+      COLD: "froid",
+      LIGHTNING: "foudre",
+      THUNDER: "tonnerre",
+      POISON: "poison",
+      ACID: "acide",
+      NECROTIC: "necrotique",
+      RADIANT: "radiant",
+      PSYCHIC: "psychique",
+      FORCE: "force"
+    };
+    return labels[normalized] ?? normalized.toLowerCase();
+  }
+
+  function buildDamageTypeSuffix(damageType?: string | null): string {
+    const label = formatDamageTypeLabel(damageType);
+    return label ? `, type ${label}` : "";
   }
 
   function reactionCombatKey(actorId: string, reactionId: string): string {
@@ -4906,6 +4966,11 @@ export const GameBoard: React.FC = () => {
       }
     }
 
+    const weaponConstraintIssues = getWeaponActionConstraintIssues(action, player);
+    if (weaponConstraintIssues.length > 0) {
+      reasons.push(...weaponConstraintIssues);
+    }
+
     return {
       enabled: reasons.length === 0,
       reasons,
@@ -5135,18 +5200,6 @@ export const GameBoard: React.FC = () => {
     return actions.find(a => a.id === id) || moveTypes.find(a => a.id === id) || null;
   }
 
-  function normalizeWeaponModToken(mod: string | null | undefined): string | null {
-    if (!mod) return null;
-    const cleaned = String(mod).replace(/\s+/g, "");
-    if (cleaned === "mod.FOR" || cleaned === "modFOR") return "modFOR";
-    if (cleaned === "mod.DEX" || cleaned === "modDEX") return "modDEX";
-    if (cleaned === "mod.CON" || cleaned === "modCON") return "modCON";
-    if (cleaned === "mod.INT" || cleaned === "modINT") return "modINT";
-    if (cleaned === "mod.SAG" || cleaned === "modSAG" || cleaned === "mod.WIS" || cleaned === "modWIS") return "modSAG";
-    if (cleaned === "mod.CHA" || cleaned === "modCHA") return "modCHA";
-    return null;
-  }
-
   function getEnemyWeaponIds(enemy: TokenState): string[] {
     const enemyType = enemyTypeById.get(enemy.enemyTypeId ?? "") ?? null;
     const slots = enemyType?.armesDefaut ?? null;
@@ -5227,12 +5280,18 @@ export const GameBoard: React.FC = () => {
   ): WeaponTypeDefinition | null {
     const weapons = getWeaponsForActor(actor, options);
     if (!weapons || weapons.length === 0) return null;
+    const taggedWeaponId = getWeaponIdFromActionTags(action.tags ?? []);
+    if (taggedWeaponId) {
+      const taggedWeapon = weapons.find(weapon => weapon.id === taggedWeaponId) ?? null;
+      if (taggedWeapon) return taggedWeapon;
+    }
     const tags = action.tags ?? [];
     const wantsRanged = tags.includes("ranged") || action.targeting?.range?.max > 1.5;
     if (wantsRanged) {
       return (
         weapons.find(w => w.category === "distance") ??
         weapons.find(w => w.properties?.range?.normal) ??
+        weapons.find(w => w.properties?.thrown?.normal) ??
         null
       );
     }
@@ -5279,6 +5338,80 @@ export const GameBoard: React.FC = () => {
     return { ammoType, amount, weaponId: weapon.id ?? null };
   }
 
+  function isShieldEquippedByPlayer(): boolean {
+    const inventory = Array.isArray((activeCharacterConfig as any)?.inventoryItems)
+      ? ((activeCharacterConfig as any).inventoryItems as Array<any>)
+      : [];
+    return inventory.some(item => {
+      if (item?.type !== "armor" || !item?.equippedSlot) return false;
+      const def = armorItemsById.get(item.id);
+      return def?.armorCategory === "shield";
+    });
+  }
+
+  function getWeaponActionConstraintIssues(
+    action: ActionDefinition,
+    actor: TokenState,
+    options?: { reaction?: boolean }
+  ): string[] {
+    if (action.category !== "attack") return [];
+    const weapon = pickWeaponForAction(action, actor, options);
+    if (!weapon) return [];
+    const reasons: string[] = [];
+
+    if (weapon.properties?.twoHanded && actor.type === "player" && isShieldEquippedByPlayer()) {
+      reasons.push("Arme a deux mains incompatible avec un bouclier equipe.");
+    }
+
+    const loadingUsageKey = getWeaponLoadingUsageKey(action);
+    if (loadingUsageKey) {
+      const used = Number(getActionUsageForActor(actor.id).turn[loadingUsageKey] ?? 0);
+      if (used >= 1) {
+        reasons.push("Arme a chargement: deja utilisee pour ce type d'action ce tour.");
+      }
+    }
+
+    if (weapon.properties?.ammunition) {
+      const ammoType = inferAmmoTypeFromWeapon(weapon);
+      if (!ammoType) {
+        reasons.push(`Type de munition introuvable pour ${weapon.name}.`);
+      } else if (actor.type === "player" && isPhysicalResource(ammoType)) {
+        const amount =
+          typeof weapon.properties?.ammoPerShot === "number" && weapon.properties.ammoPerShot > 0
+            ? weapon.properties.ammoPerShot
+            : 1;
+        const available = activeCharacterConfig
+          ? getInventoryResourceCount(activeCharacterConfig, ammoType)
+          : 0;
+        if (available < amount) {
+          reasons.push(`Munitions insuffisantes (${ammoType}: ${available}/${amount}).`);
+        }
+      }
+    }
+
+    return reasons;
+  }
+
+  function shouldUseTwoHandedDamageForAction(
+    action: ActionDefinition,
+    actor: TokenState,
+    weapon: WeaponTypeDefinition
+  ): boolean {
+    const versatile = weapon.properties?.versatile;
+    if (typeof versatile !== "string" || !versatile.trim()) return false;
+    const tags = action.tags ?? [];
+    const isRangedMode = tags.includes("ranged") || action.targeting?.range?.max > 1.5;
+    if (isRangedMode) return false;
+    if (actor.type === "player") return !isShieldEquippedByPlayer();
+    return true;
+  }
+
+  function updateWeaponPropertyUsageForAction(actorId: string, action: ActionDefinition, delta: number) {
+    const loadingUsageKey = getWeaponLoadingUsageKey(action);
+    if (!loadingUsageKey) return;
+    updateActionUsageForActor(actorId, loadingUsageKey, delta);
+  }
+
   function actionSpendsResource(action: ActionDefinition, name: string): boolean {
     if (!action.ops || !name) return false;
     const match = name.toLowerCase();
@@ -5294,19 +5427,15 @@ export const GameBoard: React.FC = () => {
   }
 
   function computeWeaponAttackBonus(actor: TokenState, weapon: WeaponTypeDefinition): number {
-    const modToken = normalizeWeaponModToken(weapon.attack?.mod ?? null);
-    const abilityMod = getAbilityModForActor(actor, modToken);
-    const profs = getWeaponProficienciesForActor(actor);
-    const proficient = profs.includes(weapon.subtype);
-    const profBonus = proficient ? getProficiencyBonusForActor(actor) : 0;
-    const bonusSpec = weapon.attack?.bonus;
-    const extraBonus =
-      typeof bonusSpec === "number"
-        ? bonusSpec
-        : typeof bonusSpec === "string" && bonusSpec === "bonus_maitrise"
-        ? profBonus
-        : 0;
-    return abilityMod + extraBonus;
+    const modToken = resolveWeaponModToken({ actor, weapon, getAbilityModForActor });
+    return computeWeaponAttackBonusFromRules({
+      actor,
+      weapon,
+      getAbilityModForActor,
+      getProficiencyBonusForActor,
+      getWeaponProficienciesForActor,
+      forceModToken: modToken
+    });
   }
 
   function applyWeaponOverrideForActor(
@@ -5317,66 +5446,21 @@ export const GameBoard: React.FC = () => {
     if (action.category !== "attack") return action;
     const weapon = pickWeaponForAction(action, actor, options);
     if (!weapon) return action;
+    const tags = action.tags ?? [];
+    const prefersRanged = tags.includes("ranged") || action.targeting?.range?.max > 1.5;
+    const modToken = resolveWeaponModToken({ actor, weapon, getAbilityModForActor });
+    const useTwoHandedDamage = shouldUseTwoHandedDamageForAction(action, actor, weapon);
 
-    const weaponMasteries = Array.isArray(weapon.weaponMastery) ? weapon.weaponMastery : [];
-    const masteryTags = weaponMasteries.map(id => `wm-active:${id}`);
-    const weaponTags = weapon.properties?.light ? ["weapon:light"] : [];
-    const nextTags = Array.from(new Set([...(action.tags ?? []), ...masteryTags, ...weaponTags]));
-
-    const damageDice = weapon.effectOnHit?.damage ?? weapon.damage?.dice ?? null;
-    const damageType = weapon.effectOnHit?.damageType ?? weapon.damage?.damageType ?? null;
-    const modToken = normalizeWeaponModToken(weapon.effectOnHit?.mod ?? weapon.attack?.mod);
-    if (!damageDice) {
-      return { ...action, tags: nextTags };
-    }
-
-    const formula = modToken ? `${damageDice} + ${modToken}` : damageDice;
     const attackBonus = computeWeaponAttackBonus(actor, weapon);
-
-    const nextAction: ActionDefinition = {
-      ...action,
-      tags: nextTags,
-      attack: action.attack
-        ? { ...action.attack, bonus: attackBonus }
-        : { bonus: attackBonus, critRange: 20 },
-      damage: action.damage
-        ? { ...action.damage, formula, damageType: damageType ?? action.damage.damageType }
-        : action.damage,
-      targeting: action.targeting
-        ? {
-            ...action.targeting,
-            range: {
-              ...action.targeting.range,
-              max:
-                weapon.properties?.range?.normal ??
-                weapon.properties?.reach ??
-                action.targeting.range.max
-            }
-          }
-        : action.targeting,
-      ops: action.ops
-        ? Object.fromEntries(
-            Object.entries(action.ops).map(([key, list]) => [
-              key,
-              Array.isArray(list)
-                ? list.map(op => {
-                    if (op?.op !== "DealDamage") return op;
-                    const currentFormula = String(op.formula ?? "");
-                    const shouldOverride = currentFormula === action.damage?.formula;
-                    if (!shouldOverride) return op;
-                    return {
-                      ...op,
-                      formula,
-                      damageType: damageType ?? op.damageType
-                    };
-                  })
-                : list
-            ])
-          )
-        : action.ops
-    };
-
-    return nextAction;
+    return buildWeaponOverrideAction({
+      action,
+      actor,
+      weapon,
+      attackBonus,
+      modToken,
+      prefersRanged,
+      useTwoHandedDamage
+    });
   }
 
   function getEnemyAttackAction(enemy: TokenState): ActionDefinition | null {
@@ -5411,6 +5495,19 @@ export const GameBoard: React.FC = () => {
       return 1.5;
     });
     return Math.max(1.5, ...reachValues);
+  }
+
+  function getActorOpportunityReach(actor: TokenState): number {
+    const weapons = getWeaponsForActor(actor, { reaction: true });
+    if (!weapons || weapons.length === 0) return 1.5;
+    const meleeReaches = weapons
+      .filter(weapon => weapon.category === "melee" || weapon.category === "polyvalent")
+      .map(weapon => {
+        const reach = weapon.properties?.reach;
+        return typeof reach === "number" && reach > 0 ? reach : 1.5;
+      });
+    if (meleeReaches.length === 0) return 1.5;
+    return Math.max(1.5, ...meleeReaches);
   }
 
   function rollEnemyAttackDamage(enemy: TokenState, attacks: number): number {
@@ -5746,6 +5843,11 @@ export const GameBoard: React.FC = () => {
       pushLog("Cible manquante pour l'action.");
       return false;
     }
+    const constraintIssues = getWeaponActionConstraintIssues(action, player);
+    if (constraintIssues.length > 0) {
+      pushLog(`Action impossible: ${constraintIssues.join(" | ")}`);
+      return false;
+    }
     const attackOverride = overrides?.attackRoll ?? attackRoll ?? null;
     let damageUsed = false;
     const damageOverride = overrides?.damageRoll ?? damageRoll ?? null;
@@ -5867,6 +5969,7 @@ export const GameBoard: React.FC = () => {
     }
 
     updateActionUsageForActor(player.id, action.id, 1);
+    updateWeaponPropertyUsageForAction(player.id, action, 1);
 
     const nextEnemies = applySummonTurnOrder({
       prevEnemies: enemies,
@@ -6778,6 +6881,11 @@ export const GameBoard: React.FC = () => {
         }
       };
     }
+    const constraintIssues = getWeaponActionConstraintIssues(action, params.reactor, { reaction: true });
+    if (constraintIssues.length > 0) {
+      pushLog(`Reaction impossible: ${constraintIssues.join(" | ")}`);
+      return;
+    }
     const ammoUsage = resolveAmmoUsageForAction(action, params.reactor, { reaction: true });
     const ammoSpendInOps = ammoUsage ? actionSpendsResource(action, ammoUsage.ammoType) : false;
     if (ammoUsage && params.reactor.type === "player") {
@@ -6823,6 +6931,7 @@ export const GameBoard: React.FC = () => {
     }
 
     updateActionUsageForActor(params.reactor.id, action.id, 1);
+    updateWeaponPropertyUsageForAction(params.reactor.id, action, 1);
 
     const nextEnemies = applySummonTurnOrder({
       prevEnemies: params.enemiesSnapshot,
@@ -6840,7 +6949,8 @@ export const GameBoard: React.FC = () => {
     if (isEnemyReactionAgainstPlayer) {
       const missed = result.logs.some(line => line.includes("rate sa cible"));
       const hit = !missed;
-      const defaultHitMessage = `Vous avez subi une attaque de reaction: ${params.reaction.name}.`;
+      const hitTypeSuffix = buildDamageTypeSuffix(action.damage?.damageType);
+      const defaultHitMessage = `Vous avez subi une attaque de reaction: ${params.reaction.name}${hitTypeSuffix}.`;
       const defaultMissMessage = `Vous avez evite une attaque de reaction: ${params.reaction.name}.`;
       const message = missed
         ? params.reaction.uiMessageMiss || defaultMissMessage
@@ -6934,6 +7044,12 @@ export const GameBoard: React.FC = () => {
     if (!availability.enabled) {
       return { ok: false, reason: availability.reasons.join(" | ") };
     }
+    const constraintIssues = getWeaponActionConstraintIssues(action, params.reactor, {
+      reaction: true
+    });
+    if (constraintIssues.length > 0) {
+      return { ok: false, reason: constraintIssues.join(" | ") };
+    }
 
     const validation = validateActionTarget(action, context, {
       kind: "token",
@@ -7015,9 +7131,15 @@ export const GameBoard: React.FC = () => {
           continue;
         }
 
-        const reactionRangeMax = reaction.action?.targeting?.range?.max;
+        const rangedAction = applyWeaponOverrideForActor(reaction.action, reactor, { reaction: true });
+        const reactionRangeMax = rangedAction?.targeting?.range?.max;
+        const reactionTags = rangedAction?.tags ?? reaction.action?.tags ?? [];
+        const isOpportunityReaction =
+          reaction.id === "opportunity-attack" || reactionTags.includes("opportunity");
         const reach =
-          typeof reactionRangeMax === "number" && Number.isFinite(reactionRangeMax)
+          isOpportunityReaction
+            ? getActorOpportunityReach(reactor)
+            : typeof reactionRangeMax === "number" && Number.isFinite(reactionRangeMax)
             ? reactionRangeMax
             : getActorDefaultReach(reactor);
         const before = distanceBetweenTokens(reactor, moverFrom);
@@ -8806,6 +8928,7 @@ export const GameBoard: React.FC = () => {
       }
 
       updateActionUsageForActor(activeEnemy.id, action.id, 1);
+      updateWeaponPropertyUsageForAction(activeEnemy.id, action, 1);
 
       playerCopy = result.playerAfter;
       enemiesCopy = applySummonTurnOrder({
@@ -8862,9 +8985,12 @@ export const GameBoard: React.FC = () => {
       }
       if (target.kind === "token" && target.token.type === "player") {
         const didHit = damageToPlayer > 0;
-        const message = didHit
-          ? action.uiMessageHit || `Vous avez ete touche par ${action.name}.`
-          : action.uiMessageMiss || null;
+        const hitTypeSuffix = buildDamageTypeSuffix(action.damage?.damageType);
+        const defaultHitMessage = `Vous avez ete touche par ${action.name}: ${damageToPlayer} degats${hitTypeSuffix}.`;
+        const customHitMessage = action.uiMessageHit
+          ? `${action.uiMessageHit} (${damageToPlayer} degats${hitTypeSuffix}).`
+          : null;
+        const message = didHit ? customHitMessage || defaultHitMessage : action.uiMessageMiss || null;
         if (message) {
           showCombatToast(message, didHit ? "hit" : "info");
           suppressCombatToastUntilRef.current = Date.now() + 500;
@@ -10098,11 +10224,11 @@ function handleEndPlayerTurn() {
                       left: "50%",
                       top: reactionToast ? 60 : 16,
                       transform: "translateX(-50%)",
-                      padding: "10px 18px",
-                      borderRadius: 14,
-                      fontSize: 18,
+                      padding: "14px 24px",
+                      borderRadius: 16,
+                      fontSize: 24,
                       fontWeight: 900,
-                      letterSpacing: 0.4,
+                      letterSpacing: 0.5,
                       background:
                         combatToast.kind === "heal"
                           ? "rgba(46, 204, 113, 0.92)"
@@ -10113,7 +10239,7 @@ function handleEndPlayerTurn() {
                       border: "1px solid rgba(255,255,255,0.35)",
                       textShadow: "0 1px 6px rgba(0,0,0,0.35)",
                       boxShadow: "0 12px 35px rgba(0,0,0,0.45)",
-                      animation: "reactionToastSlide 3.2s ease-out forwards"
+                      animation: "reactionToastSlide 5.2s ease-out forwards"
                     }}
                   >
                     {combatToast.text}

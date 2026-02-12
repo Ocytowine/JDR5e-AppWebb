@@ -25,7 +25,8 @@ L'item data **reference** l'action via `links.actionId` (ou un champ equivalent)
   "type": "object",
   "category": "gear",
   "weight": 0.5,
-  "tags": ["torche", "consommable", "material:wood"],
+  "tags": ["torche", "consommable", "wood"],
+  "grants": [],
   "description": "Torche simple pour eclairer.",
   "value": { "platinum": 0, "gold": 0, "silver": 0, "copper": 1 },
   "links": {
@@ -42,7 +43,7 @@ L'item data **reference** l'action via `links.actionId` (ou un champ equivalent)
   "name": "Allumer la torche",
   "summary": "Allume ou eteint la torche du joueur pour eclairer autour de lui.",
   "category": "item",
-  "tags": ["item", "torch", "utility", "material:wood"],
+  "tags": ["item", "torch", "utility", "wood"],
   "actionCost": { "actionType": "bonus", "movementCost": 0 },
   "targeting": {
     "target": "self",
@@ -77,36 +78,38 @@ L'item data **reference** l'action via `links.actionId` (ou un champ equivalent)
 - `weight`: poids.
 - `value`: prix par devise (platinum/gold/silver/copper).
 - `tags`: mots clefs utiles aux filtres et aux regles.
+- `grants`: bonus/passifs/actions fournis quand l'item est equipe (pattern `grant` de la taxo, hybride `ids|inline` pour `kind=bonus`).
 - `links.actionId`: lie l'item a son ActionSpec (si item utilisable).
+Note: pour les bonus, voir `docs/notice/bonus-design-notice.md`.
 
 ## Tags materiaux (standard)
 
-Pour standardiser les materiaux, utiliser un **prefixe unique**: `material:<id>`.
+La taxonomie utilise des **tags simples** (sans prefixe).
 
 Exemples:
-- `material:wood`
-- `material:metal`
-- `material:leather`
+- `wood`
+- `metal`
+- `leather`
 
-### Liste recommande (material:<id>)
+### Liste recommande (tags materiaux)
 
-- `material:wood` (bois)
-- `material:metal` (metal generique)
-- `material:iron`
-- `material:steel`
-- `material:bronze`
-- `material:stone`
-- `material:leather`
-- `material:cloth`
-- `material:bone`
-- `material:glass`
-- `material:crystal`
-- `material:ceramic`
-- `material:paper`
+- `wood` (bois)
+- `metal` (metal generique)
+- `iron`
+- `steel`
+- `bronze`
+- `stone`
+- `leather`
+- `cloth`
+- `bone`
+- `glass`
+- `crystal`
+- `ceramic`
+- `paper`
 
 Regles:
 - Utiliser **un seul material principal** par item (sauf cas hybride explicite).
-- Pour un item composite, ajouter un second tag si necessaire: `material:wood` + `material:metal`.
+- Pour un item composite, ajouter un second tag si necessaire: `wood` + `metal`.
 
 ## Champ par champ (item action / ActionSpec)
 
@@ -115,7 +118,7 @@ Regles:
 - `name`: nom affiche en UI.
 - `summary`: description courte.
 - `category`: **doit etre** `item` pour les actions d'item.
-- `tags`: tags utiles aux conditions/hooks (`item`, type d'item, element, etc.).
+- `tags`: tags utiles aux conditions/hooks (`item`, type d'item, element, `area`, etc.).
 
 ### Cout & usage
 - `actionCost.actionType`: `action` | `bonus` | `reaction` | `free`.

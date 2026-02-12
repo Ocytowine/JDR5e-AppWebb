@@ -55,7 +55,7 @@ Ce plan detaille les correctifs et l'ordre d'integration pour un pipeline comple
 ## 7) Targets et zones
 
 1. Multi-cibles et selection.
-2. AOE shapes (cone/line/rect/circle).
+2. Zone shapes (cone/line/rect/circle).
 3. Surfaces persistantes.
 
 ## 8) Migration progressive

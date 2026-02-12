@@ -47,7 +47,7 @@ Un sort est compose de:
   },
   "ops": {
     "onHit": [
-      { "op": "DealDamage", "target": "primary", "formula": "1d10", "damageType": "FIRE" }
+      { "op": "DealDamage", "target": "primary", "formula": "1d10", "damageType": "fire" }
     ],
     "onMiss": [
       { "op": "LogEvent", "message": "Le rayon rate sa cible." }
@@ -63,7 +63,8 @@ Un sort est compose de:
 - `name`: nom affiche en UI.
 - `level`: 0 pour cantrip, 1..9 pour les sorts.
 - `school`: ecole (ex: `evocation`, `illusion`).
-- `tags`: mots clefs utiles aux conditions/hooks (ex: `fire`, `cold`, `aoe`).
+- `tags`: mots clefs utiles aux conditions/hooks (ex: `fire`, `cold`, `area`).
+Note: `AOE` n'est pas lu par l'engine; `area` reste un tag descriptif.
 
 ### UI / presentation
 - `summary`: texte court affiche (liste/tooltip).
