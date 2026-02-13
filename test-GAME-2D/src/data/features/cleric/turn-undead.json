@@ -1,7 +1,7 @@
 {
   "id": "turn-undead",
-  "label": "Turn Undead",
-  "summary": "Channel Divinity option that forces undead to flee.",
+  "label": "Renvoi des morts-vivants",
+  "summary": "Effet de Conduit divin qui repousse les morts-vivants.",
   "kind": "action",
   "tags": ["cleric", "channel-divinity"],
   "grants": [
@@ -12,7 +12,7 @@
     }
   ],
   "rules": {
-    "text": "Requires Channel Divinity. Undead within range must flee.",
+    "text": "Action Magie. Les morts-vivants dans 9 m font un JS Sagesse, sinon ils sont Effrayes et Incapables d'agir pendant 1 minute.",
     "triggers": [
       {
         "event": "on_action",

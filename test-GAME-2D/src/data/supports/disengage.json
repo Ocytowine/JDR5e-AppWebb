@@ -1,0 +1,41 @@
+{
+  "id": "disengage",
+  "name": "Desengagement",
+  "summary": "Votre deplacement ne provoque pas d'attaques d'opportunite jusqu'au debut de votre prochain tour.",
+  "category": "defense",
+  "actionCost": {
+    "actionType": "action",
+    "movementCost": 0
+  },
+  "targeting": {
+    "target": "self",
+    "range": {
+      "min": 0,
+      "max": 0,
+      "shape": "SPHERE"
+    },
+    "maxTargets": 1,
+    "requiresLos": false
+  },
+  "usage": {
+    "perTurn": 1,
+    "perEncounter": null,
+    "resource": null
+  },
+  "conditions": [],
+  "tags": ["core-action", "defense", "mobility"],
+  "ops": {
+    "onResolve": [
+      {
+        "op": "ApplyCondition",
+        "target": "self",
+        "statusId": "disengaging",
+        "durationTurns": 1
+      },
+      {
+        "op": "LogEvent",
+        "message": "Desengagement actif: pas d'attaque d'opportunite jusqu'au debut du prochain tour."
+      }
+    ]
+  }
+}

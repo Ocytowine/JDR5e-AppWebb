@@ -25,6 +25,9 @@ export interface FeatureDefinition {
   grants?: FeatureGrant[];
   rules?: {
     text?: string;
+    modifiers?: Array<Record<string, unknown>>;
+    reactionModifiers?: Array<Record<string, unknown>>;
+    secondaryAttackPolicy?: Record<string, unknown>;
     triggers?: Array<{
       event: string;
       notes?: string;

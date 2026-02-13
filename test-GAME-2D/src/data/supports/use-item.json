@@ -1,0 +1,35 @@
+{
+  "id": "use-item",
+  "name": "Utilisation",
+  "summary": "Utilise un objet non magique ou une interaction utilitaire.",
+  "category": "item",
+  "actionCost": {
+    "actionType": "action",
+    "movementCost": 0
+  },
+  "targeting": {
+    "target": "self",
+    "range": {
+      "min": 0,
+      "max": 0,
+      "shape": "SPHERE"
+    },
+    "maxTargets": 1,
+    "requiresLos": false
+  },
+  "usage": {
+    "perTurn": null,
+    "perEncounter": null,
+    "resource": null
+  },
+  "conditions": [],
+  "tags": ["core-action", "item", "utility"],
+  "ops": {
+    "onResolve": [
+      {
+        "op": "LogEvent",
+        "message": "Utilisation: action d'objet executee."
+      }
+    ]
+  }
+}

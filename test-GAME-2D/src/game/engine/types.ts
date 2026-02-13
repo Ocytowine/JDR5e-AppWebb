@@ -23,6 +23,7 @@ export interface ResolutionSpec {
   save?: {
     ability: "FOR" | "DEX" | "CON" | "INT" | "SAG" | "CHA";
     dc: number;
+    dcFormula?: string;
   };
   check?: {
     ability: "FOR" | "DEX" | "CON" | "INT" | "SAG" | "CHA";

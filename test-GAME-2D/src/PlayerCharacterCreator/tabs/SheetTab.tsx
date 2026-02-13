@@ -175,6 +175,13 @@ export function SheetTab(props: {
                   const backgroundLanguages = Array.isArray(backgroundChoices.languages)
                     ? backgroundChoices.languages
                     : [];
+                  const derivedGrants = (((character as any)?.derived?.grants ?? {}) as Record<string, any>);
+                  const derivedFeatures = Array.isArray(derivedGrants.features) ? derivedGrants.features : [];
+                  const derivedActions = Array.isArray(derivedGrants.actions) ? derivedGrants.actions : [];
+                  const derivedReactions = Array.isArray(derivedGrants.reactions) ? derivedGrants.reactions : [];
+                  const derivedResources = Array.isArray(derivedGrants.resources) ? derivedGrants.resources : [];
+                  const derivedPassifs = Array.isArray(derivedGrants.passifs) ? derivedGrants.passifs : [];
+                  const derivedSpells = Array.isArray(derivedGrants.spells) ? derivedGrants.spells : [];
                   const adaptableSkill = (choiceSelections as any)?.race?.adaptableSkill ?? "";
                   const buildProgressionLines = (progression?: Record<string, any>, maxLevel?: number) => {
                     if (!progression) return [];
@@ -524,6 +531,40 @@ export function SheetTab(props: {
                             )}
                           </>
                         )}
+                      </div>
+
+                      <div
+                        style={{
+                          borderRadius: 10,
+                          border: "1px solid rgba(255,255,255,0.12)",
+                          background: "rgba(12,12,18,0.75)",
+                          padding: 12,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 8
+                        }}
+                      >
+                        <div style={{ fontSize: 13, fontWeight: 800 }}>
+                          Projection derivee
+                        </div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
+                          Features: {derivedFeatures.join(", ") || "-"}
+                        </div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
+                          Actions derivees: {derivedActions.join(", ") || "-"}
+                        </div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
+                          Reactions derivees: {derivedReactions.join(", ") || "-"}
+                        </div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
+                          Ressources derivees: {derivedResources.join(", ") || "-"}
+                        </div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
+                          Passifs derives: {derivedPassifs.join(", ") || "-"}
+                        </div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
+                          Sorts derives: {derivedSpells.join(", ") || "-"}
+                        </div>
                       </div>
 
                       <div

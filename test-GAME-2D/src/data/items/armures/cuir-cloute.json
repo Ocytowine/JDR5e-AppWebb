@@ -8,14 +8,17 @@
   "weight": 6.5,
   "tags": [
     "armure",
-    "legere"
+    "legere",
+    "leather",
+    "metal"
   ],
   "description": "Armure de cuir renforcee par des rivets.",
   "category": "armor_body",
   "value": {
     "platinum": 0,
-    "gold": 45.0,
+    "gold": 45,
     "silver": 0,
     "copper": 0
-  }
+  },
+  "harmonisable": false
 }

@@ -15,6 +15,19 @@ interface FormulaContext {
   };
 }
 
+function getLevelFromContext(ctx: FormulaContext): number {
+  const level = Number(ctx.actor.combatStats?.level ?? ctx.sampleCharacter?.niveauGlobal ?? 1);
+  return Number.isFinite(level) ? level : 1;
+}
+
+function getProficiencyBonus(level: number): number {
+  if (level <= 4) return 2;
+  if (level <= 8) return 3;
+  if (level <= 12) return 4;
+  if (level <= 16) return 5;
+  return 6;
+}
+
 function resolveNumberVar(varName: string, ctx: FormulaContext): number | null {
   const actor = ctx.actor;
   const stats = actor.combatStats;
@@ -43,8 +56,10 @@ function resolveNumberVar(varName: string, ctx: FormulaContext): number | null {
       : 0;
   }
   if (token === "level" || token === "niveau") {
-    const level = Number(stats?.level ?? ctx.sampleCharacter?.niveauGlobal ?? 1);
-    return Number.isFinite(level) ? level : 1;
+    return getLevelFromContext(ctx);
+  }
+  if (token === "proficiencybonus" || token === "maitrisebonus") {
+    return getProficiencyBonus(getLevelFromContext(ctx));
   }
   if (token === "modfor") {
     const mod = pickNumber(

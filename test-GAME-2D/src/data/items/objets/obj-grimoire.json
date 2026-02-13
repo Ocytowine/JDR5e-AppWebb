@@ -5,13 +5,15 @@
   "category": "misc",
   "weight": 1,
   "tags": [
-    "academique"
+    "academique",
+    "paper"
   ],
   "description": "Notes, formules et recherches personnelles.",
   "value": {
     "platinum": 0,
-    "gold": 5.0,
+    "gold": 5,
     "silver": 0,
     "copper": 0
-  }
+  },
+  "harmonisable": false
 }

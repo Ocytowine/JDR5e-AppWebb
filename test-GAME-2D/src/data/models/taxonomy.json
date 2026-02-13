@@ -540,6 +540,7 @@
     },
     "inventory": {
       "inventoryItems": "Array<{ instanceId, storedIn?, contenu?, equippedSlot? }>",
+      "attunements": "Record<instanceId, boolean>",
       "materielSlots": "object",
       "argent": "object"
     },
@@ -634,21 +635,13 @@
       },
       "damage": {
         "dice": "string",
-        "damageType": "damageTypeId",
-        "alt": {
-          "dice": "string",
-          "condition": "string"
-        }
+        "damageType": "damageTypeId"
       },
       "extraDamage": "Array<{ dice: string, damageType: damageTypeId, when?: onHit|onCrit|onResolve|onMiss }>",
       "effectOnHit": {
         "mod": "string",
         "damage": "string",
         "damageType": "damageTypeId"
-      },
-      "links": {
-        "actionId": "string|null",
-        "effectId": "string|null"
       }
     }
   },

@@ -56,7 +56,7 @@
     },
     {
       "id": "qa_docs",
-      "status": "todo",
+      "status": "done",
       "deliverables": [
         "scenarios equip/deequip",
         "engine-progress mis a jour"
@@ -90,5 +90,43 @@
 - [x] Assurer merge additive avec ops existantes
 
 ### Phase qa_docs
-- [ ] Tester bonus conditionnel (bouclier, slot, type item)
-- [ ] Documenter decisions finales
+- [x] Tester bonus conditionnel (bouclier, slot, type item)
+- [x] Documenter decisions finales
+
+## Matrice QA (reference)
+
+1. Equip item avec `grant.bonus.inline` (`mode=add`) :
+- Attendu: stat augmentee.
+- Desequip: retour a la valeur initiale.
+
+2. Equip item avec `grant.bonus.ids` (`mode=max`) :
+- Attendu: la stat prend la plus haute valeur applicable.
+- Stacking avec add: ordre stable et resultat deterministic.
+
+3. Bonus conditionnel `requirements` avec `equip:armorCategory:shield` :
+- Sans bouclier: bonus inactif.
+- Avec bouclier: bonus actif.
+- Retrait bouclier: bonus retire.
+
+4. `weapon.extraDamage` :
+- `onHit`: applique sur touche.
+- `onCrit`: applique sur critique.
+- `onResolve`: applique a la resolution.
+- `onMiss`: applique sur echec.
+
+5. Rebuild combat stats :
+- Changement d'equipement => recomputation sans persistance parasite.
+
+## Decisions finales
+
+1. Bonus d'equipement en mode hybride (`ids` + `inline`).
+2. `requirements` bonus evalues via `ConditionExpr[]`.
+3. Tags runtime `equip:*` utilises comme socle des conditions de bonus.
+4. `extraDamage` merge additif dans les branches d'ops runtime.
+
+## Rappel important (prochaine etape)
+
+1. Integrer la regle `harmonisable` (attunement):
+- limite de slots harmonisables,
+- validation d'activation/desactivation,
+- impact sur l'application des grants/bonus.

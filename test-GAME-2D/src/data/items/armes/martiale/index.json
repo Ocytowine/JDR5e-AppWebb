@@ -1,7 +1,10 @@
 {
   "types": [
+    "./arc-long-cendre.json",
     "./arc-long.json",
+    "./epee-longue-brasiere.json",
     "./epee-longue.json",
+    "./hache-bataille-incandescente.json",
     "./hache-bataille.json"
   ]
 }

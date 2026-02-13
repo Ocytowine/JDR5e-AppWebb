@@ -1,0 +1,54 @@
+{
+  "id": "study",
+  "name": "Etude",
+  "summary": "Effectue un jet d'Intelligence pour analyser une situation.",
+  "category": "support",
+  "actionCost": {
+    "actionType": "action",
+    "movementCost": 0
+  },
+  "targeting": {
+    "target": "self",
+    "range": {
+      "min": 0,
+      "max": 0,
+      "shape": "SPHERE"
+    },
+    "maxTargets": 1,
+    "requiresLos": false
+  },
+  "usage": {
+    "perTurn": null,
+    "perEncounter": null,
+    "resource": null
+  },
+  "resolution": {
+    "kind": "ABILITY_CHECK",
+    "check": {
+      "ability": "INT",
+      "dc": 12
+    }
+  },
+  "conditions": [],
+  "tags": ["core-action", "check", "intelligence"],
+  "ops": {
+    "onResolve": [
+      {
+        "op": "LogEvent",
+        "message": "Etude: tentative d'analyse en cours."
+      }
+    ],
+    "onHit": [
+      {
+        "op": "LogEvent",
+        "message": "Etude reussie."
+      }
+    ],
+    "onMiss": [
+      {
+        "op": "LogEvent",
+        "message": "Etude echouee."
+      }
+    ]
+  }
+}

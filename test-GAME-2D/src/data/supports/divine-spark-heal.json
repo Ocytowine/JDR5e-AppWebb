@@ -1,0 +1,165 @@
+{
+  "id": "divine-spark-heal",
+  "name": "Etincelle divine (Soin)",
+  "summary": "Conduit divin: restaure des points de vie a une cible alliee.",
+  "category": "support",
+  "actionCost": {
+    "actionType": "action",
+    "movementCost": 0
+  },
+  "targeting": {
+    "target": "ally",
+    "range": {
+      "min": 0,
+      "max": 9,
+      "shape": "SPHERE"
+    },
+    "maxTargets": 1,
+    "requiresLos": true
+  },
+  "usage": {
+    "perTurn": null,
+    "perEncounter": null,
+    "resource": {
+      "name": "channel-divinity",
+      "pool": null,
+      "min": 1
+    }
+  },
+  "resolution": {
+    "kind": "NO_ROLL"
+  },
+  "conditions": [
+    {
+      "type": "TARGET_ALIVE",
+      "target": "primary",
+      "reason": "La cible doit avoir des PV restants."
+    }
+  ],
+  "ops": {
+    "onResolve": [
+      {
+        "op": "SpendResource",
+        "name": "channel-divinity",
+        "amount": 1
+      }
+    ]
+  },
+  "hooks": [
+    {
+      "when": "beforeApply",
+      "if": [
+        {
+          "type": "ACTOR_VALUE",
+          "key": "level",
+          "cmp": "LT",
+          "value": 7
+        }
+      ],
+      "apply": [
+        {
+          "op": "Heal",
+          "target": "primary",
+          "formula": "1d8 + modSAG"
+        },
+        {
+          "op": "LogEvent",
+          "message": "Etincelle divine (soin, 1d8)."
+        }
+      ]
+    },
+    {
+      "when": "beforeApply",
+      "if": [
+        {
+          "type": "AND",
+          "all": [
+            {
+              "type": "ACTOR_VALUE",
+              "key": "level",
+              "cmp": "GTE",
+              "value": 7
+            },
+            {
+              "type": "ACTOR_VALUE",
+              "key": "level",
+              "cmp": "LT",
+              "value": 13
+            }
+          ]
+        }
+      ],
+      "apply": [
+        {
+          "op": "Heal",
+          "target": "primary",
+          "formula": "2d8 + modSAG"
+        },
+        {
+          "op": "LogEvent",
+          "message": "Etincelle divine (soin, 2d8)."
+        }
+      ]
+    },
+    {
+      "when": "beforeApply",
+      "if": [
+        {
+          "type": "AND",
+          "all": [
+            {
+              "type": "ACTOR_VALUE",
+              "key": "level",
+              "cmp": "GTE",
+              "value": 13
+            },
+            {
+              "type": "ACTOR_VALUE",
+              "key": "level",
+              "cmp": "LT",
+              "value": 18
+            }
+          ]
+        }
+      ],
+      "apply": [
+        {
+          "op": "Heal",
+          "target": "primary",
+          "formula": "3d8 + modSAG"
+        },
+        {
+          "op": "LogEvent",
+          "message": "Etincelle divine (soin, 3d8)."
+        }
+      ]
+    },
+    {
+      "when": "beforeApply",
+      "if": [
+        {
+          "type": "ACTOR_VALUE",
+          "key": "level",
+          "cmp": "GTE",
+          "value": 18
+        }
+      ],
+      "apply": [
+        {
+          "op": "Heal",
+          "target": "primary",
+          "formula": "4d8 + modSAG"
+        },
+        {
+          "op": "LogEvent",
+          "message": "Etincelle divine (soin, 4d8)."
+        }
+      ]
+    }
+  ],
+  "tags": [
+    "cleric",
+    "channel-divinity",
+    "support"
+  ]
+}

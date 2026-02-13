@@ -50,17 +50,12 @@
   },
   "damage": {
     "dice": "1d4",
-    "damageType": "SLASHING",
-    "alt": null
+    "damageType": "slashing"
   },
   "effectOnHit": {
     "mod": "mod.DEX",
     "damage": "1d4",
-    "damageType": "SLASHING"
-  },
-  "links": {
-    "actionId": "melee-strike",
-    "effectId": "melee-slash"
+    "damageType": "slashing"
   },
   "label": "Petit couteau"
 }

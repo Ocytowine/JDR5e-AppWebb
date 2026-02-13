@@ -5,13 +5,15 @@
   "category": "necklace",
   "weight": 1,
   "tags": [
-    "holy_symbol"
+    "holy_symbol",
+    "metal"
   ],
   "description": "Symbole sacre utilise comme focalisateur divin.",
   "value": {
     "platinum": 0,
-    "gold": 5.0,
+    "gold": 5,
     "silver": 0,
     "copper": 0
-  }
+  },
+  "harmonisable": false
 }

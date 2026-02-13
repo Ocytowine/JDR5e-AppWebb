@@ -1,0 +1,35 @@
+{
+  "id": "cast-magic",
+  "name": "Magie",
+  "summary": "Cadre d'action pour lancer un sort ou activer un effet magique.",
+  "category": "support",
+  "actionCost": {
+    "actionType": "action",
+    "movementCost": 0
+  },
+  "targeting": {
+    "target": "self",
+    "range": {
+      "min": 0,
+      "max": 0,
+      "shape": "SPHERE"
+    },
+    "maxTargets": 1,
+    "requiresLos": false
+  },
+  "usage": {
+    "perTurn": null,
+    "perEncounter": null,
+    "resource": null
+  },
+  "conditions": [],
+  "tags": ["core-action", "magic"],
+  "ops": {
+    "onResolve": [
+      {
+        "op": "LogEvent",
+        "message": "Magie: choisissez un sort ou un effet magique disponible."
+      }
+    ]
+  }
+}

@@ -22,7 +22,8 @@
     "arme",
     "melee",
     "piercing",
-    "jet"
+    "jet",
+    "metal"
   ],
   "properties": {
     "finesse": true,
@@ -50,17 +51,12 @@
   },
   "damage": {
     "dice": "1d4",
-    "damageType": "PIERCING",
-    "alt": null
+    "damageType": "piercing"
   },
   "effectOnHit": {
     "mod": "mod.DEX",
     "damage": "1d4",
-    "damageType": "PIERCING"
-  },
-  "links": {
-    "actionId": "melee-strike",
-    "effectId": "melee-slash"
+    "damageType": "piercing"
   },
   "label": "Dague"
 }

@@ -1,0 +1,56 @@
+{
+  "id": "action-surge",
+  "name": "Fougue",
+  "summary": "Depense une charge de Fougue pour declencher une acceleration tactique.",
+  "category": "support",
+  "actionCost": {
+    "actionType": "free",
+    "movementCost": 0
+  },
+  "targeting": {
+    "target": "self",
+    "range": {
+      "min": 0,
+      "max": 0,
+      "shape": "SPHERE"
+    },
+    "maxTargets": 1,
+    "requiresLos": false
+  },
+  "usage": {
+    "perTurn": 1,
+    "perEncounter": null,
+    "resource": {
+      "name": "action-surge",
+      "pool": null,
+      "min": 1
+    }
+  },
+  "resolution": {
+    "kind": "NO_ROLL"
+  },
+  "conditions": [
+    {
+      "type": "ACTOR_ALIVE",
+      "reason": "Le lanceur doit etre vivant."
+    }
+  ],
+  "ops": {
+    "onResolve": [
+      {
+        "op": "SpendResource",
+        "name": "action-surge",
+        "amount": 1
+      },
+      {
+        "op": "LogEvent",
+        "message": "Fougue utilisee."
+      }
+    ]
+  },
+  "tags": [
+    "fighter",
+    "support",
+    "resource"
+  ]
+}

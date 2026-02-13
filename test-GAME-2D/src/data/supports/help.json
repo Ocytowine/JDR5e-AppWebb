@@ -1,0 +1,52 @@
+{
+  "id": "help",
+  "name": "Soutien",
+  "summary": "Aidez une creature proche ou prodiguez une aide immediate.",
+  "category": "support",
+  "actionCost": {
+    "actionType": "action",
+    "movementCost": 0
+  },
+  "targeting": {
+    "target": "ally",
+    "range": {
+      "min": 0,
+      "max": 1.5,
+      "shape": "SPHERE"
+    },
+    "maxTargets": 1,
+    "requiresLos": true
+  },
+  "usage": {
+    "perTurn": null,
+    "perEncounter": null,
+    "resource": null
+  },
+  "conditions": [
+    {
+      "type": "TARGET_ALIVE",
+      "target": "primary",
+      "reason": "L'allie doit etre actif."
+    }
+  ],
+  "tags": ["core-action", "support", "first-aid"],
+  "ops": {
+    "onResolve": [
+      {
+        "op": "Heal",
+        "target": "primary",
+        "formula": "1"
+      },
+      {
+        "op": "ApplyCondition",
+        "target": "primary",
+        "statusId": "helped",
+        "durationTurns": 1
+      },
+      {
+        "op": "LogEvent",
+        "message": "Soutien: assistance apportee a la cible."
+      }
+    ]
+  }
+}

@@ -1,14 +1,14 @@
-# Notice de conception - Armes (items)
+# Notice de conception - Armes (ActionEngine)
 
-Ce document sert de reference pour creer des armes au format data item, avec variantes de proprietes typiques (melee, distance, jet, munitions, polyvalente, etc.).
+Ce document definit un format d'arme **directement compatible** avec le moteur actuel.
 
 ## Objectif
 
-- Standardiser la structure des armes.
-- Formaliser les variantes de proprietes selon le type d'arme.
-- Garantir la compatibilite avec ActionEngine (liens vers action/effect).
+1. Garantir qu'une IA peut generer des armes jouables sans logique manuelle supplementaire.
+2. Aligner strictement data, taxonomie et comportement runtime.
+3. Couvrir les bonus d'equipement, proprietes d'armes et degats additionnels.
 
-## Structure recommandee (arme)
+## Modele recommande
 
 ```json
 {
@@ -18,7 +18,7 @@ Ce document sert de reference pour creer des armes au format data item, avec var
   "type": "arme",
   "subtype": "simple",
   "category": "melee",
-  "descriptionCourte": "Lame courte et legere, facile a dissimuler.",
+  "descriptionCourte": "Lame courte et legere.",
   "descriptionLongue": "",
   "allowStack": false,
   "harmonisable": false,
@@ -28,7 +28,24 @@ Ce document sert de reference pour creer des armes au format data item, avec var
   "value": { "gold": 2, "silver": 0, "copper": 0, "platinum": 0 },
   "rarity": "commune",
   "tags": ["arme", "melee", "piercing", "metal"],
-  "grants": [],
+  "grants": [
+    {
+      "kind": "bonus",
+      "inline": [
+        {
+          "id": "bonus-local-dague-precision",
+          "label": "+1 attaque",
+          "summary": "Bonus tant que l'arme est equipee.",
+          "stat": "attackBonus",
+          "value": 1,
+          "mode": "add",
+          "tags": ["equip", "weapon"],
+          "requirements": [],
+          "source": { "book": "PHB2024", "page": 0 }
+        }
+      ]
+    }
+  ],
   "properties": {
     "finesse": true,
     "light": true,
@@ -47,37 +64,73 @@ Ce document sert de reference pour creer des armes au format data item, avec var
   },
   "weaponMastery": ["coup_double"],
   "attack": { "mod": "mod.DEX", "bonus": "bonus_maitrise" },
-  "damage": { "dice": "1d4", "damageType": "piercing", "alt": null },
-  "extraDamage": [{ "dice": "1d4", "damageType": "fire", "when": "onHit" }],
-  "effectOnHit": { "mod": "mod.DEX", "damage": "1d4", "damageType": "piercing" },
-  "links": { "actionId": null, "effectId": "melee-slash" }
+  "damage": { "dice": "1d4", "damageType": "piercing" },
+  "extraDamage": [
+    { "dice": "1d4", "damageType": "fire", "when": "onHit" }
+  ],
+  "effectOnHit": { "mod": "mod.DEX", "damage": "1d4", "damageType": "piercing" }
 }
 ```
 
-## Champs par champ (base)
+## Champs importants
 
-- `id`: identifiant unique (slug).
-- `name` / `label`: nom affiche.
-- `type`: `arme`.
-- `subtype`: maitrise requise (`simple` | `martiale` | `speciale` | `monastique`).
-- `category`: `melee` | `distance` | `polyvalent`.
-- `descriptionCourte` / `descriptionLongue`.
-- `weight`, `size`, `value`, `rarity`.
-- `tags`: tags gameplay + tag de materiau (ex: `wood`, `metal`, `leather`).
-- `grants`: bonus/passifs/actions fournis quand l'arme est equipee (pattern `grant` de la taxo, mode hybride `ids|inline` pour `kind=bonus`).
-- `properties`: proprietes DnD (voir variantes).
-- `weaponMastery`: liste de bottes d'arme actives pour cette arme (voir liste).
-- `attack`: modificateur et bonus de maitrise.
-- `damage`: des et type.
-- `extraDamage`: degats additionnels (multi-types) appliques selon `when` (`onHit/onCrit/onResolve/onMiss`).
-- `effectOnHit`: format court d'impact (compat UI).
-- `links.actionId`: action propre a l'arme (optionnelle). Peut rester `null`.
-- `links.effectId`: effet visuel (optionnel).
-Note: pour les bonus, voir `docs/notice/bonus-design-notice.md`.
+1. `type` doit etre `arme`.
+2. `subtype` doit etre `simple|martiale|speciale|monastique` (proficiences).
+3. `category` doit etre `melee|distance|polyvalent`.
+4. `damage.damageType` et `extraDamage[*].damageType` en **minuscules** (ex: `slashing`, `piercing`, `fire`).
+5. `grants` supporte le mode hybride bonus:
+   - `ids` (catalogue bonus),
+   - `inline` (bonus local a l'arme).
+
+## Proprietes d'armes: support reel moteur
+
+Proprietes supportees:
+1. `finesse`: choix auto du meilleur mod FOR/DEX.
+2. `thrown`: mode distance avec portee `thrown.normal/long`.
+3. `range.normal/long`: desavantage au-dela de `normal`; hors `long` = invalide.
+4. `heavy`: desavantage si stat < 13 (FOR en melee, DEX en distance).
+5. `loading`: limite 1 tir par type d'action (`action|bonus|reaction`) par tour.
+6. `twoHanded`: bloque avec bouclier equipe.
+7. `versatile`: degats 2 mains auto en melee si pas de bouclier.
+8. `reach`: prise en compte sur portee melee et opportunite.
+9. `light`: tag runtime disponible pour mastery.
+10. `ammunition|ammoType|ammoPerShot`: consommation/verifications de munitions.
+11. `harmonisable`:
+   - `false`: bonus actifs immediatement a l'equipement.
+   - `true`: bonus actifs seulement si l'item est harmonise.
+
+Proprietes non finalisees:
+1. `reload`: non appliquee.
+2. `special`: non interpretee automatiquement.
+
+Note schema:
+1. `damage.alt` est obsolete pour les armes.
+2. La source de verite des degats polyvalents est `properties.versatile`.
+
+## Harmonisation (etat mecanique cible)
+
+Pour un item `harmonisable: true`, les bonus doivent etre actifs uniquement si:
+1. `character.attunements[instanceId] === true`
+
+Convention:
+1. `instanceId` est l'identifiant de l'instance d'inventaire equipee.
+2. Aucun autre marqueur d'harmonisation n'est considere comme source de verite dans la data.
+
+## Degats additionnels (`extraDamage`)
+
+Le moteur injecte `extraDamage` dans les ops runtime (`DealDamage`) en merge additif.
+
+Mapping `when`:
+1. `onHit`
+2. `onCrit`
+3. `onResolve`
+4. `onMiss`
+
+Si `when` absent: fallback `onHit`.
 
 ## Grants bonus (hybride)
 
-### Bonus catalogue
+Exemple catalogue:
 
 ```json
 {
@@ -87,7 +140,7 @@ Note: pour les bonus, voir `docs/notice/bonus-design-notice.md`.
 }
 ```
 
-### Bonus inline (propre a l'arme)
+Exemple inline conditionnel:
 
 ```json
 {
@@ -96,14 +149,16 @@ Note: pour les bonus, voir `docs/notice/bonus-design-notice.md`.
       "kind": "bonus",
       "inline": [
         {
-          "id": "bonus-local-rapiere-precision",
-          "label": "+1 attaque",
-          "summary": "Bonus d'attaque tant que l'arme est equipee.",
-          "stat": "attackBonus",
+          "id": "bonus-avec-bouclier",
+          "label": "+1 CA",
+          "summary": "Actif si bouclier equipe.",
+          "stat": "armorClass",
           "value": 1,
           "mode": "add",
-          "tags": ["equip", "weapon"],
-          "requirements": [],
+          "tags": ["equip", "armor"],
+          "requirements": [
+            { "type": "ACTOR_HAS_TAG", "tag": "equip:armorCategory:shield" }
+          ],
           "source": { "book": "PHB2024", "page": 0 }
         }
       ]
@@ -112,150 +167,28 @@ Note: pour les bonus, voir `docs/notice/bonus-design-notice.md`.
 }
 ```
 
-## Variantes de proprietes (patterns)
+Note: `requirements` utilise `ConditionExpr[]` (meme langage que l'ActionEngine).
 
-### 1) Melee standard
+## Weapon Mastery
 
-```json
-{
-  "properties": {
-    "finesse": false,
-    "light": false,
-    "heavy": false,
-    "twoHanded": false,
-    "reach": 1.5,
-    "versatile": null,
-    "thrown": null,
-    "ammunition": false,
-    "loading": false,
-    "reload": null,
-    "range": { "normal": 1.5, "long": 1.5 },
-    "special": null,
-    "ammoType": null,
-    "ammoPerShot": null
-  }
-}
-```
+1. L'arme declare ses masteries dans `weaponMastery: ["id1", "id2"]`.
+2. Le moteur ajoute `wm-active:<id>` au runtime.
+3. La mastery s'applique si l'acteur possede aussi `wm:<id>`.
+4. Les effets mastery sont data-driven via `src/data/actions/weapon-mastery/`.
 
-### 2) Arme a distance (munition)
+## Checklist de validation (pour IA/data)
 
-```json
-{
-  "properties": {
-    "ammunition": true,
-    "loading": false,
-    "reload": null,
-    "range": { "normal": 24, "long": 72 },
-    "ammoType": "arrow",
-    "ammoPerShot": 1
-  }
-}
-```
+1. Le JSON contient `type: "arme"`, `subtype`, `category`, `properties`, `attack`, `damage`.
+2. `damageType` est en minuscules.
+3. Portee coherente:
+   - melee: `range.normal=1.5` (ou `reach` > 1.5),
+   - distance: `range.normal/long` valides,
+   - thrown: `thrown.normal/long` renseigne.
+4. Si `ammunition=true`, definir `ammoType` et `ammoPerShot`.
+5. Si bonus d'equipement, utiliser `grants.kind="bonus"` (`ids` ou `inline`).
+6. Si `extraDamage`, verifier `when` parmi `onHit|onCrit|onResolve|onMiss`.
 
-### 3) Arme de jet (thrown)
+## Reference
 
-```json
-{
-  "properties": {
-    "thrown": { "normal": 6, "long": 18 },
-    "range": { "normal": 1.5, "long": 1.5 }
-  }
-}
-```
-
-### 4) Polyvalente (versatile)
-
-```json
-{
-  "properties": { "versatile": "1d10", "twoHanded": false },
-  "damage": { "dice": "1d8", "damageType": "slashing", "alt": "1d10" }
-}
-```
-
-### 5) Lourde / a deux mains / allonge
-
-```json
-{
-  "properties": { "heavy": true, "twoHanded": true, "reach": 3 }
-}
-```
-
-## Regles pratiques
-
-- `ammoType` + `ammoPerShot` pilotent la consommation auto (munitions).
-- `range` = portee melee ou tir (m) selon categorie.
-- Les `damageType` sont en minuscules (ex: `slashing`, `piercing`).
-- Ajouter un tag de materiau si pertinent (ex: `wood`, `metal`, `leather`).
-
-## Bottes d'arme (weaponMastery)
-
-`weaponMastery` est une liste de **bottes** associees a l'arme. Une botte est utilisable **uniquement** par un personnage ayant une capacite qui debloque cette propriete (ex: *Bottes d'arme*).
-
-### Integration recommandee (mastery)
-
-- Stocker les bottes sur l'arme: `weaponMastery: ["coup_double", "sape"]`.
-- Au runtime, l'engine **expose** ces bottes comme tags d'acteur **temporaires** pendant l'action.
-  - Exemple: `wm-active:coup_double`, `wm-active:sape`.
-- Le personnage possede les tags permanents de maitrise (ex: `wm:coup_double`).
-- Les bottes sont appliquees via **hooks** (ActionEngine) et `ops`, pas via `links.actionId`.
-- Tags runtime utilises par l'engine:
-  - `wm-ouverture:adv:<sourceId>` (devient `:expiring` au debut du tour suivant de la source, purge a la fin de ce tour).
-  - `wm-sape:next:<sourceId>` + `wm-ralentissement:<sourceId>` (purges au debut du tour suivant de la source).
-
-### Option B (data-driven) — JSON par mastery + hook generique (choix retenu)
-
-Vous stockez **un JSON par mastery** dans `test-GAME-2D/src/data/actions/weapon-mastery/`, puis un hook generique **charge** les ops de la mastery au runtime.
-
-Exemple de JSON mastery (ActionSpec minimal) :
-
-```json
-{
-  "id": "wm-poussee",
-  "name": "Poussee",
-  "category": "item",
-  "tags": ["weaponMastery", "poussee", "wm-trigger:on_hit"],
-  "resolution": { "kind": "NO_ROLL" },
-  "ops": {
-    "onResolve": [
-      {
-        "op": "EmitEvent",
-        "kind": "weaponMastery:poussee",
-        "data": { "masteryId": "poussee", "distance": 3, "maxSize": "LARGE" }
-      }
-    ]
-  }
-}
-```
-
-Runtime (engine):
-- Les tags `wm-trigger:on_*` sont convertis en tags runtime `wm-trigger:<id>:on_*`.
-- L'engine applique la logique de la botte si:
-  - l'action porte `wm-active:<id>`,
-  - l'acteur a `wm:<id>`,
-  - et le trigger `wm-trigger:<id>:on_hit/on_miss/on_intent` correspond.
-
-### Liste standard (id -> regle)
-
-- `coup_double`  
-  Lorsque vous effectuez l’attaque supplémentaire de la propriété Légère de l’arme, vous pouvez l’effectuer dans le cadre de l’action Attaque au lieu de devoir y consacrer votre action Bonus. Vous ne pouvez effectuer cette attaque supplémentaire qu’une seule fois par tour.
-
-- `ecorchure`  
-  Si votre jet d’attaque avec cette arme rate une créature, vous pouvez lui infliger des dégâts égaux au modificateur de la caractéristique utilisée pour effectuer le jet d’attaque. Ces dégâts sont du même type que ceux infligés par l’arme, et ne peuvent être augmentés qu’en augmentant le modificateur de caractéristique.
-
-- `enchainement`  
-  Si vous touchez une créature avec un jet d’attaque de corps à corps avec cette arme, vous pouvez effectuer un jet d’attaque de corps à corps avec cette arme contre une deuxième créature située dans un rayon de 1,50 m de la première, et qui est elle aussi à votre portée. Si l’attaque touche, la deuxième créature subit les dégâts de l’arme, mais sans ajouter votre modificateur de caractéristique à ces dégâts, sauf si ce modificateur est négatif. Vous ne pouvez effectuer cette attaque supplémentaire qu’une seule fois par tour.
-
-- `ouverture`  
-  Si vous touchez une créature avec cette arme et lui infligez des dégâts, vous avez un Avantage à votre prochain jet d’attaque contre cette créature avant la fin de votre tour suivant.
-
-- `poussee`  
-  Si vous touchez une créature avec cette arme, vous pouvez la repousser d’un maximum de 3 m en ligne droite pour peu qu’elle soit de taille G ou inférieure.
-
-- `ralentissement`  
-  Si vous touchez une créature avec cette arme et lui infligez des dégâts, vous pouvez réduire sa Vitesse de 3 m jusqu’au début de votre tour suivant. Si la créature est touchée plus d’une fois par des armes dotées de cette propriété, la réduction de sa Vitesse n’excède pas 3 m.
-
-- `renversement`  
-  Si vous touchez une créature avec cette arme, vous pouvez la contraindre à effectuer un jet de sauvegarde de Constitution (DD égal à 8 + le modificateur de caractéristique utilisé pour le jet d’attaque + votre bonus de maîtrise). En cas d’échec, la créature subit l’état À terre.
-
-- `sape`  
-  Si vous touchez une créature avec cette arme, cette créature subit un Désavantage à son prochain jet d’attaque avant le début de votre tour suivant.
+1. Bonus: `test-GAME-2D/docs/notice/bonus-design-notice.md`
+2. Plan engine: `test-GAME-2D/docs/ActionEngine/equipment-passives-and-multidamage-plan.md`

@@ -1,0 +1,11 @@
+{
+  "id": "weapon-mastery",
+  "label": "Bottes d arme",
+  "summary": "Acces aux bottes d'armes selon les maitrises choisies.",
+  "kind": "feature",
+  "tags": ["fighter", "martial"],
+  "grants": [],
+  "rules": {
+    "text": "Le Guerrier peut appliquer des bottes a des types d'armes maitrises."
+  }
+}

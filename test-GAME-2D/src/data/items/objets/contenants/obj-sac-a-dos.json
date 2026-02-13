@@ -8,13 +8,15 @@
   "tags": [
     "sac",
     "paquetage",
-    "ammo_container"
+    "ammo_container",
+    "cloth"
   ],
   "description": "Sac a dos pratique pour transporter du materiel.",
   "value": {
     "platinum": 0,
-    "gold": 2.0,
+    "gold": 2,
     "silver": 0,
     "copper": 0
-  }
+  },
+  "harmonisable": false
 }

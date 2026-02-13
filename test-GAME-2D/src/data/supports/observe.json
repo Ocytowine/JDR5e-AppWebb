@@ -1,0 +1,54 @@
+{
+  "id": "observe",
+  "name": "Observation",
+  "summary": "Effectue un jet de Sagesse pour observer votre environnement.",
+  "category": "support",
+  "actionCost": {
+    "actionType": "action",
+    "movementCost": 0
+  },
+  "targeting": {
+    "target": "self",
+    "range": {
+      "min": 0,
+      "max": 0,
+      "shape": "SPHERE"
+    },
+    "maxTargets": 1,
+    "requiresLos": false
+  },
+  "usage": {
+    "perTurn": null,
+    "perEncounter": null,
+    "resource": null
+  },
+  "resolution": {
+    "kind": "ABILITY_CHECK",
+    "check": {
+      "ability": "SAG",
+      "dc": 12
+    }
+  },
+  "conditions": [],
+  "tags": ["core-action", "check", "wisdom"],
+  "ops": {
+    "onResolve": [
+      {
+        "op": "LogEvent",
+        "message": "Observation: vous scrutez la zone."
+      }
+    ],
+    "onHit": [
+      {
+        "op": "LogEvent",
+        "message": "Observation reussie."
+      }
+    ],
+    "onMiss": [
+      {
+        "op": "LogEvent",
+        "message": "Observation echouee."
+      }
+    ]
+  }
+}

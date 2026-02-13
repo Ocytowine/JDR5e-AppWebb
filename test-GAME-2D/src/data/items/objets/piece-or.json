@@ -5,15 +5,16 @@
   "category": "currency",
   "weight": 0.01,
   "value": {
-    "po": 1,
     "platinum": 0,
-    "gold": 0,
+    "gold": 1,
     "silver": 0,
     "copper": 0
   },
   "tags": [
     "monnaie",
-    "piece"
+    "piece",
+    "metal"
   ],
-  "description": "Piece d'or."
+  "description": "Piece d'or.",
+  "harmonisable": false
 }

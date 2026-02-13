@@ -24,6 +24,14 @@ export interface DamageRollResult {
   isCrit: boolean;
 }
 
+export interface DamageRollOptions {
+  isCrit?: boolean;
+  critRule?: "double-dice" | "double-total";
+  rerollLow?: {
+    lte: number;
+  };
+}
+
 export function rollDie(sides: number, count = 1): DieRoll {
   const rolls: number[] = [];
   for (let i = 0; i < count; i++) {
@@ -107,10 +115,11 @@ function parseFormula(formula: string): ParsedTerm[] {
 
 export function rollDamage(
   formula: string,
-  opts?: { isCrit?: boolean; critRule?: "double-dice" | "double-total" }
+  opts?: DamageRollOptions
 ): DamageRollResult {
   const isCrit = Boolean(opts?.isCrit);
   const critRule = opts?.critRule ?? "double-dice";
+  const rerollLow = opts?.rerollLow;
 
   const terms = parseFormula(formula);
   const dice: DieRoll[] = [];
@@ -120,7 +129,20 @@ export function rollDamage(
     if (term.diceCount !== 0 && term.diceSides > 0) {
       const count = Math.abs(term.diceCount);
       const totalDice = isCrit && critRule === "double-dice" ? count * 2 : count;
-      const roll = rollDie(term.diceSides, totalDice);
+      const roll =
+        rerollLow && Number.isFinite(rerollLow.lte)
+          ? (() => {
+              const rolls: number[] = [];
+              for (let i = 0; i < totalDice; i++) {
+                let current = rollDie(term.diceSides).total;
+                if (current <= rerollLow.lte) {
+                  current = rollDie(term.diceSides).total;
+                }
+                rolls.push(current);
+              }
+              return { rolls, total: rolls.reduce((acc, n) => acc + n, 0) };
+            })()
+          : rollDie(term.diceSides, totalDice);
       dice.push(term.diceCount < 0 ? { rolls: roll.rolls, total: -roll.total } : roll);
     } else {
       flatModifier += term.modifier;

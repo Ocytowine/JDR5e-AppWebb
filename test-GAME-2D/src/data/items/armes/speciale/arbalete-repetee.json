@@ -21,7 +21,9 @@
   "tags": [
     "arme",
     "distance",
-    "piercing"
+    "piercing",
+    "wood",
+    "metal"
   ],
   "properties": {
     "finesse": false,
@@ -46,17 +48,12 @@
   },
   "damage": {
     "dice": "1d8",
-    "damageType": "PIERCING",
-    "alt": null
+    "damageType": "piercing"
   },
   "effectOnHit": {
     "mod": "mod.DEX",
     "damage": "1d8",
-    "damageType": "PIERCING"
-  },
-  "links": {
-    "actionId": "bow-shot",
-    "effectId": "melee-slash"
+    "damageType": "piercing"
   },
   "label": "Arbalete repetee"
 }

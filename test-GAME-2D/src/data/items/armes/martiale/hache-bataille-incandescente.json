@@ -1,0 +1,91 @@
+{
+  "id": "hache-bataille-incandescente",
+  "name": "Hache de bataille incandescente",
+  "label": "Hache de bataille incandescente",
+  "type": "arme",
+  "subtype": "martiale",
+  "category": "melee",
+  "descriptionCourte": "Une hache martiale qui embrase ses impacts.",
+  "descriptionLongue": "Sa tete de hache accumule une chaleur rougeoyante avant l'impact.",
+  "allowStack": false,
+  "harmonisable": false,
+  "focalisateur": false,
+  "weight": 2,
+  "size": 1,
+  "value": {
+    "gold": 140,
+    "silver": 0,
+    "copper": 0,
+    "platinum": 0
+  },
+  "rarity": "rare",
+  "tags": [
+    "arme",
+    "melee",
+    "slashing",
+    "fire",
+    "metal"
+  ],
+  "grants": [
+    {
+      "kind": "bonus",
+      "inline": [
+        {
+          "id": "bonus-hache-incandescente-for-1",
+          "label": "+1 modFOR",
+          "summary": "Bonus de Force tant que l'arme est equipee.",
+          "stat": "modFOR",
+          "value": 1,
+          "mode": "add",
+          "tags": [
+            "equip",
+            "weapon",
+            "test"
+          ],
+          "requirements": [],
+          "source": {
+            "book": "HOME",
+            "page": 0
+          }
+        }
+      ]
+    }
+  ],
+  "properties": {
+    "finesse": false,
+    "light": false,
+    "heavy": false,
+    "twoHanded": false,
+    "reach": 1.5,
+    "versatile": "1d10",
+    "thrown": null,
+    "ammunition": false,
+    "loading": false,
+    "reload": null,
+    "range": {
+      "normal": 1.5,
+      "long": 1.5
+    },
+    "special": null
+  },
+  "attack": {
+    "mod": "mod.FOR",
+    "bonus": "bonus_maitrise"
+  },
+  "damage": {
+    "dice": "1d8",
+    "damageType": "slashing"
+  },
+  "extraDamage": [
+    {
+      "dice": "1d6",
+      "damageType": "fire",
+      "when": "onCrit"
+    }
+  ],
+  "effectOnHit": {
+    "mod": "mod.FOR",
+    "damage": "1d8",
+    "damageType": "slashing"
+  }
+}

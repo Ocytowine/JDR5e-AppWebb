@@ -1,0 +1,91 @@
+{
+  "id": "arc-long-cendre",
+  "name": "Arc long des Cendres",
+  "label": "Arc long des Cendres",
+  "type": "arme",
+  "subtype": "martiale",
+  "category": "distance",
+  "descriptionCourte": "Arc martial dont les fleches laissent une trainée de braise.",
+  "descriptionLongue": "Un arc long grave de motifs de cendre, ideal pour tester les degats elementaires.",
+  "allowStack": false,
+  "harmonisable": false,
+  "focalisateur": false,
+  "weight": 1.5,
+  "size": 1.2,
+  "value": {
+    "gold": 160,
+    "silver": 0,
+    "copper": 0,
+    "platinum": 0
+  },
+  "rarity": "rare",
+  "tags": [
+    "arme",
+    "distance",
+    "piercing",
+    "fire",
+    "wood"
+  ],
+  "grants": [
+    {
+      "kind": "bonus",
+      "inline": [
+        {
+          "id": "bonus-arc-cendre-for-1",
+          "label": "+1 modFOR",
+          "summary": "Bonus de Force tant que l'arme est equipee.",
+          "stat": "modFOR",
+          "value": 1,
+          "mode": "add",
+          "tags": [
+            "equip",
+            "weapon",
+            "test"
+          ],
+          "requirements": [],
+          "source": {
+            "book": "HOME",
+            "page": 0
+          }
+        }
+      ]
+    }
+  ],
+  "properties": {
+    "finesse": false,
+    "light": false,
+    "heavy": true,
+    "twoHanded": true,
+    "reach": 0,
+    "versatile": null,
+    "thrown": null,
+    "ammunition": true,
+    "loading": false,
+    "reload": null,
+    "range": {
+      "normal": 36,
+      "long": 144
+    },
+    "special": null
+  },
+  "attack": {
+    "mod": "mod.DEX",
+    "bonus": "bonus_maitrise"
+  },
+  "damage": {
+    "dice": "1d8",
+    "damageType": "piercing"
+  },
+  "extraDamage": [
+    {
+      "dice": "1d4",
+      "damageType": "fire",
+      "when": "onHit"
+    }
+  ],
+  "effectOnHit": {
+    "mod": "mod.DEX",
+    "damage": "1d8",
+    "damageType": "piercing"
+  }
+}

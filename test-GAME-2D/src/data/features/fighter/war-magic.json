@@ -1,0 +1,11 @@
+{
+  "id": "war-magic",
+  "label": "Magie de guerre",
+  "summary": "Apres un cantrip, attaque d'arme en action bonus.",
+  "kind": "feature",
+  "tags": ["fighter", "eldritch-knight"],
+  "grants": [],
+  "rules": {
+    "text": "Apres avoir lance un sort mineur, vous pouvez effectuer une attaque d'arme en action bonus."
+  }
+}

@@ -5,9 +5,8 @@
   "category": "pack",
   "weight": 0.2,
   "value": {
-    "po": 1,
     "platinum": 0,
-    "gold": 0,
+    "gold": 1,
     "silver": 0,
     "copper": 0
   },
@@ -15,7 +14,9 @@
   "tags": [
     "bourse",
     "sac",
-    "paquetage"
+    "paquetage",
+    "leather"
   ],
-  "description": "Petite bourse destinee aux pieces et petits objets."
+  "description": "Petite bourse destinee aux pieces et petits objets.",
+  "harmonisable": false
 }

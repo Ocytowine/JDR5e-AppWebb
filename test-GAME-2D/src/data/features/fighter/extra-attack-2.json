@@ -1,0 +1,11 @@
+{
+  "id": "extra-attack-2",
+  "label": "Attaque supplementaire (2)",
+  "summary": "Trois attaques lors de l'action Attaque.",
+  "kind": "feature",
+  "tags": ["fighter", "martial"],
+  "grants": [],
+  "rules": {
+    "text": "Vous pouvez attaquer trois fois lorsque vous prenez l'action Attaque."
+  }
+}

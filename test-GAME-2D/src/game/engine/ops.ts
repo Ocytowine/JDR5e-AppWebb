@@ -397,7 +397,9 @@ export function applyOperation(params: {
       const total = op.scale === "half" ? Math.floor(roll.total / 2) : roll.total;
       const diceText = roll.dice.map(d => d.rolls.join("+")).join(" | ");
       const detail = diceText || roll.flatModifier ? ` [${diceText}${roll.flatModifier ? ` + ${roll.flatModifier}` : ""}]` : "";
+    const beforeHp = Number(targetToken.hp ?? 0);
     const tempHp = typeof targetToken.tempHp === "number" ? targetToken.tempHp : 0;
+    const beforeTempHp = tempHp;
     if (tempHp > 0) {
       const remaining = Math.max(0, total - tempHp);
       targetToken.tempHp = Math.max(0, tempHp - total);
@@ -405,7 +407,14 @@ export function applyOperation(params: {
       } else {
         targetToken.hp = Math.max(0, targetToken.hp - total);
       }
-      logTransaction(tx, `Degats: ${total} (${formula})${detail}`, opts.onLog);
+      const afterHp = Number(targetToken.hp ?? 0);
+      const afterTempHp = typeof targetToken.tempHp === "number" ? targetToken.tempHp : 0;
+      const dmgType = op.damageType ? ` ${op.damageType}` : "";
+      logTransaction(
+        tx,
+        `Degats${dmgType}: ${targetToken.id} prend ${total} (${formula})${detail} | PV ${beforeHp}->${afterHp} | Temp ${beforeTempHp}->${afterTempHp}`,
+        opts.onLog
+      );
       maybeCheckConcentrationOnDamage({ state, tx, targetToken, damage: total, opts });
       return;
     }
@@ -416,7 +425,9 @@ export function applyOperation(params: {
       const total = op.scale === "quarter" ? Math.floor(roll.total / 4) : Math.floor(roll.total / 2);
       const diceText = roll.dice.map(d => d.rolls.join("+")).join(" | ");
       const detail = diceText || roll.flatModifier ? ` [${diceText}${roll.flatModifier ? ` + ${roll.flatModifier}` : ""}]` : "";
+    const beforeHp = Number(targetToken.hp ?? 0);
     const tempHp = typeof targetToken.tempHp === "number" ? targetToken.tempHp : 0;
+    const beforeTempHp = tempHp;
     if (tempHp > 0) {
       const remaining = Math.max(0, total - tempHp);
       targetToken.tempHp = Math.max(0, tempHp - total);
@@ -424,7 +435,14 @@ export function applyOperation(params: {
       } else {
         targetToken.hp = Math.max(0, targetToken.hp - total);
       }
-      logTransaction(tx, `Degats reduits: ${total} (${formula})${detail}`, opts.onLog);
+      const afterHp = Number(targetToken.hp ?? 0);
+      const afterTempHp = typeof targetToken.tempHp === "number" ? targetToken.tempHp : 0;
+      const dmgType = op.damageType ? ` ${op.damageType}` : "";
+      logTransaction(
+        tx,
+        `Degats reduits${dmgType}: ${targetToken.id} prend ${total} (${formula})${detail} | PV ${beforeHp}->${afterHp} | Temp ${beforeTempHp}->${afterTempHp}`,
+        opts.onLog
+      );
       maybeCheckConcentrationOnDamage({ state, tx, targetToken, damage: total, opts });
       return;
     }
@@ -442,8 +460,10 @@ export function applyOperation(params: {
     const total = roll.total;
     const diceText = roll.dice.map(d => d.rolls.join("+")).join(" | ");
     const detail = diceText || roll.flatModifier ? ` [${diceText}${roll.flatModifier ? ` + ${roll.flatModifier}` : ""}]` : "";
+    const beforeHp = Number(targetToken.hp ?? 0);
     targetToken.hp = Math.min(targetToken.maxHp, targetToken.hp + total);
-    logTransaction(tx, `Soin: +${total} (${formula})${detail}`, opts.onLog);
+    const afterHp = Number(targetToken.hp ?? 0);
+    logTransaction(tx, `Soin: ${targetToken.id} +${total} (${formula})${detail} | PV ${beforeHp}->${afterHp}`, opts.onLog);
     return;
   }
 

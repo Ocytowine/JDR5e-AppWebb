@@ -31,5 +31,37 @@
       "19": [4, 3, 3, 3, 3, 2, 1, 1, 1],
       "20": [4, 3, 3, 3, 3, 2, 2, 1, 1]
     }
+  },
+  "progression": {
+    "3": {
+      "grants": [
+        { "kind": "feature", "ids": ["eldritch-knight-spellcasting"] }
+      ],
+      "description": "Debut de la magie de Chevalier Occulte (cantrips/sorts connus de magicien, orientation abjuration/evocation)."
+    },
+    "7": {
+      "grants": [
+        { "kind": "feature", "ids": ["war-magic"] }
+      ],
+      "description": "Magie de guerre."
+    },
+    "10": {
+      "grants": [
+        { "kind": "feature", "ids": ["eldritch-strike"] }
+      ],
+      "description": "Frappe eldritch."
+    },
+    "15": {
+      "grants": [
+        { "kind": "feature", "ids": ["arcane-charge"] }
+      ],
+      "description": "Charge arcanique."
+    },
+    "18": {
+      "grants": [
+        { "kind": "feature", "ids": ["improved-war-magic"] }
+      ],
+      "description": "Maitre de la magie de guerre."
+    }
   }
 }

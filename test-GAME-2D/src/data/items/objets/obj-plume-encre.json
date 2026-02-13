@@ -5,13 +5,15 @@
   "category": "misc",
   "weight": 0.2,
   "tags": [
-    "ecriture"
+    "ecriture",
+    "paper"
   ],
   "description": "Outils de base pour ecrire et prendre des notes.",
   "value": {
     "platinum": 0,
-    "gold": 1.0,
+    "gold": 1,
     "silver": 0,
     "copper": 0
-  }
+  },
+  "harmonisable": false
 }

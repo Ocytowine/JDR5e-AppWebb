@@ -28,6 +28,51 @@ type HookPhase =
   | "beforeCommit"
   | "afterCommit";
 
+function logPipeline(
+  tx: import("./transaction").Transaction,
+  message: string,
+  opts: ExecuteOptions
+) {
+  logTransaction(tx, `[pipeline] ${message}`, opts.onLog);
+}
+
+function describeOperation(op: Operation): string {
+  switch (op.op) {
+    case "DealDamage":
+      return `DealDamage(${op.formula}${op.damageType ? `, ${op.damageType}` : ""}${
+        op.scale ? `, scale=${op.scale}` : ""
+      })`;
+    case "DealDamageScaled":
+      return `DealDamageScaled(${op.formula}, scale=${op.scale}${
+        op.damageType ? `, ${op.damageType}` : ""
+      })`;
+    case "Heal":
+      return `Heal(${op.formula})`;
+    case "ApplyCondition":
+      return `ApplyCondition(${op.statusId}, ${op.durationTurns} tours)`;
+    case "RemoveCondition":
+      return `RemoveCondition(${op.statusId})`;
+    case "SpendResource":
+      return `SpendResource(${op.name}, ${op.amount})`;
+    case "ConsumeSlot":
+      return `ConsumeSlot(${op.slot}${op.level ? ` lvl ${op.level}` : ""})`;
+    case "CreateZone":
+      return `CreateZone(${op.effectTypeId})`;
+    case "CreateSurface":
+      return `CreateSurface(${op.effectTypeId})`;
+    case "ApplyAura":
+      return `ApplyAura(${op.effectTypeId})`;
+    case "Push":
+    case "Pull":
+    case "Knockback":
+      return `${op.op}(${op.distance})`;
+    case "LogEvent":
+      return `LogEvent(${op.message})`;
+    default:
+      return op.op;
+  }
+}
+
 function normalizeHookWhen(when: string): HookPhase | null {
   switch (when) {
     case "pre_resolution":
@@ -79,9 +124,13 @@ function applyHooks(params: {
     const normalized = normalizeHookWhen(hook.when);
     if (normalized !== phase) continue;
     const hookContext = { actor: state.actor, target, outcome };
-    if (!shouldApplyHook(hook, hookContext, opts)) continue;
+    if (!shouldApplyHook(hook, hookContext, opts)) {
+      logPipeline(tx, `Hook ${phase}: ignore (conditions non remplies).`, opts);
+      continue;
+    }
     const decision = resolvePromptDecision(hook, opts);
     if (decision === "accept") {
+      logPipeline(tx, `Hook ${phase}: applique (${hook.apply.length} operation(s)).`, opts);
       for (const op of hook.apply) {
         applyOperation({
           op,
@@ -91,6 +140,8 @@ function applyHooks(params: {
           opts
         });
       }
+    } else {
+      logPipeline(tx, `Hook ${phase}: refuse (prompt).`, opts);
     }
   }
 }
@@ -624,7 +675,22 @@ export function executePlan(params: {
     targets: initialTargets.filter(Boolean),
     locked: false
   };
+  logPipeline(
+    tx,
+    `Start action=${plan.action.id} (${plan.action.name}) actor=${tx.state.actor.id} resolution=${
+      plan.action.resolution?.kind ?? "NO_ROLL"
+    }`,
+    opts
+  );
+  logPipeline(
+    tx,
+    `Targeting init: mode=${plan.action.targeting?.target ?? "none"} targets=${
+      tx.state.targeting.targets?.map(t => t.id).join(", ") || "none"
+    } max=${plan.action.targeting?.maxTargets ?? "n/a"}`,
+    opts
+  );
 
+  logPipeline(tx, "Phase 1 BuildIntent", opts);
   applyHooks({
     hooks: plan.hooks ?? [],
     phase: "onIntentBuild",
@@ -635,6 +701,7 @@ export function executePlan(params: {
     tx,
     opts
   });
+  logPipeline(tx, "Phase 2 GatherResolveOptions", opts);
   applyHooks({
     hooks: plan.hooks ?? [],
     phase: "onOptionsResolve",
@@ -645,6 +712,7 @@ export function executePlan(params: {
     tx,
     opts
   });
+  logPipeline(tx, "Phase 3 Validate", opts);
   applyHooks({
     hooks: plan.hooks ?? [],
     phase: "onValidate",
@@ -655,6 +723,7 @@ export function executePlan(params: {
     tx,
     opts
   });
+  logPipeline(tx, "Phase 4 Targeting", opts);
   applyHooks({
     hooks: plan.hooks ?? [],
     phase: "onTargeting",
@@ -666,6 +735,7 @@ export function executePlan(params: {
     opts
   });
   const primaryTarget = tx.state.targeting?.targets?.[0] ?? initialTarget;
+  logPipeline(tx, "Phase 5 PreResolution", opts);
   applyHooks({
     hooks: plan.hooks ?? [],
     phase: "preResolution",
@@ -678,8 +748,10 @@ export function executePlan(params: {
   });
 
   if (plan.reactionWindows.includes("pre")) {
+    logPipeline(tx, "Pre reaction window open", opts);
     const result = opts.onReactionWindow?.("pre") ?? "continue";
     if (result === "interrupt") {
+      logPipeline(tx, "Interrupted during pre reaction window", opts);
       return {
         ok: false,
         logs: tx.logs,
@@ -711,8 +783,20 @@ export function executePlan(params: {
           target: null
         })
       ];
+  logPipeline(
+    tx,
+    `Phase 6 ResolveCheck: ${resolvedOutcomes.length} cible(s)`,
+    opts
+  );
 
-  for (const { outcome, target } of resolvedOutcomes) {
+  for (const [index, resolved] of resolvedOutcomes.entries()) {
+    const { outcome, target } = resolved;
+    const targetLabel = target ? `${target.id}` : "none";
+    logPipeline(
+      tx,
+      `Cible ${index + 1}/${resolvedOutcomes.length}: ${targetLabel} -> outcome=${outcome.kind}`,
+      opts
+    );
     if (plan.action.resolution?.kind === "ATTACK_ROLL") {
       const targetAC =
         target && typeof target.armorClass === "number" ? target.armorClass : null;
@@ -811,6 +895,11 @@ export function executePlan(params: {
     });
 
     const ops = collectOperations(plan.action.effects, outcome);
+    logPipeline(
+      tx,
+      `Phase 7/8/9 Outcome+Apply: ${ops.length} operation(s) pour ${targetLabel}`,
+      opts
+    );
     const explicitTarget =
       plan.target && "id" in plan.target
         ? { kind: "token" as const, token: plan.target }
@@ -818,6 +907,7 @@ export function executePlan(params: {
         ? { kind: "cell" as const, x: plan.target.x, y: plan.target.y }
         : null;
     for (const op of ops) {
+      logPipeline(tx, `Apply op: ${describeOperation(op)}`, opts);
       applyOperation({
         op,
         tx,
@@ -851,8 +941,10 @@ export function executePlan(params: {
   }
 
   if (plan.reactionWindows.includes("post")) {
+    logPipeline(tx, "Post reaction window open", opts);
     const result = opts.onReactionWindow?.("post") ?? "continue";
     if (result === "interrupt") {
+      logPipeline(tx, "Interrupted during post reaction window", opts);
       const lastOutcome = resolvedOutcomes[resolvedOutcomes.length - 1]?.outcome ?? { kind: "miss", roll: 0, total: 0 };
       return { ok: false, logs: tx.logs, state: tx.state, interrupted: true, outcome: lastOutcome };
     }
@@ -886,6 +978,8 @@ export function executePlan(params: {
     tx,
     opts
   });
+
+  logPipeline(tx, `Phase 11 Commit done: finalOutcome=${finalOutcome.kind}`, opts);
 
   return { ok: true, logs: tx.logs, state: tx.state, outcome: finalOutcome };
 }

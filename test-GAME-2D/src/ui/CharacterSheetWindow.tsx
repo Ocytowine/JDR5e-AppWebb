@@ -163,6 +163,53 @@ function formatSlots(slots?: Record<string, any>): Array<{ label: string; text: 
   return entries.sort((a, b) => Number(a.label.replace("Niv ", "")) - Number(b.label.replace("Niv ", "")));
 }
 
+function formatWeaponRangeLabel(weapon: WeaponTypeDefinition): string {
+  const properties = weapon?.properties ?? {};
+  const thrown = properties?.thrown;
+  const range = properties?.range;
+  if (thrown && typeof thrown.normal === "number" && typeof thrown.long === "number") {
+    return `jet ${thrown.normal}/${thrown.long} m`;
+  }
+  if (range && typeof range.normal === "number") {
+    if (typeof range.long === "number" && range.long > range.normal) {
+      return `portee ${range.normal}/${range.long} m`;
+    }
+    return `portee ${range.normal} m`;
+  }
+  if (typeof properties?.reach === "number" && properties.reach > 0) {
+    return `allonge ${properties.reach} m`;
+  }
+  return "portee -";
+}
+
+function formatWeaponDamageLabel(weapon: WeaponTypeDefinition): string {
+  const baseDice = weapon.damage?.dice ?? "?";
+  const baseType = weapon.damage?.damageType ?? "?";
+  const base = `${baseDice} ${baseType}`;
+  const extras = Array.isArray(weapon.extraDamage) ? weapon.extraDamage : [];
+  const extraText = extras
+    .map(entry => {
+      const dice = String(entry?.dice ?? "").trim();
+      const type = String(entry?.damageType ?? "").trim();
+      if (!dice || !type) return null;
+      const when = String(entry?.when ?? "onHit");
+      return when === "onHit" ? `+${dice} ${type}` : `+${dice} ${type} (${when})`;
+    })
+    .filter(Boolean)
+    .join(" + ");
+  return extraText ? `${base} + ${extraText}` : base;
+}
+
+function isInventoryItemHarmonized(item: any): boolean {
+  if (!item) return false;
+  if (item.harmonized === true || item.isHarmonized === true || item.attuned === true) return true;
+  if (item?.attunement?.state === "harmonized") return true;
+  if (typeof item?.attunement?.harmonizedAt === "string" && item.attunement.harmonizedAt.length > 0) {
+    return true;
+  }
+  return false;
+}
+
 export function CharacterSheetWindow(props: {
   open: boolean;
   anchorX: number;
@@ -170,6 +217,8 @@ export function CharacterSheetWindow(props: {
   character: Personnage;
   player: TokenState;
   equippedWeapons: WeaponTypeDefinition[];
+  weaponById?: Map<string, WeaponTypeDefinition>;
+  equipmentAppliedBonuses?: Array<{ bonusId: string; sourceItemId: string }>;
   itemLabels?: Record<string, string>;
   actionInfoById?: Map<string, ActionDefinition>;
   spellInfoById?: Map<string, SpellDefinition>;
@@ -250,6 +299,10 @@ export function CharacterSheetWindow(props: {
       ? `Standard ${stats?.moveRange ?? props.player.moveRange ?? 0}`
       : "Inconnu");
   const equippedWeapons = props.equippedWeapons ?? [];
+  const weaponById = props.weaponById ?? new Map<string, WeaponTypeDefinition>();
+  const equipmentAppliedBonuses = Array.isArray(props.equipmentAppliedBonuses)
+    ? props.equipmentAppliedBonuses
+    : [];
   const attackRange =
     equippedWeapons.length === 0
       ? 1.5
@@ -282,6 +335,27 @@ export function CharacterSheetWindow(props: {
 
   const profs = props.character.proficiencies ?? {};
   const inventoryItems = props.character.inventoryItems ?? [];
+  const harmonizedByWeaponId = (() => {
+    const map = new Map<string, { harmonisable: boolean; harmonized: boolean }>();
+    inventoryItems
+      .filter(
+        item =>
+          item?.type === "weapon" &&
+          item?.equippedSlot &&
+          new Set(["ceinture_gauche", "ceinture_droite", "dos_gauche", "dos_droit"]).has(item.equippedSlot)
+      )
+      .forEach(item => {
+        const weapon = weaponById.get(String(item.id));
+        if (!weapon) return;
+        const current = map.get(String(item.id)) ?? { harmonisable: Boolean(weapon.harmonisable), harmonized: false };
+        const next = {
+          harmonisable: current.harmonisable || Boolean(weapon.harmonisable),
+          harmonized: current.harmonized || isInventoryItemHarmonized(item)
+        };
+        map.set(String(item.id), next);
+      });
+    return map;
+  })();
   const equipmentSlots = props.character.materielSlots ?? {};
   const spellSlots = formatSlots(props.character.spellcastingState?.slots);
   const spellSource = props.character.spellcastingState?.sources
@@ -293,6 +367,16 @@ export function CharacterSheetWindow(props: {
   };
   const actionInfoById = props.actionInfoById ?? new Map();
   const spellInfoById = props.spellInfoById ?? new Map();
+  const resourceEntries = Object.entries(props.resources ?? {})
+    .map(([key, value]) => {
+      const [poolRaw, nameRaw] = key.includes(":") ? key.split(":", 2) : ["default", key];
+      const pool = poolRaw || "default";
+      const name = nameRaw || key;
+      const label = pool === "default" ? name : `${pool}:${name}`;
+      return { key, label, value };
+    })
+    .filter(entry => Number.isFinite(entry.value))
+    .sort((a, b) => a.label.localeCompare(b.label));
 
   const openActionInfo = (id: string) => {
     const def = actionInfoById.get(id);
@@ -549,6 +633,31 @@ export function CharacterSheetWindow(props: {
               />
             </div>
           </Section>
+
+          <Section title="Ressources">
+            {resourceEntries.length === 0 && (
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
+                Aucune ressource suivie.
+              </div>
+            )}
+            {resourceEntries.map(entry => (
+              <StatRow key={entry.key} label={entry.label} value={entry.value} />
+            ))}
+          </Section>
+
+          <Section title="Bonus equipement actifs">
+            {equipmentAppliedBonuses.length === 0 && (
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
+                Aucun bonus actif.
+              </div>
+            )}
+            {equipmentAppliedBonuses.map((entry, idx) => (
+              <div key={`${entry.bonusId}-${entry.sourceItemId}-${idx}`} style={{ fontSize: 12 }}>
+                <span style={{ color: "#fff", fontWeight: 700 }}>{entry.bonusId}</span>
+                <span style={{ color: "rgba(255,255,255,0.62)" }}> (source: {resolveItemLabel(entry.sourceItemId)})</span>
+              </div>
+            ))}
+          </Section>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 10 }}>
@@ -572,20 +681,38 @@ export function CharacterSheetWindow(props: {
             {inventoryItems.length === 0 && (
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>Inventaire vide.</div>
             )}
-            {inventoryItems.map(item => (
-              <div key={item.instanceId ?? `${item.id}-${item.qty}`} style={{ fontSize: 12 }}>
-                <span style={{ color: "#fff", fontWeight: 700 }}>{item.qty}x</span>{" "}
-                <span style={{ color: "rgba(255,255,255,0.8)" }}>
-                  {resolveItemLabel(String(item.id))}
-                </span>
-                {item.equippedSlot && (
-                  <span style={{ color: "rgba(255,255,255,0.55)" }}> (eq: {item.equippedSlot})</span>
-                )}
-                {item.storedIn && (
-                  <span style={{ color: "rgba(255,255,255,0.55)" }}> (dans {item.storedIn})</span>
-                )}
-              </div>
-            ))}
+            {inventoryItems.map(item => {
+              const weapon = item?.type === "weapon" ? weaponById.get(String(item.id)) ?? null : null;
+              const weaponSummary = weapon
+                ? `${String(weapon.category ?? "?")} | ${formatWeaponDamageLabel(weapon)} | ${formatWeaponRangeLabel(weapon)}${
+                    weapon.harmonisable
+                      ? ` | harm:${isInventoryItemHarmonized(item) ? "active" : "inactive"}`
+                      : ""
+                  }`
+                : null;
+              return (
+                <div
+                  key={item.instanceId ?? `${item.id}-${item.qty}`}
+                  style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 2 }}
+                >
+                  <div>
+                    <span style={{ color: "#fff", fontWeight: 700 }}>{item.qty}x</span>{" "}
+                    <span style={{ color: "rgba(255,255,255,0.8)" }} title={weaponSummary ?? undefined}>
+                      {resolveItemLabel(String(item.id))}
+                    </span>
+                    {item.equippedSlot && (
+                      <span style={{ color: "rgba(255,255,255,0.55)" }}> (eq: {item.equippedSlot})</span>
+                    )}
+                    {item.storedIn && (
+                      <span style={{ color: "rgba(255,255,255,0.55)" }}> (dans {item.storedIn})</span>
+                    )}
+                  </div>
+                  {weaponSummary && (
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.62)" }}>{weaponSummary}</div>
+                  )}
+                </div>
+              );
+            })}
             <div style={{ marginTop: 6, fontSize: 12, color: "rgba(255,255,255,0.75)" }}>
               Argent: <span style={{ color: "#fff", fontWeight: 800 }}>{formatCoins(props.character.argent)}</span>
             </div>
@@ -596,9 +723,15 @@ export function CharacterSheetWindow(props: {
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>Aucune arme equipee.</div>
             )}
             {equippedWeapons.map(weapon => {
-              const damage = weapon.damage?.dice ?? "?";
-              const damageType = weapon.damage?.damageType ?? "";
-              const subtitle = damageType ? `${damage} ${damageType}` : damage;
+              const damageLabel = formatWeaponDamageLabel(weapon);
+              const category = String(weapon.category ?? "?");
+              const rangeLabel = formatWeaponRangeLabel(weapon);
+              const harmonized = harmonizedByWeaponId.get(String(weapon.id));
+              const harmonizedLabel =
+                harmonized?.harmonisable
+                  ? ` | harm:${harmonized.harmonized ? "active" : "inactive"}`
+                  : "";
+              const subtitle = `${category} | ${damageLabel} | ${rangeLabel}${harmonizedLabel}`;
               return <StatRow key={weapon.id} label={weapon.name} value={subtitle} dim />;
             })}
           </Section>

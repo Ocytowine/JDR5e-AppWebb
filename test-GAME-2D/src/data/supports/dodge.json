@@ -1,0 +1,41 @@
+{
+  "id": "dodge",
+  "name": "Esquive",
+  "summary": "Jusqu'au debut de votre prochain tour, les attaques contre vous ont le desavantage.",
+  "category": "defense",
+  "actionCost": {
+    "actionType": "action",
+    "movementCost": 0
+  },
+  "targeting": {
+    "target": "self",
+    "range": {
+      "min": 0,
+      "max": 0,
+      "shape": "SPHERE"
+    },
+    "maxTargets": 1,
+    "requiresLos": false
+  },
+  "usage": {
+    "perTurn": 1,
+    "perEncounter": null,
+    "resource": null
+  },
+  "conditions": [],
+  "tags": ["core-action", "defense"],
+  "ops": {
+    "onResolve": [
+      {
+        "op": "ApplyCondition",
+        "target": "self",
+        "statusId": "dodge",
+        "durationTurns": 1
+      },
+      {
+        "op": "LogEvent",
+        "message": "Esquive active: desavantage contre vos assaillants jusqu'au debut de votre prochain tour."
+      }
+    ]
+  }
+}

@@ -8,14 +8,16 @@
   "weight": 5,
   "tags": [
     "armure",
-    "legere"
+    "legere",
+    "leather"
   ],
   "description": "Armure legere en cuir.",
   "category": "armor_body",
   "value": {
     "platinum": 0,
-    "gold": 10.0,
+    "gold": 10,
     "silver": 0,
     "copper": 0
-  }
+  },
+  "harmonisable": false
 }

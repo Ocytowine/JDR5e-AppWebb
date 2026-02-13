@@ -1,0 +1,41 @@
+{
+  "id": "ready-action",
+  "name": "Intention",
+  "summary": "Vous vous preparez a reagir a un declencheur defini.",
+  "category": "defense",
+  "actionCost": {
+    "actionType": "action",
+    "movementCost": 0
+  },
+  "targeting": {
+    "target": "self",
+    "range": {
+      "min": 0,
+      "max": 0,
+      "shape": "SPHERE"
+    },
+    "maxTargets": 1,
+    "requiresLos": false
+  },
+  "usage": {
+    "perTurn": 1,
+    "perEncounter": null,
+    "resource": null
+  },
+  "conditions": [],
+  "tags": ["core-action", "ready"],
+  "ops": {
+    "onResolve": [
+      {
+        "op": "ApplyCondition",
+        "target": "self",
+        "statusId": "readying",
+        "durationTurns": 1
+      },
+      {
+        "op": "LogEvent",
+        "message": "Intention: vous etes pret a reagir au declencheur choisi."
+      }
+    ]
+  }
+}

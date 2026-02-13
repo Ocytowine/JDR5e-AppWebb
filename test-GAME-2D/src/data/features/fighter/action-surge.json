@@ -1,0 +1,33 @@
+{
+  "id": "action-surge",
+  "label": "Fougue",
+  "summary": "Action supplementaire lors du tour.",
+  "kind": "resource",
+  "tags": ["fighter", "resource"],
+  "grants": [
+    {
+      "kind": "action",
+      "ids": ["action-surge"],
+      "source": "action-surge"
+    },
+    {
+      "kind": "resource",
+      "ids": ["action-surge"],
+      "source": "action-surge",
+      "meta": {
+        "maxByLevel": {
+          "2": 1,
+          "17": 2
+        },
+        "scale": {
+          "basis": "class",
+          "classId": "fighter"
+        },
+        "recharge": "short_rest"
+      }
+    }
+  ],
+  "rules": {
+    "text": "Permet de prendre une action supplementaire (hors action Magie selon les regles retenues)."
+  }
+}

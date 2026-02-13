@@ -8,14 +8,16 @@
   "weight": 30,
   "tags": [
     "armure",
-    "lourde"
+    "lourde",
+    "metal"
   ],
   "description": "Armure lourde complete en plaques.",
   "category": "armor_body",
   "value": {
     "platinum": 0,
-    "gold": 1500.0,
+    "gold": 1500,
     "silver": 0,
     "copper": 0
-  }
+  },
+  "harmonisable": false
 }

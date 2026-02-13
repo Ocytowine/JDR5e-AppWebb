@@ -1,0 +1,314 @@
+{
+  "id": "divine-spark-radiant",
+  "name": "Etincelle divine (Radiant)",
+  "summary": "Conduit divin: degats radiants sur jet de Constitution.",
+  "category": "support",
+  "actionCost": {
+    "actionType": "action",
+    "movementCost": 0
+  },
+  "targeting": {
+    "target": "hostile",
+    "range": {
+      "min": 0,
+      "max": 9,
+      "shape": "SPHERE"
+    },
+    "maxTargets": 1,
+    "requiresLos": true
+  },
+  "usage": {
+    "perTurn": null,
+    "perEncounter": null,
+    "resource": {
+      "name": "channel-divinity",
+      "pool": null,
+      "min": 1
+    }
+  },
+  "resolution": {
+    "kind": "SAVING_THROW",
+    "save": {
+      "ability": "CON",
+      "dc": 10,
+      "dcFormula": "8 + proficiencyBonus + modSAG"
+    }
+  },
+  "conditions": [
+    {
+      "type": "TARGET_ALIVE",
+      "target": "primary",
+      "reason": "La cible doit etre vivante."
+    }
+  ],
+  "ops": {
+    "onResolve": [
+      {
+        "op": "SpendResource",
+        "name": "channel-divinity",
+        "amount": 1
+      }
+    ],
+    "onSaveFail": [],
+    "onSaveSuccess": []
+  },
+  "hooks": [
+    {
+      "when": "onOutcome",
+      "if": [
+        {
+          "type": "AND",
+          "all": [
+            {
+              "type": "OUTCOME_IS",
+              "value": "SAVE_FAIL"
+            },
+            {
+              "type": "ACTOR_VALUE",
+              "key": "level",
+              "cmp": "LT",
+              "value": 7
+            }
+          ]
+        }
+      ],
+      "apply": [
+        {
+          "op": "DealDamage",
+          "target": "primary",
+          "formula": "1d8 + modSAG",
+          "damageType": "RADIANT"
+        }
+      ]
+    },
+    {
+      "when": "onOutcome",
+      "if": [
+        {
+          "type": "AND",
+          "all": [
+            {
+              "type": "OUTCOME_IS",
+              "value": "SAVE_SUCCESS"
+            },
+            {
+              "type": "ACTOR_VALUE",
+              "key": "level",
+              "cmp": "LT",
+              "value": 7
+            }
+          ]
+        }
+      ],
+      "apply": [
+        {
+          "op": "DealDamageScaled",
+          "target": "primary",
+          "formula": "1d8 + modSAG",
+          "damageType": "RADIANT",
+          "scale": "half"
+        }
+      ]
+    },
+    {
+      "when": "onOutcome",
+      "if": [
+        {
+          "type": "AND",
+          "all": [
+            {
+              "type": "OUTCOME_IS",
+              "value": "SAVE_FAIL"
+            },
+            {
+              "type": "ACTOR_VALUE",
+              "key": "level",
+              "cmp": "GTE",
+              "value": 7
+            },
+            {
+              "type": "ACTOR_VALUE",
+              "key": "level",
+              "cmp": "LT",
+              "value": 13
+            }
+          ]
+        }
+      ],
+      "apply": [
+        {
+          "op": "DealDamage",
+          "target": "primary",
+          "formula": "2d8 + modSAG",
+          "damageType": "RADIANT"
+        }
+      ]
+    },
+    {
+      "when": "onOutcome",
+      "if": [
+        {
+          "type": "AND",
+          "all": [
+            {
+              "type": "OUTCOME_IS",
+              "value": "SAVE_SUCCESS"
+            },
+            {
+              "type": "ACTOR_VALUE",
+              "key": "level",
+              "cmp": "GTE",
+              "value": 7
+            },
+            {
+              "type": "ACTOR_VALUE",
+              "key": "level",
+              "cmp": "LT",
+              "value": 13
+            }
+          ]
+        }
+      ],
+      "apply": [
+        {
+          "op": "DealDamageScaled",
+          "target": "primary",
+          "formula": "2d8 + modSAG",
+          "damageType": "RADIANT",
+          "scale": "half"
+        }
+      ]
+    },
+    {
+      "when": "onOutcome",
+      "if": [
+        {
+          "type": "AND",
+          "all": [
+            {
+              "type": "OUTCOME_IS",
+              "value": "SAVE_FAIL"
+            },
+            {
+              "type": "ACTOR_VALUE",
+              "key": "level",
+              "cmp": "GTE",
+              "value": 13
+            },
+            {
+              "type": "ACTOR_VALUE",
+              "key": "level",
+              "cmp": "LT",
+              "value": 18
+            }
+          ]
+        }
+      ],
+      "apply": [
+        {
+          "op": "DealDamage",
+          "target": "primary",
+          "formula": "3d8 + modSAG",
+          "damageType": "RADIANT"
+        }
+      ]
+    },
+    {
+      "when": "onOutcome",
+      "if": [
+        {
+          "type": "AND",
+          "all": [
+            {
+              "type": "OUTCOME_IS",
+              "value": "SAVE_SUCCESS"
+            },
+            {
+              "type": "ACTOR_VALUE",
+              "key": "level",
+              "cmp": "GTE",
+              "value": 13
+            },
+            {
+              "type": "ACTOR_VALUE",
+              "key": "level",
+              "cmp": "LT",
+              "value": 18
+            }
+          ]
+        }
+      ],
+      "apply": [
+        {
+          "op": "DealDamageScaled",
+          "target": "primary",
+          "formula": "3d8 + modSAG",
+          "damageType": "RADIANT",
+          "scale": "half"
+        }
+      ]
+    },
+    {
+      "when": "onOutcome",
+      "if": [
+        {
+          "type": "AND",
+          "all": [
+            {
+              "type": "OUTCOME_IS",
+              "value": "SAVE_FAIL"
+            },
+            {
+              "type": "ACTOR_VALUE",
+              "key": "level",
+              "cmp": "GTE",
+              "value": 18
+            }
+          ]
+        }
+      ],
+      "apply": [
+        {
+          "op": "DealDamage",
+          "target": "primary",
+          "formula": "4d8 + modSAG",
+          "damageType": "RADIANT"
+        }
+      ]
+    },
+    {
+      "when": "onOutcome",
+      "if": [
+        {
+          "type": "AND",
+          "all": [
+            {
+              "type": "OUTCOME_IS",
+              "value": "SAVE_SUCCESS"
+            },
+            {
+              "type": "ACTOR_VALUE",
+              "key": "level",
+              "cmp": "GTE",
+              "value": 18
+            }
+          ]
+        }
+      ],
+      "apply": [
+        {
+          "op": "DealDamageScaled",
+          "target": "primary",
+          "formula": "4d8 + modSAG",
+          "damageType": "RADIANT",
+          "scale": "half"
+        }
+      ]
+    }
+  ],
+  "tags": [
+    "cleric",
+    "channel-divinity",
+    "support"
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "id": "fighting-style",
+  "label": "Style de combat",
+  "summary": "Choix d'un style martial specialise.",
+  "kind": "feature",
+  "tags": ["fighting-style"],
+  "grants": [],
+  "rules": {
+    "text": "Choisissez un style de combat. Le style peut etre remplace lors d'un gain de niveau dans une classe qui accorde ce choix.",
+    "choices": [
+      {
+        "key": "style",
+        "title": "Style de combat",
+        "count": 1,
+        "options": [
+          {
+            "id": "archery",
+            "label": "Archerie",
+            "summary": "+2 aux jets d'attaque avec armes a distance.",
+            "grants": [
+              { "kind": "feature", "ids": ["fighting-style-archery"] }
+            ]
+          },
+          {
+            "id": "defense",
+            "label": "Defense",
+            "summary": "+1 a la CA quand vous portez une armure.",
+            "grants": [
+              { "kind": "feature", "ids": ["fighting-style-defense"] }
+            ]
+          },
+          {
+            "id": "dueling",
+            "label": "Duel",
+            "summary": "+2 degats avec une arme de melee tenue a une main.",
+            "grants": [
+              { "kind": "feature", "ids": ["fighting-style-dueling"] }
+            ]
+          },
+          {
+            "id": "great-weapon-fighting",
+            "label": "Combat a deux mains",
+            "summary": "Relance conditionnelle des degats d'arme a deux mains.",
+            "grants": [
+              { "kind": "feature", "ids": ["fighting-style-great-weapon-fighting"] }
+            ]
+          },
+          {
+            "id": "interception",
+            "label": "Interception",
+            "summary": "Reaction pour reduire les degats subis par un allie proche.",
+            "grants": [
+              { "kind": "feature", "ids": ["fighting-style-interception"] }
+            ]
+          },
+          {
+            "id": "protection",
+            "label": "Protection",
+            "summary": "Desavantage impose a une attaque contre un allie proche.",
+            "grants": [
+              { "kind": "feature", "ids": ["fighting-style-protection"] }
+            ]
+          },
+          {
+            "id": "two-weapon-fighting",
+            "label": "Combat a deux armes",
+            "summary": "Ajout du modificateur de caracteristique aux degats de la seconde arme.",
+            "grants": [
+              { "kind": "feature", "ids": ["fighting-style-two-weapon-fighting"] }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

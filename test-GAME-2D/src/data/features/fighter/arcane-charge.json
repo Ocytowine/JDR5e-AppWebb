@@ -1,0 +1,11 @@
+{
+  "id": "arcane-charge",
+  "label": "Charge arcanique",
+  "summary": "Teleportation breve lors de l'utilisation de Fougue.",
+  "kind": "feature",
+  "tags": ["fighter", "eldritch-knight", "movement"],
+  "grants": [],
+  "rules": {
+    "text": "Quand vous utilisez Fougue, vous pouvez vous teleporter sur une courte distance."
+  }
+}

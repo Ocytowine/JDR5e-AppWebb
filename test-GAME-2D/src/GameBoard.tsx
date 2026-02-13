@@ -234,6 +234,18 @@ const ENEMY_TYPE_MODULES: Record<string, EnemyTypeDefinition> = {
   "./ghost.json": ghostType as EnemyTypeDefinition
 };
 
+const CORE_BASE_ACTION_IDS: string[] = [
+  "melee-strike",
+  "disengage",
+  "dodge",
+  "study",
+  "hide",
+  "influence",
+  "observe",
+  "help",
+  "ready-action"
+];
+
 function buildCellKey(x: number, y: number): string {
   return `${x},${y}`;
 }
@@ -740,6 +752,29 @@ export const GameBoard: React.FC = () => {
         .filter((id): id is string => Boolean(id)),
     [weaponMasteryActions]
   );
+  const [featureTypes, setFeatureTypes] = useState<FeatureDefinition[]>([]);
+  const runtimeFeatureTypes = useMemo(
+    () => (featureTypes.length > 0 ? featureTypes : loadFeatureTypesFromIndex()),
+    [featureTypes]
+  );
+  const runtimeFeatureById = useMemo(() => {
+    const map = new Map<string, FeatureDefinition>();
+    runtimeFeatureTypes.forEach(def => {
+      if (def?.id) map.set(String(def.id), def);
+    });
+    return map;
+  }, [runtimeFeatureTypes]);
+  const activePlayerFeatureIds = useMemo(() => {
+    const ids = ((activeCharacterConfig as any)?.derived?.grants?.features ?? []) as string[];
+    return Array.isArray(ids) ? ids.map(id => String(id)).filter(Boolean) : [];
+  }, [activeCharacterConfig]);
+  const activePlayerFeatures = useMemo(
+    () =>
+      activePlayerFeatureIds
+        .map(id => runtimeFeatureById.get(id) ?? null)
+        .filter((feature): feature is FeatureDefinition => Boolean(feature)),
+    [activePlayerFeatureIds, runtimeFeatureById]
+  );
   const baseCombatStats: CombatStats = useMemo(
     () => {
       const built = buildCombatStatsFromCharacter(activeCharacterConfig, armorItemsById);
@@ -762,7 +797,7 @@ export const GameBoard: React.FC = () => {
       loadBonusTypesFromIndex().forEach(def => {
         if (def?.id) bonusById.set(def.id, def);
       });
-      return applyEquipmentBonusesToCombatStats({
+      const equipmentStats = applyEquipmentBonusesToCombatStats({
         character: activeCharacterConfig,
         baseStats: merged,
         weaponById,
@@ -770,8 +805,15 @@ export const GameBoard: React.FC = () => {
         objectById,
         bonusById
       }).stats;
+      return applyFeatureCombatStatModifiers(
+        {
+          id: activeCharacterConfig.id ?? "player-1",
+          type: "player"
+        } as TokenState,
+        equipmentStats
+      );
     },
-    [activeCharacterConfig, armorItemsById]
+    [activeCharacterConfig, armorItemsById, activePlayerFeatures]
   );
   const playerCombatStats: CombatStats = useMemo(
     () => {
@@ -842,7 +884,6 @@ export const GameBoard: React.FC = () => {
   const [effects, setEffects] = useState<EffectInstance[]>([]);
   const [actionEffects, setActionEffects] = useState<Array<EffectInstance & { expiresAt: number }>>([]);
   const [statusTypes, setStatusTypes] = useState<StatusDefinition[]>([]);
-  const [featureTypes, setFeatureTypes] = useState<FeatureDefinition[]>([]);
   const [wallTypes, setWallTypes] = useState<WallTypeDefinition[]>([]);
   const [wallSegments, setWallSegments] = useState<WallSegment[]>([]);
   const [decorations, setDecorations] = useState<DecorInstance[]>([]);
@@ -1310,6 +1351,32 @@ export const GameBoard: React.FC = () => {
         .filter((weapon): weapon is WeaponTypeDefinition => Boolean(weapon)),
     [primaryWeaponIds, weaponTypeById]
   );
+  const equipmentAppliedBonuses = useMemo(() => {
+    const built = buildCombatStatsFromCharacter(activeCharacterConfig, armorItemsById);
+    const merged = !activeCharacterConfig.combatStats
+      ? built
+      : {
+          ...built,
+          ...activeCharacterConfig.combatStats,
+          armorClass: built.armorClass
+        };
+    const objectById = new Map<string, ObjectItemDefinition>();
+    objectItems.forEach(def => {
+      if (def?.id) objectById.set(def.id, def);
+    });
+    const bonusById = new Map<string, BonusDefinition>();
+    loadBonusTypesFromIndex().forEach(def => {
+      if (def?.id) bonusById.set(def.id, def);
+    });
+    return applyEquipmentBonusesToCombatStats({
+      character: activeCharacterConfig,
+      baseStats: merged,
+      weaponById: weaponTypeById,
+      armorById: armorItemsById,
+      objectById,
+      bonusById
+    }).applied;
+  }, [activeCharacterConfig, armorItemsById, objectItems, weaponTypeById]);
   const floorMaterialById = useMemo(() => {
     const map = new Map<string, FloorMaterial>();
     for (const t of FLOOR_MATERIALS) map.set(t.id, t);
@@ -3507,6 +3574,209 @@ export const GameBoard: React.FC = () => {
     }
   }
 
+  function getClassLevelForCharacter(character: Personnage, classId: string): number {
+    const entries = Object.values((character as any)?.classe ?? {});
+    let best = 0;
+    for (const entry of entries) {
+      const id = String((entry as any)?.classeId ?? "").toLowerCase();
+      if (id !== classId.toLowerCase()) continue;
+      const level = Number((entry as any)?.niveau ?? 0);
+      if (Number.isFinite(level)) best = Math.max(best, level);
+    }
+    return best;
+  }
+
+  function getHighestClassLevel(character: Personnage): number {
+    const entries = Object.values((character as any)?.classe ?? {});
+    let best = 0;
+    for (const entry of entries) {
+      const level = Number((entry as any)?.niveau ?? 0);
+      if (Number.isFinite(level)) best = Math.max(best, level);
+    }
+    return best > 0 ? best : Number(character.niveauGlobal ?? 1) || 1;
+  }
+
+  function getClassLevelForSubclass(character: Personnage, subclassId: string): number {
+    const entries = Object.values((character as any)?.classe ?? {});
+    let best = 0;
+    for (const entry of entries) {
+      const id = String((entry as any)?.subclasseId ?? "").toLowerCase();
+      if (id !== subclassId.toLowerCase()) continue;
+      const level = Number((entry as any)?.niveau ?? 0);
+      if (Number.isFinite(level)) best = Math.max(best, level);
+    }
+    return best;
+  }
+
+  function deriveRuntimeFromFeatures(character: Personnage) {
+    const featureDefs = featureTypes.length > 0 ? featureTypes : loadFeatureTypesFromIndex();
+    const featureById = new Map<string, FeatureDefinition>();
+    for (const feature of featureDefs) {
+      if (feature?.id) featureById.set(feature.id, feature);
+    }
+
+    const featureIds = Array.isArray((character as any)?.derived?.grants?.features)
+      ? ((character as any).derived.grants.features as string[])
+      : [];
+    const directActionIds = Array.isArray((character as any)?.derived?.grants?.actions)
+      ? ((character as any).derived.grants.actions as string[])
+      : [];
+    const directReactionIds = Array.isArray((character as any)?.derived?.grants?.reactions)
+      ? ((character as any).derived.grants.reactions as string[])
+      : [];
+
+    const actionIds = new Set<string>();
+    const reactionIds = new Set<string>();
+    const resources: Record<string, number> = {};
+    const progressionEntries = Array.isArray((character as any)?.progressionHistory)
+      ? ((character as any).progressionHistory as Array<any>)
+      : [];
+
+    const featureSourceById = new Map<string, Array<{ source: string; level: number }>>();
+    progressionEntries.forEach(entry => {
+      if (entry?.type !== "grant") return;
+      const payload = entry?.payload ?? {};
+      if (String(payload?.kind ?? "").toLowerCase() !== "feature") return;
+      const ids = Array.isArray(payload?.ids) ? (payload.ids as string[]) : [];
+      const source = String(payload?.source ?? entry?.source ?? "");
+      const level = Number(payload?.level ?? entry?.level ?? 0);
+      ids.forEach(id => {
+        const key = String(id);
+        if (!key) return;
+        const list = featureSourceById.get(key) ?? [];
+        list.push({ source, level: Number.isFinite(level) ? level : 0 });
+        featureSourceById.set(key, list);
+      });
+    });
+
+    const resolveScaleLevel = (
+      featureId: string,
+      grant: { meta?: Record<string, unknown> }
+    ): number => {
+      const meta = (grant?.meta ?? {}) as Record<string, unknown>;
+      const scaleRaw = (meta.scale ?? null) as
+        | string
+        | {
+            basis?: string;
+            classId?: string;
+            source?: string;
+          }
+        | null;
+      const sourceContexts = featureSourceById.get(String(featureId)) ?? [];
+
+      const levelFromSource = (source: string): number => {
+        const normalized = String(source ?? "").trim().toLowerCase();
+        if (!normalized) return 0;
+        if (normalized.startsWith("class:")) {
+          return getClassLevelForCharacter(character, normalized.slice("class:".length));
+        }
+        if (normalized.startsWith("subclass:")) {
+          return getClassLevelForSubclass(character, normalized.slice("subclass:".length));
+        }
+        return 0;
+      };
+
+      if (typeof scaleRaw === "string") {
+        const value = scaleRaw.trim().toLowerCase();
+        if (value === "character_level") return Number(character.niveauGlobal ?? 1) || 1;
+        if (value === "highest_class") return getHighestClassLevel(character);
+        if (value.startsWith("class:")) {
+          return getClassLevelForCharacter(character, value.slice("class:".length));
+        }
+        if (value.startsWith("subclass:")) {
+          return getClassLevelForSubclass(character, value.slice("subclass:".length));
+        }
+        return getClassLevelForCharacter(character, value);
+      }
+
+      if (scaleRaw && typeof scaleRaw === "object") {
+        const basis = String(scaleRaw.basis ?? "").trim().toLowerCase();
+        if (basis === "character_level") return Number(character.niveauGlobal ?? 1) || 1;
+        if (basis === "highest_class") return getHighestClassLevel(character);
+        if (basis === "class") {
+          const classId = String(scaleRaw.classId ?? "").trim();
+          if (classId) return getClassLevelForCharacter(character, classId);
+        }
+        if (basis === "source") {
+          const source = String(scaleRaw.source ?? "").trim();
+          const level = levelFromSource(source);
+          if (level > 0) return level;
+        }
+      }
+
+      const contextMax = sourceContexts.reduce((best, ctx) => {
+        const fromSource = levelFromSource(ctx.source);
+        if (fromSource > 0) return Math.max(best, fromSource);
+        if (Number.isFinite(ctx.level)) return Math.max(best, Number(ctx.level));
+        return best;
+      }, 0);
+      if (contextMax > 0) return contextMax;
+
+      return getHighestClassLevel(character);
+    };
+
+    const resolveMaxFromGrant = (
+      featureId: string,
+      grant: { meta?: Record<string, unknown> }
+    ): number => {
+      const meta = (grant?.meta ?? {}) as Record<string, unknown>;
+      const directMax = Number(meta.max ?? NaN);
+      if (Number.isFinite(directMax) && directMax >= 0) return directMax;
+      const maxByLevel = (meta.maxByLevel ?? {}) as Record<string, number>;
+      const scaleLevel = resolveScaleLevel(featureId, grant);
+      let max = 0;
+      Object.entries(maxByLevel)
+        .map(([lvl, value]) => [Number(lvl), Number(value)] as const)
+        .filter(([lvl, value]) => Number.isFinite(lvl) && Number.isFinite(value) && lvl > 0 && value >= 0)
+        .sort((a, b) => a[0] - b[0])
+        .forEach(([lvl, value]) => {
+          if (scaleLevel >= lvl) max = value;
+        });
+      return max;
+    };
+
+    directActionIds.forEach(id => {
+      const key = String(id);
+      if (key) actionIds.add(key);
+    });
+    directReactionIds.forEach(id => {
+      const key = String(id);
+      if (key) reactionIds.add(key);
+    });
+
+    for (const featureId of featureIds) {
+      const feature = featureById.get(String(featureId));
+      if (!feature) continue;
+      const grants = Array.isArray(feature.grants) ? feature.grants : [];
+      for (const grant of grants) {
+        const ids = Array.isArray((grant as any)?.ids) ? ((grant as any).ids as string[]) : [];
+        if ((grant as any)?.kind === "action") {
+          ids.forEach(id => actionIds.add(String(id)));
+          continue;
+        }
+        if ((grant as any)?.kind === "reaction") {
+          ids.forEach(id => reactionIds.add(String(id)));
+          continue;
+        }
+        if ((grant as any)?.kind !== "resource") continue;
+        const max = resolveMaxFromGrant(String(featureId), grant as any);
+        const pool = (grant as any)?.meta?.pool;
+        const poolKey = typeof pool === "string" && pool.trim() ? pool.trim() : null;
+
+        ids.forEach(id => {
+          const key = resourceKey(String(id), poolKey);
+          resources[key] = Math.max(resources[key] ?? 0, max);
+        });
+      }
+    }
+
+    return {
+      actionIds: Array.from(actionIds),
+      reactionIds: Array.from(reactionIds),
+      resources
+    };
+  }
+
   function handleStartCombat() {
     if (enemyTypes.length === 0) {
       pushLog(
@@ -3555,6 +3825,32 @@ export const GameBoard: React.FC = () => {
       bonusActionsPerTurn: combatBaseStats.bonusActionsPerTurn ?? 1,
       actionRules: combatBaseStats.actionRules ?? { forbidSecondAttack: true }
     };
+    const featureRuntime = deriveRuntimeFromFeatures(combatCharacter);
+    const combatActionIds = Array.from(
+      new Set([
+        ...CORE_BASE_ACTION_IDS,
+        ...(Array.isArray(combatCharacter.actionIds) ? combatCharacter.actionIds : []),
+        ...featureRuntime.actionIds
+      ])
+    );
+    const combatReactionIds = Array.from(
+      new Set([
+        ...(Array.isArray(combatCharacter.reactionIds) ? combatCharacter.reactionIds : []),
+        ...featureRuntime.reactionIds
+      ])
+    );
+    const baseResourcesFromStats: Record<string, number> = {};
+    const statsResources = (combatCharacter as any)?.combatStats?.resources ?? {};
+    Object.entries(statsResources as Record<string, any>).forEach(([name, value]) => {
+      if (typeof value === "number" && Number.isFinite(value)) {
+        baseResourcesFromStats[resourceKey(name, null)] = value;
+        return;
+      }
+      if (typeof value?.current === "number" && Number.isFinite(value.current)) {
+        baseResourcesFromStats[resourceKey(name, null)] = value.current;
+      }
+    });
+    const initialPlayerResources = { ...baseResourcesFromStats, ...featureRuntime.resources };
 
     let grid = { ...mapGrid };
     let map = generateBattleMap({
@@ -3595,8 +3891,8 @@ export const GameBoard: React.FC = () => {
     setPlayer(prev => ({
       ...prev,
       appearance: combatCharacter.appearance,
-      actionIds: Array.isArray(combatCharacter.actionIds) ? combatCharacter.actionIds : [],
-      reactionIds: Array.isArray(combatCharacter.reactionIds) ? combatCharacter.reactionIds : [],
+      actionIds: combatActionIds,
+      reactionIds: combatReactionIds,
       movementProfile: combatDefaultMovementProfile,
       moveRange: combatPlayerStats.moveRange,
       visionProfile: combatVisionProfile,
@@ -3659,7 +3955,7 @@ export const GameBoard: React.FC = () => {
     setKillerInstinctTargetId(null);
     seenTargetsByActorRef.current.clear();
     enemyTurnPauseRef.current = null;
-      setPlayerResources({});
+      setPlayerResources(initialPlayerResources);
     setPathLimit(combatDefaultMovementProfile.speed);
     setBasePathLimit(combatDefaultMovementProfile.speed);
     setMovementSpent(0);
@@ -5348,6 +5644,366 @@ export const GameBoard: React.FC = () => {
       return def?.armorCategory === "shield";
     });
   }
+  function hasOffhandWeaponEquippedByPlayer(): boolean {
+    const inventory = Array.isArray((activeCharacterConfig as any)?.inventoryItems)
+      ? ((activeCharacterConfig as any).inventoryItems as Array<any>)
+      : [];
+    const carriedSlots = new Set(["ceinture_gauche", "ceinture_droite", "dos_gauche", "dos_droit"]);
+    const equippedCarriedWeapons = inventory.filter(
+      item => item?.type === "weapon" && item?.equippedSlot && carriedSlots.has(item.equippedSlot)
+    );
+    if (equippedCarriedWeapons.length >= 2) return true;
+    return inventory.some(item => item?.type === "weapon" && item?.equippedSlot === "main_gauche");
+  }
+  function isArmorEquippedByPlayer(): boolean {
+    const inventory = Array.isArray((activeCharacterConfig as any)?.inventoryItems)
+      ? ((activeCharacterConfig as any).inventoryItems as Array<any>)
+      : [];
+    return inventory.some(item => {
+      if (item?.type !== "armor" || !item?.equippedSlot) return false;
+      const def = armorItemsById.get(item.id);
+      return Boolean(def && def.armorCategory !== "shield");
+    });
+  }
+  type FeatureRuleModifier = {
+    applyTo?: string;
+    stat?: string;
+    value?: number;
+    when?: Record<string, any>;
+  };
+  type FeatureReactionModifier = {
+    event?: string;
+    mode?: string;
+    formula?: string;
+    when?: Record<string, any>;
+    uiMessage?: string;
+  };
+  type FeatureSecondaryAttackPolicy = {
+    mode?: string;
+    ability?: string;
+    when?: Record<string, any>;
+  };
+  function getFeatureRuleModifiersForActor(actor: TokenState): FeatureRuleModifier[] {
+    if (actor.type !== "player") return [];
+    return activePlayerFeatures.flatMap(feature => {
+      const rules = (feature.rules ?? {}) as Record<string, any>;
+      const modifiers = Array.isArray(rules.modifiers) ? (rules.modifiers as Array<any>) : [];
+      return modifiers
+        .map(mod => {
+          const value = Number(mod?.value ?? 0);
+          if (!Number.isFinite(value)) return null;
+          return {
+            applyTo: String(mod?.applyTo ?? "").trim(),
+            stat: typeof mod?.stat === "string" ? mod.stat : undefined,
+            value,
+            when: mod?.when && typeof mod.when === "object" ? mod.when : {}
+          } as FeatureRuleModifier;
+        })
+        .filter(Boolean) as FeatureRuleModifier[];
+    });
+  }
+  function getFeatureReactionModifiersForActor(actor: TokenState): FeatureReactionModifier[] {
+    if (actor.type !== "player") return [];
+    return activePlayerFeatures.flatMap(feature => {
+      const rules = (feature.rules ?? {}) as Record<string, any>;
+      const modifiers = Array.isArray(rules.reactionModifiers)
+        ? (rules.reactionModifiers as Array<any>)
+        : [];
+      return modifiers
+        .map(mod => ({
+          event: typeof mod?.event === "string" ? mod.event : undefined,
+          mode: typeof mod?.mode === "string" ? mod.mode : undefined,
+          formula: typeof mod?.formula === "string" ? mod.formula : undefined,
+          when: mod?.when && typeof mod.when === "object" ? mod.when : {},
+          uiMessage: typeof mod?.uiMessage === "string" ? mod.uiMessage : undefined
+        }))
+        .filter(mod => Boolean(mod.event) && Boolean(mod.mode));
+    });
+  }
+  function getFeatureSecondaryAttackPoliciesForActor(actor: TokenState): FeatureSecondaryAttackPolicy[] {
+    if (actor.type !== "player") return [];
+    return activePlayerFeatures.flatMap(feature => {
+      const rules = (feature.rules ?? {}) as Record<string, any>;
+      const policy = rules.secondaryAttackPolicy;
+      if (!policy || typeof policy !== "object") return [];
+      return [
+        {
+          mode: typeof policy.mode === "string" ? policy.mode : undefined,
+          ability: typeof policy.ability === "string" ? policy.ability : undefined,
+          when: policy.when && typeof policy.when === "object" ? policy.when : {}
+        }
+      ];
+    });
+  }
+  function featureModifierMatches(params: {
+    modifier: FeatureRuleModifier;
+    actor: TokenState;
+    action?: ActionDefinition | null;
+    weapon?: WeaponTypeDefinition | null;
+  }) {
+    const when = (params.modifier.when ?? {}) as Record<string, any>;
+    const actorType = String(when.actorType ?? "").trim();
+    if (actorType && actorType !== params.actor.type) return false;
+    if (when.actionCategory && String(when.actionCategory) !== String(params.action?.category ?? "")) {
+      return false;
+    }
+    if (when.actionCostType) {
+      const costType = String(params.action?.actionCost?.actionType ?? "");
+      if (String(when.actionCostType) !== costType) return false;
+    }
+    if (Array.isArray(when.actionTagsAny) && when.actionTagsAny.length > 0) {
+      const tags = Array.isArray(params.action?.tags) ? (params.action?.tags as string[]) : [];
+      const any = when.actionTagsAny.some((tag: any) => tags.includes(String(tag)));
+      if (!any) return false;
+    }
+    if (Array.isArray(when.actionTagsAll) && when.actionTagsAll.length > 0) {
+      const tags = Array.isArray(params.action?.tags) ? (params.action?.tags as string[]) : [];
+      const all = when.actionTagsAll.every((tag: any) => tags.includes(String(tag)));
+      if (!all) return false;
+    }
+    if (when.weaponCategory || Array.isArray(when.weaponCategories)) {
+      const category = String(params.weapon?.category ?? "");
+      const expected = Array.isArray(when.weaponCategories)
+        ? when.weaponCategories.map((entry: any) => String(entry))
+        : [String(when.weaponCategory)];
+      if (!category || !expected.includes(category)) return false;
+    }
+    if (typeof when.weaponTwoHanded === "boolean") {
+      if (Boolean(params.weapon?.properties?.twoHanded) !== Boolean(when.weaponTwoHanded)) return false;
+    }
+    if (typeof when.weaponLight === "boolean") {
+      if (Boolean(params.weapon?.properties?.light) !== Boolean(when.weaponLight)) return false;
+    }
+    if (typeof when.requiresArmor === "boolean" && params.actor.type === "player") {
+      if (isArmorEquippedByPlayer() !== Boolean(when.requiresArmor)) return false;
+    }
+    if (typeof when.requiresShield === "boolean" && params.actor.type === "player") {
+      if (isShieldEquippedByPlayer() !== Boolean(when.requiresShield)) return false;
+    }
+    if (typeof when.requiresOffhandWeapon === "boolean" && params.actor.type === "player") {
+      if (hasOffhandWeaponEquippedByPlayer() !== Boolean(when.requiresOffhandWeapon)) return false;
+    }
+    if (typeof when.requiresNoOffhandWeapon === "boolean" && params.actor.type === "player") {
+      const noOffhand = !hasOffhandWeaponEquippedByPlayer();
+      if (noOffhand !== Boolean(when.requiresNoOffhandWeapon)) return false;
+    }
+    return true;
+  }
+  function reactionModifierMatches(params: {
+    modifier: FeatureReactionModifier;
+    reactor: TokenState;
+    attacker: TokenState;
+    target: TokenState;
+    action: ActionDefinition;
+    distanceToTarget: number;
+  }): boolean {
+    const when = (params.modifier.when ?? {}) as Record<string, any>;
+    if (when.actionCategory && String(when.actionCategory) !== String(params.action.category ?? "")) {
+      return false;
+    }
+    if (typeof when.targetMustBeAlly === "boolean") {
+      const isAlly = params.target.type === params.reactor.type;
+      if (isAlly !== Boolean(when.targetMustBeAlly)) return false;
+    }
+    if (typeof when.targetMustNotBeSelf === "boolean") {
+      const mustNotBeSelf = Boolean(when.targetMustNotBeSelf);
+      if (mustNotBeSelf && params.target.id === params.reactor.id) return false;
+    }
+    if (typeof when.requiresShield === "boolean" && params.reactor.type === "player") {
+      if (isShieldEquippedByPlayer() !== Boolean(when.requiresShield)) return false;
+    }
+    if (typeof when.maxDistanceToTarget === "number") {
+      if (params.distanceToTarget > Number(when.maxDistanceToTarget)) return false;
+    }
+    if (typeof when.targetVisible === "boolean" && Boolean(when.targetVisible)) {
+      const allTokens = getTokensOnActiveLevel([player, ...enemies]);
+      const visible = isTargetVisible(
+        params.reactor,
+        params.attacker,
+        allTokens,
+        visionBlockersActive,
+        playableCells,
+        wallEdges.vision,
+        lightLevels,
+        mapGrid
+      );
+      if (!visible) return false;
+    }
+    return true;
+  }
+  function secondaryPolicyMatches(params: {
+    policy: FeatureSecondaryAttackPolicy;
+    actor: TokenState;
+    action: ActionDefinition;
+    weapon?: WeaponTypeDefinition | null;
+  }): boolean {
+    const when = (params.policy.when ?? {}) as Record<string, any>;
+    if (when.actionCategory && String(when.actionCategory) !== String(params.action.category ?? "")) {
+      return false;
+    }
+    if (when.actionCostType) {
+      const costType = String(params.action.actionCost?.actionType ?? "");
+      if (String(when.actionCostType) !== costType) return false;
+    }
+    if (typeof when.requiresOffhandWeapon === "boolean" && params.actor.type === "player") {
+      if (hasOffhandWeaponEquippedByPlayer() !== Boolean(when.requiresOffhandWeapon)) return false;
+    }
+    if (typeof when.weaponLight === "boolean") {
+      if (Boolean(params.weapon?.properties?.light) !== Boolean(when.weaponLight)) return false;
+    }
+    if (Array.isArray(when.actionTagsAny) && when.actionTagsAny.length > 0) {
+      const tags = Array.isArray(params.action.tags) ? params.action.tags : [];
+      const any = when.actionTagsAny.some((tag: any) => tags.includes(String(tag)));
+      if (!any) return false;
+    }
+    return true;
+  }
+  function isSecondaryAttackAction(action: ActionDefinition): boolean {
+    const tags = Array.isArray(action.tags) ? action.tags : [];
+    if (tags.includes("secondary-attack")) return true;
+    if (tags.includes("offhand-attack")) return true;
+    return action.actionCost?.actionType === "bonus" && action.category === "attack";
+  }
+  function appendModTokenToFormula(formula: string, modToken: string): string {
+    if (!formula || !modToken) return formula;
+    const normalizedFormula = formula.replace(/\s+/g, "");
+    if (normalizedFormula.toLowerCase().includes(modToken.toLowerCase())) return formula;
+    return `${formula} + ${modToken}`;
+  }
+  function applyFeatureCombatStatModifiers(
+    actor: TokenState,
+    stats: CombatStats
+  ): CombatStats {
+    const modifiers = getFeatureRuleModifiersForActor(actor);
+    if (modifiers.length === 0) return stats;
+    const next: CombatStats = { ...stats, mods: { ...stats.mods } };
+    modifiers.forEach(mod => {
+      if (mod.applyTo !== "combatStat" || !mod.stat) return;
+      if (!featureModifierMatches({ modifier: mod, actor })) return;
+      if (mod.stat === "armorClass") {
+        next.armorClass = Number(next.armorClass ?? 0) + Number(mod.value ?? 0);
+      } else if (mod.stat === "attackBonus") {
+        next.attackBonus = Number(next.attackBonus ?? 0) + Number(mod.value ?? 0);
+      } else if (mod.stat === "maxHp") {
+        next.maxHp = Number(next.maxHp ?? 0) + Number(mod.value ?? 0);
+      }
+    });
+    return next;
+  }
+  function appendDamageDeltaToFormula(formula: string, delta: number): string {
+    if (!Number.isFinite(delta) || delta === 0) return formula;
+    return delta > 0 ? `(${formula})+${delta}` : `(${formula})${delta}`;
+  }
+  function applyFeatureActionModifiers(params: {
+    actor: TokenState;
+    action: ActionDefinition;
+    weapon?: WeaponTypeDefinition | null;
+    modToken?: string | null;
+  }): ActionDefinition {
+    const modifiers = getFeatureRuleModifiersForActor(params.actor);
+    const secondaryPolicies = getFeatureSecondaryAttackPoliciesForActor(params.actor);
+    if (modifiers.length === 0 && secondaryPolicies.length === 0) return params.action;
+    const attackDelta = modifiers.reduce((sum, mod) => {
+      if (mod.applyTo !== "attack") return sum;
+      if (
+        !featureModifierMatches({
+          modifier: mod,
+          actor: params.actor,
+          action: params.action,
+          weapon: params.weapon ?? null
+        })
+      ) {
+        return sum;
+      }
+      return sum + Number(mod.value ?? 0);
+    }, 0);
+    const damageDelta = modifiers.reduce((sum, mod) => {
+      if (mod.applyTo !== "damage") return sum;
+      if (
+        !featureModifierMatches({
+          modifier: mod,
+          actor: params.actor,
+          action: params.action,
+          weapon: params.weapon ?? null
+        })
+      ) {
+        return sum;
+      }
+      return sum + Number(mod.value ?? 0);
+    }, 0);
+    const damageRerollLow = modifiers.reduce((best, mod) => {
+      if (mod.applyTo !== "damageReroll") return best;
+      if (
+        !featureModifierMatches({
+          modifier: mod,
+          actor: params.actor,
+          action: params.action,
+          weapon: params.weapon ?? null
+        })
+      ) {
+        return best;
+      }
+      return Math.max(best, Math.floor(Number(mod.value ?? 0)));
+    }, 0);
+    const secondaryAbilityToken = secondaryPolicies.reduce<string | null>((selected, policy) => {
+      if (selected) return selected;
+      if (policy.mode !== "addAbilityModToDamage") return selected;
+      if (!isSecondaryAttackAction(params.action)) return selected;
+      if (
+        !secondaryPolicyMatches({
+          policy,
+          actor: params.actor,
+          action: params.action,
+          weapon: params.weapon ?? null
+        })
+      ) {
+        return selected;
+      }
+      const ability = String(policy.ability ?? "").trim().toUpperCase();
+      if (ability === "FOR" || ability === "STR") return "modFOR";
+      if (ability === "DEX") return "modDEX";
+      if (ability === "CON") return "modCON";
+      if (ability === "INT") return "modINT";
+      if (ability === "SAG" || ability === "WIS") return "modSAG";
+      if (ability === "CHA") return "modCHA";
+      return params.modToken ?? null;
+    }, null);
+    if (
+      attackDelta === 0 &&
+      damageDelta === 0 &&
+      damageRerollLow <= 0 &&
+      !secondaryAbilityToken
+    ) {
+      return params.action;
+    }
+    const nextDamageFormula =
+      params.action.damage && secondaryAbilityToken
+        ? appendModTokenToFormula(params.action.damage.formula, secondaryAbilityToken)
+        : params.action.damage?.formula;
+    return {
+      ...params.action,
+      attack: params.action.attack
+        ? { ...params.action.attack, bonus: Number(params.action.attack.bonus ?? 0) + attackDelta }
+        : params.action.attack,
+      damage:
+        params.action.damage && (damageDelta !== 0 || damageRerollLow > 0)
+          ? ({
+            ...params.action.damage,
+            formula:
+              damageDelta !== 0
+                ? appendDamageDeltaToFormula(String(nextDamageFormula ?? "0"), damageDelta)
+                : nextDamageFormula,
+            ...(damageRerollLow > 0
+              ? {
+                rerollLow: {
+                  lte: damageRerollLow
+                }
+              }
+              : null)
+          } as any)
+          : params.action.damage
+    };
+  }
 
   function getWeaponActionConstraintIssues(
     action: ActionDefinition,
@@ -5452,7 +6108,7 @@ export const GameBoard: React.FC = () => {
     const useTwoHandedDamage = shouldUseTwoHandedDamageForAction(action, actor, weapon);
 
     const attackBonus = computeWeaponAttackBonus(actor, weapon);
-    return buildWeaponOverrideAction({
+    const overridden = buildWeaponOverrideAction({
       action,
       actor,
       weapon,
@@ -5461,6 +6117,7 @@ export const GameBoard: React.FC = () => {
       prefersRanged,
       useTwoHandedDamage
     });
+    return applyFeatureActionModifiers({ actor, action: overridden, weapon, modToken });
   }
 
   function getEnemyAttackAction(enemy: TokenState): ActionDefinition | null {
@@ -5839,6 +6496,11 @@ export const GameBoard: React.FC = () => {
     overrides?: { attackRoll?: AttackRollResult | null; damageRoll?: DamageRollResult | null }
   ): boolean {
     const target = resolvePlayerActionTarget(action);
+    pushLog(
+      `[pipeline-ui] Resolve start: action=${action.id} target=${
+        target?.kind ?? "none"
+      } resolution=${action.resolution?.kind ?? (action.attack ? "ATTACK_ROLL" : "NO_ROLL")}`
+    );
     if (action.targeting?.target !== "self" && !target) {
       pushLog("Cible manquante pour l'action.");
       return false;
@@ -5899,7 +6561,7 @@ export const GameBoard: React.FC = () => {
         spendResource: (name, pool, amount) => {
           spendPlayerResource(name, pool, amount);
         },
-        onLog: pushLog,
+        onLog: undefined,
         onModifyPathLimit: delta => {
           setBasePathLimit(prev => Math.max(0, prev + delta));
           setPathLimit(prev => Math.max(0, prev + delta));
@@ -5959,6 +6621,10 @@ export const GameBoard: React.FC = () => {
       }
     );
 
+    if (result.logs.length > 0) {
+      pushLogBatch(result.logs);
+    }
+
     if (!result.ok || !result.playerAfter || !result.enemiesAfter) {
       pushLog(`Action V2 echec: ${result.reason || "inconnu"}.`);
       return false;
@@ -5981,6 +6647,7 @@ export const GameBoard: React.FC = () => {
     if (result.outcomeKind) {
       setAttackOutcome(result.outcomeKind === "miss" ? "miss" : "hit");
     }
+    pushLog(`[pipeline-ui] Resolve end: outcome=${result.outcomeKind ?? "none"} ok=true`);
     return true;
   }
 
@@ -6049,6 +6716,11 @@ export const GameBoard: React.FC = () => {
     }
 
     const effectiveAdvantage = resolvePlayerAdvantageMode(action);
+    pushLog(
+      `[pipeline-ui] Resolve check (attack): action=${action.id} target=${targetLabel ?? "n/a"} adv=${effectiveAdvantage} critRange=${
+        action.attack.critRange ?? 20
+      }`
+    );
     const result = rollAttack(
       action.attack.bonus,
       effectiveAdvantage,
@@ -6075,6 +6747,9 @@ export const GameBoard: React.FC = () => {
         ? `TOUCHE (CA ${targetArmorClass})${result.isCrit ? " (critique!)" : ""}`
         : `RATE (CA ${targetArmorClass})`;
       pushDiceLog(`${baseLine} -> ${outcome}`);
+      pushLog(
+        `[pipeline-ui] Attack outcome: ${isHit ? "hit" : "miss"} total=${result.total} ac=${targetArmorClass} crit=${result.isCrit ? "yes" : "no"}`
+      );
       setAttackOutcome(isHit ? "hit" : "miss");
       if (!isHit) {
         pushLog(`Action ${action.name}: attaque ratee.`);
@@ -6082,6 +6757,9 @@ export const GameBoard: React.FC = () => {
     } else {
       pushDiceLog(
         `${baseLine}${result.isCrit ? " (critique!)" : ""}`
+      );
+      pushLog(
+        `[pipeline-ui] Attack outcome: hit total=${result.total} ac=n/a crit=${result.isCrit ? "yes" : "no"}`
       );
       setAttackOutcome("hit");
     }
@@ -6201,9 +6879,16 @@ export const GameBoard: React.FC = () => {
     }
 
     const resolvedDamageFormula = resolvePlayerFormula(action.damage.formula);
+    const damageRerollLow = Number((action.damage as any)?.rerollLow?.lte ?? 0);
+    pushLog(
+      `[pipeline-ui] Resolve check (damage): action=${action.id} formula=${resolvedDamageFormula} crit=${
+        attackRoll?.isCrit ? "yes" : "no"
+      } critRule=${action.damage.critRule ?? "double-dice"}`
+    );
     const result = rollDamage(resolvedDamageFormula, {
       isCrit: Boolean(attackRoll?.isCrit),
-      critRule: action.damage.critRule
+      critRule: action.damage.critRule,
+      ...(damageRerollLow > 0 ? { rerollLow: { lte: damageRerollLow } } : null)
     });
     setDamageRoll(result);
     const diceText = result.dice.map(d => d.rolls.join("+")).join(" | ");
@@ -6811,6 +7496,89 @@ export const GameBoard: React.FC = () => {
     return { ok: true };
   }
 
+  function mergeAdvantageModes(
+    base: AdvantageMode | undefined,
+    extra: AdvantageMode | undefined
+  ): AdvantageMode {
+    const baseMode = base ?? "normal";
+    const extraMode = extra ?? "normal";
+    if (baseMode === "normal") return extraMode;
+    if (extraMode === "normal") return baseMode;
+    if (baseMode === extraMode) return baseMode;
+    return "normal";
+  }
+
+  function getIncomingAttackReactionModifier(params: {
+    reactor: TokenState;
+    attacker: TokenState;
+    target: TokenState;
+    action: ActionDefinition;
+    event: "incomingAttack" | "incomingAttackHit";
+  }): FeatureReactionModifier | null {
+    if (!canUseReaction(params.reactor.id)) return null;
+    const distanceToTarget = distanceBetweenTokens(params.reactor, params.target);
+    const modifiers = getFeatureReactionModifiersForActor(params.reactor);
+    for (const modifier of modifiers) {
+      if (modifier.event !== params.event) continue;
+      if (
+        !reactionModifierMatches({
+          modifier,
+          reactor: params.reactor,
+          attacker: params.attacker,
+          target: params.target,
+          action: params.action,
+          distanceToTarget
+        })
+      ) {
+        continue;
+      }
+      return modifier;
+    }
+    return null;
+  }
+
+  function applyIncomingHitReductionReaction(params: {
+    reactor: TokenState;
+    attacker: TokenState;
+    target: TokenState;
+    action: ActionDefinition;
+    damageTaken: number;
+    nextPlayer: TokenState;
+  }): { nextPlayer: TokenState; prevented: number } {
+    if (params.damageTaken <= 0) return { nextPlayer: params.nextPlayer, prevented: 0 };
+    const modifier = getIncomingAttackReactionModifier({
+      reactor: params.reactor,
+      attacker: params.attacker,
+      target: params.target,
+      action: params.action,
+      event: "incomingAttackHit"
+    });
+    if (!modifier || modifier.mode !== "reduceDamage") {
+      return { nextPlayer: params.nextPlayer, prevented: 0 };
+    }
+    const baseFormula = String(modifier.formula ?? "").trim();
+    if (!baseFormula) return { nextPlayer: params.nextPlayer, prevented: 0 };
+    const resolved = resolveFormula(baseFormula, {
+      actor: params.reactor,
+      sampleCharacter: params.reactor.type === "player" ? activeCharacterConfig : undefined
+    });
+    const reductionRoll = rollDamage(resolved);
+    const prevented = Math.max(0, Math.min(params.damageTaken, reductionRoll.total));
+    if (prevented <= 0) return { nextPlayer: params.nextPlayer, prevented: 0 };
+    markReactionUsed(params.reactor.id);
+    const restoredHp = Math.min(
+      Number(params.nextPlayer.combatStats?.maxHp ?? params.nextPlayer.hp + prevented),
+      params.nextPlayer.hp + prevented
+    );
+    const nextPlayer = { ...params.nextPlayer, hp: restoredHp };
+    const uiLine =
+      modifier.uiMessage ??
+      `Reaction: degats reduits de ${prevented} (${resolved} => ${reductionRoll.total}).`;
+    pushLog(uiLine);
+    showReactionToast(uiLine, "info");
+    return { nextPlayer, prevented };
+  }
+
   function openReactionContext(instance: ReactionInstance) {
     setSelectedTargetIds(instance.targetId ? [instance.targetId] : []);
     setSelectedObstacleTarget(null);
@@ -7136,6 +7904,12 @@ export const GameBoard: React.FC = () => {
         const reactionTags = rangedAction?.tags ?? reaction.action?.tags ?? [];
         const isOpportunityReaction =
           reaction.id === "opportunity-attack" || reactionTags.includes("opportunity");
+        const moverIsDisengaging = Array.isArray(moverTo.statuses)
+          ? moverTo.statuses.some(status => String(status.id).toLowerCase() === "disengaging")
+          : false;
+        if (isOpportunityReaction && moverIsDisengaging) {
+          continue;
+        }
         const reach =
           isOpportunityReaction
             ? getActorOpportunityReach(reactor)
@@ -8868,6 +9642,25 @@ export const GameBoard: React.FC = () => {
       const beforePlayerHp = playerCopy.hp;
       const beforeEnemyHp = new Map(enemiesCopy.map(e => [e.id, e.hp]));
       const beforeActorPos = { x: activeEnemy.x, y: activeEnemy.y };
+      let resolvedAdvantageMode = advantageMode;
+      if (target.kind === "token" && target.token.type === "player" && action.category === "attack") {
+        const preAttackModifier = getIncomingAttackReactionModifier({
+          reactor: playerCopy as TokenState,
+          attacker: activeEnemy,
+          target: target.token,
+          action,
+          event: "incomingAttack"
+        });
+        if (preAttackModifier?.mode === "imposeDisadvantage") {
+          resolvedAdvantageMode = mergeAdvantageModes(advantageMode, "disadvantage");
+          markReactionUsed(playerCopy.id);
+          const uiLine =
+            preAttackModifier.uiMessage ??
+            `Reaction: desavantage impose a l'attaque ${action.name}.`;
+          pushLog(uiLine);
+          showReactionToast(uiLine, "info");
+        }
+      }
 
       const result = resolveActionUnified(
         action,
@@ -8912,7 +9705,7 @@ export const GameBoard: React.FC = () => {
           }
         },
         target,
-        { advantageMode, weaponMasteryActions }
+        { advantageMode: resolvedAdvantageMode, weaponMasteryActions }
       );
 
       if (!result.ok || !result.playerAfter || !result.enemiesAfter) {
@@ -8930,7 +9723,21 @@ export const GameBoard: React.FC = () => {
       updateActionUsageForActor(activeEnemy.id, action.id, 1);
       updateWeaponPropertyUsageForAction(activeEnemy.id, action, 1);
 
-      playerCopy = result.playerAfter;
+      let nextPlayerAfterResult = result.playerAfter;
+      if (target.kind === "token" && target.token.type === "player" && action.category === "attack") {
+        const damageTaken = Math.max(0, beforePlayerHp - result.playerAfter.hp);
+        const reduced = applyIncomingHitReductionReaction({
+          reactor: playerCopy as TokenState,
+          attacker: activeEnemy,
+          target: target.token,
+          action,
+          damageTaken,
+          nextPlayer: result.playerAfter
+        });
+        nextPlayerAfterResult = reduced.nextPlayer;
+      }
+
+      playerCopy = nextPlayerAfterResult;
       enemiesCopy = applySummonTurnOrder({
         prevEnemies: enemiesCopy,
         nextEnemies: result.enemiesAfter
@@ -10617,6 +11424,8 @@ function handleEndPlayerTurn() {
                   character={activeCharacterConfig}
                   player={player}
                   equippedWeapons={equippedWeapons}
+                  weaponById={weaponTypeById}
+                  equipmentAppliedBonuses={equipmentAppliedBonuses}
                   itemLabels={itemLabelMap}
                   actionInfoById={actionInfoById}
                   spellInfoById={spellCatalog.byId}

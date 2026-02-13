@@ -21,6 +21,22 @@
     "../spells/sending.json",
     "../spells/vague-ardente.json",
     "../spells/warding-bond.json",
-    "../supports/second-wind.json"
+    "../supports/action-surge.json",
+    "../supports/cast-magic.json",
+    "../supports/disengage.json",
+    "../supports/divine-spark-heal.json",
+    "../supports/divine-spark-necrotic.json",
+    "../supports/divine-spark-radiant.json",
+    "../supports/dodge.json",
+    "../supports/help.json",
+    "../supports/hide.json",
+    "../supports/indomitable.json",
+    "../supports/influence.json",
+    "../supports/observe.json",
+    "../supports/ready-action.json",
+    "../supports/second-wind.json",
+    "../supports/study.json",
+    "../supports/turn-undead.json",
+    "../supports/use-item.json"
   ]
 }

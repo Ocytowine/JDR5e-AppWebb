@@ -5,13 +5,15 @@
   "category": "jewel",
   "weight": 0.1,
   "tags": [
-    "souvenir"
+    "souvenir",
+    "trinket"
   ],
   "description": "Petit objet sentimental, sans grande valeur marchande.",
   "value": {
     "platinum": 0,
-    "gold": 0.0,
+    "gold": 0,
     "silver": 0,
     "copper": 0
-  }
+  },
+  "harmonisable": false
 }

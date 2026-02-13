@@ -5,8 +5,11 @@ import type { WeaponTypeDefinition } from "../../game/weaponTypes";
 import { normalizeDamageType } from "../../game/damageTypes";
 
 import weaponsIndex from "../../data/items/armes/index.json";
+import MartialeArcLongCendre from "../../data/items/armes/martiale/arc-long-cendre.json";
 import MartialeArcLong from "../../data/items/armes/martiale/arc-long.json";
+import MartialeEpeeLongueBrasiere from "../../data/items/armes/martiale/epee-longue-brasiere.json";
 import MartialeEpeeLongue from "../../data/items/armes/martiale/epee-longue.json";
+import MartialeHacheBatailleIncandescente from "../../data/items/armes/martiale/hache-bataille-incandescente.json";
 import MartialeHacheBataille from "../../data/items/armes/martiale/hache-bataille.json";
 import MonastiqueBaton from "../../data/items/armes/monastique/baton.json";
 import MonastiqueKama from "../../data/items/armes/monastique/kama.json";
@@ -21,8 +24,11 @@ import SpecialeEpeeElfique from "../../data/items/armes/speciale/epee-elfique.js
 import SpecialeFouetDemon from "../../data/items/armes/speciale/fouet-demon.json";
 
 const WEAPON_MODULES: Record<string, WeaponTypeDefinition> = {
+  "./martiale/arc-long-cendre.json": MartialeArcLongCendre as WeaponTypeDefinition,
   "./martiale/arc-long.json": MartialeArcLong as WeaponTypeDefinition,
+  "./martiale/epee-longue-brasiere.json": MartialeEpeeLongueBrasiere as WeaponTypeDefinition,
   "./martiale/epee-longue.json": MartialeEpeeLongue as WeaponTypeDefinition,
+  "./martiale/hache-bataille-incandescente.json": MartialeHacheBatailleIncandescente as WeaponTypeDefinition,
   "./martiale/hache-bataille.json": MartialeHacheBataille as WeaponTypeDefinition,
   "./monastique/baton.json": MonastiqueBaton as WeaponTypeDefinition,
   "./monastique/kama.json": MonastiqueKama as WeaponTypeDefinition,

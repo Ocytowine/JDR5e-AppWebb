@@ -52,27 +52,19 @@
   },
   "damage": {
     "dice": "1d8",
-    "damageType": "SLASHING",
-    "alt": {
-      "dice": "1d10",
-      "condition": "twoHanded"
-    }
+    "damageType": "slashing"
   },
   "extraDamage": [
     {
       "dice": "1d4",
-      "damageType": "FIRE",
+      "damageType": "fire",
       "when": "onHit"
     }
   ],
   "effectOnHit": {
     "mod": "mod.FOR",
     "damage": "1d8",
-    "damageType": "SLASHING"
-  },
-  "links": {
-    "actionId": "melee-strike",
-    "effectId": "melee-slash"
+    "damageType": "slashing"
   },
   "label": "Epee longue"
 }

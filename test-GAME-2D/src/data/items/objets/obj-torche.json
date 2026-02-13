@@ -6,7 +6,8 @@
   "weight": 0.5,
   "tags": [
     "torche",
-    "consommable"
+    "consommable",
+    "wood"
   ],
   "description": "Torche simple pour eclairer.",
   "value": {
@@ -14,5 +15,6 @@
     "gold": 0,
     "silver": 0,
     "copper": 1
-  }
+  },
+  "harmonisable": false
 }

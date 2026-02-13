@@ -56,6 +56,9 @@ export function EquipmentTab(props: {
   formatMoneyValue: (value: any) => string;
   onSellRequest: (index: number, item: any, itemValue: any) => void;
   setPrimaryWeapon: (index: number) => void;
+  isItemHarmonisable: (item: any) => boolean;
+  isItemHarmonized: (item: any) => boolean;
+  toggleItemHarmonization: (index: number) => void;
   removeManualItem: (index: number) => void;
   renderSourceDotsWithLabels: (sources: SourceDot[]) => React.ReactNode;
   getItemSources: (item: any) => SourceDot[];
@@ -98,6 +101,9 @@ export function EquipmentTab(props: {
     formatMoneyValue,
     onSellRequest,
     setPrimaryWeapon,
+    isItemHarmonisable,
+    isItemHarmonized,
+    toggleItemHarmonization,
     removeManualItem,
     renderSourceDotsWithLabels,
     getItemSources,
@@ -109,6 +115,59 @@ export function EquipmentTab(props: {
     objectItems,
     addManualItem
   } = props;
+
+  const formatRangeLabel = (weapon: any): string => {
+    const properties = weapon?.properties ?? {};
+    const thrown = properties?.thrown;
+    const range = properties?.range;
+    if (thrown && typeof thrown.normal === "number" && typeof thrown.long === "number") {
+      return `jet ${thrown.normal}/${thrown.long} m`;
+    }
+    if (range && typeof range.normal === "number") {
+      if (typeof range.long === "number" && range.long > range.normal) {
+        return `portee ${range.normal}/${range.long} m`;
+      }
+      return `portee ${range.normal} m`;
+    }
+    if (typeof properties?.reach === "number" && properties.reach > 0) {
+      return `allonge ${properties.reach} m`;
+    }
+    return "portee -";
+  };
+
+  const formatWeaponSummary = (weapon: any): string => {
+    const category = String(weapon?.category ?? "?");
+    const damageDice = String(weapon?.damage?.dice ?? "?");
+    const damageType = String(weapon?.damage?.damageType ?? "?");
+    const extraDamage = Array.isArray(weapon?.extraDamage) ? weapon.extraDamage : [];
+    const extras = extraDamage
+      .map((entry: any) => {
+        const dice = String(entry?.dice ?? "").trim();
+        const type = String(entry?.damageType ?? "").trim();
+        if (!dice || !type) return null;
+        const when = String(entry?.when ?? "onHit");
+        return when === "onHit" ? `+${dice} ${type}` : `+${dice} ${type} (${when})`;
+      })
+      .filter(Boolean)
+      .join(" + ");
+    const rangeLabel = formatRangeLabel(weapon);
+    const damageLabel = extras
+      ? `${damageDice} ${damageType} + ${extras}`
+      : `${damageDice} ${damageType}`;
+    return `${category} | ${damageLabel} | ${rangeLabel}`;
+  };
+
+  const weaponById = new Map<string, any>();
+  weaponOptions.forEach(weapon => {
+    if (weapon?.id) weaponById.set(String(weapon.id), weapon);
+  });
+
+  const getWeaponSummaryForItem = (item: any): string | null => {
+    if (item?.type !== "weapon") return null;
+    const weapon = weaponById.get(String(item.id));
+    if (!weapon) return null;
+    return formatWeaponSummary(weapon);
+  };
 
   return (
     <>
@@ -297,21 +356,46 @@ export function EquipmentTab(props: {
                 itemValue &&
                 moneyToCopper(itemValue) > 0;
               const qtyLabel = (item?.qty ?? 1) > 1 ? ` x${item.qty}` : "";
+              const weaponSummary = getWeaponSummaryForItem(item);
+              const harmonisable = isItemHarmonisable(item);
+              const harmonized = harmonisable ? isItemHarmonized(item) : false;
               return (
                 <div
                   key={`inv-${idx}`}
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "1fr auto auto auto auto",
+                    gridTemplateColumns: "1fr auto auto auto auto auto",
                     gap: 8,
                     alignItems: "center",
                     fontSize: 12
                   }}
                 >
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                    {getItemLabel(item)}
-                    {qtyLabel}
-                    {renderSourceDotsWithLabels(itemSources)}
+                  <span
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "flex-start",
+                      gap: 2
+                    }}
+                  >
+                    <span
+                      style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+                      title={weaponSummary ?? undefined}
+                    >
+                      {getItemLabel(item)}
+                      {qtyLabel}
+                      {renderSourceDotsWithLabels(itemSources)}
+                    </span>
+                    {weaponSummary && (
+                      <span style={{ fontSize: 10, color: "rgba(255,255,255,0.62)" }}>
+                        {weaponSummary}
+                      </span>
+                    )}
+                    {harmonisable && (
+                      <span style={{ fontSize: 10, color: "rgba(130, 220, 255, 0.82)" }}>
+                        Harmonisation: {harmonized ? "active" : "inactive"}
+                      </span>
+                    )}
                   </span>
                   <select
                     value={
@@ -398,6 +482,45 @@ export function EquipmentTab(props: {
                       />
                     </svg>
                   </button>
+                  {harmonisable && (
+                    <button
+                      type="button"
+                      onClick={() => toggleItemHarmonization(idx)}
+                      disabled={isSectionLocked("equip")}
+                      style={{
+                        borderRadius: 6,
+                        border: "1px solid rgba(255,255,255,0.2)",
+                        background: harmonized
+                          ? "rgba(52, 152, 219, 0.25)"
+                          : "rgba(255,255,255,0.08)",
+                        color: harmonized ? "#9ed8ff" : "#f5f5f5",
+                        cursor: isSectionLocked("equip") ? "not-allowed" : "pointer",
+                        fontSize: 12,
+                        padding: "2px 6px",
+                        fontWeight: 700
+                      }}
+                      title={harmonized ? "Desharmoniser" : "Harmoniser"}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+                        <circle
+                          cx="8"
+                          cy="12"
+                          r="4"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        />
+                        <circle
+                          cx="16"
+                          cy="12"
+                          r="4"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        />
+                      </svg>
+                    </button>
+                  )}
                   {item.type === "weapon" && (
                     <button
                       type="button"
@@ -483,7 +606,12 @@ export function EquipmentTab(props: {
                   fontSize: 12
                 }}
               >
-                + {weapon.name} ({weapon.subtype})
+                <div style={{ fontWeight: 700 }}>
+                  + {weapon.name} ({weapon.subtype})
+                </div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginTop: 2 }}>
+                  {formatWeaponSummary(weapon)}
+                </div>
               </button>
             ))}
           </div>

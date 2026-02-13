@@ -1,0 +1,11 @@
+{
+  "id": "extra-attack-3",
+  "label": "Attaque supplementaire (3)",
+  "summary": "Quatre attaques lors de l'action Attaque.",
+  "kind": "feature",
+  "tags": ["fighter", "martial"],
+  "grants": [],
+  "rules": {
+    "text": "Au niveau 20 de Guerrier, vous pouvez attaquer quatre fois avec l'action Attaque."
+  }
+}

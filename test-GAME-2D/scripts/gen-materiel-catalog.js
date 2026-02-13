@@ -105,11 +105,57 @@ function validateItem(filePath, data, expectedType, nameKey) {
     errors.push(`Champ \`${nameKey}\` manquant ou invalide.`);
   }
   if (expectedType === "arme") {
+    const ALLOWED_WEAPON_SUBTYPES = ["simple", "martiale", "speciale", "monastique"];
+    const ALLOWED_WEAPON_CATEGORIES = ["melee", "distance", "polyvalent"];
     if (!data.subtype || typeof data.subtype !== "string") {
       errors.push("Champ `subtype` manquant (arme).");
     }
     if (!data.category || typeof data.category !== "string") {
       errors.push("Champ `category` manquant (arme).");
+    }
+    if (typeof data.subtype === "string" && !ALLOWED_WEAPON_SUBTYPES.includes(data.subtype)) {
+      errors.push(
+        `Champ \`subtype\` invalide (arme): "${data.subtype}". Valeurs attendues: ${ALLOWED_WEAPON_SUBTYPES.join(", ")}.`
+      );
+    }
+    if (typeof data.category === "string" && !ALLOWED_WEAPON_CATEGORIES.includes(data.category)) {
+      errors.push(
+        `Champ \`category\` invalide (arme): "${data.category}". Valeurs attendues: ${ALLOWED_WEAPON_CATEGORIES.join(", ")}.`
+      );
+    }
+    if (!data.properties || typeof data.properties !== "object") {
+      errors.push("Champ `properties` manquant ou invalide (arme).");
+    }
+    if (!data.attack || typeof data.attack !== "object") {
+      errors.push("Champ `attack` manquant ou invalide (arme).");
+    } else if (!data.attack.mod || typeof data.attack.mod !== "string") {
+      errors.push("Champ `attack.mod` manquant ou invalide (arme).");
+    }
+    if (!data.damage || typeof data.damage !== "object") {
+      errors.push("Champ `damage` manquant ou invalide (arme).");
+    } else {
+      if (!data.damage.dice || typeof data.damage.dice !== "string") {
+        errors.push("Champ `damage.dice` manquant ou invalide (arme).");
+      }
+      if (!data.damage.damageType || typeof data.damage.damageType !== "string") {
+        errors.push("Champ `damage.damageType` manquant ou invalide (arme).");
+      }
+      if (Object.prototype.hasOwnProperty.call(data.damage, "alt")) {
+        errors.push("Champ `damage.alt` obsolete (arme). Utiliser `properties.versatile`.");
+      }
+    }
+    if (!data.effectOnHit || typeof data.effectOnHit !== "object") {
+      errors.push("Champ `effectOnHit` manquant ou invalide (arme).");
+    } else {
+      if (!data.effectOnHit.mod || typeof data.effectOnHit.mod !== "string") {
+        errors.push("Champ `effectOnHit.mod` manquant ou invalide (arme).");
+      }
+      if (!data.effectOnHit.damage || typeof data.effectOnHit.damage !== "string") {
+        errors.push("Champ `effectOnHit.damage` manquant ou invalide (arme).");
+      }
+      if (!data.effectOnHit.damageType || typeof data.effectOnHit.damageType !== "string") {
+        errors.push("Champ `effectOnHit.damageType` manquant ou invalide (arme).");
+      }
     }
   }
   if (data.tags && !Array.isArray(data.tags)) {

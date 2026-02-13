@@ -8,14 +8,16 @@
   "weight": 10,
   "tags": [
     "armure",
-    "intermediaire"
+    "intermediaire",
+    "metal"
   ],
   "description": "Cotte de mailles legere portee sous des vetements.",
   "category": "armor_body",
   "value": {
     "platinum": 0,
-    "gold": 50.0,
+    "gold": 50,
     "silver": 0,
     "copper": 0
-  }
+  },
+  "harmonisable": false
 }

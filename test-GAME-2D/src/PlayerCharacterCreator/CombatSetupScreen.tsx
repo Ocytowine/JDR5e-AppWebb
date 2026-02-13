@@ -35,6 +35,8 @@ import { ProfileTab } from "./tabs/ProfileTab";
 import { SheetTab } from "./tabs/SheetTab";
 import { MagicPanel } from "./tabs/MagicPanel";
 import { spellCatalog } from "../game/spellCatalog";
+import { loadFeatureTypesFromIndex } from "../game/featureCatalog";
+import type { FeatureDefinition } from "../game/featureTypes";
 
 export function CombatSetupScreen(props: {
   configEnemyCount: number;
@@ -237,7 +239,19 @@ export function CombatSetupScreen(props: {
   const profileDetails = ((props.character as any)?.profileDetails ?? {}) as Record<string, string>;
   const classPrimary = classOptions.find(cls => cls.id === selectedClassId) ?? null;
   const classSecondary = classOptions.find(cls => cls.id === selectedSecondaryClassId) ?? null;
+  const featureTypes = useMemo(() => loadFeatureTypesFromIndex(), []);
+  const featureById = useMemo(() => {
+    const map = new Map<string, FeatureDefinition>();
+    featureTypes.forEach(feature => {
+      if (feature?.id) map.set(String(feature.id), feature);
+    });
+    return map;
+  }, [featureTypes]);
   const choiceSelections = ((props.character as any)?.choiceSelections ?? {}) as Record<string, any>;
+  const classFeatureSelections = ((choiceSelections as any)?.classFeatures ?? {}) as Record<
+    string,
+    { selected?: string[] }
+  >;
   const equipmentAuto = Array.isArray((props.character as any)?.equipmentAuto)
     ? ((props.character as any).equipmentAuto as string[])
     : [];
@@ -466,6 +480,25 @@ export function CombatSetupScreen(props: {
     if (item.type === "weapon") return weaponItemMap.get(item.id)?.weight ?? 0;
     if (item.type === "tool") return toolItemMap.get(item.id)?.weight ?? 0;
     return 0;
+  };
+  const isItemHarmonisable = (item: any): boolean => {
+    if (!item) return false;
+    if (item.type === "weapon") return Boolean(weaponItemMap.get(item.id)?.harmonisable);
+    if (item.type === "armor") return Boolean(armorItemMap.get(item.id)?.harmonisable);
+    if (item.type === "object") return Boolean(objectItemMap.get(item.id)?.harmonisable);
+    return false;
+  };
+  const isInventoryItemHarmonized = (item: any): boolean => {
+    if (!item) return false;
+    if (item.harmonized === true || item.isHarmonized === true || item.attuned === true) return true;
+    if (item?.attunement?.state === "harmonized") return true;
+    if (
+      typeof item?.attunement?.harmonizedAt === "string" &&
+      item.attunement.harmonizedAt.length > 0
+    ) {
+      return true;
+    }
+    return false;
   };
   const createInstanceId = (prefix: string) => {
     const next = instanceCounterRef.current + 1;
@@ -2646,6 +2679,53 @@ export function CombatSetupScreen(props: {
     }));
     props.onChangeCharacter({ ...props.character, inventoryItems: nextInventory });
   };
+  const toggleItemHarmonization = (index: number) => {
+    const item = inventoryItems[index];
+    if (!item) return;
+    if (!isItemHarmonisable(item)) return;
+    const nextState = !isInventoryItemHarmonized(item);
+    const nextInventory = inventoryItems.map((entry, idx) => {
+      if (idx !== index) return entry;
+      const nextAttunement =
+        nextState
+          ? {
+              ...(entry?.attunement ?? {}),
+              state: "harmonized",
+              harmonizedAt:
+                typeof entry?.attunement?.harmonizedAt === "string" &&
+                entry.attunement.harmonizedAt.length > 0
+                  ? entry.attunement.harmonizedAt
+                  : new Date().toISOString()
+            }
+          : null;
+      return {
+        ...entry,
+        harmonized: nextState,
+        isHarmonized: nextState,
+        attuned: nextState,
+        attunement: nextAttunement
+      };
+    });
+    const prevAttunements = (((props.character as any)?.attunements ?? {}) as Record<string, boolean>);
+    const nextAttunements: Record<string, boolean> = { ...prevAttunements };
+    const keys: string[] = [];
+    if (typeof item?.instanceId === "string" && item.instanceId.length > 0) {
+      keys.push(item.instanceId, `instance:${item.instanceId}`);
+    }
+    if (typeof item?.id === "string" && item.id.length > 0) {
+      keys.push(item.id, `item:${item.id}`);
+    }
+    keys.forEach(key => {
+      if (!key) return;
+      if (nextState) nextAttunements[key] = true;
+      else delete nextAttunements[key];
+    });
+    props.onChangeCharacter({
+      ...props.character,
+      inventoryItems: nextInventory,
+      attunements: nextAttunements
+    });
+  };
 
   useEffect(() => {
     if (inventoryInitRef.current) return;
@@ -2943,8 +3023,163 @@ export function CombatSetupScreen(props: {
     if (!classId) return null;
     return getMissingAsiEntries().find(entry => entry.classId === classId) ?? null;
   };
+  const getClassFeatureChoicesFromFeature = (featureId: string) => {
+    const feature = featureById.get(String(featureId));
+    const rules = (feature?.rules ?? {}) as Record<string, any>;
+    const rawChoices = Array.isArray(rules?.choices) ? (rules.choices as Array<any>) : [];
+    return rawChoices
+      .map((rawChoice, index) => {
+        const keyRaw = String(rawChoice?.key ?? rawChoice?.id ?? "").trim();
+        const key = keyRaw || `choice-${index + 1}`;
+        const count = Math.max(1, Math.floor(Number(rawChoice?.count ?? 1)));
+        const titleRaw = String(rawChoice?.title ?? rawChoice?.label ?? "").trim();
+        const title = titleRaw || feature?.label || humanizeId(featureId);
+        const optionsRaw = Array.isArray(rawChoice?.options) ? rawChoice.options : [];
+        const options = optionsRaw
+          .map((rawOption: any) => {
+            if (typeof rawOption === "string") {
+              const id = rawOption.trim();
+              if (!id) return null;
+              return {
+                id,
+                label: humanizeId(id),
+                summary: "",
+                grants: [] as Array<{ kind: string; ids: string[] }>
+              };
+            }
+            const id = String(rawOption?.id ?? "").trim();
+            if (!id) return null;
+            const grantsRaw = Array.isArray(rawOption?.grants) ? rawOption.grants : [];
+            const grants = grantsRaw
+              .map((grant: any) => {
+                const kind = String(grant?.kind ?? "").trim();
+                const ids = Array.isArray(grant?.ids)
+                  ? grant.ids.map((entry: any) => String(entry)).filter(Boolean)
+                  : [];
+                if (!kind || ids.length === 0) return null;
+                return { kind, ids };
+              })
+              .filter(Boolean) as Array<{ kind: string; ids: string[] }>;
+            return {
+              id,
+              label: String(rawOption?.label ?? "").trim() || humanizeId(id),
+              summary: String(rawOption?.summary ?? "").trim(),
+              grants
+            };
+          })
+          .filter(Boolean) as Array<{
+          id: string;
+          label: string;
+          summary: string;
+          grants: Array<{ kind: string; ids: string[] }>;
+        }>;
+        if (options.length === 0) return null;
+        return { key, title, count, options, featureId };
+      })
+      .filter(Boolean) as Array<{
+      key: string;
+      title: string;
+      count: number;
+      options: Array<{
+        id: string;
+        label: string;
+        summary: string;
+        grants: Array<{ kind: string; ids: string[] }>;
+      }>;
+      featureId: string;
+    }>;
+  };
+  const getClassFeatureChoicesForSlot = (slot: 1 | 2) => {
+    const cls = slot === 1 ? classPrimary : classSecondary;
+    const entry = slot === 1 ? classEntry : secondaryClassEntry;
+    if (!cls) return [];
+    const classLevel = Number(entry?.niveau ?? 0);
+    if (!Number.isFinite(classLevel) || classLevel <= 0) return [];
+    const sources: Array<{ source: string; progression?: Record<string, any> }> = [
+      { source: `class:${cls.id}`, progression: cls.progression }
+    ];
+    const subclassId = slot === 1 ? selectedSubclassId : selectedSecondarySubclassId;
+    if (subclassId) {
+      const sub = subclassOptions.find(item => item.id === subclassId) ?? null;
+      if (sub) {
+        sources.push({ source: `subclass:${sub.id}`, progression: sub.progression });
+      }
+    }
+    const byId = new Map<
+      string,
+      {
+        id: string;
+        key: string;
+        title: string;
+        count: number;
+        options: Array<{
+          id: string;
+          label: string;
+          summary: string;
+          grants: Array<{ kind: string; ids: string[] }>;
+        }>;
+      }
+    >();
+    sources.forEach(source => {
+      if (!source.progression) return;
+      Object.keys(source.progression)
+        .map(key => Number(key))
+        .filter(lvl => Number.isFinite(lvl) && lvl > 0 && lvl <= classLevel)
+        .sort((a, b) => a - b)
+        .forEach(lvl => {
+          const grants = Array.isArray(source.progression?.[String(lvl)]?.grants)
+            ? source.progression[String(lvl)].grants
+            : [];
+          grants.forEach((grant: any) => {
+            if (String(grant?.kind ?? "").toLowerCase() !== "feature") return;
+            const ids = Array.isArray(grant?.ids) ? grant.ids : [];
+            ids.forEach((featureId: any) => {
+              getClassFeatureChoicesFromFeature(String(featureId)).forEach(choice => {
+                const id = `${source.source}:${choice.featureId}:${choice.key}`;
+                if (!byId.has(id)) {
+                  byId.set(id, {
+                    id,
+                    key: choice.key,
+                    title: choice.title,
+                    count: choice.count,
+                    options: choice.options
+                  });
+                }
+              });
+            });
+          });
+        });
+    });
+    return Array.from(byId.values());
+  };
+  const getSelectedClassFeatureOptions = (
+    choiceId: string,
+    overrides?: Record<string, { selected?: string[] }>
+  ) => {
+    const source = overrides ?? classFeatureSelections;
+    const selected = source?.[choiceId]?.selected;
+    return Array.isArray(selected)
+      ? selected.map(value => String(value)).filter(Boolean)
+      : [];
+  };
+  const getMissingClassFeatureChoicesForSlot = (
+    slot: 1 | 2,
+    overrides?: Record<string, { selected?: string[] }>
+  ) =>
+    getClassFeatureChoicesForSlot(slot).filter(choice => {
+      const selected = getSelectedClassFeatureOptions(choice.id, overrides);
+      return selected.length < choice.count;
+    });
+  const getMissingClassFeatureChoiceForSlot = (
+    slot: 1 | 2,
+    overrides?: Record<string, { selected?: string[] }>
+  ) => getMissingClassFeatureChoicesForSlot(slot, overrides)[0] ?? null;
+  const hasMissingClassFeatureChoiceForSlot = (slot: 1 | 2) =>
+    getMissingClassFeatureChoiceForSlot(slot) !== null;
   const hasPendingClassChoicesForSlot = (slot: 1 | 2) =>
-    hasSubclassChoicePending(slot) || hasMissingAsiForSlot(slot);
+    hasSubclassChoicePending(slot) ||
+    hasMissingClassFeatureChoiceForSlot(slot) ||
+    hasMissingAsiForSlot(slot);
 
   const hasPendingRaceChoices = () => {
     if (!hasRaceTrait("adaptable")) return false;
@@ -2978,6 +3213,10 @@ export function CombatSetupScreen(props: {
   const getPendingClassChoiceCount = (slot: 1 | 2) => {
     let count = 0;
     if (hasSubclassChoicePending(slot)) count += 1;
+    getMissingClassFeatureChoicesForSlot(slot).forEach(choice => {
+      const selected = getSelectedClassFeatureOptions(choice.id);
+      count += Math.max(0, choice.count - selected.length);
+    });
     const classId = slot === 1 ? classPrimary?.id : classSecondary?.id;
     if (classId) {
       count += getMissingAsiEntries().filter(entry => entry.classId === classId).length;
@@ -3082,17 +3321,26 @@ export function CombatSetupScreen(props: {
     requireBackgroundChoices();
   };
   const startClassDefine = (slot: 1 | 2) => {
+    const pendingForClass = {
+      ...pendingLocks,
+      classes: true,
+      classesSlot: slot
+    };
+    const withPendingSelections = {
+      ...choiceSelections,
+      pendingLocks: pendingForClass
+    };
     props.onChangeCharacter({
       ...props.character,
-      choiceSelections: {
-        ...choiceSelections,
-        pendingLocks: {
-          ...pendingLocks,
-          classes: true,
-          classesSlot: slot
-        }
-      }
+      choiceSelections: withPendingSelections
     });
+    const finalizeClassDefine = (baseChoiceSelections: Record<string, any>) => {
+      const nextPending = { ...(((baseChoiceSelections as any)?.pendingLocks ?? pendingForClass) as Record<string, any>) };
+      delete nextPending.classes;
+      delete nextPending.classesSlot;
+      const nextCharacter = buildClassLockCharacter(slot, baseChoiceSelections, nextPending);
+      props.onChangeCharacter(nextCharacter);
+    };
     const openNextAsi = () => {
       const nextEntry = getMissingAsiEntryForSlot(slot);
       if (nextEntry) {
@@ -3101,23 +3349,55 @@ export function CombatSetupScreen(props: {
       }
       return false;
     };
+    const openNextClassFeatureChoice = (
+      overrides?: Record<string, { selected?: string[] }>
+    ) => {
+      const nextChoice = getMissingClassFeatureChoiceForSlot(slot, overrides);
+      if (!nextChoice) return false;
+      const selected = getSelectedClassFeatureOptions(nextChoice.id, overrides);
+      openChoiceModal({
+        title: nextChoice.title,
+        options: nextChoice.options.map(option => ({
+          id: option.id,
+          label: option.summary ? `${option.label} - ${option.summary}` : option.label
+        })),
+        selected,
+        count: nextChoice.count,
+        multi: nextChoice.count > 1,
+        onConfirm: picked => {
+          const nextClassFeatures = {
+            ...(overrides ?? classFeatureSelections),
+            [nextChoice.id]: {
+              selected: picked.slice(0, nextChoice.count)
+            }
+          };
+          const nextChoiceSelections = {
+            ...withPendingSelections,
+            classFeatures: nextClassFeatures
+          };
+          props.onChangeCharacter({
+            ...props.character,
+            choiceSelections: nextChoiceSelections
+          });
+          if (openNextClassFeatureChoice(nextClassFeatures)) return;
+          if (!openNextAsi()) {
+            finalizeClassDefine(nextChoiceSelections);
+          }
+        }
+      });
+      return true;
+    };
     if (hasSubclassChoicePending(slot)) {
       promptSubclassChoiceForSlot(slot, () => {
-        if (!openNextAsi()) {
-          const nextPending = { ...pendingLocks };
-          delete nextPending.classes;
-          delete nextPending.classesSlot;
-          const nextCharacter = buildClassLockCharacter(
-            slot,
-            choiceSelections,
-            nextPending
-          );
-          props.onChangeCharacter(nextCharacter);
-        }
+        if (openNextClassFeatureChoice()) return;
+        if (openNextAsi()) return;
+        finalizeClassDefine(withPendingSelections);
       });
       return;
     }
-    openNextAsi();
+    if (openNextClassFeatureChoice()) return;
+    if (openNextAsi()) return;
+    finalizeClassDefine(withPendingSelections);
   };
 
   const getTabLockColor = (id: string) => {
@@ -3575,6 +3855,47 @@ export function CombatSetupScreen(props: {
         payload: { kind: "language", id: langId }
       });
     });
+    const sourceLevels = new Map<string, number>();
+    if (classPrimary?.id) {
+      sourceLevels.set(`class:${classPrimary.id}`, Number(classEntry?.niveau ?? 0) || 0);
+    }
+    if (classSecondary?.id) {
+      sourceLevels.set(`class:${classSecondary.id}`, Number(secondaryClassEntry?.niveau ?? 0) || 0);
+    }
+    if (selectedSubclassId) {
+      sourceLevels.set(`subclass:${selectedSubclassId}`, Number(classEntry?.niveau ?? 0) || 0);
+    }
+    if (selectedSecondarySubclassId) {
+      sourceLevels.set(
+        `subclass:${selectedSecondarySubclassId}`,
+        Number(secondaryClassEntry?.niveau ?? 0) || 0
+      );
+    }
+    const classFeatureChoiceSelections = ((choiceSelections as any)?.classFeatures ?? {}) as Record<
+      string,
+      { selected?: string[] }
+    >;
+    Object.entries(classFeatureChoiceSelections).forEach(([choiceId, entry]) => {
+      const match = choiceId.match(/^(class|subclass):([^:]+):([^:]+):(.+)$/);
+      if (!match) return;
+      const source = `${match[1]}:${match[2]}`;
+      const featureId = match[3];
+      const choiceKey = match[4];
+      const selected = Array.isArray(entry?.selected) ? entry.selected : [];
+      selected.forEach(optionId => {
+        history.push({
+          source,
+          level: sourceLevels.get(source) ?? 0,
+          type: "choice",
+          payload: {
+            kind: "class-feature-option",
+            featureId,
+            choiceKey,
+            optionId: String(optionId)
+          }
+        });
+      });
+    });
     Object.entries(asiSelections).forEach(([key, entry]) => {
       const match = key.match(/^(.+):(\d+)$/);
       const level = match ? Number(match[2]) : null;
@@ -3630,28 +3951,42 @@ export function CombatSetupScreen(props: {
       skills: [],
       tools: [],
       languages: [],
-      spells: []
+      spells: [],
+      actions: [],
+      reactions: [],
+      resources: [],
+      passifs: []
+    };
+    const resolveGrantKey = (rawKind: string) => {
+      const kind = String(rawKind ?? "").trim().toLowerCase();
+      if (!kind) return "";
+      if (kind === "trait" || kind === "traits") return "traits";
+      if (kind === "feature" || kind === "features") return "features";
+      if (kind === "feat" || kind === "feats") return "feats";
+      if (kind === "skill" || kind === "skills" || kind === "competence" || kind === "competences") return "skills";
+      if (kind === "tool" || kind === "tools") return "tools";
+      if (kind === "language" || kind === "languages" || kind === "langue" || kind === "langues") return "languages";
+      if (kind === "spell" || kind === "spells") return "spells";
+      if (kind === "action" || kind === "actions") return "actions";
+      if (kind === "reaction" || kind === "reactions") return "reactions";
+      if (kind === "resource" || kind === "resources") return "resources";
+      if (
+        kind === "passif" ||
+        kind === "passifs" ||
+        kind === "passive" ||
+        kind === "passives" ||
+        kind === "status" ||
+        kind === "statuses"
+      ) return "passifs";
+      return "";
     };
     const add = (kind: string, ids: string[]) => {
       if (!Array.isArray(ids) || ids.length === 0) return;
-      const key =
-        kind === "trait"
-          ? "traits"
-          : kind === "feature"
-            ? "features"
-            : kind === "feat"
-              ? "feats"
-              : kind === "skill"
-                ? "skills"
-                : kind === "tool"
-                  ? "tools"
-                  : kind === "language"
-                    ? "languages"
-                    : kind === "spell"
-                      ? "spells"
-                      : "";
+      const key = resolveGrantKey(kind);
       if (!key) return;
-      grants[key] = Array.from(new Set([...(grants[key] ?? []), ...ids]));
+      const normalizedIds = ids.map(id => String(id)).filter(Boolean);
+      if (normalizedIds.length === 0) return;
+      grants[key] = Array.from(new Set([...(grants[key] ?? []), ...normalizedIds]));
     };
     const raceGrants = Array.isArray(activeRace?.grants) ? activeRace?.grants : [];
     raceGrants.forEach((grant: any) => add(String(grant?.kind ?? ""), grant?.ids ?? []));
@@ -3666,6 +4001,21 @@ export function CombatSetupScreen(props: {
       : [];
     if (backgroundTools.length > 0) add("tool", backgroundTools.map(id => String(id)));
     if (backgroundLanguages.length > 0) add("language", backgroundLanguages.map(id => String(id)));
+    const classFeatureChoicesById = new Map<string, ReturnType<typeof getClassFeatureChoicesForSlot>[number]>();
+    getClassFeatureChoicesForSlot(1).forEach(choice => classFeatureChoicesById.set(choice.id, choice));
+    getClassFeatureChoicesForSlot(2).forEach(choice => classFeatureChoicesById.set(choice.id, choice));
+    Object.entries(classFeatureSelections).forEach(([choiceId, entry]) => {
+      const choice = classFeatureChoicesById.get(choiceId);
+      if (!choice) return;
+      const selectedIds = Array.isArray(entry?.selected)
+        ? entry.selected.map(id => String(id)).filter(Boolean)
+        : [];
+      selectedIds.forEach(optionId => {
+        const option = choice.options.find(item => item.id === optionId);
+        if (!option) return;
+        option.grants.forEach(grant => add(grant.kind, grant.ids));
+      });
+    });
     const primaryLevel = Number(classEntry?.niveau) || 0;
     const secondaryLevel = Number(secondaryClassEntry?.niveau) || 0;
     if (classPrimary) {
@@ -4091,7 +4441,11 @@ export function CombatSetupScreen(props: {
         otherMissing = getMissingAsiEntries(overrides).filter(
           entry => entry.classId === asiModal.entry?.classId && entry.key !== asiModal.entry?.key
         );
-        if (!hasSubclassChoicePending(slot) && otherMissing.length === 0) {
+        if (
+          !hasSubclassChoicePending(slot) &&
+          !hasMissingClassFeatureChoiceForSlot(slot) &&
+          otherMissing.length === 0
+        ) {
           const nextPending = { ...pendingLocks };
           delete nextPending.classes;
           delete nextPending.classesSlot;
@@ -4117,6 +4471,8 @@ export function CombatSetupScreen(props: {
       if (pendingLocks.classes) {
         if (otherMissing.length > 0) {
           setTimeout(() => openAsiModal(otherMissing[0]), 0);
+        } else if (hasMissingClassFeatureChoiceForSlot(slot)) {
+          setTimeout(() => startClassDefine(slot), 0);
         }
       }
       return;
@@ -4137,6 +4493,7 @@ export function CombatSetupScreen(props: {
       if (
         isAsiEntryComplete(nextEntry, asiModal.entry.key, overrides) &&
         !hasSubclassChoicePending(slot) &&
+        !hasMissingClassFeatureChoiceForSlot(slot) &&
         otherMissing.length === 0
       ) {
         const nextPending = { ...pendingLocks };
@@ -4167,6 +4524,8 @@ export function CombatSetupScreen(props: {
       );
       if (remaining.length > 0) {
         setTimeout(() => openAsiModal(remaining[0]), 0);
+      } else if (hasMissingClassFeatureChoiceForSlot(slot)) {
+        setTimeout(() => startClassDefine(slot), 0);
       }
     }
   };
@@ -4311,10 +4670,14 @@ export function CombatSetupScreen(props: {
   };
 
   const weaponMasteryOptions = [
-    { id: "simple", label: "Simple" },
-    { id: "martiale", label: "Martiale" },
-    { id: "speciale", label: "Speciale" },
-    { id: "monastique", label: "Monastique" }
+    { id: "coup-double", label: "Coup double" },
+    { id: "ecorchure", label: "Ecorchure" },
+    { id: "enchainement", label: "Enchainement" },
+    { id: "ouverture", label: "Ouverture" },
+    { id: "poussee", label: "Poussee" },
+    { id: "ralentissement", label: "Ralentissement" },
+    { id: "renversement", label: "Renversement" },
+    { id: "sape", label: "Sape" }
   ];
   const armorMasteryOptions = [
     { id: "legere", label: "Legere" },
@@ -4763,6 +5126,9 @@ export function CombatSetupScreen(props: {
               formatMoneyValue={formatMoneyValue}
               onSellRequest={handleSellRequest}
               setPrimaryWeapon={setPrimaryWeapon}
+              isItemHarmonisable={isItemHarmonisable}
+              isItemHarmonized={isInventoryItemHarmonized}
+              toggleItemHarmonization={toggleItemHarmonization}
               removeManualItem={removeManualItem}
               renderSourceDotsWithLabels={renderSourceDotsWithLabels}
               getItemSources={getItemSources}

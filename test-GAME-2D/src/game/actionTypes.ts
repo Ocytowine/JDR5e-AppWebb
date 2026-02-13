@@ -111,6 +111,9 @@ export interface ActionDefinition {
     formula: string;
     critRule?: "double-dice" | "double-total";
     damageType?: string;
+    rerollLow?: {
+      lte: number;
+    };
   };
   skillCheck?: {
     formula: string;
@@ -128,6 +131,7 @@ export interface ActionDefinition {
     save?: {
       ability: "FOR" | "DEX" | "CON" | "INT" | "SAG" | "CHA";
       dc: number;
+      dcFormula?: string;
     };
     check?: {
       ability: "FOR" | "DEX" | "CON" | "INT" | "SAG" | "CHA";

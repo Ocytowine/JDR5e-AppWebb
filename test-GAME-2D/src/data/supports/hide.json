@@ -1,0 +1,60 @@
+{
+  "id": "hide",
+  "name": "Furtivite",
+  "summary": "Effectue un jet de DEX (Discretion) pour tenter de vous dissimuler.",
+  "category": "support",
+  "actionCost": {
+    "actionType": "action",
+    "movementCost": 0
+  },
+  "targeting": {
+    "target": "self",
+    "range": {
+      "min": 0,
+      "max": 0,
+      "shape": "SPHERE"
+    },
+    "maxTargets": 1,
+    "requiresLos": false
+  },
+  "usage": {
+    "perTurn": null,
+    "perEncounter": null,
+    "resource": null
+  },
+  "resolution": {
+    "kind": "ABILITY_CHECK",
+    "check": {
+      "ability": "DEX",
+      "dc": 12
+    }
+  },
+  "conditions": [],
+  "tags": ["core-action", "check", "stealth"],
+  "ops": {
+    "onResolve": [
+      {
+        "op": "LogEvent",
+        "message": "Furtivite: tentative de dissimulation."
+      }
+    ],
+    "onHit": [
+      {
+        "op": "ApplyCondition",
+        "target": "self",
+        "statusId": "hidden",
+        "durationTurns": 1
+      },
+      {
+        "op": "LogEvent",
+        "message": "Furtivite reussie: vous etes cache pour un court instant."
+      }
+    ],
+    "onMiss": [
+      {
+        "op": "LogEvent",
+        "message": "Furtivite echouee."
+      }
+    ]
+  }
+}

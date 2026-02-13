@@ -1,4 +1,5 @@
 import type { DamageTypeId } from "./damageTypes";
+import type { FeatureGrant } from "./featureTypes";
 
 export type WeaponCategory = "melee" | "distance" | "polyvalent";
 export type WeaponMastery = "simple" | "martiale" | "speciale" | "monastique";
@@ -26,6 +27,8 @@ export type WeaponProperties = {
   reload?: number | null;
   range?: WeaponRange | null;
   special?: string | null;
+  ammoType?: string | null;
+  ammoPerShot?: number | null;
 };
 
 export type WeaponAttackProfile = {
@@ -33,16 +36,10 @@ export type WeaponAttackProfile = {
   bonus?: string | number | null;
 };
 
-export type WeaponDamageAlt = {
-  dice: string;
-  condition: string;
-};
-
 export type WeaponDamageProfile = {
   dice: string;
   damageType: string;
   damageTypeId?: DamageTypeId | null;
-  alt?: WeaponDamageAlt | null;
 };
 
 export type WeaponExtraDamageProfile = {
@@ -59,14 +56,10 @@ export type WeaponOnHitProfile = {
   damageTypeId?: DamageTypeId | null;
 };
 
-export type WeaponLinks = {
-  actionId?: string | null;
-  effectId?: string | null;
-};
-
 export interface WeaponTypeDefinition {
   id: string;
   name: string;
+  label?: string;
   type: "arme";
   subtype: WeaponMastery;
   category: WeaponCategory;
@@ -80,11 +73,11 @@ export interface WeaponTypeDefinition {
   value?: { platinum?: number; gold: number; silver: number; copper: number };
   rarity?: string;
   tags?: string[];
+  grants?: FeatureGrant[];
   properties?: WeaponProperties;
   attack?: WeaponAttackProfile;
   damage?: WeaponDamageProfile;
   extraDamage?: WeaponExtraDamageProfile[];
   effectOnHit?: WeaponOnHitProfile;
   weaponMastery?: string[];
-  links?: WeaponLinks;
 }

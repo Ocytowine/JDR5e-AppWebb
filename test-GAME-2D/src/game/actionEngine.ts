@@ -724,6 +724,11 @@ export function resolveActionUnified(
   if (action.category === "attack" && target.kind === "token") {
     const tags = actionSpec.tags ?? [];
     let penaltyScore = 0;
+    const targetStatuses = Array.isArray(target.token.statuses) ? target.token.statuses : [];
+    const targetIsDodging = targetStatuses.some(status => String(status.id).toLowerCase() === "dodge");
+    if (targetIsDodging) {
+      penaltyScore -= 1;
+    }
     const normalRange = parseWeaponTagNumber(tags, "weapon:range-normal:");
     if (typeof normalRange === "number" && normalRange > 0) {
       const dist = distanceBetweenTokens(actor, target.token);

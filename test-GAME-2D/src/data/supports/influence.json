@@ -1,0 +1,60 @@
+{
+  "id": "influence",
+  "name": "Influence",
+  "summary": "Effectue un jet de Charisme pour influer sur une creature.",
+  "category": "support",
+  "actionCost": {
+    "actionType": "action",
+    "movementCost": 0
+  },
+  "targeting": {
+    "target": "hostile",
+    "range": {
+      "min": 0,
+      "max": 9,
+      "shape": "SPHERE"
+    },
+    "maxTargets": 1,
+    "requiresLos": true
+  },
+  "usage": {
+    "perTurn": null,
+    "perEncounter": null,
+    "resource": null
+  },
+  "resolution": {
+    "kind": "ABILITY_CHECK",
+    "check": {
+      "ability": "CHA",
+      "dc": 12
+    }
+  },
+  "conditions": [
+    {
+      "type": "TARGET_ALIVE",
+      "target": "primary",
+      "reason": "La cible doit etre consciente et active."
+    }
+  ],
+  "tags": ["core-action", "check", "social"],
+  "ops": {
+    "onResolve": [
+      {
+        "op": "LogEvent",
+        "message": "Influence: tentative de pression sociale."
+      }
+    ],
+    "onHit": [
+      {
+        "op": "LogEvent",
+        "message": "Influence reussie."
+      }
+    ],
+    "onMiss": [
+      {
+        "op": "LogEvent",
+        "message": "Influence echouee."
+      }
+    ]
+  }
+}

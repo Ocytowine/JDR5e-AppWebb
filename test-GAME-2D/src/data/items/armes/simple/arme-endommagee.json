@@ -21,7 +21,8 @@
   "tags": [
     "arme",
     "melee",
-    "endommagee"
+    "endommagee",
+    "metal"
   ],
   "properties": {
     "finesse": false,
@@ -46,17 +47,12 @@
   },
   "damage": {
     "dice": "1d4",
-    "damageType": "SLASHING",
-    "alt": null
+    "damageType": "slashing"
   },
   "effectOnHit": {
     "mod": "mod.FOR",
     "damage": "1d4",
-    "damageType": "SLASHING"
+    "damageType": "slashing"
   },
-  "links": {
-    "actionId": "melee-strike",
-    "effectId": "melee-slash"
-  },
-  "label": "Arme endommagee"
+  "label": "Arme endommageehhhhhhy"
 }

@@ -1,0 +1,56 @@
+{
+  "id": "indomitable",
+  "name": "Inflexible",
+  "summary": "Depense une charge d Inflexible pour representer la relance defensive.",
+  "category": "support",
+  "actionCost": {
+    "actionType": "free",
+    "movementCost": 0
+  },
+  "targeting": {
+    "target": "self",
+    "range": {
+      "min": 0,
+      "max": 0,
+      "shape": "SPHERE"
+    },
+    "maxTargets": 1,
+    "requiresLos": false
+  },
+  "usage": {
+    "perTurn": null,
+    "perEncounter": null,
+    "resource": {
+      "name": "indomitable",
+      "pool": null,
+      "min": 1
+    }
+  },
+  "resolution": {
+    "kind": "NO_ROLL"
+  },
+  "conditions": [
+    {
+      "type": "ACTOR_ALIVE",
+      "reason": "Le lanceur doit etre vivant."
+    }
+  ],
+  "ops": {
+    "onResolve": [
+      {
+        "op": "SpendResource",
+        "name": "indomitable",
+        "amount": 1
+      },
+      {
+        "op": "LogEvent",
+        "message": "Inflexible utilisee."
+      }
+    ]
+  },
+  "tags": [
+    "fighter",
+    "support",
+    "resource"
+  ]
+}

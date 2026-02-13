@@ -51,3 +51,19 @@ Fiche personnage
 - La roue d'actions ouvre la fiche via `src/ui/ActionWheelMenu.tsx`.
 - La fenetre est rendue par `src/ui/CharacterSheetWindow.tsx`.
 - Les valeurs dynamiques proviennent de `player` et `turnActionUsage`.
+
+Actions "core DnD-like" integrees (JSON)
+- `disengage` (Desengagement): applique `statusId=disengaging` 1 tour.
+- `dodge` (Esquive): applique `statusId=dodge` 1 tour.
+- `study` (Etude): jet `ABILITY_CHECK` INT.
+- `hide` (Furtivite): jet `ABILITY_CHECK` DEX, applique `hidden` en cas de succes.
+- `influence` (Influence): jet `ABILITY_CHECK` CHA sur cible hostile.
+- `observe` (Observation): jet `ABILITY_CHECK` SAG.
+- `help` (Soutien): soin mineur + statut `helped` sur allie.
+- `ready-action` (Intention): applique `readying` 1 tour (placeholder declaratif).
+- `cast-magic` (Magie): action cadre (placeholder declaratif).
+- `use-item` (Utilisation): action cadre (placeholder declaratif).
+
+Branchements moteur existants associes
+- `dodge`: les attaques contre une cible avec statut `dodge` subissent un desavantage.
+- `disengaging`: bloque les reactions d'opportunite lors des deplacements.

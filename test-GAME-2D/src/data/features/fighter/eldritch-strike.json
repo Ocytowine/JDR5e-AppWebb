@@ -1,0 +1,11 @@
+{
+  "id": "eldritch-strike",
+  "label": "Frappe eldritch",
+  "summary": "Desavantage au prochain JS contre votre sort.",
+  "kind": "feature",
+  "tags": ["fighter", "eldritch-knight"],
+  "grants": [],
+  "rules": {
+    "text": "Une creature touchee au corps a corps subit un desavantage au prochain jet de sauvegarde contre un sort que vous lancez."
+  }
+}

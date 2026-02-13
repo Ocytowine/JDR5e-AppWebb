@@ -8,5 +8,124 @@
   "proficiencies": {
     "weapons": ["simple", "martiale"],
     "armors": ["legere", "intermediaire", "lourde", "bouclier"]
+  },
+  "progression": {
+    "1": {
+      "grants": [
+        { "kind": "feature", "ids": ["fighting-style"] },
+        { "kind": "feature", "ids": ["second-wind-feature"] },
+        { "kind": "action", "ids": ["second-wind"] },
+        { "kind": "feature", "ids": ["weapon-mastery"] }
+      ],
+      "description": "Style de combat, Second souffle et Bottes d arme."
+    },
+    "2": {
+      "grants": [
+        { "kind": "feature", "ids": ["action-surge"] },
+        { "kind": "feature", "ids": ["tactical-mind"] }
+      ],
+      "description": "Fougue et Sens tactique."
+    },
+    "3": {
+      "grants": [],
+      "description": "Acces a la sous-classe de Guerrier."
+    },
+    "4": {
+      "grants": [
+        { "kind": "bonus", "ids": ["asi-or-feat"] }
+      ],
+      "description": "Amelioration de caracteristiques ou choix de don."
+    },
+    "5": {
+      "grants": [
+        { "kind": "feature", "ids": ["extra-attack"] },
+        { "kind": "feature", "ids": ["tactical-shift"] }
+      ],
+      "description": "Attaque supplementaire et Decalage tactique."
+    },
+    "6": {
+      "grants": [
+        { "kind": "bonus", "ids": ["asi-or-feat"] }
+      ],
+      "description": "Amelioration de caracteristiques ou choix de don."
+    },
+    "7": {
+      "grants": [],
+      "description": "Capacite de sous-classe."
+    },
+    "8": {
+      "grants": [
+        { "kind": "bonus", "ids": ["asi-or-feat"] }
+      ],
+      "description": "Amelioration de caracteristiques ou choix de don."
+    },
+    "9": {
+      "grants": [
+        { "kind": "feature", "ids": ["indomitable"] },
+        { "kind": "feature", "ids": ["tactical-mastery"] }
+      ],
+      "description": "Inflexible et Botte tactique."
+    },
+    "10": {
+      "grants": [],
+      "description": "Capacite de sous-classe."
+    },
+    "11": {
+      "grants": [
+        { "kind": "feature", "ids": ["extra-attack-2"] }
+      ],
+      "description": "Attaque supplementaire (2)."
+    },
+    "12": {
+      "grants": [
+        { "kind": "bonus", "ids": ["asi-or-feat"] }
+      ],
+      "description": "Amelioration de caracteristiques ou choix de don."
+    },
+    "13": {
+      "grants": [
+        { "kind": "feature", "ids": ["indomitable-2"] }
+      ],
+      "description": "Inflexible (2 utilisations)."
+    },
+    "14": {
+      "grants": [
+        { "kind": "bonus", "ids": ["asi-or-feat"] }
+      ],
+      "description": "Amelioration de caracteristiques ou choix de don."
+    },
+    "15": {
+      "grants": [],
+      "description": "Capacite de sous-classe."
+    },
+    "16": {
+      "grants": [
+        { "kind": "bonus", "ids": ["asi-or-feat"] }
+      ],
+      "description": "Amelioration de caracteristiques ou choix de don."
+    },
+    "17": {
+      "grants": [
+        { "kind": "feature", "ids": ["action-surge-2"] },
+        { "kind": "feature", "ids": ["indomitable-3"] }
+      ],
+      "description": "Fougue (2 utilisations) et Inflexible (3 utilisations)."
+    },
+    "18": {
+      "grants": [],
+      "description": "Capacite de sous-classe."
+    },
+    "19": {
+      "grants": [
+        { "kind": "bonus", "ids": ["asi-or-feat"] }
+      ],
+      "description": "Amelioration de caracteristiques ou choix de don."
+    },
+    "20": {
+      "grants": [
+        { "kind": "feature", "ids": ["extra-attack-3"] }
+      ],
+      "description": "Attaque supplementaire (3)."
+    }
   }
 }

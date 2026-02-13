@@ -1,7 +1,7 @@
 {
   "id": "channel-divinity",
-  "label": "Channel Divinity",
-  "summary": "Divine power usable a limited number of times per rest.",
+  "label": "Conduit divin",
+  "summary": "Canalisez l'energie divine un nombre limite de fois par repos.",
   "kind": "resource",
   "tags": ["cleric", "resource"],
   "grants": [
@@ -11,15 +11,19 @@
       "source": "channel-divinity",
       "meta": {
         "maxByLevel": {
-          "2": 1,
-          "6": 2,
-          "18": 3
+          "2": 2,
+          "6": 3,
+          "18": 4
+        },
+        "scale": {
+          "basis": "class",
+          "classId": "cleric"
         },
         "recharge": "short_rest"
       }
     }
   ],
   "rules": {
-    "text": "Channel Divinity uses are regained on a short rest."
+    "text": "Vous recupererez 1 usage au repos court et tous les usages au repos long."
   }
 }

@@ -8,14 +8,16 @@
   "weight": 3,
   "tags": [
     "armure",
-    "bouclier"
+    "bouclier",
+    "wood"
   ],
   "description": "Bouclier offrant un bonus de CA.",
   "category": "shield",
   "value": {
     "platinum": 0,
-    "gold": 10.0,
+    "gold": 10,
     "silver": 0,
     "copper": 0
-  }
+  },
+  "harmonisable": false
 }

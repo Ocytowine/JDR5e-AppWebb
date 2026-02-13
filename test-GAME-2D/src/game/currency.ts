@@ -3,6 +3,10 @@ export type MoneyValue = {
   po?: number;
   pa?: number;
   pc?: number;
+  platinum?: number;
+  gold?: number;
+  silver?: number;
+  copper?: number;
 };
 
 export type CoinDenom = "pp" | "po" | "pa" | "pc";
@@ -36,10 +40,10 @@ export function coinIdToDenom(id: string): CoinDenom | null {
 
 export function moneyToCopper(value?: MoneyValue | null): number {
   if (!value) return 0;
-  const pp = Number(value.pp ?? 0) || 0;
-  const po = Number(value.po ?? 0) || 0;
-  const pa = Number(value.pa ?? 0) || 0;
-  const pc = Number(value.pc ?? 0) || 0;
+  const pp = Number(value.pp ?? value.platinum ?? 0) || 0;
+  const po = Number(value.po ?? value.gold ?? 0) || 0;
+  const pa = Number(value.pa ?? value.silver ?? 0) || 0;
+  const pc = Number(value.pc ?? value.copper ?? 0) || 0;
   return pp * COIN_VALUES_CP.pp + po * COIN_VALUES_CP.po + pa * COIN_VALUES_CP.pa + pc;
 }
 

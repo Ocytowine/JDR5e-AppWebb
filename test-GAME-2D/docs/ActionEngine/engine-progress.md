@@ -1,149 +1,422 @@
-﻿# Etat d'avancement de l'engine (pipeline d'actions)
+# ActionEngine - Reference complete (fonctions, hooks, ops)
 
-Ce document synthetise l'etat actuel du moteur d'actions, ce qui est supporte, ce qui reste a faire, et une methode detaillee pour terminer l'implementation.
+Ce document decrit l'etat reel de l'ActionEngine tel qu'implante dans le code, avec un detail textuel des fonctions, hooks et points d'extension.
 
-## Portee
+Portee principale:
+- `src/game/engine/actionAdapter.ts`
+- `src/game/engine/actionCompile.ts`
+- `src/game/engine/actionExecute.ts`
+- `src/game/engine/conditionEval.ts`
+- `src/game/engine/formulas.ts`
+- `src/game/engine/hooks.ts`
+- `src/game/engine/ops.ts`
+- `src/game/engine/transaction.ts`
+- `src/game/engine/types.ts`
+- orchestrateur: `src/game/actionEngine.ts`
 
-- Moteur d'actions: `src/game/engine/*`
-- Orchestrateur: `src/game/actionEngine.ts`
-- Taxonomie: `src/data/models/taxonomy.json`
+## 1) Pipeline global
 
-## Etat actuel (resume)
+Sequence runtime:
+1. `actionDefinitionToActionSpec` adapte une `ActionDefinition` vers le format moteur.
+2. `compileActionPlan` construit un `ActionPlan` (action + actor + cible + hooks + fenetres de reaction).
+3. `executePlan` execute la pipeline moteur:
+   - initialisation transaction
+   - hooks de phases
+   - fenetre reaction pre
+   - resolution outcome (attaque/sauvegarde/check/oppose)
+   - application effets (ops)
+   - fenetre reaction post
+   - hooks commit
+4. `resolveActionUnified` (orchestrateur) branche le moteur au contexte jeu (LOS, pathfinding, ressources, slots, callbacks UI, entites invoquees).
 
-Support realise:
-- Hooks taxo complets (phases core).
-- Caracs documentees aussi pour les ennemis (modele mis a jour).
-- Conditions etendues (OUTCOME_IS/IN, ROLL_AT_*, HP_BELOW, HAS_RESOURCE, SLOT_AVAILABLE, etc.).
-- Ops etendues (conditions, zones, ressources, des, tags).
-- Context de jets: bonus/DC, rerolls, min/max.
-- `EmitEvent` branche sur `ActionEngineContext.emitEvent`.
-- Weapon Mastery (data-driven):
-  - Actions `wm-*` chargees depuis `src/data/actions/weapon-mastery`.
-  - Hook generique injecte au runtime selon `wm-active:<id>` + `wm:<id>` + trigger `wm-trigger:*`.
-  - Effets executes dans l'engine (poussee, renversement, sape, ouverture, etc.).
-  - Tags runtime WM:
-    - `wm-ouverture:adv:<sourceId>` (devient `:expiring` au debut du tour suivant de la source, purge a la fin de ce tour).
-    - `wm-sape:next:<sourceId>` + `wm-ralentissement:<sourceId>` (purges au debut du tour suivant de la source).
-- Contextes avances branches (LOS/area/light/usage/slots) avec usage par acteur.
-- Ciblage multi-cibles dans le moteur + UI (selection + validation + execution par cible).
-- Ciblage avance (LockTarget/ExpandTargets/FilterTargets/Retarget) implemente.
-- Summons basiques (SpawnEntity/DespawnEntity/ControlSummon) dans l'engine.
-- Highlight multi-cibles sur la grille.
-- Durations multi-tours (start/end/round) + concentration (test CON sur degats + purge des effets lies).
-- Auras ancrees suivent la cible (anchorTokenId).
-- Zones/auras persistantes: ticks de degats/status (hazard) au debut/fin/round + aura radius/shape (sphere/cone/line/cube).
+## 2) API publique utile
 
-Limitations connues:
-- Summons: pas d'UI/IA dediee (IA minimaliste sans ordres riches).
-- Deplacements avances: pathfinding intelligent applique sur MoveForced/Push/Pull/Knockback (reste a couvrir les cas limites fins).
-- Usage par acteur: visible en debug, mais pas encore expose au gameplay/UI (hors conditions).
-- Concentration: liens zones/surfaces/auras OK (stacking/suppress simple en place).
-- Zones/auras: radius + shape via `effectType.aura.radius` et `effectType.aura.shape` (cones/lines simples, pas de shapes avancees).
-- Munitions: taxo stabilisee (ammo + ammoType) + catalogue `data/items/armes/munitions` + branchement gameplay (auto-consommation via inventaire selon `ammoType`/`ammoPerShot`, conteneurs `ammo_container`).
-- Composantes de sort (V/S/M): validation en UI via conditions (statuts `conditionTypes` bloquants) avec raison affichee.
+### `src/game/actionEngine.ts`
 
-## Matrice de support (ops/conditions)
+Fonctions exportees:
+- `validateActionTarget(action, ctx, target)`: valide legalite cible selon type de ciblage, portee, LOS, niveau, conditions.
+- `computeAvailabilityForActor(action, ctx)`: verifie disponibilite "sans cible" (conditions globales, ressources, contrainte loading arme).
+- `resolveActionUnified(action, ctx, target, opts)`: point d'entree principal, execute une action et retourne l'etat final (`playerAfter`, `enemiesAfter`, outcome, logs).
 
-Operations:
-- Supportees: DealDamage, DealDamageScaled, Heal, ApplyCondition, RemoveCondition, ExtendCondition, SetConditionStack, StartConcentration, BreakConcentration, CreateZone, RemoveZone, ModifyZone, CreateSurface, RemoveSurface, ApplyAura (log), SpendResource, RestoreResource, SetResource, ConsumeSlot, RestoreSlot, MoveForced, Teleport, SwapPositions, Knockback/Pull/Push, MoveTo, GrantTempHp, ModifyPathLimit, ToggleTorch, SetKillerInstinctTarget, AddDice, ReplaceRoll, Reroll, SetMinimumRoll, SetMaximumRoll, ModifyBonus, ModifyDC, AddTag, RemoveTag, SetFlag, LogEvent, EmitEvent, LockTarget, ExpandTargets, FilterTargets, Retarget, SpawnEntity, DespawnEntity, ControlSummon.
-- Partiels/no-op: aucun.
+Types exportes:
+- `ActionEngineContext`: contexte complet (phase, actor/player/enemies, blockers, lumiere, map/grid, callbacks runtime, ressources/slots/usage, hooks UI).
+- `ActionTarget`: cible normalisee (`token`, `tokens`, `cell`, `none`).
+- `ActionResolutionResult`: resultat unifie de resolution.
 
-Conditions:
-- Supportees: toutes celles listees dans `action.conditions.types` (incluant extensions).
-- Dependantes du contexte: HAS_LINE_OF_SIGHT, SAME_LEVEL, TARGET_IN_AREA, IS_IN_LIGHT, IS_REACTION_AVAILABLE, IS_CONCENTRATING, IS_SURPRISED, ONCE_PER_*.
-Note: aucune condition de la taxo courante n'est non prise en compte dans l'engine (pas d'ecarts detectes).
+## 3) Types moteur (schema d'execution)
 
-Resolution/Outcomes:
-- Resolution types: ATTACK_ROLL / SAVING_THROW / ABILITY_CHECK / NO_ROLL / CONTESTED_CHECK ok.
-- Outcomes taxo CHECK_SUCCESS / CHECK_FAIL / CONTESTED_WIN / CONTESTED_LOSE exposes (mapping OK).
+### `src/game/engine/types.ts`
 
-## Gaps prioritaires
+Elements cle:
+- `OutcomeKey`: `hit`, `miss`, `crit`, `saveSuccess`, `saveFail`, `checkSuccess`, `checkFail`, `contestedWin`, `contestedLose`.
+- `ResolutionSpec`: type de resolution (`ATTACK_ROLL`, `SAVING_THROW`, `ABILITY_CHECK`, `CONTESTED_CHECK`, `NO_ROLL`) + params.
+- `Hook`: phase `when` + conditions `if` + prompt optionnel + liste `apply` (ops).
+- `Operation`: union des operations supportees par le moteur (degats, soins, conditions, ressources, deplacement, ciblage, summon, tags, flags, VFX, events...).
+- `ActionSpec`: format moteur d'une action.
+- `ActionPlan`: plan compile execute.
+- `EngineState`: snapshot mutable moteur (round/phase, actor/player/enemies/effects, targeting, concentrationLink, rollContext).
+- `ExecuteOptions`: callbacks d'integration (resources/slots, movement, reactions, summon, logs, events, visual, overrides de jets).
 
-1. Summons/Entities: ownership gameplay complet (controle joueur/IA, initiative/turns coherents, UI).
-2. Deplacements avances: pathfinding intelligent + cas limites (coins/diagonales).
-3. Concentration/durations sur plusieurs tours (zones/auras + cas particuliers).
+## 4) Hooks: phases, alias, support reel
 
-## Methode detaillee pour finir
+### Phases canoniques executees
+- `onIntentBuild`
+- `onOptionsResolve`
+- `onValidate`
+- `onTargeting`
+- `preResolution`
+- `onResolve`
+- `onOutcome`
+- `beforeApply`
+- `afterApply`
+- `postResolution`
+- `beforeCommit`
+- `afterCommit`
 
-### Etape 1 --- Stabiliser les contextes
+### Alias acceptes (normalisation)
+- `pre_resolution`, `PRE_RESOLUTION_WINDOW` -> `preResolution`
+- `on_outcome`, `ON_OUTCOME` -> `onOutcome`
+- `on_apply`, `APPLY_TARGET_EFFECTS`, `APPLY_WORLD_EFFECTS` -> `afterApply`
+- `post_resolution`, `POST_RESOLUTION_WINDOW` -> `postResolution`
+- `COMMIT` -> `beforeCommit`
 
-Objectif: alimenter `ConditionEvalContext` avec des donnees fiables.
+### Phases declarees mais non executees par `executePlan`
+- `onTurnStart`
+- `onTurnEnd`
+- `onRoundStart`
+- `onRoundEnd`
+- `onInterrupt`
+- `onCounter`
 
-Actions:
-1. Ajouter un builder de contexte d'evaluation dans `actionEngine.ts`.
-2. Injecter:
-   - lineOfSight (via `isTargetVisible`)
-   - sameLevel (via `areOnSameBaseLevel`)
-   - targetInArea (si action = zone)
-   - inLight (via `lightLevels` + `resolveLightVisionMode` si dispo)
-   - usage (turn/round/combat) depuis GameBoard
-   - reactionAvailable / concentrating / surprised (si stockes par actor)
-3. Normaliser les cles (ex: `usage.turn[actionId]`).
+## 5) Fonctions detaillees - `engine/*`
 
-Definition attendue:
-- `ConditionEvalContext.usage.turn` = map usage par action/feature.
-- `ConditionEvalContext.reactionAvailable` = bool.
-- `ConditionEvalContext.concentrating` = bool.
-- `ConditionEvalContext.inLight` = bool.
+### `actionAdapter.ts`
 
-Statut: FAIT (inclut usage par acteur + slots). Debug UI disponible dans FX.
+- `mapResolution(action)`: convertit la resolution d'une action en `ResolutionSpec`, normalise `kind` et ability save/check, fallback `ATTACK_ROLL` (si `action.attack`) puis `NO_ROLL`.
+- `normalizeTargeting(action)`: passe-through du ciblage.
+- `mapEffects(action)`: mappe `ops` vers `ConditionalEffects`.
+- `actionDefinitionToActionSpec(action)`: adaptation complete vers `ActionSpec` (id/name/summary/targeting/resolution/effects/reactionWindows/hooks/tags).
 
-### Etape 2 --- Ciblage multi-cibles
+### `actionCompile.ts`
 
-Statut: FAIT (selection UI + execution par cible).
+- `compileActionPlan({ action, actor, target })`: assemble le plan d'execution final (hooks/fenetres inclus).
 
-Reste:
-- Rien (ciblage avance disponible via ops).
+### `transaction.ts`
 
-### Etape 3 --- Summons/Entities
+- `beginTransaction(state)`: clone defensif de l'etat (`actor`, `player`, `enemies`, `effects`, `targeting`, `targetingConfig`) + init logs.
+- `logTransaction(tx, message, onLog?)`: push log transaction + callback externe.
 
-Objectif: gerer les entites invoquees.
+### `formulas.ts`
 
-Actions:
-1. Definir un type `SummonInstance` dans le state combat.
-2. Implementer:
-   - SpawnEntity: cree un token d'entite.
-   - ControlSummon: assigne ownership + ordre.
-   - DespawnEntity: retire l'entite.
-3. Ajouter une collection dediee dans le state (`summons: TokenState[]`).
-4. Etendre `pickTarget` et `validateActionTarget` pour integrer les summons.
+- `getLevelFromContext(ctx)`: recupere niveau depuis actor ou sampleCharacter.
+- `getProficiencyBonus(level)`: calcule bonus de maitrise selon paliers.
+- `resolveNumberVar(varName, ctx)`: resolve variables de formule (`attackBonus`, `moveRange`, `level`, `proficiencyBonus`, `modFOR/DEX/...`).
+- `resolveFormula(formula, ctx)`: remplace tokens alpha-numeriques par valeurs numeriques resolues.
 
-Statut: Partiel (ops engine OK, IA basique pour summons joueurs, pas d'UI).
+### `hooks.ts`
 
-### Etape 4 --- Deplacements physiques
+- `shouldApplyHook(hook, ctx, opts)`: evalue `hook.if` via `evaluateAllConditions`.
+- `resolvePromptDecision(hook, opts)`: decide `accept/reject` (promptHandler prioritaire, sinon defaultDecision, sinon `reject`).
 
-Objectif: rendre Push/Pull/Knockback surs.
+### `conditionEval.ts`
 
-Actions:
-1. Utiliser `computePathTowards` avec contraintes (obstacles, playableCells).
-2. Appliquer un clamp + verification collision.
-3. Ajouter un parametre `blocked` dans les ops pour stopper si bloque.
+Fonctions utilitaires:
+- `compare(cmp, left, right)`: comparateurs `EQ/NE/LT/LTE/GT/GTE/IN/NIN`.
+- `getTags(token)`: tags token + combatStats.tags.
+- `getStatuses(token)`: statuses token.
+- `getResourceAmountFallback(token, name)`: lecture resource locale token.
+- `outcomeHasFlag(outcome, flag)`: mapping des flags outcome.
+- `getCreatureType`, `getCreatureTags`, `getSize`: lecture metadonnees creature.
+- `canMove(token, move)`: verifie mode de deplacement.
+- `getDamageDefenses(token)`: lit resist/immun/vulnerable.
+- `getValue(token, key, values?)`: extraction valeur numerique custom.
+- `getUsageCount(usage, scope, key)`: lecture compteurs d'usage.
+- `isHpBelow({ token, value, mode })`: check HP absolu ou pourcentage.
 
-Statut: Partiel (MoveForced + Push/Pull/Knockback pathfind, cas limites a regler).
+Fonctions principales:
+- `evaluateConditionExpr(condition, ctx)`: evalue une condition unitaire ou composee.
+- `evaluateAllConditions(conditions, ctx)`: applique AND global sur la liste.
 
-### Etape 5 --- Durations & concentration
+Condition types supportes en evaluation:
+- Logiques: `AND`, `OR`, `NOT`
+- Phase/outcome/roll: `PHASE_IS`, `OUTCOME_IS`, `OUTCOME_IN`, `OUTCOME_HAS`, `ROLL_AT_LEAST`, `ROLL_AT_MOST`
+- Vie/distance: `TARGET_ALIVE`, `TARGET_HP_BELOW`, `ACTOR_HP_BELOW`, `DISTANCE_MAX`, `DISTANCE_WITHIN`, `DISTANCE_BETWEEN`, `STAT_BELOW_PERCENT`
+- Perception/contexte: `HAS_LINE_OF_SIGHT`, `SAME_LEVEL`, `TARGET_IN_AREA`, `IS_IN_LIGHT`
+- Usage/etat tour: `ONCE_PER_TURN`, `ONCE_PER_ROUND`, `ONCE_PER_COMBAT`, `NOT_USED_THIS_TURN`, `IS_REACTION_AVAILABLE`, `IS_CONCENTRATING`, `IS_SURPRISED`
+- Ressources/slots: `RESOURCE_AT_LEAST`, `RESOURCE_AT_MOST`, `HAS_RESOURCE`, `SLOT_AVAILABLE`, `ACTOR_HAS_RESOURCE`, `TARGET_HAS_RESOURCE`
+- Tags/conditions/status: `ACTOR_HAS_TAG`, `TARGET_HAS_TAG`, `ACTOR_HAS_CONDITION`, `TARGET_HAS_CONDITION`, `ACTOR_CONDITION_STACKS`, `TARGET_CONDITION_STACKS`
+- Creature/type/size/move: `ACTOR_CREATURE_TYPE_IS`, `TARGET_CREATURE_TYPE_IS`, `ACTOR_CREATURE_HAS_TAG`, `TARGET_CREATURE_HAS_TAG`, `ACTOR_SIZE_IS`, `TARGET_SIZE_IS`, `ACTOR_CAN_MOVE`, `TARGET_CAN_MOVE`
+- Defenses: `ACTOR_DAMAGE_IMMUNE`, `TARGET_DAMAGE_IMMUNE`, `ACTOR_DAMAGE_RESIST`, `TARGET_DAMAGE_RESIST`, `ACTOR_DAMAGE_VULNERABLE`, `TARGET_DAMAGE_VULNERABLE`
+- Valeurs custom: `ACTOR_VALUE`, `TARGET_VALUE`
 
-Objectif: durees multi-tours et concentration.
+### `ops.ts`
 
-Actions:
-1. Stocker une table `durations` (par token + status).
-2. Decrementer au `onTurnEnd` / `onRoundEnd`.
-3. `StartConcentration` cree un lien; `BreakConcentration` supprime les statuses lies.
-4. Ajouter un hook `onInterrupt` lors de degats recus (test de concentration).
+Helpers de ciblage/concentration:
+- `pickTarget(state, selector, explicitTarget)`
+- `ensureDefenseArray(token, mode)`
+- `moveTokenByDelta(token, dx, dy)`
+- `resolveTokenById(state, tokenRef)`
+- `getConcentrationSourceId(token)`
+- `linkStatusToConcentration(state, status)`
+- `shouldLinkEffectToConcentration(state, effectTypeId)`
+- `linkEffectToConcentration(state, effect)`
+- `removeConcentrationLinkedStatuses(state, sourceId)`
+- `removeConcentrationLinkedEffects(state, sourceId)`
+- `breakConcentration({ state, tx, token, opts, reason })`
+- `maybeCheckConcentrationOnDamage({ state, tx, targetToken, damage, opts })`
+- `ensureTargetingState(state, explicitTarget)`
+- `getTokenTags(token)`
+- `getPotentialTargets(state)`
+- `directionFromTo(from, to)`
 
-Statut: FAIT (tick start/end/round + test CON sur degats + purge des statuses lies; zones/auras liees a la concentration).
+Fonction principale:
+- `applyOperation({ op, tx, state, explicitTarget, opts })`: applique une operation moteur.
 
-## Tests recommandes
+Operations appliquees et comportement:
+- `LogEvent`, `EmitEvent`
+- `SpendResource`, `RestoreResource`, `SetResource`
+- `ConsumeSlot`, `RestoreSlot`
+- `CreateZone`, `RemoveZone`, `ModifyZone`
+- `CreateSurface`, `RemoveSurface`
+- `ApplyAura`
+- `DealDamage`, `DealDamageScaled` (temp HP inclus, concentration check)
+- `ApplyDamageTypeMod`
+- `Heal`
+- `ApplyCondition`, `RemoveCondition`, `ExtendCondition`, `SetConditionStack`
+- `StartConcentration`, `BreakConcentration`
+- `GrantTempHp`
+- `MoveForced`, `Teleport`, `SwapPositions`, `Knockback`, `Push`, `Pull`, `MoveTo`
+- `AddDice`, `ReplaceRoll`, `Reroll`, `SetMinimumRoll`, `SetMaximumRoll`, `ModifyBonus`, `ModifyDC`
+- `LockTarget`, `ExpandTargets`, `FilterTargets`, `Retarget`
+- `SpawnEntity`, `DespawnEntity`, `ControlSummon`
+- `AddTag`, `RemoveTag`, `SetFlag`
+- `ModifyPathLimit`, `ToggleTorch`, `SetKillerInstinctTarget`, `PlayVisualEffect`
 
-1. Attack roll + AddDice + ModifyBonus + Reroll.
-2. Save success/fail + DealDamageScaled.
-3. Multi-targets + FilterTargets.
-4. Summon -> control -> despawn.
-5. Push/Pull avec obstacles.
-6. Concentration break sur degats.
+### `actionExecute.ts`
 
-## Next Steps (court terme)
+Normalisation et hooks:
+- `normalizeHookWhen(when)`: mappe alias vers phase canonique.
+- `applyHooks({ hooks, phase, state, target, outcome, explicitTarget, tx, opts })`: evalue conditions/prompt puis execute les ops des hooks.
 
-1. Summons: ownership gameplay complet (controle joueur/IA, initiative/turns coherents, UI).
-2. Deplacements avances avec pathfinding intelligent complet.
-3. Durations & concentration (zones/auras + cas limites).
+Resolution des jets:
+- `resolveOutcome({ plan, state, advantageMode, rollOverrides, target })`:
+  - `ATTACK_ROLL`: jet attaque, crit, comparaison AC, impact `rollContext`.
+  - `SAVING_THROW`: jet 1d20 + mod cible vs DD (DD fixe ou `dcFormula`).
+  - `ABILITY_CHECK`: jet 1d20 + mod actor vs DC.
+  - `CONTESTED_CHECK`: deux jets opposes, tieWinner.
+  - fallback `NO_ROLL` -> outcome neutre.
+
+Helpers Weapon Mastery:
+- `getTokenTags`, `addTokenTag`, `removeTokenTag`, `removeTokenTagsByPrefix`
+- `resolveWeaponMasteryAdvantage`, `consumeWeaponMasteryAdvantage`
+- `extractAbilityModToken`, `abilityModFromToken`, `stripAbilityMod`
+- `getMasteryTriggerFromTags`, `getProficiencyBonus`, `getHostileTargets`
+- `applyWeaponMasteryEffects`: applique effets mastery data-driven (`ouverture`, `sape`, `poussee`, `ralentissement`, `ecorchure`, `renversement`, `enchainement`, `coup_double`).
+
+Effets outcome:
+- `collectOperations(effects, outcome)`: construit la liste d'ops a appliquer selon branche (`onResolve`, `onHit`, `onMiss`, `onCrit`, `onSaveSuccess`, `onSaveFail`).
+
+Execution complete:
+- `executePlan({ plan, state, opts, advantageMode })`:
+  - initialise targeting state/config
+  - execute hooks pre-resolution
+  - gere reaction window `pre`
+  - resolve outcomes (mono ou multi-cibles)
+  - logs de resolution
+  - hooks `onResolve` / `onOutcome`
+  - effets Weapon Mastery
+  - hooks apply/post
+  - reaction window `post`
+  - hooks commit
+  - retourne `{ ok, logs, state, interrupted?, outcome }`
+
+## 6) Internes importants - `actionEngine.ts`
+
+Helpers de validation/deplacement:
+- `areOnSameBaseLevel`, `getLightAtToken`, `isInLight`
+- `isCellAllowed`
+- `updateTokenPosition`
+- `getTokensForPath`
+- `applyForcedMove`
+- `applyTeleport`
+- `applyDisplace`
+- `applySwapPositions`
+- `resolveTokenInState`
+- `getTokenSide`, `isHostileTarget`, `isAllyTarget`
+- `validateTokenTarget`
+
+Helpers advantage/WM:
+- `parseWeaponTagNumber`
+- `getAbilityScoreForActor`
+- `mergeAdvantageMode`
+- `extractMasteryId`
+- `getMasteryTrigger`
+- `buildWeaponMasteryTriggerTags`
+
+Points fonctionnels:
+- Validation cible gere LOS et line-of-effect (vision + trajectoire).
+- Disponibilite prend en compte conditions globales + ressources + `weapon:loading`.
+- Resolution unifiee branche callbacks deplacement/summon/ressources/slots/events/UI.
+- Penalites de maniment (ex arme lourde sans score mini) converties en disadvantage score.
+
+## 7) Etat d'implementation (resume fiable)
+
+Couverture actuelle:
+- Pipeline execution complet (adapter -> compile -> execute -> ops).
+- Multi-cibles via `ActionTarget.kind = "tokens"` + targeting ops.
+- Hooks conditionnels avec prompt optionnel.
+- Roll context complet (`bonusDelta`, `dcDelta`, `replaceRoll`, `reroll`, `minRoll`, `maxRoll`).
+- Concentration liee aux statuses/effects + break sur degats.
+- Zones/surfaces/auras persistantes.
+- Gestion resources/slots/summons/ciblage dynamique.
+- Weapon Mastery data-driven active dans l'execution moteur.
+
+Limitations actuelles explicites:
+- Phases hooks `onTurnStart`, `onTurnEnd`, `onRoundStart`, `onRoundEnd`, `onInterrupt`, `onCounter` non routees dans `executePlan`.
+- Certaines operations de movement/summon dependent fortement des callbacks fournis par l'orchestrateur (comportement degrade sans callbacks).
+- `ReactionWindow` est un point d'interruption binaire (`continue|interrupt`), pas un mini-plan de contre-action nativement execute dans le moteur.
+
+## 8) Recommandations de suite
+
+1. Router les hooks de cycle (`onTurnStart/onTurnEnd/onRoundStart/onRoundEnd`) dans le scheduler de tour.
+2. Introduire un mode reaction avance (contre-action executee dans la fenetre pre/post).
+3. Consolider la doc de contrat callback (`ExecuteOptions`) avec exemples de fallback et garanties.
+
+## 9) Tableau technique IA (fonctions)
+
+Lecture:
+- `Entree`: parametres principaux.
+- `Sortie`: valeur retour.
+- `Side effects`: mutations et dependances externes.
+
+### `src/game/engine/actionAdapter.ts`
+
+| Fonction | Entree | Sortie | Side effects |
+|---|---|---|---|
+| `mapResolution` | `ActionDefinition` | `ResolutionSpec \| undefined` | Aucun |
+| `normalizeTargeting` | `ActionDefinition` | `TargetingSpec \| undefined` | Aucun |
+| `mapEffects` | `ActionDefinition` | `ConditionalEffects \| undefined` | Aucun |
+| `actionDefinitionToActionSpec` | `ActionDefinition` | `ActionSpec` | Aucun |
+
+### `src/game/engine/actionCompile.ts`
+
+| Fonction | Entree | Sortie | Side effects |
+|---|---|---|---|
+| `compileActionPlan` | `{ action, actor, target }` | `ActionPlan` | Aucun |
+
+### `src/game/engine/transaction.ts`
+
+| Fonction | Entree | Sortie | Side effects |
+|---|---|---|---|
+| `beginTransaction` | `EngineState` | `Transaction` (clone mutable + logs) | Copie profonde partielle de state |
+| `logTransaction` | `tx, message, onLog?` | `void` | Push log + callback `onLog` |
+
+### `src/game/engine/formulas.ts`
+
+| Fonction | Entree | Sortie | Side effects |
+|---|---|---|---|
+| `getLevelFromContext` | `FormulaContext` | `number` | Aucun |
+| `getProficiencyBonus` | `level` | `number` | Aucun |
+| `resolveNumberVar` | `varName, ctx` | `number \| null` | Aucun |
+| `resolveFormula` | `formula, ctx` | `string` formule resolue | Aucun |
+
+### `src/game/engine/hooks.ts`
+
+| Fonction | Entree | Sortie | Side effects |
+|---|---|---|---|
+| `shouldApplyHook` | `hook, hookContext, ExecuteOptions` | `boolean` | Lit conditions via `conditionEval` |
+| `resolvePromptDecision` | `hook, ExecuteOptions` | `"accept" \| "reject"` | Peut appeler `promptHandler` |
+
+### `src/game/engine/conditionEval.ts`
+
+| Fonction | Entree | Sortie | Side effects |
+|---|---|---|---|
+| `compare` | `cmp, left, right` | `boolean` | Aucun |
+| `getTags` | `TokenState` | `string[]` | Aucun |
+| `getStatuses` | `TokenState` | `status[]` | Aucun |
+| `getResourceAmountFallback` | `token, name` | `number` | Aucun |
+| `outcomeHasFlag` | `Outcome?, flag` | `boolean` | Aucun |
+| `getCreatureType` | `TokenState` | `string \| null` | Aucun |
+| `getCreatureTags` | `TokenState` | `string[]` | Aucun |
+| `getSize` | `TokenState` | `string \| null` | Aucun |
+| `canMove` | `token, move` | `boolean` | Aucun |
+| `getDamageDefenses` | `token` | `defenses \| null` | Aucun |
+| `getValue` | `token, key, values?` | `number \| null` | Aucun |
+| `getUsageCount` | `usage, scope, key` | `number` | Aucun |
+| `isHpBelow` | `{ token, value, mode }` | `boolean` | Aucun |
+| `evaluateConditionExpr` | `ConditionExpr, ConditionEvalContext` | `boolean` | Aucun |
+| `evaluateAllConditions` | `ConditionExpr[]?, ctx` | `boolean` | Aucun |
+
+### `src/game/engine/ops.ts`
+
+| Fonction | Entree | Sortie | Side effects |
+|---|---|---|---|
+| `pickTarget` | `state, selector, explicitTarget` | token \| `null` | Aucun |
+| `ensureDefenseArray` | `token, mode` | `string[]` | Initialise structures `defenses` |
+| `moveTokenByDelta` | `token, dx, dy` | `void` | Mutations `token.x/y` |
+| `resolveTokenById` | `state, tokenRef` | token \| `null` | Aucun |
+| `getConcentrationSourceId` | `token` | `string \| null` | Aucun |
+| `linkStatusToConcentration` | `state, status` | status enrichi | Aucun |
+| `shouldLinkEffectToConcentration` | `state, effectTypeId` | `boolean` | Aucun |
+| `linkEffectToConcentration` | `state, effect` | effect enrichi | Aucun |
+| `removeConcentrationLinkedStatuses` | `state, sourceId` | `number` retires | Mutations statuses tokens |
+| `removeConcentrationLinkedEffects` | `state, sourceId` | `number` retires | Mutation `state.effects` |
+| `breakConcentration` | `{ state, tx, token, opts, reason }` | `void` | Reset concentration + purge liens + logs |
+| `maybeCheckConcentrationOnDamage` | `{ state, tx, targetToken, damage, opts }` | `void` | Jet CON + possible rupture concentration |
+| `ensureTargetingState` | `state, explicitTarget` | `{ targets, locked }` | Initialise/mute `state.targeting` |
+| `getTokenTags` | `token` | `string[]` | Aucun |
+| `getPotentialTargets` | `state` | tokens[] | Aucun |
+| `directionFromTo` | `from, to` | vecteur normalise | Aucun |
+| `applyOperation` | `{ op, tx, state, explicitTarget, opts }` | `void` | Coeur mutate engine state, ressources, effets, logs, callbacks externes |
+
+### `src/game/engine/actionExecute.ts`
+
+| Fonction | Entree | Sortie | Side effects |
+|---|---|---|---|
+| `normalizeHookWhen` | `when` | `HookPhase \| null` | Aucun |
+| `applyHooks` | `{ hooks, phase, state, target, outcome, explicitTarget, tx, opts }` | `void` | Execute ops de hooks, peut muter state |
+| `resolveOutcome` | `{ plan, state, advantageMode, rollOverrides, target }` | `{ outcome, target }` | Consomme rollContext logique |
+| `getTokenTags` | `token` | `string[]` | Aucun |
+| `addTokenTag` | `token, tag` | `void` | Mutation tags token |
+| `removeTokenTag` | `token, tag` | `void` | Mutation tags token |
+| `removeTokenTagsByPrefix` | `token, prefix` | `void` | Mutation tags token |
+| `resolveWeaponMasteryAdvantage` | `{ base, actor, target }` | `AdvantageMode` | Lit tags WM |
+| `consumeWeaponMasteryAdvantage` | `{ actor, target, advantageUsed }` | `void` | Nettoie tags WM consommables |
+| `extractAbilityModToken` | `formula?` | mod token \| `null` | Aucun |
+| `abilityModFromToken` | `actor, modToken` | `number` | Aucun |
+| `stripAbilityMod` | `formula, modToken` | `string` | Aucun |
+| `getMasteryTriggerFromTags` | `tags, masteryId` | trigger WM | Aucun |
+| `getProficiencyBonus` | `actor` | `number` | Aucun |
+| `getHostileTargets` | `state, actor` | tokens[] | Aucun |
+| `applyWeaponMasteryEffects` | `{ plan, state, tx, target, outcome, opts }` | `void` | Applique effets WM (ops, tags, logs) |
+| `collectOperations` | `effects, outcome` | `Operation[]` | Aucun |
+| `executePlan` | `{ plan, state, opts, advantageMode }` | `{ ok, logs, state, interrupted?, outcome }` | Pipeline complete execution/mutations |
+
+### `src/game/actionEngine.ts`
+
+| Fonction | Entree | Sortie | Side effects |
+|---|---|---|---|
+| `areOnSameBaseLevel` | `ctx, a, b` | `boolean` | Aucun |
+| `getLightAtToken` | `ctx, token` | `number \| null` | Aucun |
+| `isInLight` | `ctx, token` | `boolean \| null` | Aucun |
+| `isCellAllowed` | `{ ctx, state, x, y, excludeIds? }` | `boolean` | Aucun |
+| `updateTokenPosition` | `{ state, token, x, y }` | `void` | Mutation state local player/enemies |
+| `getTokensForPath` | `ctx, state` | `TokenState[]` | Aucun |
+| `applyForcedMove` | `{ ctx, state, token, to }` | `void` | Mutation position token |
+| `applyTeleport` | `{ ctx, state, token, to }` | `void` | Mutation position token |
+| `applyDisplace` | `{ ctx, state, token, direction, distance }` | `void` | Mutation position token |
+| `applySwapPositions` | `{ ctx, state, a, b }` | `void` | Swap positions si legal |
+| `resolveTokenInState` | `state, id` | token \| `null` | Aucun |
+| `getTokenSide` | `token` | `TokenType` | Aucun |
+| `isHostileTarget` | `actor, targetToken` | `boolean` | Aucun |
+| `isAllyTarget` | `actor, targetToken` | `boolean` | Aucun |
+| `validateTokenTarget` | `action, ctx, targetToken` | `{ ok, reason? }` | Aucun |
+| `validateActionTarget` | `action, ctx, target` | `{ ok, reason? }` | Aucun |
+| `computeAvailabilityForActor` | `action, ctx` | `ActionAvailability` | Aucun |
+| `parseWeaponTagNumber` | `tags, prefix` | `number \| null` | Aucun |
+| `getAbilityScoreForActor` | `{ actor, ability, sampleCharacter? }` | `number` | Aucun |
+| `mergeAdvantageMode` | `base, scoreDelta` | `AdvantageMode` | Aucun |
+| `resolveActionUnified` | `action, ctx, target, opts?` | `ActionResolutionResult` | Orchestration complete, appelle moteur + callbacks integration |
+| `extractMasteryId` | `ActionDefinition` | `string \| null` | Aucun |
+| `getMasteryTrigger` | `ActionDefinition` | trigger WM | Aucun |
+| `buildWeaponMasteryTriggerTags` | `{ activeMasteryIds, masteryActions }` | `string[]` | Aucun |

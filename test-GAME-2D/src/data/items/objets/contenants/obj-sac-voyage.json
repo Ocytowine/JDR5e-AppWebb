@@ -3,18 +3,20 @@
   "label": "Sac de voyage",
   "type": "object",
   "category": "pack",
-  "weight": 2.0,
+  "weight": 2,
   "capacityWeight": 25,
   "tags": [
     "sac",
     "paquetage",
-    "ammo_container"
+    "ammo_container",
+    "cloth"
   ],
   "description": "Sac robuste pour longs deplacements.",
   "value": {
     "platinum": 0,
-    "gold": 4.0,
+    "gold": 4,
     "silver": 0,
     "copper": 0
-  }
+  },
+  "harmonisable": false
 }

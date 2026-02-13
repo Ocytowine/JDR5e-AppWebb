@@ -8,13 +8,15 @@
   "tags": [
     "sac",
     "paquetage",
-    "ammo_container"
+    "ammo_container",
+    "cloth"
   ],
   "description": "Petite besace souple pour le quotidien.",
   "value": {
     "platinum": 0,
-    "gold": 1.0,
+    "gold": 1,
     "silver": 0,
     "copper": 0
-  }
+  },
+  "harmonisable": false
 }

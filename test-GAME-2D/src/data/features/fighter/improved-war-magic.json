@@ -1,0 +1,11 @@
+{
+  "id": "improved-war-magic",
+  "label": "Maitre de la magie de guerre",
+  "summary": "Apres un sort, attaque d'arme en action bonus.",
+  "kind": "feature",
+  "tags": ["fighter", "eldritch-knight"],
+  "grants": [],
+  "rules": {
+    "text": "Apres avoir lance un sort, vous pouvez effectuer une attaque d'arme en action bonus."
+  }
+}

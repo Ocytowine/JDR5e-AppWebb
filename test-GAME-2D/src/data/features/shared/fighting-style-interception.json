@@ -1,0 +1,26 @@
+{
+  "id": "fighting-style-interception",
+  "label": "Style de combat: Interception",
+  "summary": "Vous pouvez reduire les degats infliges a un allie proche via une reaction.",
+  "kind": "feature",
+  "tags": ["fighting-style"],
+  "grants": [],
+  "rules": {
+    "text": "Quand une creature que vous voyez touche un allie proche, vous pouvez utiliser votre reaction pour reduire les degats.",
+    "reactionModifiers": [
+      {
+        "event": "incomingAttackHit",
+        "mode": "reduceDamage",
+        "formula": "1d10 + proficiencyBonus",
+        "uiMessage": "Style Interception: degats reduits sur l'allie.",
+        "when": {
+          "actionCategory": "attack",
+          "targetMustBeAlly": true,
+          "targetMustNotBeSelf": true,
+          "targetVisible": true,
+          "maxDistanceToTarget": 1.5
+        }
+      }
+    ]
+  }
+}

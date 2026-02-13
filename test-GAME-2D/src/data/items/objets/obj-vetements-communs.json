@@ -5,7 +5,8 @@
   "category": "clothing_body",
   "weight": 1.5,
   "tags": [
-    "vetement"
+    "vetement",
+    "cloth"
   ],
   "description": "Tenue simple et pratique.",
   "value": {
@@ -13,5 +14,6 @@
     "gold": 0.5,
     "silver": 0,
     "copper": 0
-  }
+  },
+  "harmonisable": false
 }

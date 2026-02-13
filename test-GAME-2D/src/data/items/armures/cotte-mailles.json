@@ -8,14 +8,16 @@
   "weight": 27.5,
   "tags": [
     "armure",
-    "lourde"
+    "lourde",
+    "metal"
   ],
   "description": "Armure lourde en anneaux de metal.",
   "category": "armor_body",
   "value": {
     "platinum": 0,
-    "gold": 75.0,
+    "gold": 75,
     "silver": 0,
     "copper": 0
-  }
+  },
+  "harmonisable": false
 }

@@ -1,0 +1,11 @@
+{
+  "id": "tactical-shift",
+  "label": "Decalage tactique",
+  "summary": "Mobilite bonus lors de l'activation de Second souffle.",
+  "kind": "feature",
+  "tags": ["fighter", "movement"],
+  "grants": [],
+  "rules": {
+    "text": "Lors de l'activation de Second souffle, deplacement jusqu'a la moitie de la vitesse sans opportunite."
+  }
+}

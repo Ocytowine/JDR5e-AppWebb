@@ -15,8 +15,16 @@ type GrantLike = {
 type InventoryEntry = {
   type?: string;
   id?: string;
+  instanceId?: string;
   equippedSlot?: string | null;
   storedIn?: string | null;
+  harmonized?: boolean;
+  isHarmonized?: boolean;
+  attuned?: boolean;
+  attunement?: {
+    state?: string;
+    harmonizedAt?: string | null;
+  } | null;
 };
 
 type BonusEntry = {
@@ -28,8 +36,11 @@ type BonusEntry = {
 
 type EquippedResolved = {
   itemId: string;
+  instanceId: string | null;
   itemType: "weapon" | "armor" | "object";
   slot: string | null;
+  harmonisable: boolean;
+  harmonized: boolean;
   weapon?: WeaponTypeDefinition;
   armor?: ArmorItemDefinition;
   object?: ObjectItemDefinition;
@@ -78,28 +89,54 @@ function resolveEquippedItems(params: {
   for (const entry of equipped) {
     const itemId = String(entry.id ?? "");
     const itemType = String(entry.type ?? "");
+    const instanceId = typeof entry.instanceId === "string" ? entry.instanceId : null;
     const slot = typeof entry.equippedSlot === "string" ? entry.equippedSlot : null;
     if (!itemId || !itemType) continue;
     if (itemType === "weapon") {
       const weapon = params.weaponById.get(itemId);
       if (!weapon) continue;
-      out.push({ itemId, itemType: "weapon", slot, weapon });
+      const harmonisable = Boolean((weapon as any)?.harmonisable);
+      const harmonized = isEquippedItemHarmonized(params.character, entry);
+      out.push({ itemId, instanceId, itemType: "weapon", slot, harmonisable, harmonized, weapon });
       continue;
     }
     if (itemType === "armor") {
       const armor = params.armorById.get(itemId);
       if (!armor) continue;
-      out.push({ itemId, itemType: "armor", slot, armor });
+      const harmonisable = Boolean((armor as any)?.harmonisable);
+      const harmonized = isEquippedItemHarmonized(params.character, entry);
+      out.push({ itemId, instanceId, itemType: "armor", slot, harmonisable, harmonized, armor });
       continue;
     }
     if (itemType === "object") {
       const object = params.objectById.get(itemId);
       if (!object) continue;
-      out.push({ itemId, itemType: "object", slot, object });
+      const harmonisable = Boolean((object as any)?.harmonisable);
+      const harmonized = isEquippedItemHarmonized(params.character, entry);
+      out.push({ itemId, instanceId, itemType: "object", slot, harmonisable, harmonized, object });
     }
   }
 
   return out;
+}
+
+function isEquippedItemHarmonized(character: Personnage, entry: InventoryEntry): boolean {
+  if (entry.harmonized === true || entry.isHarmonized === true || entry.attuned === true) return true;
+  if (entry.attunement?.state === "harmonized") return true;
+  if (typeof entry.attunement?.harmonizedAt === "string" && entry.attunement.harmonizedAt.length > 0) {
+    return true;
+  }
+  const instanceId = typeof entry.instanceId === "string" ? entry.instanceId : null;
+  const itemId = typeof entry.id === "string" ? entry.id : null;
+  const attunements = (character as any)?.attunements;
+  if (!attunements || typeof attunements !== "object") return false;
+  if (instanceId && (attunements[instanceId] === true || attunements[`instance:${instanceId}`] === true)) {
+    return true;
+  }
+  if (itemId && (attunements[itemId] === true || attunements[`item:${itemId}`] === true)) {
+    return true;
+  }
+  return false;
 }
 
 function uniquePush(target: string[], value: string) {
@@ -150,6 +187,8 @@ function collectBonusEntries(params: {
   const out: BonusEntry[] = [];
 
   for (const resolved of equipped) {
+    if (resolved.harmonisable && !resolved.harmonized) continue;
+
     const item = resolved.weapon ?? resolved.armor ?? resolved.object ?? null;
     if (!item) continue;
 

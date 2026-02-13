@@ -1,0 +1,22 @@
+{
+  "id": "fighting-style-great-weapon-fighting",
+  "label": "Style de combat: Combat a deux mains",
+  "summary": "Vous pouvez relancer certains des de degats d'arme a deux mains.",
+  "kind": "feature",
+  "tags": ["fighting-style"],
+  "grants": [],
+  "rules": {
+    "text": "Quand vous lancez les degats d'une arme maniee a deux mains, vous pouvez relancer les resultats 1 ou 2 selon la regle de style.",
+    "modifiers": [
+      {
+        "applyTo": "damageReroll",
+        "value": 2,
+        "when": {
+          "actionCategory": "attack",
+          "weaponCategories": ["melee", "polyvalent"],
+          "weaponTwoHanded": true
+        }
+      }
+    ]
+  }
+}

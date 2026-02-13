@@ -5,15 +5,16 @@
   "category": "currency",
   "weight": 0.01,
   "value": {
-    "pc": 1,
     "platinum": 0,
     "gold": 0,
     "silver": 0,
-    "copper": 0
+    "copper": 1
   },
   "tags": [
     "monnaie",
-    "piece"
+    "piece",
+    "metal"
   ],
-  "description": "Piece de cuivre."
+  "description": "Piece de cuivre.",
+  "harmonisable": false
 }

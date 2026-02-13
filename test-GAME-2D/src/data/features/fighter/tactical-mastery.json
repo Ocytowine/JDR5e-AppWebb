@@ -1,0 +1,11 @@
+{
+  "id": "tactical-mastery",
+  "label": "Botte tactique",
+  "summary": "Flexibilite de bottes lors d'une attaque.",
+  "kind": "feature",
+  "tags": ["fighter", "martial"],
+  "grants": [],
+  "rules": {
+    "text": "Lors d'une attaque avec arme maitrisee, une botte peut etre remplacee par Poussee, Sape ou Ralentissement."
+  }
+}

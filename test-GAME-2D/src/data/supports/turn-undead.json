@@ -1,0 +1,81 @@
+{
+  "id": "turn-undead",
+  "name": "Renvoi des morts-vivants",
+  "summary": "Conduit divin: repousse les morts-vivants autour de vous.",
+  "category": "control",
+  "actionCost": {
+    "actionType": "action",
+    "movementCost": 0
+  },
+  "targeting": {
+    "target": "hostile",
+    "range": {
+      "min": 0,
+      "max": 9,
+      "shape": "SPHERE"
+    },
+    "maxTargets": 8,
+    "requiresLos": true
+  },
+  "usage": {
+    "perTurn": null,
+    "perEncounter": null,
+    "resource": {
+      "name": "channel-divinity",
+      "pool": null,
+      "min": 1
+    }
+  },
+  "resolution": {
+    "kind": "SAVING_THROW",
+    "save": {
+      "ability": "SAG",
+      "dc": 10,
+      "dcFormula": "8 + proficiencyBonus + modSAG"
+    }
+  },
+  "conditions": [
+    {
+      "type": "TARGET_ALIVE",
+      "target": "primary",
+      "reason": "La cible doit etre vivante."
+    },
+    {
+      "type": "TARGET_CREATURE_TYPE_IS",
+      "value": "UNDEAD",
+      "reason": "Renvoi ne cible que les morts-vivants."
+    }
+  ],
+  "ops": {
+    "onResolve": [
+      {
+        "op": "SpendResource",
+        "name": "channel-divinity",
+        "amount": 1
+      },
+      {
+        "op": "LogEvent",
+        "message": "Renvoi des morts-vivants."
+      }
+    ],
+    "onSaveFail": [
+      {
+        "op": "ApplyCondition",
+        "target": "primary",
+        "statusId": "FRIGHTENED",
+        "durationTurns": 10
+      },
+      {
+        "op": "ApplyCondition",
+        "target": "primary",
+        "statusId": "INCAPACITATED",
+        "durationTurns": 10
+      }
+    ]
+  },
+  "tags": [
+    "cleric",
+    "channel-divinity",
+    "control"
+  ]
+}

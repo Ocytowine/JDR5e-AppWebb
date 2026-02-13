@@ -22,7 +22,23 @@ import AttacksMeleeStrike from "../data/attacks/melee-strike.json";
 import AttacksThrowDagger from "../data/attacks/throw-dagger.json";
 import MovesDash from "../data/moves/dash.json";
 import MovesMove from "../data/moves/move.json";
+import SupportsActionSurge from "../data/supports/action-surge.json";
+import SupportsCastMagic from "../data/supports/cast-magic.json";
+import SupportsDisengage from "../data/supports/disengage.json";
+import SupportsDivineSparkHeal from "../data/supports/divine-spark-heal.json";
+import SupportsDivineSparkNecrotic from "../data/supports/divine-spark-necrotic.json";
+import SupportsDivineSparkRadiant from "../data/supports/divine-spark-radiant.json";
+import SupportsDodge from "../data/supports/dodge.json";
+import SupportsHelp from "../data/supports/help.json";
+import SupportsHide from "../data/supports/hide.json";
+import SupportsIndomitable from "../data/supports/indomitable.json";
+import SupportsInfluence from "../data/supports/influence.json";
+import SupportsObserve from "../data/supports/observe.json";
+import SupportsReadyAction from "../data/supports/ready-action.json";
 import SupportsSecondWind from "../data/supports/second-wind.json";
+import SupportsStudy from "../data/supports/study.json";
+import SupportsTurnUndead from "../data/supports/turn-undead.json";
+import SupportsUseItem from "../data/supports/use-item.json";
 import ItemsTorchToggle from "../data/items/torch-toggle.json";
 
 const ACTION_MODULES: Record<string, ActionDefinition> = {
@@ -45,7 +61,23 @@ const ACTION_MODULES: Record<string, ActionDefinition> = {
   "../attacks/throw-dagger.json": AttacksThrowDagger as ActionDefinition,
   "../moves/dash.json": MovesDash as ActionDefinition,
   "../moves/move.json": MovesMove as ActionDefinition,
+  "../supports/action-surge.json": SupportsActionSurge as ActionDefinition,
+  "../supports/cast-magic.json": SupportsCastMagic as ActionDefinition,
+  "../supports/disengage.json": SupportsDisengage as ActionDefinition,
+  "../supports/divine-spark-heal.json": SupportsDivineSparkHeal as ActionDefinition,
+  "../supports/divine-spark-necrotic.json": SupportsDivineSparkNecrotic as ActionDefinition,
+  "../supports/divine-spark-radiant.json": SupportsDivineSparkRadiant as ActionDefinition,
+  "../supports/dodge.json": SupportsDodge as ActionDefinition,
+  "../supports/help.json": SupportsHelp as ActionDefinition,
+  "../supports/hide.json": SupportsHide as ActionDefinition,
+  "../supports/indomitable.json": SupportsIndomitable as ActionDefinition,
+  "../supports/influence.json": SupportsInfluence as ActionDefinition,
+  "../supports/observe.json": SupportsObserve as ActionDefinition,
+  "../supports/ready-action.json": SupportsReadyAction as ActionDefinition,
   "../supports/second-wind.json": SupportsSecondWind as ActionDefinition,
+  "../supports/study.json": SupportsStudy as ActionDefinition,
+  "../supports/turn-undead.json": SupportsTurnUndead as ActionDefinition,
+  "../supports/use-item.json": SupportsUseItem as ActionDefinition,
   "../items/torch-toggle.json": ItemsTorchToggle as ActionDefinition
 };
 

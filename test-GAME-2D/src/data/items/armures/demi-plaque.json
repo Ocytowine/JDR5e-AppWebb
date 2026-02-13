@@ -8,14 +8,16 @@
   "weight": 20,
   "tags": [
     "armure",
-    "intermediaire"
+    "intermediaire",
+    "metal"
   ],
   "description": "Armure intermediaire avec plaques partielles.",
   "category": "armor_body",
   "value": {
     "platinum": 0,
-    "gold": 750.0,
+    "gold": 750,
     "silver": 0,
     "copper": 0
-  }
+  },
+  "harmonisable": false
 }

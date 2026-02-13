@@ -28,4 +28,5 @@ Ce dossier contient les definitions JSON des reactions et le modele partage.
 - Mettre a jour ce README quand on ajoute un nouveau type de condition ou d'effet.
 - Les declencheurs de mouvement sont detectes sur les deplacements joueur et ennemis.
 - visibility.first_seen est evalue cote joueur quand un ennemi devient visible.
+- Les `feature.rules.reactionModifiers` (styles/traits passifs) sont documentes dans `docs/notice/feature-modifiers-notice.md`.
 

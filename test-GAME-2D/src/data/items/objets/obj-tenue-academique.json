@@ -5,13 +5,15 @@
   "category": "clothing_body",
   "weight": 1.5,
   "tags": [
-    "vetement"
+    "vetement",
+    "cloth"
   ],
   "description": "Robe ou tenue propre aux milieux savants.",
   "value": {
     "platinum": 0,
-    "gold": 2.0,
+    "gold": 2,
     "silver": 0,
     "copper": 0
-  }
+  },
+  "harmonisable": false
 }

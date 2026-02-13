@@ -1,7 +1,10 @@
 {
   "types": [
+    "./martiale/arc-long-cendre.json",
     "./martiale/arc-long.json",
+    "./martiale/epee-longue-brasiere.json",
     "./martiale/epee-longue.json",
+    "./martiale/hache-bataille-incandescente.json",
     "./martiale/hache-bataille.json",
     "./monastique/baton.json",
     "./monastique/kama.json",

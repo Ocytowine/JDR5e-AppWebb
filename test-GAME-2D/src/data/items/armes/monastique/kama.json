@@ -21,7 +21,8 @@
   "tags": [
     "arme",
     "melee",
-    "slashing"
+    "slashing",
+    "metal"
   ],
   "properties": {
     "finesse": true,
@@ -46,17 +47,12 @@
   },
   "damage": {
     "dice": "1d6",
-    "damageType": "SLASHING",
-    "alt": null
+    "damageType": "slashing"
   },
   "effectOnHit": {
     "mod": "mod.DEX",
     "damage": "1d6",
-    "damageType": "SLASHING"
-  },
-  "links": {
-    "actionId": "melee-strike",
-    "effectId": "melee-slash"
+    "damageType": "slashing"
   },
   "label": "Kama"
 }

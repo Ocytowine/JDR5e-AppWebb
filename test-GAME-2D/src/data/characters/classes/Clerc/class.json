@@ -46,16 +46,17 @@
   "progression": {
     "1": {
       "grants": [
-        { "kind": "feature", "ids": ["channel-divinity"] }
+        { "kind": "feature", "ids": ["divine-order"] }
       ],
-      "description": "Incantation divine et lancement de sorts geres ailleurs."
+      "description": "Ordre divin (Protecteur ou Thaumaturge) et lancement de sorts geres ailleurs."
     },
     "2": {
       "grants": [
         { "kind": "feature", "ids": ["channel-divinity"] },
+        { "kind": "feature", "ids": ["divine-spark"] },
         { "kind": "feature", "ids": ["turn-undead"] }
       ],
-      "description": "Canalisation d'energie divine et Renvoi des morts-vivants."
+      "description": "Conduit divin: Etincelle divine et Renvoi des morts-vivants."
     },
     "4": {
       "grants": [

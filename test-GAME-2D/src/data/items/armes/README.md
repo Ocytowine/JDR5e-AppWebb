@@ -21,7 +21,6 @@ Objectif: definir un format unique pour les armes, leurs dependances, et leur im
 - attack: mod + bonus de maitrise si arme maitrisee
 - damage: dice + damageType (+ alt pour polyvalente)
 - effectOnHit: format court d'impact (compat template items)
-- links: ponts vers action / effect visuel
 - harmonisable: true/false (uniformise l'acces a la notion d'objet harmonisable)
 
 ## Types de degats (reference)

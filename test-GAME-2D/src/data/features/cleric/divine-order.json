@@ -1,0 +1,11 @@
+{
+  "id": "divine-order",
+  "label": "Ordre divin",
+  "summary": "Vous vous consacrez a un role sacre: Protecteur ou Thaumaturge.",
+  "kind": "feature",
+  "tags": ["cleric"],
+  "grants": [],
+  "rules": {
+    "text": "Protecteur: maitrise des armes martiales et armures lourdes. Thaumaturge: un sort mineur de clerc supplementaire et bonus aux jets d'Intelligence (Arcanes/Religion) egal au modificateur de Sagesse (minimum +1)."
+  }
+}

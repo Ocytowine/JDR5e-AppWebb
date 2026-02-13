@@ -8,13 +8,15 @@
   "tags": [
     "conteneur",
     "ammo_container",
-    "carquois"
+    "carquois",
+    "leather"
   ],
   "description": "Carquois pour transporter des munitions.",
   "value": {
     "platinum": 0,
-    "gold": 1.0,
+    "gold": 1,
     "silver": 0,
     "copper": 0
-  }
+  },
+  "harmonisable": false
 }
