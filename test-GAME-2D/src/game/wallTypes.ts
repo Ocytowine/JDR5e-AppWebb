@@ -1,5 +1,5 @@
 import type { GridPosition } from "../types";
-import type { InteractionSpec } from "./interactions";
+import type { InteractionSpec } from "./map/interactions";
 
 export type WallState = "open" | "closed";
 

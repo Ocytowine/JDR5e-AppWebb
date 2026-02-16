@@ -1,6 +1,6 @@
 import type { GridPosition } from "../../../types";
 import type { ObstacleTypeDefinition } from "../../obstacleTypes";
-import type { EntrancePlacementSpec, EntranceSide, MapBuildContext, MapEntrancesSpec, MapSpec } from "../types";
+import type { EntrancePlacementSpec, EntranceSide, MapBuildContext, MapEntrancesSpec, MapSpec } from "../generation/types";
 import {
   clamp,
   createDraft,
@@ -10,10 +10,10 @@ import {
   tryPlaceWallSegment,
   key,
   scatterTerrainPatches
-} from "../draft";
-import { pickVariantIdForPlacement, randomRotationForPlacement, weightedTypesForContext } from "../obstacleSelector";
-import { findWallType } from "../wallSelector";
-import { pickWeighted, randomIntInclusive } from "../random";
+} from "../generation/draft";
+import { pickVariantIdForPlacement, randomRotationForPlacement, weightedTypesForContext } from "../generation/obstacleSelector";
+import { findWallType } from "../generation/wallSelector";
+import { pickWeighted, randomIntInclusive } from "../generation/random";
 import { resolveWallKindFromType } from "../walls/kind";
 import { resolveWallMaxHp } from "../walls/durability";
 import type { WallDirection, WallKind } from "../walls/types";
@@ -262,7 +262,7 @@ export function generateDungeonCircularRoom(params: {
   const roomMask = buildCircularMask({ cols, rows, cx, cy, radius: roomRadius });
   draft.playable = roomMask;
 
-  // Player start: une cellule jouable proche de l'ouverture la plus "à gauche".
+  // Player start: une cellule jouable proche de l'ouverture la plus "ï¿½ gauche".
   let playerStart: GridPosition = { x: cx, y: cy };
   let best: GridPosition | null = null;
   let bestScore = Number.POSITIVE_INFINITY;
@@ -296,7 +296,7 @@ export function generateDungeonCircularRoom(params: {
     mask: roomMask
   });
 
-  // Lighting: faible sur les bords, plus forte au centre si demandé
+  // Lighting: faible sur les bords, plus forte au centre si demandï¿½
   const baseLight = dSpec.lighting === "low" ? 0.25 : 0.75;
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
@@ -317,7 +317,7 @@ export function generateDungeonCircularRoom(params: {
     }
   }
 
-  // Ouvertures (accès) dans les murs
+  // Ouvertures (accï¿½s) dans les murs
   const boundaryBySide = groupBoundaryBySide({ boundary: boundaryCells, cx, cy });
 
   const openings = resolveOpenings({
@@ -385,7 +385,7 @@ export function generateDungeonCircularRoom(params: {
     draft.log.push("Murs: aucun type de mur disponible.");
   }
 
-  // Colonnes: réparties autour du centre
+  // Colonnes: rï¿½parties autour du centre
   const columns = Math.max(0, dSpec.columns);
   if (columns > 0) {
     const typeForColumns = pillarType ?? null;
@@ -417,7 +417,7 @@ export function generateDungeonCircularRoom(params: {
       if (ok) placed++;
     }
 
-    // Si on a demandé plus que 4 colonnes, on complète en scatter à l'intérieur.
+    // Si on a demandï¿½ plus que 4 colonnes, on complï¿½te en scatter ï¿½ l'intï¿½rieur.
     let attempts = 0;
     while (typeForColumns && placed < columns && attempts < 200) {
       attempts++;
@@ -455,9 +455,9 @@ export function generateDungeonCircularRoom(params: {
         variantId,
         rotation
       });
-      draft.log.push(ok ? "Autel: placé au centre." : "Autel: placement impossible (collision).");
+      draft.log.push(ok ? "Autel: placï¿½ au centre." : "Autel: placement impossible (collision).");
     } else {
-      draft.log.push("Autel: aucun type d'obstacle approprié.");
+      draft.log.push("Autel: aucun type d'obstacle appropriï¿½.");
     }
   }
 
@@ -492,6 +492,7 @@ export function generateDungeonCircularRoom(params: {
 
   return { draft, playerStart };
 }
+
 
 
 

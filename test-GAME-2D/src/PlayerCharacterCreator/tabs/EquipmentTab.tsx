@@ -56,6 +56,7 @@ export function EquipmentTab(props: {
   formatMoneyValue: (value: any) => string;
   onSellRequest: (index: number, item: any, itemValue: any) => void;
   setPrimaryWeapon: (index: number) => void;
+  setSecondaryHand: (index: number) => void;
   isItemHarmonisable: (item: any) => boolean;
   isItemHarmonized: (item: any) => boolean;
   toggleItemHarmonization: (index: number) => void;
@@ -101,6 +102,7 @@ export function EquipmentTab(props: {
     formatMoneyValue,
     onSellRequest,
     setPrimaryWeapon,
+    setSecondaryHand,
     isItemHarmonisable,
     isItemHarmonized,
     toggleItemHarmonization,
@@ -529,17 +531,38 @@ export function EquipmentTab(props: {
                         borderRadius: 6,
                         border: "1px solid rgba(255,255,255,0.2)",
                         background: item.isPrimaryWeapon
-                          ? "rgba(241, 196, 15, 0.25)"
+                          ? "rgba(255, 140, 0, 0.28)"
                           : "rgba(255,255,255,0.08)",
-                        color: item.isPrimaryWeapon ? "#f8e58c" : "#f5f5f5",
+                        color: item.isPrimaryWeapon ? "#ffd08a" : "#f5f5f5",
                         cursor: "pointer",
-                        fontSize: 12,
+                        fontSize: 11,
                         padding: "2px 6px",
                         fontWeight: 700
                       }}
-                      title="Definir comme arme principale"
+                      title="Main principale"
                     >
-                      ★
+                      ★P
+                    </button>
+                  )}
+                  {(item.type === "weapon" || item.type === "armor" || item.type === "object") && (
+                    <button
+                      type="button"
+                      onClick={() => setSecondaryHand(idx)}
+                      style={{
+                        borderRadius: 6,
+                        border: "1px solid rgba(255,255,255,0.2)",
+                        background: item.isSecondaryHand
+                          ? "rgba(255, 140, 0, 0.28)"
+                          : "rgba(255,255,255,0.08)",
+                        color: item.isSecondaryHand ? "#ffd08a" : "#f5f5f5",
+                        cursor: "pointer",
+                        fontSize: 11,
+                        padding: "2px 6px",
+                        fontWeight: 700
+                      }}
+                      title="Main secondaire"
+                    >
+                      ★S
                     </button>
                   )}
                   {item.source === "manual" && !isCurrencyItem(item) && (

@@ -1,6 +1,6 @@
 import type { GridPosition } from "../types";
-import type { Orientation8 } from "./footprint";
-import type { InteractionSpec } from "./interactions";
+import type { Orientation8 } from "./engine/footprint";
+import type { InteractionSpec } from "./map/interactions";
 
 export interface ObstacleBlocking {
   movement: boolean;
@@ -139,3 +139,4 @@ export interface ObstacleInstance {
   hp: number;
   maxHp: number;
 }
+

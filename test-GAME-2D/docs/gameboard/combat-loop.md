@@ -2,8 +2,8 @@
 
 Sources principales:
 - `test-GAME-2D/src/GameBoard.tsx`
-- `test-GAME-2D/src/game/turnTypes.ts`
-- `test-GAME-2D/src/game/actionEngine.ts`
+- `test-GAME-2D/src/game/engine/runtime/turnTypes.ts`
+- `test-GAME-2D/src/game/engine/core/actionEngine.ts`
 
 ## Demarrage du combat
 - `handleStartCombat` demarre la configuration.
@@ -49,3 +49,5 @@ Sources principales:
 - `beginRoundNarrationBuffer` au debut du tour joueur.
 - `recordCombatEvent` pendant les actions.
 - `requestRoundNarration` en fin de tour ennemi si buffer actif.
+
+

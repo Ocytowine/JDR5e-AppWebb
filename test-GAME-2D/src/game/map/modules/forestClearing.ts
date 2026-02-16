@@ -1,5 +1,5 @@
 import type { GridPosition } from "../../../types";
-import type { MapBuildContext, MapSpec } from "../types";
+import type { MapBuildContext, MapSpec } from "../generation/types";
 import {
   clamp,
   createDraft,
@@ -9,12 +9,12 @@ import {
   key,
   scatterTerrainPatches,
   scatterDecorations
-} from "../draft";
-import { findObstacleType, pickVariantIdForPlacement, randomRotationForPlacement, weightedTypesForContext } from "../obstacleSelector";
-import { pickWeighted, randomIntInclusive } from "../random";
-import { loadMapPatternsFromIndex } from "../../mapPatternCatalog";
-import { choosePatternsByPrompt, getPatternSize, pickPatternTransform, placePatternAtOrigin } from "../patterns";
-import { getSpriteGridCells, hasTreeOverlap, isTreeType } from "../placement";
+} from "../generation/draft";
+import { findObstacleType, pickVariantIdForPlacement, randomRotationForPlacement, weightedTypesForContext } from "../generation/obstacleSelector";
+import { pickWeighted, randomIntInclusive } from "../generation/random";
+import { loadMapPatternsFromIndex } from "../generation/mapPatternCatalog";
+import { choosePatternsByPrompt, getPatternSize, pickPatternTransform, placePatternAtOrigin } from "../generation/patterns";
+import { getSpriteGridCells, hasTreeOverlap, isTreeType } from "../generation/placement";
 
 const FOREST_PATTERNS = loadMapPatternsFromIndex().filter(p => p.theme === "forest");
 
@@ -261,3 +261,5 @@ export function generateForestClearing(params: {
 
   return { draft, playerStart };
 }
+
+

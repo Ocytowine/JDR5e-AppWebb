@@ -1,10 +1,10 @@
 import type { GridPosition } from "../../../types";
-import type { MapBuildContext, MapSpec } from "../types";
-import { clamp, createDraft, setHeight, setLight, setTerrain, tryPlaceObstacle } from "../draft";
-import { loadMapPatternsFromIndex } from "../../mapPatternCatalog";
-import { choosePatternsByPrompt, getPatternSize, pickPatternTransform, placePattern } from "../patterns";
-import { findObstacleType, pickVariantIdForPlacement, randomRotationForPlacement } from "../obstacleSelector";
-import type { Orientation8 } from "../../footprint";
+import type { MapBuildContext, MapSpec } from "../generation/types";
+import { clamp, createDraft, setHeight, setLight, setTerrain, tryPlaceObstacle } from "../generation/draft";
+import { loadMapPatternsFromIndex } from "../generation/mapPatternCatalog";
+import { choosePatternsByPrompt, getPatternSize, pickPatternTransform, placePattern } from "../generation/patterns";
+import { findObstacleType, pickVariantIdForPlacement, randomRotationForPlacement } from "../generation/obstacleSelector";
+import type { Orientation8 } from "../../engine/footprint";
 
 const CITY_PATTERNS = loadMapPatternsFromIndex().filter(p => p.theme === "city");
 
@@ -328,3 +328,5 @@ export function generateCityStreet(params: {
 
   return { draft, playerStart };
 }
+
+

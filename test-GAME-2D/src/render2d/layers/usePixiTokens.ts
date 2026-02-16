@@ -3,12 +3,12 @@ import { Container, Graphics, Sprite } from "pixi.js";
 import type { RefObject } from "react";
 import type { TokenState } from "../../types";
 import { TILE_SIZE, gridToScreenForGrid } from "../../boardConfig";
-import { isTokenDead } from "../../game/combatUtils";
+import { isTokenDead } from "../../game/engine/runtime/combatUtils";
 import {
   getDefaultOrientationForToken,
   getTokenOccupiedCells,
   orientationToRotationDeg
-} from "../../game/footprint";
+} from "../../game/engine/runtime/footprint";
 import { getTokenSpriteUrl } from "../../tokenTextureHelper";
 import { DEPTH_Z } from "./depthOrdering";
 
@@ -210,3 +210,5 @@ export function usePixiTokens(options: {
     options.suspendRendering
   ]);
 }
+
+

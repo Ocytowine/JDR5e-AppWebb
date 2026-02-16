@@ -2,8 +2,8 @@
 
 Sources principales:
 - `test-GAME-2D/src/GameBoard.tsx`
-- `test-GAME-2D/src/game/actionEngine.ts`
-- `test-GAME-2D/src/game/actionPlan.ts`
+- `test-GAME-2D/src/game/engine/core/actionEngine.ts`
+- `test-GAME-2D/src/game/engine/core/actionPlan.ts`
 - `test-GAME-2D/src/dice/roller.ts`
 
 ## Chargement des actions
@@ -84,3 +84,5 @@ Sources principales:
 - `pushLog` pour traces de resolution.
 - `diceLogs` pour les jets.
 - `combatToast` pour feedback de hit/miss.
+
+

@@ -3,16 +3,16 @@
 Ce document decrit l'etat reel de l'ActionEngine tel qu'implante dans le code, avec un detail textuel des fonctions, hooks et points d'extension.
 
 Portee principale:
-- `src/game/engine/actionAdapter.ts`
-- `src/game/engine/actionCompile.ts`
-- `src/game/engine/actionExecute.ts`
-- `src/game/engine/conditionEval.ts`
-- `src/game/engine/formulas.ts`
-- `src/game/engine/hooks.ts`
-- `src/game/engine/ops.ts`
-- `src/game/engine/transaction.ts`
-- `src/game/engine/types.ts`
-- orchestrateur: `src/game/actionEngine.ts`
+- `src/game/engine/core/actionAdapter.ts`
+- `src/game/engine/core/actionCompile.ts`
+- `src/game/engine/core/actionExecute.ts`
+- `src/game/engine/rules/conditionEval.ts`
+- `src/game/engine/core/formulas.ts`
+- `src/game/engine/core/hooks.ts`
+- `src/game/engine/core/ops.ts`
+- `src/game/engine/core/transaction.ts`
+- `src/game/engine/core/types.ts`
+- orchestrateur: `src/game/engine/core/actionEngine.ts`
 
 ## Mise a jour recente (critiques + harmonisation)
 
@@ -25,11 +25,11 @@ Corrections integrees:
 
 Fichiers touches:
 1. `src/GameBoard.tsx` (concatenation formule sans parentheses)
-2. `src/game/engine/types.ts` (ajout `ExecuteOptions.damageContext`)
-3. `src/game/engine/actionExecute.ts` (contextualisation outcome -> ops)
-4. `src/game/engine/ops.ts` (application du contexte de critique sur `DealDamage*`)
-5. `src/game/actionEngine.ts` (gate disponibilite via contraintes d'equipement runtime)
-6. `src/game/equipmentHands.ts` (policies features -> equip constraints)
+2. `src/game/engine/core/types.ts` (ajout `ExecuteOptions.damageContext`)
+3. `src/game/engine/core/actionExecute.ts` (contextualisation outcome -> ops)
+4. `src/game/engine/core/ops.ts` (application du contexte de critique sur `DealDamage*`)
+5. `src/game/engine/core/actionEngine.ts` (gate disponibilite via contraintes d'equipement runtime)
+6. `src/game/engine/rules/equipmentHands.ts` (policies features -> equip constraints)
 
 ## 1) Pipeline global
 
@@ -48,7 +48,7 @@ Sequence runtime:
 
 ## 2) API publique utile
 
-### `src/game/actionEngine.ts`
+### `src/game/engine/core/actionEngine.ts`
 
 Fonctions exportees:
 - `validateActionTarget(action, ctx, target)`: valide legalite cible selon type de ciblage, portee, LOS, niveau, conditions.
@@ -62,7 +62,7 @@ Types exportes:
 
 ## 3) Types moteur (schema d'execution)
 
-### `src/game/engine/types.ts`
+### `src/game/engine/core/types.ts`
 
 Elements cle:
 - `OutcomeKey`: `hit`, `miss`, `crit`, `saveSuccess`, `saveFail`, `checkSuccess`, `checkFail`, `contestedWin`, `contestedLose`.
@@ -306,7 +306,7 @@ Lecture:
 - `Sortie`: valeur retour.
 - `Side effects`: mutations et dependances externes.
 
-### `src/game/engine/actionAdapter.ts`
+### `src/game/engine/core/actionAdapter.ts`
 
 | Fonction | Entree | Sortie | Side effects |
 |---|---|---|---|
@@ -315,20 +315,20 @@ Lecture:
 | `mapEffects` | `ActionDefinition` | `ConditionalEffects \| undefined` | Aucun |
 | `actionDefinitionToActionSpec` | `ActionDefinition` | `ActionSpec` | Aucun |
 
-### `src/game/engine/actionCompile.ts`
+### `src/game/engine/core/actionCompile.ts`
 
 | Fonction | Entree | Sortie | Side effects |
 |---|---|---|---|
 | `compileActionPlan` | `{ action, actor, target }` | `ActionPlan` | Aucun |
 
-### `src/game/engine/transaction.ts`
+### `src/game/engine/core/transaction.ts`
 
 | Fonction | Entree | Sortie | Side effects |
 |---|---|---|---|
 | `beginTransaction` | `EngineState` | `Transaction` (clone mutable + logs) | Copie profonde partielle de state |
 | `logTransaction` | `tx, message, onLog?` | `void` | Push log + callback `onLog` |
 
-### `src/game/engine/formulas.ts`
+### `src/game/engine/core/formulas.ts`
 
 | Fonction | Entree | Sortie | Side effects |
 |---|---|---|---|
@@ -337,14 +337,14 @@ Lecture:
 | `resolveNumberVar` | `varName, ctx` | `number \| null` | Aucun |
 | `resolveFormula` | `formula, ctx` | `string` formule resolue | Aucun |
 
-### `src/game/engine/hooks.ts`
+### `src/game/engine/core/hooks.ts`
 
 | Fonction | Entree | Sortie | Side effects |
 |---|---|---|---|
 | `shouldApplyHook` | `hook, hookContext, ExecuteOptions` | `boolean` | Lit conditions via `conditionEval` |
 | `resolvePromptDecision` | `hook, ExecuteOptions` | `"accept" \| "reject"` | Peut appeler `promptHandler` |
 
-### `src/game/engine/conditionEval.ts`
+### `src/game/engine/rules/conditionEval.ts`
 
 | Fonction | Entree | Sortie | Side effects |
 |---|---|---|---|
@@ -364,7 +364,7 @@ Lecture:
 | `evaluateConditionExpr` | `ConditionExpr, ConditionEvalContext` | `boolean` | Aucun |
 | `evaluateAllConditions` | `ConditionExpr[]?, ctx` | `boolean` | Aucun |
 
-### `src/game/engine/ops.ts`
+### `src/game/engine/core/ops.ts`
 
 | Fonction | Entree | Sortie | Side effects |
 |---|---|---|---|
@@ -386,7 +386,7 @@ Lecture:
 | `directionFromTo` | `from, to` | vecteur normalise | Aucun |
 | `applyOperation` | `{ op, tx, state, explicitTarget, opts }` | `void` | Coeur mutate engine state, ressources, effets, logs, callbacks externes |
 
-### `src/game/engine/actionExecute.ts`
+### `src/game/engine/core/actionExecute.ts`
 
 | Fonction | Entree | Sortie | Side effects |
 |---|---|---|---|
@@ -409,7 +409,7 @@ Lecture:
 | `collectOperations` | `effects, outcome` | `Operation[]` | Aucun |
 | `executePlan` | `{ plan, state, opts, advantageMode }` | `{ ok, logs, state, interrupted?, outcome }` | Pipeline complete execution/mutations |
 
-### `src/game/actionEngine.ts`
+### `src/game/engine/core/actionEngine.ts`
 
 | Fonction | Entree | Sortie | Side effects |
 |---|---|---|---|
@@ -437,3 +437,5 @@ Lecture:
 | `extractMasteryId` | `ActionDefinition` | `string \| null` | Aucun |
 | `getMasteryTrigger` | `ActionDefinition` | trigger WM | Aucun |
 | `buildWeaponMasteryTriggerTags` | `{ activeMasteryIds, masteryActions }` | `string[]` | Aucun |
+
+

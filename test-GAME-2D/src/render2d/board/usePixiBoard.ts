@@ -9,8 +9,8 @@ import {
   getBoardWidth,
   gridToScreenForGrid
 } from "../../boardConfig";
-import type { TerrainCell } from "../../game/map/draft";
-import type { TerrainMixCell } from "../../game/map/terrainMix";
+import type { TerrainCell } from "../../game/map/generation/draft";
+import type { TerrainMixCell } from "../../game/map/generation/terrainMix";
 import { getFloorMaterial } from "../../game/map/floors/catalog";
 
 function hash01(x: number, y: number): number {
@@ -285,38 +285,38 @@ export function usePixiBoard(options: {
       drawGrid();
 
       const terrainNaturalLayer = new Container();
-      terrainNaturalLayer.name = "terrainNaturalLayer";
+      terrainNaturalLayer.label = "terrainNaturalLayer";
       root.addChild(terrainNaturalLayer);
       terrainNaturalLayerRef.current = terrainNaturalLayer;
 
       const terrainFxLayer = new Graphics();
-      terrainFxLayer.name = "terrainFxLayer";
+      terrainFxLayer.label = "terrainFxLayer";
       root.addChild(terrainFxLayer);
       terrainFxLayerRef.current = terrainFxLayer;
 
       const terrainLabelLayer = new Container();
-      terrainLabelLayer.name = "terrainLabelLayer";
+      terrainLabelLayer.label = "terrainLabelLayer";
       root.addChild(terrainLabelLayer);
       terrainLabelLayerRef.current = terrainLabelLayer;
 
       const pathLayer = new Graphics();
-      pathLayer.name = "pathLayer";
+      pathLayer.label = "pathLayer";
       root.addChild(pathLayer);
       pathLayerRef.current = pathLayer;
 
       const labelLayer = new Container();
-      labelLayer.name = "labelLayer";
+      labelLayer.label = "labelLayer";
       root.addChild(labelLayer);
       labelLayerRef.current = labelLayer;
 
       const staticDepthLayer = new Container();
-      staticDepthLayer.name = "staticDepthLayer";
+      staticDepthLayer.label = "staticDepthLayer";
       staticDepthLayer.sortableChildren = true;
       root.addChild(staticDepthLayer);
       staticDepthLayerRef.current = staticDepthLayer;
 
       const dynamicDepthLayer = new Container();
-      dynamicDepthLayer.name = "dynamicDepthLayer";
+      dynamicDepthLayer.label = "dynamicDepthLayer";
       dynamicDepthLayer.sortableChildren = true;
       root.addChild(dynamicDepthLayer);
       dynamicDepthLayerRef.current = dynamicDepthLayer;
@@ -439,3 +439,4 @@ export function usePixiBoard(options: {
     pixiReadyTick
   };
 }
+

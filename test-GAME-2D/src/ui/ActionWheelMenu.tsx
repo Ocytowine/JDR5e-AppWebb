@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import type { ActionAvailability, ActionDefinition } from "../game/actionTypes";
+import type { ActionAvailability, ActionDefinition } from "../game/engine/rules/actionTypes";
 import type { MoveTypeDefinition } from "../game/moveTypes";
 import { RadialWheelMenu, type WheelMenuItem } from "./RadialWheelMenu";
 
@@ -9,6 +9,7 @@ type WheelView =
   | "actions"
   | "inspect"
   | "movement"
+  | "equipment-actions"
   | "interaction-select"
   | "interaction-actions";
 
@@ -51,6 +52,8 @@ export function ActionWheelMenu(props: {
   interactionState: "idle" | "select" | "menu";
   interactionItems: WheelMenuItem[];
   interactionPrompt?: string;
+  equipmentItems: WheelMenuItem[];
+  equipmentPrompt?: string;
   onCancelInteract: () => void;
   computeActionAvailability: (action: ActionDefinition) => ActionAvailability;
   onClose: () => void;
@@ -126,6 +129,10 @@ export function ActionWheelMenu(props: {
 
     if (view === "interaction-actions") {
       return props.interactionItems;
+    }
+
+    if (view === "equipment-actions") {
+      return props.equipmentItems;
     }
 
     if (view === "categories") {
@@ -266,6 +273,16 @@ export function ActionWheelMenu(props: {
         }
       },
       {
+        id: "equipment",
+        label: "Equipement",
+        color: "#f39c12",
+        disabled: !props.canInteractWithBoard || props.equipmentItems.length === 0,
+        disabledReason: !props.canInteractWithBoard
+          ? "Tour joueur requis"
+          : "Aucune interaction d'equipement",
+        onSelect: () => setView("equipment-actions")
+      },
+      {
         id: "inspect",
         label: "Inspecter",
         color: "#3498db",
@@ -338,6 +355,9 @@ export function ActionWheelMenu(props: {
         }
       };
     }
+    if (view === "equipment-actions") {
+      return { centerLabel: "Retour", onCenterClick: () => setView("root") };
+    }
     if (view === "actions" && shouldFilterByCategory) {
       return { centerLabel: "Annuler", onCenterClick: () => setView("root") };
     }
@@ -369,7 +389,15 @@ export function ActionWheelMenu(props: {
       onCenterClick={onCenterClick}
       sliceOpacity={sliceOpacity}
       centerOpacity={centerOpacity}
-      arcLabel={view === "interaction-select" ? props.interactionPrompt : undefined}
+      arcLabel={
+        view === "interaction-select"
+          ? props.interactionPrompt
+          : view === "equipment-actions"
+            ? props.equipmentPrompt
+            : undefined
+      }
     />
   );
 }
+
+

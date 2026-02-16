@@ -1,6 +1,6 @@
 import React from "react";
-import type { TurnPhase } from "../game/turnTypes";
-import type { EnemyAiStateSummary, EnemyActionIntent } from "../game/turnTypes";
+import type { TurnPhase } from "../game/engine/runtime/turnTypes";
+import type { EnemyAiStateSummary, EnemyActionIntent } from "../game/engine/runtime/turnTypes";
 import type { TokenState } from "../types";
 import type { Personnage } from "../types";
 
@@ -79,3 +79,5 @@ export function CombatStatusPanel(props: {
     </section>
   );
 }
+
+

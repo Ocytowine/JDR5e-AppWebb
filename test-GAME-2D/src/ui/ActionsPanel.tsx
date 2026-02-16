@@ -1,5 +1,5 @@
 import React from "react";
-import type { ActionAvailability, ActionDefinition } from "../game/actionTypes";
+import type { ActionAvailability, ActionDefinition } from "../game/engine/rules/actionTypes";
 
 export function ActionsPanel(props: {
   actions: ActionDefinition[];
@@ -289,4 +289,6 @@ export function ActionsPanel(props: {
     </section>
   );
 }
+
+
 

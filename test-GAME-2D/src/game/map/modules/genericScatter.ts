@@ -1,8 +1,8 @@
 import type { GridPosition } from "../../../types";
-import type { MapBuildContext, MapSpec } from "../types";
-import { createDraft, clamp, setLight, setTerrain, tryPlaceObstacle } from "../draft";
-import { findObstacleType, pickVariantIdForPlacement, randomRotationForPlacement, weightedTypesForContext } from "../obstacleSelector";
-import { pickWeighted } from "../random";
+import type { MapBuildContext, MapSpec } from "../generation/types";
+import { createDraft, clamp, setLight, setTerrain, tryPlaceObstacle } from "../generation/draft";
+import { findObstacleType, pickVariantIdForPlacement, randomRotationForPlacement, weightedTypesForContext } from "../generation/obstacleSelector";
+import { pickWeighted } from "../generation/random";
 
 export function generateGenericScatter(params: {
   spec: MapSpec;
@@ -49,3 +49,4 @@ export function generateGenericScatter(params: {
   draft.log.push(`Props: ${placed}.`);
   return { draft, playerStart };
 }
+

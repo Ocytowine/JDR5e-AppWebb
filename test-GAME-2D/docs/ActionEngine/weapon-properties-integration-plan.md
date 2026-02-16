@@ -40,7 +40,7 @@ Hors scope initial:
 ### A) Nouveau helper de regles d'arme
 
 Fichier propose:
-1. `test-GAME-2D/src/game/weaponRules.ts`
+1. `test-GAME-2D/src/game/engine/rules/weaponRules.ts`
 
 Responsabilites:
 1. Resoudre le profil d'attaque derive d'une arme:
@@ -140,3 +140,5 @@ Tests minimaux (manuels + unitaires cibles):
    - Option B: bonus d'allonge (+1.5m).
 2. Politique main libre pour munitions.
 3. Comportement de `loading` pour reactions.
+
+

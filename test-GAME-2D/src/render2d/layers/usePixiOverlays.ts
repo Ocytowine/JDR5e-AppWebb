@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import type { RefObject } from "react";
-import { BlurFilter, Graphics, Sprite, Texture } from "pixi.js";
+import { BlurFilter, Container, Graphics, Sprite, Texture } from "pixi.js";
 import type { TokenState } from "../../types";
-import type { EffectSpec } from "../../game/turnTypes";
+import type { EffectSpec } from "../../game/engine/runtime/turnTypes";
 import type { BoardEffect } from "../../boardEffects";
 import {
   generateCircleEffect,
@@ -18,7 +18,7 @@ import {
 } from "../../vision";
 import { hasLineOfSight } from "../../lineOfSight";
 import type { WallSegment } from "../../game/map/walls/types";
-import { getTokenOccupiedCells } from "../../game/footprint";
+import { getTokenOccupiedCells } from "../../game/engine/runtime/footprint";
 import type { LightSource } from "../../lighting";
 
 export function usePixiOverlays(options: {
@@ -69,12 +69,15 @@ export function usePixiOverlays(options: {
       parent.addChild(layer);
       return layer;
     })();
-    const lightLayer: Graphics = (() => {
+    const lightLayer: Container = (() => {
       const parent = pathLayer.parent as any;
-      if (!parent) return pathLayer;
-      const existing = parent.__lightLayer as Graphics | undefined;
+      if (!parent) return new Container();
+      const existing = parent.__lightLayer as Container | undefined;
       const desiredIndex = parent.children.findIndex(
-        (child: any) => child && typeof child.name === "string" && child.name === "staticDepthLayer"
+        (child: any) =>
+          child &&
+          ((typeof child.label === "string" && child.label === "staticDepthLayer") ||
+            (typeof child.name === "string" && child.name === "staticDepthLayer"))
       );
       if (existing) {
         if (desiredIndex >= 0) {
@@ -85,9 +88,10 @@ export function usePixiOverlays(options: {
         }
         return existing;
       }
-      const layer = new Graphics();
+      const layer = new Container();
       layer.filters = [new BlurFilter({ strength: 6, quality: 3 })];
       (layer as any).blendMode = "add";
+      layer.label = "lightLayer";
       parent.__lightLayer = layer;
       if (desiredIndex >= 0) {
         parent.addChildAt(layer, Math.max(0, desiredIndex));
@@ -99,7 +103,6 @@ export function usePixiOverlays(options: {
 
     pathLayer.clear();
     fogLayer.clear();
-    lightLayer.clear();
     lightLayer.removeChildren();
 
     const lineSpecs = options.effectSpecs.filter(spec => spec.kind === "line");
@@ -110,9 +113,15 @@ export function usePixiOverlays(options: {
       const color = typeof spec.color === "number" ? spec.color : 0x6fd27f;
       const alpha = typeof spec.alpha === "number" ? spec.alpha : 0.9;
       const thickness = typeof spec.thickness === "number" ? spec.thickness : 2;
-      pathLayer.lineStyle(thickness, color, alpha);
+      if (typeof (pathLayer as any).setStrokeStyle !== "function") {
+        pathLayer.lineStyle(thickness, color, alpha);
+      }
       pathLayer.moveTo(start.x, start.y);
       pathLayer.lineTo(end.x, end.y);
+      if (typeof (pathLayer as any).setStrokeStyle === "function") {
+        (pathLayer as any).setStrokeStyle({ width: thickness, color, alpha });
+        (pathLayer as any).stroke();
+      }
     }
 
     const activeEffects: BoardEffect[] = options.effectSpecs
@@ -936,3 +945,5 @@ export function usePixiOverlays(options: {
     options.wallVisionEdges
   ]);
 }
+
+

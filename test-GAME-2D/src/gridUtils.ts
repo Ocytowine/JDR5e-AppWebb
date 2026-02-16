@@ -1,6 +1,6 @@
 import { isCellInsideBoard } from "./boardConfig";
 import type { GridPosition, TokenState } from "./types";
-import { getTokenOccupiedCells } from "./game/footprint";
+import { getTokenOccupiedCells } from "./game/engine/runtime/footprint";
 
 function key(pos: GridPosition): string {
   return `${pos.x},${pos.y}`;
@@ -49,3 +49,5 @@ export function getTokenAt(
     }) ?? null
   );
 }
+
+

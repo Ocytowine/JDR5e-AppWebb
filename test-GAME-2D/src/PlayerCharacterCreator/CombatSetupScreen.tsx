@@ -6,7 +6,7 @@ import type {
   SpellGrantUsage
 } from "../types";
 import type { WeaponTypeDefinition } from "../game/weaponTypes";
-import type { ActionDefinition } from "../game/actionTypes";
+import type { ActionDefinition } from "../game/engine/rules/actionTypes";
 import type { RaceDefinition } from "../game/raceTypes";
 import type { ClassDefinition, SubclassDefinition } from "../game/classTypes";
 import type { BackgroundDefinition } from "../game/backgroundTypes";
@@ -43,7 +43,7 @@ import { MagicPanel } from "./tabs/MagicPanel";
 import { spellCatalog } from "../game/spellCatalog";
 import { loadFeatureTypesFromIndex } from "../game/featureCatalog";
 import type { FeatureDefinition } from "../game/featureTypes";
-import { getEquipmentConstraintIssues } from "../game/equipmentHands";
+import { getEquipmentConstraintIssues } from "../game/engine/rules/equipmentHands";
 
 const WEAPON_PROFICIENCY_OPTIONS: Array<{ id: string; label: string }> = [
   { id: "simple", label: "Simple" },
@@ -2255,7 +2255,8 @@ export function CombatSetupScreen(props: {
             ...item,
             equippedSlot: null,
             storedIn: null,
-            isPrimaryWeapon: false
+            isPrimaryWeapon: false,
+            isSecondaryHand: false
           }))
         : []
     });
@@ -2367,7 +2368,8 @@ export function CombatSetupScreen(props: {
           : { origin: { kind: entry.source }, instanceId: createInstanceId("item") }),
         equippedSlot: null,
         storedIn: null,
-        isPrimaryWeapon: false
+        isPrimaryWeapon: false,
+        isSecondaryHand: false
       };
     });
   };
@@ -2594,7 +2596,7 @@ export function CombatSetupScreen(props: {
     let nextInventory = inventoryItems.map((item, idx) => {
       if (idx === index) return item;
       if (slot && item.equippedSlot === slot) {
-        return { ...item, equippedSlot: null };
+        return { ...item, equippedSlot: null, isPrimaryWeapon: false, isSecondaryHand: false };
       }
       return item;
     });
@@ -2602,11 +2604,16 @@ export function CombatSetupScreen(props: {
       targetItem.type === "weapon" && slot && weaponCarrySlots.has(slot)
         ? Boolean(targetItem.isPrimaryWeapon)
         : false;
+    const keepSecondary =
+      slot && !targetItem.storedIn
+        ? Boolean(targetItem.isSecondaryHand)
+        : false;
     const nextForTarget = {
       ...targetItem,
       equippedSlot: slot,
       storedIn: null,
-      isPrimaryWeapon: keepPrimary
+      isPrimaryWeapon: keepPrimary,
+      isSecondaryHand: keepSecondary
     };
     nextInventory[index] = nextForTarget;
     if (targetItem.equippedSlot && slots[targetItem.equippedSlot]) {
@@ -2708,7 +2715,13 @@ export function CombatSetupScreen(props: {
     const slots = { ...materielSlots };
     let nextInventory = inventoryItems.map((entry, idx) => {
       if (idx !== index) return entry;
-      return { ...entry, equippedSlot: null, storedIn: slotId, isPrimaryWeapon: false };
+      return {
+        ...entry,
+        equippedSlot: null,
+        storedIn: slotId,
+        isPrimaryWeapon: false,
+        isSecondaryHand: false
+      };
     });
     if (item.equippedSlot && slots[item.equippedSlot]) {
       const fromSlot = item.equippedSlot;
@@ -2765,9 +2778,40 @@ export function CombatSetupScreen(props: {
       setEquipMessage(issues[0]);
       return;
     }
+    const selectedTwoHanded = Boolean(weapon?.properties?.twoHanded);
     const nextInventory = inventoryItems.map((entry, idx) => ({
       ...entry,
-      isPrimaryWeapon: idx === index
+      isPrimaryWeapon: idx === index,
+      isSecondaryHand:
+        selectedTwoHanded
+          ? false
+          : Boolean(entry?.isSecondaryHand) && idx !== index
+    }));
+    props.onChangeCharacter({ ...props.character, inventoryItems: nextInventory });
+  };
+  const setSecondaryHand = (index: number) => {
+    const item = inventoryItems[index];
+    if (!item || !["weapon", "armor", "object"].includes(String(item.type ?? ""))) return;
+    if (!item.equippedSlot || item.storedIn) {
+      setEquipMessage("La main secondaire doit referencer un item equipe (pas dans un sac).");
+      return;
+    }
+    const primaryItem = inventoryItems.find(entry => entry?.isPrimaryWeapon) ?? null;
+    const primaryWeapon = primaryItem?.type === "weapon" ? weaponItemMap.get(primaryItem.id) ?? null : null;
+    if (primaryWeapon?.properties?.twoHanded) {
+      setEquipMessage("Main secondaire indisponible: arme principale a deux mains.");
+      return;
+    }
+    if (item.type === "weapon") {
+      const w = weaponItemMap.get(item.id) ?? null;
+      if (w?.properties?.twoHanded) {
+        setEquipMessage("Une arme a deux mains ne peut pas etre assignee en main secondaire.");
+        return;
+      }
+    }
+    const nextInventory = inventoryItems.map((entry, idx) => ({
+      ...entry,
+      isSecondaryHand: idx === index
     }));
     props.onChangeCharacter({ ...props.character, inventoryItems: nextInventory });
   };
@@ -5757,6 +5801,7 @@ export function CombatSetupScreen(props: {
               formatMoneyValue={formatMoneyValue}
               onSellRequest={handleSellRequest}
               setPrimaryWeapon={setPrimaryWeapon}
+              setSecondaryHand={setSecondaryHand}
               isItemHarmonisable={isItemHarmonisable}
               isItemHarmonized={isInventoryItemHarmonized}
               toggleItemHarmonization={toggleItemHarmonization}
@@ -6081,3 +6126,5 @@ export function CombatSetupScreen(props: {
     </div>
   );
 }
+
+

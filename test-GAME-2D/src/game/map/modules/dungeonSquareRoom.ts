@@ -1,6 +1,6 @@
 import type { GridPosition } from "../../../types";
 import type { ObstacleTypeDefinition } from "../../obstacleTypes";
-import type { EntrancePlacementSpec, EntranceSide, MapBuildContext, MapEntrancesSpec, MapSpec } from "../types";
+import type { EntrancePlacementSpec, EntranceSide, MapBuildContext, MapEntrancesSpec, MapSpec } from "../generation/types";
 import {
   clamp,
   createDraft,
@@ -10,10 +10,10 @@ import {
   tryPlaceWallSegment,
   key,
   scatterTerrainPatches
-} from "../draft";
-import { pickVariantIdForPlacement, randomRotationForPlacement, weightedTypesForContext } from "../obstacleSelector";
-import { findWallType } from "../wallSelector";
-import { pickWeighted, randomIntInclusive } from "../random";
+} from "../generation/draft";
+import { pickVariantIdForPlacement, randomRotationForPlacement, weightedTypesForContext } from "../generation/obstacleSelector";
+import { findWallType } from "../generation/wallSelector";
+import { pickWeighted, randomIntInclusive } from "../generation/random";
 import { resolveWallKindFromType } from "../walls/kind";
 import { resolveWallMaxHp } from "../walls/durability";
 import type { WallDirection, WallKind } from "../walls/types";
@@ -350,3 +350,4 @@ export function generateDungeonSquareRoom(params: {
 
   return { draft, playerStart };
 }
+

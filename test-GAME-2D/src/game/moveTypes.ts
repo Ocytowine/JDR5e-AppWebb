@@ -1,4 +1,4 @@
-import type { ActionDefinition } from "./actionTypes";
+import type { ActionDefinition } from "./engine/actionTypes";
 
 export interface MoveTypeDefinition extends ActionDefinition {
   movement?: {
@@ -10,3 +10,4 @@ export interface MoveTypeDefinition extends ActionDefinition {
 export function isMoveTypeAction(action: ActionDefinition | null): action is MoveTypeDefinition {
   return Boolean(action && action.tags?.includes("move-type"));
 }
+

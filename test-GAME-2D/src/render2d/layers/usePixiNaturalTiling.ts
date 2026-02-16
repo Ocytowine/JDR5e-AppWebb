@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Assets, Container, Filter, GlProgram, Sprite, TilingSprite, Texture, UniformGroup } from "pixi.js";
 import type { RefObject } from "react";
 import { TILE_SIZE, getBoardHeight, getBoardWidth } from "../../boardConfig";
-import type { TerrainCell } from "../../game/map/draft";
-import type { TerrainMixCell } from "../../game/map/terrainMix";
+import type { TerrainCell } from "../../game/map/generation/draft";
+import type { TerrainMixCell } from "../../game/map/generation/terrainMix";
 import type { FloorMaterial } from "../../game/map/floors/types";
 import {
   getFloorBumpTexture,
@@ -729,3 +729,4 @@ export function usePixiNaturalTiling(options: {
     readyTick
   ]);
 }
+

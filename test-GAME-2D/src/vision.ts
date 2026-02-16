@@ -12,10 +12,10 @@ import type {
 import { hasLineOfSight } from "./lineOfSight";
 import { isCellInsideGrid } from "./boardConfig";
 import type { WallSegment } from "./game/map/walls/types";
-import { getClosestFootprintCellToPoint, getTokenOccupiedCells } from "./game/footprint";
+import { getClosestFootprintCellToPoint, getTokenOccupiedCells } from "./game/engine/runtime/footprint";
 import { isLightVisible, resolveLightVisionMode } from "./lighting";
 import type { LightVisionMode } from "./lighting";
-import { metersToCells } from "./game/units";
+import { metersToCells } from "./game/engine/runtime/units";
 
 const DEFAULT_VISION_RANGE = 150;
 
@@ -430,3 +430,5 @@ export function computeVisibilityLevelsForToken(params: {
   }
   return filtered;
 }
+
+

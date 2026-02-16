@@ -1,4 +1,4 @@
-import type { MapTheme } from "./game/map/types";
+import type { MapTheme } from "./game/map/generation/types";
 
 const THEME_COLORS: Record<MapTheme, number> = {
   forest: 0x2f6b2f,
@@ -14,3 +14,4 @@ export function boardThemeColor(theme: MapTheme | null | undefined): number {
 export function colorToCssHex(color: number): string {
   return `#${Math.max(0, Math.min(0xffffff, color)).toString(16).padStart(6, "0")}`;
 }
+

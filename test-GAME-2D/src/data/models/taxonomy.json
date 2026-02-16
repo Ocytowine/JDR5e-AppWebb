@@ -42,8 +42,8 @@
     ]
   },
   "sources": {
-    "actionTypes": "src/game/actionTypes.ts",
-    "actionEngine": "src/game/actionEngine.ts",
+    "actionTypes": "src/game/engine/rules/actionTypes.ts",
+    "actionEngine": "src/game/engine/core/actionEngine.ts",
     "reactionTypes": "src/game/reactionTypes.ts",
     "effectTypes": "src/game/effectTypes.ts",
     "damageTypes": "src/game/damageTypes.ts",
@@ -1103,4 +1103,6 @@
     ]
   }
 }
+
+
 

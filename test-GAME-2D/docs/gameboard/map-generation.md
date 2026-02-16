@@ -1,8 +1,8 @@
 # Generation de map
 
 Sources principales:
-- `test-GAME-2D/src/game/mapEngine.ts`
-- `test-GAME-2D/src/game/map/pipeline.ts`
+- `test-GAME-2D/src/game/map/generation/mapEngine.ts`
+- `test-GAME-2D/src/game/map/generation/pipeline.ts`
 - `test-GAME-2D/src/GameBoard.tsx`
 
 ## Demarrage
@@ -41,3 +41,5 @@ Une fois la map generee:
 ## Notes
 - `mapHeight` est aplati a 0 par defaut (pas d'etage) dans `handleStartCombat`.
 - `mapPrompt` permet d'influencer le pipeline sans changer le code.
+
+

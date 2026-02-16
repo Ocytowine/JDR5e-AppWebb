@@ -1,8 +1,8 @@
 import type { GridPosition } from "../../../types";
 import type { ObstacleInstance, ObstacleTypeDefinition } from "../../obstacleTypes";
-import { getObstacleOccupiedCells } from "../../obstacleRuntime";
-import type { MapBuildContext, MapSpec } from "../types";
-import { createDraft, key, setLight, setTerrain, tryPlaceObstacle } from "../draft";
+import { getObstacleOccupiedCells } from "../runtime/obstacleRuntime";
+import type { MapBuildContext, MapSpec } from "../generation/types";
+import { createDraft, key, setLight, setTerrain, tryPlaceObstacle } from "../generation/draft";
 
 type FootprintBounds = {
   minX: number;
@@ -177,3 +177,4 @@ export function generateTestObstacles(params: {
   draft.log.push(`Test obstacles: ${draft.obstacles.length}/${items.length}`);
   return { draft, playerStart };
 }
+

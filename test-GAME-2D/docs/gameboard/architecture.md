@@ -12,11 +12,11 @@
 ## Modules principaux
 - Composant racine: `test-GAME-2D/src/GameBoard.tsx`.
 - Rendu Pixi et couches: `test-GAME-2D/src/render2d/board/usePixiBoard.ts` + `test-GAME-2D/src/render2d/layers/*`.
-- Core combat/action: `test-GAME-2D/src/game/actionEngine.ts`.
-- Plan d'actions: `test-GAME-2D/src/game/actionPlan.ts`.
+- Core combat/action: `test-GAME-2D/src/game/engine/core/actionEngine.ts`.
+- Plan d'actions: `test-GAME-2D/src/game/engine/core/actionPlan.ts`.
 - Vision: `test-GAME-2D/src/vision.ts`.
 - Lumiere: `test-GAME-2D/src/lighting.ts`.
-- Map generation: `test-GAME-2D/src/game/mapEngine.ts`.
+- Map generation: `test-GAME-2D/src/game/map/generation/mapEngine.ts`.
 - Pathfinding: `test-GAME-2D/src/pathfinding.ts`.
 
 ## Separation des responsabilites
@@ -44,3 +44,5 @@
 - Nouveaux types de catalogues ou d'actions: ajouter dans `test-GAME-2D/src/game/*` et charger dans `GameBoard`.
 - Nouveaux overlays/FX: ajouter couche Pixi dans `test-GAME-2D/src/render2d/layers/*`.
 - Nouveaux modes d'interaction: etendre `BoardInteractionMode` et les handlers dans `GameBoard`.
+
+

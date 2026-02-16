@@ -3,7 +3,7 @@
 Sources principales:
 - `test-GAME-2D/src/GameBoard.tsx`
 - `test-GAME-2D/src/pathfinding.ts`
-- `test-GAME-2D/src/game/movementModes.ts`
+- `test-GAME-2D/src/game/engine/runtime/movementModes.ts`
 
 ## Modes de mouvement
 - Le personnage a des `movementModes` derives des features.
@@ -38,3 +38,5 @@ Sources principales:
 - `resolveActionUnified` applique le mouvement via plan d'action.
 - Les ennemis utilisent aussi `computePathTowards` en fallback IA.
 - Le mouvement peut declencher des reactions `movement.*`.
+
+

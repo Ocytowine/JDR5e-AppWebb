@@ -40,3 +40,4 @@ Point d'entree rapide pour savoir quelle notice consulter selon le besoin.
 2. Projection creator -> runtime: `docs/notice/player-character-creator-design-notice.md`.
 3. Regles data-driven de features: `docs/notice/feature-modifiers-notice.md`.
 4. Etat reel ActionEngine: `docs/ActionEngine/engine-progress.md`.
+5. Plan de correction deux armes (DnD 2024): `docs/problemes/plan-correction-deux-armes-dnd2024.md`.

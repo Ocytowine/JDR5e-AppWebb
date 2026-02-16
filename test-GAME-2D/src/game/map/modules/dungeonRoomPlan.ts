@@ -1,9 +1,9 @@
 import type { GridPosition } from "../../../types";
 import type { ObstacleTypeDefinition } from "../../obstacleTypes";
-import type { MapBuildContext, MapSpec, EntrancePosition, EntranceSide } from "../types";
-import { clamp, createDraft, key, setLight, setTerrain, scatterTerrainPatches, tryPlaceObstacle, tryPlaceWallSegment } from "../draft";
-import { pickVariantIdForPlacement, randomRotationForPlacement, weightedTypesForContext } from "../obstacleSelector";
-import { findWallType } from "../wallSelector";
+import type { MapBuildContext, MapSpec, EntrancePosition, EntranceSide } from "../generation/types";
+import { clamp, createDraft, key, setLight, setTerrain, scatterTerrainPatches, tryPlaceObstacle, tryPlaceWallSegment } from "../generation/draft";
+import { pickVariantIdForPlacement, randomRotationForPlacement, weightedTypesForContext } from "../generation/obstacleSelector";
+import { findWallType } from "../generation/wallSelector";
 import { resolveWallKindFromType } from "../walls/kind";
 import { resolveWallMaxHp } from "../walls/durability";
 import type { WallDirection, WallKind } from "../walls/types";
@@ -584,3 +584,4 @@ export function generateDungeonRoomPlan(params: {
 
   return { draft, playerStart, roomMasks, playerRoomId, enemyRoomId };
 }
+

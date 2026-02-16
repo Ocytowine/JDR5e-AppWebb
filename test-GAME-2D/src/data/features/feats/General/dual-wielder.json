@@ -1,0 +1,23 @@
+{
+  "id": "dual-wielder",
+  "label": "Combattant à deux armes",
+  "summary": "Assouplit les contraintes du combat a deux armes.",
+  "kind": "feature",
+  "tags": ["feat", "dual-wield", "martial"],
+  "grants": [],
+  "rules": {
+    "text": "Vous maitrisez le combat avec deux armes, y compris des armes non-Light, et le degainage rapide.",
+    "modifiers": [
+      {
+        "applyTo": "dualWield",
+        "stat": "dualWieldIgnoreLightRequirement",
+        "value": 1
+      },
+      {
+        "applyTo": "equipment",
+        "stat": "allowWeaponSwapWithoutInteraction",
+        "value": 1
+      }
+    ]
+  }
+}

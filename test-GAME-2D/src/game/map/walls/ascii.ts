@@ -1,4 +1,4 @@
-import type { MapPatternRotation } from "../../mapPatternCatalog";
+import type { MapPatternRotation } from "../mapPatternCatalog";
 import type { WallDoorSpec, WallSegment, WallState } from "./types";
 import { wallEdgeKey } from "./grid";
 

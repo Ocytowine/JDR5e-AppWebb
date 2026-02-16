@@ -2,10 +2,10 @@ import { useEffect } from "react";
 import { AnimatedSprite, Container, Graphics, Sprite, Texture } from "pixi.js";
 import type { RefObject } from "react";
 import type { ObstacleInstance, ObstacleTypeDefinition } from "../../game/obstacleTypes";
-import { getObstacleOccupiedCells } from "../../game/obstacleRuntime";
+import { getObstacleOccupiedCells } from "../../game/map/runtime/obstacleRuntime";
 import { TILE_SIZE, gridToScreenForGrid } from "../../boardConfig";
 import { getObstacleAnimationFrames, getObstaclePngUrl } from "../../obstacleTextureHelper";
-import { getTokenOccupiedCells, orientationToRotationDeg } from "../../game/footprint";
+import { getTokenOccupiedCells, orientationToRotationDeg } from "../../game/engine/runtime/footprint";
 import { DEPTH_Z } from "./depthOrdering";
 
 export function usePixiObstacles(options: {
@@ -519,3 +519,5 @@ export function usePixiObstacles(options: {
     options.lightAngleDeg
   ]);
 }
+
+

@@ -2,7 +2,7 @@
 
 Sources principales:
 - `test-GAME-2D/src/GameBoard.tsx`
-- `test-GAME-2D/src/game/actionEngine.ts`
+- `test-GAME-2D/src/game/engine/core/actionEngine.ts`
 - `test-GAME-2D/src/narrationClient.ts`
 
 ## IA ennemie (runSingleEnemyTurnV2)
@@ -47,3 +47,5 @@ Flux principal:
 ## Journalisation
 - `pushLog` detaille les intents et resultats.
 - `aiLastState`, `aiLastDecisions`, `aiLastIntents` exposent le debug.
+
+

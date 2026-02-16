@@ -31,7 +31,7 @@ Regles de standardisation (prototype actuel)
 Conventions
 - `id` et `tags` en minuscule avec tirets.
 - Les JSON restent declaratifs (aucun code, pas de logique imperative).
-- Les effets/conditions sont resolus par le moteur (`src/game/actionEngine.ts`).
+- Les effets/conditions sont resolus par le moteur (`src/game/engine/core/actionEngine.ts`).
 - Toutes les distances/portees sont en metres (1 case = 1.5 m).
 - Variables de formule standardisees:
 - `level`, `modFOR`, `modDEX`, `modCON`, `modINT`, `modSAG`, `modCHA`
@@ -41,7 +41,7 @@ Conventions
   - `combatStats.actionRules` reserve les regles futures (ex: interdiction de 2e attaque).
 
 UI action (etapes dynamiques)
-- Le plan d'etapes est genere par `src/game/actionPlan.ts`.
+- Le plan d'etapes est genere par `src/game/engine/core/actionPlan.ts`.
 - La fenetre contextuelle affiche uniquement les etapes presentes
   (validation, ressource, ciblage, jet de touche, degats) via `src/ui/ActionContextWindow.tsx`.
 - Pour ajouter une nouvelle mecanique, ajouter un nouveau step dans
@@ -67,3 +67,5 @@ Actions "core DnD-like" integrees (JSON)
 Branchements moteur existants associes
 - `dodge`: les attaques contre une cible avec statut `dodge` subissent un desavantage.
 - `disengaging`: bloque les reactions d'opportunite lors des deplacements.
+
+

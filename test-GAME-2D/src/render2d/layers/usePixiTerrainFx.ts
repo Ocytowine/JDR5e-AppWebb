@@ -3,8 +3,8 @@ import { Graphics, Text } from "pixi.js";
 import type { Container } from "pixi.js";
 import type { RefObject } from "react";
 import { TILE_SIZE, gridToScreenForGrid } from "../../boardConfig";
-import type { TerrainCell } from "../../game/map/draft";
-import type { TerrainMixCell } from "../../game/map/terrainMix";
+import type { TerrainCell } from "../../game/map/generation/draft";
+import type { TerrainMixCell } from "../../game/map/generation/terrainMix";
 
 export function usePixiTerrainFx(options: {
   terrainFxLayerRef: RefObject<Graphics | null>;
@@ -169,3 +169,4 @@ export function usePixiTerrainFx(options: {
     options.pixiReadyTick
   ]);
 }
+

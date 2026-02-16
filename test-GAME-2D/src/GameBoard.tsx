@@ -16,7 +16,7 @@ import type {
   Condition,
   TargetingSpec,
   UsageSpec
-} from "./game/actionTypes";
+} from "./game/engine/rules/actionTypes";
 import type { EnemyTypeDefinition } from "./game/enemyTypes";
 import type {
   EffectSpec,
@@ -29,7 +29,7 @@ import type {
   SpeechBubbleEntry,
   TurnEntry,
   TurnPhase
-} from "./game/turnTypes";
+} from "./game/engine/runtime/turnTypes";
 import {
   clamp,
   computeFacingTowards,
@@ -39,9 +39,9 @@ import {
   getMaxAttacksForToken,
   isTokenDead,
   canEnemySeePlayer
-} from "./game/combatUtils";
-import { cellsToMeters, metersToCells } from "./game/units";
-import { resolveFormula } from "./game/engine/formulas";
+} from "./game/engine/runtime/combatUtils";
+import { cellsToMeters, metersToCells } from "./game/engine/runtime/units";
+import { resolveFormula } from "./game/engine/core/formulas";
 import enemyTypesIndex from "./data/enemies/index.json";
 import bruteType from "./data/enemies/brute.json";
 import archerType from "./data/enemies/archer.json";
@@ -82,20 +82,20 @@ import type { ObjectItemDefinition } from "./game/objectTypes";
 import type { ArmorItemDefinition } from "./game/armorTypes";
 import type { AmmoItemDefinition } from "./game/ammoTypes";
 import type { BonusDefinition } from "./game/bonusTypes";
-import { generateBattleMap } from "./game/mapEngine";
-import { getHeightAtGrid, type TerrainCell } from "./game/map/draft";
-import { buildTerrainMixLayer } from "./game/map/terrainMix";
+import { generateBattleMap } from "./game/map/generation/mapEngine";
+import { getHeightAtGrid, type TerrainCell } from "./game/map/generation/draft";
+import { buildTerrainMixLayer } from "./game/map/generation/terrainMix";
 import { FLOOR_MATERIALS, getFloorMaterial } from "./game/map/floors/catalog";
 import type { FloorMaterial } from "./game/map/floors/types";
 import type { DecorInstance } from "./game/decorTypes";
-import type { MapTheme } from "./game/map/types";
-import { buildObstacleBlockingSets, getObstacleOccupiedCells } from "./game/obstacleRuntime";
+import type { MapTheme } from "./game/map/generation/types";
+import { buildObstacleBlockingSets, getObstacleOccupiedCells } from "./game/map/runtime/obstacleRuntime";
 import {
   distanceBetweenCells,
   getClosestFootprintCellToPoint,
   orientationFromRotationDeg,
   getTokenOccupiedCells
-} from "./game/footprint";
+} from "./game/engine/runtime/footprint";
 import { loadActionTypesFromIndex } from "./game/actionCatalog";
 import moveTypesIndex from "./data/moves/index.json";
 import walkMoveType from "./data/moves/types/walk.json";
@@ -113,21 +113,25 @@ import {
   resolveActionUnified,
   validateActionTarget,
   type ActionTarget
-} from "./game/actionEngine";
-import { buildActionPlan, type ActionPlan } from "./game/actionPlan";
-import { applyEquipmentBonusesToCombatStats } from "./game/equipmentBonusResolver";
+} from "./game/engine/core/actionEngine";
+import { buildActionPlan, type ActionPlan } from "./game/engine/core/actionPlan";
+import { applyEquipmentBonusesToCombatStats } from "./game/engine/rules/equipmentBonusResolver";
 import {
   getEquipmentConstraintIssues,
   getHandUsageState,
   resolveEquipmentRuntimePolicy
-} from "./game/equipmentHands";
+} from "./game/engine/rules/equipmentHands";
 import {
   buildWeaponOverrideAction,
   computeWeaponAttackBonus as computeWeaponAttackBonusFromRules,
   getWeaponIdFromActionTags,
   getWeaponLoadingUsageKey,
   resolveWeaponModToken
-} from "./game/weaponRules";
+} from "./game/engine/rules/weaponRules";
+import {
+  hasDualWieldActionTag,
+  normalizeDualWieldActionTags
+} from "./game/engine/rules/weaponPairingRules";
 import {
   GRID_COLS,
   GRID_ROWS,
@@ -183,7 +187,7 @@ import {
   applyInteraction,
   getInteractionAvailability,
   type InteractionTarget
-} from "./game/interactionHandlers";
+} from "./game/map/runtime/interactionHandlers";
 import {
   usePixiBoard,
   usePixiDecorations,
@@ -207,17 +211,18 @@ import { NarrationPanel, type NarrationEntry } from "./ui/NarrationPanel";
 import { ActionWheelMenu } from "./ui/ActionWheelMenu";
 import type { WheelMenuItem } from "./ui/RadialWheelMenu";
 import { ActionContextWindow } from "./ui/ActionContextWindow";
+import { buildEquipmentWheelItems } from "./ui/equipmentWheelHelpers";
 import { spellCatalog } from "./game/spellCatalog";
 import { CharacterSheetWindow } from "./ui/CharacterSheetWindow";
 import { InteractionContextWindow } from "./ui/InteractionContextWindow";
 import { boardThemeColor, colorToCssHex } from "./boardTheme";
-import type { InteractionCost, InteractionSpec } from "./game/interactions";
+import type { InteractionCost, InteractionSpec } from "./game/map/runtime/interactions";
 import {
   buildMovementProfileFromMode,
   getDefaultMovementMode,
   getMovementModesForCharacter,
   type MovementModeDefinition
-} from "./game/movementModes";
+} from "./game/engine/runtime/movementModes";
 import { type MoveTypeDefinition, isMoveTypeAction } from "./game/moveTypes";
 import {
   getEffectAnimationKeys,
@@ -300,6 +305,27 @@ function getPrimaryWeaponIds(character: Personnage | null | undefined): string[]
     .map(item => item.id)
     .filter((value): value is string => typeof value === "string" && value.length > 0);
   return Array.from(new Set(primaryIds));
+}
+
+function getSecondaryHandItem(character: Personnage | null | undefined): any | null {
+  const inventory = Array.isArray((character as any)?.inventoryItems)
+    ? ((character as any).inventoryItems as Array<any>)
+    : [];
+  return (
+    inventory.find(
+      item =>
+        item?.isSecondaryHand &&
+        item?.equippedSlot &&
+        !item?.storedIn
+    ) ?? null
+  );
+}
+
+function getSecondaryHandWeaponId(character: Personnage | null | undefined): string | null {
+  const item = getSecondaryHandItem(character);
+  if (!item || item.type !== "weapon") return null;
+  const id = String(item.id ?? "");
+  return id.length > 0 ? id : null;
 }
 
 type AbilityKey = "FOR" | "DEX" | "CON" | "INT" | "SAG" | "CHA";
@@ -5464,7 +5490,14 @@ export const GameBoard: React.FC = () => {
       ? player.statuses.map(status => String(status.id))
       : [];
 
-    const costType = action.actionCost?.actionType;
+    const selectedWeaponForCost =
+      action.category === "attack" ? pickWeaponForAction(action, player) : null;
+    const costContext = resolveActionCostContext({
+      action,
+      actor: player,
+      weapon: selectedWeaponForCost
+    });
+    const costType = costContext.costType;
     const isActiveAction =
       actionContext?.stage === "active" && validatedActionId === action.id;
     if (phase !== "player" && costType !== "reaction") {
@@ -5482,6 +5515,14 @@ export const GameBoard: React.FC = () => {
     }
     if (costType === "reaction" && !canUseReaction(player.id) && !isActiveAction) {
       reasons.push("Reaction deja utilisee ce tour.");
+    }
+    if (costContext.bypassedBonusAction && costContext.bypassUsageKey) {
+      const used = Number(actionUsageCounts.turn[costContext.bypassUsageKey] ?? 0);
+      const max = Math.max(1, Number(costContext.bypassMaxPerTurn ?? 1));
+      details.push(`${costContext.bypassLabel}: ${used}/${max}`);
+      if (used >= max && !isActiveAction) {
+        reasons.push(costContext.bypassLimitMessage);
+      }
     }
     const maxEquipmentInteractions = getMaxWeaponInteractionsPerTurnForActor(player);
     details.push(
@@ -5776,7 +5817,20 @@ export const GameBoard: React.FC = () => {
   }
 
   function handleUseAction(action: ActionDefinition): boolean {
-    const costType = action.actionCost?.actionType;
+    const selectedWeaponForCost =
+      action.category === "attack"
+        ? pickWeaponForAction(
+            action,
+            player,
+            action.actionCost?.actionType === "reaction" ? { reaction: true } : undefined
+          )
+        : null;
+    const costContext = resolveActionCostContext({
+      action,
+      actor: player,
+      weapon: selectedWeaponForCost
+    });
+    const costType = costContext.costType;
     const isStandardAction = costType === "action";
     const isBonusAction = costType === "bonus";
     const isReaction = costType === "reaction";
@@ -5805,14 +5859,7 @@ export const GameBoard: React.FC = () => {
       );
       return false;
     }
-    const selectedWeapon =
-      action.category === "attack"
-        ? pickWeaponForAction(
-            action,
-            player,
-            action.actionCost?.actionType === "reaction" ? { reaction: true } : undefined
-          )
-        : null;
+    const selectedWeapon = selectedWeaponForCost;
     const handlingCost = resolveWeaponHandlingCost({
       action,
       actor: player,
@@ -5820,7 +5867,15 @@ export const GameBoard: React.FC = () => {
     });
 
     setActionUsageCounts(prev => ({
-      turn: { ...prev.turn, [action.id]: (prev.turn[action.id] ?? 0) + 1 },
+      turn: {
+        ...prev.turn,
+        [action.id]: (prev.turn[action.id] ?? 0) + 1,
+        ...(costContext.bypassedBonusAction && costContext.bypassUsageKey
+          ? {
+              [costContext.bypassUsageKey]: (prev.turn[costContext.bypassUsageKey] ?? 0) + 1
+            }
+          : null)
+      },
       encounter: { ...prev.encounter, [action.id]: (prev.encounter[action.id] ?? 0) + 1 }
     }));
 
@@ -5967,13 +6022,24 @@ export const GameBoard: React.FC = () => {
   ): WeaponTypeDefinition | null {
     const weapons = getWeaponsForActor(actor, options);
     if (!weapons || weapons.length === 0) return null;
-    const taggedWeaponId = getWeaponIdFromActionTags(action.tags ?? []);
+    const normalizedTags = normalizeDualWieldActionTags(action.tags ?? []);
+    const taggedWeaponId = getWeaponIdFromActionTags(normalizedTags);
     if (taggedWeaponId) {
       const taggedWeapon = weapons.find(weapon => weapon.id === taggedWeaponId) ?? null;
       if (taggedWeapon) return taggedWeapon;
     }
-    const tags = action.tags ?? [];
-    const wantsRanged = tags.includes("ranged") || action.targeting?.range?.max > 1.5;
+    if (actor.type === "player" && hasDualWieldActionTag(normalizedTags)) {
+      const secondaryWeaponId = getSecondaryHandWeaponId(activeCharacterConfig);
+      if (secondaryWeaponId) {
+        const explicitSecondary = weapons.find(weapon => weapon.id === secondaryWeaponId) ?? null;
+        if (explicitSecondary) return explicitSecondary;
+      }
+      const primaryId = primaryWeapons[0]?.id ?? null;
+      const offhand = weapons.find(weapon => weapon.id !== primaryId) ?? null;
+      if (offhand) return offhand;
+      return weapons[0] ?? null;
+    }
+    const wantsRanged = normalizedTags.includes("ranged") || action.targeting?.range?.max > 1.5;
     if (wantsRanged) {
       return (
         weapons.find(w => w.category === "distance") ??
@@ -6152,12 +6218,16 @@ export const GameBoard: React.FC = () => {
       if (String(when.actionCostType) !== costType) return false;
     }
     if (Array.isArray(when.actionTagsAny) && when.actionTagsAny.length > 0) {
-      const tags = Array.isArray(params.action?.tags) ? (params.action?.tags as string[]) : [];
+      const tags = normalizeDualWieldActionTags(
+        Array.isArray(params.action?.tags) ? (params.action?.tags as string[]) : []
+      );
       const any = when.actionTagsAny.some((tag: any) => tags.includes(String(tag)));
       if (!any) return false;
     }
     if (Array.isArray(when.actionTagsAll) && when.actionTagsAll.length > 0) {
-      const tags = Array.isArray(params.action?.tags) ? (params.action?.tags as string[]) : [];
+      const tags = normalizeDualWieldActionTags(
+        Array.isArray(params.action?.tags) ? (params.action?.tags as string[]) : []
+      );
       const all = when.actionTagsAll.every((tag: any) => tags.includes(String(tag)));
       if (!all) return false;
     }
@@ -6187,7 +6257,116 @@ export const GameBoard: React.FC = () => {
       const noOffhand = !hasOffhandWeaponEquippedByPlayer();
       if (noOffhand !== Boolean(when.requiresNoOffhandWeapon)) return false;
     }
+    if (Array.isArray(when.weaponMasteriesAny) && when.weaponMasteriesAny.length > 0) {
+      if (params.actor.type !== "player") return false;
+      const mastered = Array.isArray((activeCharacterConfig as any)?.weaponMasteries)
+        ? ((activeCharacterConfig as any).weaponMasteries as string[])
+        : [];
+      const any = when.weaponMasteriesAny.some((id: any) => mastered.includes(String(id)));
+      if (!any) return false;
+    }
+    if (Array.isArray(when.weaponMasteriesAll) && when.weaponMasteriesAll.length > 0) {
+      if (params.actor.type !== "player") return false;
+      const mastered = Array.isArray((activeCharacterConfig as any)?.weaponMasteries)
+        ? ((activeCharacterConfig as any).weaponMasteries as string[])
+        : [];
+      const all = when.weaponMasteriesAll.every((id: any) => mastered.includes(String(id)));
+      if (!all) return false;
+    }
     return true;
+  }
+  function resolveActionCostContext(params: {
+    action: ActionDefinition;
+    actor: TokenState;
+    weapon?: WeaponTypeDefinition | null;
+  }): {
+    costType: string;
+    bypassedBonusAction: boolean;
+    bypassUsageKey: string | null;
+    bypassMaxPerTurn: number;
+    bypassLimitMessage: string;
+    bypassLabel: string;
+  } {
+    const baseCostType = String(params.action.actionCost?.actionType ?? "free");
+    if (params.actor.type !== "player") {
+      return {
+        costType: baseCostType,
+        bypassedBonusAction: false,
+        bypassUsageKey: null,
+        bypassMaxPerTurn: 0,
+        bypassLimitMessage: "",
+        bypassLabel: ""
+      };
+    }
+    const normalizedTags = normalizeDualWieldActionTags(params.action.tags);
+    const isDualWieldTagged = hasDualWieldActionTag(normalizedTags);
+    if (!isDualWieldTagged || baseCostType !== "bonus") {
+      return {
+        costType: baseCostType,
+        bypassedBonusAction: false,
+        bypassUsageKey: null,
+        bypassMaxPerTurn: 0,
+        bypassLimitMessage: "",
+        bypassLabel: ""
+      };
+    }
+    const modifiers = getFeatureRuleModifiersForActor(params.actor);
+    const matching = modifiers.find(mod => {
+      const applyTo = String(mod.applyTo ?? "").trim().toLowerCase();
+      if (!["actioncost", "dualwield", "equipment", "equipmentpolicy", "hands"].includes(applyTo)) {
+        return false;
+      }
+      const stat = String((mod as any).stat ?? (mod as any).mode ?? "")
+        .trim()
+        .toLowerCase();
+      if (
+        stat !== "dualwieldbonusattackwithoutbonusaction" &&
+        stat !== "dual_wield_bonus_attack_without_bonus_action"
+      ) {
+        return false;
+      }
+      const value = Number((mod as any).value ?? 1);
+      if (!Number.isFinite(value) || value <= 0) return false;
+      return featureModifierMatches({
+        modifier: mod,
+        actor: params.actor,
+        action: { ...params.action, tags: normalizedTags },
+        weapon: params.weapon ?? null
+      });
+    });
+    if (!matching) {
+      return {
+        costType: baseCostType,
+        bypassedBonusAction: false,
+        bypassUsageKey: null,
+        bypassMaxPerTurn: 0,
+        bypassLimitMessage: "",
+        bypassLabel: ""
+      };
+    }
+    const usageKeyRaw = String(
+      (matching as any).usageKey ?? `dualwield:bonus-cost-bypass:${params.action.id}`
+    );
+    const usageKey =
+      usageKeyRaw.trim().length > 0
+        ? usageKeyRaw.trim()
+        : `dualwield:bonus-cost-bypass:${params.action.id}`;
+    const maxPerTurnRaw = Number((matching as any).maxPerTurn ?? (matching as any).limitPerTurn ?? 1);
+    const maxPerTurn = Number.isFinite(maxPerTurnRaw) ? Math.max(1, Math.floor(maxPerTurnRaw)) : 1;
+    const limitMessageRaw = String((matching as any).limitMessage ?? "").trim();
+    const limitMessage =
+      limitMessageRaw.length > 0
+        ? limitMessageRaw
+        : "Limite d'utilisation atteinte pour cette regle.";
+    const labelRaw = String((matching as any).label ?? "Bypass action bonus").trim();
+    return {
+      costType: "free",
+      bypassedBonusAction: true,
+      bypassUsageKey: usageKey,
+      bypassMaxPerTurn: maxPerTurn,
+      bypassLimitMessage: limitMessage,
+      bypassLabel: labelRaw
+    };
   }
   function reactionModifierMatches(params: {
     modifier: FeatureReactionModifier;
@@ -6242,8 +6421,22 @@ export const GameBoard: React.FC = () => {
       return false;
     }
     if (when.actionCostType) {
-      const costType = String(params.action.actionCost?.actionType ?? "");
-      if (String(when.actionCostType) !== costType) return false;
+      const effective = resolveActionCostContext({
+        action: params.action,
+        actor: params.actor,
+        weapon: params.weapon ?? null
+      });
+      const costType = String(effective.costType ?? "");
+      const wanted = String(when.actionCostType);
+      if (wanted !== costType) {
+        const raw = String(params.action.actionCost?.actionType ?? "");
+        const dualWieldConverted =
+          wanted === "bonus" &&
+          raw === "bonus" &&
+          costType === "free" &&
+          hasDualWieldActionTag(normalizeDualWieldActionTags(params.action.tags));
+        if (!dualWieldConverted) return false;
+      }
     }
     if (typeof when.requiresOffhandWeapon === "boolean" && params.actor.type === "player") {
       if (hasOffhandWeaponEquippedByPlayer() !== Boolean(when.requiresOffhandWeapon)) return false;
@@ -6259,9 +6452,8 @@ export const GameBoard: React.FC = () => {
     return true;
   }
   function isSecondaryAttackAction(action: ActionDefinition): boolean {
-    const tags = Array.isArray(action.tags) ? action.tags : [];
-    if (tags.includes("secondary-attack")) return true;
-    if (tags.includes("offhand-attack")) return true;
+    const tags = normalizeDualWieldActionTags(action.tags);
+    if (hasDualWieldActionTag(tags)) return true;
     return action.actionCost?.actionType === "bonus" && action.category === "attack";
   }
   function appendModTokenToFormula(formula: string, modToken: string): string {
@@ -6461,11 +6653,15 @@ export const GameBoard: React.FC = () => {
     selectedWeapon?: WeaponTypeDefinition | null
   ): string[] {
     if (actor.type !== "player") return [];
+    const normalizedAction: ActionDefinition = {
+      ...action,
+      tags: normalizeDualWieldActionTags(action.tags)
+    };
     const inventory = Array.isArray((activeCharacterConfig as any)?.inventoryItems)
       ? ((activeCharacterConfig as any).inventoryItems as Array<any>)
       : [];
     return getEquipmentConstraintIssues({
-      action,
+      action: normalizedAction,
       inventoryItems: inventory,
       weaponById: weaponTypeById,
       armorById: armorItemsById,
@@ -10857,6 +11053,35 @@ function handleEndPlayerTurn() {
     actionContext?.source === "reaction" || reactionQueue.length > 0;
   const activeEntry = getActiveTurnEntry();
   const timelineEntries = turnOrder;
+  const equipmentWheelItems = useMemo<WheelMenuItem[]>(() => {
+    const inventory = Array.isArray((activeCharacterConfig as any)?.inventoryItems)
+      ? ((activeCharacterConfig as any).inventoryItems as Array<any>)
+      : [];
+    const secondaryItem = getSecondaryHandItem(activeCharacterConfig);
+    return buildEquipmentWheelItems({
+      inventory,
+      secondaryItem,
+      itemLabelMap,
+      weaponCarrySlots: WEAPON_CARRY_SLOTS,
+      allowWeaponSwapWithoutInteraction: Boolean(playerEquipmentPolicy.allowWeaponSwapWithoutInteraction),
+      drawWeaponFromPackAsInteraction: Boolean(playerEquipmentPolicy.drawWeaponFromPackAsInteraction),
+      canConsumeInteraction: canConsumeEquipmentInteraction,
+      consumeInteraction: consumeEquipmentInteraction,
+      consumeAction: consumeEquipmentAction,
+      isTwoHandedWeaponId: (weaponId: string) =>
+        Boolean(weaponTypeById.get(String(weaponId ?? ""))?.properties?.twoHanded),
+      applyCharacterInventoryMutation,
+      pushLog
+    });
+  }, [
+    activeCharacterConfig,
+    itemLabelMap,
+    weaponTypeById,
+    playerEquipmentPolicy.allowWeaponSwapWithoutInteraction,
+    playerEquipmentPolicy.drawWeaponFromPackAsInteraction,
+    turnActionUsage.usedActionCount,
+    turnEquipmentUsage.usedInteractionCount
+  ]);
 
     if (!isCombatConfigured) {
       return (
@@ -11068,15 +11293,7 @@ function handleEndPlayerTurn() {
       setInteractionMode("idle");
     }
     if (action) {
-      const costType = action.actionCost?.actionType;
-      const isStandardAction = costType === "action";
-      const isBonusAction = costType === "bonus";
-      const isReaction = costType === "reaction";
-      setTurnActionUsage(prev => ({
-        usedActionCount: Math.max(0, prev.usedActionCount - (isStandardAction ? 1 : 0)),
-        usedBonusCount: Math.max(0, prev.usedBonusCount - (isBonusAction ? 1 : 0))
-      }));
-      const canceledWeapon =
+      const canceledWeaponForCost =
         action.category === "attack"
           ? pickWeaponForAction(
               action,
@@ -11084,6 +11301,20 @@ function handleEndPlayerTurn() {
               action.actionCost?.actionType === "reaction" ? { reaction: true } : undefined
             )
           : null;
+      const costContext = resolveActionCostContext({
+        action,
+        actor: player,
+        weapon: canceledWeaponForCost
+      });
+      const costType = costContext.costType;
+      const isStandardAction = costType === "action";
+      const isBonusAction = costType === "bonus";
+      const isReaction = costType === "reaction";
+      setTurnActionUsage(prev => ({
+        usedActionCount: Math.max(0, prev.usedActionCount - (isStandardAction ? 1 : 0)),
+        usedBonusCount: Math.max(0, prev.usedBonusCount - (isBonusAction ? 1 : 0))
+      }));
+      const canceledWeapon = canceledWeaponForCost;
       const canceledHandlingCost = resolveWeaponHandlingCost({
         action,
         actor: player,
@@ -11110,6 +11341,18 @@ function handleEndPlayerTurn() {
           [action.id]: Math.max(0, (prev.encounter[action.id] ?? 0) - 1)
         }
       }));
+      if (costContext.bypassedBonusAction && costContext.bypassUsageKey) {
+        setActionUsageCounts(prev => ({
+          turn: {
+            ...prev.turn,
+            [costContext.bypassUsageKey]: Math.max(
+              0,
+              (prev.turn[costContext.bypassUsageKey] ?? 0) - 1
+            )
+          },
+          encounter: prev.encounter
+        }));
+      }
     }
     setValidatedActionId(null);
     setAttackRoll(null);
@@ -11288,6 +11531,45 @@ function handleEndPlayerTurn() {
     setInteractionMode("interact-select");
     setInteractionMenuItems([]);
     pushLog("Interagir: cliquez sur un element pour afficher ses interactions.");
+  }
+
+  function applyCharacterInventoryMutation(
+    mutator: (params: { inventory: Array<any>; slots: Record<string, any> }) => void
+  ) {
+    const normalize = (character: Personnage): Personnage => {
+      const inventory = Array.isArray((character as any)?.inventoryItems)
+        ? (((character as any).inventoryItems as Array<any>).map(entry => ({ ...entry })) as Array<any>)
+        : [];
+      const slots = { ...(((character as any)?.materielSlots ?? {}) as Record<string, any>) };
+      mutator({ inventory, slots });
+      return { ...(character as any), inventoryItems: inventory, materielSlots: slots } as Personnage;
+    };
+    setCombatCharacterConfig(prev => (prev ? normalize(prev) : prev));
+    setCharacterConfig(prev => normalize(prev));
+  }
+
+  function canConsumeEquipmentInteraction(count: number): { ok: boolean; reason?: string } {
+    if (count <= 0) return { ok: true };
+    const max = getMaxWeaponInteractionsPerTurnForActor(player);
+    if (turnEquipmentUsage.usedInteractionCount + count > max) {
+      return { ok: false, reason: "Interaction d'equipement deja consommee ce tour." };
+    }
+    return { ok: true };
+  }
+
+  function consumeEquipmentInteraction(count: number): void {
+    if (count <= 0) return;
+    setTurnEquipmentUsage(prev => ({ usedInteractionCount: prev.usedInteractionCount + count }));
+  }
+
+  function consumeEquipmentAction(): { ok: boolean } {
+    const max = player.combatStats?.actionsPerTurn ?? 1;
+    if (turnActionUsage.usedActionCount >= max) {
+      pushLog("Interaction equipement refusee: action principale deja utilisee ce tour.");
+      return { ok: false };
+    }
+    setTurnActionUsage(prev => ({ ...prev, usedActionCount: prev.usedActionCount + 1 }));
+    return { ok: true };
   }
 
   // Hide action removed; replaced by character sheet.
@@ -12018,6 +12300,8 @@ function handleEndPlayerTurn() {
                 interactionState={interactionState}
                 interactionItems={interactionMenuItems}
                 interactionPrompt="Selectionner la cible de l'interaction"
+                equipmentItems={equipmentWheelItems}
+                equipmentPrompt="Interactions d'equipement"
                 onCancelInteract={handleCancelInteractFromWheel}
                 computeActionAvailability={computeActionAvailability}
                 onClose={closeRadialMenu}
@@ -12137,6 +12421,8 @@ function handleEndPlayerTurn() {
     </div>
   );
 };
+
+
 
 
 

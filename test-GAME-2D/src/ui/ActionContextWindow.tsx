@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { ActionAvailability, ActionDefinition } from "../game/actionTypes";
-import type { ActionPlan, ActionStep } from "../game/actionPlan";
+import type { ActionAvailability, ActionDefinition } from "../game/engine/rules/actionTypes";
+import type { ActionPlan, ActionStep } from "../game/engine/core/actionPlan";
 import type { TokenState } from "../types";
 import type { AdvantageMode, AttackRollResult, DamageRollResult } from "../dice/roller";
 
@@ -1021,3 +1021,5 @@ export function ActionContextWindow(props: {
     </div>
   );
 }
+
+

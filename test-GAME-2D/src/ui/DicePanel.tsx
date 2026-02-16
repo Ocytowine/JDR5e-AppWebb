@@ -1,6 +1,6 @@
 import React from "react";
 import type { AdvantageMode, AttackRollResult, DamageRollResult } from "../dice/roller";
-import type { ActionDefinition } from "../game/actionTypes";
+import type { ActionDefinition } from "../game/engine/rules/actionTypes";
 
 export function DicePanel(props: {
   validatedAction: ActionDefinition | null;
@@ -225,4 +225,6 @@ export function DicePanel(props: {
     </section>
   );
 }
+
+
 

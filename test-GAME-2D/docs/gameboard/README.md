@@ -23,20 +23,20 @@ Cette documentation decrit le flux principal a partir des sources suivantes:
 - UI racine: `test-GAME-2D/src/main.tsx` rend `<GameBoard />`.
 - Composant principal: `test-GAME-2D/src/GameBoard.tsx`.
 - Rendu Pixi: `test-GAME-2D/src/render2d/board/usePixiBoard.ts` et couches `test-GAME-2D/src/render2d/layers/*`.
-- Moteur d'actions: `test-GAME-2D/src/game/actionEngine.ts`.
+- Moteur d'actions: `test-GAME-2D/src/game/engine/core/actionEngine.ts`.
 - Vision: `test-GAME-2D/src/vision.ts`.
 - Lumiere: `test-GAME-2D/src/lighting.ts`.
-- Map: `test-GAME-2D/src/game/mapEngine.ts` + pipeline `test-GAME-2D/src/game/map/*`.
+- Map: `test-GAME-2D/src/game/map/generation/mapEngine.ts` + pipeline `test-GAME-2D/src/game/map/generation/*` + runtime `test-GAME-2D/src/game/map/runtime/*`.
 
 ## Index rapide (probleme -> fichiers)
 - LOS/vision: `test-GAME-2D/src/vision.ts`, `test-GAME-2D/src/lineOfSight.ts`, `test-GAME-2D/src/render2d/layers/usePixiOverlays.ts`.
 - Lumiere/tints: `test-GAME-2D/src/lighting.ts`, `test-GAME-2D/src/render2d/layers/usePixiOverlays.ts`.
-- Pathfinding: `test-GAME-2D/src/pathfinding.ts`, `test-GAME-2D/src/game/actionEngine.ts`.
-- Actions et resolution: `test-GAME-2D/src/game/actionEngine.ts`, `test-GAME-2D/src/game/engine/*`, `test-GAME-2D/src/GameBoard.tsx`.
+- Pathfinding: `test-GAME-2D/src/pathfinding.ts`, `test-GAME-2D/src/game/engine/core/actionEngine.ts`.
+- Actions et resolution: `test-GAME-2D/src/game/engine/core/actionEngine.ts`, `test-GAME-2D/src/game/engine/core/*`, `test-GAME-2D/src/game/engine/rules/*`, `test-GAME-2D/src/game/engine/runtime/*`, `test-GAME-2D/src/GameBoard.tsx`.
 - Reactions: `test-GAME-2D/src/GameBoard.tsx`, `test-GAME-2D/src/game/reactionTypes.ts`.
 - Initiative/tours: `test-GAME-2D/src/GameBoard.tsx` (fonctions `rollInitialInitiativeIfNeeded`, `advanceTurn`).
 - Overlays/FX: `test-GAME-2D/src/render2d/layers/usePixiOverlays.ts`, `test-GAME-2D/src/render2d/layers/usePixiEffects.ts`.
-- Generation map: `test-GAME-2D/src/game/mapEngine.ts`, `test-GAME-2D/src/game/map/*`.
+- Generation map: `test-GAME-2D/src/game/map/generation/mapEngine.ts`, `test-GAME-2D/src/game/map/generation/*`, `test-GAME-2D/src/game/map/runtime/*`.
 
 ## Flux d'evenements (clic -> action -> rendu)
 1. Clic plateau -> `handleBoardClick` (conversion screen->grid).
@@ -64,3 +64,5 @@ Cette documentation decrit le flux principal a partir des sources suivantes:
 ## Notes d'implementation
 - Les documents citent des fonctions et structures, mais ne remplacent pas la lecture du code.
 - Les references de fichiers sont indiquees entre backticks.
+
+

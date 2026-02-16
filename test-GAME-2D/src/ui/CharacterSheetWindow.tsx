@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Personnage, TokenState } from "../types";
 import type { WeaponTypeDefinition } from "../game/weaponTypes";
-import type { ActionDefinition } from "../game/actionTypes";
+import type { ActionDefinition } from "../game/engine/rules/actionTypes";
 import type { SpellDefinition } from "../game/spellCatalog";
 import { JsonInfoPanel } from "./JsonInfoPanel";
 
@@ -287,6 +287,20 @@ export function CharacterSheetWindow(props: {
     };
   }, [isDragging]);
 
+  useEffect(() => {
+    if (!props.open) return;
+    const el = containerRef.current;
+    if (!el) return;
+    const stopWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    el.addEventListener("wheel", stopWheel, { passive: false });
+    return () => {
+      el.removeEventListener("wheel", stopWheel);
+    };
+  }, [props.open]);
+
   if (!props.open) return null;
 
   const stats = props.player.combatStats ?? props.character.combatStats;
@@ -474,14 +488,6 @@ export function CharacterSheetWindow(props: {
   return (
     <div
       ref={containerRef}
-      onWheelCapture={event => {
-        event.preventDefault();
-        event.stopPropagation();
-      }}
-      onWheel={event => {
-        event.preventDefault();
-        event.stopPropagation();
-      }}
       onMouseDown={event => event.stopPropagation()}
       style={{
         position: "absolute",
@@ -876,3 +882,5 @@ export function CharacterSheetWindow(props: {
     </div>
   );
 }
+
+

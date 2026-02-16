@@ -76,7 +76,7 @@ Conserver:
 ## A) Resolver d'equipement
 
 Nouveau helper propose:
-1. `src/game/equipmentBonusResolver.ts`
+1. `src/game/engine/rules/equipmentBonusResolver.ts`
 
 API proposee:
 1. `collectEquippedItems(character): EquippedItemRef[]`
@@ -155,3 +155,5 @@ Dans l'override d'arme:
 2. Un bonus conditionnel (ex: besoin bouclier) s'active/desactive correctement.
 3. Bonus inline et bonus catalogue produisent le meme resultat runtime.
 4. `extraDamage` est applique sur les bonnes branches (`onHit/onCrit/...`).
+
+

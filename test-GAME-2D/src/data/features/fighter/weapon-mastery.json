@@ -7,6 +7,25 @@
   "grants": [],
   "rules": {
     "text": "Choisissez trois bottes d'armes. Vous pouvez utiliser une botte quand l'arme utilisee porte aussi cette mastery.",
+    "modifiers": [
+      {
+        "applyTo": "actionCost",
+        "stat": "dualWieldBonusAttackWithoutBonusAction",
+        "value": 1,
+        "label": "Coup double (bypass bonus action)",
+        "usageKey": "mastery:coup-double:bonus-action-bypass",
+        "maxPerTurn": 1,
+        "limitMessage": "Coup double deja utilise ce tour.",
+        "when": {
+          "actorType": "player",
+          "actionCategory": "attack",
+          "actionCostType": "bonus",
+          "actionTagsAny": ["secondary-attack", "offhand-attack", "dual-wield"],
+          "actionTagsAll": ["wm-active:coup-double"],
+          "weaponMasteriesAny": ["coup-double"]
+        }
+      }
+    ],
     "choices": [
       {
         "key": "masteries",

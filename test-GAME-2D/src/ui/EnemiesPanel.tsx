@@ -1,7 +1,7 @@
 import React from "react";
-import type { EnemyActionType } from "../game/turnTypes";
+import type { EnemyActionType } from "../game/engine/runtime/turnTypes";
 import type { TokenState } from "../types";
-import type { ActionDefinition } from "../game/actionTypes";
+import type { ActionDefinition } from "../game/engine/rules/actionTypes";
 
 export function EnemiesPanel(props: {
   enemies: TokenState[];
@@ -174,3 +174,5 @@ export function EnemiesPanel(props: {
     </section>
   );
 }
+
+

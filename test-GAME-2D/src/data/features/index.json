@@ -18,6 +18,7 @@
     "./shared/fighting-style-interception.json",
     "./shared/fighting-style-protection.json",
     "./shared/fighting-style-two-weapon-fighting.json",
+    "./feats/General/dual-wielder.json",
     "./fighter/second-wind-feature.json",
     "./fighter/weapon-mastery.json",
     "./fighter/action-surge.json",

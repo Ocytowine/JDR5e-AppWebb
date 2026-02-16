@@ -1,13 +1,13 @@
 import { GRID_COLS, GRID_ROWS, isCellInsideGrid } from "./boardConfig";
 import type { GridPosition, TokenState, MovementProfile } from "./types";
-import { getHeightAtGrid, type TerrainCell } from "./game/map/draft";
+import { getHeightAtGrid, type TerrainCell } from "./game/map/generation/draft";
 import { getFloorMaterial } from "./game/map/floors/catalog";
 import { isEdgeBlockedForMovement } from "./game/map/walls/runtime";
 import {
   getTokenOccupiedCells,
   getTokenOccupiedCellsAt
-} from "./game/footprint";
-import { metersToCells } from "./game/units";
+} from "./game/engine/runtime/footprint";
+import { metersToCells } from "./game/engine/runtime/units";
 
 interface PathfindingOptions {
   /**
@@ -462,3 +462,5 @@ export function computePathTowards(
 
   return path;
 }
+
+

@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { InteractionSpec } from "../game/interactions";
+import type { InteractionSpec } from "../game/map/runtime/interactions";
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -226,3 +226,5 @@ export function InteractionContextWindow(props: {
     </div>
   );
 }
+
+

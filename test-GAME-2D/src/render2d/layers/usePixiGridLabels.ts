@@ -4,7 +4,7 @@ import type { Container } from "pixi.js";
 import type { RefObject } from "react";
 import { TILE_SIZE, gridToScreenForGrid } from "../../boardConfig";
 import type { ObstacleInstance, ObstacleTypeDefinition } from "../../game/obstacleTypes";
-import { getObstacleOccupiedCells } from "../../game/obstacleRuntime";
+import { getObstacleOccupiedCells } from "../../game/map/runtime/obstacleRuntime";
 
 export function usePixiGridLabels(options: {
   labelLayerRef: RefObject<Container | null>;
@@ -93,3 +93,5 @@ export function usePixiGridLabels(options: {
     options.pixiReadyTick
   ]);
 }
+
+

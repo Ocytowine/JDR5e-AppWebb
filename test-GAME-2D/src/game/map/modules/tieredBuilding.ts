@@ -1,9 +1,9 @@
 import type { GridPosition } from "../../../types";
-import type { MapBuildContext, MapSpec } from "../types";
-import type { MapDraft } from "../draft";
-import { createDraft, setHeight, setTerrain, tryPlaceObstacle, tryPlaceWallSegment } from "../draft";
-import { findObstacleType } from "../obstacleSelector";
-import { findWallType } from "../wallSelector";
+import type { MapBuildContext, MapSpec } from "../generation/types";
+import type { MapDraft } from "../generation/draft";
+import { createDraft, setHeight, setTerrain, tryPlaceObstacle, tryPlaceWallSegment } from "../generation/draft";
+import { findObstacleType } from "../generation/obstacleSelector";
+import { findWallType } from "../generation/wallSelector";
 import { resolveWallKindFromType } from "../walls/kind";
 import { resolveWallMaxHp } from "../walls/durability";
 import type { WallDirection } from "../walls/types";
@@ -118,3 +118,4 @@ export function generateTieredBuilding(params: {
   draft.log.push(`Bâtiment à toit ${style} généré (niveau 1 accessible).`);
   return { draft, playerStart };
 }
+

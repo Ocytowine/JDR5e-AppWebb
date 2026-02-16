@@ -2,10 +2,10 @@ import { useEffect } from "react";
 import { Container, Graphics, Text } from "pixi.js";
 import type { RefObject } from "react";
 import type { TokenState } from "../../types";
-import type { SpeechBubbleEntry } from "../../game/turnTypes";
+import type { SpeechBubbleEntry } from "../../game/engine/runtime/turnTypes";
 import { TILE_SIZE, gridToScreenForGrid } from "../../boardConfig";
-import { isTokenDead } from "../../game/combatUtils";
-import { getTokenOccupiedCells } from "../../game/footprint";
+import { isTokenDead } from "../../game/engine/runtime/combatUtils";
+import { getTokenOccupiedCells } from "../../game/engine/runtime/footprint";
 
 export function usePixiSpeechBubbles(options: {
   speechLayerRef: RefObject<Container | null>;
@@ -153,3 +153,5 @@ export function usePixiSpeechBubbles(options: {
     options.showAllLevels
   ]);
 }
+
+
