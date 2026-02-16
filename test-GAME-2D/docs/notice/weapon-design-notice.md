@@ -110,11 +110,22 @@ Note schema:
 ## Harmonisation (etat mecanique cible)
 
 Pour un item `harmonisable: true`, les bonus doivent etre actifs uniquement si:
-1. `character.attunements[instanceId] === true`
+1. l'instance equipee est consideree harmonisee par le runtime.
+
+Marqueurs reconnus (ordre logique):
+1. `inventoryItem.harmonized === true`
+2. `inventoryItem.isHarmonized === true`
+3. `inventoryItem.attuned === true`
+4. `inventoryItem.attunement.state === "harmonized"`
+5. `inventoryItem.attunement.harmonizedAt` non vide
+6. `character.attunements[instanceId] === true`
+7. `character.attunements["instance:"+instanceId] === true`
+8. `character.attunements[itemId] === true`
+9. `character.attunements["item:"+itemId] === true`
 
 Convention:
 1. `instanceId` est l'identifiant de l'instance d'inventaire equipee.
-2. Aucun autre marqueur d'harmonisation n'est considere comme source de verite dans la data.
+2. Le CharacterCreator peut ecrire plusieurs marqueurs pour faciliter le debug et la compatibilite runtime.
 
 ## Degats additionnels (`extraDamage`)
 
@@ -127,6 +138,14 @@ Mapping `when`:
 4. `onMiss`
 
 Si `when` absent: fallback `onHit`.
+
+Critiques:
+1. En critique `double-dice`, les des de `extraDamage` sont aussi doubles.
+2. Les bonus plats (ex: `+2`, modificateur de caracteristique) ne sont pas doubles.
+
+Note pipeline:
+1. Les formules de degats runtime doivent rester au format simple (`1d10+3+2`).
+2. Eviter d'encapsuler avec des parentheses dans la concatenation de formule, car le parseur de des est volontairement minimal.
 
 ## Grants bonus (hybride)
 

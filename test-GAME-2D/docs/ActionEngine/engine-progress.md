@@ -14,6 +14,19 @@ Portee principale:
 - `src/game/engine/types.ts`
 - orchestrateur: `src/game/actionEngine.ts`
 
+## Mise a jour recente (critiques + harmonisation)
+
+Corrections integrees:
+1. Le pipeline UI n'enveloppe plus la formule de degats avec des parentheses lors d'un bonus plat additionnel.
+2. Le contexte de critique (`isCrit`, `critRule`) est propage a toutes les operations `DealDamage`/`DealDamageScaled` d'une meme resolution.
+3. Les degats additionnels d'arme (`extraDamage`) beneficient donc du critique `double-dice` comme le degat principal.
+
+Fichiers touches:
+1. `src/GameBoard.tsx` (concatenation formule sans parentheses)
+2. `src/game/engine/types.ts` (ajout `ExecuteOptions.damageContext`)
+3. `src/game/engine/actionExecute.ts` (contextualisation outcome -> ops)
+4. `src/game/engine/ops.ts` (application du contexte de critique sur `DealDamage*`)
+
 ## 1) Pipeline global
 
 Sequence runtime:

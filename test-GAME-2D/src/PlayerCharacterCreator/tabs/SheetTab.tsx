@@ -70,6 +70,8 @@ export function SheetTab(props: {
   expertises: string[];
   skillAbilityMap: Record<string, string>;
   weaponMasteries: string[];
+  unlockedWeaponMasteries: Array<{ id: string; label: string }>;
+  unlockedFightingStyles: Array<{ id: string; label: string }>;
   armorMasteries: string[];
   toolMasteries: string[];
   EQUIPMENT_SLOTS: Array<{ id: string; label: string }>;
@@ -117,6 +119,8 @@ export function SheetTab(props: {
     expertises,
     skillAbilityMap,
     weaponMasteries,
+    unlockedWeaponMasteries,
+    unlockedFightingStyles,
     armorMasteries,
     toolMasteries,
     EQUIPMENT_SLOTS,
@@ -751,6 +755,14 @@ export function SheetTab(props: {
                         </div>
                         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
                           Armes: {weaponMasteries.join(", ") || "—"}
+                        </div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                          Bottes d'armes:{" "}
+                          {unlockedWeaponMasteries.map(entry => entry.label).join(", ") || "—"}
+                        </div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                          Styles de combat:{" "}
+                          {unlockedFightingStyles.map(entry => entry.label).join(", ") || "—"}
                         </div>
                         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
                           Armures: {armorMasteries.join(", ") || "—"}

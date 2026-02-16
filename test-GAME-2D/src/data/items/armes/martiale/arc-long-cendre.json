@@ -26,6 +26,7 @@
     "fire",
     "wood"
   ],
+  "weaponMastery": ["ralentissement"],
   "grants": [
     {
       "kind": "bonus",

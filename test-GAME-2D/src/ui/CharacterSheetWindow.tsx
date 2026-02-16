@@ -614,6 +614,7 @@ export function CharacterSheetWindow(props: {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 10 }}>
           <Section title="Maitrises">
             <StatRow label="Armes" value={formatList(profs.weapons)} />
+            <StatRow label="Bottes d'armes" value={formatList((props.character as any)?.weaponMasteries)} />
             <StatRow label="Armures" value={formatList(profs.armors)} />
             <StatRow label="Outils" value={formatList(profs.tools)} />
           </Section>

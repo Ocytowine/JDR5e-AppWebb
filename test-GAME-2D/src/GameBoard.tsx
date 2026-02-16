@@ -818,7 +818,9 @@ export const GameBoard: React.FC = () => {
   const playerCombatStats: CombatStats = useMemo(
     () => {
       const profs = (activeCharacterConfig.proficiencies ?? {}) as { weapons?: string[] };
-      const rawMasteries = Array.isArray(profs.weapons) ? profs.weapons : [];
+      const rawMasteries = Array.isArray((activeCharacterConfig as any)?.weaponMasteries)
+        ? (((activeCharacterConfig as any)?.weaponMasteries as string[]).map(id => String(id)).filter(Boolean))
+        : (Array.isArray(profs.weapons) ? profs.weapons : []);
       const masterySet = new Set(weaponMasteryIds);
       const weaponMasteries = rawMasteries.filter(id => masterySet.has(id));
       const wmTags = weaponMasteries.map(id => `wm:${id}`);
@@ -5892,7 +5894,7 @@ export const GameBoard: React.FC = () => {
   }
   function appendDamageDeltaToFormula(formula: string, delta: number): string {
     if (!Number.isFinite(delta) || delta === 0) return formula;
-    return delta > 0 ? `(${formula})+${delta}` : `(${formula})${delta}`;
+    return delta > 0 ? `${formula}+${delta}` : `${formula}${delta}`;
   }
   function applyFeatureActionModifiers(params: {
     actor: TokenState;

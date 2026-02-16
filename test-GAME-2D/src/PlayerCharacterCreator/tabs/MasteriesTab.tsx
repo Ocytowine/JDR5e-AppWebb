@@ -10,7 +10,9 @@ export function MasteriesTab(props: {
   getLockButtonState: (id: string) => { background: string; label: string };
   renderPendingBadge: (count: number) => React.ReactNode;
   getPendingCountForSection: (id: string) => number;
-  weaponMasteryOptions: Array<{ id: string; label: string }>;
+  weaponProficiencyOptions: Array<{ id: string; label: string }>;
+  unlockedWeaponMasteries: Array<{ id: string; label: string }>;
+  unlockedFightingStyles: Array<{ id: string; label: string }>;
   armorMasteryOptions: Array<{ id: string; label: string }>;
   toolMasteryOptions: Array<{ id: string; label: string }>;
   weaponMasteries: string[];
@@ -33,7 +35,9 @@ export function MasteriesTab(props: {
     getLockButtonState,
     renderPendingBadge,
     getPendingCountForSection,
-    weaponMasteryOptions,
+    weaponProficiencyOptions,
+    unlockedWeaponMasteries,
+    unlockedFightingStyles,
     armorMasteryOptions,
     toolMasteryOptions,
     weaponMasteries,
@@ -164,11 +168,51 @@ export function MasteriesTab(props: {
       </div>
       {renderMasteryGrid(
         "Armes",
-        weaponMasteryOptions,
+        weaponProficiencyOptions,
         weaponMasteries,
         toggleWeaponMastery,
         "weapons"
       )}
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 700, marginTop: 6 }}>
+          Bottes d'armes debloquees
+        </div>
+        <div
+          style={{
+            marginTop: 6,
+            borderRadius: 8,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(12,12,18,0.75)",
+            padding: "8px 10px",
+            fontSize: 12,
+            color: "#d9deea"
+          }}
+        >
+          {unlockedWeaponMasteries.length > 0
+            ? unlockedWeaponMasteries.map(item => item.label).join(", ")
+            : "Aucune mastery debloquee"}
+        </div>
+      </div>
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 700, marginTop: 6 }}>
+          Styles de combat debloques
+        </div>
+        <div
+          style={{
+            marginTop: 6,
+            borderRadius: 8,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(12,12,18,0.75)",
+            padding: "8px 10px",
+            fontSize: 12,
+            color: "#d9deea"
+          }}
+        >
+          {unlockedFightingStyles.length > 0
+            ? unlockedFightingStyles.map(item => item.label).join(", ")
+            : "Aucun style de combat debloque"}
+        </div>
+      </div>
       {renderMasteryGrid(
         "Armures",
         armorMasteryOptions,

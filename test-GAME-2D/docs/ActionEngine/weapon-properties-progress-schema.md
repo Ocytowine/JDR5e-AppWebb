@@ -80,10 +80,11 @@ Valeurs autorisees:
     },
     {
       "id": "qa",
-      "status": "todo",
+      "status": "in_progress",
       "deliverables": [
         "tests manuels scenario",
-        "tests automatises cibles"
+        "tests automatises cibles",
+        "validation critique sur degats additionnels (extraDamage)"
       ],
       "exitCriteria": [
         "scenario matrix validee",
@@ -92,7 +93,7 @@ Valeurs autorisees:
     },
     {
       "id": "docs",
-      "status": "todo",
+      "status": "done",
       "deliverables": [
         "notice weapon mise a jour",
         "engine-progress mis a jour",
@@ -132,10 +133,11 @@ Valeurs autorisees:
 - [ ] Matrice de scenarios complete
 - [ ] Verification IA (choix melee/distance)
 - [ ] Verification weapon mastery
+- [x] Verification critique sur `extraDamage` (double-dice applique sur chaque composante de degats)
 
 ### Phase 6 - Docs
-- [ ] Mettre a jour `weapon-design-notice.md`
-- [ ] Mettre a jour docs ActionEngine
+- [x] Mettre a jour `weapon-design-notice.md`
+- [x] Mettre a jour docs ActionEngine
 - [ ] Noter conventions finales (reach, loading, etc.)
 
 ## Definition of Done (globale)

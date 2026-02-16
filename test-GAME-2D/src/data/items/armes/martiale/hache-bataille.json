@@ -24,6 +24,7 @@
     "slashing",
     "metal"
   ],
+  "weaponMastery": ["renversement"],
   "properties": {
     "finesse": false,
     "light": false,

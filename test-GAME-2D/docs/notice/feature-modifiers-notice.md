@@ -127,3 +127,10 @@ Comportement actuel:
 2. Si schema manquant, etendre ce schema de maniere generique.
 3. Mettre a jour cette notice a chaque nouveau champ supporte.
 4. Ne jamais introduire de branche `if (classId === ...)` pour un effet metier.
+
+## 6) Notes pipeline degats
+
+1. Les modificateurs `applyTo: "damage"` produisent une formule finale concatenee en texte.
+2. Le parseur de des runtime etant minimal, preferer des formules lineaires (ex: `1d10+3+2`).
+3. Eviter d'introduire des parentheses inutiles lors de la composition (`(1d10+3)+2`), cela peut casser le parsing des termes de des.
+4. En critique `double-dice`, toutes les operations `DealDamage` d'une meme resolution (degat principal et degats additionnels) utilisent maintenant le meme contexte de critique.

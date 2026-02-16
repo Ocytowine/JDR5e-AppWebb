@@ -26,6 +26,7 @@
     "fire",
     "metal"
   ],
+  "weaponMastery": ["ouverture"],
   "grants": [
     {
       "kind": "bonus",

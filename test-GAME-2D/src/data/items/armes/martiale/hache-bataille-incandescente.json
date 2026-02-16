@@ -26,6 +26,7 @@
     "fire",
     "metal"
   ],
+  "weaponMastery": ["renversement"],
   "grants": [
     {
       "kind": "bonus",

@@ -24,6 +24,7 @@
     "slashing",
     "metal"
   ],
+  "weaponMastery": ["ouverture"],
   "properties": {
     "finesse": false,
     "light": false,

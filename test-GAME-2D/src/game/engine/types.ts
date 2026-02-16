@@ -257,6 +257,10 @@ export interface ExecuteOptions {
     attack?: AttackRollResult | null;
     consumeDamageRoll?: () => DamageRollResult | null;
   };
+  damageContext?: {
+    isCrit?: boolean;
+    critRule?: "double-dice" | "double-total";
+  };
   onMoveTo?: (params: {
     state: EngineState;
     targetCell: { x: number; y: number };

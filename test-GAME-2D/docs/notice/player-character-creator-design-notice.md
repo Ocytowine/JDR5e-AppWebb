@@ -109,6 +109,26 @@ Les fonctions de reset doivent:
 - remettre le lock cible a false.
 - nettoyer `pendingLocks` correspondants.
 
+### 4.4 Harmonisation d'items (one-click)
+
+L'onglet equipement expose un bouton d'harmonisation direct (1 clic) dans l'inventaire, a cote des actions item (vente, etoile arme principale, etc.).
+
+Comportement:
+1. Le bouton n'apparait que pour les items harmonisables (`weapon/armor/object` avec `harmonisable: true`).
+2. Le clic toggle `harmoniser/desharmoniser` sans ouvrir de modal.
+3. Le creator met a jour les marqueurs sur l'item d'inventaire et la table globale `character.attunements`.
+
+Marqueurs ecrits par le creator:
+1. `inventoryItem.harmonized`
+2. `inventoryItem.isHarmonized`
+3. `inventoryItem.attuned`
+4. `inventoryItem.attunement` (`state`, `harmonizedAt`)
+5. `character.attunements` (cles `instanceId`, `instance:<id>`, `itemId`, `item:<id>`)
+
+But:
+1. Faciliter le debug des bonus d'equipement conditionnes a l'harmonisation.
+2. Rester compatible avec le resolver runtime qui accepte plusieurs conventions de marquage.
+
 ## 5) Progression et grants (coeur adaptatif)
 
 ### 5.1 Collecte

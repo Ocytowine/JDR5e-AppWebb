@@ -791,6 +791,13 @@ export function executePlan(params: {
 
   for (const [index, resolved] of resolvedOutcomes.entries()) {
     const { outcome, target } = resolved;
+    const outcomeScopedOpts: ExecuteOptions = {
+      ...opts,
+      damageContext: {
+        isCrit: Boolean(outcome.isCrit || outcome.kind === "crit"),
+        critRule: plan.action.resolution?.critRule ?? "double-dice"
+      }
+    };
     const targetLabel = target ? `${target.id}` : "none";
     logPipeline(
       tx,
@@ -913,7 +920,7 @@ export function executePlan(params: {
         tx,
         state: tx.state,
         explicitTarget: explicitTarget ?? (target ? { kind: "token", token: target } : null),
-        opts
+        opts: outcomeScopedOpts
       });
     }
 

@@ -393,7 +393,12 @@ export function applyOperation(params: {
     if (op.op === "DealDamage") {
       const formula = resolveFormula(op.formula, { actor: state.actor, sampleCharacter: undefined });
       const override = opts.rollOverrides?.consumeDamageRoll?.() ?? null;
-      const roll = override ?? rollDamage(formula, { isCrit: false, critRule: "double-dice" });
+      const roll =
+        override ??
+        rollDamage(formula, {
+          isCrit: Boolean(opts.damageContext?.isCrit),
+          critRule: opts.damageContext?.critRule ?? "double-dice"
+        });
       const total = op.scale === "half" ? Math.floor(roll.total / 2) : roll.total;
       const diceText = roll.dice.map(d => d.rolls.join("+")).join(" | ");
       const detail = diceText || roll.flatModifier ? ` [${diceText}${roll.flatModifier ? ` + ${roll.flatModifier}` : ""}]` : "";
@@ -421,7 +426,10 @@ export function applyOperation(params: {
 
     if (op.op === "DealDamageScaled") {
       const formula = resolveFormula(op.formula, { actor: state.actor, sampleCharacter: undefined });
-      const roll = rollDamage(formula, { isCrit: false, critRule: "double-dice" });
+      const roll = rollDamage(formula, {
+        isCrit: Boolean(opts.damageContext?.isCrit),
+        critRule: opts.damageContext?.critRule ?? "double-dice"
+      });
       const total = op.scale === "quarter" ? Math.floor(roll.total / 4) : Math.floor(roll.total / 2);
       const diceText = roll.dice.map(d => d.rolls.join("+")).join(" | ");
       const detail = diceText || roll.flatModifier ? ` [${diceText}${roll.flatModifier ? ` + ${roll.flatModifier}` : ""}]` : "";

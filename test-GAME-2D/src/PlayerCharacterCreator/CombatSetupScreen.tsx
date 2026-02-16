@@ -38,6 +38,24 @@ import { spellCatalog } from "../game/spellCatalog";
 import { loadFeatureTypesFromIndex } from "../game/featureCatalog";
 import type { FeatureDefinition } from "../game/featureTypes";
 
+const WEAPON_PROFICIENCY_OPTIONS: Array<{ id: string; label: string }> = [
+  { id: "simple", label: "Simple" },
+  { id: "martiale", label: "Martiale" },
+  { id: "speciale", label: "Speciale" },
+  { id: "monastique", label: "Monastique" }
+];
+
+const WEAPON_MASTERY_OPTIONS: Array<{ id: string; label: string }> = [
+  { id: "coup-double", label: "Coup double" },
+  { id: "ecorchure", label: "Ecorchure" },
+  { id: "enchainement", label: "Enchainement" },
+  { id: "ouverture", label: "Ouverture" },
+  { id: "poussee", label: "Poussee" },
+  { id: "ralentissement", label: "Ralentissement" },
+  { id: "renversement", label: "Renversement" },
+  { id: "sape", label: "Sape" }
+];
+
 export function CombatSetupScreen(props: {
   configEnemyCount: number;
   enemyTypeCount: number;
@@ -307,7 +325,23 @@ export function CombatSetupScreen(props: {
     armors?: string[];
     tools?: string[];
   };
-  const weaponMasteries = Array.isArray(profs.weapons) ? profs.weapons : [];
+  const rawWeaponEntries = Array.isArray(profs.weapons) ? profs.weapons : [];
+  const weaponProficiencyIdSet = new Set(WEAPON_PROFICIENCY_OPTIONS.map(option => option.id));
+  const weaponMasteryOptionMap = new Map(
+    WEAPON_MASTERY_OPTIONS.map(option => [option.id, option.label] as const)
+  );
+  const weaponMasteryIdSet = new Set(WEAPON_MASTERY_OPTIONS.map(option => option.id));
+  const weaponProficiencies = rawWeaponEntries.filter(id => weaponProficiencyIdSet.has(id));
+  const explicitWeaponMasteries = Array.isArray((props.character as any)?.weaponMasteries)
+    ? (((props.character as any)?.weaponMasteries as string[]).map(id => String(id)).filter(Boolean))
+    : [];
+  const legacyWeaponMasteries = rawWeaponEntries.filter(id => weaponMasteryIdSet.has(id));
+  const activeWeaponMasteryIds =
+    explicitWeaponMasteries.length > 0
+      ? Array.from(new Set(explicitWeaponMasteries))
+      : Array.from(new Set(legacyWeaponMasteries));
+  const unlockedWeaponMasteries = activeWeaponMasteryIds
+    .map(id => ({ id, label: weaponMasteryOptionMap.get(id) ?? id }));
   const armorMasteries = Array.isArray(profs.armors) ? profs.armors : [];
   const toolMasteries = Array.isArray(profs.tools) ? profs.tools : [];
   const getClassEquipment = (cls: ClassDefinition | null) => {
@@ -726,7 +760,7 @@ export function CombatSetupScreen(props: {
 
   const toggleMastery = (kind: "weapons" | "armors" | "tools", value: string) => {
     const next = {
-      weapons: kind === "weapons" ? toggleListValue(weaponMasteries, value) : weaponMasteries,
+      weapons: kind === "weapons" ? toggleListValue(weaponProficiencies, value) : weaponProficiencies,
       armors: kind === "armors" ? toggleListValue(armorMasteries, value) : armorMasteries,
       tools: kind === "tools" ? toggleListValue(toolMasteries, value) : toolMasteries
     };
@@ -1141,18 +1175,21 @@ export function CombatSetupScreen(props: {
     const current = (props.character as any)?.classe ?? {};
     const nextClasse = { ...current };
     const affectedClassIds: string[] = [];
+    const affectedSubclassIds: string[] = [];
     const affectedSources: string[] = [];
     const globalLevel = resolveLevel();
     if (slot === 1) {
       if (nextClasse?.[1]) {
         const entry = nextClasse[1];
         affectedClassIds.push(entry?.classeId ?? "");
+        affectedSubclassIds.push(entry?.subclasseId ?? "");
         affectedSources.push("classPrimary", "subclassPrimary");
         nextClasse[1] = { ...entry, subclasseId: null };
       }
       if (nextClasse?.[2]) {
         const entry = nextClasse[2];
         affectedClassIds.push(entry?.classeId ?? "");
+        affectedSubclassIds.push(entry?.subclasseId ?? "");
         affectedSources.push("classSecondary", "subclassSecondary");
         delete nextClasse[2];
         nextClasse[1] = { ...(nextClasse?.[1] ?? {}), niveau: globalLevel };
@@ -1161,6 +1198,7 @@ export function CombatSetupScreen(props: {
       if (nextClasse?.[2]) {
         const entry = nextClasse[2];
         affectedClassIds.push(entry?.classeId ?? "");
+        affectedSubclassIds.push(entry?.subclasseId ?? "");
         affectedSources.push("classSecondary", "subclassSecondary");
         delete nextClasse[2];
         nextClasse[1] = { ...(nextClasse?.[1] ?? {}), niveau: globalLevel };
@@ -1178,9 +1216,23 @@ export function CombatSetupScreen(props: {
     delete nextPending.classes;
     delete nextPending.classesSlot;
     const nextStatBonuses = pruneStatBonusesBySource(affectedSources);
+    const classFeatureSelectionsCurrent = (((choiceSelections as any)?.classFeatures ?? {}) as Record<
+      string,
+      { selected?: string[] }
+    >);
+    const blockedPrefixes = [
+      ...affectedClassIds.filter(Boolean).map(id => `class:${id}:`),
+      ...affectedSubclassIds.filter(Boolean).map(id => `subclass:${id}:`)
+    ];
+    const nextClassFeatures = Object.fromEntries(
+      Object.entries(classFeatureSelectionsCurrent).filter(
+        ([choiceId]) => !blockedPrefixes.some(prefix => choiceId.startsWith(prefix))
+      )
+    ) as Record<string, { selected?: string[] }>;
     const nextChoiceSelections = {
       ...choiceSelections,
       asi: nextAsi,
+      classFeatures: nextClassFeatures,
       ...(nextStatBonuses ? { statBonuses: nextStatBonuses } : null),
       pendingLocks: nextPending
     };
@@ -1220,6 +1272,7 @@ export function CombatSetupScreen(props: {
       classe: nextClasse,
       classLocks: nextClassLocks,
       choiceSelections: nextChoiceSelections,
+      weaponMasteries: [],
       proficiencies: nextProfs,
       competences: nextCompetences,
       expertises: nextExpertises,
@@ -3176,6 +3229,97 @@ export function CombatSetupScreen(props: {
   ) => getMissingClassFeatureChoicesForSlot(slot, overrides)[0] ?? null;
   const hasMissingClassFeatureChoiceForSlot = (slot: 1 | 2) =>
     getMissingClassFeatureChoiceForSlot(slot) !== null;
+  const extractWeaponMasteryIdsFromGrant = (grant: { kind: string; ids: string[] }) => {
+    const kind = String(grant.kind ?? "").trim().toLowerCase();
+    const ids = Array.isArray(grant.ids) ? grant.ids.map(id => String(id)).filter(Boolean) : [];
+    if (ids.length === 0) return [] as string[];
+    if (
+      kind === "weaponmastery" ||
+      kind === "weapon-mastery" ||
+      kind === "weapon_mastery" ||
+      kind === "wm"
+    ) {
+      return ids;
+    }
+    if (kind === "feature") {
+      return ids
+        .map(id => (id.startsWith("wm-") ? id.slice(3) : id))
+        .filter(id => weaponMasteryIdSet.has(id));
+    }
+    return [] as string[];
+  };
+  const selectedWeaponMasteries = useMemo(() => {
+    const byId = new Set<string>();
+    let hasChoicePool = false;
+    ([1, 2] as const).forEach(slot => {
+      const choices = getClassFeatureChoicesForSlot(slot);
+      choices.forEach(choice => {
+        const selectedOptionIds = new Set(getSelectedClassFeatureOptions(choice.id));
+        choice.options.forEach(option => {
+          const grantedMasteries = option.grants.flatMap(extractWeaponMasteryIdsFromGrant);
+          if (grantedMasteries.length > 0) hasChoicePool = true;
+          if (!selectedOptionIds.has(option.id)) return;
+          grantedMasteries.forEach(id => byId.add(id));
+        });
+      });
+    });
+    return { ids: Array.from(byId), hasChoicePool };
+  }, [
+    classFeatureSelections,
+    classPrimary?.id,
+    classSecondary?.id,
+    classEntry?.niveau,
+    secondaryClassEntry?.niveau,
+    selectedSubclassId,
+    selectedSecondarySubclassId,
+    subclassOptions
+  ]);
+  const selectedCombatStyles = useMemo(() => {
+    const byId = new Map<string, string>();
+    ([1, 2] as const).forEach(slot => {
+      const choices = getClassFeatureChoicesForSlot(slot);
+      choices.forEach(choice => {
+        const selectedOptionIds = new Set(getSelectedClassFeatureOptions(choice.id));
+        choice.options.forEach(option => {
+          if (!selectedOptionIds.has(option.id)) return;
+          option.grants.forEach(grant => {
+            if (String(grant.kind).toLowerCase() !== "feature") return;
+            grant.ids
+              .map(id => String(id))
+              .filter(id => id.startsWith("fighting-style-"))
+              .forEach(featureId => {
+                const label = featureById.get(featureId)?.label ?? option.label ?? featureId;
+                byId.set(featureId, label);
+              });
+          });
+        });
+      });
+    });
+    return Array.from(byId.entries()).map(([id, label]) => ({ id, label }));
+  }, [
+    classFeatureSelections,
+    classPrimary?.id,
+    classSecondary?.id,
+    classEntry?.niveau,
+    secondaryClassEntry?.niveau,
+    selectedSubclassId,
+    selectedSecondarySubclassId,
+    featureById,
+    subclassOptions
+  ]);
+  useEffect(() => {
+    if (!selectedWeaponMasteries.hasChoicePool) return;
+    const current = Array.isArray((props.character as any)?.weaponMasteries)
+      ? (((props.character as any)?.weaponMasteries as string[]).map(id => String(id)).filter(Boolean))
+      : [];
+    const next = selectedWeaponMasteries.ids;
+    if (arraysEqual(current, next)) return;
+    props.onChangeCharacter({ ...props.character, weaponMasteries: next });
+  }, [
+    selectedWeaponMasteries,
+    props.character,
+    props.onChangeCharacter
+  ]);
   const hasPendingClassChoicesForSlot = (slot: 1 | 2) =>
     hasSubclassChoicePending(slot) ||
     hasMissingClassFeatureChoiceForSlot(slot) ||
@@ -3949,6 +4093,7 @@ export function CombatSetupScreen(props: {
       features: [],
       feats: [],
       skills: [],
+      weaponMasteries: [],
       tools: [],
       languages: [],
       spells: [],
@@ -3964,6 +4109,7 @@ export function CombatSetupScreen(props: {
       if (kind === "feature" || kind === "features") return "features";
       if (kind === "feat" || kind === "feats") return "feats";
       if (kind === "skill" || kind === "skills" || kind === "competence" || kind === "competences") return "skills";
+      if (kind === "weaponmastery" || kind === "weapon-mastery" || kind === "weapon_mastery" || kind === "wm") return "weaponMasteries";
       if (kind === "tool" || kind === "tools") return "tools";
       if (kind === "language" || kind === "languages" || kind === "langue" || kind === "langues") return "languages";
       if (kind === "spell" || kind === "spells") return "spells";
@@ -4211,6 +4357,9 @@ export function CombatSetupScreen(props: {
       besoin: (props.character as any)?.besoin ?? [],
       percPassive: (props.character as any)?.percPassive,
       proficiencies: (props.character as any)?.proficiencies ?? {},
+      weaponMasteries:
+        (props.character as any)?.weaponMasteries ??
+        ((derived as any)?.grants?.weaponMasteries ?? []),
       savingThrows: (props.character as any)?.savingThrows ?? [],
       inspiration: (props.character as any)?.inspiration ?? false,
       notes: (props.character as any)?.notes ?? "",
@@ -4669,16 +4818,6 @@ export function CombatSetupScreen(props: {
     representation: "CHA"
   };
 
-  const weaponMasteryOptions = [
-    { id: "coup-double", label: "Coup double" },
-    { id: "ecorchure", label: "Ecorchure" },
-    { id: "enchainement", label: "Enchainement" },
-    { id: "ouverture", label: "Ouverture" },
-    { id: "poussee", label: "Poussee" },
-    { id: "ralentissement", label: "Ralentissement" },
-    { id: "renversement", label: "Renversement" },
-    { id: "sape", label: "Sape" }
-  ];
   const armorMasteryOptions = [
     { id: "legere", label: "Legere" },
     { id: "intermediaire", label: "Intermediaire" },
@@ -5203,10 +5342,12 @@ export function CombatSetupScreen(props: {
               getLockButtonState={getLockButtonState}
               renderPendingBadge={renderPendingBadge}
               getPendingCountForSection={getPendingCountForSection}
-              weaponMasteryOptions={weaponMasteryOptions}
+              weaponProficiencyOptions={WEAPON_PROFICIENCY_OPTIONS}
+              unlockedWeaponMasteries={unlockedWeaponMasteries}
+              unlockedFightingStyles={selectedCombatStyles}
               armorMasteryOptions={armorMasteryOptions}
               toolMasteryOptions={toolMasteryOptions}
-              weaponMasteries={weaponMasteries}
+              weaponMasteries={weaponProficiencies}
               armorMasteries={armorMasteries}
               toolMasteries={toolMasteries}
               toggleWeaponMastery={value => canEditMasteries && toggleMastery("weapons", value)}
@@ -5388,7 +5529,9 @@ export function CombatSetupScreen(props: {
               competences={competences}
               expertises={expertises}
               skillAbilityMap={skillAbilityMap}
-              weaponMasteries={weaponMasteries}
+              weaponMasteries={weaponProficiencies}
+              unlockedWeaponMasteries={unlockedWeaponMasteries}
+              unlockedFightingStyles={selectedCombatStyles}
               armorMasteries={armorMasteries}
               toolMasteries={toolMasteries}
               EQUIPMENT_SLOTS={EQUIPMENT_SLOTS}

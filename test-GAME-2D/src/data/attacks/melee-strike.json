@@ -20,7 +20,7 @@
     "requiresLos": true
   },
   "usage": {
-    "perTurn": 1,
+    "perTurn": null,
     "perEncounter": null,
     "resource": null
   },
