@@ -28,6 +28,22 @@
     }
   ],
   "rules": {
-    "text": "Permet de prendre une action supplementaire (hors action Magie selon les regles retenues)."
+    "text": "Permet de prendre une action supplementaire (hors action Magie selon les regles retenues).",
+    "runtimeEffects": [
+      {
+        "id": "action-surge-extra-main-action",
+        "applyOn": "after_action_resolve",
+        "when": {
+          "actionIdsAny": ["action-surge"]
+        },
+        "effects": [
+          {
+            "kind": "grantMainAction",
+            "amount": 1,
+            "log": "Fougue: +1 action principale disponible pour ce tour."
+          }
+        ]
+      }
+    ]
   }
 }

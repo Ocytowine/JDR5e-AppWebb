@@ -40,6 +40,14 @@ import {
   isTokenDead,
   canEnemySeePlayer
 } from "./game/engine/runtime/combatUtils";
+import {
+  advanceRuntimeMarkersForSourceTurnStart,
+  expireRuntimeMarkersForSourceTurnEnd,
+  upsertRuntimeMarkerTag,
+  type RuntimeMarkerEffectSpec,
+  type RuntimeMarkerLifecycle,
+  type RuntimeMarkerPayload
+} from "./game/engine/runtime/runtimeMarkers";
 import { cellsToMeters, metersToCells } from "./game/engine/runtime/units";
 import { resolveFormula } from "./game/engine/core/formulas";
 import enemyTypesIndex from "./data/enemies/index.json";
@@ -827,6 +835,14 @@ export const GameBoard: React.FC = () => {
     () => resolveEquipmentRuntimePolicy({ features: activePlayerFeatures }),
     [activePlayerFeatures]
   );
+  const activePlayerRuntimeMarkerRules = useMemo(
+    () => getFeatureRuntimeMarkerRulesForActor({ id: "player", type: "player" } as TokenState),
+    [activePlayerFeatures]
+  );
+  const activePlayerRuntimeActionEffectRules = useMemo(
+    () => getFeatureRuntimeActionEffectRulesForActor({ id: "player", type: "player" } as TokenState),
+    [activePlayerFeatures]
+  );
   const baseCombatStats: CombatStats = useMemo(
     () => {
       const built = buildCombatStatsFromCharacter(activeCharacterConfig, armorItemsById);
@@ -1069,6 +1085,7 @@ export const GameBoard: React.FC = () => {
     usedActionCount: number;
     usedBonusCount: number;
   }>({ usedActionCount: 0, usedBonusCount: 0 });
+  const [bonusMainActionsThisTurn, setBonusMainActionsThisTurn] = useState<number>(0);
   const [turnEquipmentUsage, setTurnEquipmentUsage] = useState<{
     usedInteractionCount: number;
   }>({ usedInteractionCount: 0 });
@@ -2512,7 +2529,9 @@ export const GameBoard: React.FC = () => {
     if (!canInteractWithBoard) {
       return { ok: false, reason: "Tour joueur requis." };
     }
-    if (cost === "action" && turnActionUsage.usedActionCount >= (player.combatStats?.actionsPerTurn ?? 1)) {
+    const maxMainActions =
+      (player.combatStats?.actionsPerTurn ?? 1) + Math.max(0, bonusMainActionsThisTurn);
+    if (cost === "action" && turnActionUsage.usedActionCount >= maxMainActions) {
       return { ok: false, reason: "Action principale deja utilisee." };
     }
     if (cost === "bonus" && turnActionUsage.usedBonusCount >= (player.combatStats?.bonusActionsPerTurn ?? 1)) {
@@ -4289,6 +4308,7 @@ export const GameBoard: React.FC = () => {
     setActionUsageCounts({ turn: {}, encounter: {} });
     setActionUsageByActor({});
     setTurnActionUsage({ usedActionCount: 0, usedBonusCount: 0 });
+    setBonusMainActionsThisTurn(0);
     setTurnEquipmentUsage({ usedInteractionCount: 0 });
     setReactionUsage({});
     setReactionQueue([]);
@@ -4900,6 +4920,7 @@ export const GameBoard: React.FC = () => {
       resetReactionUsageForActor(player.id);
       resetTurnUsageForActor(player.id);
       setTurnActionUsage({ usedActionCount: 0, usedBonusCount: 0 });
+      setBonusMainActionsThisTurn(0);
       setTurnEquipmentUsage({ usedInteractionCount: 0 });
       setActionUsageCounts(prev => ({ ...prev, turn: {} }));
       const speed = player.movementProfile?.speed ?? defaultMovementProfile.speed;
@@ -5500,10 +5521,12 @@ export const GameBoard: React.FC = () => {
     const costType = costContext.costType;
     const isActiveAction =
       actionContext?.stage === "active" && validatedActionId === action.id;
+    const maxMainActionsThisTurn =
+      (player.combatStats?.actionsPerTurn ?? 1) + Math.max(0, bonusMainActionsThisTurn);
     if (phase !== "player" && costType !== "reaction") {
       reasons.push("Action bloquee pendant le tour des ennemis.");
     }
-    if (costType === "action" && turnActionUsage.usedActionCount >= (player.combatStats?.actionsPerTurn ?? 1)) {
+    if (costType === "action" && turnActionUsage.usedActionCount >= maxMainActionsThisTurn) {
       if (!isActiveAction) {
         reasons.push("Action principale deja utilisee ce tour.");
       }
@@ -5516,11 +5539,11 @@ export const GameBoard: React.FC = () => {
     if (costType === "reaction" && !canUseReaction(player.id) && !isActiveAction) {
       reasons.push("Reaction deja utilisee ce tour.");
     }
-    if (costContext.bypassedBonusAction && costContext.bypassUsageKey) {
+    if (costContext.bypassUsageKey) {
       const used = Number(actionUsageCounts.turn[costContext.bypassUsageKey] ?? 0);
-      const max = Math.max(1, Number(costContext.bypassMaxPerTurn ?? 1));
-      details.push(`${costContext.bypassLabel}: ${used}/${max}`);
-      if (used >= max && !isActiveAction) {
+      const max = Math.max(0, Number(costContext.bypassMaxPerTurn ?? 0));
+      if (max > 0) details.push(`${costContext.bypassLabel}: ${used}/${max}`);
+      if ((max <= 0 || used >= max) && !isActiveAction) {
         reasons.push(costContext.bypassLimitMessage);
       }
     }
@@ -5834,8 +5857,10 @@ export const GameBoard: React.FC = () => {
     const isStandardAction = costType === "action";
     const isBonusAction = costType === "bonus";
     const isReaction = costType === "reaction";
+    const maxMainActionsThisTurn =
+      (player.combatStats?.actionsPerTurn ?? 1) + Math.max(0, bonusMainActionsThisTurn);
 
-    if (isStandardAction && turnActionUsage.usedActionCount >= (player.combatStats?.actionsPerTurn ?? 1)) {
+    if (isStandardAction && turnActionUsage.usedActionCount >= maxMainActionsThisTurn) {
       pushLog(
         `Action ${action.name} refusee: action principale deja utilisee ce tour.`
       );
@@ -5870,7 +5895,7 @@ export const GameBoard: React.FC = () => {
       turn: {
         ...prev.turn,
         [action.id]: (prev.turn[action.id] ?? 0) + 1,
-        ...(costContext.bypassedBonusAction && costContext.bypassUsageKey
+        ...(costContext.bypassUsageKey
           ? {
               [costContext.bypassUsageKey]: (prev.turn[costContext.bypassUsageKey] ?? 0) + 1
             }
@@ -6149,6 +6174,46 @@ export const GameBoard: React.FC = () => {
     ability?: string;
     when?: Record<string, any>;
   };
+  type FeatureRuntimeMarkerRule = {
+    id: string;
+    applyOn: "on_outcome";
+    target: "primary";
+    when: Record<string, any>;
+    effect: RuntimeMarkerEffectSpec;
+    lifecycle: RuntimeMarkerLifecycle;
+    log?: string;
+  };
+  type FeatureRuntimeEffectRule =
+    | {
+        kind: "grantMainAction";
+        amount: number;
+        log?: string;
+      }
+    | {
+        kind: "grantMovementBySpeedFraction";
+        fraction: number;
+        minCells: number;
+        log?: string;
+      }
+    | {
+        kind: "addStatus";
+        statusId: string;
+        remainingTurns: number;
+        durationTick: "start" | "end" | "round";
+        sourceId?: string;
+        log?: string;
+      }
+    | {
+        kind: "teleportNearPrimaryTarget";
+        maxCells: number;
+        log?: string;
+      };
+  type FeatureRuntimeActionEffectRule = {
+    id: string;
+    applyOn: "after_action_resolve";
+    when: Record<string, any>;
+    effects: FeatureRuntimeEffectRule[];
+  };
   function getFeatureRuleModifiersForActor(actor: TokenState): FeatureRuleModifier[] {
     if (actor.type !== "player") return [];
     return activePlayerFeatures.flatMap(feature => {
@@ -6201,6 +6266,154 @@ export const GameBoard: React.FC = () => {
       ];
     });
   }
+  function getFeatureRuntimeMarkerRulesForActor(actor: TokenState): FeatureRuntimeMarkerRule[] {
+    if (actor.type !== "player") return [];
+    return activePlayerFeatures.flatMap(feature => {
+      const rules = (feature.rules ?? {}) as Record<string, any>;
+      const markers = Array.isArray(rules.runtimeMarkers) ? (rules.runtimeMarkers as Array<any>) : [];
+      return markers
+        .map(raw => {
+          const id = String(raw?.id ?? "").trim();
+          const applyOn = String(raw?.applyOn ?? "on_outcome").trim().toLowerCase();
+          const target = String(raw?.target ?? "primary").trim().toLowerCase();
+          const effectRaw =
+            raw?.effect && typeof raw.effect === "object" ? (raw.effect as Record<string, any>) : null;
+          const resolutionKind = String(effectRaw?.resolutionKind ?? "").trim().toUpperCase();
+          if (!id || applyOn !== "on_outcome" || target !== "primary" || !effectRaw) return null;
+          if (!["SAVING_THROW", "ATTACK_ROLL", "ABILITY_CHECK"].includes(resolutionKind)) return null;
+          const lifecycleRaw = String(raw?.duration?.type ?? "").trim().toLowerCase();
+          if (lifecycleRaw !== "until_end_of_source_next_turn") return null;
+          const effect: RuntimeMarkerEffectSpec = {
+            resolutionKind: resolutionKind as RuntimeMarkerEffectSpec["resolutionKind"],
+            actionTagsAny: Array.isArray(effectRaw.actionTagsAny)
+              ? effectRaw.actionTagsAny.map((tag: any) => String(tag))
+              : [],
+            actionTagsAll: Array.isArray(effectRaw.actionTagsAll)
+              ? effectRaw.actionTagsAll.map((tag: any) => String(tag))
+              : [],
+            actionTagsNone: Array.isArray(effectRaw.actionTagsNone)
+              ? effectRaw.actionTagsNone.map((tag: any) => String(tag))
+              : [],
+            actorMustMatchSource: Boolean(effectRaw.actorMustMatchSource),
+            rollMode:
+              String(effectRaw.rollMode ?? "").trim().toLowerCase() === "advantage" ||
+              String(effectRaw.rollMode ?? "").trim().toLowerCase() === "disadvantage"
+                ? (String(effectRaw.rollMode).trim().toLowerCase() as RuntimeMarkerEffectSpec["rollMode"])
+                : undefined,
+            consumeOnTrigger: Boolean(effectRaw.consumeOnTrigger)
+          };
+          return {
+            id,
+            applyOn: "on_outcome" as const,
+            target: "primary" as const,
+            when: raw?.when && typeof raw.when === "object" ? (raw.when as Record<string, any>) : {},
+            effect,
+            lifecycle: "until_end_of_source_next_turn" as const,
+            log: typeof raw?.log === "string" ? raw.log : undefined
+          };
+        })
+        .filter((rule): rule is FeatureRuntimeMarkerRule => Boolean(rule));
+    });
+  }
+  function getFeatureRuntimeActionEffectRulesForActor(actor: TokenState): FeatureRuntimeActionEffectRule[] {
+    if (actor.type !== "player") return [];
+    return activePlayerFeatures.flatMap(feature => {
+      const rules = (feature.rules ?? {}) as Record<string, any>;
+      const runtimeEffects = Array.isArray(rules.runtimeEffects) ? (rules.runtimeEffects as Array<any>) : [];
+      return runtimeEffects
+        .map(raw => {
+          const id = String(raw?.id ?? "").trim();
+          const applyOn = String(raw?.applyOn ?? "").trim().toLowerCase();
+          const effectsRaw = Array.isArray(raw?.effects) ? (raw.effects as Array<any>) : [];
+          if (!id || applyOn !== "after_action_resolve" || effectsRaw.length === 0) return null;
+          const effects: FeatureRuntimeEffectRule[] = effectsRaw
+            .map(effectRaw => {
+              const kind = String(effectRaw?.kind ?? "").trim();
+              if (kind === "grantMainAction") {
+                const amount = Number(effectRaw?.amount ?? 0);
+                if (!Number.isFinite(amount) || amount <= 0) return null;
+                return {
+                  kind,
+                  amount: Math.max(1, Math.floor(amount)),
+                  log: typeof effectRaw?.log === "string" ? effectRaw.log : undefined
+                } as FeatureRuntimeEffectRule;
+              }
+              if (kind === "grantMovementBySpeedFraction") {
+                const fraction = Number(effectRaw?.fraction ?? 0);
+                const minCells = Number(effectRaw?.minCells ?? 1);
+                if (!Number.isFinite(fraction) || fraction <= 0) return null;
+                return {
+                  kind,
+                  fraction,
+                  minCells: Number.isFinite(minCells) ? Math.max(0, Math.floor(minCells)) : 0,
+                  log: typeof effectRaw?.log === "string" ? effectRaw.log : undefined
+                } as FeatureRuntimeEffectRule;
+              }
+              if (kind === "addStatus") {
+                const statusId = String(effectRaw?.statusId ?? "").trim();
+                if (!statusId) return null;
+                const remainingTurns = Number(effectRaw?.remainingTurns ?? 1);
+                const durationTickRaw = String(effectRaw?.durationTick ?? "start").trim().toLowerCase();
+                const durationTick =
+                  durationTickRaw === "end" || durationTickRaw === "round" ? durationTickRaw : "start";
+                return {
+                  kind,
+                  statusId,
+                  remainingTurns: Number.isFinite(remainingTurns) ? Math.max(1, Math.floor(remainingTurns)) : 1,
+                  durationTick,
+                  sourceId: typeof effectRaw?.sourceId === "string" ? effectRaw.sourceId : undefined,
+                  log: typeof effectRaw?.log === "string" ? effectRaw.log : undefined
+                } as FeatureRuntimeEffectRule;
+              }
+              if (kind === "teleportNearPrimaryTarget") {
+                const maxCells = Number(effectRaw?.maxCells ?? 0);
+                if (!Number.isFinite(maxCells) || maxCells <= 0) return null;
+                return {
+                  kind,
+                  maxCells: Math.max(1, Math.floor(maxCells)),
+                  log: typeof effectRaw?.log === "string" ? effectRaw.log : undefined
+                } as FeatureRuntimeEffectRule;
+              }
+              return null;
+            })
+            .filter((effect): effect is FeatureRuntimeEffectRule => Boolean(effect));
+          if (effects.length === 0) return null;
+          return {
+            id,
+            applyOn: "after_action_resolve" as const,
+            when: raw?.when && typeof raw.when === "object" ? (raw.when as Record<string, any>) : {},
+            effects
+          };
+        })
+        .filter((rule): rule is FeatureRuntimeActionEffectRule => Boolean(rule));
+    });
+  }
+  function isSpellActionDefinition(action?: ActionDefinition | null): boolean {
+    if (!action) return false;
+    if (spellCatalog.byId.has(String(action.id ?? ""))) return true;
+    const tags = Array.isArray(action.tags) ? action.tags : [];
+    return tags.some(tag => String(tag).toLowerCase() === "spell");
+  }
+  function hasTurnSpellCast(options?: { cantripOnly?: boolean }): boolean {
+    const cantripOnly = Boolean(options?.cantripOnly);
+    return actions.some(action => {
+      const used = Number(actionUsageCounts.turn[action.id] ?? 0);
+      if (!Number.isFinite(used) || used <= 0) return false;
+      if (!isSpellActionDefinition(action)) return false;
+      const levelRaw = Number((spellCatalog.byId.get(action.id) as any)?.level ?? 0);
+      const level = Number.isFinite(levelRaw) ? levelRaw : 0;
+      return cantripOnly ? level === 0 : level >= 0;
+    });
+  }
+  function hasTurnAttackActionUsed(): boolean {
+    return actions.some(action => {
+      const used = Number(actionUsageCounts.turn[action.id] ?? 0);
+      if (!Number.isFinite(used) || used <= 0) return false;
+      if (String(action.category ?? "") !== "attack") return false;
+      if (isSpellActionDefinition(action)) return false;
+      return String(action.actionCost?.actionType ?? "free") === "action";
+    });
+  }
   function featureModifierMatches(params: {
     modifier: FeatureRuleModifier;
     actor: TokenState;
@@ -6231,6 +6444,13 @@ export const GameBoard: React.FC = () => {
       const all = when.actionTagsAll.every((tag: any) => tags.includes(String(tag)));
       if (!all) return false;
     }
+    if (Array.isArray(when.actionTagsNone) && when.actionTagsNone.length > 0) {
+      const tags = normalizeDualWieldActionTags(
+        Array.isArray(params.action?.tags) ? (params.action?.tags as string[]) : []
+      );
+      const hasForbidden = when.actionTagsNone.some((tag: any) => tags.includes(String(tag)));
+      if (hasForbidden) return false;
+    }
     if (when.weaponCategory || Array.isArray(when.weaponCategories)) {
       const category = String(params.weapon?.category ?? "");
       const expected = Array.isArray(when.weaponCategories)
@@ -6257,6 +6477,22 @@ export const GameBoard: React.FC = () => {
       const noOffhand = !hasOffhandWeaponEquippedByPlayer();
       if (noOffhand !== Boolean(when.requiresNoOffhandWeapon)) return false;
     }
+    if (typeof when.requiresTurnActionUsed === "boolean") {
+      const current = turnActionUsage.usedActionCount > 0;
+      if (current !== Boolean(when.requiresTurnActionUsed)) return false;
+    }
+    if (typeof when.requiresTurnAttackActionUsed === "boolean") {
+      const current = hasTurnAttackActionUsed();
+      if (current !== Boolean(when.requiresTurnAttackActionUsed)) return false;
+    }
+    if (typeof when.requiresTurnSpellCast === "boolean") {
+      const current = hasTurnSpellCast();
+      if (current !== Boolean(when.requiresTurnSpellCast)) return false;
+    }
+    if (typeof when.requiresTurnCantripCast === "boolean") {
+      const current = hasTurnSpellCast({ cantripOnly: true });
+      if (current !== Boolean(when.requiresTurnCantripCast)) return false;
+    }
     if (Array.isArray(when.weaponMasteriesAny) && when.weaponMasteriesAny.length > 0) {
       if (params.actor.type !== "player") return false;
       const mastered = Array.isArray((activeCharacterConfig as any)?.weaponMasteries)
@@ -6274,6 +6510,73 @@ export const GameBoard: React.FC = () => {
       if (!all) return false;
     }
     return true;
+  }
+  function featureRuntimeRuleMatchesWhen(params: {
+    when: Record<string, any>;
+    actor: TokenState;
+    action: ActionDefinition;
+    weapon?: WeaponTypeDefinition | null;
+    outcomeKind?: string | null;
+  }): boolean {
+    const { when, actor, action, weapon, outcomeKind } = params;
+    if (
+      !featureModifierMatches({
+        modifier: { when } as FeatureRuleModifier,
+        actor,
+        action,
+        weapon: weapon ?? null
+      })
+    ) {
+      return false;
+    }
+    if (typeof when.actionId === "string" && String(when.actionId) !== String(action.id ?? "")) {
+      return false;
+    }
+    if (Array.isArray(when.actionIdsAny) && when.actionIdsAny.length > 0) {
+      const expected = when.actionIdsAny.map((value: any) => String(value));
+      if (!expected.includes(String(action.id ?? ""))) return false;
+    }
+    if (Array.isArray(when.outcomeAny) && when.outcomeAny.length > 0) {
+      const expected = when.outcomeAny.map((value: any) => String(value).trim().toLowerCase());
+      const current = String(outcomeKind ?? "").trim().toLowerCase();
+      if (!current || !expected.includes(current)) return false;
+    }
+    if (Array.isArray(when.outcomeNone) && when.outcomeNone.length > 0) {
+      const forbidden = when.outcomeNone.map((value: any) => String(value).trim().toLowerCase());
+      const current = String(outcomeKind ?? "").trim().toLowerCase();
+      if (forbidden.includes(current)) return false;
+    }
+    return true;
+  }
+  function featureRuntimeMarkerRuleMatches(params: {
+    rule: FeatureRuntimeMarkerRule;
+    actor: TokenState;
+    action: ActionDefinition;
+    weapon?: WeaponTypeDefinition | null;
+    outcomeKind?: string | null;
+  }): boolean {
+    return featureRuntimeRuleMatchesWhen({
+      when: params.rule.when ?? {},
+      actor: params.actor,
+      action: params.action,
+      weapon: params.weapon,
+      outcomeKind: params.outcomeKind
+    });
+  }
+  function featureRuntimeActionEffectRuleMatches(params: {
+    rule: FeatureRuntimeActionEffectRule;
+    actor: TokenState;
+    action: ActionDefinition;
+    weapon?: WeaponTypeDefinition | null;
+    outcomeKind?: string | null;
+  }): boolean {
+    return featureRuntimeRuleMatchesWhen({
+      when: params.rule.when ?? {},
+      actor: params.actor,
+      action: params.action,
+      weapon: params.weapon,
+      outcomeKind: params.outcomeKind
+    });
   }
   function resolveActionCostContext(params: {
     action: ActionDefinition;
@@ -6299,19 +6602,8 @@ export const GameBoard: React.FC = () => {
       };
     }
     const normalizedTags = normalizeDualWieldActionTags(params.action.tags);
-    const isDualWieldTagged = hasDualWieldActionTag(normalizedTags);
-    if (!isDualWieldTagged || baseCostType !== "bonus") {
-      return {
-        costType: baseCostType,
-        bypassedBonusAction: false,
-        bypassUsageKey: null,
-        bypassMaxPerTurn: 0,
-        bypassLimitMessage: "",
-        bypassLabel: ""
-      };
-    }
     const modifiers = getFeatureRuleModifiersForActor(params.actor);
-    const matching = modifiers.find(mod => {
+    const matchingCandidates = modifiers.filter((mod: any) => {
       const applyTo = String(mod.applyTo ?? "").trim().toLowerCase();
       if (!["actioncost", "dualwield", "equipment", "equipmentpolicy", "hands"].includes(applyTo)) {
         return false;
@@ -6319,21 +6611,55 @@ export const GameBoard: React.FC = () => {
       const stat = String((mod as any).stat ?? (mod as any).mode ?? "")
         .trim()
         .toLowerCase();
-      if (
-        stat !== "dualwieldbonusattackwithoutbonusaction" &&
-        stat !== "dual_wield_bonus_attack_without_bonus_action"
-      ) {
+      const isDualWieldBypass =
+        stat === "dualwieldbonusattackwithoutbonusaction" ||
+        stat === "dual_wield_bonus_attack_without_bonus_action";
+      const isGenericCostOverride = [
+        "actioncostoverride",
+        "action_cost_override",
+        "overridecosttype",
+        "costoverride"
+      ].includes(stat);
+      if (!isDualWieldBypass && !isGenericCostOverride) {
         return false;
       }
-      const value = Number((mod as any).value ?? 1);
-      if (!Number.isFinite(value) || value <= 0) return false;
-      return featureModifierMatches({
+      if (!featureModifierMatches({
         modifier: mod,
         actor: params.actor,
         action: { ...params.action, tags: normalizedTags },
         weapon: params.weapon ?? null
-      });
+      })) {
+        return false;
+      }
+      if (isDualWieldBypass) {
+        const value = Number((mod as any).value ?? 1);
+        return (
+          Number.isFinite(value) &&
+          value > 0 &&
+          baseCostType === "bonus" &&
+          hasDualWieldActionTag(normalizedTags)
+        );
+      }
+      const toCostType = String((mod as any).toCostType ?? "").trim().toLowerCase();
+      if (!["action", "bonus", "reaction", "free"].includes(toCostType)) return false;
+      const fromCostType = String((mod as any).fromCostType ?? "").trim().toLowerCase();
+      if (fromCostType && fromCostType !== baseCostType.toLowerCase()) return false;
+      return true;
     });
+    const matching =
+      matchingCandidates
+        .slice()
+        .sort((a: any, b: any) => {
+          const priorityA = Number((a as any).priority ?? 0);
+          const priorityB = Number((b as any).priority ?? 0);
+          if (priorityA !== priorityB) return priorityB - priorityA;
+          const aMax = Number((a as any).maxPerTurn ?? 0);
+          const bMax = Number((b as any).maxPerTurn ?? 0);
+          if (aMax !== bMax) return bMax - aMax;
+          const aPerAction = Number((a as any).maxPerTurnPerActionUsed ?? 0);
+          const bPerAction = Number((b as any).maxPerTurnPerActionUsed ?? 0);
+          return bPerAction - aPerAction;
+        })[0] ?? null;
     if (!matching) {
       return {
         costType: baseCostType,
@@ -6344,24 +6670,41 @@ export const GameBoard: React.FC = () => {
         bypassLabel: ""
       };
     }
+    const stat = String((matching as any).stat ?? (matching as any).mode ?? "")
+      .trim()
+      .toLowerCase();
+    const isDualWieldBypass =
+      stat === "dualwieldbonusattackwithoutbonusaction" ||
+      stat === "dual_wield_bonus_attack_without_bonus_action";
+    const toCostType = isDualWieldBypass
+      ? "free"
+      : String((matching as any).toCostType ?? baseCostType).trim().toLowerCase();
+    const hasUsageLimitFields =
+      (matching as any).usageKey !== undefined ||
+      (matching as any).maxPerTurn !== undefined ||
+      (matching as any).limitPerTurn !== undefined ||
+      (matching as any).maxPerTurnPerActionUsed !== undefined;
     const usageKeyRaw = String(
-      (matching as any).usageKey ?? `dualwield:bonus-cost-bypass:${params.action.id}`
+      (matching as any).usageKey ??
+        `action-cost-override:${String((matching as any).stat ?? "rule").trim().toLowerCase()}:${params.action.id}`
     );
-    const usageKey =
-      usageKeyRaw.trim().length > 0
-        ? usageKeyRaw.trim()
-        : `dualwield:bonus-cost-bypass:${params.action.id}`;
-    const maxPerTurnRaw = Number((matching as any).maxPerTurn ?? (matching as any).limitPerTurn ?? 1);
-    const maxPerTurn = Number.isFinite(maxPerTurnRaw) ? Math.max(1, Math.floor(maxPerTurnRaw)) : 1;
+    const usageKey = hasUsageLimitFields && usageKeyRaw.trim().length > 0 ? usageKeyRaw.trim() : null;
+    const maxPerTurnRaw = Number((matching as any).maxPerTurn ?? (matching as any).limitPerTurn ?? 0);
+    const maxPerTurnPerActionRaw = Number((matching as any).maxPerTurnPerActionUsed ?? 0);
+    let maxPerTurn = Number.isFinite(maxPerTurnRaw) ? Math.max(0, Math.floor(maxPerTurnRaw)) : 0;
+    if (Number.isFinite(maxPerTurnPerActionRaw) && maxPerTurnPerActionRaw > 0) {
+      const computed = Math.floor(maxPerTurnPerActionRaw * Math.max(0, turnActionUsage.usedActionCount));
+      maxPerTurn = Math.max(maxPerTurn, computed);
+    }
     const limitMessageRaw = String((matching as any).limitMessage ?? "").trim();
     const limitMessage =
       limitMessageRaw.length > 0
         ? limitMessageRaw
         : "Limite d'utilisation atteinte pour cette regle.";
-    const labelRaw = String((matching as any).label ?? "Bypass action bonus").trim();
+    const labelRaw = String((matching as any).label ?? "Action cost override").trim();
     return {
-      costType: "free",
-      bypassedBonusAction: true,
+      costType: toCostType || baseCostType,
+      bypassedBonusAction: Boolean(usageKey),
       bypassUsageKey: usageKey,
       bypassMaxPerTurn: maxPerTurn,
       bypassLimitMessage: limitMessage,
@@ -7170,6 +7513,183 @@ export const GameBoard: React.FC = () => {
       [key]: Math.max(0, (prev[key] ?? 0) - amount)
     }));
   }
+  function playerHasActiveFeature(featureId: string): boolean {
+    if (!featureId) return false;
+    return activePlayerFeatureIds.includes(featureId);
+  }
+  function addOrRefreshRuntimeStatus(
+    token: TokenState,
+    params: { id: string; remainingTurns?: number; durationTick?: "start" | "end" | "round"; sourceId?: string }
+  ): TokenState {
+    const statusId = String(params.id ?? "").trim();
+    if (!statusId) return token;
+    const remainingTurns = Math.max(1, Math.floor(Number(params.remainingTurns ?? 1)));
+    const durationTick = params.durationTick ?? "start";
+    const statuses = Array.isArray(token.statuses) ? [...token.statuses] : [];
+    const idx = statuses.findIndex(status => String(status.id ?? "") === statusId);
+    const nextStatus = {
+      id: statusId,
+      remainingTurns,
+      durationTick,
+      sourceId: params.sourceId
+    };
+    if (idx >= 0) {
+      statuses[idx] = {
+        ...statuses[idx],
+        ...nextStatus,
+        remainingTurns: Math.max(remainingTurns, Number(statuses[idx].remainingTurns ?? 1))
+      };
+    } else {
+      statuses.push(nextStatus);
+    }
+    return { ...token, statuses };
+  }
+  function addRuntimeTag(token: TokenState, tag: string): TokenState {
+    const value = String(tag ?? "").trim();
+    if (!value) return token;
+    const anyToken = token as { tags?: string[] };
+    const current = Array.isArray(anyToken.tags) ? anyToken.tags : [];
+    if (current.includes(value)) return token;
+    return { ...token, tags: [...current, value] };
+  }
+  function addOrRefreshRuntimeMarker(token: TokenState, marker: RuntimeMarkerPayload): TokenState {
+    const anyToken = token as { tags?: string[] };
+    const current = Array.isArray(anyToken.tags) ? anyToken.tags : [];
+    const tags = upsertRuntimeMarkerTag(current, marker);
+    if (tags === current) return token;
+    return { ...token, tags };
+  }
+  function findArcaneChargeDestination(params: {
+    from: { x: number; y: number };
+    target: TokenState | null;
+    maxCells: number;
+  }): { x: number; y: number } | null {
+    const target = params.target;
+    if (!target) return null;
+    const radius = Math.max(1, Math.floor(params.maxCells));
+    const occupied = new Set<string>([...enemies.filter(e => e.hp > 0).map(e => `${e.x},${e.y}`), `${player.x},${player.y}`]);
+    const candidates: Array<{ x: number; y: number; distToActor: number; distToTarget: number }> = [];
+    for (let dx = -1; dx <= 1; dx += 1) {
+      for (let dy = -1; dy <= 1; dy += 1) {
+        if (dx === 0 && dy === 0) continue;
+        const x = target.x + dx;
+        const y = target.y + dy;
+        if (x < 0 || y < 0 || x >= mapGrid.cols || y >= mapGrid.rows) continue;
+        const key = `${x},${y}`;
+        if (occupied.has(key)) continue;
+        if (!isCellPlayable(x, y)) continue;
+        if (obstacleBlocking.movement.has(key)) continue;
+        const cellLevel = getBaseHeightAt(x, y);
+        if (cellLevel !== activeLevel) continue;
+        const distToActor = Math.max(Math.abs(x - params.from.x), Math.abs(y - params.from.y));
+        if (distToActor > radius) continue;
+        const distToTarget = Math.max(Math.abs(x - target.x), Math.abs(y - target.y));
+        candidates.push({ x, y, distToActor, distToTarget });
+      }
+    }
+    if (candidates.length === 0) return null;
+    candidates.sort((a, b) => {
+      if (a.distToActor !== b.distToActor) return a.distToActor - b.distToActor;
+      return a.distToTarget - b.distToTarget;
+    });
+    return { x: candidates[0].x, y: candidates[0].y };
+  }
+  function buildPlayerActionEngineContext(actor: TokenState) {
+    return {
+      round,
+      phase: "player" as const,
+      actor,
+      player,
+      enemies,
+      blockedMovementCells: obstacleBlocking.movement,
+      blockedMovementEdges: wallEdges.movement,
+      blockedVisionCells: visionBlockersActive,
+      blockedAttackCells: obstacleBlocking.attacks,
+      wallVisionEdges: wallEdges.vision,
+      lightLevels,
+      playableCells,
+      grid: mapGrid,
+      heightMap: mapHeight,
+      floorIds: mapTerrain,
+      activeLevel,
+      sampleCharacter: activeCharacterConfig,
+      getResourceAmount,
+      getSlotAmount: (slot: string, level?: number) =>
+        getSlotAmountFromCharacter(activeCharacterConfig, slot, level),
+      usage: getActionUsageForActor(actor.id),
+      reactionAvailable: canUseReaction(actor.id),
+      concentrating: isTokenConcentrating(actor),
+      surprised: isTokenSurprised(actor),
+      getActionConstraintIssues: ({ action, actor }: { action: ActionDefinition; actor: TokenState }) =>
+        getWeaponActionConstraintIssues(action, actor, {
+          reaction: action.actionCost?.actionType === "reaction"
+        }),
+      spawnEntity: createSummon,
+      spendResource: (name: string, pool: string | null, amount: number) => {
+        spendPlayerResource(name, pool, amount);
+      },
+      onLog: undefined,
+      onModifyPathLimit: (delta: number) => {
+        setBasePathLimit(prev => Math.max(0, prev + delta));
+        setPathLimit(prev => Math.max(0, prev + delta));
+      },
+      onToggleTorch: () => {
+        setPlayerTorchOn(prev => !prev);
+      },
+      onSetKillerInstinctTarget: (targetId: string) => {
+        if (killerInstinctTargetId) return;
+        setKillerInstinctTargetId(targetId);
+        setSelectedTargetIds([targetId]);
+        setEnemies(prev =>
+          prev.map(enemy =>
+            enemy.id === targetId
+              ? addStatusToToken(enemy, "killer-mark", player.id)
+              : enemy
+          )
+        );
+      },
+      onGrantTempHp: ({ targetId, amount, durationTurns }: { targetId: string; amount: number; durationTurns?: number | string }) => {
+        if (targetId === player.id) {
+          setPlayer(prev => applyTempHpToToken(prev, amount, durationTurns));
+        } else {
+          setEnemies(prev =>
+            prev.map(e => (e.id === targetId ? applyTempHpToToken(e, amount, durationTurns) : e))
+          );
+        }
+      },
+      onPlayVisualEffect: (op: {
+        effectId: string;
+        anchor?: "target" | "self" | "actor";
+        offset?: { x: number; y: number };
+        orientation?: "to_target" | "to_actor" | "none";
+        rotationOffsetDeg?: number;
+        durationMs?: number;
+      }) => {
+        void playVisualEffectFromOp(op);
+      },
+      emitEvent: (evt: {
+        kind: "player_attack" | "enemy_attack" | "move" | "damage";
+        actorId: string;
+        actorKind: "player" | "enemy";
+        targetId?: string | null;
+        targetKind?: "player" | "enemy" | null;
+        summary: string;
+        data?: Record<string, unknown>;
+      }) => {
+        recordCombatEvent({
+          round,
+          phase,
+          kind: evt.kind,
+          actorId: evt.actorId,
+          actorKind: evt.actorKind,
+          targetId: evt.targetId ?? null,
+          targetKind: evt.targetKind ?? null,
+          summary: evt.summary,
+          data: evt.data ?? {}
+        });
+      }
+    };
+  }
 
   function resolvePlayerActionV2(
     action: ActionDefinition,
@@ -7227,99 +7747,72 @@ export const GameBoard: React.FC = () => {
       );
     }
 
-    const result = resolveActionUnified(
+    const actionRuntimeContext = buildPlayerActionEngineContext(player);
+    const baseRollOverrides = {
+      attack: attackOverride,
+      consumeDamageRoll: () => {
+        if (damageUsed || !damageOverride) return null;
+        damageUsed = true;
+        return damageOverride;
+      }
+    };
+    let result = resolveActionUnified(
       action,
-      {
-        round,
-        phase: "player",
-        actor: player,
-        player,
-        enemies,
-        blockedMovementCells: obstacleBlocking.movement,
-        blockedMovementEdges: wallEdges.movement,
-        blockedVisionCells: visionBlockersActive,
-        blockedAttackCells: obstacleBlocking.attacks,
-        wallVisionEdges: wallEdges.vision,
-        lightLevels,
-        playableCells,
-        grid: mapGrid,
-        heightMap: mapHeight,
-        floorIds: mapTerrain,
-        activeLevel,
-        sampleCharacter: activeCharacterConfig,
-        getResourceAmount,
-        getSlotAmount: (slot, level) => getSlotAmountFromCharacter(activeCharacterConfig, slot, level),
-        usage: getActionUsageForActor(player.id),
-        reactionAvailable: canUseReaction(player.id),
-        concentrating: isTokenConcentrating(player),
-        surprised: isTokenSurprised(player),
-        getActionConstraintIssues: ({ action, actor }) =>
-          getWeaponActionConstraintIssues(action, actor, {
-            reaction: action.actionCost?.actionType === "reaction"
-          }),
-        spawnEntity: createSummon,
-        spendResource: (name, pool, amount) => {
-          spendPlayerResource(name, pool, amount);
-        },
-        onLog: undefined,
-        onModifyPathLimit: delta => {
-          setBasePathLimit(prev => Math.max(0, prev + delta));
-          setPathLimit(prev => Math.max(0, prev + delta));
-        },
-        onToggleTorch: () => {
-          setPlayerTorchOn(prev => !prev);
-        },
-        onSetKillerInstinctTarget: targetId => {
-          if (killerInstinctTargetId) return;
-          setKillerInstinctTargetId(targetId);
-          setSelectedTargetIds([targetId]);
-          setEnemies(prev =>
-            prev.map(enemy =>
-              enemy.id === targetId
-                ? addStatusToToken(enemy, "killer-mark", player.id)
-                : enemy
-            )
-          );
-        },
-        onGrantTempHp: ({ targetId, amount, durationTurns }) => {
-          if (targetId === player.id) {
-            setPlayer(prev => applyTempHpToToken(prev, amount, durationTurns));
-          } else {
-            setEnemies(prev =>
-              prev.map(e => (e.id === targetId ? applyTempHpToToken(e, amount, durationTurns) : e))
-            );
-          }
-        },
-        onPlayVisualEffect: op => {
-          void playVisualEffectFromOp(op);
-        },
-        emitEvent: evt => {
-          recordCombatEvent({
-            round,
-            phase,
-            kind: evt.kind,
-            actorId: evt.actorId,
-            actorKind: evt.actorKind,
-            targetId: evt.targetId ?? null,
-            targetKind: evt.targetKind ?? null,
-            summary: evt.summary,
-            data: evt.data ?? {}
-          });
-        }
-      },
+      actionRuntimeContext,
       target ?? { kind: "none" },
       {
         weaponMasteryActions,
-        rollOverrides: {
-          attack: attackOverride,
-          consumeDamageRoll: () => {
-            if (damageUsed || !damageOverride) return null;
-            damageUsed = true;
-            return damageOverride;
-          }
-        }
+        rollOverrides: baseRollOverrides
       }
     );
+
+    const isAbilityCheckAction = action.resolution?.kind === "ABILITY_CHECK";
+    if (
+      result.ok &&
+      isAbilityCheckAction &&
+      result.outcomeKind === "checkFail" &&
+      playerHasActiveFeature("tactical-mind")
+    ) {
+      const secondWindAvailable = getResourceAmount("second-wind", null);
+      if (secondWindAvailable > 0) {
+        const tacticalMindBonus = rollDamage("1d10", { isCrit: false, critRule: "double-dice" }).total;
+        const baseTotal = Number(result.outcomeTotal ?? 0);
+        const checkDc = Number(action.resolution?.check?.dc ?? 0);
+        spendPlayerResource("second-wind", null, 1);
+        pushDiceLog(`Sens tactique: d10 = ${tacticalMindBonus}`);
+        if (Number.isFinite(checkDc) && baseTotal + tacticalMindBonus >= checkDc) {
+          const forcedRoll = Number(result.outcomeRoll ?? NaN);
+          const adjustedAction: ActionDefinition = {
+            ...action,
+            resolution: {
+              ...action.resolution,
+              check: {
+                ...action.resolution?.check,
+                dc: Math.max(0, checkDc - tacticalMindBonus)
+              }
+            }
+          };
+          const retry = resolveActionUnified(
+            adjustedAction,
+            actionRuntimeContext,
+            target ?? { kind: "none" },
+            {
+              weaponMasteryActions,
+              rollOverrides: {
+                ...baseRollOverrides,
+                ...(Number.isFinite(forcedRoll) ? { abilityCheck: forcedRoll } : null)
+              }
+            }
+          );
+          if (retry.ok) {
+            result = retry;
+            pushLog("Sens tactique: l'echec est transforme en reussite.");
+          }
+        } else {
+          pushLog("Sens tactique: bonus insuffisant, le jet reste un echec.");
+        }
+      }
+    }
 
     if (result.logs.length > 0) {
       pushLogBatch(result.logs);
@@ -7355,16 +7848,117 @@ export const GameBoard: React.FC = () => {
         pushLog(`Sort ${action.name}: usage ${candidate.usageType || "at-will"} (${sourceLabel}).`);
       }
     }
-
     updateActionUsageForActor(player.id, action.id, 1);
     updateWeaponPropertyUsageForAction(player.id, action, 1);
 
-    const nextEnemies = applySummonTurnOrder({
+    let nextPlayerState = result.playerAfter;
+    let nextEnemies = applySummonTurnOrder({
       prevEnemies: enemies,
       nextEnemies: result.enemiesAfter
     });
+    const primaryTargetId = getPrimaryTargetId();
+    if (primaryTargetId && activePlayerRuntimeMarkerRules.length > 0) {
+      const matchingMarkerRules = activePlayerRuntimeMarkerRules.filter(rule =>
+        featureRuntimeMarkerRuleMatches({
+          rule,
+          actor: player,
+          action,
+          weapon: usedWeapon ?? null,
+          outcomeKind: result.outcomeKind
+        })
+      );
+      if (matchingMarkerRules.length > 0) {
+        for (const rule of matchingMarkerRules) {
+          const marker: RuntimeMarkerPayload = {
+            version: 1,
+            markerId: rule.id,
+            sourceId: player.id,
+            lifecycle: rule.lifecycle,
+            phase: "active",
+            effect: rule.effect
+          };
+          nextEnemies = nextEnemies.map(enemy =>
+            enemy.id === primaryTargetId ? addOrRefreshRuntimeMarker(enemy, marker) : enemy
+          );
+          if (rule.log) pushLog(rule.log);
+        }
+      }
+    }
+    if (activePlayerRuntimeActionEffectRules.length > 0) {
+      const matchingEffectRules = activePlayerRuntimeActionEffectRules.filter(rule =>
+        featureRuntimeActionEffectRuleMatches({
+          rule,
+          actor: player,
+          action,
+          weapon: usedWeapon ?? null,
+          outcomeKind: result.outcomeKind
+        })
+      );
+      if (matchingEffectRules.length > 0) {
+        let bonusMainActionsDelta = 0;
+        let movementBudgetDelta = 0;
+        for (const rule of matchingEffectRules) {
+          for (const effect of rule.effects) {
+            if (effect.kind === "grantMainAction") {
+              bonusMainActionsDelta += Math.max(1, Math.floor(effect.amount));
+              if (effect.log) pushLog(effect.log);
+              continue;
+            }
+            if (effect.kind === "grantMovementBySpeedFraction") {
+              const speedCells = Math.max(
+                0,
+                Math.floor(
+                  Number(nextPlayerState.movementProfile?.speed ?? defaultMovementProfile.speed ?? 0)
+                )
+              );
+              const gained = Math.max(
+                Math.max(0, Math.floor(effect.minCells)),
+                Math.floor(speedCells * effect.fraction)
+              );
+              if (gained > 0) {
+                movementBudgetDelta += gained;
+                if (effect.log) pushLog(effect.log.replace("{cells}", String(gained)));
+              }
+              continue;
+            }
+            if (effect.kind === "addStatus") {
+              nextPlayerState = addOrRefreshRuntimeStatus(nextPlayerState, {
+                id: effect.statusId,
+                remainingTurns: effect.remainingTurns,
+                durationTick: effect.durationTick,
+                sourceId: effect.sourceId
+              });
+              if (effect.log) pushLog(effect.log);
+              continue;
+            }
+            if (effect.kind === "teleportNearPrimaryTarget") {
+              const primaryTarget =
+                primaryTargetId && nextEnemies.length > 0
+                  ? nextEnemies.find(enemy => enemy.id === primaryTargetId) ?? null
+                  : null;
+              if (!primaryTarget) continue;
+              const destination = findArcaneChargeDestination({
+                from: { x: nextPlayerState.x, y: nextPlayerState.y },
+                target: primaryTarget,
+                maxCells: effect.maxCells
+              });
+              if (!destination) continue;
+              nextPlayerState = { ...nextPlayerState, x: destination.x, y: destination.y };
+              if (effect.log) pushLog(effect.log.replace("{x}", String(destination.x)).replace("{y}", String(destination.y)));
+            }
+          }
+        }
+        if (bonusMainActionsDelta > 0) {
+          setBonusMainActionsThisTurn(prev => prev + bonusMainActionsDelta);
+        }
+        if (movementBudgetDelta > 0) {
+          setBasePathLimit(prev => Math.max(0, prev + movementBudgetDelta));
+          setPathLimit(prev => Math.max(0, prev + movementBudgetDelta));
+        }
+      }
+    }
 
-    setPlayer(result.playerAfter);
+    setPlayer(nextPlayerState);
     setEnemies(nextEnemies);
     if (usedWeapon?.id) {
       setLastUsedWeaponAsPrimaryForPlayer(usedWeapon.id);
@@ -8916,8 +9510,13 @@ export const GameBoard: React.FC = () => {
       }
       nextTags.push(tag);
     }
-    if (!changed) return token;
-    return { ...token, tags: nextTags };
+    const withWeaponMasteryTags = changed ? nextTags : currentTags;
+    const withRuntimeMarkers = advanceRuntimeMarkersForSourceTurnStart(
+      withWeaponMasteryTags,
+      sourceId
+    );
+    if (!changed && withRuntimeMarkers === currentTags) return token;
+    return { ...token, tags: withRuntimeMarkers };
   };
 
   const applyWeaponMasteryEndExpiryForToken = (
@@ -8928,9 +9527,12 @@ export const GameBoard: React.FC = () => {
     const currentTags = Array.isArray(anyToken.tags) ? anyToken.tags : [];
     if (currentTags.length === 0) return token;
     const expiringTag = `wm-ouverture:adv:${sourceId}:expiring`;
-    if (!currentTags.includes(expiringTag)) return token;
-    const nextTags = currentTags.filter(tag => tag !== expiringTag);
-    return { ...token, tags: nextTags };
+    const afterWeaponMastery = currentTags.includes(expiringTag)
+      ? currentTags.filter(tag => tag !== expiringTag)
+      : currentTags;
+    const afterRuntimeMarkers = expireRuntimeMarkersForSourceTurnEnd(afterWeaponMastery, sourceId);
+    if (afterWeaponMastery === currentTags && afterRuntimeMarkers === currentTags) return token;
+    return { ...token, tags: afterRuntimeMarkers };
   };
 
   const applyTokenDurations = (params: {
@@ -10899,6 +11501,283 @@ function handleEndPlayerTurn() {
   const validatedAction = getValidatedAction();
   const showDicePanel = actionNeedsDiceUI(validatedAction);
   const contextAction = actionContext ? getActionById(actionContext.actionId) : null;
+  const contextWeapon = useMemo(() => {
+    if (!contextAction || contextAction.category !== "attack") return null;
+    return pickWeaponForAction(contextAction, player);
+  }, [contextAction, player, activeCharacterConfig, weaponTypeById]);
+  const contextResolvedAttackAction = useMemo(() => {
+    if (!contextAction || contextAction.category !== "attack") return null;
+    return applyWeaponOverrideForActor(contextAction, player);
+  }, [contextAction, player, activeCharacterConfig, weaponTypeById]);
+  const contextAttackInfluences = useMemo(() => {
+    if (!contextAction || contextAction.category !== "attack") return [];
+    const weapon = contextWeapon;
+    const actionForCheck = contextResolvedAttackAction ?? contextAction;
+    const actionTags = normalizeDualWieldActionTags(
+      Array.isArray(actionForCheck.tags) ? (actionForCheck.tags as string[]) : []
+    );
+    const mastered = Array.isArray((activeCharacterConfig as any)?.weaponMasteries)
+      ? ((activeCharacterConfig as any).weaponMasteries as string[]).map(id => String(id))
+      : [];
+    const normalizeApplyTo = (value: unknown) => String(value ?? "").trim().toLowerCase();
+    const relevantApplyTo = new Set([
+      "attack",
+      "damage",
+      "damagereroll",
+      "actioncost",
+      "dualwield",
+      "equipment",
+      "equipmentpolicy",
+      "hands"
+    ]);
+    const describeWhenMismatches = (whenRaw: Record<string, any>): string[] => {
+      const issues: string[] = [];
+      const when = whenRaw && typeof whenRaw === "object" ? whenRaw : {};
+      if (when.actorType) {
+        const expected = String(when.actorType);
+        const current = String(player.type);
+        if (expected !== current) issues.push(`actorType attendu=${expected}, actuel=${current}`);
+      }
+      if (when.actionCategory) {
+        const expected = String(when.actionCategory);
+        const current = String(actionForCheck.category ?? "");
+        if (expected !== current) issues.push(`categorie attendue=${expected}, actuelle=${current || "n/a"}`);
+      }
+      if (when.actionCostType) {
+        const expected = String(when.actionCostType);
+        const effective = resolveActionCostContext({
+          action: actionForCheck,
+          actor: player,
+          weapon: weapon ?? null
+        }).costType;
+        if (expected !== effective) {
+          issues.push(`cout attendu=${expected}, effectif=${effective || "n/a"}`);
+        }
+      }
+      if (Array.isArray(when.actionTagsAny) && when.actionTagsAny.length > 0) {
+        const wanted = when.actionTagsAny.map((tag: any) => String(tag));
+        const ok = wanted.some(tag => actionTags.includes(tag));
+        if (!ok) issues.push(`tags requis (au moins un): ${wanted.join(", ")}`);
+      }
+      if (Array.isArray(when.actionTagsAll) && when.actionTagsAll.length > 0) {
+        const missing = when.actionTagsAll
+          .map((tag: any) => String(tag))
+          .filter((tag: string) => !actionTags.includes(tag));
+        if (missing.length > 0) issues.push(`tags manquants: ${missing.join(", ")}`);
+      }
+      if (when.weaponCategory || Array.isArray(when.weaponCategories)) {
+        const current = String(weapon?.category ?? "");
+        const expected = Array.isArray(when.weaponCategories)
+          ? when.weaponCategories.map((entry: any) => String(entry))
+          : [String(when.weaponCategory)];
+        if (!current || !expected.includes(current)) {
+          issues.push(`categorie arme attendue=${expected.join("/")}, actuelle=${current || "aucune"}`);
+        }
+      }
+      if (typeof when.weaponTwoHanded === "boolean") {
+        const expected = Boolean(when.weaponTwoHanded);
+        const current = Boolean(weapon?.properties?.twoHanded);
+        if (expected !== current) issues.push(`two-handed attendu=${expected ? "oui" : "non"}, actuel=${current ? "oui" : "non"}`);
+      }
+      if (typeof when.weaponLight === "boolean") {
+        const expected = Boolean(when.weaponLight);
+        const current = Boolean(weapon?.properties?.light);
+        if (expected !== current) issues.push(`light attendu=${expected ? "oui" : "non"}, actuel=${current ? "oui" : "non"}`);
+      }
+      if (typeof when.requiresArmor === "boolean") {
+        const expected = Boolean(when.requiresArmor);
+        const current = isArmorEquippedByPlayer();
+        if (expected !== current) issues.push(`armure equipee attendue=${expected ? "oui" : "non"}, actuelle=${current ? "oui" : "non"}`);
+      }
+      if (typeof when.requiresShield === "boolean") {
+        const expected = Boolean(when.requiresShield);
+        const current = isShieldEquippedByPlayer();
+        if (expected !== current) issues.push(`bouclier attendu=${expected ? "oui" : "non"}, actuel=${current ? "oui" : "non"}`);
+      }
+      if (typeof when.requiresOffhandWeapon === "boolean") {
+        const expected = Boolean(when.requiresOffhandWeapon);
+        const current = hasOffhandWeaponEquippedByPlayer();
+        if (expected !== current) issues.push(`arme secondaire attendue=${expected ? "oui" : "non"}, actuelle=${current ? "oui" : "non"}`);
+      }
+      if (typeof when.requiresNoOffhandWeapon === "boolean") {
+        const expected = Boolean(when.requiresNoOffhandWeapon);
+        const current = !hasOffhandWeaponEquippedByPlayer();
+        if (expected !== current) issues.push(`absence d'arme secondaire attendue=${expected ? "oui" : "non"}, actuelle=${current ? "oui" : "non"}`);
+      }
+      if (Array.isArray(when.weaponMasteriesAny) && when.weaponMasteriesAny.length > 0) {
+        const expected = when.weaponMasteriesAny.map((id: any) => String(id));
+        const ok = expected.some(id => mastered.includes(id));
+        if (!ok) issues.push(`mastery requise (au moins une): ${expected.join(", ")}`);
+      }
+      if (Array.isArray(when.weaponMasteriesAll) && when.weaponMasteriesAll.length > 0) {
+        const missing = when.weaponMasteriesAll
+          .map((id: any) => String(id))
+          .filter((id: string) => !mastered.includes(id));
+        if (missing.length > 0) issues.push(`mastery manquante: ${missing.join(", ")}`);
+      }
+      return issues;
+    };
+    return activePlayerFeatures
+      .map(feature => {
+        const rules = (feature.rules ?? {}) as Record<string, any>;
+        const modifiers = Array.isArray(rules.modifiers) ? (rules.modifiers as Array<any>) : [];
+        const secondaryPolicy =
+          rules.secondaryAttackPolicy && typeof rules.secondaryAttackPolicy === "object"
+            ? (rules.secondaryAttackPolicy as Record<string, any>)
+            : null;
+        const hasAttackTag = Array.isArray(feature.tags) && feature.tags.some(tag => String(tag).toLowerCase() === "attack");
+        const relevantModifiers = modifiers.filter(mod => {
+          const applyTo = normalizeApplyTo(mod?.applyTo);
+          const when = mod?.when && typeof mod.when === "object" ? (mod.when as Record<string, any>) : {};
+          const actionCategory = String(when.actionCategory ?? "").trim().toLowerCase();
+          return relevantApplyTo.has(applyTo) || actionCategory === "attack";
+        });
+        const hasRelevantSecondaryPolicy = Boolean(
+          secondaryPolicy &&
+            (String(secondaryPolicy.mode ?? "").trim().length > 0 ||
+              (secondaryPolicy.when && typeof secondaryPolicy.when === "object"))
+        );
+        if (!hasAttackTag && relevantModifiers.length === 0 && !hasRelevantSecondaryPolicy) {
+          return null;
+        }
+
+        const details: string[] = [];
+        let applies = false;
+        let firstFailureReason: string | null = null;
+        relevantModifiers.forEach(mod => {
+          const applyTo = String(mod?.applyTo ?? "mod");
+          const value = Number(mod?.value ?? 0);
+          const when = mod?.when && typeof mod.when === "object" ? (mod.when as Record<string, any>) : {};
+          const asModifier = {
+            applyTo,
+            stat: typeof mod?.stat === "string" ? mod.stat : undefined,
+            value: Number.isFinite(value) ? value : 0,
+            when
+          };
+          const matches = featureModifierMatches({
+            modifier: asModifier,
+            actor: player,
+            action: actionForCheck,
+            weapon: weapon ?? null
+          });
+          if (matches) {
+            applies = true;
+            const valueText = Number.isFinite(value) && value !== 0 ? ` ${value >= 0 ? "+" : ""}${value}` : "";
+            details.push(`${applyTo}${valueText} (actif)`);
+            return;
+          }
+          const missing = describeWhenMismatches(when);
+          if (!firstFailureReason) {
+            firstFailureReason =
+              missing.length > 0
+                ? `Conditions non remplies: ${missing.slice(0, 3).join(" ; ")}.`
+                : "Conditions de la feature non remplies pour cette attaque.";
+          }
+          details.push(
+            missing.length > 0
+              ? `${applyTo} (inactif: ${missing.join(" | ")})`
+              : `${applyTo} (inactif)`
+          );
+        });
+
+        if (hasRelevantSecondaryPolicy && secondaryPolicy) {
+          const policy = {
+            mode: typeof secondaryPolicy.mode === "string" ? secondaryPolicy.mode : undefined,
+            ability: typeof secondaryPolicy.ability === "string" ? secondaryPolicy.ability : undefined,
+            when:
+              secondaryPolicy.when && typeof secondaryPolicy.when === "object"
+                ? (secondaryPolicy.when as Record<string, any>)
+                : {}
+          };
+          const matches = secondaryPolicyMatches({
+            policy,
+            actor: player,
+            action: actionForCheck,
+            weapon: weapon ?? null
+          });
+          if (matches) {
+            applies = true;
+            details.push(`secondaryAttackPolicy (${policy.mode ?? "mode"}) actif`);
+          } else {
+            const missing = describeWhenMismatches(policy.when ?? {});
+            details.push(
+              missing.length > 0
+                ? `secondaryAttackPolicy (${policy.mode ?? "mode"}) inactif: ${missing.join(" | ")}`
+                : `secondaryAttackPolicy (${policy.mode ?? "mode"}) inactif`
+            );
+            if (!firstFailureReason) {
+              firstFailureReason =
+                missing.length > 0
+                  ? `Conditions secondaryAttackPolicy non remplies: ${missing.slice(0, 3).join(" ; ")}.`
+                  : "Conditions de l'attaque secondaire non remplies.";
+            }
+          }
+        }
+
+        if (hasAttackTag && relevantModifiers.length === 0 && !hasRelevantSecondaryPolicy) {
+          applies = true;
+          details.push("Tag attack present");
+        }
+
+        return {
+          id: String(feature.id ?? ""),
+          label: String(feature.label ?? feature.id ?? "feature"),
+          kind:
+            Array.isArray(feature.tags) && feature.tags.some(tag => String(tag).toLowerCase() === "feat")
+              ? ("feat" as const)
+              : ("feature" as const),
+          applies,
+          reason: applies ? "Applicable dans ce contexte." : firstFailureReason ?? "Aucun effet actif ici.",
+          details: details.length > 0 ? details : ["Aucun modificateur contextuel."]
+        };
+      })
+      .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+  }, [contextAction, contextWeapon, contextResolvedAttackAction, activePlayerFeatures, player, activeCharacterConfig, playerEquipmentPolicy]);
+  const contextWeaponInfo = useMemo(() => {
+    if (!contextAction || contextAction.category !== "attack") return null;
+    if (!contextWeapon) {
+      return {
+        id: "no-weapon",
+        label: "Arme non resolue",
+        applies: false,
+        reason: "Aucune arme exploitable n'a ete resolue pour cette action.",
+        details: ["Verifiez l'equipement principal/secondaire et les contraintes de mains."]
+      };
+    }
+    const issues = getEquipmentConstraintIssuesForActor(contextAction, player, contextWeapon);
+    const handling = resolveWeaponHandlingCost({
+      action: contextAction,
+      actor: player,
+      weapon: contextWeapon
+    });
+    const properties: string[] = [];
+    if (contextWeapon.properties?.light) properties.push("Light");
+    if (contextWeapon.properties?.finesse) properties.push("Finesse");
+    if (contextWeapon.properties?.twoHanded) properties.push("Two-Handed");
+    if (contextWeapon.properties?.reach) properties.push(`Allonge ${contextWeapon.properties.reach}m`);
+    if (contextWeapon.properties?.ammunition) properties.push("Ammunition");
+    if (contextWeapon.properties?.loading) properties.push("Loading");
+    const details: string[] = [
+      `Categorie: ${contextWeapon.category} | maitrise: ${contextWeapon.subtype}`,
+      `Degats: ${contextWeapon.damage?.dice ?? "?"} ${contextWeapon.damage?.damageType ?? ""}`.trim()
+    ];
+    if (properties.length > 0) details.push(`Proprietes: ${properties.join(", ")}`);
+    if (contextResolvedAttackAction?.attack) {
+      details.push(`Bonus d'attaque resolu: ${contextResolvedAttackAction.attack.bonus ?? 0}`);
+    }
+    if (contextResolvedAttackAction?.damage?.formula) {
+      details.push(`Formule de degats resolue: ${contextResolvedAttackAction.damage.formula}`);
+    }
+    if (handling.requiresAction) details.push("Sortie depuis paquetage: consomme une action.");
+    else if (handling.requiresInteraction > 0) details.push("Changement d'arme: consomme 1 interaction.");
+    return {
+      id: contextWeapon.id,
+      label: contextWeapon.label ?? contextWeapon.name ?? contextWeapon.id,
+      applies: issues.length === 0,
+      reason: issues.length === 0 ? "Arme utilisable dans ce contexte." : issues[0],
+      details
+    };
+  }, [contextAction, contextWeapon, contextResolvedAttackAction, player, activeCharacterConfig, turnEquipmentUsage.usedInteractionCount, turnActionUsage.usedActionCount]);
   const contextAvailabilityRaw = contextAction
     ? computeActionAvailability(contextAction)
     : null;
@@ -11341,7 +12220,7 @@ function handleEndPlayerTurn() {
           [action.id]: Math.max(0, (prev.encounter[action.id] ?? 0) - 1)
         }
       }));
-      if (costContext.bypassedBonusAction && costContext.bypassUsageKey) {
+      if (costContext.bypassUsageKey) {
         setActionUsageCounts(prev => ({
           turn: {
             ...prev.turn,
@@ -11563,7 +12442,7 @@ function handleEndPlayerTurn() {
   }
 
   function consumeEquipmentAction(): { ok: boolean } {
-    const max = player.combatStats?.actionsPerTurn ?? 1;
+    const max = (player.combatStats?.actionsPerTurn ?? 1) + Math.max(0, bonusMainActionsThisTurn);
     if (turnActionUsage.usedActionCount >= max) {
       pushLog("Interaction equipement refusee: action principale deja utilisee ce tour.");
       return { ok: false };
@@ -12334,7 +13213,9 @@ function handleEndPlayerTurn() {
                   initiativeTotal={playerInitiative}
                   actionsRemaining={Math.max(
                     0,
-                    (player.combatStats?.actionsPerTurn ?? 1) - turnActionUsage.usedActionCount
+                    (player.combatStats?.actionsPerTurn ?? 1) +
+                      Math.max(0, bonusMainActionsThisTurn) -
+                      turnActionUsage.usedActionCount
                   )}
                 bonusRemaining={Math.max(
                   0,
@@ -12391,6 +13272,8 @@ function handleEndPlayerTurn() {
                 attackRoll={attackRoll}
                 damageRoll={damageRoll}
                 diceLogs={diceLogs}
+                attackInfluences={contextAttackInfluences}
+                attackWeaponInfo={contextWeaponInfo}
                 onValidateAction={handleValidateActionFromContext}
                 onFinishAction={handleFinishAction}
                 onCancelAction={handleCancelAction}

@@ -6,6 +6,37 @@
   "tags": ["fighter", "movement"],
   "grants": [],
   "rules": {
-    "text": "Lors de l'activation de Second souffle, deplacement jusqu'a la moitie de la vitesse sans opportunite."
+    "text": "Lors de l'activation de Second souffle, deplacement jusqu'a la moitie de la vitesse sans opportunite.",
+    "runtimeEffects": [
+      {
+        "id": "tactical-shift-on-second-wind",
+        "applyOn": "after_action_resolve",
+        "when": {
+          "actionIdsAny": ["second-wind"]
+        },
+        "effects": [
+          {
+            "kind": "grantMovementBySpeedFraction",
+            "fraction": 0.5,
+            "minCells": 1,
+            "log": "Decalage tactique: +{cells} case(s) de mouvement bonus."
+          },
+          {
+            "kind": "addStatus",
+            "statusId": "disengaging",
+            "remainingTurns": 1,
+            "durationTick": "start",
+            "sourceId": "tactical-shift",
+            "log": "Decalage tactique: pas d'attaque d'opportunite jusqu'au debut de votre prochain tour."
+          }
+        ]
+      }
+    ],
+    "triggers": [
+      {
+        "event": "on_action",
+        "notes": "Declenche sur action second-wind: mouvement bonus + statut disengaging."
+      }
+    ]
   }
 }

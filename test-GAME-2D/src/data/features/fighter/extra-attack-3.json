@@ -3,9 +3,29 @@
   "label": "Attaque supplementaire (3)",
   "summary": "Quatre attaques lors de l'action Attaque.",
   "kind": "feature",
-  "tags": ["fighter", "martial"],
+  "tags": ["fighter", "martial", "attack"],
   "grants": [],
   "rules": {
-    "text": "Au niveau 20 de Guerrier, vous pouvez attaquer quatre fois avec l'action Attaque."
+    "text": "Au niveau 20 de Guerrier, vous pouvez attaquer quatre fois avec l'action Attaque.",
+    "modifiers": [
+      {
+        "applyTo": "actionCost",
+        "stat": "actionCostOverride",
+        "fromCostType": "action",
+        "toCostType": "free",
+        "label": "Attaque supplementaire (3)",
+        "usageKey": "fighter:extra-attack:free-attacks",
+        "maxPerTurnPerActionUsed": 3,
+        "priority": 30,
+        "limitMessage": "Toutes les attaques supplementaires de ce tour sont deja utilisees.",
+        "when": {
+          "actorType": "player",
+          "actionCategory": "attack",
+          "actionCostType": "action",
+          "actionTagsNone": ["spell"],
+          "requiresTurnAttackActionUsed": true
+        }
+      }
+    ]
   }
 }

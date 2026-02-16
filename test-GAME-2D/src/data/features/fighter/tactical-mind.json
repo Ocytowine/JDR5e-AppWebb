@@ -6,6 +6,12 @@
   "tags": ["fighter"],
   "grants": [],
   "rules": {
-    "text": "En cas d'echec a un jet de caracteristique, depensez Second souffle pour ajouter 1d10."
+    "text": "En cas d'echec a un jet de caracteristique, depensez Second souffle pour ajouter 1d10.",
+    "triggers": [
+      {
+        "event": "on_outcome",
+        "notes": "Si outcome checkFail sur ABILITY_CHECK, depense 1 second-wind et tente de convertir en checkSuccess."
+      }
+    ]
   }
 }

@@ -203,3 +203,23 @@ Indexer ensuite:
   - detection sur equipements armes "portees" (slots ceinture/dos) et fallback `main_gauche`.
 - Notice de reference ajoutee:
   - `docs/notice/feature-modifiers-notice.md`
+
+### 2026-02-16
+- Extension du runtime feature-modifiers pour les couts d'action:
+  - `actionCostOverride` (from/to cost),
+  - quotas par tour (`maxPerTurn`) et scaling par action principale deja prise (`maxPerTurnPerActionUsed`),
+  - priorites de regles (`priority`),
+  - nouvelles conditions runtime (`actionTagsNone`, `requiresTurnSpellCast`, `requiresTurnCantripCast`, `requiresTurnAttackActionUsed`).
+- Features Guerrier rendues operationnelles en combat:
+  - `extra-attack`, `extra-attack-2`, `extra-attack-3` (attaques gratuites supplementaires sur l'action Attaque),
+  - `war-magic`, `improved-war-magic` (attaque d'arme en bonus apres sort/cantrip),
+  - `action-surge` (action principale supplementaire),
+  - `tactical-shift` (sur `second-wind`: mouvement bonus + immunite OA via statut `disengaging`).
+- `tactical-mastery` projete maintenant des `weaponMasteries` additionnelles (`poussee`, `sape`, `ralentissement`) via grants data.
+- Hooks eldritch/tactiques branches en runtime:
+  - `tactical-mind`: sur `ABILITY_CHECK` echoue, depense `second-wind` et tente conversion en succes (+1d10).
+  - `eldritch-strike`: modelise via `rules.runtimeMarkers` (pas de branche feature), pose une marque sur hit melee d'arme; prochain `SAVING_THROW` contre un sort de la source avec desavantage.
+  - `action-surge`, `tactical-shift`, `arcane-charge`: modelises via `rules.runtimeEffects` (post-resolution), sans condition codee par feature.
+- Fiabilisation marqueurs runtime:
+  - cycle moteur generique: `active -> expiring` au debut du prochain tour de la source, puis purge fin de ce tour.
+  - le moteur applique/consomme les effets de resolution selon `effect.*` du marker (pas de cas par feature).

@@ -252,7 +252,14 @@ Le moteur d'execution supporte:
   - move-type
 
 ### FeatureSpec
-Non formalise dans `taxonomy.json` (a documenter lors de l'extension).
+Partiellement runtime (bridge `GameBoard`) mais non formalise dans `taxonomy.json`.
+
+Champs actuellement supportes en pratique pour `feature.rules.modifiers` (cout d'action):
+- `applyTo: "actionCost"`
+- `stat: "actionCostOverride"` (et legacy `dualWieldBonusAttackWithoutBonusAction`)
+- `fromCostType`, `toCostType`
+- `usageKey`, `maxPerTurn`, `maxPerTurnPerActionUsed`, `priority`, `limitMessage`
+- conditions `when` runtime: `actionTagsNone`, `requiresTurnActionUsed`, `requiresTurnAttackActionUsed`, `requiresTurnSpellCast`, `requiresTurnCantripCast`
 
 ### ActionPlan
 Non formalise dans `taxonomy.json` (a documenter lors de l'extension).

@@ -12,6 +12,10 @@ import type {
   Operation
 } from "./types";
 import { distanceBetweenTokens } from "../runtime/combatUtils";
+import {
+  parseRuntimeMarkerTag,
+  runtimeMarkerAppliesToResolution
+} from "../runtime/runtimeMarkers";
 import { resolveFormula } from "./formulas";
 
 type HookPhase =
@@ -232,6 +236,50 @@ function resolveOutcome(params: {
     const modKey = abilityToModKey(ability);
     const mod = (target?.combatStats?.mods?.[modKey] ?? 0) + (rollContext.bonusDelta ?? 0);
     let roll = rollDamage("1d20", { isCrit: false, critRule: "double-dice" });
+    const actionTags = Array.isArray(plan.action.tags)
+      ? plan.action.tags.map(tag => String(tag).toLowerCase())
+      : [];
+    const runtimeMarkerEntries = target
+      ? getTokenTags(target)
+          .map(tag => ({ tag, marker: parseRuntimeMarkerTag(tag) }))
+          .filter(
+            (entry): entry is { tag: string; marker: NonNullable<ReturnType<typeof parseRuntimeMarkerTag>> } =>
+              Boolean(entry.marker)
+          )
+      : [];
+    const matchedMarkers = runtimeMarkerEntries.filter(entry =>
+      runtimeMarkerAppliesToResolution(entry.marker, {
+        resolutionKind: "SAVING_THROW",
+        actionTags,
+        actorId: state.actor.id
+      })
+    );
+    if (matchedMarkers.length > 0) {
+      let score = 0;
+      for (const entry of matchedMarkers) {
+        if (entry.marker.effect.rollMode === "advantage") score += 1;
+        else if (entry.marker.effect.rollMode === "disadvantage") score -= 1;
+      }
+      if (score !== 0) {
+        const second = rollDamage("1d20", { isCrit: false, critRule: "double-dice" });
+        const keepLowest = score < 0;
+        const kept = keepLowest
+          ? second.total < roll.total
+            ? second
+            : roll
+          : second.total > roll.total
+          ? second
+          : roll;
+        roll = kept;
+      }
+      for (const entry of matchedMarkers) {
+        if (!entry.marker.effect.consumeOnTrigger) continue;
+        removeTokenTag(target, entry.tag);
+      }
+    }
+    if (typeof rollOverrides?.savingThrow === "number" && Number.isFinite(rollOverrides.savingThrow)) {
+      roll = { ...roll, total: Number(rollOverrides.savingThrow) } as typeof roll;
+    }
     if (rollContext.replaceRoll !== undefined) {
       roll = { ...roll, total: rollContext.replaceRoll } as typeof roll;
     }
@@ -260,6 +308,9 @@ function resolveOutcome(params: {
     const modKey = abilityToModKey(ability);
     const mod = (state.actor.combatStats?.mods?.[modKey] ?? 0) + (rollContext.bonusDelta ?? 0);
     let roll = rollDamage("1d20", { isCrit: false, critRule: "double-dice" });
+    if (typeof rollOverrides?.abilityCheck === "number" && Number.isFinite(rollOverrides.abilityCheck)) {
+      roll = { ...roll, total: Number(rollOverrides.abilityCheck) } as typeof roll;
+    }
     if (rollContext.replaceRoll !== undefined) {
       roll = { ...roll, total: rollContext.replaceRoll } as typeof roll;
     }

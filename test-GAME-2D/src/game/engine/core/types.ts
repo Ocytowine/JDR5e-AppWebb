@@ -256,6 +256,8 @@ export interface ExecuteOptions {
   rollOverrides?: {
     attack?: AttackRollResult | null;
     consumeDamageRoll?: () => DamageRollResult | null;
+    abilityCheck?: number | null;
+    savingThrow?: number | null;
   };
   damageContext?: {
     isCrit?: boolean;

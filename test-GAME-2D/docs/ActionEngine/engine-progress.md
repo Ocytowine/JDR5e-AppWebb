@@ -22,6 +22,14 @@ Corrections integrees:
 3. Les degats additionnels d'arme (`extraDamage`) beneficient donc du critique `double-dice` comme le degat principal.
 4. Le pipeline ActionEngine accepte des contraintes d'equipement centralisees via `ActionEngineContext.getActionConstraintIssues` (meme source de verite Creator + ingame).
 5. Les contraintes de manipulation d'armes sont coherentes en runtime: 1 interaction d'equipement par tour (modifiable par feat), et sortie depuis sac bloquee sans regle de feat explicite.
+6. Le runtime supporte des overrides de cout d'action data-driven via `feature.rules.modifiers` (`actionCostOverride`, priorites, limites par tour, scaling par action principale deja prise).
+7. Le socle Guerrier applique maintenant:
+   - Extra Attack (5/11/20) par conversion conditionnelle de cout `action -> free` avec quotas,
+   - War Magic / Improved War Magic par conversion conditionnelle `action -> bonus`,
+   - Action Surge, Tactical Shift et Arcane Charge via `feature.rules.runtimeEffects` (pas de branche par feature).
+8. `resolveActionUnified` expose maintenant `outcomeRoll` et `outcomeTotal` pour permettre des reactions runtime post-outcome (ex: Tactical Mind).
+9. `ExecuteOptions.rollOverrides` accepte aussi `abilityCheck` et `savingThrow` pour rejouer un outcome de facon deterministe.
+10. `SAVING_THROW` applique des modificateurs de jet issus des `runtimeMarkers` portes par la cible (adv/disadv, filtres de tags d'action, source actor), avec consommation optionnelle au declenchement.
 
 Fichiers touches:
 1. `src/GameBoard.tsx` (concatenation formule sans parentheses)
@@ -30,6 +38,7 @@ Fichiers touches:
 4. `src/game/engine/core/ops.ts` (application du contexte de critique sur `DealDamage*`)
 5. `src/game/engine/core/actionEngine.ts` (gate disponibilite via contraintes d'equipement runtime)
 6. `src/game/engine/rules/equipmentHands.ts` (policies features -> equip constraints)
+7. `src/data/features/fighter/*.json` (regles data-driven Guerrier)
 
 ## 1) Pipeline global
 

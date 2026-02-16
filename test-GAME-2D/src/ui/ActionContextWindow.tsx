@@ -4,6 +4,23 @@ import type { ActionPlan, ActionStep } from "../game/engine/core/actionPlan";
 import type { TokenState } from "../types";
 import type { AdvantageMode, AttackRollResult, DamageRollResult } from "../dice/roller";
 
+type AttackInfluenceInfo = {
+  id: string;
+  label: string;
+  kind: "feature" | "feat";
+  applies: boolean;
+  reason: string;
+  details: string[];
+};
+
+type AttackWeaponInfo = {
+  id: string;
+  label: string;
+  applies: boolean;
+  reason: string;
+  details: string[];
+};
+
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
@@ -77,6 +94,8 @@ export function ActionContextWindow(props: {
   attackRoll: AttackRollResult | null;
   damageRoll: DamageRollResult | null;
   diceLogs: string[];
+  attackInfluences?: AttackInfluenceInfo[];
+  attackWeaponInfo?: AttackWeaponInfo | null;
   movement?: {
     costUsed: number;
     costMax: number;
@@ -105,6 +124,7 @@ export function ActionContextWindow(props: {
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [finishReady, setFinishReady] = useState<boolean>(false);
   const [hazardFinishReady, setHazardFinishReady] = useState<boolean>(false);
+  const [hoveredInfluenceId, setHoveredInfluenceId] = useState<string | null>(null);
 
   const action = props.action;
   const availability = props.availability;
@@ -216,6 +236,13 @@ export function ActionContextWindow(props: {
   const targetStep = getStep("target");
   const attackStep = getStep("attack-roll");
   const damageStep = getStep("damage-roll");
+  const attackInfluences = Array.isArray(props.attackInfluences) ? props.attackInfluences : [];
+  const attackWeaponInfo = props.attackWeaponInfo ?? null;
+  const hoveredInfluence = useMemo(() => {
+    if (!hoveredInfluenceId) return null;
+    if (hoveredInfluenceId === "__weapon__") return attackWeaponInfo;
+    return attackInfluences.find(entry => entry.id === hoveredInfluenceId) ?? null;
+  }, [hoveredInfluenceId, attackInfluences, attackWeaponInfo]);
   const isImpossible = steps.some(step => step.status === "blocked");
   const statusLabel = isImpossible
     ? "Action impossible"
@@ -363,6 +390,118 @@ export function ActionContextWindow(props: {
       {action && (
         <div style={{ marginTop: 10, fontSize: 12, color: "rgba(255,255,255,0.82)" }}>
           {action.summary || "Aucun resume."}
+        </div>
+      )}
+      {action && action.category === "attack" && (attackWeaponInfo || attackInfluences.length > 0) && (
+        <div
+          style={{
+            marginTop: 12,
+            padding: 8,
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(255,255,255,0.04)"
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 900, color: "#fff" }}>Impacts sur l&apos;attaque</div>
+          <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {attackWeaponInfo && (
+              <button
+                type="button"
+                onMouseEnter={() => setHoveredInfluenceId("__weapon__")}
+                onMouseLeave={() => setHoveredInfluenceId(prev => (prev === "__weapon__" ? null : prev))}
+                onFocus={() => setHoveredInfluenceId("__weapon__")}
+                onBlur={() => setHoveredInfluenceId(prev => (prev === "__weapon__" ? null : prev))}
+                style={{
+                  padding: "4px 8px",
+                  borderRadius: 999,
+                  border: attackWeaponInfo.applies
+                    ? "1px solid rgba(46,204,113,0.65)"
+                    : "1px solid rgba(231,76,60,0.6)",
+                  background: attackWeaponInfo.applies
+                    ? "rgba(46,204,113,0.18)"
+                    : "rgba(231,76,60,0.18)",
+                  color: "#fff",
+                  cursor: "help",
+                  fontSize: 11,
+                  fontWeight: 800
+                }}
+                title={`${attackWeaponInfo.label} - ${attackWeaponInfo.reason}`}
+              >
+                Arme: {attackWeaponInfo.label}
+              </button>
+            )}
+            {attackInfluences.map(entry => (
+              <button
+                key={entry.id}
+                type="button"
+                onMouseEnter={() => setHoveredInfluenceId(entry.id)}
+                onMouseLeave={() => setHoveredInfluenceId(prev => (prev === entry.id ? null : prev))}
+                onFocus={() => setHoveredInfluenceId(entry.id)}
+                onBlur={() => setHoveredInfluenceId(prev => (prev === entry.id ? null : prev))}
+                style={{
+                  padding: "4px 8px",
+                  borderRadius: 999,
+                  border: entry.applies
+                    ? "1px solid rgba(46,204,113,0.65)"
+                    : "1px solid rgba(231,76,60,0.6)",
+                  background: entry.applies
+                    ? "rgba(46,204,113,0.18)"
+                    : "rgba(231,76,60,0.18)",
+                  color: "#fff",
+                  cursor: "help",
+                  fontSize: 11,
+                  fontWeight: 800
+                }}
+                title={`${entry.label} - ${entry.reason}`}
+              >
+                {entry.kind === "feat" ? "Feat" : "Feature"}: {entry.label}
+              </button>
+            ))}
+          </div>
+          <div
+            style={{
+              marginTop: 8,
+              padding: 8,
+              borderRadius: 8,
+              border: "1px solid rgba(255,255,255,0.10)",
+              background: "rgba(0,0,0,0.22)"
+            }}
+          >
+            {hoveredInfluence ? (
+              <>
+                <div style={{ fontSize: 12, fontWeight: 900, color: "#fff" }}>{hoveredInfluence.label}</div>
+                <div
+                  style={{
+                    marginTop: 4,
+                    fontSize: 11,
+                    fontWeight: 800,
+                    color: hoveredInfluence.applies ? "#bdf6d2" : "#ffb2aa"
+                  }}
+                >
+                  {hoveredInfluence.applies ? "S'applique dans ce contexte" : "Ne s'applique pas dans ce contexte"}
+                </div>
+                <div style={{ marginTop: 4, fontSize: 11, color: "rgba(255,255,255,0.85)" }}>
+                  {hoveredInfluence.reason}
+                </div>
+                {Array.isArray(hoveredInfluence.details) && hoveredInfluence.details.length > 0 && (
+                  <div style={{ marginTop: 6, display: "grid", gap: 4 }}>
+                    {hoveredInfluence.details.map((line, index) => (
+                      <div
+                        key={`${hoveredInfluence.id}-${index}`}
+                        style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}
+                      >
+                        - {line}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.72)" }}>
+                Survolez un bouton pour voir pourquoi il s&apos;applique (ou non) a cette attaque.
+              </div>
+            )}
+          </div>
         </div>
       )}
       {showCancelAction && (

@@ -611,7 +611,18 @@ export interface ActionResolutionResult {
   actorAfter?: TokenState;
   playerAfter?: TokenState;
   enemiesAfter?: TokenState[];
-  outcomeKind?: "hit" | "miss" | "crit" | "saveSuccess" | "saveFail";
+  outcomeKind?:
+    | "hit"
+    | "miss"
+    | "crit"
+    | "saveSuccess"
+    | "saveFail"
+    | "checkSuccess"
+    | "checkFail"
+    | "contestedWin"
+    | "contestedLose";
+  outcomeRoll?: number;
+  outcomeTotal?: number;
 }
 
 function parseWeaponTagNumber(tags: string[] | undefined, prefix: string): number | null {
@@ -659,6 +670,8 @@ export function resolveActionUnified(
     rollOverrides?: {
       attack?: import("../dice/roller").AttackRollResult | null;
       consumeDamageRoll?: () => import("../dice/roller").DamageRollResult | null;
+      abilityCheck?: number | null;
+      savingThrow?: number | null;
     };
     weaponMasteryActions?: ActionDefinition[];
   }
@@ -924,7 +937,9 @@ export function resolveActionUnified(
     actorAfter,
     playerAfter: player,
     enemiesAfter,
-    outcomeKind: exec.outcome?.kind
+    outcomeKind: exec.outcome?.kind,
+    outcomeRoll: typeof exec.outcome?.roll === "number" ? exec.outcome.roll : undefined,
+    outcomeTotal: typeof exec.outcome?.total === "number" ? exec.outcome.total : undefined
   };
 }
 

@@ -55,6 +55,32 @@ Le moteur supporte les hooks suivants (taxo complete):
 
 Note: utiliser les noms de phases officiels (voir taxo).
 
+## Bridge features runtime (GameBoard)
+
+En plus du pipeline d'actions pur, le runtime applique des regles declaratives issues de `feature.rules.modifiers`.
+Ces regles sont evaluees dans `src/GameBoard.tsx` pour ajuster les couts/bonus d'actions sans branchement par classe.
+
+Champs utilises actuellement pour les overrides de cout:
+- `applyTo: "actionCost"`
+- `stat: "actionCostOverride"` (ou `dualWieldBonusAttackWithoutBonusAction` pour le cas legacy)
+- `fromCostType`, `toCostType`
+- `usageKey`
+- `maxPerTurn`
+- `maxPerTurnPerActionUsed` (ex: Extra Attack scale selon le nombre d'actions principales deja prises)
+- `priority` (selection de la regle la plus specifique)
+- `limitMessage`
+
+Conditions `when` etendues supportees cote runtime:
+- `actionTagsNone`
+- `requiresTurnActionUsed`
+- `requiresTurnAttackActionUsed`
+- `requiresTurnSpellCast`
+- `requiresTurnCantripCast`
+
+Important:
+- ces champs sont runtime-stables pour le projet, mais ne sont pas encore formalises dans `taxonomy.json`.
+- quand une regle de feature depend d'un hook non expose (ex: echec de check puis choix reactif), prevoir un hook moteur dedie avant de forcer une approximation data.
+
 ## Weapon Mastery (data-driven)
 
 Les bottes d'arme sont declarees comme **actions** `wm-*` dans:
@@ -72,6 +98,37 @@ Le moteur utilise ces tags pour declencher les effets, mais **les effets sont in
 Tags runtime utilises par l'engine:
 - `wm-ouverture:adv:<sourceId>` (devient `:expiring` au debut du tour suivant de la source, purge a la fin de ce tour).
 - `wm-sape:next:<sourceId>` + `wm-ralentissement:<sourceId>` (purges au debut du tour suivant de la source).
+- `rtm:<payload>` pour les marqueurs runtime generiques (payload JSON encode URI), avec cycle temporel gere moteur (`active -> expiring -> purge`) selon `lifecycle`.
+
+## Runtime markers (generic)
+
+Les features peuvent declarer `rules.runtimeMarkers[]` pour poser un marqueur temporel sur une cible, sans cas special par feature.
+
+Structure minimale supportee:
+- `id`
+- `applyOn: "on_outcome"`
+- `target: "primary"`
+- `when` (meme logique que les `modifiers.when`, + `outcomeAny/outcomeNone`)
+- `effect`:
+  - `resolutionKind` (`SAVING_THROW` | `ATTACK_ROLL` | `ABILITY_CHECK`)
+  - `actionTagsAny/actionTagsAll/actionTagsNone`
+  - `actorMustMatchSource`
+  - `rollMode` (`advantage` | `disadvantage`)
+  - `consumeOnTrigger`
+- `duration.type: "until_end_of_source_next_turn"`
+
+## Runtime effects (generic)
+
+Les features peuvent declarer `rules.runtimeEffects[]` pour appliquer des effets runtime apres resolution d'action, sans branche par feature.
+
+Structure actuelle supportee:
+- `applyOn: "after_action_resolve"`
+- `when` (conditions runtime, incluant `actionId/actionIdsAny` et `outcomeAny/outcomeNone`)
+- `effects[]`:
+  - `grantMainAction`
+  - `grantMovementBySpeedFraction`
+  - `addStatus`
+  - `teleportNearPrimaryTarget`
 
 ## Modeles (concepts)
 

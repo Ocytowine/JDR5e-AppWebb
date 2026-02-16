@@ -4,7 +4,13 @@
   "summary": "Flexibilite de bottes lors d'une attaque.",
   "kind": "feature",
   "tags": ["fighter", "martial"],
-  "grants": [],
+  "grants": [
+    {
+      "kind": "weaponMastery",
+      "ids": ["poussee", "sape", "ralentissement"],
+      "source": "tactical-mastery"
+    }
+  ],
   "rules": {
     "text": "Lors d'une attaque avec arme maitrisee, une botte peut etre remplacee par Poussee, Sape ou Ralentissement."
   }

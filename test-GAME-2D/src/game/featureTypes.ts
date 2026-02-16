@@ -28,6 +28,8 @@ export interface FeatureDefinition {
     modifiers?: Array<Record<string, unknown>>;
     reactionModifiers?: Array<Record<string, unknown>>;
     secondaryAttackPolicy?: Record<string, unknown>;
+    runtimeMarkers?: Array<Record<string, unknown>>;
+    runtimeEffects?: Array<Record<string, unknown>>;
     triggers?: Array<{
       event: string;
       notes?: string;
