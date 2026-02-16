@@ -1,15 +1,15 @@
-﻿import type { ReactionDefinition } from "./reactionTypes";
+import type { ReactionDefinition } from "./reactionTypes";
 
 import reactionsIndex from "../data/reactions/index.json";
-import opportunityAttack from "../data/reactions/opportunity-attack.json";
-import guardStrike from "../data/reactions/guard-strike.json";
-import killerInstinct from "../data/reactions/killer-instinct.json";
 
-const REACTION_TYPE_MODULES: Record<string, ReactionDefinition> = {
-  "./opportunity-attack.json": opportunityAttack as ReactionDefinition,
-  "./guard-strike.json": guardStrike as ReactionDefinition,
-  "./killer-instinct.json": killerInstinct as ReactionDefinition
-};
+const REACTION_MODULES = import.meta.glob("../data/reactions/**/*.json", {
+  eager: true,
+  import: "default"
+}) as Record<string, ReactionDefinition>;
+
+function toIndexPath(globPath: string): string {
+  return globPath.replace("../data/reactions/", "./");
+}
 
 export function loadReactionTypesFromIndex(): ReactionDefinition[] {
   const indexed = Array.isArray((reactionsIndex as any).reactions)
@@ -18,11 +18,15 @@ export function loadReactionTypesFromIndex(): ReactionDefinition[] {
 
   const loaded: ReactionDefinition[] = [];
   for (const path of indexed) {
-    const mod = REACTION_TYPE_MODULES[path];
+    const globPath = `../data/reactions/${path.replace(/^\.\//, "")}`;
+    const mod = REACTION_MODULES[globPath];
     if (mod) {
       loaded.push(mod);
     } else {
-      console.warn("[reactions] Type path missing in bundle:", path);
+      const available = Object.keys(REACTION_MODULES).map(toIndexPath);
+      console.warn("[reactions] Type path missing in bundle:", path, {
+        availableCount: available.length
+      });
     }
   }
 
@@ -32,4 +36,3 @@ export function loadReactionTypesFromIndex(): ReactionDefinition[] {
 
   return loaded;
 }
-

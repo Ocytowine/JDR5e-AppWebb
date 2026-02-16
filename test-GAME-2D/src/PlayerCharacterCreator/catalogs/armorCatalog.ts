@@ -5,6 +5,7 @@ import type { ArmorItemDefinition } from "../../game/armorTypes";
 
 
 import armorsIndex from "../../data/items/armures/index.json";
+import ArmureGardienRunique from "../../data/items/armures/armure-gardien-runique.json";
 import Bouclier from "../../data/items/armures/bouclier.json";
 import ChemiseMailles from "../../data/items/armures/chemise-mailles.json";
 import CotteMailles from "../../data/items/armures/cotte-mailles.json";
@@ -14,6 +15,7 @@ import DemiPlaque from "../../data/items/armures/demi-plaque.json";
 import Harnois from "../../data/items/armures/harnois.json";
 
 const ARMOR_MODULES: Record<string, ArmorItemDefinition> = {
+  "./armure-gardien-runique.json": ArmureGardienRunique as ArmorItemDefinition,
   "./bouclier.json": Bouclier as ArmorItemDefinition,
   "./chemise-mailles.json": ChemiseMailles as ArmorItemDefinition,
   "./cotte-mailles.json": CotteMailles as ArmorItemDefinition,

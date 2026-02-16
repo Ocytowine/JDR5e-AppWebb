@@ -63,6 +63,7 @@ Ce document sert de reference pour creer des **classes** (data `characters/class
 ## Progression (grants)
 
 `progression` mappe un niveau vers une liste de `grants`.
+Pour une classe, ce niveau est evalue sur le **niveau de cette classe** (pas `niveauGlobal`).
 
 Exemple:
 ```json
@@ -81,6 +82,9 @@ Exemple:
 
 `grant.kind` doit suivre la taxonomie (`action`, `reaction`, `passif`, `feature`, `spell`, `resource`, `bonus`).
 
+Reference harmonisee:
+- `docs/characterCreator/progression-schema.md` (regles communes classe/sous-classe/race/background).
+
 ## Regles pratiques
 
 - Garder `progression` explicite meme si vide (placeholder clair).
@@ -94,3 +98,15 @@ Exemple:
 - Gains de niveau visibles dans le creator.
 - `subclassIds` resolus.
 - `spellcasting` coherent (si present).
+- Gains de progression classes presents dans `derived.grants.*` et `progressionHistory`.
+
+## Liens utiles
+
+- Vue d'ensemble navigation: `docs/notice/notice-navigation.md`
+- Regles de progression harmonisees: `docs/characterCreator/progression-schema.md`
+- Pipeline creator/runtime: `docs/notice/player-character-creator-design-notice.md`
+- Sous-classes: `docs/notice/subclass-design-notice.md`
+- Sorts (si bloc `spellcasting`): `docs/notice/spell-design-notice.md`
+- Features runtime (modifiers/hooks): `docs/notice/feature-modifiers-notice.md`
+- Actions data-driven: `docs/ActionEngine/action-creation-notice.md`
+- Materiel de depart: `docs/notice/item-design-notice.md`, `docs/notice/weapon-design-notice.md`, `docs/notice/armor-design-notice.md`

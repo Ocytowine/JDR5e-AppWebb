@@ -358,9 +358,70 @@ export function CharacterSheetWindow(props: {
   })();
   const equipmentSlots = props.character.materielSlots ?? {};
   const spellSlots = formatSlots(props.character.spellcastingState?.slots);
-  const spellSource = props.character.spellcastingState?.sources
-    ? Object.values(props.character.spellcastingState.sources)[0]
-    : undefined;
+  const spellSources = props.character.spellcastingState?.sources
+    ? Object.values(props.character.spellcastingState.sources)
+    : [];
+  const spellIdsFromState = (() => {
+    const prepared = new Set<string>();
+    const granted = new Set<string>();
+    const known = new Set<string>();
+    spellSources.forEach(source => {
+      const preparedIds = Array.isArray((source as any)?.preparedSpellIds)
+        ? ((source as any).preparedSpellIds as string[])
+        : [];
+      const grantedIds = Array.isArray((source as any)?.grantedSpellIds)
+        ? ((source as any).grantedSpellIds as string[])
+        : [];
+      const knownIds = Array.isArray((source as any)?.knownSpellIds)
+        ? ((source as any).knownSpellIds as string[])
+        : [];
+      preparedIds.forEach(id => id && prepared.add(String(id)));
+      grantedIds.forEach(id => id && granted.add(String(id)));
+      knownIds.forEach(id => id && known.add(String(id)));
+    });
+    return {
+      prepared: Array.from(prepared),
+      granted: Array.from(granted),
+      known: Array.from(known)
+    };
+  })();
+  const spellIdsFromSelections = (() => {
+    const prepared = new Set<string>();
+    const granted = new Set<string>();
+    const known = new Set<string>();
+    const selections = (props.character as any)?.choiceSelections?.spellcasting;
+    if (!selections || typeof selections !== "object") {
+      return { prepared: [] as string[], granted: [] as string[], known: [] as string[] };
+    }
+    Object.values(selections as Record<string, any>).forEach(entry => {
+      const preparedList = Array.isArray(entry?.preparedSpells) ? entry.preparedSpells : [];
+      const grantedList = Array.isArray(entry?.grantedSpells) ? entry.grantedSpells : [];
+      const knownList = Array.isArray(entry?.knownSpells) ? entry.knownSpells : [];
+      preparedList.forEach(spell => {
+        const id = typeof spell === "string" ? spell : spell?.id;
+        if (id) prepared.add(String(id));
+      });
+      grantedList.forEach(spell => {
+        const id = typeof spell === "string" ? spell : spell?.id;
+        if (id) granted.add(String(id));
+      });
+      knownList.forEach(spell => {
+        const id = typeof spell === "string" ? spell : spell?.id;
+        if (id) known.add(String(id));
+      });
+    });
+    return {
+      prepared: Array.from(prepared),
+      granted: Array.from(granted),
+      known: Array.from(known)
+    };
+  })();
+  const displayedPreparedSpellIds =
+    spellIdsFromState.prepared.length > 0 ? spellIdsFromState.prepared : spellIdsFromSelections.prepared;
+  const displayedGrantedSpellIds =
+    spellIdsFromState.granted.length > 0 ? spellIdsFromState.granted : spellIdsFromSelections.granted;
+  const displayedKnownSpellIds =
+    spellIdsFromState.known.length > 0 ? spellIdsFromState.known : spellIdsFromSelections.known;
   const resolveItemLabel = (value: string | null | undefined): string => {
     if (!value) return "-";
     return props.itemLabels?.[value] ?? value;
@@ -781,7 +842,7 @@ export function CharacterSheetWindow(props: {
           <div style={{ marginTop: 8 }}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginBottom: 4 }}>Sorts prepares</div>
             <ChipButtonList
-              items={spellSource?.preparedSpellIds ?? []}
+              items={displayedPreparedSpellIds}
               emptyLabel="Aucun sort prepare."
               onSelect={openSpellInfo}
             />
@@ -789,8 +850,16 @@ export function CharacterSheetWindow(props: {
           <div style={{ marginTop: 8 }}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginBottom: 4 }}>Sorts accordes</div>
             <ChipButtonList
-              items={spellSource?.grantedSpellIds ?? []}
+              items={displayedGrantedSpellIds}
               emptyLabel="Aucun sort accorde."
+              onSelect={openSpellInfo}
+            />
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginBottom: 4 }}>Sorts connus</div>
+            <ChipButtonList
+              items={displayedKnownSpellIds}
+              emptyLabel="Aucun sort connu."
               onSelect={openSpellInfo}
             />
           </div>

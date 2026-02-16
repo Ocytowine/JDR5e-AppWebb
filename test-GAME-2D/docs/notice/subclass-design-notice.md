@@ -41,6 +41,8 @@ Ce document sert de reference pour creer des **sous-classes** (data `characters/
 
 ## Progression (grants)
 
+Pour une sous-classe, la progression est evaluee sur le **niveau de la classe parente**.
+
 Exemple:
 ```json
 {
@@ -57,6 +59,9 @@ Exemple:
 `grant.kind` doit suivre la taxonomie (`action`, `reaction`, `passif`, `feature`, `spell`, `resource`, `bonus`).
 Note: un `passif` correspond a un status type cote engine.
 
+Reference harmonisee:
+- `docs/characterCreator/progression-schema.md` (regles communes classe/sous-classe/race/background).
+
 ## Regles pratiques
 
 - Toujours lier `classId`.
@@ -69,3 +74,14 @@ Note: un `passif` correspond a un status type cote engine.
 - Sous-classe resolue par son `classId`.
 - Gains visibles dans le creator.
 - Interactions avec `spellcasting` correctes si present.
+- Gains de progression sous-classe presents dans `derived.grants.*` et `progressionHistory`.
+
+## Liens utiles
+
+- Vue d'ensemble navigation: `docs/notice/notice-navigation.md`
+- Classe parente: `docs/notice/class-design-notice.md`
+- Regles de progression harmonisees: `docs/characterCreator/progression-schema.md`
+- Pipeline creator/runtime: `docs/notice/player-character-creator-design-notice.md`
+- Sorts: `docs/notice/spell-design-notice.md`
+- Features runtime (modifiers/hooks): `docs/notice/feature-modifiers-notice.md`
+- Actions data-driven: `docs/ActionEngine/action-creation-notice.md`

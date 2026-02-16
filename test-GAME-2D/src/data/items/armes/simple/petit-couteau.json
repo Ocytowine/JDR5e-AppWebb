@@ -24,6 +24,7 @@
     "slashing",
     "improvise"
   ],
+  "weaponMastery": ["coup_double"],
   "properties": {
     "finesse": true,
     "light": true,

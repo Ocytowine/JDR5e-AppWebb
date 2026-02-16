@@ -53,7 +53,7 @@ Les features runtime sont chargees via:
 - `src/game/featureCatalog.ts`
 - `src/data/features/index.json`
 
-Important: une feature doit etre presente dans l index + mappee dans le catalog pour etre resolue.
+Important: une feature doit etre presente dans l index. Le catalog runtime la charge ensuite automatiquement (pas de mapping manuel par id).
 
 ## 3) Etat canonique du personnage
 
@@ -138,13 +138,22 @@ But:
 - extrait `grants[]` de chaque niveau.
 - retourne des entrees normalisees `{ source, level, kind, ids }`.
 
+`collectProgressionSources()` harmonise la collecte des sources:
+- `race:<id>` et `background:<id>` avec `niveauGlobal`.
+- `class:<id>` et `subclass:<id>` avec niveau de classe.
+
+Regle:
+- une nouvelle source de progression doit passer par cette collecte commune,
+- ne pas dupliquer des boucles de progression separees par type de source.
+
 ### 5.2 Historique
 
 `buildProgressionHistory()` ajoute:
 - choix race/background (skills, tools, languages),
 - choix de features de classe (`payload.kind = class-feature-option`),
 - choix ASI/feat,
-- grants classes/sous-classes,
+- grants de progression race/background (sur niveau global),
+- grants classes/sous-classes (sur niveaux de classe),
 - justification des slots de sort (via `spellcastingState.slotJustifications`).
 
 ### 5.3 Projection derivee
@@ -154,9 +163,14 @@ But:
 - `derived.grants.features`
 - `derived.grants.feats`
 - `derived.grants.skills`
+- `derived.grants.weaponMasteries`
 - `derived.grants.tools`
 - `derived.grants.languages`
 - `derived.grants.spells`
+- `derived.grants.actions`
+- `derived.grants.reactions`
+- `derived.grants.resources`
+- `derived.grants.passifs`
 
 et integre aussi les `grants` portes par les options choisies dans `choiceSelections.classFeatures`.
 
@@ -346,3 +360,13 @@ Le PlayerCharacterCreator doit rester un orchestrateur data-driven:
 - ActionEngine execute via operations generiques.
 
 Si une classe impose une modif code specifique, c est en general le signe qu un schema generique manque.
+
+## 14) Liens utiles
+
+- Navigation globale notices: `docs/notice/notice-navigation.md`
+- Checklist auteur de contenu: `docs/notice/content-author-checklist.md`
+- Regles communes de progression: `docs/characterCreator/progression-schema.md`
+- Creation classes/sous-classes: `docs/notice/class-design-notice.md`, `docs/notice/subclass-design-notice.md`
+- Creation races/backgrounds: `docs/notice/race-design-notice.md`, `docs/notice/background-design-notice.md`
+- Features runtime: `docs/notice/feature-modifiers-notice.md`
+- Actions pipeline: `docs/ActionEngine/action-creation-notice.md`, `docs/ActionEngine/action-pipeline-taxonomy.md`

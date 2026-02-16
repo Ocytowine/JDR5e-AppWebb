@@ -20,12 +20,16 @@ Corrections integrees:
 1. Le pipeline UI n'enveloppe plus la formule de degats avec des parentheses lors d'un bonus plat additionnel.
 2. Le contexte de critique (`isCrit`, `critRule`) est propage a toutes les operations `DealDamage`/`DealDamageScaled` d'une meme resolution.
 3. Les degats additionnels d'arme (`extraDamage`) beneficient donc du critique `double-dice` comme le degat principal.
+4. Le pipeline ActionEngine accepte des contraintes d'equipement centralisees via `ActionEngineContext.getActionConstraintIssues` (meme source de verite Creator + ingame).
+5. Les contraintes de manipulation d'armes sont coherentes en runtime: 1 interaction d'equipement par tour (modifiable par feat), et sortie depuis sac bloquee sans regle de feat explicite.
 
 Fichiers touches:
 1. `src/GameBoard.tsx` (concatenation formule sans parentheses)
 2. `src/game/engine/types.ts` (ajout `ExecuteOptions.damageContext`)
 3. `src/game/engine/actionExecute.ts` (contextualisation outcome -> ops)
 4. `src/game/engine/ops.ts` (application du contexte de critique sur `DealDamage*`)
+5. `src/game/actionEngine.ts` (gate disponibilite via contraintes d'equipement runtime)
+6. `src/game/equipmentHands.ts` (policies features -> equip constraints)
 
 ## 1) Pipeline global
 

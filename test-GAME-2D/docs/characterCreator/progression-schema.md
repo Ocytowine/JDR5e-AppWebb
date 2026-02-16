@@ -1,6 +1,6 @@
-# Schema de progression (Classes / Sous-classes / Especes)
+# Schema de progression (Classes / Sous-classes / Especes / Backgrounds)
 
-Ce document propose un **schema de progression commun** pour les JSON de classe, sous-classe et espece.
+Ce document propose un **schema de progression commun** pour les JSON de classe, sous-classe, espece et background.
 Il est concu pour rester compatible avec les chargeurs actuels (`classCatalog.ts`, `raceCatalog.ts`)
 tout en ajoutant des **gains par niveau** (features, actions, reactions, passifs, ressources, etc.).
 
@@ -9,8 +9,8 @@ Objectif : rendre le passage de niveau effectif en jeu, sans logique hardcodee d
 ## Etat actuel (important)
 
 - **Fonctionnel**: Clerc (classe + sous-classe `peace-domain`) utilise `progression` + `grants` et est bien pris en compte par le PlayerCharacterCreator.
-- **Placeholders**: Guerrier + `eldritch-knight` n'ont pas encore de `progression` (JSON incomplets), donc non fonctionnels en progression.
-- **Races**: utilisent encore `grants` simples (traits) sans `progression` multi-niveaux.
+- **Fonctionnel**: Guerrier + `eldritch-knight` disposent d'une progression declaree (voir `docs/characterCreator/classes/guerrier.md`).
+- **Partiel**: les races utilisent surtout des `grants` simples (traits), avec peu de cas `progression` multi-niveaux.
 
 Ce document decrit la **cible** et le schema commun vise, mais l'implementation actuelle est **partielle**.
 
@@ -18,11 +18,23 @@ Ce document decrit la **cible** et le schema commun vise, mais l'implementation 
 
 ## Concept de base
 
-Chaque JSON de definition (`class.json`, `subclass.json`, `race.json`) peut inclure :
+Chaque JSON de definition (`class.json`, `subclass.json`, `race.json`, `background.json`) peut inclure :
 - `progression` : une table niveau -> gains
 - `features` : catalogue local optionnel (ou reference vers `src/data/features`)
 - `grants` declaratifs qui peuvent pointer vers `src/data/actions`, `src/data/reactions`,
   `src/data/passifs` et `src/data/features`.
+
+## Regle d evaluation des niveaux (harmonisee)
+
+- `class:*` -> progression evaluee sur le niveau de la classe concernee.
+- `subclass:*` -> progression evaluee sur le niveau de sa classe parente.
+- `race:*` -> progression evaluee sur `niveauGlobal`.
+- `background:*` -> progression evaluee sur `niveauGlobal`.
+
+Cette regle est appliquee dans le creator pour:
+- `derived.grants.*`
+- `progressionHistory`
+- recap de progression affichee dans la Sheet.
 
 ---
 
@@ -162,7 +174,7 @@ Ex : Channel Divinity. Necessite un support moteur, mais on le declare ici.
 
 ---
 
-## Exemple : progression d espece (evolutive)
+## Exemple : progression d espece (evolutive, niveau global)
 
 ```json
 {
@@ -197,3 +209,9 @@ Suggestion minimaliste :
 2. Fusionner `actionIds`, `reactionIds`, `passifs` et champs de ressources a partir des sources de progression.
 
 Aucun changement de code n est applique ici.
+
+## Liens utiles
+
+- Navigation notices: `docs/notice/notice-navigation.md`
+- Pipeline creator/runtime: `docs/notice/player-character-creator-design-notice.md`
+- Checklist auteur: `docs/notice/content-author-checklist.md`

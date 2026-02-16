@@ -18,8 +18,8 @@ Schema:
   "rules": {
     "modifiers": [
       {
-        "applyTo": "combatStat|attack|damage|damageReroll",
-        "stat": "armorClass|attackBonus|maxHp",
+        "applyTo": "combatStat|attack|damage|damageReroll|equipmentPolicy",
+        "stat": "armorClass|attackBonus|maxHp|allowSomaticWithOccupiedHands|ignoreTwoHandedShieldRestriction|extraWeaponInteractionsPerTurn|allowWeaponSwapWithoutInteraction|drawWeaponFromPackAsInteraction",
         "value": 1,
         "when": {}
       }
@@ -33,6 +33,14 @@ Schema:
 - `attack`: ajoute `value` au bonus d attaque de l action.
 - `damage`: ajoute `value` a la formule de degats.
 - `damageReroll`: relance 1 fois les des de degats <= `value`.
+- `equipmentPolicy`: active une regle d equipement runtime partagee Creator + ActionEngine.
+
+`equipmentPolicy.stat` supporte:
+- `allowSomaticWithOccupiedHands`
+- `ignoreTwoHandedShieldRestriction`
+- `extraWeaponInteractionsPerTurn`
+- `allowWeaponSwapWithoutInteraction`
+- `drawWeaponFromPackAsInteraction`
 
 Filtres `when` supportes:
 - `actorType`
@@ -134,3 +142,11 @@ Comportement actuel:
 2. Le parseur de des runtime etant minimal, preferer des formules lineaires (ex: `1d10+3+2`).
 3. Eviter d'introduire des parentheses inutiles lors de la composition (`(1d10+3)+2`), cela peut casser le parsing des termes de des.
 4. En critique `double-dice`, toutes les operations `DealDamage` d'une meme resolution (degat principal et degats additionnels) utilisent maintenant le meme contexte de critique.
+
+## Liens utiles
+
+1. Vue d'ensemble navigation: `docs/notice/notice-navigation.md`
+2. Classes: `docs/notice/class-design-notice.md`
+3. Sous-classes: `docs/notice/subclass-design-notice.md`
+4. Pipeline creator/runtime: `docs/notice/player-character-creator-design-notice.md`
+5. Actions pipeline: `docs/ActionEngine/action-pipeline-taxonomy.md`

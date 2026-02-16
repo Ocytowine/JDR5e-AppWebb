@@ -168,3 +168,11 @@ Pour les armes, utiliser la notice dediee:
 3. Si bonus: `kind=bonus` avec `ids` et/ou `inline`.
 4. `requirements` bonus en `ConditionExpr[]`.
 5. Materiaux en tags simples (`wood`, `metal`, `leather`, ...).
+
+## Liens utiles
+
+1. Vue d'ensemble navigation: `docs/notice/notice-navigation.md`
+2. Armes: `docs/notice/weapon-design-notice.md`
+3. Armures: `docs/notice/armor-design-notice.md`
+4. Bonus equipement: `docs/notice/bonus-design-notice.md`
+5. Actions pipeline: `docs/ActionEngine/action-creation-notice.md`

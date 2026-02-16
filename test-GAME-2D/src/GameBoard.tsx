@@ -117,6 +117,11 @@ import {
 import { buildActionPlan, type ActionPlan } from "./game/actionPlan";
 import { applyEquipmentBonusesToCombatStats } from "./game/equipmentBonusResolver";
 import {
+  getEquipmentConstraintIssues,
+  getHandUsageState,
+  resolveEquipmentRuntimePolicy
+} from "./game/equipmentHands";
+import {
   buildWeaponOverrideAction,
   computeWeaponAttackBonus as computeWeaponAttackBonusFromRules,
   getWeaponIdFromActionTags,
@@ -245,6 +250,7 @@ const CORE_BASE_ACTION_IDS: string[] = [
   "help",
   "ready-action"
 ];
+const WEAPON_CARRY_SLOTS = new Set(["ceinture_gauche", "ceinture_droite", "dos_gauche", "dos_droit"]);
 
 function buildCellKey(x: number, y: number): string {
   return `${x},${y}`;
@@ -254,13 +260,12 @@ function getEquippedWeaponIds(character: Personnage | null | undefined): string[
   const inventory = Array.isArray((character as any)?.inventoryItems)
     ? ((character as any).inventoryItems as Array<any>)
     : [];
-  const carriedSlots = new Set(["ceinture_gauche", "ceinture_droite", "dos_gauche", "dos_droit"]);
   const equippedWeaponIds = inventory
     .filter(
       item =>
         item?.type === "weapon" &&
         item?.equippedSlot &&
-        carriedSlots.has(item.equippedSlot)
+        WEAPON_CARRY_SLOTS.has(item.equippedSlot)
     )
     .map(item => item.id)
     .filter((value): value is string => typeof value === "string" && value.length > 0);
@@ -269,7 +274,7 @@ function getEquippedWeaponIds(character: Personnage | null | undefined): string[
       item?.type === "weapon" &&
       item?.isPrimaryWeapon &&
       item?.equippedSlot &&
-      carriedSlots.has(item.equippedSlot)
+      WEAPON_CARRY_SLOTS.has(item.equippedSlot)
   );
   if (primary?.id) {
     return Array.from(new Set([primary.id, ...equippedWeaponIds]));
@@ -284,14 +289,13 @@ function getPrimaryWeaponIds(character: Personnage | null | undefined): string[]
   const inventory = Array.isArray((character as any)?.inventoryItems)
     ? ((character as any).inventoryItems as Array<any>)
     : [];
-  const carriedSlots = new Set(["ceinture_gauche", "ceinture_droite", "dos_gauche", "dos_droit"]);
   const primaryIds = inventory
     .filter(
       item =>
-        item?.type === "weapon" &&
-        item?.isPrimaryWeapon &&
-        item?.equippedSlot &&
-        carriedSlots.has(item.equippedSlot)
+      item?.type === "weapon" &&
+      item?.isPrimaryWeapon &&
+      item?.equippedSlot &&
+      WEAPON_CARRY_SLOTS.has(item.equippedSlot)
     )
     .map(item => item.id)
     .filter((value): value is string => typeof value === "string" && value.length > 0);
@@ -362,17 +366,27 @@ function buildCombatStatsFromCharacter(
   };
   const maxHp = Number(character.combatStats?.maxHp ?? character.pvActuels ?? 1) || 1;
   const armorClass = computeArmorClassFromEquipment(character, armorItemsById, mods.modDEX);
+  const proficiencyBonus = getProficiencyBonusForLevel(level);
 
   return {
     level,
     mods,
     maxHp,
     armorClass,
-    attackBonus: mods.modFOR + 2,
+    attackBonus: mods.modFOR + proficiencyBonus,
     moveRange: defaultSpeed,
     maxAttacksPerTurn: 1,
     resources: {}
   };
+}
+
+function getProficiencyBonusForLevel(levelRaw: number): number {
+  const level = Number(levelRaw) || 1;
+  if (level <= 4) return 2;
+  if (level <= 8) return 3;
+  if (level <= 12) return 4;
+  if (level <= 16) return 5;
+  return 6;
 }
 
 function computeArmorClassFromEquipment(
@@ -650,6 +664,14 @@ const PLAYER_TORCH_RADIUS = 4;
 function collectSpellActionIds(character: Personnage): string[] {
   const ids = new Set<string>();
   const state = character.spellcastingState;
+  const spellGrants = state?.spellGrants ?? {};
+  for (const entries of Object.values(spellGrants)) {
+    if (!Array.isArray(entries)) continue;
+    for (const entry of entries) {
+      const id = typeof (entry as any)?.spellId === "string" ? String((entry as any).spellId) : "";
+      if (id) ids.add(id);
+    }
+  }
   const sources = state?.sources ?? {};
   for (const source of Object.values(sources)) {
     const prepared = Array.isArray((source as any).preparedSpellIds)
@@ -774,6 +796,10 @@ export const GameBoard: React.FC = () => {
         .map(id => runtimeFeatureById.get(id) ?? null)
         .filter((feature): feature is FeatureDefinition => Boolean(feature)),
     [activePlayerFeatureIds, runtimeFeatureById]
+  );
+  const playerEquipmentPolicy = useMemo(
+    () => resolveEquipmentRuntimePolicy({ features: activePlayerFeatures }),
+    [activePlayerFeatures]
   );
   const baseCombatStats: CombatStats = useMemo(
     () => {
@@ -975,7 +1001,8 @@ export const GameBoard: React.FC = () => {
   const [reactionUsage, setReactionUsage] = useState<Record<string, number>>({});
   const [reactionCombatUsage, setReactionCombatUsage] = useState<Record<string, number>>({});
   const [killerInstinctTargetId, setKillerInstinctTargetId] = useState<string | null>(null);
-    const [selectedActionId, setSelectedActionId] = useState<string | null>(null);
+  const [selectedActionId, setSelectedActionId] = useState<string | null>(null);
+    const [selectedSpellSourceBySpellId, setSelectedSpellSourceBySpellId] = useState<Record<string, string>>({});
     const itemLabelMap = useMemo(() => {
       const map: Record<string, string> = {};
       for (const weapon of weaponTypes) {
@@ -1016,6 +1043,9 @@ export const GameBoard: React.FC = () => {
     usedActionCount: number;
     usedBonusCount: number;
   }>({ usedActionCount: 0, usedBonusCount: 0 });
+  const [turnEquipmentUsage, setTurnEquipmentUsage] = useState<{
+    usedInteractionCount: number;
+  }>({ usedInteractionCount: 0 });
   const [actionUsageCounts, setActionUsageCounts] = useState<{
     turn: Record<string, number>;
     encounter: Record<string, number>;
@@ -2701,6 +2731,280 @@ export const GameBoard: React.FC = () => {
     return 0;
   }
 
+  type SpellUsageCandidate = {
+    sourceKey: string;
+    entryId: string;
+    spellId: string;
+    usageType: string;
+    consumesSlot: boolean;
+    slotLevel: number | null;
+    sourceType?: string;
+    sourceId?: string;
+    sourceInstanceId?: string;
+    remainingUses?: number;
+    maxUses?: number;
+  };
+
+  function isSpellActionId(actionId: string | null | undefined): boolean {
+    if (!actionId) return false;
+    return spellCatalog.byId.has(String(actionId));
+  }
+
+  function getSpellLevel(actionId: string): number {
+    const level = Number((spellCatalog.byId.get(actionId) as any)?.level ?? 0);
+    if (!Number.isFinite(level) || level < 0) return 0;
+    return level;
+  }
+
+  function buildSpellUsageCandidates(
+    character: Personnage | null | undefined,
+    spellId: string
+  ): SpellUsageCandidate[] {
+    if (!character?.spellcastingState || !spellId) return [];
+    const spellLevel = getSpellLevel(spellId);
+    const candidates: SpellUsageCandidate[] = [];
+    const pushCandidate = (candidate: SpellUsageCandidate) => {
+      if (!candidate.spellId) return;
+      candidates.push(candidate);
+    };
+
+    const spellGrants = character.spellcastingState.spellGrants ?? {};
+    Object.entries(spellGrants).forEach(([sourceKey, entries]) => {
+      if (!Array.isArray(entries)) return;
+      entries.forEach((entry: any) => {
+        if (String(entry?.spellId ?? "") !== spellId) return;
+        const usage = entry?.usage ?? {};
+        const usageType = String(usage?.type ?? "");
+        const consumesSlot =
+          typeof usage?.consumesSlot === "boolean"
+            ? Boolean(usage.consumesSlot)
+            : usageType.toLowerCase() === "slot";
+        const fixedSlotLevel =
+          typeof usage?.fixedSlotLevel === "number" && Number.isFinite(usage.fixedSlotLevel)
+            ? Number(usage.fixedSlotLevel)
+            : null;
+        const slotLevel =
+          consumesSlot && spellLevel > 0
+            ? Math.max(1, fixedSlotLevel ?? spellLevel)
+            : consumesSlot && fixedSlotLevel
+              ? Math.max(1, fixedSlotLevel)
+              : null;
+        const maxUses =
+          typeof usage?.maxUses === "number" && Number.isFinite(usage.maxUses)
+            ? Number(usage.maxUses)
+            : undefined;
+        const remainingUses =
+          typeof usage?.remainingUses === "number" && Number.isFinite(usage.remainingUses)
+            ? Number(usage.remainingUses)
+            : maxUses;
+        pushCandidate({
+          sourceKey,
+          entryId: String(entry?.entryId ?? `${sourceKey}:${spellId}`),
+          spellId,
+          usageType,
+          consumesSlot,
+          slotLevel,
+          sourceType: typeof entry?.sourceType === "string" ? entry.sourceType : undefined,
+          sourceId: typeof entry?.sourceId === "string" ? entry.sourceId : undefined,
+          sourceInstanceId:
+            typeof entry?.sourceInstanceId === "string" ? entry.sourceInstanceId : undefined,
+          remainingUses,
+          maxUses
+        });
+      });
+    });
+
+    if (candidates.length > 0) return candidates;
+
+    const sources = character.spellcastingState.sources ?? {};
+    Object.entries(sources).forEach(([sourceKey, source]) => {
+      const prepared = Array.isArray((source as any)?.preparedSpellIds)
+        ? ((source as any).preparedSpellIds as string[])
+        : [];
+      const known = Array.isArray((source as any)?.knownSpellIds)
+        ? ((source as any).knownSpellIds as string[])
+        : [];
+      const granted = Array.isArray((source as any)?.grantedSpellIds)
+        ? ((source as any).grantedSpellIds as string[])
+        : [];
+      if (![...prepared, ...known, ...granted].includes(spellId)) return;
+      const slotLevel = spellLevel > 0 ? Math.max(1, spellLevel) : null;
+      pushCandidate({
+        sourceKey,
+        entryId: `${sourceKey}:${spellId}:legacy`,
+        spellId,
+        usageType: spellLevel > 0 ? "slot" : "at-will",
+        consumesSlot: spellLevel > 0,
+        slotLevel,
+        sourceType: sourceKey.split(":")[0] || "manual",
+        sourceId: sourceKey.includes(":") ? sourceKey.split(":").slice(1).join(":") : undefined
+      });
+    });
+
+    return candidates;
+  }
+
+  function canConsumeSpellUsage(
+    character: Personnage | null | undefined,
+    candidate: SpellUsageCandidate
+  ): boolean {
+    if (!character) return false;
+    const usageType = candidate.usageType.toLowerCase();
+    if (candidate.consumesSlot) {
+      if (candidate.slotLevel === null) return true;
+      return getSlotAmountFromCharacter(character, "slot", candidate.slotLevel) > 0;
+    }
+    if (usageType === "limited" || usageType === "charge") {
+      return Number(candidate.remainingUses ?? 0) > 0;
+    }
+    return true;
+  }
+
+  function getSpellCandidatePriority(candidate: SpellUsageCandidate): number {
+    const usageType = candidate.usageType.toLowerCase();
+    if (usageType === "at-will" || usageType === "passive") return 0;
+    if (candidate.consumesSlot) return 1;
+    if (usageType === "limited") return 2;
+    if (usageType === "charge") return 3;
+    return 4;
+  }
+
+  function buildSpellCandidateFailureReason(candidate: SpellUsageCandidate): string {
+    if (candidate.consumesSlot && candidate.slotLevel !== null) {
+      const level = candidate.slotLevel;
+      return `Aucun emplacement de sort niveau ${level}+ disponible pour la source selectionnee.`;
+    }
+    const usageType = candidate.usageType.toLowerCase();
+    if (usageType === "limited" || usageType === "charge") {
+      return "Cette source de sort n'a plus d'usages disponibles.";
+    }
+    return "Cette source de sort n'est pas utilisable actuellement.";
+  }
+
+  function resolveSpellUsageCandidate(
+    character: Personnage | null | undefined,
+    spellId: string,
+    preferredEntryId?: string | null
+  ): { candidate: SpellUsageCandidate | null; reason: string | null } {
+    const candidates = buildSpellUsageCandidates(character, spellId);
+    if (candidates.length === 0) {
+      const spellLevel = getSpellLevel(spellId);
+      if (spellLevel <= 0) return { candidate: null, reason: null };
+      return { candidate: null, reason: "Aucune source de sort disponible." };
+    }
+    if (preferredEntryId) {
+      const preferred = candidates.find(candidate => candidate.entryId === preferredEntryId) ?? null;
+      if (preferred) {
+        if (canConsumeSpellUsage(character, preferred)) {
+          return { candidate: preferred, reason: null };
+        }
+        return { candidate: null, reason: buildSpellCandidateFailureReason(preferred) };
+      }
+    }
+    const ordered = [...candidates].sort((a, b) => {
+      const delta = getSpellCandidatePriority(a) - getSpellCandidatePriority(b);
+      if (delta !== 0) return delta;
+      return String(a.sourceKey).localeCompare(String(b.sourceKey));
+    });
+    const chosen = ordered.find(candidate => canConsumeSpellUsage(character, candidate)) ?? null;
+    if (chosen) return { candidate: chosen, reason: null };
+    const spellLevel = getSpellLevel(spellId);
+    if (spellLevel > 0) {
+      return { candidate: null, reason: `Aucun emplacement de sort niveau ${spellLevel}+ disponible.` };
+    }
+    return { candidate: null, reason: "Usages de sort epuises." };
+  }
+
+  function consumeSlotInCharacter(
+    character: Personnage,
+    slotLevel: number,
+    amount: number
+  ): Personnage {
+    const spellcastingState = (character as any)?.spellcastingState;
+    if (!spellcastingState?.slots) return character;
+    const slots = { ...(spellcastingState.slots as Record<string, any>) };
+    const key = String(slotLevel);
+    const currentEntry = slots[key];
+    if (typeof currentEntry === "number") {
+      slots[key] = Math.max(0, currentEntry - amount);
+    } else if (currentEntry && typeof currentEntry === "object") {
+      const nextEntry = { ...currentEntry };
+      if (typeof nextEntry.remaining === "number") {
+        nextEntry.remaining = Math.max(0, nextEntry.remaining - amount);
+      } else if (typeof nextEntry.current === "number") {
+        nextEntry.current = Math.max(0, nextEntry.current - amount);
+      } else if (typeof nextEntry.value === "number") {
+        nextEntry.value = Math.max(0, nextEntry.value - amount);
+      }
+      slots[key] = nextEntry;
+    }
+    return {
+      ...character,
+      spellcastingState: {
+        ...spellcastingState,
+        slots
+      }
+    };
+  }
+
+  function consumeSpellGrantUsesInCharacter(
+    character: Personnage,
+    sourceKey: string,
+    entryId: string,
+    amount: number
+  ): Personnage {
+    const spellcastingState = (character as any)?.spellcastingState;
+    const bySource = spellcastingState?.spellGrants;
+    if (!bySource || typeof bySource !== "object") return character;
+    const currentEntries = Array.isArray(bySource[sourceKey]) ? bySource[sourceKey] : null;
+    if (!currentEntries) return character;
+    const nextEntries = currentEntries.map((entry: any) => {
+      if (String(entry?.entryId ?? "") !== entryId) return entry;
+      const usage = entry?.usage;
+      if (!usage || typeof usage !== "object") return entry;
+      const maxUses =
+        typeof usage.maxUses === "number" && Number.isFinite(usage.maxUses)
+          ? Number(usage.maxUses)
+          : 0;
+      const remainingBefore =
+        typeof usage.remainingUses === "number" && Number.isFinite(usage.remainingUses)
+          ? Number(usage.remainingUses)
+          : maxUses;
+      return {
+        ...entry,
+        usage: {
+          ...usage,
+          remainingUses: Math.max(0, remainingBefore - amount)
+        }
+      };
+    });
+    return {
+      ...character,
+      spellcastingState: {
+        ...spellcastingState,
+        spellGrants: {
+          ...bySource,
+          [sourceKey]: nextEntries
+        }
+      }
+    };
+  }
+
+  function consumeSpellUsageForPlayer(candidate: SpellUsageCandidate): void {
+    const applyToCharacter = (character: Personnage): Personnage => {
+      if (candidate.consumesSlot && candidate.slotLevel !== null) {
+        return consumeSlotInCharacter(character, candidate.slotLevel, 1);
+      }
+      const usageType = candidate.usageType.toLowerCase();
+      if (usageType === "limited" || usageType === "charge") {
+        return consumeSpellGrantUsesInCharacter(character, candidate.sourceKey, candidate.entryId, 1);
+      }
+      return character;
+    };
+    setCombatCharacterConfig(prev => (prev ? applyToCharacter(prev) : prev));
+    setCharacterConfig(prev => applyToCharacter(prev));
+  }
+
   function getActionUsageForActor(actorId: string): {
     turn: Record<string, number>;
     combat: Record<string, number>;
@@ -2917,6 +3221,10 @@ export const GameBoard: React.FC = () => {
           reactionAvailable: canUseReaction(actor.id),
           concentrating: isTokenConcentrating(actor),
           surprised: isTokenSurprised(actor),
+          getActionConstraintIssues: ({ action, actor }) =>
+            getWeaponActionConstraintIssues(action, actor, {
+              reaction: action.actionCost?.actionType === "reaction"
+            }),
           spawnEntity: createSummon,
           onLog: pushLog
         },
@@ -3339,6 +3647,10 @@ export const GameBoard: React.FC = () => {
       reactionAvailable: canUseReaction(params.actor.id),
       concentrating: isTokenConcentrating(params.actor),
       surprised: isTokenSurprised(params.actor),
+      getActionConstraintIssues: ({ action, actor }) =>
+        getWeaponActionConstraintIssues(action, actor, {
+          reaction: action.actionCost?.actionType === "reaction"
+        }),
       spawnEntity: createSummon,
       onLog: pushLog
     };
@@ -3951,6 +4263,7 @@ export const GameBoard: React.FC = () => {
     setActionUsageCounts({ turn: {}, encounter: {} });
     setActionUsageByActor({});
     setTurnActionUsage({ usedActionCount: 0, usedBonusCount: 0 });
+    setTurnEquipmentUsage({ usedInteractionCount: 0 });
     setReactionUsage({});
     setReactionQueue([]);
     setReactionCombatUsage({});
@@ -4561,6 +4874,7 @@ export const GameBoard: React.FC = () => {
       resetReactionUsageForActor(player.id);
       resetTurnUsageForActor(player.id);
       setTurnActionUsage({ usedActionCount: 0, usedBonusCount: 0 });
+      setTurnEquipmentUsage({ usedInteractionCount: 0 });
       setActionUsageCounts(prev => ({ ...prev, turn: {} }));
       const speed = player.movementProfile?.speed ?? defaultMovementProfile.speed;
       setBasePathLimit(speed);
@@ -5169,6 +5483,10 @@ export const GameBoard: React.FC = () => {
     if (costType === "reaction" && !canUseReaction(player.id) && !isActiveAction) {
       reasons.push("Reaction deja utilisee ce tour.");
     }
+    const maxEquipmentInteractions = getMaxWeaponInteractionsPerTurnForActor(player);
+    details.push(
+      `Interactions equipement: ${turnEquipmentUsage.usedInteractionCount}/${maxEquipmentInteractions}`
+    );
 
     const turnUses = typeof actionUsageCounts.turn[action.id] === "number" ? actionUsageCounts.turn[action.id] : 0;
     const encounterUses =
@@ -5192,6 +5510,39 @@ export const GameBoard: React.FC = () => {
       if (amount < usageResource.min) {
         const poolSuffix = usageResource.pool ? ` (${usageResource.pool})` : "";
         reasons.push(`Ressource insuffisante: ${usageResource.name}${poolSuffix} (${amount}/${usageResource.min}).`);
+      }
+    }
+
+    if (isSpellActionId(action.id)) {
+      const preferredEntryId = selectedSpellSourceBySpellId[action.id] ?? null;
+      const spellResolution = resolveSpellUsageCandidate(
+        activeCharacterConfig,
+        action.id,
+        preferredEntryId
+      );
+      if (spellResolution.reason) {
+        reasons.push(spellResolution.reason);
+      }
+      if (spellResolution.candidate) {
+        const candidate = spellResolution.candidate;
+        const sourceLabel = candidate.sourceId
+          ? `${candidate.sourceType ?? "source"}:${candidate.sourceId}`
+          : candidate.sourceKey;
+        if (candidate.consumesSlot && candidate.slotLevel !== null) {
+          const remaining = getSlotAmountFromCharacter(activeCharacterConfig, "slot", candidate.slotLevel);
+          details.push(`Sort (${sourceLabel}) slot niv ${candidate.slotLevel}: ${remaining} restant(s)`);
+        } else if (
+          candidate.usageType.toLowerCase() === "limited" ||
+          candidate.usageType.toLowerCase() === "charge"
+        ) {
+          details.push(
+            `Sort (${sourceLabel}) usages: ${Number(candidate.remainingUses ?? 0)}/${Number(
+              candidate.maxUses ?? candidate.remainingUses ?? 0
+            )}`
+          );
+        } else {
+          details.push(`Sort (${sourceLabel}) usage: ${candidate.usageType || "at-will"}`);
+        }
       }
     }
 
@@ -5454,6 +5805,19 @@ export const GameBoard: React.FC = () => {
       );
       return false;
     }
+    const selectedWeapon =
+      action.category === "attack"
+        ? pickWeaponForAction(
+            action,
+            player,
+            action.actionCost?.actionType === "reaction" ? { reaction: true } : undefined
+          )
+        : null;
+    const handlingCost = resolveWeaponHandlingCost({
+      action,
+      actor: player,
+      weapon: selectedWeapon
+    });
 
     setActionUsageCounts(prev => ({
       turn: { ...prev.turn, [action.id]: (prev.turn[action.id] ?? 0) + 1 },
@@ -5469,6 +5833,11 @@ export const GameBoard: React.FC = () => {
       usedActionCount: prev.usedActionCount + (isStandardAction ? 1 : 0),
       usedBonusCount: prev.usedBonusCount + (isBonusAction ? 1 : 0)
     }));
+    if (handlingCost.requiresInteraction > 0) {
+      setTurnEquipmentUsage(prev => ({
+        usedInteractionCount: prev.usedInteractionCount + handlingCost.requiresInteraction
+      }));
+    }
     if (isReaction) {
       markReactionUsed(player.id);
       if (actionContext?.reactionId) {
@@ -5522,6 +5891,31 @@ export const GameBoard: React.FC = () => {
       .filter((weapon): weapon is WeaponTypeDefinition => Boolean(weapon));
   }
 
+  function setLastUsedWeaponAsPrimaryForPlayer(weaponId: string | null | undefined): void {
+    const targetId = String(weaponId ?? "").trim();
+    if (!targetId) return;
+    const normalize = (character: Personnage): Personnage => {
+      const inventory = Array.isArray((character as any)?.inventoryItems)
+        ? (((character as any).inventoryItems as Array<any>).map(entry => ({ ...entry })) as Array<any>)
+        : [];
+      let targetFound = false;
+      inventory.forEach(entry => {
+        if (entry?.type !== "weapon") return;
+        if (!entry?.equippedSlot || entry?.storedIn) return;
+        if (String(entry.id ?? "") === targetId && !targetFound) {
+          entry.isPrimaryWeapon = true;
+          targetFound = true;
+          return;
+        }
+        entry.isPrimaryWeapon = false;
+      });
+      if (!targetFound) return character;
+      return { ...character, inventoryItems: inventory };
+    };
+    setCombatCharacterConfig(prev => (prev ? normalize(prev) : prev));
+    setCharacterConfig(prev => normalize(prev));
+  }
+
   function getWeaponProficienciesForActor(actor: TokenState): string[] {
     if (actor.type === "player") {
       return Array.isArray(activeCharacterConfig.proficiencies?.weapons)
@@ -5542,12 +5936,7 @@ export const GameBoard: React.FC = () => {
   }
 
   function getProficiencyBonusForActor(actor: TokenState): number {
-    const level = getActorLevel(actor);
-    if (level <= 4) return 2;
-    if (level <= 8) return 3;
-    if (level <= 12) return 4;
-    if (level <= 16) return 5;
-    return 6;
+    return getProficiencyBonusForLevel(getActorLevel(actor));
   }
 
   function getAbilityModForActor(actor: TokenState, modToken: string | null): number {
@@ -5640,22 +6029,31 @@ export const GameBoard: React.FC = () => {
     const inventory = Array.isArray((activeCharacterConfig as any)?.inventoryItems)
       ? ((activeCharacterConfig as any).inventoryItems as Array<any>)
       : [];
-    return inventory.some(item => {
-      if (item?.type !== "armor" || !item?.equippedSlot) return false;
-      const def = armorItemsById.get(item.id);
-      return def?.armorCategory === "shield";
-    });
+    return getHandUsageState({
+      inventoryItems: inventory,
+      weaponById: weaponTypeById,
+      armorById: armorItemsById
+    }).hasShieldInHands;
   }
   function hasOffhandWeaponEquippedByPlayer(): boolean {
     const inventory = Array.isArray((activeCharacterConfig as any)?.inventoryItems)
       ? ((activeCharacterConfig as any).inventoryItems as Array<any>)
       : [];
-    const carriedSlots = new Set(["ceinture_gauche", "ceinture_droite", "dos_gauche", "dos_droit"]);
-    const equippedCarriedWeapons = inventory.filter(
-      item => item?.type === "weapon" && item?.equippedSlot && carriedSlots.has(item.equippedSlot)
-    );
-    if (equippedCarriedWeapons.length >= 2) return true;
-    return inventory.some(item => item?.type === "weapon" && item?.equippedSlot === "main_gauche");
+    return getHandUsageState({
+      inventoryItems: inventory,
+      weaponById: weaponTypeById,
+      armorById: armorItemsById
+    }).hasOffhandWeapon;
+  }
+  function hasFreeHandByPlayer(): boolean {
+    const inventory = Array.isArray((activeCharacterConfig as any)?.inventoryItems)
+      ? ((activeCharacterConfig as any).inventoryItems as Array<any>)
+      : [];
+    return getHandUsageState({
+      inventoryItems: inventory,
+      weaponById: weaponTypeById,
+      armorById: armorItemsById
+    }).freeHands > 0;
   }
   function isArmorEquippedByPlayer(): boolean {
     const inventory = Array.isArray((activeCharacterConfig as any)?.inventoryItems)
@@ -6012,14 +6410,21 @@ export const GameBoard: React.FC = () => {
     actor: TokenState,
     options?: { reaction?: boolean }
   ): string[] {
-    if (action.category !== "attack") return [];
-    const weapon = pickWeaponForAction(action, actor, options);
-    if (!weapon) return [];
-    const reasons: string[] = [];
-
-    if (weapon.properties?.twoHanded && actor.type === "player" && isShieldEquippedByPlayer()) {
-      reasons.push("Arme a deux mains incompatible avec un bouclier equipe.");
+    const weapon = action.category === "attack" ? pickWeaponForAction(action, actor, options) : null;
+    const reasons = getEquipmentConstraintIssuesForActor(action, actor, weapon);
+    const handlingCost = resolveWeaponHandlingCost({ action, actor, weapon });
+    if (handlingCost.requiresAction) {
+      reasons.push(
+        "Changement d'arme impossible: arme rangee dans le sac (sortie d'arme = une action dediee)."
+      );
     }
+    if (handlingCost.requiresInteraction > 0 && actor.type === "player") {
+      const maxInteractions = getMaxWeaponInteractionsPerTurnForActor(actor);
+      if (turnEquipmentUsage.usedInteractionCount + handlingCost.requiresInteraction > maxInteractions) {
+        reasons.push("Interaction d'equipement deja consommee ce tour.");
+      }
+    }
+    if (action.category !== "attack" || !weapon) return reasons;
 
     const loadingUsageKey = getWeaponLoadingUsageKey(action);
     if (loadingUsageKey) {
@@ -6048,6 +6453,83 @@ export const GameBoard: React.FC = () => {
     }
 
     return reasons;
+  }
+
+  function getEquipmentConstraintIssuesForActor(
+    action: ActionDefinition,
+    actor: TokenState,
+    selectedWeapon?: WeaponTypeDefinition | null
+  ): string[] {
+    if (actor.type !== "player") return [];
+    const inventory = Array.isArray((activeCharacterConfig as any)?.inventoryItems)
+      ? ((activeCharacterConfig as any).inventoryItems as Array<any>)
+      : [];
+    return getEquipmentConstraintIssues({
+      action,
+      inventoryItems: inventory,
+      weaponById: weaponTypeById,
+      armorById: armorItemsById,
+      selectedWeapon,
+      features: activePlayerFeatures
+    });
+  }
+
+  function getMaxWeaponInteractionsPerTurnForActor(actor: TokenState): number {
+    if (actor.type !== "player") return 0;
+    const extra = Number(playerEquipmentPolicy.extraWeaponInteractionsPerTurn ?? 0);
+    const normalizedExtra = Number.isFinite(extra) ? Math.max(0, Math.floor(extra)) : 0;
+    return 1 + normalizedExtra;
+  }
+
+  function resolveWeaponHandlingCost(params: {
+    action: ActionDefinition;
+    actor: TokenState;
+    weapon?: WeaponTypeDefinition | null;
+  }): { requiresInteraction: number; requiresAction: boolean } {
+    const { action, actor } = params;
+    const weapon = params.weapon ?? null;
+    if (actor.type !== "player" || action.category !== "attack" || !weapon) {
+      return { requiresInteraction: 0, requiresAction: false };
+    }
+    const inventory = Array.isArray((activeCharacterConfig as any)?.inventoryItems)
+      ? ((activeCharacterConfig as any).inventoryItems as Array<any>)
+      : [];
+    const primaryIds = getPrimaryWeaponIds(activeCharacterConfig);
+    if (primaryIds.length === 0) {
+      return { requiresInteraction: 0, requiresAction: false };
+    }
+    if (primaryIds.includes(weapon.id)) {
+      return { requiresInteraction: 0, requiresAction: false };
+    }
+
+    const hasCarried = inventory.some(
+      entry =>
+        entry?.type === "weapon" &&
+        String(entry?.id ?? "") === weapon.id &&
+        Boolean(entry?.equippedSlot) &&
+        !entry?.storedIn &&
+        WEAPON_CARRY_SLOTS.has(String(entry.equippedSlot))
+    );
+    const hasPacked = inventory.some(
+      entry =>
+        entry?.type === "weapon" &&
+        String(entry?.id ?? "") === weapon.id &&
+        (Boolean(entry?.storedIn) ||
+          (Boolean(entry?.equippedSlot) && !WEAPON_CARRY_SLOTS.has(String(entry.equippedSlot))))
+    );
+
+    const ignoreInteraction = Boolean(playerEquipmentPolicy.allowWeaponSwapWithoutInteraction);
+    if (hasCarried) {
+      return { requiresInteraction: ignoreInteraction ? 0 : 1, requiresAction: false };
+    }
+    if (hasPacked) {
+      const drawAsInteraction = Boolean(playerEquipmentPolicy.drawWeaponFromPackAsInteraction);
+      if (drawAsInteraction) {
+        return { requiresInteraction: ignoreInteraction ? 0 : 1, requiresAction: false };
+      }
+      return { requiresInteraction: 0, requiresAction: true };
+    }
+    return { requiresInteraction: 0, requiresAction: false };
   }
 
   function shouldUseTwoHandedDamageForAction(
@@ -6515,8 +6997,24 @@ export const GameBoard: React.FC = () => {
     const attackOverride = overrides?.attackRoll ?? attackRoll ?? null;
     let damageUsed = false;
     const damageOverride = overrides?.damageRoll ?? damageRoll ?? null;
+    const isReactionAction = action.actionCost?.actionType === "reaction";
+    const usedWeapon =
+      action.category === "attack"
+        ? pickWeaponForAction(action, player, isReactionAction ? { reaction: true } : undefined)
+        : null;
     const ammoUsage = resolveAmmoUsageForAction(action, player);
     const ammoSpendInOps = ammoUsage ? actionSpendsResource(action, ammoUsage.ammoType) : false;
+    const spellUsageResolution = isSpellActionId(action.id)
+      ? resolveSpellUsageCandidate(
+          activeCharacterConfig,
+          action.id,
+          selectedSpellSourceBySpellId[action.id] ?? null
+        )
+      : { candidate: null, reason: null };
+    if (spellUsageResolution.reason) {
+      pushLog(`Action impossible: ${spellUsageResolution.reason}`);
+      return false;
+    }
     if (ammoUsage && isPhysicalResource(ammoUsage.ammoType)) {
       const available = activeCharacterConfig
         ? getInventoryResourceCount(activeCharacterConfig, ammoUsage.ammoType)
@@ -6559,6 +7057,10 @@ export const GameBoard: React.FC = () => {
         reactionAvailable: canUseReaction(player.id),
         concentrating: isTokenConcentrating(player),
         surprised: isTokenSurprised(player),
+        getActionConstraintIssues: ({ action, actor }) =>
+          getWeaponActionConstraintIssues(action, actor, {
+            reaction: action.actionCost?.actionType === "reaction"
+          }),
         spawnEntity: createSummon,
         spendResource: (name, pool, amount) => {
           spendPlayerResource(name, pool, amount);
@@ -6635,6 +7137,28 @@ export const GameBoard: React.FC = () => {
     if (ammoUsage && isPhysicalResource(ammoUsage.ammoType) && !ammoSpendInOps) {
       spendPlayerResource(ammoUsage.ammoType, null, ammoUsage.amount);
     }
+    if (spellUsageResolution.candidate) {
+      const candidate = spellUsageResolution.candidate;
+      consumeSpellUsageForPlayer(candidate);
+      const sourceLabel = candidate.sourceId
+        ? `${candidate.sourceType ?? "source"}:${candidate.sourceId}`
+        : candidate.sourceKey;
+      if (candidate.consumesSlot && candidate.slotLevel !== null) {
+        pushLog(
+          `Sort ${action.name}: consommation d'un slot niveau ${candidate.slotLevel} (${sourceLabel}).`
+        );
+      } else if (
+        candidate.usageType.toLowerCase() === "limited" ||
+        candidate.usageType.toLowerCase() === "charge"
+      ) {
+        const remainingAfter = Math.max(0, Number(candidate.remainingUses ?? 0) - 1);
+        pushLog(
+          `Sort ${action.name}: usage ${candidate.usageType} (${sourceLabel}) -> ${remainingAfter} restant(s).`
+        );
+      } else {
+        pushLog(`Sort ${action.name}: usage ${candidate.usageType || "at-will"} (${sourceLabel}).`);
+      }
+    }
 
     updateActionUsageForActor(player.id, action.id, 1);
     updateWeaponPropertyUsageForAction(player.id, action, 1);
@@ -6646,6 +7170,9 @@ export const GameBoard: React.FC = () => {
 
     setPlayer(result.playerAfter);
     setEnemies(nextEnemies);
+    if (usedWeapon?.id) {
+      setLastUsedWeaponAsPrimaryForPlayer(usedWeapon.id);
+    }
     if (result.outcomeKind) {
       setAttackOutcome(result.outcomeKind === "miss" ? "miss" : "hit");
     }
@@ -7651,6 +8178,10 @@ export const GameBoard: React.FC = () => {
         }
       };
     }
+    const usedWeapon =
+      action.category === "attack"
+        ? pickWeaponForAction(action, params.reactor, { reaction: true })
+        : null;
     const constraintIssues = getWeaponActionConstraintIssues(action, params.reactor, { reaction: true });
     if (constraintIssues.length > 0) {
       pushLog(`Reaction impossible: ${constraintIssues.join(" | ")}`);
@@ -7702,6 +8233,9 @@ export const GameBoard: React.FC = () => {
 
     updateActionUsageForActor(params.reactor.id, action.id, 1);
     updateWeaponPropertyUsageForAction(params.reactor.id, action, 1);
+    if (params.reactor.type === "player" && usedWeapon?.id) {
+      setLastUsedWeaponAsPrimaryForPlayer(usedWeapon.id);
+    }
 
     const nextEnemies = applySummonTurnOrder({
       prevEnemies: params.enemiesSnapshot,
@@ -7759,6 +8293,10 @@ export const GameBoard: React.FC = () => {
       reactionAvailable: canUseReaction(params.reactor.id),
       concentrating: isTokenConcentrating(params.reactor),
       surprised: isTokenSurprised(params.reactor),
+      getActionConstraintIssues: ({ action, actor }) =>
+        getWeaponActionConstraintIssues(action, actor, {
+          reaction: action.actionCost?.actionType === "reaction"
+        }),
       spawnEntity: createSummon,
       onLog: pushLog,
       emitEvent: evt => {
@@ -9690,6 +10228,10 @@ export const GameBoard: React.FC = () => {
           reactionAvailable: canUseReaction(activeEnemy.id),
           concentrating: isTokenConcentrating(activeEnemy),
           surprised: isTokenSurprised(activeEnemy),
+          getActionConstraintIssues: ({ action, actor }) =>
+            getWeaponActionConstraintIssues(action, actor, {
+              reaction: action.actionCost?.actionType === "reaction"
+            }),
           spawnEntity: createSummon,
           onLog: pushLog,
           emitEvent: evt => {
@@ -10192,6 +10734,57 @@ function handleEndPlayerTurn() {
       unknown
     };
   }, [contextAction, player, itemLabelMap, activeCharacterConfig]);
+  const contextSpellSourceOptions = useMemo(() => {
+    if (!contextAction || !isSpellActionId(contextAction.id)) return [];
+    const candidates = buildSpellUsageCandidates(activeCharacterConfig, contextAction.id);
+    const unique = new Map<string, SpellUsageCandidate>();
+    candidates.forEach(candidate => {
+      if (!unique.has(candidate.entryId)) unique.set(candidate.entryId, candidate);
+    });
+    const list = Array.from(unique.values());
+    return list
+      .sort((a, b) => {
+        const delta = getSpellCandidatePriority(a) - getSpellCandidatePriority(b);
+        if (delta !== 0) return delta;
+        return String(a.sourceKey).localeCompare(String(b.sourceKey));
+      })
+      .map(candidate => {
+        const sourceLabel = candidate.sourceId
+          ? `${candidate.sourceType ?? "source"}:${candidate.sourceId}`
+          : candidate.sourceKey;
+        let detail = candidate.usageType || "at-will";
+        if (candidate.consumesSlot && candidate.slotLevel !== null) {
+          const remaining = getSlotAmountFromCharacter(activeCharacterConfig, "slot", candidate.slotLevel);
+          detail = `slot niv ${candidate.slotLevel} (${remaining} restant(s))`;
+        } else if (
+          candidate.usageType.toLowerCase() === "limited" ||
+          candidate.usageType.toLowerCase() === "charge"
+        ) {
+          detail = `${candidate.usageType}: ${Number(candidate.remainingUses ?? 0)}/${Number(
+            candidate.maxUses ?? candidate.remainingUses ?? 0
+          )}`;
+        }
+        return {
+          entryId: candidate.entryId,
+          label: sourceLabel,
+          detail,
+          disabled: !canConsumeSpellUsage(activeCharacterConfig, candidate)
+        };
+      });
+  }, [contextAction, activeCharacterConfig]);
+  useEffect(() => {
+    if (!contextAction || !isSpellActionId(contextAction.id)) return;
+    if (contextSpellSourceOptions.length === 0) return;
+    const current = selectedSpellSourceBySpellId[contextAction.id];
+    const valid = current
+      ? contextSpellSourceOptions.some(option => option.entryId === current)
+      : false;
+    if (valid) return;
+    setSelectedSpellSourceBySpellId(prev => ({
+      ...prev,
+      [contextAction.id]: contextSpellSourceOptions[0].entryId
+    }));
+  }, [contextAction, contextSpellSourceOptions, selectedSpellSourceBySpellId]);
   const contextNeedsTarget = actionTargetsHostile(contextAction);
   const contextPlan: ActionPlan | null = contextAction
     ? buildActionPlan({
@@ -10483,6 +11076,27 @@ function handleEndPlayerTurn() {
         usedActionCount: Math.max(0, prev.usedActionCount - (isStandardAction ? 1 : 0)),
         usedBonusCount: Math.max(0, prev.usedBonusCount - (isBonusAction ? 1 : 0))
       }));
+      const canceledWeapon =
+        action.category === "attack"
+          ? pickWeaponForAction(
+              action,
+              player,
+              action.actionCost?.actionType === "reaction" ? { reaction: true } : undefined
+            )
+          : null;
+      const canceledHandlingCost = resolveWeaponHandlingCost({
+        action,
+        actor: player,
+        weapon: canceledWeapon
+      });
+      if (canceledHandlingCost.requiresInteraction > 0) {
+        setTurnEquipmentUsage(prev => ({
+          usedInteractionCount: Math.max(
+            0,
+            prev.usedInteractionCount - canceledHandlingCost.requiresInteraction
+          )
+        }));
+      }
       if (isReaction) {
         setReactionUsage(prev => ({
           ...prev,
@@ -11458,6 +12072,19 @@ function handleEndPlayerTurn() {
                 enemies={enemies}
                 validatedAction={validatedAction}
                 ammoInfo={contextAmmoInfo}
+                spellSourceOptions={contextSpellSourceOptions}
+                selectedSpellSourceEntryId={
+                  contextAction && isSpellActionId(contextAction.id)
+                    ? selectedSpellSourceBySpellId[contextAction.id] ?? null
+                    : null
+                }
+                onSelectSpellSourceEntryId={entryId => {
+                  if (!contextAction || !isSpellActionId(contextAction.id)) return;
+                  setSelectedSpellSourceBySpellId(prev => ({
+                    ...prev,
+                    [contextAction.id]: entryId
+                  }));
+                }}
                 targetMode={targetMode}
                 selectedTargetIds={selectedTargetIds}
                 selectedTargetLabels={selectedTargetLabels}

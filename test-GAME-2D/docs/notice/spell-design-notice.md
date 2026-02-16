@@ -159,3 +159,11 @@ Approuve:
 - Un sort = une intention claire (eviter trop d'effets dans un seul sort).
 - Preferer des operations simples et composables.
 - Toujours documenter un cas de test minimal.
+
+## Liens utiles
+
+- Vue d'ensemble navigation: `docs/notice/notice-navigation.md`
+- Actions pipeline (taxonomie et ops): `docs/ActionEngine/action-pipeline-taxonomy.md`
+- Creation d'actions: `docs/ActionEngine/action-creation-notice.md`
+- Pipeline creator/runtime: `docs/notice/player-character-creator-design-notice.md`
+- Classes et sous-classes: `docs/notice/class-design-notice.md`, `docs/notice/subclass-design-notice.md`

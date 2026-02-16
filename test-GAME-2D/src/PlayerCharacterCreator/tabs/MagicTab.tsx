@@ -1,5 +1,6 @@
 import React from "react";
 import { spellCatalog } from "../../game/spellCatalog";
+import type { SpellGrantEntry } from "../../types";
 
 export type SpellEntry =
   | string
@@ -44,6 +45,7 @@ export function MagicTab(props: {
       grimoireItemId?: string | null;
     }
   >;
+  spellGrantsBySource?: Record<string, SpellGrantEntry[]>;
   updateSpellcastingSelection: (
     key: string,
     patch: Partial<{
@@ -75,6 +77,7 @@ export function MagicTab(props: {
     lockButtonBaseStyle,
     getLockButtonState,
     spellcastingSelections,
+    spellGrantsBySource,
     updateSpellcastingSelection,
     computeMod,
     getScore,
@@ -87,6 +90,39 @@ export function MagicTab(props: {
     makeSpellEntry
   } = props;
   const magicLocked = isSectionLocked("magic");
+  const getSourceLabel = (value: string) => {
+    const normalized = String(value ?? "").toLowerCase();
+    if (normalized === "class") return "Classe";
+    if (normalized === "subclass") return "Sous-classe";
+    if (normalized === "race") return "Espece";
+    if (normalized === "background") return "Historique";
+    if (normalized === "feature") return "Feature";
+    if (normalized === "item") return "Objet";
+    if (normalized === "manual") return "Manuel";
+    return value || "Source";
+  };
+  const getUsageLabel = (entry?: SpellGrantEntry | null) => {
+    const usage = entry?.usage;
+    if (!usage) return null;
+    const type = String(usage.type ?? "").toLowerCase();
+    if (type === "slot") return "slot";
+    if (type === "at-will") return "a volonte";
+    if (type === "limited") {
+      if (typeof usage.remainingUses === "number" && typeof usage.maxUses === "number") {
+        return `${usage.remainingUses}/${usage.maxUses}`;
+      }
+      if (typeof usage.maxUses === "number") return `${usage.maxUses}/repos`;
+      return "usage limite";
+    }
+    if (type === "charge") {
+      if (typeof usage.remainingUses === "number" && typeof usage.maxUses === "number") {
+        return `charges ${usage.remainingUses}/${usage.maxUses}`;
+      }
+      if (typeof usage.maxUses === "number") return `charges ${usage.maxUses}`;
+      return "charges";
+    }
+    return type || null;
+  };
 
   return (
     <>
@@ -339,6 +375,37 @@ export function MagicTab(props: {
                     const isGranted = grantedIds.has(spellId);
                     const isPrepared = preparedIds.has(spellId) || isGranted;
                     const canToggle = !isGranted && (isPrepared || canPrepareMore);
+                    const stateSourceEntries = Array.isArray(spellGrantsBySource?.[source.key])
+                      ? spellGrantsBySource?.[source.key] ?? []
+                      : [];
+                    const stateEntry =
+                      stateSourceEntries.find(entry => entry?.spellId === spellId) ?? null;
+                    const originEntries = [
+                      ...preparedSpells,
+                      ...knownSpells,
+                      ...grantedSpells
+                    ]
+                      .filter((entry): entry is Exclude<SpellEntry, string> => {
+                        return typeof entry !== "string" && getSpellId(entry) === spellId;
+                      })
+                      .map(entry => entry.origin)
+                      .filter(Boolean);
+                    const fallbackSourceText =
+                      originEntries.length > 0
+                        ? originEntries
+                            .map(origin => {
+                              const sourceType = getSourceLabel(String(origin?.kind ?? ""));
+                              const sourceId = origin?.id ? String(origin.id) : "";
+                              return sourceId ? `${sourceType}:${sourceId}` : sourceType;
+                            })
+                            .join(", ")
+                        : getSourceLabel(source.key.split(":")[0] ?? "");
+                    const sourceBadgeText = stateEntry
+                      ? `${getSourceLabel(String(stateEntry.sourceType ?? ""))}${
+                          stateEntry.sourceId ? `:${stateEntry.sourceId}` : ""
+                        }`
+                      : fallbackSourceText;
+                    const usageBadgeText = getUsageLabel(stateEntry);
                     const levelLabel = spell.level === 0 ? "Cantrip" : `Niv ${spell.level}`;
                     const components = spell.components ?? {};
                     const componentLabel = [
@@ -399,6 +466,32 @@ export function MagicTab(props: {
                                 }}
                               >
                                 {spell.category}
+                              </span>
+                            )}
+                            <span
+                              style={{
+                                fontSize: 10,
+                                padding: "2px 6px",
+                                borderRadius: 999,
+                                background: "rgba(52, 152, 219, 0.2)",
+                                color: "rgba(255,255,255,0.85)",
+                                border: "1px solid rgba(52,152,219,0.45)"
+                              }}
+                            >
+                              {sourceBadgeText}
+                            </span>
+                            {usageBadgeText && (
+                              <span
+                                style={{
+                                  fontSize: 10,
+                                  padding: "2px 6px",
+                                  borderRadius: 999,
+                                  background: "rgba(241, 196, 15, 0.16)",
+                                  color: "rgba(255,255,255,0.85)",
+                                  border: "1px solid rgba(241,196,15,0.45)"
+                                }}
+                              >
+                                {usageBadgeText}
                               </span>
                             )}
                           </div>

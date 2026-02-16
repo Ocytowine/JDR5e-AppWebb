@@ -1,5 +1,6 @@
 {
   "types": [
+    "./armure-gardien-runique.json",
     "./bouclier.json",
     "./chemise-mailles.json",
     "./cotte-mailles.json",

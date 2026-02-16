@@ -50,6 +50,32 @@ Ce document sert de reference pour creer des **backgrounds** (data `characters/b
 - `equipment`: ids d'objets de depart.
 - `traits`: tables de roleplay (personality/ideal/bond/flaw).
 - `grants`: gains (bonus, traits, etc.) selon la taxonomie.
+- `progression`: gains par niveau (optionnel), appliques selon le **niveau global** du personnage.
+
+## Regle de niveau (important)
+
+Pour les backgrounds:
+- `progression` est evaluee avec `niveauGlobal` (pas un niveau de classe).
+- Les gains sont integres dans `derived` et `progressionHistory` au meme titre que classe/sous-classe.
+
+Exemple:
+
+```json
+{
+  "progression": {
+    "4": {
+      "grants": [
+        { "kind": "feature", "ids": ["field-contact-network"] }
+      ]
+    },
+    "8": {
+      "grants": [
+        { "kind": "bonus", "ids": ["stat:INT:+1"] }
+      ]
+    }
+  }
+}
+```
 
 ## Regles pratiques
 
@@ -62,3 +88,14 @@ Ce document sert de reference pour creer des **backgrounds** (data `characters/b
 - Background charge dans le creator.
 - Bonus bien pris en compte dans le calcul de stats.
 - Inventaire initial correct.
+- Progression background visible dans Sheet (bloc Historique) au niveau global.
+- Grants de progression background visibles dans `derived.grants.*`.
+
+## Liens utiles
+
+- Vue d'ensemble navigation: `docs/notice/notice-navigation.md`
+- Regles de progression harmonisees: `docs/characterCreator/progression-schema.md`
+- Pipeline creator/runtime: `docs/notice/player-character-creator-design-notice.md`
+- Races (meme logique niveau global): `docs/notice/race-design-notice.md`
+- Materiel de depart: `docs/notice/item-design-notice.md`, `docs/notice/weapon-design-notice.md`, `docs/notice/armor-design-notice.md`
+- Checklist finale: `docs/notice/content-author-checklist.md`

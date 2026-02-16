@@ -1,0 +1,49 @@
+{
+  "id": "armure-gardien-runique",
+  "label": "Armure du Gardien Runique",
+  "type": "armor",
+  "armorCategory": "medium",
+  "baseAC": 14,
+  "dexCap": 2,
+  "weight": 18,
+  "tags": [
+    "armure",
+    "intermediaire",
+    "metal",
+    "magic"
+  ],
+  "description": "Une armure gravee de runes defensives. Son pouvoir s'eveille quand elle est harmonisee.",
+  "category": "armor_body",
+  "value": {
+    "platinum": 0,
+    "gold": 650,
+    "silver": 0,
+    "copper": 0
+  },
+  "harmonisable": true,
+  "grants": [
+    {
+      "kind": "bonus",
+      "inline": [
+        {
+          "id": "bonus-armure-gardien-runique-ac-1",
+          "label": "+1 CA (harmonisee)",
+          "summary": "Bonus de CA actif uniquement si l'armure est harmonisee.",
+          "stat": "armorClass",
+          "value": 1,
+          "mode": "add",
+          "tags": [
+            "equip",
+            "armor",
+            "magic"
+          ],
+          "requirements": [],
+          "source": {
+            "book": "HOME",
+            "page": 0
+          }
+        }
+      ]
+    }
+  ]
+}

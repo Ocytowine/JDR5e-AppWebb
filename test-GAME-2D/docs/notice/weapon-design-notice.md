@@ -211,3 +211,11 @@ Note: `requirements` utilise `ConditionExpr[]` (meme langage que l'ActionEngine)
 
 1. Bonus: `test-GAME-2D/docs/notice/bonus-design-notice.md`
 2. Plan engine: `test-GAME-2D/docs/ActionEngine/equipment-passives-and-multidamage-plan.md`
+
+## Liens utiles
+
+1. Vue d'ensemble navigation: `docs/notice/notice-navigation.md`
+2. Items equipement (objets): `docs/notice/item-design-notice.md`
+3. Armures: `docs/notice/armor-design-notice.md`
+4. Actions pipeline: `docs/ActionEngine/action-creation-notice.md`
+5. Features runtime (si effets via feature): `docs/notice/feature-modifiers-notice.md`

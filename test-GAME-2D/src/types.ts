@@ -64,13 +64,54 @@ export interface SpellcastingState {
       slots?: Record<string, unknown>;
       preparedSpellIds?: string[];
       knownSpellIds?: string[];
+      grantedSpellIds?: string[];
     }
   >;
+  spellGrants?: Record<string, SpellGrantEntry[]>;
   slotJustifications?: Array<{
     source: string;
     classLevel: number;
     slotsByLevel: Record<string, unknown>;
   }>;
+}
+
+export type SpellGrantSourceType =
+  | "class"
+  | "subclass"
+  | "race"
+  | "background"
+  | "feat"
+  | "feature"
+  | "item"
+  | "manual"
+  | "system"
+  | string;
+
+export type SpellUsageType = "slot" | "at-will" | "limited" | "charge" | "passive" | string;
+
+export interface SpellGrantUsage {
+  type: SpellUsageType;
+  consumesSlot?: boolean;
+  maxUses?: number;
+  remainingUses?: number;
+  resetOn?: "short-rest" | "long-rest" | "dawn" | "never" | "manual" | string;
+  fixedSlotLevel?: number;
+  poolId?: string;
+}
+
+export interface SpellGrantEntry {
+  entryId: string;
+  spellId: string;
+  sourceType: SpellGrantSourceType;
+  sourceId?: string;
+  sourceKey?: string;
+  sourceInstanceId?: string;
+  grantedAtLevel?: number;
+  usage?: SpellGrantUsage;
+  prepared?: boolean;
+  alwaysPrepared?: boolean;
+  countsAgainstPreparation?: boolean;
+  tags?: string[];
 }
 
 export type TokenType = "player" | "enemy";

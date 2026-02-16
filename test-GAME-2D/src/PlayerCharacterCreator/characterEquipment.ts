@@ -68,6 +68,8 @@ export const buildInventoryEntries = (
         id: spec.id,
         qty,
         source,
+        origin,
+        instanceId: createInstanceId("item"),
         equippedSlot: null,
         storedIn: null,
         isPrimaryWeapon: false
@@ -105,6 +107,7 @@ export const appendInventoryEntries = (base: Array<any>, entries: Array<any>) =>
         const existing = next[existingIndex];
         next[existingIndex] = {
           ...existing,
+          instanceId: existing?.instanceId ?? entry?.instanceId,
           qty: (existing?.qty ?? 1) + (entry?.qty ?? 1)
         };
         return;

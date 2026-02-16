@@ -86,6 +86,10 @@ export interface ActionEngineContext {
   reactionAvailable?: boolean;
   concentrating?: boolean;
   surprised?: boolean;
+  getActionConstraintIssues?: (params: {
+    action: ActionDefinition;
+    actor: TokenState;
+  }) => string[];
   onLog?: (message: string) => void;
   onModifyPathLimit?: (delta: number) => void;
   onToggleTorch?: () => void;
@@ -584,6 +588,16 @@ export function computeAvailabilityForActor(
     const count = Number(ctx.usage?.turn?.[loadingUsageKey] ?? 0);
     if (count >= 1) {
       reasons.push("Arme a chargement: deja utilisee pour ce type d'action ce tour.");
+    }
+  }
+
+  if (ctx.getActionConstraintIssues) {
+    const issues = ctx.getActionConstraintIssues({
+      action,
+      actor: ctx.actor
+    });
+    if (Array.isArray(issues) && issues.length > 0) {
+      reasons.push(...issues.filter(issue => typeof issue === "string" && issue.trim().length > 0));
     }
   }
 

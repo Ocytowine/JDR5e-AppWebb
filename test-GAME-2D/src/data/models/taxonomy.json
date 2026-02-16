@@ -480,7 +480,8 @@
     "spellcastingState": {
       "totalCasterLevel": "number",
       "slots": "object",
-      "sources": "Record<string, { focusInstanceId?, slots?, preparedSpellIds?, knownSpellIds? }>",
+      "sources": "Record<string, { focusInstanceId?, slots?, preparedSpellIds?, knownSpellIds?, grantedSpellIds? }>",
+      "spellGrants": "Record<string, Array<{ entryId, spellId, sourceType, sourceId?, sourceKey?, sourceInstanceId?, grantedAtLevel?, usage?, prepared?, alwaysPrepared?, countsAgainstPreparation?, tags? }>>",
       "slotJustifications": "Array<{ source, classLevel, slotsByLevel }>"
     },
     "summonBehavior": {
@@ -552,7 +553,8 @@
     "spellcastingState": {
       "totalCasterLevel": "number",
       "slots": "object",
-      "sources": "Record<string, { focusInstanceId?, slots?, preparedSpellIds?, knownSpellIds? }>",
+      "sources": "Record<string, { focusInstanceId?, slots?, preparedSpellIds?, knownSpellIds?, grantedSpellIds? }>",
+      "spellGrants": "Record<string, Array<{ entryId, spellId, sourceType, sourceId?, sourceKey?, sourceInstanceId?, grantedAtLevel?, usage?, prepared?, alwaysPrepared?, countsAgainstPreparation?, tags? }>>",
       "slotJustifications": "Array<{ source, classLevel, slotsByLevel }>"
     },
     "derived": {

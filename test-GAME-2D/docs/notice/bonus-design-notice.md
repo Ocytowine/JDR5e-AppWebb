@@ -101,3 +101,11 @@ Exemple conditionnel (bonus actif seulement avec bouclier equipe):
 - Eviter les effets complexes (utiliser `passif`/`feature` si besoin).
 - Garder les `stat` dans la liste de la taxonomie.
 - Utiliser `inline` pour les bonus uniques, `ids` pour les bonus reutilises.
+
+## Liens utiles
+
+- Vue d'ensemble navigation: `docs/notice/notice-navigation.md`
+- Armes: `docs/notice/weapon-design-notice.md`
+- Armures: `docs/notice/armor-design-notice.md`
+- Objets equipement: `docs/notice/item-design-notice.md`
+- Features runtime (si bonus portes par feature): `docs/notice/feature-modifiers-notice.md`

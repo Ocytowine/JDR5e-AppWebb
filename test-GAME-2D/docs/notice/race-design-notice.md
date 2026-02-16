@@ -44,7 +44,32 @@ Ce document sert de reference pour creer des **races** (data `characters/races`)
 - `vision`: mode + portee.
 - `traits`: traits RP/mecaniques.
 - `grants`: gains de base.
-- `progression`: gains par niveau (optionnel).
+- `progression`: gains par niveau (optionnel), appliques selon le **niveau global** du personnage.
+
+## Regle de niveau (important)
+
+Pour les races:
+- `progression` est evaluee avec `niveauGlobal` (et non un niveau de classe).
+- Les grants de race en progression sont projetes dans `derived` et `progressionHistory` comme les classes.
+
+Exemple de gain progressif data-driven:
+
+```json
+{
+  "progression": {
+    "3": {
+      "grants": [
+        { "kind": "feature", "ids": ["fey-step"] }
+      ]
+    },
+    "5": {
+      "grants": [
+        { "kind": "bonus", "ids": ["stat:DEX:+1"] }
+      ]
+    }
+  }
+}
+```
 
 ## Regles pratiques
 
@@ -57,3 +82,13 @@ Ce document sert de reference pour creer des **races** (data `characters/races`)
 - Race chargee dans le creator.
 - Traits affiches et pris en compte.
 - Vision/vitesse coherent.
+- Progression race visible dans Sheet (bloc Espece) au niveau global.
+- Grants de progression race presentes dans `derived.grants.*`.
+
+## Liens utiles
+
+- Vue d'ensemble navigation: `docs/notice/notice-navigation.md`
+- Regles de progression harmonisees: `docs/characterCreator/progression-schema.md`
+- Pipeline creator/runtime: `docs/notice/player-character-creator-design-notice.md`
+- Backgrounds (meme logique niveau global): `docs/notice/background-design-notice.md`
+- Checklist finale: `docs/notice/content-author-checklist.md`

@@ -1,6 +1,9 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { spellCatalog } from "../../game/spellCatalog";
-import type { Personnage } from "../../types";
+import { loadActionTypesFromIndex } from "../../game/actionCatalog";
+import { loadFeatureTypesFromIndex } from "../../game/featureCatalog";
+import { loadReactionTypesFromIndex } from "../../game/reactionCatalog";
+import type { Personnage, SpellGrantEntry } from "../../types";
 import type { ClassDefinition, SubclassDefinition } from "../../game/classTypes";
 
 type SpellEntry =
@@ -132,6 +135,38 @@ export function SheetTab(props: {
     formatEquipmentLabel
   } = props;
   const [showCharacterJson, setShowCharacterJson] = useState(false);
+  const featureById = useMemo(() => {
+    const map = new Map<string, any>();
+    loadFeatureTypesFromIndex().forEach(feature => {
+      if (!feature?.id) return;
+      map.set(String(feature.id), feature);
+    });
+    return map;
+  }, []);
+  const featureLabelById = useMemo(() => {
+    const map = new Map<string, string>();
+    featureById.forEach(feature => {
+      if (!feature?.id) return;
+      map.set(String(feature.id), String(feature.label ?? feature.id));
+    });
+    return map;
+  }, [featureById]);
+  const actionLabelById = useMemo(() => {
+    const map = new Map<string, string>();
+    loadActionTypesFromIndex().forEach(action => {
+      if (!action?.id) return;
+      map.set(String(action.id), String(action.name ?? action.id));
+    });
+    return map;
+  }, []);
+  const reactionLabelById = useMemo(() => {
+    const map = new Map<string, string>();
+    loadReactionTypesFromIndex().forEach(reaction => {
+      if (!reaction?.id) return;
+      map.set(String(reaction.id), String(reaction.name ?? reaction.id));
+    });
+    return map;
+  }, []);
 
   return (
 <>
@@ -186,24 +221,145 @@ export function SheetTab(props: {
                   const derivedResources = Array.isArray(derivedGrants.resources) ? derivedGrants.resources : [];
                   const derivedPassifs = Array.isArray(derivedGrants.passifs) ? derivedGrants.passifs : [];
                   const derivedSpells = Array.isArray(derivedGrants.spells) ? derivedGrants.spells : [];
+                  const listFeatureActionIds = (featureId: string) => {
+                    const grants = (featureById.get(featureId)?.grants ?? []) as Array<any>;
+                    return grants
+                      .filter(grant => String(grant?.kind ?? "").toLowerCase() === "action")
+                      .flatMap(grant => (Array.isArray(grant?.ids) ? grant.ids : []))
+                      .map(id => String(id))
+                      .filter(Boolean);
+                  };
+                  const listFeatureReactionIds = (featureId: string) => {
+                    const grants = (featureById.get(featureId)?.grants ?? []) as Array<any>;
+                    return grants
+                      .filter(grant => String(grant?.kind ?? "").toLowerCase() === "reaction")
+                      .flatMap(grant => (Array.isArray(grant?.ids) ? grant.ids : []))
+                      .map(id => String(id))
+                      .filter(Boolean);
+                  };
+                  const resolveGrantLabel = (kind: string, id: string) => {
+                    if (!id) return id;
+                    const normalized = String(kind ?? "").toLowerCase();
+                    if (normalized === "action" || normalized === "actions") return actionLabelById.get(id) ?? id;
+                    if (normalized === "reaction" || normalized === "reactions") return reactionLabelById.get(id) ?? id;
+                    if (normalized === "feature" || normalized === "features") return featureLabelById.get(id) ?? id;
+                    if (normalized === "spell" || normalized === "spells") return spellCatalog.byId.get(id)?.name ?? id;
+                    return id;
+                  };
+                  const getSourceLabel = (value: string) => {
+                    const normalized = String(value ?? "").toLowerCase();
+                    if (normalized === "class") return "Classe";
+                    if (normalized === "subclass") return "Sous-classe";
+                    if (normalized === "race") return "Espece";
+                    if (normalized === "background") return "Historique";
+                    if (normalized === "feature") return "Feature";
+                    if (normalized === "item") return "Objet";
+                    if (normalized === "manual") return "Manuel";
+                    return value || "Source";
+                  };
+                  const getUsageLabel = (entry?: SpellGrantEntry | null) => {
+                    const usage = entry?.usage;
+                    if (!usage) return null;
+                    const type = String(usage.type ?? "").toLowerCase();
+                    if (type === "slot") return "slot";
+                    if (type === "at-will") return "a volonte";
+                    if (type === "limited" || type === "charge") {
+                      if (typeof usage.remainingUses === "number" && typeof usage.maxUses === "number") {
+                        return `${usage.remainingUses}/${usage.maxUses}`;
+                      }
+                      if (typeof usage.maxUses === "number") return `${usage.maxUses}`;
+                      return type === "charge" ? "charges" : "limite";
+                    }
+                    return type || null;
+                  };
+                  const expandedDerivedActions = Array.from(
+                    new Set([
+                      ...derivedActions.map(id => String(id)).filter(Boolean),
+                      ...derivedFeatures.flatMap(featureId => listFeatureActionIds(String(featureId)))
+                    ])
+                  );
+                  const expandedDerivedReactions = Array.from(
+                    new Set([
+                      ...derivedReactions.map(id => String(id)).filter(Boolean),
+                      ...derivedFeatures.flatMap(featureId => listFeatureReactionIds(String(featureId)))
+                    ])
+                  );
                   const adaptableSkill = (choiceSelections as any)?.race?.adaptableSkill ?? "";
-                  const buildProgressionLines = (progression?: Record<string, any>, maxLevel?: number) => {
+                  const formatAsiSuffix = (classId: string, level: number) => {
+                    const key = `${classId}:${level}`;
+                    const asiEntry =
+                      asiSelections[key] ??
+                      (classId === classPrimary?.id ? asiSelections[String(level)] : null);
+                    if (asiEntry?.type === "feat") {
+                      return "Don";
+                    }
+                    if (asiEntry?.type === "asi") {
+                      const stats = asiEntry.stats ?? {};
+                      const parts = Object.entries(stats)
+                        .map(([stat, value]) => `+${value} ${statLabels[stat] ?? stat}`)
+                        .join(", ");
+                      return parts || "non choisi";
+                    }
+                    return "non choisi";
+                  };
+                  const buildProgressionLines = (
+                    progression: Record<string, any> | undefined,
+                    maxLevel: number,
+                    sourceLabel: string,
+                    classIdForAsi: string | null
+                  ) => {
                     if (!progression) return [];
                     const levels = Object.keys(progression)
                       .map(key => Number(key))
-                      .filter(level => Number.isFinite(level))
+                      .filter(level => Number.isFinite(level) && level > 0 && level <= maxLevel)
                       .sort((a, b) => a - b);
-                    return levels
-                      .filter(level => (typeof maxLevel === "number" ? level <= maxLevel : true))
-                      .map(level => {
+                    return levels.map(level => {
                       const entry = progression[String(level)] ?? {};
                       const grants = Array.isArray(entry.grants) ? entry.grants : [];
                       const desc = entry.description ? entry.description : "";
-                      const hasAsi = grants.some(
-                        (grant: any) => grant?.kind === "bonus" && (grant?.ids ?? []).includes("asi-or-feat")
-                      );
-                      const baseLabel = desc || (hasAsi ? "Amelioration de caracteristiques (ASI) ou choix de don" : "Progression");
-                      return { level, hasAsi, baseLabel };
+                      const grantLabels = grants
+                        .map((grant: any) => {
+                          const kind = String(grant?.kind ?? "").toLowerCase();
+                          const ids = Array.isArray(grant?.ids)
+                            ? grant.ids.map((id: unknown) => String(id)).filter(Boolean)
+                            : [];
+                          if (!kind || ids.length === 0) return "";
+                          if (kind === "bonus" && ids.includes("asi-or-feat") && classIdForAsi) {
+                            return `ASI/Don (${formatAsiSuffix(classIdForAsi, level)})`;
+                          }
+                          const labelByKind: Record<string, string> = {
+                            feature: "Features",
+                            features: "Features",
+                            action: "Actions",
+                            actions: "Actions",
+                            reaction: "Reactions",
+                            reactions: "Reactions",
+                            resource: "Ressources",
+                            resources: "Ressources",
+                            passif: "Passifs",
+                            passifs: "Passifs",
+                            passive: "Passifs",
+                            passives: "Passifs",
+                            spell: "Sorts",
+                            spells: "Sorts",
+                            trait: "Traits",
+                            traits: "Traits",
+                            skill: "Competences",
+                            skills: "Competences",
+                            tool: "Outils",
+                            tools: "Outils",
+                            language: "Langues",
+                            languages: "Langues",
+                            bonus: "Bonus"
+                          };
+                          const resolved = ids.map(id => resolveGrantLabel(kind, id));
+                          const kindLabel = labelByKind[kind] ?? kind;
+                          return `${kindLabel}: ${resolved.join(", ")}`;
+                        })
+                        .filter(Boolean);
+                      const parts = [desc, ...grantLabels].filter(Boolean);
+                      const summary = parts.length > 0 ? parts.join(" | ") : "Aucun gain explicite";
+                      return `Niveau ${level} — ${sourceLabel}: ${summary}`;
                     });
                   };
                   const buildClassProgressionDisplay = (
@@ -212,31 +368,21 @@ export function SheetTab(props: {
                     level: number
                   ) => {
                     if (!cls || level <= 0) return [];
-                    const lines: string[] = [];
-                    const clsLines = buildProgressionLines(cls.progression, level);
-                    const subLines = subclass ? buildProgressionLines(subclass.progression, level) : [];
-                    const formatLine = (entry: { level: number; hasAsi: boolean; baseLabel: string }) => {
-                      let suffix = "";
-                      if (entry.hasAsi) {
-                        const key = `${cls.id}:${entry.level}`;
-                        const asiEntry = asiSelections[key] ?? (cls.id === classPrimary?.id ? asiSelections[String(entry.level)] : null);
-                        if (asiEntry?.type === "feat") {
-                          suffix = " : Don";
-                        } else if (asiEntry?.type === "asi") {
-                          const stats = asiEntry.stats ?? {};
-                          const parts = Object.entries(stats)
-                            .map(([stat, value]) => `+${value} ${statLabels[stat] ?? stat}`)
-                            .join(", ");
-                          suffix = parts ? ` : ${parts}` : " : non choisi";
-                        } else {
-                          suffix = " : non choisi";
-                        }
-                      }
-                      return `Niveau ${entry.level} — ${entry.baseLabel}${suffix}`;
-                    };
-                    clsLines.forEach(entry => lines.push(formatLine(entry)));
-                    subLines.forEach(entry => lines.push(formatLine(entry)));
-                    return lines;
+                    const classLines = buildProgressionLines(
+                      cls.progression,
+                      level,
+                      `Classe ${cls.label}`,
+                      cls.id
+                    );
+                    const subclassLines = subclass
+                      ? buildProgressionLines(
+                          subclass.progression,
+                          level,
+                          `Sous-classe ${subclass.label}`,
+                          cls.id
+                        )
+                      : [];
+                    return [...classLines, ...subclassLines];
                   };
                   const primarySubclass = selectedSubclassId
                     ? subclassOptions.find(sub => sub.id === selectedSubclassId) ?? null
@@ -246,6 +392,7 @@ export function SheetTab(props: {
                     : null;
                   const primaryLevel = Number(classEntry?.niveau) || 0;
                   const secondaryLevel = Number(secondaryClassEntry?.niveau) || 0;
+                  const globalLevel = resolveLevel();
                   const primaryProgressionLines = buildClassProgressionDisplay(
                     classPrimary,
                     primarySubclass,
@@ -256,6 +403,22 @@ export function SheetTab(props: {
                     secondarySubclass,
                     secondaryLevel
                   );
+                  const raceProgressionLines = activeRace
+                    ? buildProgressionLines(
+                        (activeRace as any)?.progression,
+                        globalLevel,
+                        `Espece ${activeRace.label}`,
+                        null
+                      )
+                    : [];
+                  const backgroundProgressionLines = activeBackground
+                    ? buildProgressionLines(
+                        (activeBackground as any)?.progression,
+                        globalLevel,
+                        `Historique ${activeBackground.label}`,
+                        null
+                      )
+                    : [];
                   return (
                     <>
                       <div
@@ -337,6 +500,26 @@ export function SheetTab(props: {
                                   ? grantedSpells.map(spell => getSpellName(getSpellId(spell)))
                                   : source.spellIds.map(id => getSpellName(id));
                               const preparedNames = preparedList.map(spell => getSpellName(getSpellId(spell)));
+                              const spellGrantEntries = Array.isArray(
+                                (character as any)?.spellcastingState?.spellGrants?.[source.key]
+                              )
+                                ? (((character as any)?.spellcastingState?.spellGrants?.[
+                                    source.key
+                                  ] as SpellGrantEntry[]) ?? [])
+                                : [];
+                              const sourceUsageSummary = Array.from(
+                                new Set(
+                                  spellGrantEntries
+                                    .map(entry => {
+                                      const sourcePart = `${getSourceLabel(
+                                        String(entry?.sourceType ?? "")
+                                      )}${entry?.sourceId ? `:${entry.sourceId}` : ""}`;
+                                      const usagePart = getUsageLabel(entry);
+                                      return usagePart ? `${sourcePart} (${usagePart})` : sourcePart;
+                                    })
+                                    .filter(Boolean)
+                                )
+                              );
                               return (
                                 <div
                                   key={`sheet-magic-${source.key}`}
@@ -361,6 +544,11 @@ export function SheetTab(props: {
                                       ? `Sorts prepares: ${preparedCount}${preparedLimit !== null ? ` / ${preparedLimit}` : ""}`
                                       : `Sorts connus: ${preparedIds.size}`}
                                   </div>
+                                  {sourceUsageSummary.length > 0 && (
+                                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
+                                      Provenance/usage: {sourceUsageSummary.join(" | ")}
+                                    </div>
+                                  )}
                                   <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>
                                     Sorts {source.preparation === "prepared" ? "prepares" : "connus"}:{" "}
                                     {preparedNames.join(", ") || "—"}
@@ -423,6 +611,16 @@ export function SheetTab(props: {
                         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
                           Vitesse: {activeRace?.speed ?? "—"} | Taille: {activeRace?.size ?? "—"}
                         </div>
+                        {raceProgressionLines.length > 0 && (
+                          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                            Progression (niveau global {globalLevel}):
+                            {raceProgressionLines.map(line => (
+                              <div key={`prog-race-${line}`} style={{ marginTop: 4 }}>
+                                {line}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
 
                       <div
@@ -482,6 +680,16 @@ export function SheetTab(props: {
                         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
                           Choix langues: {backgroundLanguages.join(", ") || "—"}
                         </div>
+                        {backgroundProgressionLines.length > 0 && (
+                          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                            Progression (niveau global {globalLevel}):
+                            {backgroundProgressionLines.map(line => (
+                              <div key={`prog-bg-${line}`} style={{ marginTop: 4 }}>
+                                {line}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
 
                       <div
@@ -552,13 +760,24 @@ export function SheetTab(props: {
                           Projection derivee
                         </div>
                         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
-                          Features: {derivedFeatures.join(", ") || "-"}
+                          Features:{" "}
+                          {derivedFeatures.map(id => featureLabelById.get(String(id)) ?? id).join(", ") || "-"}
                         </div>
                         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
-                          Actions derivees: {derivedActions.join(", ") || "-"}
+                          Actions derivees (directes):{" "}
+                          {derivedActions.map(id => actionLabelById.get(String(id)) ?? id).join(", ") || "-"}
                         </div>
                         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
-                          Reactions derivees: {derivedReactions.join(", ") || "-"}
+                          Actions effectives (avec features):{" "}
+                          {expandedDerivedActions.map(id => actionLabelById.get(String(id)) ?? id).join(", ") || "-"}
+                        </div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
+                          Reactions derivees (directes):{" "}
+                          {derivedReactions.map(id => reactionLabelById.get(String(id)) ?? id).join(", ") || "-"}
+                        </div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
+                          Reactions effectives (avec features):{" "}
+                          {expandedDerivedReactions.map(id => reactionLabelById.get(String(id)) ?? id).join(", ") || "-"}
                         </div>
                         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
                           Ressources derivees: {derivedResources.join(", ") || "-"}

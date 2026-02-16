@@ -46,6 +46,14 @@ export function ActionContextWindow(props: {
     insufficient: boolean;
     unknown?: boolean;
   } | null;
+  spellSourceOptions?: Array<{
+    entryId: string;
+    label: string;
+    detail?: string;
+    disabled?: boolean;
+  }> | null;
+  selectedSpellSourceEntryId?: string | null;
+  onSelectSpellSourceEntryId?: (entryId: string) => void;
   targetMode: "none" | "selecting";
   selectedTargetIds: string[];
   selectedTargetLabels: string[];
@@ -204,6 +212,7 @@ export function ActionContextWindow(props: {
   const validateStep = getStep("validate");
   const resourceStep = getStep("resource");
   const ammoInfo = props.ammoInfo ?? null;
+  const spellSourceOptions = Array.isArray(props.spellSourceOptions) ? props.spellSourceOptions : [];
   const targetStep = getStep("target");
   const attackStep = getStep("attack-roll");
   const damageStep = getStep("damage-roll");
@@ -754,6 +763,55 @@ export function ActionContextWindow(props: {
               Munitions insuffisantes pour cette action.
             </div>
           )}
+        </div>
+      )}
+
+      {action && spellSourceOptions.length > 1 && (
+        <div
+          style={{
+            marginTop: 12,
+            padding: 8,
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(255,255,255,0.04)"
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 900, color: "#fff" }}>Source du sort</div>
+          <select
+            value={props.selectedSpellSourceEntryId ?? ""}
+            onChange={event => {
+              const value = event.target.value;
+              if (!value) return;
+              props.onSelectSpellSourceEntryId?.(value);
+            }}
+            style={{
+              width: "100%",
+              marginTop: 6,
+              background: "#0f0f19",
+              color: "#f5f5f5",
+              border: "1px solid #333",
+              borderRadius: 6,
+              padding: "6px 8px",
+              fontSize: 12
+            }}
+          >
+            {spellSourceOptions.map(option => (
+              <option key={option.entryId} value={option.entryId} disabled={Boolean(option.disabled)}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          {(() => {
+            const selected =
+              spellSourceOptions.find(option => option.entryId === (props.selectedSpellSourceEntryId ?? "")) ??
+              spellSourceOptions[0];
+            if (!selected?.detail) return null;
+            return (
+              <div style={{ marginTop: 6, fontSize: 11, color: "rgba(255,255,255,0.75)" }}>
+                {selected.detail}
+              </div>
+            );
+          })()}
         </div>
       )}
 

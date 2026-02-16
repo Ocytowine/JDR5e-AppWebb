@@ -168,3 +168,11 @@ Bonus inline conditionnel:
 1. Utiliser des `tags` materiaux simples (`metal`, `leather`, `wood`).
 2. Eviter les effets actifs ici; reserver-les aux `actions`.
 3. Pour les bonus, suivre `test-GAME-2D/docs/notice/bonus-design-notice.md`.
+
+## Liens utiles
+
+1. Vue d'ensemble navigation: `docs/notice/notice-navigation.md`
+2. Bonus equipement: `docs/notice/bonus-design-notice.md`
+3. Armes: `docs/notice/weapon-design-notice.md`
+4. Objets equipement: `docs/notice/item-design-notice.md`
+5. Pipeline equipement runtime: `docs/ActionEngine/equipment-passives-and-multidamage-plan.md`

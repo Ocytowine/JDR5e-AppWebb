@@ -10,6 +10,7 @@ export function MagicPanel(props: {
   lockButtonBaseStyle: React.CSSProperties;
   getLockButtonState: (id: string) => { background: string; label: string };
   spellcastingSelections: Record<string, any>;
+  spellGrantsBySource?: Record<string, any[]>;
   updateSpellcastingSelection: (key: string, value: any) => void;
   computeMod: (value: number) => number;
   getScore: (key: any) => number;
@@ -30,6 +31,7 @@ export function MagicPanel(props: {
     lockButtonBaseStyle,
     getLockButtonState,
     spellcastingSelections,
+    spellGrantsBySource,
     updateSpellcastingSelection,
     computeMod,
     getScore,
@@ -52,6 +54,7 @@ export function MagicPanel(props: {
       lockButtonBaseStyle={lockButtonBaseStyle}
       getLockButtonState={getLockButtonState}
       spellcastingSelections={spellcastingSelections}
+      spellGrantsBySource={spellGrantsBySource}
       updateSpellcastingSelection={updateSpellcastingSelection}
       computeMod={computeMod}
       getScore={getScore}
