@@ -130,10 +130,12 @@ import {
   resolveEquipmentRuntimePolicy
 } from "./game/engine/rules/equipmentHands";
 import {
+  applyAttackContextTags,
   buildWeaponOverrideAction,
   computeWeaponAttackBonus as computeWeaponAttackBonusFromRules,
   getWeaponIdFromActionTags,
   getWeaponLoadingUsageKey,
+  resolveAttackContextForActor,
   resolveWeaponModToken
 } from "./game/engine/rules/weaponRules";
 import {
@@ -219,10 +221,14 @@ import { NarrationPanel, type NarrationEntry } from "./ui/NarrationPanel";
 import { ActionWheelMenu } from "./ui/ActionWheelMenu";
 import type { WheelMenuItem } from "./ui/RadialWheelMenu";
 import { ActionContextWindow } from "./ui/ActionContextWindow";
-import { buildEquipmentWheelItems } from "./ui/equipmentWheelHelpers";
+import {
+  buildEquipmentWheelItems,
+  type EquipmentWheelActionId
+} from "./ui/equipmentWheelHelpers";
 import { spellCatalog } from "./game/spellCatalog";
 import { CharacterSheetWindow } from "./ui/CharacterSheetWindow";
 import { InteractionContextWindow } from "./ui/InteractionContextWindow";
+import { EquipmentContextWindow } from "./ui/EquipmentContextWindow";
 import { boardThemeColor, colorToCssHex } from "./boardTheme";
 import type { InteractionCost, InteractionSpec } from "./game/map/runtime/interactions";
 import {
@@ -265,8 +271,31 @@ const CORE_BASE_ACTION_IDS: string[] = [
 ];
 const WEAPON_CARRY_SLOTS = new Set(["ceinture_gauche", "ceinture_droite", "dos_gauche", "dos_droit"]);
 
+type EquipmentContextMode = "draw" | "sheathe" | "drop" | "inventory" | "hand-choice";
+type EquipmentHandTarget = "main" | "offhand";
+type EquipmentCandidateSource = "slot" | "pack";
+type EquipmentHandEquipCost = "free" | "interaction" | "bonus";
+
 function buildCellKey(x: number, y: number): string {
   return `${x},${y}`;
+}
+
+function isShieldArmorItem(item: any, armorById: Map<string, ArmorItemDefinition>): boolean {
+  if (item?.type !== "armor") return false;
+  const def = armorById.get(String(item?.id ?? ""));
+  return def?.armorCategory === "shield";
+}
+
+function isHandEquipableItem(item: any, armorById: Map<string, ArmorItemDefinition>): boolean {
+  if (!item) return false;
+  const kind = String(item?.type ?? "");
+  if (kind === "weapon" || kind === "object") return true;
+  if (kind === "armor") return isShieldArmorItem(item, armorById);
+  return false;
+}
+
+function describeEquipmentCandidateSource(item: any): EquipmentCandidateSource {
+  return item?.equippedSlot && !item?.storedIn ? "slot" : "pack";
 }
 
 function getEquippedWeaponIds(character: Personnage | null | undefined): string[] {
@@ -334,6 +363,15 @@ function getSecondaryHandWeaponId(character: Personnage | null | undefined): str
   if (!item || item.type !== "weapon") return null;
   const id = String(item.id ?? "");
   return id.length > 0 ? id : null;
+}
+
+function findFreeCarrySlot(inventory: Array<any>, carrySlots: Set<string>): string | null {
+  const used = new Set(
+    inventory
+      .map(entry => (entry?.storedIn ? null : String(entry?.equippedSlot ?? "")))
+      .filter((id): id is string => Boolean(id))
+  );
+  return Array.from(carrySlots).find(id => !used.has(id)) ?? null;
 }
 
 type AbilityKey = "FOR" | "DEX" | "CON" | "INT" | "SAG" | "CHA";
@@ -1197,6 +1235,13 @@ export const GameBoard: React.FC = () => {
   const [hazardAnchor, setHazardAnchor] = useState<{ anchorX: number; anchorY: number } | null>(
     null
   );
+  const [equipmentContext, setEquipmentContext] = useState<{
+    mode: EquipmentContextMode;
+    anchorX: number;
+    anchorY: number;
+  } | null>(null);
+  const [equipmentHoveredId, setEquipmentHoveredId] = useState<string | null>(null);
+  const [equipmentPendingDrawInstanceId, setEquipmentPendingDrawInstanceId] = useState<string | null>(null);
 
   const actionLabelById = useMemo(() => {
     const map = new Map<string, string>();
@@ -2546,7 +2591,10 @@ export const GameBoard: React.FC = () => {
     if (!isStandardAction && !isBonusAction) return;
     setTurnActionUsage(prev => ({
       usedActionCount: prev.usedActionCount + (isStandardAction ? 1 : 0),
-      usedBonusCount: prev.usedBonusCount + (isBonusAction ? 1 : 0)
+      usedBonusCount:
+        prev.usedBonusCount +
+        (isBonusAction ? 1 : 0) +
+        (handlingCost.requiresBonus ? 1 : 0)
     }));
   }
 
@@ -6948,10 +6996,10 @@ export const GameBoard: React.FC = () => {
     const weapon = action.category === "attack" ? pickWeaponForAction(action, actor, options) : null;
     const reasons = getEquipmentConstraintIssuesForActor(action, actor, weapon);
     const handlingCost = resolveWeaponHandlingCost({ action, actor, weapon });
-    if (handlingCost.requiresAction) {
-      reasons.push(
-        "Changement d'arme impossible: arme rangee dans le sac (sortie d'arme = une action dediee)."
-      );
+    if (handlingCost.requiresBonus && actor.type === "player") {
+      if (turnActionUsage.usedBonusCount >= (player.combatStats?.bonusActionsPerTurn ?? 1)) {
+        reasons.push("Action bonus deja utilisee (sortie depuis sac impossible ce tour).");
+      }
     }
     if (handlingCost.requiresInteraction > 0 && actor.type === "player") {
       const maxInteractions = getMaxWeaponInteractionsPerTurnForActor(actor);
@@ -7024,21 +7072,21 @@ export const GameBoard: React.FC = () => {
     action: ActionDefinition;
     actor: TokenState;
     weapon?: WeaponTypeDefinition | null;
-  }): { requiresInteraction: number; requiresAction: boolean } {
+  }): { requiresInteraction: number; requiresBonus: boolean } {
     const { action, actor } = params;
     const weapon = params.weapon ?? null;
     if (actor.type !== "player" || action.category !== "attack" || !weapon) {
-      return { requiresInteraction: 0, requiresAction: false };
+      return { requiresInteraction: 0, requiresBonus: false };
     }
     const inventory = Array.isArray((activeCharacterConfig as any)?.inventoryItems)
       ? ((activeCharacterConfig as any).inventoryItems as Array<any>)
       : [];
     const primaryIds = getPrimaryWeaponIds(activeCharacterConfig);
     if (primaryIds.length === 0) {
-      return { requiresInteraction: 0, requiresAction: false };
+      return { requiresInteraction: 0, requiresBonus: false };
     }
     if (primaryIds.includes(weapon.id)) {
-      return { requiresInteraction: 0, requiresAction: false };
+      return { requiresInteraction: 0, requiresBonus: false };
     }
 
     const hasCarried = inventory.some(
@@ -7059,16 +7107,12 @@ export const GameBoard: React.FC = () => {
 
     const ignoreInteraction = Boolean(playerEquipmentPolicy.allowWeaponSwapWithoutInteraction);
     if (hasCarried) {
-      return { requiresInteraction: ignoreInteraction ? 0 : 1, requiresAction: false };
+      return { requiresInteraction: ignoreInteraction ? 0 : 1, requiresBonus: false };
     }
     if (hasPacked) {
-      const drawAsInteraction = Boolean(playerEquipmentPolicy.drawWeaponFromPackAsInteraction);
-      if (drawAsInteraction) {
-        return { requiresInteraction: ignoreInteraction ? 0 : 1, requiresAction: false };
-      }
-      return { requiresInteraction: 0, requiresAction: true };
+      return { requiresInteraction: 0, requiresBonus: true };
     }
-    return { requiresInteraction: 0, requiresAction: false };
+    return { requiresInteraction: 0, requiresBonus: false };
   }
 
   function shouldUseTwoHandedDamageForAction(
@@ -7124,7 +7168,8 @@ export const GameBoard: React.FC = () => {
   ): ActionDefinition {
     if (action.category !== "attack") return action;
     const weapon = pickWeaponForAction(action, actor, options);
-    if (!weapon) return action;
+    const attackContext = resolveAttackContextForActor({ action, weapon });
+    if (!weapon) return applyAttackContextTags(action, attackContext);
     const tags = action.tags ?? [];
     const prefersRanged = tags.includes("ranged") || action.targeting?.range?.max > 1.5;
     const modToken = resolveWeaponModToken({ actor, weapon, getAbilityModForActor });
@@ -7140,7 +7185,8 @@ export const GameBoard: React.FC = () => {
       prefersRanged,
       useTwoHandedDamage
     });
-    return applyFeatureActionModifiers({ actor, action: overridden, weapon, modToken });
+    const withFeatureModifiers = applyFeatureActionModifiers({ actor, action: overridden, weapon, modToken });
+    return applyAttackContextTags(withFeatureModifiers, attackContext);
   }
 
   function getEnemyAttackAction(enemy: TokenState): ActionDefinition | null {
@@ -11768,7 +11814,7 @@ function handleEndPlayerTurn() {
     if (contextResolvedAttackAction?.damage?.formula) {
       details.push(`Formule de degats resolue: ${contextResolvedAttackAction.damage.formula}`);
     }
-    if (handling.requiresAction) details.push("Sortie depuis paquetage: consomme une action.");
+    if (handling.requiresBonus) details.push("Sortie depuis paquetage: consomme une action bonus.");
     else if (handling.requiresInteraction > 0) details.push("Changement d'arme: consomme 1 interaction.");
     return {
       id: contextWeapon.id,
@@ -11932,34 +11978,118 @@ function handleEndPlayerTurn() {
     actionContext?.source === "reaction" || reactionQueue.length > 0;
   const activeEntry = getActiveTurnEntry();
   const timelineEntries = turnOrder;
+  const equipmentInventory = useMemo<Array<any>>(
+    () =>
+      Array.isArray((activeCharacterConfig as any)?.inventoryItems)
+        ? ((activeCharacterConfig as any).inventoryItems as Array<any>)
+        : [],
+    [activeCharacterConfig]
+  );
+  const primaryHandItem = useMemo(
+    () =>
+      equipmentInventory.find(
+        item =>
+          item?.isPrimaryWeapon &&
+          item?.equippedSlot &&
+          !item?.storedIn
+      ) ?? null,
+    [equipmentInventory]
+  );
+  const secondaryHandItem = useMemo(
+    () => getSecondaryHandItem(activeCharacterConfig),
+    [activeCharacterConfig]
+  );
+  const handUsage = useMemo(
+    () =>
+      getHandUsageState({
+        inventoryItems: equipmentInventory,
+        weaponById: weaponTypeById,
+        armorById: armorItemsById
+      }),
+    [equipmentInventory, weaponTypeById, armorItemsById]
+  );
+  const drawCandidates = useMemo<
+    Array<{
+      id: string;
+      instanceId: string;
+      label: string;
+      type: string;
+      source: EquipmentCandidateSource;
+      sourceLabel: string;
+      cost: EquipmentHandEquipCost;
+      details: string[];
+    }>
+  >(() => {
+    const rows: Array<{
+      id: string;
+      instanceId: string;
+      label: string;
+      type: string;
+      source: EquipmentCandidateSource;
+      sourceLabel: string;
+      cost: EquipmentHandEquipCost;
+      details: string[];
+    }> = [];
+    const seen = new Set<string>();
+    equipmentInventory.forEach(item => {
+      if (!isHandEquipableItem(item, armorItemsById)) return;
+      const instanceId = String(item.instanceId ?? item.id ?? "");
+      if (!instanceId) return;
+      if (seen.has(instanceId)) return;
+      if (item?.isPrimaryWeapon || item?.isSecondaryHand) return;
+      const source = describeEquipmentCandidateSource(item);
+      const cost: EquipmentHandEquipCost = source === "slot" ? "interaction" : "bonus";
+      seen.add(instanceId);
+      const def = weaponTypeById.get(String(item.id ?? ""));
+      const label = itemLabelMap[String(item.id ?? "")] ?? String(item.id ?? "arme");
+      const sourceLabel = source === "slot"
+        ? `slot ${String(item.equippedSlot ?? "-")}`
+        : `dans ${String(item.storedIn ?? "sac")}`;
+      const details: string[] = [
+        `Objet: ${label}`,
+        `Source: ${sourceLabel}`,
+        `Type: ${String(item?.type ?? "object")}`
+      ];
+      if (item?.type === "weapon") {
+        details.push(`Categorie: ${def?.category ?? "arme"}`);
+        details.push(`Degats: ${def?.damage?.dice ?? "?"} ${def?.damage?.damageType ?? ""}`.trim());
+        details.push(def?.properties?.twoHanded ? "Propriete: two-handed" : "Propriete: main simple");
+      } else if (isShieldArmorItem(item, armorItemsById)) {
+        details.push("Categorie: bouclier");
+        details.push("Main: secondaire uniquement");
+      } else if (item?.type === "object") {
+        const objectDef = objectItemMap.get(String(item.id ?? ""));
+        if (objectDef?.category) details.push(`Categorie: ${objectDef.category}`);
+      }
+      details.push(`Cout: ${cost === "interaction" ? "Interaction" : "Action bonus"}`);
+      rows.push({
+        id: String(item.id ?? ""),
+        instanceId,
+        label,
+        type: String(item?.type ?? ""),
+        source,
+        sourceLabel,
+        cost,
+        details
+      });
+    });
+    return rows;
+  }, [equipmentInventory, itemLabelMap, weaponTypeById, armorItemsById, objectItemMap]);
   const equipmentWheelItems = useMemo<WheelMenuItem[]>(() => {
-    const inventory = Array.isArray((activeCharacterConfig as any)?.inventoryItems)
-      ? ((activeCharacterConfig as any).inventoryItems as Array<any>)
-      : [];
-    const secondaryItem = getSecondaryHandItem(activeCharacterConfig);
     return buildEquipmentWheelItems({
-      inventory,
-      secondaryItem,
-      itemLabelMap,
-      weaponCarrySlots: WEAPON_CARRY_SLOTS,
-      allowWeaponSwapWithoutInteraction: Boolean(playerEquipmentPolicy.allowWeaponSwapWithoutInteraction),
-      drawWeaponFromPackAsInteraction: Boolean(playerEquipmentPolicy.drawWeaponFromPackAsInteraction),
-      canConsumeInteraction: canConsumeEquipmentInteraction,
-      consumeInteraction: consumeEquipmentInteraction,
-      consumeAction: consumeEquipmentAction,
-      isTwoHandedWeaponId: (weaponId: string) =>
-        Boolean(weaponTypeById.get(String(weaponId ?? ""))?.properties?.twoHanded),
-      applyCharacterInventoryMutation,
-      pushLog
+      inventory: equipmentInventory,
+      hasDrawCandidates: drawCandidates.length > 0,
+      primaryItem: primaryHandItem,
+      secondaryItem: secondaryHandItem,
+      hasFreeHand: handUsage.freeHands > 0,
+      onOpenAction: handleOpenEquipmentContextFromWheel
     });
   }, [
-    activeCharacterConfig,
-    itemLabelMap,
-    weaponTypeById,
-    playerEquipmentPolicy.allowWeaponSwapWithoutInteraction,
-    playerEquipmentPolicy.drawWeaponFromPackAsInteraction,
-    turnActionUsage.usedActionCount,
-    turnEquipmentUsage.usedInteractionCount
+    equipmentInventory,
+    drawCandidates,
+    primaryHandItem,
+    secondaryHandItem,
+    handUsage.freeHands
   ]);
 
     if (!isCombatConfigured) {
@@ -12207,6 +12337,12 @@ function handleEndPlayerTurn() {
           )
         }));
       }
+      if (canceledHandlingCost.requiresBonus) {
+        setTurnActionUsage(prev => ({
+          ...prev,
+          usedBonusCount: Math.max(0, prev.usedBonusCount - 1)
+        }));
+      }
       if (isReaction) {
         setReactionUsage(prev => ({
           ...prev,
@@ -12412,6 +12548,210 @@ function handleEndPlayerTurn() {
     pushLog("Interagir: cliquez sur un element pour afficher ses interactions.");
   }
 
+  function closeEquipmentContextWindow() {
+    setEquipmentContext(null);
+    setEquipmentHoveredId(null);
+    setEquipmentPendingDrawInstanceId(null);
+  }
+
+  function handleOpenEquipmentContextFromWheel(id: EquipmentWheelActionId) {
+    const anchor = resolveWheelAnchor();
+    const nextMode: EquipmentContextMode =
+      id === "draw" ? "draw" : id === "sheathe" ? "sheathe" : id === "drop" ? "drop" : "inventory";
+    setEquipmentContext({
+      mode: nextMode,
+      anchorX: anchor.x,
+      anchorY: anchor.y
+    });
+    setEquipmentHoveredId(null);
+    setEquipmentPendingDrawInstanceId(null);
+  }
+
+  function sheatheHandItem(instanceId: string): void {
+    const target = equipmentInventory.find(entry => String(entry.instanceId ?? "") === instanceId) ?? null;
+    if (!target) {
+      pushLog("Equipement: objet introuvable.");
+      return;
+    }
+    const can = canConsumeEquipmentInteraction(1);
+    if (!can.ok) {
+      pushLog(can.reason ?? "Interaction d'equipement impossible.");
+      return;
+    }
+    applyCharacterInventoryMutation(({ inventory }) => {
+      inventory.forEach(entry => {
+        if (String(entry?.instanceId ?? "") !== instanceId) return;
+        entry.isPrimaryWeapon = false;
+        entry.isSecondaryHand = false;
+      });
+    });
+    consumeEquipmentInteraction(1);
+    const label = itemLabelMap[String(target.id ?? "")] ?? String(target.id ?? "objet");
+    pushLog(`Equipement: ${label} rengaine.`);
+  }
+
+  function dropHandItem(instanceId: string): void {
+    const target = equipmentInventory.find(entry => String(entry.instanceId ?? "") === instanceId) ?? null;
+    if (!target) {
+      pushLog("Equipement: objet introuvable.");
+      return;
+    }
+    applyCharacterInventoryMutation(({ inventory, slots }) => {
+      const found = inventory.find(entry => String(entry?.instanceId ?? "") === instanceId) ?? null;
+      if (!found) return;
+      const slotId = String(found.equippedSlot ?? "");
+      if (slotId) slots[slotId] = null;
+      found.isPrimaryWeapon = false;
+      found.isSecondaryHand = false;
+      found.equippedSlot = null;
+      found.storedIn = null;
+    });
+    const label = itemLabelMap[String(target.id ?? "")] ?? String(target.id ?? "objet");
+    pushLog(`Equipement: ${label} lache.`);
+  }
+
+  function drawItemToHand(instanceId: string, hand: EquipmentHandTarget): void {
+    const candidate = drawCandidates.find(entry => entry.instanceId === instanceId) ?? null;
+    if (!candidate) {
+      pushLog("Equipement: selection invalide.");
+      return;
+    }
+    const target = equipmentInventory.find(entry => String(entry?.instanceId ?? "") === instanceId) ?? null;
+    if (!target || !isHandEquipableItem(target, armorItemsById)) {
+      pushLog("Equipement: objet introuvable.");
+      return;
+    }
+    const targetDef = target?.type === "weapon" ? weaponTypeById.get(String(candidate.id ?? "")) ?? null : null;
+    if (hand === "offhand" && targetDef?.properties?.twoHanded) {
+      pushLog("Equipement: une arme two-handed ne peut pas aller en main secondaire.");
+      return;
+    }
+    if (hand === "main" && isShieldArmorItem(target, armorItemsById)) {
+      pushLog("Equipement: un bouclier ne peut etre equipe qu'en main secondaire.");
+      return;
+    }
+
+    let interactionCost = 0;
+    let requiresBonus = false;
+    let freeSlot: string | null = null;
+
+    if (candidate.source === "slot") {
+      interactionCost =
+        target?.type === "weapon" && Boolean(playerEquipmentPolicy.allowWeaponSwapWithoutInteraction) ? 0 : 1;
+    } else {
+      freeSlot = findFreeCarrySlot(equipmentInventory, WEAPON_CARRY_SLOTS);
+      if (!freeSlot) {
+        pushLog("Equipement: aucun slot de port libre.");
+        return;
+      }
+      requiresBonus = true;
+    }
+
+    if (interactionCost > 0) {
+      const can = canConsumeEquipmentInteraction(interactionCost);
+      if (!can.ok) {
+        pushLog(can.reason ?? "Interaction d'equipement impossible.");
+        return;
+      }
+    }
+    if (requiresBonus) {
+      const bonusOk = consumeEquipmentBonusAction();
+      if (!bonusOk.ok) return;
+    }
+
+    applyCharacterInventoryMutation(({ inventory, slots }) => {
+      const target = inventory.find(entry => String(entry?.instanceId ?? "") === instanceId) ?? null;
+      if (!target) return;
+      if (candidate.source === "pack") {
+        target.storedIn = null;
+        target.equippedSlot = freeSlot;
+        if (freeSlot) slots[freeSlot] = target.id ?? null;
+      }
+      if (hand === "main") {
+        inventory.forEach(entry => {
+          entry.isPrimaryWeapon = false;
+        });
+        target.isPrimaryWeapon = true;
+        target.isSecondaryHand = false;
+        if (targetDef?.properties?.twoHanded) {
+          inventory.forEach(entry => {
+            if (entry === target) return;
+            entry.isSecondaryHand = false;
+          });
+        }
+      } else {
+        inventory.forEach(entry => {
+          entry.isSecondaryHand = false;
+        });
+        target.isPrimaryWeapon = false;
+        target.isSecondaryHand = true;
+      }
+    });
+
+    if (interactionCost > 0) consumeEquipmentInteraction(interactionCost);
+    pushLog(
+      `Equipement: ${candidate.label} equipe en ${hand === "main" ? "main principale" : "main secondaire"}.`
+    );
+  }
+
+  function handleSelectEquipmentContextItem(id: string): void {
+    if (!equipmentContext) return;
+    if (equipmentContext.mode === "hand-choice") {
+      const hand = id === "main" ? "main" : id === "offhand" ? "offhand" : null;
+      if (!hand || !equipmentPendingDrawInstanceId) return;
+      drawItemToHand(equipmentPendingDrawInstanceId, hand);
+      closeEquipmentContextWindow();
+      return;
+    }
+    if (equipmentContext.mode === "draw" || equipmentContext.mode === "inventory") {
+      const prefix = equipmentContext.mode === "draw" ? "draw:" : "inventory:";
+      const instanceId = id.startsWith(prefix) ? id.slice(prefix.length) : "";
+      if (!instanceId) return;
+      const canMain = !primaryHandItem;
+      const canOffhand = !secondaryHandItem;
+      if (!canMain && !canOffhand) {
+        pushLog("Equipement: aucune main libre.");
+        closeEquipmentContextWindow();
+        return;
+      }
+      if (canMain && canOffhand) {
+        const candidate = drawCandidates.find(entry => entry.instanceId === instanceId) ?? null;
+        if (candidate && candidate.type === "armor") {
+          drawItemToHand(instanceId, "offhand");
+          closeEquipmentContextWindow();
+          return;
+        }
+        setEquipmentPendingDrawInstanceId(instanceId);
+        setEquipmentContext(prev =>
+          prev
+            ? {
+                ...prev,
+                mode: "hand-choice"
+              }
+            : prev
+        );
+        setEquipmentHoveredId("main");
+        return;
+      }
+      drawItemToHand(instanceId, canMain ? "main" : "offhand");
+      closeEquipmentContextWindow();
+      return;
+    }
+    if (equipmentContext.mode === "sheathe") {
+      const instanceId = id.startsWith("sheathe:") ? id.slice("sheathe:".length) : "";
+      if (!instanceId) return;
+      sheatheHandItem(instanceId);
+      closeEquipmentContextWindow();
+      return;
+    }
+    if (equipmentContext.mode === "drop") {
+      const instanceId = id.startsWith("drop:") ? id.slice("drop:".length) : "";
+      if (!instanceId) return;
+      dropHandItem(instanceId);
+      closeEquipmentContextWindow();
+    }
+  }
+
   function applyCharacterInventoryMutation(
     mutator: (params: { inventory: Array<any>; slots: Record<string, any> }) => void
   ) {
@@ -12441,15 +12781,218 @@ function handleEndPlayerTurn() {
     setTurnEquipmentUsage(prev => ({ usedInteractionCount: prev.usedInteractionCount + count }));
   }
 
-  function consumeEquipmentAction(): { ok: boolean } {
-    const max = (player.combatStats?.actionsPerTurn ?? 1) + Math.max(0, bonusMainActionsThisTurn);
-    if (turnActionUsage.usedActionCount >= max) {
-      pushLog("Interaction equipement refusee: action principale deja utilisee ce tour.");
+  function consumeEquipmentBonusAction(): { ok: boolean } {
+    const max = player.combatStats?.bonusActionsPerTurn ?? 1;
+    if (turnActionUsage.usedBonusCount >= max) {
+      pushLog("Interaction equipement refusee: action bonus deja utilisee ce tour.");
       return { ok: false };
     }
-    setTurnActionUsage(prev => ({ ...prev, usedActionCount: prev.usedActionCount + 1 }));
+    setTurnActionUsage(prev => ({ ...prev, usedBonusCount: prev.usedBonusCount + 1 }));
     return { ok: true };
   }
+
+  const equipmentContextUi = (() => {
+    const getDrawCost = (
+      candidate: { cost: EquipmentHandEquipCost }
+    ): { label: string; tone: "free" | "interaction" | "action" | "bonus" } => {
+      if (candidate.cost === "free") return { label: "Libre", tone: "free" };
+      if (candidate.cost === "interaction") return { label: "Interaction", tone: "interaction" };
+      return { label: "Bonus", tone: "bonus" };
+    };
+    if (!equipmentContext) {
+      return {
+        title: "",
+        subtitle: "",
+        items: [] as Array<{
+          id: string;
+          label: string;
+          subtitle?: string;
+          costLabel?: string;
+          costTone?: "free" | "interaction" | "action" | "bonus";
+          disabled?: boolean;
+          disabledReason?: string;
+        }>,
+        detailsById: {} as Record<string, string[]>
+      };
+    }
+    if (equipmentContext.mode === "draw") {
+      const items = drawCandidates.map(candidate => {
+        const cost = getDrawCost(candidate);
+        return {
+          id: `draw:${candidate.instanceId}`,
+          label: candidate.label,
+          subtitle: candidate.sourceLabel,
+          costLabel: cost.label,
+          costTone: cost.tone
+        };
+      });
+      const detailsById: Record<string, string[]> = {};
+      drawCandidates.forEach(candidate => {
+        const cost = getDrawCost(candidate);
+        detailsById[`draw:${candidate.instanceId}`] = [...candidate.details, `Cout: ${cost.label}`];
+      });
+      return {
+        title: "Degainer",
+        subtitle: "Choisissez un objet equipable a mettre en main.",
+        items,
+        detailsById
+      };
+    }
+    if (equipmentContext.mode === "sheathe") {
+      const candidates = [primaryHandItem, secondaryHandItem].filter(Boolean);
+      const items = candidates.map((item: any) => {
+        const label = itemLabelMap[String(item.id ?? "")] ?? String(item.id ?? "objet");
+        const hand = item?.isPrimaryWeapon ? "main principale" : "main secondaire";
+        return {
+          id: `sheathe:${String(item.instanceId ?? "")}`,
+          label,
+          subtitle: hand,
+          costLabel: "Interaction",
+          costTone: "interaction" as const
+        };
+      });
+      const detailsById: Record<string, string[]> = {};
+      candidates.forEach((item: any) => {
+        const key = `sheathe:${String(item.instanceId ?? "")}`;
+        const label = itemLabelMap[String(item.id ?? "")] ?? String(item.id ?? "objet");
+        detailsById[key] = [
+          `Objet: ${label}`,
+          `Main: ${item?.isPrimaryWeapon ? "principale" : "secondaire"}`,
+          "Cout: 1 interaction d'equipement"
+        ];
+      });
+      return {
+        title: "Rengainer",
+        subtitle: "Retirer l'objet de la main.",
+        items,
+        detailsById
+      };
+    }
+    if (equipmentContext.mode === "drop") {
+      const candidates = [primaryHandItem, secondaryHandItem].filter(Boolean);
+      const items = candidates.map((item: any) => {
+        const label = itemLabelMap[String(item.id ?? "")] ?? String(item.id ?? "objet");
+        const hand = item?.isPrimaryWeapon ? "main principale" : "main secondaire";
+        return {
+          id: `drop:${String(item.instanceId ?? "")}`,
+          label,
+          subtitle: hand,
+          costLabel: "Libre",
+          costTone: "free" as const
+        };
+      });
+      const detailsById: Record<string, string[]> = {};
+      candidates.forEach((item: any) => {
+        const key = `drop:${String(item.instanceId ?? "")}`;
+        const label = itemLabelMap[String(item.id ?? "")] ?? String(item.id ?? "objet");
+        detailsById[key] = [
+          `Objet: ${label}`,
+          `Main: ${item?.isPrimaryWeapon ? "principale" : "secondaire"}`,
+          "Effet: l'objet est retire de l'equipement."
+        ];
+      });
+      return {
+        title: "Lacher",
+        subtitle: "Faire tomber un objet tenu.",
+        items,
+        detailsById
+      };
+    }
+    if (equipmentContext.mode === "hand-choice") {
+      const pending =
+        drawCandidates.find(candidate => candidate.instanceId === equipmentPendingDrawInstanceId) ?? null;
+      const pendingIsTwoHandedWeapon = Boolean(
+        pending?.type === "weapon" && weaponTypeById.get(String(pending?.id ?? ""))?.properties?.twoHanded
+      );
+      const pendingIsShield = Boolean(pending?.type === "armor");
+      const detailsById: Record<string, string[]> = {
+        main: [
+          `Objet: ${pending?.label ?? "objet"}`,
+          "Main principale: objet actif pour actions/attaques."
+        ],
+        offhand: [
+          `Objet: ${pending?.label ?? "objet"}`,
+          "Main secondaire: utile pour bouclier ou tenue secondaire."
+        ]
+      };
+      return {
+        title: "Choix de main",
+        subtitle: "Ou equiper cet objet ?",
+        items: [
+          {
+            id: "main",
+            label: "Main principale",
+            costLabel: "Confirmer",
+            costTone: "free" as const,
+            disabled: pendingIsShield,
+            disabledReason: "Un bouclier se place en main secondaire."
+          },
+          {
+            id: "offhand",
+            label: "Main secondaire",
+            costLabel: "Confirmer",
+            costTone: "free" as const,
+            disabled: pendingIsTwoHandedWeapon,
+            disabledReason: "Arme two-handed incompatible avec la main secondaire."
+          }
+        ],
+        detailsById
+      };
+    }
+    const equipableByInstanceId = new Map(drawCandidates.map(candidate => [candidate.instanceId, candidate] as const));
+    const items = equipmentInventory.map((item, idx) => {
+      const instanceId = String(item.instanceId ?? `${item.id ?? "item"}-${idx}`);
+      const id = `inventory:${instanceId}`;
+      const label = itemLabelMap[String(item.id ?? "")] ?? String(item.id ?? "objet");
+      const location = item?.storedIn
+        ? `dans ${String(item.storedIn)}`
+        : item?.equippedSlot
+          ? `slot ${String(item.equippedSlot)}`
+          : "sac principal";
+      const equipable = equipableByInstanceId.get(instanceId) ?? null;
+      const cost = equipable ? getDrawCost(equipable) : null;
+      return {
+        id,
+        label,
+        subtitle: `${item?.qty ?? 1}x - ${location}`,
+        costLabel: cost?.label ?? "Info",
+        costTone: (cost?.tone ?? "free") as "free" | "interaction" | "action" | "bonus",
+        disabled: !equipable,
+        disabledReason: equipable ? undefined : "Objet non equipable en main."
+      };
+    });
+    const detailsById: Record<string, string[]> = {};
+    equipmentInventory.forEach((item, idx) => {
+      const instanceId = String(item.instanceId ?? `${item.id ?? "item"}-${idx}`);
+      const key = `inventory:${instanceId}`;
+      const label = itemLabelMap[String(item.id ?? "")] ?? String(item.id ?? "objet");
+      const equipable = equipableByInstanceId.get(instanceId) ?? null;
+      detailsById[key] = [
+        `Objet: ${label}`,
+        `Type: ${String(item?.type ?? "object")}`,
+        `Quantite: ${Number(item?.qty ?? 1)}`,
+        `Equipe: ${item?.equippedSlot ? "oui" : "non"}`,
+        `Contenant: ${item?.storedIn ? String(item.storedIn) : "aucun"}`,
+        `Main equipable: ${equipable ? "oui" : "non"}`
+      ];
+      if (equipable) {
+        const cost = getDrawCost(equipable);
+        detailsById[key].push(`Cout: ${cost.label}`);
+      }
+    });
+    return {
+      title: "Inventaire",
+      subtitle: "Objets equipables en main (interaction depuis slot, bonus depuis sac).",
+      items,
+      detailsById
+    };
+  })();
+  const equipmentSelectedId =
+    equipmentHoveredId && equipmentContextUi.items.some(item => item.id === equipmentHoveredId)
+      ? equipmentHoveredId
+      : equipmentContextUi.items.length > 0
+        ? equipmentContextUi.items[0].id
+        : null;
 
   // Hide action removed; replaced by character sheet.
 
@@ -13294,6 +13837,20 @@ function handleEndPlayerTurn() {
                   );
                 }}
                 onClose={closeInteractionContext}
+              />
+              <EquipmentContextWindow
+                open={Boolean(equipmentContext)}
+                anchorX={equipmentContext?.anchorX ?? wheelAnchor.x}
+                anchorY={equipmentContext?.anchorY ?? wheelAnchor.y}
+                title={equipmentContextUi.title}
+                subtitle={equipmentContextUi.subtitle}
+                items={equipmentContextUi.items}
+                selectedId={equipmentSelectedId}
+                detailsById={equipmentContextUi.detailsById}
+                emptyLabel="Aucune option disponible."
+                onHoverItem={setEquipmentHoveredId}
+                onSelectItem={handleSelectEquipmentContextItem}
+                onClose={closeEquipmentContextWindow}
               />
 
             </div>

@@ -1,0 +1,17 @@
+{
+  "id": "protective-bond",
+  "label": "Protective Bond",
+  "summary": "Linked ally can teleport and take damage for another ally.",
+  "kind": "reaction",
+  "tags": ["cleric", "domain", "peace"],
+  "grants": [
+    {
+      "kind": "reaction",
+      "ids": ["protective-bond"],
+      "source": "protective-bond"
+    }
+  ],
+  "rules": {
+    "text": "Reaction when a linked ally takes damage. Teleport and take damage instead."
+  }
+}

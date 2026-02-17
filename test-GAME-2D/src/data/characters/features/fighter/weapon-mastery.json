@@ -1,0 +1,87 @@
+{
+  "id": "weapon-mastery",
+  "label": "Bottes d arme",
+  "summary": "Acces aux bottes d'armes selon les maitrises choisies.",
+  "kind": "feature",
+  "tags": ["fighter", "martial"],
+  "grants": [],
+  "rules": {
+    "text": "Choisissez trois bottes d'armes. Vous pouvez utiliser une botte quand l'arme utilisee porte aussi cette mastery.",
+    "modifiers": [
+      {
+        "applyTo": "actionCost",
+        "stat": "dualWieldBonusAttackWithoutBonusAction",
+        "value": 1,
+        "label": "Coup double (bypass bonus action)",
+        "usageKey": "mastery:coup-double:bonus-action-bypass",
+        "maxPerTurn": 1,
+        "limitMessage": "Coup double deja utilise ce tour.",
+        "when": {
+          "actorType": "player",
+          "actionCategory": "attack",
+          "actionCostType": "bonus",
+          "actionTagsAny": ["secondary-attack", "offhand-attack", "dual-wield"],
+          "actionTagsAll": ["wm-active:coup-double"],
+          "weaponMasteriesAny": ["coup-double"]
+        }
+      }
+    ],
+    "choices": [
+      {
+        "key": "masteries",
+        "title": "Bottes d'armes",
+        "count": 3,
+        "options": [
+          {
+            "id": "coup-double",
+            "label": "Coup double",
+            "summary": "Permet une attaque legere supplementaire selon la regle de la mastery.",
+            "grants": [{ "kind": "weaponMastery", "ids": ["coup-double"] }]
+          },
+          {
+            "id": "ecorchure",
+            "label": "Ecorchure",
+            "summary": "Ajoute l'effet Ecorchure sur les attaques eligibles.",
+            "grants": [{ "kind": "weaponMastery", "ids": ["ecorchure"] }]
+          },
+          {
+            "id": "enchainement",
+            "label": "Enchainement",
+            "summary": "Permet un enchainement d'attaque sur les situations eligibles.",
+            "grants": [{ "kind": "weaponMastery", "ids": ["enchainement"] }]
+          },
+          {
+            "id": "ouverture",
+            "label": "Ouverture",
+            "summary": "Expose la cible pour un suivi offensif.",
+            "grants": [{ "kind": "weaponMastery", "ids": ["ouverture"] }]
+          },
+          {
+            "id": "poussee",
+            "label": "Poussee",
+            "summary": "Repousse la cible si les conditions sont reunies.",
+            "grants": [{ "kind": "weaponMastery", "ids": ["poussee"] }]
+          },
+          {
+            "id": "ralentissement",
+            "label": "Ralentissement",
+            "summary": "Reduit la mobilite de la cible.",
+            "grants": [{ "kind": "weaponMastery", "ids": ["ralentissement"] }]
+          },
+          {
+            "id": "renversement",
+            "label": "Renversement",
+            "summary": "Tente de renverser la cible sur une frappe eligibile.",
+            "grants": [{ "kind": "weaponMastery", "ids": ["renversement"] }]
+          },
+          {
+            "id": "sape",
+            "label": "Sape",
+            "summary": "Affaiblit la defense de la cible.",
+            "grants": [{ "kind": "weaponMastery", "ids": ["sape"] }]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -128,11 +128,9 @@ export function getHandUsageState(params: {
   armorById: Map<string, ArmorItemDefinition>;
 }): HandUsageState {
   const inventory = Array.isArray(params.inventoryItems) ? params.inventoryItems : [];
-  const primaryReadyWeaponEntries = inventory.filter(entry => {
-    if (entry?.type !== "weapon") return false;
-    if (!entry?.isPrimaryWeapon) return false;
-    return isEquippedInHands(entry);
-  });
+  const primaryEntry =
+    inventory.find(entry => Boolean(entry?.isPrimaryWeapon) && isEquippedInHands(entry)) ?? null;
+  const primaryReadyWeaponEntries = primaryEntry?.type === "weapon" ? [primaryEntry] : [];
   const secondaryEntry =
     inventory.find(entry => Boolean(entry?.isSecondaryHand) && isEquippedInHands(entry)) ?? null;
   const readyWeapons: InventoryEntryLike[] = [];
@@ -167,9 +165,13 @@ export function getHandUsageState(params: {
   const readyShieldCount = readyShields.length;
   const hasShieldInHands = readyShieldCount > 0;
   const hasOffhandWeapon = !strictTwoHandedReady && readyWeaponCount >= 2;
-  const occupiedHands = strictTwoHandedReady
-    ? 2
-    : Math.min(2, readyShieldCount + Math.min(2, readyWeaponCount));
+  const occupiedHands = (() => {
+    if (strictTwoHandedReady) return 2;
+    let count = 0;
+    if (primaryEntry || readyWeaponCount > 0) count += 1;
+    if (secondaryEntry || readyWeaponCount > 1 || readyShieldCount > 0) count += 1;
+    return Math.min(2, count);
+  })();
   const freeHands = Math.max(0, 2 - occupiedHands);
   return {
     readyWeaponCount,

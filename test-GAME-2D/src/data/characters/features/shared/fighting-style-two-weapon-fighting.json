@@ -1,0 +1,21 @@
+{
+  "id": "fighting-style-two-weapon-fighting",
+  "label": "Style de combat: Combat a deux armes",
+  "summary": "Vous ajoutez votre modificateur de caracteristique aux degats de l'attaque secondaire.",
+  "kind": "feature",
+  "tags": ["fighting-style"],
+  "grants": [],
+  "rules": {
+    "text": "Quand vous combattez avec deux armes, vous ajoutez votre modificateur de caracteristique aux degats de la seconde attaque.",
+    "secondaryAttackPolicy": {
+      "mode": "addAbilityModToDamage",
+      "ability": "auto",
+      "when": {
+        "actionCategory": "attack",
+        "actionCostType": "bonus",
+        "requiresOffhandWeapon": true,
+        "weaponLight": true
+      }
+    }
+  }
+}

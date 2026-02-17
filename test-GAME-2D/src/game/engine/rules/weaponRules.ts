@@ -2,6 +2,89 @@ import type { ActionDefinition } from "./actionTypes";
 import type { WeaponTypeDefinition } from "../weaponTypes";
 import type { TokenState } from "../../../types";
 
+export type AttackKind = "weapon" | "unarmed";
+export type AttackWeaponKind = "simple" | "martial" | "improvised" | "none";
+
+export type AttackContext = {
+  attackKind: AttackKind;
+  weaponKind: AttackWeaponKind;
+  isImprovised: boolean;
+  isUnarmed: boolean;
+  tags: string[];
+};
+
+const MANAGED_ATTACK_CONTEXT_TAGS = new Set([
+  "attack:weapon",
+  "attack:unarmed",
+  "weapon:improvised",
+  "weapon:kind:simple",
+  "weapon:kind:martial",
+  "weapon:kind:improvised",
+  "weapon:kind:none"
+]);
+
+function classifyWeaponKind(weapon: WeaponTypeDefinition): AttackWeaponKind {
+  const tags = Array.isArray(weapon.tags) ? weapon.tags : [];
+  const lowerTags = tags.map(tag => String(tag).toLowerCase());
+  const special = String(weapon.properties?.special ?? "").toLowerCase();
+  const isImprovised =
+    lowerTags.includes("improvised") ||
+    lowerTags.includes("weapon:improvised") ||
+    special.includes("improvis");
+  if (isImprovised) return "improvised";
+  if (weapon.subtype === "simple") return "simple";
+  if (weapon.subtype === "martiale") return "martial";
+  return "none";
+}
+
+export function resolveAttackContextForActor(params: {
+  action: ActionDefinition;
+  weapon?: WeaponTypeDefinition | null;
+}): AttackContext {
+  const action = params.action;
+  const weapon = params.weapon ?? null;
+  if (action.category !== "attack") {
+    return {
+      attackKind: "weapon",
+      weaponKind: "none",
+      isImprovised: false,
+      isUnarmed: false,
+      tags: []
+    };
+  }
+  if (!weapon) {
+    return {
+      attackKind: "unarmed",
+      weaponKind: "none",
+      isImprovised: false,
+      isUnarmed: true,
+      tags: ["attack:unarmed", "weapon:kind:none"]
+    };
+  }
+  const weaponKind = classifyWeaponKind(weapon);
+  const isImprovised = weaponKind === "improvised";
+  const tags = [`attack:weapon`, `weapon:kind:${weaponKind}`];
+  if (isImprovised) tags.push("weapon:improvised");
+  return {
+    attackKind: "weapon",
+    weaponKind,
+    isImprovised,
+    isUnarmed: false,
+    tags
+  };
+}
+
+export function applyAttackContextTags(action: ActionDefinition, context: AttackContext): ActionDefinition {
+  if (action.category !== "attack") return action;
+  const currentTags = Array.isArray(action.tags) ? action.tags : [];
+  const kept = currentTags.filter(tag => !MANAGED_ATTACK_CONTEXT_TAGS.has(String(tag)));
+  const nextTags = Array.from(new Set([...kept, ...context.tags]));
+  return {
+    ...action,
+    tags: nextTags
+  };
+}
+
 export function normalizeWeaponModToken(mod: string | null | undefined): string | null {
   if (!mod) return null;
   const cleaned = String(mod).replace(/\s+/g, "");

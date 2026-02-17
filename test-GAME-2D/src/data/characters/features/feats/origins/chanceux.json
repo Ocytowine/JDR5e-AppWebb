@@ -1,0 +1,5 @@
+{
+  "id": "chanceux",
+  "label": "Chanceux",
+  "description": "Chanceux\nDon d'origines\nVous beneficiez des avantages suivants.\nPoints de chance. Vous disposez d'un nombre de points de Chance egal a votre bonus de maitrise et pouvez les depenser pour les avantages ci-dessous. Vous recuperez vos points de Chance depenses a la fin d'un Repos long.\nAvantage. Lorsque vous lancez un d20 pour un test de D20, vous pouvez depenser 1 point de Chance pour vous donner un Avantage.\nDesavantage. Lorsqu'une creature lance un d20 pour un jet d'attaque contre vous, vous pouvez depenser 1 point de Chance pour lui imposer un Desavantage."
+}

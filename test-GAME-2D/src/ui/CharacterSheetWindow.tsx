@@ -210,6 +210,45 @@ function isInventoryItemHarmonized(item: any): boolean {
   return false;
 }
 
+function simplifyEquipSlotLabel(slot: string): string {
+  const key = String(slot ?? "").trim().toLowerCase();
+  const map: Record<string, string> = {
+    tete: "Tete",
+    cou: "Cou",
+    torse: "Torse",
+    dos: "Dos",
+    mains: "Mains",
+    ceinture: "Ceinture",
+    ceinture_gauche: "Ceint. G",
+    ceinture_droite: "Ceint. D",
+    dos_gauche: "Dos G",
+    dos_droit: "Dos D",
+    bague_gauche: "Bague G",
+    bague_droite: "Bague D",
+    paquetage: "Paquetage"
+  };
+  if (map[key]) return map[key];
+  return key
+    .split("_")
+    .filter(Boolean)
+    .map(token => token.charAt(0).toUpperCase() + token.slice(1))
+    .join(" ");
+}
+
+function inventoryItemKey(item: any, idx: number): string {
+  const instance = String(item?.instanceId ?? "");
+  if (instance) return instance;
+  const id = String(item?.id ?? "item");
+  return `${id}-${idx}`;
+}
+
+function looksLikeContainer(item: any): boolean {
+  if (!item) return false;
+  if (Array.isArray(item?.contenu)) return true;
+  const tags = Array.isArray(item?.tags) ? item.tags.map((tag: any) => String(tag).toLowerCase()) : [];
+  return tags.some(tag => ["sac", "container", "pack", "ammo_container"].includes(tag));
+}
+
 export function CharacterSheetWindow(props: {
   open: boolean;
   anchorX: number;
@@ -235,6 +274,7 @@ export function CharacterSheetWindow(props: {
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [showCharacterJson, setShowCharacterJson] = useState<boolean>(false);
   const [infoPanel, setInfoPanel] = useState<{ title: string; subtitle?: string; data: unknown } | null>(null);
+  const [expandedContainers, setExpandedContainers] = useState<Record<string, boolean>>({});
   const dragRef = useRef<{
     startClientX: number;
     startClientY: number;
@@ -349,6 +389,10 @@ export function CharacterSheetWindow(props: {
 
   const profs = props.character.proficiencies ?? {};
   const inventoryItems = props.character.inventoryItems ?? [];
+  const resolveItemLabel = (value: string | null | undefined): string => {
+    if (!value) return "-";
+    return props.itemLabels?.[value] ?? value;
+  };
   const harmonizedByWeaponId = (() => {
     const map = new Map<string, { harmonisable: boolean; harmonized: boolean }>();
     inventoryItems
@@ -371,6 +415,95 @@ export function CharacterSheetWindow(props: {
     return map;
   })();
   const equipmentSlots = props.character.materielSlots ?? {};
+  const inventoryWithMeta = inventoryItems.map((item, idx) => ({
+    item,
+    key: inventoryItemKey(item, idx),
+    instanceId: String(item?.instanceId ?? ""),
+    label: resolveItemLabel(String(item?.id ?? "")),
+    qty: Number(item?.qty ?? 1) || 1
+  }));
+  const primaryHandEntry =
+    inventoryWithMeta.find(
+      entry =>
+        Boolean(entry.item?.isPrimaryWeapon) &&
+        Boolean(entry.item?.equippedSlot) &&
+        !entry.item?.storedIn
+    ) ?? null;
+  const secondaryHandEntry =
+    inventoryWithMeta.find(
+      entry =>
+        Boolean(entry.item?.isSecondaryHand) &&
+        Boolean(entry.item?.equippedSlot) &&
+        !entry.item?.storedIn
+    ) ?? null;
+  const equipmentSlotRows = Object.entries(equipmentSlots)
+    .filter(([, itemId]) => Boolean(itemId))
+    .map(([slot, itemId]) => {
+      const itemIdText = String(itemId ?? "");
+      const linkedEntry =
+        inventoryWithMeta.find(
+          entry => String(entry.item?.id ?? "") === itemIdText && String(entry.item?.equippedSlot ?? "") === slot
+        ) ?? null;
+      return {
+        slot,
+        slotLabel: simplifyEquipSlotLabel(slot),
+        itemId: itemIdText,
+        itemLabel: resolveItemLabel(itemIdText),
+        linkedEntry
+      };
+    });
+  const childrenByStoredIn = (() => {
+    const map = new Map<string, Array<(typeof inventoryWithMeta)[number]>>();
+    inventoryWithMeta.forEach(entry => {
+      const storedIn = String(entry.item?.storedIn ?? "");
+      if (!storedIn) return;
+      const list = map.get(storedIn) ?? [];
+      list.push(entry);
+      map.set(storedIn, list);
+    });
+    return map;
+  })();
+  const containerRows = (() => {
+    const rows: Array<{
+      key: string;
+      title: string;
+      location: string;
+      children: Array<(typeof inventoryWithMeta)[number]>;
+    }> = [];
+    inventoryWithMeta.forEach(entry => {
+      const item = entry.item;
+      const isContainer =
+        looksLikeContainer(item) ||
+        (entry.instanceId.length > 0 && (childrenByStoredIn.get(entry.instanceId)?.length ?? 0) > 0);
+      if (!isContainer) return;
+      const direct = entry.instanceId ? childrenByStoredIn.get(entry.instanceId) ?? [] : [];
+      const bySlot = item?.equippedSlot ? childrenByStoredIn.get(String(item.equippedSlot)) ?? [] : [];
+      const byPackAlias =
+        item?.equippedSlot === "paquetage" ? childrenByStoredIn.get("paquetage") ?? [] : [];
+      const uniqueChildren = Array.from(
+        new Map([...direct, ...bySlot, ...byPackAlias].map(child => [child.key, child])).values()
+      );
+      const location = item?.equippedSlot
+        ? `Equipe: ${simplifyEquipSlotLabel(String(item.equippedSlot))}`
+        : item?.storedIn
+          ? `Dans: ${String(item.storedIn)}`
+          : "Inventaire";
+      rows.push({
+        key: `container:${entry.key}`,
+        title: entry.label,
+        location,
+        children: uniqueChildren
+      });
+    });
+    return rows;
+  })();
+  const looseInventoryRows = inventoryWithMeta.filter(
+    entry =>
+      !entry.item?.storedIn &&
+      !entry.item?.equippedSlot &&
+      !entry.item?.isPrimaryWeapon &&
+      !entry.item?.isSecondaryHand
+  );
   const spellSlots = formatSlots(props.character.spellcastingState?.slots);
   const spellSources = props.character.spellcastingState?.sources
     ? Object.values(props.character.spellcastingState.sources)
@@ -436,10 +569,6 @@ export function CharacterSheetWindow(props: {
     spellIdsFromState.granted.length > 0 ? spellIdsFromState.granted : spellIdsFromSelections.granted;
   const displayedKnownSpellIds =
     spellIdsFromState.known.length > 0 ? spellIdsFromState.known : spellIdsFromSelections.known;
-  const resolveItemLabel = (value: string | null | undefined): string => {
-    if (!value) return "-";
-    return props.itemLabels?.[value] ?? value;
-  };
   const actionInfoById = props.actionInfoById ?? new Map();
   const spellInfoById = props.spellInfoById ?? new Map();
   const resourceEntries = Object.entries(props.resources ?? {})
@@ -469,6 +598,34 @@ export function CharacterSheetWindow(props: {
       return;
     }
     setInfoPanel({ title: def.name ?? def.id, subtitle: `Sort ${def.id}`, data: def });
+  };
+
+  const openInventoryItemInfo = (
+    entry: { item: any; label: string; qty: number },
+    contextLabel?: string
+  ) => {
+    const item = entry.item ?? {};
+    const weapon = item?.type === "weapon" ? weaponById.get(String(item.id ?? "")) ?? null : null;
+    const details = {
+      inventoryItem: item,
+      quantity: entry.qty,
+      resolvedLabel: entry.label,
+      context: contextLabel ?? null,
+      weaponDefinition: weapon,
+      weaponSummary: weapon
+        ? {
+            category: String(weapon.category ?? "?"),
+            damage: formatWeaponDamageLabel(weapon),
+            range: formatWeaponRangeLabel(weapon),
+            harmonized: weapon.harmonisable ? isInventoryItemHarmonized(item) : null
+          }
+        : null
+    };
+    setInfoPanel({
+      title: entry.label,
+      subtitle: contextLabel ?? "Objet d'inventaire",
+      data: details
+    });
   };
 
   const initiativeValue = (() => {
@@ -729,27 +886,94 @@ export function CharacterSheetWindow(props: {
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 10 }}>
-          <Section title="Equipement">
+          <Section title="Equipement (slots + mains)">
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.75)" }}>
+                <span style={{ fontWeight: 800, color: "#fff" }}>Main principale</span>:{" "}
+                {primaryHandEntry ? (
+                  <button
+                    type="button"
+                    onClick={() => openInventoryItemInfo(primaryHandEntry, "Main principale")}
+                    style={{
+                      border: "1px solid rgba(255,255,255,0.15)",
+                      background: "rgba(255,255,255,0.08)",
+                      color: "#fff",
+                      borderRadius: 8,
+                      fontSize: 11,
+                      padding: "2px 6px",
+                      cursor: "pointer"
+                    }}
+                  >
+                    {primaryHandEntry.label}
+                  </button>
+                ) : (
+                  "-"
+                )}
+              </div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.75)" }}>
+                <span style={{ fontWeight: 800, color: "#fff" }}>Main secondaire</span>:{" "}
+                {secondaryHandEntry ? (
+                  <button
+                    type="button"
+                    onClick={() => openInventoryItemInfo(secondaryHandEntry, "Main secondaire")}
+                    style={{
+                      border: "1px solid rgba(255,255,255,0.15)",
+                      background: "rgba(255,255,255,0.08)",
+                      color: "#fff",
+                      borderRadius: 8,
+                      fontSize: 11,
+                      padding: "2px 6px",
+                      cursor: "pointer"
+                    }}
+                  >
+                    {secondaryHandEntry.label}
+                  </button>
+                ) : (
+                  "-"
+                )}
+              </div>
+            </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 6 }}>
-              {Object.entries(equipmentSlots).filter(([, item]) => item).length === 0 && (
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>Aucun slot.</div>
+              {equipmentSlotRows.length === 0 && (
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>Aucun slot occupe.</div>
               )}
-              {Object.entries(equipmentSlots)
-                .filter(([, item]) => item)
-                .map(([slot, item]) => (
-                <div key={slot} style={{ fontSize: 12, color: "rgba(255,255,255,0.75)" }}>
-                  <span style={{ fontWeight: 800, color: "#fff" }}>{slot}</span>:{" "}
-                  {resolveItemLabel(String(item))}
+              {equipmentSlotRows.map(row => (
+                <div key={row.slot} style={{ fontSize: 12, color: "rgba(255,255,255,0.75)" }}>
+                  <span style={{ fontWeight: 800, color: "#fff" }}>{row.slotLabel}</span>:{" "}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      row.linkedEntry
+                        ? openInventoryItemInfo(row.linkedEntry, `Slot ${row.slotLabel}`)
+                        : setInfoPanel({
+                            title: row.itemLabel,
+                            subtitle: `Slot ${row.slotLabel}`,
+                            data: { slot: row.slot, itemId: row.itemId, label: row.itemLabel }
+                          })
+                    }
+                    style={{
+                      border: "1px solid rgba(255,255,255,0.15)",
+                      background: "rgba(255,255,255,0.08)",
+                      color: "#fff",
+                      borderRadius: 8,
+                      fontSize: 11,
+                      padding: "2px 6px",
+                      cursor: "pointer"
+                    }}
+                  >
+                    {row.itemLabel}
+                  </button>
                 </div>
               ))}
             </div>
           </Section>
 
-          <Section title="Inventaire">
-            {inventoryItems.length === 0 && (
+          <Section title="Inventaire (contenants ouvrables)">
+            {looseInventoryRows.length === 0 && containerRows.length === 0 && (
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>Inventaire vide.</div>
             )}
-            {inventoryItems.map(item => {
+            {looseInventoryRows.map(entry => {
+              const item = entry.item;
               const weapon = item?.type === "weapon" ? weaponById.get(String(item.id)) ?? null : null;
               const weaponSummary = weapon
                 ? `${String(weapon.category ?? "?")} | ${formatWeaponDamageLabel(weapon)} | ${formatWeaponRangeLabel(weapon)}${
@@ -759,24 +983,112 @@ export function CharacterSheetWindow(props: {
                   }`
                 : null;
               return (
-                <div
-                  key={item.instanceId ?? `${item.id}-${item.qty}`}
-                  style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 2 }}
-                >
+                <div key={entry.key} style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 2 }}>
                   <div>
-                    <span style={{ color: "#fff", fontWeight: 700 }}>{item.qty}x</span>{" "}
-                    <span style={{ color: "rgba(255,255,255,0.8)" }} title={weaponSummary ?? undefined}>
-                      {resolveItemLabel(String(item.id))}
-                    </span>
-                    {item.equippedSlot && (
-                      <span style={{ color: "rgba(255,255,255,0.55)" }}> (eq: {item.equippedSlot})</span>
-                    )}
-                    {item.storedIn && (
-                      <span style={{ color: "rgba(255,255,255,0.55)" }}> (dans {item.storedIn})</span>
-                    )}
+                    <span style={{ color: "#fff", fontWeight: 700 }}>{entry.qty}x</span>{" "}
+                    <button
+                      type="button"
+                      onClick={() => openInventoryItemInfo(entry, "Inventaire")}
+                      style={{
+                        border: "1px solid rgba(255,255,255,0.15)",
+                        background: "rgba(255,255,255,0.08)",
+                        color: "rgba(255,255,255,0.9)",
+                        borderRadius: 8,
+                        fontSize: 11,
+                        padding: "2px 6px",
+                        cursor: "pointer"
+                      }}
+                    >
+                      {entry.label}
+                    </button>
                   </div>
                   {weaponSummary && (
                     <div style={{ fontSize: 10, color: "rgba(255,255,255,0.62)" }}>{weaponSummary}</div>
+                  )}
+                </div>
+              );
+            })}
+            {containerRows.map(container => {
+              const isOpen = Boolean(expandedContainers[container.key]);
+              return (
+                <div
+                  key={container.key}
+                  style={{
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: 8,
+                    background: "rgba(255,255,255,0.03)",
+                    padding: 8
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setExpandedContainers(prev => ({
+                        ...prev,
+                        [container.key]: !prev[container.key]
+                      }))
+                    }
+                    style={{
+                      width: "100%",
+                      textAlign: "left",
+                      borderRadius: 8,
+                      border: "1px solid rgba(255,255,255,0.14)",
+                      background: "rgba(255,255,255,0.06)",
+                      color: "#fff",
+                      cursor: "pointer",
+                      padding: "6px 8px",
+                      fontSize: 12,
+                      fontWeight: 800
+                    }}
+                  >
+                    {isOpen ? "▼" : "▶"} {container.title} {container.children.length} - {container.location}
+                  </button>
+                  {isOpen && (
+                    <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+                      {container.children.length === 0 ? (
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.62)" }}>Vide.</div>
+                      ) : (
+                        container.children.map(child => {
+                          const childItem = child.item;
+                          const childWeapon =
+                            childItem?.type === "weapon"
+                              ? weaponById.get(String(childItem.id)) ?? null
+                              : null;
+                          const childWeaponSummary = childWeapon
+                            ? `${String(childWeapon.category ?? "?")} | ${formatWeaponDamageLabel(childWeapon)} | ${formatWeaponRangeLabel(childWeapon)}${
+                                childWeapon.harmonisable
+                                  ? ` | harm:${isInventoryItemHarmonized(childItem) ? "active" : "inactive"}`
+                                  : ""
+                              }`
+                            : null;
+                          return (
+                            <div key={child.key} style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 2 }}>
+                              <div>
+                                <span style={{ color: "#fff", fontWeight: 700 }}>{child.qty}x</span>{" "}
+                                <button
+                                  type="button"
+                                  onClick={() => openInventoryItemInfo(child, `Contenant ${container.title}`)}
+                                  style={{
+                                    border: "1px solid rgba(255,255,255,0.15)",
+                                    background: "rgba(255,255,255,0.08)",
+                                    color: "rgba(255,255,255,0.9)",
+                                    borderRadius: 8,
+                                    fontSize: 11,
+                                    padding: "2px 6px",
+                                    cursor: "pointer"
+                                  }}
+                                >
+                                  {child.label}
+                                </button>
+                              </div>
+                              {childWeaponSummary && (
+                                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.62)" }}>{childWeaponSummary}</div>
+                              )}
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
                   )}
                 </div>
               );
@@ -786,23 +1098,6 @@ export function CharacterSheetWindow(props: {
             </div>
           </Section>
 
-          <Section title="Armes equipees">
-            {equippedWeapons.length === 0 && (
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>Aucune arme equipee.</div>
-            )}
-            {equippedWeapons.map(weapon => {
-              const damageLabel = formatWeaponDamageLabel(weapon);
-              const category = String(weapon.category ?? "?");
-              const rangeLabel = formatWeaponRangeLabel(weapon);
-              const harmonized = harmonizedByWeaponId.get(String(weapon.id));
-              const harmonizedLabel =
-                harmonized?.harmonisable
-                  ? ` | harm:${harmonized.harmonized ? "active" : "inactive"}`
-                  : "";
-              const subtitle = `${category} | ${damageLabel} | ${rangeLabel}${harmonizedLabel}`;
-              return <StatRow key={weapon.id} label={weapon.name} value={subtitle} dim />;
-            })}
-          </Section>
         </div>
 
         <Section title="Magie">

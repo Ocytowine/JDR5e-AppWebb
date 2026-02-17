@@ -21,7 +21,7 @@ Corrections integrees:
 2. Le contexte de critique (`isCrit`, `critRule`) est propage a toutes les operations `DealDamage`/`DealDamageScaled` d'une meme resolution.
 3. Les degats additionnels d'arme (`extraDamage`) beneficient donc du critique `double-dice` comme le degat principal.
 4. Le pipeline ActionEngine accepte des contraintes d'equipement centralisees via `ActionEngineContext.getActionConstraintIssues` (meme source de verite Creator + ingame).
-5. Les contraintes de manipulation d'armes sont coherentes en runtime: 1 interaction d'equipement par tour (modifiable par feat), et sortie depuis sac bloquee sans regle de feat explicite.
+5. Les contraintes de manipulation d'equipement en main sont verrouillees en runtime: sortie depuis slot = 1 interaction (modifiable par feat pour les armes), sortie depuis sac/contenant = 1 action bonus, avec candidats filtrables (armes, boucliers, objets).
 6. Le runtime supporte des overrides de cout d'action data-driven via `feature.rules.modifiers` (`actionCostOverride`, priorites, limites par tour, scaling par action principale deja prise).
 7. Le socle Guerrier applique maintenant:
    - Extra Attack (5/11/20) par conversion conditionnelle de cout `action -> free` avec quotas,
@@ -258,6 +258,39 @@ Execution complete:
 
 ## 6) Internes importants - `actionEngine.ts`
 
+## 7) Note d integration melee (analyse avant implementation)
+
+Objectif de cette note:
+- preparer l ajout de la logique "attaque melee armee/non armee" sans dupliquer les branches existantes.
+
+Constats code (points uniques deja en place):
+1. Selection d arme centralisee: `src/GameBoard.tsx` via `pickWeaponForAction`.
+2. Override d action arme centralise: `src/GameBoard.tsx` via `applyWeaponOverrideForActor` -> `buildWeaponOverrideAction`.
+3. Contraintes mains/bouclier/deux armes centralisees:
+- `src/game/engine/rules/equipmentHands.ts` (`getHandUsageState`, `getEquipmentConstraintIssues`)
+- `src/game/engine/rules/weaponPairingRules.ts` (`getDualWieldConstraintIssues`)
+4. Cout de manipulation d arme centralise: `resolveWeaponHandlingCost` dans `src/GameBoard.tsx`.
+5. Reutilisation large de ce pipeline (joueur, ennemis, reactions, preview UI), donc c est le bon point d extension.
+
+Conclusion architecture:
+- ne pas creer de "nouvelle branche melee" ailleurs,
+- ne pas dupliquer des actions "armee" et "non armee" par contenu,
+- enrichir le contexte/tags de l action a partir du pipeline unique existant.
+
+Direction recommandee:
+1. Introduire un helper unique de contexte d attaque (ex: `resolveAttackContextForActor`) calcule avant override final:
+- `attackKind`: `weapon` | `unarmed`
+- `weaponKind`: `martial` | `simple` | `improvised` | `none`
+- `isImprovised`
+- `isUnarmed`
+2. Injecter les tags derives sur l action finale (ex: `attack:weapon`, `attack:unarmed`, `weapon:improvised`) sans changer les JSON de base.
+3. Faire dependre feats/riders de ces tags/flags plutot que d id d action.
+
+Safeguards anti regression:
+1. Si `pickWeaponForAction` ne trouve pas d arme, conserver le fallback action actuel (base attack) et le qualifier `attack:unarmed`.
+2. Ne jamais court-circuiter `getEquipmentConstraintIssuesForActor` ni `resolveWeaponHandlingCost`.
+3. Garder `applyWeaponOverrideForActor` comme point unique d assemblage final.
+
 Helpers de validation/deplacement:
 - `areOnSameBaseLevel`, `getLightAtToken`, `isInLight`
 - `isCellAllowed`
@@ -307,6 +340,7 @@ Limitations actuelles explicites:
 1. Router les hooks de cycle (`onTurnStart/onTurnEnd/onRoundStart/onRoundEnd`) dans le scheduler de tour.
 2. Introduire un mode reaction avance (contre-action executee dans la fenetre pre/post).
 3. Consolider la doc de contrat callback (`ExecuteOptions`) avec exemples de fallback et garanties.
+4. Voir roadmap generique DnD2024: `docs/ActionEngine/dnd2024-generic-gaps-and-roadmap.md`.
 
 ## 9) Tableau technique IA (fonctions)
 

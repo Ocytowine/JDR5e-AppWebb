@@ -143,6 +143,28 @@ Comportement actuel:
 3. Eviter d'introduire des parentheses inutiles lors de la composition (`(1d10+3)+2`), cela peut casser le parsing des termes de des.
 4. En critique `double-dice`, toutes les operations `DealDamage` d'une meme resolution (degat principal et degats additionnels) utilisent maintenant le meme contexte de critique.
 
+## 7) Axe melee armed/unarmed (notice d integration)
+
+Constat:
+- la base runtime possede deja un pipeline unique de selection/override d arme.
+- pour eviter les doublons de contenu, les feats doivent cibler un contexte d attaque normalise, pas des ids d action.
+
+Convention recommandee pour les prochaines extensions:
+1. Utiliser des tags de contexte poses au meme point central que l override arme:
+- `attack:weapon`
+- `attack:unarmed`
+- `weapon:improvised`
+2. Garder la logique de contraintes dans les modules existants:
+- `equipmentHands.ts`
+- `weaponPairingRules.ts`
+3. Etendre les filtres `when` de facon generique plutot que par feat:
+- `attackKind` (`weapon|unarmed`)
+- `weaponKind` (`simple|martial|improvised|none`)
+- `isImprovised` (booleen)
+
+Note:
+- ces 3 filtres `when` sont un objectif de schema (pas encore declares comme support runtime complet tant que le moteur ne les evalue pas partout).
+
 ## Liens utiles
 
 1. Vue d'ensemble navigation: `docs/notice/notice-navigation.md`

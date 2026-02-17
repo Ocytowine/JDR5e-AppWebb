@@ -1,0 +1,26 @@
+{
+  "id": "fighting-style-protection",
+  "label": "Style de combat: Protection",
+  "summary": "Vous pouvez imposer un desavantage sur une attaque visant un allie proche.",
+  "kind": "feature",
+  "tags": ["fighting-style"],
+  "grants": [],
+  "rules": {
+    "text": "Quand une creature attaque une cible autre que vous a proximite, vous pouvez utiliser votre reaction pour lui imposer un desavantage.",
+    "reactionModifiers": [
+      {
+        "event": "incomingAttack",
+        "mode": "imposeDisadvantage",
+        "uiMessage": "Style Protection: desavantage impose a l'attaque ennemie.",
+        "when": {
+          "actionCategory": "attack",
+          "targetMustBeAlly": true,
+          "targetMustNotBeSelf": true,
+          "targetVisible": true,
+          "maxDistanceToTarget": 1.5,
+          "requiresShield": true
+        }
+      }
+    ]
+  }
+}

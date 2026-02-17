@@ -1,0 +1,29 @@
+{
+  "id": "second-wind-feature",
+  "label": "Second souffle",
+  "summary": "Reserve de recuperation physique et mentale.",
+  "kind": "resource",
+  "tags": ["fighter", "resource"],
+  "grants": [
+    {
+      "kind": "resource",
+      "ids": ["second-wind"],
+      "source": "second-wind-feature",
+      "meta": {
+        "maxByLevel": {
+          "1": 2,
+          "4": 3,
+          "10": 4
+        },
+        "scale": {
+          "basis": "class",
+          "classId": "fighter"
+        },
+        "recharge": "short_rest"
+      }
+    }
+  ],
+  "rules": {
+    "text": "Utilisable en action bonus pour recuperer des PV. Recuperation partielle au repos court et complete au repos long."
+  }
+}

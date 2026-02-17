@@ -1,14 +1,14 @@
 import type { FeatureDefinition } from "./featureTypes";
 
-import featuresIndex from "../data/features/index.json";
+import featuresIndex from "../data/characters/features/index.json";
 
-const FEATURE_MODULES = import.meta.glob("../data/features/**/*.json", {
+const FEATURE_MODULES = import.meta.glob("../data/characters/features/**/*.json", {
   eager: true,
   import: "default"
 }) as Record<string, FeatureDefinition>;
 
 function toIndexPath(globPath: string): string {
-  return globPath.replace("../data/features/", "./");
+  return globPath.replace("../data/characters/features/", "./");
 }
 
 export function loadFeatureTypesFromIndex(): FeatureDefinition[] {
@@ -18,7 +18,7 @@ export function loadFeatureTypesFromIndex(): FeatureDefinition[] {
 
   const loaded: FeatureDefinition[] = [];
   for (const path of indexed) {
-    const globPath = `../data/features/${path.replace(/^\.\//, "")}`;
+    const globPath = `../data/characters/features/${path.replace(/^\.\//, "")}`;
     const mod = FEATURE_MODULES[globPath];
     if (mod) {
       loaded.push(mod);

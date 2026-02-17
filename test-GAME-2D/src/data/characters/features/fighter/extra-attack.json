@@ -1,0 +1,31 @@
+{
+  "id": "extra-attack",
+  "label": "Attaque supplementaire",
+  "summary": "Deux attaques lors de l'action Attaque.",
+  "kind": "feature",
+  "tags": ["fighter", "martial", "attack"],
+  "grants": [],
+  "rules": {
+    "text": "Vous pouvez attaquer deux fois lorsque vous prenez l'action Attaque.",
+    "modifiers": [
+      {
+        "applyTo": "actionCost",
+        "stat": "actionCostOverride",
+        "fromCostType": "action",
+        "toCostType": "free",
+        "label": "Attaque supplementaire",
+        "usageKey": "fighter:extra-attack:free-attacks",
+        "maxPerTurnPerActionUsed": 1,
+        "priority": 10,
+        "limitMessage": "Attaque supplementaire deja utilisee pour ce tour.",
+        "when": {
+          "actorType": "player",
+          "actionCategory": "attack",
+          "actionCostType": "action",
+          "actionTagsNone": ["spell"],
+          "requiresTurnAttackActionUsed": true
+        }
+      }
+    ]
+  }
+}

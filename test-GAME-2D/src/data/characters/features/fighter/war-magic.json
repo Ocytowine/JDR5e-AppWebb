@@ -1,0 +1,31 @@
+{
+  "id": "war-magic",
+  "label": "Magie de guerre",
+  "summary": "Apres un cantrip, attaque d'arme en action bonus.",
+  "kind": "feature",
+  "tags": ["fighter", "eldritch-knight", "attack"],
+  "grants": [],
+  "rules": {
+    "text": "Apres avoir lance un sort mineur, vous pouvez effectuer une attaque d'arme en action bonus.",
+    "modifiers": [
+      {
+        "applyTo": "actionCost",
+        "stat": "actionCostOverride",
+        "fromCostType": "action",
+        "toCostType": "bonus",
+        "label": "Magie de guerre",
+        "usageKey": "fighter:war-magic:bonus-attack",
+        "maxPerTurn": 1,
+        "priority": 15,
+        "limitMessage": "Magie de guerre deja utilisee ce tour.",
+        "when": {
+          "actorType": "player",
+          "actionCategory": "attack",
+          "actionCostType": "action",
+          "actionTagsNone": ["spell"],
+          "requiresTurnCantripCast": true
+        }
+      }
+    ]
+  }
+}
