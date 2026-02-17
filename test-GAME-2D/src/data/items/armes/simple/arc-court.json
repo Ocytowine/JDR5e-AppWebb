@@ -47,12 +47,12 @@
   },
   "damage": {
     "dice": "1d6",
-    "damageType": "piercing"
+    "damageType": "PIERCING"
   },
   "effectOnHit": {
     "mod": "mod.DEX",
     "damage": "1d6",
-    "damageType": "piercing"
+    "damageType": "PIERCING"
   },
   "label": "Arc court"
 }

@@ -51,12 +51,12 @@
   },
   "damage": {
     "dice": "1d4",
-    "damageType": "piercing"
+    "damageType": "PIERCING"
   },
   "effectOnHit": {
     "mod": "mod.DEX",
     "damage": "1d4",
-    "damageType": "piercing"
+    "damageType": "PIERCING"
   },
   "label": "Dague"
 }

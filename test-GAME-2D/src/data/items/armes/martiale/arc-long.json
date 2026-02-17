@@ -24,7 +24,9 @@
     "piercing",
     "wood"
   ],
-  "weaponMastery": ["ralentissement"],
+  "weaponMastery": [
+    "ralentissement"
+  ],
   "properties": {
     "finesse": false,
     "light": false,
@@ -48,12 +50,12 @@
   },
   "damage": {
     "dice": "1d8",
-    "damageType": "piercing"
+    "damageType": "PIERCING"
   },
   "effectOnHit": {
     "mod": "mod.DEX",
     "damage": "1d8",
-    "damageType": "piercing"
+    "damageType": "PIERCING"
   },
   "label": "Arc long"
 }

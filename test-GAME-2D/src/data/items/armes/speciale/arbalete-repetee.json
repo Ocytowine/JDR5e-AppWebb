@@ -48,12 +48,12 @@
   },
   "damage": {
     "dice": "1d8",
-    "damageType": "piercing"
+    "damageType": "PIERCING"
   },
   "effectOnHit": {
     "mod": "mod.DEX",
     "damage": "1d8",
-    "damageType": "piercing"
+    "damageType": "PIERCING"
   },
   "label": "Arbalete repetee"
 }

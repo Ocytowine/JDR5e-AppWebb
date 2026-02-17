@@ -24,7 +24,9 @@
     "slashing",
     "improvise"
   ],
-  "weaponMastery": ["coup-double"],
+  "weaponMastery": [
+    "coup-double"
+  ],
   "properties": {
     "finesse": true,
     "light": true,
@@ -51,12 +53,12 @@
   },
   "damage": {
     "dice": "1d4",
-    "damageType": "slashing"
+    "damageType": "SLASHING"
   },
   "effectOnHit": {
     "mod": "mod.DEX",
     "damage": "1d4",
-    "damageType": "slashing"
+    "damageType": "SLASHING"
   },
   "label": "Petit couteau"
 }

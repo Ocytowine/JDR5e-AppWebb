@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "node scripts/gen-action-catalog.js && node scripts/gen-materiel-catalog.js && node scripts/gen-class-catalog.js && node server.js",
     "build": "node scripts/gen-action-catalog.js && node scripts/gen-materiel-catalog.js && node scripts/gen-class-catalog.js && vite build",
+    "normalize:content": "node scripts/normalize-content.js",
     "gen:action-catalog": "node scripts/gen-action-catalog.js",
     "gen:class-catalog": "node scripts/gen-class-catalog.js",
     "gen:materiel-catalog": "node scripts/gen-materiel-catalog.js",

@@ -47,12 +47,12 @@
   },
   "damage": {
     "dice": "1d6",
-    "damageType": "bludgeoning"
+    "damageType": "BLUDGEONING"
   },
   "effectOnHit": {
     "mod": "mod.FOR",
     "damage": "1d6",
-    "damageType": "bludgeoning"
+    "damageType": "BLUDGEONING"
   },
   "label": "Baton"
 }

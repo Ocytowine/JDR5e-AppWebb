@@ -41,6 +41,14 @@ function getAllValuesByKey(obj, key) {
   return values;
 }
 
+function normalizeKey(value) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
 function getNestedValue(obj, pathParts) {
   let cur = obj;
   for (const part of pathParts) {
@@ -52,8 +60,25 @@ function getNestedValue(obj, pathParts) {
 
 const taxonomy = readJson(TAXONOMY_PATH);
 
+const damageTypeAliases = Object.fromEntries(
+  Object.entries(taxonomy.damageTypeAliases ?? {}).map(([k, v]) => [normalizeKey(k), String(v)])
+);
+const canonicalDamageTypes = new Set((taxonomy.damageTypes ?? []).map(v => String(v)));
+for (const value of canonicalDamageTypes) {
+  damageTypeAliases[normalizeKey(value)] = value;
+}
+const tagPattern = (() => {
+  const raw = taxonomy.tags?.allowPattern;
+  if (!raw || typeof raw !== "string") return null;
+  try {
+    return new RegExp(raw);
+  } catch (_err) {
+    return null;
+  }
+})();
+
 const enums = {
-  damageTypes: new Set(taxonomy.damageTypes ?? []),
+  damageTypes: canonicalDamageTypes,
   tags: new Set(taxonomy.tags?.allowed ?? []),
   actionCategory: new Set(taxonomy.action?.category ?? []),
   actionCostType: new Set(taxonomy.action?.actionCost?.actionType ?? []),
@@ -68,6 +93,13 @@ const enums = {
   weaponSubtype: new Set(taxonomy.weapon?.subtype ?? []),
   weaponCategory: new Set(taxonomy.weapon?.category ?? []),
   weaponRarity: new Set(taxonomy.weapon?.rarity ?? []),
+  armorType: new Set(taxonomy.armor?.type ?? []),
+  armorCategory: new Set(taxonomy.armor?.armorCategory ?? []),
+  objectType: new Set(taxonomy.object?.type ?? []),
+  ammoType: new Set(taxonomy.ammo?.type ?? []),
+  ammoSubtype: new Set(taxonomy.ammo?.subtype ?? []),
+  ammoCategory: new Set(taxonomy.ammo?.category ?? []),
+  ammoRarity: new Set(taxonomy.ammo?.rarity ?? []),
   abilitiesFR: new Set(taxonomy.abilities ?? []),
   restTypes: new Set(taxonomy.restTypes ?? [])
 };
@@ -92,6 +124,30 @@ function assertEnumArray(file, field, values, set) {
   }
 }
 
+function normalizeDamageTypeValue(value) {
+  if (value === null || value === undefined) return null;
+  const key = normalizeKey(String(value));
+  return damageTypeAliases[key] ?? null;
+}
+
+function isTagAllowed(tag) {
+  if (typeof tag !== "string") return true;
+  if (enums.tags.has(tag)) return true;
+  const prefixes = Array.isArray(taxonomy.tags?.allowedPrefixes) ? taxonomy.tags.allowedPrefixes : [];
+  if (prefixes.some(prefix => tag.startsWith(String(prefix)))) return true;
+  if (tagPattern && tagPattern.test(tag)) return true;
+  return false;
+}
+
+function assertTagArray(file, field, values) {
+  if (!Array.isArray(values)) return;
+  for (const value of values) {
+    if (!isTagAllowed(value)) {
+      errors.push(`${file}: ${field}[] -> "${value}" not allowed by taxonomy tag policy`);
+    }
+  }
+}
+
 function isActionLike(json) {
   return (
     json &&
@@ -107,7 +163,33 @@ function isReaction(json) {
 }
 
 function isWeapon(json) {
-  return json && typeof json === "object" && json.properties && json.damage && json.links;
+  return (
+    json &&
+    typeof json === "object" &&
+    String(json.type ?? "").toLowerCase() === "arme" &&
+    json.properties &&
+    (json.damage || json.effectOnHit)
+  );
+}
+
+function isArmor(json) {
+  return json && typeof json === "object" && String(json.type ?? "").toLowerCase() === "armor";
+}
+
+function isObjectItem(json) {
+  return json && typeof json === "object" && String(json.type ?? "").toLowerCase() === "object";
+}
+
+function isAmmo(json) {
+  return json && typeof json === "object" && String(json.type ?? "").toLowerCase() === "munition";
+}
+
+function normalizeRelPath(relPath) {
+  return String(relPath).replace(/\\/g, "/");
+}
+
+function isIndexFile(relPath) {
+  return normalizeRelPath(relPath).endsWith("/index.json");
 }
 
 function validateActionObject(json, rel, prefix) {
@@ -169,6 +251,37 @@ function assertNumberArrayMultipleOfHalf(file, field, values) {
   }
 }
 
+function assertNoUnexpectedObjectKeys(file, field, obj, allowedKeys) {
+  if (!obj || typeof obj !== "object" || Array.isArray(obj)) return;
+  const allowed = new Set(Array.isArray(allowedKeys) ? allowedKeys : []);
+  Object.keys(obj).forEach(key => {
+    if (!allowed.has(key)) {
+      errors.push(`${file}: ${field}.${key} unexpected key`);
+    }
+  });
+}
+
+function assertWeaponModSpec(file, field, value) {
+  if (value === undefined || value === null) return;
+  if (typeof value !== "string") {
+    errors.push(`${file}: ${field} must be string.`);
+    return;
+  }
+  const ok = /^mod\.(FOR|DEX|CON|INT|SAG|CHA)$/.test(value.trim());
+  if (!ok) {
+    errors.push(
+      `${file}: ${field} -> "${value}" invalid (expected mod.FOR|mod.DEX|mod.CON|mod.INT|mod.SAG|mod.CHA).`
+    );
+  }
+}
+
+function assertWeaponBonusSpec(file, field, value) {
+  if (value === undefined || value === null) return;
+  if (typeof value === "number") return;
+  if (typeof value === "string" && value.trim() === "bonus_maitrise") return;
+  errors.push(`${file}: ${field} -> "${value}" invalid (expected number or "bonus_maitrise").`);
+}
+
 const files = listJsonFiles(DATA_DIR);
 for (const filePath of files) {
   let json;
@@ -179,9 +292,10 @@ for (const filePath of files) {
     continue;
   }
   const rel = path.relative(ROOT, filePath);
+  const relNorm = normalizeRelPath(rel);
 
   // Tags
-  assertEnumArray(rel, "tags", json.tags, enums.tags);
+  assertTagArray(rel, "tags", json.tags);
 
   // priceGp deprecated
   if (json.priceGp !== undefined) {
@@ -192,11 +306,16 @@ for (const filePath of files) {
   }
   assertBooleanIfPresent(rel, "harmonisable", json.harmonisable);
 
-  // Generic damageType fields anywhere
-  const damageTypes = getAllValuesByKey(json, "damageType");
-  for (const dt of damageTypes) {
-    assertEnum(rel, "damageType", dt, enums.damageTypes);
-  }
+  // damageType validation on gameplay-relevant fields only
+  const assertDamageType = (field, value) => {
+    if (value === null || value === undefined) return;
+    const normalized = normalizeDamageTypeValue(value);
+    if (!normalized || !enums.damageTypes.has(normalized)) {
+      errors.push(`${rel}: ${field} -> "${value}" invalid damageType`);
+    }
+  };
+  assertDamageType("damage.damageType", getNestedValue(json, ["damage", "damageType"]));
+  assertDamageType("effectOnHit.damageType", getNestedValue(json, ["effectOnHit", "damageType"]));
 
   // Actions
   if (isActionLike(json) && !isReaction(json)) {
@@ -229,6 +348,29 @@ for (const filePath of files) {
     }
   }
 
+  if (
+    !isIndexFile(relNorm) &&
+    (relNorm.startsWith("src/data/attacks/") ||
+      relNorm.startsWith("src/data/moves/") ||
+      relNorm.startsWith("src/data/supports/") ||
+      relNorm.startsWith("src/data/spells/")) &&
+    !isActionLike(json)
+  ) {
+    errors.push(`${rel}: expected action structure (actionCost + targeting + category).`);
+  }
+
+  if (
+    !isIndexFile(relNorm) &&
+    relNorm.startsWith("src/data/actions/weapon-mastery/")
+  ) {
+    if (!(typeof json?.id === "string" && json.id.startsWith("wm-"))) {
+      errors.push(`${rel}: weapon mastery action id must start with "wm-".`);
+    }
+    if (!Array.isArray(json?.tags) || !json.tags.includes("weaponMastery")) {
+      errors.push(`${rel}: weapon mastery action must include tag "weaponMastery".`);
+    }
+  }
+
   // Reactions (top-level + embedded action)
   if (isReaction(json)) {
     assertEnum(rel, "trigger.event", getNestedValue(json, ["trigger", "event"]), enums.reactionEvent);
@@ -257,6 +399,9 @@ for (const filePath of files) {
       validateActionObject(json.action, rel, "action");
     }
   }
+  if (!isIndexFile(relNorm) && relNorm.startsWith("src/data/reactions/") && !isReaction(json)) {
+    errors.push(`${rel}: expected reaction structure (trigger + action).`);
+  }
 
   // Features: recharge in grants meta
   if (Array.isArray(json.grants)) {
@@ -276,6 +421,22 @@ for (const filePath of files) {
 
   // Weapon fields
   if (isWeapon(json)) {
+    const allowedWeaponPropKeys = Object.keys(
+      getNestedValue(taxonomy, ["weapon", "fields", "properties"]) ?? {}
+    );
+    const allowedWeaponAttackKeys = Object.keys(
+      getNestedValue(taxonomy, ["weapon", "fields", "attack"]) ?? {}
+    );
+    const allowedWeaponDamageKeys = Object.keys(
+      getNestedValue(taxonomy, ["weapon", "fields", "damage"]) ?? {}
+    );
+    const allowedWeaponOnHitKeys = Object.keys(
+      getNestedValue(taxonomy, ["weapon", "fields", "effectOnHit"]) ?? {}
+    );
+    assertNoUnexpectedObjectKeys(rel, "properties", json.properties, allowedWeaponPropKeys);
+    assertNoUnexpectedObjectKeys(rel, "attack", json.attack, allowedWeaponAttackKeys);
+    assertNoUnexpectedObjectKeys(rel, "damage", json.damage, allowedWeaponDamageKeys);
+    assertNoUnexpectedObjectKeys(rel, "effectOnHit", json.effectOnHit, allowedWeaponOnHitKeys);
     assertEnum(rel, "type", json.type, enums.weaponType);
     assertEnum(rel, "subtype", json.subtype, enums.weaponSubtype);
     assertEnum(rel, "category", json.category, enums.weaponCategory);
@@ -285,6 +446,57 @@ for (const filePath of files) {
     assertMultipleOfHalf(rel, "properties.range.long", getNestedValue(json, ["properties", "range", "long"]));
     assertMultipleOfHalf(rel, "properties.thrown.normal", getNestedValue(json, ["properties", "thrown", "normal"]));
     assertMultipleOfHalf(rel, "properties.thrown.long", getNestedValue(json, ["properties", "thrown", "long"]));
+    assertWeaponModSpec(rel, "attack.mod", getNestedValue(json, ["attack", "mod"]));
+    assertWeaponBonusSpec(rel, "attack.bonus", getNestedValue(json, ["attack", "bonus"]));
+    assertWeaponModSpec(rel, "effectOnHit.mod", getNestedValue(json, ["effectOnHit", "mod"]));
+  }
+  if (isArmor(json)) {
+    assertEnum(rel, "type", json.type, enums.armorType);
+    assertEnum(rel, "armorCategory", json.armorCategory, enums.armorCategory);
+  }
+  if (isObjectItem(json)) {
+    assertEnum(rel, "type", json.type, enums.objectType);
+  }
+  if (isAmmo(json)) {
+    assertEnum(rel, "type", json.type, enums.ammoType);
+    assertEnum(rel, "subtype", json.subtype, enums.ammoSubtype);
+    assertEnum(rel, "category", json.category, enums.ammoCategory);
+    assertEnum(rel, "rarity", json.rarity, enums.ammoRarity);
+  }
+  if (!isIndexFile(relNorm)) {
+    if (
+      relNorm.startsWith("src/data/items/armes/simple/") ||
+      relNorm.startsWith("src/data/items/armes/martiale/") ||
+      relNorm.startsWith("src/data/items/armes/speciale/") ||
+      relNorm.startsWith("src/data/items/armes/monastique/")
+    ) {
+      if (!isWeapon(json)) {
+        errors.push(`${rel}: expected weapon item (type=arme).`);
+      }
+    }
+    if (relNorm.startsWith("src/data/items/armes/munitions/")) {
+      if (!isAmmo(json)) {
+        errors.push(`${rel}: expected ammo item (type=munition).`);
+      }
+    }
+    if (relNorm.startsWith("src/data/items/armures/")) {
+      if (!isArmor(json)) {
+        errors.push(`${rel}: expected armor item (type=armor).`);
+      }
+    }
+    if (
+      relNorm.startsWith("src/data/items/objets/") &&
+      !relNorm.startsWith("src/data/items/objets/contenants/")
+    ) {
+      if (!isObjectItem(json)) {
+        errors.push(`${rel}: expected object item (type=object).`);
+      }
+    }
+    if (relNorm.startsWith("src/data/items/objets/contenants/")) {
+      if (!isObjectItem(json)) {
+        errors.push(`${rel}: expected container object item (type=object).`);
+      }
+    }
   }
 
   // Class spellcasting ability (FR codes)
@@ -297,6 +509,9 @@ for (const filePath of files) {
       if (!Array.isArray(list)) continue;
       for (const op of list) {
         assertEnum(rel, `ops.${key}.op`, op?.op, enums.actionOps);
+        if (op?.op === "DealDamage" || op?.op === "ApplyDamageTypeMod") {
+          assertDamageType(`ops.${key}.damageType`, op?.damageType);
+        }
         if (op?.op === "MoveTo") {
           assertMultipleOfHalf(rel, `ops.${key}.maxSteps`, op?.maxSteps);
         }
@@ -310,6 +525,9 @@ for (const filePath of files) {
       if (!Array.isArray(list)) continue;
       for (const op of list) {
         assertEnum(rel, `action.ops.${key}.op`, op?.op, enums.actionOps);
+        if (op?.op === "DealDamage" || op?.op === "ApplyDamageTypeMod") {
+          assertDamageType(`action.ops.${key}.damageType`, op?.damageType);
+        }
         if (op?.op === "MoveTo") {
           assertMultipleOfHalf(rel, `action.ops.${key}.maxSteps`, op?.maxSteps);
         }

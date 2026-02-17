@@ -26,7 +26,9 @@
     "fire",
     "metal"
   ],
-  "weaponMastery": ["ouverture"],
+  "weaponMastery": [
+    "ouverture"
+  ],
   "grants": [
     {
       "kind": "bonus",
@@ -75,18 +77,18 @@
   },
   "damage": {
     "dice": "1d8",
-    "damageType": "slashing"
+    "damageType": "SLASHING"
   },
   "extraDamage": [
     {
       "dice": "1d4",
-      "damageType": "fire",
+      "damageType": "FIRE",
       "when": "onHit"
     }
   ],
   "effectOnHit": {
     "mod": "mod.FOR",
     "damage": "1d8",
-    "damageType": "slashing"
+    "damageType": "SLASHING"
   }
 }

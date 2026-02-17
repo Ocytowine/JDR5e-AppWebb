@@ -47,12 +47,12 @@
   },
   "damage": {
     "dice": "1d6",
-    "damageType": "slashing"
+    "damageType": "SLASHING"
   },
   "effectOnHit": {
     "mod": "mod.DEX",
     "damage": "1d6",
-    "damageType": "slashing"
+    "damageType": "SLASHING"
   },
   "label": "Fouet demon"
 }

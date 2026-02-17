@@ -47,12 +47,12 @@
   },
   "damage": {
     "dice": "1d4",
-    "damageType": "slashing"
+    "damageType": "SLASHING"
   },
   "effectOnHit": {
     "mod": "mod.FOR",
     "damage": "1d4",
-    "damageType": "slashing"
+    "damageType": "SLASHING"
   },
   "label": "Arme endommageehhhhhhy"
 }

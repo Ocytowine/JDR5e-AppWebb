@@ -24,7 +24,9 @@
     "slashing",
     "metal"
   ],
-  "weaponMastery": ["renversement"],
+  "weaponMastery": [
+    "renversement"
+  ],
   "properties": {
     "finesse": false,
     "light": false,
@@ -48,12 +50,12 @@
   },
   "damage": {
     "dice": "1d8",
-    "damageType": "slashing"
+    "damageType": "SLASHING"
   },
   "effectOnHit": {
     "mod": "mod.FOR",
     "damage": "1d8",
-    "damageType": "slashing"
+    "damageType": "SLASHING"
   },
   "label": "Hache de bataille"
 }

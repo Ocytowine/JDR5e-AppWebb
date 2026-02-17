@@ -2,6 +2,16 @@
 
 Checklist rapide pour ajouter ou modifier du contenu (`race`, `background`, `class`, `subclass`) sans casser le pipeline Creator -> Sheet -> GameBoard.
 
+## 0) Source de verite (obligatoire)
+
+- Reference unique de vocabulaire: `src/data/models/taxonomy.json`.
+- Le validateur `scripts/validate-content.js` applique cette taxonomy.
+- Pour `damageType`, la taxonomy definit le canonique + aliases (`damageTypeAliases`).
+- Pour les `tags`, la taxonomy definit:
+- `tags.allowed` (liste stricte des tags metier connus)
+- `tags.allowedPrefixes` (namespaces techniques, ex: `weapon:`)
+- `tags.allowPattern` (format autorise pour les nouveaux tags)
+
 ## 1) Structure de base
 
 - Definir un `id` stable et unique.
