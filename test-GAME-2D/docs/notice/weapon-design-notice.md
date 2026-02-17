@@ -62,7 +62,7 @@ Ce document definit un format d'arme **directement compatible** avec le moteur a
     "ammoType": null,
     "ammoPerShot": null
   },
-  "weaponMastery": ["coup_double"],
+  "weaponMastery": ["coup-double"],
   "attack": { "mod": "mod.DEX", "bonus": "bonus_maitrise" },
   "damage": { "dice": "1d4", "damageType": "piercing" },
   "extraDamage": [

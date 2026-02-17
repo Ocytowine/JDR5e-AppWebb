@@ -125,6 +125,7 @@ export function ActionContextWindow(props: {
   const [finishReady, setFinishReady] = useState<boolean>(false);
   const [hazardFinishReady, setHazardFinishReady] = useState<boolean>(false);
   const [hoveredInfluenceId, setHoveredInfluenceId] = useState<string | null>(null);
+  const [attackImpactCollapsed, setAttackImpactCollapsed] = useState<boolean>(false);
 
   const action = props.action;
   const availability = props.availability;
@@ -402,7 +403,31 @@ export function ActionContextWindow(props: {
             background: "rgba(255,255,255,0.04)"
           }}
         >
-          <div style={{ fontSize: 12, fontWeight: 900, color: "#fff" }}>Impacts sur l&apos;attaque</div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+            <div style={{ fontSize: 12, fontWeight: 900, color: "#fff" }}>Impacts sur l&apos;attaque</div>
+            <button
+              type="button"
+              onClick={() => setAttackImpactCollapsed(prev => !prev)}
+              style={{
+                width: 20,
+                height: 20,
+                borderRadius: 6,
+                border: "1px solid rgba(255,255,255,0.18)",
+                background: "rgba(255,255,255,0.08)",
+                color: "#fff",
+                cursor: "pointer",
+                fontSize: 12,
+                fontWeight: 900,
+                lineHeight: "18px",
+                padding: 0
+              }}
+              title={attackImpactCollapsed ? "Afficher" : "Reduire"}
+            >
+              {attackImpactCollapsed ? "+" : "-"}
+            </button>
+          </div>
+          {!attackImpactCollapsed && (
+          <>
           <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 6 }}>
             {attackWeaponInfo && (
               <button
@@ -502,6 +527,8 @@ export function ActionContextWindow(props: {
               </div>
             )}
           </div>
+          </>
+          )}
         </div>
       )}
       {showCancelAction && (

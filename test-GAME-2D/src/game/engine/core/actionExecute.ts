@@ -466,6 +466,13 @@ function stripAbilityMod(formula: string, modToken: string | null): string {
   return removed.length > 0 ? removed : formula;
 }
 
+function normalizeWeaponMasteryId(value: unknown): string {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, "-");
+}
+
 function getMasteryTriggerFromTags(tags: string[], masteryId: string): "on_hit" | "on_miss" | "on_intent" {
   const token = `wm-trigger:${masteryId}:`;
   const found = tags.find(tag => tag.startsWith(token));
@@ -500,7 +507,7 @@ function applyWeaponMasteryEffects(params: {
   const tags = plan.action.tags ?? [];
   const activeMasteries = tags
     .filter(tag => tag.startsWith("wm-active:"))
-    .map(tag => tag.replace("wm-active:", ""))
+    .map(tag => normalizeWeaponMasteryId(tag.replace("wm-active:", "")))
     .filter(Boolean);
   if (activeMasteries.length === 0) return;
 
@@ -629,7 +636,7 @@ function applyWeaponMasteryEffects(params: {
       continue;
     }
 
-    if (masteryId === "coup_double") {
+    if (masteryId === "coup-double") {
       const hasLight = tags.includes("weapon:light");
       if (!hasLight || !target) continue;
       const bonus = plan.action.attack?.bonus ?? plan.action.resolution?.bonus ?? 0;

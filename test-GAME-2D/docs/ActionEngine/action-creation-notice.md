@@ -10,13 +10,17 @@ Ce document sert de reference pour creer une action au format pipeline. Il expli
 
 ## Structure generale (vue d'ensemble)
 
-Une action pipeline est composee de:
+Une action pipeline (format source JSON) est composee de:
 - Identite et cout (action/bonus/reaction/free).
 - Ciblage (type, portee, formes, nombre de cibles, LOS).
 - Resolution (attack/save/check/none/contested).
 - Branches d'issue (onHit/onMiss/onSaveFail/onSaveSuccess/onCrit).
 - Hooks (optionnels, pour feats/status/items/traits).
-- Operations atomiques (DealDamage, ApplyCondition, etc.).
+- Operations atomiques (DealDamage, ApplyCondition, etc.) via `ops`.
+
+Note:
+- Le format source des fichiers action utilise `ops`.
+- Le moteur interne compile `ops` vers `effects` dans `ActionSpec`.
 
 ## Template JSON (base)
 
@@ -26,19 +30,19 @@ Une action pipeline est composee de:
   "name": "Nom de l'action",
   "category": "attack",
   "tags": ["melee", "basic"],
-  "actionCost": { "actionType": "action" },
+  "actionCost": { "actionType": "action", "movementCost": 0 },
   "targeting": {
     "target": "hostile",
     "range": { "min": 0, "max": 1.5, "shape": "SPHERE" },
     "maxTargets": 1,
-    "requiresLineOfSight": true
+    "requiresLos": true
   },
   "resolution": {
     "kind": "ATTACK_ROLL",
     "bonus": 5,
     "critRange": 20
   },
-  "effects": {
+  "ops": {
     "onHit": [
       { "op": "DealDamage", "target": "primary", "formula": "1d6 + modFOR", "damageType": "slashing" }
     ],
@@ -61,13 +65,13 @@ Note: `AOE` n'est pas lu par l'engine; preferer `area` si besoin descriptif.
 
 ### Cout d'action
 - `actionCost.actionType`: `action` | `bonus` | `reaction` | `free`.
-- `actionCost.cost`: optionnel si action consomme plus d'une action (rare).
+- `actionCost.movementCost`: cout de mouvement associe (nombre, souvent `0`).
 
 ### Ciblage
 - `targeting.target`: type de cible (ex: `enemy`, `hostile`, `ally`, `self`, `cell`).
 - `targeting.range`: `min`, `max`, `shape` (ex: `SPHERE`, `LINE`, `CONE`, `CUBE`).
 - `targeting.maxTargets`: nombre maximum de cibles.
-- `targeting.requiresLineOfSight`: bloque si pas de LOS.
+- `targeting.requiresLos`: bloque si pas de LOS.
 - `targeting.area`: optionnel pour zones persistantes.
 
 ### Resolution
@@ -78,12 +82,12 @@ Note: `AOE` n'est pas lu par l'engine; preferer `area` si besoin descriptif.
 - `resolution.check`: si `ABILITY_CHECK`, contient `ability` + `dc`.
 - `resolution.contested`: si `CONTESTED_CHECK`, contient `actorAbility`, `targetAbility`, `tieWinner`.
 
-### Effets (branches d'issue)
-- `effects.onHit`: operations executees si l'attaque touche.
-- `effects.onMiss`: operations executees si l'attaque rate.
-- `effects.onCrit`: operations executees sur critique.
-- `effects.onSaveFail` / `effects.onSaveSuccess`: branches des saves.
-- `effects.onResolve`: operations executees quel que soit le resultat.
+### Ops (branches d'issue)
+- `ops.onHit`: operations executees si l'attaque touche.
+- `ops.onMiss`: operations executees si l'attaque rate.
+- `ops.onCrit`: operations executees sur critique.
+- `ops.onSaveFail` / `ops.onSaveSuccess`: branches des saves.
+- `ops.onResolve`: operations executees quel que soit le resultat.
 
 ### Operations (atomiques)
 Exemples courants:
@@ -114,6 +118,10 @@ Utiles pour feats, status, objets, ou traits passifs.
 - `if`: conditions.
 - `prompt`: texte optionnel pour choix utilisateur.
 - `apply`: operations a executer si les conditions sont remplies.
+Note: pour rester 100% compatible runtime action pipeline, preferer les phases:
+`onIntentBuild`, `onOptionsResolve`, `onValidate`, `onTargeting`, `preResolution`,
+`onResolve`, `onOutcome`, `beforeApply`, `afterApply`, `postResolution`,
+`beforeCommit`, `afterCommit`.
 
 ### Fenetres de reaction
 - `reactionWindows`: `pre` | `post` (ou les deux).

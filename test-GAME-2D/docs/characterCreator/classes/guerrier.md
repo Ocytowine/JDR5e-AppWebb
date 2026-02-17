@@ -93,12 +93,12 @@ Exemples de grants attendus:
 ### 5.3 Features et actions a creer (si absentes)
 
 Chemins cibles:
-- `src/data/features/fighter/*.json` pour les features specifiques Guerrier.
-- `src/data/features/shared/fighting-style*.json` pour les styles de combat reutilisables par plusieurs classes.
+- `src/data/characters/features/fighter/*.json` pour les features specifiques Guerrier.
+- `src/data/characters/features/shared/fighting-style*.json` pour les styles de combat reutilisables par plusieurs classes.
 - `src/data/supports/*.json` ou `src/data/attacks/*.json` si une action active est requise.
 
 Indexer ensuite:
-- `src/data/features/index.json`
+- `src/data/characters/features/index.json`
 - `src/data/actions/index.json` (si nouvelles actions)
 
 ## 6) Contraintes d architecture (obligatoires)
@@ -179,7 +179,7 @@ Indexer ensuite:
 - Squelette `progression` ajoute dans `src/data/characters/classes/Guerrier/class.json` (niveaux 1 a 20).
 - `second-wind` branche en `grant.kind=action` au niveau 1 pour disponibilite runtime immediate.
 - `progression` ajoutee dans `src/data/characters/classes/Guerrier/eldritch-knight.json` (niveaux 3, 7, 10, 15, 18).
-- Features `fighter/*` creees et ajoutees a `src/data/features/index.json`.
+- Features `fighter/*` creees et ajoutees a `src/data/characters/features/index.json`.
 - Modelisation des ressources de classe ajoutee (Second souffle, Fougue, Inflexible via `grant.kind=resource`).
 - Actions de support `action-surge` et `indomitable` ajoutees dans `src/data/supports` et indexees dans `src/data/actions/index.json`.
 - `fighting-style` migre vers un choix declaratif (`rules.choices`) pour etre resolu par le flux generique `startClassDefine`.
@@ -196,9 +196,9 @@ Indexer ensuite:
 - Extension du socle via `feature.rules.secondaryAttackPolicy` pour l attaque secondaire:
   - `mode=addAbilityModToDamage`, sans code special de classe.
 - Mise a jour des features partagees:
-  - `src/data/features/shared/fighting-style-protection.json`
-  - `src/data/features/shared/fighting-style-interception.json`
-  - `src/data/features/shared/fighting-style-two-weapon-fighting.json`
+  - `src/data/characters/features/shared/fighting-style-protection.json`
+  - `src/data/characters/features/shared/fighting-style-interception.json`
+  - `src/data/characters/features/shared/fighting-style-two-weapon-fighting.json`
 - Correction generique de detection offhand cote runtime:
   - detection sur equipements armes "portees" (slots ceinture/dos) et fallback `main_gauche`.
 - Notice de reference ajoutee:

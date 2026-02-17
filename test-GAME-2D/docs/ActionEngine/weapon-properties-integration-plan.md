@@ -130,7 +130,7 @@ Tests minimaux (manuels + unitaires cibles):
 ## Risques
 
 1. Effets de bord sur IA (selection arme et portee).
-2. Interaction with weapon mastery tags.
+2. Interaction avec les tags de weapon mastery.
 3. Difference entre donnees existantes (`reach` absolu) et regle DnD (allonge +1.5m).
 
 ## Decisions a figer avant code

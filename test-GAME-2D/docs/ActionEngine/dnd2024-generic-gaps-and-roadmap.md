@@ -7,6 +7,20 @@ Objectif principal:
 - garder les contenus data-driven,
 - eviter le couplage UI/feature pour les mecaniques coeur (d20 tests, resources, reactions, turn windows).
 
+## Etat de reference (2026-02-17)
+
+Avancees deja en place dans le projet:
+1. Contexte d'attaque normalise (armee / non armee / improvisee) et tags derives.
+2. Overrides de cout d'action data-driven (`actionCostOverride`) avec priorites et limites.
+3. Economie d'action centralisee (helpers `actionEconomy.ts`, consommation/rollback runtime).
+4. Support runtime effects pour `grantMainAction` et cas Guerrier principaux (Action Surge/Extra Attack/War Magic).
+5. Propriete d'armes integrees (finesse, thrown, heavy, loading, two-handed, versatile, reach, range long).
+
+Ecarts majeurs encore ouverts:
+1. Hooks de cycle `onTurnStart/onTurnEnd/onRoundStart/onRoundEnd` non routes dans `executePlan`.
+2. Pipeline d20 "universelle" cross-features encore partiellement centralisee (self/incoming hooks a generaliser).
+3. Couverture runtime effects encore limitee pour certains riders generiques (push/pull/knockback quotas complexes).
+
 ## 1) Generic Gaps (etat actuel)
 
 ### 1.1 Rule scoping and action semantics
@@ -208,3 +222,78 @@ Regles runtime cibles (UI + couts + contraintes):
 5. Bouclier: main secondaire uniquement.
 6. Arme `two-handed`: incompatible main secondaire.
 7. Les changements de main/equipement impactent immediatement les actions suivantes du tour (contraintes et couts).
+
+## 7) Spec moteur - Economie action / bonus action
+
+Contrat runtime cible (source de verite unique):
+1. Budget de base par tour (joueur): `1 action` + `1 action bonus` + `1 reaction`.
+2. Une action (ou bonus) n'est depensable que si une option est eligible dans le contexte courant.
+3. Eligibilite = action connue du personnage + conditions de l'action + contraintes equipement/mains + overrides feature.
+4. Les features peuvent:
+   - modifier le cout (`actionCostOverride`, ex `action -> bonus`),
+   - bypass un cout (`bonus -> free` sous conditions),
+   - augmenter le budget (ex action supplementaire).
+5. Priorite des couts: override feature valide > cout natif de l'action.
+6. En cas de plusieurs options bonus eligibles, le joueur choisit 1 option (budget bonus consomme une seule fois).
+7. Si aucune option bonus n'est eligible, la ressource bonus du tour peut rester inutilisee.
+8. Toute consommation de cout doit etre atomique et reversible sur annulation (rollback compteurs).
+9. Les raisons de blocage/ineligibilite sont explicites en UI (cout attendu/effectif, tags, prerequis non remplis).
+10. Les memes regles s'appliquent a toutes les sources (attaques, sorts, objets, equipement) sans branche metier specifique.
+
+## 8) Cartographie - fichiers a aligner sur le compteur d'economie d'action
+
+Etat actuel (points de controle identifies):
+1. `src/GameBoard.tsx`
+- source principale des compteurs de tour (`turnActionUsage`, `bonusMainActionsThisTurn`, `reactionUsage`).
+- resolution de cout effectif (`resolveActionCostContext`) et consommation/rollback.
+- application des `runtimeEffects` (`grantMainAction`) et bypass de couts (`usageKey`, `maxPerTurn`).
+- consommation bonus hors actions JSON (equipement sac -> main).
+
+1bis. `src/game/engine/rules/actionEconomy.ts`
+- helper central pour verifier/consommer/rembourser les couts `action|bonus`.
+- a utiliser partout ou un compteur de cout est manipule.
+
+2. `src/game/engine/rules/weaponPairingRules.ts`
+- valide uniquement l'eligibilite dual-wield (tags, light, two-handed, shield).
+- ne doit pas gerer de compteur; il fournit des contraintes.
+
+3. `src/game/engine/rules/equipmentHands.ts`
+- valide occupation des mains et policies d'equipement.
+- ne doit pas gerer de compteur; il fournit des contraintes.
+
+4. `src/data/characters/features/**/*.json`
+- source declarative des overrides de cout (`actionCostOverride`) et des effets runtime (`grantMainAction`).
+
+Norme cible:
+1. Centraliser le compteur dans une seule couche "action economy" (source de verite unique).
+2. Laisser `weaponPairingRules`/`equipmentHands` purement "eligibility/constraints".
+3. Consommer/rembourser les couts dans un point unique (execution + annulation).
+
+## 9) Methode standard d'ajout par feature
+
+Cas A - Rendre une action eligible en bonus action:
+1. utiliser `rules.modifiers[]` avec:
+- `applyTo: "actionCost"`
+- `stat: "actionCostOverride"`
+- `fromCostType: "action"`
+- `toCostType: "bonus"`
+- `when` explicite (tags/categorie/cout/conditions de tour)
+- `usageKey` + `maxPerTurn` si quota.
+
+Cas B - Donner une action principale supplementaire (type Action Surge):
+1. garder une action de declenchement (ex `action-surge`) cote `grants`.
+2. ajouter `rules.runtimeEffects[]`:
+- `applyOn: "after_action_resolve"`
+- `when.actionIdsAny` pour cibler l'action de declenchement
+- `effects: [{ "kind": "grantMainAction", "amount": 1 }]`.
+
+Cas C - Permettre un bypass d'action bonus (bonus -> free sous conditions):
+1. utiliser un modificateur de cout/bypass avec:
+- `usageKey` + `maxPerTurn`
+- filtres stricts `when` (tags dual-wield/mastery, etc.)
+- message de limite (`limitMessage`) explicite.
+
+Regles auteur obligatoires:
+1. Toujours definir un `when` minimal pour eviter les activations globales involontaires.
+2. Toujours definir `usageKey` quand un effet ne doit pas etre illimite.
+3. Eviter les effets metier implicites dans plusieurs fichiers; un effet = une source declarative.

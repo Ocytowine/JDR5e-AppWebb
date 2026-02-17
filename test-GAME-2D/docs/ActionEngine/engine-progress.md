@@ -38,7 +38,7 @@ Fichiers touches:
 4. `src/game/engine/core/ops.ts` (application du contexte de critique sur `DealDamage*`)
 5. `src/game/engine/core/actionEngine.ts` (gate disponibilite via contraintes d'equipement runtime)
 6. `src/game/engine/rules/equipmentHands.ts` (policies features -> equip constraints)
-7. `src/data/features/fighter/*.json` (regles data-driven Guerrier)
+7. `src/data/characters/features/fighter/*.json` (regles data-driven Guerrier)
 
 ## 1) Pipeline global
 
@@ -237,7 +237,7 @@ Helpers Weapon Mastery:
 - `resolveWeaponMasteryAdvantage`, `consumeWeaponMasteryAdvantage`
 - `extractAbilityModToken`, `abilityModFromToken`, `stripAbilityMod`
 - `getMasteryTriggerFromTags`, `getProficiencyBonus`, `getHostileTargets`
-- `applyWeaponMasteryEffects`: applique effets mastery data-driven (`ouverture`, `sape`, `poussee`, `ralentissement`, `ecorchure`, `renversement`, `enchainement`, `coup_double`).
+- `applyWeaponMasteryEffects`: applique effets mastery data-driven (`ouverture`, `sape`, `poussee`, `ralentissement`, `ecorchure`, `renversement`, `enchainement`, `coup-double`).
 
 Effets outcome:
 - `collectOperations(effects, outcome)`: construit la liste d'ops a appliquer selon branche (`onResolve`, `onHit`, `onMiss`, `onCrit`, `onSaveSuccess`, `onSaveFail`).

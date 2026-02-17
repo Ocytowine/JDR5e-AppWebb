@@ -12,7 +12,7 @@ Le pipeline est stable et ne doit pas etre modifie par les JSON. Les contenus de
 
 ## Notice de creation d'action
 
-Voir `docs/action-creation-notice.md` pour le template complet, les explications champ par champ, et la fiche de test standard.
+Voir `docs/ActionEngine/action-creation-notice.md` pour le template complet, les explications champ par champ, et la fiche de test standard.
 
 ## Principes cle
 
@@ -20,7 +20,7 @@ Voir `docs/action-creation-notice.md` pour le template complet, les explications
 2. Les JSON de contenu decrivent des intentions, pas des etapes.
 3. Les operations sont atomiques et composees par des conditions/branches.
 4. Les hooks s'appliquent via un moteur de regles commun.
-5. Support complet des hooks taxo.
+5. Support des hooks runtime documentes ci-dessous.
 
 ## Phases du pipeline (rappel)
 
@@ -38,7 +38,7 @@ Voir `docs/action-creation-notice.md` pour le template complet, les explications
 
 ## Hooks supportes (moteur)
 
-Le moteur supporte les hooks suivants (taxo complete):
+Le moteur supporte les hooks suivants (forme recommandee):
 
 - onIntentBuild
 - onOptionsResolve
@@ -53,7 +53,12 @@ Le moteur supporte les hooks suivants (taxo complete):
 - beforeCommit
 - afterCommit
 
-Note: utiliser les noms de phases officiels (voir taxo).
+Alias aussi supportes par normalisation:
+- `pre_resolution`, `PRE_RESOLUTION_WINDOW` -> `preResolution`
+- `on_outcome`, `ON_OUTCOME` -> `onOutcome`
+- `on_apply`, `APPLY_TARGET_EFFECTS`, `APPLY_WORLD_EFFECTS` -> `afterApply`
+- `post_resolution`, `POST_RESOLUTION_WINDOW` -> `postResolution`
+- `COMMIT` -> `beforeCommit`
 
 ## Bridge features runtime (GameBoard)
 
@@ -133,11 +138,12 @@ Structure actuelle supportee:
 ## Modeles (concepts)
 
 ### ActionSpec
-- Identite et economie (action/bonus/reaction/free)
+- Identite (id/name/summary)
 - Ciblage (target + range + maxTargets + requiresLos)
 - Resolution (attack/save/check/none)
-- Effects conditionnels (branches selon l'outcome)
+- Effects conditionnels (branches selon l'outcome, issus de `ops` source)
 - Reaction windows
+Note: `actionCost` reste dans `ActionDefinition` (JSON source/runtime) et n'est pas porte par `ActionSpec` interne.
 
 ### FeatureSpec
 - Hooks declaratifs:
@@ -170,10 +176,10 @@ Exemples:
 Mappe l'ancien schema sans changer la logique:
 - action.attack -> resolution.kind = attack
 - action.damage -> Operation(DealDamage) default onHit
-- effects[] -> Operation[] (adapter de compatibilite)
+- action.ops -> ConditionalEffects (adapter de compatibilite)
 
 ### 2) Conditions existantes
-- conditions[] reste supporte via adapter, mais deplacer vers if/when quand possible.
+- conditions[] reste supporte par le moteur de validation, mais deplacer vers if/when quand possible.
 
 ### 3) Effets conditionnels
 Utiliser des branches declarees:
@@ -185,7 +191,7 @@ Utiliser des branches declarees:
 ### 4) Hooks
 - Features/items/status doivent ajouter des hooks declaratifs, pas modifier le pipeline.
 - Exemple: "onHit spend resource to add rider damage" devient un hook conditionnel.
-- Tous les hooks de la taxo sont acceptes dans `when`.
+- Utiliser les phases runtime recommandees (liste ci-dessus) pour eviter les hooks ignores.
 
 ## Patterns de conversion
 
@@ -195,7 +201,7 @@ Avant:
 
 Nouveau:
 - resolution: { kind: "ATTACK_ROLL", bonus, critRange }
-- effects:
+- ops:
   - onHit: [ DealDamage{formula, type} ]
   - onMiss: [ LogEvent{...} ]
 
@@ -213,13 +219,13 @@ Exemple JSON (grapple):
 {
   "id": "grapple",
   "name": "Agripper",
-  "actionCost": { "actionType": "action" },
-  "targeting": { "target": "hostile", "range": { "min": 0, "max": 1, "shape": "SPHERE" } },
+  "actionCost": { "actionType": "action", "movementCost": 0 },
+  "targeting": { "target": "hostile", "range": { "min": 0, "max": 1.5, "shape": "SPHERE" } },
   "resolution": {
     "kind": "CONTESTED_CHECK",
     "contested": { "actorAbility": "FOR", "targetAbility": "FOR", "tieWinner": "actor" }
   },
-  "effects": {
+  "ops": {
     "onHit": [ { "op": "ApplyCondition", "target": "primary", "statusId": "grappled", "durationTurns": 1 } ],
     "onMiss": [ { "op": "LogEvent", "message": "Echec de l'agrippement." } ]
   }
@@ -228,7 +234,7 @@ Exemple JSON (grapple):
 
 ### C) Deplacement force
 - resolution: { kind: "NO_ROLL" }
-- effects:
+- ops:
   - onResolve: [ MoveForced{distance, direction} ]
 
 ### D) Action avec option "rider"
@@ -268,10 +274,10 @@ Pour chaque action migree:
   {
     "id": "melee-strike",
     "name": "Frappe basique",
-    "actionCost": { "actionType": "action" },
-    "targeting": { "target": "hostile", "range": { "min": 0, "max": 1, "shape": "SPHERE" } },
+    "actionCost": { "actionType": "action", "movementCost": 0 },
+    "targeting": { "target": "hostile", "range": { "min": 0, "max": 1.5, "shape": "SPHERE" }, "requiresLos": true },
     "resolution": { "kind": "ATTACK_ROLL", "bonus": 5, "critRange": 20 },
-    "effects": {
+    "ops": {
       "onHit": [ { "op": "DealDamage", "target": "primary", "formula": "1d4 + modFOR", "damageType": "slashing" } ],
       "onMiss": [ { "op": "LogEvent", "message": "Attaque ratee." } ]
     },

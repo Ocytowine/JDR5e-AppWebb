@@ -1,4 +1,4 @@
-﻿{
+{
   "id": "wm-ralentissement",
   "name": "Ralentissement",
   "summary": "Sur un hit, reduit la vitesse de 3 m (max 3 m) jusqu'au debut du prochain tour.",

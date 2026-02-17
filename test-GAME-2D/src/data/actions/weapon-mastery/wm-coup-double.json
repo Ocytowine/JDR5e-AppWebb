@@ -1,17 +1,17 @@
-﻿{
+{
   "id": "wm-coup-double",
   "name": "Coup double",
   "summary": "Permet l'attaque legere supplementaire dans l'action Attaque (1/turn).",
   "category": "item",
-  "tags": ["weaponMastery", "coup_double", "wm-trigger:on_intent"],
+  "tags": ["weaponMastery", "coup-double", "wm-trigger:on_intent"],
   "resolution": { "kind": "NO_ROLL" },
   "ops": {
     "onResolve": [
       {
         "op": "EmitEvent",
-        "kind": "weaponMastery:coup_double",
+        "kind": "weaponMastery:coup-double",
         "data": {
-          "masteryId": "coup_double",
+          "masteryId": "coup-double",
           "rule": "light_extra_attack_in_action",
           "limit": "once_per_turn"
         }

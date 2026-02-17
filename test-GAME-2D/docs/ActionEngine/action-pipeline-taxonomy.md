@@ -30,6 +30,10 @@ Le moteur d'execution supporte:
 - La sequence complete des phases via hooks (onIntentBuild -> afterCommit).
 - Les hooks sont evaluates via `conditions` et peuvent appliquer des `operations`.
 
+Important (coherence runtime):
+- Le JSON source d'action est de type `ActionDefinition` (avec `actionCost`, `conditions`, `ops`).
+- Le moteur compile vers un `ActionSpec` interne (sans `actionCost`).
+
 ## Champs globaux (taxonomy.json)
 
 - id
@@ -113,7 +117,7 @@ Le moteur d'execution supporte:
 - damage:
   - formula: string
   - critRule: double-dice | double-total
-  - damageType: damageTypeId (lowercase)
+  - damageType: string (le projet utilise actuellement des valeurs uppercase comme `BLUDGEONING`)
 - conditions.types:
   - ACTOR_CREATURE_TYPE_IS
   - TARGET_CREATURE_TYPE_IS
@@ -272,6 +276,25 @@ Liste officielle dans `action.ops`.
 
 ### Hook
 Phases officielles dans `action.hooks.phases` (voir `enginePhases`).
+Pour les `hooks.when` des actions runtime, utiliser en priorite:
+- `onIntentBuild`
+- `onOptionsResolve`
+- `onValidate`
+- `onTargeting`
+- `preResolution`
+- `onResolve`
+- `onOutcome`
+- `beforeApply`
+- `afterApply`
+- `postResolution`
+- `beforeCommit`
+- `afterCommit`
+Alias reconnus:
+- `pre_resolution`, `PRE_RESOLUTION_WINDOW`
+- `on_outcome`, `ON_OUTCOME`
+- `on_apply`, `APPLY_TARGET_EFFECTS`, `APPLY_WORLD_EFFECTS`
+- `post_resolution`, `POST_RESOLUTION_WINDOW`
+- `COMMIT` (mappe sur `beforeCommit`)
 
 ## Taxonomie des operations (officielle)
 
@@ -405,6 +428,10 @@ Les hooks utilisent les phases `enginePhases`:
 - POST_RESOLUTION_WINDOW
 - COMMIT
 
+Note runtime:
+- Les phases ci-dessus representent la taxonomie officielle.
+- Dans les JSON d'actions executes par le moteur actuel, preferer les noms runtime (`onIntentBuild`, etc.) pour eviter les cas non maps.
+
 ## Outcomes (officiels)
 
 - HIT
@@ -443,15 +470,15 @@ Les hooks utilisent les phases `enginePhases`:
 {
   "id": "melee-strike",
   "name": "Frappe basique",
-  "actionCost": { "actionType": "action" },
+  "actionCost": { "actionType": "action", "movementCost": 0 },
   "targeting": {
     "target": "hostile",
-    "range": { "min": 0, "max": 1, "shape": "SPHERE" },
+    "range": { "min": 0, "max": 1.5, "shape": "SPHERE" },
     "maxTargets": 1,
     "requiresLos": true
   },
   "resolution": { "kind": "ATTACK_ROLL", "bonus": 5, "critRange": 20 },
-  "effects": {
+  "ops": {
     "onHit": [
       { "op": "DealDamage", "target": "primary", "formula": "1d8+modFOR", "damageType": "slashing" }
     ],

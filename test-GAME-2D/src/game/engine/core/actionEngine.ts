@@ -945,7 +945,7 @@ export function resolveActionUnified(
 
 function extractMasteryId(action: ActionDefinition): string | null {
   if (typeof action.id === "string" && action.id.startsWith("wm-")) {
-    const id = action.id.slice("wm-".length);
+    const id = action.id.slice("wm-".length).replace(/_/g, "-");
     return id || null;
   }
   const tags = Array.isArray(action.tags) ? action.tags : [];
@@ -954,7 +954,7 @@ function extractMasteryId(action: ActionDefinition): string | null {
     if (tag.startsWith("wm-trigger:")) return false;
     return true;
   });
-  return candidate ?? null;
+  return candidate ? candidate.replace(/_/g, "-") : null;
 }
 
 function getMasteryTrigger(action: ActionDefinition): "on_hit" | "on_miss" | "on_intent" {

@@ -63,6 +63,13 @@ const WEAPON_MASTERY_OPTIONS: Array<{ id: string; label: string }> = [
   { id: "sape", label: "Sape" }
 ];
 
+function normalizeWeaponMasteryId(value: unknown): string {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, "-");
+}
+
 export function CombatSetupScreen(props: {
   configEnemyCount: number;
   enemyTypeCount: number;
@@ -348,9 +355,13 @@ export function CombatSetupScreen(props: {
   const weaponMasteryIdSet = new Set(WEAPON_MASTERY_OPTIONS.map(option => option.id));
   const weaponProficiencies = rawWeaponEntries.filter(id => weaponProficiencyIdSet.has(id));
   const explicitWeaponMasteries = Array.isArray((props.character as any)?.weaponMasteries)
-    ? (((props.character as any)?.weaponMasteries as string[]).map(id => String(id)).filter(Boolean))
+    ? (((props.character as any)?.weaponMasteries as string[])
+        .map(id => normalizeWeaponMasteryId(id))
+        .filter(Boolean))
     : [];
-  const legacyWeaponMasteries = rawWeaponEntries.filter(id => weaponMasteryIdSet.has(id));
+  const legacyWeaponMasteries = rawWeaponEntries
+    .map(id => normalizeWeaponMasteryId(id))
+    .filter(id => weaponMasteryIdSet.has(id));
   const activeWeaponMasteryIds =
     explicitWeaponMasteries.length > 0
       ? Array.from(new Set(explicitWeaponMasteries))
@@ -3343,7 +3354,9 @@ export function CombatSetupScreen(props: {
     getMissingClassFeatureChoiceForSlot(slot) !== null;
   const extractWeaponMasteryIdsFromGrant = (grant: { kind: string; ids: string[] }) => {
     const kind = String(grant.kind ?? "").trim().toLowerCase();
-    const ids = Array.isArray(grant.ids) ? grant.ids.map(id => String(id)).filter(Boolean) : [];
+    const ids = Array.isArray(grant.ids)
+      ? grant.ids.map(id => normalizeWeaponMasteryId(id)).filter(Boolean)
+      : [];
     if (ids.length === 0) return [] as string[];
     if (
       kind === "weaponmastery" ||
@@ -3355,7 +3368,7 @@ export function CombatSetupScreen(props: {
     }
     if (kind === "feature") {
       return ids
-        .map(id => (id.startsWith("wm-") ? id.slice(3) : id))
+        .map(id => normalizeWeaponMasteryId(id.startsWith("wm-") ? id.slice(3) : id))
         .filter(id => weaponMasteryIdSet.has(id));
     }
     return [] as string[];
@@ -3422,7 +3435,9 @@ export function CombatSetupScreen(props: {
   useEffect(() => {
     if (!selectedWeaponMasteries.hasChoicePool) return;
     const current = Array.isArray((props.character as any)?.weaponMasteries)
-      ? (((props.character as any)?.weaponMasteries as string[]).map(id => String(id)).filter(Boolean))
+      ? (((props.character as any)?.weaponMasteries as string[])
+          .map(id => normalizeWeaponMasteryId(id))
+          .filter(Boolean))
       : [];
     const next = selectedWeaponMasteries.ids;
     if (arraysEqual(current, next)) return;

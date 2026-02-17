@@ -26,12 +26,6 @@
   },
   "conditions": [
     {
-      "type": "DISTANCE_MAX",
-      "target": "primary",
-      "max": 1.5,
-      "reason": "Portee de melee uniquement."
-    },
-    {
       "type": "TARGET_ALIVE",
       "target": "primary",
       "reason": "La cible doit avoir des PV restants."

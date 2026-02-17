@@ -51,7 +51,7 @@ Defini dans:
 
 Les features runtime sont chargees via:
 - `src/game/featureCatalog.ts`
-- `src/data/features/index.json`
+- `src/data/characters/features/index.json`
 
 Important: une feature doit etre presente dans l index. Le catalog runtime la charge ensuite automatiquement (pas de mapping manuel par id).
 
@@ -312,7 +312,7 @@ Reference schema:
 ### Cas A - Ajouter une capacite de classe sans nouveau code
 
 1. Ajouter/mettre a jour `progression.grants` dans class/subclass.
-2. Creer/mettre a jour feature JSON dans `src/data/features/...`.
+2. Creer/mettre a jour feature JSON dans `src/data/characters/features/...`.
 3. Si la feature demande un choix utilisateur, declarer `rules.choices` dans la feature (title/count/options/grants).
 4. Ajouter action/reaction JSON si necessaire.
 5. Mettre a jour indexes/catalogues (et generation si besoin).

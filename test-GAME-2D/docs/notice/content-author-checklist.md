@@ -27,7 +27,7 @@ Checklist rapide pour ajouter ou modifier du contenu (`race`, `background`, `cla
 ## 4) References de donnees
 
 - Verifier que chaque id existe dans son index:
-- `src/data/features/index.json`
+- `src/data/characters/features/index.json`
 - `src/data/actions/index.json`
 - `src/data/reactions/index.json`
 - autres index concernes (`passifs`, `spells`, etc.).

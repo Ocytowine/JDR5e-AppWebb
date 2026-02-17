@@ -117,7 +117,7 @@ et eviter toute logique speciale par classe/sous-classe.
 - Baseline documentee.
 - Phases et checklist initialisees.
 - Phase `catalog-data-driven` passee en `in_progress`.
-- `src/game/featureCatalog.ts` migre vers chargement automatique (`import.meta.glob`) base sur `src/data/features/index.json`.
+- `src/game/featureCatalog.ts` migre vers chargement automatique (`import.meta.glob`) base sur `src/data/characters/features/index.json`.
 - Phase `creator-grants-parity` passee en `in_progress`.
 - `buildDerivedGrants` etendu avec normalisation des `grant.kind` (singulier/pluriel/alias) et projection de `actions`, `reactions`, `resources`, `passifs`.
 - Phase `runtime-resource-model` passee en `done`.
@@ -129,7 +129,7 @@ et eviter toute logique speciale par classe/sous-classe.
 - Extension du flux `startClassDefine` avec un support generique de `feature choices` base sur `feature.rules.choices` (aucun branchement dedie `fighter`).
 - Ajout d un stockage canonique des choix de features de classe dans `choiceSelections.classFeatures`.
 - Synchronisation save pipeline: les choix de features de classe sont maintenant projetes dans `derived.grants` et traces dans `progressionHistory` (`kind: class-feature-option`).
-- Cas Guerrier branche en data pure: `fighting-style` expose un choix declaratif + options mappees vers des features partagees (`src/data/features/shared/*`) indexees dans `src/data/features/index.json`.
+- Cas Guerrier branche en data pure: `fighting-style` expose un choix declaratif + options mappees vers des features partagees (`src/data/characters/features/shared/*`) indexees dans `src/data/characters/features/index.json`.
 - Runtime etendu avec un support generique de `feature.rules.modifiers` (combatStat/attack/damage) applique sans condition de classe.
 - Runtime etendu avec un support generique de `feature.rules.modifiers` (combatStat/attack/damage/damageReroll) applique sans condition de classe.
 - Styles de combat branches en data: `archery`, `defense`, `dueling`, `great-weapon-fighting` actifs via modificateurs declaratifs.

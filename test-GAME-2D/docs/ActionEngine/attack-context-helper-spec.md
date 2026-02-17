@@ -8,6 +8,7 @@ Point d integration:
 1. `pickWeaponForAction`
 2. `applyWeaponOverrideForActor`
 3. `buildWeaponOverrideAction`
+4. helper implemente dans `src/game/engine/rules/weaponRules.ts`
 
 ## Contrat helper
 

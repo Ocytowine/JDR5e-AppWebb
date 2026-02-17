@@ -119,15 +119,99 @@ Comportement actuel:
 - respecte les filtres `when` (`weaponLight`, `requiresOffhandWeapon`, etc.),
 - `ability: auto` reprend l attribut de degats de l arme resolue.
 
+## 3bis) Economie d'action - patterns recommandes
+
+Objectif:
+- declarer proprement "action bonus eligible" vs "action supplementaire" sans branche metier.
+
+### A) Convertir une action en bonus action
+
+Schema:
+
+```json
+{
+  "rules": {
+    "modifiers": [
+      {
+        "applyTo": "actionCost",
+        "stat": "actionCostOverride",
+        "fromCostType": "action",
+        "toCostType": "bonus",
+        "usageKey": "feature:my-bonus-cast",
+        "maxPerTurn": 1,
+        "when": {
+          "actorType": "player",
+          "actionCategory": "attack",
+          "actionCostType": "action"
+        }
+      }
+    ]
+  }
+}
+```
+
+Notes:
+1. `when` est requis en pratique pour eviter les activations globales.
+2. `usageKey` + `maxPerTurn` sont recommandes pour toute conversion non permanente.
+
+### B) Donner une action principale supplementaire
+
+Schema:
+
+```json
+{
+  "rules": {
+    "runtimeEffects": [
+      {
+        "applyOn": "after_action_resolve",
+        "when": { "actionIdsAny": ["action-surge"] },
+        "effects": [{ "kind": "grantMainAction", "amount": 1 }]
+      }
+    ]
+  }
+}
+```
+
+Notes:
+1. Ce pattern ajoute du budget `action` pour le tour en cours.
+2. Ne pas l'utiliser pour simuler une conversion de cout (utiliser A pour cela).
+
+### C) Bypass d'une bonus action (bonus -> free)
+
+Schema:
+
+```json
+{
+  "rules": {
+    "modifiers": [
+      {
+        "applyTo": "actionCost",
+        "stat": "dualWieldBonusAttackWithoutBonusAction",
+        "usageKey": "feature:dual-wield:bypass",
+        "maxPerTurn": 1,
+        "when": {
+          "actionCostType": "bonus",
+          "actionTagsAny": ["secondary-attack", "offhand-attack", "dual-wield"]
+        }
+      }
+    ]
+  }
+}
+```
+
+Notes:
+1. Toujours borner par `usageKey`/`maxPerTurn`.
+2. Les tags et prerequis d'arme doivent rester dans `when`.
+
 ## 4) Exemples du repo
 
-- `src/data/features/shared/fighting-style-archery.json`
-- `src/data/features/shared/fighting-style-defense.json`
-- `src/data/features/shared/fighting-style-dueling.json`
-- `src/data/features/shared/fighting-style-great-weapon-fighting.json`
-- `src/data/features/shared/fighting-style-protection.json`
-- `src/data/features/shared/fighting-style-interception.json`
-- `src/data/features/shared/fighting-style-two-weapon-fighting.json`
+- `src/data/characters/features/shared/fighting-style-archery.json`
+- `src/data/characters/features/shared/fighting-style-defense.json`
+- `src/data/characters/features/shared/fighting-style-dueling.json`
+- `src/data/characters/features/shared/fighting-style-great-weapon-fighting.json`
+- `src/data/characters/features/shared/fighting-style-protection.json`
+- `src/data/characters/features/shared/fighting-style-interception.json`
+- `src/data/characters/features/shared/fighting-style-two-weapon-fighting.json`
 
 ## 5) Regles d evolution
 

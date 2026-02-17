@@ -1,4 +1,4 @@
-﻿# CombatSetupScreen ÔÇö Recap
+﻿# CombatSetupScreen - Recap
 
 This document summarizes what the CombatSetupScreen does and what it needs (data, props, state, and side effects).
 
@@ -61,7 +61,7 @@ This document summarizes what the CombatSetupScreen does and what it needs (data
 - Slot compatibility based on item category
 - Inventory items can be equipped to valid slots or stored in bag (if bag equipped)
 - Bag enforces capacityWeight
-- Primary weapon (Ôÿà) selects default combat weapon
+- Primary weapon selects default combat weapon
 - Lootbox subtab adds items from catalogs
 
 ## Data Dependencies / Assumptions
@@ -91,3 +91,4 @@ This document summarizes what the CombatSetupScreen does and what it needs (data
 - Add more stat bonus sources (race/class/equipment) in getStatBonuses
 - Add more equipment categories or slot rules in EQUIPMENT_SLOTS
 - Expand bag types and capacity logic
+
