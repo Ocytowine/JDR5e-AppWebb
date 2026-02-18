@@ -237,7 +237,7 @@ Helpers Weapon Mastery:
 - `resolveWeaponMasteryAdvantage`, `consumeWeaponMasteryAdvantage`
 - `extractAbilityModToken`, `abilityModFromToken`, `stripAbilityMod`
 - `getMasteryTriggerFromTags`, `getProficiencyBonus`, `getHostileTargets`
-- `applyWeaponMasteryEffects`: applique effets mastery data-driven (`ouverture`, `sape`, `poussee`, `ralentissement`, `ecorchure`, `renversement`, `enchainement`, `coup-double`).
+- `applyWeaponMasteryEffects`: applique les effets mastery data-driven selon `wm-trigger:*` et les actions de mastery chargees (pas de branche hardcodee dediee a `coup-double`).
 
 Effets outcome:
 - `collectOperations(effects, outcome)`: construit la liste d'ops a appliquer selon branche (`onResolve`, `onHit`, `onMiss`, `onCrit`, `onSaveSuccess`, `onSaveFail`).

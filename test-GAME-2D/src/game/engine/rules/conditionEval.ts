@@ -193,8 +193,14 @@ export function evaluateConditionExpr(
       return typeof ctx.outcome?.roll === "number" ? ctx.outcome.roll <= condition.value : false;
     case "OUTCOME_HAS":
       return outcomeHasFlag(ctx.outcome, condition.flag);
+    case "ACTOR_ALIVE":
+      return (ctx.actor.hp ?? 0) > 0;
+    case "ACTOR_DEAD":
+      return (ctx.actor.hp ?? 0) <= 0;
     case "TARGET_ALIVE":
       return !!ctx.target && ctx.target.hp > 0;
+    case "TARGET_DEAD":
+      return !!ctx.target && (ctx.target.hp ?? 0) <= 0;
     case "TARGET_HP_BELOW":
       return !!ctx.target && isHpBelow({ token: ctx.target, value: condition.value, mode: condition.mode });
     case "ACTOR_HP_BELOW":

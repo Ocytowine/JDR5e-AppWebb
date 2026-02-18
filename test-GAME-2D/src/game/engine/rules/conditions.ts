@@ -71,6 +71,9 @@ export type ConditionExpr =
   | { type: "IS_IN_LIGHT"; value?: boolean }
   | { type: "TARGET_HP_BELOW"; value: number; mode?: "percent" | "absolute" }
   | { type: "ACTOR_HP_BELOW"; value: number; mode?: "percent" | "absolute" }
+  | { type: "ACTOR_ALIVE" }
+  | { type: "ACTOR_DEAD" }
+  | { type: "TARGET_DEAD"; target?: "primary" | "self" | string }
   | { type: "TARGET_ALIVE"; target?: "primary" | "self" | string }
   | { type: "DISTANCE_MAX"; max: number; target?: "primary" | "self" | string }
   | { type: "DISTANCE_BETWEEN"; min?: number; max?: number; target?: "primary" | "self" | string }

@@ -1,0 +1,11 @@
+{
+  "id": "acces-au-savoir",
+  "label": "Acces au Savoir",
+  "summary": "Vous savez ou chercher et obtenir un acces raisonnable aux sources savantes.",
+  "kind": "feature",
+  "tags": ["background", "social", "knowledge"],
+  "grants": [],
+  "rules": {
+    "text": "Vous pouvez identifier des lieux, bibliotheques, erudits ou institutions utiles pour une recherche. Le MJ determine la disponibilite et le delai."
+  }
+}

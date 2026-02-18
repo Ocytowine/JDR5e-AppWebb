@@ -251,6 +251,75 @@ function assertNumberArrayMultipleOfHalf(file, field, values) {
   }
 }
 
+function assertNonEmptyString(file, field, value) {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    errors.push(`${file}: ${field} must be a non-empty string.`);
+  }
+}
+
+function assertArrayOfNonEmptyStrings(file, field, value) {
+  if (!Array.isArray(value)) {
+    errors.push(`${file}: ${field} must be an array.`);
+    return;
+  }
+  value.forEach((entry, index) => {
+    if (typeof entry !== "string" || entry.trim().length === 0) {
+      errors.push(`${file}: ${field}[${index}] must be a non-empty string.`);
+    }
+  });
+}
+
+function assertGrantListShape(file, field, grants, options) {
+  if (!Array.isArray(grants)) {
+    errors.push(`${file}: ${field} must be an array.`);
+    return;
+  }
+  const allowedKinds = new Set(options?.allowedKinds ?? []);
+  const allowEmptyIdsForKinds = new Set(options?.allowEmptyIdsForKinds ?? []);
+  grants.forEach((grant, index) => {
+    if (!grant || typeof grant !== "object") {
+      errors.push(`${file}: ${field}[${index}] must be an object.`);
+      return;
+    }
+    const kind = String(grant.kind ?? "");
+    if (!kind) {
+      errors.push(`${file}: ${field}[${index}].kind is required.`);
+    } else if (allowedKinds.size > 0 && !allowedKinds.has(kind)) {
+      errors.push(`${file}: ${field}[${index}].kind -> "${kind}" not allowed.`);
+    }
+    if (!Array.isArray(grant.ids)) {
+      errors.push(`${file}: ${field}[${index}].ids must be an array.`);
+    } else if (!allowEmptyIdsForKinds.has(kind) && grant.ids.length === 0) {
+      errors.push(`${file}: ${field}[${index}].ids must not be empty for kind "${kind}".`);
+    } else {
+      grant.ids.forEach((id, idIndex) => {
+        if (typeof id !== "string" || id.trim().length === 0) {
+          errors.push(`${file}: ${field}[${index}].ids[${idIndex}] must be a non-empty string.`);
+        }
+      });
+    }
+  });
+}
+
+function assertProgressionShape(file, field, progression, options) {
+  if (!progression || typeof progression !== "object" || Array.isArray(progression)) {
+    errors.push(`${file}: ${field} must be an object keyed by level.`);
+    return;
+  }
+  Object.entries(progression).forEach(([levelKey, entry]) => {
+    if (!/^\d+$/.test(levelKey)) {
+      errors.push(`${file}: ${field}.${levelKey} invalid level key (expected numeric string).`);
+    }
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      errors.push(`${file}: ${field}.${levelKey} must be an object.`);
+      return;
+    }
+    if (entry.grants !== undefined) {
+      assertGrantListShape(file, `${field}.${levelKey}.grants`, entry.grants, options);
+    }
+  });
+}
+
 function assertNoUnexpectedObjectKeys(file, field, obj, allowedKeys) {
   if (!obj || typeof obj !== "object" || Array.isArray(obj)) return;
   const allowed = new Set(Array.isArray(allowedKeys) ? allowedKeys : []);
@@ -282,7 +351,15 @@ function assertWeaponBonusSpec(file, field, value) {
   errors.push(`${file}: ${field} -> "${value}" invalid (expected number or "bonus_maitrise").`);
 }
 
+function isInlineBonusId(value) {
+  const id = String(value ?? "").trim();
+  if (!id) return false;
+  if (id === "asi-or-feat") return true;
+  return /^(?:stat|carac)[:.](FOR|DEX|CON|INT|SAG|CHA)[:.]([+-]?\d+)$/i.test(id);
+}
+
 const files = listJsonFiles(DATA_DIR);
+const parsedEntries = [];
 for (const filePath of files) {
   let json;
   try {
@@ -293,6 +370,67 @@ for (const filePath of files) {
   }
   const rel = path.relative(ROOT, filePath);
   const relNorm = normalizeRelPath(rel);
+  parsedEntries.push({ filePath, rel, relNorm, json });
+}
+
+const allJsonRelPaths = new Set(parsedEntries.map(entry => entry.relNorm));
+const actionIds = new Set(
+  parsedEntries
+    .filter(entry => isActionLike(entry.json) && !isReaction(entry.json))
+    .map(entry => String(entry.json.id ?? ""))
+    .filter(Boolean)
+);
+const reactionIds = new Set(
+  parsedEntries
+    .filter(entry => isReaction(entry.json))
+    .map(entry => String(entry.json.id ?? ""))
+    .filter(Boolean)
+);
+for (const entry of parsedEntries) {
+  if (isIndexFile(entry.relNorm)) continue;
+  if (!entry.relNorm.startsWith("src/data/characters/features/")) continue;
+  if (entry.json?.kind === "action" && typeof entry.json?.id === "string" && entry.json.id.trim()) {
+    actionIds.add(entry.json.id.trim());
+  }
+  if (entry.json?.kind === "reaction" && typeof entry.json?.id === "string" && entry.json.id.trim()) {
+    reactionIds.add(entry.json.id.trim());
+  }
+}
+const spellIds = new Set(
+  parsedEntries
+    .filter(entry => entry.relNorm.startsWith("src/data/spells/") && !isIndexFile(entry.relNorm))
+    .map(entry => String(entry.json.id ?? ""))
+    .filter(Boolean)
+);
+const featureIds = new Set(
+  parsedEntries
+    .filter(entry => entry.relNorm.startsWith("src/data/characters/features/") && !isIndexFile(entry.relNorm))
+    .map(entry => String(entry.json.id ?? ""))
+    .filter(Boolean)
+);
+const bonusIds = new Set(
+  parsedEntries
+    .filter(entry => entry.relNorm.startsWith("src/data/bonuses/") && !isIndexFile(entry.relNorm))
+    .map(entry => String(entry.json.id ?? ""))
+    .filter(Boolean)
+);
+const classDefs = parsedEntries.filter(
+  entry =>
+    entry.relNorm.startsWith("src/data/characters/classes/") &&
+    !isIndexFile(entry.relNorm) &&
+    !entry.relNorm.includes("/class.json") &&
+    typeof entry.json?.classId === "string"
+);
+const baseClassDefs = parsedEntries.filter(
+  entry =>
+    entry.relNorm.startsWith("src/data/characters/classes/") &&
+    !isIndexFile(entry.relNorm) &&
+    entry.relNorm.includes("/class.json")
+);
+const classIds = new Set(baseClassDefs.map(entry => String(entry.json.id ?? "")).filter(Boolean));
+const subclassIds = new Set(classDefs.map(entry => String(entry.json.id ?? "")).filter(Boolean));
+
+for (const { rel, relNorm, json } of parsedEntries) {
 
   // Tags
   assertTagArray(rel, "tags", json.tags);
@@ -417,6 +555,181 @@ for (const filePath of files) {
   const perRestType = getNestedValue(json, ["usage", "perRest", "type"]);
   if (perRestType) {
     assertEnum(rel, "usage.perRest.type", perRestType, enums.restTypes);
+  }
+
+  // Characters taxonomy checks
+  const characterGrantKinds = new Set([
+    "action",
+    "bonus",
+    "feature",
+    "language-choice",
+    "reaction",
+    "resource",
+    "skill",
+    "spell",
+    "tool",
+    "tool-choice",
+    "trait",
+    "weaponMastery"
+  ]);
+  const allowEmptyIdsKinds = ["language-choice", "tool-choice"];
+  const verifyGrantReferences = (field, grants) => {
+    if (!Array.isArray(grants)) return;
+    grants.forEach((grant, index) => {
+      const kind = String(grant?.kind ?? "");
+      const ids = Array.isArray(grant?.ids) ? grant.ids.map(id => String(id)) : [];
+      ids.forEach(id => {
+        if (kind === "action" && !actionIds.has(id)) {
+          errors.push(`${rel}: ${field}[${index}] action id "${id}" not found.`);
+        }
+        if (kind === "reaction" && !reactionIds.has(id)) {
+          errors.push(`${rel}: ${field}[${index}] reaction id "${id}" not found.`);
+        }
+        if (kind === "feature" && !featureIds.has(id)) {
+          errors.push(`${rel}: ${field}[${index}] feature id "${id}" not found.`);
+        }
+        if (kind === "spell" && !spellIds.has(id)) {
+          errors.push(`${rel}: ${field}[${index}] spell id "${id}" not found.`);
+        }
+        if (kind === "bonus" && !bonusIds.has(id) && !isInlineBonusId(id)) {
+          errors.push(`${rel}: ${field}[${index}] bonus id "${id}" not found.`);
+        }
+      });
+    });
+  };
+
+  if (!isIndexFile(relNorm) && relNorm.startsWith("src/data/characters/languages/")) {
+    assertNonEmptyString(rel, "id", json.id);
+    assertNonEmptyString(rel, "label", json.label);
+  }
+
+  if (!isIndexFile(relNorm) && relNorm.startsWith("src/data/characters/backgrounds/")) {
+    assertNonEmptyString(rel, "id", json.id);
+    assertNonEmptyString(rel, "label", json.label);
+    assertNonEmptyString(rel, "description", json.description);
+    if (json.grants !== undefined) {
+      assertGrantListShape(rel, "grants", json.grants, {
+        allowedKinds: characterGrantKinds,
+        allowEmptyIdsForKinds: allowEmptyIdsKinds
+      });
+      verifyGrantReferences("grants", json.grants);
+    }
+    if (json.progression !== undefined) {
+      assertProgressionShape(rel, "progression", json.progression, {
+        allowedKinds: characterGrantKinds,
+        allowEmptyIdsForKinds: allowEmptyIdsKinds
+      });
+      Object.entries(json.progression ?? {}).forEach(([level, entry]) =>
+        verifyGrantReferences(`progression.${level}.grants`, entry?.grants)
+      );
+    }
+  }
+
+  if (!isIndexFile(relNorm) && relNorm.startsWith("src/data/characters/races/")) {
+    assertNonEmptyString(rel, "id", json.id);
+    assertNonEmptyString(rel, "label", json.label);
+    assertNonEmptyString(rel, "description", json.description);
+    if (json.size !== undefined) {
+      const allowedSize = new Set(["small", "medium", "large"]);
+      if (!allowedSize.has(String(json.size))) {
+        errors.push(`${rel}: size -> "${json.size}" invalid (small|medium|large).`);
+      }
+    }
+    if (json.actionIds !== undefined) {
+      assertArrayOfNonEmptyStrings(rel, "actionIds", json.actionIds);
+      json.actionIds.forEach(id => {
+        if (!actionIds.has(String(id))) errors.push(`${rel}: actionIds -> "${id}" not found.`);
+      });
+    }
+    if (json.reactionIds !== undefined) {
+      assertArrayOfNonEmptyStrings(rel, "reactionIds", json.reactionIds);
+      json.reactionIds.forEach(id => {
+        if (!reactionIds.has(String(id))) errors.push(`${rel}: reactionIds -> "${id}" not found.`);
+      });
+    }
+    if (json.grants !== undefined) {
+      assertGrantListShape(rel, "grants", json.grants, {
+        allowedKinds: characterGrantKinds,
+        allowEmptyIdsForKinds: allowEmptyIdsKinds
+      });
+      verifyGrantReferences("grants", json.grants);
+    }
+  }
+
+  if (!isIndexFile(relNorm) && relNorm.startsWith("src/data/characters/classes/")) {
+    const isSubclass = typeof json.classId === "string" && !relNorm.endsWith("/class.json");
+    assertNonEmptyString(rel, "id", json.id);
+    assertNonEmptyString(rel, "label", json.label);
+    assertNonEmptyString(rel, "description", json.description);
+    if (isSubclass) {
+      assertNonEmptyString(rel, "classId", json.classId);
+      if (!classIds.has(String(json.classId))) {
+        errors.push(`${rel}: classId -> "${json.classId}" not found among class ids.`);
+      }
+    } else {
+      if (json.hitDie !== undefined) {
+        const allowedHitDie = new Set([4, 6, 8, 10, 12, 20]);
+        if (!allowedHitDie.has(Number(json.hitDie))) {
+          errors.push(`${rel}: hitDie -> "${json.hitDie}" invalid.`);
+        }
+      }
+      if (Array.isArray(json.subclassIds)) {
+        json.subclassIds.forEach(id => {
+          if (!subclassIds.has(String(id))) {
+            errors.push(`${rel}: subclassIds -> "${id}" not found.`);
+          }
+        });
+      }
+    }
+    if (json.spellcasting && typeof json.spellcasting === "object") {
+      const sc = json.spellcasting;
+      const allowedAbility = new Set(["SAG", "INT", "CHA"]);
+      const allowedPreparation = new Set(["prepared", "known"]);
+      const allowedStorage = new Set(["memory", "innate", "grimoire"]);
+      const allowedProgression = new Set(["full", "half", "third", "none"]);
+      if (sc.ability !== undefined && !allowedAbility.has(String(sc.ability))) {
+        errors.push(`${rel}: spellcasting.ability -> "${sc.ability}" invalid.`);
+      }
+      if (sc.preparation !== undefined && !allowedPreparation.has(String(sc.preparation))) {
+        errors.push(`${rel}: spellcasting.preparation -> "${sc.preparation}" invalid.`);
+      }
+      if (sc.storage !== undefined && !allowedStorage.has(String(sc.storage))) {
+        errors.push(`${rel}: spellcasting.storage -> "${sc.storage}" invalid.`);
+      }
+      if (sc.casterProgression !== undefined && !allowedProgression.has(String(sc.casterProgression))) {
+        errors.push(`${rel}: spellcasting.casterProgression -> "${sc.casterProgression}" invalid.`);
+      }
+      if (sc.slotsByLevel !== undefined && (typeof sc.slotsByLevel !== "object" || Array.isArray(sc.slotsByLevel))) {
+        errors.push(`${rel}: spellcasting.slotsByLevel must be an object.`);
+      }
+    }
+    if (json.progression !== undefined) {
+      assertProgressionShape(rel, "progression", json.progression, {
+        allowedKinds: characterGrantKinds,
+        allowEmptyIdsForKinds: allowEmptyIdsKinds
+      });
+      Object.entries(json.progression ?? {}).forEach(([level, entry]) =>
+        verifyGrantReferences(`progression.${level}.grants`, entry?.grants)
+      );
+    }
+  }
+
+  if (!isIndexFile(relNorm) && relNorm.startsWith("src/data/characters/features/")) {
+    assertNonEmptyString(rel, "id", json.id);
+    assertNonEmptyString(rel, "label", json.label);
+    if (json.kind !== undefined) {
+      const allowedFeatureKinds = new Set(["passive", "action", "reaction", "resource", "feature"]);
+      if (!allowedFeatureKinds.has(String(json.kind))) {
+        errors.push(`${rel}: kind -> "${json.kind}" invalid.`);
+      }
+    }
+    if (json.grants !== undefined) {
+      assertGrantListShape(rel, "grants", json.grants, {
+        allowedKinds: characterGrantKinds,
+        allowEmptyIdsForKinds: allowEmptyIdsKinds
+      });
+      verifyGrantReferences("grants", json.grants);
+    }
   }
 
   // Weapon fields
@@ -547,6 +860,64 @@ for (const filePath of files) {
   assertMultipleOfHalf(rel, "behavior.preferredRangeMax", getNestedValue(json, ["behavior", "preferredRangeMax"]));
   assertMultipleOfHalf(rel, "behavior.panicRange", getNestedValue(json, ["behavior", "panicRange"]));
 }
+
+function validateIndexCoverage(params) {
+  const { relPath, listKey, folderPrefix } = params;
+  const indexEntry = parsedEntries.find(entry => entry.relNorm === relPath);
+  if (!indexEntry) {
+    errors.push(`${relPath}: missing index file.`);
+    return;
+  }
+  const list = indexEntry.json?.[listKey];
+  if (!Array.isArray(list)) {
+    errors.push(`${relPath}: "${listKey}" must be an array.`);
+    return;
+  }
+  const listed = new Set(
+    list
+      .map(value => String(value).trim())
+      .filter(Boolean)
+      .map(value => `${folderPrefix}/${value.replace(/^\.\//, "")}`)
+  );
+  listed.forEach(rel => {
+    if (!allJsonRelPaths.has(rel)) {
+      errors.push(`${relPath}: listed file missing -> ${rel}`);
+    }
+  });
+  parsedEntries
+    .filter(entry => entry.relNorm.startsWith(folderPrefix + "/") && !isIndexFile(entry.relNorm))
+    .forEach(entry => {
+      if (!listed.has(entry.relNorm)) {
+        errors.push(`${relPath}: file not referenced in index -> ${entry.relNorm}`);
+      }
+    });
+}
+
+validateIndexCoverage({
+  relPath: "src/data/characters/backgrounds/index.json",
+  listKey: "types",
+  folderPrefix: "src/data/characters/backgrounds"
+});
+validateIndexCoverage({
+  relPath: "src/data/characters/races/index.json",
+  listKey: "types",
+  folderPrefix: "src/data/characters/races"
+});
+validateIndexCoverage({
+  relPath: "src/data/characters/classes/index.json",
+  listKey: "types",
+  folderPrefix: "src/data/characters/classes"
+});
+validateIndexCoverage({
+  relPath: "src/data/characters/features/index.json",
+  listKey: "features",
+  folderPrefix: "src/data/characters/features"
+});
+validateIndexCoverage({
+  relPath: "src/data/characters/languages/index.json",
+  listKey: "types",
+  folderPrefix: "src/data/characters/languages"
+});
 
 if (errors.length > 0) {
   console.error("Content validation failed:");

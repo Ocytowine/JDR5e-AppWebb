@@ -1,15 +1,10 @@
 import type { ArmorItemDefinition } from "../armorTypes";
 import type { WeaponTypeDefinition } from "../weaponTypes";
 import type { ActionDefinition } from "./actionTypes";
-
-type InventoryEntryLike = {
-  type?: string;
-  id?: string;
-  equippedSlot?: string | null;
-  storedIn?: string | null;
-  isPrimaryWeapon?: boolean;
-  isSecondaryHand?: boolean;
-};
+import {
+  type InventoryEntryLike,
+  resolveEquippedHandsLoadout
+} from "./equippedHandsResolver";
 
 type FeatureLike = {
   rules?: {
@@ -29,14 +24,22 @@ export type DualWieldValidationResult = {
 };
 
 export const DUAL_WIELD_ACTION_TAGS = ["dual-wield", "offhand-attack", "secondary-attack"] as const;
+const DUAL_WIELD_TAG_ALIASES: Record<string, (typeof DUAL_WIELD_ACTION_TAGS)[number]> = {
+  "dual-wield": "dual-wield",
+  dualwield: "dual-wield",
+  "two-weapon": "dual-wield",
+  "two-weapons": "dual-wield",
+  offhand: "offhand-attack",
+  "offhand-attack": "offhand-attack",
+  "offhand_attack": "offhand-attack",
+  secondary: "secondary-attack",
+  "secondary-attack": "secondary-attack",
+  "secondary_attack": "secondary-attack"
+};
 
 const DEFAULT_DUAL_WIELD_POLICY: DualWieldPolicy = {
   ignoreLightRequirement: false
 };
-
-function isEquippedInCarrySlot(entry: InventoryEntryLike): boolean {
-  return Boolean(entry?.equippedSlot) && !entry?.storedIn;
-}
 
 function parseDualWieldPolicyModifier(entry: Record<string, unknown>): Partial<DualWieldPolicy> {
   const applyTo = String(entry?.applyTo ?? "")
@@ -89,67 +92,38 @@ export function resolveDualWieldPolicy(params: {
 
 export function hasDualWieldActionTag(tags: string[] | undefined | null): boolean {
   const list = Array.isArray(tags) ? tags : [];
-  return DUAL_WIELD_ACTION_TAGS.some(tag => list.includes(tag));
+  return list.some(tag => {
+    const normalized = String(tag ?? "")
+      .trim()
+      .toLowerCase()
+      .replace(/[_\s]+/g, "-");
+    return Boolean(DUAL_WIELD_TAG_ALIASES[normalized]);
+  });
 }
 
 export function normalizeDualWieldActionTags(tags: string[] | undefined | null): string[] {
   const list = Array.isArray(tags) ? [...tags] : [];
-  if (!hasDualWieldActionTag(list)) return list;
-  const next = new Set<string>(list);
+  const next = new Set<string>(
+    list
+      .map(tag => String(tag ?? "").trim())
+      .filter(Boolean)
+  );
+  const canonicalMatches = new Set<(typeof DUAL_WIELD_ACTION_TAGS)[number]>();
+  list.forEach(rawTag => {
+    const normalized = String(rawTag ?? "")
+      .trim()
+      .toLowerCase()
+      .replace(/[_\s]+/g, "-");
+    const canonical = DUAL_WIELD_TAG_ALIASES[normalized];
+    if (canonical) canonicalMatches.add(canonical);
+  });
+  if (canonicalMatches.size === 0) return Array.from(next);
   DUAL_WIELD_ACTION_TAGS.forEach(tag => next.add(tag));
   return Array.from(next);
 }
 
 function isDualWieldAction(action: ActionDefinition): boolean {
   return hasDualWieldActionTag(action?.tags);
-}
-
-function getReadyWeaponDefs(params: {
-  inventoryItems: Array<InventoryEntryLike>;
-  weaponById: Map<string, WeaponTypeDefinition>;
-}): WeaponTypeDefinition[] {
-  const inventory = Array.isArray(params.inventoryItems) ? params.inventoryItems : [];
-  const primaryEntries = inventory.filter(entry => {
-    if (entry?.type !== "weapon") return false;
-    if (!entry?.isPrimaryWeapon) return false;
-    return isEquippedInCarrySlot(entry);
-  });
-  const secondaryEntry =
-    inventory.find(entry => Boolean(entry?.isSecondaryHand) && isEquippedInCarrySlot(entry)) ?? null;
-  const selectedEntries: InventoryEntryLike[] = [];
-  if (primaryEntries.length > 0) selectedEntries.push(primaryEntries[0]);
-  if (secondaryEntry?.type === "weapon") {
-    const sid = String(secondaryEntry.id ?? "");
-    const exists = selectedEntries.some(entry => String(entry.id ?? "") === sid);
-    if (!exists) selectedEntries.push(secondaryEntry);
-  }
-  if (selectedEntries.length === 0) {
-    const fallback = inventory.filter(entry => entry?.type === "weapon" && isEquippedInCarrySlot(entry)).slice(0, 1);
-    fallback.forEach(entry => selectedEntries.push(entry));
-  }
-  return selectedEntries
-    .map(entry => params.weaponById.get(String(entry.id ?? "")) ?? null)
-    .filter((weapon): weapon is WeaponTypeDefinition => Boolean(weapon));
-}
-
-function hasReadyShield(params: {
-  inventoryItems: Array<InventoryEntryLike>;
-  armorById: Map<string, ArmorItemDefinition>;
-}): boolean {
-  const inventory = Array.isArray(params.inventoryItems) ? params.inventoryItems : [];
-  const secondaryEntry =
-    inventory.find(entry => Boolean(entry?.isSecondaryHand) && isEquippedInCarrySlot(entry)) ?? null;
-  if (secondaryEntry) {
-    if (secondaryEntry.type !== "armor") return false;
-    const def = params.armorById.get(String(secondaryEntry.id ?? ""));
-    return def?.armorCategory === "shield";
-  }
-  return inventory.some(entry => {
-    if (entry?.type !== "armor") return false;
-    if (!isEquippedInCarrySlot(entry)) return false;
-    const def = params.armorById.get(String(entry.id ?? ""));
-    return def?.armorCategory === "shield";
-  });
 }
 
 export function getDualWieldConstraintIssues(params: {
@@ -162,14 +136,13 @@ export function getDualWieldConstraintIssues(params: {
   policyOverride?: Partial<DualWieldPolicy> | null;
 }): string[] {
   const issues: string[] = [];
-  const readyWeapons = getReadyWeaponDefs({
+  const loadout = resolveEquippedHandsLoadout({
     inventoryItems: params.inventoryItems,
-    weaponById: params.weaponById
-  });
-  const hasShield = hasReadyShield({
-    inventoryItems: params.inventoryItems,
+    weaponById: params.weaponById,
     armorById: params.armorById
   });
+  const readyWeapons = loadout.readyWeapons;
+  const hasShield = loadout.readyShieldEntries.length > 0;
   const policy = {
     ...resolveDualWieldPolicy({ features: params.features }),
     ...(params.policyOverride ?? {})
@@ -225,10 +198,12 @@ export function validateDualWieldAttempt(params: {
   features?: FeatureLike[] | null;
   policyOverride?: Partial<DualWieldPolicy> | null;
 }): DualWieldValidationResult {
-  const readyWeapons = getReadyWeaponDefs({
+  const loadout = resolveEquippedHandsLoadout({
     inventoryItems: params.inventoryItems,
-    weaponById: params.weaponById
+    weaponById: params.weaponById,
+    armorById: params.armorById
   });
+  const readyWeapons = loadout.readyWeapons;
   const offhandWeapon = params.selectedWeapon ?? null;
   const mainWeapon =
     readyWeapons.find(weapon => !offhandWeapon || weapon.id !== offhandWeapon.id) ??

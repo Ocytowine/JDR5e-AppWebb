@@ -172,10 +172,14 @@ export function ActionWheelMenu(props: {
       return filtered.map(action => {
         const availability = props.computeActionAvailability(action);
         const enabled = availability.enabled;
+        const disabledReason =
+          availability.reasons.length > 0 ? availability.reasons.join(" | ") : undefined;
         return {
           id: `action-${action.id}`,
           label: action.name,
           color: enabled ? "#2ecc71" : "#e74c3c",
+          disabled: !enabled,
+          disabledReason,
           onSelect: () => {
             props.onPickAction(action);
             setView("root");
@@ -229,10 +233,14 @@ export function ActionWheelMenu(props: {
       return props.moveTypes.map(moveType => {
         const availability = props.computeActionAvailability(moveType);
         const enabled = availability.enabled;
+        const disabledReason =
+          availability.reasons.length > 0 ? availability.reasons.join(" | ") : undefined;
         return {
           id: `move-type-${moveType.id}`,
           label: moveType.name,
           color: enabled ? "#2ecc71" : "#e74c3c",
+          disabled: !enabled,
+          disabledReason,
           onSelect: () => {
             props.onPickAction(moveType);
             setView("root");

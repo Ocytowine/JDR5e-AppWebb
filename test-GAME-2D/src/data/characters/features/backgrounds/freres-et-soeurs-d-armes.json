@@ -1,0 +1,11 @@
+{
+  "id": "freres-et-soeurs-d-armes",
+  "label": "Freres et Soeurs d'Armes",
+  "summary": "Vous pouvez obtenir un abri, une aide basique ou des informations aupres d'anciens soldats.",
+  "kind": "feature",
+  "tags": ["background", "social", "military"],
+  "grants": [],
+  "rules": {
+    "text": "Vous pouvez compter sur la solidarite d'anciens combattants pour un soutien raisonnable: orientation locale, hebergement de courte duree ou renseignements militaires non sensibles."
+  }
+}

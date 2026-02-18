@@ -2,15 +2,10 @@ import type { ArmorItemDefinition } from "../armorTypes";
 import type { WeaponTypeDefinition } from "../weaponTypes";
 import type { ActionDefinition } from "./actionTypes";
 import { getDualWieldConstraintIssues } from "./weaponPairingRules";
-
-type InventoryEntryLike = {
-  type?: string;
-  id?: string;
-  equippedSlot?: string | null;
-  storedIn?: string | null;
-  isPrimaryWeapon?: boolean;
-  isSecondaryHand?: boolean;
-};
+import {
+  type InventoryEntryLike,
+  resolveEquippedHandsLoadout
+} from "./equippedHandsResolver";
 
 export type HandUsageState = {
   readyWeaponCount: number;
@@ -44,9 +39,6 @@ const DEFAULT_POLICY: EquipmentRuntimePolicy = {
   drawWeaponFromPackAsInteraction: false
 };
 
-function isEquippedInHands(entry: InventoryEntryLike): boolean {
-  return Boolean(entry?.equippedSlot) && !entry?.storedIn;
-}
 
 function parsePolicyModifier(entry: Record<string, unknown>): Partial<EquipmentRuntimePolicy> {
   const applyTo = String(entry?.applyTo ?? "")
@@ -127,56 +119,23 @@ export function getHandUsageState(params: {
   weaponById: Map<string, WeaponTypeDefinition>;
   armorById: Map<string, ArmorItemDefinition>;
 }): HandUsageState {
-  const inventory = Array.isArray(params.inventoryItems) ? params.inventoryItems : [];
-  const primaryEntry =
-    inventory.find(entry => Boolean(entry?.isPrimaryWeapon) && isEquippedInHands(entry)) ?? null;
-  const primaryReadyWeaponEntries = primaryEntry?.type === "weapon" ? [primaryEntry] : [];
-  const secondaryEntry =
-    inventory.find(entry => Boolean(entry?.isSecondaryHand) && isEquippedInHands(entry)) ?? null;
-  const readyWeapons: InventoryEntryLike[] = [];
-  if (primaryReadyWeaponEntries.length > 0) {
-    readyWeapons.push(primaryReadyWeaponEntries[0]);
-  }
-  if (secondaryEntry?.type === "weapon") {
-    const secondaryId = String(secondaryEntry.id ?? "");
-    const already = readyWeapons.some(entry => String(entry.id ?? "") === secondaryId);
-    if (!already) readyWeapons.push(secondaryEntry);
-  }
-  if (readyWeapons.length === 0) {
-    const fallback = inventory.filter(entry => entry?.type === "weapon" && isEquippedInHands(entry)).slice(0, 1);
-    fallback.forEach(entry => readyWeapons.push(entry));
-  }
-  const readyShields = secondaryEntry
-    ? secondaryEntry.type === "armor" &&
-      (params.armorById.get(String(secondaryEntry.id ?? ""))?.armorCategory === "shield")
-      ? [secondaryEntry]
-      : []
-    : inventory.filter(entry => {
-        if (entry?.type !== "armor") return false;
-        if (!entry?.equippedSlot || entry?.storedIn) return false;
-        const def = params.armorById.get(String(entry.id ?? ""));
-        return def?.armorCategory === "shield";
-      });
-  const strictTwoHandedReady = readyWeapons.some(entry => {
-    const def = params.weaponById.get(String(entry.id ?? ""));
-    return Boolean(def?.properties?.twoHanded);
-  });
-  const readyWeaponCount = readyWeapons.length;
-  const readyShieldCount = readyShields.length;
+  const loadout = resolveEquippedHandsLoadout(params);
+  const readyWeaponCount = loadout.readyWeaponEntries.length;
+  const readyShieldCount = loadout.readyShieldEntries.length;
   const hasShieldInHands = readyShieldCount > 0;
-  const hasOffhandWeapon = !strictTwoHandedReady && readyWeaponCount >= 2;
+  const hasOffhandWeapon = !loadout.strictTwoHandedReady && Boolean(loadout.offhandWeaponEntry);
   const occupiedHands = (() => {
-    if (strictTwoHandedReady) return 2;
+    if (loadout.strictTwoHandedReady) return 2;
     let count = 0;
-    if (primaryEntry || readyWeaponCount > 0) count += 1;
-    if (secondaryEntry || readyWeaponCount > 1 || readyShieldCount > 0) count += 1;
+    if (loadout.primaryEntry || readyWeaponCount > 0) count += 1;
+    if (loadout.secondaryEntry || Boolean(loadout.offhandWeaponEntry) || readyShieldCount > 0) count += 1;
     return Math.min(2, count);
   })();
   const freeHands = Math.max(0, 2 - occupiedHands);
   return {
     readyWeaponCount,
     readyShieldCount,
-    strictTwoHandedReady,
+    strictTwoHandedReady: loadout.strictTwoHandedReady,
     hasShieldInHands,
     hasOffhandWeapon,
     occupiedHands,

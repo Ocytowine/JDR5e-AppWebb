@@ -82,6 +82,8 @@ export function resolveActionCostContext(params: {
   actor: TokenState;
   weapon?: WeaponTypeDefinition | null;
   usedMainActionCount: number;
+  usedAttackActionCount?: number;
+  turnUsageCounts?: Record<string, number> | null;
   getFeatureRuleModifiersForActor: (actor: TokenState) => Array<Record<string, unknown>>;
   featureModifierMatches: (args: {
     modifier: Record<string, unknown>;
@@ -93,15 +95,16 @@ export function resolveActionCostContext(params: {
   hasDualWieldActionTag: (tags: string[] | undefined | null) => boolean;
 }): ActionCostContext {
   const baseCostType = String(params.action.actionCost?.actionType ?? "free");
+  const toBaseContext = (): ActionCostContext => ({
+    costType: baseCostType,
+    bypassedBonusAction: false,
+    bypassUsageKey: null,
+    bypassMaxPerTurn: 0,
+    bypassLimitMessage: "",
+    bypassLabel: ""
+  });
   if (params.actor.type !== "player") {
-    return {
-      costType: baseCostType,
-      bypassedBonusAction: false,
-      bypassUsageKey: null,
-      bypassMaxPerTurn: 0,
-      bypassLimitMessage: "",
-      bypassLabel: ""
-    };
+    return toBaseContext();
   }
 
   const normalizedTags = params.normalizeActionTags(params.action.tags);
@@ -153,65 +156,87 @@ export function resolveActionCostContext(params: {
     return true;
   });
 
-  const matching =
-    matchingCandidates
-      .slice()
-      .sort((a, b) => {
-        const priorityA = Number(a.priority ?? 0);
-        const priorityB = Number(b.priority ?? 0);
-        if (priorityA !== priorityB) return priorityB - priorityA;
-        const aMax = Number(a.maxPerTurn ?? 0);
-        const bMax = Number(b.maxPerTurn ?? 0);
-        if (aMax !== bMax) return bMax - aMax;
-        const aPerAction = Number(a.maxPerTurnPerActionUsed ?? 0);
-        const bPerAction = Number(b.maxPerTurnPerActionUsed ?? 0);
-        return bPerAction - aPerAction;
-      })[0] ?? null;
+  const sortedMatching = matchingCandidates.slice().sort((a, b) => {
+    const priorityA = Number(a.priority ?? 0);
+    const priorityB = Number(b.priority ?? 0);
+    if (priorityA !== priorityB) return priorityB - priorityA;
+    const aMax = Number(a.maxPerTurn ?? 0);
+    const bMax = Number(b.maxPerTurn ?? 0);
+    if (aMax !== bMax) return bMax - aMax;
+    const aPerAction = Number(a.maxPerTurnPerActionUsed ?? 0);
+    const bPerAction = Number(b.maxPerTurnPerActionUsed ?? 0);
+    return bPerAction - aPerAction;
+  });
+  if (sortedMatching.length === 0) return toBaseContext();
 
-  if (!matching) {
+  const resolveModifierContext = (matching: Record<string, unknown>) => {
+    const stat = String(matching.stat ?? matching.mode ?? "").trim().toLowerCase();
+    const isDualWieldBypass =
+      stat === "dualwieldbonusattackwithoutbonusaction" ||
+      stat === "dual_wield_bonus_attack_without_bonus_action";
+    const toCostType = isDualWieldBypass
+      ? "free"
+      : String(matching.toCostType ?? baseCostType).trim().toLowerCase();
+    const hasUsageLimitFields =
+      matching.usageKey !== undefined ||
+      matching.maxPerTurn !== undefined ||
+      matching.limitPerTurn !== undefined ||
+      matching.maxPerTurnPerActionUsed !== undefined;
+    const hasExplicitLimit =
+      matching.maxPerTurn !== undefined ||
+      matching.limitPerTurn !== undefined ||
+      matching.maxPerTurnPerActionUsed !== undefined;
+    const usageKeyRaw = String(
+      matching.usageKey ??
+        `action-cost-override:${String(matching.stat ?? "rule").trim().toLowerCase()}:${params.action.id}`
+    );
+    const usageKey = hasUsageLimitFields && usageKeyRaw.trim().length > 0 ? usageKeyRaw.trim() : null;
+    const maxPerTurnRaw = Number(matching.maxPerTurn ?? matching.limitPerTurn ?? 0);
+    const maxPerTurnPerActionRaw = Number(matching.maxPerTurnPerActionUsed ?? 0);
+    let maxPerTurn = Number.isFinite(maxPerTurnRaw) ? Math.max(0, Math.floor(maxPerTurnRaw)) : 0;
+    if (Number.isFinite(maxPerTurnPerActionRaw) && maxPerTurnPerActionRaw > 0) {
+      const when = matching.when && typeof matching.when === "object" ? (matching.when as Record<string, unknown>) : {};
+      const requiresTurnAttackActionUsed = Boolean(when.requiresTurnAttackActionUsed);
+      const usageBasis = requiresTurnAttackActionUsed
+        ? Math.max(0, Number(params.usedAttackActionCount ?? params.usedMainActionCount))
+        : Math.max(0, Number(params.usedMainActionCount));
+      const computed = Math.floor(maxPerTurnPerActionRaw * usageBasis);
+      maxPerTurn = Math.max(maxPerTurn, computed);
+    }
+    const limitMessageRaw = String(matching.limitMessage ?? "").trim();
+    const limitMessage =
+      limitMessageRaw.length > 0 ? limitMessageRaw : "Limite d'utilisation atteinte pour cette regle.";
+    const labelRaw = String(matching.label ?? "Action cost override").trim();
     return {
-      costType: baseCostType,
-      bypassedBonusAction: false,
-      bypassUsageKey: null,
-      bypassMaxPerTurn: 0,
-      bypassLimitMessage: "",
-      bypassLabel: ""
+      stat,
+      toCostType,
+      hasUsageLimitFields,
+      hasExplicitLimit,
+      usageKey,
+      maxPerTurn,
+      limitMessage,
+      labelRaw
     };
-  }
+  };
 
-  const stat = String(matching.stat ?? matching.mode ?? "").trim().toLowerCase();
-  const isDualWieldBypass =
-    stat === "dualwieldbonusattackwithoutbonusaction" ||
-    stat === "dual_wield_bonus_attack_without_bonus_action";
-  const toCostType = isDualWieldBypass
-    ? "free"
-    : String(matching.toCostType ?? baseCostType).trim().toLowerCase();
-  const hasUsageLimitFields =
-    matching.usageKey !== undefined ||
-    matching.maxPerTurn !== undefined ||
-    matching.limitPerTurn !== undefined ||
-    matching.maxPerTurnPerActionUsed !== undefined;
-  const usageKeyRaw = String(
-    matching.usageKey ?? `action-cost-override:${String(matching.stat ?? "rule").trim().toLowerCase()}:${params.action.id}`
-  );
-  const usageKey = hasUsageLimitFields && usageKeyRaw.trim().length > 0 ? usageKeyRaw.trim() : null;
-  const maxPerTurnRaw = Number(matching.maxPerTurn ?? matching.limitPerTurn ?? 0);
-  const maxPerTurnPerActionRaw = Number(matching.maxPerTurnPerActionUsed ?? 0);
-  let maxPerTurn = Number.isFinite(maxPerTurnRaw) ? Math.max(0, Math.floor(maxPerTurnRaw)) : 0;
-  if (Number.isFinite(maxPerTurnPerActionRaw) && maxPerTurnPerActionRaw > 0) {
-    const computed = Math.floor(maxPerTurnPerActionRaw * Math.max(0, params.usedMainActionCount));
-    maxPerTurn = Math.max(maxPerTurn, computed);
-  }
-  const limitMessageRaw = String(matching.limitMessage ?? "").trim();
-  const limitMessage =
-    limitMessageRaw.length > 0 ? limitMessageRaw : "Limite d'utilisation atteinte pour cette regle.";
-  const labelRaw = String(matching.label ?? "Action cost override").trim();
+  const turnUsage = params.turnUsageCounts ?? {};
+  const selected = sortedMatching.find(candidate => {
+    const resolved = resolveModifierContext(candidate);
+    if (!resolved.hasExplicitLimit) return true;
+    if (!resolved.usageKey) return false;
+    if (resolved.maxPerTurn <= 0) return false;
+    const used = Number(turnUsage[resolved.usageKey] ?? 0);
+    return used < resolved.maxPerTurn;
+  });
+  if (!selected) return toBaseContext();
+
+  const resolved = resolveModifierContext(selected);
   return {
-    costType: toCostType || baseCostType,
-    bypassedBonusAction: Boolean(usageKey),
-    bypassUsageKey: usageKey,
-    bypassMaxPerTurn: maxPerTurn,
-    bypassLimitMessage: limitMessage,
-    bypassLabel: labelRaw
+    costType: resolved.toCostType || baseCostType,
+    bypassedBonusAction: Boolean(resolved.usageKey),
+    bypassUsageKey: resolved.usageKey,
+    bypassMaxPerTurn: resolved.maxPerTurn,
+    bypassLimitMessage: resolved.limitMessage,
+    bypassLabel: resolved.labelRaw
   };
 }

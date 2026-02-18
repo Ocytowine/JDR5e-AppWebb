@@ -1,0 +1,11 @@
+{
+  "id": "reseau-des-ombres",
+  "label": "Reseau des Ombres",
+  "summary": "Vous pouvez trouver un contact des bas-fonds pour une aide simple ou une information mineure.",
+  "kind": "feature",
+  "tags": ["background", "social", "urban", "underworld"],
+  "grants": [],
+  "rules": {
+    "text": "Dans une zone urbaine, vous pouvez entrer en relation avec des contacts des bas-fonds pour obtenir des rumeurs, une cache temporaire ou une aide logistique modeste."
+  }
+}

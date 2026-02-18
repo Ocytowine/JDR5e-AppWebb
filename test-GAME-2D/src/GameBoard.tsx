@@ -129,9 +129,11 @@ import {
   getHandUsageState,
   resolveEquipmentRuntimePolicy
 } from "./game/engine/rules/equipmentHands";
+import { resolveEquippedHandsLoadout } from "./game/engine/rules/equippedHandsResolver";
 import {
   canConsumeActionCost,
   consumeActionCost,
+  getMaxMainActionsPerTurn,
   refundActionCost,
   resolveActionCostContext as resolveActionCostContextFromEconomy
 } from "./game/engine/rules/actionEconomy";
@@ -347,6 +349,18 @@ function getPrimaryWeaponIds(character: Personnage | null | undefined): string[]
     )
     .map(item => item.id)
     .filter((value): value is string => typeof value === "string" && value.length > 0);
+  if (primaryIds.length > 0) return Array.from(new Set(primaryIds));
+
+  const fallbackPrimary = inventory.find(
+    item =>
+      item?.type === "weapon" &&
+      item?.equippedSlot &&
+      !item?.storedIn &&
+      WEAPON_CARRY_SLOTS.has(item.equippedSlot)
+  );
+  if (fallbackPrimary?.id) {
+    return [String(fallbackPrimary.id)];
+  }
   return Array.from(new Set(primaryIds));
 }
 
@@ -354,14 +368,31 @@ function getSecondaryHandItem(character: Personnage | null | undefined): any | n
   const inventory = Array.isArray((character as any)?.inventoryItems)
     ? ((character as any).inventoryItems as Array<any>)
     : [];
-  return (
-    inventory.find(
-      item =>
-        item?.isSecondaryHand &&
-        item?.equippedSlot &&
-        !item?.storedIn
-    ) ?? null
+  const explicitHandEntries = inventory.filter(
+    item => !item?.storedIn && Boolean(item?.isPrimaryWeapon || item?.isSecondaryHand)
   );
+  const equipped =
+    explicitHandEntries.length > 0
+      ? explicitHandEntries
+      : inventory.filter(item => item?.type === "weapon" && item?.equippedSlot && !item?.storedIn);
+  const secondaryFlagged = equipped.find(item => item?.isSecondaryHand) ?? null;
+  if (secondaryFlagged) return secondaryFlagged;
+
+  const primaryWeapon =
+    equipped.find(item => item?.type === "weapon" && item?.isPrimaryWeapon) ??
+    equipped.find(item => item?.type === "weapon") ??
+    null;
+  const fallbackWeapon =
+    equipped.find(item => {
+      if (item?.type !== "weapon") return false;
+      if (!primaryWeapon) return true;
+      const a = String(item?.instanceId ?? item?.id ?? "");
+      const b = String(primaryWeapon?.instanceId ?? primaryWeapon?.id ?? "");
+      return a !== b;
+    }) ?? null;
+  if (fallbackWeapon) return fallbackWeapon;
+
+  return null;
 }
 
 function getSecondaryHandWeaponId(character: Personnage | null | undefined): string | null {
@@ -1137,10 +1168,12 @@ export const GameBoard: React.FC = () => {
   } | null>(null);
   const [hasRolledAttackForCurrentAction, setHasRolledAttackForCurrentAction] =
     useState<boolean>(false);
+  const [coupDoubleFollowUpReady, setCoupDoubleFollowUpReady] = useState<boolean>(false);
   const [turnActionUsage, setTurnActionUsage] = useState<{
     usedActionCount: number;
     usedBonusCount: number;
   }>({ usedActionCount: 0, usedBonusCount: 0 });
+  const [turnAttackActionUsageCount, setTurnAttackActionUsageCount] = useState<number>(0);
   const [bonusMainActionsThisTurn, setBonusMainActionsThisTurn] = useState<number>(0);
   const [turnEquipmentUsage, setTurnEquipmentUsage] = useState<{
     usedInteractionCount: number;
@@ -1180,6 +1213,14 @@ export const GameBoard: React.FC = () => {
     id: string;
     x: number;
     y: number;
+  } | null>(null);
+  const validatedActionAccountingRef = useRef<{
+    costType: string;
+    bypassUsageKey: string | null;
+    handlingBonusCost: number;
+    handlingInteractionCost: number;
+    countedAttackAction: boolean;
+    isReaction: boolean;
   } | null>(null);
   const [targetMode, setTargetMode] = useState<"none" | "selecting">("none");
   type BoardInteractionMode =
@@ -4366,6 +4407,9 @@ export const GameBoard: React.FC = () => {
     setActionUsageCounts({ turn: {}, encounter: {} });
     setActionUsageByActor({});
     setTurnActionUsage({ usedActionCount: 0, usedBonusCount: 0 });
+    setTurnAttackActionUsageCount(0);
+    validatedActionAccountingRef.current = null;
+    setCoupDoubleFollowUpReady(false);
     setBonusMainActionsThisTurn(0);
     setTurnEquipmentUsage({ usedInteractionCount: 0 });
     setReactionUsage({});
@@ -4514,6 +4558,29 @@ export const GameBoard: React.FC = () => {
     const trimmed = messages.filter(Boolean);
     if (!trimmed.length) return;
     setLog(prev => [...trimmed, ...prev]);
+  }
+
+  function pushTaggedLog(tag: string, message: string) {
+    const normalizedTag = String(tag ?? "")
+      .trim()
+      .toLowerCase();
+    const prefix = normalizedTag ? `[${normalizedTag}]` : "[log]";
+    const text = String(message ?? "").trim();
+    if (!text) return;
+    pushLog(`${prefix} ${text}`);
+  }
+
+  function pushTaggedLogBatch(tag: string, messages: string[]) {
+    const normalizedTag = String(tag ?? "")
+      .trim()
+      .toLowerCase();
+    const prefix = normalizedTag ? `[${normalizedTag}]` : "[log]";
+    const trimmed = messages
+      .map(message => String(message ?? "").trim())
+      .filter(Boolean)
+      .map(message => `${prefix} ${message}`);
+    if (!trimmed.length) return;
+    pushLogBatch(trimmed);
   }
 
   function pushNarrative(message: string) {
@@ -4978,6 +5045,9 @@ export const GameBoard: React.FC = () => {
       resetReactionUsageForActor(player.id);
       resetTurnUsageForActor(player.id);
       setTurnActionUsage({ usedActionCount: 0, usedBonusCount: 0 });
+      setTurnAttackActionUsageCount(0);
+      validatedActionAccountingRef.current = null;
+      setCoupDoubleFollowUpReady(false);
       setBonusMainActionsThisTurn(0);
       setTurnEquipmentUsage({ usedInteractionCount: 0 });
       setActionUsageCounts(prev => ({ ...prev, turn: {} }));
@@ -5604,11 +5674,16 @@ export const GameBoard: React.FC = () => {
     if (costContext.bypassUsageKey) {
       const used = Number(actionUsageCounts.turn[costContext.bypassUsageKey] ?? 0);
       const max = Math.max(0, Number(costContext.bypassMaxPerTurn ?? 0));
-      if (max > 0) details.push(`${costContext.bypassLabel}: ${used}/${max}`);
-      if ((max <= 0 || used >= max) && !isActiveAction) {
+      if (max > 0) {
+        details.push(`${costContext.bypassLabel}: ${used}/${max}`);
+      } else {
+        details.push(`${costContext.bypassLabel}: ${used}/illimite`);
+      }
+      if (max > 0 && used >= max && !isActiveAction) {
         reasons.push(costContext.bypassLimitMessage);
       }
     }
+    details.push(`Attaques (action) ce tour: ${getTurnAttackActionUsageCount()}`);
     const maxEquipmentInteractions = getMaxWeaponInteractionsPerTurnForActor(player);
     details.push(
       `Interactions equipement: ${turnEquipmentUsage.usedInteractionCount}/${maxEquipmentInteractions}`
@@ -5903,6 +5978,7 @@ export const GameBoard: React.FC = () => {
 
   function handleUseAction(action: ActionDefinition): boolean {
     const effectiveAction = applyWeaponOverrideForActor(action, player);
+    const normalizedTags = normalizeDualWieldActionTags(effectiveAction.tags ?? []);
     const selectedWeaponForCost =
       effectiveAction.category === "attack"
         ? pickWeaponForAction(
@@ -5918,29 +5994,106 @@ export const GameBoard: React.FC = () => {
     });
     const costType = costContext.costType;
     const isReaction = costType === "reaction";
+    const rawCostType = String(effectiveAction.actionCost?.actionType ?? "action");
+    const actionsPerTurn = player.combatStats?.actionsPerTurn ?? 1;
+    const bonusActionsPerTurn = player.combatStats?.bonusActionsPerTurn ?? 1;
+    const mainActionsBudget = getPlayerMainActionBudget();
+    const inventory = Array.isArray((activeCharacterConfig as any)?.inventoryItems)
+      ? ((activeCharacterConfig as any).inventoryItems as Array<any>)
+      : [];
+    const handLoadout = resolveEquippedHandsLoadout({
+      inventoryItems: inventory,
+      weaponById: weaponTypeById,
+      armorById: armorItemsById
+    });
+    const handState = getHandUsageState({
+      inventoryItems: inventory,
+      weaponById: weaponTypeById,
+      armorById: armorItemsById
+    });
+    const weaponLabel = selectedWeaponForCost
+      ? `${selectedWeaponForCost.name ?? selectedWeaponForCost.id} (${selectedWeaponForCost.id})`
+      : "none";
+
+    pushTaggedLog("pipeline", `Intent action=${effectiveAction.id} name="${effectiveAction.name}".`);
+    pushTaggedLog(
+      "feature",
+      `tags=${normalizedTags.join(",") || "none"} selectedWeapon=${weaponLabel}.`
+    );
+    if (effectiveAction.category === "attack") {
+      pushTaggedLog(
+        "dual-wield",
+        `hands main=${handLoadout.primaryWeaponEntry?.id ?? "none"} offhand=${
+          handLoadout.offhandWeaponEntry?.id ?? "none"
+        } shield=${handState.hasShieldInHands ? "yes" : "no"} twoHanded=${
+          handState.strictTwoHandedReady ? "yes" : "no"
+        } freeHands=${handState.freeHands}.`
+      );
+    }
+    const isWeaponMasteryAction =
+      String(effectiveAction.id ?? "")
+        .trim()
+        .toLowerCase()
+        .startsWith("wm-") ||
+      normalizedTags.some(tag => tag.toLowerCase().includes("weaponmastery"));
+    if (isWeaponMasteryAction) {
+      pushTaggedLog("wm", `trigger action=${effectiveAction.id} tags=${normalizedTags.join(",") || "none"}.`);
+    }
+    pushTaggedLog(
+      "economy",
+      `Cout action: base=${rawCostType}, final=${costType}. Budget: action=${turnActionUsage.usedActionCount}/${mainActionsBudget}, bonus=${turnActionUsage.usedBonusCount}/${bonusActionsPerTurn}, reserveAction=${bonusMainActionsThisTurn}.`
+    );
+    pushTaggedLog(
+      "feature",
+      `Gate attaque supplementaire: attaqueActionDejaFaite=${hasTurnAttackActionUsed() ? "oui" : "non"}, compteurAttaquesAction=${getTurnAttackActionUsageCount()}.`
+    );
+    if (costContext.bypassUsageKey) {
+      const used = Number(actionUsageCounts.turn[costContext.bypassUsageKey] ?? 0);
+      const max = Math.max(0, Number(costContext.bypassMaxPerTurn ?? 0));
+      pushTaggedLog(
+        "economy",
+        `Regle de bypass activee: "${costContext.bypassLabel}" (${used}/${max > 0 ? String(max) : "illimite"}).`
+      );
+    } else if (rawCostType !== costType) {
+      pushTaggedLog(
+        "economy",
+        `Conversion de cout detectee sans compteur dedie (base=${rawCostType} -> final=${costType}).`
+      );
+    }
+
     const costCheck = canConsumeActionCost({
       costType,
       usage: turnActionUsage,
       budget: {
-        actionsPerTurn: player.combatStats?.actionsPerTurn ?? 1,
-        bonusActionsPerTurn: player.combatStats?.bonusActionsPerTurn ?? 1,
+        actionsPerTurn,
+        bonusActionsPerTurn,
         bonusMainActionsThisTurn
       }
     });
     if (!costCheck.ok && (costType === "action" || costType === "bonus")) {
-      pushLog(`Action ${effectiveAction.name} refusee: ${costCheck.reason ?? "cout indisponible."}`);
+      pushTaggedLog(
+        "economy",
+        `Action ${effectiveAction.name} refusee: ${costCheck.reason ?? "cout indisponible."}`
+      );
       return false;
     }
     if (isReaction && !canUseReaction(player.id)) {
-      pushLog(`Reaction ${effectiveAction.name} refusee: reaction deja utilisee ce tour.`);
+      pushTaggedLog("economy", `Reaction ${effectiveAction.name} refusee: reaction deja utilisee ce tour.`);
       return false;
     }
 
     const availability = computeActionAvailability(effectiveAction);
     if (!availability.enabled) {
-      pushLog(
+      pushTaggedLog(
+        "feature",
         `Action ${effectiveAction.name} bloque: ${availability.reasons.join(" | ")}`
       );
+      if (availability.details.length > 0) {
+        pushTaggedLogBatch(
+          "feature",
+          availability.details.map(line => `detail: ${line}`)
+        );
+      }
       return false;
     }
     const selectedWeapon = selectedWeaponForCost;
@@ -5949,6 +6102,10 @@ export const GameBoard: React.FC = () => {
       actor: player,
       weapon: selectedWeapon
     });
+    pushTaggedLog(
+      "economy",
+      `Consommation: coutFinal=${costType}, interactionEquipement=${handlingCost.requiresInteraction}, coutBonusEquipement=${handlingCost.requiresBonus ? 1 : 0}.`
+    );
 
     setActionUsageCounts(prev => ({
       turn: {
@@ -5968,9 +6125,24 @@ export const GameBoard: React.FC = () => {
     setAttackOutcome(null);
     setHasRolledAttackForCurrentAction(false);
     setValidatedActionId(action.id);
+    const countedAttackAction = shouldCountAttackActionUse({
+      action: effectiveAction,
+      effectiveCostType: costType
+    });
+    validatedActionAccountingRef.current = {
+      costType,
+      bypassUsageKey: costContext.bypassUsageKey,
+      handlingBonusCost: handlingCost.requiresBonus ? 1 : 0,
+      handlingInteractionCost: handlingCost.requiresInteraction,
+      countedAttackAction,
+      isReaction
+    };
     setTurnActionUsage(prev =>
       consumeActionCost(prev, costType, { extraBonusCost: handlingCost.requiresBonus ? 1 : 0 })
     );
+    if (countedAttackAction) {
+      setTurnAttackActionUsageCount(prev => prev + 1);
+    }
     if (handlingCost.requiresInteraction > 0) {
       setTurnEquipmentUsage(prev => ({
         usedInteractionCount: prev.usedInteractionCount + handlingCost.requiresInteraction
@@ -6215,6 +6387,7 @@ export const GameBoard: React.FC = () => {
     });
   }
   type FeatureRuleModifier = {
+    [key: string]: unknown;
     applyTo?: string;
     stat?: string;
     value?: number;
@@ -6282,6 +6455,7 @@ export const GameBoard: React.FC = () => {
           const value = Number(mod?.value ?? 0);
           if (!Number.isFinite(value)) return null;
           return {
+            ...(mod && typeof mod === "object" ? mod : {}),
             applyTo: String(mod?.applyTo ?? "").trim(),
             stat: typeof mod?.stat === "string" ? mod.stat : undefined,
             value,
@@ -6463,13 +6637,28 @@ export const GameBoard: React.FC = () => {
       return cantripOnly ? level === 0 : level >= 0;
     });
   }
+  function getTurnAttackActionUsageCount(): number {
+    return Math.max(0, turnAttackActionUsageCount);
+  }
   function hasTurnAttackActionUsed(): boolean {
-    return actions.some(action => {
-      const used = Number(actionUsageCounts.turn[action.id] ?? 0);
-      if (!Number.isFinite(used) || used <= 0) return false;
-      if (String(action.category ?? "") !== "attack") return false;
-      if (isSpellActionDefinition(action)) return false;
-      return String(action.actionCost?.actionType ?? "free") === "action";
+    return getTurnAttackActionUsageCount() > 0;
+  }
+  function shouldCountAttackActionUse(params: {
+    action: ActionDefinition;
+    effectiveCostType: string;
+  }): boolean {
+    if (params.effectiveCostType !== "action") return false;
+    if (String(params.action.category ?? "") !== "attack") return false;
+    if (isSpellActionDefinition(params.action)) return false;
+    const tags = normalizeDualWieldActionTags(params.action.tags);
+    if (hasDualWieldActionTag(tags)) return false;
+    return true;
+  }
+  function getPlayerMainActionBudget(): number {
+    return getMaxMainActionsPerTurn({
+      actionsPerTurn: player.combatStats?.actionsPerTurn ?? 1,
+      bonusActionsPerTurn: player.combatStats?.bonusActionsPerTurn ?? 1,
+      bonusMainActionsThisTurn
     });
   }
   function featureModifierMatches(params: {
@@ -6661,6 +6850,8 @@ export const GameBoard: React.FC = () => {
       actor: params.actor,
       weapon: params.weapon ?? null,
       usedMainActionCount: turnActionUsage.usedActionCount,
+      usedAttackActionCount: getTurnAttackActionUsageCount(),
+      turnUsageCounts: actionUsageCounts.turn,
       getFeatureRuleModifiersForActor,
       featureModifierMatches,
       normalizeActionTags: normalizeDualWieldActionTags,
@@ -6783,6 +6974,14 @@ export const GameBoard: React.FC = () => {
     if (action.category !== "attack") return action;
     if (isSpellActionDefinition(action)) return action;
     if (String(action.actionCost?.actionType ?? "free") !== "action") return action;
+    if (
+      actionContext?.stage === "active" &&
+      validatedActionId === action.id &&
+      !coupDoubleFollowUpReady
+    ) {
+      // Premiere frappe: on conserve l'action principale dans la fenetre courante.
+      return action;
+    }
     if (!hasTurnAttackActionUsed()) return action;
     if (!hasOffhandWeaponEquippedByPlayer()) return action;
     if (isShieldEquippedByPlayer()) return action;
@@ -6792,6 +6991,28 @@ export const GameBoard: React.FC = () => {
     if (!secondaryWeapon || !secondaryWeapon.properties?.light) return action;
     const primaryWeapon = primaryWeapons[0] ?? null;
     if (!primaryWeapon || !primaryWeapon.properties?.light) return action;
+    const baseCostContext = resolveActionCostContext({
+      action,
+      actor,
+      weapon: primaryWeapon
+    });
+    if (String(baseCostContext.costType ?? "action") !== "action") {
+      // Une autre regle (extra attack, war magic, etc.) gere deja ce cout.
+      return action;
+    }
+    const mainActionCheck = canConsumeActionCost({
+      costType: "action",
+      usage: turnActionUsage,
+      budget: {
+        actionsPerTurn: player.combatStats?.actionsPerTurn ?? 1,
+        bonusActionsPerTurn: player.combatStats?.bonusActionsPerTurn ?? 1,
+        bonusMainActionsThisTurn
+      }
+    });
+    if (mainActionCheck.ok) {
+      // Tant qu'une attaque principale est encore possible, on ne force pas le mode offhand.
+      return action;
+    }
     const normalizedTags = normalizeDualWieldActionTags([
       ...(Array.isArray(action.tags) ? action.tags : []),
       "offhand-attack"
@@ -7481,6 +7702,14 @@ export const GameBoard: React.FC = () => {
       if (tokens.length > 1) return { kind: "tokens", tokens };
       if (tokens.length === 1) return { kind: "token", token: tokens[0] };
     }
+    if (target === "hostile") {
+      if (selectedObstacleTarget) {
+        return { kind: "cell", x: selectedObstacleTarget.x, y: selectedObstacleTarget.y };
+      }
+      if (selectedWallTarget) {
+        return { kind: "cell", x: selectedWallTarget.x, y: selectedWallTarget.y };
+      }
+    }
     return null;
   }
 
@@ -7725,6 +7954,21 @@ export const GameBoard: React.FC = () => {
     overrides?: { attackRoll?: AttackRollResult | null; damageRoll?: DamageRollResult | null }
   ): boolean {
     const target = resolvePlayerActionTarget(action);
+    const isStructureTarget =
+      action.targeting?.target === "hostile" &&
+      target?.kind === "cell" &&
+      Boolean(selectedObstacleTarget || selectedWallTarget);
+    const actionForEngine: ActionDefinition = isStructureTarget
+      ? {
+          ...action,
+          targeting: action.targeting
+            ? { ...action.targeting, target: "cell" as const }
+            : action.targeting,
+          conditions: Array.isArray(action.conditions)
+            ? action.conditions.filter(cond => cond.type !== "TARGET_ALIVE")
+            : action.conditions
+        }
+      : action;
     pushLog(
       `[pipeline-ui] Resolve start: action=${action.id} target=${
         target?.kind ?? "none"
@@ -7786,7 +8030,7 @@ export const GameBoard: React.FC = () => {
       }
     };
     let result = resolveActionUnified(
-      action,
+      actionForEngine,
       actionRuntimeContext,
       target ?? { kind: "none" },
       {
@@ -7812,11 +8056,11 @@ export const GameBoard: React.FC = () => {
         if (Number.isFinite(checkDc) && baseTotal + tacticalMindBonus >= checkDc) {
           const forcedRoll = Number(result.outcomeRoll ?? NaN);
           const adjustedAction: ActionDefinition = {
-            ...action,
+            ...actionForEngine,
             resolution: {
-              ...action.resolution,
+              ...actionForEngine.resolution,
               check: {
-                ...action.resolution?.check,
+                ...actionForEngine.resolution?.check,
                 dc: Math.max(0, checkDc - tacticalMindBonus)
               }
             }
@@ -7879,6 +8123,53 @@ export const GameBoard: React.FC = () => {
     }
     updateActionUsageForActor(player.id, action.id, 1);
     updateWeaponPropertyUsageForAction(player.id, action, 1);
+
+    if (
+      isStructureTarget &&
+      result.outcomeKind !== "miss" &&
+      result.outcomeKind !== "saveSuccess"
+    ) {
+      const structureDamage = Math.max(0, Number(damageOverride?.total ?? 0));
+      if (structureDamage > 0 && selectedObstacleTarget) {
+        const obstacleId = selectedObstacleTarget.id;
+        setObstacles(prev =>
+          prev.map(obstacle => {
+            if (obstacle.id !== obstacleId) return obstacle;
+            const nextHp = Math.max(0, Number(obstacle.hp ?? 0) - structureDamage);
+            return { ...obstacle, hp: nextHp };
+          })
+        );
+        const obstacle = obstacles.find(o => o.id === obstacleId) ?? null;
+        const obstacleLabel = obstacle
+          ? obstacleTypeById.get(obstacle.typeId)?.label ?? obstacle.typeId ?? "obstacle"
+          : "obstacle";
+        const currentHp = obstacle ? Number(obstacle.hp ?? 0) : 0;
+        const nextHp = Math.max(0, currentHp - structureDamage);
+        pushLog(
+          `Degats structure: ${obstacleLabel} subit ${structureDamage} degats (PV ${currentHp} -> ${nextHp}).`
+        );
+      }
+      if (structureDamage > 0 && selectedWallTarget) {
+        const wallId = selectedWallTarget.id;
+        setWallSegments(prev =>
+          prev.map(seg => {
+            if (seg.id !== wallId) return seg;
+            if (typeof seg.hp !== "number") return seg;
+            const nextHp = Math.max(0, seg.hp - structureDamage);
+            return { ...seg, hp: nextHp };
+          })
+        );
+        const wall = wallSegments.find(w => w.id === wallId) ?? null;
+        const wallLabel = wall
+          ? wallTypeById.get(wall.typeId ?? "")?.label ?? wall.typeId ?? "mur"
+          : "mur";
+        const currentHp = wall && typeof wall.hp === "number" ? wall.hp : 0;
+        const nextHp = Math.max(0, currentHp - structureDamage);
+        pushLog(
+          `Degats structure: ${wallLabel} subit ${structureDamage} degats (PV ${currentHp} -> ${nextHp}).`
+        );
+      }
+    }
 
     let nextPlayerState = result.playerAfter;
     let nextEnemies = applySummonTurnOrder({
@@ -7978,7 +8269,12 @@ export const GameBoard: React.FC = () => {
           }
         }
         if (bonusMainActionsDelta > 0) {
+          const before = Math.max(0, bonusMainActionsThisTurn);
           setBonusMainActionsThisTurn(prev => prev + bonusMainActionsDelta);
+          pushTaggedLog(
+            "economy",
+            `grantMainAction: +${bonusMainActionsDelta} (pool ${before} -> ${before + bonusMainActionsDelta}).`
+          );
         }
         if (movementBudgetDelta > 0) {
           setBasePathLimit(prev => Math.max(0, prev + movementBudgetDelta));
@@ -8101,6 +8397,10 @@ export const GameBoard: React.FC = () => {
       setAttackOutcome(isHit ? "hit" : "miss");
       if (!isHit) {
         pushLog(`Action ${action.name}: attaque ratee.`);
+        const ok = resolvePlayerActionV2(action, { attackRoll: result, damageRoll: null });
+        if (ok) {
+          handleResolvedAttackFlow(action);
+        }
       }
     } else {
       pushDiceLog(
@@ -8209,6 +8509,63 @@ export const GameBoard: React.FC = () => {
     handleFinishAction();
   }
 
+  function tryArmCoupDoubleFollowUp(action: ActionDefinition): boolean {
+    if (coupDoubleFollowUpReady) return false;
+    if (action.category !== "attack") return false;
+    if (isSpellActionDefinition(action)) return false;
+    if (!hasOffhandWeaponEquippedByPlayer()) return false;
+    if (isShieldEquippedByPlayer()) return false;
+    const tags = normalizeDualWieldActionTags(action.tags ?? []);
+    if (!tags.includes("wm-active:coup-double")) return false;
+    const previewAction: ActionDefinition = {
+      ...action,
+      actionCost: {
+        ...(action.actionCost ?? { actionType: "bonus", movementCost: 0 }),
+        actionType: "bonus",
+        movementCost:
+          typeof action.actionCost?.movementCost === "number" ? action.actionCost.movementCost : 0
+      },
+      tags: normalizeDualWieldActionTags([...(Array.isArray(action.tags) ? action.tags : []), "offhand-attack"])
+    };
+    const previewWeapon = pickWeaponForAction(previewAction, player);
+    const previewCostContext = resolveActionCostContext({
+      action: previewAction,
+      actor: player,
+      weapon: previewWeapon
+    });
+    if (previewCostContext.costType !== "free") return false;
+    if (!previewCostContext.bypassUsageKey) return false;
+    setActionUsageCounts(prev => ({
+      turn: {
+        ...prev.turn,
+        [previewCostContext.bypassUsageKey!]: (prev.turn[previewCostContext.bypassUsageKey!] ?? 0) + 1
+      },
+      encounter: prev.encounter
+    }));
+    setCoupDoubleFollowUpReady(true);
+    setAttackRoll(null);
+    setDamageRoll(null);
+    setAttackOutcome(null);
+    setHasRolledAttackForCurrentAction(false);
+    pushTaggedLog(
+      "wm",
+      "Coup double: seconde frappe immediate disponible dans cette meme fenetre."
+    );
+    return true;
+  }
+
+  function handleResolvedAttackFlow(action: ActionDefinition): void {
+    if (!coupDoubleFollowUpReady && tryArmCoupDoubleFollowUp(action)) {
+      return;
+    }
+    if (coupDoubleFollowUpReady) {
+      setCoupDoubleFollowUpReady(false);
+      pushTaggedLog("wm", "Coup double: sequence terminee. Cliquez sur Terminer.");
+    } else {
+      pushTaggedLog("pipeline-ui", "Action resolue. Cliquez sur Terminer.");
+    }
+  }
+
   function handleRollDamage() {
     if (isGameOver) return;
     if (isTokenDead(player)) return;
@@ -8247,9 +8604,7 @@ export const GameBoard: React.FC = () => {
     );
 
     const ok = resolvePlayerActionV2(action, { attackRoll, damageRoll: result });
-    if (ok) {
-      handleFinishAction();
-    }
+    if (ok) handleResolvedAttackFlow(action);
   }
 
   function handleAutoResolveRolls() {
@@ -12219,6 +12574,7 @@ function handleEndPlayerTurn() {
       setSelectedActionId(action.id);
     }
     setActionContext({ anchorX, anchorY, actionId: action.id, stage: "draft", source: "action" });
+    setCoupDoubleFollowUpReady(false);
     setActionContextOpen(true);
   }
 
@@ -12230,6 +12586,7 @@ function handleEndPlayerTurn() {
     setPendingHazardRoll(null);
     setHazardAnchor(null);
     setHazardResolution(null);
+    setCoupDoubleFollowUpReady(false);
   }
 
   function maybeTriggerActionVisuals(reason: "close" | "finish") {
@@ -12268,6 +12625,8 @@ function handleEndPlayerTurn() {
 
   function handleFinishAction() {
     maybeTriggerActionVisuals("finish");
+    validatedActionAccountingRef.current = null;
+    setCoupDoubleFollowUpReady(false);
     setValidatedActionId(null);
     setAttackRoll(null);
     setDamageRoll(null);
@@ -12282,6 +12641,7 @@ function handleEndPlayerTurn() {
 
   function handleCancelAction() {
     const action = getValidatedAction();
+    const accounting = validatedActionAccountingRef.current;
     if (action && isMoveTypeAction(action)) {
       setSelectedPath([]);
       setInteractionMode("idle");
@@ -12300,24 +12660,29 @@ function handleEndPlayerTurn() {
         actor: player,
         weapon: canceledWeaponForCost
       });
-      const costType = costContext.costType;
-      const isReaction = costType === "reaction";
+      const costType = accounting?.costType ?? costContext.costType;
+      const isReaction = accounting?.isReaction ?? costType === "reaction";
       const canceledWeapon = canceledWeaponForCost;
       const canceledHandlingCost = resolveWeaponHandlingCost({
         action,
         actor: player,
         weapon: canceledWeapon
       });
+      const handlingBonusRefund = accounting?.handlingBonusCost ?? (canceledHandlingCost.requiresBonus ? 1 : 0);
+      const handlingInteractionRefund = accounting?.handlingInteractionCost ?? canceledHandlingCost.requiresInteraction;
       setTurnActionUsage(prev =>
-        refundActionCost(prev, costType, { extraBonusRefund: canceledHandlingCost.requiresBonus ? 1 : 0 })
+        refundActionCost(prev, costType, { extraBonusRefund: handlingBonusRefund })
       );
-      if (canceledHandlingCost.requiresInteraction > 0) {
+      if (handlingInteractionRefund > 0) {
         setTurnEquipmentUsage(prev => ({
           usedInteractionCount: Math.max(
             0,
-            prev.usedInteractionCount - canceledHandlingCost.requiresInteraction
+            prev.usedInteractionCount - handlingInteractionRefund
           )
         }));
+      }
+      if (accounting?.countedAttackAction) {
+        setTurnAttackActionUsageCount(prev => Math.max(0, prev - 1));
       }
       if (isReaction) {
         setReactionUsage(prev => ({
@@ -12332,19 +12697,22 @@ function handleEndPlayerTurn() {
           [action.id]: Math.max(0, (prev.encounter[action.id] ?? 0) - 1)
         }
       }));
-      if (costContext.bypassUsageKey) {
+      const bypassUsageKey = accounting?.bypassUsageKey ?? costContext.bypassUsageKey;
+      if (bypassUsageKey) {
         setActionUsageCounts(prev => ({
           turn: {
             ...prev.turn,
-            [costContext.bypassUsageKey]: Math.max(
+            [bypassUsageKey]: Math.max(
               0,
-              (prev.turn[costContext.bypassUsageKey] ?? 0) - 1
+              (prev.turn[bypassUsageKey] ?? 0) - 1
             )
           },
           encounter: prev.encounter
         }));
       }
     }
+    validatedActionAccountingRef.current = null;
+    setCoupDoubleFollowUpReady(false);
     setValidatedActionId(null);
     setAttackRoll(null);
     setDamageRoll(null);
@@ -12359,6 +12727,7 @@ function handleEndPlayerTurn() {
   }
 
   function handleValidateActionFromContext(action: ActionDefinition) {
+    setCoupDoubleFollowUpReady(false);
     if (isMoveTypeAction(action)) {
       const multiplier = action.movement?.pathLimitMultiplier ?? 1;
       let baseLimit = basePathLimit;
@@ -13709,7 +14078,9 @@ function handleEndPlayerTurn() {
                 equipmentItems={equipmentWheelItems}
                 equipmentPrompt="Interactions d'equipement"
                 onCancelInteract={handleCancelInteractFromWheel}
-                computeActionAvailability={computeActionAvailability}
+                computeActionAvailability={(action: ActionDefinition) =>
+                  computeActionAvailability(applyWeaponOverrideForActor(action, player))
+                }
                 onClose={closeRadialMenu}
                 onCancelMove={handleCancelMoveFromWheel}
                 onNoMoveTypes={() => pushLog("Deplacement: aucun type disponible.")}
@@ -13740,9 +14111,7 @@ function handleEndPlayerTurn() {
                   initiativeTotal={playerInitiative}
                   actionsRemaining={Math.max(
                     0,
-                    (player.combatStats?.actionsPerTurn ?? 1) +
-                      Math.max(0, bonusMainActionsThisTurn) -
-                      turnActionUsage.usedActionCount
+                    getPlayerMainActionBudget() - turnActionUsage.usedActionCount
                   )}
                 bonusRemaining={Math.max(
                   0,

@@ -636,32 +636,6 @@ function applyWeaponMasteryEffects(params: {
       continue;
     }
 
-    if (masteryId === "coup-double") {
-      const hasLight = tags.includes("weapon:light");
-      if (!hasLight || !target) continue;
-      const bonus = plan.action.attack?.bonus ?? plan.action.resolution?.bonus ?? 0;
-      const critRange = plan.action.attack?.critRange ?? plan.action.resolution?.critRange ?? 20;
-      const roll = rollAttack(bonus, "normal", critRange);
-      const targetAC = typeof target.armorClass === "number" ? target.armorClass : null;
-      const hit = targetAC === null ? true : roll.total >= targetAC || roll.isCrit;
-      logTransaction(tx, `Coup double: jet ${roll.total}${hit ? " (hit)" : " (miss)"}`, opts.onLog);
-      if (hit) {
-        const baseFormula =
-          damageFormula
-            ? abilityMod < 0
-              ? damageFormula
-              : stripAbilityMod(damageFormula, modToken)
-            : "";
-        if (baseFormula) {
-          const formula = resolveFormula(baseFormula, { actor: state.actor, sampleCharacter: undefined });
-          const dmg = rollDamage(formula, { isCrit: false, critRule: "double-dice" });
-          const total = dmg.total;
-          target.hp = Math.max(0, target.hp - total);
-          logTransaction(tx, `Coup double: degats ${total} (${formula})`, opts.onLog);
-        }
-      }
-      continue;
-    }
   }
 }
 
