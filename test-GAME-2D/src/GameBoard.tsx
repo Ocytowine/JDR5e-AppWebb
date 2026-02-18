@@ -123,6 +123,7 @@ import {
   type ActionTarget
 } from "./game/engine/core/actionEngine";
 import { buildActionPlan, type ActionPlan } from "./game/engine/core/actionPlan";
+import type { ActionExecutionReport } from "./game/engine/core/types";
 import { applyEquipmentBonusesToCombatStats } from "./game/engine/rules/equipmentBonusResolver";
 import {
   getEquipmentConstraintIssues,
@@ -1383,8 +1384,19 @@ export const GameBoard: React.FC = () => {
   const [hpPopups, setHpPopups] = useState<
     Array<{ id: string; x: number; y: number; text: string; color: string }>
   >([]);
+  const [resolutionPopups, setResolutionPopups] = useState<
+    Array<{
+      id: string;
+      ownerTokenId: string;
+      sideHint: "right" | "left";
+      title: string;
+      lines: string[];
+      tone: "hit" | "miss" | "save" | "info";
+    }>
+  >([]);
   const pendingDamagePopupByTokenIdRef = useRef<Map<string, string>>(new Map());
   const [contextDamageBreakdownLabel, setContextDamageBreakdownLabel] = useState<string | null>(null);
+  const [lastActionExecutionReport, setLastActionExecutionReport] = useState<ActionExecutionReport | null>(null);
   const prevPlayerHpRef = useRef<number | null>(null);
   const prevEnemyHpRef = useRef<Map<string, number>>(new Map());
   const [reactionToast, setReactionToast] = useState<{
@@ -3578,6 +3590,95 @@ export const GameBoard: React.FC = () => {
     return "mod";
   }
 
+  function formatOutcomeLabel(outcome?: string | null): string {
+    const key = String(outcome ?? "").trim().toLowerCase();
+    if (key === "hit") return "TOUCHE";
+    if (key === "crit") return "CRITIQUE";
+    if (key === "miss") return "RATE";
+    if (key === "savesuccess") return "SAVE REUSSI";
+    if (key === "savefail") return "SAVE RATE";
+    if (key === "checksuccess") return "TEST REUSSI";
+    if (key === "checkfail") return "TEST RATE";
+    if (key === "contestedwin") return "OPPOSE GAGNE";
+    if (key === "contestedlose") return "OPPOSE PERDU";
+    return key ? key.toUpperCase() : "RESOLUTION";
+  }
+
+  function emitResolutionPopupsFromReport(report: ActionExecutionReport | null): void {
+    if (!report || !Array.isArray(report.targets) || report.targets.length === 0) return;
+    report.targets.forEach((target, index) => {
+      const targetId = String(target?.targetId ?? "").trim();
+      if (!targetId || targetId === "none") return;
+      const token =
+        targetId === player.id
+          ? player
+          : enemies.find(enemy => enemy.id === targetId) ?? null;
+      if (!token) return;
+
+      const lines: string[] = [];
+      if (target.attackRoll) {
+        lines.push(
+          `Jet touche: ${target.attackRoll.kept} ${target.attackRoll.bonus >= 0 ? "+" : ""}${target.attackRoll.bonus} = ${
+            target.attackRoll.total
+          }${target.attackRoll.crit ? " (crit)" : ""}`
+        );
+      }
+      if (target.saveRoll) {
+        lines.push(
+          `Save ${target.saveRoll.ability}: ${target.saveRoll.roll} ${
+            target.saveRoll.modifier >= 0 ? "+" : ""
+          }${target.saveRoll.modifier} = ${target.saveRoll.total} vs DD ${target.saveRoll.dc}`
+        );
+      }
+      if (target.checkRoll) {
+        lines.push(
+          `Test ${target.checkRoll.ability}: ${target.checkRoll.roll} ${
+            target.checkRoll.modifier >= 0 ? "+" : ""
+          }${target.checkRoll.modifier} = ${target.checkRoll.total} vs DD ${target.checkRoll.dc}`
+        );
+      }
+      if (target.damage) {
+        const breakdown =
+          target.damage.byType?.length > 0
+            ? target.damage.byType
+                .map(entry => `${entry.amount} ${formatDamageTypeLabel(entry.type) ?? String(entry.type).toLowerCase()}`)
+                .join(" + ")
+            : String(target.damage.total ?? 0);
+        lines.push(`Degats: ${breakdown}`);
+      }
+      if (Array.isArray(target.statusesApplied) && target.statusesApplied.length > 0) {
+        lines.push(
+          `Etats +: ${target.statusesApplied
+            .map(status =>
+              status.durationTurns && status.durationTurns > 0
+                ? `${status.id} (${status.durationTurns}t)`
+                : status.id
+            )
+            .join(", ")}`
+        );
+      }
+      if (Array.isArray(target.statusesRemoved) && target.statusesRemoved.length > 0) {
+        lines.push(`Etats -: ${target.statusesRemoved.map(status => status.id).join(", ")}`);
+      }
+      if (lines.length === 0) return;
+
+      const tone = (() => {
+        const key = String(target.outcome ?? "").toLowerCase();
+        if (key === "miss" || key === "savesuccess" || key === "checkfail") return "miss" as const;
+        if (key === "savefail") return "save" as const;
+        if (key === "hit" || key === "crit") return "hit" as const;
+        return "info" as const;
+      })();
+
+      const id = `resolution-${targetId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      const sideHint: "right" | "left" = index % 2 === 0 ? "right" : "left";
+      setResolutionPopups(prev => [
+        ...prev,
+        { id, ownerTokenId: targetId, sideHint, title: formatOutcomeLabel(target.outcome), lines, tone }
+      ]);
+    });
+  }
+
   function collectActionDamageTypeLabels(action: ActionDefinition | null | undefined): string[] {
     if (!action) return [];
     const labels: string[] = [];
@@ -5126,6 +5227,7 @@ export const GameBoard: React.FC = () => {
 
     if (entry.kind === "player") {
       setPhase("player");
+      setResolutionPopups([]);
       resetReactionUsageForActor(player.id);
       resetTurnUsageForActor(player.id);
       setTurnActionUsage({ usedActionCount: 0, usedBonusCount: 0 });
@@ -8174,6 +8276,8 @@ export const GameBoard: React.FC = () => {
     if (result.logs.length > 0) {
       pushLogBatch(result.logs);
     }
+    setLastActionExecutionReport(result.report ?? null);
+    emitResolutionPopupsFromReport(result.report ?? null);
 
     if (!result.ok || !result.playerAfter || !result.enemiesAfter) {
       pushLog(`Action V2 echec: ${result.reason || "inconnu"}.`);
@@ -11910,6 +12014,7 @@ function handleEndPlayerTurn() {
     if (isGameOver) return;
     const entry = getActiveTurnEntry();
     if (!entry || entry.kind !== "player") return;
+    setResolutionPopups([]);
     pushLog(`Fin du tour joueur (round ${round}).`);
 
     narrationPendingRef.current = true;
@@ -12297,7 +12402,7 @@ function handleEndPlayerTurn() {
       typeof weaponBonusSpec === "number"
         ? weaponBonusSpec
         : typeof weaponBonusSpec === "string" && weaponBonusSpec === "bonus_maitrise"
-        ? proficiency
+        ? 0
         : 0;
     const baseBonus = abilityMod + proficiency + weaponBonus;
     const contextualBonus = totalBonus - baseBonus;
@@ -12413,6 +12518,83 @@ function handleEndPlayerTurn() {
     const labels = collectActionDamageTypeLabels(contextAction);
     return labels.length > 0 ? labels.join(" + ") : null;
   }, [contextAction, contextDamageBreakdownLabel]);
+  const contextResolutionTargets = useMemo(() => {
+    if (!contextAction || !lastActionExecutionReport) return [];
+    if (String(lastActionExecutionReport.actionId ?? "") !== String(contextAction.id ?? "")) {
+      return [];
+    }
+    return Array.isArray(lastActionExecutionReport.targets) ? lastActionExecutionReport.targets : [];
+  }, [contextAction, lastActionExecutionReport]);
+  const positionedResolutionPopups = useMemo(() => {
+    const container = pixiContainerRef.current;
+    const width = Math.max(1, Number(container?.clientWidth ?? 0));
+    const height = Math.max(1, Number(container?.clientHeight ?? 0));
+    const margin = 10;
+    const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+    const intersects = (
+      a: { x: number; y: number; w: number; h: number },
+      b: { x: number; y: number; w: number; h: number }
+    ) => !(a.x + a.w < b.x || b.x + b.w < a.x || a.y + a.h < b.y || b.y + b.h < a.y);
+    const occupied: Array<{ x: number; y: number; w: number; h: number }> = [];
+
+    return resolutionPopups
+      .map((popup, index) => {
+        const token =
+          popup.ownerTokenId === player.id
+            ? player
+            : enemies.find(enemy => enemy.id === popup.ownerTokenId) ?? null;
+        if (!token) return null;
+        const anchor = resolveAnchorForCell({ x: token.x, y: token.y });
+        if (!anchor) return null;
+        const popupWidth = 210;
+        const popupHeight = 44 + popup.lines.length * 16;
+        const candidates =
+          popup.sideHint === "right"
+            ? [
+                { left: anchor.anchorX + 18, top: anchor.anchorY - popupHeight - 16 },
+                { left: anchor.anchorX - popupWidth - 18, top: anchor.anchorY - popupHeight - 16 },
+                { left: anchor.anchorX + 18, top: anchor.anchorY + 12 },
+                { left: anchor.anchorX - popupWidth - 18, top: anchor.anchorY + 12 }
+              ]
+            : [
+                { left: anchor.anchorX - popupWidth - 18, top: anchor.anchorY - popupHeight - 16 },
+                { left: anchor.anchorX + 18, top: anchor.anchorY - popupHeight - 16 },
+                { left: anchor.anchorX - popupWidth - 18, top: anchor.anchorY + 12 },
+                { left: anchor.anchorX + 18, top: anchor.anchorY + 12 }
+              ];
+        const chosen = candidates.find(candidate => {
+          const rect = {
+            x: clamp(candidate.left, margin, Math.max(margin, width - popupWidth - margin)),
+            y: clamp(candidate.top, margin, Math.max(margin, height - popupHeight - margin)),
+            w: popupWidth,
+            h: popupHeight
+          };
+          if (!occupied.some(prev => intersects(prev, rect))) return true;
+          return false;
+        }) ?? candidates[0];
+        const left = clamp(chosen.left, margin, Math.max(margin, width - popupWidth - margin));
+        let top = clamp(chosen.top, margin, Math.max(margin, height - popupHeight - margin));
+        let rect = { x: left, y: top, w: popupWidth, h: popupHeight };
+        let attempts = 0;
+        while (occupied.some(prev => intersects(prev, rect)) && attempts < 8) {
+          top = clamp(top + 18, margin, Math.max(margin, height - popupHeight - margin));
+          rect = { x: left, y: top, w: popupWidth, h: popupHeight };
+          attempts += 1;
+        }
+        occupied.push(rect);
+        return {
+          ...popup,
+          left,
+          top,
+          width: popupWidth,
+          height: popupHeight,
+          anchorX: anchor.anchorX,
+          anchorY: anchor.anchorY,
+          zIndex: 58 + index
+        };
+      })
+      .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+  }, [resolutionPopups, player, enemies, renderTick, boardZoom, boardPan.x, boardPan.y, mapGrid.cols, mapGrid.rows]);
   const contextSteps = contextPlan?.steps ?? [];
   const contextComplete =
     actionContext?.stage === "active" &&
@@ -12727,6 +12909,7 @@ function handleEndPlayerTurn() {
     setActionContext({ anchorX, anchorY, actionId: action.id, stage: "draft", source: "action" });
     setCoupDoubleFollowUpReady(false);
     setContextDamageBreakdownLabel(null);
+    setLastActionExecutionReport(null);
     setActionContextOpen(true);
   }
 
@@ -12740,6 +12923,7 @@ function handleEndPlayerTurn() {
     setHazardResolution(null);
     setCoupDoubleFollowUpReady(false);
     setContextDamageBreakdownLabel(null);
+    setLastActionExecutionReport(null);
   }
 
   function maybeTriggerActionVisuals(reason: "close" | "finish") {
@@ -12882,6 +13066,7 @@ function handleEndPlayerTurn() {
   function handleValidateActionFromContext(action: ActionDefinition) {
     setCoupDoubleFollowUpReady(false);
     setContextDamageBreakdownLabel(null);
+    setLastActionExecutionReport(null);
     if (isMoveTypeAction(action)) {
       const multiplier = action.movement?.pathLimitMultiplier ?? 1;
       let baseLimit = basePathLimit;
@@ -13902,6 +14087,93 @@ function handleEndPlayerTurn() {
                   </div>
                 ))}
               </div>
+              {positionedResolutionPopups.map(popup => (
+                <div
+                  key={popup.id}
+                  style={{
+                    position: "absolute",
+                    left: popup.left,
+                    top: popup.top,
+                    width: popup.width,
+                    color: "#f2f4ff",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    lineHeight: 1.3,
+                    padding: "8px 10px",
+                    borderRadius: 10,
+                    background:
+                      popup.tone === "hit"
+                        ? "rgba(22, 120, 66, 0.9)"
+                        : popup.tone === "miss"
+                        ? "rgba(130, 30, 30, 0.9)"
+                        : popup.tone === "save"
+                        ? "rgba(38, 83, 145, 0.9)"
+                        : "rgba(25, 25, 35, 0.9)",
+                    border: "1px solid rgba(255,255,255,0.28)",
+                    textShadow: "0 1px 4px rgba(0,0,0,0.55)",
+                    boxShadow: "0 12px 35px rgba(0,0,0,0.45)",
+                    animation: "hpPopupFloat 4.2s ease-out forwards",
+                    pointerEvents: "auto",
+                    zIndex: popup.zIndex
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={event => {
+                      event.stopPropagation();
+                      setResolutionPopups(prev => prev.filter(entry => entry.id !== popup.id));
+                    }}
+                    aria-label="Fermer"
+                    style={{
+                      position: "absolute",
+                      top: 4,
+                      right: 4,
+                      width: 18,
+                      height: 18,
+                      borderRadius: 9,
+                      border: "1px solid rgba(255,255,255,0.4)",
+                      background: "rgba(0,0,0,0.3)",
+                      color: "#fff",
+                      fontSize: 12,
+                      lineHeight: 1,
+                      cursor: "pointer",
+                      padding: 0
+                    }}
+                  >
+                    x
+                  </button>
+                  <svg
+                    width={Math.max(1, Math.abs(popup.anchorX - (popup.left + popup.width / 2)) + 8)}
+                    height={Math.max(1, Math.abs(popup.anchorY - (popup.top + popup.height / 2)) + 8)}
+                    style={{
+                      position: "absolute",
+                      left:
+                        popup.anchorX < popup.left + popup.width / 2
+                          ? -(Math.abs(popup.anchorX - (popup.left + popup.width / 2)) + 8)
+                          : popup.width,
+                      top:
+                        popup.anchorY < popup.top + popup.height / 2
+                          ? -(Math.abs(popup.anchorY - (popup.top + popup.height / 2)) + 8)
+                          : popup.height / 2 - 4,
+                      overflow: "visible",
+                      pointerEvents: "none"
+                    }}
+                  >
+                    <line
+                      x1={popup.anchorX < popup.left + popup.width / 2 ? Math.abs(popup.anchorX - (popup.left + popup.width / 2)) + 4 : 0}
+                      y1={popup.anchorY < popup.top + popup.height / 2 ? Math.abs(popup.anchorY - (popup.top + popup.height / 2)) + 4 : 4}
+                      x2={popup.anchorX < popup.left + popup.width / 2 ? Math.abs(popup.anchorX - (popup.left + popup.width / 2)) + 8 : 8}
+                      y2={popup.anchorY < popup.top + popup.height / 2 ? Math.abs(popup.anchorY - (popup.top + popup.height / 2)) + 8 : 8}
+                      stroke="rgba(255,255,255,0.65)"
+                      strokeWidth="1.2"
+                    />
+                  </svg>
+                  <div style={{ fontSize: 12, fontWeight: 900, marginBottom: 4 }}>{popup.title}</div>
+                  {popup.lines.map((line, idx) => (
+                    <div key={`${popup.id}-line-${idx}`}>{line}</div>
+                  ))}
+                </div>
+              ))}
               <div
                 onMouseDown={event => event.stopPropagation()}
                 style={{
@@ -14323,6 +14595,7 @@ function handleEndPlayerTurn() {
                 attackRollBreakdownLabel={contextAttackRollBreakdownLabel}
                 damageRoll={damageRoll}
                 damageBreakdownLabel={contextDamageTypeLabel}
+                resolutionTargets={contextResolutionTargets}
                 diceLogs={diceLogs}
                 attackInfluences={contextAttackInfluences}
                 attackWeaponInfo={contextWeaponInfo}

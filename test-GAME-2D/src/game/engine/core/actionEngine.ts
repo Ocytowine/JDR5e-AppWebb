@@ -17,6 +17,7 @@ import { metersToCells } from "../runtime/units";
 import { evaluateAllConditions } from "../rules/conditionEval";
 import type { ConditionExpr, EnginePhase } from "../rules/conditions";
 import { getWeaponLoadingUsageKey } from "../rules/weaponRules";
+import type { ActionExecutionReport } from "./types";
 
 export interface ActionEngineContext {
   round: number;
@@ -611,6 +612,7 @@ export interface ActionResolutionResult {
   actorAfter?: TokenState;
   playerAfter?: TokenState;
   enemiesAfter?: TokenState[];
+  report?: ActionExecutionReport;
   outcomeKind?:
     | "hit"
     | "miss"
@@ -919,7 +921,8 @@ export function resolveActionUnified(
     return {
       ok: false,
       reason: exec.interrupted ? "Interruption par reaction." : "Echec de resolution.",
-      logs: exec.logs.length ? exec.logs : logs
+      logs: exec.logs.length ? exec.logs : logs,
+      report: exec.report
     };
   }
 
@@ -937,6 +940,7 @@ export function resolveActionUnified(
     actorAfter,
     playerAfter: player,
     enemiesAfter,
+    report: exec.report,
     outcomeKind: exec.outcome?.kind,
     outcomeRoll: typeof exec.outcome?.roll === "number" ? exec.outcome.roll : undefined,
     outcomeTotal: typeof exec.outcome?.total === "number" ? exec.outcome.total : undefined

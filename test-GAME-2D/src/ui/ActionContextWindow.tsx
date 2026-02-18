@@ -32,6 +32,24 @@ function badgeColorForActionType(actionType: string): string {
   return "#2980b9";
 }
 
+function toDamageTypeLabel(value: string): string {
+  const key = String(value ?? "").trim().toUpperCase();
+  if (key === "BLUDGEONING") return "contondant";
+  if (key === "PIERCING") return "perforant";
+  if (key === "SLASHING") return "tranchant";
+  if (key === "FIRE") return "feu";
+  if (key === "COLD") return "froid";
+  if (key === "LIGHTNING") return "foudre";
+  if (key === "THUNDER") return "tonnerre";
+  if (key === "POISON") return "poison";
+  if (key === "ACID") return "acide";
+  if (key === "NECROTIC") return "necrotique";
+  if (key === "RADIANT") return "radiant";
+  if (key === "PSYCHIC") return "psychique";
+  if (key === "FORCE") return "force";
+  return key ? key.toLowerCase() : "?";
+}
+
 export function ActionContextWindow(props: {
   open: boolean;
   anchorX: number;
@@ -95,6 +113,41 @@ export function ActionContextWindow(props: {
   attackRollBreakdownLabel?: string | null;
   damageRoll: DamageRollResult | null;
   damageBreakdownLabel?: string | null;
+  resolutionTargets?: Array<{
+    targetId: string;
+    targetKind?: string;
+    outcome?: string;
+    attackRoll?: {
+      rolls: number[];
+      kept: number;
+      bonus: number;
+      total: number;
+      crit: boolean;
+      advantageMode?: string;
+    };
+    saveRoll?: {
+      ability: string;
+      dc: number;
+      roll: number;
+      modifier: number;
+      total: number;
+      success: boolean;
+    };
+    checkRoll?: {
+      ability: string;
+      dc: number;
+      roll: number;
+      modifier: number;
+      total: number;
+      success: boolean;
+    };
+    damage?: {
+      total: number;
+      byType: Array<{ type: string; amount: number }>;
+    };
+    statusesApplied?: Array<{ id: string; durationTurns?: number }>;
+    statusesRemoved?: Array<{ id: string }>;
+  }>;
   diceLogs: string[];
   attackInfluences?: AttackInfluenceInfo[];
   attackWeaponInfo?: AttackWeaponInfo | null;
@@ -241,6 +294,7 @@ export function ActionContextWindow(props: {
   const damageStep = getStep("damage-roll");
   const attackInfluences = Array.isArray(props.attackInfluences) ? props.attackInfluences : [];
   const attackWeaponInfo = props.attackWeaponInfo ?? null;
+  const resolutionTargets = Array.isArray(props.resolutionTargets) ? props.resolutionTargets : [];
   const hoveredInfluence = useMemo(() => {
     if (!hoveredInfluenceId) return null;
     if (hoveredInfluenceId === "__weapon__") return attackWeaponInfo;
@@ -1172,6 +1226,78 @@ export function ActionContextWindow(props: {
                   Types: {props.damageBreakdownLabel}
                 </div>
               )}
+            </div>
+          )}
+
+          {resolutionTargets.length > 0 && (
+            <div
+              style={{
+                marginTop: 10,
+                padding: 8,
+                borderRadius: 10,
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "rgba(255,255,255,0.04)"
+              }}
+            >
+              <div style={{ fontSize: 11, fontWeight: 900, color: "rgba(255,255,255,0.85)" }}>
+                Resolution par cible
+              </div>
+              <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 6 }}>
+                {resolutionTargets.map(target => (
+                  <div
+                    key={`${target.targetId}:${target.outcome ?? "none"}`}
+                    style={{
+                      padding: 6,
+                      borderRadius: 8,
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      background: "rgba(0,0,0,0.2)"
+                    }}
+                  >
+                    <div style={{ fontSize: 12, fontWeight: 800, color: "#fff" }}>
+                      {target.targetId} {target.outcome ? `- ${target.outcome}` : ""}
+                    </div>
+                    {target.attackRoll && (
+                      <div style={{ marginTop: 2, fontSize: 11, color: "rgba(255,255,255,0.8)" }}>
+                        Jet touche: {target.attackRoll.kept} {target.attackRoll.bonus >= 0 ? "+" : ""}
+                        {target.attackRoll.bonus} = {target.attackRoll.total}
+                        {target.attackRoll.crit ? " (crit)" : ""}
+                      </div>
+                    )}
+                    {target.saveRoll && (
+                      <div style={{ marginTop: 2, fontSize: 11, color: "rgba(255,255,255,0.8)" }}>
+                        Save {target.saveRoll.ability}: {target.saveRoll.roll}{" "}
+                        {target.saveRoll.modifier >= 0 ? "+" : ""}
+                        {target.saveRoll.modifier} = {target.saveRoll.total} vs DD {target.saveRoll.dc}
+                      </div>
+                    )}
+                    {target.damage && (
+                      <div style={{ marginTop: 2, fontSize: 11, color: "rgba(255,255,255,0.8)" }}>
+                        Degats:{" "}
+                        {target.damage.byType.length > 0
+                          ? target.damage.byType.map(entry => `${entry.amount} ${toDamageTypeLabel(entry.type)}`).join(" + ")
+                          : target.damage.total}
+                      </div>
+                    )}
+                    {Array.isArray(target.statusesApplied) && target.statusesApplied.length > 0 && (
+                      <div style={{ marginTop: 2, fontSize: 11, color: "#bdf6d2" }}>
+                        Etats appliques:{" "}
+                        {target.statusesApplied
+                          .map(status =>
+                            status.durationTurns && status.durationTurns > 0
+                              ? `${status.id} (${status.durationTurns} tour(s))`
+                              : status.id
+                          )
+                          .join(", ")}
+                      </div>
+                    )}
+                    {Array.isArray(target.statusesRemoved) && target.statusesRemoved.length > 0 && (
+                      <div style={{ marginTop: 2, fontSize: 11, color: "#ffcfb5" }}>
+                        Etats retires: {target.statusesRemoved.map(status => status.id).join(", ")}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 

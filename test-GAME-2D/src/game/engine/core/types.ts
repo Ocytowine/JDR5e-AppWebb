@@ -51,6 +51,77 @@ export interface Outcome {
   };
 }
 
+export interface AppliedOpReport {
+  op: string;
+  branch:
+    | "onResolve"
+    | "onHit"
+    | "onMiss"
+    | "onCrit"
+    | "onSaveSuccess"
+    | "onSaveFail"
+    | "hook"
+    | "unknown";
+  targetId: string;
+  targetKind?: "player" | "enemy" | "self" | "cell" | "none";
+  summary: string;
+  payload?: Record<string, unknown>;
+}
+
+export interface TargetResolutionReport {
+  targetId: string;
+  targetKind?: "player" | "enemy" | "self" | "cell" | "none";
+  outcome?: OutcomeKey;
+  attackRoll?: {
+    rolls: number[];
+    kept: number;
+    bonus: number;
+    total: number;
+    crit: boolean;
+    advantageMode?: "normal" | "advantage" | "disadvantage";
+  };
+  saveRoll?: {
+    ability: string;
+    dc: number;
+    roll: number;
+    modifier: number;
+    total: number;
+    success: boolean;
+  };
+  checkRoll?: {
+    ability: string;
+    dc: number;
+    roll: number;
+    modifier: number;
+    total: number;
+    success: boolean;
+  };
+  damage?: {
+    total: number;
+    byType: Array<{ type: string; amount: number }>;
+  };
+  statusesApplied?: Array<{ id: string; durationTurns?: number }>;
+  statusesRemoved?: Array<{ id: string }>;
+  ops: AppliedOpReport[];
+}
+
+export interface ActionExecutionReport {
+  actionId: string;
+  actorId: string;
+  round?: number;
+  phase?: "player" | "enemies";
+  phaseTrace?: string[];
+  targets: TargetResolutionReport[];
+}
+
+export interface OperationAppliedEvent {
+  op: string;
+  targetId: string;
+  targetKind?: "player" | "enemy" | "self" | "cell" | "none";
+  summary: string;
+  payload?: Record<string, unknown>;
+}
+
 interface PromptSpec {
   message: string;
   defaultDecision?: "accept" | "reject";
@@ -253,6 +324,18 @@ export interface ExecuteOptions {
   onReactionWindow?: (phase: "pre" | "post") => "continue" | "interrupt";
   onLog?: (message: string) => void;
   onEmitEvent?: (evt: { kind: string; data?: Record<string, unknown> }) => void;
+  onOperationApplied?: (evt: OperationAppliedEvent) => void;
+  operationMeta?: {
+    branch?:
+      | "onResolve"
+      | "onHit"
+      | "onMiss"
+      | "onCrit"
+      | "onSaveSuccess"
+      | "onSaveFail"
+      | "hook"
+      | "unknown";
+  };
   rollOverrides?: {
     attack?: AttackRollResult | null;
     consumeDamageRoll?: () => DamageRollResult | null;

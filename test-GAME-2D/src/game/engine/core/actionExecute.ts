@@ -4,7 +4,9 @@ import { beginTransaction, logTransaction } from "./transaction";
 import { applyOperation } from "./ops";
 import { resolvePromptDecision, shouldApplyHook } from "./hooks";
 import type {
+  ActionExecutionReport,
   ActionPlan,
+  AppliedOpReport,
   EngineState,
   ExecuteOptions,
   Outcome,
@@ -639,16 +641,37 @@ function applyWeaponMasteryEffects(params: {
   }
 }
 
-function collectOperations(effects: ActionPlan["action"]["effects"], outcome: Outcome): Operation[] {
-  const ops: Operation[] = [];
-  if (effects?.onResolve) ops.push(...effects.onResolve);
+function collectOperations(
+  effects: ActionPlan["action"]["effects"],
+  outcome: Outcome
+): Array<{
+  op: Operation;
+  branch:
+    | "onResolve"
+    | "onHit"
+    | "onMiss"
+    | "onCrit"
+    | "onSaveSuccess"
+    | "onSaveFail";
+}> {
+  const ops: Array<{
+    op: Operation;
+    branch:
+      | "onResolve"
+      | "onHit"
+      | "onMiss"
+      | "onCrit"
+      | "onSaveSuccess"
+      | "onSaveFail";
+  }> = [];
+  if (effects?.onResolve) ops.push(...effects.onResolve.map(op => ({ op, branch: "onResolve" as const })));
   if (
     (outcome.kind === "hit" ||
       outcome.kind === "checkSuccess" ||
       outcome.kind === "contestedWin") &&
     effects?.onHit
   ) {
-    ops.push(...effects.onHit);
+    ops.push(...effects.onHit.map(op => ({ op, branch: "onHit" as const })));
   }
   if (
     (outcome.kind === "miss" ||
@@ -656,14 +679,18 @@ function collectOperations(effects: ActionPlan["action"]["effects"], outcome: Ou
       outcome.kind === "contestedLose") &&
     effects?.onMiss
   ) {
-    ops.push(...effects.onMiss);
+    ops.push(...effects.onMiss.map(op => ({ op, branch: "onMiss" as const })));
   }
   if (outcome.kind === "crit") {
-    if (effects?.onHit) ops.push(...effects.onHit);
-    if (effects?.onCrit) ops.push(...effects.onCrit);
+    if (effects?.onHit) ops.push(...effects.onHit.map(op => ({ op, branch: "onHit" as const })));
+    if (effects?.onCrit) ops.push(...effects.onCrit.map(op => ({ op, branch: "onCrit" as const })));
   }
-  if (outcome.kind === "saveSuccess" && effects?.onSaveSuccess) ops.push(...effects.onSaveSuccess);
-  if (outcome.kind === "saveFail" && effects?.onSaveFail) ops.push(...effects.onSaveFail);
+  if (outcome.kind === "saveSuccess" && effects?.onSaveSuccess) {
+    ops.push(...effects.onSaveSuccess.map(op => ({ op, branch: "onSaveSuccess" as const })));
+  }
+  if (outcome.kind === "saveFail" && effects?.onSaveFail) {
+    ops.push(...effects.onSaveFail.map(op => ({ op, branch: "onSaveFail" as const })));
+  }
   return ops;
 }
 
@@ -678,9 +705,28 @@ export function executePlan(params: {
   state: EngineState;
   interrupted?: boolean;
   outcome: Outcome;
+  report: ActionExecutionReport;
 } {
   const { plan, state, opts } = params;
   const tx = beginTransaction(state);
+  const report: ActionExecutionReport = {
+    actionId: plan.action.id,
+    actorId: tx.state.actor.id,
+    round: tx.state.round,
+    phase: tx.state.phase,
+    phaseTrace: [],
+    targets: []
+  };
+  const reportByTargetId = new Map<string, (typeof report.targets)[number]>();
+  const ensureTargetReport = (targetId: string, targetKind?: "player" | "enemy" | "self" | "cell" | "none") => {
+    const key = targetId || "none";
+    const existing = reportByTargetId.get(key);
+    if (existing) return existing;
+    const created = { targetId: key, targetKind, ops: [] as AppliedOpReport[] };
+    report.targets.push(created);
+    reportByTargetId.set(key, created);
+    return created;
+  };
   tx.state.targetingConfig = {
     target: plan.action.targeting?.target ?? null,
     maxTargets:
@@ -714,6 +760,7 @@ export function executePlan(params: {
     }`,
     opts
   );
+  report.phaseTrace?.push("BUILD_INTENT");
   logPipeline(
     tx,
     `Targeting init: mode=${plan.action.targeting?.target ?? "none"} targets=${
@@ -734,6 +781,7 @@ export function executePlan(params: {
     opts
   });
   logPipeline(tx, "Phase 2 GatherResolveOptions", opts);
+  report.phaseTrace?.push("GATHER_OPTIONS");
   applyHooks({
     hooks: plan.hooks ?? [],
     phase: "onOptionsResolve",
@@ -745,6 +793,7 @@ export function executePlan(params: {
     opts
   });
   logPipeline(tx, "Phase 3 Validate", opts);
+  report.phaseTrace?.push("VALIDATE_LEGALITY");
   applyHooks({
     hooks: plan.hooks ?? [],
     phase: "onValidate",
@@ -756,6 +805,7 @@ export function executePlan(params: {
     opts
   });
   logPipeline(tx, "Phase 4 Targeting", opts);
+  report.phaseTrace?.push("TARGETING");
   applyHooks({
     hooks: plan.hooks ?? [],
     phase: "onTargeting",
@@ -768,6 +818,7 @@ export function executePlan(params: {
   });
   const primaryTarget = tx.state.targeting?.targets?.[0] ?? initialTarget;
   logPipeline(tx, "Phase 5 PreResolution", opts);
+  report.phaseTrace?.push("PRE_RESOLUTION_WINDOW");
   applyHooks({
     hooks: plan.hooks ?? [],
     phase: "preResolution",
@@ -789,7 +840,8 @@ export function executePlan(params: {
         logs: tx.logs,
         state: tx.state,
         interrupted: true,
-        outcome: { kind: "miss", roll: 0, total: 0 }
+        outcome: { kind: "miss", roll: 0, total: 0 },
+        report
       };
     }
   }
@@ -820,6 +872,7 @@ export function executePlan(params: {
     `Phase 6 ResolveCheck: ${resolvedOutcomes.length} cible(s)`,
     opts
   );
+  report.phaseTrace?.push("RESOLVE_CHECK");
 
   for (const [index, resolved] of resolvedOutcomes.entries()) {
     const { outcome, target } = resolved;
@@ -831,6 +884,11 @@ export function executePlan(params: {
       }
     };
     const targetLabel = target ? `${target.id}` : "none";
+    const currentTargetReport = ensureTargetReport(
+      target?.id ?? "none",
+      target ? (target.type === "player" ? "player" : "enemy") : "none"
+    );
+    currentTargetReport.outcome = outcome.kind;
     logPipeline(
       tx,
       `Cible ${index + 1}/${resolvedOutcomes.length}: ${targetLabel} -> outcome=${outcome.kind}`,
@@ -855,6 +913,15 @@ export function executePlan(params: {
           opts.onLog
         );
       }
+      const bonus = Number(plan.action.resolution?.bonus ?? 0);
+      currentTargetReport.attackRoll = {
+        rolls: [Number(outcome.roll ?? 0)],
+        kept: Number(outcome.roll ?? 0),
+        bonus,
+        total: Number(outcome.total ?? 0),
+        crit: Boolean(outcome.isCrit),
+        advantageMode: params.advantageMode ?? "normal"
+      };
     }
     if (plan.action.resolution?.kind === "SAVING_THROW" && plan.action.resolution.save) {
       const ability = plan.action.resolution.save.ability;
@@ -867,6 +934,14 @@ export function executePlan(params: {
         `Jet de sauvegarde (${ability}) : ${outcome.roll} + ${mod} = ${outcome.total} vs DD ${dc}`,
         opts.onLog
       );
+      currentTargetReport.saveRoll = {
+        ability,
+        dc,
+        roll: Number(outcome.roll ?? 0),
+        modifier: Number(mod ?? 0),
+        total: Number(outcome.total ?? 0),
+        success: outcome.kind === "saveSuccess"
+      };
     }
     if (plan.action.resolution?.kind === "ABILITY_CHECK" && plan.action.resolution.check) {
       const ability = plan.action.resolution.check.ability;
@@ -879,6 +954,14 @@ export function executePlan(params: {
         `Jet de competence (${ability}) : ${outcome.roll} + ${mod} = ${outcome.total} vs DD ${dc}`,
         opts.onLog
       );
+      currentTargetReport.checkRoll = {
+        ability,
+        dc,
+        roll: Number(outcome.roll ?? 0),
+        modifier: Number(mod ?? 0),
+        total: Number(outcome.total ?? 0),
+        success: outcome.kind === "checkSuccess"
+      };
     }
     if (plan.action.resolution?.kind === "CONTESTED_CHECK" && outcome.contested) {
       const actorRoll = outcome.contested.actorRoll;
@@ -945,14 +1028,59 @@ export function executePlan(params: {
         : plan.target && "x" in plan.target
         ? { kind: "cell" as const, x: plan.target.x, y: plan.target.y }
         : null;
-    for (const op of ops) {
-      logPipeline(tx, `Apply op: ${describeOperation(op)}`, opts);
+    for (const opEntry of ops) {
+      logPipeline(tx, `Apply op: ${describeOperation(opEntry.op)}`, opts);
       applyOperation({
-        op,
+        op: opEntry.op,
         tx,
         state: tx.state,
         explicitTarget: explicitTarget ?? (target ? { kind: "token", token: target } : null),
-        opts: outcomeScopedOpts
+        opts: {
+          ...outcomeScopedOpts,
+          operationMeta: { branch: opEntry.branch },
+          onOperationApplied: evt => {
+            const targetReport = ensureTargetReport(evt.targetId, evt.targetKind);
+            targetReport.ops.push({
+              op: evt.op,
+              branch: opEntry.branch,
+              targetId: evt.targetId,
+              targetKind: evt.targetKind,
+              summary: evt.summary,
+              payload: evt.payload
+            });
+            if ((evt.op === "DealDamage" || evt.op === "DealDamageScaled") && evt.payload) {
+              const amount = Number(evt.payload.amount ?? 0);
+              if (amount > 0) {
+                if (!targetReport.damage) {
+                  targetReport.damage = { total: 0, byType: [] };
+                }
+                targetReport.damage.total += amount;
+                const typeRaw = String(evt.payload.damageType ?? "").trim().toUpperCase() || "UNTYPED";
+                const existingType = targetReport.damage.byType.find(entry => entry.type === typeRaw);
+                if (existingType) existingType.amount += amount;
+                else targetReport.damage.byType.push({ type: typeRaw, amount });
+              }
+            }
+            if (evt.op === "ApplyCondition" && evt.payload) {
+              const statusId = String(evt.payload.statusId ?? "").trim();
+              if (statusId) {
+                targetReport.statusesApplied = targetReport.statusesApplied ?? [];
+                targetReport.statusesApplied.push({
+                  id: statusId,
+                  durationTurns: Number(evt.payload.durationTurns ?? 0) || undefined
+                });
+              }
+            }
+            if (evt.op === "RemoveCondition" && evt.payload) {
+              const statusId = String(evt.payload.statusId ?? "").trim();
+              if (statusId) {
+                targetReport.statusesRemoved = targetReport.statusesRemoved ?? [];
+                targetReport.statusesRemoved.push({ id: statusId });
+              }
+            }
+            outcomeScopedOpts.onOperationApplied?.(evt);
+          }
+        }
       });
     }
 
@@ -985,7 +1113,7 @@ export function executePlan(params: {
     if (result === "interrupt") {
       logPipeline(tx, "Interrupted during post reaction window", opts);
       const lastOutcome = resolvedOutcomes[resolvedOutcomes.length - 1]?.outcome ?? { kind: "miss", roll: 0, total: 0 };
-      return { ok: false, logs: tx.logs, state: tx.state, interrupted: true, outcome: lastOutcome };
+      return { ok: false, logs: tx.logs, state: tx.state, interrupted: true, outcome: lastOutcome, report };
     }
   }
 
@@ -1019,8 +1147,9 @@ export function executePlan(params: {
   });
 
   logPipeline(tx, `Phase 11 Commit done: finalOutcome=${finalOutcome.kind}`, opts);
+  report.phaseTrace?.push("COMMIT");
 
-  return { ok: true, logs: tx.logs, state: tx.state, outcome: finalOutcome };
+  return { ok: true, logs: tx.logs, state: tx.state, outcome: finalOutcome, report };
 }
 
 

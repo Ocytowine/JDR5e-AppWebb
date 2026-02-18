@@ -203,6 +203,23 @@ function directionFromTo(from: { x: number; y: number }, to: { x: number; y: num
   return { x: dx / mag, y: dy / mag };
 }
 
+function emitOperationApplied(params: {
+  opts: ExecuteOptions;
+  op: string;
+  targetId: string;
+  targetKind?: "player" | "enemy" | "self" | "cell" | "none";
+  summary: string;
+  payload?: Record<string, unknown>;
+}) {
+  params.opts.onOperationApplied?.({
+    op: params.op,
+    targetId: params.targetId,
+    targetKind: params.targetKind,
+    summary: params.summary,
+    payload: params.payload
+  });
+}
+
 export function applyOperation(params: {
   op: Operation;
   tx: Transaction;
@@ -214,6 +231,13 @@ export function applyOperation(params: {
 
   if (op.op === "LogEvent") {
     logTransaction(tx, op.message, opts.onLog);
+    emitOperationApplied({
+      opts,
+      op: op.op,
+      targetId: state.actor.id,
+      targetKind: "self",
+      summary: op.message
+    });
     return;
   }
 
@@ -420,6 +444,22 @@ export function applyOperation(params: {
         `Degats${dmgType}: ${targetToken.id} prend ${total} (${formula})${detail} | PV ${beforeHp}->${afterHp} | Temp ${beforeTempHp}->${afterTempHp}`,
         opts.onLog
       );
+      emitOperationApplied({
+        opts,
+        op: op.op,
+        targetId: String(targetToken.id ?? ""),
+        targetKind: targetToken.type === "player" ? "player" : "enemy",
+        summary: `Degats ${total}${dmgType ? ` ${dmgType.trim()}` : ""}`,
+        payload: {
+          amount: total,
+          damageType: op.damageType ?? null,
+          formula,
+          hpBefore: beforeHp,
+          hpAfter: afterHp,
+          tempHpBefore: beforeTempHp,
+          tempHpAfter: afterTempHp
+        }
+      });
       maybeCheckConcentrationOnDamage({ state, tx, targetToken, damage: total, opts });
       return;
     }
@@ -451,6 +491,23 @@ export function applyOperation(params: {
         `Degats reduits${dmgType}: ${targetToken.id} prend ${total} (${formula})${detail} | PV ${beforeHp}->${afterHp} | Temp ${beforeTempHp}->${afterTempHp}`,
         opts.onLog
       );
+      emitOperationApplied({
+        opts,
+        op: op.op,
+        targetId: String(targetToken.id ?? ""),
+        targetKind: targetToken.type === "player" ? "player" : "enemy",
+        summary: `Degats reduits ${total}${dmgType ? ` ${dmgType.trim()}` : ""}`,
+        payload: {
+          amount: total,
+          damageType: op.damageType ?? null,
+          formula,
+          scale: op.scale,
+          hpBefore: beforeHp,
+          hpAfter: afterHp,
+          tempHpBefore: beforeTempHp,
+          tempHpAfter: afterTempHp
+        }
+      });
       maybeCheckConcentrationOnDamage({ state, tx, targetToken, damage: total, opts });
       return;
     }
@@ -472,6 +529,19 @@ export function applyOperation(params: {
     targetToken.hp = Math.min(targetToken.maxHp, targetToken.hp + total);
     const afterHp = Number(targetToken.hp ?? 0);
     logTransaction(tx, `Soin: ${targetToken.id} +${total} (${formula})${detail} | PV ${beforeHp}->${afterHp}`, opts.onLog);
+    emitOperationApplied({
+      opts,
+      op: op.op,
+      targetId: String(targetToken.id ?? ""),
+      targetKind: targetToken.type === "player" ? "player" : "enemy",
+      summary: `Soin +${total}`,
+      payload: {
+        amount: total,
+        formula,
+        hpBefore: beforeHp,
+        hpAfter: afterHp
+      }
+    });
     return;
   }
 
@@ -486,6 +556,17 @@ export function applyOperation(params: {
     statuses.push(status);
     targetToken.statuses = statuses;
     logTransaction(tx, `Etat applique: ${op.statusId} (${op.durationTurns} tours)`, opts.onLog);
+    emitOperationApplied({
+      opts,
+      op: op.op,
+      targetId: String(targetToken.id ?? ""),
+      targetKind: targetToken.type === "player" ? "player" : "enemy",
+      summary: `Etat applique: ${op.statusId}`,
+      payload: {
+        statusId: op.statusId,
+        durationTurns: op.durationTurns
+      }
+    });
     return;
   }
 
@@ -493,6 +574,14 @@ export function applyOperation(params: {
     const statuses = targetToken.statuses ? [...targetToken.statuses] : [];
     targetToken.statuses = statuses.filter(status => status.id !== op.statusId);
     logTransaction(tx, `Etat retire: ${op.statusId}`, opts.onLog);
+    emitOperationApplied({
+      opts,
+      op: op.op,
+      targetId: String(targetToken.id ?? ""),
+      targetKind: targetToken.type === "player" ? "player" : "enemy",
+      summary: `Etat retire: ${op.statusId}`,
+      payload: { statusId: op.statusId }
+    });
     return;
   }
 
