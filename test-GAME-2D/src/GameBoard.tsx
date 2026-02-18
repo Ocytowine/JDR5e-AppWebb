@@ -1383,6 +1383,8 @@ export const GameBoard: React.FC = () => {
   const [hpPopups, setHpPopups] = useState<
     Array<{ id: string; x: number; y: number; text: string; color: string }>
   >([]);
+  const pendingDamagePopupByTokenIdRef = useRef<Map<string, string>>(new Map());
+  const [contextDamageBreakdownLabel, setContextDamageBreakdownLabel] = useState<string | null>(null);
   const prevPlayerHpRef = useRef<number | null>(null);
   const prevEnemyHpRef = useRef<Map<string, number>>(new Map());
   const [reactionToast, setReactionToast] = useState<{
@@ -3491,12 +3493,13 @@ export const GameBoard: React.FC = () => {
     }
   }
 
-  function pushHpPopup(token: TokenState, delta: number) {
+  function pushHpPopup(token: TokenState, delta: number, detail?: string | null) {
     if (!Number.isFinite(delta) || delta === 0) return;
     const anchor = resolveAnchorForCell({ x: token.x, y: token.y });
     if (!anchor) return;
     const id = `hp-${token.id}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    const text = delta > 0 ? `+${delta}` : `${delta}`;
+    const suffix = String(detail ?? "").trim();
+    const text = delta > 0 ? `+${delta}` : `${delta}${suffix ? ` ${suffix}` : ""}`;
     const color = delta > 0 ? "#2ecc71" : "#e74c3c";
     const x = anchor.anchorX;
     const y = anchor.anchorY - 24;
@@ -3558,6 +3561,84 @@ export const GameBoard: React.FC = () => {
   function buildDamageTypeSuffix(damageType?: string | null): string {
     const label = formatDamageTypeLabel(damageType);
     return label ? `, type ${label}` : "";
+  }
+
+  function formatSigned(value: number): string {
+    return value >= 0 ? `+${value}` : String(value);
+  }
+
+  function formatAbilityModLabel(modToken: string | null | undefined): string {
+    const token = String(modToken ?? "").trim().toUpperCase();
+    if (token === "MODFOR") return "mod FOR";
+    if (token === "MODDEX") return "mod DEX";
+    if (token === "MODCON") return "mod CON";
+    if (token === "MODINT") return "mod INT";
+    if (token === "MODSAG") return "mod SAG";
+    if (token === "MODCHA") return "mod CHA";
+    return "mod";
+  }
+
+  function collectActionDamageTypeLabels(action: ActionDefinition | null | undefined): string[] {
+    if (!action) return [];
+    const labels: string[] = [];
+    const seen = new Set<string>();
+    const pushType = (value: unknown) => {
+      const label = formatDamageTypeLabel(typeof value === "string" ? value : null);
+      if (!label || seen.has(label)) return;
+      seen.add(label);
+      labels.push(label);
+    };
+    pushType(action.damage?.damageType);
+    const branches = [
+      action.ops?.onResolve,
+      action.ops?.onHit,
+      action.ops?.onCrit,
+      action.ops?.onSaveFail
+    ];
+    branches.forEach(branch => {
+      if (!Array.isArray(branch)) return;
+      branch.forEach(op => {
+        if (!op || (op as any).op !== "DealDamage" && (op as any).op !== "DealDamageScaled") return;
+        pushType((op as any).damageType);
+      });
+    });
+    return labels;
+  }
+
+  function extractDamagePartsByTargetFromLogs(logs: string[]): Map<string, Array<{ amount: number; type: string | null }>> {
+    const map = new Map<string, Array<{ amount: number; type: string | null }>>();
+    for (const raw of logs) {
+      const line = String(raw ?? "").trim();
+      if (!line) continue;
+      const match = line.match(/^Degats(?: reduits)?(?:\s+([^:]+))?:\s+([^\s]+)\s+prend\s+(\d+)/i);
+      if (!match) continue;
+      const typeRaw = String(match[1] ?? "").trim();
+      const targetId = String(match[2] ?? "").trim();
+      const amount = Number(match[3] ?? 0);
+      if (!targetId || !Number.isFinite(amount) || amount <= 0) continue;
+      const list = map.get(targetId) ?? [];
+      list.push({ amount, type: typeRaw || null });
+      map.set(targetId, list);
+    }
+    return map;
+  }
+
+  function formatDamageParts(parts: Array<{ amount: number; type: string | null }>): string {
+    if (!Array.isArray(parts) || parts.length === 0) return "";
+    return parts
+      .map(part => {
+        const typeLabel = formatDamageTypeLabel(part.type);
+        return `${part.amount}${typeLabel ? ` ${typeLabel}` : ""}`;
+      })
+      .join(" + ");
+  }
+
+  function consumePendingDamagePopupLabel(tokenId: string): string | null {
+    const key = String(tokenId ?? "").trim();
+    if (!key) return null;
+    const text = pendingDamagePopupByTokenIdRef.current.get(key) ?? null;
+    if (text) pendingDamagePopupByTokenIdRef.current.delete(key);
+    return text;
   }
 
   function reactionCombatKey(actorId: string, reactionId: string): string {
@@ -4790,7 +4871,8 @@ export const GameBoard: React.FC = () => {
     if (prevPlayerHp !== null && player.hp !== prevPlayerHp) {
       const delta = player.hp - prevPlayerHp;
       const now = Date.now();
-      pushHpPopup(player, delta);
+      const detail = delta < 0 ? consumePendingDamagePopupLabel(player.id) : null;
+      pushHpPopup(player, delta, detail);
       if (now >= suppressCombatToastUntilRef.current) {
         if (delta < 0) {
           showCombatToast(`Vous avez subi ${Math.abs(delta)} degats.`, "hit");
@@ -4806,7 +4888,9 @@ export const GameBoard: React.FC = () => {
     for (const enemy of enemies) {
       const prevHp = prevEnemies.get(enemy.id);
       if (prevHp !== undefined && enemy.hp !== prevHp) {
-        pushHpPopup(enemy, enemy.hp - prevHp);
+        const delta = enemy.hp - prevHp;
+        const detail = delta < 0 ? consumePendingDamagePopupLabel(enemy.id) : null;
+        pushHpPopup(enemy, delta, detail);
       }
       nextEnemies.set(enemy.id, enemy.hp);
     }
@@ -8096,6 +8180,27 @@ export const GameBoard: React.FC = () => {
       return false;
     }
 
+    const damagePartsByTarget = extractDamagePartsByTargetFromLogs(result.logs);
+    if (damagePartsByTarget.size > 0) {
+      for (const [targetId, parts] of damagePartsByTarget.entries()) {
+        const detail = formatDamageParts(parts);
+        if (!detail) continue;
+        const total = parts.reduce((sum, part) => sum + Math.max(0, Number(part.amount ?? 0)), 0);
+        pushLog(`[pipeline-ui] Degats detail: ${targetId} -> ${detail} (total ${total}).`);
+        pendingDamagePopupByTokenIdRef.current.set(targetId, `(${detail})`);
+      }
+    }
+    if (target?.kind === "token") {
+      const parts = damagePartsByTarget.get(target.token.id) ?? [];
+      setContextDamageBreakdownLabel(parts.length > 0 ? formatDamageParts(parts) : null);
+    } else if (target?.kind === "tokens" && target.tokens.length === 1) {
+      const only = target.tokens[0];
+      const parts = only ? damagePartsByTarget.get(only.id) ?? [] : [];
+      setContextDamageBreakdownLabel(parts.length > 0 ? formatDamageParts(parts) : null);
+    } else {
+      setContextDamageBreakdownLabel(null);
+    }
+
     if (ammoUsage && isPhysicalResource(ammoUsage.ammoType) && !ammoSpendInOps) {
       spendPlayerResource(ammoUsage.ammoType, null, ammoUsage.amount);
     }
@@ -8130,6 +8235,9 @@ export const GameBoard: React.FC = () => {
       result.outcomeKind !== "saveSuccess"
     ) {
       const structureDamage = Math.max(0, Number(damageOverride?.total ?? 0));
+      const structureDamageTypes = collectActionDamageTypeLabels(action);
+      const structureTypeSuffix =
+        structureDamageTypes.length > 0 ? ` (${structureDamageTypes.join(" + ")})` : "";
       if (structureDamage > 0 && selectedObstacleTarget) {
         const obstacleId = selectedObstacleTarget.id;
         setObstacles(prev =>
@@ -8146,7 +8254,7 @@ export const GameBoard: React.FC = () => {
         const currentHp = obstacle ? Number(obstacle.hp ?? 0) : 0;
         const nextHp = Math.max(0, currentHp - structureDamage);
         pushLog(
-          `Degats structure: ${obstacleLabel} subit ${structureDamage} degats (PV ${currentHp} -> ${nextHp}).`
+          `Degats structure: ${obstacleLabel} subit ${structureDamage} degats${structureTypeSuffix} (PV ${currentHp} -> ${nextHp}).`
         );
       }
       if (structureDamage > 0 && selectedWallTarget) {
@@ -8166,7 +8274,7 @@ export const GameBoard: React.FC = () => {
         const currentHp = wall && typeof wall.hp === "number" ? wall.hp : 0;
         const nextHp = Math.max(0, currentHp - structureDamage);
         pushLog(
-          `Degats structure: ${wallLabel} subit ${structureDamage} degats (PV ${currentHp} -> ${nextHp}).`
+          `Degats structure: ${wallLabel} subit ${structureDamage} degats${structureTypeSuffix} (PV ${currentHp} -> ${nextHp}).`
         );
       }
     }
@@ -8547,6 +8655,7 @@ export const GameBoard: React.FC = () => {
     setDamageRoll(null);
     setAttackOutcome(null);
     setHasRolledAttackForCurrentAction(false);
+    setContextDamageBreakdownLabel(null);
     pushTaggedLog(
       "wm",
       "Coup double: seconde frappe immediate disponible dans cette meme fenetre."
@@ -8597,10 +8706,13 @@ export const GameBoard: React.FC = () => {
     });
     setDamageRoll(result);
     const diceText = result.dice.map(d => d.rolls.join("+")).join(" | ");
+    const damageTypeLabels = collectActionDamageTypeLabels(action);
+    const damageTypeSuffix =
+      damageTypeLabels.length > 0 ? ` [${damageTypeLabels.join(" + ")}]` : "";
     pushDiceLog(
       `Degats (${action.name}) : ${diceText || "0"} + ${result.flatModifier} = ${result.total}${
         attackRoll?.isCrit ? " (critique)" : ""
-      }`
+      }${damageTypeSuffix}`
     );
 
     const ok = resolvePlayerActionV2(action, { attackRoll, damageRoll: result });
@@ -12164,6 +12276,40 @@ function handleEndPlayerTurn() {
       details
     };
   }, [contextAction, contextWeapon, contextResolvedAttackAction, player, activeCharacterConfig, turnEquipmentUsage.usedInteractionCount, turnActionUsage.usedActionCount]);
+  const contextAttackRollBreakdownLabel = useMemo(() => {
+    if (!contextAction || contextAction.category !== "attack") return null;
+    const resolvedAction = contextResolvedAttackAction ?? contextAction;
+    const totalBonus = Number(resolvedAction.attack?.bonus ?? NaN);
+    if (!Number.isFinite(totalBonus)) return null;
+
+    const weapon = contextWeapon;
+    if (!weapon) {
+      return `d20 ${formatSigned(totalBonus)} (bonus total)`;
+    }
+
+    const modToken = resolveWeaponModToken({ actor: player, weapon, getAbilityModForActor });
+    const abilityMod = getAbilityModForActor(player, modToken);
+    const proficiencies = getWeaponProficienciesForActor(player);
+    const isProficient = proficiencies.includes(weapon.subtype);
+    const proficiency = isProficient ? getProficiencyBonusForActor(player) : 0;
+    const weaponBonusSpec = weapon.attack?.bonus;
+    const weaponBonus =
+      typeof weaponBonusSpec === "number"
+        ? weaponBonusSpec
+        : typeof weaponBonusSpec === "string" && weaponBonusSpec === "bonus_maitrise"
+        ? proficiency
+        : 0;
+    const baseBonus = abilityMod + proficiency + weaponBonus;
+    const contextualBonus = totalBonus - baseBonus;
+
+    const terms: string[] = [];
+    if (modToken) terms.push(`${formatSigned(abilityMod)} (${formatAbilityModLabel(modToken)})`);
+    if (proficiency !== 0) terms.push(`${formatSigned(proficiency)} (maitrise)`);
+    if (weaponBonus !== 0) terms.push(`${formatSigned(weaponBonus)} (arme)`);
+    if (contextualBonus !== 0) terms.push(`${formatSigned(contextualBonus)} (effets)`);
+    if (terms.length === 0) terms.push(`${formatSigned(totalBonus)} (bonus total)`);
+    return `d20 ${terms.join(" ")} = d20 ${formatSigned(totalBonus)}`;
+  }, [contextAction, contextResolvedAttackAction, contextWeapon, player, activeCharacterConfig, actionUsageCounts.turn, turnActionUsage.usedActionCount, bonusMainActionsThisTurn]);
   const contextAvailabilityRaw = contextAction
     ? computeActionAvailability(applyWeaponOverrideForActor(contextAction, player))
     : null;
@@ -12262,6 +12408,11 @@ function handleEndPlayerTurn() {
         resource: contextResource
       })
     : null;
+  const contextDamageTypeLabel = useMemo(() => {
+    if (contextDamageBreakdownLabel) return contextDamageBreakdownLabel;
+    const labels = collectActionDamageTypeLabels(contextAction);
+    return labels.length > 0 ? labels.join(" + ") : null;
+  }, [contextAction, contextDamageBreakdownLabel]);
   const contextSteps = contextPlan?.steps ?? [];
   const contextComplete =
     actionContext?.stage === "active" &&
@@ -12575,6 +12726,7 @@ function handleEndPlayerTurn() {
     }
     setActionContext({ anchorX, anchorY, actionId: action.id, stage: "draft", source: "action" });
     setCoupDoubleFollowUpReady(false);
+    setContextDamageBreakdownLabel(null);
     setActionContextOpen(true);
   }
 
@@ -12587,6 +12739,7 @@ function handleEndPlayerTurn() {
     setHazardAnchor(null);
     setHazardResolution(null);
     setCoupDoubleFollowUpReady(false);
+    setContextDamageBreakdownLabel(null);
   }
 
   function maybeTriggerActionVisuals(reason: "close" | "finish") {
@@ -12728,6 +12881,7 @@ function handleEndPlayerTurn() {
 
   function handleValidateActionFromContext(action: ActionDefinition) {
     setCoupDoubleFollowUpReady(false);
+    setContextDamageBreakdownLabel(null);
     if (isMoveTypeAction(action)) {
       const multiplier = action.movement?.pathLimitMultiplier ?? 1;
       let baseLimit = basePathLimit;
@@ -14166,7 +14320,9 @@ function handleEndPlayerTurn() {
                 onRollDamage={handleRollDamage}
                 onAutoResolve={handleAutoResolveRolls}
                 attackRoll={attackRoll}
+                attackRollBreakdownLabel={contextAttackRollBreakdownLabel}
                 damageRoll={damageRoll}
+                damageBreakdownLabel={contextDamageTypeLabel}
                 diceLogs={diceLogs}
                 attackInfluences={contextAttackInfluences}
                 attackWeaponInfo={contextWeaponInfo}

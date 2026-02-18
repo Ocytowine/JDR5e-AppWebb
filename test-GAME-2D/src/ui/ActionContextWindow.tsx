@@ -92,7 +92,9 @@ export function ActionContextWindow(props: {
   onRollHazardDamage?: () => void;
   onAutoResolve: () => void;
   attackRoll: AttackRollResult | null;
+  attackRollBreakdownLabel?: string | null;
   damageRoll: DamageRollResult | null;
+  damageBreakdownLabel?: string | null;
   diceLogs: string[];
   attackInfluences?: AttackInfluenceInfo[];
   attackWeaponInfo?: AttackWeaponInfo | null;
@@ -1105,6 +1107,11 @@ export function ActionContextWindow(props: {
                 : "Desavantage: lancer 2d20, garder le pire."}
             </div>
           )}
+          {attackStep && props.attackRollBreakdownLabel && (
+            <div style={{ marginTop: 6, fontSize: 11, color: "rgba(255,255,255,0.75)" }}>
+              Formule: {props.attackRollBreakdownLabel}
+            </div>
+          )}
 
           {attackStep && props.attackRoll && (
             <div
@@ -1160,6 +1167,11 @@ export function ActionContextWindow(props: {
                 {props.damageRoll.total}
                 {props.damageRoll.isCrit ? " (crit)" : ""}
               </div>
+              {props.damageBreakdownLabel && (
+                <div style={{ marginTop: 4, fontSize: 11, color: "rgba(255,255,255,0.75)" }}>
+                  Types: {props.damageBreakdownLabel}
+                </div>
+              )}
             </div>
           )}
 
