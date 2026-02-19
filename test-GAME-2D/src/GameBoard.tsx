@@ -1390,6 +1390,9 @@ export const GameBoard: React.FC = () => {
   const [showTerrainIds, setShowTerrainIds] = useState<boolean>(false);
   const [showTerrainContours, setShowTerrainContours] = useState<boolean>(false);
   const [showGridLines, setShowGridLines] = useState<boolean>(true);
+  const [fogGradientLengthPx, setFogGradientLengthPx] = useState<number>(22);
+  const [fogAlphaNear, setFogAlphaNear] = useState<number>(0.14);
+  const [fogAlphaMax, setFogAlphaMax] = useState<number>(0.3);
   const [shadowLightAngleDeg, setShadowLightAngleDeg] = useState<number>(90);
   const [floatingPanel, setFloatingPanel] = useState<"effects" | "logs" | null>(null);
   const textureLoadingCounterRef = useRef<number>(0);
@@ -2327,6 +2330,9 @@ export const GameBoard: React.FC = () => {
     showAllLevels,
     showLightOverlay,
     showVisionDebug,
+    fogGradientLengthPx,
+    fogAlphaNear,
+    fogAlphaMax,
     showTerrainIds,
     showTerrainContours,
     activeLevel,
@@ -2549,6 +2555,9 @@ export const GameBoard: React.FC = () => {
     lightMap: mapLight,
     lightSources,
     showLightOverlay,
+    fogGradientLengthPx,
+    fogAlphaNear,
+    fogAlphaMax,
     showGridLines,
     lightLevels,
     lightTints,
@@ -14559,6 +14568,9 @@ function handleEndPlayerTurn() {
                       showTerrainIds={showTerrainIds}
                       showTerrainContours={showTerrainContours}
                       showGridLines={showGridLines}
+                      fogGradientLengthPx={fogGradientLengthPx}
+                      fogAlphaNear={fogAlphaNear}
+                      fogAlphaMax={fogAlphaMax}
                       shadowLightAngleDeg={shadowLightAngleDeg}
                       visionLegend={visionLegend}
                       visionDebugSummary={visionDebugSummary}
@@ -14569,6 +14581,9 @@ function handleEndPlayerTurn() {
                       onToggleTerrainIds={() => setShowTerrainIds(prev => !prev)}
                       onToggleTerrainContours={() => setShowTerrainContours(prev => !prev)}
                       onToggleGridLines={() => setShowGridLines(prev => !prev)}
+                      onChangeFogGradientLengthPx={value => setFogGradientLengthPx(value)}
+                      onChangeFogAlphaNear={value => setFogAlphaNear(value)}
+                      onChangeFogAlphaMax={value => setFogAlphaMax(value)}
                       onChangeShadowLightAngleDeg={value => setShadowLightAngleDeg(value)}
                       onClear={handleClearEffects}
                       fxAnimations={fxAnimations}

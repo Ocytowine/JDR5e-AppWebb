@@ -48,6 +48,9 @@ export function usePixiOverlays(options: {
   lightMap?: number[] | null;
   lightSources?: LightSource[] | null;
   showLightOverlay: boolean;
+  fogGradientLengthPx?: number;
+  fogAlphaNear?: number;
+  fogAlphaMax?: number;
   showGridLines?: boolean;
   playerTorchOn: boolean;
   playerTorchRadius?: number;
@@ -415,7 +418,10 @@ export function usePixiOverlays(options: {
     // Light tints are handled by the smooth light shapes; skip per-cell tinting.
 
     const fogColor = isNight ? 0x000000 : 0xffffff;
-    const fogAlpha = isNight ? 0 : 0.35;
+    const fogAlphaMax = isNight ? 0 : Math.max(0, Math.min(0.5, options.fogAlphaMax ?? 0.35));
+    const fogAlphaNear = Math.max(0, Math.min(fogAlphaMax, options.fogAlphaNear ?? 0.03));
+    const fogGradientLengthPx = Math.max(0, options.fogGradientLengthPx ?? 80);
+    const fogAlpha = fogAlphaMax;
     const hasVisibilityMask = Boolean(visionCells || visibleCells || options.visibilityLevels);
 
     const visibilityLevelAt = (x: number, y: number) => {
@@ -508,9 +514,20 @@ export function usePixiOverlays(options: {
     const drawFogGradientBand = (
       loops: Array<Array<{ x: number; y: number }>>,
       color: number,
-      baseAlpha: number
+      alphaNear: number,
+      alphaMax: number,
+      gradientLengthPx: number
     ) => {
-      if (loops.length === 0) return;
+      if (loops.length === 0 || alphaMax <= 0) return;
+      const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+      const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+      const fillLoop = (loop: Array<{ x: number; y: number }>, alpha: number) => {
+        if (loop.length < 3 || alpha <= 0) return;
+        fogLayer.moveTo(loop[0].x, loop[0].y);
+        for (let i = 1; i < loop.length; i++) fogLayer.lineTo(loop[i].x, loop[i].y);
+        fogLayer.closePath();
+        fogLayer.fill({ color, alpha });
+      };
       const fillBandBetweenLoops = (
         outer: Array<{ x: number; y: number }>,
         inner: Array<{ x: number; y: number }>,
@@ -533,32 +550,27 @@ export function usePixiOverlays(options: {
         }
       };
 
-      // Longer inward-only fog fringe: more rings for a deeper transparency gradient.
-      const ringSteps = [16, 14, 12, 10, 8, 7, 6, 5];
-      const ringAlpha = [
-        baseAlpha * 0.24,
-        baseAlpha * 0.2,
-        baseAlpha * 0.17,
-        baseAlpha * 0.14,
-        baseAlpha * 0.11,
-        baseAlpha * 0.085,
-        baseAlpha * 0.065,
-        baseAlpha * 0.05
-      ];
-      let currentLoops = loops;
-      for (let ring = 0; ring < ringSteps.length; ring++) {
-        const step = ringSteps[ring];
-        const alpha = ringAlpha[ring];
-        const nextLoops: Array<Array<{ x: number; y: number }>> = [];
-        for (const loop of currentLoops) {
-          if (loop.length < 6) continue;
-          const inner = offsetLoopInward(loop, step);
-          if (inner.length !== loop.length || inner.length < 6) continue;
-          fillBandBetweenLoops(loop, inner, alpha);
-          nextLoops.push(inner);
+      const stepPx = 8;
+      for (const sourceLoop of loops) {
+        if (sourceLoop.length < 6) continue;
+        if (gradientLengthPx <= 0) {
+          fillLoop(sourceLoop, alphaMax);
+          continue;
         }
-        if (nextLoops.length === 0) break;
-        currentLoops = nextLoops;
+        let current = sourceLoop;
+        let traveled = 0;
+        while (traveled < gradientLengthPx) {
+          const step = Math.min(stepPx, gradientLengthPx - traveled);
+          const inner = offsetLoopInward(current, step);
+          if (inner.length !== current.length || inner.length < 6) break;
+          const t0 = clamp01(traveled / gradientLengthPx);
+          const t1 = clamp01((traveled + step) / gradientLengthPx);
+          const alpha = lerp(alphaNear, alphaMax, (t0 + t1) * 0.5);
+          fillBandBetweenLoops(current, inner, alpha);
+          current = inner;
+          traveled += step;
+        }
+        fillLoop(current, alphaMax);
       }
     };
     const roundClosedLoop = (
@@ -621,8 +633,13 @@ export function usePixiOverlays(options: {
       const fogContours = fogContoursRaw.map(loop => roundClosedLoop(loop, 1));
       if (fogContours.length > 0) {
         // Gameplay view: fog fill + gradient only (no visible contour stroke).
-        fillContourLoops(fogLayer, fogContours, fogColor, fogAlpha);
-        drawFogGradientBand(fogContours, fogColor, fogAlpha);
+        drawFogGradientBand(
+          fogContours,
+          fogColor,
+          fogAlphaNear,
+          fogAlphaMax,
+          fogGradientLengthPx
+        );
       }
 
       if (options.showVisionDebug) {
@@ -1148,6 +1165,9 @@ export function usePixiOverlays(options: {
     options.selectedObstacleCell,
     options.showVisionDebug,
     options.showLightOverlay,
+    options.fogGradientLengthPx,
+    options.fogAlphaNear,
+    options.fogAlphaMax,
     options.showGridLines,
     options.lightMap,
     options.lightSources,

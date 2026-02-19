@@ -8,6 +8,9 @@ export function EffectsPanel(props: {
   showTerrainIds: boolean;
   showTerrainContours: boolean;
   showGridLines: boolean;
+  fogGradientLengthPx: number;
+  fogAlphaNear: number;
+  fogAlphaMax: number;
   shadowLightAngleDeg: number;
   visionLegend?: string;
   visionDebugSummary?: {
@@ -29,6 +32,9 @@ export function EffectsPanel(props: {
   onToggleTerrainIds: () => void;
   onToggleTerrainContours: () => void;
   onToggleGridLines: () => void;
+  onChangeFogGradientLengthPx: (value: number) => void;
+  onChangeFogAlphaNear: (value: number) => void;
+  onChangeFogAlphaMax: (value: number) => void;
   onChangeShadowLightAngleDeg: (value: number) => void;
   onClear: () => void;
   fxAnimations: Array<{ key: string; frames: string[] }>;
@@ -286,6 +292,41 @@ export function EffectsPanel(props: {
                 step="1"
                 value={props.shadowLightAngleDeg}
                 onChange={event => props.onChangeShadowLightAngleDeg(Number(event.target.value))}
+              />
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 220 }}>
+              <label style={{ fontSize: 11, color: "#bfc6d2" }}>
+                Fog gradient: {Math.round(props.fogGradientLengthPx)}px
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="260"
+                step="2"
+                value={props.fogGradientLengthPx}
+                onChange={event => props.onChangeFogGradientLengthPx(Number(event.target.value))}
+              />
+              <label style={{ fontSize: 11, color: "#bfc6d2" }}>
+                Fog alpha bord: {props.fogAlphaNear.toFixed(2)}
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="0.5"
+                step="0.01"
+                value={props.fogAlphaNear}
+                onChange={event => props.onChangeFogAlphaNear(Number(event.target.value))}
+              />
+              <label style={{ fontSize: 11, color: "#bfc6d2" }}>
+                Fog alpha max: {props.fogAlphaMax.toFixed(2)}
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="0.5"
+                step="0.01"
+                value={props.fogAlphaMax}
+                onChange={event => props.onChangeFogAlphaMax(Number(event.target.value))}
               />
             </div>
             <button
