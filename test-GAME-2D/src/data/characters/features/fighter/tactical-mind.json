@@ -7,6 +7,28 @@
   "grants": [],
   "rules": {
     "text": "En cas d'echec a un jet de caracteristique, depensez Second souffle pour ajouter 1d10.",
+    "runtimeEffects": [
+      {
+        "id": "tactical-mind-retry-check",
+        "applyOn": "after_action_resolve",
+        "when": {
+          "actionResolutionKind": "ABILITY_CHECK",
+          "outcomeAny": ["checkFail"]
+        },
+        "effects": [
+          {
+            "kind": "retryAbilityCheckWithResourceBonus",
+            "resourceName": "second-wind",
+            "resourceAmount": 1,
+            "bonusFormula": "1d10",
+            "consumeOnTrigger": true,
+            "diceLog": "Sens tactique: d10 = {bonus}",
+            "successLog": "Sens tactique: l'echec est transforme en reussite.",
+            "failureLog": "Sens tactique: bonus insuffisant, le jet reste un echec."
+          }
+        ]
+      }
+    ],
     "triggers": [
       {
         "event": "on_outcome",

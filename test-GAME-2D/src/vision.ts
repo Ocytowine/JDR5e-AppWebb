@@ -10,7 +10,7 @@ import type {
   VisionProfile
 } from "./types";
 import { hasLineOfSight } from "./lineOfSight";
-import { isCellInsideGrid } from "./boardConfig";
+import { distanceBetweenGridCells, isCellInsideGrid } from "./boardConfig";
 import type { WallSegment } from "./game/map/walls/types";
 import { getClosestFootprintCellToPoint, getTokenOccupiedCells } from "./game/engine/runtime/footprint";
 import { isLightVisible, resolveLightVisionMode } from "./lighting";
@@ -24,6 +24,10 @@ const DEFAULT_CONE_VISION: VisionProfile = {
   range: DEFAULT_VISION_RANGE,
   apertureDeg: 180
 };
+
+export function getVisionRangeCells(profile: VisionProfile): number {
+  return Math.max(0, metersToCells(profile.range));
+}
 
 export function getFacingForToken(token: TokenState): ConeDirection {
   if (token.facing) {
@@ -48,13 +52,14 @@ export function getVisionProfileForToken(token: TokenState): VisionProfile {
 
 export function computeVisionEffectForToken(
   token: TokenState,
-  playableCells?: Set<string> | null
+  playableCells?: Set<string> | null,
+  grid?: { cols: number; rows: number } | null
 ): BoardEffect {
   const profile = getVisionProfileForToken(token);
   const facing = getFacingForToken(token);
   const id = `vision-${token.id}`;
 
-  const rangeCells = metersToCells(profile.range);
+  const rangeCells = getVisionRangeCells(profile);
 
   if (rangeCells <= 0) {
     return {
@@ -66,7 +71,8 @@ export function computeVisionEffectForToken(
 
   if (profile.shape === "circle") {
     return generateCircleEffect(id, token.x, token.y, rangeCells, {
-      playableCells: playableCells ?? null
+      playableCells: playableCells ?? null,
+      grid: grid ?? null
     });
   }
 
@@ -77,7 +83,7 @@ export function computeVisionEffectForToken(
     rangeCells,
     facing,
     profile.apertureDeg,
-    { playableCells: playableCells ?? null }
+    { playableCells: playableCells ?? null, grid: grid ?? null }
   );
 }
 
@@ -117,7 +123,7 @@ export function isCellVisible(
     if (!playableCells.has(key({ x: observer.x, y: observer.y }))) return false;
   }
 
-  const effect = computeVisionEffectForToken(observer, playableCells ?? null);
+  const effect = computeVisionEffectForToken(observer, playableCells ?? null, grid ?? null);
   if (!effect.cells.length) return false;
 
   const cellKey = key(cell);
@@ -158,7 +164,7 @@ export function getEntitiesInVision(
   lightLevels?: number[] | null,
   grid?: { cols: number; rows: number } | null
 ): TokenState[] {
-  const effect = computeVisionEffectForToken(observer, playableCells ?? null);
+  const effect = computeVisionEffectForToken(observer, playableCells ?? null, grid ?? null);
   if (!effect.cells.length) return [];
 
   const cells = new Set<string>();
@@ -237,17 +243,6 @@ export function isTargetVisible(
 
 export type VisibilityLevel = 0 | 1 | 2;
 
-function isInsideBounds(
-  x: number,
-  y: number,
-  grid?: { cols: number; rows: number } | null,
-  playableCells?: Set<string> | null
-): boolean {
-  if (grid && !isCellInsideGrid(x, y, grid.cols, grid.rows)) return false;
-  if (playableCells && playableCells.size > 0) return playableCells.has(`${x},${y}`);
-  return true;
-}
-
 function setVisibility(
   map: Map<string, VisibilityLevel>,
   x: number,
@@ -265,91 +260,58 @@ function computeShadowcastVisibility(params: {
   grid?: { cols: number; rows: number } | null;
   playableCells?: Set<string> | null;
   opaqueCells?: Set<string> | null;
+  wallVisionEdges?: Map<string, WallSegment> | null;
 }): Map<string, VisibilityLevel> {
   const {
     origin,
     range,
     grid = null,
     playableCells = null,
-    opaqueCells = null
+    opaqueCells = null,
+    wallVisionEdges = null
   } = params;
   const result = new Map<string, VisibilityLevel>();
   if (range <= 0) return result;
 
-  const isOpaque = (x: number, y: number) =>
-    Boolean(opaqueCells && opaqueCells.has(`${x},${y}`));
-
-  const castLight = (
-    row: number,
-    start: number,
-    end: number,
-    radius: number,
-    xx: number,
-    xy: number,
-    yx: number,
-    yy: number
-  ) => {
-    if (start < end) return;
-    let newStart = start;
-    let blocked = false;
-
-    for (let dist = row; dist <= radius && !blocked; dist++) {
-      let dx = -dist - 1;
-      let dy = -dist;
-      while (dx <= 0) {
-        dx += 1;
-        const mx = origin.x + dx * xx + dy * xy;
-        const my = origin.y + dx * yx + dy * yy;
-        const lSlope = (dx - 0.5) / (dy + 0.5);
-        const rSlope = (dx + 0.5) / (dy - 0.5);
-
-        if (start < rSlope) {
-          continue;
-        }
-        if (end > lSlope) {
-          break;
-        }
-        if (!isInsideBounds(mx, my, grid, playableCells)) {
-          continue;
-        }
-
-        if (dx * dx + dy * dy <= radius * radius) {
-          const opaque = isOpaque(mx, my);
-          setVisibility(result, mx, my, opaque ? 1 : 2);
-        }
-
-        const opaque = isOpaque(mx, my);
-        if (blocked) {
-          if (opaque) {
-            newStart = rSlope;
-            continue;
-          }
-          blocked = false;
-          start = newStart;
-        } else if (opaque && dist < radius) {
-          blocked = true;
-          castLight(dist + 1, start, lSlope, radius, xx, xy, yx, yy);
-          newStart = rSlope;
-        }
-      }
-    }
-  };
-
+  const originKey = `${origin.x},${origin.y}`;
   setVisibility(result, origin.x, origin.y, 2);
 
-  const transforms = [
-    [1, 0, 0, 1],
-    [0, 1, 1, 0],
-    [-1, 0, 0, 1],
-    [0, -1, 1, 0],
-    [-1, 0, 0, -1],
-    [0, -1, -1, 0],
-    [1, 0, 0, -1],
-    [0, 1, -1, 0]
-  ];
+  const testCell = (x: number, y: number) => {
+    const cellKey = `${x},${y}`;
+    if (cellKey === originKey) return;
+    if (playableCells && playableCells.size > 0 && !playableCells.has(cellKey)) return;
+    if (grid && !isCellInsideGrid(x, y, grid.cols, grid.rows)) return;
+    if (distanceBetweenGridCells(origin, { x, y }) > range) return;
+    if (!hasLineOfSight(origin, { x, y }, opaqueCells, wallVisionEdges)) return;
+    const opaque = Boolean(opaqueCells && opaqueCells.has(cellKey));
+    setVisibility(result, x, y, opaque ? 1 : 2);
+  };
 
-  for (const [xx, xy, yx, yy] of transforms) {
-    castLight(1, 1.0, 0.0, range, xx, xy, yx, yy);
+  if (playableCells && playableCells.size > 0) {
+    for (const cellKey of playableCells) {
+      const [xs, ys] = cellKey.split(",");
+      const x = Number(xs);
+      const y = Number(ys);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+      testCell(x, y);
+    }
+    return result;
+  }
+
+  if (grid) {
+    for (let y = 0; y < grid.rows; y++) {
+      for (let x = 0; x < grid.cols; x++) {
+        testCell(x, y);
+      }
+    }
+    return result;
+  }
+
+  const scan = Math.max(1, range);
+  for (let y = origin.y - scan; y <= origin.y + scan; y++) {
+    for (let x = origin.x - scan; x <= origin.x + scan; x++) {
+      testCell(x, y);
+    }
   }
 
   return result;
@@ -371,7 +333,7 @@ export function computeVisibilityLevelsForToken(params: {
   } = params;
   const profile = getVisionProfileForToken(token);
   const facing = getFacingForToken(token);
-  const range = Math.max(0, Math.floor(profile.range ?? 0));
+  const range = getVisionRangeCells(profile);
   if (range <= 0) return new Map<string, VisibilityLevel>();
 
   const base = computeShadowcastVisibility({
@@ -379,26 +341,12 @@ export function computeVisibilityLevelsForToken(params: {
     range,
     grid,
     playableCells,
-    opaqueCells
+    opaqueCells,
+    wallVisionEdges
   });
 
   if (profile.shape === "circle") {
-    if (!wallVisionEdges || wallVisionEdges.size === 0) return base;
-    const filtered = new Map<string, VisibilityLevel>();
-    for (const [k, v] of base.entries()) {
-      const [x, y] = k.split(",").map(Number);
-      if (
-        hasLineOfSight(
-          { x: token.x, y: token.y },
-          { x, y },
-          opaqueCells ?? null,
-          wallVisionEdges
-        )
-      ) {
-        filtered.set(k, v);
-      }
-    }
-    return filtered;
+    return base;
   }
 
   const cone = generateConeEffect(
@@ -408,7 +356,7 @@ export function computeVisibilityLevelsForToken(params: {
     range,
     facing,
     profile.apertureDeg,
-    { playableCells }
+    { playableCells, grid }
   );
   const allowed = new Set<string>(cone.cells.map(c => `${c.x},${c.y}`));
   allowed.add(`${token.x},${token.y}`);
@@ -416,19 +364,10 @@ export function computeVisibilityLevelsForToken(params: {
   const filtered = new Map<string, VisibilityLevel>();
   for (const [k, v] of base.entries()) {
     if (!allowed.has(k)) continue;
-    const [x, y] = k.split(",").map(Number);
-    if (
-      hasLineOfSight(
-        { x: token.x, y: token.y },
-        { x, y },
-        opaqueCells ?? null,
-        wallVisionEdges
-      )
-    ) {
-      filtered.set(k, v);
-    }
+    filtered.set(k, v);
   }
   return filtered;
 }
+
 
 

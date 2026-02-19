@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { sampleCharacter } from "./data/models/sampleCharacter";
 import type {
   CombatStats,
@@ -154,14 +154,15 @@ import {
 import {
   GRID_COLS,
   GRID_ROWS,
+  TILE_SIZE,
   getBoardHeight,
   getBoardWidth,
-  gridToScreenForGrid,
   isCellInsideGrid,
-  screenToGridForGrid
+  setBoardGridProjection
 } from "./boardConfig";
 import { computePathTowards } from "./pathfinding";
 import { getTokenAt } from "./gridUtils";
+import { createGridAdapter, type GridKind } from "./ui/grid";
 import {
   computeVisibilityLevelsForToken,
   getEntitiesInVision,
@@ -240,6 +241,12 @@ import { InteractionContextWindow } from "./ui/InteractionContextWindow";
 import { EquipmentContextWindow } from "./ui/EquipmentContextWindow";
 import { boardThemeColor, colorToCssHex } from "./boardTheme";
 import type { InteractionCost, InteractionSpec } from "./game/map/runtime/interactions";
+import {
+  generateCircleEffect,
+  generateConeEffect,
+  generateLineEffect,
+  generateRectangleEffect
+} from "./boardEffects";
 import {
   buildMovementProfileFromMode,
   getDefaultMovementMode,
@@ -1054,6 +1061,25 @@ export const GameBoard: React.FC = () => {
     cols: GRID_COLS,
     rows: GRID_ROWS
   });
+  // Reference: docs/gameboard/grille hexa/plan de convertion.md (phase B).
+  const gridKind: GridKind = "hex";
+  const gridTileSize = gridKind === "hex" ? TILE_SIZE / Math.sqrt(3) : TILE_SIZE;
+  const gridAdapter = useMemo(
+    () =>
+      createGridAdapter({
+        kind: gridKind,
+        tileSize: gridTileSize,
+        origin: gridKind === "hex" ? { x: TILE_SIZE / 2, y: TILE_SIZE / 2 } : { x: 0, y: 0 },
+        hex: gridKind === "hex" ? { offset: "odd-r", orientation: "pointy-top" } : undefined
+      }),
+    [gridKind, gridTileSize]
+  );
+  useLayoutEffect(() => {
+    setBoardGridProjection(
+      gridKind,
+      gridKind === "hex" ? { offset: "odd-r", orientation: "pointy-top" } : undefined
+    );
+  }, [gridKind]);
   const [mapTheme, setMapTheme] = useState<MapTheme>("generic");
   const [mapPaletteId, setMapPaletteId] = useState<string | null>(null);
   const [activeLevel, setActiveLevel] = useState<number>(0);
@@ -1358,18 +1384,13 @@ export const GameBoard: React.FC = () => {
   const [effectSpecs, setEffectSpecs] = useState<EffectSpec[]>([]);
   const [showVisionDebug, setShowVisionDebug] = useState<boolean>(false);
   const [showLightOverlay, setShowLightOverlay] = useState<boolean>(true);
-  const [showFogSegments, setShowFogSegments] = useState<boolean>(false);
   const [showAllLevels, setShowAllLevels] = useState<boolean>(false);
   const [playerTorchOn, setPlayerTorchOn] = useState<boolean>(false);
   const [showCellIds, setShowCellIds] = useState<boolean>(false);
   const [showTerrainIds, setShowTerrainIds] = useState<boolean>(false);
   const [showTerrainContours, setShowTerrainContours] = useState<boolean>(false);
-  const [showGridLines, setShowGridLines] = useState<boolean>(false);
+  const [showGridLines, setShowGridLines] = useState<boolean>(true);
   const [shadowLightAngleDeg, setShadowLightAngleDeg] = useState<number>(90);
-  const [bumpIntensity, setBumpIntensity] = useState<number>(0.45);
-  const [windSpeed, setWindSpeed] = useState<number>(0.06);
-  const [windStrength, setWindStrength] = useState<number>(1.0);
-  const [bumpDebug, setBumpDebug] = useState<boolean>(false);
   const [floatingPanel, setFloatingPanel] = useState<"effects" | "logs" | null>(null);
   const textureLoadingCounterRef = useRef<number>(0);
   const [isTextureLoading, setIsTextureLoading] = useState<boolean>(false);
@@ -2124,6 +2145,29 @@ export const GameBoard: React.FC = () => {
     }
     return full;
   }, [showAllLevels, visionByLevel]);
+  const visibilityLevelsActive = useMemo<Map<string, VisibilityLevel> | null>(() => {
+    if (showAllLevels) return null;
+    return visibilityByLevel?.get(activeLevel) ?? new Map<string, VisibilityLevel>();
+  }, [showAllLevels, visibilityByLevel, activeLevel]);
+  const visibleCellsActive = useMemo<Set<string> | null>(() => {
+    if (showAllLevels) return null;
+    const full = new Set<string>();
+    if (!visibilityLevelsActive) return full;
+    for (const [key, vis] of visibilityLevelsActive.entries()) {
+      if (vis >= 2) full.add(key);
+    }
+    return full;
+  }, [showAllLevels, visibilityLevelsActive]);
+  const visionCellsActive = useMemo<Set<string> | null>(() => {
+    if (showAllLevels) return null;
+    const full = new Set<string>();
+    const levelMap = visionByLevel?.get(activeLevel) ?? null;
+    if (!levelMap) return full;
+    for (const [key, vis] of levelMap.entries()) {
+      if (vis >= 2) full.add(key);
+    }
+    return full;
+  }, [showAllLevels, visionByLevel, activeLevel]);
 
   const visionLegend = useMemo(() => {
     const modeFor = (profile?: VisionProfile | null) => {
@@ -2139,6 +2183,44 @@ export const GameBoard: React.FC = () => {
       ? `Vision: joueur=${playerMode} | ennemis: ${enemyModes}`
       : `Vision: joueur=${playerMode}`;
   }, [enemyTypes, player.visionProfile]);
+  const visionDebugSummary = useMemo(() => {
+    const profile = player.visionProfile ?? defaultPlayerVisionProfile;
+    const rangeMeters = Math.max(0, Number(profile?.range ?? 0));
+    const rangeCells = metersToCells(rangeMeters);
+    const geometricCells = visionCellsActive?.size ?? 0;
+    let fullVisibleCells = 0;
+    let partialVisibleCells = 0;
+    if (visibilityLevelsActive && visibilityLevelsActive.size > 0) {
+      for (const vis of visibilityLevelsActive.values()) {
+        if (vis >= 2) fullVisibleCells += 1;
+        else if (vis === 1) partialVisibleCells += 1;
+      }
+    } else {
+      fullVisibleCells = geometricCells;
+    }
+    const lightMode =
+      profile?.lightVision ??
+      (profile?.canSeeInDark ? "darkvision" : "normal");
+    return {
+      facing: player.facing ?? "right",
+      shape: profile.shape,
+      rangeMeters,
+      rangeCells,
+      apertureDeg: profile.shape === "cone" ? (profile.apertureDeg ?? 180) : null,
+      lightMode: resolveLightVisionMode(lightMode),
+      geometricCells,
+      fullVisibleCells,
+      partialVisibleCells,
+      blockerCells: visionBlockersActive.size
+    };
+  }, [
+    player.facing,
+    player.visionProfile,
+    defaultPlayerVisionProfile,
+    visionCellsActive,
+    visibilityLevelsActive,
+    visionBlockersActive
+  ]);
 
   function clampActiveLevel(value: number): number {
     return Math.max(levelRange.min, Math.min(levelRange.max, value));
@@ -2182,6 +2264,7 @@ export const GameBoard: React.FC = () => {
   } = usePixiBoard({
     enabled: isCombatConfigured,
     containerRef: pixiContainerRef,
+    gridKind,
     zoom: boardZoom,
     panX: boardPan.x,
     panY: boardPan.y,
@@ -2202,12 +2285,6 @@ export const GameBoard: React.FC = () => {
     playableCells,
     grid: mapGrid,
     materials: floorMaterialById,
-    lightLevels,
-    lightMap: mapLight,
-    bumpIntensity,
-    windSpeed,
-    windStrength,
-    bumpDebug,
     pixiReadyTick,
     onInvalidate: invalidateBoard
   });
@@ -2397,7 +2474,10 @@ export const GameBoard: React.FC = () => {
     }
 
     if (targetCell) {
-      const distCells = Math.max(Math.abs(targetCell.x - player.x), Math.abs(targetCell.y - player.y));
+      const distCells = gridDistance(
+        { x: targetCell.x, y: targetCell.y },
+        { x: player.x, y: player.y }
+      );
       const dist = cellsToMeters(distCells);
       const inRange =
         (typeof range.min !== "number" || dist >= range.min) &&
@@ -2449,6 +2529,7 @@ export const GameBoard: React.FC = () => {
   const primaryTargetId = getPrimaryTargetId();
   usePixiOverlays({
     pathLayerRef,
+    gridKind,
     player,
     enemies,
     selectedPath,
@@ -2461,10 +2542,9 @@ export const GameBoard: React.FC = () => {
     wallVisionEdges: wallEdges.vision,
     closedCells,
     showVisionDebug,
-    showFogSegments,
-    visibleCells: visibleCellsFull,
-    visionCells: visionCellsFull,
-    visibilityLevels,
+    visibleCells: visibleCellsActive,
+    visionCells: visionCellsActive,
+    visibilityLevels: visibilityLevelsActive,
     showAllLevels,
     lightMap: mapLight,
     lightSources,
@@ -6624,6 +6704,17 @@ export const GameBoard: React.FC = () => {
         kind: "teleportNearPrimaryTarget";
         maxCells: number;
         log?: string;
+      }
+    | {
+        kind: "retryAbilityCheckWithResourceBonus";
+        resourceName: string;
+        resourcePool: string | null;
+        resourceAmount: number;
+        bonusFormula: string;
+        consumeOnTrigger: boolean;
+        diceLog?: string;
+        successLog?: string;
+        failureLog?: string;
       };
   type FeatureRuntimeActionEffectRule = {
     id: string;
@@ -6792,6 +6883,38 @@ export const GameBoard: React.FC = () => {
                   log: typeof effectRaw?.log === "string" ? effectRaw.log : undefined
                 } as FeatureRuntimeEffectRule;
               }
+              if (kind === "retryAbilityCheckWithResourceBonus") {
+                const resourceName = String(
+                  effectRaw?.resourceName ?? effectRaw?.resource?.name ?? ""
+                ).trim();
+                if (!resourceName) return null;
+                const resourcePoolRaw =
+                  effectRaw?.resourcePool ?? effectRaw?.resource?.pool ?? null;
+                const resourcePool =
+                  typeof resourcePoolRaw === "string" && resourcePoolRaw.trim()
+                    ? resourcePoolRaw.trim()
+                    : null;
+                const resourceAmount = Number(
+                  effectRaw?.resourceAmount ?? effectRaw?.resource?.amount ?? 1
+                );
+                if (!Number.isFinite(resourceAmount) || resourceAmount <= 0) return null;
+                const bonusFormula = String(effectRaw?.bonusFormula ?? "").trim();
+                if (!bonusFormula) return null;
+                return {
+                  kind,
+                  resourceName,
+                  resourcePool,
+                  resourceAmount: Math.max(1, Math.floor(resourceAmount)),
+                  bonusFormula,
+                  consumeOnTrigger:
+                    effectRaw?.consumeOnTrigger === undefined
+                      ? true
+                      : Boolean(effectRaw.consumeOnTrigger),
+                  diceLog: typeof effectRaw?.diceLog === "string" ? effectRaw.diceLog : undefined,
+                  successLog: typeof effectRaw?.successLog === "string" ? effectRaw.successLog : undefined,
+                  failureLog: typeof effectRaw?.failureLog === "string" ? effectRaw.failureLog : undefined
+                } as FeatureRuntimeEffectRule;
+              }
               return null;
             })
             .filter((effect): effect is FeatureRuntimeEffectRule => Boolean(effect));
@@ -6862,6 +6985,10 @@ export const GameBoard: React.FC = () => {
     if (when.actionCostType) {
       const costType = String(params.action?.actionCost?.actionType ?? "");
       if (String(when.actionCostType) !== costType) return false;
+    }
+    if (when.actionResolutionKind) {
+      const resolutionKind = String(params.action?.resolution?.kind ?? "").trim().toUpperCase();
+      if (String(when.actionResolutionKind).trim().toUpperCase() !== resolutionKind) return false;
     }
     if (Array.isArray(when.actionTagsAny) && when.actionTagsAny.length > 0) {
       const tags = normalizeDualWieldActionTags(
@@ -7957,10 +8084,6 @@ export const GameBoard: React.FC = () => {
       [key]: Math.max(0, (prev[key] ?? 0) - amount)
     }));
   }
-  function playerHasActiveFeature(featureId: string): boolean {
-    if (!featureId) return false;
-    return activePlayerFeatureIds.includes(featureId);
-  }
   function addOrRefreshRuntimeStatus(
     token: TokenState,
     params: { id: string; remainingTurns?: number; durationTick?: "start" | "end" | "round"; sourceId?: string }
@@ -8025,9 +8148,9 @@ export const GameBoard: React.FC = () => {
         if (obstacleBlocking.movement.has(key)) continue;
         const cellLevel = getBaseHeightAt(x, y);
         if (cellLevel !== activeLevel) continue;
-        const distToActor = Math.max(Math.abs(x - params.from.x), Math.abs(y - params.from.y));
+        const distToActor = gridDistance({ x, y }, params.from);
         if (distToActor > radius) continue;
-        const distToTarget = Math.max(Math.abs(x - target.x), Math.abs(y - target.y));
+        const distToTarget = gridDistance({ x, y }, { x: target.x, y: target.y });
         candidates.push({ x, y, distToActor, distToTarget });
       }
     }
@@ -8224,54 +8347,6 @@ export const GameBoard: React.FC = () => {
         rollOverrides: baseRollOverrides
       }
     );
-
-    const isAbilityCheckAction = action.resolution?.kind === "ABILITY_CHECK";
-    if (
-      result.ok &&
-      isAbilityCheckAction &&
-      result.outcomeKind === "checkFail" &&
-      playerHasActiveFeature("tactical-mind")
-    ) {
-      const secondWindAvailable = getResourceAmount("second-wind", null);
-      if (secondWindAvailable > 0) {
-        const tacticalMindBonus = rollDamage("1d10", { isCrit: false, critRule: "double-dice" }).total;
-        const baseTotal = Number(result.outcomeTotal ?? 0);
-        const checkDc = Number(action.resolution?.check?.dc ?? 0);
-        spendPlayerResource("second-wind", null, 1);
-        pushDiceLog(`Sens tactique: d10 = ${tacticalMindBonus}`);
-        if (Number.isFinite(checkDc) && baseTotal + tacticalMindBonus >= checkDc) {
-          const forcedRoll = Number(result.outcomeRoll ?? NaN);
-          const adjustedAction: ActionDefinition = {
-            ...actionForEngine,
-            resolution: {
-              ...actionForEngine.resolution,
-              check: {
-                ...actionForEngine.resolution?.check,
-                dc: Math.max(0, checkDc - tacticalMindBonus)
-              }
-            }
-          };
-          const retry = resolveActionUnified(
-            adjustedAction,
-            actionRuntimeContext,
-            target ?? { kind: "none" },
-            {
-              weaponMasteryActions,
-              rollOverrides: {
-                ...baseRollOverrides,
-                ...(Number.isFinite(forcedRoll) ? { abilityCheck: forcedRoll } : null)
-              }
-            }
-          );
-          if (retry.ok) {
-            result = retry;
-            pushLog("Sens tactique: l'echec est transforme en reussite.");
-          }
-        } else {
-          pushLog("Sens tactique: bonus insuffisant, le jet reste un echec.");
-        }
-      }
-    }
 
     if (result.logs.length > 0) {
       pushLogBatch(result.logs);
@@ -8477,6 +8552,68 @@ export const GameBoard: React.FC = () => {
               if (!destination) continue;
               nextPlayerState = { ...nextPlayerState, x: destination.x, y: destination.y };
               if (effect.log) pushLog(effect.log.replace("{x}", String(destination.x)).replace("{y}", String(destination.y)));
+              continue;
+            }
+            if (effect.kind === "retryAbilityCheckWithResourceBonus") {
+              if (!result.ok) continue;
+              if (result.outcomeKind !== "checkFail") continue;
+              const available = getResourceAmount(effect.resourceName, effect.resourcePool);
+              if (available < effect.resourceAmount) continue;
+
+              const resolvedFormula = resolveFormula(effect.bonusFormula, {
+                actor: player,
+                sampleCharacter: activeCharacterConfig
+              });
+              const bonus = rollDamage(resolvedFormula, {
+                isCrit: false,
+                critRule: "double-dice"
+              }).total;
+
+              if (effect.consumeOnTrigger) {
+                spendPlayerResource(effect.resourceName, effect.resourcePool, effect.resourceAmount);
+              }
+
+              if (effect.diceLog) {
+                pushDiceLog(
+                  effect.diceLog
+                    .replace("{bonus}", String(bonus))
+                    .replace("{formula}", String(resolvedFormula))
+                );
+              }
+
+              const baseTotal = Number(result.outcomeTotal ?? 0);
+              const checkDc = Number(action.resolution?.check?.dc ?? 0);
+              if (Number.isFinite(checkDc) && baseTotal + bonus >= checkDc) {
+                const forcedRoll = Number(result.outcomeRoll ?? NaN);
+                const adjustedAction: ActionDefinition = {
+                  ...actionForEngine,
+                  resolution: {
+                    ...actionForEngine.resolution,
+                    check: {
+                      ...actionForEngine.resolution?.check,
+                      dc: Math.max(0, checkDc - bonus)
+                    }
+                  }
+                };
+                const retry = resolveActionUnified(
+                  adjustedAction,
+                  actionRuntimeContext,
+                  target ?? { kind: "none" },
+                  {
+                    weaponMasteryActions,
+                    rollOverrides: {
+                      ...baseRollOverrides,
+                      ...(Number.isFinite(forcedRoll) ? { abilityCheck: forcedRoll } : null)
+                    }
+                  }
+                );
+                if (retry.ok) {
+                  result = retry;
+                  if (effect.successLog) pushLog(effect.successLog);
+                }
+              } else if (effect.failureLog) {
+                pushLog(effect.failureLog);
+              }
             }
           }
         }
@@ -8875,7 +9012,10 @@ export const GameBoard: React.FC = () => {
       return;
     }
 
-    const { x: gx, y: gy } = screenToGridForGrid(stageX, stageY, mapGrid.cols, mapGrid.rows);
+    const { x: gx, y: gy } = gridAdapter.toGrid(
+      { x: stageX, y: stageY },
+      { cols: mapGrid.cols, rows: mapGrid.rows }
+    );
     const targetX = gx;
     const targetY = gy;
 
@@ -9338,7 +9478,7 @@ export const GameBoard: React.FC = () => {
       const rect = container.getBoundingClientRect();
       return { anchorX: rect.width / 2, anchorY: rect.height / 2 };
     }
-    const center = gridToScreenForGrid(cell.x, cell.y, mapGrid.cols, mapGrid.rows);
+    const center = gridAdapter.toScreen(cell, { cols: mapGrid.cols, rows: mapGrid.rows });
     return {
       anchorX: viewport.offsetX + center.x * viewport.scale,
       anchorY: viewport.offsetY + center.y * viewport.scale
@@ -10153,7 +10293,6 @@ export const GameBoard: React.FC = () => {
           if (!radius || radius <= 0) {
             return effect.x === nextToken.x && effect.y === nextToken.y;
           }
-          const shape = def?.aura?.shape ?? "SPHERE";
           const anchor =
             effect.anchorTokenId === player.id
               ? player
@@ -10162,23 +10301,49 @@ export const GameBoard: React.FC = () => {
             ? { x: anchor.x, y: anchor.y, facing: anchor.facing }
             : { x: effect.x, y: effect.y, facing: undefined as TokenState["facing"] };
           const cells = metersToCells(radius);
-          const dx = nextToken.x - anchorPos.x;
-          const dy = nextToken.y - anchorPos.y;
-          const inSquare = Math.max(Math.abs(dx), Math.abs(dy)) <= cells;
-          const inLine = (() => {
-            const facing = anchorPos.facing ?? "right";
-            if (facing === "left") return dx <= 0 && Math.abs(dy) <= 1 && Math.abs(dx) <= cells;
-            if (facing === "right") return dx >= 0 && Math.abs(dy) <= 1 && Math.abs(dx) <= cells;
-            if (facing === "up") return dy <= 0 && Math.abs(dx) <= 1 && Math.abs(dy) <= cells;
-            return dy >= 0 && Math.abs(dx) <= 1 && Math.abs(dy) <= cells;
+          const facing = anchorPos.facing ?? "right";
+          const shape = String(def?.aura?.shape ?? "SPHERE").toUpperCase();
+          const shapeCells = (() => {
+            if (shape === "CUBE") {
+              return generateRectangleEffect(
+                `aura-cube-${effect.id}`,
+                anchorPos.x,
+                anchorPos.y,
+                cells * 2 + 1,
+                cells * 2 + 1,
+                { playableCells: playableCells ?? null, grid: mapGrid }
+              ).cells;
+            }
+            if (shape === "LINE") {
+              return generateLineEffect(
+                `aura-line-${effect.id}`,
+                anchorPos.x,
+                anchorPos.y,
+                cells,
+                facing,
+                { playableCells: playableCells ?? null, grid: mapGrid }
+              ).cells;
+            }
+            if (shape === "CONE") {
+              return generateConeEffect(
+                `aura-cone-${effect.id}`,
+                anchorPos.x,
+                anchorPos.y,
+                cells,
+                facing,
+                90,
+                { playableCells: playableCells ?? null, grid: mapGrid }
+              ).cells;
+            }
+            return generateCircleEffect(
+              `aura-sphere-${effect.id}`,
+              anchorPos.x,
+              anchorPos.y,
+              cells,
+              { playableCells: playableCells ?? null, grid: mapGrid }
+            ).cells;
           })();
-          const inCone = (() => {
-            const facing = anchorPos.facing ?? "right";
-            if (facing === "left") return dx <= 0 && Math.abs(dx) >= Math.abs(dy) && Math.abs(dx) <= cells;
-            if (facing === "right") return dx >= 0 && Math.abs(dx) >= Math.abs(dy) && Math.abs(dx) <= cells;
-            if (facing === "up") return dy <= 0 && Math.abs(dy) >= Math.abs(dx) && Math.abs(dy) <= cells;
-            return dy >= 0 && Math.abs(dy) >= Math.abs(dx) && Math.abs(dy) <= cells;
-          })();
+          const inShape = shapeCells.some(c => c.x === nextToken.x && c.y === nextToken.y);
           const inSphere = (() => {
             if (anchor) return distanceBetweenTokens(nextToken, anchor) <= radius;
             const distCells = gridDistance(
@@ -10187,12 +10352,8 @@ export const GameBoard: React.FC = () => {
             );
             return cellsToMeters(distCells) <= radius;
           })();
-          let inShape = false;
-          if (shape === "CUBE") inShape = inSquare;
-          else if (shape === "LINE") inShape = inLine;
-          else if (shape === "CONE") inShape = inCone;
-          else inShape = inSphere;
-          if (!inShape) return false;
+          const isInsideShape = shape === "SPHERE" ? inSphere : inShape;
+          if (!isInsideShape) return false;
           if (anchor && anchor.id === nextToken.id && def?.aura?.includeSelf === false) return false;
           return true;
         }
@@ -14393,34 +14554,22 @@ function handleEndPlayerTurn() {
                     <EffectsPanel
                       showVisionDebug={showVisionDebug}
                       showLightOverlay={showLightOverlay}
-                      showFogSegments={showFogSegments}
                       showCellIds={showCellIds}
                       showAllLevels={showAllLevels}
                       showTerrainIds={showTerrainIds}
                       showTerrainContours={showTerrainContours}
                       showGridLines={showGridLines}
                       shadowLightAngleDeg={shadowLightAngleDeg}
-                      bumpIntensity={bumpIntensity}
-                      windSpeed={windSpeed}
-                      windStrength={windStrength}
-                      bumpDebug={bumpDebug}
                       visionLegend={visionLegend}
-                      onShowCircle={handleShowCircleEffect}
-                      onShowRectangle={handleShowRectangleEffect}
-                      onShowCone={handleShowConeEffect}
+                      visionDebugSummary={visionDebugSummary}
                       onToggleVisionDebug={() => setShowVisionDebug(prev => !prev)}
                       onToggleLightOverlay={() => setShowLightOverlay(prev => !prev)}
-                      onToggleFogSegments={() => setShowFogSegments(prev => !prev)}
                       onToggleCellIds={() => setShowCellIds(prev => !prev)}
                       onToggleShowAllLevels={() => setShowAllLevels(prev => !prev)}
                       onToggleTerrainIds={() => setShowTerrainIds(prev => !prev)}
                       onToggleTerrainContours={() => setShowTerrainContours(prev => !prev)}
                       onToggleGridLines={() => setShowGridLines(prev => !prev)}
                       onChangeShadowLightAngleDeg={value => setShadowLightAngleDeg(value)}
-                      onChangeBumpIntensity={value => setBumpIntensity(value)}
-                      onChangeWindSpeed={value => setWindSpeed(value)}
-                      onChangeWindStrength={value => setWindStrength(value)}
-                      onToggleBumpDebug={() => setBumpDebug(prev => !prev)}
                       onClear={handleClearEffects}
                       fxAnimations={fxAnimations}
                       usageDebug={actionUsageDebug}

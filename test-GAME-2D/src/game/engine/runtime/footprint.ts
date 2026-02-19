@@ -1,5 +1,6 @@
 import type { ConeDirection } from "../boardEffects";
 import type { FootprintSpec, GridPosition, TokenState } from "../../../types";
+import { distanceBetweenGridCells } from "../../../boardConfig";
 
 export type Orientation8 = ConeDirection;
 
@@ -193,7 +194,8 @@ export function isCellInTokenFootprint(token: TokenState, cell: GridPosition): b
 }
 
 export function chebyshevDistance(a: GridPosition, b: GridPosition): number {
-  return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+  // Compat API: le nom historique reste, mais la metrique suit le mode de grille actif.
+  return distanceBetweenGridCells(a, b);
 }
 
 export function distanceToCells(point: GridPosition, cells: GridPosition[]): number {

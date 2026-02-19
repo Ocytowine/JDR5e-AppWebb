@@ -1,4 +1,11 @@
-import { GRID_COLS, GRID_ROWS, isCellInsideGrid } from "./boardConfig";
+import {
+  GRID_COLS,
+  GRID_ROWS,
+  distanceBetweenGridCells,
+  getBoardGridProjectionKind,
+  getGridNeighborsForGrid,
+  isCellInsideGrid
+} from "./boardConfig";
 import type { GridPosition, TokenState, MovementProfile } from "./types";
 import { getHeightAtGrid, type TerrainCell } from "./game/map/generation/draft";
 import { getFloorMaterial } from "./game/map/floors/catalog";
@@ -61,10 +68,6 @@ interface PathfindingOptions {
 
 function coordKey(x: number, y: number): string {
   return `${x},${y}`;
-}
-
-function gridDistance(a: GridPosition, b: GridPosition): number {
-  return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
 }
 
 class MinHeap<T> {
@@ -284,23 +287,7 @@ export function computePathTowards(
   let foundTargetKey: string | null = null;
 
   const allowDiagonals = profile?.directions !== 4;
-  const dirs: GridPosition[] = allowDiagonals
-    ? [
-        { x: 1, y: 0 },
-        { x: -1, y: 0 },
-        { x: 0, y: 1 },
-        { x: 0, y: -1 },
-        { x: 1, y: 1 },
-        { x: 1, y: -1 },
-        { x: -1, y: 1 },
-        { x: -1, y: -1 }
-      ]
-    : [
-        { x: 1, y: 0 },
-        { x: -1, y: 0 },
-        { x: 0, y: 1 },
-        { x: 0, y: -1 }
-      ];
+  const isHexGrid = getBoardGridProjectionKind() === "hex";
 
   const cols = options.grid?.cols ?? GRID_COLS;
   const rows = options.grid?.rows ?? GRID_ROWS;
@@ -316,9 +303,10 @@ export function computePathTowards(
       continue;
     }
 
-    for (const dir of dirs) {
-      const nx = current.x + dir.x;
-      const ny = current.y + dir.y;
+    const neighbors = getGridNeighborsForGrid(current, cols, rows, allowDiagonals);
+    for (const next of neighbors) {
+      const nx = next.x;
+      const ny = next.y;
       const key = coordKey(nx, ny);
 
       if (
@@ -346,8 +334,9 @@ export function computePathTowards(
         continue;
       }
 
-      const isDiagonal = dir.x !== 0 && dir.y !== 0;
+      const isDiagonal = !isHexGrid && nx !== current.x && ny !== current.y;
       if (isDiagonal) {
+        const dir = { x: nx - current.x, y: ny - current.y };
         const sideAOk = canEnterCell(
           entity,
           profile,
@@ -410,7 +399,8 @@ export function computePathTowards(
         costs.set(key, newCost);
         steps.set(key, (steps.get(currentKey) ?? 0) + 1);
         const node: GridPosition = { x: nx, y: ny };
-        open.push(node, newCost);
+        const heuristic = distanceBetweenGridCells(node, target);
+        open.push(node, newCost + heuristic);
       }
 
       if (nx === target.x && ny === target.y) {
@@ -430,7 +420,7 @@ export function computePathTowards(
 
     for (const key of costs.keys()) {
       const [sx, sy] = key.split(",").map(Number);
-      const d = gridDistance({ x: sx, y: sy }, target);
+      const d = distanceBetweenGridCells({ x: sx, y: sy }, target);
       const costFromStart = costs.get(key) ?? 0;
       if (costFromStart === 0) continue;
       if (costFromStart > maxCost) continue;

@@ -7,12 +7,18 @@ import type { BoardEffect } from "../../boardEffects";
 import {
   generateCircleEffect,
   generateConeEffect,
+  generateLineEffect,
   generateRectangleEffect
 } from "../../boardEffects";
-import { TILE_SIZE, gridToScreenForGrid } from "../../boardConfig";
 import {
-  computeVisionEffectForToken,
+  TILE_SIZE,
+  getBoardGridProjectionKind,
+  getGridCellPolygonForGrid,
+  gridToScreenForGrid
+} from "../../boardConfig";
+import {
   getFacingForToken,
+  getVisionRangeCells,
   getVisionProfileForToken,
   isCellVisible
 } from "../../vision";
@@ -20,9 +26,14 @@ import { hasLineOfSight } from "../../lineOfSight";
 import type { WallSegment } from "../../game/map/walls/types";
 import { getTokenOccupiedCells } from "../../game/engine/runtime/footprint";
 import type { LightSource } from "../../lighting";
+import {
+  computeHexFogContoursFromCells,
+  offsetLoopInward
+} from "../../vision/fogContourHex";
 
 export function usePixiOverlays(options: {
   pathLayerRef: RefObject<Graphics | null>;
+  gridKind?: "square" | "hex";
   player: TokenState;
   enemies: TokenState[];
   selectedPath: { x: number; y: number }[];
@@ -34,7 +45,6 @@ export function usePixiOverlays(options: {
   wallVisionEdges?: Map<string, WallSegment> | null;
   closedCells?: Set<string> | null;
   showVisionDebug: boolean;
-  showFogSegments?: boolean;
   lightMap?: number[] | null;
   lightSources?: LightSource[] | null;
   showLightOverlay: boolean;
@@ -134,7 +144,7 @@ export function usePixiOverlays(options: {
             options.player.x,
             options.player.y,
             spec.radius ?? 1,
-            { playableCells: options.playableCells ?? null }
+            { playableCells: options.playableCells ?? null, grid: options.grid }
           );
         case "rectangle":
           return generateRectangleEffect(
@@ -143,7 +153,7 @@ export function usePixiOverlays(options: {
             options.player.y,
             spec.width ?? 1,
             spec.height ?? 1,
-            { playableCells: options.playableCells ?? null }
+            { playableCells: options.playableCells ?? null, grid: options.grid }
           );
         case "cone":
           return generateConeEffect(
@@ -153,7 +163,7 @@ export function usePixiOverlays(options: {
             spec.range ?? 1,
             spec.direction ?? "right",
             undefined,
-            { playableCells: options.playableCells ?? null }
+            { playableCells: options.playableCells ?? null, grid: options.grid }
           );
         default:
           return { id: spec.id, type: "circle", cells: [] };
@@ -175,13 +185,19 @@ export function usePixiOverlays(options: {
       return options.playableCells.has(`${x},${y}`);
     };
 
-    const cellRect = (x: number, y: number) => {
+    const gridKind = getBoardGridProjectionKind();
+    const isHexGrid = gridKind === "hex";
+    const fillCell = (x: number, y: number, color: number, alpha: number) => {
+      if (gridKind === "hex") {
+        const polygon = getGridCellPolygonForGrid(x, y, options.grid.cols, options.grid.rows);
+        pathLayer.poly(polygon.flatMap(p => [p.x, p.y]), true).fill({ color, alpha });
+        return;
+      }
       const center = gridToScreenForGrid(x, y, options.grid.cols, options.grid.rows);
-      return {
-        x: center.x - TILE_SIZE / 2,
-        y: center.y - TILE_SIZE / 2,
-        size: TILE_SIZE
-      };
+      pathLayer.rect(center.x - TILE_SIZE / 2, center.y - TILE_SIZE / 2, TILE_SIZE, TILE_SIZE).fill({
+        color,
+        alpha
+      });
     };
 
     const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
@@ -194,10 +210,10 @@ export function usePixiOverlays(options: {
     };
 
     const activeSources: LightSource[] = [];
-    if (Array.isArray(options.lightSources)) {
+    if (!isHexGrid && Array.isArray(options.lightSources)) {
       activeSources.push(...options.lightSources);
     }
-    if (options.playerTorchOn) {
+    if (!isHexGrid && options.playerTorchOn) {
       activeSources.push({
         x: options.player.x,
         y: options.player.y,
@@ -352,7 +368,7 @@ export function usePixiOverlays(options: {
 
     // Light overlay is now drawn as smooth shapes in lightLayer (no per-cell rendering).
 
-    if (activeSources.length > 0) {
+    if (!isHexGrid && activeSources.length > 0) {
       const gradientTexture = getLightGradientTexture();
       const minAlpha = 0.1;
       const maxAlpha = 0.7;
@@ -406,6 +422,16 @@ export function usePixiOverlays(options: {
       if (!options.visibilityLevels) return 0;
       return options.visibilityLevels.get(buildCellKey(x, y)) ?? 0;
     };
+    const isCellVisibleForFog = (x: number, y: number) => {
+      if (!isCellPlayable(x, y)) return false;
+      if (showAll) return true;
+      const key = buildCellKey(x, y);
+      if (visionCells) return visionCells.has(key);
+      if (options.visibilityLevels) return visibilityLevelAt(x, y) >= 2;
+      const inVision = visionCells ? visionCells.has(key) : true;
+      const perceivable = visibleCells ? visibleCells.has(key) : true;
+      return inVision && perceivable;
+    };
     const isVisibleAtPointForFog = (gx: number, gy: number) => {
       const fx = Math.floor(gx);
       const fy = Math.floor(gy);
@@ -432,7 +458,129 @@ export function usePixiOverlays(options: {
       }
       return false;
     };
+    const fillFogCell = (x: number, y: number, color: number, alpha: number) => {
+      if (gridKind === "hex") {
+        const polygon = getGridCellPolygonForGrid(x, y, options.grid.cols, options.grid.rows);
+        fogLayer.poly(polygon.flatMap(p => [p.x, p.y]), true).fill({ color, alpha });
+        return;
+      }
+      const center = gridToScreenForGrid(x, y, options.grid.cols, options.grid.rows);
+      fogLayer
+        .rect(center.x - TILE_SIZE / 2, center.y - TILE_SIZE / 2, TILE_SIZE, TILE_SIZE)
+        .fill({ color, alpha });
+    };
+    const drawContourLoops = (
+      layer: Graphics,
+      loops: Array<Array<{ x: number; y: number }>>,
+      color: number,
+      alpha: number,
+      width: number
+    ) => {
+      if (loops.length === 0) return;
+      layer.setStrokeStyle({ width, color, alpha });
+      for (const loop of loops) {
+        if (loop.length < 2) continue;
+        layer.moveTo(loop[0].x, loop[0].y);
+        for (let i = 1; i < loop.length; i++) {
+          layer.lineTo(loop[i].x, loop[i].y);
+        }
+        layer.closePath();
+      }
+      layer.stroke();
+    };
+    const fillContourLoops = (
+      layer: Graphics,
+      loops: Array<Array<{ x: number; y: number }>>,
+      color: number,
+      alpha: number
+    ) => {
+      if (loops.length === 0) return;
+      for (const loop of loops) {
+        if (loop.length < 3) continue;
+        layer.moveTo(loop[0].x, loop[0].y);
+        for (let i = 1; i < loop.length; i++) {
+          layer.lineTo(loop[i].x, loop[i].y);
+        }
+        layer.closePath();
+        layer.fill({ color, alpha });
+      }
+    };
+    const drawFogGradientBand = (
+      loops: Array<Array<{ x: number; y: number }>>,
+      color: number,
+      baseAlpha: number
+    ) => {
+      if (loops.length === 0) return;
+      const fillBandBetweenLoops = (
+        outer: Array<{ x: number; y: number }>,
+        inner: Array<{ x: number; y: number }>,
+        alpha: number
+      ) => {
+        if (outer.length < 3 || inner.length < 3) return;
+        if (outer.length !== inner.length) return;
+        for (let i = 0; i < outer.length; i++) {
+          const j = (i + 1) % outer.length;
+          const a = outer[i];
+          const b = outer[j];
+          const c = inner[j];
+          const d = inner[i];
+          fogLayer.moveTo(a.x, a.y);
+          fogLayer.lineTo(b.x, b.y);
+          fogLayer.lineTo(c.x, c.y);
+          fogLayer.lineTo(d.x, d.y);
+          fogLayer.closePath();
+          fogLayer.fill({ color, alpha });
+        }
+      };
 
+      // Longer inward-only fog fringe: more rings for a deeper transparency gradient.
+      const ringSteps = [16, 14, 12, 10, 8, 7, 6, 5];
+      const ringAlpha = [
+        baseAlpha * 0.24,
+        baseAlpha * 0.2,
+        baseAlpha * 0.17,
+        baseAlpha * 0.14,
+        baseAlpha * 0.11,
+        baseAlpha * 0.085,
+        baseAlpha * 0.065,
+        baseAlpha * 0.05
+      ];
+      let currentLoops = loops;
+      for (let ring = 0; ring < ringSteps.length; ring++) {
+        const step = ringSteps[ring];
+        const alpha = ringAlpha[ring];
+        const nextLoops: Array<Array<{ x: number; y: number }>> = [];
+        for (const loop of currentLoops) {
+          if (loop.length < 6) continue;
+          const inner = offsetLoopInward(loop, step);
+          if (inner.length !== loop.length || inner.length < 6) continue;
+          fillBandBetweenLoops(loop, inner, alpha);
+          nextLoops.push(inner);
+        }
+        if (nextLoops.length === 0) break;
+        currentLoops = nextLoops;
+      }
+    };
+    const roundClosedLoop = (
+      loop: Array<{ x: number; y: number }>,
+      passes = 1
+    ): Array<{ x: number; y: number }> => {
+      if (loop.length < 4 || passes <= 0) return loop;
+      let current = [...loop];
+      for (let pass = 0; pass < passes; pass++) {
+        const next: Array<{ x: number; y: number }> = [];
+        for (let i = 0; i < current.length; i++) {
+          const a = current[i];
+          const b = current[(i + 1) % current.length];
+          const q = { x: 0.75 * a.x + 0.25 * b.x, y: 0.75 * a.y + 0.25 * b.y };
+          const r = { x: 0.25 * a.x + 0.75 * b.x, y: 0.25 * a.y + 0.75 * b.y };
+          next.push(q, r);
+        }
+        current = next;
+        if (current.length > 2400) break;
+      }
+      return current;
+    };
     const directionToAngleRad = (dir: string) => {
       switch (dir) {
         case "up":
@@ -456,13 +604,55 @@ export function usePixiOverlays(options: {
       }
     };
 
-    if (hasVisibilityMask && fogAlpha > 0) {
+    if (isHexGrid && hasVisibilityMask && fogAlpha > 0 && !options.showVisionDebug) {
+      const fogCells: Array<{ x: number; y: number }> = [];
+      for (let y = 0; y < options.grid.rows; y++) {
+        for (let x = 0; x < options.grid.cols; x++) {
+          if (!isCellPlayable(x, y)) continue;
+          if (isCellVisibleForFog(x, y)) continue;
+          fogCells.push({ x, y });
+        }
+      }
+
+      const fogContoursRaw = computeHexFogContoursFromCells({
+        fogCells,
+        grid: options.grid
+      }).rawLoops;
+      const fogContours = fogContoursRaw.map(loop => roundClosedLoop(loop, 1));
+      if (fogContours.length > 0) {
+        // Gameplay view: fog fill + gradient only (no visible contour stroke).
+        fillContourLoops(fogLayer, fogContours, fogColor, fogAlpha);
+        drawFogGradientBand(fogContours, fogColor, fogAlpha);
+      }
+
+      if (options.showVisionDebug) {
+        const debugCells = visionCells ?? visibleCells;
+        if (debugCells && debugCells.size > 0) {
+          fogLayer.setStrokeStyle({ width: 2, color: 0x2dd4bf, alpha: 0.9 });
+          for (const k of debugCells) {
+            const [xs, ys] = k.split(",");
+            const x = Number(xs);
+            const y = Number(ys);
+            if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+            if (!isCellPlayable(x, y)) continue;
+            const polygon = getGridCellPolygonForGrid(x, y, options.grid.cols, options.grid.rows);
+            fogLayer.moveTo(polygon[0].x, polygon[0].y);
+            for (let i = 1; i < polygon.length; i++) {
+              fogLayer.lineTo(polygon[i].x, polygon[i].y);
+            }
+            fogLayer.closePath();
+          }
+          fogLayer.stroke();
+        }
+      }
+    }
+
+    if (!isHexGrid && hasVisibilityMask && fogAlpha > 0 && !options.showVisionDebug) {
       const cols = options.grid.cols;
       const rows = options.grid.rows;
       const profile = getVisionProfileForToken(options.player);
       const centerGrid = { x: options.player.x, y: options.player.y };
-      const centerScreen = gridToScreenRaw(centerGrid.x, centerGrid.y);
-      const range = Math.max(0, profile.range ?? 0);
+      const range = getVisionRangeCells(profile);
       if (range > 0) {
         const facing = getFacingForToken(options.player);
         const coneApertureDeg =
@@ -692,21 +882,6 @@ export function usePixiOverlays(options: {
           drawRegionFog(region);
         }
 
-        if (options.showFogSegments) {
-          pathLayer.setStrokeStyle({ width: 2, color: 0xffffff, alpha: 0.85 });
-          const coneRegion = regions.find(r => r.some(s => s.inCone)) ?? samples;
-          const coneSamples = coneRegion.filter(s => s.inCone && s.clearDist > 0);
-          if (coneSamples.length > 0) {
-            pathLayer.moveTo(centerScreen.x, centerScreen.y);
-            for (const s of coneSamples) {
-              const dist = Math.max(baseMin, s.clearDist);
-              const p = toScreenAt(s.angle, dist);
-              pathLayer.lineTo(p.x, p.y);
-            }
-            pathLayer.closePath();
-            pathLayer.stroke();
-          }
-        }
       }
     }
 
@@ -717,11 +892,7 @@ export function usePixiOverlays(options: {
           if (!isCellPlayable(x, y)) continue;
           const key = buildCellKey(x, y);
           if (!options.closedCells.has(key)) continue;
-          const rect = cellRect(x, y);
-          pathLayer.rect(rect.x, rect.y, rect.size, rect.size).fill({
-            color: 0x000000,
-            alpha: 0.5
-          });
+          fillCell(x, y, 0x000000, 0.5);
         }
       }
     }
@@ -752,7 +923,6 @@ export function usePixiOverlays(options: {
           continue;
         }
 
-        const rect = cellRect(cell.x, cell.y);
         const color =
           effect.type === "circle"
             ? 0x3498db
@@ -760,47 +930,105 @@ export function usePixiOverlays(options: {
               ? 0x2ecc71
               : 0xe74c3c;
 
-        pathLayer.rect(rect.x, rect.y, rect.size, rect.size).fill({
-          color,
-          alpha: 0.45
-        });
+        fillCell(cell.x, cell.y, color, 0.45);
       }
     }
 
     if (options.showVisionDebug) {
-      const allTokens: TokenState[] = [options.player, ...options.enemies];
-      for (const token of allTokens) {
-          const visionEffect = computeVisionEffectForToken(token, options.playableCells ?? null);
-          for (const cell of visionEffect.cells) {
-          if (!isCellInView(cell.x, cell.y)) continue;
-          if (
-            options.playableCells &&
-            options.playableCells.size > 0 &&
-            !options.playableCells.has(`${cell.x},${cell.y}`)
-          ) {
-            continue;
-          }
-          if (
-            !isCellVisible(
-              token,
-              cell,
-              options.obstacleVisionCells ?? null,
-              options.playableCells ?? null,
-              options.wallVisionEdges ?? null,
-              options.lightLevels ?? null,
-              options.grid
-            )
-          ) {
-            continue;
-          }
-          const rect = cellRect(cell.x, cell.y);
-          const color = token.type === "player" ? 0x2980b9 : 0xc0392b;
+      const parseKey = (k: string): { x: number; y: number } | null => {
+        const [xs, ys] = k.split(",");
+        const x = Number(xs);
+        const y = Number(ys);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+        return { x, y };
+      };
+      const mechanicalLevelAt = (x: number, y: number): number => {
+        const key = buildCellKey(x, y);
+        if (options.visibilityLevels) return options.visibilityLevels.get(key) ?? 0;
+        if (visionCells) return visionCells.has(key) ? 2 : 0;
+        return 0;
+      };
 
-          pathLayer.rect(rect.x, rect.y, rect.size, rect.size).fill({
-            color,
-            alpha: token.type === "player" ? 0.25 : 0.2
-          });
+      // Debug mode: replace aesthetic fog with explicit mechanical visibility map.
+      fogLayer.clear();
+      for (let y = 0; y < options.grid.rows; y++) {
+        for (let x = 0; x < options.grid.cols; x++) {
+          if (!isCellPlayable(x, y)) continue;
+          const vis = mechanicalLevelAt(x, y);
+          if (vis >= 2) fillFogCell(x, y, 0x2563eb, 0.24);
         }
+      }
+
+      if (visionCells && visionCells.size > 0) {
+        fogLayer.setStrokeStyle({ width: 1.5, color: 0x2dd4bf, alpha: 0.95 });
+        for (const k of visionCells) {
+          const cell = parseKey(k);
+          if (!cell) continue;
+          if (!isCellPlayable(cell.x, cell.y)) continue;
+          if (gridKind === "hex") {
+            const polygon = getGridCellPolygonForGrid(cell.x, cell.y, options.grid.cols, options.grid.rows);
+            fogLayer.moveTo(polygon[0].x, polygon[0].y);
+            for (let i = 1; i < polygon.length; i++) {
+              fogLayer.lineTo(polygon[i].x, polygon[i].y);
+            }
+            fogLayer.closePath();
+          } else {
+            const center = gridToScreenForGrid(cell.x, cell.y, options.grid.cols, options.grid.rows);
+            fogLayer.rect(center.x - TILE_SIZE / 2, center.y - TILE_SIZE / 2, TILE_SIZE, TILE_SIZE);
+          }
+        }
+        fogLayer.stroke();
+      }
+
+      if (options.obstacleVisionCells && options.obstacleVisionCells.size > 0) {
+        for (const k of options.obstacleVisionCells) {
+          const cell = parseKey(k);
+          if (!cell) continue;
+          if (!isCellPlayable(cell.x, cell.y)) continue;
+          fillFogCell(cell.x, cell.y, 0xef4444, 0.22);
+        }
+      }
+
+      if (isHexGrid) {
+        const fogCells: Array<{ x: number; y: number }> = [];
+        for (let y = 0; y < options.grid.rows; y++) {
+          for (let x = 0; x < options.grid.cols; x++) {
+            if (!isCellPlayable(x, y)) continue;
+            if (mechanicalLevelAt(x, y) >= 2) continue;
+            fogCells.push({ x, y });
+          }
+        }
+        if (fogCells.length > 0) {
+          const fogContoursRaw = computeHexFogContoursFromCells({
+            fogCells,
+            grid: options.grid
+          }).rawLoops;
+          const fogContours = fogContoursRaw.map(loop => roundClosedLoop(loop, 1));
+          if (fogContours.length > 0) {
+            // FX: show raw mechanical frontier contours only.
+            drawContourLoops(pathLayer, fogContours, 0xffffff, 0.95, 2.8);
+          }
+        }
+      }
+
+      const facing = getFacingForToken(options.player);
+      const facingLine = generateLineEffect(
+        "vision-facing-debug",
+        options.player.x,
+        options.player.y,
+        2,
+        facing,
+        { playableCells: options.playableCells ?? null, grid: options.grid }
+      );
+      if (facingLine.cells.length >= 2) {
+        const from = facingLine.cells[0];
+        const to = facingLine.cells[facingLine.cells.length - 1];
+        const p0 = gridToScreenForGrid(from.x, from.y, options.grid.cols, options.grid.rows);
+        const p1 = gridToScreenForGrid(to.x, to.y, options.grid.cols, options.grid.rows);
+        pathLayer.setStrokeStyle({ width: 3, color: 0xfacc15, alpha: 0.95 });
+        pathLayer.moveTo(p0.x, p0.y);
+        pathLayer.lineTo(p1.x, p1.y);
+        pathLayer.stroke();
       }
     }
 
@@ -809,11 +1037,7 @@ export function usePixiOverlays(options: {
       const color = token.type === "player" ? 0x2ecc71 : 0xe74c3c;
       for (const cell of getTokenOccupiedCells(token)) {
         if (!isCellInView(cell.x, cell.y)) continue;
-        const rect = cellRect(cell.x, cell.y);
-        pathLayer.rect(rect.x, rect.y, rect.size, rect.size).fill({
-          color,
-          alpha: 0.2
-        });
+        fillCell(cell.x, cell.y, color, 0.2);
       }
     }
 
@@ -829,30 +1053,18 @@ export function usePixiOverlays(options: {
         if (!target) continue;
         for (const cell of getTokenOccupiedCells(target)) {
           if (!isCellInView(cell.x, cell.y)) continue;
-          const rect = cellRect(cell.x, cell.y);
-          pathLayer.rect(rect.x, rect.y, rect.size, rect.size).fill({
-            color: 0x3498db,
-            alpha: 0.6
-          });
+          fillCell(cell.x, cell.y, 0x3498db, 0.6);
         }
       }
     }
 
     if (options.selectedObstacleCell && isCellInView(options.selectedObstacleCell.x, options.selectedObstacleCell.y)) {
-      const rect = cellRect(options.selectedObstacleCell.x, options.selectedObstacleCell.y);
-      pathLayer.rect(rect.x, rect.y, rect.size, rect.size).fill({
-        color: 0x9b59b6,
-        alpha: 0.6
-      });
+      fillCell(options.selectedObstacleCell.x, options.selectedObstacleCell.y, 0x9b59b6, 0.6);
     }
 
     if (options.selectedPath.length > 0) {
       const last = options.selectedPath[options.selectedPath.length - 1];
-      const rect = cellRect(last.x, last.y);
-      pathLayer.rect(rect.x, rect.y, rect.size, rect.size).fill({
-        color: 0xf1c40f,
-        alpha: 0.2
-      });
+      fillCell(last.x, last.y, 0xf1c40f, 0.2);
     }
 
     for (const enemy of options.enemies) {
@@ -881,15 +1093,28 @@ export function usePixiOverlays(options: {
       const cols = options.grid.cols;
       const rows = options.grid.rows;
       pathLayer.setStrokeStyle({ width: 1, color: 0xffffff, alpha: 0.25 });
-      for (let x = 0; x <= cols; x++) {
-        const px = x * TILE_SIZE;
-        pathLayer.moveTo(px, 0);
-        pathLayer.lineTo(px, rows * TILE_SIZE);
-      }
-      for (let y = 0; y <= rows; y++) {
-        const py = y * TILE_SIZE;
-        pathLayer.moveTo(0, py);
-        pathLayer.lineTo(cols * TILE_SIZE, py);
+      if (gridKind === "hex") {
+        for (let y = 0; y < rows; y++) {
+          for (let x = 0; x < cols; x++) {
+            const polygon = getGridCellPolygonForGrid(x, y, cols, rows);
+            pathLayer.moveTo(polygon[0].x, polygon[0].y);
+            for (let i = 1; i < polygon.length; i++) {
+              pathLayer.lineTo(polygon[i].x, polygon[i].y);
+            }
+            pathLayer.closePath();
+          }
+        }
+      } else {
+        for (let x = 0; x <= cols; x++) {
+          const px = x * TILE_SIZE;
+          pathLayer.moveTo(px, 0);
+          pathLayer.lineTo(px, rows * TILE_SIZE);
+        }
+        for (let y = 0; y <= rows; y++) {
+          const py = y * TILE_SIZE;
+          pathLayer.moveTo(0, py);
+          pathLayer.lineTo(cols * TILE_SIZE, py);
+        }
       }
       pathLayer.stroke();
     }
@@ -913,6 +1138,7 @@ export function usePixiOverlays(options: {
     pathLayer.stroke();
   }, [
     options.pathLayerRef,
+    options.gridKind,
     options.player,
     options.enemies,
     options.selectedPath,
@@ -921,7 +1147,6 @@ export function usePixiOverlays(options: {
     options.selectedTargetIds,
     options.selectedObstacleCell,
     options.showVisionDebug,
-    options.showFogSegments,
     options.showLightOverlay,
     options.showGridLines,
     options.lightMap,

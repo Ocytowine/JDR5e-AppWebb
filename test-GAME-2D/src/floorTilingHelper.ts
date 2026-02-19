@@ -8,7 +8,6 @@ const tilingModules = import.meta.glob("./game/map/floors/tiling/*.png", {
 
 const FLOOR_TILING_BY_ID: Record<string, string> = {};
 const FLOOR_TILING_VARIANTS_BY_ID: Record<string, string[]> = {};
-const FLOOR_BUMP_BY_ID: Record<string, string> = {};
 const loadedAliases = new Set<string>();
 const pendingAliases = new Set<string>();
 const resizedTextureByKey = new Map<string, Texture>();
@@ -23,16 +22,8 @@ const tilingBaseNames = new Set(tilingEntries.map(entry => entry.baseName));
 
 for (const { baseName, url } of tilingEntries) {
   if (!baseName) continue;
-  if (baseName.endsWith("-bump")) {
-    const id = baseName.replace(/-bump$/i, "");
-    if (id) FLOOR_BUMP_BY_ID[id] = url;
-    continue;
-  }
-  if (/^bump-/i.test(baseName)) {
-    const id = baseName.replace(/^bump-/i, "");
-    if (id) FLOOR_BUMP_BY_ID[id] = url;
-    continue;
-  }
+  if (baseName.endsWith("-bump")) continue;
+  if (/^bump-/i.test(baseName)) continue;
 
   const variantMatch = baseName.match(/^(.*?)(?:[-_]?)(\d+)$/);
   const hasVariantSuffix = Boolean(variantMatch && variantMatch[1]);
@@ -65,11 +56,6 @@ export function getFloorTilingUrl(id: string | null | undefined): string | null 
 export function getFloorTilingVariantUrls(id: string | null | undefined): string[] {
   if (!id) return [];
   return FLOOR_TILING_VARIANTS_BY_ID[id] ?? [];
-}
-
-export function getFloorBumpUrl(id: string | null | undefined): string | null {
-  if (!id) return null;
-  return FLOOR_BUMP_BY_ID[id] ?? null;
 }
 
 async function loadImage(url: string): Promise<HTMLImageElement> {
@@ -121,14 +107,6 @@ export function getFloorTilingTextureFromUrl(url: string | null | undefined, siz
   return resizedTextureByKey.get(key) ?? null;
 }
 
-export function getFloorBumpTexture(id: string | null | undefined, size: number): Texture | null {
-  if (!id) return null;
-  const url = getFloorBumpUrl(id);
-  if (!url) return null;
-  const key = `${url}:${size}`;
-  return resizedTextureByKey.get(key) ?? null;
-}
-
 export async function preloadFloorTilingTexturesFor(ids: string[], size: number): Promise<void> {
   if (!Array.isArray(ids) || ids.length === 0) return;
 
@@ -138,7 +116,7 @@ export async function preloadFloorTilingTexturesFor(ids: string[], size: number)
   >();
 
   for (const id of ids) {
-    const urls = [...getFloorTilingVariantUrls(id), getFloorBumpUrl(id)].filter(Boolean) as string[];
+    const urls = [...getFloorTilingVariantUrls(id)].filter(Boolean) as string[];
     for (const url of urls) {
       if (loadedAliases.has(url) || pendingAliases.has(url)) continue;
       assets.set(url, {
@@ -158,7 +136,7 @@ export async function preloadFloorTilingTexturesFor(ids: string[], size: number)
   if (assets.size === 0 && ids.length > 0) {
     // Still ensure resized textures exist for already-loaded urls.
     for (const id of ids) {
-      const urls = [...getFloorTilingVariantUrls(id), getFloorBumpUrl(id)].filter(Boolean) as string[];
+      const urls = [...getFloorTilingVariantUrls(id)].filter(Boolean) as string[];
       for (const url of urls) {
         const key = `${url}:${size}`;
         if (resizedTextureByKey.has(key) || resizedPendingByKey.has(key)) continue;
@@ -186,7 +164,7 @@ export async function preloadFloorTilingTexturesFor(ids: string[], size: number)
       pendingAliases.delete(alias);
     }
     for (const id of ids) {
-      const urls = [...getFloorTilingVariantUrls(id), getFloorBumpUrl(id)].filter(Boolean) as string[];
+      const urls = [...getFloorTilingVariantUrls(id)].filter(Boolean) as string[];
       for (const url of urls) {
         const key = `${url}:${size}`;
         if (resizedTextureByKey.has(key) || resizedPendingByKey.has(key)) continue;

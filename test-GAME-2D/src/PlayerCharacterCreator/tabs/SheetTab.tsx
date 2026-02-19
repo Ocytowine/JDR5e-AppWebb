@@ -137,7 +137,10 @@ export function SheetTab(props: {
     formatEquipmentLabel
   } = props;
   const [showCharacterJson, setShowCharacterJson] = useState(false);
-  const [selectedDerivedFeatureId, setSelectedDerivedFeatureId] = useState<string | null>(null);
+  const [derivedDetailModal, setDerivedDetailModal] = useState<{
+    title: string;
+    payload: unknown;
+  } | null>(null);
   const featureById = useMemo(() => {
     const map = new Map<string, any>();
     loadFeatureTypesFromIndex().forEach(feature => {
@@ -154,25 +157,36 @@ export function SheetTab(props: {
     });
     return map;
   }, [featureById]);
-  const actionLabelById = useMemo(() => {
-    const map = new Map<string, string>();
+  const actionById = useMemo(() => {
+    const map = new Map<string, any>();
     loadActionTypesFromIndex().forEach(action => {
       if (!action?.id) return;
-      map.set(String(action.id), String(action.name ?? action.id));
+      map.set(String(action.id), action);
+    });
+    return map;
+  }, []);
+  const actionLabelById = useMemo(() => {
+    const map = new Map<string, string>();
+    actionById.forEach((action, id) => {
+      map.set(String(id), String(action?.name ?? id));
+    });
+    return map;
+  }, [actionById]);
+  const reactionById = useMemo(() => {
+    const map = new Map<string, any>();
+    loadReactionTypesFromIndex().forEach(reaction => {
+      if (!reaction?.id) return;
+      map.set(String(reaction.id), reaction);
     });
     return map;
   }, []);
   const reactionLabelById = useMemo(() => {
     const map = new Map<string, string>();
-    loadReactionTypesFromIndex().forEach(reaction => {
-      if (!reaction?.id) return;
-      map.set(String(reaction.id), String(reaction.name ?? reaction.id));
+    reactionById.forEach((reaction, id) => {
+      map.set(String(id), String(reaction?.name ?? id));
     });
     return map;
-  }, []);
-  const selectedDerivedFeature =
-    selectedDerivedFeatureId ? featureById.get(selectedDerivedFeatureId) ?? null : null;
-
+  }, [reactionById]);
   return (
 <>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
@@ -219,6 +233,14 @@ export function SheetTab(props: {
                   const backgroundLanguages = Array.isArray(backgroundChoices.languages)
                     ? backgroundChoices.languages
                     : [];
+                  const backgroundSkillLabels = getBackgroundSkillProficiencies(activeBackground)
+                    .map(id => competenceOptions.find(c => c.id === id)?.label ?? id);
+                  const backgroundToolLabels = getBackgroundToolProficiencies(activeBackground)
+                    .map(id => toolMasteryOptions.find(t => t.id === id)?.label ?? id);
+                  const backgroundChoiceToolLabels = backgroundTools
+                    .map(id => toolMasteryOptions.find(t => t.id === id)?.label ?? id)
+                    .filter(Boolean);
+                  const backgroundChoiceLanguageLabels = backgroundLanguages.filter(Boolean);
                   const derivedGrants = ((liveDerivedGrants ?? (character as any)?.derived?.grants ?? {}) as Record<string, any>);
                   const derivedFeatures = Array.isArray(derivedGrants.features) ? derivedGrants.features : [];
                   const derivedActions = Array.isArray(derivedGrants.actions) ? derivedGrants.actions : [];
@@ -226,6 +248,198 @@ export function SheetTab(props: {
                   const derivedResources = Array.isArray(derivedGrants.resources) ? derivedGrants.resources : [];
                   const derivedPassifs = Array.isArray(derivedGrants.passifs) ? derivedGrants.passifs : [];
                   const derivedSpells = Array.isArray(derivedGrants.spells) ? derivedGrants.spells : [];
+                  const derivedWeaponMasteries = Array.isArray(derivedGrants.weaponMasteries)
+                    ? derivedGrants.weaponMasteries
+                    : [];
+                  const resolveFeatureBucket = (featureId: string) => {
+                    const feature = featureById.get(featureId);
+                    const tags = Array.isArray((feature as any)?.tags)
+                      ? ((feature as any).tags as string[]).map(tag => String(tag).toLowerCase())
+                      : [];
+                    const tagToBucket: Record<string, "styles" | "resources" | "passifs" | "actions" | "reactions" | "spells" | "weaponMasteries"> = {
+                      "fighting-style": "styles",
+                      "resource": "resources",
+                      "resources": "resources",
+                      "ressource": "resources",
+                      "ressources": "resources",
+                      "passif": "passifs",
+                      "passifs": "passifs",
+                      "passive": "passifs",
+                      "passives": "passifs",
+                      "action": "actions",
+                      "actions": "actions",
+                      "reaction": "reactions",
+                      "reactions": "reactions",
+                      "spell": "spells",
+                      "spells": "spells",
+                      "spellcasting": "spells",
+                      "weapon-mastery": "weaponMasteries",
+                      "weaponmastery": "weaponMasteries",
+                      "wm": "weaponMasteries"
+                    };
+                    for (const tag of tags) {
+                      const bucket = tagToBucket[tag];
+                      if (bucket) return bucket;
+                    }
+                    if (featureId.startsWith("fighting-style-")) return "styles";
+                    return "features";
+                  };
+                  const featureBuckets = derivedFeatures
+                    .map(id => String(id))
+                    .filter(Boolean)
+                    .reduce(
+                      (acc, featureId) => {
+                        const bucket = resolveFeatureBucket(featureId);
+                        if (!acc[bucket].includes(featureId)) acc[bucket].push(featureId);
+                        return acc;
+                      },
+                      {
+                        features: [] as string[],
+                        styles: [] as string[],
+                        resources: [] as string[],
+                        passifs: [] as string[],
+                        actions: [] as string[],
+                        reactions: [] as string[],
+                        spells: [] as string[],
+                        weaponMasteries: [] as string[]
+                      }
+                    );
+                  const uncategorizedFeatureIds = featureBuckets.features;
+                  const derivedStyleFeatureIds = featureBuckets.styles;
+                  const derivedStyleEntries = Array.from(
+                    new Set(
+                      derivedStyleFeatureIds.map(
+                        id => String(id)
+                      )
+                    )
+                  )
+                    .filter(id => id !== "fighting-style")
+                    .map(id => ({
+                      id,
+                      label:
+                        featureLabelById.get(id) ??
+                        unlockedFightingStyles.find(entry => entry.id === id)?.label ??
+                        id,
+                      payload: featureById.get(id) ?? { id, error: "feature introuvable dans le catalogue" }
+                    }));
+                  const weaponMasteryLabelById = new Map(
+                    unlockedWeaponMasteries.map(entry => [String(entry.id), String(entry.label)] as const)
+                  );
+                  const derivedWeaponMasteryEntries = Array.from(
+                    new Set(
+                      derivedWeaponMasteries
+                        .map(id => String(id))
+                        .filter(Boolean)
+                    )
+                  ).map(id => {
+                    const linkedActionId = `wm-${id}`;
+                    const linkedAction = actionById.get(linkedActionId) ?? null;
+                    const masteryFeature = featureById.get("weapon-mastery") ?? null;
+                    const masteryChoices = Array.isArray((masteryFeature as any)?.rules?.choices)
+                      ? ((masteryFeature as any).rules.choices as Array<any>)
+                      : [];
+                    const masteryOption = masteryChoices
+                      .flatMap(choice => (Array.isArray(choice?.options) ? choice.options : []))
+                      .find(option => String(option?.id ?? "") === id) ?? null;
+                    return {
+                      id,
+                      label: weaponMasteryLabelById.get(id) ?? id,
+                      payload: {
+                        id,
+                        label: weaponMasteryLabelById.get(id) ?? id,
+                        sourceFeature: masteryFeature,
+                        masteryOption,
+                        linkedActionId,
+                        linkedAction
+                      }
+                    };
+                  });
+                  const progressionSpellSourceKinds = ["class:", "subclass:", "race:", "background:", "feature:", "feat:"];
+                  const selectedProgressionSpellIds = Array.from(
+                    new Set(
+                      Object.entries(spellcastingSelections)
+                        .filter(([sourceKey]) =>
+                          progressionSpellSourceKinds.some(prefix =>
+                            String(sourceKey).toLowerCase().startsWith(prefix)
+                          )
+                        )
+                        .flatMap(([, selection]) => {
+                          const known = Array.isArray(selection?.knownSpells) ? selection.knownSpells : [];
+                          const prepared = Array.isArray(selection?.preparedSpells) ? selection.preparedSpells : [];
+                          const granted = Array.isArray(selection?.grantedSpells) ? selection.grantedSpells : [];
+                          return [...known, ...prepared, ...granted]
+                            .map(entry => getSpellId(entry))
+                            .map(id => String(id))
+                            .filter(Boolean);
+                        })
+                    )
+                  );
+                  const imposedProgressionSpellIds = Array.from(
+                    new Set(
+                      Object.entries(spellcastingSelections)
+                        .filter(([sourceKey]) =>
+                          progressionSpellSourceKinds.some(prefix =>
+                            String(sourceKey).toLowerCase().startsWith(prefix)
+                          )
+                        )
+                        .flatMap(([, selection]) => {
+                          const granted = Array.isArray(selection?.grantedSpells) ? selection.grantedSpells : [];
+                          return granted
+                            .map(entry => getSpellId(entry))
+                            .map(id => String(id))
+                            .filter(Boolean);
+                        })
+                    )
+                  );
+                  const imposedSpellIds = Array.from(
+                    new Set([
+                      ...derivedSpells.map(id => String(id)).filter(Boolean),
+                      ...imposedProgressionSpellIds
+                    ])
+                  );
+                  const imposedSpellSet = new Set(imposedSpellIds);
+                  const chosenSpellIds = selectedProgressionSpellIds.filter(id => !imposedSpellSet.has(id));
+                  const effectiveSpellIds = Array.from(new Set([...imposedSpellIds, ...chosenSpellIds]));
+                  const imposedSpellEntries = imposedSpellIds.map(id => ({
+                    id,
+                    label: getSpellName(id),
+                    payload: spellCatalog.byId.get(id) ?? { id, error: "sort introuvable dans le catalogue" }
+                  }));
+                  const chosenSpellEntries = chosenSpellIds.map(id => ({
+                    id,
+                    label: getSpellName(id),
+                    payload: spellCatalog.byId.get(id) ?? { id, error: "sort introuvable dans le catalogue" }
+                  }));
+                  const allDerivedSpellEntries = effectiveSpellIds.map(id => ({
+                    id,
+                    label: getSpellName(id),
+                    payload: spellCatalog.byId.get(id) ?? { id, error: "sort introuvable dans le catalogue" }
+                  }));
+                  const resourceEntries = Array.from(
+                    new Set([
+                      ...derivedResources.map(id => String(id)).filter(Boolean),
+                      ...featureBuckets.resources.map(id => String(id)).filter(Boolean)
+                    ])
+                  ).map(id => {
+                    const feature = featureById.get(id) ?? null;
+                    const action = actionById.get(id) ?? null;
+                    const label = featureLabelById.get(id) ?? actionLabelById.get(id) ?? id;
+                    return {
+                      id,
+                      label,
+                      payload: feature ?? action ?? { id, label, error: "ressource introuvable dans les catalogues" }
+                    };
+                  });
+                  const passifLabels = Array.from(
+                    new Set([
+                      ...derivedPassifs.map(id => String(id)).filter(Boolean),
+                      ...featureBuckets.passifs.map(id => featureLabelById.get(id) ?? id)
+                    ])
+                  );
+                  const shouldShowEffectiveSpells =
+                    allDerivedSpellEntries.length > 0 &&
+                    imposedSpellEntries.length > 0 &&
+                    chosenSpellEntries.length > 0;
                   const listFeatureActionIds = (featureId: string) => {
                     const grants = (featureById.get(featureId)?.grants ?? []) as Array<any>;
                     return grants
@@ -289,6 +503,105 @@ export function SheetTab(props: {
                       ...derivedFeatures.flatMap(featureId => listFeatureReactionIds(String(featureId)))
                     ])
                   );
+                  const toActionEntry = (id: string) => {
+                    const action = actionById.get(id) ?? null;
+                    return {
+                      id,
+                      label: actionLabelById.get(id) ?? id,
+                      payload: action ?? { id, error: "action introuvable dans le catalogue" }
+                    };
+                  };
+                  const toReactionEntry = (id: string) => {
+                    const reaction = reactionById.get(id) ?? null;
+                    return {
+                      id,
+                      label: reactionLabelById.get(id) ?? id,
+                      payload: reaction ?? { id, error: "reaction introuvable dans le catalogue" }
+                    };
+                  };
+                  const directActionEntries = derivedActions
+                    .map(id => String(id))
+                    .filter(Boolean)
+                    .map(toActionEntry);
+                  const effectiveActionEntries = expandedDerivedActions.map(toActionEntry);
+                  const directReactionEntries = derivedReactions
+                    .map(id => String(id))
+                    .filter(Boolean)
+                    .map(toReactionEntry);
+                  const effectiveReactionEntries = expandedDerivedReactions.map(toReactionEntry);
+                  const passifEntries = Array.from(
+                    new Set([
+                      ...derivedPassifs.map(id => String(id)).filter(Boolean),
+                      ...featureBuckets.passifs.map(id => String(id)).filter(Boolean)
+                    ])
+                  ).map(id => {
+                    const feature = featureById.get(id) ?? null;
+                    const label = featureLabelById.get(id) ?? id;
+                    return {
+                      id,
+                      label,
+                      payload: feature ?? { id, label, error: "passif introuvable dans le catalogue" }
+                    };
+                  });
+                  const renderDerivedChipSection = (
+                    title: string,
+                    entries: Array<{ id: string; label: string; payload: unknown }>,
+                    style: { border: string; background: string; color: string }
+                  ) => {
+                    if (entries.length === 0) return null;
+                    return (
+                      <>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>{title}</div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                          {entries.map(entry => (
+                            <button
+                              key={`${title}-${entry.id}`}
+                              type="button"
+                              onClick={() => setDerivedDetailModal({ title: entry.label, payload: entry.payload })}
+                              style={{
+                                borderRadius: 999,
+                                border: style.border,
+                                background: style.background,
+                                color: style.color,
+                                fontSize: 11,
+                                fontWeight: 700,
+                                padding: "4px 10px",
+                                cursor: "pointer"
+                              }}
+                            >
+                              {entry.label}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    );
+                  };
+                  const hasAnyDerivedSection =
+                    uncategorizedFeatureIds.length > 0 ||
+                    directActionEntries.length > 0 ||
+                    effectiveActionEntries.length > 0 ||
+                    directReactionEntries.length > 0 ||
+                    effectiveReactionEntries.length > 0 ||
+                    derivedStyleEntries.length > 0 ||
+                    derivedWeaponMasteryEntries.length > 0 ||
+                    resourceEntries.length > 0 ||
+                    passifEntries.length > 0 ||
+                    imposedSpellEntries.length > 0 ||
+                    chosenSpellEntries.length > 0 ||
+                    (shouldShowEffectiveSpells && allDerivedSpellEntries.length > 0);
+                  const mergedSkills = Array.from(
+                    new Set([...(competences ?? []), ...(expertises ?? [])])
+                  );
+                  const masteryWeaponLabels = weaponMasteries.filter(Boolean);
+                  const masteryWeaponMasteryLabels = unlockedWeaponMasteries
+                    .map(entry => entry.label)
+                    .filter(Boolean);
+                  const masteryFightingStyleLabels = unlockedFightingStyles
+                    .map(entry => entry.label)
+                    .filter(Boolean);
+                  const masteryArmorLabels = armorMasteries.filter(Boolean);
+                  const masteryToolLabels = toolMasteries.filter(Boolean);
+                  const equippedSlotEntries = EQUIPMENT_SLOTS.filter(slot => Boolean(materielSlots[slot.id]));
                   const adaptableSkill = (choiceSelections as any)?.race?.adaptableSkill ?? "";
                   const formatAsiSuffix = (classId: string, level: number) => {
                     const key = `${classId}:${level}`;
@@ -643,9 +956,11 @@ export function SheetTab(props: {
                           Historique
                           {renderValidatedBadge(getSectionValidated("backgrounds"))}
                         </div>
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-                          {activeBackground ? `${activeBackground.label} (${activeBackground.id})` : "—"}
-                        </div>
+                        {activeBackground && (
+                          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                            {`${activeBackground.label} (${activeBackground.id})`}
+                          </div>
+                        )}
                         {getBackgroundFeatureInfo(activeBackground) && (
                           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                             <span
@@ -662,29 +977,26 @@ export function SheetTab(props: {
                             </span>
                           </div>
                         )}
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                          Competences:{" "}
-                          {getBackgroundSkillProficiencies(activeBackground)
-                            .map(id => competenceOptions.find(c => c.id === id)?.label ?? id)
-                            .join(", ") || "—"}
-                        </div>
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                          Outils:{" "}
-                          {getBackgroundToolProficiencies(activeBackground)
-                            .map(id => toolMasteryOptions.find(t => t.id === id)?.label ?? id)
-                            .join(", ") || "—"}
-                        </div>
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                          Choix outils:{" "}
-                          {backgroundTools.length
-                            ? backgroundTools
-                                .map(id => toolMasteryOptions.find(t => t.id === id)?.label ?? id)
-                                .join(", ")
-                            : "—"}
-                        </div>
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                          Choix langues: {backgroundLanguages.join(", ") || "—"}
-                        </div>
+                        {backgroundSkillLabels.length > 0 && (
+                          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                            Competences: {backgroundSkillLabels.join(", ")}
+                          </div>
+                        )}
+                        {backgroundToolLabels.length > 0 && (
+                          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                            Outils: {backgroundToolLabels.join(", ")}
+                          </div>
+                        )}
+                        {backgroundChoiceToolLabels.length > 0 && (
+                          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                            Choix outils: {backgroundChoiceToolLabels.join(", ")}
+                          </div>
+                        )}
+                        {backgroundChoiceLanguageLabels.length > 0 && (
+                          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                            Choix langues: {backgroundChoiceLanguageLabels.join(", ")}
+                          </div>
+                        )}
                         {backgroundProgressionLines.length > 0 && (
                           <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
                             Progression (niveau global {globalLevel}):
@@ -767,7 +1079,7 @@ export function SheetTab(props: {
                         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.72)", fontWeight: 700 }}>
                           Features derivees
                         </div>
-                        {derivedFeatures.length > 0 ? (
+                        {uncategorizedFeatureIds.length > 0 && (
                           <div
                             style={{
                               display: "flex",
@@ -775,14 +1087,23 @@ export function SheetTab(props: {
                               gap: 8
                             }}
                           >
-                            {derivedFeatures.map(id => {
+                            {uncategorizedFeatureIds.map(id => {
                               const featureId = String(id);
                               const label = featureLabelById.get(featureId) ?? featureId;
+                              const payload = featureById.get(featureId) ?? {
+                                id: featureId,
+                                error: "feature introuvable dans le catalogue"
+                              };
                               return (
                                 <button
                                   key={`derived-feature-${featureId}`}
                                   type="button"
-                                  onClick={() => setSelectedDerivedFeatureId(featureId)}
+                                  onClick={() =>
+                                    setDerivedDetailModal({
+                                      title: label,
+                                      payload
+                                    })
+                                  }
                                   style={{
                                     borderRadius: 999,
                                     border: "1px solid rgba(79,125,242,0.6)",
@@ -799,34 +1120,111 @@ export function SheetTab(props: {
                               );
                             })}
                           </div>
-                        ) : (
-                          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>-</div>
                         )}
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
-                          Actions derivees (directes):{" "}
-                          {derivedActions.map(id => actionLabelById.get(String(id)) ?? id).join(", ") || "-"}
-                        </div>
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
-                          Actions effectives (avec features):{" "}
-                          {expandedDerivedActions.map(id => actionLabelById.get(String(id)) ?? id).join(", ") || "-"}
-                        </div>
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
-                          Reactions derivees (directes):{" "}
-                          {derivedReactions.map(id => reactionLabelById.get(String(id)) ?? id).join(", ") || "-"}
-                        </div>
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
-                          Reactions effectives (avec features):{" "}
-                          {expandedDerivedReactions.map(id => reactionLabelById.get(String(id)) ?? id).join(", ") || "-"}
-                        </div>
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
-                          Ressources derivees: {derivedResources.join(", ") || "-"}
-                        </div>
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
-                          Passifs derives: {derivedPassifs.join(", ") || "-"}
-                        </div>
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
-                          Sorts derives: {derivedSpells.join(", ") || "-"}
-                        </div>
+                        {renderDerivedChipSection(
+                          "Actions derivees (directes):",
+                          directActionEntries,
+                          {
+                            border: "1px solid rgba(80,170,255,0.6)",
+                            background: "rgba(80,170,255,0.2)",
+                            color: "#d9eeff"
+                          }
+                        )}
+                        {renderDerivedChipSection(
+                          "Actions effectives (avec features):",
+                          effectiveActionEntries,
+                          {
+                            border: "1px solid rgba(67,140,224,0.6)",
+                            background: "rgba(67,140,224,0.22)",
+                            color: "#d7e8ff"
+                          }
+                        )}
+                        {renderDerivedChipSection(
+                          "Reactions derivees (directes):",
+                          directReactionEntries,
+                          {
+                            border: "1px solid rgba(236,112,99,0.6)",
+                            background: "rgba(236,112,99,0.2)",
+                            color: "#ffe1dc"
+                          }
+                        )}
+                        {renderDerivedChipSection(
+                          "Reactions effectives (avec features):",
+                          effectiveReactionEntries,
+                          {
+                            border: "1px solid rgba(205,97,85,0.6)",
+                            background: "rgba(205,97,85,0.22)",
+                            color: "#ffe1dc"
+                          }
+                        )}
+                        {renderDerivedChipSection(
+                          "Styles de combat derives:",
+                          derivedStyleEntries,
+                          {
+                            border: "1px solid rgba(46,204,113,0.6)",
+                            background: "rgba(46,204,113,0.18)",
+                            color: "#ddffe9"
+                          }
+                        )}
+                        {renderDerivedChipSection(
+                          "Bottes d'armes derivees:",
+                          derivedWeaponMasteryEntries,
+                          {
+                            border: "1px solid rgba(241,196,15,0.65)",
+                            background: "rgba(241,196,15,0.2)",
+                            color: "#fff2c2"
+                          }
+                        )}
+                        {renderDerivedChipSection(
+                          "Ressources derivees:",
+                          resourceEntries,
+                          {
+                            border: "1px solid rgba(52,152,219,0.6)",
+                            background: "rgba(52,152,219,0.2)",
+                            color: "#d8efff"
+                          }
+                        )}
+                        {renderDerivedChipSection(
+                          "Passifs derives:",
+                          passifEntries,
+                          {
+                            border: "1px solid rgba(149,165,166,0.65)",
+                            background: "rgba(149,165,166,0.2)",
+                            color: "#eef4f4"
+                          }
+                        )}
+                        {allDerivedSpellEntries.length > 0 && (
+                          <>
+                            {renderDerivedChipSection(
+                              "Sorts derives (imposes):",
+                              imposedSpellEntries,
+                              {
+                                border: "1px solid rgba(155,89,182,0.6)",
+                                background: "rgba(155,89,182,0.22)",
+                                color: "#f1dcff"
+                              }
+                            )}
+                            {renderDerivedChipSection(
+                              "Sorts derives (choisis):",
+                              chosenSpellEntries,
+                              {
+                                border: "1px solid rgba(142,68,173,0.6)",
+                                background: "rgba(142,68,173,0.22)",
+                                color: "#f1dcff"
+                              }
+                            )}
+                            {shouldShowEffectiveSpells &&
+                              renderDerivedChipSection(
+                                "Sorts derives (effectifs):",
+                                allDerivedSpellEntries,
+                                {
+                                  border: "1px solid rgba(108,52,131,0.6)",
+                                  background: "rgba(108,52,131,0.24)",
+                                  color: "#f1dcff"
+                                }
+                              )}
+                          </>
+                        )}
                       </div>
 
                       <div
@@ -961,13 +1359,9 @@ export function SheetTab(props: {
                             return prof >= 0 ? `+${prof}` : prof;
                           })()}
                         </div>
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-                          {(() => {
-                            const merged = Array.from(
-                              new Set([...(competences ?? []), ...(expertises ?? [])])
-                            );
-                            if (merged.length === 0) return "—";
-                            return merged.map(id => {
+                        {mergedSkills.length > 0 && (
+                          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                            {mergedSkills.map(id => {
                               const label = competenceOptions.find(c => c.id === id)?.label ?? id;
                               const abilityKey = skillAbilityMap[id];
                               const scoreKey =
@@ -991,9 +1385,9 @@ export function SheetTab(props: {
                               const bonusLabel = bonus >= 0 ? `+${bonus}` : bonus;
                               const suffix = isExpert ? " (Expertise)" : "";
                               return `${label}${suffix}: ${bonusLabel}`;
-                            }).join(", ");
-                          })()}
-                        </div>
+                            }).join(", ")}
+                          </div>
+                        )}
                       </div>
 
                       <div
@@ -1011,23 +1405,31 @@ export function SheetTab(props: {
                           Maitrises
                           {renderValidatedBadge(getSectionValidated("masteries"))}
                         </div>
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-                          Armes: {weaponMasteries.join(", ") || "—"}
-                        </div>
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-                          Bottes d'armes:{" "}
-                          {unlockedWeaponMasteries.map(entry => entry.label).join(", ") || "—"}
-                        </div>
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-                          Styles de combat:{" "}
-                          {unlockedFightingStyles.map(entry => entry.label).join(", ") || "—"}
-                        </div>
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-                          Armures: {armorMasteries.join(", ") || "—"}
-                        </div>
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                          Outils: {toolMasteries.join(", ") || "—"}
-                        </div>
+                        {masteryWeaponLabels.length > 0 && (
+                          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                            Armes: {masteryWeaponLabels.join(", ")}
+                          </div>
+                        )}
+                        {masteryWeaponMasteryLabels.length > 0 && (
+                          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                            Bottes d'armes: {masteryWeaponMasteryLabels.join(", ")}
+                          </div>
+                        )}
+                        {masteryFightingStyleLabels.length > 0 && (
+                          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                            Styles de combat: {masteryFightingStyleLabels.join(", ")}
+                          </div>
+                        )}
+                        {masteryArmorLabels.length > 0 && (
+                          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                            Armures: {masteryArmorLabels.join(", ")}
+                          </div>
+                        )}
+                        {masteryToolLabels.length > 0 && (
+                          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                            Outils: {masteryToolLabels.join(", ")}
+                          </div>
+                        )}
                       </div>
 
                       <div
@@ -1045,15 +1447,15 @@ export function SheetTab(props: {
                           Materiel
                           {renderValidatedBadge(getSectionValidated("equip"))}
                         </div>
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                          {EQUIPMENT_SLOTS.filter(slot => Boolean(materielSlots[slot.id])).length > 0
-                            ? EQUIPMENT_SLOTS.filter(slot => Boolean(materielSlots[slot.id])).map(slot => (
-                                <div key={`slot-${slot.id}`} style={{ marginTop: 4 }}>
-                                  {slot.label}: {formatEquipmentLabel(String(materielSlots[slot.id]))}
-                                </div>
-                              ))
-                            : "—"}
-                        </div>
+                        {equippedSlotEntries.length > 0 && (
+                          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                            {equippedSlotEntries.map(slot => (
+                              <div key={`slot-${slot.id}`} style={{ marginTop: 4 }}>
+                                {slot.label}: {formatEquipmentLabel(String(materielSlots[slot.id]))}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                         {(() => {
                           const packEntries = Array.from(packSlots)
                             .map(slotId => {
@@ -1250,9 +1652,9 @@ export function SheetTab(props: {
                   );
                 })()}
               </div>
-              {selectedDerivedFeatureId && (
+              {derivedDetailModal && (
                 <div
-                  onClick={() => setSelectedDerivedFeatureId(null)}
+                  onClick={() => setDerivedDetailModal(null)}
                   style={{
                     position: "fixed",
                     inset: 0,
@@ -1286,11 +1688,11 @@ export function SheetTab(props: {
                       }}
                     >
                       <div style={{ fontSize: 13, fontWeight: 800, color: "#d9e7ff" }}>
-                        {featureLabelById.get(selectedDerivedFeatureId) ?? selectedDerivedFeatureId}
+                        {derivedDetailModal.title}
                       </div>
                       <button
                         type="button"
-                        onClick={() => setSelectedDerivedFeatureId(null)}
+                        onClick={() => setDerivedDetailModal(null)}
                         style={{
                           borderRadius: 8,
                           border: "1px solid rgba(255,255,255,0.24)",
@@ -1319,10 +1721,7 @@ export function SheetTab(props: {
                       }}
                     >
                       {JSON.stringify(
-                        selectedDerivedFeature ?? {
-                          id: selectedDerivedFeatureId,
-                          error: "feature introuvable dans le catalogue"
-                        },
+                        derivedDetailModal.payload,
                         null,
                         2
                       )}

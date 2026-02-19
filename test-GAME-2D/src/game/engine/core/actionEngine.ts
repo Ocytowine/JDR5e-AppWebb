@@ -1,7 +1,7 @@
 import type { ActionAvailability, ActionDefinition } from "../rules/actionTypes";
 import type { TokenState, TokenType } from "../../../types";
 import { isTargetVisible } from "../../../vision";
-import { clamp, distanceBetweenTokens } from "../runtime/combatUtils";
+import { clamp, distanceBetweenTokens, gridDistance } from "../runtime/combatUtils";
 import { computePathTowards } from "../../../pathfinding";
 import { GRID_COLS, GRID_ROWS, isCellInsideGrid } from "../../../boardConfig";
 import { type AdvantageMode } from "../../../dice/roller";
@@ -216,7 +216,7 @@ function applyForcedMove(params: {
   const { ctx, state, token, to } = params;
   const dx = to.x - token.x;
   const dy = to.y - token.y;
-  const steps = Math.max(Math.abs(dx), Math.abs(dy));
+  const steps = gridDistance({ x: token.x, y: token.y }, { x: token.x + dx, y: token.y + dy });
   if (steps === 0) return;
 
   const tokensForPath = getTokensForPath(ctx, state);

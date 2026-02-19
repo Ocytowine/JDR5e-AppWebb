@@ -174,7 +174,8 @@ export interface VisionProfile {
    */
   shape: "cone" | "circle";
   /**
-   * Portee maximale en cases (distance de grille).
+   * Portee maximale en metres.
+   * Conversion en cases via `metersToCells` dans le runtime vision.
    */
   range: number;
   /**

@@ -5,8 +5,10 @@ import {
   BOARD_BACKGROUND_COLOR,
   BOARD_BACKGROUND_IMAGE_URL,
   TILE_SIZE,
+  getBoardGridProjectionKind,
   getBoardHeight,
   getBoardWidth,
+  getGridCellPolygonForGrid,
   gridToScreenForGrid
 } from "../../boardConfig";
 import type { TerrainCell } from "../../game/map/generation/draft";
@@ -79,6 +81,7 @@ function drawWoodPlankTile(params: {
 export function usePixiBoard(options: {
   enabled: boolean;
   containerRef: RefObject<HTMLDivElement | null>;
+  gridKind?: "square" | "hex";
   zoom?: number;
   panX?: number;
   panY?: number;
@@ -156,6 +159,7 @@ export function usePixiBoard(options: {
     options.playableCells,
     options.terrain,
     options.terrainMix,
+    options.gridKind,
     options.grid.cols,
     options.grid.rows,
     pixiReadyTick
@@ -223,6 +227,7 @@ export function usePixiBoard(options: {
       const drawGrid = () => {
         gridLayer.cacheAsTexture = false;
         gridLayer.clear();
+        const gridKind = getBoardGridProjectionKind();
 
         const { cols, rows } = gridRef.current;
         const terrain = terrainRef.current;
@@ -243,15 +248,20 @@ export function usePixiBoard(options: {
             const tileColor = floorColors.base;
 
             const center = gridToScreenForGrid(gx, gy, cols, rows);
-            const x = center.x - TILE_SIZE / 2;
-            const y = center.y - TILE_SIZE / 2;
-            gridLayer.rect(x, y, TILE_SIZE, TILE_SIZE).fill({
+            const polygon = getGridCellPolygonForGrid(gx, gy, cols, rows);
+            gridLayer.poly(polygon.flatMap(p => [p.x, p.y]), true).fill({
               color: tileColor,
               alpha: 1
             });
+            if (gridKind === "hex") {
+              continue;
+            }
+
             const mix = terrainMix ? terrainMix[terrainIndex] ?? null : null;
             if (mix) {
               const blendColor = resolveFloorColors(mix.blend).base;
+              const x = center.x - TILE_SIZE / 2;
+              const y = center.y - TILE_SIZE / 2;
               const left = x;
               const top = y;
               const right = x + TILE_SIZE;

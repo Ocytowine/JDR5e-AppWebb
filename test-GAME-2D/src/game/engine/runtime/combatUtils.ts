@@ -1,4 +1,5 @@
 import type { GridPosition, TokenState } from "../../../types";
+import { distanceBetweenGridCells } from "../../../boardConfig";
 import {
   distanceBetweenCells,
   distanceToCells,
@@ -22,7 +23,7 @@ export function gridDistance(
   a: { x: number; y: number },
   b: { x: number; y: number }
 ): number {
-  return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+  return distanceBetweenGridCells(a, b);
 }
 
 export function distanceBetweenTokens(a: TokenState, b: TokenState): number {

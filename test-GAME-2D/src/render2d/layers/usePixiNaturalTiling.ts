@@ -1,13 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Assets, Container, Filter, GlProgram, Sprite, TilingSprite, Texture, UniformGroup } from "pixi.js";
+import { Assets, Container, Sprite, TilingSprite, Texture } from "pixi.js";
 import type { RefObject } from "react";
 import { TILE_SIZE, getBoardHeight, getBoardWidth } from "../../boardConfig";
 import type { TerrainCell } from "../../game/map/generation/draft";
 import type { TerrainMixCell } from "../../game/map/generation/terrainMix";
 import type { FloorMaterial } from "../../game/map/floors/types";
 import {
-  getFloorBumpTexture,
-  getFloorBumpUrl,
   getFloorTilingTextureFromUrl,
   getFloorTilingUrl,
   getFloorTilingVariantUrls,
@@ -17,36 +15,6 @@ import {
 type Edge = "N" | "S" | "W" | "E";
 type Point = { x: number; y: number };
 type Segment = { a: Point; b: Point };
-
-const DEFAULT_FILTER_VERT = `
-in vec2 aPosition;
-out vec2 vTextureCoord;
-
-uniform vec4 uInputSize;
-uniform vec4 uOutputFrame;
-uniform vec4 uOutputTexture;
-
-vec4 filterVertexPosition(void)
-{
-    vec2 position = aPosition * uOutputFrame.zw + uOutputFrame.xy;
-
-    position.x = position.x * (2.0 / uOutputTexture.x) - 1.0;
-    position.y = position.y * (2.0 * uOutputTexture.z / uOutputTexture.y) - uOutputTexture.z;
-
-    return vec4(position, 0.0, 1.0);
-}
-
-vec2 filterTextureCoord(void)
-{
-    return aPosition * (uOutputFrame.zw * uInputSize.zw);
-}
-
-void main(void)
-{
-    gl_Position = filterVertexPosition();
-    vTextureCoord = filterTextureCoord();
-}
-`;
 
 function hash01(x: number, y: number, seed: number): number {
   const n = x * 374761393 + y * 668265263 + seed * 1442695041;
@@ -237,12 +205,6 @@ export function usePixiNaturalTiling(options: {
   playableCells?: Set<string> | null;
   grid: { cols: number; rows: number };
   materials: Map<string, FloorMaterial>;
-  lightLevels?: number[] | null;
-  lightMap?: number[] | null;
-  bumpIntensity?: number;
-  windSpeed?: number;
-  windStrength?: number;
-  bumpDebug?: boolean;
   pixiReadyTick?: number;
   onInvalidate?: () => void;
 }): void {
@@ -250,7 +212,7 @@ export function usePixiNaturalTiling(options: {
   const texturedIds = useMemo(() => {
     const list: string[] = [];
     for (const mat of options.materials.values()) {
-      if (getFloorTilingUrl(mat.id) || getFloorBumpUrl(mat.id)) list.push(mat.id);
+      if (getFloorTilingUrl(mat.id)) list.push(mat.id);
     }
     list.sort();
     return list;
@@ -382,56 +344,6 @@ export function usePixiNaturalTiling(options: {
       }
       return segments;
     };
-    const animatedFilters: Array<{ uniforms: UniformGroup; startAt: number }> = [];
-
-    const resolveLightValue = (x: number, y: number): number => {
-      const idx = y * cols + x;
-      if (Array.isArray(options.lightLevels) && options.lightLevels.length > 0) {
-        const value = options.lightLevels[idx];
-        return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 1;
-      }
-      if (Array.isArray(options.lightMap) && options.lightMap.length > 0) {
-        const value = options.lightMap[idx];
-        return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 1;
-      }
-      return 1;
-    };
-
-    const buildLightTexture = (): Texture | null => {
-      if (
-        (!Array.isArray(options.lightLevels) || options.lightLevels.length === 0) &&
-        (!Array.isArray(options.lightMap) || options.lightMap.length === 0)
-      ) {
-        return null;
-      }
-      const canvas = document.createElement("canvas");
-      canvas.width = cols;
-      canvas.height = rows;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return null;
-      const image = ctx.createImageData(cols, rows);
-      for (let y = 0; y < rows; y++) {
-        for (let x = 0; x < cols; x++) {
-          const light = resolveLightValue(x, y);
-          const value = Math.round(light * 255);
-          const idx = (y * cols + x) * 4;
-          image.data[idx] = value;
-          image.data[idx + 1] = value;
-          image.data[idx + 2] = value;
-          image.data[idx + 3] = 255;
-        }
-      }
-      ctx.putImageData(image, 0, 0);
-      const texture = Texture.from(canvas);
-      if (texture.source) {
-        texture.source.scaleMode = "nearest";
-        texture.source.addressMode = "clamp-to-edge";
-      }
-      return texture;
-    };
-
-    const lightTexture = buildLightTexture();
-
     for (const id of texturedIds) {
       const variantUrls = getFloorTilingVariantUrls(id);
       const fallbackUrl = getFloorTilingUrl(id);
@@ -442,35 +354,9 @@ export function usePixiNaturalTiling(options: {
       const hasVariants = variantCount > 1;
       const variantIndices = [...Array(variantCount).keys()];
 
-      const bumpUrl = getFloorBumpUrl(id);
-      const resizedBump = getFloorBumpTexture(id, 256);
-      const bumpTexture = resizedBump ?? (bumpUrl ? (Assets.get(bumpUrl) as Texture) ?? Texture.from(bumpUrl) : null);
       const material = options.materials.get(id);
       const fallbackColor = parseHexColor(material?.fallbackColor) ?? 0x3f6b3a;
       const solidColor = parseHexColor(material?.solidColor ?? null);
-
-      if (bumpTexture?.source) {
-        bumpTexture.source.scaleMode = "linear";
-        bumpTexture.source.mipmapFilter = "linear";
-        bumpTexture.source.autoGenerateMipmaps = true;
-        bumpTexture.source.maxAnisotropy = 4;
-        bumpTexture.source.addressMode = "repeat";
-        console.log(
-          "[floor-tiling] bump",
-          id,
-          "size",
-          bumpTexture.width,
-          "x",
-          bumpTexture.height,
-          "grid",
-          cols,
-          "x",
-          rows
-        );
-      }
-      if (!bumpTexture && bumpUrl) {
-        console.warn("[floor-tiling] bump texture missing for", id, "url", bumpUrl);
-      }
 
       const pickVariantIndex = (x: number, y: number): number => {
         if (!hasVariants) return 0;
@@ -555,7 +441,7 @@ export function usePixiNaturalTiling(options: {
 
       const hasAnyTexture = resolvedVariants.some(url => Boolean(url));
       const backgroundTint = solidColor ?? fallbackColor;
-      if (solidColor !== null || (!bumpTexture && hasAnyTexture)) {
+      if (solidColor !== null) {
         const backgroundSprite = new TilingSprite({ texture: Texture.WHITE, width: boardW, height: boardH });
         backgroundSprite.tint = backgroundTint;
         backgroundSprite.x = 0;
@@ -590,71 +476,6 @@ export function usePixiNaturalTiling(options: {
         const sprite = new TilingSprite({ texture: baseTexture, width: boardW, height: boardH });
         sprite.x = 0;
         sprite.y = 0;
-
-        if (bumpTexture) {
-          const fragment = `
-            precision highp float;
-            in vec2 vTextureCoord;
-            out vec4 finalColor;
-            uniform sampler2D uTexture;
-            uniform sampler2D uBump;
-            uniform sampler2D uLightMap;
-            uniform vec2 uBumpScale;
-            uniform vec2 uLightMapSize;
-            uniform float uIntensity;
-            uniform float uTime;
-            uniform float uWindSpeed;
-            uniform float uWindStrength;
-            uniform float uLightEnabled;
-            uniform float uDebug;
-            void main(void){
-              vec4 base = texture(uTexture, vTextureCoord);
-              vec2 wind = vec2(uTime * uWindSpeed, uTime * uWindSpeed * 0.7);
-              vec2 bumpUV = vTextureCoord * uBumpScale + wind;
-              vec3 bump = texture(uBump, bumpUV).rgb;
-              float h = dot(bump, vec3(0.3333));
-              vec3 n = normalize(vec3(bump.r * 2.0 - 1.0, bump.g * 2.0 - 1.0, bump.b * 2.0 - 1.0));
-              vec3 lightDir = normalize(vec3(0.35, 0.6, 0.8));
-              float ndl = max(dot(n, lightDir), 0.0);
-              float light = mix(h, ndl, 0.65);
-              vec2 lightCoord = (floor(vTextureCoord * uLightMapSize) + 0.5) / uLightMapSize;
-              float lightSample = texture(uLightMap, lightCoord).r;
-              float lightFactor = mix(1.0, mix(0.35, 1.0, lightSample), step(0.5, uLightEnabled));
-              float signedLight = (light - 0.5) * (uIntensity * 2.0) * uWindStrength * lightFactor;
-              vec3 lit = base.rgb * (1.0 + signedLight);
-              vec3 debugColor = vec3(h);
-              vec3 outColor = mix(lit, debugColor, step(0.5, uDebug));
-              finalColor = vec4(outColor, base.a);
-            }
-          `;
-          const intensity = typeof options.bumpIntensity === "number" ? options.bumpIntensity : 0.45;
-          const windSpeed = typeof options.windSpeed === "number" ? options.windSpeed : 0.06;
-          const windStrength = typeof options.windStrength === "number" ? options.windStrength : 1.0;
-          const uniforms = new UniformGroup({
-            uBumpScale: { value: [cols, rows], type: "vec2<f32>" },
-            uLightMapSize: { value: [cols, rows], type: "vec2<f32>" },
-            uIntensity: { value: intensity, type: "f32" },
-            uTime: { value: 0, type: "f32" },
-            uWindSpeed: { value: windSpeed, type: "f32" },
-            uWindStrength: { value: windStrength, type: "f32" },
-            uLightEnabled: { value: lightTexture ? 1 : 0, type: "f32" },
-            uDebug: { value: options.bumpDebug ? 1 : 0, type: "f32" }
-          });
-          const glProgram = GlProgram.from({
-            vertex: DEFAULT_FILTER_VERT,
-            fragment
-          });
-          const filter = new Filter({
-            glProgram,
-            resources: {
-              uBump: bumpTexture,
-              uLightMap: lightTexture ?? Texture.WHITE,
-              bumpUniforms: uniforms
-            }
-          });
-          sprite.filters = [filter];
-          animatedFilters.push({ uniforms, startAt: performance.now() });
-        }
 
         const texW = baseTexture.width || TILE_SIZE;
         const texH = baseTexture.height || TILE_SIZE;
@@ -692,23 +513,8 @@ export function usePixiNaturalTiling(options: {
       }
     }
 
-    let rafId: number | null = null;
-    if (animatedFilters.length > 0) {
-      const tick = () => {
-        const now = performance.now();
-        for (const entry of animatedFilters) {
-          const t = (now - entry.startAt) / 1000;
-          entry.uniforms.uniforms.uTime = t;
-        }
-        rafId = window.requestAnimationFrame(tick);
-      };
-      rafId = window.requestAnimationFrame(tick);
-    }
-
     options.onInvalidate?.();
-    return () => {
-      if (rafId !== null) window.cancelAnimationFrame(rafId);
-    };
+    return;
   }, [
     options.layerRef,
     options.terrain,
@@ -716,12 +522,6 @@ export function usePixiNaturalTiling(options: {
     options.playableCells,
     options.grid,
     options.materials,
-    options.lightLevels,
-    options.lightMap,
-    options.bumpIntensity,
-    options.windSpeed,
-    options.windStrength,
-    options.bumpDebug,
     options.pixiReadyTick,
     options.onInvalidate,
     texturedIds,

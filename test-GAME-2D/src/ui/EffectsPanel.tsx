@@ -3,34 +3,33 @@ import React, { useEffect, useMemo, useState } from "react";
 export function EffectsPanel(props: {
   showVisionDebug: boolean;
   showLightOverlay: boolean;
-  showFogSegments: boolean;
   showCellIds: boolean;
   showAllLevels: boolean;
   showTerrainIds: boolean;
   showTerrainContours: boolean;
   showGridLines: boolean;
   shadowLightAngleDeg: number;
-  bumpIntensity: number;
-  windSpeed: number;
-  windStrength: number;
-  bumpDebug: boolean;
   visionLegend?: string;
-  onShowCircle: () => void;
-  onShowRectangle: () => void;
-  onShowCone: () => void;
+  visionDebugSummary?: {
+    facing: string;
+    shape: "cone" | "circle";
+    rangeMeters: number;
+    rangeCells: number;
+    apertureDeg: number | null;
+    lightMode: "normal" | "lowlight" | "darkvision";
+    geometricCells: number;
+    fullVisibleCells: number;
+    partialVisibleCells: number;
+    blockerCells: number;
+  };
   onToggleVisionDebug: () => void;
   onToggleLightOverlay: () => void;
-  onToggleFogSegments: () => void;
   onToggleCellIds: () => void;
   onToggleShowAllLevels: () => void;
   onToggleTerrainIds: () => void;
   onToggleTerrainContours: () => void;
   onToggleGridLines: () => void;
   onChangeShadowLightAngleDeg: (value: number) => void;
-  onChangeBumpIntensity: (value: number) => void;
-  onChangeWindSpeed: (value: number) => void;
-  onChangeWindStrength: (value: number) => void;
-  onToggleBumpDebug: () => void;
   onClear: () => void;
   fxAnimations: Array<{ key: string; frames: string[] }>;
   usageDebug?: Array<{
@@ -121,62 +120,56 @@ export function EffectsPanel(props: {
 
       {mode === "zones" && (
         <>
-          <h2 style={{ margin: "6px 0 4px" }}>Zones d&apos;effet (demo)</h2>
+          <h2 style={{ margin: "6px 0 4px" }}>Vision / Debug</h2>
           <p style={{ margin: 0, fontSize: 12 }}>
-            Ces boutons utilisent les helpers de <code>boardEffects.ts</code> pour dessiner des
-            zones en coordonnées de grille autour du joueur.
+            Debug mecanique: cellules visibles/non visibles, bloqueurs et orientation.
           </p>
           {props.visionLegend ? (
             <p style={{ margin: 0, fontSize: 12, color: "#bfc6d2" }}>
               {props.visionLegend}
             </p>
           ) : null}
+          {props.visionDebugSummary ? (
+            <div
+              style={{
+                marginTop: 6,
+                padding: "8px 10px",
+                borderRadius: 8,
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "rgba(255,255,255,0.03)",
+                display: "flex",
+                flexDirection: "column",
+                gap: 3,
+                fontSize: 12,
+                color: "#dbe2ef"
+              }}
+            >
+              <div>
+                <strong>Vision mecanique (joueur)</strong>
+              </div>
+              <div>
+                Facing: <code>{props.visionDebugSummary.facing}</code> | Forme:{" "}
+                <code>{props.visionDebugSummary.shape}</code> | Angle:{" "}
+                <code>
+                  {props.visionDebugSummary.apertureDeg === null
+                    ? "n/a"
+                    : `${Math.round(props.visionDebugSummary.apertureDeg)}deg`}
+                </code>
+              </div>
+              <div>
+                Portee: <code>{props.visionDebugSummary.rangeMeters.toFixed(1)}m</code> /{" "}
+                <code>{props.visionDebugSummary.rangeCells} cases</code> | Lumiere:{" "}
+                <code>{props.visionDebugSummary.lightMode}</code>
+              </div>
+              <div>
+                Geometrique: <code>{props.visionDebugSummary.geometricCells}</code> | Visible plein:{" "}
+                <code>{props.visionDebugSummary.fullVisibleCells}</code> | Partiel:{" "}
+                <code>{props.visionDebugSummary.partialVisibleCells}</code> | Bloqueurs:{" "}
+                <code>{props.visionDebugSummary.blockerCells}</code>
+              </div>
+            </div>
+          ) : null}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
-            <button
-              type="button"
-              onClick={props.onShowCircle}
-              style={{
-                padding: "4px 8px",
-                background: "#2980b9",
-                color: "#fff",
-                border: "none",
-                borderRadius: 4,
-                cursor: "pointer",
-                fontSize: 12
-              }}
-            >
-              Cercle R=2
-            </button>
-            <button
-              type="button"
-              onClick={props.onShowRectangle}
-              style={{
-                padding: "4px 8px",
-                background: "#27ae60",
-                color: "#fff",
-                border: "none",
-                borderRadius: 4,
-                cursor: "pointer",
-                fontSize: 12
-              }}
-            >
-              Rectangle 3x3
-            </button>
-            <button
-              type="button"
-              onClick={props.onShowCone}
-              style={{
-                padding: "4px 8px",
-                background: "#c0392b",
-                color: "#fff",
-                border: "none",
-                borderRadius: 4,
-                cursor: "pointer",
-                fontSize: 12
-              }}
-            >
-              Cône portée 4
-            </button>
             <button
               type="button"
               onClick={props.onToggleVisionDebug}
@@ -206,21 +199,6 @@ export function EffectsPanel(props: {
               }}
             >
               {props.showLightOverlay ? "Masquer lumiere" : "Afficher lumiere"}
-            </button>
-            <button
-              type="button"
-              onClick={props.onToggleFogSegments}
-              style={{
-                padding: "4px 8px",
-                background: props.showFogSegments ? "#ecf0f1" : "#555",
-                color: props.showFogSegments ? "#111" : "#fff",
-                border: "none",
-                borderRadius: 4,
-                cursor: "pointer",
-                fontSize: 12
-              }}
-            >
-              {props.showFogSegments ? "Masquer segments fog" : "Tracer segments fog"}
             </button>
             <button
               type="button"
@@ -297,21 +275,6 @@ export function EffectsPanel(props: {
             >
               {props.showGridLines ? "Masquer grille" : "Afficher grille"}
             </button>
-            <button
-              type="button"
-              onClick={props.onToggleBumpDebug}
-              style={{
-                padding: "4px 8px",
-                background: props.bumpDebug ? "#f1c40f" : "#555",
-                color: "#0b0b12",
-                border: "none",
-                borderRadius: 4,
-                cursor: "pointer",
-                fontSize: 12
-              }}
-            >
-              {props.bumpDebug ? "Masquer bump debug" : "Afficher bump debug"}
-            </button>
             <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 180 }}>
               <label style={{ fontSize: 11, color: "#bfc6d2" }}>
                 Lumiere angle: {Math.round(props.shadowLightAngleDeg)}°
@@ -323,45 +286,6 @@ export function EffectsPanel(props: {
                 step="1"
                 value={props.shadowLightAngleDeg}
                 onChange={event => props.onChangeShadowLightAngleDeg(Number(event.target.value))}
-              />
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 180 }}>
-              <label style={{ fontSize: 11, color: "#bfc6d2" }}>
-                Bump: {props.bumpIntensity.toFixed(2)}
-              </label>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.01"
-                value={props.bumpIntensity}
-                onChange={event => props.onChangeBumpIntensity(Number(event.target.value))}
-              />
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 180 }}>
-              <label style={{ fontSize: 11, color: "#bfc6d2" }}>
-                Vent vitesse: {props.windSpeed.toFixed(2)}
-              </label>
-              <input
-                type="range"
-                min="0"
-                max="0.2"
-                step="0.01"
-                value={props.windSpeed}
-                onChange={event => props.onChangeWindSpeed(Number(event.target.value))}
-              />
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 180 }}>
-              <label style={{ fontSize: 11, color: "#bfc6d2" }}>
-                Vent force: {props.windStrength.toFixed(2)}
-              </label>
-              <input
-                type="range"
-                min="0"
-                max="2"
-                step="0.05"
-                value={props.windStrength}
-                onChange={event => props.onChangeWindStrength(Number(event.target.value))}
               />
             </div>
             <button
