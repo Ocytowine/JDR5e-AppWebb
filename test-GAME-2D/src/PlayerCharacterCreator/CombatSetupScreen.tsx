@@ -6055,6 +6055,7 @@ export function CombatSetupScreen(props: {
             <SheetTab
               character={props.character}
               onChangeCharacter={props.onChangeCharacter}
+              liveDerivedGrants={((buildDerivedGrants() as any)?.grants ?? {}) as Record<string, any>}
               choiceSelections={choiceSelections}
               magicSources={magicSources}
               spellcastingSelections={spellcastingSelections}

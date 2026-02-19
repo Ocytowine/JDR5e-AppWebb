@@ -32,6 +32,7 @@ type MagicSource = {
 export function SheetTab(props: {
   character: Personnage;
   onChangeCharacter: (next: Personnage) => void;
+  liveDerivedGrants?: Record<string, any>;
   choiceSelections: Record<string, any>;
   magicSources: MagicSource[];
   spellcastingSelections: Record<
@@ -92,6 +93,7 @@ export function SheetTab(props: {
   const {
     character,
     onChangeCharacter,
+    liveDerivedGrants,
     choiceSelections,
     magicSources,
     spellcastingSelections,
@@ -135,6 +137,7 @@ export function SheetTab(props: {
     formatEquipmentLabel
   } = props;
   const [showCharacterJson, setShowCharacterJson] = useState(false);
+  const [selectedDerivedFeatureId, setSelectedDerivedFeatureId] = useState<string | null>(null);
   const featureById = useMemo(() => {
     const map = new Map<string, any>();
     loadFeatureTypesFromIndex().forEach(feature => {
@@ -167,6 +170,8 @@ export function SheetTab(props: {
     });
     return map;
   }, []);
+  const selectedDerivedFeature =
+    selectedDerivedFeatureId ? featureById.get(selectedDerivedFeatureId) ?? null : null;
 
   return (
 <>
@@ -214,7 +219,7 @@ export function SheetTab(props: {
                   const backgroundLanguages = Array.isArray(backgroundChoices.languages)
                     ? backgroundChoices.languages
                     : [];
-                  const derivedGrants = (((character as any)?.derived?.grants ?? {}) as Record<string, any>);
+                  const derivedGrants = ((liveDerivedGrants ?? (character as any)?.derived?.grants ?? {}) as Record<string, any>);
                   const derivedFeatures = Array.isArray(derivedGrants.features) ? derivedGrants.features : [];
                   const derivedActions = Array.isArray(derivedGrants.actions) ? derivedGrants.actions : [];
                   const derivedReactions = Array.isArray(derivedGrants.reactions) ? derivedGrants.reactions : [];
@@ -759,10 +764,44 @@ export function SheetTab(props: {
                         <div style={{ fontSize: 13, fontWeight: 800 }}>
                           Projection derivee
                         </div>
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
-                          Features:{" "}
-                          {derivedFeatures.map(id => featureLabelById.get(String(id)) ?? id).join(", ") || "-"}
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.72)", fontWeight: 700 }}>
+                          Features derivees
                         </div>
+                        {derivedFeatures.length > 0 ? (
+                          <div
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              gap: 8
+                            }}
+                          >
+                            {derivedFeatures.map(id => {
+                              const featureId = String(id);
+                              const label = featureLabelById.get(featureId) ?? featureId;
+                              return (
+                                <button
+                                  key={`derived-feature-${featureId}`}
+                                  type="button"
+                                  onClick={() => setSelectedDerivedFeatureId(featureId)}
+                                  style={{
+                                    borderRadius: 999,
+                                    border: "1px solid rgba(79,125,242,0.6)",
+                                    background: "rgba(79,125,242,0.2)",
+                                    color: "#d9e7ff",
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    padding: "4px 10px",
+                                    cursor: "pointer"
+                                  }}
+                                >
+                                  {label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>-</div>
+                        )}
                         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
                           Actions derivees (directes):{" "}
                           {derivedActions.map(id => actionLabelById.get(String(id)) ?? id).join(", ") || "-"}
@@ -1211,6 +1250,86 @@ export function SheetTab(props: {
                   );
                 })()}
               </div>
-            </>
+              {selectedDerivedFeatureId && (
+                <div
+                  onClick={() => setSelectedDerivedFeatureId(null)}
+                  style={{
+                    position: "fixed",
+                    inset: 0,
+                    background: "rgba(3, 6, 12, 0.65)",
+                    display: "grid",
+                    placeItems: "center",
+                    zIndex: 60,
+                    padding: 16
+                  }}
+                >
+                  <div
+                    onClick={event => event.stopPropagation()}
+                    style={{
+                      width: "min(680px, 96vw)",
+                      maxHeight: "82vh",
+                      overflow: "auto",
+                      borderRadius: 12,
+                      border: "1px solid rgba(255,255,255,0.2)",
+                      background: "#0d1220",
+                      boxShadow: "0 20px 60px rgba(0,0,0,0.45)",
+                      padding: 12
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        marginBottom: 8,
+                        gap: 8
+                      }}
+                    >
+                      <div style={{ fontSize: 13, fontWeight: 800, color: "#d9e7ff" }}>
+                        {featureLabelById.get(selectedDerivedFeatureId) ?? selectedDerivedFeatureId}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDerivedFeatureId(null)}
+                        style={{
+                          borderRadius: 8,
+                          border: "1px solid rgba(255,255,255,0.24)",
+                          background: "rgba(255,255,255,0.08)",
+                          color: "#f5f7ff",
+                          fontSize: 12,
+                          padding: "4px 8px",
+                          cursor: "pointer"
+                        }}
+                      >
+                        Fermer
+                      </button>
+                    </div>
+                    <pre
+                      style={{
+                        margin: 0,
+                        fontSize: 11,
+                        lineHeight: 1.45,
+                        color: "#e7ecff",
+                        background: "rgba(6,10,18,0.9)",
+                        border: "1px solid rgba(255,255,255,0.12)",
+                        borderRadius: 8,
+                        padding: 10,
+                        whiteSpace: "pre-wrap",
+                        overflowWrap: "anywhere"
+                      }}
+                    >
+                      {JSON.stringify(
+                        selectedDerivedFeature ?? {
+                          id: selectedDerivedFeatureId,
+                          error: "feature introuvable dans le catalogue"
+                        },
+                        null,
+                        2
+                      )}
+                    </pre>
+                  </div>
+                </div>
+              )}
+</>
   );
 }
