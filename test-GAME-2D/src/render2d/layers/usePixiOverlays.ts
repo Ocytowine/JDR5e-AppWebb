@@ -89,8 +89,8 @@ export function usePixiOverlays(options: {
       const desiredIndex = parent.children.findIndex(
         (child: any) =>
           child &&
-          ((typeof child.label === "string" && child.label === "staticDepthLayer") ||
-            (typeof child.name === "string" && child.name === "staticDepthLayer"))
+          typeof child.label === "string" &&
+          child.label === "staticDepthLayer"
       );
       if (existing) {
         if (desiredIndex >= 0) {

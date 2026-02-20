@@ -8,7 +8,7 @@ import {
 } from "./boardConfig";
 import type { GridPosition, TokenState, MovementProfile } from "./types";
 import { getHeightAtGrid, type TerrainCell } from "./game/map/generation/draft";
-import { getFloorMaterial } from "./game/map/floors/catalog";
+import { getFloorMaterial } from "./data/maps/floors/catalog";
 import { isEdgeBlockedForMovement } from "./game/map/walls/runtime";
 import {
   getTokenOccupiedCells,

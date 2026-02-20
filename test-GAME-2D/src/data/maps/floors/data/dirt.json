@@ -1,0 +1,8 @@
+{
+  "id": "dirt",
+  "label": "Dirt",
+  "fallbackColor": "#6a5536",
+  "tags": ["exterior", "nature"],
+  "passable": true,
+  "moveCost": 1
+}

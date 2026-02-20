@@ -2,7 +2,13 @@ import { useEffect } from "react";
 import { Graphics, Text } from "pixi.js";
 import type { Container } from "pixi.js";
 import type { RefObject } from "react";
-import { TILE_SIZE, gridToScreenForGrid } from "../../boardConfig";
+import {
+  TILE_SIZE,
+  getBoardGridProjectionKind,
+  getGridCellPolygonForGrid,
+  getGridNeighborsForGrid,
+  gridToScreenForGrid
+} from "../../boardConfig";
 import type { TerrainCell } from "../../game/map/generation/draft";
 import type { TerrainMixCell } from "../../game/map/generation/terrainMix";
 
@@ -35,6 +41,7 @@ export function usePixiTerrainFx(options: {
     if (!terrain || terrain.length === 0) return;
 
     const { cols, rows } = options.grid;
+    const isHexGrid = getBoardGridProjectionKind() === "hex";
     const playable = options.playableCells;
     const terrainMix = Array.isArray(options.terrainMix) ? options.terrainMix : null;
     const isPlayable = (x: number, y: number): boolean => {
@@ -71,6 +78,54 @@ export function usePixiTerrainFx(options: {
 
     if (options.showTerrainContours) {
       fxLayer.setStrokeStyle({ width: 2, color: 0xffffff, alpha: 0.65 });
+      if (isHexGrid) {
+        for (let y = 0; y < rows; y++) {
+          for (let x = 0; x < cols; x++) {
+            if (!isPlayable(x, y)) continue;
+            const baseTerrain = getTerrainAt(x, y);
+            const center = gridToScreenForGrid(x, y, cols, rows);
+            const polygon = getGridCellPolygonForGrid(x, y, cols, rows);
+            if (polygon.length < 3) continue;
+
+            const neighbors = getGridNeighborsForGrid({ x, y }, cols, rows, false).map(cell => {
+              const p = gridToScreenForGrid(cell.x, cell.y, cols, rows);
+              return { cell, dx: p.x - center.x, dy: p.y - center.y };
+            });
+
+            for (let i = 0; i < polygon.length; i++) {
+              const a = polygon[i];
+              const b = polygon[(i + 1) % polygon.length];
+              const mx = (a.x + b.x) * 0.5;
+              const my = (a.y + b.y) * 0.5;
+              const ex = mx - center.x;
+              const ey = my - center.y;
+              const eLen = Math.hypot(ex, ey) || 1;
+
+              let bestNeighbor: { x: number; y: number } | null = null;
+              let bestScore = Number.NEGATIVE_INFINITY;
+              for (const candidate of neighbors) {
+                const cLen = Math.hypot(candidate.dx, candidate.dy) || 1;
+                const score = (ex * candidate.dx + ey * candidate.dy) / (eLen * cLen);
+                if (score > bestScore) {
+                  bestScore = score;
+                  bestNeighbor = candidate.cell;
+                }
+              }
+
+              const neighborTerrain =
+                bestNeighbor && bestScore > 0 && isPlayable(bestNeighbor.x, bestNeighbor.y)
+                  ? getTerrainAt(bestNeighbor.x, bestNeighbor.y)
+                  : null;
+
+              if (neighborTerrain !== baseTerrain) {
+                fxLayer.moveTo(a.x, a.y);
+                fxLayer.lineTo(b.x, b.y);
+                fxLayer.stroke();
+              }
+            }
+          }
+        }
+      } else {
       for (let y = 0; y < rows; y++) {
         for (let x = 0; x < cols; x++) {
           if (!isPlayable(x, y)) continue;
@@ -131,6 +186,7 @@ export function usePixiTerrainFx(options: {
           }
         }
       }
+      }
     }
 
     if (options.showTerrainIds) {
@@ -141,12 +197,15 @@ export function usePixiTerrainFx(options: {
           const cellTerrain = getTerrainAt(x, y);
           const idValue = options.terrainIdMap.get(cellTerrain) ?? 0;
           const center = gridToScreenForGrid(x, y, cols, rows);
-          const label = new Text(String(idValue), {
-            fontFamily: "Arial",
-            fontSize,
-            fill: 0xffffff,
-            stroke: { color: 0x000000, width: 3 },
-            align: "center"
+          const label = new Text({
+            text: String(idValue),
+            style: {
+              fontFamily: "Arial",
+              fontSize,
+              fill: 0xffffff,
+              stroke: { color: 0x000000, width: 3 },
+              align: "center"
+            }
           });
           label.anchor.set(0.5, 0.5);
           label.alpha = 0.9;

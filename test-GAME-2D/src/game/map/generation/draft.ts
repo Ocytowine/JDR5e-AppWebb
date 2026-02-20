@@ -4,7 +4,7 @@ import type { ObstacleInstance, ObstacleTypeDefinition } from "../../obstacleTyp
 import { orientationFromRotationDeg, type Orientation8 } from "../../engine/runtime/footprint";
 import { getObstacleOccupiedCells } from "../runtime/obstacleRuntime";
 import type { WallState } from "../../wallTypes";
-import type { FloorId } from "../floors/types";
+import type { FloorId } from "../../../data/maps/floors/types";
 import type { WallDirection, WallKind, WallSegment } from "../walls/types";
 import { getAdjacentCellsForEdge, wallEdgeKey } from "../walls/grid";
 import { buildWallEdgeSets, isEdgeBlockedForMovement } from "../walls/runtime";

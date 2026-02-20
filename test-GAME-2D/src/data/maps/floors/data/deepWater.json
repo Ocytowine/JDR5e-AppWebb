@@ -1,0 +1,10 @@
+{
+  "id": "deep-water",
+  "label": "Deep water",
+  "fallbackColor": "#1f3b63",
+  "tags": ["liquid"],
+  "passable": true,
+  "moveCost": 3,
+  "liquid": true,
+  "depth": 3
+}

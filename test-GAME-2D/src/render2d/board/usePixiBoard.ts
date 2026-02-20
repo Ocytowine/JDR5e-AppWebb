@@ -13,7 +13,7 @@ import {
 } from "../../boardConfig";
 import type { TerrainCell } from "../../game/map/generation/draft";
 import type { TerrainMixCell } from "../../game/map/generation/terrainMix";
-import { getFloorMaterial } from "../../game/map/floors/catalog";
+import { getFloorMaterial } from "../../data/maps/floors/catalog";
 
 function hash01(x: number, y: number): number {
   let h = x * 374761393 + y * 668265263;
@@ -332,7 +332,7 @@ export function usePixiBoard(options: {
       dynamicDepthLayerRef.current = dynamicDepthLayer;
 
       const speechLayer = new Container();
-      speechLayer.name = "speechLayer";
+      speechLayer.label = "speechLayer";
       root.addChild(speechLayer);
       speechLayerRef.current = speechLayer;
 

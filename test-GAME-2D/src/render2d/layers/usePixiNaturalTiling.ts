@@ -1,10 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
-import { Assets, Container, Sprite, TilingSprite, Texture } from "pixi.js";
+import { Assets, Container, Graphics, Sprite, TilingSprite, Texture } from "pixi.js";
 import type { RefObject } from "react";
-import { TILE_SIZE, getBoardHeight, getBoardWidth } from "../../boardConfig";
+import {
+  TILE_SIZE,
+  getBoardGridProjectionKind,
+  getBoardHeight,
+  getBoardWidth,
+  getGridCellPolygonForGrid
+} from "../../boardConfig";
 import type { TerrainCell } from "../../game/map/generation/draft";
 import type { TerrainMixCell } from "../../game/map/generation/terrainMix";
-import type { FloorMaterial } from "../../game/map/floors/types";
+import type { FloorMaterial } from "../../data/maps/floors/types";
 import {
   getFloorTilingTextureFromUrl,
   getFloorTilingUrl,
@@ -12,9 +18,34 @@ import {
   preloadFloorTilingTexturesFor
 } from "../../floorTilingHelper";
 
+const floorMaskModules = import.meta.glob("../../data/maps/floors/mask/*.png", {
+  query: "?url",
+  import: "default",
+  eager: true
+});
+
+const FLOOR_BORDER_MASK_URL_BY_ID: Record<string, string> = {};
+const borderMaskCutCanvasByUrl = new Map<string, HTMLCanvasElement>();
+const borderMaskPendingByUrl = new Set<string>();
+
+for (const [path, url] of Object.entries(floorMaskModules)) {
+  const file = path.split("/").pop() ?? "";
+  const base = file.replace(/\.png$/i, "").trim().toLowerCase();
+  const match = base.match(/^mask[-_\s]+(.+)$/i);
+  const id = (match?.[1] ?? base).trim();
+  if (!id) continue;
+  FLOOR_BORDER_MASK_URL_BY_ID[id] = url as string;
+}
+
 type Edge = "N" | "S" | "W" | "E";
 type Point = { x: number; y: number };
-type Segment = { a: Point; b: Point };
+type Segment = { a: Point; b: Point; inside?: Point };
+type EdgeRecord = { count: number; a: Point; b: Point; inside?: Point };
+interface SegmentPaths {
+  closedLoops: Point[][];
+  openPaths: Point[][];
+}
+const BORDER_OVERFLOW_RATIO = 0.3;
 
 function hash01(x: number, y: number, seed: number): number {
   const n = x * 374761393 + y * 668265263 + seed * 1442695041;
@@ -46,57 +77,38 @@ function hashString(value: string): number {
 }
 
 function isSamePoint(a: Point, b: Point): boolean {
-  return a.x === b.x && a.y === b.y;
+  const eps = 1e-5;
+  return Math.abs(a.x - b.x) <= eps && Math.abs(a.y - b.y) <= eps;
 }
 
 function pointKey(p: Point): string {
-  return `${p.x},${p.y}`;
+  return `${p.x.toFixed(6)},${p.y.toFixed(6)}`;
 }
 
-function smoothClosedLoop(points: Point[], iterations: number): Point[] {
-  if (points.length < 3 || iterations <= 0) return points;
-  let result = points;
-  for (let i = 0; i < iterations; i++) {
-    const next: Point[] = [];
-    for (let j = 0; j < result.length; j++) {
-      const p0 = result[j];
-      const p1 = result[(j + 1) % result.length];
-      next.push({ x: p0.x * 0.75 + p1.x * 0.25, y: p0.y * 0.75 + p1.y * 0.25 });
-      next.push({ x: p0.x * 0.25 + p1.x * 0.75, y: p0.y * 0.25 + p1.y * 0.75 });
-    }
-    result = next;
-  }
-  return result;
+function edgeKey(a: Point, b: Point): string {
+  const ka = pointKey(a);
+  const kb = pointKey(b);
+  return ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`;
 }
 
-function displaceLoop(points: Point[], iterations: number, amplitude: number, seed: number): Point[] {
-  if (points.length < 3 || iterations <= 0 || amplitude <= 0) return points;
-  let result = points;
-  for (let i = 0; i < iterations; i++) {
-    const next: Point[] = [];
-    for (let j = 0; j < result.length; j++) {
-      const p0 = result[j];
-      const p1 = result[(j + 1) % result.length];
-      const mx = (p0.x + p1.x) * 0.5;
-      const my = (p0.y + p1.y) * 0.5;
-      const jitterX = (hash01(Math.round(mx * 100), Math.round(my * 100), seed) - 0.5) * 2 * amplitude;
-      const jitterY = (hash01(Math.round(mx * 100), Math.round(my * 100), seed + 17) - 0.5) * 2 * amplitude;
-      next.push(p0);
-      next.push({ x: mx + jitterX, y: my + jitterY });
-    }
-    result = next;
-  }
-  return result;
-}
-
-function buildLoopsFromSegments(segments: Segment[]): Point[][] {
-  const loops: Point[][] = [];
+function buildPathsFromSegments(segments: Segment[]): SegmentPaths {
+  const closedLoops: Point[][] = [];
+  const openPaths: Point[][] = [];
   const used = new Array<boolean>(segments.length).fill(false);
   const byPoint = new Map<string, number[]>();
+  const pointByKey = new Map<string, Point>();
+
+  const vecNorm = (x: number, y: number): { x: number; y: number } => {
+    const len = Math.hypot(x, y);
+    if (len <= 1e-6) return { x: 0, y: 0 };
+    return { x: x / len, y: y / len };
+  };
 
   segments.forEach((seg, index) => {
     const aKey = pointKey(seg.a);
     const bKey = pointKey(seg.b);
+    pointByKey.set(aKey, seg.a);
+    pointByKey.set(bKey, seg.b);
     const listA = byPoint.get(aKey);
     if (listA) listA.push(index);
     else byPoint.set(aKey, [index]);
@@ -105,37 +117,82 @@ function buildLoopsFromSegments(segments: Segment[]): Point[][] {
     else byPoint.set(bKey, [index]);
   });
 
-  for (let i = 0; i < segments.length; i++) {
-    if (used[i]) continue;
-    used[i] = true;
-    const seg = segments[i];
-    const points: Point[] = [seg.a, seg.b];
-    let current = seg.b;
-    let previous = seg.a;
+  const getOtherPoint = (seg: Segment, currentKey: string): Point => {
+    return pointKey(seg.a) === currentKey ? seg.b : seg.a;
+  };
 
-    while (true) {
-      const candidates = byPoint.get(pointKey(current)) ?? [];
-      const nextIndex = candidates.find(index => !used[index]);
-      if (nextIndex === undefined) break;
-      used[nextIndex] = true;
-      const nextSeg = segments[nextIndex];
-      const nextPoint = isSamePoint(nextSeg.a, current) ? nextSeg.b : nextSeg.a;
-      if (isSamePoint(nextPoint, previous)) break;
-      points.push(nextPoint);
-      previous = current;
-      current = nextPoint;
-      if (isSamePoint(current, points[0])) break;
-    }
-
-    if (points.length >= 3) {
-      if (!isSamePoint(points[0], points[points.length - 1])) {
-        points.push(points[0]);
+  const pickNextEdge = (currentKey: string, prevDir: { x: number; y: number } | null): number | null => {
+    const candidates = byPoint.get(currentKey) ?? [];
+    let best: number | null = null;
+    let bestScore = -Infinity;
+    for (const edgeIndex of candidates) {
+      if (used[edgeIndex]) continue;
+      if (!prevDir) return edgeIndex;
+      const seg = segments[edgeIndex];
+      const currentPoint = pointByKey.get(currentKey);
+      if (!currentPoint) continue;
+      const nextPoint = getOtherPoint(seg, currentKey);
+      const dir = vecNorm(nextPoint.x - currentPoint.x, nextPoint.y - currentPoint.y);
+      const score = prevDir.x * dir.x + prevDir.y * dir.y;
+      if (score > bestScore) {
+        bestScore = score;
+        best = edgeIndex;
       }
-      loops.push(points.slice(0, points.length - 1));
+    }
+    return best;
+  };
+
+  const traceFrom = (startKey: string, forcedFirstEdge: number | null): Point[] => {
+    const startPoint = pointByKey.get(startKey);
+    if (!startPoint) return [];
+    const points: Point[] = [startPoint];
+    let currentKey = startKey;
+    let prevDir: { x: number; y: number } | null = null;
+
+    let firstEdge = forcedFirstEdge;
+    while (true) {
+      const edgeIndex = firstEdge ?? pickNextEdge(currentKey, prevDir);
+      firstEdge = null;
+      if (edgeIndex === null || used[edgeIndex]) break;
+      used[edgeIndex] = true;
+      const seg = segments[edgeIndex];
+      const currentPoint = pointByKey.get(currentKey);
+      if (!currentPoint) break;
+      const nextPoint = getOtherPoint(seg, currentKey);
+      const nextKey = pointKey(nextPoint);
+      points.push(nextPoint);
+      const dir = vecNorm(nextPoint.x - currentPoint.x, nextPoint.y - currentPoint.y);
+      prevDir = dir;
+      currentKey = nextKey;
+      if (currentKey === startKey) break;
+    }
+    return points;
+  };
+
+  // Open paths first: start from degree-1 vertices.
+  for (const [key, edges] of byPoint.entries()) {
+    if (edges.length !== 1) continue;
+    const onlyEdge = edges[0];
+    if (used[onlyEdge]) continue;
+    const points = traceFrom(key, onlyEdge);
+    if (points.length >= 2 && !isSamePoint(points[0], points[points.length - 1])) {
+      openPaths.push(points);
     }
   }
 
-  return loops;
+  // Remaining edges are loops or complex branches.
+  for (let i = 0; i < segments.length; i++) {
+    if (used[i]) continue;
+    const startKey = pointKey(segments[i].a);
+    const points = traceFrom(startKey, i);
+    if (points.length >= 4 && isSamePoint(points[0], points[points.length - 1])) {
+      closedLoops.push(points.slice(0, points.length - 1));
+    } else if (points.length >= 2) {
+      openPaths.push(points);
+    }
+  }
+
+  return { closedLoops, openPaths };
 }
 
 function canvasBlendTriangle(
@@ -198,6 +255,78 @@ function canvasBaseTriangle(
   ctx.fill();
 }
 
+function applyPlayableClipMask(
+  ctx: CanvasRenderingContext2D,
+  cols: number,
+  rows: number,
+  isPlayable: (x: number, y: number) => boolean
+): void {
+  ctx.save();
+  ctx.globalCompositeOperation = "destination-in";
+  ctx.beginPath();
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      if (!isPlayable(x, y)) continue;
+      const polygon = getGridCellPolygonForGrid(x, y, cols, rows);
+      if (polygon.length < 3) continue;
+      ctx.moveTo(polygon[0].x, polygon[0].y);
+      for (let i = 1; i < polygon.length; i++) {
+        ctx.lineTo(polygon[i].x, polygon[i].y);
+      }
+      ctx.closePath();
+    }
+  }
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+  ctx.restore();
+}
+
+async function preloadBorderMaskImages(urls: string[]): Promise<void> {
+  const jobs: Promise<void>[] = [];
+  for (const url of urls) {
+    if (!url) continue;
+    if (borderMaskCutCanvasByUrl.has(url) || borderMaskPendingByUrl.has(url)) continue;
+    borderMaskPendingByUrl.add(url);
+    jobs.push(
+      new Promise<void>((resolve, reject) => {
+        const img = new Image();
+        img.decoding = "async";
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+          const cutCanvas = document.createElement("canvas");
+          cutCanvas.width = Math.max(1, img.width);
+          cutCanvas.height = Math.max(1, img.height);
+          const cutCtx = cutCanvas.getContext("2d");
+          if (cutCtx) {
+            cutCtx.drawImage(img, 0, 0);
+            const imageData = cutCtx.getImageData(0, 0, cutCanvas.width, cutCanvas.height);
+            const data = imageData.data;
+            for (let i = 0; i < data.length; i += 4) {
+              // Invert source alpha so transparent/opaque logic is swapped.
+              data[i] = 255;
+              data[i + 1] = 255;
+              data[i + 2] = 255;
+              data[i + 3] = 255 - data[i + 3];
+            }
+            cutCtx.putImageData(imageData, 0, 0);
+            borderMaskCutCanvasByUrl.set(url, cutCanvas);
+          }
+          borderMaskPendingByUrl.delete(url);
+          resolve();
+        };
+        img.onerror = () => {
+          borderMaskPendingByUrl.delete(url);
+          reject(new Error(`Failed to load floor border mask: ${url}`));
+        };
+        img.src = url;
+      })
+    );
+  }
+  if (jobs.length > 0) {
+    await Promise.allSettled(jobs);
+  }
+}
+
 export function usePixiNaturalTiling(options: {
   layerRef: RefObject<Container | null>;
   terrain?: TerrainCell[] | null;
@@ -205,6 +334,9 @@ export function usePixiNaturalTiling(options: {
   playableCells?: Set<string> | null;
   grid: { cols: number; rows: number };
   materials: Map<string, FloorMaterial>;
+  enableBorderMask?: boolean;
+  showMaskPlacementRects?: boolean;
+  showMaskNormals?: boolean;
   pixiReadyTick?: number;
   onInvalidate?: () => void;
 }): void {
@@ -225,6 +357,14 @@ export function usePixiNaturalTiling(options: {
     list.sort();
     return list;
   }, [options.materials]);
+  const borderMaskUrls = useMemo(() => {
+    const urls: string[] = [];
+    for (const id of naturalIds) {
+      const url = FLOOR_BORDER_MASK_URL_BY_ID[id];
+      if (url) urls.push(url);
+    }
+    return Array.from(new Set(urls));
+  }, [naturalIds]);
 
   useEffect(() => {
     let cancelled = false;
@@ -244,6 +384,21 @@ export function usePixiNaturalTiling(options: {
   }, [texturedIds.join("|")]);
 
   useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        await preloadBorderMaskImages(borderMaskUrls);
+        if (!cancelled) setReadyTick(t => t + 1);
+      } catch {
+        if (!cancelled) setReadyTick(t => t + 1);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [borderMaskUrls.join("|")]);
+
+  useEffect(() => {
     const layer = options.layerRef.current;
     if (!layer) return;
 
@@ -256,10 +411,16 @@ export function usePixiNaturalTiling(options: {
     if (!terrain || terrain.length === 0) return;
 
     const terrainMix = Array.isArray(options.terrainMix) ? options.terrainMix : null;
+    const isHexGrid = getBoardGridProjectionKind() === "hex";
+    const enableBorderMask = options.enableBorderMask !== false;
+    const showMaskPlacementRects = options.showMaskPlacementRects === true;
+    const showMaskNormals = options.showMaskNormals === true;
     const playable = options.playableCells ?? null;
     const { cols, rows } = options.grid;
     const boardW = getBoardWidth(cols);
     const boardH = getBoardHeight(rows);
+    const maskDebugRects: Array<{ x: number; y: number; angle: number; w: number; h: number; flipped: boolean }> = [];
+    const maskDebugNormals: Array<{ x1: number; y1: number; x2: number; y2: number; toInside: boolean }> = [];
 
     const isPlayable = (x: number, y: number): boolean => {
       if (!playable || playable.size === 0) return true;
@@ -293,6 +454,41 @@ export function usePixiNaturalTiling(options: {
       return edge === "S" || edge === "W" ? blend : base;
     };
     const collectBoundarySegments = (id: string): Segment[] => {
+      if (isHexGrid) {
+        const edgeMap = new Map<string, EdgeRecord>();
+        for (let y = 0; y < rows; y++) {
+          for (let x = 0; x < cols; x++) {
+            if (!isPlayable(x, y)) continue;
+            if (getTerrainAt(x, y) !== id) continue;
+
+            const polygon = getGridCellPolygonForGrid(x, y, cols, rows);
+            if (polygon.length < 3) continue;
+            let cx = 0;
+            let cy = 0;
+            for (const p of polygon) {
+              cx += p.x;
+              cy += p.y;
+            }
+            const inside = { x: cx / polygon.length, y: cy / polygon.length };
+
+            for (let i = 0; i < polygon.length; i++) {
+              const a = polygon[i];
+              const b = polygon[(i + 1) % polygon.length];
+              const key = edgeKey(a, b);
+              const rec = edgeMap.get(key);
+              if (rec) {
+                rec.count += 1;
+              } else {
+                edgeMap.set(key, { count: 1, a, b, inside });
+              }
+            }
+          }
+        }
+        return Array.from(edgeMap.values())
+          .filter(rec => rec.count === 1)
+          .map(rec => ({ a: rec.a, b: rec.b, inside: rec.inside }));
+      }
+
       const segments: Segment[] = [];
       for (let y = 0; y < rows; y++) {
         for (let x = 0; x < cols; x++) {
@@ -374,30 +570,206 @@ export function usePixiNaturalTiling(options: {
 
       if (naturalIds.includes(id)) {
         const segments = collectBoundarySegments(id);
-        const loops = buildLoopsFromSegments(segments);
-        const seed = 1337;
-        const displacedLoops = loops.map(loop => displaceLoop(loop, 2, 0.22, seed));
-        const smoothLoops = displacedLoops.map(loop => smoothClosedLoop(loop, 1));
+        const borderMaskUrl = FLOOR_BORDER_MASK_URL_BY_ID[id] ?? null;
+        const borderMask = borderMaskUrl ? borderMaskCutCanvasByUrl.get(borderMaskUrl) ?? null : null;
+        const paths = buildPathsFromSegments(segments);
+        const smoothLoops = paths.closedLoops;
+
+        if (smoothLoops.length > 0) {
+          baseCtx.beginPath();
+          for (const loop of smoothLoops) {
+            if (loop.length < 3) continue;
+            if (isHexGrid) {
+              baseCtx.moveTo(loop[0].x, loop[0].y);
+            } else {
+              baseCtx.moveTo(loop[0].x * TILE_SIZE, loop[0].y * TILE_SIZE);
+            }
+            for (let i = 1; i < loop.length; i++) {
+              if (isHexGrid) {
+                baseCtx.lineTo(loop[i].x, loop[i].y);
+              } else {
+                baseCtx.lineTo(loop[i].x * TILE_SIZE, loop[i].y * TILE_SIZE);
+              }
+            }
+            baseCtx.closePath();
+          }
+          try {
+            baseCtx.fill("evenodd");
+          } catch {
+            baseCtx.fill();
+          }
+        }
+
         baseCtx.beginPath();
         for (const loop of smoothLoops) {
           if (loop.length < 3) continue;
-          baseCtx.moveTo(loop[0].x * TILE_SIZE, loop[0].y * TILE_SIZE);
+          if (isHexGrid) {
+            baseCtx.moveTo(loop[0].x, loop[0].y);
+          } else {
+            baseCtx.moveTo(loop[0].x * TILE_SIZE, loop[0].y * TILE_SIZE);
+          }
           for (let i = 1; i < loop.length; i++) {
-            baseCtx.lineTo(loop[i].x * TILE_SIZE, loop[i].y * TILE_SIZE);
+            if (isHexGrid) {
+              baseCtx.lineTo(loop[i].x, loop[i].y);
+            } else {
+              baseCtx.lineTo(loop[i].x * TILE_SIZE, loop[i].y * TILE_SIZE);
+            }
           }
           baseCtx.closePath();
+        }
+        for (const path of paths.openPaths) {
+          if (path.length < 2) continue;
+          if (isHexGrid) {
+            baseCtx.moveTo(path[0].x, path[0].y);
+          } else {
+            baseCtx.moveTo(path[0].x * TILE_SIZE, path[0].y * TILE_SIZE);
+          }
+          for (let i = 1; i < path.length; i++) {
+            if (isHexGrid) {
+              baseCtx.lineTo(path[i].x, path[i].y);
+            } else {
+              baseCtx.lineTo(path[i].x * TILE_SIZE, path[i].y * TILE_SIZE);
+            }
+          }
         }
         baseCtx.save();
         baseCtx.lineJoin = "round";
         baseCtx.lineCap = "round";
-        baseCtx.lineWidth = TILE_SIZE * 0.6;
+        // Keep a small border expansion so mask cutting has material to remove.
+        baseCtx.lineWidth = borderMask
+          // Canvas stroke is centered on contour: width/2 gives outside overflow.
+          ? Math.max(2, TILE_SIZE * BORDER_OVERFLOW_RATIO * 2)
+          : TILE_SIZE * (isHexGrid ? 0.45 : 0.6);
         baseCtx.strokeStyle = "#ffffff";
         baseCtx.stroke();
         baseCtx.restore();
-        try {
-          baseCtx.fill("evenodd");
-        } catch {
-          baseCtx.fill();
+
+        if (borderMask && enableBorderMask) {
+          const borderMaskImage = borderMask;
+          const stampHeight = Math.max(8, TILE_SIZE * BORDER_OVERFLOW_RATIO);
+          const stampWidth = Math.max(
+            stampHeight,
+            (stampHeight * borderMaskImage.width) / Math.max(1, borderMaskImage.height)
+          );
+          // Place stamps almost one mask-width apart to avoid heavy overlap.
+          const step = Math.max(2, stampWidth * 0.92);
+          const vertexKeys = new Set<string>();
+          const vertexPoints: Array<{ x: number; y: number }> = [];
+          const addVertex = (x: number, y: number) => {
+            const key = `${x.toFixed(2)},${y.toFixed(2)}`;
+            if (vertexKeys.has(key)) return;
+            vertexKeys.add(key);
+            vertexPoints.push({ x, y });
+          };
+          const toCanvasPoint = (p: Point): Point => {
+            if (isHexGrid) return { x: p.x, y: p.y };
+            return { x: p.x * TILE_SIZE, y: p.y * TILE_SIZE };
+          };
+          const insideByEdge = new Map<string, Point>();
+          for (const seg of segments) {
+            if (seg.inside) {
+              insideByEdge.set(edgeKey(seg.a, seg.b), seg.inside);
+            }
+          }
+          const getStampFrame = (
+            ax: number,
+            ay: number,
+            bx: number,
+            by: number,
+            inside?: Point
+          ): { angle: number; flipped: boolean; midX: number; midY: number; len: number } | null => {
+            const dx = bx - ax;
+            const dy = by - ay;
+            const len = Math.hypot(dx, dy);
+            if (len < 1e-6) return null;
+            const angle = Math.atan2(dy, dx);
+            const midX = (ax + bx) * 0.5;
+            const midY = (ay + by) * 0.5;
+            const leftNx = -dy / len;
+            const leftNy = dx / len;
+            const insideCanvas = inside
+              ? toCanvasPoint(inside)
+              : { x: midX, y: midY };
+            const sideDot = (insideCanvas.x - ax) * leftNx + (insideCanvas.y - ay) * leftNy;
+            const flipped = sideDot < 0;
+            return { angle, flipped, midX, midY, len };
+          };
+          const drawStamp = (px: number, py: number, angle: number, flipped: boolean): void => {
+            baseCtx.save();
+            baseCtx.translate(px, py);
+            baseCtx.rotate(angle);
+            // Bottom of mask stays on contour; flip only when interior side requires it.
+            if (flipped) baseCtx.scale(1, -1);
+            baseCtx.drawImage(borderMaskImage, -stampWidth * 0.5, -stampHeight, stampWidth, stampHeight);
+            baseCtx.restore();
+            if (showMaskPlacementRects) {
+              maskDebugRects.push({ x: px, y: py, angle, w: stampWidth, h: stampHeight, flipped });
+            }
+          };
+          const drawPathStamps = (path: Point[]): void => {
+            if (path.length < 2) return;
+            let nextStampAt = 0;
+            let traversed = 0;
+            for (let i = 0; i < path.length - 1; i++) {
+              const aModel = path[i];
+              const bModel = path[i + 1];
+              const a = toCanvasPoint(aModel);
+              const b = toCanvasPoint(bModel);
+              addVertex(a.x, a.y);
+              addVertex(b.x, b.y);
+              const inside = insideByEdge.get(edgeKey(aModel, bModel));
+              const frame = getStampFrame(a.x, a.y, b.x, b.y, inside);
+              if (!frame) continue;
+              const dx = b.x - a.x;
+              const dy = b.y - a.y;
+              if (showMaskNormals) {
+                const leftNx = -dy / frame.len;
+                const leftNy = dx / frame.len;
+                const nx = frame.flipped ? -leftNx : leftNx;
+                const ny = frame.flipped ? -leftNy : leftNy;
+                const normalLen = Math.max(6, stampHeight * 0.45);
+                const insideCanvas = inside ? toCanvasPoint(inside) : { x: frame.midX, y: frame.midY };
+                const toInside = (insideCanvas.x - a.x) * leftNx + (insideCanvas.y - a.y) * leftNy > 0;
+                maskDebugNormals.push({
+                  x1: frame.midX,
+                  y1: frame.midY,
+                  x2: frame.midX + nx * normalLen,
+                  y2: frame.midY + ny * normalLen,
+                  toInside
+                });
+              }
+
+              while (traversed + frame.len >= nextStampAt) {
+                const local = Math.max(0, nextStampAt - traversed);
+                const t = Math.min(1, local / frame.len);
+                const px = a.x + dx * t;
+                const py = a.y + dy * t;
+                drawStamp(px, py, frame.angle, frame.flipped);
+                nextStampAt += step;
+              }
+              traversed += frame.len;
+            }
+          };
+          baseCtx.save();
+          baseCtx.globalCompositeOperation = "destination-out";
+          for (const loop of smoothLoops) {
+            if (loop.length < 3) continue;
+            const closedPath = [...loop, loop[0]];
+            drawPathStamps(closedPath);
+          }
+          for (const path of paths.openPaths) {
+            if (path.length < 2) continue;
+            drawPathStamps(path);
+          }
+          // Round joins at corners to improve continuity on acute/obtuse angles.
+          const joinRadius = Math.max(1.5, stampHeight * 0.16);
+          for (const p of vertexPoints) {
+            baseCtx.beginPath();
+            baseCtx.arc(p.x, p.y, joinRadius, 0, Math.PI * 2);
+            baseCtx.fillStyle = "#ffffff";
+            baseCtx.fill();
+          }
+          baseCtx.restore();
         }
       } else {
         for (let y = 0; y < rows; y++) {
@@ -405,16 +777,23 @@ export function usePixiNaturalTiling(options: {
             if (!isPlayable(x, y)) continue;
             const cell = getTerrainAt(x, y);
             const mix = getMixAt(x, y);
-            const left = x * TILE_SIZE;
-            const top = y * TILE_SIZE;
-            const right = left + TILE_SIZE;
-            const bottom = top + TILE_SIZE;
+            const polygon = getGridCellPolygonForGrid(x, y, cols, rows);
 
-            if (!mix) {
+            if (isHexGrid || !mix) {
               if (cell === id) {
-                baseCtx.fillRect(left, top, TILE_SIZE, TILE_SIZE);
+                baseCtx.beginPath();
+                baseCtx.moveTo(polygon[0].x, polygon[0].y);
+                for (let i = 1; i < polygon.length; i++) {
+                  baseCtx.lineTo(polygon[i].x, polygon[i].y);
+                }
+                baseCtx.closePath();
+                baseCtx.fill();
               }
             } else {
+              const left = x * TILE_SIZE;
+              const top = y * TILE_SIZE;
+              const right = left + TILE_SIZE;
+              const bottom = top + TILE_SIZE;
               if (mix.blend === id) {
                 canvasBlendTriangle(baseCtx, mix.corner, left, top, right, bottom);
               }
@@ -425,6 +804,9 @@ export function usePixiNaturalTiling(options: {
           }
         }
       }
+
+      // Keep terrain masks strictly inside playable map cells.
+      applyPlayableClipMask(baseCtx, cols, rows, isPlayable);
 
       const baseMaskTexture = Texture.from(baseMaskCanvas);
       const baseMaskSprite = new Sprite(baseMaskTexture);
@@ -493,10 +875,21 @@ export function usePixiNaturalTiling(options: {
             if (!isPlayable(x, y)) continue;
             const cell = getTerrainAt(x, y);
             const mix = getMixAt(x, y);
-            const hasId = !mix ? cell === id : mix.base === id || mix.blend === id;
+            const hasId = isHexGrid ? cell === id : !mix ? cell === id : mix.base === id || mix.blend === id;
             if (!hasId) continue;
             if (hasVariants && pickVariantIndex(x, y) !== variantIndex) continue;
-            ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+            if (isHexGrid || !mix) {
+              const polygon = getGridCellPolygonForGrid(x, y, cols, rows);
+              ctx.beginPath();
+              ctx.moveTo(polygon[0].x, polygon[0].y);
+              for (let i = 1; i < polygon.length; i++) {
+                ctx.lineTo(polygon[i].x, polygon[i].y);
+              }
+              ctx.closePath();
+              ctx.fill();
+            } else {
+              ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+            }
           }
         }
 
@@ -513,6 +906,43 @@ export function usePixiNaturalTiling(options: {
       }
     }
 
+    if (showMaskPlacementRects && maskDebugRects.length > 0) {
+      const debug = new Graphics();
+      debug.label = "mask-placement-rects";
+      for (const rect of maskDebugRects) {
+        const hw = rect.w * 0.5;
+        const top = rect.flipped ? 0 : -rect.h;
+        const bottom = rect.flipped ? rect.h : 0;
+        const corners = [
+          { x: -hw, y: top },
+          { x: hw, y: top },
+          { x: hw, y: bottom },
+          { x: -hw, y: bottom }
+        ].map(p => ({
+          x: rect.x + p.x * Math.cos(rect.angle) - p.y * Math.sin(rect.angle),
+          y: rect.y + p.x * Math.sin(rect.angle) + p.y * Math.cos(rect.angle)
+        }));
+        debug.poly([
+          corners[0].x, corners[0].y,
+          corners[1].x, corners[1].y,
+          corners[2].x, corners[2].y,
+          corners[3].x, corners[3].y
+        ]);
+        debug.stroke({ width: 1, color: 0xff4d4d, alpha: 0.9 });
+      }
+      layer.addChild(debug);
+    }
+    if (showMaskNormals && maskDebugNormals.length > 0) {
+      const normals = new Graphics();
+      normals.label = "mask-normals";
+      for (const n of maskDebugNormals) {
+        normals.moveTo(n.x1, n.y1);
+        normals.lineTo(n.x2, n.y2);
+        normals.stroke({ width: 1, color: n.toInside ? 0x00d8ff : 0xffa500, alpha: 0.95 });
+      }
+      layer.addChild(normals);
+    }
+
     options.onInvalidate?.();
     return;
   }, [
@@ -522,6 +952,9 @@ export function usePixiNaturalTiling(options: {
     options.playableCells,
     options.grid,
     options.materials,
+    options.enableBorderMask,
+    options.showMaskPlacementRects,
+    options.showMaskNormals,
     options.pixiReadyTick,
     options.onInvalidate,
     texturedIds,

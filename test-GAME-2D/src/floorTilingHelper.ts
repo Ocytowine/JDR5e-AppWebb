@@ -1,6 +1,6 @@
 import { Assets, Texture } from "pixi.js";
 
-const tilingModules = import.meta.glob("./game/map/floors/tiling/*.png", {
+const tilingModules = import.meta.glob("./data/maps/floors/tiling/*.png", {
   query: "?url",
   import: "default",
   eager: true
@@ -89,7 +89,6 @@ async function buildResizedTexture(url: string, size: number): Promise<Texture> 
     texture.source.autoGenerateMipmaps = true;
     texture.source.addressMode = "repeat";
   }
-  console.log("[floor-tiling] resized", url, "->", size, "x", size);
   return texture;
 }
 

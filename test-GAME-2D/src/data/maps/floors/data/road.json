@@ -1,0 +1,9 @@
+{
+  "id": "road",
+  "label": "Road",
+  "textureId": "road-basic",
+  "fallbackColor": "#5a4a3a",
+  "tags": ["exterior", "path"],
+  "passable": true,
+  "moveCost": 1
+}

@@ -7,6 +7,9 @@ export function EffectsPanel(props: {
   showAllLevels: boolean;
   showTerrainIds: boolean;
   showTerrainContours: boolean;
+  enableTerrainBorderMask: boolean;
+  showTerrainMaskRects: boolean;
+  showTerrainMaskNormals: boolean;
   showGridLines: boolean;
   fogGradientLengthPx: number;
   fogAlphaNear: number;
@@ -31,6 +34,9 @@ export function EffectsPanel(props: {
   onToggleShowAllLevels: () => void;
   onToggleTerrainIds: () => void;
   onToggleTerrainContours: () => void;
+  onToggleEnableTerrainBorderMask: () => void;
+  onToggleShowTerrainMaskRects: () => void;
+  onToggleShowTerrainMaskNormals: () => void;
   onToggleGridLines: () => void;
   onChangeFogGradientLengthPx: (value: number) => void;
   onChangeFogAlphaNear: (value: number) => void;
@@ -265,6 +271,51 @@ export function EffectsPanel(props: {
               }}
             >
               {props.showTerrainContours ? "Masquer contours sol" : "Afficher contours sol"}
+            </button>
+            <button
+              type="button"
+              onClick={props.onToggleEnableTerrainBorderMask}
+              style={{
+                padding: "4px 8px",
+                background: props.enableTerrainBorderMask ? "#27ae60" : "#555",
+                color: props.enableTerrainBorderMask ? "#0b0b12" : "#fff",
+                border: "none",
+                borderRadius: 4,
+                cursor: "pointer",
+                fontSize: 12
+              }}
+            >
+              {props.enableTerrainBorderMask ? "Masque sol: ON" : "Masque sol: OFF"}
+            </button>
+            <button
+              type="button"
+              onClick={props.onToggleShowTerrainMaskRects}
+              style={{
+                padding: "4px 8px",
+                background: props.showTerrainMaskRects ? "#e74c3c" : "#555",
+                color: "#fff",
+                border: "none",
+                borderRadius: 4,
+                cursor: "pointer",
+                fontSize: 12
+              }}
+            >
+              {props.showTerrainMaskRects ? "Rect. masque: ON" : "Rect. masque: OFF"}
+            </button>
+            <button
+              type="button"
+              onClick={props.onToggleShowTerrainMaskNormals}
+              style={{
+                padding: "4px 8px",
+                background: props.showTerrainMaskNormals ? "#f39c12" : "#555",
+                color: props.showTerrainMaskNormals ? "#0b0b12" : "#fff",
+                border: "none",
+                borderRadius: 4,
+                cursor: "pointer",
+                fontSize: 12
+              }}
+            >
+              {props.showTerrainMaskNormals ? "Normales masque: ON" : "Normales masque: OFF"}
             </button>
             <button
               type="button"

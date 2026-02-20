@@ -1,0 +1,9 @@
+{
+  "id": "stone",
+  "label": "Stone",
+  "textureId": "stone-basic",
+  "fallbackColor": "#6b6f74",
+  "tags": ["rock", "interior"],
+  "passable": true,
+  "moveCost": 1
+}

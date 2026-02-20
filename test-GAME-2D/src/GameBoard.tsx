@@ -93,8 +93,8 @@ import type { BonusDefinition } from "./game/bonusTypes";
 import { generateBattleMap } from "./game/map/generation/mapEngine";
 import { getHeightAtGrid, type TerrainCell } from "./game/map/generation/draft";
 import { buildTerrainMixLayer } from "./game/map/generation/terrainMix";
-import { FLOOR_MATERIALS, getFloorMaterial } from "./game/map/floors/catalog";
-import type { FloorMaterial } from "./game/map/floors/types";
+import { FLOOR_MATERIALS, getFloorMaterial } from "./data/maps/floors/catalog";
+import type { FloorMaterial } from "./data/maps/floors/types";
 import type { DecorInstance } from "./game/decorTypes";
 import type { MapTheme } from "./game/map/generation/types";
 import { buildObstacleBlockingSets, getObstacleOccupiedCells } from "./game/map/runtime/obstacleRuntime";
@@ -1389,6 +1389,9 @@ export const GameBoard: React.FC = () => {
   const [showCellIds, setShowCellIds] = useState<boolean>(false);
   const [showTerrainIds, setShowTerrainIds] = useState<boolean>(false);
   const [showTerrainContours, setShowTerrainContours] = useState<boolean>(false);
+  const [enableTerrainBorderMask, setEnableTerrainBorderMask] = useState<boolean>(true);
+  const [showTerrainMaskRects, setShowTerrainMaskRects] = useState<boolean>(false);
+  const [showTerrainMaskNormals, setShowTerrainMaskNormals] = useState<boolean>(false);
   const [showGridLines, setShowGridLines] = useState<boolean>(true);
   const [fogGradientLengthPx, setFogGradientLengthPx] = useState<number>(22);
   const [fogAlphaNear, setFogAlphaNear] = useState<number>(0.14);
@@ -2288,6 +2291,9 @@ export const GameBoard: React.FC = () => {
     playableCells,
     grid: mapGrid,
     materials: floorMaterialById,
+    enableBorderMask: enableTerrainBorderMask,
+    showMaskPlacementRects: showTerrainMaskRects,
+    showMaskNormals: showTerrainMaskNormals,
     pixiReadyTick,
     onInvalidate: invalidateBoard
   });
@@ -2335,6 +2341,9 @@ export const GameBoard: React.FC = () => {
     fogAlphaMax,
     showTerrainIds,
     showTerrainContours,
+    enableTerrainBorderMask,
+    showTerrainMaskRects,
+    showTerrainMaskNormals,
     activeLevel,
     speechBubbles,
     isTextureLoading,
@@ -14567,6 +14576,9 @@ function handleEndPlayerTurn() {
                       showAllLevels={showAllLevels}
                       showTerrainIds={showTerrainIds}
                       showTerrainContours={showTerrainContours}
+                      enableTerrainBorderMask={enableTerrainBorderMask}
+                      showTerrainMaskRects={showTerrainMaskRects}
+                      showTerrainMaskNormals={showTerrainMaskNormals}
                       showGridLines={showGridLines}
                       fogGradientLengthPx={fogGradientLengthPx}
                       fogAlphaNear={fogAlphaNear}
@@ -14580,6 +14592,9 @@ function handleEndPlayerTurn() {
                       onToggleShowAllLevels={() => setShowAllLevels(prev => !prev)}
                       onToggleTerrainIds={() => setShowTerrainIds(prev => !prev)}
                       onToggleTerrainContours={() => setShowTerrainContours(prev => !prev)}
+                      onToggleEnableTerrainBorderMask={() => setEnableTerrainBorderMask(prev => !prev)}
+                      onToggleShowTerrainMaskRects={() => setShowTerrainMaskRects(prev => !prev)}
+                      onToggleShowTerrainMaskNormals={() => setShowTerrainMaskNormals(prev => !prev)}
                       onToggleGridLines={() => setShowGridLines(prev => !prev)}
                       onChangeFogGradientLengthPx={value => setFogGradientLengthPx(value)}
                       onChangeFogAlphaNear={value => setFogAlphaNear(value)}
