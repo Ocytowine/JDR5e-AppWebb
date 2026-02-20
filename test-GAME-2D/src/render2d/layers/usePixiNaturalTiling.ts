@@ -27,6 +27,8 @@ const floorMaskModules = import.meta.glob("../../data/maps/floors/mask/*.png", {
 const FLOOR_BORDER_MASK_URL_BY_ID: Record<string, string> = {};
 const borderMaskCutCanvasByUrl = new Map<string, HTMLCanvasElement>();
 const borderMaskPendingByUrl = new Set<string>();
+const BORDER_MASK_PREPROCESS_SCALE = 2;
+const BORDER_MASK_SOFTEN_PX = 0.35;
 
 for (const [path, url] of Object.entries(floorMaskModules)) {
   const file = path.split("/").pop() ?? "";
@@ -255,6 +257,41 @@ function canvasBaseTriangle(
   ctx.fill();
 }
 
+function getSquareMixTriangleCentroid(
+  corner: TerrainMixCell["corner"],
+  kind: "base" | "blend",
+  left: number,
+  top: number,
+  right: number,
+  bottom: number
+): Point {
+  const points: Point[] = [];
+  if (kind === "blend") {
+    if (corner === "NE") {
+      points.push({ x: left, y: top }, { x: right, y: top }, { x: right, y: bottom });
+    } else if (corner === "NW") {
+      points.push({ x: left, y: top }, { x: right, y: top }, { x: left, y: bottom });
+    } else if (corner === "SE") {
+      points.push({ x: right, y: top }, { x: right, y: bottom }, { x: left, y: bottom });
+    } else {
+      points.push({ x: left, y: top }, { x: right, y: bottom }, { x: left, y: bottom });
+    }
+  } else {
+    if (corner === "NE") {
+      points.push({ x: left, y: top }, { x: right, y: bottom }, { x: left, y: bottom });
+    } else if (corner === "NW") {
+      points.push({ x: right, y: top }, { x: right, y: bottom }, { x: left, y: bottom });
+    } else if (corner === "SE") {
+      points.push({ x: left, y: top }, { x: right, y: top }, { x: left, y: bottom });
+    } else {
+      points.push({ x: left, y: top }, { x: right, y: top }, { x: right, y: bottom });
+    }
+  }
+  const cx = (points[0].x + points[1].x + points[2].x) / 3;
+  const cy = (points[0].y + points[1].y + points[2].y) / 3;
+  return { x: cx, y: cy };
+}
+
 function applyPlayableClipMask(
   ctx: CanvasRenderingContext2D,
   cols: number,
@@ -294,11 +331,13 @@ async function preloadBorderMaskImages(urls: string[]): Promise<void> {
         img.crossOrigin = "anonymous";
         img.onload = () => {
           const cutCanvas = document.createElement("canvas");
-          cutCanvas.width = Math.max(1, img.width);
-          cutCanvas.height = Math.max(1, img.height);
+          cutCanvas.width = Math.max(1, Math.round(img.width * BORDER_MASK_PREPROCESS_SCALE));
+          cutCanvas.height = Math.max(1, Math.round(img.height * BORDER_MASK_PREPROCESS_SCALE));
           const cutCtx = cutCanvas.getContext("2d");
           if (cutCtx) {
-            cutCtx.drawImage(img, 0, 0);
+            cutCtx.imageSmoothingEnabled = true;
+            cutCtx.imageSmoothingQuality = "high";
+            cutCtx.drawImage(img, 0, 0, cutCanvas.width, cutCanvas.height);
             const imageData = cutCtx.getImageData(0, 0, cutCanvas.width, cutCanvas.height);
             const data = imageData.data;
             for (let i = 0; i < data.length; i += 4) {
@@ -494,6 +533,7 @@ export function usePixiNaturalTiling(options: {
         for (let x = 0; x < cols; x++) {
           if (!isPlayable(x, y)) continue;
           const mix = getMixAt(x, y);
+          const insideCell = { x: x + 0.5, y: y + 0.5 };
           const left = x;
           const top = y;
           const right = x + 1;
@@ -507,33 +547,41 @@ export function usePixiNaturalTiling(options: {
           if (northEdge === id) {
             const neighbor = getEdgeTerrain(x, y - 1, "S");
             if (!neighbor || neighbor !== id) {
-              segments.push({ a: { x: left, y: top }, b: { x: right, y: top } });
+              segments.push({ a: { x: left, y: top }, b: { x: right, y: top }, inside: insideCell });
             }
           }
           if (southEdge === id) {
             const neighbor = getEdgeTerrain(x, y + 1, "N");
             if (!neighbor || neighbor !== id) {
-              segments.push({ a: { x: left, y: bottom }, b: { x: right, y: bottom } });
+              segments.push({ a: { x: left, y: bottom }, b: { x: right, y: bottom }, inside: insideCell });
             }
           }
           if (westEdge === id) {
             const neighbor = getEdgeTerrain(x - 1, y, "E");
             if (!neighbor || neighbor !== id) {
-              segments.push({ a: { x: left, y: top }, b: { x: left, y: bottom } });
+              segments.push({ a: { x: left, y: top }, b: { x: left, y: bottom }, inside: insideCell });
             }
           }
           if (eastEdge === id) {
             const neighbor = getEdgeTerrain(x + 1, y, "W");
             if (!neighbor || neighbor !== id) {
-              segments.push({ a: { x: right, y: top }, b: { x: right, y: bottom } });
+              segments.push({ a: { x: right, y: top }, b: { x: right, y: bottom }, inside: insideCell });
             }
           }
 
           if (mix && (mix.base === id || mix.blend === id) && mix.base !== mix.blend) {
+            const inside = getSquareMixTriangleCentroid(
+              mix.corner,
+              mix.base === id ? "base" : "blend",
+              left,
+              top,
+              right,
+              bottom
+            );
             if (mix.corner === "NE" || mix.corner === "SW") {
-              segments.push({ a: { x: left, y: top }, b: { x: right, y: bottom } });
+              segments.push({ a: { x: left, y: top }, b: { x: right, y: bottom }, inside });
             } else {
-              segments.push({ a: { x: right, y: top }, b: { x: left, y: bottom } });
+              segments.push({ a: { x: right, y: top }, b: { x: left, y: bottom }, inside });
             }
           }
         }
@@ -574,6 +622,46 @@ export function usePixiNaturalTiling(options: {
         const borderMask = borderMaskUrl ? borderMaskCutCanvasByUrl.get(borderMaskUrl) ?? null : null;
         const paths = buildPathsFromSegments(segments);
         const smoothLoops = paths.closedLoops;
+        const toCanvasPoint = (p: Point): Point => {
+          if (isHexGrid) return { x: p.x, y: p.y };
+          return { x: p.x * TILE_SIZE, y: p.y * TILE_SIZE };
+        };
+        const getSegmentFrame = (
+          ax: number,
+          ay: number,
+          bx: number,
+          by: number,
+          inside?: Point
+        ): {
+          angle: number;
+          flipped: boolean;
+          midX: number;
+          midY: number;
+          len: number;
+          insideNx: number;
+          insideNy: number;
+          outsideNx: number;
+          outsideNy: number;
+        } | null => {
+          const dx = bx - ax;
+          const dy = by - ay;
+          const len = Math.hypot(dx, dy);
+          if (len < 1e-6) return null;
+          const angle = Math.atan2(dy, dx);
+          const midX = (ax + bx) * 0.5;
+          const midY = (ay + by) * 0.5;
+          const leftNx = -dy / len;
+          const leftNy = dx / len;
+          const insideCanvas = inside ? toCanvasPoint(inside) : { x: midX, y: midY };
+          const sideDot = (insideCanvas.x - ax) * leftNx + (insideCanvas.y - ay) * leftNy;
+          const insideOnLeft = sideDot >= 0;
+          const insideNx = insideOnLeft ? leftNx : -leftNx;
+          const insideNy = insideOnLeft ? leftNy : -leftNy;
+          const outsideNx = -insideNx;
+          const outsideNy = -insideNy;
+          const flipped = !insideOnLeft;
+          return { angle, flipped, midX, midY, len, insideNx, insideNy, outsideNx, outsideNy };
+        };
 
         if (smoothLoops.length > 0) {
           baseCtx.beginPath();
@@ -599,177 +687,77 @@ export function usePixiNaturalTiling(options: {
             baseCtx.fill();
           }
         }
+        const overflowDepth = Math.max(2, TILE_SIZE * BORDER_OVERFLOW_RATIO);
+        const borderMaskImage = borderMask;
+        const borderMaskEnabled = Boolean(borderMaskImage && enableBorderMask);
 
-        baseCtx.beginPath();
-        for (const loop of smoothLoops) {
-          if (loop.length < 3) continue;
-          if (isHexGrid) {
-            baseCtx.moveTo(loop[0].x, loop[0].y);
-          } else {
-            baseCtx.moveTo(loop[0].x * TILE_SIZE, loop[0].y * TILE_SIZE);
-          }
-          for (let i = 1; i < loop.length; i++) {
-            if (isHexGrid) {
-              baseCtx.lineTo(loop[i].x, loop[i].y);
-            } else {
-              baseCtx.lineTo(loop[i].x * TILE_SIZE, loop[i].y * TILE_SIZE);
-            }
-          }
+        for (const seg of segments) {
+          const a = toCanvasPoint(seg.a);
+          const b = toCanvasPoint(seg.b);
+          const frame = getSegmentFrame(a.x, a.y, b.x, b.y, seg.inside);
+          if (!frame) continue;
+
+          const axOut = a.x + frame.outsideNx * overflowDepth;
+          const ayOut = a.y + frame.outsideNy * overflowDepth;
+          const bxOut = b.x + frame.outsideNx * overflowDepth;
+          const byOut = b.y + frame.outsideNy * overflowDepth;
+
+          // 1) Generate overflow exclusively for this boundary segment.
+          baseCtx.beginPath();
+          baseCtx.moveTo(a.x, a.y);
+          baseCtx.lineTo(b.x, b.y);
+          baseCtx.lineTo(bxOut, byOut);
+          baseCtx.lineTo(axOut, ayOut);
           baseCtx.closePath();
-        }
-        for (const path of paths.openPaths) {
-          if (path.length < 2) continue;
-          if (isHexGrid) {
-            baseCtx.moveTo(path[0].x, path[0].y);
-          } else {
-            baseCtx.moveTo(path[0].x * TILE_SIZE, path[0].y * TILE_SIZE);
-          }
-          for (let i = 1; i < path.length; i++) {
-            if (isHexGrid) {
-              baseCtx.lineTo(path[i].x, path[i].y);
-            } else {
-              baseCtx.lineTo(path[i].x * TILE_SIZE, path[i].y * TILE_SIZE);
-            }
-          }
-        }
-        baseCtx.save();
-        baseCtx.lineJoin = "round";
-        baseCtx.lineCap = "round";
-        // Keep a small border expansion so mask cutting has material to remove.
-        baseCtx.lineWidth = borderMask
-          // Canvas stroke is centered on contour: width/2 gives outside overflow.
-          ? Math.max(2, TILE_SIZE * BORDER_OVERFLOW_RATIO * 2)
-          : TILE_SIZE * (isHexGrid ? 0.45 : 0.6);
-        baseCtx.strokeStyle = "#ffffff";
-        baseCtx.stroke();
-        baseCtx.restore();
+          baseCtx.fillStyle = "#ffffff";
+          baseCtx.fill();
 
-        if (borderMask && enableBorderMask) {
-          const borderMaskImage = borderMask;
-          const stampHeight = Math.max(8, TILE_SIZE * BORDER_OVERFLOW_RATIO);
-          const stampWidth = Math.max(
-            stampHeight,
-            (stampHeight * borderMaskImage.width) / Math.max(1, borderMaskImage.height)
-          );
-          // Place stamps almost one mask-width apart to avoid heavy overlap.
-          const step = Math.max(2, stampWidth * 0.92);
-          const vertexKeys = new Set<string>();
-          const vertexPoints: Array<{ x: number; y: number }> = [];
-          const addVertex = (x: number, y: number) => {
-            const key = `${x.toFixed(2)},${y.toFixed(2)}`;
-            if (vertexKeys.has(key)) return;
-            vertexKeys.add(key);
-            vertexPoints.push({ x, y });
-          };
-          const toCanvasPoint = (p: Point): Point => {
-            if (isHexGrid) return { x: p.x, y: p.y };
-            return { x: p.x * TILE_SIZE, y: p.y * TILE_SIZE };
-          };
-          const insideByEdge = new Map<string, Point>();
-          for (const seg of segments) {
-            if (seg.inside) {
-              insideByEdge.set(edgeKey(seg.a, seg.b), seg.inside);
-            }
-          }
-          const getStampFrame = (
-            ax: number,
-            ay: number,
-            bx: number,
-            by: number,
-            inside?: Point
-          ): { angle: number; flipped: boolean; midX: number; midY: number; len: number } | null => {
-            const dx = bx - ax;
-            const dy = by - ay;
-            const len = Math.hypot(dx, dy);
-            if (len < 1e-6) return null;
-            const angle = Math.atan2(dy, dx);
-            const midX = (ax + bx) * 0.5;
-            const midY = (ay + by) * 0.5;
-            const leftNx = -dy / len;
-            const leftNy = dx / len;
-            const insideCanvas = inside
-              ? toCanvasPoint(inside)
-              : { x: midX, y: midY };
-            const sideDot = (insideCanvas.x - ax) * leftNx + (insideCanvas.y - ay) * leftNy;
-            const flipped = sideDot < 0;
-            return { angle, flipped, midX, midY, len };
-          };
-          const drawStamp = (px: number, py: number, angle: number, flipped: boolean): void => {
+          // 2) Apply one border mask per boundary segment, resized to segment length,
+          // and clipped to this segment overflow band so it cannot erase neighbors.
+          if (borderMaskEnabled && borderMaskImage) {
             baseCtx.save();
-            baseCtx.translate(px, py);
-            baseCtx.rotate(angle);
-            // Bottom of mask stays on contour; flip only when interior side requires it.
-            if (flipped) baseCtx.scale(1, -1);
+            baseCtx.beginPath();
+            baseCtx.moveTo(a.x, a.y);
+            baseCtx.lineTo(b.x, b.y);
+            baseCtx.lineTo(bxOut, byOut);
+            baseCtx.lineTo(axOut, ayOut);
+            baseCtx.closePath();
+            baseCtx.clip();
+            baseCtx.globalCompositeOperation = "destination-out";
+            baseCtx.imageSmoothingEnabled = true;
+            baseCtx.imageSmoothingQuality = "high";
+            baseCtx.translate(frame.midX, frame.midY);
+            baseCtx.rotate(frame.angle);
+            if (frame.flipped) baseCtx.scale(1, -1);
+            const stampWidth = Math.max(1, frame.len);
+            const stampHeight = overflowDepth;
+            if (BORDER_MASK_SOFTEN_PX > 0) {
+              baseCtx.filter = `blur(${BORDER_MASK_SOFTEN_PX}px)`;
+            }
             baseCtx.drawImage(borderMaskImage, -stampWidth * 0.5, -stampHeight, stampWidth, stampHeight);
             baseCtx.restore();
-            if (showMaskPlacementRects) {
-              maskDebugRects.push({ x: px, y: py, angle, w: stampWidth, h: stampHeight, flipped });
-            }
-          };
-          const drawPathStamps = (path: Point[]): void => {
-            if (path.length < 2) return;
-            let nextStampAt = 0;
-            let traversed = 0;
-            for (let i = 0; i < path.length - 1; i++) {
-              const aModel = path[i];
-              const bModel = path[i + 1];
-              const a = toCanvasPoint(aModel);
-              const b = toCanvasPoint(bModel);
-              addVertex(a.x, a.y);
-              addVertex(b.x, b.y);
-              const inside = insideByEdge.get(edgeKey(aModel, bModel));
-              const frame = getStampFrame(a.x, a.y, b.x, b.y, inside);
-              if (!frame) continue;
-              const dx = b.x - a.x;
-              const dy = b.y - a.y;
-              if (showMaskNormals) {
-                const leftNx = -dy / frame.len;
-                const leftNy = dx / frame.len;
-                const nx = frame.flipped ? -leftNx : leftNx;
-                const ny = frame.flipped ? -leftNy : leftNy;
-                const normalLen = Math.max(6, stampHeight * 0.45);
-                const insideCanvas = inside ? toCanvasPoint(inside) : { x: frame.midX, y: frame.midY };
-                const toInside = (insideCanvas.x - a.x) * leftNx + (insideCanvas.y - a.y) * leftNy > 0;
-                maskDebugNormals.push({
-                  x1: frame.midX,
-                  y1: frame.midY,
-                  x2: frame.midX + nx * normalLen,
-                  y2: frame.midY + ny * normalLen,
-                  toInside
-                });
-              }
 
-              while (traversed + frame.len >= nextStampAt) {
-                const local = Math.max(0, nextStampAt - traversed);
-                const t = Math.min(1, local / frame.len);
-                const px = a.x + dx * t;
-                const py = a.y + dy * t;
-                drawStamp(px, py, frame.angle, frame.flipped);
-                nextStampAt += step;
-              }
-              traversed += frame.len;
+            if (showMaskPlacementRects) {
+              maskDebugRects.push({
+                x: frame.midX,
+                y: frame.midY,
+                angle: frame.angle,
+                w: Math.max(1, frame.len),
+                h: overflowDepth,
+                flipped: frame.flipped
+              });
             }
-          };
-          baseCtx.save();
-          baseCtx.globalCompositeOperation = "destination-out";
-          for (const loop of smoothLoops) {
-            if (loop.length < 3) continue;
-            const closedPath = [...loop, loop[0]];
-            drawPathStamps(closedPath);
+            if (showMaskNormals) {
+              const normalLen = Math.max(6, overflowDepth * 0.6);
+              maskDebugNormals.push({
+                x1: frame.midX,
+                y1: frame.midY,
+                x2: frame.midX + frame.insideNx * normalLen,
+                y2: frame.midY + frame.insideNy * normalLen,
+                toInside: true
+              });
+            }
           }
-          for (const path of paths.openPaths) {
-            if (path.length < 2) continue;
-            drawPathStamps(path);
-          }
-          // Round joins at corners to improve continuity on acute/obtuse angles.
-          const joinRadius = Math.max(1.5, stampHeight * 0.16);
-          for (const p of vertexPoints) {
-            baseCtx.beginPath();
-            baseCtx.arc(p.x, p.y, joinRadius, 0, Math.PI * 2);
-            baseCtx.fillStyle = "#ffffff";
-            baseCtx.fill();
-          }
-          baseCtx.restore();
         }
       } else {
         for (let y = 0; y < rows; y++) {
