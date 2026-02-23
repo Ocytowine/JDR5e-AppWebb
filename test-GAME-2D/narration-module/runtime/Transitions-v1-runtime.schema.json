@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jdr5e-appwebb.local/schemas/transitions-v1-runtime.schema.json",
+  "title": "Narrative Transitions V1 Runtime",
+  "description": "Schéma runtime pour transitions Quête/Trame/Compagnon/Marchandage",
+  "type": "object",
+  "required": ["version", "generatedAt", "transitions"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "transitions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/transition"
+      }
+    }
+  },
+  "$defs": {
+    "entityType": {
+      "type": "string",
+      "enum": ["quest", "trama", "companion", "trade"]
+    },
+    "impactScope": {
+      "type": "string",
+      "enum": ["local", "regional", "global", "none"]
+    },
+    "loreAnchorType": {
+      "type": "string",
+      "enum": ["lieu", "faction", "histoire", "acteur"]
+    },
+    "loreAnchor": {
+      "type": "object",
+      "required": ["type", "id"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/loreAnchorType"
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string"
+        }
+      }
+    },
+    "transition": {
+      "type": "object",
+      "required": [
+        "id",
+        "entityType",
+        "fromState",
+        "trigger",
+        "toState",
+        "consequence",
+        "ruleRef",
+        "loreAnchors",
+        "timeBlock"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._:-]{2,}$"
+        },
+        "entityType": {
+          "$ref": "#/$defs/entityType"
+        },
+        "fromState": {
+          "type": "string",
+          "minLength": 1
+        },
+        "trigger": {
+          "type": "string",
+          "minLength": 1
+        },
+        "toState": {
+          "type": "string",
+          "minLength": 1
+        },
+        "consequence": {
+          "type": "string",
+          "minLength": 1
+        },
+        "impactScope": {
+          "$ref": "#/$defs/impactScope",
+          "default": "local"
+        },
+        "ruleRef": {
+          "type": "string",
+          "description": "Référence DnD 2024 ou règle locale déclarée",
+          "minLength": 1
+        },
+        "loreAnchors": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "$ref": "#/$defs/loreAnchor"
+          }
+        },
+        "playerFacingReason": {
+          "type": "string",
+          "description": "Cause expliquée au joueur après événement majeur"
+        },
+        "timeBlock": {
+          "type": "object",
+          "required": ["unit", "value"],
+          "additionalProperties": false,
+          "properties": {
+            "unit": {
+              "type": "string",
+              "enum": ["hour", "day", "special"]
+            },
+            "value": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

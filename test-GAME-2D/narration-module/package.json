@@ -1,0 +1,21 @@
+{
+  "name": "narration-module",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Module narration isolé (docs + runtime + validation)",
+  "scripts": {
+    "validate": "npx tsc tools/validate-transitions-runtime.ts --target ES2020 --module commonjs --esModuleInterop --skipLibCheck --outDir tools/.tmp && node tools/.tmp/validate-transitions-runtime.js",
+    "validate:custom": "npm run validate --",
+    "demo:narration": "npx tsc src/index.ts src/examples/demo.ts --target ES2020 --module commonjs --esModuleInterop --skipLibCheck --outDir .tmp && node .tmp/examples/demo.js",
+    "demo:runtime": "npx tsc src/index.ts src/examples/runtime-demo.ts --target ES2020 --module commonjs --esModuleInterop --skipLibCheck --outDir .tmp && node .tmp/examples/runtime-demo.js",
+    "demo:runtime:persist": "npx tsc src/index.ts src/examples/runtime-persistence-demo.ts --target ES2020 --module commonjs --esModuleInterop --skipLibCheck --outDir .tmp && node .tmp/examples/runtime-persistence-demo.js",
+    "demo:runtime:service": "npx tsc src/index.ts src/examples/runtime-service-demo.ts --target ES2020 --module commonjs --esModuleInterop --skipLibCheck --outDir .tmp && node .tmp/examples/runtime-service-demo.js",
+    "demo:runtime:api": "npx tsc src/index.ts src/examples/api-demo.ts --target ES2020 --module commonjs --esModuleInterop --skipLibCheck --outDir .tmp && node .tmp/examples/api-demo.js",
+    "demo:runtime:orchestrator": "npx tsc src/index.ts src/examples/orchestrator-demo.ts --target ES2020 --module commonjs --esModuleInterop --skipLibCheck --outDir .tmp && node .tmp/examples/orchestrator-demo.js",
+    "demo:runtime:tick": "npx tsc src/index.ts src/examples/tick-demo.ts --target ES2020 --module commonjs --esModuleInterop --skipLibCheck --outDir .tmp && node .tmp/examples/tick-demo.js",
+    "demo:runtime:tick:safe": "npx tsc src/index.ts src/examples/tick-safe-demo.ts --target ES2020 --module commonjs --esModuleInterop --skipLibCheck --outDir .tmp && node .tmp/examples/tick-safe-demo.js",
+    "demo:runtime:guards": "npx tsc src/index.ts src/examples/guards-demo.ts --target ES2020 --module commonjs --esModuleInterop --skipLibCheck --outDir .tmp && node .tmp/examples/guards-demo.js",
+    "demo:runtime:guards:block": "npx tsc src/index.ts src/examples/guards-block-demo.ts --target ES2020 --module commonjs --esModuleInterop --skipLibCheck --outDir .tmp && node .tmp/examples/guards-block-demo.js",
+    "demo:runtime:tick:safe:guard:block": "npx tsc src/index.ts src/examples/tick-safe-guard-block-demo.ts --target ES2020 --module commonjs --esModuleInterop --skipLibCheck --outDir .tmp && node .tmp/examples/tick-safe-guard-block-demo.js"
+  }
+}

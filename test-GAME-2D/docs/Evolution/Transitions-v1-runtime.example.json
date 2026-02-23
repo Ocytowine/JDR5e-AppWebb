@@ -1,0 +1,108 @@
+{
+  "version": "1.0.0",
+  "generatedAt": "2026-02-23T12:00:00Z",
+  "transitions": [
+    {
+      "id": "quest.detectee.to.acceptee",
+      "entityType": "quest",
+      "fromState": "Détectée",
+      "trigger": "Le joueur accepte explicitement",
+      "toState": "Acceptée",
+      "consequence": "Ajout au journal et suivi activable",
+      "impactScope": "local",
+      "ruleRef": "local.narration.quest.accept",
+      "loreAnchors": [
+        {
+          "type": "lieu",
+          "id": "ville.capitale.marche",
+          "label": "Marché de la place"
+        },
+        {
+          "type": "acteur",
+          "id": "pnj.roland",
+          "label": "Roland"
+        }
+      ],
+      "playerFacingReason": "Vous avez accepté le contrat proposé par Roland.",
+      "timeBlock": {
+        "unit": "hour",
+        "value": 0
+      }
+    },
+    {
+      "id": "trama.active.escalade.temps",
+      "entityType": "trama",
+      "fromState": "Active",
+      "trigger": "Temps écoulé sans intervention",
+      "toState": "Active",
+      "consequence": "Escalade locale et augmentation de pression narrative",
+      "impactScope": "regional",
+      "ruleRef": "local.narration.trama.escalade",
+      "loreAnchors": [
+        {
+          "type": "lieu",
+          "id": "region.valombre"
+        },
+        {
+          "type": "faction",
+          "id": "faction.ligue-noire"
+        }
+      ],
+      "playerFacingReason": "Pendant votre absence, la situation a empiré dans la région.",
+      "timeBlock": {
+        "unit": "day",
+        "value": 1
+      }
+    },
+    {
+      "id": "companion.negociation.to.recrute",
+      "entityType": "companion",
+      "fromState": "Négociation",
+      "trigger": "Accord social validé + coût d'engagement accepté",
+      "toState": "Recruté",
+      "consequence": "Compagnon ajouté au groupe avec loyauté initiale",
+      "impactScope": "local",
+      "ruleRef": "local.narration.companion.recruit",
+      "loreAnchors": [
+        {
+          "type": "acteur",
+          "id": "compagnon.elya"
+        },
+        {
+          "type": "faction",
+          "id": "faction.guilde-archivistes"
+        }
+      ],
+      "playerFacingReason": "Elya accepte de vous suivre sous certaines conditions.",
+      "timeBlock": {
+        "unit": "special",
+        "value": 1
+      }
+    },
+    {
+      "id": "trade.negociation.to.accord",
+      "entityType": "trade",
+      "fromState": "Négociation de prix",
+      "trigger": "Argumentaire réussi dans les bornes système",
+      "toState": "Accord ajusté",
+      "consequence": "Prix ajusté sans rupture d'économie",
+      "impactScope": "none",
+      "ruleRef": "local.narration.trade.haggle",
+      "loreAnchors": [
+        {
+          "type": "lieu",
+          "id": "quartier.port"
+        },
+        {
+          "type": "acteur",
+          "id": "pnj.marchande-nyra"
+        }
+      ],
+      "playerFacingReason": "La marchande consent une remise après négociation.",
+      "timeBlock": {
+        "unit": "hour",
+        "value": 0
+      }
+    }
+  ]
+}

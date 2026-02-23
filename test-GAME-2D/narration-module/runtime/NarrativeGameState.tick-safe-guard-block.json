@@ -1,0 +1,14 @@
+{
+  "quests": {
+    "quest.main.tick-guard-block": "Détectée"
+  },
+  "tramas": {},
+  "companions": {},
+  "trades": {},
+  "clock": {
+    "hour": 0,
+    "day": 0,
+    "special": 0
+  },
+  "history": []
+}

@@ -1,0 +1,27 @@
+{
+  "quests": {
+    "quest.main.guard-block-case": "Acceptée"
+  },
+  "tramas": {},
+  "companions": {},
+  "trades": {},
+  "clock": {
+    "hour": 0,
+    "day": 0,
+    "special": 0
+  },
+  "history": [
+    {
+      "at": "2026-02-23T21:01:16.989Z",
+      "transitionId": "quest.detectee.to.acceptee.no-reason",
+      "entityType": "quest",
+      "entityId": "quest.main.guard-block-case",
+      "fromState": "Détectée",
+      "toState": "Acceptée",
+      "trigger": "Le joueur accepte explicitement",
+      "consequence": "Ajout au journal et suivi activable",
+      "impactScope": "local",
+      "ruleRef": "local.narration.quest.accept"
+    }
+  ]
+}
