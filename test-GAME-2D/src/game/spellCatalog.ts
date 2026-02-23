@@ -12,6 +12,9 @@ import resilientSphere from "../data/spells/resilient-sphere.json";
 import sanctuary from "../data/spells/sanctuary.json";
 import sending from "../data/spells/sending.json";
 import wardingBond from "../data/spells/warding-bond.json";
+import cantripAcidSplash from "../data/spells/cantrips/acid-splash.json";
+import cantripFireBolt from "../data/spells/cantrips/fire-bolt.json";
+import cantripFrostbite from "../data/spells/cantrips/frostbite.json";
 
 export type SpellDefinition = {
   id: string;
@@ -42,7 +45,10 @@ const spellCatalogList: SpellDefinition[] = [
   resilientSphere as SpellDefinition,
   sanctuary as SpellDefinition,
   sending as SpellDefinition,
-  wardingBond as SpellDefinition
+  wardingBond as SpellDefinition,
+  cantripAcidSplash as SpellDefinition,
+  cantripFireBolt as SpellDefinition,
+  cantripFrostbite as SpellDefinition
 ];
 
 const spellCatalogById = new Map(spellCatalogList.map(spell => [spell.id, spell]));

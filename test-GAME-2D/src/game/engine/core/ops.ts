@@ -30,6 +30,44 @@ function ensureDefenseArray(
   return token.defenses.damage[key];
 }
 
+function normalizeDamageTypeValue(value: unknown): string {
+  return String(value ?? "").trim().toUpperCase();
+}
+
+function hasDamageDefense(token: any, mode: "resist" | "vulnerable" | "immune", damageType: string): boolean {
+  const normalizedType = normalizeDamageTypeValue(damageType);
+  if (!normalizedType) return false;
+  const entries = token?.defenses?.damage?.[mode];
+  if (!Array.isArray(entries)) return false;
+  return entries.some((entry: unknown) => normalizeDamageTypeValue(entry) === normalizedType);
+}
+
+function applyDamageTypeMitigation(params: {
+  amount: number;
+  damageType?: string;
+  token: any;
+}): { amount: number; mitigation: "none" | "immunity" | "resistance" | "vulnerability" | "resist_and_vulnerable" } {
+  const amount = Math.max(0, Math.floor(Number(params.amount ?? 0)));
+  const damageType = normalizeDamageTypeValue(params.damageType);
+  if (!damageType) return { amount, mitigation: "none" };
+
+  const immune = hasDamageDefense(params.token, "immune", damageType);
+  if (immune) return { amount: 0, mitigation: "immunity" };
+
+  const resistant = hasDamageDefense(params.token, "resist", damageType);
+  const vulnerable = hasDamageDefense(params.token, "vulnerable", damageType);
+  if (resistant && vulnerable) {
+    return { amount, mitigation: "resist_and_vulnerable" };
+  }
+  if (resistant) {
+    return { amount: Math.floor(amount / 2), mitigation: "resistance" };
+  }
+  if (vulnerable) {
+    return { amount: amount * 2, mitigation: "vulnerability" };
+  }
+  return { amount, mitigation: "none" };
+}
+
 function moveTokenByDelta(token: any, dx: number, dy: number) {
   token.x = (token.x ?? 0) + dx;
   token.y = (token.y ?? 0) + dy;
@@ -423,9 +461,25 @@ export function applyOperation(params: {
           isCrit: Boolean(opts.damageContext?.isCrit),
           critRule: opts.damageContext?.critRule ?? "double-dice"
         });
-      const total = op.scale === "half" ? Math.floor(roll.total / 2) : roll.total;
+      const rawTotal = op.scale === "half" ? Math.floor(roll.total / 2) : roll.total;
+      const mitigation = applyDamageTypeMitigation({
+        amount: rawTotal,
+        damageType: op.damageType,
+        token: targetToken
+      });
+      const total = mitigation.amount;
       const diceText = roll.dice.map(d => d.rolls.join("+")).join(" | ");
       const detail = diceText || roll.flatModifier ? ` [${diceText}${roll.flatModifier ? ` + ${roll.flatModifier}` : ""}]` : "";
+      const mitigationDetail =
+        mitigation.mitigation === "none"
+          ? ""
+          : mitigation.mitigation === "immunity"
+          ? " [immunite]"
+          : mitigation.mitigation === "resistance"
+          ? " [resistance]"
+          : mitigation.mitigation === "vulnerability"
+          ? " [vulnerabilite]"
+          : " [resistance+vulnerabilite]";
     const beforeHp = Number(targetToken.hp ?? 0);
     const tempHp = typeof targetToken.tempHp === "number" ? targetToken.tempHp : 0;
     const beforeTempHp = tempHp;
@@ -441,7 +495,7 @@ export function applyOperation(params: {
       const dmgType = op.damageType ? ` ${op.damageType}` : "";
       logTransaction(
         tx,
-        `Degats${dmgType}: ${targetToken.id} prend ${total} (${formula})${detail} | PV ${beforeHp}->${afterHp} | Temp ${beforeTempHp}->${afterTempHp}`,
+        `Degats${dmgType}: ${targetToken.id} prend ${total} (${formula})${detail}${mitigationDetail} | PV ${beforeHp}->${afterHp} | Temp ${beforeTempHp}->${afterTempHp}`,
         opts.onLog
       );
       emitOperationApplied({
@@ -451,7 +505,9 @@ export function applyOperation(params: {
         targetKind: targetToken.type === "player" ? "player" : "enemy",
         summary: `Degats ${total}${dmgType ? ` ${dmgType.trim()}` : ""}`,
         payload: {
+          rawAmount: rawTotal,
           amount: total,
+          mitigation: mitigation.mitigation,
           damageType: op.damageType ?? null,
           formula,
           hpBefore: beforeHp,
@@ -470,9 +526,25 @@ export function applyOperation(params: {
         isCrit: Boolean(opts.damageContext?.isCrit),
         critRule: opts.damageContext?.critRule ?? "double-dice"
       });
-      const total = op.scale === "quarter" ? Math.floor(roll.total / 4) : Math.floor(roll.total / 2);
+      const rawTotal = op.scale === "quarter" ? Math.floor(roll.total / 4) : Math.floor(roll.total / 2);
+      const mitigation = applyDamageTypeMitigation({
+        amount: rawTotal,
+        damageType: op.damageType,
+        token: targetToken
+      });
+      const total = mitigation.amount;
       const diceText = roll.dice.map(d => d.rolls.join("+")).join(" | ");
       const detail = diceText || roll.flatModifier ? ` [${diceText}${roll.flatModifier ? ` + ${roll.flatModifier}` : ""}]` : "";
+      const mitigationDetail =
+        mitigation.mitigation === "none"
+          ? ""
+          : mitigation.mitigation === "immunity"
+          ? " [immunite]"
+          : mitigation.mitigation === "resistance"
+          ? " [resistance]"
+          : mitigation.mitigation === "vulnerability"
+          ? " [vulnerabilite]"
+          : " [resistance+vulnerabilite]";
     const beforeHp = Number(targetToken.hp ?? 0);
     const tempHp = typeof targetToken.tempHp === "number" ? targetToken.tempHp : 0;
     const beforeTempHp = tempHp;
@@ -488,7 +560,7 @@ export function applyOperation(params: {
       const dmgType = op.damageType ? ` ${op.damageType}` : "";
       logTransaction(
         tx,
-        `Degats reduits${dmgType}: ${targetToken.id} prend ${total} (${formula})${detail} | PV ${beforeHp}->${afterHp} | Temp ${beforeTempHp}->${afterTempHp}`,
+        `Degats reduits${dmgType}: ${targetToken.id} prend ${total} (${formula})${detail}${mitigationDetail} | PV ${beforeHp}->${afterHp} | Temp ${beforeTempHp}->${afterTempHp}`,
         opts.onLog
       );
       emitOperationApplied({
@@ -498,7 +570,9 @@ export function applyOperation(params: {
         targetKind: targetToken.type === "player" ? "player" : "enemy",
         summary: `Degats reduits ${total}${dmgType ? ` ${dmgType.trim()}` : ""}`,
         payload: {
+          rawAmount: rawTotal,
           amount: total,
+          mitigation: mitigation.mitigation,
           damageType: op.damageType ?? null,
           formula,
           scale: op.scale,

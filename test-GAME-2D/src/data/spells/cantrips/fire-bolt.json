@@ -1,0 +1,168 @@
+{
+  "id": "fire-bolt",
+  "name": "Fire Bolt",
+  "level": 0,
+  "school": "evocation",
+  "components": {
+    "verbal": true,
+    "somatic": true,
+    "material": false
+  },
+  "summary": "Projectile de feu a distance.",
+  "category": "attack",
+  "actionCost": {
+    "actionType": "action",
+    "movementCost": 0
+  },
+  "targeting": {
+    "target": "hostile",
+    "range": {
+      "min": 0,
+      "max": 36,
+      "shape": "LINE"
+    },
+    "maxTargets": 1,
+    "requiresLos": true
+  },
+  "usage": {
+    "perTurn": null,
+    "perEncounter": null,
+    "resource": null
+  },
+  "conditions": [],
+  "attack": {
+    "bonus": 0,
+    "critRange": 20
+  },
+  "damage": {
+    "formula": "1d10",
+    "critRule": "double-dice",
+    "damageType": "FIRE"
+  },
+  "resolution": {
+    "kind": "ATTACK_ROLL",
+    "bonus": 0,
+    "critRange": 20,
+    "critRule": "double-dice"
+  },
+  "ops": {
+    "onResolve": [
+      {
+        "op": "LogEvent",
+        "message": "Fire Bolt est lance."
+      }
+    ],
+    "onHit": [
+      {
+        "op": "DealDamage",
+        "target": "primary",
+        "formula": "1d10",
+        "damageType": "FIRE"
+      }
+    ]
+  },
+  "hooks": [
+    {
+      "when": "onOutcome",
+      "if": [
+        {
+          "type": "AND",
+          "all": [
+            {
+              "type": "OUTCOME_IN",
+              "values": ["HIT", "CRIT"]
+            },
+            {
+              "type": "ACTOR_VALUE",
+              "key": "level",
+              "cmp": "GTE",
+              "value": 5
+            },
+            {
+              "type": "ACTOR_VALUE",
+              "key": "level",
+              "cmp": "LT",
+              "value": 11
+            }
+          ]
+        }
+      ],
+      "apply": [
+        {
+          "op": "DealDamage",
+          "target": "primary",
+          "formula": "1d10",
+          "damageType": "FIRE"
+        }
+      ]
+    },
+    {
+      "when": "onOutcome",
+      "if": [
+        {
+          "type": "AND",
+          "all": [
+            {
+              "type": "OUTCOME_IN",
+              "values": ["HIT", "CRIT"]
+            },
+            {
+              "type": "ACTOR_VALUE",
+              "key": "level",
+              "cmp": "GTE",
+              "value": 11
+            },
+            {
+              "type": "ACTOR_VALUE",
+              "key": "level",
+              "cmp": "LT",
+              "value": 17
+            }
+          ]
+        }
+      ],
+      "apply": [
+        {
+          "op": "DealDamage",
+          "target": "primary",
+          "formula": "2d10",
+          "damageType": "FIRE"
+        }
+      ]
+    },
+    {
+      "when": "onOutcome",
+      "if": [
+        {
+          "type": "AND",
+          "all": [
+            {
+              "type": "OUTCOME_IN",
+              "values": ["HIT", "CRIT"]
+            },
+            {
+              "type": "ACTOR_VALUE",
+              "key": "level",
+              "cmp": "GTE",
+              "value": 17
+            }
+          ]
+        }
+      ],
+      "apply": [
+        {
+          "op": "DealDamage",
+          "target": "primary",
+          "formula": "3d10",
+          "damageType": "FIRE"
+        }
+      ]
+    }
+  ],
+  "tags": [
+    "spell",
+    "cantrip",
+    "ranged",
+    "fire"
+  ]
+}

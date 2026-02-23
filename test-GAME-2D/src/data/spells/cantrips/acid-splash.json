@@ -1,0 +1,161 @@
+{
+  "id": "acid-splash",
+  "name": "Acid Splash",
+  "level": 0,
+  "school": "conjuration",
+  "components": {
+    "verbal": true,
+    "somatic": true,
+    "material": false
+  },
+  "summary": "Eclaboussure d'acide sur une ou deux cibles.",
+  "category": "support",
+  "actionCost": {
+    "actionType": "action",
+    "movementCost": 0
+  },
+  "targeting": {
+    "target": "hostile",
+    "range": {
+      "min": 0,
+      "max": 18,
+      "shape": "SPHERE"
+    },
+    "maxTargets": 2,
+    "requiresLos": true
+  },
+  "usage": {
+    "perTurn": null,
+    "perEncounter": null,
+    "resource": null
+  },
+  "conditions": [],
+  "resolution": {
+    "kind": "SAVING_THROW",
+    "save": {
+      "ability": "DEX",
+      "dc": 10
+    }
+  },
+  "ops": {
+    "onResolve": [
+      {
+        "op": "LogEvent",
+        "message": "Acid Splash est lance."
+      }
+    ],
+    "onSaveFail": [
+      {
+        "op": "DealDamage",
+        "target": "primary",
+        "formula": "1d6",
+        "damageType": "ACID"
+      }
+    ]
+  },
+  "hooks": [
+    {
+      "when": "onOutcome",
+      "if": [
+        {
+          "type": "AND",
+          "all": [
+            {
+              "type": "OUTCOME_IS",
+              "value": "SAVE_FAIL"
+            },
+            {
+              "type": "ACTOR_VALUE",
+              "key": "level",
+              "cmp": "GTE",
+              "value": 5
+            },
+            {
+              "type": "ACTOR_VALUE",
+              "key": "level",
+              "cmp": "LT",
+              "value": 11
+            }
+          ]
+        }
+      ],
+      "apply": [
+        {
+          "op": "DealDamage",
+          "target": "primary",
+          "formula": "1d6",
+          "damageType": "ACID"
+        }
+      ]
+    },
+    {
+      "when": "onOutcome",
+      "if": [
+        {
+          "type": "AND",
+          "all": [
+            {
+              "type": "OUTCOME_IS",
+              "value": "SAVE_FAIL"
+            },
+            {
+              "type": "ACTOR_VALUE",
+              "key": "level",
+              "cmp": "GTE",
+              "value": 11
+            },
+            {
+              "type": "ACTOR_VALUE",
+              "key": "level",
+              "cmp": "LT",
+              "value": 17
+            }
+          ]
+        }
+      ],
+      "apply": [
+        {
+          "op": "DealDamage",
+          "target": "primary",
+          "formula": "2d6",
+          "damageType": "ACID"
+        }
+      ]
+    },
+    {
+      "when": "onOutcome",
+      "if": [
+        {
+          "type": "AND",
+          "all": [
+            {
+              "type": "OUTCOME_IS",
+              "value": "SAVE_FAIL"
+            },
+            {
+              "type": "ACTOR_VALUE",
+              "key": "level",
+              "cmp": "GTE",
+              "value": 17
+            }
+          ]
+        }
+      ],
+      "apply": [
+        {
+          "op": "DealDamage",
+          "target": "primary",
+          "formula": "3d6",
+          "damageType": "ACID"
+        }
+      ]
+    }
+  ],
+  "tags": [
+    "spell",
+    "cantrip",
+    "acid",
+    "save",
+    "aoe"
+  ]
+}

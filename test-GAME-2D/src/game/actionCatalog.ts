@@ -7,6 +7,9 @@ import SpellsAid from "../data/spells/aid.json";
 import SpellsArcaneBolt from "../data/spells/arcane-bolt.json";
 import SpellsAuraOfPurity from "../data/spells/aura-of-purity.json";
 import SpellsBeaconOfHope from "../data/spells/beacon-of-hope.json";
+import SpellsCantripsAcidSplash from "../data/spells/cantrips/acid-splash.json";
+import SpellsCantripsFireBolt from "../data/spells/cantrips/fire-bolt.json";
+import SpellsCantripsFrostbite from "../data/spells/cantrips/frostbite.json";
 import SpellsGreaterRestoration from "../data/spells/greater-restoration.json";
 import SpellsHeroism from "../data/spells/heroism.json";
 import SpellsMinorWard from "../data/spells/minor-ward.json";
@@ -46,6 +49,9 @@ const ACTION_MODULES: Record<string, ActionDefinition> = {
   "../spells/arcane-bolt.json": SpellsArcaneBolt as ActionDefinition,
   "../spells/aura-of-purity.json": SpellsAuraOfPurity as ActionDefinition,
   "../spells/beacon-of-hope.json": SpellsBeaconOfHope as ActionDefinition,
+  "../spells/cantrips/acid-splash.json": SpellsCantripsAcidSplash as ActionDefinition,
+  "../spells/cantrips/fire-bolt.json": SpellsCantripsFireBolt as ActionDefinition,
+  "../spells/cantrips/frostbite.json": SpellsCantripsFrostbite as ActionDefinition,
   "../spells/greater-restoration.json": SpellsGreaterRestoration as ActionDefinition,
   "../spells/heroism.json": SpellsHeroism as ActionDefinition,
   "../spells/minor-ward.json": SpellsMinorWard as ActionDefinition,

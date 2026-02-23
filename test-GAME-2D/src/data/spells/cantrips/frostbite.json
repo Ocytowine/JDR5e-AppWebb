@@ -1,0 +1,166 @@
+{
+  "id": "frostbite",
+  "name": "Frostbite",
+  "level": 0,
+  "school": "evocation",
+  "components": {
+    "verbal": true,
+    "somatic": true,
+    "material": false
+  },
+  "summary": "Froid mordant qui affaiblit la cible.",
+  "category": "support",
+  "actionCost": {
+    "actionType": "action",
+    "movementCost": 0
+  },
+  "targeting": {
+    "target": "hostile",
+    "range": {
+      "min": 0,
+      "max": 18,
+      "shape": "SPHERE"
+    },
+    "maxTargets": 1,
+    "requiresLos": true
+  },
+  "usage": {
+    "perTurn": null,
+    "perEncounter": null,
+    "resource": null
+  },
+  "conditions": [],
+  "resolution": {
+    "kind": "SAVING_THROW",
+    "save": {
+      "ability": "CON",
+      "dc": 10
+    }
+  },
+  "ops": {
+    "onResolve": [
+      {
+        "op": "LogEvent",
+        "message": "Frostbite est lance."
+      }
+    ],
+    "onSaveFail": [
+      {
+        "op": "DealDamage",
+        "target": "primary",
+        "formula": "1d6",
+        "damageType": "COLD"
+      },
+      {
+        "op": "ApplyCondition",
+        "target": "primary",
+        "statusId": "frostbite",
+        "durationTurns": 1
+      }
+    ]
+  },
+  "hooks": [
+    {
+      "when": "onOutcome",
+      "if": [
+        {
+          "type": "AND",
+          "all": [
+            {
+              "type": "OUTCOME_IS",
+              "value": "SAVE_FAIL"
+            },
+            {
+              "type": "ACTOR_VALUE",
+              "key": "level",
+              "cmp": "GTE",
+              "value": 5
+            },
+            {
+              "type": "ACTOR_VALUE",
+              "key": "level",
+              "cmp": "LT",
+              "value": 11
+            }
+          ]
+        }
+      ],
+      "apply": [
+        {
+          "op": "DealDamage",
+          "target": "primary",
+          "formula": "1d6",
+          "damageType": "COLD"
+        }
+      ]
+    },
+    {
+      "when": "onOutcome",
+      "if": [
+        {
+          "type": "AND",
+          "all": [
+            {
+              "type": "OUTCOME_IS",
+              "value": "SAVE_FAIL"
+            },
+            {
+              "type": "ACTOR_VALUE",
+              "key": "level",
+              "cmp": "GTE",
+              "value": 11
+            },
+            {
+              "type": "ACTOR_VALUE",
+              "key": "level",
+              "cmp": "LT",
+              "value": 17
+            }
+          ]
+        }
+      ],
+      "apply": [
+        {
+          "op": "DealDamage",
+          "target": "primary",
+          "formula": "2d6",
+          "damageType": "COLD"
+        }
+      ]
+    },
+    {
+      "when": "onOutcome",
+      "if": [
+        {
+          "type": "AND",
+          "all": [
+            {
+              "type": "OUTCOME_IS",
+              "value": "SAVE_FAIL"
+            },
+            {
+              "type": "ACTOR_VALUE",
+              "key": "level",
+              "cmp": "GTE",
+              "value": 17
+            }
+          ]
+        }
+      ],
+      "apply": [
+        {
+          "op": "DealDamage",
+          "target": "primary",
+          "formula": "3d6",
+          "damageType": "COLD"
+        }
+      ]
+    }
+  ],
+  "tags": [
+    "spell",
+    "cantrip",
+    "cold",
+    "save"
+  ]
+}
