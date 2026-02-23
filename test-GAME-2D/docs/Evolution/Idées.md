@@ -8,7 +8,12 @@ Dépose ici tout ce qui te vient, sans filtrer.
 - [x] Système de sens data-driven: vision avancée (dark/light/thermique/magie), ouïe (à travers murs et étages), odorat (pistes) avec UI simple + payload IA MJ
 - [x] Topologie verticale: relief, bâtiments multi-niveaux, sous-sols, transitions (échelle/escalier/escalade/saut) et vol à altitudes variables
 - [x] Unifier les templates joueur/ennemi pour rendre une créature ennemie jouable sans friction de données
-- [ ]
+- [x] Compagnons PNJC alliés pilotés IA: lien joueur, directives via communication, impacts perception sonore
+- [x] Aventure narrative orchestratrice (pilier central: narration, quêtes, déclencheurs mécaniques)
+- [x] Progression narrative (multiclassage + level up conditionnés par événements RP)
+- [x] Réputation/relations/perception sociale (pas de détection de classe)
+- [x] Mode bastion (gestion + narration du lieu)
+- [x] Système de repos narratif (danger caché, activités, interruptions)
 
 ## Tri rapide (premier passage)
 Pour chaque idée, indiquer une catégorie principale:
@@ -49,6 +54,8 @@ Pour chaque idée, indiquer une catégorie principale:
 - [x] Cadrer le premier sous-système tactique relié narration: perception multi-sens.
 - [x] Cadrer le socle vertical (niveaux/altitudes) qui conditionne perception + navigation.
 - [x] Cadrer un modèle acteur unifié (joueur/ennemi) pour réduire la dette de mapping.
+- [x] Cadrer les compagnons PNJC (alliés IA) et leur lien dynamique avec le joueur.
+- [x] Cadrer le pilier aventure narrative et ses sous-systèmes (progression, social, bastion, repos).
 
 ## Parking lot (bonnes idées, pas maintenant)
 -
@@ -59,4 +66,10 @@ Pour chaque idée, indiquer une catégorie principale:
 - [GO][P0] Cas 001 — Système de sens data-driven (voir `Cas-001-Sens-data-driven.md`)
 - [GO][P0] Cas 002 — Topologie/altitude/niveaux (voir `Cas-002-Topologie-Altitude-Niveaux.md`)
 - [GO][P0] Cas 003 — Modèle acteur unifié joueur/ennemi (voir `Cas-003-Modele-acteur-unifie-joueur-ennemi.md`)
+- [GO][P0] Cas 004 — Compagnons PNJC et lien joueur (voir `Cas-004-Compagnons-PNJC-et-lien-joueur.md`)
+- [GO][P0] Cas 005 — Aventure narrative orchestrateur (voir `Cas-005-Aventure-narrative-orchestrateur.md`)
+- [GO][P0] Cas 006 — Progression narrative multiclassage + levelup (voir `Cas-006-Progression-narrative-multiclasse-et-levelup.md`)
+- [GO][P0] Cas 007 — Réputation, relations et perception sociale (voir `Cas-007-Reputation-relations-et-perception-sociale.md`)
+- [GO][P1] Cas 008 — Mode bastion et vie du lieu (voir `Cas-008-Bastion-mode-et-vie-du-lieu.md`)
+- [GO][P0] Cas 009 — Système de repos narratif (voir `Cas-009-Systeme-de-repos-narratif.md`)
 

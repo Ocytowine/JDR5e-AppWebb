@@ -27,6 +27,10 @@ Objectif: pouvoir reprendre le projet rapidement après une pause.
 - Cas 003 acté: modèle acteur unifié joueur/ennemi pour rendre les créatures interchangeables côté contrôle.
 - Tickets Cas 003 Phase A/B rédigés.
 - Priorisation fine des tickets Cas 003 réalisée (lots, dépendances, jalons M1-M4).
+- Cas 004 acté: compagnons PNJC alliés IA, lien joueur, directives de communication reliées aux sens.
+- Tickets Cas 004 Phase A/B rédigés.
+- Paramètres MVP Cas 004 verrouillés (lien `0..100`, 5 directives, anti-spam 1/compagnon/tour).
+- Bloc narratif majeur cadré en nouveaux cas: 005 (orchestrateur), 006 (progression), 007 (social), 008 (bastion), 009 (repos).
 
 ## En cours (WIP)
 - [ ] Définir le contrat de sortie du MJ IA (format actionnable)
@@ -36,11 +40,13 @@ Objectif: pouvoir reprendre le projet rapidement après une pause.
 - [x] Valider la cible verticalité (Q1) pour finaliser les constantes perception
 - [x] Découper Cas 002 en tickets d’implémentation (fondations topologiques)
 - [x] Découper Cas 003 en tickets d’implémentation (normalisation `ActorSheet`)
+- [x] Découper Cas 004 en tickets d’implémentation (compagnons + lien + communication)
+- [x] Mettre à plat les idées pilier aventure narrative (Cas 005 à Cas 009)
 
 ## Prochaines actions (ordre strict)
-1. Réaligner Cas 001 et Cas 002 sur la source canonique `ActorSheet`.
-2. Préparer les critères de tests de compatibilité “ennemi contrôlé joueur”.
-3. Démarrer le lot 1 Cas 003 (`T301`, `T302`, `T303`) en préparation d’implémentation.
+1. Continuer la mise à plat des idées restantes avant toute intégration.
+2. Définir le contrat de sortie narratif unifié pour MJ IA (lié aux Cas 005-009).
+3. Prioriser les cas narratifs entre eux (ordre d’exécution futur).
 
 ## Blocages et risques
 - Blocage:

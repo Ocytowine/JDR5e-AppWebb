@@ -59,6 +59,13 @@ But: choisir des orientations techniques durables pour éviter les revirements c
 - Pourquoi: rend les entités interchangeables (joueur/IA) et réduit la dette de transformation.
 - Risque: migration progressive à orchestrer pour éviter les régressions.
 
+### Axe 8 — Orchestration aventure narrative (priorité critique)
+- Option A: narration fragmentée par sous-systèmes indépendants
+- Option B: `AventureNarrativeSystem` central orchestrant quêtes, repos, social, bastion, progression
+- Choix visé: **B**
+- Pourquoi: cohérence globale et déclenchements mécaniques pilotés par le contexte narratif.
+- Risque: nécessité d’un contrat d’événements narratifs stable et strict.
+
 ## Décisions actées
 - [x] Décision 001: ADR-001 — Topologie verticale, unité mètre, étage 3 m, vol 30 m, chute DnD officielle.
 - [ ] Décision 002:
