@@ -4,6 +4,7 @@ exports.GameNarrationAPI = void 0;
 const NarrativeRuntimeService_1 = require("./NarrativeRuntimeService");
 const NarrativeOrchestrator_1 = require("./NarrativeOrchestrator");
 const TransitionRepository_1 = require("./TransitionRepository");
+const ContextPackBuilder_1 = require("./ContextPackBuilder");
 function normalize(value) {
     return value.trim().toLowerCase();
 }
@@ -18,11 +19,11 @@ function defaultStateForEntityType(entityType) {
         case 'quest':
             return 'Détectée';
         case 'trama':
-            return 'Active';
+            return 'Latente';
         case 'companion':
-            return 'Négociation';
+            return 'Non rencontré';
         case 'trade':
-            return 'Négociation de prix';
+            return 'Offre initiale';
         default:
             return 'Unknown';
     }
@@ -52,48 +53,64 @@ class GameNarrationAPI {
         return this.service.loadState();
     }
     acceptQuest(questId, trigger = 'Le joueur accepte explicitement') {
-        const state = this.service.loadState();
-        ensureDefaultState(state, 'quests', questId, 'Détectée');
-        this.service.saveState(state);
-        return this.service.applyTransitionAndSave({
-            entityType: 'quest',
-            entityId: questId,
-            trigger,
-            strictTrigger: true
-        });
+        return this.applyDomainTransition('quest', questId, trigger, 'Détectée');
+    }
+    escalateIgnoredQuest(questId) {
+        return this.applyDomainTransition('quest', questId, 'Temps écoulé et ignorance répétée', 'Détectée');
+    }
+    applyQuestContextShift(questId) {
+        return this.applyDomainTransition('quest', questId, 'Événement externe faction ou PNJ modifie le contexte', 'Détectée');
+    }
+    completeQuest(questId) {
+        return this.applyDomainTransition('quest', questId, 'Objectif atteint selon conditions de quête', 'Acceptée');
+    }
+    failQuestWithBranch(questId) {
+        return this.applyDomainTransition('quest', questId, 'Délai dépassé ou condition critique non remplie', 'Acceptée');
+    }
+    activateTrama(tramaId) {
+        return this.applyDomainTransition('trama', tramaId, 'Déclencheur actif validé', 'Latente');
     }
     advanceTrama(tramaId, trigger) {
-        const state = this.service.loadState();
-        ensureDefaultState(state, 'tramas', tramaId, 'Active');
-        this.service.saveState(state);
-        return this.service.applyTransitionAndSave({
-            entityType: 'trama',
-            entityId: tramaId,
-            trigger,
-            strictTrigger: true
-        });
+        return this.applyDomainTransition('trama', tramaId, trigger, 'Active');
+    }
+    escalateTrama(tramaId) {
+        return this.applyDomainTransition('trama', tramaId, 'Temps écoulé sans intervention', 'Active');
+    }
+    worsenTramaWithoutIntervention(tramaId) {
+        return this.applyDomainTransition('trama', tramaId, 'Non-intervention prolongée', 'Active');
+    }
+    resolveTramaByPlayer(tramaId) {
+        return this.applyDomainTransition('trama', tramaId, 'Condition de clôture atteinte avec voie joueur', 'Active');
+    }
+    meetCompanion(companionId) {
+        return this.applyDomainTransition('companion', companionId, 'Déclencheur narratif de rencontre', 'Non rencontré');
+    }
+    openCompanionNegotiation(companionId) {
+        return this.applyDomainTransition('companion', companionId, 'Conditions minimales de compatibilité atteintes', 'Rencontré');
     }
     recruitCompanion(companionId, trigger) {
-        const state = this.service.loadState();
-        ensureDefaultState(state, 'companions', companionId, 'Négociation');
-        this.service.saveState(state);
-        return this.service.applyTransitionAndSave({
-            entityType: 'companion',
-            entityId: companionId,
-            trigger,
-            strictTrigger: true
-        });
+        return this.applyDomainTransition('companion', companionId, trigger, 'Négociation');
+    }
+    refuseCompanion(companionId) {
+        return this.applyDomainTransition('companion', companionId, 'Désaccord ou refus explicite', 'Négociation');
+    }
+    makeCompanionLeaveDurably(companionId) {
+        return this.applyDomainTransition('companion', companionId, 'Rupture de seuil relationnel et contexte défavorable', 'Recruté');
+    }
+    openTradeNegotiation(tradeId) {
+        return this.applyDomainTransition('trade', tradeId, 'Le joueur engage une tentative de marchandage', 'Offre initiale');
     }
     haggleTrade(tradeId, trigger) {
-        const state = this.service.loadState();
-        ensureDefaultState(state, 'trades', tradeId, 'Négociation de prix');
-        this.service.saveState(state);
-        return this.service.applyTransitionAndSave({
-            entityType: 'trade',
-            entityId: tradeId,
-            trigger,
-            strictTrigger: true
-        });
+        return this.applyDomainTransition('trade', tradeId, trigger, 'Négociation de prix');
+    }
+    failTradeNegotiation(tradeId) {
+        return this.applyDomainTransition('trade', tradeId, 'Test ou argument échoué', 'Négociation de prix');
+    }
+    breakTradeNegotiation(tradeId) {
+        return this.applyDomainTransition('trade', tradeId, 'Échec critique ou exigence abusive', 'Négociation de prix');
+    }
+    closeTradeTransaction(tradeId) {
+        return this.applyDomainTransition('trade', tradeId, 'Validation finale du joueur', 'Accord ajusté');
     }
     tickNarration(availableCommands, minHoursBetweenMajorEvents = 1, options) {
         const state = this.service.loadState();
@@ -149,13 +166,12 @@ class GameNarrationAPI {
                 guardViolations: guarded.checks.violations
             };
         }
-        const appliedOutcome = guarded.outcome;
         return {
             decisionReason: decision.reason,
             decisionScore: decision.priorityScore,
             selectedCommand: selected,
-            appliedOutcome,
-            state: appliedOutcome.state,
+            appliedOutcome: guarded.outcome,
+            state: guarded.outcome.state,
             guardBlocked: false,
             guardViolations: guarded.checks.violations
         };
@@ -171,11 +187,7 @@ class GameNarrationAPI {
                 acceptedCommands.push(command);
             }
             else {
-                rejectedCommands.push({
-                    command,
-                    code: check.code,
-                    reason: check.reason
-                });
+                rejectedCommands.push({ command, code: check.code, reason: check.reason });
             }
         }
         if (!acceptedCommands.length) {
@@ -193,18 +205,88 @@ class GameNarrationAPI {
             filteredCommands: rejectedCommands
         };
     }
-    checkCommandApplicability(state, command, transitions) {
-        const transition = transitions.find((item) => item.entityType === command.entityType &&
-            normalize(item.trigger) === normalize(command.trigger));
-        if (!transition) {
+    async tickNarrationWithAI(request, generator) {
+        const state = this.service.loadState();
+        const contextBuilder = new ContextPackBuilder_1.ContextPackBuilder();
+        const contextPack = contextBuilder.build({
+            query: request.query,
+            records: request.records,
+            activeZoneId: request.activeZoneId,
+            parentZoneIds: request.parentZoneIds,
+            playerProfile: request.playerProfile
+        });
+        const transitions = TransitionRepository_1.TransitionRepository.loadTransitions();
+        const candidates = this.buildAICandidates(state, transitions, request.entityHints);
+        if (!candidates.length) {
             return {
-                applicable: false,
-                code: 'transition-not-found',
-                reason: 'transition introuvable pour ce trigger'
+                decisionReason: 'Aucune commande applicable après filtrage runtime',
+                selectedCommand: null,
+                appliedOutcome: null,
+                state,
+                aiReason: 'No applicable candidate to generate',
+                candidatesGenerated: 0,
+                contextPack
             };
         }
+        const aiDecision = await generator.generate({
+            state,
+            query: request.query,
+            contextPack,
+            candidates
+        });
+        if (aiDecision.selectedIndex == null) {
+            return {
+                decisionReason: 'Aucun événement retenu par le générateur MJ',
+                selectedCommand: null,
+                appliedOutcome: null,
+                state,
+                aiReason: aiDecision.reason,
+                candidatesGenerated: candidates.length,
+                contextPack
+            };
+        }
+        const selected = candidates[aiDecision.selectedIndex];
+        if (!selected) {
+            return {
+                decisionReason: 'Sélection MJ invalide (index hors bornes)',
+                selectedCommand: null,
+                appliedOutcome: null,
+                state,
+                aiReason: aiDecision.reason,
+                candidatesGenerated: candidates.length,
+                contextPack
+            };
+        }
+        const outcome = this.tickNarrationSafe([selected.command], request.minHoursBetweenMajorEvents ?? 1, {
+            blockOnGuardFailure: request.blockOnGuardFailure ?? true
+        });
+        return {
+            ...outcome,
+            aiReason: aiDecision.reason,
+            candidatesGenerated: candidates.length,
+            contextPack
+        };
+    }
+    checkCommandApplicability(state, command, transitions) {
         const bucket = bucketForEntityType(command.entityType);
         const currentState = state[bucket][command.entityId] ?? defaultStateForEntityType(command.entityType);
+        const transition = transitions.find((item) => item.entityType === command.entityType &&
+            normalize(item.trigger) === normalize(command.trigger) &&
+            normalize(item.fromState) === normalize(currentState));
+        if (!transition) {
+            const hasTrigger = transitions.some((item) => item.entityType === command.entityType && normalize(item.trigger) === normalize(command.trigger));
+            return hasTrigger
+                ? {
+                    applicable: false,
+                    code: 'state-mismatch',
+                    reason: `état incompatible (current=${currentState})`
+                }
+                : {
+                    applicable: false,
+                    code: 'transition-not-found',
+                    reason: 'transition introuvable pour ce trigger'
+                };
+        }
         if (normalize(currentState) === normalize(transition.toState)) {
             return {
                 applicable: false,
@@ -224,6 +306,76 @@ class GameNarrationAPI {
             code: 'cooldown-blocked',
             reason: 'ok'
         };
+    }
+    buildAICandidates(state, transitions, entityHints) {
+        const byType = {
+            quest: transitions.filter((item) => item.entityType === 'quest'),
+            trama: transitions.filter((item) => item.entityType === 'trama'),
+            companion: transitions.filter((item) => item.entityType === 'companion'),
+            trade: transitions.filter((item) => item.entityType === 'trade')
+        };
+        const idSources = {
+            quest: [...Object.keys(state.quests), ...(entityHints?.quest ?? [])],
+            trama: [...Object.keys(state.tramas), ...(entityHints?.trama ?? [])],
+            companion: [...Object.keys(state.companions), ...(entityHints?.companion ?? [])],
+            trade: [...Object.keys(state.trades), ...(entityHints?.trade ?? [])]
+        };
+        const fallbackIds = {
+            quest: 'quest.main.auto',
+            trama: 'trama.main.auto',
+            companion: 'companion.main.auto',
+            trade: 'trade.main.auto'
+        };
+        const candidates = [];
+        const seen = new Set();
+        const pushCandidate = (candidate) => {
+            const key = `${candidate.transitionId}::${candidate.command.entityId}`;
+            if (seen.has(key))
+                return;
+            seen.add(key);
+            candidates.push(candidate);
+        };
+        ['quest', 'trama', 'companion', 'trade'].forEach((entityType) => {
+            const ids = [...new Set(idSources[entityType])];
+            if (!ids.length)
+                ids.push(fallbackIds[entityType]);
+            for (const entityId of ids) {
+                for (const transition of byType[entityType]) {
+                    const command = {
+                        entityType,
+                        entityId,
+                        trigger: transition.trigger,
+                        strictTrigger: true
+                    };
+                    const applicability = this.checkCommandApplicability(state, command, transitions);
+                    if (!applicability.applicable)
+                        continue;
+                    pushCandidate({
+                        command,
+                        transitionId: transition.id,
+                        fromState: transition.fromState,
+                        toState: transition.toState,
+                        consequence: transition.consequence,
+                        impactScope: transition.impactScope ?? 'local',
+                        ruleRef: transition.ruleRef,
+                        playerFacingReason: transition.playerFacingReason
+                    });
+                }
+            }
+        });
+        return candidates;
+    }
+    applyDomainTransition(entityType, entityId, trigger, defaultFromState) {
+        const state = this.service.loadState();
+        const bucket = bucketForEntityType(entityType);
+        ensureDefaultState(state, bucket, entityId, defaultFromState);
+        this.service.saveState(state);
+        return this.service.applyTransitionAndSave({
+            entityType,
+            entityId,
+            trigger,
+            strictTrigger: true
+        });
     }
 }
 exports.GameNarrationAPI = GameNarrationAPI;

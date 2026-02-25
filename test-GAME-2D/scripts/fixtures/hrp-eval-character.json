@@ -1,0 +1,141 @@
+{
+  "id": "pj-1",
+  "nom": {
+    "nomcomplet": "Test Hero",
+    "prenom": "Aryn",
+    "surnom": "the Blue"
+  },
+  "raceId": "human",
+  "backgroundId": "veteran-de-guerre",
+  "classe": {
+    "1": {
+      "classeId": "fighter",
+      "subclasseId": "eldritch-knight",
+      "niveau": 4
+    }
+  },
+  "niveauGlobal": 4,
+  "maitriseBonus": 2,
+  "caracs": {
+    "force": {
+      "FOR": 14,
+      "modFOR": 2
+    },
+    "dexterite": {
+      "DEX": 17,
+      "modDEX": 3
+    },
+    "constitution": {
+      "CON": 14,
+      "modCON": 2
+    },
+    "intelligence": {
+      "INT": 12,
+      "modINT": 1
+    },
+    "sagesse": {
+      "SAG": 10,
+      "modSAG": 0
+    },
+    "charisme": {
+      "CHA": 8,
+      "modCHA": -1
+    }
+  },
+  "competences": [
+    "athletisme",
+    "intimidation",
+    "nature"
+  ],
+  "expertises": [],
+  "actionIds": [
+    "melee-strike",
+    "dash"
+  ],
+  "reactionIds": [],
+  "proficiencies": {
+    "weapons": [
+      "simple",
+      "martiale"
+    ],
+    "armors": [
+      "legere",
+      "intermediaire",
+      "lourde",
+      "bouclier"
+    ]
+  },
+  "weaponMasteries": [
+    "coup-double",
+    "enchainement",
+    "ouverture"
+  ],
+  "argent": {
+    "cuivre": 0,
+    "argent": 0,
+    "or": 10,
+    "platine": 0
+  },
+  "materielSlots": {
+    "ceinture_gauche": "obj_petit_couteau",
+    "ceinture_droite": "obj_petit_couteau",
+    "paquetage": "obj_sac_voyage",
+    "ceinture_bourse_1": "obj_bourse"
+  },
+  "inventoryItems": [
+    {
+      "type": "weapon",
+      "id": "obj_arme_endommagee",
+      "qty": 1,
+      "storedIn": "paquetage"
+    },
+    {
+      "type": "weapon",
+      "id": "obj_petit_couteau",
+      "qty": 1,
+      "equippedSlot": "ceinture_gauche",
+      "isPrimaryWeapon": true
+    },
+    {
+      "type": "weapon",
+      "id": "obj_petit_couteau",
+      "qty": 1,
+      "equippedSlot": "ceinture_droite",
+      "isSecondaryHand": true
+    },
+    {
+      "type": "object",
+      "id": "obj_piece_or",
+      "qty": 10,
+      "storedIn": "ceinture_bourse_1"
+    }
+  ],
+  "spellcastingState": {
+    "totalCasterLevel": 1,
+    "slots": {
+      "1": {
+        "max": 2,
+        "remaining": 2
+      }
+    },
+    "sources": {
+      "subclass:eldritch-knight": {
+        "ability": "INT",
+        "classLevel": 4,
+        "knownSpellIds": [
+          "rayon-de-feu",
+          "minor-ward"
+        ],
+        "preparedSpellIds": []
+      }
+    }
+  },
+  "derived": {
+    "grants": {
+      "actions": [
+        "second-wind"
+      ]
+    }
+  }
+}
+

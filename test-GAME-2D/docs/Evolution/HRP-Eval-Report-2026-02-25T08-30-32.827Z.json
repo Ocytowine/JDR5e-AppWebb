@@ -1,0 +1,56 @@
+{
+  "baseUrl": "http://localhost:5183",
+  "total": 4,
+  "metrics": {
+    "factualAccuracy": 0.75,
+    "clarificationRate": 0,
+    "usefulClarificationRate": 0,
+    "hallucinationRate": 0.25
+  },
+  "results": [
+    {
+      "id": "weapons",
+      "prompt": "quelles armes je possède ?",
+      "factual": true,
+      "clarified": false,
+      "usefulClarification": false,
+      "hallucination": false,
+      "confidence": 1,
+      "evidenceValid": true,
+      "reply": "Vous possédez actuellement deux types d'armes : une arme endommagée (1 exemplaire) et deux petits couteaux."
+    },
+    {
+      "id": "gold",
+      "prompt": "combien d'or j'ai ?",
+      "factual": true,
+      "clarified": false,
+      "usefulClarification": false,
+      "hallucination": false,
+      "confidence": 1,
+      "evidenceValid": false,
+      "reply": "Vous avez 10 pièces d'or."
+    },
+    {
+      "id": "athletisme_bonus",
+      "prompt": "quel est mon bonus d'athletisme ?",
+      "factual": false,
+      "clarified": false,
+      "usefulClarification": false,
+      "hallucination": true,
+      "confidence": 1,
+      "evidenceValid": true,
+      "reply": "Le bonus d'athlétisme n'est pas déterminé car la compétence 'athletisme' n'est pas reconnue ou définie dans les règles fournies."
+    },
+    {
+      "id": "minor_ward",
+      "prompt": "puis-je lancer minor-ward ?",
+      "factual": true,
+      "clarified": false,
+      "usefulClarification": false,
+      "hallucination": false,
+      "confidence": 1,
+      "evidenceValid": true,
+      "reply": "Non, vous ne pouvez pas lancer le sort minor-ward car il n'est pas comptabilisé parmi vos sorts connus même s'il apparaît parmi les sorts connus listés dans la sous-classe Eldritch Knight."
+    }
+  ]
+}

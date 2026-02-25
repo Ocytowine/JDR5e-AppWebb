@@ -1,0 +1,119 @@
+{
+  "quests": {
+    "quest.main.contract-roland": "Terminée"
+  },
+  "tramas": {
+    "trama.region.valombre": "Active"
+  },
+  "companions": {},
+  "trades": {},
+  "clock": {
+    "hour": 5,
+    "day": 0,
+    "special": 0
+  },
+  "history": [
+    {
+      "at": "2026-02-24T08:30:24.779Z",
+      "transitionId": "quest.detectee.to.acceptee",
+      "entityType": "quest",
+      "entityId": "quest.main.contract-roland",
+      "fromState": "Détectée",
+      "toState": "Acceptée",
+      "trigger": "Le joueur accepte explicitement",
+      "consequence": "Ajout au journal et suivi activable",
+      "impactScope": "local",
+      "ruleRef": "local.narration.quest.accept"
+    },
+    {
+      "at": "2026-02-24T08:50:55.063Z",
+      "transitionId": "quest.acceptee.to.terminee",
+      "entityType": "quest",
+      "entityId": "quest.main.contract-roland",
+      "fromState": "Acceptée",
+      "toState": "Terminée",
+      "trigger": "Objectif atteint selon conditions de quête",
+      "consequence": "Récompenses appliquées et clôture de l'entrée de journal",
+      "impactScope": "local",
+      "ruleRef": "local.narration.quest.complete"
+    },
+    {
+      "at": "2026-02-24T09:09:07.685Z",
+      "transitionId": "trama.latente.to.active",
+      "entityType": "trama",
+      "entityId": "trama.region.valombre",
+      "fromState": "Latente",
+      "toState": "Active",
+      "trigger": "Déclencheur actif validé",
+      "consequence": "Trame visible dans le journal avec niveau de menace initial",
+      "impactScope": "local",
+      "ruleRef": "local.narration.trama.activate"
+    }
+  ],
+  "memory": {
+    "shortTerm": [
+      {
+        "id": "trama.latente.to.active:trama.region.valombre:2026-02-24T09:09:07.685Z",
+        "at": "2026-02-24T09:09:07.685Z",
+        "transitionId": "trama.latente.to.active",
+        "entityType": "trama",
+        "entityId": "trama.region.valombre",
+        "fromState": "Latente",
+        "toState": "Active",
+        "consequence": "Trame visible dans le journal avec niveau de menace initial",
+        "impactScope": "local",
+        "ruleRef": "local.narration.trama.activate",
+        "importance": 8,
+        "ageHours": 0,
+        "decayPerHour": 0.02
+      },
+      {
+        "id": "quest.acceptee.to.terminee:quest.main.contract-roland:2026-02-24T08:50:55.063Z",
+        "at": "2026-02-24T08:50:55.063Z",
+        "transitionId": "quest.acceptee.to.terminee",
+        "entityType": "quest",
+        "entityId": "quest.main.contract-roland",
+        "fromState": "Acceptée",
+        "toState": "Terminée",
+        "consequence": "Récompenses appliquées et clôture de l'entrée de journal",
+        "impactScope": "local",
+        "ruleRef": "local.narration.quest.complete",
+        "importance": 7.98,
+        "ageHours": 1,
+        "decayPerHour": 0.02
+      }
+    ],
+    "longTerm": [
+      {
+        "id": "trama.latente.to.active:trama.region.valombre:2026-02-24T09:09:07.685Z",
+        "at": "2026-02-24T09:09:07.685Z",
+        "transitionId": "trama.latente.to.active",
+        "entityType": "trama",
+        "entityId": "trama.region.valombre",
+        "fromState": "Latente",
+        "toState": "Active",
+        "consequence": "Trame visible dans le journal avec niveau de menace initial",
+        "impactScope": "local",
+        "ruleRef": "local.narration.trama.activate",
+        "importance": 8,
+        "ageHours": 0,
+        "decayPerHour": 0.005
+      },
+      {
+        "id": "quest.acceptee.to.terminee:quest.main.contract-roland:2026-02-24T08:50:55.063Z",
+        "at": "2026-02-24T08:50:55.063Z",
+        "transitionId": "quest.acceptee.to.terminee",
+        "entityType": "quest",
+        "entityId": "quest.main.contract-roland",
+        "fromState": "Acceptée",
+        "toState": "Terminée",
+        "consequence": "Récompenses appliquées et clôture de l'entrée de journal",
+        "impactScope": "local",
+        "ruleRef": "local.narration.quest.complete",
+        "importance": 7.995,
+        "ageHours": 1,
+        "decayPerHour": 0.005
+      }
+    ]
+  }
+}

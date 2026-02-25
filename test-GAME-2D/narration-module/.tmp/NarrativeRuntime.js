@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.NarrativeRuntime = void 0;
+const NarrativeMemoryEngine_1 = require("./NarrativeMemoryEngine");
 function cloneBucket(bucket) {
     return { ...bucket };
 }
@@ -11,7 +12,11 @@ function cloneState(state) {
         companions: cloneBucket(state.companions),
         trades: cloneBucket(state.trades),
         clock: { ...state.clock },
-        history: [...state.history]
+        history: [...state.history],
+        memory: {
+            shortTerm: state.memory.shortTerm.map((entry) => ({ ...entry })),
+            longTerm: state.memory.longTerm.map((entry) => ({ ...entry }))
+        }
     };
 }
 function bucketForEntityType(state, entityType) {
@@ -31,6 +36,7 @@ function bucketForEntityType(state, entityType) {
 class NarrativeRuntime {
     constructor(transitionEngine) {
         this.transitionEngine = transitionEngine;
+        this.memoryEngine = new NarrativeMemoryEngine_1.NarrativeMemoryEngine();
     }
     static createInitialState() {
         return {
@@ -39,7 +45,11 @@ class NarrativeRuntime {
             companions: {},
             trades: {},
             clock: { hour: 0, day: 0, special: 0 },
-            history: []
+            history: [],
+            memory: {
+                shortTerm: [],
+                longTerm: []
+            }
         };
     }
     applyTransition(state, command) {
@@ -68,8 +78,13 @@ class NarrativeRuntime {
             ruleRef: result.ruleRef
         };
         nextState.history.push(historyEntry);
-        return {
+        const withMemory = this.memoryEngine.apply(nextState, {
             state: nextState,
+            result,
+            historyEntry
+        });
+        return {
+            state: withMemory,
             result,
             historyEntry
         };

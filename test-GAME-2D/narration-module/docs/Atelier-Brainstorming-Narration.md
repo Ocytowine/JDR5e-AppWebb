@@ -243,3 +243,9 @@ Format: Lots de 4 questions rapides
 
 ## Synthèse opérationnelle
 - Référence unique: [Matrice-Narration-Globale-v1.md](Matrice-Narration-Globale-v1.md)
+
+## Liens d'intention
+- [Plan de correction MJ fluide v1](Plan-Correction-Amelioration-MJ-Fluide-v1.md)
+- [Feuille de route MJ narratif v2](Feuille-Route-MJ-Narratif-v2.md)
+
+Plan directeur en execution stricte: [Plan-Refonte-MJ-Tool-Driven-v1.md](Plan-Refonte-MJ-Tool-Driven-v1.md)

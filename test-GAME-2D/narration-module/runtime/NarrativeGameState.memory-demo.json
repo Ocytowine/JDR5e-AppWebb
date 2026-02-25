@@ -1,0 +1,163 @@
+{
+  "quests": {
+    "quest.main.memory": "Acceptée"
+  },
+  "tramas": {
+    "trama.region.valombre": "Active"
+  },
+  "companions": {},
+  "trades": {
+    "trade.port.nyra.memory": "Accord ajusté"
+  },
+  "clock": {
+    "hour": 0,
+    "day": 3,
+    "special": 0
+  },
+  "history": [
+    {
+      "at": "2026-02-24T08:51:06.621Z",
+      "transitionId": "quest.detectee.to.acceptee",
+      "entityType": "quest",
+      "entityId": "quest.main.memory",
+      "fromState": "Détectée",
+      "toState": "Acceptée",
+      "trigger": "Le joueur accepte explicitement",
+      "consequence": "Ajout au journal et suivi activable",
+      "impactScope": "local",
+      "ruleRef": "local.narration.quest.accept"
+    },
+    {
+      "at": "2026-02-24T08:51:06.630Z",
+      "transitionId": "trade.negociation.to.accord",
+      "entityType": "trade",
+      "entityId": "trade.port.nyra.memory",
+      "fromState": "Négociation de prix",
+      "toState": "Accord ajusté",
+      "trigger": "Argumentaire réussi dans les bornes système",
+      "consequence": "Prix ajusté sans rupture d'économie",
+      "impactScope": "none",
+      "ruleRef": "local.narration.trade.haggle"
+    },
+    {
+      "at": "2026-02-24T08:51:06.638Z",
+      "transitionId": "trama.active.escalade.temps",
+      "entityType": "trama",
+      "entityId": "trama.region.valombre",
+      "fromState": "Active",
+      "toState": "Active",
+      "trigger": "Temps écoulé sans intervention",
+      "consequence": "Escalade locale et augmentation de pression narrative",
+      "impactScope": "regional",
+      "ruleRef": "local.narration.trama.escalade"
+    },
+    {
+      "at": "2026-02-24T08:51:06.646Z",
+      "transitionId": "trama.active.non-intervention.prolonged",
+      "entityType": "trama",
+      "entityId": "trama.region.valombre",
+      "fromState": "Active",
+      "toState": "Active",
+      "trigger": "Non-intervention prolongée",
+      "consequence": "Le monde agit sans vous et aggrave les effets collatéraux",
+      "impactScope": "regional",
+      "ruleRef": "local.narration.trama.nonintervention"
+    }
+  ],
+  "memory": {
+    "shortTerm": [
+      {
+        "id": "trama.active.non-intervention.prolonged:trama.region.valombre:2026-02-24T08:51:06.646Z",
+        "at": "2026-02-24T08:51:06.646Z",
+        "transitionId": "trama.active.non-intervention.prolonged",
+        "entityType": "trama",
+        "entityId": "trama.region.valombre",
+        "fromState": "Active",
+        "toState": "Active",
+        "consequence": "Le monde agit sans vous et aggrave les effets collatéraux",
+        "impactScope": "regional",
+        "ruleRef": "local.narration.trama.nonintervention",
+        "importance": 10,
+        "ageHours": 0,
+        "decayPerHour": 0.02
+      },
+      {
+        "id": "trama.active.escalade.temps:trama.region.valombre:2026-02-24T08:51:06.638Z",
+        "at": "2026-02-24T08:51:06.638Z",
+        "transitionId": "trama.active.escalade.temps",
+        "entityType": "trama",
+        "entityId": "trama.region.valombre",
+        "fromState": "Active",
+        "toState": "Active",
+        "consequence": "Escalade locale et augmentation de pression narrative",
+        "impactScope": "regional",
+        "ruleRef": "local.narration.trama.escalade",
+        "importance": 9.04,
+        "ageHours": 48,
+        "decayPerHour": 0.02
+      },
+      {
+        "id": "quest.detectee.to.acceptee:quest.main.memory:2026-02-24T08:51:06.621Z",
+        "at": "2026-02-24T08:51:06.621Z",
+        "transitionId": "quest.detectee.to.acceptee",
+        "entityType": "quest",
+        "entityId": "quest.main.memory",
+        "fromState": "Détectée",
+        "toState": "Acceptée",
+        "consequence": "Ajout au journal et suivi activable",
+        "impactScope": "local",
+        "ruleRef": "local.narration.quest.accept",
+        "importance": 6.56,
+        "ageHours": 72,
+        "decayPerHour": 0.02
+      }
+    ],
+    "longTerm": [
+      {
+        "id": "trama.active.non-intervention.prolonged:trama.region.valombre:2026-02-24T08:51:06.646Z",
+        "at": "2026-02-24T08:51:06.646Z",
+        "transitionId": "trama.active.non-intervention.prolonged",
+        "entityType": "trama",
+        "entityId": "trama.region.valombre",
+        "fromState": "Active",
+        "toState": "Active",
+        "consequence": "Le monde agit sans vous et aggrave les effets collatéraux",
+        "impactScope": "regional",
+        "ruleRef": "local.narration.trama.nonintervention",
+        "importance": 10,
+        "ageHours": 0,
+        "decayPerHour": 0.005
+      },
+      {
+        "id": "trama.active.escalade.temps:trama.region.valombre:2026-02-24T08:51:06.638Z",
+        "at": "2026-02-24T08:51:06.638Z",
+        "transitionId": "trama.active.escalade.temps",
+        "entityType": "trama",
+        "entityId": "trama.region.valombre",
+        "fromState": "Active",
+        "toState": "Active",
+        "consequence": "Escalade locale et augmentation de pression narrative",
+        "impactScope": "regional",
+        "ruleRef": "local.narration.trama.escalade",
+        "importance": 9.76,
+        "ageHours": 48,
+        "decayPerHour": 0.005
+      },
+      {
+        "id": "quest.detectee.to.acceptee:quest.main.memory:2026-02-24T08:51:06.621Z",
+        "at": "2026-02-24T08:51:06.621Z",
+        "transitionId": "quest.detectee.to.acceptee",
+        "entityType": "quest",
+        "entityId": "quest.main.memory",
+        "fromState": "Détectée",
+        "toState": "Acceptée",
+        "consequence": "Ajout au journal et suivi activable",
+        "impactScope": "local",
+        "ruleRef": "local.narration.quest.accept",
+        "importance": 7.64,
+        "ageHours": 72,
+        "decayPerHour": 0.005
+      }
+    ]
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "baseUrl": "http://localhost:5181",
+  "total": 4,
+  "metrics": {
+    "factualAccuracy": 0.75,
+    "clarificationRate": 0,
+    "usefulClarificationRate": 0,
+    "hallucinationRate": 0.25
+  },
+  "results": [
+    {
+      "id": "weapons",
+      "prompt": "quelles armes je possède ?",
+      "factual": true,
+      "clarified": false,
+      "usefulClarification": false,
+      "hallucination": false,
+      "confidence": 1,
+      "evidenceValid": true,
+      "reply": "Vous possédez une arme endommagée (1 unité) et deux petits couteaux, tous deux équipés sur la ceinture gauche et droite."
+    },
+    {
+      "id": "gold",
+      "prompt": "combien d'or j'ai ?",
+      "factual": true,
+      "clarified": false,
+      "usefulClarification": false,
+      "hallucination": false,
+      "confidence": 1,
+      "evidenceValid": true,
+      "reply": "Vous avez 10 pièces d'or."
+    },
+    {
+      "id": "athletisme_bonus",
+      "prompt": "quel est mon bonus d'athletisme ?",
+      "factual": false,
+      "clarified": false,
+      "usefulClarification": false,
+      "hallucination": true,
+      "confidence": 1,
+      "evidenceValid": true,
+      "reply": "Le bonus d'athlétisme n'est pas défini dans les données fournies."
+    },
+    {
+      "id": "minor_ward",
+      "prompt": "puis-je lancer minor-ward ?",
+      "factual": true,
+      "clarified": false,
+      "usefulClarification": false,
+      "hallucination": false,
+      "confidence": 1,
+      "evidenceValid": true,
+      "reply": "Non, vous ne pouvez pas lancer le sort minor-ward car il n'est pas listé parmi vos sorts connus ou préparés."
+    }
+  ]
+}

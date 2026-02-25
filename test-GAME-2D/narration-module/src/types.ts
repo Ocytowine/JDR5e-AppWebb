@@ -79,6 +79,27 @@ export interface NarrativeHistoryEntry {
   ruleRef: string;
 }
 
+export interface NarrativeMemoryEntry {
+  id: string;
+  at: string;
+  transitionId: string;
+  entityType: NarrativeEntityType;
+  entityId: string;
+  fromState: string;
+  toState: string;
+  consequence: string;
+  impactScope: ImpactScope;
+  ruleRef: string;
+  importance: number;
+  ageHours: number;
+  decayPerHour: number;
+}
+
+export interface NarrativeMemoryState {
+  shortTerm: NarrativeMemoryEntry[];
+  longTerm: NarrativeMemoryEntry[];
+}
+
 export interface NarrativeGameState {
   quests: NarrativeStateBucket;
   tramas: NarrativeStateBucket;
@@ -86,6 +107,7 @@ export interface NarrativeGameState {
   trades: NarrativeStateBucket;
   clock: NarrativeClock;
   history: NarrativeHistoryEntry[];
+  memory: NarrativeMemoryState;
 }
 
 export interface RuntimeTransitionCommand {
@@ -132,6 +154,50 @@ export interface TickNarrationOutcome {
     code: 'transition-not-found' | 'state-mismatch' | 'already-progressed' | 'cooldown-blocked';
     reason: string;
   }[];
+}
+
+export interface AINarrationCandidate {
+  command: RuntimeTransitionCommand;
+  transitionId: string;
+  fromState: string;
+  toState: string;
+  consequence: string;
+  impactScope: ImpactScope;
+  ruleRef: string;
+  playerFacingReason?: string;
+}
+
+export interface AINarrationGeneratorInput {
+  state: NarrativeGameState;
+  query: string;
+  contextPack: ContextPack;
+  candidates: AINarrationCandidate[];
+}
+
+export interface AINarrationGeneratorOutput {
+  selectedIndex: number | null;
+  reason: string;
+}
+
+export interface MjNarrationGenerator {
+  generate(input: AINarrationGeneratorInput): Promise<AINarrationGeneratorOutput>;
+}
+
+export interface TickNarrationAIRequest {
+  query: string;
+  records: LoreRecord[];
+  activeZoneId?: string;
+  parentZoneIds?: string[];
+  playerProfile?: PlayerProfileInput;
+  entityHints?: Partial<Record<NarrativeEntityType, string[]>>;
+  minHoursBetweenMajorEvents?: number;
+  blockOnGuardFailure?: boolean;
+}
+
+export interface TickNarrationAIOutcome extends TickNarrationOutcome {
+  aiReason: string;
+  candidatesGenerated: number;
+  contextPack: ContextPack;
 }
 
 export interface PlayerProfileInput {

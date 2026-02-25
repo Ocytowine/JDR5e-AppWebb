@@ -27,7 +27,18 @@ function normalizeState(value: unknown): NarrativeGameState {
             special: Number((partial.clock as any).special ?? 0)
           }
         : empty.clock,
-    history: Array.isArray(partial.history) ? partial.history : empty.history
+    history: Array.isArray(partial.history) ? partial.history : empty.history,
+    memory:
+      partial.memory && typeof partial.memory === 'object'
+        ? {
+            shortTerm: Array.isArray((partial.memory as any).shortTerm)
+              ? (partial.memory as any).shortTerm
+              : empty.memory.shortTerm,
+            longTerm: Array.isArray((partial.memory as any).longTerm)
+              ? (partial.memory as any).longTerm
+              : empty.memory.longTerm
+          }
+        : empty.memory
   };
 }
 

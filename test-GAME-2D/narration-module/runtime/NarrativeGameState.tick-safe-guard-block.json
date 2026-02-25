@@ -10,5 +10,9 @@
     "day": 0,
     "special": 0
   },
-  "history": []
+  "history": [],
+  "memory": {
+    "shortTerm": [],
+    "longTerm": []
+  }
 }

@@ -1,0 +1,56 @@
+{
+  "baseUrl": "http://localhost:5175",
+  "total": 4,
+  "metrics": {
+    "factualAccuracy": 0,
+    "clarificationRate": 1,
+    "usefulClarificationRate": 0,
+    "hallucinationRate": 0.25
+  },
+  "results": [
+    {
+      "id": "weapons",
+      "prompt": "quelles armes je possède ?",
+      "factual": false,
+      "clarified": true,
+      "usefulClarification": false,
+      "hallucination": false,
+      "confidence": 1,
+      "evidenceValid": false,
+      "reply": "Je préfère clarifier pour éviter une réponse inexacte.\nPeux-tu préciser le champ visé (équipement, sorts, ressources, progression) ?"
+    },
+    {
+      "id": "gold",
+      "prompt": "combien d'or j'ai ?",
+      "factual": false,
+      "clarified": true,
+      "usefulClarification": false,
+      "hallucination": false,
+      "confidence": 1,
+      "evidenceValid": false,
+      "reply": "Je préfère clarifier pour éviter une réponse inexacte.\nPeux-tu préciser le champ visé (équipement, sorts, ressources, progression) ?"
+    },
+    {
+      "id": "athletisme_bonus",
+      "prompt": "quel est mon bonus d'athletisme ?",
+      "factual": false,
+      "clarified": true,
+      "usefulClarification": false,
+      "hallucination": true,
+      "confidence": 1,
+      "evidenceValid": false,
+      "reply": "Je préfère clarifier pour éviter une réponse inexacte.\nPeux-tu préciser le champ visé (équipement, sorts, ressources, progression) ?"
+    },
+    {
+      "id": "minor_ward",
+      "prompt": "puis-je lancer minor-ward ?",
+      "factual": false,
+      "clarified": true,
+      "usefulClarification": false,
+      "hallucination": false,
+      "confidence": 1,
+      "evidenceValid": false,
+      "reply": "Je préfère clarifier pour éviter une réponse inexacte.\nPeux-tu préciser le champ visé (équipement, sorts, ressources, progression) ?"
+    }
+  ]
+}

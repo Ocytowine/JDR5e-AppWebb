@@ -1,0 +1,56 @@
+{
+  "baseUrl": "http://localhost:5184",
+  "total": 4,
+  "metrics": {
+    "factualAccuracy": 0.75,
+    "clarificationRate": 0,
+    "usefulClarificationRate": 0,
+    "hallucinationRate": 0.25
+  },
+  "results": [
+    {
+      "id": "weapons",
+      "prompt": "quelles armes je possède ?",
+      "factual": true,
+      "clarified": false,
+      "usefulClarification": false,
+      "hallucination": false,
+      "confidence": 1,
+      "evidenceValid": true,
+      "reply": "Tu possèdes: 1 x obj_arme_endommagee, 2 x obj_petit_couteau."
+    },
+    {
+      "id": "gold",
+      "prompt": "combien d'or j'ai ?",
+      "factual": false,
+      "clarified": false,
+      "usefulClarification": false,
+      "hallucination": true,
+      "confidence": 1,
+      "evidenceValid": false,
+      "reply": "Tu as 0 pièces d'or, 0 d'argent, 0 de cuivre et 0 de platine."
+    },
+    {
+      "id": "athletisme_bonus",
+      "prompt": "quel est mon bonus d'athletisme ?",
+      "factual": true,
+      "clarified": false,
+      "usefulClarification": false,
+      "hallucination": false,
+      "confidence": 1,
+      "evidenceValid": true,
+      "reply": "Ton bonus de athletisme est +4."
+    },
+    {
+      "id": "minor_ward",
+      "prompt": "puis-je lancer minor-ward ?",
+      "factual": true,
+      "clarified": false,
+      "usefulClarification": false,
+      "hallucination": false,
+      "confidence": 1,
+      "evidenceValid": true,
+      "reply": "Oui, tu peux lancer minor-ward (emplacements de sort disponibles)."
+    }
+  ]
+}

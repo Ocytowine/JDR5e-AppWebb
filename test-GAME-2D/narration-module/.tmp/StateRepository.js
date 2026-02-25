@@ -21,7 +21,17 @@ function normalizeState(value) {
                 special: Number(partial.clock.special ?? 0)
             }
             : empty.clock,
-        history: Array.isArray(partial.history) ? partial.history : empty.history
+        history: Array.isArray(partial.history) ? partial.history : empty.history,
+        memory: partial.memory && typeof partial.memory === 'object'
+            ? {
+                shortTerm: Array.isArray(partial.memory.shortTerm)
+                    ? partial.memory.shortTerm
+                    : empty.memory.shortTerm,
+                longTerm: Array.isArray(partial.memory.longTerm)
+                    ? partial.memory.longTerm
+                    : empty.memory.longTerm
+            }
+            : empty.memory
     };
 }
 class StateRepository {

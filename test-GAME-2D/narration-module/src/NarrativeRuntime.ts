@@ -1,4 +1,5 @@
 import { TransitionEngine } from './TransitionEngine';
+import { NarrativeMemoryEngine } from './NarrativeMemoryEngine';
 import {
   type NarrativeGameState,
   type NarrativeStateBucket,
@@ -18,7 +19,11 @@ function cloneState(state: NarrativeGameState): NarrativeGameState {
     companions: cloneBucket(state.companions),
     trades: cloneBucket(state.trades),
     clock: { ...state.clock },
-    history: [...state.history]
+    history: [...state.history],
+    memory: {
+      shortTerm: state.memory.shortTerm.map((entry) => ({ ...entry })),
+      longTerm: state.memory.longTerm.map((entry) => ({ ...entry }))
+    }
   };
 }
 
@@ -39,9 +44,11 @@ function bucketForEntityType(state: NarrativeGameState, entityType: NarrativeEnt
 
 export class NarrativeRuntime {
   private readonly transitionEngine: TransitionEngine;
+  private readonly memoryEngine: NarrativeMemoryEngine;
 
   constructor(transitionEngine: TransitionEngine) {
     this.transitionEngine = transitionEngine;
+    this.memoryEngine = new NarrativeMemoryEngine();
   }
 
   public static createInitialState(): NarrativeGameState {
@@ -51,7 +58,11 @@ export class NarrativeRuntime {
       companions: {},
       trades: {},
       clock: { hour: 0, day: 0, special: 0 },
-      history: []
+      history: [],
+      memory: {
+        shortTerm: [],
+        longTerm: []
+      }
     };
   }
 
@@ -87,8 +98,14 @@ export class NarrativeRuntime {
 
     nextState.history.push(historyEntry);
 
-    return {
+    const withMemory = this.memoryEngine.apply(nextState, {
       state: nextState,
+      result,
+      historyEntry
+    });
+
+    return {
+      state: withMemory,
       result,
       historyEntry
     };

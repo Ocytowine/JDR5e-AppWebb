@@ -41,3 +41,9 @@ Objectif: définir le canon du monde (contexte, structures, tensions, cultures) 
 - Source prioritaire #2: `Profil/Passé du PJ`
 - Poids du passé PJ: `Faible` (éviter un centrage excessif sur le PJ)
 - Si peu de résultats lore pertinents: `Mixer élargissement au parent + micro-événement local neutre`
+
+## Liens d'intention
+- [Plan de correction MJ fluide v1](Plan-Correction-Amelioration-MJ-Fluide-v1.md)
+- [Cadre IA lore/coherence/originalite](Cadre-IA-Lore-Coherence-Originalite.md)
+
+Plan directeur en execution stricte: [Plan-Refonte-MJ-Tool-Driven-v1.md](Plan-Refonte-MJ-Tool-Driven-v1.md)

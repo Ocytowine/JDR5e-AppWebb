@@ -10,6 +10,7 @@
     "gen:class-catalog": "node scripts/gen-class-catalog.js",
     "gen:materiel-catalog": "node scripts/gen-materiel-catalog.js",
     "preview": "vite preview",
+    "eval:hrp": "node scripts/eval-hrp-prompts.js",
     "validate:content": "node scripts/validate-content.js",
     "validate:transitions-runtime": "npx tsc scripts/validate-transitions-runtime.ts --target ES2020 --module commonjs --esModuleInterop --skipLibCheck --outDir scripts/.tmp && node scripts/.tmp/validate-transitions-runtime.js"
   },

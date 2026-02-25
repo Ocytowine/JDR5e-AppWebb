@@ -40,6 +40,9 @@ import { SpeciesTab } from "./tabs/SpeciesTab";
 import { ProfileTab } from "./tabs/ProfileTab";
 import { SheetTab } from "./tabs/SheetTab";
 import { MagicPanel } from "./tabs/MagicPanel";
+import { NarrationJournalPanel } from "../ui/NarrationJournalPanel";
+import { loadNarrativeRuntimeState } from "../narrationRuntimeState";
+import { buildNarrationJournal, type NarrationJournalView } from "../ui/narrationJournalAdapter";
 import { spellCatalog } from "../game/spellCatalog";
 import { loadFeatureTypesFromIndex } from "../game/featureCatalog";
 import type { FeatureDefinition } from "../game/featureTypes";
@@ -92,7 +95,7 @@ export function CombatSetupScreen(props: {
   onStartCombat: () => void;
   onNoEnemyTypes: () => void;
 }): React.JSX.Element {
-  const [activeMainTab, setActiveMainTab] = useState<"map" | "player">("map");
+  const [activeMainTab, setActiveMainTab] = useState<"map" | "player" | "narration">("map");
   const [activePlayerTab, setActivePlayerTab] = useState<
     | "species"
     | "backgrounds"
@@ -111,6 +114,30 @@ export function CombatSetupScreen(props: {
   const [statsMode, setStatsMode] = useState<"normal" | "manual">("normal");
   const [skillsMode, setSkillsMode] = useState<"normal" | "manual">("normal");
   const [masteriesMode, setMasteriesMode] = useState<"normal" | "manual">("normal");
+  const [narrationJournal, setNarrationJournal] = useState<NarrationJournalView | null>(null);
+  const [narrationJournalLoading, setNarrationJournalLoading] = useState<boolean>(false);
+  const [narrationJournalError, setNarrationJournalError] = useState<string | null>(null);
+
+  const refreshNarrationJournal = async (): Promise<void> => {
+    setNarrationJournalLoading(true);
+    setNarrationJournalError(null);
+    try {
+      const state = await loadNarrativeRuntimeState();
+      if (!state) {
+        setNarrationJournal(null);
+        setNarrationJournalError(
+          "Etat runtime narratif introuvable. Verifie que le module narration est lance."
+        );
+      } else {
+        setNarrationJournal(buildNarrationJournal(state));
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setNarrationJournalError(`Chargement narration impossible: ${message}`);
+    } finally {
+      setNarrationJournalLoading(false);
+    }
+  };
   const weaponOptions = useMemo(() => {
     const list = Array.isArray(props.weaponTypes) ? [...props.weaponTypes] : [];
     list.sort((a, b) => {
@@ -333,6 +360,26 @@ export function CombatSetupScreen(props: {
   const expertises = Array.isArray((props.character as any)?.expertises)
     ? ((props.character as any).expertises as string[])
     : [];
+
+  useEffect(() => {
+    if (activeMainTab !== "narration") return;
+    let cancelled = false;
+
+    async function refresh(): Promise<void> {
+      if (cancelled) return;
+      await refreshNarrationJournal();
+    }
+
+    void refresh();
+    const timer = window.setInterval(() => {
+      void refresh();
+    }, 5000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [activeMainTab]);
 
   useEffect(() => {
     if (skillsMode !== "normal") return;
@@ -4952,6 +4999,40 @@ export function CombatSetupScreen(props: {
     return window.localStorage.getItem(ACTIVE_SHEET_KEY) ?? "";
   });
   const [sheetNameInput, setSheetNameInput] = useState("");
+  const activeSavedSheetCharacter = useMemo<Personnage | null>(() => {
+    if (!activeSheetId) return null;
+    const active = savedSheets.find(sheet => sheet.id === activeSheetId);
+    return (active?.character as Personnage | undefined) ?? null;
+  }, [savedSheets, activeSheetId]);
+  const narrationCharacter = activeSavedSheetCharacter ?? props.character;
+  const narrationRaceId = String((narrationCharacter as any)?.raceId ?? "").trim();
+  const narrationBackgroundId = String((narrationCharacter as any)?.backgroundId ?? "").trim();
+  const narrationClassEntry = ((narrationCharacter as any)?.classe?.[1] ??
+    (narrationCharacter as any)?.classe?.["1"] ??
+    null) as
+    | { classeId?: string; subclasseId?: string | null; niveau?: number }
+    | null;
+  const narrationRaceLabel =
+    raceOptions.find(race => race.id === narrationRaceId)?.label ?? activeRace?.label ?? "";
+  const narrationClassLabel =
+    classOptions.find(cls => cls.id === String(narrationClassEntry?.classeId ?? "").trim())?.label ??
+    classPrimary?.label ??
+    "";
+  const narrationSubclassLabel =
+    subclassOptions.find(
+      sub => sub.id === String(narrationClassEntry?.subclasseId ?? "").trim()
+    )?.label ??
+    (typeof narrationClassEntry?.subclasseId === "string" ? narrationClassEntry.subclasseId : "") ??
+    "";
+  const narrationNameRaw = (narrationCharacter as any)?.nom;
+  const narrationName =
+    (typeof narrationNameRaw === "string"
+      ? narrationNameRaw
+      : narrationNameRaw && typeof narrationNameRaw === "object"
+      ? String((narrationNameRaw as any).nomcomplet ?? "").trim()
+      : "") ||
+    String((narrationCharacter as any)?.name ?? "").trim() ||
+    "Aventurier";
 
   const persistSheets = (next: SavedSheet[]) => {
     setSavedSheets(next);
@@ -5557,30 +5638,32 @@ export function CombatSetupScreen(props: {
           )}
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {[{ id: "map", label: "Carte" }, { id: "player", label: "Joueur" }].map(
-            tab => {
-              const isActive = activeMainTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveMainTab(tab.id as typeof activeMainTab)}
-                  style={{
-                    padding: "6px 10px",
-                    borderRadius: 6,
-                    border: `1px solid ${isActive ? "#4f7df2" : "#333"}`,
-                    background: isActive ? "rgba(79,125,242,0.2)" : "#0f0f19",
-                    color: isActive ? "#dfe8ff" : "#c9cfdd",
-                    cursor: "pointer",
-                    fontSize: 12,
-                    fontWeight: 700
-                  }}
-                >
-                  {tab.label}
-                </button>
-              );
-            }
-          )}
+          {[
+            { id: "map", label: "Carte" },
+            { id: "player", label: "Joueur" },
+            { id: "narration", label: "Narration" }
+          ].map(tab => {
+            const isActive = activeMainTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveMainTab(tab.id as typeof activeMainTab)}
+                style={{
+                  padding: "6px 10px",
+                  borderRadius: 6,
+                  border: `1px solid ${isActive ? "#4f7df2" : "#333"}`,
+                  background: isActive ? "rgba(79,125,242,0.2)" : "#0f0f19",
+                  color: isActive ? "#dfe8ff" : "#c9cfdd",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  fontWeight: 700
+                }}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
 
         <div
@@ -5782,6 +5865,88 @@ export function CombatSetupScreen(props: {
               Lancer le combat
             </button>
             </>
+          )}
+
+          {activeMainTab === "narration" && (
+            <NarrationJournalPanel
+              journal={narrationJournal}
+              loading={narrationJournalLoading}
+              error={narrationJournalError}
+              characterProfile={{
+                id: (narrationCharacter as any)?.id ?? "player-1",
+                name: narrationName,
+                raceId: narrationRaceId,
+                race: narrationRaceLabel,
+                backgroundId: narrationBackgroundId,
+                classe: ((narrationCharacter as any)?.classe ?? {}) as Record<
+                  string,
+                  { classeId?: string; subclasseId?: string | null; niveau?: number }
+                >,
+                classLabel: narrationClassLabel,
+                subclassLabel: narrationSubclassLabel,
+                argent:
+                  (narrationCharacter as any)?.argent &&
+                  typeof (narrationCharacter as any).argent === "object"
+                    ? ((narrationCharacter as any).argent as Record<string, unknown>)
+                    : {},
+                maitriseBonus: Number((narrationCharacter as any)?.maitriseBonus ?? 0) || 0,
+                caracs:
+                  (narrationCharacter as any)?.caracs &&
+                  typeof (narrationCharacter as any).caracs === "object"
+                    ? ((narrationCharacter as any).caracs as Record<string, unknown>)
+                    : {},
+                appearance:
+                  (narrationCharacter as any)?.appearance &&
+                  typeof (narrationCharacter as any).appearance === "object"
+                    ? ((narrationCharacter as any).appearance as Record<string, unknown>)
+                    : null,
+                skills: Array.isArray((narrationCharacter as any)?.competences)
+                  ? ((narrationCharacter as any).competences as string[]).map(value => String(value))
+                  : [],
+                expertises: Array.isArray((narrationCharacter as any)?.expertises)
+                  ? ((narrationCharacter as any).expertises as string[]).map(value => String(value))
+                  : [],
+                actionIds: Array.isArray((narrationCharacter as any)?.actionIds)
+                  ? ((narrationCharacter as any).actionIds as string[]).map(value => String(value))
+                  : [],
+                reactionIds: Array.isArray((narrationCharacter as any)?.reactionIds)
+                  ? ((narrationCharacter as any).reactionIds as string[]).map(value => String(value))
+                  : [],
+                proficiencies:
+                  (narrationCharacter as any)?.proficiencies &&
+                  typeof (narrationCharacter as any).proficiencies === "object"
+                    ? ((narrationCharacter as any).proficiencies as Record<string, unknown>)
+                    : {},
+                weaponMasteries: Array.isArray((narrationCharacter as any)?.weaponMasteries)
+                  ? ((narrationCharacter as any).weaponMasteries as string[]).map(value => String(value))
+                  : [],
+                materielSlots:
+                  (narrationCharacter as any)?.materielSlots &&
+                  typeof (narrationCharacter as any).materielSlots === "object"
+                    ? ((narrationCharacter as any).materielSlots as Record<string, unknown>)
+                    : {},
+                inventoryItems: Array.isArray((narrationCharacter as any)?.inventoryItems)
+                  ? ((narrationCharacter as any).inventoryItems as Array<Record<string, unknown>>).map(item => ({
+                      ...(item ?? {})
+                    }))
+                  : [],
+                spellcastingState:
+                  (narrationCharacter as any)?.spellcastingState &&
+                  typeof (narrationCharacter as any).spellcastingState === "object"
+                    ? ((narrationCharacter as any).spellcastingState as Record<string, unknown>)
+                    : {},
+                derived:
+                  (narrationCharacter as any)?.derived &&
+                  typeof (narrationCharacter as any).derived === "object"
+                    ? ((narrationCharacter as any).derived as Record<string, unknown>)
+                    : {},
+                sourceSheetId: activeSheetId || "",
+                sourceTag: activeSavedSheetCharacter ? "active-saved-sheet" : "live-editor"
+              }}
+              onRefresh={() => {
+                void refreshNarrationJournal();
+              }}
+            />
           )}
 
           {activeMainTab === "player" && activePlayerTab === "equip" && (

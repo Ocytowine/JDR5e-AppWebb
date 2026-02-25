@@ -1,62 +1,21 @@
 {
   "quests": {
-    "quest.main.contract-roland": "Acceptée",
-    "quest.main.guard-check": "Acceptée"
+    "quest.main.auto": "Acceptée"
   },
   "tramas": {},
-  "companions": {
-    "compagnon.elya": "Recruté"
-  },
-  "trades": {
-    "trade.port.nyra": "Accord ajusté"
-  },
+  "companions": {},
+  "trades": {},
   "clock": {
     "hour": 0,
     "day": 0,
-    "special": 1
+    "special": 0
   },
   "history": [
     {
-      "at": "2026-02-23T17:21:58.842Z",
+      "at": "2026-02-25T15:27:15.822Z",
       "transitionId": "quest.detectee.to.acceptee",
       "entityType": "quest",
-      "entityId": "quest.main.contract-roland",
-      "fromState": "Détectée",
-      "toState": "Acceptée",
-      "trigger": "Le joueur accepte explicitement",
-      "consequence": "Ajout au journal et suivi activable",
-      "impactScope": "local",
-      "ruleRef": "local.narration.quest.accept"
-    },
-    {
-      "at": "2026-02-23T17:32:49.674Z",
-      "transitionId": "companion.negociation.to.recrute",
-      "entityType": "companion",
-      "entityId": "compagnon.elya",
-      "fromState": "Négociation",
-      "toState": "Recruté",
-      "trigger": "Accord social validé + coût d'engagement accepté",
-      "consequence": "Compagnon ajouté au groupe avec loyauté initiale",
-      "impactScope": "local",
-      "ruleRef": "local.narration.companion.recruit"
-    },
-    {
-      "at": "2026-02-23T17:34:02.842Z",
-      "transitionId": "trade.negociation.to.accord",
-      "entityType": "trade",
-      "entityId": "trade.port.nyra",
-      "fromState": "Négociation de prix",
-      "toState": "Accord ajusté",
-      "trigger": "Argumentaire réussi dans les bornes système",
-      "consequence": "Prix ajusté sans rupture d'économie",
-      "impactScope": "none",
-      "ruleRef": "local.narration.trade.haggle"
-    },
-    {
-      "at": "2026-02-23T17:39:17.042Z",
-      "transitionId": "quest.detectee.to.acceptee",
-      "entityType": "quest",
-      "entityId": "quest.main.guard-check",
+      "entityId": "quest.main.auto",
       "fromState": "Détectée",
       "toState": "Acceptée",
       "trigger": "Le joueur accepte explicitement",
@@ -64,5 +23,41 @@
       "impactScope": "local",
       "ruleRef": "local.narration.quest.accept"
     }
-  ]
+  ],
+  "memory": {
+    "shortTerm": [
+      {
+        "id": "quest.detectee.to.acceptee:quest.main.auto:2026-02-25T15:27:15.822Z",
+        "at": "2026-02-25T15:27:15.822Z",
+        "transitionId": "quest.detectee.to.acceptee",
+        "entityType": "quest",
+        "entityId": "quest.main.auto",
+        "fromState": "Détectée",
+        "toState": "Acceptée",
+        "consequence": "Ajout au journal et suivi activable",
+        "impactScope": "local",
+        "ruleRef": "local.narration.quest.accept",
+        "importance": 8,
+        "ageHours": 0,
+        "decayPerHour": 0.02
+      }
+    ],
+    "longTerm": [
+      {
+        "id": "quest.detectee.to.acceptee:quest.main.auto:2026-02-25T15:27:15.822Z",
+        "at": "2026-02-25T15:27:15.822Z",
+        "transitionId": "quest.detectee.to.acceptee",
+        "entityType": "quest",
+        "entityId": "quest.main.auto",
+        "fromState": "Détectée",
+        "toState": "Acceptée",
+        "consequence": "Ajout au journal et suivi activable",
+        "impactScope": "local",
+        "ruleRef": "local.narration.quest.accept",
+        "importance": 8,
+        "ageHours": 0,
+        "decayPerHour": 0.005
+      }
+    ]
+  }
 }

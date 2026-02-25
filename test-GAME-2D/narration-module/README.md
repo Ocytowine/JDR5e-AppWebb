@@ -123,6 +123,34 @@ Depuis `test-GAME-2D/narration-module`:
 npm run demo:runtime:tick:safe:guard:block
 ```
 
+## Démo pipeline IA MJ (ContextPack -> génération -> guards -> application)
+
+Depuis `test-GAME-2D/narration-module`:
+
+```powershell
+npm run demo:runtime:ai:pipeline
+```
+
+Note:
+- la démo ci-dessus utilise un générateur heuristique local (`HeuristicMjNarrationGenerator`) pour être exécutable sans clé.
+- un générateur OpenAI réel est aussi disponible (`OpenAIMjNarrationGenerator`) via `OPENAI_API_KEY`.
+
+## Démo mémoire narrative (court terme + long terme + atténuation)
+
+Depuis `test-GAME-2D/narration-module`:
+
+```powershell
+npm run demo:runtime:memory
+```
+
+## Démo couverture domaines (quête/trame/compagnon/marchandage)
+
+Depuis `test-GAME-2D/narration-module`:
+
+```powershell
+npm run demo:runtime:coverage
+```
+
 Alternative manuelle (si besoin):
 
 ```powershell

@@ -16,6 +16,9 @@
     "demo:runtime:tick:safe": "npx tsc src/index.ts src/examples/tick-safe-demo.ts --target ES2020 --module commonjs --esModuleInterop --skipLibCheck --outDir .tmp && node .tmp/examples/tick-safe-demo.js",
     "demo:runtime:guards": "npx tsc src/index.ts src/examples/guards-demo.ts --target ES2020 --module commonjs --esModuleInterop --skipLibCheck --outDir .tmp && node .tmp/examples/guards-demo.js",
     "demo:runtime:guards:block": "npx tsc src/index.ts src/examples/guards-block-demo.ts --target ES2020 --module commonjs --esModuleInterop --skipLibCheck --outDir .tmp && node .tmp/examples/guards-block-demo.js",
-    "demo:runtime:tick:safe:guard:block": "npx tsc src/index.ts src/examples/tick-safe-guard-block-demo.ts --target ES2020 --module commonjs --esModuleInterop --skipLibCheck --outDir .tmp && node .tmp/examples/tick-safe-guard-block-demo.js"
+    "demo:runtime:tick:safe:guard:block": "npx tsc src/index.ts src/examples/tick-safe-guard-block-demo.ts --target ES2020 --module commonjs --esModuleInterop --skipLibCheck --outDir .tmp && node .tmp/examples/tick-safe-guard-block-demo.js",
+    "demo:runtime:ai:pipeline": "npx tsc src/index.ts src/examples/ai-pipeline-demo.ts --target ES2020 --module commonjs --esModuleInterop --skipLibCheck --outDir .tmp && node .tmp/examples/ai-pipeline-demo.js",
+    "demo:runtime:memory": "npx tsc src/index.ts src/examples/memory-demo.ts --target ES2020 --module commonjs --esModuleInterop --skipLibCheck --outDir .tmp && node .tmp/examples/memory-demo.js",
+    "demo:runtime:coverage": "npx tsc src/index.ts src/examples/domain-coverage-demo.ts --target ES2020 --module commonjs --esModuleInterop --skipLibCheck --outDir .tmp && node .tmp/examples/domain-coverage-demo.js"
   }
 }
