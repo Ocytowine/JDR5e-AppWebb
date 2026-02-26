@@ -1,0 +1,39 @@
+---
+type: batiment
+id: maison_des_registres
+nom: Maison des Registres
+
+# LOCALISATION
+ville: lysenthe
+region: ylssea
+territoire: astryade
+
+# TYPE / FONCTION
+type_batiment: Administration civile
+fonction_principale:
+  - enregistrement des contrats
+  - tenue des registres douaniers et fiscaux
+importance_strategique: 81
+
+# PROPRIETE / CONTROLE
+proprietaire_faction: maison_tharqual
+proprietaire_principal: Intendance de Lysenthe
+acces: public
+
+# DESCRIPTION RAPIDE
+etat_general: bon
+niveau_securite: 73
+rumeurs:
+  - Les litiges majeurs y sont arbitres avant de monter a Pierre des Sables.
+  - Certains registres anciens sont copies en double pour les Archives.
+
+# LIENS
+lieux_connectes:
+  - rue_des_maisons_hautes
+  - archives_de_lysenthe
+
+mots_cles:
+  - administration
+  - contrats
+  - archives
+---

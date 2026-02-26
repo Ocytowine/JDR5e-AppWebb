@@ -1,0 +1,39 @@
+---
+type: batiment
+id: chantier_de_la_basse_baie
+nom: Chantier de la Basse Baie
+
+# LOCALISATION
+ville: lysenthe
+region: ylssea
+territoire: astryade
+
+# TYPE / FONCTION
+type_batiment: Chantier naval
+fonction_principale:
+  - reparation de navires marchands
+  - construction de caboteurs et barges
+importance_strategique: 76
+
+# PROPRIETE / CONTROLE
+proprietaire_faction: cercle_du_commerce_maritime
+proprietaire_principal: Maitrise des Chantiers
+acces: public
+
+# DESCRIPTION RAPIDE
+etat_general: moyen
+niveau_securite: 58
+rumeurs:
+  - Les meilleurs ateliers sont loues a prix fort par les compagnies riches.
+  - Des coques legeres y sont preparees pour des routes non declarees.
+
+# LIENS
+lieux_connectes:
+  - basse_baie
+  - halles_des_commerces
+
+mots_cles:
+  - chantier
+  - navires
+  - maintenance
+---

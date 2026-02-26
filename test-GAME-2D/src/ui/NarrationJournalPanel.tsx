@@ -7,6 +7,7 @@ type ChatMessage = {
   text: string;
   debugText?: string;
   debugOpen?: boolean;
+  continuityHint?: string;
   speaker?: { id?: string; label?: string; kind?: string };
 };
 
@@ -91,7 +92,15 @@ function buildDebugSuffix(payload: NarrationChatPayload): string {
     guardReasons !== "none" ||
     rep !== 0 ||
     tension !== 0;
-  if (!hasSignal) return "";
+  const mjStructured = (source as Record<string, unknown>).mjStructured as
+    | { toolCalls?: Array<{ name?: string; tool?: string; id?: string }> }
+    | undefined;
+  const plannedTools = Array.isArray(mjStructured?.toolCalls)
+    ? mjStructured.toolCalls
+        .map(row => String(row?.name ?? row?.tool ?? row?.id ?? "").trim().toLowerCase())
+        .filter(Boolean)
+        .slice(0, 8)
+    : [];
   const phase12 = (source as Record<string, unknown>).phase12 as
     | {
         worldIntentConfidence?: number | null;
@@ -112,8 +121,45 @@ function buildDebugSuffix(payload: NarrationChatPayload): string {
   const toolTrace = (source as Record<string, unknown>).mjToolTrace as Array<{
     tool?: string;
     summary?: string;
-    data?: { applied?: Array<{ entity?: string; id?: string; ok?: boolean }> };
+    data?: {
+      query?: string;
+      matches?: Array<{ title?: string }>;
+      total?: number;
+      rows?: Array<{ entity?: string; label?: string; id?: string }>;
+      applied?: Array<{ entity?: string; id?: string; ok?: boolean; summary?: string }>;
+    };
   }> | undefined;
+  const toolTraceRows = Array.isArray(toolTrace) ? toolTrace : [];
+  const queryLoreOps = toolTraceRows
+    .filter(row => String(row?.tool ?? "").toLowerCase() === "query_lore")
+    .map(row => {
+      const query = String(row?.data?.query ?? "").trim();
+      const titles = Array.isArray(row?.data?.matches)
+        ? row.data.matches
+            .map(match => String(match?.title ?? "").trim())
+            .filter(Boolean)
+            .slice(0, 2)
+        : [];
+      return `${query || "?"}${titles.length ? ` -> ${titles.join(" ; ")}` : ""}`;
+    })
+    .slice(0, 4);
+  const sessionDbReads = toolTraceRows
+    .filter(row => String(row?.tool ?? "").toLowerCase() === "session_db_read")
+    .map(row => {
+      const total = Number(row?.data?.total ?? 0);
+      const entities = Array.isArray(row?.data?.rows)
+        ? Array.from(
+            new Set(
+              row.data.rows
+                .map(entry => String(entry?.entity ?? "").trim())
+                .filter(Boolean)
+            )
+          ).slice(0, 3)
+        : [];
+      const entityText = entities.length ? ` entities=${entities.join(",")}` : "";
+      return `${total} row(s)${entityText}`;
+    })
+    .slice(0, 4);
   const dbOps = Array.isArray(toolTrace)
     ? toolTrace
         .filter(row => String(row?.tool ?? "").toLowerCase() === "session_db_write")
@@ -124,6 +170,12 @@ function buildDebugSuffix(payload: NarrationChatPayload): string {
         )
         .slice(0, 6)
     : [];
+  const hasDebugSignal = hasSignal || plannedTools.length > 0 || toolTraceRows.length > 0;
+  if (!hasDebugSignal) return "";
+  const toolActivityLine =
+    plannedTools.length === 0 && toolTraceRows.length === 0
+      ? "toolActivity: none (aucun appel outil sur ce tour)"
+      : `toolActivity: planned=${plannedTools.length} | executed=${toolTraceRows.length}`;
   const arbitrationText = phase12?.intentArbitrationDecision
     ? `${phase12.intentArbitrationDecision.mode ?? "n/a"} (${phase12.intentArbitrationDecision.confidence ?? "n/a"})`
     : "n/a";
@@ -140,8 +192,40 @@ function buildDebugSuffix(payload: NarrationChatPayload): string {
     `guardBlocked=${guardBlocked} | guardViolations=${guardReasons}`,
     `phase12: arbitration=${arbitrationText} | worldIntentConfidence=${phase12?.worldIntentConfidence ?? "n/a"} | drift=${phase12?.anchorDriftDetected ? "yes" : "no"} | stageViolation=${phase12?.stageContractViolation ? "yes" : "no"} | regen=${phase12?.regenerationCount ?? 0}`,
     `memory: ${memoryText}`,
-    `dbWriteOps: ${dbOps.length ? dbOps.join(" | ") : "none"}`
+    `aiToolsPlanned: ${plannedTools.length ? plannedTools.join(", ") : "none"}`,
+    `loreReads(query_lore): ${queryLoreOps.length ? queryLoreOps.join(" | ") : "none"}`,
+    `localDbReads(session_db_read): ${sessionDbReads.length ? sessionDbReads.join(" | ") : "none"}`,
+    `dbWriteOps: ${dbOps.length ? dbOps.join(" | ") : "none"}`,
+    toolActivityLine
   ].join("\n");
+}
+
+function buildContinuityHint(payload: NarrationChatPayload): string {
+  const source = payload.debug && typeof payload.debug === "object" ? payload.debug : payload;
+  const worldState = source.worldState as
+    | {
+        location?: { label?: string };
+        conversation?: { activeInterlocutor?: string | null };
+      }
+    | undefined;
+  const phase12 = (source as Record<string, unknown>).phase12 as
+    | {
+        memoryWindow?: {
+          activeWindowKey?: string;
+          activeTurns?: number;
+          summaryCount?: number;
+        } | null;
+      }
+    | undefined;
+  const location = String(worldState?.location?.label ?? "").trim();
+  const interlocutor = String(worldState?.conversation?.activeInterlocutor ?? "").trim();
+  const turns = Number(phase12?.memoryWindow?.activeTurns ?? 0);
+  const summaries = Number(phase12?.memoryWindow?.summaryCount ?? 0);
+  const parts: string[] = [];
+  if (location) parts.push(`Lieu: ${location}`);
+  if (interlocutor) parts.push(`Interlocuteur: ${interlocutor}`);
+  if (turns > 0 || summaries > 0) parts.push(`Memoire: ${turns} tours, ${summaries} resume(s)`);
+  return parts.join(" | ");
 }
 
 function speakerBadgeStyle(kind?: string): { bg: string; border: string } {
@@ -245,6 +329,7 @@ export function NarrationJournalPanel(props: {
           ? `Erreur: ${payload.error}`
           : payload.reply ?? "Réponse vide.";
       const debugText = normalizeDisplayText(buildDebugSuffix(payload));
+      const continuityHint = normalizeDisplayText(buildContinuityHint(payload));
       setMessages(prev => [
         ...prev,
         {
@@ -253,6 +338,7 @@ export function NarrationJournalPanel(props: {
           text: normalizeDisplayText(reply),
           debugText,
           debugOpen: false,
+          continuityHint,
           speaker: payload.speaker ?? { id: "mj", label: "MJ", kind: "mj" }
         }
       ]);
@@ -417,6 +503,22 @@ export function NarrationJournalPanel(props: {
                 </span>
               </div>
               <div>{message.text}</div>
+              {message.role === "assistant" && message.continuityHint && (
+                <div
+                  style={{
+                    marginTop: 6,
+                    fontSize: 10,
+                    lineHeight: 1.3,
+                    color: "#c8d9f8",
+                    background: "rgba(32,46,74,0.35)",
+                    border: "1px solid rgba(140,170,220,0.35)",
+                    borderRadius: 6,
+                    padding: "4px 6px"
+                  }}
+                >
+                  Continuité: {message.continuityHint}
+                </div>
+              )}
               {message.role === "assistant" && message.debugText && (
                 <div style={{ marginTop: 6 }}>
                   <button

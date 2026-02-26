@@ -1,0 +1,25 @@
+---
+type: quartier
+id: port_des_xantars
+nom: Port des Xantars
+ville: lysenthe
+territoire: astryade
+region: ylssea
+---
+Resume : Principal front maritime de Lysenthe, il concentre quais militaires et quais de commerce a l'echelle regionale.
+
+Cadre et architecture : Docks massifs en pierre salee, alignements de grues et de hangars, tours de guet sur les sections militaires.
+
+Population et activites : Dockers, pilotes, courtiers, ecrivains de bord, marins de passage et agents de controle des cargaisons.
+
+Fonctions urbaines : Reception des marchandises, taxation portuaire, redistribution vers les halles et les routes interieures.
+
+Lieux cles :
+- halles_des_commerces
+- quais_militaires_de_xantars
+
+Niveau de securite : eleve sur les quais militaires, moyen sur les zones marchandes.
+
+Rumeurs :
+- Des inspections discretes ont lieu de nuit sur certains navires de guerre.
+- Les meilleures places d'amarrage se negocient avant l'arrivee des convois.

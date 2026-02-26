@@ -1,0 +1,25 @@
+---
+type: quartier
+id: pierre_des_sables
+nom: Pierre des Sables
+ville: lysenthe
+territoire: astryade
+region: ylssea
+---
+Resume : Ville haute de commandement, quartier verrouille autour du Chateau Tharqual, siege du pouvoir local.
+
+Cadre et architecture : Terrasses fortifiees, murs epais, voies d'acces en pente et points de controle successifs.
+
+Population et activites : Officiers, intendance superieure, gardes de prestige, serviteurs d'etat et delegations autorisees.
+
+Fonctions urbaines : Direction politique de Lysenthe, arbitrage des urgences portuaires et coordination des forces locales.
+
+Lieux cles :
+- chateau_tharqual
+- poste_de_controle_haut
+
+Niveau de securite : tres eleve, acces citoyen limite et encadre.
+
+Rumeurs :
+- Les ordres pour les quais militaires y sont emis sans publication immediate.
+- Les horaires d'ouverture des acces changent selon l'etat de la rade.

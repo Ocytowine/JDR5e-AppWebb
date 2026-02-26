@@ -1,0 +1,39 @@
+---
+type: batiment
+id: tour_du_primarque
+nom: Tour du Primarque
+
+# LOCALISATION
+ville: lysenthe
+region: ylssea
+territoire: astryade
+
+# TYPE / FONCTION
+type_batiment: Residence de cour
+fonction_principale:
+  - appartement officiel du Primarque
+  - reception de la cour et des delegations
+importance_strategique: 98
+
+# PROPRIETE / CONTROLE
+proprietaire_faction: primaute_astryade
+proprietaire_principal: Primarque d'Astryade
+acces: tres_restreint
+
+# DESCRIPTION RAPIDE
+etat_general: bon
+niveau_securite: 97
+rumeurs:
+  - Le protocole des huit Cercles y est applique a la lettre.
+  - Des audiences exceptionnelles y tranchent des conflits entre Exarques.
+
+# LIENS
+lieux_connectes:
+  - pierre_des_sables
+  - chateau_tharqual
+
+mots_cles:
+  - primarque
+  - cour
+  - gouvernance
+---

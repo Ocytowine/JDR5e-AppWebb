@@ -1,0 +1,77 @@
+---
+type: ville
+id: lysenthe
+nom: Lysenthe
+
+territoire: astryade
+region: ylssea
+
+type_ville: Cité portuaire fortifiée
+origine: humaine (influence elfique)
+type_gouvernance: Ducat
+siege_pouvoir: chateau_tharqual
+
+# POPULATION
+population_totale: 200000
+composition_population:
+  - Humains 60%
+  - Elfes 30%
+  - Autres 10%
+
+niveau_vie: contrastee
+
+# INDICATEURS SOCIAUX
+niveau_criminalite: 20
+stabilite_sociale: elevee
+corruption: 35
+tension_ethnique: 15
+
+# CLIMAT / CADRE
+climat: tempéré humide
+particularites_env:
+  - port constamment brassé par les vents marins
+  - brumes côtières fréquentes au lever du jour
+
+# QUARTIERS / STRUCTURE URBAINE
+quartiers:
+  - port_des_xantars
+  - quartier_des_remparts
+  - basse_baie
+  - rue_des_maisons_hautes
+  - pierre_des_sables
+  - quartier_des_archives
+  - quartier_de_la_tour
+batiments_importants:
+  - halles_des_commerces
+  - caserne_centrale
+  - chantier_de_la_basse_baie
+  - maison_des_registres
+  - chateau_tharqual
+  - archives_de_lysenthe
+  - tour_du_primarque
+
+# FACTIONS / RELIGIONS
+factions_presentes:
+  - maison_tharqual
+  - archivistes_de_lysenthe
+  - cercle_du_commerce_maritime
+religions_principales:
+  - culte_des_douze
+
+# LIAISONS / CONNEXIONS
+liaisons:
+  - ylssea
+  - astryade
+
+mots_cles:
+  - port
+  - commerce maritime
+  - cité fortifiée
+---
+Cité portuaire fortifiée, Lysenthe est un carrefour commercial majeur pour les échanges entre les différentes régions côtières de Dunia. Fondée par des colons humains, la ville a su conserver une forte influence humaine dans son architecture et sa culture, tout en intégrant des éléments elfiques.
+
+Le Port des Xantars forme la façade la plus active de la ville. Les quais militaires, bordés de remparts et de tours, restent fermés aux citoyens et accueillent les navires protégés d'Astryade. Dans le prolongement de la baie, les quais marchands absorbent l'essentiel des marchandises du monde connu.
+
+Les Halles des Commerces constituent le centre nerveux de cette activité. Bâties par ajouts successifs, elles forment un ensemble ramifié de galeries, cours couvertes, entrepôts et comptoirs. L'endroit ne ferme jamais vraiment et concentre négociation, stockage et redistribution.
+
+Pierre des Sables domine la ville haute. Le château Tharqual y siège comme autorité locale et verrouille l'accès du quartier. Au coeur de Lysenthe, le Quartier des Archives s'articule autour des Archives de Lysenthe et de la Place des Archives, principale zone de négoce intérieur, bordée de temples dédiés aux Douze. Enfin, la Tour du Primarque constitue un quartier à elle seule: résidence officielle, lieu de cour et point de représentation du pouvoir central.

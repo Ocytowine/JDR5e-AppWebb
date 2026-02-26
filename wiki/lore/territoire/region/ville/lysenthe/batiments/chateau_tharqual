@@ -1,0 +1,39 @@
+---
+type: batiment
+id: chateau_tharqual
+nom: Chateau Tharqual
+
+# LOCALISATION
+ville: lysenthe
+region: ylssea
+territoire: astryade
+
+# TYPE / FONCTION
+type_batiment: Chateau administratif
+fonction_principale:
+  - siege du pouvoir local
+  - commandement de la defense urbaine
+importance_strategique: 95
+
+# PROPRIETE / CONTROLE
+proprietaire_faction: maison_tharqual
+proprietaire_principal: Tharque regent de Lysenthe
+acces: tres_restreint
+
+# DESCRIPTION RAPIDE
+etat_general: bon
+niveau_securite: 94
+rumeurs:
+  - Les acces de Pierre des Sables sont modifies selon les alertes de la rade.
+  - Les decisions sur les quais militaires y sont prises sans publication immediate.
+
+# LIENS
+lieux_connectes:
+  - pierre_des_sables
+  - caserne_centrale
+
+mots_cles:
+  - pouvoir
+  - ville_haute
+  - commandement
+---

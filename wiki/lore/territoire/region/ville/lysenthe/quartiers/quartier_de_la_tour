@@ -1,0 +1,25 @@
+---
+type: quartier
+id: quartier_de_la_tour
+nom: Quartier de la Tour
+ville: lysenthe
+territoire: astryade
+region: ylssea
+---
+Resume : Enclave de pouvoir central dominee par la Tour du Primarque et les residences de la cour.
+
+Cadre et architecture : Tour monumentale, ailes residentielles closes, cours interieures et galeries de protocole.
+
+Population et activites : Maison du Primarque, officiers de cour, delegations officielles et personnels de ceremonie.
+
+Fonctions urbaines : Representation de la Primaute, audiences de haut niveau et coordination politique entre Cercles.
+
+Lieux cles :
+- tour_du_primarque
+- salle_des_audiences_hautes
+
+Niveau de securite : maximal, filtre par ordres de cour et escouades dediees.
+
+Rumeurs :
+- Des audiences exceptionnelles y tranchent les conflits entre Exarques.
+- Le calendrier de cour peut suspendre des decisions locales pendant les sessions majeures.

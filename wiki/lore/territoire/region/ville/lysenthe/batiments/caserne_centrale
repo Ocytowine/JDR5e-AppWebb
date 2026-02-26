@@ -1,0 +1,39 @@
+---
+type: batiment
+id: caserne_centrale
+nom: Caserne centrale
+
+# LOCALISATION
+ville: lysenthe
+region: ylssea
+territoire: astryade
+
+# TYPE / FONCTION
+type_batiment: Caserne
+fonction_principale:
+  - coordination des garnisons urbaines
+  - reserve d'intervention rapide
+importance_strategique: 84
+
+# PROPRIETE / CONTROLE
+proprietaire_faction: maison_tharqual
+proprietaire_principal: Capitaine de Garnison
+acces: tres_restreint
+
+# DESCRIPTION RAPIDE
+etat_general: bon
+niveau_securite: 88
+rumeurs:
+  - Une section est reservee aux operations portuaires confidentielles.
+  - Les mutations vers la caserne sont decidees directement depuis Pierre des Sables.
+
+# LIENS
+lieux_connectes:
+  - quartier_des_remparts
+  - chateau_tharqual
+
+mots_cles:
+  - defense
+  - garnison
+  - remparts
+---

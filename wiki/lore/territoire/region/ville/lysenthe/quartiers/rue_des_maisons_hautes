@@ -1,0 +1,25 @@
+---
+type: quartier
+id: rue_des_maisons_hautes
+nom: Rue des Maisons Hautes
+ville: lysenthe
+territoire: astryade
+region: ylssea
+---
+Resume : Secteur residentiel et administratif des familles etablies, proche des organes de gestion civile.
+
+Cadre et architecture : Maisons etroites a etages, facades de pierre claire, cours interieures et offices de juristes.
+
+Population et activites : Notables, intendants, comptables, clercs et maisons de negoce implantees a l'annee.
+
+Fonctions urbaines : Administration locale, redaction contractuelle, arbitrage civil et gestion des obligations commerciales.
+
+Lieux cles :
+- maison_des_registres
+- hotel_des_negociants
+
+Niveau de securite : moyen a eleve, vigilance renforcee sur les archives contractuelles.
+
+Rumeurs :
+- Certaines signatures importantes y seraient preparees avant annonce officielle.
+- Des litiges marchands y sont regles sans passer par les juridictions superieures.

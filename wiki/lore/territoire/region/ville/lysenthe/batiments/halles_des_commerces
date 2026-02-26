@@ -1,0 +1,39 @@
+---
+type: batiment
+id: halles_des_commerces
+nom: Halles des Commerces
+
+# LOCALISATION
+ville: lysenthe
+region: ylssea
+territoire: astryade
+
+# TYPE / FONCTION
+type_batiment: Halle marchande
+fonction_principale:
+  - marche de gros et de detail
+  - plateforme logistique
+importance_strategique: 92
+
+# PROPRIETE / CONTROLE
+proprietaire_faction: cercle_du_commerce_maritime
+proprietaire_principal: Chambre des Courtiers de Lysenthe
+acces: public
+
+# DESCRIPTION RAPIDE
+etat_general: bon
+niveau_securite: 70
+rumeurs:
+  - Certaines ailes ne ferment jamais et servent de marche nocturne.
+  - Des cargaisons sans origine claire y transitent en marge des registres.
+
+# LIENS
+lieux_connectes:
+  - port_des_xantars
+  - maison_des_registres
+
+mots_cles:
+  - commerce
+  - logistique
+  - quais
+---

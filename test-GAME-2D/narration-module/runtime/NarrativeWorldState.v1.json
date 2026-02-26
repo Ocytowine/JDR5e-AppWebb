@@ -1,8 +1,8 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-02-26T19:28:44.195Z",
+  "updatedAt": "2026-02-26T21:25:18.077Z",
   "metrics": {
-    "reputation": 0,
+    "reputation": 2,
     "localTension": 0
   },
   "startContext": {
@@ -484,33 +484,43 @@
       "activeWindowKey": "day:1",
       "turns": [
         {
-          "at": "2026-02-26T19:25:39.289Z",
+          "at": "2026-02-26T21:16:19.853Z",
           "windowKey": "day:1",
-          "user": "je vais me ballader dans les rue de la ville, je cherche une auberge",
-          "mj": "Tu avances dans la Rue marchande de Lysenthe, un lieu vivant où le va-et-vient des habitants rythme l'après-midi. Des étals débordent de tissus chatoyants, d'épices odorantes et d'objets d'artisanat local. Le doux parfum mêlé des stands de nourriture flotte dans l'air, tandis que les commerçants et visiteurs s'affairent dans un joyeux brouhaha. À tes côtés, Roland observe attentivement, prêt à te suivre dans tes c...",
-          "intentType": "story_action",
-          "directorMode": "runtime",
-          "locationLabel": "Rue marchande",
+          "user": "je veux aller sur le port",
+          "mj": "Contexte de depart verrouille: Tu te trouves a Parvis des Archives, Lysenthe, un batiment immense servant de coffre-fort de la verite sur la Primaute. Ville de depart: Lysenthe | Territoire: Astryade | Region: Ylssea. Temps initial: milieu d'après-midi. Tu viens de t'inscrire dans les registres. Tu es libre de tes choix. Personnage actif: Gardefou (Elfe, Clerc). Identite canonique: Elfe, Clerc (Domaine de la Paix)...",
+          "intentType": "free_exploration",
+          "directorMode": "exploration",
+          "locationLabel": "Parvis des Archives, Lysenthe",
           "day": 1
         },
         {
-          "at": "2026-02-26T19:28:01.987Z",
+          "at": "2026-02-26T21:20:05.129Z",
           "windowKey": "day:1",
-          "user": "je cherche une auberge",
-          "mj": "Tu envisages de te déplacer vers l'Auberge depuis la Rue marchande. Le trajet est court, d'environ quatre minutes à pied. L'Auberge t'offre un refuge plus calme, loin de l'agitation des étals colorés et des passants pressés, un endroit propice à la rencontre ou au repos. Tu es toujours sur la Rue marchande, baigné par les odeurs d'épices et les voix des commerçants. En face de toi, l'Auberge se dresse, une bâtisse...",
+          "user": "oui je veux y aller",
+          "mj": "Tu arrives au port de Lysenthe en ce milieu d'après-midi. L'air est chargé d'embruns marins tandis que les quais s'étendent devant toi, peuplés de pêcheurs affairés et de marchands criant pour attirer les clients. Des navires de toutes tailles flottent à l'ancre, leurs coques colorées scintillant sous le soleil. Non loin, Roland, un homme au port avenant, t'observe depuis le bord du quai. Tu entends des murmures m...",
+          "intentType": "story_action",
+          "directorMode": "runtime",
+          "locationLabel": "Port",
+          "day": 1
+        },
+        {
+          "at": "2026-02-26T21:21:25.860Z",
+          "windowKey": "day:1",
+          "user": "je veux parle à roland",
+          "mj": "Roland marque un court silence avant de repondre: \"Tu veux une reponse utile ? Pose une question precise.\" La scene reagit directement a ton action. Le lien avec ce personnage evolue, ce qui peut changer ton soutien pour la suite. La situation reste coherente avec tes actions precedentes. Le monde narratif avance d'un cran sur cet axe.",
           "intentType": "social_action",
           "directorMode": "runtime",
-          "locationLabel": "Rue marchande",
+          "locationLabel": "Port",
           "day": 1
         },
         {
-          "at": "2026-02-26T19:29:15.256Z",
+          "at": "2026-02-26T21:25:29.072Z",
           "windowKey": "day:1",
-          "user": "oui je rentre",
-          "mj": "Tu arrives à l'Auberge en milieu d'après-midi. L'Auberge, située au cœur de Lysenthe, est un bâtiment en pierre au charme rassurant. L'enseigne en bois oscille doucement sous une légère brise. La salle commune s'anime doucement, quelques voyageurs discutent près du feu. L'air est chargé d'odeurs de bois brûlé, de bière fraîche et de soupe mijotée. Le comptoir en chêne massif est tenu par une femme aux cheveux gris...",
-          "intentType": "story_action",
+          "user": "je veux lui parler",
+          "mj": "Roland garde un ton mesure, sans hausser la voix: \"Tres bien. Commence par ce qui compte vraiment.\" La scene reagit directement a ton action. Le lien avec ce personnage evolue, ce qui peut changer ton soutien pour la suite. La situation reste coherente avec tes actions precedentes. Le monde narratif avance d'un cran sur cet axe.",
+          "intentType": "social_action",
           "directorMode": "runtime",
-          "locationLabel": "Auberge",
+          "locationLabel": "Port",
           "day": 1
         }
       ],
@@ -518,15 +528,17 @@
       "lastCompactedAt": ""
     },
     "sceneFrame": {
-      "locationId": "session:auberge",
-      "locationLabel": "Auberge",
-      "activePoiLabel": "Auberge de Lysenthe",
-      "activeInterlocutorLabel": "Tenancière de l'auberge",
-      "activeTopic": "oui je rentre",
+      "locationId": "session:port",
+      "locationLabel": "Port",
+      "activePoiLabel": "Port de Lysenthe",
+      "activeInterlocutorLabel": "Roland",
+      "activeTopic": "oui je veux y aller",
       "recentFacts": [
-        "Arrivee: Auberge"
+        "Le lien avec Roland évolue en fonction des actions, influençant son soutien futur.",
+        "Les actions précédentes restent cohérentes avec la situation actuelle, faisant avancer le monde narratif.",
+        "Une quête liée à Roland et un contrat probablement en cours, impliquant la faction de la garde civile."
       ],
-      "updatedAt": "2026-02-26T19:29:10.760Z"
+      "updatedAt": "2026-02-26T21:25:24.780Z"
     }
   },
   "rpRuntime": {
@@ -534,60 +546,48 @@
     "lastResolution": null
   },
   "location": {
-    "id": "session:auberge",
-    "label": "Auberge"
+    "id": "session:port",
+    "label": "Port"
   },
   "travel": {
     "pending": null,
     "last": {
       "from": {
-        "id": "session:rue-marchande",
-        "label": "Rue marchande"
+        "id": "lysenthe.archives.parvis",
+        "label": "Parvis des Archives, Lysenthe"
       },
       "to": {
-        "id": "session:auberge",
-        "label": "Auberge"
+        "id": "session:port",
+        "label": "Port"
       },
       "durationMin": 4,
-      "appliedAt": "2026-02-26T19:28:44.195Z",
+      "appliedAt": "2026-02-26T21:19:30.740Z",
       "reason": "travel-confirmed"
     }
   },
   "sessionPlaces": [
     {
-      "id": "session:rue-marchande",
-      "label": "Rue marchande",
+      "id": "session:port",
+      "label": "Port",
       "city": "",
       "access": "public",
       "tags": [],
       "riskFlags": [],
       "sources": [],
       "summary": "",
-      "createdAt": "2026-02-26T19:13:49.024Z",
-      "updatedAt": "2026-02-26T19:25:01.460Z"
-    },
-    {
-      "id": "session:auberge",
-      "label": "Auberge",
-      "city": "",
-      "access": "public",
-      "tags": [],
-      "riskFlags": [],
-      "sources": [],
-      "summary": "",
-      "createdAt": "2026-02-26T19:27:45.666Z",
-      "updatedAt": "2026-02-26T19:28:44.195Z"
+      "createdAt": "2026-02-26T21:15:55.591Z",
+      "updatedAt": "2026-02-26T21:19:30.740Z"
     }
   ],
   "time": {
     "day": 1,
     "hour": 15,
-    "minute": 8,
+    "minute": 20,
     "label": "milieu d'après-midi"
   },
   "history": [
     {
-      "at": "2026-02-26T19:13:49.024Z",
+      "at": "2026-02-26T21:15:55.590Z",
       "reputationDelta": 0,
       "localTensionDelta": 0,
       "reason": "travel-proposed",
@@ -595,7 +595,7 @@
       "transitionId": "travel.proposed"
     },
     {
-      "at": "2026-02-26T19:25:01.458Z",
+      "at": "2026-02-26T21:19:30.739Z",
       "reputationDelta": 0,
       "localTensionDelta": 0,
       "reason": "travel-confirmed",
@@ -603,20 +603,20 @@
       "transitionId": "travel.confirmed"
     },
     {
-      "at": "2026-02-26T19:27:45.665Z",
-      "reputationDelta": 0,
+      "at": "2026-02-26T21:21:13.991Z",
+      "reputationDelta": 1,
       "localTensionDelta": 0,
-      "reason": "travel-proposed",
-      "intentType": "system_command",
-      "transitionId": "travel.proposed"
+      "reason": "social-progress",
+      "intentType": "social_action",
+      "transitionId": "companion.non-rencontre.to.rencontre"
     },
     {
-      "at": "2026-02-26T19:28:44.195Z",
-      "reputationDelta": 0,
+      "at": "2026-02-26T21:25:18.077Z",
+      "reputationDelta": 1,
       "localTensionDelta": 0,
-      "reason": "travel-confirmed",
-      "intentType": "system_command",
-      "transitionId": "travel.confirmed"
+      "reason": "social-progress",
+      "intentType": "social_action",
+      "transitionId": "companion.rencontre.to.negociation"
     }
   ]
 }

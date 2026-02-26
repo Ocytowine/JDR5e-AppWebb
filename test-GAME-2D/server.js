@@ -2936,7 +2936,7 @@ function describeTensionAtmosphere(worldState) {
   if (tension >= 70) return "L'atmosphere est tendue: regards lourds, patrouilles visibles, reactions rapides.";
   if (tension >= 40) return "Une nervosite diffuse circule dans le quartier, sans basculer en crise ouverte.";
   if (tension >= 20) return "Le climat reste vigilant, avec des controles discrets.";
-  return "Rien ne perturbe la situation immediate.";
+  return "";
 }
 
 function describeAccessAndRisks(place) {
@@ -2950,7 +2950,7 @@ function describeAccessAndRisks(place) {
   if (riskFlags.includes("crowded")) constraints.push("forte densite de foule");
   return constraints.length
     ? `Contraintes en place: ${constraints.slice(0, 3).join(", ")}.`
-    : "Aucune contrainte majeure n'est visible immediatement.";
+    : "";
 }
 
 function buildArrivalVisualCue(place, records) {
@@ -2987,7 +2987,7 @@ function buildArrivalPlaceReply(place, records, worldState) {
   const constraints = describeAccessAndRisks(place);
   const flowCue = /commerce/.test(normalizeForIntent(visualCue))
     ? "Le quartier te repond par des voix, des appels et un va-et-vient continu."
-    : "Le lieu prend corps autour de toi, avec son rythme propre et ses petites scenes.";
+    : "";
   return buildMjReplyBlocks({
     scene: `Apres quelques minutes de marche, tu arrives a ${placeLabel}.`,
     actionResult: [visualCue, sceneHint, timeAtmosphere].filter(Boolean).join(" "),

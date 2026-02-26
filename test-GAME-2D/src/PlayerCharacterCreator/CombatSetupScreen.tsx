@@ -118,24 +118,33 @@ export function CombatSetupScreen(props: {
   const [narrationJournalLoading, setNarrationJournalLoading] = useState<boolean>(false);
   const [narrationJournalError, setNarrationJournalError] = useState<string | null>(null);
 
-  const refreshNarrationJournal = async (): Promise<void> => {
-    setNarrationJournalLoading(true);
-    setNarrationJournalError(null);
+  const refreshNarrationJournal = async (options?: { silent?: boolean }): Promise<void> => {
+    const silent = Boolean(options?.silent);
+    if (!silent) {
+      setNarrationJournalLoading(true);
+      setNarrationJournalError(null);
+    }
     try {
       const state = await loadNarrativeRuntimeState();
       if (!state) {
         setNarrationJournal(null);
-        setNarrationJournalError(
-          "Etat runtime narratif introuvable. Verifie que le module narration est lance."
-        );
+        if (!silent) {
+          setNarrationJournalError(
+            "Etat runtime narratif introuvable. Verifie que le module narration est lance."
+          );
+        }
       } else {
         setNarrationJournal(buildNarrationJournal(state));
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setNarrationJournalError(`Chargement narration impossible: ${message}`);
+      if (!silent) {
+        const message = error instanceof Error ? error.message : String(error);
+        setNarrationJournalError(`Chargement narration impossible: ${message}`);
+      }
     } finally {
-      setNarrationJournalLoading(false);
+      if (!silent) {
+        setNarrationJournalLoading(false);
+      }
     }
   };
   const weaponOptions = useMemo(() => {
@@ -367,13 +376,13 @@ export function CombatSetupScreen(props: {
 
     async function refresh(): Promise<void> {
       if (cancelled) return;
-      await refreshNarrationJournal();
+      await refreshNarrationJournal({ silent: true });
     }
 
-    void refresh();
+    void refreshNarrationJournal();
     const timer = window.setInterval(() => {
       void refresh();
-    }, 5000);
+    }, 12000);
 
     return () => {
       cancelled = true;

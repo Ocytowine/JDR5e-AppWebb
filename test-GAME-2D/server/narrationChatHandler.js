@@ -1420,8 +1420,9 @@ function createNarrationChatHandler(deps = {}) {
           );
           const framePatchAccepted =
             framePatch && Number(framePatch.confidence ?? 0) >= frameConfidenceMin;
+          const isSocialTurn = String(intent?.type ?? "") === "social_action";
           const keepCurrentInterlocutorAnchor =
-            String(frameBefore.activeInterlocutorLabel ?? "").trim() && !detectedInterlocutor;
+            isSocialTurn && String(frameBefore.activeInterlocutorLabel ?? "").trim() && !detectedInterlocutor;
           const frameAfter = cleanSceneAnchors(
             framePatchAccepted
               ? {
@@ -1644,10 +1645,7 @@ function createNarrationChatHandler(deps = {}) {
                 };
               worldState.conversation = {
                 ...(worldState.conversation ?? {}),
-                activeInterlocutor:
-                  worldSnapshot?.conversation?.activeInterlocutor == null
-                    ? null
-                    : String(worldSnapshot.conversation.activeInterlocutor),
+                activeInterlocutor: null,
                 pendingAction: null,
                 pendingTravel: null,
                 pendingAccess: null

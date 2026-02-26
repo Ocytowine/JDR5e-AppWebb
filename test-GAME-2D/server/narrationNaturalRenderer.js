@@ -97,8 +97,7 @@ function createNarrationNaturalRenderer(deps = {}) {
     const scene = normalizeRpLine(polished.scene) || "La scene evolue sans rupture visible.";
     const actionResult =
       normalizeRpLine(polished.actionResult) || "Ton action est prise en compte par le MJ.";
-    const consequences =
-      normalizeRpLine(polished.consequences) || "Aucune consequence majeure immediate.";
+    const consequences = normalizeRpLine(polished.consequences) || "";
     const options = groundOptionsToContext({
       scene,
       actionResult,

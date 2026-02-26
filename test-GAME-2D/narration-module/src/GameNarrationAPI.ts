@@ -452,13 +452,6 @@ export class GameNarrationAPI {
       trade: [...Object.keys(state.trades), ...(entityHints?.trade ?? [])]
     };
 
-    const fallbackIds: Record<NarrativeEntityType, string> = {
-      quest: 'quest.main.auto',
-      trama: 'trama.main.auto',
-      companion: 'companion.main.auto',
-      trade: 'trade.main.auto'
-    };
-
     const candidates: AINarrationCandidate[] = [];
     const seen = new Set<string>();
 
@@ -471,7 +464,7 @@ export class GameNarrationAPI {
 
     (['quest', 'trama', 'companion', 'trade'] as NarrativeEntityType[]).forEach((entityType) => {
       const ids = [...new Set(idSources[entityType])];
-      if (!ids.length) ids.push(fallbackIds[entityType]);
+      if (!ids.length) return;
 
       for (const entityId of ids) {
         for (const transition of byType[entityType]) {
