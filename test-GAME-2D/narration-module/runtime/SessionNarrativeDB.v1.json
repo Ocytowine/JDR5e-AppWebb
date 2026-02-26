@@ -1,8 +1,231 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-02-26T12:48:31.394Z",
+  "updatedAt": "2026-02-26T19:29:15.255Z",
   "entities": {
     "placesDiscovered": [
+      {
+        "id": "placesDiscovered:rue-marchande",
+        "label": "Rue marchande",
+        "text": "",
+        "tags": [],
+        "source": "local-memory-ai",
+        "status": "visible",
+        "createdAt": "2026-02-26T19:13:55.426Z",
+        "updatedAt": "2026-02-26T19:29:15.255Z",
+        "ttlDays": 15,
+        "expiresAt": "2026-03-13T19:14:15.743Z",
+        "data": {
+          "access": "public",
+          "riskFlags": [],
+          "city": "",
+          "locationId": "lysenthe.archives.parvis",
+          "locationLabel": "Parvis des Archives, Lysenthe",
+          "confidence": 1,
+          "ttlDays": 15,
+          "ttlGameHours": 437,
+          "expiresAt": "2026-03-13T19:14:15.743Z",
+          "memoryType": "local-place",
+          "interestScore": 0.237,
+          "interactionWeight": 0.12,
+          "profile": {
+            "label": "Rue marchande",
+            "type": "market street",
+            "atmosphere": "lively and bustling, filled with scent of spices and fresh bread",
+            "offerKinds": [
+              "fresh bread",
+              "spices",
+              "general goods"
+            ],
+            "ownerName": "Various merchants from Lysenthe",
+            "tags": [
+              "market",
+              "commerce",
+              "local goods",
+              "busy"
+            ],
+            "confidence": 0.6
+          },
+          "interactionCount": 1,
+          "lastSeenAtGameMin": 900,
+          "expiresAtGameMin": 27120,
+          "createdAtGameMin": 900
+        }
+      },
+      {
+        "id": "placesDiscovered:parvis-des-archives",
+        "label": "Parvis des Archives",
+        "text": "",
+        "tags": [],
+        "source": "local-memory-ai",
+        "status": "visible",
+        "createdAt": "2026-02-26T19:14:15.743Z",
+        "updatedAt": "2026-02-26T19:29:15.255Z",
+        "ttlDays": 30,
+        "expiresAt": "2026-03-28T19:14:15.743Z",
+        "data": {
+          "locationId": "lysenthe.archives.parvis",
+          "locationLabel": "Parvis des Archives, Lysenthe",
+          "confidence": 1,
+          "ttlDays": 30,
+          "ttlGameHours": 875,
+          "expiresAt": "2026-03-28T19:14:15.743Z",
+          "memoryType": "local-place",
+          "interestScore": 0.237,
+          "interactionWeight": 0.12,
+          "profile": {
+            "label": "Parvis des Archives",
+            "type": "public square",
+            "atmosphere": "quiet and contemplative, with occasional footsteps and murmurs",
+            "offerKinds": [],
+            "ownerName": "City of Lysenthe",
+            "tags": [
+              "archives",
+              "public space",
+              "administration"
+            ],
+            "confidence": 0.6
+          },
+          "interactionCount": 1,
+          "lastSeenAtGameMin": 900,
+          "expiresAtGameMin": 53400,
+          "createdAtGameMin": 900
+        }
+      },
+      {
+        "id": "placesDiscovered:rue-marchande",
+        "label": "Rue marchande",
+        "text": "",
+        "tags": [],
+        "source": "local-memory-ai",
+        "status": "visible",
+        "createdAt": "2026-02-26T19:14:25.236Z",
+        "updatedAt": "2026-02-26T19:29:15.255Z",
+        "ttlDays": 7,
+        "expiresAt": "2026-03-05T19:28:01.986Z",
+        "data": {
+          "access": "public",
+          "riskFlags": [],
+          "city": "",
+          "locationId": "session:rue-marchande",
+          "locationLabel": "Rue marchande",
+          "confidence": 1,
+          "ttlDays": 7,
+          "ttlGameHours": 228,
+          "expiresAt": "2026-03-05T19:28:01.986Z",
+          "memoryType": "local-place",
+          "interestScore": 0.399,
+          "interactionWeight": 0.28,
+          "profile": {
+            "label": "Rue marchande",
+            "type": "rue commerçante",
+            "atmosphere": "animée, odorante d'épices",
+            "offerKinds": [
+              "commerce",
+              "promenade"
+            ],
+            "ownerName": "",
+            "tags": [
+              "étals colorés",
+              "passants pressés"
+            ],
+            "confidence": 0.6
+          },
+          "interactionCount": 1,
+          "lastSeenAtGameMin": 904,
+          "expiresAtGameMin": 14584,
+          "createdAtGameMin": 904
+        }
+      },
+      {
+        "id": "placesDiscovered:rue-marchande-de-lysenthe",
+        "label": "Rue marchande de Lysenthe",
+        "text": "",
+        "tags": [],
+        "source": "local-memory-ai",
+        "status": "visible",
+        "createdAt": "2026-02-26T19:25:39.287Z",
+        "updatedAt": "2026-02-26T19:29:15.255Z",
+        "ttlDays": 3,
+        "expiresAt": "2026-03-01T19:25:39.287Z",
+        "data": {
+          "locationId": "session:rue-marchande",
+          "locationLabel": "Rue marchande",
+          "confidence": 1,
+          "ttlDays": 3,
+          "ttlGameHours": 97,
+          "expiresAt": "2026-03-01T19:25:39.287Z",
+          "memoryType": "local-place",
+          "interestScore": 0.399,
+          "interactionWeight": 0.28,
+          "profile": {
+            "label": "Rue marchande de Lysenthe",
+            "type": "zone commerçante",
+            "atmosphere": "animée, conviviale, parfumée",
+            "offerKinds": [
+              "tissus",
+              "épices",
+              "artisanat",
+              "nourriture de rue"
+            ],
+            "ownerName": "",
+            "tags": [
+              "marché",
+              "piéton",
+              "commerces locaux"
+            ],
+            "confidence": 0.9
+          },
+          "interactionCount": 1,
+          "lastSeenAtGameMin": 904,
+          "expiresAtGameMin": 6724,
+          "createdAtGameMin": 904
+        }
+      },
+      {
+        "id": "placesDiscovered:auberge",
+        "label": "Auberge",
+        "text": "",
+        "tags": [],
+        "source": "local-memory-ai",
+        "status": "visible",
+        "createdAt": "2026-02-26T19:27:47.933Z",
+        "updatedAt": "2026-02-26T19:29:15.255Z",
+        "ttlDays": 7,
+        "expiresAt": "2026-03-05T19:28:01.986Z",
+        "data": {
+          "access": "public",
+          "riskFlags": [],
+          "city": "",
+          "locationId": "session:rue-marchande",
+          "locationLabel": "Rue marchande",
+          "confidence": 1,
+          "ttlDays": 7,
+          "ttlGameHours": 228,
+          "expiresAt": "2026-03-05T19:28:01.986Z",
+          "memoryType": "local-place",
+          "interestScore": 0.399,
+          "interactionWeight": 0.28,
+          "profile": {
+            "label": "Auberge",
+            "type": "hébergement",
+            "atmosphere": "calme, accueillante",
+            "offerKinds": [
+              "repos",
+              "rencontre"
+            ],
+            "ownerName": "",
+            "tags": [
+              "bâtisse discrète",
+              "actif"
+            ],
+            "confidence": 0.6
+          },
+          "interactionCount": 1,
+          "lastSeenAtGameMin": 904,
+          "expiresAtGameMin": 14584,
+          "createdAtGameMin": 904
+        }
+      },
       {
         "id": "session:rue-marchande",
         "label": "Rue marchande",
@@ -10,41 +233,477 @@
         "tags": [],
         "source": "worldState.sessionPlaces",
         "status": "",
-        "createdAt": "2026-02-26T12:47:30.940Z",
-        "updatedAt": "2026-02-26T12:48:31.394Z",
+        "createdAt": "2026-02-26T19:28:49.066Z",
+        "updatedAt": "2026-02-26T19:29:15.255Z",
         "data": {
           "access": "public",
           "riskFlags": [],
           "city": ""
         }
+      },
+      {
+        "id": "session:auberge",
+        "label": "Auberge",
+        "text": "",
+        "tags": [],
+        "source": "worldState.sessionPlaces",
+        "status": "",
+        "createdAt": "2026-02-26T19:28:49.066Z",
+        "updatedAt": "2026-02-26T19:29:15.255Z",
+        "data": {
+          "access": "public",
+          "riskFlags": [],
+          "city": ""
+        }
+      },
+      {
+        "id": "placesDiscovered:auberge-de-lysenthe",
+        "label": "Auberge de Lysenthe",
+        "text": "",
+        "tags": [],
+        "source": "local-memory-ai",
+        "status": "visible",
+        "createdAt": "2026-02-26T19:29:15.255Z",
+        "updatedAt": "2026-02-26T19:29:15.255Z",
+        "ttlDays": 7,
+        "expiresAt": "2026-03-05T19:29:15.254Z",
+        "data": {
+          "locationId": "session:auberge",
+          "locationLabel": "Auberge",
+          "confidence": 1,
+          "ttlDays": 7,
+          "ttlGameHours": 228,
+          "expiresAt": "2026-03-05T19:29:15.254Z",
+          "memoryType": "local-place",
+          "interestScore": 0.4,
+          "interactionWeight": 0.28,
+          "profile": {
+            "label": "Auberge de Lysenthe",
+            "type": "auberge",
+            "atmosphere": "chaleureuse, animée, odeurs de bois brûlé, bière fraîche et soupe",
+            "offerKinds": [
+              "hébergement",
+              "restauration",
+              "boissons"
+            ],
+            "ownerName": "Tenancière de l'auberge",
+            "tags": [
+              "lieu de rencontre",
+              "point de repos",
+              "local"
+            ],
+            "confidence": 0.95
+          },
+          "interactionCount": 1,
+          "lastSeenAtGameMin": 908,
+          "expiresAtGameMin": 14588,
+          "createdAtGameMin": 908
+        }
+      },
+      {
+        "id": "placesDiscovered:march-de-la-place",
+        "label": "Marché de la place",
+        "text": "",
+        "tags": [],
+        "source": "local-memory-ai",
+        "status": "visible",
+        "createdAt": "2026-02-26T19:29:15.255Z",
+        "updatedAt": "2026-02-26T19:29:15.255Z",
+        "ttlDays": 7,
+        "expiresAt": "2026-03-05T19:29:15.254Z",
+        "data": {
+          "locationId": "session:auberge",
+          "locationLabel": "Auberge",
+          "confidence": 0.7,
+          "ttlDays": 7,
+          "ttlGameHours": 228,
+          "expiresAt": "2026-03-05T19:29:15.254Z",
+          "memoryType": "local-place",
+          "interestScore": 0.4,
+          "interactionWeight": 0.28,
+          "profile": null,
+          "interactionCount": 1,
+          "lastSeenAtGameMin": 908,
+          "expiresAtGameMin": 14588,
+          "createdAtGameMin": 908
+        }
       }
     ],
-    "sessionNpcs": [],
+    "sessionNpcs": [
+      {
+        "id": "sessionNpcs:roland",
+        "label": "Roland",
+        "text": "",
+        "tags": [],
+        "source": "local-memory-ai",
+        "status": "seen",
+        "createdAt": "2026-02-26T19:14:15.743Z",
+        "updatedAt": "2026-02-26T19:29:15.255Z",
+        "ttlDays": 30,
+        "expiresAt": "2026-03-28T19:14:15.743Z",
+        "data": {
+          "locationId": "lysenthe.archives.parvis",
+          "locationLabel": "Parvis des Archives, Lysenthe",
+          "voiceHints": [],
+          "confidence": 0.8,
+          "ttlDays": 30,
+          "ttlGameHours": 875,
+          "expiresAt": "2026-03-28T19:14:15.743Z",
+          "memoryType": "local-npc",
+          "interestScore": 0.237,
+          "interactionWeight": 0.12,
+          "profile": {
+            "name": "Roland",
+            "species": "Human",
+            "ageBand": "middle-aged",
+            "physicalTraits": [],
+            "qualities": [
+              "helpful",
+              "knowledgeable about archives"
+            ],
+            "flaws": [
+              "somewhat distracted"
+            ],
+            "dndStats": {
+              "STR": 10,
+              "DEX": 12,
+              "CON": 11,
+              "INT": 14,
+              "WIS": 13,
+              "CHA": 12
+            },
+            "skills": [
+              "organization",
+              "history",
+              "record keeping"
+            ],
+            "voiceStyle": "calm and measured",
+            "confidence": 0.62
+          },
+          "interactionCount": 1,
+          "lastSeenAtGameMin": 900,
+          "expiresAtGameMin": 53400,
+          "createdAtGameMin": 900
+        }
+      },
+      {
+        "id": "sessionNpcs:roland",
+        "label": "Roland",
+        "text": "compagnon vigilant, prêt à suivre les choix du joueur",
+        "tags": [],
+        "source": "local-memory-ai",
+        "status": "seen",
+        "createdAt": "2026-02-26T19:25:39.288Z",
+        "updatedAt": "2026-02-26T19:29:15.255Z",
+        "ttlDays": 5,
+        "expiresAt": "2026-03-03T19:25:39.287Z",
+        "data": {
+          "locationId": "session:rue-marchande",
+          "locationLabel": "Rue marchande",
+          "voiceHints": [],
+          "confidence": 1,
+          "ttlDays": 5,
+          "ttlGameHours": 163,
+          "expiresAt": "2026-03-03T19:25:39.287Z",
+          "memoryType": "local-npc",
+          "interestScore": 0.399,
+          "interactionWeight": 0.28,
+          "profile": {
+            "name": "Roland",
+            "species": "humain",
+            "ageBand": "adulte",
+            "physicalTraits": [],
+            "qualities": [
+              "observateur",
+              "loyal"
+            ],
+            "flaws": [],
+            "dndStats": {
+              "STR": 10,
+              "DEX": 10,
+              "CON": 10,
+              "INT": 10,
+              "WIS": 10,
+              "CHA": 10
+            },
+            "skills": [
+              "perception",
+              "survie"
+            ],
+            "voiceStyle": "calme et neutre",
+            "confidence": 0.7
+          },
+          "interactionCount": 1,
+          "lastSeenAtGameMin": 904,
+          "expiresAtGameMin": 10684,
+          "createdAtGameMin": 904
+        }
+      },
+      {
+        "id": "sessionNpcs:tenanci-re-de-l-auberge",
+        "label": "Tenancière de l'auberge",
+        "text": "",
+        "tags": [],
+        "source": "local-memory-ai",
+        "status": "seen",
+        "createdAt": "2026-02-26T19:29:15.255Z",
+        "updatedAt": "2026-02-26T19:29:15.255Z",
+        "ttlDays": 7,
+        "expiresAt": "2026-03-05T19:29:15.254Z",
+        "data": {
+          "locationId": "session:auberge",
+          "locationLabel": "Auberge",
+          "voiceHints": [],
+          "confidence": 1,
+          "ttlDays": 7,
+          "ttlGameHours": 228,
+          "expiresAt": "2026-03-05T19:29:15.254Z",
+          "memoryType": "local-npc",
+          "interestScore": 0.4,
+          "interactionWeight": 0.28,
+          "profile": {
+            "name": "Tenancière de l'auberge",
+            "species": "humaine",
+            "ageBand": "mature",
+            "physicalTraits": [],
+            "qualities": [
+              "accueillante",
+              "familiale"
+            ],
+            "flaws": [],
+            "dndStats": {
+              "STR": 10,
+              "DEX": 10,
+              "CON": 10,
+              "INT": 10,
+              "WIS": 10,
+              "CHA": 10
+            },
+            "skills": [
+              "gestion d'auberge",
+              "accueil"
+            ],
+            "voiceStyle": "chaleureux, confiant",
+            "confidence": 0.9
+          },
+          "interactionCount": 1,
+          "lastSeenAtGameMin": 908,
+          "expiresAtGameMin": 14588,
+          "createdAtGameMin": 908
+        }
+      },
+      {
+        "id": "sessionNpcs:roland",
+        "label": "Roland",
+        "text": "",
+        "tags": [],
+        "source": "local-memory-ai",
+        "status": "seen",
+        "createdAt": "2026-02-26T19:29:15.255Z",
+        "updatedAt": "2026-02-26T19:29:15.255Z",
+        "ttlDays": 7,
+        "expiresAt": "2026-03-05T19:29:15.254Z",
+        "data": {
+          "locationId": "session:auberge",
+          "locationLabel": "Auberge",
+          "voiceHints": [],
+          "confidence": 1,
+          "ttlDays": 7,
+          "ttlGameHours": 228,
+          "expiresAt": "2026-03-05T19:29:15.254Z",
+          "memoryType": "local-npc",
+          "interestScore": 0.4,
+          "interactionWeight": 0.28,
+          "profile": {
+            "name": "Roland",
+            "species": "humain",
+            "ageBand": "adulte",
+            "physicalTraits": [],
+            "qualities": [
+              "organisé",
+              "disponible"
+            ],
+            "flaws": [],
+            "dndStats": {
+              "STR": 10,
+              "DEX": 10,
+              "CON": 10,
+              "INT": 10,
+              "WIS": 10,
+              "CHA": 10
+            },
+            "skills": [
+              "rangement",
+              "communication"
+            ],
+            "voiceStyle": "neutre, pragmatique",
+            "confidence": 0.8
+          },
+          "interactionCount": 1,
+          "lastSeenAtGameMin": 908,
+          "expiresAtGameMin": 14588,
+          "createdAtGameMin": 908
+        }
+      }
+    ],
     "establishedFacts": [],
     "rumors": [],
     "debtsPromises": []
   },
   "history": [
     {
-      "at": "2026-02-26T12:47:30.940Z",
+      "at": "2026-02-26T19:13:55.426Z",
       "action": "upsert",
       "entity": "placesDiscovered",
       "id": "session:rue-marchande",
       "summary": "Rue marchande"
     },
     {
-      "at": "2026-02-26T12:48:31.392Z",
+      "at": "2026-02-26T19:14:15.743Z",
+      "action": "upsert",
+      "entity": "placesDiscovered",
+      "id": "placesDiscovered:parvis-des-archives",
+      "summary": "Parvis des Archives"
+    },
+    {
+      "at": "2026-02-26T19:14:15.743Z",
+      "action": "upsert",
+      "entity": "placesDiscovered",
+      "id": "placesDiscovered:rue-marchande",
+      "summary": "Rue marchande"
+    },
+    {
+      "at": "2026-02-26T19:14:15.743Z",
+      "action": "upsert",
+      "entity": "sessionNpcs",
+      "id": "sessionNpcs:roland",
+      "summary": "Roland"
+    },
+    {
+      "at": "2026-02-26T19:14:25.236Z",
       "action": "upsert",
       "entity": "placesDiscovered",
       "id": "session:rue-marchande",
       "summary": "Rue marchande"
     },
     {
-      "at": "2026-02-26T12:48:31.394Z",
+      "at": "2026-02-26T19:25:07.689Z",
       "action": "upsert",
       "entity": "placesDiscovered",
       "id": "session:rue-marchande",
       "summary": "Rue marchande"
+    },
+    {
+      "at": "2026-02-26T19:25:23.421Z",
+      "action": "upsert",
+      "entity": "placesDiscovered",
+      "id": "session:rue-marchande",
+      "summary": "Rue marchande"
+    },
+    {
+      "at": "2026-02-26T19:25:39.288Z",
+      "action": "upsert",
+      "entity": "placesDiscovered",
+      "id": "placesDiscovered:rue-marchande-de-lysenthe",
+      "summary": "Rue marchande de Lysenthe"
+    },
+    {
+      "at": "2026-02-26T19:25:39.288Z",
+      "action": "upsert",
+      "entity": "sessionNpcs",
+      "id": "sessionNpcs:roland",
+      "summary": "Roland"
+    },
+    {
+      "at": "2026-02-26T19:27:44.339Z",
+      "action": "upsert",
+      "entity": "placesDiscovered",
+      "id": "session:rue-marchande",
+      "summary": "Rue marchande"
+    },
+    {
+      "at": "2026-02-26T19:27:47.933Z",
+      "action": "upsert",
+      "entity": "placesDiscovered",
+      "id": "session:rue-marchande",
+      "summary": "Rue marchande"
+    },
+    {
+      "at": "2026-02-26T19:27:47.933Z",
+      "action": "upsert",
+      "entity": "placesDiscovered",
+      "id": "session:auberge",
+      "summary": "Auberge"
+    },
+    {
+      "at": "2026-02-26T19:28:01.986Z",
+      "action": "upsert",
+      "entity": "placesDiscovered",
+      "id": "placesDiscovered:rue-marchande",
+      "summary": "Rue marchande"
+    },
+    {
+      "at": "2026-02-26T19:28:01.986Z",
+      "action": "upsert",
+      "entity": "placesDiscovered",
+      "id": "placesDiscovered:auberge",
+      "summary": "Auberge"
+    },
+    {
+      "at": "2026-02-26T19:28:49.066Z",
+      "action": "upsert",
+      "entity": "placesDiscovered",
+      "id": "session:rue-marchande",
+      "summary": "Rue marchande"
+    },
+    {
+      "at": "2026-02-26T19:28:49.066Z",
+      "action": "upsert",
+      "entity": "placesDiscovered",
+      "id": "session:auberge",
+      "summary": "Auberge"
+    },
+    {
+      "at": "2026-02-26T19:28:57.564Z",
+      "action": "upsert",
+      "entity": "placesDiscovered",
+      "id": "session:rue-marchande",
+      "summary": "Rue marchande"
+    },
+    {
+      "at": "2026-02-26T19:28:57.564Z",
+      "action": "upsert",
+      "entity": "placesDiscovered",
+      "id": "session:auberge",
+      "summary": "Auberge"
+    },
+    {
+      "at": "2026-02-26T19:29:15.255Z",
+      "action": "upsert",
+      "entity": "placesDiscovered",
+      "id": "placesDiscovered:auberge-de-lysenthe",
+      "summary": "Auberge de Lysenthe"
+    },
+    {
+      "at": "2026-02-26T19:29:15.255Z",
+      "action": "upsert",
+      "entity": "placesDiscovered",
+      "id": "placesDiscovered:march-de-la-place",
+      "summary": "Marché de la place"
+    },
+    {
+      "at": "2026-02-26T19:29:15.255Z",
+      "action": "upsert",
+      "entity": "sessionNpcs",
+      "id": "sessionNpcs:tenanci-re-de-l-auberge",
+      "summary": "Tenancière de l'auberge"
+    },
+    {
+      "at": "2026-02-26T19:29:15.255Z",
+      "action": "upsert",
+      "entity": "sessionNpcs",
+      "id": "sessionNpcs:roland",
+      "summary": "Roland"
     }
   ]
 }

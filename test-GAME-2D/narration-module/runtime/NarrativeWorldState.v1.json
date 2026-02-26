@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-02-26T12:48:26.977Z",
+  "updatedAt": "2026-02-26T19:28:44.195Z",
   "metrics": {
     "reputation": 0,
     "localTension": 0
@@ -473,44 +473,85 @@
     }
   },
   "conversation": {
-    "activeInterlocutor": null,
+    "activeInterlocutor": "Roland",
     "pendingAction": null,
-    "pendingTravel": {
-      "placeId": "session:rue-marchande",
-      "placeLabel": "Rue marchande",
-      "question": "je cherche un vendeur de tissu",
-      "sourceLoreIds": [
-        "ville.capitale.marche",
-        "pnj.roland",
-        "quete.roland.contrat"
+    "pendingTravel": null,
+    "pendingAccess": null,
+    "memory": {
+      "windowMode": "day",
+      "maxTurns": 24,
+      "keepTurns": 6,
+      "activeWindowKey": "day:1",
+      "turns": [
+        {
+          "at": "2026-02-26T19:25:39.289Z",
+          "windowKey": "day:1",
+          "user": "je vais me ballader dans les rue de la ville, je cherche une auberge",
+          "mj": "Tu avances dans la Rue marchande de Lysenthe, un lieu vivant où le va-et-vient des habitants rythme l'après-midi. Des étals débordent de tissus chatoyants, d'épices odorantes et d'objets d'artisanat local. Le doux parfum mêlé des stands de nourriture flotte dans l'air, tandis que les commerçants et visiteurs s'affairent dans un joyeux brouhaha. À tes côtés, Roland observe attentivement, prêt à te suivre dans tes c...",
+          "intentType": "story_action",
+          "directorMode": "runtime",
+          "locationLabel": "Rue marchande",
+          "day": 1
+        },
+        {
+          "at": "2026-02-26T19:28:01.987Z",
+          "windowKey": "day:1",
+          "user": "je cherche une auberge",
+          "mj": "Tu envisages de te déplacer vers l'Auberge depuis la Rue marchande. Le trajet est court, d'environ quatre minutes à pied. L'Auberge t'offre un refuge plus calme, loin de l'agitation des étals colorés et des passants pressés, un endroit propice à la rencontre ou au repos. Tu es toujours sur la Rue marchande, baigné par les odeurs d'épices et les voix des commerçants. En face de toi, l'Auberge se dresse, une bâtisse...",
+          "intentType": "social_action",
+          "directorMode": "runtime",
+          "locationLabel": "Rue marchande",
+          "day": 1
+        },
+        {
+          "at": "2026-02-26T19:29:15.256Z",
+          "windowKey": "day:1",
+          "user": "oui je rentre",
+          "mj": "Tu arrives à l'Auberge en milieu d'après-midi. L'Auberge, située au cœur de Lysenthe, est un bâtiment en pierre au charme rassurant. L'enseigne en bois oscille doucement sous une légère brise. La salle commune s'anime doucement, quelques voyageurs discutent près du feu. L'air est chargé d'odeurs de bois brûlé, de bière fraîche et de soupe mijotée. Le comptoir en chêne massif est tenu par une femme aux cheveux gris...",
+          "intentType": "story_action",
+          "directorMode": "runtime",
+          "locationLabel": "Auberge",
+          "day": 1
+        }
       ],
-      "createdAt": "2026-02-26T12:48:26.977Z"
+      "summaries": [],
+      "lastCompactedAt": ""
     },
-    "pendingAccess": null
+    "sceneFrame": {
+      "locationId": "session:auberge",
+      "locationLabel": "Auberge",
+      "activePoiLabel": "Auberge de Lysenthe",
+      "activeInterlocutorLabel": "Tenancière de l'auberge",
+      "activeTopic": "oui je rentre",
+      "recentFacts": [
+        "Arrivee: Auberge"
+      ],
+      "updatedAt": "2026-02-26T19:29:10.760Z"
+    }
   },
   "rpRuntime": {
     "spellSlots": {},
     "lastResolution": null
   },
   "location": {
-    "id": "lysenthe.archives.parvis",
-    "label": "Parvis des Archives, Lysenthe"
+    "id": "session:auberge",
+    "label": "Auberge"
   },
   "travel": {
-    "pending": {
+    "pending": null,
+    "last": {
       "from": {
-        "id": "lysenthe.archives.parvis",
-        "label": "Parvis des Archives, Lysenthe"
-      },
-      "to": {
         "id": "session:rue-marchande",
         "label": "Rue marchande"
       },
+      "to": {
+        "id": "session:auberge",
+        "label": "Auberge"
+      },
       "durationMin": 4,
-      "reason": "travel-proposed",
-      "startedAt": "2026-02-26T12:48:26.977Z"
-    },
-    "last": null
+      "appliedAt": "2026-02-26T19:28:44.195Z",
+      "reason": "travel-confirmed"
+    }
   },
   "sessionPlaces": [
     {
@@ -522,19 +563,31 @@
       "riskFlags": [],
       "sources": [],
       "summary": "",
-      "createdAt": "2026-02-26T12:47:25.597Z",
-      "updatedAt": "2026-02-26T12:48:26.977Z"
+      "createdAt": "2026-02-26T19:13:49.024Z",
+      "updatedAt": "2026-02-26T19:25:01.460Z"
+    },
+    {
+      "id": "session:auberge",
+      "label": "Auberge",
+      "city": "",
+      "access": "public",
+      "tags": [],
+      "riskFlags": [],
+      "sources": [],
+      "summary": "",
+      "createdAt": "2026-02-26T19:27:45.666Z",
+      "updatedAt": "2026-02-26T19:28:44.195Z"
     }
   ],
   "time": {
     "day": 1,
     "hour": 15,
-    "minute": 0,
+    "minute": 8,
     "label": "milieu d'après-midi"
   },
   "history": [
     {
-      "at": "2026-02-26T12:47:25.595Z",
+      "at": "2026-02-26T19:13:49.024Z",
       "reputationDelta": 0,
       "localTensionDelta": 0,
       "reason": "travel-proposed",
@@ -542,12 +595,28 @@
       "transitionId": "travel.proposed"
     },
     {
-      "at": "2026-02-26T12:48:26.977Z",
+      "at": "2026-02-26T19:25:01.458Z",
+      "reputationDelta": 0,
+      "localTensionDelta": 0,
+      "reason": "travel-confirmed",
+      "intentType": "system_command",
+      "transitionId": "travel.confirmed"
+    },
+    {
+      "at": "2026-02-26T19:27:45.665Z",
       "reputationDelta": 0,
       "localTensionDelta": 0,
       "reason": "travel-proposed",
       "intentType": "system_command",
       "transitionId": "travel.proposed"
+    },
+    {
+      "at": "2026-02-26T19:28:44.195Z",
+      "reputationDelta": 0,
+      "localTensionDelta": 0,
+      "reason": "travel-confirmed",
+      "intentType": "system_command",
+      "transitionId": "travel.confirmed"
     }
   ]
 }

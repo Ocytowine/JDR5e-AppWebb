@@ -94,9 +94,11 @@ function createNarrationNaturalRenderer(deps = {}) {
             consequences: payload.consequences
           })
         : payload;
-    const scene = oneLine(polished.scene, 260) || "La scene evolue sans rupture visible.";
-    const actionResult = oneLine(polished.actionResult, 320) || "Ton action est prise en compte par le MJ.";
-    const consequences = oneLine(polished.consequences, 320) || "Aucune consequence majeure immediate.";
+    const scene = normalizeRpLine(polished.scene) || "La scene evolue sans rupture visible.";
+    const actionResult =
+      normalizeRpLine(polished.actionResult) || "Ton action est prise en compte par le MJ.";
+    const consequences =
+      normalizeRpLine(polished.consequences) || "Aucune consequence majeure immediate.";
     const options = groundOptionsToContext({
       scene,
       actionResult,
@@ -141,3 +143,6 @@ function createNarrationNaturalRenderer(deps = {}) {
 module.exports = {
   createNarrationNaturalRenderer
 };
+  function normalizeRpLine(value) {
+    return String(value ?? "").replace(/\s+/g, " ").trim();
+  }

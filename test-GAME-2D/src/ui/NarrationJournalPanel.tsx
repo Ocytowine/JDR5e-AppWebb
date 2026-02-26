@@ -92,6 +92,44 @@ function buildDebugSuffix(payload: NarrationChatPayload): string {
     rep !== 0 ||
     tension !== 0;
   if (!hasSignal) return "";
+  const phase12 = (source as Record<string, unknown>).phase12 as
+    | {
+        worldIntentConfidence?: number | null;
+        intentArbitrationDecision?: { mode?: string; confidence?: number | null } | null;
+        stageContractViolation?: boolean;
+        anchorDriftDetected?: boolean;
+        regenerationCount?: number;
+        memoryWindow?: {
+          compacted?: boolean;
+          compactReason?: string;
+          compactedCount?: number;
+          activeWindowKey?: string;
+          activeTurns?: number;
+          summaryCount?: number;
+        } | null;
+      }
+    | undefined;
+  const toolTrace = (source as Record<string, unknown>).mjToolTrace as Array<{
+    tool?: string;
+    summary?: string;
+    data?: { applied?: Array<{ entity?: string; id?: string; ok?: boolean }> };
+  }> | undefined;
+  const dbOps = Array.isArray(toolTrace)
+    ? toolTrace
+        .filter(row => String(row?.tool ?? "").toLowerCase() === "session_db_write")
+        .flatMap(row =>
+          Array.isArray(row?.data?.applied)
+            ? row.data.applied.map(item => `${item.entity ?? "entity"}:${item.id ?? "id"}:${item.ok ? "ok" : "ko"}`)
+            : []
+        )
+        .slice(0, 6)
+    : [];
+  const arbitrationText = phase12?.intentArbitrationDecision
+    ? `${phase12.intentArbitrationDecision.mode ?? "n/a"} (${phase12.intentArbitrationDecision.confidence ?? "n/a"})`
+    : "n/a";
+  const memoryText = phase12?.memoryWindow
+    ? `window=${phase12.memoryWindow.activeWindowKey ?? "n/a"} | turns=${phase12.memoryWindow.activeTurns ?? 0} | summaries=${phase12.memoryWindow.summaryCount ?? 0} | compacted=${phase12.memoryWindow.compacted ? "yes" : "no"}:${phase12.memoryWindow.compactReason ?? "none"}`
+    : "window=n/a";
   return [
     "",
     "[debug]",
@@ -99,7 +137,10 @@ function buildDebugSuffix(payload: NarrationChatPayload): string {
     `worldDelta: reputation=${rep >= 0 ? `+${rep}` : rep}, localTension=${tension >= 0 ? `+${tension}` : tension}, reason=${reason}`,
     `interlocutor=${interlocutor}`,
     `transition=${transitionId} | selected=${selectedType}:${selectedId}`,
-    `guardBlocked=${guardBlocked} | guardViolations=${guardReasons}`
+    `guardBlocked=${guardBlocked} | guardViolations=${guardReasons}`,
+    `phase12: arbitration=${arbitrationText} | worldIntentConfidence=${phase12?.worldIntentConfidence ?? "n/a"} | drift=${phase12?.anchorDriftDetected ? "yes" : "no"} | stageViolation=${phase12?.stageContractViolation ? "yes" : "no"} | regen=${phase12?.regenerationCount ?? 0}`,
+    `memory: ${memoryText}`,
+    `dbWriteOps: ${dbOps.length ? dbOps.join(" | ") : "none"}`
   ].join("\n");
 }
 

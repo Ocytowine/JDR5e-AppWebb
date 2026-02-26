@@ -18,6 +18,10 @@ function createNarrationIntentMutationEngine(deps = {}) {
     typeof deps.sanitizePendingTravel === "function" ? deps.sanitizePendingTravel : (v) => v;
   const sanitizePendingAccess =
     typeof deps.sanitizePendingAccess === "function" ? deps.sanitizePendingAccess : (v) => v;
+  const sanitizeConversationMemory =
+    typeof deps.sanitizeConversationMemory === "function" ? deps.sanitizeConversationMemory : (v) => v || {};
+  const sanitizeSceneFrame =
+    typeof deps.sanitizeSceneFrame === "function" ? deps.sanitizeSceneFrame : (v) => v || {};
   const sanitizeRpRuntime =
     typeof deps.sanitizeRpRuntime === "function" ? deps.sanitizeRpRuntime : (v) => v || {};
   const sanitizeWorldLocation =
@@ -171,12 +175,14 @@ function createNarrationIntentMutationEngine(deps = {}) {
       JSON.stringify({
         pendingAction: sanitizePendingAction(beforeConversation?.pendingAction),
         pendingTravel: sanitizePendingTravel(beforeConversation?.pendingTravel),
-        pendingAccess: sanitizePendingAccess(beforeConversation?.pendingAccess)
+        pendingAccess: sanitizePendingAccess(beforeConversation?.pendingAccess),
+        sceneFrame: sanitizeSceneFrame(beforeConversation?.sceneFrame, before)
       }) !==
       JSON.stringify({
         pendingAction: sanitizePendingAction(afterConversation?.pendingAction),
         pendingTravel: sanitizePendingTravel(afterConversation?.pendingTravel),
-        pendingAccess: sanitizePendingAccess(afterConversation?.pendingAccess)
+        pendingAccess: sanitizePendingAccess(afterConversation?.pendingAccess),
+        sceneFrame: sanitizeSceneFrame(afterConversation?.sceneFrame, after)
       });
 
     const changedAny =
@@ -253,7 +259,9 @@ function createNarrationIntentMutationEngine(deps = {}) {
             : String(safe.conversation.activeInterlocutor),
         pendingAction: sanitizePendingAction(safe?.conversation?.pendingAction),
         pendingTravel: sanitizePendingTravel(safe?.conversation?.pendingTravel),
-        pendingAccess: sanitizePendingAccess(safe?.conversation?.pendingAccess)
+        pendingAccess: sanitizePendingAccess(safe?.conversation?.pendingAccess),
+        memory: sanitizeConversationMemory(safe?.conversation?.memory, safe),
+        sceneFrame: sanitizeSceneFrame(safe?.conversation?.sceneFrame, safe)
       },
       rpRuntime: sanitizeRpRuntime(safe?.rpRuntime),
       location: sanitizeWorldLocation(safe?.location),

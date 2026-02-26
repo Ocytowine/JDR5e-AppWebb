@@ -585,6 +585,7 @@ function createNarrationPayloadPipeline(deps = {}) {
     push("phase6", payload.phase6);
     push("phase7", payload.phase7);
     push("phase8", payload.phase8);
+    push("phase12", payload.phase12);
     push("phase3LoreGuard", payload.phase3LoreGuard);
     push("loreRecordsUsed", payload.loreRecordsUsed);
     push("rpActionValidation", payload.rpActionValidation);
@@ -614,6 +615,7 @@ function createNarrationPayloadPipeline(deps = {}) {
       phase6,
       phase7,
       phase8,
+      phase12,
       phase3LoreGuard,
       loreRecordsUsed,
       rpActionValidation,

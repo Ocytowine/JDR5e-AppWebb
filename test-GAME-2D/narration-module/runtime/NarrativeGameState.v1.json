@@ -2,17 +2,19 @@
   "quests": {
     "quest.main.auto": "Terminée"
   },
-  "tramas": {},
+  "tramas": {
+    "trama.main.auto": "Clôturée"
+  },
   "companions": {},
   "trades": {},
   "clock": {
-    "hour": 4,
+    "hour": 7,
     "day": 0,
     "special": 0
   },
   "history": [
     {
-      "at": "2026-02-26T12:47:36.912Z",
+      "at": "2026-02-26T19:14:03.621Z",
       "transitionId": "quest.detectee.to.acceptee",
       "entityType": "quest",
       "entityId": "quest.main.auto",
@@ -24,7 +26,7 @@
       "ruleRef": "local.narration.quest.accept"
     },
     {
-      "at": "2026-02-26T12:48:36.081Z",
+      "at": "2026-02-26T19:25:30.915Z",
       "transitionId": "quest.acceptee.to.terminee",
       "entityType": "quest",
       "entityId": "quest.main.auto",
@@ -34,13 +36,67 @@
       "consequence": "Récompenses appliquées et clôture de l'entrée de journal",
       "impactScope": "local",
       "ruleRef": "local.narration.quest.complete"
+    },
+    {
+      "at": "2026-02-26T19:27:54.096Z",
+      "transitionId": "trama.latente.to.active",
+      "entityType": "trama",
+      "entityId": "trama.main.auto",
+      "fromState": "Latente",
+      "toState": "Active",
+      "trigger": "Déclencheur actif validé",
+      "consequence": "Trame visible dans le journal avec niveau de menace initial",
+      "impactScope": "local",
+      "ruleRef": "local.narration.trama.activate"
+    },
+    {
+      "at": "2026-02-26T19:29:05.083Z",
+      "transitionId": "trama.active.to.cloturee.with-player-path",
+      "entityType": "trama",
+      "entityId": "trama.main.auto",
+      "fromState": "Active",
+      "toState": "Clôturée",
+      "trigger": "Condition de clôture atteinte avec voie joueur",
+      "consequence": "Résolution avec influence directe du groupe",
+      "impactScope": "local",
+      "ruleRef": "local.narration.trama.close.player"
     }
   ],
   "memory": {
     "shortTerm": [
       {
-        "id": "quest.acceptee.to.terminee:quest.main.auto:2026-02-26T12:48:36.081Z",
-        "at": "2026-02-26T12:48:36.081Z",
+        "id": "trama.active.to.cloturee.with-player-path:trama.main.auto:2026-02-26T19:29:05.083Z",
+        "at": "2026-02-26T19:29:05.083Z",
+        "transitionId": "trama.active.to.cloturee.with-player-path",
+        "entityType": "trama",
+        "entityId": "trama.main.auto",
+        "fromState": "Active",
+        "toState": "Clôturée",
+        "consequence": "Résolution avec influence directe du groupe",
+        "impactScope": "local",
+        "ruleRef": "local.narration.trama.close.player",
+        "importance": 8,
+        "ageHours": 0,
+        "decayPerHour": 0.02
+      },
+      {
+        "id": "trama.latente.to.active:trama.main.auto:2026-02-26T19:27:54.096Z",
+        "at": "2026-02-26T19:27:54.096Z",
+        "transitionId": "trama.latente.to.active",
+        "entityType": "trama",
+        "entityId": "trama.main.auto",
+        "fromState": "Latente",
+        "toState": "Active",
+        "consequence": "Trame visible dans le journal avec niveau de menace initial",
+        "impactScope": "local",
+        "ruleRef": "local.narration.trama.activate",
+        "importance": 7.96,
+        "ageHours": 2,
+        "decayPerHour": 0.02
+      },
+      {
+        "id": "quest.acceptee.to.terminee:quest.main.auto:2026-02-26T19:25:30.915Z",
+        "at": "2026-02-26T19:25:30.915Z",
         "transitionId": "quest.acceptee.to.terminee",
         "entityType": "quest",
         "entityId": "quest.main.auto",
@@ -49,13 +105,13 @@
         "consequence": "Récompenses appliquées et clôture de l'entrée de journal",
         "impactScope": "local",
         "ruleRef": "local.narration.quest.complete",
-        "importance": 8,
-        "ageHours": 0,
+        "importance": 7.94,
+        "ageHours": 3,
         "decayPerHour": 0.02
       },
       {
-        "id": "quest.detectee.to.acceptee:quest.main.auto:2026-02-26T12:47:36.912Z",
-        "at": "2026-02-26T12:47:36.912Z",
+        "id": "quest.detectee.to.acceptee:quest.main.auto:2026-02-26T19:14:03.621Z",
+        "at": "2026-02-26T19:14:03.621Z",
         "transitionId": "quest.detectee.to.acceptee",
         "entityType": "quest",
         "entityId": "quest.main.auto",
@@ -64,15 +120,45 @@
         "consequence": "Ajout au journal et suivi activable",
         "impactScope": "local",
         "ruleRef": "local.narration.quest.accept",
-        "importance": 7.92,
-        "ageHours": 4,
+        "importance": 7.86,
+        "ageHours": 7,
         "decayPerHour": 0.02
       }
     ],
     "longTerm": [
       {
-        "id": "quest.acceptee.to.terminee:quest.main.auto:2026-02-26T12:48:36.081Z",
-        "at": "2026-02-26T12:48:36.081Z",
+        "id": "trama.active.to.cloturee.with-player-path:trama.main.auto:2026-02-26T19:29:05.083Z",
+        "at": "2026-02-26T19:29:05.083Z",
+        "transitionId": "trama.active.to.cloturee.with-player-path",
+        "entityType": "trama",
+        "entityId": "trama.main.auto",
+        "fromState": "Active",
+        "toState": "Clôturée",
+        "consequence": "Résolution avec influence directe du groupe",
+        "impactScope": "local",
+        "ruleRef": "local.narration.trama.close.player",
+        "importance": 8,
+        "ageHours": 0,
+        "decayPerHour": 0.005
+      },
+      {
+        "id": "trama.latente.to.active:trama.main.auto:2026-02-26T19:27:54.096Z",
+        "at": "2026-02-26T19:27:54.096Z",
+        "transitionId": "trama.latente.to.active",
+        "entityType": "trama",
+        "entityId": "trama.main.auto",
+        "fromState": "Latente",
+        "toState": "Active",
+        "consequence": "Trame visible dans le journal avec niveau de menace initial",
+        "impactScope": "local",
+        "ruleRef": "local.narration.trama.activate",
+        "importance": 7.99,
+        "ageHours": 2,
+        "decayPerHour": 0.005
+      },
+      {
+        "id": "quest.acceptee.to.terminee:quest.main.auto:2026-02-26T19:25:30.915Z",
+        "at": "2026-02-26T19:25:30.915Z",
         "transitionId": "quest.acceptee.to.terminee",
         "entityType": "quest",
         "entityId": "quest.main.auto",
@@ -81,13 +167,13 @@
         "consequence": "Récompenses appliquées et clôture de l'entrée de journal",
         "impactScope": "local",
         "ruleRef": "local.narration.quest.complete",
-        "importance": 8,
-        "ageHours": 0,
+        "importance": 7.985,
+        "ageHours": 3,
         "decayPerHour": 0.005
       },
       {
-        "id": "quest.detectee.to.acceptee:quest.main.auto:2026-02-26T12:47:36.912Z",
-        "at": "2026-02-26T12:47:36.912Z",
+        "id": "quest.detectee.to.acceptee:quest.main.auto:2026-02-26T19:14:03.621Z",
+        "at": "2026-02-26T19:14:03.621Z",
         "transitionId": "quest.detectee.to.acceptee",
         "entityType": "quest",
         "entityId": "quest.main.auto",
@@ -96,8 +182,8 @@
         "consequence": "Ajout au journal et suivi activable",
         "impactScope": "local",
         "ruleRef": "local.narration.quest.accept",
-        "importance": 7.98,
-        "ageHours": 4,
+        "importance": 7.965000000000001,
+        "ageHours": 7,
         "decayPerHour": 0.005
       }
     ]

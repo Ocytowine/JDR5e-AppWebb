@@ -1,7 +1,6 @@
 "use strict";
 
 function createNarrationStyleHelper(deps = {}) {
-  const oneLine = typeof deps.oneLine === "function" ? deps.oneLine : (v) => String(v ?? "");
   const normalizeForIntent =
     typeof deps.normalizeForIntent === "function"
       ? deps.normalizeForIntent
@@ -29,7 +28,7 @@ function createNarrationStyleHelper(deps = {}) {
   }
 
   function polishSingleLine(line) {
-    let text = oneLine(String(line ?? ""), 340).trim();
+    let text = String(line ?? "").replace(/\s+/g, " ").trim();
     if (!text) return "";
     text = text.replace(/^Sur\s+Parvis des Archives\b/i, "Sur le parvis des Archives");
     text = text.replace(/^Autour de\s+Parvis des Archives\b/i, "Autour du parvis des Archives");

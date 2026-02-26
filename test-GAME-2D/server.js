@@ -184,6 +184,8 @@ function getNarrationChatHandler() {
     sanitizePendingAction,
     sanitizePendingTravel,
     sanitizePendingAccess,
+    sanitizeConversationMemory,
+    sanitizeSceneFrame,
     extractInterlocutorFromMessage,
     buildCanonicalNarrativeContext,
     rpActionResolver,
@@ -220,7 +222,16 @@ function getNarrationChatHandler() {
     buildRpActionValidationReply,
     classifyNarrationWithAI,
     detectWorldIntentWithAI,
+    arbitrateSceneIntentWithAI,
     validateNarrativeStateConsistency,
+    extractLocalMemoryCandidatesWithAI,
+    generateEntityMicroProfilesWithAI,
+    summarizeConversationWindowWithAI,
+    resolveSpatialTargetWithAI,
+    arbitratePendingTravelWithAI,
+    assessRuntimeEligibilityWithAI,
+    resolveSceneFramePatchWithAI,
+    validateSceneFrameContinuityWithAI,
     shouldForceSceneLocalRouting,
     addInterlocutorNote,
     buildLoreOnlyReply,
@@ -243,6 +254,7 @@ function getNarrationChatHandler() {
     getCurrentSessionPlace,
     temperNarrativeHype
     ,
+    writeSessionNarrativeMemory: (args) => sessionNarrativeDb.write(args),
     applyBackgroundNarrativeTick: (params) =>
       narrationBackgroundTickEngine.applyBackgroundNarrativeTick(params)
   });
@@ -816,6 +828,92 @@ function minutesForIntent(intentType) {
   return narrationIntentMutationEngine.minutesForIntent(intentType);
 }
 
+function sanitizeSceneFrame(value, worldState = null) {
+  const safe = value && typeof value === "object" ? value : {};
+  const world = worldState && typeof worldState === "object" ? worldState : {};
+  const locationId = String(
+    safe.locationId ??
+      world?.location?.id ??
+      world?.startContext?.locationId ??
+      "lysenthe.archives.parvis"
+  ).trim();
+  const locationLabel = String(
+    safe.locationLabel ??
+      world?.location?.label ??
+      world?.startContext?.locationLabel ??
+      "Parvis des Archives, Lysenthe"
+  ).trim();
+  const activePoiLabel = String(safe.activePoiLabel ?? "").trim();
+  const activeInterlocutorLabel = String(safe.activeInterlocutorLabel ?? "").trim();
+  const activeTopic = String(safe.activeTopic ?? "").trim();
+  const recentFacts = Array.isArray(safe.recentFacts)
+    ? safe.recentFacts.map((x) => String(x ?? "").trim()).filter(Boolean).slice(0, 6)
+    : [];
+  return {
+    locationId,
+    locationLabel,
+    activePoiLabel,
+    activeInterlocutorLabel,
+    activeTopic,
+    recentFacts,
+    updatedAt: new Date().toISOString()
+  };
+}
+
+function sanitizeConversationMemory(value, worldState = null) {
+  const safe = value && typeof value === "object" ? value : {};
+  const world = worldState && typeof worldState === "object" ? worldState : null;
+  const day = Math.max(1, Math.floor(Number(world?.time?.day ?? 1) || 1));
+  const windowMode = String(safe.windowMode ?? process.env.NARRATION_MEMORY_WINDOW_MODE ?? "day")
+    .trim()
+    .toLowerCase();
+  const maxTurns = Math.max(8, Math.min(80, Math.floor(Number(safe.maxTurns ?? process.env.NARRATION_MEMORY_MAX_TURNS ?? 24) || 24)));
+  const keepTurns = Math.max(2, Math.min(20, Math.floor(Number(safe.keepTurns ?? process.env.NARRATION_MEMORY_KEEP_TURNS ?? 6) || 6)));
+  const activeWindowKey = String(safe.activeWindowKey ?? `day:${day}`).trim() || `day:${day}`;
+  const turns = Array.isArray(safe.turns)
+    ? safe.turns
+        .map((row) => (row && typeof row === "object" ? row : null))
+        .filter(Boolean)
+        .map((row) => ({
+          at: String(row.at ?? new Date().toISOString()),
+          windowKey: String(row.windowKey ?? activeWindowKey),
+          user: String(row.user ?? "").trim(),
+          mj: String(row.mj ?? "").trim(),
+          intentType: String(row.intentType ?? ""),
+          directorMode: String(row.directorMode ?? ""),
+          locationLabel: String(row.locationLabel ?? ""),
+          day: Math.max(1, Math.floor(Number(row.day ?? day) || day))
+        }))
+        .filter((row) => row.user || row.mj)
+        .slice(-200)
+    : [];
+  const summaries = Array.isArray(safe.summaries)
+    ? safe.summaries
+        .map((row) => (row && typeof row === "object" ? row : null))
+        .filter(Boolean)
+        .map((row) => ({
+          at: String(row.at ?? new Date().toISOString()),
+          windowKey: String(row.windowKey ?? ""),
+          fromAt: String(row.fromAt ?? ""),
+          toAt: String(row.toAt ?? ""),
+          turnCount: Math.max(0, Math.floor(Number(row.turnCount ?? 0) || 0)),
+          reason: String(row.reason ?? ""),
+          summary: String(row.summary ?? "").trim()
+        }))
+        .filter((row) => row.summary)
+        .slice(-80)
+    : [];
+  return {
+    windowMode: windowMode === "long_rest" ? "long_rest" : "day",
+    maxTurns,
+    keepTurns,
+    activeWindowKey,
+    turns,
+    summaries,
+    lastCompactedAt: String(safe.lastCompactedAt ?? "")
+  };
+}
+
 function advanceWorldTime(currentTime, metadata) {
   return narrationIntentMutationEngine.advanceWorldTime(currentTime, metadata);
 }
@@ -841,7 +939,17 @@ function createInitialNarrativeWorldState() {
       activeInterlocutor: null,
       pendingAction: null,
       pendingTravel: null,
-      pendingAccess: null
+      pendingAccess: null,
+      memory: sanitizeConversationMemory(null, null),
+      sceneFrame: {
+        locationId: "lysenthe.archives.parvis",
+        locationLabel: "Parvis des Archives, Lysenthe",
+        activePoiLabel: "",
+        activeInterlocutorLabel: "",
+        activeTopic: "",
+        recentFacts: [],
+        updatedAt: new Date().toISOString()
+      }
     },
     rpRuntime: {
       spellSlots: {},
@@ -904,7 +1012,9 @@ function loadNarrativeWorldState() {
             : String(parsed.conversation.activeInterlocutor),
         pendingAction: sanitizePendingAction(parsed?.conversation?.pendingAction),
         pendingTravel: sanitizePendingTravel(parsed?.conversation?.pendingTravel),
-        pendingAccess: sanitizePendingAccess(parsed?.conversation?.pendingAccess)
+        pendingAccess: sanitizePendingAccess(parsed?.conversation?.pendingAccess),
+        memory: sanitizeConversationMemory(parsed?.conversation?.memory, parsed),
+        sceneFrame: sanitizeSceneFrame(parsed?.conversation?.sceneFrame, parsed)
       },
       rpRuntime: sanitizeRpRuntime(parsed?.rpRuntime),
       location: sanitizeWorldLocation(parsed?.location),
@@ -2033,8 +2143,35 @@ const classifyNarrationWithAI = (message, records, worldState) =>
 const detectWorldIntentWithAI = (payload) =>
   narrationAiHelpers.detectWorldIntentWithAI(payload);
 
+const arbitrateSceneIntentWithAI = (payload) =>
+  narrationAiHelpers.arbitrateSceneIntentWithAI(payload);
+
 const validateNarrativeStateConsistency = (payload) =>
   narrationAiHelpers.validateNarrativeStateConsistency(payload);
+
+const extractLocalMemoryCandidatesWithAI = (payload) =>
+  narrationAiHelpers.extractLocalMemoryCandidatesWithAI(payload);
+
+const generateEntityMicroProfilesWithAI = (payload) =>
+  narrationAiHelpers.generateEntityMicroProfilesWithAI(payload);
+
+const summarizeConversationWindowWithAI = (payload) =>
+  narrationAiHelpers.summarizeConversationWindowWithAI(payload);
+
+const resolveSpatialTargetWithAI = (payload) =>
+  narrationAiHelpers.resolveSpatialTargetWithAI(payload);
+
+const arbitratePendingTravelWithAI = (payload) =>
+  narrationAiHelpers.arbitratePendingTravelWithAI(payload);
+
+const assessRuntimeEligibilityWithAI = (payload) =>
+  narrationAiHelpers.assessRuntimeEligibilityWithAI(payload);
+
+const resolveSceneFramePatchWithAI = (payload) =>
+  narrationAiHelpers.resolveSceneFramePatchWithAI(payload);
+
+const validateSceneFrameContinuityWithAI = (payload) =>
+  narrationAiHelpers.validateSceneFrameContinuityWithAI(payload);
 
 const buildNarrativeDirectorPlan = (intent) =>
   narrationAiHelpers.buildNarrativeDirectorPlan(intent);
@@ -2108,10 +2245,16 @@ function buildMjReplyBlocks({ scene, actionResult, consequences, options }) {
 
 function buildMjReplyFromStructured(structured) {
   const safe = structured && typeof structured === "object" ? structured : {};
-  const directAnswer = oneLine(String(safe.directAnswer ?? ""), 220);
-  const scene = oneLine(String(safe.scene ?? ""), 260) || "Le lieu reste vivant autour de toi, sans rupture brutale.";
-  const actionResult = oneLine(String(safe.actionResult ?? ""), 320) || "Des details du decor et des passants te donnent de nouveaux points d'attention.";
-  const consequences = oneLine(String(safe.consequences ?? ""), 320) || "Tu peux continuer en precisant ce que tu veux observer, demander ou tenter.";
+  const normalizeRpLine = (value) => String(value ?? "").replace(/\s+/g, " ").trim();
+  const directAnswer = normalizeRpLine(String(safe.directAnswer ?? ""));
+  const scene =
+    normalizeRpLine(String(safe.scene ?? "")) || "Le lieu reste vivant autour de toi, sans rupture brutale.";
+  const actionResult =
+    normalizeRpLine(String(safe.actionResult ?? "")) ||
+    "Ton action est prise en compte, et la scene reste lisible pour la suite.";
+  const consequences =
+    normalizeRpLine(String(safe.consequences ?? "")) ||
+    "Tu peux continuer en precisant ce que tu veux observer, demander ou tenter.";
   const options = normalizeMjOptions(safe.options, 4);
   const blocks = buildMjReplyBlocks({ scene, actionResult, consequences, options });
   return directAnswer ? `${directAnswer}\n${blocks}` : blocks;
@@ -2793,7 +2936,7 @@ function describeTensionAtmosphere(worldState) {
   if (tension >= 70) return "L'atmosphere est tendue: regards lourds, patrouilles visibles, reactions rapides.";
   if (tension >= 40) return "Une nervosite diffuse circule dans le quartier, sans basculer en crise ouverte.";
   if (tension >= 20) return "Le climat reste vigilant, avec des controles discrets.";
-  return "Le climat local reste relativement stable.";
+  return "Rien ne perturbe la situation immediate.";
 }
 
 function describeAccessAndRisks(place) {
@@ -2823,7 +2966,7 @@ function buildArrivalVisualCue(place, records) {
   if (tags.includes("securite")) {
     return "Postes de controle, lignes de vue degagees et rondes reglees donnent le ton du secteur.";
   }
-  return loreHint || "Le decor se precise: architecture locale, circulation, micro-scenes entre habitants.";
+  return loreHint || "Le lieu se confirme autour de toi, sans changement notable.";
 }
 
 function buildArrivalPlaceReply(place, records, worldState) {
@@ -3138,6 +3281,8 @@ const narrationIntentMutationEngine = createNarrationIntentMutationEngine({
   sanitizePendingAction,
   sanitizePendingTravel,
   sanitizePendingAccess,
+  sanitizeConversationMemory,
+  sanitizeSceneFrame,
   sanitizeRpRuntime,
   sanitizeWorldLocation,
   sanitizeTravelState,
