@@ -1,4 +1,4 @@
-﻿// Serveur unique pour test-GAME
+// Serveur unique pour test-GAME
 // -----------------------------
 // - Expose POST /api/enemy-ai (IA ennemis via ChatGPT)
 // - Sert le front statique depuis le dossier dist (comme test-LORE)
@@ -20,6 +20,13 @@ const { createCharacterContextHelpers } = require("./server/characterContextHelp
 const { createHrpAiInterpreter } = require("./server/hrpAiInterpreter");
 const { createRpActionValidator } = require("./server/rpActionValidator");
 const { createRpActionResolver } = require("./server/rpActionResolver");
+const { createNarrationPayloadPipeline } = require("./server/narrationPayloadPipeline");
+const { createNarrationApiRoutes } = require("./server/narrationApiRoutes");
+const { createNarrationChatHandler } = require("./server/narrationChatHandler");
+const { createSessionNarrativeDb } = require("./server/sessionNarrativeDb");
+const { createNarrationIntentMutationEngine } = require("./server/narrationIntentMutationEngine");
+const { createNarrationBackgroundTickEngine } = require("./server/narrationBackgroundTickEngine");
+const { createNarrationNaturalRenderer } = require("./server/narrationNaturalRenderer");
 
 const PORT = process.env.PORT
   ? Number(process.env.PORT)
@@ -39,6 +46,11 @@ const NARRATION_WORLD_STATE_PATH = path.join(
   NARRATION_MODULE_DIR,
   "runtime",
   "NarrativeWorldState.v1.json"
+);
+const NARRATION_SESSION_DB_PATH = path.join(
+  NARRATION_MODULE_DIR,
+  "runtime",
+  "SessionNarrativeDB.v1.json"
 );
 const LORE_DB_PATH = path.join(__dirname, "..", "test-LORE", "data", "lore.db");
 const CHARACTERS_DATA_DIR = path.join(__dirname, "src", "data", "characters");
@@ -93,16 +105,151 @@ if (!OPENAI_API_KEY) {
 // Helpers HTTP
 // ----------------------------------------------------
 
-function sendJson(res, statusCode, data) {
-  const payload = attachMjContractToPayload(data);
-  const body = JSON.stringify(payload);
-  res.writeHead(statusCode, {
-    "Content-Type": "application/json; charset=utf-8",
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
+let narrationPayloadPipeline = null;
+let narrationApiRoutes = null;
+let narrationChatHandler = null;
+
+function getNarrationPayloadPipeline() {
+  if (narrationPayloadPipeline) return narrationPayloadPipeline;
+  narrationPayloadPipeline = createNarrationPayloadPipeline({
+    clampNumber,
+    oneLine,
+    normalizeMjOptions,
+    parseReplyToMjBlocks,
+    makeMjResponse,
+    buildCanonicalNarrativeContext
   });
-  res.end(body);
+  return narrationPayloadPipeline;
+}
+
+function sendJson(res, statusCode, data) {
+  return getNarrationPayloadPipeline().sendJson(res, statusCode, data);
+}
+
+function getNarrationApiRoutes() {
+  if (narrationApiRoutes) return narrationApiRoutes;
+  narrationApiRoutes = createNarrationApiRoutes({
+    parseJsonBody,
+    sendJson,
+    loadNarrationRuntimeStateFromDisk,
+    getNarrationRuntime,
+    narrationStatePath: NARRATION_STATE_PATH,
+    saveNarrativeWorldState,
+    createInitialNarrativeWorldState,
+    buildLoreRecordsForQuery,
+    openAiApiKey: OPENAI_API_KEY,
+    computeWorldDelta,
+    loadNarrativeWorldState,
+    applyWorldDelta,
+    buildNarrationChatReply,
+    sanitizeCharacterProfile,
+    buildCharacterContextPack
+  });
+  return narrationApiRoutes;
+}
+
+function getNarrationChatHandler() {
+  if (narrationChatHandler) return narrationChatHandler;
+  narrationChatHandler = createNarrationChatHandler({
+    parseJsonBody,
+    sendJson,
+    sanitizeCharacterProfile,
+    sanitizeConversationMode,
+    classifyNarrationIntent,
+    buildNarrativeDirectorPlan,
+    getNarrationRuntime,
+    narrationStatePath: NARRATION_STATE_PATH,
+    createInitialNarrativeWorldState,
+    saveNarrativeWorldState,
+    makeMjResponse,
+    buildSpeakerPayload,
+    loadNarrationRuntimeStateFromDisk,
+    buildCharacterProfileDiagnostics,
+    buildCharacterContextDiagnostics,
+    buildCharacterContextPack,
+    buildCanonicalContextDiagnostics,
+    buildCharacterRulesDiagnostics,
+    buildMjContractStatsPayload,
+    buildPhase3GuardStatsPayload,
+    buildPhase4SessionStatsPayload: () => sessionNarrativeDb.stats(),
+    buildPhase5MutationStatsPayload,
+    buildPhase6BackgroundStatsPayload: () =>
+      narrationBackgroundTickEngine.buildPhase6BackgroundStatsPayload(),
+    buildPhase7RenderStatsPayload,
+    buildPhase8DebugChannelStatsPayload,
+    resetNarrativeSessionDb: () => sessionNarrativeDb.reset(),
+    sanitizeInterlocutorLabel,
+    loadNarrativeWorldState,
+    sanitizePendingAction,
+    sanitizePendingTravel,
+    sanitizePendingAccess,
+    extractInterlocutorFromMessage,
+    buildCanonicalNarrativeContext,
+    rpActionResolver,
+    applyWorldDelta,
+    computeSceneOnlyDelta,
+    oneLine,
+    buildMjReplyBlocks,
+    isTravelConfirmation,
+    sanitizeTravelState,
+    sanitizeWorldLocation,
+    applyTravel,
+    buildLoreRecordsForQuery,
+    derivePlaceMetadataFromRecords,
+    upsertSessionPlace,
+    sanitizeSessionPlaces,
+    buildArrivalPlaceReply,
+    extractVisitIntent,
+    resolveOrCreateSessionPlace,
+    buildVisitAdvisoryReply,
+    buildAccessChallengeReply,
+    isAccessProgressionIntent,
+    resolveAccessAttempt,
+    generateMjStructuredReply,
+    buildPriorityMjToolCalls,
+    mergeToolCalls,
+    mjToolBus,
+    refineMjStructuredReplyWithTools,
+    inferPlaceFromMessage,
+    estimateTravelMinutes,
+    isRpSheetQuestion,
+    buildRpSheetAwareReply,
+    rpActionValidator,
+    hasRemainingSpellSlotsForRp,
+    buildRpActionValidationReply,
+    classifyNarrationWithAI,
+    shouldForceSceneLocalRouting,
+    addInterlocutorNote,
+    buildLoreOnlyReply,
+    buildExplorationReply,
+    requiresInterlocutorInRp,
+    buildRpNeedInterlocutorReply,
+    shouldApplyRuntimeForIntent,
+    buildDirectorNoRuntimeReply,
+    openAiApiKey: OPENAI_API_KEY,
+    buildPlayerProfileInput,
+    computeWorldDelta,
+    injectLockedStartContextReply,
+    parseReplyToMjBlocks,
+    normalizeMjOptions,
+    hrpAiInterpreter,
+    buildHrpReply,
+    buildNarrationChatReply,
+    evaluateTravelProposalLoreGuard,
+    getCurrentSessionPlace
+    ,
+    applyBackgroundNarrativeTick: (params) =>
+      narrationBackgroundTickEngine.applyBackgroundNarrativeTick(params)
+  });
+  return narrationChatHandler;
+}
+
+function buildPhase3GuardStatsPayload() {
+  return getNarrationPayloadPipeline().buildPhase3GuardStatsPayload();
+}
+
+function buildPhase8DebugChannelStatsPayload() {
+  return getNarrationPayloadPipeline().buildPhase8DebugChannelStatsPayload();
 }
 
 function normalizeMjOptionText(option) {
@@ -163,9 +310,11 @@ function buildPriorityMjToolCalls({
   hasCharacterProfile
 }) {
   if (String(conversationMode ?? "rp") !== "rp") return [];
-  const normalizedMessage = normalizeForIntent(message);
   const intentType = String(intent?.type ?? "story_action");
   const mode = String(directorPlan?.mode ?? "scene_only");
+  const requiresCheck = Boolean(intent?.requiresCheck);
+  const riskLevel = String(intent?.riskLevel ?? "medium");
+  const applyRuntime = Boolean(directorPlan?.applyRuntime);
 
   const calls = [{ name: "get_world_state", args: {} }];
   const hasPending =
@@ -176,134 +325,39 @@ function buildPriorityMjToolCalls({
   if (hasPending) {
     calls.push({ name: "session_db_read", args: { scope: "pending" } });
   }
+  calls.push({ name: "session_db_read", args: { scope: "scene-memory" } });
 
   if (hasCharacterProfile) {
-    const asksSheet =
-      /\b(mon|mes|ma)\b/.test(normalizedMessage) ||
-      /\bqui\s+suis/.test(normalizedMessage) ||
-      /\bcombien\b/.test(normalizedMessage) ||
-      /\bcompetence\b/.test(normalizedMessage) ||
-      /\barme\b/.test(normalizedMessage) ||
-      /\bsort\b/.test(normalizedMessage) ||
-      /\bressource\b/.test(normalizedMessage);
-    if (asksSheet || intentType === "system_command") {
+    if (
+      intentType === "system_command" ||
+      intentType === "story_action" ||
+      intentType === "social_action"
+    ) {
       calls.push({ name: "query_player_sheet", args: { scope: "identity-loadout-rules" } });
     }
   }
 
-  if (
-    mode === "lore" ||
-    mode === "exploration" ||
-    /\bou\s+suis/.test(normalizedMessage) ||
-    /\bou\s+aller/.test(normalizedMessage) ||
-    /\bville\b/.test(normalizedMessage) ||
-    /\bquartier\b/.test(normalizedMessage) ||
-    /\bauberge\b/.test(normalizedMessage) ||
-    /\bport\b/.test(normalizedMessage)
-  ) {
+  if (mode === "lore" || mode === "exploration" || intentType === "lore_question") {
     calls.push({ name: "query_lore", args: { query: message, limit: 4 } });
   }
 
-  if (
-    /\btest\b/.test(normalizedMessage) ||
-    /\bjet\b/.test(normalizedMessage) ||
-    /\bpossible\b/.test(normalizedMessage) ||
-    /\bpeux[- ]?je\b/.test(normalizedMessage)
-  ) {
+  if (requiresCheck || riskLevel === "medium" || riskLevel === "high") {
     calls.push({ name: "query_rules", args: { query: message } });
   }
 
-  if (intentType === "story_action" || intentType === "social_action") {
+  if (applyRuntime || intentType === "story_action" || intentType === "social_action") {
     calls.push({ name: "quest_trama_tick", args: { dryRun: true } });
   }
 
-  calls.push({ name: "session_db_read", args: { scope: "scene-memory" } });
   return mergeToolCalls([], calls, 6);
 }
 
-const MJ_CONTRACT_STATS_MAX_SAMPLES = 20;
-const MJ_CONTRACT_STATS = {
-  total: 0,
-  bySource: {},
-  recent: [],
-  narrativeTurns: 0,
-  groundedTurns: 0,
-  ungroundedTurns: 0,
-  byIntent: {},
-  recentGrounding: []
-};
-
-function normalizeContractSourceLabel(value) {
-  const source = String(value ?? "").trim();
-  if (!source) return "unknown";
-  return source;
-}
-
-function trackMjContractSource(source, payload) {
-  const normalizedSource = normalizeContractSourceLabel(source);
-  MJ_CONTRACT_STATS.total += 1;
-  MJ_CONTRACT_STATS.bySource[normalizedSource] =
-    Number(MJ_CONTRACT_STATS.bySource[normalizedSource] ?? 0) + 1;
-
-  const sample = {
-    at: new Date().toISOString(),
-    source: normalizedSource,
-    intentType: String(payload?.intent?.type ?? ""),
-    directorMode: String(payload?.director?.mode ?? ""),
-    responseType: String(payload?.mjResponse?.responseType ?? ""),
-    hasReply: typeof payload?.reply === "string" && payload.reply.trim().length > 0
-  };
-  MJ_CONTRACT_STATS.recent.push(sample);
-  if (MJ_CONTRACT_STATS.recent.length > MJ_CONTRACT_STATS_MAX_SAMPLES) {
-    MJ_CONTRACT_STATS.recent.shift();
-  }
-
-  const intentType = String(payload?.mjContract?.intent?.type ?? payload?.intent?.type ?? "").trim();
-  const responseType = String(payload?.mjContract?.mjResponse?.responseType ?? payload?.mjResponse?.responseType ?? "").trim();
-  const isNarrativeTurn =
-    Boolean(intentType) &&
-    intentType !== "system_command" &&
-    responseType !== "system" &&
-    responseType !== "status";
-  if (!isNarrativeTurn) return;
-
-  MJ_CONTRACT_STATS.narrativeTurns += 1;
-  MJ_CONTRACT_STATS.byIntent[intentType] = Number(MJ_CONTRACT_STATS.byIntent[intentType] ?? 0) + 1;
-
-  const toolCalls = Array.isArray(payload?.mjContract?.toolCalls) ? payload.mjContract.toolCalls : [];
-  const grounded = toolCalls.length > 0;
-  if (grounded) MJ_CONTRACT_STATS.groundedTurns += 1;
-  else MJ_CONTRACT_STATS.ungroundedTurns += 1;
-
-  MJ_CONTRACT_STATS.recentGrounding.push({
-    at: new Date().toISOString(),
-    intentType,
-    responseType: responseType || "narration",
-    grounded,
-    toolCount: toolCalls.length
-  });
-  if (MJ_CONTRACT_STATS.recentGrounding.length > MJ_CONTRACT_STATS_MAX_SAMPLES) {
-    MJ_CONTRACT_STATS.recentGrounding.shift();
-  }
-}
-
 function buildMjContractStatsPayload() {
-  const narrativeTurns = Number(MJ_CONTRACT_STATS.narrativeTurns ?? 0);
-  const groundedTurns = Number(MJ_CONTRACT_STATS.groundedTurns ?? 0);
-  const groundingRate = narrativeTurns > 0 ? Number(((groundedTurns / narrativeTurns) * 100).toFixed(1)) : 0;
-  return {
-    total: MJ_CONTRACT_STATS.total,
-    bySource: { ...MJ_CONTRACT_STATS.bySource },
-    recent: MJ_CONTRACT_STATS.recent.slice(-10),
-    grounding: {
-      narrativeTurns,
-      groundedTurns,
-      ungroundedTurns: Number(MJ_CONTRACT_STATS.ungroundedTurns ?? 0),
-      groundingRatePct: groundingRate,
-      byIntent: { ...MJ_CONTRACT_STATS.byIntent },
-      recent: MJ_CONTRACT_STATS.recentGrounding.slice(-10)
-    }
-  };
+  return getNarrationPayloadPipeline().buildMjContractStatsPayload();
+}
+
+function buildPhase7RenderStatsPayload() {
+  return narrationNaturalRenderer.buildPhase7RenderStatsPayload();
 }
 
 function parseReplyToMjBlocks(reply) {
@@ -321,10 +375,14 @@ function parseReplyToMjBlocks(reply) {
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean);
-  const optionLine = lines.find((line) => /^tu peux maintenant:/i.test(line));
+  const optionLine = lines.find(
+    (line) => /^tu peux maintenant:/i.test(line) || /^pistes possibles:/i.test(line) || /^options:/i.test(line)
+  );
   const options = optionLine
     ? optionLine
         .replace(/^tu peux maintenant:\s*/i, "")
+        .replace(/^pistes possibles:\s*/i, "")
+        .replace(/^options:\s*/i, "")
         .split("|")
         .map((part) => part.trim())
         .filter(Boolean)
@@ -345,186 +403,6 @@ function parseReplyToMjBlocks(reply) {
     consequences,
     options
   };
-}
-
-function normalizeMjContract(contract) {
-  const safe = contract && typeof contract === "object" ? contract : {};
-  const confidenceRaw = Number(safe?.confidence ?? 0.7);
-  const confidence = Number.isFinite(confidenceRaw) ? clampNumber(confidenceRaw, 0, 1) : 0.7;
-  const intent = safe?.intent && typeof safe.intent === "object" ? safe.intent : {};
-  const mjResponse = safe?.mjResponse && typeof safe.mjResponse === "object" ? safe.mjResponse : {};
-  const worldMutations =
-    safe?.worldMutations && typeof safe.worldMutations === "object" ? safe.worldMutations : {};
-  const loreGuardReport =
-    safe?.loreGuardReport && typeof safe.loreGuardReport === "object" ? safe.loreGuardReport : {};
-  const options = normalizeMjOptions(mjResponse.options, 6);
-  return {
-    version: "1.0.0",
-    confidence,
-    intent: {
-      type: String(intent?.type ?? "story_action"),
-      confidence: Number.isFinite(Number(intent?.confidence))
-        ? clampNumber(Number(intent.confidence), 0, 1)
-        : confidence,
-      riskLevel: String(intent?.riskLevel ?? "medium"),
-      requiresCheck: Boolean(intent?.requiresCheck),
-      reason: String(intent?.reason ?? "")
-    },
-    mjResponse: {
-      responseType: String(mjResponse?.responseType ?? "narration"),
-      directAnswer: String(mjResponse?.directAnswer ?? ""),
-      scene: String(mjResponse?.scene ?? ""),
-      actionResult: String(mjResponse?.actionResult ?? ""),
-      consequences: String(mjResponse?.consequences ?? ""),
-      options
-    },
-    toolCalls: Array.isArray(safe?.toolCalls) ? safe.toolCalls.slice(0, 24) : [],
-    worldMutations: {
-      delta: worldMutations?.delta ?? null,
-      stateUpdated: Boolean(worldMutations?.stateUpdated),
-      pending: worldMutations?.pending ?? null
-    },
-    loreGuardReport: {
-      blocked: Boolean(loreGuardReport?.blocked),
-      violations: Array.isArray(loreGuardReport?.violations)
-        ? loreGuardReport.violations.map((x) => String(x ?? "")).filter(Boolean).slice(0, 8)
-        : []
-    }
-  };
-}
-
-function inferResponseTypeFromPayload(data) {
-  const safe = data && typeof data === "object" ? data : {};
-  const mjStructuredType = String(safe?.mjStructured?.responseType ?? "").trim();
-  if (mjStructuredType) return mjStructuredType;
-  const mode = String(safe?.director?.mode ?? "");
-  if (mode === "lore") return "status";
-  if (mode === "runtime") return "resolution";
-  if (mode === "scene_only" || mode === "exploration") return "narration";
-  return "narration";
-}
-
-function extractMjResponseFromPayload(data) {
-  const safe = data && typeof data === "object" ? data : {};
-  if (safe?.mjResponse && typeof safe.mjResponse === "object") {
-    return {
-      source: "payload-mj-response",
-      responseType: String(safe.mjResponse.responseType ?? inferResponseTypeFromPayload(safe)),
-      directAnswer: String(safe.mjResponse.directAnswer ?? ""),
-      scene: String(safe.mjResponse.scene ?? ""),
-      actionResult: String(safe.mjResponse.actionResult ?? ""),
-      consequences: String(safe.mjResponse.consequences ?? ""),
-      options: normalizeMjOptions(safe.mjResponse.options, 6)
-    };
-  }
-  if (safe?.mjStructured && typeof safe.mjStructured === "object") {
-    return {
-      source: "mj-structured",
-      responseType: String(safe.mjStructured.responseType ?? "narration"),
-      directAnswer: String(safe.mjStructured.directAnswer ?? ""),
-      scene: String(safe.mjStructured.scene ?? ""),
-      actionResult: String(safe.mjStructured.actionResult ?? ""),
-      consequences: String(safe.mjStructured.consequences ?? ""),
-      options: normalizeMjOptions(safe.mjStructured.options, 6)
-    };
-  }
-  if (safe?.rpActionResolution && typeof safe.rpActionResolution === "object") {
-    const row = safe.rpActionResolution;
-    return {
-      source: "rp-action-resolution",
-      responseType: "resolution",
-      directAnswer: "",
-      scene: String(row.scene ?? ""),
-      actionResult: String(row.actionResult ?? ""),
-      consequences: String(row.consequences ?? ""),
-      options: normalizeMjOptions(row.options, 6)
-    };
-  }
-  if (safe?.rpActionValidation && typeof safe.rpActionValidation === "object") {
-    const row = safe.rpActionValidation;
-    return {
-      source: "rp-action-validation",
-      responseType: "clarification",
-      directAnswer: "",
-      scene: `Validation serveur: ${row.allowed ? "possible" : "bloquee"}.`,
-      actionResult: String(row.reason ?? ""),
-      consequences: "",
-      options: []
-    };
-  }
-  const parsed = parseReplyToMjBlocks(safe.reply);
-  return {
-    source: "parsed-reply",
-    responseType: inferResponseTypeFromPayload(safe),
-    directAnswer: parsed.directAnswer,
-    scene: parsed.scene,
-    actionResult: parsed.actionResult,
-    consequences: parsed.consequences,
-    options: parsed.options
-  };
-}
-
-function attachMjContractToPayload(data) {
-  if (!data || typeof data !== "object" || Array.isArray(data)) return data;
-  if (data.mjContract) {
-    const payload = {
-      ...data,
-      mjContract: normalizeMjContract(data.mjContract)
-    };
-    trackMjContractSource(payload?.mjContract?.contractSource, payload);
-    return payload;
-  }
-  if (typeof data.reply !== "string") return data;
-  const hasNarrationSignals =
-    data.intent || data.director || data.worldState || data.worldDelta || data.mjStructured || data.mjResponse;
-  if (!hasNarrationSignals) return data;
-
-  const responseParts = extractMjResponseFromPayload(data);
-  const pending = {
-    action: data?.worldState?.conversation?.pendingAction ?? null,
-    travel:
-      data?.worldState?.travel?.pending ??
-      data?.worldState?.conversation?.pendingTravel ??
-      null,
-    access: data?.worldState?.conversation?.pendingAccess ?? null
-  };
-  const hrpToolTrace = Array.isArray(data?.hrpAnalysis?.toolTrace) ? data.hrpAnalysis.toolTrace : [];
-  const mjToolTrace = Array.isArray(data?.mjToolTrace) ? data.mjToolTrace : [];
-  const toolCalls = [...hrpToolTrace, ...mjToolTrace].slice(0, 24);
-  const contract = normalizeMjContract({
-    confidence: Number(data?.intent?.confidence ?? data?.mjStructured?.confidence ?? 0.7),
-    intent: data?.intent ?? {},
-    mjResponse: {
-      responseType: responseParts.responseType,
-      directAnswer: responseParts.directAnswer,
-      scene: responseParts.scene,
-      actionResult: responseParts.actionResult,
-      consequences: responseParts.consequences,
-      options: responseParts.options
-    },
-    toolCalls,
-    worldMutations: {
-      delta: data?.worldDelta ?? null,
-      stateUpdated: Boolean(data?.stateUpdated),
-      pending
-    },
-    loreGuardReport: {
-      blocked: Boolean(data?.outcome?.appliedOutcome?.guardBlocked),
-      violations: Array.isArray(data?.outcome?.appliedOutcome?.guardViolations)
-        ? data.outcome.appliedOutcome.guardViolations
-        : []
-    }
-  });
-  const payload = {
-    ...data,
-    mjResponse: contract.mjResponse,
-    mjContract: {
-      ...contract,
-      contractSource: responseParts.source
-    }
-  };
-  trackMjContractSource(payload?.mjContract?.contractSource, payload);
-  return payload;
 }
 
 function parseJsonBody(req) {
@@ -930,33 +808,11 @@ function sanitizeRpRuntime(value) {
 }
 
 function minutesForIntent(intentType) {
-  if (intentType === "system_command") return 0;
-  if (intentType === "lore_question") return 2;
-  if (intentType === "free_exploration") return 12;
-  if (intentType === "social_action") return 8;
-  return 10;
+  return narrationIntentMutationEngine.minutesForIntent(intentType);
 }
 
 function advanceWorldTime(currentTime, metadata) {
-  const base = normalizeWorldTime(currentTime);
-  const intentType = String(metadata?.intentType ?? "story_action");
-  const delta = minutesForIntent(intentType);
-  if (delta <= 0) return base;
-
-  let totalMinutes = base.hour * 60 + base.minute + delta;
-  let day = base.day;
-  while (totalMinutes >= 24 * 60) {
-    totalMinutes -= 24 * 60;
-    day += 1;
-  }
-  const hour = Math.floor(totalMinutes / 60);
-  const minute = totalMinutes % 60;
-  return {
-    day,
-    hour,
-    minute,
-    label: worldTimeLabel(hour)
-  };
+  return narrationIntentMutationEngine.advanceWorldTime(currentTime, metadata);
 }
 
 function createInitialNarrativeWorldState() {
@@ -1235,109 +1091,113 @@ function resolveCharacterDataByIds(profile) {
 }
 
 function computeWorldDelta({ intent, outcome }) {
-  const type = String(intent?.type ?? "story_action");
-  if (type === "lore_question" || type === "free_exploration" || type === "system_command") {
-    return {
-      reputationDelta: 0,
-      localTensionDelta: 0,
-      reason: "no-impact-intent"
-    };
-  }
+  return narrationIntentMutationEngine.computeWorldDelta({ intent, outcome });
+}
 
-  const transitionId = outcome?.appliedOutcome?.result?.transitionId ?? "none";
-  const guardBlocked = Boolean(outcome?.guardBlocked);
-
-  if (guardBlocked) {
-    return {
-      reputationDelta: type === "social_action" ? -1 : 0,
-      localTensionDelta: 1,
-      reason: "guard-blocked"
-    };
-  }
-
-  if (transitionId === "none") {
-    return {
-      reputationDelta: 0,
-      localTensionDelta: 1,
-      reason: "no-transition"
-    };
-  }
-
-  if (type === "social_action") {
-    return {
-      reputationDelta: 1,
-      localTensionDelta: 0,
-      reason: "social-progress"
-    };
-  }
-
-  return {
-    reputationDelta: 0,
-    localTensionDelta: 1,
-    reason: "story-progress"
-  };
+function computeSceneOnlyDelta(intent) {
+  return narrationIntentMutationEngine.computeSceneOnlyDelta(intent);
 }
 
 function applyWorldDelta(worldState, delta, metadata) {
-  const safe = worldState && typeof worldState === "object"
+  return narrationIntentMutationEngine.applyWorldDelta(worldState, delta, metadata);
+}
+
+function buildPhase5MutationStatsPayload() {
+  return narrationIntentMutationEngine.buildPhase5MutationStatsPayload();
+}
+
+function summarizeCanonicalPlayer({ contextPack, characterProfile, worldState }) {
+  const safeProfile =
+    sanitizeCharacterProfile(characterProfile) ??
+    sanitizeCharacterProfile(worldState?.startContext?.characterSnapshot ?? null);
+  const classSummary = Array.isArray(contextPack?.progression?.resolvedClasses)
+    ? contextPack.progression.resolvedClasses
+        .slice(0, 2)
+        .map((entry) => {
+          const classLabel = String(entry?.classLabel ?? entry?.classeId ?? "").trim();
+          const subclassLabel = String(entry?.subclassLabel ?? entry?.subclasseId ?? "").trim();
+          const level = Number(entry?.level ?? entry?.niveau ?? 0) || 0;
+          return {
+            classLabel,
+            subclassLabel,
+            level
+          };
+        })
+        .filter((row) => row.classLabel)
+    : [];
+
+  return {
+    id: String(contextPack?.identity?.id ?? safeProfile?.id ?? "").trim(),
+    name: String(contextPack?.identity?.name ?? safeProfile?.name ?? "").trim(),
+    raceLabel: String(
+      contextPack?.identity?.resolvedRaceLabel ??
+        contextPack?.identity?.raceLabel ??
+        safeProfile?.race ??
+        ""
+    ).trim(),
+    classSummary,
+    keySkills: Array.isArray(contextPack?.rules?.skills)
+      ? contextPack.rules.skills.slice(0, 6)
+      : Array.isArray(safeProfile?.skills)
+      ? safeProfile.skills.slice(0, 6)
+      : []
+  };
+}
+
+function buildCanonicalNarrativeContext({ worldState, contextPack, characterProfile }) {
+  const safeWorld = worldState && typeof worldState === "object"
     ? worldState
     : createInitialNarrativeWorldState();
-
-  const next = {
-    ...safe,
-    updatedAt: new Date().toISOString(),
-    metrics: {
-      reputation: clampNumber(
-        Number(safe?.metrics?.reputation ?? 0) + Number(delta?.reputationDelta ?? 0),
-        -100,
-        100
-      ),
-      localTension: clampNumber(
-        Number(safe?.metrics?.localTension ?? 0) + Number(delta?.localTensionDelta ?? 0),
-        0,
-        100
-      )
-    },
-    startContext: {
-      delivered: Boolean(safe?.startContext?.delivered),
-      locationId: String(safe?.startContext?.locationId ?? "lysenthe.archives.parvis"),
-      locationLabel: String(safe?.startContext?.locationLabel ?? "Parvis des Archives, Lysenthe"),
-      city: String(safe?.startContext?.city ?? "Lysenthe"),
-      territory: String(safe?.startContext?.territory ?? "Astryade"),
-      region: String(safe?.startContext?.region ?? "Ylssea"),
-      characterSnapshot:
-        safe?.startContext?.characterSnapshot && typeof safe.startContext.characterSnapshot === "object"
-          ? safe.startContext.characterSnapshot
-          : null
-    },
-    conversation: {
-      activeInterlocutor:
-        safe?.conversation?.activeInterlocutor == null
-          ? null
-          : String(safe.conversation.activeInterlocutor),
-      pendingAction: sanitizePendingAction(safe?.conversation?.pendingAction),
-      pendingTravel: sanitizePendingTravel(safe?.conversation?.pendingTravel),
-      pendingAccess: sanitizePendingAccess(safe?.conversation?.pendingAccess)
-    },
-    rpRuntime: sanitizeRpRuntime(safe?.rpRuntime),
-    location: sanitizeWorldLocation(safe?.location),
-    travel: sanitizeTravelState(safe?.travel),
-    sessionPlaces: sanitizeSessionPlaces(safe?.sessionPlaces),
-    time: advanceWorldTime(normalizeWorldTime(safe?.time), metadata),
-    history: Array.isArray(safe?.history) ? [...safe.history] : []
+  const start = safeWorld?.startContext ?? {};
+  const location = sanitizeWorldLocation(safeWorld?.location);
+  const time = normalizeWorldTime(safeWorld?.time);
+  const pending = {
+    action: sanitizePendingAction(safeWorld?.conversation?.pendingAction),
+    travel: sanitizePendingTravel(
+      safeWorld?.travel?.pending ?? safeWorld?.conversation?.pendingTravel ?? null
+    ),
+    access: sanitizePendingAccess(safeWorld?.conversation?.pendingAccess)
   };
 
-  next.history.push({
-    at: next.updatedAt,
-    reputationDelta: Number(delta?.reputationDelta ?? 0),
-    localTensionDelta: Number(delta?.localTensionDelta ?? 0),
-    reason: String(delta?.reason ?? "unspecified"),
-    intentType: String(metadata?.intentType ?? "unknown"),
-    transitionId: String(metadata?.transitionId ?? "none")
-  });
-  next.history = next.history.slice(-120);
+  return {
+    version: "canon-context.v1",
+    location: {
+      id: String(location?.id ?? start?.locationId ?? "").trim(),
+      label: String(location?.label ?? start?.locationLabel ?? "").trim(),
+      city: String(start?.city ?? "").trim(),
+      territory: String(start?.territory ?? "").trim(),
+      region: String(start?.region ?? "").trim()
+    },
+    time,
+    social: {
+      activeInterlocutor:
+        safeWorld?.conversation?.activeInterlocutor == null
+          ? null
+          : String(safeWorld.conversation.activeInterlocutor),
+      reputation: Number(safeWorld?.metrics?.reputation ?? 0),
+      localTension: Number(safeWorld?.metrics?.localTension ?? 0)
+    },
+    pending,
+    playerSummary: summarizeCanonicalPlayer({
+      contextPack,
+      characterProfile,
+      worldState: safeWorld
+    })
+  };
+}
 
-  return next;
+function attachCanonicalNarrativeContext(data) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return data;
+  if (data.canonicalContext) return data;
+  if (!data.worldState || typeof data.worldState !== "object") return data;
+  return {
+    ...data,
+    canonicalContext: buildCanonicalNarrativeContext({
+      worldState: data.worldState,
+      contextPack: data.contextPack ?? null,
+      characterProfile: data.characterProfile ?? null
+    })
+  };
 }
 
 function sanitizeCharacterProfile(profile) {
@@ -1634,7 +1494,7 @@ function buildHrpReply(message, characterProfile, worldState) {
   return [
     "Mode Hors RP actif.",
     "Je peux répondre sur ta fiche, les règles et l'état système.",
-    "Exemple: \"qui suis-je ?\", \"mes compétences\", \"/state\", \"/profile-debug\", \"/context-debug\", \"/rules-debug\", \"/contract-debug\", \"/phase1-debug\"."
+    "Exemple: \"qui suis-je ?\", \"mes compétences\", \"/state\", \"/profile-debug\", \"/context-debug\", \"/rules-debug\", \"/contract-debug\", \"/phase1-debug\", \"/phase2-debug\", \"/phase3-debug\", \"/phase4-debug\", \"/phase5-debug\", \"/phase6-debug\", \"/phase7-debug\", \"/phase8-debug\"."
   ].join("\n");
 }
 
@@ -2059,167 +1919,34 @@ function normalizeForIntent(text) {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
-function isLoreQuestionIntent(message) {
-  const normalized = normalizeForIntent(message);
-  if (!normalized) return false;
-  if (/^\s*(bonjour|salut|yo|coucou|hello|hey)\b/.test(normalized)) return false;
-  const patterns = [
-    /\bconnais\s*tu\b/,
-    /\bqui\s+est\b/,
-    /\bqu\s*est\s*ce\s+que\b/,
-    /\bquest\s*ce\s+que\b/,
-    /\bou\s+se\s+trouve\b/,
-    /\bou\s+est\b/,
-    /\bparle\s*(moi)?\s*de\b/,
-    /\braconte\s*(moi)?\s*sur\b/,
-    /\bque\s+sais\s*tu\b/,
-    /\ben\s+sais\s*tu\b/,
-    /\bque\s+peux\s*tu\s+me\s+dire\b/,
-    /\binfo(s)?\b/,
-    /\blore\b/,
-    /\bhistoire\s+de\b/,
-    /\borigine\s+de\b/,
-    /\bcapitale\s+de\b/,
-    /\bfaction\b/,
-    /\bregion\b/,
-    /\bville\b/
-  ];
-  return patterns.some((pattern) => pattern.test(normalized));
-}
-
-function isFreeExplorationIntent(message) {
-  const normalized = normalizeForIntent(message);
-  if (!normalized) return false;
-  const patterns = [
-    /\bje\s+veux\s+me\s+balader\b/,
-    /\bje\s+me\s+balade\b/,
-    /\bje\s+me\s+promene\b/,
-    /\bje\s+marche\b/,
-    /\bj\s+explore\b/,
-    /\bje\s+regarde\s+autour\b/,
-    /\bje\s+visite\b/,
-    /\bje\s+deambule\b/,
-    /\bje\s+me\s+rends\b/
-  ];
-  return patterns.some((pattern) => pattern.test(normalized));
-}
-
-function isSocialActionIntent(message) {
-  const normalized = normalizeForIntent(message);
-  if (!normalized) return false;
-  const patterns = [
-    /\bje\s+parle\b/,
-    /\bje\s+discute\b/,
-    /\bje\s+demande\b/,
-    /\bje\s+negocie\b/,
-    /\bje\s+persuade\b/,
-    /\bje\s+convaincs\b/,
-    /\bje\s+menace\b/,
-    /\bje\s+questionne\b/,
-    /\bje\s+marchande\b/
-  ];
-  return patterns.some((pattern) => pattern.test(normalized));
-}
-
-function isStoryActionIntent(message) {
-  const normalized = normalizeForIntent(message);
-  if (!normalized) return false;
-  const patterns = [
-    /\bj\s+accepte\b/,
-    /\bje\s+refuse\b/,
-    /\bje\s+suis\b/,
-    /\bje\s+prends\b/,
-    /\bje\s+tente\b/,
-    /\bj\s+attaque\b/,
-    /\bje\s+fouille\b/,
-    /\bje\s+vole\b/,
-    /\bje\s+crochete\b/,
-    /\bje\s+declenche\b/,
-    /\bje\s+decline\b/
-  ];
-  return patterns.some((pattern) => pattern.test(normalized));
-}
-
-function isCombatActionIntent(message) {
-  const normalized = normalizeForIntent(message);
-  if (!normalized) return false;
-  const patterns = [
-    /\bj\s*attaque\b/,
-    /\bje\s*frappe\b/,
-    /\bje\s*tire\b/,
-    /\bje\s*me\s*bats\b/,
-    /\bje\s*menace\b/
-  ];
-  return patterns.some((pattern) => pattern.test(normalized));
-}
-
-function isExplicitLoreLookup(message) {
-  const normalized = normalizeForIntent(message);
-  if (!normalized) return false;
-  const patterns = [
-    /\bconnais\s*tu\b/,
-    /\bqui\s+est\b/,
-    /\bparle\s*(moi)?\s*de\b/,
-    /\bque\s+sais\s*tu\b/,
-    /\ben\s+sais\s*tu\b/,
-    /\blore\b/,
-    /\bhistoire\s+de\b/,
-    /\borigine\s+de\b/,
-    /\bcapitale\s+de\b/,
-    /\bfaction\b/,
-    /\bregion\b/
-  ];
-  return patterns.some((pattern) => pattern.test(normalized));
-}
-
-function isLocalNpcInteractionIntent(message) {
-  const normalized = normalizeForIntent(message);
-  if (!normalized) return false;
-  const actionPatterns = [
-    /\bje\s+cherche\b/,
-    /\bje\s+veux\s+trouver\b/,
-    /\bje\s+veux\s+parler\b/,
-    /\bje\s+parle\b/,
-    /\bje\s+demande\b/,
-    /\bje\s+vais\s+voir\b/,
-    /\bje\s+regarde\b/
-  ];
-  const actorPatterns = [
-    /\bgerant(e)?\b/,
-    /\baubergiste\b/,
-    /\btavernier(e)?\b/,
-    /\bpatron(ne)?\b/,
-    /\bserveur(se)?\b/,
-    /\bmarchand(e)?\b/,
-    /\bgarde\b/,
-    /\bclient(e)?\b/,
-    /\bpnj\b/
-  ];
-  return actionPatterns.some((pattern) => pattern.test(normalized)) &&
-    actorPatterns.some((pattern) => pattern.test(normalized));
-}
-
 function shouldForceSceneLocalRouting({ message, conversationMode, worldState }) {
   if (String(conversationMode ?? "rp") !== "rp") return false;
-  const normalized = normalizeForIntent(message);
-  if (!normalized || normalized.startsWith("/")) return false;
-  if (isExplicitLoreLookup(normalized)) return false;
-  if (!isLocalNpcInteractionIntent(normalized)) return false;
+  const text = String(message ?? "").trim();
+  if (!text || text.startsWith("/")) return false;
 
   const locationLabel = String(worldState?.location?.label ?? "").trim();
   const activeInterlocutor = String(worldState?.conversation?.activeInterlocutor ?? "").trim();
-  const inGroundedScene = Boolean(locationLabel) || Boolean(activeInterlocutor);
-  return inGroundedScene;
+  const hasPending =
+    Boolean(worldState?.conversation?.pendingAction) ||
+    Boolean(worldState?.conversation?.pendingTravel) ||
+    Boolean(worldState?.travel?.pending) ||
+    Boolean(worldState?.conversation?.pendingAccess);
+  const inGroundedScene = Boolean(locationLabel) && Boolean(activeInterlocutor);
+  return inGroundedScene && !hasPending;
 }
 
-function classifyNarrationIntent(message) {
+function classifyNarrationIntent(message, options = {}) {
+  const conversationMode = sanitizeConversationMode(options?.conversationMode);
+  const worldState = options?.worldState && typeof options.worldState === "object"
+    ? options.worldState
+    : null;
   const text = String(message ?? "").trim();
   if (!text) {
     return {
-      type: "story_action",
+      type: "free_exploration",
       confidence: 0.2,
-      requiresCheck: true,
-      riskLevel: "medium",
+      requiresCheck: false,
+      riskLevel: "low",
       reason: "empty-fallback"
     };
   }
@@ -2234,52 +1961,63 @@ function classifyNarrationIntent(message) {
     };
   }
 
-  if (isLoreQuestionIntent(text)) {
+  if (conversationMode === "hrp") {
     return {
-      type: "lore_question",
-      confidence: 0.95,
+      type: "system_command",
+      confidence: 0.9,
       requiresCheck: false,
       riskLevel: "none",
-      reason: "lore-pattern"
+      reason: "hrp-mode"
     };
   }
 
-  if (isSocialActionIntent(text)) {
-    return {
-      type: "social_action",
-      confidence: 0.8,
-      requiresCheck: true,
-      riskLevel: "medium",
-      reason: "social-pattern"
-    };
-  }
+  const questionLike = text.includes("?");
+  const hasPending =
+    Boolean(worldState?.conversation?.pendingAction) ||
+    Boolean(worldState?.conversation?.pendingTravel) ||
+    Boolean(worldState?.travel?.pending) ||
+    Boolean(worldState?.conversation?.pendingAccess);
+  const activeInterlocutor =
+    worldState?.conversation?.activeInterlocutor == null
+      ? ""
+      : String(worldState.conversation.activeInterlocutor).trim();
 
-  if (isFreeExplorationIntent(text)) {
+  if (questionLike && !hasPending && !activeInterlocutor) {
     return {
-      type: "free_exploration",
-      confidence: 0.85,
+      type: "lore_question",
+      confidence: 0.62,
       requiresCheck: false,
       riskLevel: "low",
-      reason: "exploration-pattern"
+      reason: "question-form-fallback"
     };
   }
 
-  if (isStoryActionIntent(text)) {
+  if (hasPending) {
     return {
       type: "story_action",
-      confidence: 0.75,
+      confidence: 0.6,
       requiresCheck: true,
-      riskLevel: "high",
-      reason: "action-pattern"
+      riskLevel: "medium",
+      reason: "pending-context-fallback"
+    };
+  }
+
+  if (activeInterlocutor) {
+    return {
+      type: "social_action",
+      confidence: 0.58,
+      requiresCheck: true,
+      riskLevel: "medium",
+      reason: "active-interlocutor-fallback"
     };
   }
 
   return {
-    type: "story_action",
-    confidence: 0.55,
-    requiresCheck: true,
-    riskLevel: "medium",
-    reason: "default-fallback"
+    type: "free_exploration",
+    confidence: 0.52,
+    requiresCheck: false,
+    riskLevel: "low",
+    reason: "scene-default-fallback"
   };
 }
 
@@ -2364,22 +2102,12 @@ function formatFrenchList(values) {
 }
 
 function buildMjReplyBlocks({ scene, actionResult, consequences, options }) {
-  const normalizedOptions = normalizeMjOptions(options, 4);
-
-  const safeOptions = normalizedOptions.length
-    ? normalizedOptions
-    : [
-        "Examiner un detail precis de la scene",
-        "Interagir avec un PNJ",
-        "Tenter une action engagee"
-      ];
-
-  return [
-    oneLine(scene, 260) || "La scene evolue sans rupture visible.",
-    oneLine(actionResult, 320) || "Ton action est prise en compte par le MJ.",
-    oneLine(consequences, 320) || "Aucune consequence majeure immediate.",
-    `Tu peux maintenant: ${safeOptions.join(" | ")}`
-  ].join("\n");
+  return narrationNaturalRenderer.buildMjReplyBlocks({
+    scene,
+    actionResult,
+    consequences,
+    options
+  });
 }
 
 function buildMjReplyFromStructured(structured) {
@@ -2804,6 +2532,61 @@ function resolveOrCreateSessionPlace(placeLabel, records, worldState) {
   };
 }
 
+function evaluateTravelProposalLoreGuard({ targetLabel, records, worldState }) {
+  const label = String(targetLabel ?? "").trim();
+  const normalizedLabel = normalizeForIntent(label);
+  const sessionPlaces = sanitizeSessionPlaces(worldState?.sessionPlaces);
+  const bySession = sessionPlaces.find(
+    (entry) => normalizeForIntent(entry.label) === normalizedLabel
+  );
+  const loreCandidates = playerFacingLoreRecords(records, 10);
+  const byLore = loreCandidates.find((entry) => {
+    const title = normalizeForIntent(entry?.title ?? "");
+    return title && normalizedLabel && (title.includes(normalizedLabel) || normalizedLabel.includes(title));
+  });
+  const hasPendingTravel =
+    Boolean(worldState?.travel?.pending) || Boolean(worldState?.conversation?.pendingTravel);
+
+  const violations = [];
+  if (!label) {
+    violations.push({
+      gate: "geographie",
+      code: "travel-target-missing",
+      message: "Aucune destination canonique n'a été fournie pour ce déplacement.",
+      severity: "major"
+    });
+  }
+  if (hasPendingTravel) {
+    violations.push({
+      gate: "temps",
+      code: "travel-already-pending",
+      message: "Un déplacement est déjà en attente; confirmation ou annulation nécessaire.",
+      severity: "major"
+    });
+  }
+  if (label && !bySession && !byLore) {
+    violations.push({
+      gate: "geographie",
+      code: "travel-target-ungrounded",
+      message: "Destination non ancrée dans les lieux de session ou le lore consulté.",
+      severity: "major"
+    });
+  }
+
+  const suggestions = Array.from(
+    new Set([
+      ...sessionPlaces.map((entry) => String(entry?.label ?? "").trim()).filter(Boolean),
+      ...loreCandidates.map((entry) => String(entry?.title ?? "").trim()).filter(Boolean)
+    ])
+  ).slice(0, 4);
+
+  return {
+    blocked: violations.some((row) => row.severity === "major"),
+    violations,
+    suggestions
+  };
+}
+
 function buildVisitAdvisoryReply(place, records, worldState) {
   const placeLabel = oneLine(String(place?.label ?? "ce lieu"), 80);
   const recordHint = playerFacingLoreRecords(records, 4).find(
@@ -3170,10 +2953,85 @@ const buildCharacterContextPack = (characterProfile, worldState) =>
 const buildCharacterContextDiagnostics = (characterProfile, worldState) =>
   characterContextHelpers.buildCharacterContextDiagnostics(characterProfile, worldState);
 
+const buildCanonicalContextDiagnostics = (characterProfile, worldState, contextPack) =>
+  ["CanonicalNarrativeContext", JSON.stringify(
+    buildCanonicalNarrativeContext({
+      worldState,
+      contextPack,
+      characterProfile
+    }),
+    null,
+    2
+  )].join("\n");
+
+const sessionNarrativeDb = createSessionNarrativeDb({
+  path: NARRATION_SESSION_DB_PATH,
+  warn: (...args) => console.warn(...args)
+});
+
+const narrationIntentMutationEngine = createNarrationIntentMutationEngine({
+  clampNumber,
+  normalizeWorldTime,
+  worldTimeLabel,
+  createInitialNarrativeWorldState,
+  sanitizePendingAction,
+  sanitizePendingTravel,
+  sanitizePendingAccess,
+  sanitizeRpRuntime,
+  sanitizeWorldLocation,
+  sanitizeTravelState,
+  sanitizeSessionPlaces
+});
+
+const narrationBackgroundTickEngine = createNarrationBackgroundTickEngine();
+const narrationNaturalRenderer = createNarrationNaturalRenderer({
+  oneLine,
+  normalizeMjOptions
+});
+
+function syncSessionDbFromWorldState(worldState) {
+  const places = Array.isArray(worldState?.sessionPlaces) ? worldState.sessionPlaces : [];
+  if (!places.length) return;
+  const operations = places
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") return null;
+      const label = String(entry.label ?? "").trim();
+      if (!label) return null;
+      return {
+        action: "upsert",
+        entity: "placesDiscovered",
+        item: {
+          id: String(entry.id ?? "").trim() || "",
+          label,
+          text: String(entry.summary ?? "").trim(),
+          tags: Array.isArray(entry.tags) ? entry.tags : [],
+          source: "worldState.sessionPlaces",
+          data: {
+            access: entry.access ?? "",
+            riskFlags: Array.isArray(entry.riskFlags) ? entry.riskFlags : [],
+            city: String(entry.city ?? "").trim()
+          }
+        }
+      };
+    })
+    .filter(Boolean);
+  if (operations.length) {
+    sessionNarrativeDb.write({ operations });
+  }
+}
+
 const mjToolBus = createMjToolBus({
   queryLore: (query, limit = 3) =>
     buildLoreRecordsForQuery(String(query ?? ""))
-      .slice(0, Math.max(1, Math.min(8, Number(limit) || 3)))
+      .slice(0, Math.max(1, Math.min(8, Number(limit) || 3))),
+  sessionDbRead: (args) => {
+    syncSessionDbFromWorldState(args?.worldState);
+    return sessionNarrativeDb.read(args);
+  },
+  sessionDbWrite: (args) => {
+    syncSessionDbFromWorldState(args?.worldState);
+    return sessionNarrativeDb.write(args);
+  }
 });
 
 const hrpAiInterpreter = createHrpAiInterpreter({
@@ -3614,1431 +3472,14 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  // API runtime narration (journal module narratif)
-  if (req.method === "GET" && req.url === "/api/narration-runtime-state") {
-    try {
-      const state = loadNarrationRuntimeStateFromDisk();
-      if (!state) {
-        return sendJson(res, 404, {
-          error: "Narrative runtime state not found",
-          path: "narration-module/runtime/NarrativeGameState.v1.json"
-        });
-      }
-      return sendJson(res, 200, state);
-    } catch (err) {
-      console.error("[narration-runtime] Erreur lecture state:", err?.message ?? err);
-      return sendJson(res, 500, { error: "Narrative runtime read error" });
-    }
+  // API narration (hors chat) déléguée au routeur narration
+  if (await getNarrationApiRoutes().handle(req, res)) {
+    return;
   }
 
-  // API reset runtime narration
-  if (req.method === "POST" && req.url === "/api/narration/reset") {
-    try {
-      const runtime = getNarrationRuntime();
-      const initial = runtime.NarrativeRuntime.createInitialState();
-      runtime.StateRepository.save(initial, NARRATION_STATE_PATH);
-      saveNarrativeWorldState(createInitialNarrativeWorldState());
-      return sendJson(res, 200, { ok: true });
-    } catch (err) {
-      console.error("[narration-reset] Erreur:", err?.message ?? err);
-      return sendJson(res, 500, { ok: false, error: "Reset failed" });
-    }
-  }
-
-  // API tick narration IA (module narratif complet)
-  if (req.method === "POST" && req.url === "/api/narration/tick-ai") {
-    try {
-      const body = await parseJsonBody(req);
-      const prompt = String(body?.prompt ?? "").trim();
-      if (!prompt) {
-        return sendJson(res, 400, { error: "prompt manquant" });
-      }
-
-      const runtime = getNarrationRuntime();
-      const api = runtime.GameNarrationAPI.createDefault(NARRATION_STATE_PATH);
-      const state = api.getState();
-      const records = buildLoreRecordsForQuery(prompt);
-
-      const useOpenAI = Boolean(body?.useOpenAI) && Boolean(OPENAI_API_KEY);
-      const generator = useOpenAI
-        ? new runtime.OpenAIMjNarrationGenerator({
-            apiKey: OPENAI_API_KEY,
-            model: process.env.NARRATION_MODEL || process.env.OPENAI_MODEL || "gpt-4.1-mini"
-          })
-        : new runtime.HeuristicMjNarrationGenerator();
-
-      const outcome = await api.tickNarrationWithAI(
-        {
-          query: prompt,
-          records,
-          entityHints: {
-            quest: Object.keys(state.quests),
-            trama: Object.keys(state.tramas),
-            companion: Object.keys(state.companions),
-            trade: Object.keys(state.trades)
-          },
-          minHoursBetweenMajorEvents: 1,
-          blockOnGuardFailure: true
-        },
-        generator
-      );
-      const intent = {
-        type: "story_action"
-      };
-      const worldDelta = computeWorldDelta({ intent, outcome });
-      const currentWorld = loadNarrativeWorldState();
-      const transitionId = outcome?.appliedOutcome?.result?.transitionId ?? "none";
-      const worldState = applyWorldDelta(currentWorld, worldDelta, {
-        intentType: intent.type,
-        transitionId
-      });
-      saveNarrativeWorldState(worldState);
-
-      return sendJson(res, 200, {
-        reply: buildNarrationChatReply(outcome),
-        loreRecordsUsed: records.length,
-        worldDelta,
-        worldState,
-        outcome
-      });
-    } catch (err) {
-      console.error("[narration-tick-ai] Erreur:", err?.message ?? err);
-      return sendJson(res, 500, { error: "Tick narration impossible" });
-    }
-  }
-
-  // API debug context pack personnage (HRP tooling)
-  if (req.method === "POST" && req.url === "/api/narration/character-context") {
-    try {
-      const body = await parseJsonBody(req);
-      const worldState = loadNarrativeWorldState();
-      const profile = sanitizeCharacterProfile(body?.characterProfile ?? null);
-      const pack = buildCharacterContextPack(profile, worldState);
-      return sendJson(res, 200, {
-        ok: Boolean(pack),
-        contextPack: pack
-      });
-    } catch (err) {
-      console.error("[narration-character-context] Erreur:", err?.message ?? err);
-      return sendJson(res, 500, { error: "Context pack impossible" });
-    }
-  }
-
-  // API chat narration (style chat classique)
-  if (req.method === "POST" && req.url === "/api/narration/chat") {
-    try {
-      const body = await parseJsonBody(req);
-      const message = String(body?.message ?? "").trim();
-      const characterProfile = sanitizeCharacterProfile(body?.characterProfile ?? null);
-      const conversationMode = sanitizeConversationMode(body?.conversationMode);
-      if (!message) {
-        return sendJson(res, 400, { error: "message manquant" });
-      }
-      const heuristicIntent = classifyNarrationIntent(message);
-      let intent = heuristicIntent;
-      let directorPlan = buildNarrativeDirectorPlan(intent);
-
-      if (message.toLowerCase() === "/reset") {
-        const runtime = getNarrationRuntime();
-        const initial = runtime.NarrativeRuntime.createInitialState();
-        runtime.StateRepository.save(initial, NARRATION_STATE_PATH);
-        saveNarrativeWorldState(createInitialNarrativeWorldState());
-        return sendJson(res, 200, {
-          reply: "État narratif réinitialisé.",
-          mjResponse: makeMjResponse({
-            responseType: "system",
-            directAnswer: "État narratif réinitialisé."
-          }),
-          speaker: buildSpeakerPayload({ conversationMode, forceSystem: true }),
-          intent,
-          director: directorPlan,
-          stateUpdated: true
-        });
-      }
-
-      if (message.toLowerCase() === "/state") {
-        const state = loadNarrationRuntimeStateFromDisk();
-        if (!state) {
-          return sendJson(res, 200, {
-            reply: "Aucun état narratif trouvé.",
-            mjResponse: makeMjResponse({
-              responseType: "status",
-              directAnswer: "Aucun état narratif trouvé."
-            }),
-            speaker: buildSpeakerPayload({ conversationMode, forceSystem: true })
-          });
-        }
-        const summary = [
-          `Quêtes: ${Object.keys(state.quests ?? {}).length}`,
-          `Trames: ${Object.keys(state.tramas ?? {}).length}`,
-          `Compagnons: ${Object.keys(state.companions ?? {}).length}`,
-          `Marchandages: ${Object.keys(state.trades ?? {}).length}`,
-          `Historique: ${Array.isArray(state.history) ? state.history.length : 0}`
-        ].join(" | ");
-        const worldState = loadNarrativeWorldState();
-          const worldSummary = [
-          `Reputation: ${worldState.metrics?.reputation ?? 0}`,
-          `TensionLocale: ${worldState.metrics?.localTension ?? 0}`,
-          `Temps: J${worldState?.time?.day ?? 1} ${String(worldState?.time?.hour ?? 15).padStart(2, "0")}:${String(worldState?.time?.minute ?? 0).padStart(2, "0")} (${worldState?.time?.label ?? "inconnu"})`,
-          `Lieu: ${worldState?.location?.label ?? worldState?.startContext?.locationLabel ?? "inconnu"}`,
-          `ContexteDepart: ${worldState?.startContext?.delivered ? "actif" : "en attente"}`,
-          `PJ: ${worldState?.startContext?.characterSnapshot?.name ?? "inconnu"}`,
-          `Interlocuteur: ${worldState?.conversation?.activeInterlocutor ?? "aucun"}`,
-          `DeplacementEnAttente: ${worldState?.travel?.pending?.to?.label ?? worldState?.conversation?.pendingTravel?.placeLabel ?? "non"}`,
-          `AccesEnAttente: ${worldState?.conversation?.pendingAccess?.placeLabel ?? "non"}`,
-          `LieuxSession: ${Array.isArray(worldState?.sessionPlaces) ? worldState.sessionPlaces.length : 0}`,
-          `DernierDeplacement: ${
-            worldState?.travel?.last
-              ? `${worldState.travel.last.from?.label ?? "?"} -> ${worldState.travel.last.to?.label ?? "?"} (${worldState.travel.last.durationMin ?? 0} min)`
-              : "aucun"
-          }`
-        ].join(" | ");
-        return sendJson(res, 200, {
-          reply: `${summary}\n${worldSummary}`,
-          mjResponse: makeMjResponse({
-            responseType: "status",
-            directAnswer: `${summary}\n${worldSummary}`
-          }),
-          speaker: buildSpeakerPayload({ conversationMode, forceSystem: true }),
-          intent,
-          director: directorPlan,
-          worldState
-        });
-      }
-
-      if (message.toLowerCase() === "/profile-debug") {
-        const worldState = loadNarrativeWorldState();
-        const profileDiag = buildCharacterProfileDiagnostics(characterProfile, worldState);
-        return sendJson(res, 200, {
-          reply: profileDiag,
-          mjResponse: makeMjResponse({
-            responseType: "status",
-            directAnswer: profileDiag
-          }),
-          speaker: buildSpeakerPayload({ conversationMode, forceSystem: true }),
-          intent: { ...intent, type: "system_command", reason: "profile-debug" },
-          director: { ...directorPlan, mode: "hrp", applyRuntime: false, source: "tool" },
-          worldState,
-          stateUpdated: false
-        });
-      }
-
-      if (message.toLowerCase() === "/context-debug") {
-        const worldState = loadNarrativeWorldState();
-        const contextDiag = buildCharacterContextDiagnostics(characterProfile, worldState);
-        return sendJson(res, 200, {
-          reply: contextDiag,
-          mjResponse: makeMjResponse({
-            responseType: "status",
-            directAnswer: contextDiag
-          }),
-          speaker: buildSpeakerPayload({ conversationMode, forceSystem: true }),
-          intent: { ...intent, type: "system_command", reason: "context-debug" },
-          director: { ...directorPlan, mode: "hrp", applyRuntime: false, source: "tool" },
-          worldState,
-          stateUpdated: false
-        });
-      }
-
-      if (message.toLowerCase() === "/rules-debug") {
-        const worldState = loadNarrativeWorldState();
-        const rulesDiag = buildCharacterRulesDiagnostics(characterProfile, worldState);
-        return sendJson(res, 200, {
-          reply: rulesDiag,
-          mjResponse: makeMjResponse({
-            responseType: "status",
-            directAnswer: rulesDiag
-          }),
-          speaker: buildSpeakerPayload({ conversationMode, forceSystem: true }),
-          intent: { ...intent, type: "system_command", reason: "rules-debug" },
-          director: { ...directorPlan, mode: "hrp", applyRuntime: false, source: "tool" },
-          worldState,
-          stateUpdated: false
-        });
-      }
-
-      if (message.toLowerCase() === "/contract-debug") {
-        const worldState = loadNarrativeWorldState();
-        const stats = buildMjContractStatsPayload();
-        const sourceParts = Object.entries(stats.bySource)
-          .sort((a, b) => Number(b[1]) - Number(a[1]))
-          .map(([source, count]) => `${source}: ${count}`)
-          .join(" | ");
-        const summary = `Contrats MJ observes: ${stats.total} | Sources: ${sourceParts || "aucune"}`;
-        return sendJson(res, 200, {
-          reply: summary,
-          mjResponse: makeMjResponse({
-            responseType: "status",
-            directAnswer: summary
-          }),
-          speaker: buildSpeakerPayload({ conversationMode, forceSystem: true }),
-          intent: { ...intent, type: "system_command", reason: "contract-debug" },
-          director: { ...directorPlan, mode: "hrp", applyRuntime: false, source: "tool" },
-          worldState,
-          contractStats: stats,
-          stateUpdated: false
-        });
-      }
-
-      if (message.toLowerCase() === "/phase1-debug") {
-        const worldState = loadNarrativeWorldState();
-        const stats = buildMjContractStatsPayload();
-        const sourceParts = Object.entries(stats.bySource)
-          .sort((a, b) => Number(b[1]) - Number(a[1]))
-          .map(([source, count]) => `${source}: ${count}`)
-          .join(" | ");
-        const grounding = stats.grounding ?? {};
-        const summary = [
-          `Phase1 DoD (tool-grounding)`,
-          `NarrativeTurns: ${grounding.narrativeTurns ?? 0}`,
-          `GroundedTurns: ${grounding.groundedTurns ?? 0}`,
-          `UngroundedTurns: ${grounding.ungroundedTurns ?? 0}`,
-          `GroundingRate: ${grounding.groundingRatePct ?? 0}%`,
-          `ContractSources: ${sourceParts || "aucune"}`
-        ].join(" | ");
-        return sendJson(res, 200, {
-          reply: summary,
-          mjResponse: makeMjResponse({
-            responseType: "status",
-            directAnswer: summary
-          }),
-          speaker: buildSpeakerPayload({ conversationMode, forceSystem: true }),
-          intent: { ...intent, type: "system_command", reason: "phase1-debug" },
-          director: { ...directorPlan, mode: "hrp", applyRuntime: false, source: "tool" },
-          worldState,
-          phase1: {
-            dod: {
-              toolGroundingVisible: true,
-              narrativeTurns: grounding.narrativeTurns ?? 0,
-              groundedTurns: grounding.groundedTurns ?? 0,
-              ungroundedTurns: grounding.ungroundedTurns ?? 0,
-              groundingRatePct: grounding.groundingRatePct ?? 0
-            },
-            byIntent: grounding.byIntent ?? {},
-            recentGrounding: Array.isArray(grounding.recent) ? grounding.recent : []
-          },
-          stateUpdated: false
-        });
-      }
-
-      if (message.toLowerCase().startsWith("/interlocutor")) {
-        const raw = message.replace(/^\/interlocutor/i, "").trim();
-        const nextInterlocutor = sanitizeInterlocutorLabel(raw);
-        if (!nextInterlocutor) {
-          return sendJson(res, 200, {
-            reply:
-              "Commande invalide. Utilise: /interlocutor <nom> (ex: /interlocutor garde).",
-            mjResponse: makeMjResponse({
-              responseType: "system",
-              directAnswer: "Commande invalide. Utilise: /interlocutor <nom> (ex: /interlocutor garde)."
-            }),
-            speaker: buildSpeakerPayload({ conversationMode, forceSystem: true }),
-            intent,
-            director: directorPlan,
-            stateUpdated: false
-          });
-        }
-        const worldState = loadNarrativeWorldState();
-        worldState.conversation = {
-          ...(worldState.conversation ?? {}),
-          activeInterlocutor: nextInterlocutor
-        };
-        saveNarrativeWorldState(worldState);
-        return sendJson(res, 200, {
-          reply: `Interlocuteur actif défini sur: ${nextInterlocutor}.`,
-          mjResponse: makeMjResponse({
-            responseType: "system",
-            directAnswer: `Interlocuteur actif défini sur: ${nextInterlocutor}.`
-          }),
-          speaker: buildSpeakerPayload({ conversationMode, forceSystem: true }),
-          intent: { ...intent, type: "system_command", reason: "set-interlocutor" },
-          director: { ...directorPlan, mode: "hrp", applyRuntime: false, source: "policy" },
-          worldState,
-          stateUpdated: false
-        });
-      }
-
-      if (message.toLowerCase() === "/clear-interlocutor") {
-        const worldState = loadNarrativeWorldState();
-        worldState.conversation = {
-          ...(worldState.conversation ?? {}),
-          activeInterlocutor: null
-        };
-        saveNarrativeWorldState(worldState);
-        return sendJson(res, 200, {
-          reply: "Interlocuteur actif effacé.",
-          mjResponse: makeMjResponse({
-            responseType: "system",
-            directAnswer: "Interlocuteur actif effacé."
-          }),
-          speaker: buildSpeakerPayload({ conversationMode, forceSystem: true }),
-          intent: { ...intent, type: "system_command", reason: "clear-interlocutor" },
-          director: { ...directorPlan, mode: "hrp", applyRuntime: false, source: "policy" },
-          worldState,
-          stateUpdated: false
-        });
-      }
-
-      const runtime = getNarrationRuntime();
-      const api = runtime.GameNarrationAPI.createDefault(NARRATION_STATE_PATH);
-      const state = api.getState();
-      const records = buildLoreRecordsForQuery(message);
-      const worldSnapshot = loadNarrativeWorldState();
-      worldSnapshot.conversation = {
-        ...(worldSnapshot.conversation ?? {}),
-        activeInterlocutor:
-          worldSnapshot?.conversation?.activeInterlocutor == null
-            ? null
-            : String(worldSnapshot.conversation.activeInterlocutor),
-        pendingAction: sanitizePendingAction(worldSnapshot?.conversation?.pendingAction),
-        pendingTravel: sanitizePendingTravel(worldSnapshot?.conversation?.pendingTravel),
-        pendingAccess: sanitizePendingAccess(worldSnapshot?.conversation?.pendingAccess)
-      };
-      if (conversationMode === "rp") {
-        const detectedInterlocutor = extractInterlocutorFromMessage(message);
-        if (detectedInterlocutor) {
-          worldSnapshot.conversation.activeInterlocutor = detectedInterlocutor;
-        }
-      }
-      if (characterProfile) {
-        worldSnapshot.startContext = {
-          ...(worldSnapshot.startContext ?? {}),
-          characterSnapshot: characterProfile,
-          delivered: Boolean(worldSnapshot?.startContext?.delivered)
-        };
-      }
-
-      const rpContextPack =
-        conversationMode === "rp" ? buildCharacterContextPack(characterProfile, worldSnapshot) : null;
-
-      if (
-        conversationMode === "rp" &&
-        rpContextPack &&
-        worldSnapshot?.conversation?.pendingAction &&
-        rpActionResolver.isConfirmationMessage(message)
-      ) {
-        const resolution = rpActionResolver.resolvePendingAction(
-          message,
-          worldSnapshot.conversation.pendingAction,
-          rpContextPack,
-          worldSnapshot
-        );
-        if (resolution) {
-          const worldDelta = resolution.success
-            ? { reputationDelta: 0, localTensionDelta: 1, reason: "rp-action-resolved" }
-            : { reputationDelta: 0, localTensionDelta: 0, reason: "rp-action-failed" };
-          const worldState = applyWorldDelta(worldSnapshot, worldDelta, {
-            intentType: "story_action",
-            transitionId: `rp:${resolution.actionType}`
-          });
-          worldState.rpRuntime = {
-            ...(worldState.rpRuntime ?? {}),
-            ...(resolution.nextRuntime ?? {}),
-            lastResolution: {
-              at: new Date().toISOString(),
-              actionType: String(resolution.actionType ?? "generic_action"),
-              targetId: String(resolution.targetId ?? ""),
-              success: Boolean(resolution.success),
-              summary: oneLine(String(resolution.actionResult ?? ""), 160)
-            }
-          };
-          worldState.conversation = {
-            ...(worldState.conversation ?? {}),
-            activeInterlocutor:
-              worldSnapshot?.conversation?.activeInterlocutor == null
-                ? null
-                : String(worldSnapshot.conversation.activeInterlocutor),
-            pendingAction: null
-          };
-          if (characterProfile) {
-            worldState.startContext = {
-              ...(worldState.startContext ?? {}),
-              characterSnapshot: characterProfile
-            };
-          }
-          saveNarrativeWorldState(worldState);
-          return sendJson(res, 200, {
-            reply: buildMjReplyBlocks({
-              scene: resolution.scene,
-              actionResult: resolution.actionResult,
-              consequences: resolution.consequences,
-              options: resolution.options
-            }),
-            mjResponse: makeMjResponse({
-              responseType: "resolution",
-              scene: resolution.scene,
-              actionResult: resolution.actionResult,
-              consequences: resolution.consequences,
-              options: resolution.options
-            }),
-            speaker: buildSpeakerPayload({ conversationMode, intentType: "story_action" }),
-            intent: {
-              type: "story_action",
-              confidence: 0.9,
-              reason: `rp-action-resolve:${resolution.actionType}`
-            },
-            director: { mode: "scene_only", applyRuntime: false, source: "resolver" },
-            rpActionResolution: resolution,
-            worldDelta,
-            worldState,
-            stateUpdated: true
-          });
-        }
-      }
-
-      if (
-        conversationMode === "rp" &&
-        (worldSnapshot?.conversation?.pendingTravel || worldSnapshot?.travel?.pending) &&
-        isTravelConfirmation(message)
-      ) {
-        const pendingTravelLegacy = sanitizePendingTravel(worldSnapshot?.conversation?.pendingTravel);
-        const pendingTravelCanonical = sanitizeTravelState(worldSnapshot?.travel).pending;
-        const pendingTravel = pendingTravelCanonical
-          ? {
-              placeId: pendingTravelCanonical.to.id,
-              placeLabel: pendingTravelCanonical.to.label,
-              durationMin: pendingTravelCanonical.durationMin
-            }
-          : pendingTravelLegacy
-            ? { placeId: pendingTravelLegacy.placeId, placeLabel: pendingTravelLegacy.placeLabel, durationMin: 3 }
-            : null;
-        if (pendingTravel && pendingTravel.placeLabel) {
-          const currentWorld = loadNarrativeWorldState();
-          let worldState = applyWorldDelta(
-            currentWorld,
-            { reputationDelta: 0, localTensionDelta: 0, reason: "travel-confirmed" },
-            { intentType: "system_command", transitionId: "travel.confirmed" }
-          );
-          const place = {
-            id: pendingTravel.placeId,
-            label: pendingTravel.placeLabel
-          };
-          const fromLocation = sanitizeWorldLocation(worldState?.location);
-          const durationMin = Math.max(1, Math.floor(Number(pendingTravel.durationMin) || 3));
-          worldState = applyTravel(worldState, {
-            from: fromLocation,
-            to: { id: place.id, label: place.label },
-            durationMin,
-            reason: "travel-confirmed"
-          });
-          const arrivalRecords = buildLoreRecordsForQuery(place.label);
-          const arrivalMetadata = derivePlaceMetadataFromRecords(place.label, arrivalRecords);
-          worldState.sessionPlaces = upsertSessionPlace(worldState?.sessionPlaces, {
-            id: place.id,
-            label: place.label,
-            city: "",
-            access: arrivalMetadata.access,
-            tags: arrivalMetadata.tags,
-            riskFlags: arrivalMetadata.riskFlags,
-            sources: arrivalMetadata.sources,
-            summary: arrivalMetadata.summary
-          });
-          const resolvedArrivalPlace =
-            sanitizeSessionPlaces(worldState?.sessionPlaces).find((entry) => entry.id === place.id) ?? {
-              ...place,
-              access: arrivalMetadata.access,
-              riskFlags: arrivalMetadata.riskFlags,
-              tags: arrivalMetadata.tags,
-              summary: arrivalMetadata.summary
-            };
-          worldState.conversation = {
-            ...(worldState.conversation ?? {}),
-            activeInterlocutor:
-              worldSnapshot?.conversation?.activeInterlocutor == null
-                ? null
-                : String(worldSnapshot.conversation.activeInterlocutor),
-            pendingAction: null,
-            pendingTravel: null,
-            pendingAccess: null
-          };
-          if (characterProfile) {
-            worldState.startContext = {
-              ...(worldState.startContext ?? {}),
-              characterSnapshot: characterProfile
-            };
-          }
-          const injected = injectLockedStartContextReply(
-            buildArrivalPlaceReply(resolvedArrivalPlace, arrivalRecords, worldState),
-            worldState,
-            characterProfile
-          );
-          const arrivalReplyParts = parseReplyToMjBlocks(injected.reply);
-          saveNarrativeWorldState(injected.worldState);
-          return sendJson(res, 200, {
-            reply: injected.reply,
-            mjResponse: makeMjResponse({
-              responseType: "narration",
-              scene: arrivalReplyParts.scene,
-              actionResult: arrivalReplyParts.actionResult,
-              consequences: arrivalReplyParts.consequences,
-              options: arrivalReplyParts.options
-            }),
-            speaker: buildSpeakerPayload({ conversationMode, intentType: "story_action" }),
-            intent: { type: "story_action", confidence: 0.9, reason: "travel-confirmed" },
-            director: { mode: "scene_only", applyRuntime: false, source: "travel-flow" },
-            worldDelta: { reputationDelta: 0, localTensionDelta: 0, reason: "travel-confirmed" },
-            worldState: injected.worldState,
-            stateUpdated: true
-          });
-        }
-      }
-
-      if (conversationMode === "rp") {
-        const visitIntent = extractVisitIntent(message, records);
-        if (visitIntent) {
-          const currentWorld = loadNarrativeWorldState();
-          const worldState = applyWorldDelta(
-            currentWorld,
-            { reputationDelta: 0, localTensionDelta: 0, reason: "travel-proposed" },
-            { intentType: "system_command", transitionId: "travel.proposed" }
-          );
-          const place = resolveOrCreateSessionPlace(visitIntent.placeLabel, records, worldState);
-          const fromLocation = sanitizeWorldLocation(worldState?.location);
-          const toLocation = { id: place.id, label: place.label };
-          const durationMin = estimateTravelMinutes(fromLocation, toLocation, "free_exploration");
-          worldState.conversation = {
-            ...(worldState.conversation ?? {}),
-            activeInterlocutor:
-              worldSnapshot?.conversation?.activeInterlocutor == null
-                ? null
-                : String(worldSnapshot.conversation.activeInterlocutor),
-            pendingAction: null,
-            pendingTravel: sanitizePendingTravel({
-              placeId: place.id,
-              placeLabel: place.label,
-              question: oneLine(message, 140),
-              sourceLoreIds: records.slice(0, 3).map((entry) => String(entry?.id ?? "")).filter(Boolean),
-              createdAt: new Date().toISOString()
-            }),
-            pendingAccess: null
-          };
-          worldState.travel = sanitizeTravelState({
-            ...(worldState.travel ?? {}),
-            pending: {
-              from: fromLocation,
-              to: toLocation,
-              durationMin,
-              reason: "travel-proposed",
-              startedAt: new Date().toISOString()
-            }
-          });
-          worldState.sessionPlaces = upsertSessionPlace(worldState?.sessionPlaces, {
-            id: place.id,
-            label: place.label,
-            city: place.city ?? "",
-            access: place.access ?? "public",
-            tags: Array.isArray(place.tags) ? place.tags : [],
-            riskFlags: Array.isArray(place.riskFlags) ? place.riskFlags : [],
-            sources: Array.isArray(place.sources) ? place.sources : [],
-            summary: place.summary ?? ""
-          });
-          if (characterProfile) {
-            worldState.startContext = {
-              ...(worldState.startContext ?? {}),
-              characterSnapshot: characterProfile
-            };
-          }
-          const injected = injectLockedStartContextReply(
-            buildVisitAdvisoryReply(place, records, worldState),
-            worldState,
-            characterProfile
-          );
-          const advisoryParts = parseReplyToMjBlocks(injected.reply);
-          saveNarrativeWorldState(injected.worldState);
-          return sendJson(res, 200, {
-            reply: injected.reply,
-            mjResponse: makeMjResponse({
-              responseType: "clarification",
-              scene: advisoryParts.scene,
-              actionResult: advisoryParts.actionResult,
-              consequences: advisoryParts.consequences,
-              options: advisoryParts.options
-            }),
-            speaker: buildSpeakerPayload({ conversationMode, intentType: "story_action" }),
-            intent: { type: "story_action", confidence: 0.86, reason: "travel-proposed" },
-            director: { mode: "scene_only", applyRuntime: false, source: "travel-flow" },
-            worldDelta: { reputationDelta: 0, localTensionDelta: 0, reason: "travel-proposed" },
-            worldState: injected.worldState,
-            stateUpdated: false
-          });
-        }
-      }
-
-      if (
-        conversationMode === "rp" &&
-        worldSnapshot?.conversation?.pendingAccess &&
-        (rpActionResolver.isConfirmationMessage(message) || isAccessProgressionIntent(message))
-      ) {
-        const pendingAccess = sanitizePendingAccess(worldSnapshot.conversation.pendingAccess);
-        if (pendingAccess) {
-          const currentWorld = loadNarrativeWorldState();
-          const accessOutcome = resolveAccessAttempt(message, pendingAccess, rpContextPack, currentWorld);
-          const worldState = applyWorldDelta(
-            currentWorld,
-            accessOutcome.worldDelta,
-            { intentType: "story_action", transitionId: accessOutcome.success ? "access.resolved" : "access.blocked" }
-          );
-          worldState.conversation = {
-            ...(worldState.conversation ?? {}),
-            activeInterlocutor:
-              worldSnapshot?.conversation?.activeInterlocutor == null
-                ? null
-                : String(worldSnapshot.conversation.activeInterlocutor),
-            pendingAction: null,
-            pendingTravel: null,
-            pendingAccess: accessOutcome.success
-              ? null
-              : sanitizePendingAccess({
-                  ...pendingAccess,
-                  prompt: oneLine(message, 140),
-                  createdAt: new Date().toISOString()
-                })
-          };
-          if (characterProfile) {
-            worldState.startContext = {
-              ...(worldState.startContext ?? {}),
-              characterSnapshot: characterProfile
-            };
-          }
-          const injected = injectLockedStartContextReply(accessOutcome.reply, worldState, characterProfile);
-          const accessParts = parseReplyToMjBlocks(injected.reply);
-          saveNarrativeWorldState(injected.worldState);
-          return sendJson(res, 200, {
-            reply: injected.reply,
-            mjResponse: makeMjResponse({
-              responseType: "resolution",
-              scene: accessParts.scene,
-              actionResult: accessParts.actionResult,
-              consequences: accessParts.consequences,
-              options: accessParts.options
-            }),
-            speaker: buildSpeakerPayload({ conversationMode, intentType: "story_action" }),
-            intent: { type: "story_action", confidence: 0.87, reason: "access-resolution" },
-            director: { mode: "scene_only", applyRuntime: false, source: "access-loop" },
-            worldDelta: accessOutcome.worldDelta,
-            worldState: injected.worldState,
-            stateUpdated: true
-          });
-        }
-      }
-
-      if (conversationMode === "rp") {
-        const currentPlace = getCurrentSessionPlace(worldSnapshot);
-        const requiresGate = currentPlace?.access === "restricted" || currentPlace?.access === "sealed";
-        if (requiresGate && isAccessProgressionIntent(message)) {
-          const currentWorld = loadNarrativeWorldState();
-          const worldState = applyWorldDelta(
-            currentWorld,
-            { reputationDelta: 0, localTensionDelta: 0, reason: "access-gate-proposed" },
-            { intentType: "story_action", transitionId: "access.proposed" }
-          );
-          worldState.conversation = {
-            ...(worldState.conversation ?? {}),
-            activeInterlocutor:
-              worldSnapshot?.conversation?.activeInterlocutor == null
-                ? null
-                : String(worldSnapshot.conversation.activeInterlocutor),
-            pendingAction: null,
-            pendingTravel: null,
-            pendingAccess: sanitizePendingAccess({
-              placeId: currentPlace.id,
-              placeLabel: currentPlace.label,
-              access: currentPlace.access,
-              riskFlags: currentPlace.riskFlags,
-              prompt: oneLine(message, 140),
-              reason: "access-gate",
-              createdAt: new Date().toISOString()
-            })
-          };
-          if (characterProfile) {
-            worldState.startContext = {
-              ...(worldState.startContext ?? {}),
-              characterSnapshot: characterProfile
-            };
-          }
-          const injected = injectLockedStartContextReply(
-            buildAccessChallengeReply(currentPlace, message, rpContextPack, worldState),
-            worldState,
-            characterProfile
-          );
-          const accessChallengeParts = parseReplyToMjBlocks(injected.reply);
-          saveNarrativeWorldState(injected.worldState);
-          return sendJson(res, 200, {
-            reply: injected.reply,
-            mjResponse: makeMjResponse({
-              responseType: "clarification",
-              scene: accessChallengeParts.scene,
-              actionResult: accessChallengeParts.actionResult,
-              consequences: accessChallengeParts.consequences,
-              options: accessChallengeParts.options
-            }),
-            speaker: buildSpeakerPayload({ conversationMode, intentType: "story_action" }),
-            intent: { type: "story_action", confidence: 0.83, reason: "access-gate-proposed" },
-            director: { mode: "scene_only", applyRuntime: false, source: "access-loop" },
-            worldDelta: { reputationDelta: 0, localTensionDelta: 0, reason: "access-gate-proposed" },
-            worldState: injected.worldState,
-            stateUpdated: false
-          });
-        }
-      }
-
-      if (conversationMode === "rp") {
-        const mjStructuredDraft = await generateMjStructuredReply({
-          message,
-          records,
-          worldState: worldSnapshot,
-          contextPack: rpContextPack,
-          activeInterlocutor: worldSnapshot?.conversation?.activeInterlocutor ?? null,
-          conversationMode,
-          pending: {
-            action: worldSnapshot?.conversation?.pendingAction ?? null,
-            travel: worldSnapshot?.travel?.pending ?? worldSnapshot?.conversation?.pendingTravel ?? null,
-            access: worldSnapshot?.conversation?.pendingAccess ?? null
-          }
-        });
-        const priorityToolCalls = buildPriorityMjToolCalls({
-          message,
-          intent,
-          directorPlan,
-          conversationMode,
-          worldState: worldSnapshot,
-          hasCharacterProfile: Boolean(rpContextPack)
-        });
-        const plannedToolCalls = mergeToolCalls(
-          Array.isArray(mjStructuredDraft?.toolCalls) ? mjStructuredDraft.toolCalls : [],
-          priorityToolCalls,
-          6
-        );
-        const mjToolTrace = mjToolBus.executeToolCalls(plannedToolCalls, {
-          message,
-          records,
-          worldState: worldSnapshot,
-          contextPack: rpContextPack,
-          runtimeState: state,
-          pending: {
-            action: worldSnapshot?.conversation?.pendingAction ?? null,
-            travel: worldSnapshot?.travel?.pending ?? worldSnapshot?.conversation?.pendingTravel ?? null,
-            access: worldSnapshot?.conversation?.pendingAccess ?? null
-          }
-        });
-        const mjStructured = await refineMjStructuredReplyWithTools({
-          message,
-          initialStructured: mjStructuredDraft,
-          toolResults: mjToolTrace,
-          worldState: worldSnapshot,
-          contextPack: rpContextPack,
-          activeInterlocutor: worldSnapshot?.conversation?.activeInterlocutor ?? null,
-          conversationMode
-        });
-        const worldIntentType = String(mjStructured?.worldIntent?.type ?? "none");
-        if (worldIntentType === "propose_travel") {
-          const targetFromAi = String(mjStructured?.worldIntent?.targetLabel ?? "").trim();
-          const aiTargetLabel = targetFromAi || inferPlaceFromMessage(message, records) || "ce lieu";
-          const currentWorld = loadNarrativeWorldState();
-          const worldState = applyWorldDelta(
-            currentWorld,
-            { reputationDelta: 0, localTensionDelta: 0, reason: "travel-proposed-ai" },
-            { intentType: "system_command", transitionId: "travel.proposed.ai" }
-          );
-          const place = resolveOrCreateSessionPlace(aiTargetLabel, records, worldState);
-          const fromLocation = sanitizeWorldLocation(worldState?.location);
-          const toLocation = { id: place.id, label: place.label };
-          const durationMin = estimateTravelMinutes(fromLocation, toLocation, "free_exploration");
-          worldState.conversation = {
-            ...(worldState.conversation ?? {}),
-            activeInterlocutor:
-              worldSnapshot?.conversation?.activeInterlocutor == null
-                ? null
-                : String(worldSnapshot.conversation.activeInterlocutor),
-            pendingAction: null,
-            pendingTravel: sanitizePendingTravel({
-              placeId: place.id,
-              placeLabel: place.label,
-              question: oneLine(message, 140),
-              sourceLoreIds: records.slice(0, 3).map((entry) => String(entry?.id ?? "")).filter(Boolean),
-              createdAt: new Date().toISOString()
-            }),
-            pendingAccess: sanitizePendingAccess(worldSnapshot?.conversation?.pendingAccess)
-          };
-          worldState.travel = sanitizeTravelState({
-            ...(worldState.travel ?? {}),
-            pending: {
-              from: fromLocation,
-              to: toLocation,
-              durationMin,
-              reason: "travel-proposed-ai",
-              startedAt: new Date().toISOString()
-            }
-          });
-          worldState.sessionPlaces = upsertSessionPlace(worldState?.sessionPlaces, {
-            id: place.id,
-            label: place.label,
-            city: place.city ?? "",
-            access: place.access ?? "public",
-            tags: Array.isArray(place.tags) ? place.tags : [],
-            riskFlags: Array.isArray(place.riskFlags) ? place.riskFlags : [],
-            sources: Array.isArray(place.sources) ? place.sources : [],
-            summary: place.summary ?? ""
-          });
-          if (characterProfile) {
-            worldState.startContext = {
-              ...(worldState.startContext ?? {}),
-              characterSnapshot: characterProfile
-            };
-          }
-          const advisory = mjStructured?.directAnswer
-            ? `${oneLine(mjStructured.directAnswer, 220)}\n${buildVisitAdvisoryReply(place, records, worldState)}`
-            : buildVisitAdvisoryReply(place, records, worldState);
-          const injected = injectLockedStartContextReply(advisory, worldState, characterProfile);
-          const aiTravelParts = parseReplyToMjBlocks(injected.reply);
-          saveNarrativeWorldState(injected.worldState);
-          return sendJson(res, 200, {
-            reply: injected.reply,
-            mjResponse: makeMjResponse({
-              responseType: "clarification",
-              directAnswer: oneLine(String(mjStructured?.directAnswer ?? ""), 220),
-              scene: aiTravelParts.scene,
-              actionResult: aiTravelParts.actionResult,
-              consequences: aiTravelParts.consequences,
-              options: aiTravelParts.options
-            }),
-            speaker: buildSpeakerPayload({ conversationMode, intentType: "story_action" }),
-            intent: {
-              type: "story_action",
-              confidence: Number(mjStructured?.confidence ?? 0.82),
-              reason: "ai-worldintent-propose-travel"
-            },
-            director: { mode: "scene_only", applyRuntime: false, source: "ai-mj-structured" },
-            worldDelta: { reputationDelta: 0, localTensionDelta: 0, reason: "travel-proposed-ai" },
-            worldState: injected.worldState,
-            mjStructured,
-            mjToolTrace,
-            stateUpdated: false
-          });
-        }
-        const shouldShortCircuit =
-          Boolean(mjStructured) &&
-          Boolean(mjStructured.bypassExistingMechanics) &&
-          String(mjStructured?.worldIntent?.type ?? "none") === "none";
-        if (shouldShortCircuit) {
-          const currentWorld = loadNarrativeWorldState();
-          const worldState = applyWorldDelta(
-            currentWorld,
-            { reputationDelta: 0, localTensionDelta: 0, reason: "mj-structured-scene" },
-            { intentType: "lore_question", transitionId: "none" }
-          );
-          worldState.conversation = {
-            ...(worldState.conversation ?? {}),
-            activeInterlocutor:
-              worldSnapshot?.conversation?.activeInterlocutor == null
-                ? null
-                : String(worldSnapshot.conversation.activeInterlocutor),
-            pendingAction: sanitizePendingAction(worldSnapshot?.conversation?.pendingAction),
-            pendingTravel: sanitizePendingTravel(worldSnapshot?.conversation?.pendingTravel),
-            pendingAccess: sanitizePendingAccess(worldSnapshot?.conversation?.pendingAccess)
-          };
-          if (characterProfile) {
-            worldState.startContext = {
-              ...(worldState.startContext ?? {}),
-              characterSnapshot: characterProfile
-            };
-          }
-          const injected = injectLockedStartContextReply(
-            buildMjReplyFromStructured(mjStructured),
-            worldState,
-            characterProfile
-          );
-          saveNarrativeWorldState(injected.worldState);
-          return sendJson(res, 200, {
-            reply: injected.reply,
-            mjResponse: makeMjResponse({
-              responseType: String(mjStructured?.responseType ?? "narration"),
-              directAnswer: String(mjStructured?.directAnswer ?? ""),
-              scene: String(mjStructured?.scene ?? ""),
-              actionResult: String(mjStructured?.actionResult ?? ""),
-              consequences: String(mjStructured?.consequences ?? ""),
-              options: normalizeMjOptions(mjStructured?.options, 6)
-            }),
-            speaker: buildSpeakerPayload({
-              conversationMode,
-              intentType: "story_action",
-              activeInterlocutor: worldSnapshot?.conversation?.activeInterlocutor ?? null
-            }),
-            intent: {
-              type: "story_action",
-              confidence: Number(mjStructured?.confidence ?? 0.72),
-              reason: "mj-structured-shortcircuit"
-            },
-            director: { mode: "scene_only", applyRuntime: false, source: "ai-mj-structured" },
-            worldDelta: { reputationDelta: 0, localTensionDelta: 0, reason: "mj-structured-scene" },
-            worldState: injected.worldState,
-            mjStructured,
-            mjToolTrace,
-            stateUpdated: false
-          });
-        }
-      }
-
-      if (conversationMode === "hrp") {
-        const contextPack = buildCharacterContextPack(characterProfile, worldSnapshot);
-        const hrpAiResult = await hrpAiInterpreter.analyzeHrpQuery(message, contextPack);
-        const hrpConfidenceThreshold = Number(process.env.HRP_AI_MIN_CONFIDENCE ?? 0.32);
-        const hasAnswer = Boolean(String(hrpAiResult?.answer ?? "").trim());
-        const toolTraceCount = Array.isArray(hrpAiResult?.toolTrace) ? hrpAiResult.toolTrace.length : 0;
-        const evidenceCoverage = Number(hrpAiResult?.evidenceCoverage ?? 0);
-        const aiConfidence = Number(hrpAiResult?.confidence ?? 0);
-        const aiUsable =
-          Boolean(hrpAiResult) &&
-          hasAnswer &&
-          (aiConfidence >= hrpConfidenceThreshold ||
-            Boolean(hrpAiResult?.evidenceValid) ||
-            evidenceCoverage >= 0.34 ||
-            toolTraceCount > 0);
-        const shouldClarify =
-          Boolean(hrpAiResult) &&
-          !aiUsable &&
-          !hasAnswer &&
-          aiConfidence < 0.45 &&
-          evidenceCoverage < 0.2 &&
-          toolTraceCount === 0 &&
-          Boolean(hrpAiResult?.needsClarification);
-        const clarification = hrpAiResult?.clarificationQuestion
-          ? String(hrpAiResult.clarificationQuestion)
-          : "Peux-tu préciser le champ visé (équipement, sorts, ressources, progression) ?";
-        const hrpReply = aiUsable
-          ? hrpAiResult.needsClarification && hrpAiResult.clarificationQuestion
-            ? `${hrpAiResult.answer}\n${hrpAiResult.clarificationQuestion}`
-            : hrpAiResult.answer
-          : shouldClarify
-          ? [
-              "Je préfère clarifier pour éviter une réponse inexacte.",
-              clarification
-            ].join("\n")
-          : hasAnswer
-          ? String(hrpAiResult.answer)
-          : buildHrpReply(message, characterProfile, worldSnapshot);
-        const worldDelta = {
-          reputationDelta: 0,
-          localTensionDelta: 0,
-          reason: "hrp-no-impact"
-        };
-        saveNarrativeWorldState(worldSnapshot);
-        return sendJson(res, 200, {
-          reply: hrpReply,
-          mjResponse: makeMjResponse({
-            responseType: "status",
-            directAnswer: hrpReply
-          }),
-          speaker: buildSpeakerPayload({ conversationMode, forceSystem: true }),
-          intent: {
-            type: "system_command",
-            confidence: Number(hrpAiResult?.confidence ?? 1),
-            reason: hrpAiResult
-              ? aiUsable
-                ? `hrp-ai:${hrpAiResult.intent}`
-                : `hrp-ai-fallback:${hrpAiResult.reason ?? "untrusted"}`
-              : "hrp-mode"
-          },
-          director: {
-            mode: "hrp",
-            applyRuntime: false,
-            source: hrpAiResult ? (aiUsable ? "ai" : "policy") : "policy"
-          },
-          hrpAnalysis: hrpAiResult
-            ? {
-                intent: hrpAiResult.intent,
-                confidence: hrpAiResult.confidence,
-                needsClarification: hrpAiResult.needsClarification,
-                evidence: hrpAiResult.evidence,
-                evidenceValid: hrpAiResult.evidenceValid,
-                evidenceCoverage: hrpAiResult.evidenceCoverage,
-                validEvidence: hrpAiResult.validEvidence,
-                invalidEvidence: hrpAiResult.invalidEvidence,
-                reason: hrpAiResult.reason,
-                planner: hrpAiResult.planner ?? null,
-                toolTrace: hrpAiResult.toolTrace ?? []
-              }
-            : null,
-          worldDelta,
-          worldState: worldSnapshot,
-          stateUpdated: false
-        });
-      }
-
-      if (conversationMode === "rp" && isRpSheetQuestion(message)) {
-        const worldState = applyWorldDelta(
-          loadNarrativeWorldState(),
-          { reputationDelta: 0, localTensionDelta: 0, reason: "rp-sheet-query" },
-          { intentType: "lore_question", transitionId: "none" }
-        );
-        if (characterProfile) {
-          worldState.startContext = {
-            ...(worldState.startContext ?? {}),
-            characterSnapshot: characterProfile
-          };
-        }
-        worldState.conversation = {
-          ...(worldState.conversation ?? {}),
-          activeInterlocutor:
-            worldSnapshot?.conversation?.activeInterlocutor == null
-              ? null
-              : String(worldSnapshot.conversation.activeInterlocutor)
-        };
-        saveNarrativeWorldState(worldState);
-        return sendJson(res, 200, {
-          reply: buildRpSheetAwareReply(message, characterProfile, worldState),
-          mjResponse: makeMjResponse({
-            responseType: "status",
-            directAnswer: buildRpSheetAwareReply(message, characterProfile, worldState)
-          }),
-          speaker: buildSpeakerPayload({ conversationMode, intentType: "lore_question" }),
-          intent: { type: "lore_question", confidence: 0.85, reason: "rp-sheet-query" },
-          director: { mode: "scene_only", applyRuntime: false, source: "policy" },
-          worldDelta: { reputationDelta: 0, localTensionDelta: 0, reason: "rp-sheet-query" },
-          worldState,
-          stateUpdated: false
-        });
-      }
-
-      if (conversationMode === "rp") {
-        let rpActionAssessment = await rpActionValidator.assess(message, rpContextPack);
-        if (rpActionAssessment?.isActionQuery && rpActionAssessment.actionType === "cast_spell") {
-          const slotAvailable = hasRemainingSpellSlotsForRp(worldSnapshot, rpContextPack);
-          if (!slotAvailable) {
-            rpActionAssessment = {
-              ...rpActionAssessment,
-              allowed: false,
-              reason: "Plus aucun emplacement de sort disponible pour le moment.",
-              serverEvidence: {
-                ...(rpActionAssessment.serverEvidence ?? {}),
-                hasSlot: false
-              }
-            };
-          }
-        }
-        if (rpActionAssessment?.isActionQuery) {
-          const currentWorld = loadNarrativeWorldState();
-          const worldState = applyWorldDelta(
-            currentWorld,
-            { reputationDelta: 0, localTensionDelta: 0, reason: "rp-action-validation" },
-            { intentType: "story_action", transitionId: "none" }
-          );
-          if (characterProfile) {
-            worldState.startContext = {
-              ...(worldState.startContext ?? {}),
-              characterSnapshot: characterProfile
-            };
-          }
-          worldState.conversation = {
-            ...(worldState.conversation ?? {}),
-            activeInterlocutor:
-              worldSnapshot?.conversation?.activeInterlocutor == null
-                ? null
-                : String(worldSnapshot.conversation.activeInterlocutor),
-            pendingAction: sanitizePendingAction({
-              ...rpActionAssessment,
-              createdAt: new Date().toISOString()
-            })
-          };
-          saveNarrativeWorldState(worldState);
-          return sendJson(res, 200, {
-            reply: buildRpActionValidationReply(rpActionAssessment),
-            mjResponse: makeMjResponse({
-              responseType: "clarification",
-              scene: `Validation serveur: ${rpActionAssessment.allowed ? "possible" : "bloquee"}.`,
-              actionResult: String(rpActionAssessment.reason ?? ""),
-              consequences: "",
-              options: []
-            }),
-            speaker: buildSpeakerPayload({ conversationMode, intentType: "story_action" }),
-            intent: {
-              type: "story_action",
-              confidence: 0.84,
-              reason: `rp-action-validation:${rpActionAssessment.actionType}`
-            },
-            director: { mode: "scene_only", applyRuntime: false, source: "validator" },
-            rpActionValidation: rpActionAssessment,
-            worldDelta: { reputationDelta: 0, localTensionDelta: 0, reason: "rp-action-validation" },
-            worldState,
-            stateUpdated: false
-          });
-        }
-      }
-
-      const aiDecision = await classifyNarrationWithAI(message, records, worldSnapshot);
-      if (aiDecision) {
-        intent = aiDecision.intent;
-        directorPlan = aiDecision.director;
-      }
-      if (shouldForceSceneLocalRouting({ message, conversationMode, worldState: worldSnapshot })) {
-        intent = {
-          type: "social_action",
-          confidence: Math.max(Number(intent?.confidence ?? 0.6), 0.82),
-          requiresCheck: true,
-          riskLevel: "medium",
-          reason: "policy-local-scene-routing"
-        };
-        directorPlan = {
-          mode: "scene_only",
-          applyRuntime: false,
-          source: "policy-local-scene-routing"
-        };
-      }
-      const loreQuestion = directorPlan.mode === "lore";
-      const freeExploration = directorPlan.mode === "exploration";
-      const activeInterlocutor =
-        worldSnapshot?.conversation?.activeInterlocutor == null
-          ? null
-          : String(worldSnapshot.conversation.activeInterlocutor);
-
-      if (loreQuestion) {
-        const currentWorld = loadNarrativeWorldState();
-        const worldState = applyWorldDelta(
-          currentWorld,
-          { reputationDelta: 0, localTensionDelta: 0, reason: "no-impact-intent" },
-          { intentType: intent.type, transitionId: "none" }
-        );
-        if (characterProfile) {
-          worldState.startContext = {
-            ...(worldState.startContext ?? {}),
-            characterSnapshot: characterProfile
-          };
-        }
-        worldState.conversation = {
-          ...(worldState.conversation ?? {}),
-          activeInterlocutor: activeInterlocutor
-        };
-        const worldDelta = {
-          reputationDelta: 0,
-          localTensionDelta: 0,
-          reason: "no-impact-intent"
-        };
-        const injected = injectLockedStartContextReply(
-          addInterlocutorNote(buildLoreOnlyReply(message, records, characterProfile), activeInterlocutor, intent.type),
-          worldState,
-          characterProfile
-        );
-        const loreParts = parseReplyToMjBlocks(injected.reply);
-        saveNarrativeWorldState(injected.worldState);
-        return sendJson(res, 200, {
-          reply: injected.reply,
-          mjResponse: makeMjResponse({
-            responseType: "status",
-            scene: loreParts.scene,
-            actionResult: loreParts.actionResult,
-            consequences: loreParts.consequences,
-            options: loreParts.options
-          }),
-          speaker: buildSpeakerPayload({
-            conversationMode,
-            intentType: intent.type,
-            activeInterlocutor
-          }),
-          loreRecordsUsed: records.length,
-          intent,
-          director: directorPlan,
-          worldDelta,
-          worldState: injected.worldState,
-          loreOnly: true,
-          stateUpdated: false
-        });
-      }
-
-      if (freeExploration) {
-        const currentWorld = loadNarrativeWorldState();
-        const worldState = applyWorldDelta(
-          currentWorld,
-          { reputationDelta: 0, localTensionDelta: 0, reason: "no-impact-intent" },
-          { intentType: intent.type, transitionId: "none" }
-        );
-        if (characterProfile) {
-          worldState.startContext = {
-            ...(worldState.startContext ?? {}),
-            characterSnapshot: characterProfile
-          };
-        }
-        worldState.conversation = {
-          ...(worldState.conversation ?? {}),
-          activeInterlocutor: activeInterlocutor
-        };
-        const worldDelta = {
-          reputationDelta: 0,
-          localTensionDelta: 0,
-          reason: "no-impact-intent"
-        };
-        const injected = injectLockedStartContextReply(buildExplorationReply(message, records), worldState, characterProfile);
-        const explorationParts = parseReplyToMjBlocks(injected.reply);
-        saveNarrativeWorldState(injected.worldState);
-        return sendJson(res, 200, {
-          reply: injected.reply,
-          mjResponse: makeMjResponse({
-            responseType: "narration",
-            scene: explorationParts.scene,
-            actionResult: explorationParts.actionResult,
-            consequences: explorationParts.consequences,
-            options: explorationParts.options
-          }),
-          speaker: buildSpeakerPayload({
-            conversationMode,
-            intentType: intent.type,
-            activeInterlocutor
-          }),
-          loreRecordsUsed: records.length,
-          intent,
-          director: directorPlan,
-          worldDelta,
-          worldState: injected.worldState,
-          explorationOnly: true,
-          stateUpdated: false
-        });
-      }
-
-      const runtimeAllowedByDirector = Boolean(directorPlan.applyRuntime);
-      const heuristicRuntimeGate =
-        directorPlan.source === "heuristic" ? shouldApplyRuntimeForIntent(message, intent) : true;
-      if (requiresInterlocutorInRp(intent, message, activeInterlocutor)) {
-        const currentWorld = loadNarrativeWorldState();
-        currentWorld.conversation = {
-          ...(currentWorld.conversation ?? {}),
-          activeInterlocutor: null
-        };
-        saveNarrativeWorldState(currentWorld);
-        return sendJson(res, 200, {
-          reply: buildRpNeedInterlocutorReply(records),
-          speaker: buildSpeakerPayload({ conversationMode, intentType: "social_action" }),
-          loreRecordsUsed: records.length,
-          intent,
-          director: { ...directorPlan, mode: "scene_only", applyRuntime: false },
-          worldDelta: { reputationDelta: 0, localTensionDelta: 0, reason: "missing-interlocutor" },
-          worldState: currentWorld,
-          stateUpdated: false
-        });
-      }
-
-      if (!runtimeAllowedByDirector || !heuristicRuntimeGate) {
-        const currentWorld = loadNarrativeWorldState();
-        const worldDelta = isCombatActionIntent(message)
-          ? { reputationDelta: 0, localTensionDelta: 2, reason: "scene-only-combat-pressure" }
-          : { reputationDelta: 0, localTensionDelta: 0, reason: "scene-only-no-runtime-trigger" };
-        const worldState = applyWorldDelta(currentWorld, worldDelta, {
-          intentType: intent.type,
-          transitionId: "none"
-        });
-        if (characterProfile) {
-          worldState.startContext = {
-            ...(worldState.startContext ?? {}),
-            characterSnapshot: characterProfile
-          };
-        }
-        worldState.conversation = {
-          ...(worldState.conversation ?? {}),
-          activeInterlocutor: activeInterlocutor
-        };
-        const injected = injectLockedStartContextReply(
-          addInterlocutorNote(buildDirectorNoRuntimeReply(message, intent.type, records), activeInterlocutor, intent.type),
-          worldState,
-          characterProfile
-        );
-        const sceneOnlyParts = parseReplyToMjBlocks(injected.reply);
-        saveNarrativeWorldState(injected.worldState);
-
-        return sendJson(res, 200, {
-          reply: injected.reply,
-          mjResponse: makeMjResponse({
-            responseType: "narration",
-            scene: sceneOnlyParts.scene,
-            actionResult: sceneOnlyParts.actionResult,
-            consequences: sceneOnlyParts.consequences,
-            options: sceneOnlyParts.options
-          }),
-          speaker: buildSpeakerPayload({
-            conversationMode,
-            intentType: intent.type,
-            activeInterlocutor
-          }),
-          loreRecordsUsed: records.length,
-          intent,
-          director: { ...directorPlan, mode: "scene_only", applyRuntime: false },
-          worldDelta,
-          worldState: injected.worldState,
-          stateUpdated: true
-        });
-      }
-
-      const generator = OPENAI_API_KEY
-        ? new runtime.OpenAIMjNarrationGenerator({
-            apiKey: OPENAI_API_KEY,
-            model: process.env.NARRATION_MODEL || process.env.OPENAI_MODEL || "gpt-4.1-mini"
-          })
-        : new runtime.HeuristicMjNarrationGenerator();
-
-      const outcome = await api.tickNarrationWithAI(
-        {
-          query: message,
-          records,
-          playerProfile: buildPlayerProfileInput(characterProfile),
-          entityHints: {
-            quest: Object.keys(state.quests),
-            trama: Object.keys(state.tramas),
-            companion: Object.keys(state.companions),
-            trade: Object.keys(state.trades)
-          },
-          minHoursBetweenMajorEvents: 1,
-          blockOnGuardFailure: true
-        },
-        generator
-      );
-      const worldDelta = computeWorldDelta({ intent, outcome });
-      const currentWorld = loadNarrativeWorldState();
-      const transitionId = outcome?.appliedOutcome?.result?.transitionId ?? "none";
-      const worldState = applyWorldDelta(currentWorld, worldDelta, {
-        intentType: intent.type,
-        transitionId
-      });
-      if (characterProfile) {
-        worldState.startContext = {
-          ...(worldState.startContext ?? {}),
-          characterSnapshot: characterProfile
-        };
-      }
-      worldState.conversation = {
-        ...(worldState.conversation ?? {}),
-        activeInterlocutor: activeInterlocutor
-      };
-      const injected = injectLockedStartContextReply(
-        addInterlocutorNote(buildNarrationChatReply(outcome, intent.type), activeInterlocutor, intent.type),
-        worldState,
-        characterProfile
-      );
-      const runtimeParts = parseReplyToMjBlocks(injected.reply);
-      saveNarrativeWorldState(injected.worldState);
-
-      return sendJson(res, 200, {
-        reply: injected.reply,
-        mjResponse: makeMjResponse({
-          responseType: "resolution",
-          scene: runtimeParts.scene,
-          actionResult: runtimeParts.actionResult,
-          consequences: runtimeParts.consequences,
-          options: runtimeParts.options
-        }),
-        speaker: buildSpeakerPayload({
-          conversationMode,
-          intentType: intent.type,
-          activeInterlocutor
-        }),
-        loreRecordsUsed: records.length,
-        intent,
-        director: directorPlan,
-        worldDelta,
-        worldState: injected.worldState,
-        outcome,
-        stateUpdated: true
-      });
-    } catch (err) {
-      console.error("[narration-chat] Erreur:", err?.message ?? err);
-      return sendJson(res, 500, { error: "Chat narration impossible" });
-    }
+  // API chat narration (style chat classique) déléguée au handler narration
+  if (await getNarrationChatHandler().handle(req, res)) {
+    return;
   }
 
   // API bulles ennemies (1-2 lignes, generees a chaque tour d'ennemi)

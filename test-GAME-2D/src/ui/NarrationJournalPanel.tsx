@@ -14,6 +14,19 @@ type NarrationChatPayload = {
   reply?: string;
   error?: string;
   stateUpdated?: boolean;
+  debug?: {
+    intent?: { type?: string; confidence?: number | null };
+    director?: { mode?: string; applyRuntime?: boolean };
+    worldDelta?: { reputationDelta?: number; localTensionDelta?: number; reason?: string };
+    worldState?: { conversation?: { activeInterlocutor?: string | null } };
+    outcome?: {
+      selectedCommand?: { entityType?: string; entityId?: string };
+      appliedOutcome?: { result?: { transitionId?: string } };
+      guardBlocked?: boolean;
+      guardViolations?: Array<{ gate?: string; code?: string }>;
+    };
+    [key: string]: unknown;
+  };
   intent?: { type?: string; confidence?: number | null };
   director?: { mode?: string; applyRuntime?: boolean };
   worldDelta?: { reputationDelta?: number; localTensionDelta?: number; reason?: string };
@@ -45,26 +58,40 @@ function normalizeDisplayText(value: string): string {
 }
 
 function buildDebugSuffix(payload: NarrationChatPayload): string {
-  const intentType = payload.intent?.type ?? "n/a";
-  const directorMode = payload.director?.mode ?? "n/a";
+  const source = payload.debug && typeof payload.debug === "object" ? payload.debug : payload;
+  const intent = source.intent as NarrationChatPayload["intent"] | undefined;
+  const director = source.director as NarrationChatPayload["director"] | undefined;
+  const intentType = intent?.type ?? "n/a";
+  const directorMode = director?.mode ?? "n/a";
   const applyRuntime =
-    typeof payload.director?.applyRuntime === "boolean"
-      ? payload.director.applyRuntime
+    typeof director?.applyRuntime === "boolean"
+      ? Boolean(director.applyRuntime)
         ? "yes"
         : "no"
       : "n/a";
-  const rep = Number(payload.worldDelta?.reputationDelta ?? 0);
-  const tension = Number(payload.worldDelta?.localTensionDelta ?? 0);
-  const reason = payload.worldDelta?.reason ?? "n/a";
-  const interlocutor = payload.worldState?.conversation?.activeInterlocutor ?? "none";
-  const transitionId = payload.outcome?.appliedOutcome?.result?.transitionId ?? "none";
-  const selectedType = payload.outcome?.selectedCommand?.entityType ?? "none";
-  const selectedId = payload.outcome?.selectedCommand?.entityId ?? "none";
-  const guardBlocked = payload.outcome?.guardBlocked ? "yes" : "no";
+  const worldDelta = source.worldDelta as NarrationChatPayload["worldDelta"] | undefined;
+  const worldState = source.worldState as NarrationChatPayload["worldState"] | undefined;
+  const outcome = source.outcome as NarrationChatPayload["outcome"] | undefined;
+  const rep = Number(worldDelta?.reputationDelta ?? 0);
+  const tension = Number(worldDelta?.localTensionDelta ?? 0);
+  const reason = worldDelta?.reason ?? "n/a";
+  const interlocutor = worldState?.conversation?.activeInterlocutor ?? "none";
+  const transitionId = outcome?.appliedOutcome?.result?.transitionId ?? "none";
+  const selectedType = outcome?.selectedCommand?.entityType ?? "none";
+  const selectedId = outcome?.selectedCommand?.entityId ?? "none";
+  const guardBlocked = outcome?.guardBlocked ? "yes" : "no";
   const guardReasons =
-    Array.isArray(payload.outcome?.guardViolations) && payload.outcome?.guardViolations.length > 0
-      ? payload.outcome?.guardViolations.map(item => `${item.gate ?? "gate"}/${item.code ?? "code"}`).join(", ")
+    Array.isArray(outcome?.guardViolations) && outcome?.guardViolations.length > 0
+      ? outcome?.guardViolations.map(item => `${item.gate ?? "gate"}/${item.code ?? "code"}`).join(", ")
       : "none";
+  const hasSignal =
+    intentType !== "n/a" ||
+    directorMode !== "n/a" ||
+    transitionId !== "none" ||
+    guardReasons !== "none" ||
+    rep !== 0 ||
+    tension !== 0;
+  if (!hasSignal) return "";
   return [
     "",
     "[debug]",
@@ -126,7 +153,7 @@ export function NarrationJournalPanel(props: {
       id: "system-0",
       role: "system",
       text:
-        "Chat narratif prêt. Tape un prompt ou /state, /reset, /profile-debug, /context-debug, /rules-debug. Interlocuteur: /interlocutor <nom>, /clear-interlocutor.",
+        "Chat narratif prêt. Tape un prompt ou /state, /reset, /profile-debug, /context-debug, /rules-debug, /phase1-debug ... /phase8-debug. Interlocuteur: /interlocutor <nom>, /clear-interlocutor.",
       speaker: { id: "system", label: "Système", kind: "system" }
     }
   ]);

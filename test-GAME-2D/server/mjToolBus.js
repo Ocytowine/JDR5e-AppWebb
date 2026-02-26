@@ -23,15 +23,23 @@ function buildResult(name, ok, summary, data) {
 
 function createMjToolBus(params = {}) {
   const queryLore = typeof params.queryLore === "function" ? params.queryLore : () => [];
+  const sessionDbRead =
+    typeof params.sessionDbRead === "function" ? params.sessionDbRead : () => null;
+  const sessionDbWrite =
+    typeof params.sessionDbWrite === "function" ? params.sessionDbWrite : () => null;
 
   function executeOne(call, context) {
     const name = call.name;
     const args = call.args ?? {};
     const worldState = context?.worldState ?? null;
+    const canonicalContext = context?.canonicalContext ?? null;
     const contextPack = context?.contextPack ?? null;
     const runtimeState = context?.runtimeState ?? null;
 
     if (name === "get_world_state") {
+      if (canonicalContext && typeof canonicalContext === "object") {
+        return buildResult(name, true, "Etat canonique lu.", canonicalContext);
+      }
       return buildResult(name, true, "Etat monde lu.", {
         location: worldState?.location ?? null,
         time: worldState?.time ?? null,
@@ -72,16 +80,42 @@ function createMjToolBus(params = {}) {
     }
 
     if (name === "session_db_read") {
+      const fromDb = sessionDbRead({
+        ...args,
+        message: context?.message ?? "",
+        canonicalContext,
+        worldState,
+        pending: context?.pending ?? null
+      });
+      if (fromDb && typeof fromDb === "object") {
+        return buildResult(name, fromDb.ok !== false, fromDb.summary || "Session DB lue.", fromDb);
+      }
       return buildResult(name, true, "Session DB lue.", {
         sessionPlaces: Array.isArray(worldState?.sessionPlaces) ? worldState.sessionPlaces.slice(0, 8) : [],
-        activeInterlocutor: worldState?.conversation?.activeInterlocutor ?? null
+        activeInterlocutor: worldState?.conversation?.activeInterlocutor ?? null,
+        pending: canonicalContext?.pending ?? context?.pending ?? null
       });
     }
 
     if (name === "session_db_write") {
-      return buildResult(name, true, "Session DB write simulé (phase 1).", {
-        accepted: true,
-        note: "Ecriture persistante sera activée en phase 4."
+      const writeResult = sessionDbWrite({
+        ...args,
+        message: context?.message ?? "",
+        canonicalContext,
+        worldState,
+        pending: context?.pending ?? null
+      });
+      if (writeResult && typeof writeResult === "object") {
+        return buildResult(
+          name,
+          writeResult.ok !== false,
+          writeResult.summary || "Session DB mise a jour.",
+          writeResult
+        );
+      }
+      return buildResult(name, false, "Session DB write indisponible.", {
+        accepted: false,
+        reason: "no-session-db-writer"
       });
     }
 

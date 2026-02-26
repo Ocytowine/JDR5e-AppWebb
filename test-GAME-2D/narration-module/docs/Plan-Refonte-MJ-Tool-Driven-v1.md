@@ -154,6 +154,13 @@ Mutations:
 Definition of done:
 - Chaque tour produit soit mutation validee, soit justification narrative claire de non-mutation.
 
+Suivi implementation (2026-02-26):
+- Moteur extrait dans `server/narrationIntentMutationEngine.js` pour sortir la logique de `server.js`.
+- Fonctions centralisees: `computeWorldDelta`, `computeSceneOnlyDelta`, `applyWorldDelta`.
+- Mapping intentions phase 5 active: `observe`, `move`, `social`, `investigate`, `risk_action`, `system`.
+- Stats phase 5 instrumentees et exposees via `/phase5-debug`:
+  `turns`, `mutatedTurns`, `noMutationTurns`, `mutationRatePct`, `byIntent`, `byMutationKind`.
+
 ## Phase 6 - Trames/quetes/evenements en fond
 Objectif:
 - Faire vivre le monde hors action immediate du joueur.
@@ -165,6 +172,12 @@ Mecanique:
 
 Definition of done:
 - Le monde evolue sur session longue sans script force.
+
+Suivi implementation (2026-02-26):
+- Moteur extrait: `server/narrationBackgroundTickEngine.js`.
+- Tick de fond lance apres les tours narratifs RP via `narrationChatHandler` (hors commandes systeme et hors tours runtime deja appliques).
+- Le tick utilise le runtime narratif (heuristique) pour faire progresser quetes/trames/compagnons/marchandages sans rigidifier le flow joueur.
+- Debug phase 6 disponible: `/phase6-debug` avec `turns`, `eligibleTurns`, `appliedTicks`, `applyRatePct`, `skippedByReason`, `byTransition`.
 
 ## Phase 7 - Rendu MJ naturel
 Objectif:
@@ -178,6 +191,13 @@ Regles:
 Definition of done:
 - Lecture percue comme MJ, pas assistant a gabarits.
 
+Suivi implementation (2026-02-26):
+- Moteur de rendu naturel extrait: `server/narrationNaturalRenderer.js`.
+- Suppression du format rigide `Tu peux maintenant: ...` dans le rendu central.
+- Les options ne sont affichees que si jugees utiles par heuristique de contexte narratif.
+- Compatibilite parse maintenue (`Tu peux maintenant`, `Pistes possibles`, `Options`).
+- Debug phase 7 disponible: `/phase7-debug` (`totalReplies`, `repliesWithOptions`, `repliesWithoutOptions`, `optionsSuppressed`).
+
 ## Phase 8 - Debug separe
 Objectif:
 - Garder la puissance de diagnostic sans polluer le RP.
@@ -188,6 +208,12 @@ Regles:
 
 Definition of done:
 - UX RP nette + debugging complet activable.
+
+Suivi implementation (2026-02-26):
+- Canal debug separe introduit dans `server/narrationPayloadPipeline.js` via `payload.debug`.
+- Les champs techniques (intent/director/worldDelta/worldState/outcome/contracts/traces/phase stats) sont sortis du flux RP principal.
+- Le chat UI consomme prioritairement `payload.debug` pour afficher les details techniques.
+- Debug phase 8 disponible: `/phase8-debug` (`totalPayloads`, `withDebugChannel`, `withoutDebugChannel`, `debugCoveragePct`, `byReason`).
 
 ## Protocole de gouvernance
 - Toute demande de correction passe d'abord par: diagnostic -> cause systemique -> solution de phase.

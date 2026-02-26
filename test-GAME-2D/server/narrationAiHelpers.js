@@ -129,24 +129,11 @@ function createNarrationAiHelpers(params) {
   function shouldApplyRuntimeForIntent(message, intent) {
     const type = intent?.type ?? "story_action";
     if (type !== "story_action" && type !== "social_action") return false;
-    const normalized = normalizeForIntent(message);
-    if (!normalized) return false;
-
-    const strongNarrativeTriggers = [
-      /\baccepte(r)?\b/,
-      /\btermine(r)?\b/,
-      /\brecrute(r)?\b/,
-      /\bnegocie(r)?\b/,
-      /\bmarchande(r)?\b/,
-      /\bquete\b/,
-      /\btrame\b/,
-      /\bcompagnon\b/,
-      /\bmarchandage\b/,
-      /\bmission\b/,
-      /\bcontrat\b/
-    ];
-
-    return strongNarrativeTriggers.some((pattern) => pattern.test(normalized));
+    const requiresCheck = Boolean(intent?.requiresCheck);
+    const riskLevel = String(intent?.riskLevel ?? "medium");
+    if (requiresCheck) return true;
+    if (riskLevel === "high" || riskLevel === "medium") return true;
+    return true;
   }
 
   function buildNarrativeDirectorPlan(intent) {
@@ -200,6 +187,7 @@ function createNarrationAiHelpers(params) {
     message,
     records,
     worldState,
+    canonicalContext,
     contextPack,
     activeInterlocutor,
     conversationMode,
@@ -230,6 +218,7 @@ function createNarrationAiHelpers(params) {
           startContext: worldState?.startContext ?? null,
           travel: worldState?.travel ?? null
         },
+        canonicalContext: canonicalContext ?? null,
         pending: pending ?? null,
         activeInterlocutor: activeInterlocutor ?? null,
         loreHints: Array.isArray(records)
@@ -266,6 +255,7 @@ function createNarrationAiHelpers(params) {
     initialStructured,
     toolResults,
     worldState,
+    canonicalContext,
     contextPack,
     activeInterlocutor,
     conversationMode
@@ -303,6 +293,7 @@ function createNarrationAiHelpers(params) {
           time: worldState?.time ?? null,
           metrics: worldState?.metrics ?? null
         },
+        canonicalContext: canonicalContext ?? null,
         activeInterlocutor: activeInterlocutor ?? null,
         playerContext: contextPack
           ? {
