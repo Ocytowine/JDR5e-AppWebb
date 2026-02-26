@@ -27,6 +27,7 @@ const { createSessionNarrativeDb } = require("./server/sessionNarrativeDb");
 const { createNarrationIntentMutationEngine } = require("./server/narrationIntentMutationEngine");
 const { createNarrationBackgroundTickEngine } = require("./server/narrationBackgroundTickEngine");
 const { createNarrationNaturalRenderer } = require("./server/narrationNaturalRenderer");
+const { createNarrationStyleHelper } = require("./server/narrationStyleHelper");
 
 const PORT = process.env.PORT
   ? Number(process.env.PORT)
@@ -218,6 +219,8 @@ function getNarrationChatHandler() {
     hasRemainingSpellSlotsForRp,
     buildRpActionValidationReply,
     classifyNarrationWithAI,
+    detectWorldIntentWithAI,
+    validateNarrativeStateConsistency,
     shouldForceSceneLocalRouting,
     addInterlocutorNote,
     buildLoreOnlyReply,
@@ -232,11 +235,13 @@ function getNarrationChatHandler() {
     injectLockedStartContextReply,
     parseReplyToMjBlocks,
     normalizeMjOptions,
+    buildMjReplyFromStructured,
     hrpAiInterpreter,
     buildHrpReply,
     buildNarrationChatReply,
     evaluateTravelProposalLoreGuard,
-    getCurrentSessionPlace
+    getCurrentSessionPlace,
+    temperNarrativeHype
     ,
     applyBackgroundNarrativeTick: (params) =>
       narrationBackgroundTickEngine.applyBackgroundNarrativeTick(params)
@@ -1602,30 +1607,15 @@ function buildRpNeedInterlocutorReply(records) {
   });
 }
 
-function buildNpcVoiceLine(activeInterlocutor) {
-  const label = String(activeInterlocutor ?? "").trim();
-  const normalized = normalizeForIntent(label);
-  if (!normalized) return "";
-  if (/\bgarde\b/.test(normalized)) {
-    return `"Le garde ajuste sa hallebarde et te jauge: 'Parle net. Nom, motif, et pas d'embrouille sur le parvis.'"`;
-  }
-  if (/\barchiviste\b/.test(normalized)) {
-    return `"L'archiviste baisse la voix: 'Chaque mot laisse une trace ici. Pose ta question avec precision.'"`;
-  }
-  if (/\bmarchand\b/.test(normalized)) {
-    return `"Le marchand sourit a demi: 'Tout se negocie, mais pas gratuitement. Qu'as-tu a offrir ?'"`;
-  }
-  if (/\bfaction\b/.test(normalized)) {
-    return `"Un emissaire de la faction t'observe: 'Nous ecoutons. Choisis bien tes mots.'"`;
-  }
-  return `"${label} te repond avec prudence, en attendant de voir ou tu veux en venir."`;
-}
-
-function addInterlocutorNote(reply, activeInterlocutor, intentType) {
+function addInterlocutorNote(reply, activeInterlocutor, intentType, worldState = null, message = "") {
   if (!activeInterlocutor || intentType !== "social_action") return reply;
-  const note = `Interlocuteur actif: ${activeInterlocutor}.`;
-  const voice = buildNpcVoiceLine(activeInterlocutor);
-  return voice ? `${voice}\n${note}\n${reply}` : `${note}\n${reply}`;
+  const voice =
+    narrationStyleHelper.buildNpcPresenceLine({
+      activeInterlocutor,
+      worldState,
+      message
+    }) || "";
+  return voice ? `${voice}\n${reply}` : reply;
 }
 
 function buildPlayerProfileInput(characterProfile) {
@@ -2040,6 +2030,12 @@ const shouldApplyRuntimeForIntent = (message, intent) =>
 const classifyNarrationWithAI = (message, records, worldState) =>
   narrationAiHelpers.classifyNarrationWithAI(message, records, worldState);
 
+const detectWorldIntentWithAI = (payload) =>
+  narrationAiHelpers.detectWorldIntentWithAI(payload);
+
+const validateNarrativeStateConsistency = (payload) =>
+  narrationAiHelpers.validateNarrativeStateConsistency(payload);
+
 const buildNarrativeDirectorPlan = (intent) =>
   narrationAiHelpers.buildNarrativeDirectorPlan(intent);
 
@@ -2113,12 +2109,128 @@ function buildMjReplyBlocks({ scene, actionResult, consequences, options }) {
 function buildMjReplyFromStructured(structured) {
   const safe = structured && typeof structured === "object" ? structured : {};
   const directAnswer = oneLine(String(safe.directAnswer ?? ""), 220);
-  const scene = oneLine(String(safe.scene ?? ""), 260) || "La scene evolue sans rupture visible.";
-  const actionResult = oneLine(String(safe.actionResult ?? ""), 320) || "Le MJ maintient la scene et la coherence du contexte.";
-  const consequences = oneLine(String(safe.consequences ?? ""), 320) || "Aucune consequence majeure immediate.";
+  const scene = oneLine(String(safe.scene ?? ""), 260) || "Le lieu reste vivant autour de toi, sans rupture brutale.";
+  const actionResult = oneLine(String(safe.actionResult ?? ""), 320) || "Des details du decor et des passants te donnent de nouveaux points d'attention.";
+  const consequences = oneLine(String(safe.consequences ?? ""), 320) || "Tu peux continuer en precisant ce que tu veux observer, demander ou tenter.";
   const options = normalizeMjOptions(safe.options, 4);
   const blocks = buildMjReplyBlocks({ scene, actionResult, consequences, options });
   return directAnswer ? `${directAnswer}\n${blocks}` : blocks;
+}
+
+function hasStrongNarrativeEvidence(toolTrace) {
+  const rows = Array.isArray(toolTrace) ? toolTrace : [];
+  if (!rows.length) return false;
+  let loreMatches = 0;
+  let sessionRows = 0;
+  for (const row of rows) {
+    const tool = String(row?.tool ?? row?.name ?? "").toLowerCase();
+    if (tool === "query_lore") {
+      const matches = Array.isArray(row?.data?.matches) ? row.data.matches.length : 0;
+      loreMatches += matches;
+    }
+    if (tool === "session_db_read") {
+      const dbRows = Array.isArray(row?.data?.rows) ? row.data.rows.length : 0;
+      sessionRows += dbRows;
+    }
+  }
+  return loreMatches >= 2 || sessionRows >= 1;
+}
+
+function temperNarrativeHype({ structured, intent, directorMode, toolTrace, worldState, message }) {
+  const safe = structured && typeof structured === "object" ? structured : null;
+  if (!safe) return structured;
+  const intentType = String(intent?.type ?? "story_action");
+  const mode = String(directorMode ?? "");
+  if (intentType !== "free_exploration" && intentType !== "story_action" && mode !== "exploration") {
+    return structured;
+  }
+
+  const textBlob = normalizeForIntent(
+    [
+      safe.directAnswer ?? "",
+      safe.scene ?? "",
+      safe.actionResult ?? "",
+      safe.consequences ?? ""
+    ].join(" ")
+  );
+  const hypeSignals = [
+    "rune",
+    "secret",
+    "ancien",
+    "enigme",
+    "artefact",
+    "prophet",
+    "elu",
+    "destin",
+    "mystere majeur",
+    "cache",
+    "etrang",
+    "dissimule",
+    "symbole",
+    "plaque"
+  ];
+  const hasHype = hypeSignals.some((signal) => textBlob.includes(signal));
+  const normalizedMessage = normalizeForIntent(message);
+  const genericExploration =
+    (intentType === "free_exploration" || mode === "exploration") &&
+    (
+      /\b(explor|zone|autour|observer|regarder|chercher)\b/.test(normalizedMessage) ||
+      /\b(chose|truc)\s+(etonn|etrang|bizarre)\b/.test(normalizedMessage)
+    ) &&
+    !/\b(archives|primaute|faction|quartier|port|garde|culte|ordre|temple)\b/.test(normalizedMessage);
+  if (!hasHype && !genericExploration) return structured;
+  if (hasStrongNarrativeEvidence(toolTrace) && !genericExploration) return structured;
+
+  const locationLabel = oneLine(
+    worldState?.location?.label ?? worldState?.startContext?.locationLabel ?? "les environs",
+    70
+  );
+  const timeLabel = String(worldState?.time?.label ?? "ce moment").trim() || "ce moment";
+  const placeNorm = normalizeForIntent(locationLabel);
+  const isArchives = /\barchives|parvis\b/.test(placeNorm);
+  const localTension = Number(worldState?.metrics?.localTension ?? 0);
+  const ambientPool = isArchives
+    ? [
+        "Deux clercs passent en discutant a voix basse, les bras charges de registres.",
+        "Une patrouille traverse le parvis d'un pas regulier avant de disparaitre sous les arcades.",
+        "Un colporteur longe les marches en vantant ses encres, ses plumes et ses parchemins."
+      ]
+    : [
+        "Un marchand ambulant pousse sa charrette entre les passants, en criant ses prix.",
+        "Un groupe d'habitants s'ecarte pour laisser passer des gardes presses.",
+        "Un enfant zigzague entre les etals pendant qu'un etalier proteste."
+      ];
+  const tensionPool =
+    localTension >= 45
+      ? [
+          "Les conversations se coupent par moments, comme si le quartier retenait son souffle.",
+          "Deux gardes ralentissent pres de toi et jaugent calmement les alentours."
+        ]
+      : [];
+  const pool = [...tensionPool, ...ambientPool];
+  let seed = 0;
+  const seedSource = `${normalizedMessage}|${placeNorm}|${timeLabel}|${localTension}`;
+  for (let i = 0; i < seedSource.length; i += 1) {
+    seed = (seed + seedSource.charCodeAt(i) * (i + 5)) % 8191;
+  }
+  const ambientLine = pool.length ? pool[seed % pool.length] : "Le quartier vit a son rythme autour de toi.";
+  const followUp = /\b(observer|scruter|chercher|examiner|regarder)\b/.test(normalizedMessage)
+    ? "Ton regard s'aiguise: tu peux suivre un detail precis si tu veux pousser l'observation."
+    : "Tu gardes le rythme du lieu, libre d'approfondir un point qui attire ton attention.";
+
+  return {
+    ...safe,
+    directAnswer: "",
+    scene: `Sur ${locationLabel}, ${timeLabel}, tu prends le temps de regarder sans te presser.`,
+    actionResult: ambientLine,
+    consequences: followUp,
+    options: [
+      "Approfondir un detail concret du lieu",
+      "Interroger un temoin present",
+      "Poursuivre l'exploration calmement"
+    ],
+    confidence: Math.min(Number(safe?.confidence ?? 0.7), 0.72)
+  };
 }
 
 function makeMjResponse({
@@ -2149,63 +2261,93 @@ function isSelfIdentityQuestion(message) {
   );
 }
 
-function buildLoreOnlyReply(message, records, characterProfile = null) {
-  const safeProfile = sanitizeCharacterProfile(characterProfile);
-  if (isSelfIdentityQuestion(message) && safeProfile) {
-    const skillText =
-      Array.isArray(safeProfile.skills) && safeProfile.skills.length
-        ? safeProfile.skills.slice(0, 4).join(", ")
-        : "aucune competence marquee";
-    return buildMjReplyBlocks({
-      scene: "Tu consultes les registres des Archives a ton sujet.",
-      actionResult: `Tu es ${safeProfile.name}, ${safeProfile.race}, ${safeProfile.classLabel}.`,
-      consequences: `Base roleplay activee. Competences de reference: ${skillText}.`,
-      options: [
-        "Demander ce que les Archives savent sur ta faction",
-        "Demander ton objectif immediat",
-        "Passer a une action en jeu"
-      ]
-    });
-  }
-
+function buildLoreOnlyReply(message, records, characterProfile = null, worldState = null) {
   const top = Array.isArray(records) ? records.slice(0, 3) : [];
+  const locationLabel = oneLine(
+    worldState?.location?.label ?? worldState?.startContext?.locationLabel ?? "les environs",
+    80
+  );
+  const timeLabel = String(worldState?.time?.label ?? "ce moment").trim() || "ce moment";
+  const safeProfile = sanitizeCharacterProfile(characterProfile);
+  const actorLabel = safeProfile?.name ? `pour ${safeProfile.name}` : "pour ton personnage";
   if (!top.length) {
     return buildMjReplyBlocks({
-      scene: "Tu cherches des informations dans les memoires du monde.",
-      actionResult: `Aucune entree lore claire n'a ete trouvee pour "${message}".`,
-      consequences: "Le monde ne change pas, mais la recherche reste ouverte.",
-      options: [
-        "Donner un nom de lieu ou de faction plus precis",
-        "Demander un resume historique cible",
-        "Basculer vers une action en jeu"
-      ]
+      scene: `Tu cherches des reperes dans les memoires locales de ${locationLabel}, en ${timeLabel}.`,
+      actionResult: `Aucun fragment lore net n'a ete confirme pour "${oneLine(message, 120)}".`,
+      consequences: `Le contexte reste ouvert: le MJ peut continuer a enqueter ${actorLabel} sans imposer de menu.`,
+      options: []
     });
   }
 
-  const best = top[0];
-  const title = oneLine(best?.title ?? "Entree sans titre", 90);
-  const summary = oneLine(best?.summary ?? best?.body ?? "", 170);
+  const fragments = top
+    .map((row) => {
+      const title = oneLine(row?.title ?? "", 80);
+      const summary = oneLine(row?.summary ?? row?.body ?? "", 150);
+      if (!title && !summary) return "";
+      if (!title) return summary;
+      if (!summary) return title;
+      return `${title}: ${summary}`;
+    })
+    .filter(Boolean);
+  const stitched = fragments.join(" | ");
 
   return buildMjReplyBlocks({
-    scene: "Tu fais appel a des fragments de lore lies a ta question.",
-    actionResult: summary
-      ? `${title}: ${summary}`
-      : `Information principale identifiee: ${title}.`,
-    consequences: `Aucune transition systeme n'est appliquee. ${top.length > 1 ? `${top.length - 1} autre(s) source(s) restent consultables.` : "Contexte memorise pour la suite."}`,
-    options: [
-      "Approfondir ce point en detail",
-      "Demander comment ce lore influence ta situation",
-      "Passer a une action dans le monde"
-    ]
+    scene: `Tu relies plusieurs echos du lore autour de ${locationLabel}.`,
+    actionResult: stitched || "Des fragments partiels emergent, mais sans certitude suffisante.",
+    consequences: `Le MJ garde ces points comme contraintes de coherence pour la suite ${actorLabel}.`,
+    options: []
   });
 }
 
-function buildExplorationReply(message, records) {
+function buildExplorationReply(message, records, worldState = null) {
+  function pickBySeed(list, seedText) {
+    const rows = Array.isArray(list) ? list.filter(Boolean) : [];
+    if (!rows.length) return "";
+    const seed = String(seedText ?? "");
+    let acc = 0;
+    for (let i = 0; i < seed.length; i += 1) {
+      acc = (acc + seed.charCodeAt(i) * (i + 3)) % 9973;
+    }
+    return rows[acc % rows.length];
+  }
+
+  const locationLabel = oneLine(
+    worldState?.location?.label ?? worldState?.startContext?.locationLabel ?? "les environs",
+    70
+  );
+  const timeLabel = String(worldState?.time?.label ?? "ce moment").trim() || "ce moment";
+  const localTension = Number(worldState?.metrics?.localTension ?? 0);
+
   const top = playerFacingLoreRecords(records, 4);
+  const seedText = `${normalizeForIntent(message)}|${normalizeForIntent(locationLabel)}|${timeLabel}|${localTension}`;
   if (!top.length) {
+    const baselineEvents = [
+      "Un marchand pousse une charrette grinçante et vante sa marchandise d'une voix claire.",
+      "Un cortege de gardes traverse le parvis d'un pas discipline, sans s'arreter.",
+      "Deux scribes debattent a voix basse devant une pile de registres scelles.",
+      "Un gamin file entre les passants, poursuivi par les protestations d'un etalier."
+    ];
+    const tensionEvents =
+      localTension >= 45
+        ? [
+            "Une patrouille ralentit pres de toi et observe les passants avec insistance.",
+            "Les voix se font plus courtes autour de toi, comme si chacun evitait d'attirer l'attention."
+          ]
+        : [];
+    const placeEvents = /archives|parvis/.test(normalizeForIntent(locationLabel))
+      ? [
+          "A l'entree des Archives, un clerc ferme un registre puis le range dans un coffre de voyage.",
+          "Un apprenti archiviste depose une liasse de parchemins sous le regard d'un surveillant."
+        ]
+      : [];
+    const microEvent = pickBySeed(
+      [...placeEvents, ...tensionEvents, ...baselineEvents],
+      `${seedText}|no-lore`
+    );
     return [
-      "Tu explores les environs, mais l'atmosphere reste calme.",
-      `Ton deplacement (${oneLine(message, 80)}) ne declenche aucun evenement majeur.`
+      `Tu prends le temps d'observer ${locationLabel}, en ${timeLabel}.`,
+      microEvent || "La zone vit d'un mouvement discret mais continu autour de toi.",
+      "Rien de majeur n'eclate, mais plusieurs pistes RP restent ouvertes si tu veux les suivre."
     ].join("\n");
   }
 
@@ -2236,7 +2378,23 @@ function buildExplorationReply(message, records) {
   const detail =
     contextualSummary ||
     "Tu reperes des elements utiles du quartier, sans declencher d'evenement immediat.";
-  return [scene, detail].join("\n");
+  const loreDrivenEvents = [
+    "Un passant commente la situation locale en quelques mots, puis disparait dans la foule.",
+    "Un vendeur itinerant traverse la zone et attire plusieurs regards autour de toi.",
+    "Une breve agitation nait pres d'une entree laterale avant de retomber aussi vite."
+  ];
+  const tensionLoreEvents =
+    localTension >= 45
+      ? [
+          "Une equipe de gardes inspecte les abords et note chaque mouvement inhabituel.",
+          "La circulation ralentit soudain, comme si une rumeur venait de changer l'humeur du quartier."
+        ]
+      : [];
+  const microEvent = pickBySeed(
+    [...tensionLoreEvents, ...loreDrivenEvents],
+    `${seedText}|with-lore|${normalizeForIntent(placesLabel)}|${normalizeForIntent(entitiesLabel)}`
+  );
+  return [scene, detail, microEvent].filter(Boolean).join("\n");
 }
 
 function slugifyText(value) {
@@ -2595,21 +2753,28 @@ function buildVisitAdvisoryReply(place, records, worldState) {
   const hint = oneLine(String(recordHint?.summary ?? place?.summary ?? ""), 150);
   const access = String(place?.access ?? "public");
   const riskFlags = Array.isArray(place?.riskFlags) ? place.riskFlags : [];
-  const accessHint =
+  const accessTone =
     access === "sealed"
-      ? "Acces scelle: entree interdite sans moyen exceptionnel."
+      ? `Depuis ici, ${placeLabel} parait ferme et difficile d'acces.`
       : access === "restricted"
-        ? "Acces restreint: controle probable a l'entree."
-        : "Acces public probable, avec controles ponctuels.";
-  const riskHint = riskFlags.length ? `Risques detectes: ${riskFlags.slice(0, 3).join(", ")}.` : "";
+        ? `Depuis ici, ${placeLabel} semble sous surveillance, avec une entree controlee.`
+        : `Depuis ici, ${placeLabel} parait accessible sans obstacle immediat.`;
+  const riskTone = riskFlags.length
+    ? `Tu notes aussi ${formatFrenchList(riskFlags.slice(0, 3))} dans les environs.`
+    : "";
   const advisory = hint
-    ? `Tu peux t'y rendre. D'apres les infos locales: ${hint}`
-    : "Tu peux t'y rendre, mais l'acces peut etre partiel selon les zones et les gardes.";
-  return [
-    `Tu peux te rendre vers ${placeLabel}.`,
-    `${advisory} ${accessHint}`.trim(),
-    `${riskHint} Si tu veux, je lance le deplacement maintenant.`.trim()
-  ].join("\n");
+    ? `En te rapprochant, tu t'attends a y trouver ${hint}`
+    : `Le lieu semble actif, avec assez de passage pour t'y fondre sans attirer l'attention.`;
+  return buildMjReplyBlocks({
+    scene: `Tu prends la mesure du trajet vers ${placeLabel}.`,
+    actionResult: `${accessTone} ${advisory}`.trim(),
+    consequences: `${riskTone} Tu peux t'y rendre maintenant si tu veux.`.trim(),
+    options: [
+      `S'y rendre maintenant`,
+      "Observer encore le quartier",
+      "Changer de destination"
+    ]
+  });
 }
 
 function describeTimeAtmosphere(worldState) {
@@ -2677,17 +2842,13 @@ function buildArrivalPlaceReply(place, records, worldState) {
   const timeAtmosphere = describeTimeAtmosphere(worldState);
   const tensionAtmosphere = describeTensionAtmosphere(worldState);
   const constraints = describeAccessAndRisks(place);
-  const activeInterlocutor =
-    worldState?.conversation?.activeInterlocutor == null
-      ? ""
-      : String(worldState.conversation.activeInterlocutor);
-  const interlocutorHook = activeInterlocutor
-    ? `Ton interlocuteur actif reste ${activeInterlocutor}.`
-    : "Aucun interlocuteur n'est actif pour l'instant.";
+  const flowCue = /commerce/.test(normalizeForIntent(visualCue))
+    ? "Le quartier te repond par des voix, des appels et un va-et-vient continu."
+    : "Le lieu prend corps autour de toi, avec son rythme propre et ses petites scenes.";
   return buildMjReplyBlocks({
-    scene: `Apres 3 minutes de marche, tu arrives a ${placeLabel}.`,
+    scene: `Apres quelques minutes de marche, tu arrives a ${placeLabel}.`,
     actionResult: [visualCue, sceneHint, timeAtmosphere].filter(Boolean).join(" "),
-    consequences: `${constraints} ${tensionAtmosphere} ${interlocutorHook} Position mise a jour: ${placeLabel}. Horloge monde: ${formatWorldTimeShort(worldState?.time)}.`.trim(),
+    consequences: `${constraints} ${tensionAtmosphere} ${flowCue}`.trim(),
     options: [
       "Examiner un detail du lieu",
       others.length ? `Interagir avec ${others[0]}` : "Interagir avec une presence locale",
@@ -2984,9 +3145,14 @@ const narrationIntentMutationEngine = createNarrationIntentMutationEngine({
 });
 
 const narrationBackgroundTickEngine = createNarrationBackgroundTickEngine();
+const narrationStyleHelper = createNarrationStyleHelper({
+  oneLine,
+  normalizeForIntent
+});
 const narrationNaturalRenderer = createNarrationNaturalRenderer({
   oneLine,
-  normalizeMjOptions
+  normalizeMjOptions,
+  styleHelper: narrationStyleHelper
 });
 
 function syncSessionDbFromWorldState(worldState) {
@@ -3290,14 +3456,14 @@ function buildDirectorNoRuntimeReply(message, intentType, records) {
 
   return buildMjReplyBlocks({
     scene: social
-      ? "Tu engages une interaction sociale dans un contexte encore mouvant."
-      : "Tu poses une action qui ouvre une situation, sans resolution immediate du moteur de transition.",
+      ? "Tu engages l'echange avec prudence, en laissant la place a la reponse de l'autre."
+      : "Ton action fait bouger la scene sans provoquer de bascule immediate.",
     actionResult: contextual
-      ? `Le contexte local reagit: ${contextual}`
-      : "Aucune transition canonique immediate ne s'applique, mais la scene evolue narrativement.",
+      ? `${contextual}`
+      : "Le quartier poursuit son rythme, et ta presence influence discretement les reactions autour de toi.",
     consequences: social
-      ? "Ta posture sociale est observee, sans consequence mecanique definitive a ce stade."
-      : "La tension locale peut evoluer selon tes prochaines decisions.",
+      ? "La suite dependra surtout de ton ton, de tes mots et de la personne que tu cherches a convaincre."
+      : "La suite depend de ton prochain geste concret dans la scene.",
     options: social
       ? ["Preciser ton objectif social", "Nommer la faction cible", "Passer a une action concrete"]
       : ["Decrire une action plus precise", "Interagir avec un PNJ", "Changer d'approche"]

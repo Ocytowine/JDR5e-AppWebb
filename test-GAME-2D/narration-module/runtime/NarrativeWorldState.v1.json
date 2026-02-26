@@ -1,33 +1,33 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-02-25T16:00:28.741Z",
+  "updatedAt": "2026-02-26T12:48:26.977Z",
   "metrics": {
     "reputation": 0,
-    "localTension": 1
+    "localTension": 0
   },
   "startContext": {
     "delivered": true,
-    "locationId": "archives.parvis",
-    "locationLabel": "Parvis des Archives",
+    "locationId": "lysenthe.archives.parvis",
+    "locationLabel": "Parvis des Archives, Lysenthe",
     "city": "Lysenthe",
     "territory": "Astryade",
     "region": "Ylssea",
     "characterSnapshot": {
       "id": "pj-1",
-      "name": "Test Hero",
-      "raceId": "human",
-      "backgroundId": "veteran-de-guerre",
+      "name": "Gardefou",
+      "raceId": "elf",
+      "backgroundId": "enfant-des-rues",
       "classEntries": [
         {
           "slot": "1",
-          "classeId": "fighter",
-          "subclasseId": "eldritch-knight",
+          "classeId": "cleric",
+          "subclasseId": "peace-domain",
           "niveau": 4
         }
       ],
-      "race": "Humain",
-      "classLabel": "Guerrier",
-      "subclassLabel": "Chevalier Occulte",
+      "race": "Elfe",
+      "classLabel": "Clerc",
+      "subclassLabel": "Domaine de la Paix",
       "money": {
         "or": 10,
         "argent": 0,
@@ -37,16 +37,16 @@
       "proficiencyBonus": 2,
       "caracs": {
         "FOR": {
-          "score": 14,
+          "score": 15,
           "mod": 2
         },
         "DEX": {
-          "score": 17,
-          "mod": 3
-        },
-        "CON": {
           "score": 14,
           "mod": 2
+        },
+        "CON": {
+          "score": 13,
+          "mod": 1
         },
         "INT": {
           "score": 12,
@@ -57,8 +57,8 @@
           "mod": 0
         },
         "CHA": {
-          "score": 8,
-          "mod": -1
+          "score": 10,
+          "mod": 0
         }
       },
       "appearance": {
@@ -66,9 +66,8 @@
         "tokenScale": 100
       },
       "skills": [
-        "athletisme",
-        "intimidation",
-        "nature"
+        "discretion",
+        "escamotage"
       ],
       "expertises": [],
       "goals": [],
@@ -77,83 +76,47 @@
         "dash"
       ],
       "reactionIds": [],
-      "weaponMasteries": [
-        "coup-double",
-        "enchainement",
-        "ouverture"
-      ],
+      "weaponMasteries": [],
       "proficiencies": {
         "weapons": [
-          "simple",
-          "martiale"
+          "simple"
         ],
         "armors": [
           "legere",
           "intermediaire",
-          "lourde",
           "bouclier"
         ],
         "tools": [
-          "outils_vehicules",
+          "outils_autres",
           "outils_jeux"
         ]
       },
       "materielSlots": {
-        "corps": "obj_vetements_voyage",
+        "corps": "obj_vetements_communs",
         "tete": null,
         "gants": null,
         "bottes": null,
         "ceinture_gauche": "obj_petit_couteau",
-        "ceinture_droite": "obj_petit_couteau",
+        "ceinture_droite": "epee-longue-brasiere",
         "dos_gauche": null,
         "dos_droit": null,
         "anneau_1": null,
         "anneau_2": null,
-        "collier": null,
-        "bijou_1": "obj_insigne_unite",
+        "collier": "obj_symbole_sacre",
+        "bijou_1": null,
         "bijou_2": null,
-        "paquetage": "obj_sac_voyage",
+        "paquetage": "obj_sac_a_dos",
         "ceinture_bourse_1": "obj_bourse",
         "ceinture_bourse_2": null
       },
       "inventoryItems": [
         {
           "type": "weapon",
-          "id": "obj_arme_endommagee",
+          "id": "obj_petit_couteau",
           "qty": 1,
           "source": "auto",
-          "instanceId": "item-mlrvxsmd-jdcyhn-1",
-          "equippedSlot": "",
-          "storedIn": "paquetage",
-          "isPrimaryWeapon": false,
-          "isSecondaryHand": false,
-          "displayName": "",
-          "description": "",
-          "customProperties": {},
-          "properties": {}
-        },
-        {
-          "type": "object",
-          "id": "obj_insigne_unite",
-          "qty": 1,
-          "source": "auto",
-          "instanceId": "item-mlrvxsmd-jdcyhn-2",
-          "equippedSlot": "bijou_1",
-          "storedIn": "",
-          "isPrimaryWeapon": false,
-          "isSecondaryHand": false,
-          "displayName": "",
-          "description": "",
-          "customProperties": {},
-          "properties": {}
-        },
-        {
-          "type": "object",
-          "id": "obj_vetements_voyage",
-          "qty": 1,
-          "source": "auto",
-          "instanceId": "item-mlrvxsmd-jdcyhn-3",
-          "equippedSlot": "corps",
+          "instanceId": "item-mm3akl97-76sm8u-1",
+          "equippedSlot": "ceinture_gauche",
           "storedIn": "",
           "isPrimaryWeapon": false,
           "isSecondaryHand": false,
@@ -167,7 +130,7 @@
           "id": "obj_bourse",
           "qty": 1,
           "source": "auto",
-          "instanceId": "item-mlrvxsmd-jdcyhn-4",
+          "instanceId": "item-mm3akl97-76sm8u-2",
           "equippedSlot": "ceinture_bourse_1",
           "storedIn": "",
           "isPrimaryWeapon": false,
@@ -182,7 +145,7 @@
           "id": "obj_piece_or",
           "qty": 10,
           "source": "auto",
-          "instanceId": "item-mlrvxsmd-jdcyhn-5",
+          "instanceId": "item-mm3akl97-76sm8u-3",
           "equippedSlot": "",
           "storedIn": "ceinture_bourse_1",
           "isPrimaryWeapon": false,
@@ -194,10 +157,40 @@
         },
         {
           "type": "object",
-          "id": "obj_sac_voyage",
+          "id": "obj_vetements_communs",
           "qty": 1,
           "source": "auto",
-          "instanceId": "item-mlrvxsmd-jdcyhn-6",
+          "instanceId": "item-mm3akl97-76sm8u-4",
+          "equippedSlot": "corps",
+          "storedIn": "",
+          "isPrimaryWeapon": false,
+          "isSecondaryHand": false,
+          "displayName": "",
+          "description": "",
+          "customProperties": {},
+          "properties": {}
+        },
+        {
+          "type": "object",
+          "id": "obj_souvenir_vole",
+          "qty": 1,
+          "source": "auto",
+          "instanceId": "item-mm3akl97-76sm8u-5",
+          "equippedSlot": "",
+          "storedIn": "ceinture_bourse_1",
+          "isPrimaryWeapon": false,
+          "isSecondaryHand": false,
+          "displayName": "",
+          "description": "",
+          "customProperties": {},
+          "properties": {}
+        },
+        {
+          "type": "object",
+          "id": "obj_sac_a_dos",
+          "qty": 1,
+          "source": "auto",
+          "instanceId": "item-mm3akl97-76sm8u-6",
           "equippedSlot": "paquetage",
           "storedIn": "",
           "isPrimaryWeapon": false,
@@ -208,14 +201,14 @@
           "properties": {}
         },
         {
-          "type": "weapon",
-          "id": "obj_petit_couteau",
+          "type": "object",
+          "id": "obj_symbole_sacre",
           "qty": 1,
-          "source": "manual",
-          "instanceId": "item-mlrvxsmd-jdcyhn-9",
-          "equippedSlot": "ceinture_gauche",
+          "source": "auto",
+          "instanceId": "item-mm3akl97-76sm8u-7",
+          "equippedSlot": "collier",
           "storedIn": "",
-          "isPrimaryWeapon": true,
+          "isPrimaryWeapon": false,
           "isSecondaryHand": false,
           "displayName": "",
           "description": "",
@@ -224,14 +217,14 @@
         },
         {
           "type": "weapon",
-          "id": "obj_petit_couteau",
+          "id": "epee-longue-brasiere",
           "qty": 1,
           "source": "manual",
-          "instanceId": "item-mlrvxsmd-jdcyhn-10",
+          "instanceId": "item-mm3akl97-76sm8u-15",
           "equippedSlot": "ceinture_droite",
           "storedIn": "",
-          "isPrimaryWeapon": false,
-          "isSecondaryHand": true,
+          "isPrimaryWeapon": true,
+          "isSecondaryHand": false,
           "displayName": "",
           "description": "",
           "customProperties": {},
@@ -239,78 +232,190 @@
         }
       ],
       "spellcastingState": {
-        "totalCasterLevel": 1,
+        "totalCasterLevel": 4,
         "slots": {
           "1": {
-            "max": 2,
-            "remaining": 2,
+            "max": 4,
+            "remaining": 4,
+            "sources": [
+              "caster-total"
+            ]
+          },
+          "2": {
+            "max": 3,
+            "remaining": 3,
             "sources": [
               "caster-total"
             ]
           }
         },
         "sources": {
-          "subclass:eldritch-knight": {
-            "ability": "INT",
-            "preparation": "known",
+          "class:cleric": {
+            "ability": "SAG",
+            "preparation": "prepared",
             "storage": "memory",
-            "casterProgression": "third",
+            "casterProgression": "full",
             "classLevel": 4,
-            "focusInstanceId": null,
-            "preparedSpellIds": [],
-            "knownSpellIds": [
-              "rayon-de-feu",
+            "focusInstanceId": "item-mm3akl97-76sm8u-7",
+            "preparedSpellIds": [
               "minor-ward"
             ],
-            "grantedSpellIds": []
+            "knownSpellIds": [],
+            "grantedSpellIds": [
+              "heroism",
+              "sanctuary",
+              "rayon-de-feu",
+              "aid",
+              "warding-bond",
+              "vague-ardente"
+            ]
           }
         },
         "spellGrants": {
-          "subclass:eldritch-knight": [
+          "class:cleric": [
             {
-              "entryId": "subclass:eldritch-knight:rayon-de-feu",
-              "spellId": "rayon-de-feu",
-              "sourceType": "manual",
-              "sourceId": "eldritch-knight",
-              "sourceKey": "subclass:eldritch-knight",
-              "grantedAtLevel": 4,
-              "usage": {
-                "type": "at-will",
-                "consumesSlot": false
-              },
-              "prepared": false,
-              "alwaysPrepared": false,
-              "tags": [
-                "known"
-              ]
-            },
-            {
-              "entryId": "subclass:eldritch-knight:minor-ward",
+              "entryId": "class:cleric:minor-ward",
               "spellId": "minor-ward",
               "sourceType": "manual",
-              "sourceId": "eldritch-knight",
-              "sourceKey": "subclass:eldritch-knight",
+              "sourceId": "cleric",
+              "sourceKey": "class:cleric",
+              "sourceInstanceId": "item-mm3akl97-76sm8u-7",
               "grantedAtLevel": 4,
               "usage": {
                 "type": "slot",
                 "consumesSlot": true
               },
-              "prepared": false,
+              "prepared": true,
               "alwaysPrepared": false,
+              "countsAgainstPreparation": true,
               "tags": [
-                "known"
+                "prepared"
+              ]
+            },
+            {
+              "entryId": "class:cleric:heroism",
+              "spellId": "heroism",
+              "sourceType": "class",
+              "sourceId": "cleric",
+              "sourceKey": "class:cleric",
+              "sourceInstanceId": "item-mm3akl97-76sm8u-7",
+              "grantedAtLevel": 4,
+              "usage": {
+                "type": "slot",
+                "consumesSlot": true
+              },
+              "prepared": true,
+              "alwaysPrepared": true,
+              "countsAgainstPreparation": false,
+              "tags": [
+                "granted"
+              ]
+            },
+            {
+              "entryId": "class:cleric:sanctuary",
+              "spellId": "sanctuary",
+              "sourceType": "class",
+              "sourceId": "cleric",
+              "sourceKey": "class:cleric",
+              "sourceInstanceId": "item-mm3akl97-76sm8u-7",
+              "grantedAtLevel": 4,
+              "usage": {
+                "type": "slot",
+                "consumesSlot": true
+              },
+              "prepared": true,
+              "alwaysPrepared": true,
+              "countsAgainstPreparation": false,
+              "tags": [
+                "granted"
+              ]
+            },
+            {
+              "entryId": "class:cleric:rayon-de-feu",
+              "spellId": "rayon-de-feu",
+              "sourceType": "class",
+              "sourceId": "cleric",
+              "sourceKey": "class:cleric",
+              "sourceInstanceId": "item-mm3akl97-76sm8u-7",
+              "grantedAtLevel": 4,
+              "usage": {
+                "type": "at-will",
+                "consumesSlot": false
+              },
+              "prepared": true,
+              "alwaysPrepared": true,
+              "countsAgainstPreparation": false,
+              "tags": [
+                "granted"
+              ]
+            },
+            {
+              "entryId": "class:cleric:aid",
+              "spellId": "aid",
+              "sourceType": "class",
+              "sourceId": "cleric",
+              "sourceKey": "class:cleric",
+              "sourceInstanceId": "item-mm3akl97-76sm8u-7",
+              "grantedAtLevel": 4,
+              "usage": {
+                "type": "slot",
+                "consumesSlot": true
+              },
+              "prepared": true,
+              "alwaysPrepared": true,
+              "countsAgainstPreparation": false,
+              "tags": [
+                "granted"
+              ]
+            },
+            {
+              "entryId": "class:cleric:warding-bond",
+              "spellId": "warding-bond",
+              "sourceType": "class",
+              "sourceId": "cleric",
+              "sourceKey": "class:cleric",
+              "sourceInstanceId": "item-mm3akl97-76sm8u-7",
+              "grantedAtLevel": 4,
+              "usage": {
+                "type": "slot",
+                "consumesSlot": true
+              },
+              "prepared": true,
+              "alwaysPrepared": true,
+              "countsAgainstPreparation": false,
+              "tags": [
+                "granted"
+              ]
+            },
+            {
+              "entryId": "class:cleric:vague-ardente",
+              "spellId": "vague-ardente",
+              "sourceType": "class",
+              "sourceId": "cleric",
+              "sourceKey": "class:cleric",
+              "sourceInstanceId": "item-mm3akl97-76sm8u-7",
+              "grantedAtLevel": 4,
+              "usage": {
+                "type": "slot",
+                "consumesSlot": true
+              },
+              "prepared": true,
+              "alwaysPrepared": true,
+              "countsAgainstPreparation": false,
+              "tags": [
+                "granted"
               ]
             }
           ]
         },
         "slotJustifications": [
           {
-            "source": "subclass:eldritch-knight",
+            "source": "class:cleric",
             "classLevel": 4,
-            "casterProgression": "third",
+            "casterProgression": "full",
             "slotsByLevel": [
-              2,
-              0,
+              4,
+              3,
               0,
               0,
               0,
@@ -325,53 +430,62 @@
       "derived": {
         "grants": {
           "traits": [
-            "adaptable"
+            "keen_senses"
           ],
           "features": [
-            "freres-et-soeurs-d-armes",
-            "fighting-style-two-weapon-fighting",
-            "fighting-style",
-            "second-wind-feature",
-            "weapon-mastery",
-            "action-surge",
-            "tactical-mind",
-            "eldritch-knight-spellcasting"
+            "reseau-des-ombres",
+            "divine-order",
+            "channel-divinity",
+            "divine-spark",
+            "turn-undead",
+            "peace-bond",
+            "balm-of-peace"
           ],
           "feats": [],
           "skills": [
-            "athletisme",
-            "intimidation",
-            "nature"
+            "discretion",
+            "escamotage"
           ],
-          "weaponMasteries": [
-            "coup-double",
-            "enchainement",
-            "ouverture"
-          ],
+          "weaponMasteries": [],
           "tools": [
-            "outils_vehicules",
+            "outils_autres",
             "outils_jeux"
           ],
           "languages": [
             "commun"
           ],
-          "spells": [],
-          "actions": [
-            "second-wind"
+          "spells": [
+            "heroism",
+            "sanctuary",
+            "rayon-de-feu",
+            "aid",
+            "warding-bond",
+            "vague-ardente"
           ],
+          "actions": [],
           "reactions": [],
           "resources": [],
           "passifs": []
         }
       },
-      "sourceSheetId": "sheet-mlrvxsmd-jdcyhn-11",
+      "sourceSheetId": "sheet-mm3akl97-76sm8u-16",
       "sourceTag": "active-saved-sheet"
     }
   },
   "conversation": {
     "activeInterlocutor": null,
     "pendingAction": null,
-    "pendingTravel": null,
+    "pendingTravel": {
+      "placeId": "session:rue-marchande",
+      "placeLabel": "Rue marchande",
+      "question": "je cherche un vendeur de tissu",
+      "sourceLoreIds": [
+        "ville.capitale.marche",
+        "pnj.roland",
+        "quete.roland.contrat"
+      ],
+      "createdAt": "2026-02-26T12:48:26.977Z"
+    },
     "pendingAccess": null
   },
   "rpRuntime": {
@@ -379,72 +493,48 @@
     "lastResolution": null
   },
   "location": {
-    "id": "session:le-quartier",
-    "label": "Le quartier"
+    "id": "lysenthe.archives.parvis",
+    "label": "Parvis des Archives, Lysenthe"
   },
   "travel": {
-    "pending": null,
-    "last": {
+    "pending": {
       "from": {
-        "id": "archives.parvis",
-        "label": "Parvis des Archives"
+        "id": "lysenthe.archives.parvis",
+        "label": "Parvis des Archives, Lysenthe"
       },
       "to": {
-        "id": "session:le-quartier",
-        "label": "Le quartier"
+        "id": "session:rue-marchande",
+        "label": "Rue marchande"
       },
       "durationMin": 4,
-      "appliedAt": "2026-02-25T15:08:21.031Z",
-      "reason": "travel-confirmed"
-    }
+      "reason": "travel-proposed",
+      "startedAt": "2026-02-26T12:48:26.977Z"
+    },
+    "last": null
   },
   "sessionPlaces": [
     {
-      "id": "session:le-quartier",
-      "label": "Le quartier",
+      "id": "session:rue-marchande",
+      "label": "Rue marchande",
       "city": "",
       "access": "public",
       "tags": [],
       "riskFlags": [],
       "sources": [],
       "summary": "",
-      "createdAt": "2026-02-25T13:03:22.467Z",
-      "updatedAt": "2026-02-25T15:08:21.035Z"
+      "createdAt": "2026-02-26T12:47:25.597Z",
+      "updatedAt": "2026-02-26T12:48:26.977Z"
     }
   ],
   "time": {
     "day": 1,
-    "hour": 16,
-    "minute": 4,
+    "hour": 15,
+    "minute": 0,
     "label": "milieu d'après-midi"
   },
   "history": [
     {
-      "at": "2026-02-25T11:23:04.338Z",
-      "reputationDelta": 0,
-      "localTensionDelta": 0,
-      "reason": "no-impact-intent",
-      "intentType": "lore_question",
-      "transitionId": "none"
-    },
-    {
-      "at": "2026-02-25T12:40:30.127Z",
-      "reputationDelta": 0,
-      "localTensionDelta": 0,
-      "reason": "mj-structured-scene",
-      "intentType": "lore_question",
-      "transitionId": "none"
-    },
-    {
-      "at": "2026-02-25T12:41:16.159Z",
-      "reputationDelta": 0,
-      "localTensionDelta": 0,
-      "reason": "no-impact-intent",
-      "intentType": "free_exploration",
-      "transitionId": "none"
-    },
-    {
-      "at": "2026-02-25T13:03:22.466Z",
+      "at": "2026-02-26T12:47:25.595Z",
       "reputationDelta": 0,
       "localTensionDelta": 0,
       "reason": "travel-proposed",
@@ -452,116 +542,12 @@
       "transitionId": "travel.proposed"
     },
     {
-      "at": "2026-02-25T15:08:21.031Z",
+      "at": "2026-02-26T12:48:26.977Z",
       "reputationDelta": 0,
       "localTensionDelta": 0,
-      "reason": "travel-confirmed",
+      "reason": "travel-proposed",
       "intentType": "system_command",
-      "transitionId": "travel.confirmed"
-    },
-    {
-      "at": "2026-02-25T15:09:26.033Z",
-      "reputationDelta": 0,
-      "localTensionDelta": 0,
-      "reason": "mj-structured-scene",
-      "intentType": "lore_question",
-      "transitionId": "none"
-    },
-    {
-      "at": "2026-02-25T15:10:50.893Z",
-      "reputationDelta": 0,
-      "localTensionDelta": 0,
-      "reason": "mj-structured-scene",
-      "intentType": "lore_question",
-      "transitionId": "none"
-    },
-    {
-      "at": "2026-02-25T15:11:59.788Z",
-      "reputationDelta": 0,
-      "localTensionDelta": 0,
-      "reason": "mj-structured-scene",
-      "intentType": "lore_question",
-      "transitionId": "none"
-    },
-    {
-      "at": "2026-02-25T15:12:56.569Z",
-      "reputationDelta": 0,
-      "localTensionDelta": 0,
-      "reason": "no-impact-intent",
-      "intentType": "lore_question",
-      "transitionId": "none"
-    },
-    {
-      "at": "2026-02-25T15:13:37.299Z",
-      "reputationDelta": 0,
-      "localTensionDelta": 0,
-      "reason": "mj-structured-scene",
-      "intentType": "lore_question",
-      "transitionId": "none"
-    },
-    {
-      "at": "2026-02-25T15:27:15.823Z",
-      "reputationDelta": 0,
-      "localTensionDelta": 1,
-      "reason": "story-progress",
-      "intentType": "story_action",
-      "transitionId": "quest.detectee.to.acceptee"
-    },
-    {
-      "at": "2026-02-25T15:27:57.696Z",
-      "reputationDelta": 0,
-      "localTensionDelta": 0,
-      "reason": "no-impact-intent",
-      "intentType": "free_exploration",
-      "transitionId": "none"
-    },
-    {
-      "at": "2026-02-25T15:29:30.537Z",
-      "reputationDelta": 0,
-      "localTensionDelta": 0,
-      "reason": "mj-structured-scene",
-      "intentType": "lore_question",
-      "transitionId": "none"
-    },
-    {
-      "at": "2026-02-25T15:30:20.105Z",
-      "reputationDelta": 0,
-      "localTensionDelta": 0,
-      "reason": "mj-structured-scene",
-      "intentType": "lore_question",
-      "transitionId": "none"
-    },
-    {
-      "at": "2026-02-25T15:56:48.524Z",
-      "reputationDelta": 0,
-      "localTensionDelta": 0,
-      "reason": "mj-structured-scene",
-      "intentType": "lore_question",
-      "transitionId": "none"
-    },
-    {
-      "at": "2026-02-25T15:58:25.641Z",
-      "reputationDelta": 0,
-      "localTensionDelta": 0,
-      "reason": "mj-structured-scene",
-      "intentType": "lore_question",
-      "transitionId": "none"
-    },
-    {
-      "at": "2026-02-25T15:59:27.495Z",
-      "reputationDelta": 0,
-      "localTensionDelta": 0,
-      "reason": "mj-structured-scene",
-      "intentType": "lore_question",
-      "transitionId": "none"
-    },
-    {
-      "at": "2026-02-25T16:00:28.741Z",
-      "reputationDelta": 0,
-      "localTensionDelta": 0,
-      "reason": "no-impact-intent",
-      "intentType": "lore_question",
-      "transitionId": "none"
+      "transitionId": "travel.proposed"
     }
   ]
 }

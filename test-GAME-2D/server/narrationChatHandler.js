@@ -67,6 +67,8 @@ function createNarrationChatHandler(deps = {}) {
     hasRemainingSpellSlotsForRp,
     buildRpActionValidationReply,
     classifyNarrationWithAI,
+    detectWorldIntentWithAI,
+    validateNarrativeStateConsistency,
     shouldForceSceneLocalRouting,
     addInterlocutorNote,
     buildLoreOnlyReply,
@@ -82,12 +84,14 @@ function createNarrationChatHandler(deps = {}) {
     injectLockedStartContextReply,
     parseReplyToMjBlocks,
     normalizeMjOptions,
+    buildMjReplyFromStructured,
     hrpAiInterpreter,
     buildHrpReply,
     buildNarrationChatReply,
     evaluateTravelProposalLoreGuard,
     getCurrentSessionPlace,
-    applyBackgroundNarrativeTick
+    applyBackgroundNarrativeTick,
+    temperNarrativeHype
   } = deps;
 
   async function handle(req, res) {
@@ -669,6 +673,113 @@ function createNarrationChatHandler(deps = {}) {
             }
             saveNarrativeWorldState(safeWorldState ?? worldState);
           }
+          async function buildAiNarrativeReplyForBranch(params = {}) {
+            const safeWorldState =
+              params.worldState && typeof params.worldState === "object" ? params.worldState : null;
+            const fallbackReply = String(params.fallbackReply ?? "").trim();
+            const branchMessage = String(params.branchMessage ?? message);
+            const branchRecords = Array.isArray(params.recordsOverride) ? params.recordsOverride : records;
+            const narrativeStage = String(params.narrativeStage ?? "scene");
+            const stateUpdatedExpected = Boolean(params.stateUpdatedExpected);
+            const worldBefore =
+              params.worldBefore && typeof params.worldBefore === "object" ? params.worldBefore : null;
+            if (conversationMode !== "rp" || !safeWorldState) {
+              return { reply: fallbackReply, mjStructured: null, mjToolTrace: [] };
+            }
+            const canonicalForBranch = buildCanonicalNarrativeContext({
+              worldState: safeWorldState,
+              contextPack: rpContextPack,
+              characterProfile
+            });
+            const draft = await generateMjStructuredReply({
+              message: branchMessage,
+              records: branchRecords,
+              worldState: safeWorldState,
+              canonicalContext: canonicalForBranch,
+              contextPack: rpContextPack,
+              activeInterlocutor,
+              conversationMode,
+              narrativeStage,
+              pending: {
+                action: safeWorldState?.conversation?.pendingAction ?? null,
+                travel: safeWorldState?.travel?.pending ?? safeWorldState?.conversation?.pendingTravel ?? null,
+                access: safeWorldState?.conversation?.pendingAccess ?? null
+              }
+            });
+            const planned = mergeToolCalls(
+              Array.isArray(draft?.toolCalls) ? draft.toolCalls : [],
+              Array.isArray(params.priorityToolCalls) ? params.priorityToolCalls : [],
+              6
+            );
+            const mjToolTrace = mjToolBus.executeToolCalls(planned, {
+              message: branchMessage,
+              records: branchRecords,
+              worldState: safeWorldState,
+              canonicalContext: canonicalForBranch,
+              contextPack: rpContextPack,
+              runtimeState: state,
+              pending: {
+                action: safeWorldState?.conversation?.pendingAction ?? null,
+                travel: safeWorldState?.travel?.pending ?? safeWorldState?.conversation?.pendingTravel ?? null,
+                access: safeWorldState?.conversation?.pendingAccess ?? null
+              }
+            });
+            const refined = await refineMjStructuredReplyWithTools({
+              message: branchMessage,
+              initialStructured: draft,
+              toolResults: mjToolTrace,
+              worldState: safeWorldState,
+              canonicalContext: canonicalForBranch,
+              contextPack: rpContextPack,
+              activeInterlocutor,
+              conversationMode,
+              narrativeStage
+            });
+            const tempered =
+              typeof temperNarrativeHype === "function"
+                ? temperNarrativeHype({
+                    structured: refined,
+                    intent,
+                    directorMode: String(directorPlan?.mode ?? ""),
+                    toolTrace: mjToolTrace,
+                    worldState: safeWorldState,
+                    message: branchMessage
+                  })
+                : refined;
+            if (!tempered) {
+              return { reply: fallbackReply, mjStructured: null, mjToolTrace };
+            }
+            const direct = oneLine(String(tempered?.directAnswer ?? ""), 220);
+            const blocks = buildMjReplyBlocks({
+              scene: String(tempered?.scene ?? ""),
+              actionResult: String(tempered?.actionResult ?? ""),
+              consequences: String(tempered?.consequences ?? ""),
+              options: normalizeMjOptions(tempered?.options, 6)
+            });
+            const composedReply = direct ? `${direct}\n${blocks}` : blocks;
+            if (typeof validateNarrativeStateConsistency === "function") {
+              const check = await validateNarrativeStateConsistency({
+                narrativeStage,
+                text: composedReply,
+                stateUpdatedExpected,
+                worldBefore,
+                worldAfter: safeWorldState,
+                conversationMode
+              });
+              if (check && check.valid === false) {
+                return {
+                  reply: fallbackReply,
+                  mjStructured: null,
+                  mjToolTrace
+                };
+              }
+            }
+            return {
+              reply: composedReply,
+              mjStructured: tempered,
+              mjToolTrace
+            };
+          }
           const worldSnapshot = loadNarrativeWorldState();
           worldSnapshot.conversation = {
             ...(worldSnapshot.conversation ?? {}),
@@ -686,6 +797,10 @@ function createNarrationChatHandler(deps = {}) {
               worldSnapshot.conversation.activeInterlocutor = detectedInterlocutor;
             }
           }
+          const activeInterlocutor =
+            worldSnapshot?.conversation?.activeInterlocutor == null
+              ? null
+              : String(worldSnapshot.conversation.activeInterlocutor);
           if (characterProfile) {
             worldSnapshot.startContext = {
               ...(worldSnapshot.startContext ?? {}),
@@ -701,6 +816,7 @@ function createNarrationChatHandler(deps = {}) {
             contextPack: rpContextPack,
             characterProfile
           });
+          let semanticWorldIntent = null;
     
           if (
             conversationMode === "rp" &&
@@ -851,15 +967,34 @@ function createNarrationChatHandler(deps = {}) {
                   characterSnapshot: characterProfile
                 };
               }
+              const fallbackArrivalReply = buildArrivalPlaceReply(
+                resolvedArrivalPlace,
+                arrivalRecords,
+                worldState
+              );
+              const aiArrival = await buildAiNarrativeReplyForBranch({
+                worldState,
+                fallbackReply: fallbackArrivalReply,
+                branchMessage: `arrivee a ${place.label}`,
+                narrativeStage: "travel_confirmed",
+                stateUpdatedExpected: true,
+                worldBefore: worldSnapshot,
+                recordsOverride: arrivalRecords,
+                priorityToolCalls: [
+                  { name: "get_world_state", args: {} },
+                  { name: "session_db_read", args: { scope: "scene-memory" } },
+                  { name: "query_lore", args: { query: place.label, limit: 5 } }
+                ]
+              });
               const injected = injectLockedStartContextReply(
-                buildArrivalPlaceReply(resolvedArrivalPlace, arrivalRecords, worldState),
+                aiArrival.reply || fallbackArrivalReply,
                 worldState,
                 characterProfile
               );
               const arrivalReplyParts = parseReplyToMjBlocks(injected.reply);
               await persistNarrativeWorldStateWithPhase6(injected.worldState, {
                 runtimeAlreadyApplied: false,
-                source: "travel-confirmed"
+                source: "travel-confirmed-ai"
               });
               return sendJson(res, 200, {
                 reply: injected.reply,
@@ -875,13 +1010,51 @@ function createNarrationChatHandler(deps = {}) {
                 director: { mode: "scene_only", applyRuntime: false, source: "travel-flow" },
                 worldDelta: { reputationDelta: 0, localTensionDelta: 0, reason: "travel-confirmed" },
                 worldState: injected.worldState,
+                mjStructured: aiArrival.mjStructured,
+                mjToolTrace: aiArrival.mjToolTrace,
                 stateUpdated: true
               });
             }
           }
     
           if (conversationMode === "rp") {
-            const visitIntent = extractVisitIntent(message, records);
+            if (semanticWorldIntent === null && typeof detectWorldIntentWithAI === "function") {
+              semanticWorldIntent = await detectWorldIntentWithAI({
+                message,
+                worldState: worldSnapshot,
+                records,
+                conversationMode
+              });
+              const minConfidence = Math.max(
+                0,
+                Math.min(1, Number(process.env.NARRATION_WORLD_INTENT_MIN_CONFIDENCE ?? 0.72))
+              );
+              if (
+                semanticWorldIntent &&
+                String(semanticWorldIntent.type ?? "none") !== "none" &&
+                Number(semanticWorldIntent.confidence ?? 0) < minConfidence
+              ) {
+                semanticWorldIntent = {
+                  type: "none",
+                  targetLabel: "",
+                  reason: "world-intent-low-confidence",
+                  confidence: Number(semanticWorldIntent.confidence ?? 0)
+                };
+              }
+            }
+            const visitIntentFromAi =
+              semanticWorldIntent?.type === "propose_travel"
+                ? {
+                    type: "visit_semantic",
+                    placeLabel:
+                      String(semanticWorldIntent?.targetLabel ?? "").trim() ||
+                      inferPlaceFromMessage(message, records) ||
+                      "ce lieu"
+                  }
+                : null;
+            const visitIntent =
+              visitIntentFromAi ||
+              (semanticWorldIntent == null ? extractVisitIntent(message, records) : null);
             if (visitIntent) {
               const currentWorld = loadNarrativeWorldState();
               const worldState = applyWorldDelta(
@@ -935,15 +1108,30 @@ function createNarrationChatHandler(deps = {}) {
                   characterSnapshot: characterProfile
                 };
               }
+              const fallbackVisitReply = buildVisitAdvisoryReply(place, records, worldState);
+              const aiVisit = await buildAiNarrativeReplyForBranch({
+                worldState,
+                fallbackReply: fallbackVisitReply,
+                branchMessage: `deplacement vers ${place.label}`,
+                narrativeStage: "travel_proposal",
+                stateUpdatedExpected: false,
+                worldBefore: worldSnapshot,
+                recordsOverride: buildLoreRecordsForQuery(place.label),
+                priorityToolCalls: [
+                  { name: "get_world_state", args: {} },
+                  { name: "session_db_read", args: { scope: "scene-memory" } },
+                  { name: "query_lore", args: { query: place.label, limit: 5 } }
+                ]
+              });
               const injected = injectLockedStartContextReply(
-                buildVisitAdvisoryReply(place, records, worldState),
+                aiVisit.reply || fallbackVisitReply,
                 worldState,
                 characterProfile
               );
               const advisoryParts = parseReplyToMjBlocks(injected.reply);
               await persistNarrativeWorldStateWithPhase6(injected.worldState, {
                 runtimeAlreadyApplied: false,
-                source: "travel-proposed"
+                source: "travel-proposed-ai"
               });
               return sendJson(res, 200, {
                 reply: injected.reply,
@@ -959,6 +1147,8 @@ function createNarrationChatHandler(deps = {}) {
                 director: { mode: "scene_only", applyRuntime: false, source: "travel-flow" },
                 worldDelta: { reputationDelta: 0, localTensionDelta: 0, reason: "travel-proposed" },
                 worldState: injected.worldState,
+                mjStructured: aiVisit.mjStructured,
+                mjToolTrace: aiVisit.mjToolTrace,
                 stateUpdated: false
               });
             }
@@ -1238,10 +1428,28 @@ function createNarrationChatHandler(deps = {}) {
                   characterSnapshot: characterProfile
                 };
               }
-              const advisory = mjStructured?.directAnswer
+              const fallbackAdvisory = mjStructured?.directAnswer
                 ? `${oneLine(mjStructured.directAnswer, 220)}\n${buildVisitAdvisoryReply(place, records, worldState)}`
                 : buildVisitAdvisoryReply(place, records, worldState);
-              const injected = injectLockedStartContextReply(advisory, worldState, characterProfile);
+              const aiTravelAdvisory = await buildAiNarrativeReplyForBranch({
+                worldState,
+                fallbackReply: fallbackAdvisory,
+                branchMessage: `deplacement vers ${place.label}`,
+                narrativeStage: "travel_proposal",
+                stateUpdatedExpected: false,
+                worldBefore: worldSnapshot,
+                recordsOverride: buildLoreRecordsForQuery(place.label),
+                priorityToolCalls: [
+                  { name: "get_world_state", args: {} },
+                  { name: "session_db_read", args: { scope: "scene-memory" } },
+                  { name: "query_lore", args: { query: place.label, limit: 5 } }
+                ]
+              });
+              const injected = injectLockedStartContextReply(
+                aiTravelAdvisory.reply || fallbackAdvisory,
+                worldState,
+                characterProfile
+              );
               const aiTravelParts = parseReplyToMjBlocks(injected.reply);
               await persistNarrativeWorldStateWithPhase6(injected.worldState, {
                 runtimeAlreadyApplied: false,
@@ -1266,8 +1474,8 @@ function createNarrationChatHandler(deps = {}) {
                 director: { mode: "scene_only", applyRuntime: false, source: "ai-mj-structured" },
                 worldDelta: { reputationDelta: 0, localTensionDelta: 0, reason: "travel-proposed-ai" },
                 worldState: injected.worldState,
-                mjStructured,
-                mjToolTrace,
+                mjStructured: aiTravelAdvisory.mjStructured ?? mjStructured,
+                mjToolTrace: aiTravelAdvisory.mjToolTrace ?? mjToolTrace,
                 stateUpdated: false
               });
             }
@@ -1557,10 +1765,6 @@ function createNarrationChatHandler(deps = {}) {
           }
           const loreQuestion = directorPlan.mode === "lore";
           const freeExploration = directorPlan.mode === "exploration";
-          const activeInterlocutor =
-            worldSnapshot?.conversation?.activeInterlocutor == null
-              ? null
-              : String(worldSnapshot.conversation.activeInterlocutor);
     
           if (loreQuestion) {
             const currentWorld = loadNarrativeWorldState();
@@ -1584,8 +1788,81 @@ function createNarrationChatHandler(deps = {}) {
               localTensionDelta: 0,
               reason: "no-impact-intent"
             };
+            let mjToolTrace = [];
+            let mjStructuredLore = null;
+            let loreReply = buildLoreOnlyReply(message, records, characterProfile, worldState);
+            if (conversationMode === "rp") {
+              const structuredDraft = await generateMjStructuredReply({
+                message,
+                records,
+                worldState,
+                canonicalContext: buildCanonicalNarrativeContext({
+                  worldState,
+                  contextPack: rpContextPack,
+                  characterProfile
+                }),
+                contextPack: rpContextPack,
+                activeInterlocutor,
+                conversationMode,
+                pending: {
+                  action: worldState?.conversation?.pendingAction ?? null,
+                  travel: worldState?.travel?.pending ?? worldState?.conversation?.pendingTravel ?? null,
+                  access: worldState?.conversation?.pendingAccess ?? null
+                }
+              });
+              const lorePriorityCalls = mergeToolCalls(
+                Array.isArray(structuredDraft?.toolCalls) ? structuredDraft.toolCalls : [],
+                [
+                  { name: "get_world_state", args: {} },
+                  { name: "session_db_read", args: { scope: "scene-memory" } },
+                  { name: "query_lore", args: { query: message, limit: 4 } }
+                ],
+                6
+              );
+              mjToolTrace = mjToolBus.executeToolCalls(lorePriorityCalls, {
+                message,
+                records,
+                worldState,
+                canonicalContext: buildCanonicalNarrativeContext({
+                  worldState,
+                  contextPack: rpContextPack,
+                  characterProfile
+                }),
+                contextPack: rpContextPack,
+                runtimeState: state,
+                pending: {
+                  action: worldState?.conversation?.pendingAction ?? null,
+                  travel: worldState?.travel?.pending ?? worldState?.conversation?.pendingTravel ?? null,
+                  access: worldState?.conversation?.pendingAccess ?? null
+                }
+              });
+              mjStructuredLore = await refineMjStructuredReplyWithTools({
+                message,
+                initialStructured: structuredDraft,
+                toolResults: mjToolTrace,
+                worldState,
+                canonicalContext: buildCanonicalNarrativeContext({
+                  worldState,
+                  contextPack: rpContextPack,
+                  characterProfile
+                }),
+                contextPack: rpContextPack,
+                activeInterlocutor,
+                conversationMode
+              });
+              if (mjStructuredLore) {
+                const direct = oneLine(String(mjStructuredLore?.directAnswer ?? ""), 220);
+                const blocks = buildMjReplyBlocks({
+                  scene: String(mjStructuredLore?.scene ?? ""),
+                  actionResult: String(mjStructuredLore?.actionResult ?? ""),
+                  consequences: String(mjStructuredLore?.consequences ?? ""),
+                  options: normalizeMjOptions(mjStructuredLore?.options, 6)
+                });
+                loreReply = direct ? `${direct}\n${blocks}` : blocks;
+              }
+            }
             const injected = injectLockedStartContextReply(
-              addInterlocutorNote(buildLoreOnlyReply(message, records, characterProfile), activeInterlocutor, intent.type),
+              addInterlocutorNote(loreReply, activeInterlocutor, intent.type, worldState, message),
               worldState,
               characterProfile
             );
@@ -1613,6 +1890,8 @@ function createNarrationChatHandler(deps = {}) {
               director: directorPlan,
               worldDelta,
               worldState: injected.worldState,
+              mjStructured: mjStructuredLore,
+              mjToolTrace,
               loreOnly: true,
               stateUpdated: false
             });
@@ -1640,7 +1919,24 @@ function createNarrationChatHandler(deps = {}) {
               localTensionDelta: 0,
               reason: "no-impact-intent"
             };
-            const injected = injectLockedStartContextReply(buildExplorationReply(message, records), worldState, characterProfile);
+            const fallbackExplorationReply = buildExplorationReply(message, records, worldState);
+            const aiExploration = await buildAiNarrativeReplyForBranch({
+              worldState,
+              fallbackReply: fallbackExplorationReply,
+              narrativeStage: "scene",
+              stateUpdatedExpected: false,
+              worldBefore: worldSnapshot,
+              priorityToolCalls: [
+                { name: "get_world_state", args: {} },
+                { name: "session_db_read", args: { scope: "scene-memory" } },
+                { name: "query_lore", args: { query: message, limit: 4 } }
+              ]
+            });
+            const injected = injectLockedStartContextReply(
+              aiExploration.reply || fallbackExplorationReply,
+              worldState,
+              characterProfile
+            );
             const explorationParts = parseReplyToMjBlocks(injected.reply);
             await persistNarrativeWorldStateWithPhase6(injected.worldState, {
               runtimeAlreadyApplied: false,
@@ -1665,6 +1961,8 @@ function createNarrationChatHandler(deps = {}) {
               director: directorPlan,
               worldDelta,
               worldState: injected.worldState,
+              mjStructured: aiExploration.mjStructured,
+              mjToolTrace: aiExploration.mjToolTrace,
               explorationOnly: true,
               stateUpdated: false
             });
@@ -1717,8 +2015,28 @@ function createNarrationChatHandler(deps = {}) {
               ...(worldState.conversation ?? {}),
               activeInterlocutor: activeInterlocutor
             };
+            const fallbackSceneOnly = addInterlocutorNote(
+              buildDirectorNoRuntimeReply(message, intent.type, records),
+              activeInterlocutor,
+              intent.type,
+              worldState,
+              message
+            );
+            const aiSceneOnly = await buildAiNarrativeReplyForBranch({
+              worldState,
+              fallbackReply: fallbackSceneOnly,
+              narrativeStage: "scene",
+              stateUpdatedExpected: false,
+              worldBefore: worldSnapshot,
+              priorityToolCalls: [
+                { name: "get_world_state", args: {} },
+                { name: "session_db_read", args: { scope: "scene-memory" } },
+                { name: "query_lore", args: { query: message, limit: 3 } },
+                { name: "query_rules", args: { query: message } }
+              ]
+            });
             const injected = injectLockedStartContextReply(
-              addInterlocutorNote(buildDirectorNoRuntimeReply(message, intent.type, records), activeInterlocutor, intent.type),
+              aiSceneOnly.reply || fallbackSceneOnly,
               worldState,
               characterProfile
             );
@@ -1747,6 +2065,8 @@ function createNarrationChatHandler(deps = {}) {
               director: { ...directorPlan, mode: "scene_only", applyRuntime: false },
               worldDelta,
               worldState: injected.worldState,
+              mjStructured: aiSceneOnly.mjStructured,
+              mjToolTrace: aiSceneOnly.mjToolTrace,
               stateUpdated: true
             });
           }
@@ -1792,7 +2112,13 @@ function createNarrationChatHandler(deps = {}) {
             activeInterlocutor: activeInterlocutor
           };
           const injected = injectLockedStartContextReply(
-            addInterlocutorNote(buildNarrationChatReply(outcome, intent.type), activeInterlocutor, intent.type),
+            addInterlocutorNote(
+              buildNarrationChatReply(outcome, intent.type),
+              activeInterlocutor,
+              intent.type,
+              worldState,
+              message
+            ),
             worldState,
             characterProfile
           );

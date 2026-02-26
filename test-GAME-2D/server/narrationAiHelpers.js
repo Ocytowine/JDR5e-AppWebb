@@ -11,6 +11,24 @@ function createNarrationAiHelpers(params) {
       : () => "gpt-4.1-mini";
   const warn = typeof params?.warn === "function" ? params.warn : () => {};
 
+  function stageDirective(stage) {
+    const key = String(stage ?? "scene").trim().toLowerCase();
+    if (key === "travel_proposal") {
+      return (
+        "Etape narrative: proposition de deplacement (non confirmee). " +
+        "Tu peux decrire l'intention, l'ambiance et ce qui attend potentiellement le joueur, " +
+        "mais tu ne dois pas presenter le deplacement comme deja accompli."
+      );
+    }
+    if (key === "travel_confirmed") {
+      return (
+        "Etape narrative: deplacement confirme. " +
+        "Tu peux decrire l'arrivee, le nouveau lieu et ses details immediats de scene."
+      );
+    }
+    return "Etape narrative: scene locale en cours.";
+  }
+
   function normalizeOptionText(option) {
     if (typeof option === "string") return option.trim();
     if (typeof option === "number" || typeof option === "boolean") return String(option).trim();
@@ -136,6 +154,20 @@ function createNarrationAiHelpers(params) {
     return true;
   }
 
+  function sanitizeWorldIntentHint(candidate) {
+    const allowed = new Set(["none", "propose_travel", "confirm_travel", "access_attempt", "runtime_progress"]);
+    const typeRaw = String(candidate?.type ?? candidate?.worldIntentType ?? "none").trim();
+    const targetLabel = String(candidate?.targetLabel ?? "").trim();
+    const reason = String(candidate?.reason ?? "ai-world-intent").trim();
+    const confidenceRaw = Number(candidate?.confidence ?? 0.68);
+    return {
+      type: allowed.has(typeRaw) ? typeRaw : "none",
+      targetLabel,
+      reason,
+      confidence: Number.isFinite(confidenceRaw) ? clampNumber(confidenceRaw, 0, 1) : 0.68
+    };
+  }
+
   function buildNarrativeDirectorPlan(intent) {
     const type = intent?.type ?? "story_action";
     if (type === "lore_question") {
@@ -191,7 +223,8 @@ function createNarrationAiHelpers(params) {
     contextPack,
     activeInterlocutor,
     conversationMode,
-    pending
+    pending,
+    narrativeStage
   }) {
     if (!aiEnabled || typeof callOpenAiJson !== "function") return null;
     if (String(conversationMode ?? "rp") !== "rp") return null;
@@ -207,6 +240,12 @@ function createNarrationAiHelpers(params) {
         "worldIntent.type dans {none, propose_travel, confirm_travel, access_attempt, runtime_progress}. " +
         "Tu peux renseigner worldIntent.targetLabel quand le joueur evoque une destination (meme formulation imparfaite). " +
         "bypassExistingMechanics=true seulement si la demande est une reponse MJ immediate de contexte/etat local sans action systeme lourde. " +
+        "Si un interlocuteur est actif et que la scene est sociale, rends le PNJ vivant: une attitude concrete et, au besoin, une courte replique plausible. " +
+        "N'ecris jamais le raisonnement interne du MJ ni des formulations meta (ex: 'rien n'impose', 'sans forcer la scene', 'indices exploitables'). " +
+        `${stageDirective(narrativeStage)} ` +
+        "N'introduis pas de revelation majeure (rune cachee, secret ancien, quete implicite, destin exceptionnel) sans evidence explicite du lore/outils. " +
+        "Pour une exploration libre, privilegie des observations plausibles et locales avant toute escalation. " +
+        "Adresse le joueur en tutoiement (tu), pas en vouvoiement (vous). " +
         "Priorite: reponse utile, concise, en francais, style MJ.";
 
       const userPayload = {
@@ -250,6 +289,82 @@ function createNarrationAiHelpers(params) {
     }
   }
 
+  async function detectWorldIntentWithAI({ message, worldState, records, conversationMode }) {
+    if (!aiEnabled || typeof callOpenAiJson !== "function") return null;
+    if (String(conversationMode ?? "rp") !== "rp") return null;
+    try {
+      const model = resolveModel();
+      const systemPrompt =
+        "Tu es un detecteur d'intention monde pour un JDR. " +
+        "Retourne UNIQUEMENT un JSON valide avec: type, targetLabel, reason, confidence. " +
+        "type ∈ {none, propose_travel, confirm_travel, access_attempt, runtime_progress}. " +
+        "Regle critique: detecte l'intention de deplacement de maniere semantique, meme sans mot-cle explicite. " +
+        "Exemples de deplacement declaratif: 'je marche vers...', 'je file en direction de...', 'je m'avance vers...' => propose_travel. " +
+        "N'invente pas de destination absente: targetLabel peut etre vide si inconnu.";
+      const userPayload = {
+        playerMessage: String(message ?? ""),
+        world: {
+          location: worldState?.location ?? null,
+          time: worldState?.time ?? null,
+          travel: worldState?.travel ?? null,
+          pendingTravel: worldState?.conversation?.pendingTravel ?? null
+        },
+        loreHints: Array.isArray(records)
+          ? records.slice(0, 6).map((row) => ({ title: row?.title, type: row?.type }))
+          : []
+      };
+      const parsed = await callOpenAiJson({
+        model,
+        systemPrompt,
+        userPayload
+      });
+      return sanitizeWorldIntentHint(parsed);
+    } catch (err) {
+      warn("[world-intent-ai] fallback none:", err?.message ?? err);
+      return null;
+    }
+  }
+
+  async function validateNarrativeStateConsistency({
+    narrativeStage,
+    text,
+    stateUpdatedExpected,
+    worldBefore,
+    worldAfter,
+    conversationMode
+  }) {
+    if (!aiEnabled || typeof callOpenAiJson !== "function") return { valid: true, reason: "ai-disabled" };
+    if (String(conversationMode ?? "rp") !== "rp") return { valid: true, reason: "non-rp" };
+    try {
+      const model = resolveModel();
+      const systemPrompt =
+        "Tu valides la coherence entre narration RP et etat serveur. " +
+        "Retourne UNIQUEMENT un JSON valide: {valid:boolean, reason:string, severity:string}. " +
+        "severity ∈ {low, medium, high}. " +
+        "Regle critique: en etape de proposition de deplacement, la narration ne doit pas presenter le deplacement comme deja accompli.";
+      const userPayload = {
+        narrativeStage: String(narrativeStage ?? "scene"),
+        stateUpdatedExpected: Boolean(stateUpdatedExpected),
+        text: String(text ?? ""),
+        worldBefore: worldBefore ?? null,
+        worldAfter: worldAfter ?? null
+      };
+      const parsed = await callOpenAiJson({
+        model,
+        systemPrompt,
+        userPayload
+      });
+      return {
+        valid: parsed?.valid === false ? false : true,
+        reason: String(parsed?.reason ?? "consistency-check"),
+        severity: String(parsed?.severity ?? "medium")
+      };
+    } catch (err) {
+      warn("[narrative-consistency-ai] fallback valid:", err?.message ?? err);
+      return { valid: true, reason: "validator-fallback" };
+    }
+  }
+
   async function refineMjStructuredReplyWithTools({
     message,
     initialStructured,
@@ -258,7 +373,8 @@ function createNarrationAiHelpers(params) {
     canonicalContext,
     contextPack,
     activeInterlocutor,
-    conversationMode
+    conversationMode,
+    narrativeStage
   }) {
     const base = sanitizeMjStructuredReply(initialStructured);
     const safeToolResults = Array.isArray(toolResults) ? toolResults.slice(0, 8) : [];
@@ -268,7 +384,7 @@ function createNarrationAiHelpers(params) {
         ...base,
         actionResult:
           base.actionResult ||
-          "Le MJ confirme son evaluation en s'appuyant sur les donnees verifiees.",
+          "Les elements verifies confirment le rythme de la scene et ce qui t'entoure.",
         toolCalls: Array.isArray(base.toolCalls) ? base.toolCalls : []
       };
     }
@@ -282,6 +398,11 @@ function createNarrationAiHelpers(params) {
         "Retourne UNIQUEMENT un JSON valide avec les champs: " +
         "responseType, confidence, directAnswer, scene, actionResult, consequences, options, toolCalls, worldIntent, bypassExistingMechanics. " +
         "Contrainte: reste coherent avec les resultats outils; n'invente pas un fait contredit par ces resultats. " +
+        "Si un interlocuteur est actif en scene sociale, garde une voix PNJ concrete et differenciee. " +
+        "Interdit: formulations meta, traces de debug, ou raisonnement interne du MJ dans la reponse RP. " +
+        `${stageDirective(narrativeStage)} ` +
+        "N'augmente pas artificiellement l'importance narrative: evite de creer une quete/revelation sans preuve outil/lore. " +
+        "Adresse le joueur en tutoiement (tu), pas en vouvoiement (vous). " +
         "Conserve la fluidite RP et une formulation concise en francais.";
 
       const userPayload = {
@@ -324,6 +445,8 @@ function createNarrationAiHelpers(params) {
 
   return {
     classifyNarrationWithAI,
+    detectWorldIntentWithAI,
+    validateNarrativeStateConsistency,
     shouldApplyRuntimeForIntent,
     buildNarrativeDirectorPlan,
     generateMjStructuredReply,

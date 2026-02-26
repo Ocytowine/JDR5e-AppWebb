@@ -1,0 +1,50 @@
+{
+  "version": "1.0.0",
+  "updatedAt": "2026-02-26T12:48:31.394Z",
+  "entities": {
+    "placesDiscovered": [
+      {
+        "id": "session:rue-marchande",
+        "label": "Rue marchande",
+        "text": "",
+        "tags": [],
+        "source": "worldState.sessionPlaces",
+        "status": "",
+        "createdAt": "2026-02-26T12:47:30.940Z",
+        "updatedAt": "2026-02-26T12:48:31.394Z",
+        "data": {
+          "access": "public",
+          "riskFlags": [],
+          "city": ""
+        }
+      }
+    ],
+    "sessionNpcs": [],
+    "establishedFacts": [],
+    "rumors": [],
+    "debtsPromises": []
+  },
+  "history": [
+    {
+      "at": "2026-02-26T12:47:30.940Z",
+      "action": "upsert",
+      "entity": "placesDiscovered",
+      "id": "session:rue-marchande",
+      "summary": "Rue marchande"
+    },
+    {
+      "at": "2026-02-26T12:48:31.392Z",
+      "action": "upsert",
+      "entity": "placesDiscovered",
+      "id": "session:rue-marchande",
+      "summary": "Rue marchande"
+    },
+    {
+      "at": "2026-02-26T12:48:31.394Z",
+      "action": "upsert",
+      "entity": "placesDiscovered",
+      "id": "session:rue-marchande",
+      "summary": "Rue marchande"
+    }
+  ]
+}

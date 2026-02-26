@@ -4,6 +4,7 @@ function createNarrationNaturalRenderer(deps = {}) {
   const oneLine = typeof deps.oneLine === "function" ? deps.oneLine : (v) => String(v ?? "");
   const normalizeMjOptions =
     typeof deps.normalizeMjOptions === "function" ? deps.normalizeMjOptions : () => [];
+  const styleHelper = deps.styleHelper && typeof deps.styleHelper === "object" ? deps.styleHelper : null;
 
   const PHASE7_STATS_MAX_SAMPLES = 24;
   const PHASE7_RENDER_STATS = {
@@ -34,6 +35,40 @@ function createNarrationNaturalRenderer(deps = {}) {
     return usefulHints.some((hint) => context.includes(hint));
   }
 
+  function tokenizeAnchors(text) {
+    return String(text ?? "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9\s'-]/g, " ")
+      .split(/\s+/)
+      .map((t) => t.trim())
+      .filter((t) => t.length >= 5);
+  }
+
+  function groundOptionsToContext({ scene, actionResult, consequences, options }) {
+    const safeOptions = normalizeMjOptions(options, 4);
+    if (!safeOptions.length) return [];
+    const contextTokens = new Set(
+      tokenizeAnchors([scene, actionResult, consequences].join(" "))
+    );
+    if (!contextTokens.size) return [];
+
+    const scored = safeOptions
+      .map((opt, idx) => {
+        const optionTokens = Array.from(new Set(tokenizeAnchors(opt)));
+        const score = optionTokens.reduce(
+          (acc, token) => acc + (contextTokens.has(token) ? 1 : 0),
+          0
+        );
+        return { opt, idx, score };
+      })
+      .filter((row) => row.score > 0)
+      .sort((a, b) => b.score - a.score || a.idx - b.idx);
+
+    return scored.slice(0, 4).map((row) => row.opt);
+  }
+
   function trackRender({ withOptions, optionsSuppressed, reason }) {
     PHASE7_RENDER_STATS.totalReplies += 1;
     if (withOptions) PHASE7_RENDER_STATS.repliesWithOptions += 1;
@@ -51,10 +86,23 @@ function createNarrationNaturalRenderer(deps = {}) {
   }
 
   function buildMjReplyBlocks(payload = {}) {
-    const scene = oneLine(payload.scene, 260) || "La scene evolue sans rupture visible.";
-    const actionResult = oneLine(payload.actionResult, 320) || "Ton action est prise en compte par le MJ.";
-    const consequences = oneLine(payload.consequences, 320) || "Aucune consequence majeure immediate.";
-    const options = normalizeMjOptions(payload.options, 4);
+    const polished =
+      styleHelper && typeof styleHelper.polishMjBlocks === "function"
+        ? styleHelper.polishMjBlocks({
+            scene: payload.scene,
+            actionResult: payload.actionResult,
+            consequences: payload.consequences
+          })
+        : payload;
+    const scene = oneLine(polished.scene, 260) || "La scene evolue sans rupture visible.";
+    const actionResult = oneLine(polished.actionResult, 320) || "Ton action est prise en compte par le MJ.";
+    const consequences = oneLine(polished.consequences, 320) || "Aucune consequence majeure immediate.";
+    const options = groundOptionsToContext({
+      scene,
+      actionResult,
+      consequences,
+      options: payload.options
+    });
     const showOptions = shouldShowOptions({ scene, actionResult, consequences, options });
 
     const lines = [scene, actionResult, consequences];
