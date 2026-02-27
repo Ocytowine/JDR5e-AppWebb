@@ -173,6 +173,7 @@ function getNarrationChatHandler() {
     buildMjContractStatsPayload,
     buildPhase3GuardStatsPayload,
     buildPhase4SessionStatsPayload: () => sessionNarrativeDb.stats(),
+    buildPhase4AiBudgetStatsPayload,
     buildPhase5MutationStatsPayload,
     buildPhase6BackgroundStatsPayload: () =>
       narrationBackgroundTickEngine.buildPhase6BackgroundStatsPayload(),
@@ -263,6 +264,10 @@ function getNarrationChatHandler() {
 
 function buildPhase3GuardStatsPayload() {
   return getNarrationPayloadPipeline().buildPhase3GuardStatsPayload();
+}
+
+function buildPhase4AiBudgetStatsPayload() {
+  return getNarrationPayloadPipeline().buildPhase4AiBudgetStatsPayload();
 }
 
 function buildPhase8DebugChannelStatsPayload() {
@@ -1822,15 +1827,33 @@ function injectLockedStartContextReply(reply, worldState, characterProfile) {
 }
 
 function loadNarrationRuntimeStateFromDisk() {
-  const candidates = [
-    path.join(__dirname, "narration-module", "runtime", "NarrativeGameState.v1.json"),
-    path.join(__dirname, "narration-module", "runtime", "NarrativeGameState.domain-coverage-demo.json"),
-    path.join(__dirname, "narration-module", "runtime", "NarrativeGameState.ai-pipeline-demo.json"),
-    path.join(__dirname, "narration-module", "runtime", "NarrativeGameState.memory-demo.json")
-  ];
+  const primary = path.join(__dirname, "narration-module", "runtime", "NarrativeGameState.v1.json");
+  const allowDemoFallback = String(process.env.NARRATION_ALLOW_DEMO_STATE_FALLBACK ?? "0") === "1";
+  if (allowDemoFallback && !loadNarrationRuntimeStateFromDisk._warnedDemoFallback) {
+    loadNarrationRuntimeStateFromDisk._warnedDemoFallback = true;
+    console.warn(
+      "[narration-runtime] Demo fallback enabled via NARRATION_ALLOW_DEMO_STATE_FALLBACK=1 (legacy mode)."
+    );
+  }
+  const candidates = allowDemoFallback
+    ? [
+        primary,
+        path.join(__dirname, "narration-module", "runtime", "NarrativeGameState.domain-coverage-demo.json"),
+        path.join(__dirname, "narration-module", "runtime", "NarrativeGameState.ai-pipeline-demo.json"),
+        path.join(__dirname, "narration-module", "runtime", "NarrativeGameState.memory-demo.json")
+      ]
+    : [primary];
 
   for (const filePath of candidates) {
     if (!fs.existsSync(filePath)) continue;
+    if (
+      allowDemoFallback &&
+      filePath !== primary &&
+      !loadNarrationRuntimeStateFromDisk._warnedDemoFallbackUsage
+    ) {
+      loadNarrationRuntimeStateFromDisk._warnedDemoFallbackUsage = true;
+      console.warn("[narration-runtime] Using demo fallback state file:", filePath);
+    }
     try {
       const raw = fs.readFileSync(filePath, "utf8");
       const parsed = JSON.parse(raw);
@@ -1960,12 +1983,29 @@ function buildLoreRecordsFromDb(query, limit = 8) {
 }
 
 function buildLoreRecordsFromTransitions() {
-  const transitionsPath = path.join(
-    NARRATION_MODULE_DIR,
-    "runtime",
-    "Transitions-v1-runtime.example.json"
-  );
-  if (!fs.existsSync(transitionsPath)) return [];
+  const runtimeDir = path.join(NARRATION_MODULE_DIR, "runtime");
+  const primaryPath = path.join(runtimeDir, "Transitions-v1-runtime.v1.json");
+  const allowExampleFallback = String(process.env.NARRATION_ALLOW_EXAMPLE_TRANSITIONS_FALLBACK ?? "0") === "1";
+  if (allowExampleFallback && !buildLoreRecordsFromTransitions._warnedExampleFallback) {
+    buildLoreRecordsFromTransitions._warnedExampleFallback = true;
+    console.warn(
+      "[narration-runtime] Example transitions fallback enabled via NARRATION_ALLOW_EXAMPLE_TRANSITIONS_FALLBACK=1 (legacy mode)."
+    );
+  }
+  const transitionsPath = fs.existsSync(primaryPath)
+    ? primaryPath
+    : allowExampleFallback
+      ? path.join(runtimeDir, "Transitions-v1-runtime.example.json")
+      : "";
+  if (!transitionsPath || !fs.existsSync(transitionsPath)) return [];
+  if (
+    allowExampleFallback &&
+    transitionsPath !== primaryPath &&
+    !buildLoreRecordsFromTransitions._warnedExampleFallbackUsage
+  ) {
+    buildLoreRecordsFromTransitions._warnedExampleFallbackUsage = true;
+    console.warn("[narration-runtime] Using example transitions fallback file:", transitionsPath);
+  }
   try {
     const raw = fs.readFileSync(transitionsPath, "utf8");
     const parsed = JSON.parse(raw);

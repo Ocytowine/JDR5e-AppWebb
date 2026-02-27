@@ -48,6 +48,8 @@ async function main(): Promise<void> {
   );
 
   console.log('[AI PIPELINE DEMO] aiReason ->', outcome.aiReason);
+  console.log('[AI PIPELINE DEMO] aiContract.schemaVersion ->', outcome.aiContract?.schemaVersion ?? 'none');
+  console.log('[AI PIPELINE DEMO] aiContract.commitment ->', outcome.aiContract?.commitment ?? 'none');
   console.log('[AI PIPELINE DEMO] candidatesGenerated ->', outcome.candidatesGenerated);
   console.log('[AI PIPELINE DEMO] selected ->', outcome.selectedCommand);
   console.log('[AI PIPELINE DEMO] applied ->', outcome.appliedOutcome?.result.transitionId ?? 'none');

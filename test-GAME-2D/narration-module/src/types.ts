@@ -174,9 +174,61 @@ export interface AINarrationGeneratorInput {
   candidates: AINarrationCandidate[];
 }
 
+export type AINarrationIntentType =
+  | 'lore_question'
+  | 'free_exploration'
+  | 'story_action'
+  | 'social_action'
+  | 'system_command';
+
+export type AINarrationCommitment = 'declaratif' | 'volitif' | 'hypothetique' | 'informatif';
+
+export interface AINarrationTarget {
+  label?: string;
+  entityType?: NarrativeEntityType;
+  entityId?: string;
+  trigger?: string;
+}
+
+export interface AINarrationSocialFocus {
+  active: boolean;
+  interlocutorLabel?: string;
+}
+
+export interface AINarrationWorldIntent {
+  type: 'none' | 'runtime_progress' | 'propose_travel' | 'confirm_travel' | 'access_attempt';
+  reason?: string;
+  targetLabel?: string;
+  transitionId?: string;
+}
+
+export interface AINarrationToolCall {
+  name: string;
+  args: Record<string, unknown>;
+}
+
+export interface AINarrationMjResponse {
+  scene: string;
+  actionResult: string;
+  consequences: string;
+  options: string[];
+}
+
+export interface AINarrationContractV1 {
+  schemaVersion: '1.0.0';
+  intentType: AINarrationIntentType;
+  commitment: AINarrationCommitment;
+  target: AINarrationTarget;
+  socialFocus: AINarrationSocialFocus;
+  worldIntent: AINarrationWorldIntent;
+  toolCalls: AINarrationToolCall[];
+  mjResponse: AINarrationMjResponse;
+}
+
 export interface AINarrationGeneratorOutput {
   selectedIndex: number | null;
   reason: string;
+  contract?: AINarrationContractV1;
 }
 
 export interface MjNarrationGenerator {
@@ -196,6 +248,7 @@ export interface TickNarrationAIRequest {
 
 export interface TickNarrationAIOutcome extends TickNarrationOutcome {
   aiReason: string;
+  aiContract?: AINarrationContractV1;
   candidatesGenerated: number;
   contextPack: ContextPack;
 }

@@ -1,0 +1,512 @@
+{
+  "version": "1.0.0",
+  "generatedAt": "2026-02-24T10:00:00Z",
+  "transitions": [
+    {
+      "id": "quest.detectee.to.acceptee",
+      "entityType": "quest",
+      "fromState": "Détectée",
+      "trigger": "Le joueur accepte explicitement",
+      "toState": "Acceptée",
+      "consequence": "Ajout au journal et suivi activable",
+      "impactScope": "local",
+      "ruleRef": "local.narration.quest.accept",
+      "loreAnchors": [
+        {
+          "type": "lieu",
+          "id": "ville.capitale.marche",
+          "label": "Marché de la place"
+        },
+        {
+          "type": "acteur",
+          "id": "pnj.roland",
+          "label": "Roland"
+        }
+      ],
+      "playerFacingReason": "Vous avez accepté le contrat proposé par Roland.",
+      "timeBlock": {
+        "unit": "hour",
+        "value": 0
+      }
+    },
+    {
+      "id": "quest.detectee.ignored.escalation",
+      "entityType": "quest",
+      "fromState": "Détectée",
+      "trigger": "Temps écoulé et ignorance répétée",
+      "toState": "Détectée",
+      "consequence": "La pression monte et une trame liée gagne en urgence",
+      "impactScope": "regional",
+      "ruleRef": "local.narration.quest.ignored.escalation",
+      "loreAnchors": [
+        {
+          "type": "histoire",
+          "id": "quete.roland.contrat"
+        },
+        {
+          "type": "faction",
+          "id": "faction.garde-civile"
+        }
+      ],
+      "playerFacingReason": "Votre inaction laisse la situation se dégrader.",
+      "timeBlock": {
+        "unit": "day",
+        "value": 1
+      }
+    },
+    {
+      "id": "quest.detectee.external.context-shift",
+      "entityType": "quest",
+      "fromState": "Détectée",
+      "trigger": "Événement externe faction ou PNJ modifie le contexte",
+      "toState": "Détectée",
+      "consequence": "Mise à jour du journal avec nouvelle urgence et nouveaux risques",
+      "impactScope": "local",
+      "ruleRef": "local.narration.quest.context.shift",
+      "loreAnchors": [
+        {
+          "type": "acteur",
+          "id": "pnj.intendante.syl"
+        },
+        {
+          "type": "lieu",
+          "id": "archives.citadelle"
+        }
+      ],
+      "playerFacingReason": "Le contexte a changé avant votre décision.",
+      "timeBlock": {
+        "unit": "hour",
+        "value": 2
+      }
+    },
+    {
+      "id": "quest.acceptee.to.terminee",
+      "entityType": "quest",
+      "fromState": "Acceptée",
+      "trigger": "Objectif atteint selon conditions de quête",
+      "toState": "Terminée",
+      "consequence": "Récompenses appliquées et clôture de l'entrée de journal",
+      "impactScope": "local",
+      "ruleRef": "local.narration.quest.complete",
+      "loreAnchors": [
+        {
+          "type": "histoire",
+          "id": "quete.roland.contrat"
+        },
+        {
+          "type": "acteur",
+          "id": "pnj.roland"
+        }
+      ],
+      "playerFacingReason": "Vous avez rempli les conditions du contrat.",
+      "timeBlock": {
+        "unit": "hour",
+        "value": 4
+      }
+    },
+    {
+      "id": "quest.acceptee.failure.branch-opened",
+      "entityType": "quest",
+      "fromState": "Acceptée",
+      "trigger": "Délai dépassé ou condition critique non remplie",
+      "toState": "Acceptée",
+      "consequence": "Échec narratif non terminal avec voie secondaire ouverte",
+      "impactScope": "regional",
+      "ruleRef": "local.narration.quest.failure.branch",
+      "loreAnchors": [
+        {
+          "type": "faction",
+          "id": "faction.ligue-noire"
+        },
+        {
+          "type": "lieu",
+          "id": "region.valombre"
+        }
+      ],
+      "playerFacingReason": "Vous n'êtes pas arrivé à temps, mais une piste de rattrapage existe.",
+      "timeBlock": {
+        "unit": "day",
+        "value": 1
+      }
+    },
+    {
+      "id": "trama.latente.to.active",
+      "entityType": "trama",
+      "fromState": "Latente",
+      "trigger": "Déclencheur actif validé",
+      "toState": "Active",
+      "consequence": "Trame visible dans le journal avec niveau de menace initial",
+      "impactScope": "local",
+      "ruleRef": "local.narration.trama.activate",
+      "loreAnchors": [
+        {
+          "type": "lieu",
+          "id": "region.valombre"
+        },
+        {
+          "type": "faction",
+          "id": "faction.ligue-noire"
+        }
+      ],
+      "playerFacingReason": "Une intrigue latente devient active autour de vous.",
+      "timeBlock": {
+        "unit": "hour",
+        "value": 1
+      }
+    },
+    {
+      "id": "trama.active.escalade.temps",
+      "entityType": "trama",
+      "fromState": "Active",
+      "trigger": "Temps écoulé sans intervention",
+      "toState": "Active",
+      "consequence": "Escalade locale et augmentation de pression narrative",
+      "impactScope": "regional",
+      "ruleRef": "local.narration.trama.escalade",
+      "loreAnchors": [
+        {
+          "type": "lieu",
+          "id": "region.valombre"
+        },
+        {
+          "type": "faction",
+          "id": "faction.ligue-noire"
+        }
+      ],
+      "playerFacingReason": "Pendant votre absence, la situation a empiré dans la région.",
+      "timeBlock": {
+        "unit": "day",
+        "value": 1
+      }
+    },
+    {
+      "id": "trama.active.player-intervention.success",
+      "entityType": "trama",
+      "fromState": "Active",
+      "trigger": "Intervention joueur réussie",
+      "toState": "Active",
+      "consequence": "Réduction partielle de la pression et réorientation de la trame",
+      "impactScope": "local",
+      "ruleRef": "local.narration.trama.intervention.success",
+      "loreAnchors": [
+        {
+          "type": "acteur",
+          "id": "pj.groupe"
+        },
+        {
+          "type": "histoire",
+          "id": "trame.valombre.dissension"
+        }
+      ],
+      "playerFacingReason": "Votre action ralentit temporairement l'escalade.",
+      "timeBlock": {
+        "unit": "hour",
+        "value": 3
+      }
+    },
+    {
+      "id": "trama.active.non-intervention.prolonged",
+      "entityType": "trama",
+      "fromState": "Active",
+      "trigger": "Non-intervention prolongée",
+      "toState": "Active",
+      "consequence": "Le monde agit sans vous et aggrave les effets collatéraux",
+      "impactScope": "regional",
+      "ruleRef": "local.narration.trama.nonintervention",
+      "loreAnchors": [
+        {
+          "type": "faction",
+          "id": "faction.conclave-sel"
+        },
+        {
+          "type": "lieu",
+          "id": "port.nyra"
+        }
+      ],
+      "playerFacingReason": "Sans intervention, les autres forces imposent leur propre résolution.",
+      "timeBlock": {
+        "unit": "day",
+        "value": 2
+      }
+    },
+    {
+      "id": "trama.active.to.cloturee.with-player-path",
+      "entityType": "trama",
+      "fromState": "Active",
+      "trigger": "Condition de clôture atteinte avec voie joueur",
+      "toState": "Clôturée",
+      "consequence": "Résolution avec influence directe du groupe",
+      "impactScope": "local",
+      "ruleRef": "local.narration.trama.close.player",
+      "loreAnchors": [
+        {
+          "type": "histoire",
+          "id": "trame.valombre.dissension"
+        },
+        {
+          "type": "acteur",
+          "id": "pj.groupe"
+        }
+      ],
+      "playerFacingReason": "Votre implication a orienté l'issue finale.",
+      "timeBlock": {
+        "unit": "hour",
+        "value": 2
+      }
+    },
+    {
+      "id": "companion.non-rencontre.to.rencontre",
+      "entityType": "companion",
+      "fromState": "Non rencontré",
+      "trigger": "Déclencheur narratif de rencontre",
+      "toState": "Rencontré",
+      "consequence": "Fiche relationnelle initialisée",
+      "impactScope": "local",
+      "ruleRef": "local.narration.companion.meet",
+      "loreAnchors": [
+        {
+          "type": "acteur",
+          "id": "compagnon.elya"
+        },
+        {
+          "type": "lieu",
+          "id": "archives.citadelle"
+        }
+      ],
+      "playerFacingReason": "Vous rencontrez un compagnon potentiel."
+      ,
+      "timeBlock": {
+        "unit": "hour",
+        "value": 1
+      }
+    },
+    {
+      "id": "companion.rencontre.to.negociation",
+      "entityType": "companion",
+      "fromState": "Rencontré",
+      "trigger": "Conditions minimales de compatibilité atteintes",
+      "toState": "Négociation",
+      "consequence": "Ouverture de la discussion d'engagement",
+      "impactScope": "local",
+      "ruleRef": "local.narration.companion.negotiate.open",
+      "loreAnchors": [
+        {
+          "type": "acteur",
+          "id": "compagnon.elya"
+        },
+        {
+          "type": "faction",
+          "id": "faction.guilde-archivistes"
+        }
+      ],
+      "playerFacingReason": "Le compagnon accepte de discuter des conditions."
+      ,
+      "timeBlock": {
+        "unit": "hour",
+        "value": 1
+      }
+    },
+    {
+      "id": "companion.negociation.to.recrute",
+      "entityType": "companion",
+      "fromState": "Négociation",
+      "trigger": "Accord social validé + coût d'engagement accepté",
+      "toState": "Recruté",
+      "consequence": "Compagnon ajouté au groupe avec loyauté initiale",
+      "impactScope": "local",
+      "ruleRef": "local.narration.companion.recruit",
+      "loreAnchors": [
+        {
+          "type": "acteur",
+          "id": "compagnon.elya"
+        },
+        {
+          "type": "faction",
+          "id": "faction.guilde-archivistes"
+        }
+      ],
+      "playerFacingReason": "Elya accepte de vous suivre sous certaines conditions.",
+      "timeBlock": {
+        "unit": "special",
+        "value": 1
+      }
+    },
+    {
+      "id": "companion.negociation.to.refus",
+      "entityType": "companion",
+      "fromState": "Négociation",
+      "trigger": "Désaccord ou refus explicite",
+      "toState": "Refus",
+      "consequence": "Fermeture temporaire du recrutement",
+      "impactScope": "none",
+      "ruleRef": "local.narration.companion.negotiate.refuse",
+      "loreAnchors": [
+        {
+          "type": "acteur",
+          "id": "compagnon.elya"
+        },
+        {
+          "type": "histoire",
+          "id": "compagnon.elya.dette"
+        }
+      ],
+      "playerFacingReason": "Le compagnon refuse pour le moment."
+      ,
+      "timeBlock": {
+        "unit": "hour",
+        "value": 0
+      }
+    },
+    {
+      "id": "companion.recrute.to.depart-durable",
+      "entityType": "companion",
+      "fromState": "Recruté",
+      "trigger": "Rupture de seuil relationnel et contexte défavorable",
+      "toState": "Départ durable",
+      "consequence": "Le compagnon quitte durablement le groupe",
+      "impactScope": "local",
+      "ruleRef": "local.narration.companion.depart.durable",
+      "loreAnchors": [
+        {
+          "type": "acteur",
+          "id": "compagnon.elya"
+        },
+        {
+          "type": "histoire",
+          "id": "compagnon.arc.rupture"
+        }
+      ],
+      "playerFacingReason": "Le conflit de valeurs provoque un départ."
+      ,
+      "timeBlock": {
+        "unit": "day",
+        "value": 1
+      }
+    },
+    {
+      "id": "trade.offre-initiale.to.negociation",
+      "entityType": "trade",
+      "fromState": "Offre initiale",
+      "trigger": "Le joueur engage une tentative de marchandage",
+      "toState": "Négociation de prix",
+      "consequence": "Calcul des leviers narratifs et des bornes de prix",
+      "impactScope": "none",
+      "ruleRef": "local.narration.trade.negotiate.open",
+      "loreAnchors": [
+        {
+          "type": "lieu",
+          "id": "quartier.port"
+        },
+        {
+          "type": "acteur",
+          "id": "pnj.marchande-nyra"
+        }
+      ],
+      "playerFacingReason": "La discussion de prix est ouverte.",
+      "timeBlock": {
+        "unit": "hour",
+        "value": 0
+      }
+    },
+    {
+      "id": "trade.negociation.to.accord",
+      "entityType": "trade",
+      "fromState": "Négociation de prix",
+      "trigger": "Argumentaire réussi dans les bornes système",
+      "toState": "Accord ajusté",
+      "consequence": "Prix ajusté sans rupture d'économie",
+      "impactScope": "none",
+      "ruleRef": "local.narration.trade.haggle",
+      "loreAnchors": [
+        {
+          "type": "lieu",
+          "id": "quartier.port"
+        },
+        {
+          "type": "acteur",
+          "id": "pnj.marchande-nyra"
+        }
+      ],
+      "playerFacingReason": "La marchande consent une remise après négociation.",
+      "timeBlock": {
+        "unit": "hour",
+        "value": 0
+      }
+    },
+    {
+      "id": "trade.negociation.to.offre-maintenue",
+      "entityType": "trade",
+      "fromState": "Négociation de prix",
+      "trigger": "Test ou argument échoué",
+      "toState": "Offre maintenue",
+      "consequence": "Prix inchangé avec légère dégradation relationnelle",
+      "impactScope": "none",
+      "ruleRef": "local.narration.trade.haggle.fail",
+      "loreAnchors": [
+        {
+          "type": "acteur",
+          "id": "pnj.marchande-nyra"
+        },
+        {
+          "type": "faction",
+          "id": "faction.consortium-portuaire"
+        }
+      ],
+      "playerFacingReason": "Votre argument ne convainc pas la marchande.",
+      "timeBlock": {
+        "unit": "hour",
+        "value": 0
+      }
+    },
+    {
+      "id": "trade.negociation.to.rupture",
+      "entityType": "trade",
+      "fromState": "Négociation de prix",
+      "trigger": "Échec critique ou exigence abusive",
+      "toState": "Rupture négociation",
+      "consequence": "Vente refusée temporairement ou majoration contextuelle",
+      "impactScope": "local",
+      "ruleRef": "local.narration.trade.haggle.break",
+      "loreAnchors": [
+        {
+          "type": "acteur",
+          "id": "pnj.marchande-nyra"
+        },
+        {
+          "type": "lieu",
+          "id": "quartier.port"
+        }
+      ],
+      "playerFacingReason": "La négociation tourne mal et se rompt.",
+      "timeBlock": {
+        "unit": "special",
+        "value": 1
+      }
+    },
+    {
+      "id": "trade.accord-ajuste.to.transaction",
+      "entityType": "trade",
+      "fromState": "Accord ajusté",
+      "trigger": "Validation finale du joueur",
+      "toState": "Transaction conclue",
+      "consequence": "Échange effectué et économie locale mise à jour",
+      "impactScope": "none",
+      "ruleRef": "local.narration.trade.transaction.close",
+      "loreAnchors": [
+        {
+          "type": "lieu",
+          "id": "quartier.port"
+        },
+        {
+          "type": "faction",
+          "id": "faction.consortium-portuaire"
+        }
+      ],
+      "playerFacingReason": "Vous confirmez l'accord et concluez l'échange.",
+      "timeBlock": {
+        "unit": "hour",
+        "value": 0
+      }
+    }
+  ]
+}

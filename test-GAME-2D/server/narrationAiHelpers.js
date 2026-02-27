@@ -62,6 +62,22 @@ function createNarrationAiHelpers(params) {
     return { name, args };
   }
 
+  function sanitizeCommitment(value, fallback = "informatif") {
+    const allowed = new Set(["declaratif", "volitif", "hypothetique", "informatif"]);
+    const raw = String(value ?? "").trim().toLowerCase();
+    if (allowed.has(raw)) return raw;
+    return fallback;
+  }
+
+  function deriveCommitmentFromStructured(safe) {
+    const worldType = String(safe?.worldIntent?.type ?? "none").trim().toLowerCase();
+    if (worldType === "runtime_progress" || worldType === "confirm_travel" || worldType === "access_attempt") {
+      return "declaratif";
+    }
+    if (worldType === "propose_travel") return "volitif";
+    return "informatif";
+  }
+
   function sanitizeIntentCandidate(candidate) {
     const allowedType = new Set([
       "lore_question",
@@ -71,14 +87,17 @@ function createNarrationAiHelpers(params) {
       "system_command"
     ]);
     const allowedRisk = new Set(["none", "low", "medium", "high"]);
+    const allowedCommitment = new Set(["declaratif", "volitif", "hypothetique", "informatif"]);
 
     const type = String(candidate?.type ?? candidate?.intentType ?? "story_action");
     const riskLevel = String(candidate?.riskLevel ?? "medium");
     const confidenceRaw = Number(candidate?.confidence ?? 0.6);
+    const commitmentRaw = String(candidate?.commitment ?? "informatif").trim().toLowerCase();
 
     return {
       type: allowedType.has(type) ? type : "story_action",
       confidence: Number.isFinite(confidenceRaw) ? clampNumber(confidenceRaw, 0, 1) : 0.6,
+      commitment: allowedCommitment.has(commitmentRaw) ? commitmentRaw : "informatif",
       requiresCheck: Boolean(
         candidate?.requiresCheck ?? (type === "story_action" || type === "social_action")
       ),
@@ -114,8 +133,9 @@ function createNarrationAiHelpers(params) {
       const systemPrompt =
         "Tu es un directeur narratif pour un JDR. " +
         "Retourne UNIQUEMENT un JSON valide avec les clés: " +
-        "intentType, confidence, requiresCheck, riskLevel, reason, directorMode, applyRuntime. " +
+        "intentType, commitment, confidence, requiresCheck, riskLevel, reason, directorMode, applyRuntime. " +
         "intentType ∈ {lore_question, free_exploration, story_action, social_action, system_command}. " +
+        "commitment ∈ {declaratif, volitif, hypothetique, informatif}. " +
         "directorMode ∈ {lore, exploration, runtime, scene_only}. " +
         "Décide si applyRuntime doit être true seulement quand une progression d'état runtime est pertinente. " +
         "Ne force pas une transition pour une simple salutation ou une exploration vague.";
@@ -147,6 +167,8 @@ function createNarrationAiHelpers(params) {
   function shouldApplyRuntimeForIntent(message, intent) {
     const type = intent?.type ?? "story_action";
     if (type !== "story_action" && type !== "social_action") return false;
+    const commitment = String(intent?.commitment ?? "informatif");
+    if (commitment === "hypothetique" || commitment === "informatif") return false;
     const requiresCheck = Boolean(intent?.requiresCheck);
     const riskLevel = String(intent?.riskLevel ?? "medium");
     if (requiresCheck) return true;
@@ -388,6 +410,8 @@ function createNarrationAiHelpers(params) {
 
   function sanitizeMjStructuredReply(candidate) {
     const safe = candidate && typeof candidate === "object" ? candidate : {};
+    const schemaVersion = String(safe.schemaVersion ?? "1.0.0").trim() || "1.0.0";
+    const intentType = String(safe.intentType ?? "story_action").trim() || "story_action";
     const responseType = String(safe.responseType ?? "narration").trim() || "narration";
     const directAnswer = String(safe.directAnswer ?? "").trim();
     const scene = String(safe.scene ?? "").trim();
@@ -408,7 +432,11 @@ function createNarrationAiHelpers(params) {
         : { type: "none", reason: "", targetLabel: "", targetId: "" };
     const bypassExistingMechanics = Boolean(safe.bypassExistingMechanics);
     const confidence = Number(safe.confidence ?? 0.7);
+    const commitment = sanitizeCommitment(safe.commitment, deriveCommitmentFromStructured(safe));
     return {
+      schemaVersion,
+      intentType,
+      commitment,
       responseType,
       directAnswer,
       scene,
@@ -441,7 +469,11 @@ function createNarrationAiHelpers(params) {
         "Tu es le MJ principal d'un JDR narratif. " +
         "Tu reponds en restant coherent avec le monde courant (lieu, temps, etat), sans reciter tout le lore. " +
         "Retourne UNIQUEMENT un JSON valide avec les champs: " +
-        "responseType, confidence, directAnswer, scene, actionResult, consequences, options, toolCalls, worldIntent, bypassExistingMechanics. " +
+        "schemaVersion, intentType, commitment, responseType, confidence, directAnswer, scene, actionResult, consequences, options, toolCalls, worldIntent, bypassExistingMechanics. " +
+        "schemaVersion='1.0.0'. " +
+        "intentType ∈ {lore_question, free_exploration, story_action, social_action, system_command}. " +
+        "commitment ∈ {declaratif, volitif, hypothetique, informatif}. " +
+        "commitment dans {declaratif, volitif, hypothetique, informatif}. " +
         "responseType dans {status, narration, clarification, resolution}. " +
         "toolCalls est un tableau d'objets {name,args}. Outils autorises: get_world_state, query_lore, query_player_sheet, query_rules, session_db_read, session_db_write, quest_trama_tick. " +
         "worldIntent.type dans {none, propose_travel, confirm_travel, access_attempt, runtime_progress}. " +
@@ -989,7 +1021,11 @@ function createNarrationAiHelpers(params) {
         "Tu es le MJ principal d'un JDR narratif. " +
         "Tu dois ajuster une reponse MJ existante en tenant compte des resultats d'outils serveur. " +
         "Retourne UNIQUEMENT un JSON valide avec les champs: " +
-        "responseType, confidence, directAnswer, scene, actionResult, consequences, options, toolCalls, worldIntent, bypassExistingMechanics. " +
+        "schemaVersion, intentType, commitment, responseType, confidence, directAnswer, scene, actionResult, consequences, options, toolCalls, worldIntent, bypassExistingMechanics. " +
+        "schemaVersion='1.0.0'. " +
+        "intentType ∈ {lore_question, free_exploration, story_action, social_action, system_command}. " +
+        "commitment ∈ {declaratif, volitif, hypothetique, informatif}. " +
+        "commitment dans {declaratif, volitif, hypothetique, informatif}. " +
         "Contrainte: reste coherent avec les resultats outils; n'invente pas un fait contredit par ces resultats. " +
         "Si un interlocuteur est actif en scene sociale, garde une voix PNJ concrete et differenciee. " +
         "Interdit: formulations meta, traces de debug, ou raisonnement interne du MJ dans la reponse RP. " +
@@ -1059,3 +1095,5 @@ function createNarrationAiHelpers(params) {
 module.exports = {
   createNarrationAiHelpers
 };
+
+

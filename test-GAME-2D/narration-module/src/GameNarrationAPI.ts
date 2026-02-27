@@ -4,6 +4,7 @@ import { TransitionRepository } from './TransitionRepository';
 import { ContextPackBuilder } from './ContextPackBuilder';
 import type {
   AINarrationCandidate,
+  AINarrationContractV1,
   MjNarrationGenerator,
   NarrativeEntityType,
   NarrativeGameState,
@@ -320,12 +321,14 @@ export class GameNarrationAPI {
     const candidates = this.buildAICandidates(state, transitions, request.entityHints);
 
     if (!candidates.length) {
+      const aiContract = this.makeAIContractFallback(null, null, 'No applicable candidate to generate');
       return {
         decisionReason: 'Aucune commande applicable après filtrage runtime',
         selectedCommand: null,
         appliedOutcome: null,
         state,
         aiReason: 'No applicable candidate to generate',
+        aiContract,
         candidatesGenerated: 0,
         contextPack
       };
@@ -339,12 +342,14 @@ export class GameNarrationAPI {
     });
 
     if (aiDecision.selectedIndex == null) {
+      const aiContract = aiDecision.contract ?? this.makeAIContractFallback(null, null, aiDecision.reason);
       return {
         decisionReason: 'Aucun événement retenu par le générateur MJ',
         selectedCommand: null,
         appliedOutcome: null,
         state,
         aiReason: aiDecision.reason,
+        aiContract,
         candidatesGenerated: candidates.length,
         contextPack
       };
@@ -352,12 +357,14 @@ export class GameNarrationAPI {
 
     const selected = candidates[aiDecision.selectedIndex];
     if (!selected) {
+      const aiContract = aiDecision.contract ?? this.makeAIContractFallback(null, null, aiDecision.reason);
       return {
         decisionReason: 'Sélection MJ invalide (index hors bornes)',
         selectedCommand: null,
         appliedOutcome: null,
         state,
         aiReason: aiDecision.reason,
+        aiContract,
         candidatesGenerated: candidates.length,
         contextPack
       };
@@ -370,8 +377,54 @@ export class GameNarrationAPI {
     return {
       ...outcome,
       aiReason: aiDecision.reason,
+      aiContract: aiDecision.contract ?? this.makeAIContractFallback(selected, outcome.selectedCommand, aiDecision.reason),
       candidatesGenerated: candidates.length,
       contextPack
+    };
+  }
+
+  private makeAIContractFallback(
+    selectedCandidate: AINarrationCandidate | null,
+    selectedCommand: RuntimeTransitionCommand | null,
+    reason: string
+  ): AINarrationContractV1 {
+    const candidate = selectedCandidate;
+    const command = selectedCommand ?? candidate?.command ?? null;
+    return {
+      schemaVersion: '1.0.0',
+      intentType: 'story_action',
+      commitment: command ? 'declaratif' : 'informatif',
+      target: command
+        ? {
+            label: command.entityId,
+            entityType: command.entityType,
+            entityId: command.entityId,
+            trigger: command.trigger
+          }
+        : {},
+      socialFocus: {
+        active: false
+      },
+      worldIntent: command
+        ? {
+            type: 'runtime_progress',
+            reason,
+            targetLabel: command.entityId,
+            transitionId: candidate?.transitionId
+          }
+        : {
+            type: 'none',
+            reason
+          },
+      toolCalls: [],
+      mjResponse: {
+        scene: command
+          ? `La narration se concentre sur ${command.entityId} (${command.entityType}).`
+          : 'Aucune progression runtime retenue pour ce tour.',
+        actionResult: candidate?.consequence ?? 'Aucune transition appliquee.',
+        consequences: reason,
+        options: []
+      }
     };
   }
 

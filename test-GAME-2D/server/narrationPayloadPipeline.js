@@ -49,6 +49,21 @@ function createNarrationPayloadPipeline(deps = {}) {
     byReason: {},
     recent: []
   };
+  const PHASE4_AI_BUDGET_STATS = {
+    turnsWithBudget: 0,
+    overBudgetTurns: 0,
+    blockedTurns: 0,
+    totalUsed: 0,
+    totalMax: 0,
+    primaryUsed: 0,
+    primaryMax: 0,
+    fallbackUsed: 0,
+    fallbackMax: 0,
+    totalBlocked: 0,
+    primaryBlocked: 0,
+    fallbackBlocked: 0,
+    recent: []
+  };
 
   function normalizePhase3Gate(value) {
     const gate = String(value ?? "").trim().toLowerCase();
@@ -58,6 +73,13 @@ function createNarrationPayloadPipeline(deps = {}) {
   function normalizePhase3Code(value) {
     const code = String(value ?? "").trim().toLowerCase();
     return code || "unknown";
+  }
+
+  function normalizeCommitment(value, fallback = "informatif") {
+    const allowed = new Set(["declaratif", "volitif", "hypothetique", "informatif"]);
+    const raw = String(value ?? "").trim().toLowerCase();
+    if (allowed.has(raw)) return raw;
+    return fallback;
   }
 
   function normalizePhase3Violations(list) {
@@ -311,6 +333,79 @@ function createNarrationPayloadPipeline(deps = {}) {
     };
   }
 
+  function normalizeAiCallBudgetStats(input) {
+    const safe = input && typeof input === "object" ? input : {};
+    return {
+      used: Number(safe.used ?? 0),
+      max: Number(safe.max ?? 0),
+      primaryUsed: Number(safe.primaryUsed ?? 0),
+      primaryMax: Number(safe.primaryMax ?? 0),
+      fallbackUsed: Number(safe.fallbackUsed ?? 0),
+      fallbackMax: Number(safe.fallbackMax ?? 0),
+      blocked: Number(safe.blocked ?? 0),
+      primaryBlocked: Number(safe.primaryBlocked ?? 0),
+      fallbackBlocked: Number(safe.fallbackBlocked ?? 0),
+      blockedLabels: Array.isArray(safe.blockedLabels)
+        ? safe.blockedLabels.map((x) => String(x ?? "").trim()).filter(Boolean).slice(-8)
+        : []
+    };
+  }
+
+  function trackPhase4AiBudget(payload) {
+    const raw = payload?.phase12?.aiCallBudget;
+    if (!raw || typeof raw !== "object") return;
+    const budget = normalizeAiCallBudgetStats(raw);
+    PHASE4_AI_BUDGET_STATS.turnsWithBudget += 1;
+    PHASE4_AI_BUDGET_STATS.totalUsed += budget.used;
+    PHASE4_AI_BUDGET_STATS.totalMax += budget.max;
+    PHASE4_AI_BUDGET_STATS.primaryUsed += budget.primaryUsed;
+    PHASE4_AI_BUDGET_STATS.primaryMax += budget.primaryMax;
+    PHASE4_AI_BUDGET_STATS.fallbackUsed += budget.fallbackUsed;
+    PHASE4_AI_BUDGET_STATS.fallbackMax += budget.fallbackMax;
+    PHASE4_AI_BUDGET_STATS.totalBlocked += budget.blocked;
+    PHASE4_AI_BUDGET_STATS.primaryBlocked += budget.primaryBlocked;
+    PHASE4_AI_BUDGET_STATS.fallbackBlocked += budget.fallbackBlocked;
+    if (budget.used > budget.max) PHASE4_AI_BUDGET_STATS.overBudgetTurns += 1;
+    if (budget.blocked > 0) PHASE4_AI_BUDGET_STATS.blockedTurns += 1;
+    PHASE4_AI_BUDGET_STATS.recent.push({
+      at: new Date().toISOString(),
+      used: budget.used,
+      max: budget.max,
+      primaryUsed: budget.primaryUsed,
+      primaryMax: budget.primaryMax,
+      fallbackUsed: budget.fallbackUsed,
+      fallbackMax: budget.fallbackMax,
+      blocked: budget.blocked,
+      blockedLabels: budget.blockedLabels
+    });
+    if (PHASE4_AI_BUDGET_STATS.recent.length > 20) PHASE4_AI_BUDGET_STATS.recent.shift();
+  }
+
+  function buildPhase4AiBudgetStatsPayload() {
+    const turns = Number(PHASE4_AI_BUDGET_STATS.turnsWithBudget ?? 0);
+    const blockedTurns = Number(PHASE4_AI_BUDGET_STATS.blockedTurns ?? 0);
+    const overBudgetTurns = Number(PHASE4_AI_BUDGET_STATS.overBudgetTurns ?? 0);
+    const blockedRatePct = turns > 0 ? Number(((blockedTurns / turns) * 100).toFixed(1)) : 0;
+    const overBudgetRatePct = turns > 0 ? Number(((overBudgetTurns / turns) * 100).toFixed(1)) : 0;
+    return {
+      turnsWithBudget: turns,
+      blockedTurns,
+      overBudgetTurns,
+      blockedRatePct,
+      overBudgetRatePct,
+      totalUsed: Number(PHASE4_AI_BUDGET_STATS.totalUsed ?? 0),
+      totalMax: Number(PHASE4_AI_BUDGET_STATS.totalMax ?? 0),
+      primaryUsed: Number(PHASE4_AI_BUDGET_STATS.primaryUsed ?? 0),
+      primaryMax: Number(PHASE4_AI_BUDGET_STATS.primaryMax ?? 0),
+      fallbackUsed: Number(PHASE4_AI_BUDGET_STATS.fallbackUsed ?? 0),
+      fallbackMax: Number(PHASE4_AI_BUDGET_STATS.fallbackMax ?? 0),
+      totalBlocked: Number(PHASE4_AI_BUDGET_STATS.totalBlocked ?? 0),
+      primaryBlocked: Number(PHASE4_AI_BUDGET_STATS.primaryBlocked ?? 0),
+      fallbackBlocked: Number(PHASE4_AI_BUDGET_STATS.fallbackBlocked ?? 0),
+      recent: PHASE4_AI_BUDGET_STATS.recent.slice(-10)
+    };
+  }
+
   function normalizeMjContract(contract) {
     const safe = contract && typeof contract === "object" ? contract : {};
     const confidenceRaw = Number(safe?.confidence ?? 0.7);
@@ -323,6 +418,7 @@ function createNarrationPayloadPipeline(deps = {}) {
       safe?.loreGuardReport && typeof safe.loreGuardReport === "object" ? safe.loreGuardReport : {};
     const options = normalizeMjOptions(mjResponse.options, 6);
     return {
+      schemaVersion: "1.0.0",
       version: "1.0.0",
       confidence,
       intent: {
@@ -330,6 +426,7 @@ function createNarrationPayloadPipeline(deps = {}) {
         confidence: Number.isFinite(Number(intent?.confidence))
           ? clampNumber(Number(intent.confidence), 0, 1)
           : confidence,
+        commitment: normalizeCommitment(intent?.commitment, "informatif"),
         riskLevel: String(intent?.riskLevel ?? "medium"),
         requiresCheck: Boolean(intent?.requiresCheck),
         reason: String(intent?.reason ?? "")
@@ -452,9 +549,16 @@ function createNarrationPayloadPipeline(deps = {}) {
     const hrpToolTrace = Array.isArray(data?.hrpAnalysis?.toolTrace) ? data.hrpAnalysis.toolTrace : [];
     const mjToolTrace = Array.isArray(data?.mjToolTrace) ? data.mjToolTrace : [];
     const toolCalls = [...hrpToolTrace, ...mjToolTrace].slice(0, 24);
+    const inferredCommitment = normalizeCommitment(
+      data?.intent?.commitment,
+      normalizeCommitment(data?.mjStructured?.commitment, "informatif")
+    );
     const contract = normalizeMjContract({
       confidence: Number(data?.intent?.confidence ?? data?.mjStructured?.confidence ?? 0.7),
-      intent: data?.intent ?? {},
+      intent: {
+        ...(data?.intent ?? {}),
+        commitment: inferredCommitment
+      },
       mjResponse: {
         responseType: responseParts.responseType,
         directAnswer: responseParts.directAnswer,
@@ -478,6 +582,10 @@ function createNarrationPayloadPipeline(deps = {}) {
     });
     const payload = {
       ...data,
+      intent:
+        data?.intent && typeof data.intent === "object"
+          ? { ...data.intent, commitment: inferredCommitment }
+          : data?.intent,
       mjResponse: contract.mjResponse,
       mjContract: {
         ...contract,
@@ -671,9 +779,11 @@ function createNarrationPayloadPipeline(deps = {}) {
   }
 
   function sendJson(res, statusCode, data) {
-    const payload = separateDebugChannel(
-      applyPhase3LoreGuards(attachCanonicalNarrativeContext(attachMjContractToPayload(data)))
-    );
+    const withContracts = attachMjContractToPayload(data);
+    const withCanonical = attachCanonicalNarrativeContext(withContracts);
+    const withGuards = applyPhase3LoreGuards(withCanonical);
+    trackPhase4AiBudget(withGuards);
+    const payload = separateDebugChannel(withGuards);
     const body = JSON.stringify(payload);
     res.writeHead(statusCode, {
       "Content-Type": "application/json; charset=utf-8",
@@ -689,6 +799,7 @@ function createNarrationPayloadPipeline(deps = {}) {
     sendJson,
     buildMjContractStatsPayload,
     buildPhase3GuardStatsPayload,
+    buildPhase4AiBudgetStatsPayload,
     buildPhase8DebugChannelStatsPayload
   };
 }

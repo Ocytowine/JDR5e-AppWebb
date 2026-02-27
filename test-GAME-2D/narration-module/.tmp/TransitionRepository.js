@@ -14,7 +14,17 @@ class TransitionRepository {
         return JSON.parse(raw);
     }
     static loadDefaultRuntime() {
-        return this.loadFromFile(resolveRuntimePath('Transitions-v1-runtime.example.json'));
+        const primaryPath = resolveRuntimePath('Transitions-v1-runtime.v1.json');
+        if (fs.existsSync(primaryPath)) {
+            return this.loadFromFile(primaryPath);
+        }
+        const allowExampleFallback = String(process.env.NARRATION_ALLOW_EXAMPLE_TRANSITIONS_FALLBACK ?? '0') === '1';
+        const examplePath = resolveRuntimePath('Transitions-v1-runtime.example.json');
+        if (allowExampleFallback && fs.existsSync(examplePath)) {
+            return this.loadFromFile(examplePath);
+        }
+        throw new Error(`Runtime transitions introuvable: ${primaryPath}. ` +
+            `Active NARRATION_ALLOW_EXAMPLE_TRANSITIONS_FALLBACK=1 pour utiliser l'exemple temporairement.`);
     }
     static loadTransitions(filePath) {
         const runtime = filePath ? this.loadFromFile(filePath) : this.loadDefaultRuntime();

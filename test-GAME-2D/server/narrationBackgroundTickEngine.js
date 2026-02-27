@@ -1,4 +1,5 @@
 "use strict";
+const { readAiBudgetConfig } = require("./narrationAiConfig");
 
 function createNarrationBackgroundTickEngine() {
   const PHASE6_STATS_MAX_SAMPLES = 24;
@@ -8,6 +9,14 @@ function createNarrationBackgroundTickEngine() {
     appliedTicks: 0,
     skippedTicks: 0,
     skippedByReason: {},
+    aiBudget: {
+      totalUsed: 0,
+      totalBlocked: 0,
+      primaryUsed: 0,
+      fallbackUsed: 0,
+      primaryBlocked: 0,
+      fallbackBlocked: 0
+    },
     byTransition: {},
     recent: []
   };
@@ -70,6 +79,61 @@ function createNarrationBackgroundTickEngine() {
     }
 
     try {
+      const { aiCallMaxPerTurn, aiPrimaryMaxPerTurn, aiFallbackMaxPerTurn } = readAiBudgetConfig();
+      const budget = {
+        used: 0,
+        primaryUsed: 0,
+        fallbackUsed: 0,
+        blocked: 0,
+        blockedLabels: []
+      };
+      function consumeBudget(label, kind = "primary") {
+        const bucket = kind === "primary" ? "primary" : "fallback";
+        const bucketUsed = bucket === "primary" ? budget.primaryUsed : budget.fallbackUsed;
+        const bucketMax = bucket === "primary" ? aiPrimaryMaxPerTurn : aiFallbackMaxPerTurn;
+        if (bucketUsed >= bucketMax) {
+          budget.blocked += 1;
+          if (bucket === "primary") PHASE6_BACKGROUND_STATS.aiBudget.primaryBlocked += 1;
+          else PHASE6_BACKGROUND_STATS.aiBudget.fallbackBlocked += 1;
+          budget.blockedLabels.push(`${bucket}:${String(label ?? "unknown")}`);
+          return false;
+        }
+        if (budget.used >= aiCallMaxPerTurn) {
+          budget.blocked += 1;
+          if (bucket === "primary") PHASE6_BACKGROUND_STATS.aiBudget.primaryBlocked += 1;
+          else PHASE6_BACKGROUND_STATS.aiBudget.fallbackBlocked += 1;
+          budget.blockedLabels.push(`total:${String(label ?? "unknown")}`);
+          return false;
+        }
+        budget.used += 1;
+        if (bucket === "primary") budget.primaryUsed += 1;
+        else budget.fallbackUsed += 1;
+        return true;
+      }
+
+      if (!consumeBudget("tickNarrationWithAI", "primary")) {
+        PHASE6_BACKGROUND_STATS.aiBudget.totalBlocked += 1;
+        PHASE6_BACKGROUND_STATS.aiBudget.primaryBlocked += 1;
+        const reason = addSkip("ai-budget-exceeded");
+        trackRecent({
+          applied: false,
+          reason,
+          transitionId: "none",
+          intentType: String(params?.intentType ?? "unknown"),
+          aiBudget: {
+            used: budget.used,
+            max: aiCallMaxPerTurn,
+            primaryUsed: budget.primaryUsed,
+            primaryMax: aiPrimaryMaxPerTurn,
+            fallbackUsed: budget.fallbackUsed,
+            fallbackMax: aiFallbackMaxPerTurn,
+            blocked: budget.blocked,
+            blockedLabels: budget.blockedLabels.slice(-6)
+          }
+        });
+        return { applied: false, reason, transitionId: "none", outcome: null };
+      }
+
       const records = Array.isArray(params?.records) ? params.records : [];
       const safeMessage = String(params?.message ?? "").trim();
       const generator = new runtime.HeuristicMjNarrationGenerator();
@@ -88,6 +152,12 @@ function createNarrationBackgroundTickEngine() {
         },
         generator
       );
+
+      PHASE6_BACKGROUND_STATS.aiBudget.totalUsed += budget.used;
+      PHASE6_BACKGROUND_STATS.aiBudget.primaryUsed += budget.primaryUsed;
+      PHASE6_BACKGROUND_STATS.aiBudget.fallbackUsed += budget.fallbackUsed;
+      PHASE6_BACKGROUND_STATS.aiBudget.totalBlocked += budget.blocked;
+
       const transitionId = String(outcome?.appliedOutcome?.result?.transitionId ?? "none");
       PHASE6_BACKGROUND_STATS.appliedTicks += 1;
       PHASE6_BACKGROUND_STATS.byTransition[transitionId] =
@@ -96,7 +166,17 @@ function createNarrationBackgroundTickEngine() {
         applied: true,
         reason: "applied",
         transitionId,
-        intentType: String(params?.intentType ?? "unknown")
+        intentType: String(params?.intentType ?? "unknown"),
+        aiBudget: {
+          used: budget.used,
+          max: aiCallMaxPerTurn,
+          primaryUsed: budget.primaryUsed,
+          primaryMax: aiPrimaryMaxPerTurn,
+          fallbackUsed: budget.fallbackUsed,
+          fallbackMax: aiFallbackMaxPerTurn,
+          blocked: budget.blocked,
+          blockedLabels: budget.blockedLabels.slice(-6)
+        }
       });
       return { applied: true, reason: "applied", transitionId, outcome };
     } catch (err) {
@@ -132,6 +212,7 @@ function createNarrationBackgroundTickEngine() {
       eligibleRatePct,
       applyRatePct,
       skippedByReason: { ...PHASE6_BACKGROUND_STATS.skippedByReason },
+      aiBudget: { ...PHASE6_BACKGROUND_STATS.aiBudget },
       byTransition: { ...PHASE6_BACKGROUND_STATS.byTransition },
       recent: PHASE6_BACKGROUND_STATS.recent.slice(-12)
     };

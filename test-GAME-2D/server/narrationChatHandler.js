@@ -1,4 +1,13 @@
 "use strict";
+const { readAiBudgetConfig, readAiFeatureFlags } = require("./narrationAiConfig");
+const { createAiCallBudgetController } = require("./narrationAiBudget");
+const {
+  normalizeCommitment,
+  shouldHandleHypotheticalCommitment,
+  shouldHandleInformativeCommitment,
+  shouldForceRuntimeByCommitment,
+  shouldClarifyTargetFromCommitment
+} = require("./narrationCommitmentPolicy");
 
 function createNarrationChatHandler(deps = {}) {
   const {
@@ -23,6 +32,7 @@ function createNarrationChatHandler(deps = {}) {
     buildMjContractStatsPayload,
     buildPhase3GuardStatsPayload,
     buildPhase4SessionStatsPayload,
+    buildPhase4AiBudgetStatsPayload,
     buildPhase5MutationStatsPayload,
     buildPhase6BackgroundStatsPayload,
     buildPhase7RenderStatsPayload,
@@ -123,6 +133,29 @@ function createNarrationChatHandler(deps = {}) {
           });
           let intent = heuristicIntent;
           let directorPlan = buildNarrativeDirectorPlan(intent);
+          const aiBudget = createAiCallBudgetController(readAiBudgetConfig());
+          const aiFeatureFlags = readAiFeatureFlags();
+          const {
+            useAiClassifier,
+            useAiSceneFramePatch,
+            useAiWorldArbitration,
+            useAiRefine,
+            useAiStructuredMain,
+            useAiStructuredBranch,
+            useAiStructuredLore,
+            useAiLocalMemory,
+            useAiPendingTravelArbitration,
+            useAiRuntimeEligibility,
+            useAiValidators
+          } = aiFeatureFlags;
+          async function callAiWithBudget(label, fn, fallback = null, kind = "fallback") {
+            if (conversationMode !== "rp") return fallback;
+            if (typeof fn !== "function") return fallback;
+            if (!aiBudget.tryConsume(label, kind, { totalLabelPrefix: "" })) {
+              return fallback;
+            }
+            return fn();
+          }
     
           if (message.toLowerCase() === "/reset") {
             const runtime = getNarrationRuntime();
@@ -406,6 +439,26 @@ function createNarrationChatHandler(deps = {}) {
               typeof buildPhase4SessionStatsPayload === "function"
                 ? buildPhase4SessionStatsPayload()
                 : { counts: {}, recent: [] };
+            const phase4AiBudget =
+              typeof buildPhase4AiBudgetStatsPayload === "function"
+                ? buildPhase4AiBudgetStatsPayload()
+                : {
+                    turnsWithBudget: 0,
+                    blockedTurns: 0,
+                    overBudgetTurns: 0,
+                    blockedRatePct: 0,
+                    overBudgetRatePct: 0,
+                    totalUsed: 0,
+                    totalMax: 0,
+                    primaryUsed: 0,
+                    primaryMax: 0,
+                    fallbackUsed: 0,
+                    fallbackMax: 0,
+                    totalBlocked: 0,
+                    primaryBlocked: 0,
+                    fallbackBlocked: 0,
+                    recent: []
+                  };
             const counts = phase4?.counts ?? {};
             const summary = [
               "Phase4 DoD (session DB narrative)",
@@ -413,7 +466,8 @@ function createNarrationChatHandler(deps = {}) {
               `sessionNpcs: ${Number(counts.sessionNpcs ?? 0)}`,
               `establishedFacts: ${Number(counts.establishedFacts ?? 0)}`,
               `rumors: ${Number(counts.rumors ?? 0)}`,
-              `debtsPromises: ${Number(counts.debtsPromises ?? 0)}`
+              `debtsPromises: ${Number(counts.debtsPromises ?? 0)}`,
+              `AI budget blockedRate: ${Number(phase4AiBudget?.blockedRatePct ?? 0)}%`
             ].join(" | ");
             return sendJson(res, 200, {
               reply: summary,
@@ -433,6 +487,23 @@ function createNarrationChatHandler(deps = {}) {
                   establishedFacts: Number(counts.establishedFacts ?? 0),
                   rumors: Number(counts.rumors ?? 0),
                   debtsPromises: Number(counts.debtsPromises ?? 0)
+                },
+                aiBudget: {
+                  turnsWithBudget: Number(phase4AiBudget?.turnsWithBudget ?? 0),
+                  blockedTurns: Number(phase4AiBudget?.blockedTurns ?? 0),
+                  overBudgetTurns: Number(phase4AiBudget?.overBudgetTurns ?? 0),
+                  blockedRatePct: Number(phase4AiBudget?.blockedRatePct ?? 0),
+                  overBudgetRatePct: Number(phase4AiBudget?.overBudgetRatePct ?? 0),
+                  totalUsed: Number(phase4AiBudget?.totalUsed ?? 0),
+                  totalMax: Number(phase4AiBudget?.totalMax ?? 0),
+                  primaryUsed: Number(phase4AiBudget?.primaryUsed ?? 0),
+                  primaryMax: Number(phase4AiBudget?.primaryMax ?? 0),
+                  fallbackUsed: Number(phase4AiBudget?.fallbackUsed ?? 0),
+                  fallbackMax: Number(phase4AiBudget?.fallbackMax ?? 0),
+                  totalBlocked: Number(phase4AiBudget?.totalBlocked ?? 0),
+                  primaryBlocked: Number(phase4AiBudget?.primaryBlocked ?? 0),
+                  fallbackBlocked: Number(phase4AiBudget?.fallbackBlocked ?? 0),
+                  recent: Array.isArray(phase4AiBudget?.recent) ? phase4AiBudget.recent : []
                 },
                 updatedAt: String(phase4?.updatedAt ?? ""),
                 recent: Array.isArray(phase4?.recent) ? phase4.recent : []
@@ -746,18 +817,24 @@ function createNarrationChatHandler(deps = {}) {
             memoryRecords
           }) {
             if (conversationMode !== "rp") return;
+            if (!useAiLocalMemory) return;
             if (typeof writeSessionNarrativeMemory !== "function") return;
             if (typeof extractLocalMemoryCandidatesWithAI !== "function") return;
             const safeReply = String(replyText ?? "").trim();
             const safeWorld = worldState && typeof worldState === "object" ? worldState : null;
             if (!safeReply || !safeWorld) return;
 
-            const extracted = await extractLocalMemoryCandidatesWithAI({
-              reply: safeReply,
-              worldState: safeWorld,
-              records: Array.isArray(memoryRecords) ? memoryRecords : records,
-              conversationMode
-            });
+            const extracted = await callAiWithBudget(
+              "extract-local-memory",
+              () =>
+                extractLocalMemoryCandidatesWithAI({
+                  reply: safeReply,
+                  worldState: safeWorld,
+                  records: Array.isArray(memoryRecords) ? memoryRecords : records,
+                  conversationMode
+                }),
+              null
+            );
             if (!extracted || typeof extracted !== "object") return;
             const sceneFrame = cleanSceneAnchors(safeWorld?.conversation?.sceneFrame, safeWorld);
             const playerTokens = buildPlayerIdentitySet(safeWorld);
@@ -803,12 +880,17 @@ function createNarrationChatHandler(deps = {}) {
             };
             const microProfiles =
               typeof generateEntityMicroProfilesWithAI === "function"
-                ? await generateEntityMicroProfilesWithAI({
-                    reply: safeReply,
-                    worldState: safeWorld,
-                    sceneFrame: safeWorld?.conversation?.sceneFrame ?? null,
-                    conversationMode
-                  })
+                ? await callAiWithBudget(
+                    "generate-entity-micro-profiles",
+                    () =>
+                      generateEntityMicroProfilesWithAI({
+                        reply: safeReply,
+                        worldState: safeWorld,
+                        sceneFrame: safeWorld?.conversation?.sceneFrame ?? null,
+                        conversationMode
+                      }),
+                    null
+                  )
                 : null;
             const npcProfiles = Array.isArray(microProfiles?.npcs) ? microProfiles.npcs : [];
             const poiProfiles = Array.isArray(microProfiles?.pois) ? microProfiles.pois : [];
@@ -936,25 +1018,35 @@ function createNarrationChatHandler(deps = {}) {
             const label = String(targetLabel ?? "").trim();
             if (!label) return null;
             const memoryRows = readSceneMemoryRows(worldState, label);
-            return resolveSpatialTargetWithAI({
-              message,
-              targetLabel: label,
-              worldState,
-              sceneMemoryRows: memoryRows,
-              records,
-              conversationMode
-            });
+            return callAiWithBudget(
+              "resolve-spatial-target",
+              () =>
+                resolveSpatialTargetWithAI({
+                  message,
+                  targetLabel: label,
+                  worldState,
+                  sceneMemoryRows: memoryRows,
+                  records,
+                  conversationMode
+                }),
+              null
+            );
           }
           async function summarizeConversationTurns(windowKey, turns, worldState) {
             const safeTurns = Array.isArray(turns) ? turns : [];
             if (!safeTurns.length) return "";
-            if (typeof summarizeConversationWindowWithAI === "function") {
-              const aiSummary = await summarizeConversationWindowWithAI({
-                windowKey,
-                turns: safeTurns,
-                worldState,
-                conversationMode
-              });
+            if (useAiLocalMemory && typeof summarizeConversationWindowWithAI === "function") {
+              const aiSummary = await callAiWithBudget(
+                "summarize-conversation-window",
+                () =>
+                  summarizeConversationWindowWithAI({
+                    windowKey,
+                    turns: safeTurns,
+                    worldState,
+                    conversationMode
+                  }),
+                null
+              );
               if (aiSummary && typeof aiSummary.summary === "string" && aiSummary.summary.trim()) {
                 const facts =
                   Array.isArray(aiSummary.keyFacts) && aiSummary.keyFacts.length
@@ -1161,6 +1253,41 @@ function createNarrationChatHandler(deps = {}) {
               options: normalizeMjOptions(parts?.options, 6)
             });
           }
+          function deterministicNarrativeStateConsistencyCheck({
+            narrativeStage,
+            text,
+            stateUpdatedExpected
+          }) {
+            const stage = String(narrativeStage ?? "scene").trim().toLowerCase();
+            const reply = String(text ?? "").toLowerCase();
+            const looksLikeArrival =
+              reply.includes("tu arrives") ||
+              reply.includes("te voila") ||
+              reply.includes("vous arrivez") ||
+              reply.includes("vous voila") ||
+              reply.includes("tu franchis") ||
+              reply.includes("vous franchissez");
+            if (stage === "travel_proposal" && looksLikeArrival) {
+              return { valid: false, reason: "deterministic:travel-proposal-arrival-drift", severity: "high" };
+            }
+            if (!stateUpdatedExpected && reply.includes("est maintenant")) {
+              return { valid: false, reason: "deterministic:state-claim-without-update", severity: "medium" };
+            }
+            return { valid: true, reason: "deterministic:ok", severity: "low" };
+          }
+          function deterministicSceneFrameContinuityCheck({ reply, sceneFrame }) {
+            const text = String(reply ?? "").toLowerCase();
+            const safeFrame = sceneFrame && typeof sceneFrame === "object" ? sceneFrame : null;
+            if (!safeFrame) return { valid: true, reason: "deterministic:no-frame", severity: "low" };
+            const currentPoi = String(safeFrame.activePoiLabel ?? "").trim().toLowerCase();
+            const currentNpc = String(safeFrame.activeInterlocutorLabel ?? "").trim().toLowerCase();
+            const mentionsHardSwitch =
+              text.includes("tu changes de lieu") || text.includes("vous changez de lieu");
+            if ((currentPoi || currentNpc) && mentionsHardSwitch) {
+              return { valid: false, reason: "deterministic:hard-switch-detected", severity: "medium" };
+            }
+            return { valid: true, reason: "deterministic:ok", severity: "low" };
+          }
           async function buildAiNarrativeReplyForBranch(params = {}) {
             const safeWorldState =
               params.worldState && typeof params.worldState === "object" ? params.worldState : null;
@@ -1188,6 +1315,24 @@ function createNarrationChatHandler(deps = {}) {
                 }
               };
             }
+            if (!useAiStructuredBranch) {
+              const anchoredFallback = buildSceneFrameAnchoredFallbackReply(
+                fallbackReply,
+                sceneFrame,
+                safeWorldState
+              );
+              return {
+                reply: anchoredFallback || fallbackReply,
+                mjStructured: null,
+                mjToolTrace: [],
+                phase12: {
+                  continuityGuard: null,
+                  anchorDriftDetected: false,
+                  stageContractViolation: false,
+                  regenerationCount: 0
+                }
+              };
+            }
             const canonicalForBranch = buildCanonicalNarrativeContext({
               worldState: safeWorldState,
               contextPack: rpContextPack,
@@ -1199,21 +1344,26 @@ function createNarrationChatHandler(deps = {}) {
             let lastContinuity = null;
             let lastStageViolation = false;
             for (let attempt = 0; attempt <= maxRegenerations; attempt += 1) {
-              const draft = await generateMjStructuredReply({
-                message: branchMessage,
-                records: branchRecords,
-                worldState: safeWorldState,
-                canonicalContext: canonicalForBranch,
-                contextPack: rpContextPack,
-                activeInterlocutor,
-                conversationMode,
-                narrativeStage,
-                pending: {
-                  action: safeWorldState?.conversation?.pendingAction ?? null,
-                  travel: safeWorldState?.travel?.pending ?? safeWorldState?.conversation?.pendingTravel ?? null,
-                  access: safeWorldState?.conversation?.pendingAccess ?? null
-                }
-              });
+              const draft = await callAiWithBudget(
+                "generate-mj-structured-branch",
+                () =>
+                  generateMjStructuredReply({
+                    message: branchMessage,
+                    records: branchRecords,
+                    worldState: safeWorldState,
+                    canonicalContext: canonicalForBranch,
+                    contextPack: rpContextPack,
+                    activeInterlocutor,
+                    conversationMode,
+                    narrativeStage,
+                    pending: {
+                      action: safeWorldState?.conversation?.pendingAction ?? null,
+                      travel: safeWorldState?.travel?.pending ?? safeWorldState?.conversation?.pendingTravel ?? null,
+                      access: safeWorldState?.conversation?.pendingAccess ?? null
+                    }
+                  }),
+                null
+              );
               const planned = mergeToolCalls(
                 Array.isArray(draft?.toolCalls) ? draft.toolCalls : [],
                 Array.isArray(params.priorityToolCalls) ? params.priorityToolCalls : [],
@@ -1233,17 +1383,24 @@ function createNarrationChatHandler(deps = {}) {
                 }
               });
               lastToolTrace = mjToolTrace;
-              const refined = await refineMjStructuredReplyWithTools({
-                message: branchMessage,
-                initialStructured: draft,
-                toolResults: mjToolTrace,
-                worldState: safeWorldState,
-                canonicalContext: canonicalForBranch,
-                contextPack: rpContextPack,
-                activeInterlocutor,
-                conversationMode,
-                narrativeStage
-              });
+              const refined = useAiRefine
+                ? await callAiWithBudget(
+                    "refine-mj-structured-branch",
+                    () =>
+                      refineMjStructuredReplyWithTools({
+                        message: branchMessage,
+                        initialStructured: draft,
+                        toolResults: mjToolTrace,
+                        worldState: safeWorldState,
+                        canonicalContext: canonicalForBranch,
+                        contextPack: rpContextPack,
+                        activeInterlocutor,
+                        conversationMode,
+                        narrativeStage
+                      }),
+                    draft
+                  )
+                : draft;
               const tempered =
                 typeof temperNarrativeHype === "function"
                   ? temperNarrativeHype({
@@ -1302,30 +1459,58 @@ function createNarrationChatHandler(deps = {}) {
               });
               const composedReply = direct ? `${direct}\n${blocks}` : blocks;
               let stageContractViolation = false;
-              if (typeof validateNarrativeStateConsistency === "function") {
-                const check = await validateNarrativeStateConsistency({
-                  narrativeStage,
-                  text: composedReply,
-                  stateUpdatedExpected,
-                  worldBefore,
-                  worldAfter: safeWorldState,
-                  conversationMode
-                });
-                if (check && check.valid === false) {
-                  stageContractViolation = true;
-                }
+              let stageCheck = deterministicNarrativeStateConsistencyCheck({
+                narrativeStage,
+                text: composedReply,
+                stateUpdatedExpected
+              });
+              if (
+                useAiValidators &&
+                stageCheck.valid &&
+                typeof validateNarrativeStateConsistency === "function"
+              ) {
+                stageCheck = await callAiWithBudget(
+                  "validate-narrative-state-consistency",
+                  () =>
+                    validateNarrativeStateConsistency({
+                      narrativeStage,
+                      text: composedReply,
+                      stateUpdatedExpected,
+                      worldBefore,
+                      worldAfter: safeWorldState,
+                      conversationMode
+                    }),
+                  stageCheck
+                );
+              }
+              if (stageCheck && stageCheck.valid === false) {
+                stageContractViolation = true;
               }
               let continuity = null;
               let anchorDriftDetected = false;
-              if (typeof validateSceneFrameContinuityWithAI === "function" && sceneFrame) {
-                continuity = await validateSceneFrameContinuityWithAI({
-                  reply: composedReply,
-                  sceneFrame,
-                  worldState: safeWorldState,
-                  conversationMode
-                });
-                anchorDriftDetected = Boolean(continuity && continuity.valid === false);
+              continuity = deterministicSceneFrameContinuityCheck({
+                reply: composedReply,
+                sceneFrame
+              });
+              if (
+                useAiValidators &&
+                continuity.valid &&
+                typeof validateSceneFrameContinuityWithAI === "function" &&
+                sceneFrame
+              ) {
+                continuity = await callAiWithBudget(
+                  "validate-scene-frame-continuity",
+                  () =>
+                    validateSceneFrameContinuityWithAI({
+                      reply: composedReply,
+                      sceneFrame,
+                      worldState: safeWorldState,
+                      conversationMode
+                    }),
+                  continuity
+                );
               }
+              anchorDriftDetected = Boolean(continuity && continuity.valid === false);
               if (!stageContractViolation && !anchorDriftDetected) {
                 return {
                   reply: composedReply,
@@ -1405,14 +1590,23 @@ function createNarrationChatHandler(deps = {}) {
               : String(worldSnapshot.conversation.activeInterlocutor);
           const frameBefore = sanitizeSceneFrame(worldSnapshot?.conversation?.sceneFrame, worldSnapshot);
           let framePatch = null;
-          if (conversationMode === "rp" && typeof resolveSceneFramePatchWithAI === "function") {
-            framePatch = await resolveSceneFramePatchWithAI({
-              message,
-              worldState: worldSnapshot,
-              sceneFrame: frameBefore,
-              records,
-              conversationMode
-            });
+          if (
+            conversationMode === "rp" &&
+            useAiSceneFramePatch &&
+            typeof resolveSceneFramePatchWithAI === "function"
+          ) {
+            framePatch = await callAiWithBudget(
+              "resolve-scene-frame-patch",
+              () =>
+                resolveSceneFramePatchWithAI({
+                  message,
+                  worldState: worldSnapshot,
+                  sceneFrame: frameBefore,
+                  records,
+                  conversationMode
+                }),
+              null
+            );
           }
           const frameConfidenceMin = Math.max(
             0,
@@ -1484,19 +1678,29 @@ function createNarrationChatHandler(deps = {}) {
             frameAfter,
             intentArbitrationDecision: semanticArbitrationDecision,
             worldIntentConfidence: phase12WorldIntentConfidence,
+            aiCallBudget: aiBudget.getSnapshot(8),
+            aiFeatureFlags: {
+              ...aiFeatureFlags
+            },
             memoryWindow: phase13MemoryTrace,
             ...extra
           });
           if (
             conversationMode === "rp" &&
+            useAiPendingTravelArbitration &&
             (worldSnapshot?.conversation?.pendingTravel || worldSnapshot?.travel?.pending) &&
             typeof arbitratePendingTravelWithAI === "function"
           ) {
-            pendingTravelGate = await arbitratePendingTravelWithAI({
-              message,
-              worldState: worldSnapshot,
-              conversationMode
-            });
+            pendingTravelGate = await callAiWithBudget(
+              "arbitrate-pending-travel",
+              () =>
+                arbitratePendingTravelWithAI({
+                  message,
+                  worldState: worldSnapshot,
+                  conversationMode
+                }),
+              null
+            );
           }
     
           if (
@@ -1787,14 +1991,20 @@ function createNarrationChatHandler(deps = {}) {
             });
           }
     
-          if (conversationMode === "rp") {
+          if (conversationMode === "rp" && useAiWorldArbitration) {
             if (semanticWorldIntent === null && typeof detectWorldIntentWithAI === "function") {
-              semanticWorldIntent = await detectWorldIntentWithAI({
-                message,
-                worldState: worldSnapshot,
-                records,
-                conversationMode
-              });
+              semanticWorldIntent = await callAiWithBudget(
+                "detect-world-intent",
+                () =>
+                  detectWorldIntentWithAI({
+                    message,
+                    worldState: worldSnapshot,
+                    records,
+                    conversationMode
+                  }),
+                null,
+                "primary"
+              );
               const minConfidence = Math.max(
                 0,
                 Math.min(1, Number(process.env.NARRATION_WORLD_INTENT_MIN_CONFIDENCE ?? 0.72))
@@ -1815,13 +2025,19 @@ function createNarrationChatHandler(deps = {}) {
             }
             const semanticArbitration =
               typeof arbitrateSceneIntentWithAI === "function"
-                ? await arbitrateSceneIntentWithAI({
-                    message,
-                    worldState: worldSnapshot,
-                    records,
-                    conversationMode,
-                    worldIntentHint: semanticWorldIntent
-                  })
+                ? await callAiWithBudget(
+                    "arbitrate-scene-intent",
+                    () =>
+                      arbitrateSceneIntentWithAI({
+                        message,
+                        worldState: worldSnapshot,
+                        records,
+                        conversationMode,
+                        worldIntentHint: semanticWorldIntent
+                      }),
+                    null,
+                    "primary"
+                  )
                 : null;
             semanticArbitrationDecision = semanticArbitration || null;
             const arbitrationMinConfidence = Math.max(
@@ -2126,21 +2342,27 @@ function createNarrationChatHandler(deps = {}) {
             }
           }
     
-          if (conversationMode === "rp") {
-            const mjStructuredDraft = await generateMjStructuredReply({
-              message,
-              records,
-              worldState: worldSnapshot,
-              canonicalContext,
-              contextPack: rpContextPack,
-              activeInterlocutor: worldSnapshot?.conversation?.activeInterlocutor ?? null,
-              conversationMode,
-              pending: {
-                action: worldSnapshot?.conversation?.pendingAction ?? null,
-                travel: worldSnapshot?.travel?.pending ?? worldSnapshot?.conversation?.pendingTravel ?? null,
-                access: worldSnapshot?.conversation?.pendingAccess ?? null
-              }
-            });
+          if (conversationMode === "rp" && useAiStructuredMain) {
+            const mjStructuredDraft = await callAiWithBudget(
+              "generate-mj-structured-main",
+              () =>
+                generateMjStructuredReply({
+                  message,
+                  records,
+                  worldState: worldSnapshot,
+                  canonicalContext,
+                  contextPack: rpContextPack,
+                  activeInterlocutor: worldSnapshot?.conversation?.activeInterlocutor ?? null,
+                  conversationMode,
+                  pending: {
+                    action: worldSnapshot?.conversation?.pendingAction ?? null,
+                    travel: worldSnapshot?.travel?.pending ?? worldSnapshot?.conversation?.pendingTravel ?? null,
+                    access: worldSnapshot?.conversation?.pendingAccess ?? null
+                  }
+                }),
+              null,
+              "primary"
+            );
             const priorityToolCalls = buildPriorityMjToolCalls({
               message,
               intent,
@@ -2167,16 +2389,24 @@ function createNarrationChatHandler(deps = {}) {
                 access: worldSnapshot?.conversation?.pendingAccess ?? null
               }
             });
-            const mjStructured = await refineMjStructuredReplyWithTools({
-              message,
-              initialStructured: mjStructuredDraft,
-              toolResults: mjToolTrace,
-              worldState: worldSnapshot,
-              canonicalContext,
-              contextPack: rpContextPack,
-              activeInterlocutor: worldSnapshot?.conversation?.activeInterlocutor ?? null,
-              conversationMode
-            });
+            const mjStructured = useAiRefine
+              ? await callAiWithBudget(
+                  "refine-mj-structured-main",
+                  () =>
+                    refineMjStructuredReplyWithTools({
+                      message,
+                      initialStructured: mjStructuredDraft,
+                      toolResults: mjToolTrace,
+                      worldState: worldSnapshot,
+                      canonicalContext,
+                      contextPack: rpContextPack,
+                      activeInterlocutor: worldSnapshot?.conversation?.activeInterlocutor ?? null,
+                      conversationMode
+                    }),
+                  mjStructuredDraft,
+                  "primary"
+                )
+              : mjStructuredDraft;
             const worldIntentType = String(mjStructured?.worldIntent?.type ?? "none");
             if (worldIntentType === "propose_travel") {
               const targetFromAi = String(mjStructured?.worldIntent?.targetLabel ?? "").trim();
@@ -2640,7 +2870,14 @@ function createNarrationChatHandler(deps = {}) {
             }
           }
     
-          const aiDecision = await classifyNarrationWithAI(message, records, worldSnapshot);
+          const aiDecision = useAiClassifier
+            ? await callAiWithBudget(
+                "classify-narration",
+                () => classifyNarrationWithAI(message, records, worldSnapshot),
+                null,
+                "primary"
+              )
+            : null;
           if (aiDecision) {
             intent = aiDecision.intent;
             directorPlan = aiDecision.director;
@@ -2717,25 +2954,30 @@ function createNarrationChatHandler(deps = {}) {
             let mjToolTrace = [];
             let mjStructuredLore = null;
             let loreReply = buildLoreOnlyReply(message, records, characterProfile, worldState);
-            if (conversationMode === "rp") {
-              const structuredDraft = await generateMjStructuredReply({
-                message,
-                records,
-                worldState,
-                canonicalContext: buildCanonicalNarrativeContext({
-                  worldState,
-                  contextPack: rpContextPack,
-                  characterProfile
-                }),
-                contextPack: rpContextPack,
-                activeInterlocutor,
-                conversationMode,
-                pending: {
-                  action: worldState?.conversation?.pendingAction ?? null,
-                  travel: worldState?.travel?.pending ?? worldState?.conversation?.pendingTravel ?? null,
-                  access: worldState?.conversation?.pendingAccess ?? null
-                }
-              });
+            if (conversationMode === "rp" && useAiStructuredLore) {
+              const structuredDraft = await callAiWithBudget(
+                "generate-mj-structured-lore",
+                () =>
+                  generateMjStructuredReply({
+                    message,
+                    records,
+                    worldState,
+                    canonicalContext: buildCanonicalNarrativeContext({
+                      worldState,
+                      contextPack: rpContextPack,
+                      characterProfile
+                    }),
+                    contextPack: rpContextPack,
+                    activeInterlocutor,
+                    conversationMode,
+                    pending: {
+                      action: worldState?.conversation?.pendingAction ?? null,
+                      travel: worldState?.travel?.pending ?? worldState?.conversation?.pendingTravel ?? null,
+                      access: worldState?.conversation?.pendingAccess ?? null
+                    }
+                  }),
+                null
+              );
               const lorePriorityCalls = mergeToolCalls(
                 Array.isArray(structuredDraft?.toolCalls) ? structuredDraft.toolCalls : [],
                 [
@@ -2762,20 +3004,27 @@ function createNarrationChatHandler(deps = {}) {
                   access: worldState?.conversation?.pendingAccess ?? null
                 }
               });
-              mjStructuredLore = await refineMjStructuredReplyWithTools({
-                message,
-                initialStructured: structuredDraft,
-                toolResults: mjToolTrace,
-                worldState,
-                canonicalContext: buildCanonicalNarrativeContext({
-                  worldState,
-                  contextPack: rpContextPack,
-                  characterProfile
-                }),
-                contextPack: rpContextPack,
-                activeInterlocutor,
-                conversationMode
-              });
+              mjStructuredLore = useAiRefine
+                ? await callAiWithBudget(
+                    "refine-mj-structured-lore",
+                    () =>
+                      refineMjStructuredReplyWithTools({
+                        message,
+                        initialStructured: structuredDraft,
+                        toolResults: mjToolTrace,
+                        worldState,
+                        canonicalContext: buildCanonicalNarrativeContext({
+                          worldState,
+                          contextPack: rpContextPack,
+                          characterProfile
+                        }),
+                        contextPack: rpContextPack,
+                        activeInterlocutor,
+                        conversationMode
+                      }),
+                    structuredDraft
+                  )
+                : structuredDraft;
               if (mjStructuredLore) {
                 const direct = String(mjStructuredLore?.directAnswer ?? "").replace(/\s+/g, " ").trim();
                 const blocks = buildMjReplyBlocks({
@@ -2903,20 +3152,198 @@ function createNarrationChatHandler(deps = {}) {
               stateUpdated: false
             });
           }
-    
-          const runtimeAllowedByDirector = Boolean(directorPlan.applyRuntime);
+
+          const intentCommitment = normalizeCommitment(intent);
+          if (shouldHandleHypotheticalCommitment({ conversationMode, intent })) {
+            const currentWorld = loadNarrativeWorldState();
+            const worldDelta = { reputationDelta: 0, localTensionDelta: 0, reason: "commitment-hypothetique" };
+            const worldState = applyWorldDelta(currentWorld, worldDelta, {
+              intentType: intent.type,
+              transitionId: "none"
+            });
+            if (characterProfile) {
+              worldState.startContext = {
+                ...(worldState.startContext ?? {}),
+                characterSnapshot: characterProfile
+              };
+            }
+            worldState.conversation = {
+              ...(worldState.conversation ?? {}),
+              activeInterlocutor: activeInterlocutor
+            };
+
+            const guidance = [
+              "Ton intention est comprise, mais elle reste hypothetique.",
+              "Formule une action directe pour que je l'execute maintenant."
+            ].join("\n");
+            const fallbackClarification = addInterlocutorNote(
+              `${guidance}\n${buildDirectorNoRuntimeReply(message, intent.type, records)}`,
+              activeInterlocutor,
+              intent.type,
+              worldState,
+              message
+            );
+            const aiClarification = await buildAiNarrativeReplyForBranch({
+              worldState,
+              fallbackReply: fallbackClarification,
+              sceneFrame: frameAfter,
+              narrativeStage: "scene",
+              stateUpdatedExpected: false,
+              worldBefore: worldSnapshot,
+              priorityToolCalls: [
+                { name: "get_world_state", args: {} },
+                { name: "session_db_read", args: { scope: "scene-memory" } },
+                { name: "query_lore", args: { query: message, limit: 3 } }
+              ]
+            });
+            const injected = injectLockedStartContextReply(
+              aiClarification.reply || fallbackClarification,
+              worldState,
+              characterProfile
+            );
+            const clarificationParts = parseReplyToMjBlocks(injected.reply);
+            await persistNarrativeWorldStateWithPhase6(injected.worldState, {
+              runtimeAlreadyApplied: false,
+              source: "commitment-hypothetique",
+              replyText: injected.reply
+            });
+
+            return sendJson(res, 200, {
+              reply: injected.reply,
+              mjResponse: makeMjResponse({
+                responseType: "clarification",
+                scene: clarificationParts.scene,
+                actionResult: clarificationParts.actionResult,
+                consequences: clarificationParts.consequences,
+                options: clarificationParts.options
+              }),
+              speaker: buildSpeakerPayload({
+                conversationMode,
+                intentType: intent.type,
+                activeInterlocutor
+              }),
+              loreRecordsUsed: records.length,
+              intent: {
+                ...intent,
+                commitment: intentCommitment,
+                reason: String(intent?.reason ?? "commitment-hypothetique")
+              },
+              director: { ...directorPlan, mode: "scene_only", applyRuntime: false, source: "commitment-gate" },
+              worldDelta,
+              worldState: injected.worldState,
+              mjStructured: aiClarification.mjStructured,
+              mjToolTrace: aiClarification.mjToolTrace,
+              phase12: buildPhase12Payload(aiClarification.phase12 || {}),
+              stateUpdated: false
+            });
+          }
+          if (shouldHandleInformativeCommitment({ conversationMode, intent })) {
+            const currentWorld = loadNarrativeWorldState();
+            const worldDelta = { reputationDelta: 0, localTensionDelta: 0, reason: "commitment-informatif" };
+            const worldState = applyWorldDelta(currentWorld, worldDelta, {
+              intentType: intent.type,
+              transitionId: "none"
+            });
+            if (characterProfile) {
+              worldState.startContext = {
+                ...(worldState.startContext ?? {}),
+                characterSnapshot: characterProfile
+              };
+            }
+            worldState.conversation = {
+              ...(worldState.conversation ?? {}),
+              activeInterlocutor: activeInterlocutor
+            };
+
+            const guidance = [
+              "Je traite ton message comme informatif (question/description).",
+              "Aucune mutation runtime n'est appliquee sur ce tour."
+            ].join("\n");
+            const fallbackInformative = addInterlocutorNote(
+              `${guidance}\n${buildDirectorNoRuntimeReply(message, intent.type, records)}`,
+              activeInterlocutor,
+              intent.type,
+              worldState,
+              message
+            );
+            const aiInformative = await buildAiNarrativeReplyForBranch({
+              worldState,
+              fallbackReply: fallbackInformative,
+              sceneFrame: frameAfter,
+              narrativeStage: "scene",
+              stateUpdatedExpected: false,
+              worldBefore: worldSnapshot,
+              priorityToolCalls: [
+                { name: "get_world_state", args: {} },
+                { name: "session_db_read", args: { scope: "scene-memory" } },
+                { name: "query_lore", args: { query: message, limit: 3 } }
+              ]
+            });
+            const injected = injectLockedStartContextReply(
+              aiInformative.reply || fallbackInformative,
+              worldState,
+              characterProfile
+            );
+            const informativeParts = parseReplyToMjBlocks(injected.reply);
+            await persistNarrativeWorldStateWithPhase6(injected.worldState, {
+              runtimeAlreadyApplied: false,
+              source: "commitment-informatif",
+              replyText: injected.reply
+            });
+
+            return sendJson(res, 200, {
+              reply: injected.reply,
+              mjResponse: makeMjResponse({
+                responseType: "narration",
+                scene: informativeParts.scene,
+                actionResult: informativeParts.actionResult,
+                consequences: informativeParts.consequences,
+                options: informativeParts.options
+              }),
+              speaker: buildSpeakerPayload({
+                conversationMode,
+                intentType: intent.type,
+                activeInterlocutor
+              }),
+              loreRecordsUsed: records.length,
+              intent: {
+                ...intent,
+                commitment: intentCommitment,
+                reason: String(intent?.reason ?? "commitment-informatif")
+              },
+              director: { ...directorPlan, mode: "scene_only", applyRuntime: false, source: "commitment-gate" },
+              worldDelta,
+              worldState: injected.worldState,
+              mjStructured: aiInformative.mjStructured,
+              mjToolTrace: aiInformative.mjToolTrace,
+              phase12: buildPhase12Payload(aiInformative.phase12 || {}),
+              stateUpdated: false
+            });
+          }
+
+          const commitmentForAction = normalizeCommitment(intent);
+          const forceRuntimeByCommitment = shouldForceRuntimeByCommitment({ conversationMode, intent });
+          const runtimeAllowedByDirector = Boolean(directorPlan.applyRuntime) || forceRuntimeByCommitment;
           const heuristicRuntimeGate =
             directorPlan.source === "heuristic" ? shouldApplyRuntimeForIntent(message, intent) : true;
           const runtimeEligibility =
-            conversationMode === "rp" && typeof assessRuntimeEligibilityWithAI === "function"
-              ? await assessRuntimeEligibilityWithAI({
-                  message,
-                  intent,
-                  directorPlan,
-                  worldState: worldSnapshot,
-                  records,
-                  conversationMode
-                })
+            conversationMode === "rp" &&
+            useAiRuntimeEligibility &&
+            typeof assessRuntimeEligibilityWithAI === "function"
+              ? await callAiWithBudget(
+                  "assess-runtime-eligibility",
+                  () =>
+                    assessRuntimeEligibilityWithAI({
+                      message,
+                      intent,
+                      directorPlan,
+                      worldState: worldSnapshot,
+                      records,
+                      conversationMode
+                    }),
+                  null,
+                  "primary"
+                )
               : null;
           const runtimeEligibilityMin = Math.max(
             0,
@@ -2928,6 +3355,73 @@ function createNarrationChatHandler(deps = {}) {
               : Number(runtimeEligibility.confidence ?? 0) >= runtimeEligibilityMin
                 ? Boolean(runtimeEligibility.eligible)
                 : true;
+          if (shouldClarifyTargetFromCommitment({ forceRuntimeByCommitment, semanticRuntimeGate })) {
+            const currentWorld = loadNarrativeWorldState();
+            const worldDelta = {
+              reputationDelta: 0,
+              localTensionDelta: 0,
+              reason: "commitment-action-needs-target-clarification"
+            };
+            const worldState = applyWorldDelta(currentWorld, worldDelta, {
+              intentType: intent.type,
+              transitionId: "none"
+            });
+            if (characterProfile) {
+              worldState.startContext = {
+                ...(worldState.startContext ?? {}),
+                characterSnapshot: characterProfile
+              };
+            }
+            worldState.conversation = {
+              ...(worldState.conversation ?? {}),
+              activeInterlocutor: activeInterlocutor
+            };
+            const clarificationReply = addInterlocutorNote(
+              "Ton action est comprise et je peux l'executer, mais la cible reste ambigue. Precise le lieu, la personne ou l'objet vise pour que je lance l'action.",
+              activeInterlocutor,
+              intent.type,
+              worldState,
+              message
+            );
+            await persistNarrativeWorldStateWithPhase6(worldState, {
+              runtimeAlreadyApplied: false,
+              source: "commitment-target-clarification",
+              replyText: clarificationReply
+            });
+            return sendJson(res, 200, {
+              reply: clarificationReply,
+              mjResponse: makeMjResponse({
+                responseType: "clarification",
+                directAnswer: "",
+                scene: "L'action est recevable mais la cible doit etre precisee.",
+                actionResult: "Aucune mutation runtime tant que la cible n'est pas resolue.",
+                consequences: "Le contexte de scene est conserve.",
+                options: ["Preciser le lieu vise", "Preciser l'interlocuteur", "Reformuler l'action directement"]
+              }),
+              speaker: buildSpeakerPayload({
+                conversationMode,
+                intentType: intent.type,
+                activeInterlocutor
+              }),
+              loreRecordsUsed: records.length,
+              intent: {
+                ...intent,
+                commitment: commitmentForAction,
+                reason: String(intent?.reason ?? "commitment-action-clarification")
+              },
+              director: { ...directorPlan, mode: "scene_only", applyRuntime: false, source: "commitment-gate" },
+              worldDelta,
+              worldState,
+              runtimeEligibilityDecision: runtimeEligibility,
+              phase12: buildPhase12Payload({
+                continuityGuard: null,
+                anchorDriftDetected: false,
+                stageContractViolation: false,
+                regenerationCount: 0
+              }),
+              stateUpdated: false
+            });
+          }
           if (requiresInterlocutorInRp(intent, message, activeInterlocutor)) {
             const currentWorld = loadNarrativeWorldState();
             currentWorld.conversation = {
