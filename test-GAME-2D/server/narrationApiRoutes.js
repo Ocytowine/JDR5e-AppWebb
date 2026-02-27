@@ -8,12 +8,6 @@ function createNarrationApiRoutes(deps = {}) {
   const narrationStatePath = deps.narrationStatePath;
   const saveNarrativeWorldState = deps.saveNarrativeWorldState;
   const createInitialNarrativeWorldState = deps.createInitialNarrativeWorldState;
-  const buildLoreRecordsForQuery = deps.buildLoreRecordsForQuery;
-  const openAiApiKey = deps.openAiApiKey;
-  const computeWorldDelta = deps.computeWorldDelta;
-  const loadNarrativeWorldState = deps.loadNarrativeWorldState;
-  const applyWorldDelta = deps.applyWorldDelta;
-  const buildNarrationChatReply = deps.buildNarrationChatReply;
   const sanitizeCharacterProfile = deps.sanitizeCharacterProfile;
   const buildCharacterContextPack = deps.buildCharacterContextPack;
 
@@ -24,7 +18,7 @@ function createNarrationApiRoutes(deps = {}) {
         if (!state) {
           sendJson(res, 404, {
             error: "Narrative runtime state not found",
-            path: "narration-module/runtime/NarrativeGameState.v1.json"
+            path: narrationStatePath
           });
           return true;
         }
@@ -48,68 +42,6 @@ function createNarrationApiRoutes(deps = {}) {
       } catch (err) {
         console.error("[narration-reset] Erreur:", err?.message ?? err);
         sendJson(res, 500, { ok: false, error: "Reset failed" });
-        return true;
-      }
-    }
-
-    if (req.method === "POST" && req.url === "/api/narration/tick-ai") {
-      try {
-        const body = await parseJsonBody(req);
-        const prompt = String(body?.prompt ?? "").trim();
-        if (!prompt) {
-          sendJson(res, 400, { error: "prompt manquant" });
-          return true;
-        }
-
-        const runtime = getNarrationRuntime();
-        const api = runtime.GameNarrationAPI.createDefault(narrationStatePath);
-        const state = api.getState();
-        const records = buildLoreRecordsForQuery(prompt);
-
-        const useOpenAI = Boolean(body?.useOpenAI) && Boolean(openAiApiKey);
-        const generator = useOpenAI
-          ? new runtime.OpenAIMjNarrationGenerator({
-              apiKey: openAiApiKey,
-              model: process.env.NARRATION_MODEL || process.env.OPENAI_MODEL || "gpt-4.1-mini"
-            })
-          : new runtime.HeuristicMjNarrationGenerator();
-
-        const outcome = await api.tickNarrationWithAI(
-          {
-            query: prompt,
-            records,
-            entityHints: {
-              quest: Object.keys(state.quests),
-              trama: Object.keys(state.tramas),
-              companion: Object.keys(state.companions),
-              trade: Object.keys(state.trades)
-            },
-            minHoursBetweenMajorEvents: 1,
-            blockOnGuardFailure: true
-          },
-          generator
-        );
-        const intent = { type: "story_action" };
-        const worldDelta = computeWorldDelta({ intent, outcome });
-        const currentWorld = loadNarrativeWorldState();
-        const transitionId = outcome?.appliedOutcome?.result?.transitionId ?? "none";
-        const worldState = applyWorldDelta(currentWorld, worldDelta, {
-          intentType: intent.type,
-          transitionId
-        });
-        saveNarrativeWorldState(worldState);
-
-        sendJson(res, 200, {
-          reply: buildNarrationChatReply(outcome),
-          loreRecordsUsed: records.length,
-          worldDelta,
-          worldState,
-          outcome
-        });
-        return true;
-      } catch (err) {
-        console.error("[narration-tick-ai] Erreur:", err?.message ?? err);
-        sendJson(res, 500, { error: "Tick narration impossible" });
         return true;
       }
     }

@@ -10,9 +10,18 @@
     "gen:class-catalog": "node scripts/gen-class-catalog.js",
     "gen:materiel-catalog": "node scripts/gen-materiel-catalog.js",
     "preview": "vite preview",
+    "test:e2e-narration": "powershell -ExecutionPolicy Bypass -File .\\scripts\\run-e2e-checklist.ps1",
     "eval:hrp": "node scripts/eval-hrp-prompts.js",
     "validate:content": "node scripts/validate-content.js",
-    "validate:transitions-runtime": "npx tsc scripts/validate-transitions-runtime.ts --target ES2020 --module commonjs --esModuleInterop --skipLibCheck --outDir scripts/.tmp && node scripts/.tmp/validate-transitions-runtime.js"
+    "validate:transitions-runtime": "npx tsc scripts/validate-transitions-runtime.ts --target ES2020 --module commonjs --esModuleInterop --skipLibCheck --outDir scripts/.tmp && node scripts/.tmp/validate-transitions-runtime.js",
+    "validate:phase2": "node scripts/validate-narration-phase2-scenarios.js",
+    "validate:phase1": "node scripts/validate-narration-phase1.js",
+    "validate:phase3": "node scripts/validate-narration-phase3.js",
+    "validate:phase4": "node scripts/validate-narration-phase4.js && node scripts/validate-narration-phase4-scenarios.js",
+    "validate:phase4:scenarios": "node scripts/validate-narration-phase4-scenarios.js",
+    "validate:phase7": "node scripts/validate-narration-phase7.js",
+    "validate:phase8": "node scripts/validate-narration-phase8.js",
+    "validate:phase56": "node scripts/validate-narration-phase56.js"
   },
   "dependencies": {
     "pixi.js": "^8.5.2",

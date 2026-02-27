@@ -1,8 +1,8 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-02-26T21:25:18.077Z",
+  "updatedAt": "2026-02-27T18:00:46.425Z",
   "metrics": {
-    "reputation": 2,
+    "reputation": 0,
     "localTension": 0
   },
   "startContext": {
@@ -473,7 +473,7 @@
     }
   },
   "conversation": {
-    "activeInterlocutor": "Roland",
+    "activeInterlocutor": null,
     "pendingAction": null,
     "pendingTravel": null,
     "pendingAccess": null,
@@ -484,43 +484,53 @@
       "activeWindowKey": "day:1",
       "turns": [
         {
-          "at": "2026-02-26T21:16:19.853Z",
+          "at": "2026-02-27T17:59:21.613Z",
           "windowKey": "day:1",
-          "user": "je veux aller sur le port",
+          "user": "je me dirige vers une rue marchande",
           "mj": "Contexte de depart verrouille: Tu te trouves a Parvis des Archives, Lysenthe, un batiment immense servant de coffre-fort de la verite sur la Primaute. Ville de depart: Lysenthe | Territoire: Astryade | Region: Ylssea. Temps initial: milieu d'après-midi. Tu viens de t'inscrire dans les registres. Tu es libre de tes choix. Personnage actif: Gardefou (Elfe, Clerc). Identite canonique: Elfe, Clerc (Domaine de la Paix)...",
-          "intentType": "free_exploration",
-          "directorMode": "exploration",
+          "intentType": "story_action",
+          "directorMode": "runtime",
           "locationLabel": "Parvis des Archives, Lysenthe",
           "day": 1
         },
         {
-          "at": "2026-02-26T21:20:05.129Z",
+          "at": "2026-02-27T17:59:43.963Z",
           "windowKey": "day:1",
-          "user": "oui je veux y aller",
-          "mj": "Tu arrives au port de Lysenthe en ce milieu d'après-midi. L'air est chargé d'embruns marins tandis que les quais s'étendent devant toi, peuplés de pêcheurs affairés et de marchands criant pour attirer les clients. Des navires de toutes tailles flottent à l'ancre, leurs coques colorées scintillant sous le soleil. Non loin, Roland, un homme au port avenant, t'observe depuis le bord du quai. Tu entends des murmures m...",
+          "user": "ok j'y vais",
+          "mj": "Apres quelques minutes de marche, tu arrives a Rue marchande. Repères récents: Arrivee: Rue marchande. Le lieu se confirme autour de toi, sans changement notable. Le rythme est dense, les allées sont traversées par un flux constant. Aucune rupture de continuité n'est appliquée; tu peux poursuivre depuis ce même contexte.",
           "intentType": "story_action",
           "directorMode": "runtime",
-          "locationLabel": "Port",
+          "locationLabel": "Rue marchande",
           "day": 1
         },
         {
-          "at": "2026-02-26T21:21:25.860Z",
+          "at": "2026-02-27T18:00:10.136Z",
           "windowKey": "day:1",
-          "user": "je veux parle à roland",
-          "mj": "Roland marque un court silence avant de repondre: \"Tu veux une reponse utile ? Pose une question precise.\" La scene reagit directement a ton action. Le lien avec ce personnage evolue, ce qui peut changer ton soutien pour la suite. La situation reste coherente avec tes actions precedentes. Le monde narratif avance d'un cran sur cet axe.",
-          "intentType": "social_action",
+          "user": "je cherche une boutique de vetement",
+          "mj": "Ton action fait bouger la scene sans provoquer de bascule immediate. Repères récents: Arrivee: Rue marchande. Ancre lore utilisée par quest.detectee.to.acceptee La suite depend de ton prochain geste concret dans la scene.",
+          "intentType": "story_action",
           "directorMode": "runtime",
-          "locationLabel": "Port",
+          "locationLabel": "Rue marchande",
           "day": 1
         },
         {
-          "at": "2026-02-26T21:25:29.072Z",
+          "at": "2026-02-27T18:00:27.482Z",
           "windowKey": "day:1",
-          "user": "je veux lui parler",
-          "mj": "Roland garde un ton mesure, sans hausser la voix: \"Tres bien. Commence par ce qui compte vraiment.\" La scene reagit directement a ton action. Le lien avec ce personnage evolue, ce qui peut changer ton soutien pour la suite. La situation reste coherente avec tes actions precedentes. Le monde narratif avance d'un cran sur cet axe.",
-          "intentType": "social_action",
+          "user": "je rentre dans la boutique et je salue la vendeuse",
+          "mj": "Ton action fait bouger la scene sans provoquer de bascule immediate. Repères récents: Arrivee: Rue marchande. Ancre lore utilisée par quest.detectee.to.acceptee La suite depend de ton prochain geste concret dans la scene.",
+          "intentType": "story_action",
           "directorMode": "runtime",
-          "locationLabel": "Port",
+          "locationLabel": "Rue marchande",
+          "day": 1
+        },
+        {
+          "at": "2026-02-27T18:00:46.427Z",
+          "windowKey": "day:1",
+          "user": "je demande les prix pour une tenue d'ecole de magie",
+          "mj": "Ton action fait bouger la scene sans provoquer de bascule immediate. Repères récents: Arrivee: Rue marchande. Ancre lore utilisée par quest.detectee.to.acceptee La suite depend de ton prochain geste concret dans la scene.",
+          "intentType": "story_action",
+          "directorMode": "runtime",
+          "locationLabel": "Rue marchande",
           "day": 1
         }
       ],
@@ -528,17 +538,15 @@
       "lastCompactedAt": ""
     },
     "sceneFrame": {
-      "locationId": "session:port",
-      "locationLabel": "Port",
-      "activePoiLabel": "Port de Lysenthe",
-      "activeInterlocutorLabel": "Roland",
-      "activeTopic": "oui je veux y aller",
+      "locationId": "session:rue-marchande",
+      "locationLabel": "Rue marchande",
+      "activePoiLabel": "",
+      "activeInterlocutorLabel": "",
+      "activeTopic": "",
       "recentFacts": [
-        "Le lien avec Roland évolue en fonction des actions, influençant son soutien futur.",
-        "Les actions précédentes restent cohérentes avec la situation actuelle, faisant avancer le monde narratif.",
-        "Une quête liée à Roland et un contrat probablement en cours, impliquant la faction de la garde civile."
+        "Arrivee: Rue marchande"
       ],
-      "updatedAt": "2026-02-26T21:25:24.780Z"
+      "updatedAt": "2026-02-27T18:00:46.425Z"
     }
   },
   "rpRuntime": {
@@ -546,8 +554,8 @@
     "lastResolution": null
   },
   "location": {
-    "id": "session:port",
-    "label": "Port"
+    "id": "session:rue-marchande",
+    "label": "Rue marchande"
   },
   "travel": {
     "pending": null,
@@ -557,37 +565,37 @@
         "label": "Parvis des Archives, Lysenthe"
       },
       "to": {
-        "id": "session:port",
-        "label": "Port"
+        "id": "session:rue-marchande",
+        "label": "Rue marchande"
       },
       "durationMin": 4,
-      "appliedAt": "2026-02-26T21:19:30.740Z",
+      "appliedAt": "2026-02-27T17:59:43.960Z",
       "reason": "travel-confirmed"
     }
   },
   "sessionPlaces": [
     {
-      "id": "session:port",
-      "label": "Port",
+      "id": "session:rue-marchande",
+      "label": "Rue marchande",
       "city": "",
       "access": "public",
       "tags": [],
       "riskFlags": [],
       "sources": [],
       "summary": "",
-      "createdAt": "2026-02-26T21:15:55.591Z",
-      "updatedAt": "2026-02-26T21:19:30.740Z"
+      "createdAt": "2026-02-27T17:59:21.606Z",
+      "updatedAt": "2026-02-27T17:59:43.961Z"
     }
   ],
   "time": {
     "day": 1,
     "hour": 15,
-    "minute": 20,
+    "minute": 34,
     "label": "milieu d'après-midi"
   },
   "history": [
     {
-      "at": "2026-02-26T21:15:55.590Z",
+      "at": "2026-02-27T17:59:21.604Z",
       "reputationDelta": 0,
       "localTensionDelta": 0,
       "reason": "travel-proposed",
@@ -595,7 +603,7 @@
       "transitionId": "travel.proposed"
     },
     {
-      "at": "2026-02-26T21:19:30.739Z",
+      "at": "2026-02-27T17:59:43.960Z",
       "reputationDelta": 0,
       "localTensionDelta": 0,
       "reason": "travel-confirmed",
@@ -603,20 +611,28 @@
       "transitionId": "travel.confirmed"
     },
     {
-      "at": "2026-02-26T21:21:13.991Z",
-      "reputationDelta": 1,
+      "at": "2026-02-27T18:00:10.134Z",
+      "reputationDelta": 0,
       "localTensionDelta": 0,
-      "reason": "social-progress",
-      "intentType": "social_action",
-      "transitionId": "companion.non-rencontre.to.rencontre"
+      "reason": "scene-only-no-runtime-trigger",
+      "intentType": "story_action",
+      "transitionId": "none"
     },
     {
-      "at": "2026-02-26T21:25:18.077Z",
-      "reputationDelta": 1,
+      "at": "2026-02-27T18:00:27.480Z",
+      "reputationDelta": 0,
       "localTensionDelta": 0,
-      "reason": "social-progress",
-      "intentType": "social_action",
-      "transitionId": "companion.rencontre.to.negociation"
+      "reason": "scene-only-no-runtime-trigger",
+      "intentType": "story_action",
+      "transitionId": "none"
+    },
+    {
+      "at": "2026-02-27T18:00:46.425Z",
+      "reputationDelta": 0,
+      "localTensionDelta": 0,
+      "reason": "scene-only-no-runtime-trigger",
+      "intentType": "story_action",
+      "transitionId": "none"
     }
   ]
 }

@@ -10,6 +10,18 @@ function createNarrationAiHelpers(params) {
       ? params.resolveModel
       : () => "gpt-4.1-mini";
   const warn = typeof params?.warn === "function" ? params.warn : () => {};
+  const allowedTools = Array.isArray(params?.allowedTools)
+    ? params.allowedTools.map((x) => String(x ?? "").trim().toLowerCase()).filter(Boolean)
+    : [
+        "get_world_state",
+        "query_lore",
+        "query_player_sheet",
+        "query_rules",
+        "session_db_read",
+        "session_db_write",
+        "quest_trama_tick"
+      ];
+  const allowedToolsText = allowedTools.join(", ");
 
   function stageDirective(stage) {
     const key = String(stage ?? "scene").trim().toLowerCase();
@@ -69,6 +81,24 @@ function createNarrationAiHelpers(params) {
     return fallback;
   }
 
+  function sanitizeSemanticIntent(value, fallback = "resource_action") {
+    const allowed = new Set([
+      "enter_place",
+      "move_place",
+      "inspect_local",
+      "social_exchange",
+      "trade_action",
+      "lore_query",
+      "rules_query",
+      "resource_action",
+      "quest_progress",
+      "system_command"
+    ]);
+    const raw = String(value ?? "").trim().toLowerCase();
+    if (allowed.has(raw)) return raw;
+    return fallback;
+  }
+
   function deriveCommitmentFromStructured(safe) {
     const worldType = String(safe?.worldIntent?.type ?? "none").trim().toLowerCase();
     if (worldType === "runtime_progress" || worldType === "confirm_travel" || worldType === "access_attempt") {
@@ -96,6 +126,18 @@ function createNarrationAiHelpers(params) {
 
     return {
       type: allowedType.has(type) ? type : "story_action",
+      semanticIntent: sanitizeSemanticIntent(
+        candidate?.semanticIntent,
+        type === "lore_question"
+          ? "lore_query"
+          : type === "free_exploration"
+          ? "inspect_local"
+          : type === "social_action"
+          ? "social_exchange"
+          : type === "system_command"
+          ? "system_command"
+          : "resource_action"
+      ),
       confidence: Number.isFinite(confidenceRaw) ? clampNumber(confidenceRaw, 0, 1) : 0.6,
       commitment: allowedCommitment.has(commitmentRaw) ? commitmentRaw : "informatif",
       requiresCheck: Boolean(
@@ -133,8 +175,9 @@ function createNarrationAiHelpers(params) {
       const systemPrompt =
         "Tu es un directeur narratif pour un JDR. " +
         "Retourne UNIQUEMENT un JSON valide avec les clés: " +
-        "intentType, commitment, confidence, requiresCheck, riskLevel, reason, directorMode, applyRuntime. " +
+        "intentType, semanticIntent, commitment, confidence, requiresCheck, riskLevel, reason, directorMode, applyRuntime. " +
         "intentType ∈ {lore_question, free_exploration, story_action, social_action, system_command}. " +
+        "semanticIntent ∈ {enter_place, move_place, inspect_local, social_exchange, trade_action, lore_query, rules_query, resource_action, quest_progress, system_command}. " +
         "commitment ∈ {declaratif, volitif, hypothetique, informatif}. " +
         "directorMode ∈ {lore, exploration, runtime, scene_only}. " +
         "Décide si applyRuntime doit être true seulement quand une progression d'état runtime est pertinente. " +
@@ -433,9 +476,22 @@ function createNarrationAiHelpers(params) {
     const bypassExistingMechanics = Boolean(safe.bypassExistingMechanics);
     const confidence = Number(safe.confidence ?? 0.7);
     const commitment = sanitizeCommitment(safe.commitment, deriveCommitmentFromStructured(safe));
+    const semanticIntent = sanitizeSemanticIntent(
+      safe.semanticIntent,
+      intentType === "lore_question"
+        ? "lore_query"
+        : intentType === "free_exploration"
+        ? "inspect_local"
+        : intentType === "social_action"
+        ? "social_exchange"
+        : intentType === "system_command"
+        ? "system_command"
+        : "resource_action"
+    );
     return {
       schemaVersion,
       intentType,
+      semanticIntent,
       commitment,
       responseType,
       directAnswer,
@@ -469,13 +525,14 @@ function createNarrationAiHelpers(params) {
         "Tu es le MJ principal d'un JDR narratif. " +
         "Tu reponds en restant coherent avec le monde courant (lieu, temps, etat), sans reciter tout le lore. " +
         "Retourne UNIQUEMENT un JSON valide avec les champs: " +
-        "schemaVersion, intentType, commitment, responseType, confidence, directAnswer, scene, actionResult, consequences, options, toolCalls, worldIntent, bypassExistingMechanics. " +
+        "schemaVersion, intentType, semanticIntent, commitment, responseType, confidence, directAnswer, scene, actionResult, consequences, options, toolCalls, worldIntent, bypassExistingMechanics. " +
         "schemaVersion='1.0.0'. " +
         "intentType ∈ {lore_question, free_exploration, story_action, social_action, system_command}. " +
+        "semanticIntent ∈ {enter_place, move_place, inspect_local, social_exchange, trade_action, lore_query, rules_query, resource_action, quest_progress, system_command}. " +
         "commitment ∈ {declaratif, volitif, hypothetique, informatif}. " +
         "commitment dans {declaratif, volitif, hypothetique, informatif}. " +
         "responseType dans {status, narration, clarification, resolution}. " +
-        "toolCalls est un tableau d'objets {name,args}. Outils autorises: get_world_state, query_lore, query_player_sheet, query_rules, session_db_read, session_db_write, quest_trama_tick. " +
+        `toolCalls est un tableau d'objets {name,args}. Outils autorises: ${allowedToolsText}. ` +
         "worldIntent.type dans {none, propose_travel, confirm_travel, access_attempt, runtime_progress}. " +
         "Tu peux renseigner worldIntent.targetLabel quand le joueur evoque une destination (meme formulation imparfaite). " +
         "bypassExistingMechanics=true seulement si la demande est une reponse MJ immediate de contexte/etat local sans action systeme lourde. " +
@@ -1021,9 +1078,10 @@ function createNarrationAiHelpers(params) {
         "Tu es le MJ principal d'un JDR narratif. " +
         "Tu dois ajuster une reponse MJ existante en tenant compte des resultats d'outils serveur. " +
         "Retourne UNIQUEMENT un JSON valide avec les champs: " +
-        "schemaVersion, intentType, commitment, responseType, confidence, directAnswer, scene, actionResult, consequences, options, toolCalls, worldIntent, bypassExistingMechanics. " +
+        "schemaVersion, intentType, semanticIntent, commitment, responseType, confidence, directAnswer, scene, actionResult, consequences, options, toolCalls, worldIntent, bypassExistingMechanics. " +
         "schemaVersion='1.0.0'. " +
         "intentType ∈ {lore_question, free_exploration, story_action, social_action, system_command}. " +
+        "semanticIntent ∈ {enter_place, move_place, inspect_local, social_exchange, trade_action, lore_query, rules_query, resource_action, quest_progress, system_command}. " +
         "commitment ∈ {declaratif, volitif, hypothetique, informatif}. " +
         "commitment dans {declaratif, volitif, hypothetique, informatif}. " +
         "Contrainte: reste coherent avec les resultats outils; n'invente pas un fait contredit par ces resultats. " +

@@ -34,6 +34,11 @@ function readAiFeatureFlags(env = process.env) {
     useAiStructuredMain: parseBooleanEnv("NARRATION_USE_AI_STRUCTURED_MAIN", false, env),
     useAiStructuredBranch: parseBooleanEnv("NARRATION_USE_AI_STRUCTURED_BRANCH", false, env),
     useAiStructuredLore: parseBooleanEnv("NARRATION_USE_AI_STRUCTURED_LORE", false, env),
+    useAiBranchPriorityBudgetRouting: parseBooleanEnv(
+      "NARRATION_USE_AI_BRANCH_PRIORITY_BUDGET_ROUTING",
+      true,
+      env
+    ),
     useAiLocalMemory: parseBooleanEnv("NARRATION_USE_AI_LOCAL_MEMORY", false, env),
     useAiPendingTravelArbitration: parseBooleanEnv("NARRATION_USE_AI_PENDING_TRAVEL_ARBITRATION", false, env),
     useAiRuntimeEligibility: parseBooleanEnv("NARRATION_USE_AI_RUNTIME_ELIGIBILITY", false, env),

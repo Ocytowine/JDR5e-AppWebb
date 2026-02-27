@@ -64,6 +64,25 @@ function createNarrationPayloadPipeline(deps = {}) {
     fallbackBlocked: 0,
     recent: []
   };
+  const PHASE4_AI_ROUTING_STATS = {
+    turnsWithRouting: 0,
+    attempted: 0,
+    executed: 0,
+    skipped: 0,
+    byLabel: {},
+    recent: []
+  };
+  const PHASE7_PERF_STATS_MAX_SAMPLES = 120;
+  const PHASE7_PERF_STATS = {
+    turns: 0,
+    turnsWithBudget: 0,
+    turnsWithLatency: 0,
+    totalAiCallsUsed: 0,
+    totalFallbackCallsUsed: 0,
+    blockedTurns: 0,
+    latencySamples: [],
+    recent: []
+  };
 
   function normalizePhase3Gate(value) {
     const gate = String(value ?? "").trim().toLowerCase();
@@ -403,6 +422,213 @@ function createNarrationPayloadPipeline(deps = {}) {
       primaryBlocked: Number(PHASE4_AI_BUDGET_STATS.primaryBlocked ?? 0),
       fallbackBlocked: Number(PHASE4_AI_BUDGET_STATS.fallbackBlocked ?? 0),
       recent: PHASE4_AI_BUDGET_STATS.recent.slice(-10)
+    };
+  }
+
+  function normalizeAiRoutingStats(input) {
+    const safe = input && typeof input === "object" ? input : {};
+    const byLabelRaw = safe.byLabel && typeof safe.byLabel === "object" ? safe.byLabel : {};
+    const byLabel = {};
+    Object.entries(byLabelRaw).forEach(([label, row]) => {
+      const safeLabel = String(label ?? "").trim();
+      if (!safeLabel) return;
+      const stats = row && typeof row === "object" ? row : {};
+      byLabel[safeLabel] = {
+        attempted: Number(stats.attempted ?? 0),
+        executed: Number(stats.executed ?? 0),
+        skipped: Number(stats.skipped ?? 0)
+      };
+    });
+    return {
+      attempted: Number(safe.attempted ?? 0),
+      executed: Number(safe.executed ?? 0),
+      skipped: Number(safe.skipped ?? 0),
+      byLabel,
+      recent: Array.isArray(safe.recent) ? safe.recent.slice(-8) : []
+    };
+  }
+
+  function safeNumber(value, fallback = 0) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : fallback;
+  }
+
+  function percentileFromSorted(values, percentile) {
+    if (!Array.isArray(values) || values.length === 0) return 0;
+    const p = clampNumber(Number(percentile), 0, 100);
+    if (values.length === 1) return Number(values[0] ?? 0);
+    const rank = (p / 100) * (values.length - 1);
+    const low = Math.floor(rank);
+    const high = Math.ceil(rank);
+    if (low === high) return Number(values[low] ?? 0);
+    const lowValue = Number(values[low] ?? 0);
+    const highValue = Number(values[high] ?? lowValue);
+    const ratio = rank - low;
+    return lowValue + (highValue - lowValue) * ratio;
+  }
+
+  function addRequestLatencyToPayload(payload, res) {
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) return payload;
+    const requestStartMs = safeNumber(res?.__requestStartMs, NaN);
+    if (!Number.isFinite(requestStartMs) || requestStartMs <= 0) return payload;
+    const elapsed = Math.max(0, Date.now() - requestStartMs);
+    if (!Number.isFinite(elapsed) || elapsed > 600000) return payload;
+    const phase12 = payload.phase12 && typeof payload.phase12 === "object" ? payload.phase12 : {};
+    return {
+      ...payload,
+      phase12: {
+        ...phase12,
+        requestLatencyMs: Math.round(elapsed)
+      }
+    };
+  }
+
+  function isNarrativePayloadForPerf(payload) {
+    const intentType = String(payload?.mjContract?.intent?.type ?? payload?.intent?.type ?? "").trim();
+    const responseType = String(
+      payload?.mjContract?.mjResponse?.responseType ?? payload?.mjResponse?.responseType ?? ""
+    ).trim();
+    if (!intentType || intentType === "system_command") return false;
+    if (responseType === "system" || responseType === "status") return false;
+    return true;
+  }
+
+  function trackPhase7Performance(payload) {
+    if (!isNarrativePayloadForPerf(payload)) return;
+    PHASE7_PERF_STATS.turns += 1;
+    const phase12 = payload?.phase12 && typeof payload.phase12 === "object" ? payload.phase12 : {};
+    const aiBudget = phase12.aiCallBudget && typeof phase12.aiCallBudget === "object"
+      ? normalizeAiCallBudgetStats(phase12.aiCallBudget)
+      : null;
+    const latencyMs = safeNumber(phase12.requestLatencyMs, NaN);
+
+    let budgetUsed = 0;
+    let fallbackUsed = 0;
+    let blocked = 0;
+    if (aiBudget) {
+      PHASE7_PERF_STATS.turnsWithBudget += 1;
+      budgetUsed = Number(aiBudget.used ?? 0);
+      fallbackUsed = Number(aiBudget.fallbackUsed ?? 0);
+      blocked = Number(aiBudget.blocked ?? 0);
+      PHASE7_PERF_STATS.totalAiCallsUsed += budgetUsed;
+      PHASE7_PERF_STATS.totalFallbackCallsUsed += fallbackUsed;
+      if (blocked > 0) PHASE7_PERF_STATS.blockedTurns += 1;
+    }
+
+    if (Number.isFinite(latencyMs) && latencyMs >= 0) {
+      PHASE7_PERF_STATS.turnsWithLatency += 1;
+      PHASE7_PERF_STATS.latencySamples.push(Math.round(latencyMs));
+      if (PHASE7_PERF_STATS.latencySamples.length > PHASE7_PERF_STATS_MAX_SAMPLES) {
+        PHASE7_PERF_STATS.latencySamples.shift();
+      }
+    }
+
+    PHASE7_PERF_STATS.recent.push({
+      at: new Date().toISOString(),
+      latencyMs: Number.isFinite(latencyMs) ? Math.round(latencyMs) : null,
+      aiUsed: budgetUsed,
+      fallbackUsed,
+      blocked
+    });
+    if (PHASE7_PERF_STATS.recent.length > 20) {
+      PHASE7_PERF_STATS.recent.shift();
+    }
+  }
+
+  function buildPhase7PerformanceStatsPayload() {
+    const turns = Number(PHASE7_PERF_STATS.turns ?? 0);
+    const turnsWithBudget = Number(PHASE7_PERF_STATS.turnsWithBudget ?? 0);
+    const turnsWithLatency = Number(PHASE7_PERF_STATS.turnsWithLatency ?? 0);
+    const sortedLatency = [...PHASE7_PERF_STATS.latencySamples].sort((a, b) => a - b);
+    const avgAiCallsPerTurn =
+      turnsWithBudget > 0 ? Number((safeNumber(PHASE7_PERF_STATS.totalAiCallsUsed) / turnsWithBudget).toFixed(2)) : 0;
+    const avgFallbackCallsPerTurn =
+      turnsWithBudget > 0
+        ? Number((safeNumber(PHASE7_PERF_STATS.totalFallbackCallsUsed) / turnsWithBudget).toFixed(2))
+        : 0;
+    const blockedRatePct =
+      turnsWithBudget > 0 ? Number(((safeNumber(PHASE7_PERF_STATS.blockedTurns) / turnsWithBudget) * 100).toFixed(1)) : 0;
+    const p50LatencyMs = Number(percentileFromSorted(sortedLatency, 50).toFixed(0));
+    const p95LatencyMs = Number(percentileFromSorted(sortedLatency, 95).toFixed(0));
+    const targetAvgAiCalls = safeNumber(process.env.NARRATION_PHASE7_TARGET_AVG_AI_CALLS, 1.4);
+    const targetP95LatencyMs = safeNumber(process.env.NARRATION_PHASE7_TARGET_P95_MS, 2200);
+    const targetBlockedRatePct = safeNumber(process.env.NARRATION_PHASE7_TARGET_BLOCKED_RATE_PCT, 20);
+
+    const alerts = {
+      avgAiCallsExceeded: avgAiCallsPerTurn > targetAvgAiCalls,
+      p95LatencyExceeded: p95LatencyMs > targetP95LatencyMs,
+      blockedRateExceeded: blockedRatePct > targetBlockedRatePct
+    };
+
+    return {
+      turns,
+      turnsWithBudget,
+      turnsWithLatency,
+      avgAiCallsPerTurn,
+      avgFallbackCallsPerTurn,
+      blockedTurns: Number(PHASE7_PERF_STATS.blockedTurns ?? 0),
+      blockedRatePct,
+      latency: {
+        samples: sortedLatency.length,
+        p50LatencyMs,
+        p95LatencyMs,
+        maxLatencyMs: sortedLatency.length ? Number(sortedLatency[sortedLatency.length - 1]) : 0
+      },
+      targets: {
+        avgAiCallsPerTurn: targetAvgAiCalls,
+        p95LatencyMs: targetP95LatencyMs,
+        blockedRatePct: targetBlockedRatePct
+      },
+      alerts,
+      recent: PHASE7_PERF_STATS.recent.slice(-10)
+    };
+  }
+
+  function trackPhase4AiRouting(payload) {
+    const raw = payload?.phase12?.aiRouting;
+    if (!raw || typeof raw !== "object") return;
+    const routing = normalizeAiRoutingStats(raw);
+    PHASE4_AI_ROUTING_STATS.turnsWithRouting += 1;
+    PHASE4_AI_ROUTING_STATS.attempted += routing.attempted;
+    PHASE4_AI_ROUTING_STATS.executed += routing.executed;
+    PHASE4_AI_ROUTING_STATS.skipped += routing.skipped;
+    Object.entries(routing.byLabel).forEach(([label, row]) => {
+      const current = PHASE4_AI_ROUTING_STATS.byLabel[label] || {
+        attempted: 0,
+        executed: 0,
+        skipped: 0
+      };
+      current.attempted += Number(row.attempted ?? 0);
+      current.executed += Number(row.executed ?? 0);
+      current.skipped += Number(row.skipped ?? 0);
+      PHASE4_AI_ROUTING_STATS.byLabel[label] = current;
+    });
+    PHASE4_AI_ROUTING_STATS.recent.push({
+      at: new Date().toISOString(),
+      attempted: routing.attempted,
+      executed: routing.executed,
+      skipped: routing.skipped,
+      recent: routing.recent
+    });
+    if (PHASE4_AI_ROUTING_STATS.recent.length > 20) {
+      PHASE4_AI_ROUTING_STATS.recent.shift();
+    }
+  }
+
+  function buildPhase4AiRoutingStatsPayload() {
+    const turns = Number(PHASE4_AI_ROUTING_STATS.turnsWithRouting ?? 0);
+    const attempted = Number(PHASE4_AI_ROUTING_STATS.attempted ?? 0);
+    const executed = Number(PHASE4_AI_ROUTING_STATS.executed ?? 0);
+    const skipped = Number(PHASE4_AI_ROUTING_STATS.skipped ?? 0);
+    const executionRatePct = attempted > 0 ? Number(((executed / attempted) * 100).toFixed(1)) : 0;
+    return {
+      turnsWithRouting: turns,
+      attempted,
+      executed,
+      skipped,
+      executionRatePct,
+      byLabel: { ...PHASE4_AI_ROUTING_STATS.byLabel },
+      recent: PHASE4_AI_ROUTING_STATS.recent.slice(-10)
     };
   }
 
@@ -779,10 +1005,13 @@ function createNarrationPayloadPipeline(deps = {}) {
   }
 
   function sendJson(res, statusCode, data) {
-    const withContracts = attachMjContractToPayload(data);
+    const withLatency = addRequestLatencyToPayload(data, res);
+    const withContracts = attachMjContractToPayload(withLatency);
     const withCanonical = attachCanonicalNarrativeContext(withContracts);
     const withGuards = applyPhase3LoreGuards(withCanonical);
     trackPhase4AiBudget(withGuards);
+    trackPhase4AiRouting(withGuards);
+    trackPhase7Performance(withGuards);
     const payload = separateDebugChannel(withGuards);
     const body = JSON.stringify(payload);
     res.writeHead(statusCode, {
@@ -800,6 +1029,8 @@ function createNarrationPayloadPipeline(deps = {}) {
     buildMjContractStatsPayload,
     buildPhase3GuardStatsPayload,
     buildPhase4AiBudgetStatsPayload,
+    buildPhase4AiRoutingStatsPayload,
+    buildPhase7PerformanceStatsPayload,
     buildPhase8DebugChannelStatsPayload
   };
 }

@@ -27,6 +27,8 @@ function createMjToolBus(params = {}) {
     typeof params.sessionDbRead === "function" ? params.sessionDbRead : () => null;
   const sessionDbWrite =
     typeof params.sessionDbWrite === "function" ? params.sessionDbWrite : () => null;
+  const toolAdapters =
+    params.toolAdapters && typeof params.toolAdapters === "object" ? params.toolAdapters : {};
 
   function executeOne(call, context) {
     const name = call.name;
@@ -35,6 +37,33 @@ function createMjToolBus(params = {}) {
     const canonicalContext = context?.canonicalContext ?? null;
     const contextPack = context?.contextPack ?? null;
     const runtimeState = context?.runtimeState ?? null;
+    const customAdapter = toolAdapters[name];
+    if (typeof customAdapter === "function") {
+      try {
+        const adapted = customAdapter({
+          call,
+          args,
+          context,
+          worldState,
+          canonicalContext,
+          contextPack,
+          runtimeState
+        });
+        if (adapted && typeof adapted === "object" && Object.prototype.hasOwnProperty.call(adapted, "ok")) {
+          return buildResult(
+            name,
+            adapted.ok !== false,
+            adapted.summary || "Adapter execute.",
+            adapted.data ?? adapted
+          );
+        }
+        return buildResult(name, true, "Adapter execute.", adapted ?? null);
+      } catch (error) {
+        return buildResult(name, false, "Adapter en echec.", {
+          reason: String(error?.message ?? "adapter-error")
+        });
+      }
+    }
 
     if (name === "get_world_state") {
       if (canonicalContext && typeof canonicalContext === "object") {
@@ -141,7 +170,8 @@ function createMjToolBus(params = {}) {
   }
 
   return {
-    executeToolCalls
+    executeToolCalls,
+    toolAdapters: { ...toolAdapters }
   };
 }
 

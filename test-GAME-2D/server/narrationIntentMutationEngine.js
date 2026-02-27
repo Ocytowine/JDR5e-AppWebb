@@ -46,6 +46,22 @@ function createNarrationIntentMutationEngine(deps = {}) {
     },
     recent: []
   };
+  const PHASE3_STATS_MAX_SAMPLES = 24;
+  const PHASE3_CRITICAL_MUTATION_STATS = {
+    totalCalls: 0,
+    byField: {
+      activeInterlocutor: 0,
+      pendingAction: 0,
+      pendingTravel: 0,
+      pendingAccess: 0,
+      sceneFrame: 0,
+      travelPending: 0,
+      location: 0,
+      characterSnapshot: 0
+    },
+    bySource: {},
+    recent: []
+  };
 
   function minutesForIntent(intentType) {
     if (intentType === "system_command") return 0;
@@ -284,6 +300,109 @@ function createNarrationIntentMutationEngine(deps = {}) {
     return next;
   }
 
+  function applyCriticalMutation(worldState, mutation = {}) {
+    const safe =
+      worldState && typeof worldState === "object"
+        ? worldState
+        : createInitialNarrativeWorldState();
+    const nextConversation = {
+      ...(safe.conversation && typeof safe.conversation === "object" ? safe.conversation : {})
+    };
+
+    if (Object.prototype.hasOwnProperty.call(mutation, "activeInterlocutor")) {
+      nextConversation.activeInterlocutor =
+        mutation.activeInterlocutor == null ? null : String(mutation.activeInterlocutor).trim() || null;
+    }
+    if (Object.prototype.hasOwnProperty.call(mutation, "pendingAction")) {
+      nextConversation.pendingAction = sanitizePendingAction(mutation.pendingAction);
+    }
+    if (Object.prototype.hasOwnProperty.call(mutation, "pendingTravel")) {
+      nextConversation.pendingTravel = sanitizePendingTravel(mutation.pendingTravel);
+    }
+    if (Object.prototype.hasOwnProperty.call(mutation, "pendingAccess")) {
+      nextConversation.pendingAccess = sanitizePendingAccess(mutation.pendingAccess);
+    }
+    if (Object.prototype.hasOwnProperty.call(mutation, "sceneFrame")) {
+      nextConversation.sceneFrame = sanitizeSceneFrame(mutation.sceneFrame, safe);
+    }
+
+    let nextTravel = sanitizeTravelState(safe.travel);
+    if (Object.prototype.hasOwnProperty.call(mutation, "travelPending")) {
+      nextTravel = sanitizeTravelState({
+        ...nextTravel,
+        pending: mutation.travelPending ?? null
+      });
+    }
+
+    let nextLocation = sanitizeWorldLocation(safe.location);
+    if (mutation.location && typeof mutation.location === "object") {
+      nextLocation = sanitizeWorldLocation({
+        ...nextLocation,
+        ...mutation.location
+      });
+    }
+
+    const next = {
+      ...safe,
+      updatedAt: new Date().toISOString(),
+      conversation: {
+        ...nextConversation,
+        memory: sanitizeConversationMemory(nextConversation.memory, safe),
+        sceneFrame: sanitizeSceneFrame(nextConversation.sceneFrame, safe)
+      },
+      travel: nextTravel,
+      location: nextLocation
+    };
+
+    if (mutation.characterSnapshot && typeof mutation.characterSnapshot === "object") {
+      next.startContext = {
+        ...(next.startContext ?? {}),
+        characterSnapshot: mutation.characterSnapshot
+      };
+    }
+
+    const touched = [];
+    [
+      "activeInterlocutor",
+      "pendingAction",
+      "pendingTravel",
+      "pendingAccess",
+      "sceneFrame",
+      "travelPending",
+      "location",
+      "characterSnapshot"
+    ].forEach((field) => {
+      if (Object.prototype.hasOwnProperty.call(mutation, field)) touched.push(field);
+    });
+    PHASE3_CRITICAL_MUTATION_STATS.totalCalls += 1;
+    touched.forEach((field) => {
+      PHASE3_CRITICAL_MUTATION_STATS.byField[field] =
+        Number(PHASE3_CRITICAL_MUTATION_STATS.byField[field] ?? 0) + 1;
+    });
+    const source = String(mutation?.source ?? "unspecified").trim() || "unspecified";
+    PHASE3_CRITICAL_MUTATION_STATS.bySource[source] =
+      Number(PHASE3_CRITICAL_MUTATION_STATS.bySource[source] ?? 0) + 1;
+    PHASE3_CRITICAL_MUTATION_STATS.recent.push({
+      at: new Date().toISOString(),
+      source,
+      touched
+    });
+    if (PHASE3_CRITICAL_MUTATION_STATS.recent.length > PHASE3_STATS_MAX_SAMPLES) {
+      PHASE3_CRITICAL_MUTATION_STATS.recent.shift();
+    }
+
+    return next;
+  }
+
+  function buildPhase3CriticalMutationStatsPayload() {
+    return {
+      totalCalls: Number(PHASE3_CRITICAL_MUTATION_STATS.totalCalls ?? 0),
+      byField: { ...PHASE3_CRITICAL_MUTATION_STATS.byField },
+      bySource: { ...PHASE3_CRITICAL_MUTATION_STATS.bySource },
+      recent: PHASE3_CRITICAL_MUTATION_STATS.recent.slice(-12)
+    };
+  }
+
   function buildPhase5MutationStatsPayload() {
     const turns = Number(PHASE5_MUTATION_STATS.turns ?? 0);
     const mutatedTurns = Number(PHASE5_MUTATION_STATS.mutatedTurns ?? 0);
@@ -306,6 +425,8 @@ function createNarrationIntentMutationEngine(deps = {}) {
     computeWorldDelta,
     computeSceneOnlyDelta,
     applyWorldDelta,
+    applyCriticalMutation,
+    buildPhase3CriticalMutationStatsPayload,
     buildPhase5MutationStatsPayload
   };
 }

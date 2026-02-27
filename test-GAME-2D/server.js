@@ -28,6 +28,7 @@ const { createNarrationIntentMutationEngine } = require("./server/narrationInten
 const { createNarrationBackgroundTickEngine } = require("./server/narrationBackgroundTickEngine");
 const { createNarrationNaturalRenderer } = require("./server/narrationNaturalRenderer");
 const { createNarrationStyleHelper } = require("./server/narrationStyleHelper");
+const { createNarrationToolRegistry } = require("./server/narrationToolRegistry");
 
 const PORT = process.env.PORT
   ? Number(process.env.PORT)
@@ -58,6 +59,7 @@ const CHARACTERS_DATA_DIR = path.join(__dirname, "src", "data", "characters");
 const RACES_INDEX_PATH = path.join(CHARACTERS_DATA_DIR, "races", "index.json");
 const BACKGROUNDS_INDEX_PATH = path.join(CHARACTERS_DATA_DIR, "backgrounds", "index.json");
 const CLASSES_INDEX_PATH = path.join(CHARACTERS_DATA_DIR, "classes", "index.json");
+const narrationToolRegistry = createNarrationToolRegistry();
 
 // ----------------------------------------------------
 // Lecture de la clÃ© API OpenAI
@@ -137,12 +139,6 @@ function getNarrationApiRoutes() {
     narrationStatePath: NARRATION_STATE_PATH,
     saveNarrativeWorldState,
     createInitialNarrativeWorldState,
-    buildLoreRecordsForQuery,
-    openAiApiKey: OPENAI_API_KEY,
-    computeWorldDelta,
-    loadNarrativeWorldState,
-    applyWorldDelta,
-    buildNarrationChatReply,
     sanitizeCharacterProfile,
     buildCharacterContextPack
   });
@@ -172,12 +168,15 @@ function getNarrationChatHandler() {
     buildCharacterRulesDiagnostics,
     buildMjContractStatsPayload,
     buildPhase3GuardStatsPayload,
+    buildPhase3CriticalMutationStatsPayload,
     buildPhase4SessionStatsPayload: () => sessionNarrativeDb.stats(),
     buildPhase4AiBudgetStatsPayload,
+    buildPhase4AiRoutingStatsPayload,
     buildPhase5MutationStatsPayload,
     buildPhase6BackgroundStatsPayload: () =>
       narrationBackgroundTickEngine.buildPhase6BackgroundStatsPayload(),
     buildPhase7RenderStatsPayload,
+    buildPhase7PerformanceStatsPayload,
     buildPhase8DebugChannelStatsPayload,
     resetNarrativeSessionDb: () => sessionNarrativeDb.reset(),
     sanitizeInterlocutorLabel,
@@ -191,6 +190,7 @@ function getNarrationChatHandler() {
     buildCanonicalNarrativeContext,
     rpActionResolver,
     applyWorldDelta,
+    applyCriticalMutation,
     computeSceneOnlyDelta,
     oneLine,
     buildMjReplyBlocks,
@@ -270,6 +270,17 @@ function buildPhase4AiBudgetStatsPayload() {
   return getNarrationPayloadPipeline().buildPhase4AiBudgetStatsPayload();
 }
 
+function buildPhase4AiRoutingStatsPayload() {
+  return getNarrationPayloadPipeline().buildPhase4AiRoutingStatsPayload();
+}
+function buildPhase7PerformanceStatsPayload() {
+  return getNarrationPayloadPipeline().buildPhase7PerformanceStatsPayload();
+}
+
+function buildPhase3CriticalMutationStatsPayload() {
+  return narrationIntentMutationEngine.buildPhase3CriticalMutationStatsPayload();
+}
+
 function buildPhase8DebugChannelStatsPayload() {
   return getNarrationPayloadPipeline().buildPhase8DebugChannelStatsPayload();
 }
@@ -300,27 +311,14 @@ function normalizeMjOptions(options, limit = 6) {
 }
 
 function normalizeToolCallShape(entry) {
-  const row = entry && typeof entry === "object" ? entry : {};
-  const name = String(row.name ?? row.tool ?? row.id ?? "").trim().toLowerCase();
-  if (!name) return null;
-  const args = row.args && typeof row.args === "object" ? row.args : {};
-  return { name, args };
+  return narrationToolRegistry.normalizeToolCallShape(entry);
 }
 
-function mergeToolCalls(aiCalls, priorityCalls, limit = 6) {
-  const merged = [];
-  const seen = new Set();
-  const push = (entry) => {
-    const row = normalizeToolCallShape(entry);
-    if (!row) return;
-    const key = `${row.name}:${JSON.stringify(row.args)}`;
-    if (seen.has(key)) return;
-    seen.add(key);
-    merged.push(row);
-  };
-  (Array.isArray(priorityCalls) ? priorityCalls : []).forEach(push);
-  (Array.isArray(aiCalls) ? aiCalls : []).forEach(push);
-  return merged.slice(0, limit);
+function mergeToolCalls(aiCalls, priorityCalls, limit = 6, intentContext = {}) {
+  return narrationToolRegistry.mergeToolCalls(aiCalls, priorityCalls, {
+    limit,
+    intentContext
+  });
 }
 
 function buildPriorityMjToolCalls({
@@ -331,47 +329,14 @@ function buildPriorityMjToolCalls({
   worldState,
   hasCharacterProfile
 }) {
-  if (String(conversationMode ?? "rp") !== "rp") return [];
-  const intentType = String(intent?.type ?? "story_action");
-  const mode = String(directorPlan?.mode ?? "scene_only");
-  const requiresCheck = Boolean(intent?.requiresCheck);
-  const riskLevel = String(intent?.riskLevel ?? "medium");
-  const applyRuntime = Boolean(directorPlan?.applyRuntime);
-
-  const calls = [{ name: "get_world_state", args: {} }];
-  const hasPending =
-    Boolean(worldState?.conversation?.pendingAction) ||
-    Boolean(worldState?.travel?.pending) ||
-    Boolean(worldState?.conversation?.pendingTravel) ||
-    Boolean(worldState?.conversation?.pendingAccess);
-  if (hasPending) {
-    calls.push({ name: "session_db_read", args: { scope: "pending" } });
-  }
-  calls.push({ name: "session_db_read", args: { scope: "scene-memory" } });
-
-  if (hasCharacterProfile) {
-    if (
-      intentType === "system_command" ||
-      intentType === "story_action" ||
-      intentType === "social_action"
-    ) {
-      calls.push({ name: "query_player_sheet", args: { scope: "identity-loadout-rules" } });
-    }
-  }
-
-  if (mode === "lore" || mode === "exploration" || intentType === "lore_question") {
-    calls.push({ name: "query_lore", args: { query: message, limit: 4 } });
-  }
-
-  if (requiresCheck || riskLevel === "medium" || riskLevel === "high") {
-    calls.push({ name: "query_rules", args: { query: message } });
-  }
-
-  if (applyRuntime || intentType === "story_action" || intentType === "social_action") {
-    calls.push({ name: "quest_trama_tick", args: { dryRun: true } });
-  }
-
-  return mergeToolCalls([], calls, 6);
+  return narrationToolRegistry.buildPriorityToolCalls({
+    message,
+    intent,
+    directorPlan,
+    conversationMode,
+    worldState,
+    hasCharacterProfile
+  });
 }
 
 function buildMjContractStatsPayload() {
@@ -578,45 +543,81 @@ async function callOpenAiForEnemyIntents(stateSummary) {
   return { intents: sanitized };
 }
 
+function resolvePositiveIntEnv(name, fallback) {
+  const raw = Number(process.env[name]);
+  if (!Number.isFinite(raw)) return fallback;
+  const normalized = Math.floor(raw);
+  return normalized > 0 ? normalized : fallback;
+}
+
 async function callOpenAiJson({ model, systemPrompt, userPayload }) {
   if (!OPENAI_API_KEY) {
     throw new Error("OPENAI_API_KEY manquante");
   }
+  const timeoutMs = resolvePositiveIntEnv("OPENAI_TIMEOUT_MS", 15000);
+  const maxRetries = resolvePositiveIntEnv("OPENAI_MAX_RETRIES", 1);
+  const retryDelayMs = resolvePositiveIntEnv("OPENAI_RETRY_DELAY_MS", 350);
+  const url = "https://api.openai.com/v1/chat/completions";
+  let lastError = null;
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${OPENAI_API_KEY}`
-    },
-    body: JSON.stringify({
-      model,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: JSON.stringify(userPayload) }
-      ]
-    })
-  });
+  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${OPENAI_API_KEY}`
+        },
+        body: JSON.stringify({
+          model,
+          response_format: { type: "json_object" },
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: JSON.stringify(userPayload) }
+          ]
+        }),
+        signal: controller.signal
+      });
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(
-      `Erreur OpenAI ${response.status} ${response.statusText}: ${text}`
-    );
+      if (!response.ok) {
+        const text = await response.text();
+        const retriable = response.status === 429 || response.status >= 500;
+        const error = new Error(`Erreur OpenAI ${response.status} ${response.statusText}: ${text}`);
+        error.retriable = retriable;
+        throw error;
+      }
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content;
+      if (!content) {
+        throw new Error("Reponse OpenAI sans contenu message.");
+      }
+      try {
+        return JSON.parse(content);
+      } catch {
+        throw new Error("Impossible de parser la reponse OpenAI en JSON.");
+      }
+    } catch (error) {
+      const aborted = error?.name === "AbortError";
+      const retriable = aborted || Boolean(error?.retriable);
+      const isLastAttempt = attempt >= maxRetries;
+      lastError = error;
+      if (!retriable || isLastAttempt) {
+        if (aborted) {
+          throw new Error(`Timeout OpenAI apres ${timeoutMs}ms.`);
+        }
+        throw error;
+      }
+      const backoff = retryDelayMs * (attempt + 1);
+      await new Promise((resolve) => setTimeout(resolve, backoff));
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
-  const data = await response.json();
-  const content = data.choices?.[0]?.message?.content;
-  if (!content) {
-    throw new Error("RÃ©ponse OpenAI sans contenu message.");
-  }
-
-  try {
-    return JSON.parse(content);
-  } catch {
-    throw new Error("Impossible de parser la rÃ©ponse OpenAI en JSON.");
-  }
+  throw lastError ?? new Error("Echec OpenAI sans detail.");
 }
 
 function clampNumber(value, min, max) {
@@ -1220,6 +1221,10 @@ function computeSceneOnlyDelta(intent) {
 
 function applyWorldDelta(worldState, delta, metadata) {
   return narrationIntentMutationEngine.applyWorldDelta(worldState, delta, metadata);
+}
+
+function applyCriticalMutation(worldState, mutation) {
+  return narrationIntentMutationEngine.applyCriticalMutation(worldState, mutation);
 }
 
 function buildPhase5MutationStatsPayload() {
@@ -2081,34 +2086,75 @@ function classifyNarrationIntent(message, options = {}) {
     ? options.worldState
     : null;
   const text = String(message ?? "").trim();
-  if (!text) {
+  const inferHeuristicCommitment = (rawText, semanticIntent) => {
+    const normalized = normalizeForIntent(rawText);
+    const isQuestion = normalized.includes("?");
+    const hasHypotheticalCue =
+      /\b(si possible|si je peux|si on peut|peut-etre|au cas ou|eventuellement)\b/.test(normalized) ||
+      /^si\b/.test(normalized);
+    const hasVolitiveCue =
+      /\b(j aimerais|je voudrais|je souhaite|je veux bien|j envisage)\b/.test(normalized);
+    const actionSemantic = new Set([
+      "move_place",
+      "enter_place",
+      "social_exchange",
+      "trade_action",
+      "resource_action",
+      "quest_progress"
+    ]);
+    if (hasHypotheticalCue) return "hypothetique";
+    if (hasVolitiveCue) return "volitif";
+    if (actionSemantic.has(String(semanticIntent ?? ""))) {
+      return isQuestion ? "hypothetique" : "declaratif";
+    }
+    return "informatif";
+  };
+
+  const withSemanticIntent = (candidate) => {
+    const safe = candidate && typeof candidate === "object" ? candidate : {};
+    const semanticIntent = narrationToolRegistry.deriveSemanticIntent({
+      intentType: safe.type ?? "story_action",
+      directorMode: "scene_only",
+      worldState,
+      message
+    });
+    const commitment =
+      String(safe.commitment ?? "").trim().toLowerCase() ||
+      inferHeuristicCommitment(message, semanticIntent);
     return {
+      ...safe,
+      semanticIntent,
+      commitment
+    };
+  };
+  if (!text) {
+    return withSemanticIntent({
       type: "free_exploration",
       confidence: 0.2,
       requiresCheck: false,
       riskLevel: "low",
       reason: "empty-fallback"
-    };
+    });
   }
 
   if (text.startsWith("/")) {
-    return {
+    return withSemanticIntent({
       type: "system_command",
       confidence: 1,
       requiresCheck: false,
       riskLevel: "none",
       reason: "slash-command"
-    };
+    });
   }
 
   if (conversationMode === "hrp") {
-    return {
+    return withSemanticIntent({
       type: "system_command",
       confidence: 0.9,
       requiresCheck: false,
       riskLevel: "none",
       reason: "hrp-mode"
-    };
+    });
   }
 
   const questionLike = text.includes("?");
@@ -2122,43 +2168,90 @@ function classifyNarrationIntent(message, options = {}) {
       ? ""
       : String(worldState.conversation.activeInterlocutor).trim();
 
+  const semanticFromMessage = narrationToolRegistry.deriveSemanticIntent({
+    intentType: "story_action",
+    directorMode: "scene_only",
+    worldState,
+    message
+  });
+  if (semanticFromMessage === "system_command") {
+    return withSemanticIntent({
+      type: "system_command",
+      confidence: 0.92,
+      requiresCheck: false,
+      riskLevel: "none",
+      reason: "semantic-system-command"
+    });
+  }
+  if (semanticFromMessage === "social_exchange") {
+    return withSemanticIntent({
+      type: "social_action",
+      confidence: 0.7,
+      requiresCheck: true,
+      riskLevel: "medium",
+      reason: "semantic-social"
+    });
+  }
+  if (semanticFromMessage === "move_place" || semanticFromMessage === "enter_place") {
+    return withSemanticIntent({
+      type: "story_action",
+      confidence: 0.72,
+      requiresCheck: true,
+      riskLevel: "medium",
+      reason: "semantic-travel"
+    });
+  }
+  if (
+    semanticFromMessage === "trade_action" ||
+    semanticFromMessage === "resource_action" ||
+    semanticFromMessage === "quest_progress"
+  ) {
+    return withSemanticIntent({
+      type: "story_action",
+      confidence: 0.68,
+      requiresCheck: true,
+      riskLevel: "medium",
+      reason: "semantic-story-action"
+    });
+  }
+
   if (questionLike && !hasPending && !activeInterlocutor) {
-    return {
+    return withSemanticIntent({
       type: "lore_question",
       confidence: 0.62,
       requiresCheck: false,
       riskLevel: "low",
       reason: "question-form-fallback"
-    };
+    });
   }
 
   if (hasPending) {
-    return {
+    return withSemanticIntent({
       type: "story_action",
       confidence: 0.6,
       requiresCheck: true,
       riskLevel: "medium",
       reason: "pending-context-fallback"
-    };
+    });
   }
 
   if (activeInterlocutor) {
-    return {
+    return withSemanticIntent({
       type: "social_action",
       confidence: 0.58,
       requiresCheck: true,
       riskLevel: "medium",
       reason: "active-interlocutor-fallback"
-    };
+    });
   }
 
-  return {
+  return withSemanticIntent({
     type: "free_exploration",
     confidence: 0.52,
     requiresCheck: false,
     riskLevel: "low",
     reason: "scene-default-fallback"
-  };
+  });
 }
 
 const narrationAiHelpers = createNarrationAiHelpers({
@@ -2171,6 +2264,7 @@ const narrationAiHelpers = createNarrationAiHelpers({
     process.env.NARRATION_MODEL ||
     process.env.OPENAI_MODEL ||
     "gpt-4.1-mini",
+  allowedTools: narrationToolRegistry.allowedToolNames(),
   warn: (...args) => console.warn(...args)
 });
 
@@ -2630,7 +2724,7 @@ function inferPlaceFromMessage(message, records) {
     if (portRecord?.title) return oneLine(String(portRecord.title), 72);
   }
   const patterns = [
-    /\b(?:visiter|visite|voir|explorer|aller(?:\s+vers)?|me\s+rendre(?:\s+vers)?|acceder|entrer(?:\s+dans)?|passer\s+par)\s+(?:aux|au|a la|a l'|dans|vers|sur|en)?\s*([a-z0-9' -]{3,72})/,
+    /\b(?:visiter|visite|voir|explorer|aller(?:\s+vers)?|me\s+rendre(?:\s+vers)?|me\s+dirig(?:er|e)(?:\s+vers)?|march(?:er|e)(?:\s+vers)?|aller\s+en\s+direction\s+de|acceder|entrer(?:\s+dans)?|passer\s+par)\s+(?:aux|au|a la|a l'|dans|vers|sur|en)?\s*([a-z0-9' -]{3,72})/,
     /\b(?:du|de la|de l'|des)\s+([a-z0-9' -]{3,72})/
   ];
   for (const pattern of patterns) {
@@ -2649,7 +2743,7 @@ function extractVisitIntent(message, records) {
   const normalized = normalizeForIntent(message);
   if (!normalized) return null;
   const referencesMove =
-    /\b(visiter|visite|aller|rendre|acceder|entrer|explorer|deplacer|m approcher|me rapprocher)\b/.test(normalized);
+    /\b(visiter|visite|aller|rendre|dirige|diriger|marche|marcher|acceder|entrer|explorer|deplacer|m approcher|me rapprocher)\b/.test(normalized);
   if (!referencesMove) return null;
   const isQuestion =
     message.includes("?") ||
@@ -3382,6 +3476,31 @@ const mjToolBus = createMjToolBus({
   sessionDbWrite: (args) => {
     syncSessionDbFromWorldState(args?.worldState);
     return sessionNarrativeDb.write(args);
+  },
+  toolAdapters: {
+    semantic_intent_probe: ({ context }) => {
+      const semanticIntent = narrationToolRegistry.deriveSemanticIntent({
+        intentType: context?.intent?.type ?? context?.canonicalContext?.intentType ?? "story_action",
+        directorMode: context?.directorPlan?.mode ?? context?.canonicalContext?.directorMode ?? "scene_only",
+        worldState: context?.worldState ?? null,
+        message: context?.message ?? ""
+      });
+      const policy = narrationToolRegistry.deriveIntentPolicy({
+        semanticIntent,
+        intentType: context?.intent?.type ?? context?.canonicalContext?.intentType ?? "story_action",
+        directorMode: context?.directorPlan?.mode ?? context?.canonicalContext?.directorMode ?? "scene_only",
+        worldState: context?.worldState ?? null,
+        message: context?.message ?? ""
+      });
+      return {
+        ok: true,
+        summary: `Intent semantique: ${semanticIntent}.`,
+        data: {
+          semanticIntent,
+          policy
+        }
+      };
+    }
   }
 });
 
@@ -3747,6 +3866,7 @@ function buildNarrationChatReply(outcome, intentType = "story_action") {
 // ----------------------------------------------------
 
 const server = http.createServer(async (req, res) => {
+  res.__requestStartMs = Date.now();
   // CORS preflight
   if (req.method === "OPTIONS") {
     res.writeHead(204, {

@@ -46,10 +46,7 @@ function normalizeRuntimeState(value: unknown): NarrativeRuntimeState | null {
 }
 
 export async function loadNarrativeRuntimeState(): Promise<NarrativeRuntimeState | null> {
-  const candidates = [
-    "/api/narration-runtime-state",
-    "/narration-module/runtime/NarrativeGameState.v1.json"
-  ];
+  const candidates = ["/api/narration-runtime-state"];
 
   for (const url of candidates) {
     try {
