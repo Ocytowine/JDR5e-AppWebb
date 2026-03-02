@@ -58,30 +58,30 @@ function createNarrationStyleHelper(deps = {}) {
   function buildNpcPresenceLine({ activeInterlocutor, worldState, message }) {
     const label = String(activeInterlocutor ?? "").trim();
     if (!label) return "";
+    const normalizedMessage = normalizeForIntent(message);
+    if (
+      /\b(?:marchand|marchande|vendeur|vendeuse|boutique|echoppe|prix|combien|acheter|tenue|vetement|tissu|robe|tunique|choisis|prends?)\b/.test(
+        normalizedMessage
+      )
+    ) {
+      return "";
+    }
     const locationLabel = String(
       worldState?.location?.label ?? worldState?.startContext?.locationLabel ?? ""
     ).trim();
     const seed = seedFromText(
-      `${normalizeForIntent(label)}|${normalizeForIntent(locationLabel)}|${normalizeForIntent(message)}`
+      `${normalizeForIntent(label)}|${normalizeForIntent(locationLabel)}|${normalizedMessage}`
     );
     const gestures = [
-      "te regarde droit dans les yeux",
-      "marque un court silence avant de repondre",
-      "baisse la voix pour eviter d'attirer l'attention",
-      "garde un ton mesure, sans hausser la voix",
-      "se redresse legerement avant de parler"
-    ];
-    const lines = [
-      "Je t'ecoute. Va a l'essentiel.",
-      "Parle clairement, et on avancera vite.",
-      "Tu veux une reponse utile ? Pose une question precise.",
-      "D'accord. Donne-moi ton angle, pas un detour.",
-      "Tres bien. Commence par ce qui compte vraiment."
+      "releve legerement la tete quand tu t'adresses a lui",
+      "marque un court silence avant de te repondre",
+      "garde un ton pose, sans hausser la voix",
+      "laisse passer un bref temps avant de parler",
+      "t'accorde son attention sans brusquer l'echange"
     ];
     const gesture = pickBySeed(gestures, seed);
-    const quote = pickBySeed(lines, seed + 11);
     const speaker = titleCaseLabel(label);
-    return `${speaker} ${gesture}: "${quote}"`;
+    return `${speaker} ${gesture}.`;
   }
 
   return {

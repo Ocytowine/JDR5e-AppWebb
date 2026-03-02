@@ -17,10 +17,13 @@ function createNarrationNaturalRenderer(deps = {}) {
 
   function shouldShowOptions({ scene, actionResult, consequences, options }) {
     const safeOptions = normalizeMjOptions(options, 4);
-    if (!safeOptions.length) return false;
+    if (safeOptions.length < 2) return false;
     const context = [scene, actionResult, consequences].map((x) => String(x ?? "")).join(" ").toLowerCase();
-    const usefulHints = [
+    const strongHints = [
       "chois",
+      "plusieurs suites",
+      "plusieurs voies",
+      "reste ouvert",
       "clarif",
       "precis",
       "bloqu",
@@ -32,7 +35,15 @@ function createNarrationNaturalRenderer(deps = {}) {
       "confirmer",
       "reformuler"
     ];
-    return usefulHints.some((hint) => context.includes(hint));
+    const weakSceneHints = [
+      "rien d'urgent",
+      "sans rien forcer",
+      "continue de vivre autour de toi",
+      "prends le temps",
+      "regarder autour de toi"
+    ];
+    if (weakSceneHints.some((hint) => context.includes(hint))) return false;
+    return strongHints.some((hint) => context.includes(hint));
   }
 
   function tokenizeAnchors(text) {
@@ -85,6 +96,34 @@ function createNarrationNaturalRenderer(deps = {}) {
     }
   }
 
+  function computeSeed(text) {
+    const source = String(text ?? "");
+    let seed = 0;
+    for (let i = 0; i < source.length; i += 1) {
+      seed = (seed + source.charCodeAt(i) * (i + 3)) % 8191;
+    }
+    return seed;
+  }
+
+  function chooseOptionLead({ scene, actionResult, consequences, options }) {
+    const context = [scene, actionResult, consequences, ...(Array.isArray(options) ? options : [])]
+      .map((x) => String(x ?? ""))
+      .join(" ");
+    const normalized = context
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+    let variants;
+    if (/\b(chois|confirmer|bloqu|controle|approche|plan)\b/.test(normalized)) {
+      variants = ["Tu peux maintenant:", "Plusieurs suites s'offrent a toi:", "Choix ouverts:"];
+    } else if (/\b(marchand|vendeur|prix|boutique|echoppe|parler|demander)\b/.test(normalized)) {
+      variants = ["Si tu veux poursuivre:", "Tu peux maintenant:", "A toi de voir:"];
+    } else {
+      variants = ["Pistes possibles:", "Tu peux maintenant:", "A toi de voir:"];
+    }
+    return variants[computeSeed(normalized) % variants.length];
+  }
+
   function buildMjReplyBlocks(payload = {}) {
     const polished =
       styleHelper && typeof styleHelper.polishMjBlocks === "function"
@@ -94,9 +133,9 @@ function createNarrationNaturalRenderer(deps = {}) {
             consequences: payload.consequences
           })
         : payload;
-    const scene = normalizeRpLine(polished.scene) || "La scene evolue sans rupture visible.";
+    const scene = normalizeRpLine(polished.scene) || "La scene continue, sans coupure nette.";
     const actionResult =
-      normalizeRpLine(polished.actionResult) || "Ton action est prise en compte par le MJ.";
+      normalizeRpLine(polished.actionResult) || "Ton geste est pris en compte, et quelque chose dans la scene peut maintenant te repondre.";
     const consequences = normalizeRpLine(polished.consequences) || "";
     const options = groundOptionsToContext({
       scene,
@@ -108,7 +147,7 @@ function createNarrationNaturalRenderer(deps = {}) {
 
     const lines = [scene, actionResult, consequences];
     if (showOptions) {
-      lines.push(`Pistes possibles: ${options.join(" | ")}`);
+      lines.push(`${chooseOptionLead({ scene, actionResult, consequences, options })} ${options.join(" | ")}`);
     }
 
     trackRender({

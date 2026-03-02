@@ -126,6 +126,21 @@ function buildDebugSuffix(payload: NarrationChatPayload): string {
           byLabel?: Record<string, { attempted?: number; executed?: number; skipped?: number }>;
           recent?: Array<{ label?: string; status?: string; reason?: string }>;
         } | null;
+        situatedAct?: {
+          actType?: string;
+          targetKind?: string;
+          targetRef?: string;
+          objectRef?: string;
+          sceneLink?: string;
+          engagement?: string;
+          expectedNextStep?: string;
+          resolutionMode?: string;
+        } | null;
+        resolutionDecision?: {
+          mode?: string;
+          toolFamily?: string;
+          reason?: string;
+        } | null;
         requestLatencyMs?: number;
         memoryWindow?: {
           compacted?: boolean;
@@ -210,6 +225,14 @@ function buildDebugSuffix(payload: NarrationChatPayload): string {
   const memoryText = phase12?.memoryWindow
     ? `window=${phase12.memoryWindow.activeWindowKey ?? "n/a"} | turns=${phase12.memoryWindow.activeTurns ?? 0} | summaries=${phase12.memoryWindow.summaryCount ?? 0} | compacted=${phase12.memoryWindow.compacted ? "yes" : "no"}:${phase12.memoryWindow.compactReason ?? "none"}`
     : "window=n/a";
+  const situatedAct = phase12?.situatedAct ?? null;
+  const situatedActText = situatedAct
+    ? `act=${situatedAct.actType ?? "n/a"} | target=${situatedAct.targetKind ?? "n/a"}:${situatedAct.targetRef ?? "n/a"} | object=${situatedAct.objectRef ?? "n/a"} | link=${situatedAct.sceneLink ?? "n/a"} | engagement=${situatedAct.engagement ?? "n/a"} | next=${situatedAct.expectedNextStep ?? "n/a"} | mode=${situatedAct.resolutionMode ?? "n/a"}`
+    : "n/a";
+  const resolutionDecision = phase12?.resolutionDecision ?? null;
+  const resolutionDecisionText = resolutionDecision
+    ? `mode=${resolutionDecision.mode ?? "n/a"} | family=${resolutionDecision.toolFamily ?? "n/a"} | reason=${resolutionDecision.reason ?? "n/a"}`
+    : "n/a";
   return [
     "",
     "[debug]",
@@ -221,6 +244,8 @@ function buildDebugSuffix(payload: NarrationChatPayload): string {
     `phase12: arbitration=${arbitrationText} | worldIntentConfidence=${phase12?.worldIntentConfidence ?? "n/a"} | drift=${phase12?.anchorDriftDetected ? "yes" : "no"} | stageViolation=${phase12?.stageContractViolation ? "yes" : "no"} | regen=${phase12?.regenerationCount ?? 0}`,
     `aiBudget: used=${aiBudget?.used ?? "n/a"}/${aiBudget?.max ?? "n/a"} | primary=${aiBudget?.primaryUsed ?? "n/a"}/${aiBudget?.primaryMax ?? "n/a"} | fallback=${aiBudget?.fallbackUsed ?? "n/a"}/${aiBudget?.fallbackMax ?? "n/a"} | blocked=${aiBudget?.blocked ?? "n/a"}`,
     `aiRouting: attempted=${aiRouting?.attempted ?? "n/a"} | executed=${aiRouting?.executed ?? "n/a"} | skipped=${aiRouting?.skipped ?? "n/a"} | recent=${aiRoutingRecentText}`,
+    `situatedAct: ${situatedActText}`,
+    `resolutionDecision: ${resolutionDecisionText}`,
     `perf: requestLatencyMs=${requestLatencyMs > 0 ? requestLatencyMs : "n/a"}`,
     `memory: ${memoryText}`,
     `aiToolsPlanned: ${plannedTools.length ? plannedTools.join(", ") : "none"}`,

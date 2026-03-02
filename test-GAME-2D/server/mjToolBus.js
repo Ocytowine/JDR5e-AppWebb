@@ -148,6 +148,13 @@ function createMjToolBus(params = {}) {
       });
     }
 
+    if (name === "session_shop_offer") {
+      return buildResult(name, false, "Outil boutique indisponible.", {
+        ok: false,
+        reason: "no-shop-offer-adapter"
+      });
+    }
+
     if (name === "quest_trama_tick") {
       return buildResult(name, true, "Etat runtime lu (tick non appliqué).", {
         quests: Object.keys(runtimeState?.quests ?? {}).length,

@@ -29,6 +29,8 @@ const { createNarrationBackgroundTickEngine } = require("./server/narrationBackg
 const { createNarrationNaturalRenderer } = require("./server/narrationNaturalRenderer");
 const { createNarrationStyleHelper } = require("./server/narrationStyleHelper");
 const { createNarrationToolRegistry } = require("./server/narrationToolRegistry");
+const { createNarrationRpOutputSanitizer } = require("./server/narrationRpOutputSanitizer");
+const { createNarrationShopOfferTool } = require("./server/narrationShopOfferTool");
 
 const PORT = process.env.PORT
   ? Number(process.env.PORT)
@@ -60,6 +62,8 @@ const RACES_INDEX_PATH = path.join(CHARACTERS_DATA_DIR, "races", "index.json");
 const BACKGROUNDS_INDEX_PATH = path.join(CHARACTERS_DATA_DIR, "backgrounds", "index.json");
 const CLASSES_INDEX_PATH = path.join(CHARACTERS_DATA_DIR, "classes", "index.json");
 const narrationToolRegistry = createNarrationToolRegistry();
+const narrationRpOutputSanitizer = createNarrationRpOutputSanitizer();
+const narrationShopOfferTool = createNarrationShopOfferTool();
 
 // ----------------------------------------------------
 // Lecture de la clÃ© API OpenAI
@@ -120,7 +124,8 @@ function getNarrationPayloadPipeline() {
     normalizeMjOptions,
     parseReplyToMjBlocks,
     makeMjResponse,
-    buildCanonicalNarrativeContext
+    buildCanonicalNarrativeContext,
+    sanitizeNarrationPayload: (value) => narrationRpOutputSanitizer.sanitizePayload(value)
   });
   return narrationPayloadPipeline;
 }
@@ -187,6 +192,7 @@ function getNarrationChatHandler() {
     sanitizeConversationMemory,
     sanitizeSceneFrame,
     extractInterlocutorFromMessage,
+    resolveImplicitInterlocutorFromMessage,
     buildCanonicalNarrativeContext,
     rpActionResolver,
     applyWorldDelta,
@@ -203,8 +209,10 @@ function getNarrationChatHandler() {
     upsertSessionPlace,
     sanitizeSessionPlaces,
     buildArrivalPlaceReply,
+    extractLocateIntent,
     extractVisitIntent,
     resolveOrCreateSessionPlace,
+    buildLocateAdvisoryReply,
     buildVisitAdvisoryReply,
     buildAccessChallengeReply,
     isAccessProgressionIntent,
@@ -363,13 +371,24 @@ function parseReplyToMjBlocks(reply) {
     .map((line) => line.trim())
     .filter(Boolean);
   const optionLine = lines.find(
-    (line) => /^tu peux maintenant:/i.test(line) || /^pistes possibles:/i.test(line) || /^options:/i.test(line)
+    (line) =>
+      /^tu peux maintenant:/i.test(line) ||
+      /^pistes possibles:/i.test(line) ||
+      /^options:/i.test(line) ||
+      /^si tu veux poursuivre:/i.test(line) ||
+      /^a toi de voir:/i.test(line) ||
+      /^choix ouverts:/i.test(line) ||
+      /^plusieurs suites s'offrent a toi:/i.test(line)
   );
   const options = optionLine
     ? optionLine
         .replace(/^tu peux maintenant:\s*/i, "")
         .replace(/^pistes possibles:\s*/i, "")
         .replace(/^options:\s*/i, "")
+        .replace(/^si tu veux poursuivre:\s*/i, "")
+        .replace(/^a toi de voir:\s*/i, "")
+        .replace(/^choix ouverts:\s*/i, "")
+        .replace(/^plusieurs suites s'offrent a toi:\s*/i, "")
         .split("|")
         .map((part) => part.trim())
         .filter(Boolean)
@@ -834,17 +853,49 @@ function minutesForIntent(intentType) {
   return narrationIntentMutationEngine.minutesForIntent(intentType);
 }
 
+function sanitizeScenePresentedItems(value) {
+  const rows = Array.isArray(value) ? value : [];
+  return rows
+    .map((row) => (row && typeof row === "object" ? row : null))
+    .filter(Boolean)
+    .map((row) => ({
+      label: oneLine(String(row.label ?? ""), 80),
+      kind: oneLine(String(row.kind ?? row.type ?? ""), 40),
+      summary: oneLine(String(row.summary ?? row.description ?? ""), 140),
+      priceText: oneLine(String(row.priceText ?? ""), 40)
+    }))
+    .filter((row) => row.label)
+    .slice(0, 6);
+}
+
+function sanitizeSceneRecentFactEntries(value) {
+  const rows = Array.isArray(value) ? value : [];
+  return rows
+    .map((row) => (row && typeof row === "object" ? row : null))
+    .filter(Boolean)
+    .map((row) => ({
+      kind: oneLine(String(row.kind ?? "fact"), 40) || "fact",
+      text: oneLine(String(row.text ?? row.label ?? ""), 180),
+      ref: oneLine(String(row.ref ?? ""), 120),
+      at: oneLine(String(row.at ?? ""), 40)
+    }))
+    .filter((row) => row.text)
+    .slice(0, 8);
+}
+
 function sanitizeSceneFrame(value, worldState = null) {
   const safe = value && typeof value === "object" ? value : {};
   const world = worldState && typeof worldState === "object" ? worldState : {};
   const locationId = String(
-    safe.locationId ??
+    safe.activeLocationId ??
+      safe.locationId ??
       world?.location?.id ??
       world?.startContext?.locationId ??
       "lysenthe.archives.parvis"
   ).trim();
   const locationLabel = String(
-    safe.locationLabel ??
+    safe.activeLocationLabel ??
+      safe.locationLabel ??
       world?.location?.label ??
       world?.startContext?.locationLabel ??
       "Parvis des Archives, Lysenthe"
@@ -852,16 +903,33 @@ function sanitizeSceneFrame(value, worldState = null) {
   const activePoiLabel = String(safe.activePoiLabel ?? "").trim();
   const activeInterlocutorLabel = String(safe.activeInterlocutorLabel ?? "").trim();
   const activeTopic = String(safe.activeTopic ?? "").trim();
-  const recentFacts = Array.isArray(safe.recentFacts)
+  const recentFactsRaw = Array.isArray(safe.recentFacts)
     ? safe.recentFacts.map((x) => String(x ?? "").trim()).filter(Boolean).slice(0, 6)
     : [];
+  const recentSceneFacts = sanitizeSceneRecentFactEntries(safe.recentSceneFacts);
+  const recentFacts = Array.from(
+    new Set(
+      [...recentFactsRaw, ...recentSceneFacts.map((row) => String(row.text ?? "").trim())].filter(Boolean)
+    )
+  ).slice(0, 6);
+  const lastSceneFact = oneLine(String(safe.lastSceneFact ?? ""), 180);
+  const lastPlayerFocus = oneLine(String(safe.lastPlayerFocus ?? ""), 120);
+  const lastPendingChoice = oneLine(String(safe.lastPendingChoice ?? ""), 120);
+  const lastPresentedItems = sanitizeScenePresentedItems(safe.lastPresentedItems);
   return {
     locationId,
     locationLabel,
+    activeLocationId: locationId,
+    activeLocationLabel: locationLabel,
     activePoiLabel,
     activeInterlocutorLabel,
     activeTopic,
     recentFacts,
+    recentSceneFacts,
+    lastSceneFact,
+    lastPlayerFocus,
+    lastPendingChoice,
+    lastPresentedItems,
     updatedAt: new Date().toISOString()
   };
 }
@@ -954,6 +1022,10 @@ function createInitialNarrativeWorldState() {
         activeInterlocutorLabel: "",
         activeTopic: "",
         recentFacts: [],
+        lastSceneFact: "",
+        lastPlayerFocus: "",
+        lastPendingChoice: "",
+        lastPresentedItems: [],
         updatedAt: new Date().toISOString()
       }
     },
@@ -1554,6 +1626,47 @@ function extractInterlocutorFromMessage(message) {
   return null;
 }
 
+function resolveImplicitInterlocutorFromMessage(message, worldState) {
+  const explicit = extractInterlocutorFromMessage(message);
+  if (explicit) return explicit;
+
+  const normalized = normalizeForIntent(message);
+  if (!normalized) return null;
+
+  const interactionLike =
+    /\b(?:je|j)\s+(?:salue|salut|demande|questionne|negocie|marchande|achete|commande|parle|discute|rentre|entre|regarde|examine)\b/.test(
+      normalized
+    ) ||
+    /\b(?:bonjour|bonsoir|salut|quel prix|combien)\b/.test(normalized);
+  if (!interactionLike) return null;
+
+  const activeInterlocutor = sanitizeInterlocutorLabel(worldState?.conversation?.activeInterlocutor);
+  if (activeInterlocutor) return activeInterlocutor;
+
+  const sceneFrame =
+    worldState?.conversation?.sceneFrame && typeof worldState.conversation.sceneFrame === "object"
+      ? worldState.conversation.sceneFrame
+      : null;
+  const sceneInterlocutor = sanitizeInterlocutorLabel(sceneFrame?.activeInterlocutorLabel);
+  if (sceneInterlocutor) return sceneInterlocutor;
+
+  if (/\bvendeuse\b/.test(normalized)) return "Vendeuse";
+  if (/\bvendeur\b/.test(normalized)) return "Vendeur";
+  if (/\bmarchande\b/.test(normalized)) return "Marchande";
+  if (/\bmarchand\b/.test(normalized)) return "Marchand";
+  if (/\bcommercante\b/.test(normalized)) return "Commercante";
+  if (/\bcommercant\b/.test(normalized)) return "Commercant";
+
+  const poiLabel = String(sceneFrame?.activePoiLabel ?? "").trim().toLowerCase();
+  const locationLabel = String(worldState?.location?.label ?? "").trim().toLowerCase();
+  const sceneText = `${poiLabel} ${locationLabel}`;
+  const isCommerceScene =
+    /\b(?:boutique|echoppe|etal|marche|rue marchande|taverne|auberge|comptoir)\b/.test(sceneText);
+  if (isCommerceScene) return "Commercant local";
+
+  return /\b(?:bonjour|bonsoir|salut)\b/.test(normalized) ? "Interlocuteur local" : null;
+}
+
 function sanitizeInterlocutorLabel(value) {
   const text = String(value ?? "")
     .trim()
@@ -1796,14 +1909,14 @@ function buildLockedStartContextText(characterProfile, worldState = null) {
     : "Aucune competence marquee";
 
   return [
-    "Contexte de depart verrouille:",
-    `Tu te trouves a ${locationLabel}, un batiment immense servant de coffre-fort de la verite sur la Primaute.`,
-    `Ville de depart: ${city} | Territoire: ${territory} | Region: ${region}.`,
-    "Temps initial: milieu d'apr\u00e8s-midi.",
-    "Tu viens de t'inscrire dans les registres. Tu es libre de tes choix.",
+    "Repères de départ:",
+    `Tu commences a ${locationLabel}, un batiment immense servant de coffre-fort de la verite sur la Primaute.`,
+    `${city}, territoire d'${territory}, region d'${region}.`,
+    "Le temps est au milieu d'apres-midi.",
+    "Tu viens de t'inscrire dans les registres et rien ne t'empeche de choisir ta voie.",
     `Personnage actif: ${name} (${visual}).`,
     `Identite canonique: ${raceLabel}, ${classLabel}${subclassLabel ? ` (${subclassLabel})` : ""}.`,
-    `Competences referencees pour le roleplay et les futurs tests: ${skills}.`
+    `Competences de reference pour la suite: ${skills}.`
   ].join("\n");
 }
 
@@ -2382,13 +2495,13 @@ function buildMjReplyFromStructured(structured) {
   const normalizeRpLine = (value) => String(value ?? "").replace(/\s+/g, " ").trim();
   const directAnswer = normalizeRpLine(String(safe.directAnswer ?? ""));
   const scene =
-    normalizeRpLine(String(safe.scene ?? "")) || "Le lieu reste vivant autour de toi, sans rupture brutale.";
+    normalizeRpLine(String(safe.scene ?? "")) || "Le lieu ne rompt pas son rythme, mais ton attention peut encore en tirer quelque chose.";
   const actionResult =
     normalizeRpLine(String(safe.actionResult ?? "")) ||
-    "Ton action est prise en compte, et la scene reste lisible pour la suite.";
+    "Ta presence et ton geste trouvent leur place dans la scene, sans l'interrompre.";
   const consequences =
     normalizeRpLine(String(safe.consequences ?? "")) ||
-    "Tu peux continuer en precisant ce que tu veux observer, demander ou tenter.";
+    "La suite depend surtout du point que tu choisis maintenant de suivre ou d'approfondir.";
   const options = normalizeMjOptions(safe.options, 4);
   const blocks = buildMjReplyBlocks({ scene, actionResult, consequences, options });
   return directAnswer ? `${directAnswer}\n${blocks}` : blocks;
@@ -2757,8 +2870,50 @@ function extractVisitIntent(message, records) {
   };
 }
 
+function extractLocateIntent(message, records) {
+  const normalized = normalizeForIntent(message)
+    .replace(/['’]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!normalized) return null;
+  const asksLocation =
+    message.includes("?") ||
+    /\b(?:c est ou|ou est|ou se trouve|ou puis je trouver|par ou aller|comment aller|dans quel quartier)\b/.test(
+      normalized
+    ) ||
+    (/\bcherche\b/.test(normalized) && /\bou\b/.test(normalized));
+  if (!asksLocation) return null;
+  const explicitLocateOnly = !/\b(?:j y vais|aller|me rendre|me diriger|marcher|entrer)\b/.test(normalized);
+  if (!explicitLocateOnly) return null;
+  const placePatterns = [
+    /\b((?:quartier|rue|place|port|marche|atelier|archives)\s+(?:des|de la|de l |du)\s+[a-z0-9' -]{3,72})/,
+    /\b((?:quartier|rue|place|port|marche|atelier|archives)\s+[a-z0-9' -]{3,72})/
+  ];
+  let placeLabel = "";
+  for (const pattern of placePatterns) {
+    const match = normalized.match(pattern);
+    if (!match) continue;
+    const candidate = normalizeDestinationCandidate(String(match[1] ?? ""));
+    if (candidate.length >= 3 && !isGenericPlaceLabel(candidate)) {
+      placeLabel = toTitleCase(candidate);
+      break;
+    }
+  }
+  if (!placeLabel) {
+    placeLabel = inferPlaceFromMessage(message, records);
+  }
+  if (!String(placeLabel ?? "").trim()) return null;
+  return {
+    type: "locate_place",
+    placeLabel: String(placeLabel).trim()
+  };
+}
+
 function isTravelConfirmation(message) {
-  const normalized = normalizeForIntent(message);
+  const normalized = normalizeForIntent(message)
+    .replace(/['’]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!normalized) return false;
   const yes = /\b(oui|ok|d accord|ca marche|allons y|j y vais|je veux y aller|je confirme|go)\b/.test(
     normalized
@@ -3023,7 +3178,74 @@ function evaluateTravelProposalLoreGuard({ targetLabel, records, worldState }) {
 }
 
 function buildVisitAdvisoryReply(place, records, worldState) {
+  function buildImmediatePlaceCue(label, state) {
+    const normalizedLabel = normalizeForIntent(label);
+    const timeLabel = normalizeForIntent(String(state?.time?.label ?? ""));
+    if (/\barchives\b/.test(normalizedLabel)) {
+      return "Les marches larges, les pierres anciennes et les allers-retours discrets des lecteurs donnent au lieu une tenue presque solennelle.";
+    }
+    if (/\brue\b/.test(normalizedLabel)) {
+      return "On distingue deja des devantures, des voix qui se croisent et le passage regulier de gens presses ou distraits.";
+    }
+    if (/\bmarche\b/.test(normalizedLabel)) {
+      return "Le bruit des echanges, l'odeur des etals et la circulation des acheteurs suffisent a faire sentir le lieu avant meme d'y entrer.";
+    }
+    if (/\bport\b/.test(normalizedLabel)) {
+      return "Le vent charie des odeurs d'eau et de corde, tandis que les pas et les appels semblent porter plus loin.";
+    }
+    if (/\bquartier\b/.test(normalizedLabel)) {
+      return "Le tissu des rues change peu a peu autour de cette direction, avec des signes discrets de l'activite propre au secteur.";
+    }
+    if (timeLabel.includes("nuit")) {
+      return "Les formes se lisent surtout a la lueur des rares points de lumiere et des silhouettes qui bougent encore.";
+    }
+    return "Depuis ici, tu peux deja lire le rythme du lieu a travers ses bruits, ses passages et la facon dont les gens s'y tiennent.";
+  }
+
+  function lowerCaseLeadingLabel(value) {
+    const text = String(value ?? "").trim();
+    if (!text) return "";
+    return text.charAt(0).toLowerCase() + text.slice(1);
+  }
+
+  function formatPlaceWithArticle(value) {
+    const text = String(value ?? "").trim();
+    if (!text) return "";
+    const lowered = lowerCaseLeadingLabel(text);
+    const normalized = normalizeForIntent(text);
+    if (/^(rue|place|boutique|echoppe|allee)\b/.test(normalized)) return `la ${lowered}`;
+    if (/^(marche|marche de|parvis|port|quartier|atelier)\b/.test(normalized)) return `le ${lowered}`;
+    return text;
+  }
+
+  function formatPlaceToward(value) {
+    const text = formatPlaceWithArticle(value);
+    return text ? `vers ${text}` : "vers ce lieu";
+  }
+
+  function buildVisitInvitation(label, state) {
+    const normalizedLabel = normalizeForIntent(label);
+    const timeLabel = normalizeForIntent(String(state?.time?.label ?? ""));
+    if (/\barchives\b/.test(normalizedLabel)) {
+      return "Rien ne t'empeche d'aller t'en rapprocher, ou de rester encore un moment a lire le mouvement du parvis.";
+    }
+    if (/\brue\b/.test(normalizedLabel)) {
+      return "Tu peux t'y laisser porter tout de suite, ou rester un instant de plus a regarder le quartier depuis ici.";
+    }
+    if (/\bmarche\b/.test(normalizedLabel)) {
+      return "Tu peux te meler aux etals sans attendre, ou juger encore la foule avant d'y entrer.";
+    }
+    if (/\bport\b/.test(normalizedLabel)) {
+      return "Tu peux gagner les quais maintenant, ou prendre d'abord la mesure de l'agitation qui s'y leve.";
+    }
+    if (timeLabel.includes("nuit")) {
+      return "Tu peux t'y rendre maintenant, ou prendre encore un instant pour juger la route a cette heure.";
+    }
+    return "Tu peux t'en rapprocher maintenant, ou prendre encore un instant pour regarder autour de toi.";
+  }
+
   const placeLabel = oneLine(String(place?.label ?? "ce lieu"), 80);
+  const placeWithArticle = formatPlaceWithArticle(placeLabel);
   const recordHint = playerFacingLoreRecords(records, 4).find(
     (entry) => normalizeForIntent(entry?.title ?? "") === normalizeForIntent(placeLabel)
   );
@@ -3034,18 +3256,18 @@ function buildVisitAdvisoryReply(place, records, worldState) {
     access === "sealed"
       ? `Depuis ici, ${placeLabel} parait ferme et difficile d'acces.`
       : access === "restricted"
-        ? `Depuis ici, ${placeLabel} semble sous surveillance, avec une entree controlee.`
-        : `Depuis ici, ${placeLabel} parait accessible sans obstacle immediat.`;
+        ? `L'entree de ${placeWithArticle || placeLabel} parait tenue de plus pres que le reste du quartier.`
+        : "";
   const riskTone = riskFlags.length
     ? `Tu notes aussi ${formatFrenchList(riskFlags.slice(0, 3))} dans les environs.`
     : "";
   const advisory = hint
-    ? `En te rapprochant, tu t'attends a y trouver ${hint}`
-    : `Le lieu semble actif, avec assez de passage pour t'y fondre sans attirer l'attention.`;
+    ? `En t'en rapprochant, tu t'attends a y trouver ${hint}.`
+    : buildImmediatePlaceCue(placeLabel, worldState);
   return buildMjReplyBlocks({
-    scene: `Tu prends la mesure du trajet vers ${placeLabel}.`,
+    scene: `Tu jettes un regard ${formatPlaceToward(placeLabel)}.`,
     actionResult: `${accessTone} ${advisory}`.trim(),
-    consequences: `${riskTone} Tu peux t'y rendre maintenant si tu veux.`.trim(),
+    consequences: `${riskTone} ${buildVisitInvitation(placeLabel, worldState)}`.trim(),
     options: [
       `S'y rendre maintenant`,
       "Observer encore le quartier",
@@ -3054,11 +3276,102 @@ function buildVisitAdvisoryReply(place, records, worldState) {
   });
 }
 
+function buildLocateAdvisoryReply(place, records, worldState) {
+  function buildLocateDetail(label, state) {
+    const normalizedLabel = normalizeForIntent(label);
+    const timeLabel = normalizeForIntent(String(state?.time?.label ?? ""));
+    if (/\bquartier des artisans\b/.test(normalizedLabel)) {
+      return "On t'indiquera sans peine les rues ou l'on entend davantage de marteaux, de roues et d'echoppes de travail.";
+    }
+    if (/\brue\b/.test(normalizedLabel)) {
+      return "Il suffit en general de suivre le flux des passants et les enseignes les plus visibles pour la rejoindre.";
+    }
+    if (/\bmarche\b/.test(normalizedLabel)) {
+      return "On te dira facilement de suivre le bruit des echanges et l'odeur des etals pour ne pas te tromper.";
+    }
+    if (/\bport\b/.test(normalizedLabel)) {
+      return "La direction se devine souvent a l'air plus ouvert, aux cris qui portent et au va-et-vient des charges.";
+    }
+    if (timeLabel.includes("nuit")) {
+      return "A cette heure, on te conseillera surtout les axes encore eclaires pour t'y rendre sans detour inutile.";
+    }
+    return "On peut facilement t'en indiquer la direction en suivant le courant des rues et des passants.";
+  }
+
+  function capitalizeFirst(value) {
+    const text = String(value ?? "").trim();
+    if (!text) return "";
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  }
+
+  function lowerCaseLeadingLabel(value) {
+    const text = String(value ?? "").trim();
+    if (!text) return "";
+    return text.charAt(0).toLowerCase() + text.slice(1);
+  }
+
+  function formatPlaceWithArticle(value) {
+    const text = String(value ?? "").trim();
+    if (!text) return "";
+    const lowered = lowerCaseLeadingLabel(text);
+    const normalized = normalizeForIntent(text);
+    if (/^(rue|place|allee|boutique|echoppe)\b/.test(normalized)) return `la ${lowered}`;
+    if (/^(quartier|port|marche|atelier|parvis)\b/.test(normalized)) return `le ${lowered}`;
+    return text;
+  }
+
+  function buildLocateInvitation(label, state) {
+    const normalizedLabel = normalizeForIntent(label);
+    const timeLabel = normalizeForIntent(String(state?.time?.label ?? ""));
+    if (/\bquartier des artisans\b/.test(normalizedLabel)) {
+      return "Si tu le souhaites, on peut affiner le chemin, ou tu peux simplement prendre cette direction et voir comment le quartier se dessine.";
+    }
+    if (/\brue\b/.test(normalizedLabel)) {
+      return "Tu peux demander un repere plus net, ou te fier au courant des rues et y aller a ton rythme.";
+    }
+    if (/\bmarche\b/.test(normalizedLabel)) {
+      return "Libre a toi de demander un chemin plus net, ou de suivre simplement le bruit des etals pour le rejoindre.";
+    }
+    if (timeLabel.includes("nuit")) {
+      return "Tu peux demander un itineraire plus sur, ou choisir d'y aller en restant sur les axes encore vivants.";
+    }
+    return "Tu peux demander un chemin plus precis, ou garder cette direction en tete pour t'y rendre ensuite.";
+  }
+
+  const placeLabel = oneLine(String(place?.label ?? "ce lieu"), 80);
+  const placeWithArticle = formatPlaceWithArticle(placeLabel);
+  const recordHint = playerFacingLoreRecords(records, 4).find((entry) => {
+    const title = normalizeForIntent(entry?.title ?? "");
+    return title && (title.includes(normalizeForIntent(placeLabel)) || normalizeForIntent(placeLabel).includes(title));
+  });
+  const hint = oneLine(String(recordHint?.summary ?? place?.summary ?? ""), 150);
+  const access = String(place?.access ?? "public");
+  const accessTone =
+    access === "sealed"
+      ? `${capitalizeFirst(placeWithArticle || placeLabel)} n'est pas un lieu que l'on rejoint librement.`
+      : access === "restricted"
+        ? `${capitalizeFirst(placeWithArticle || placeLabel)} parait surveille, meme si l'on peut au moins l'indiquer depuis ici.`
+        : `${capitalizeFirst(placeWithArticle || placeLabel)} se trouve plus loin dans la ville, dans le prolongement des quartiers actifs.`;
+  const detail = hint
+    ? `On raconte qu'on y trouve ${hint}.`
+    : buildLocateDetail(placeLabel, worldState);
+  return buildMjReplyBlocks({
+    scene: `Tu demandes ou se trouve ${placeWithArticle || placeLabel}.`,
+    actionResult: `${accessTone} ${detail}`.trim(),
+    consequences: buildLocateInvitation(placeLabel, worldState),
+    options: [
+      "Demander une direction plus precise",
+      `Se diriger vers ${placeLabel}`,
+      "Rester sur place"
+    ]
+  });
+}
+
 function describeTimeAtmosphere(worldState) {
   const label = String(worldState?.time?.label ?? "");
   if (label.includes("nuit")) return "La lumiere baisse, les ombres allongent les angles et les voix portent plus loin.";
   if (label.includes("matin")) return "L'air est net, les rues s'ouvrent progressivement avec les premiers allers-retours.";
-  if (label.includes("midi")) return "Le rythme est dense, les allées sont traversées par un flux constant.";
+  if (label.includes("midi")) return "La rue vit a son rythme, avec des allers-retours constants entre etals et facades.";
   if (label.includes("fin d'apres-midi") || label.includes("fin d'après-midi")) {
     return "La foule commence a se tasser, mais les points centraux restent animés.";
   }
@@ -3087,10 +3400,12 @@ function describeAccessAndRisks(place) {
     : "";
 }
 
-function buildArrivalVisualCue(place, records) {
+function buildArrivalVisualCue(place, records, worldState) {
+  const placeLabel = normalizeForIntent(String(place?.label ?? ""));
   const tags = Array.isArray(place?.tags) ? place.tags.map((tag) => normalizeForIntent(tag)) : [];
   const top = playerFacingLoreRecords(records, 4)[0];
   const loreHint = oneLine(String(top?.summary ?? ""), 120);
+  const timeLabel = normalizeForIntent(String(worldState?.time?.label ?? ""));
   if (tags.includes("savoir")) {
     return "Des facades massives, des inscriptions anciennes et des files silencieuses structurent l'entree.";
   }
@@ -3100,10 +3415,48 @@ function buildArrivalVisualCue(place, records) {
   if (tags.includes("securite")) {
     return "Postes de controle, lignes de vue degagees et rondes reglees donnent le ton du secteur.";
   }
-  return loreHint || "Le lieu se confirme autour de toi, sans changement notable.";
+  if (/\barchives\b/.test(placeLabel)) {
+    return "Les hautes pierres, les portes lourdes et les silhouettes studieuses suffisent a rappeler d'emblee la gravite du lieu.";
+  }
+  if (/\brue\b/.test(placeLabel)) {
+    return "Les devantures se suivent, les voix se croisent et le passage te remet aussitot dans le courant du quartier.";
+  }
+  if (/\bmarche\b/.test(placeLabel)) {
+    return "L'odeur des etals, les appels brefs et le va-et-vient des acheteurs remplissent l'espace des ton arrivee.";
+  }
+  if (/\bport\b/.test(placeLabel)) {
+    return "L'air se fait plus ouvert, charge d'odeurs d'eau, de corde et de marchandises en mouvement.";
+  }
+  if (/\bquartier\b/.test(placeLabel)) {
+    return "Les rues changent peu a peu de visage, comme si chaque facade prenait ici une fonction plus nette.";
+  }
+  if (timeLabel.includes("nuit")) {
+    return "Les lumieres eparses, les ombres mouvantes et le son des pas suffisent a redessiner le lieu autour de toi.";
+  }
+  return loreHint || "Le lieu se laisse lire d'un coup d'oeil a travers ses bruits, ses allers-retours et les gestes de ceux qui l'occupent.";
 }
 
 function buildArrivalPlaceReply(place, records, worldState) {
+  function lowerCaseLeadingLabel(value) {
+    const text = String(value ?? "").trim();
+    if (!text) return "";
+    return text.charAt(0).toLowerCase() + text.slice(1);
+  }
+
+  function formatArrivalLead(value) {
+    const text = String(value ?? "").trim();
+    if (!text) return "a ce lieu";
+    const lowered = lowerCaseLeadingLabel(text);
+    const normalized = normalizeForIntent(text);
+    if (/^parvis\b/.test(normalized)) return `sur le ${lowered}`;
+    if (/^(rue|place|boutique|echoppe|allee|marche|quartier|atelier)\b/.test(normalized)) {
+      const article = /^(marche|quartier|atelier)\b/.test(normalized) ? "le" : "la";
+      return `dans ${article} ${lowered}`;
+    }
+    if (/^port\b/.test(normalized)) return `au ${lowered}`;
+    return `a ${text}`;
+  }
+
   const placeLabel = oneLine(String(place?.label ?? "ce lieu"), 80);
   const contextRecords = playerFacingLoreRecords(records, 5).filter((entry) => {
     const title = normalizeForIntent(entry?.title ?? "");
@@ -3115,7 +3468,7 @@ function buildArrivalPlaceReply(place, records, worldState) {
     .slice(1, 4)
     .map((entry) => oneLine(String(entry?.title ?? ""), 40))
     .filter(Boolean);
-  const visualCue = buildArrivalVisualCue(place, records);
+  const visualCue = buildArrivalVisualCue(place, records, worldState);
   const timeAtmosphere = describeTimeAtmosphere(worldState);
   const tensionAtmosphere = describeTensionAtmosphere(worldState);
   const constraints = describeAccessAndRisks(place);
@@ -3123,7 +3476,7 @@ function buildArrivalPlaceReply(place, records, worldState) {
     ? "Le quartier te repond par des voix, des appels et un va-et-vient continu."
     : "";
   return buildMjReplyBlocks({
-    scene: `Apres quelques minutes de marche, tu arrives a ${placeLabel}.`,
+    scene: `Apres le trajet, tu arrives ${formatArrivalLead(placeLabel)}.`,
     actionResult: [visualCue, sceneHint, timeAtmosphere].filter(Boolean).join(" "),
     consequences: `${constraints} ${tensionAtmosphere} ${flowCue}`.trim(),
     options: [
@@ -3500,6 +3853,14 @@ const mjToolBus = createMjToolBus({
           policy
         }
       };
+    },
+    session_shop_offer: ({ args, context }) => {
+      const offer = narrationShopOfferTool.getOffer(args, context);
+      return {
+        ok: offer.ok,
+        summary: offer.ok ? `Offre boutique: ${offer.items.length} article(s).` : "Aucune offre utile.",
+        data: offer
+      };
     }
   }
 });
@@ -3751,27 +4112,145 @@ function buildTransitionNarrative(outcome, intentType) {
   return "Ta decision modifie concretement la situation et ouvre la prochaine etape.";
 }
 
-function buildDirectorNoRuntimeReply(message, intentType, records) {
+function buildDirectorNoRuntimeReply(message, intentType, records, worldState = null) {
+  function buildInterlocutorQuickLook(label, anchorLabel, normalizedMessage) {
+    const speaker = String(label ?? "").trim() || "Cette personne";
+    const lowerLabel = normalizeForIntent(label);
+    const lowerAnchor = normalizeForIntent(anchorLabel);
+    const inCommerce = /\b(?:rue|marche|echoppe|boutique)\b/.test(lowerAnchor);
+    if (
+      /\b(?:marchand|marchande|vendeur|vendeuse)\b/.test(lowerLabel) ||
+      inCommerce
+    ) {
+      return `${speaker} porte des vetements pratiques, bien uses par le travail, avec un regard attentif aux passants et aux marchandises autour de lui.`;
+    }
+    if (/\b(?:garde|sentinelle|soldat)\b/.test(lowerLabel)) {
+      return `${speaker} se tient droit, tenue reglee et gestes contenues, avec cette vigilance propre a quelqu'un en poste.`;
+    }
+    if (/\b(?:clerc|archiviste|scribe)\b/.test(lowerLabel) || /\barchives\b/.test(lowerAnchor)) {
+      return `${speaker} a l'allure appliquee de quelqu'un habitue aux registres et aux longues heures de travail ordonne.`;
+    }
+    return `${speaker} a une allure ordinaire mais soignee, avec une posture et un visage qui donnent assez de prise pour engager l'echange.`;
+  }
+
+  function lowerCaseLeadingLabel(value) {
+    const text = String(value ?? "").trim();
+    if (!text) return "";
+    return text.charAt(0).toLowerCase() + text.slice(1);
+  }
+
+  function formatSceneLead(value) {
+    const text = String(value ?? "").trim();
+    if (!text) return "Dans les environs";
+    const lowered = lowerCaseLeadingLabel(text);
+    const normalized = normalizeForIntent(text);
+    if (/^parvis\b/.test(normalized)) return `Sur le ${lowered}`;
+    if (/^port\b/.test(normalized)) return `Au ${lowered}`;
+    if (/^(rue|place|boutique|echoppe|allee)\b/.test(normalized)) return `Dans la ${lowered}`;
+    if (/^(marche|quartier|atelier)\b/.test(normalized)) return `Dans le ${lowered}`;
+    return `A ${text}`;
+  }
+
+  function buildAmbientSceneDetail(anchorLabel, state) {
+    const normalizedAnchor = normalizeForIntent(anchorLabel);
+    const timeLabel = normalizeForIntent(String(state?.time?.label ?? ""));
+    if (/\barchives\b/.test(normalizedAnchor)) {
+      return "Les pierres massives, les marches larges et le passage contenu des visiteurs donnent au lieu une tenue calme.";
+    }
+    if (/\brue\b/.test(normalizedAnchor)) {
+      return "Les voix se croisent, les devantures attirent l'oeil et le flux des passants garde la rue en mouvement.";
+    }
+    if (/\bmarche\b/.test(normalizedAnchor)) {
+      return "Les etals, les odeurs de marchandises et les appels des vendeurs composent une agitation claire et lisible.";
+    }
+    if (/\bport\b/.test(normalizedAnchor)) {
+      return "L'air y bouge davantage, avec des appels lointains, des charges qu'on deplace et une activite plus ouverte.";
+    }
+    if (timeLabel.includes("nuit")) {
+      return "Le lieu semble plus retenu, et ce sont surtout les voix, les lumieres et les silhouettes qui dessinent la scene.";
+    }
+    return "Le lieu garde assez de vie pour offrir vite un point d'attache a ton regard, si tu choisis ou le poser.";
+  }
+
   const top = Array.isArray(records) ? records.slice(0, 1) : [];
   const contextual = top.length > 0
     ? oneLine(top[0]?.summary ?? top[0]?.body ?? "", 160)
     : "";
   const social = intentType === "social_action";
+  const normalized = normalizeForIntent(message);
+  const locationLabel = String(worldState?.location?.label ?? worldState?.startContext?.locationLabel ?? "").trim();
+  const sceneFrame =
+    worldState?.conversation?.sceneFrame && typeof worldState.conversation.sceneFrame === "object"
+      ? worldState.conversation.sceneFrame
+      : null;
+  const poiLabel = String(sceneFrame?.activePoiLabel ?? "").trim();
+  const activeInterlocutor = String(
+    worldState?.conversation?.activeInterlocutor ?? sceneFrame?.activeInterlocutorLabel ?? ""
+  ).trim();
+  const sceneAnchor = poiLabel || locationLabel || "les environs";
+  const sceneLead = formatSceneLead(sceneAnchor);
+  const seeksShop =
+    /\b(?:cherche|trouve|repere|regarde)\b/.test(normalized) &&
+    /\b(?:boutique|echoppe|etal|magasin|vendeur|vendeuse|marchand|marchande|vetement|tissu|prix)\b/.test(normalized);
+  const entersPlace =
+    /\b(?:rentre|entre|pousse la porte|franchis|passe a l'interieur)\b/.test(normalized);
+  const greetsNpc =
+    /\b(?:salue|salut|bonjour|bonsoir)\b/.test(normalized);
+  const asksPrice =
+    /\b(?:prix|combien|coute|tarif)\b/.test(normalized);
+  const asksAppearance =
+    /\b(?:a quoi ressemble|ressemble t il|ressemble t elle|decris|decrire|comment est il|comment est elle|quel air)\b/.test(
+      normalized.replace(/['’]/g, " ")
+    );
 
-  return buildMjReplyBlocks({
-    scene: social
-      ? "Tu engages l'echange avec prudence, en laissant la place a la reponse de l'autre."
-      : "Ton action fait bouger la scene sans provoquer de bascule immediate.",
-    actionResult: contextual
+  let scene = "";
+  let actionResult = "";
+  let consequences = "";
+  let options = [];
+
+  if (social && activeInterlocutor) {
+    scene = `${sceneLead}, ${activeInterlocutor} se tourne vers toi.`;
+    if (asksAppearance) {
+      scene = `${sceneLead}, ${activeInterlocutor} se laisse observer un instant.`;
+      actionResult = buildInterlocutorQuickLook(activeInterlocutor, sceneAnchor, normalized);
+      consequences = "Tu peux lui adresser la parole maintenant, viser une question plus nette, ou simplement jauger sa reaction.";
+      options = ["Lui adresser la parole", "Lui demander ce qu'il fait ici", "Observer encore un detail"];
+    } else if (asksPrice) {
+      actionResult = "Tu engages un echange simple et concret, axe sur ce que l'on peut t'offrir ici.";
+      consequences = "La reponse dependra surtout de ce que tu demandes exactement et de ce que la personne a sous la main.";
+      options = ["Demander a voir un article precis", "Demander les prix", "Poursuivre la conversation"];
+    } else if (greetsNpc || entersPlace) {
+      actionResult = "Le contact est etabli sans heurt, dans une ambiance ordinaire.";
+      consequences = "Tu peux maintenant parler plus precisement, observer ce qu'on te presente, ou repartir.";
+      options = ["Saluer et discuter", "Observer l'etal ou la boutique", "Poser une question precise"];
+    } else {
+      scene = `${sceneLead}, ${activeInterlocutor} te laisse le temps d'ouvrir la conversation.`;
+      actionResult = "L'echange reste simple et peut prendre une tournure nette des que tu precises ce que tu veux.";
+      consequences = "Une question franche, un detail vise ou un simple geste suffit a lancer la suite.";
+      options = ["Preciser ta demande", "Observer la reaction", "Changer de sujet"];
+    }
+  } else if (seeksShop) {
+    scene = `${sceneLead}, tu prends le temps de regarder les devantures et les etals sans te presser.`;
+    actionResult = "Parmi les enseignes, les etals et le passage, il suffit de peu pour reperer un commerce qui corresponde a ce que tu cherches.";
+    consequences = "En t'approchant d'une boutique ou d'un etal, tu feras vite sortir la scene de la simple observation.";
+    options = ["S'approcher d'une boutique", "Observer les etals", "Interpeller un marchand"];
+  } else {
+    scene = social
+      ? `${sceneLead}, tu laisses a l'autre la place de te repondre.`
+      : `${sceneLead}, le quartier continue de vivre autour de toi sans rien forcer.`;
+    actionResult = contextual
       ? `${contextual}`
-      : "Le quartier poursuit son rythme, et ta presence influence discretement les reactions autour de toi.",
-    consequences: social
-      ? "La suite dependra surtout de ton ton, de tes mots et de la personne que tu cherches a convaincre."
-      : "La suite depend de ton prochain geste concret dans la scene.",
-    options: social
-      ? ["Preciser ton objectif social", "Nommer la faction cible", "Passer a une action concrete"]
-      : ["Decrire une action plus precise", "Interagir avec un PNJ", "Changer d'approche"]
-  });
+      : social
+      ? "La reponse depend surtout de la facon dont tu engages vraiment l'echange."
+      : buildAmbientSceneDetail(sceneAnchor, worldState);
+    consequences = social
+      ? "Une demande claire, un ton different ou un silence bien place peuvent faire bouger la scene."
+      : "Choisis un detail, une direction ou une personne, et la scene prendra un relief plus net.";
+    options = social
+      ? ["Preciser ton objectif social", "Nommer la personne visee", "Passer a une demande concrete"]
+      : ["Decrire une action plus precise", "Observer un detail du lieu", "Interagir avec quelqu'un"];
+  }
+  return buildMjReplyBlocks({ scene, actionResult, consequences, options });
 }
 
 function buildRpActionValidationReply(assessment) {

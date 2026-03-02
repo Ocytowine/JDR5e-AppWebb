@@ -39,6 +39,10 @@ function createNarrationToolRegistry() {
       capabilities: ["write"],
       domains: ["session-memory", "world"]
     },
+    session_shop_offer: {
+      capabilities: ["read"],
+      domains: ["world", "session-memory", "trade", "core"]
+    },
     quest_trama_tick: {
       capabilities: ["tick", "read"],
       domains: ["runtime", "quest", "world"]
@@ -125,7 +129,13 @@ function createNarrationToolRegistry() {
     if (semanticIntent === "trade_action") {
       return {
         ...base,
-        preferredTools: ["get_world_state", "session_db_read", "query_rules", "semantic_intent_probe"]
+        preferredTools: [
+          "get_world_state",
+          "session_db_read",
+          "session_shop_offer",
+          "query_rules",
+          "semantic_intent_probe"
+        ]
       };
     }
     if (semanticIntent === "quest_progress") {
@@ -146,6 +156,7 @@ function createNarrationToolRegistry() {
     if (key === "lore_query") return ["lore", "world", "rules", "core"];
     if (key === "quest_progress") return ["runtime", "quest", "world", "session-memory", "core"];
     if (key === "system_command") return ["world", "state", "session-memory", "core"];
+    if (key === "trade_action") return ["world", "trade", "session-memory", "rules", "core"];
     return ["world", "rules", "session-memory", "core"];
   }
 

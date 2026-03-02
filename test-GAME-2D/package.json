@@ -21,6 +21,11 @@
     "validate:phase4:scenarios": "node scripts/validate-narration-phase4-scenarios.js",
     "validate:phase7": "node scripts/validate-narration-phase7.js",
     "validate:phase8": "node scripts/validate-narration-phase8.js",
+    "validate:rp-output": "node scripts/validate-narration-rp-output-sanitizer.js",
+    "validate:anti-repeat": "node scripts/validate-narration-anti-repeat.js",
+    "validate:shop-offer": "node scripts/validate-narration-shop-offer-tool.js",
+    "validate:sceneonly-quality": "node scripts/validate-narration-sceneonly-quality.js",
+    "validate:social-implicit": "node scripts/validate-narration-social-implicit.js",
     "validate:phase56": "node scripts/validate-narration-phase56.js"
   },
   "dependencies": {

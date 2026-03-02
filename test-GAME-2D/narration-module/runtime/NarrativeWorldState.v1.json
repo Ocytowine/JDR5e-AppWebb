@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-02-27T18:00:46.425Z",
+  "updatedAt": "2026-03-02T17:10:18.209Z",
   "metrics": {
     "reputation": 0,
     "localTension": 0
@@ -13,463 +13,34 @@
     "territory": "Astryade",
     "region": "Ylssea",
     "characterSnapshot": {
-      "id": "pj-1",
+      "id": "pj-gardefou",
       "name": "Gardefou",
-      "raceId": "elf",
-      "backgroundId": "enfant-des-rues",
-      "classEntries": [
-        {
-          "slot": "1",
-          "classeId": "cleric",
-          "subclasseId": "peace-domain",
-          "niveau": 4
-        }
-      ],
+      "raceId": "",
+      "backgroundId": "",
+      "classEntries": [],
       "race": "Elfe",
       "classLabel": "Clerc",
-      "subclassLabel": "Domaine de la Paix",
-      "money": {
-        "or": 10,
-        "argent": 0,
-        "cuivre": 0,
-        "platine": 0
-      },
-      "proficiencyBonus": 2,
-      "caracs": {
-        "FOR": {
-          "score": 15,
-          "mod": 2
-        },
-        "DEX": {
-          "score": 14,
-          "mod": 2
-        },
-        "CON": {
-          "score": 13,
-          "mod": 1
-        },
-        "INT": {
-          "score": 12,
-          "mod": 1
-        },
-        "SAG": {
-          "score": 10,
-          "mod": 0
-        },
-        "CHA": {
-          "score": 10,
-          "mod": 0
-        }
-      },
-      "appearance": {
-        "spriteKey": "character",
-        "tokenScale": 100
-      },
+      "subclassLabel": "",
+      "money": {},
+      "proficiencyBonus": 0,
+      "caracs": {},
+      "appearance": null,
       "skills": [
         "discretion",
         "escamotage"
       ],
       "expertises": [],
       "goals": [],
-      "actionIds": [
-        "melee-strike",
-        "dash"
-      ],
+      "actionIds": [],
       "reactionIds": [],
       "weaponMasteries": [],
-      "proficiencies": {
-        "weapons": [
-          "simple"
-        ],
-        "armors": [
-          "legere",
-          "intermediaire",
-          "bouclier"
-        ],
-        "tools": [
-          "outils_autres",
-          "outils_jeux"
-        ]
-      },
-      "materielSlots": {
-        "corps": "obj_vetements_communs",
-        "tete": null,
-        "gants": null,
-        "bottes": null,
-        "ceinture_gauche": "obj_petit_couteau",
-        "ceinture_droite": "epee-longue-brasiere",
-        "dos_gauche": null,
-        "dos_droit": null,
-        "anneau_1": null,
-        "anneau_2": null,
-        "collier": "obj_symbole_sacre",
-        "bijou_1": null,
-        "bijou_2": null,
-        "paquetage": "obj_sac_a_dos",
-        "ceinture_bourse_1": "obj_bourse",
-        "ceinture_bourse_2": null
-      },
-      "inventoryItems": [
-        {
-          "type": "weapon",
-          "id": "obj_petit_couteau",
-          "qty": 1,
-          "source": "auto",
-          "instanceId": "item-mm3akl97-76sm8u-1",
-          "equippedSlot": "ceinture_gauche",
-          "storedIn": "",
-          "isPrimaryWeapon": false,
-          "isSecondaryHand": false,
-          "displayName": "",
-          "description": "",
-          "customProperties": {},
-          "properties": {}
-        },
-        {
-          "type": "object",
-          "id": "obj_bourse",
-          "qty": 1,
-          "source": "auto",
-          "instanceId": "item-mm3akl97-76sm8u-2",
-          "equippedSlot": "ceinture_bourse_1",
-          "storedIn": "",
-          "isPrimaryWeapon": false,
-          "isSecondaryHand": false,
-          "displayName": "",
-          "description": "",
-          "customProperties": {},
-          "properties": {}
-        },
-        {
-          "type": "object",
-          "id": "obj_piece_or",
-          "qty": 10,
-          "source": "auto",
-          "instanceId": "item-mm3akl97-76sm8u-3",
-          "equippedSlot": "",
-          "storedIn": "ceinture_bourse_1",
-          "isPrimaryWeapon": false,
-          "isSecondaryHand": false,
-          "displayName": "",
-          "description": "",
-          "customProperties": {},
-          "properties": {}
-        },
-        {
-          "type": "object",
-          "id": "obj_vetements_communs",
-          "qty": 1,
-          "source": "auto",
-          "instanceId": "item-mm3akl97-76sm8u-4",
-          "equippedSlot": "corps",
-          "storedIn": "",
-          "isPrimaryWeapon": false,
-          "isSecondaryHand": false,
-          "displayName": "",
-          "description": "",
-          "customProperties": {},
-          "properties": {}
-        },
-        {
-          "type": "object",
-          "id": "obj_souvenir_vole",
-          "qty": 1,
-          "source": "auto",
-          "instanceId": "item-mm3akl97-76sm8u-5",
-          "equippedSlot": "",
-          "storedIn": "ceinture_bourse_1",
-          "isPrimaryWeapon": false,
-          "isSecondaryHand": false,
-          "displayName": "",
-          "description": "",
-          "customProperties": {},
-          "properties": {}
-        },
-        {
-          "type": "object",
-          "id": "obj_sac_a_dos",
-          "qty": 1,
-          "source": "auto",
-          "instanceId": "item-mm3akl97-76sm8u-6",
-          "equippedSlot": "paquetage",
-          "storedIn": "",
-          "isPrimaryWeapon": false,
-          "isSecondaryHand": false,
-          "displayName": "",
-          "description": "",
-          "customProperties": {},
-          "properties": {}
-        },
-        {
-          "type": "object",
-          "id": "obj_symbole_sacre",
-          "qty": 1,
-          "source": "auto",
-          "instanceId": "item-mm3akl97-76sm8u-7",
-          "equippedSlot": "collier",
-          "storedIn": "",
-          "isPrimaryWeapon": false,
-          "isSecondaryHand": false,
-          "displayName": "",
-          "description": "",
-          "customProperties": {},
-          "properties": {}
-        },
-        {
-          "type": "weapon",
-          "id": "epee-longue-brasiere",
-          "qty": 1,
-          "source": "manual",
-          "instanceId": "item-mm3akl97-76sm8u-15",
-          "equippedSlot": "ceinture_droite",
-          "storedIn": "",
-          "isPrimaryWeapon": true,
-          "isSecondaryHand": false,
-          "displayName": "",
-          "description": "",
-          "customProperties": {},
-          "properties": {}
-        }
-      ],
-      "spellcastingState": {
-        "totalCasterLevel": 4,
-        "slots": {
-          "1": {
-            "max": 4,
-            "remaining": 4,
-            "sources": [
-              "caster-total"
-            ]
-          },
-          "2": {
-            "max": 3,
-            "remaining": 3,
-            "sources": [
-              "caster-total"
-            ]
-          }
-        },
-        "sources": {
-          "class:cleric": {
-            "ability": "SAG",
-            "preparation": "prepared",
-            "storage": "memory",
-            "casterProgression": "full",
-            "classLevel": 4,
-            "focusInstanceId": "item-mm3akl97-76sm8u-7",
-            "preparedSpellIds": [
-              "minor-ward"
-            ],
-            "knownSpellIds": [],
-            "grantedSpellIds": [
-              "heroism",
-              "sanctuary",
-              "rayon-de-feu",
-              "aid",
-              "warding-bond",
-              "vague-ardente"
-            ]
-          }
-        },
-        "spellGrants": {
-          "class:cleric": [
-            {
-              "entryId": "class:cleric:minor-ward",
-              "spellId": "minor-ward",
-              "sourceType": "manual",
-              "sourceId": "cleric",
-              "sourceKey": "class:cleric",
-              "sourceInstanceId": "item-mm3akl97-76sm8u-7",
-              "grantedAtLevel": 4,
-              "usage": {
-                "type": "slot",
-                "consumesSlot": true
-              },
-              "prepared": true,
-              "alwaysPrepared": false,
-              "countsAgainstPreparation": true,
-              "tags": [
-                "prepared"
-              ]
-            },
-            {
-              "entryId": "class:cleric:heroism",
-              "spellId": "heroism",
-              "sourceType": "class",
-              "sourceId": "cleric",
-              "sourceKey": "class:cleric",
-              "sourceInstanceId": "item-mm3akl97-76sm8u-7",
-              "grantedAtLevel": 4,
-              "usage": {
-                "type": "slot",
-                "consumesSlot": true
-              },
-              "prepared": true,
-              "alwaysPrepared": true,
-              "countsAgainstPreparation": false,
-              "tags": [
-                "granted"
-              ]
-            },
-            {
-              "entryId": "class:cleric:sanctuary",
-              "spellId": "sanctuary",
-              "sourceType": "class",
-              "sourceId": "cleric",
-              "sourceKey": "class:cleric",
-              "sourceInstanceId": "item-mm3akl97-76sm8u-7",
-              "grantedAtLevel": 4,
-              "usage": {
-                "type": "slot",
-                "consumesSlot": true
-              },
-              "prepared": true,
-              "alwaysPrepared": true,
-              "countsAgainstPreparation": false,
-              "tags": [
-                "granted"
-              ]
-            },
-            {
-              "entryId": "class:cleric:rayon-de-feu",
-              "spellId": "rayon-de-feu",
-              "sourceType": "class",
-              "sourceId": "cleric",
-              "sourceKey": "class:cleric",
-              "sourceInstanceId": "item-mm3akl97-76sm8u-7",
-              "grantedAtLevel": 4,
-              "usage": {
-                "type": "at-will",
-                "consumesSlot": false
-              },
-              "prepared": true,
-              "alwaysPrepared": true,
-              "countsAgainstPreparation": false,
-              "tags": [
-                "granted"
-              ]
-            },
-            {
-              "entryId": "class:cleric:aid",
-              "spellId": "aid",
-              "sourceType": "class",
-              "sourceId": "cleric",
-              "sourceKey": "class:cleric",
-              "sourceInstanceId": "item-mm3akl97-76sm8u-7",
-              "grantedAtLevel": 4,
-              "usage": {
-                "type": "slot",
-                "consumesSlot": true
-              },
-              "prepared": true,
-              "alwaysPrepared": true,
-              "countsAgainstPreparation": false,
-              "tags": [
-                "granted"
-              ]
-            },
-            {
-              "entryId": "class:cleric:warding-bond",
-              "spellId": "warding-bond",
-              "sourceType": "class",
-              "sourceId": "cleric",
-              "sourceKey": "class:cleric",
-              "sourceInstanceId": "item-mm3akl97-76sm8u-7",
-              "grantedAtLevel": 4,
-              "usage": {
-                "type": "slot",
-                "consumesSlot": true
-              },
-              "prepared": true,
-              "alwaysPrepared": true,
-              "countsAgainstPreparation": false,
-              "tags": [
-                "granted"
-              ]
-            },
-            {
-              "entryId": "class:cleric:vague-ardente",
-              "spellId": "vague-ardente",
-              "sourceType": "class",
-              "sourceId": "cleric",
-              "sourceKey": "class:cleric",
-              "sourceInstanceId": "item-mm3akl97-76sm8u-7",
-              "grantedAtLevel": 4,
-              "usage": {
-                "type": "slot",
-                "consumesSlot": true
-              },
-              "prepared": true,
-              "alwaysPrepared": true,
-              "countsAgainstPreparation": false,
-              "tags": [
-                "granted"
-              ]
-            }
-          ]
-        },
-        "slotJustifications": [
-          {
-            "source": "class:cleric",
-            "classLevel": 4,
-            "casterProgression": "full",
-            "slotsByLevel": [
-              4,
-              3,
-              0,
-              0,
-              0,
-              0,
-              0,
-              0,
-              0
-            ]
-          }
-        ]
-      },
-      "derived": {
-        "grants": {
-          "traits": [
-            "keen_senses"
-          ],
-          "features": [
-            "reseau-des-ombres",
-            "divine-order",
-            "channel-divinity",
-            "divine-spark",
-            "turn-undead",
-            "peace-bond",
-            "balm-of-peace"
-          ],
-          "feats": [],
-          "skills": [
-            "discretion",
-            "escamotage"
-          ],
-          "weaponMasteries": [],
-          "tools": [
-            "outils_autres",
-            "outils_jeux"
-          ],
-          "languages": [
-            "commun"
-          ],
-          "spells": [
-            "heroism",
-            "sanctuary",
-            "rayon-de-feu",
-            "aid",
-            "warding-bond",
-            "vague-ardente"
-          ],
-          "actions": [],
-          "reactions": [],
-          "resources": [],
-          "passifs": []
-        }
-      },
-      "sourceSheetId": "sheet-mm3akl97-76sm8u-16",
-      "sourceTag": "active-saved-sheet"
+      "proficiencies": {},
+      "materielSlots": {},
+      "inventoryItems": [],
+      "spellcastingState": {},
+      "derived": {},
+      "sourceSheetId": "",
+      "sourceTag": ""
     }
   },
   "conversation": {
@@ -484,53 +55,13 @@
       "activeWindowKey": "day:1",
       "turns": [
         {
-          "at": "2026-02-27T17:59:21.613Z",
+          "at": "2026-03-02T17:10:18.214Z",
           "windowKey": "day:1",
-          "user": "je me dirige vers une rue marchande",
-          "mj": "Contexte de depart verrouille: Tu te trouves a Parvis des Archives, Lysenthe, un batiment immense servant de coffre-fort de la verite sur la Primaute. Ville de depart: Lysenthe | Territoire: Astryade | Region: Ylssea. Temps initial: milieu d'après-midi. Tu viens de t'inscrire dans les registres. Tu es libre de tes choix. Personnage actif: Gardefou (Elfe, Clerc). Identite canonique: Elfe, Clerc (Domaine de la Paix)...",
+          "user": "que puis-je voir autour de moi ?",
+          "mj": "Repères de départ: Tu commences a Parvis des Archives, Lysenthe, un batiment immense servant de coffre-fort de la verite sur la Primaute. Lysenthe, territoire d'Astryade, region d'Ylssea. Le temps est au milieu d'apres-midi. Tu viens de t'inscrire dans les registres et rien ne t'empeche de choisir ta voie. Personnage actif: Gardefou (Elfe, Clerc). Identite canonique: Elfe, Clerc. Competences de reference pour la s...",
           "intentType": "story_action",
           "directorMode": "runtime",
           "locationLabel": "Parvis des Archives, Lysenthe",
-          "day": 1
-        },
-        {
-          "at": "2026-02-27T17:59:43.963Z",
-          "windowKey": "day:1",
-          "user": "ok j'y vais",
-          "mj": "Apres quelques minutes de marche, tu arrives a Rue marchande. Repères récents: Arrivee: Rue marchande. Le lieu se confirme autour de toi, sans changement notable. Le rythme est dense, les allées sont traversées par un flux constant. Aucune rupture de continuité n'est appliquée; tu peux poursuivre depuis ce même contexte.",
-          "intentType": "story_action",
-          "directorMode": "runtime",
-          "locationLabel": "Rue marchande",
-          "day": 1
-        },
-        {
-          "at": "2026-02-27T18:00:10.136Z",
-          "windowKey": "day:1",
-          "user": "je cherche une boutique de vetement",
-          "mj": "Ton action fait bouger la scene sans provoquer de bascule immediate. Repères récents: Arrivee: Rue marchande. Ancre lore utilisée par quest.detectee.to.acceptee La suite depend de ton prochain geste concret dans la scene.",
-          "intentType": "story_action",
-          "directorMode": "runtime",
-          "locationLabel": "Rue marchande",
-          "day": 1
-        },
-        {
-          "at": "2026-02-27T18:00:27.482Z",
-          "windowKey": "day:1",
-          "user": "je rentre dans la boutique et je salue la vendeuse",
-          "mj": "Ton action fait bouger la scene sans provoquer de bascule immediate. Repères récents: Arrivee: Rue marchande. Ancre lore utilisée par quest.detectee.to.acceptee La suite depend de ton prochain geste concret dans la scene.",
-          "intentType": "story_action",
-          "directorMode": "runtime",
-          "locationLabel": "Rue marchande",
-          "day": 1
-        },
-        {
-          "at": "2026-02-27T18:00:46.427Z",
-          "windowKey": "day:1",
-          "user": "je demande les prix pour une tenue d'ecole de magie",
-          "mj": "Ton action fait bouger la scene sans provoquer de bascule immediate. Repères récents: Arrivee: Rue marchande. Ancre lore utilisée par quest.detectee.to.acceptee La suite depend de ton prochain geste concret dans la scene.",
-          "intentType": "story_action",
-          "directorMode": "runtime",
-          "locationLabel": "Rue marchande",
           "day": 1
         }
       ],
@@ -538,15 +69,29 @@
       "lastCompactedAt": ""
     },
     "sceneFrame": {
-      "locationId": "session:rue-marchande",
-      "locationLabel": "Rue marchande",
+      "locationId": "lysenthe.archives.parvis",
+      "locationLabel": "Parvis des Archives, Lysenthe",
+      "activeLocationId": "lysenthe.archives.parvis",
+      "activeLocationLabel": "Parvis des Archives, Lysenthe",
       "activePoiLabel": "",
       "activeInterlocutorLabel": "",
-      "activeTopic": "",
+      "activeTopic": "observation locale",
       "recentFacts": [
-        "Arrivee: Rue marchande"
+        "Le regard balaie les environs immediats."
       ],
-      "updatedAt": "2026-02-27T18:00:46.425Z"
+      "recentSceneFacts": [
+        {
+          "kind": "observation",
+          "text": "Le regard balaie les environs immediats.",
+          "ref": "Parvis des Archives, Lysenthe",
+          "at": ""
+        }
+      ],
+      "lastSceneFact": "Tu prends le temps d'observer les environs immediats.",
+      "lastPlayerFocus": "Parvis des Archives, Lysenthe",
+      "lastPendingChoice": "",
+      "lastPresentedItems": [],
+      "updatedAt": "2026-03-02T17:10:18.206Z"
     }
   },
   "rpRuntime": {
@@ -554,83 +99,26 @@
     "lastResolution": null
   },
   "location": {
-    "id": "session:rue-marchande",
-    "label": "Rue marchande"
+    "id": "lysenthe.archives.parvis",
+    "label": "Parvis des Archives, Lysenthe"
   },
   "travel": {
     "pending": null,
-    "last": {
-      "from": {
-        "id": "lysenthe.archives.parvis",
-        "label": "Parvis des Archives, Lysenthe"
-      },
-      "to": {
-        "id": "session:rue-marchande",
-        "label": "Rue marchande"
-      },
-      "durationMin": 4,
-      "appliedAt": "2026-02-27T17:59:43.960Z",
-      "reason": "travel-confirmed"
-    }
+    "last": null
   },
-  "sessionPlaces": [
-    {
-      "id": "session:rue-marchande",
-      "label": "Rue marchande",
-      "city": "",
-      "access": "public",
-      "tags": [],
-      "riskFlags": [],
-      "sources": [],
-      "summary": "",
-      "createdAt": "2026-02-27T17:59:21.606Z",
-      "updatedAt": "2026-02-27T17:59:43.961Z"
-    }
-  ],
+  "sessionPlaces": [],
   "time": {
     "day": 1,
     "hour": 15,
-    "minute": 34,
+    "minute": 10,
     "label": "milieu d'après-midi"
   },
   "history": [
     {
-      "at": "2026-02-27T17:59:21.604Z",
+      "at": "2026-03-02T17:10:18.206Z",
       "reputationDelta": 0,
       "localTensionDelta": 0,
-      "reason": "travel-proposed",
-      "intentType": "system_command",
-      "transitionId": "travel.proposed"
-    },
-    {
-      "at": "2026-02-27T17:59:43.960Z",
-      "reputationDelta": 0,
-      "localTensionDelta": 0,
-      "reason": "travel-confirmed",
-      "intentType": "system_command",
-      "transitionId": "travel.confirmed"
-    },
-    {
-      "at": "2026-02-27T18:00:10.134Z",
-      "reputationDelta": 0,
-      "localTensionDelta": 0,
-      "reason": "scene-only-no-runtime-trigger",
-      "intentType": "story_action",
-      "transitionId": "none"
-    },
-    {
-      "at": "2026-02-27T18:00:27.480Z",
-      "reputationDelta": 0,
-      "localTensionDelta": 0,
-      "reason": "scene-only-no-runtime-trigger",
-      "intentType": "story_action",
-      "transitionId": "none"
-    },
-    {
-      "at": "2026-02-27T18:00:46.425Z",
-      "reputationDelta": 0,
-      "localTensionDelta": 0,
-      "reason": "scene-only-no-runtime-trigger",
+      "reason": "no-impact-intent",
       "intentType": "story_action",
       "transitionId": "none"
     }

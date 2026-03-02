@@ -17,6 +17,8 @@ function createNarrationPayloadPipeline(deps = {}) {
     typeof deps.buildCanonicalNarrativeContext === "function"
       ? deps.buildCanonicalNarrativeContext
       : () => null;
+  const sanitizeNarrationPayload =
+    typeof deps.sanitizeNarrationPayload === "function" ? deps.sanitizeNarrationPayload : (value) => value;
 
   const PHASE3_GUARD_STATS_MAX_SAMPLES = 20;
   const PHASE3_GUARD_STATS = {
@@ -196,6 +198,13 @@ function createNarrationPayloadPipeline(deps = {}) {
     }
 
     const explicit = payload?.phase3LoreGuard;
+    if (explicit?.skip === true) {
+      return {
+        checked: false,
+        blocked: false,
+        violations: []
+      };
+    }
     const merged = mergePhase3ViolationLists(violations, explicit?.violations);
     const blocked = Boolean(explicit?.blocked) || merged.some((row) => row.severity === "major");
     return {
@@ -1005,7 +1014,8 @@ function createNarrationPayloadPipeline(deps = {}) {
   }
 
   function sendJson(res, statusCode, data) {
-    const withLatency = addRequestLatencyToPayload(data, res);
+    const sanitized = sanitizeNarrationPayload(data);
+    const withLatency = addRequestLatencyToPayload(sanitized, res);
     const withContracts = attachMjContractToPayload(withLatency);
     const withCanonical = attachCanonicalNarrativeContext(withContracts);
     const withGuards = applyPhase3LoreGuards(withCanonical);
