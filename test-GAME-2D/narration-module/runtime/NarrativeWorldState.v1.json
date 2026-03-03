@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-03-02T17:10:18.209Z",
+  "updatedAt": "2026-03-03T15:58:31.510Z",
   "metrics": {
     "reputation": 0,
     "localTension": 0
@@ -13,39 +13,378 @@
     "territory": "Astryade",
     "region": "Ylssea",
     "characterSnapshot": {
-      "id": "pj-gardefou",
-      "name": "Gardefou",
-      "raceId": "",
-      "backgroundId": "",
-      "classEntries": [],
-      "race": "Elfe",
-      "classLabel": "Clerc",
-      "subclassLabel": "",
-      "money": {},
-      "proficiencyBonus": 0,
-      "caracs": {},
-      "appearance": null,
+      "id": "pj-1",
+      "name": "Test Hero",
+      "raceId": "human",
+      "backgroundId": "veteran-de-guerre",
+      "classEntries": [
+        {
+          "slot": "1",
+          "classeId": "fighter",
+          "subclasseId": "eldritch-knight",
+          "niveau": 4
+        }
+      ],
+      "race": "Humain",
+      "classLabel": "Guerrier",
+      "subclassLabel": "Chevalier Occulte",
+      "money": {
+        "or": 10,
+        "argent": 0,
+        "cuivre": 0,
+        "platine": 0
+      },
+      "proficiencyBonus": 2,
+      "caracs": {
+        "FOR": {
+          "score": 14,
+          "mod": 2
+        },
+        "DEX": {
+          "score": 17,
+          "mod": 3
+        },
+        "CON": {
+          "score": 14,
+          "mod": 2
+        },
+        "INT": {
+          "score": 12,
+          "mod": 1
+        },
+        "SAG": {
+          "score": 10,
+          "mod": 0
+        },
+        "CHA": {
+          "score": 8,
+          "mod": -1
+        }
+      },
+      "appearance": {
+        "spriteKey": "character",
+        "tokenScale": 100
+      },
       "skills": [
-        "discretion",
-        "escamotage"
+        "athletisme",
+        "intimidation",
+        "nature"
       ],
       "expertises": [],
       "goals": [],
-      "actionIds": [],
+      "actionIds": [
+        "melee-strike",
+        "dash"
+      ],
       "reactionIds": [],
-      "weaponMasteries": [],
-      "proficiencies": {},
-      "materielSlots": {},
-      "inventoryItems": [],
-      "spellcastingState": {},
-      "derived": {},
-      "sourceSheetId": "",
-      "sourceTag": ""
+      "weaponMasteries": [
+        "coup-double",
+        "enchainement",
+        "ouverture"
+      ],
+      "proficiencies": {
+        "weapons": [
+          "simple",
+          "martiale"
+        ],
+        "armors": [
+          "legere",
+          "intermediaire",
+          "lourde",
+          "bouclier"
+        ],
+        "tools": [
+          "outils_vehicules",
+          "outils_jeux"
+        ]
+      },
+      "materielSlots": {
+        "corps": "obj_vetements_voyage",
+        "tete": null,
+        "gants": null,
+        "bottes": null,
+        "ceinture_gauche": "obj_petit_couteau",
+        "ceinture_droite": "obj_petit_couteau",
+        "dos_gauche": null,
+        "dos_droit": null,
+        "anneau_1": null,
+        "anneau_2": null,
+        "collier": null,
+        "bijou_1": "obj_insigne_unite",
+        "bijou_2": null,
+        "paquetage": "obj_sac_voyage",
+        "ceinture_bourse_1": "obj_bourse",
+        "ceinture_bourse_2": null
+      },
+      "inventoryItems": [
+        {
+          "type": "weapon",
+          "id": "obj_arme_endommagee",
+          "qty": 1,
+          "source": "auto",
+          "instanceId": "item-mlrvxsmd-jdcyhn-1",
+          "equippedSlot": "",
+          "storedIn": "paquetage",
+          "isPrimaryWeapon": false,
+          "isSecondaryHand": false,
+          "displayName": "",
+          "description": "",
+          "customProperties": {},
+          "properties": {}
+        },
+        {
+          "type": "object",
+          "id": "obj_insigne_unite",
+          "qty": 1,
+          "source": "auto",
+          "instanceId": "item-mlrvxsmd-jdcyhn-2",
+          "equippedSlot": "bijou_1",
+          "storedIn": "",
+          "isPrimaryWeapon": false,
+          "isSecondaryHand": false,
+          "displayName": "",
+          "description": "",
+          "customProperties": {},
+          "properties": {}
+        },
+        {
+          "type": "object",
+          "id": "obj_vetements_voyage",
+          "qty": 1,
+          "source": "auto",
+          "instanceId": "item-mlrvxsmd-jdcyhn-3",
+          "equippedSlot": "corps",
+          "storedIn": "",
+          "isPrimaryWeapon": false,
+          "isSecondaryHand": false,
+          "displayName": "",
+          "description": "",
+          "customProperties": {},
+          "properties": {}
+        },
+        {
+          "type": "object",
+          "id": "obj_bourse",
+          "qty": 1,
+          "source": "auto",
+          "instanceId": "item-mlrvxsmd-jdcyhn-4",
+          "equippedSlot": "ceinture_bourse_1",
+          "storedIn": "",
+          "isPrimaryWeapon": false,
+          "isSecondaryHand": false,
+          "displayName": "",
+          "description": "",
+          "customProperties": {},
+          "properties": {}
+        },
+        {
+          "type": "object",
+          "id": "obj_piece_or",
+          "qty": 10,
+          "source": "auto",
+          "instanceId": "item-mlrvxsmd-jdcyhn-5",
+          "equippedSlot": "",
+          "storedIn": "ceinture_bourse_1",
+          "isPrimaryWeapon": false,
+          "isSecondaryHand": false,
+          "displayName": "",
+          "description": "",
+          "customProperties": {},
+          "properties": {}
+        },
+        {
+          "type": "object",
+          "id": "obj_sac_voyage",
+          "qty": 1,
+          "source": "auto",
+          "instanceId": "item-mlrvxsmd-jdcyhn-6",
+          "equippedSlot": "paquetage",
+          "storedIn": "",
+          "isPrimaryWeapon": false,
+          "isSecondaryHand": false,
+          "displayName": "",
+          "description": "",
+          "customProperties": {},
+          "properties": {}
+        },
+        {
+          "type": "weapon",
+          "id": "obj_petit_couteau",
+          "qty": 1,
+          "source": "manual",
+          "instanceId": "item-mlrvxsmd-jdcyhn-9",
+          "equippedSlot": "ceinture_gauche",
+          "storedIn": "",
+          "isPrimaryWeapon": true,
+          "isSecondaryHand": false,
+          "displayName": "",
+          "description": "",
+          "customProperties": {},
+          "properties": {}
+        },
+        {
+          "type": "weapon",
+          "id": "obj_petit_couteau",
+          "qty": 1,
+          "source": "manual",
+          "instanceId": "item-mlrvxsmd-jdcyhn-10",
+          "equippedSlot": "ceinture_droite",
+          "storedIn": "",
+          "isPrimaryWeapon": false,
+          "isSecondaryHand": true,
+          "displayName": "",
+          "description": "",
+          "customProperties": {},
+          "properties": {}
+        }
+      ],
+      "spellcastingState": {
+        "totalCasterLevel": 1,
+        "slots": {
+          "1": {
+            "max": 2,
+            "remaining": 2,
+            "sources": [
+              "caster-total"
+            ]
+          }
+        },
+        "sources": {
+          "subclass:eldritch-knight": {
+            "ability": "INT",
+            "preparation": "known",
+            "storage": "memory",
+            "casterProgression": "third",
+            "classLevel": 4,
+            "focusInstanceId": null,
+            "preparedSpellIds": [],
+            "knownSpellIds": [
+              "rayon-de-feu",
+              "minor-ward"
+            ],
+            "grantedSpellIds": []
+          }
+        },
+        "spellGrants": {
+          "subclass:eldritch-knight": [
+            {
+              "entryId": "subclass:eldritch-knight:rayon-de-feu",
+              "spellId": "rayon-de-feu",
+              "sourceType": "manual",
+              "sourceId": "eldritch-knight",
+              "sourceKey": "subclass:eldritch-knight",
+              "grantedAtLevel": 4,
+              "usage": {
+                "type": "at-will",
+                "consumesSlot": false
+              },
+              "prepared": false,
+              "alwaysPrepared": false,
+              "tags": [
+                "known"
+              ]
+            },
+            {
+              "entryId": "subclass:eldritch-knight:minor-ward",
+              "spellId": "minor-ward",
+              "sourceType": "manual",
+              "sourceId": "eldritch-knight",
+              "sourceKey": "subclass:eldritch-knight",
+              "grantedAtLevel": 4,
+              "usage": {
+                "type": "slot",
+                "consumesSlot": true
+              },
+              "prepared": false,
+              "alwaysPrepared": false,
+              "tags": [
+                "known"
+              ]
+            }
+          ]
+        },
+        "slotJustifications": [
+          {
+            "source": "subclass:eldritch-knight",
+            "classLevel": 4,
+            "casterProgression": "third",
+            "slotsByLevel": [
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ]
+      },
+      "derived": {
+        "grants": {
+          "traits": [
+            "adaptable"
+          ],
+          "features": [
+            "freres-et-soeurs-d-armes",
+            "fighting-style-two-weapon-fighting",
+            "fighting-style",
+            "second-wind-feature",
+            "weapon-mastery",
+            "action-surge",
+            "tactical-mind",
+            "eldritch-knight-spellcasting"
+          ],
+          "feats": [],
+          "skills": [
+            "athletisme",
+            "intimidation",
+            "nature"
+          ],
+          "weaponMasteries": [
+            "coup-double",
+            "enchainement",
+            "ouverture"
+          ],
+          "tools": [
+            "outils_vehicules",
+            "outils_jeux"
+          ],
+          "languages": [
+            "commun"
+          ],
+          "spells": [],
+          "actions": [
+            "second-wind"
+          ],
+          "reactions": [],
+          "resources": [],
+          "passifs": []
+        }
+      },
+      "sourceSheetId": "sheet-mlrvxsmd-jdcyhn-11",
+      "sourceTag": "active-saved-sheet"
     }
   },
   "conversation": {
-    "activeInterlocutor": null,
-    "pendingAction": null,
+    "activeInterlocutor": "Jeune scribe",
+    "pendingAction": {
+      "isActionQuery": true,
+      "actionType": "generic_action",
+      "targetId": "",
+      "targetLabel": "",
+      "allowed": true,
+      "reason": "Action possible en RP; il faut une cible et un angle precis pour la resoudre.",
+      "proposal": {
+        "actionType": "generic_action",
+        "targetId": "",
+        "justification": "La requête concerne la localisation de parchemins, ce qui est une action générique liée à la recherche ou à l'exploration, et non une action de lancer de sort, d'utilisation d'arme ou de test de compétence."
+      },
+      "serverEvidence": {},
+      "createdAt": "2026-03-03T15:58:31.510Z"
+    },
     "pendingTravel": null,
     "pendingAccess": null,
     "memory": {
@@ -55,10 +394,50 @@
       "activeWindowKey": "day:1",
       "turns": [
         {
-          "at": "2026-03-02T17:10:18.214Z",
+          "at": "2026-03-03T15:56:51.114Z",
           "windowKey": "day:1",
-          "user": "que puis-je voir autour de moi ?",
-          "mj": "Repères de départ: Tu commences a Parvis des Archives, Lysenthe, un batiment immense servant de coffre-fort de la verite sur la Primaute. Lysenthe, territoire d'Astryade, region d'Ylssea. Le temps est au milieu d'apres-midi. Tu viens de t'inscrire dans les registres et rien ne t'empeche de choisir ta voie. Personnage actif: Gardefou (Elfe, Clerc). Identite canonique: Elfe, Clerc. Competences de reference pour la s...",
+          "user": "que vois je depuis le parvis ?",
+          "mj": "Repères de départ: Tu commences a Parvis des Archives, Lysenthe, un batiment immense servant de coffre-fort de la verite sur la Primaute. Lysenthe, territoire d'Astryade, region d'Ylssea. Le temps est au milieu d'apres-midi. Tu viens de t'inscrire dans les registres et rien ne t'empeche de choisir ta voie. Personnage actif: Test Hero (Humain, Guerrier). Identite canonique: Humain, Guerrier (Chevalier Occulte). Com...",
+          "intentType": "story_action",
+          "directorMode": "runtime",
+          "locationLabel": "Parvis des Archives, Lysenthe",
+          "day": 1
+        },
+        {
+          "at": "2026-03-03T15:57:13.678Z",
+          "windowKey": "day:1",
+          "user": "je veux parler au clerc",
+          "mj": "Jeune scribe t'accorde son attention sans brusquer l'echange. Sur le parvis des Archives, Lysenthe, jeune scribe te laisse le temps d'ouvrir la conversation. L'echange reste simple et peut prendre une tournure nette des que tu precises ce que tu veux.",
+          "intentType": "social_action",
+          "directorMode": "scene_only",
+          "locationLabel": "Parvis des Archives, Lysenthe",
+          "day": 1
+        },
+        {
+          "at": "2026-03-03T15:57:29.510Z",
+          "windowKey": "day:1",
+          "user": "bonjour",
+          "mj": "Tu restes face a Jeune scribe, sans rompre le fil de l'echange. La conversation tourne toujours autour de observation locale. Tu prends le temps d'observer les environs immediats. Parvis des Archives, Lysenthe reste l'element le plus saillant dans ce qui vient d'etre etabli. Si tu precises maintenant le point exact que tu veux lui faire eclaircir, la reponse pourra suivre sans relancer toute la scene.",
+          "intentType": "social_action",
+          "directorMode": "scene_only",
+          "locationLabel": "Parvis des Archives, Lysenthe",
+          "day": 1
+        },
+        {
+          "at": "2026-03-03T15:57:59.782Z",
+          "windowKey": "day:1",
+          "user": "j'aimerai savoir son nom",
+          "mj": "Jeune scribe marque un court silence avant de te repondre. Sur le parvis des Archives, Lysenthe, Jeune scribe te laisse le temps d'ouvrir la conversation. L'echange reste simple et peut prendre une tournure nette des que tu precises ce que tu veux.",
+          "intentType": "social_action",
+          "directorMode": "scene_only",
+          "locationLabel": "Parvis des Archives, Lysenthe",
+          "day": 1
+        },
+        {
+          "at": "2026-03-03T15:58:31.511Z",
+          "windowKey": "day:1",
+          "user": "ou puis je trouver des parchemins",
+          "mj": "Tu evalues la faisabilite immediate de ton intention: agir en scene. Validation serveur: possible. Action possible en RP; il faut une cible et un angle precis pour la resoudre. Lecture MJ: La requête concerne la localisation de parchemins, ce qui est une action générique liée à la recherche ou à l'exploration, et non une action de lancer de sort, d'utilisation d'a.",
           "intentType": "story_action",
           "directorMode": "runtime",
           "locationLabel": "Parvis des Archives, Lysenthe",
@@ -74,12 +453,22 @@
       "activeLocationId": "lysenthe.archives.parvis",
       "activeLocationLabel": "Parvis des Archives, Lysenthe",
       "activePoiLabel": "",
-      "activeInterlocutorLabel": "",
+      "pendingPoiLabel": "",
+      "pendingPoiStatus": "",
+      "activeInterlocutorLabel": "Jeune scribe",
       "activeTopic": "observation locale",
       "recentFacts": [
-        "Le regard balaie les environs immediats."
+        "Interlocuteur etabli: jeune scribe.",
+        "Le regard balaie les environs immediats.",
+        "L'echange reste ouvert avec Jeune scribe."
       ],
       "recentSceneFacts": [
+        {
+          "kind": "interlocutor_followup",
+          "text": "L'echange reste ouvert avec Jeune scribe.",
+          "ref": "Jeune scribe",
+          "at": ""
+        },
         {
           "kind": "observation",
           "text": "Le regard balaie les environs immediats.",
@@ -89,9 +478,9 @@
       ],
       "lastSceneFact": "Tu prends le temps d'observer les environs immediats.",
       "lastPlayerFocus": "Parvis des Archives, Lysenthe",
-      "lastPendingChoice": "",
+      "lastPendingChoice": "preciser la demande adressee a l'interlocuteur",
       "lastPresentedItems": [],
-      "updatedAt": "2026-03-02T17:10:18.206Z"
+      "updatedAt": "2026-03-03T15:58:31.511Z"
     }
   },
   "rpRuntime": {
@@ -110,15 +499,47 @@
   "time": {
     "day": 1,
     "hour": 15,
-    "minute": 10,
+    "minute": 44,
     "label": "milieu d'après-midi"
   },
   "history": [
     {
-      "at": "2026-03-02T17:10:18.206Z",
+      "at": "2026-03-03T15:56:51.108Z",
       "reputationDelta": 0,
       "localTensionDelta": 0,
       "reason": "no-impact-intent",
+      "intentType": "story_action",
+      "transitionId": "none"
+    },
+    {
+      "at": "2026-03-03T15:57:13.675Z",
+      "reputationDelta": 0,
+      "localTensionDelta": 0,
+      "reason": "commitment-informatif",
+      "intentType": "social_action",
+      "transitionId": "none"
+    },
+    {
+      "at": "2026-03-03T15:57:29.507Z",
+      "reputationDelta": 0,
+      "localTensionDelta": 0,
+      "reason": "scene-only-no-runtime-trigger",
+      "intentType": "social_action",
+      "transitionId": "none"
+    },
+    {
+      "at": "2026-03-03T15:57:59.780Z",
+      "reputationDelta": 0,
+      "localTensionDelta": 0,
+      "reason": "commitment-informatif",
+      "intentType": "social_action",
+      "transitionId": "none"
+    },
+    {
+      "at": "2026-03-03T15:58:31.510Z",
+      "reputationDelta": 0,
+      "localTensionDelta": 0,
+      "reason": "rp-action-validation",
       "intentType": "story_action",
       "transitionId": "none"
     }

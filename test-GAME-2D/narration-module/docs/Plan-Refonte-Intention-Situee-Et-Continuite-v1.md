@@ -144,6 +144,39 @@ Ces ancres ne sont pas la pour "faire du debug".
 
 Elles sont la pour permettre au moteur de repondre naturellement au tour suivant sans re-partir de zero.
 
+### Regle de legitimite souple des ancres
+
+Une ancre ne doit pas devenir un fait etabli juste parce que le joueur la nomme.
+
+Le joueur peut ouvrir une piste locale, mais le MJ doit encore la valider, la nuancer ou la recadrer.
+
+Le moteur doit donc distinguer au moins trois etats pour une ancre locale :
+
+- ancre deja etablie dans la scene,
+- ancre candidate plausible par prolongement immediat,
+- ancre douteuse ou non fondee.
+
+Une ancre candidate plausible peut etre proposee par le joueur avant d'avoir ete nommee par le MJ.
+
+Exemple :
+
+- sur le parvis des Archives, `annexe`, `galerie`, `table d'accueil`, `clerc de service` peuvent etre plausibles,
+- mais ils ne doivent devenir des ancres persistantes qu'apres une reponse du MJ qui les confirme effectivement dans la fiction.
+
+Le bon enchainement n'est donc pas :
+
+- le joueur nomme,
+- le moteur grave immediatement l'ancre.
+
+Le bon enchainement est :
+
+1. le joueur propose une piste,
+2. le noyau la classe comme etablie / candidate plausible / douteuse,
+3. le MJ repond en confirmant, nuancant ou recadrant,
+4. seule une ancre legitimement confirmee peut devenir persistante dans la scene.
+
+Sans cette etape intermediaire, la memoire locale risque de conserver des faux referents, des malentendus ou des fautes de frappe comme si le monde les avait valides.
+
 ### Exemples d'ancres utiles
 
 - `activeLocation`: Rue marchande

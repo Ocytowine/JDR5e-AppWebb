@@ -901,6 +901,8 @@ function sanitizeSceneFrame(value, worldState = null) {
       "Parvis des Archives, Lysenthe"
   ).trim();
   const activePoiLabel = String(safe.activePoiLabel ?? "").trim();
+  const pendingPoiLabel = String(safe.pendingPoiLabel ?? "").trim();
+  const pendingPoiStatus = String(safe.pendingPoiStatus ?? "").trim().toLowerCase();
   const activeInterlocutorLabel = String(safe.activeInterlocutorLabel ?? "").trim();
   const activeTopic = String(safe.activeTopic ?? "").trim();
   const recentFactsRaw = Array.isArray(safe.recentFacts)
@@ -922,6 +924,11 @@ function sanitizeSceneFrame(value, worldState = null) {
     activeLocationId: locationId,
     activeLocationLabel: locationLabel,
     activePoiLabel,
+    pendingPoiLabel,
+    pendingPoiStatus:
+      pendingPoiLabel && ["plausible", "doubtful", "validated"].includes(pendingPoiStatus)
+        ? pendingPoiStatus
+        : "",
     activeInterlocutorLabel,
     activeTopic,
     recentFacts,
@@ -2571,8 +2578,15 @@ function temperNarrativeHype({ structured, intent, directorMode, toolTrace, worl
   if (!hasHype && !genericExploration) return structured;
   if (hasStrongNarrativeEvidence(toolTrace) && !genericExploration) return structured;
 
+  const sceneFrame =
+    worldState?.conversation?.sceneFrame && typeof worldState.conversation.sceneFrame === "object"
+      ? worldState.conversation.sceneFrame
+      : null;
   const locationLabel = oneLine(
-    worldState?.location?.label ?? worldState?.startContext?.locationLabel ?? "les environs",
+    String(sceneFrame?.activePoiLabel ?? "").trim() ||
+      worldState?.location?.label ||
+      worldState?.startContext?.locationLabel ||
+      "les environs",
     70
   );
   const timeLabel = String(worldState?.time?.label ?? "ce moment").trim() || "ce moment";
@@ -2700,6 +2714,55 @@ function buildExplorationReply(message, records, worldState = null) {
     }
     return rows[acc % rows.length];
   }
+  function buildBaselineObservation(seedText, locationLabel, timeLabel, localTension) {
+    const baselineEvents = [
+      "Un marchand pousse une charrette grinÃ§ante et vante sa marchandise d'une voix claire.",
+      "Un cortege de gardes traverse le parvis d'un pas discipline, sans s'arreter.",
+      "Deux scribes debattent a voix basse devant une pile de registres scelles.",
+      "Un gamin file entre les passants, poursuivi par les protestations d'un etalier."
+    ];
+    const tensionEvents =
+      localTension >= 45
+        ? [
+            "Une patrouille ralentit pres de toi et observe les passants avec insistance.",
+            "Les voix se font plus courtes autour de toi, comme si chacun evitait d'attirer l'attention."
+          ]
+        : [];
+    const placeEvents = /archives|parvis/.test(normalizeForIntent(locationLabel))
+      ? [
+          "A l'entree des Archives, un clerc ferme un registre puis le range dans un coffre de voyage.",
+          "Un apprenti archiviste depose une liasse de parchemins sous le regard d'un surveillant."
+        ]
+      : [];
+    const microEvent = pickBySeed(
+      [...placeEvents, ...tensionEvents, ...baselineEvents],
+      `${seedText}|no-lore`
+    );
+    return [
+      `Tu prends le temps d'observer ${locationLabel}, en ${timeLabel}.`,
+      microEvent || "La zone vit d'un mouvement discret mais continu autour de toi.",
+      "Rien de majeur n'eclate, mais plusieurs pistes RP restent ouvertes si tu veux les suivre."
+    ].join("\n");
+  }
+  function buildLocationTokenSet(label) {
+    return new Set(
+      normalizeForIntent(label)
+        .split(/\s+/)
+        .map((part) => String(part ?? "").trim())
+        .filter((part) => part.length >= 4)
+        .filter((part) => !["dans", "avec", "pour", "vers", "depuis", "lysenthe"].includes(part))
+    );
+  }
+  function isSceneCoherentRecord(record, locationTokenSet) {
+    if (!record || typeof record !== "object") return false;
+    if (isTechnicalLoreRecord(record)) return false;
+    const text = normalizeForIntent([record?.title ?? "", record?.summary ?? record?.body ?? ""].join(" "));
+    if (!text) return false;
+    for (const token of locationTokenSet) {
+      if (text.includes(token)) return true;
+    }
+    return false;
+  }
 
   const locationLabel = oneLine(
     worldState?.location?.label ?? worldState?.startContext?.locationLabel ?? "les environs",
@@ -2711,6 +2774,7 @@ function buildExplorationReply(message, records, worldState = null) {
   const top = playerFacingLoreRecords(records, 4);
   const seedText = `${normalizeForIntent(message)}|${normalizeForIntent(locationLabel)}|${timeLabel}|${localTension}`;
   if (!top.length) {
+    return buildBaselineObservation(seedText, locationLabel, timeLabel, localTension);
     const baselineEvents = [
       "Un marchand pousse une charrette grinçante et vante sa marchandise d'une voix claire.",
       "Un cortege de gardes traverse le parvis d'un pas discipline, sans s'arreter.",
@@ -2741,17 +2805,22 @@ function buildExplorationReply(message, records, worldState = null) {
     ].join("\n");
   }
 
-  const nearbyPlaces = top
+  const locationTokenSet = buildLocationTokenSet(locationLabel);
+  const sceneCoherentTop = top.filter((record) => isSceneCoherentRecord(record, locationTokenSet));
+  if (!sceneCoherentTop.length) {
+    return buildBaselineObservation(seedText, locationLabel, timeLabel, localTension);
+  }
+  const nearbyPlaces = sceneCoherentTop
     .filter((record) => String(record?.type ?? "").toLowerCase() === "lieu")
     .map((record) => oneLine(record?.title ?? "", 60))
     .filter(Boolean);
-  const nearbyEntities = top
+  const nearbyEntities = sceneCoherentTop
     .map((record) => oneLine(record?.title ?? "", 60))
     .filter(Boolean)
     .slice(0, 4);
 
   const bestContextRecord =
-    top.find((record) => String(record?.type ?? "").toLowerCase() === "lieu") ?? top[0];
+    sceneCoherentTop.find((record) => String(record?.type ?? "").toLowerCase() === "lieu") ?? sceneCoherentTop[0];
   const contextHint = oneLine(bestContextRecord?.summary ?? bestContextRecord?.body ?? "", 140);
   const placesLabel = formatFrenchList(nearbyPlaces.slice(0, 3));
   const entitiesLabel = formatFrenchList(nearbyEntities.slice(0, 3));
@@ -2819,6 +2888,12 @@ function isGenericPlaceLabel(label) {
     "centre",
     "ici",
     "la bas",
+    "ma position",
+    "position",
+    "d ici",
+    "d'ici",
+    "autour de moi",
+    "la ou je suis",
     "par la",
     "ce lieu"
   ]);
@@ -2828,6 +2903,17 @@ function isGenericPlaceLabel(label) {
 function inferPlaceFromMessage(message, records) {
   const normalized = normalizeForIntent(message);
   if (!normalized) return "";
+  const localApproachCue = /\b(?:aller|vais)\s+voir\b/.test(normalized);
+  if (localApproachCue) {
+    return "";
+  }
+  const perspectiveOnlyCue =
+    /\b(?:de ma position|depuis ma position|d ici|d'ici|autour de moi|la ou je suis|de la ou je suis)\b/.test(
+      normalized
+    );
+  if (perspectiveOnlyCue && !/\b(?:quartier|rue|place|port|marche|atelier|archives|annexe|galerie)\b/.test(normalized)) {
+    return "";
+  }
   if (/\bport\b/.test(normalized)) {
     const portRecord = playerFacingLoreRecords(records, 8).find((entry) => {
       const title = normalizeForIntent(entry?.title ?? "");
@@ -2837,8 +2923,9 @@ function inferPlaceFromMessage(message, records) {
     if (portRecord?.title) return oneLine(String(portRecord.title), 72);
   }
   const patterns = [
-    /\b(?:visiter|visite|voir|explorer|aller(?:\s+vers)?|me\s+rendre(?:\s+vers)?|me\s+dirig(?:er|e)(?:\s+vers)?|march(?:er|e)(?:\s+vers)?|aller\s+en\s+direction\s+de|acceder|entrer(?:\s+dans)?|passer\s+par)\s+(?:aux|au|a la|a l'|dans|vers|sur|en)?\s*([a-z0-9' -]{3,72})/,
-    /\b(?:du|de la|de l'|des)\s+([a-z0-9' -]{3,72})/
+    /\b(?:visiter|visite|explorer|aller(?:\s+vers)?|me\s+rendre(?:\s+vers)?|me\s+dirig(?:er|e)(?:\s+vers)?|march(?:er|e)(?:\s+vers)?|aller\s+en\s+direction\s+de|acceder|entrer(?:\s+dans)?|passer\s+par)\s+(?:aux|au|a la|a l'|dans|vers|sur|en)?\s*([a-z0-9' -]{3,72})/,
+    /\b((?:quartier|rue|place|port|marche|atelier|archives|annexe|galerie)\s+(?:des|de la|de l |du)\s+[a-z0-9' -]{3,72})/,
+    /\b((?:quartier|rue|place|port|marche|atelier|archives|annexe|galerie)\s+[a-z0-9' -]{3,72})/
   ];
   for (const pattern of patterns) {
     const match = normalized.match(pattern);
@@ -2846,9 +2933,6 @@ function inferPlaceFromMessage(message, records) {
     const candidate = normalizeDestinationCandidate(String(match[1] ?? ""));
     if (candidate.length >= 3 && !isGenericPlaceLabel(candidate)) return toTitleCase(candidate);
   }
-  const firstPlace = playerFacingLoreRecords(records, 4)
-    .find((entry) => String(entry?.type ?? "").toLowerCase() === "lieu");
-  if (firstPlace?.title) return oneLine(String(firstPlace.title), 72);
   return "";
 }
 
@@ -2881,7 +2965,11 @@ function extractLocateIntent(message, records) {
     /\b(?:c est ou|ou est|ou se trouve|ou puis je trouver|par ou aller|comment aller|dans quel quartier)\b/.test(
       normalized
     ) ||
-    (/\bcherche\b/.test(normalized) && /\bou\b/.test(normalized));
+    (/\bcherche\b/.test(normalized) &&
+      (
+        /\bou\b/.test(normalized) ||
+        /\b(?:quartier|rue|place|port|marche|atelier|archives|annexe|galerie)\b/.test(normalized)
+      ));
   if (!asksLocation) return null;
   const explicitLocateOnly = !/\b(?:j y vais|aller|me rendre|me diriger|marcher|entrer)\b/.test(normalized);
   if (!explicitLocateOnly) return null;
@@ -4171,11 +4259,19 @@ function buildDirectorNoRuntimeReply(message, intentType, records, worldState = 
     }
     return "Le lieu garde assez de vie pour offrir vite un point d'attache a ton regard, si tu choisis ou le poser.";
   }
+  function hasSceneCoherentLore(record, anchorLabel) {
+    if (!record || typeof record !== "object") return false;
+    if (isTechnicalLoreRecord(record)) return false;
+    const anchorTokens = normalizeForIntent(anchorLabel)
+      .split(/\s+/)
+      .map((part) => String(part ?? "").trim())
+      .filter((part) => part.length >= 4);
+    const text = normalizeForIntent([record?.title ?? "", record?.summary ?? record?.body ?? ""].join(" "));
+    if (!text || !anchorTokens.length) return false;
+    return anchorTokens.some((token) => text.includes(token));
+  }
 
   const top = Array.isArray(records) ? records.slice(0, 1) : [];
-  const contextual = top.length > 0
-    ? oneLine(top[0]?.summary ?? top[0]?.body ?? "", 160)
-    : "";
   const social = intentType === "social_action";
   const normalized = normalizeForIntent(message);
   const locationLabel = String(worldState?.location?.label ?? worldState?.startContext?.locationLabel ?? "").trim();
@@ -4188,6 +4284,10 @@ function buildDirectorNoRuntimeReply(message, intentType, records, worldState = 
     worldState?.conversation?.activeInterlocutor ?? sceneFrame?.activeInterlocutorLabel ?? ""
   ).trim();
   const sceneAnchor = poiLabel || locationLabel || "les environs";
+  const contextual =
+    top.length > 0 && hasSceneCoherentLore(top[0], sceneAnchor)
+      ? oneLine(top[0]?.summary ?? top[0]?.body ?? "", 160)
+      : "";
   const sceneLead = formatSceneLead(sceneAnchor);
   const seeksShop =
     /\b(?:cherche|trouve|repere|regarde)\b/.test(normalized) &&

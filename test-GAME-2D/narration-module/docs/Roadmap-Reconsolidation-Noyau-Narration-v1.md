@@ -92,6 +92,80 @@ Le noyau doit devenir capable de decider, pour chaque tour :
 - soit une resolution locale libre,
 - soit une bascule vers une famille de mecanique outillee.
 
+## Principe de legitimite MJ
+
+Le noyau ne doit pas promouvoir automatiquement comme fait etabli tout element nomme par le joueur.
+
+Le joueur peut proposer :
+
+- une cible,
+- un detail,
+- un sous-lieu,
+- une presence,
+- une interpretation.
+
+Mais le MJ reste la source de legitimite fictionnelle.
+
+Le noyau doit donc distinguer :
+
+- un element deja etabli dans la scene,
+- un element compatible mais pas encore valide,
+- un element douteux, trop libre, ou non fonde.
+
+Consequence de pilotage :
+
+- une ancre locale ne doit pas devenir `activePoi`, `activeLocation` ou `activeInterlocutor` juste parce qu'elle a ete mentionnee,
+- une nouvelle ancre doit d'abord etre verifiee contre le contexte deja etabli, le lieu courant et les faits de scene recents,
+- en cas de doute, la reponse doit confirmer, nuancer ou recadrer la fiction avant d'engager la suite RP,
+- la continuite de scene ne compte que sur des ancres legitimement etablies par le MJ.
+
+## Plan d'integration prioritaire - Ancres candidates et legitimite souple
+
+But :
+
+Introduire une legitimite MJ praticable sans bloquer la progression locale quand le joueur ouvre lui-meme une piste plausible.
+
+### Etape A - Distinguer proposition et ancre etablie
+
+- [ ] Ajouter un statut intermediaire `candidate local anchor` avant toute promotion en ancre persistante
+- [ ] Distinguer explicitement :
+  - ancre deja etablie
+  - ancre candidate plausible
+  - ancre douteuse
+- [ ] Interdire qu'un simple label issu du message joueur alimente directement `activePoi` ou `activeInterlocutor`
+
+### Etape B - Evaluer la plausibilite locale
+
+- [ ] Evaluer une nouvelle ancre candidate contre :
+  - le lieu courant
+  - les faits recents de scene
+  - les ancres deja valides
+  - les prolongements credibles du cadre courant
+- [ ] Autoriser les prolongements locaux plausibles sans exiger qu'ils aient deja ete cites mot pour mot par le MJ
+- [ ] Refuser les labels trop abstraits, les evenements generiques, les faux referents et les glissements hors cadre
+
+### Etape C - Faire valider l'ancre par la reponse du MJ
+
+- [ ] La premiere reponse sur une ancre candidate doit confirmer, nuancer ou recadrer la fiction
+- [ ] Une ancre candidate ne devient persistante qu'apres cette validation narrative
+- [ ] Une ancre douteuse ne doit pas contaminer `sceneFrame` si la scene ne la confirme pas
+
+### Etape D - Faire vivre seulement les ancres legitimes
+
+- [ ] Seules les ancres validees peuvent etre reprises comme :
+  - `activePoi`
+  - `activeInterlocutor`
+  - `activeTopic`
+  - `lastPlayerFocus`
+- [ ] Les branches `scene_only` doivent muter l'etat local quand une ancre candidate vient d'etre confirmee
+- [ ] Les references deictiques (`ici`, `cet endroit`, `je lui`, `quand il revient`) doivent relire d'abord ces ancres legitimes
+
+### Critere de validation
+
+- [ ] Le joueur peut proposer un axe local plausible sans imposer seul une verite de fiction
+- [ ] Une faute de frappe ou un referent douteux ne devient pas automatiquement une nouvelle ancre
+- [ ] Une fois validee par le MJ, l'ancre tient sur plusieurs tours
+
 ## Phase 0 - Figer le cadre avant toute nouvelle refonte
 
 But :
@@ -283,6 +357,74 @@ Arreter les corrections par couloirs separes et faire lire les cas deja traites 
 - [-] Rebrancher la question sur un interlocuteur etabli (`je lui demande ...`) sur l'acte situe
 - [ ] Conserver temporairement les heuristiques existantes comme filets de secours tant que le rebranchement n'est pas stable
 
+### Note de suivi - Passe du 2026-03-03
+
+- Le calcul d'acte situe derive maintenant d'abord les cas `locate` / `visit` depuis :
+  - le message joueur
+  - `pendingTravel`
+  - `inferPlaceFromMessage(...)`
+  - les ancres de scene immediates
+- `extractLocateIntent(...)` et `extractVisitIntent(...)` restent en place, mais comme filets de secours si la derivation situee ne retrouve pas encore de cible exploitable.
+- Les gates de commitment `hypothetique` / `informatif` s'effacent maintenant quand l'acte situe indique deja une resolution `local_free` concrete :
+  - observation locale
+  - orientation locale
+  - deplacement proche
+  - suivi d'interlocuteur
+  - selection locale
+- Le parseur de lieu evite maintenant les faux labels de point de vue (`de ma position`, `d'ici`, `autour de moi`) qui polluaient a tort les ancres de scene.
+- `je cherche le quartier des marchands` est maintenant repris comme recherche de lieu explicite, sans exiger la presence de `ou`.
+- Verification ciblee passee :
+  - `validate:sceneonly-quality`
+  - `validate:social-implicit`
+- Verification manuelle ciblee passee :
+  - `que puis je voir de ma position ?`
+  - `je cherche le quartier des marchands`
+- Le scenario 1 rejoue ne derive plus vers des titres de lore globaux comme cibles locales d'observation, mais il reste encore trop generique sur la progression de point focal.
+- Un premier `point focal local` est maintenant derive depuis la formulation et peut alimenter :
+  - `targetKind = poi`
+  - `activePoi`
+  - les fallbacks locaux de scene
+- Le scenario 1 rejoue montre un gain net sur les tours de focalisation (`je regarde ...`), mais la continuite du point focal n'est pas encore maintenue assez loin.
+- Une hierarchie de focus locale a ete ajoutee dans le noyau : focus explicite valide -> focus local deja actif si la scene continue -> repli sur le lieu.
+- Le test reel montre encore qu'un focus evenementiel comme `ce qui se passe pendant qu'il cherche` peut etre promu a tort : la couche `candidate anchor -> validation MJ -> ancre persistante` n'est donc pas encore en place.
+- Le noyau reconnait parfois un `poi` utile sur un tour, mais cette ancre ne tient pas encore assez sur les tours suivants et retombe trop vite sur `activeLocation`.
+- Une premiere couche `pendingPoi` existe maintenant dans le `sceneFrame` pour preparer la sequence `ancre candidate -> validation -> ancre persistante`, mais sa promotion n'est pas encore rebranchee de facon fiable sur toutes les branches `scene_only`.
+- Gain reel deja visible sur le test :
+  - `je m'approche de l'annexe` est maintenant relu comme un `move_near` local au lieu de retomber en simple `inspect`
+  - un focus evenementiel brut comme `ce qui se passe pendant qu'il cherche` n'est plus promu en `poi` dans l'acte situe
+- La branche `scene_only` repart maintenant du `worldSnapshot` enrichi du tour courant au lieu de recharger seulement l'etat disque : la promotion d'une ancre candidate confirmee vers `activePoi` tient donc desormais sur plusieurs tours.
+- Le scenario 1 rejoue montre maintenant une vraie tenue de l'ancre locale (`galerie` puis `annexe`) sur les tours suivants, y compris dans les deictiques (`cet endroit`) et les reprises d'observation.
+- Les fallbacks `poi` ne repondent plus seulement en meta-fallback (`ce point local est deja etabli`) :
+  - `galerie` produit maintenant une description locale plus concrete
+  - `annexe` produit maintenant un deplacement proche ou une description de travail courant plus situee
+- Les ancres sociales commencent maintenant a emerger depuis la scene locale :
+  - `je m'arrete devant la table d'accueil ...` cible maintenant `table d'accueil` comme `poi`
+  - la reponse peut faire emerger un `jeune scribe` et l'etablir comme interlocuteur actif pour la suite
+- Un micro-profil RP local derive maintenant du contexte (`annexe` / `table d'accueil` / `jeune scribe`) :
+  - le scribe d'accueil repond sobrement sur :
+    - ce qu'on peut consulter
+    - un registre public recent
+    - des mouvements recents autour du quartier
+  - ces reponses restent ancrees dans le role, le lieu et les limites de consultation
+- La fin de scene commence maintenant a tenir :
+  - le scribe designe un `banc` comme nouvelle ancre d'attente
+  - l'observation sur le banc reste rattachee a la meme scene locale
+  - `quand il revient ...` produit maintenant une vraie reprise de conversation coherente avec l'extrait apporte
+- Le rendu du scenario 1 a ete lisse :
+  - les ancres meta (`Le fil de la discussion ...`, `Tu gardes aussi en tete ...`) s'effacent maintenant quand la reponse est deja assez concrete
+  - les tours 2 a 10 peuvent maintenant se lire presque sans phrases de maintien de moteur visibles
+- La phase reste toutefois `En cours` car la continuite est encore trop mecanique :
+  - certaines branches retombent encore sur un fallback large (`Autour de annexe ...`) au lieu d'introduire un nouveau detail,
+  - certains libelles restent encore bruts ou maladroits (`A annexe`),
+  - le scribe repond maintenant sur le coeur du scenario, mais il reste encore a :
+    - lisser certains tours encore hybrides (`exploration` avec ancre locale active)
+    - nettoyer certaines formulations encore trop rigides ou syntaxiquement pauvres
+    - reduire encore les ancres meta (`Le fil de la discussion ...`) quand la scene tient deja seule.
+- Nouveau garde-fou local ajoute :
+  - `aller voir ...` ne promeut plus automatiquement un faux lieu canonique ; la formulation retombe d'abord sur une approche locale (`poi`) quand la cible n'est qu'un descriptif de scene
+  - `parler a un scribe` peut maintenant faire emerger un interlocuteur plausible (`jeune scribe`) depuis le contexte des Archives, au lieu de retomber par defaut sur `inspect`
+- Cette phase reste volontairement `En cours` tant qu'un test reel n'a pas confirme que ces cas passent bien d'abord par l'acte situe sur des echanges complets.
+
 ### Critere de validation
 
 - [ ] Ces cas passent d'abord par l'acte situe, puis par leur resolution
@@ -345,6 +487,26 @@ Reduire les grosses branches "attrape-tout" qui masquent la logique de scene.
   - fallback scene_only
   - fallback social
 
+### Note de suivi - Passe du 2026-03-03
+
+- La branche `scene_only` utilise maintenant d'abord un fallback local plus etroit, pilote par l'acte situe, avant de retomber sur `buildDirectorNoRuntimeReply(...)`.
+- Ce fallback etroit couvre d'abord :
+  - orientation locale
+  - deplacement proche
+  - selection locale
+  - suivi d'interlocuteur
+  - attente locale
+- Les branches `commitment-hypothetique` et `commitment-informatif` passent maintenant par le meme ordre de priorite :
+  - fallback situe
+  - ancrage de scene
+  - puis seulement le fallback directeur general
+- Verification ciblee passee :
+  - `validate:sceneonly-quality`
+  - `validate:social-implicit`
+- Le scenario 1 rejoue ne reinjecte plus de titres de lore globaux (`Calendrier ...`, `Genese ...`) dans les fallbacks locaux, mais le fallback reste encore trop large pour faire progresser proprement la scene cible.
+- `buildDirectorNoRuntimeReply(...)` reste encore en place comme filet de securite general.
+- La tache reste ouverte tant qu'un test reel n'a pas confirme que ce nouveau palier absorbe bien une partie significative des cas auparavant routes vers le gros fallback.
+
 ### Critere de validation
 
 - [ ] Le rendu RP depend moins de gros fallbacks vernis
@@ -352,7 +514,7 @@ Reduire les grosses branches "attrape-tout" qui masquent la logique de scene.
 
 ### Statut phase
 
-- [ ] Non commence
+- [-] En cours
 
 ## Phase 8 - Atteindre le scenario de reference 1
 

@@ -266,6 +266,9 @@ function createNarrationChatHandler(deps = {}) {
             const rawInterlocutorToken = normalizeToken(rawInterlocutor);
             const rawPoi = String(safeFrame.activePoiLabel ?? "").trim();
             const rawPoiToken = normalizeToken(rawPoi);
+            const rawPendingPoi = String(safeFrame.pendingPoiLabel ?? "").trim();
+            const rawPendingPoiToken = normalizeToken(rawPendingPoi);
+            const rawPendingPoiStatus = String(safeFrame.pendingPoiStatus ?? "").trim().toLowerCase();
             const rawFrameLocation = String(
               safeFrame.activeLocationLabel ?? safeFrame.locationLabel ?? locationLabel
             ).trim();
@@ -285,6 +288,18 @@ function createNarrationChatHandler(deps = {}) {
             const cleanedPoi =
               !locationChanged && rawPoi && rawPoiToken !== locationToken && !playerTokens.has(rawPoiToken)
                 ? rawPoi
+                : "";
+            const cleanedPendingPoi =
+              !locationChanged &&
+              rawPendingPoi &&
+              rawPendingPoiToken !== locationToken &&
+              rawPendingPoiToken !== rawPoiToken &&
+              !playerTokens.has(rawPendingPoiToken)
+                ? rawPendingPoi
+                : "";
+            const cleanedPendingPoiStatus =
+              cleanedPendingPoi && ["plausible", "doubtful", "validated"].includes(rawPendingPoiStatus)
+                ? rawPendingPoiStatus
                 : "";
             const facts = Array.isArray(safeFrame.recentFacts)
               ? Array.from(
@@ -338,6 +353,8 @@ function createNarrationChatHandler(deps = {}) {
                 locationLabel,
                 activeInterlocutorLabel: cleanedInterlocutor,
                 activePoiLabel: cleanedPoi,
+                pendingPoiLabel: cleanedPendingPoi,
+                pendingPoiStatus: cleanedPendingPoiStatus,
                 recentFacts: facts,
                 recentSceneFacts,
                 lastSceneFact,
@@ -347,6 +364,361 @@ function createNarrationChatHandler(deps = {}) {
               },
               worldState
             );
+          }
+          function extractLocalFocusLabel(rawMessage, worldState) {
+            const normalized = String(rawMessage ?? "")
+              .toLowerCase()
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, "")
+              .replace(/['â€™]/g, " ")
+              .replace(/\s+/g, " ")
+              .trim();
+            if (!normalized) return "";
+            const patterns = [
+              /\b(?:regarde|regarder|observe|observer|examine|examiner|detaille|detailler)(?:\s+mieux)?\s+(?:le|la|les|l )?\s*([a-z0-9 -]{3,80})/,
+              /\b(?:aller|vais)\s+voir\s+(?:le|la|les|l )?\s*([a-z0-9 -]{3,80})/,
+              /\b(?:m approche|m approcher|me rapproche|me rapprocher|m arrete devant|me place devant|vais vers|va vers)\s+(?:le|la|les|l )?\s*([a-z0-9 -]{3,80})/,
+              /\b(?:devant|vers|sur)\s+(?:le|la|les|l )?\s*([a-z0-9 -]{3,80})/
+            ];
+            let candidate = "";
+            for (const pattern of patterns) {
+              const match = normalized.match(pattern);
+              if (!match) continue;
+              candidate = String(match[1] ?? "")
+                .replace(/\b(?:et|pour|afin de|pendant que|quand)\b.*$/i, "")
+                .replace(/[,.!?;:]+.*$/g, "")
+                .replace(/\s+/g, " ")
+                .trim();
+              if (candidate) break;
+            }
+            if (!candidate) return "";
+            const locationToken = normalizeToken(
+              worldState?.location?.label ?? worldState?.startContext?.locationLabel ?? ""
+            );
+            const candidateToken = normalizeToken(candidate);
+            const blocked = new Set([
+              "moi",
+              "ma position",
+              "position",
+              "ici",
+              "cet endroit",
+              "ce lieu",
+              "autour de moi",
+              "la ou je suis"
+            ]);
+            if (!candidateToken || blocked.has(candidateToken) || candidateToken === locationToken) return "";
+            return oneLine(candidate, 80);
+          }
+          function extractLocalRoleTarget(rawMessage) {
+            const normalized = String(rawMessage ?? "")
+              .toLowerCase()
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, "")
+              .replace(/['Ã¢â‚¬â„¢]/g, " ")
+              .replace(/\s+/g, " ")
+              .trim();
+            if (!normalized) return "";
+            const patterns = [
+              /\b(?:parler|parlerai|parlerais|m adresser|me tourner|voir|trouver|demander)\s+a\s+(?:un|une|le|la|l )?\s*([a-z0-9 -]{3,48})/,
+              /\b(?:cherche|chercher)\s+(?:un|une|le|la|l )?\s*([a-z0-9 -]{3,48})/
+            ];
+            for (const pattern of patterns) {
+              const match = normalized.match(pattern);
+              if (!match) continue;
+              const candidate = String(match[1] ?? "")
+                .replace(/\b(?:qui|pour|afin de|pendant que|quand)\b.*$/i, "")
+                .replace(/[,.!?;:]+.*$/g, "")
+                .replace(/\s+/g, " ")
+                .trim();
+              if (!candidate) continue;
+              if (!/\b(?:scribe|clerc|archiviste|garde|marchand|vendeur|vendeuse)\b/.test(candidate)) continue;
+              return oneLine(candidate, 48);
+            }
+            return "";
+          }
+          function resolvePlausibleLocalInterlocutor(roleLabel, worldState) {
+            const roleToken = normalizeToken(roleLabel);
+            if (!roleToken) return "";
+            const activePoiToken = normalizeToken(
+              normalizeLocalAnchorLabel(worldState?.conversation?.sceneFrame?.activePoiLabel ?? "")
+            );
+            const activeLocationToken = normalizeToken(
+              worldState?.location?.label ?? worldState?.startContext?.locationLabel ?? ""
+            );
+            const contextualToken = [activePoiToken, activeLocationToken].filter(Boolean).join(" ");
+            if (/\b(?:scribe|clerc|archiviste)\b/.test(roleToken) && /\b(?:archives|annexe|table|accueil|batiment)\b/.test(contextualToken)) {
+              return "jeune scribe";
+            }
+            if (/\b(?:marchand|vendeur|vendeuse)\b/.test(roleToken) && /\b(?:marche|echoppe|boutique)\b/.test(contextualToken)) {
+              return /\b(?:vendeuse)\b/.test(roleToken) ? "vendeuse" : "marchand";
+            }
+            if (/\bgarde\b/.test(roleToken)) return "garde";
+            return oneLine(roleLabel, 48);
+          }
+          function validatePersistentLocalFocus(rawLabel, worldState) {
+            const compactLabel = oneLine(rawLabel, 80);
+            const candidateToken = normalizeToken(compactLabel);
+            if (!candidateToken) return "";
+            const locationToken = normalizeToken(
+              worldState?.location?.label ?? worldState?.startContext?.locationLabel ?? ""
+            );
+            const interlocutorToken = normalizeToken(
+              worldState?.conversation?.activeInterlocutor ??
+                worldState?.conversation?.sceneFrame?.activeInterlocutorLabel ??
+                ""
+            );
+            const blockedExact = new Set([
+              "",
+              "moi",
+              "ma position",
+              "position",
+              "ici",
+              "cet endroit",
+              "ce lieu",
+              "autour de moi",
+              "la ou je suis",
+              "ce qui se passe",
+              "ce qu il fait",
+              "ce qu elle fait"
+            ]);
+            if (
+              blockedExact.has(candidateToken) ||
+              candidateToken === locationToken ||
+              candidateToken === interlocutorToken
+            ) {
+              return "";
+            }
+            if (
+              /^(?:ce qui|ce que|ce qu|ce dont|ceux|celle|celui|quelque chose|quelqu un)\b/.test(candidateToken) ||
+              /\b(?:pendant|quand|lorsque|parce que|afin|pour que)\b/.test(candidateToken) ||
+              /\b(?:se passe|se produit|arrive|cherche|parle|dit|fait|font|bouge)\b/.test(candidateToken)
+            ) {
+              return "";
+            }
+            const terms = candidateToken.split(" ").filter(Boolean);
+            if (!terms.length || terms.length > 6) return "";
+            const weakTerms = new Set([
+              "le",
+              "la",
+              "les",
+              "un",
+              "une",
+              "des",
+              "de",
+              "du",
+              "dans",
+              "sur",
+              "vers",
+              "avec",
+              "pour",
+              "tout",
+              "toute",
+              "quelque",
+              "autre",
+              "proche",
+              "loin"
+            ]);
+            const concreteTerms = terms.filter((term) => term.length >= 4 && !weakTerms.has(term));
+            if (!concreteTerms.length) return "";
+            return compactLabel;
+          }
+          function normalizeLocalAnchorLabel(rawLabel) {
+            const compactLabel = oneLine(rawLabel, 80);
+            if (!compactLabel) return "";
+            const normalized = normalizeToken(compactLabel);
+            if (!normalized) return "";
+            const cleaned = compactLabel
+              .replace(/^(?:de|du|des)\s+/i, "")
+              .replace(/^d[' ]/i, "")
+              .replace(/^(?:de la|de l)\s+/i, "")
+              .replace(/^(?:le|la|les|l)\s+/i, "")
+              .replace(/\s+/g, " ")
+              .trim();
+            return oneLine(cleaned || compactLabel, 80);
+          }
+          function hasEstablishedSceneReference(rawLabel, worldState) {
+            const safeWorld = worldState && typeof worldState === "object" ? worldState : {};
+            const frame = sanitizeSceneFrame(safeWorld?.conversation?.sceneFrame, safeWorld);
+            const labelToken = normalizeToken(normalizeLocalAnchorLabel(rawLabel));
+            if (!labelToken) return false;
+            if (normalizeToken(normalizeLocalAnchorLabel(frame.activePoiLabel)) === labelToken) return true;
+            const evidence = [
+              frame.activeTopic,
+              frame.lastSceneFact,
+              frame.lastPlayerFocus,
+              ...((Array.isArray(frame.recentFacts) ? frame.recentFacts : []).slice(0, 6)),
+              ...((Array.isArray(frame.recentSceneFacts) ? frame.recentSceneFacts : []).map((row) => row?.text))
+            ]
+              .map((value) => normalizeToken(value))
+              .filter(Boolean);
+            return evidence.some((text) => text.includes(labelToken));
+          }
+          function deriveLocalAnchorCandidate(worldState, act) {
+            const safeWorld = worldState && typeof worldState === "object" ? worldState : {};
+            const frame = sanitizeSceneFrame(safeWorld?.conversation?.sceneFrame, safeWorld);
+            const safeAct = act && typeof act === "object" ? act : null;
+            const directPoiTarget =
+              String(safeAct?.targetKind ?? "").trim() === "poi"
+                ? normalizeLocalAnchorLabel(
+                    validatePersistentLocalFocus(String(safeAct?.targetRef ?? "").trim(), safeWorld)
+                  )
+                : "";
+            const extractedTarget = normalizeLocalAnchorLabel(
+              validatePersistentLocalFocus(extractLocalFocusLabel(message, safeWorld), safeWorld)
+            );
+            const candidateLabel = directPoiTarget || extractedTarget;
+            if (!candidateLabel) {
+              return {
+                label: "",
+                status: "",
+                alreadyEstablished: false
+              };
+            }
+            const candidateToken = normalizeToken(candidateLabel);
+            const currentPoi = normalizeToken(frame.activePoiLabel);
+            if (candidateToken && currentPoi && candidateToken === currentPoi) {
+              return {
+                label: candidateLabel,
+                status: "validated",
+                alreadyEstablished: true
+              };
+            }
+            if (hasEstablishedSceneReference(candidateLabel, safeWorld)) {
+              return {
+                label: candidateLabel,
+                status: "validated",
+                alreadyEstablished: true
+              };
+            }
+            return {
+              label: candidateLabel,
+              status: "plausible",
+              alreadyEstablished: false
+            };
+          }
+          function applyNarratedAnchorValidation(worldState, replyText) {
+            const safeWorld = worldState && typeof worldState === "object" ? worldState : null;
+            if (!safeWorld) return safeWorld;
+            const mergedFrame = cleanSceneAnchors(
+              {
+                ...(worldSnapshot?.conversation?.sceneFrame ?? {}),
+                ...(frameAfter ?? {}),
+                ...(safeWorld?.conversation?.sceneFrame ?? {})
+              },
+              safeWorld
+            );
+            const normalizedReply = normalizeToken(replyText);
+            let nextFrame = mergedFrame;
+            let nextInterlocutor = String(
+              safeWorld?.conversation?.activeInterlocutor ?? mergedFrame.activeInterlocutorLabel ?? ""
+            ).trim();
+            const pendingPoiLabel = String(mergedFrame.pendingPoiLabel ?? "").trim();
+            const pendingPoiToken = normalizeToken(pendingPoiLabel);
+            if (pendingPoiLabel) {
+              const confirmedByReply = pendingPoiToken && normalizedReply.includes(pendingPoiToken);
+              if (confirmedByReply) {
+                const nextFacts = [
+                  `Point focal confirme: ${pendingPoiLabel}.`,
+                  ...((Array.isArray(mergedFrame.recentFacts) ? mergedFrame.recentFacts : []).slice(0, 5))
+                ];
+                nextFrame = cleanSceneAnchors(
+                  {
+                    ...mergedFrame,
+                    activePoiLabel: pendingPoiLabel,
+                    pendingPoiLabel: "",
+                    pendingPoiStatus: "",
+                    activeTopic:
+                      String(mergedFrame.activeTopic ?? "").trim() || `observation de ${pendingPoiLabel}`,
+                    lastPlayerFocus: pendingPoiLabel,
+                    recentFacts: nextFacts
+                  },
+                  safeWorld
+                );
+              } else {
+                nextFrame = cleanSceneAnchors(
+                  {
+                    ...mergedFrame,
+                    pendingPoiLabel: "",
+                    pendingPoiStatus: ""
+                  },
+                  safeWorld
+                );
+              }
+            }
+            const activePoiToken = normalizeToken(normalizeLocalAnchorLabel(nextFrame.activePoiLabel));
+            const activeLocationToken = normalizeToken(
+              safeWorld?.location?.label ?? safeWorld?.startContext?.locationLabel ?? ""
+            );
+            const canDeriveLocalScribe =
+              !nextInterlocutor &&
+              /\b(?:scribe|clerc)\b/.test(normalizedReply) &&
+              (
+                /annexe|table|accueil|batiment/.test(activePoiToken) ||
+                /annexe|table|accueil|batiment/.test(pendingPoiToken) ||
+                /archives/.test(activeLocationToken)
+              );
+            if (canDeriveLocalScribe) {
+              nextInterlocutor = "jeune scribe";
+              nextFrame = cleanSceneAnchors(
+                {
+                  ...nextFrame,
+                  activeInterlocutorLabel: nextInterlocutor,
+                  recentFacts: [
+                    `Interlocuteur etabli: ${nextInterlocutor}.`,
+                    ...((Array.isArray(nextFrame.recentFacts) ? nextFrame.recentFacts : []).slice(0, 5))
+                  ]
+                },
+                safeWorld
+              );
+            }
+            safeWorld.conversation = {
+              ...(safeWorld.conversation ?? {}),
+              sceneFrame: nextFrame
+            };
+            if (nextInterlocutor) {
+              safeWorld.conversation.activeInterlocutor = nextInterlocutor;
+            }
+            return safeWorld;
+          }
+          function resolveNextLocalFocus({ worldState, act, decision }) {
+            const safeWorld = worldState && typeof worldState === "object" ? worldState : {};
+            const frame = sanitizeSceneFrame(safeWorld?.conversation?.sceneFrame, safeWorld);
+            const safeAct = act && typeof act === "object" ? act : null;
+            const safeDecision = decision && typeof decision === "object" ? decision : null;
+            const actType = String(safeAct?.actType ?? "").trim();
+            const targetKind = String(safeAct?.targetKind ?? "").trim();
+            const targetRef = String(safeAct?.targetRef ?? "").trim();
+            const currentPoi = normalizeLocalAnchorLabel(validatePersistentLocalFocus(frame.activePoiLabel, safeWorld));
+            const explicitFocus = validatePersistentLocalFocus(
+              targetKind === "poi" ? targetRef : extractLocalFocusLabel(message, safeWorld),
+              safeWorld
+            );
+            const nearLocationFocus =
+              (actType === "move_near" || actType === "enter") && targetKind === "location"
+                ? validatePersistentLocalFocus(targetRef, safeWorld)
+                : "";
+            const normalizedExplicitFocus = normalizeLocalAnchorLabel(explicitFocus);
+            const normalizedNearLocationFocus = normalizeLocalAnchorLabel(nearLocationFocus);
+            if (
+              normalizedExplicitFocus &&
+              (normalizedExplicitFocus === currentPoi || hasEstablishedSceneReference(normalizedExplicitFocus, safeWorld))
+            ) {
+              return normalizedExplicitFocus;
+            }
+            if (normalizedNearLocationFocus) return normalizedNearLocationFocus;
+            const localContinuation =
+              String(safeDecision?.mode ?? "") === "local_free" &&
+              ["observe", "ask", "move_near", "enter", "wait", "greet", "choose"].includes(actType);
+            if (localContinuation && currentPoi && targetKind !== "direction") {
+              return currentPoi;
+            }
+            if (targetKind === "interlocutor" && currentPoi) {
+              return currentPoi;
+            }
+            if (actType === "move_far" || String(safeDecision?.mode ?? "") === "tool_family") {
+              return "";
+            }
+            return currentPoi;
           }
           async function persistLocalSceneMemory({
             replyText,
@@ -725,12 +1097,15 @@ function createNarrationChatHandler(deps = {}) {
             };
           }
           async function persistNarrativeWorldStateWithPhase6(worldState, options = {}) {
-            const safeWorldState = worldState && typeof worldState === "object" ? worldState : null;
+            let safeWorldState = worldState && typeof worldState === "object" ? worldState : null;
             const runtimeAlreadyApplied = Boolean(options.runtimeAlreadyApplied);
             const source = String(options.source ?? "narration");
             const replyText = String(options.replyText ?? "").trim();
             const memoryRecords = Array.isArray(options.memoryRecords) ? options.memoryRecords : records;
             let memoryTrace = null;
+            if (safeWorldState) {
+              safeWorldState = applyNarratedAnchorValidation(safeWorldState, replyText);
+            }
             if (safeWorldState && typeof applyBackgroundNarrativeTick === "function") {
               await applyBackgroundNarrativeTick({
                 runtime,
@@ -839,16 +1214,46 @@ function createNarrationChatHandler(deps = {}) {
             const sceneBase = String(parts?.scene ?? "").trim();
             const actionBase = String(parts?.actionResult ?? "").trim();
             const consequenceBase = String(parts?.consequences ?? "").trim();
+            const sceneContextText = normalizeInline([sceneBase, actionBase, consequenceBase].join(" "));
+            const concreteNarrationAlreadyPresent =
+              [sceneBase, actionBase]
+                .map((text) => String(text ?? "").trim())
+                .filter(Boolean)
+                .some((text) => {
+                  const normalized = normalizeInline(text);
+                  if (!normalized) return false;
+                  if (/[\"«]/.test(text)) return true;
+                  if (normalized.length >= 120) return true;
+                  if (
+                    /\b(?:scribe|clerc|registre|table|banc|galerie|annexe|parchemin|feuillet|entree|accueil)\b/.test(
+                      normalized
+                    )
+                  ) {
+                    return true;
+                  }
+                  return false;
+                });
             const sceneAnchors = [];
-            if (!selectionResolvedInReply) {
-              if (poiLabel) sceneAnchors.push(`Le regard revient naturellement vers ${poiLabel}.`);
+            function pushSceneAnchor(text) {
+              const next = String(text ?? "").trim();
+              if (!next) return;
+              const normalized = normalizeInline(next);
+              if (!normalized) return;
+              if (sceneContextText.includes(normalized)) return;
+              if (sceneAnchors.some((entry) => normalizeInline(entry).includes(normalized))) return;
+              sceneAnchors.push(next);
+            }
+            if (!selectionResolvedInReply && !concreteNarrationAlreadyPresent) {
+              if (poiLabel && !sceneBase && !actionBase) {
+                pushSceneAnchor(`Autour de ${poiLabel}, les details immediats restent les plus saillants.`);
+              }
               if (topicLabel) {
                 const topicAnchor = renderTopicAnchor(topicLabel);
-                if (topicAnchor) sceneAnchors.push(topicAnchor);
+                if (topicAnchor) pushSceneAnchor(topicAnchor);
               }
               if (recentFacts.length) {
                 const factAnchor = renderRecentFactAnchor(recentFacts[0]);
-                if (factAnchor) sceneAnchors.push(factAnchor);
+                if (factAnchor) pushSceneAnchor(factAnchor);
               }
             }
             const scene = [sceneBase || `Tu restes sur ${locationLabel}.`, sceneAnchors.join(" ")]
@@ -1294,7 +1699,7 @@ function createNarrationChatHandler(deps = {}) {
           const isSocialTurn = String(intent?.type ?? "") === "social_action";
           const keepCurrentInterlocutorAnchor =
             isSocialTurn && String(frameBefore.activeInterlocutorLabel ?? "").trim() && !detectedInterlocutor;
-          const frameAfter = cleanSceneAnchors(
+          let frameAfter = cleanSceneAnchors(
             framePatchAccepted
               ? {
                   ...frameBefore,
@@ -1377,6 +1782,55 @@ function createNarrationChatHandler(deps = {}) {
             };
           }
           resolutionDecision = deriveResolutionDecision(situatedAct);
+          const localAnchorCandidate = deriveLocalAnchorCandidate(worldSnapshot, situatedAct);
+          if (localAnchorCandidate.label && !localAnchorCandidate.alreadyEstablished) {
+            frameAfter = cleanSceneAnchors(
+              {
+                ...frameAfter,
+                pendingPoiLabel: localAnchorCandidate.label,
+                pendingPoiStatus: localAnchorCandidate.status
+              },
+              worldSnapshot
+            );
+            worldSnapshot = applyCriticalMutation(worldSnapshot, {
+              sceneFrame: frameAfter
+            });
+          } else if (!localAnchorCandidate.label && String(frameAfter.pendingPoiLabel ?? "").trim()) {
+            frameAfter = cleanSceneAnchors(
+              {
+                ...frameAfter,
+                pendingPoiLabel: "",
+                pendingPoiStatus: ""
+              },
+              worldSnapshot
+            );
+            worldSnapshot = applyCriticalMutation(worldSnapshot, {
+              sceneFrame: frameAfter
+            });
+          }
+          const nextLocalFocus = resolveNextLocalFocus({
+            worldState: worldSnapshot,
+            act: situatedAct,
+            decision: resolutionDecision
+          });
+          const currentLocalFocus = String(frameAfter.activePoiLabel ?? "").trim();
+          if (nextLocalFocus !== currentLocalFocus) {
+            const nextPlayerFocus =
+              nextLocalFocus ||
+              String(frameAfter.lastPlayerFocus ?? "").trim() ||
+              String(worldSnapshot?.location?.label ?? worldSnapshot?.startContext?.locationLabel ?? "").trim();
+            frameAfter = cleanSceneAnchors(
+              {
+                ...frameAfter,
+                activePoiLabel: nextLocalFocus,
+                lastPlayerFocus: nextPlayerFocus
+              },
+              worldSnapshot
+            );
+            worldSnapshot = applyCriticalMutation(worldSnapshot, {
+              sceneFrame: frameAfter
+            });
+          }
     
           const rpContextPack =
             conversationMode === "rp" ? buildCharacterContextPack(characterProfile, worldSnapshot) : null;
@@ -1424,6 +1878,18 @@ function createNarrationChatHandler(deps = {}) {
               ...rest
             };
           };
+          function buildSceneOnlyBaseWorld() {
+            let baseWorld =
+              worldSnapshot && typeof worldSnapshot === "object" ? worldSnapshot : loadNarrativeWorldState();
+            baseWorld = applyCriticalMutation(baseWorld, {
+              sceneFrame: frameAfter
+            });
+            baseWorld = applyCriticalMutation(baseWorld, {
+              characterSnapshot: characterProfile,
+              activeInterlocutor: activeInterlocutor
+            });
+            return baseWorld;
+          }
           function readPendingTravelContext(baseWorldState) {
             const safeWorld = baseWorldState && typeof baseWorldState === "object" ? baseWorldState : {};
             const canonicalPending = sanitizeTravelState(safeWorld?.travel).pending;
@@ -1505,17 +1971,21 @@ function createNarrationChatHandler(deps = {}) {
             const frame = sanitizeSceneFrame(safeWorld?.conversation?.sceneFrame, safeWorld);
             const normalizedMessage = normalizeInline(message);
             const pendingTravel = readPendingTravelContext(safeWorld);
-            const locateIntent = conversationMode === "rp" ? extractLocateIntent(message, records) : null;
-            const visitIntent = conversationMode === "rp" ? extractVisitIntent(message, records) : null;
             const presentedItems = Array.isArray(frame.lastPresentedItems) ? frame.lastPresentedItems : [];
             const focusedLabel = String(frame.lastPlayerFocus ?? "").trim();
             const activePoi = String(frame.activePoiLabel ?? "").trim();
+            const pendingPoi = String(frame.pendingPoiLabel ?? "").trim();
             const activeLocation = String(
               safeWorld?.location?.label ?? safeWorld?.startContext?.locationLabel ?? ""
             ).trim();
             const activeNpc = String(
               safeWorld?.conversation?.activeInterlocutor ?? frame.activeInterlocutorLabel ?? ""
             ).trim();
+            const localFocusLabel = validatePersistentLocalFocus(extractLocalFocusLabel(message, safeWorld), safeWorld);
+            const requestedRoleLabel = extractLocalRoleTarget(message);
+            const plausibleLocalInterlocutor = !activeNpc
+              ? String(resolvePlausibleLocalInterlocutor(requestedRoleLabel, safeWorld) ?? "").trim()
+              : "";
             const matchingItem = matchPresentedItem(presentedItems, normalizedMessage);
             const engagement = String(intent?.commitment ?? "unknown").trim() || "unknown";
             const asksQuestion = /\?$/.test(String(message ?? "").trim());
@@ -1526,7 +1996,6 @@ function createNarrationChatHandler(deps = {}) {
             const localObservationCue =
               observeCue &&
               /\b(?:autour de moi|autour|ici|environs?|que puis je voir)\b/.test(normalizedMessage);
-            const effectiveLocateIntent = localObservationCue ? null : locateIntent;
             const selectionCue =
               /\b(?:choisis|choisir|prends|prendre|garde|celle ci|celui ci|je veux celle|je veux celui)\b/.test(
                 normalizedMessage
@@ -1540,8 +2009,16 @@ function createNarrationChatHandler(deps = {}) {
               /\b(?:demande|demander|je veux savoir|dis moi|a quoi|combien|ou est|ou se trouve)\b/.test(
                 normalizedMessage
               );
+            const socialApproachCue =
+              Boolean(plausibleLocalInterlocutor) &&
+              /\b(?:parler|m adresser|me tourner|voir|trouver|chercher)\b/.test(normalizedMessage);
+            const explicitLocateCue =
+              /\b(?:c est ou|ou est|ou se trouve|ou puis je trouver|par ou aller|comment aller|dans quel quartier)\b/.test(
+                normalizedMessage
+              ) ||
+              (/\bcherche\b/.test(normalizedMessage) && /\bou\b/.test(normalizedMessage));
             const moveCue =
-              /\b(?:aller|vais|me rends|me rendre|me dirige|me diriger|marche vers|rejoindre|rejoins)\b/.test(
+              /\b(?:aller|vais|me rends|me rendre|me dirige|me diriger|marche vers|rejoindre|rejoins|m approche|m approcher|me rapproche|me rapprocher)\b/.test(
                 normalizedMessage
               );
             const farMoveCue =
@@ -1568,15 +2045,65 @@ function createNarrationChatHandler(deps = {}) {
               );
             const socialPerceptionCue =
               /\b(?:reputation|statut|on me reconnait|on me regarde|comment on me voit)\b/.test(normalizedMessage);
+            const inferredPlaceLabel =
+              conversationMode === "rp" ? String(inferPlaceFromMessage(message, records) ?? "").trim() : "";
+            const directLocateTarget =
+              conversationMode === "rp"
+                ? (() => {
+                    if (localObservationCue) return "";
+                    if (!explicitLocateCue) return "";
+                    if (
+                      /\b(?:j y vais|je vais|je veux y aller|aller|me rendre|me diriger|marcher|entrer)\b/.test(
+                        normalizedMessage
+                      )
+                    ) {
+                      return "";
+                    }
+                    if (inferredPlaceLabel) return inferredPlaceLabel;
+                    if (/\b(?:cet endroit|ce lieu|ici|la bas|l[aà]-bas)\b/.test(normalizedMessage)) {
+                      return activePoi || activeLocation;
+                    }
+                    return "";
+                  })()
+                : "";
+            const fallbackLocateIntent =
+              !directLocateTarget && conversationMode === "rp" ? extractLocateIntent(message, records) : null;
+            const effectiveLocateTarget =
+              directLocateTarget || String(fallbackLocateIntent?.placeLabel ?? "").trim();
+            const directVisitTarget =
+              conversationMode === "rp"
+                ? (() => {
+                    if (pendingTravel && isTravelConfirmation(message)) {
+                      return String(pendingTravel.placeLabel ?? "").trim();
+                    }
+                    if (!moveCue && !enterCue) return "";
+                    if (!inferredPlaceLabel) return "";
+                    if (explicitLocateCue && !/\b(?:j y vais|je vais|je veux y aller|entrer)\b/.test(normalizedMessage)) {
+                      return "";
+                    }
+                    return inferredPlaceLabel;
+                  })()
+                : "";
+            const fallbackVisitIntent =
+              !directVisitTarget && conversationMode === "rp" ? extractVisitIntent(message, records) : null;
+            const effectiveVisitTarget = directVisitTarget || String(fallbackVisitIntent?.placeLabel ?? "").trim();
 
             let actType = "inspect";
             if (pendingTravel && isTravelConfirmation(message)) {
               actType = Number(pendingTravel.durationMin ?? 0) > 5 ? "move_far" : "move_near";
             } else if (selectionCue && (matchingItem || presentedItems.length > 0)) {
               actType = "choose";
-            } else if (effectiveLocateIntent) {
+            } else if (
+              activeNpc &&
+              (String(intent?.type ?? "") === "social_action" || pronounFollowCue) &&
+              (askCue || /\b(?:voir|consulter|savoir|demande|demander|dis|dire)\b/.test(normalizedMessage))
+            ) {
               actType = "ask";
-            } else if (visitIntent) {
+            } else if (socialApproachCue || (plausibleLocalInterlocutor && String(intent?.type ?? "") === "social_action")) {
+              actType = greetCue ? "greet" : "ask";
+            } else if (effectiveLocateTarget) {
+              actType = "ask";
+            } else if (effectiveVisitTarget) {
               actType = farMoveCue ? "move_far" : "move_near";
             } else if (refusalCue) {
               actType = "refuse";
@@ -1596,6 +2123,8 @@ function createNarrationChatHandler(deps = {}) {
               actType = "move_near";
             } else if (restCue) {
               actType = "rest";
+            } else if (activeNpc && pronounFollowCue) {
+              actType = "ask";
             } else if (String(intent?.type ?? "") === "social_action") {
               actType = "ask";
             }
@@ -1603,17 +2132,18 @@ function createNarrationChatHandler(deps = {}) {
             let targetKind = "none";
             let targetRef = "";
             let objectRef = "";
+            const localReferenceTarget = activePoi || pendingPoi;
             if (pendingTravel && isTravelConfirmation(message)) {
               targetKind = "location";
               targetRef = String(pendingTravel.placeLabel ?? "").trim();
               objectRef = "trajet propose";
-            } else if (effectiveLocateIntent) {
+            } else if (effectiveLocateTarget) {
               targetKind = "direction";
-              targetRef = String(effectiveLocateIntent.placeLabel ?? "").trim();
+              targetRef = effectiveLocateTarget;
               objectRef = "orientation";
-            } else if (visitIntent) {
+            } else if (effectiveVisitTarget) {
               targetKind = "location";
-              targetRef = String(visitIntent.placeLabel ?? "").trim();
+              targetRef = effectiveVisitTarget;
               objectRef = "trajet proche";
             } else if (selectionCue && (matchingItem || presentedItems.length > 0)) {
               targetKind = "item";
@@ -1634,13 +2164,36 @@ function createNarrationChatHandler(deps = {}) {
               ) {
                 objectRef = `apparence de ${activeNpc}`;
               }
-            } else if (observeCue) {
-              targetKind = activePoi ? "poi" : "location";
-              targetRef = activePoi || activeLocation;
-              objectRef = "environs immediats";
-            } else if (activePoi) {
+            } else if (plausibleLocalInterlocutor && (actType === "ask" || actType === "greet")) {
+              targetKind = "interlocutor";
+              targetRef = plausibleLocalInterlocutor;
+              objectRef = "ouvrir l echange";
+            } else if (
+              actType === "ask" &&
+              localReferenceTarget &&
+              /\b(?:cet endroit|ce lieu|ici|la bas|l[aà]-bas|la|cet espace)\b/.test(normalizedMessage)
+            ) {
               targetKind = "poi";
-              targetRef = activePoi;
+              targetRef = localReferenceTarget;
+              objectRef = "point d'interet local";
+            } else if (
+              localFocusLabel &&
+              (actType === "observe" ||
+                actType === "ask" ||
+                actType === "move_near" ||
+                actType === "enter" ||
+                actType === "wait")
+            ) {
+              targetKind = "poi";
+              targetRef = localFocusLabel;
+              objectRef = actType === "ask" ? "point d'interet proche" : "focus local";
+            } else if (observeCue) {
+              targetKind = localReferenceTarget ? "poi" : "location";
+              targetRef = localReferenceTarget || activeLocation;
+              objectRef = "environs immediats";
+            } else if (localReferenceTarget) {
+              targetKind = "poi";
+              targetRef = localReferenceTarget;
             } else if (activeLocation) {
               targetKind = "location";
               targetRef = activeLocation;
@@ -1667,11 +2220,13 @@ function createNarrationChatHandler(deps = {}) {
 
             let expectedNextStep = "clarifier la demande";
             if (actType === "observe") expectedNextStep = "decrire les environs";
-            else if (effectiveLocateIntent) expectedNextStep = "presenter une direction";
+            else if (effectiveLocateTarget) expectedNextStep = "presenter une direction";
             else if (pendingTravel && isTravelConfirmation(message)) expectedNextStep = "confirmer le deplacement";
-            else if (visitIntent) expectedNextStep = "presenter ou lancer le deplacement";
+            else if (effectiveVisitTarget) expectedNextStep = "presenter ou lancer le deplacement";
             else if (actType === "choose") expectedNextStep = "confirmer le choix et avancer localement";
             else if (actType === "greet") expectedNextStep = "faire reagir l'interlocuteur";
+            else if (actType === "ask" && targetKind === "interlocutor" && !activeNpc)
+              expectedNextStep = "faire apparaitre un interlocuteur plausible";
             else if (actType === "ask" && activeNpc) expectedNextStep = "faire repondre l'interlocuteur";
             else if (actType === "ask") expectedNextStep = "donner une reponse locale";
             else if (actType === "wait") expectedNextStep = "faire sentir l'attente et ce qu'elle produit";
@@ -2153,6 +2708,30 @@ function createNarrationChatHandler(deps = {}) {
             };
           }
           function maybeBuildAnchoredInterlocutorReply(worldState) {
+            function deriveLocalInterlocutorProfile(baseWorldState, interlocutorLabel, frame) {
+              const safeWorld = baseWorldState && typeof baseWorldState === "object" ? baseWorldState : {};
+              const safeFrame =
+                frame && typeof frame === "object"
+                  ? frame
+                  : sanitizeSceneFrame(safeWorld?.conversation?.sceneFrame, safeWorld);
+              const npcToken = normalizeToken(interlocutorLabel);
+              const poiToken = normalizeToken(safeFrame?.activePoiLabel ?? "");
+              const locationToken = normalizeToken(safeWorld?.location?.label ?? safeWorld?.startContext?.locationLabel ?? "");
+              if (
+                /scribe|clerc/.test(npcToken) &&
+                (/table|annexe/.test(poiToken) || /archives/.test(locationToken))
+              ) {
+                return {
+                  role: "archives_annex_reception_scribe",
+                  label: "jeune scribe",
+                  tone: "sobre_reserve",
+                  handles: ["consultations simples", "copies", "registres publics", "extraits courants"],
+                  limits: ["pas de scelles", "pas de salles internes sans motif", "demande une precision simple"],
+                  currentTask: "annote un registre"
+                };
+              }
+              return null;
+            }
             function normalizeText(value) {
               return String(value ?? "")
                 .toLowerCase()
@@ -2188,6 +2767,106 @@ function createNarrationChatHandler(deps = {}) {
             const activeTopic = String(frame.activeTopic ?? "").trim();
             const lastSceneFact = String(frame.lastSceneFact ?? "").trim();
             const focused = String(frame.lastPlayerFocus ?? "").trim();
+            const profile = deriveLocalInterlocutorProfile(worldState, interlocutor, frame);
+            if (profile?.role === "archives_annex_reception_scribe") {
+              const asksWhatCanConsult =
+                /\b(?:que .*consulter|qu est ce qu[' ]on peut consulter|qu[' ]on peut consulter ici|que peut on consulter ici)\b/.test(
+                  normalized
+                );
+              const asksPublicRegister =
+                /\b(?:registre public|voir un registre public|registre recent|registre récent|voir un registre)\b/.test(
+                  normalized
+                );
+              const asksNeighborhoodMovements =
+                /\b(?:mouvements? recents?|mouvements? récents?|autour du quartier|releves? d[' ]entrees?|releves? de sorties?)\b/.test(
+                  normalized
+                );
+              const asksWhoCanRequest =
+                /\b(?:tout le monde peut demander|qui peut demander|est ce que tout le monde peut demander|ce genre d extrait)\b/.test(
+                  normalized
+                );
+              let roleReply = "";
+              let nextFact = "";
+              let nextPendingChoice = "";
+              let nextPoiLabel = "";
+              if (asksWhatCanConsult) {
+                roleReply = buildMjReplyBlocks({
+                  scene:
+                    "Le jeune scribe te rend ton salut d'un signe bref sans quitter tout a fait sa page.",
+                  actionResult:
+                    "\"Ici, on traite surtout les copies, les demandes de verification et les consultations simples\", t'explique-t-il a voix basse. \"Les registres publics, certains actes courants et les extraits deja prepares, oui. Pour les salles internes, il faut un motif plus net ou une autorisation.\"",
+                  consequences:
+                    "Il pose ainsi une limite claire sans fermer la scene. Tu peux maintenant preciser le type de document qui t'interesse."
+                });
+                nextFact = "Le jeune scribe a precise ce qu'on peut consulter a l'annexe.";
+                nextPendingChoice = "preciser le type de document demande";
+              } else if (asksPublicRegister) {
+                roleReply = buildMjReplyBlocks({
+                  scene:
+                    "Le jeune scribe te detaille un instant, puis incline legerement la tete.",
+                  actionResult:
+                    "\"Un registre public recent, oui, si tu sais ce que tu cherches a peu pres. Pas les dossiers reserves, pas les scelles, mais les copies de circulation et les notices deja sorties, cela se fait.\"",
+                  consequences:
+                    "Il laisse deja entendre qu'une precision simple suffit pour faire avancer ta demande."
+                });
+                nextFact = "Le jeune scribe accepte le principe d'une consultation de registre public recent.";
+                nextPendingChoice = "preciser quel type de registre public est vise";
+              } else if (asksNeighborhoodMovements) {
+                roleReply = buildMjReplyBlocks({
+                  scene:
+                    "A cette precision, le jeune scribe parait mieux saisir ce que tu demandes.",
+                  actionResult:
+                    "\"Pour les mouvements ordinaires, on a surtout des releves d'entrees et de sorties deja recopies. Pas les noms proteges ni les notes internes, mais les passages officiels et les depots declares, oui.\"",
+                  consequences:
+                    "Il te designe un banc contre le mur d'un signe bref. \"Attends la, je peux t'en faire sortir un extrait.\""
+                });
+                nextFact = "Le jeune scribe a oriente la demande vers des releves publics de circulation.";
+                nextPendingChoice = "attendre sur le banc qu'il revienne avec un extrait";
+                nextPoiLabel = "banc";
+              } else if (asksWhoCanRequest) {
+                const returnLead = /\bquand il revient\b/.test(normalized)
+                  ? "Quand le jeune scribe revient avec un feuillet mince, il entend ta question avant meme de te le tendre."
+                  : "Le jeune scribe releve a nouveau les yeux vers toi avant de repondre.";
+                roleReply = buildMjReplyBlocks({
+                  scene: returnLead,
+                  actionResult:
+                    "\"Tout le monde peut demander, non. Mais pour ce qui est deja classe en public, ou pour un extrait simple sans enjeu sensible, on regarde la demande et on avise. Le reste depend du motif et de ce que les Archives acceptent de laisser circuler.\"",
+                  consequences:
+                    "La limite reste nette, mais sans casser la cooperation de l'echange."
+                });
+                nextFact = "Le jeune scribe a precise que les extraits publics restent accessibles selon la nature de la demande.";
+                nextPendingChoice = "";
+              }
+              if (roleReply) {
+                const nextFrame = cleanSceneAnchors(
+                  {
+                    ...frame,
+                    activeInterlocutorLabel: profile.label,
+                    activePoiLabel: nextPoiLabel || frame.activePoiLabel,
+                    lastPlayerFocus: focused || profile.label,
+                    lastSceneFact: nextFact || lastSceneFact,
+                    lastPendingChoice: nextPendingChoice || frame.lastPendingChoice,
+                    recentSceneFacts: [
+                      {
+                        kind: "interlocutor_reply",
+                        text: nextFact || `Le ${profile.label} repond depuis son poste d'accueil.`,
+                        ref: profile.label
+                      },
+                      ...((Array.isArray(frame.recentSceneFacts) ? frame.recentSceneFacts : []).slice(0, 5))
+                    ]
+                  },
+                  worldState
+                );
+                return {
+                  worldState: applyCriticalMutation(worldState, {
+                    sceneFrame: nextFrame,
+                    activeInterlocutor: profile.label
+                  }),
+                  reply: roleReply,
+                  toolTrace: []
+                };
+              }
+            }
             const scene = `Tu restes face a ${interlocutor}, sans rompre le fil de l'echange.`;
             const topicLead =
               activeTopic && !normalizeText(activeTopic).startsWith("choix de")
@@ -2238,6 +2917,222 @@ function createNarrationChatHandler(deps = {}) {
               }),
               toolTrace: []
             };
+          }
+          function maybeBuildSituatedSceneOnlyFallback(worldState) {
+            function describePoiContext(rawLabel, mode = "observe") {
+              const label = normalizeLocalAnchorLabel(rawLabel) || "ce point";
+              const token = normalizeToken(label);
+              if (/galerie/.test(token)) {
+                if (mode === "ask") {
+                  return {
+                    scene: `Depuis le parvis, ${label} se lit comme un passage couvert le long d'une aile secondaire.`,
+                    actionResult:
+                      "Sous la pierre claire, les allers-retours sont plus reguliers qu'au centre du parvis, avec des clercs presses et quelques visiteurs en attente.",
+                    consequences:
+                      "Tout indique un espace de travail annexe, ou l'on peut s'approcher pour demander ce qui s'y traite."
+                  };
+                }
+                return {
+                  scene: `Tu resserres ton attention sur ${label}, en bordure du batiment principal.`,
+                  actionResult:
+                    "Sous l'abri, les pas sont plus rapides, entre rouleaux, registres et passages courts de clercs.",
+                  consequences:
+                    "Ce detail local suffit maintenant a faire avancer la scene sans revenir a une vue d'ensemble."
+                };
+              }
+              if (/annexe/.test(token)) {
+                if (mode === "greet") {
+                  return {
+                    scene: `A l'accueil de ${label}, un jeune scribe finit par lever les yeux vers toi.`,
+                    actionResult:
+                      "Il garde un doigt glisse dans son registre, comme pour ne pas perdre sa ligne, mais il est deja pret a t'entendre.",
+                    consequences:
+                      "L'echange peut maintenant se poursuivre avec lui, sans relancer tout le decor."
+                  };
+                }
+                if (mode === "move") {
+                  return {
+                    scene: `Tu quittes le centre du parvis pour te rapprocher de ${label}.`,
+                    actionResult:
+                      "A mesure que tu avances, le froissement des parchemins et les voix basses prennent le pas sur le bruit plus large de la place.",
+                    consequences:
+                      "Pres de l'entree, tout appelle un point d'accueil ou un employe de service."
+                  };
+                }
+                return {
+                  scene: `${label} parait moins solennelle que le corps principal des Archives.`,
+                  actionResult:
+                    "On y trie, copie ou verifie des pieces courantes, dans une routine de travail plus vive que ceremonielle.",
+                  consequences:
+                    "La scene peut maintenant glisser vers l'accueil, l'attente ou une question simple a un clerc."
+                };
+              }
+              if (/table/.test(token)) {
+                if (mode === "wait") {
+                  return {
+                    scene: `Tu t'arretes devant ${label} sans chercher a forcer le passage.`,
+                    actionResult:
+                      "Au bout d'un court instant, un jeune scribe releve enfin la tete de son registre et reporte son attention sur toi.",
+                    consequences:
+                      "La scene a maintenant un interlocuteur naturel pour accueillir ta demande."
+                  };
+                }
+                if (mode === "greet") {
+                  return {
+                    scene: `Devant ${label}, le jeune scribe te rend ton salut d'un signe bref.`,
+                    actionResult:
+                      "Ses doigts taches d'encre restent poses sur le registre, mais il t'accorde deja son attention.",
+                    consequences:
+                      "Tu peux maintenant lui demander ce qu'on traite ici sans casser le fil de la scene."
+                  };
+                }
+                return {
+                  scene: `Devant ${label}, tu es deja au point de passage des visiteurs.`,
+                  actionResult:
+                    "Une surface etroite canalise les demandes, les registres et les regards qu'on leve enfin vers ceux qui patientent.",
+                  consequences:
+                    "Un employe peut maintenant te remarquer sans qu'il soit utile de relancer toute la scene."
+                };
+              }
+              if (/banc/.test(token)) {
+                return {
+                  scene: `Depuis ${label}, tu restes a l'ecart du passage direct.`,
+                  actionResult:
+                    "La vie locale reste visible sans te mettre au centre: copies, attentes courtes et gestes de bureau s'y enchainent avec calme.",
+                  consequences:
+                    "L'attente peut donc devenir un vrai moment d'observation au lieu d'un vide."
+                };
+              }
+              return mode === "move"
+                ? {
+                    scene: `Tu te rapproches de ${label}.`,
+                    actionResult: `Le lieu immediat se resserre autour de ${label}, avec assez de matiere pour faire avancer la scene.`,
+                    consequences: "Le prochain tour peut maintenant montrer ce qui s'y tient ou qui s'y trouve."
+                  }
+                : {
+                    scene: `Ton attention se fixe sur ${label}.`,
+                    actionResult: `Cet element local offre deja assez de prises concretes pour une reponse situee.`,
+                    consequences: "La scene peut maintenant en montrer l'usage, l'ambiance ou l'interlocuteur le plus proche."
+                  };
+            }
+            if (conversationMode !== "rp") return null;
+            if (String(resolutionDecision?.mode ?? "") !== "local_free") return null;
+            const actType = String(situatedAct?.actType ?? "").trim();
+            const targetKind = String(situatedAct?.targetKind ?? "").trim();
+            const targetRef = normalizeLocalAnchorLabel(String(situatedAct?.targetRef ?? "").trim()) || "ce point";
+            const objectRef = String(situatedAct?.objectRef ?? "").trim();
+            const expectedNextStep = String(situatedAct?.expectedNextStep ?? "").trim();
+            const sceneFrame =
+              worldState?.conversation?.sceneFrame && typeof worldState.conversation.sceneFrame === "object"
+                ? sanitizeSceneFrame(worldState.conversation.sceneFrame, worldState)
+                : sanitizeSceneFrame(null, worldState);
+            let fallbackReply = "";
+            if (actType === "ask" && targetKind === "direction") {
+              fallbackReply = buildMjReplyBlocks({
+                scene: `Ton attention reste fixee sur ${targetRef}.`,
+                actionResult: `La scene a deja de quoi ${expectedNextStep || "presenter une direction"} sans repartir de zero.`,
+                consequences: "Un repere local ou une indication nette suffit maintenant a faire avancer ce point."
+              });
+            } else if (actType === "ask" && targetKind === "poi") {
+              const poiDetail = describePoiContext(targetRef, "ask");
+              fallbackReply = buildMjReplyBlocks({
+                scene: poiDetail.scene,
+                actionResult: poiDetail.actionResult,
+                consequences: poiDetail.consequences
+              });
+            } else if ((actType === "move_near" || actType === "enter") && (targetKind === "location" || targetKind === "poi")) {
+              const poiDetail = describePoiContext(targetRef, "move");
+              fallbackReply = buildMjReplyBlocks({
+                scene: poiDetail.scene,
+                actionResult: poiDetail.actionResult,
+                consequences: poiDetail.consequences
+              });
+            } else if (actType === "observe" && targetKind === "poi") {
+              const poiDetail = describePoiContext(targetRef, "observe");
+              fallbackReply = buildMjReplyBlocks({
+                scene: poiDetail.scene,
+                actionResult: poiDetail.actionResult,
+                consequences: poiDetail.consequences
+              });
+            } else if (actType === "greet" && targetKind === "poi") {
+              const poiDetail = describePoiContext(targetRef, "greet");
+              fallbackReply = buildMjReplyBlocks({
+                scene: poiDetail.scene,
+                actionResult: poiDetail.actionResult,
+                consequences: poiDetail.consequences
+              });
+            } else if (actType === "choose" && targetKind === "item") {
+              fallbackReply = buildMjReplyBlocks({
+                scene: `Ton choix reste pose sur ${targetRef}.`,
+                actionResult: `${targetRef} est deja etabli comme element concret de la scene.`,
+                consequences: "La suite peut maintenant confirmer ce choix, le detailler, ou faire avancer l'echange."
+              });
+            } else if (targetKind === "interlocutor" && (actType === "ask" || actType === "greet" || actType === "wait")) {
+              const establishedInterlocutor = String(
+                worldState?.conversation?.activeInterlocutor ?? sceneFrame?.activeInterlocutorLabel ?? ""
+              ).trim();
+              const interlocutor = establishedInterlocutor || targetRef;
+              if (!establishedInterlocutor && /\b(?:scribe|clerc)\b/.test(normalizeToken(interlocutor))) {
+                const localContext =
+                  normalizeLocalAnchorLabel(String(sceneFrame?.activePoiLabel ?? "").trim()) ||
+                  normalizeLocalAnchorLabel(String(worldState?.location?.label ?? "").trim()) ||
+                  "le cote des Archives";
+                fallbackReply = buildMjReplyBlocks({
+                  scene: `En longeant ${localContext}, tu finis par croiser un jeune scribe qui releve enfin les yeux vers toi.`,
+                  actionResult:
+                    "Il garde encore un feuillet entre les doigts, mais rien dans son attitude n'empeche un echange bref si tu prends la parole.",
+                  consequences:
+                    "La scene peut maintenant glisser vers une question simple, une demande de consultation ou une orientation plus precise."
+                });
+              } else {
+                fallbackReply = buildMjReplyBlocks({
+                  scene: `L'echange reste ouvert avec ${interlocutor}.`,
+                  actionResult: objectRef
+                    ? `Ta demande vise deja ${objectRef}, sans qu'il soit utile de relancer toute la scene.`
+                    : "Le fil de l'echange est deja assez clair pour avancer localement.",
+                  consequences: "La reponse peut suivre sur ce point concret, avec le meme interlocuteur."
+                });
+              }
+            } else if (actType === "wait" && targetKind === "poi") {
+              const poiDetail = describePoiContext(targetRef, "wait");
+              fallbackReply = buildMjReplyBlocks({
+                scene: poiDetail.scene,
+                actionResult: poiDetail.actionResult,
+                consequences: poiDetail.consequences
+              });
+            } else if (actType === "wait") {
+              fallbackReply = buildMjReplyBlocks({
+                scene: "Tu restes dans le meme fil de scene, sans brusquer la suite.",
+                actionResult: "L'attente est deja un geste situe, avec un effet local a decrire plutot qu'un retour a vide.",
+                consequences: "La scene peut donc montrer ce qui se decante pendant ce court temps mort."
+              });
+            }
+            if (!fallbackReply) return null;
+            return buildSceneFrameAnchoredFallbackReply(fallbackReply, sceneFrame, worldState) || fallbackReply;
+          }
+          function buildPreferredSceneOnlyFallbackReply(worldState, options = {}) {
+            const guidance = String(options?.guidance ?? "").trim();
+            const sceneFrame =
+              worldState?.conversation?.sceneFrame && typeof worldState.conversation.sceneFrame === "object"
+                ? worldState.conversation.sceneFrame
+                : frameAfter;
+            const situatedFallback = maybeBuildSituatedSceneOnlyFallback(worldState);
+            const directorBaseFallback = buildDirectorNoRuntimeReply(message, intent.type, records, worldState);
+            const directorFallback =
+              buildSceneFrameAnchoredFallbackReply(
+                directorBaseFallback,
+                sceneFrame,
+                worldState
+              ) || directorBaseFallback;
+            const baseReply = situatedFallback || directorFallback;
+            const composedReply = guidance ? `${guidance}\n${baseReply}` : baseReply;
+            return addInterlocutorNote(
+              composedReply,
+              activeInterlocutor,
+              intent.type,
+              worldState,
+              message
+            );
           }
           const allowPendingTravelArbitration =
             conversationMode === "rp" &&
@@ -3565,7 +4460,29 @@ function createNarrationChatHandler(deps = {}) {
           }
     
           if (conversationMode === "rp") {
+            const validatorShouldYieldToScene =
+              String(resolutionDecision?.mode ?? "") === "local_free" &&
+              (
+                (
+                  String(situatedAct?.actType ?? "") === "ask" &&
+                  (
+                    String(situatedAct?.targetKind ?? "") === "interlocutor" ||
+                    String(situatedAct?.targetKind ?? "") === "direction" ||
+                    String(situatedAct?.targetKind ?? "") === "poi" ||
+                    String(situatedAct?.targetKind ?? "") === "location"
+                  )
+                ) ||
+                String(situatedAct?.actType ?? "") === "greet" ||
+                String(situatedAct?.actType ?? "") === "wait" ||
+                String(situatedAct?.actType ?? "") === "observe" ||
+                String(situatedAct?.actType ?? "") === "choose" ||
+                String(situatedAct?.actType ?? "") === "move_near" ||
+                String(situatedAct?.actType ?? "") === "enter"
+              );
             let rpActionAssessment = await rpActionValidator.assess(message, rpContextPack);
+            if (validatorShouldYieldToScene) {
+              rpActionAssessment = null;
+            }
             if (rpActionAssessment?.isActionQuery && rpActionAssessment.actionType === "cast_spell") {
               const slotAvailable = hasRemainingSpellSlotsForRp(worldSnapshot, rpContextPack);
               if (!slotAvailable) {
@@ -3936,18 +4853,27 @@ function createNarrationChatHandler(deps = {}) {
               characterSnapshot: characterProfile,
               activeInterlocutor: activeInterlocutor
             });
+            const localFocusLabel = validatePersistentLocalFocus(extractLocalFocusLabel(message, worldState), worldState);
             worldState = applyCriticalMutation(worldState, {
               sceneFrame: cleanSceneAnchors(
                 {
                   ...(worldState?.conversation?.sceneFrame ?? {}),
-                  activeTopic: "observation locale",
-                  lastSceneFact: "Tu prends le temps d'observer les environs immediats.",
-                  lastPlayerFocus: String(worldState?.location?.label ?? "").trim(),
+                  activePoiLabel: String(worldState?.conversation?.sceneFrame?.activePoiLabel ?? "").trim(),
+                  pendingPoiLabel:
+                    localFocusLabel || String(worldState?.conversation?.sceneFrame?.pendingPoiLabel ?? "").trim(),
+                  pendingPoiStatus: localFocusLabel ? "plausible" : "",
+                  activeTopic: localFocusLabel ? `observation de ${localFocusLabel}` : "observation locale",
+                  lastSceneFact: localFocusLabel
+                    ? `Ton attention se resserre sur ${localFocusLabel}.`
+                    : "Tu prends le temps d'observer les environs immediats.",
+                  lastPlayerFocus: localFocusLabel || String(worldState?.location?.label ?? "").trim(),
                   recentSceneFacts: [
                     {
                       kind: "observation",
-                      text: "Le regard balaie les environs immediats.",
-                      ref: String(worldState?.location?.label ?? "").trim()
+                      text: localFocusLabel
+                        ? `Le regard se fixe sur ${localFocusLabel}.`
+                        : "Le regard balaie les environs immediats.",
+                      ref: localFocusLabel || String(worldState?.location?.label ?? "").trim()
                     },
                     ...((Array.isArray(worldState?.conversation?.sceneFrame?.recentSceneFacts)
                       ? worldState.conversation.sceneFrame.recentSceneFacts
@@ -3958,12 +4884,21 @@ function createNarrationChatHandler(deps = {}) {
                 worldState
               )
             });
+            const sceneFrameForExploration =
+              worldState?.conversation?.sceneFrame && typeof worldState.conversation.sceneFrame === "object"
+                ? sanitizeSceneFrame(worldState.conversation.sceneFrame, worldState)
+                : sanitizeSceneFrame(null, worldState);
+            const shouldPreferLocalAnchoredExploration =
+              Boolean(String(sceneFrameForExploration.activePoiLabel ?? "").trim()) ||
+              Boolean(String(sceneFrameForExploration.activeInterlocutorLabel ?? "").trim());
             const worldDelta = {
               reputationDelta: 0,
               localTensionDelta: 0,
               reason: "no-impact-intent"
             };
-            const fallbackExplorationReply = buildExplorationReply(message, records, worldState);
+            const fallbackExplorationReply = shouldPreferLocalAnchoredExploration
+              ? buildPreferredSceneOnlyFallbackReply(worldState)
+              : buildExplorationReply(message, records, worldState);
             const aiExploration = await buildAiNarrativeReplyForBranch({
               worldState,
               fallbackReply: fallbackExplorationReply,
@@ -4030,18 +4965,27 @@ function createNarrationChatHandler(deps = {}) {
               characterSnapshot: characterProfile,
               activeInterlocutor: activeInterlocutor
             });
+            const localFocusLabel = validatePersistentLocalFocus(extractLocalFocusLabel(message, worldState), worldState);
             worldState = applyCriticalMutation(worldState, {
               sceneFrame: cleanSceneAnchors(
                 {
                   ...(worldState?.conversation?.sceneFrame ?? {}),
-                  activeTopic: "observation locale",
-                  lastSceneFact: "Tu prends le temps d'observer les environs immediats.",
-                  lastPlayerFocus: String(worldState?.location?.label ?? "").trim(),
+                  activePoiLabel: String(worldState?.conversation?.sceneFrame?.activePoiLabel ?? "").trim(),
+                  pendingPoiLabel:
+                    localFocusLabel || String(worldState?.conversation?.sceneFrame?.pendingPoiLabel ?? "").trim(),
+                  pendingPoiStatus: localFocusLabel ? "plausible" : "",
+                  activeTopic: localFocusLabel ? `observation de ${localFocusLabel}` : "observation locale",
+                  lastSceneFact: localFocusLabel
+                    ? `Ton attention se resserre sur ${localFocusLabel}.`
+                    : "Tu prends le temps d'observer les environs immediats.",
+                  lastPlayerFocus: localFocusLabel || String(worldState?.location?.label ?? "").trim(),
                   recentSceneFacts: [
                     {
                       kind: "observation",
-                      text: "Le regard balaie les environs immediats.",
-                      ref: String(worldState?.location?.label ?? "").trim()
+                      text: localFocusLabel
+                        ? `Le regard se fixe sur ${localFocusLabel}.`
+                        : "Le regard balaie les environs immediats.",
+                      ref: localFocusLabel || String(worldState?.location?.label ?? "").trim()
                     },
                     ...((Array.isArray(worldState?.conversation?.sceneFrame?.recentSceneFacts)
                       ? worldState.conversation.sceneFrame.recentSceneFacts
@@ -4052,7 +4996,16 @@ function createNarrationChatHandler(deps = {}) {
                 worldState
               )
             });
-            const fallbackExplorationReply = buildExplorationReply(message, records, worldState);
+            const sceneFrameForExploration =
+              worldState?.conversation?.sceneFrame && typeof worldState.conversation.sceneFrame === "object"
+                ? sanitizeSceneFrame(worldState.conversation.sceneFrame, worldState)
+                : sanitizeSceneFrame(null, worldState);
+            const shouldPreferLocalAnchoredExploration =
+              Boolean(String(sceneFrameForExploration.activePoiLabel ?? "").trim()) ||
+              Boolean(String(sceneFrameForExploration.activeInterlocutorLabel ?? "").trim());
+            const fallbackExplorationReply = shouldPreferLocalAnchoredExploration
+              ? buildPreferredSceneOnlyFallbackReply(worldState)
+              : buildExplorationReply(message, records, worldState);
             const aiExploration = await buildAiNarrativeReplyForBranch({
               worldState,
               fallbackReply: fallbackExplorationReply,
@@ -4123,7 +5076,44 @@ function createNarrationChatHandler(deps = {}) {
               stateUpdated: false
             });
           }
-          if (shouldHandleHypotheticalCommitment({ conversationMode, intent })) {
+          const situatedActType = String(situatedAct?.actType ?? "").trim();
+          const situatedTargetKind = String(situatedAct?.targetKind ?? "").trim();
+          const situatedSceneLink = String(situatedAct?.sceneLink ?? "").trim();
+          const situatedLocalResolutionReady =
+            conversationMode === "rp" &&
+            String(resolutionDecision?.mode ?? "") === "local_free" &&
+            situatedTargetKind !== "none" &&
+            (
+              routeObservationFromSituatedAct ||
+              (
+                (situatedActType === "move_near" || situatedActType === "enter") &&
+                situatedTargetKind === "location"
+              ) ||
+              (
+                situatedActType === "ask" &&
+                (
+                  situatedTargetKind === "direction" ||
+                  situatedTargetKind === "interlocutor" ||
+                  situatedTargetKind === "poi" ||
+                  situatedTargetKind === "location"
+                )
+              ) ||
+              (
+                situatedActType === "choose" &&
+                situatedTargetKind === "item"
+              ) ||
+              (
+                situatedSceneLink === "confirmation" &&
+                situatedTargetKind === "location"
+              ) ||
+              situatedActType === "greet" ||
+              situatedActType === "wait"
+            );
+          const shouldClarifyHypotheticalCommitment =
+            shouldHandleHypotheticalCommitment({ conversationMode, intent }) &&
+            !routeHypotheticalToLocalObservation &&
+            !situatedLocalResolutionReady;
+          if (shouldClarifyHypotheticalCommitment) {
             const currentWorld = loadNarrativeWorldState();
             const worldDelta = { reputationDelta: 0, localTensionDelta: 0, reason: "commitment-hypothetique" };
             let worldState = applyWorldDelta(currentWorld, worldDelta, {
@@ -4139,13 +5129,7 @@ function createNarrationChatHandler(deps = {}) {
               "Tu peux encore prendre un instant pour observer ou formuler plus nettement ce que tu veux faire.",
               "La scene peut avancer des que tu choisis un geste, une direction ou une personne precise."
             ].join("\n");
-            const fallbackClarification = addInterlocutorNote(
-              `${guidance}\n${buildDirectorNoRuntimeReply(message, intent.type, records, worldState)}`,
-              activeInterlocutor,
-              intent.type,
-              worldState,
-              message
-            );
+            const fallbackClarification = buildPreferredSceneOnlyFallbackReply(worldState, { guidance });
             const aiClarification = await buildAiNarrativeReplyForBranch({
               worldState,
               fallbackReply: fallbackClarification,
@@ -4210,6 +5194,7 @@ function createNarrationChatHandler(deps = {}) {
               activeInterlocutor,
               message
             }) ||
+            situatedLocalResolutionReady ||
             (
               conversationMode === "rp" &&
               String(situatedAct?.targetKind ?? "") === "interlocutor" &&
@@ -4233,13 +5218,7 @@ function createNarrationChatHandler(deps = {}) {
               activeInterlocutor: activeInterlocutor
             });
 
-            const fallbackInformative = addInterlocutorNote(
-              buildDirectorNoRuntimeReply(message, intent.type, records, worldState),
-              activeInterlocutor,
-              intent.type,
-              worldState,
-              message
-            );
+            const fallbackInformative = buildPreferredSceneOnlyFallbackReply(worldState);
             const aiInformative = await buildAiNarrativeReplyForBranch({
               worldState,
               fallbackReply: fallbackInformative,
@@ -4535,7 +5514,7 @@ function createNarrationChatHandler(deps = {}) {
           }
     
           if (!runtimeAllowedByDirector || !heuristicRuntimeGate || !semanticRuntimeGate) {
-            const currentWorld = loadNarrativeWorldState();
+            const currentWorld = buildSceneOnlyBaseWorld();
             const worldDelta =
               typeof computeSceneOnlyDelta === "function"
                 ? computeSceneOnlyDelta(intent)
@@ -4546,10 +5525,6 @@ function createNarrationChatHandler(deps = {}) {
               intentType: intent.type,
               transitionId: "none"
             });
-            worldState = applyCriticalMutation(worldState, {
-              characterSnapshot: characterProfile,
-              activeInterlocutor: activeInterlocutor
-            });
             const shopOfferScene = maybeBuildShopOfferReply(worldState);
             if (shopOfferScene?.worldState) {
               worldState = shopOfferScene.worldState;
@@ -4558,15 +5533,10 @@ function createNarrationChatHandler(deps = {}) {
             if (anchoredInterlocutorScene?.worldState) {
               worldState = anchoredInterlocutorScene.worldState;
             }
-            const fallbackSceneOnly = addInterlocutorNote(
+            const fallbackSceneOnly =
               shopOfferScene?.reply ||
-                anchoredInterlocutorScene?.reply ||
-                buildDirectorNoRuntimeReply(message, intent.type, records, worldState),
-              activeInterlocutor,
-              intent.type,
-              worldState,
-              message
-            );
+              anchoredInterlocutorScene?.reply ||
+              buildPreferredSceneOnlyFallbackReply(worldState);
             const aiSceneOnly = await buildAiNarrativeReplyForBranch({
               worldState,
               fallbackReply: fallbackSceneOnly,
@@ -4627,7 +5597,7 @@ function createNarrationChatHandler(deps = {}) {
             });
           }
     
-          const currentWorld = loadNarrativeWorldState();
+          const currentWorld = buildSceneOnlyBaseWorld();
           const worldDelta =
             typeof computeSceneOnlyDelta === "function"
               ? computeSceneOnlyDelta(intent)
@@ -4635,10 +5605,6 @@ function createNarrationChatHandler(deps = {}) {
           let worldState = applyWorldDelta(currentWorld, worldDelta, {
             intentType: intent.type,
             transitionId: "none"
-          });
-          worldState = applyCriticalMutation(worldState, {
-            characterSnapshot: characterProfile,
-            activeInterlocutor: activeInterlocutor
           });
           const shopOfferScene = maybeBuildShopOfferReply(worldState);
           if (shopOfferScene?.worldState) {
@@ -4648,15 +5614,10 @@ function createNarrationChatHandler(deps = {}) {
           if (anchoredInterlocutorScene?.worldState) {
             worldState = anchoredInterlocutorScene.worldState;
           }
-          const fallbackSceneOnly = addInterlocutorNote(
+          const fallbackSceneOnly =
             shopOfferScene?.reply ||
-              anchoredInterlocutorScene?.reply ||
-              buildDirectorNoRuntimeReply(message, intent.type, records, worldState),
-            activeInterlocutor,
-            intent.type,
-            worldState,
-            message
-          );
+            anchoredInterlocutorScene?.reply ||
+            buildPreferredSceneOnlyFallbackReply(worldState);
           const aiSceneOnly = await buildAiNarrativeReplyForBranch({
             worldState,
             fallbackReply: fallbackSceneOnly,
