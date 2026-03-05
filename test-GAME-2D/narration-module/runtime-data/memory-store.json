@@ -255,6 +255,96 @@
         "location_id": "archives_interior"
       },
       "updated_at_turn": "turn-ad3fd0ff-830e-46a5-a757-dca9f027d8fa"
+    },
+    "narr-pj-1-map-150f66b6": {
+      "campaign_id": "narr-pj-1-map-150f66b6",
+      "events": [],
+      "relations": [],
+      "knowledge": {
+        "player_view": [
+          {
+            "turn_id": "turn-31a27592-3f5c-44c6-9088-1479078d2ce7",
+            "text": "Tu te glisses rapidement derrière un amas de caisses dans le Quartier des Archives, tentant de te rendre invisible aux yeux des gardes qui te poursuivent. Autour de toi, l'activité du quartier bat encore son plein, avec les clercs, juristes et négociants vaquant à leurs occupations sur cette place bordée de bâtiments de pierre monumentaux et colonnades."
+          }
+        ],
+        "truth_view": []
+      },
+      "world_overrides": {
+        "location_id": "quartier_des_archives"
+      },
+      "updated_at_turn": "turn-31a27592-3f5c-44c6-9088-1479078d2ce7"
+    },
+    "narr-pj-1-map-93a3951a": {
+      "campaign_id": "narr-pj-1-map-93a3951a",
+      "events": [],
+      "relations": [],
+      "knowledge": {
+        "player_view": [
+          {
+            "turn_id": "turn-1054b541-0cf7-427b-be4d-3160b6ab20fb",
+            "text": "Vous cherchez à parler à un garde dans les Halles des Commerces, un lieu animé de Lysenthe où se croisent négociants et travailleurs du port. Autour de vous, les galeries et entrepôts bourdonnent d'activité tandis que la lumière du fin d'après-midi éclaire les façades. Il y a sûrement des gardes dans les environs, mais ils semblent vigilants et occupés."
+          }
+        ],
+        "truth_view": []
+      },
+      "world_overrides": {
+        "location_id": "halles_des_commerces"
+      },
+      "updated_at_turn": "turn-1054b541-0cf7-427b-be4d-3160b6ab20fb"
+    },
+    "narr-pj-1-map-4c70e336": {
+      "campaign_id": "narr-pj-1-map-4c70e336",
+      "events": [],
+      "relations": [],
+      "knowledge": {
+        "player_view": [
+          {
+            "turn_id": "turn-189bd091-e469-4a41-86c6-d4f9f987884c",
+            "text": "À la Halle des Commerces, en ce fin d'après-midi clair, tu explores les lieux dédiés aux échanges et aux négociations, tout en cherchant un garde. Les allées sont animées, mais aucun garde ne se distingue immédiatement à proximité. Tu peux observer ou interroger les personnes présentes pour trouver des informations plus précises."
+          }
+        ],
+        "truth_view": []
+      },
+      "world_overrides": {
+        "location_id": "halles_des_commerces"
+      },
+      "updated_at_turn": "turn-189bd091-e469-4a41-86c6-d4f9f987884c"
+    },
+    "narr-pj-1-map-b6e453e9": {
+      "campaign_id": "narr-pj-1-map-b6e453e9",
+      "events": [],
+      "relations": [],
+      "knowledge": {
+        "player_view": [
+          {
+            "turn_id": "turn-13f94818-94e2-4509-ab69-921cd97e16dc",
+            "text": "Tu apprends que Lysenthe est une cité portuaire fortifiée, un carrefour commercial important des régions côtières de Dunia, où une forte influence humaine se fait sentir. Elle est aussi la capitale du royaume d'Atryade, situé dans la région côtière d’Ylsséa, renommée pour ses paysages et sa culture. Le Quartier des Archives, où tu te trouves, est le cœur de la mémoire écrite et du commerce intérieur, organisé autour de ses archives impressionnantes et de leur grande place."
+          }
+        ],
+        "truth_view": []
+      },
+      "world_overrides": {
+        "location_id": "quartier_des_archives"
+      },
+      "updated_at_turn": "turn-13f94818-94e2-4509-ab69-921cd97e16dc"
+    },
+    "narr-pj-1-map-aaa9bc73": {
+      "campaign_id": "narr-pj-1-map-aaa9bc73",
+      "events": [],
+      "relations": [],
+      "knowledge": {
+        "player_view": [
+          {
+            "turn_id": "turn-a7fd5352-e78a-4e4b-b758-978d0b97b83c",
+            "text": "Tu apprends que Lysenthe est une cité portuaire fortifiée, principal carrefour commercial de la région côtière d'Ylsséa. Le Port des Xantars, où tu te trouves, est son front maritime principal, mélangeant quais militaires et commerciaux. Toutefois, aucune information précise n’émerge pour désigner une autorité unique dirigeant la ville à ce stade."
+          }
+        ],
+        "truth_view": []
+      },
+      "world_overrides": {
+        "location_id": "port_des_xantars"
+      },
+      "updated_at_turn": "turn-a7fd5352-e78a-4e4b-b758-978d0b97b83c"
     }
   }
 }

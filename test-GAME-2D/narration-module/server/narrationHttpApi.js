@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { createWikiLoreHelper } = require("./wikiLoreHelper");
+const { createLocalLoreHelper } = require("./localLoreHelper");
 
 function createNarrationModuleApi({
   projectRoot,
@@ -13,6 +14,7 @@ function createNarrationModuleApi({
   let narrationRuntime = null;
   let narrationRuntimeInitError = null;
   const wikiLoreHelper = createWikiLoreHelper(projectRoot);
+  const localLoreHelper = createLocalLoreHelper();
 
   function safeString(value, fallback = "") {
     return typeof value === "string" ? value : fallback;
@@ -408,21 +410,42 @@ function createNarrationModuleApi({
 
         const projected = narrationRuntime.memoryService.project(campaignId, { location_id: locationId });
         const inputContract = buildInputContract(body, projected);
+        const campaignBefore = narrationRuntime.memoryService.getCampaign(campaignId);
         const selectedLore = wikiLoreHelper.selectLore({
           intentType: body.intent_type,
           playerInput: body.player_input,
           locationId,
-          destinationId: body.destination_id,
-          limit: 6
+          destinationId: body.destination_id
         });
+        const selectedLocalLore = localLoreHelper.selectLocalLore({
+          campaignMemory: campaignBefore,
+          intentType: body.intent_type,
+          playerInput: body.player_input,
+          locationId
+        });
+        const mergedTopicIds = [];
+        const seenTopicIds = new Set();
+        for (const topicId of [...selectedLore.topic_ids, ...selectedLocalLore.topic_ids]) {
+          const normalized = String(topicId ?? "").trim();
+          if (!normalized || seenTopicIds.has(normalized)) continue;
+          seenTopicIds.add(normalized);
+          mergedTopicIds.push(normalized);
+        }
+        const mergedLoreDb = {
+          ...selectedLore.lore_db,
+          ...selectedLocalLore.lore_db
+        };
+        const mergedSelectedLore = {
+          topic_ids: mergedTopicIds,
+          lore_db: mergedLoreDb,
+          selected_entries: [...selectedLore.selected_entries, ...selectedLocalLore.selected_entries]
+        };
         const { outputContract, decisionReason } = buildPlanAndOutputContracts(
           body,
           projected,
           turnId,
-          selectedLore
+          mergedSelectedLore
         );
-
-        const campaignBefore = narrationRuntime.memoryService.getCampaign(campaignId);
         const stateBefore = {
           ...projected.effective_world_state,
           location_id: locationId,
@@ -440,7 +463,7 @@ function createNarrationModuleApi({
           inputContract,
           outputContract,
           stateBefore,
-          { loreDb: selectedLore.lore_db }
+          { loreDb: mergedLoreDb }
         );
         const campaignAfter = narrationRuntime.memoryService.getCampaign(campaignId);
         campaignAfter.events = Array.isArray(trace.state_after?.events)
@@ -475,7 +498,8 @@ function createNarrationModuleApi({
             runtime_actions: trace.runtime_actions,
             state_diff: trace.state_diff,
             projected_memory: projectedAfter,
-            selected_lore: selectedLore.selected_entries
+            selected_lore: selectedLore.selected_entries,
+            selected_local_lore: selectedLocalLore.selected_entries
           }
         };
 

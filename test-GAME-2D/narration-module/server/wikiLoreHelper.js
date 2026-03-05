@@ -75,8 +75,41 @@ function fileLooksLikeLore(filePath) {
 
 function createWikiLoreHelper(projectRoot) {
   const wikiLoreRoot = path.resolve(projectRoot, "..", "wiki", "lore");
+  const synonymsPath = path.resolve(
+    projectRoot,
+    "narration-module",
+    "runtime-data",
+    "lore-keyword-synonyms.json"
+  );
   let cachedIndex = null;
   let cachedMtime = 0;
+  let cachedSynonyms = null;
+  let cachedSynonymsMtime = 0;
+  const INTENT_BUDGETS = {
+    observe: { maxTopics: 2, maxTotalChars: 700, maxSnippetChars: 180 },
+    move_local: { maxTopics: 2, maxTotalChars: 700, maxSnippetChars: 180 },
+    ask_info: { maxTopics: 3, maxTotalChars: 1100, maxSnippetChars: 240 },
+    attempt_forbidden: { maxTopics: 4, maxTotalChars: 1400, maxSnippetChars: 260 },
+    meta_unclear: { maxTopics: 1, maxTotalChars: 400, maxSnippetChars: 160 },
+    default: { maxTopics: 2, maxTotalChars: 800, maxSnippetChars: 200 },
+  };
+  const PRIORITY_FACT_FIELDS = [
+    "type_gouvernance",
+    "siege_pouvoir",
+    "autorite_locale",
+    "proprietaire_principal",
+    "proprietaire_faction",
+    "acces",
+    "importance_strategique",
+    "niveau_securite",
+    "type_batiment",
+    "fonction_principale",
+    "villes_principales",
+    "batiments_importants",
+    "quartiers",
+    "lieux_connectes",
+    "liaisons",
+  ];
 
   function computeTreeMtime(dirPath) {
     let maxMtime = 0;
@@ -108,10 +141,11 @@ function createWikiLoreHelper(projectRoot) {
   function rebuildIndex() {
     const byTopicId = {};
     const byEntityId = {};
+    const byKeyword = {};
     const docs = [];
 
     if (!fs.existsSync(wikiLoreRoot)) {
-      cachedIndex = { byTopicId, byEntityId, docs };
+      cachedIndex = { byTopicId, byEntityId, byKeyword, docs };
       cachedMtime = 0;
       return cachedIndex;
     }
@@ -170,6 +204,9 @@ function createWikiLoreHelper(projectRoot) {
           body: parsed.body,
           snippet: buildSnippet(parsed),
           terms,
+          keywords_normalized: keywords
+            .map((item) => normalizeText(item))
+            .filter(Boolean),
         };
 
         docs.push(doc);
@@ -185,10 +222,17 @@ function createWikiLoreHelper(projectRoot) {
         if (entityId) {
           byEntityId[normalizeText(entityId)] = doc;
         }
+        for (const keyword of doc.keywords_normalized) {
+          const keywordTokens = tokenize(keyword);
+          for (const token of keywordTokens) {
+            if (!byKeyword[token]) byKeyword[token] = [];
+            byKeyword[token].push(doc);
+          }
+        }
       }
     }
 
-    cachedIndex = { byTopicId, byEntityId, docs };
+    cachedIndex = { byTopicId, byEntityId, byKeyword, docs };
     cachedMtime = computeTreeMtime(wikiLoreRoot);
     return cachedIndex;
   }
@@ -204,68 +248,281 @@ function createWikiLoreHelper(projectRoot) {
     return cachedIndex;
   }
 
-  function scoreDoc(doc, queryTerms, locationId, destinationId) {
-    let score = 0;
-    for (const term of queryTerms) {
-      if (doc.terms.has(term)) score += 2;
-      if (normalizeText(doc.entity_id) === term) score += 6;
-      if (normalizeText(doc.name).includes(term)) score += 3;
+  function getSynonymsMap() {
+    let mtime = 0;
+    try {
+      if (fs.existsSync(synonymsPath)) {
+        mtime = Number(fs.statSync(synonymsPath).mtimeMs || 0);
+      }
+    } catch {
+      mtime = 0;
+    }
+    if (cachedSynonyms && mtime === cachedSynonymsMtime) {
+      return cachedSynonyms;
     }
 
-    const normalizedPath = normalizeText(doc.relative_path);
-    const normalizedLocation = normalizeText(locationId);
-    const normalizedDestination = normalizeText(destinationId);
-    if (normalizedLocation && normalizeText(doc.entity_id) === normalizedLocation) score += 12;
-    if (normalizedDestination && normalizeText(doc.entity_id) === normalizedDestination) score += 15;
-    if (normalizedLocation && normalizedPath.includes(normalizedLocation)) score += 4;
-    if (normalizedDestination && normalizedPath.includes(normalizedDestination)) score += 5;
-    return score;
+    const map = {};
+    if (!fs.existsSync(synonymsPath)) {
+      cachedSynonyms = map;
+      cachedSynonymsMtime = mtime;
+      return cachedSynonyms;
+    }
+
+    try {
+      const raw = fs.readFileSync(synonymsPath, "utf-8");
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        cachedSynonyms = map;
+        cachedSynonymsMtime = mtime;
+        return cachedSynonyms;
+      }
+      for (const [keyRaw, valuesRaw] of Object.entries(parsed)) {
+        const key = normalizeText(keyRaw);
+        if (!key) continue;
+        const values = Array.isArray(valuesRaw) ? valuesRaw : [];
+        const normalizedValues = values
+          .map((item) => normalizeText(item))
+          .filter(Boolean);
+        map[key] = [...new Set(normalizedValues)];
+      }
+    } catch {
+      cachedSynonyms = {};
+      cachedSynonymsMtime = mtime;
+      return cachedSynonyms;
+    }
+
+    cachedSynonyms = map;
+    cachedSynonymsMtime = mtime;
+    return cachedSynonyms;
+  }
+
+  function normalizeEntityId(value) {
+    return normalizeText(String(value ?? "").trim());
+  }
+
+  function asStringArray(value) {
+    if (!Array.isArray(value)) return [];
+    return value.map((item) => String(item ?? "").trim()).filter(Boolean);
+  }
+
+  function collectLinkedEntityIds(doc) {
+    if (!doc || !doc.front_matter || typeof doc.front_matter !== "object") return [];
+    const fm = doc.front_matter;
+    const ids = new Set();
+    const directSingleFields = [
+      "ville",
+      "region",
+      "territoire",
+      "siege_pouvoir",
+      "capitale",
+      "proprietaire_principal",
+      "proprietaire_faction",
+      "autorite_locale",
+    ];
+    const directArrayFields = [
+      "lieux_connectes",
+      "quartiers",
+      "batiments_importants",
+      "villes_principales",
+      "liaisons",
+      "lieux_remarquables",
+      "factions_presentes",
+      "factions_actives",
+      "religions_principales",
+    ];
+
+    for (const key of directSingleFields) {
+      const value = String(fm[key] ?? "").trim();
+      if (!value) continue;
+      ids.add(value);
+    }
+    for (const key of directArrayFields) {
+      for (const value of asStringArray(fm[key])) {
+        ids.add(value);
+      }
+    }
+    return [...ids];
+  }
+
+  function collectExpansionDocs(index, anchors, maxDepth, maxNodes) {
+    const queue = [];
+    const seenEntityIds = new Set();
+    const docs = [];
+
+    function enqueueDoc(doc, depth) {
+      if (!doc || depth > maxDepth) return;
+      const key = normalizeEntityId(doc.entity_id);
+      if (!key || seenEntityIds.has(key)) return;
+      seenEntityIds.add(key);
+      queue.push({ doc, depth });
+    }
+
+    for (const anchor of anchors) {
+      enqueueDoc(anchor, 0);
+    }
+
+    while (queue.length > 0 && docs.length < maxNodes) {
+      const current = queue.shift();
+      const doc = current.doc;
+      const depth = current.depth;
+      docs.push(doc);
+      if (depth >= maxDepth) continue;
+      const linkedIds = collectLinkedEntityIds(doc);
+      for (const linkedIdRaw of linkedIds) {
+        const linkedDoc = index.byEntityId[normalizeEntityId(linkedIdRaw)];
+        enqueueDoc(linkedDoc, depth + 1);
+      }
+    }
+
+    return docs;
+  }
+
+  function localityScore(doc, anchorDoc) {
+    if (!doc || !anchorDoc) return 0;
+    const cityDoc = normalizeText(doc.front_matter?.ville);
+    const cityAnchor = normalizeText(anchorDoc.front_matter?.ville);
+    const regionDoc = normalizeText(doc.front_matter?.region);
+    const regionAnchor = normalizeText(anchorDoc.front_matter?.region);
+    if (cityDoc && cityAnchor && cityDoc === cityAnchor) return 3;
+    if (regionDoc && regionAnchor && regionDoc === regionAnchor) return 1;
+    return 0;
+  }
+
+  function compactSnippet(value, maxChars) {
+    const raw = String(value ?? "").trim();
+    if (!raw) return "";
+    if (raw.length <= maxChars) return raw;
+    return `${raw.slice(0, Math.max(0, maxChars - 3)).trim()}...`;
+  }
+
+  function toCompactEntry(entry, maxSnippetChars) {
+    const frontMatter =
+      entry && typeof entry.front_matter === "object" && entry.front_matter !== null
+        ? entry.front_matter
+        : {};
+    const keyFacts = {};
+    for (const field of PRIORITY_FACT_FIELDS) {
+      const value = frontMatter[field];
+      if (typeof value === "undefined" || value === null) continue;
+      if (Array.isArray(value)) {
+        const compactValues = value
+          .map((item) => String(item ?? "").trim())
+          .filter(Boolean)
+          .slice(0, 6);
+        if (compactValues.length > 0) keyFacts[field] = compactValues;
+        continue;
+      }
+      const compactValue = String(value).trim();
+      if (compactValue) keyFacts[field] = compactValue;
+    }
+
+    return {
+      topic_id: entry.topic_id,
+      entity_id: entry.entity_id,
+      type: entry.type,
+      name: entry.name,
+      relative_path: entry.relative_path,
+      snippet: compactSnippet(entry.snippet, maxSnippetChars),
+      key_facts: keyFacts,
+    };
   }
 
   function selectLore(params) {
     const index = getIndex();
+    const synonymsMap = getSynonymsMap();
     const intentType = String(params.intentType ?? "").trim();
     const locationId = String(params.locationId ?? "").trim();
     const destinationId = String(params.destinationId ?? "").trim();
     const playerInput = String(params.playerInput ?? "").trim();
-    const limit = Number.isFinite(Number(params.limit)) ? Number(params.limit) : 5;
+    const budget =
+      INTENT_BUDGETS[normalizeText(intentType)] ?? INTENT_BUDGETS.default;
+    const limit = Number.isFinite(Number(params.limit))
+      ? Number(params.limit)
+      : budget.maxTopics;
+    const maxTotalChars = Number.isFinite(Number(params.maxTotalChars))
+      ? Number(params.maxTotalChars)
+      : budget.maxTotalChars;
+    const maxSnippetChars = Number.isFinite(Number(params.maxSnippetChars))
+      ? Number(params.maxSnippetChars)
+      : budget.maxSnippetChars;
 
-    const queryTerms = new Set([
-      ...tokenize(intentType),
+    const baseQueryTerms = new Set([
       ...tokenize(playerInput),
-      ...tokenize(locationId),
-      ...tokenize(destinationId),
     ]);
-    const ranked = index.docs
-      .map((doc) => ({
-        doc,
-        score: scoreDoc(doc, queryTerms, locationId, destinationId),
-      }))
-      .filter((item) => item.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, Math.max(1, limit));
-
-    const picked = ranked.map((item) => item.doc);
-
-    if (picked.length === 0 && locationId) {
-      const locationDoc = index.byEntityId[normalizeText(locationId)];
-      if (locationDoc) picked.push(locationDoc);
+    const queryTerms = new Set([...baseQueryTerms]);
+    for (const term of baseQueryTerms) {
+      const synonyms = Array.isArray(synonymsMap[term]) ? synonymsMap[term] : [];
+      for (const synonym of synonyms) {
+        queryTerms.add(synonym);
+      }
     }
-    if (picked.length === 0 && destinationId) {
-      const destinationDoc = index.byEntityId[normalizeText(destinationId)];
-      if (destinationDoc) picked.push(destinationDoc);
+    const picked = [];
+    const seenTopicIds = new Set();
+    let charBudgetUsed = 0;
+    const locationDoc = locationId ? index.byEntityId[normalizeText(locationId)] : null;
+    const destinationDoc = destinationId ? index.byEntityId[normalizeText(destinationId)] : null;
+
+    function tryAddDoc(doc) {
+      if (!doc || seenTopicIds.has(doc.topic_id)) return;
+      if (picked.length >= Math.max(1, limit)) return;
+      const compact = toCompactEntry(doc, maxSnippetChars);
+      const estimatedSize = String(compact.name ?? "").length + String(compact.snippet ?? "").length;
+      if (picked.length > 0 && charBudgetUsed + estimatedSize > Math.max(120, maxTotalChars)) {
+        return;
+      }
+      picked.push(doc);
+      seenTopicIds.add(doc.topic_id);
+      charBudgetUsed += estimatedSize;
+    }
+
+    if (locationId) {
+      tryAddDoc(locationDoc);
+    }
+    if (destinationId) {
+      tryAddDoc(destinationDoc);
+    }
+
+    const expansionDocs = collectExpansionDocs(
+      index,
+      [locationDoc, destinationDoc].filter(Boolean),
+      normalizeText(intentType) === "ask_info" ? 2 : 1,
+      normalizeText(intentType) === "ask_info" ? 18 : 10
+    );
+    for (const expansionDoc of expansionDocs) {
+      if (picked.length >= Math.max(1, limit)) break;
+      tryAddDoc(expansionDoc);
+    }
+
+    const keywordCandidates = [];
+    for (const term of queryTerms) {
+      const docsByKeyword = Array.isArray(index.byKeyword[term]) ? index.byKeyword[term] : [];
+      for (const doc of docsByKeyword) {
+        const score = 2 + localityScore(doc, locationDoc);
+        keywordCandidates.push({ doc, score });
+      }
+    }
+    keywordCandidates.sort((a, b) => b.score - a.score);
+    for (const item of keywordCandidates) {
+      if (picked.length >= Math.max(1, limit)) break;
+      const docType = normalizeText(item.doc.type);
+      if (docType === "meta" && normalizeText(intentType) !== "meta_unclear") {
+        continue;
+      }
+      tryAddDoc(item.doc);
     }
 
     const topicIds = picked.map((doc) => doc.topic_id);
     const loreDb = {};
     for (const topicId of topicIds) {
-      loreDb[topicId] = index.byTopicId[topicId];
+      loreDb[topicId] = toCompactEntry(index.byTopicId[topicId], maxSnippetChars);
     }
 
     return {
       topic_ids: topicIds,
       lore_db: loreDb,
-      selected_entries: topicIds.map((topicId) => index.byTopicId[topicId]),
+      selected_entries: topicIds.map((topicId) =>
+        toCompactEntry(index.byTopicId[topicId], maxSnippetChars)
+      ),
     };
   }
 

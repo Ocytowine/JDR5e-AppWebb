@@ -355,6 +355,47 @@ function extractTaggedId(
   const match = source.match(regex);
   return match && match[1] ? match[1].trim() : null;
 }
+
+function parseNarrationDebugPayload(raw: string): Record<string, unknown> | null {
+  if (!raw.trim()) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+function buildLoopNextContextFromDebug(
+  debug: Record<string, unknown>
+): { context: string; goal: string; constraints: string } | null {
+  const step4 =
+    debug?.step_4_app_final_response && typeof debug.step_4_app_final_response === "object"
+      ? (debug.step_4_app_final_response as Record<string, unknown>)
+      : null;
+  if (!step4) return null;
+
+  const playerText = String(step4.player_text ?? "").trim();
+  const mjNotes = Array.isArray(step4.mj_notes)
+    ? (step4.mj_notes as unknown[]).map(item => String(item ?? "").trim()).filter(Boolean)
+    : [];
+  const hints = Array.isArray(step4.next_turn_hints)
+    ? (step4.next_turn_hints as unknown[]).map(item => String(item ?? "").trim()).filter(Boolean)
+    : [];
+  if (!playerText && hints.length === 0 && mjNotes.length === 0) return null;
+
+  const nextContext = [playerText, mjNotes[0] ? `Note MJ: ${mjNotes[0]}` : ""]
+    .filter(Boolean)
+    .join("\n");
+  const nextGoal = hints[0] ?? "";
+  const nextConstraints = "Continuer avec coherence stricte des faits runtime.";
+
+  return {
+    context: nextContext,
+    goal: nextGoal,
+    constraints: nextConstraints
+  };
+}
 import { EquipmentContextWindow } from "./ui/EquipmentContextWindow";
 import { boardThemeColor, colorToCssHex } from "./boardTheme";
 import type { InteractionCost, InteractionSpec } from "./game/map/runtime/interactions";
@@ -1230,6 +1271,33 @@ export const GameBoard: React.FC = () => {
   const [narrationRuntimeError, setNarrationRuntimeError] = useState<string | null>(null);
   const [narrationRuntimeOutputText, setNarrationRuntimeOutputText] = useState<string>("");
   const [narrationRuntimeDebug, setNarrationRuntimeDebug] = useState<string>("");
+  const [narrationLoopEnabled, setNarrationLoopEnabled] = useState<boolean>(false);
+
+  const applyNarrationLoopFromDebug = useCallback(
+    (debugObj: Record<string, unknown>) => {
+      const next = buildLoopNextContextFromDebug(debugObj);
+      if (!next) return false;
+      setNarrationContext(next.context);
+      setNarrationGoal(next.goal);
+      setNarrationConstraints(next.constraints);
+      return true;
+    },
+    []
+  );
+
+  const handleApplyNarrationLoopStep = useCallback(() => {
+    const parsed = parseNarrationDebugPayload(narrationRuntimeDebug);
+    if (!parsed) {
+      setNarrationRuntimeError("Aucun debug valide disponible pour appliquer l'etape 4.");
+      return;
+    }
+    const applied = applyNarrationLoopFromDebug(parsed);
+    if (!applied) {
+      setNarrationRuntimeError("Etape 4 incomplete: impossible de construire le contexte du tour suivant.");
+      return;
+    }
+    setNarrationRuntimeError(null);
+  }, [narrationRuntimeDebug, applyNarrationLoopFromDebug]);
 
   const handleRunNarrationTurn = useCallback(async () => {
     if (narrationProcessing) return;
@@ -1288,6 +1356,9 @@ export const GameBoard: React.FC = () => {
           2
         )
       );
+      if (narrationLoopEnabled) {
+        applyNarrationLoopFromDebug(result.debug as unknown as Record<string, unknown>);
+      }
       pushLog(
         `[narration-module] runtime=${result.decisionReason} actions=${result.actionCount} narration_ia=${result.needsNarration ? `yes(${result.narrationSource})` : "no"}`
       );
@@ -1308,7 +1379,9 @@ export const GameBoard: React.FC = () => {
     narrationSessionSeed,
     narrationContext,
     narrationGoal,
-    narrationConstraints
+    narrationConstraints,
+    narrationLoopEnabled,
+    applyNarrationLoopFromDebug
   ]);
 
   useEffect(() => {
@@ -13198,6 +13271,7 @@ function handleEndPlayerTurn() {
           narrationRuntimeError={narrationRuntimeError}
           narrationRuntimeOutputText={narrationRuntimeOutputText}
           narrationRuntimeDebug={narrationRuntimeDebug}
+          narrationLoopEnabled={narrationLoopEnabled}
           character={characterConfig}
           weaponTypes={weaponTypes}
           raceTypes={raceTypes}
@@ -13216,6 +13290,8 @@ function handleEndPlayerTurn() {
           onChangeNarrationIntentType={setNarrationIntentType}
           onChangeNarrationPlayerInput={setNarrationPlayerInput}
           onRunNarrationTurn={handleRunNarrationTurn}
+          onToggleNarrationLoopEnabled={setNarrationLoopEnabled}
+          onApplyNarrationLoopStep={handleApplyNarrationLoopStep}
           onChangeEnemyCount={setConfigEnemyCount}
           onNoEnemyTypes={() =>
             pushLog(

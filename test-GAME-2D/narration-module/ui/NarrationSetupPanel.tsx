@@ -11,12 +11,15 @@ export type NarrationSetupPanelProps = {
   narrationRuntimeError: string | null;
   narrationRuntimeOutputText: string;
   narrationRuntimeDebug: string;
+  narrationLoopEnabled: boolean;
   onChangeNarrationContext: (value: string) => void;
   onChangeNarrationGoal: (value: string) => void;
   onChangeNarrationConstraints: (value: string) => void;
   onChangeNarrationIntentType: (value: string) => void;
   onChangeNarrationPlayerInput: (value: string) => void;
   onRunNarrationTurn: () => void;
+  onToggleNarrationLoopEnabled: (enabled: boolean) => void;
+  onApplyNarrationLoopStep: () => void;
 };
 
 const CONTEXT_PRESETS: Array<{ id: string; label: string; value: string }> = [
@@ -106,6 +109,22 @@ export function NarrationSetupPanel(props: NarrationSetupPanelProps): React.JSX.
     ? (parsedDebug[selectedPacketKey] as Record<string, unknown> | null | undefined)
     : null;
   const packetJson = packet ? JSON.stringify(packet, null, 2) : "Aucun paquet disponible pour cette etape.";
+  const allStepsJson = parsedDebug
+    ? JSON.stringify(
+        {
+          step_1_app_to_runtime_request:
+            parsedDebug.step_1_app_to_runtime_request ?? null,
+          step_2_runtime_received_packet:
+            parsedDebug.step_2_runtime_received_packet ?? null,
+          step_3_runtime_to_llm_request:
+            parsedDebug.step_3_runtime_to_llm_request ?? null,
+          step_4_app_final_response:
+            parsedDebug.step_4_app_final_response ?? null
+        },
+        null,
+        2
+      )
+    : "";
 
   return (
     <>
@@ -113,12 +132,48 @@ export function NarrationSetupPanel(props: NarrationSetupPanelProps): React.JSX.
         Module narration au meme niveau que la creation personnage et la generation de carte.
         Cette configuration sera utilisee ensuite comme base du moteur narratif.
       </p>
+      <div
+        style={{
+          display: "flex",
+          gap: 10,
+          alignItems: "center",
+          flexWrap: "wrap",
+          fontSize: 12,
+          color: "#d8e4ff"
+        }}
+      >
+        <label style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={props.narrationLoopEnabled}
+            onChange={e => props.onToggleNarrationLoopEnabled(e.target.checked)}
+          />
+          Boucle narrative (auto)
+        </label>
+        <button
+          type="button"
+          onClick={props.onApplyNarrationLoopStep}
+          disabled={!parsedDebug}
+          style={{
+            padding: "5px 8px",
+            borderRadius: 6,
+            border: "1px solid rgba(255,255,255,0.2)",
+            background: "rgba(79,125,242,0.2)",
+            color: "#e7ecff",
+            fontSize: 11,
+            cursor: parsedDebug ? "pointer" : "default"
+          }}
+        >
+          Appliquer etape 4 - etape 1
+        </button>
+      </div>
 
       <label style={{ fontSize: 13, display: "flex", flexDirection: "column", gap: 6 }}>
         Contexte narratif initial :
         <select
           value=""
           onChange={e => props.onChangeNarrationContext(e.target.value)}
+          disabled={props.narrationLoopEnabled}
           style={{
             background: "#0f0f19",
             color: "#f5f5f5",
@@ -138,6 +193,7 @@ export function NarrationSetupPanel(props: NarrationSetupPanelProps): React.JSX.
         <textarea
           value={props.narrationContext}
           onChange={e => props.onChangeNarrationContext(e.target.value)}
+          disabled={props.narrationLoopEnabled}
           placeholder="Ex: Port de Lysenthe, fin d'apres-midi. Les archives sont fermees et des gardes filtrent l'entree."
           rows={4}
           style={{
@@ -159,6 +215,7 @@ export function NarrationSetupPanel(props: NarrationSetupPanelProps): React.JSX.
         <select
           value=""
           onChange={e => props.onChangeNarrationGoal(e.target.value)}
+          disabled={props.narrationLoopEnabled}
           style={{
             background: "#0f0f19",
             color: "#f5f5f5",
@@ -178,6 +235,7 @@ export function NarrationSetupPanel(props: NarrationSetupPanelProps): React.JSX.
         <textarea
           value={props.narrationGoal}
           onChange={e => props.onChangeNarrationGoal(e.target.value)}
+          disabled={props.narrationLoopEnabled}
           placeholder="Ex: Ouvrir une enquete autour du vol de document sans forcer un chemin unique."
           rows={3}
           style={{
@@ -199,6 +257,7 @@ export function NarrationSetupPanel(props: NarrationSetupPanelProps): React.JSX.
         <select
           value=""
           onChange={e => props.onChangeNarrationConstraints(e.target.value)}
+          disabled={props.narrationLoopEnabled}
           style={{
             background: "#0f0f19",
             color: "#f5f5f5",
@@ -218,6 +277,7 @@ export function NarrationSetupPanel(props: NarrationSetupPanelProps): React.JSX.
         <textarea
           value={props.narrationConstraints}
           onChange={e => props.onChangeNarrationConstraints(e.target.value)}
+          disabled={props.narrationLoopEnabled}
           placeholder="Ex: Ton sobre, revelations progressives, coherence stricte avec la verite systeme."
           rows={3}
           style={{
@@ -439,6 +499,27 @@ export function NarrationSetupPanel(props: NarrationSetupPanelProps): React.JSX.
               }}
             >
               Etape 4: Recu app
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (!allStepsJson) return;
+                if (typeof navigator !== "undefined" && navigator.clipboard) {
+                  void navigator.clipboard.writeText(allStepsJson);
+                }
+              }}
+              style={{
+                padding: "6px 8px",
+                borderRadius: 6,
+                border: "1px solid rgba(255,255,255,0.2)",
+                background: "rgba(120,180,120,0.2)",
+                color: "#e7ecff",
+                fontSize: 11,
+                cursor: allStepsJson ? "pointer" : "default"
+              }}
+              disabled={!allStepsJson}
+            >
+              Copier les 4 etapes
             </button>
           </div>
           <div

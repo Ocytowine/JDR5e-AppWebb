@@ -87,6 +87,7 @@ export function CombatSetupScreen(props: {
   narrationRuntimeError: string | null;
   narrationRuntimeOutputText: string;
   narrationRuntimeDebug: string;
+  narrationLoopEnabled: boolean;
   character: Personnage;
   weaponTypes: WeaponTypeDefinition[];
   raceTypes: RaceDefinition[];
@@ -105,6 +106,8 @@ export function CombatSetupScreen(props: {
   onChangeNarrationIntentType: (value: string) => void;
   onChangeNarrationPlayerInput: (value: string) => void;
   onRunNarrationTurn: () => void;
+  onToggleNarrationLoopEnabled: (enabled: boolean) => void;
+  onApplyNarrationLoopStep: () => void;
   onChangeEnemyCount: (value: number) => void;
   onStartCombat: () => void;
   onNoEnemyTypes: () => void;
@@ -5815,12 +5818,15 @@ export function CombatSetupScreen(props: {
               narrationRuntimeError={props.narrationRuntimeError}
               narrationRuntimeOutputText={props.narrationRuntimeOutputText}
               narrationRuntimeDebug={props.narrationRuntimeDebug}
+              narrationLoopEnabled={props.narrationLoopEnabled}
               onChangeNarrationContext={props.onChangeNarrationContext}
               onChangeNarrationGoal={props.onChangeNarrationGoal}
               onChangeNarrationConstraints={props.onChangeNarrationConstraints}
               onChangeNarrationIntentType={props.onChangeNarrationIntentType}
               onChangeNarrationPlayerInput={props.onChangeNarrationPlayerInput}
               onRunNarrationTurn={props.onRunNarrationTurn}
+              onToggleNarrationLoopEnabled={props.onToggleNarrationLoopEnabled}
+              onApplyNarrationLoopStep={props.onApplyNarrationLoopStep}
             />
           )}
 
