@@ -1,0 +1,39 @@
+---
+type: batiment
+id: archives_de_lysenthe
+nom: Archives de Lysenthe
+
+# LOCALISATION
+ville: lysenthe
+region: ylssea
+territoire: astryade
+
+# TYPE / FONCTION
+type_batiment: Archives civiles et historiques
+fonction_principale:
+  - conservation des actes et chartes
+  - copie et classement des savoirs administratifs
+importance_strategique: 87
+
+# PROPRIETE / CONTROLE
+proprietaire_faction: archivistes_de_lysenthe
+proprietaire_principal: Collegium des Archivistes
+acces: prive
+
+# DESCRIPTION RAPIDE
+etat_general: bon
+niveau_securite: 82
+rumeurs:
+  - Certaines salles ne sont ouvertes qu'aux mandats de haut rang.
+  - Des chroniques sur les grandes tempetes d'Ylssea y seraient tenues a jour.
+
+# LIENS
+lieux_connectes:
+  - quartier_des_archives
+  - place_des_archives
+
+mots_cles:
+  - archives
+  - savoir
+  - administration
+---
