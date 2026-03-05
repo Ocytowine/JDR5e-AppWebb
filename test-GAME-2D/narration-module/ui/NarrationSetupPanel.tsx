@@ -21,22 +21,34 @@ export type NarrationSetupPanelProps = {
 
 const CONTEXT_PRESETS: Array<{ id: string; label: string; value: string }> = [
   {
-    id: "village_evening",
-    label: "Place du village (soir)",
+    id: "archives_de_lysenthe",
+    label: "Archives [DB: archives_de_lysenthe]",
     value:
-      "Place du village au crepuscule. Les etals ferment, la foule baisse, des rumeurs circulent sur un vol recent."
+      "[location_id: archives_de_lysenthe] Archives de Lysenthe, acces prive et controle. Les clercs trient des chartes pendant que des gardes surveillent les salles sensibles."
   },
   {
-    id: "archives_guarded",
-    label: "Archives surveillees",
+    id: "quartier_des_archives",
+    label: "Quartier archives [DB: quartier_des_archives]",
     value:
-      "Entree des archives municipales. Deux gardes filtrent les passages et notent les visiteurs suspects."
+      "[location_id: quartier_des_archives] Quartier des Archives a Lysenthe. Place active, flux de clercs, negociants et messagers entre temples, registres et administrations."
   },
   {
-    id: "port_warehouse",
-    label: "Quais et entrepots",
+    id: "port_des_xantars",
+    label: "Port [DB: port_des_xantars]",
     value:
-      "Zone portuaire humide et bruyante. Des dockers chargent des caisses tandis que des contremaitres observent."
+      "[location_id: port_des_xantars] Port des Xantars, facade maritime de Lysenthe. Docks bruyants, controle des cargaisons et circulation dense de marins et courtiers."
+  },
+  {
+    id: "halles_des_commerces",
+    label: "Halles [DB: halles_des_commerces]",
+    value:
+      "[location_id: halles_des_commerces] Halles des Commerces de Lysenthe. Galeries, entrepots, comptoirs et negociations continues, ideal pour trouver infos et contacts."
+  },
+  {
+    id: "caserne_centrale",
+    label: "Caserne [DB: caserne_centrale]",
+    value:
+      "[location_id: caserne_centrale] Caserne centrale de Lysenthe. Discipline stricte, patrouilles frequentes et officiers attentifs aux incidents urbains."
   }
 ];
 

@@ -9,7 +9,7 @@ region: ylssea
 territoire: astryade
 
 # TYPE / FONCTION
-type_batiment: Archives civiles et historiques
+type_batiment: archives civiles et historiques
 fonction_principale:
   - conservation des actes et chartes
   - copie et classement des savoirs administratifs

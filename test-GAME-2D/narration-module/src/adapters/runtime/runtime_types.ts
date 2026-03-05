@@ -5,6 +5,7 @@ export type RuntimeAction = {
 
 export type RuntimeContext = {
   turnId: string;
+  loreDb?: Record<string, unknown>;
 };
 
 export class RuntimeExecutionError extends Error {
@@ -24,4 +25,3 @@ export type RuntimeCommandHandler = (
   params: Record<string, unknown>,
   context: RuntimeContext,
 ) => void;
-

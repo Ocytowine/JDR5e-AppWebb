@@ -1,4 +1,5 @@
 import { executeRuntimeActions } from "../../adapters/runtime/runtime_stub";
+import { RuntimeContext } from "../../adapters/runtime/runtime_types";
 import { shallowStateDiff } from "../../domain/memory/state_diff";
 import { TurnTraceLogger } from "../../infrastructure/logging/turn_trace_logger";
 import {
@@ -51,6 +52,7 @@ export class TurnProcessor {
     inputContract: Record<string, unknown>,
     outputContract: Record<string, unknown>,
     stateBefore: Record<string, unknown>,
+    runtimeContext?: Omit<RuntimeContext, "turnId">,
   ): TurnTrace {
     validateInputSchema(inputContract);
     validateOutputSchema(outputContract);
@@ -64,6 +66,7 @@ export class TurnProcessor {
     this.enforceRules(outputContract, runtimeActions, turnId);
     const stateAfter = executeRuntimeActions(stateBeforeCopy, runtimeActions, {
       turnId,
+      ...(runtimeContext ?? {}),
     });
 
     const trace: TurnTrace = {

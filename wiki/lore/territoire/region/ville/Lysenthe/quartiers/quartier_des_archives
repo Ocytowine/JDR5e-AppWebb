@@ -1,0 +1,25 @@
+---
+type: quartier
+id: quartier_des_archives
+nom: Quartier des Archives
+ville: lysenthe
+territoire: astryade
+region: ylssea
+---
+Resume : Noyau central de memoire ecrite et de commerce interieur, organise autour des Archives et de leur grande place.
+
+Cadre et architecture : Batiments de pierre monumentaux, colonnades civiles, places pavees et parvis de temples des Douze.
+
+Population et activites : Archivistes, copistes, juristes, libraires, marchands de valeur et pelerins des sanctuaires voisins.
+
+Fonctions urbaines : Conservation des actes, circulation d'information, commerce de centre-ville et reference religieuse.
+
+Lieux cles :
+- archives_de_lysenthe
+- place_des_archives
+
+Niveau de securite : eleve autour des depots documentaires, moyen sur la place.
+
+Rumeurs :
+- Certains fonds ne sont consultables qu'avec mandat de haut rang.
+- Les archives religieuses et civiles seraient recoupees pour verifier les lignages.

@@ -5,10 +5,10 @@ export type NarrationRuntimeStatus = {
 export type NarrationTurnPayload = {
   campaign_id: string;
   character_id: string;
-  player_profile?: Record<string, unknown>;
   intent_type: string;
   player_input: string;
   location_id: string;
+  destination_id?: string;
   map_prompt: string;
   narration_context: string;
   narration_goal: string;

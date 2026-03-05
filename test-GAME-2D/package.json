@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "node scripts/gen-action-catalog.js && node scripts/gen-materiel-catalog.js && node scripts/gen-class-catalog.js && npm run narration-module:build && node server.js",
+    "dev:api": "node scripts/gen-action-catalog.js && node scripts/gen-materiel-catalog.js && node scripts/gen-class-catalog.js && npm run narration-module:build && node server.js",
+    "dev:ui": "vite",
     "build": "node scripts/gen-action-catalog.js && node scripts/gen-materiel-catalog.js && node scripts/gen-class-catalog.js && npm run narration-module:build && vite build",
     "normalize:content": "node scripts/normalize-content.js",
     "gen:action-catalog": "node scripts/gen-action-catalog.js",

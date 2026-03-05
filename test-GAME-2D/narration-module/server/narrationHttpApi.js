@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const { createWikiLoreHelper } = require("./wikiLoreHelper");
 
 function createNarrationModuleApi({
   projectRoot,
@@ -11,6 +12,7 @@ function createNarrationModuleApi({
 }) {
   let narrationRuntime = null;
   let narrationRuntimeInitError = null;
+  const wikiLoreHelper = createWikiLoreHelper(projectRoot);
 
   function safeString(value, fallback = "") {
     return typeof value === "string" ? value : fallback;
@@ -123,12 +125,6 @@ function createNarrationModuleApi({
     const goal = safeString(payload.narration_goal);
     const constraints = safeString(payload.narration_constraints);
 
-    const rawProfile =
-      payload && typeof payload.player_profile === "object" && payload.player_profile !== null
-        ? payload.player_profile
-        : null;
-    const playerProfile = rawProfile ? JSON.parse(JSON.stringify(rawProfile)) : null;
-
     return {
       schema_version: "1.0.0",
       player_input: playerInput,
@@ -145,8 +141,7 @@ function createNarrationModuleApi({
       },
       actors: {
         player: {
-          character_id: safeString(payload.character_id, "setup-player"),
-          profile: playerProfile
+          character_id: safeString(payload.character_id, "setup-player")
         }
       },
       response_contract: {
@@ -156,9 +151,10 @@ function createNarrationModuleApi({
     };
   }
 
-  function buildPlanAndOutputContracts(payload, _projected, turnId) {
+  function buildPlanAndOutputContracts(payload, _projected, turnId, selectedLore) {
     const intentType = normalizeIntentType(payload.intent_type);
     const locationId = safeString(payload.location_id, "setup_zone");
+    const destinationId = safeString(payload.destination_id);
     const common = {
       schema_version: "1.0.0",
       targets: [],
@@ -170,6 +166,10 @@ function createNarrationModuleApi({
     };
 
     if (intentType === "observe") {
+      const loreTopicIds =
+        selectedLore && Array.isArray(selectedLore.topic_ids) && selectedLore.topic_ids.length > 0
+          ? selectedLore.topic_ids
+          : [locationId];
       return {
         decisionReason: "action_selected.observe",
         outputContract: {
@@ -189,7 +189,7 @@ function createNarrationModuleApi({
             need_clarification: []
           },
           targets: [locationId],
-          runtime_actions: [{ action: "queryLore", params: { topic_ids: ["scene_local", "actors_nearby"] } }],
+          runtime_actions: [{ action: "queryLore", params: { topic_ids: loreTopicIds } }],
           narrative_output: {
             player_facing_text: RUNTIME_NARRATION_PLACEHOLDER,
             mj_notes: ["Narration finale generee par l'IA amont a partir du paquet runtime."],
@@ -200,6 +200,38 @@ function createNarrationModuleApi({
     }
 
     if (intentType === "move_local") {
+      if (!destinationId) {
+        return {
+          decisionReason: "clarification_required.move_local_destination_missing",
+          outputContract: {
+            ...common,
+            intent_type: "meta_unclear",
+            intent_confidence: 0.45,
+            requires_clarification: true,
+            clarification_question:
+              "Tu veux aller ou exactement ? Donne un destination_id explicite (ex: lysenthe_inn_docks).",
+            plan: {
+              objective: "Identifier une destination de deplacement explicite",
+              approach: "Demande de clarification",
+              assumptions: [],
+              checks_needed: [],
+              resources_to_spend: [],
+              risks: [{ risk: "Deplacer le PJ vers un mauvais lieu", severity: "high" }],
+              fallbacks: [],
+              need_clarification: [
+                "destination_id manquant pour intent_type=move_local"
+              ]
+            },
+            runtime_actions: [],
+            narrative_output: {
+              player_facing_text: RUNTIME_NARRATION_PLACEHOLDER,
+              mj_notes: ["Clarification demandee: move_local sans destination explicite."],
+              hidden_truth_updates: []
+            }
+          }
+        };
+      }
+
       return {
         decisionReason: "action_selected.move_local",
         outputContract: {
@@ -210,18 +242,17 @@ function createNarrationModuleApi({
           clarification_question: null,
           plan: {
             objective: "Se deplacer vers une zone immediate",
-            approach: "Deplacement local puis entree si possible",
-            assumptions: ["Le chemin immediate est praticable"],
+            approach: "Deplacement local vers destination explicite",
+            assumptions: ["Le chemin immediate est praticable vers la destination fournie"],
             checks_needed: [],
             resources_to_spend: [{ type: "time", amount: "1-2min" }],
             risks: [{ risk: "Acces bloque", severity: "medium" }],
             fallbacks: ["Observer avant d'insister"],
             need_clarification: []
           },
-          targets: ["archives_main_door"],
+          targets: [destinationId],
           runtime_actions: [
-            { action: "moveLocal", params: { destination_id: "archives_main_door", time_cost_min: 1 } },
-            { action: "enterLocation", params: { location_id: "archives_interior" } }
+            { action: "moveLocal", params: { destination_id: destinationId, time_cost_min: 1 } }
           ],
           narrative_output: {
             player_facing_text: RUNTIME_NARRATION_PLACEHOLDER,
@@ -277,6 +308,10 @@ function createNarrationModuleApi({
     }
 
     if (intentType === "ask_info") {
+      const loreTopicIds =
+        selectedLore && Array.isArray(selectedLore.topic_ids) && selectedLore.topic_ids.length > 0
+          ? selectedLore.topic_ids
+          : [locationId];
       return {
         decisionReason: "action_selected.ask_info",
         outputContract: {
@@ -297,7 +332,7 @@ function createNarrationModuleApi({
           },
           targets: [locationId],
           runtime_actions: [
-            { action: "queryLore", params: { topic_ids: ["witnesses_nearby", "recent_rumors", "scene_local"] } }
+            { action: "queryLore", params: { topic_ids: loreTopicIds } }
           ],
           narrative_output: {
             player_facing_text: RUNTIME_NARRATION_PLACEHOLDER,
@@ -373,7 +408,19 @@ function createNarrationModuleApi({
 
         const projected = narrationRuntime.memoryService.project(campaignId, { location_id: locationId });
         const inputContract = buildInputContract(body, projected);
-        const { outputContract, decisionReason } = buildPlanAndOutputContracts(body, projected, turnId);
+        const selectedLore = wikiLoreHelper.selectLore({
+          intentType: body.intent_type,
+          playerInput: body.player_input,
+          locationId,
+          destinationId: body.destination_id,
+          limit: 6
+        });
+        const { outputContract, decisionReason } = buildPlanAndOutputContracts(
+          body,
+          projected,
+          turnId,
+          selectedLore
+        );
 
         const campaignBefore = narrationRuntime.memoryService.getCampaign(campaignId);
         const stateBefore = {
@@ -388,7 +435,13 @@ function createNarrationModuleApi({
           events: Array.isArray(campaignBefore.events) ? campaignBefore.events : []
         };
 
-        const trace = narrationRuntime.processor.processTurn(turnId, inputContract, outputContract, stateBefore);
+        const trace = narrationRuntime.processor.processTurn(
+          turnId,
+          inputContract,
+          outputContract,
+          stateBefore,
+          { loreDb: selectedLore.lore_db }
+        );
         const campaignAfter = narrationRuntime.memoryService.getCampaign(campaignId);
         campaignAfter.events = Array.isArray(trace.state_after?.events)
           ? trace.state_after.events
@@ -421,7 +474,8 @@ function createNarrationModuleApi({
           runtime_result: {
             runtime_actions: trace.runtime_actions,
             state_diff: trace.state_diff,
-            projected_memory: projectedAfter
+            projected_memory: projectedAfter,
+            selected_lore: selectedLore.selected_entries
           }
         };
 

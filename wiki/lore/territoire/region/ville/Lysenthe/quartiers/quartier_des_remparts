@@ -1,0 +1,25 @@
+---
+type: quartier
+id: quartier_des_remparts
+nom: Quartier des Remparts
+ville: lysenthe
+territoire: astryade
+region: ylssea
+---
+Resume : Ceinture defensive de Lysenthe, organisee autour des murailles, des tours et de la logistique militaire.
+
+Cadre et architecture : Bastions epais, passages de ronde couverts, depots de materiel, casernements fonctionnels.
+
+Population et activites : Garnisons, artisans d'armement, intendants, messagers militaires et personnels de maintenance.
+
+Fonctions urbaines : Defense de la ville, surveillance de la rade et coordination des interventions en cas d'alerte.
+
+Lieux cles :
+- caserne_centrale
+- tours_de_surveillance_cotieres
+
+Niveau de securite : tres eleve, controle d'acces permanent.
+
+Rumeurs :
+- Certaines tours possedent des salles de signalement reservees au commandement.
+- Des patrouilles speciales relient directement ce quartier a Pierre des Sables.

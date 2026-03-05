@@ -134,7 +134,7 @@ const addJournalEntry: RuntimeCommandHandler = (state, params) => {
   state.journal = journal;
 };
 
-const queryLore: RuntimeCommandHandler = (state, params) => {
+const queryLore: RuntimeCommandHandler = (state, params, context) => {
   const topicIds = params.topic_ids;
   if (!Array.isArray(topicIds)) {
     throw new RuntimeExecutionError(
@@ -143,9 +143,41 @@ const queryLore: RuntimeCommandHandler = (state, params) => {
       "topic_ids must be an array",
     );
   }
+  const normalizedTopicIds = topicIds
+    .map((item) => String(item ?? "").trim())
+    .filter((item) => item.length > 0);
+
+  const loreDb =
+    context && typeof context.loreDb === "object" && context.loreDb !== null
+      ? (context.loreDb as Record<string, unknown>)
+      : {};
+
+  const hits = normalizedTopicIds.map((topicId) => {
+    const loreEntry = loreDb[topicId];
+    if (typeof loreEntry === "undefined") {
+      return {
+        topic_id: topicId,
+        found: false,
+      };
+    }
+    return {
+      topic_id: topicId,
+      found: true,
+      entry: loreEntry,
+    };
+  });
+
   const queries = asArrayOfRecords(state.lore_queries);
-  queries.push({ topic_ids: topicIds });
+  queries.push({
+    topic_ids: normalizedTopicIds,
+    found_count: hits.filter((item) => item.found).length,
+  });
   state.lore_queries = queries;
+  state.lore_last_query = {
+    turn_id: context.turnId,
+    topic_ids: normalizedTopicIds,
+    hits,
+  };
 };
 
 const createNpcProfile: RuntimeCommandHandler = (state, params) => {

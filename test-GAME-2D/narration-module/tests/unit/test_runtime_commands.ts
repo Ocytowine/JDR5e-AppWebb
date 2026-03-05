@@ -66,6 +66,39 @@ function testRequestCheck(): void {
   assertTrue(checks.length === 1, "requestCheck should append one pending check");
 }
 
+function testQueryLoreUsesContextDb(): void {
+  const after = executeRuntimeActions(
+    {},
+    [
+      {
+        action: "queryLore",
+        params: { topic_ids: ["scene_local", "unknown_topic"] },
+      },
+    ],
+    {
+      turnId: "unit-0003b",
+      loreDb: {
+        scene_local: {
+          title: "Parvis des archives",
+          summary: "Deux gardes filtrent l'entree principale.",
+        },
+      },
+    },
+  );
+
+  const lastQuery =
+    after.lore_last_query && typeof after.lore_last_query === "object"
+      ? (after.lore_last_query as Record<string, unknown>)
+      : null;
+  assertTrue(lastQuery !== null, "queryLore should produce lore_last_query");
+
+  const hits = Array.isArray(lastQuery?.hits) ? (lastQuery?.hits as Array<Record<string, unknown>>) : [];
+  assertTrue(hits.length === 2, "queryLore should return two hits for two topics");
+  assertTrue(hits[0].topic_id === "scene_local", "queryLore should preserve topic order");
+  assertTrue(hits[0].found === true, "scene_local should be found in loreDb");
+  assertTrue(hits[1].found === false, "unknown_topic should be unresolved");
+}
+
 function testCreateEvent(): void {
   const after = executeRuntimeActions(
     { events: [] },
@@ -193,6 +226,7 @@ function main(): number {
   testMoveLocalAndTime();
   testSetFlagAndJournal();
   testRequestCheck();
+  testQueryLoreUsesContextDb();
   testCreateEvent();
   testEventFragmentsLifecycleCommands();
   testUnknownCommandFails();

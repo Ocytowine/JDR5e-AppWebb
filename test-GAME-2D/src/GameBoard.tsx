@@ -345,6 +345,16 @@ function buildNarrationSessionCampaignId(args: {
   const seed = sanitizeNarrationIdSegment(args.seed, "session");
   return `narr-${actor}-${map}-${seed}`;
 }
+
+function extractTaggedId(
+  text: string | null | undefined,
+  tagName: "location_id" | "destination_id"
+): string | null {
+  const source = String(text ?? "");
+  const regex = new RegExp(`\\[\\s*${tagName}\\s*:\\s*([a-zA-Z0-9_-]+)\\s*\\]`, "i");
+  const match = source.match(regex);
+  return match && match[1] ? match[1].trim() : null;
+}
 import { EquipmentContextWindow } from "./ui/EquipmentContextWindow";
 import { boardThemeColor, colorToCssHex } from "./boardTheme";
 import type { InteractionCost, InteractionSpec } from "./game/map/runtime/interactions";
@@ -1252,13 +1262,15 @@ export const GameBoard: React.FC = () => {
     setNarrationProcessing(true);
     setNarrationRuntimeError(null);
     try {
+      const contextLocationId = extractTaggedId(narrationContext, "location_id") ?? "setup_zone";
+      const destinationId = extractTaggedId(narrationPlayerInput, "destination_id");
       const payload: NarrationTurnPayload = {
         campaign_id: narrationCampaignId,
         character_id: String(activeSavedCharacter?.id ?? "setup-player"),
-        player_profile: buildNarrationPlayerProfile(activeSavedCharacter),
         intent_type: trimmedIntentType,
         player_input: trimmedInput,
-        location_id: "setup_zone",
+        location_id: contextLocationId,
+        ...(destinationId ? { destination_id: destinationId } : {}),
         map_prompt: mapPrompt,
         narration_context: narrationContext,
         narration_goal: narrationGoal,

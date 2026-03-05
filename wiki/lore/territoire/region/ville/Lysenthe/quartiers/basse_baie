@@ -1,0 +1,25 @@
+---
+type: quartier
+id: basse_baie
+nom: Basse Baie
+ville: lysenthe
+territoire: astryade
+region: ylssea
+---
+Resume : Zone active de second rang portuaire, orientee vers la reparation navale, la petite peche et les metiers de manutention.
+
+Cadre et architecture : Appontements bas, ateliers ouverts, cales seches courtes, habitat dense adosse aux voies de service.
+
+Population et activites : Ouvriers de chantier, pecheurs, calfats, charretiers et familles liees aux metiers de mer.
+
+Fonctions urbaines : Soutien technique au port principal, entretien des coques et approvisionnement quotidien de la ville.
+
+Lieux cles :
+- chantier_de_la_basse_baie
+- marche_aux_poissons
+
+Niveau de securite : moyen, forte presence de contremaitres plutot que de troupes.
+
+Rumeurs :
+- Les reparations urgentes y sont facturees hors tarifs officiels.
+- Des embarcations rapides quittent parfois la baie avant l'aube.

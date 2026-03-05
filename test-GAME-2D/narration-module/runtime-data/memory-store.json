@@ -197,6 +197,64 @@
         "location_id": "setup_zone"
       },
       "updated_at_turn": "turn-ff4a0e16-3dab-46f6-a607-4ba307ecb24c"
+    },
+    "narr-pj-1-map-0a68ee3d": {
+      "campaign_id": "narr-pj-1-map-0a68ee3d",
+      "events": [],
+      "relations": [],
+      "knowledge": {
+        "player_view": [
+          {
+            "turn_id": "turn-879118ff-dca8-4ef1-9a11-404db4b6ff06",
+            "text": "Tu es sur la place du village, qui se vide peu à peu sous un ciel clair en fin d'après-midi. Les étals ferment, la foule s'amenuise lentement. Autour de toi, quelques villageois terminent leurs activités, mais aucune auberge ne se présente immédiatement à ta vue. Il te faudra explorer un peu plus pour en trouver une où passer la nuit."
+          },
+          {
+            "turn_id": "turn-adc401bd-0bd1-49fe-a4eb-237a770809ed",
+            "text": "Tu es sur la place du village, qui se vide peu à peu sous un ciel clair en fin d'après-midi. Les étals ferment, la foule s'amenuise lentement. Autour de toi, quelques villageois terminent leurs activités, mais aucune auberge ne se présente immédiatement à ta vue. Il te faudra explorer un peu plus pour en trouver une où passer la nuit."
+          }
+        ],
+        "truth_view": []
+      },
+      "world_overrides": {
+        "location_id": "setup_zone"
+      },
+      "updated_at_turn": "turn-adc401bd-0bd1-49fe-a4eb-237a770809ed"
+    },
+    "narr-pj-1-map-7e86ea2d": {
+      "campaign_id": "narr-pj-1-map-7e86ea2d",
+      "events": [],
+      "relations": [],
+      "knowledge": {
+        "player_view": [
+          {
+            "turn_id": "turn-c7f00834-6bd3-4e91-8ebd-14f17eb7b70e",
+            "text": "Vous observez autour de vous et interrogez quelques dockers et contremaîtres présents dans la zone portuaire. Ils semblent connaître quelques rumeurs récentes, dont un document disparu et un renforcement des contrôles. Plusieurs témoins évoquent des fragments d'informations, mais rien de précis sur une auberge. La zone elle-même est un carrefour d'interactions sociales, propice à trouver plus d'indices."
+          }
+        ],
+        "truth_view": []
+      },
+      "world_overrides": {
+        "location_id": "setup_zone"
+      },
+      "updated_at_turn": "turn-c7f00834-6bd3-4e91-8ebd-14f17eb7b70e"
+    },
+    "narr-pj-1-map-8b3ea916": {
+      "campaign_id": "narr-pj-1-map-8b3ea916",
+      "events": [],
+      "relations": [],
+      "knowledge": {
+        "player_view": [
+          {
+            "turn_id": "turn-ad3fd0ff-830e-46a5-a757-dca9f027d8fa",
+            "text": "Tu quittes le marché aux poissons de Lysenthe et te diriges vers l'entrée principale des Archives. Rapidement, tu passes la porte et pénètres à l'intérieur, où l'air est plus frais et l'ambiance calme contraste avec l'agitation extérieure."
+          }
+        ],
+        "truth_view": []
+      },
+      "world_overrides": {
+        "location_id": "archives_interior"
+      },
+      "updated_at_turn": "turn-ad3fd0ff-830e-46a5-a757-dca9f027d8fa"
     }
   }
 }
