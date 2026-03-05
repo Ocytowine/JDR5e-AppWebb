@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+set -eu
+
+echo "[hook:pre-commit] narration-module contract tests..."
+npm run narration-module:test:contracts --prefix test-GAME-2D
+

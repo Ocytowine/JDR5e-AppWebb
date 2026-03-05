@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0.0",
+  "wiki": {
+    "world_state": {
+      "governance": "ducat",
+      "weather": "clear",
+      "district": "archives"
+    }
+  },
+  "campaigns": {
+    "camp-projection-01": {
+      "campaign_id": "camp-projection-01",
+      "events": [],
+      "relations": [],
+      "knowledge": {
+        "player_view": [],
+        "truth_view": []
+      },
+      "world_overrides": {
+        "governance": "player_sovereign",
+        "weather": "storm"
+      },
+      "updated_at_turn": "turn-20"
+    }
+  }
+}

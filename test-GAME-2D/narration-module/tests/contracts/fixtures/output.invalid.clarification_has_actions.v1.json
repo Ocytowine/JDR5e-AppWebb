@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0.0",
+  "intent_type": "meta_unclear",
+  "intent_confidence": 0.41,
+  "requires_clarification": true,
+  "clarification_question": "Tu veux observer ou parler ?",
+  "plan": {
+    "objective": "Lever l'ambiguite.",
+    "approach": "Demande de precision",
+    "assumptions": [],
+    "checks_needed": [],
+    "resources_to_spend": [],
+    "risks": [],
+    "fallbacks": [],
+    "need_clarification": [
+      "Action prioritaire non definie."
+    ]
+  },
+  "targets": [],
+  "runtime_actions": [
+    {
+      "action": "moveLocal",
+      "params": {
+        "destination_id": "archives_main_door",
+        "time_cost_min": 1
+      }
+    }
+  ],
+  "actor_updates": [],
+  "narrative_output": {
+    "player_facing_text": "Tu avances vers la porte.",
+    "mj_notes": [],
+    "hidden_truth_updates": []
+  },
+  "narrative_constraints": {
+    "tone": "neutral_immersive",
+    "must_reflect_runtime_result": true
+  }
+}
+

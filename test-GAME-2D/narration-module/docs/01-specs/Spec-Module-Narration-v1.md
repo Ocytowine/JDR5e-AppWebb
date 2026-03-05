@@ -27,10 +27,11 @@ Le module suit une boucle en plusieurs etapes:
 
 1. Le joueur exprime une intention.
 2. Le systeme rassemble le contexte utile.
-3. L'IA classe l'intention et propose une ou plusieurs actions runtime.
-4. Le runtime execute les actions valides.
-5. Le monde est mis a jour.
-6. L'IA produit la reponse narrative a partir du resultat reel des actions.
+3. L'IA classe l'intention et produit un plan explicite d'execution.
+4. L'IA propose une ou plusieurs actions runtime compatibles avec ce plan.
+5. Le runtime execute les actions valides.
+6. Le monde est mis a jour.
+7. L'IA produit la reponse narrative a partir du resultat reel des actions.
 
 Le point critique est le suivant: l'IA propose, mais le runtime valide et applique.
 La narration finale doit s'appuyer sur des effets de jeu reels, pas sur une simple improvisation textuelle.
@@ -421,6 +422,7 @@ Cette regle force une causalite simple:
 
 La sortie de la couche IA ne devrait pas etre un texte libre seul.
 Elle devrait renvoyer un objet interpretable par le runtime.
+Le plan doit etre genere avant toute commande.
 
 ```json
 {
@@ -428,6 +430,32 @@ Elle devrait renvoyer un objet interpretable par le runtime.
   "intent_confidence": 0.94,
   "requires_clarification": false,
   "clarification_question": null,
+  "plan": {
+    "objective": "Entrer dans les archives sans creer d'incident.",
+    "approach": "Approche sociale au point d'entree, puis progression locale si acces autorise.",
+    "assumptions": [
+      "La porte principale est l'entree legitime.",
+      "Les gardes peuvent bloquer l'acces sans autorisation."
+    ],
+    "checks_needed": [],
+    "resources_to_spend": [
+      {
+        "type": "time",
+        "amount": "1-2min"
+      }
+    ],
+    "risks": [
+      {
+        "risk": "Refus d'acces par les gardes",
+        "severity": "medium"
+      }
+    ],
+    "fallbacks": [
+      "Demander une autorisation ou une raison valable d'entrer",
+      "Observer la zone pour trouver une autre piste"
+    ],
+    "need_clarification": []
+  },
   "targets": [
     "archives_main_door"
   ],
@@ -485,6 +513,36 @@ Elle devrait renvoyer un objet interpretable par le runtime.
 }
 ```
 
+Exemple de sortie en mode clarification:
+
+```json
+{
+  "intent_type": "meta_unclear",
+  "intent_confidence": 0.41,
+  "requires_clarification": true,
+  "clarification_question": "Tu veux observer, parler aux gardes, ou tenter d'entrer immediatement ?",
+  "plan": {
+    "objective": "Comprendre l'action exacte voulue par le joueur avant action irreversible.",
+    "approach": "Demande de precision",
+    "assumptions": [],
+    "checks_needed": [],
+    "resources_to_spend": [],
+    "risks": [
+      {
+        "risk": "Executer une mauvaise action par ambiguite",
+        "severity": "high"
+      }
+    ],
+    "fallbacks": [],
+    "need_clarification": [
+      "Choisir l'action prioritaire: observer, dialoguer, ou forcer l'entree."
+    ]
+  },
+  "targets": [],
+  "runtime_actions": []
+}
+```
+
 ### Lecture de la sortie
 
 La sortie doit permettre trois usages simultanes:
@@ -500,6 +558,18 @@ Cela implique une separation explicite:
 - `narrative_output.hidden_truth_updates`: les consequences vraies mais non necessairement revelees
 - `actor_updates.visibility_updates`: les modifications de connaissance ou d'etat, acteur par acteur
 
+Le bloc `plan` est obligatoire et precede toujours les commandes runtime.
+Il sert a expliciter:
+
+- l'objectif reel vise
+- la methode retenue
+- les validations necessaires
+- les ressources engagees
+- les risques et replis
+- les besoins de clarification
+
+Le runtime doit pouvoir verifier la coherence `plan -> runtime_actions`.
+
 Ainsi, une meme scene peut:
 
 - montrer une reaction visible
@@ -507,6 +577,16 @@ Ainsi, une meme scene peut:
 - preparer une consequence future
 
 Sans confondre ce qui est dit, ce qui est su, et ce qui est vrai.
+
+### Regle plan avant commande
+
+Regles obligatoires:
+
+- Aucun `runtime_actions` irreversible si `plan.need_clarification` n'est pas vide.
+- Si `requires_clarification = true`, alors `runtime_actions` doit etre vide.
+- Une commande doit etre compatible avec `plan.approach`, `plan.checks_needed` et `plan.resources_to_spend`.
+- Si la commande ne respecte pas le plan, le runtime doit rejeter l'action (`plan_mismatch`).
+- Le plan ne peut pas creer un evenement absent de la verite systeme au temps T.
 
 ## Types d'intentions minimaux
 
@@ -551,6 +631,8 @@ Quelques regles simples peuvent cadrer la v1:
 - Si l'action est clairement impossible selon l'etat du monde, produire `rejectAction`.
 - Si l'intention est hors contexte ou ambigue, ne pas improviser: demander une precision.
 - Si l'action a un cout temporel, le temps doit etre modifie par une commande explicite.
+- Le plan doit etre construit avant les commandes et rester court, actionnable, et verifiable par le runtime.
+- Si le plan exige une clarification, seule une sortie de clarification est autorisee.
 
 ## Gestion du contexte
 
@@ -651,6 +733,7 @@ Entree:
 Attendu:
 
 - intention `move_local`
+- plan avec objectif + approche + cout temps
 - commandes `moveLocal` puis `enterLocation`
 - avancee du temps si necessaire
 - narration de transition coherente
@@ -664,6 +747,7 @@ Entree:
 Attendu:
 
 - intention `observe`
+- plan avec checks eventuels, sans action irreversible
 - pas de deplacement automatique si non necessaire
 - restitution basee sur le contexte present et les donnees disponibles
 
@@ -676,6 +760,7 @@ Entree:
 Attendu:
 
 - intention `attempt_forbidden`
+- plan explicitant risques + fallback
 - `requestCheck` ou `rejectAction` selon le contexte
 - consequences sociales ou de securite si l'action est lancee
 
@@ -688,6 +773,8 @@ Entree:
 Attendu:
 
 - `requires_clarification = true`
+- `plan.need_clarification` non vide
+- aucune commande runtime
 - aucune action irreversible executee
 
 ## Risques a eviter

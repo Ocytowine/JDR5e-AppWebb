@@ -1,0 +1,202 @@
+{
+  "schema_version": "1.0.0",
+  "wiki": {
+    "world_state": {
+      "location_id": "setup_zone",
+      "map_prompt": "",
+      "weather": "clear",
+      "time_of_day": "late_afternoon"
+    }
+  },
+  "campaigns": {
+    "setup-campaign-default": {
+      "campaign_id": "setup-campaign-default",
+      "events": [],
+      "relations": [],
+      "knowledge": {
+        "player_view": [
+          {
+            "turn_id": "turn-phase10-smoke",
+            "text": "Tu observes attentivement la scene et releves des details utiles."
+          }
+        ],
+        "truth_view": []
+      },
+      "world_overrides": {
+        "location_id": "setup_zone"
+      },
+      "updated_at_turn": "turn-phase10-smoke"
+    },
+    "narr-pj-1-map-f3b7a901": {
+      "campaign_id": "narr-pj-1-map-f3b7a901",
+      "events": [],
+      "relations": [],
+      "knowledge": {
+        "player_view": [
+          {
+            "turn_id": "turn-a453671f-7afc-463f-9394-d59f9497e17b",
+            "text": "La situation reste en suspens en attendant ta decision precise."
+          },
+          {
+            "turn_id": "turn-545c8dfd-27ac-4bdf-82e5-c3850002d888",
+            "text": "La situation reste en suspens en attendant ta decision precise."
+          }
+        ],
+        "truth_view": []
+      },
+      "world_overrides": {
+        "location_id": "setup_zone"
+      },
+      "updated_at_turn": "turn-545c8dfd-27ac-4bdf-82e5-c3850002d888"
+    },
+    "narr-smoke": {
+      "campaign_id": "narr-smoke",
+      "events": [],
+      "relations": [],
+      "knowledge": {
+        "player_view": [
+          {
+            "turn_id": "turn-68396c36-83b4-41b3-b15a-7a00163123c6",
+            "text": "La situation reste en suspens en attendant ta decision precise."
+          },
+          {
+            "turn_id": "turn-644ef09e-6cb1-438a-b0a0-6edf934f8132",
+            "text": "La situation reste en suspens en attendant ta decision precise."
+          }
+        ],
+        "truth_view": []
+      },
+      "world_overrides": {
+        "location_id": "setup_zone"
+      },
+      "updated_at_turn": "turn-644ef09e-6cb1-438a-b0a0-6edf934f8132"
+    },
+    "narr-smoke-2": {
+      "campaign_id": "narr-smoke-2",
+      "events": [],
+      "relations": [],
+      "knowledge": {
+        "player_view": [
+          {
+            "turn_id": "turn-7250811b-bd38-48ec-bfd0-abde234ef07a",
+            "text": "La situation reste en suspens en attendant ta decision precise."
+          },
+          {
+            "turn_id": "turn-db9e1f0c-e2ab-4ad5-bbdf-ca6405f4734c",
+            "text": "La situation reste en suspens en attendant ta decision precise."
+          },
+          {
+            "turn_id": "turn-0bd30722-58fb-4912-906b-b50c8bc987db",
+            "text": "Tu observes attentivement la scene et releves des details utiles."
+          },
+          {
+            "turn_id": "turn-fd1e976e-135e-4d2d-96ed-025f987e9cf5",
+            "text": "La situation reste en suspens en attendant ta decision precise."
+          },
+          {
+            "turn_id": "turn-5672ec92-9652-4d1f-bef8-3303d04765da",
+            "text": "Tu recoltes des informations aupres des personnes presentes et des rumeurs du lieu."
+          }
+        ],
+        "truth_view": []
+      },
+      "world_overrides": {
+        "location_id": "setup_zone"
+      },
+      "updated_at_turn": "turn-5672ec92-9652-4d1f-bef8-3303d04765da"
+    },
+    "narr-smoke-3": {
+      "campaign_id": "narr-smoke-3",
+      "events": [],
+      "relations": [],
+      "knowledge": {
+        "player_view": [
+          {
+            "turn_id": "turn-de1b9408-6066-4d39-83bf-df98c4834104",
+            "text": "Tu recoltes des informations aupres des personnes presentes et des rumeurs du lieu."
+          },
+          {
+            "turn_id": "turn-b7ceaae5-1723-4e9d-aac2-3aad1a38a46b",
+            "text": "La situation reste en suspens en attendant ta decision precise."
+          }
+        ],
+        "truth_view": []
+      },
+      "world_overrides": {
+        "location_id": "setup_zone"
+      },
+      "updated_at_turn": "turn-b7ceaae5-1723-4e9d-aac2-3aad1a38a46b"
+    },
+    "narr-handoff-smoke": {
+      "campaign_id": "narr-handoff-smoke",
+      "events": [],
+      "relations": [],
+      "knowledge": {
+        "player_view": [],
+        "truth_view": []
+      },
+      "world_overrides": {
+        "location_id": "setup_zone"
+      },
+      "updated_at_turn": "turn-082ff76a-b3e4-44c4-8a63-650b131003a1"
+    },
+    "narr-e2e": {
+      "campaign_id": "narr-e2e",
+      "events": [],
+      "relations": [],
+      "knowledge": {
+        "player_view": [
+          {
+            "turn_id": "turn-529f7eab-f67d-4b08-9ac2-12fc70ce0688",
+            "text": "Tu t'approches du marchand installé sur la place du village. Il semble occupé à ranger ses étals, mais tu profites d'un moment pour lui poser des questions sur le récent vol. Il te regarde un instant, réfléchissant visiblement avant de commencer à parler. \"Je n'ai pas tout vu, mais certains dissidents parlaient d'une silhouette mystérieuse rôdant près de la vieille forge la nuit dernière.\""
+          }
+        ],
+        "truth_view": []
+      },
+      "world_overrides": {
+        "location_id": "setup_zone"
+      },
+      "updated_at_turn": "turn-529f7eab-f67d-4b08-9ac2-12fc70ce0688"
+    },
+    "narr-pj-1-map-926b1ce6": {
+      "campaign_id": "narr-pj-1-map-926b1ce6",
+      "events": [],
+      "relations": [],
+      "knowledge": {
+        "player_view": [
+          {
+            "turn_id": "turn-89688fd7-7c66-4ada-b162-30bf33cf98ab",
+            "text": "La place du village est paisible en ce fin d'après-midi clair. Les étals se ferment doucement, et les derniers badauds se dispersent dans la lumière déclinante. Parmi les murmures, quelques villageois évoquent à voix basse un vol récent, mais rien de visible ne trahit encore ce trouble."
+          },
+          {
+            "turn_id": "turn-4919bf0c-34b9-4cc9-848d-5d4d4997df61",
+            "text": "Tu te trouves dans la zone portuaire animée en fin d'après-midi. Autour de toi, des dockers s'affairent à charger des caisses sous le regard des contremaîtres. L'air est clair, mais bruissant de bruits. Tu remarques plusieurs personnes à proximité qui pourraient avoir des informations. Peut-être pourrais-tu leur parler pour en apprendre davantage sur ce qui se trame dans ce port ?"
+          }
+        ],
+        "truth_view": []
+      },
+      "world_overrides": {
+        "location_id": "setup_zone"
+      },
+      "updated_at_turn": "turn-4919bf0c-34b9-4cc9-848d-5d4d4997df61"
+    },
+    "narr-e2e-analysis": {
+      "campaign_id": "narr-e2e-analysis",
+      "events": [],
+      "relations": [],
+      "knowledge": {
+        "player_view": [
+          {
+            "turn_id": "turn-ff4a0e16-3dab-46f6-a607-4ba307ecb24c",
+            "text": "Tu t'approches calmement du marchand près de la forge et l'interroges sur la silhouette aperçue plus tôt. Il semble hésiter, mais évoque vaguement avoir vu quelqu'un s'éloigner discrètement du village, sans pouvoir en dire plus pour l'instant."
+          }
+        ],
+        "truth_view": []
+      },
+      "world_overrides": {
+        "location_id": "setup_zone"
+      },
+      "updated_at_turn": "turn-ff4a0e16-3dab-46f6-a607-4ba307ecb24c"
+    }
+  }
+}

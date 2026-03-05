@@ -44,6 +44,7 @@ import { spellCatalog } from "../game/spellCatalog";
 import { loadFeatureTypesFromIndex } from "../game/featureCatalog";
 import type { FeatureDefinition } from "../game/featureTypes";
 import { getEquipmentConstraintIssues } from "../game/engine/rules/equipmentHands";
+import { NarrationSetupPanel } from "../../narration-module/ui/NarrationSetupPanel";
 
 const WEAPON_PROFICIENCY_OPTIONS: Array<{ id: string; label: string }> = [
   { id: "simple", label: "Simple" },
@@ -76,6 +77,16 @@ export function CombatSetupScreen(props: {
   gridCols: number;
   gridRows: number;
   mapPrompt: string;
+  narrationContext: string;
+  narrationGoal: string;
+  narrationConstraints: string;
+  narrationIntentType: string;
+  narrationPlayerInput: string;
+  narrationProcessing: boolean;
+  narrationCanRun: boolean;
+  narrationRuntimeError: string | null;
+  narrationRuntimeOutputText: string;
+  narrationRuntimeDebug: string;
   character: Personnage;
   weaponTypes: WeaponTypeDefinition[];
   raceTypes: RaceDefinition[];
@@ -88,11 +99,17 @@ export function CombatSetupScreen(props: {
   armorItems: ArmorItemDefinition[];
   onChangeCharacter: (next: Personnage) => void;
   onChangeMapPrompt: (value: string) => void;
+  onChangeNarrationContext: (value: string) => void;
+  onChangeNarrationGoal: (value: string) => void;
+  onChangeNarrationConstraints: (value: string) => void;
+  onChangeNarrationIntentType: (value: string) => void;
+  onChangeNarrationPlayerInput: (value: string) => void;
+  onRunNarrationTurn: () => void;
   onChangeEnemyCount: (value: number) => void;
   onStartCombat: () => void;
   onNoEnemyTypes: () => void;
 }): React.JSX.Element {
-  const [activeMainTab, setActiveMainTab] = useState<"map" | "player">("map");
+  const [activeMainTab, setActiveMainTab] = useState<"map" | "player" | "narration">("map");
   const [activePlayerTab, setActivePlayerTab] = useState<
     | "species"
     | "backgrounds"
@@ -5557,30 +5574,32 @@ export function CombatSetupScreen(props: {
           )}
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {[{ id: "map", label: "Carte" }, { id: "player", label: "Joueur" }].map(
-            tab => {
-              const isActive = activeMainTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveMainTab(tab.id as typeof activeMainTab)}
-                  style={{
-                    padding: "6px 10px",
-                    borderRadius: 6,
-                    border: `1px solid ${isActive ? "#4f7df2" : "#333"}`,
-                    background: isActive ? "rgba(79,125,242,0.2)" : "#0f0f19",
-                    color: isActive ? "#dfe8ff" : "#c9cfdd",
-                    cursor: "pointer",
-                    fontSize: 12,
-                    fontWeight: 700
-                  }}
-                >
-                  {tab.label}
-                </button>
-              );
-            }
-          )}
+          {[
+            { id: "map", label: "Carte" },
+            { id: "player", label: "Joueur" },
+            { id: "narration", label: "Narration" }
+          ].map(tab => {
+            const isActive = activeMainTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveMainTab(tab.id as typeof activeMainTab)}
+                style={{
+                  padding: "6px 10px",
+                  borderRadius: 6,
+                  border: `1px solid ${isActive ? "#4f7df2" : "#333"}`,
+                  background: isActive ? "rgba(79,125,242,0.2)" : "#0f0f19",
+                  color: isActive ? "#dfe8ff" : "#c9cfdd",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  fontWeight: 700
+                }}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
 
         <div
@@ -5782,6 +5801,27 @@ export function CombatSetupScreen(props: {
               Lancer le combat
             </button>
             </>
+          )}
+
+          {activeMainTab === "narration" && (
+            <NarrationSetupPanel
+              narrationContext={props.narrationContext}
+              narrationGoal={props.narrationGoal}
+              narrationConstraints={props.narrationConstraints}
+              narrationIntentType={props.narrationIntentType}
+              narrationPlayerInput={props.narrationPlayerInput}
+              narrationProcessing={props.narrationProcessing}
+              narrationCanRun={props.narrationCanRun}
+              narrationRuntimeError={props.narrationRuntimeError}
+              narrationRuntimeOutputText={props.narrationRuntimeOutputText}
+              narrationRuntimeDebug={props.narrationRuntimeDebug}
+              onChangeNarrationContext={props.onChangeNarrationContext}
+              onChangeNarrationGoal={props.onChangeNarrationGoal}
+              onChangeNarrationConstraints={props.onChangeNarrationConstraints}
+              onChangeNarrationIntentType={props.onChangeNarrationIntentType}
+              onChangeNarrationPlayerInput={props.onChangeNarrationPlayerInput}
+              onRunNarrationTurn={props.onRunNarrationTurn}
+            />
           )}
 
           {activeMainTab === "player" && activePlayerTab === "equip" && (

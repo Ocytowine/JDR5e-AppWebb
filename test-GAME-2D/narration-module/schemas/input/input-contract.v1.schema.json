@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "narration-module/input-contract.v1.schema.json",
+  "title": "Input Contract v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "player_input",
+    "narrative_context",
+    "world_state",
+    "actors",
+    "response_contract"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "player_input": {
+      "type": "string",
+      "minLength": 1
+    },
+    "narrative_context": {
+      "type": "object",
+      "required": [
+        "recent_scene_log",
+        "current_scene_summary",
+        "tone_markers",
+        "continuity_hooks"
+      ],
+      "properties": {
+        "recent_scene_log": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "current_scene_summary": {
+          "type": "string"
+        },
+        "tone_markers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "continuity_hooks": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "world_state": {
+      "type": "object",
+      "required": [
+        "location_id"
+      ],
+      "properties": {
+        "location_id": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "actors": {
+      "type": "object",
+      "required": [
+        "player"
+      ],
+      "properties": {
+        "player": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": true
+    },
+    "response_contract": {
+      "type": "object",
+      "required": [
+        "require_structured_output",
+        "must_preserve_continuity"
+      ],
+      "properties": {
+        "require_structured_output": {
+          "type": "boolean"
+        },
+        "must_preserve_continuity": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
+

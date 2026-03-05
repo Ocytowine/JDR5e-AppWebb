@@ -353,6 +353,32 @@ Cette section detaille l'echange 2.
   "intent_confidence": 0.96,
   "requires_clarification": false,
   "clarification_question": null,
+  "plan": {
+    "objective": "Obtenir des informations fiables sur la fermeture des archives.",
+    "approach": "Dialogue direct avec les gardes presents, sans escalation.",
+    "assumptions": [
+      "Le garde le plus age est le meilleur point d'entree conversationnel.",
+      "Les gardes peuvent livrer une version partielle des faits."
+    ],
+    "checks_needed": [],
+    "resources_to_spend": [
+      {
+        "type": "time",
+        "amount": "1-2min"
+      }
+    ],
+    "risks": [
+      {
+        "risk": "Les gardes restent evasifs ou fermes",
+        "severity": "medium"
+      }
+    ],
+    "fallbacks": [
+      "Insister avec une question plus precise sur l'heure et le lieu",
+      "Chercher un autre point d'information sur le quai est"
+    ],
+    "need_clarification": []
+  },
   "targets": [
     "guard_archives_01",
     "guard_archives_02"
@@ -450,6 +476,7 @@ Cette sortie respecte les trois couches:
 - cote joueur: une reponse immersive, sobre, partielle
 - cote MJ: des notes pour doser la revelation
 - cote systeme: des flags, une entree de journal, une ouverture de dialogue
+- plan: un objectif et une approche explicites avant execution des commandes
 
 Elle conserve aussi la continuite:
 
@@ -462,6 +489,51 @@ Enfin, elle prepare la suite:
 - le PJ est maintenant engage dans l'incident
 - la scene peut mener a une enquete
 - un futur echange peut reveler le corps, le document vole ou le temoin absent
+- le runtime peut verifier la coherence `plan -> runtime_actions`
+
+## Variante mode clarification
+
+Si l'intention joueur est trop vague, la sortie doit rester non irreversible.
+
+```json
+{
+  "intent_type": "meta_unclear",
+  "intent_confidence": 0.44,
+  "requires_clarification": true,
+  "clarification_question": "Tu veux d'abord parler aux gardes, observer le parvis, ou chercher une autre piste ?",
+  "plan": {
+    "objective": "Lever l'ambiguite avant d'engager une action.",
+    "approach": "Demande de precision",
+    "assumptions": [],
+    "checks_needed": [],
+    "resources_to_spend": [],
+    "risks": [
+      {
+        "risk": "Declencher une action non voulue par le joueur",
+        "severity": "high"
+      }
+    ],
+    "fallbacks": [],
+    "need_clarification": [
+      "Priorite d'action non determinee entre dialogue, observation et deplacement."
+    ]
+  },
+  "targets": [],
+  "runtime_actions": [],
+  "actor_updates": [],
+  "narrative_output": {
+    "player_facing_text": "Les gardes te toisent en silence, attendant de voir ce que tu fais exactement.",
+    "mj_notes": [
+      "Ne pas engager de consequence systeme tant que l'action du PJ n'est pas precisee."
+    ],
+    "hidden_truth_updates": []
+  },
+  "narrative_constraints": {
+    "tone": "neutral_immersive",
+    "must_reflect_runtime_result": true
+  }
+}
+```
 
 ## Resume
 

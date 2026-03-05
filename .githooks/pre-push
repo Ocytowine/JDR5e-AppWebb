@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+set -eu
+
+echo "[hook:pre-push] narration-module contract + integration tests..."
+npm run narration-module:test:unit --prefix test-GAME-2D
+npm run narration-module:test:contracts --prefix test-GAME-2D
+npm run narration-module:test:integration --prefix test-GAME-2D

@@ -238,6 +238,113 @@ import {
 import { spellCatalog } from "./game/spellCatalog";
 import { CharacterSheetWindow } from "./ui/CharacterSheetWindow";
 import { InteractionContextWindow } from "./ui/InteractionContextWindow";
+import {
+  fetchNarrationRuntimeStatus,
+  runNarrationPipeline,
+  type NarrationTurnPayload
+} from "../narration-module/ui/narrationRuntimeClient";
+
+function sanitizeNarrationIdSegment(value: string | null | undefined, fallback: string): string {
+  const normalized = String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return normalized || fallback;
+}
+
+const SAVED_SHEETS_KEY = "jdr5e_saved_sheets";
+const ACTIVE_SHEET_KEY = "jdr5e_active_sheet";
+
+function loadActiveSavedCharacterForNarration(): Personnage | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const activeId = window.localStorage.getItem(ACTIVE_SHEET_KEY);
+    if (!activeId) return null;
+    const raw = window.localStorage.getItem(SAVED_SHEETS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return null;
+    const entry = parsed.find(item => item && item.id === activeId);
+    return (entry?.character as Personnage) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function readAbilityScore(character: Personnage | null, key: "FOR" | "DEX" | "CON" | "INT" | "SAG" | "CHA"): number {
+  const caracs = (character as any)?.caracs ?? {};
+  const map = {
+    FOR: caracs?.force?.FOR,
+    DEX: caracs?.dexterite?.DEX,
+    CON: caracs?.constitution?.CON,
+    INT: caracs?.intelligence?.INT,
+    SAG: caracs?.sagesse?.SAG,
+    CHA: caracs?.charisme?.CHA
+  } as Record<string, unknown>;
+  const value = Number(map[key]);
+  return Number.isFinite(value) ? value : 10;
+}
+
+function computeAbilityMod(score: number): number {
+  return Math.floor((score - 10) / 2);
+}
+
+function buildNarrationPlayerProfile(character: Personnage): Record<string, unknown> {
+  const forScore = readAbilityScore(character, "FOR");
+  const dexScore = readAbilityScore(character, "DEX");
+  const conScore = readAbilityScore(character, "CON");
+  const intScore = readAbilityScore(character, "INT");
+  const sagScore = readAbilityScore(character, "SAG");
+  const chaScore = readAbilityScore(character, "CHA");
+  const mods = (character as any)?.combatStats?.mods ?? {};
+  return {
+    character_id: String(character?.id ?? "setup-player"),
+    display_name: String((character as any)?.nom?.nomcomplet ?? ""),
+    level: Number((character as any)?.niveauGlobal ?? (character as any)?.combatStats?.level ?? 1),
+    proficiency_bonus: Number((character as any)?.maitriseBonus ?? 2),
+    passive_perception: Number((character as any)?.percPassive ?? 10),
+    classes: (character as any)?.classe ?? {},
+    race_id: (character as any)?.raceId ?? null,
+    background_id: (character as any)?.backgroundId ?? null,
+    ability_scores: {
+      FOR: forScore,
+      DEX: dexScore,
+      CON: conScore,
+      INT: intScore,
+      SAG: sagScore,
+      CHA: chaScore
+    },
+    ability_mods: {
+      modFOR: Number.isFinite(Number(mods?.modFOR)) ? Number(mods.modFOR) : computeAbilityMod(forScore),
+      modDEX: Number.isFinite(Number(mods?.modDEX)) ? Number(mods.modDEX) : computeAbilityMod(dexScore),
+      modCON: Number.isFinite(Number(mods?.modCON)) ? Number(mods.modCON) : computeAbilityMod(conScore),
+      modINT: Number.isFinite(Number(mods?.modINT)) ? Number(mods.modINT) : computeAbilityMod(intScore),
+      modSAG: Number.isFinite(Number(mods?.modSAG)) ? Number(mods.modSAG) : computeAbilityMod(sagScore),
+      modCHA: Number.isFinite(Number(mods?.modCHA)) ? Number(mods.modCHA) : computeAbilityMod(chaScore)
+    },
+    skill_proficiencies: Array.isArray((character as any)?.competences)
+      ? (character as any).competences
+      : [],
+    skill_expertises: Array.isArray((character as any)?.expertises)
+      ? (character as any).expertises
+      : [],
+    saving_throw_proficiencies: Array.isArray((character as any)?.savingThrows)
+      ? (character as any).savingThrows
+      : []
+  };
+}
+
+function buildNarrationSessionCampaignId(args: {
+  characterId?: string | null;
+  mapPrompt?: string | null;
+  seed?: string | null;
+}): string {
+  const actor = sanitizeNarrationIdSegment(args.characterId, "player");
+  const map = sanitizeNarrationIdSegment(args.mapPrompt, "map");
+  const seed = sanitizeNarrationIdSegment(args.seed, "session");
+  return `narr-${actor}-${map}-${seed}`;
+}
 import { EquipmentContextWindow } from "./ui/EquipmentContextWindow";
 import { boardThemeColor, colorToCssHex } from "./boardTheme";
 import type { InteractionCost, InteractionSpec } from "./game/map/runtime/interactions";
@@ -1097,6 +1204,123 @@ export const GameBoard: React.FC = () => {
   const [isCombatConfigured, setIsCombatConfigured] = useState<boolean>(false);
   const [configEnemyCount, setConfigEnemyCount] = useState<number>(3);
   const [mapPrompt, setMapPrompt] = useState<string>("");
+  const [narrationSessionSeed, setNarrationSessionSeed] = useState<string>(() => {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID().slice(0, 8);
+    }
+    return Date.now().toString(36);
+  });
+  const [narrationContext, setNarrationContext] = useState<string>("");
+  const [narrationGoal, setNarrationGoal] = useState<string>("");
+  const [narrationConstraints, setNarrationConstraints] = useState<string>("");
+  const [narrationIntentType, setNarrationIntentType] = useState<string>("");
+  const [narrationPlayerInput, setNarrationPlayerInput] = useState<string>("");
+  const [narrationProcessing, setNarrationProcessing] = useState<boolean>(false);
+  const [narrationCanRun, setNarrationCanRun] = useState<boolean>(false);
+  const [narrationRuntimeError, setNarrationRuntimeError] = useState<string | null>(null);
+  const [narrationRuntimeOutputText, setNarrationRuntimeOutputText] = useState<string>("");
+  const [narrationRuntimeDebug, setNarrationRuntimeDebug] = useState<string>("");
+
+  const handleRunNarrationTurn = useCallback(async () => {
+    if (narrationProcessing) return;
+    if (!narrationCanRun) {
+      setNarrationRuntimeError("OPENAI_API_KEY manquante: appel narration bloque.");
+      return;
+    }
+    const trimmedInput = narrationPlayerInput.trim();
+    if (!trimmedInput) {
+      setNarrationRuntimeError("Input joueur vide.");
+      return;
+    }
+    const trimmedIntentType = narrationIntentType.trim();
+    if (!trimmedIntentType) {
+      setNarrationRuntimeError("intent_type requis (fourni normalement par l'orchestrateur IA/runtime).");
+      return;
+    }
+    const activeSavedCharacter = loadActiveSavedCharacterForNarration();
+    if (!activeSavedCharacter) {
+      setNarrationRuntimeError(
+        "Aucune fiche active sauvegardee. Sauvegarde et active une fiche personnage pour lancer la narration."
+      );
+      return;
+    }
+    const narrationCampaignId = buildNarrationSessionCampaignId({
+      characterId: activeSavedCharacter.id ?? "setup-player",
+      mapPrompt,
+      seed: narrationSessionSeed
+    });
+    setNarrationProcessing(true);
+    setNarrationRuntimeError(null);
+    try {
+      const payload: NarrationTurnPayload = {
+        campaign_id: narrationCampaignId,
+        character_id: String(activeSavedCharacter?.id ?? "setup-player"),
+        player_profile: buildNarrationPlayerProfile(activeSavedCharacter),
+        intent_type: trimmedIntentType,
+        player_input: trimmedInput,
+        location_id: "setup_zone",
+        map_prompt: mapPrompt,
+        narration_context: narrationContext,
+        narration_goal: narrationGoal,
+        narration_constraints: narrationConstraints
+      };
+      const result = await runNarrationPipeline(payload);
+      setNarrationRuntimeOutputText(
+        result.finalPlayerText ||
+          `Runtime OK - decision: ${result.decisionReason} - actions: ${result.actionCount} - narration IA requise: ${result.needsNarration ? "oui" : "non"}`
+      );
+      setNarrationRuntimeDebug(
+        JSON.stringify(
+          result.debug,
+          null,
+          2
+        )
+      );
+      pushLog(
+        `[narration-module] runtime=${result.decisionReason} actions=${result.actionCount} narration_ia=${result.needsNarration ? `yes(${result.narrationSource})` : "no"}`
+      );
+      setNarrationPlayerInput("");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Erreur inconnue narration-module";
+      setNarrationRuntimeError(message);
+    } finally {
+      setNarrationProcessing(false);
+    }
+  }, [
+    narrationCanRun,
+    narrationProcessing,
+    narrationPlayerInput,
+    narrationIntentType,
+    mapPrompt,
+    narrationSessionSeed,
+    narrationContext,
+    narrationGoal,
+    narrationConstraints
+  ]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadNarrationStatus = async () => {
+      try {
+        const status = await fetchNarrationRuntimeStatus();
+        const canRun = Boolean(status.narration_generation_enabled);
+        if (cancelled) return;
+        setNarrationCanRun(canRun);
+        if (!canRun) {
+          setNarrationRuntimeError("OPENAI_API_KEY manquante: appel narration bloque.");
+        }
+      } catch {
+        if (cancelled) return;
+        setNarrationCanRun(false);
+        setNarrationRuntimeError("Impossible de verifier la capacite narration.");
+      }
+    };
+    loadNarrationStatus();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (isCombatConfigured) return;
@@ -12952,6 +13176,16 @@ function handleEndPlayerTurn() {
           gridCols={mapGrid.cols}
           gridRows={mapGrid.rows}
           mapPrompt={mapPrompt}
+          narrationContext={narrationContext}
+          narrationGoal={narrationGoal}
+          narrationConstraints={narrationConstraints}
+          narrationIntentType={narrationIntentType}
+          narrationPlayerInput={narrationPlayerInput}
+          narrationProcessing={narrationProcessing}
+          narrationCanRun={narrationCanRun}
+          narrationRuntimeError={narrationRuntimeError}
+          narrationRuntimeOutputText={narrationRuntimeOutputText}
+          narrationRuntimeDebug={narrationRuntimeDebug}
           character={characterConfig}
           weaponTypes={weaponTypes}
           raceTypes={raceTypes}
@@ -12964,6 +13198,12 @@ function handleEndPlayerTurn() {
           armorItems={armorItems}
           onChangeCharacter={setCharacterConfig}
           onChangeMapPrompt={setMapPrompt}
+          onChangeNarrationContext={setNarrationContext}
+          onChangeNarrationGoal={setNarrationGoal}
+          onChangeNarrationConstraints={setNarrationConstraints}
+          onChangeNarrationIntentType={setNarrationIntentType}
+          onChangeNarrationPlayerInput={setNarrationPlayerInput}
+          onRunNarrationTurn={handleRunNarrationTurn}
           onChangeEnemyCount={setConfigEnemyCount}
           onNoEnemyTypes={() =>
             pushLog(

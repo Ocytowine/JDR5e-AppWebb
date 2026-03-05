@@ -13,6 +13,8 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
+const { createNarrationModuleApi } = require("./narration-module/server/narrationHttpApi");
 
 const PORT = process.env.PORT
   ? Number(process.env.PORT)
@@ -65,6 +67,8 @@ if (!OPENAI_API_KEY) {
 } else {
   console.log("[enemy-ai] Clé OpenAI détectée, appels IA activés.");
 }
+
+// Narration module API moved to narration-module/server/narrationHttpApi.js
 
 // ----------------------------------------------------
 // Helpers HTTP
@@ -273,6 +277,15 @@ async function callOpenAiJson({ model, systemPrompt, userPayload }) {
   }
 }
 
+const narrationModuleApi = createNarrationModuleApi({
+  projectRoot: __dirname,
+  openAiApiKey: OPENAI_API_KEY,
+  callOpenAiJson,
+  parseJsonBody,
+  sendJson,
+  cryptoImpl: crypto
+});
+
 // ----------------------------------------------------
 // Serveur HTTP : API + fichiers statiques (dist/)
 // ----------------------------------------------------
@@ -353,6 +366,9 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { summary: "", error: "IA non fonctionnel." });
     }
   }
+
+  const narrationHandled = await narrationModuleApi.tryHandle(req, res);
+  if (narrationHandled !== false) return;
 
   // API bulles ennemies (1-2 lignes, generees a chaque tour d'ennemi)
   if (req.method === "POST" && req.url === "/api/enemy-speech") {

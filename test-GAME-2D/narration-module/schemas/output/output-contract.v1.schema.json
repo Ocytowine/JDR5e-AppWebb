@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "narration-module/output-contract.v1.schema.json",
+  "title": "Output Contract v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "intent_type",
+    "intent_confidence",
+    "requires_clarification",
+    "clarification_question",
+    "plan",
+    "targets",
+    "runtime_actions",
+    "actor_updates",
+    "narrative_output",
+    "narrative_constraints"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "intent_type": {
+      "type": "string"
+    },
+    "intent_confidence": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "requires_clarification": {
+      "type": "boolean"
+    },
+    "clarification_question": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "plan": {
+      "type": "object",
+      "required": [
+        "objective",
+        "approach",
+        "assumptions",
+        "checks_needed",
+        "resources_to_spend",
+        "risks",
+        "fallbacks",
+        "need_clarification"
+      ],
+      "properties": {
+        "objective": {
+          "type": "string"
+        },
+        "approach": {
+          "type": "string"
+        },
+        "assumptions": {
+          "type": "array"
+        },
+        "checks_needed": {
+          "type": "array"
+        },
+        "resources_to_spend": {
+          "type": "array"
+        },
+        "risks": {
+          "type": "array"
+        },
+        "fallbacks": {
+          "type": "array"
+        },
+        "need_clarification": {
+          "type": "array"
+        }
+      },
+      "additionalProperties": false
+    },
+    "targets": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "runtime_actions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "actor_updates": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "narrative_output": {
+      "type": "object",
+      "required": [
+        "player_facing_text",
+        "mj_notes",
+        "hidden_truth_updates"
+      ],
+      "properties": {
+        "player_facing_text": {
+          "type": "string"
+        },
+        "mj_notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "hidden_truth_updates": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "narrative_constraints": {
+      "type": "object",
+      "required": [
+        "tone",
+        "must_reflect_runtime_result"
+      ],
+      "properties": {
+        "tone": {
+          "type": "string"
+        },
+        "must_reflect_runtime_result": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
+

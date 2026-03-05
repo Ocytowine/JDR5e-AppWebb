@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0.0",
+  "intent_type": "ask_info",
+  "intent_confidence": 0.8,
+  "requires_clarification": false,
+  "clarification_question": null,
+  "plan": {
+    "objective": "Poser une question.",
+    "approach": "Dialogue",
+    "assumptions": [],
+    "checks_needed": [],
+    "resources_to_spend": [],
+    "risks": [],
+    "fallbacks": [],
+    "need_clarification": []
+  },
+  "targets": [],
+  "runtime_actions": [],
+  "actor_updates": [],
+  "narrative_output": {
+    "player_facing_text": "Le garde hesite avant de repondre.",
+    "mj_notes": [],
+    "hidden_truth_updates": [],
+    "truth_view": {
+      "culprit_id": "npc-secret-01"
+    }
+  },
+  "narrative_constraints": {
+    "tone": "neutral_immersive",
+    "must_reflect_runtime_result": true
+  }
+}
+

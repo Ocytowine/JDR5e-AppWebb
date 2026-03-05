@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0.0",
+  "wiki": {
+    "world_state": {
+      "location_id": "lysenthe_port",
+      "governance": "ducat"
+    }
+  },
+  "campaigns": {
+    "camp-persist-01": {
+      "campaign_id": "camp-persist-01",
+      "events": [
+        {
+          "event_id": "evt-01",
+          "origin_trigger_id": "trigger-01",
+          "created_at_turn": "turn-10"
+        }
+      ],
+      "relations": [],
+      "knowledge": {
+        "player_view": [
+          {
+            "fact": "Deux gardes filtrent l'entree."
+          }
+        ],
+        "truth_view": []
+      },
+      "world_overrides": {
+        "governance": "player_sovereign"
+      },
+      "updated_at_turn": "turn-10"
+    }
+  }
+}

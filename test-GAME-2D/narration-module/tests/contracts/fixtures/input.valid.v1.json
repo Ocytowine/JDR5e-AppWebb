@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0.0",
+  "player_input": "Je parle au garde.",
+  "narrative_context": {
+    "recent_scene_log": [
+      "Le port est calme et les gardes surveillent l'entree."
+    ],
+    "current_scene_summary": "Le PJ est face aux gardes des archives.",
+    "tone_markers": [
+      "calme",
+      "tendu"
+    ],
+    "continuity_hooks": [
+      "brise marine",
+      "porte close"
+    ]
+  },
+  "world_state": {
+    "location_id": "archives_forecourt"
+  },
+  "actors": {
+    "player": {
+      "character_id": "pj-1"
+    }
+  },
+  "response_contract": {
+    "require_structured_output": true,
+    "must_preserve_continuity": true
+  }
+}
+
