@@ -348,7 +348,7 @@ function buildNarrationSessionCampaignId(args: {
 
 function extractTaggedId(
   text: string | null | undefined,
-  tagName: "location_id" | "destination_id"
+  tagName: "location_id" | "destination_id" | "target_actor_id"
 ): string | null {
   const source = String(text ?? "");
   const regex = new RegExp(`\\[\\s*${tagName}\\s*:\\s*([a-zA-Z0-9_-]+)\\s*\\]`, "i");
@@ -369,6 +369,14 @@ function parseNarrationDebugPayload(raw: string): Record<string, unknown> | null
 function buildLoopNextContextFromDebug(
   debug: Record<string, unknown>
 ): { context: string; goal: string; constraints: string } | null {
+  const step2 =
+    debug?.step_2_runtime_received_packet && typeof debug.step_2_runtime_received_packet === "object"
+      ? (debug.step_2_runtime_received_packet as Record<string, unknown>)
+      : null;
+  const aiHandoff =
+    debug?.ai_handoff && typeof debug.ai_handoff === "object"
+      ? (debug.ai_handoff as Record<string, unknown>)
+      : null;
   const step4 =
     debug?.step_4_app_final_response && typeof debug.step_4_app_final_response === "object"
       ? (debug.step_4_app_final_response as Record<string, unknown>)
@@ -384,7 +392,28 @@ function buildLoopNextContextFromDebug(
     : [];
   if (!playerText && hints.length === 0 && mjNotes.length === 0) return null;
 
-  const nextContext = [playerText, mjNotes[0] ? `Note MJ: ${mjNotes[0]}` : ""]
+  const inputContract =
+    aiHandoff?.input_contract && typeof aiHandoff.input_contract === "object"
+      ? (aiHandoff.input_contract as Record<string, unknown>)
+      : null;
+  const worldState =
+    inputContract?.world_state && typeof inputContract.world_state === "object"
+      ? (inputContract.world_state as Record<string, unknown>)
+      : null;
+  const locationId =
+    String(step2?.world_anchor && typeof step2.world_anchor === "object"
+      ? (step2.world_anchor as Record<string, unknown>).location_id ?? ""
+      : worldState?.location_id ?? "").trim();
+  const targetActorId = String(step2?.target_actor_id ?? "").trim();
+
+  const contextHeader = [
+    locationId ? `[location_id: ${locationId}]` : "",
+    targetActorId ? `[target_actor_id: ${targetActorId}]` : ""
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const nextContext = [contextHeader, playerText, mjNotes[0] ? `Note MJ: ${mjNotes[0]}` : ""]
     .filter(Boolean)
     .join("\n");
   const nextGoal = hints[0] ?? "";
@@ -444,6 +473,12 @@ const CORE_BASE_ACTION_IDS: string[] = [
   "ready-action"
 ];
 const WEAPON_CARRY_SLOTS = new Set(["ceinture_gauche", "ceinture_droite", "dos_gauche", "dos_droit"]);
+
+type NarrationLoopHistoryEntry = {
+  turn: number;
+  player_input: string;
+  pipeline: Record<string, unknown>;
+};
 
 type EquipmentContextMode = "draw" | "sheathe" | "drop" | "inventory" | "hand-choice";
 type EquipmentHandTarget = "main" | "offhand";
@@ -1272,6 +1307,18 @@ export const GameBoard: React.FC = () => {
   const [narrationRuntimeOutputText, setNarrationRuntimeOutputText] = useState<string>("");
   const [narrationRuntimeDebug, setNarrationRuntimeDebug] = useState<string>("");
   const [narrationLoopEnabled, setNarrationLoopEnabled] = useState<boolean>(false);
+  const [narrationLoopHistory, setNarrationLoopHistory] = useState<NarrationLoopHistoryEntry[]>([]);
+
+  const narrationLoopHistoryJson = narrationLoopHistory.length
+    ? JSON.stringify(
+        {
+          mode: "narrative_loop",
+          turns: narrationLoopHistory
+        },
+        null,
+        2
+      )
+    : "";
 
   const applyNarrationLoopFromDebug = useCallback(
     (debugObj: Record<string, unknown>) => {
@@ -1299,6 +1346,17 @@ export const GameBoard: React.FC = () => {
     setNarrationRuntimeError(null);
   }, [narrationRuntimeDebug, applyNarrationLoopFromDebug]);
 
+  const handleCopyNarrationLoopHistory = useCallback(() => {
+    if (!narrationLoopHistoryJson.trim()) return;
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      void navigator.clipboard.writeText(narrationLoopHistoryJson);
+    }
+  }, [narrationLoopHistoryJson]);
+
+  const handleResetNarrationLoopHistory = useCallback(() => {
+    setNarrationLoopHistory([]);
+  }, []);
+
   const handleRunNarrationTurn = useCallback(async () => {
     if (narrationProcessing) return;
     if (!narrationCanRun) {
@@ -1311,10 +1369,6 @@ export const GameBoard: React.FC = () => {
       return;
     }
     const trimmedIntentType = narrationIntentType.trim();
-    if (!trimmedIntentType) {
-      setNarrationRuntimeError("intent_type requis (fourni normalement par l'orchestrateur IA/runtime).");
-      return;
-    }
     const activeSavedCharacter = loadActiveSavedCharacterForNarration();
     if (!activeSavedCharacter) {
       setNarrationRuntimeError(
@@ -1332,13 +1386,15 @@ export const GameBoard: React.FC = () => {
     try {
       const contextLocationId = extractTaggedId(narrationContext, "location_id") ?? "setup_zone";
       const destinationId = extractTaggedId(narrationPlayerInput, "destination_id");
+      const targetActorId = extractTaggedId(narrationContext, "target_actor_id");
       const payload: NarrationTurnPayload = {
         campaign_id: narrationCampaignId,
         character_id: String(activeSavedCharacter?.id ?? "setup-player"),
-        intent_type: trimmedIntentType,
         player_input: trimmedInput,
         location_id: contextLocationId,
         ...(destinationId ? { destination_id: destinationId } : {}),
+        ...(targetActorId ? { target_actor_id: targetActorId } : {}),
+        ...(trimmedIntentType ? { intent_hint: trimmedIntentType } : {}),
         map_prompt: mapPrompt,
         narration_context: narrationContext,
         narration_goal: narrationGoal,
@@ -1356,6 +1412,16 @@ export const GameBoard: React.FC = () => {
           2
         )
       );
+      if (narrationLoopEnabled) {
+        setNarrationLoopHistory(prev => [
+          ...prev,
+          {
+            turn: prev.length + 1,
+            player_input: trimmedInput,
+            pipeline: JSON.parse(JSON.stringify(result.debug)) as Record<string, unknown>
+          }
+        ]);
+      }
       if (narrationLoopEnabled) {
         applyNarrationLoopFromDebug(result.debug as unknown as Record<string, unknown>);
       }
@@ -13272,6 +13338,7 @@ function handleEndPlayerTurn() {
           narrationRuntimeOutputText={narrationRuntimeOutputText}
           narrationRuntimeDebug={narrationRuntimeDebug}
           narrationLoopEnabled={narrationLoopEnabled}
+          narrationLoopHistoryJson={narrationLoopHistoryJson}
           character={characterConfig}
           weaponTypes={weaponTypes}
           raceTypes={raceTypes}
@@ -13292,6 +13359,8 @@ function handleEndPlayerTurn() {
           onRunNarrationTurn={handleRunNarrationTurn}
           onToggleNarrationLoopEnabled={setNarrationLoopEnabled}
           onApplyNarrationLoopStep={handleApplyNarrationLoopStep}
+          onCopyNarrationLoopHistory={handleCopyNarrationLoopHistory}
+          onResetNarrationLoopHistory={handleResetNarrationLoopHistory}
           onChangeEnemyCount={setConfigEnemyCount}
           onNoEnemyTypes={() =>
             pushLog(

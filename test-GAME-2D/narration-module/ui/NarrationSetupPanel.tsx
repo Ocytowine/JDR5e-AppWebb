@@ -12,6 +12,7 @@ export type NarrationSetupPanelProps = {
   narrationRuntimeOutputText: string;
   narrationRuntimeDebug: string;
   narrationLoopEnabled: boolean;
+  narrationLoopHistoryJson: string;
   onChangeNarrationContext: (value: string) => void;
   onChangeNarrationGoal: (value: string) => void;
   onChangeNarrationConstraints: (value: string) => void;
@@ -20,6 +21,8 @@ export type NarrationSetupPanelProps = {
   onRunNarrationTurn: () => void;
   onToggleNarrationLoopEnabled: (enabled: boolean) => void;
   onApplyNarrationLoopStep: () => void;
+  onCopyNarrationLoopHistory: () => void;
+  onResetNarrationLoopHistory: () => void;
 };
 
 const CONTEXT_PRESETS: Array<{ id: string; label: string; value: string }> = [
@@ -125,6 +128,22 @@ export function NarrationSetupPanel(props: NarrationSetupPanelProps): React.JSX.
         2
       )
     : "";
+  const step4Response = parsedDebug?.step_4_app_final_response as Record<string, unknown> | null | undefined;
+  const step3Request = parsedDebug?.step_3_runtime_to_llm_request as Record<string, unknown> | null | undefined;
+  const aiHandoff = step3Request?.ai_handoff as Record<string, unknown> | null | undefined;
+  const runtimeResult = aiHandoff?.runtime_result as Record<string, unknown> | null | undefined;
+  const proposalDecisions =
+    (step4Response?.proposal_update_decisions as unknown[] | undefined) ??
+    (step4Response?.profile_update_decisions as unknown[] | undefined) ??
+    [];
+  const runtimeAppliedUpdates =
+    (runtimeResult?.entity_profile_updates as unknown[] | undefined) ?? [];
+  const proposalDecisionsJson = proposalDecisions.length
+    ? JSON.stringify(proposalDecisions, null, 2)
+    : "Aucune decision de proposition disponible pour l'etape 4.";
+  const runtimeAppliedUpdatesJson = runtimeAppliedUpdates.length
+    ? JSON.stringify(runtimeAppliedUpdates, null, 2)
+    : "Aucune mise a jour runtime appliquee sur le tour courant.";
 
   return (
     <>
@@ -166,7 +185,54 @@ export function NarrationSetupPanel(props: NarrationSetupPanelProps): React.JSX.
         >
           Appliquer etape 4 - etape 1
         </button>
+        <button
+          type="button"
+          onClick={props.onCopyNarrationLoopHistory}
+          disabled={!props.narrationLoopHistoryJson.trim()}
+          style={{
+            padding: "5px 8px",
+            borderRadius: 6,
+            border: "1px solid rgba(255,255,255,0.2)",
+            background: "rgba(120,180,120,0.2)",
+            color: "#e7ecff",
+            fontSize: 11,
+            cursor: props.narrationLoopHistoryJson.trim() ? "pointer" : "default"
+          }}
+        >
+          Copier memoire boucle
+        </button>
+        <button
+          type="button"
+          onClick={props.onResetNarrationLoopHistory}
+          disabled={!props.narrationLoopHistoryJson.trim()}
+          style={{
+            padding: "5px 8px",
+            borderRadius: 6,
+            border: "1px solid rgba(255,255,255,0.2)",
+            background: "rgba(180,120,120,0.2)",
+            color: "#e7ecff",
+            fontSize: 11,
+            cursor: props.narrationLoopHistoryJson.trim() ? "pointer" : "default"
+          }}
+        >
+          Reset memoire boucle
+        </button>
       </div>
+      {props.narrationLoopHistoryJson.trim() && (
+        <div
+          style={{
+            marginTop: 4,
+            fontSize: 11,
+            color: "#9fb0c9",
+            padding: "8px 10px",
+            borderRadius: 6,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(255,255,255,0.04)"
+          }}
+        >
+          Memoire boucle disponible. Le JSON contient chaque tour avec `player_input` et le pipeline complet des 4 etapes.
+        </div>
+      )}
 
       <label style={{ fontSize: 13, display: "flex", flexDirection: "column", gap: 6 }}>
         Contexte narratif initial :
@@ -310,7 +376,7 @@ export function NarrationSetupPanel(props: NarrationSetupPanelProps): React.JSX.
       </div>
 
       <label style={{ fontSize: 13, display: "flex", flexDirection: "column", gap: 6 }}>
-        Intent type (fourni normalement par l'orchestrateur IA/runtime) :
+        Intent override (debug optionnel, l'etape 2 vient normalement de l'IA) :
         <select
           value={props.narrationIntentType}
           onChange={e => props.onChangeNarrationIntentType(e.target.value)}
@@ -323,8 +389,9 @@ export function NarrationSetupPanel(props: NarrationSetupPanelProps): React.JSX.
             fontSize: 12
           }}
         >
-          <option value="">-- selectionner intent_type --</option>
+          <option value="">-- aucun override, laisser l'IA classifier --</option>
           <option value="observe">observe</option>
+          <option value="talk">talk</option>
           <option value="move_local">move_local</option>
           <option value="ask_info">ask_info</option>
           <option value="attempt_forbidden">attempt_forbidden</option>
@@ -521,6 +588,82 @@ export function NarrationSetupPanel(props: NarrationSetupPanelProps): React.JSX.
             >
               Copier les 4 etapes
             </button>
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+              gap: 8
+            }}
+          >
+            <div
+              style={{
+                border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: 8,
+                background: "rgba(6,8,14,0.75)",
+                overflow: "hidden"
+              }}
+            >
+              <div
+                style={{
+                  padding: "6px 8px",
+                  borderBottom: "1px solid rgba(255,255,255,0.1)",
+                  fontSize: 11,
+                  color: "#d8e4ff",
+                  fontWeight: 700
+                }}
+              >
+                Decision proposition etape 4
+              </div>
+              <pre
+                style={{
+                  margin: 0,
+                  padding: "8px 10px",
+                  whiteSpace: "pre-wrap",
+                  maxHeight: 180,
+                  overflow: "auto",
+                  fontSize: 11,
+                  lineHeight: 1.35,
+                  color: "#cdd8f3"
+                }}
+              >
+                {proposalDecisionsJson}
+              </pre>
+            </div>
+            <div
+              style={{
+                border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: 8,
+                background: "rgba(6,8,14,0.75)",
+                overflow: "hidden"
+              }}
+            >
+              <div
+                style={{
+                  padding: "6px 8px",
+                  borderBottom: "1px solid rgba(255,255,255,0.1)",
+                  fontSize: 11,
+                  color: "#d8e4ff",
+                  fontWeight: 700
+                }}
+              >
+                Mise a jour runtime appliquee tour suivant
+              </div>
+              <pre
+                style={{
+                  margin: 0,
+                  padding: "8px 10px",
+                  whiteSpace: "pre-wrap",
+                  maxHeight: 180,
+                  overflow: "auto",
+                  fontSize: 11,
+                  lineHeight: 1.35,
+                  color: "#cdd8f3"
+                }}
+              >
+                {runtimeAppliedUpdatesJson}
+              </pre>
+            </div>
           </div>
           <div
             style={{

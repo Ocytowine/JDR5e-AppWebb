@@ -96,6 +96,38 @@
         "type": "object"
       }
     },
+    "ask_info_resolution": {
+      "type": "object",
+      "required": [
+        "answer_state",
+        "answer_text",
+        "lead_text"
+      ],
+      "properties": {
+        "answer_state": {
+          "type": "string",
+          "enum": [
+            "known",
+            "partial",
+            "unknown_but_lead",
+            "unknown"
+          ]
+        },
+        "answer_text": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "lead_text": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
     "narrative_output": {
       "type": "object",
       "required": [
@@ -141,4 +173,3 @@
   },
   "additionalProperties": false
 }
-

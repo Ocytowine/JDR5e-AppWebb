@@ -2,287 +2,577 @@
   "schema_version": "1.0.0",
   "wiki": {
     "world_state": {
-      "location_id": "setup_zone",
+      "location_id": "halles_des_commerces",
       "map_prompt": "",
       "weather": "clear",
       "time_of_day": "late_afternoon"
     }
   },
   "campaigns": {
-    "setup-campaign-default": {
-      "campaign_id": "setup-campaign-default",
+    "narr-pj-1-map-cdf77eb1": {
+      "campaign_id": "narr-pj-1-map-cdf77eb1",
       "events": [],
       "relations": [],
       "knowledge": {
         "player_view": [
           {
-            "turn_id": "turn-phase10-smoke",
-            "text": "Tu observes attentivement la scene et releves des details utiles."
+            "turn_id": "turn-43f5507e-280b-4cd6-9bb5-5e17f5a3fcd4",
+            "text": "Tu t’approches d’un marchand dans les Halles des Commerces, un lieu animé et stratégique pour le commerce de Lysenthe. Le marchand, qui te regarde sans hostilité, est disponible pour commencer une conversation."
+          },
+          {
+            "turn_id": "turn-9e96d0a2-7b40-450d-8359-eb66c407e679",
+            "text": "Tu t'adresses au marchand dans les Halles des Commerces, lui expliquant que tu cherches du travail. Il t'écoute attentivement, prêt à engager la conversation."
           }
         ],
         "truth_view": []
       },
       "world_overrides": {
-        "location_id": "setup_zone"
+        "location_id": "halles_des_commerces"
       },
-      "updated_at_turn": "turn-phase10-smoke"
-    },
-    "narr-pj-1-map-f3b7a901": {
-      "campaign_id": "narr-pj-1-map-f3b7a901",
-      "events": [],
-      "relations": [],
-      "knowledge": {
-        "player_view": [
-          {
-            "turn_id": "turn-a453671f-7afc-463f-9394-d59f9497e17b",
-            "text": "La situation reste en suspens en attendant ta decision precise."
-          },
-          {
-            "turn_id": "turn-545c8dfd-27ac-4bdf-82e5-c3850002d888",
-            "text": "La situation reste en suspens en attendant ta decision precise."
+      "entity_registry": {
+        "actors": {
+          "npc_marchand_01": {
+            "entity_id": "npc_marchand_01",
+            "entity_type": "actor",
+            "subtype": "pnj",
+            "display_name": "marchand",
+            "status": "active",
+            "scope": "situational",
+            "created_at_turn": "turn-43f5507e-280b-4cd6-9bb5-5e17f5a3fcd4",
+            "updated_at_turn": "turn-9e96d0a2-7b40-450d-8359-eb66c407e679",
+            "last_seen_turn": "turn-9e96d0a2-7b40-450d-8359-eb66c407e679",
+            "location_id": "halles_des_commerces",
+            "source": {
+              "created_by": "runtime",
+              "reason": "talk_target_resolution"
+            },
+            "visibility": {
+              "player_known": true,
+              "truth_known": true
+            },
+            "links": {
+              "event_ids": [],
+              "related_entity_ids": [],
+              "faction_ids": []
+            },
+            "payload": {
+              "profile_state": "pending_enrichment",
+              "pending_enrichment": {
+                "entity_id": "npc_marchand_01",
+                "proposal_type": "actor_profile_enrichment",
+                "confidence": 0.1,
+                "based_on": [
+                  "observed comportment neutre et disponibilité pour dialogue initial",
+                  "localisation dans un centre commercial de grande importance stratégique"
+                ],
+                "proposed_patch": {
+                  "payload": {
+                    "identity": {
+                      "role": "marchand",
+                      "species": "human",
+                      "gender_presentation": "masculine"
+                    },
+                    "appearance": {
+                      "clothing": [
+                        "simple merchant attire"
+                      ],
+                      "notable_details": [
+                        "keeps a ledger and scales at hand"
+                      ]
+                    },
+                    "social": {
+                      "authority_level": "low",
+                      "disposition_to_player": "neutral",
+                      "interaction_state": "available"
+                    }
+                  }
+                }
+              },
+              "identity": {
+                "known_name": null,
+                "role": "marchand",
+                "species": "human",
+                "gender_presentation": "masculine"
+              },
+              "appearance": {
+                "physical_traits": [],
+                "clothing": [
+                  "simple merchant attire"
+                ],
+                "visible_equipment": [],
+                "notable_details": [
+                  "keeps a ledger and scales at hand"
+                ]
+              },
+              "stats": {
+                "FOR": 10,
+                "DEX": 10,
+                "CON": 10,
+                "INT": 10,
+                "SAG": 10,
+                "CHA": 10
+              },
+              "social": {
+                "temperament": "neutral",
+                "social_traits": [],
+                "authority_level": "low",
+                "disposition_to_player": "neutral",
+                "interaction_state": "available"
+              },
+              "world": {
+                "faction_id": null,
+                "duty_state": "unknown",
+                "location_precision": "halles_des_commerces"
+              }
+            },
+            "lifecycle_policy": {
+              "ttl_turns": 8,
+              "promote_if_linked_to_event": true,
+              "archive_when_inactive": true
+            },
+            "lifecycle_history": []
           }
-        ],
-        "truth_view": []
-      },
-      "world_overrides": {
-        "location_id": "setup_zone"
-      },
-      "updated_at_turn": "turn-545c8dfd-27ac-4bdf-82e5-c3850002d888"
-    },
-    "narr-smoke": {
-      "campaign_id": "narr-smoke",
-      "events": [],
-      "relations": [],
-      "knowledge": {
-        "player_view": [
-          {
-            "turn_id": "turn-68396c36-83b4-41b3-b15a-7a00163123c6",
-            "text": "La situation reste en suspens en attendant ta decision precise."
+        },
+        "locations": {},
+        "objects": {},
+        "indexes": {
+          "by_type": {
+            "actor": [
+              "npc_marchand_01"
+            ]
           },
-          {
-            "turn_id": "turn-644ef09e-6cb1-438a-b0a0-6edf934f8132",
-            "text": "La situation reste en suspens en attendant ta decision precise."
+          "by_location_id": {
+            "halles_des_commerces": [
+              "npc_marchand_01"
+            ]
+          },
+          "by_event_id": {},
+          "by_scope": {
+            "situational": [
+              "npc_marchand_01"
+            ]
+          },
+          "by_status": {
+            "active": [
+              "npc_marchand_01"
+            ]
           }
-        ],
-        "truth_view": []
+        }
       },
-      "world_overrides": {
-        "location_id": "setup_zone"
-      },
-      "updated_at_turn": "turn-644ef09e-6cb1-438a-b0a0-6edf934f8132"
+      "updated_at_turn": "turn-9e96d0a2-7b40-450d-8359-eb66c407e679"
     },
-    "narr-smoke-2": {
-      "campaign_id": "narr-smoke-2",
-      "events": [],
-      "relations": [],
-      "knowledge": {
-        "player_view": [
-          {
-            "turn_id": "turn-7250811b-bd38-48ec-bfd0-abde234ef07a",
-            "text": "La situation reste en suspens en attendant ta decision precise."
-          },
-          {
-            "turn_id": "turn-db9e1f0c-e2ab-4ad5-bbdf-ca6405f4734c",
-            "text": "La situation reste en suspens en attendant ta decision precise."
-          },
-          {
-            "turn_id": "turn-0bd30722-58fb-4912-906b-b50c8bc987db",
-            "text": "Tu observes attentivement la scene et releves des details utiles."
-          },
-          {
-            "turn_id": "turn-fd1e976e-135e-4d2d-96ed-025f987e9cf5",
-            "text": "La situation reste en suspens en attendant ta decision precise."
-          },
-          {
-            "turn_id": "turn-5672ec92-9652-4d1f-bef8-3303d04765da",
-            "text": "Tu recoltes des informations aupres des personnes presentes et des rumeurs du lieu."
-          }
-        ],
-        "truth_view": []
+    "narr-pj-1-map-b71d27be": {
+      "campaign_id": "narr-pj-1-map-b71d27be",
+      "clock": {
+        "turn_index": 1
       },
-      "world_overrides": {
-        "location_id": "setup_zone"
-      },
-      "updated_at_turn": "turn-5672ec92-9652-4d1f-bef8-3303d04765da"
-    },
-    "narr-smoke-3": {
-      "campaign_id": "narr-smoke-3",
-      "events": [],
-      "relations": [],
-      "knowledge": {
-        "player_view": [
-          {
-            "turn_id": "turn-de1b9408-6066-4d39-83bf-df98c4834104",
-            "text": "Tu recoltes des informations aupres des personnes presentes et des rumeurs du lieu."
-          },
-          {
-            "turn_id": "turn-b7ceaae5-1723-4e9d-aac2-3aad1a38a46b",
-            "text": "La situation reste en suspens en attendant ta decision precise."
-          }
-        ],
-        "truth_view": []
-      },
-      "world_overrides": {
-        "location_id": "setup_zone"
-      },
-      "updated_at_turn": "turn-b7ceaae5-1723-4e9d-aac2-3aad1a38a46b"
-    },
-    "narr-handoff-smoke": {
-      "campaign_id": "narr-handoff-smoke",
       "events": [],
       "relations": [],
       "knowledge": {
         "player_view": [],
         "truth_view": []
       },
-      "world_overrides": {
-        "location_id": "setup_zone"
-      },
-      "updated_at_turn": "turn-082ff76a-b3e4-44c4-8a63-650b131003a1"
-    },
-    "narr-e2e": {
-      "campaign_id": "narr-e2e",
-      "events": [],
-      "relations": [],
-      "knowledge": {
-        "player_view": [
-          {
-            "turn_id": "turn-529f7eab-f67d-4b08-9ac2-12fc70ce0688",
-            "text": "Tu t'approches du marchand installé sur la place du village. Il semble occupé à ranger ses étals, mais tu profites d'un moment pour lui poser des questions sur le récent vol. Il te regarde un instant, réfléchissant visiblement avant de commencer à parler. \"Je n'ai pas tout vu, mais certains dissidents parlaient d'une silhouette mystérieuse rôdant près de la vieille forge la nuit dernière.\""
+      "world_overrides": {},
+      "entity_registry": {
+        "actors": {},
+        "locations": {
+          "archives_de_lysenthe": {
+            "entity_id": "archives_de_lysenthe",
+            "entity_type": "location",
+            "subtype": "archives civiles et historiques",
+            "display_name": "Archives de Lysenthe",
+            "memory_state": "active",
+            "status": "active",
+            "scope": "situational",
+            "created_at_turn": "turn-d13959fd-f455-47c4-bc6e-4086a8656c5f",
+            "updated_at_turn": "turn-d13959fd-f455-47c4-bc6e-4086a8656c5f",
+            "last_seen_turn": "turn-d13959fd-f455-47c4-bc6e-4086a8656c5f",
+            "location_id": "archives_de_lysenthe",
+            "source": {
+              "created_by": "runtime",
+              "reason": "location_runtime_state"
+            },
+            "visibility": {
+              "player_known": true,
+              "truth_known": true
+            },
+            "links": {
+              "event_ids": [],
+              "related_entity_ids": [],
+              "faction_ids": []
+            },
+            "payload": {
+              "visible_actors": [],
+              "active_points_of_interest": [
+                "conservation des actes et chartes",
+                "copie et classement des savoirs administratifs"
+              ],
+              "connected_locations": [
+                "quartier_des_archives",
+                "place_des_archives"
+              ]
+            },
+            "lifecycle_policy": {
+              "archive_when_inactive": true
+            },
+            "lifecycle_history": [],
+            "first_seen_turn_index": 1,
+            "last_seen_turn_index": 1
           }
-        ],
-        "truth_view": []
+        },
+        "objects": {},
+        "indexes": {
+          "by_type": {
+            "location": [
+              "archives_de_lysenthe"
+            ]
+          },
+          "by_memory_state": {
+            "active": [
+              "archives_de_lysenthe"
+            ]
+          },
+          "by_location_id": {
+            "archives_de_lysenthe": [
+              "archives_de_lysenthe"
+            ]
+          },
+          "by_event_id": {},
+          "by_scope": {
+            "situational": [
+              "archives_de_lysenthe"
+            ]
+          },
+          "by_status": {
+            "active": [
+              "archives_de_lysenthe"
+            ]
+          }
+        }
       },
-      "world_overrides": {
-        "location_id": "setup_zone"
-      },
-      "updated_at_turn": "turn-529f7eab-f67d-4b08-9ac2-12fc70ce0688"
+      "updated_at_turn": "turn-d13959fd-f455-47c4-bc6e-4086a8656c5f"
     },
-    "narr-pj-1-map-926b1ce6": {
-      "campaign_id": "narr-pj-1-map-926b1ce6",
+    "narr-pj-1-map-ed6928ae": {
+      "campaign_id": "narr-pj-1-map-ed6928ae",
+      "clock": {
+        "turn_index": 1
+      },
       "events": [],
       "relations": [],
       "knowledge": {
         "player_view": [
           {
-            "turn_id": "turn-89688fd7-7c66-4ada-b162-30bf33cf98ab",
-            "text": "La place du village est paisible en ce fin d'après-midi clair. Les étals se ferment doucement, et les derniers badauds se dispersent dans la lumière déclinante. Parmi les murmures, quelques villageois évoquent à voix basse un vol récent, mais rien de visible ne trahit encore ce trouble."
+            "turn_id": "turn-88e88486-d398-409e-8edf-5f1aa56ce6dc",
+            "text": "Vous êtes dans les Archives de Lysenthe, un bâtiment civil et historique hautement sécurisé (niveau 82) et d'importance stratégique (87). Ce lieu appartient au Collegium des Archivistes et à la faction des Archivistes de Lysenthe. L'accès est privé, et vous voyez des clercs triant minutieusement des chartes tandis que des gardes veillent aux abords des salles sensibles. Les Archives assurent la conservation des actes et chartes ainsi que la copie et le classement des savoirs administratifs. Ce bâtiment est relié au quartier des Archives et à la place des Archives, tous situés dans la ville portuaire fortifiée de Lysenthe, un ducat gouverné depuis le château Tharqual, foyer d'importants bâtiments comme les Halles des Commerces et la Caserne Centrale.",
+            "knowledge_kind": "summary",
+            "certainty": "partial",
+            "source": "auto_narration",
+            "location_id": "archives_de_lysenthe",
+            "linked_entity_ids": [
+              "archives_de_lysenthe"
+            ],
+            "tags": [
+              "observe",
+              "auto_summary"
+            ]
           },
           {
-            "turn_id": "turn-4919bf0c-34b9-4cc9-848d-5d4d4997df61",
-            "text": "Tu te trouves dans la zone portuaire animée en fin d'après-midi. Autour de toi, des dockers s'affairent à charger des caisses sous le regard des contremaîtres. L'air est clair, mais bruissant de bruits. Tu remarques plusieurs personnes à proximité qui pourraient avoir des informations. Peut-être pourrais-tu leur parler pour en apprendre davantage sur ce qui se trame dans ce port ?"
-          }
-        ],
-        "truth_view": []
-      },
-      "world_overrides": {
-        "location_id": "setup_zone"
-      },
-      "updated_at_turn": "turn-4919bf0c-34b9-4cc9-848d-5d4d4997df61"
-    },
-    "narr-e2e-analysis": {
-      "campaign_id": "narr-e2e-analysis",
-      "events": [],
-      "relations": [],
-      "knowledge": {
-        "player_view": [
-          {
-            "turn_id": "turn-ff4a0e16-3dab-46f6-a607-4ba307ecb24c",
-            "text": "Tu t'approches calmement du marchand près de la forge et l'interroges sur la silhouette aperçue plus tôt. Il semble hésiter, mais évoque vaguement avoir vu quelqu'un s'éloigner discrètement du village, sans pouvoir en dire plus pour l'instant."
-          }
-        ],
-        "truth_view": []
-      },
-      "world_overrides": {
-        "location_id": "setup_zone"
-      },
-      "updated_at_turn": "turn-ff4a0e16-3dab-46f6-a607-4ba307ecb24c"
-    },
-    "narr-pj-1-map-0a68ee3d": {
-      "campaign_id": "narr-pj-1-map-0a68ee3d",
-      "events": [],
-      "relations": [],
-      "knowledge": {
-        "player_view": [
-          {
-            "turn_id": "turn-879118ff-dca8-4ef1-9a11-404db4b6ff06",
-            "text": "Tu es sur la place du village, qui se vide peu à peu sous un ciel clair en fin d'après-midi. Les étals ferment, la foule s'amenuise lentement. Autour de toi, quelques villageois terminent leurs activités, mais aucune auberge ne se présente immédiatement à ta vue. Il te faudra explorer un peu plus pour en trouver une où passer la nuit."
+            "turn_id": "turn-88e88486-d398-409e-8edf-5f1aa56ce6dc",
+            "text": "Vous pouvez interagir avec les clercs ou gardes pour en apprendre davantage.",
+            "knowledge_kind": "lead",
+            "certainty": "tentative",
+            "source": "auto_narration",
+            "location_id": "archives_de_lysenthe",
+            "linked_entity_ids": [
+              "archives_de_lysenthe"
+            ],
+            "tags": [
+              "observe",
+              "next_turn_hint"
+            ]
           },
           {
-            "turn_id": "turn-adc401bd-0bd1-49fe-a4eb-237a770809ed",
-            "text": "Tu es sur la place du village, qui se vide peu à peu sous un ciel clair en fin d'après-midi. Les étals ferment, la foule s'amenuise lentement. Autour de toi, quelques villageois terminent leurs activités, mais aucune auberge ne se présente immédiatement à ta vue. Il te faudra explorer un peu plus pour en trouver une où passer la nuit."
+            "turn_id": "turn-88e88486-d398-409e-8edf-5f1aa56ce6dc",
+            "text": "Explorer les documents ou tenter d'accéder aux zones plus sensibles est une option potentielle.",
+            "knowledge_kind": "lead",
+            "certainty": "tentative",
+            "source": "auto_narration",
+            "location_id": "archives_de_lysenthe",
+            "linked_entity_ids": [
+              "archives_de_lysenthe"
+            ],
+            "tags": [
+              "observe",
+              "next_turn_hint"
+            ]
           }
         ],
         "truth_view": []
       },
       "world_overrides": {
-        "location_id": "setup_zone"
+        "location_id": "archives_de_lysenthe"
       },
-      "updated_at_turn": "turn-adc401bd-0bd1-49fe-a4eb-237a770809ed"
-    },
-    "narr-pj-1-map-7e86ea2d": {
-      "campaign_id": "narr-pj-1-map-7e86ea2d",
-      "events": [],
-      "relations": [],
-      "knowledge": {
-        "player_view": [
-          {
-            "turn_id": "turn-c7f00834-6bd3-4e91-8ebd-14f17eb7b70e",
-            "text": "Vous observez autour de vous et interrogez quelques dockers et contremaîtres présents dans la zone portuaire. Ils semblent connaître quelques rumeurs récentes, dont un document disparu et un renforcement des contrôles. Plusieurs témoins évoquent des fragments d'informations, mais rien de précis sur une auberge. La zone elle-même est un carrefour d'interactions sociales, propice à trouver plus d'indices."
+      "entity_registry": {
+        "actors": {},
+        "locations": {
+          "archives_de_lysenthe": {
+            "entity_id": "archives_de_lysenthe",
+            "entity_type": "location",
+            "subtype": "archives civiles et historiques",
+            "display_name": "Archives de Lysenthe",
+            "memory_state": "active",
+            "status": "active",
+            "scope": "situational",
+            "created_at_turn": "turn-88e88486-d398-409e-8edf-5f1aa56ce6dc",
+            "updated_at_turn": "turn-88e88486-d398-409e-8edf-5f1aa56ce6dc",
+            "last_seen_turn": "turn-88e88486-d398-409e-8edf-5f1aa56ce6dc",
+            "location_id": "archives_de_lysenthe",
+            "source": {
+              "created_by": "runtime",
+              "reason": "location_runtime_state"
+            },
+            "visibility": {
+              "player_known": true,
+              "truth_known": true
+            },
+            "links": {
+              "event_ids": [],
+              "related_entity_ids": [],
+              "faction_ids": []
+            },
+            "payload": {
+              "visible_actors": [],
+              "active_points_of_interest": [
+                "conservation des actes et chartes",
+                "copie et classement des savoirs administratifs"
+              ],
+              "connected_locations": [
+                "quartier_des_archives",
+                "place_des_archives"
+              ]
+            },
+            "lifecycle_policy": {
+              "archive_when_inactive": true
+            },
+            "lifecycle_history": [],
+            "first_seen_turn_index": 1,
+            "last_seen_turn_index": 1
           }
-        ],
-        "truth_view": []
-      },
-      "world_overrides": {
-        "location_id": "setup_zone"
-      },
-      "updated_at_turn": "turn-c7f00834-6bd3-4e91-8ebd-14f17eb7b70e"
-    },
-    "narr-pj-1-map-8b3ea916": {
-      "campaign_id": "narr-pj-1-map-8b3ea916",
-      "events": [],
-      "relations": [],
-      "knowledge": {
-        "player_view": [
-          {
-            "turn_id": "turn-ad3fd0ff-830e-46a5-a757-dca9f027d8fa",
-            "text": "Tu quittes le marché aux poissons de Lysenthe et te diriges vers l'entrée principale des Archives. Rapidement, tu passes la porte et pénètres à l'intérieur, où l'air est plus frais et l'ambiance calme contraste avec l'agitation extérieure."
+        },
+        "objects": {},
+        "indexes": {
+          "by_type": {
+            "location": [
+              "archives_de_lysenthe"
+            ]
+          },
+          "by_memory_state": {
+            "active": [
+              "archives_de_lysenthe"
+            ]
+          },
+          "by_location_id": {
+            "archives_de_lysenthe": [
+              "archives_de_lysenthe"
+            ]
+          },
+          "by_event_id": {},
+          "by_scope": {
+            "situational": [
+              "archives_de_lysenthe"
+            ]
+          },
+          "by_status": {
+            "active": [
+              "archives_de_lysenthe"
+            ]
           }
-        ],
-        "truth_view": []
+        }
       },
-      "world_overrides": {
-        "location_id": "archives_interior"
-      },
-      "updated_at_turn": "turn-ad3fd0ff-830e-46a5-a757-dca9f027d8fa"
+      "updated_at_turn": "turn-88e88486-d398-409e-8edf-5f1aa56ce6dc"
     },
-    "narr-pj-1-map-150f66b6": {
-      "campaign_id": "narr-pj-1-map-150f66b6",
+    "narr-pj-1-map-efa21da7": {
+      "campaign_id": "narr-pj-1-map-efa21da7",
+      "clock": {
+        "turn_index": 4
+      },
       "events": [],
       "relations": [],
       "knowledge": {
         "player_view": [
           {
-            "turn_id": "turn-31a27592-3f5c-44c6-9088-1479078d2ce7",
-            "text": "Tu te glisses rapidement derrière un amas de caisses dans le Quartier des Archives, tentant de te rendre invisible aux yeux des gardes qui te poursuivent. Autour de toi, l'activité du quartier bat encore son plein, avec les clercs, juristes et négociants vaquant à leurs occupations sur cette place bordée de bâtiments de pierre monumentaux et colonnades."
-          }
-        ],
-        "truth_view": []
-      },
-      "world_overrides": {
-        "location_id": "quartier_des_archives"
-      },
-      "updated_at_turn": "turn-31a27592-3f5c-44c6-9088-1479078d2ce7"
-    },
-    "narr-pj-1-map-93a3951a": {
-      "campaign_id": "narr-pj-1-map-93a3951a",
-      "events": [],
-      "relations": [],
-      "knowledge": {
-        "player_view": [
+            "turn_id": "turn-ec532c5f-239c-4e6b-a369-83818d36898c",
+            "text": "Vous vous trouvez dans les Halles des Commerces de Lysenthe. Autour de vous s'étendent de vastes galeries où s'enchaînent entrepôts, comptoirs et étals. L'activité commerciale est intense, avec des négociations qui semblent continuellement animées. L'endroit est éclairé par la lumière claire du fin d'après-midi, et l'air est ponctué par des bruits de voix et le bruissement des commerces. Vous distinguez deux points d'intérêt majeurs : le marché de gros et de détail ainsi qu'une plateforme logistique. Depuis ici, vous avez aussi un accès apparent vers le port des Xantars et la maison des Registres.",
+            "knowledge_kind": "summary",
+            "certainty": "partial",
+            "source": "auto_narration",
+            "location_id": "halles_des_commerces",
+            "linked_entity_ids": [
+              "halles_des_commerces",
+              "marche de gros et de detail",
+              "plateforme logistique"
+            ],
+            "tags": [
+              "observe",
+              "auto_summary"
+            ]
+          },
           {
-            "turn_id": "turn-1054b541-0cf7-427b-be4d-3160b6ab20fb",
-            "text": "Vous cherchez à parler à un garde dans les Halles des Commerces, un lieu animé de Lysenthe où se croisent négociants et travailleurs du port. Autour de vous, les galeries et entrepôts bourdonnent d'activité tandis que la lumière du fin d'après-midi éclaire les façades. Il y a sûrement des gardes dans les environs, mais ils semblent vigilants et occupés."
+            "turn_id": "turn-ec532c5f-239c-4e6b-a369-83818d36898c",
+            "text": "Le joueur peut décider d'explorer le marché de gros et de détail ou la plateforme logistique.",
+            "knowledge_kind": "lead",
+            "certainty": "tentative",
+            "source": "auto_narration",
+            "location_id": "halles_des_commerces",
+            "linked_entity_ids": [
+              "halles_des_commerces",
+              "marche de gros et de detail",
+              "plateforme logistique"
+            ],
+            "tags": [
+              "observe",
+              "next_turn_hint"
+            ]
+          },
+          {
+            "turn_id": "turn-ec532c5f-239c-4e6b-a369-83818d36898c",
+            "text": "Il peut également choisir d'aller vers le port des Xantars ou la maison des Registres pour recueillir plus d'informations.",
+            "knowledge_kind": "lead",
+            "certainty": "tentative",
+            "source": "auto_narration",
+            "location_id": "halles_des_commerces",
+            "linked_entity_ids": [
+              "halles_des_commerces",
+              "marche de gros et de detail",
+              "plateforme logistique"
+            ],
+            "tags": [
+              "observe",
+              "next_turn_hint"
+            ]
+          },
+          {
+            "turn_id": "turn-55b5e23e-ecfb-4285-a862-32aa54372ea2",
+            "text": "Vous êtes dans les Halles des Commerces de Lysenthe. Autour de vous, des galeries vastes relient entrepôts, comptoirs et étals animés par une intense activité commerciale. La lumière claire du fin d'après-midi baigne les lieux tandis que des voix et le bruissement des commerces emplissent l'air. Vous distinguez deux points majeurs : le marché de gros et de détail, ainsi qu'une plateforme logistique. Vous avez aussi un accès visible vers le port des Xantars et la maison des Registres.",
+            "knowledge_kind": "summary",
+            "certainty": "partial",
+            "source": "auto_narration",
+            "location_id": "halles_des_commerces",
+            "linked_entity_ids": [],
+            "tags": [
+              "ask_info",
+              "auto_summary"
+            ]
+          },
+          {
+            "turn_id": "turn-55b5e23e-ecfb-4285-a862-32aa54372ea2",
+            "text": "Le joueur peut choisir d'explorer le marché de gros et de détail ou la plateforme logistique.",
+            "knowledge_kind": "lead",
+            "certainty": "tentative",
+            "source": "auto_narration",
+            "location_id": "halles_des_commerces",
+            "linked_entity_ids": [],
+            "tags": [
+              "ask_info",
+              "next_turn_hint"
+            ]
+          },
+          {
+            "turn_id": "turn-55b5e23e-ecfb-4285-a862-32aa54372ea2",
+            "text": "Il peut également se diriger vers le port des Xantars ou la maison des Registres pour plus d'informations.",
+            "knowledge_kind": "lead",
+            "certainty": "tentative",
+            "source": "auto_narration",
+            "location_id": "halles_des_commerces",
+            "linked_entity_ids": [],
+            "tags": [
+              "ask_info",
+              "next_turn_hint"
+            ]
+          },
+          {
+            "turn_id": "turn-cd15bf4b-e6d6-4b5e-b48e-d33c0ca43589",
+            "text": "Vous souhaitez obtenir des informations sur votre personnage. Voulez-vous une description physique, un aperçu psychologique, ou un résumé de ses compétences et possessions ?",
+            "knowledge_kind": "summary",
+            "certainty": "partial",
+            "source": "auto_narration",
+            "location_id": "halles_des_commerces",
+            "linked_entity_ids": [],
+            "tags": [
+              "ask_info",
+              "auto_summary"
+            ]
+          },
+          {
+            "turn_id": "turn-cd15bf4b-e6d6-4b5e-b48e-d33c0ca43589",
+            "text": "Le joueur peut préciser le type d'information souhaitée sur son personnage.",
+            "knowledge_kind": "lead",
+            "certainty": "tentative",
+            "source": "auto_narration",
+            "location_id": "halles_des_commerces",
+            "linked_entity_ids": [],
+            "tags": [
+              "ask_info",
+              "next_turn_hint"
+            ]
+          },
+          {
+            "turn_id": "turn-cd15bf4b-e6d6-4b5e-b48e-d33c0ca43589",
+            "text": "Vous pouvez proposer une description physique, psychologique ou détailler les compétences et possessions selon la demande.",
+            "knowledge_kind": "lead",
+            "certainty": "tentative",
+            "source": "auto_narration",
+            "location_id": "halles_des_commerces",
+            "linked_entity_ids": [],
+            "tags": [
+              "ask_info",
+              "next_turn_hint"
+            ]
+          },
+          {
+            "turn_id": "turn-3068bc85-2eca-4a3d-be4f-7dee9cc731e7",
+            "text": "Vous souhaitez obtenir un résumé de vos possessions, mais pour vous aider au mieux, pourriez-vous préciser si vous préférez une description physique, un aperçu psychologique, ou un résumé de vos compétences et possessions ?",
+            "knowledge_kind": "summary",
+            "certainty": "partial",
+            "source": "auto_narration",
+            "location_id": "halles_des_commerces",
+            "linked_entity_ids": [
+              "halles_des_commerces"
+            ],
+            "tags": [
+              "ask_info",
+              "auto_summary"
+            ]
+          },
+          {
+            "turn_id": "turn-3068bc85-2eca-4a3d-be4f-7dee9cc731e7",
+            "text": "Le joueur peut préciser le type d'information désirée sur son personnage.",
+            "knowledge_kind": "lead",
+            "certainty": "tentative",
+            "source": "auto_narration",
+            "location_id": "halles_des_commerces",
+            "linked_entity_ids": [
+              "halles_des_commerces"
+            ],
+            "tags": [
+              "ask_info",
+              "next_turn_hint"
+            ]
+          },
+          {
+            "turn_id": "turn-3068bc85-2eca-4a3d-be4f-7dee9cc731e7",
+            "text": "Explorer davantage la mémoire ou l'inventaire du personnage pour fournir un résumé ciblé.",
+            "knowledge_kind": "lead",
+            "certainty": "tentative",
+            "source": "auto_narration",
+            "location_id": "halles_des_commerces",
+            "linked_entity_ids": [
+              "halles_des_commerces"
+            ],
+            "tags": [
+              "ask_info",
+              "next_turn_hint"
+            ]
           }
         ],
         "truth_view": []
@@ -290,61 +580,84 @@
       "world_overrides": {
         "location_id": "halles_des_commerces"
       },
-      "updated_at_turn": "turn-1054b541-0cf7-427b-be4d-3160b6ab20fb"
-    },
-    "narr-pj-1-map-4c70e336": {
-      "campaign_id": "narr-pj-1-map-4c70e336",
-      "events": [],
-      "relations": [],
-      "knowledge": {
-        "player_view": [
-          {
-            "turn_id": "turn-189bd091-e469-4a41-86c6-d4f9f987884c",
-            "text": "À la Halle des Commerces, en ce fin d'après-midi clair, tu explores les lieux dédiés aux échanges et aux négociations, tout en cherchant un garde. Les allées sont animées, mais aucun garde ne se distingue immédiatement à proximité. Tu peux observer ou interroger les personnes présentes pour trouver des informations plus précises."
+      "entity_registry": {
+        "actors": {},
+        "locations": {
+          "halles_des_commerces": {
+            "entity_id": "halles_des_commerces",
+            "entity_type": "location",
+            "subtype": "halle marchande",
+            "display_name": "Halles des Commerces",
+            "memory_state": "active",
+            "status": "active",
+            "scope": "situational",
+            "created_at_turn": "turn-ec532c5f-239c-4e6b-a369-83818d36898c",
+            "updated_at_turn": "turn-3068bc85-2eca-4a3d-be4f-7dee9cc731e7",
+            "last_seen_turn": "turn-3068bc85-2eca-4a3d-be4f-7dee9cc731e7",
+            "location_id": "halles_des_commerces",
+            "source": {
+              "created_by": "runtime",
+              "reason": "location_runtime_state"
+            },
+            "visibility": {
+              "player_known": true,
+              "truth_known": true
+            },
+            "links": {
+              "event_ids": [],
+              "related_entity_ids": [],
+              "faction_ids": []
+            },
+            "payload": {
+              "visible_actors": [],
+              "active_points_of_interest": [
+                "marche de gros et de detail",
+                "plateforme logistique"
+              ],
+              "connected_locations": [
+                "port_des_xantars",
+                "maison_des_registres"
+              ]
+            },
+            "lifecycle_policy": {
+              "archive_when_inactive": true
+            },
+            "lifecycle_history": [],
+            "first_seen_turn_index": 1,
+            "last_seen_turn_index": 4
           }
-        ],
-        "truth_view": []
-      },
-      "world_overrides": {
-        "location_id": "halles_des_commerces"
-      },
-      "updated_at_turn": "turn-189bd091-e469-4a41-86c6-d4f9f987884c"
-    },
-    "narr-pj-1-map-b6e453e9": {
-      "campaign_id": "narr-pj-1-map-b6e453e9",
-      "events": [],
-      "relations": [],
-      "knowledge": {
-        "player_view": [
-          {
-            "turn_id": "turn-13f94818-94e2-4509-ab69-921cd97e16dc",
-            "text": "Tu apprends que Lysenthe est une cité portuaire fortifiée, un carrefour commercial important des régions côtières de Dunia, où une forte influence humaine se fait sentir. Elle est aussi la capitale du royaume d'Atryade, situé dans la région côtière d’Ylsséa, renommée pour ses paysages et sa culture. Le Quartier des Archives, où tu te trouves, est le cœur de la mémoire écrite et du commerce intérieur, organisé autour de ses archives impressionnantes et de leur grande place."
+        },
+        "objects": {},
+        "indexes": {
+          "by_type": {
+            "location": [
+              "halles_des_commerces"
+            ]
+          },
+          "by_memory_state": {
+            "active": [
+              "halles_des_commerces"
+            ]
+          },
+          "by_location_id": {
+            "halles_des_commerces": [
+              "halles_des_commerces"
+            ]
+          },
+          "by_event_id": {},
+          "by_scope": {
+            "situational": [
+              "halles_des_commerces"
+            ]
+          },
+          "by_status": {
+            "active": [
+              "halles_des_commerces"
+            ]
           }
-        ],
-        "truth_view": []
+        }
       },
-      "world_overrides": {
-        "location_id": "quartier_des_archives"
-      },
-      "updated_at_turn": "turn-13f94818-94e2-4509-ab69-921cd97e16dc"
-    },
-    "narr-pj-1-map-aaa9bc73": {
-      "campaign_id": "narr-pj-1-map-aaa9bc73",
-      "events": [],
-      "relations": [],
-      "knowledge": {
-        "player_view": [
-          {
-            "turn_id": "turn-a7fd5352-e78a-4e4b-b758-978d0b97b83c",
-            "text": "Tu apprends que Lysenthe est une cité portuaire fortifiée, principal carrefour commercial de la région côtière d'Ylsséa. Le Port des Xantars, où tu te trouves, est son front maritime principal, mélangeant quais militaires et commerciaux. Toutefois, aucune information précise n’émerge pour désigner une autorité unique dirigeant la ville à ce stade."
-          }
-        ],
-        "truth_view": []
-      },
-      "world_overrides": {
-        "location_id": "port_des_xantars"
-      },
-      "updated_at_turn": "turn-a7fd5352-e78a-4e4b-b758-978d0b97b83c"
+      "updated_at_turn": "turn-3068bc85-2eca-4a3d-be4f-7dee9cc731e7"
     }
   }
 }

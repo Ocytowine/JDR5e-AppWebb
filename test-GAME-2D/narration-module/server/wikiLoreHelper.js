@@ -87,6 +87,7 @@ function createWikiLoreHelper(projectRoot) {
   let cachedSynonymsMtime = 0;
   const INTENT_BUDGETS = {
     observe: { maxTopics: 2, maxTotalChars: 700, maxSnippetChars: 180 },
+    talk: { maxTopics: 2, maxTotalChars: 900, maxSnippetChars: 220 },
     move_local: { maxTopics: 2, maxTotalChars: 700, maxSnippetChars: 180 },
     ask_info: { maxTopics: 3, maxTotalChars: 1100, maxSnippetChars: 240 },
     attempt_forbidden: { maxTopics: 4, maxTotalChars: 1400, maxSnippetChars: 260 },
@@ -485,8 +486,8 @@ function createWikiLoreHelper(projectRoot) {
     const expansionDocs = collectExpansionDocs(
       index,
       [locationDoc, destinationDoc].filter(Boolean),
-      normalizeText(intentType) === "ask_info" ? 2 : 1,
-      normalizeText(intentType) === "ask_info" ? 18 : 10
+      ["ask_info", "talk"].includes(normalizeText(intentType)) ? 2 : 1,
+      ["ask_info", "talk"].includes(normalizeText(intentType)) ? 18 : 10
     );
     for (const expansionDoc of expansionDocs) {
       if (picked.length >= Math.max(1, limit)) break;

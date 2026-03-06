@@ -5,10 +5,11 @@ export type NarrationRuntimeStatus = {
 export type NarrationTurnPayload = {
   campaign_id: string;
   character_id: string;
-  intent_type: string;
   player_input: string;
   location_id: string;
   destination_id?: string;
+  target_actor_id?: string;
+  intent_hint?: string;
   map_prompt: string;
   narration_context: string;
   narration_goal: string;
@@ -60,6 +61,7 @@ export async function runNarrationPipeline(
     details?: string[];
     decision_reason?: string;
     narrative_generation_required?: boolean;
+    intent_packet?: Record<string, unknown>;
     trace?: Record<string, unknown>;
     projected_memory?: Record<string, unknown>;
     ai_handoff?: Record<string, unknown>;
@@ -110,7 +112,7 @@ export async function runNarrationPipeline(
     finalPlayerText,
     debug: {
       step_1_app_to_runtime_request: step1Request,
-      step_2_runtime_received_packet: step1Request,
+      step_2_runtime_received_packet: processData?.intent_packet ?? null,
       step_3_runtime_to_llm_request: narrationRequest,
       step_4_app_final_response: narrationResult,
       ai_handoff: processData?.ai_handoff ?? null,

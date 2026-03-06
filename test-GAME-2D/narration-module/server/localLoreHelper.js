@@ -51,6 +51,8 @@ function createLocalLoreHelper() {
     const perIntentLimit =
       intentType === "observe"
         ? 1
+        : intentType === "talk"
+        ? 2
         : intentType === "ask_info"
         ? 2
         : intentType === "attempt_forbidden"
