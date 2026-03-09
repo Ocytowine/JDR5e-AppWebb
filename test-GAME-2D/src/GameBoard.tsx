@@ -437,6 +437,12 @@ function buildLoopNextContextFromDebug(
       ? (debug.step_4_app_final_response as Record<string, unknown>)
       : null;
   if (!step4) return null;
+  const outputContract =
+    aiHandoff?.output_contract && typeof aiHandoff.output_contract === "object"
+      ? (aiHandoff.output_contract as Record<string, unknown>)
+      : null;
+  const isClarificationTurn =
+    Boolean(step2?.requires_clarification) || Boolean(outputContract?.requires_clarification);
 
   const playerText = String(step4.player_text ?? "").trim();
   const mjNotes = Array.isArray(step4.mj_notes)
@@ -468,10 +474,14 @@ function buildLoopNextContextFromDebug(
     .filter(Boolean)
     .join(" ");
 
-  const nextContext = [contextHeader, playerText, mjNotes[0] ? `Note MJ: ${mjNotes[0]}` : ""]
-    .filter(Boolean)
-    .join("\n");
-  const nextGoal = hints[0] ?? "";
+  const nextContext = isClarificationTurn
+    ? contextHeader
+    : [contextHeader, playerText, mjNotes[0] ? `Note MJ: ${mjNotes[0]}` : ""]
+        .filter(Boolean)
+        .join("\n");
+  const nextGoal = isClarificationTurn
+    ? String(outputContract?.clarification_question ?? step2?.clarification_question ?? hints[0] ?? "").trim()
+    : hints[0] ?? "";
   const nextConstraints = "Continuer avec coherence stricte des faits runtime.";
 
   return {
@@ -534,6 +544,36 @@ type NarrationLoopHistoryEntry = {
   player_input: string;
   pipeline: Record<string, unknown>;
 };
+
+async function copyTextToClipboard(text: string): Promise<boolean> {
+  const normalized = String(text ?? "");
+  if (!normalized.trim()) return false;
+  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(normalized);
+      return true;
+    } catch {
+      // Fallback handled below.
+    }
+  }
+  if (typeof document === "undefined") return false;
+  try {
+    const textarea = document.createElement("textarea");
+    textarea.value = normalized;
+    textarea.setAttribute("readonly", "true");
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    textarea.style.pointerEvents = "none";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    const copied = document.execCommand("copy");
+    document.body.removeChild(textarea);
+    return copied;
+  } catch {
+    return false;
+  }
+}
 
 type EquipmentContextMode = "draw" | "sheathe" | "drop" | "inventory" | "hand-choice";
 type EquipmentHandTarget = "main" | "offhand";
@@ -1363,6 +1403,7 @@ export const GameBoard: React.FC = () => {
   const [narrationRuntimeDebug, setNarrationRuntimeDebug] = useState<string>("");
   const [narrationLoopEnabled, setNarrationLoopEnabled] = useState<boolean>(false);
   const [narrationLoopHistory, setNarrationLoopHistory] = useState<NarrationLoopHistoryEntry[]>([]);
+  const [narrationLoopClipboardStatus, setNarrationLoopClipboardStatus] = useState<string | null>(null);
 
   const narrationLoopHistoryJson = narrationLoopHistory.length
     ? JSON.stringify(
@@ -1403,13 +1444,27 @@ export const GameBoard: React.FC = () => {
 
   const handleCopyNarrationLoopHistory = useCallback(() => {
     if (!narrationLoopHistoryJson.trim()) return;
-    if (typeof navigator !== "undefined" && navigator.clipboard) {
-      void navigator.clipboard.writeText(narrationLoopHistoryJson);
-    }
+    void (async () => {
+      const copied = await copyTextToClipboard(narrationLoopHistoryJson);
+      setNarrationLoopClipboardStatus(
+        copied ? "Memoire boucle copiee." : "Echec de copie de la memoire boucle."
+      );
+      if (copied) {
+        setNarrationRuntimeError(null);
+      }
+      window.setTimeout(() => {
+        setNarrationLoopClipboardStatus(current =>
+          current === "Memoire boucle copiee." || current === "Echec de copie de la memoire boucle."
+            ? null
+            : current
+        );
+      }, 2500);
+    })();
   }, [narrationLoopHistoryJson]);
 
   const handleResetNarrationLoopHistory = useCallback(() => {
     setNarrationLoopHistory([]);
+    setNarrationLoopClipboardStatus(null);
   }, []);
 
   const handleRunNarrationTurn = useCallback(async () => {
@@ -13395,6 +13450,7 @@ function handleEndPlayerTurn() {
           narrationRuntimeDebug={narrationRuntimeDebug}
           narrationLoopEnabled={narrationLoopEnabled}
           narrationLoopHistoryJson={narrationLoopHistoryJson}
+          narrationLoopClipboardStatus={narrationLoopClipboardStatus}
           character={characterConfig}
           weaponTypes={weaponTypes}
           raceTypes={raceTypes}

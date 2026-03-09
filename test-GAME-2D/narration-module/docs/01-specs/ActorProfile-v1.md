@@ -156,6 +156,7 @@ sans perdre l'ancrage local du lieu, de la faction et de la langue.
       "temperament": "vigilant",
       "social_traits": ["discipline", "mefiance", "respecte la procedure"],
       "authority_level": "low",
+      "social_rank": "institutional_respectable",
       "disposition_to_player": "neutral",
       "interaction_state": "available",
       "hospitality_style": "guarded"
@@ -167,9 +168,15 @@ sans perdre l'ancrage local du lieu, de la faction et de la langue.
       "access_scope": "restricted_zone"
     },
     "interaction": {
-      "last_interaction_summary": null,
+      "last_interaction_summary": "Le garde a refuse l'entree sans autorisation ecrite.",
       "player_language_compatibility": "full",
-      "known_to_player_as": "un garde de la caserne"
+      "known_to_player_as": "un garde de la caserne",
+      "contact_count": 2,
+      "familiarity_level": "seen_once",
+      "last_interaction_outcome": "polite_refusal",
+      "active_topic_ids": ["archives_access"],
+      "taboo_topic_ids": ["internal_orders"],
+      "unresolved_hooks": ["bring_authorization"]
     },
     "generation_context": {
       "generation_profile_source": [
@@ -339,6 +346,7 @@ Champs:
 - `temperament`
 - `social_traits`
 - `authority_level`
+- `social_rank`
 - `disposition_to_player`
 - `interaction_state`
 - `hospitality_style`
@@ -346,6 +354,7 @@ Champs:
 Valeurs utiles v1:
 
 - `authority_level = unknown | none | low | medium | high | elite`
+- `social_rank = unknown | low_common | working_common | respected_craft | institutional_respectable | local_notable | elite`
 - `disposition_to_player = friendly | neutral | wary | hostile`
 - `interaction_state = available | busy | blocked | fleeing | absent`
 
@@ -353,6 +362,8 @@ Regles:
 
 - ce bloc sert a juger la reaction probable d'un PNJ
 - il ne doit pas etre confondu avec la faction ou le grade
+- `authority_level` = pouvoir reel ou institutionnel
+- `social_rank` = statut social percu, prestige ou poids symbolique local
 
 ### `world`
 
@@ -383,15 +394,26 @@ Champs:
 - `last_interaction_summary`
 - `player_language_compatibility`
 - `known_to_player_as`
+- `contact_count`
+- `familiarity_level`
+- `last_interaction_outcome`
+- `active_topic_ids`
+- `taboo_topic_ids`
+- `unresolved_hooks`
 
 Valeurs utiles v1:
 
 - `player_language_compatibility = full | limited | none | unknown`
+- `familiarity_level = unknown | seen_once | known | recurrent`
+- `last_interaction_outcome = brief_contact | polite_refusal | partial_help | useful_answer | withheld_sensitive_info | hostile_warning | trust_opened`
 
 Regles:
 
 - ce bloc sert a mieux tenir les tours successifs
 - il est autorise a rester tres court
+- il ne doit pas contenir de transcript complet
+- `last_interaction_summary` doit rester une synthese breve
+- les tableaux doivent rester compacts et centres sur la continuite immediate
 
 ### `generation_context`
 
@@ -471,6 +493,7 @@ Exemple:
       "temperament": "neutral",
       "social_traits": [],
       "authority_level": "low",
+      "social_rank": "working_common",
       "disposition_to_player": "neutral",
       "interaction_state": "available",
       "hospitality_style": "guarded"
@@ -489,6 +512,17 @@ Exemple:
       ],
       "role_plausibility": "likely",
       "generated_from_presence_profile": true
+    },
+    "interaction": {
+      "last_interaction_summary": null,
+      "player_language_compatibility": "unknown",
+      "known_to_player_as": "un garde",
+      "contact_count": 1,
+      "familiarity_level": "seen_once",
+      "last_interaction_outcome": "brief_contact",
+      "active_topic_ids": [],
+      "taboo_topic_ids": [],
+      "unresolved_hooks": []
     }
   }
 }
@@ -543,6 +577,54 @@ Elle doit pouvoir influencer:
 - la fluidite de l'echange
 - les malentendus
 - la posture sociale
+
+## Continuite conversationnelle compacte
+
+Le runtime ne doit pas stocker un historique complet de dialogue par defaut.
+
+Pour les tours `talk`, il doit privilegier une memoire conversationnelle compacte via `interaction`.
+
+Cette memoire doit suffire a:
+
+- eviter de rejouer une premiere rencontre
+- conserver un ton social coherent
+- rouvrir un sujet deja entame
+- garder trace d'un refus, d'une aide partielle, ou d'une promesse implicite
+
+Regles pratiques:
+
+- `last_interaction_summary` = 1 phrase courte
+- `contact_count` = compteur simple de contacts significatifs
+- `active_topic_ids` = max 3
+- `taboo_topic_ids` = max 3
+- `unresolved_hooks` = max 3
+
+Le but n'est pas de script-er l'IA.
+Le but est de lui donner assez de structure pour continuer logiquement sans figer la scene.
+
+## Mise a jour apres un tour `talk`
+
+Apres un tour `talk`, le runtime ou l'IA aval doit idealement produire un patch compact sur `interaction`.
+
+Mise a jour recommandee:
+
+- `last_interaction_summary`
+- `player_language_compatibility` si re-evaluee
+- `contact_count`
+- `familiarity_level`
+- `last_interaction_outcome`
+- ouverture/fermeture de 1 a 3 `topic_ids`
+- ajout eventuel d'un `unresolved_hook`
+
+Exemples de resultat:
+
+- refus poli -> `polite_refusal`
+- aide partielle -> `partial_help`
+- information utile -> `useful_answer`
+- sujet sensible esquive -> `withheld_sensitive_info`
+- escalation sociale -> `hostile_warning`
+
+Cette mise a jour doit rester plus proche d'un etat narratif compact que d'un log conversationnel.
 
 ## Promotion, archivage, expiration
 
@@ -600,6 +682,8 @@ Cas typiques:
 - details distinctifs
 - maniere de parler
 - relation plus precise au PJ
+- resumee tres courte de la derniere interaction
+- sujets actifs ou tabous, si la scene les justifie
 
 ### Ce qui ne doit pas etre invente librement
 

@@ -89,6 +89,7 @@ export function CombatSetupScreen(props: {
   narrationRuntimeDebug: string;
   narrationLoopEnabled: boolean;
   narrationLoopHistoryJson: string;
+  narrationLoopClipboardStatus: string | null;
   character: Personnage;
   weaponTypes: WeaponTypeDefinition[];
   raceTypes: RaceDefinition[];
@@ -5823,6 +5824,7 @@ export function CombatSetupScreen(props: {
               narrationRuntimeDebug={props.narrationRuntimeDebug}
               narrationLoopEnabled={props.narrationLoopEnabled}
               narrationLoopHistoryJson={props.narrationLoopHistoryJson}
+              narrationLoopClipboardStatus={props.narrationLoopClipboardStatus}
               onChangeNarrationContext={props.onChangeNarrationContext}
               onChangeNarrationGoal={props.onChangeNarrationGoal}
               onChangeNarrationConstraints={props.onChangeNarrationConstraints}

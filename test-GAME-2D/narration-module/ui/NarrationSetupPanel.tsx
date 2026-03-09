@@ -1,5 +1,35 @@
 import React, { useMemo, useState } from "react";
 
+async function copyTextToClipboard(text: string): Promise<boolean> {
+  const normalized = String(text ?? "");
+  if (!normalized.trim()) return false;
+  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(normalized);
+      return true;
+    } catch {
+      // Fallback handled below.
+    }
+  }
+  if (typeof document === "undefined") return false;
+  try {
+    const textarea = document.createElement("textarea");
+    textarea.value = normalized;
+    textarea.setAttribute("readonly", "true");
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    textarea.style.pointerEvents = "none";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    const copied = document.execCommand("copy");
+    document.body.removeChild(textarea);
+    return copied;
+  } catch {
+    return false;
+  }
+}
+
 export type NarrationSetupPanelProps = {
   narrationContext: string;
   narrationGoal: string;
@@ -13,6 +43,7 @@ export type NarrationSetupPanelProps = {
   narrationRuntimeDebug: string;
   narrationLoopEnabled: boolean;
   narrationLoopHistoryJson: string;
+  narrationLoopClipboardStatus: string | null;
   onChangeNarrationContext: (value: string) => void;
   onChangeNarrationGoal: (value: string) => void;
   onChangeNarrationConstraints: (value: string) => void;
@@ -98,6 +129,7 @@ export function NarrationSetupPanel(props: NarrationSetupPanelProps): React.JSX.
   const [selectedPacketKey, setSelectedPacketKey] = useState<
     "step_1_app_to_runtime_request" | "step_2_runtime_received_packet" | "step_3_runtime_to_llm_request" | "step_4_app_final_response"
   >("step_1_app_to_runtime_request");
+  const [debugClipboardStatus, setDebugClipboardStatus] = useState<string | null>(null);
 
   const parsedDebug = useMemo(() => {
     if (!props.narrationRuntimeDebug.trim()) return null;
@@ -144,6 +176,20 @@ export function NarrationSetupPanel(props: NarrationSetupPanelProps): React.JSX.
   const runtimeAppliedUpdatesJson = runtimeAppliedUpdates.length
     ? JSON.stringify(runtimeAppliedUpdates, null, 2)
     : "Aucune mise a jour runtime appliquee sur le tour courant.";
+
+  const handleDebugCopy = (text: string, successLabel: string) => {
+    void (async () => {
+      const copied = await copyTextToClipboard(text);
+      setDebugClipboardStatus(copied ? successLabel : "Echec de copie du debug.");
+      window.setTimeout(() => {
+        setDebugClipboardStatus(current =>
+          current === successLabel || current === "Echec de copie du debug."
+            ? null
+            : current
+        );
+      }, 2500);
+    })();
+  };
 
   return (
     <>
@@ -231,6 +277,36 @@ export function NarrationSetupPanel(props: NarrationSetupPanelProps): React.JSX.
           }}
         >
           Memoire boucle disponible. Le JSON contient chaque tour avec `player_input` et le pipeline complet des 4 etapes.
+        </div>
+      )}
+      {props.narrationLoopClipboardStatus && (
+        <div
+          style={{
+            marginTop: 4,
+            fontSize: 11,
+            color: props.narrationLoopClipboardStatus.includes("Echec") ? "#ffb0b0" : "#b9efc0",
+            padding: "8px 10px",
+            borderRadius: 6,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(255,255,255,0.04)"
+          }}
+        >
+          {props.narrationLoopClipboardStatus}
+        </div>
+      )}
+      {debugClipboardStatus && (
+        <div
+          style={{
+            marginTop: 4,
+            fontSize: 11,
+            color: debugClipboardStatus.includes("Echec") ? "#ffb0b0" : "#b9efc0",
+            padding: "8px 10px",
+            borderRadius: 6,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(255,255,255,0.04)"
+          }}
+        >
+          {debugClipboardStatus}
         </div>
       )}
 
@@ -571,9 +647,7 @@ export function NarrationSetupPanel(props: NarrationSetupPanelProps): React.JSX.
               type="button"
               onClick={() => {
                 if (!allStepsJson) return;
-                if (typeof navigator !== "undefined" && navigator.clipboard) {
-                  void navigator.clipboard.writeText(allStepsJson);
-                }
+                handleDebugCopy(allStepsJson, "Les 4 etapes ont ete copiees.");
               }}
               style={{
                 padding: "6px 8px",
@@ -686,9 +760,7 @@ export function NarrationSetupPanel(props: NarrationSetupPanelProps): React.JSX.
               <button
                 type="button"
                 onClick={() => {
-                  if (typeof navigator !== "undefined" && navigator.clipboard) {
-                    void navigator.clipboard.writeText(packetJson);
-                  }
+                  handleDebugCopy(packetJson, "Le paquet courant a ete copie.");
                 }}
                 style={{
                   padding: "4px 8px",
