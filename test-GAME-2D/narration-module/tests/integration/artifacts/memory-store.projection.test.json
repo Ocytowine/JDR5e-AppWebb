@@ -10,6 +10,9 @@
   "campaigns": {
     "camp-projection-01": {
       "campaign_id": "camp-projection-01",
+      "clock": {
+        "turn_index": 0
+      },
       "events": [],
       "relations": [],
       "knowledge": {
@@ -19,6 +22,19 @@
       "world_overrides": {
         "governance": "player_sovereign",
         "weather": "storm"
+      },
+      "entity_registry": {
+        "actors": {},
+        "locations": {},
+        "objects": {},
+        "indexes": {
+          "by_type": {},
+          "by_memory_state": {},
+          "by_location_id": {},
+          "by_event_id": {},
+          "by_scope": {},
+          "by_status": {}
+        }
       },
       "updated_at_turn": "turn-20"
     }

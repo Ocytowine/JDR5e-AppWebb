@@ -5,8 +5,31 @@ nom: Chateau Tharqual
 
 # LOCALISATION
 ville: lysenthe
+quartier: pierre_des_sables
 region: ylssea
 territoire: astryade
+presence_profile:
+  likely_roles:
+    - role: garde
+      weight: 4
+    - role: officier
+      weight: 3
+    - role: noble
+      weight: 2
+    - role: serviteur
+      weight: 2
+    - role: pnj_lambda
+      weight: 1
+  rare_roles:
+    - role: marchand
+      weight: 1
+  species_weights:
+    - species: humain
+      weight: 7
+    - species: elfe
+      weight: 2
+    - species: autre
+      weight: 1
 
 # TYPE / FONCTION
 type_batiment: chateau administratif

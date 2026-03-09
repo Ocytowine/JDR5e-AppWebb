@@ -128,6 +128,106 @@
       },
       "additionalProperties": false
     },
+    "interaction_language_state": {
+      "type": "object",
+      "required": [
+        "speaker_language",
+        "player_languages",
+        "actor_known_languages",
+        "shared_languages",
+        "fallback_language",
+        "comprehension_state",
+        "needs_interpreter"
+      ],
+      "properties": {
+        "speaker_language": {
+          "type": "string"
+        },
+        "player_languages": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "actor_known_languages": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "shared_languages": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "fallback_language": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "comprehension_state": {
+          "type": "string",
+          "enum": [
+            "full",
+            "limited",
+            "none",
+            "unknown"
+          ]
+        },
+        "needs_interpreter": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "role_plausibility": {
+      "type": "object",
+      "required": [
+        "role",
+        "category",
+        "score",
+        "matched_role",
+        "source_chain",
+        "suggested_roles"
+      ],
+      "properties": {
+        "role": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "likely",
+            "rare",
+            "out_of_profile"
+          ]
+        },
+        "score": {
+          "type": "number"
+        },
+        "matched_role": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_chain": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "suggested_roles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
     "narrative_output": {
       "type": "object",
       "required": [

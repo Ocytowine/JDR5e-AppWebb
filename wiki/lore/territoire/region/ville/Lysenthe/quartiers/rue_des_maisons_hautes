@@ -5,6 +5,26 @@ nom: Rue des Maisons Hautes
 ville: lysenthe
 territoire: astryade
 region: ylssea
+presence_profile:
+  likely_roles:
+    - role: habitant
+      weight: 4
+    - role: artisan
+      weight: 3
+    - role: domestique
+      weight: 2
+    - role: pnj_lambda
+      weight: 4
+  rare_roles:
+    - role: garde
+      weight: 1
+  species_weights:
+    - species: humain
+      weight: 6
+    - species: elfe
+      weight: 3
+    - species: autre
+      weight: 1
 ---
 Resume : Secteur residentiel et administratif des familles etablies, proche des organes de gestion civile.
 

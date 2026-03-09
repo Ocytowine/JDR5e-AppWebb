@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "wiki": {
     "world_state": {
-      "location_id": "halles_des_commerces",
+      "location_id": "port_des_xantars",
       "map_prompt": "",
       "weather": "clear",
       "time_of_day": "late_afternoon"
@@ -658,6 +658,190 @@
         }
       },
       "updated_at_turn": "turn-3068bc85-2eca-4a3d-be4f-7dee9cc731e7"
+    },
+    "narr-pj-1-map-9781a396": {
+      "campaign_id": "narr-pj-1-map-9781a396",
+      "clock": {
+        "turn_index": 2
+      },
+      "events": [],
+      "relations": [],
+      "knowledge": {
+        "player_view": [
+          {
+            "turn_id": "turn-2d61b3ed-2829-4d9f-8651-3638b07f401b",
+            "text": "Tu parles commun et tu sais lire commun.",
+            "knowledge_kind": "summary",
+            "certainty": "partial",
+            "source": "auto_narration",
+            "location_id": "port_des_xantars",
+            "linked_entity_ids": [
+              "port_des_xantars"
+            ],
+            "tags": [
+              "ask_info",
+              "auto_summary"
+            ]
+          },
+          {
+            "turn_id": "turn-2d61b3ed-2829-4d9f-8651-3638b07f401b",
+            "text": "Poursuivre avec d'autres questions sur les compétences ou les informations du personnage.",
+            "knowledge_kind": "lead",
+            "certainty": "tentative",
+            "source": "auto_narration",
+            "location_id": "port_des_xantars",
+            "linked_entity_ids": [
+              "port_des_xantars"
+            ],
+            "tags": [
+              "ask_info",
+              "next_turn_hint"
+            ]
+          },
+          {
+            "turn_id": "turn-2d61b3ed-2829-4d9f-8651-3638b07f401b",
+            "text": "Explorer le port des Xantars pour récolter des indices ou rencontrer des PNJ.",
+            "knowledge_kind": "lead",
+            "certainty": "tentative",
+            "source": "auto_narration",
+            "location_id": "port_des_xantars",
+            "linked_entity_ids": [
+              "port_des_xantars"
+            ],
+            "tags": [
+              "ask_info",
+              "next_turn_hint"
+            ]
+          },
+          {
+            "turn_id": "turn-652a0036-ffdf-45d5-944f-17e73f86d025",
+            "text": "Tu portes des vêtements communs, accompagnés d'un sac à dos, une bourse, un symbole sacré, un petit couteau et une épée longue brasier. Ton allure reste celle d'un grand elfe blond avec une silhouette athlétique, toujours souriant et regard concentré.",
+            "knowledge_kind": "summary",
+            "certainty": "partial",
+            "source": "auto_narration",
+            "location_id": "port_des_xantars",
+            "linked_entity_ids": [
+              "port_des_xantars"
+            ],
+            "tags": [
+              "ask_info",
+              "auto_summary"
+            ]
+          },
+          {
+            "turn_id": "turn-652a0036-ffdf-45d5-944f-17e73f86d025",
+            "text": "Interroger sur les compétences ou connaissances spécifiques du personnage.",
+            "knowledge_kind": "lead",
+            "certainty": "tentative",
+            "source": "auto_narration",
+            "location_id": "port_des_xantars",
+            "linked_entity_ids": [
+              "port_des_xantars"
+            ],
+            "tags": [
+              "ask_info",
+              "next_turn_hint"
+            ]
+          },
+          {
+            "turn_id": "turn-652a0036-ffdf-45d5-944f-17e73f86d025",
+            "text": "Explorer le port des Xantars pour découvrir des indices ou rencontrer des PNJ.",
+            "knowledge_kind": "lead",
+            "certainty": "tentative",
+            "source": "auto_narration",
+            "location_id": "port_des_xantars",
+            "linked_entity_ids": [
+              "port_des_xantars"
+            ],
+            "tags": [
+              "ask_info",
+              "next_turn_hint"
+            ]
+          }
+        ],
+        "truth_view": []
+      },
+      "world_overrides": {
+        "location_id": "port_des_xantars"
+      },
+      "entity_registry": {
+        "actors": {},
+        "locations": {
+          "port_des_xantars": {
+            "entity_id": "port_des_xantars",
+            "entity_type": "location",
+            "subtype": "quartier",
+            "display_name": "Port des Xantars",
+            "memory_state": "active",
+            "status": "active",
+            "scope": "situational",
+            "created_at_turn": "turn-2d61b3ed-2829-4d9f-8651-3638b07f401b",
+            "updated_at_turn": "turn-652a0036-ffdf-45d5-944f-17e73f86d025",
+            "last_seen_turn": "turn-652a0036-ffdf-45d5-944f-17e73f86d025",
+            "location_id": "port_des_xantars",
+            "source": {
+              "created_by": "runtime",
+              "reason": "location_runtime_state"
+            },
+            "visibility": {
+              "player_known": true,
+              "truth_known": true
+            },
+            "links": {
+              "event_ids": [],
+              "related_entity_ids": [],
+              "faction_ids": []
+            },
+            "payload": {
+              "visible_actors": [],
+              "active_points_of_interest": [],
+              "connected_locations": [],
+              "scene_payload": {
+                "ambient_markers": [],
+                "visible_exits": [],
+                "visible_actors": [],
+                "active_points_of_interest": []
+              }
+            },
+            "lifecycle_policy": {
+              "archive_when_inactive": true
+            },
+            "lifecycle_history": [],
+            "first_seen_turn_index": 1,
+            "last_seen_turn_index": 2
+          }
+        },
+        "objects": {},
+        "indexes": {
+          "by_type": {
+            "location": [
+              "port_des_xantars"
+            ]
+          },
+          "by_memory_state": {
+            "active": [
+              "port_des_xantars"
+            ]
+          },
+          "by_location_id": {
+            "port_des_xantars": [
+              "port_des_xantars"
+            ]
+          },
+          "by_event_id": {},
+          "by_scope": {
+            "situational": [
+              "port_des_xantars"
+            ]
+          },
+          "by_status": {
+            "active": [
+              "port_des_xantars"
+            ]
+          }
+        }
+      },
+      "updated_at_turn": "turn-652a0036-ffdf-45d5-944f-17e73f86d025"
     }
   }
 }

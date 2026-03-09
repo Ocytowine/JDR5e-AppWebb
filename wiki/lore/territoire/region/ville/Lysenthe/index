@@ -17,14 +17,70 @@ composition_population:
   - Humains 60%
   - Elfes 30%
   - Autres 10%
+population_profile:
+  dominant_species:
+    - humain
+  minor_species:
+    - elfe
+  rare_species:
+    - autres
+  common_roles:
+    - marchand
+    - garde
+    - clerc
+    - courtier
+  outsider_presence: medium
+presence_profile:
+  likely_roles:
+    - role: marchand
+      weight: 4
+    - role: garde
+      weight: 3
+    - role: clerc
+      weight: 2
+    - role: courtier
+      weight: 2
+    - role: pnj_lambda
+      weight: 3
+  rare_roles:
+    - role: emissaire
+      weight: 1
+    - role: mercenaire
+      weight: 1
+  species_weights:
+    - species: humain
+      weight: 6
+    - species: elfe
+      weight: 3
+    - species: autre
+      weight: 1
 
 niveau_vie: contrastee
+
+language_profile:
+  common_languages:
+    - commun
+  trade_languages:
+    - commun
+  rare_languages:
+    - elfique
+  script_languages:
+    - commun
+    - elfique
 
 # INDICATEURS SOCIAUX
 niveau_criminalite: 20
 stabilite_sociale: elevee
 corruption: 35
 tension_ethnique: 15
+social_profile:
+  authority_culture: strict
+  hospitality_to_strangers: guarded
+  violence_visibility: low
+  law_enforcement_presence: steady
+  authority_chain:
+    - maison_tharqual
+    - chateau_tharqual
 
 # CLIMAT / CADRE
 climat: tempere humide
@@ -53,6 +109,7 @@ batiments_importants:
 # FACTIONS / RELIGIONS
 factions_presentes:
   - maison_tharqual
+  - garnison_de_lysenthe
   - archivistes_de_lysenthe
   - cercle_du_commerce_maritime
 religions_principales:

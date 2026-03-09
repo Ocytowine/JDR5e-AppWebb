@@ -1,0 +1,80 @@
+---
+type: faction
+id: garnison_de_lysenthe
+nom: Garnison de Lysenthe
+
+ville: lysenthe
+region: ylssea
+territoire: astryade
+
+faction_category: ordre militaire urbain
+siege_pouvoir: caserne_centrale
+autorite_tutelle: maison_tharqual
+role_dans_la_ville:
+  - maintien de l'ordre urbain
+  - defense des remparts et points sensibles
+  - controle des acces restreints
+  - appui aux operations portuaires
+
+language_profile:
+  common_languages:
+    - commun
+  command_languages:
+    - commun
+  tolerated_languages:
+    - elfique
+
+grade_system:
+  - capitaine_de_garnison
+  - officier_de_quart
+  - sergent_des_portes
+  - garde_urbain
+  - recrue
+
+fonctionnement:
+  command_style: vertical
+  discipline_level: high
+  reporting_chain: courte et formalisee
+  patrol_pattern: reguliere
+
+uniforme_officiel:
+  base_layers:
+    - gambison sombre
+    - surcot bleu gris
+  outer_markers:
+    - baudrier borde d'etain
+    - brassard de service
+  service_variants:
+    - remparts
+    - portes
+    - escortes
+
+equipement_de_base:
+  - lance courte
+  - epee de service
+  - baton de commandement pour les gradés
+  - trousseau de clefs et sifflet selon le poste
+
+ideologie:
+  - la ville tient par la discipline visible
+  - un acces controle vaut mieux qu'une poursuite tardive
+  - les remparts protègent autant le commerce que le pouvoir
+
+signe_distinctif:
+  - couture bleu gris sur le col
+  - boucle d'etain en forme de herse stylisee
+
+traits_identifiants:
+  - langage bref et procedural
+  - preference pour les ordres clairs
+  - forte attention aux laissez-passer et mandats
+
+mots_cles:
+  - garnison
+  - ordre urbain
+  - remparts
+  - maison_tharqual
+---
+Bras arme visible de l'autorite locale, la Garnison de Lysenthe tient autant de la police urbaine que de la force de defense. Elle est partout ou la circulation des hommes, des marchandises et des archives touche au pouvoir.
+
+Sa presence se reconnait moins a la richesse de ses tenues qu'a leur regularite: etoffes solides, tons sobres, ferrures d'etain et posture d'inspection permanente. A Lysenthe, croiser un membre de la garnison, c'est sentir que chaque seuil, chaque porte et chaque registre ont un gardien.

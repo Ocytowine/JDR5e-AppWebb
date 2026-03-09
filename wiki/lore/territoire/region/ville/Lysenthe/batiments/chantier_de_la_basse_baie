@@ -5,8 +5,29 @@ nom: Chantier de la Basse Baie
 
 # LOCALISATION
 ville: lysenthe
+quartier: basse_baie
 region: ylssea
 territoire: astryade
+presence_profile:
+  likely_roles:
+    - role: ouvrier
+      weight: 5
+    - role: contremaitre
+      weight: 2
+    - role: marin
+      weight: 2
+    - role: pnj_lambda
+      weight: 3
+  rare_roles:
+    - role: archiviste
+      weight: 1
+  species_weights:
+    - species: humain
+      weight: 6
+    - species: elfe
+      weight: 2
+    - species: autre
+      weight: 2
 
 # TYPE / FONCTION
 type_batiment: chantier naval

@@ -5,8 +5,29 @@ nom: Maison des Registres
 
 # LOCALISATION
 ville: lysenthe
+quartier: quartier_des_archives
 region: ylssea
 territoire: astryade
+presence_profile:
+  likely_roles:
+    - role: clerc
+      weight: 4
+    - role: archiviste
+      weight: 3
+    - role: commis
+      weight: 3
+    - role: pnj_lambda
+      weight: 2
+  rare_roles:
+    - role: garde
+      weight: 1
+  species_weights:
+    - species: humain
+      weight: 5
+    - species: elfe
+      weight: 4
+    - species: autre
+      weight: 1
 
 # TYPE / FONCTION
 type_batiment: administration civile

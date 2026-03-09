@@ -17,13 +17,22 @@ Le runtime doit pouvoir s'appuyer sur ce profil pour:
 2. juger si une interaction sociale est plausible
 3. memoriser une cible recurrente
 4. relier un acteur a un evenement
-5. expirer les acteurs mineurs sans polluer la sauvegarde
+5. conserver une coherence locale de langue, faction et culture
+6. archiver les acteurs mineurs sans polluer la sauvegarde
 
 ## Regle centrale
 
 Un acteur narratif ne doit pas etre seulement une phrase dans la narration.
 
 S'il devient cible d'une action, source d'information, ou maillon d'un evenement, il doit pouvoir exister comme profil structure.
+
+Le profil ne doit pas seulement decrire "qui il est".
+Il doit aussi expliquer:
+
+- d'ou il vient dans le monde
+- a quelle logique locale il obeit
+- comment il parle et comprend
+- pourquoi il est plausible ici
 
 ## Cas d'usage v1
 
@@ -61,7 +70,22 @@ Exemple:
 - un informateur
 - un officier de quartier
 
-## Structure v1
+## Principe de structure
+
+Un `ActorProfile` v1 complet doit etre pense en 3 couches:
+
+1. `identite jouable`
+2. `coherence locale`
+3. `etat runtime`
+
+Le runtime doit pouvoir creer:
+
+- un `stub` minimal et prudent
+- puis un profil `resolved` plus riche
+
+sans perdre l'ancrage local du lieu, de la faction et de la langue.
+
+## Structure v1 complete
 
 ```json
 {
@@ -69,11 +93,14 @@ Exemple:
   "entity_type": "actor",
   "subtype": "pnj",
   "display_name": "Garde de l'entree",
+  "memory_state": "active",
   "status": "active",
   "scope": "situational",
   "created_at_turn": "turn-001",
-  "updated_at_turn": "turn-001",
-  "last_seen_turn": "turn-001",
+  "updated_at_turn": "turn-003",
+  "last_seen_turn": "turn-003",
+  "first_seen_turn_index": 1,
+  "last_seen_turn_index": 3,
   "location_id": "caserne_centrale",
   "source": {
     "created_by": "runtime",
@@ -86,20 +113,36 @@ Exemple:
   "links": {
     "event_ids": [],
     "related_entity_ids": [],
-    "faction_ids": ["garnison_lysenthe"]
+    "faction_ids": ["garnison_de_lysenthe"]
   },
   "payload": {
+    "profile_state": "resolved",
+    "pending_enrichment": null,
     "identity": {
       "known_name": null,
-      "role": "garde d'entree",
+      "role": "garde",
       "species": "humain",
-      "gender_presentation": "masculine"
+      "gender_presentation": "masculine",
+      "age_band": "adulte"
+    },
+    "culture": {
+      "origin_region": "ylssea",
+      "culture_tags": ["urbain", "garnison"],
+      "faction_id": "garnison_de_lysenthe",
+      "authority_context": "formal"
+    },
+    "language_profile": {
+      "native_languages": ["commun"],
+      "known_languages": ["commun"],
+      "preferred_language": "commun",
+      "literacy": "functional",
+      "source": "generation_profile:lysenthe>quartier_des_remparts>caserne_centrale"
     },
     "appearance": {
-      "physical_traits": ["grand", "balafre joue gauche"],
-      "clothing": ["uniforme sombre", "manteau de pluie replie"],
-      "visible_equipment": ["hallebarde", "clefs de service"],
-      "notable_details": ["badge de garnison use"]
+      "physical_traits": ["epaules larges", "visage ferme"],
+      "clothing": ["gambison sombre", "surcot bleu gris"],
+      "visible_equipment": ["lance courte", "trousseau de clefs"],
+      "notable_details": ["boucle d'etain en forme de herse"]
     },
     "stats": {
       "FOR": 13,
@@ -114,19 +157,36 @@ Exemple:
       "social_traits": ["discipline", "mefiance", "respecte la procedure"],
       "authority_level": "low",
       "disposition_to_player": "neutral",
-      "interaction_state": "available"
+      "interaction_state": "available",
+      "hospitality_style": "guarded"
     },
     "world": {
-      "faction_id": "garnison_lysenthe",
+      "faction_id": "garnison_de_lysenthe",
       "duty_state": "on_post",
-      "location_precision": "entree_principale"
+      "location_precision": "entree_principale",
+      "access_scope": "restricted_zone"
+    },
+    "interaction": {
+      "last_interaction_summary": null,
+      "player_language_compatibility": "full",
+      "known_to_player_as": "un garde de la caserne"
+    },
+    "generation_context": {
+      "generation_profile_source": [
+        "lysenthe",
+        "quartier_des_remparts",
+        "caserne_centrale"
+      ],
+      "role_plausibility": "likely",
+      "generated_from_presence_profile": true
     }
   },
   "lifecycle_policy": {
     "ttl_turns": 8,
     "promote_if_linked_to_event": true,
     "archive_when_inactive": true
-  }
+  },
+  "lifecycle_history": []
 }
 ```
 
@@ -138,11 +198,14 @@ Exemple:
 - `entity_type = actor`
 - `subtype = pj | pnj`
 - `display_name`
+- `memory_state = active | relevant | dormant | archived`
 - `status`
 - `scope`
 - `created_at_turn`
 - `updated_at_turn`
 - `last_seen_turn`
+- `first_seen_turn_index`
+- `last_seen_turn_index`
 - `source`
 - `visibility`
 - `links`
@@ -153,15 +216,25 @@ Exemple:
 
 Pour un `ActorProfile` v1, le payload minimal doit contenir:
 
+- `profile_state = stub | pending_enrichment | resolved`
 - `identity.role`
 - `identity.species`
-- `appearance.physical_traits`
+- `language_profile.known_languages`
+- `language_profile.preferred_language`
 - `appearance.clothing`
 - `appearance.visible_equipment`
-- `stats`
 - `social.temperament`
 - `social.disposition_to_player`
 - `social.interaction_state`
+- `world.location_precision`
+
+### Payload complet recommande
+
+Un profil `resolved` doit idealement contenir en plus:
+
+- `culture`
+- `interaction`
+- `generation_context`
 
 ## Sous-objets
 
@@ -171,15 +244,56 @@ Contient l'identite fonctionnelle de l'acteur.
 
 Champs:
 
-- `known_name`: nom connu par le joueur ou `null`
-- `role`: role visible ou fonction
+- `known_name`
+- `role`
 - `species`
-- `gender_presentation` si utile
+- `gender_presentation`
+- `age_band`
 
-Regle:
+Regles:
 
 - `known_name` peut etre vide pour un PNJ anonyme
 - `display_name` peut rester descriptif tant que le vrai nom n'est pas connu
+- `role` doit decrire la fonction visible ou sociale, pas un meta-role systeme
+
+### `culture`
+
+Contient l'ancrage culturel et institutionnel.
+
+Champs:
+
+- `origin_region`
+- `culture_tags`
+- `faction_id`
+- `authority_context`
+
+Regles:
+
+- sert a maintenir la coherence locale
+- ne doit pas devenir une encyclopedie
+- doit suffire a savoir si l'acteur vient du lieu, d'une institution locale, ou d'une logique exterieure
+
+### `language_profile`
+
+Contient le profil de langue du PNJ.
+
+Champs:
+
+- `native_languages`
+- `known_languages`
+- `preferred_language`
+- `literacy`
+- `source`
+
+Valeurs utiles v1:
+
+- `literacy = none | functional | educated | scholarly`
+
+Regles:
+
+- `preferred_language` est la langue que le PNJ utilise naturellement
+- `known_languages` sert au runtime pour calculer la compatibilite d'echange
+- ce bloc est indispensable pour `talk`
 
 ### `appearance`
 
@@ -192,10 +306,11 @@ Champs:
 - `visible_equipment`
 - `notable_details`
 
-Regle:
+Regles:
 
 - la narration n'est pas obligee d'afficher tout cela
 - mais ces champs doivent exister si le profil est cree
+- les `notable_details` servent a la reconnaissance en scene
 
 ### `stats`
 
@@ -210,7 +325,7 @@ Champs v1:
 - `SAG`
 - `CHA`
 
-Regle:
+Regles:
 
 - pas besoin de toute la fiche combat
 - mais le profil doit avoir un noyau de caracteristiques stable
@@ -226,11 +341,18 @@ Champs:
 - `authority_level`
 - `disposition_to_player`
 - `interaction_state`
+- `hospitality_style`
 
 Valeurs utiles v1:
 
-- `disposition_to_player`: `friendly | neutral | wary | hostile`
-- `interaction_state`: `available | busy | blocked | fleeing | absent`
+- `authority_level = unknown | none | low | medium | high | elite`
+- `disposition_to_player = friendly | neutral | wary | hostile`
+- `interaction_state = available | busy | blocked | fleeing | absent`
+
+Regles:
+
+- ce bloc sert a juger la reaction probable d'un PNJ
+- il ne doit pas etre confondu avec la faction ou le grade
 
 ### `world`
 
@@ -241,7 +363,54 @@ Champs:
 - `faction_id`
 - `duty_state`
 - `location_precision`
-- plus tard `rank`, `chain_of_command`, `jurisdiction`
+- `access_scope`
+
+Valeurs utiles v1:
+
+- `duty_state = unknown | on_post | on_patrol | off_duty | active_service`
+
+Regles:
+
+- `world` decrit le contexte objectif de l'acteur dans le monde
+- il ne doit pas contenir de narration libre
+
+### `interaction`
+
+Contient l'etat relationnel immediate utile au runtime.
+
+Champs:
+
+- `last_interaction_summary`
+- `player_language_compatibility`
+- `known_to_player_as`
+
+Valeurs utiles v1:
+
+- `player_language_compatibility = full | limited | none | unknown`
+
+Regles:
+
+- ce bloc sert a mieux tenir les tours successifs
+- il est autorise a rester tres court
+
+### `generation_context`
+
+Contient la trace de generation.
+
+Champs:
+
+- `generation_profile_source`
+- `role_plausibility`
+- `generated_from_presence_profile`
+
+Valeurs utiles v1:
+
+- `role_plausibility = likely | rare | out_of_profile`
+
+Regles:
+
+- ce bloc sert au debug et a la coherence
+- il ne doit pas etre expose tel quel au joueur
 
 ## Creation
 
@@ -253,230 +422,202 @@ Un `ActorProfile` doit etre cree si:
 2. le runtime doit ouvrir un dialogue
 3. l'acteur doit pouvoir revenir sur plusieurs tours
 4. l'acteur sert de support a une information ou a un event
+5. la coherence locale depend de son existence comme entite stable
 
 ### Quand ne pas creer
 
 Ne pas creer un profil complet si:
 
-1. l'acteur n'est qu'un decor de foule sans importance
-2. aucune interaction ne le cible
-3. aucun rappel futur n'est probable
+1. l'acteur est purement decoratif
+2. aucune interaction runtime n'en depend
+3. il n'est ni cible, ni source, ni obstacle
+4. il ne doit pas revenir
 
-Dans ce cas, une simple narration ou un element de scene suffit.
+Dans ce cas:
 
-## Qui cree le profil
+- decor de scene simple
+- ou `pnj_lambda` non promu
 
-### IA amont
+## Stub minimal
 
-Peut:
-
-- detecter le besoin d'un acteur
-- proposer un profil minimal structure
-- proposer le `scope`
-- proposer si l'acteur semble anonyme ou recurrent
-
-### Runtime
-
-Doit:
-
-- valider les champs
-- attribuer ou confirmer `entity_id`
-- stocker le profil
-- regler `scope`, `status`, `ttl`
-- lier l'acteur a la memoire et aux events
-
-## Resolution de cible
-
-Le runtime doit distinguer:
-
-- `target_actor_hint`: texte libre de l'IA amont
-- `target_actor_id`: identifiant runtime stable
-
-Procedure v1:
-
-1. si `target_actor_id` existe, l'utiliser
-2. sinon chercher un acteur compatible deja connu dans la scene
-3. sinon creer un nouvel `ActorProfile`
-4. stocker l'ID cree pour les tours suivants
-
-Exemple:
-
-- hint: "garde de l'entree"
-- aucun acteur existant ne correspond
-- le runtime cree `npc_guard_gate_01`
-- les prochains tours doivent reutiliser cet ID
-
-## Scope et duree de vie recommandes
-
-### `ephemeral`
-
-Pour:
-
-- passant
-- garde anonyme
-- temoin mineur
-
-Profil:
-
-- minimal
-- expiration rapide
-
-Regle v1:
-
-- `ttl_turns` de 3 a 6
-
-### `situational`
-
-Pour:
-
-- acteur d'une scene en cours
-- cible de dialogue
-- source d'information exploitee
-- garde deja interactionne
-
-Regle v1:
-
-- `ttl_turns` de 8 a 20
-- promotion si lie a un event ou revu plusieurs fois
-
-### `persistent`
-
-Pour:
-
-- PNJ recurrent
-- acteur important dans un event
-- relation durable avec le PJ
-
-Regle v1:
-
-- pas d'expiration automatique
-
-## Promotion
-
-Promotion recommandee si:
-
-1. l'acteur est revu sur plusieurs tours
-2. il est lie a un `event_id`
-3. il devient source cle, suspect, victime ou allié
-4. sa relation avec le PJ change de facon durable
-
-Le runtime doit garder un historique minimal de promotion:
-
-```json
-{
-  "lifecycle_history": [
-    {
-      "from": "ephemeral",
-      "to": "situational",
-      "turn_id": "turn-004",
-      "reason": "dialogue_repeated"
-    }
-  ]
-}
-```
-
-## Archivage et expiration
-
-### Expiration
-
-L'acteur peut disparaitre de la memoire active si:
-
-- aucun event ne le reference
-- il n'a pas ete revu depuis sa fenetre TTL
-- il ne porte pas de relation importante
-
-### Archivage
-
-L'acteur doit etre archive et non supprime si:
-
-- il a ete lie a un event important
-- il a eu une relation durable avec le PJ
-- il a modifie la scene ou l'intrigue
-
-## Lien avec les events
-
-Un `ActorProfile` doit pouvoir etre relie a un event avec un role explicite.
-
-Roles types:
-
-- `witness`
-- `suspect`
-- `victim`
-- `guard`
-- `owner`
-- `messenger`
-- `informant`
+Le runtime doit pouvoir creer un `stub` prudent avant enrichissement.
 
 Exemple:
 
 ```json
 {
-  "links": {
-    "event_ids": ["evt-archives-01"],
-    "related_entity_ids": ["obj-ledger-burned-01"],
-    "faction_ids": ["garnison_lysenthe"]
-  },
-  "event_roles": [
-    {
-      "event_id": "evt-archives-01",
-      "role": "witness"
+  "payload": {
+    "profile_state": "stub",
+    "identity": {
+      "known_name": null,
+      "role": "garde",
+      "species": "humain",
+      "gender_presentation": "unknown"
+    },
+    "language_profile": {
+      "native_languages": ["commun"],
+      "known_languages": ["commun"],
+      "preferred_language": "commun",
+      "literacy": "functional",
+      "source": "generation_profile:lysenthe>quartier_des_remparts>caserne_centrale"
+    },
+    "appearance": {
+      "physical_traits": [],
+      "clothing": [],
+      "visible_equipment": [],
+      "notable_details": []
+    },
+    "social": {
+      "temperament": "neutral",
+      "social_traits": [],
+      "authority_level": "low",
+      "disposition_to_player": "neutral",
+      "interaction_state": "available",
+      "hospitality_style": "guarded"
+    },
+    "world": {
+      "faction_id": "garnison_de_lysenthe",
+      "duty_state": "on_post",
+      "location_precision": "caserne_centrale",
+      "access_scope": "restricted_zone"
+    },
+    "generation_context": {
+      "generation_profile_source": [
+        "lysenthe",
+        "quartier_des_remparts",
+        "caserne_centrale"
+      ],
+      "role_plausibility": "likely",
+      "generated_from_presence_profile": true
     }
-  ]
+  }
 }
 ```
 
-## PJ narratif
+## Resolution et coherence locale
 
-Le PJ doit aussi exister comme `ActorProfile`, mais sa source n'est pas l'IA.
+Le runtime ne doit pas raisonner en mode script pur.
 
-Source principale:
+Il doit suivre cette logique:
 
-- sauvegarde personnage active
+1. l'IA choisit ou suggere un role
+2. le runtime verifie la plausibilite de ce role dans le lieu
+3. le lieu exact prime
+4. sinon le quartier sert de fallback
+5. sinon la ville sert de fallback
 
-Le runtime doit produire une projection narrative du PJ a partir de la fiche existante:
+Le lieu ne doit pas dicter "pres de la caserne = garde obligatoire".
 
-- espece
-- apparence
-- equipement visible
-- stats
-- competences ou traits saillants
+Il doit seulement fournir:
 
-Regle:
+- des roles probables
+- des roles rares mais plausibles
+- des poids d'espece
+- des langues usuelles
+- un style d'autorite
 
-- le PJ narratif doit etre derive de la fiche active
-- pas regenere arbitrairement par l'IA
+Ensuite:
 
-## Commandes runtime concernees a terme
+- `likely` = accepte naturellement
+- `rare` = accepte avec reserve legere
+- `out_of_profile` = clarification ou correction
 
-Le schema `ActorProfile` justifie l'existence future de commandes comme:
+## Langues et interaction sociale
 
-- `createNpcProfile`
-- `promoteActorProfile`
-- `updateActorProfile`
-- `expireActorProfile`
-- `linkActorToEvent`
-- `setDialogueTarget`
+Pour `talk`, le runtime doit comparer:
 
-## Definition of Done v1
+- les langues du PJ
+- `language_profile` du PNJ
 
-Le schema `ActorProfile v1` sera considere pret a implementer si:
+Puis produire un etat de compatibilite:
 
-1. le runtime peut creer un profil complet minimal
-2. le profil a un `entity_id` stable
-3. il peut etre cible par un dialogue
-4. il peut etre relie a un event
-5. il respecte `ephemeral|situational|persistent`
-6. il peut expirer ou etre archive
-7. le PJ peut etre projete dans ce meme modele sans perdre sa source de verite
+- `full`
+- `limited`
+- `none`
+- `unknown`
 
-## Limites volontaires de v1
+Cette compatibilite ne doit pas seulement exister dans le debug.
+Elle doit pouvoir influencer:
 
-Le schema v1 ne couvre pas encore:
+- la narration
+- la fluidite de l'echange
+- les malentendus
+- la posture sociale
 
-- inventaire detaille complet
-- blessures detaillees
-- arbre de relation complexe
-- historique complet de dialogues
-- planification autonome du PNJ
+## Promotion, archivage, expiration
 
-Ces points pourront venir plus tard.
+Le cycle de vie memoire ne doit pas etre confondu avec l'etat d'enrichissement du profil.
+
+Etats d'enrichissement:
+
+- `stub`
+- `pending_enrichment`
+- `resolved`
+
+Etats memoire:
+
+- `active`
+- `relevant`
+- `dormant`
+- `archived`
+
+Exemple correct:
+
+- un garde peut etre `resolved`
+- mais `dormant` si on ne le recroise plus
+
+## Liens avec les evenements
+
+Un `ActorProfile` doit pouvoir etre relie a:
+
+- `event_ids`
+- autres acteurs
+- factions
+- lieux
+
+Cas typiques:
+
+- garde ayant bloque un acces
+- archiviste detenant une information critique
+- courtier vu sur plusieurs cargaisons suspectes
+
+## Regles de generation
+
+### Ce que le runtime peut generer directement
+
+- role
+- espece probable
+- faction locale
+- langue probable
+- niveau d'autorite
+- duty_state
+- premiers marqueurs de tenue ou d'equipement
+
+### Ce que l'IA peut enrichir ensuite
+
+- details physiques
+- formulation plus fine du temperament
+- details distinctifs
+- maniere de parler
+- relation plus precise au PJ
+
+### Ce qui ne doit pas etre invente librement
+
+- une langue non soutenue par le lieu ou la faction
+- une espece hors cadre local sans justification
+- un grade sans logique de faction
+- un role hors `presence_profile` sans reserve runtime
+
+## DoD
+
+`ActorProfile v1` est considere pret si:
+
+1. un PNJ `talk` peut exister comme entite stable
+2. le profil distingue `profile_state` et `memory_state`
+3. le profil contient un `language_profile`
+4. le profil contient un `culture` ou equivalent d'ancrage local
+5. le profil contient une `generation_context`
+6. le runtime peut calculer une compatibilite linguistique
+7. le profil peut etre cree minimal puis enrichi
+8. le profil peut etre relie a une faction locale
+9. le profil reste exploitable sans envoyer toute la fiche au LLM

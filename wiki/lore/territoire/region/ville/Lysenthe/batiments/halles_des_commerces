@@ -5,6 +5,7 @@ nom: Halles des Commerces
 
 # LOCALISATION
 ville: lysenthe
+quartier: port_des_xantars
 region: ylssea
 territoire: astryade
 
@@ -19,6 +20,30 @@ importance_strategique: 92
 proprietaire_faction: cercle_du_commerce_maritime
 proprietaire_principal: Chambre des Courtiers de Lysenthe
 acces: public
+factions_residentes:
+  - cercle_du_commerce_maritime
+presence_profile:
+  likely_roles:
+    - role: marchand
+      weight: 5
+    - role: courtier
+      weight: 4
+    - role: commissionnaire
+      weight: 3
+    - role: garde
+      weight: 2
+    - role: pnj_lambda
+      weight: 4
+  rare_roles:
+    - role: archiviste
+      weight: 1
+  species_weights:
+    - species: humain
+      weight: 6
+    - species: elfe
+      weight: 3
+    - species: autre
+      weight: 1
 
 # DESCRIPTION RAPIDE
 etat_general: bon

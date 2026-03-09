@@ -5,6 +5,33 @@ nom: Quartier des Remparts
 ville: lysenthe
 territoire: astryade
 region: ylssea
+presence_profile:
+  likely_roles:
+    - role: garde
+      weight: 5
+    - role: officier
+      weight: 2
+    - role: messager
+      weight: 2
+    - role: pnj_lambda
+      weight: 2
+  rare_roles:
+    - role: marchand
+      weight: 1
+  species_weights:
+    - species: humain
+      weight: 7
+    - species: elfe
+      weight: 2
+    - species: autre
+      weight: 1
+language_profile:
+  common_languages:
+    - commun
+social_profile:
+  authority_culture: strict
+  hospitality_to_strangers: suspicious
+  violence_visibility: medium
 ---
 Resume : Ceinture defensive de Lysenthe, organisee autour des murailles, des tours et de la logistique militaire.
 

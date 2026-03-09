@@ -290,48 +290,103 @@ function computeAbilityMod(score: number): number {
   return Math.floor((score - 10) / 2);
 }
 
-function buildNarrationPlayerProfile(character: Personnage): Record<string, unknown> {
-  const forScore = readAbilityScore(character, "FOR");
-  const dexScore = readAbilityScore(character, "DEX");
-  const conScore = readAbilityScore(character, "CON");
-  const intScore = readAbilityScore(character, "INT");
-  const sagScore = readAbilityScore(character, "SAG");
-  const chaScore = readAbilityScore(character, "CHA");
-  const mods = (character as any)?.combatStats?.mods ?? {};
+function prettifyNarrationLabel(value: unknown): string {
+  return String(value ?? "")
+    .trim()
+    .replace(/^obj[_-]/i, "")
+    .replace(/^item[_-]/i, "")
+    .replace(/^weapon[_-]/i, "")
+    .replace(/^armor[_-]/i, "")
+    .replace(/[_-]+/g, " ")
+    .trim();
+}
+
+function toShortStringArray(values: unknown[], limit = 8): string[] {
+  return values
+    .map((value) => String(value ?? "").trim())
+    .filter(Boolean)
+    .slice(0, limit);
+}
+
+const NARRATIVE_CLOTHING_SLOTS = new Set([
+  "corps",
+  "tete",
+  "gants",
+  "bottes",
+]);
+
+function buildPlayerNarrativeSnapshot(character: Personnage): Record<string, unknown> {
+  const rawCharacter = character as any;
+  const classEntries = rawCharacter?.classe && typeof rawCharacter.classe === "object"
+    ? Object.values(rawCharacter.classe as Record<string, any>)
+    : [];
+  const classIds = toShortStringArray(classEntries.map((entry) => entry?.classeId));
+  const subclassIds = toShortStringArray(classEntries.map((entry) => entry?.subclasseId));
+  const inventoryItems = Array.isArray(rawCharacter?.inventoryItems)
+    ? (rawCharacter.inventoryItems as Array<any>)
+    : [];
+  const wornClothing = toShortStringArray(
+    inventoryItems
+      .filter((item) =>
+        Boolean(item?.equippedSlot) &&
+        !item?.storedIn &&
+        (
+          String(item?.type ?? "").toLowerCase() === "armor" ||
+          NARRATIVE_CLOTHING_SLOTS.has(String(item?.equippedSlot ?? "").toLowerCase())
+        )
+      )
+      .map((item) => prettifyNarrationLabel(item?.id))
+  );
+  const visibleEquipment = toShortStringArray([
+    ...Object.values((rawCharacter?.armesDefaut ?? {}) as Record<string, unknown>).map((value) =>
+      prettifyNarrationLabel(value)
+    ),
+    ...inventoryItems
+      .filter((item) =>
+        Boolean(item?.equippedSlot) &&
+        !item?.storedIn &&
+        !(
+          String(item?.type ?? "").toLowerCase() === "armor" ||
+          NARRATIVE_CLOTHING_SLOTS.has(String(item?.equippedSlot ?? "").toLowerCase())
+        )
+      )
+      .map((item) => prettifyNarrationLabel(item?.id)),
+  ]);
+  const physicalMarkers = toShortStringArray([
+    rawCharacter?.descriptionPersonnage?.physique,
+    rawCharacter?.profileDetails?.visage,
+    rawCharacter?.profileDetails?.cheveux,
+    rawCharacter?.profileDetails?.yeux,
+    rawCharacter?.profileDetails?.silhouette,
+  ]);
+  const currentConditionTags = toShortStringArray([
+    Number(rawCharacter?.nivFatigueActuel ?? 0) > 0 ? `fatigue_${Number(rawCharacter.nivFatigueActuel)}` : "",
+    Number(rawCharacter?.pvActuels ?? 0) > 0 &&
+    Number(rawCharacter?.combatStats?.maxHp ?? 0) > 0 &&
+    Number(rawCharacter.pvActuels) < Number(rawCharacter.combatStats.maxHp)
+      ? "blesse"
+      : "",
+    rawCharacter?.inspiration ? "inspire" : "",
+  ]);
   return {
     character_id: String(character?.id ?? "setup-player"),
     display_name: String((character as any)?.nom?.nomcomplet ?? ""),
-    level: Number((character as any)?.niveauGlobal ?? (character as any)?.combatStats?.level ?? 1),
-    proficiency_bonus: Number((character as any)?.maitriseBonus ?? 2),
-    passive_perception: Number((character as any)?.percPassive ?? 10),
-    classes: (character as any)?.classe ?? {},
-    race_id: (character as any)?.raceId ?? null,
-    background_id: (character as any)?.backgroundId ?? null,
-    ability_scores: {
-      FOR: forScore,
-      DEX: dexScore,
-      CON: conScore,
-      INT: intScore,
-      SAG: sagScore,
-      CHA: chaScore
-    },
-    ability_mods: {
-      modFOR: Number.isFinite(Number(mods?.modFOR)) ? Number(mods.modFOR) : computeAbilityMod(forScore),
-      modDEX: Number.isFinite(Number(mods?.modDEX)) ? Number(mods.modDEX) : computeAbilityMod(dexScore),
-      modCON: Number.isFinite(Number(mods?.modCON)) ? Number(mods.modCON) : computeAbilityMod(conScore),
-      modINT: Number.isFinite(Number(mods?.modINT)) ? Number(mods.modINT) : computeAbilityMod(intScore),
-      modSAG: Number.isFinite(Number(mods?.modSAG)) ? Number(mods.modSAG) : computeAbilityMod(sagScore),
-      modCHA: Number.isFinite(Number(mods?.modCHA)) ? Number(mods.modCHA) : computeAbilityMod(chaScore)
-    },
-    skill_proficiencies: Array.isArray((character as any)?.competences)
-      ? (character as any).competences
-      : [],
-    skill_expertises: Array.isArray((character as any)?.expertises)
-      ? (character as any).expertises
-      : [],
-    saving_throw_proficiencies: Array.isArray((character as any)?.savingThrows)
-      ? (character as any).savingThrows
-      : []
+    species: String(rawCharacter?.raceId ?? "").trim() || null,
+    background_id: String(rawCharacter?.backgroundId ?? "").trim() || null,
+    class_ids: classIds,
+    subclass_ids: subclassIds,
+    level: Number(rawCharacter?.niveauGlobal ?? rawCharacter?.combatStats?.level ?? 1),
+    spoken_languages: toShortStringArray(Array.isArray(rawCharacter?.langues) ? rawCharacter.langues : []),
+    read_languages: toShortStringArray(Array.isArray(rawCharacter?.langues) ? rawCharacter.langues : []),
+    visible_equipment: visibleEquipment,
+    worn_clothing: wornClothing,
+    physical_markers: physicalMarkers,
+    social_tags: toShortStringArray([
+      rawCharacter?.backgroundId,
+      rawCharacter?.descriptionPersonnage?.personnalite,
+    ], 6),
+    faction_tags: [],
+    current_condition_tags: currentConditionTags,
   };
 }
 
@@ -1390,6 +1445,7 @@ export const GameBoard: React.FC = () => {
       const payload: NarrationTurnPayload = {
         campaign_id: narrationCampaignId,
         character_id: String(activeSavedCharacter?.id ?? "setup-player"),
+        player_narrative_snapshot: buildPlayerNarrativeSnapshot(activeSavedCharacter),
         player_input: trimmedInput,
         location_id: contextLocationId,
         ...(destinationId ? { destination_id: destinationId } : {}),

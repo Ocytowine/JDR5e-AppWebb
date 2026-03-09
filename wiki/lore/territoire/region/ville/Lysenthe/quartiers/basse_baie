@@ -5,6 +5,26 @@ nom: Basse Baie
 ville: lysenthe
 territoire: astryade
 region: ylssea
+presence_profile:
+  likely_roles:
+    - role: marin
+      weight: 3
+    - role: ouvrier
+      weight: 3
+    - role: marchand
+      weight: 2
+    - role: pnj_lambda
+      weight: 4
+  rare_roles:
+    - role: officier
+      weight: 1
+  species_weights:
+    - species: humain
+      weight: 6
+    - species: elfe
+      weight: 2
+    - species: autre
+      weight: 2
 ---
 Resume : Zone active de second rang portuaire, orientee vers la reparation navale, la petite peche et les metiers de manutention.
 

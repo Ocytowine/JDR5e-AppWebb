@@ -5,8 +5,29 @@ nom: Tour du Primarque
 
 # LOCALISATION
 ville: lysenthe
+quartier: quartier_de_la_tour
 region: ylssea
 territoire: astryade
+presence_profile:
+  likely_roles:
+    - role: garde
+      weight: 4
+    - role: fonctionnaire
+      weight: 3
+    - role: messager
+      weight: 2
+    - role: pnj_lambda
+      weight: 1
+  rare_roles:
+    - role: marchand
+      weight: 1
+  species_weights:
+    - species: humain
+      weight: 6
+    - species: elfe
+      weight: 3
+    - species: autre
+      weight: 1
 
 # TYPE / FONCTION
 type_batiment: residence de cour

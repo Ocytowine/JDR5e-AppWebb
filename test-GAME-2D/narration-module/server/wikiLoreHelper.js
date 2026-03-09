@@ -29,37 +29,163 @@ function parseFrontMatter(raw) {
 
   const frontRaw = text.slice(3, endIdx).trim();
   const body = text.slice(endIdx + endMarker.length).trim();
-  const frontMatter = {};
-  let currentListKey = "";
+  const lines = frontRaw.split(/\r?\n/);
 
-  for (const rawLine of frontRaw.split(/\r?\n/)) {
-    const line = rawLine.trimEnd();
-    if (!line.trim()) continue;
-    const listMatch = line.match(/^\s*-\s+(.+)$/);
-    if (listMatch && currentListKey) {
-      if (!Array.isArray(frontMatter[currentListKey])) {
-        frontMatter[currentListKey] = [];
-      }
-      frontMatter[currentListKey].push(listMatch[1].trim());
-      continue;
-    }
-
-    const keyVal = line.match(/^([A-Za-z0-9_]+)\s*:\s*(.*)$/);
-    if (!keyVal) continue;
-    const key = keyVal[1].trim();
-    const value = keyVal[2].trim();
-    currentListKey = "";
-
-    if (!value) {
-      frontMatter[key] = [];
-      currentListKey = key;
-      continue;
-    }
-
-    frontMatter[key] = value;
+  function leadingSpaces(value) {
+    const match = String(value ?? "").match(/^(\s*)/);
+    return match ? match[1].length : 0;
   }
 
-  return { frontMatter, body };
+  function parseScalar(value) {
+    return String(value ?? "").trim();
+  }
+
+  function findNextSignificantLine(startIndex) {
+    for (let i = startIndex; i < lines.length; i += 1) {
+      const rawLine = lines[i];
+      if (!rawLine || !rawLine.trim()) continue;
+      return { index: i, line: rawLine };
+    }
+    return null;
+  }
+
+  function parseObject(indentLevel, startIndex) {
+    const result = {};
+    let index = startIndex;
+
+    while (index < lines.length) {
+      const rawLine = lines[index];
+      if (!rawLine || !rawLine.trim()) {
+        index += 1;
+        continue;
+      }
+      const indent = leadingSpaces(rawLine);
+      if (indent < indentLevel) break;
+      if (indent > indentLevel) {
+        index += 1;
+        continue;
+      }
+      const trimmed = rawLine.trim();
+      if (trimmed.startsWith("- ")) break;
+      const keyVal = trimmed.match(/^([A-Za-z0-9_]+)\s*:\s*(.*)$/);
+      if (!keyVal) {
+        index += 1;
+        continue;
+      }
+      const key = keyVal[1].trim();
+      const rest = keyVal[2];
+      if (rest && rest.trim()) {
+        result[key] = parseScalar(rest);
+        index += 1;
+        continue;
+      }
+
+      const next = findNextSignificantLine(index + 1);
+      if (!next || leadingSpaces(next.line) <= indentLevel) {
+        result[key] = [];
+        index += 1;
+        continue;
+      }
+      const nextIndent = leadingSpaces(next.line);
+      const nextTrimmed = next.line.trim();
+      if (nextTrimmed.startsWith("- ")) {
+        const parsedArray = parseArray(nextIndent, next.index);
+        result[key] = parsedArray.value;
+        index = parsedArray.nextIndex;
+        continue;
+      }
+      const parsedObject = parseObject(nextIndent, next.index);
+      result[key] = parsedObject.value;
+      index = parsedObject.nextIndex;
+    }
+
+    return { value: result, nextIndex: index };
+  }
+
+  function parseArray(indentLevel, startIndex) {
+    const result = [];
+    let index = startIndex;
+
+    while (index < lines.length) {
+      const rawLine = lines[index];
+      if (!rawLine || !rawLine.trim()) {
+        index += 1;
+        continue;
+      }
+      const indent = leadingSpaces(rawLine);
+      if (indent < indentLevel) break;
+      if (indent > indentLevel) {
+        index += 1;
+        continue;
+      }
+      const trimmed = rawLine.trim();
+      if (!trimmed.startsWith("- ")) break;
+      const content = trimmed.slice(2).trim();
+
+      if (!content) {
+        result.push("");
+        index += 1;
+        continue;
+      }
+
+      const inlineKeyVal = content.match(/^([A-Za-z0-9_]+)\s*:\s*(.*)$/);
+      if (!inlineKeyVal) {
+        result.push(parseScalar(content));
+        index += 1;
+        continue;
+      }
+
+      const item = {
+        [inlineKeyVal[1].trim()]: parseScalar(inlineKeyVal[2])
+      };
+      index += 1;
+
+      while (index < lines.length) {
+        const continuationLine = lines[index];
+        if (!continuationLine || !continuationLine.trim()) {
+          index += 1;
+          continue;
+        }
+        const continuationIndent = leadingSpaces(continuationLine);
+        if (continuationIndent <= indentLevel) break;
+        const continuationTrimmed = continuationLine.trim();
+        const continuationMatch = continuationTrimmed.match(/^([A-Za-z0-9_]+)\s*:\s*(.*)$/);
+        if (!continuationMatch) {
+          index += 1;
+          continue;
+        }
+        const continuationKey = continuationMatch[1].trim();
+        const continuationRest = continuationMatch[2];
+        if (continuationRest && continuationRest.trim()) {
+          item[continuationKey] = parseScalar(continuationRest);
+          index += 1;
+          continue;
+        }
+
+        const next = findNextSignificantLine(index + 1);
+        if (!next || leadingSpaces(next.line) <= continuationIndent) {
+          item[continuationKey] = [];
+          index += 1;
+          continue;
+        }
+        if (next.line.trim().startsWith("- ")) {
+          const nestedArray = parseArray(leadingSpaces(next.line), next.index);
+          item[continuationKey] = nestedArray.value;
+          index = nestedArray.nextIndex;
+          continue;
+        }
+        const nestedObject = parseObject(leadingSpaces(next.line), next.index);
+        item[continuationKey] = nestedObject.value;
+        index = nestedObject.nextIndex;
+      }
+
+      result.push(item);
+    }
+
+    return { value: result, nextIndex: index };
+  }
+
+  return { frontMatter: parseObject(0, 0).value, body };
 }
 
 function buildSnippet(entry) {
@@ -110,6 +236,11 @@ function createWikiLoreHelper(projectRoot) {
     "quartiers",
     "lieux_connectes",
     "liaisons",
+    "quartier",
+    "common_languages",
+    "trade_languages",
+    "rare_languages",
+    "script_languages",
   ];
 
   function computeTreeMtime(dirPath) {
@@ -411,6 +542,10 @@ function createWikiLoreHelper(projectRoot) {
           .filter(Boolean)
           .slice(0, 6);
         if (compactValues.length > 0) keyFacts[field] = compactValues;
+        continue;
+      }
+      if (value && typeof value === "object") {
+        keyFacts[field] = value;
         continue;
       }
       const compactValue = String(value).trim();

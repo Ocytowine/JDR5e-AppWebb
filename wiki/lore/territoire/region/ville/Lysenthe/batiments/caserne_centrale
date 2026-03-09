@@ -5,6 +5,7 @@ nom: Caserne centrale
 
 # LOCALISATION
 ville: lysenthe
+quartier: quartier_des_remparts
 region: ylssea
 territoire: astryade
 
@@ -19,6 +20,62 @@ importance_strategique: 84
 proprietaire_faction: maison_tharqual
 proprietaire_principal: Capitaine de Garnison
 acces: tres_restreint
+factions_residentes:
+  - garnison_de_lysenthe
+population_profile:
+  dominant_species:
+    - humain
+  minor_species:
+    - elfe
+  common_roles:
+    - garde
+    - officier
+    - messager
+  outsider_presence: low
+presence_profile:
+  likely_roles:
+    - role: garde
+      weight: 5
+    - role: officier
+      weight: 3
+    - role: messager
+      weight: 2
+    - role: pnj_lambda
+      weight: 1
+  rare_roles:
+    - role: marchand_ambulant
+      weight: 1
+  species_weights:
+    - species: humain
+      weight: 7
+    - species: elfe
+      weight: 2
+    - species: autre
+      weight: 1
+language_profile:
+  common_languages:
+    - commun
+  trade_languages:
+    - commun
+  rare_languages:
+    - elfique
+social_profile:
+  authority_culture: strict
+  hospitality_to_strangers: suspicious
+  violence_visibility: medium
+  law_enforcement_presence: heavy
+authority_profile:
+  authority_owner: maison_tharqual
+  operational_faction: garnison_de_lysenthe
+  chain_of_command:
+    - capitaine_de_garnison
+    - officiers_de_quart
+    - gardes_urbains
+  control_style: formal
+  speech_expectations:
+    - reponses breves
+    - respect de la chaine de commandement
+  tolerated_private_force: false
 
 # DESCRIPTION RAPIDE
 etat_general: bon

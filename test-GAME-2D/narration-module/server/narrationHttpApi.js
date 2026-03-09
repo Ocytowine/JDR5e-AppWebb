@@ -254,6 +254,12 @@ function createNarrationModuleApi({
           faction_id: null,
           duty_state: "unknown",
           location_precision: locationId
+        },
+        language_profile: {
+          native_languages: [],
+          known_languages: [],
+          preferred_language: "unknown",
+          source: "runtime_default"
         }
       },
       lifecycle_policy: {
@@ -263,6 +269,301 @@ function createNarrationModuleApi({
       },
       lifecycle_history: []
     };
+  }
+
+  function extractLocationLanguageSeed(selectedLoreEntries, locationId) {
+    const entries = Array.isArray(selectedLoreEntries) ? selectedLoreEntries : [];
+    const matchingEntry = entries.find((entry) => safeString(entry?.entity_id) === safeString(locationId));
+    const keyFacts = matchingEntry?.key_facts && typeof matchingEntry.key_facts === "object"
+      ? matchingEntry.key_facts
+      : {};
+    const commonLanguages = readStringArrayField(keyFacts.common_languages);
+    const tradeLanguages = readStringArrayField(keyFacts.trade_languages);
+    const fallbackLanguages =
+      commonLanguages.length > 0
+        ? commonLanguages
+        : tradeLanguages.length > 0
+          ? tradeLanguages
+          : ["commun"];
+    return {
+      native_languages: commonLanguages,
+      known_languages: [...new Set([...fallbackLanguages, ...tradeLanguages])],
+      preferred_language: fallbackLanguages[0] || "commun",
+      source: commonLanguages.length > 0 || tradeLanguages.length > 0 ? "location_lore" : "fallback_common",
+    };
+  }
+
+  function applyActorLanguageSeed(actorRecord, languageSeed) {
+    if (!actorRecord || typeof actorRecord !== "object") return actorRecord;
+    const payload = actorRecord.payload && typeof actorRecord.payload === "object"
+      ? actorRecord.payload
+      : {};
+    const currentLanguageProfile = payload.language_profile && typeof payload.language_profile === "object"
+      ? payload.language_profile
+      : {};
+    const knownLanguages = readStringArrayField(currentLanguageProfile.known_languages);
+    if (knownLanguages.length > 0) {
+      return actorRecord;
+    }
+    actorRecord.payload = {
+      ...payload,
+      language_profile: {
+        ...currentLanguageProfile,
+        native_languages: readStringArrayField(languageSeed?.native_languages),
+        known_languages: readStringArrayField(languageSeed?.known_languages),
+        preferred_language: safeString(languageSeed?.preferred_language, "commun") || "commun",
+        source: safeString(languageSeed?.source, "runtime_default") || "runtime_default",
+      }
+    };
+    return actorRecord;
+  }
+
+  function buildInteractionLanguageState(playerSnapshot, actorRecord) {
+    const playerLanguages = readStringArrayField(playerSnapshot?.spoken_languages);
+    const actorPayload = actorRecord?.payload && typeof actorRecord.payload === "object"
+      ? actorRecord.payload
+      : {};
+    const actorLanguageProfile = actorPayload.language_profile && typeof actorPayload.language_profile === "object"
+      ? actorPayload.language_profile
+      : {};
+    const actorKnownLanguages = readStringArrayField(actorLanguageProfile.known_languages);
+    const actorNativeLanguages = readStringArrayField(actorLanguageProfile.native_languages);
+    const preferredLanguage = safeString(actorLanguageProfile.preferred_language, actorKnownLanguages[0] || actorNativeLanguages[0] || "unknown");
+    const sharedLanguages = actorKnownLanguages.filter((language) => playerLanguages.includes(language));
+    let comprehensionState = "none";
+    let fallbackLanguage = null;
+    if (preferredLanguage && sharedLanguages.includes(preferredLanguage)) {
+      comprehensionState = "full";
+      fallbackLanguage = preferredLanguage;
+    } else if (sharedLanguages.length > 0) {
+      comprehensionState = "limited";
+      fallbackLanguage = sharedLanguages[0];
+    } else if (playerLanguages.length > 0 && actorKnownLanguages.length === 0 && preferredLanguage === "unknown") {
+      comprehensionState = "unknown";
+      fallbackLanguage = null;
+    }
+    return {
+      speaker_language: preferredLanguage || "unknown",
+      player_languages: playerLanguages,
+      actor_known_languages: actorKnownLanguages,
+      shared_languages: sharedLanguages,
+      fallback_language: fallbackLanguage,
+      comprehension_state: comprehensionState,
+      needs_interpreter: comprehensionState === "none",
+    };
+  }
+
+  function scoreRoleMatch(actorHint, roleEntry) {
+    const normalizedHint = normalizeLooseText(actorHint);
+    const normalizedRole = normalizeLooseText(roleEntry?.role);
+    if (!normalizedHint || !normalizedRole) return 0;
+    if (normalizedHint === normalizedRole) {
+      return Number(roleEntry?.weight) || 1;
+    }
+    const hintTokens = normalizedHint.split(/\s+/).filter(Boolean);
+    const roleTokens = normalizedRole.split(/\s+/).filter(Boolean);
+    let tokenScore = 0;
+    for (const roleToken of roleTokens) {
+      if (hintTokens.includes(roleToken) || normalizedHint.includes(roleToken)) {
+        tokenScore += 1;
+      }
+    }
+    if (normalizedRole === "pnj_lambda" && tokenScore === 0) {
+      return Number(roleEntry?.weight) || 1;
+    }
+    return tokenScore > 0 ? tokenScore + (Number(roleEntry?.weight) || 1) : 0;
+  }
+
+  function computeRolePlausibility(locationProfile, actorHint) {
+    const likelyRoles = readWeightedRoleList(locationProfile?.presence_profile?.likely_roles);
+    const rareRoles = readWeightedRoleList(locationProfile?.presence_profile?.rare_roles);
+    const likelyMatches = likelyRoles
+      .map((entry) => ({ entry, score: scoreRoleMatch(actorHint, entry) }))
+      .filter((item) => item.score > 0)
+      .sort((left, right) => right.score - left.score);
+    if (likelyMatches.length > 0) {
+      const best = likelyMatches[0];
+      return {
+        role: actorHint,
+        category: "likely",
+        score: best.score,
+        matched_role: best.entry.role,
+        source_chain: Array.isArray(locationProfile?.source_chain) ? locationProfile.source_chain : [],
+        suggested_roles: likelyRoles.slice(0, 4).map((entry) => entry.role)
+      };
+    }
+
+    const rareMatches = rareRoles
+      .map((entry) => ({ entry, score: scoreRoleMatch(actorHint, entry) }))
+      .filter((item) => item.score > 0)
+      .sort((left, right) => right.score - left.score);
+    if (rareMatches.length > 0) {
+      const best = rareMatches[0];
+      return {
+        role: actorHint,
+        category: "rare",
+        score: best.score,
+        matched_role: best.entry.role,
+        source_chain: Array.isArray(locationProfile?.source_chain) ? locationProfile.source_chain : [],
+        suggested_roles: [...likelyRoles.slice(0, 3).map((entry) => entry.role), ...rareRoles.slice(0, 2).map((entry) => entry.role)]
+      };
+    }
+
+    return {
+      role: actorHint,
+      category: "out_of_profile",
+      score: 0,
+      matched_role: null,
+      source_chain: Array.isArray(locationProfile?.source_chain) ? locationProfile.source_chain : [],
+      suggested_roles: [...likelyRoles.slice(0, 4).map((entry) => entry.role), ...rareRoles.slice(0, 2).map((entry) => entry.role)]
+    };
+  }
+
+  function readWeightedRoleList(value) {
+    if (!Array.isArray(value)) return [];
+    return value
+      .map((entry) => {
+        if (!entry || typeof entry !== "object") return null;
+        const role = safeString(entry.role);
+        const weight = Number(entry.weight);
+        if (!role) return null;
+        return {
+          role,
+          weight: Number.isFinite(weight) ? weight : 1
+        };
+      })
+      .filter(Boolean);
+  }
+
+  function mergeProfileLayer(base, overlay) {
+    const left = base && typeof base === "object" ? base : {};
+    const right = overlay && typeof overlay === "object" ? overlay : {};
+    return {
+      ...left,
+      ...right,
+      likely_roles:
+        readWeightedRoleList(right.likely_roles).length > 0
+          ? readWeightedRoleList(right.likely_roles)
+          : readWeightedRoleList(left.likely_roles),
+      rare_roles:
+        readWeightedRoleList(right.rare_roles).length > 0
+          ? readWeightedRoleList(right.rare_roles)
+          : readWeightedRoleList(left.rare_roles),
+      species_weights:
+        Array.isArray(right.species_weights) && right.species_weights.length > 0
+          ? right.species_weights
+          : Array.isArray(left.species_weights)
+            ? left.species_weights
+            : [],
+      common_languages: readStringArrayField(right.common_languages).length > 0
+        ? readStringArrayField(right.common_languages)
+        : readStringArrayField(left.common_languages),
+      trade_languages: readStringArrayField(right.trade_languages).length > 0
+        ? readStringArrayField(right.trade_languages)
+        : readStringArrayField(left.trade_languages),
+      tolerated_languages: readStringArrayField(right.tolerated_languages).length > 0
+        ? readStringArrayField(right.tolerated_languages)
+        : readStringArrayField(left.tolerated_languages)
+    };
+  }
+
+  function resolveLocationGenerationProfile(locationId) {
+    const index = wikiLoreHelper.getIndex && typeof wikiLoreHelper.getIndex === "function"
+      ? wikiLoreHelper.getIndex()
+      : null;
+    if (!index || !index.byEntityId) {
+      return {
+        source_chain: [],
+        presence_profile: {},
+        language_profile: {},
+        social_profile: {},
+        authority_profile: {}
+      };
+    }
+    const exactDoc = index.byEntityId[normalizeText(locationId)] || null;
+    const quartierId = safeString(exactDoc?.front_matter?.quartier);
+    const villeId = safeString(exactDoc?.front_matter?.ville || (exactDoc?.type === "ville" ? exactDoc?.entity_id : ""));
+    const quartierDoc = quartierId ? index.byEntityId[normalizeText(quartierId)] || null : null;
+    const villeDoc = villeId ? index.byEntityId[normalizeText(villeId)] || null : null;
+    const docs = [villeDoc, quartierDoc, exactDoc].filter(Boolean);
+    const sourceChain = docs.map((doc) => safeString(doc.entity_id)).filter(Boolean);
+
+    let presenceProfile = {};
+    let languageProfile = {};
+    let socialProfile = {};
+    let authorityProfile = {};
+    for (const doc of docs) {
+      const fm = doc.front_matter && typeof doc.front_matter === "object" ? doc.front_matter : {};
+      presenceProfile = mergeProfileLayer(presenceProfile, fm.presence_profile);
+      languageProfile = mergeProfileLayer(languageProfile, fm.language_profile);
+      socialProfile = mergeProfileLayer(socialProfile, fm.social_profile);
+      authorityProfile = mergeProfileLayer(authorityProfile, fm.authority_profile);
+    }
+
+    return {
+      source_chain: sourceChain,
+      presence_profile: presenceProfile,
+      language_profile: languageProfile,
+      social_profile: socialProfile,
+      authority_profile: authorityProfile
+    };
+  }
+
+  function buildLanguageSeedFromGenerationProfile(locationProfile) {
+    const languageProfile = locationProfile?.language_profile && typeof locationProfile.language_profile === "object"
+      ? locationProfile.language_profile
+      : {};
+    const commonLanguages = readStringArrayField(languageProfile.common_languages);
+    const tradeLanguages = readStringArrayField(languageProfile.trade_languages);
+    const fallbackLanguages =
+      commonLanguages.length > 0
+        ? commonLanguages
+        : tradeLanguages.length > 0
+          ? tradeLanguages
+          : ["commun"];
+    return {
+      native_languages: commonLanguages,
+      known_languages: [...new Set([...fallbackLanguages, ...tradeLanguages])],
+      preferred_language: fallbackLanguages[0] || "commun",
+      source:
+        locationProfile?.source_chain && locationProfile.source_chain.length > 0
+          ? `generation_profile:${locationProfile.source_chain.join(">")}`
+          : "fallback_common"
+    };
+  }
+
+  function applyActorContextFromGenerationProfile(actorRecord, locationProfile, actorHint) {
+    if (!actorRecord || typeof actorRecord !== "object") return actorRecord;
+    const role = normalizeLooseText(actorHint);
+    const likelyRoles = readWeightedRoleList(locationProfile?.presence_profile?.likely_roles);
+    const authorityProfile =
+      locationProfile?.authority_profile && typeof locationProfile.authority_profile === "object"
+        ? locationProfile.authority_profile
+        : {};
+    const payload = actorRecord.payload && typeof actorRecord.payload === "object" ? actorRecord.payload : {};
+    const social = payload.social && typeof payload.social === "object" ? payload.social : {};
+    const world = payload.world && typeof payload.world === "object" ? payload.world : {};
+    const roleIsLikely = likelyRoles.some((entry) => normalizeLooseText(entry.role) === role);
+    const roleLooksAuthority = /garde|officier|sergent|capitaine/.test(role);
+    const factionId =
+      safeString(authorityProfile.operational_faction) ||
+      safeString(authorityProfile.authority_owner) ||
+      null;
+    actorRecord.payload = {
+      ...payload,
+      social: {
+        ...social,
+        authority_level:
+          roleLooksAuthority || roleIsLikely
+            ? safeString(social.authority_level, "low") || "low"
+            : social.authority_level
+      },
+      world: {
+        ...world,
+        faction_id: world.faction_id || factionId
+      }
+    };
+    return actorRecord;
   }
 
   function buildLocationRuntimeSeed(locationId, selectedLoreEntries) {
@@ -437,7 +738,95 @@ function createNarrationModuleApi({
       .filter(entry => entry.text);
   }
 
-  function buildAskInfoResolution(projected, playerInput, locationRuntimeState) {
+  function isPlayerSelfQuestion(playerInput) {
+    const normalized = normalizeLooseText(playerInput);
+    if (!normalized) return false;
+    return (
+      normalized.includes(" je ") ||
+      normalized.startsWith("je ") ||
+      normalized.includes(" moi ") ||
+      normalized.includes(" mon ") ||
+      normalized.includes(" ma ") ||
+      normalized.includes(" mes ")
+    );
+  }
+
+  function buildAskInfoFromPlayerSnapshot(playerInput, playerSnapshot) {
+    if (!playerSnapshot || typeof playerSnapshot !== "object" || !isPlayerSelfQuestion(playerInput)) {
+      return null;
+    }
+    const normalized = normalizeLooseText(playerInput);
+    const species = safeString(playerSnapshot.species);
+    const spokenLanguages = readStringArrayField(playerSnapshot.spoken_languages);
+    const readLanguages = readStringArrayField(playerSnapshot.read_languages);
+    const wornClothing = readStringArrayField(playerSnapshot.worn_clothing);
+    const visibleEquipment = readStringArrayField(playerSnapshot.visible_equipment);
+    const physicalMarkers = readStringArrayField(playerSnapshot.physical_markers);
+    const displayName = safeString(playerSnapshot.display_name);
+
+    if (/(porte|vetement|vetements|habille|habillee|tenue|sur moi)/.test(normalized)) {
+      const parts = [...wornClothing, ...visibleEquipment].filter(Boolean);
+      return parts.length > 0
+        ? {
+            answer_state: "known",
+            answer_text: `Tu portes ${parts.join(", ")}.`,
+            lead_text: null,
+          }
+        : {
+            answer_state: "unknown",
+            answer_text: null,
+            lead_text: null,
+          };
+    }
+
+    if (/(langue|langues|parle|parler|lire|lecture|comprendre)/.test(normalized)) {
+      if (spokenLanguages.length === 0 && readLanguages.length === 0) {
+        return {
+          answer_state: "unknown",
+          answer_text: null,
+          lead_text: null,
+        };
+      }
+      const spokenText = spokenLanguages.length > 0 ? `Tu parles ${spokenLanguages.join(", ")}` : "";
+      const readText = readLanguages.length > 0 ? `tu sais lire ${readLanguages.join(", ")}` : "";
+      return {
+        answer_state: "known",
+        answer_text: [spokenText, readText].filter(Boolean).join(" et ") + ".",
+        lead_text: null,
+      };
+    }
+
+    if (/(race|espece|espece|qui suis je|qui je suis|nom)/.test(normalized)) {
+      const parts = [];
+      if (displayName) parts.push(`Tu es ${displayName}`);
+      if (species) parts.push(`de l'espece ${species}`);
+      return parts.length > 0
+        ? {
+            answer_state: "known",
+            answer_text: `${parts.join(", ")}.`,
+            lead_text: null,
+          }
+        : null;
+    }
+
+    if (/(air|ressemble|apparence|physique|visage|cheveux|yeux|silhouette)/.test(normalized)) {
+      return physicalMarkers.length > 0
+        ? {
+            answer_state: "known",
+            answer_text: `Tu presents ${physicalMarkers.join(", ")}.`,
+            lead_text: null,
+          }
+        : null;
+    }
+
+    return null;
+  }
+
+  function buildAskInfoResolution(projected, playerInput, locationRuntimeState, playerSnapshot) {
+    const playerSnapshotAnswer = buildAskInfoFromPlayerSnapshot(playerInput, playerSnapshot);
+    if (playerSnapshotAnswer) {
+      return playerSnapshotAnswer;
+    }
     const normalizedInput = normalizeLooseText(playerInput);
     const inputTokens = normalizedInput
       .split(/\s+/)
@@ -974,9 +1363,32 @@ function createNarrationModuleApi({
     return updates;
   }
 
-  function ensureTalkActorEntity({ memoryService, campaignId, campaignBefore, locationId, actorHint, targetActorId, turnId }) {
+  function ensureTalkActorEntity({
+    memoryService,
+    campaignId,
+    campaignBefore,
+    locationId,
+    actorHint,
+    targetActorId,
+    turnId,
+    selectedLoreEntries
+  }) {
     if (!actorHint) {
       return null;
+    }
+    const locationProfile = resolveLocationGenerationProfile(locationId);
+    const languageSeed = buildLanguageSeedFromGenerationProfile(locationProfile);
+    const rolePlausibility = computeRolePlausibility(locationProfile, actorHint);
+    if (rolePlausibility.category === "out_of_profile") {
+      const suggestions = rolePlausibility.suggested_roles.slice(0, 4);
+      return {
+        kind: "out_of_profile",
+        rolePlausibility,
+        clarificationQuestion:
+          suggestions.length > 0
+            ? `Le role "${actorHint}" est peu plausible ici. Vise plutot: ${suggestions.join(", ")}.`
+            : `Le role "${actorHint}" ne correspond pas bien au lieu actuel. Precise un interlocuteur plus plausible.`
+      };
     }
     const resolution = resolveTalkActorEntity({
       campaign: campaignBefore,
@@ -985,34 +1397,50 @@ function createNarrationModuleApi({
       targetActorId
     });
     if (resolution.kind === "resolved" && resolution.actor?.entity_id) {
-      memoryService.markEntitySeen(campaignId, resolution.actor.entity_id, turnId);
-      memoryService.ensureVisibleActorAtLocation(campaignId, locationId, resolution.actor.entity_id, turnId);
+      const seededActor = applyActorContextFromGenerationProfile(
+        applyActorLanguageSeed(JSON.parse(JSON.stringify(resolution.actor)), languageSeed),
+        locationProfile,
+        actorHint
+      );
+      memoryService.upsertEntity(campaignId, seededActor, turnId);
+      memoryService.markEntitySeen(campaignId, seededActor.entity_id, turnId);
+      memoryService.ensureVisibleActorAtLocation(campaignId, locationId, seededActor.entity_id, turnId);
       return {
         kind: "resolved",
-        entityId: resolution.actor.entity_id
+        entityId: seededActor.entity_id,
+        rolePlausibility
       };
     }
     if (resolution.kind === "ambiguous") {
       return {
         kind: "ambiguous",
-        clarificationQuestion: resolution.clarification_question
+        clarificationQuestion: resolution.clarification_question,
+        rolePlausibility
       };
     }
 
     const baseSlug = slugifyLoose(actorHint, "npc");
     const nextIndex = Object.keys(campaignBefore?.entity_registry?.actors ?? {}).length + 1;
     const entityId = `npc_${baseSlug}_${String(nextIndex).padStart(2, "0")}`;
-    const actorRecord = buildActorProfileRecord({
-      entityId,
-      actorHint,
-      locationId,
-      turnId
-    });
+    const actorRecord = applyActorContextFromGenerationProfile(
+      applyActorLanguageSeed(
+        buildActorProfileRecord({
+          entityId,
+          actorHint,
+          locationId,
+          turnId
+        }),
+        languageSeed
+      ),
+      locationProfile,
+      actorHint
+    );
     memoryService.upsertEntity(campaignId, actorRecord, turnId);
     memoryService.ensureVisibleActorAtLocation(campaignId, locationId, entityId, turnId);
     return {
       kind: "created",
-      entityId
+      entityId,
+      rolePlausibility
     };
   }
 
@@ -1108,7 +1536,10 @@ function createNarrationModuleApi({
       },
       actors: {
         player: {
-          character_id: safeString(payload.character_id, "setup-player")
+          character_id: safeString(payload.character_id, "setup-player"),
+          ...(payload.player_narrative_snapshot && typeof payload.player_narrative_snapshot === "object"
+            ? { narrative_snapshot: payload.player_narrative_snapshot }
+            : {})
         }
       },
       response_contract: {
@@ -1214,7 +1645,7 @@ function createNarrationModuleApi({
     };
   }
 
-  function buildPlanAndOutputContracts(payload, intentPacket, projected, turnId, selectedLore) {
+  function buildPlanAndOutputContracts(payload, intentPacket, projected, turnId, selectedLore, talkActorEntity = null, talkRolePlausibility = null) {
     const intentType = normalizeIntentType(intentPacket?.intent_type);
     const locationId = safeString(payload.location_id, "setup_zone");
     const destinationId = safeString(intentPacket?.destination_id || payload.destination_id);
@@ -1238,6 +1669,13 @@ function createNarrationModuleApi({
     );
     const ambientMarkers = readStringArrayField(scenePayload.ambient_markers);
     const visibleExits = readVisibleExitsField(scenePayload.visible_exits);
+    const playerSnapshot =
+      projected?.truth_snapshot?.local_truth?.player_narrative_snapshot &&
+      typeof projected.truth_snapshot.local_truth.player_narrative_snapshot === "object"
+        ? projected.truth_snapshot.local_truth.player_narrative_snapshot
+        : payload?.player_narrative_snapshot && typeof payload.player_narrative_snapshot === "object"
+          ? payload.player_narrative_snapshot
+          : null;
     const common = {
       schema_version: "1.0.0",
       targets: [],
@@ -1331,6 +1769,9 @@ function createNarrationModuleApi({
     if (intentType === "talk") {
       const targetActorHint = safeString(intentPacket?.target_actor_hint);
       const targetActorId = safeString(intentPacket?.target_actor_id);
+      const interactionLanguageState = targetActorId
+        ? buildInteractionLanguageState(playerSnapshot, talkActorEntity)
+        : null;
       const loreTopicIds =
         selectedLore && Array.isArray(selectedLore.topic_ids) && selectedLore.topic_ids.length > 0
           ? selectedLore.topic_ids
@@ -1383,14 +1824,55 @@ function createNarrationModuleApi({
           plan: {
             objective: "Entrer en contact avec un interlocuteur proche",
             approach: "Ouverture de dialogue en respectant le contexte local",
-            assumptions: ["La cible est accessible a courte portee sociale"],
+            assumptions: [
+              "La cible est accessible a courte portee sociale",
+              ...(talkRolePlausibility
+                ? [
+                    talkRolePlausibility.category === "likely"
+                      ? `Le role ${talkRolePlausibility.matched_role || targetActorHint || targetActorId} est naturel dans ce lieu.`
+                      : talkRolePlausibility.category === "rare"
+                      ? `Le role ${talkRolePlausibility.matched_role || targetActorHint || targetActorId} reste plausible mais inhabituel dans ce lieu.`
+                      : "Le role choisi n'est pas fortement soutenu par le lieu."
+                  ]
+                : []),
+              ...(interactionLanguageState
+                ? [
+                    interactionLanguageState.comprehension_state === "full"
+                      ? `Le PJ et l'interlocuteur partagent la langue ${interactionLanguageState.fallback_language || interactionLanguageState.speaker_language}.`
+                      : interactionLanguageState.comprehension_state === "limited"
+                      ? `L'echange passera probablement par une langue de secours: ${interactionLanguageState.fallback_language || "langue partielle"}.`
+                      : interactionLanguageState.comprehension_state === "none"
+                      ? `Aucune langue partagee detectee entre le PJ et l'interlocuteur.`
+                      : "La compatibilite linguistique reste incertaine."
+                  ]
+                : [])
+            ],
             checks_needed: [],
             resources_to_spend: [{ type: "time", amount: "1-2min" }],
-            risks: [{ risk: "Interlocuteur hostile ou indisponible", severity: "medium" }],
-            fallbacks: ["Basculer vers observation locale si le dialogue echoue"],
+            risks: [
+              { risk: "Interlocuteur hostile ou indisponible", severity: "medium" },
+              ...(talkRolePlausibility?.category === "rare"
+                ? [{ risk: "Interlocuteur plus inhabituel que la moyenne locale", severity: "low" }]
+                : []),
+              ...(interactionLanguageState?.comprehension_state === "limited"
+                ? [{ risk: "Echange partiel a cause d'une langue commune imparfaite", severity: "medium" }]
+                : interactionLanguageState?.comprehension_state === "none"
+                ? [{ risk: "Echec de comprehension faute de langue partagee", severity: "high" }]
+                : [])
+            ],
+            fallbacks: [
+              "Basculer vers observation locale si le dialogue echoue",
+              ...(interactionLanguageState?.comprehension_state === "none"
+                ? ["Passer par des gestes, un interprete ou une autre cible"]
+                : interactionLanguageState?.comprehension_state === "limited"
+                ? ["Reformuler simplement ou changer de langue"]
+                : [])
+            ],
             need_clarification: []
           },
           targets: [targetActorId],
+          ...(talkRolePlausibility ? { role_plausibility: talkRolePlausibility } : {}),
+          ...(interactionLanguageState ? { interaction_language_state: interactionLanguageState } : {}),
           runtime_actions: [
             { action: "advanceTime", params: { minutes: 1 } },
             { action: "queryLore", params: { topic_ids: loreTopicIds } },
@@ -1536,7 +2018,8 @@ function createNarrationModuleApi({
       const askInfoResolution = buildAskInfoResolution(
         projected,
         safeString(payload.player_input),
-        locationRuntimeState
+        locationRuntimeState,
+        playerSnapshot
       );
       const askInfoTargets = [
         locationId,
@@ -1667,6 +2150,13 @@ function createNarrationModuleApi({
         let inputContract = buildInputContract(body, projectedBeforeIntent);
         const campaignBefore = narrationRuntime.memoryService.getCampaign(campaignId);
         const intentPacket = await analyzeIntentPacket(body, inputContract);
+        const selectedLore = wikiLoreHelper.selectLore({
+          intentType: intentPacket.intent_type,
+          playerInput: body.player_input,
+          locationId,
+          destinationId: intentPacket.destination_id
+        });
+        let talkRolePlausibility = null;
         if (intentPacket.intent_type === "talk" && safeString(intentPacket.target_actor_hint)) {
           const actorResolution = ensureTalkActorEntity({
             memoryService: narrationRuntime.memoryService,
@@ -1675,8 +2165,10 @@ function createNarrationModuleApi({
             locationId,
             actorHint: intentPacket.target_actor_hint,
             targetActorId: safeString(intentPacket.target_actor_id),
-            turnId
+            turnId,
+            selectedLoreEntries: selectedLore.selected_entries
           });
+          talkRolePlausibility = actorResolution?.rolePlausibility || null;
           if (actorResolution?.kind === "ambiguous") {
             intentPacket.requires_clarification = true;
             intentPacket.clarification_question =
@@ -1684,16 +2176,16 @@ function createNarrationModuleApi({
               safeString(intentPacket.clarification_question) ||
               "Precise quel interlocuteur tu vises.";
             intentPacket.target_actor_id = null;
+          } else if (actorResolution?.kind === "out_of_profile") {
+            intentPacket.requires_clarification = true;
+            intentPacket.clarification_question =
+              safeString(actorResolution.clarificationQuestion) ||
+              "Le role demande ne semble pas correspondre au lieu actuel.";
+            intentPacket.target_actor_id = null;
           } else if (actorResolution?.entityId) {
             intentPacket.target_actor_id = actorResolution.entityId;
           }
         }
-        const selectedLore = wikiLoreHelper.selectLore({
-          intentType: intentPacket.intent_type,
-          playerInput: body.player_input,
-          locationId,
-          destinationId: intentPacket.destination_id
-        });
         const selectedLocalLore = localLoreHelper.selectLocalLore({
           campaignMemory: campaignBefore,
           intentType: intentPacket.intent_type,
@@ -1738,13 +2230,19 @@ function createNarrationModuleApi({
           target_actor_id: safeString(intentPacket.target_actor_id),
           intent_hint: safeString(body.intent_hint)
         });
+        const talkActorEntity =
+          intentPacket.intent_type === "talk" && safeString(intentPacket.target_actor_id)
+            ? narrationRuntime.memoryService.getEntity(campaignId, safeString(intentPacket.target_actor_id))
+            : null;
         inputContract = buildInputContract(body, projected);
         const { outputContract, decisionReason } = buildPlanAndOutputContracts(
           body,
           intentPacket,
           projected,
           turnId,
-          mergedSelectedLore
+          mergedSelectedLore,
+          talkActorEntity,
+          talkRolePlausibility
         );
         const stateBefore = narrationRuntime.memoryService.buildRuntimeStateBefore(campaignId, {
           location_id: locationId,
@@ -1868,6 +2366,8 @@ function createNarrationModuleApi({
           "Ne revele pas la verite cachee au joueur. " +
           "Si intent_type=observe, decris uniquement ce qui est immediatement perceptible depuis la scene: visible, audible, ambiance, acces apparent, posture des personnes presentes. " +
           "Si intent_type=observe, interdiction de citer des scores, niveaux numeriques, proprietaires, factions, gouvernance ou metadonnees non perceptibles. " +
+          "Si output_contract contient interaction_language_state et que comprehension_state=limited ou none, la narration de talk doit refleter cette friction linguistique sans inventer une comprehension parfaite. " +
+          "Si comprehension_state=none, ne raconte pas un dialogue fluide: fais sentir l'incomprehension, les gestes, la reformulation ou le blocage. " +
           "Si le paquet contient entity_enrichment_requests, tu peux proposer un enrichissement prudent des profils sous forme de patch structure, sans imposer une verite finale. " +
           "Utilise des valeurs propres et non ambigues. Interdiction de renvoyer des formulations avec 'ou', des fourchettes vagues, ou des categories floues pour les champs structures. " +
           "Pour les enums, utilise de preference: gender_presentation=unknown|masculine|feminine|androgynous|non_binary ; authority_level=unknown|none|low|medium|high|elite ; disposition_to_player=friendly|neutral|wary|hostile ; interaction_state=available|busy|blocked|fleeing|absent ; duty_state=unknown|on_post|on_patrol|off_duty|active_service. " +

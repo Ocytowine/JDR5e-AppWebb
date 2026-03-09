@@ -5,6 +5,37 @@ nom: Quartier des Archives
 ville: lysenthe
 territoire: astryade
 region: ylssea
+presence_profile:
+  likely_roles:
+    - role: archiviste
+      weight: 5
+    - role: clerc
+      weight: 4
+    - role: garde
+      weight: 2
+    - role: pnj_lambda
+      weight: 2
+  rare_roles:
+    - role: marchand
+      weight: 1
+  species_weights:
+    - species: humain
+      weight: 5
+    - species: elfe
+      weight: 4
+    - species: autre
+      weight: 1
+language_profile:
+  common_languages:
+    - commun
+  trade_languages:
+    - commun
+  rare_languages:
+    - elfique
+social_profile:
+  authority_culture: formal
+  hospitality_to_strangers: guarded
+  violence_visibility: low
 ---
 Resume : Noyau central de memoire ecrite et de commerce interieur, organise autour des Archives et de leur grande place.
 

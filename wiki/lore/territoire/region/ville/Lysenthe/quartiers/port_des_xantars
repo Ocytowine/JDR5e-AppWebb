@@ -5,6 +5,62 @@ nom: Port des Xantars
 ville: lysenthe
 territoire: astryade
 region: ylssea
+population_profile:
+  dominant_species:
+    - humain
+  minor_species:
+    - elfe
+  common_roles:
+    - docker
+    - marin
+    - courtier
+    - garde
+    - mercenaire
+  outsider_presence: high
+presence_profile:
+  likely_roles:
+    - role: docker
+      weight: 4
+    - role: marin
+      weight: 4
+    - role: courtier
+      weight: 3
+    - role: marchand
+      weight: 3
+    - role: mercenaire
+      weight: 2
+    - role: garde
+      weight: 2
+    - role: pnj_lambda
+      weight: 4
+  rare_roles:
+    - role: archiviste
+      weight: 1
+  species_weights:
+    - species: humain
+      weight: 6
+    - species: elfe
+      weight: 3
+    - species: autre
+      weight: 1
+language_profile:
+  common_languages:
+    - commun
+  trade_languages:
+    - commun
+  rare_languages:
+    - elfique
+social_profile:
+  authority_culture: vigilant
+  hospitality_to_strangers: transactional
+  violence_visibility: medium
+  law_enforcement_presence: uneven
+authority_profile:
+  authority_owner: maison_tharqual
+  control_style: selective
+  checkpoints:
+    - quais_militaires_de_xantars
+  tolerated_private_force: true
 ---
 Resume : Principal front maritime de Lysenthe, il concentre quais militaires et quais de commerce a l'echelle regionale.
 

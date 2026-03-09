@@ -1,0 +1,81 @@
+---
+type: faction
+id: archivistes_de_lysenthe
+nom: Ordre des Archivistes de Lysenthe
+
+ville: lysenthe
+region: ylssea
+territoire: astryade
+
+faction_category: ordre savant et administratif
+siege_pouvoir: archives_de_lysenthe
+autorite_tutelle: collegium_des_archivistes
+role_dans_la_ville:
+  - conservation des actes civils
+  - validation des copies et mandats
+  - memoire administrative de la ville
+  - tenue des precedents utiles au pouvoir local
+
+language_profile:
+  common_languages:
+    - commun
+  script_languages:
+    - commun
+    - elfique
+  scholarly_languages:
+    - elfique
+
+grade_system:
+  - recteur_des_collections
+  - maitre_copiste
+  - gardien_des_sceaux
+  - clerc_archiviste
+  - aide_au_classement
+
+fonctionnement:
+  command_style: collegial mais formalise
+  discipline_level: high
+  reporting_chain: basee sur les sceaux et contreseings
+  workflow_rhythm: lent, continu et methodique
+
+tenue_officielle:
+  base_layers:
+    - robe de travail gris perle
+    - surmanches d'encre sombre
+  outer_markers:
+    - cordon de sceaux en cire
+    - tablier de copie pour les salles de travail
+  service_variants:
+    - copie
+    - consultation
+    - salle sous mandat
+
+equipement_de_base:
+  - etui a plumes
+  - cire et cachets
+  - rubans de classement
+  - tablette de consultation ou registre portatif
+
+ideologie:
+  - rien de durable sans trace ecrite
+  - un document classe vaut plus qu'un temoignage pressé
+  - la memoire de la ville doit survivre aux hommes de pouvoir
+
+signe_distinctif:
+  - liseres gris perle sur les manches
+  - sceau de cire bleue reserve aux copies certifiees
+
+traits_identifiants:
+  - voix basse et precise
+  - gestes economes
+  - obsession des references exactes, dates et mandats
+
+mots_cles:
+  - archives
+  - actes
+  - savoir administratif
+  - sceaux
+---
+Les Archivistes de Lysenthe ne forment pas seulement une administration du papier: ils sont la memoire active de la ville. Contrats, decrets, litiges de quai, copies de chartes et precedents commerciaux passent un jour ou l'autre sous leurs mains.
+
+Leur originalite tient a leur neutralite affichee. Ils ne gouvernent pas directement, mais ils encadrent ce que le pouvoir peut prouver, revendiquer ou oublier. A Lysenthe, on reconnait leur ordre au gris propre de leurs manches, a l'odeur de cire et a la lenteur presque insolente avec laquelle ils exigent le bon sceau.

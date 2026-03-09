@@ -6,6 +6,9 @@
   "campaigns": {
     "camp-event-lifecycle-01": {
       "campaign_id": "camp-event-lifecycle-01",
+      "clock": {
+        "turn_index": 0
+      },
       "events": [
         {
           "event_id": "evt-lifecycle-01",
@@ -45,6 +48,19 @@
         "truth_view": []
       },
       "world_overrides": {},
+      "entity_registry": {
+        "actors": {},
+        "locations": {},
+        "objects": {},
+        "indexes": {
+          "by_type": {},
+          "by_memory_state": {},
+          "by_location_id": {},
+          "by_event_id": {},
+          "by_scope": {},
+          "by_status": {}
+        }
+      },
       "updated_at_turn": "turn-03"
     }
   }

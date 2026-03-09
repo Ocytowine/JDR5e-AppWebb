@@ -5,6 +5,26 @@ nom: Pierre des Sables
 ville: lysenthe
 territoire: astryade
 region: ylssea
+presence_profile:
+  likely_roles:
+    - role: noble
+      weight: 3
+    - role: garde
+      weight: 3
+    - role: serviteur
+      weight: 2
+    - role: pnj_lambda
+      weight: 2
+  rare_roles:
+    - role: docker
+      weight: 1
+  species_weights:
+    - species: humain
+      weight: 7
+    - species: elfe
+      weight: 2
+    - species: autre
+      weight: 1
 ---
 Resume : Ville haute de commandement, quartier verrouille autour du Chateau Tharqual, siege du pouvoir local.
 

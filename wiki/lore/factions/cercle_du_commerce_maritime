@@ -1,0 +1,81 @@
+---
+type: faction
+id: cercle_du_commerce_maritime
+nom: Cercle du Commerce Maritime
+
+ville: lysenthe
+region: ylssea
+territoire: astryade
+
+faction_category: guilde marchande
+siege_pouvoir: halles_des_commerces
+autorite_tutelle: chambre_des_courtiers_de_lysenthe
+role_dans_la_ville:
+  - regulation des echanges de gros
+  - arbitrage des litiges commerciaux rapides
+  - organisation des flux entre port, halles et registres
+  - defense des interets marchands de la ville
+
+language_profile:
+  common_languages:
+    - commun
+  trade_languages:
+    - commun
+  tolerated_languages:
+    - elfique
+    - orc
+
+grade_system:
+  - maitre_de_halle
+  - courtier_jure
+  - peseur_agree
+  - commissionnaire
+  - apprenti_de_comptoir
+
+fonctionnement:
+  command_style: negocie mais ferme
+  discipline_level: medium
+  reporting_chain: liee aux halles, pesages et registres
+  workflow_rhythm: rapide, quasi ininterrompu
+
+tenue_officielle:
+  base_layers:
+    - manteau court de comptoir
+    - gilet renforce pour les journees de halle
+  outer_markers:
+    - bande marine cousue sur l'epaule
+    - jeton de pesee ou plaque de courtier
+  service_variants:
+    - negociation
+    - quai
+    - comptabilite
+
+equipement_de_base:
+  - registre de transactions
+  - balance pliante
+  - jetons de pesage
+  - bourse de sceaux marchands
+
+ideologie:
+  - un port prospere vaut mieux qu'un port pur
+  - toute cargaison a une valeur, mais pas toujours le meme prix selon l'heure
+  - l'ordre existe pour que le commerce circule, non pour l'etouffer
+
+signe_distinctif:
+  - fil marine sur l'epaule ou le revers
+  - plaquette de bronze gravee au nom du comptoir
+
+traits_identifiants:
+  - politesse rapide et selective
+  - regard sur les mains, les sacs et les cargaisons
+  - habitude de convertir toute information en opportunite
+
+mots_cles:
+  - commerce
+  - courtiers
+  - halles
+  - port
+---
+Le Cercle du Commerce Maritime est l'institution qui donne a Lysenthe son rythme reel. La ville peut bien avoir ses remparts et ses titres, ce sont les halles, les pesages, les cargaisons et les arbitrages de quai qui fixent la temperature du jour.
+
+Ses membres ne portent pas une vraie livree uniforme, mais ils sont faciles a reconnaitre: manteaux de travail propres malgre la poussiere, jetons de pesage, bourses de sceaux et manie de tout jauger en flux, en poids ou en marge. A Lysenthe, le commerce n'est pas un decor; c'est une maniere d'ordonner la ville.
