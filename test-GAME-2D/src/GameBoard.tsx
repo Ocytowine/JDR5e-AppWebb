@@ -240,6 +240,7 @@ import { CharacterSheetWindow } from "./ui/CharacterSheetWindow";
 import { InteractionContextWindow } from "./ui/InteractionContextWindow";
 import {
   fetchNarrationRuntimeStatus,
+  resetNarrationMemory,
   runNarrationPipeline,
   type NarrationTurnPayload
 } from "../narration-module/ui/narrationRuntimeClient";
@@ -1463,9 +1464,47 @@ export const GameBoard: React.FC = () => {
   }, [narrationLoopHistoryJson]);
 
   const handleResetNarrationLoopHistory = useCallback(() => {
-    setNarrationLoopHistory([]);
-    setNarrationLoopClipboardStatus(null);
-  }, []);
+    void (async () => {
+      setNarrationLoopHistory([]);
+      setNarrationLoopClipboardStatus(null);
+      setNarrationRuntimeDebug("");
+      setNarrationRuntimeOutputText("");
+      const activeSavedCharacter = loadActiveSavedCharacterForNarration();
+      if (!activeSavedCharacter) {
+        setNarrationRuntimeError("Memoire backend non reset: aucune fiche active.");
+        return;
+      }
+      const narrationCampaignId = buildNarrationSessionCampaignId({
+        characterId: activeSavedCharacter.id ?? "setup-player",
+        mapPrompt,
+        seed: narrationSessionSeed
+      });
+      try {
+        const result = await resetNarrationMemory(narrationCampaignId);
+        setNarrationRuntimeError(null);
+        setNarrationLoopClipboardStatus(
+          result.reset === "deleted"
+            ? "Memoire boucle et backend reinitialises."
+            : "Historique UI vide. Memoire backend deja absente."
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Erreur inconnue reset narration-module";
+        setNarrationRuntimeError(message);
+        setNarrationLoopClipboardStatus("Historique UI vide, mais reset backend en echec.");
+      } finally {
+        window.setTimeout(() => {
+          setNarrationLoopClipboardStatus(current =>
+            current === "Memoire boucle et backend reinitialises." ||
+            current === "Historique UI vide. Memoire backend deja absente." ||
+            current === "Historique UI vide, mais reset backend en echec."
+              ? null
+              : current
+          );
+        }, 2500);
+      }
+    })();
+  }, [mapPrompt, narrationSessionSeed]);
 
   const handleRunNarrationTurn = useCallback(async () => {
     if (narrationProcessing) return;

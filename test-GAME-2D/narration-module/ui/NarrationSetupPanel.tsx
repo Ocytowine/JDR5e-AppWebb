@@ -127,7 +127,12 @@ const CONSTRAINT_PRESETS: Array<{ id: string; label: string; value: string }> = 
 
 export function NarrationSetupPanel(props: NarrationSetupPanelProps): React.JSX.Element {
   const [selectedPacketKey, setSelectedPacketKey] = useState<
-    "step_1_app_to_runtime_request" | "step_2_runtime_received_packet" | "step_3_runtime_to_llm_request" | "step_4_app_final_response"
+    | "step_1_app_to_runtime_request"
+    | "step_2_runtime_received_packet"
+    | "step_3_runtime_to_llm_request"
+    | "step_4_app_final_response"
+    | "projected_memory"
+    | "memory_debug"
   >("step_1_app_to_runtime_request");
   const [debugClipboardStatus, setDebugClipboardStatus] = useState<string | null>(null);
 
@@ -154,7 +159,9 @@ export function NarrationSetupPanel(props: NarrationSetupPanelProps): React.JSX.
           step_3_runtime_to_llm_request:
             parsedDebug.step_3_runtime_to_llm_request ?? null,
           step_4_app_final_response:
-            parsedDebug.step_4_app_final_response ?? null
+            parsedDebug.step_4_app_final_response ?? null,
+          projected_memory: parsedDebug.projected_memory ?? null,
+          memory_debug: parsedDebug.memory_debug ?? null
         },
         null,
         2
@@ -642,6 +649,48 @@ export function NarrationSetupPanel(props: NarrationSetupPanelProps): React.JSX.
               }}
             >
               Etape 4: Recu app
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedPacketKey("projected_memory")}
+              style={{
+                padding: "6px 8px",
+                borderRadius: 6,
+                border:
+                  selectedPacketKey === "projected_memory"
+                    ? "1px solid #4f7df2"
+                    : "1px solid rgba(255,255,255,0.15)",
+                background:
+                  selectedPacketKey === "projected_memory"
+                    ? "rgba(79,125,242,0.2)"
+                    : "rgba(12,12,18,0.6)",
+                color: "#e7ecff",
+                fontSize: 11,
+                cursor: "pointer"
+              }}
+            >
+              Memoire projetee
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedPacketKey("memory_debug")}
+              style={{
+                padding: "6px 8px",
+                borderRadius: 6,
+                border:
+                  selectedPacketKey === "memory_debug"
+                    ? "1px solid #4f7df2"
+                    : "1px solid rgba(255,255,255,0.15)",
+                background:
+                  selectedPacketKey === "memory_debug"
+                    ? "rgba(79,125,242,0.2)"
+                    : "rgba(12,12,18,0.6)",
+                color: "#e7ecff",
+                fontSize: 11,
+                cursor: "pointer"
+              }}
+            >
+              DB locale avant/apres
             </button>
             <button
               type="button"

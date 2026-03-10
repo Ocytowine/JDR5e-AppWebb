@@ -1,4 +1,4 @@
-import { CampaignMemory, RuntimeEntityRecord } from "./memory_types";
+import { CampaignMemory, EntityRegistry, RuntimeEntityRecord, RuntimeEntityType } from "./memory_types";
 import { EffectiveTruthSnapshot, resolveEffectiveTruth } from "./truth_resolution";
 
 export type ProjectionInput = {
@@ -23,12 +23,91 @@ export type ProjectedMemory = {
   };
 };
 
+type ProjectionBudget = {
+  events: number;
+  relations: number;
+  knowledge_player_view: number;
+  knowledge_truth_view: number;
+  actors: number;
+  locations: number;
+  objects: number;
+};
+
+const DEFAULT_PROJECTION_BUDGET: ProjectionBudget = {
+  events: 4,
+  relations: 3,
+  knowledge_player_view: 6,
+  knowledge_truth_view: 6,
+  actors: 4,
+  locations: 3,
+  objects: 4,
+};
+
+const PROJECTION_BUDGETS: Record<string, ProjectionBudget> = {
+  observe: {
+    events: 4,
+    relations: 2,
+    knowledge_player_view: 6,
+    knowledge_truth_view: 6,
+    actors: 6,
+    locations: 3,
+    objects: 8,
+  },
+  talk: {
+    events: 4,
+    relations: 5,
+    knowledge_player_view: 6,
+    knowledge_truth_view: 6,
+    actors: 5,
+    locations: 2,
+    objects: 3,
+  },
+  move_local: {
+    events: 3,
+    relations: 2,
+    knowledge_player_view: 4,
+    knowledge_truth_view: 4,
+    actors: 3,
+    locations: 5,
+    objects: 3,
+  },
+  ask_info: {
+    events: 5,
+    relations: 4,
+    knowledge_player_view: 8,
+    knowledge_truth_view: 8,
+    actors: 5,
+    locations: 3,
+    objects: 4,
+  },
+  attempt_forbidden: {
+    events: 5,
+    relations: 3,
+    knowledge_player_view: 5,
+    knowledge_truth_view: 6,
+    actors: 4,
+    locations: 3,
+    objects: 4,
+  },
+  meta_unclear: {
+    events: 2,
+    relations: 2,
+    knowledge_player_view: 3,
+    knowledge_truth_view: 3,
+    actors: 2,
+    locations: 2,
+    objects: 2,
+  },
+};
+
 function safeString(value: unknown): string {
   return String(value ?? "").trim();
 }
 
 function toRecordArray(value: unknown): Array<Record<string, unknown>> {
-  return Array.isArray(value) ? value.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object") : [];
+  return Array.isArray(value)
+    ? value.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+    : [];
 }
 
 function memoryStateWeight(entity: RuntimeEntityRecord): number {
@@ -109,12 +188,13 @@ function selectProjectedEvents(
   events: Array<Record<string, unknown>>,
   locationId: string,
   intentType: string,
+  limit: number,
 ): Array<Record<string, unknown>> {
   return events
     .map((eventRecord) => ({ eventRecord, score: eventProjectionScore(eventRecord, locationId, intentType) }))
     .filter((item) => item.score > 0)
     .sort((left, right) => right.score - left.score)
-    .slice(0, intentType === "observe" ? 6 : 8)
+    .slice(0, limit)
     .map((item) => item.eventRecord);
 }
 
@@ -165,12 +245,18 @@ function selectProjectedKnowledge(
 ): Array<Record<string, unknown>> {
   return entries
     .map((entry) => ({ entry, score: knowledgeProjectionScore(entry, locationId, intentType) }))
+    .filter((item) => item.score > 0)
     .sort((left, right) => right.score - left.score)
     .slice(0, limit)
     .map((item) => item.entry);
 }
 
-function relationProjectionScore(relation: Record<string, unknown>, locationId: string, targetActorId: string, intentType: string): number {
+function relationProjectionScore(
+  relation: Record<string, unknown>,
+  locationId: string,
+  targetActorId: string,
+  intentType: string,
+): number {
   let score = 1;
   const relationLocationId = safeString(relation.location_id);
   if (locationId && relationLocationId === locationId) score += 20;
@@ -188,15 +274,124 @@ function selectProjectedRelations(
   locationId: string,
   targetActorId: string,
   intentType: string,
+  limit: number,
 ): Array<Record<string, unknown>> {
   return relations
     .map((relation) => ({
       relation,
       score: relationProjectionScore(relation, locationId, targetActorId, intentType),
     }))
+    .filter((item) => item.score > 0)
     .sort((left, right) => right.score - left.score)
-    .slice(0, intentType === "talk" ? 10 : 6)
+    .slice(0, limit)
     .map((item) => item.relation);
+}
+
+function collectCandidateIds(
+  indexes: EntityRegistry["indexes"],
+  locationId: string,
+  targetActorId: string,
+): Set<string> {
+  const ids = new Set<string>();
+  const prioritizedMemoryStates = ["active", "relevant", "dormant"];
+
+  for (const memoryState of prioritizedMemoryStates) {
+    const items = indexes.by_memory_state[memoryState] ?? [];
+    for (const entityId of items) {
+      ids.add(entityId);
+    }
+  }
+
+  if (locationId) {
+    const locationItems = indexes.by_location_id[locationId] ?? [];
+    for (const entityId of locationItems) {
+      ids.add(entityId);
+    }
+    ids.add(locationId);
+  }
+
+  if (targetActorId) {
+    ids.add(targetActorId);
+  }
+
+  return ids;
+}
+
+function collectEntitiesFromCandidateIds(
+  registry: EntityRegistry,
+  entityType: RuntimeEntityType,
+  candidateIds: Set<string>,
+): RuntimeEntityRecord[] {
+  const bucket =
+    entityType === "actor"
+      ? registry.actors
+      : entityType === "location"
+      ? registry.locations
+      : registry.objects;
+  const fallbackIds = registry.indexes.by_type[entityType] ?? [];
+  const selectedIds = candidateIds.size > 0
+    ? [...candidateIds].filter((entityId) => Boolean(bucket[entityId]))
+    : fallbackIds;
+
+  return selectedIds
+    .map((entityId) => bucket[entityId])
+    .filter((entity): entity is RuntimeEntityRecord => Boolean(entity));
+}
+
+function filterKnowledgeCandidates(
+  entries: Array<Record<string, unknown>>,
+  locationId: string,
+): Array<Record<string, unknown>> {
+  if (!locationId) return entries;
+  const scopedEntries = entries.filter((entry) => {
+    const entryLocationId = safeString(entry.location_id);
+    const linkedEntityIds = Array.isArray(entry.linked_entity_ids)
+      ? entry.linked_entity_ids.map((item) => safeString(item))
+      : [];
+    const haystack = safeString(entry.text || entry.fact || entry.summary).toLowerCase();
+    return (
+      entryLocationId === locationId ||
+      linkedEntityIds.includes(locationId) ||
+      haystack.includes(locationId.toLowerCase())
+    );
+  });
+  return scopedEntries.length > 0 ? scopedEntries : entries;
+}
+
+function filterEventCandidates(
+  events: Array<Record<string, unknown>>,
+  locationId: string,
+): Array<Record<string, unknown>> {
+  if (!locationId) return events;
+  const scopedEvents = events.filter((eventRecord) => {
+    const eventLocationId =
+      safeString(eventRecord.location_id) ||
+      safeString((eventRecord.final as Record<string, unknown> | undefined)?.location_id);
+    return eventLocationId === locationId;
+  });
+  return scopedEvents.length > 0 ? scopedEvents : events;
+}
+
+function filterRelationCandidates(
+  relations: Array<Record<string, unknown>>,
+  locationId: string,
+  targetActorId: string,
+): Array<Record<string, unknown>> {
+  const scopedRelations = relations.filter((relation) => {
+    const relationLocationId = safeString(relation.location_id);
+    const entityIds = Array.isArray(relation.entity_ids)
+      ? relation.entity_ids.map((item) => safeString(item))
+      : [];
+    return (
+      (locationId && relationLocationId === locationId) ||
+      (targetActorId && entityIds.includes(targetActorId))
+    );
+  });
+  return scopedRelations.length > 0 ? scopedRelations : relations;
+}
+
+function getProjectionBudget(intentType: string): ProjectionBudget {
+  return PROJECTION_BUDGETS[intentType] ?? DEFAULT_PROJECTION_BUDGET;
 }
 
 export function projectMemory(input: ProjectionInput): ProjectedMemory {
@@ -205,38 +400,80 @@ export function projectMemory(input: ProjectionInput): ProjectedMemory {
   const targetActorId = safeString(input.localContext.target_actor_id);
   const truthSnapshot = resolveEffectiveTruth(input);
   const effectiveWorldState = truthSnapshot.effective_world_state;
+  const budget = getProjectionBudget(intentType);
+  const candidateIds = collectCandidateIds(
+    input.campaignMemory.entity_registry.indexes,
+    locationId,
+    targetActorId,
+  );
 
-  const actorEntities = Object.values(input.campaignMemory.entity_registry.actors ?? {});
-  const locationEntities = Object.values(input.campaignMemory.entity_registry.locations ?? {});
-  const objectEntities = Object.values(input.campaignMemory.entity_registry.objects ?? {});
+  const actorEntities = collectEntitiesFromCandidateIds(
+    input.campaignMemory.entity_registry,
+    "actor",
+    candidateIds,
+  );
+  const locationEntities = collectEntitiesFromCandidateIds(
+    input.campaignMemory.entity_registry,
+    "location",
+    candidateIds,
+  );
+  const objectEntities = collectEntitiesFromCandidateIds(
+    input.campaignMemory.entity_registry,
+    "object",
+    candidateIds,
+  );
 
   return {
     truth_snapshot: truthSnapshot,
     effective_world_state: effectiveWorldState,
     projected_units: {
-      events: selectProjectedEvents(toRecordArray(input.campaignMemory.events), locationId, intentType),
+      events: selectProjectedEvents(
+        filterEventCandidates(toRecordArray(input.campaignMemory.events), locationId),
+        locationId,
+        intentType,
+        budget.events,
+      ),
       relations: selectProjectedRelations(
-        toRecordArray(input.campaignMemory.relations),
+        filterRelationCandidates(toRecordArray(input.campaignMemory.relations), locationId, targetActorId),
         locationId,
         targetActorId,
         intentType,
+        budget.relations,
       ),
       knowledge_player_view: selectProjectedKnowledge(
-        toRecordArray(input.campaignMemory.knowledge.player_view),
+        filterKnowledgeCandidates(toRecordArray(input.campaignMemory.knowledge.player_view), locationId),
         locationId,
         intentType,
-        10,
+        budget.knowledge_player_view,
       ),
       knowledge_truth_view: selectProjectedKnowledge(
-        toRecordArray(input.campaignMemory.knowledge.truth_view),
+        filterKnowledgeCandidates(toRecordArray(input.campaignMemory.knowledge.truth_view), locationId),
         locationId,
         intentType,
-        10,
+        budget.knowledge_truth_view,
       ),
       entity_registry: {
-        actors: selectProjectedEntities(actorEntities, locationId, intentType, targetActorId, intentType === "talk" ? 10 : 8),
-        locations: selectProjectedEntities(locationEntities, locationId, intentType, targetActorId, intentType === "move_local" ? 6 : 4),
-        objects: selectProjectedEntities(objectEntities, locationId, intentType, targetActorId, intentType === "observe" ? 10 : 8),
+        actors: selectProjectedEntities(
+          actorEntities,
+          locationId,
+          intentType,
+          targetActorId,
+          budget.actors,
+        ),
+        locations: selectProjectedEntities(
+          locationEntities,
+          locationId,
+          intentType,
+          targetActorId,
+          budget.locations,
+        ),
+        objects: selectProjectedEntities(
+          objectEntities,
+          locationId,
+          intentType,
+          targetActorId,
+          budget.objects,
+        ),
       },
     },
   };

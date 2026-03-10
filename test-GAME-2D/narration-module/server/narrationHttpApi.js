@@ -2,6 +2,12 @@ const fs = require("fs");
 const path = require("path");
 const { createWikiLoreHelper } = require("./wikiLoreHelper");
 const { createLocalLoreHelper } = require("./localLoreHelper");
+const intentResolvers = require("./intentResolvers");
+const { createSceneRuntimeHelpers } = require("./sceneRuntimeHelpers");
+const { createNarrationOutputHelpers } = require("./narrationOutputHelpers");
+const { createTalkNarrationHelpers } = require("./talkNarrationHelpers");
+const { createTalkResolutionHelpers } = require("./talkResolutionHelpers");
+const { createRouteHandlers } = require("./routeHandlers");
 
 function createNarrationModuleApi({
   projectRoot,
@@ -15,6 +21,7 @@ function createNarrationModuleApi({
   let narrationRuntimeInitError = null;
   const wikiLoreHelper = createWikiLoreHelper(projectRoot);
   const localLoreHelper = createLocalLoreHelper();
+  let moveKeywordSynonymsCache = { mtime: -1, map: {} };
 
   function safeString(value, fallback = "") {
     return typeof value === "string" ? value : fallback;
@@ -56,6 +63,34 @@ function createNarrationModuleApi({
     return allowed.has(raw) ? raw : "";
   }
 
+  function tokenizeLooseText(value) {
+    return normalizeLooseText(value)
+      .split(/\s+/)
+      .filter(Boolean);
+  }
+
+  function getMoveKeywordSynonyms() {
+    const synonymsPath = path.resolve(
+      projectRoot,
+      "narration-module",
+      "runtime-data",
+      "lore-keyword-synonyms.json"
+    );
+    if (!fs.existsSync(synonymsPath)) return {};
+    const mtime = Number(fs.statSync(synonymsPath).mtimeMs || 0);
+    if (mtime === moveKeywordSynonymsCache.mtime) {
+      return moveKeywordSynonymsCache.map;
+    }
+    try {
+      const parsed = JSON.parse(fs.readFileSync(synonymsPath, "utf-8"));
+      const nextMap = parsed && typeof parsed === "object" ? parsed : {};
+      moveKeywordSynonymsCache = { mtime, map: nextMap };
+      return nextMap;
+    } catch {
+      return {};
+    }
+  }
+
   const RUNTIME_NARRATION_PLACEHOLDER = "[runtime] narration delegated to llm";
 
   function toStringArray(value) {
@@ -63,14 +98,6 @@ function createNarrationModuleApi({
     return value
       .map(item => String(item ?? "").trim())
       .filter(Boolean);
-  }
-
-  function buildFallbackNarrationFromHandoff(aiHandoff) {
-    const intentType = safeString(aiHandoff?.output_contract?.intent_type, "action");
-    const actionCount = Array.isArray(aiHandoff?.runtime_result?.runtime_actions)
-      ? aiHandoff.runtime_result.runtime_actions.length
-      : 0;
-    return `Tu poursuis ton action (${intentType}) et le monde reagit (${actionCount} action(s) runtime).`;
   }
 
   function hashString(value) {
@@ -380,9 +407,13 @@ function createNarrationModuleApi({
         .filter(Boolean),
       `${seedBase}|marker`
     );
+    const roleContrast = buildRoleContrastSeed(actorHint, seedBase);
     const displayAnchor = descriptorLabel || markerLabel || locationTypeLabel;
-    const visibleDetail = buildVisibleDetailText(markerLabel || descriptorLabel || locationTypeLabel, actorHint);
+    const visibleDetail =
+      roleContrast.notableDetail ||
+      buildVisibleDetailText(markerLabel || descriptorLabel || locationTypeLabel, actorHint);
     const currentActivity =
+      roleContrast.activity ||
       buildActorActivityText(actorHint, activityLabel || descriptorLabel || locationTypeLabel);
 
     return {
@@ -392,9 +423,15 @@ function createNarrationModuleApi({
           species: species || "unknown"
         },
         appearance: {
-          physical_traits: atmosphereLabel ? [`presence marquee par ${atmosphereLabel}`] : [],
-          clothing: displayAnchor ? [`tenue adaptee a ${displayAnchor}`] : [],
-          visible_equipment: [],
+          physical_traits: uniqueStrings([
+            roleContrast.physicalTrait,
+            atmosphereLabel ? `presence marquee par ${atmosphereLabel}` : ""
+          ]),
+          clothing: uniqueStrings([
+            roleContrast.clothing,
+            displayAnchor ? `tenue adaptee a ${displayAnchor}` : ""
+          ]),
+          visible_equipment: uniqueStrings([roleContrast.visibleEquipment]),
           notable_details: visibleDetail ? [visibleDetail] : []
         },
         scene_presence: {
@@ -403,6 +440,63 @@ function createNarrationModuleApi({
           scene_anchor: locationLoreContext.display_name || locationId
         }
       }
+    };
+  }
+
+  function buildRoleContrastSeed(actorHint, seedBase) {
+    const normalizedRole = normalizeLooseText(actorHint);
+    const pick = (values, suffix) => pickDeterministic(values.filter(Boolean), `${seedBase}|${suffix}`);
+    if (normalizedRole.includes("marin")) {
+      return {
+        physicalTrait: pick(["demarche stable de vieux ponton", "mains calleuses de gabier", "visage creuse par l'air sale"], "phys"),
+        clothing: pick(["vareuse usee par l'embrun", "toile marine raide de sel"], "cloth"),
+        visibleEquipment: pick(["un bout de corde enroule a la ceinture", "un couteau marin passe dans la ceinture"], "equip"),
+        notableDetail: pick(["regarde sans cesse la ligne des quais", "porte l'odeur salee du large"], "detail"),
+        activity: pick(["surveille les manuvres du quai", "verifie une cargaison d'un oeil habitue"], "activity")
+      };
+    }
+    if (normalizedRole.includes("docker")) {
+      return {
+        physicalTrait: pick(["epaules tassees par la charge", "avant-bras noueux de manutentionnaire"], "phys"),
+        clothing: pick(["tablier grossier tache de sel", "gilet de travail rapiéce"], "cloth"),
+        visibleEquipment: pick(["un crochet de charge pend a sa main", "des sangles de manutention passent sur l'epaule"], "equip"),
+        notableDetail: pick(["garde un rythme de travail implacable", "jette des coups d'oeil secs aux ballots"], "detail"),
+        activity: pick(["deplace des ballots entre les piles du quai", "coordonne la manutention d'un chargement"], "activity")
+      };
+    }
+    if (normalizedRole.includes("courtier")) {
+      return {
+        physicalTrait: pick(["regard vif d'homme de comptes", "doigts agiles habitues aux registres"], "phys"),
+        clothing: pick(["manteau propre malgre l'air du port", "tenue de negoce sobre mais soignee"], "cloth"),
+        visibleEquipment: pick(["une tablette de comptes sous le bras", "un lot de jetons et de scelles dans une bourse"], "equip"),
+        notableDetail: pick(["evalue chaque mouvement du quai d'un seul regard", "semble compter avant meme de parler"], "detail"),
+        activity: pick(["surveille des transactions a distance", "recoupe mentalement les entrees et sorties du port"], "activity")
+      };
+    }
+    if (normalizedRole.includes("clerc") || normalizedRole.includes("archiviste")) {
+      return {
+        physicalTrait: pick(["doigts taches d'encre", "maintien reserve de scribe"], "phys"),
+        clothing: pick(["robes ou atours sobres de bureau", "vetement net protege de la poussiere"], "cloth"),
+        visibleEquipment: pick(["un registre serre contre lui", "des liasses de feuillets maintenues par une cordelette"], "equip"),
+        notableDetail: pick(["parait compter ses mots avant de parler", "garde l'attention fixe sur ses papiers"], "detail"),
+        activity: pick(["classe des documents d'un geste methodique", "fait circuler des feuillets entre deux pupitres"], "activity")
+      };
+    }
+    if (normalizedRole.includes("garde") || normalizedRole.includes("officier")) {
+      return {
+        physicalTrait: pick(["posture droite de service", "regard d'inspection sans chaleur"], "phys"),
+        clothing: pick(["uniforme net malgre la poussiere", "piece d'armure entretenue avec soin"], "cloth"),
+        visibleEquipment: pick(["une arme tenue a portee de main", "une hampe ou un baudrier reglamentaire"], "equip"),
+        notableDetail: pick(["garde toujours un angle de vue degage", "mesure les passants avant de les laisser approcher"], "detail"),
+        activity: pick(["tient son poste avec une vigilance froide", "controle les abords d'un oeil patient"], "activity")
+      };
+    }
+    return {
+      physicalTrait: "",
+      clothing: "",
+      visibleEquipment: "",
+      notableDetail: "",
+      activity: ""
     };
   }
 
@@ -556,13 +650,9 @@ function createNarrationModuleApi({
     reevaluatedEntityUpdates
   }) {
     const targetActorId = safeString(intentPacket?.target_actor_id);
-    const projectedActors = Array.isArray(projectedAfter?.projected_units?.entity_registry?.actors)
-      ? projectedAfter.projected_units.entity_registry.actors
-      : [];
-    const targetActor =
-      projectedActors.find((actor) => safeString(actor?.entity_id) === targetActorId) || null;
-    const visibleActors = projectedActors
-      .filter((actor) => safeString(actor?.entity_id) !== targetActorId)
+    const talkSceneContext = buildTalkSceneContext(projectedAfter, targetActorId);
+    const targetActor = talkSceneContext.targetActor;
+    const nearbyActors = talkSceneContext.nearbyActors
       .slice(0, 3)
       .map((actor) => ({
         entity_id: safeString(actor?.entity_id),
@@ -573,7 +663,7 @@ function createNarrationModuleApi({
       }));
     const recentKnowledge = Array.isArray(projectedAfter?.projected_units?.knowledge_player_view)
       ? projectedAfter.projected_units.knowledge_player_view
-          .slice(-4)
+          .slice(0, 4)
           .map((entry) => ({
             turn_id: safeString(entry?.turn_id),
             text: safeString(entry?.text),
@@ -590,8 +680,8 @@ function createNarrationModuleApi({
           : [],
         knowledge_player_view: recentKnowledge,
         entity_registry: {
-          actors: targetActor ? [targetActor] : [],
-          visible_actors: visibleActors,
+          actors: targetActor ? [targetActor, ...talkSceneContext.nearbyActors].slice(0, 4) : talkSceneContext.nearbyActors.slice(0, 3),
+          visible_actors: nearbyActors,
           locations: Array.isArray(projectedAfter?.projected_units?.entity_registry?.locations)
             ? projectedAfter.projected_units.entity_registry.locations.slice(0, 1)
             : [],
@@ -619,6 +709,22 @@ function createNarrationModuleApi({
         outputContract.runtime_actions.some((action) => safeString(action?.action) === "startDialogue")
       ? "opening"
       : "continuation";
+    const primarySpeakerCue = buildTalkSpeakerCue(targetActor, "primary");
+    const secondarySpeakerCue = buildTalkSpeakerCue(talkSceneContext.nearbyActors[0], "secondary");
+    const backgroundSpeakerCues = talkSceneContext.nearbyActors
+      .slice(1, 3)
+      .map((actor) => buildTalkSpeakerCue(actor, "background"))
+      .filter(Boolean);
+    const dialogueGuidance = buildTalkDialogueGuidance(
+      talkSceneContext,
+      conversationMode,
+      hasEmbeddedRequest
+    );
+    const dialogueBlueprint = buildTalkDialogueBlueprint(
+      talkSceneContext,
+      conversationMode,
+      embeddedPlayerRequest
+    );
 
     return {
       turn_id: turnId,
@@ -639,7 +745,17 @@ function createNarrationModuleApi({
         talk_context: {
           target_actor_id: targetActorId,
           target_actor: targetActor,
-          visible_actors: visibleActors,
+          visible_actors: nearbyActors,
+          nearby_actors: nearbyActors,
+          scene_mode: talkSceneContext.sceneMode,
+          scene_roles: talkSceneContext.sceneRoles,
+          speaker_cues: {
+            primary: primarySpeakerCue,
+            secondary: secondarySpeakerCue,
+            background: backgroundSpeakerCues
+          },
+          dialogue_guidance: dialogueGuidance,
+          dialogue_blueprint: dialogueBlueprint,
           conversation_mode: conversationMode,
           embedded_player_request: embeddedPlayerRequest || null
         }
@@ -774,25 +890,6 @@ function createNarrationModuleApi({
     );
   }
 
-  function buildTalkClarificationOptions(candidates) {
-    return (Array.isArray(candidates) ? candidates : [])
-      .map((item) => {
-        const actor = item?.actor;
-        const actorId = safeString(actor?.entity_id);
-        const displayLabel =
-          safeString(actor?.display_name) ||
-          safeString(actor?.payload?.identity?.role) ||
-          actorId;
-        if (!actorId || !displayLabel) return null;
-        return {
-          actor_id: actorId,
-          label: displayLabel,
-          role: safeString(actor?.payload?.identity?.role) || displayLabel
-        };
-      })
-      .filter(Boolean);
-  }
-
   function sanitizePendingClarification(rawValue) {
     if (!rawValue || typeof rawValue !== "object") return null;
     const value = rawValue;
@@ -819,124 +916,19 @@ function createNarrationModuleApi({
     };
   }
 
-  function buildPendingTalkClarification({
-    locationId,
+  function isSceneProfileState(profileState) {
+    return safeString(profileState) === "scene_stub";
+  }
+
+  function buildActorProfileRecord({
+    entityId,
     actorHint,
-    clarificationQuestion,
-    candidateOptions,
-    turnId
+    locationId,
+    turnId,
+    seededProfile = null,
+    profileState = "stub",
+    sourceReason = "talk_target_resolution"
   }) {
-    return {
-      kind: "talk_target",
-      location_id: safeString(locationId),
-      actor_hint: safeString(actorHint),
-      question: safeString(clarificationQuestion),
-      created_at_turn: safeString(turnId),
-      options: Array.isArray(candidateOptions) ? candidateOptions : []
-    };
-  }
-
-  function resolvePendingTalkClarificationAnswer({ campaign, locationId, playerInput, pendingClarification }) {
-    const pending = sanitizePendingClarification(pendingClarification);
-    if (!pending || pending.kind !== "talk_target") return null;
-    if (safeString(pending.location_id) && safeString(pending.location_id) !== safeString(locationId)) {
-      return null;
-    }
-    const normalizedInput = normalizeLooseText(playerInput);
-    if (!normalizedInput) return null;
-    const options = Array.isArray(pending.options) ? pending.options : [];
-    const scoredOptions = options
-      .map((option) => {
-        const actor = campaign?.entity_registry?.actors?.[safeString(option.actor_id)] ?? null;
-        const actorAliases = Array.isArray(actor?.payload?.interaction?.aliases)
-          ? actor.payload.interaction.aliases
-          : [];
-        const actorMarkers = [
-          getActorDistinctiveMarker(actor),
-          safeString(actor?.payload?.scene_presence?.current_activity),
-          safeString(actor?.payload?.scene_presence?.activity_descriptor)
-        ];
-        const aliases = [
-          safeString(option.label),
-          safeString(option.role),
-          safeString(option.actor_id),
-          ...actorAliases,
-          ...actorMarkers
-        ]
-          .map((value) => normalizeLooseText(value))
-          .filter(Boolean);
-        let score = 0;
-        for (const alias of aliases) {
-          if (!alias) continue;
-          if (normalizedInput === alias) score += 10;
-          else if (normalizedInput.includes(alias)) score += 8;
-          const aliasTokens = alias.split(/\s+/).filter((token) => token && token.length >= 3);
-          for (const token of aliasTokens) {
-            if (normalizedInput.includes(token)) score += 2;
-          }
-        }
-        const roleHints = extractRoleHintsFromText(playerInput);
-        if (roleHints.length > 0) {
-          if (roleHintMatchesActorRole(roleHints, safeString(actor?.payload?.identity?.role) || safeString(option.role))) {
-            score += 4;
-          } else {
-            score -= 4;
-          }
-        }
-        return { option, score };
-      })
-      .filter((item) => item.score > 0)
-      .sort((left, right) => right.score - left.score);
-    if (scoredOptions.length === 0) return null;
-    const [best, second] = scoredOptions;
-    if (second && best.score <= second.score) return null;
-    const actor = campaign?.entity_registry?.actors?.[safeString(best.option.actor_id)] ?? null;
-    return {
-      actor_id: safeString(best.option.actor_id),
-      actor_hint:
-        safeString(actor?.payload?.identity?.role) ||
-        safeString(best.option.role) ||
-        safeString(best.option.label)
-    };
-  }
-
-  function resolveTalkActorEntity({ campaign, locationId, actorHint, targetActorId }) {
-    const explicitTarget = safeString(targetActorId);
-    const visibleCandidates = collectVisibleActorCandidates(campaign, locationId, actorHint, explicitTarget);
-    if (visibleCandidates.length === 1) {
-      return { kind: "resolved", actor: visibleCandidates[0].actor };
-    }
-    if (visibleCandidates.length > 1) {
-      const [bestVisible, secondVisible] = visibleCandidates;
-      if (bestVisible.score >= 6 && (!secondVisible || bestVisible.score >= secondVisible.score)) {
-        return { kind: "resolved", actor: bestVisible.actor, auto_selected: true };
-      }
-      return { kind: "resolved", actor: bestVisible.actor, auto_selected: true };
-    }
-
-    if (explicitTarget) {
-      const exact = findMatchingActorEntity(campaign, locationId, actorHint, explicitTarget);
-      if (exact?.entity_id === explicitTarget) {
-        return { kind: "resolved", actor: exact };
-      }
-    }
-
-    const candidates = collectActorCandidates(campaign, locationId, actorHint, "");
-    if (candidates.length === 0) {
-      return { kind: "create_new" };
-    }
-    if (candidates.length === 1) {
-      return { kind: "resolved", actor: candidates[0].actor };
-    }
-
-    const [best, second] = candidates;
-    if (best.score >= 6 && (!second || best.score >= second.score)) {
-      return { kind: "resolved", actor: best.actor, auto_selected: true };
-    }
-    return { kind: "resolved", actor: best.actor, auto_selected: true };
-  }
-
-  function buildActorProfileRecord({ entityId, actorHint, locationId, turnId, seededProfile = null }) {
     const seededPayload = seededProfile?.payload && typeof seededProfile.payload === "object"
       ? seededProfile.payload
       : {};
@@ -975,7 +967,7 @@ function createNarrationModuleApi({
       location_id: locationId,
       source: {
         created_by: "runtime",
-        reason: "talk_target_resolution"
+        reason: sourceReason
       },
       visibility: {
         player_known: true,
@@ -987,7 +979,7 @@ function createNarrationModuleApi({
         faction_ids: []
       },
       payload: {
-        profile_state: "stub",
+        profile_state: profileState,
         pending_enrichment: null,
         identity: {
           known_name: safeString(seededIdentity.known_name) || null,
@@ -1032,9 +1024,14 @@ function createNarrationModuleApi({
             safeString(seededInteraction.player_language_compatibility, "unknown") || "unknown",
           known_to_player_as: safeString(seededInteraction.known_to_player_as, actorHint) || actorHint,
           contact_count: Number.isFinite(Number(seededInteraction.contact_count))
-            ? Math.max(1, Number(seededInteraction.contact_count))
+            ? Math.max(isSceneProfileState(profileState) ? 0 : 1, Number(seededInteraction.contact_count))
+            : isSceneProfileState(profileState)
+            ? 0
             : 1,
-          familiarity_level: safeString(seededInteraction.familiarity_level, "seen_once") || "seen_once",
+          familiarity_level: safeString(
+            seededInteraction.familiarity_level,
+            isSceneProfileState(profileState) ? "unknown" : "seen_once"
+          ) || (isSceneProfileState(profileState) ? "unknown" : "seen_once"),
           last_interaction_outcome:
             safeString(seededInteraction.last_interaction_outcome, "brief_contact") || "brief_contact",
           active_topic_ids: readStringArrayField(seededInteraction.active_topic_ids),
@@ -1272,21 +1269,58 @@ function createNarrationModuleApi({
   function isPresenceScanRequest(playerInput) {
     const normalized = normalizeLooseText(playerInput);
     if (!normalized) return false;
+    const asksForVisiblePresence =
+      normalized.includes("voir") ||
+      normalized.includes("apercevoir") ||
+      normalized.includes("reperer") ||
+      normalized.includes("distinguer");
+    const mentionsPeopleOrRole =
+      normalized.includes("des gens") ||
+      normalized.includes("du monde") ||
+      normalized.includes("quelqu un autour") ||
+      normalized.includes("qui est autour") ||
+      normalized.includes("qui est la") ||
+      normalized.includes("y a t il") ||
+      normalized.includes("marchand") ||
+      normalized.includes("garde") ||
+      normalized.includes("marin") ||
+      normalized.includes("clerc") ||
+      normalized.includes("courtier");
+    const immediateContext =
+      normalized.includes("autour") ||
+      normalized.includes("ici") ||
+      normalized.includes("dans les environs") ||
+      normalized.includes("pres de moi") ||
+      normalized.includes("la") ||
+      normalized.includes("d ici") ||
+      normalized.includes("devant moi") ||
+      normalized.includes("a portee");
     return (
-      (normalized.includes("des gens") ||
-        normalized.includes("du monde") ||
-        normalized.includes("quelqu un autour") ||
-        normalized.includes("qui est autour") ||
-        normalized.includes("qui est la") ||
-        normalized.includes("y a t il")) &&
-      (
-        normalized.includes("autour") ||
-        normalized.includes("ici") ||
-        normalized.includes("dans les environs") ||
-        normalized.includes("pres de moi") ||
-        normalized.includes("la")
-      )
+      ((mentionsPeopleOrRole && immediateContext) ||
+        (asksForVisiblePresence && mentionsPeopleOrRole && immediateContext))
     );
+  }
+
+  function isObservableDescriptionRequest(playerInput, targetActorHint = "") {
+    const normalized = normalizeLooseText(playerInput);
+    if (!normalized) return false;
+    const asksDescription =
+      normalized.includes("decrire") ||
+      normalized.includes("decris") ||
+      normalized.includes("description") ||
+      normalized.includes("a quoi ressemble") ||
+      normalized.includes("quel air") ||
+      normalized.includes("quelle allure");
+    if (!asksDescription) return false;
+    const asksKnowledge =
+      normalized.includes("que sait") ||
+      normalized.includes("qui est ") ||
+      normalized.includes("pourquoi") ||
+      normalized.includes("comment") ||
+      normalized.includes("ou est") ||
+      normalized.includes("ou aller");
+    if (asksKnowledge) return false;
+    return Boolean(safeString(targetActorHint)) || normalized.includes(" le ") || normalized.includes(" la ");
   }
 
   function isApproachActorIntent(playerInput) {
@@ -1657,282 +1691,564 @@ function createNarrationModuleApi({
     };
   }
 
-  function buildLocationRuntimeSeed(locationId, selectedLoreEntries) {
-    const entries = Array.isArray(selectedLoreEntries) ? selectedLoreEntries : [];
-    const matchingEntry = entries.find(entry => safeString(entry?.entity_id) === safeString(locationId));
-    if (!matchingEntry || typeof matchingEntry !== "object") {
-      return {
-        display_name: locationId,
-        subtype: "scene_anchor",
-        connected_locations: [],
-        active_points_of_interest: []
-      };
-    }
-    const keyFacts = matchingEntry.key_facts && typeof matchingEntry.key_facts === "object"
-      ? matchingEntry.key_facts
-      : {};
-    const connectedLocations = Array.isArray(keyFacts.lieux_connectes)
-      ? keyFacts.lieux_connectes.map(item => String(item ?? "").trim()).filter(Boolean)
-      : [];
-    const activePointsOfInterest = Array.isArray(keyFacts.fonction_principale)
-      ? keyFacts.fonction_principale.map(item => String(item ?? "").trim()).filter(Boolean).slice(0, 4)
-      : [];
-    const visibleExits = connectedLocations.map((destinationId) => ({
-      exit_id: `exit_${slugifyLoose(locationId)}_${slugifyLoose(destinationId)}`,
-      label_visible: `un passage vers ${destinationId.replace(/_/g, " ")}`,
-      destination_id: destinationId,
-      access_state: "open",
-      guarded: false,
-    }));
-    const ambientMarkers = [];
-    const normalizedType = normalizeLooseText(safeString(keyFacts.type_batiment, safeString(matchingEntry.type)));
-    if (normalizedType.includes("halle")) {
-      ambientMarkers.push("murmures de negociations", "va et vient de marchandises");
-    } else if (normalizedType.includes("archive")) {
-      ambientMarkers.push("bruissement de papier", "allers retours de clercs");
-    } else if (normalizedType.includes("caserne")) {
-      ambientMarkers.push("bruit de pas reguliers", "discipline tendue des lieux");
-    }
-    return {
-      display_name: safeString(matchingEntry.name, locationId),
-      subtype: safeString(keyFacts.type_batiment, safeString(matchingEntry.type, "scene_anchor")) || "scene_anchor",
-      connected_locations: connectedLocations,
-      active_points_of_interest: activePointsOfInterest,
-      ambient_markers: ambientMarkers.slice(0, 4),
-      visible_exits: visibleExits.slice(0, 4),
-    };
-  }
-
-  function buildSceneActorEntityId(locationId, role, index = 1) {
-    return `${slugifyLoose(locationId, "scene")}_${slugifyLoose(role, "acteur")}_${String(index).padStart(2, "0")}`;
-  }
-
-  function inferVisibleSceneRoles(narrationContext, locationId) {
-    const text = normalizeLooseText(narrationContext);
-    const roles = [];
-    const pushRole = (role) => {
-      if (!roles.includes(role)) roles.push(role);
-    };
-    if (/\bgarde\b|\bgardes\b/.test(text)) pushRole("garde");
-    if (/\bclerc\b|\bclercs\b/.test(text)) pushRole("clerc");
-    if (/\barchiviste\b|\barchivistes\b/.test(text)) pushRole("archiviste");
-    if (/\bmarchand\b|\bmarchands\b/.test(text)) pushRole("marchand");
-    if (/\bofficier\b|\bofficiers\b/.test(text)) pushRole("officier");
-    return roles.map((role, index) => ({
-      entity_id: buildSceneActorEntityId(locationId, role, index + 1),
-      role,
-      display_name: role,
-    }));
-  }
-
-  function inferAmbientSceneRoles(locationId, narrationContext, maxActors = 3) {
-    const explicitRoles = inferVisibleSceneRoles(narrationContext, locationId)
-      .map((item) => safeString(item?.role))
-      .filter(Boolean);
-    const locationProfile = resolveLocationGenerationProfile(locationId);
-    const likelyRoles = readWeightedRoleList(locationProfile?.presence_profile?.likely_roles)
-      .sort((left, right) => (Number(right.weight) || 0) - (Number(left.weight) || 0))
-      .map((entry) => safeString(entry.role))
-      .filter((role) => role && role !== "pnj_lambda");
-    const mergedRoles = [];
-    for (const role of [...explicitRoles, ...likelyRoles]) {
-      if (!role || mergedRoles.includes(role)) continue;
-      mergedRoles.push(role);
-      if (mergedRoles.length >= maxActors) break;
-    }
-    return mergedRoles.map((role, index) => ({
-      entity_id: buildSceneActorEntityId(locationId, role, index + 1),
-      role,
-      display_name: role,
-    }));
-  }
-
-  function getVisibleActorRecords(memoryService, campaignId, locationId) {
-    const locationEntity = memoryService.getEntity(campaignId, locationId);
-    const visibleActorIds = Array.isArray(locationEntity?.payload?.visible_actors)
-      ? locationEntity.payload.visible_actors.map((item) => safeString(item)).filter(Boolean)
-      : [];
-    return visibleActorIds
-      .map((actorId) => memoryService.getEntity(campaignId, actorId))
-      .filter(Boolean);
-  }
-
-  function getNextSceneRoleIndex(actorRecords, locationId, role) {
-    const normalizedRole = normalizeLooseText(role);
-    let highestIndex = 0;
-    for (const actor of Array.isArray(actorRecords) ? actorRecords : []) {
-      if (normalizeLooseText(actor?.payload?.identity?.role) !== normalizedRole) continue;
-      const entityId = safeString(actor?.entity_id);
-      const match = entityId.match(/_(\d{2})$/);
-      if (!match) continue;
-      highestIndex = Math.max(highestIndex, Number(match[1]));
-    }
-    return highestIndex + 1;
-  }
-
-  function ensureObservedSceneActors({
-    memoryService,
-    campaignId,
-    locationId,
-    turnId,
-    narrationContext,
-  }) {
-    const inferredActors = inferVisibleSceneRoles(narrationContext, locationId);
-    const locationProfile = resolveLocationGenerationProfile(locationId);
-    const locationLoreContext = resolveLocationLoreContext(locationId);
-    for (const inferredActor of inferredActors) {
-      const existing = memoryService.getEntity(campaignId, inferredActor.entity_id);
-      if (!existing) {
-        memoryService.upsertEntity(
-          campaignId,
-          buildActorProfileRecord({
-            entityId: inferredActor.entity_id,
-            actorHint: inferredActor.role,
-            locationId,
-            turnId,
-            seededProfile: buildActorDistinctiveSeed({
-              entityId: inferredActor.entity_id,
-              actorHint: inferredActor.role,
-              locationId,
-              locationProfile,
-              locationLoreContext
-            })
-          }),
-          turnId
-        );
-      }
-      memoryService.ensureVisibleActorAtLocation(
-        campaignId,
-        locationId,
-        inferredActor.entity_id,
-        turnId
-      );
-    }
-    syncSceneActorSnapshots({ memoryService, campaignId, locationId, turnId });
-  }
-
-  function ensureAmbientSceneActors({
-    memoryService,
-    campaignId,
-    locationId,
-    turnId,
-    narrationContext,
-    maxActors = 3,
-  }) {
-    const currentVisibleActorRecords = getVisibleActorRecords(memoryService, campaignId, locationId);
-    if (currentVisibleActorRecords.length >= maxActors) {
-      syncSceneActorSnapshots({ memoryService, campaignId, locationId, turnId, maxActors });
-      return;
-    }
-    const locationProfile = resolveLocationGenerationProfile(locationId);
-    const locationLoreContext = resolveLocationLoreContext(locationId);
-    const languageSeed = buildLanguageSeedFromGenerationProfile(locationProfile);
-    const inferredActors = inferAmbientSceneRoles(locationId, narrationContext, maxActors);
-    const visibleRoles = new Set(
-      currentVisibleActorRecords
-        .map((actor) => normalizeLooseText(actor?.payload?.identity?.role))
-        .filter(Boolean)
-    );
-    const actorsToCreate = inferredActors
-      .filter((inferredActor) => !visibleRoles.has(normalizeLooseText(inferredActor.role)))
-      .slice(0, Math.max(0, maxActors - currentVisibleActorRecords.length))
-      .map((inferredActor) => ({
-        ...inferredActor,
-        entity_id: buildSceneActorEntityId(
-          locationId,
-          inferredActor.role,
-          getNextSceneRoleIndex(currentVisibleActorRecords, locationId, inferredActor.role)
-        )
-      }));
-    for (const inferredActor of actorsToCreate) {
-      const existing = memoryService.getEntity(campaignId, inferredActor.entity_id);
-      if (!existing) {
-        const actorRecord = applyActorContextFromGenerationProfile(
-          applyActorLanguageSeed(
-            buildActorProfileRecord({
-              entityId: inferredActor.entity_id,
-              actorHint: inferredActor.role,
-              locationId,
-              turnId,
-              seededProfile: buildActorDistinctiveSeed({
-                entityId: inferredActor.entity_id,
-                actorHint: inferredActor.role,
-                locationId,
-                locationProfile,
-                locationLoreContext
-              })
-            }),
-            languageSeed
-          ),
-          locationProfile,
-          inferredActor.role
-        );
-        memoryService.upsertEntity(campaignId, actorRecord, turnId);
-      }
-      memoryService.markEntitySeen(campaignId, inferredActor.entity_id, turnId);
-      memoryService.ensureVisibleActorAtLocation(
-        campaignId,
-        locationId,
-        inferredActor.entity_id,
-        turnId
-      );
-      currentVisibleActorRecords.push(memoryService.getEntity(campaignId, inferredActor.entity_id));
-    }
-    syncSceneActorSnapshots({ memoryService, campaignId, locationId, turnId, maxActors });
-  }
-
-  function buildObserveSelectedLoreForNarration(selectedLoreEntries, locationId) {
-    const entries = Array.isArray(selectedLoreEntries) ? selectedLoreEntries : [];
-    return entries
-      .filter((entry) => safeString(entry?.entity_id) === safeString(locationId))
-      .map((entry) => {
-        const keyFacts = entry?.key_facts && typeof entry.key_facts === "object"
-          ? entry.key_facts
-          : {};
-        return {
-          topic_id: safeString(entry?.topic_id),
-          entity_id: safeString(entry?.entity_id),
-          type: safeString(entry?.type),
-          name: safeString(entry?.name),
-          snippet: safeString(entry?.snippet),
-          observable_facts: {
-            acces: safeString(keyFacts.acces),
-            type_batiment: safeString(keyFacts.type_batiment),
-            fonction_principale: Array.isArray(keyFacts.fonction_principale)
-              ? keyFacts.fonction_principale.map((item) => safeString(item)).filter(Boolean).slice(0, 2)
-              : [],
-            lieux_connectes: Array.isArray(keyFacts.lieux_connectes)
-              ? keyFacts.lieux_connectes.map((item) => safeString(item)).filter(Boolean).slice(0, 2)
-              : [],
-          }
-        };
-      });
-  }
-
   function getProjectedLocationRuntimeState(projected, locationId) {
     const locations = Array.isArray(projected?.projected_units?.entity_registry?.locations)
       ? projected.projected_units.entity_registry.locations
       : [];
-    return locations.find(entry => safeString(entry?.entity_id) === safeString(locationId)) || null;
+    const normalizedLocationId = safeString(locationId);
+    return (
+      locations.find((entry) => safeString(entry?.entity_id) === normalizedLocationId) ||
+      locations.find((entry) => safeString(entry?.location_id) === normalizedLocationId) ||
+      null
+    );
+  }
+
+  function getProjectedActorRuntimeState(projected, actorId) {
+    const actors = Array.isArray(projected?.projected_units?.entity_registry?.actors)
+      ? projected.projected_units.entity_registry.actors
+      : [];
+    const normalizedActorId = safeString(actorId);
+    return actors.find((entry) => safeString(entry?.entity_id) === normalizedActorId) || null;
   }
 
   function readStringArrayField(value) {
-    if (!Array.isArray(value)) return [];
-    return value.map(item => safeString(item)).filter(Boolean);
+    return Array.isArray(value) ? value.map((item) => safeString(item)).filter(Boolean) : [];
   }
 
   function readVisibleExitsField(value) {
-    if (!Array.isArray(value)) return [];
-    return value
-      .filter(item => item && typeof item === "object")
-      .map(item => ({
-        exit_id: safeString(item.exit_id),
-        label_visible: safeString(item.label_visible),
-        destination_id: safeString(item.destination_id),
-        access_state: safeString(item.access_state, "open"),
-        guarded: Boolean(item.guarded),
-      }))
-      .filter(item => item.exit_id && item.destination_id);
+    return Array.isArray(value)
+      ? value
+          .map((entry) => {
+            if (!entry || typeof entry !== "object") return null;
+            return {
+              exit_id: safeString(entry.exit_id),
+              label_visible: safeString(entry.label_visible),
+              destination_id: safeString(entry.destination_id),
+              access_state: safeString(entry.access_state),
+              guarded: Boolean(entry.guarded)
+            };
+          })
+          .filter(Boolean)
+      : [];
+  }
+
+  const sceneRuntimeHelpers = createSceneRuntimeHelpers({
+    safeString,
+    normalizeLooseText,
+    slugifyLoose,
+    readWeightedRoleList,
+    resolveLocationGenerationProfile,
+    readStringArrayField,
+    hashString,
+    readVisibleExitsField,
+    buildLanguageSeedFromGenerationProfile,
+    resolveLocationLoreContext,
+    buildActorDistinctiveSeed,
+    buildActorProfileRecord,
+    applyActorLanguageSeed,
+    applyActorContextFromGenerationProfile,
+    syncSceneActorSnapshots
+  });
+  const {
+    buildLocationRuntimeSeed,
+    readScenePerceptionState,
+    buildScenePerceptionGuidance,
+    buildApproachClarificationQuestion,
+    ensureObservedSceneActors,
+    ensureAmbientSceneActors
+  } = sceneRuntimeHelpers;
+
+  const narrationOutputHelpers = createNarrationOutputHelpers({
+    safeString,
+    toStringArray,
+    getProjectedLocationRuntimeState,
+    readScenePerceptionState,
+    readStringArrayField
+  });
+  const {
+    buildFallbackNarrationFromHandoff,
+    sanitizeNextTurnHintsFromPerception
+  } = narrationOutputHelpers;
+  const talkNarrationHelpers = createTalkNarrationHelpers({
+    safeString,
+    readStringArrayField,
+    normalizeLooseText,
+    sanitizeFragmentText,
+    getActorDistinctiveMarker
+  });
+  const {
+    buildTalkSceneContext,
+    buildTalkSpeakerCue,
+    buildTalkDialogueGuidance,
+    buildTalkDialogueBlueprint,
+    looksLikeDirectSpeechNarration,
+    buildTalkDirectSpeechFallback
+  } = talkNarrationHelpers;
+  const talkResolutionHelpers = createTalkResolutionHelpers({
+    safeString,
+    normalizeLooseText,
+    getActorDistinctiveMarker,
+    extractRoleHintsFromText,
+    roleHintMatchesActorRole,
+    collectVisibleActorCandidates,
+    findMatchingActorEntity,
+    collectActorCandidates,
+    resolveLocationGenerationProfile,
+    resolveLocationLoreContext,
+    buildLanguageSeedFromGenerationProfile,
+    buildActorDistinctiveSeed,
+    promoteSceneActorToInteractive,
+    applyActorLanguageSeed,
+    applyActorContextFromGenerationProfile,
+    buildActorAliases,
+    computeRolePlausibility,
+    readScenePerceptionState,
+    buildApproachClarificationQuestion,
+    syncSceneActorSnapshots,
+    sanitizePendingClarification
+  });
+  const {
+    buildPendingTalkClarification,
+    resolvePendingTalkClarificationAnswer,
+    resolveTalkActorEntity,
+    ensureTalkActorEntity
+  } = talkResolutionHelpers;
+  const routeHandlers = createRouteHandlers({
+    openAiApiKey,
+    callOpenAiJson,
+    parseJsonBody,
+    sendJson,
+    cryptoImpl,
+    safeString,
+    toStringArray,
+    cloneForDebug,
+    sanitizePendingClarification,
+    buildInputContract,
+    analyzeIntentPacket,
+    buildPlanAndOutputContracts,
+    buildLocationRuntimeSeed,
+    buildObserveSelectedLoreForNarration,
+    buildInteractionLanguageState,
+    primeTalkActorInteractionState,
+    collectEntityEnrichmentRequests,
+    reevaluatePendingEntityEnrichments,
+    buildTalkNarrationHandoff,
+    updateTalkActorAfterNarration,
+    isClarificationHandoff,
+    shouldDeferEntityEnrichment,
+    sanitizeEntityEnrichmentProposal,
+    sanitizeEntityPatchProposal,
+    mergeEntityPatch,
+    localizeResolvedEntityPayload,
+    buildFallbackNarrationFromHandoff,
+    sanitizeNextTurnHintsFromPerception,
+    looksLikeDirectSpeechNarration,
+    buildTalkDirectSpeechFallback,
+    buildPendingTalkClarification,
+    ensureTalkActorEntity,
+    ensureAmbientSceneActors,
+    ensureObservedSceneActors,
+    resolveTalkIntentPrelude,
+    resolveTalkTargetHintContext,
+    resolvePerceptiveIntentFocus,
+    resolveMoveIntentContext,
+    intentResolvers,
+    wikiLoreHelper,
+    localLoreHelper,
+    isPresenceScanRequest,
+    isObservableDescriptionRequest,
+    isApproachActorIntent,
+    initNarrationRuntime,
+    getNarrationRuntime: () => narrationRuntime,
+    getNarrationRuntimeInitError: () => narrationRuntimeInitError,
+    getRuntimeNarrationPlaceholder: () => RUNTIME_NARRATION_PLACEHOLDER
+  });
+
+  function collectMoveDestinationCandidates(selectedLore, locationRuntimeState, locationId) {
+    const candidates = new Map();
+    const pushCandidate = (destinationId, source, labels = [], baseScore = 0) => {
+      const normalizedId = safeString(destinationId);
+      if (!normalizedId || normalizedId === safeString(locationId)) return;
+      const existing = candidates.get(normalizedId) || {
+        destination_id: normalizedId,
+        labels: new Set(),
+        sources: new Set(),
+        baseScore: 0
+      };
+      for (const label of labels) {
+        const normalizedLabel = safeString(label);
+        if (normalizedLabel) existing.labels.add(normalizedLabel);
+      }
+      if (source) existing.sources.add(source);
+      existing.baseScore = Math.max(existing.baseScore, Number(baseScore) || 0);
+      candidates.set(normalizedId, existing);
+    };
+
+    const locationPayload = locationRuntimeState?.payload && typeof locationRuntimeState.payload === "object"
+      ? locationRuntimeState.payload
+      : {};
+    const scenePayload = locationPayload.scene_payload && typeof locationPayload.scene_payload === "object"
+      ? locationPayload.scene_payload
+      : {};
+
+    for (const connectedLocationId of readStringArrayField(locationPayload.connected_locations)) {
+      pushCandidate(connectedLocationId, "connected_locations", [connectedLocationId], 7);
+    }
+    for (const exit of readVisibleExitsField(scenePayload.visible_exits)) {
+      pushCandidate(exit.destination_id, "visible_exit", [exit.destination_id, exit.label_visible], 8);
+    }
+
+    const selectedEntries = Array.isArray(selectedLore?.selected_entries) ? selectedLore.selected_entries : [];
+    for (const entry of selectedEntries) {
+      if (!entry || typeof entry !== "object") continue;
+      const entryId = safeString(entry.entity_id);
+      const entryName = safeString(entry.name);
+      const entryType = normalizeLooseText(safeString(entry.type));
+      if (entryId && entryId !== safeString(locationId) && entryType && entryType !== "ville") {
+        pushCandidate(entryId, "selected_entry", [entryId, entryName], 5);
+      }
+
+      const keyFacts = entry.key_facts && typeof entry.key_facts === "object" ? entry.key_facts : {};
+      for (const quartierId of Array.isArray(keyFacts.quartiers) ? keyFacts.quartiers : []) {
+        pushCandidate(quartierId, "key_fact_quartier", [quartierId], 7);
+      }
+      for (const linkedLocation of Array.isArray(keyFacts.lieux_connectes) ? keyFacts.lieux_connectes : []) {
+        pushCandidate(linkedLocation, "key_fact_place", [linkedLocation], 6);
+      }
+      for (const importantBuilding of Array.isArray(keyFacts.batiments_importants) ? keyFacts.batiments_importants : []) {
+        pushCandidate(importantBuilding, "key_fact_place", [importantBuilding], 5);
+      }
+    }
+
+    return [...candidates.values()].map((candidate) => ({
+      destination_id: candidate.destination_id,
+      labels: [...candidate.labels],
+      sources: [...candidate.sources],
+      baseScore: candidate.baseScore
+    }));
+  }
+
+  function resolveMoveDestinationFromContext({
+    playerInput,
+    selectedLore,
+    locationRuntimeState,
+    locationId
+  }) {
+    const normalizedInput = normalizeLooseText(playerInput);
+    if (!normalizedInput) return null;
+
+    const inputTokens = tokenizeLooseText(playerInput);
+    const synonymMap = getMoveKeywordSynonyms();
+    const destinationCandidates = collectMoveDestinationCandidates(selectedLore, locationRuntimeState, locationId);
+    if (destinationCandidates.length === 0) return null;
+
+    const scoredCandidates = destinationCandidates
+      .map((candidate) => {
+        let score = Number(candidate.baseScore) || 0;
+        const candidateTokens = new Set(tokenizeLooseText(candidate.destination_id));
+        const candidateLabels = [candidate.destination_id, ...candidate.labels].filter(Boolean);
+
+        for (const label of candidateLabels) {
+          const normalizedLabel = normalizeLooseText(label);
+          if (!normalizedLabel) continue;
+          if (normalizedInput.includes(normalizedLabel)) score += 8;
+          for (const token of tokenizeLooseText(label)) {
+            candidateTokens.add(token);
+          }
+        }
+
+        for (const token of inputTokens) {
+          if (candidateTokens.has(token)) score += 2;
+        }
+
+        for (const [term, synonyms] of Object.entries(synonymMap)) {
+          if (!normalizedInput.includes(normalizeLooseText(term))) continue;
+          const normalizedSynonyms = Array.isArray(synonyms)
+            ? synonyms.map((item) => normalizeLooseText(item))
+            : [];
+          if (
+            normalizedSynonyms.includes(normalizeLooseText(candidate.destination_id)) ||
+            candidateLabels.some((label) => normalizedSynonyms.includes(normalizeLooseText(label)))
+          ) {
+            score += 7;
+          }
+        }
+
+        if (candidate.sources.includes("visible_exit")) score += 2;
+        if (candidate.sources.includes("connected_locations")) score += 1;
+        if (candidate.sources.includes("key_fact_quartier")) score += 2;
+        if (candidate.sources.includes("key_fact_place")) score -= 1;
+
+        return {
+          destination_id: candidate.destination_id,
+          score
+        };
+      })
+      .filter((candidate) => candidate.score >= 6)
+      .sort((left, right) => right.score - left.score);
+
+    if (scoredCandidates.length === 0) return null;
+    const [best, second] = scoredCandidates;
+    if (second && best.score <= second.score) {
+      const bestLooksDistrict = normalizeLooseText(best.destination_id).includes("quartier");
+      const secondLooksDistrict = normalizeLooseText(second.destination_id).includes("quartier");
+      if (bestLooksDistrict && !secondLooksDistrict) return best.destination_id;
+    }
+    return best.destination_id;
+  }
+
+  function normalizeResolvedIntentBoundaries({ intentPacket, body }) {
+    if (!intentPacket || typeof intentPacket !== "object") return;
+    const playerInput = safeString(body?.player_input);
+
+    if (
+      intentPacket.intent_type === "ask_info" &&
+      isPresenceScanRequest(playerInput)
+    ) {
+      intentPacket.intent_type = "observe";
+      intentPacket.notes = [
+        ...toStringArray(intentPacket.notes),
+        "Requalifie en observe: demande de perception immediate."
+      ];
+    }
+
+    if (
+      intentPacket.intent_type === "ask_info" &&
+      isObservableDescriptionRequest(playerInput, safeString(intentPacket.target_actor_hint))
+    ) {
+      intentPacket.intent_type = "observe";
+      intentPacket.notes = [
+        ...toStringArray(intentPacket.notes),
+        "Requalifie en observe: demande descriptive sur du visible."
+      ];
+    }
+
+    if (
+      intentPacket.intent_type === "move_local" &&
+      isApproachActorIntent(playerInput) &&
+      safeString(intentPacket.target_actor_hint)
+    ) {
+      intentPacket.intent_type = "talk";
+      intentPacket.notes = [
+        ...toStringArray(intentPacket.notes),
+        "Requalifie en talk: approche d'un acteur visible."
+      ];
+    }
+  }
+
+  function resolveTalkIntentPrelude({
+    intentPacket,
+    body,
+    campaignBefore,
+    locationId,
+    activePendingClarification,
+    activeTalkActorId
+  }) {
+    const explicitTargetActorId = safeString(body?.target_actor_id);
+    if (explicitTargetActorId && ["ask_info", "talk"].includes(intentPacket.intent_type)) {
+      intentPacket.intent_type = "talk";
+      intentPacket.target_actor_id = explicitTargetActorId;
+      intentPacket.target_actor_hint =
+        safeString(intentPacket.target_actor_hint) ||
+        inferActorHintFromEntity(campaignBefore, explicitTargetActorId);
+      intentPacket.requires_clarification = false;
+      intentPacket.clarification_question = null;
+      intentPacket.notes = [
+        ...toStringArray(intentPacket.notes),
+        "Continuation de dialogue priorisee car un target_actor_id etait deja actif."
+      ];
+    }
+
+    if (
+      !explicitTargetActorId &&
+      activeTalkActorId &&
+      intentPacket.intent_type === "talk" &&
+      (!safeString(intentPacket.target_actor_hint) || isTalkContinuationInput(body?.player_input))
+    ) {
+      intentPacket.target_actor_id = activeTalkActorId;
+      intentPacket.target_actor_hint =
+        safeString(intentPacket.target_actor_hint) ||
+        inferActorHintFromEntity(campaignBefore, activeTalkActorId);
+      intentPacket.requires_clarification = false;
+      intentPacket.clarification_question = null;
+      intentPacket.notes = [
+        ...toStringArray(intentPacket.notes),
+        `Continuation de dialogue rattachee a l'interlocuteur actif: ${activeTalkActorId}.`
+      ];
+    }
+
+    if (activePendingClarification && !safeString(body?.target_actor_id)) {
+      const pendingResolution = resolvePendingTalkClarificationAnswer({
+        campaign: campaignBefore,
+        locationId,
+        playerInput: body?.player_input,
+        pendingClarification: activePendingClarification
+      });
+      if (pendingResolution?.actor_id) {
+        intentPacket.intent_type = "talk";
+        intentPacket.intent_confidence = Math.max(
+          typeof intentPacket.intent_confidence === "number" ? intentPacket.intent_confidence : 0,
+          0.92
+        );
+        intentPacket.target_actor_id = pendingResolution.actor_id;
+        intentPacket.target_actor_hint = pendingResolution.actor_hint;
+        intentPacket.requires_clarification = false;
+        intentPacket.clarification_question = null;
+        intentPacket.notes = [
+          ...toStringArray(intentPacket.notes),
+          `Reponse joueur resolue via pending_clarification: ${pendingResolution.actor_hint}.`
+        ];
+      }
+    }
+  }
+
+  function resolveTalkTargetHintContext({
+    intentPacket,
+    body,
+    campaignBefore,
+    locationId
+  }) {
+    if (
+      intentPacket.intent_type === "talk" &&
+      intentPacket.requires_clarification &&
+      !safeString(intentPacket.target_actor_hint) &&
+      !safeString(intentPacket.target_actor_id) &&
+      isGenericTalkOpening(body?.player_input)
+    ) {
+      const fallbackTalkActorHint = inferFallbackTalkActorHint({
+        playerInput: body?.player_input,
+        narrationContext: body?.narration_context,
+        locationId
+      });
+      if (fallbackTalkActorHint) {
+        intentPacket.target_actor_hint = fallbackTalkActorHint;
+        intentPacket.requires_clarification = false;
+        intentPacket.clarification_question = null;
+        intentPacket.notes = [
+          ...toStringArray(intentPacket.notes),
+          `Cible sociale generique inferee depuis le lieu: ${fallbackTalkActorHint}.`
+        ];
+      }
+    }
+
+    if (intentPacket.intent_type === "talk" && !safeString(intentPacket.target_actor_id)) {
+      const directTalkActorHint = inferDirectTalkActorHintFromVisibleActors(
+        campaignBefore,
+        locationId,
+        body?.player_input
+      );
+      if (directTalkActorHint) {
+        intentPacket.target_actor_hint = directTalkActorHint;
+        intentPacket.requires_clarification = false;
+        intentPacket.clarification_question = null;
+        intentPacket.notes = [
+          ...toStringArray(intentPacket.notes),
+          `Cible dialogue deduite depuis la reponse joueur: ${directTalkActorHint}.`
+        ];
+      }
+    }
+
+    if (
+      intentPacket.intent_type === "talk" &&
+      isApproachActorIntent(body?.player_input) &&
+      safeString(intentPacket.target_actor_hint)
+    ) {
+      const approachTarget = resolveTalkActorEntity({
+        campaign: campaignBefore,
+        locationId,
+        actorHint: safeString(intentPacket.target_actor_hint),
+        targetActorId: safeString(intentPacket.target_actor_id)
+      });
+      if (approachTarget?.kind === "resolved" && safeString(approachTarget.actor?.entity_id)) {
+        intentPacket.target_actor_id = safeString(approachTarget.actor.entity_id);
+        intentPacket.requires_clarification = false;
+        intentPacket.clarification_question = null;
+        intentPacket.notes = [
+          ...toStringArray(intentPacket.notes),
+          `Approche sociale resolue vers ${safeString(approachTarget.actor.entity_id)}.`
+        ];
+      }
+    }
+  }
+
+  function resolvePerceptiveIntentFocus({
+    intentPacket,
+    campaign,
+    locationId
+  }) {
+    if (
+      ["observe", "ask_info"].includes(intentPacket.intent_type) &&
+      safeString(intentPacket.target_actor_hint) &&
+      !safeString(intentPacket.target_actor_id)
+    ) {
+      const actorResolution = resolveTalkActorEntity({
+        campaign,
+        locationId,
+        actorHint: safeString(intentPacket.target_actor_hint),
+        targetActorId: ""
+      });
+      if (
+        actorResolution?.kind === "resolved" &&
+        safeString(actorResolution.actor?.entity_id) &&
+        safeString(actorResolution.actor?.location_id) === locationId
+      ) {
+        intentPacket.target_actor_id = safeString(actorResolution.actor.entity_id);
+      }
+    }
+  }
+
+  function resolveMoveIntentContext({
+    intentPacket,
+    body,
+    selectedLore,
+    locationRuntimeState,
+    locationId
+  }) {
+    if (intentPacket.intent_type !== "move_local") {
+      return selectedLore;
+    }
+    const destinationFromPacket = safeString(intentPacket.destination_id);
+    const resolvedDestinationId =
+      destinationFromPacket ||
+      resolveMoveDestinationFromContext({
+        playerInput: body?.player_input,
+        selectedLore,
+        locationRuntimeState,
+        locationId
+      });
+    if (!resolvedDestinationId) return selectedLore;
+    const scenePerception = readScenePerceptionState(locationRuntimeState);
+    if (
+      safeString(intentPacket.target_actor_hint) &&
+      safeString(resolvedDestinationId) === safeString(locationId) &&
+      Number(scenePerception.contactable_actor_count || 0) === 0
+    ) {
+      intentPacket.requires_clarification = true;
+      intentPacket.clarification_question = buildApproachClarificationQuestion(
+        intentPacket.target_actor_hint,
+        scenePerception,
+        locationId
+      );
+      intentPacket.destination_id = null;
+      intentPacket.notes = [
+        ...toStringArray(intentPacket.notes),
+        "Rapprochement social bloque: aucune cible abordable n'est encore materialisee a courte portee."
+      ];
+      return selectedLore;
+    }
+    intentPacket.destination_id = resolvedDestinationId;
+    intentPacket.requires_clarification = false;
+    intentPacket.clarification_question = null;
+    intentPacket.notes = [
+      ...toStringArray(intentPacket.notes),
+      `Destination locale resolue cote serveur: ${resolvedDestinationId}.`
+    ];
+    return wikiLoreHelper.selectLore({
+      intentType: intentPacket.intent_type,
+      playerInput: body?.player_input,
+      locationId,
+      destinationId: resolvedDestinationId
+    });
   }
 
   function extractKnowledgeEntries(projected) {
@@ -2042,6 +2358,12 @@ function createNarrationModuleApi({
     const playerSnapshotAnswer = buildAskInfoFromPlayerSnapshot(playerInput, playerSnapshot);
     if (playerSnapshotAnswer) {
       return playerSnapshotAnswer;
+    }
+    const targetedActorId = safeString(projected?.truth_snapshot?.local_truth?.target_actor_id);
+    const targetedActor = targetedActorId ? getProjectedActorRuntimeState(projected, targetedActorId) : null;
+    const actorInfoAnswer = buildAskInfoFromTargetActor(playerInput, targetedActor);
+    if (actorInfoAnswer) {
+      return actorInfoAnswer;
     }
     const normalizedInput = normalizeLooseText(playerInput);
     const inputTokens = normalizedInput
@@ -2168,11 +2490,135 @@ function createNarrationModuleApi({
     };
   }
 
+  function buildObserveSelectedLoreForNarration(selectedEntries, locationId) {
+    const entries = Array.isArray(selectedEntries) ? selectedEntries : [];
+    return entries
+      .filter((entry) => entry && typeof entry === "object")
+      .map((entry) => {
+        const keyFacts = entry.key_facts && typeof entry.key_facts === "object" ? entry.key_facts : {};
+        const observableFacts = {};
+        if (safeString(keyFacts.acces)) observableFacts.acces = safeString(keyFacts.acces);
+        if (safeString(keyFacts.type_batiment)) observableFacts.type_batiment = safeString(keyFacts.type_batiment);
+        if (Array.isArray(keyFacts.fonction_principale)) {
+          observableFacts.fonction_principale = keyFacts.fonction_principale
+            .map((item) => safeString(item))
+            .filter(Boolean)
+            .slice(0, 4);
+        }
+        if (Array.isArray(keyFacts.lieux_connectes)) {
+          observableFacts.lieux_connectes = keyFacts.lieux_connectes
+            .map((item) => safeString(item))
+            .filter(Boolean)
+            .slice(0, 4);
+        }
+        return {
+          topic_id: safeString(entry.topic_id),
+          entity_id: safeString(entry.entity_id),
+          type: safeString(entry.type),
+          name: safeString(entry.name),
+          snippet: safeString(entry.snippet),
+          observable_facts: observableFacts
+        };
+      })
+      .filter((entry) => entry.topic_id || entry.entity_id === safeString(locationId));
+  }
+
+  function buildAskInfoFromTargetActor(playerInput, actorEntity) {
+    if (!actorEntity || typeof actorEntity !== "object") return null;
+    const payload = actorEntity.payload && typeof actorEntity.payload === "object" ? actorEntity.payload : {};
+    const identity = payload.identity && typeof payload.identity === "object" ? payload.identity : {};
+    const appearance = payload.appearance && typeof payload.appearance === "object" ? payload.appearance : {};
+    const interaction = payload.interaction && typeof payload.interaction === "object" ? payload.interaction : {};
+    const scenePresence = payload.scene_presence && typeof payload.scene_presence === "object" ? payload.scene_presence : {};
+
+    const knownAs =
+      safeString(identity.known_name) ||
+      safeString(interaction.known_to_player_as) ||
+      safeString(identity.role) ||
+      safeString(actorEntity.display_name) ||
+      "cette personne";
+    const physicalTrait = readStringArrayField(appearance.physical_traits)[0];
+    const clothing = readStringArrayField(appearance.clothing)[0];
+    const visibleDetail = readStringArrayField(appearance.notable_details)[0];
+    const currentActivity = safeString(scenePresence.current_activity);
+    const lastInteractionSummary = safeString(interaction.last_interaction_summary);
+    const familiarityLevel = safeString(interaction.familiarity_level);
+    const normalizedInput = normalizeLooseText(playerInput);
+
+    const knowsQuestion =
+      normalizedInput.includes("que sais") ||
+      normalizedInput.includes("qu est ce que je sais") ||
+      normalizedInput.includes("ce que je sais");
+    const identityParts = [];
+    if (safeString(identity.role)) {
+      identityParts.push(`il s'agit surtout d'un ${safeString(identity.role)}`);
+    }
+    if (visibleDetail) identityParts.push(visibleDetail);
+    if (currentActivity) identityParts.push(`tu l'as vu ${currentActivity}`);
+    if (lastInteractionSummary) identityParts.push(`votre dernier echange: ${lastInteractionSummary}`);
+    if (familiarityLevel === "recurrent") {
+      identityParts.push("ce n'est plus une presence totalement inconnue pour toi");
+    } else if (familiarityLevel === "known") {
+      identityParts.push("tu l'as deja croise et tu le remets");
+    }
+    if (knowsQuestion && identityParts.length > 0) {
+      return {
+        answer_state: lastInteractionSummary ? "known" : "partial",
+        answer_text: `A propos de ${knownAs}, ${identityParts.join("; ")}.`,
+        lead_text: null
+      };
+    }
+
+    if (/(air|ressemble|apparence|physique|visage|cheveux|yeux|silhouette|decrire|decris|description)/.test(normalizedInput)) {
+      const appearanceParts = [physicalTrait, clothing, visibleDetail, currentActivity].filter(Boolean);
+      if (appearanceParts.length > 0) {
+        return {
+          answer_state: "partial",
+          answer_text: `${knownAs} te fait surtout penser a ceci: ${appearanceParts.join("; ")}.`,
+          lead_text: null
+        };
+      }
+    }
+
+    if (identityParts.length > 0) {
+      return {
+        answer_state: "partial",
+        answer_text: `Tu sais ceci de ${knownAs}: ${identityParts.join("; ")}.`,
+        lead_text: null
+      };
+    }
+
+    return null;
+  }
+
+  function promoteSceneActorToInteractive(actorRecord, actorHint) {
+    if (!actorRecord || typeof actorRecord !== "object") return actorRecord;
+    const next = JSON.parse(JSON.stringify(actorRecord));
+    const payload = next.payload && typeof next.payload === "object" ? next.payload : {};
+    const interaction = payload.interaction && typeof payload.interaction === "object" ? payload.interaction : {};
+    next.source = {
+      ...(next.source && typeof next.source === "object" ? next.source : {}),
+      created_by: "runtime",
+      reason: "talk_target_resolution"
+    };
+    next.payload = {
+      ...payload,
+      profile_state: isSceneProfileState(payload.profile_state) ? "stub" : safeString(payload.profile_state, "stub"),
+      interaction: {
+        ...interaction,
+        known_to_player_as: safeString(interaction.known_to_player_as, actorHint) || actorHint,
+        contact_count: Math.max(1, Number(interaction.contact_count) || 0),
+        familiarity_level: safeString(interaction.familiarity_level, "seen_once") || "seen_once"
+      }
+    };
+    return next;
+  }
+
   function shouldDeferEntityEnrichment(entity, proposal) {
     const profileState = safeString(entity?.payload?.profile_state, "stub");
     const species = safeString(entity?.payload?.identity?.species, "unknown");
     const confidence = typeof proposal?.confidence === "number" ? proposal.confidence : 0;
-    if (profileState === "stub") return true;
+    if (profileState === "stub" || isSceneProfileState(profileState)) return true;
     if (!species || species === "unknown") return true;
     if (confidence < 0.8) return true;
     return false;
@@ -2692,158 +3138,6 @@ function createNarrationModuleApi({
     return updates;
   }
 
-  function ensureTalkActorEntity({
-    memoryService,
-    campaignId,
-    campaignBefore,
-    locationId,
-    actorHint,
-    targetActorId,
-    turnId,
-    selectedLoreEntries
-  }) {
-    if (!actorHint) {
-      return null;
-    }
-    const resolution = resolveTalkActorEntity({
-      campaign: campaignBefore,
-      locationId,
-      actorHint,
-      targetActorId
-    });
-    if (resolution.kind === "resolved" && resolution.actor?.entity_id) {
-      const existingActor = JSON.parse(JSON.stringify(resolution.actor));
-      existingActor.payload = existingActor.payload && typeof existingActor.payload === "object"
-        ? existingActor.payload
-        : {};
-      existingActor.payload.interaction = existingActor.payload.interaction && typeof existingActor.payload.interaction === "object"
-        ? existingActor.payload.interaction
-        : {};
-      existingActor.payload.interaction.aliases = buildActorAliases(existingActor);
-      memoryService.upsertEntity(campaignId, existingActor, turnId);
-      memoryService.markEntitySeen(campaignId, existingActor.entity_id, turnId);
-      memoryService.ensureVisibleActorAtLocation(campaignId, locationId, existingActor.entity_id, turnId);
-      syncSceneActorSnapshots({ memoryService, campaignId, locationId, turnId });
-      return {
-        kind: "resolved",
-        entityId: existingActor.entity_id,
-      };
-    }
-    if (resolution.kind === "ambiguous") {
-      return {
-        kind: "ambiguous",
-        clarificationQuestion: resolution.clarification_question,
-        candidateOptions: Array.isArray(resolution.candidate_options) ? resolution.candidate_options : [],
-        rolePlausibility: null
-      };
-    }
-
-    const locationProfile = resolveLocationGenerationProfile(locationId);
-    const locationLoreContext = resolveLocationLoreContext(locationId);
-    const languageSeed = buildLanguageSeedFromGenerationProfile(locationProfile);
-    const rolePlausibility = computeRolePlausibility(locationProfile, actorHint);
-    if (rolePlausibility.category === "out_of_profile") {
-      const suggestions = rolePlausibility.suggested_roles.slice(0, 4);
-      return {
-        kind: "out_of_profile",
-        rolePlausibility,
-        clarificationQuestion:
-          suggestions.length > 0
-            ? `Le role "${actorHint}" est peu plausible ici. Vise plutot: ${suggestions.join(", ")}.`
-            : `Le role "${actorHint}" ne correspond pas bien au lieu actuel. Precise un interlocuteur plus plausible.`
-      };
-    }
-    if (resolution.kind === "resolved" && resolution.actor?.entity_id) {
-      const seededDistinctives = buildActorDistinctiveSeed({
-        entityId: safeString(resolution.actor.entity_id),
-        actorHint,
-        locationId,
-        locationProfile,
-        locationLoreContext
-      });
-      const resolvedActor = JSON.parse(JSON.stringify(resolution.actor));
-      if (
-        safeString(seededDistinctives.display_name) &&
-        (!safeString(resolvedActor.display_name) ||
-          normalizeLooseText(resolvedActor.display_name) === normalizeLooseText(actorHint))
-      ) {
-        resolvedActor.display_name = seededDistinctives.display_name;
-      }
-      if (seededDistinctives.payload && typeof seededDistinctives.payload === "object") {
-        const payload = resolvedActor.payload && typeof resolvedActor.payload === "object"
-          ? resolvedActor.payload
-          : {};
-        resolvedActor.payload = {
-          ...payload,
-          identity: {
-            ...((payload.identity && typeof payload.identity === "object") ? payload.identity : {}),
-            ...((seededDistinctives.payload.identity && typeof seededDistinctives.payload.identity === "object")
-              ? seededDistinctives.payload.identity
-              : {})
-          },
-          appearance: {
-            ...((payload.appearance && typeof payload.appearance === "object") ? payload.appearance : {}),
-            ...((seededDistinctives.payload.appearance && typeof seededDistinctives.payload.appearance === "object")
-              ? seededDistinctives.payload.appearance
-              : {})
-          },
-          scene_presence: {
-            ...((payload.scene_presence && typeof payload.scene_presence === "object") ? payload.scene_presence : {}),
-            ...((seededDistinctives.payload.scene_presence && typeof seededDistinctives.payload.scene_presence === "object")
-              ? seededDistinctives.payload.scene_presence
-              : {})
-          }
-        };
-      }
-      const seededActor = applyActorContextFromGenerationProfile(
-        applyActorLanguageSeed(resolvedActor, languageSeed),
-        locationProfile,
-        actorHint
-      );
-      memoryService.upsertEntity(campaignId, seededActor, turnId);
-      memoryService.markEntitySeen(campaignId, seededActor.entity_id, turnId);
-      memoryService.ensureVisibleActorAtLocation(campaignId, locationId, seededActor.entity_id, turnId);
-      syncSceneActorSnapshots({ memoryService, campaignId, locationId, turnId });
-      return {
-        kind: "resolved",
-        entityId: seededActor.entity_id,
-        rolePlausibility
-      };
-    }
-
-    const baseSlug = slugifyLoose(actorHint, "npc");
-    const nextIndex = Object.keys(campaignBefore?.entity_registry?.actors ?? {}).length + 1;
-    const entityId = `npc_${baseSlug}_${String(nextIndex).padStart(2, "0")}`;
-    const actorRecord = applyActorContextFromGenerationProfile(
-      applyActorLanguageSeed(
-        buildActorProfileRecord({
-          entityId,
-          actorHint,
-          locationId,
-          turnId,
-          seededProfile: buildActorDistinctiveSeed({
-            entityId,
-            actorHint,
-            locationId,
-            locationProfile,
-            locationLoreContext
-          })
-        }),
-        languageSeed
-      ),
-      locationProfile,
-      actorHint
-    );
-    memoryService.upsertEntity(campaignId, actorRecord, turnId);
-    memoryService.ensureVisibleActorAtLocation(campaignId, locationId, entityId, turnId);
-    syncSceneActorSnapshots({ memoryService, campaignId, locationId, turnId });
-    return {
-      kind: "created",
-      entityId,
-      rolePlausibility
-    };
-  }
-
   function initNarrationRuntime() {
     if (narrationRuntime || narrationRuntimeInitError) return;
     try {
@@ -2894,7 +3188,6 @@ function createNarrationModuleApi({
       const existingWiki = memoryStore.getWikiWorldState();
       if (!existingWiki || Object.keys(existingWiki).length === 0) {
         memoryService.setWikiWorldState({
-          location_id: "setup_zone",
           weather: "clear",
           time_of_day: "late_afternoon"
         });
@@ -2947,6 +3240,11 @@ function createNarrationModuleApi({
         must_preserve_continuity: true
       }
     };
+  }
+
+  function cloneForDebug(value) {
+    if (value == null) return null;
+    return JSON.parse(JSON.stringify(value));
   }
 
   async function analyzeIntentPacket(payload, inputContract) {
@@ -3013,10 +3311,7 @@ function createNarrationModuleApi({
       }
     });
 
-    let intentType = normalizeIntentType(parsed?.intent_type);
-    if (intentType === "ask_info" && isPresenceScanRequest(playerInput)) {
-      intentType = "observe";
-    }
+    const intentType = normalizeIntentType(parsed?.intent_type);
     const requiresClarification =
       Boolean(parsed?.requires_clarification) || !intentType || intentType === "meta_unclear";
 
@@ -3072,6 +3367,7 @@ function createNarrationModuleApi({
     );
     const ambientMarkers = readStringArrayField(scenePayload.ambient_markers);
     const visibleExits = readVisibleExitsField(scenePayload.visible_exits);
+    const scenePerception = readScenePerceptionState(locationRuntimeState);
     const playerSnapshot =
       projected?.truth_snapshot?.local_truth?.player_narrative_snapshot &&
       typeof projected.truth_snapshot.local_truth.player_narrative_snapshot === "object"
@@ -3147,6 +3443,7 @@ function createNarrationModuleApi({
             approach: "Observation locale limitee aux elements immediatement perceptibles",
             assumptions: [
               "Decrire seulement le visible, l'audible, l'ambiance et l'acces apparent",
+              buildScenePerceptionGuidance(scenePerception),
               ...ambientMarkers.slice(0, 2).map((marker) => `Marqueur d'ambiance: ${marker}`),
               ...visibleActors.slice(0, 2).map(actorId => `Acteur visible en scene: ${actorId}`),
               ...activePointsOfInterest.slice(0, 2).map(pointId => `Point d'interet local observable: ${pointId}`),
@@ -3540,6 +3837,10 @@ function createNarrationModuleApi({
     }
 
     if (req.method === "POST" && req.url === "/api/narration-module/process-turn") {
+      return routeHandlers.handleProcessTurn(req, res);
+    }
+
+    if (req.method === "POST" && req.url === "/api/narration-module/reset-memory") {
       try {
         initNarrationRuntime();
         if (!narrationRuntime) {
@@ -3550,610 +3851,31 @@ function createNarrationModuleApi({
         }
 
         const body = await parseJsonBody(req);
-        const campaignId = safeString(body.campaign_id, "setup-campaign-default");
-        const turnId = safeString(body.turn_id, `turn-${cryptoImpl.randomUUID()}`);
-        const locationId = safeString(body.location_id, "setup_zone");
-        const campaignAtTurnStart = narrationRuntime.memoryService.advanceCampaignTurn(campaignId, turnId);
-        const reevaluatedEntityUpdates = narrationRuntime.memoryService
-          ? reevaluatePendingEntityEnrichments(
-              narrationRuntime.memoryService,
-              campaignId,
-              locationId,
-              turnId
-            )
-          : [];
-
-        const currentWiki = narrationRuntime.memoryStore.getWikiWorldState() || {};
-        narrationRuntime.memoryService.setWikiWorldState({
-          ...currentWiki,
-          location_id: locationId,
-          map_prompt: safeString(body.map_prompt)
-        });
-        narrationRuntime.memoryService.cleanupExpiredEntities(
-          campaignId,
-          Number(campaignAtTurnStart?.clock?.turn_index ?? 0),
-          turnId
-        );
-
-        const projectedBeforeIntent = narrationRuntime.memoryService.project(campaignId, {
-          location_id: locationId,
-          intent_hint: safeString(body.intent_hint),
-          target_actor_id: safeString(body.target_actor_id)
-        });
-        let inputContract = buildInputContract(body, projectedBeforeIntent);
-        const campaignBefore = narrationRuntime.memoryService.getCampaign(campaignId);
-        const activePendingClarification = sanitizePendingClarification(
-          campaignBefore?.world_overrides?.pending_clarification
-        );
-        const activeTalkActorId = safeString(campaignBefore?.world_overrides?.active_talk_actor_id);
-        const intentPacket = await analyzeIntentPacket(body, inputContract);
-        const explicitTargetActorId = safeString(body.target_actor_id);
-        if (explicitTargetActorId && ["ask_info", "talk"].includes(intentPacket.intent_type)) {
-          intentPacket.intent_type = "talk";
-          intentPacket.target_actor_id = explicitTargetActorId;
-          intentPacket.target_actor_hint =
-            safeString(intentPacket.target_actor_hint) ||
-            inferActorHintFromEntity(campaignBefore, explicitTargetActorId);
-          intentPacket.requires_clarification = false;
-          intentPacket.clarification_question = null;
-          intentPacket.notes = [
-            ...toStringArray(intentPacket.notes),
-            "Continuation de dialogue priorisee car un target_actor_id etait deja actif."
-          ];
-        }
-        if (
-          !explicitTargetActorId &&
-          activeTalkActorId &&
-          intentPacket.intent_type === "talk" &&
-          (!safeString(intentPacket.target_actor_hint) || isTalkContinuationInput(body.player_input))
-        ) {
-          intentPacket.target_actor_id = activeTalkActorId;
-          intentPacket.target_actor_hint =
-            safeString(intentPacket.target_actor_hint) ||
-            inferActorHintFromEntity(campaignBefore, activeTalkActorId);
-          intentPacket.requires_clarification = false;
-          intentPacket.clarification_question = null;
-          intentPacket.notes = [
-            ...toStringArray(intentPacket.notes),
-            `Continuation de dialogue rattachee a l'interlocuteur actif: ${activeTalkActorId}.`
-          ];
-        }
-        if (activePendingClarification && !safeString(body.target_actor_id)) {
-          const pendingResolution = resolvePendingTalkClarificationAnswer({
-            campaign: campaignBefore,
-            locationId,
-            playerInput: body.player_input,
-            pendingClarification: activePendingClarification
-          });
-          if (pendingResolution?.actor_id) {
-            intentPacket.intent_type = "talk";
-            intentPacket.intent_confidence = Math.max(
-              typeof intentPacket.intent_confidence === "number" ? intentPacket.intent_confidence : 0,
-              0.92
-            );
-            intentPacket.target_actor_id = pendingResolution.actor_id;
-            intentPacket.target_actor_hint = pendingResolution.actor_hint;
-            intentPacket.requires_clarification = false;
-            intentPacket.clarification_question = null;
-            intentPacket.notes = [
-              ...toStringArray(intentPacket.notes),
-              `Reponse joueur resolue via pending_clarification: ${pendingResolution.actor_hint}.`
-            ];
-          }
-        }
-        if (
-          intentPacket.intent_type === "talk" &&
-          intentPacket.requires_clarification &&
-          !safeString(intentPacket.target_actor_hint) &&
-          !safeString(intentPacket.target_actor_id) &&
-          isGenericTalkOpening(body.player_input)
-        ) {
-          const fallbackTalkActorHint = inferFallbackTalkActorHint({
-            playerInput: body.player_input,
-            narrationContext: body.narration_context,
-            locationId
-          });
-          if (fallbackTalkActorHint) {
-            intentPacket.target_actor_hint = fallbackTalkActorHint;
-            intentPacket.requires_clarification = false;
-            intentPacket.clarification_question = null;
-            intentPacket.notes = [
-              ...toStringArray(intentPacket.notes),
-              `Cible sociale generique inferee depuis le lieu: ${fallbackTalkActorHint}.`
-            ];
-          }
-        }
-        if (intentPacket.intent_type === "talk" && !safeString(intentPacket.target_actor_id)) {
-          const directTalkActorHint = inferDirectTalkActorHintFromVisibleActors(
-            campaignBefore,
-            locationId,
-            body.player_input
-          );
-          if (directTalkActorHint) {
-            intentPacket.target_actor_hint = directTalkActorHint;
-            intentPacket.requires_clarification = false;
-            intentPacket.clarification_question = null;
-            intentPacket.notes = [
-              ...toStringArray(intentPacket.notes),
-              `Cible dialogue deduite depuis la reponse joueur: ${directTalkActorHint}.`
-            ];
-          }
-        }
-        if (
-          intentPacket.intent_type === "move_local" &&
-          isApproachActorIntent(body.player_input) &&
-          safeString(intentPacket.target_actor_hint)
-        ) {
-          const approachTarget = resolveTalkActorEntity({
-            campaign: campaignBefore,
-            locationId,
-            actorHint: safeString(intentPacket.target_actor_hint),
-            targetActorId: safeString(intentPacket.target_actor_id)
-          });
-          if (approachTarget?.kind === "resolved" && safeString(approachTarget.actor?.entity_id)) {
-            intentPacket.intent_type = "talk";
-            intentPacket.target_actor_id = safeString(approachTarget.actor.entity_id);
-            intentPacket.requires_clarification = false;
-            intentPacket.clarification_question = null;
-            intentPacket.notes = [
-              ...toStringArray(intentPacket.notes),
-              `Approche sociale resolue vers ${safeString(approachTarget.actor.entity_id)}.`
-            ];
-          }
-        }
-        const selectedLore = wikiLoreHelper.selectLore({
-          intentType: intentPacket.intent_type,
-          playerInput: body.player_input,
-          locationId,
-          destinationId: intentPacket.destination_id
-        });
-        narrationRuntime.memoryService.ensureLocationRuntimeState(
-          campaignId,
-          locationId,
-          buildLocationRuntimeSeed(locationId, selectedLore.selected_entries),
-          turnId
-        );
-        if (["observe", "talk", "ask_info"].includes(intentPacket.intent_type)) {
-          ensureAmbientSceneActors({
-            memoryService: narrationRuntime.memoryService,
-            campaignId,
-            locationId,
-            turnId,
-            narrationContext: safeString(body.narration_context),
-            maxActors: intentPacket.intent_type === "observe" ? 2 : 3,
+        const campaignId = safeString(body?.campaign_id);
+        if (!campaignId) {
+          return sendJson(res, 400, {
+            error: "campaign_id_missing",
+            details: ["campaign_id is required"]
           });
         }
-        const campaignBeforeTalkResolution = narrationRuntime.memoryService.getCampaign(campaignId);
-        let talkRolePlausibility = null;
-        let pendingClarificationRecord = null;
-        if (intentPacket.intent_type === "talk" && safeString(intentPacket.target_actor_hint)) {
-          const actorResolution = ensureTalkActorEntity({
-            memoryService: narrationRuntime.memoryService,
-            campaignId,
-            campaignBefore: campaignBeforeTalkResolution,
-            locationId,
-            actorHint: intentPacket.target_actor_hint,
-            targetActorId: safeString(intentPacket.target_actor_id),
-            turnId,
-            selectedLoreEntries: selectedLore.selected_entries
-          });
-          talkRolePlausibility = actorResolution?.rolePlausibility || null;
-          if (actorResolution?.kind === "ambiguous") {
-            intentPacket.requires_clarification = true;
-            intentPacket.clarification_question =
-              safeString(actorResolution.clarificationQuestion) ||
-              safeString(intentPacket.clarification_question) ||
-              "Precise quel interlocuteur tu vises.";
-            intentPacket.target_actor_id = null;
-            pendingClarificationRecord = buildPendingTalkClarification({
-              locationId,
-              actorHint: intentPacket.target_actor_hint,
-              clarificationQuestion: intentPacket.clarification_question,
-              candidateOptions: actorResolution.candidateOptions,
-              turnId
-            });
-          } else if (actorResolution?.kind === "out_of_profile") {
-            intentPacket.requires_clarification = true;
-            intentPacket.clarification_question =
-              safeString(actorResolution.clarificationQuestion) ||
-              "Le role demande ne semble pas correspondre au lieu actuel.";
-            intentPacket.target_actor_id = null;
-            pendingClarificationRecord = buildPendingTalkClarification({
-              locationId,
-              actorHint: intentPacket.target_actor_hint,
-              clarificationQuestion: intentPacket.clarification_question,
-              candidateOptions: [],
-              turnId
-            });
-          } else if (actorResolution?.entityId) {
-            intentPacket.target_actor_id = actorResolution.entityId;
-            intentPacket.requires_clarification = false;
-            intentPacket.clarification_question = null;
-          }
-        }
-        const selectedLocalLore = localLoreHelper.selectLocalLore({
-          campaignMemory: campaignBefore,
-          intentType: intentPacket.intent_type,
-          playerInput: body.player_input,
-          locationId
-        });
-        const mergedTopicIds = [];
-        const seenTopicIds = new Set();
-        for (const topicId of [...selectedLore.topic_ids, ...selectedLocalLore.topic_ids]) {
-          const normalized = String(topicId ?? "").trim();
-          if (!normalized || seenTopicIds.has(normalized)) continue;
-          seenTopicIds.add(normalized);
-          mergedTopicIds.push(normalized);
-        }
-        const mergedLoreDb = {
-          ...selectedLore.lore_db,
-          ...selectedLocalLore.lore_db
-        };
-        const mergedSelectedLore = {
-          topic_ids: mergedTopicIds,
-          lore_db: mergedLoreDb,
-          selected_entries: [...selectedLore.selected_entries, ...selectedLocalLore.selected_entries]
-        };
-        if (intentPacket.intent_type === "observe") {
-          ensureObservedSceneActors({
-            memoryService: narrationRuntime.memoryService,
-            campaignId,
-            locationId,
-            turnId,
-            narrationContext: safeString(body.narration_context),
-          });
-        }
-        const projected = narrationRuntime.memoryService.project(campaignId, {
-          location_id: locationId,
-          intent_type: intentPacket.intent_type,
-          target_actor_id: safeString(intentPacket.target_actor_id),
-          intent_hint: safeString(body.intent_hint)
-        });
-        const talkActorEntity =
-          intentPacket.intent_type === "talk" && safeString(intentPacket.target_actor_id)
-            ? narrationRuntime.memoryService.getEntity(campaignId, safeString(intentPacket.target_actor_id))
-            : null;
-        const talkActorInteractionLanguageState =
-          intentPacket.intent_type === "talk" && talkActorEntity
-            ? buildInteractionLanguageState(body?.player_narrative_snapshot, talkActorEntity)
-            : null;
-        if (intentPacket.intent_type === "talk" && talkActorEntity && talkActorInteractionLanguageState) {
-          const primedTalkActor = primeTalkActorInteractionState(
-            JSON.parse(JSON.stringify(talkActorEntity)),
-            talkActorInteractionLanguageState
-          );
-          narrationRuntime.memoryService.upsertEntity(campaignId, primedTalkActor, turnId);
-        }
-        const refreshedTalkActorEntity =
-          intentPacket.intent_type === "talk" && safeString(intentPacket.target_actor_id)
-            ? narrationRuntime.memoryService.getEntity(campaignId, safeString(intentPacket.target_actor_id))
-            : null;
-        inputContract = buildInputContract(body, projected);
-        const { outputContract, decisionReason } = buildPlanAndOutputContracts(
-          body,
-          intentPacket,
-          projected,
-          turnId,
-          mergedSelectedLore,
-          refreshedTalkActorEntity,
-          talkRolePlausibility
-        );
-        const stateBefore = narrationRuntime.memoryService.buildRuntimeStateBefore(campaignId, {
-          location_id: locationId,
-          intent_type: intentPacket.intent_type,
-          target_actor_id: safeString(intentPacket.target_actor_id)
-        });
 
-        const trace = narrationRuntime.processor.processTurn(
-          turnId,
-          inputContract,
-          outputContract,
-          stateBefore,
-          { loreDb: mergedLoreDb }
-        );
-        narrationRuntime.memoryService.syncCampaignFromRuntimeState(
-          campaignId,
-          trace.state_after,
-          turnId
-        );
-        narrationRuntime.memoryService.setWorldOverride(
-          campaignId,
-          "pending_clarification",
-          outputContract?.requires_clarification ? pendingClarificationRecord : null,
-          turnId
-        );
-        narrationRuntime.memoryService.setWorldOverride(
-          campaignId,
-          "active_talk_actor_id",
-          intentPacket.intent_type === "talk" && safeString(intentPacket.target_actor_id)
-            ? safeString(intentPacket.target_actor_id)
-            : activeTalkActorId || null,
-          turnId
-        );
-
-        for (const fact of outputContract.narrative_output.hidden_truth_updates ?? []) {
-          narrationRuntime.memoryService.appendKnowledgeTruthView(
-            campaignId,
-            { turn_id: turnId, fact: String(fact) },
-            turnId
-          );
-        }
-
-        const projectedAfter = narrationRuntime.memoryService.project(campaignId, {
-          location_id: trace.state_after?.location_id ?? locationId,
-          intent_type: intentPacket.intent_type,
-          target_actor_id: safeString(intentPacket.target_actor_id)
-        });
-        const truthAfter = narrationRuntime.memoryService.resolveEffectiveTruth(campaignId, {
-          location_id: trace.state_after?.location_id ?? locationId,
-          intent_type: intentPacket.intent_type,
-          target_actor_id: safeString(intentPacket.target_actor_id)
-        });
-        const entityEnrichmentRequests = collectEntityEnrichmentRequests(
-          narrationRuntime.memoryService,
-          campaignId,
-          intentPacket
-        );
-        const narrationSelectedLore =
-          intentPacket.intent_type === "observe"
-            ? buildObserveSelectedLoreForNarration(selectedLore.selected_entries, locationId)
-            : selectedLore.selected_entries;
-        const aiHandoff =
-          intentPacket.intent_type === "talk"
-            ? buildTalkNarrationHandoff({
-                turnId,
-                campaignId,
-                decisionReason,
-                intentPacket,
-                inputContract,
-                outputContract,
-                trace,
-                truthAfter,
-                projectedAfter,
-                selectedLore: narrationSelectedLore,
-                selectedLocalLore: selectedLocalLore.selected_entries,
-                entityEnrichmentRequests,
-                reevaluatedEntityUpdates
-              })
-            : {
-                turn_id: turnId,
-                campaign_id: campaignId,
-                decision_reason: decisionReason,
-                narrative_generation_required: true,
-                intent_packet: intentPacket,
-                input_contract: inputContract,
-                output_contract: outputContract,
-                runtime_result: {
-                  runtime_actions: trace.runtime_actions,
-                  state_diff: trace.state_diff,
-                  truth_snapshot: truthAfter,
-                  projected_memory: projectedAfter,
-                  selected_lore: narrationSelectedLore,
-                  selected_local_lore: selectedLocalLore.selected_entries,
-                  entity_enrichment_requests: entityEnrichmentRequests,
-                  entity_profile_updates: reevaluatedEntityUpdates
-                }
-              };
-
+        const deleted = typeof narrationRuntime.memoryStore.deleteCampaign === "function"
+          ? narrationRuntime.memoryStore.deleteCampaign(campaignId)
+          : false;
         return sendJson(res, 200, {
-          turn_id: turnId,
           campaign_id: campaignId,
-          decision_reason: decisionReason,
-          narrative_generation_required: true,
-          intent_packet: intentPacket,
-          input_contract: inputContract,
-          output_contract: outputContract,
-          trace: {
-            runtime_actions: trace.runtime_actions,
-            state_diff: trace.state_diff
-          },
-          projected_memory: projectedAfter,
-          entity_profile_updates: reevaluatedEntityUpdates,
-          ai_handoff: aiHandoff
+          reset: deleted ? "deleted" : "not_found"
         });
       } catch (err) {
-        const code = err?.code || "process_turn_failed";
-        const details = Array.isArray(err?.details) ? err.details : [String(err?.message || err)];
-        return sendJson(res, 400, { error: code, details });
+        return sendJson(res, 400, {
+          error: "reset_memory_failed",
+          details: [String(err?.message || err)]
+        });
       }
     }
 
     if (req.method === "POST" && req.url === "/api/narration-module/generate-narration") {
-      try {
-        if (!openAiApiKey) {
-          return sendJson(res, 503, {
-            error: "openai_key_missing",
-            details: ["OPENAI_API_KEY missing: narration generation is disabled."]
-          });
-        }
-        initNarrationRuntime();
-        const body = await parseJsonBody(req);
-        const aiHandoff = body?.ai_handoff;
-        if (!aiHandoff || typeof aiHandoff !== "object") {
-          return sendJson(res, 400, {
-            error: "ai_handoff_missing",
-            details: ["ai_handoff object is required"]
-          });
-        }
-
-        const campaignId = safeString(aiHandoff.campaign_id, safeString(body?.campaign_id, "setup-campaign-default"));
-        const turnId = safeString(
-          aiHandoff.turn_id,
-          safeString(body?.turn_id, `turn-${cryptoImpl.randomUUID()}`)
-        );
-        const fallbackText = buildFallbackNarrationFromHandoff(aiHandoff);
-
-        const model = process.env.NARRATION_MODULE_MODEL || "gpt-4.1-mini";
-        const systemPrompt =
-          "Tu es l'IA narratrice aval d'un JDR. " +
-          "Tu recois un paquet runtime fiable (actions executees, diff d'etat, memoire projetee). " +
-          "Produis une narration joueur concise et coherente avec ce paquet, sans inventer d'actions non executees. " +
-          "Ne revele pas la verite cachee au joueur. " +
-          "Si intent_type=observe, decris uniquement ce qui est immediatement perceptible depuis la scene: visible, audible, ambiance, acces apparent, posture des personnes presentes. " +
-          "Si intent_type=observe, interdiction de citer des scores, niveaux numeriques, proprietaires, factions, gouvernance ou metadonnees non perceptibles. " +
-          "Quand des acteurs visibles ont un display_name distinctif, une scene_presence.current_activity, ou des details d'apparence, utilise ces marqueurs pour les differencier immediatement au lieu de les decrire comme un groupe uniforme. " +
-          "Si intent_type=talk et qu'une cible contient payload.interaction, utilise ce bloc comme memoire conversationnelle compacte: evite de rejouer une premiere rencontre, respecte last_interaction_outcome, et n'invente pas de continuite contradictoire. " +
-          "Si intent_type=talk et que social.social_rank, authority_level ou hospitality_style sont presents, laisse ces marqueurs influencer le ton, la distance sociale et la retenue de l'echange. " +
-          "Si output_contract contient interaction_language_state et que comprehension_state=limited ou none, la narration de talk doit refleter cette friction linguistique sans inventer une comprehension parfaite. " +
-          "Si intent_type=talk et que runtime_result.talk_context.embedded_player_request est present, ne t'arrete pas a une simple amorce: fais deja repondre le PNJ dans ce meme tour, au moins brievement, en restant coherent avec son ton et ses limites. " +
-          "Si comprehension_state=none, ne raconte pas un dialogue fluide: fais sentir l'incomprehension, les gestes, la reformulation ou le blocage. " +
-          "Si le paquet contient entity_enrichment_requests, tu peux proposer un enrichissement prudent des profils sous forme de patch structure, sans imposer une verite finale. " +
-          "Utilise des valeurs propres et non ambigues. Interdiction de renvoyer des formulations avec 'ou', des fourchettes vagues, ou des categories floues pour les champs structures. " +
-          "Pour les enums, utilise de preference: gender_presentation=unknown|masculine|feminine|androgynous|non_binary ; authority_level=unknown|none|low|medium|high|elite ; social_rank=unknown|low_common|working_common|respected_craft|institutional_respectable|local_notable|elite ; disposition_to_player=friendly|neutral|wary|hostile ; interaction_state=available|busy|blocked|fleeing|absent ; duty_state=unknown|on_post|on_patrol|off_duty|active_service ; familiarity_level=unknown|seen_once|known|recurrent ; last_interaction_outcome=brief_contact|polite_refusal|partial_help|useful_answer|withheld_sensitive_info|hostile_warning|trust_opened. " +
-          "Ne propose pas plus de 2 enrichissements. " +
-          "Repond STRICTEMENT en JSON: { \"player_text\": \"...\", \"mj_notes\": [\"...\"], \"next_turn_hints\": [\"...\"], \"entity_enrichment_proposals\": [{ \"entity_id\": \"...\", \"proposal_type\": \"actor_profile_enrichment\", \"confidence\": 0.0, \"based_on\": [\"...\"], \"proposed_patch\": { \"payload\": {} } }] }.";
-        const parsed = await callOpenAiJson({
-          model,
-          systemPrompt,
-          userPayload: { ai_handoff: aiHandoff }
-        });
-        const playerText =
-          safeString(parsed?.player_text ?? parsed?.player_facing_text, fallbackText).trim() || fallbackText;
-        const mjNotes = toStringArray(parsed?.mj_notes);
-        const nextTurnHints = toStringArray(parsed?.next_turn_hints);
-        const rawProposals = Array.isArray(parsed?.entity_enrichment_proposals)
-          ? parsed.entity_enrichment_proposals
-          : [];
-        const entityEnrichmentProposals = rawProposals
-          .map((proposal) => sanitizeEntityEnrichmentProposal(proposal))
-          .filter(Boolean);
-        const profileUpdateDecisions = [];
-
-        if (narrationRuntime && campaignId && turnId) {
-          const runtimeLocationId =
-            safeString(aiHandoff?.runtime_result?.truth_snapshot?.effective_world_state?.location_id) ||
-            safeString(aiHandoff?.input_contract?.world_state?.location_id) ||
-            null;
-          const linkedEntityIds = Array.isArray(aiHandoff?.output_contract?.targets)
-            ? aiHandoff.output_contract.targets.map((item) => safeString(item)).filter(Boolean)
-            : [];
-          const clarificationHandoff = isClarificationHandoff(aiHandoff);
-          if (!clarificationHandoff) {
-            narrationRuntime.memoryService.appendAutoPlayerSummary(
-              campaignId,
-              {
-                turn_id: turnId,
-                text: playerText,
-                location_id: runtimeLocationId,
-                linked_entity_ids: linkedEntityIds,
-                tags: [
-                  safeString(aiHandoff?.output_contract?.intent_type),
-                  "auto_summary"
-                ].filter(Boolean)
-              },
-              turnId
-            );
-            for (const hint of nextTurnHints.slice(0, 3)) {
-              narrationRuntime.memoryService.appendAutoPlayerLead(
-                campaignId,
-                {
-                  turn_id: turnId,
-                  text: hint,
-                  location_id: runtimeLocationId,
-                  linked_entity_ids: linkedEntityIds,
-                  tags: [
-                    safeString(aiHandoff?.output_contract?.intent_type),
-                    "next_turn_hint"
-                  ].filter(Boolean)
-                },
-                turnId
-              );
-            }
-          }
-          const talkInteractionUpdate = clarificationHandoff
-            ? null
-            : updateTalkActorAfterNarration(
-                narrationRuntime.memoryService,
-                campaignId,
-                turnId,
-                aiHandoff,
-                playerText,
-                nextTurnHints
-              );
-          if (talkInteractionUpdate) {
-            profileUpdateDecisions.push({
-              entity_id: talkInteractionUpdate.entity_id,
-              profile_update_decision: "interaction_updated",
-              reserve_reason: null
-            });
-          }
-          for (const proposal of entityEnrichmentProposals) {
-            const entity = narrationRuntime.memoryService.getEntity(campaignId, proposal.entity_id);
-            if (!entity) {
-              profileUpdateDecisions.push({
-                entity_id: proposal.entity_id,
-                profile_update_decision: "rejected",
-                reserve_reason: "entity_not_found"
-              });
-              continue;
-            }
-            if (shouldDeferEntityEnrichment(entity, proposal)) {
-              const deferredEntity = JSON.parse(JSON.stringify(entity));
-              const sanitizedPatch = sanitizeEntityPatchProposal(proposal.proposed_patch);
-              deferredEntity.payload = {
-                ...(deferredEntity.payload && typeof deferredEntity.payload === "object"
-                  ? deferredEntity.payload
-                  : {}),
-                profile_state: "pending_enrichment",
-                pending_enrichment: {
-                  ...proposal,
-                  proposed_patch: sanitizedPatch || proposal.proposed_patch
-                }
-              };
-              narrationRuntime.memoryService.upsertEntity(campaignId, deferredEntity, turnId);
-              profileUpdateDecisions.push({
-                entity_id: proposal.entity_id,
-                profile_update_decision: "deferred",
-                reserve_reason: "wiki_or_runtime_validation_needed"
-              });
-              continue;
-            }
-
-            const sanitizedPatch = sanitizeEntityPatchProposal(proposal.proposed_patch);
-            if (!sanitizedPatch) {
-              profileUpdateDecisions.push({
-                entity_id: proposal.entity_id,
-                profile_update_decision: "rejected",
-                reserve_reason: "proposal_invalid_after_runtime_review"
-              });
-              continue;
-            }
-            const mergedEntity = localizeResolvedEntityPayload(
-              mergeEntityPatch(entity, sanitizedPatch)
-            );
-            mergedEntity.payload = {
-              ...(mergedEntity.payload && typeof mergedEntity.payload === "object"
-                ? mergedEntity.payload
-                : {}),
-              profile_state: "resolved",
-              pending_enrichment: null
-            };
-            narrationRuntime.memoryService.upsertEntity(campaignId, mergedEntity, turnId);
-            profileUpdateDecisions.push({
-              entity_id: proposal.entity_id,
-              profile_update_decision: "accepted_now",
-              reserve_reason: null
-            });
-          }
-        }
-
-        return sendJson(res, 200, {
-          campaign_id: campaignId,
-          turn_id: turnId,
-          source: "llm",
-          player_text: playerText,
-          mj_notes: mjNotes,
-          next_turn_hints: nextTurnHints,
-          entity_enrichment_proposals: entityEnrichmentProposals,
-          proposal_update_decisions: profileUpdateDecisions,
-          profile_update_decisions: profileUpdateDecisions
-        });
-      } catch (err) {
-        return sendJson(res, 400, {
-          error: "generate_narration_failed",
-          details: [String(err?.message || err)]
-        });
-      }
+      return routeHandlers.handleGenerateNarration(req, res);
     }
 
     return false;

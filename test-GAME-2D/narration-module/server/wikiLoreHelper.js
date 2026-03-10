@@ -36,8 +36,88 @@ function parseFrontMatter(raw) {
     return match ? match[1].length : 0;
   }
 
+  function stripInlineComment(value) {
+    const raw = String(value ?? "");
+    let inSingle = false;
+    let inDouble = false;
+    for (let i = 0; i < raw.length; i += 1) {
+      const char = raw[i];
+      const previous = i > 0 ? raw[i - 1] : "";
+      if (char === "'" && !inDouble && previous !== "\\") {
+        inSingle = !inSingle;
+        continue;
+      }
+      if (char === "\"" && !inSingle && previous !== "\\") {
+        inDouble = !inDouble;
+        continue;
+      }
+      if (char === "#" && !inSingle && !inDouble) {
+        const before = i === 0 ? "" : raw[i - 1];
+        if (!before || /\s/.test(before)) {
+          return raw.slice(0, i).trimEnd();
+        }
+      }
+    }
+    return raw.trim();
+  }
+
+  function splitInlineCollection(value) {
+    const raw = String(value ?? "").trim();
+    const items = [];
+    let current = "";
+    let inSingle = false;
+    let inDouble = false;
+
+    for (let i = 0; i < raw.length; i += 1) {
+      const char = raw[i];
+      const previous = i > 0 ? raw[i - 1] : "";
+      if (char === "'" && !inDouble && previous !== "\\") {
+        inSingle = !inSingle;
+        current += char;
+        continue;
+      }
+      if (char === "\"" && !inSingle && previous !== "\\") {
+        inDouble = !inDouble;
+        current += char;
+        continue;
+      }
+      if (char === "," && !inSingle && !inDouble) {
+        items.push(current.trim());
+        current = "";
+        continue;
+      }
+      current += char;
+    }
+
+    if (current.trim()) items.push(current.trim());
+    return items;
+  }
+
   function parseScalar(value) {
-    return String(value ?? "").trim();
+    const stripped = stripInlineComment(value);
+    if (!stripped) return "";
+
+    if (
+      (stripped.startsWith("\"") && stripped.endsWith("\"")) ||
+      (stripped.startsWith("'") && stripped.endsWith("'"))
+    ) {
+      return stripped.slice(1, -1);
+    }
+
+    if (stripped === "[]") return [];
+    if (stripped === "{}") return {};
+    if (stripped === "true") return true;
+    if (stripped === "false") return false;
+    if (stripped === "null") return null;
+    if (/^-?\d+(\.\d+)?$/.test(stripped)) return Number(stripped);
+
+    if (stripped.startsWith("[") && stripped.endsWith("]")) {
+      const inner = stripped.slice(1, -1).trim();
+      if (!inner) return [];
+      return splitInlineCollection(inner).map((item) => parseScalar(item));
+    }
+
+    return stripped;
   }
 
   function findNextSignificantLine(startIndex) {
@@ -67,7 +147,7 @@ function parseFrontMatter(raw) {
       }
       const trimmed = rawLine.trim();
       if (trimmed.startsWith("- ")) break;
-      const keyVal = trimmed.match(/^([A-Za-z0-9_]+)\s*:\s*(.*)$/);
+      const keyVal = trimmed.match(/^([A-Za-z0-9_-]+)\s*:\s*(.*)$/);
       if (!keyVal) {
         index += 1;
         continue;
@@ -128,7 +208,7 @@ function parseFrontMatter(raw) {
         continue;
       }
 
-      const inlineKeyVal = content.match(/^([A-Za-z0-9_]+)\s*:\s*(.*)$/);
+      const inlineKeyVal = content.match(/^([A-Za-z0-9_-]+)\s*:\s*(.*)$/);
       if (!inlineKeyVal) {
         result.push(parseScalar(content));
         index += 1;
@@ -149,7 +229,7 @@ function parseFrontMatter(raw) {
         const continuationIndent = leadingSpaces(continuationLine);
         if (continuationIndent <= indentLevel) break;
         const continuationTrimmed = continuationLine.trim();
-        const continuationMatch = continuationTrimmed.match(/^([A-Za-z0-9_]+)\s*:\s*(.*)$/);
+        const continuationMatch = continuationTrimmed.match(/^([A-Za-z0-9_-]+)\s*:\s*(.*)$/);
         if (!continuationMatch) {
           index += 1;
           continue;

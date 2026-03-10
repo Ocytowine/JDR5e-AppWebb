@@ -82,7 +82,7 @@ function createLocalLoreHelper() {
       });
     }
 
-    truthView.slice(-10).forEach((item, idx) => {
+    truthView.forEach((item, idx) => {
       localCandidates.push({
         topic_id: `local:truth_view:${idx}`,
         type: "local_truth",
@@ -92,9 +92,9 @@ function createLocalLoreHelper() {
       });
     });
 
-    events.slice(-10).forEach((item, idx) => {
+    events.forEach((item, idx) => {
       const status = String(item?.status ?? "").toLowerCase();
-      if (status === "archive") return;
+      if (status === "archive" || status === "archived") return;
       localCandidates.push({
         topic_id: `local:event:${item?.event_id ?? idx}`,
         type: "local_event",
@@ -104,7 +104,7 @@ function createLocalLoreHelper() {
       });
     });
 
-    relations.slice(-10).forEach((item, idx) => {
+    relations.forEach((item, idx) => {
       localCandidates.push({
         topic_id: `local:relation:${idx}`,
         type: "local_relation",

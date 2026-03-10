@@ -8,6 +8,7 @@ import {
 } from "../../domain/events/event_engine";
 import { LifecycleState, NarrationEvent } from "../../domain/events/event_types";
 import { projectMemory, ProjectedMemory } from "../../domain/memory/memory_projection";
+import { compactPlayerKnowledgeView } from "../../domain/memory/player_memory_compactor";
 import {
   CampaignMemory,
   PlayerKnowledgeRecord,
@@ -28,6 +29,18 @@ export class MemoryService {
 
   setWikiWorldState(worldState: Record<string, unknown>): void {
     this.store.setWikiWorldState(worldState);
+  }
+
+  beginTurnSession(campaignId: string, _turnId: string): CampaignMemory {
+    return this.store.beginCampaignSession(campaignId);
+  }
+
+  flushTurnSession(campaignId: string): CampaignMemory {
+    return this.store.flushCampaignSession(campaignId);
+  }
+
+  discardTurnSession(campaignId: string): void {
+    this.store.discardCampaignSession(campaignId);
   }
 
   getCampaign(campaignId: string): CampaignMemory {
@@ -569,6 +582,7 @@ export class MemoryService {
     const normalized = this.normalizePlayerKnowledgeRecord(item, turnId);
     if (normalized) {
       campaign.knowledge.player_view.push(normalized);
+      campaign.knowledge.player_view = compactPlayerKnowledgeView(campaign.knowledge.player_view);
     }
     campaign.updated_at_turn = turnId;
     this.store.saveCampaign(campaign);

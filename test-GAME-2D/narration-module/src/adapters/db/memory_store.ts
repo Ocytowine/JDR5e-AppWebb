@@ -226,9 +226,11 @@ function defaultStore(): MemoryStoreData {
 
 export class JsonMemoryStore {
   private filePath: string;
+  private campaignSessions: Map<string, { campaign: CampaignMemory; dirty: boolean }>;
 
   constructor(filePath: string) {
     this.filePath = filePath;
+    this.campaignSessions = new Map();
     fs.mkdirSync(path.dirname(this.filePath), { recursive: true });
     if (!fs.existsSync(this.filePath)) {
       this.write(defaultStore());
@@ -258,7 +260,55 @@ export class JsonMemoryStore {
     return this.read().wiki.world_state;
   }
 
+  beginCampaignSession(campaignId: string): CampaignMemory {
+    const normalizedCampaignId = normalizeLooseString(campaignId);
+    if (!normalizedCampaignId) {
+      throw new Error("campaign_id required for campaign session");
+    }
+    if (this.campaignSessions.has(normalizedCampaignId)) {
+      throw new Error(`campaign session already active: ${normalizedCampaignId}`);
+    }
+    const campaign = this.loadCampaignFromDisk(normalizedCampaignId);
+    this.campaignSessions.set(normalizedCampaignId, {
+      campaign,
+      dirty: false,
+    });
+    return campaign;
+  }
+
+  flushCampaignSession(campaignId: string): CampaignMemory {
+    const normalizedCampaignId = normalizeLooseString(campaignId);
+    const session = this.campaignSessions.get(normalizedCampaignId);
+    if (!session) {
+      throw new Error(`campaign session not found: ${normalizedCampaignId}`);
+    }
+    if (session.dirty) {
+      const data = this.read();
+      data.campaigns[normalizedCampaignId] = normalizeCampaignMemory(session.campaign);
+      this.write(data);
+      session.campaign = data.campaigns[normalizedCampaignId];
+      session.dirty = false;
+    }
+    this.campaignSessions.delete(normalizedCampaignId);
+    return session.campaign;
+  }
+
+  discardCampaignSession(campaignId: string): void {
+    const normalizedCampaignId = normalizeLooseString(campaignId);
+    if (!normalizedCampaignId) return;
+    this.campaignSessions.delete(normalizedCampaignId);
+  }
+
   loadCampaign(campaignId: string): CampaignMemory {
+    const normalizedCampaignId = normalizeLooseString(campaignId);
+    const activeSession = this.campaignSessions.get(normalizedCampaignId);
+    if (activeSession) {
+      return activeSession.campaign;
+    }
+    return this.loadCampaignFromDisk(normalizedCampaignId);
+  }
+
+  private loadCampaignFromDisk(campaignId: string): CampaignMemory {
     const data = this.read();
     const existing = data.campaigns[campaignId];
     if (existing) {
@@ -274,8 +324,26 @@ export class JsonMemoryStore {
   }
 
   saveCampaign(campaign: CampaignMemory): void {
+    const normalizedCampaignId = normalizeLooseString(campaign.campaign_id);
+    const activeSession = this.campaignSessions.get(normalizedCampaignId);
+    if (activeSession) {
+      activeSession.campaign = normalizeCampaignMemory(campaign);
+      activeSession.dirty = true;
+      return;
+    }
     const data = this.read();
     data.campaigns[campaign.campaign_id] = normalizeCampaignMemory(campaign);
     this.write(data);
+  }
+
+  deleteCampaign(campaignId: string): boolean {
+    const normalizedCampaignId = String(campaignId ?? "").trim();
+    if (!normalizedCampaignId) return false;
+    this.campaignSessions.delete(normalizedCampaignId);
+    const data = this.read();
+    if (!data.campaigns[normalizedCampaignId]) return false;
+    delete data.campaigns[normalizedCampaignId];
+    this.write(data);
+    return true;
   }
 }

@@ -2,6 +2,11 @@ export type NarrationRuntimeStatus = {
   narration_generation_enabled: boolean;
 };
 
+export type NarrationResetMemoryResult = {
+  campaign_id: string;
+  reset: "deleted" | "not_found";
+};
+
 export type NarrationTurnPayload = {
   campaign_id: string;
   character_id: string;
@@ -32,6 +37,7 @@ export type NarrationPipelineResult = {
     narration_result: Record<string, unknown> | null;
     trace: Record<string, unknown> | null;
     projected_memory: Record<string, unknown> | null;
+    memory_debug: Record<string, unknown> | null;
   };
 };
 
@@ -65,6 +71,7 @@ export async function runNarrationPipeline(
     intent_packet?: Record<string, unknown>;
     trace?: Record<string, unknown>;
     projected_memory?: Record<string, unknown>;
+    memory_debug?: Record<string, unknown>;
     ai_handoff?: Record<string, unknown>;
   };
   if (!processResponse.ok || processData?.error) {
@@ -119,7 +126,32 @@ export async function runNarrationPipeline(
       ai_handoff: processData?.ai_handoff ?? null,
       narration_result: narrationResult,
       trace: processData?.trace ?? null,
-      projected_memory: processData?.projected_memory ?? null
+      projected_memory: processData?.projected_memory ?? null,
+      memory_debug: processData?.memory_debug ?? null
     }
+  };
+}
+
+export async function resetNarrationMemory(
+  campaignId: string
+): Promise<NarrationResetMemoryResult> {
+  const response = await fetch("/api/narration-module/reset-memory", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ campaign_id: campaignId })
+  });
+  const data = (await response.json()) as {
+    error?: string;
+    details?: string[];
+    campaign_id?: string;
+    reset?: "deleted" | "not_found";
+  };
+  if (!response.ok || data?.error) {
+    const details = Array.isArray(data?.details) ? data.details.join(" | ") : "";
+    throw new Error([data?.error ?? `HTTP ${response.status}`, details].filter(Boolean).join(" - "));
+  }
+  return {
+    campaign_id: String(data?.campaign_id ?? campaignId),
+    reset: data?.reset === "not_found" ? "not_found" : "deleted"
   };
 }

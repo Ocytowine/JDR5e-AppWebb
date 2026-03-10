@@ -21,7 +21,8 @@
       },
       "world_overrides": {
         "governance": "player_sovereign",
-        "weather": "storm"
+        "weather": "storm",
+        "location_id": "camp_location"
       },
       "entity_registry": {
         "actors": {},

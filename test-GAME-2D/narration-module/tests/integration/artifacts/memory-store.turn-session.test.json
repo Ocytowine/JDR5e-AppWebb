@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0.0",
+  "wiki": {
+    "world_state": {}
+  },
+  "campaigns": {
+    "camp-turn-session-01": {
+      "campaign_id": "camp-turn-session-01",
+      "clock": {
+        "turn_index": 1
+      },
+      "events": [],
+      "relations": [],
+      "knowledge": {
+        "player_view": [
+          {
+            "fact": "Une piste apparait.",
+            "turn_id": "turn-1",
+            "text": "Une piste apparait.",
+            "knowledge_kind": "summary",
+            "certainty": "partial",
+            "source": "auto_narration",
+            "location_id": null,
+            "linked_entity_ids": [],
+            "tags": []
+          }
+        ],
+        "truth_view": []
+      },
+      "world_overrides": {
+        "location_id": "quartier_des_archives"
+      },
+      "entity_registry": {
+        "actors": {},
+        "locations": {},
+        "objects": {},
+        "indexes": {
+          "by_type": {},
+          "by_memory_state": {},
+          "by_location_id": {},
+          "by_event_id": {},
+          "by_scope": {},
+          "by_status": {}
+        }
+      },
+      "updated_at_turn": "turn-1"
+    }
+  }
+}
