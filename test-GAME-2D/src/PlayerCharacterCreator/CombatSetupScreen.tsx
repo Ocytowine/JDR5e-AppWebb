@@ -4960,6 +4960,7 @@ export function CombatSetupScreen(props: {
     if (typeof window === "undefined") return "";
     return window.localStorage.getItem(ACTIVE_SHEET_KEY) ?? "";
   });
+  const [copiedSheetId, setCopiedSheetId] = useState<string>("");
   const [sheetNameInput, setSheetNameInput] = useState("");
 
   const persistSheets = (next: SavedSheet[]) => {
@@ -5011,6 +5012,23 @@ export function CombatSetupScreen(props: {
     persistSheets(next);
     if (activeSheetId === id) {
       persistActiveSheetId("");
+    }
+    if (copiedSheetId === id) {
+      setCopiedSheetId("");
+    }
+  };
+  const copySheetCharacter = async (sheet: SavedSheet) => {
+    if (typeof window === "undefined" || !window.navigator?.clipboard?.writeText) {
+      return;
+    }
+    try {
+      await window.navigator.clipboard.writeText(JSON.stringify(sheet.character, null, 2));
+      setCopiedSheetId(sheet.id);
+      window.setTimeout(() => {
+        setCopiedSheetId(current => (current === sheet.id ? "" : current));
+      }, 2000);
+    } catch {
+      setCopiedSheetId("");
     }
   };
   const setAsiSelection = (
@@ -5524,6 +5542,35 @@ export function CombatSetupScreen(props: {
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: 6 }}>
+                    <button
+                      type="button"
+                      onClick={() => void copySheetCharacter(sheet)}
+                      disabled={
+                        typeof window === "undefined" || !window.navigator?.clipboard?.writeText
+                      }
+                      style={{
+                        padding: "4px 8px",
+                        borderRadius: 6,
+                        border: "1px solid rgba(255,255,255,0.15)",
+                        background:
+                          copiedSheetId === sheet.id
+                            ? "rgba(46, 204, 113, 0.18)"
+                            : "rgba(255,255,255,0.08)",
+                        color: "#f5f5f5",
+                        cursor:
+                          typeof window === "undefined" || !window.navigator?.clipboard?.writeText
+                            ? "not-allowed"
+                            : "pointer",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        opacity:
+                          typeof window === "undefined" || !window.navigator?.clipboard?.writeText
+                            ? 0.5
+                            : 1
+                      }}
+                    >
+                      {copiedSheetId === sheet.id ? "Copiee" : "Copier save"}
+                    </button>
                     <button
                       type="button"
                       onClick={() => persistActiveSheetId(sheet.id)}
