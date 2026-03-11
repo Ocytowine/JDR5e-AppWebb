@@ -239,8 +239,6 @@ import { spellCatalog } from "./game/spellCatalog";
 import { CharacterSheetWindow } from "./ui/CharacterSheetWindow";
 import { InteractionContextWindow } from "./ui/InteractionContextWindow";
 import {
-  fetchNarrationRuntimeStatus,
-  resetNarrationMemory,
   runNarrationPipeline,
   type NarrationTurnPayload
 } from "../narration-module/ui/narrationRuntimeClient";
@@ -412,85 +410,6 @@ function extractTaggedId(
   return match && match[1] ? match[1].trim() : null;
 }
 
-function parseNarrationDebugPayload(raw: string): Record<string, unknown> | null {
-  if (!raw.trim()) return null;
-  try {
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
-  } catch {
-    return null;
-  }
-}
-
-function buildLoopNextContextFromDebug(
-  debug: Record<string, unknown>
-): { context: string; goal: string; constraints: string } | null {
-  const step2 =
-    debug?.step_2_runtime_received_packet && typeof debug.step_2_runtime_received_packet === "object"
-      ? (debug.step_2_runtime_received_packet as Record<string, unknown>)
-      : null;
-  const aiHandoff =
-    debug?.ai_handoff && typeof debug.ai_handoff === "object"
-      ? (debug.ai_handoff as Record<string, unknown>)
-      : null;
-  const step4 =
-    debug?.step_4_app_final_response && typeof debug.step_4_app_final_response === "object"
-      ? (debug.step_4_app_final_response as Record<string, unknown>)
-      : null;
-  if (!step4) return null;
-  const outputContract =
-    aiHandoff?.output_contract && typeof aiHandoff.output_contract === "object"
-      ? (aiHandoff.output_contract as Record<string, unknown>)
-      : null;
-  const isClarificationTurn =
-    Boolean(step2?.requires_clarification) || Boolean(outputContract?.requires_clarification);
-
-  const playerText = String(step4.player_text ?? "").trim();
-  const mjNotes = Array.isArray(step4.mj_notes)
-    ? (step4.mj_notes as unknown[]).map(item => String(item ?? "").trim()).filter(Boolean)
-    : [];
-  const hints = Array.isArray(step4.next_turn_hints)
-    ? (step4.next_turn_hints as unknown[]).map(item => String(item ?? "").trim()).filter(Boolean)
-    : [];
-  if (!playerText && hints.length === 0 && mjNotes.length === 0) return null;
-
-  const inputContract =
-    aiHandoff?.input_contract && typeof aiHandoff.input_contract === "object"
-      ? (aiHandoff.input_contract as Record<string, unknown>)
-      : null;
-  const worldState =
-    inputContract?.world_state && typeof inputContract.world_state === "object"
-      ? (inputContract.world_state as Record<string, unknown>)
-      : null;
-  const locationId =
-    String(step2?.world_anchor && typeof step2.world_anchor === "object"
-      ? (step2.world_anchor as Record<string, unknown>).location_id ?? ""
-      : worldState?.location_id ?? "").trim();
-  const targetActorId = String(step2?.target_actor_id ?? "").trim();
-
-  const contextHeader = [
-    locationId ? `[location_id: ${locationId}]` : "",
-    targetActorId ? `[target_actor_id: ${targetActorId}]` : ""
-  ]
-    .filter(Boolean)
-    .join(" ");
-
-  const nextContext = isClarificationTurn
-    ? contextHeader
-    : [contextHeader, playerText, mjNotes[0] ? `Note MJ: ${mjNotes[0]}` : ""]
-        .filter(Boolean)
-        .join("\n");
-  const nextGoal = isClarificationTurn
-    ? String(outputContract?.clarification_question ?? step2?.clarification_question ?? hints[0] ?? "").trim()
-    : hints[0] ?? "";
-  const nextConstraints = "Continuer avec coherence stricte des faits runtime.";
-
-  return {
-    context: nextContext,
-    goal: nextGoal,
-    constraints: nextConstraints
-  };
-}
 import { EquipmentContextWindow } from "./ui/EquipmentContextWindow";
 import { boardThemeColor, colorToCssHex } from "./boardTheme";
 import type { InteractionCost, InteractionSpec } from "./game/map/runtime/interactions";
@@ -539,42 +458,6 @@ const CORE_BASE_ACTION_IDS: string[] = [
   "ready-action"
 ];
 const WEAPON_CARRY_SLOTS = new Set(["ceinture_gauche", "ceinture_droite", "dos_gauche", "dos_droit"]);
-
-type NarrationLoopHistoryEntry = {
-  turn: number;
-  player_input: string;
-  pipeline: Record<string, unknown>;
-};
-
-async function copyTextToClipboard(text: string): Promise<boolean> {
-  const normalized = String(text ?? "");
-  if (!normalized.trim()) return false;
-  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-    try {
-      await navigator.clipboard.writeText(normalized);
-      return true;
-    } catch {
-      // Fallback handled below.
-    }
-  }
-  if (typeof document === "undefined") return false;
-  try {
-    const textarea = document.createElement("textarea");
-    textarea.value = normalized;
-    textarea.setAttribute("readonly", "true");
-    textarea.style.position = "fixed";
-    textarea.style.opacity = "0";
-    textarea.style.pointerEvents = "none";
-    document.body.appendChild(textarea);
-    textarea.focus();
-    textarea.select();
-    const copied = document.execCommand("copy");
-    document.body.removeChild(textarea);
-    return copied;
-  } catch {
-    return false;
-  }
-}
 
 type EquipmentContextMode = "draw" | "sheathe" | "drop" | "inventory" | "hand-choice";
 type EquipmentHandTarget = "main" | "offhand";
@@ -1393,131 +1276,18 @@ export const GameBoard: React.FC = () => {
     return Date.now().toString(36);
   });
   const [narrationContext, setNarrationContext] = useState<string>("");
-  const [narrationGoal, setNarrationGoal] = useState<string>("");
-  const [narrationConstraints, setNarrationConstraints] = useState<string>("");
-  const [narrationIntentType, setNarrationIntentType] = useState<string>("");
   const [narrationPlayerInput, setNarrationPlayerInput] = useState<string>("");
   const [narrationProcessing, setNarrationProcessing] = useState<boolean>(false);
-  const [narrationCanRun, setNarrationCanRun] = useState<boolean>(false);
   const [narrationRuntimeError, setNarrationRuntimeError] = useState<string | null>(null);
   const [narrationRuntimeOutputText, setNarrationRuntimeOutputText] = useState<string>("");
-  const [narrationRuntimeDebug, setNarrationRuntimeDebug] = useState<string>("");
-  const [narrationLoopEnabled, setNarrationLoopEnabled] = useState<boolean>(false);
-  const [narrationLoopHistory, setNarrationLoopHistory] = useState<NarrationLoopHistoryEntry[]>([]);
-  const [narrationLoopClipboardStatus, setNarrationLoopClipboardStatus] = useState<string | null>(null);
-
-  const narrationLoopHistoryJson = narrationLoopHistory.length
-    ? JSON.stringify(
-        {
-          mode: "narrative_loop",
-          turns: narrationLoopHistory
-        },
-        null,
-        2
-      )
-    : "";
-
-  const applyNarrationLoopFromDebug = useCallback(
-    (debugObj: Record<string, unknown>) => {
-      const next = buildLoopNextContextFromDebug(debugObj);
-      if (!next) return false;
-      setNarrationContext(next.context);
-      setNarrationGoal(next.goal);
-      setNarrationConstraints(next.constraints);
-      return true;
-    },
-    []
-  );
-
-  const handleApplyNarrationLoopStep = useCallback(() => {
-    const parsed = parseNarrationDebugPayload(narrationRuntimeDebug);
-    if (!parsed) {
-      setNarrationRuntimeError("Aucun debug valide disponible pour appliquer l'etape 4.");
-      return;
-    }
-    const applied = applyNarrationLoopFromDebug(parsed);
-    if (!applied) {
-      setNarrationRuntimeError("Etape 4 incomplete: impossible de construire le contexte du tour suivant.");
-      return;
-    }
-    setNarrationRuntimeError(null);
-  }, [narrationRuntimeDebug, applyNarrationLoopFromDebug]);
-
-  const handleCopyNarrationLoopHistory = useCallback(() => {
-    if (!narrationLoopHistoryJson.trim()) return;
-    void (async () => {
-      const copied = await copyTextToClipboard(narrationLoopHistoryJson);
-      setNarrationLoopClipboardStatus(
-        copied ? "Memoire boucle copiee." : "Echec de copie de la memoire boucle."
-      );
-      if (copied) {
-        setNarrationRuntimeError(null);
-      }
-      window.setTimeout(() => {
-        setNarrationLoopClipboardStatus(current =>
-          current === "Memoire boucle copiee." || current === "Echec de copie de la memoire boucle."
-            ? null
-            : current
-        );
-      }, 2500);
-    })();
-  }, [narrationLoopHistoryJson]);
-
-  const handleResetNarrationLoopHistory = useCallback(() => {
-    void (async () => {
-      setNarrationLoopHistory([]);
-      setNarrationLoopClipboardStatus(null);
-      setNarrationRuntimeDebug("");
-      setNarrationRuntimeOutputText("");
-      const activeSavedCharacter = loadActiveSavedCharacterForNarration();
-      if (!activeSavedCharacter) {
-        setNarrationRuntimeError("Memoire backend non reset: aucune fiche active.");
-        return;
-      }
-      const narrationCampaignId = buildNarrationSessionCampaignId({
-        characterId: activeSavedCharacter.id ?? "setup-player",
-        mapPrompt,
-        seed: narrationSessionSeed
-      });
-      try {
-        const result = await resetNarrationMemory(narrationCampaignId);
-        setNarrationRuntimeError(null);
-        setNarrationLoopClipboardStatus(
-          result.reset === "deleted"
-            ? "Memoire boucle et backend reinitialises."
-            : "Historique UI vide. Memoire backend deja absente."
-        );
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Erreur inconnue reset narration-module";
-        setNarrationRuntimeError(message);
-        setNarrationLoopClipboardStatus("Historique UI vide, mais reset backend en echec.");
-      } finally {
-        window.setTimeout(() => {
-          setNarrationLoopClipboardStatus(current =>
-            current === "Memoire boucle et backend reinitialises." ||
-            current === "Historique UI vide. Memoire backend deja absente." ||
-            current === "Historique UI vide, mais reset backend en echec."
-              ? null
-              : current
-          );
-        }, 2500);
-      }
-    })();
-  }, [mapPrompt, narrationSessionSeed]);
 
   const handleRunNarrationTurn = useCallback(async () => {
     if (narrationProcessing) return;
-    if (!narrationCanRun) {
-      setNarrationRuntimeError("OPENAI_API_KEY manquante: appel narration bloque.");
-      return;
-    }
     const trimmedInput = narrationPlayerInput.trim();
     if (!trimmedInput) {
       setNarrationRuntimeError("Input joueur vide.");
       return;
     }
-    const trimmedIntentType = narrationIntentType.trim();
     const activeSavedCharacter = loadActiveSavedCharacterForNarration();
     if (!activeSavedCharacter) {
       setNarrationRuntimeError(
@@ -1544,39 +1314,18 @@ export const GameBoard: React.FC = () => {
         location_id: contextLocationId,
         ...(destinationId ? { destination_id: destinationId } : {}),
         ...(targetActorId ? { target_actor_id: targetActorId } : {}),
-        ...(trimmedIntentType ? { intent_hint: trimmedIntentType } : {}),
         map_prompt: mapPrompt,
         narration_context: narrationContext,
-        narration_goal: narrationGoal,
-        narration_constraints: narrationConstraints
+        narration_goal: "",
+        narration_constraints: ""
       };
       const result = await runNarrationPipeline(payload);
       setNarrationRuntimeOutputText(
         result.finalPlayerText ||
-          `Runtime OK - decision: ${result.decisionReason} - actions: ${result.actionCount} - narration IA requise: ${result.needsNarration ? "oui" : "non"}`
+          `Traitement lore: ${result.decisionReason} (${result.narrationSource})`
       );
-      setNarrationRuntimeDebug(
-        JSON.stringify(
-          result.debug,
-          null,
-          2
-        )
-      );
-      if (narrationLoopEnabled) {
-        setNarrationLoopHistory(prev => [
-          ...prev,
-          {
-            turn: prev.length + 1,
-            player_input: trimmedInput,
-            pipeline: JSON.parse(JSON.stringify(result.debug)) as Record<string, unknown>
-          }
-        ]);
-      }
-      if (narrationLoopEnabled) {
-        applyNarrationLoopFromDebug(result.debug as unknown as Record<string, unknown>);
-      }
       pushLog(
-        `[narration-module] runtime=${result.decisionReason} actions=${result.actionCount} narration_ia=${result.needsNarration ? `yes(${result.narrationSource})` : "no"}`
+        `[narration-module] mode=${result.decisionReason} source=${result.narrationSource}`
       );
       setNarrationPlayerInput("");
     } catch (error) {
@@ -1587,41 +1336,12 @@ export const GameBoard: React.FC = () => {
       setNarrationProcessing(false);
     }
   }, [
-    narrationCanRun,
     narrationProcessing,
     narrationPlayerInput,
-    narrationIntentType,
     mapPrompt,
     narrationSessionSeed,
-    narrationContext,
-    narrationGoal,
-    narrationConstraints,
-    narrationLoopEnabled,
-    applyNarrationLoopFromDebug
+    narrationContext
   ]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const loadNarrationStatus = async () => {
-      try {
-        const status = await fetchNarrationRuntimeStatus();
-        const canRun = Boolean(status.narration_generation_enabled);
-        if (cancelled) return;
-        setNarrationCanRun(canRun);
-        if (!canRun) {
-          setNarrationRuntimeError("OPENAI_API_KEY manquante: appel narration bloque.");
-        }
-      } catch {
-        if (cancelled) return;
-        setNarrationCanRun(false);
-        setNarrationRuntimeError("Impossible de verifier la capacite narration.");
-      }
-    };
-    loadNarrationStatus();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     if (isCombatConfigured) return;
@@ -13478,18 +13198,10 @@ function handleEndPlayerTurn() {
           gridRows={mapGrid.rows}
           mapPrompt={mapPrompt}
           narrationContext={narrationContext}
-          narrationGoal={narrationGoal}
-          narrationConstraints={narrationConstraints}
-          narrationIntentType={narrationIntentType}
           narrationPlayerInput={narrationPlayerInput}
           narrationProcessing={narrationProcessing}
-          narrationCanRun={narrationCanRun}
           narrationRuntimeError={narrationRuntimeError}
           narrationRuntimeOutputText={narrationRuntimeOutputText}
-          narrationRuntimeDebug={narrationRuntimeDebug}
-          narrationLoopEnabled={narrationLoopEnabled}
-          narrationLoopHistoryJson={narrationLoopHistoryJson}
-          narrationLoopClipboardStatus={narrationLoopClipboardStatus}
           character={characterConfig}
           weaponTypes={weaponTypes}
           raceTypes={raceTypes}
@@ -13503,15 +13215,8 @@ function handleEndPlayerTurn() {
           onChangeCharacter={setCharacterConfig}
           onChangeMapPrompt={setMapPrompt}
           onChangeNarrationContext={setNarrationContext}
-          onChangeNarrationGoal={setNarrationGoal}
-          onChangeNarrationConstraints={setNarrationConstraints}
-          onChangeNarrationIntentType={setNarrationIntentType}
           onChangeNarrationPlayerInput={setNarrationPlayerInput}
           onRunNarrationTurn={handleRunNarrationTurn}
-          onToggleNarrationLoopEnabled={setNarrationLoopEnabled}
-          onApplyNarrationLoopStep={handleApplyNarrationLoopStep}
-          onCopyNarrationLoopHistory={handleCopyNarrationLoopHistory}
-          onResetNarrationLoopHistory={handleResetNarrationLoopHistory}
           onChangeEnemyCount={setConfigEnemyCount}
           onNoEnemyTypes={() =>
             pushLog(

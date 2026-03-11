@@ -14,11 +14,11 @@
     "preview": "vite preview",
     "validate:content": "node scripts/validate-content.js",
     "setup:hooks": "node scripts/setup-git-hooks.js",
-    "narration-module:build": "tsc -p narration-module/tsconfig.json",
-    "narration-module:test:unit": "npm run narration-module:build && node narration-module/dist/tests/unit/test_runtime_commands.js",
-    "narration-module:test:contracts": "npm run narration-module:build && node narration-module/dist/tools/scripts/run_contract_tests.js",
-    "narration-module:test:integration": "npm run narration-module:build && node narration-module/dist/tests/integration/test_turn_trace.js && node narration-module/dist/tests/integration/test_plan_mismatch.js && node narration-module/dist/tests/integration/test_event_trigger_enforced.js && node narration-module/dist/tests/integration/test_scenario_enter_accessible.js && node narration-module/dist/tests/integration/test_scenario_observe_place.js && node narration-module/dist/tests/integration/test_scenario_forbidden_attempt.js && node narration-module/dist/tests/integration/test_scenario_unclear_intent.js && node narration-module/dist/tests/integration/test_memory_persistence.js && node narration-module/dist/tests/integration/test_memory_projection_priority.js && node narration-module/dist/tests/integration/test_memory_projection_budgets.js && node narration-module/dist/tests/integration/test_memory_turn_session.js && node narration-module/dist/tests/integration/test_player_memory_compaction.js && node narration-module/dist/tests/integration/test_event_lifecycle_cycle.js && node narration-module/dist/tests/integration/test_event_fragments_lifecycle.js && node narration-module/dist/tests/integration/test_schema_validation_enforced.js && node narration-module/dist/tests/integration/test_server_turn_intent_fixes.js",
-    "narration-module:demo:trace": "npm run narration-module:build && node narration-module/dist/tools/scripts/run_turn_trace_demo.js"
+    "narration-module:build": "node -e \"console.log('narration-module: lore-only mode, no build step required.')\"",
+    "narration-module:test:unit": "node -e \"console.log('narration-module runtime removed: no unit suite.')\"",
+    "narration-module:test:contracts": "node -e \"console.log('narration-module runtime removed: no contract suite.')\"",
+    "narration-module:test:integration": "node -e \"console.log('narration-module runtime removed: no integration suite.')\"",
+    "narration-module:demo:trace": "node -e \"console.log('narration-module runtime removed: no trace demo.')\""
   },
   "dependencies": {
     "pixi.js": "^8.5.2",

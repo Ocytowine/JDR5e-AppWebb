@@ -78,18 +78,10 @@ export function CombatSetupScreen(props: {
   gridRows: number;
   mapPrompt: string;
   narrationContext: string;
-  narrationGoal: string;
-  narrationConstraints: string;
-  narrationIntentType: string;
   narrationPlayerInput: string;
   narrationProcessing: boolean;
-  narrationCanRun: boolean;
   narrationRuntimeError: string | null;
   narrationRuntimeOutputText: string;
-  narrationRuntimeDebug: string;
-  narrationLoopEnabled: boolean;
-  narrationLoopHistoryJson: string;
-  narrationLoopClipboardStatus: string | null;
   character: Personnage;
   weaponTypes: WeaponTypeDefinition[];
   raceTypes: RaceDefinition[];
@@ -103,15 +95,8 @@ export function CombatSetupScreen(props: {
   onChangeCharacter: (next: Personnage) => void;
   onChangeMapPrompt: (value: string) => void;
   onChangeNarrationContext: (value: string) => void;
-  onChangeNarrationGoal: (value: string) => void;
-  onChangeNarrationConstraints: (value: string) => void;
-  onChangeNarrationIntentType: (value: string) => void;
   onChangeNarrationPlayerInput: (value: string) => void;
   onRunNarrationTurn: () => void;
-  onToggleNarrationLoopEnabled: (enabled: boolean) => void;
-  onApplyNarrationLoopStep: () => void;
-  onCopyNarrationLoopHistory: () => void;
-  onResetNarrationLoopHistory: () => void;
   onChangeEnemyCount: (value: number) => void;
   onStartCombat: () => void;
   onNoEnemyTypes: () => void;
@@ -5813,28 +5798,13 @@ export function CombatSetupScreen(props: {
           {activeMainTab === "narration" && (
             <NarrationSetupPanel
               narrationContext={props.narrationContext}
-              narrationGoal={props.narrationGoal}
-              narrationConstraints={props.narrationConstraints}
-              narrationIntentType={props.narrationIntentType}
               narrationPlayerInput={props.narrationPlayerInput}
               narrationProcessing={props.narrationProcessing}
-              narrationCanRun={props.narrationCanRun}
               narrationRuntimeError={props.narrationRuntimeError}
               narrationRuntimeOutputText={props.narrationRuntimeOutputText}
-              narrationRuntimeDebug={props.narrationRuntimeDebug}
-              narrationLoopEnabled={props.narrationLoopEnabled}
-              narrationLoopHistoryJson={props.narrationLoopHistoryJson}
-              narrationLoopClipboardStatus={props.narrationLoopClipboardStatus}
               onChangeNarrationContext={props.onChangeNarrationContext}
-              onChangeNarrationGoal={props.onChangeNarrationGoal}
-              onChangeNarrationConstraints={props.onChangeNarrationConstraints}
-              onChangeNarrationIntentType={props.onChangeNarrationIntentType}
               onChangeNarrationPlayerInput={props.onChangeNarrationPlayerInput}
               onRunNarrationTurn={props.onRunNarrationTurn}
-              onToggleNarrationLoopEnabled={props.onToggleNarrationLoopEnabled}
-              onApplyNarrationLoopStep={props.onApplyNarrationLoopStep}
-              onCopyNarrationLoopHistory={props.onCopyNarrationLoopHistory}
-              onResetNarrationLoopHistory={props.onResetNarrationLoopHistory}
             />
           )}
 
