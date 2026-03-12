@@ -8,28 +8,28 @@ ville: lysenthe
 quartier: pierre_des_sables
 region: ylssea
 territoire: astryade
-presence_profile:
-  likely_roles:
+profil_presence:
+  roles_probables:
     - role: garde
-      weight: 4
+      poids: 4
     - role: officier
-      weight: 3
+      poids: 3
     - role: noble
-      weight: 2
+      poids: 2
     - role: serviteur
-      weight: 2
+      poids: 2
     - role: pnj_lambda
-      weight: 1
-  rare_roles:
+      poids: 1
+  roles_rares:
     - role: marchand
-      weight: 1
-  species_weights:
-    - species: humain
-      weight: 7
-    - species: elfe
-      weight: 2
-    - species: autre
-      weight: 1
+      poids: 1
+  ponderation_especes:
+    - espece: humain
+      poids: 7
+    - espece: elfe
+      poids: 2
+    - espece: autre
+      poids: 1
 
 # TYPE / FONCTION
 type_batiment: chateau administratif

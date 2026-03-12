@@ -17,54 +17,54 @@ composition_population:
   - Humains 60%
   - Elfes 30%
   - Autres 10%
-population_profile:
-  dominant_species:
+profil_population:
+  especes_dominantes:
     - humain
-  minor_species:
+  especes_minoritaires:
     - elfe
-  rare_species:
+  especes_rares:
     - autres
-  common_roles:
+  roles_communs:
     - marchand
     - garde
     - clerc
     - courtier
-  outsider_presence: medium
-presence_profile:
-  likely_roles:
+  presence_etrangere: moyenne
+profil_presence:
+  roles_probables:
     - role: marchand
-      weight: 4
+      poids: 4
     - role: garde
-      weight: 3
+      poids: 3
     - role: clerc
-      weight: 2
+      poids: 2
     - role: courtier
-      weight: 2
+      poids: 2
     - role: pnj_lambda
-      weight: 3
-  rare_roles:
+      poids: 3
+  roles_rares:
     - role: emissaire
-      weight: 1
+      poids: 1
     - role: mercenaire
-      weight: 1
-  species_weights:
-    - species: humain
-      weight: 6
-    - species: elfe
-      weight: 3
-    - species: autre
-      weight: 1
+      poids: 1
+  ponderation_especes:
+    - espece: humain
+      poids: 6
+    - espece: elfe
+      poids: 3
+    - espece: autre
+      poids: 1
 
 niveau_vie: contrastee
 
-language_profile:
-  common_languages:
+profil_langues:
+  langues_communes:
     - commun
-  trade_languages:
+  langues_commerciales:
     - commun
-  rare_languages:
+  langues_rares:
     - elfique
-  script_languages:
+  langues_scripturales:
     - commun
     - elfique
 
@@ -73,12 +73,12 @@ niveau_criminalite: 20
 stabilite_sociale: elevee
 corruption: 35
 tension_ethnique: 15
-social_profile:
-  authority_culture: strict
-  hospitality_to_strangers: guarded
-  violence_visibility: low
-  law_enforcement_presence: steady
-  authority_chain:
+profil_social:
+  culture_autorite: stricte
+  hospitalite_envers_etrangers: reservee
+  visibilite_violence: faible
+  presence_forces_de_l_ordre: constante
+  chaine_autorite:
     - maison_tharqual
     - chateau_tharqual
 

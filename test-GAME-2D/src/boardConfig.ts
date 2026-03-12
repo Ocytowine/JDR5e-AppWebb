@@ -1,7 +1,3 @@
-// Top-down board configuration (test-GAME-2D)
-// -------------------------------------------
-// - Square grid
-// - Orthographic projection
 import { createGridAdapter, type GridKind, type HexOptions } from "./ui/grid";
 
 export const GRID_COLS = 12;

@@ -5,62 +5,62 @@ nom: Port des Xantars
 ville: lysenthe
 territoire: astryade
 region: ylssea
-population_profile:
-  dominant_species:
+profil_population:
+  especes_dominantes:
     - humain
-  minor_species:
+  especes_minoritaires:
     - elfe
-  common_roles:
+  roles_communs:
     - docker
     - marin
     - courtier
     - garde
     - mercenaire
-  outsider_presence: high
-presence_profile:
-  likely_roles:
+  presence_etrangere: forte
+profil_presence:
+  roles_probables:
     - role: docker
-      weight: 4
+      poids: 4
     - role: marin
-      weight: 4
+      poids: 4
     - role: courtier
-      weight: 3
+      poids: 3
     - role: marchand
-      weight: 3
+      poids: 3
     - role: mercenaire
-      weight: 2
+      poids: 2
     - role: garde
-      weight: 2
+      poids: 2
     - role: pnj_lambda
-      weight: 4
-  rare_roles:
+      poids: 4
+  roles_rares:
     - role: archiviste
-      weight: 1
-  species_weights:
-    - species: humain
-      weight: 6
-    - species: elfe
-      weight: 3
-    - species: autre
-      weight: 1
-language_profile:
-  common_languages:
+      poids: 1
+  ponderation_especes:
+    - espece: humain
+      poids: 6
+    - espece: elfe
+      poids: 3
+    - espece: autre
+      poids: 1
+profil_langues:
+  langues_communes:
     - commun
-  trade_languages:
+  langues_commerciales:
     - commun
-  rare_languages:
+  langues_rares:
     - elfique
-social_profile:
-  authority_culture: vigilant
-  hospitality_to_strangers: transactional
-  violence_visibility: medium
-  law_enforcement_presence: uneven
-authority_profile:
-  authority_owner: maison_tharqual
-  control_style: selective
-  checkpoints:
+profil_social:
+  culture_autorite: vigilante
+  hospitalite_envers_etrangers: transactionnelle
+  visibilite_violence: moyenne
+  presence_forces_de_l_ordre: inegale
+profil_autorite:
+  autorite_responsable: maison_tharqual
+  style_controle: selectif
+  points_de_controle:
     - quais_militaires_de_xantars
-  tolerated_private_force: true
+  force_privee_toleree: vrai
 ---
 Resume : Principal front maritime de Lysenthe, il concentre quais militaires et quais de commerce a l'echelle regionale.
 

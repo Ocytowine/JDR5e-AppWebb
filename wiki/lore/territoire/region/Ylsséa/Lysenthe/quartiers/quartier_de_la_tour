@@ -5,26 +5,26 @@ nom: Quartier de la Tour
 ville: lysenthe
 territoire: astryade
 region: ylssea
-presence_profile:
-  likely_roles:
+profil_presence:
+  roles_probables:
     - role: fonctionnaire
-      weight: 3
+      poids: 3
     - role: garde
-      weight: 3
+      poids: 3
     - role: messager
-      weight: 2
+      poids: 2
     - role: pnj_lambda
-      weight: 2
-  rare_roles:
+      poids: 2
+  roles_rares:
     - role: marchand
-      weight: 1
-  species_weights:
-    - species: humain
-      weight: 6
-    - species: elfe
-      weight: 3
-    - species: autre
-      weight: 1
+      poids: 1
+  ponderation_especes:
+    - espece: humain
+      poids: 6
+    - espece: elfe
+      poids: 3
+    - espece: autre
+      poids: 1
 ---
 Resume : Enclave de pouvoir central dominee par la Tour du Primarque et les residences de la cour.
 

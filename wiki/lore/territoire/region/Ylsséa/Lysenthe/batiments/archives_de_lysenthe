@@ -22,26 +22,26 @@ proprietaire_principal: Collegium des Archivistes
 acces: prive
 factions_residentes:
   - archivistes_de_lysenthe
-presence_profile:
-  likely_roles:
+profil_presence:
+  roles_probables:
     - role: archiviste
-      weight: 5
+      poids: 5
     - role: clerc
-      weight: 4
+      poids: 4
     - role: garde
-      weight: 2
+      poids: 2
     - role: pnj_lambda
-      weight: 1
-  rare_roles:
+      poids: 1
+  roles_rares:
     - role: marchand
-      weight: 1
-  species_weights:
-    - species: humain
-      weight: 5
-    - species: elfe
-      weight: 4
-    - species: autre
-      weight: 1
+      poids: 1
+  ponderation_especes:
+    - espece: humain
+      poids: 5
+    - espece: elfe
+      poids: 4
+    - espece: autre
+      poids: 1
 
 # DESCRIPTION RAPIDE
 etat_general: bon

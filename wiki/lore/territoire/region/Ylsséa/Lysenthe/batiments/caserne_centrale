@@ -22,60 +22,60 @@ proprietaire_principal: Capitaine de Garnison
 acces: tres_restreint
 factions_residentes:
   - garnison_de_lysenthe
-population_profile:
-  dominant_species:
+profil_population:
+  especes_dominantes:
     - humain
-  minor_species:
+  especes_minoritaires:
     - elfe
-  common_roles:
+  roles_communs:
     - garde
     - officier
     - messager
-  outsider_presence: low
-presence_profile:
-  likely_roles:
+  presence_etrangere: faible
+profil_presence:
+  roles_probables:
     - role: garde
-      weight: 5
+      poids: 5
     - role: officier
-      weight: 3
+      poids: 3
     - role: messager
-      weight: 2
+      poids: 2
     - role: pnj_lambda
-      weight: 1
-  rare_roles:
+      poids: 1
+  roles_rares:
     - role: marchand_ambulant
-      weight: 1
-  species_weights:
-    - species: humain
-      weight: 7
-    - species: elfe
-      weight: 2
-    - species: autre
-      weight: 1
-language_profile:
-  common_languages:
+      poids: 1
+  ponderation_especes:
+    - espece: humain
+      poids: 7
+    - espece: elfe
+      poids: 2
+    - espece: autre
+      poids: 1
+profil_langues:
+  langues_communes:
     - commun
-  trade_languages:
+  langues_commerciales:
     - commun
-  rare_languages:
+  langues_rares:
     - elfique
-social_profile:
-  authority_culture: strict
-  hospitality_to_strangers: suspicious
-  violence_visibility: medium
-  law_enforcement_presence: heavy
-authority_profile:
-  authority_owner: maison_tharqual
-  operational_faction: garnison_de_lysenthe
-  chain_of_command:
+profil_social:
+  culture_autorite: stricte
+  hospitalite_envers_etrangers: mefiante
+  visibilite_violence: moyenne
+  presence_forces_de_l_ordre: forte
+profil_autorite:
+  autorite_responsable: maison_tharqual
+  faction_operationnelle: garnison_de_lysenthe
+  chaine_de_commandement:
     - capitaine_de_garnison
     - officiers_de_quart
     - gardes_urbains
-  control_style: formal
-  speech_expectations:
+  style_controle: formel
+  attentes_de_langage:
     - reponses breves
     - respect de la chaine de commandement
-  tolerated_private_force: false
+  force_privee_toleree: faux
 
 # DESCRIPTION RAPIDE
 etat_general: bon

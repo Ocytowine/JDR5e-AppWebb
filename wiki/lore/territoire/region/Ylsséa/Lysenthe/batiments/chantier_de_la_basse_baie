@@ -8,26 +8,26 @@ ville: lysenthe
 quartier: basse_baie
 region: ylssea
 territoire: astryade
-presence_profile:
-  likely_roles:
+profil_presence:
+  roles_probables:
     - role: ouvrier
-      weight: 5
+      poids: 5
     - role: contremaitre
-      weight: 2
+      poids: 2
     - role: marin
-      weight: 2
+      poids: 2
     - role: pnj_lambda
-      weight: 3
-  rare_roles:
+      poids: 3
+  roles_rares:
     - role: archiviste
-      weight: 1
-  species_weights:
-    - species: humain
-      weight: 6
-    - species: elfe
-      weight: 2
-    - species: autre
-      weight: 2
+      poids: 1
+  ponderation_especes:
+    - espece: humain
+      poids: 6
+    - espece: elfe
+      poids: 2
+    - espece: autre
+      poids: 2
 
 # TYPE / FONCTION
 type_batiment: chantier naval
