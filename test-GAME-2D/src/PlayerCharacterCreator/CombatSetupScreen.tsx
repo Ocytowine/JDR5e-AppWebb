@@ -45,6 +45,7 @@ import { loadFeatureTypesFromIndex } from "../game/featureCatalog";
 import type { FeatureDefinition } from "../game/featureTypes";
 import { getEquipmentConstraintIssues } from "../game/engine/rules/equipmentHands";
 import { NarrationSetupPanel } from "../../narration-module/ui/NarrationSetupPanel";
+import { WorldMapScreen } from "../../map-module/ui/WorldMapScreen";
 
 const WEAPON_PROFICIENCY_OPTIONS: Array<{ id: string; label: string }> = [
   { id: "simple", label: "Simple" },
@@ -101,7 +102,7 @@ export function CombatSetupScreen(props: {
   onStartCombat: () => void;
   onNoEnemyTypes: () => void;
 }): React.JSX.Element {
-  const [activeMainTab, setActiveMainTab] = useState<"map" | "player" | "narration">("map");
+  const [activeMainTab, setActiveMainTab] = useState<"combat" | "player" | "narration" | "worldMap">("combat");
   const [activePlayerTab, setActivePlayerTab] = useState<
     | "species"
     | "backgrounds"
@@ -5613,10 +5614,11 @@ export function CombatSetupScreen(props: {
           )}
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {[
-            { id: "map", label: "Carte" },
+          {[ 
+            { id: "combat", label: "Combat" },
             { id: "player", label: "Joueur" },
-            { id: "narration", label: "Narration" }
+            { id: "narration", label: "Narration" },
+            { id: "worldMap", label: "Carte" }
           ].map(tab => {
             const isActive = activeMainTab === tab.id;
             return (
@@ -5714,7 +5716,7 @@ export function CombatSetupScreen(props: {
             gap: 12
           }}
         >
-          {activeMainTab === "map" && (
+          {activeMainTab === "combat" && (
             <>
             <label style={{ fontSize: 13, display: "flex", flexDirection: "column", gap: 6 }}>
               Contexte de la battle map :
@@ -5840,6 +5842,10 @@ export function CombatSetupScreen(props: {
               Lancer le combat
             </button>
             </>
+          )}
+
+          {activeMainTab === "worldMap" && (
+            <WorldMapScreen onBack={() => setActiveMainTab("combat")} />
           )}
 
           {activeMainTab === "narration" && (

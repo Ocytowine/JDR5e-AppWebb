@@ -15,6 +15,7 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const { createNarrationModuleApi } = require("./narration-module/server/narrationHttpApi");
+const { createMapModuleApi } = require("./map-module/server/mapModuleApi");
 
 const PORT = process.env.PORT
   ? Number(process.env.PORT)
@@ -286,6 +287,11 @@ const narrationModuleApi = createNarrationModuleApi({
   cryptoImpl: crypto
 });
 
+const mapModuleApi = createMapModuleApi({
+  projectRoot: __dirname,
+  sendJson
+});
+
 // ----------------------------------------------------
 // Serveur HTTP : API + fichiers statiques (dist/)
 // ----------------------------------------------------
@@ -369,6 +375,9 @@ const server = http.createServer(async (req, res) => {
 
   const narrationHandled = await narrationModuleApi.tryHandle(req, res);
   if (narrationHandled !== false) return;
+
+  const mapHandled = await mapModuleApi.tryHandle(req, res);
+  if (mapHandled !== false) return;
 
   // API bulles ennemies (1-2 lignes, generees a chaque tour d'ennemi)
   if (req.method === "POST" && req.url === "/api/enemy-speech") {
