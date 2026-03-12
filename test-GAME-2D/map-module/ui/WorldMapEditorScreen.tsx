@@ -10,7 +10,9 @@ import {
   type WorldMapLayoutSource
 } from "../data/worldMapLayout";
 import {
+  GEOGRAPHY_PRESET_COLORS,
   MapCanvas,
+  TAG_PRESET_COLORS,
   cloneLayout,
   createCityId,
   ensureCell,
@@ -20,6 +22,7 @@ import {
 } from "./mapShared";
 
 type PanelId = "layers" | "hex" | "routes" | "json";
+type HexTabId = "geography" | "places" | "areas";
 
 const PANEL_LABELS: Record<PanelId, string> = {
   layers: "Couches",
@@ -74,6 +77,45 @@ function slugifyDraft(value: string): string {
     .replace(/^_+|_+$/g, "");
 }
 
+const GEOGRAPHY_PRESETS: Array<{ id: string; label: string; geography: string; color: string; surface: "land" | "ocean" }> = [
+  { id: "terre", label: "Terre", geography: "terre", color: "#8c7a58", surface: "land" },
+  { id: "plaine", label: "Plaine", geography: "plaine", color: GEOGRAPHY_PRESET_COLORS.plaine, surface: "land" },
+  { id: "colline", label: "Colline", geography: "colline", color: GEOGRAPHY_PRESET_COLORS.colline, surface: "land" },
+  { id: "foret_claire", label: "Foret claire", geography: "foret_claire", color: GEOGRAPHY_PRESET_COLORS.foret_claire, surface: "land" },
+  { id: "foret_dense", label: "Foret dense", geography: "foret_dense", color: GEOGRAPHY_PRESET_COLORS.foret_dense, surface: "land" },
+  { id: "marais", label: "Marais", geography: "marais", color: GEOGRAPHY_PRESET_COLORS.marais, surface: "land" },
+  { id: "montagne", label: "Montagne", geography: "montagne", color: GEOGRAPHY_PRESET_COLORS.montagne, surface: "land" },
+  { id: "desert", label: "Desert", geography: "desert", color: GEOGRAPHY_PRESET_COLORS.desert, surface: "land" },
+  { id: "cote", label: "Cote", geography: "cote", color: GEOGRAPHY_PRESET_COLORS.cote, surface: "land" },
+  { id: "toundra", label: "Toundra", geography: "toundra", color: GEOGRAPHY_PRESET_COLORS.toundra, surface: "land" },
+  { id: "jungle", label: "Jungle", geography: "jungle", color: GEOGRAPHY_PRESET_COLORS.jungle, surface: "land" },
+  { id: "urbain", label: "Urbain", geography: "urbain", color: GEOGRAPHY_PRESET_COLORS.urbain, surface: "land" },
+  { id: "ocean", label: "Ocean", geography: "ocean", color: GEOGRAPHY_PRESET_COLORS.ocean, surface: "ocean" }
+];
+
+const TAG_PRESETS: Array<{ id: string; label: string; color: string }> = [
+  { id: "maritime", label: "Maritime", color: TAG_PRESET_COLORS.maritime },
+  { id: "commerce", label: "Commerce", color: TAG_PRESET_COLORS.commerce },
+  { id: "dangereux", label: "Dangereux", color: TAG_PRESET_COLORS.dangereux },
+  { id: "sacre", label: "Sacre", color: TAG_PRESET_COLORS.sacre },
+  { id: "ruines", label: "Ruines", color: TAG_PRESET_COLORS.ruines },
+  { id: "frontalier", label: "Frontalier", color: TAG_PRESET_COLORS.frontalier },
+  { id: "agricole", label: "Agricole", color: TAG_PRESET_COLORS.agricole },
+  { id: "minier", label: "Minier", color: TAG_PRESET_COLORS.minier },
+  { id: "forestier", label: "Forestier", color: TAG_PRESET_COLORS.forestier },
+  { id: "urbain", label: "Urbain", color: TAG_PRESET_COLORS.urbain }
+];
+
+const FIELD_STYLE: React.CSSProperties = {
+  width: "100%",
+  padding: "8px 10px",
+  borderRadius: 8,
+  border: "1px solid rgba(255,255,255,0.14)",
+  background: "rgba(255,255,255,0.06)",
+  color: "#eef3ff",
+  boxSizing: "border-box"
+};
+
 export function WorldMapEditorScreen(props: {
   onCloseEditor: () => void;
 }): React.JSX.Element {
@@ -83,6 +125,9 @@ export function WorldMapEditorScreen(props: {
   }));
   const [selectedCellKey, setSelectedCellKey] = useState<string>(getWorldMapCellKey({ x: 13, y: 11 }));
   const [selectedRouteId, setSelectedRouteId] = useState<string>(WORLD_MAP_LAYOUT.paths[0]?.id ?? "");
+  const [selectedAreaCellKeys, setSelectedAreaCellKeys] = useState<string[]>([]);
+  const [areaSelectionMode, setAreaSelectionMode] = useState<boolean>(false);
+  const [activeHexTab, setActiveHexTab] = useState<HexTabId>("geography");
   const [jsonBuffer, setJsonBuffer] = useState<string>(() => layoutToJson(WORLD_MAP_LAYOUT));
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [routeEditorActive, setRouteEditorActive] = useState<boolean>(false);
@@ -101,6 +146,17 @@ export function WorldMapEditorScreen(props: {
   const [draftRegionColor, setDraftRegionColor] = useState<string>("#5a7d8f");
   const [selectedTerritoryLoreId, setSelectedTerritoryLoreId] = useState<string>("");
   const [selectedRegionLoreId, setSelectedRegionLoreId] = useState<string>("");
+  const [hexModalPosition, setHexModalPosition] = useState<{ x: number; y: number }>({ x: 420, y: 20 });
+  const [customGeographies, setCustomGeographies] = useState<Array<{ id: string; label: string; geography: string; color: string; surface: "land" | "ocean" }>>([]);
+  const [customTags, setCustomTags] = useState<Array<{ id: string; label: string; color: string }>>([]);
+  const [draftGeographyName, setDraftGeographyName] = useState<string>("");
+  const [draftGeographyColor, setDraftGeographyColor] = useState<string>("#5a7d8f");
+  const [draftGeographySurface, setDraftGeographySurface] = useState<"land" | "ocean">("land");
+  const [draftTagName, setDraftTagName] = useState<string>("");
+  const [draftTagColor, setDraftTagColor] = useState<string>("#5fa8d3");
+  const [pendingGeographyId, setPendingGeographyId] = useState<string>("");
+  const [pendingTagIds, setPendingTagIds] = useState<string[]>([]);
+  const hexModalDragRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { wikiEntriesById, wikiLoading, wikiError } = useWikiEntries(layout);
   const { wikiCatalog, wikiCatalogLoading, wikiCatalogError } = useWikiCatalog();
@@ -138,6 +194,8 @@ export function WorldMapEditorScreen(props: {
     () => wikiCatalog.filter(entry => String(entry.type).trim().toLowerCase() === "region"),
     [wikiCatalog]
   );
+  const allGeographyPresets = useMemo(() => [...GEOGRAPHY_PRESETS, ...customGeographies], [customGeographies]);
+  const allTagPresets = useMemo(() => [...TAG_PRESETS, ...customTags], [customTags]);
 
   useEffect(() => {
     setJsonBuffer(layoutToJson(layout));
@@ -148,6 +206,28 @@ export function WorldMapEditorScreen(props: {
     setSelectedTerritoryLoreId(selectedCell.territoryWikiId ?? "");
     setSelectedRegionLoreId(selectedCell.regionWikiId ?? "");
   }, [selectedCellKey, selectedCell]);
+
+  useEffect(() => {
+    function handleMouseMove(event: MouseEvent): void {
+      const drag = hexModalDragRef.current;
+      if (!drag) return;
+      setHexModalPosition({
+        x: Math.max(16, drag.originX + (event.clientX - drag.startX)),
+        y: Math.max(16, drag.originY + (event.clientY - drag.startY))
+      });
+    }
+
+    function handleMouseUp(): void {
+      hexModalDragRef.current = null;
+    }
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
 
   function togglePanel(panelId: PanelId): void {
     setOpenPanels(current => ({ ...current, [panelId]: !current[panelId] }));
@@ -186,6 +266,73 @@ export function WorldMapEditorScreen(props: {
       }
       cell[field] = value as never;
     });
+  }
+
+  function getTargetCellKeys(): string[] {
+    if (selectedAreaCellKeys.length > 0) return selectedAreaCellKeys;
+    return selectedCellKey ? [selectedCellKey] : [];
+  }
+
+  function applyGeographyPreset(geography: string): void {
+    const targetKeys = getTargetCellKeys();
+    if (targetKeys.length === 0) return;
+    patchLayout(next => {
+      targetKeys.forEach(cellKey => {
+        const [x, y] = cellKey.split(",").map(Number);
+        const cell = ensureCell(next, { x, y });
+        cell.surface = geography === "ocean" ? "ocean" : "land";
+        cell.geography = geography;
+      });
+    });
+  }
+
+  function toggleTagPreset(tagId: string): void {
+    setPendingTagIds(current => (current.includes(tagId) ? current.filter(item => item !== tagId) : [...current, tagId]));
+  }
+
+  function applyPendingGeographySelection(): void {
+    const targetKeys = getTargetCellKeys();
+    if (targetKeys.length === 0) return;
+    patchLayout(next => {
+      targetKeys.forEach(cellKey => {
+        const [x, y] = cellKey.split(",").map(Number);
+        const cell = ensureCell(next, { x, y });
+        if (pendingGeographyId) {
+          const preset = allGeographyPresets.find(item => item.id === pendingGeographyId);
+          if (preset) {
+            cell.surface = preset.surface;
+            cell.geography = preset.geography;
+          }
+        }
+        if (pendingTagIds.length > 0) {
+          cell.tags = Array.from(new Set([...(cell.tags ?? []), ...pendingTagIds]));
+        }
+      });
+    });
+  }
+
+  function saveCustomGeography(): void {
+    const slug = slugifyDraft(draftGeographyName);
+    if (!slug) return;
+    setCustomGeographies(current =>
+      current.some(item => item.id === slug)
+        ? current
+        : [...current, { id: slug, label: draftGeographyName.trim(), geography: slug, color: draftGeographyColor, surface: draftGeographySurface }]
+    );
+    setPendingGeographyId(slug);
+    setDraftGeographyName("");
+  }
+
+  function saveCustomTag(): void {
+    const slug = slugifyDraft(draftTagName);
+    if (!slug) return;
+    setCustomTags(current =>
+      current.some(item => item.id === slug)
+        ? current
+        : [...current, { id: slug, label: draftTagName.trim(), color: draftTagColor }]
+    );
+    setPendingTagIds(current => (current.includes(slug) ? current : [...current, slug]));
+    setDraftTagName("");
   }
 
   function applyJson(): void {
@@ -293,17 +440,23 @@ export function WorldMapEditorScreen(props: {
   }
 
   function createTerritoryOnCell(): void {
-    if (!selectedCell) return;
+    if (!selectedCell && selectedAreaCellKeys.length === 0) return;
     const wikiEntityId = draftTerritoryId.trim() || selectedTerritoryLoreId.trim();
     if (!wikiEntityId) return;
     patchLayout(next => {
-      const cell = ensureCell(next, selectedCell.cell);
-      cell.territoryWikiId = wikiEntityId;
+      const targetKeys = selectedAreaCellKeys.length > 0 ? selectedAreaCellKeys : selectedCellKey ? [selectedCellKey] : [];
+      targetKeys.forEach(cellKey => {
+        const [x, y] = cellKey.split(",").map(Number);
+        const cell = ensureCell(next, { x, y });
+        cell.territoryWikiId = wikiEntityId;
+      });
       const existing = next.territories.find(entry => entry.wikiEntityId === wikiEntityId);
-      if (!existing) {
+      const anchorKey = targetKeys[0];
+      const anchor = anchorKey ? next.cells.find(cell => getWorldMapCellKey(cell.cell) === anchorKey) ?? null : null;
+      if (!existing && anchor) {
         next.territories.push({
           wikiEntityId,
-          labelCell: { ...cell.cell },
+          labelCell: { ...anchor.cell },
           color: draftTerritoryColor
         });
       }
@@ -311,20 +464,26 @@ export function WorldMapEditorScreen(props: {
   }
 
   function createRegionOnCell(): void {
-    if (!selectedCell) return;
+    if (!selectedCell && selectedAreaCellKeys.length === 0) return;
     const wikiEntityId = draftRegionId.trim() || selectedRegionLoreId.trim();
-    const territoryWikiId = selectedCell.territoryWikiId ?? selectedTerritoryLoreId.trim();
+    const territoryWikiId = selectedCell?.territoryWikiId ?? selectedTerritoryLoreId.trim();
     if (!wikiEntityId) return;
     patchLayout(next => {
-      const cell = ensureCell(next, selectedCell.cell);
-      if (territoryWikiId) cell.territoryWikiId = territoryWikiId;
-      cell.regionWikiId = wikiEntityId;
+      const targetKeys = selectedAreaCellKeys.length > 0 ? selectedAreaCellKeys : selectedCellKey ? [selectedCellKey] : [];
+      targetKeys.forEach(cellKey => {
+        const [x, y] = cellKey.split(",").map(Number);
+        const cell = ensureCell(next, { x, y });
+        if (territoryWikiId) cell.territoryWikiId = territoryWikiId;
+        cell.regionWikiId = wikiEntityId;
+      });
       const existing = next.regions.find(entry => entry.wikiEntityId === wikiEntityId);
-      if (!existing) {
+      const anchorKey = targetKeys[0];
+      const anchor = anchorKey ? next.cells.find(cell => getWorldMapCellKey(cell.cell) === anchorKey) ?? null : null;
+      if (!existing && anchor) {
         next.regions.push({
           wikiEntityId,
           territoryWikiId: territoryWikiId ?? "",
-          labelCell: { ...cell.cell },
+          labelCell: { ...anchor.cell },
           color: draftRegionColor
         });
       }
@@ -416,73 +575,223 @@ export function WorldMapEditorScreen(props: {
           <section style={{ padding: 14, borderRadius: 14, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(10,14,22,0.9)", backdropFilter: "blur(10px)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 10 }}>
               <div>
-                <div style={{ fontSize: 12, fontWeight: 800, color: "#f4c967" }}>Hex</div>
+                <div style={{ fontSize: 12, fontWeight: 800, color: "#f4c967" }}>Edition hex</div>
                 <div style={{ fontSize: 16, fontWeight: 700 }}>{selectedCellKey ?? "Aucune selection"}</div>
               </div>
-              {selectedCity && (
+              <div style={{ fontSize: 12, color: "#c9d3e2", textAlign: "right" }}>
+                {selectedAreaCellKeys.length > 0 ? `${selectedAreaCellKeys.length} cases selectionnees` : "1 case active"}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+              {([
+                { id: "geography", label: "Geographie" },
+                { id: "places", label: "Ville / lieu" },
+                { id: "areas", label: "Territoire / region" }
+              ] as Array<{ id: HexTabId; label: string }>).map(tab => (
                 <button
+                  key={tab.id}
                   type="button"
-                  onClick={() => {
-                    patchLayout(next => {
-                      next.cities = next.cities.filter(city => city.id !== selectedCity.id);
-                      const cell = next.cells.find(entry => getWorldMapCellKey(entry.cell) === selectedCellKey);
-                      if (cell) cell.cityWikiId = undefined;
-                    });
+                  onClick={() => setActiveHexTab(tab.id)}
+                  style={{
+                    padding: "8px 10px",
+                    borderRadius: 8,
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    background: activeHexTab === tab.id ? "rgba(79,125,242,0.22)" : "rgba(255,255,255,0.06)",
+                    color: "#eef3ff",
+                    cursor: "pointer",
+                    fontWeight: 700,
+                    fontSize: 12
                   }}
-                  style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(255,120,120,0.24)", background: "rgba(130,28,28,0.28)", color: "#ffd7d7", cursor: "pointer", fontWeight: 700 }}
                 >
-                  Suppr ville
+                  {tab.label}
                 </button>
-              )}
+              ))}
             </div>
 
-            <div style={{ marginBottom: 12, padding: 10, borderRadius: 10, background: "rgba(255,255,255,0.04)", fontSize: 12, color: "#c9d3e2", lineHeight: 1.45 }}>
-              <div style={{ fontWeight: 800, color: "#8fb3ff", marginBottom: 6 }}>Legende</div>
-              <div>`Surface` : nature globale de la case (`land` ou `ocean`).</div>
-              <div>`Geographie` : libelle libre visible et utile pour decrire le terrain.</div>
-              <div>`Difficulte` : cout de traversee estime, plus le chiffre est haut plus le terrain est dur.</div>
-              <div>`Risque` : niveau de danger de la case, de faible a fort.</div>
-              <div>`Territoire wiki` : ID du territoire parent.</div>
-              <div>`Region wiki` : ID de la region parent.</div>
-              <div>`Tags` : mots-cles libres separes par des virgules.</div>
-            </div>
+            {activeHexTab === "geography" && (
+              <div style={{ display: "grid", gap: 8 }}>
+                <div style={{ padding: 10, borderRadius: 10, background: "rgba(255,255,255,0.04)", fontSize: 12, color: "#c9d3e2", lineHeight: 1.45 }}>
+                  <div style={{ fontWeight: 800, color: "#8fb3ff", marginBottom: 6 }}>Legende</div>
+                  <div>`Surface` : nature globale de la case (`land` ou `ocean`).</div>
+                  <div>`Geographie` : description libre du terrain.</div>
+                  <div>`Difficulte` : cout de traversee.</div>
+                  <div>`Risque` : danger de la case.</div>
+                  <div>`Tags` : mots-cles libres.</div>
+                  <div style={{ marginTop: 6 }}>
+                    Astuce : la selection multi-cases peut aussi servir ici pour appliquer un biome ou des tags sur plusieurs hex.
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    onClick={() => setAreaSelectionMode(value => !value)}
+                    style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: areaSelectionMode ? "rgba(79,125,242,0.22)" : "rgba(255,255,255,0.06)", color: "#eef3ff", cursor: "pointer", fontWeight: 700 }}
+                  >
+                    Selection multi-cases
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedAreaCellKeys([])}
+                    style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)", color: "#eef3ff", cursor: "pointer" }}
+                  >
+                    Vider selection
+                  </button>
+                </div>
+                <div style={{ fontSize: 12, color: "#c9d3e2" }}>
+                  Cases ciblees: {selectedAreaCellKeys.length > 0 ? selectedAreaCellKeys.join(" | ") : selectedCellKey ?? "aucune"}
+                </div>
+                <div style={{ display: "grid", gap: 6 }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff" }}>Types de geographie</div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {allGeographyPresets.map(preset => (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => setPendingGeographyId(preset.id)}
+                        style={{
+                          padding: "8px 10px",
+                          borderRadius: 999,
+                          border: pendingGeographyId === preset.id ? "1px solid rgba(255,255,255,0.66)" : "1px solid rgba(255,255,255,0.14)",
+                          background: preset.color,
+                          color: "#f8fbff",
+                          cursor: "pointer",
+                          fontWeight: 700,
+                          fontSize: 12,
+                          boxShadow: pendingGeographyId === preset.id ? "0 0 0 2px rgba(255,255,255,0.18) inset" : "none"
+                        }}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ display: "grid", gap: 8, padding: 10, borderRadius: 10, background: "rgba(255,255,255,0.04)" }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff" }}>Creer un type de geographie</div>
+                  <input
+                    value={draftGeographyName}
+                    placeholder="Nom du type"
+                    onChange={event => setDraftGeographyName(event.target.value)}
+                    style={FIELD_STYLE}
+                  />
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    <input type="color" value={draftGeographyColor} onChange={event => setDraftGeographyColor(event.target.value)} />
+                    <input
+                      value={draftGeographyColor}
+                      onChange={event => setDraftGeographyColor(event.target.value)}
+                      style={{ ...FIELD_STYLE, maxWidth: 120 }}
+                    />
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#dce5f2" }}>
+                      Type
+                      <select value={draftGeographySurface} onChange={event => setDraftGeographySurface(event.target.value === "ocean" ? "ocean" : "land")} style={{ ...FIELD_STYLE, width: 110, padding: "6px 8px" }}>
+                        <option value="land">terre</option>
+                        <option value="ocean">ocean</option>
+                      </select>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={saveCustomGeography}
+                      disabled={!slugifyDraft(draftGeographyName)}
+                      style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)", color: "#eef3ff", cursor: slugifyDraft(draftGeographyName) ? "pointer" : "not-allowed", opacity: slugifyDraft(draftGeographyName) ? 1 : 0.55 }}
+                    >
+                      Sauvegarder type
+                    </button>
+                  </div>
+                </div>
+                <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                  Surface
+                  <select value={selectedCell?.surface ?? "ocean"} onChange={event => updateSelectedCell("surface", event.target.value)} style={FIELD_STYLE}>
+                    <option value="land">land</option>
+                    <option value="ocean">ocean</option>
+                  </select>
+                </label>
+                <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                  Geographie
+                  <input value={selectedCell?.geography ?? ""} onChange={event => updateSelectedCell("geography", event.target.value)} style={FIELD_STYLE} />
+                </label>
+                <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                  Difficulte
+                  <input type="number" value={selectedCell?.terrainDifficulty ?? 1} onChange={event => updateSelectedCell("terrainDifficulty", event.target.value)} style={FIELD_STYLE} />
+                </label>
+                <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                  Risque
+                  <input type="number" value={selectedCell?.riskLevel ?? 1} onChange={event => updateSelectedCell("riskLevel", event.target.value)} style={FIELD_STYLE} />
+                </label>
+                <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                  Tags
+                  <input value={(selectedCell?.tags ?? []).join(", ")} onChange={event => updateSelectedCell("tags", event.target.value)} style={FIELD_STYLE} />
+                </label>
+                <div style={{ display: "grid", gap: 6 }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff" }}>Tags proposes</div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {allTagPresets.map(tag => {
+                      const active = pendingTagIds.includes(tag.id);
+                      return (
+                        <button
+                          key={tag.id}
+                          type="button"
+                          onClick={() => toggleTagPreset(tag.id)}
+                          style={{
+                            padding: "8px 10px",
+                            borderRadius: 999,
+                            border: active ? "1px solid rgba(255,255,255,0.6)" : "1px solid rgba(255,255,255,0.14)",
+                            background: tag.color,
+                            color: "#f8fbff",
+                            cursor: "pointer",
+                            fontWeight: 700,
+                            fontSize: 12,
+                            boxShadow: active ? "0 0 0 2px rgba(255,255,255,0.18) inset" : "none"
+                          }}
+                        >
+                          {tag.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div style={{ display: "grid", gap: 8, padding: 10, borderRadius: 10, background: "rgba(255,255,255,0.04)" }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff" }}>Creer un tag</div>
+                  <input
+                    value={draftTagName}
+                    placeholder="Nom du tag"
+                    onChange={event => setDraftTagName(event.target.value)}
+                    style={FIELD_STYLE}
+                  />
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    <input type="color" value={draftTagColor} onChange={event => setDraftTagColor(event.target.value)} />
+                    <input value={draftTagColor} onChange={event => setDraftTagColor(event.target.value)} style={{ ...FIELD_STYLE, maxWidth: 120 }} />
+                    <button
+                      type="button"
+                      onClick={saveCustomTag}
+                      disabled={!slugifyDraft(draftTagName)}
+                      style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)", color: "#eef3ff", cursor: slugifyDraft(draftTagName) ? "pointer" : "not-allowed", opacity: slugifyDraft(draftTagName) ? 1 : 0.55 }}
+                    >
+                      Sauvegarder tag
+                    </button>
+                  </div>
+                </div>
+                <div style={{ display: "grid", gap: 6, padding: 10, borderRadius: 10, background: "rgba(255,255,255,0.04)" }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff" }}>Preparation avant application</div>
+                  <div style={{ fontSize: 12, color: "#c9d3e2" }}>
+                    Geographie choisie: {allGeographyPresets.find(item => item.id === pendingGeographyId)?.label ?? "aucune"}
+                  </div>
+                  <div style={{ fontSize: 12, color: "#c9d3e2" }}>
+                    Tags choisis: {pendingTagIds.length > 0 ? pendingTagIds.join(", ") : "aucun"}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={applyPendingGeographySelection}
+                    disabled={!pendingGeographyId && pendingTagIds.length === 0}
+                    style={{ padding: "9px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(79,125,242,0.22)", color: "#eef3ff", cursor: pendingGeographyId || pendingTagIds.length > 0 ? "pointer" : "not-allowed", fontWeight: 700, opacity: pendingGeographyId || pendingTagIds.length > 0 ? 1 : 0.55 }}
+                  >
+                    Appliquer a la selection
+                  </button>
+                </div>
+              </div>
+            )}
 
-            <div style={{ display: "grid", gap: 8 }}>
-              <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                Surface
-                <select value={selectedCell?.surface ?? "ocean"} onChange={event => updateSelectedCell("surface", event.target.value)}>
-                  <option value="land">land</option>
-                  <option value="ocean">ocean</option>
-                </select>
-              </label>
-              <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                Geographie
-                <input value={selectedCell?.geography ?? ""} onChange={event => updateSelectedCell("geography", event.target.value)} />
-              </label>
-              <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                Difficulte
-                <input type="number" value={selectedCell?.terrainDifficulty ?? 1} onChange={event => updateSelectedCell("terrainDifficulty", event.target.value)} />
-              </label>
-              <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                Risque
-                <input type="number" value={selectedCell?.riskLevel ?? 1} onChange={event => updateSelectedCell("riskLevel", event.target.value)} />
-              </label>
-              <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                Territoire wiki
-                <input value={selectedCell?.territoryWikiId ?? ""} onChange={event => updateSelectedCell("territoryWikiId", event.target.value)} />
-              </label>
-              <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                Region wiki
-                <input value={selectedCell?.regionWikiId ?? ""} onChange={event => updateSelectedCell("regionWikiId", event.target.value)} />
-              </label>
-              <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                Tags
-                <input value={(selectedCell?.tags ?? []).join(", ")} onChange={event => updateSelectedCell("tags", event.target.value)} />
-              </label>
-            </div>
-
-            <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.08)", display: "grid", gap: 8 }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff" }}>Ville / lieu</div>
+            {activeHexTab === "places" && (
+              <div style={{ display: "grid", gap: 8 }}>
               <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
                 Ville du lore
                 <select value={selectedLoreCityId} onChange={event => setSelectedLoreCityId(event.target.value)}>
@@ -565,10 +874,33 @@ export function WorldMapEditorScreen(props: {
                   )}
                 </>
               )}
-            </div>
+              </div>
+            )}
 
-            <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.08)", display: "grid", gap: 8 }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff" }}>Territoire / region</div>
+            {activeHexTab === "areas" && (
+              <div style={{ display: "grid", gap: 8 }}>
+              <div style={{ fontSize: 12, color: "#c9d3e2", lineHeight: 1.45 }}>
+                Active la selection multi-cases, puis clique sur plusieurs hex pour definir une emprise de territoire ou de region.
+              </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  onClick={() => setAreaSelectionMode(value => !value)}
+                  style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: areaSelectionMode ? "rgba(79,125,242,0.22)" : "rgba(255,255,255,0.06)", color: "#eef3ff", cursor: "pointer", fontWeight: 700 }}
+                >
+                  Selection multi-cases
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedAreaCellKeys([])}
+                  style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)", color: "#eef3ff", cursor: "pointer" }}
+                >
+                  Vider selection
+                </button>
+              </div>
+              <div style={{ fontSize: 12, color: "#c9d3e2" }}>
+                Cases ciblees: {selectedAreaCellKeys.length > 0 ? selectedAreaCellKeys.join(" | ") : selectedCellKey ?? "aucune"}
+              </div>
               <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
                 Territoire du lore
                 <select value={selectedTerritoryLoreId} onChange={event => setSelectedTerritoryLoreId(event.target.value)}>
@@ -624,17 +956,10 @@ export function WorldMapEditorScreen(props: {
               >
                 Creer / appliquer region
               </button>
-            </div>
+              </div>
+            )}
 
             <div style={{ marginTop: 12, fontSize: 12, color: "#c9d3e2", lineHeight: 1.45 }}>
-              <div>Territoire: {selectedTerritoryWiki?.name ?? selectedCell?.territoryWikiId ?? "Aucun"}</div>
-              <div>Region: {selectedRegionWiki?.name ?? selectedCell?.regionWikiId ?? "Aucune"}</div>
-              <div>
-                Lieux rattaches: {selectedCell?.locationWikiIds?.length ? selectedCell.locationWikiIds.join(", ") : "aucun"}
-              </div>
-              {!wikiLoading && !wikiError && selectedCityWiki && (
-                <div>Factions: {getFrontMatterList(selectedCityWiki.frontMatter, "factions_presentes").join(", ") || "aucune"}</div>
-              )}
               {(wikiCatalogLoading || wikiCatalogError) && (
                 <div>Catalogue lore: {wikiCatalogLoading ? "chargement..." : `erreur ${wikiCatalogError}`}</div>
               )}
@@ -804,6 +1129,7 @@ export function WorldMapEditorScreen(props: {
         layout={layout}
         layerVisibility={layerVisibility}
         selectedCellKey={selectedCellKey}
+        highlightedCellKeys={selectedAreaCellKeys}
         selectedCityId={selectedCity?.id ?? null}
         selectedRouteId={selectedRouteId}
         routeEditorActive={routeEditorActive}
@@ -813,6 +1139,12 @@ export function WorldMapEditorScreen(props: {
           setSelectedCellKey(key);
           if (routeEditorActive) {
             addRoutePoint(cell);
+            return;
+          }
+          if (areaSelectionMode) {
+            setSelectedAreaCellKeys(current =>
+              current.includes(key) ? current.filter(item => item !== key) : [...current, key]
+            );
           }
         }}
         onCityClick={cityId => {
@@ -821,7 +1153,71 @@ export function WorldMapEditorScreen(props: {
           setSelectedCellKey(getWorldMapCellKey(city.cell));
         }}
         minHeight="calc(100vh - 180px)"
-        overlay={overlay}
+        overlay={
+          <>
+            {overlay}
+            <div
+              style={{
+                position: "absolute",
+                left: hexModalPosition.x,
+                top: hexModalPosition.y,
+                zIndex: 6,
+                width: 300,
+                padding: 12,
+                borderRadius: 14,
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "rgba(10,14,22,0.92)",
+                backdropFilter: "blur(10px)",
+                boxShadow: "0 14px 40px rgba(0,0,0,0.35)"
+              }}
+            >
+              <div
+                onMouseDown={event => {
+                  hexModalDragRef.current = {
+                    startX: event.clientX,
+                    startY: event.clientY,
+                    originX: hexModalPosition.x,
+                    originY: hexModalPosition.y
+                  };
+                }}
+                style={{ cursor: "grab", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 8 }}
+              >
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: "#f4c967" }}>Analyse hex</div>
+                  <div style={{ fontSize: 16, fontWeight: 700 }}>{selectedCellKey ?? "Aucune selection"}</div>
+                </div>
+                {selectedCity && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      patchLayout(next => {
+                        next.cities = next.cities.filter(city => city.id !== selectedCity.id);
+                        const cell = next.cells.find(entry => getWorldMapCellKey(entry.cell) === selectedCellKey);
+                        if (cell) cell.cityWikiId = undefined;
+                      });
+                    }}
+                    style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(255,120,120,0.24)", background: "rgba(130,28,28,0.28)", color: "#ffd7d7", cursor: "pointer", fontWeight: 700 }}
+                  >
+                    Suppr ville
+                  </button>
+                )}
+              </div>
+              <div style={{ display: "grid", gap: 6, fontSize: 12, color: "#dce5f2", lineHeight: 1.45 }}>
+                <div>Surface: {selectedCell?.surface ?? "ocean"}</div>
+                <div>Geographie: {selectedCell?.geography ?? "ocean"}</div>
+                <div>Difficulte: {selectedCell?.terrainDifficulty ?? 4}</div>
+                <div>Risque: {selectedCell?.riskLevel ?? 2}</div>
+                <div>Territoire: {selectedTerritoryWiki?.name ?? selectedCell?.territoryWikiId ?? "Aucun"}</div>
+                <div>Region: {selectedRegionWiki?.name ?? selectedCell?.regionWikiId ?? "Aucune"}</div>
+                <div>Ville: {selectedCityWiki?.name ?? selectedCell?.cityWikiId ?? "Aucune"}</div>
+                <div>Lieux: {selectedCell?.locationWikiIds?.length ? selectedCell.locationWikiIds.join(", ") : "aucun"}</div>
+                {!wikiLoading && !wikiError && selectedCityWiki && (
+                  <div>Factions: {getFrontMatterList(selectedCityWiki.frontMatter, "factions_presentes").join(", ") || "aucune"}</div>
+                )}
+              </div>
+            </div>
+          </>
+        }
       />
     </div>
   );

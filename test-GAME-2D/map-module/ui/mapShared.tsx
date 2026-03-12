@@ -18,6 +18,34 @@ export type WikiEntry = {
   body: string;
 };
 
+export const GEOGRAPHY_PRESET_COLORS: Record<string, string> = {
+  ocean: "rgba(52,107,166,0.44)",
+  plaine: "rgba(154,127,81,0.24)",
+  colline: "rgba(168,138,92,0.30)",
+  foret_claire: "rgba(92,136,92,0.28)",
+  foret_dense: "rgba(58,104,63,0.34)",
+  marais: "rgba(77,113,92,0.34)",
+  montagne: "rgba(118,118,128,0.30)",
+  desert: "rgba(196,168,102,0.30)",
+  cote: "rgba(112,148,120,0.30)",
+  toundra: "rgba(158,176,186,0.28)",
+  jungle: "rgba(44,112,68,0.34)",
+  urbain: "rgba(126,109,133,0.30)"
+};
+
+export const TAG_PRESET_COLORS: Record<string, string> = {
+  maritime: "#5fa8d3",
+  commerce: "#d2a95a",
+  dangereux: "#d76c6c",
+  sacre: "#b99cf2",
+  ruines: "#8e7f72",
+  frontalier: "#9dc27f",
+  agricole: "#c3b064",
+  minier: "#8d98a8",
+  forestier: "#5da06d",
+  urbain: "#c08ad6"
+};
+
 const HEX_START_ANGLE = -Math.PI / 2;
 const ZOOM_MIN = 0.35;
 const ZOOM_MAX = 3;
@@ -264,6 +292,31 @@ export function createDefaultCellData(cell: MapCell): MapCellData {
   };
 }
 
+function normalizeSlug(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+export function resolveGeographyColor(geography: string, surface: "land" | "ocean"): string {
+  if (surface === "ocean") return GEOGRAPHY_PRESET_COLORS.ocean;
+  const normalized = normalizeSlug(geography);
+  if (GEOGRAPHY_PRESET_COLORS[normalized]) return GEOGRAPHY_PRESET_COLORS[normalized];
+  if (normalized.includes("foret") && normalized.includes("dense")) return GEOGRAPHY_PRESET_COLORS.foret_dense;
+  if (normalized.includes("foret")) return GEOGRAPHY_PRESET_COLORS.foret_claire;
+  if (normalized.includes("mont")) return GEOGRAPHY_PRESET_COLORS.montagne;
+  if (normalized.includes("marais")) return GEOGRAPHY_PRESET_COLORS.marais;
+  if (normalized.includes("colline")) return GEOGRAPHY_PRESET_COLORS.colline;
+  if (normalized.includes("plaine")) return GEOGRAPHY_PRESET_COLORS.plaine;
+  if (normalized.includes("desert")) return GEOGRAPHY_PRESET_COLORS.desert;
+  if (normalized.includes("cote")) return GEOGRAPHY_PRESET_COLORS.cote;
+  if (normalized.includes("urb")) return GEOGRAPHY_PRESET_COLORS.urbain;
+  return "rgba(154,127,81,0.20)";
+}
+
 export function getRenderableCells(layout: WorldMapLayout): MapCellData[] {
   const cellsByKey = new Map(layout.cells.map(cell => [getWorldMapCellKey(cell.cell), cell]));
   const cells: MapCellData[] = [];
@@ -292,6 +345,7 @@ export function MapCanvas(props: {
   layout: WorldMapLayout;
   layerVisibility: Record<MapLayerId, boolean>;
   selectedCellKey: string | null;
+  highlightedCellKeys?: string[];
   selectedCityId?: string | null;
   selectedRouteId?: string | null;
   routeEditorActive?: boolean;
@@ -475,25 +529,18 @@ export function MapCanvas(props: {
         >
           {renderableCells.map(cell => {
             const isSelected = getWorldMapCellKey(cell.cell) === props.selectedCellKey;
+            const isHighlighted = (props.highlightedCellKeys ?? []).includes(getWorldMapCellKey(cell.cell));
             const fill =
               !props.layerVisibility.landWater
                 ? "rgba(255,255,255,0.02)"
-                : cell.surface === "ocean"
-                  ? "rgba(52,107,166,0.44)"
-                  : cell.regionWikiId === "ardherne"
-                    ? "rgba(88,129,77,0.30)"
-                    : cell.regionWikiId === "orthevar"
-                      ? "rgba(150,136,77,0.28)"
-                      : cell.regionWikiId === "ylssea"
-                        ? "rgba(84,123,146,0.34)"
-                        : "rgba(154,127,81,0.20)";
+                : resolveGeographyColor(cell.geography, cell.surface);
             return (
               <polygon
                 key={getWorldMapCellKey(cell.cell)}
                 points={getCellPolygon(props.layout, cell.cell)}
-                fill={isSelected ? "rgba(244,201,103,0.28)" : fill}
-                stroke={props.layerVisibility.grid ? "rgba(231,239,255,0.14)" : "transparent"}
-                strokeWidth="1"
+                fill={isSelected ? "rgba(244,201,103,0.28)" : isHighlighted ? "rgba(122, 195, 255, 0.22)" : fill}
+                stroke={isSelected ? "rgba(244,201,103,0.95)" : isHighlighted ? "rgba(122,195,255,0.9)" : props.layerVisibility.grid ? "rgba(231,239,255,0.14)" : "transparent"}
+                strokeWidth={isSelected || isHighlighted ? "2" : "1"}
                 style={{ cursor: "pointer" }}
                 onClick={() => props.onCellClick(cell.cell)}
               />
