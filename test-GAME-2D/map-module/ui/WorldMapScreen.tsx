@@ -1,12 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { WORLD_MAP_LAYOUT, type WorldMapLayout } from "../data/worldMapLayout";
 import { WorldMapEditorScreen } from "./WorldMapEditorScreen";
 import { WorldMapViewerScreen } from "./WorldMapViewerScreen";
+import { fetchWorldMapLayout } from "./mapShared";
 
 export function WorldMapScreen(props: {
   onBack: () => void;
 }): React.JSX.Element {
   const [mode, setMode] = useState<"viewer" | "editor">("viewer");
+  const [layout, setLayout] = useState<WorldMapLayout>(WORLD_MAP_LAYOUT);
+  const [layoutLoading, setLayoutLoading] = useState<boolean>(true);
+  const [layoutError, setLayoutError] = useState<string | null>(null);
 
   useEffect(() => {
     if (mode !== "editor") return;
@@ -16,6 +21,28 @@ export function WorldMapScreen(props: {
       document.body.style.overflow = previousOverflow;
     };
   }, [mode]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadLayout() {
+      setLayoutLoading(true);
+      setLayoutError(null);
+      try {
+        const nextLayout = await fetchWorldMapLayout();
+        if (!cancelled) setLayout(nextLayout);
+      } catch (error) {
+        if (!cancelled) {
+          setLayoutError(error instanceof Error ? error.message : "Chargement carte impossible.");
+        }
+      } finally {
+        if (!cancelled) setLayoutLoading(false);
+      }
+    }
+    void loadLayout();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <>
@@ -36,9 +63,12 @@ export function WorldMapScreen(props: {
           >
             Retour combat
           </button>
+          <div style={{ fontSize: 12, color: layoutError ? "#ff9d76" : "#c8d0de" }}>
+            {layoutLoading ? "Chargement carte..." : layoutError ? `Erreur carte: ${layoutError}` : `Carte chargee: ${layout.title}`}
+          </div>
         </div>
 
-        <WorldMapViewerScreen onOpenEditor={() => setMode("editor")} />
+        <WorldMapViewerScreen layout={layout} onOpenEditor={() => setMode("editor")} />
       </div>
 
       {mode === "editor" &&
@@ -62,7 +92,14 @@ export function WorldMapScreen(props: {
                 flexDirection: "column"
               }}
             >
-              <WorldMapEditorScreen onCloseEditor={() => setMode("viewer")} />
+              <WorldMapEditorScreen
+                initialLayout={layout}
+                onCloseEditor={nextLayout => {
+                  setLayout(nextLayout);
+                  setMode("viewer");
+                }}
+                onLayoutSaved={nextLayout => setLayout(nextLayout)}
+              />
             </div>
           </div>,
           document.body

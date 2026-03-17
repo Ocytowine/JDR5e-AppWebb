@@ -81,7 +81,7 @@ function sendJson(res, statusCode, data) {
     "Content-Type": "application/json",
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Allow-Methods": "POST, OPTIONS"
+    "Access-Control-Allow-Methods": "GET, POST, PUT, OPTIONS"
   });
   res.end(body);
 }
@@ -289,7 +289,8 @@ const narrationModuleApi = createNarrationModuleApi({
 
 const mapModuleApi = createMapModuleApi({
   projectRoot: __dirname,
-  sendJson
+  sendJson,
+  parseJsonBody
 });
 
 // ----------------------------------------------------
@@ -302,7 +303,7 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(204, {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Headers": "Content-Type",
-      "Access-Control-Allow-Methods": "POST, OPTIONS"
+      "Access-Control-Allow-Methods": "GET, POST, PUT, OPTIONS"
     });
     res.end();
     return;

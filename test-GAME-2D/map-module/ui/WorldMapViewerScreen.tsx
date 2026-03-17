@@ -1,22 +1,32 @@
-import React, { useMemo, useState } from "react";
-import { WORLD_MAP_LAYOUT, getWorldMapCellKey, type MapLayerId } from "../data/worldMapLayout";
+import React, { useEffect, useMemo, useState } from "react";
+import { getWorldMapCellKey, type MapLayerId, type WorldMapLayout } from "../data/worldMapLayout";
 import { MapCanvas, getFrontMatterList, useWikiEntries } from "./mapShared";
 
 export function WorldMapViewerScreen(props: {
+  layout: WorldMapLayout;
   onOpenEditor: () => void;
 }): React.JSX.Element {
   const [selectedCellKey, setSelectedCellKey] = useState<string>(getWorldMapCellKey({ x: 13, y: 11 }));
-  const [selectedCityId, setSelectedCityId] = useState<string>(WORLD_MAP_LAYOUT.cities[0]?.id ?? "");
-  const [layerVisibility, setLayerVisibility] = useState<Record<MapLayerId, boolean>>(WORLD_MAP_LAYOUT.defaultLayers);
+  const [selectedCityId, setSelectedCityId] = useState<string>(props.layout.cities[0]?.id ?? "");
+  const [layerVisibility, setLayerVisibility] = useState<Record<MapLayerId, boolean>>(props.layout.defaultLayers);
   const [layersOpen, setLayersOpen] = useState<boolean>(false);
-  const { wikiEntriesById, wikiLoading, wikiError } = useWikiEntries(WORLD_MAP_LAYOUT);
+  const { wikiEntriesById, wikiLoading, wikiError } = useWikiEntries(props.layout);
+
+  useEffect(() => {
+    setLayerVisibility(props.layout.defaultLayers);
+    setSelectedCityId(props.layout.cities[0]?.id ?? "");
+    setSelectedCellKey(current => {
+      const exists = props.layout.cells.some(cell => getWorldMapCellKey(cell.cell) === current);
+      return exists ? current : getWorldMapCellKey({ x: 13, y: 11 });
+    });
+  }, [props.layout]);
 
   const selectedCell =
-    WORLD_MAP_LAYOUT.cells.find(cell => getWorldMapCellKey(cell.cell) === selectedCellKey) ?? null;
+    props.layout.cells.find(cell => getWorldMapCellKey(cell.cell) === selectedCellKey) ?? null;
   const selectedCity =
-    WORLD_MAP_LAYOUT.cities.find(city => city.id === selectedCityId) ??
-    WORLD_MAP_LAYOUT.cities.find(city => city.wikiEntityId === selectedCell?.cityWikiId) ??
-    WORLD_MAP_LAYOUT.cities[0];
+    props.layout.cities.find(city => city.id === selectedCityId) ??
+    props.layout.cities.find(city => city.wikiEntityId === selectedCell?.cityWikiId) ??
+    props.layout.cities[0];
   const selectedTerritoryWiki = selectedCell?.territoryWikiId ? wikiEntriesById[selectedCell.territoryWikiId] : null;
   const selectedRegionWiki = selectedCell?.regionWikiId ? wikiEntriesById[selectedCell.regionWikiId] : null;
   const selectedCityWiki = selectedCity?.wikiEntityId ? wikiEntriesById[selectedCity.wikiEntityId] : null;
@@ -31,7 +41,7 @@ export function WorldMapViewerScreen(props: {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <div>
           <div style={{ fontSize: 12, color: "#8fb3ff", fontWeight: 800, letterSpacing: 0.8 }}>CARTE</div>
-          <h3 style={{ margin: "4px 0 0", fontSize: 22 }}>{WORLD_MAP_LAYOUT.title}</h3>
+          <h3 style={{ margin: "4px 0 0", fontSize: 22 }}>{props.layout.title}</h3>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button
@@ -93,19 +103,19 @@ export function WorldMapViewerScreen(props: {
       )}
 
       <MapCanvas
-        layout={WORLD_MAP_LAYOUT}
+        layout={props.layout}
         layerVisibility={layerVisibility}
         selectedCellKey={selectedCellKey}
         selectedCityId={selectedCity?.id ?? null}
         wikiEntriesById={wikiEntriesById}
         onCellClick={cell => {
           setSelectedCellKey(getWorldMapCellKey(cell));
-          const city = WORLD_MAP_LAYOUT.cities.find(item => getWorldMapCellKey(item.cell) === getWorldMapCellKey(cell));
+          const city = props.layout.cities.find(item => getWorldMapCellKey(item.cell) === getWorldMapCellKey(cell));
           if (city) setSelectedCityId(city.id);
         }}
         onCityClick={cityId => {
           setSelectedCityId(cityId);
-          const city = WORLD_MAP_LAYOUT.cities.find(item => item.id === cityId);
+          const city = props.layout.cities.find(item => item.id === cityId);
           if (city) setSelectedCellKey(getWorldMapCellKey(city.cell));
         }}
         minHeight="calc(100vh - 280px)"
