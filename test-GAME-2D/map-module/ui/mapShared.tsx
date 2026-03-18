@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createGridAdapter } from "../../src/ui/grid";
 import {
   createRuntimeWorldMapLayout,
-  type CliffSegment,
   getWorldMapCellKey,
   serializeWorldMapLayout,
   type MapCell,
@@ -12,6 +11,14 @@ import {
   type WorldMapLayout,
   type WorldMapLayoutSource
 } from "../data/worldMapLayout";
+import { computeCliffOverlay, getSharedHexEdge } from "./cliffOverlayHelpers";
+import {
+  buildCellFeatureIndex,
+  buildRiverVisualData,
+  getRiverFlowValue,
+  getRiverStrokeWidth,
+  getRoadStrokeWidth
+} from "./mapTraversal";
 
 export type WikiEntry = {
   id: string;
@@ -24,18 +31,18 @@ export type WikiEntry = {
 };
 
 export const GEOGRAPHY_PRESET_COLORS: Record<string, string> = {
-  ocean: "rgba(52,107,166,0.44)",
-  plaine: "rgba(154,127,81,0.24)",
-  colline: "rgba(168,138,92,0.30)",
-  foret_claire: "rgba(92,136,92,0.28)",
-  foret_dense: "rgba(58,104,63,0.34)",
-  marais: "rgba(77,113,92,0.34)",
-  montagne: "rgba(118,118,128,0.30)",
-  desert: "rgba(196,168,102,0.30)",
-  cote: "rgba(112,148,120,0.30)",
-  toundra: "rgba(158,176,186,0.28)",
-  jungle: "rgba(44,112,68,0.34)",
-  urbain: "rgba(126,109,133,0.30)"
+  ocean: "rgba(76,132,196,0.78)",
+  plaine: "rgba(171,145,99,0.56)",
+  colline: "rgba(178,148,104,0.62)",
+  foret_claire: "rgba(103,150,103,0.58)",
+  foret_dense: "rgba(67,115,72,0.66)",
+  marais: "rgba(89,125,103,0.64)",
+  montagne: "rgba(132,132,144,0.62)",
+  desert: "rgba(206,180,115,0.62)",
+  cote: "rgba(124,162,132,0.58)",
+  toundra: "rgba(173,190,198,0.56)",
+  jungle: "rgba(55,124,77,0.68)",
+  urbain: "rgba(138,121,145,0.60)"
 };
 
 export const TAG_PRESET_COLORS: Record<string, string> = {
@@ -184,6 +191,108 @@ export function computeBorderSegments(
   });
 
   return segments;
+}
+
+function buildRiverArrowTransform(layout: WorldMapLayout, cells: MapCell[]): string | null {
+  if (cells.length < 2) return null;
+  const segmentIndex = Math.floor((cells.length - 1) / 2);
+  const start = getCellCenter(layout, cells[segmentIndex]);
+  const end = getCellCenter(layout, cells[segmentIndex + 1]);
+  const x = start.x + (end.x - start.x) * 0.58;
+  const y = start.y + (end.y - start.y) * 0.58;
+  const angle = Math.atan2(end.y - start.y, end.x - start.x) * (180 / Math.PI);
+  return `translate(${x} ${y}) rotate(${angle})`;
+}
+
+function getCoastalSegmentEndpoints(
+  layout: WorldMapLayout,
+  from: MapCell,
+  to: MapCell
+): { start: { x: number; y: number }; end: { x: number; y: number } } {
+  const fromCenter = getCellCenter(layout, from);
+  const toCenter = getCellCenter(layout, to);
+  const fromCellData = layout.cells.find(cell => getWorldMapCellKey(cell.cell) === getWorldMapCellKey(from)) ?? null;
+  const toCellData = layout.cells.find(cell => getWorldMapCellKey(cell.cell) === getWorldMapCellKey(to)) ?? null;
+  if (!fromCellData || !toCellData || fromCellData.surface === toCellData.surface) {
+    return { start: fromCenter, end: toCenter };
+  }
+
+  const sharedEdge = getSharedHexEdge(layout, from, to);
+  if (!sharedEdge) {
+    return { start: fromCenter, end: toCenter };
+  }
+
+  const coastMid = {
+    x: (sharedEdge.start.x + sharedEdge.end.x) / 2,
+    y: (sharedEdge.start.y + sharedEdge.end.y) / 2
+  };
+  if (fromCellData.surface === "land") {
+    return { start: fromCenter, end: coastMid };
+  }
+  return { start: toCenter, end: coastMid };
+}
+
+function getCliffSegmentBetweenCells(layout: WorldMapLayout, first: MapCell, second: MapCell) {
+  const firstKey = getWorldMapCellKey(first);
+  const secondKey = getWorldMapCellKey(second);
+  return (
+    layout.cliffSegments.find(segment => {
+      const aKey = getWorldMapCellKey(segment.a);
+      const bKey = getWorldMapCellKey(segment.b);
+      return (aKey === firstKey && bKey === secondKey) || (aKey === secondKey && bKey === firstKey);
+    }) ?? null
+  );
+}
+
+function buildWaterfallPath(layout: WorldMapLayout, highCell: MapCell, lowCell: MapCell): { path: string; transform: string } | null {
+  const edge = getSharedHexEdge(layout, highCell, lowCell);
+  if (!edge) return null;
+  const center = getCellCenter(layout, lowCell);
+  const mid = {
+    x: (edge.start.x + edge.end.x) / 2,
+    y: (edge.start.y + edge.end.y) / 2
+  };
+  const edgeVector = {
+    x: edge.end.x - edge.start.x,
+    y: edge.end.y - edge.start.y
+  };
+  const edgeLength = Math.hypot(edgeVector.x, edgeVector.y) || 1;
+  const tangent = {
+    x: edgeVector.x / edgeLength,
+    y: edgeVector.y / edgeLength
+  };
+  const normals = [
+    { x: -tangent.y, y: tangent.x },
+    { x: tangent.y, y: -tangent.x }
+  ];
+  const toLowCell = {
+    x: center.x - mid.x,
+    y: center.y - mid.y
+  };
+  const normal =
+    normals[0].x * toLowCell.x + normals[0].y * toLowCell.y >= normals[1].x * toLowCell.x + normals[1].y * toLowCell.y
+      ? normals[0]
+      : normals[1];
+  const halfWidth = Math.min(12, edgeLength * 0.32);
+  const depth = 8;
+  const path = `M ${-halfWidth} 0 Q 0 ${depth} ${halfWidth} 0 L ${-halfWidth} 0 Z`;
+  return {
+    path,
+    transform: `matrix(${tangent.x} ${tangent.y} ${normal.x} ${normal.y} ${mid.x} ${mid.y})`
+  };
+}
+
+function getFeatureLabelTransform(layout: WorldMapLayout, cells: MapCell[]): { x: number; y: number; angle: number } | null {
+  if (cells.length < 2) return null;
+  const segmentIndex = Math.floor((cells.length - 1) / 2);
+  const start = getCellCenter(layout, cells[segmentIndex]);
+  const end = getCellCenter(layout, cells[segmentIndex + 1]);
+  const x = (start.x + end.x) / 2;
+  const y = (start.y + end.y) / 2;
+  let angle = Math.atan2(end.y - start.y, end.x - start.x) * (180 / Math.PI);
+  if (angle > 90) angle -= 180;
+  if (angle < -90) angle += 180;
+  return { x, y, angle };
 }
 
 export function computeGeographyOverlay(layout: WorldMapLayout): {
@@ -369,73 +478,6 @@ export function computeReliefOverlay(layout: WorldMapLayout): {
         level: cell.reliefElevation
       }))
   };
-}
-
-function samePoint(a: { x: number; y: number }, b: { x: number; y: number }): boolean {
-  return Math.abs(a.x - b.x) < 0.001 && Math.abs(a.y - b.y) < 0.001;
-}
-
-function getCellPolygonPoints(layout: WorldMapLayout, cell: MapCell): Array<{ x: number; y: number }> {
-  return getCellPolygon(layout, cell).split(" ").map(point => {
-    const [x, y] = point.split(",").map(Number);
-    return { x, y };
-  });
-}
-
-export function getSharedHexEdge(layout: WorldMapLayout, a: MapCell, b: MapCell): { start: { x: number; y: number }; end: { x: number; y: number } } | null {
-  const aPoints = getCellPolygonPoints(layout, a);
-  const bPoints = getCellPolygonPoints(layout, b);
-  for (let i = 0; i < aPoints.length; i += 1) {
-    const start = aPoints[i];
-    const end = aPoints[(i + 1) % aPoints.length];
-    for (let j = 0; j < bPoints.length; j += 1) {
-      const otherStart = bPoints[j];
-      const otherEnd = bPoints[(j + 1) % bPoints.length];
-      if ((samePoint(start, otherEnd) && samePoint(end, otherStart)) || (samePoint(start, otherStart) && samePoint(end, otherEnd))) {
-        return { start, end };
-      }
-    }
-  }
-  return null;
-}
-
-export function computeCliffOverlay(layout: WorldMapLayout): Array<{
-  key: string;
-  line: string;
-  shadow: string;
-  highCell: MapCell;
-  lowCell: MapCell;
-}> {
-  return layout.cliffSegments
-    .map((segment: CliffSegment) => {
-      const edge = getSharedHexEdge(layout, segment.a, segment.b);
-      if (!edge) return null;
-      const lowCenter = getCellCenter(layout, segment.low);
-      const midX = (edge.start.x + edge.end.x) / 2;
-      const midY = (edge.start.y + edge.end.y) / 2;
-      const towardLowX = lowCenter.x - midX;
-      const towardLowY = lowCenter.y - midY;
-      const length = Math.hypot(towardLowX, towardLowY) || 1;
-      const inset = 10;
-      const offsetX = (towardLowX / length) * inset;
-      const offsetY = (towardLowY / length) * inset;
-      const edgeDx = edge.end.x - edge.start.x;
-      const edgeDy = edge.end.y - edge.start.y;
-      const edgeLength = Math.hypot(edgeDx, edgeDy) || 1;
-      const extend = 6;
-      const extendX = (edgeDx / edgeLength) * extend;
-      const extendY = (edgeDy / edgeLength) * extend;
-      const start = { x: edge.start.x - extendX, y: edge.start.y - extendY };
-      const end = { x: edge.end.x + extendX, y: edge.end.y + extendY };
-      return {
-        key: `cliff-${getWorldMapCellKey(segment.a)}-${getWorldMapCellKey(segment.b)}`,
-        line: `M ${start.x} ${start.y} L ${end.x} ${end.y}`,
-        shadow: `${start.x},${start.y} ${end.x},${end.y} ${end.x + offsetX},${end.y + offsetY} ${start.x + offsetX},${start.y + offsetY}`,
-        highCell: segment.high,
-        lowCell: segment.low
-      };
-    })
-    .filter((entry): entry is { key: string; line: string; shadow: string; highCell: MapCell; lowCell: MapCell } => Boolean(entry));
 }
 
 export function useWikiEntries(layout: WorldMapLayout): {
@@ -668,6 +710,8 @@ export function MapCanvas(props: {
     [props.layout, props.terrainOverlayActive, renderableCells]
   );
   const cliffOverlay = useMemo(() => computeCliffOverlay(props.layout), [props.layout]);
+  const cellFeatureIndex = useMemo(() => buildCellFeatureIndex(props.layout), [props.layout]);
+  const riverVisualData = useMemo(() => buildRiverVisualData(props.layout), [props.layout]);
   const viewportWorldRect = useMemo(
     () => getViewportWorldRect(viewportSize.width, viewportSize.height, pan, zoom),
     [viewportSize, pan, zoom]
@@ -745,6 +789,24 @@ export function MapCanvas(props: {
   }, []);
 
   useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    function handleWheel(event: WheelEvent): void {
+      event.preventDefault();
+      const factor = event.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP;
+      const nextZoom = clampZoom(Number((zoom * factor).toFixed(4)));
+      if (Math.abs(nextZoom - zoom) < 1e-6) return;
+      zoomAtClientPoint(event.clientX, event.clientY, nextZoom);
+    }
+
+    viewport.addEventListener("wheel", handleWheel, { passive: false });
+    return () => {
+      viewport.removeEventListener("wheel", handleWheel);
+    };
+  }, [zoom, pan]);
+
+  useEffect(() => {
     function handleKeyDown(event: KeyboardEvent): void {
       if (event.code === "Space") setSpacePressed(true);
     }
@@ -769,7 +831,7 @@ export function MapCanvas(props: {
         borderRadius: 16,
         overflow: "hidden",
         border: "1px solid rgba(255,255,255,0.12)",
-        background: "linear-gradient(180deg, rgba(6,11,18,0.96) 0%, rgba(11,17,26,0.9) 100%)",
+        background: "linear-gradient(180deg, rgba(72,96,122,0.32) 0%, rgba(116,138,159,0.28) 100%)",
         width: "100%"
       }}
     >
@@ -834,23 +896,14 @@ export function MapCanvas(props: {
           style={{
             position: "absolute",
             inset: 0,
-            backgroundImage: `linear-gradient(rgba(4,8,12,0.26), rgba(4,8,12,0.54)), url(${props.layout.backgroundImageUrl})`,
-            backgroundPosition: "center",
-            backgroundSize: "cover",
-            filter: "saturate(0.82) contrast(1.08)"
+            background:
+              "radial-gradient(circle at 50% 20%, rgba(214,226,239,0.28) 0%, rgba(179,197,214,0.16) 38%, rgba(104,128,149,0.10) 100%)"
           }}
         />
       )}
 
       <div
         ref={viewportRef}
-        onWheel={event => {
-          event.preventDefault();
-          const factor = event.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP;
-          const nextZoom = clampZoom(Number((zoom * factor).toFixed(4)));
-          if (Math.abs(nextZoom - zoom) < 1e-6) return;
-          zoomAtClientPoint(event.clientX, event.clientY, nextZoom);
-        }}
         onMouseDown={event => {
           const shouldStartPan = event.button === 1 || (event.button === 0 && spacePressed);
           if (!shouldStartPan) return;
@@ -980,18 +1033,34 @@ export function MapCanvas(props: {
             ))}
 
           {props.layerVisibility.landWater &&
-            cliffOverlay.map(segment => (
-              <g key={segment.key}>
-                <polygon points={segment.shadow} fill="rgba(7,10,15,0.28)" opacity={0.95} />
-                <path d={segment.line} fill="none" stroke="rgba(168,176,188,0.62)" strokeWidth={1.4} opacity={0.92} strokeLinecap="round" />
-              </g>
+            cliffOverlay.shadowPolygons.map(polygon => (
+              <path
+                key={polygon.key}
+                d={polygon.path}
+                fill="rgba(7,10,15,0.22)"
+                opacity={0.95}
+              />
+            ))}
+
+          {props.layerVisibility.landWater &&
+            cliffOverlay.ridgePaths.map(path => (
+              <path
+                key={path.key}
+                d={path.path}
+                fill="none"
+                stroke="rgba(168,176,188,0.62)"
+                strokeWidth={1.4}
+                opacity={0.92}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             ))}
 
           {props.terrainOverlayActive && props.cliffEditPair && (() => {
             const pair = props.cliffEditPair;
             const firstCenter = getCellCenter(props.layout, pair.first);
             const secondCenter = getCellCenter(props.layout, pair.second);
-            const currentSegment = cliffOverlay.find(segment => {
+            const currentSegment = cliffOverlay.ridgeSegments.find(segment => {
               const firstKey = getWorldMapCellKey(pair.first);
               const secondKey = getWorldMapCellKey(pair.second);
               const highKey = getWorldMapCellKey(segment.highCell);
@@ -1098,32 +1167,177 @@ export function MapCanvas(props: {
             })}
 
           {props.layerVisibility.rivers &&
-            props.layout.paths.filter(path => path.kind === "river").map(path => (
-              <polyline
-                key={path.id}
-                points={buildPathPoints(props.layout, path.cells)}
-                fill="none"
-                stroke="#6ec9ff"
-                strokeWidth="8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                opacity={0.88}
-              />
-            ))}
+            props.layout.paths.filter(path => path.kind === "river").map(path => {
+              const flowValue = getRiverFlowValue(path);
+              const sourceCell = path.cells[0] ?? null;
+              const sourceCenter = sourceCell ? getCellCenter(props.layout, sourceCell) : null;
+              const arrowTransform = buildRiverArrowTransform(props.layout, path.cells);
+              const segments = riverVisualData.segmentsByRiverId[path.id] ?? [];
+              return (
+                <g key={path.id}>
+                  {segments.length > 0
+                    ? segments.map(segment => {
+                        const segmentPoints = getCoastalSegmentEndpoints(props.layout, segment.from, segment.to);
+                        return (
+                          <line
+                            key={segment.key}
+                            x1={segmentPoints.start.x}
+                            y1={segmentPoints.start.y}
+                            x2={segmentPoints.end.x}
+                            y2={segmentPoints.end.y}
+                            stroke="#6ec9ff"
+                            strokeWidth={segment.width}
+                            strokeLinecap="round"
+                            opacity={0.88}
+                          />
+                        );
+                      })
+                    : (
+                      <polyline
+                        points={buildPathPoints(props.layout, path.cells)}
+                        fill="none"
+                        stroke="#6ec9ff"
+                        strokeWidth={getRiverStrokeWidth(flowValue)}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        opacity={0.88}
+                      />
+                    )}
+                  {sourceCenter && (
+                    <g transform={`translate(${sourceCenter.x} ${sourceCenter.y})`}>
+                      <circle
+                        r={Math.max(3, Math.min(9, 2.5 + (Number(path.sourceFlow) || 1) * 1.2))}
+                        fill="rgba(110,201,255,0.88)"
+                        stroke="rgba(214,244,255,0.92)"
+                        strokeWidth="1.2"
+                      />
+                    </g>
+                  )}
+                  {arrowTransform && (
+                    <path
+                      d="M -8 -5 L 0 0 L -8 5"
+                      transform={arrowTransform}
+                      fill="none"
+                      stroke="rgba(214,244,255,0.9)"
+                      strokeWidth={2.2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  )}
+                </g>
+              );
+            })}
+
+          {props.layerVisibility.rivers &&
+            riverVisualData.confluenceMarkers.map(marker => {
+              const center = getCellCenter(props.layout, marker.cell);
+              return (
+                <g key={marker.key} transform={`translate(${center.x} ${center.y})`}>
+                  <circle r={6} fill="rgba(18,34,48,0.82)" stroke="rgba(214,244,255,0.84)" strokeWidth="1.5" />
+                  <circle r={2.4} fill="rgba(214,244,255,0.96)" />
+                </g>
+              );
+            })}
+
+          {props.layerVisibility.rivers &&
+            riverVisualData.errorMarkers.map(marker => {
+              const center = getCellCenter(props.layout, marker.cell);
+              return (
+                <g key={marker.key} transform={`translate(${center.x} ${center.y - 18})`}>
+                  <circle r={9} fill="rgba(128,24,24,0.9)" stroke="rgba(255,210,210,0.9)" strokeWidth="1.5" />
+                  <text
+                    x={0}
+                    y={4}
+                    textAnchor="middle"
+                    fill="#fff4f4"
+                    style={{ fontSize: 12, fontWeight: 900, letterSpacing: 0.2 }}
+                  >
+                    !
+                  </text>
+                </g>
+              );
+            })}
+
+          {props.layerVisibility.rivers &&
+            riverVisualData.labelAnchors.map(anchor => {
+              const riverPath = props.layout.paths.find(path => path.id === anchor.key.replace("river-label-", ""));
+              const labelTransform = riverPath ? getFeatureLabelTransform(props.layout, riverPath.cells) : null;
+              if (!labelTransform) return null;
+              return (
+                <text
+                  key={anchor.key}
+                  x={labelTransform.x}
+                  y={labelTransform.y - 10}
+                  textAnchor="middle"
+                  fill="rgba(110,201,255,0.96)"
+                  transform={`rotate(${labelTransform.angle} ${labelTransform.x} ${labelTransform.y - 10})`}
+                  style={{ fontSize: 13, fontWeight: 800, letterSpacing: 0.4, paintOrder: "stroke", stroke: "rgba(7,10,15,0.86)", strokeWidth: 4 }}
+                >
+                  {anchor.label}
+                </text>
+              );
+            })}
 
           {props.layerVisibility.roads &&
             props.layout.paths.filter(path => path.kind === "road").map(path => (
-              <polyline
-                key={path.id}
-                points={buildPathPoints(props.layout, path.cells)}
-                fill="none"
-                stroke="#cfa96b"
-                strokeWidth="7"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                opacity={0.92}
-              />
+              <g key={path.id}>
+                {path.cells.slice(1).map((cell, index) => {
+                  const previous = path.cells[index];
+                  const segmentPoints = getCoastalSegmentEndpoints(props.layout, previous, cell);
+                  return (
+                    <line
+                      key={`${path.id}-${index}`}
+                      x1={segmentPoints.start.x}
+                      y1={segmentPoints.start.y}
+                      x2={segmentPoints.end.x}
+                      y2={segmentPoints.end.y}
+                      stroke="#cfa96b"
+                      strokeWidth={getRoadStrokeWidth(path.roadType ?? "road")}
+                      strokeLinecap="round"
+                      opacity={0.92}
+                    />
+                  );
+                })}
+                {(() => {
+                  const labelTransform = getFeatureLabelTransform(props.layout, path.cells);
+                  if (!labelTransform || !path.label.trim()) return null;
+                  return (
+                    <text
+                      x={labelTransform.x}
+                      y={labelTransform.y - 10}
+                      textAnchor="middle"
+                      fill="rgba(207,169,107,0.96)"
+                      transform={`rotate(${labelTransform.angle} ${labelTransform.x} ${labelTransform.y - 10})`}
+                      style={{ fontSize: 13, fontWeight: 800, letterSpacing: 0.4, paintOrder: "stroke", stroke: "rgba(7,10,15,0.86)", strokeWidth: 4 }}
+                    >
+                      {path.label}
+                    </text>
+                  );
+                })()}
+              </g>
             ))}
+
+          {props.layerVisibility.rivers &&
+            props.layout.paths
+              .filter(path => path.kind === "river")
+              .flatMap(path => (riverVisualData.segmentsByRiverId[path.id] ?? []).map(segment => {
+                  if (!segment.waterfall) return null;
+                  const cliffSegment = getCliffSegmentBetweenCells(props.layout, segment.from, segment.to);
+                  if (!cliffSegment) return null;
+                  const waterfallShape = buildWaterfallPath(props.layout, cliffSegment.high, cliffSegment.low);
+                  if (!waterfallShape) return null;
+                  return (
+                    <g key={`waterfall-${segment.key}`}>
+                      <path
+                        d={waterfallShape.path}
+                        transform={waterfallShape.transform}
+                        fill="rgba(110,201,255,0.88)"
+                        stroke="none"
+                      />
+                    </g>
+                  );
+                })
+              )}
 
           {props.routeEditorActive && selectedRoute && selectedRoute.kind === "road" &&
             selectedRoute.cells.map((cell, index) => {

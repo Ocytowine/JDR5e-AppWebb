@@ -14,19 +14,21 @@ import {
   GEOGRAPHY_PRESET_COLORS,
   MapCanvas,
   TAG_PRESET_COLORS,
+  getFrontMatterList,
   cloneLayout,
   fetchWorldMapLayout,
-  getSharedHexEdge,
-  getFrontMatterList,
   saveWorldMapLayout,
   useWikiCatalog,
   useWikiEntries
 } from "./mapShared";
+import { getSharedHexEdge } from "./cliffOverlayHelpers";
+import { buildCellFeatureIndex, getRiverFlowCategoryLabel, getRiverSourceTypeLabel, getRiverFlowValue } from "./mapTraversal";
 import { MapEditorSidebar } from "./editor/MapEditorSidebar";
 import { MapSelectionSummary } from "./editor/MapSelectionSummary";
 import { MapEditorToolbar } from "./editor/MapEditorToolbar";
 import { MapEditorTopbar } from "./editor/MapEditorTopbar";
 import { CollapsibleSection } from "./editor/CollapsibleSection";
+import { EDITOR_THEME, createEditorButtonStyle, editorFieldStyles, editorSurfaceStyles, editorTextStyles } from "./editor/editorTheme";
 import { createInitialMapEditorState } from "./editor/mapEditorInitialState";
 import {
   createMapEditorHistoryState,
@@ -88,6 +90,17 @@ function slugifyDraft(value: string): string {
     .replace(/^_+|_+$/g, "");
 }
 
+function getUniquePathsByKind(layout: WorldMapLayout, kind: "road" | "river") {
+  const unique = new Map<string, (typeof layout.paths)[number]>();
+  layout.paths.forEach(path => {
+    if (path.kind !== kind) return;
+    if (!unique.has(path.id)) {
+      unique.set(path.id, path);
+    }
+  });
+  return Array.from(unique.values());
+}
+
 const GEOGRAPHY_PRESETS: Array<{ id: string; label: string; geography: string; color: string; surface: "land" | "ocean"; difficulty: number }> = [
   { id: "terre", label: "Terre", geography: "terre", color: "#8c7a58", surface: "land", difficulty: 5 },
   { id: "plaine", label: "Plaine", geography: "plaine", color: GEOGRAPHY_PRESET_COLORS.plaine, surface: "land", difficulty: 5 },
@@ -117,23 +130,9 @@ const TAG_PRESETS: Array<{ id: string; label: string; color: string }> = [
   { id: "urbain", label: "Urbain", color: TAG_PRESET_COLORS.urbain }
 ];
 
-const FIELD_STYLE: React.CSSProperties = {
-  width: "100%",
-  padding: "8px 10px",
-  borderRadius: 8,
-  border: "1px solid rgba(255,255,255,0.14)",
-  background: "rgba(255,255,255,0.06)",
-  color: "#eef3ff",
-  boxSizing: "border-box"
-};
+const FIELD_STYLE: React.CSSProperties = editorFieldStyles.control;
 
-const SUBSECTION_STYLE: React.CSSProperties = {
-  display: "grid",
-  gap: 8,
-  padding: 10,
-  borderRadius: 10,
-  background: "rgba(255,255,255,0.04)"
-};
+const SUBSECTION_STYLE: React.CSSProperties = editorSurfaceStyles.subsection;
 
 export function WorldMapEditorScreen(props: {
   initialLayout: WorldMapLayout;
@@ -153,6 +152,7 @@ export function WorldMapEditorScreen(props: {
     layerVisibility,
     selectedCellKey,
     selectedRouteId,
+    routeDrawActive,
     selectedAreaCellKeys,
     activeTool,
     jsonBuffer,
@@ -194,7 +194,26 @@ export function WorldMapEditorScreen(props: {
   const selectedTerritoryWiki = selectedCell?.territoryWikiId ? wikiEntriesById[selectedCell.territoryWikiId] : null;
   const selectedRegionWiki = selectedCell?.regionWikiId ? wikiEntriesById[selectedCell.regionWikiId] : null;
   const selectedRoute = layout.paths.find(path => path.id === selectedRouteId) ?? null;
-  const routeEditorActive = activeTool === "routes";
+  const roadPaths = useMemo(() => getUniquePathsByKind(layout, "road"), [layout]);
+  const riverPaths = useMemo(() => getUniquePathsByKind(layout, "river"), [layout]);
+  const cellFeatureIndex = useMemo(() => buildCellFeatureIndex(layout), [layout]);
+  const selectedRiverWaterfallCount = useMemo(() => {
+    if (!selectedRoute || selectedRoute.kind !== "river") return 0;
+    let total = 0;
+    for (let index = 1; index < selectedRoute.cells.length; index += 1) {
+      const previous = selectedRoute.cells[index - 1];
+      const current = selectedRoute.cells[index];
+      const previousKey = getWorldMapCellKey(previous);
+      const currentKey = getWorldMapCellKey(current);
+      const currentCellRiver = cellFeatureIndex[currentKey]?.rivers.find(entry => entry.featureId === selectedRoute.id) ?? null;
+      const previousCellRiver = cellFeatureIndex[previousKey]?.rivers.find(entry => entry.featureId === selectedRoute.id) ?? null;
+      if (currentCellRiver?.cliffDrop || previousCellRiver?.cliffDrop) {
+        total += 1;
+      }
+    }
+    return total;
+  }, [cellFeatureIndex, selectedRoute]);
+  const routeEditorActive = activeTool === "routes" && routeDrawActive;
   const currentLayoutJson = useMemo(() => layoutToJson(layout), [layout]);
   const isDirty = currentLayoutJson !== lastSavedLayoutJson;
   const canUndo = editorStore.past.length > 0;
@@ -226,7 +245,6 @@ export function WorldMapEditorScreen(props: {
   const allGeographyPresets = useMemo(() => [...GEOGRAPHY_PRESETS, ...customGeographies], [customGeographies]);
   const allTagPresets = useMemo(() => [...TAG_PRESETS, ...customTags], [customTags]);
   const contextualHexSection = activeTool === "terrain" ? "terrain" : activeTool === "places" ? "places" : activeTool === "zones" ? "zones" : activeTool === "routes" ? "routes" : null;
-
   useEffect(() => {
     updateJsonBuffer(layoutToJson(layout));
   }, [layout]);
@@ -244,7 +262,7 @@ export function WorldMapEditorScreen(props: {
       case "zones":
         return "Zones";
       case "routes":
-        return "Routes";
+        return "Trace";
       default:
         return "Main";
     }
@@ -259,7 +277,7 @@ export function WorldMapEditorScreen(props: {
       case "zones":
         return "Clique sur plusieurs hex pour construire la selection de territoire ou de region.";
       case "routes":
-        return "Clique un hex ajoute un point a la route active.";
+        return "Clique un hex ajoute un point au trace actif.";
       default:
         return "Clique un hex pour inspecter. Maintiens Espace puis glisse pour deplacer la carte.";
     }
@@ -463,6 +481,16 @@ export function WorldMapEditorScreen(props: {
     dispatch({ type: "appendRoutePoint", cell });
   }
 
+  function createLinearFeature(kind: "road" | "river"): void {
+    const uniquePart =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const id = `${kind}-${uniquePart}`;
+    dispatch({ type: "createRoute", routeId: id, kind });
+    activateTool("routes");
+  }
+
   async function persistLayoutToServer(): Promise<void> {
     try {
       updatePersistenceState("saving");
@@ -635,10 +663,10 @@ export function WorldMapEditorScreen(props: {
                 ? "Terrain"
                 : contextualHexSection === "places"
                   ? "Lieux"
-                  : contextualHexSection === "zones"
+                : contextualHexSection === "zones"
                     ? "Zones"
-                    : contextualHexSection === "routes"
-                      ? "Routes"
+                  : contextualHexSection === "routes"
+                      ? "Trace"
                     : "Selection"
             }
             selectionLabel={selectedCellKey ?? "Aucune selection"}
@@ -729,32 +757,6 @@ export function WorldMapEditorScreen(props: {
                         })}
                       </div>
                     </div>
-                    <CollapsibleSection title="Falaises par segment">
-                    <div style={{ display: "grid", gap: 8, padding: 10, borderRadius: 10, background: "rgba(255,255,255,0.04)" }}>
-                      <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff" }}>Falaises par segment</div>
-                      <div style={{ fontSize: 12, color: "#c9d3e2", lineHeight: 1.45 }}>
-                        Selectionne exactement 2 cases adjacentes pour definir une falaise sur leur frontiere commune.
-                      </div>
-                      <div style={{ fontSize: 12, color: "#c9d3e2" }}>
-                        Paire active: {terrainPair.length === 2 ? `${getWorldMapCellKey(terrainPair[0].cell)} | ${getWorldMapCellKey(terrainPair[1].cell)}` : "selectionne 2 cases"}
-                      </div>
-                      <div style={{ fontSize: 12, color: terrainPair.length === 2 && terrainCellsAdjacent ? "#8dd6a5" : "#ffb38b" }}>
-                        {terrainPair.length !== 2
-                          ? "La falaise demande 2 cases exactement."
-                          : terrainCellsAdjacent
-                            ? "Les 2 cases sont adjacentes. Tu peux definir le cote haut et le cote bas."
-                            : "Les 2 cases selectionnees ne partagent pas de bord."}
-                      </div>
-                      {activeCliffSegment && (
-                        <div style={{ fontSize: 12, color: "#dce5f2" }}>
-                          Falaise actuelle: haut {getWorldMapCellKey(activeCliffSegment.high)} | bas {getWorldMapCellKey(activeCliffSegment.low)}
-                        </div>
-                      )}
-                      <div style={{ fontSize: 12, color: "#c9d3e2", lineHeight: 1.45 }}>
-                        Sur la grille, clique sur `+` pour choisir la case haute. Clique sur `-` au milieu pour supprimer la falaise de cette paire.
-                      </div>
-                    </div>
-                    </CollapsibleSection>
                   </div>
                   <CollapsibleSection title="Creer un type de geographie">
                     <input
@@ -1080,52 +1082,102 @@ export function WorldMapEditorScreen(props: {
             {contextualHexSection === "routes" && (
               <div style={{ display: "grid", gap: 8 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
-                  <div style={{ fontSize: 16, fontWeight: 700 }}>{selectedRoute?.label ?? "Aucune route"}</div>
-                  <div style={{ fontSize: 12, color: "#8fb3ff", fontWeight: 700 }}>Mode trace actif</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ fontSize: 16, fontWeight: 700 }}>
+                      {selectedRoute?.kind === "river" ? "Cours d'eau actif" : "Route active"}
+                    </div>
+                    {selectedRoute && (
+                      <button
+                        type="button"
+                        onClick={() => dispatch({ type: "deleteSelectedRoute" })}
+                        title={selectedRoute.kind === "river" ? "Supprimer ce cours d'eau" : "Supprimer cette route"}
+                        aria-label={selectedRoute.kind === "river" ? "Supprimer ce cours d'eau" : "Supprimer cette route"}
+                        style={{
+                          ...createEditorButtonStyle({ danger: true, compact: true }),
+                          width: 32,
+                          height: 32,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          borderRadius: 8,
+                          padding: 0
+                        }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                          <path d="M4 7H20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                          <path d="M9 4H15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                          <path d="M7 7L8 19C8.1 20.1 8.9 21 10 21H14C15.1 21 15.9 20.1 16 19L17 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                          <path d="M10 11V17" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                          <path d="M14 11V17" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                  <div style={{ ...editorTextStyles.helper, color: routeDrawActive ? "#8dd6a5" : editorTextStyles.helper.color, fontWeight: 700 }}>
+                    {routeDrawActive ? "Trace en cours" : "Trace en pause"}
+                  </div>
                 </div>
-                <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                  Route active
-                  <select value={selectedRouteId} onChange={event => dispatch({ type: "setSelectedRoute", routeId: event.target.value })} style={FIELD_STYLE}>
-                    {layout.paths.map(path => (
-                      <option key={path.id} value={path.id}>
-                        {path.label} ({path.kind})
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const id = `route-${Date.now()}`;
-                      dispatch({ type: "createRoute", routeId: id });
-                      activateTool("routes");
-                    }}
-                    style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)", color: "#eef3ff", cursor: "pointer" }}
-                  >
-                    Ajouter
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      dispatch({ type: "deleteSelectedRoute" });
-                    }}
-                    style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(255,160,160,0.18)", background: "rgba(130,28,28,0.22)", color: "#ffd7d7", cursor: "pointer" }}
-                  >
-                    Supprimer
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      dispatch({ type: "popSelectedRoutePoint" });
-                    }}
-                    style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)", color: "#eef3ff", cursor: "pointer" }}
-                  >
-                    Retirer dernier
-                  </button>
+                <div style={{ ...SUBSECTION_STYLE, gap: 10 }}>
+                  <div style={editorTextStyles.sectionTitle}>Creation et selection</div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button
+                      type="button"
+                      onClick={() => createLinearFeature("road")}
+                      style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}
+                    >
+                      Nouvelle route
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => createLinearFeature("river")}
+                      style={{ ...createEditorButtonStyle({ active: true, compact: true }), borderRadius: 8, border: "1px solid rgba(110,201,255,0.26)" }}
+                    >
+                      Nouveau cours d'eau
+                    </button>
+                  </div>
+                  <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                    Routes terrestres
+                    <select
+                      value={selectedRoute?.kind === "road" ? selectedRouteId : ""}
+                      onChange={event => {
+                        if (event.target.value) dispatch({ type: "setSelectedRoute", routeId: event.target.value });
+                      }}
+                      style={FIELD_STYLE}
+                    >
+                      <option value="">Choisir une route</option>
+                      {roadPaths.map(path => (
+                        <option key={path.id} value={path.id}>
+                          {path.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                    Cours d'eau
+                    <select
+                      value={selectedRoute?.kind === "river" ? selectedRouteId : ""}
+                      onChange={event => {
+                        if (event.target.value) dispatch({ type: "setSelectedRoute", routeId: event.target.value });
+                      }}
+                      style={FIELD_STYLE}
+                    >
+                      <option value="">Choisir un cours d'eau</option>
+                      {riverPaths.map(path => (
+                        <option key={path.id} value={path.id}>
+                          {path.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                 </div>
                 {selectedRoute && (
                   <div style={{ display: "grid", gap: 8 }}>
+                    <div style={{ ...SUBSECTION_STYLE, gap: 6 }}>
+                      <div style={editorTextStyles.sectionTitle}>Element actif</div>
+                      <div style={{ ...editorTextStyles.helper, color: EDITOR_THEME.colors.text }}>
+                        {selectedRoute.kind === "road" ? "Route terrestre" : "Cours d'eau"}
+                      </div>
+                    </div>
                     <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
                       Label
                       <input
@@ -1134,26 +1186,118 @@ export function WorldMapEditorScreen(props: {
                         style={FIELD_STYLE}
                       />
                     </label>
-                    <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                      Type
-                      <select
-                        value={selectedRoute.kind}
-                        onChange={event => dispatch({ type: "updateSelectedRouteField", field: "kind", value: event.target.value })}
-                        style={FIELD_STYLE}
-                      >
-                        <option value="road">road</option>
-                        <option value="river">river</option>
-                      </select>
-                    </label>
-                    <div style={{ fontSize: 12, color: "#c9d3e2", lineHeight: 1.45 }}>
-                      Clique sur les hex pour ajouter des points au centre des cases.
-                    </div>
+                    {selectedRoute.kind === "road" && (
+                      <div style={SUBSECTION_STYLE}>
+                        <div style={editorTextStyles.sectionTitle}>Parametres de route</div>
+                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                          Type de route
+                          <select
+                            value={selectedRoute.roadType ?? "road"}
+                            onChange={event => dispatch({ type: "updateSelectedRouteField", field: "roadType", value: event.target.value })}
+                            style={FIELD_STYLE}
+                          >
+                            <option value="track">Piste</option>
+                            <option value="road">Route</option>
+                            <option value="major_road">Grande route</option>
+                          </select>
+                        </label>
+                        <div style={editorTextStyles.helper}>
+                          {routeDrawActive
+                            ? "Clique sur les hex pour ajouter des points. Une route ne peut pas traverser une falaise."
+                            : "Active le trace pour poser de nouveaux segments sur la carte."}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => dispatch({ type: "updateSelectedRouteField", field: "kind", value: "river" })}
+                          style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}
+                        >
+                          Convertir en cours d'eau
+                        </button>
+                      </div>
+                    )}
+                    {selectedRoute.kind === "river" && (
+                      <div style={SUBSECTION_STYLE}>
+                        <div style={editorTextStyles.sectionTitle}>Parametres du cours d'eau</div>
+                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                          Debit de depart
+                          <input
+                            type="number"
+                            min={1}
+                            step={0.5}
+                            value={selectedRoute.sourceFlow ?? 1}
+                            onChange={event => dispatch({ type: "updateSelectedRouteField", field: "sourceFlow", value: event.target.value })}
+                            style={FIELD_STYLE}
+                          />
+                        </label>
+                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                          Origine
+                          <select
+                            value={selectedRoute.sourceType ?? "source"}
+                            onChange={event => dispatch({ type: "updateSelectedRouteField", field: "sourceType", value: event.target.value })}
+                            style={FIELD_STYLE}
+                          >
+                            <option value="source">Source</option>
+                            <option value="tributary">Affluent</option>
+                            <option value="main">Cours principal</option>
+                          </select>
+                        </label>
+                        <div style={{ display: "grid", gap: 4, ...editorTextStyles.helper }}>
+                          <div>
+                            Type actuel: {getRiverFlowCategoryLabel(getRiverFlowValue(selectedRoute))}
+                          </div>
+                          <div>
+                            Debit derive: {getRiverFlowValue(selectedRoute)}
+                          </div>
+                          <div>
+                            Sens: source vers aval, selon l'ordre des cases
+                          </div>
+                          <div>
+                            Origine actuelle: {getRiverSourceTypeLabel(selectedRoute.sourceType ?? "source")}
+                          </div>
+                          <div>
+                            Passages de falaise: {selectedRiverWaterfallCount}
+                          </div>
+                        </div>
+                        <div style={editorTextStyles.helper}>
+                          {routeDrawActive
+                            ? "Clique sur les hex pour ajouter des points. Le sens suit l'ordre du trace, de la source vers l'aval."
+                            : "Active le trace pour prolonger le cours d'eau sur la carte."}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => dispatch({ type: "updateSelectedRouteField", field: "kind", value: "road" })}
+                          style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}
+                        >
+                          Convertir en route terrestre
+                        </button>
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => dispatch({ type: "setRouteDrawActive", value: !routeDrawActive })}
+                      style={{ ...createEditorButtonStyle({ active: routeDrawActive, compact: true }), borderRadius: 8, border: routeDrawActive ? "1px solid rgba(141,214,165,0.28)" : "1px solid rgba(196,210,232,0.18)" }}
+                    >
+                      {routeDrawActive ? "Valider le trace" : "Commencer le trace"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => dispatch({ type: "reverseSelectedRoute" })}
+                      style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}
+                    >
+                      Inverser le sens
+                    </button>
+                    {selectedCellKey && cellFeatureIndex[selectedCellKey] && (
+                      <div style={editorTextStyles.helper}>
+                        Case active: {cellFeatureIndex[selectedCellKey].roads.length > 0 ? `${cellFeatureIndex[selectedCellKey].roads.length} route(s)` : "aucune route"} |{" "}
+                        {cellFeatureIndex[selectedCellKey].rivers.length > 0 ? `${cellFeatureIndex[selectedCellKey].rivers.length} cours d'eau` : "aucun cours d'eau"}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             )}
 
-            <div style={{ marginTop: 12, fontSize: 12, color: "#c9d3e2", lineHeight: 1.45 }}>
+            <div style={{ marginTop: 12, ...editorTextStyles.helper }}>
               {(wikiCatalogLoading || wikiCatalogError) && (
                 <div>Catalogue lore: {wikiCatalogLoading ? "chargement..." : `erreur ${wikiCatalogError}`}</div>
               )}
@@ -1166,25 +1310,25 @@ export function WorldMapEditorScreen(props: {
               value={jsonBuffer}
               onChange={event => updateJsonBuffer(event.target.value)}
               spellCheck={false}
-              style={{ width: "100%", minHeight: 220, resize: "vertical", fontFamily: "Consolas, monospace", fontSize: 12 }}
+              style={editorFieldStyles.textarea}
             />
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-              <button type="button" onClick={applyJson} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)", color: "#eef3ff", cursor: "pointer" }}>
+              <button type="button" onClick={applyJson} style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}>
                 Appliquer JSON
               </button>
-              <button type="button" onClick={() => updateJsonBuffer(layoutToJson(layout))} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)", color: "#eef3ff", cursor: "pointer" }}>
+              <button type="button" onClick={() => updateJsonBuffer(layoutToJson(layout))} style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}>
                 Regenerer JSON
               </button>
-              <button type="button" onClick={downloadJson} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)", color: "#eef3ff", cursor: "pointer" }}>
+              <button type="button" onClick={downloadJson} style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}>
                 Telecharger JSON
               </button>
-              <button type="button" onClick={() => void persistLayoutToServer()} disabled={persistenceState === "saving"} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(79,125,242,0.32)", background: "rgba(79,125,242,0.22)", color: "#eef3ff", cursor: persistenceState === "saving" ? "wait" : "pointer", fontWeight: 700, opacity: persistenceState === "saving" ? 0.7 : 1 }}>
+              <button type="button" onClick={() => void persistLayoutToServer()} disabled={persistenceState === "saving"} style={{ ...createEditorButtonStyle({ active: true, compact: true }), borderRadius: 8, cursor: persistenceState === "saving" ? "wait" : "pointer", opacity: persistenceState === "saving" ? 0.7 : 1 }}>
                 Sauver serveur
               </button>
-              <button type="button" onClick={() => void reloadLayoutFromServer()} disabled={persistenceState === "saving"} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)", color: "#eef3ff", cursor: persistenceState === "saving" ? "wait" : "pointer" }}>
+              <button type="button" onClick={() => void reloadLayoutFromServer()} disabled={persistenceState === "saving"} style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8, cursor: persistenceState === "saving" ? "wait" : "pointer" }}>
                 Recharger serveur
               </button>
-              <button type="button" onClick={() => fileInputRef.current?.click()} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)", color: "#eef3ff", cursor: "pointer" }}>
+              <button type="button" onClick={() => fileInputRef.current?.click()} style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}>
                 Charger fichier
               </button>
               <input
@@ -1200,10 +1344,10 @@ export function WorldMapEditorScreen(props: {
                 }}
               />
             </div>
-            <div style={{ marginTop: 8, fontSize: 12, color: persistenceMeta.color }}>
+            <div style={{ marginTop: 8, fontSize: 12, color: persistenceMeta.color, fontFamily: EDITOR_THEME.fontFamily }}>
               {persistenceMeta.label}
             </div>
-            {jsonError && <div style={{ marginTop: 8, fontSize: 12, color: "#ff9d76" }}>{jsonError}</div>}
+            {jsonError && <div style={{ marginTop: 8, fontSize: 12, color: "#ff9d76", fontFamily: EDITOR_THEME.fontFamily }}>{jsonError}</div>}
           </DataPanel>
         )}
       </MapEditorSidebar>

@@ -1,4 +1,5 @@
 import React from "react";
+import { EDITOR_THEME } from "./editorTheme";
 
 export function MapEditorSidebar(props: {
   children: React.ReactNode;
@@ -15,7 +16,9 @@ export function MapEditorSidebar(props: {
         width: "min(360px, calc(100vw - 32px))",
         maxHeight: "calc(100% - 32px)",
         overflowY: "auto",
-        paddingRight: 4
+        paddingRight: 4,
+        color: EDITOR_THEME.colors.text,
+        fontFamily: EDITOR_THEME.fontFamily
       }}
     >
       {props.children}

@@ -10,9 +10,12 @@ import {
   createDraftCityOnCell,
   createRoute,
   getTargetCellKeys,
+  hasCliffBetweenCells,
   removeCityFromSelectedCell,
   removeCliffSegment,
+  reversePathDirection,
   upsertCliffSegment,
+  updatePathFieldOnLayout,
   updateCityFieldOnLayout
 } from "./mapEditorLayoutUtils";
 
@@ -41,6 +44,7 @@ export type MapEditorState = {
   layerVisibility: Record<MapLayerId, boolean>;
   selectedCellKey: string;
   selectedRouteId: string;
+  routeDrawActive: boolean;
   selectedAreaCellKeys: string[];
   activeTool: EditorToolId;
   jsonBuffer: string;
@@ -104,6 +108,7 @@ export type MapEditorAction =
   | { type: "setJsonError"; value: string | null }
   | { type: "setSelectedCell"; cellKey: string }
   | { type: "setSelectedRoute"; routeId: string }
+  | { type: "setRouteDrawActive"; value: boolean }
   | { type: "toggleAreaCell"; cellKey: string }
   | { type: "clearAreaSelection" }
   | { type: "setLoreField"; field: LoreField; value: string }
@@ -125,10 +130,11 @@ export type MapEditorAction =
   | { type: "assignTerritoryToSelection"; wikiEntityId: string; color: string }
   | { type: "assignRegionToSelection"; wikiEntityId: string; territoryWikiId: string; color: string }
   | { type: "appendRoutePoint"; cell: { x: number; y: number } }
-  | { type: "createRoute"; routeId: string }
+  | { type: "createRoute"; routeId: string; kind?: "road" | "river" }
   | { type: "deleteSelectedRoute" }
   | { type: "popSelectedRoutePoint" }
-  | { type: "updateSelectedRouteField"; field: "label" | "kind"; value: string }
+  | { type: "updateSelectedRouteField"; field: "label" | "kind" | "roadType" | "sourceFlow" | "sourceType"; value: string }
+  | { type: "reverseSelectedRoute" }
   | { type: "attachLoreCityToSelectedCell"; wikiEntityId: string }
   | { type: "createDraftCityOnSelectedCell"; wikiEntityId: string }
   | { type: "addLoreLocationToSelectedCell"; wikiEntityId: string }
@@ -229,9 +235,15 @@ export function mapEditorReducer(state: MapEditorHistoryState, action: MapEditor
         selectedCellKey: action.cellKey
       });
     case "setSelectedRoute":
-      return withHistory(state, {
+      return withoutHistory(state, {
         ...state.present,
-        selectedRouteId: action.routeId
+        selectedRouteId: action.routeId,
+        routeDrawActive: false
+      });
+    case "setRouteDrawActive":
+      return withoutHistory(state, {
+        ...state.present,
+        routeDrawActive: action.value
       });
     case "toggleAreaCell":
       return withHistory(state, {
@@ -357,19 +369,29 @@ export function mapEditorReducer(state: MapEditorHistoryState, action: MapEditor
     case "appendRoutePoint": {
       if (!state.present.selectedRouteId) return state;
       const layout = cloneLayout(state.present.layout);
+      const route = layout.paths.find(path => path.id === state.present.selectedRouteId);
+      const lastCell = route?.cells.length ? route.cells[route.cells.length - 1] : null;
+      if (route?.kind === "road" && lastCell && hasCliffBetweenCells(layout, lastCell, action.cell)) {
+        return withoutHistory(state, {
+          ...state.present,
+          jsonError: "Route bloquee: une falaise coupe le passage entre ces deux cases."
+        });
+      }
       appendRoutePoint(layout, state.present.selectedRouteId, action.cell);
       return withHistory(state, {
         ...state.present,
+        jsonError: null,
         layout
       });
     }
     case "createRoute": {
       const layout = cloneLayout(state.present.layout);
-      createRoute(layout, action.routeId);
+      createRoute(layout, action.routeId, action.kind ?? "road");
       return withHistory(state, {
         ...state.present,
         layout,
-        selectedRouteId: action.routeId
+        selectedRouteId: action.routeId,
+        routeDrawActive: true
       });
     }
     case "deleteSelectedRoute": {
@@ -395,13 +417,16 @@ export function mapEditorReducer(state: MapEditorHistoryState, action: MapEditor
     case "updateSelectedRouteField": {
       if (!state.present.selectedRouteId) return state;
       const layout = cloneLayout(state.present.layout);
-      const route = layout.paths.find(path => path.id === state.present.selectedRouteId);
-      if (!route) return state;
-      if (action.field === "kind") {
-        route.kind = action.value === "river" ? "river" : "road";
-      } else {
-        route.label = action.value;
-      }
+      updatePathFieldOnLayout(layout, state.present.selectedRouteId, action.field, action.value);
+      return withHistory(state, {
+        ...state.present,
+        layout
+      });
+    }
+    case "reverseSelectedRoute": {
+      if (!state.present.selectedRouteId) return state;
+      const layout = cloneLayout(state.present.layout);
+      reversePathDirection(layout, state.present.selectedRouteId);
       return withHistory(state, {
         ...state.present,
         layout

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { EDITOR_THEME, createEditorButtonStyle } from "./editorTheme";
 
 type PanelId = "legend" | "layers" | "json";
 type EditorToolId = "inspect" | "terrain" | "places" | "zones" | "routes";
@@ -52,8 +53,8 @@ export function MapEditorToolbar(props: {
           flexWrap: "wrap",
           padding: 8,
           borderRadius: 12,
-          border: "1px solid rgba(255,255,255,0.14)",
-          background: "rgba(9,13,20,0.88)"
+          border: `1px solid ${EDITOR_THEME.colors.border}`,
+          background: EDITOR_THEME.colors.panelBg
         }}
       >
         {([
@@ -61,20 +62,15 @@ export function MapEditorToolbar(props: {
           { id: "terrain", label: "Terrain" },
           { id: "places", label: "Lieux" },
           { id: "zones", label: "Zones" },
-          { id: "routes", label: "Routes" }
+          { id: "routes", label: "Trace" }
         ] as Array<{ id: EditorToolId; label: string }>).map(tool => (
           <button
             key={tool.id}
             type="button"
             onClick={() => props.onSelectTool(tool.id)}
             style={{
-              padding: "8px 12px",
-              borderRadius: 8,
-              border: "1px solid rgba(255,255,255,0.14)",
-              background: props.activeTool === tool.id ? "rgba(79,125,242,0.22)" : "rgba(255,255,255,0.06)",
-              color: "#eef3ff",
-              cursor: "pointer",
-              fontWeight: 700
+              ...createEditorButtonStyle({ active: props.activeTool === tool.id, compact: true }),
+              borderRadius: 8
             }}
           >
             {tool.label}
@@ -85,16 +81,7 @@ export function MapEditorToolbar(props: {
         type="button"
         onClick={props.onUndo}
         disabled={!props.canUndo}
-        style={{
-          padding: "10px 14px",
-          borderRadius: 10,
-          border: "1px solid rgba(255,255,255,0.14)",
-          background: "rgba(9,13,20,0.88)",
-          color: "#eef3ff",
-          cursor: props.canUndo ? "pointer" : "not-allowed",
-          fontWeight: 700,
-          opacity: props.canUndo ? 1 : 0.45
-        }}
+        style={{ ...createEditorButtonStyle(), cursor: props.canUndo ? "pointer" : "not-allowed", opacity: props.canUndo ? 1 : 0.45 }}
       >
         Undo
       </button>
@@ -102,31 +89,14 @@ export function MapEditorToolbar(props: {
         type="button"
         onClick={props.onRedo}
         disabled={!props.canRedo}
-        style={{
-          padding: "10px 14px",
-          borderRadius: 10,
-          border: "1px solid rgba(255,255,255,0.14)",
-          background: "rgba(9,13,20,0.88)",
-          color: "#eef3ff",
-          cursor: props.canRedo ? "pointer" : "not-allowed",
-          fontWeight: 700,
-          opacity: props.canRedo ? 1 : 0.45
-        }}
+        style={{ ...createEditorButtonStyle(), cursor: props.canRedo ? "pointer" : "not-allowed", opacity: props.canRedo ? 1 : 0.45 }}
       >
         Redo
       </button>
       <button
         type="button"
         onClick={props.onCloseEditor}
-        style={{
-          padding: "10px 14px",
-          borderRadius: 10,
-          border: "1px solid rgba(255,255,255,0.14)",
-          background: "rgba(9,13,20,0.88)",
-          color: "#eef3ff",
-          cursor: "pointer",
-          fontWeight: 700
-        }}
+        style={createEditorButtonStyle()}
       >
         Retour carte
       </button>
@@ -134,15 +104,7 @@ export function MapEditorToolbar(props: {
         <button
           type="button"
           onClick={() => setPanelMenuOpen(current => !current)}
-          style={{
-            padding: "10px 14px",
-            borderRadius: 10,
-            border: "1px solid rgba(255,255,255,0.14)",
-            background: panelMenuOpen ? "rgba(79,125,242,0.22)" : "rgba(9,13,20,0.88)",
-            color: "#eef3ff",
-            cursor: "pointer",
-            fontWeight: 700
-          }}
+          style={createEditorButtonStyle({ active: panelMenuOpen })}
         >
           Panneaux
         </button>
@@ -157,13 +119,13 @@ export function MapEditorToolbar(props: {
               gap: 8,
               padding: 10,
               borderRadius: 12,
-              border: "1px solid rgba(255,255,255,0.14)",
-              background: "rgba(9,13,20,0.96)",
+              border: `1px solid ${EDITOR_THEME.colors.border}`,
+              background: EDITOR_THEME.colors.panelBgRaised,
               boxShadow: "0 12px 32px rgba(0,0,0,0.35)"
             }}
           >
             {props.panelIds.map(panelId => (
-              <label key={panelId} style={{ display: "flex", alignItems: "center", gap: 8, color: "#eef3ff", fontSize: 13 }}>
+              <label key={panelId} style={{ display: "flex", alignItems: "center", gap: 8, color: EDITOR_THEME.colors.text, fontSize: 13, fontFamily: EDITOR_THEME.fontFamily }}>
                 <input
                   type="checkbox"
                   checked={props.openPanels[panelId]}

@@ -8,6 +8,7 @@ export function createInitialMapEditorState(initialLayout: WorldMapLayout, initi
     layerVisibility: { ...initialLayout.defaultLayers },
     selectedCellKey: getWorldMapCellKey({ x: 13, y: 11 }),
     selectedRouteId: initialLayout.paths[0]?.id ?? "",
+    routeDrawActive: false,
     selectedAreaCellKeys: [],
     activeTool: "inspect",
     jsonBuffer: initialJsonBuffer,

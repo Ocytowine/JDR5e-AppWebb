@@ -1,4 +1,4 @@
-import { getWorldMapCellKey, type CliffSegment, type MapCell, type MapPath, type ReliefElevationLevel, type WorldMapCity, type WorldMapLayout } from "../../data/worldMapLayout";
+import { getWorldMapCellKey, type CliffSegment, type MapCell, type MapPath, type ReliefElevationLevel, type RiverSourceType, type RoadType, type WorldMapCity, type WorldMapLayout } from "../../data/worldMapLayout";
 import { createCityId, ensureCell } from "../mapShared";
 
 type GeographyPreset = {
@@ -59,6 +59,14 @@ function normalizePair(a: MapCell, b: MapCell): { a: MapCell; b: MapCell } {
   return aKey <= bKey ? { a, b } : { a: b, b: a };
 }
 
+export function hasCliffBetweenCells(layout: WorldMapLayout, first: MapCell, second: MapCell): boolean {
+  const pair = normalizePair(first, second);
+  return layout.cliffSegments.some(segment => {
+    const segmentPair = normalizePair(segment.a, segment.b);
+    return getWorldMapCellKey(segmentPair.a) === getWorldMapCellKey(pair.a) && getWorldMapCellKey(segmentPair.b) === getWorldMapCellKey(pair.b);
+  });
+}
+
 export function upsertCliffSegment(layout: WorldMapLayout, high: MapCell, low: MapCell): void {
   const pair = normalizePair(high, low);
   const existingIndex = layout.cliffSegments.findIndex(segment => {
@@ -91,7 +99,10 @@ export function appendRoutePoint(layout: WorldMapLayout, selectedRouteId: string
   if (!route) return;
   const key = getWorldMapCellKey(cell);
   const lastKey = route.cells.length ? getWorldMapCellKey(route.cells[route.cells.length - 1]) : null;
-  if (key !== lastKey) route.cells.push(cell);
+  if (key === lastKey) return;
+  const lastCell = route.cells.length ? route.cells[route.cells.length - 1] : null;
+  if (lastCell && route.kind === "road" && hasCliffBetweenCells(layout, lastCell, cell)) return;
+  route.cells.push(cell);
 }
 
 export function updateCityFieldOnLayout(
@@ -210,8 +221,75 @@ export function removeCityFromSelectedCell(layout: WorldMapLayout, selectedCity:
   if (cell) cell.cityWikiId = undefined;
 }
 
-export function createRoute(layout: WorldMapLayout, id: string): MapPath {
-  const created: MapPath = { id, label: "Nouvelle route", kind: "road", cells: [] };
+export function createRoute(
+  layout: WorldMapLayout,
+  id: string,
+  kind: "road" | "river" = "road"
+): MapPath {
+  const created: MapPath =
+    kind === "river"
+      ? {
+          id,
+          label: "Nouveau cours d'eau",
+          kind: "river",
+          sourceFlow: 1,
+          sourceType: "source",
+          cells: []
+        }
+      : {
+          id,
+          label: "Nouvelle route",
+          kind: "road",
+          roadType: "road",
+          cells: []
+        };
   layout.paths.push(created);
   return created;
+}
+
+export function updatePathFieldOnLayout(
+  layout: WorldMapLayout,
+  pathId: string,
+  field: "label" | "kind" | "roadType" | "sourceFlow" | "sourceType",
+  value: string
+): void {
+  const path = layout.paths.find(entry => entry.id === pathId);
+  if (!path) return;
+
+  if (field === "kind") {
+    path.kind = value === "river" ? "river" : "road";
+    if (path.kind === "road") {
+      path.roadType = path.roadType ?? "road";
+      path.sourceFlow = undefined;
+      path.sourceType = undefined;
+    } else {
+      path.sourceFlow = Math.max(1, Number(path.sourceFlow) || 1);
+      path.sourceType = path.sourceType ?? "source";
+      path.roadType = undefined;
+    }
+    return;
+  }
+
+  if (field === "roadType") {
+    path.roadType = (value as RoadType) || "road";
+    return;
+  }
+
+  if (field === "sourceType") {
+    path.sourceType = (value as RiverSourceType) || "source";
+    return;
+  }
+
+  if (field === "sourceFlow") {
+    path.sourceFlow = Math.max(1, Number(value) || 1);
+    return;
+  }
+
+  path.label = value;
+}
+
+export function reversePathDirection(layout: WorldMapLayout, pathId: string): void {
+  const path = layout.paths.find(entry => entry.id === pathId);
+  if (!path) return;
+  path.cells = [...path.cells].reverse();
 }

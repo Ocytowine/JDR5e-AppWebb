@@ -10,6 +10,9 @@ export type CliffSegment = {
   low: MapCell;
 };
 
+export type RoadType = "track" | "road" | "major_road";
+export type RiverSourceType = "source" | "tributary" | "main";
+
 export type MapLayerId =
   | "background"
   | "grid"
@@ -33,6 +36,49 @@ export type WorldMapRegion = {
   color: string;
 };
 
+export type GovernanceModelId = "primacy" | "kingdom" | "duchy" | "republic" | "tribal" | "free_city" | "custom";
+
+export type GovernanceCityRole = "capital" | "primary" | "secondary";
+
+export type GeographicZoneKind = "natural" | "cultural" | "historical" | "religious" | "strategic" | "custom";
+
+export type WorldMapGovernance = {
+  id: string;
+  wikiEntityId: string;
+  label: string;
+  model: GovernanceModelId;
+  territoryId: string;
+  capitalCityId?: string;
+  color: string;
+};
+
+export type WorldMapGovernanceTerritory = {
+  id: string;
+  wikiEntityId: string;
+  governanceId?: string;
+  labelCell: MapCell;
+  color: string;
+};
+
+export type WorldMapGovernanceRegion = {
+  id: string;
+  wikiEntityId: string;
+  governanceId?: string;
+  territoryId?: string;
+  principalCityId?: string;
+  labelCell: MapCell;
+  color: string;
+};
+
+export type WorldMapGeographicZone = {
+  id: string;
+  wikiEntityId?: string;
+  label: string;
+  kind: GeographicZoneKind;
+  labelCell: MapCell;
+  color: string;
+};
+
 export type WorldMapCity = {
   id: string;
   wikiEntityId: string;
@@ -41,6 +87,8 @@ export type WorldMapCity = {
   kind: "capital" | "secondary";
   cell: MapCell;
   markerColor?: string;
+  governanceId?: string;
+  governanceRole?: GovernanceCityRole;
 };
 
 export type MapPath = {
@@ -48,6 +96,9 @@ export type MapPath = {
   label: string;
   kind: "road" | "river";
   cells: MapCell[];
+  roadType?: RoadType;
+  sourceFlow?: number;
+  sourceType?: RiverSourceType;
 };
 
 export type MapCellData = {
@@ -62,6 +113,9 @@ export type MapCellData = {
   cityWikiId?: string;
   locationWikiIds?: string[];
   tags?: string[];
+  governanceTerritoryId?: string;
+  governanceRegionId?: string;
+  geographicZoneIds?: string[];
 };
 
 export type MapCellDataSource = Omit<MapCellData, "reliefElevation"> & {
@@ -86,6 +140,10 @@ export type WorldMapLayoutSource = {
   defaultLayers: Record<MapLayerId, boolean>;
   territories: WorldMapTerritory[];
   regions: WorldMapRegion[];
+  governances?: WorldMapGovernance[];
+  governanceTerritories?: WorldMapGovernanceTerritory[];
+  governanceRegions?: WorldMapGovernanceRegion[];
+  geographicZones?: WorldMapGeographicZone[];
   cities: WorldMapCity[];
   paths: MapPath[];
   cliffSegments: CliffSegment[];
@@ -123,13 +181,24 @@ export function createRuntimeWorldMapLayout(
 ): WorldMapLayout {
   return {
     ...sourceLayout,
+    governances: sourceLayout.governances ?? [],
+    governanceTerritories: sourceLayout.governanceTerritories ?? [],
+    governanceRegions: sourceLayout.governanceRegions ?? [],
+    geographicZones: sourceLayout.geographicZones ?? [],
+    paths: sourceLayout.paths.map(path => ({
+      ...path,
+      roadType: path.kind === "road" ? path.roadType ?? "road" : undefined,
+      sourceFlow: path.kind === "river" ? Math.max(1, Number(path.sourceFlow) || 1) : undefined,
+      sourceType: path.kind === "river" ? path.sourceType ?? "source" : undefined
+    })),
     cliffSegments: Array.isArray(sourceLayout.cliffSegments) ? sourceLayout.cliffSegments : [],
     cells: sourceLayout.cells.map(
       (cell): MapCellData => ({
         ...cell,
         terrainDifficulty: DEFAULT_GEOGRAPHY_DIFFICULTY[cell.geography] ?? cell.terrainDifficulty ?? 5,
         riskLevel: cell.riskLevel ?? 1,
-        reliefElevation: cell.reliefElevation ?? "none"
+        reliefElevation: cell.reliefElevation ?? "none",
+        geographicZoneIds: Array.isArray(cell.geographicZoneIds) ? cell.geographicZoneIds : []
       })
     ),
     backgroundImageUrl: BACKGROUND_IMAGES[sourceLayout.backgroundImageKey] ?? valmorinMapUrl
@@ -147,6 +216,10 @@ export function serializeWorldMapLayout(layout: WorldMapLayout): WorldMapLayoutS
     defaultLayers: layout.defaultLayers,
     territories: layout.territories,
     regions: layout.regions,
+    governances: layout.governances ?? [],
+    governanceTerritories: layout.governanceTerritories ?? [],
+    governanceRegions: layout.governanceRegions ?? [],
+    geographicZones: layout.geographicZones ?? [],
     cities: layout.cities,
     paths: layout.paths,
     cliffSegments: layout.cliffSegments,

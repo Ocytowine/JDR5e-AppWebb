@@ -1,5 +1,6 @@
 import React from "react";
 import { EditorPanelFrame } from "./EditorPanelFrame";
+import { editorTextStyles } from "../editorTheme";
 
 export function HexTerrainPanel(props: {
   title: string;
@@ -10,8 +11,8 @@ export function HexTerrainPanel(props: {
     <EditorPanelFrame title="">
       <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 10 }}>
         <div>
-          <div style={{ fontSize: 12, fontWeight: 800, color: "#f4c967" }}>{props.title}</div>
-          <div style={{ fontSize: 16, fontWeight: 700 }}>{props.selectionLabel}</div>
+          <div style={editorTextStyles.panelTitle}>{props.title}</div>
+          <div style={{ ...editorTextStyles.title, fontSize: 16, fontWeight: 700 }}>{props.selectionLabel}</div>
         </div>
       </div>
       {props.children}
