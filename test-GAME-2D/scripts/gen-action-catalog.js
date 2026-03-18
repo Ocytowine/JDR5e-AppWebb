@@ -169,17 +169,41 @@ function main() {
     const baseName = modulePath.replace(/\.json$/i, "");
     const importName = uniqueName(toIdentifier(baseName), usedNames);
     imports.push(`import ${importName} from "../data/${baseName}.json";`);
-    entries.push(`  "${entry.relFromIndex.replace(/\\\\/g, "/")}": ${importName} as ActionDefinition`);
+    entries.push(`  "${entry.relFromIndex.replace(/\\\\/g, "/")}": ${importName}`);
   }
 
   const content = `// AUTO-GENERATED FILE. DO NOT EDIT MANUALLY.
 // Source of truth: src/data (generated index)
 
-import type { ActionDefinition } from "./actionTypes";
+import type { ActionDefinition } from "./engine/rules/actionTypes";
 import actionsIndex from "../data/actions/index.json";
 ${imports.join("\n")}
 
-const ACTION_MODULES: Record<string, ActionDefinition> = {
+function normalizeActionDefinition(raw: unknown): ActionDefinition {
+  const action = raw as Partial<ActionDefinition> & Record<string, unknown>;
+  return {
+    ...action,
+    id: String(action.id ?? ""),
+    name: String(action.name ?? ""),
+    category: String(action.category ?? "support"),
+    actionCost: (action.actionCost ?? { actionType: "action", movementCost: 0 }) as ActionDefinition["actionCost"],
+    targeting: (action.targeting ?? {
+      target: "self",
+      range: { min: 0, max: 0, shape: "self" },
+      maxTargets: 1,
+      requiresLos: false
+    }) as ActionDefinition["targeting"],
+    usage: (action.usage ?? { perTurn: null, perEncounter: null, resource: null }) as ActionDefinition["usage"],
+    conditions: Array.isArray(action.conditions) ? (action.conditions as ActionDefinition["conditions"]) : [],
+    hooks: Array.isArray(action.hooks) ? (action.hooks as NonNullable<ActionDefinition["hooks"]>) : [],
+    reactionWindows: Array.isArray(action.reactionWindows)
+      ? (action.reactionWindows as NonNullable<ActionDefinition["reactionWindows"]>)
+      : [],
+    tags: Array.isArray(action.tags) ? (action.tags as string[]) : []
+  } as ActionDefinition;
+}
+
+const ACTION_MODULES: Record<string, unknown> = {
 ${entries.join(",\n")}
 };
 
@@ -192,7 +216,7 @@ export function loadActionTypesFromIndex(): ActionDefinition[] {
   for (const path of indexed) {
     const mod = ACTION_MODULES[path];
     if (mod) {
-      loaded.push(mod);
+      loaded.push(normalizeActionDefinition(mod));
     } else {
       console.warn("[actions] Action path missing in bundle:", path);
     }

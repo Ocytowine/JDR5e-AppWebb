@@ -1,4 +1,4 @@
-import type { GrantDefinition } from "./featureTypes";
+import type { FeatureGrant } from "./featureTypes";
 
 export interface ObjectItemDefinition {
   id: string;
@@ -20,6 +20,6 @@ export interface ObjectItemDefinition {
   };
   capacityWeight?: number;
   tags?: string[];
-  grants?: GrantDefinition[];
+  grants?: FeatureGrant[];
   description?: string;
 }

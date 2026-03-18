@@ -24,23 +24,23 @@ import SpecialeEpeeElfique from "../../data/items/armes/speciale/epee-elfique.js
 import SpecialeFouetDemon from "../../data/items/armes/speciale/fouet-demon.json";
 
 const WEAPON_MODULES: Record<string, WeaponTypeDefinition> = {
-  "./martiale/arc-long-cendre.json": MartialeArcLongCendre as WeaponTypeDefinition,
-  "./martiale/arc-long.json": MartialeArcLong as WeaponTypeDefinition,
-  "./martiale/epee-longue-brasiere.json": MartialeEpeeLongueBrasiere as WeaponTypeDefinition,
-  "./martiale/epee-longue.json": MartialeEpeeLongue as WeaponTypeDefinition,
-  "./martiale/hache-bataille-incandescente.json": MartialeHacheBatailleIncandescente as WeaponTypeDefinition,
-  "./martiale/hache-bataille.json": MartialeHacheBataille as WeaponTypeDefinition,
-  "./monastique/baton.json": MonastiqueBaton as WeaponTypeDefinition,
-  "./monastique/kama.json": MonastiqueKama as WeaponTypeDefinition,
-  "./monastique/nunchaku.json": MonastiqueNunchaku as WeaponTypeDefinition,
-  "./simple/arc-court.json": SimpleArcCourt as WeaponTypeDefinition,
-  "./simple/arme-endommagee.json": SimpleArmeEndommagee as WeaponTypeDefinition,
-  "./simple/dague.json": SimpleDague as WeaponTypeDefinition,
-  "./simple/massue.json": SimpleMassue as WeaponTypeDefinition,
-  "./simple/petit-couteau.json": SimplePetitCouteau as WeaponTypeDefinition,
-  "./speciale/arbalete-repetee.json": SpecialeArbaleteRepetee as WeaponTypeDefinition,
-  "./speciale/epee-elfique.json": SpecialeEpeeElfique as WeaponTypeDefinition,
-  "./speciale/fouet-demon.json": SpecialeFouetDemon as WeaponTypeDefinition
+  "./martiale/arc-long-cendre.json": MartialeArcLongCendre as unknown as WeaponTypeDefinition,
+  "./martiale/arc-long.json": MartialeArcLong as unknown as WeaponTypeDefinition,
+  "./martiale/epee-longue-brasiere.json": MartialeEpeeLongueBrasiere as unknown as WeaponTypeDefinition,
+  "./martiale/epee-longue.json": MartialeEpeeLongue as unknown as WeaponTypeDefinition,
+  "./martiale/hache-bataille-incandescente.json": MartialeHacheBatailleIncandescente as unknown as WeaponTypeDefinition,
+  "./martiale/hache-bataille.json": MartialeHacheBataille as unknown as WeaponTypeDefinition,
+  "./monastique/baton.json": MonastiqueBaton as unknown as WeaponTypeDefinition,
+  "./monastique/kama.json": MonastiqueKama as unknown as WeaponTypeDefinition,
+  "./monastique/nunchaku.json": MonastiqueNunchaku as unknown as WeaponTypeDefinition,
+  "./simple/arc-court.json": SimpleArcCourt as unknown as WeaponTypeDefinition,
+  "./simple/arme-endommagee.json": SimpleArmeEndommagee as unknown as WeaponTypeDefinition,
+  "./simple/dague.json": SimpleDague as unknown as WeaponTypeDefinition,
+  "./simple/massue.json": SimpleMassue as unknown as WeaponTypeDefinition,
+  "./simple/petit-couteau.json": SimplePetitCouteau as unknown as WeaponTypeDefinition,
+  "./speciale/arbalete-repetee.json": SpecialeArbaleteRepetee as unknown as WeaponTypeDefinition,
+  "./speciale/epee-elfique.json": SpecialeEpeeElfique as unknown as WeaponTypeDefinition,
+  "./speciale/fouet-demon.json": SpecialeFouetDemon as unknown as WeaponTypeDefinition
 };
 
 function normalizeWeaponDamageTypes(def: WeaponTypeDefinition): WeaponTypeDefinition {

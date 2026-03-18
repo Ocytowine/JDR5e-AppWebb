@@ -25,24 +25,24 @@ import PieceOr from "../../data/items/objets/piece-or.json";
 import PiecePlatine from "../../data/items/objets/piece-platine.json";
 
 const OBJECT_MODULES: Record<string, ObjectItemDefinition> = {
-  "./contenants/obj-besace.json": ContenantsObjBesace as ObjectItemDefinition,
-  "./contenants/obj-bourse.json": ContenantsObjBourse as ObjectItemDefinition,
-  "./contenants/obj-carquois.json": ContenantsObjCarquois as ObjectItemDefinition,
-  "./contenants/obj-sac-a-dos.json": ContenantsObjSacADos as ObjectItemDefinition,
-  "./contenants/obj-sac-voyage.json": ContenantsObjSacVoyage as ObjectItemDefinition,
-  "./obj-grimoire.json": ObjGrimoire as ObjectItemDefinition,
-  "./obj-insigne-unite.json": ObjInsigneUnite as ObjectItemDefinition,
-  "./obj-plume-encre.json": ObjPlumeEncre as ObjectItemDefinition,
-  "./obj-souvenir-vole.json": ObjSouvenirVole as ObjectItemDefinition,
-  "./obj-symbole-sacre.json": ObjSymboleSacre as ObjectItemDefinition,
-  "./obj-tenue-academique.json": ObjTenueAcademique as ObjectItemDefinition,
-  "./obj-torche.json": ObjTorche as ObjectItemDefinition,
-  "./obj-vetements-communs.json": ObjVetementsCommuns as ObjectItemDefinition,
-  "./obj-vetements-voyage.json": ObjVetementsVoyage as ObjectItemDefinition,
-  "./piece-argent.json": PieceArgent as ObjectItemDefinition,
-  "./piece-cuivre.json": PieceCuivre as ObjectItemDefinition,
-  "./piece-or.json": PieceOr as ObjectItemDefinition,
-  "./piece-platine.json": PiecePlatine as ObjectItemDefinition
+  "./contenants/obj-besace.json": ContenantsObjBesace as unknown as ObjectItemDefinition,
+  "./contenants/obj-bourse.json": ContenantsObjBourse as unknown as ObjectItemDefinition,
+  "./contenants/obj-carquois.json": ContenantsObjCarquois as unknown as ObjectItemDefinition,
+  "./contenants/obj-sac-a-dos.json": ContenantsObjSacADos as unknown as ObjectItemDefinition,
+  "./contenants/obj-sac-voyage.json": ContenantsObjSacVoyage as unknown as ObjectItemDefinition,
+  "./obj-grimoire.json": ObjGrimoire as unknown as ObjectItemDefinition,
+  "./obj-insigne-unite.json": ObjInsigneUnite as unknown as ObjectItemDefinition,
+  "./obj-plume-encre.json": ObjPlumeEncre as unknown as ObjectItemDefinition,
+  "./obj-souvenir-vole.json": ObjSouvenirVole as unknown as ObjectItemDefinition,
+  "./obj-symbole-sacre.json": ObjSymboleSacre as unknown as ObjectItemDefinition,
+  "./obj-tenue-academique.json": ObjTenueAcademique as unknown as ObjectItemDefinition,
+  "./obj-torche.json": ObjTorche as unknown as ObjectItemDefinition,
+  "./obj-vetements-communs.json": ObjVetementsCommuns as unknown as ObjectItemDefinition,
+  "./obj-vetements-voyage.json": ObjVetementsVoyage as unknown as ObjectItemDefinition,
+  "./piece-argent.json": PieceArgent as unknown as ObjectItemDefinition,
+  "./piece-cuivre.json": PieceCuivre as unknown as ObjectItemDefinition,
+  "./piece-or.json": PieceOr as unknown as ObjectItemDefinition,
+  "./piece-platine.json": PiecePlatine as unknown as ObjectItemDefinition
 };
 
 export function loadObjectItemsFromIndex(): ObjectItemDefinition[] {

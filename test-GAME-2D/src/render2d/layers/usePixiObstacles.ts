@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { AnimatedSprite, Container, Graphics, Sprite, Texture } from "pixi.js";
 import type { RefObject } from "react";
+import type { TokenState } from "../../types";
 import type { ObstacleInstance, ObstacleTypeDefinition } from "../../game/obstacleTypes";
 import { getObstacleOccupiedCells } from "../../game/map/runtime/obstacleRuntime";
 import { TILE_SIZE, gridToScreenForGrid } from "../../boardConfig";
@@ -12,7 +13,7 @@ export function usePixiObstacles(options: {
   depthLayerRef: RefObject<Container | null>;
   obstacles: ObstacleInstance[];
   obstacleTypes: ObstacleTypeDefinition[];
-  tokens?: Array<{ id: string; type: "player" | "enemy"; x: number; y: number; hp: number }>;
+  tokens?: Array<Pick<TokenState, "id" | "type" | "x" | "y" | "hp" | "maxHp" | "footprint">>;
   pixiReadyTick?: number;
   grid: { cols: number; rows: number };
   heightMap: number[];
@@ -199,7 +200,7 @@ export function usePixiObstacles(options: {
     const depthLayer = options.depthLayerRef.current;
     if (!depthLayer) return;
 
-    depthLayer.cacheAsTexture = false;
+    depthLayer.cacheAsTexture(false);
     for (const child of [...depthLayer.children]) {
       if (child.label === "obstacle" || child.label === "obstacle-layer" || child.label === "obstacle-shadow") {
         depthLayer.removeChild(child);
@@ -335,10 +336,7 @@ export function usePixiObstacles(options: {
             typeof layer.preserveAspect === "boolean"
               ? layer.preserveAspect
               : Boolean(def?.appearance?.preserveAspect);
-          const tileSize =
-            gridSpec && typeof gridSpec.tileSize === "number" && gridSpec.tileSize > 0
-              ? gridSpec.tileSize
-              : TILE_SIZE;
+          const tileSize = TILE_SIZE;
           if (gridSpec && sprite.texture.width > 0 && sprite.texture.height > 0) {
             const targetW = gridSpec.tilesX * tileSize;
             const targetH = gridSpec.tilesY * tileSize;
@@ -503,7 +501,7 @@ export function usePixiObstacles(options: {
       }
     }
     if (!hasAnyAnimatedLayer) {
-      depthLayer.cacheAsTexture = true;
+      depthLayer.cacheAsTexture(true);
     }
   }, [
     options.depthLayerRef,

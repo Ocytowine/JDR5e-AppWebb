@@ -61,7 +61,7 @@ export function canEnemySeePlayer(
   allTokens: TokenState[],
   opaqueCells?: Set<string> | null,
   playableCells?: Set<string> | null,
-  wallVisionEdges?: Map<string, import("../map/walls/types").WallSegment> | null,
+  wallVisionEdges?: Map<string, import("../../map/walls/types").WallSegment> | null,
   lightLevels?: number[] | null,
   grid?: { cols: number; rows: number } | null
 ): boolean {

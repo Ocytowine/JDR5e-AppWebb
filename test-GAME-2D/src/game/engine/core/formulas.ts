@@ -1,4 +1,4 @@
-import type { TokenState } from "../../types";
+import type { TokenState } from "../../../types";
 
 interface FormulaContext {
   actor: TokenState;

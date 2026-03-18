@@ -21,7 +21,7 @@ export type NarrationPipelineResult = {
   finalPlayerText: string;
   debug: {
     step_1_app_to_runtime_request: Record<string, unknown>;
-    step_2_runtime_received_packet: Record<string, unknown>;
+    step_2_runtime_received_packet: Record<string, unknown> | null;
     step_3_runtime_to_llm_request: Record<string, unknown> | null;
     step_4_app_final_response: Record<string, unknown> | null;
     ai_handoff: Record<string, unknown> | null;

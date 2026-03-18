@@ -95,8 +95,8 @@ export function usePixiEffects(options: {
           sprite instanceof AnimatedSprite
             ? sprite.textures[0]
             : (sprite as Sprite).texture;
-        const baseWidth = texture?.width ?? 0;
-        const baseHeight = texture?.height ?? 0;
+        const baseWidth = texture && "frame" in texture ? texture.frame.width : 0;
+        const baseHeight = texture && "frame" in texture ? texture.frame.height : 0;
         const baseSize = Math.max(baseWidth, baseHeight);
         if (baseSize > 0) {
           const fitScale = appearance.targetSize / baseSize;

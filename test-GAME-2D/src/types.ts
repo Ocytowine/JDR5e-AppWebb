@@ -213,6 +213,8 @@ export interface EnemyCombatProfile {
 export interface TokenState {
   id: string;
   type: TokenType;
+  tags?: string[];
+  flags?: Record<string, boolean>;
   summonOwnerId?: string;
   summonOwnerType?: TokenType;
   summonControlMode?: "direct" | "auto" | "obedient" | "chaotic";

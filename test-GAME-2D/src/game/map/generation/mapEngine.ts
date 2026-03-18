@@ -1,9 +1,9 @@
-import type { EnemyTypeDefinition } from "../enemyTypes";
+import type { EnemyTypeDefinition } from "../../enemyTypes";
 import type { GridPosition } from "../../../types";
-import type { ObstacleInstance, ObstacleTypeDefinition } from "../obstacleTypes";
-import type { WallTypeDefinition } from "../wallTypes";
+import type { ObstacleInstance, ObstacleTypeDefinition } from "../../obstacleTypes";
+import type { WallTypeDefinition } from "../../wallTypes";
 import type { MapTheme } from "./types";
-import type { DecorInstance } from "../decorTypes";
+import type { DecorInstance } from "../../decorTypes";
 import type { TerrainCell } from "./draft";
 import { runGenerationPipeline } from "./pipeline";
 import type { WallSegment } from "../walls/types";

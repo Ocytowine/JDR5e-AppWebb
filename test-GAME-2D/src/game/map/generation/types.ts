@@ -1,8 +1,8 @@
 import type { GridPosition } from "../../../types";
-import type { EnemyTypeDefinition } from "../enemyTypes";
-import type { ObstacleTypeDefinition } from "../obstacleTypes";
-import type { WallTypeDefinition } from "../wallTypes";
-import type { DecorInstance } from "../decorTypes";
+import type { EnemyTypeDefinition } from "../../enemyTypes";
+import type { ObstacleTypeDefinition } from "../../obstacleTypes";
+import type { WallTypeDefinition } from "../../wallTypes";
+import type { DecorInstance } from "../../decorTypes";
 import type { TerrainCell } from "./draft";
 import type { WallSegment } from "../walls/types";
 import type { Orientation8 } from "../../engine/runtime/footprint";
@@ -170,7 +170,7 @@ export interface MapBuildResult {
   playerStart: GridPosition;
   enemySpawns: { enemyType: EnemyTypeDefinition; position: GridPosition }[];
   playableCells: string[];
-  obstacles: import("../obstacleTypes").ObstacleInstance[];
+  obstacles: import("../../obstacleTypes").ObstacleInstance[];
   wallSegments: WallSegment[];
   terrain: TerrainCell[];
   height: number[];

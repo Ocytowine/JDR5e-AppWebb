@@ -4,7 +4,7 @@ import { clamp, createDraft, setHeight, setLight, setTerrain, tryPlaceObstacle }
 import { loadMapPatternsFromIndex } from "../generation/mapPatternCatalog";
 import { choosePatternsByPrompt, getPatternSize, pickPatternTransform, placePattern } from "../generation/patterns";
 import { findObstacleType, pickVariantIdForPlacement, randomRotationForPlacement } from "../generation/obstacleSelector";
-import type { Orientation8 } from "../../engine/footprint";
+import type { Orientation8 } from "../../engine/runtime/footprint";
 
 const CITY_PATTERNS = loadMapPatternsFromIndex().filter(p => p.theme === "city");
 

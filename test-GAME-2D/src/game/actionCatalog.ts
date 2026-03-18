@@ -1,7 +1,7 @@
 // AUTO-GENERATED FILE. DO NOT EDIT MANUALLY.
 // Source of truth: src/data (generated index)
 
-import type { ActionDefinition } from "./actionTypes";
+import type { ActionDefinition } from "./engine/rules/actionTypes";
 import actionsIndex from "../data/actions/index.json";
 import SpellsAid from "../data/spells/aid.json";
 import SpellsArcaneBolt from "../data/spells/arcane-bolt.json";
@@ -44,47 +44,71 @@ import SupportsTurnUndead from "../data/supports/turn-undead.json";
 import SupportsUseItem from "../data/supports/use-item.json";
 import ItemsTorchToggle from "../data/items/torch-toggle.json";
 
-const ACTION_MODULES: Record<string, ActionDefinition> = {
-  "../spells/aid.json": SpellsAid as ActionDefinition,
-  "../spells/arcane-bolt.json": SpellsArcaneBolt as ActionDefinition,
-  "../spells/aura-of-purity.json": SpellsAuraOfPurity as ActionDefinition,
-  "../spells/beacon-of-hope.json": SpellsBeaconOfHope as ActionDefinition,
-  "../spells/cantrips/acid-splash.json": SpellsCantripsAcidSplash as ActionDefinition,
-  "../spells/cantrips/fire-bolt.json": SpellsCantripsFireBolt as ActionDefinition,
-  "../spells/cantrips/frostbite.json": SpellsCantripsFrostbite as ActionDefinition,
-  "../spells/greater-restoration.json": SpellsGreaterRestoration as ActionDefinition,
-  "../spells/heroism.json": SpellsHeroism as ActionDefinition,
-  "../spells/minor-ward.json": SpellsMinorWard as ActionDefinition,
-  "../spells/rarys-telepathic-bond.json": SpellsRarysTelepathicBond as ActionDefinition,
-  "../spells/rayon-de-feu.json": SpellsRayonDeFeu as ActionDefinition,
-  "../spells/resilient-sphere.json": SpellsResilientSphere as ActionDefinition,
-  "../spells/sanctuary.json": SpellsSanctuary as ActionDefinition,
-  "../spells/sending.json": SpellsSending as ActionDefinition,
-  "../spells/vague-ardente.json": SpellsVagueArdente as ActionDefinition,
-  "../spells/warding-bond.json": SpellsWardingBond as ActionDefinition,
-  "../attacks/bow-shot.json": AttacksBowShot as ActionDefinition,
-  "../attacks/melee-strike.json": AttacksMeleeStrike as ActionDefinition,
-  "../attacks/throw-dagger.json": AttacksThrowDagger as ActionDefinition,
-  "../moves/dash.json": MovesDash as ActionDefinition,
-  "../moves/move.json": MovesMove as ActionDefinition,
-  "../supports/action-surge.json": SupportsActionSurge as ActionDefinition,
-  "../supports/cast-magic.json": SupportsCastMagic as ActionDefinition,
-  "../supports/disengage.json": SupportsDisengage as ActionDefinition,
-  "../supports/divine-spark-heal.json": SupportsDivineSparkHeal as ActionDefinition,
-  "../supports/divine-spark-necrotic.json": SupportsDivineSparkNecrotic as ActionDefinition,
-  "../supports/divine-spark-radiant.json": SupportsDivineSparkRadiant as ActionDefinition,
-  "../supports/dodge.json": SupportsDodge as ActionDefinition,
-  "../supports/help.json": SupportsHelp as ActionDefinition,
-  "../supports/hide.json": SupportsHide as ActionDefinition,
-  "../supports/indomitable.json": SupportsIndomitable as ActionDefinition,
-  "../supports/influence.json": SupportsInfluence as ActionDefinition,
-  "../supports/observe.json": SupportsObserve as ActionDefinition,
-  "../supports/ready-action.json": SupportsReadyAction as ActionDefinition,
-  "../supports/second-wind.json": SupportsSecondWind as ActionDefinition,
-  "../supports/study.json": SupportsStudy as ActionDefinition,
-  "../supports/turn-undead.json": SupportsTurnUndead as ActionDefinition,
-  "../supports/use-item.json": SupportsUseItem as ActionDefinition,
-  "../items/torch-toggle.json": ItemsTorchToggle as ActionDefinition
+function normalizeActionDefinition(raw: unknown): ActionDefinition {
+  const action = raw as Partial<ActionDefinition> & Record<string, unknown>;
+  return {
+    ...action,
+    id: String(action.id ?? ""),
+    name: String(action.name ?? ""),
+    category: String(action.category ?? "support"),
+    actionCost: (action.actionCost ?? { actionType: "action", movementCost: 0 }) as ActionDefinition["actionCost"],
+    targeting: (action.targeting ?? {
+      target: "self",
+      range: { min: 0, max: 0, shape: "self" },
+      maxTargets: 1,
+      requiresLos: false
+    }) as ActionDefinition["targeting"],
+    usage: (action.usage ?? { perTurn: null, perEncounter: null, resource: null }) as ActionDefinition["usage"],
+    conditions: Array.isArray(action.conditions) ? (action.conditions as ActionDefinition["conditions"]) : [],
+    hooks: Array.isArray(action.hooks) ? (action.hooks as NonNullable<ActionDefinition["hooks"]>) : [],
+    reactionWindows: Array.isArray(action.reactionWindows)
+      ? (action.reactionWindows as NonNullable<ActionDefinition["reactionWindows"]>)
+      : [],
+    tags: Array.isArray(action.tags) ? (action.tags as string[]) : []
+  } as ActionDefinition;
+}
+
+const ACTION_MODULES: Record<string, unknown> = {
+  "../spells/aid.json": SpellsAid,
+  "../spells/arcane-bolt.json": SpellsArcaneBolt,
+  "../spells/aura-of-purity.json": SpellsAuraOfPurity,
+  "../spells/beacon-of-hope.json": SpellsBeaconOfHope,
+  "../spells/cantrips/acid-splash.json": SpellsCantripsAcidSplash,
+  "../spells/cantrips/fire-bolt.json": SpellsCantripsFireBolt,
+  "../spells/cantrips/frostbite.json": SpellsCantripsFrostbite,
+  "../spells/greater-restoration.json": SpellsGreaterRestoration,
+  "../spells/heroism.json": SpellsHeroism,
+  "../spells/minor-ward.json": SpellsMinorWard,
+  "../spells/rarys-telepathic-bond.json": SpellsRarysTelepathicBond,
+  "../spells/rayon-de-feu.json": SpellsRayonDeFeu,
+  "../spells/resilient-sphere.json": SpellsResilientSphere,
+  "../spells/sanctuary.json": SpellsSanctuary,
+  "../spells/sending.json": SpellsSending,
+  "../spells/vague-ardente.json": SpellsVagueArdente,
+  "../spells/warding-bond.json": SpellsWardingBond,
+  "../attacks/bow-shot.json": AttacksBowShot,
+  "../attacks/melee-strike.json": AttacksMeleeStrike,
+  "../attacks/throw-dagger.json": AttacksThrowDagger,
+  "../moves/dash.json": MovesDash,
+  "../moves/move.json": MovesMove,
+  "../supports/action-surge.json": SupportsActionSurge,
+  "../supports/cast-magic.json": SupportsCastMagic,
+  "../supports/disengage.json": SupportsDisengage,
+  "../supports/divine-spark-heal.json": SupportsDivineSparkHeal,
+  "../supports/divine-spark-necrotic.json": SupportsDivineSparkNecrotic,
+  "../supports/divine-spark-radiant.json": SupportsDivineSparkRadiant,
+  "../supports/dodge.json": SupportsDodge,
+  "../supports/help.json": SupportsHelp,
+  "../supports/hide.json": SupportsHide,
+  "../supports/indomitable.json": SupportsIndomitable,
+  "../supports/influence.json": SupportsInfluence,
+  "../supports/observe.json": SupportsObserve,
+  "../supports/ready-action.json": SupportsReadyAction,
+  "../supports/second-wind.json": SupportsSecondWind,
+  "../supports/study.json": SupportsStudy,
+  "../supports/turn-undead.json": SupportsTurnUndead,
+  "../supports/use-item.json": SupportsUseItem,
+  "../items/torch-toggle.json": ItemsTorchToggle
 };
 
 export function loadActionTypesFromIndex(): ActionDefinition[] {
@@ -96,7 +120,7 @@ export function loadActionTypesFromIndex(): ActionDefinition[] {
   for (const path of indexed) {
     const mod = ACTION_MODULES[path];
     if (mod) {
-      loaded.push(mod);
+      loaded.push(normalizeActionDefinition(mod));
     } else {
       console.warn("[actions] Action path missing in bundle:", path);
     }

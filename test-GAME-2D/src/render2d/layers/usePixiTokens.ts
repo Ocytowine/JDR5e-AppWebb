@@ -121,7 +121,6 @@ export function usePixiTokens(options: {
           ? token.appearance.tokenScale / 100
           : 1;
         const needsFallback =
-          !sprite.texture.valid ||
           sprite.texture.width <= 1 ||
           sprite.texture.height <= 1;
         if (needsFallback) {

@@ -1,5 +1,5 @@
 import type { GridPosition } from "../../../types";
-import type { ObstacleInstance, ObstacleTypeDefinition } from "../obstacleTypes";
+import type { ObstacleInstance, ObstacleTypeDefinition } from "../../obstacleTypes";
 import { getObstacleOccupiedCells } from "../runtime/obstacleRuntime";
 import { key } from "./draft";
 

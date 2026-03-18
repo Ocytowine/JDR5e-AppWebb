@@ -19,7 +19,7 @@ export function usePixiDecorations(options: {
     const depthLayer = options.depthLayerRef.current;
     if (!depthLayer) return;
 
-    depthLayer.cacheAsTexture = false;
+    depthLayer.cacheAsTexture(false);
     for (const child of [...depthLayer.children]) {
       if (child.label === "decor") {
         depthLayer.removeChild(child);
@@ -52,7 +52,7 @@ export function usePixiDecorations(options: {
       g.zIndex = center.y + DEPTH_Z.decor;
       depthLayer.addChild(g);
     }
-    depthLayer.cacheAsTexture = true;
+    depthLayer.cacheAsTexture(true);
   }, [
     options.depthLayerRef,
     options.decorations,

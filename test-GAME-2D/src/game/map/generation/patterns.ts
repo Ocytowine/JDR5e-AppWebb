@@ -4,8 +4,8 @@ import type {
   MapPatternElement,
   MapPatternRotation
 } from "./mapPatternCatalog";
-import type { ObstacleTypeDefinition } from "../obstacleTypes";
-import type { WallTypeDefinition } from "../wallTypes";
+import type { ObstacleTypeDefinition } from "../../obstacleTypes";
+import type { WallTypeDefinition } from "../../wallTypes";
 import { getObstacleOccupiedCells } from "../runtime/obstacleRuntime";
 import type { MapDraft } from "./draft";
 import {

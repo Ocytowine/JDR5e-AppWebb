@@ -403,6 +403,8 @@ export function computeCliffOverlay(layout: WorldMapLayout): Array<{
   key: string;
   line: string;
   shadow: string;
+  highCell: MapCell;
+  lowCell: MapCell;
 }> {
   return layout.cliffSegments
     .map((segment: CliffSegment) => {
@@ -417,13 +419,23 @@ export function computeCliffOverlay(layout: WorldMapLayout): Array<{
       const inset = 10;
       const offsetX = (towardLowX / length) * inset;
       const offsetY = (towardLowY / length) * inset;
+      const edgeDx = edge.end.x - edge.start.x;
+      const edgeDy = edge.end.y - edge.start.y;
+      const edgeLength = Math.hypot(edgeDx, edgeDy) || 1;
+      const extend = 6;
+      const extendX = (edgeDx / edgeLength) * extend;
+      const extendY = (edgeDy / edgeLength) * extend;
+      const start = { x: edge.start.x - extendX, y: edge.start.y - extendY };
+      const end = { x: edge.end.x + extendX, y: edge.end.y + extendY };
       return {
         key: `cliff-${getWorldMapCellKey(segment.a)}-${getWorldMapCellKey(segment.b)}`,
-        line: `M ${edge.start.x} ${edge.start.y} L ${edge.end.x} ${edge.end.y}`,
-        shadow: `${edge.start.x},${edge.start.y} ${edge.end.x},${edge.end.y} ${edge.end.x + offsetX},${edge.end.y + offsetY} ${edge.start.x + offsetX},${edge.start.y + offsetY}`
+        line: `M ${start.x} ${start.y} L ${end.x} ${end.y}`,
+        shadow: `${start.x},${start.y} ${end.x},${end.y} ${end.x + offsetX},${end.y + offsetY} ${start.x + offsetX},${start.y + offsetY}`,
+        highCell: segment.high,
+        lowCell: segment.low
       };
     })
-    .filter((entry): entry is { key: string; line: string; shadow: string } => Boolean(entry));
+    .filter((entry): entry is { key: string; line: string; shadow: string; highCell: MapCell; lowCell: MapCell } => Boolean(entry));
 }
 
 export function useWikiEntries(layout: WorldMapLayout): {
@@ -626,6 +638,9 @@ export function MapCanvas(props: {
   selectedRouteId?: string | null;
   routeEditorActive?: boolean;
   terrainOverlayActive?: boolean;
+  cliffEditPair?: { first: MapCell; second: MapCell } | null;
+  onSetCliffHighCell?: (cell: MapCell) => void;
+  onRemoveCliffPair?: () => void;
   wikiEntriesById: Record<string, WikiEntry>;
   onCellClick: (cell: MapCell, meta?: { shiftKey: boolean }) => void;
   onCityClick?: (cityId: string, meta?: { shiftKey: boolean }) => void;
@@ -971,6 +986,62 @@ export function MapCanvas(props: {
                 <path d={segment.line} fill="none" stroke="rgba(168,176,188,0.62)" strokeWidth={1.4} opacity={0.92} strokeLinecap="round" />
               </g>
             ))}
+
+          {props.terrainOverlayActive && props.cliffEditPair && (() => {
+            const pair = props.cliffEditPair;
+            const firstCenter = getCellCenter(props.layout, pair.first);
+            const secondCenter = getCellCenter(props.layout, pair.second);
+            const currentSegment = cliffOverlay.find(segment => {
+              const firstKey = getWorldMapCellKey(pair.first);
+              const secondKey = getWorldMapCellKey(pair.second);
+              const highKey = getWorldMapCellKey(segment.highCell);
+              const lowKey = getWorldMapCellKey(segment.lowCell);
+              return (
+                (highKey === firstKey && lowKey === secondKey) ||
+                (highKey === secondKey && lowKey === firstKey) ||
+                (getWorldMapCellKey(segment.highCell) === firstKey && getWorldMapCellKey(segment.lowCell) === secondKey) ||
+                (getWorldMapCellKey(segment.highCell) === secondKey && getWorldMapCellKey(segment.lowCell) === firstKey)
+              );
+            });
+            const currentHighKey = currentSegment ? getWorldMapCellKey(currentSegment.highCell) : "";
+            const buttons = [
+              { cell: pair.first, center: firstCenter, label: "+", active: currentHighKey === getWorldMapCellKey(pair.first) },
+              { cell: pair.second, center: secondCenter, label: "+", active: currentHighKey === getWorldMapCellKey(pair.second) }
+            ];
+            return (
+              <g>
+                {buttons.map(button => (
+                  <g
+                    key={`cliff-high-${getWorldMapCellKey(button.cell)}`}
+                    transform={`translate(${button.center.x} ${button.center.y})`}
+                    style={{ cursor: "pointer" }}
+                    onClick={event => {
+                      event.stopPropagation();
+                      props.onSetCliffHighCell?.(button.cell);
+                    }}
+                  >
+                    <circle r={16} fill={button.active ? "rgba(143,179,255,0.94)" : "rgba(9,13,20,0.82)"} stroke="rgba(255,255,255,0.72)" strokeWidth="1.5" />
+                    <text x={0} y={5} textAnchor="middle" fill={button.active ? "#08111a" : "#eef3ff"} style={{ fontSize: 18, fontWeight: 900 }}>
+                      +
+                    </text>
+                  </g>
+                ))}
+                <g
+                  transform={`translate(${(firstCenter.x + secondCenter.x) / 2} ${(firstCenter.y + secondCenter.y) / 2})`}
+                  style={{ cursor: props.onRemoveCliffPair ? "pointer" : "default" }}
+                  onClick={event => {
+                    event.stopPropagation();
+                    props.onRemoveCliffPair?.();
+                  }}
+                >
+                  <circle r={12} fill="rgba(130,28,28,0.74)" stroke="rgba(255,215,215,0.82)" strokeWidth="1.5" />
+                  <text x={0} y={4} textAnchor="middle" fill="#fff1f1" style={{ fontSize: 14, fontWeight: 900 }}>
+                    -
+                  </text>
+                </g>
+              </g>
+            );
+          })()}
 
           {props.terrainOverlayActive &&
             reliefOverlay.markers.map(marker => (

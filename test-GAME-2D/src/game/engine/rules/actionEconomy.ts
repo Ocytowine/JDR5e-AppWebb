@@ -1,5 +1,5 @@
 import type { TokenState } from "../../../types";
-import type { WeaponTypeDefinition } from "../weaponTypes";
+import type { WeaponTypeDefinition } from "../../weaponTypes";
 import type { ActionDefinition } from "./actionTypes";
 
 export type ActionEconomyUsage = {

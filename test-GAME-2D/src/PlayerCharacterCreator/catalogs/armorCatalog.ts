@@ -15,14 +15,14 @@ import DemiPlaque from "../../data/items/armures/demi-plaque.json";
 import Harnois from "../../data/items/armures/harnois.json";
 
 const ARMOR_MODULES: Record<string, ArmorItemDefinition> = {
-  "./armure-gardien-runique.json": ArmureGardienRunique as ArmorItemDefinition,
-  "./bouclier.json": Bouclier as ArmorItemDefinition,
-  "./chemise-mailles.json": ChemiseMailles as ArmorItemDefinition,
-  "./cotte-mailles.json": CotteMailles as ArmorItemDefinition,
-  "./cuir-cloute.json": CuirCloute as ArmorItemDefinition,
-  "./cuir.json": Cuir as ArmorItemDefinition,
-  "./demi-plaque.json": DemiPlaque as ArmorItemDefinition,
-  "./harnois.json": Harnois as ArmorItemDefinition
+  "./armure-gardien-runique.json": ArmureGardienRunique as unknown as ArmorItemDefinition,
+  "./bouclier.json": Bouclier as unknown as ArmorItemDefinition,
+  "./chemise-mailles.json": ChemiseMailles as unknown as ArmorItemDefinition,
+  "./cotte-mailles.json": CotteMailles as unknown as ArmorItemDefinition,
+  "./cuir-cloute.json": CuirCloute as unknown as ArmorItemDefinition,
+  "./cuir.json": Cuir as unknown as ArmorItemDefinition,
+  "./demi-plaque.json": DemiPlaque as unknown as ArmorItemDefinition,
+  "./harnois.json": Harnois as unknown as ArmorItemDefinition
 };
 
 export function loadArmorItemsFromIndex(): ArmorItemDefinition[] {

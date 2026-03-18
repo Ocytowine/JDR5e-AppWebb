@@ -1,5 +1,5 @@
 import type { ActionDefinition } from "./actionTypes";
-import type { WeaponTypeDefinition } from "../weaponTypes";
+import type { WeaponTypeDefinition } from "../../weaponTypes";
 import type { TokenState } from "../../../types";
 
 export type AttackKind = "weapon" | "unarmed";

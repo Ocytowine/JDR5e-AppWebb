@@ -1,4 +1,4 @@
-import type { WallTypeDefinition } from "../wallTypes";
+import type { WallTypeDefinition } from "../../wallTypes";
 import { pickWeighted } from "./random";
 
 export function findWallType(

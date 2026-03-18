@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { ConeDirection } from "./boardEffects";
 import { sampleCharacter } from "./data/models/sampleCharacter";
 import type {
   CombatStats,
@@ -98,6 +99,7 @@ import type { FloorMaterial } from "./data/maps/floors/types";
 import type { DecorInstance } from "./game/decorTypes";
 import type { MapTheme } from "./game/map/generation/types";
 import { buildObstacleBlockingSets, getObstacleOccupiedCells } from "./game/map/runtime/obstacleRuntime";
+import { isWallDestructible } from "./game/map/walls/durability";
 import {
   distanceBetweenCells,
   getClosestFootprintCellToPoint,
@@ -672,6 +674,8 @@ function buildCombatStatsFromCharacter(
     attackBonus: mods.modFOR + proficiencyBonus,
     moveRange: defaultSpeed,
     maxAttacksPerTurn: 1,
+    actionsPerTurn: 1,
+    bonusActionsPerTurn: 1,
     resources: {}
   };
 }
@@ -803,6 +807,95 @@ function resolveEnemyMovementProfile(
   };
 }
 
+function toCardinalDirection(direction: ConeDirection): "up" | "down" | "left" | "right" {
+  switch (direction) {
+    case "up":
+    case "up-left":
+    case "up-right":
+      return "up";
+    case "down":
+    case "down-left":
+    case "down-right":
+      return "down";
+    case "left":
+      return "left";
+    default:
+      return "right";
+  }
+}
+
+function createSummonToken(params: {
+  entityTypeId: string;
+  x: number;
+  y: number;
+  ownerId: string;
+  ownerType: TokenType;
+  enemyTypeById: Map<string, EnemyTypeDefinition>;
+  nextSummonId: () => string;
+  onLog?: (message: string) => void;
+}): TokenState | null {
+  const enemyType = params.enemyTypeById.get(params.entityTypeId) ?? null;
+  if (!enemyType) {
+    params.onLog?.(`Invocation echouee: type inconnu (${params.entityTypeId}).`);
+    return null;
+  }
+  const summonBehavior = enemyType.summonBehavior ?? {};
+  const controlMode = summonBehavior.controlMode ?? "auto";
+  const turnTiming = summonBehavior.turnTiming ?? "after_player";
+  const initiativeMode = summonBehavior.initiativeMode ?? "roll_on_spawn";
+  const obeyChance =
+    typeof summonBehavior.obeyChance === "number" ? summonBehavior.obeyChance : 1;
+  const order = summonBehavior.order ?? { kind: "attack_nearest" };
+  const speed = resolveEnemyMovementSpeed(enemyType);
+  const base: CombatStats = {
+    ...enemyType.combatStats,
+    moveRange: speed
+  };
+  const movementProfile = resolveEnemyMovementProfile(enemyType, speed);
+  return {
+    id: params.nextSummonId(),
+    type: params.ownerType,
+    summonOwnerId: params.ownerId,
+    summonOwnerType: params.ownerType,
+    summonControlMode: controlMode,
+    summonTurnTiming: turnTiming,
+    summonInitiativeMode: initiativeMode,
+    summonObeyChance: obeyChance,
+    summonOrder: order,
+    enemyTypeId: enemyType.id,
+    enemyTypeLabel: enemyType.label,
+    aiRole: enemyType.aiRole ?? "summon",
+    actionIds: Array.isArray((enemyType as any).actions)
+      ? ((enemyType as any).actions as string[])
+      : null,
+    reactionIds: Array.isArray((enemyType as any).reactionIds)
+      ? ((enemyType as any).reactionIds as string[])
+      : null,
+    appearance: enemyType.appearance,
+    speechProfile: enemyType.speechProfile ?? null,
+    combatStats: base,
+    spellcastingState: enemyType.spellcastingState,
+    moveRange: base.moveRange,
+    maxAttacksPerTurn:
+      typeof base.maxAttacksPerTurn === "number" ? base.maxAttacksPerTurn : 1,
+    armorClass: base.armorClass,
+    movementProfile,
+    facing: "left",
+    visionProfile: enemyType.vision
+      ? (enemyType.vision as VisionProfile)
+      : {
+          shape: "cone",
+          range: 100,
+          apertureDeg: 180
+        },
+    footprint: enemyType.footprint,
+    x: params.x,
+    y: params.y,
+    hp: base.maxHp,
+    maxHp: base.maxHp
+  };
+}
+
   function createEnemy(
     index: number,
     enemyType: EnemyTypeDefinition,
@@ -867,75 +960,6 @@ function computeEnemySpawnPosition(
 
   return { x, y };
 }
-
-  function createSummon(params: {
-    entityTypeId: string;
-    x: number;
-    y: number;
-    ownerId: string;
-    ownerType: TokenType;
-  }): TokenState | null {
-    const enemyType = enemyTypeById.get(params.entityTypeId) ?? null;
-    if (!enemyType) {
-      pushLog(`Invocation echouee: type inconnu (${params.entityTypeId}).`);
-      return null;
-    }
-    const summonBehavior = enemyType.summonBehavior ?? {};
-    const controlMode = summonBehavior.controlMode ?? "auto";
-    const turnTiming = summonBehavior.turnTiming ?? "after_player";
-    const initiativeMode = summonBehavior.initiativeMode ?? "roll_on_spawn";
-    const obeyChance =
-      typeof summonBehavior.obeyChance === "number" ? summonBehavior.obeyChance : 1;
-    const order = summonBehavior.order ?? { kind: "attack_nearest" };
-    const speed = resolveEnemyMovementSpeed(enemyType);
-    const base: CombatStats = {
-      ...enemyType.combatStats,
-      moveRange: speed
-    };
-    const movementProfile = resolveEnemyMovementProfile(enemyType, speed);
-    const id = `summon-${summonCounterRef.current++}`;
-    return {
-      id,
-      type: params.ownerType,
-      summonOwnerId: params.ownerId,
-      summonOwnerType: params.ownerType,
-      summonControlMode: controlMode,
-      summonTurnTiming: turnTiming,
-      summonInitiativeMode: initiativeMode,
-      summonObeyChance: obeyChance,
-      summonOrder: order,
-      enemyTypeId: enemyType.id,
-      enemyTypeLabel: enemyType.label,
-      aiRole: enemyType.aiRole ?? "summon",
-      actionIds: Array.isArray((enemyType as any).actions)
-        ? ((enemyType as any).actions as string[])
-        : null,
-      reactionIds: Array.isArray((enemyType as any).reactionIds)
-        ? ((enemyType as any).reactionIds as string[])
-        : null,
-      appearance: enemyType.appearance,
-      speechProfile: enemyType.speechProfile ?? null,
-      combatStats: base,
-      moveRange: base.moveRange,
-      maxAttacksPerTurn:
-        typeof base.maxAttacksPerTurn === "number" ? base.maxAttacksPerTurn : 1,
-      armorClass: base.armorClass,
-      movementProfile,
-      facing: params.ownerType === "enemy" ? "left" : "right",
-      visionProfile: enemyType.vision
-        ? (enemyType.vision as VisionProfile)
-        : {
-            shape: "cone",
-            range: 100,
-            apertureDeg: 180
-          },
-      footprint: enemyType.footprint,
-      x: params.x,
-      y: params.y,
-      hp: base.maxHp,
-      maxHp: base.maxHp
-    };
-  }
 
 const ENEMY_CAPABILITIES: { action: EnemyActionType; label: string; color: string }[] = [
   {
@@ -1752,6 +1776,22 @@ export const GameBoard: React.FC = () => {
     for (const t of enemyTypes) map.set(t.id, t);
     return map;
   }, [enemyTypes]);
+  const createSummon = useCallback(
+    (params: {
+      entityTypeId: string;
+      x: number;
+      y: number;
+      ownerId: string;
+      ownerType: TokenType;
+    }): TokenState | null =>
+      createSummonToken({
+        ...params,
+        enemyTypeById,
+        nextSummonId: () => `summon-${summonCounterRef.current++}`,
+        onLog: pushLog
+      }),
+    [enemyTypeById]
+  );
   const closedCells = useMemo(() => {
     if (!wallSegments.length) return null;
     return computeClosedCells({
@@ -2723,7 +2763,7 @@ export const GameBoard: React.FC = () => {
         id: "action-range",
         kind: "cone",
         range: Math.max(1, rangeCells),
-        direction
+        direction: toCardinalDirection(direction)
       });
     } else {
       specs.push({
@@ -2934,13 +2974,14 @@ export const GameBoard: React.FC = () => {
   }
 
   function getObstacleDistance(
-    from: { x: number; y: number },
+    from: TokenState | { x: number; y: number },
     obstacle: ObstacleInstance,
     def: ObstacleTypeDefinition | null,
     targetCell: { x: number; y: number }
   ): number {
     const cells = def ? getObstacleOccupiedCells(obstacle, def) : [targetCell];
-    const fromCells = "id" in from ? getTokenOccupiedCells(from) : [from];
+    const fromCells =
+      typeof (from as TokenState).id === "string" ? getTokenOccupiedCells(from as TokenState) : [from];
     let best = Number.POSITIVE_INFINITY;
     for (const src of fromCells) {
       for (const cell of cells) {
@@ -3542,10 +3583,9 @@ export const GameBoard: React.FC = () => {
   }
 
   function shouldSummonHaveTurnEntry(token: TokenState): boolean {
-    const timing = token.summonTurnTiming ?? "after_player";
-    if (timing === "player_turn") return false;
+    if (token.summonTurnTiming === "player_turn") return false;
     if (token.summonInitiativeMode === "attach_to_player") return true;
-    return timing !== "player_turn";
+    return true;
   }
 
   function getSummonTurnTiming(token: TokenState): "after_player" | "initiative" {
@@ -4156,9 +4196,9 @@ export const GameBoard: React.FC = () => {
       raw.allowedStyles && raw.allowedStyles.length > 0
         ? raw.allowedStyles
         : [primaryStyle];
-    const preferredAbilities =
+    const preferredAbilities: Array<"FOR" | "DEX" | "CON" | "INT" | "SAG" | "CHA"> =
       raw.preferredAbilities && raw.preferredAbilities.length > 0
-        ? raw.preferredAbilities
+        ? (raw.preferredAbilities as Array<"FOR" | "DEX" | "CON" | "INT" | "SAG" | "CHA">)
         : [primaryStyle === "ranged" ? "DEX" : "FOR"];
     const preferredRangeMin =
       raw.preferredRangeMin ??
@@ -4316,7 +4356,7 @@ export const GameBoard: React.FC = () => {
       reactionAvailable: canUseReaction(params.actor.id),
       concentrating: isTokenConcentrating(params.actor),
       surprised: isTokenSurprised(params.actor),
-      getActionConstraintIssues: ({ action, actor }) =>
+      getActionConstraintIssues: ({ action, actor }: { action: ActionDefinition; actor: TokenState }) =>
         getWeaponActionConstraintIssues(action, actor, {
           reaction: action.actionCost?.actionType === "reaction"
         }),
@@ -7044,7 +7084,7 @@ export const GameBoard: React.FC = () => {
       const rules = (feature.rules ?? {}) as Record<string, any>;
       const markers = Array.isArray(rules.runtimeMarkers) ? (rules.runtimeMarkers as Array<any>) : [];
       return markers
-        .map(raw => {
+        .map((raw): FeatureRuntimeMarkerRule | null => {
           const id = String(raw?.id ?? "").trim();
           const applyOn = String(raw?.applyOn ?? "on_outcome").trim().toLowerCase();
           const target = String(raw?.target ?? "primary").trim().toLowerCase();
@@ -8248,10 +8288,12 @@ export const GameBoard: React.FC = () => {
       return null;
     }
     const resource = action.usage.resource;
+    const min = resource.min;
+    if (typeof min !== "number") return null;
     const pool = typeof resource.pool === "string" ? resource.pool : null;
     const current = getResourceAmount(resource.name, pool);
     const label = pool ? `${pool}:${resource.name}` : resource.name;
-    return { label, current, min: resource.min };
+    return { label, current, min };
   }
 
   function resolvePlayerActionTarget(action: ActionDefinition): ActionTarget | null {
@@ -8852,8 +8894,9 @@ export const GameBoard: React.FC = () => {
                   ...actionForEngine,
                   resolution: {
                     ...actionForEngine.resolution,
+                    kind: actionForEngine.resolution?.kind ?? "ABILITY_CHECK",
                     check: {
-                      ...actionForEngine.resolution?.check,
+                      ability: actionForEngine.resolution?.check?.ability ?? "FOR",
                       dc: Math.max(0, checkDc - bonus)
                     }
                   }
@@ -9060,7 +9103,7 @@ export const GameBoard: React.FC = () => {
       return { ...prev, hp: afterHp };
     });
 
-    let statusId: string | null = null;
+      let statusId = "status";
     let statusTriggered = false;
     if (hazard.statusRoll) {
       const roll = rollDie(hazard.statusRoll.die);
@@ -9536,7 +9579,7 @@ export const GameBoard: React.FC = () => {
         for (const interaction of interactions) {
           const check = getInteractionAvailability({
             interaction,
-            target: { kind: "wall", segmentId: wallHit.segment.id, cell: wallHit.cell },
+            target: { kind: "wall", segmentId: wallHit.segment.id, cell: { x: targetX, y: targetY } },
             player,
             wallSegments,
             obstacles,
@@ -9593,7 +9636,7 @@ export const GameBoard: React.FC = () => {
         for (const interaction of interactions) {
           const check = getInteractionAvailability({
             interaction,
-            target: { kind: "obstacle", obstacleId: obstacleHit.instance.id, cell: obstacleHit.cell },
+            target: { kind: "obstacle", obstacleId: obstacleHit.instance.id, cell: { x: targetX, y: targetY } },
             player,
             wallSegments,
             obstacles,
@@ -10086,13 +10129,21 @@ export const GameBoard: React.FC = () => {
       reactionAvailable: canUseReaction(params.reactor.id),
       concentrating: isTokenConcentrating(params.reactor),
       surprised: isTokenSurprised(params.reactor),
-      getActionConstraintIssues: ({ action, actor }) =>
+      getActionConstraintIssues: ({ action, actor }: { action: ActionDefinition; actor: TokenState }) =>
         getWeaponActionConstraintIssues(action, actor, {
           reaction: action.actionCost?.actionType === "reaction"
         }),
       spawnEntity: createSummon,
       onLog: pushLog,
-      emitEvent: evt => {
+      emitEvent: (evt: {
+        kind: "player_attack" | "enemy_attack" | "move" | "damage";
+        actorId: string;
+        actorKind: "player" | "enemy";
+        targetId?: string | null;
+        targetKind?: "player" | "enemy" | null;
+        summary: string;
+        data?: Record<string, unknown>;
+      }) => {
         recordCombatEvent({
           round,
           phase,
@@ -10665,7 +10716,7 @@ export const GameBoard: React.FC = () => {
           });
           if (hazard.statusRoll?.statusId && hazard.statusRoll?.die && hazard.statusRoll?.trigger) {
             const roll = rollDie(hazard.statusRoll.die);
-            if (roll === hazard.statusRoll.trigger) {
+            if (roll.total === hazard.statusRoll.trigger) {
               nextToken = addStatusToToken(nextToken, hazard.statusRoll.statusId, effect.sourceId);
               pushLog(
                 `${nextToken.id} subit l'etat ${hazard.statusRoll.statusId} (${def?.label ?? effect.typeId}).`
@@ -11375,6 +11426,7 @@ export const GameBoard: React.FC = () => {
 
             const maxRange =
               typeof enemy.moveRange === "number" ? enemy.moveRange : 3;
+            const maxRangeCells = metersToCells(maxRange);
 
             const targetX = clamp(tx, 0, mapGrid.cols - 1);
             const targetY = clamp(ty, 0, mapGrid.rows - 1);

@@ -197,7 +197,7 @@ function generateCatalog(options) {
     const baseName = modulePath.replace(/\.json$/i, "");
     const importName = uniqueName(toIdentifier(baseName), used);
     imports.push(`import ${importName} from "../../data/items/${folder}/${modulePath}";`);
-    entries.push(`  "${rel}": ${importName} as ${tsType}`);
+    entries.push(`  "${rel}": ${importName} as unknown as ${tsType}`);
   }
   const filePath = path.join(
     projectRoot,

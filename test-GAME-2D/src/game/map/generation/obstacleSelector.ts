@@ -1,4 +1,4 @@
-import type { ObstacleTypeDefinition } from "../obstacleTypes";
+import type { ObstacleTypeDefinition } from "../../obstacleTypes";
 import { pickWeighted } from "./random";
 
 export function findObstacleType(

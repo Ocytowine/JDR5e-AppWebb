@@ -225,7 +225,7 @@ export function usePixiBoard(options: {
       root.addChild(gridLayer);
 
       const drawGrid = () => {
-        gridLayer.cacheAsTexture = false;
+        gridLayer.cacheAsTexture(false);
         gridLayer.clear();
         const gridKind = getBoardGridProjectionKind();
 
@@ -288,7 +288,7 @@ export function usePixiBoard(options: {
             }
           }
         }
-        gridLayer.cacheAsTexture = true;
+        gridLayer.cacheAsTexture(true);
       };
 
       drawGridRef.current = drawGrid;

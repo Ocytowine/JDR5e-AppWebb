@@ -62,6 +62,8 @@ export function actionDefinitionToActionSpec(action: ActionDefinition): ActionSp
     summary: action.summary,
     targeting: normalizeTargeting(action),
     resolution: mapResolution(action),
+    attack: action.attack,
+    damage: action.damage,
     effects: mapEffects(action),
     reactionWindows: action.reactionWindows ?? [],
     hooks: action.hooks ?? [],

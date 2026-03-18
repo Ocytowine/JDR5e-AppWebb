@@ -279,8 +279,11 @@ function resolveOutcome(params: {
         removeTokenTag(target, entry.tag);
       }
     }
-    if (typeof rollOverrides?.savingThrow === "number" && Number.isFinite(rollOverrides.savingThrow)) {
-      roll = { ...roll, total: Number(rollOverrides.savingThrow) } as typeof roll;
+    if (
+      typeof params.rollOverrides?.savingThrow === "number" &&
+      Number.isFinite(params.rollOverrides.savingThrow)
+    ) {
+      roll = { ...roll, total: Number(params.rollOverrides.savingThrow) } as typeof roll;
     }
     if (rollContext.replaceRoll !== undefined) {
       roll = { ...roll, total: rollContext.replaceRoll } as typeof roll;
@@ -310,8 +313,11 @@ function resolveOutcome(params: {
     const modKey = abilityToModKey(ability);
     const mod = (state.actor.combatStats?.mods?.[modKey] ?? 0) + (rollContext.bonusDelta ?? 0);
     let roll = rollDamage("1d20", { isCrit: false, critRule: "double-dice" });
-    if (typeof rollOverrides?.abilityCheck === "number" && Number.isFinite(rollOverrides.abilityCheck)) {
-      roll = { ...roll, total: Number(rollOverrides.abilityCheck) } as typeof roll;
+    if (
+      typeof params.rollOverrides?.abilityCheck === "number" &&
+      Number.isFinite(params.rollOverrides.abilityCheck)
+    ) {
+      roll = { ...roll, total: Number(params.rollOverrides.abilityCheck) } as typeof roll;
     }
     if (rollContext.replaceRoll !== undefined) {
       roll = { ...roll, total: rollContext.replaceRoll } as typeof roll;
@@ -718,11 +724,18 @@ export function executePlan(params: {
     targets: []
   };
   const reportByTargetId = new Map<string, (typeof report.targets)[number]>();
-  const ensureTargetReport = (targetId: string, targetKind?: "player" | "enemy" | "self" | "cell" | "none") => {
+  const ensureTargetReport = (
+    targetId: string,
+    targetKind?: "player" | "enemy" | "self" | "cell" | "none"
+  ): ActionExecutionReport["targets"][number] => {
     const key = targetId || "none";
     const existing = reportByTargetId.get(key);
     if (existing) return existing;
-    const created = { targetId: key, targetKind, ops: [] as AppliedOpReport[] };
+    const created: ActionExecutionReport["targets"][number] = {
+      targetId: key,
+      targetKind,
+      ops: []
+    };
     report.targets.push(created);
     reportByTargetId.set(key, created);
     return created;

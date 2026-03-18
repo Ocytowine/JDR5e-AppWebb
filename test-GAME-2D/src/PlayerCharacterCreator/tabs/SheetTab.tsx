@@ -3,8 +3,36 @@ import { spellCatalog } from "../../game/spellCatalog";
 import { loadActionTypesFromIndex } from "../../game/actionCatalog";
 import { loadFeatureTypesFromIndex } from "../../game/featureCatalog";
 import { loadReactionTypesFromIndex } from "../../game/reactionCatalog";
-import type { Personnage, SpellGrantEntry } from "../../types";
+import type { CombatStats, Personnage, SpellGrantEntry } from "../../types";
 import type { ClassDefinition, SubclassDefinition } from "../../game/classTypes";
+import type { BackgroundDefinition } from "../../game/backgroundTypes";
+
+type StatKey = "FOR" | "DEX" | "CON" | "INT" | "SAG" | "CHA";
+
+function ensureCombatStats(stats: Partial<CombatStats> | null | undefined, maxHp: number, level: number): CombatStats {
+  const mods = stats?.mods;
+  return {
+    level,
+    mods: {
+      modFOR: typeof mods?.modFOR === "number" ? mods.modFOR : 0,
+      modDEX: typeof mods?.modDEX === "number" ? mods.modDEX : 0,
+      modCON: typeof mods?.modCON === "number" ? mods.modCON : 0,
+      modINT: typeof mods?.modINT === "number" ? mods.modINT : 0,
+      modSAG: typeof mods?.modSAG === "number" ? mods.modSAG : 0,
+      modCHA: typeof mods?.modCHA === "number" ? mods.modCHA : 0
+    },
+    maxHp,
+    armorClass: typeof stats?.armorClass === "number" ? stats.armorClass : 10,
+    attackBonus: typeof stats?.attackBonus === "number" ? stats.attackBonus : 0,
+    moveRange: typeof stats?.moveRange === "number" ? stats.moveRange : 3,
+    maxAttacksPerTurn: typeof stats?.maxAttacksPerTurn === "number" ? stats.maxAttacksPerTurn : 1,
+    actionsPerTurn: typeof stats?.actionsPerTurn === "number" ? stats.actionsPerTurn : 1,
+    bonusActionsPerTurn: typeof stats?.bonusActionsPerTurn === "number" ? stats.bonusActionsPerTurn : 1,
+    actionRules: stats?.actionRules,
+    resources: stats?.resources ?? {},
+    tags: stats?.tags
+  };
+}
 
 type SpellEntry =
   | string
@@ -53,8 +81,8 @@ export function SheetTab(props: {
   getRaceTraits: (race: any) => Array<{ id: string; label: string }>;
   activeBackground: any;
   getBackgroundFeatureInfo: (bg: any) => { label: string; description: string } | null;
-  getBackgroundSkillProficiencies: (bg: any) => string[];
-  getBackgroundToolProficiencies: (bg: any) => string[];
+  getBackgroundSkillProficiencies: (bg: BackgroundDefinition | null) => string[];
+  getBackgroundToolProficiencies: (bg: BackgroundDefinition | null) => string[];
   competenceOptions: Array<{ id: string; label: string }>;
   toolMasteryOptions: Array<{ id: string; label: string }>;
   classPrimary: ClassDefinition | null;
@@ -65,7 +93,7 @@ export function SheetTab(props: {
   selectedSecondarySubclassId: string;
   subclassOptions: SubclassDefinition[];
   asiSelections: Record<string, any>;
-  getScore: (key: "FOR" | "DEX" | "CON" | "INT" | "SAG" | "CHA") => number;
+  getScore: (key: StatKey) => number;
   computeMod: (value: number) => number;
   resolveLevel: () => number;
   computeArmorClassFromEquipment: () => number;
@@ -80,7 +108,7 @@ export function SheetTab(props: {
   toolMasteries: string[];
   EQUIPMENT_SLOTS: Array<{ id: string; label: string }>;
   materielSlots: Record<string, string | null | undefined>;
-  packSlots: Array<string>;
+  packSlots: Iterable<string>;
   packSlotStatus: (slotId: string) => {
     bagId?: string | null;
     capacity: number;
@@ -236,9 +264,9 @@ export function SheetTab(props: {
                   const backgroundSkillLabels = getBackgroundSkillProficiencies(activeBackground)
                     .map(id => competenceOptions.find(c => c.id === id)?.label ?? id);
                   const backgroundToolLabels = getBackgroundToolProficiencies(activeBackground)
-                    .map(id => toolMasteryOptions.find(t => t.id === id)?.label ?? id);
+                    .map((id: string) => toolMasteryOptions.find(t => t.id === id)?.label ?? id);
                   const backgroundChoiceToolLabels = backgroundTools
-                    .map(id => toolMasteryOptions.find(t => t.id === id)?.label ?? id)
+                    .map((id: string) => toolMasteryOptions.find(t => t.id === id)?.label ?? id)
                     .filter(Boolean);
                   const backgroundChoiceLanguageLabels = backgroundLanguages.filter(Boolean);
                   const derivedGrants = ((liveDerivedGrants ?? (character as any)?.derived?.grants ?? {}) as Record<string, any>);
@@ -670,7 +698,7 @@ export function SheetTab(props: {
                             languages: "Langues",
                             bonus: "Bonus"
                           };
-                          const resolved = ids.map(id => resolveGrantLabel(kind, id));
+                          const resolved = ids.map((id: string) => resolveGrantLabel(kind, id));
                           const kindLabel = labelByKind[kind] ?? kind;
                           return `${kindLabel}: ${resolved.join(", ")}`;
                         })
@@ -1557,11 +1585,11 @@ export function SheetTab(props: {
                           type="button"
                           onClick={() => {
                             const maxHp = computeMaxHp();
-                            const nextCombatStats = {
-                              ...(character.combatStats ?? {}),
+                            const nextCombatStats = ensureCombatStats(
+                              character.combatStats,
                               maxHp,
-                              level: resolveLevel()
-                            };
+                              resolveLevel()
+                            );
                             const nextChoiceSelections = {
                               ...choiceSelections,
                               sheetValidated: true

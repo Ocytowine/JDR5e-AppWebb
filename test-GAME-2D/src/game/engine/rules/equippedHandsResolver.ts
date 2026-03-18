@@ -1,5 +1,5 @@
-import type { ArmorItemDefinition } from "../armorTypes";
-import type { WeaponTypeDefinition } from "../weaponTypes";
+import type { ArmorItemDefinition } from "../../armorTypes";
+import type { WeaponTypeDefinition } from "../../weaponTypes";
 
 export type InventoryEntryLike = {
   type?: string;

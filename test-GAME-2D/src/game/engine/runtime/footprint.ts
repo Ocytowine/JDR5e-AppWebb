@@ -1,4 +1,4 @@
-import type { ConeDirection } from "../boardEffects";
+import type { ConeDirection } from "../../../boardEffects";
 import type { FootprintSpec, GridPosition, TokenState } from "../../../types";
 import { distanceBetweenGridCells } from "../../../boardConfig";
 

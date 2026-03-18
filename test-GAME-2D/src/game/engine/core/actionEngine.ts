@@ -384,7 +384,9 @@ function validateTokenTarget(
       surprised: ctx.surprised ?? null
     });
     if (!ok) {
-      const firstReason = action.conditions.find(cond => cond.reason)?.reason;
+      const firstReason = (action.conditions.find(cond => (cond as any).reason) as
+        | { reason?: string }
+        | undefined)?.reason;
       return { ok: false, reason: firstReason || "Conditions non remplies." };
     }
   }
@@ -563,7 +565,9 @@ export function computeAvailabilityForActor(
       }
     });
     if (!ok) {
-      const firstReason = availabilityConditions.find(cond => (cond as any).reason)?.reason;
+      const firstReason = (availabilityConditions.find(cond => (cond as any).reason) as
+        | { reason?: string }
+        | undefined)?.reason;
       reasons.push(firstReason || "Conditions non remplies.");
     }
   }
@@ -670,8 +674,8 @@ export function resolveActionUnified(
   opts?: {
     advantageMode?: AdvantageMode;
     rollOverrides?: {
-      attack?: import("../dice/roller").AttackRollResult | null;
-      consumeDamageRoll?: () => import("../dice/roller").DamageRollResult | null;
+      attack?: import("../../../dice/roller").AttackRollResult | null;
+      consumeDamageRoll?: () => import("../../../dice/roller").DamageRollResult | null;
       abilityCheck?: number | null;
       savingThrow?: number | null;
     };
@@ -869,7 +873,29 @@ export function resolveActionUnified(
       controlSummon: ctx.controlSummon,
       rollOverrides: opts?.rollOverrides,
       onLog: log,
-      onEmitEvent: ctx.emitEvent,
+      onEmitEvent: evt => {
+        const kind = evt.kind;
+        if (
+          kind !== "player_attack" &&
+          kind !== "enemy_attack" &&
+          kind !== "move" &&
+          kind !== "damage"
+        ) {
+          return;
+        }
+        if (!evt.actorId || !evt.actorKind || !evt.summary) return;
+        const targetKind =
+          evt.targetKind === "player" || evt.targetKind === "enemy" ? evt.targetKind : null;
+        ctx.emitEvent?.({
+          kind,
+          actorId: evt.actorId,
+          actorKind: evt.actorKind,
+          targetId: evt.targetId ?? null,
+          targetKind,
+          summary: evt.summary,
+          data: evt.data
+        });
+      },
       onMoveTo: applyMoveTo,
       onMoveForced: params => {
         const token = resolveTokenInState(params.state, params.targetId);

@@ -4,4 +4,6 @@ export interface ToolItemDefinition {
   type: "tool";
   category?: string;
   description?: string;
+  weight?: number;
+  grants?: Array<Record<string, unknown>>;
 }

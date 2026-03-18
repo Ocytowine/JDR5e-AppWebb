@@ -1,5 +1,7 @@
 import React from "react";
 
+type StatKey = "FOR" | "DEX" | "CON" | "INT" | "SAG" | "CHA";
+
 export function StatsTab(props: {
   statsMode: "normal" | "manual";
   setStatsMode: (value: "normal" | "manual") => void;
@@ -12,14 +14,14 @@ export function StatsTab(props: {
   renderPendingBadge: (count: number) => React.ReactNode;
   getPendingCountForSection: (id: string) => number;
   getPointBuySummary: () => { total: number; remaining: number | null; invalid: boolean };
-  statKeys: readonly string[];
-  getBaseScore: (key: string) => number;
-  getBonusSumForStat: (key: string) => number;
+  statKeys: readonly StatKey[];
+  getBaseScore: (key: StatKey) => number;
+  getBonusSumForStat: (key: StatKey) => number;
   computeMod: (value: number) => number;
-  getStatSources: (key: string) => string[];
+  getStatSources: (key: StatKey) => string[];
   renderSourceDots: (sources: string[]) => React.ReactNode;
-  setScore: (key: string, value: number) => void;
-  canAdjustPointBuy: (key: string, delta: number) => boolean;
+  setScore: (key: StatKey, value: number) => void;
+  canAdjustPointBuy: (key: StatKey, delta: number) => boolean;
 }): React.JSX.Element {
   const {
     statsMode,

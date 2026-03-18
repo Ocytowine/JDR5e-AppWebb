@@ -1,4 +1,4 @@
-import type { GrantDefinition } from "./featureTypes";
+import type { FeatureGrant } from "./featureTypes";
 
 export interface ArmorItemDefinition {
   id: string;
@@ -22,6 +22,6 @@ export interface ArmorItemDefinition {
     copper?: number;
   };
   tags?: string[];
-  grants?: GrantDefinition[];
+  grants?: FeatureGrant[];
   description?: string;
 }

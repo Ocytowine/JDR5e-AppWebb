@@ -1,4 +1,4 @@
-import type { ActionDefinition } from "./engine/actionTypes";
+import type { ActionDefinition } from "./engine/rules/actionTypes";
 
 export type ReactionTriggerEvent =
   | "movement.leave_reach"

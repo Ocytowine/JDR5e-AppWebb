@@ -8,7 +8,7 @@ import { distanceBetweenTokens } from "../runtime/combatUtils";
 function pickTarget(
   state: EngineState,
   selector: TargetSelector,
-  explicitTarget: { kind: "token"; token: { id: string } } | null
+  explicitTarget: { kind: "token"; token: { id: string } } | { kind: "cell"; x: number; y: number } | null
 ) {
   if (selector === "self") return state.actor;
   if (explicitTarget && explicitTarget.kind === "token") {
@@ -266,6 +266,11 @@ export function applyOperation(params: {
   opts: ExecuteOptions;
 }) {
   const { op, tx, state, explicitTarget, opts } = params;
+  const explicitTokenTarget = explicitTarget?.kind === "token" ? explicitTarget : null;
+  const targetToken =
+    "target" in op && (op.target === "self" || op.target === "primary")
+      ? pickTarget(state, op.target, explicitTarget)
+      : null;
 
   if (op.op === "LogEvent") {
     logTransaction(tx, op.message, opts.onLog);
@@ -422,7 +427,6 @@ export function applyOperation(params: {
   }
 
   if (op.op === "ApplyAura") {
-    const targetToken = pickTarget(state, op.target, explicitTarget);
     if (!targetToken) return;
     const id = `aura-${op.effectTypeId}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     tx.state.effects = tx.state.effects.filter(
@@ -449,10 +453,8 @@ export function applyOperation(params: {
     return;
   }
 
-  const targetToken = pickTarget(state, op.target, explicitTarget);
-  if (!targetToken) return;
-
-    if (op.op === "DealDamage") {
+  if (op.op === "DealDamage") {
+    if (!targetToken) return;
       const formula = resolveFormula(op.formula, { actor: state.actor, sampleCharacter: undefined });
       const override = opts.rollOverrides?.consumeDamageRoll?.() ?? null;
       const roll =
@@ -518,9 +520,10 @@ export function applyOperation(params: {
       });
       maybeCheckConcentrationOnDamage({ state, tx, targetToken, damage: total, opts });
       return;
-    }
+  }
 
-    if (op.op === "DealDamageScaled") {
+  if (op.op === "DealDamageScaled") {
+    if (!targetToken) return;
       const formula = resolveFormula(op.formula, { actor: state.actor, sampleCharacter: undefined });
       const roll = rollDamage(formula, {
         isCrit: Boolean(opts.damageContext?.isCrit),
@@ -584,9 +587,10 @@ export function applyOperation(params: {
       });
       maybeCheckConcentrationOnDamage({ state, tx, targetToken, damage: total, opts });
       return;
-    }
+  }
 
   if (op.op === "ApplyDamageTypeMod") {
+    if (!targetToken) return;
     const list = ensureDefenseArray(targetToken as any, op.mode);
     if (!list.includes(op.damageType)) list.push(op.damageType);
     logTransaction(tx, `Defense ${op.mode}: ${op.damageType}`, opts.onLog);
@@ -594,6 +598,7 @@ export function applyOperation(params: {
   }
 
   if (op.op === "Heal") {
+    if (!targetToken) return;
     const formula = resolveFormula(op.formula, { actor: state.actor, sampleCharacter: undefined });
     const roll = rollDamage(formula, { isCrit: false, critRule: "double-dice" });
     const total = roll.total;
@@ -620,6 +625,7 @@ export function applyOperation(params: {
   }
 
   if (op.op === "ApplyCondition") {
+    if (!targetToken) return;
     const statuses = targetToken.statuses ? [...targetToken.statuses] : [];
     const status = linkStatusToConcentration(state, {
       id: op.statusId,
@@ -645,6 +651,7 @@ export function applyOperation(params: {
   }
 
   if (op.op === "RemoveCondition") {
+    if (!targetToken) return;
     const statuses = targetToken.statuses ? [...targetToken.statuses] : [];
     targetToken.statuses = statuses.filter(status => status.id !== op.statusId);
     logTransaction(tx, `Etat retire: ${op.statusId}`, opts.onLog);
@@ -660,6 +667,7 @@ export function applyOperation(params: {
   }
 
   if (op.op === "ExtendCondition") {
+    if (!targetToken) return;
     const statuses = targetToken.statuses ? [...targetToken.statuses] : [];
     for (const status of statuses) {
       if (status.id === op.statusId) {
@@ -672,6 +680,7 @@ export function applyOperation(params: {
   }
 
   if (op.op === "SetConditionStack") {
+    if (!targetToken) return;
     const statuses = targetToken.statuses ? [...targetToken.statuses] : [];
     const kept = statuses.filter(status => status.id !== op.statusId);
     for (let i = 0; i < op.stacks; i++) {
@@ -683,6 +692,7 @@ export function applyOperation(params: {
   }
 
   if (op.op === "StartConcentration") {
+    if (!targetToken) return;
     if ((targetToken as any).concentration) {
       breakConcentration({
         state,
@@ -711,6 +721,7 @@ export function applyOperation(params: {
   }
 
   if (op.op === "BreakConcentration") {
+    if (!targetToken) return;
     breakConcentration({
       state,
       tx,
@@ -722,6 +733,7 @@ export function applyOperation(params: {
   }
 
   if (op.op === "GrantTempHp") {
+    if (!targetToken) return;
     const amount = typeof op.amount === "number" ? op.amount : 0;
     if (amount <= 0) return;
     targetToken.tempHp = Math.max(targetToken.tempHp ?? 0, amount);
@@ -731,6 +743,7 @@ export function applyOperation(params: {
   }
 
   if (op.op === "MoveForced") {
+    if (!targetToken) return;
     if (!op.to) return;
     if (opts.onMoveForced) {
       opts.onMoveForced({ state, targetId: targetToken.id, to: op.to });
@@ -743,6 +756,7 @@ export function applyOperation(params: {
   }
 
   if (op.op === "Teleport") {
+    if (!targetToken) return;
     if (opts.onTeleport) {
       opts.onTeleport({ state, targetId: targetToken.id, to: op.to });
     } else {
@@ -754,6 +768,7 @@ export function applyOperation(params: {
   }
 
   if (op.op === "SwapPositions") {
+    if (!targetToken) return;
     if (opts.onSwapPositions) {
       opts.onSwapPositions({ state, aId: state.actor.id, bId: targetToken.id });
     } else {
@@ -769,6 +784,7 @@ export function applyOperation(params: {
   }
 
   if (op.op === "Knockback" || op.op === "Push" || op.op === "Pull") {
+    if (!targetToken) return;
     const distance = op.distance ?? 0;
     let dir = op.direction ?? null;
     if (!dir) {
@@ -857,14 +873,14 @@ export function applyOperation(params: {
   }
 
   if (op.op === "LockTarget") {
-    const targeting = ensureTargetingState(state, explicitTarget);
+    const targeting = ensureTargetingState(state, explicitTokenTarget);
     state.targeting = { targets: targeting.targets, locked: true };
     logTransaction(tx, "Ciblage verrouille", opts.onLog);
     return;
   }
 
   if (op.op === "ExpandTargets") {
-    const targeting = ensureTargetingState(state, explicitTarget);
+    const targeting = ensureTargetingState(state, explicitTokenTarget);
     if (targeting.locked) {
       logTransaction(tx, "Ciblage verrouille (ExpandTargets ignore)", opts.onLog);
       return;
@@ -891,15 +907,16 @@ export function applyOperation(params: {
   }
 
   if (op.op === "FilterTargets") {
-    const targeting = ensureTargetingState(state, explicitTarget);
+    const targeting = ensureTargetingState(state, explicitTokenTarget);
     if (targeting.locked) {
       logTransaction(tx, "Ciblage verrouille (FilterTargets ignore)", opts.onLog);
       return;
     }
-    if (op.tag) {
-      targeting.targets = targeting.targets.filter(t => getTokenTags(t).includes(op.tag));
+    const tag = op.tag;
+    if (tag) {
+      targeting.targets = targeting.targets.filter(t => getTokenTags(t).includes(tag));
       state.targeting = { targets: targeting.targets, locked: false };
-      logTransaction(tx, `Ciblage filtre (${op.tag})`, opts.onLog);
+      logTransaction(tx, `Ciblage filtre (${tag})`, opts.onLog);
       return;
     }
     logTransaction(tx, "Ciblage filtre (tag manquant)", opts.onLog);
@@ -907,7 +924,7 @@ export function applyOperation(params: {
   }
 
   if (op.op === "Retarget") {
-    const targeting = ensureTargetingState(state, explicitTarget);
+    const targeting = ensureTargetingState(state, explicitTokenTarget);
     if (targeting.locked) {
       logTransaction(tx, "Ciblage verrouille (Retarget ignore)", opts.onLog);
       return;
@@ -981,6 +998,7 @@ export function applyOperation(params: {
   }
 
   if (op.op === "AddTag") {
+    if (!targetToken) return;
     const anyToken = targetToken as any;
     anyToken.tags = Array.isArray(anyToken.tags) ? anyToken.tags : [];
     if (!anyToken.tags.includes(op.tag)) anyToken.tags.push(op.tag);
@@ -989,6 +1007,7 @@ export function applyOperation(params: {
   }
 
   if (op.op === "RemoveTag") {
+    if (!targetToken) return;
     const anyToken = targetToken as any;
     anyToken.tags = Array.isArray(anyToken.tags) ? anyToken.tags : [];
     anyToken.tags = anyToken.tags.filter((tag: string) => tag !== op.tag);
@@ -997,6 +1016,7 @@ export function applyOperation(params: {
   }
 
   if (op.op === "SetFlag") {
+    if (!targetToken) return;
     const anyToken = targetToken as any;
     anyToken.flags = anyToken.flags ?? {};
     anyToken.flags[op.flag] = op.value;
@@ -1018,6 +1038,7 @@ export function applyOperation(params: {
   }
 
   if (op.op === "SetKillerInstinctTarget") {
+    if (!targetToken) return;
     opts.onSetKillerInstinctTarget?.(targetToken.id);
     logTransaction(tx, `Instinct de tueur: cible ${targetToken.id}`, opts.onLog);
     return;

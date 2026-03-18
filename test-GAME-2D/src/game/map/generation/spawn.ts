@@ -1,5 +1,5 @@
 import type { GridPosition } from "../../../types";
-import type { EnemyTypeDefinition } from "../enemyTypes";
+import type { EnemyTypeDefinition } from "../../enemyTypes";
 import type { MapDraft } from "./draft";
 import { clamp, key, computeReachableCells } from "./draft";
 

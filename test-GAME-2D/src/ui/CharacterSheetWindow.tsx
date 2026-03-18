@@ -246,7 +246,7 @@ function looksLikeContainer(item: any): boolean {
   if (!item) return false;
   if (Array.isArray(item?.contenu)) return true;
   const tags = Array.isArray(item?.tags) ? item.tags.map((tag: any) => String(tag).toLowerCase()) : [];
-  return tags.some(tag => ["sac", "container", "pack", "ammo_container"].includes(tag));
+  return tags.some((tag: string) => ["sac", "container", "pack", "ammo_container"].includes(tag));
 }
 
 export function CharacterSheetWindow(props: {
@@ -397,12 +397,12 @@ export function CharacterSheetWindow(props: {
     const map = new Map<string, { harmonisable: boolean; harmonized: boolean }>();
     inventoryItems
       .filter(
-        item =>
+        (item: any) =>
           item?.type === "weapon" &&
           item?.equippedSlot &&
           new Set(["ceinture_gauche", "ceinture_droite", "dos_gauche", "dos_droit"]).has(item.equippedSlot)
       )
-      .forEach(item => {
+      .forEach((item: any) => {
         const weapon = weaponById.get(String(item.id));
         if (!weapon) return;
         const current = map.get(String(item.id)) ?? { harmonisable: Boolean(weapon.harmonisable), harmonized: false };
@@ -415,7 +415,7 @@ export function CharacterSheetWindow(props: {
     return map;
   })();
   const equipmentSlots = props.character.materielSlots ?? {};
-  const inventoryWithMeta = inventoryItems.map((item, idx) => ({
+  const inventoryWithMeta = inventoryItems.map((item: any, idx: number) => ({
     item,
     key: inventoryItemKey(item, idx),
     instanceId: String(item?.instanceId ?? ""),
@@ -424,14 +424,14 @@ export function CharacterSheetWindow(props: {
   }));
   const primaryHandEntry =
     inventoryWithMeta.find(
-      entry =>
+      (entry: (typeof inventoryWithMeta)[number]) =>
         Boolean(entry.item?.isPrimaryWeapon) &&
         Boolean(entry.item?.equippedSlot) &&
         !entry.item?.storedIn
     ) ?? null;
   const secondaryHandEntry =
     inventoryWithMeta.find(
-      entry =>
+      (entry: (typeof inventoryWithMeta)[number]) =>
         Boolean(entry.item?.isSecondaryHand) &&
         Boolean(entry.item?.equippedSlot) &&
         !entry.item?.storedIn
@@ -442,7 +442,8 @@ export function CharacterSheetWindow(props: {
       const itemIdText = String(itemId ?? "");
       const linkedEntry =
         inventoryWithMeta.find(
-          entry => String(entry.item?.id ?? "") === itemIdText && String(entry.item?.equippedSlot ?? "") === slot
+          (entry: (typeof inventoryWithMeta)[number]) =>
+            String(entry.item?.id ?? "") === itemIdText && String(entry.item?.equippedSlot ?? "") === slot
         ) ?? null;
       return {
         slot,
@@ -454,7 +455,7 @@ export function CharacterSheetWindow(props: {
     });
   const childrenByStoredIn = (() => {
     const map = new Map<string, Array<(typeof inventoryWithMeta)[number]>>();
-    inventoryWithMeta.forEach(entry => {
+    inventoryWithMeta.forEach((entry: (typeof inventoryWithMeta)[number]) => {
       const storedIn = String(entry.item?.storedIn ?? "");
       if (!storedIn) return;
       const list = map.get(storedIn) ?? [];
@@ -470,7 +471,7 @@ export function CharacterSheetWindow(props: {
       location: string;
       children: Array<(typeof inventoryWithMeta)[number]>;
     }> = [];
-    inventoryWithMeta.forEach(entry => {
+    inventoryWithMeta.forEach((entry: (typeof inventoryWithMeta)[number]) => {
       const item = entry.item;
       const isContainer =
         looksLikeContainer(item) ||
@@ -498,7 +499,7 @@ export function CharacterSheetWindow(props: {
     return rows;
   })();
   const looseInventoryRows = inventoryWithMeta.filter(
-    entry =>
+    (entry: (typeof inventoryWithMeta)[number]) =>
       !entry.item?.storedIn &&
       !entry.item?.equippedSlot &&
       !entry.item?.isPrimaryWeapon &&
@@ -540,19 +541,19 @@ export function CharacterSheetWindow(props: {
     if (!selections || typeof selections !== "object") {
       return { prepared: [] as string[], granted: [] as string[], known: [] as string[] };
     }
-    Object.values(selections as Record<string, any>).forEach(entry => {
+    Object.values(selections as Record<string, any>).forEach((entry: any) => {
       const preparedList = Array.isArray(entry?.preparedSpells) ? entry.preparedSpells : [];
       const grantedList = Array.isArray(entry?.grantedSpells) ? entry.grantedSpells : [];
       const knownList = Array.isArray(entry?.knownSpells) ? entry.knownSpells : [];
-      preparedList.forEach(spell => {
+      preparedList.forEach((spell: any) => {
         const id = typeof spell === "string" ? spell : spell?.id;
         if (id) prepared.add(String(id));
       });
-      grantedList.forEach(spell => {
+      grantedList.forEach((spell: any) => {
         const id = typeof spell === "string" ? spell : spell?.id;
         if (id) granted.add(String(id));
       });
-      knownList.forEach(spell => {
+      knownList.forEach((spell: any) => {
         const id = typeof spell === "string" ? spell : spell?.id;
         if (id) known.add(String(id));
       });
@@ -972,7 +973,7 @@ export function CharacterSheetWindow(props: {
             {looseInventoryRows.length === 0 && containerRows.length === 0 && (
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>Inventaire vide.</div>
             )}
-            {looseInventoryRows.map(entry => {
+            {looseInventoryRows.map((entry: (typeof inventoryWithMeta)[number]) => {
               const item = entry.item;
               const weapon = item?.type === "weapon" ? weaponById.get(String(item.id)) ?? null : null;
               const weaponSummary = weapon

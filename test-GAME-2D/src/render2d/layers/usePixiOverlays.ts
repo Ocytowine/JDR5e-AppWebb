@@ -434,9 +434,8 @@ export function usePixiOverlays(options: {
       const key = buildCellKey(x, y);
       if (visionCells) return visionCells.has(key);
       if (options.visibilityLevels) return visibilityLevelAt(x, y) >= 2;
-      const inVision = visionCells ? visionCells.has(key) : true;
       const perceivable = visibleCells ? visibleCells.has(key) : true;
-      return inVision && perceivable;
+      return perceivable;
     };
     const isVisibleAtPointForFog = (gx: number, gy: number) => {
       const fx = Math.floor(gx);
@@ -825,7 +824,7 @@ export function usePixiOverlays(options: {
 
         const angles: number[] = [];
         for (let i = 0; i <= segments; i++) {
-          const t = segments === 0 ? 0 : i / segments;
+          const t = i / segments;
           angles.push(startAngle + (endAngle - startAngle) * t);
         }
         const endpointAngles: number[] = [];

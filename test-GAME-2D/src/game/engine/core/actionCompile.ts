@@ -1,5 +1,5 @@
 import type { ActionPlan, ActionSpec } from "./types";
-import type { TokenState } from "../../types";
+import type { TokenState } from "../../../types";
 
 export function compileActionPlan(params: {
   action: ActionSpec;

@@ -117,8 +117,9 @@ function getSize(token: TokenState): string | null {
 
 function canMove(token: TokenState, move: string): boolean {
   const targetMove = move.toLowerCase();
-  if (token.movementModes && typeof token.movementModes === "object") {
-    return Object.keys(token.movementModes).some(key => key.toLowerCase() === targetMove);
+  const movementModes = (token as TokenState & { movementModes?: Record<string, number> }).movementModes;
+  if (movementModes && typeof movementModes === "object") {
+    return Object.keys(movementModes).some(key => key.toLowerCase() === targetMove);
   }
   const movementType = token.movementProfile?.type;
   if (!movementType) return false;
@@ -138,7 +139,7 @@ function getDamageDefenses(token: TokenState): {
 
 function getValue(token: TokenState, key: string, values?: Record<string, number>): number | null {
   if (values && typeof values[key] === "number") return values[key];
-  const anyToken = token as Record<string, unknown>;
+  const anyToken = token as unknown as Record<string, unknown>;
   const raw = anyToken[key];
   if (typeof raw === "number") return raw;
   return null;

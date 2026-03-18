@@ -1,4 +1,4 @@
-import type { ActionDefinition } from "./engine/actionTypes";
+import type { ActionDefinition } from "./engine/rules/actionTypes";
 
 export interface MoveTypeDefinition extends ActionDefinition {
   movement?: {

@@ -80,4 +80,8 @@ export interface WeaponTypeDefinition {
   extraDamage?: WeaponExtraDamageProfile[];
   effectOnHit?: WeaponOnHitProfile;
   weaponMastery?: string[];
+  links?: {
+    actionId?: string | null;
+    effectId?: string | null;
+  };
 }

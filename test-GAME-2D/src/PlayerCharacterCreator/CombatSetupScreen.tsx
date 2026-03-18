@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import type {
+  CombatStats,
   Personnage,
   SpellGrantEntry,
   SpellGrantSourceType,
@@ -28,6 +29,7 @@ import {
   appendInventoryEntries,
   buildInventoryEntries,
   formatMoneyValue,
+  type ItemSpec,
   isCurrencySpec,
   updateEquipmentListQty
 } from "./characterEquipment";
@@ -64,6 +66,66 @@ const WEAPON_MASTERY_OPTIONS: Array<{ id: string; label: string }> = [
   { id: "renversement", label: "Renversement" },
   { id: "sape", label: "Sape" }
 ];
+
+type StatKey = "FOR" | "DEX" | "CON" | "INT" | "SAG" | "CHA";
+
+function ensureCombatStats(
+  stats: Partial<CombatStats> | null | undefined,
+  overrides?: Partial<CombatStats>
+): CombatStats {
+  const mods = stats?.mods;
+  return {
+    level: typeof overrides?.level === "number" ? overrides.level : typeof stats?.level === "number" ? stats.level : 1,
+    mods: {
+      modFOR: typeof overrides?.mods?.modFOR === "number" ? overrides.mods.modFOR : typeof mods?.modFOR === "number" ? mods.modFOR : 0,
+      modDEX: typeof overrides?.mods?.modDEX === "number" ? overrides.mods.modDEX : typeof mods?.modDEX === "number" ? mods.modDEX : 0,
+      modCON: typeof overrides?.mods?.modCON === "number" ? overrides.mods.modCON : typeof mods?.modCON === "number" ? mods.modCON : 0,
+      modINT: typeof overrides?.mods?.modINT === "number" ? overrides.mods.modINT : typeof mods?.modINT === "number" ? mods.modINT : 0,
+      modSAG: typeof overrides?.mods?.modSAG === "number" ? overrides.mods.modSAG : typeof mods?.modSAG === "number" ? mods.modSAG : 0,
+      modCHA: typeof overrides?.mods?.modCHA === "number" ? overrides.mods.modCHA : typeof mods?.modCHA === "number" ? mods.modCHA : 0
+    },
+    maxHp: typeof overrides?.maxHp === "number" ? overrides.maxHp : typeof stats?.maxHp === "number" ? stats.maxHp : 1,
+    armorClass:
+      typeof overrides?.armorClass === "number"
+        ? overrides.armorClass
+        : typeof stats?.armorClass === "number"
+          ? stats.armorClass
+          : 10,
+    attackBonus:
+      typeof overrides?.attackBonus === "number"
+        ? overrides.attackBonus
+        : typeof stats?.attackBonus === "number"
+          ? stats.attackBonus
+          : 0,
+    moveRange:
+      typeof overrides?.moveRange === "number"
+        ? overrides.moveRange
+        : typeof stats?.moveRange === "number"
+          ? stats.moveRange
+          : 3,
+    maxAttacksPerTurn:
+      typeof overrides?.maxAttacksPerTurn === "number"
+        ? overrides.maxAttacksPerTurn
+        : typeof stats?.maxAttacksPerTurn === "number"
+          ? stats.maxAttacksPerTurn
+          : 1,
+    actionsPerTurn:
+      typeof overrides?.actionsPerTurn === "number"
+        ? overrides.actionsPerTurn
+        : typeof stats?.actionsPerTurn === "number"
+          ? stats.actionsPerTurn
+          : 1,
+    bonusActionsPerTurn:
+      typeof overrides?.bonusActionsPerTurn === "number"
+        ? overrides.bonusActionsPerTurn
+        : typeof stats?.bonusActionsPerTurn === "number"
+          ? stats.bonusActionsPerTurn
+          : 1,
+    actionRules: overrides?.actionRules ?? stats?.actionRules,
+    resources: overrides?.resources ?? stats?.resources ?? {},
+    tags: overrides?.tags ?? stats?.tags
+  };
+}
 
 function normalizeWeaponMasteryId(value: unknown): string {
   return String(value ?? "")
@@ -176,25 +238,25 @@ export function CombatSetupScreen(props: {
         meta: grant.meta
       }));
   };
-  const getBackgroundSkillProficiencies = (bg: BackgroundDefinition | null) => {
+  const getBackgroundSkillProficiencies = (bg: BackgroundDefinition | null): string[] => {
     if (!bg) return [];
     const grantIds = getBackgroundGrants(bg)
-      .filter(grant => grant.kind === "skill")
-      .flatMap(grant => grant.ids);
+      .filter((grant: { kind: string; ids: string[] }) => grant.kind === "skill")
+      .flatMap((grant: { kind: string; ids: string[] }) => grant.ids);
     if (grantIds.length > 0) return Array.from(new Set(grantIds));
     return [];
   };
-  const getBackgroundToolProficiencies = (bg: BackgroundDefinition | null) => {
+  const getBackgroundToolProficiencies = (bg: BackgroundDefinition | null): string[] => {
     if (!bg) return [];
     const grantIds = getBackgroundGrants(bg)
-      .filter(grant => grant.kind === "tool")
-      .flatMap(grant => grant.ids);
+      .filter((grant: { kind: string; ids: string[] }) => grant.kind === "tool")
+      .flatMap((grant: { kind: string; ids: string[] }) => grant.ids);
     if (grantIds.length > 0) return Array.from(new Set(grantIds));
     return [];
   };
   const getBackgroundToolChoice = (bg: BackgroundDefinition | null) => {
     if (!bg) return null;
-    const grant = getBackgroundGrants(bg).find(item => item.kind === "tool-choice") ?? null;
+    const grant = getBackgroundGrants(bg).find((item: { kind: string }) => item.kind === "tool-choice") ?? null;
     if (grant) {
       const count = Number((grant.meta as any)?.count ?? 0);
       const options = Array.isArray((grant.meta as any)?.options) ? (grant.meta as any).options : [];
@@ -204,7 +266,7 @@ export function CombatSetupScreen(props: {
   };
   const getBackgroundLanguageChoice = (bg: BackgroundDefinition | null) => {
     if (!bg) return null;
-    const grant = getBackgroundGrants(bg).find(item => item.kind === "language-choice") ?? null;
+    const grant = getBackgroundGrants(bg).find((item: { kind: string }) => item.kind === "language-choice") ?? null;
     if (grant) {
       const count = Number((grant.meta as any)?.count ?? 0);
       return { count };
@@ -213,7 +275,7 @@ export function CombatSetupScreen(props: {
   };
   const getBackgroundFeatureInfo = (bg: BackgroundDefinition | null) => {
     if (!bg) return null;
-    const grant = getBackgroundGrants(bg).find(item => item.kind === "feature") ?? null;
+    const grant = getBackgroundGrants(bg).find((item: { kind: string }) => item.kind === "feature") ?? null;
     if (!grant) return null;
     const meta = (grant.meta ?? {}) as { label?: string; description?: string };
     const label = meta.label ?? grant.ids?.[0] ?? "";
@@ -819,10 +881,7 @@ export function CombatSetupScreen(props: {
 
   const setLevel = (nextLevelRaw: number) => {
     const nextLevel = Math.max(1, Math.min(20, Math.floor(nextLevelRaw || 1)));
-    const nextCombatStats = {
-      ...(props.character.combatStats ?? {}),
-      level: nextLevel
-    };
+    const nextCombatStats = ensureCombatStats(props.character.combatStats, { level: nextLevel });
     const currentClasse =
       props.character?.classe && typeof props.character.classe === "object"
         ? (props.character.classe as any)
@@ -1602,7 +1661,7 @@ export function CombatSetupScreen(props: {
       choiceSelections: { ...choiceSelections, asi: nextAsi }
     });
   }, [asiSelections, classPrimary?.id, props.character, props.onChangeCharacter, choiceSelections]);
-  const getStatSources = (key: typeof STAT_KEYS[number]) => {
+  const getStatSources = (key: typeof STAT_KEYS[number]): string[] => {
     const sources = [
       ...statBonuses.filter(bonus => bonus.stat === key).map(bonus => bonus.source),
       ...(asiBonusMap[key] ? ["asi"] : [])
@@ -1610,7 +1669,7 @@ export function CombatSetupScreen(props: {
     return Array.from(new Set(sources.filter(Boolean)));
   };
 
-  const buildCaracsFromTotals = (scores: Record<string, number>) => {
+    const buildCaracsFromTotals = (scores: Record<string, number>) => {
     const mapping: Record<string, keyof Personnage["caracs"]> = {
       FOR: "force",
       DEX: "dexterite",
@@ -1639,10 +1698,9 @@ export function CombatSetupScreen(props: {
       };
       nextMods[`mod${key}`] = modValue;
     });
-    const nextCombatStats = {
-      ...(props.character.combatStats ?? {}),
-      mods: nextMods
-    };
+    const nextCombatStats = ensureCombatStats(props.character.combatStats, {
+      mods: nextMods as CombatStats["mods"]
+    });
     return { nextCaracs, nextCombatStats };
   };
 
@@ -2229,7 +2287,7 @@ export function CombatSetupScreen(props: {
       if (existing.length < toolChoices.count) {
         openChoiceModal({
           title: "Historique - Choisir un outil",
-          options: (toolChoices.options ?? []).map(id => ({
+          options: (toolChoices.options ?? []).map((id: unknown) => ({
             id,
             label: toolMasteryOptions.find(opt => opt.id === id)?.label ?? id
           })),
@@ -2307,7 +2365,7 @@ export function CombatSetupScreen(props: {
     return safeQty > 1 ? `${type}:${id}:${safeQty}` : id;
   };
 
-  const resolveItemType = (rawId: string) => {
+  const resolveItemType = (rawId: string): ItemSpec => {
     const parsed = parseItemSpec(rawId);
     if (parsed.type === "weapon") return { type: "weapon", id: parsed.id, qty: parsed.qty };
     if (parsed.type === "armor") return { type: "armor", id: parsed.id, qty: parsed.qty };
@@ -4361,8 +4419,8 @@ export function CombatSetupScreen(props: {
     const backgroundLanguages = Array.isArray(backgroundChoices.languages)
       ? backgroundChoices.languages
       : [];
-    if (backgroundTools.length > 0) add("tool", backgroundTools.map(id => String(id)));
-    if (backgroundLanguages.length > 0) add("language", backgroundLanguages.map(id => String(id)));
+    if (backgroundTools.length > 0) add("tool", backgroundTools.map((id: unknown) => String(id)));
+    if (backgroundLanguages.length > 0) add("language", backgroundLanguages.map((id: unknown) => String(id)));
     const classFeatureChoicesById = new Map<string, ReturnType<typeof getClassFeatureChoicesForSlot>[number]>();
     getClassFeatureChoicesForSlot(1).forEach(choice => classFeatureChoicesById.set(choice.id, choice));
     getClassFeatureChoicesForSlot(2).forEach(choice => classFeatureChoicesById.set(choice.id, choice));
@@ -4717,7 +4775,7 @@ export function CombatSetupScreen(props: {
       grants.forEach((grant: any) => {
         if (String(grant?.kind ?? "") !== "spell") return;
         const ids = Array.isArray(grant?.ids) ? grant.ids.map((id: unknown) => String(id)).filter(Boolean) : [];
-        ids.forEach(spellId => {
+        ids.forEach((spellId: string) => {
           upsertSpellGrant(sourceKey, spellId, {
             sourceType: "item",
             sourceId: String(item.id),
@@ -4738,7 +4796,7 @@ export function CombatSetupScreen(props: {
       grants.forEach((grant: any) => {
         if (String(grant?.kind ?? "") !== "spell") return;
         const ids = Array.isArray(grant?.ids) ? grant.ids.map((id: unknown) => String(id)).filter(Boolean) : [];
-        ids.forEach(spellId => {
+        ids.forEach((spellId: string) => {
           upsertSpellGrant(`feature:${featureId}`, spellId, {
             sourceType: "feature",
             sourceId: featureId,

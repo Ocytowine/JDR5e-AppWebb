@@ -729,6 +729,7 @@ export function WorldMapEditorScreen(props: {
                         })}
                       </div>
                     </div>
+                    <CollapsibleSection title="Falaises par segment">
                     <div style={{ display: "grid", gap: 8, padding: 10, borderRadius: 10, background: "rgba(255,255,255,0.04)" }}>
                       <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff" }}>Falaises par segment</div>
                       <div style={{ fontSize: 12, color: "#c9d3e2", lineHeight: 1.45 }}>
@@ -749,33 +750,11 @@ export function WorldMapEditorScreen(props: {
                           Falaise actuelle: haut {getWorldMapCellKey(activeCliffSegment.high)} | bas {getWorldMapCellKey(activeCliffSegment.low)}
                         </div>
                       )}
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        <button
-                          type="button"
-                          disabled={!terrainCellsAdjacent}
-                          onClick={() => dispatch({ type: "setCliffBetweenCells", highCellKey: getWorldMapCellKey(terrainPair[0].cell), lowCellKey: getWorldMapCellKey(terrainPair[1].cell) })}
-                          style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)", color: "#eef3ff", cursor: terrainCellsAdjacent ? "pointer" : "not-allowed", opacity: terrainCellsAdjacent ? 1 : 0.55, fontWeight: 700 }}
-                        >
-                          {terrainPair.length === 2 ? `${getWorldMapCellKey(terrainPair[0].cell)} en haut` : "Case 1 en haut"}
-                        </button>
-                        <button
-                          type="button"
-                          disabled={!terrainCellsAdjacent}
-                          onClick={() => dispatch({ type: "setCliffBetweenCells", highCellKey: getWorldMapCellKey(terrainPair[1].cell), lowCellKey: getWorldMapCellKey(terrainPair[0].cell) })}
-                          style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)", color: "#eef3ff", cursor: terrainCellsAdjacent ? "pointer" : "not-allowed", opacity: terrainCellsAdjacent ? 1 : 0.55, fontWeight: 700 }}
-                        >
-                          {terrainPair.length === 2 ? `${getWorldMapCellKey(terrainPair[1].cell)} en haut` : "Case 2 en haut"}
-                        </button>
-                        <button
-                          type="button"
-                          disabled={!terrainCellsAdjacent || !activeCliffSegment}
-                          onClick={() => dispatch({ type: "removeCliffBetweenCells", firstCellKey: getWorldMapCellKey(terrainPair[0].cell), secondCellKey: getWorldMapCellKey(terrainPair[1].cell) })}
-                          style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(255,160,160,0.18)", background: "rgba(130,28,28,0.22)", color: "#ffd7d7", cursor: terrainCellsAdjacent && activeCliffSegment ? "pointer" : "not-allowed", opacity: terrainCellsAdjacent && activeCliffSegment ? 1 : 0.55, fontWeight: 700 }}
-                        >
-                          Supprimer falaise
-                        </button>
+                      <div style={{ fontSize: 12, color: "#c9d3e2", lineHeight: 1.45 }}>
+                        Sur la grille, clique sur `+` pour choisir la case haute. Clique sur `-` au milieu pour supprimer la falaise de cette paire.
                       </div>
                     </div>
+                    </CollapsibleSection>
                   </div>
                   <CollapsibleSection title="Creer un type de geographie">
                     <input
@@ -1250,6 +1229,23 @@ export function WorldMapEditorScreen(props: {
         selectedRouteId={selectedRouteId}
         routeEditorActive={routeEditorActive}
         terrainOverlayActive={activeTool === "terrain"}
+        cliffEditPair={terrainCellsAdjacent ? { first: terrainPair[0].cell, second: terrainPair[1].cell } : null}
+        onSetCliffHighCell={cell => {
+          if (!terrainCellsAdjacent || terrainPair.length !== 2) return;
+          const firstKey = getWorldMapCellKey(terrainPair[0].cell);
+          const secondKey = getWorldMapCellKey(terrainPair[1].cell);
+          const highCellKey = getWorldMapCellKey(cell);
+          const lowCellKey = highCellKey === firstKey ? secondKey : firstKey;
+          dispatch({ type: "setCliffBetweenCells", highCellKey, lowCellKey });
+        }}
+        onRemoveCliffPair={() => {
+          if (!terrainCellsAdjacent || terrainPair.length !== 2) return;
+          dispatch({
+            type: "removeCliffBetweenCells",
+            firstCellKey: getWorldMapCellKey(terrainPair[0].cell),
+            secondCellKey: getWorldMapCellKey(terrainPair[1].cell)
+          });
+        }}
         wikiEntriesById={wikiEntriesById}
         onCellClick={(cell, meta) => {
           const key = getWorldMapCellKey(cell);

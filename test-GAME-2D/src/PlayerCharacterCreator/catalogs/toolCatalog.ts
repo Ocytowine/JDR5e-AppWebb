@@ -12,11 +12,11 @@ import OutilsJeux from "../../data/items/outils/outils-jeux.json";
 import OutilsVehicules from "../../data/items/outils/outils-vehicules.json";
 
 const TOOL_MODULES: Record<string, ToolItemDefinition> = {
-  "./outils-artisan.json": OutilsArtisan as ToolItemDefinition,
-  "./outils-autres.json": OutilsAutres as ToolItemDefinition,
-  "./outils-instruments.json": OutilsInstruments as ToolItemDefinition,
-  "./outils-jeux.json": OutilsJeux as ToolItemDefinition,
-  "./outils-vehicules.json": OutilsVehicules as ToolItemDefinition
+  "./outils-artisan.json": OutilsArtisan as unknown as ToolItemDefinition,
+  "./outils-autres.json": OutilsAutres as unknown as ToolItemDefinition,
+  "./outils-instruments.json": OutilsInstruments as unknown as ToolItemDefinition,
+  "./outils-jeux.json": OutilsJeux as unknown as ToolItemDefinition,
+  "./outils-vehicules.json": OutilsVehicules as unknown as ToolItemDefinition
 };
 
 export function loadToolItemsFromIndex(): ToolItemDefinition[] {

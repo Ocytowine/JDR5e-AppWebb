@@ -1,3 +1,5 @@
+import type { Hook } from "../core/types";
+
 export type ActionCategory =
   | "attack"
   | "movement"
@@ -139,6 +141,7 @@ export interface ActionDefinition {
     };
   };
   ops?: ConditionalOps;
+  hooks?: Hook[];
   reactionWindows?: Array<"pre" | "post">;
   aiHints?: AiHints;
   tags?: string[];

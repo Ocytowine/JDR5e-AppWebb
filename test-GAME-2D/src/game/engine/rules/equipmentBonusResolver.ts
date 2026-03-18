@@ -1,7 +1,7 @@
-import type { ArmorItemDefinition } from "../armorTypes";
-import type { BonusDefinition } from "../bonusTypes";
-import type { ObjectItemDefinition } from "../objectTypes";
-import type { WeaponTypeDefinition } from "../weaponTypes";
+import type { ArmorItemDefinition } from "../../armorTypes";
+import type { BonusDefinition } from "../../bonusTypes";
+import type { ObjectItemDefinition } from "../../objectTypes";
+import type { WeaponTypeDefinition } from "../../weaponTypes";
 import type { CombatStats, Personnage, TokenState } from "../../../types";
 import { evaluateAllConditions } from "./conditionEval";
 import type { ConditionExpr } from "./conditions";

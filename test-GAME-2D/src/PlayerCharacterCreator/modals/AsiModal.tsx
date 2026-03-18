@@ -1,5 +1,7 @@
 import React from "react";
 
+type StatKey = "FOR" | "DEX" | "CON" | "INT" | "SAG" | "CHA";
+
 export function AsiModal(props: {
   open: boolean;
   entry: { key: string; level: number; classId: string; classLabel: string } | null;
@@ -7,16 +9,16 @@ export function AsiModal(props: {
   type: "asi" | "feat";
   stats: Record<string, number>;
   originalStats: Record<string, number>;
-  statKeys: readonly string[];
+  statKeys: readonly StatKey[];
   asiBonusMap: Record<string, number>;
-  getBaseScore: (key: string) => number;
-  getNonAsiBonusSumForStat: (key: string) => number;
+  getBaseScore: (key: StatKey) => number;
+  getNonAsiBonusSumForStat: (key: StatKey) => number;
   setType: (value: "asi" | "feat") => void;
   setStep: (value: "type" | "feat" | "asi") => void;
   onClose: () => void;
   onConfirmType: () => void;
   onConfirmStats: () => void;
-  updateStat: (stat: string, delta: number) => void;
+  updateStat: (stat: StatKey, delta: number) => void;
   canAllocateMoreAsi: (key: string, stats: Record<string, number>) => boolean;
 }): React.JSX.Element | null {
   const {

@@ -258,6 +258,18 @@ export interface ActionSpec {
   summary?: string;
   targeting?: TargetingSpec;
   resolution?: ResolutionSpec;
+  attack?: {
+    bonus: number;
+    critRange?: number;
+  };
+  damage?: {
+    formula: string;
+    critRule?: "double-dice" | "double-total";
+    damageType?: string;
+    rerollLow?: {
+      lte: number;
+    };
+  };
   effects?: ConditionalEffects;
   reactionWindows?: Array<"pre" | "post">;
   hooks?: Hook[];
@@ -323,7 +335,15 @@ export interface ExecuteOptions {
   promptHandler?: (prompt: PromptSpec) => "accept" | "reject";
   onReactionWindow?: (phase: "pre" | "post") => "continue" | "interrupt";
   onLog?: (message: string) => void;
-  onEmitEvent?: (evt: { kind: string; data?: Record<string, unknown> }) => void;
+  onEmitEvent?: (evt: {
+    kind: string;
+    actorId?: string;
+    actorKind?: "player" | "enemy";
+    targetId?: string | null;
+    targetKind?: "player" | "enemy" | "self" | "cell" | "none" | null;
+    summary?: string;
+    data?: Record<string, unknown>;
+  }) => void;
   onOperationApplied?: (evt: OperationAppliedEvent) => void;
   operationMeta?: {
     branch?:

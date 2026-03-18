@@ -64,6 +64,14 @@ export type MapCellData = {
   tags?: string[];
 };
 
+export type MapCellDataSource = Omit<MapCellData, "reliefElevation"> & {
+  reliefElevation?: ReliefElevationLevel;
+};
+
+export type RawWorldMapLayoutSource = Omit<WorldMapLayoutSource, "cells"> & {
+  cells: MapCellDataSource[];
+};
+
 export type WorldMapLayoutSource = {
   id: string;
   title: string;
@@ -108,18 +116,22 @@ const DEFAULT_GEOGRAPHY_DIFFICULTY: Record<string, number> = {
   ocean: 9
 };
 
-const source = worldMapLayoutJson as WorldMapLayoutSource;
+const source = worldMapLayoutJson as RawWorldMapLayoutSource;
 
-export function createRuntimeWorldMapLayout(sourceLayout: WorldMapLayoutSource): WorldMapLayout {
+export function createRuntimeWorldMapLayout(
+  sourceLayout: WorldMapLayoutSource | RawWorldMapLayoutSource
+): WorldMapLayout {
   return {
     ...sourceLayout,
     cliffSegments: Array.isArray(sourceLayout.cliffSegments) ? sourceLayout.cliffSegments : [],
-    cells: sourceLayout.cells.map(cell => ({
-      ...cell,
-      terrainDifficulty: DEFAULT_GEOGRAPHY_DIFFICULTY[cell.geography] ?? cell.terrainDifficulty ?? 5,
-      riskLevel: 1,
-      reliefElevation: cell.reliefElevation ?? "none"
-    })),
+    cells: sourceLayout.cells.map(
+      (cell): MapCellData => ({
+        ...cell,
+        terrainDifficulty: DEFAULT_GEOGRAPHY_DIFFICULTY[cell.geography] ?? cell.terrainDifficulty ?? 5,
+        riskLevel: cell.riskLevel ?? 1,
+        reliefElevation: cell.reliefElevation ?? "none"
+      })
+    ),
     backgroundImageUrl: BACKGROUND_IMAGES[sourceLayout.backgroundImageKey] ?? valmorinMapUrl
   };
 }
