@@ -61,7 +61,7 @@ export function MapEditorToolbar(props: {
           { id: "inspect", label: "Main" },
           { id: "terrain", label: "Terrain" },
           { id: "places", label: "Lieux" },
-          { id: "zones", label: "Zones" },
+          { id: "zones", label: "Organisation" },
           { id: "routes", label: "Trace" }
         ] as Array<{ id: EditorToolId; label: string }>).map(tool => (
           <button

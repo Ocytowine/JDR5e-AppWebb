@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useReducer, useRef } from "react";
 import {
   createRuntimeWorldMapLayout,
+  type GeographicZoneKind,
   getWorldMapCellKey,
   serializeWorldMapLayout,
   type MapCell,
@@ -165,8 +166,16 @@ export function WorldMapEditorScreen(props: {
     draftTerritoryColor,
     draftRegionId,
     draftRegionColor,
+    draftGovernanceId,
+    draftGovernanceColor,
+    draftGeographicZoneId,
+    draftGeographicZoneLabel,
+    draftGeographicZoneColor,
+    draftGeographicZoneKind,
     selectedTerritoryLoreId,
     selectedRegionLoreId,
+    selectedGovernanceLoreId,
+    selectedGeographicZoneLoreId,
     hexModalPosition,
     customGeographies,
     customTags,
@@ -242,6 +251,22 @@ export function WorldMapEditorScreen(props: {
     () => wikiCatalog.filter(entry => String(entry.type).trim().toLowerCase() === "region"),
     [wikiCatalog]
   );
+  const wikiGovernances = useMemo(
+    () =>
+      wikiCatalog.filter(entry => {
+        const type = String(entry.type).trim().toLowerCase();
+        return type === "gouvernance" || entry.relativePath.includes("gouvernances/");
+      }),
+    [wikiCatalog]
+  );
+  const wikiGeoZones = useMemo(
+    () =>
+      wikiCatalog.filter(entry => {
+        const type = String(entry.type).trim().toLowerCase();
+        return !["ville", "royaume", "territoire", "region", "gouvernance"].includes(type) && !entry.relativePath.includes("gouvernances/");
+      }),
+    [wikiCatalog]
+  );
   const allGeographyPresets = useMemo(() => [...GEOGRAPHY_PRESETS, ...customGeographies], [customGeographies]);
   const allTagPresets = useMemo(() => [...TAG_PRESETS, ...customTags], [customTags]);
   const contextualHexSection = activeTool === "terrain" ? "terrain" : activeTool === "places" ? "places" : activeTool === "zones" ? "zones" : activeTool === "routes" ? "routes" : null;
@@ -260,7 +285,7 @@ export function WorldMapEditorScreen(props: {
       case "places":
         return "Lieux";
       case "zones":
-        return "Zones";
+        return "Organisation";
       case "routes":
         return "Trace";
       default:
@@ -275,7 +300,7 @@ export function WorldMapEditorScreen(props: {
       case "places":
         return "Clique un hex ou une ville pour preparer les liaisons de lieux.";
       case "zones":
-        return "Clique sur plusieurs hex pour construire la selection de territoire ou de region.";
+        return "Clique sur plusieurs hex pour definir une organisation politique ou une zone geographique.";
       case "routes":
         return "Clique un hex ajoute un point au trace actif.";
       default:
@@ -308,7 +333,13 @@ export function WorldMapEditorScreen(props: {
   }
 
   function updateLoreField(
-    field: "selectedLoreCityId" | "selectedLoreLocationId" | "selectedTerritoryLoreId" | "selectedRegionLoreId",
+    field:
+      | "selectedLoreCityId"
+      | "selectedLoreLocationId"
+      | "selectedTerritoryLoreId"
+      | "selectedRegionLoreId"
+      | "selectedGovernanceLoreId"
+      | "selectedGeographicZoneLoreId",
     value: string
   ): void {
     dispatch({ type: "setLoreField", field, value });
@@ -321,13 +352,19 @@ export function WorldMapEditorScreen(props: {
       | "draftTerritoryColor"
       | "draftRegionId"
       | "draftRegionColor"
+      | "draftGovernanceId"
+      | "draftGovernanceColor"
+      | "draftGeographicZoneId"
+      | "draftGeographicZoneLabel"
+      | "draftGeographicZoneColor"
+      | "draftGeographicZoneKind"
       | "draftGeographyName"
       | "draftGeographyColor"
       | "draftGeographySurface"
       | "draftGeographyDifficulty"
       | "draftTagName"
       | "draftTagColor",
-    value: string | "land" | "ocean"
+    value: string | "land" | "ocean" | GeographicZoneKind
   ): void {
     dispatch({ type: "setDraftField", field, value });
   }
@@ -543,6 +580,59 @@ export function WorldMapEditorScreen(props: {
     const wikiEntityId = draftTerritoryId.trim() || selectedTerritoryLoreId.trim();
     if (!wikiEntityId) return;
     dispatch({ type: "assignTerritoryToSelection", wikiEntityId, color: draftTerritoryColor });
+  }
+
+  function createGovernanceTerritoryOnCell(): void {
+    if (!selectedCell && selectedAreaCellKeys.length === 0) return;
+    const territoryId = draftTerritoryId.trim() || selectedTerritoryLoreId.trim();
+    const wikiEntityId = selectedTerritoryLoreId.trim() || territoryId;
+    const governanceId = draftGovernanceId.trim() || selectedGovernanceLoreId.trim();
+    if (!territoryId) return;
+    dispatch({
+      type: "assignGovernanceTerritoryToSelection",
+      territoryId,
+      wikiEntityId,
+      governanceId,
+      color: draftTerritoryColor
+    });
+  }
+
+  function createGovernanceRegionOnCell(): void {
+    if (!selectedCell && selectedAreaCellKeys.length === 0) return;
+    const regionId = draftRegionId.trim() || selectedRegionLoreId.trim();
+    const wikiEntityId = selectedRegionLoreId.trim() || regionId;
+    const territoryId = selectedCell?.governanceTerritoryId ?? (draftTerritoryId.trim() || selectedTerritoryLoreId.trim());
+    const governanceId = draftGovernanceId.trim() || selectedGovernanceLoreId.trim();
+    const principalCityId = selectedCity?.id ?? "";
+    if (!regionId) return;
+    dispatch({
+      type: "assignGovernanceRegionToSelection",
+      regionId,
+      wikiEntityId,
+      territoryId,
+      governanceId,
+      principalCityId,
+      color: draftRegionColor
+    });
+  }
+
+  function createGeographicZoneOnCell(): void {
+    if (!selectedCell && selectedAreaCellKeys.length === 0) return;
+    const zoneId = draftGeographicZoneId.trim() || selectedGeographicZoneLoreId.trim();
+    const wikiEntityId = selectedGeographicZoneLoreId.trim() || undefined;
+    const label =
+      draftGeographicZoneLabel.trim() ||
+      wikiCatalog.find(entry => entry.id === selectedGeographicZoneLoreId)?.name ||
+      zoneId;
+    if (!zoneId || !label) return;
+    dispatch({
+      type: "assignGeographicZoneToSelection",
+      zoneId,
+      wikiEntityId,
+      label,
+      kind: draftGeographicZoneKind,
+      color: draftGeographicZoneColor
+    });
   }
 
   function createRegionOnCell(): void {
@@ -1000,10 +1090,16 @@ export function WorldMapEditorScreen(props: {
                   <div style={SUBSECTION_STYLE}>
                     <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff" }}>Selection active</div>
                     <div style={{ fontSize: 12, color: "#c9d3e2", lineHeight: 1.45 }}>
-                      Active la selection multi-cases, puis clique sur plusieurs hex pour definir une emprise de territoire ou de region.
+                      Active la selection multi-cases, puis clique sur plusieurs hex pour definir une emprise politique ou geographique.
                     </div>
                     <div style={{ fontSize: 12, color: "#c9d3e2" }}>
                       Selection a modifier: {selectedAreaCellKeys.length > 0 ? selectedAreaCellKeys.join(" | ") : selectedCellKey ?? "aucune"}
+                    </div>
+                    <div style={{ fontSize: 12, color: "#c9d3e2" }}>
+                      Territoire politique actif: {selectedCell?.governanceTerritoryId ?? "aucun"} | Region administrative: {selectedCell?.governanceRegionId ?? "aucune"}
+                    </div>
+                    <div style={{ fontSize: 12, color: "#c9d3e2" }}>
+                      Zones geo: {(selectedCell?.geographicZoneIds ?? []).join(", ") || "aucune"}
                     </div>
                     <button
                       type="button"
@@ -1015,9 +1111,31 @@ export function WorldMapEditorScreen(props: {
                   </div>
 
                   <div style={SUBSECTION_STYLE}>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff" }}>Bibliotheque et references</div>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff" }}>Gouvernance</div>
+                    <div style={{ fontSize: 12, color: "#c9d3e2", lineHeight: 1.45 }}>
+                      Sous-systeme politique : gouvernance, territoire politique, regions administratives et villes de reference.
+                    </div>
                     <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
-                      Territoire du lore
+                      Gouvernance du lore
+                      <select value={selectedGovernanceLoreId} onChange={event => updateLoreField("selectedGovernanceLoreId", event.target.value)} style={FIELD_STYLE}>
+                        <option value="">Choisir une gouvernance</option>
+                        {wikiGovernances.map(entry => (
+                          <option key={entry.id} value={entry.id}>
+                            {entry.name} ({entry.id})
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                      Nouvelle gouvernance
+                      <input value={draftGovernanceId} placeholder="slug_gouvernance" onChange={event => updateDraftField("draftGovernanceId", event.target.value)} style={FIELD_STYLE} />
+                    </label>
+                    <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                      Couleur gouvernance
+                      <input value={draftGovernanceColor} onChange={event => updateDraftField("draftGovernanceColor", event.target.value)} style={FIELD_STYLE} />
+                    </label>
+                    <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                      Territoire politique
                       <select value={selectedTerritoryLoreId} onChange={event => updateLoreField("selectedTerritoryLoreId", event.target.value)} style={FIELD_STYLE}>
                         <option value="">Choisir un territoire</option>
                         {wikiTerritories.map(entry => (
@@ -1028,15 +1146,23 @@ export function WorldMapEditorScreen(props: {
                       </select>
                     </label>
                     <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
-                      Nouveau territoire
+                      Nouveau territoire politique
                       <input value={draftTerritoryId} placeholder="slug_territoire" onChange={event => updateDraftField("draftTerritoryId", event.target.value)} style={FIELD_STYLE} />
                     </label>
                     <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
                       Couleur territoire
                       <input value={draftTerritoryColor} onChange={event => updateDraftField("draftTerritoryColor", event.target.value)} style={FIELD_STYLE} />
                     </label>
+                    <button
+                      type="button"
+                      onClick={createGovernanceTerritoryOnCell}
+                      disabled={!draftTerritoryId.trim() && !selectedTerritoryLoreId.trim()}
+                      style={{ padding: "9px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)", color: "#eef3ff", cursor: draftTerritoryId.trim() || selectedTerritoryLoreId.trim() ? "pointer" : "not-allowed", fontWeight: 700, opacity: draftTerritoryId.trim() || selectedTerritoryLoreId.trim() ? 1 : 0.55 }}
+                    >
+                      Creer / appliquer territoire politique
+                    </button>
                     <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
-                      Region du lore
+                      Region administrative
                       <select value={selectedRegionLoreId} onChange={event => updateLoreField("selectedRegionLoreId", event.target.value)} style={FIELD_STYLE}>
                         <option value="">Choisir une region</option>
                         {wikiRegions.map(entry => (
@@ -1047,32 +1173,75 @@ export function WorldMapEditorScreen(props: {
                       </select>
                     </label>
                     <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
-                      Nouvelle region
+                      Nouvelle region administrative
                       <input value={draftRegionId} placeholder="slug_region" onChange={event => updateDraftField("draftRegionId", event.target.value)} style={FIELD_STYLE} />
                     </label>
                     <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
                       Couleur region
                       <input value={draftRegionColor} onChange={event => updateDraftField("draftRegionColor", event.target.value)} style={FIELD_STYLE} />
                     </label>
-                  </div>
-
-                  <div style={SUBSECTION_STYLE}>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff" }}>Application a la selection</div>
+                    <div style={{ fontSize: 12, color: "#c9d3e2" }}>
+                      Ville principale liee: {selectedCityWiki?.name ?? selectedCity?.wikiEntityId ?? "aucune"}
+                    </div>
                     <button
                       type="button"
-                      onClick={createTerritoryOnCell}
-                      disabled={!draftTerritoryId.trim() && !selectedTerritoryLoreId.trim()}
-                      style={{ padding: "9px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)", color: "#eef3ff", cursor: draftTerritoryId.trim() || selectedTerritoryLoreId.trim() ? "pointer" : "not-allowed", fontWeight: 700, opacity: draftTerritoryId.trim() || selectedTerritoryLoreId.trim() ? 1 : 0.55 }}
-                    >
-                      Creer / appliquer territoire
-                    </button>
-                    <button
-                      type="button"
-                      onClick={createRegionOnCell}
+                      onClick={createGovernanceRegionOnCell}
                       disabled={!draftRegionId.trim() && !selectedRegionLoreId.trim()}
                       style={{ padding: "9px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)", color: "#eef3ff", cursor: draftRegionId.trim() || selectedRegionLoreId.trim() ? "pointer" : "not-allowed", fontWeight: 700, opacity: draftRegionId.trim() || selectedRegionLoreId.trim() ? 1 : 0.55 }}
                     >
-                      Creer / appliquer region
+                      Creer / appliquer region administrative
+                    </button>
+                    <div style={{ fontSize: 11, color: "#8fa0b7", lineHeight: 1.45 }}>
+                      Compatibilite temporaire : cette action alimente aussi l'ancien modele `territories / regions` pour garder le rendu actuel.
+                    </div>
+                  </div>
+
+                  <div style={SUBSECTION_STYLE}>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff" }}>Zones geo</div>
+                    <div style={{ fontSize: 12, color: "#c9d3e2", lineHeight: 1.45 }}>
+                      Sous-systeme non politique. Une case peut appartenir a plusieurs zones geographiques.
+                    </div>
+                    <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                      Zone du lore
+                      <select value={selectedGeographicZoneLoreId} onChange={event => updateLoreField("selectedGeographicZoneLoreId", event.target.value)} style={FIELD_STYLE}>
+                        <option value="">Choisir une zone du lore</option>
+                        {wikiGeoZones.map(entry => (
+                          <option key={entry.id} value={entry.id}>
+                            {entry.name} ({entry.id})
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                      Identifiant de zone
+                      <input value={draftGeographicZoneId} placeholder="slug_zone_geo" onChange={event => updateDraftField("draftGeographicZoneId", event.target.value)} style={FIELD_STYLE} />
+                    </label>
+                    <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                      Libelle de zone
+                      <input value={draftGeographicZoneLabel} placeholder="Zone geographique" onChange={event => updateDraftField("draftGeographicZoneLabel", event.target.value)} style={FIELD_STYLE} />
+                    </label>
+                    <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                      Type de zone
+                      <select value={draftGeographicZoneKind} onChange={event => updateDraftField("draftGeographicZoneKind", event.target.value as GeographicZoneKind)} style={FIELD_STYLE}>
+                        <option value="natural">Naturelle</option>
+                        <option value="cultural">Culturelle</option>
+                        <option value="historical">Historique</option>
+                        <option value="religious">Religieuse</option>
+                        <option value="strategic">Strategique</option>
+                        <option value="custom">Personnalisee</option>
+                      </select>
+                    </label>
+                    <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                      Couleur zone
+                      <input value={draftGeographicZoneColor} onChange={event => updateDraftField("draftGeographicZoneColor", event.target.value)} style={FIELD_STYLE} />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={createGeographicZoneOnCell}
+                      disabled={!(draftGeographicZoneId.trim() || selectedGeographicZoneLoreId.trim())}
+                      style={{ padding: "9px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)", color: "#eef3ff", cursor: draftGeographicZoneId.trim() || selectedGeographicZoneLoreId.trim() ? "pointer" : "not-allowed", fontWeight: 700, opacity: draftGeographicZoneId.trim() || selectedGeographicZoneLoreId.trim() ? 1 : 0.55 }}
+                    >
+                      Creer / appliquer zone geographique
                     </button>
                   </div>
                 </div>

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { getWorldMapCellKey, type MapLayerId, type WorldMapLayout } from "../data/worldMapLayout";
+import { getWorldMapCellKey, type MapLayerId, type WorldMapGeographicZone, type WorldMapLayout } from "../data/worldMapLayout";
 import { MapCanvas, getFrontMatterList, useWikiEntries } from "./mapShared";
 
 export function WorldMapViewerScreen(props: {
@@ -27,8 +27,35 @@ export function WorldMapViewerScreen(props: {
     props.layout.cities.find(city => city.id === selectedCityId) ??
     props.layout.cities.find(city => city.wikiEntityId === selectedCell?.cityWikiId) ??
     props.layout.cities[0];
-  const selectedTerritoryWiki = selectedCell?.territoryWikiId ? wikiEntriesById[selectedCell.territoryWikiId] : null;
-  const selectedRegionWiki = selectedCell?.regionWikiId ? wikiEntriesById[selectedCell.regionWikiId] : null;
+  const selectedGovernanceTerritory = selectedCell?.governanceTerritoryId
+    ? props.layout.governanceTerritories?.find(entry => entry.id === selectedCell.governanceTerritoryId) ?? null
+    : null;
+  const selectedGovernanceRegion = selectedCell?.governanceRegionId
+    ? props.layout.governanceRegions?.find(entry => entry.id === selectedCell.governanceRegionId) ?? null
+    : null;
+  const selectedGovernance = selectedGovernanceTerritory?.governanceId
+    ? props.layout.governances?.find(entry => entry.id === selectedGovernanceTerritory.governanceId) ?? null
+    : selectedGovernanceRegion?.governanceId
+      ? props.layout.governances?.find(entry => entry.id === selectedGovernanceRegion.governanceId) ?? null
+      : null;
+  const selectedTerritoryWiki = selectedGovernanceTerritory?.wikiEntityId
+    ? wikiEntriesById[selectedGovernanceTerritory.wikiEntityId]
+    : selectedCell?.territoryWikiId
+      ? wikiEntriesById[selectedCell.territoryWikiId]
+      : null;
+  const selectedRegionWiki = selectedGovernanceRegion?.wikiEntityId
+    ? wikiEntriesById[selectedGovernanceRegion.wikiEntityId]
+    : selectedCell?.regionWikiId
+      ? wikiEntriesById[selectedCell.regionWikiId]
+      : null;
+  const selectedGeographicZones = useMemo(
+    () =>
+      (selectedCell?.geographicZoneIds ?? [])
+        .map(zoneId => props.layout.geographicZones?.find(entry => entry.id === zoneId) ?? null)
+        .filter((entry): entry is WorldMapGeographicZone => Boolean(entry)),
+    [props.layout.geographicZones, selectedCell]
+  );
+  const selectedGovernanceWiki = selectedGovernance?.wikiEntityId ? wikiEntriesById[selectedGovernance.wikiEntityId] : null;
   const selectedCityWiki = selectedCity?.wikiEntityId ? wikiEntriesById[selectedCity.wikiEntityId] : null;
 
   const infoTitle = useMemo(() => {
@@ -124,7 +151,7 @@ export function WorldMapViewerScreen(props: {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "minmax(320px, 1.3fr) minmax(240px, 0.8fr) minmax(240px, 0.8fr)",
+          gridTemplateColumns: "minmax(320px, 1.3fr) minmax(320px, 1fr) minmax(260px, 0.9fr)",
           gap: 12
         }}
       >
@@ -157,20 +184,69 @@ export function WorldMapViewerScreen(props: {
               <div>Difficulte terrain: {selectedCell.terrainDifficulty}</div>
               <div>Risque: {selectedCell.riskLevel}</div>
               <div>Tags: {(selectedCell.tags ?? []).join(", ") || "aucun"}</div>
+              <div>Zones geo: {selectedGeographicZones.map(zone => zone.label).join(", ") || "aucune"}</div>
             </div>
           )}
         </section>
 
         <section style={{ padding: 14, borderRadius: 12, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(14,16,24,0.92)" }}>
-          <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff", marginBottom: 8 }}>Territoire</div>
-          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>{selectedTerritoryWiki?.name ?? "Aucun"}</div>
-          <div style={{ fontSize: 12, color: "#c8d0de", lineHeight: 1.45 }}>{selectedTerritoryWiki?.snippet ?? "Pas de territoire pour cette case."}</div>
+          <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff", marginBottom: 8 }}>Organisation</div>
+          <div style={{ display: "grid", gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: "#8fa0b7", textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 4 }}>
+                Gouvernance
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>{selectedGovernanceWiki?.name ?? selectedGovernance?.label ?? "Aucune"}</div>
+              <div style={{ fontSize: 12, color: "#c8d0de", lineHeight: 1.45 }}>
+                {selectedGovernanceWiki?.snippet ?? "Pas de gouvernance politique definie pour cette case."}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: "#8fa0b7", textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 4 }}>
+                Territoire politique
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>{selectedTerritoryWiki?.name ?? "Aucun"}</div>
+              <div style={{ fontSize: 12, color: "#c8d0de", lineHeight: 1.45 }}>
+                {selectedTerritoryWiki?.snippet ?? "Pas de territoire politique pour cette case."}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: "#8fa0b7", textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 4 }}>
+                Region administrative
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>{selectedRegionWiki?.name ?? "Aucune"}</div>
+              <div style={{ fontSize: 12, color: "#c8d0de", lineHeight: 1.45 }}>
+                {selectedRegionWiki?.snippet ?? "Pas de region administrative pour cette case."}
+              </div>
+            </div>
+          </div>
         </section>
 
         <section style={{ padding: 14, borderRadius: 12, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(14,16,24,0.92)" }}>
-          <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff", marginBottom: 8 }}>Region</div>
-          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>{selectedRegionWiki?.name ?? "Aucune"}</div>
-          <div style={{ fontSize: 12, color: "#c8d0de", lineHeight: 1.45 }}>{selectedRegionWiki?.snippet ?? "Pas de region pour cette case."}</div>
+          <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff", marginBottom: 8 }}>Zones geo</div>
+          {selectedGeographicZones.length === 0 ? (
+            <div style={{ fontSize: 12, color: "#c8d0de", lineHeight: 1.45 }}>Aucune zone geographique pour cette case.</div>
+          ) : (
+            <div style={{ display: "grid", gap: 10 }}>
+              {selectedGeographicZones.map(zone => {
+                const wiki = zone.wikiEntityId ? wikiEntriesById[zone.wikiEntityId] : null;
+                return (
+                  <div key={zone.id} style={{ padding: 10, borderRadius: 10, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                      <span style={{ width: 10, height: 10, borderRadius: 999, background: zone.color, display: "inline-block" }} />
+                      <div style={{ fontSize: 14, fontWeight: 700 }}>{wiki?.name ?? zone.label}</div>
+                    </div>
+                    <div style={{ fontSize: 11, color: "#8fa0b7", textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 4 }}>
+                      {zone.kind}
+                    </div>
+                    <div style={{ fontSize: 12, color: "#c8d0de", lineHeight: 1.45 }}>
+                      {wiki?.snippet ?? "Pas de fiche de lore liee pour cette zone geographique."}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </section>
       </div>
     </div>

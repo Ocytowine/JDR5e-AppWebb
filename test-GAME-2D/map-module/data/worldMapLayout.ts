@@ -19,6 +19,7 @@ export type MapLayerId =
   | "landWater"
   | "territories"
   | "regions"
+  | "geographicZones"
   | "cities"
   | "roads"
   | "rivers";
@@ -174,6 +175,18 @@ const DEFAULT_GEOGRAPHY_DIFFICULTY: Record<string, number> = {
   ocean: 9
 };
 
+const DEFAULT_LAYER_VISIBILITY: Record<MapLayerId, boolean> = {
+  background: true,
+  grid: true,
+  landWater: true,
+  territories: true,
+  regions: true,
+  geographicZones: true,
+  cities: true,
+  roads: true,
+  rivers: true
+};
+
 const source = worldMapLayoutJson as RawWorldMapLayoutSource;
 
 export function createRuntimeWorldMapLayout(
@@ -181,6 +194,10 @@ export function createRuntimeWorldMapLayout(
 ): WorldMapLayout {
   return {
     ...sourceLayout,
+    defaultLayers: {
+      ...DEFAULT_LAYER_VISIBILITY,
+      ...(sourceLayout.defaultLayers ?? {})
+    },
     governances: sourceLayout.governances ?? [],
     governanceTerritories: sourceLayout.governanceTerritories ?? [],
     governanceRegions: sourceLayout.governanceRegions ?? [],

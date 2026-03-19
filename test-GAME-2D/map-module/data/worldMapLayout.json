@@ -15,6 +15,7 @@
     "landWater": true,
     "territories": true,
     "regions": true,
+    "geographicZones": true,
     "cities": true,
     "roads": true,
     "rivers": true

@@ -1,10 +1,13 @@
-import { getWorldMapCellKey, type MapLayerId, type ReliefElevationLevel, type WorldMapLayout } from "../../data/worldMapLayout";
+import { getWorldMapCellKey, type GeographicZoneKind, type MapLayerId, type ReliefElevationLevel, type WorldMapLayout } from "../../data/worldMapLayout";
 import { cloneLayout, ensureCell } from "../mapShared";
 import {
   addLocationToCell,
   attachLoreCityToCell,
   appendRoutePoint,
   applyPendingTerrainToCells,
+  assignGeographicZoneToCells,
+  assignGovernanceRegionToCells,
+  assignGovernanceTerritoryToCells,
   assignRegionToCells,
   assignTerritoryToCells,
   createDraftCityOnCell,
@@ -57,8 +60,16 @@ export type MapEditorState = {
   draftTerritoryColor: string;
   draftRegionId: string;
   draftRegionColor: string;
+  draftGovernanceId: string;
+  draftGovernanceColor: string;
+  draftGeographicZoneId: string;
+  draftGeographicZoneLabel: string;
+  draftGeographicZoneColor: string;
+  draftGeographicZoneKind: GeographicZoneKind;
   selectedTerritoryLoreId: string;
   selectedRegionLoreId: string;
+  selectedGovernanceLoreId: string;
+  selectedGeographicZoneLoreId: string;
   hexModalPosition: { x: number; y: number };
   customGeographies: CustomGeography[];
   customTags: CustomTag[];
@@ -87,6 +98,12 @@ type DraftField =
   | "draftTerritoryColor"
   | "draftRegionId"
   | "draftRegionColor"
+  | "draftGovernanceId"
+  | "draftGovernanceColor"
+  | "draftGeographicZoneId"
+  | "draftGeographicZoneLabel"
+  | "draftGeographicZoneColor"
+  | "draftGeographicZoneKind"
   | "draftGeographyName"
   | "draftGeographyColor"
   | "draftGeographySurface"
@@ -98,7 +115,9 @@ type LoreField =
   | "selectedLoreCityId"
   | "selectedLoreLocationId"
   | "selectedTerritoryLoreId"
-  | "selectedRegionLoreId";
+  | "selectedRegionLoreId"
+  | "selectedGovernanceLoreId"
+  | "selectedGeographicZoneLoreId";
 
 export type MapEditorAction =
   | { type: "togglePanel"; panelId: PanelId }
@@ -129,6 +148,17 @@ export type MapEditorAction =
   | { type: "removeCliffBetweenCells"; firstCellKey: string; secondCellKey: string }
   | { type: "assignTerritoryToSelection"; wikiEntityId: string; color: string }
   | { type: "assignRegionToSelection"; wikiEntityId: string; territoryWikiId: string; color: string }
+  | { type: "assignGovernanceTerritoryToSelection"; territoryId: string; wikiEntityId: string; governanceId: string; color: string }
+  | {
+      type: "assignGovernanceRegionToSelection";
+      regionId: string;
+      wikiEntityId: string;
+      territoryId: string;
+      governanceId: string;
+      principalCityId: string;
+      color: string;
+    }
+  | { type: "assignGeographicZoneToSelection"; zoneId: string; label: string; kind: GeographicZoneKind; color: string; wikiEntityId?: string }
   | { type: "appendRoutePoint"; cell: { x: number; y: number } }
   | { type: "createRoute"; routeId: string; kind?: "road" | "river" }
   | { type: "deleteSelectedRoute" }
@@ -361,6 +391,45 @@ export function mapEditorReducer(state: MapEditorHistoryState, action: MapEditor
       if (cellKeys.length === 0) return state;
       const layout = cloneLayout(state.present.layout);
       assignRegionToCells(layout, cellKeys, action.wikiEntityId, action.territoryWikiId, action.color);
+      return withHistory(state, {
+        ...state.present,
+        layout
+      });
+    }
+    case "assignGovernanceTerritoryToSelection": {
+      const cellKeys = getTargetCellKeys(state.present.selectedAreaCellKeys, state.present.selectedCellKey);
+      if (cellKeys.length === 0) return state;
+      const layout = cloneLayout(state.present.layout);
+      assignGovernanceTerritoryToCells(layout, cellKeys, action.territoryId, action.wikiEntityId, action.governanceId, action.color);
+      return withHistory(state, {
+        ...state.present,
+        layout
+      });
+    }
+    case "assignGovernanceRegionToSelection": {
+      const cellKeys = getTargetCellKeys(state.present.selectedAreaCellKeys, state.present.selectedCellKey);
+      if (cellKeys.length === 0) return state;
+      const layout = cloneLayout(state.present.layout);
+      assignGovernanceRegionToCells(
+        layout,
+        cellKeys,
+        action.regionId,
+        action.wikiEntityId,
+        action.territoryId,
+        action.governanceId,
+        action.principalCityId,
+        action.color
+      );
+      return withHistory(state, {
+        ...state.present,
+        layout
+      });
+    }
+    case "assignGeographicZoneToSelection": {
+      const cellKeys = getTargetCellKeys(state.present.selectedAreaCellKeys, state.present.selectedCellKey);
+      if (cellKeys.length === 0) return state;
+      const layout = cloneLayout(state.present.layout);
+      assignGeographicZoneToCells(layout, cellKeys, action.zoneId, action.label, action.kind, action.color, action.wikiEntityId);
       return withHistory(state, {
         ...state.present,
         layout

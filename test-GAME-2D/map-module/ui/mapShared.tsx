@@ -120,6 +120,14 @@ export function buildPathPoints(layout: WorldMapLayout, cells: MapCell[]): strin
     .join(" ");
 }
 
+function getPoliticalTerritoryKey(cell: MapCellData): string {
+  return cell.governanceTerritoryId ?? cell.territoryWikiId ?? "";
+}
+
+function getAdministrativeRegionKey(cell: MapCellData): string {
+  return cell.governanceRegionId ?? cell.regionWikiId ?? "";
+}
+
 export function computeBorderSegments(
   layout: WorldMapLayout
 ): Array<{ path: string; type: "coast" | "territory" | "region" }> {
@@ -173,13 +181,13 @@ export function computeBorderSegments(
         type = cell.surface === "land" ? "coast" : null;
       } else if (neighbor.surface !== cell.surface) {
         if (cell.surface === "land") type = "coast";
-      } else if (neighbor.territoryWikiId !== cell.territoryWikiId) {
-        const cellId = cell.territoryWikiId ?? "";
-        const neighborId = neighbor.territoryWikiId ?? "";
+      } else if (getPoliticalTerritoryKey(neighbor) !== getPoliticalTerritoryKey(cell)) {
+        const cellId = getPoliticalTerritoryKey(cell);
+        const neighborId = getPoliticalTerritoryKey(neighbor);
         if (cellId < neighborId) type = "territory";
-      } else if (neighbor.regionWikiId !== cell.regionWikiId) {
-        const cellId = cell.regionWikiId ?? "";
-        const neighborId = neighbor.regionWikiId ?? "";
+      } else if (getAdministrativeRegionKey(neighbor) !== getAdministrativeRegionKey(cell)) {
+        const cellId = getAdministrativeRegionKey(cell);
+        const neighborId = getAdministrativeRegionKey(neighbor);
         if (cellId < neighborId) type = "region";
       }
 
@@ -409,6 +417,105 @@ export function computeGeographyOverlay(layout: WorldMapLayout): {
   return { segments, labels };
 }
 
+export function computeGeographicZonesOverlay(layout: WorldMapLayout): {
+  segments: Array<{ path: string; zoneId: string; color: string }>;
+  labels: Array<{
+    key: string;
+    label: string;
+    color: string;
+    cells: MapCell[];
+    preferredCell: MapCell;
+  }>;
+} {
+  const renderableCells = getRenderableCells(layout);
+  const cellByKey = new Map(renderableCells.map(cell => [getWorldMapCellKey(cell.cell), cell]));
+  const grid = createGrid(layout);
+  const bounds = layout.grid;
+  const segments: Array<{ path: string; zoneId: string; color: string }> = [];
+  const labels = (layout.geographicZones ?? [])
+    .map(zone => {
+      const zoneCells = renderableCells.filter(cell => (cell.geographicZoneIds ?? []).includes(zone.id));
+      if (zoneCells.length === 0) return null;
+      let sumX = 0;
+      let sumY = 0;
+
+      zoneCells.forEach(cell => {
+        const center = getCellCenter(layout, cell.cell);
+        sumX += center.x;
+        sumY += center.y;
+
+        const polygon = getCellPolygon(layout, cell.cell).split(" ").map(point => {
+          const [x, y] = point.split(",").map(Number);
+          return { x, y };
+        });
+
+        const centerPoint = getCellCenter(layout, cell.cell);
+        const edgeMidpoints = polygon.map((point, index) => {
+          const next = polygon[(index + 1) % polygon.length];
+          return {
+            index,
+            angle: Math.atan2((point.y + next.y) / 2 - centerPoint.y, (point.x + next.x) / 2 - centerPoint.x)
+          };
+        });
+        const edgeNeighborMap = new Map<number, MapCellData | null>();
+
+        grid.neighbors(cell.cell, bounds).forEach(neighborCell => {
+          const neighborCenter = getCellCenter(layout, neighborCell);
+          const angle = Math.atan2(neighborCenter.y - centerPoint.y, neighborCenter.x - centerPoint.x);
+          let bestIndex = edgeMidpoints[0]?.index ?? 0;
+          let bestDistance = Number.POSITIVE_INFINITY;
+          edgeMidpoints.forEach(edge => {
+            const distance = Math.abs(angle - edge.angle);
+            if (distance < bestDistance) {
+              bestDistance = distance;
+              bestIndex = edge.index;
+            }
+          });
+          edgeNeighborMap.set(bestIndex, cellByKey.get(getWorldMapCellKey(neighborCell)) ?? null);
+        });
+
+        edgeMidpoints.forEach(edge => {
+          const neighbor = edgeNeighborMap.has(edge.index) ? edgeNeighborMap.get(edge.index) ?? null : null;
+          if (neighbor && (neighbor.geographicZoneIds ?? []).includes(zone.id)) return;
+          const a = polygon[edge.index];
+          const b = polygon[(edge.index + 1) % polygon.length];
+          segments.push({ path: `M ${a.x} ${a.y} L ${b.x} ${b.y}`, zoneId: zone.id, color: zone.color });
+        });
+      });
+
+      const preferredCell =
+        zoneCells
+          .map(cell => {
+            const center = getCellCenter(layout, cell.cell);
+            const dx = center.x - sumX / Math.max(zoneCells.length, 1);
+            const dy = center.y - sumY / Math.max(zoneCells.length, 1);
+            return { cell: cell.cell, distance: Math.hypot(dx, dy) };
+          })
+          .sort((a, b) => a.distance - b.distance)[0]?.cell ?? zone.labelCell;
+
+      return {
+        key: zone.id,
+        label: zone.label,
+        color: zone.color,
+        cells: zoneCells.map(cell => cell.cell),
+        preferredCell
+      };
+    })
+    .filter(
+      (
+        entry
+      ): entry is {
+        key: string;
+        label: string;
+        color: string;
+        cells: MapCell[];
+        preferredCell: MapCell;
+      } => Boolean(entry)
+    );
+
+  return { segments, labels };
+}
+
 function getViewportWorldRect(
   viewportWidth: number,
   viewportHeight: number,
@@ -493,6 +600,12 @@ export function useWikiEntries(layout: WorldMapLayout): {
     const ids = new Set<string>();
     layout.territories.forEach(item => ids.add(item.wikiEntityId));
     layout.regions.forEach(item => ids.add(item.wikiEntityId));
+    (layout.governances ?? []).forEach(item => ids.add(item.wikiEntityId));
+    (layout.governanceTerritories ?? []).forEach(item => ids.add(item.wikiEntityId));
+    (layout.governanceRegions ?? []).forEach(item => ids.add(item.wikiEntityId));
+    (layout.geographicZones ?? []).forEach(item => {
+      if (item.wikiEntityId) ids.add(item.wikiEntityId);
+    });
     layout.cities.forEach(item => ids.add(item.wikiEntityId));
     layout.cells.forEach(cell => {
       if (cell.territoryWikiId) ids.add(cell.territoryWikiId);
@@ -705,6 +818,10 @@ export function MapCanvas(props: {
     () => (props.terrainOverlayActive ? computeGeographyOverlay({ ...props.layout, cells: renderableCells }) : { segments: [], labels: [] }),
     [props.layout, props.terrainOverlayActive, renderableCells]
   );
+  const geographicZonesOverlay = useMemo(
+    () => (props.layerVisibility.geographicZones ? computeGeographicZonesOverlay({ ...props.layout, cells: renderableCells }) : { segments: [], labels: [] }),
+    [props.layout, props.layerVisibility.geographicZones, renderableCells]
+  );
   const reliefOverlay = useMemo(
     () => (props.terrainOverlayActive ? computeReliefOverlay({ ...props.layout, cells: renderableCells }) : { cliffPolygons: [], markers: [] }),
     [props.layout, props.terrainOverlayActive, renderableCells]
@@ -716,27 +833,47 @@ export function MapCanvas(props: {
     () => getViewportWorldRect(viewportSize.width, viewportSize.height, pan, zoom),
     [viewportSize, pan, zoom]
   );
+  const territoryEntities = useMemo(
+    () => ((props.layout.governanceTerritories?.length ?? 0) > 0 ? props.layout.governanceTerritories ?? [] : props.layout.territories),
+    [props.layout]
+  );
+  const regionEntities = useMemo(
+    () => ((props.layout.governanceRegions?.length ?? 0) > 0 ? props.layout.governanceRegions ?? [] : props.layout.regions),
+    [props.layout]
+  );
   const territoryLabelAnchors = useMemo(
     () =>
-      props.layout.territories
+      territoryEntities
         .map(territory => {
-          const cells = renderableCells.filter(cell => cell.territoryWikiId === territory.wikiEntityId).map(cell => cell.cell);
+          const cells = renderableCells
+            .filter(cell =>
+              "id" in territory
+                ? cell.governanceTerritoryId === territory.id || cell.territoryWikiId === territory.wikiEntityId
+                : cell.territoryWikiId === territory.wikiEntityId
+            )
+            .map(cell => cell.cell);
           const labelCell = chooseVisibleLabelCell(props.layout, cells, territory.labelCell, viewportWorldRect);
           return labelCell ? { territory, cell: labelCell } : null;
         })
-        .filter((entry): entry is { territory: WorldMapLayout["territories"][number]; cell: MapCell } => Boolean(entry)),
-    [props.layout, renderableCells, viewportWorldRect]
+        .filter((entry): entry is { territory: (typeof territoryEntities)[number]; cell: MapCell } => Boolean(entry)),
+    [props.layout, renderableCells, territoryEntities, viewportWorldRect]
   );
   const regionLabelAnchors = useMemo(
     () =>
-      props.layout.regions
+      regionEntities
         .map(region => {
-          const cells = renderableCells.filter(cell => cell.regionWikiId === region.wikiEntityId).map(cell => cell.cell);
+          const cells = renderableCells
+            .filter(cell =>
+              "id" in region
+                ? cell.governanceRegionId === region.id || cell.regionWikiId === region.wikiEntityId
+                : cell.regionWikiId === region.wikiEntityId
+            )
+            .map(cell => cell.cell);
           const labelCell = chooseVisibleLabelCell(props.layout, cells, region.labelCell, viewportWorldRect);
           return labelCell ? { region, cell: labelCell } : null;
         })
-        .filter((entry): entry is { region: WorldMapLayout["regions"][number]; cell: MapCell } => Boolean(entry)),
-    [props.layout, renderableCells, viewportWorldRect]
+        .filter((entry): entry is { region: (typeof regionEntities)[number]; cell: MapCell } => Boolean(entry)),
+    [props.layout, regionEntities, renderableCells, viewportWorldRect]
   );
   const selectedRoute = props.selectedRouteId
     ? props.layout.paths.find(path => path.id === props.selectedRouteId) ?? null
@@ -1031,6 +1168,40 @@ export function MapCanvas(props: {
                 );
               })()
             ))}
+
+          {props.layerVisibility.geographicZones &&
+            geographicZonesOverlay.segments.map((segment, index) => (
+              <path
+                key={`geo-zone-${segment.zoneId}-${index}`}
+                d={segment.path}
+                fill="none"
+                stroke={segment.color}
+                strokeWidth={1.6}
+                opacity={0.68}
+                strokeLinecap="round"
+                strokeDasharray="5 4"
+              />
+            ))}
+
+          {props.layerVisibility.geographicZones &&
+            geographicZonesOverlay.labels.map(label => {
+              const cell = chooseVisibleLabelCell(props.layout, label.cells, label.preferredCell, viewportWorldRect);
+              if (!cell) return null;
+              const center = getCellCenter(props.layout, cell);
+              return (
+                <text
+                  key={`geo-zone-label-${label.key}`}
+                  x={center.x}
+                  y={center.y}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fill={label.color}
+                  style={{ fontSize: 15, fontWeight: 700, letterSpacing: 0.8, paintOrder: "stroke", stroke: "rgba(7,10,15,0.84)", strokeWidth: 4 }}
+                >
+                  {label.label}
+                </text>
+              );
+            })}
 
           {props.layerVisibility.landWater &&
             cliffOverlay.shadowPolygons.map(polygon => (
