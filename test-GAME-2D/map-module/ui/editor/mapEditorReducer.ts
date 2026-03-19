@@ -334,7 +334,7 @@ export function mapEditorReducer(state: MapEditorHistoryState, action: MapEditor
         jsonError: action.value
       });
     case "setSelectedCell":
-      return withHistory(state, {
+      return withoutHistory(state, {
         ...state.present,
         selectedCellKey: action.cellKey
       });
@@ -350,19 +350,19 @@ export function mapEditorReducer(state: MapEditorHistoryState, action: MapEditor
         routeDrawActive: action.value
       });
     case "toggleAreaCell":
-      return withHistory(state, {
+      return withoutHistory(state, {
         ...state.present,
         selectedAreaCellKeys: state.present.selectedAreaCellKeys.includes(action.cellKey)
           ? state.present.selectedAreaCellKeys.filter(item => item !== action.cellKey)
           : [...state.present.selectedAreaCellKeys, action.cellKey]
       });
     case "setAreaSelection":
-      return withHistory(state, {
+      return withoutHistory(state, {
         ...state.present,
         selectedAreaCellKeys: action.cellKeys
       });
     case "clearAreaSelection":
-      return withHistory(state, {
+      return withoutHistory(state, {
         ...state.present,
         selectedAreaCellKeys: []
       });

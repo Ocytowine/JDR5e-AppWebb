@@ -816,6 +816,8 @@ export function WorldMapEditorScreen(props: {
       color: draftTerritoryColor,
       capitalCityId
     });
+    updateDraftField("selectedGovernanceTerritoryId", territoryId);
+    startFootprintEdit("territory", territoryId);
   }
 
   function openTerritoryPropertiesEditor(): void {
@@ -867,6 +869,8 @@ export function WorldMapEditorScreen(props: {
       principalCityId,
       color: draftRegionColor
     });
+    updateDraftField("selectedGovernanceRegionId", regionId);
+    startFootprintEdit("region", regionId);
   }
 
   function openRegionPropertiesEditor(): void {
@@ -912,6 +916,8 @@ export function WorldMapEditorScreen(props: {
       borderWidth: Number(draftGeographicZoneBorderWidth) || 1.6,
       borderDashArray: draftGeographicZoneBorderDashArray
     });
+    updateDraftField("selectedGeographicZoneId", zoneId);
+    startFootprintEdit("geographicZone", zoneId);
   }
 
   function openGeographicZonePropertiesEditor(): void {
@@ -2246,6 +2252,7 @@ export function WorldMapEditorScreen(props: {
         selectedRouteId={selectedRouteId}
         routeEditorActive={routeEditorActive}
         terrainOverlayActive={activeTool === "terrain"}
+        organizationOverlayActive={activeTool === "zones"}
         cliffEditPair={terrainCellsAdjacent ? { first: terrainPair[0].cell, second: terrainPair[1].cell } : null}
         onSetCliffHighCell={cell => {
           if (!terrainCellsAdjacent || terrainPair.length !== 2) return;

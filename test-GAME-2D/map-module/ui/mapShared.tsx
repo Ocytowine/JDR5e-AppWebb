@@ -128,23 +128,11 @@ function getAdministrativeRegionKey(cell: MapCellData): string {
   return cell.governanceRegionId ?? "";
 }
 
-export function computeBorderSegments(
-  layout: WorldMapLayout
-): Array<{ path: string; type: "coast" | "territory" | "region" }> {
-  const segments: Array<{ path: string; type: "coast" | "territory" | "region" }> = [];
-  const cellByKey = new Map(layout.cells.map(cell => [getWorldMapCellKey(cell.cell), cell]));
+function buildCellEdgeContext(layout: WorldMapLayout, cellByKey: Map<string, MapCellData>) {
   const grid = createGrid(layout);
   const bounds = layout.grid;
-
-  function normalizeAngle(angle: number): number {
-    let value = angle;
-    while (value <= -Math.PI) value += Math.PI * 2;
-    while (value > Math.PI) value -= Math.PI * 2;
-    return value;
-  }
-
-  layout.cells.forEach(cell => {
-    const center = getCellCenter(layout, cell.cell);
+  return (cell: MapCellData) => {
+    const centerPoint = getCellCenter(layout, cell.cell);
     const polygon = getCellPolygon(layout, cell.cell).split(" ").map(point => {
       const [x, y] = point.split(",").map(Number);
       return { x, y };
@@ -153,18 +141,18 @@ export function computeBorderSegments(
       const next = polygon[(index + 1) % polygon.length];
       return {
         index,
-        angle: normalizeAngle(Math.atan2((point.y + next.y) / 2 - center.y, (point.x + next.x) / 2 - center.x))
+        angle: Math.atan2((point.y + next.y) / 2 - centerPoint.y, (point.x + next.x) / 2 - centerPoint.x)
       };
     });
     const edgeNeighborMap = new Map<number, MapCellData | null>();
 
     grid.neighbors(cell.cell, bounds).forEach(neighborCell => {
       const neighborCenter = getCellCenter(layout, neighborCell);
-      const angle = normalizeAngle(Math.atan2(neighborCenter.y - center.y, neighborCenter.x - center.x));
+      const angle = Math.atan2(neighborCenter.y - centerPoint.y, neighborCenter.x - centerPoint.x);
       let bestIndex = edgeMidpoints[0]?.index ?? 0;
       let bestDistance = Number.POSITIVE_INFINITY;
       edgeMidpoints.forEach(edge => {
-        const distance = Math.abs(normalizeAngle(angle - edge.angle));
+        const distance = Math.abs(angle - edge.angle);
         if (distance < bestDistance) {
           bestDistance = distance;
           bestIndex = edge.index;
@@ -173,32 +161,99 @@ export function computeBorderSegments(
       edgeNeighborMap.set(bestIndex, cellByKey.get(getWorldMapCellKey(neighborCell)) ?? null);
     });
 
-    edgeMidpoints.forEach(edge => {
-      const neighbor = edgeNeighborMap.has(edge.index) ? edgeNeighborMap.get(edge.index) ?? null : null;
-      let type: "coast" | "territory" | "region" | null = null;
+    return { centerPoint, polygon, edgeNeighborMap };
+  };
+}
 
+export function computeBorderSegments(
+  layout: WorldMapLayout
+): Array<{ path: string; type: "coast" | "territory" | "region"; color?: string }> {
+  const segments: Array<{ path: string; type: "coast" | "territory" | "region"; color?: string }> = [];
+  const cellByKey = new Map(layout.cells.map(cell => [getWorldMapCellKey(cell.cell), cell]));
+  const getEdgeContext = buildCellEdgeContext(layout, cellByKey);
+
+  layout.cells.forEach(cell => {
+    const { polygon, edgeNeighborMap } = getEdgeContext(cell);
+    polygon.forEach((_point, index) => {
+      const neighbor = edgeNeighborMap.has(index) ? edgeNeighborMap.get(index) ?? null : null;
+      let type: "coast" | null = null;
       if (!neighbor) {
         type = cell.surface === "land" ? "coast" : null;
-      } else if (neighbor.surface !== cell.surface) {
-        if (cell.surface === "land") type = "coast";
-      } else if (getPoliticalTerritoryKey(neighbor) !== getPoliticalTerritoryKey(cell)) {
-        const cellId = getPoliticalTerritoryKey(cell);
-        const neighborId = getPoliticalTerritoryKey(neighbor);
-        if (cellId < neighborId) type = "territory";
-      } else if (getAdministrativeRegionKey(neighbor) !== getAdministrativeRegionKey(cell)) {
-        const cellId = getAdministrativeRegionKey(cell);
-        const neighborId = getAdministrativeRegionKey(neighbor);
-        if (cellId < neighborId) type = "region";
+      } else if (neighbor.surface !== cell.surface && cell.surface === "land") {
+        type = "coast";
       }
-
       if (!type) return;
-      const a = polygon[edge.index];
-      const b = polygon[(edge.index + 1) % polygon.length];
+      const a = polygon[index];
+      const b = polygon[(index + 1) % polygon.length];
       segments.push({ path: `M ${a.x} ${a.y} L ${b.x} ${b.y}`, type });
     });
   });
 
   return segments;
+}
+
+export function computePoliticalBoundaryOverlay(layout: WorldMapLayout): {
+  territorySegments: Array<{ path: string; territoryId: string; color: string }>;
+  regionSegments: Array<{ path: string; regionId: string; color: string }>;
+} {
+  const renderableCells = getRenderableCells(layout);
+  const cellByKey = new Map(renderableCells.map(cell => [getWorldMapCellKey(cell.cell), cell]));
+  const getEdgeContext = buildCellEdgeContext(layout, cellByKey);
+  const territorySegments: Array<{ path: string; territoryId: string; color: string }> = [];
+  const regionSegments: Array<{ path: string; regionId: string; color: string }> = [];
+
+  (layout.governanceTerritories ?? []).forEach(territory => {
+    renderableCells
+      .filter(cell => cell.governanceTerritoryId === territory.id)
+      .forEach(cell => {
+        const { polygon, edgeNeighborMap } = getEdgeContext(cell);
+        polygon.forEach((_point, index) => {
+          const neighbor = edgeNeighborMap.has(index) ? edgeNeighborMap.get(index) ?? null : null;
+          if (neighbor && neighbor.governanceTerritoryId === territory.id) return;
+          const a = polygon[index];
+          const b = polygon[(index + 1) % polygon.length];
+          territorySegments.push({ path: `M ${a.x} ${a.y} L ${b.x} ${b.y}`, territoryId: territory.id, color: territory.color });
+        });
+      });
+  });
+
+  (layout.governanceRegions ?? []).forEach(region => {
+    renderableCells
+      .filter(cell => cell.governanceRegionId === region.id)
+      .forEach(cell => {
+        const { centerPoint, polygon, edgeNeighborMap } = getEdgeContext(cell);
+        polygon.forEach((_point, index) => {
+          const neighbor = edgeNeighborMap.has(index) ? edgeNeighborMap.get(index) ?? null : null;
+          if (neighbor && neighbor.governanceRegionId === region.id) return;
+          const a = polygon[index];
+          const b = polygon[(index + 1) % polygon.length];
+          const inset = layout.grid.tileSize * 0.045;
+          const edgeVector = { x: b.x - a.x, y: b.y - a.y };
+          const edgeLength = Math.max(Math.hypot(edgeVector.x, edgeVector.y), 1);
+          const tangent = { x: edgeVector.x / edgeLength, y: edgeVector.y / edgeLength };
+          const extend = layout.grid.tileSize * 0.018;
+          const insetA = {
+            x: a.x + ((centerPoint.x - a.x) * inset) / Math.max(Math.hypot(centerPoint.x - a.x, centerPoint.y - a.y), 1),
+            y: a.y + ((centerPoint.y - a.y) * inset) / Math.max(Math.hypot(centerPoint.x - a.x, centerPoint.y - a.y), 1)
+          };
+          const insetB = {
+            x: b.x + ((centerPoint.x - b.x) * inset) / Math.max(Math.hypot(centerPoint.x - b.x, centerPoint.y - b.y), 1),
+            y: b.y + ((centerPoint.y - b.y) * inset) / Math.max(Math.hypot(centerPoint.x - b.x, centerPoint.y - b.y), 1)
+          };
+          const extendedA = {
+            x: insetA.x - tangent.x * extend,
+            y: insetA.y - tangent.y * extend
+          };
+          const extendedB = {
+            x: insetB.x + tangent.x * extend,
+            y: insetB.y + tangent.y * extend
+          };
+          regionSegments.push({ path: `M ${extendedA.x} ${extendedA.y} L ${extendedB.x} ${extendedB.y}`, regionId: region.id, color: region.color });
+        });
+      });
+  });
+
+  return { territorySegments, regionSegments };
 }
 
 function buildRiverArrowTransform(layout: WorldMapLayout, cells: MapCell[]): string | null {
@@ -795,6 +850,7 @@ export function MapCanvas(props: {
   selectedRouteId?: string | null;
   routeEditorActive?: boolean;
   terrainOverlayActive?: boolean;
+  organizationOverlayActive?: boolean;
   cliffEditPair?: { first: MapCell; second: MapCell } | null;
   onSetCliffHighCell?: (cell: MapCell) => void;
   onRemoveCliffPair?: () => void;
@@ -816,6 +872,10 @@ export function MapCanvas(props: {
   const mapBounds = useMemo(() => getMapBounds(props.layout), [props.layout]);
   const renderableCells = useMemo(() => getRenderableCells(props.layout), [props.layout]);
   const borderSegments = useMemo(() => computeBorderSegments({ ...props.layout, cells: renderableCells }), [props.layout, renderableCells]);
+  const politicalBoundaryOverlay = useMemo(
+    () => computePoliticalBoundaryOverlay({ ...props.layout, cells: renderableCells }),
+    [props.layout, renderableCells]
+  );
   const geographyOverlay = useMemo(
     () => (props.terrainOverlayActive ? computeGeographyOverlay({ ...props.layout, cells: renderableCells }) : { segments: [], labels: [] }),
     [props.layout, props.terrainOverlayActive, renderableCells]
@@ -837,6 +897,10 @@ export function MapCanvas(props: {
   );
   const territoryEntities = useMemo(() => props.layout.governanceTerritories ?? [], [props.layout]);
   const regionEntities = useMemo(() => props.layout.governanceRegions ?? [], [props.layout]);
+  const territoryColorById = useMemo(() => new Map(territoryEntities.map(entry => [entry.id, entry.color])), [territoryEntities]);
+  const regionColorById = useMemo(() => new Map(regionEntities.map(entry => [entry.id, entry.color])), [regionEntities]);
+  const territoryFillOpacity = props.organizationOverlayActive ? 0.12 : 0.2;
+  const regionFillOpacity = props.organizationOverlayActive ? 0.2 : 0.28;
   const territoryLabelAnchors = useMemo(
     () =>
       territoryEntities
@@ -1103,24 +1167,54 @@ export function MapCanvas(props: {
             );
           })}
 
-          {borderSegments.map((segment, index) => {
-            const visible =
-              (segment.type === "coast" && props.layerVisibility.landWater) ||
-              (segment.type === "territory" && props.layerVisibility.territories) ||
-              (segment.type === "region" && props.layerVisibility.regions);
-            if (!visible) return null;
-            return (
+          {props.layerVisibility.territories &&
+            renderableCells.map(cell => {
+              if (!cell.governanceTerritoryId) return null;
+              const color = territoryColorById.get(cell.governanceTerritoryId);
+              if (!color) return null;
+              return (
+                <polygon
+                  key={`territory-fill-${getWorldMapCellKey(cell.cell)}`}
+                  points={getCellPolygon(props.layout, cell.cell)}
+                  fill={color}
+                  opacity={territoryFillOpacity}
+                  stroke="none"
+                  pointerEvents="none"
+                />
+              );
+            })}
+
+          {props.layerVisibility.regions &&
+            renderableCells.map(cell => {
+              if (!cell.governanceRegionId) return null;
+              const color = regionColorById.get(cell.governanceRegionId);
+              if (!color) return null;
+              return (
+                <polygon
+                  key={`region-fill-${getWorldMapCellKey(cell.cell)}`}
+                  points={getCellPolygon(props.layout, cell.cell)}
+                  fill={color}
+                  opacity={regionFillOpacity}
+                  stroke="none"
+                  pointerEvents="none"
+                />
+              );
+            })}
+
+          {borderSegments
+            .filter(segment => segment.type === "coast" && props.layerVisibility.landWater)
+            .map((segment, index) => (
               <path
-                key={`${segment.type}-${index}`}
+                key={`coast-${index}`}
                 d={segment.path}
                 fill="none"
-                stroke={segment.type === "coast" ? "#dce9f7" : segment.type === "territory" ? "#f1cf7a" : "#ffffff"}
-                strokeWidth={segment.type === "coast" ? 3 : segment.type === "territory" ? 2.2 : 1.4}
-                opacity={segment.type === "coast" ? 0.9 : 0.58}
+                stroke="#dce9f7"
+                strokeWidth={3}
+                opacity={0.9}
                 strokeLinecap="round"
+                pointerEvents="none"
               />
-            );
-          })}
+            ))}
 
           {props.terrainOverlayActive &&
             geographyOverlay.segments.map((segment, index) => (
@@ -1132,6 +1226,7 @@ export function MapCanvas(props: {
                 strokeWidth={1.8}
                 opacity={0.9}
                 strokeLinecap="round"
+                pointerEvents="none"
               />
             ))}
 
@@ -1150,6 +1245,7 @@ export function MapCanvas(props: {
                     dominantBaseline="middle"
                     fill={label.color.replace(/0\.\d+\)/, "0.96)")}
                     style={{ fontSize: 14, fontWeight: 800, letterSpacing: 0.6, paintOrder: "stroke", stroke: "rgba(7,10,15,0.86)", strokeWidth: 4 }}
+                    pointerEvents="none"
                   >
                     {label.geography}
                   </text>
@@ -1164,10 +1260,39 @@ export function MapCanvas(props: {
                 d={segment.path}
                 fill="none"
                 stroke={segment.color}
-                strokeWidth={segment.width}
-                opacity={0.68}
+                strokeWidth={segment.width + (props.organizationOverlayActive ? 0.35 : 0.2)}
+                opacity={props.organizationOverlayActive ? 0.9 : 0.8}
                 strokeLinecap="round"
                 strokeDasharray={segment.dashArray}
+                pointerEvents="none"
+              />
+            ))}
+
+          {props.layerVisibility.regions &&
+            politicalBoundaryOverlay.regionSegments.map((segment, index) => (
+              <path
+                key={`region-border-${index}`}
+                d={segment.path}
+                fill="none"
+                stroke={segment.color}
+                strokeWidth={1.15}
+                opacity={0.92}
+                strokeLinecap="round"
+                pointerEvents="none"
+              />
+            ))}
+
+          {props.layerVisibility.territories &&
+            politicalBoundaryOverlay.territorySegments.map((segment, index) => (
+              <path
+                key={`territory-border-${index}`}
+                d={segment.path}
+                fill="none"
+                stroke={segment.color}
+                strokeWidth={2.35}
+                opacity={0.96}
+                strokeLinecap="round"
+                pointerEvents="none"
               />
             ))}
 
@@ -1185,6 +1310,7 @@ export function MapCanvas(props: {
                   dominantBaseline="middle"
                   fill={label.color}
                   style={{ fontSize: 15, fontWeight: 700, letterSpacing: 0.8, paintOrder: "stroke", stroke: "rgba(7,10,15,0.84)", strokeWidth: 4 }}
+                  pointerEvents="none"
                 >
                   {label.label}
                 </text>
@@ -1300,6 +1426,7 @@ export function MapCanvas(props: {
                   dominantBaseline="middle"
                   fill={territory.color}
                   style={{ fontSize: 22, fontWeight: 800, letterSpacing: 1.6, paintOrder: "stroke", stroke: "rgba(7,10,15,0.86)", strokeWidth: 5 }}
+                  pointerEvents="none"
                 >
                   {wiki?.name ?? territory.wikiEntityId}
                 </text>
@@ -1319,6 +1446,7 @@ export function MapCanvas(props: {
                   dominantBaseline="middle"
                   fill={region.color}
                   style={{ fontSize: 16, fontWeight: 700, letterSpacing: 0.8, paintOrder: "stroke", stroke: "rgba(7,10,15,0.86)", strokeWidth: 4 }}
+                  pointerEvents="none"
                 >
                   {wiki?.name ?? region.wikiEntityId}
                 </text>
