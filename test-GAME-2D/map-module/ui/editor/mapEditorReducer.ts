@@ -213,11 +213,11 @@ export type MapEditorAction =
   | { type: "deleteSelectedGovernanceTerritory" }
   | { type: "deleteSelectedGovernanceRegion" }
   | { type: "deleteSelectedGeographicZone" }
-  | { type: "updateSelectedGovernanceTerritoryField"; field: "wikiEntityId" | "governanceId" | "color" | "capitalCityId"; value: string }
-  | { type: "updateSelectedGovernanceRegionField"; field: "wikiEntityId" | "governanceId" | "territoryId" | "principalCityId" | "color"; value: string }
+  | { type: "updateSelectedGovernanceTerritoryField"; field: "id" | "wikiEntityId" | "governanceId" | "color" | "capitalCityId"; value: string }
+  | { type: "updateSelectedGovernanceRegionField"; field: "id" | "wikiEntityId" | "governanceId" | "territoryId" | "principalCityId" | "color"; value: string }
   | {
       type: "updateSelectedGeographicZoneField";
-      field: "wikiEntityId" | "label" | "kind" | "color" | "borderColor" | "borderWidth" | "borderDashArray";
+      field: "id" | "wikiEntityId" | "label" | "kind" | "color" | "borderColor" | "borderWidth" | "borderDashArray";
       value: string;
     }
   | { type: "appendRoutePoint"; cell: { x: number; y: number } }
@@ -678,7 +678,8 @@ export function mapEditorReducer(state: MapEditorHistoryState, action: MapEditor
       updateGovernanceTerritoryOnLayout(layout, state.present.selectedGovernanceTerritoryId, action.field, action.value);
       return withHistory(state, {
         ...state.present,
-        layout
+        layout,
+        selectedGovernanceTerritoryId: action.field === "id" ? action.value.trim() : state.present.selectedGovernanceTerritoryId
       });
     }
     case "updateSelectedGovernanceRegionField": {
@@ -687,7 +688,8 @@ export function mapEditorReducer(state: MapEditorHistoryState, action: MapEditor
       updateGovernanceRegionOnLayout(layout, state.present.selectedGovernanceRegionId, action.field, action.value);
       return withHistory(state, {
         ...state.present,
-        layout
+        layout,
+        selectedGovernanceRegionId: action.field === "id" ? action.value.trim() : state.present.selectedGovernanceRegionId
       });
     }
     case "updateSelectedGeographicZoneField": {
@@ -696,7 +698,8 @@ export function mapEditorReducer(state: MapEditorHistoryState, action: MapEditor
       updateGeographicZoneOnLayout(layout, state.present.selectedGeographicZoneId, action.field, action.value);
       return withHistory(state, {
         ...state.present,
-        layout
+        layout,
+        selectedGeographicZoneId: action.field === "id" ? action.value.trim() : state.present.selectedGeographicZoneId
       });
     }
     case "appendRoutePoint": {

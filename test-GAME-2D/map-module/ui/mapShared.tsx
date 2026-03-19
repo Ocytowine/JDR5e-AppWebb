@@ -30,6 +30,33 @@ export type WikiEntry = {
   body: string;
 };
 
+export type MapLabelAppearance = {
+  fontSize: number;
+  opacity: number;
+  fontFamily: string;
+  underline: boolean;
+};
+
+export type MapLabelAppearanceSet = {
+  geography: MapLabelAppearance;
+  territory: MapLabelAppearance;
+  region: MapLabelAppearance;
+  geographicZone: MapLabelAppearance;
+  city: MapLabelAppearance;
+  road: MapLabelAppearance;
+  river: MapLabelAppearance;
+};
+
+const DEFAULT_LABEL_APPEARANCE: MapLabelAppearanceSet = {
+  geography: { fontSize: 14, opacity: 0.96, fontFamily: "Georgia, serif", underline: false },
+  territory: { fontSize: 22, opacity: 1, fontFamily: "Georgia, serif", underline: false },
+  region: { fontSize: 16, opacity: 1, fontFamily: "Georgia, serif", underline: false },
+  geographicZone: { fontSize: 15, opacity: 1, fontFamily: "Georgia, serif", underline: false },
+  city: { fontSize: 12, opacity: 1, fontFamily: "Georgia, serif", underline: false },
+  road: { fontSize: 13, opacity: 1, fontFamily: "Georgia, serif", underline: false },
+  river: { fontSize: 13, opacity: 1, fontFamily: "Georgia, serif", underline: false }
+};
+
 export const GEOGRAPHY_PRESET_COLORS: Record<string, string> = {
   ocean: "rgba(76,132,196,0.78)",
   plaine: "rgba(171,145,99,0.56)",
@@ -610,24 +637,57 @@ function chooseVisibleLabelCell(
   layout: WorldMapLayout,
   cells: MapCell[],
   preferredCell: MapCell,
-  viewportRect: { left: number; top: number; right: number; bottom: number }
+  viewportRect: { left: number; top: number; right: number; bottom: number },
+  blockedCellKeys?: Set<string>
 ): MapCell | null {
   if (cells.length === 0) return null;
+  const cellKeySet = new Set(cells.map(cell => getWorldMapCellKey(cell)));
   const viewportCenter = {
     x: (viewportRect.left + viewportRect.right) / 2,
     y: (viewportRect.top + viewportRect.bottom) / 2
   };
-  if (isCellCenterVisible(layout, preferredCell, viewportRect)) {
+  if (
+    cellKeySet.has(getWorldMapCellKey(preferredCell)) &&
+    isCellCenterVisible(layout, preferredCell, viewportRect) &&
+    !blockedCellKeys?.has(getWorldMapCellKey(preferredCell))
+  ) {
     return preferredCell;
   }
   const visibleCells = cells.filter(cell => isCellCenterVisible(layout, cell, viewportRect));
   if (visibleCells.length === 0) return null;
-  return visibleCells
+  const clearVisibleCells = visibleCells.filter(cell => !blockedCellKeys?.has(getWorldMapCellKey(cell)));
+  const candidateCells = clearVisibleCells.length > 0 ? clearVisibleCells : visibleCells;
+  return candidateCells
     .map(cell => {
       const center = getCellCenter(layout, cell);
       return { cell, distance: Math.hypot(center.x - viewportCenter.x, center.y - viewportCenter.y) };
     })
     .sort((a, b) => a.distance - b.distance)[0]?.cell ?? null;
+}
+
+function getComponentPreferredCell(layout: WorldMapLayout, cells: MapCell[], fallback: MapCell): MapCell {
+  if (cells.length === 0) return fallback;
+  const cellKeySet = new Set(cells.map(cell => getWorldMapCellKey(cell)));
+  if (cellKeySet.has(getWorldMapCellKey(fallback))) {
+    return fallback;
+  }
+  let sumX = 0;
+  let sumY = 0;
+  cells.forEach(cell => {
+    const center = getCellCenter(layout, cell);
+    sumX += center.x;
+    sumY += center.y;
+  });
+  return (
+    cells
+      .map(cell => {
+        const center = getCellCenter(layout, cell);
+        const dx = center.x - sumX / Math.max(cells.length, 1);
+        const dy = center.y - sumY / Math.max(cells.length, 1);
+        return { cell, distance: Math.hypot(dx, dy) };
+      })
+      .sort((a, b) => a.distance - b.distance)[0]?.cell ?? fallback
+  );
 }
 
 export function computeReliefOverlay(layout: WorldMapLayout): {
@@ -851,6 +911,7 @@ export function MapCanvas(props: {
   routeEditorActive?: boolean;
   terrainOverlayActive?: boolean;
   organizationOverlayActive?: boolean;
+  labelAppearance?: Partial<MapLabelAppearanceSet>;
   cliffEditPair?: { first: MapCell; second: MapCell } | null;
   onSetCliffHighCell?: (cell: MapCell) => void;
   onRemoveCliffPair?: () => void;
@@ -897,35 +958,99 @@ export function MapCanvas(props: {
   );
   const territoryEntities = useMemo(() => props.layout.governanceTerritories ?? [], [props.layout]);
   const regionEntities = useMemo(() => props.layout.governanceRegions ?? [], [props.layout]);
+  const blockedLabelCellKeys = useMemo(() => {
+    const blocked = new Set<string>();
+    props.layout.cities.forEach(city => {
+      blocked.add(getWorldMapCellKey(city.cell));
+    });
+    props.layout.paths.forEach(path => {
+      path.cells.forEach(cell => {
+        blocked.add(getWorldMapCellKey(cell));
+      });
+    });
+    return blocked;
+  }, [props.layout]);
+  const labelAppearance = {
+    geography: { ...DEFAULT_LABEL_APPEARANCE.geography, ...(props.labelAppearance?.geography ?? {}) },
+    territory: { ...DEFAULT_LABEL_APPEARANCE.territory, ...(props.labelAppearance?.territory ?? {}) },
+    region: { ...DEFAULT_LABEL_APPEARANCE.region, ...(props.labelAppearance?.region ?? {}) },
+    geographicZone: { ...DEFAULT_LABEL_APPEARANCE.geographicZone, ...(props.labelAppearance?.geographicZone ?? {}) },
+    city: { ...DEFAULT_LABEL_APPEARANCE.city, ...(props.labelAppearance?.city ?? {}) },
+    road: { ...DEFAULT_LABEL_APPEARANCE.road, ...(props.labelAppearance?.road ?? {}) },
+    river: { ...DEFAULT_LABEL_APPEARANCE.river, ...(props.labelAppearance?.river ?? {}) }
+  };
   const territoryColorById = useMemo(() => new Map(territoryEntities.map(entry => [entry.id, entry.color])), [territoryEntities]);
   const regionColorById = useMemo(() => new Map(regionEntities.map(entry => [entry.id, entry.color])), [regionEntities]);
-  const territoryFillOpacity = props.organizationOverlayActive ? 0.12 : 0.2;
-  const regionFillOpacity = props.organizationOverlayActive ? 0.2 : 0.28;
+  const territoryFillOpacity = props.organizationOverlayActive ? 0.2 : 0;
+  const regionFillOpacity = props.organizationOverlayActive ? 0.3 : 0;
   const territoryLabelAnchors = useMemo(
-    () =>
-      territoryEntities
-        .map(territory => {
-          const cells = renderableCells
-            .filter(cell => cell.governanceTerritoryId === territory.id)
-            .map(cell => cell.cell);
-          const labelCell = chooseVisibleLabelCell(props.layout, cells, territory.labelCell, viewportWorldRect);
-          return labelCell ? { territory, cell: labelCell } : null;
-        })
-        .filter((entry): entry is { territory: (typeof territoryEntities)[number]; cell: MapCell } => Boolean(entry)),
-    [props.layout, renderableCells, territoryEntities, viewportWorldRect]
+    () => {
+      const occupied = new Set(blockedLabelCellKeys);
+      const anchors: Array<{ territory: (typeof territoryEntities)[number]; cell: MapCell }> = [];
+      territoryEntities.forEach(territory => {
+        const cells = renderableCells
+          .filter(cell => cell.governanceTerritoryId === territory.id)
+          .map(cell => cell.cell);
+        const preferredCell = getComponentPreferredCell(props.layout, cells, territory.labelCell);
+        const labelCell = chooseVisibleLabelCell(props.layout, cells, preferredCell, viewportWorldRect, occupied);
+        if (!labelCell) return;
+        occupied.add(getWorldMapCellKey(labelCell));
+        anchors.push({ territory, cell: labelCell });
+      });
+      return anchors;
+    },
+    [blockedLabelCellKeys, props.layout, renderableCells, territoryEntities, viewportWorldRect]
+  );
+  const geographicZoneLabelAnchors = useMemo(
+    () => {
+      const occupied = new Set(blockedLabelCellKeys);
+      territoryLabelAnchors.forEach(({ cell }) => {
+        occupied.add(getWorldMapCellKey(cell));
+      });
+      const anchors: Array<{
+        key: string;
+        label: string;
+        color: string;
+        cell: MapCell;
+      }> = [];
+      geographicZonesOverlay.labels.forEach(label => {
+        const labelCell = chooseVisibleLabelCell(props.layout, label.cells, label.preferredCell, viewportWorldRect, occupied);
+        if (!labelCell) return;
+        occupied.add(getWorldMapCellKey(labelCell));
+        anchors.push({
+          key: label.key,
+          label: label.label,
+          color: label.color,
+          cell: labelCell
+        });
+      });
+      return anchors;
+    },
+    [blockedLabelCellKeys, geographicZonesOverlay.labels, props.layout, territoryLabelAnchors, viewportWorldRect]
   );
   const regionLabelAnchors = useMemo(
-    () =>
-      regionEntities
-        .map(region => {
-          const cells = renderableCells
-            .filter(cell => cell.governanceRegionId === region.id)
-            .map(cell => cell.cell);
-          const labelCell = chooseVisibleLabelCell(props.layout, cells, region.labelCell, viewportWorldRect);
-          return labelCell ? { region, cell: labelCell } : null;
-        })
-        .filter((entry): entry is { region: (typeof regionEntities)[number]; cell: MapCell } => Boolean(entry)),
-    [props.layout, regionEntities, renderableCells, viewportWorldRect]
+    () => {
+      const occupied = new Set(blockedLabelCellKeys);
+      territoryLabelAnchors.forEach(({ cell }) => {
+        occupied.add(getWorldMapCellKey(cell));
+      });
+      geographicZoneLabelAnchors.forEach(({ cell }) => {
+        occupied.add(getWorldMapCellKey(cell));
+      });
+      const anchors: Array<{ region: (typeof regionEntities)[number]; cell: MapCell }> = [];
+      regionEntities.forEach(region => {
+        const cells = renderableCells
+          .filter(cell => cell.governanceRegionId === region.id)
+          .map(cell => cell.cell);
+        const preferredCell = getComponentPreferredCell(props.layout, cells, region.labelCell);
+        const labelCell = chooseVisibleLabelCell(props.layout, cells, preferredCell, viewportWorldRect, occupied);
+        if (!labelCell) return;
+        occupied.add(getWorldMapCellKey(labelCell));
+        anchors.push({ region, cell: labelCell });
+      });
+      return anchors;
+    },
+    [blockedLabelCellKeys, geographicZoneLabelAnchors, props.layout, regionEntities, renderableCells, territoryLabelAnchors, viewportWorldRect]
   );
   const selectedRoute = props.selectedRouteId
     ? props.layout.paths.find(path => path.id === props.selectedRouteId) ?? null
@@ -1233,18 +1358,28 @@ export function MapCanvas(props: {
           {props.terrainOverlayActive &&
             geographyOverlay.labels.map(label => (
               (() => {
-                const cell = chooseVisibleLabelCell(props.layout, label.cells, label.preferredCell, viewportWorldRect);
+                const cell = chooseVisibleLabelCell(props.layout, label.cells, label.preferredCell, viewportWorldRect, blockedLabelCellKeys);
                 if (!cell) return null;
                 const center = getCellCenter(props.layout, cell);
                 return (
                   <text
                     key={label.key}
-                    x={center.x}
-                    y={center.y}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    fill={label.color.replace(/0\.\d+\)/, "0.96)")}
-                    style={{ fontSize: 14, fontWeight: 800, letterSpacing: 0.6, paintOrder: "stroke", stroke: "rgba(7,10,15,0.86)", strokeWidth: 4 }}
+                  x={center.x}
+                  y={center.y}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fill={label.color.replace(/0\.\d+\)/, "0.96)")}
+                    opacity={labelAppearance.geography.opacity}
+                    style={{
+                      fontSize: labelAppearance.geography.fontSize,
+                      fontWeight: 800,
+                      letterSpacing: 0.6,
+                      paintOrder: "stroke",
+                      stroke: "rgba(7,10,15,0.86)",
+                      strokeWidth: 4,
+                      fontFamily: labelAppearance.geography.fontFamily,
+                      textDecoration: labelAppearance.geography.underline ? "underline" : "none"
+                    }}
                     pointerEvents="none"
                   >
                     {label.geography}
@@ -1275,9 +1410,10 @@ export function MapCanvas(props: {
                 d={segment.path}
                 fill="none"
                 stroke={segment.color}
-                strokeWidth={1.15}
+                strokeWidth={1.45}
                 opacity={0.92}
                 strokeLinecap="round"
+                strokeDasharray="3 2.5"
                 pointerEvents="none"
               />
             ))}
@@ -1297,10 +1433,8 @@ export function MapCanvas(props: {
             ))}
 
           {props.layerVisibility.geographicZones &&
-            geographicZonesOverlay.labels.map(label => {
-              const cell = chooseVisibleLabelCell(props.layout, label.cells, label.preferredCell, viewportWorldRect);
-              if (!cell) return null;
-              const center = getCellCenter(props.layout, cell);
+            geographicZoneLabelAnchors.map(label => {
+              const center = getCellCenter(props.layout, label.cell);
               return (
                 <text
                   key={`geo-zone-label-${label.key}`}
@@ -1309,7 +1443,17 @@ export function MapCanvas(props: {
                   textAnchor="middle"
                   dominantBaseline="middle"
                   fill={label.color}
-                  style={{ fontSize: 15, fontWeight: 700, letterSpacing: 0.8, paintOrder: "stroke", stroke: "rgba(7,10,15,0.84)", strokeWidth: 4 }}
+                  opacity={labelAppearance.geographicZone.opacity}
+                  style={{
+                    fontSize: labelAppearance.geographicZone.fontSize,
+                    fontWeight: 700,
+                    letterSpacing: 0.8,
+                    paintOrder: "stroke",
+                    stroke: "rgba(7,10,15,0.84)",
+                    strokeWidth: 4,
+                    fontFamily: labelAppearance.geographicZone.fontFamily,
+                    textDecoration: labelAppearance.geographicZone.underline ? "underline" : "none"
+                  }}
                   pointerEvents="none"
                 >
                   {label.label}
@@ -1425,7 +1569,17 @@ export function MapCanvas(props: {
                   textAnchor="middle"
                   dominantBaseline="middle"
                   fill={territory.color}
-                  style={{ fontSize: 22, fontWeight: 800, letterSpacing: 1.6, paintOrder: "stroke", stroke: "rgba(7,10,15,0.86)", strokeWidth: 5 }}
+                  opacity={labelAppearance.territory.opacity}
+                  style={{
+                    fontSize: labelAppearance.territory.fontSize,
+                    fontWeight: 800,
+                    letterSpacing: 1.6,
+                    paintOrder: "stroke",
+                    stroke: "rgba(7,10,15,0.86)",
+                    strokeWidth: 5,
+                    fontFamily: labelAppearance.territory.fontFamily,
+                    textDecoration: labelAppearance.territory.underline ? "underline" : "none"
+                  }}
                   pointerEvents="none"
                 >
                   {wiki?.name ?? territory.wikiEntityId}
@@ -1445,7 +1599,17 @@ export function MapCanvas(props: {
                   textAnchor="middle"
                   dominantBaseline="middle"
                   fill={region.color}
-                  style={{ fontSize: 16, fontWeight: 700, letterSpacing: 0.8, paintOrder: "stroke", stroke: "rgba(7,10,15,0.86)", strokeWidth: 4 }}
+                  opacity={labelAppearance.region.opacity}
+                  style={{
+                    fontSize: labelAppearance.region.fontSize,
+                    fontWeight: 700,
+                    letterSpacing: 0.8,
+                    paintOrder: "stroke",
+                    stroke: "rgba(7,10,15,0.86)",
+                    strokeWidth: 4,
+                    fontFamily: labelAppearance.region.fontFamily,
+                    textDecoration: labelAppearance.region.underline ? "underline" : "none"
+                  }}
                   pointerEvents="none"
                 >
                   {wiki?.name ?? region.wikiEntityId}
@@ -1554,11 +1718,22 @@ export function MapCanvas(props: {
                 <text
                   key={anchor.key}
                   x={labelTransform.x}
-                  y={labelTransform.y - 10}
+                  y={labelTransform.y}
                   textAnchor="middle"
                   fill="rgba(110,201,255,0.96)"
-                  transform={`rotate(${labelTransform.angle} ${labelTransform.x} ${labelTransform.y - 10})`}
-                  style={{ fontSize: 13, fontWeight: 800, letterSpacing: 0.4, paintOrder: "stroke", stroke: "rgba(7,10,15,0.86)", strokeWidth: 4 }}
+                  opacity={labelAppearance.river.opacity}
+                  transform={`rotate(${labelTransform.angle} ${labelTransform.x} ${labelTransform.y})`}
+                  style={{
+                    fontSize: labelAppearance.river.fontSize,
+                    fontWeight: 800,
+                    letterSpacing: 0.4,
+                    paintOrder: "stroke",
+                    stroke: "rgba(7,10,15,0.86)",
+                    strokeWidth: 4,
+                    fontFamily: labelAppearance.river.fontFamily,
+                    textDecoration: labelAppearance.river.underline ? "underline" : "none"
+                  }}
+                  pointerEvents="none"
                 >
                   {anchor.label}
                 </text>
@@ -1591,11 +1766,22 @@ export function MapCanvas(props: {
                   return (
                     <text
                       x={labelTransform.x}
-                      y={labelTransform.y - 10}
+                      y={labelTransform.y}
                       textAnchor="middle"
                       fill="rgba(207,169,107,0.96)"
-                      transform={`rotate(${labelTransform.angle} ${labelTransform.x} ${labelTransform.y - 10})`}
-                      style={{ fontSize: 13, fontWeight: 800, letterSpacing: 0.4, paintOrder: "stroke", stroke: "rgba(7,10,15,0.86)", strokeWidth: 4 }}
+                      opacity={labelAppearance.road.opacity}
+                      transform={`rotate(${labelTransform.angle} ${labelTransform.x} ${labelTransform.y})`}
+                      style={{
+                        fontSize: labelAppearance.road.fontSize,
+                        fontWeight: 800,
+                        letterSpacing: 0.4,
+                        paintOrder: "stroke",
+                        stroke: "rgba(7,10,15,0.86)",
+                        strokeWidth: 4,
+                        fontFamily: labelAppearance.road.fontFamily,
+                        textDecoration: labelAppearance.road.underline ? "underline" : "none"
+                      }}
+                      pointerEvents="none"
                     >
                       {path.label}
                     </text>
@@ -1668,7 +1854,17 @@ export function MapCanvas(props: {
                     y={isSelected ? -28 : -24}
                     textAnchor="middle"
                     fill="#f7fbff"
-                    style={{ fontSize: 12, fontWeight: 700, paintOrder: "stroke", stroke: "rgba(6,8,12,0.88)", strokeWidth: 4 }}
+                    opacity={labelAppearance.city.opacity}
+                    style={{
+                      fontSize: labelAppearance.city.fontSize,
+                      fontWeight: 700,
+                      paintOrder: "stroke",
+                      stroke: "rgba(6,8,12,0.88)",
+                      strokeWidth: 4,
+                      fontFamily: labelAppearance.city.fontFamily,
+                      textDecoration: labelAppearance.city.underline ? "underline" : "none"
+                    }}
+                    pointerEvents="none"
                   >
                     {wiki?.name ?? city.wikiEntityId}
                   </text>

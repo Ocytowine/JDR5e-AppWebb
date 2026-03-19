@@ -370,11 +370,32 @@ export function assignGeographicZoneToCells(
 export function updateGovernanceTerritoryOnLayout(
   layout: WorldMapLayout,
   territoryId: string,
-  field: "wikiEntityId" | "governanceId" | "color" | "capitalCityId",
+  field: "id" | "wikiEntityId" | "governanceId" | "color" | "capitalCityId",
   value: string
 ): void {
   const territory = layout.governanceTerritories?.find(entry => entry.id === territoryId);
   if (!territory) return;
+  if (field === "id") {
+    const nextId = value.trim();
+    if (!nextId || nextId === territoryId) return;
+    territory.id = nextId;
+    layout.cells.forEach(cell => {
+      if (cell.governanceTerritoryId === territoryId) {
+        cell.governanceTerritoryId = nextId;
+      }
+    });
+    (layout.governanceRegions ?? []).forEach(region => {
+      if (region.territoryId === territoryId) {
+        region.territoryId = nextId;
+      }
+    });
+    (layout.governances ?? []).forEach(governance => {
+      if (governance.territoryId === territoryId) {
+        governance.territoryId = nextId;
+      }
+    });
+    return;
+  }
   if (field === "governanceId") {
     territory.governanceId = value || undefined;
     return;
@@ -410,11 +431,22 @@ export function updateGovernanceTerritoryOnLayout(
 export function updateGovernanceRegionOnLayout(
   layout: WorldMapLayout,
   regionId: string,
-  field: "wikiEntityId" | "governanceId" | "territoryId" | "principalCityId" | "color",
+  field: "id" | "wikiEntityId" | "governanceId" | "territoryId" | "principalCityId" | "color",
   value: string
 ): void {
   const region = layout.governanceRegions?.find(entry => entry.id === regionId);
   if (!region) return;
+  if (field === "id") {
+    const nextId = value.trim();
+    if (!nextId || nextId === regionId) return;
+    region.id = nextId;
+    layout.cells.forEach(cell => {
+      if (cell.governanceRegionId === regionId) {
+        cell.governanceRegionId = nextId;
+      }
+    });
+    return;
+  }
   if (field === "governanceId" || field === "territoryId" || field === "principalCityId") {
     region[field] = value || undefined;
     return;
@@ -425,11 +457,20 @@ export function updateGovernanceRegionOnLayout(
 export function updateGeographicZoneOnLayout(
   layout: WorldMapLayout,
   zoneId: string,
-  field: "wikiEntityId" | "label" | "kind" | "color" | "borderColor" | "borderWidth" | "borderDashArray",
+  field: "id" | "wikiEntityId" | "label" | "kind" | "color" | "borderColor" | "borderWidth" | "borderDashArray",
   value: string
 ): void {
   const zone = layout.geographicZones?.find(entry => entry.id === zoneId);
   if (!zone) return;
+  if (field === "id") {
+    const nextId = value.trim();
+    if (!nextId || nextId === zoneId) return;
+    zone.id = nextId;
+    layout.cells.forEach(cell => {
+      cell.geographicZoneIds = (cell.geographicZoneIds ?? []).map(id => (id === zoneId ? nextId : id));
+    });
+    return;
+  }
   if (field === "wikiEntityId") {
     zone.wikiEntityId = value || undefined;
     return;

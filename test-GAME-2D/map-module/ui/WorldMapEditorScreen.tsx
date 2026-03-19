@@ -16,6 +16,7 @@ import {
   GEOGRAPHY_PRESET_COLORS,
   MapCanvas,
   TAG_PRESET_COLORS,
+  type MapLabelAppearanceSet,
   getFrontMatterList,
   cloneLayout,
   fetchWorldMapLayout,
@@ -134,11 +135,22 @@ const FIELD_STYLE: React.CSSProperties = editorFieldStyles.control;
 
 const SUBSECTION_STYLE: React.CSSProperties = editorSurfaceStyles.subsection;
 
+const DEFAULT_LABEL_APPEARANCE: MapLabelAppearanceSet = {
+  geography: { fontSize: 14, opacity: 0.96, fontFamily: "Georgia, serif", underline: false },
+  territory: { fontSize: 22, opacity: 1, fontFamily: "Georgia, serif", underline: false },
+  region: { fontSize: 16, opacity: 1, fontFamily: "Georgia, serif", underline: false },
+  geographicZone: { fontSize: 15, opacity: 1, fontFamily: "Georgia, serif", underline: false },
+  city: { fontSize: 12, opacity: 1, fontFamily: "Georgia, serif", underline: false },
+  road: { fontSize: 13, opacity: 1, fontFamily: "Georgia, serif", underline: false },
+  river: { fontSize: 13, opacity: 1, fontFamily: "Georgia, serif", underline: false }
+};
+
 export function WorldMapEditorScreen(props: {
   initialLayout: WorldMapLayout;
   onCloseEditor: (layout: WorldMapLayout) => void;
   onLayoutSaved: (layout: WorldMapLayout) => void;
 }): React.JSX.Element {
+  const [terrainSelectionMode, setTerrainSelectionMode] = useState<"single" | "multi">("single");
   const [editorStore, dispatch] = useReducer(
     mapEditorReducer,
     undefined,
@@ -146,14 +158,17 @@ export function WorldMapEditorScreen(props: {
   );
   const [zoneEditSession, setZoneEditSession] = useState<null | { kind: "territory" | "region" | "geographicZone"; id: string; originalCellKeys: string[] }>(null);
   const [footprintFeedback, setFootprintFeedback] = useState<string | null>(null);
+  const [labelAppearance, setLabelAppearance] = useState<MapLabelAppearanceSet>(DEFAULT_LABEL_APPEARANCE);
   const [territoryPropertiesEditActive, setTerritoryPropertiesEditActive] = useState(false);
   const [territoryPropertyDraft, setTerritoryPropertyDraft] = useState({
+    id: "",
     wikiEntityId: "",
     color: "#6b5d90",
     capitalCityId: ""
   });
   const [regionPropertiesEditActive, setRegionPropertiesEditActive] = useState(false);
   const [regionPropertyDraft, setRegionPropertyDraft] = useState({
+    id: "",
     wikiEntityId: "",
     color: "#6d8ca0",
     territoryId: "",
@@ -161,6 +176,7 @@ export function WorldMapEditorScreen(props: {
   });
   const [geographicZonePropertiesEditActive, setGeographicZonePropertiesEditActive] = useState(false);
   const [geographicZonePropertyDraft, setGeographicZonePropertyDraft] = useState({
+    id: "",
     wikiEntityId: "",
     label: "",
     kind: "natural" as GeographicZoneKind,
@@ -354,11 +370,7 @@ export function WorldMapEditorScreen(props: {
     [wikiCatalog]
   );
   const wikiGeoZones = useMemo(
-    () =>
-      wikiCatalog.filter(entry => {
-        const type = String(entry.type).trim().toLowerCase();
-        return !["ville", "royaume", "territoire", "region", "gouvernance"].includes(type) && !entry.relativePath.includes("gouvernances/");
-      }),
+    () => [] as typeof wikiCatalog,
     [wikiCatalog]
   );
   const allGeographyPresets = useMemo(() => [...GEOGRAPHY_PRESETS, ...customGeographies], [customGeographies]);
@@ -369,6 +381,7 @@ export function WorldMapEditorScreen(props: {
     const territory = layout.governanceTerritories?.find(entry => entry.id === territoryId) ?? null;
     const governance = territory?.governanceId ? layout.governances?.find(entry => entry.id === territory.governanceId) ?? null : null;
     return {
+      id: territory?.id ?? territoryId,
       wikiEntityId: territory?.wikiEntityId ?? "",
       color: territory?.color ?? "#6b5d90",
       capitalCityId: governance?.capitalCityId ?? ""
@@ -378,6 +391,7 @@ export function WorldMapEditorScreen(props: {
   function buildRegionPropertyDraft(regionId: string) {
     const region = layout.governanceRegions?.find(entry => entry.id === regionId) ?? null;
     return {
+      id: region?.id ?? regionId,
       wikiEntityId: region?.wikiEntityId ?? "",
       color: region?.color ?? "#6d8ca0",
       territoryId: region?.territoryId ?? "",
@@ -388,6 +402,7 @@ export function WorldMapEditorScreen(props: {
   function buildGeographicZonePropertyDraft(zoneId: string) {
     const zone = layout.geographicZones?.find(entry => entry.id === zoneId) ?? null;
     return {
+      id: zone?.id ?? zoneId,
       wikiEntityId: zone?.wikiEntityId ?? "",
       label: zone?.label ?? "",
       kind: zone?.kind ?? ("natural" as GeographicZoneKind),
@@ -398,10 +413,31 @@ export function WorldMapEditorScreen(props: {
     };
   }
 
+  function getTerritoryDisplayName(territoryId: string): string {
+    const territory = layout.governanceTerritories?.find(entry => entry.id === territoryId) ?? null;
+    if (!territory) return territoryId;
+    const wikiName = territory.wikiEntityId ? wikiEntriesById[territory.wikiEntityId]?.name : "";
+    return wikiName || territory.wikiEntityId || territory.id;
+  }
+
+  function getRegionDisplayName(regionId: string): string {
+    const region = layout.governanceRegions?.find(entry => entry.id === regionId) ?? null;
+    if (!region) return regionId;
+    const wikiName = region.wikiEntityId ? wikiEntriesById[region.wikiEntityId]?.name : "";
+    return wikiName || region.wikiEntityId || region.id;
+  }
+
+  function getGeographicZoneDisplayName(zoneId: string): string {
+    const zone = layout.geographicZones?.find(entry => entry.id === zoneId) ?? null;
+    if (!zone) return zoneId;
+    const wikiName = zone.wikiEntityId ? wikiEntriesById[zone.wikiEntityId]?.name : "";
+    return wikiName || zone.label || zone.wikiEntityId || zone.id;
+  }
+
   useEffect(() => {
     if (!selectedGovernanceTerritoryId) {
       setTerritoryPropertiesEditActive(false);
-      setTerritoryPropertyDraft({ wikiEntityId: "", color: "#6b5d90", capitalCityId: "" });
+      setTerritoryPropertyDraft({ id: "", wikiEntityId: "", color: "#6b5d90", capitalCityId: "" });
       return;
     }
     if (!territoryPropertiesEditActive) {
@@ -412,7 +448,7 @@ export function WorldMapEditorScreen(props: {
   useEffect(() => {
     if (!selectedGovernanceRegionId) {
       setRegionPropertiesEditActive(false);
-      setRegionPropertyDraft({ wikiEntityId: "", color: "#6d8ca0", territoryId: "", principalCityId: "" });
+      setRegionPropertyDraft({ id: "", wikiEntityId: "", color: "#6d8ca0", territoryId: "", principalCityId: "" });
       return;
     }
     if (!regionPropertiesEditActive) {
@@ -424,6 +460,7 @@ export function WorldMapEditorScreen(props: {
     if (!selectedGeographicZoneId) {
       setGeographicZonePropertiesEditActive(false);
       setGeographicZonePropertyDraft({
+        id: "",
         wikiEntityId: "",
         label: "",
         kind: "natural",
@@ -564,6 +601,20 @@ export function WorldMapEditorScreen(props: {
 
   function updateLastSavedLayoutJson(value: string): void {
     dispatch({ type: "setLastSavedLayoutJson", value });
+  }
+
+  function updateLabelAppearance<K extends keyof MapLabelAppearanceSet>(
+    family: K,
+    field: keyof MapLabelAppearanceSet[K],
+    value: string | number | boolean
+  ): void {
+    setLabelAppearance(current => ({
+      ...current,
+      [family]: {
+        ...current[family],
+        [field]: value
+      }
+    }));
   }
 
   function selectGovernanceTerritoryFromLibrary(territoryId: string): void {
@@ -837,6 +888,18 @@ export function WorldMapEditorScreen(props: {
 
   function saveTerritoryProperties(): void {
     if (!selectedGovernanceTerritory) return;
+    const nextTerritoryId = territoryPropertyDraft.id.trim();
+    if (!nextTerritoryId) {
+      updateJsonError("L'id technique du territoire est obligatoire.");
+      return;
+    }
+    if (
+      nextTerritoryId !== selectedGovernanceTerritory.id &&
+      (layout.governanceTerritories ?? []).some(entry => entry.id === nextTerritoryId)
+    ) {
+      updateJsonError("Cet id de territoire existe deja.");
+      return;
+    }
     const capitalCityId = territoryPropertyDraft.capitalCityId.trim();
     if (capitalCityId) {
       const capitalCity = layout.cities.find(city => city.id === capitalCityId) ?? null;
@@ -846,6 +909,7 @@ export function WorldMapEditorScreen(props: {
         return;
       }
     }
+    dispatch({ type: "updateSelectedGovernanceTerritoryField", field: "id", value: nextTerritoryId });
     dispatch({ type: "updateSelectedGovernanceTerritoryField", field: "wikiEntityId", value: territoryPropertyDraft.wikiEntityId.trim() || selectedGovernanceTerritory.id });
     dispatch({ type: "updateSelectedGovernanceTerritoryField", field: "color", value: territoryPropertyDraft.color });
     dispatch({ type: "updateSelectedGovernanceTerritoryField", field: "capitalCityId", value: capitalCityId });
@@ -890,10 +954,24 @@ export function WorldMapEditorScreen(props: {
 
   function saveRegionProperties(): void {
     if (!selectedGovernanceRegion) return;
+    const nextRegionId = regionPropertyDraft.id.trim();
+    if (!nextRegionId) {
+      updateJsonError("L'id technique de la region est obligatoire.");
+      return;
+    }
+    if (
+      nextRegionId !== selectedGovernanceRegion.id &&
+      (layout.governanceRegions ?? []).some(entry => entry.id === nextRegionId)
+    ) {
+      updateJsonError("Cet id de region existe deja.");
+      return;
+    }
+    dispatch({ type: "updateSelectedGovernanceRegionField", field: "id", value: nextRegionId });
     dispatch({ type: "updateSelectedGovernanceRegionField", field: "wikiEntityId", value: regionPropertyDraft.wikiEntityId.trim() || selectedGovernanceRegion.id });
     dispatch({ type: "updateSelectedGovernanceRegionField", field: "color", value: regionPropertyDraft.color });
     dispatch({ type: "updateSelectedGovernanceRegionField", field: "territoryId", value: regionPropertyDraft.territoryId.trim() });
     dispatch({ type: "updateSelectedGovernanceRegionField", field: "principalCityId", value: regionPropertyDraft.principalCityId.trim() });
+    updateJsonError(null);
     setRegionPropertiesEditActive(false);
   }
 
@@ -937,6 +1015,19 @@ export function WorldMapEditorScreen(props: {
 
   function saveGeographicZoneProperties(): void {
     if (!selectedGeographicZone) return;
+    const nextZoneId = geographicZonePropertyDraft.id.trim();
+    if (!nextZoneId) {
+      updateJsonError("L'id technique de la zone est obligatoire.");
+      return;
+    }
+    if (
+      nextZoneId !== selectedGeographicZone.id &&
+      (layout.geographicZones ?? []).some(entry => entry.id === nextZoneId)
+    ) {
+      updateJsonError("Cet id de zone existe deja.");
+      return;
+    }
+    dispatch({ type: "updateSelectedGeographicZoneField", field: "id", value: nextZoneId });
     dispatch({ type: "updateSelectedGeographicZoneField", field: "wikiEntityId", value: geographicZonePropertyDraft.wikiEntityId.trim() });
     dispatch({ type: "updateSelectedGeographicZoneField", field: "label", value: geographicZonePropertyDraft.label.trim() || selectedGeographicZone.label });
     dispatch({ type: "updateSelectedGeographicZoneField", field: "kind", value: geographicZonePropertyDraft.kind });
@@ -944,6 +1035,7 @@ export function WorldMapEditorScreen(props: {
     dispatch({ type: "updateSelectedGeographicZoneField", field: "borderColor", value: geographicZonePropertyDraft.borderColor });
     dispatch({ type: "updateSelectedGeographicZoneField", field: "borderWidth", value: geographicZonePropertyDraft.borderWidth });
     dispatch({ type: "updateSelectedGeographicZoneField", field: "borderDashArray", value: geographicZonePropertyDraft.borderDashArray });
+    updateJsonError(null);
     setGeographicZonePropertiesEditActive(false);
   }
 
@@ -1018,7 +1110,7 @@ export function WorldMapEditorScreen(props: {
     }
 
     if (activeTool === "terrain") {
-      if (meta?.shiftKey) {
+      if (terrainSelectionMode === "multi") {
         dispatch({ type: "toggleAreaCell", cellKey: key });
       } else {
         dispatch({ type: "setAreaSelection", cellKeys: [key] });
@@ -1140,6 +1232,73 @@ export function WorldMapEditorScreen(props: {
             </div>
           </LayerPanel>
         )}
+
+        <div style={{ marginBottom: 12 }}>
+          <CollapsibleSection title="Textes" defaultOpen={false}>
+            <div style={{ display: "grid", gap: 10 }}>
+              {([
+                ["geography", "Types de geographie"],
+                ["territory", "Territoires"],
+                ["region", "Regions"],
+                ["geographicZone", "Zones geographiques"],
+                ["city", "Villes"],
+                ["road", "Routes"],
+                ["river", "Cours d'eau"]
+              ] as const).map(([family, label]) => (
+                <div key={family} style={{ ...SUBSECTION_STYLE, gap: 8 }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff" }}>{label}</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                      Taille
+                      <input
+                        type="number"
+                        min={8}
+                        max={48}
+                        value={labelAppearance[family].fontSize}
+                        onChange={event => updateLabelAppearance(family, "fontSize", Number(event.target.value) || 12)}
+                        style={FIELD_STYLE}
+                      />
+                    </label>
+                    <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                      Transparence
+                      <input
+                        type="number"
+                        min={0.1}
+                        max={1}
+                        step={0.05}
+                        value={labelAppearance[family].opacity}
+                        onChange={event => updateLabelAppearance(family, "opacity", Math.max(0.1, Math.min(1, Number(event.target.value) || 1)))}
+                        style={FIELD_STYLE}
+                      />
+                    </label>
+                  </div>
+                  <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                    Police
+                    <select
+                      value={labelAppearance[family].fontFamily}
+                      onChange={event => updateLabelAppearance(family, "fontFamily", event.target.value)}
+                      style={FIELD_STYLE}
+                    >
+                      <option value="Georgia, serif">Georgia</option>
+                      <option value="Times New Roman, serif">Times New Roman</option>
+                      <option value="Garamond, serif">Garamond</option>
+                      <option value="Trebuchet MS, sans-serif">Trebuchet MS</option>
+                      <option value="Verdana, sans-serif">Verdana</option>
+                    </select>
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#dce5f2" }}>
+                    <input
+                      type="checkbox"
+                      checked={labelAppearance[family].underline}
+                      onChange={event => updateLabelAppearance(family, "underline", event.target.checked)}
+                    />
+                    Soulignage
+                  </label>
+                </div>
+              ))}
+            </div>
+          </CollapsibleSection>
+        </div>
 
         <HexTerrainPanel
             title={
@@ -1345,6 +1504,46 @@ export function WorldMapEditorScreen(props: {
                     </button>
                   </div>
                   <div style={{ fontSize: 12, color: "#c9d3e2" }}>
+                    Mode de selection: {terrainSelectionMode === "multi" ? "multi cases" : "unitaire"}
+                  </div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTerrainSelectionMode("single");
+                        if (selectedCellKey) {
+                          dispatch({ type: "setAreaSelection", cellKeys: [selectedCellKey] });
+                        }
+                      }}
+                      style={{
+                        padding: "8px 10px",
+                        borderRadius: 8,
+                        border: terrainSelectionMode === "single" ? "1px solid rgba(143,179,255,0.56)" : "1px solid rgba(255,255,255,0.12)",
+                        background: terrainSelectionMode === "single" ? "rgba(79,125,242,0.18)" : "rgba(255,255,255,0.06)",
+                        color: "#eef3ff",
+                        cursor: "pointer",
+                        fontWeight: terrainSelectionMode === "single" ? 700 : 500
+                      }}
+                    >
+                      Unitaire
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTerrainSelectionMode("multi")}
+                      style={{
+                        padding: "8px 10px",
+                        borderRadius: 8,
+                        border: terrainSelectionMode === "multi" ? "1px solid rgba(143,179,255,0.56)" : "1px solid rgba(255,255,255,0.12)",
+                        background: terrainSelectionMode === "multi" ? "rgba(79,125,242,0.18)" : "rgba(255,255,255,0.06)",
+                        color: "#eef3ff",
+                        cursor: "pointer",
+                        fontWeight: terrainSelectionMode === "multi" ? 700 : 500
+                      }}
+                    >
+                      Multi cases
+                    </button>
+                  </div>
+                  <div style={{ fontSize: 12, color: "#c9d3e2" }}>
                     Selection a modifier: {selectedAreaCellKeys.length > 0 ? selectedAreaCellKeys.join(" | ") : selectedCellKey ?? "aucune"}
                   </div>
                   <div style={{ fontSize: 12, color: "#c9d3e2" }}>
@@ -1522,14 +1721,14 @@ export function WorldMapEditorScreen(props: {
                             }}
                             title="Selectionner ce territoire"
                           >
-                            {entry.id}
+                            {getTerritoryDisplayName(entry.id)}
                           </button>
                         );
                       })}
                     </div>
                     {selectedGovernanceTerritory && (
                       <div style={{ ...SUBSECTION_STYLE, border: "1px solid rgba(143,179,255,0.38)", boxShadow: "0 0 0 1px rgba(143,179,255,0.14) inset" }}>
-                        <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff" }}>Territoire selectionne: {selectedGovernanceTerritory.id}</div>
+                        <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff" }}>Territoire selectionne: {getTerritoryDisplayName(selectedGovernanceTerritory.id)}</div>
                         <div style={{ fontSize: 12, color: "#dce5f2" }}>
                           Wiki entity id: {selectedTerritoryWiki?.name ?? selectedGovernanceTerritory.wikiEntityId}
                         </div>
@@ -1587,6 +1786,14 @@ export function WorldMapEditorScreen(props: {
                         )}
                         {territoryPropertiesEditActive && (
                           <div style={{ display: "grid", gap: 8, marginTop: 8, padding: 10, borderRadius: 10, background: "rgba(255,255,255,0.04)" }}>
+                            <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                              Id technique
+                              <input
+                                value={territoryPropertyDraft.id}
+                                onChange={event => setTerritoryPropertyDraft(current => ({ ...current, id: event.target.value }))}
+                                style={FIELD_STYLE}
+                              />
+                            </label>
                             <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
                               Wiki entity id
                               <input
@@ -1715,14 +1922,14 @@ export function WorldMapEditorScreen(props: {
                             }}
                             title="Selectionner cette region"
                           >
-                            {entry.id}
+                            {getRegionDisplayName(entry.id)}
                           </button>
                         );
                       })}
                     </div>
                     {selectedGovernanceRegion && (
                       <div style={{ ...SUBSECTION_STYLE, border: "1px solid rgba(143,179,255,0.38)", boxShadow: "0 0 0 1px rgba(143,179,255,0.14) inset" }}>
-                        <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff" }}>Region selectionnee: {selectedGovernanceRegion.id}</div>
+                        <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff" }}>Region selectionnee: {getRegionDisplayName(selectedGovernanceRegion.id)}</div>
                         <div style={{ fontSize: 12, color: "#dce5f2" }}>Wiki entity id: {selectedRegionWiki?.name ?? selectedGovernanceRegion.wikiEntityId}</div>
                         <div style={{ fontSize: 12, color: "#dce5f2" }}>Territoire parent: {selectedGovernanceRegion.territoryId ?? "aucun"}</div>
                         <div style={{ fontSize: 12, color: "#dce5f2" }}>Ville principale: {selectedRegionPrincipalCity?.wikiEntityId ?? selectedRegionPrincipalCity?.id ?? "aucune"}</div>
@@ -1753,6 +1960,10 @@ export function WorldMapEditorScreen(props: {
                         )}
                         {regionPropertiesEditActive && (
                           <div style={{ display: "grid", gap: 8, marginTop: 8, padding: 10, borderRadius: 10, background: "rgba(255,255,255,0.04)" }}>
+                            <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                              Id technique
+                              <input value={regionPropertyDraft.id} onChange={event => setRegionPropertyDraft(current => ({ ...current, id: event.target.value }))} style={FIELD_STYLE} />
+                            </label>
                             <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
                               Wiki entity id
                               <input value={regionPropertyDraft.wikiEntityId} onChange={event => setRegionPropertyDraft(current => ({ ...current, wikiEntityId: event.target.value }))} style={FIELD_STYLE} />
@@ -1837,7 +2048,7 @@ export function WorldMapEditorScreen(props: {
                             }}
                             title="Selectionner cette zone"
                           >
-                            {entry.label}
+                            {getGeographicZoneDisplayName(entry.id)}
                           </button>
                         );
                       })}
@@ -1845,7 +2056,7 @@ export function WorldMapEditorScreen(props: {
                     <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
                       Zone du lore
                       <select value={selectedGeographicZoneLoreId} onChange={event => updateLoreField("selectedGeographicZoneLoreId", event.target.value)} style={FIELD_STYLE}>
-                        <option value="">Choisir une zone du lore</option>
+                        <option value="">Aucune entree de lore</option>
                         {wikiGeoZones.map(entry => (
                           <option key={entry.id} value={entry.id}>
                             {entry.name} ({entry.id})
@@ -1855,7 +2066,7 @@ export function WorldMapEditorScreen(props: {
                     </label>
                     {selectedGeographicZone && (
                       <div style={{ ...SUBSECTION_STYLE, border: "1px solid rgba(143,179,255,0.38)", boxShadow: "0 0 0 1px rgba(143,179,255,0.14) inset" }}>
-                        <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff" }}>Zone selectionnee: {selectedGeographicZone.label}</div>
+                        <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff" }}>Zone selectionnee: {getGeographicZoneDisplayName(selectedGeographicZone.id)}</div>
                         <div style={{ fontSize: 12, color: "#dce5f2" }}>Wiki entity id: {selectedGeographicZone.wikiEntityId ?? "aucun"}</div>
                         <div style={{ fontSize: 12, color: "#dce5f2" }}>Type: {selectedGeographicZone.kind}</div>
                         <div style={{ fontSize: 12, color: "#dce5f2" }}>Emprise actuelle: {selectedGeographicZoneCellKeys.length} case{selectedGeographicZoneCellKeys.length > 1 ? "s" : ""}</div>
@@ -1885,6 +2096,10 @@ export function WorldMapEditorScreen(props: {
                         )}
                         {geographicZonePropertiesEditActive && (
                           <div style={{ display: "grid", gap: 8, marginTop: 8, padding: 10, borderRadius: 10, background: "rgba(255,255,255,0.04)" }}>
+                            <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                              Id technique
+                              <input value={geographicZonePropertyDraft.id} onChange={event => setGeographicZonePropertyDraft(current => ({ ...current, id: event.target.value }))} style={FIELD_STYLE} />
+                            </label>
                             <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
                               Wiki entity id
                               <input value={geographicZonePropertyDraft.wikiEntityId} onChange={event => setGeographicZonePropertyDraft(current => ({ ...current, wikiEntityId: event.target.value }))} style={FIELD_STYLE} />
@@ -2253,6 +2468,7 @@ export function WorldMapEditorScreen(props: {
         routeEditorActive={routeEditorActive}
         terrainOverlayActive={activeTool === "terrain"}
         organizationOverlayActive={activeTool === "zones"}
+        labelAppearance={labelAppearance}
         cliffEditPair={terrainCellsAdjacent ? { first: terrainPair[0].cell, second: terrainPair[1].cell } : null}
         onSetCliffHighCell={cell => {
           if (!terrainCellsAdjacent || terrainPair.length !== 2) return;

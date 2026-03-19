@@ -11,8 +11,10 @@ function sanitizeLayoutSource(value) {
     typeof candidate.backgroundImageKey !== "string" ||
     !candidate.grid ||
     !candidate.defaultLayers ||
-    !Array.isArray(candidate.territories) ||
-    !Array.isArray(candidate.regions) ||
+    !Array.isArray(candidate.governanceTerritories ?? []) ||
+    !Array.isArray(candidate.governanceRegions ?? []) ||
+    !Array.isArray(candidate.governances ?? []) ||
+    !Array.isArray(candidate.geographicZones ?? []) ||
     !Array.isArray(candidate.cities) ||
     !Array.isArray(candidate.paths) ||
     !Array.isArray(candidate.cliffSegments ?? []) ||
