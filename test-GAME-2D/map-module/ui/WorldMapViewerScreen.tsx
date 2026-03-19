@@ -40,14 +40,10 @@ export function WorldMapViewerScreen(props: {
       : null;
   const selectedTerritoryWiki = selectedGovernanceTerritory?.wikiEntityId
     ? wikiEntriesById[selectedGovernanceTerritory.wikiEntityId]
-    : selectedCell?.territoryWikiId
-      ? wikiEntriesById[selectedCell.territoryWikiId]
-      : null;
+    : null;
   const selectedRegionWiki = selectedGovernanceRegion?.wikiEntityId
     ? wikiEntriesById[selectedGovernanceRegion.wikiEntityId]
-    : selectedCell?.regionWikiId
-      ? wikiEntriesById[selectedCell.regionWikiId]
-      : null;
+    : null;
   const selectedGeographicZones = useMemo(
     () =>
       (selectedCell?.geographicZoneIds ?? [])

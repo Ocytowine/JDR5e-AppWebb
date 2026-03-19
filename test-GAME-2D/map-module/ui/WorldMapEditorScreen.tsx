@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useReducer, useRef } from "react";
+import React, { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import {
   createRuntimeWorldMapLayout,
   type GeographicZoneKind,
@@ -8,6 +8,7 @@ import {
   type MapLayerId,
   type ReliefElevationLevel,
   type WorldMapCity,
+  type WorldMapGeographicZone,
   type WorldMapLayout,
   type WorldMapLayoutSource
 } from "../data/worldMapLayout";
@@ -59,8 +60,6 @@ function sanitizeLayoutSource(value: unknown): WorldMapLayoutSource | null {
     typeof candidate.backgroundImageKey !== "string" ||
     !candidate.grid ||
     !candidate.defaultLayers ||
-    !Array.isArray(candidate.territories) ||
-    !Array.isArray(candidate.regions) ||
     !Array.isArray(candidate.cities) ||
     !Array.isArray(candidate.paths) ||
     !Array.isArray(candidate.cliffSegments ?? []) ||
@@ -145,6 +144,31 @@ export function WorldMapEditorScreen(props: {
     undefined,
     () => createMapEditorHistoryState(createInitialMapEditorState(props.initialLayout, layoutToJson(props.initialLayout)))
   );
+  const [zoneEditSession, setZoneEditSession] = useState<null | { kind: "territory" | "region" | "geographicZone"; id: string; originalCellKeys: string[] }>(null);
+  const [footprintFeedback, setFootprintFeedback] = useState<string | null>(null);
+  const [territoryPropertiesEditActive, setTerritoryPropertiesEditActive] = useState(false);
+  const [territoryPropertyDraft, setTerritoryPropertyDraft] = useState({
+    wikiEntityId: "",
+    color: "#6b5d90",
+    capitalCityId: ""
+  });
+  const [regionPropertiesEditActive, setRegionPropertiesEditActive] = useState(false);
+  const [regionPropertyDraft, setRegionPropertyDraft] = useState({
+    wikiEntityId: "",
+    color: "#6d8ca0",
+    territoryId: "",
+    principalCityId: ""
+  });
+  const [geographicZonePropertiesEditActive, setGeographicZonePropertiesEditActive] = useState(false);
+  const [geographicZonePropertyDraft, setGeographicZonePropertyDraft] = useState({
+    wikiEntityId: "",
+    label: "",
+    kind: "natural" as GeographicZoneKind,
+    color: "#5d8f7b",
+    borderColor: "#5d8f7b",
+    borderWidth: "1.6",
+    borderDashArray: "5 4"
+  });
   const hexModalDragRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const editorState = editorStore.present;
@@ -162,18 +186,23 @@ export function WorldMapEditorScreen(props: {
     selectedLoreCityId,
     selectedLoreLocationId,
     draftCityName,
+    selectedGovernanceTerritoryId,
+    selectedGovernanceRegionId,
+    selectedGeographicZoneId,
     draftTerritoryId,
     draftTerritoryColor,
     draftRegionId,
     draftRegionColor,
     draftGovernanceId,
     draftGovernanceColor,
+    draftGovernanceCapitalCityId,
     draftGeographicZoneId,
     draftGeographicZoneLabel,
     draftGeographicZoneColor,
+    draftGeographicZoneBorderColor,
+    draftGeographicZoneBorderWidth,
+    draftGeographicZoneBorderDashArray,
     draftGeographicZoneKind,
-    selectedTerritoryLoreId,
-    selectedRegionLoreId,
     selectedGovernanceLoreId,
     selectedGeographicZoneLoreId,
     hexModalPosition,
@@ -200,8 +229,73 @@ export function WorldMapEditorScreen(props: {
 
   const selectedCity = useMemo(() => getSelectedCity(layout, selectedCellKey), [layout, selectedCellKey]);
   const selectedCityWiki = selectedCity?.wikiEntityId ? wikiEntriesById[selectedCity.wikiEntityId] : null;
-  const selectedTerritoryWiki = selectedCell?.territoryWikiId ? wikiEntriesById[selectedCell.territoryWikiId] : null;
-  const selectedRegionWiki = selectedCell?.regionWikiId ? wikiEntriesById[selectedCell.regionWikiId] : null;
+  const selectedGovernanceTerritory = useMemo(
+    () => layout.governanceTerritories?.find(entry => entry.id === selectedGovernanceTerritoryId) ?? null,
+    [layout.governanceTerritories, selectedGovernanceTerritoryId]
+  );
+  const selectedGovernanceRegion = useMemo(
+    () => layout.governanceRegions?.find(entry => entry.id === selectedGovernanceRegionId) ?? null,
+    [layout.governanceRegions, selectedGovernanceRegionId]
+  );
+  const selectedGeographicZone = useMemo(
+    () => layout.geographicZones?.find(entry => entry.id === selectedGeographicZoneId) ?? null,
+    [layout.geographicZones, selectedGeographicZoneId]
+  );
+  const selectedTerritoryWiki = selectedGovernanceTerritory?.wikiEntityId ? wikiEntriesById[selectedGovernanceTerritory.wikiEntityId] : null;
+  const selectedRegionWiki = selectedGovernanceRegion?.wikiEntityId ? wikiEntriesById[selectedGovernanceRegion.wikiEntityId] : null;
+  const selectedTerritoryGovernance = useMemo(
+    () =>
+      selectedGovernanceTerritory?.governanceId
+        ? layout.governances?.find(entry => entry.id === selectedGovernanceTerritory.governanceId) ?? null
+        : null,
+    [layout.governances, selectedGovernanceTerritory]
+  );
+  const selectedTerritoryCapital = useMemo(
+    () =>
+      selectedTerritoryGovernance?.capitalCityId
+        ? layout.cities.find(city => city.id === selectedTerritoryGovernance.capitalCityId) ?? null
+        : null,
+    [layout.cities, selectedTerritoryGovernance]
+  );
+  const selectedTerritoryRegions = useMemo(
+    () => (layout.governanceRegions ?? []).filter(entry => entry.territoryId === selectedGovernanceTerritoryId),
+    [layout.governanceRegions, selectedGovernanceTerritoryId]
+  );
+  const selectedTerritoryCellKeys = useMemo(
+    () =>
+      layout.cells
+        .filter(cell => cell.governanceTerritoryId === selectedGovernanceTerritoryId)
+        .map(cell => getWorldMapCellKey(cell.cell)),
+    [layout.cells, selectedGovernanceTerritoryId]
+  );
+  const selectedRegionCellKeys = useMemo(
+    () =>
+      layout.cells
+        .filter(cell => cell.governanceRegionId === selectedGovernanceRegionId)
+        .map(cell => getWorldMapCellKey(cell.cell)),
+    [layout.cells, selectedGovernanceRegionId]
+  );
+  const selectedRegionPrincipalCity = useMemo(
+    () =>
+      selectedGovernanceRegion?.principalCityId
+        ? layout.cities.find(city => city.id === selectedGovernanceRegion.principalCityId) ?? null
+        : null,
+    [layout.cities, selectedGovernanceRegion]
+  );
+  const selectedGeographicZoneCellKeys = useMemo(
+    () =>
+      layout.cells
+        .filter(cell => (cell.geographicZoneIds ?? []).includes(selectedGeographicZoneId))
+        .map(cell => getWorldMapCellKey(cell.cell)),
+    [layout.cells, selectedGeographicZoneId]
+  );
+  const selectedGeographicZones = useMemo(
+    () =>
+      (selectedCell?.geographicZoneIds ?? [])
+        .map(zoneId => layout.geographicZones?.find(entry => entry.id === zoneId) ?? null)
+        .filter((entry): entry is WorldMapGeographicZone => Boolean(entry)),
+    [layout.geographicZones, selectedCell]
+  );
   const selectedRoute = layout.paths.find(path => path.id === selectedRouteId) ?? null;
   const roadPaths = useMemo(() => getUniquePathsByKind(layout, "road"), [layout]);
   const riverPaths = useMemo(() => getUniquePathsByKind(layout, "river"), [layout]);
@@ -270,11 +364,97 @@ export function WorldMapEditorScreen(props: {
   const allGeographyPresets = useMemo(() => [...GEOGRAPHY_PRESETS, ...customGeographies], [customGeographies]);
   const allTagPresets = useMemo(() => [...TAG_PRESETS, ...customTags], [customTags]);
   const contextualHexSection = activeTool === "terrain" ? "terrain" : activeTool === "places" ? "places" : activeTool === "zones" ? "zones" : activeTool === "routes" ? "routes" : null;
+
+  function buildTerritoryPropertyDraft(territoryId: string) {
+    const territory = layout.governanceTerritories?.find(entry => entry.id === territoryId) ?? null;
+    const governance = territory?.governanceId ? layout.governances?.find(entry => entry.id === territory.governanceId) ?? null : null;
+    return {
+      wikiEntityId: territory?.wikiEntityId ?? "",
+      color: territory?.color ?? "#6b5d90",
+      capitalCityId: governance?.capitalCityId ?? ""
+    };
+  }
+
+  function buildRegionPropertyDraft(regionId: string) {
+    const region = layout.governanceRegions?.find(entry => entry.id === regionId) ?? null;
+    return {
+      wikiEntityId: region?.wikiEntityId ?? "",
+      color: region?.color ?? "#6d8ca0",
+      territoryId: region?.territoryId ?? "",
+      principalCityId: region?.principalCityId ?? ""
+    };
+  }
+
+  function buildGeographicZonePropertyDraft(zoneId: string) {
+    const zone = layout.geographicZones?.find(entry => entry.id === zoneId) ?? null;
+    return {
+      wikiEntityId: zone?.wikiEntityId ?? "",
+      label: zone?.label ?? "",
+      kind: zone?.kind ?? ("natural" as GeographicZoneKind),
+      color: zone?.color ?? "#5d8f7b",
+      borderColor: zone?.borderColor ?? zone?.color ?? "#5d8f7b",
+      borderWidth: String(zone?.borderWidth ?? 1.6),
+      borderDashArray: zone?.borderDashArray ?? "5 4"
+    };
+  }
+
+  useEffect(() => {
+    if (!selectedGovernanceTerritoryId) {
+      setTerritoryPropertiesEditActive(false);
+      setTerritoryPropertyDraft({ wikiEntityId: "", color: "#6b5d90", capitalCityId: "" });
+      return;
+    }
+    if (!territoryPropertiesEditActive) {
+      setTerritoryPropertyDraft(buildTerritoryPropertyDraft(selectedGovernanceTerritoryId));
+    }
+  }, [layout.governanceTerritories, layout.governances, selectedGovernanceTerritoryId, territoryPropertiesEditActive]);
+
+  useEffect(() => {
+    if (!selectedGovernanceRegionId) {
+      setRegionPropertiesEditActive(false);
+      setRegionPropertyDraft({ wikiEntityId: "", color: "#6d8ca0", territoryId: "", principalCityId: "" });
+      return;
+    }
+    if (!regionPropertiesEditActive) {
+      setRegionPropertyDraft(buildRegionPropertyDraft(selectedGovernanceRegionId));
+    }
+  }, [layout.governanceRegions, selectedGovernanceRegionId, regionPropertiesEditActive]);
+
+  useEffect(() => {
+    if (!selectedGeographicZoneId) {
+      setGeographicZonePropertiesEditActive(false);
+      setGeographicZonePropertyDraft({
+        wikiEntityId: "",
+        label: "",
+        kind: "natural",
+        color: "#5d8f7b",
+        borderColor: "#5d8f7b",
+        borderWidth: "1.6",
+        borderDashArray: "5 4"
+      });
+      return;
+    }
+    if (!geographicZonePropertiesEditActive) {
+      setGeographicZonePropertyDraft(buildGeographicZonePropertyDraft(selectedGeographicZoneId));
+    }
+  }, [layout.geographicZones, selectedGeographicZoneId, geographicZonePropertiesEditActive]);
+
+  useEffect(() => {
+    if (!footprintFeedback) return;
+    const timer = window.setTimeout(() => setFootprintFeedback(null), 2200);
+    return () => window.clearTimeout(timer);
+  }, [footprintFeedback]);
   useEffect(() => {
     updateJsonBuffer(layoutToJson(layout));
   }, [layout]);
 
   function activateTool(toolId: EditorToolId): void {
+    if (toolId !== "zones" && zoneEditSession) {
+      setZoneEditSession(null);
+    }
+    if (toolId !== "terrain" && toolId !== "zones") {
+      dispatch({ type: "clearAreaSelection" });
+    }
     dispatch({ type: "activateTool", toolId });
   }
 
@@ -296,17 +476,17 @@ export function WorldMapEditorScreen(props: {
   const activeToolHint = useMemo(() => {
     switch (activeTool) {
       case "terrain":
-        return "Clique un hex pour le selectionner. Shift+clic ajoute ou retire des cases de la selection.";
+        return "Clic simple: remplace la selection par cette case. Shift+clic: ajoute ou retire des cases.";
       case "places":
         return "Clique un hex ou une ville pour preparer les liaisons de lieux.";
       case "zones":
-        return "Clique sur plusieurs hex pour definir une organisation politique ou une zone geographique.";
+        return zoneEditSession ? "Mode emprise actif: clique pour ajouter ou retirer des cases, puis valide ou annule." : "Selectionne un element dans la bibliotheque, puis utilise `Editer l'emprise` pour charger sa zone.";
       case "routes":
         return "Clique un hex ajoute un point au trace actif.";
       default:
         return "Clique un hex pour inspecter. Maintiens Espace puis glisse pour deplacer la carte.";
     }
-  }, [activeTool]);
+  }, [activeTool, zoneEditSession]);
 
   const persistenceMeta = useMemo(() => {
     if (persistenceState === "saving") {
@@ -336,8 +516,6 @@ export function WorldMapEditorScreen(props: {
     field:
       | "selectedLoreCityId"
       | "selectedLoreLocationId"
-      | "selectedTerritoryLoreId"
-      | "selectedRegionLoreId"
       | "selectedGovernanceLoreId"
       | "selectedGeographicZoneLoreId",
     value: string
@@ -354,9 +532,16 @@ export function WorldMapEditorScreen(props: {
       | "draftRegionColor"
       | "draftGovernanceId"
       | "draftGovernanceColor"
+      | "draftGovernanceCapitalCityId"
+      | "selectedGovernanceTerritoryId"
+      | "selectedGovernanceRegionId"
+      | "selectedGeographicZoneId"
       | "draftGeographicZoneId"
       | "draftGeographicZoneLabel"
       | "draftGeographicZoneColor"
+      | "draftGeographicZoneBorderColor"
+      | "draftGeographicZoneBorderWidth"
+      | "draftGeographicZoneBorderDashArray"
       | "draftGeographicZoneKind"
       | "draftGeographyName"
       | "draftGeographyColor"
@@ -379,6 +564,48 @@ export function WorldMapEditorScreen(props: {
 
   function updateLastSavedLayoutJson(value: string): void {
     dispatch({ type: "setLastSavedLayoutJson", value });
+  }
+
+  function selectGovernanceTerritoryFromLibrary(territoryId: string): void {
+    updateDraftField("selectedGovernanceTerritoryId", territoryId);
+    setTerritoryPropertiesEditActive(false);
+    setTerritoryPropertyDraft(buildTerritoryPropertyDraft(territoryId));
+    if (zoneEditSession) {
+      setZoneEditSession(null);
+    }
+    dispatch({ type: "clearAreaSelection" });
+  }
+
+  function activateGovernanceTerritorySelection(territoryId: string): void {
+    selectGovernanceTerritoryFromLibrary(territoryId);
+  }
+
+  function selectGovernanceRegionFromLibrary(regionId: string): void {
+    updateDraftField("selectedGovernanceRegionId", regionId);
+    setRegionPropertiesEditActive(false);
+    setRegionPropertyDraft(buildRegionPropertyDraft(regionId));
+  }
+
+  function activateGovernanceRegionSelection(regionId: string): void {
+    selectGovernanceRegionFromLibrary(regionId);
+    if (zoneEditSession) {
+      setZoneEditSession(null);
+    }
+    dispatch({ type: "clearAreaSelection" });
+  }
+
+  function selectGeographicZoneFromLibrary(zoneId: string): void {
+    updateDraftField("selectedGeographicZoneId", zoneId);
+    setGeographicZonePropertiesEditActive(false);
+    setGeographicZonePropertyDraft(buildGeographicZonePropertyDraft(zoneId));
+  }
+
+  function activateGeographicZoneSelection(zoneId: string): void {
+    selectGeographicZoneFromLibrary(zoneId);
+    if (zoneEditSession) {
+      setZoneEditSession(null);
+    }
+    dispatch({ type: "clearAreaSelection" });
   }
 
   function replaceLayoutState(nextLayout: WorldMapLayout, resetHistory = false): void {
@@ -575,38 +802,64 @@ export function WorldMapEditorScreen(props: {
     dispatch({ type: "addLoreLocationToSelectedCell", wikiEntityId });
   }
 
-  function createTerritoryOnCell(): void {
-    if (!selectedCell && selectedAreaCellKeys.length === 0) return;
-    const wikiEntityId = draftTerritoryId.trim() || selectedTerritoryLoreId.trim();
-    if (!wikiEntityId) return;
-    dispatch({ type: "assignTerritoryToSelection", wikiEntityId, color: draftTerritoryColor });
-  }
-
-  function createGovernanceTerritoryOnCell(): void {
-    if (!selectedCell && selectedAreaCellKeys.length === 0) return;
-    const territoryId = draftTerritoryId.trim() || selectedTerritoryLoreId.trim();
-    const wikiEntityId = selectedTerritoryLoreId.trim() || territoryId;
+  function createGovernanceTerritoryDefinitionOnly(): void {
+    const territoryId = draftTerritoryId.trim();
+    const wikiEntityId = territoryId;
     const governanceId = draftGovernanceId.trim() || selectedGovernanceLoreId.trim();
+    const capitalCityId = draftGovernanceCapitalCityId.trim();
     if (!territoryId) return;
     dispatch({
-      type: "assignGovernanceTerritoryToSelection",
+      type: "createGovernanceTerritoryDefinition",
       territoryId,
       wikiEntityId,
       governanceId,
-      color: draftTerritoryColor
+      color: draftTerritoryColor,
+      capitalCityId
     });
   }
 
-  function createGovernanceRegionOnCell(): void {
-    if (!selectedCell && selectedAreaCellKeys.length === 0) return;
-    const regionId = draftRegionId.trim() || selectedRegionLoreId.trim();
-    const wikiEntityId = selectedRegionLoreId.trim() || regionId;
-    const territoryId = selectedCell?.governanceTerritoryId ?? (draftTerritoryId.trim() || selectedTerritoryLoreId.trim());
+  function openTerritoryPropertiesEditor(): void {
+    if (!selectedGovernanceTerritoryId) return;
+    setTerritoryPropertyDraft(buildTerritoryPropertyDraft(selectedGovernanceTerritoryId));
+    setTerritoryPropertiesEditActive(true);
+  }
+
+  function cancelTerritoryPropertiesEditor(): void {
+    if (!selectedGovernanceTerritoryId) {
+      setTerritoryPropertiesEditActive(false);
+      return;
+    }
+    setTerritoryPropertyDraft(buildTerritoryPropertyDraft(selectedGovernanceTerritoryId));
+    setTerritoryPropertiesEditActive(false);
+  }
+
+  function saveTerritoryProperties(): void {
+    if (!selectedGovernanceTerritory) return;
+    const capitalCityId = territoryPropertyDraft.capitalCityId.trim();
+    if (capitalCityId) {
+      const capitalCity = layout.cities.find(city => city.id === capitalCityId) ?? null;
+      const capitalKey = capitalCity ? getWorldMapCellKey(capitalCity.cell) : "";
+      if (!capitalKey || !selectedTerritoryCellKeys.includes(capitalKey)) {
+        updateJsonError("La capitale choisie doit se trouver dans l'emprise actuelle du territoire.");
+        return;
+      }
+    }
+    dispatch({ type: "updateSelectedGovernanceTerritoryField", field: "wikiEntityId", value: territoryPropertyDraft.wikiEntityId.trim() || selectedGovernanceTerritory.id });
+    dispatch({ type: "updateSelectedGovernanceTerritoryField", field: "color", value: territoryPropertyDraft.color });
+    dispatch({ type: "updateSelectedGovernanceTerritoryField", field: "capitalCityId", value: capitalCityId });
+    updateJsonError(null);
+    setTerritoryPropertiesEditActive(false);
+  }
+
+  function createGovernanceRegionDefinitionOnly(): void {
+    const regionId = draftRegionId.trim();
+    const wikiEntityId = regionId;
+    const territoryId = selectedGovernanceTerritoryId.trim() || selectedCell?.governanceTerritoryId || draftTerritoryId.trim();
     const governanceId = draftGovernanceId.trim() || selectedGovernanceLoreId.trim();
     const principalCityId = selectedCity?.id ?? "";
     if (!regionId) return;
     dispatch({
-      type: "assignGovernanceRegionToSelection",
+      type: "createGovernanceRegionDefinition",
       regionId,
       wikiEntityId,
       territoryId,
@@ -616,8 +869,31 @@ export function WorldMapEditorScreen(props: {
     });
   }
 
-  function createGeographicZoneOnCell(): void {
-    if (!selectedCell && selectedAreaCellKeys.length === 0) return;
+  function openRegionPropertiesEditor(): void {
+    if (!selectedGovernanceRegionId) return;
+    setRegionPropertyDraft(buildRegionPropertyDraft(selectedGovernanceRegionId));
+    setRegionPropertiesEditActive(true);
+  }
+
+  function cancelRegionPropertiesEditor(): void {
+    if (!selectedGovernanceRegionId) {
+      setRegionPropertiesEditActive(false);
+      return;
+    }
+    setRegionPropertyDraft(buildRegionPropertyDraft(selectedGovernanceRegionId));
+    setRegionPropertiesEditActive(false);
+  }
+
+  function saveRegionProperties(): void {
+    if (!selectedGovernanceRegion) return;
+    dispatch({ type: "updateSelectedGovernanceRegionField", field: "wikiEntityId", value: regionPropertyDraft.wikiEntityId.trim() || selectedGovernanceRegion.id });
+    dispatch({ type: "updateSelectedGovernanceRegionField", field: "color", value: regionPropertyDraft.color });
+    dispatch({ type: "updateSelectedGovernanceRegionField", field: "territoryId", value: regionPropertyDraft.territoryId.trim() });
+    dispatch({ type: "updateSelectedGovernanceRegionField", field: "principalCityId", value: regionPropertyDraft.principalCityId.trim() });
+    setRegionPropertiesEditActive(false);
+  }
+
+  function createGeographicZoneDefinitionOnly(): void {
     const zoneId = draftGeographicZoneId.trim() || selectedGeographicZoneLoreId.trim();
     const wikiEntityId = selectedGeographicZoneLoreId.trim() || undefined;
     const label =
@@ -626,21 +902,133 @@ export function WorldMapEditorScreen(props: {
       zoneId;
     if (!zoneId || !label) return;
     dispatch({
-      type: "assignGeographicZoneToSelection",
+      type: "createGeographicZoneDefinition",
       zoneId,
       wikiEntityId,
       label,
       kind: draftGeographicZoneKind,
-      color: draftGeographicZoneColor
+      color: draftGeographicZoneColor,
+      borderColor: draftGeographicZoneBorderColor,
+      borderWidth: Number(draftGeographicZoneBorderWidth) || 1.6,
+      borderDashArray: draftGeographicZoneBorderDashArray
     });
   }
 
-  function createRegionOnCell(): void {
-    if (!selectedCell && selectedAreaCellKeys.length === 0) return;
-    const wikiEntityId = draftRegionId.trim() || selectedRegionLoreId.trim();
-    const territoryWikiId = selectedCell?.territoryWikiId ?? selectedTerritoryLoreId.trim();
-    if (!wikiEntityId) return;
-    dispatch({ type: "assignRegionToSelection", wikiEntityId, territoryWikiId: territoryWikiId ?? "", color: draftRegionColor });
+  function openGeographicZonePropertiesEditor(): void {
+    if (!selectedGeographicZoneId) return;
+    setGeographicZonePropertyDraft(buildGeographicZonePropertyDraft(selectedGeographicZoneId));
+    setGeographicZonePropertiesEditActive(true);
+  }
+
+  function cancelGeographicZonePropertiesEditor(): void {
+    if (!selectedGeographicZoneId) {
+      setGeographicZonePropertiesEditActive(false);
+      return;
+    }
+    setGeographicZonePropertyDraft(buildGeographicZonePropertyDraft(selectedGeographicZoneId));
+    setGeographicZonePropertiesEditActive(false);
+  }
+
+  function saveGeographicZoneProperties(): void {
+    if (!selectedGeographicZone) return;
+    dispatch({ type: "updateSelectedGeographicZoneField", field: "wikiEntityId", value: geographicZonePropertyDraft.wikiEntityId.trim() });
+    dispatch({ type: "updateSelectedGeographicZoneField", field: "label", value: geographicZonePropertyDraft.label.trim() || selectedGeographicZone.label });
+    dispatch({ type: "updateSelectedGeographicZoneField", field: "kind", value: geographicZonePropertyDraft.kind });
+    dispatch({ type: "updateSelectedGeographicZoneField", field: "color", value: geographicZonePropertyDraft.color });
+    dispatch({ type: "updateSelectedGeographicZoneField", field: "borderColor", value: geographicZonePropertyDraft.borderColor });
+    dispatch({ type: "updateSelectedGeographicZoneField", field: "borderWidth", value: geographicZonePropertyDraft.borderWidth });
+    dispatch({ type: "updateSelectedGeographicZoneField", field: "borderDashArray", value: geographicZonePropertyDraft.borderDashArray });
+    setGeographicZonePropertiesEditActive(false);
+  }
+
+  function startFootprintEdit(kind: "territory" | "region" | "geographicZone", id: string): void {
+    const originalCellKeys = layout.cells
+      .filter(cell => {
+        if (kind === "territory") return cell.governanceTerritoryId === id;
+        if (kind === "region") return cell.governanceRegionId === id;
+        return (cell.geographicZoneIds ?? []).includes(id);
+      })
+      .map(cell => getWorldMapCellKey(cell.cell));
+    if (kind === "territory") {
+      setTerritoryPropertiesEditActive(false);
+    }
+    setZoneEditSession({ kind, id, originalCellKeys });
+    dispatch({ type: "setAreaSelection", cellKeys: originalCellKeys });
+    activateTool("zones");
+  }
+
+  function cancelFootprintEdit(): void {
+    if (!zoneEditSession) return;
+    dispatch({ type: "clearAreaSelection" });
+    setZoneEditSession(null);
+    setFootprintFeedback(null);
+  }
+
+  function validateFootprintEdit(): void {
+    if (!zoneEditSession) return;
+    const feedbackKind = zoneEditSession.kind;
+    const cellKeys = selectedAreaCellKeys;
+    if (zoneEditSession.kind === "territory") {
+      const territory = layout.governanceTerritories?.find(entry => entry.id === zoneEditSession.id) ?? null;
+      const governance = territory?.governanceId ? layout.governances?.find(entry => entry.id === territory.governanceId) ?? null : null;
+      const capitalCityId = governance?.capitalCityId ?? "";
+      if (capitalCityId) {
+        const capitalCity = layout.cities.find(city => city.id === capitalCityId) ?? null;
+        const capitalKey = capitalCity ? getWorldMapCellKey(capitalCity.cell) : "";
+        if (!capitalKey || !cellKeys.includes(capitalKey)) {
+          updateJsonError("La capitale choisie doit se trouver dans l'emprise du territoire.");
+          return;
+        }
+      }
+      dispatch({ type: "replaceGovernanceTerritorySelection", territoryId: zoneEditSession.id, cellKeys });
+    } else if (zoneEditSession.kind === "region") {
+      dispatch({
+        type: "replaceGovernanceRegionSelection",
+        regionId: zoneEditSession.id,
+        territoryId: selectedGovernanceRegion?.territoryId,
+        cellKeys
+      });
+    } else {
+      dispatch({ type: "replaceGeographicZoneSelection", zoneId: zoneEditSession.id, cellKeys });
+    }
+    dispatch({ type: "clearAreaSelection" });
+    setZoneEditSession(null);
+    setFootprintFeedback(
+      feedbackKind === "territory"
+        ? "Emprise du territoire mise a jour."
+        : feedbackKind === "region"
+          ? "Emprise de la region mise a jour."
+          : "Emprise de la zone mise a jour."
+    );
+  }
+
+  function handleEditorCellClick(cell: MapCell, meta?: { shiftKey: boolean }): void {
+    const key = getWorldMapCellKey(cell);
+    dispatch({ type: "setSelectedCell", cellKey: key });
+
+    if (routeEditorActive) {
+      addRoutePoint(cell);
+      return;
+    }
+
+    if (activeTool === "terrain") {
+      if (meta?.shiftKey) {
+        dispatch({ type: "toggleAreaCell", cellKey: key });
+      } else {
+        dispatch({ type: "setAreaSelection", cellKeys: [key] });
+      }
+      return;
+    }
+
+    if (activeTool === "zones") {
+      if (!zoneEditSession) {
+        return;
+      }
+      dispatch({ type: "toggleAreaCell", cellKey: key });
+      return;
+    }
+
+    dispatch({ type: "clearAreaSelection" });
   }
 
   const terrainPair = useMemo(
@@ -1087,119 +1475,366 @@ export function WorldMapEditorScreen(props: {
             {contextualHexSection === "zones" && (
               <HexZonesPanel>
                 <div style={{ display: "grid", gap: 8 }}>
-                  <div style={SUBSECTION_STYLE}>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff" }}>Selection active</div>
-                    <div style={{ fontSize: 12, color: "#c9d3e2", lineHeight: 1.45 }}>
-                      Active la selection multi-cases, puis clique sur plusieurs hex pour definir une emprise politique ou geographique.
-                    </div>
-                    <div style={{ fontSize: 12, color: "#c9d3e2" }}>
-                      Selection a modifier: {selectedAreaCellKeys.length > 0 ? selectedAreaCellKeys.join(" | ") : selectedCellKey ?? "aucune"}
-                    </div>
-                    <div style={{ fontSize: 12, color: "#c9d3e2" }}>
-                      Territoire politique actif: {selectedCell?.governanceTerritoryId ?? "aucun"} | Region administrative: {selectedCell?.governanceRegionId ?? "aucune"}
-                    </div>
-                    <div style={{ fontSize: 12, color: "#c9d3e2" }}>
-                      Zones geo: {(selectedCell?.geographicZoneIds ?? []).join(", ") || "aucune"}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => dispatch({ type: "clearAreaSelection" })}
-                      style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)", color: "#eef3ff", cursor: "pointer" }}
+                  {footprintFeedback && (
+                    <div
+                      style={{
+                        padding: "9px 12px",
+                        borderRadius: 10,
+                        border: "1px solid rgba(141,214,165,0.32)",
+                        background: "rgba(141,214,165,0.12)",
+                        color: "#dff7e6",
+                        fontSize: 12,
+                        fontWeight: 700
+                      }}
                     >
-                      Vider selection
-                    </button>
-                  </div>
-
-                  <div style={SUBSECTION_STYLE}>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff" }}>Gouvernance</div>
-                    <div style={{ fontSize: 12, color: "#c9d3e2", lineHeight: 1.45 }}>
-                      Sous-systeme politique : gouvernance, territoire politique, regions administratives et villes de reference.
+                      {footprintFeedback}
                     </div>
-                    <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
-                      Gouvernance du lore
-                      <select value={selectedGovernanceLoreId} onChange={event => updateLoreField("selectedGovernanceLoreId", event.target.value)} style={FIELD_STYLE}>
-                        <option value="">Choisir une gouvernance</option>
-                        {wikiGovernances.map(entry => (
-                          <option key={entry.id} value={entry.id}>
-                            {entry.name} ({entry.id})
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
-                      Nouvelle gouvernance
-                      <input value={draftGovernanceId} placeholder="slug_gouvernance" onChange={event => updateDraftField("draftGovernanceId", event.target.value)} style={FIELD_STYLE} />
-                    </label>
-                    <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
-                      Couleur gouvernance
-                      <input value={draftGovernanceColor} onChange={event => updateDraftField("draftGovernanceColor", event.target.value)} style={FIELD_STYLE} />
-                    </label>
-                    <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
-                      Territoire politique
-                      <select value={selectedTerritoryLoreId} onChange={event => updateLoreField("selectedTerritoryLoreId", event.target.value)} style={FIELD_STYLE}>
-                        <option value="">Choisir un territoire</option>
-                        {wikiTerritories.map(entry => (
-                          <option key={entry.id} value={entry.id}>
-                            {entry.name} ({entry.id})
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
-                      Nouveau territoire politique
+                  )}
+                  <CollapsibleSection title="Territoire politique" defaultOpen>
+                    <div style={{ fontSize: 12, color: "#c9d3e2", lineHeight: 1.45 }}>
+                      Un seul territoire politique par case. La pastille selectionne un territoire. L'emprise ne se charge qu'en cliquant sur `Editer l'emprise`.
+                    </div>
+                    <div style={{ fontSize: 12, color: "#dce5f2" }}>Bibliotheque</div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {(layout.governanceTerritories ?? []).map(entry => {
+                        const active = selectedGovernanceTerritoryId === entry.id;
+                        return (
+                          <button
+                            key={entry.id}
+                            type="button"
+                            onClick={() => activateGovernanceTerritorySelection(entry.id)}
+                            style={{
+                              padding: "8px 10px",
+                              borderRadius: 999,
+                              border: active ? "1px solid rgba(255,255,255,0.66)" : "1px solid rgba(255,255,255,0.14)",
+                              background: entry.color,
+                              color: "#f8fbff",
+                              cursor: "pointer",
+                              fontWeight: 700,
+                              fontSize: 12,
+                              boxShadow: active ? "0 0 0 2px rgba(255,255,255,0.18) inset" : "none"
+                            }}
+                            title="Selectionner ce territoire"
+                          >
+                            {entry.id}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {selectedGovernanceTerritory && (
+                      <div style={{ ...SUBSECTION_STYLE, border: "1px solid rgba(143,179,255,0.38)", boxShadow: "0 0 0 1px rgba(143,179,255,0.14) inset" }}>
+                        <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff" }}>Territoire selectionne: {selectedGovernanceTerritory.id}</div>
+                        <div style={{ fontSize: 12, color: "#dce5f2" }}>
+                          Wiki entity id: {selectedTerritoryWiki?.name ?? selectedGovernanceTerritory.wikiEntityId}
+                        </div>
+                        <div style={{ fontSize: 12, color: "#dce5f2" }}>
+                          Gouvernance associee: {selectedTerritoryGovernance?.label ?? selectedTerritoryGovernance?.id ?? selectedGovernanceTerritory.governanceId ?? "aucune"}
+                        </div>
+                        <div style={{ fontSize: 12, color: "#dce5f2" }}>
+                          Capitale: {selectedTerritoryCapital?.wikiEntityId ?? selectedTerritoryCapital?.id ?? "aucune"}
+                        </div>
+                        <div style={{ fontSize: 12, color: "#dce5f2" }}>
+                          Regions associees: {selectedTerritoryRegions.length > 0 ? selectedTerritoryRegions.map(entry => entry.id).join(", ") : "aucune"}
+                        </div>
+                        <div style={{ fontSize: 12, color: "#dce5f2" }}>
+                          Emprise actuelle: {selectedTerritoryCellKeys.length} case{selectedTerritoryCellKeys.length > 1 ? "s" : ""}
+                        </div>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <button
+                            type="button"
+                            onClick={() => selectedGovernanceTerritoryId && startFootprintEdit("territory", selectedGovernanceTerritoryId)}
+                            disabled={zoneEditSession?.kind === "territory" && zoneEditSession.id === selectedGovernanceTerritoryId}
+                            style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8, opacity: selectedGovernanceTerritoryId ? 1 : 0.45 }}
+                          >
+                            Editer l'emprise
+                          </button>
+                          <button
+                            type="button"
+                            onClick={openTerritoryPropertiesEditor}
+                            disabled={territoryPropertiesEditActive}
+                            style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8, opacity: territoryPropertiesEditActive ? 0.6 : 1 }}
+                          >
+                            Editer les proprietes
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => dispatch({ type: "deleteSelectedGovernanceTerritory" })}
+                            style={{ ...createEditorButtonStyle({ compact: true, danger: true }), borderRadius: 8 }}
+                          >
+                            Supprimer l'element
+                          </button>
+                        </div>
+                        {zoneEditSession?.kind === "territory" && zoneEditSession.id === selectedGovernanceTerritoryId && (
+                          <div style={{ display: "grid", gap: 8, marginTop: 8, padding: 10, borderRadius: 10, background: "rgba(255,255,255,0.04)" }}>
+                            <div style={{ fontSize: 12, color: "#dce5f2" }}>
+                              Edition d'emprise en cours: {selectedAreaCellKeys.length} case{selectedAreaCellKeys.length > 1 ? "s" : ""} selectionnee{selectedAreaCellKeys.length > 1 ? "s" : ""}
+                            </div>
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                              <button type="button" onClick={validateFootprintEdit} style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}>
+                                Valider
+                              </button>
+                              <button type="button" onClick={cancelFootprintEdit} style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}>
+                                Annuler
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        {territoryPropertiesEditActive && (
+                          <div style={{ display: "grid", gap: 8, marginTop: 8, padding: 10, borderRadius: 10, background: "rgba(255,255,255,0.04)" }}>
+                            <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                              Wiki entity id
+                              <input
+                                value={territoryPropertyDraft.wikiEntityId}
+                                onChange={event => setTerritoryPropertyDraft(current => ({ ...current, wikiEntityId: event.target.value }))}
+                                style={FIELD_STYLE}
+                              />
+                            </label>
+                            <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                              Capitale
+                              <select
+                                value={territoryPropertyDraft.capitalCityId}
+                                onChange={event => setTerritoryPropertyDraft(current => ({ ...current, capitalCityId: event.target.value }))}
+                                style={FIELD_STYLE}
+                              >
+                                <option value="">Aucune</option>
+                                {layout.cities.map(city => (
+                                  <option key={city.id} value={city.id}>
+                                    {city.wikiEntityId} ({city.id})
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                              Couleur
+                              <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 8, alignItems: "center" }}>
+                                <input
+                                  type="color"
+                                  value={territoryPropertyDraft.color}
+                                  onChange={event => setTerritoryPropertyDraft(current => ({ ...current, color: event.target.value }))}
+                                />
+                                <input
+                                  value={territoryPropertyDraft.color}
+                                  onChange={event => setTerritoryPropertyDraft(current => ({ ...current, color: event.target.value }))}
+                                  style={FIELD_STYLE}
+                                />
+                              </div>
+                            </label>
+                            <div style={{ fontSize: 12, color: "#8fa0b7" }}>
+                              Les regions associees restent gerees depuis le sous-onglet `Region administrative`.
+                            </div>
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                              <button type="button" onClick={saveTerritoryProperties} style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}>
+                                Enregistrer
+                              </button>
+                              <button type="button" onClick={cancelTerritoryPropertiesEditor} style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}>
+                                Annuler
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {!selectedGovernanceTerritory && (
+                      <div style={{ fontSize: 12, color: "#8fa0b7" }}>Selectionne une pastille pour afficher les details d'un territoire existant.</div>
+                    )}
+                    <CollapsibleSection title="Creer territoire">
                       <input value={draftTerritoryId} placeholder="slug_territoire" onChange={event => updateDraftField("draftTerritoryId", event.target.value)} style={FIELD_STYLE} />
-                    </label>
-                    <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
-                      Couleur territoire
-                      <input value={draftTerritoryColor} onChange={event => updateDraftField("draftTerritoryColor", event.target.value)} style={FIELD_STYLE} />
-                    </label>
-                    <button
-                      type="button"
-                      onClick={createGovernanceTerritoryOnCell}
-                      disabled={!draftTerritoryId.trim() && !selectedTerritoryLoreId.trim()}
-                      style={{ padding: "9px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)", color: "#eef3ff", cursor: draftTerritoryId.trim() || selectedTerritoryLoreId.trim() ? "pointer" : "not-allowed", fontWeight: 700, opacity: draftTerritoryId.trim() || selectedTerritoryLoreId.trim() ? 1 : 0.55 }}
-                    >
-                      Creer / appliquer territoire politique
-                    </button>
-                    <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
-                      Region administrative
-                      <select value={selectedRegionLoreId} onChange={event => updateLoreField("selectedRegionLoreId", event.target.value)} style={FIELD_STYLE}>
-                        <option value="">Choisir une region</option>
-                        {wikiRegions.map(entry => (
-                          <option key={entry.id} value={entry.id}>
-                            {entry.name} ({entry.id})
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
-                      Nouvelle region administrative
-                      <input value={draftRegionId} placeholder="slug_region" onChange={event => updateDraftField("draftRegionId", event.target.value)} style={FIELD_STYLE} />
-                    </label>
-                    <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
-                      Couleur region
-                      <input value={draftRegionColor} onChange={event => updateDraftField("draftRegionColor", event.target.value)} style={FIELD_STYLE} />
-                    </label>
-                    <div style={{ fontSize: 12, color: "#c9d3e2" }}>
-                      Ville principale liee: {selectedCityWiki?.name ?? selectedCity?.wikiEntityId ?? "aucune"}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={createGovernanceRegionOnCell}
-                      disabled={!draftRegionId.trim() && !selectedRegionLoreId.trim()}
-                      style={{ padding: "9px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)", color: "#eef3ff", cursor: draftRegionId.trim() || selectedRegionLoreId.trim() ? "pointer" : "not-allowed", fontWeight: 700, opacity: draftRegionId.trim() || selectedRegionLoreId.trim() ? 1 : 0.55 }}
-                    >
-                      Creer / appliquer region administrative
-                    </button>
-                    <div style={{ fontSize: 11, color: "#8fa0b7", lineHeight: 1.45 }}>
-                      Compatibilite temporaire : cette action alimente aussi l'ancien modele `territories / regions` pour garder le rendu actuel.
-                    </div>
-                  </div>
+                      <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                        Gouvernance du lore
+                        <select value={selectedGovernanceLoreId} onChange={event => updateLoreField("selectedGovernanceLoreId", event.target.value)} style={FIELD_STYLE}>
+                          <option value="">Choisir une gouvernance</option>
+                          {wikiGovernances.map(entry => (
+                            <option key={entry.id} value={entry.id}>
+                              {entry.name} ({entry.id})
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                        Id gouvernance custom
+                        <input value={draftGovernanceId} placeholder="slug_gouvernance" onChange={event => updateDraftField("draftGovernanceId", event.target.value)} style={FIELD_STYLE} />
+                      </label>
+                      <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 8, alignItems: "center" }}>
+                        <input type="color" value={draftTerritoryColor} onChange={event => updateDraftField("draftTerritoryColor", event.target.value)} />
+                        <input value={draftTerritoryColor} onChange={event => updateDraftField("draftTerritoryColor", event.target.value)} style={FIELD_STYLE} />
+                      </div>
+                      <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                        Capitale du territoire
+                        <select value={draftGovernanceCapitalCityId} onChange={event => updateDraftField("draftGovernanceCapitalCityId", event.target.value)} style={FIELD_STYLE}>
+                          <option value="">Aucune</option>
+                          {layout.cities.map(city => (
+                            <option key={city.id} value={city.id}>
+                              {city.wikiEntityId} ({city.id})
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <div style={{ fontSize: 11, color: "#8fa0b7", lineHeight: 1.45 }}>
+                        La creation definit le territoire et ses proprietes. L'emprise se modifie ensuite via `Editer l'emprise`.
+                      </div>
+                      <button
+                        type="button"
+                        onClick={createGovernanceTerritoryDefinitionOnly}
+                        disabled={!draftTerritoryId.trim()}
+                        style={{ padding: "9px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)", color: "#eef3ff", cursor: draftTerritoryId.trim() ? "pointer" : "not-allowed", fontWeight: 700, opacity: draftTerritoryId.trim() ? 1 : 0.55 }}
+                      >
+                        Creer territoire
+                      </button>
+                    </CollapsibleSection>
+                  </CollapsibleSection>
 
-                  <div style={SUBSECTION_STYLE}>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff" }}>Zones geo</div>
+                  <CollapsibleSection title="Region administrative">
                     <div style={{ fontSize: 12, color: "#c9d3e2", lineHeight: 1.45 }}>
-                      Sous-systeme non politique. Une case peut appartenir a plusieurs zones geographiques.
+                      Une region administrative peut etre rattachee a un territoire et a une ville principale. La pastille selectionne la region sans charger son emprise.
+                    </div>
+                    <div style={{ fontSize: 12, color: "#dce5f2" }}>Bibliotheque</div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {(layout.governanceRegions ?? []).map(entry => {
+                        const active = selectedGovernanceRegionId === entry.id;
+                        return (
+                          <button
+                            key={entry.id}
+                            type="button"
+                            onClick={() => activateGovernanceRegionSelection(entry.id)}
+                            style={{
+                              padding: "8px 10px",
+                              borderRadius: 999,
+                              border: active ? "1px solid rgba(255,255,255,0.66)" : "1px solid rgba(255,255,255,0.14)",
+                              background: entry.color,
+                              color: "#f8fbff",
+                              cursor: "pointer",
+                              fontWeight: 700,
+                              fontSize: 12,
+                              boxShadow: active ? "0 0 0 2px rgba(255,255,255,0.18) inset" : "none"
+                            }}
+                            title="Selectionner cette region"
+                          >
+                            {entry.id}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {selectedGovernanceRegion && (
+                      <div style={{ ...SUBSECTION_STYLE, border: "1px solid rgba(143,179,255,0.38)", boxShadow: "0 0 0 1px rgba(143,179,255,0.14) inset" }}>
+                        <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff" }}>Region selectionnee: {selectedGovernanceRegion.id}</div>
+                        <div style={{ fontSize: 12, color: "#dce5f2" }}>Wiki entity id: {selectedRegionWiki?.name ?? selectedGovernanceRegion.wikiEntityId}</div>
+                        <div style={{ fontSize: 12, color: "#dce5f2" }}>Territoire parent: {selectedGovernanceRegion.territoryId ?? "aucun"}</div>
+                        <div style={{ fontSize: 12, color: "#dce5f2" }}>Ville principale: {selectedRegionPrincipalCity?.wikiEntityId ?? selectedRegionPrincipalCity?.id ?? "aucune"}</div>
+                        <div style={{ fontSize: 12, color: "#dce5f2" }}>Emprise actuelle: {selectedRegionCellKeys.length} case{selectedRegionCellKeys.length > 1 ? "s" : ""}</div>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <button type="button" onClick={() => selectedGovernanceRegionId && startFootprintEdit("region", selectedGovernanceRegionId)} disabled={zoneEditSession?.kind === "region" && zoneEditSession.id === selectedGovernanceRegionId} style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8, opacity: selectedGovernanceRegionId ? 1 : 0.45 }}>
+                            Editer l'emprise
+                          </button>
+                          <button type="button" onClick={openRegionPropertiesEditor} disabled={regionPropertiesEditActive} style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8, opacity: regionPropertiesEditActive ? 0.6 : 1 }}>
+                            Editer les proprietes
+                          </button>
+                          <button type="button" onClick={() => dispatch({ type: "deleteSelectedGovernanceRegion" })} style={{ ...createEditorButtonStyle({ compact: true, danger: true }), borderRadius: 8 }}>
+                            Supprimer l'element
+                          </button>
+                        </div>
+                        {zoneEditSession?.kind === "region" && zoneEditSession.id === selectedGovernanceRegionId && (
+                          <div style={{ display: "grid", gap: 8, marginTop: 8, padding: 10, borderRadius: 10, background: "rgba(255,255,255,0.04)" }}>
+                            <div style={{ fontSize: 12, color: "#dce5f2" }}>Edition d'emprise en cours: {selectedAreaCellKeys.length} case{selectedAreaCellKeys.length > 1 ? "s" : ""} selectionnee{selectedAreaCellKeys.length > 1 ? "s" : ""}</div>
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                              <button type="button" onClick={validateFootprintEdit} style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}>
+                                Valider
+                              </button>
+                              <button type="button" onClick={cancelFootprintEdit} style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}>
+                                Annuler
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        {regionPropertiesEditActive && (
+                          <div style={{ display: "grid", gap: 8, marginTop: 8, padding: 10, borderRadius: 10, background: "rgba(255,255,255,0.04)" }}>
+                            <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                              Wiki entity id
+                              <input value={regionPropertyDraft.wikiEntityId} onChange={event => setRegionPropertyDraft(current => ({ ...current, wikiEntityId: event.target.value }))} style={FIELD_STYLE} />
+                            </label>
+                            <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                              Territoire parent
+                              <select value={regionPropertyDraft.territoryId} onChange={event => setRegionPropertyDraft(current => ({ ...current, territoryId: event.target.value }))} style={FIELD_STYLE}>
+                                <option value="">Aucun</option>
+                                {(layout.governanceTerritories ?? []).map(entry => (
+                                  <option key={entry.id} value={entry.id}>
+                                    {entry.id}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                              Ville principale
+                              <select value={regionPropertyDraft.principalCityId} onChange={event => setRegionPropertyDraft(current => ({ ...current, principalCityId: event.target.value }))} style={FIELD_STYLE}>
+                                <option value="">Aucune</option>
+                                {layout.cities.map(city => (
+                                  <option key={city.id} value={city.id}>
+                                    {city.wikiEntityId} ({city.id})
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                              Couleur
+                              <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 8, alignItems: "center" }}>
+                                <input type="color" value={regionPropertyDraft.color} onChange={event => setRegionPropertyDraft(current => ({ ...current, color: event.target.value }))} />
+                                <input value={regionPropertyDraft.color} onChange={event => setRegionPropertyDraft(current => ({ ...current, color: event.target.value }))} style={FIELD_STYLE} />
+                              </div>
+                            </label>
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                              <button type="button" onClick={saveRegionProperties} style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}>
+                                Enregistrer
+                              </button>
+                              <button type="button" onClick={cancelRegionPropertiesEditor} style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}>
+                                Annuler
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {!selectedGovernanceRegion && <div style={{ fontSize: 12, color: "#8fa0b7" }}>Selectionne une pastille pour afficher les details d'une region existante.</div>}
+                    <CollapsibleSection title="Creer region">
+                      <input value={draftRegionId} placeholder="slug_region" onChange={event => updateDraftField("draftRegionId", event.target.value)} style={FIELD_STYLE} />
+                      <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 8, alignItems: "center" }}>
+                        <input type="color" value={draftRegionColor} onChange={event => updateDraftField("draftRegionColor", event.target.value)} />
+                        <input value={draftRegionColor} onChange={event => updateDraftField("draftRegionColor", event.target.value)} style={FIELD_STYLE} />
+                      </div>
+                      <button type="button" onClick={createGovernanceRegionDefinitionOnly} disabled={!draftRegionId.trim()} style={{ padding: "9px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)", color: "#eef3ff", cursor: draftRegionId.trim() ? "pointer" : "not-allowed", fontWeight: 700, opacity: draftRegionId.trim() ? 1 : 0.55 }}>
+                        Creer region
+                      </button>
+                    </CollapsibleSection>
+                  </CollapsibleSection>
+
+                  <CollapsibleSection title="Zones geographiques">
+                    <div style={{ fontSize: 12, color: "#c9d3e2", lineHeight: 1.45 }}>
+                      Une case peut appartenir a plusieurs zones geographiques. La pastille selectionne une zone sans charger son emprise.
+                    </div>
+                    <div style={{ fontSize: 12, color: "#dce5f2" }}>Bibliotheque</div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {(layout.geographicZones ?? []).map(entry => {
+                        const active = selectedGeographicZoneId === entry.id;
+                        return (
+                          <button
+                            key={entry.id}
+                            type="button"
+                            onClick={() => activateGeographicZoneSelection(entry.id)}
+                            style={{
+                              padding: "8px 10px",
+                              borderRadius: 999,
+                              border: active ? "1px solid rgba(255,255,255,0.66)" : "1px solid rgba(255,255,255,0.14)",
+                              background: entry.color,
+                              color: "#f8fbff",
+                              cursor: "pointer",
+                              fontWeight: 700,
+                              fontSize: 12,
+                              boxShadow: active ? "0 0 0 2px rgba(255,255,255,0.18) inset" : "none"
+                            }}
+                            title="Selectionner cette zone"
+                          >
+                            {entry.label}
+                          </button>
+                        );
+                      })}
                     </div>
                     <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
                       Zone du lore
@@ -1212,16 +1847,83 @@ export function WorldMapEditorScreen(props: {
                         ))}
                       </select>
                     </label>
-                    <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
-                      Identifiant de zone
+                    {selectedGeographicZone && (
+                      <div style={{ ...SUBSECTION_STYLE, border: "1px solid rgba(143,179,255,0.38)", boxShadow: "0 0 0 1px rgba(143,179,255,0.14) inset" }}>
+                        <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff" }}>Zone selectionnee: {selectedGeographicZone.label}</div>
+                        <div style={{ fontSize: 12, color: "#dce5f2" }}>Wiki entity id: {selectedGeographicZone.wikiEntityId ?? "aucun"}</div>
+                        <div style={{ fontSize: 12, color: "#dce5f2" }}>Type: {selectedGeographicZone.kind}</div>
+                        <div style={{ fontSize: 12, color: "#dce5f2" }}>Emprise actuelle: {selectedGeographicZoneCellKeys.length} case{selectedGeographicZoneCellKeys.length > 1 ? "s" : ""}</div>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <button type="button" onClick={() => selectedGeographicZoneId && startFootprintEdit("geographicZone", selectedGeographicZoneId)} disabled={zoneEditSession?.kind === "geographicZone" && zoneEditSession.id === selectedGeographicZoneId} style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8, opacity: selectedGeographicZoneId ? 1 : 0.45 }}>
+                            Editer l'emprise
+                          </button>
+                          <button type="button" onClick={openGeographicZonePropertiesEditor} disabled={geographicZonePropertiesEditActive} style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8, opacity: geographicZonePropertiesEditActive ? 0.6 : 1 }}>
+                            Editer les proprietes
+                          </button>
+                          <button type="button" onClick={() => dispatch({ type: "deleteSelectedGeographicZone" })} style={{ ...createEditorButtonStyle({ compact: true, danger: true }), borderRadius: 8 }}>
+                            Supprimer l'element
+                          </button>
+                        </div>
+                        {zoneEditSession?.kind === "geographicZone" && zoneEditSession.id === selectedGeographicZoneId && (
+                          <div style={{ display: "grid", gap: 8, marginTop: 8, padding: 10, borderRadius: 10, background: "rgba(255,255,255,0.04)" }}>
+                            <div style={{ fontSize: 12, color: "#dce5f2" }}>Edition d'emprise en cours: {selectedAreaCellKeys.length} case{selectedAreaCellKeys.length > 1 ? "s" : ""} selectionnee{selectedAreaCellKeys.length > 1 ? "s" : ""}</div>
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                              <button type="button" onClick={validateFootprintEdit} style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}>
+                                Valider
+                              </button>
+                              <button type="button" onClick={cancelFootprintEdit} style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}>
+                                Annuler
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        {geographicZonePropertiesEditActive && (
+                          <div style={{ display: "grid", gap: 8, marginTop: 8, padding: 10, borderRadius: 10, background: "rgba(255,255,255,0.04)" }}>
+                            <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                              Wiki entity id
+                              <input value={geographicZonePropertyDraft.wikiEntityId} onChange={event => setGeographicZonePropertyDraft(current => ({ ...current, wikiEntityId: event.target.value }))} style={FIELD_STYLE} />
+                            </label>
+                            <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                              Libelle
+                              <input value={geographicZonePropertyDraft.label} onChange={event => setGeographicZonePropertyDraft(current => ({ ...current, label: event.target.value }))} style={FIELD_STYLE} />
+                            </label>
+                            <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                              Type
+                              <select value={geographicZonePropertyDraft.kind} onChange={event => setGeographicZonePropertyDraft(current => ({ ...current, kind: event.target.value as GeographicZoneKind }))} style={FIELD_STYLE}>
+                                <option value="natural">Naturelle</option>
+                                <option value="cultural">Culturelle</option>
+                                <option value="historical">Historique</option>
+                                <option value="religious">Religieuse</option>
+                                <option value="strategic">Strategique</option>
+                                <option value="custom">Personnalisee</option>
+                              </select>
+                            </label>
+                            <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto 1fr", gap: 8, alignItems: "center" }}>
+                              <input type="color" value={geographicZonePropertyDraft.color} onChange={event => setGeographicZonePropertyDraft(current => ({ ...current, color: event.target.value }))} />
+                              <input value={geographicZonePropertyDraft.color} onChange={event => setGeographicZonePropertyDraft(current => ({ ...current, color: event.target.value }))} style={FIELD_STYLE} />
+                              <input type="color" value={geographicZonePropertyDraft.borderColor} onChange={event => setGeographicZonePropertyDraft(current => ({ ...current, borderColor: event.target.value }))} />
+                              <input value={geographicZonePropertyDraft.borderColor} onChange={event => setGeographicZonePropertyDraft(current => ({ ...current, borderColor: event.target.value }))} style={FIELD_STYLE} />
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                              <input type="number" min={1} step={0.2} value={geographicZonePropertyDraft.borderWidth} onChange={event => setGeographicZonePropertyDraft(current => ({ ...current, borderWidth: event.target.value }))} style={FIELD_STYLE} />
+                              <input value={geographicZonePropertyDraft.borderDashArray} onChange={event => setGeographicZonePropertyDraft(current => ({ ...current, borderDashArray: event.target.value }))} style={FIELD_STYLE} />
+                            </div>
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                              <button type="button" onClick={saveGeographicZoneProperties} style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}>
+                                Enregistrer
+                              </button>
+                              <button type="button" onClick={cancelGeographicZonePropertiesEditor} style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}>
+                                Annuler
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {!selectedGeographicZone && <div style={{ fontSize: 12, color: "#8fa0b7" }}>Selectionne une pastille pour afficher les details d'une zone existante.</div>}
+                    <CollapsibleSection title="Creer zone geographique">
                       <input value={draftGeographicZoneId} placeholder="slug_zone_geo" onChange={event => updateDraftField("draftGeographicZoneId", event.target.value)} style={FIELD_STYLE} />
-                    </label>
-                    <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
-                      Libelle de zone
                       <input value={draftGeographicZoneLabel} placeholder="Zone geographique" onChange={event => updateDraftField("draftGeographicZoneLabel", event.target.value)} style={FIELD_STYLE} />
-                    </label>
-                    <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
-                      Type de zone
                       <select value={draftGeographicZoneKind} onChange={event => updateDraftField("draftGeographicZoneKind", event.target.value as GeographicZoneKind)} style={FIELD_STYLE}>
                         <option value="natural">Naturelle</option>
                         <option value="cultural">Culturelle</option>
@@ -1230,20 +1932,22 @@ export function WorldMapEditorScreen(props: {
                         <option value="strategic">Strategique</option>
                         <option value="custom">Personnalisee</option>
                       </select>
-                    </label>
-                    <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
-                      Couleur zone
-                      <input value={draftGeographicZoneColor} onChange={event => updateDraftField("draftGeographicZoneColor", event.target.value)} style={FIELD_STYLE} />
-                    </label>
-                    <button
-                      type="button"
-                      onClick={createGeographicZoneOnCell}
-                      disabled={!(draftGeographicZoneId.trim() || selectedGeographicZoneLoreId.trim())}
-                      style={{ padding: "9px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)", color: "#eef3ff", cursor: draftGeographicZoneId.trim() || selectedGeographicZoneLoreId.trim() ? "pointer" : "not-allowed", fontWeight: 700, opacity: draftGeographicZoneId.trim() || selectedGeographicZoneLoreId.trim() ? 1 : 0.55 }}
-                    >
-                      Creer / appliquer zone geographique
-                    </button>
-                  </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto 1fr", gap: 8, alignItems: "center" }}>
+                        <input type="color" value={draftGeographicZoneColor} onChange={event => updateDraftField("draftGeographicZoneColor", event.target.value)} />
+                        <input value={draftGeographicZoneColor} onChange={event => updateDraftField("draftGeographicZoneColor", event.target.value)} style={FIELD_STYLE} />
+                        <input type="color" value={draftGeographicZoneBorderColor} onChange={event => updateDraftField("draftGeographicZoneBorderColor", event.target.value)} />
+                        <input value={draftGeographicZoneBorderColor} onChange={event => updateDraftField("draftGeographicZoneBorderColor", event.target.value)} style={FIELD_STYLE} />
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+                        <input type="number" min={1} step={0.2} value={draftGeographicZoneBorderWidth} onChange={event => updateDraftField("draftGeographicZoneBorderWidth", event.target.value)} style={FIELD_STYLE} />
+                        <input value={draftGeographicZoneBorderDashArray} onChange={event => updateDraftField("draftGeographicZoneBorderDashArray", event.target.value)} style={FIELD_STYLE} />
+                        <div style={{ fontSize: 12, color: "#8fa0b7", alignSelf: "center" }}>Contour</div>
+                      </div>
+                      <button type="button" onClick={createGeographicZoneDefinitionOnly} disabled={!(draftGeographicZoneId.trim() || selectedGeographicZoneLoreId.trim())} style={{ padding: "9px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)", color: "#eef3ff", cursor: draftGeographicZoneId.trim() || selectedGeographicZoneLoreId.trim() ? "pointer" : "not-allowed", fontWeight: 700, opacity: draftGeographicZoneId.trim() || selectedGeographicZoneLoreId.trim() ? 1 : 0.55 }}>
+                        Creer zone
+                      </button>
+                    </CollapsibleSection>
+                  </CollapsibleSection>
                 </div>
               </HexZonesPanel>
             )}
@@ -1560,19 +2264,7 @@ export function WorldMapEditorScreen(props: {
           });
         }}
         wikiEntriesById={wikiEntriesById}
-        onCellClick={(cell, meta) => {
-          const key = getWorldMapCellKey(cell);
-          dispatch({ type: "setSelectedCell", cellKey: key });
-          if (routeEditorActive) {
-            addRoutePoint(cell);
-            return;
-          }
-          if (activeTool === "zones" || activeTool === "terrain") {
-            dispatch({ type: "toggleAreaCell", cellKey: key });
-            return;
-          }
-          dispatch({ type: "clearAreaSelection" });
-        }}
+        onCellClick={handleEditorCellClick}
         onCityClick={cityId => {
           const city = layout.cities.find(entry => entry.id === cityId);
           if (!city) return;
@@ -1591,6 +2283,7 @@ export function WorldMapEditorScreen(props: {
               selectedCityWikiName={selectedCityWiki?.name ?? null}
               selectedTerritoryName={selectedTerritoryWiki?.name ?? null}
               selectedRegionName={selectedRegionWiki?.name ?? null}
+              selectedZoneNames={selectedGeographicZones.map(zone => zone.label)}
               selectedCityFactions={!wikiLoading && !wikiError && selectedCityWiki ? getFrontMatterList(selectedCityWiki.frontMatter, "factions_presentes") : []}
               onMouseDown={event => {
                 hexModalDragRef.current = {

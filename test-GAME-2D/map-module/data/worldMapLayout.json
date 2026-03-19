@@ -20,23 +20,10 @@
     "roads": true,
     "rivers": true
   },
-  "territories": [
-    {
-      "wikiEntityId": "test",
-      "labelCell": {
-        "x": 17,
-        "y": 5
-      },
-      "color": "#d7b56d"
-    }
-  ],
-  "regions": [],
   "cities": [
     {
       "id": "city-lysenthe-c4gkv",
       "wikiEntityId": "lysenthe",
-      "regionWikiId": "",
-      "territoryWikiId": "test",
       "kind": "secondary",
       "cell": {
         "x": 12,
@@ -144,102 +131,6 @@
           "y": 7
         }
       ]
-    },
-    {
-      "id": "road-1773846664056",
-      "label": "Nouvelle route",
-      "kind": "road",
-      "cells": [],
-      "roadType": "road"
-    },
-    {
-      "id": "road-1773846683219",
-      "label": "Nouvelle route",
-      "kind": "road",
-      "roadType": "road",
-      "cells": []
-    },
-    {
-      "id": "river-1773846683931",
-      "label": "Nouveau cours d'eau",
-      "kind": "river",
-      "sourceFlow": 1,
-      "sourceType": "source",
-      "cells": []
-    },
-    {
-      "id": "road-1773846684606",
-      "label": "Nouvelle route",
-      "kind": "road",
-      "roadType": "road",
-      "cells": []
-    },
-    {
-      "id": "river-1773846685289",
-      "label": "Nouveau cours d'eau",
-      "kind": "river",
-      "sourceFlow": 1,
-      "sourceType": "source",
-      "cells": []
-    },
-    {
-      "id": "road-1773846686249",
-      "label": "Nouvelle route",
-      "kind": "road",
-      "roadType": "road",
-      "cells": []
-    },
-    {
-      "id": "road-1773846712252",
-      "label": "Nouvelle route",
-      "kind": "road",
-      "roadType": "road",
-      "cells": []
-    },
-    {
-      "id": "river-1773846712987",
-      "label": "Nouveau cours d'eau",
-      "kind": "river",
-      "sourceFlow": 1,
-      "sourceType": "source",
-      "cells": []
-    },
-    {
-      "id": "road-1773846713962",
-      "label": "Nouvelle route",
-      "kind": "road",
-      "roadType": "road",
-      "cells": []
-    },
-    {
-      "id": "river-1773846718680",
-      "label": "Nouveau cours d'eau",
-      "kind": "river",
-      "sourceFlow": 1,
-      "sourceType": "source",
-      "cells": []
-    },
-    {
-      "id": "road-1773846720540",
-      "label": "Nouvelle route",
-      "kind": "road",
-      "roadType": "road",
-      "cells": []
-    },
-    {
-      "id": "river-1773846721927",
-      "label": "Nouveau cours d'eau",
-      "kind": "river",
-      "sourceFlow": 1,
-      "sourceType": "source",
-      "cells": []
-    },
-    {
-      "id": "road-1773846722677",
-      "label": "Nouvelle route",
-      "kind": "road",
-      "roadType": "road",
-      "cells": []
     }
   ],
   "cliffSegments": [
@@ -2264,7 +2155,7 @@
         "maritime"
       ],
       "reliefElevation": "none",
-      "territoryWikiId": "test"
+      "governanceTerritoryId": "test"
     },
     {
       "cell": {
@@ -2321,7 +2212,7 @@
         "maritime"
       ],
       "reliefElevation": "none",
-      "territoryWikiId": "test"
+      "governanceTerritoryId": "test"
     },
     {
       "cell": {
@@ -2602,7 +2493,7 @@
         "maritime"
       ],
       "reliefElevation": "none",
-      "territoryWikiId": "test"
+      "governanceTerritoryId": "test"
     },
     {
       "cell": {
@@ -2617,7 +2508,7 @@
         "maritime"
       ],
       "reliefElevation": "none",
-      "territoryWikiId": "test"
+      "governanceTerritoryId": "test"
     },
     {
       "cell": {
@@ -2927,7 +2818,7 @@
       ],
       "reliefElevation": "none",
       "cityWikiId": "lysenthe",
-      "territoryWikiId": "test"
+      "governanceTerritoryId": "test"
     },
     {
       "cell": {
@@ -2942,7 +2833,7 @@
         "maritime"
       ],
       "reliefElevation": "none",
-      "territoryWikiId": "test"
+      "governanceTerritoryId": "test"
     },
     {
       "cell": {
@@ -2957,7 +2848,7 @@
         "maritime"
       ],
       "reliefElevation": "none",
-      "territoryWikiId": "test"
+      "governanceTerritoryId": "test"
     },
     {
       "cell": {
@@ -2972,7 +2863,7 @@
         "maritime"
       ],
       "reliefElevation": "none",
-      "territoryWikiId": "test"
+      "governanceTerritoryId": "test"
     },
     {
       "cell": {
@@ -3282,7 +3173,7 @@
         "maritime"
       ],
       "reliefElevation": "none",
-      "territoryWikiId": "test"
+      "governanceTerritoryId": "test"
     },
     {
       "cell": {
@@ -3297,7 +3188,7 @@
         "maritime"
       ],
       "reliefElevation": "none",
-      "territoryWikiId": "test"
+      "governanceTerritoryId": "test"
     },
     {
       "cell": {
@@ -3312,7 +3203,7 @@
         "maritime"
       ],
       "reliefElevation": "none",
-      "territoryWikiId": "test"
+      "governanceTerritoryId": "test"
     },
     {
       "cell": {
@@ -3621,7 +3512,7 @@
         "maritime"
       ],
       "reliefElevation": "none",
-      "territoryWikiId": "test"
+      "governanceTerritoryId": "test"
     },
     {
       "cell": {
@@ -3636,7 +3527,7 @@
         "maritime"
       ],
       "reliefElevation": "none",
-      "territoryWikiId": "test"
+      "governanceTerritoryId": "test"
     },
     {
       "cell": {
@@ -5780,5 +5671,19 @@
       ],
       "reliefElevation": "none"
     }
-  ]
+  ],
+  "governances": [],
+  "governanceTerritories": [
+    {
+      "id": "test",
+      "wikiEntityId": "test",
+      "labelCell": {
+        "x": 17,
+        "y": 5
+      },
+      "color": "#d7b56d"
+    }
+  ],
+  "governanceRegions": [],
+  "geographicZones": []
 }

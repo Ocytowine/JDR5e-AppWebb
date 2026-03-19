@@ -24,19 +24,6 @@ export type MapLayerId =
   | "roads"
   | "rivers";
 
-export type WorldMapTerritory = {
-  wikiEntityId: string;
-  labelCell: MapCell;
-  color: string;
-};
-
-export type WorldMapRegion = {
-  wikiEntityId: string;
-  territoryWikiId: string;
-  labelCell: MapCell;
-  color: string;
-};
-
 export type GovernanceModelId = "primacy" | "kingdom" | "duchy" | "republic" | "tribal" | "free_city" | "custom";
 
 export type GovernanceCityRole = "capital" | "primary" | "secondary";
@@ -78,13 +65,14 @@ export type WorldMapGeographicZone = {
   kind: GeographicZoneKind;
   labelCell: MapCell;
   color: string;
+  borderColor?: string;
+  borderWidth?: number;
+  borderDashArray?: string;
 };
 
 export type WorldMapCity = {
   id: string;
   wikiEntityId: string;
-  regionWikiId: string;
-  territoryWikiId: string;
   kind: "capital" | "secondary";
   cell: MapCell;
   markerColor?: string;
@@ -109,8 +97,6 @@ export type MapCellData = {
   terrainDifficulty: number;
   riskLevel: number;
   reliefElevation: ReliefElevationLevel;
-  territoryWikiId?: string;
-  regionWikiId?: string;
   cityWikiId?: string;
   locationWikiIds?: string[];
   tags?: string[];
@@ -139,8 +125,6 @@ export type WorldMapLayoutSource = {
     offset: "odd-r";
   };
   defaultLayers: Record<MapLayerId, boolean>;
-  territories: WorldMapTerritory[];
-  regions: WorldMapRegion[];
   governances?: WorldMapGovernance[];
   governanceTerritories?: WorldMapGovernanceTerritory[];
   governanceRegions?: WorldMapGovernanceRegion[];
@@ -201,7 +185,12 @@ export function createRuntimeWorldMapLayout(
     governances: sourceLayout.governances ?? [],
     governanceTerritories: sourceLayout.governanceTerritories ?? [],
     governanceRegions: sourceLayout.governanceRegions ?? [],
-    geographicZones: sourceLayout.geographicZones ?? [],
+    geographicZones: (sourceLayout.geographicZones ?? []).map(zone => ({
+      ...zone,
+      borderColor: zone.borderColor ?? zone.color,
+      borderWidth: Math.max(1, Number(zone.borderWidth) || 1.6),
+      borderDashArray: zone.borderDashArray ?? "5 4"
+    })),
     paths: sourceLayout.paths.map(path => ({
       ...path,
       roadType: path.kind === "road" ? path.roadType ?? "road" : undefined,
@@ -231,8 +220,6 @@ export function serializeWorldMapLayout(layout: WorldMapLayout): WorldMapLayoutS
     backgroundImageKey,
     grid: layout.grid,
     defaultLayers: layout.defaultLayers,
-    territories: layout.territories,
-    regions: layout.regions,
     governances: layout.governances ?? [],
     governanceTerritories: layout.governanceTerritories ?? [],
     governanceRegions: layout.governanceRegions ?? [],

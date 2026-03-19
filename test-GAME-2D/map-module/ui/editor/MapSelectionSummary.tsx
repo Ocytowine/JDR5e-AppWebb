@@ -7,8 +7,9 @@ export function MapSelectionSummary(props: {
     geography: string;
     terrainDifficulty: number;
     riskLevel: number;
-    territoryWikiId?: string;
-    regionWikiId?: string;
+    governanceTerritoryId?: string;
+    governanceRegionId?: string;
+    geographicZoneIds?: string[];
     cityWikiId?: string;
     locationWikiIds?: string[];
   } | null;
@@ -16,6 +17,7 @@ export function MapSelectionSummary(props: {
   selectedCityWikiName?: string | null;
   selectedTerritoryName?: string | null;
   selectedRegionName?: string | null;
+  selectedZoneNames?: string[];
   selectedCityFactions?: string[];
   visible: boolean;
   position: { x: number; y: number };
@@ -63,8 +65,9 @@ export function MapSelectionSummary(props: {
         <div>Geographie: {props.selectedCell?.geography ?? "ocean"}</div>
         <div>Difficulte: {props.selectedCell?.terrainDifficulty ?? 4}</div>
         <div>Risque: {props.selectedCell?.riskLevel ?? 2}</div>
-        <div>Territoire: {props.selectedTerritoryName ?? props.selectedCell?.territoryWikiId ?? "Aucun"}</div>
-        <div>Region: {props.selectedRegionName ?? props.selectedCell?.regionWikiId ?? "Aucune"}</div>
+        <div>Territoire: {props.selectedTerritoryName ?? props.selectedCell?.governanceTerritoryId ?? "Aucun"}</div>
+        <div>Region: {props.selectedRegionName ?? props.selectedCell?.governanceRegionId ?? "Aucune"}</div>
+        <div>Zones geo: {props.selectedZoneNames?.length ? props.selectedZoneNames.join(", ") : "aucune"}</div>
         <div>Ville: {props.selectedCityWikiName ?? props.selectedCell?.cityWikiId ?? "Aucune"}</div>
         <div>Lieux: {props.selectedCell?.locationWikiIds?.length ? props.selectedCell.locationWikiIds.join(", ") : "aucun"}</div>
         {props.selectedCityFactions && props.selectedCityFactions.length > 0 && (

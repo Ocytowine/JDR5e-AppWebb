@@ -137,15 +137,11 @@ export function attachLoreCityToCell(layout: WorldMapLayout, selectedCell: MapCe
   cell.cityWikiId = wikiEntityId;
   if (existing) {
     existing.cell = { ...cell.cell };
-    existing.regionWikiId = cell.regionWikiId ?? existing.regionWikiId;
-    existing.territoryWikiId = cell.territoryWikiId ?? existing.territoryWikiId;
     return;
   }
   layout.cities.push({
     id: createCityId(wikiEntityId),
     wikiEntityId,
-    regionWikiId: cell.regionWikiId ?? "",
-    territoryWikiId: cell.territoryWikiId ?? "",
     kind: "secondary",
     cell: { ...cell.cell },
     markerColor: "#f4c967"
@@ -163,8 +159,6 @@ export function createDraftCityOnCell(layout: WorldMapLayout, selectedCell: MapC
   layout.cities.push({
     id: createCityId(wikiEntityId),
     wikiEntityId,
-    regionWikiId: cell.regionWikiId ?? "",
-    territoryWikiId: cell.territoryWikiId ?? "",
     kind: "secondary",
     cell: { ...cell.cell },
     markerColor: "#f4c967"
@@ -177,51 +171,130 @@ export function addLocationToCell(layout: WorldMapLayout, selectedCell: MapCell,
   cell.locationWikiIds = Array.from(new Set([...(cell.locationWikiIds ?? []), wikiEntityId]));
 }
 
-export function assignTerritoryToCells(
+export function upsertGovernanceTerritoryDefinition(
   layout: WorldMapLayout,
-  cellKeys: string[],
+  territoryId: string,
   wikiEntityId: string,
-  color: string
+  governanceId: string,
+  color: string,
+  capitalCityId: string,
+  labelCell: MapCell
 ): void {
-  cellKeys.forEach(cellKey => {
-    const [x, y] = cellKey.split(",").map(Number);
-    const cell = ensureCell(layout, { x, y });
-    cell.territoryWikiId = wikiEntityId;
-  });
-  const existing = layout.territories.find(entry => entry.wikiEntityId === wikiEntityId);
-  const anchorKey = cellKeys[0];
-  const anchor = anchorKey ? layout.cells.find(cell => getWorldMapCellKey(cell.cell) === anchorKey) ?? null : null;
-  if (!existing && anchor) {
-    layout.territories.push({
-      wikiEntityId,
-      labelCell: { ...anchor.cell },
+  layout.governanceTerritories ??= [];
+  layout.governances ??= [];
+  const existing = layout.governanceTerritories.find(entry => entry.id === territoryId);
+  if (existing) {
+    existing.wikiEntityId = wikiEntityId || territoryId;
+    existing.governanceId = governanceId || existing.governanceId;
+    existing.color = color;
+    existing.labelCell = { ...labelCell };
+  } else {
+    layout.governanceTerritories.push({
+      id: territoryId,
+      wikiEntityId: wikiEntityId || territoryId,
+      governanceId: governanceId || undefined,
+      labelCell: { ...labelCell },
+      color
+    });
+  }
+
+  if (governanceId) {
+    const governance = layout.governances.find(entry => entry.id === governanceId);
+    if (governance) {
+      governance.territoryId = territoryId;
+      governance.color = governance.color || color;
+      governance.capitalCityId = capitalCityId || governance.capitalCityId;
+    } else {
+      layout.governances.push({
+        id: governanceId,
+        wikiEntityId: governanceId,
+        label: governanceId,
+        model: "custom",
+        territoryId,
+        capitalCityId: capitalCityId || undefined,
+        color
+      });
+    }
+  }
+
+  if (capitalCityId) {
+    layout.cities.forEach(city => {
+      if (city.id === capitalCityId) {
+        city.governanceId = governanceId || city.governanceId;
+        city.governanceRole = "capital";
+      } else if (governanceId && city.governanceId === governanceId && city.governanceRole === "capital") {
+        city.governanceRole = "secondary";
+      }
+    });
+  }
+}
+
+export function upsertGovernanceRegionDefinition(
+  layout: WorldMapLayout,
+  regionId: string,
+  wikiEntityId: string,
+  territoryId: string,
+  governanceId: string,
+  principalCityId: string,
+  color: string,
+  labelCell: MapCell
+): void {
+  layout.governanceRegions ??= [];
+  const existing = layout.governanceRegions.find(entry => entry.id === regionId);
+  if (existing) {
+    existing.wikiEntityId = wikiEntityId || regionId;
+    existing.territoryId = territoryId || existing.territoryId;
+    existing.governanceId = governanceId || existing.governanceId;
+    existing.principalCityId = principalCityId || existing.principalCityId;
+    existing.color = color;
+    existing.labelCell = { ...labelCell };
+  } else {
+    layout.governanceRegions.push({
+      id: regionId,
+      wikiEntityId: wikiEntityId || regionId,
+      territoryId: territoryId || undefined,
+      governanceId: governanceId || undefined,
+      principalCityId: principalCityId || undefined,
+      labelCell: { ...labelCell },
       color
     });
   }
 }
 
-export function assignRegionToCells(
+export function upsertGeographicZoneDefinition(
   layout: WorldMapLayout,
-  cellKeys: string[],
-  wikiEntityId: string,
-  territoryWikiId: string,
-  color: string
+  zoneId: string,
+  wikiEntityId: string | undefined,
+  label: string,
+  kind: GeographicZoneKind,
+  color: string,
+  borderColor: string | undefined,
+  borderWidth: number | undefined,
+  borderDashArray: string | undefined,
+  labelCell: MapCell
 ): void {
-  cellKeys.forEach(cellKey => {
-    const [x, y] = cellKey.split(",").map(Number);
-    const cell = ensureCell(layout, { x, y });
-    if (territoryWikiId) cell.territoryWikiId = territoryWikiId;
-    cell.regionWikiId = wikiEntityId;
-  });
-  const existing = layout.regions.find(entry => entry.wikiEntityId === wikiEntityId);
-  const anchorKey = cellKeys[0];
-  const anchor = anchorKey ? layout.cells.find(cell => getWorldMapCellKey(cell.cell) === anchorKey) ?? null : null;
-  if (!existing && anchor) {
-    layout.regions.push({
+  layout.geographicZones ??= [];
+  const existing = layout.geographicZones.find(entry => entry.id === zoneId);
+  if (existing) {
+    existing.wikiEntityId = wikiEntityId ?? existing.wikiEntityId;
+    existing.label = label;
+    existing.kind = kind;
+    existing.color = color;
+    existing.borderColor = borderColor ?? existing.borderColor ?? color;
+    existing.borderWidth = Math.max(1, Number(borderWidth) || existing.borderWidth || 1.6);
+    existing.borderDashArray = borderDashArray ?? existing.borderDashArray ?? "5 4";
+    existing.labelCell = { ...labelCell };
+  } else {
+    layout.geographicZones.push({
+      id: zoneId,
       wikiEntityId,
-      territoryWikiId,
-      labelCell: { ...anchor.cell },
-      color
+      label,
+      kind,
+      labelCell: { ...labelCell },
+      color,
+      borderColor: borderColor ?? color,
+      borderWidth: Math.max(1, Number(borderWidth) || 1.6),
+      borderDashArray: borderDashArray ?? "5 4"
     });
   }
 }
@@ -234,49 +307,17 @@ export function assignGovernanceTerritoryToCells(
   governanceId: string,
   color: string
 ): void {
-  layout.governanceTerritories ??= [];
-  layout.governances ??= [];
-  const legacyTerritoryWikiId = wikiEntityId || territoryId;
-  assignTerritoryToCells(layout, cellKeys, legacyTerritoryWikiId, color);
+  const anchor = (() => {
+    const anchorKey = cellKeys[0];
+    return anchorKey ? layout.cells.find(cell => getWorldMapCellKey(cell.cell) === anchorKey)?.cell ?? { x: 0, y: 0 } : { x: 0, y: 0 };
+  })();
+  const capitalCityId = layout.governances?.find(entry => entry.id === governanceId)?.capitalCityId ?? "";
+  upsertGovernanceTerritoryDefinition(layout, territoryId, wikiEntityId, governanceId, color, capitalCityId, anchor);
   cellKeys.forEach(cellKey => {
     const [x, y] = cellKey.split(",").map(Number);
     const cell = ensureCell(layout, { x, y });
     cell.governanceTerritoryId = territoryId;
   });
-
-  const existing = layout.governanceTerritories.find(entry => entry.id === territoryId);
-  const anchorKey = cellKeys[0];
-  const anchor = anchorKey ? layout.cells.find(cell => getWorldMapCellKey(cell.cell) === anchorKey) ?? null : null;
-  if (existing) {
-    existing.wikiEntityId = legacyTerritoryWikiId;
-    existing.governanceId = governanceId || existing.governanceId;
-    existing.color = color;
-  } else if (anchor) {
-    layout.governanceTerritories.push({
-      id: territoryId,
-      wikiEntityId: legacyTerritoryWikiId,
-      governanceId: governanceId || undefined,
-      labelCell: { ...anchor.cell },
-      color
-    });
-  }
-
-  if (governanceId) {
-    const governance = layout.governances.find(entry => entry.id === governanceId);
-    if (governance) {
-      governance.territoryId = territoryId;
-      governance.color = governance.color || color;
-    } else {
-      layout.governances.push({
-        id: governanceId,
-        wikiEntityId: governanceId,
-        label: governanceId,
-        model: "custom",
-        territoryId,
-        color
-      });
-    }
-  }
 }
 
 export function assignGovernanceRegionToCells(
@@ -289,39 +330,17 @@ export function assignGovernanceRegionToCells(
   principalCityId: string,
   color: string
 ): void {
-  layout.governanceTerritories ??= [];
-  layout.governanceRegions ??= [];
-  const governanceTerritory = territoryId ? layout.governanceTerritories.find(entry => entry.id === territoryId) ?? null : null;
-  const legacyTerritoryWikiId = governanceTerritory?.wikiEntityId ?? territoryId;
-  const legacyRegionWikiId = wikiEntityId || regionId;
-  assignRegionToCells(layout, cellKeys, legacyRegionWikiId, legacyTerritoryWikiId, color);
+  const anchor = (() => {
+    const anchorKey = cellKeys[0];
+    return anchorKey ? layout.cells.find(cell => getWorldMapCellKey(cell.cell) === anchorKey)?.cell ?? { x: 0, y: 0 } : { x: 0, y: 0 };
+  })();
+  upsertGovernanceRegionDefinition(layout, regionId, wikiEntityId, territoryId, governanceId, principalCityId, color, anchor);
   cellKeys.forEach(cellKey => {
     const [x, y] = cellKey.split(",").map(Number);
     const cell = ensureCell(layout, { x, y });
     if (territoryId) cell.governanceTerritoryId = territoryId;
     cell.governanceRegionId = regionId;
   });
-
-  const existing = layout.governanceRegions.find(entry => entry.id === regionId);
-  const anchorKey = cellKeys[0];
-  const anchor = anchorKey ? layout.cells.find(cell => getWorldMapCellKey(cell.cell) === anchorKey) ?? null : null;
-  if (existing) {
-    existing.wikiEntityId = legacyRegionWikiId;
-    existing.governanceId = governanceId || existing.governanceId;
-    existing.territoryId = territoryId || existing.territoryId;
-    existing.principalCityId = principalCityId || existing.principalCityId;
-    existing.color = color;
-  } else if (anchor) {
-    layout.governanceRegions.push({
-      id: regionId,
-      wikiEntityId: legacyRegionWikiId,
-      governanceId: governanceId || undefined,
-      territoryId: territoryId || undefined,
-      principalCityId: principalCityId || undefined,
-      labelCell: { ...anchor.cell },
-      color
-    });
-  }
 }
 
 export function assignGeographicZoneToCells(
@@ -331,33 +350,218 @@ export function assignGeographicZoneToCells(
   label: string,
   kind: GeographicZoneKind,
   color: string,
-  wikiEntityId?: string
+  wikiEntityId?: string,
+  borderColor?: string,
+  borderWidth?: number,
+  borderDashArray?: string
 ): void {
-  layout.geographicZones ??= [];
+  const anchor = (() => {
+    const anchorKey = cellKeys[0];
+    return anchorKey ? layout.cells.find(cell => getWorldMapCellKey(cell.cell) === anchorKey)?.cell ?? { x: 0, y: 0 } : { x: 0, y: 0 };
+  })();
+  upsertGeographicZoneDefinition(layout, zoneId, wikiEntityId, label, kind, color, borderColor, borderWidth, borderDashArray, anchor);
   cellKeys.forEach(cellKey => {
     const [x, y] = cellKey.split(",").map(Number);
     const cell = ensureCell(layout, { x, y });
     cell.geographicZoneIds = Array.from(new Set([...(cell.geographicZoneIds ?? []), zoneId]));
   });
+}
 
-  const existing = layout.geographicZones.find(entry => entry.id === zoneId);
-  const anchorKey = cellKeys[0];
-  const anchor = anchorKey ? layout.cells.find(cell => getWorldMapCellKey(cell.cell) === anchorKey) ?? null : null;
-  if (existing) {
-    existing.label = label;
-    existing.kind = kind;
-    existing.color = color;
-    existing.wikiEntityId = wikiEntityId ?? existing.wikiEntityId;
-  } else if (anchor) {
-    layout.geographicZones.push({
-      id: zoneId,
-      wikiEntityId,
-      label,
-      kind,
-      labelCell: { ...anchor.cell },
-      color
-    });
+export function updateGovernanceTerritoryOnLayout(
+  layout: WorldMapLayout,
+  territoryId: string,
+  field: "wikiEntityId" | "governanceId" | "color" | "capitalCityId",
+  value: string
+): void {
+  const territory = layout.governanceTerritories?.find(entry => entry.id === territoryId);
+  if (!territory) return;
+  if (field === "governanceId") {
+    territory.governanceId = value || undefined;
+    return;
   }
+  if (field === "capitalCityId") {
+    if (!territory.governanceId) return;
+    const governance = layout.governances?.find(entry => entry.id === territory.governanceId);
+    if (!governance) return;
+    governance.capitalCityId = value || undefined;
+    layout.cities.forEach(city => {
+      if (city.id === value) {
+        city.governanceId = territory.governanceId;
+        city.governanceRole = "capital";
+      } else if (city.governanceId === territory.governanceId && city.governanceRole === "capital") {
+        city.governanceRole = "secondary";
+      }
+    });
+    return;
+  }
+  if (field === "color") {
+    territory.color = value;
+    if (territory.governanceId) {
+      const governance = layout.governances?.find(entry => entry.id === territory.governanceId);
+      if (governance) {
+        governance.color = value;
+      }
+    }
+    return;
+  }
+  territory[field] = value;
+}
+
+export function updateGovernanceRegionOnLayout(
+  layout: WorldMapLayout,
+  regionId: string,
+  field: "wikiEntityId" | "governanceId" | "territoryId" | "principalCityId" | "color",
+  value: string
+): void {
+  const region = layout.governanceRegions?.find(entry => entry.id === regionId);
+  if (!region) return;
+  if (field === "governanceId" || field === "territoryId" || field === "principalCityId") {
+    region[field] = value || undefined;
+    return;
+  }
+  region[field] = value;
+}
+
+export function updateGeographicZoneOnLayout(
+  layout: WorldMapLayout,
+  zoneId: string,
+  field: "wikiEntityId" | "label" | "kind" | "color" | "borderColor" | "borderWidth" | "borderDashArray",
+  value: string
+): void {
+  const zone = layout.geographicZones?.find(entry => entry.id === zoneId);
+  if (!zone) return;
+  if (field === "wikiEntityId") {
+    zone.wikiEntityId = value || undefined;
+    return;
+  }
+  if (field === "kind") {
+    zone.kind = value as GeographicZoneKind;
+    return;
+  }
+  if (field === "borderWidth") {
+    zone.borderWidth = Math.max(1, Number(value) || 1.6);
+    return;
+  }
+  zone[field] = value;
+}
+
+export function removeGovernanceTerritoryFromCells(layout: WorldMapLayout, cellKeys: string[], territoryId: string): void {
+  cellKeys.forEach(cellKey => {
+    const [x, y] = cellKey.split(",").map(Number);
+    const cell = ensureCell(layout, { x, y });
+    if (cell.governanceTerritoryId !== territoryId) return;
+    cell.governanceTerritoryId = undefined;
+    if (
+      cell.governanceRegionId &&
+      layout.governanceRegions?.some(region => region.id === cell.governanceRegionId && region.territoryId === territoryId)
+    ) {
+      cell.governanceRegionId = undefined;
+    }
+  });
+}
+
+export function removeGovernanceRegionFromCells(layout: WorldMapLayout, cellKeys: string[], regionId: string): void {
+  cellKeys.forEach(cellKey => {
+    const [x, y] = cellKey.split(",").map(Number);
+    const cell = ensureCell(layout, { x, y });
+    if (cell.governanceRegionId === regionId) {
+      cell.governanceRegionId = undefined;
+    }
+  });
+}
+
+export function removeGeographicZoneFromCells(layout: WorldMapLayout, cellKeys: string[], zoneId: string): void {
+  cellKeys.forEach(cellKey => {
+    const [x, y] = cellKey.split(",").map(Number);
+    const cell = ensureCell(layout, { x, y });
+    cell.geographicZoneIds = (cell.geographicZoneIds ?? []).filter(id => id !== zoneId);
+  });
+}
+
+export function replaceGovernanceTerritoryCells(
+  layout: WorldMapLayout,
+  territoryId: string,
+  cellKeys: string[]
+): void {
+  const nextCellKeySet = new Set(cellKeys);
+  const linkedRegionIds = new Set(
+    (layout.governanceRegions ?? []).filter(region => region.territoryId === territoryId).map(region => region.id)
+  );
+  layout.cells.forEach(cell => {
+    const cellKey = getWorldMapCellKey(cell.cell);
+    const removedFromTerritory = cell.governanceTerritoryId === territoryId && !nextCellKeySet.has(cellKey);
+    if (removedFromTerritory) {
+      cell.governanceTerritoryId = undefined;
+    }
+    if (removedFromTerritory && cell.governanceRegionId && linkedRegionIds.has(cell.governanceRegionId)) {
+      cell.governanceRegionId = undefined;
+    }
+  });
+  cellKeys.forEach(cellKey => {
+    const [x, y] = cellKey.split(",").map(Number);
+    const cell = ensureCell(layout, { x, y });
+    cell.governanceTerritoryId = territoryId;
+  });
+}
+
+export function replaceGovernanceRegionCells(layout: WorldMapLayout, regionId: string, cellKeys: string[], territoryId?: string): void {
+  layout.cells.forEach(cell => {
+    if (cell.governanceRegionId === regionId) {
+      cell.governanceRegionId = undefined;
+    }
+  });
+  cellKeys.forEach(cellKey => {
+    const [x, y] = cellKey.split(",").map(Number);
+    const cell = ensureCell(layout, { x, y });
+    cell.governanceRegionId = regionId;
+    if (territoryId) {
+      cell.governanceTerritoryId = territoryId;
+    }
+  });
+}
+
+export function replaceGeographicZoneCells(layout: WorldMapLayout, zoneId: string, cellKeys: string[]): void {
+  layout.cells.forEach(cell => {
+    cell.geographicZoneIds = (cell.geographicZoneIds ?? []).filter(id => id !== zoneId);
+  });
+  cellKeys.forEach(cellKey => {
+    const [x, y] = cellKey.split(",").map(Number);
+    const cell = ensureCell(layout, { x, y });
+    cell.geographicZoneIds = Array.from(new Set([...(cell.geographicZoneIds ?? []), zoneId]));
+  });
+}
+
+export function deleteGovernanceTerritory(layout: WorldMapLayout, territoryId: string): void {
+  const linkedRegionIds = new Set(
+    (layout.governanceRegions ?? []).filter(region => region.territoryId === territoryId).map(region => region.id)
+  );
+  layout.governanceTerritories = (layout.governanceTerritories ?? []).filter(entry => entry.id !== territoryId);
+  layout.governanceRegions = (layout.governanceRegions ?? []).filter(entry => entry.territoryId !== territoryId);
+  layout.governances = (layout.governances ?? []).filter(entry => entry.territoryId !== territoryId);
+  layout.cells.forEach(cell => {
+    if (cell.governanceTerritoryId === territoryId) {
+      cell.governanceTerritoryId = undefined;
+    }
+    if (cell.governanceRegionId && linkedRegionIds.has(cell.governanceRegionId)) {
+      cell.governanceRegionId = undefined;
+    }
+  });
+}
+
+export function deleteGovernanceRegion(layout: WorldMapLayout, regionId: string): void {
+  layout.governanceRegions = (layout.governanceRegions ?? []).filter(entry => entry.id !== regionId);
+  layout.cells.forEach(cell => {
+    if (cell.governanceRegionId === regionId) {
+      cell.governanceRegionId = undefined;
+    }
+  });
+}
+
+export function deleteGeographicZone(layout: WorldMapLayout, zoneId: string): void {
+  layout.geographicZones = (layout.geographicZones ?? []).filter(entry => entry.id !== zoneId);
+  layout.cells.forEach(cell => {
+    cell.geographicZoneIds = (cell.geographicZoneIds ?? []).filter(id => id !== zoneId);
+  });
 }
 
 export function removeCityFromSelectedCell(layout: WorldMapLayout, selectedCity: WorldMapCity, selectedCellKey: string | null): void {
