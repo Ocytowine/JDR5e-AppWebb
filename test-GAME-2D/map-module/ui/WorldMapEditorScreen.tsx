@@ -7,9 +7,17 @@ import {
   type MapCell,
   type MapLayerId,
   type ReliefElevationLevel,
+  type SimulationActorLevel,
+  type SimulationActorPositionKind,
+  type SimulationFactionRelationStatus,
+  type SimulationObjectiveCategory,
+  type SimulationTravelMode,
   type WorldMapCity,
   type WorldMapGeographicZone,
   type WorldMapLayout,
+  type WorldMapSimulationFaction,
+  type WorldMapSimulationMobileActor,
+  type WorldMapSimulationObjective,
   type WorldMapLayoutSource
 } from "../data/worldMapLayout";
 import {
@@ -45,6 +53,7 @@ import { HexTerrainPanel } from "./editor/panels/HexTerrainPanel";
 import { HexZonesPanel } from "./editor/panels/HexZonesPanel";
 import { LayerPanel } from "./editor/panels/LayerPanel";
 import { LegendPanel } from "./editor/panels/LegendPanel";
+import { SimulationPanel } from "./editor/panels/SimulationPanel";
 
 const PANEL_LABELS: Record<PanelId, string> = {
   legend: "Legende",
@@ -230,6 +239,22 @@ export function WorldMapEditorScreen(props: {
     draftGeographyDifficulty,
     draftTagName,
     draftTagColor,
+    selectedSimulationFactionId,
+    draftSimulationFactionId,
+    draftSimulationFactionLabel,
+    draftSimulationFactionType,
+    draftSimulationFactionColor,
+    draftSimulationRelationTargetFactionId,
+    draftSimulationRelationStatus,
+    selectedSimulationObjectiveId,
+    draftSimulationObjectiveId,
+    draftSimulationObjectiveLabel,
+    draftSimulationObjectiveCategory,
+    selectedSimulationMobileActorId,
+    draftSimulationMobileActorId,
+    draftSimulationMobileActorLabel,
+    draftSimulationMobileActorType,
+    draftSimulationMobileActorColor,
     pendingGeographyId,
     pendingReliefElevation,
     pendingTagIds,
@@ -313,6 +338,32 @@ export function WorldMapEditorScreen(props: {
     [layout.geographicZones, selectedCell]
   );
   const selectedRoute = layout.paths.find(path => path.id === selectedRouteId) ?? null;
+  const simulationFactions = layout.simulation?.factions ?? [];
+  const simulationObjectives = layout.simulation?.specialObjectives ?? [];
+  const simulationMobileActors = layout.simulation?.mobileActors ?? [];
+  const selectedSimulationFaction = useMemo(
+    () => simulationFactions.find(faction => faction.id === selectedSimulationFactionId) ?? null,
+    [selectedSimulationFactionId, simulationFactions]
+  );
+  const selectedCellSimulationFactions = useMemo(() => {
+    if (!selectedCell) return [];
+    const selectedKey = getWorldMapCellKey(selectedCell.cell);
+    return simulationFactions
+      .filter(faction => faction.presenceCells.some(cell => getWorldMapCellKey(cell) === selectedKey))
+      .map(faction => faction.label);
+  }, [selectedCell, simulationFactions]);
+  const selectedSimulationFactionPresenceCellKeys = useMemo(
+    () => selectedSimulationFaction?.presenceCells.map(cell => getWorldMapCellKey(cell)) ?? [],
+    [selectedSimulationFaction]
+  );
+  const selectedSimulationObjective = useMemo(
+    () => simulationObjectives.find(objective => objective.id === selectedSimulationObjectiveId) ?? null,
+    [selectedSimulationObjectiveId, simulationObjectives]
+  );
+  const selectedSimulationMobileActor = useMemo(
+    () => simulationMobileActors.find(actor => actor.id === selectedSimulationMobileActorId) ?? null,
+    [selectedSimulationMobileActorId, simulationMobileActors]
+  );
   const roadPaths = useMemo(() => getUniquePathsByKind(layout, "road"), [layout]);
   const riverPaths = useMemo(() => getUniquePathsByKind(layout, "river"), [layout]);
   const cellFeatureIndex = useMemo(() => buildCellFeatureIndex(layout), [layout]);
@@ -375,7 +426,18 @@ export function WorldMapEditorScreen(props: {
   );
   const allGeographyPresets = useMemo(() => [...GEOGRAPHY_PRESETS, ...customGeographies], [customGeographies]);
   const allTagPresets = useMemo(() => [...TAG_PRESETS, ...customTags], [customTags]);
-  const contextualHexSection = activeTool === "terrain" ? "terrain" : activeTool === "places" ? "places" : activeTool === "zones" ? "zones" : activeTool === "routes" ? "routes" : null;
+  const contextualHexSection =
+    activeTool === "terrain"
+      ? "terrain"
+      : activeTool === "places"
+        ? "places"
+        : activeTool === "zones"
+          ? "zones"
+          : activeTool === "routes"
+            ? "routes"
+            : activeTool === "simulation"
+              ? "simulation"
+              : null;
 
   function buildTerritoryPropertyDraft(territoryId: string) {
     const territory = layout.governanceTerritories?.find(entry => entry.id === territoryId) ?? null;
@@ -432,6 +494,127 @@ export function WorldMapEditorScreen(props: {
     if (!zone) return zoneId;
     const wikiName = zone.wikiEntityId ? wikiEntriesById[zone.wikiEntityId]?.name : "";
     return wikiName || zone.label || zone.wikiEntityId || zone.id;
+  }
+
+  function createSimulationFactionDefinition() {
+    const normalizedId = slugifyDraft(draftSimulationFactionId || draftSimulationFactionLabel);
+    if (!normalizedId) return;
+    const nextFaction: WorldMapSimulationFaction = {
+      id: normalizedId,
+      label: draftSimulationFactionLabel.trim() || normalizedId,
+      type: draftSimulationFactionType.trim() || "faction",
+      color: draftSimulationFactionColor,
+      description: "",
+      agenda: "",
+      methods: [],
+      objectiveHints: [],
+      tags: [],
+      homeCityId: selectedCity?.id,
+      homeRegionId: selectedGovernanceRegionId || undefined,
+      baseCell: selectedCell?.cell ? { ...selectedCell.cell } : undefined,
+      presenceCells: selectedCell?.cell ? [{ ...selectedCell.cell }] : [],
+      influence: 40,
+      power: 40,
+      cohesion: 50,
+      aggression: 35,
+      secrecy: 30,
+      resources: 45,
+      relations: []
+    };
+    dispatch({ type: "createSimulationFaction", faction: nextFaction });
+  }
+
+  function createSimulationFactionRelationDefinition() {
+    if (!selectedSimulationFaction || !draftSimulationRelationTargetFactionId || draftSimulationRelationTargetFactionId === selectedSimulationFaction.id) return;
+    dispatch({
+      type: "createSimulationFactionRelation",
+      relation: {
+        targetFactionId: draftSimulationRelationTargetFactionId,
+        status: draftSimulationRelationStatus,
+        trust: 50,
+        hostility: draftSimulationRelationStatus === "ally" ? 10 : draftSimulationRelationStatus === "war" ? 85 : draftSimulationRelationStatus === "rival" ? 60 : 35,
+        notes: ""
+      }
+    });
+  }
+
+  function applySelectedCellsToFactionPresence(mode: "replace" | "add" | "remove") {
+    const targetKeys = selectedAreaCellKeys.length > 0 ? selectedAreaCellKeys : selectedCellKey ? [selectedCellKey] : [];
+    if (!selectedSimulationFaction || targetKeys.length === 0) return;
+    if (mode === "replace") {
+      dispatch({ type: "replaceSelectedSimulationFactionPresence", cellKeys: targetKeys });
+      return;
+    }
+    if (mode === "add") {
+      dispatch({ type: "addSelectedSimulationFactionPresence", cellKeys: targetKeys });
+      return;
+    }
+    dispatch({ type: "removeSelectedSimulationFactionPresence", cellKeys: targetKeys });
+  }
+
+  function createSimulationObjectiveDefinition() {
+    const normalizedId = slugifyDraft(draftSimulationObjectiveId || draftSimulationObjectiveLabel);
+    if (!normalizedId || !selectedSimulationFactionId) return;
+    const zoneIds = selectedAreaCellKeys.length > 0 ? selectedAreaCellKeys : selectedCellKey ? [selectedCellKey] : [];
+    const nextObjective: WorldMapSimulationObjective = {
+      id: normalizedId,
+      label: draftSimulationObjectiveLabel.trim() || normalizedId,
+      category: draftSimulationObjectiveCategory,
+      ownerFactionId: selectedSimulationFactionId,
+      description: "",
+      whyItMatters: "",
+      targetKind: selectedCity?.id ? "city" : selectedGovernanceRegionId ? "region" : undefined,
+      targetId: selectedCity?.id ?? selectedGovernanceRegionId ?? undefined,
+      priority: 60,
+      progress: 0,
+      state: "planned",
+      obstacleHints: [],
+      compatibleActionIds: [],
+      tags: [],
+      zoneIds,
+      anchorCell: selectedCell?.cell ? { ...selectedCell.cell } : undefined
+    };
+    dispatch({ type: "createSimulationObjective", objective: nextObjective });
+  }
+
+  function replaceSelectedCellsAsObjectiveZones() {
+    if (!selectedSimulationObjective) return;
+    const zoneIds = selectedAreaCellKeys.length > 0 ? selectedAreaCellKeys : selectedCellKey ? [selectedCellKey] : [];
+    if (zoneIds.length === 0) return;
+    dispatch({
+      type: "replaceSelectedSimulationObjectiveZones",
+      zoneIds,
+      anchorCellKey: selectedCellKey || undefined
+    });
+  }
+
+  function createSimulationMobileActorDefinition() {
+    const normalizedId = slugifyDraft(draftSimulationMobileActorId || draftSimulationMobileActorLabel);
+    if (!normalizedId) return;
+    const nextActor: WorldMapSimulationMobileActor = {
+      id: normalizedId,
+      label: draftSimulationMobileActorLabel.trim() || normalizedId,
+      type: draftSimulationMobileActorType.trim() || "caravan",
+      color: draftSimulationMobileActorColor,
+      ownerFactionId: selectedSimulationFactionId || undefined,
+      positionKind: selectedCity?.id ? "city" : selectedRouteId ? "route" : "cell",
+      positionId: selectedCity?.id ?? selectedRouteId ?? selectedCellKey ?? undefined,
+      positionCell: selectedCell?.cell ? { ...selectedCell.cell } : undefined,
+      destinationKind: selectedGovernanceRegionId ? "region" : undefined,
+      destinationId: selectedGovernanceRegionId || undefined,
+      itineraryRouteIds: selectedRouteId ? [selectedRouteId] : [],
+      travelMode: "road",
+      speed: 40,
+      security: 45,
+      fatigue: 15,
+      cargo: 30,
+      headcount: 25,
+      resources: 20,
+      objectiveIds: selectedSimulationObjective ? [selectedSimulationObjective.id] : [],
+      interactionTags: [],
+      simulationLevel: "active"
+    };
+    dispatch({ type: "createSimulationMobileActor", actor: nextActor });
   }
 
   useEffect(() => {
@@ -505,6 +688,8 @@ export function WorldMapEditorScreen(props: {
         return "Organisation";
       case "routes":
         return "Trace";
+      case "simulation":
+        return "Simulation";
       default:
         return "Main";
     }
@@ -520,6 +705,8 @@ export function WorldMapEditorScreen(props: {
         return zoneEditSession ? "Mode emprise actif: clique pour ajouter ou retirer des cases, puis valide ou annule." : "Selectionne un element dans la bibliotheque, puis utilise `Editer l'emprise` pour charger sa zone.";
       case "routes":
         return "Clique un hex ajoute un point au trace actif.";
+      case "simulation":
+        return "Selectionne une faction, puis utilise la selection de cases pour definir sa presence et ses ancrages.";
       default:
         return "Clique un hex pour inspecter. Maintiens Espace puis glisse pour deplacer la carte.";
     }
@@ -2391,6 +2578,798 @@ export function WorldMapEditorScreen(props: {
               </div>
             )}
 
+            {contextualHexSection === "simulation" && (
+              <SimulationPanel
+                title="World Simulation"
+                selectionLabel={selectedSimulationFaction?.label ?? "Aucune faction selectionnee"}
+              >
+                <div style={{ display: "grid", gap: 10 }}>
+                  <div style={SUBSECTION_STYLE}>
+                    <div style={editorTextStyles.sectionTitle}>Factions</div>
+                    <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                      Faction active
+                      <select
+                        value={selectedSimulationFactionId}
+                        onChange={event => dispatch({ type: "setSelectedSimulationFaction", factionId: event.target.value })}
+                        style={FIELD_STYLE}
+                      >
+                        <option value="">Choisir une faction</option>
+                        {simulationFactions.map(faction => (
+                          <option key={faction.id} value={faction.id}>
+                            {faction.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <div style={{ display: "grid", gap: 6 }}>
+                      <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                        Id
+                        <input
+                          value={draftSimulationFactionId}
+                          onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationFactionId", value: event.target.value })}
+                          style={FIELD_STYLE}
+                          placeholder="ordre_des_cendres"
+                        />
+                      </label>
+                      <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                        Label
+                        <input
+                          value={draftSimulationFactionLabel}
+                          onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationFactionLabel", value: event.target.value })}
+                          style={FIELD_STYLE}
+                          placeholder="Ordre des Cendres"
+                        />
+                      </label>
+                      <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                        Type
+                        <input
+                          value={draftSimulationFactionType}
+                          onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationFactionType", value: event.target.value })}
+                          style={FIELD_STYLE}
+                          placeholder="milice, culte, guilde..."
+                        />
+                      </label>
+                      <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                        Couleur
+                        <input
+                          value={draftSimulationFactionColor}
+                          onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationFactionColor", value: event.target.value })}
+                          style={FIELD_STYLE}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={createSimulationFactionDefinition}
+                        disabled={!(draftSimulationFactionId.trim() || draftSimulationFactionLabel.trim())}
+                        style={{ ...createEditorButtonStyle({ active: true, compact: true }), borderRadius: 8, cursor: draftSimulationFactionId.trim() || draftSimulationFactionLabel.trim() ? "pointer" : "not-allowed", opacity: draftSimulationFactionId.trim() || draftSimulationFactionLabel.trim() ? 1 : 0.6 }}
+                      >
+                        Creer faction
+                      </button>
+                    </div>
+                  </div>
+
+                  {selectedSimulationFaction && (
+                    <>
+                      <div style={SUBSECTION_STYLE}>
+                        <div style={editorTextStyles.sectionTitle}>Identite et intention</div>
+                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                          Nom
+                          <input
+                            value={selectedSimulationFaction.label}
+                            onChange={event => dispatch({ type: "updateSelectedSimulationFactionField", field: "label", value: event.target.value })}
+                            style={FIELD_STYLE}
+                          />
+                        </label>
+                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                          Type
+                          <input
+                            value={selectedSimulationFaction.type}
+                            onChange={event => dispatch({ type: "updateSelectedSimulationFactionField", field: "type", value: event.target.value })}
+                            style={FIELD_STYLE}
+                          />
+                        </label>
+                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                          Description
+                          <textarea
+                            value={selectedSimulationFaction.description}
+                            onChange={event => dispatch({ type: "updateSelectedSimulationFactionField", field: "description", value: event.target.value })}
+                            style={editorFieldStyles.textarea}
+                          />
+                        </label>
+                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                          Agenda
+                          <textarea
+                            value={selectedSimulationFaction.agenda}
+                            onChange={event => dispatch({ type: "updateSelectedSimulationFactionField", field: "agenda", value: event.target.value })}
+                            style={editorFieldStyles.textarea}
+                          />
+                        </label>
+                      </div>
+
+                      <div style={SUBSECTION_STYLE}>
+                        <div style={editorTextStyles.sectionTitle}>Qui, quoi, comment, pourquoi</div>
+                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                          Methodes
+                          <input
+                            value={selectedSimulationFaction.methods.join(", ")}
+                            onChange={event => dispatch({ type: "updateSelectedSimulationFactionField", field: "methods", value: event.target.value })}
+                            style={FIELD_STYLE}
+                            placeholder="patrouille, corruption, rituel"
+                          />
+                        </label>
+                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                          Objectifs suggérés
+                          <input
+                            value={selectedSimulationFaction.objectiveHints.join(", ")}
+                            onChange={event => dispatch({ type: "updateSelectedSimulationFactionField", field: "objectiveHints", value: event.target.value })}
+                            style={FIELD_STYLE}
+                            placeholder="ouvrir_route, recherche_objet"
+                          />
+                        </label>
+                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                          Tags
+                          <input
+                            value={selectedSimulationFaction.tags.join(", ")}
+                            onChange={event => dispatch({ type: "updateSelectedSimulationFactionField", field: "tags", value: event.target.value })}
+                            style={FIELD_STYLE}
+                            placeholder="criminel, religieux, marchand"
+                          />
+                        </label>
+                      </div>
+
+                      <div style={SUBSECTION_STYLE}>
+                        <div style={editorTextStyles.sectionTitle}>Ancrage carte</div>
+                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                          Ville d'ancrage
+                          <select
+                            value={selectedSimulationFaction.homeCityId ?? ""}
+                            onChange={event => dispatch({ type: "updateSelectedSimulationFactionField", field: "homeCityId", value: event.target.value })}
+                            style={FIELD_STYLE}
+                          >
+                            <option value="">Aucune</option>
+                            {layout.cities.map(city => (
+                              <option key={city.id} value={city.id}>
+                                {wikiEntriesById[city.wikiEntityId]?.name ?? city.wikiEntityId}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                          Region d'ancrage
+                          <select
+                            value={selectedSimulationFaction.homeRegionId ?? ""}
+                            onChange={event => dispatch({ type: "updateSelectedSimulationFactionField", field: "homeRegionId", value: event.target.value })}
+                            style={FIELD_STYLE}
+                          >
+                            <option value="">Aucune</option>
+                            {(layout.governanceRegions ?? []).map(region => (
+                              <option key={region.id} value={region.id}>
+                                {wikiEntriesById[region.wikiEntityId]?.name ?? region.wikiEntityId}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <div style={{ display: "grid", gap: 6 }}>
+                          <div style={editorTextStyles.helper}>
+                            Presence definie: {selectedSimulationFaction.presenceCells.length} case(s)
+                          </div>
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            <button type="button" onClick={() => applySelectedCellsToFactionPresence("replace")} style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}>
+                              Remplacer presence
+                            </button>
+                            <button type="button" onClick={() => applySelectedCellsToFactionPresence("add")} style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}>
+                              Ajouter selection
+                            </button>
+                            <button type="button" onClick={() => applySelectedCellsToFactionPresence("remove")} style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}>
+                              Retirer selection
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={SUBSECTION_STYLE}>
+                        <div style={editorTextStyles.sectionTitle}>Capacites</div>
+                        {([
+                          ["influence", "Influence"],
+                          ["power", "Puissance"],
+                          ["cohesion", "Cohesion"],
+                          ["aggression", "Agressivite"],
+                          ["secrecy", "Discretion"],
+                          ["resources", "Ressources"]
+                        ] as const).map(([field, label]) => (
+                          <label key={field} style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                            {label}
+                            <input
+                              type="number"
+                              min={0}
+                              max={100}
+                              value={selectedSimulationFaction[field]}
+                              onChange={event => dispatch({ type: "updateSelectedSimulationFactionField", field, value: event.target.value })}
+                              style={FIELD_STYLE}
+                            />
+                          </label>
+                        ))}
+                      </div>
+
+                      <div style={SUBSECTION_STYLE}>
+                        <div style={editorTextStyles.sectionTitle}>Relations</div>
+                        <div style={{ display: "grid", gap: 6 }}>
+                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                            Faction cible
+                            <select
+                              value={draftSimulationRelationTargetFactionId}
+                              onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationRelationTargetFactionId", value: event.target.value })}
+                              style={FIELD_STYLE}
+                            >
+                              <option value="">Choisir une faction</option>
+                              {simulationFactions
+                                .filter(faction => faction.id !== selectedSimulationFaction.id)
+                                .map(faction => (
+                                  <option key={faction.id} value={faction.id}>
+                                    {faction.label}
+                                  </option>
+                                ))}
+                            </select>
+                          </label>
+                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                            Statut
+                            <select
+                              value={draftSimulationRelationStatus}
+                              onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationRelationStatus", value: event.target.value as SimulationFactionRelationStatus })}
+                              style={FIELD_STYLE}
+                            >
+                              <option value="ally">Allie</option>
+                              <option value="neutral">Neutre</option>
+                              <option value="rival">Rival</option>
+                              <option value="war">Guerre</option>
+                            </select>
+                          </label>
+                          <button
+                            type="button"
+                            onClick={createSimulationFactionRelationDefinition}
+                            disabled={!draftSimulationRelationTargetFactionId}
+                            style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8, cursor: draftSimulationRelationTargetFactionId ? "pointer" : "not-allowed", opacity: draftSimulationRelationTargetFactionId ? 1 : 0.6 }}
+                          >
+                            Ajouter relation
+                          </button>
+                        </div>
+                        <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
+                          {selectedSimulationFaction.relations.length === 0 ? (
+                            <div style={editorTextStyles.helper}>Aucune relation definie.</div>
+                          ) : (
+                            selectedSimulationFaction.relations.map(relation => {
+                              const targetFaction = simulationFactions.find(faction => faction.id === relation.targetFactionId);
+                              return (
+                                <div key={relation.targetFactionId} style={{ ...SUBSECTION_STYLE, gap: 6 }}>
+                                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+                                    <div style={{ fontSize: 13, fontWeight: 700 }}>{targetFaction?.label ?? relation.targetFactionId}</div>
+                                    <button
+                                      type="button"
+                                      onClick={() => dispatch({ type: "deleteSelectedSimulationFactionRelation", targetFactionId: relation.targetFactionId })}
+                                      style={{ ...createEditorButtonStyle({ danger: true, compact: true }), borderRadius: 8 }}
+                                    >
+                                      Supprimer
+                                    </button>
+                                  </div>
+                                  <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                    Statut
+                                    <select
+                                      value={relation.status}
+                                      onChange={event => dispatch({ type: "updateSelectedSimulationFactionRelationField", targetFactionId: relation.targetFactionId, field: "status", value: event.target.value })}
+                                      style={FIELD_STYLE}
+                                    >
+                                      <option value="ally">Allie</option>
+                                      <option value="neutral">Neutre</option>
+                                      <option value="rival">Rival</option>
+                                      <option value="war">Guerre</option>
+                                    </select>
+                                  </label>
+                                  <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+                                    <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                      Confiance
+                                      <input
+                                        type="number"
+                                        min={0}
+                                        max={100}
+                                        value={relation.trust}
+                                        onChange={event => dispatch({ type: "updateSelectedSimulationFactionRelationField", targetFactionId: relation.targetFactionId, field: "trust", value: event.target.value })}
+                                        style={FIELD_STYLE}
+                                      />
+                                    </label>
+                                    <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                      Hostilite
+                                      <input
+                                        type="number"
+                                        min={0}
+                                        max={100}
+                                        value={relation.hostility}
+                                        onChange={event => dispatch({ type: "updateSelectedSimulationFactionRelationField", targetFactionId: relation.targetFactionId, field: "hostility", value: event.target.value })}
+                                        style={FIELD_STYLE}
+                                      />
+                                    </label>
+                                  </div>
+                                  <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                    Notes
+                                    <textarea
+                                      value={relation.notes}
+                                      onChange={event => dispatch({ type: "updateSelectedSimulationFactionRelationField", targetFactionId: relation.targetFactionId, field: "notes", value: event.target.value })}
+                                      style={editorFieldStyles.textarea}
+                                    />
+                                  </label>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => dispatch({ type: "deleteSelectedSimulationFaction" })}
+                        style={{ ...createEditorButtonStyle({ danger: true, compact: true }), borderRadius: 8 }}
+                      >
+                        Supprimer faction
+                      </button>
+
+                      <div style={SUBSECTION_STYLE}>
+                        <div style={editorTextStyles.sectionTitle}>Objectifs speciaux</div>
+                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                          Objectif actif
+                          <select
+                            value={selectedSimulationObjectiveId}
+                            onChange={event => dispatch({ type: "setSelectedSimulationObjective", objectiveId: event.target.value })}
+                            style={FIELD_STYLE}
+                          >
+                            <option value="">Choisir un objectif</option>
+                            {simulationObjectives
+                              .filter(objective => objective.ownerFactionId === selectedSimulationFaction.id)
+                              .map(objective => (
+                                <option key={objective.id} value={objective.id}>
+                                  {objective.label}
+                                </option>
+                              ))}
+                          </select>
+                        </label>
+                        <div style={{ display: "grid", gap: 6 }}>
+                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                            Id
+                            <input
+                              value={draftSimulationObjectiveId}
+                              onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationObjectiveId", value: event.target.value })}
+                              style={FIELD_STYLE}
+                              placeholder="retrouver_relique"
+                            />
+                          </label>
+                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                            Label
+                            <input
+                              value={draftSimulationObjectiveLabel}
+                              onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationObjectiveLabel", value: event.target.value })}
+                              style={FIELD_STYLE}
+                              placeholder="Retrouver la relique"
+                            />
+                          </label>
+                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                            Categorie
+                            <select
+                              value={draftSimulationObjectiveCategory}
+                              onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationObjectiveCategory", value: event.target.value as SimulationObjectiveCategory })}
+                              style={FIELD_STYLE}
+                            >
+                              <option value="search_object">Recherche d'objet</option>
+                              <option value="take_control_place">Prise de controle</option>
+                              <option value="weaken_rival">Affaiblir un rival</option>
+                              <option value="extend_influence">Etendre l'influence</option>
+                              <option value="protect_secret">Proteger un secret</option>
+                              <option value="recruit_agents">Recruter</option>
+                              <option value="acquire_resource">Acquerir une ressource</option>
+                              <option value="open_route">Ouvrir une route</option>
+                              <option value="eliminate_threat">Eliminer une menace</option>
+                              <option value="recover_person">Recuperer une personne</option>
+                            </select>
+                          </label>
+                          <button
+                            type="button"
+                            onClick={createSimulationObjectiveDefinition}
+                            disabled={!(draftSimulationObjectiveId.trim() || draftSimulationObjectiveLabel.trim())}
+                            style={{ ...createEditorButtonStyle({ active: true, compact: true }), borderRadius: 8, cursor: draftSimulationObjectiveId.trim() || draftSimulationObjectiveLabel.trim() ? "pointer" : "not-allowed", opacity: draftSimulationObjectiveId.trim() || draftSimulationObjectiveLabel.trim() ? 1 : 0.6 }}
+                          >
+                            Creer objectif
+                          </button>
+                        </div>
+                      </div>
+
+                      {selectedSimulationObjective && selectedSimulationObjective.ownerFactionId === selectedSimulationFaction.id && (
+                        <div style={SUBSECTION_STYLE}>
+                          <div style={editorTextStyles.sectionTitle}>Objectif selectionne</div>
+                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                            Nom
+                            <input
+                              value={selectedSimulationObjective.label}
+                              onChange={event => dispatch({ type: "updateSelectedSimulationObjectiveField", field: "label", value: event.target.value })}
+                              style={FIELD_STYLE}
+                            />
+                          </label>
+                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                            Description
+                            <textarea
+                              value={selectedSimulationObjective.description}
+                              onChange={event => dispatch({ type: "updateSelectedSimulationObjectiveField", field: "description", value: event.target.value })}
+                              style={editorFieldStyles.textarea}
+                            />
+                          </label>
+                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                            Pourquoi c'est important
+                            <textarea
+                              value={selectedSimulationObjective.whyItMatters}
+                              onChange={event => dispatch({ type: "updateSelectedSimulationObjectiveField", field: "whyItMatters", value: event.target.value })}
+                              style={editorFieldStyles.textarea}
+                            />
+                          </label>
+                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                            Categorie
+                            <select
+                              value={selectedSimulationObjective.category}
+                              onChange={event => dispatch({ type: "updateSelectedSimulationObjectiveField", field: "category", value: event.target.value })}
+                              style={FIELD_STYLE}
+                            >
+                              <option value="search_object">Recherche d'objet</option>
+                              <option value="take_control_place">Prise de controle</option>
+                              <option value="weaken_rival">Affaiblir un rival</option>
+                              <option value="extend_influence">Etendre l'influence</option>
+                              <option value="protect_secret">Proteger un secret</option>
+                              <option value="recruit_agents">Recruter</option>
+                              <option value="acquire_resource">Acquerir une ressource</option>
+                              <option value="open_route">Ouvrir une route</option>
+                              <option value="eliminate_threat">Eliminer une menace</option>
+                              <option value="recover_person">Recuperer une personne</option>
+                            </select>
+                          </label>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+                            <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                              Etat
+                              <select
+                                value={selectedSimulationObjective.state}
+                                onChange={event => dispatch({ type: "updateSelectedSimulationObjectiveField", field: "state", value: event.target.value })}
+                                style={FIELD_STYLE}
+                              >
+                                <option value="planned">Planifie</option>
+                                <option value="active">Actif</option>
+                                <option value="blocked">Bloque</option>
+                                <option value="completed">Accompli</option>
+                                <option value="failed">Echoue</option>
+                              </select>
+                            </label>
+                            <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                              Priorite
+                              <input
+                                type="number"
+                                min={0}
+                                max={100}
+                                value={selectedSimulationObjective.priority}
+                                onChange={event => dispatch({ type: "updateSelectedSimulationObjectiveField", field: "priority", value: event.target.value })}
+                                style={FIELD_STYLE}
+                              />
+                            </label>
+                            <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                              Progression
+                              <input
+                                type="number"
+                                min={0}
+                                max={100}
+                                value={selectedSimulationObjective.progress}
+                                onChange={event => dispatch({ type: "updateSelectedSimulationObjectiveField", field: "progress", value: event.target.value })}
+                                style={FIELD_STYLE}
+                              />
+                            </label>
+                            <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                              Type de cible
+                              <select
+                                value={selectedSimulationObjective.targetKind ?? ""}
+                                onChange={event => dispatch({ type: "updateSelectedSimulationObjectiveField", field: "targetKind", value: event.target.value })}
+                                style={FIELD_STYLE}
+                              >
+                                <option value="">Aucune</option>
+                                <option value="city">Ville</option>
+                                <option value="district">Quartier</option>
+                                <option value="route">Route</option>
+                                <option value="region">Region</option>
+                                <option value="faction">Faction</option>
+                                <option value="place">Lieu</option>
+                              </select>
+                            </label>
+                          </div>
+                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                            Id de cible
+                            <input
+                              value={selectedSimulationObjective.targetId ?? ""}
+                              onChange={event => dispatch({ type: "updateSelectedSimulationObjectiveField", field: "targetId", value: event.target.value })}
+                              style={FIELD_STYLE}
+                            />
+                          </label>
+                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                            Obstacles
+                            <input
+                              value={selectedSimulationObjective.obstacleHints.join(", ")}
+                              onChange={event => dispatch({ type: "updateSelectedSimulationObjectiveField", field: "obstacleHints", value: event.target.value })}
+                              style={FIELD_STYLE}
+                              placeholder="garde, rival, manque d'indices"
+                            />
+                          </label>
+                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                            Actions compatibles
+                            <input
+                              value={selectedSimulationObjective.compatibleActionIds.join(", ")}
+                              onChange={event => dispatch({ type: "updateSelectedSimulationObjectiveField", field: "compatibleActionIds", value: event.target.value })}
+                              style={FIELD_STYLE}
+                              placeholder="investigate, patrol, secure_route"
+                            />
+                          </label>
+                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                            Tags
+                            <input
+                              value={selectedSimulationObjective.tags.join(", ")}
+                              onChange={event => dispatch({ type: "updateSelectedSimulationObjectiveField", field: "tags", value: event.target.value })}
+                              style={FIELD_STYLE}
+                            />
+                          </label>
+                          <div style={{ display: "grid", gap: 6 }}>
+                            <div style={editorTextStyles.helper}>
+                              Zones liees: {selectedSimulationObjective.zoneIds.length} entree(s)
+                            </div>
+                            <button
+                              type="button"
+                              onClick={replaceSelectedCellsAsObjectiveZones}
+                              style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}
+                            >
+                              Remplacer zones par la selection
+                            </button>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => dispatch({ type: "deleteSelectedSimulationObjective" })}
+                            style={{ ...createEditorButtonStyle({ danger: true, compact: true }), borderRadius: 8 }}
+                          >
+                            Supprimer objectif
+                          </button>
+                        </div>
+                      )}
+
+                      <div style={SUBSECTION_STYLE}>
+                        <div style={editorTextStyles.sectionTitle}>Acteurs mobiles</div>
+                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                          Acteur mobile actif
+                          <select
+                            value={selectedSimulationMobileActorId}
+                            onChange={event => dispatch({ type: "setSelectedSimulationMobileActor", actorId: event.target.value })}
+                            style={FIELD_STYLE}
+                          >
+                            <option value="">Choisir un acteur</option>
+                            {simulationMobileActors
+                              .filter(actor => !actor.ownerFactionId || actor.ownerFactionId === selectedSimulationFaction.id)
+                              .map(actor => (
+                                <option key={actor.id} value={actor.id}>
+                                  {actor.label}
+                                </option>
+                              ))}
+                          </select>
+                        </label>
+                        <div style={{ display: "grid", gap: 6 }}>
+                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                            Id
+                            <input
+                              value={draftSimulationMobileActorId}
+                              onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationMobileActorId", value: event.target.value })}
+                              style={FIELD_STYLE}
+                              placeholder="caravane_du_sud"
+                            />
+                          </label>
+                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                            Label
+                            <input
+                              value={draftSimulationMobileActorLabel}
+                              onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationMobileActorLabel", value: event.target.value })}
+                              style={FIELD_STYLE}
+                              placeholder="Caravane du Sud"
+                            />
+                          </label>
+                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                            Type
+                            <input
+                              value={draftSimulationMobileActorType}
+                              onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationMobileActorType", value: event.target.value })}
+                              style={FIELD_STYLE}
+                              placeholder="caravan, army, pilgrims"
+                            />
+                          </label>
+                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                            Couleur
+                            <input
+                              value={draftSimulationMobileActorColor}
+                              onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationMobileActorColor", value: event.target.value })}
+                              style={FIELD_STYLE}
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            onClick={createSimulationMobileActorDefinition}
+                            disabled={!(draftSimulationMobileActorId.trim() || draftSimulationMobileActorLabel.trim())}
+                            style={{ ...createEditorButtonStyle({ active: true, compact: true }), borderRadius: 8, cursor: draftSimulationMobileActorId.trim() || draftSimulationMobileActorLabel.trim() ? "pointer" : "not-allowed", opacity: draftSimulationMobileActorId.trim() || draftSimulationMobileActorLabel.trim() ? 1 : 0.6 }}
+                          >
+                            Creer acteur mobile
+                          </button>
+                        </div>
+                      </div>
+
+                      {selectedSimulationMobileActor && (!selectedSimulationMobileActor.ownerFactionId || selectedSimulationMobileActor.ownerFactionId === selectedSimulationFaction.id) && (
+                        <div style={SUBSECTION_STYLE}>
+                          <div style={editorTextStyles.sectionTitle}>Acteur mobile selectionne</div>
+                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                            Nom
+                            <input
+                              value={selectedSimulationMobileActor.label}
+                              onChange={event => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "label", value: event.target.value })}
+                              style={FIELD_STYLE}
+                            />
+                          </label>
+                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                            Type
+                            <input
+                              value={selectedSimulationMobileActor.type}
+                              onChange={event => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "type", value: event.target.value })}
+                              style={FIELD_STYLE}
+                            />
+                          </label>
+                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                            Faction porteuse
+                            <select
+                              value={selectedSimulationMobileActor.ownerFactionId ?? ""}
+                              onChange={event => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "ownerFactionId", value: event.target.value })}
+                              style={FIELD_STYLE}
+                            >
+                              <option value="">Aucune</option>
+                              {simulationFactions.map(faction => (
+                                <option key={faction.id} value={faction.id}>
+                                  {faction.label}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+                            <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                              Position
+                              <select
+                                value={selectedSimulationMobileActor.positionKind}
+                                onChange={event => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "positionKind", value: event.target.value as SimulationActorPositionKind })}
+                                style={FIELD_STYLE}
+                              >
+                                <option value="city">Ville</option>
+                                <option value="route">Route</option>
+                                <option value="region">Region</option>
+                                <option value="cell">Cellule</option>
+                              </select>
+                            </label>
+                            <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                              Id position
+                              <input
+                                value={selectedSimulationMobileActor.positionId ?? ""}
+                                onChange={event => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "positionId", value: event.target.value })}
+                                style={FIELD_STYLE}
+                              />
+                            </label>
+                            <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                              Destination
+                              <select
+                                value={selectedSimulationMobileActor.destinationKind ?? ""}
+                                onChange={event => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "destinationKind", value: event.target.value as SimulationActorPositionKind })}
+                                style={FIELD_STYLE}
+                              >
+                                <option value="">Aucune</option>
+                                <option value="city">Ville</option>
+                                <option value="route">Route</option>
+                                <option value="region">Region</option>
+                                <option value="cell">Cellule</option>
+                              </select>
+                            </label>
+                            <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                              Id destination
+                              <input
+                                value={selectedSimulationMobileActor.destinationId ?? ""}
+                                onChange={event => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "destinationId", value: event.target.value })}
+                                style={FIELD_STYLE}
+                              />
+                            </label>
+                          </div>
+                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                            Itineraire routes
+                            <input
+                              value={selectedSimulationMobileActor.itineraryRouteIds.join(", ")}
+                              onChange={event => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "itineraryRouteIds", value: event.target.value })}
+                              style={FIELD_STYLE}
+                              placeholder="route_1, route_2"
+                            />
+                          </label>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+                            <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                              Deplacement
+                              <select
+                                value={selectedSimulationMobileActor.travelMode}
+                                onChange={event => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "travelMode", value: event.target.value as SimulationTravelMode })}
+                                style={FIELD_STYLE}
+                              >
+                                <option value="road">Route</option>
+                                <option value="river">Riviere</option>
+                                <option value="sea">Mer</option>
+                                <option value="foot">A pied</option>
+                              </select>
+                            </label>
+                            <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                              Niveau simulation
+                              <select
+                                value={selectedSimulationMobileActor.simulationLevel}
+                                onChange={event => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "simulationLevel", value: event.target.value as SimulationActorLevel })}
+                                style={FIELD_STYLE}
+                              >
+                                <option value="active">Actif</option>
+                                <option value="summary">Resume</option>
+                                <option value="abstract">Abstrait</option>
+                              </select>
+                            </label>
+                          </div>
+                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                            Objectifs lies
+                            <input
+                              value={selectedSimulationMobileActor.objectiveIds.join(", ")}
+                              onChange={event => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "objectiveIds", value: event.target.value })}
+                              style={FIELD_STYLE}
+                              placeholder="objectif_1, objectif_2"
+                            />
+                          </label>
+                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                            Tags d'interaction
+                            <input
+                              value={selectedSimulationMobileActor.interactionTags.join(", ")}
+                              onChange={event => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "interactionTags", value: event.target.value })}
+                              style={FIELD_STYLE}
+                            />
+                          </label>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
+                            {([
+                              ["speed", "Vitesse"],
+                              ["security", "Securite"],
+                              ["fatigue", "Fatigue"],
+                              ["cargo", "Charge"],
+                              ["headcount", "Effectif"],
+                              ["resources", "Ressources"]
+                            ] as const).map(([field, label]) => (
+                              <label key={field} style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                {label}
+                                <input
+                                  type="number"
+                                  min={0}
+                                  max={100}
+                                  value={selectedSimulationMobileActor[field]}
+                                  onChange={event => dispatch({ type: "updateSelectedSimulationMobileActorField", field, value: event.target.value })}
+                                  style={FIELD_STYLE}
+                                />
+                              </label>
+                            ))}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => dispatch({ type: "deleteSelectedSimulationMobileActor" })}
+                            style={{ ...createEditorButtonStyle({ danger: true, compact: true }), borderRadius: 8 }}
+                          >
+                            Supprimer acteur mobile
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </SimulationPanel>
+            )}
+
             <div style={{ marginTop: 12, ...editorTextStyles.helper }}>
               {(wikiCatalogLoading || wikiCatalogError) && (
                 <div>Catalogue lore: {wikiCatalogLoading ? "chargement..." : `erreur ${wikiCatalogError}`}</div>
@@ -2462,7 +3441,11 @@ export function WorldMapEditorScreen(props: {
         layout={layout}
         layerVisibility={layerVisibility}
         selectedCellKey={selectedCellKey}
-        highlightedCellKeys={selectedAreaCellKeys}
+        highlightedCellKeys={
+          activeTool === "simulation"
+            ? Array.from(new Set([...selectedSimulationFactionPresenceCellKeys, ...selectedAreaCellKeys]))
+            : selectedAreaCellKeys
+        }
         selectedCityId={selectedCity?.id ?? null}
         selectedRouteId={selectedRouteId}
         routeEditorActive={routeEditorActive}
@@ -2508,6 +3491,7 @@ export function WorldMapEditorScreen(props: {
               selectedRegionName={selectedRegionWiki?.name ?? null}
               selectedZoneNames={selectedGeographicZones.map(zone => zone.label)}
               selectedCityFactions={!wikiLoading && !wikiError && selectedCityWiki ? getFrontMatterList(selectedCityWiki.frontMatter, "factions_presentes") : []}
+              selectedSimulationFactions={selectedCellSimulationFactions}
               onMouseDown={event => {
                 hexModalDragRef.current = {
                   startX: event.clientX,

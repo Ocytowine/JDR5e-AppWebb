@@ -2,19 +2,20 @@ import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { WORLD_MAP_LAYOUT, type WorldMapLayout } from "../data/worldMapLayout";
 import { WorldMapEditorScreen } from "./WorldMapEditorScreen";
+import { WorldMapSimulationScreen } from "./WorldMapSimulationScreen";
 import { WorldMapViewerScreen } from "./WorldMapViewerScreen";
 import { fetchWorldMapLayout } from "./mapShared";
 
 export function WorldMapScreen(props: {
   onBack: () => void;
 }): React.JSX.Element {
-  const [mode, setMode] = useState<"viewer" | "editor">("viewer");
+  const [mode, setMode] = useState<"viewer" | "editor" | "simulation">("viewer");
   const [layout, setLayout] = useState<WorldMapLayout>(WORLD_MAP_LAYOUT);
   const [layoutLoading, setLayoutLoading] = useState<boolean>(true);
   const [layoutError, setLayoutError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (mode !== "editor") return;
+    if (mode !== "editor" && mode !== "simulation") return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
@@ -68,10 +69,12 @@ export function WorldMapScreen(props: {
           </div>
         </div>
 
-        <WorldMapViewerScreen layout={layout} onOpenEditor={() => setMode("editor")} />
+        {mode === "viewer" && (
+          <WorldMapViewerScreen layout={layout} onOpenEditor={() => setMode("editor")} onOpenSimulation={() => setMode("simulation")} />
+        )}
       </div>
 
-      {mode === "editor" &&
+      {(mode === "editor" || mode === "simulation") &&
         createPortal(
           <div
             style={{
@@ -84,23 +87,31 @@ export function WorldMapScreen(props: {
               overflow: "hidden"
             }}
           >
-            <div
-              style={{
-                width: "100%",
-                height: "100%",
-                display: "flex",
-                flexDirection: "column"
-              }}
-            >
-              <WorldMapEditorScreen
-                initialLayout={layout}
-                onCloseEditor={nextLayout => {
-                  setLayout(nextLayout);
-                  setMode("viewer");
+              <div
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  display: "flex",
+                  flexDirection: "column"
                 }}
-                onLayoutSaved={nextLayout => setLayout(nextLayout)}
-              />
-            </div>
+              >
+                {mode === "editor" ? (
+                  <WorldMapEditorScreen
+                    initialLayout={layout}
+                    onCloseEditor={nextLayout => {
+                      setLayout(nextLayout);
+                      setMode("viewer");
+                    }}
+                    onLayoutSaved={nextLayout => setLayout(nextLayout)}
+                  />
+                ) : (
+                  <WorldMapSimulationScreen
+                    layout={layout}
+                    onOpenEditor={() => setMode("editor")}
+                    onCloseSimulation={() => setMode("viewer")}
+                  />
+                )}
+              </div>
           </div>,
           document.body
         )}

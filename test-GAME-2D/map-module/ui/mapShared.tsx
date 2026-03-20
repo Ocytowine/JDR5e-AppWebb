@@ -919,6 +919,7 @@ export function MapCanvas(props: {
   onCellClick: (cell: MapCell, meta?: { shiftKey: boolean }) => void;
   onCityClick?: (cityId: string, meta?: { shiftKey: boolean }) => void;
   minHeight: string | number;
+  svgOverlay?: React.ReactNode;
   overlay?: React.ReactNode;
 }): React.JSX.Element {
   const [zoom, setZoom] = useState<number>(0.8);
@@ -1871,6 +1872,8 @@ export function MapCanvas(props: {
                 </g>
               );
             })}
+
+          {props.svgOverlay}
         </svg>
       </div>
 

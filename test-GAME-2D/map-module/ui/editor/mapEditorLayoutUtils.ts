@@ -7,7 +7,18 @@ import {
   type ReliefElevationLevel,
   type RiverSourceType,
   type RoadType,
+  type SimulationObjectiveCategory,
+  type SimulationObjectiveState,
+  type SimulationObjectiveTargetKind,
+  type SimulationActorLevel,
+  type SimulationActorPositionKind,
+  type SimulationFactionRelationStatus,
+  type SimulationTravelMode,
   type WorldMapCity,
+  type WorldMapSimulationFactionRelation,
+  type WorldMapSimulationMobileActor,
+  type WorldMapSimulationObjective,
+  type WorldMapSimulationFaction,
   type WorldMapLayout
 } from "../../data/worldMapLayout";
 import { createCityId, ensureCell } from "../mapShared";
@@ -682,4 +693,380 @@ export function reversePathDirection(layout: WorldMapLayout, pathId: string): vo
   const path = layout.paths.find(entry => entry.id === pathId);
   if (!path) return;
   path.cells = [...path.cells].reverse();
+}
+
+function ensureSimulation(layout: WorldMapLayout) {
+  layout.simulation ??= { factions: [], specialObjectives: [], mobileActors: [] };
+  layout.simulation.factions ??= [];
+  layout.simulation.specialObjectives ??= [];
+  layout.simulation.mobileActors ??= [];
+  return layout.simulation;
+}
+
+export function upsertSimulationFaction(layout: WorldMapLayout, faction: WorldMapSimulationFaction): void {
+  const simulation = ensureSimulation(layout);
+  const existingIndex = simulation.factions.findIndex(entry => entry.id === faction.id);
+  const normalized: WorldMapSimulationFaction = {
+    ...faction,
+    description: faction.description ?? "",
+    agenda: faction.agenda ?? "",
+    methods: Array.from(new Set(faction.methods ?? [])),
+    objectiveHints: Array.from(new Set(faction.objectiveHints ?? [])),
+    tags: Array.from(new Set(faction.tags ?? [])),
+    presenceCells: Array.from(new Map((faction.presenceCells ?? []).map(cell => [getWorldMapCellKey(cell), cell])).values()),
+    influence: Math.max(0, Math.min(100, Number(faction.influence) || 0)),
+    power: Math.max(0, Math.min(100, Number(faction.power) || 0)),
+    cohesion: Math.max(0, Math.min(100, Number(faction.cohesion) || 0)),
+    aggression: Math.max(0, Math.min(100, Number(faction.aggression) || 0)),
+    secrecy: Math.max(0, Math.min(100, Number(faction.secrecy) || 0)),
+    resources: Math.max(0, Math.min(100, Number(faction.resources) || 0)),
+    relations: (faction.relations ?? []).map(relation => ({
+      targetFactionId: relation.targetFactionId,
+      status: relation.status ?? "neutral",
+      trust: Math.max(0, Math.min(100, Number(relation.trust) || 0)),
+      hostility: Math.max(0, Math.min(100, Number(relation.hostility) || 0)),
+      notes: relation.notes ?? ""
+    }))
+  };
+  if (existingIndex >= 0) {
+    simulation.factions[existingIndex] = normalized;
+    return;
+  }
+  simulation.factions.push(normalized);
+}
+
+export function deleteSimulationFaction(layout: WorldMapLayout, factionId: string): void {
+  const simulation = ensureSimulation(layout);
+  simulation.factions = simulation.factions.filter(entry => entry.id !== factionId);
+}
+
+export function updateSimulationFactionField(
+  layout: WorldMapLayout,
+  factionId: string,
+  field:
+    | "id"
+    | "label"
+    | "type"
+    | "color"
+    | "description"
+    | "agenda"
+    | "methods"
+    | "objectiveHints"
+    | "tags"
+    | "homeCityId"
+    | "homeRegionId"
+    | "influence"
+    | "power"
+    | "cohesion"
+    | "aggression"
+    | "secrecy"
+    | "resources",
+  value: string
+): void {
+  const simulation = ensureSimulation(layout);
+  const faction = simulation.factions.find(entry => entry.id === factionId);
+  if (!faction) return;
+  if (field === "methods" || field === "objectiveHints" || field === "tags") {
+    faction[field] = value
+      .split(",")
+      .map(item => item.trim())
+      .filter(Boolean);
+    return;
+  }
+  if (field === "influence" || field === "power" || field === "cohesion" || field === "aggression" || field === "secrecy" || field === "resources") {
+    faction[field] = Math.max(0, Math.min(100, Number(value) || 0));
+    return;
+  }
+  faction[field] = value;
+}
+
+export function upsertSimulationFactionRelation(
+  layout: WorldMapLayout,
+  factionId: string,
+  relation: WorldMapSimulationFactionRelation
+): void {
+  const simulation = ensureSimulation(layout);
+  const faction = simulation.factions.find(entry => entry.id === factionId);
+  if (!faction) return;
+  const normalized: WorldMapSimulationFactionRelation = {
+    targetFactionId: relation.targetFactionId,
+    status: relation.status ?? "neutral",
+    trust: Math.max(0, Math.min(100, Number(relation.trust) || 0)),
+    hostility: Math.max(0, Math.min(100, Number(relation.hostility) || 0)),
+    notes: relation.notes ?? ""
+  };
+  const existingIndex = faction.relations.findIndex(entry => entry.targetFactionId === relation.targetFactionId);
+  if (existingIndex >= 0) {
+    faction.relations[existingIndex] = normalized;
+    return;
+  }
+  faction.relations.push(normalized);
+}
+
+export function updateSimulationFactionRelationField(
+  layout: WorldMapLayout,
+  factionId: string,
+  targetFactionId: string,
+  field: "targetFactionId" | "status" | "trust" | "hostility" | "notes",
+  value: string
+): void {
+  const simulation = ensureSimulation(layout);
+  const faction = simulation.factions.find(entry => entry.id === factionId);
+  if (!faction) return;
+  const relation = faction.relations.find(entry => entry.targetFactionId === targetFactionId);
+  if (!relation) return;
+  if (field === "trust" || field === "hostility") {
+    relation[field] = Math.max(0, Math.min(100, Number(value) || 0));
+    return;
+  }
+  if (field === "status") {
+    relation.status = value as SimulationFactionRelationStatus;
+    return;
+  }
+  if (field === "notes") {
+    relation.notes = value;
+    return;
+  }
+  relation.targetFactionId = value;
+}
+
+export function deleteSimulationFactionRelation(layout: WorldMapLayout, factionId: string, targetFactionId: string): void {
+  const simulation = ensureSimulation(layout);
+  const faction = simulation.factions.find(entry => entry.id === factionId);
+  if (!faction) return;
+  faction.relations = faction.relations.filter(entry => entry.targetFactionId !== targetFactionId);
+}
+
+export function replaceSimulationFactionPresence(layout: WorldMapLayout, factionId: string, cellKeys: string[]): void {
+  const simulation = ensureSimulation(layout);
+  const faction = simulation.factions.find(entry => entry.id === factionId);
+  if (!faction) return;
+  faction.presenceCells = cellKeys.map(cellKey => {
+    const [x, y] = cellKey.split(",").map(Number);
+    return { x, y };
+  });
+}
+
+export function addSimulationFactionPresence(layout: WorldMapLayout, factionId: string, cellKeys: string[]): void {
+  const simulation = ensureSimulation(layout);
+  const faction = simulation.factions.find(entry => entry.id === factionId);
+  if (!faction) return;
+  const merged = new Map(faction.presenceCells.map(cell => [getWorldMapCellKey(cell), cell]));
+  cellKeys.forEach(cellKey => {
+    const [x, y] = cellKey.split(",").map(Number);
+    merged.set(cellKey, { x, y });
+  });
+  faction.presenceCells = Array.from(merged.values());
+}
+
+export function removeSimulationFactionPresence(layout: WorldMapLayout, factionId: string, cellKeys: string[]): void {
+  const simulation = ensureSimulation(layout);
+  const faction = simulation.factions.find(entry => entry.id === factionId);
+  if (!faction) return;
+  const removed = new Set(cellKeys);
+  faction.presenceCells = faction.presenceCells.filter(cell => !removed.has(getWorldMapCellKey(cell)));
+}
+
+export function upsertSimulationObjective(layout: WorldMapLayout, objective: WorldMapSimulationObjective): void {
+  const simulation = ensureSimulation(layout);
+  const existingIndex = simulation.specialObjectives.findIndex(entry => entry.id === objective.id);
+  const normalized: WorldMapSimulationObjective = {
+    ...objective,
+    description: objective.description ?? "",
+    whyItMatters: objective.whyItMatters ?? "",
+    obstacleHints: Array.from(new Set(objective.obstacleHints ?? [])),
+    compatibleActionIds: Array.from(new Set(objective.compatibleActionIds ?? [])),
+    tags: Array.from(new Set(objective.tags ?? [])),
+    zoneIds: Array.from(new Set(objective.zoneIds ?? [])),
+    priority: Math.max(0, Math.min(100, Number(objective.priority) || 0)),
+    progress: Math.max(0, Math.min(100, Number(objective.progress) || 0)),
+    state: objective.state ?? "planned"
+  };
+  if (existingIndex >= 0) {
+    simulation.specialObjectives[existingIndex] = normalized;
+    return;
+  }
+  simulation.specialObjectives.push(normalized);
+}
+
+export function deleteSimulationObjective(layout: WorldMapLayout, objectiveId: string): void {
+  const simulation = ensureSimulation(layout);
+  simulation.specialObjectives = simulation.specialObjectives.filter(entry => entry.id !== objectiveId);
+}
+
+export function updateSimulationObjectiveField(
+  layout: WorldMapLayout,
+  objectiveId: string,
+  field:
+    | "id"
+    | "label"
+    | "category"
+    | "ownerFactionId"
+    | "description"
+    | "whyItMatters"
+    | "targetKind"
+    | "targetId"
+    | "priority"
+    | "progress"
+    | "state"
+    | "obstacleHints"
+    | "compatibleActionIds"
+    | "tags",
+  value: string
+): void {
+  const simulation = ensureSimulation(layout);
+  const objective = simulation.specialObjectives.find(entry => entry.id === objectiveId);
+  if (!objective) return;
+  if (field === "obstacleHints" || field === "compatibleActionIds" || field === "tags") {
+    objective[field] = value.split(",").map(item => item.trim()).filter(Boolean);
+    return;
+  }
+  if (field === "priority" || field === "progress") {
+    objective[field] = Math.max(0, Math.min(100, Number(value) || 0));
+    return;
+  }
+  switch (field) {
+    case "id":
+      objective.id = value;
+      return;
+    case "label":
+      objective.label = value;
+      return;
+    case "category":
+      objective.category = value as SimulationObjectiveCategory;
+      return;
+    case "ownerFactionId":
+      objective.ownerFactionId = value;
+      return;
+    case "description":
+      objective.description = value;
+      return;
+    case "whyItMatters":
+      objective.whyItMatters = value;
+      return;
+    case "targetKind":
+      objective.targetKind = (value || undefined) as SimulationObjectiveTargetKind | undefined;
+      return;
+    case "targetId":
+      objective.targetId = value || undefined;
+      return;
+    case "state":
+      objective.state = value as SimulationObjectiveState;
+      return;
+    default:
+      return;
+  }
+}
+
+export function replaceSimulationObjectiveZones(layout: WorldMapLayout, objectiveId: string, zoneIds: string[], anchorCell?: MapCell): void {
+  const simulation = ensureSimulation(layout);
+  const objective = simulation.specialObjectives.find(entry => entry.id === objectiveId);
+  if (!objective) return;
+  objective.zoneIds = Array.from(new Set(zoneIds));
+  objective.anchorCell = anchorCell ? { ...anchorCell } : objective.anchorCell;
+}
+
+export function upsertSimulationMobileActor(layout: WorldMapLayout, actor: WorldMapSimulationMobileActor): void {
+  const simulation = ensureSimulation(layout);
+  const existingIndex = simulation.mobileActors.findIndex(entry => entry.id === actor.id);
+  const normalized: WorldMapSimulationMobileActor = {
+    ...actor,
+    itineraryRouteIds: Array.from(new Set(actor.itineraryRouteIds ?? [])),
+    objectiveIds: Array.from(new Set(actor.objectiveIds ?? [])),
+    interactionTags: Array.from(new Set(actor.interactionTags ?? [])),
+    travelMode: actor.travelMode ?? "road",
+    simulationLevel: actor.simulationLevel ?? "active",
+    speed: Math.max(0, Math.min(100, Number(actor.speed) || 0)),
+    security: Math.max(0, Math.min(100, Number(actor.security) || 0)),
+    fatigue: Math.max(0, Math.min(100, Number(actor.fatigue) || 0)),
+    cargo: Math.max(0, Math.min(100, Number(actor.cargo) || 0)),
+    headcount: Math.max(0, Math.min(100, Number(actor.headcount) || 0)),
+    resources: Math.max(0, Math.min(100, Number(actor.resources) || 0))
+  };
+  if (existingIndex >= 0) {
+    simulation.mobileActors[existingIndex] = normalized;
+    return;
+  }
+  simulation.mobileActors.push(normalized);
+}
+
+export function deleteSimulationMobileActor(layout: WorldMapLayout, actorId: string): void {
+  const simulation = ensureSimulation(layout);
+  simulation.mobileActors = simulation.mobileActors.filter(entry => entry.id !== actorId);
+}
+
+export function updateSimulationMobileActorField(
+  layout: WorldMapLayout,
+  actorId: string,
+  field:
+    | "id"
+    | "label"
+    | "type"
+    | "color"
+    | "ownerFactionId"
+    | "positionKind"
+    | "positionId"
+    | "destinationKind"
+    | "destinationId"
+    | "itineraryRouteIds"
+    | "travelMode"
+    | "speed"
+    | "security"
+    | "fatigue"
+    | "cargo"
+    | "headcount"
+    | "resources"
+    | "objectiveIds"
+    | "interactionTags"
+    | "simulationLevel",
+  value: string
+): void {
+  const simulation = ensureSimulation(layout);
+  const actor = simulation.mobileActors.find(entry => entry.id === actorId);
+  if (!actor) return;
+  if (field === "itineraryRouteIds" || field === "objectiveIds" || field === "interactionTags") {
+    actor[field] = value.split(",").map(item => item.trim()).filter(Boolean);
+    return;
+  }
+  if (field === "speed" || field === "security" || field === "fatigue" || field === "cargo" || field === "headcount" || field === "resources") {
+    actor[field] = Math.max(0, Math.min(100, Number(value) || 0));
+    return;
+  }
+  switch (field) {
+    case "id":
+      actor.id = value;
+      return;
+    case "label":
+      actor.label = value;
+      return;
+    case "type":
+      actor.type = value;
+      return;
+    case "color":
+      actor.color = value;
+      return;
+    case "ownerFactionId":
+      actor.ownerFactionId = value || undefined;
+      return;
+    case "positionKind":
+      actor.positionKind = value as SimulationActorPositionKind;
+      return;
+    case "positionId":
+      actor.positionId = value || undefined;
+      return;
+    case "destinationKind":
+      actor.destinationKind = (value || undefined) as SimulationActorPositionKind | undefined;
+      return;
+    case "destinationId":
+      actor.destinationId = value || undefined;
+      return;
+    case "travelMode":
+      actor.travelMode = value as SimulationTravelMode;
+      return;
+    case "simulationLevel":
+      actor.simulationLevel = value as SimulationActorLevel;
+      return;
+    default:
+      return;
+  }
 }

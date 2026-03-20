@@ -6118,5 +6118,101 @@
       "reliefElevation": "none",
       "geographicZoneIds": []
     }
-  ]
+  ],
+  "simulation": {
+    "factions": [
+      {
+        "id": "lezards",
+        "label": "Les lézards",
+        "type": "faction",
+        "color": "#c96f4a",
+        "description": "Bande de lézards destructeurs",
+        "agenda": "",
+        "methods": [
+          "violence"
+        ],
+        "objectiveHints": [
+          "détruire"
+        ],
+        "tags": [
+          "criminel"
+        ],
+        "homeRegionId": "Astryade",
+        "baseCell": {
+          "x": 13,
+          "y": 11
+        },
+        "presenceCells": [
+          {
+            "x": 13,
+            "y": 11
+          }
+        ],
+        "influence": 20,
+        "power": 50,
+        "cohesion": 50,
+        "aggression": 60,
+        "secrecy": 30,
+        "resources": 30,
+        "relations": []
+      },
+      {
+        "id": "armee_diable",
+        "label": "armées des diables",
+        "type": "faction",
+        "color": "#c96f4a",
+        "description": "",
+        "agenda": "",
+        "methods": [
+          "patrouille"
+        ],
+        "objectiveHints": [],
+        "tags": [],
+        "homeRegionId": "Astryade",
+        "baseCell": {
+          "x": 15,
+          "y": 5
+        },
+        "presenceCells": [
+          {
+            "x": 15,
+            "y": 5
+          }
+        ],
+        "influence": 40,
+        "power": 40,
+        "cohesion": 50,
+        "aggression": 35,
+        "secrecy": 30,
+        "resources": 45,
+        "relations": []
+      }
+    ],
+    "specialObjectives": [
+      {
+        "id": "tuer_humain",
+        "label": "tuer des humains",
+        "category": "eliminate_threat",
+        "ownerFactionId": "lezards",
+        "description": "",
+        "whyItMatters": "",
+        "targetKind": "region",
+        "targetId": "Astryade",
+        "priority": 72,
+        "progress": 0,
+        "state": "planned",
+        "obstacleHints": [],
+        "compatibleActionIds": [],
+        "tags": [],
+        "zoneIds": [
+          "14,6"
+        ],
+        "anchorCell": {
+          "x": 14,
+          "y": 6
+        }
+      }
+    ],
+    "mobileActors": []
+  }
 }

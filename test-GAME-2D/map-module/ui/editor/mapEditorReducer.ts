@@ -1,7 +1,8 @@
-import { getWorldMapCellKey, type GeographicZoneKind, type MapLayerId, type ReliefElevationLevel, type WorldMapLayout } from "../../data/worldMapLayout";
+import { getWorldMapCellKey, type GeographicZoneKind, type MapLayerId, type ReliefElevationLevel, type SimulationActorLevel, type SimulationActorPositionKind, type SimulationFactionRelationStatus, type SimulationObjectiveCategory, type SimulationObjectiveState, type SimulationObjectiveTargetKind, type SimulationTravelMode, type WorldMapLayout, type WorldMapSimulationFaction, type WorldMapSimulationFactionRelation, type WorldMapSimulationMobileActor, type WorldMapSimulationObjective } from "../../data/worldMapLayout";
 import { cloneLayout, ensureCell } from "../mapShared";
 import {
   addLocationToCell,
+  addSimulationFactionPresence,
   attachLoreCityToCell,
   appendRoutePoint,
   applyPendingTerrainToCells,
@@ -13,6 +14,10 @@ import {
   deleteGeographicZone,
   deleteGovernanceRegion,
   deleteGovernanceTerritory,
+  deleteSimulationFaction,
+  deleteSimulationFactionRelation,
+  deleteSimulationMobileActor,
+  deleteSimulationObjective,
   getTargetCellKeys,
   hasCliffBetweenCells,
   removeGeographicZoneFromCells,
@@ -20,22 +25,33 @@ import {
   removeCliffSegment,
   removeGovernanceRegionFromCells,
   removeGovernanceTerritoryFromCells,
+  removeSimulationFactionPresence,
   replaceGeographicZoneCells,
   replaceGovernanceRegionCells,
   replaceGovernanceTerritoryCells,
+  replaceSimulationFactionPresence,
+  replaceSimulationObjectiveZones,
   reversePathDirection,
   upsertGeographicZoneDefinition,
   upsertGovernanceRegionDefinition,
   upsertGovernanceTerritoryDefinition,
+  upsertSimulationFaction,
+  upsertSimulationFactionRelation,
+  upsertSimulationMobileActor,
+  upsertSimulationObjective,
   upsertCliffSegment,
   updateGeographicZoneOnLayout,
   updateGovernanceRegionOnLayout,
   updateGovernanceTerritoryOnLayout,
   updatePathFieldOnLayout,
+  updateSimulationFactionField,
+  updateSimulationFactionRelationField,
+  updateSimulationMobileActorField,
+  updateSimulationObjectiveField,
   updateCityFieldOnLayout
 } from "./mapEditorLayoutUtils";
 
-export type EditorToolId = "inspect" | "terrain" | "places" | "zones" | "routes";
+export type EditorToolId = "inspect" | "terrain" | "places" | "zones" | "routes" | "simulation";
 export type PanelId = "legend" | "layers" | "json";
 
 export type CustomGeography = {
@@ -97,6 +113,22 @@ export type MapEditorState = {
   draftGeographyDifficulty: string;
   draftTagName: string;
   draftTagColor: string;
+  selectedSimulationFactionId: string;
+  draftSimulationFactionId: string;
+  draftSimulationFactionLabel: string;
+  draftSimulationFactionType: string;
+  draftSimulationFactionColor: string;
+  draftSimulationRelationTargetFactionId: string;
+  draftSimulationRelationStatus: SimulationFactionRelationStatus;
+  selectedSimulationObjectiveId: string;
+  draftSimulationObjectiveId: string;
+  draftSimulationObjectiveLabel: string;
+  draftSimulationObjectiveCategory: SimulationObjectiveCategory;
+  selectedSimulationMobileActorId: string;
+  draftSimulationMobileActorId: string;
+  draftSimulationMobileActorLabel: string;
+  draftSimulationMobileActorType: string;
+  draftSimulationMobileActorColor: string;
   pendingGeographyId: string;
   pendingReliefElevation: "" | ReliefElevationLevel;
   pendingTagIds: string[];
@@ -134,7 +166,20 @@ type DraftField =
   | "draftGeographySurface"
   | "draftGeographyDifficulty"
   | "draftTagName"
-  | "draftTagColor";
+  | "draftTagColor"
+  | "draftSimulationFactionId"
+  | "draftSimulationFactionLabel"
+  | "draftSimulationFactionType"
+  | "draftSimulationFactionColor"
+  | "draftSimulationRelationTargetFactionId"
+  | "draftSimulationRelationStatus"
+  | "draftSimulationObjectiveId"
+  | "draftSimulationObjectiveLabel"
+  | "draftSimulationObjectiveCategory"
+  | "draftSimulationMobileActorId"
+  | "draftSimulationMobileActorLabel"
+  | "draftSimulationMobileActorType"
+  | "draftSimulationMobileActorColor";
 
 type LoreField =
   | "selectedLoreCityId"
@@ -159,6 +204,9 @@ export type MapEditorAction =
   | { type: "setHexModalPosition"; position: { x: number; y: number } }
   | { type: "setCustomGeographies"; value: CustomGeography[] }
   | { type: "setCustomTags"; value: CustomTag[] }
+  | { type: "setSelectedSimulationFaction"; factionId: string }
+  | { type: "setSelectedSimulationObjective"; objectiveId: string }
+  | { type: "setSelectedSimulationMobileActor"; actorId: string }
   | { type: "setPendingGeography"; value: string }
   | { type: "setPendingReliefElevation"; value: "" | ReliefElevationLevel }
   | { type: "setPendingTags"; value: string[] }
@@ -231,6 +279,90 @@ export type MapEditorAction =
   | { type: "addLoreLocationToSelectedCell"; wikiEntityId: string }
   | { type: "removeSelectedCity" }
   | { type: "updateSelectedCityField"; field: "wikiEntityId" | "kind" | "markerColor"; value: string }
+  | { type: "createSimulationFaction"; faction: WorldMapSimulationFaction }
+  | {
+      type: "updateSelectedSimulationFactionField";
+      field:
+        | "id"
+        | "label"
+        | "type"
+        | "color"
+        | "description"
+        | "agenda"
+        | "methods"
+        | "objectiveHints"
+        | "tags"
+        | "homeCityId"
+        | "homeRegionId"
+        | "influence"
+        | "power"
+        | "cohesion"
+        | "aggression"
+        | "secrecy"
+        | "resources";
+      value: string;
+    }
+  | { type: "replaceSelectedSimulationFactionPresence"; cellKeys: string[] }
+  | { type: "addSelectedSimulationFactionPresence"; cellKeys: string[] }
+  | { type: "removeSelectedSimulationFactionPresence"; cellKeys: string[] }
+  | { type: "deleteSelectedSimulationFaction" }
+  | { type: "createSimulationFactionRelation"; relation: WorldMapSimulationFactionRelation }
+  | {
+      type: "updateSelectedSimulationFactionRelationField";
+      targetFactionId: string;
+      field: "targetFactionId" | "status" | "trust" | "hostility" | "notes";
+      value: string;
+    }
+  | { type: "deleteSelectedSimulationFactionRelation"; targetFactionId: string }
+  | { type: "createSimulationObjective"; objective: WorldMapSimulationObjective }
+  | {
+      type: "updateSelectedSimulationObjectiveField";
+      field:
+        | "id"
+        | "label"
+        | "category"
+        | "ownerFactionId"
+        | "description"
+        | "whyItMatters"
+        | "targetKind"
+        | "targetId"
+        | "priority"
+        | "progress"
+        | "state"
+        | "obstacleHints"
+        | "compatibleActionIds"
+        | "tags";
+      value: string;
+    }
+  | { type: "replaceSelectedSimulationObjectiveZones"; zoneIds: string[]; anchorCellKey?: string }
+  | { type: "deleteSelectedSimulationObjective" }
+  | { type: "createSimulationMobileActor"; actor: WorldMapSimulationMobileActor }
+  | {
+      type: "updateSelectedSimulationMobileActorField";
+      field:
+        | "id"
+        | "label"
+        | "type"
+        | "color"
+        | "ownerFactionId"
+        | "positionKind"
+        | "positionId"
+        | "destinationKind"
+        | "destinationId"
+        | "itineraryRouteIds"
+        | "travelMode"
+        | "speed"
+        | "security"
+        | "fatigue"
+        | "cargo"
+        | "headcount"
+        | "resources"
+        | "objectiveIds"
+        | "interactionTags"
+        | "simulationLevel";
+      value: string;
+    }
+  | { type: "deleteSelectedSimulationMobileActor" }
   | { type: "replaceLayout"; nextState: Partial<MapEditorState>; resetHistory?: boolean }
   | { type: "undo" }
   | { type: "redo" };
@@ -261,6 +393,18 @@ function normalizeSelectionState(state: MapEditorState): MapEditorState {
     (state.layout.geographicZones ?? []).some(entry => entry.id === state.selectedGeographicZoneId)
       ? state.selectedGeographicZoneId
       : selectedCell?.geographicZoneIds?.[0] ?? (state.layout.geographicZones?.[0]?.id ?? "");
+  const selectedSimulationFactionId =
+    (state.layout.simulation?.factions ?? []).some(entry => entry.id === state.selectedSimulationFactionId)
+      ? state.selectedSimulationFactionId
+      : (state.layout.simulation?.factions?.[0]?.id ?? "");
+  const selectedSimulationObjectiveId =
+    (state.layout.simulation?.specialObjectives ?? []).some(entry => entry.id === state.selectedSimulationObjectiveId)
+      ? state.selectedSimulationObjectiveId
+      : (state.layout.simulation?.specialObjectives?.[0]?.id ?? "");
+  const selectedSimulationMobileActorId =
+    (state.layout.simulation?.mobileActors ?? []).some(entry => entry.id === state.selectedSimulationMobileActorId)
+      ? state.selectedSimulationMobileActorId
+      : (state.layout.simulation?.mobileActors?.[0]?.id ?? "");
 
   return {
     ...state,
@@ -269,7 +413,10 @@ function normalizeSelectionState(state: MapEditorState): MapEditorState {
     selectedAreaCellKeys,
     selectedGovernanceTerritoryId,
     selectedGovernanceRegionId,
-    selectedGeographicZoneId
+    selectedGeographicZoneId,
+    selectedSimulationFactionId,
+    selectedSimulationObjectiveId,
+    selectedSimulationMobileActorId
   };
 }
 
@@ -390,6 +537,21 @@ export function mapEditorReducer(state: MapEditorHistoryState, action: MapEditor
       return withoutHistory(state, {
         ...state.present,
         customTags: action.value
+      });
+    case "setSelectedSimulationFaction":
+      return withoutHistory(state, {
+        ...state.present,
+        selectedSimulationFactionId: action.factionId
+      });
+    case "setSelectedSimulationObjective":
+      return withoutHistory(state, {
+        ...state.present,
+        selectedSimulationObjectiveId: action.objectiveId
+      });
+    case "setSelectedSimulationMobileActor":
+      return withoutHistory(state, {
+        ...state.present,
+        selectedSimulationMobileActorId: action.actorId
       });
     case "setPendingGeography":
       return withoutHistory(state, {
@@ -824,6 +986,163 @@ export function mapEditorReducer(state: MapEditorHistoryState, action: MapEditor
       return withHistory(state, {
         ...state.present,
         layout
+      });
+    }
+    case "createSimulationFaction": {
+      const layout = cloneLayout(state.present.layout);
+      upsertSimulationFaction(layout, action.faction);
+      return withHistory(state, {
+        ...state.present,
+        layout,
+        selectedSimulationFactionId: action.faction.id
+      });
+    }
+    case "updateSelectedSimulationFactionField": {
+      if (!state.present.selectedSimulationFactionId) return state;
+      const layout = cloneLayout(state.present.layout);
+      updateSimulationFactionField(layout, state.present.selectedSimulationFactionId, action.field, action.value);
+      return withHistory(state, {
+        ...state.present,
+        layout,
+        selectedSimulationFactionId: action.field === "id" ? action.value.trim() : state.present.selectedSimulationFactionId
+      });
+    }
+    case "replaceSelectedSimulationFactionPresence": {
+      if (!state.present.selectedSimulationFactionId) return state;
+      const layout = cloneLayout(state.present.layout);
+      replaceSimulationFactionPresence(layout, state.present.selectedSimulationFactionId, action.cellKeys);
+      return withHistory(state, {
+        ...state.present,
+        layout,
+        selectedAreaCellKeys: action.cellKeys
+      });
+    }
+    case "addSelectedSimulationFactionPresence": {
+      if (!state.present.selectedSimulationFactionId) return state;
+      const layout = cloneLayout(state.present.layout);
+      addSimulationFactionPresence(layout, state.present.selectedSimulationFactionId, action.cellKeys);
+      return withHistory(state, {
+        ...state.present,
+        layout
+      });
+    }
+    case "removeSelectedSimulationFactionPresence": {
+      if (!state.present.selectedSimulationFactionId) return state;
+      const layout = cloneLayout(state.present.layout);
+      removeSimulationFactionPresence(layout, state.present.selectedSimulationFactionId, action.cellKeys);
+      return withHistory(state, {
+        ...state.present,
+        layout
+      });
+    }
+    case "deleteSelectedSimulationFaction": {
+      if (!state.present.selectedSimulationFactionId) return state;
+      const layout = cloneLayout(state.present.layout);
+      deleteSimulationFaction(layout, state.present.selectedSimulationFactionId);
+      return withHistory(state, {
+        ...state.present,
+        layout,
+        selectedSimulationFactionId: ""
+      });
+    }
+    case "createSimulationFactionRelation": {
+      if (!state.present.selectedSimulationFactionId) return state;
+      const layout = cloneLayout(state.present.layout);
+      upsertSimulationFactionRelation(layout, state.present.selectedSimulationFactionId, action.relation);
+      return withHistory(state, {
+        ...state.present,
+        layout
+      });
+    }
+    case "updateSelectedSimulationFactionRelationField": {
+      if (!state.present.selectedSimulationFactionId) return state;
+      const layout = cloneLayout(state.present.layout);
+      updateSimulationFactionRelationField(layout, state.present.selectedSimulationFactionId, action.targetFactionId, action.field, action.value);
+      return withHistory(state, {
+        ...state.present,
+        layout
+      });
+    }
+    case "deleteSelectedSimulationFactionRelation": {
+      if (!state.present.selectedSimulationFactionId) return state;
+      const layout = cloneLayout(state.present.layout);
+      deleteSimulationFactionRelation(layout, state.present.selectedSimulationFactionId, action.targetFactionId);
+      return withHistory(state, {
+        ...state.present,
+        layout
+      });
+    }
+    case "createSimulationObjective": {
+      const layout = cloneLayout(state.present.layout);
+      upsertSimulationObjective(layout, action.objective);
+      return withHistory(state, {
+        ...state.present,
+        layout,
+        selectedSimulationObjectiveId: action.objective.id
+      });
+    }
+    case "updateSelectedSimulationObjectiveField": {
+      if (!state.present.selectedSimulationObjectiveId) return state;
+      const layout = cloneLayout(state.present.layout);
+      updateSimulationObjectiveField(layout, state.present.selectedSimulationObjectiveId, action.field, action.value);
+      return withHistory(state, {
+        ...state.present,
+        layout,
+        selectedSimulationObjectiveId: action.field === "id" ? action.value.trim() : state.present.selectedSimulationObjectiveId
+      });
+    }
+    case "replaceSelectedSimulationObjectiveZones": {
+      if (!state.present.selectedSimulationObjectiveId) return state;
+      const layout = cloneLayout(state.present.layout);
+      const anchorCell = action.anchorCellKey
+        ? (() => {
+            const [x, y] = action.anchorCellKey.split(",").map(Number);
+            return { x, y };
+          })()
+        : undefined;
+      replaceSimulationObjectiveZones(layout, state.present.selectedSimulationObjectiveId, action.zoneIds, anchorCell);
+      return withHistory(state, {
+        ...state.present,
+        layout
+      });
+    }
+    case "deleteSelectedSimulationObjective": {
+      if (!state.present.selectedSimulationObjectiveId) return state;
+      const layout = cloneLayout(state.present.layout);
+      deleteSimulationObjective(layout, state.present.selectedSimulationObjectiveId);
+      return withHistory(state, {
+        ...state.present,
+        layout,
+        selectedSimulationObjectiveId: ""
+      });
+    }
+    case "createSimulationMobileActor": {
+      const layout = cloneLayout(state.present.layout);
+      upsertSimulationMobileActor(layout, action.actor);
+      return withHistory(state, {
+        ...state.present,
+        layout,
+        selectedSimulationMobileActorId: action.actor.id
+      });
+    }
+    case "updateSelectedSimulationMobileActorField": {
+      if (!state.present.selectedSimulationMobileActorId) return state;
+      const layout = cloneLayout(state.present.layout);
+      updateSimulationMobileActorField(layout, state.present.selectedSimulationMobileActorId, action.field, action.value);
+      return withHistory(state, {
+        ...state.present,
+        layout,
+        selectedSimulationMobileActorId: action.field === "id" ? action.value.trim() : state.present.selectedSimulationMobileActorId
+      });
+    }
+    case "deleteSelectedSimulationMobileActor": {
+      if (!state.present.selectedSimulationMobileActorId) return state;
+      const layout = cloneLayout(state.present.layout);
+      deleteSimulationMobileActor(layout, state.present.selectedSimulationMobileActorId);
+      return withHistory(state, {
+        ...state.present,
+        layout,
+        selectedSimulationMobileActorId: ""
       });
     }
     case "replaceLayout":

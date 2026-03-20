@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { EDITOR_THEME, createEditorButtonStyle } from "./editorTheme";
 
 type PanelId = "legend" | "layers" | "json";
-type EditorToolId = "inspect" | "terrain" | "places" | "zones" | "routes";
+type EditorToolId = "inspect" | "terrain" | "places" | "zones" | "routes" | "simulation";
 
 export function MapEditorToolbar(props: {
   panelLabels: Record<PanelId, string>;
@@ -62,7 +62,8 @@ export function MapEditorToolbar(props: {
           { id: "terrain", label: "Terrain" },
           { id: "places", label: "Lieux" },
           { id: "zones", label: "Organisation" },
-          { id: "routes", label: "Trace" }
+          { id: "routes", label: "Trace" },
+          { id: "simulation", label: "Simulation" }
         ] as Array<{ id: EditorToolId; label: string }>).map(tool => (
           <button
             key={tool.id}

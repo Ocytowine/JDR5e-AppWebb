@@ -7,6 +7,7 @@ export function MapEditorTopbar(props: {
   activeToolHint: string;
   persistenceLabel: string;
   persistenceColor: string;
+  actions?: React.ReactNode;
 }): React.JSX.Element {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
@@ -15,6 +16,7 @@ export function MapEditorTopbar(props: {
         <h3 style={{ margin: "4px 0 0", fontSize: 22, color: EDITOR_THEME.colors.text, fontFamily: EDITOR_THEME.fontFamily }}>{props.title}</h3>
       </div>
       <div style={{ display: "grid", gap: 2, justifyItems: "end" }}>
+        {props.actions ? <div style={{ marginBottom: 6 }}>{props.actions}</div> : null}
         <div style={{ fontSize: 12, color: props.persistenceColor, fontWeight: 800, fontFamily: EDITOR_THEME.fontFamily }}>{props.persistenceLabel}</div>
         <div style={{ fontSize: 12, color: EDITOR_THEME.colors.accent, fontWeight: 700, fontFamily: EDITOR_THEME.fontFamily }}>Outil: {props.activeToolLabel}</div>
         <div style={{ ...editorTextStyles.helper, maxWidth: 520, textAlign: "right" }}>{props.activeToolHint}</div>

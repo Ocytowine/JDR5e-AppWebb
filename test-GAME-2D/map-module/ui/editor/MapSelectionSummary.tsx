@@ -19,6 +19,7 @@ export function MapSelectionSummary(props: {
   selectedRegionName?: string | null;
   selectedZoneNames?: string[];
   selectedCityFactions?: string[];
+  selectedSimulationFactions?: string[];
   visible: boolean;
   position: { x: number; y: number };
   onMouseDown: (event: React.MouseEvent<HTMLDivElement>) => void;
@@ -72,6 +73,9 @@ export function MapSelectionSummary(props: {
         <div>Lieux: {props.selectedCell?.locationWikiIds?.length ? props.selectedCell.locationWikiIds.join(", ") : "aucun"}</div>
         {props.selectedCityFactions && props.selectedCityFactions.length > 0 && (
           <div>Factions: {props.selectedCityFactions.join(", ")}</div>
+        )}
+        {props.selectedSimulationFactions && props.selectedSimulationFactions.length > 0 && (
+          <div>Simulation: {props.selectedSimulationFactions.join(", ")}</div>
         )}
       </div>
     </div>

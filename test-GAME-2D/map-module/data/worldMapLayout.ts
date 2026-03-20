@@ -12,6 +12,23 @@ export type CliffSegment = {
 
 export type RoadType = "track" | "road" | "major_road";
 export type RiverSourceType = "source" | "tributary" | "main";
+export type SimulationObjectiveCategory =
+  | "search_object"
+  | "take_control_place"
+  | "weaken_rival"
+  | "extend_influence"
+  | "protect_secret"
+  | "recruit_agents"
+  | "acquire_resource"
+  | "open_route"
+  | "eliminate_threat"
+  | "recover_person";
+export type SimulationObjectiveState = "planned" | "active" | "blocked" | "completed" | "failed";
+export type SimulationObjectiveTargetKind = "city" | "district" | "route" | "region" | "faction" | "place";
+export type SimulationActorPositionKind = "city" | "route" | "region" | "cell";
+export type SimulationTravelMode = "road" | "river" | "sea" | "foot";
+export type SimulationActorLevel = "active" | "summary" | "abstract";
+export type SimulationFactionRelationStatus = "ally" | "neutral" | "rival" | "war";
 
 export type MapLayerId =
   | "background"
@@ -80,6 +97,86 @@ export type WorldMapCity = {
   governanceRole?: GovernanceCityRole;
 };
 
+export type WorldMapSimulationFaction = {
+  id: string;
+  label: string;
+  type: string;
+  color: string;
+  description: string;
+  agenda: string;
+  methods: string[];
+  objectiveHints: string[];
+  tags: string[];
+  homeCityId?: string;
+  homeRegionId?: string;
+  baseCell?: MapCell;
+  presenceCells: MapCell[];
+  influence: number;
+  power: number;
+  cohesion: number;
+  aggression: number;
+  secrecy: number;
+  resources: number;
+  relations: WorldMapSimulationFactionRelation[];
+};
+
+export type WorldMapSimulationFactionRelation = {
+  targetFactionId: string;
+  status: SimulationFactionRelationStatus;
+  trust: number;
+  hostility: number;
+  notes: string;
+};
+
+export type WorldMapSimulationObjective = {
+  id: string;
+  label: string;
+  category: SimulationObjectiveCategory;
+  ownerFactionId: string;
+  description: string;
+  whyItMatters: string;
+  targetKind?: SimulationObjectiveTargetKind;
+  targetId?: string;
+  priority: number;
+  progress: number;
+  state: SimulationObjectiveState;
+  obstacleHints: string[];
+  compatibleActionIds: string[];
+  tags: string[];
+  zoneIds: string[];
+  anchorCell?: MapCell;
+};
+
+export type WorldMapSimulationMobileActor = {
+  id: string;
+  label: string;
+  type: string;
+  color: string;
+  ownerFactionId?: string;
+  positionKind: SimulationActorPositionKind;
+  positionId?: string;
+  positionCell?: MapCell;
+  destinationKind?: SimulationActorPositionKind;
+  destinationId?: string;
+  itineraryRouteIds: string[];
+  travelMode: SimulationTravelMode;
+  speed: number;
+  security: number;
+  fatigue: number;
+  cargo: number;
+  headcount: number;
+  resources: number;
+  objectiveIds: string[];
+  interactionTags: string[];
+  simulationLevel: SimulationActorLevel;
+};
+
+export type WorldMapSimulationData = {
+  factions: WorldMapSimulationFaction[];
+  specialObjectives: WorldMapSimulationObjective[];
+  mobileActors: WorldMapSimulationMobileActor[];
+};
+
 export type MapPath = {
   id: string;
   label: string;
@@ -133,6 +230,7 @@ export type WorldMapLayoutSource = {
   paths: MapPath[];
   cliffSegments: CliffSegment[];
   cells: MapCellData[];
+  simulation?: WorldMapSimulationData;
 };
 
 export type WorldMapLayout = Omit<WorldMapLayoutSource, "backgroundImageKey"> & {
@@ -198,6 +296,56 @@ export function createRuntimeWorldMapLayout(
       sourceType: path.kind === "river" ? path.sourceType ?? "source" : undefined
     })),
     cliffSegments: Array.isArray(sourceLayout.cliffSegments) ? sourceLayout.cliffSegments : [],
+    simulation: {
+      factions: (sourceLayout.simulation?.factions ?? []).map(faction => ({
+        ...faction,
+        description: faction.description ?? "",
+        agenda: faction.agenda ?? "",
+        methods: Array.isArray(faction.methods) ? faction.methods : [],
+        objectiveHints: Array.isArray(faction.objectiveHints) ? faction.objectiveHints : [],
+        tags: Array.isArray(faction.tags) ? faction.tags : [],
+        presenceCells: Array.isArray(faction.presenceCells) ? faction.presenceCells : [],
+        influence: Math.max(0, Math.min(100, Number(faction.influence) || 0)),
+        power: Math.max(0, Math.min(100, Number(faction.power) || 0)),
+        cohesion: Math.max(0, Math.min(100, Number(faction.cohesion) || 0)),
+        aggression: Math.max(0, Math.min(100, Number(faction.aggression) || 0)),
+        secrecy: Math.max(0, Math.min(100, Number(faction.secrecy) || 0)),
+        resources: Math.max(0, Math.min(100, Number(faction.resources) || 0)),
+        relations: (faction.relations ?? []).map(relation => ({
+          targetFactionId: relation.targetFactionId,
+          status: relation.status ?? "neutral",
+          trust: Math.max(0, Math.min(100, Number(relation.trust) || 0)),
+          hostility: Math.max(0, Math.min(100, Number(relation.hostility) || 0)),
+          notes: relation.notes ?? ""
+        }))
+      })),
+      specialObjectives: (sourceLayout.simulation?.specialObjectives ?? []).map(objective => ({
+        ...objective,
+        description: objective.description ?? "",
+        whyItMatters: objective.whyItMatters ?? "",
+        obstacleHints: Array.isArray(objective.obstacleHints) ? objective.obstacleHints : [],
+        compatibleActionIds: Array.isArray(objective.compatibleActionIds) ? objective.compatibleActionIds : [],
+        tags: Array.isArray(objective.tags) ? objective.tags : [],
+        zoneIds: Array.isArray(objective.zoneIds) ? objective.zoneIds : [],
+        priority: Math.max(0, Math.min(100, Number(objective.priority) || 0)),
+        progress: Math.max(0, Math.min(100, Number(objective.progress) || 0)),
+        state: objective.state ?? "planned"
+      })),
+      mobileActors: (sourceLayout.simulation?.mobileActors ?? []).map(actor => ({
+        ...actor,
+        itineraryRouteIds: Array.isArray(actor.itineraryRouteIds) ? actor.itineraryRouteIds : [],
+        objectiveIds: Array.isArray(actor.objectiveIds) ? actor.objectiveIds : [],
+        interactionTags: Array.isArray(actor.interactionTags) ? actor.interactionTags : [],
+        travelMode: actor.travelMode ?? "road",
+        simulationLevel: actor.simulationLevel ?? "active",
+        speed: Math.max(0, Math.min(100, Number(actor.speed) || 0)),
+        security: Math.max(0, Math.min(100, Number(actor.security) || 0)),
+        fatigue: Math.max(0, Math.min(100, Number(actor.fatigue) || 0)),
+        cargo: Math.max(0, Math.min(100, Number(actor.cargo) || 0)),
+        headcount: Math.max(0, Math.min(100, Number(actor.headcount) || 0)),
+        resources: Math.max(0, Math.min(100, Number(actor.resources) || 0))
+      }))
+    },
     cells: sourceLayout.cells.map(
       (cell): MapCellData => ({
         ...cell,
@@ -227,7 +375,12 @@ export function serializeWorldMapLayout(layout: WorldMapLayout): WorldMapLayoutS
     cities: layout.cities,
     paths: layout.paths,
     cliffSegments: layout.cliffSegments,
-    cells: layout.cells
+    cells: layout.cells,
+    simulation: {
+      factions: layout.simulation?.factions ?? [],
+      specialObjectives: layout.simulation?.specialObjectives ?? [],
+      mobileActors: layout.simulation?.mobileActors ?? []
+    }
   };
 }
 

@@ -5,6 +5,7 @@ import { MapCanvas, getFrontMatterList, useWikiEntries } from "./mapShared";
 export function WorldMapViewerScreen(props: {
   layout: WorldMapLayout;
   onOpenEditor: () => void;
+  onOpenSimulation: () => void;
 }): React.JSX.Element {
   const [selectedCellKey, setSelectedCellKey] = useState<string>(getWorldMapCellKey({ x: 13, y: 11 }));
   const [selectedCityId, setSelectedCityId] = useState<string>(props.layout.cities[0]?.id ?? "");
@@ -81,6 +82,21 @@ export function WorldMapViewerScreen(props: {
             }}
           >
             Couches
+          </button>
+          <button
+            type="button"
+            onClick={props.onOpenSimulation}
+            style={{
+              padding: "8px 12px",
+              borderRadius: 8,
+              border: "1px solid rgba(255,255,255,0.14)",
+              background: "rgba(201,111,74,0.24)",
+              color: "#f5f5f5",
+              cursor: "pointer",
+              fontWeight: 700
+            }}
+          >
+            World simulation
           </button>
           <button
             type="button"
