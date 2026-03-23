@@ -111,6 +111,12 @@ function getDominantPressure(pressures: PressureMap | undefined): { type: Pressu
   return result && result.value > 0 ? result : null;
 }
 
+function getObjectiveTargetLabel(targetId: string | undefined): string | null {
+  if (!targetId) return null;
+  const leaf = targetId.split(":").pop() ?? targetId;
+  return leaf.replace(/_/g, " ");
+}
+
 export function WorldSimulationOverlay(props: {
   layout: WorldMapLayout;
   mode: OverlayMode;
@@ -140,10 +146,14 @@ export function WorldSimulationOverlay(props: {
       };
     })
   ).filter((entry, index, collection) => collection.findIndex(candidate => candidate.key === entry.key) === index);
+  const selectedFaction = factions.find(faction => faction.id === props.selectedFactionId) ?? null;
+  const selectedFactionObjectiveIds = new Set(
+    objectives.filter(objective => objective.ownerFactionId === props.selectedFactionId).map(objective => objective.id)
+  );
 
   return (
     <g pointerEvents="none">
-      {(props.mode === "factions" || props.mode === "all") &&
+      {(props.mode === "factions" || props.mode === "all" || props.mode === "relations") &&
         factions.flatMap(faction =>
           faction.presenceCells.map(cell => {
             const key = `${faction.id}:${getWorldMapCellKey(cell)}`;
@@ -160,15 +170,53 @@ export function WorldSimulationOverlay(props: {
           })
         )}
 
+      {(props.mode === "factions" || props.mode === "all" || props.mode === "relations") &&
+        factions.map(faction => {
+          const anchorCell = getFactionAnchorCell(props.layout, faction.id);
+          if (!anchorCell) return null;
+          const center = getCellCenter(props.layout, anchorCell);
+          const selected = props.selectedFactionId === faction.id;
+          const relatedToSelection =
+            Boolean(props.selectedFactionId) &&
+            relationSegments.some(
+              entry =>
+                (entry.sourceId === props.selectedFactionId && entry.targetId === faction.id) ||
+                (entry.targetId === props.selectedFactionId && entry.sourceId === faction.id)
+            );
+          if (!selected && !relatedToSelection && props.selectedFactionId) return null;
+          return (
+            <g key={`faction-anchor:${faction.id}`} transform={`translate(${center.x} ${center.y})`}>
+              <circle
+                r={selected ? 14 : 10}
+                fill={hexToRgba(faction.color, selected ? 0.95 : 0.78)}
+                stroke={selected ? "rgba(255,255,255,0.94)" : "rgba(12,16,24,0.88)"}
+                strokeWidth={selected ? 2.4 : 1.6}
+              />
+              <text
+                x={0}
+                y={selected ? -18 : -14}
+                textAnchor="middle"
+                fill="#eef3ff"
+                style={{ fontSize: selected ? 11 : 10, fontWeight: 800, paintOrder: "stroke", stroke: "rgba(8,11,17,0.86)", strokeWidth: 4 }}
+              >
+                {faction.label}
+              </text>
+            </g>
+          );
+        })}
+
       {(props.mode === "objectives" || props.mode === "all") &&
         objectives.map(objective => {
+          if (props.selectedFactionId && objective.ownerFactionId !== props.selectedFactionId) return null;
           const anchorCell =
             objective.anchorCell ??
             getEntityAnchorCell(props.layout, objective.targetKind, objective.targetId) ??
             null;
           if (!anchorCell) return null;
           const center = getCellCenter(props.layout, anchorCell);
-          const selected = !props.selectedObjectiveId || props.selectedObjectiveId === objective.id;
+          const selected =
+            (!props.selectedObjectiveId || props.selectedObjectiveId === objective.id) &&
+            (!props.selectedFactionId || selectedFactionObjectiveIds.has(objective.id));
           return (
             <g key={objective.id}>
               <circle
@@ -186,9 +234,57 @@ export function WorldSimulationOverlay(props: {
                 r={6}
                 fill={selected ? "#f4c967" : "rgba(244,201,103,0.72)"}
               />
+              <text
+                x={center.x}
+                y={center.y - (selected ? 28 : 20)}
+                textAnchor="middle"
+                fill="#f6e7a7"
+                style={{ fontSize: selected ? 11 : 10, fontWeight: 800, paintOrder: "stroke", stroke: "rgba(8,11,17,0.86)", strokeWidth: 4 }}
+              >
+                {objective.label}
+              </text>
+              {selected && getObjectiveTargetLabel(objective.targetId) ? (
+                <text
+                  x={center.x}
+                  y={center.y + 28}
+                  textAnchor="middle"
+                  fill="#ffe5a4"
+                  style={{ fontSize: 10, fontWeight: 800, paintOrder: "stroke", stroke: "rgba(8,11,17,0.86)", strokeWidth: 4 }}
+                >
+                  {getObjectiveTargetLabel(objective.targetId)}
+                </text>
+              ) : null}
             </g>
           );
         })}
+
+      {(props.mode === "objectives" || props.mode === "all") &&
+        selectedFaction &&
+        objectives
+          .filter(objective => objective.ownerFactionId === selectedFaction.id)
+          .map(objective => {
+            const factionCell = getFactionAnchorCell(props.layout, selectedFaction.id);
+            const anchorCell =
+              objective.anchorCell ??
+              getEntityAnchorCell(props.layout, objective.targetKind, objective.targetId) ??
+              null;
+            if (!factionCell || !anchorCell) return null;
+            const source = getCellCenter(props.layout, factionCell);
+            const target = getCellCenter(props.layout, anchorCell);
+            return (
+              <g key={`objective-link:${objective.id}`}>
+                <line
+                  x1={source.x}
+                  y1={source.y}
+                  x2={target.x}
+                  y2={target.y}
+                  stroke="rgba(244,201,103,0.68)"
+                  strokeWidth={2.4}
+                  strokeDasharray="8 6"
+                />
+              </g>
+            );
+          })}
 
       {(props.mode === "pressures" || props.mode === "all") && (
         <g>
@@ -275,7 +371,7 @@ export function WorldSimulationOverlay(props: {
         </g>
       )}
 
-      {(props.mode === "relations" || props.mode === "all") &&
+      {(props.mode === "relations" || props.mode === "all" || (props.mode === "factions" && Boolean(props.selectedFactionId))) &&
         relationSegments.map(entry => {
           const fromCell = getFactionAnchorCell(props.layout, entry.sourceId);
           const toCell = getFactionAnchorCell(props.layout, entry.targetId);

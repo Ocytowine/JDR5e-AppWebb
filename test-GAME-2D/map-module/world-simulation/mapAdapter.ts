@@ -193,13 +193,15 @@ function inferStructuralPlaces(city: WorldMapCity, cells: MapCellData[]): string
 function inferRouteStats(pathCells: MapCellData[], routeIdsTouching: number, roadType: WorldRoute["tags"][number]) {
   const tags = pathCells.flatMap(cell => cell.tags ?? []);
   const avgRisk = pathCells.reduce((sum, cell) => sum + (cell.riskLevel ?? 0), 0) / Math.max(pathCells.length, 1);
+  const avgTerrainDifficulty = pathCells.reduce((sum, cell) => sum + (cell.terrainDifficulty ?? 5), 0) / Math.max(pathCells.length, 1);
   const materialBase = roadType === "major_road" ? 62 : roadType === "road" ? 54 : 46;
   return {
     security: clamp(56 - avgRisk * 10 - countMatches(tags, ["dangereux", "ruines"]) * 8),
     traffic: clamp(28 + routeIdsTouching * 8 + countMatches(tags, ["commerce", "maritime", "urbain"]) * 5),
     materialState: clamp(materialBase - countMatches(tags, ["marais", "montagne"]) * 6),
     control: clamp(34 + countMatches(tags, ["urbain", "commerce"]) * 4 - countMatches(tags, ["frontalier"]) * 7),
-    ambushRisk: clamp(12 + avgRisk * 12 + countMatches(tags, ["dangereux", "frontalier", "forestier", "ruines"]) * 8)
+    ambushRisk: clamp(12 + avgRisk * 12 + countMatches(tags, ["dangereux", "frontalier", "forestier", "ruines"]) * 8),
+    terrainDifficulty: clamp(avgTerrainDifficulty, 1, 12)
   };
 }
 
@@ -218,6 +220,25 @@ function mergeRecord<T extends { id: string }>(base: Record<string, T>, patches?
   return Object.fromEntries(
     Object.entries(base).map(([id, entry]) => [id, { ...entry, ...(patches[id] ?? {}) }])
   );
+}
+
+function syncRouteMobileActorIds(routes: Record<string, WorldRoute>, mobileActors: Record<string, MobileActor>) {
+  Object.values(routes).forEach(route => {
+    route.mobileActorIds = [];
+  });
+
+  Object.values(mobileActors).forEach(actor => {
+    const routeId =
+      actor.position.kind === "route"
+        ? actor.position.id
+        : actor.itinerary[0];
+    if (!routeId) return;
+    const route = routes[routeId];
+    if (!route) return;
+    if (!route.mobileActorIds.includes(actor.id)) {
+      route.mobileActorIds.push(actor.id);
+    }
+  });
 }
 
 function deriveRuntimeFactionsFromLayout(layout: WorldMapLayout): Record<string, WorldFaction> {
@@ -251,6 +272,16 @@ function deriveRuntimeFactionsFromLayout(layout: WorldMapLayout): Record<string,
             aggressiveness: faction.aggression,
             discretion: faction.secrecy,
             security: clamp((faction.power + faction.cohesion) / 2)
+          },
+          ressourcesTransport: {
+            budgetTotal: faction.resources,
+            budgetDisponible: faction.resources,
+            chevauxTotal: Math.max(0, Math.round(faction.power * 0.25 + (type.includes("milice") || type.includes("garde") || type.includes("marchand") ? 8 : 2))),
+            chevauxDisponibles: Math.max(0, Math.round(faction.power * 0.25 + (type.includes("milice") || type.includes("garde") || type.includes("marchand") ? 8 : 2))),
+            bateauxTotal: Math.max(0, Math.round(faction.influence * 0.05 + ((faction.tags ?? []).includes("maritime") ? 2 : 0))),
+            bateauxDisponibles: Math.max(0, Math.round(faction.influence * 0.05 + ((faction.tags ?? []).includes("maritime") ? 2 : 0))),
+            effectifsTotal: Math.max(0, Math.round(faction.power * 0.7 + faction.cohesion * 0.3)),
+            effectifsDisponibles: Math.max(0, Math.round(faction.power * 0.7 + faction.cohesion * 0.3))
           },
           objectives: faction.objectiveHints.map((_, index) => ({
             objectiveId: `objective:map:${faction.id}:${index}`,
@@ -374,6 +405,14 @@ function deriveMobileActorsFromLayout(layout: WorldMapLayout): Record<string, Mo
             ? { kind: actor.destinationKind, id: actor.destinationId }
             : { kind: "route" as const, id: actor.destinationId }
           : undefined;
+      const modeTransport =
+        actor.travelMode === "river" || actor.travelMode === "sea"
+          ? "bateau"
+          : actor.travelMode === "foot"
+            ? "pied"
+            : actor.speed >= 4 && actor.headcount <= 24
+              ? "cheval"
+              : "pied";
       return [
         runtimeId,
         {
@@ -384,6 +423,8 @@ function deriveMobileActorsFromLayout(layout: WorldMapLayout): Record<string, Mo
           position,
           destination,
           itinerary: actor.itineraryRouteIds,
+          currentRouteTargetId: undefined,
+          modeTransport,
           travelMode: actor.travelMode,
           speed: actor.speed,
           routeProgress: 0,
@@ -542,6 +583,9 @@ export function createWorldStateFromMapLayout(layout: WorldMapLayout, overrides:
   const derivedFactions = deriveRuntimeFactionsFromLayout(layout);
   const derivedObjectives = deriveObjectivesFromLayout(layout);
   const derivedMobileActors = deriveMobileActorsFromLayout(layout);
+  const routes = seed.routes;
+  const mobileActors = { ...derivedMobileActors, ...(overrides.mobileActors ?? {}) };
+  syncRouteMobileActorIds(routes, mobileActors);
   return {
     clock: {
       tick: 0,
@@ -553,11 +597,11 @@ export function createWorldStateFromMapLayout(layout: WorldMapLayout, overrides:
     },
     cities: seed.cities,
     districts: seed.districts,
-    routes: seed.routes,
+    routes,
     regions: seed.regions,
     factions: { ...derivedFactions, ...(overrides.factions ?? {}) },
     specialObjectives: { ...derivedObjectives, ...(overrides.objectives ?? {}) },
-    mobileActors: { ...derivedMobileActors, ...(overrides.mobileActors ?? {}) },
+    mobileActors,
     tensions: overrides.tensions ?? {},
     pressures: {},
     pendingSignals: [],

@@ -30,6 +30,14 @@ export type WikiEntry = {
   body: string;
 };
 
+export type MapLayoutDescriptor = {
+  key: string;
+  title: string;
+  id: string;
+  path: string;
+  isDefault: boolean;
+};
+
 export type MapLabelAppearance = {
   fontSize: number;
   opacity: number;
@@ -809,16 +817,71 @@ export function useWikiCatalog(types?: string[]): {
   return { wikiCatalog, wikiCatalogLoading, wikiCatalogError };
 }
 
-export async function fetchWorldMapLayout(): Promise<WorldMapLayout> {
-  const response = await fetch("/api/map-module/layout");
+export async function fetchWorldMapLayouts(): Promise<MapLayoutDescriptor[]> {
+  const response = await fetch("/api/map-module/layouts");
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const payload = await response.json();
+  return Array.isArray(payload?.layouts) ? payload.layouts as MapLayoutDescriptor[] : [];
+}
+
+export async function duplicateWorldMapLayout(sourceKey: string, targetKey: string): Promise<WorldMapLayout> {
+  const response = await fetch("/api/map-module/layout/duplicate", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ sourceKey, targetKey })
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.error ?? `HTTP ${response.status}`);
+  }
+  const payload = await response.json();
+  return createRuntimeWorldMapLayout(payload.source as WorldMapLayoutSource);
+}
+
+export async function renameWorldMapLayout(sourceKey: string, targetKey: string): Promise<WorldMapLayout> {
+  const response = await fetch("/api/map-module/layout/rename", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ sourceKey, targetKey })
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.error ?? `HTTP ${response.status}`);
+  }
+  const payload = await response.json();
+  return createRuntimeWorldMapLayout(payload.source as WorldMapLayoutSource);
+}
+
+export async function deleteWorldMapLayout(layoutKey: string): Promise<void> {
+  const searchParams = new URLSearchParams();
+  if (layoutKey) searchParams.set("key", layoutKey);
+  const response = await fetch(`/api/map-module/layout?${searchParams.toString()}`, {
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.error ?? `HTTP ${response.status}`);
+  }
+}
+
+export async function fetchWorldMapLayout(layoutKey = "default"): Promise<WorldMapLayout> {
+  const searchParams = new URLSearchParams();
+  if (layoutKey) searchParams.set("key", layoutKey);
+  const response = await fetch(`/api/map-module/layout?${searchParams.toString()}`);
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const payload = await response.json();
   return createRuntimeWorldMapLayout(payload.source as WorldMapLayoutSource);
 }
 
-export async function saveWorldMapLayout(layout: WorldMapLayout): Promise<WorldMapLayout> {
+export async function saveWorldMapLayout(layout: WorldMapLayout, layoutKey = "default"): Promise<WorldMapLayout> {
   const source = serializeWorldMapLayout(layout);
-  const response = await fetch("/api/map-module/layout", {
+  const searchParams = new URLSearchParams();
+  if (layoutKey) searchParams.set("key", layoutKey);
+  const response = await fetch(`/api/map-module/layout?${searchParams.toString()}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json"
@@ -906,11 +969,16 @@ export function MapCanvas(props: {
   layerVisibility: Record<MapLayerId, boolean>;
   selectedCellKey: string | null;
   highlightedCellKeys?: string[];
+  routeCandidateCellKeys?: string[];
   selectedCityId?: string | null;
   selectedRouteId?: string | null;
   routeEditorActive?: boolean;
   terrainOverlayActive?: boolean;
   organizationOverlayActive?: boolean;
+  featureFade?: {
+    roads?: number;
+    rivers?: number;
+  };
   labelAppearance?: Partial<MapLabelAppearanceSet>;
   cliffEditPair?: { first: MapCell; second: MapCell } | null;
   onSetCliffHighCell?: (cell: MapCell) => void;
@@ -1270,6 +1338,7 @@ export function MapCanvas(props: {
           {renderableCells.map(cell => {
             const isSelected = getWorldMapCellKey(cell.cell) === props.selectedCellKey;
             const isHighlighted = (props.highlightedCellKeys ?? []).includes(getWorldMapCellKey(cell.cell));
+            const isRouteCandidate = (props.routeCandidateCellKeys ?? []).includes(getWorldMapCellKey(cell.cell));
             const fill =
               !props.layerVisibility.landWater
                 ? "rgba(255,255,255,0.02)"
@@ -1278,9 +1347,27 @@ export function MapCanvas(props: {
               <polygon
                 key={getWorldMapCellKey(cell.cell)}
                 points={getCellPolygon(props.layout, cell.cell)}
-                fill={isSelected ? "rgba(244,201,103,0.28)" : isHighlighted ? "rgba(122, 195, 255, 0.22)" : fill}
-                stroke={isSelected ? "rgba(244,201,103,0.95)" : isHighlighted ? "rgba(122,195,255,0.9)" : props.layerVisibility.grid ? "rgba(231,239,255,0.14)" : "transparent"}
-                strokeWidth={isSelected || isHighlighted ? "2" : "1"}
+                fill={
+                  isSelected
+                    ? "rgba(244,201,103,0.28)"
+                    : isRouteCandidate
+                      ? "rgba(125, 240, 175, 0.20)"
+                      : isHighlighted
+                        ? "rgba(122, 195, 255, 0.22)"
+                        : fill
+                }
+                stroke={
+                  isSelected
+                    ? "rgba(244,201,103,0.95)"
+                    : isRouteCandidate
+                      ? "rgba(125,240,175,0.92)"
+                      : isHighlighted
+                        ? "rgba(122,195,255,0.9)"
+                        : props.layerVisibility.grid
+                          ? "rgba(231,239,255,0.14)"
+                          : "transparent"
+                }
+                strokeWidth={isSelected || isHighlighted || isRouteCandidate ? "2" : "1"}
                 style={{ cursor: "pointer" }}
                 onClick={event => {
                   if (movedDuringPanRef.current) {
@@ -1640,7 +1727,7 @@ export function MapCanvas(props: {
                             stroke="#6ec9ff"
                             strokeWidth={segment.width}
                             strokeLinecap="round"
-                            opacity={0.88}
+                            opacity={props.featureFade?.rivers ?? 0.88}
                           />
                         );
                       })
@@ -1652,7 +1739,7 @@ export function MapCanvas(props: {
                         strokeWidth={getRiverStrokeWidth(flowValue)}
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        opacity={0.88}
+                        opacity={props.featureFade?.rivers ?? 0.88}
                       />
                     )}
                   {sourceCenter && (
@@ -1757,7 +1844,7 @@ export function MapCanvas(props: {
                       stroke="#cfa96b"
                       strokeWidth={getRoadStrokeWidth(path.roadType ?? "road")}
                       strokeLinecap="round"
-                      opacity={0.92}
+                      opacity={props.featureFade?.roads ?? 0.92}
                     />
                   );
                 })}

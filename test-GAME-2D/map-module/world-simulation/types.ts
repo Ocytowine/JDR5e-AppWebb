@@ -33,7 +33,8 @@ export type ScalarStat =
   | "discretion"
   | "fatigue"
   | "cargo"
-  | "headcount";
+  | "headcount"
+  | "terrainDifficulty";
 
 export type PressureType =
   | "criminal"
@@ -63,6 +64,9 @@ export type ObjectiveCategory =
   | "open_route"
   | "eliminate_threat"
   | "recover_person";
+
+export type TransportMode = "pied" | "cheval" | "bateau";
+export type MobilityIntent = "discret" | "rapide" | "charge" | "escorte" | "projection_force";
 
 export type ObjectiveState = "planned" | "active" | "blocked" | "completed" | "failed";
 
@@ -220,6 +224,7 @@ export type WorldFaction = {
   tags: string[];
   influenceZoneIds: EntityId[];
   state: DynamicStats;
+  ressourcesTransport?: FactionTransportResources;
   objectives: GoalRef[];
   relations: FactionRelation[];
   recentHistory: WorldHistoryEntry[];
@@ -250,6 +255,8 @@ export type MobileActor = {
   position: EntityRef;
   destination?: EntityRef;
   itinerary: EntityId[];
+  currentRouteTargetId?: EntityId;
+  modeTransport?: TransportMode;
   travelMode: "road" | "river" | "sea" | "foot";
   speed: number;
   routeProgress: number;
@@ -378,6 +385,7 @@ export type TickOutput = {
   signals: PerceptibleSignal[];
   rumors: Rumor[];
   opportunities: Opportunity[];
+  trace?: TickTrace;
 };
 
 export type WorldClock = {
@@ -430,4 +438,143 @@ export type TickContext = {
   generatedSignals: PerceptibleSignal[];
   generatedRumors: Rumor[];
   generatedOpportunities: Opportunity[];
+  trace: TickTrace;
+};
+
+export type FactionTransportResources = {
+  budgetTotal: number;
+  budgetDisponible: number;
+  chevauxTotal: number;
+  chevauxDisponibles: number;
+  bateauxTotal: number;
+  bateauxDisponibles: number;
+  effectifsTotal: number;
+  effectifsDisponibles: number;
+};
+
+export type MobilityRequirement = {
+  objectifId: EntityId;
+  factionId: EntityId;
+  categorie: ObjectiveCategory;
+  priorite: number;
+  intention: MobilityIntent;
+  cibleRef?: EntityRef;
+  cibleExecutionRef?: EntityRef;
+  besoinCharge: number;
+  besoinEffectif: number;
+  besoinDiscretion: number;
+  besoinVitesse: number;
+  besoinSecurite: number;
+};
+
+export type LogisticsPlanTrace = {
+  objectifId: EntityId;
+  factionId: EntityId;
+  categorie: ObjectiveCategory;
+  priorite: number;
+  modeRetenu?: TransportMode;
+  cibleExecutionRef?: EntityRef;
+  routeIds: EntityId[];
+  effectifPlanifie?: number;
+  chargePlanifiee?: number;
+  ticksEstimes?: number;
+  coutEstime?: number;
+  scoreRisque?: number;
+  faisable: boolean;
+  acteurAssigneId?: EntityId;
+  notes: string[];
+  raisonsBlocage: string[];
+};
+
+export type PressureTermTrace = {
+  source: string;
+  rawValue: number;
+  adjustedValue: number;
+  weight: number;
+  contribution: number;
+  inverted: boolean;
+};
+
+export type PressureEvaluationTrace = {
+  definitionId: string;
+  entityKind: Extract<WorldEntityKind, "city" | "district" | "route" | "region">;
+  entityId: EntityId;
+  pressureType: PressureType;
+  terms: PressureTermTrace[];
+  weightedValue: number;
+  weightTotal: number;
+  normalizedValue: number;
+  clampedValue: number;
+};
+
+export type PressureTraceSnapshot = Partial<
+  Record<
+    Extract<WorldEntityKind, "city" | "district" | "route" | "region">,
+    Record<EntityId, PressureEvaluationTrace[]>
+  >
+>;
+
+export type ActorCandidateTrace = {
+  actorRef: EntityRef;
+  objectiveId?: EntityId;
+  objectiveCategory?: ObjectiveCategory;
+  priority?: number;
+};
+
+export type ActionConditionTrace = {
+  type: ActionCondition["type"];
+  label: string;
+  passed: boolean;
+};
+
+export type ActionCandidateTrace = {
+  actorRef: EntityRef;
+  targetRef: EntityRef;
+  objectiveId?: EntityId;
+  actionId: WorldActionId;
+  passed: boolean;
+  score?: number;
+  scoreBreakdown?: {
+    basePriority: number;
+    targetPressure: number;
+    objectivePriorityBonus: number;
+    objectivePriorityContribution: number;
+    logisticsPlanBonus?: number;
+  };
+  rejectionReasons: string[];
+  conditions: ActionConditionTrace[];
+};
+
+export type SelectedActionTrace = {
+  actorRef: EntityRef;
+  targetRef: EntityRef;
+  objectiveId?: EntityId;
+  actionId: WorldActionId;
+  score: number;
+  success: boolean;
+  eventId: EntityId;
+  deltaCount: number;
+};
+
+export type MobilityTraceEntry = {
+  actorId: EntityId;
+  routeId?: EntityId;
+  outcome: "idle" | "progress" | "delayed" | "arrived" | "blocked" | "rerouted";
+  beforeProgress: number;
+  afterProgress: number;
+  notes: string[];
+};
+
+export type TickTrace = {
+  clockBefore: WorldClock;
+  clockAfter: WorldClock;
+  logisticsPlans: LogisticsPlanTrace[];
+  actorCandidates: ActorCandidateTrace[];
+  actionCandidates: ActionCandidateTrace[];
+  selectedActions: SelectedActionTrace[];
+  mobility: MobilityTraceEntry[];
+  pressureSnapshots: {
+    before: PressureTraceSnapshot;
+    after: PressureTraceSnapshot;
+  };
 };

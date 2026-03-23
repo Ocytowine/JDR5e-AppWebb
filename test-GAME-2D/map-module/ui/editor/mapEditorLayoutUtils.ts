@@ -22,6 +22,7 @@ import {
   type WorldMapLayout
 } from "../../data/worldMapLayout";
 import { createCityId, ensureCell } from "../mapShared";
+import { validateRouteAppend } from "../mapPathRules";
 
 type GeographyPreset = {
   id: string;
@@ -119,11 +120,8 @@ export function removeCliffSegment(layout: WorldMapLayout, first: MapCell, secon
 export function appendRoutePoint(layout: WorldMapLayout, selectedRouteId: string, cell: MapCell): void {
   const route = layout.paths.find(path => path.id === selectedRouteId);
   if (!route) return;
-  const key = getWorldMapCellKey(cell);
-  const lastKey = route.cells.length ? getWorldMapCellKey(route.cells[route.cells.length - 1]) : null;
-  if (key === lastKey) return;
-  const lastCell = route.cells.length ? route.cells[route.cells.length - 1] : null;
-  if (lastCell && route.kind === "road" && hasCliffBetweenCells(layout, lastCell, cell)) return;
+  const validation = validateRouteAppend(layout, route, cell);
+  if (!validation.ok) return;
   route.cells.push(cell);
 }
 

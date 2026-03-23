@@ -1,0 +1,2473 @@
+{
+  "id": "simulation-sandbox-four-winds",
+  "title": "Bac a sable de simulation - Quatre Vents",
+  "backgroundImageKey": "valmorin",
+  "grid": {
+    "cols": 18,
+    "rows": 12,
+    "tileSize": 72,
+    "orientation": "pointy-top",
+    "offset": "odd-r"
+  },
+  "defaultLayers": {
+    "background": true,
+    "grid": true,
+    "landWater": true,
+    "territories": true,
+    "regions": true,
+    "geographicZones": true,
+    "cities": true,
+    "roads": true,
+    "rivers": true
+  },
+  "governances": [
+    {
+      "id": "westreach_crown",
+      "wikiEntityId": "westreach_crown",
+      "label": "Couronne d'Occident",
+      "model": "monarchy",
+      "territoryId": "western_reach",
+      "capitalCityId": "stoneharbor",
+      "color": "#5a78b7"
+    },
+    {
+      "id": "marcher_compact",
+      "wikiEntityId": "marcher_compact",
+      "label": "Compact des Marches",
+      "model": "council",
+      "territoryId": "eastern_marches",
+      "capitalCityId": "dawnwatch",
+      "color": "#8c6a4a"
+    }
+  ],
+  "governanceTerritories": [
+    {
+      "id": "western_reach",
+      "wikiEntityId": "western_reach",
+      "governanceId": "westreach_crown",
+      "labelCell": {
+        "x": 7,
+        "y": 6
+      },
+      "color": "#5a78b7"
+    },
+    {
+      "id": "eastern_marches",
+      "wikiEntityId": "eastern_marches",
+      "governanceId": "marcher_compact",
+      "labelCell": {
+        "x": 13,
+        "y": 7
+      },
+      "color": "#8c6a4a"
+    }
+  ],
+  "governanceRegions": [
+    {
+      "id": "coastmarch",
+      "wikiEntityId": "coastmarch",
+      "labelCell": {
+        "x": 4,
+        "y": 7
+      },
+      "color": "#4f7db8",
+      "governanceId": "westreach_crown",
+      "territoryId": "western_reach",
+      "principalCityId": "stoneharbor"
+    },
+    {
+      "id": "ashen_hills",
+      "wikiEntityId": "ashen_hills",
+      "labelCell": {
+        "x": 9,
+        "y": 5
+      },
+      "color": "#8a6f54",
+      "governanceId": "westreach_crown",
+      "territoryId": "western_reach",
+      "principalCityId": "ironvale"
+    },
+    {
+      "id": "frontier_marches",
+      "wikiEntityId": "frontier_marches",
+      "labelCell": {
+        "x": 14,
+        "y": 4
+      },
+      "color": "#a25c49",
+      "governanceId": "marcher_compact",
+      "territoryId": "eastern_marches",
+      "principalCityId": "dawnwatch"
+    },
+    {
+      "id": "green_plains",
+      "wikiEntityId": "green_plains",
+      "labelCell": {
+        "x": 11,
+        "y": 9
+      },
+      "color": "#668b52",
+      "governanceId": "marcher_compact",
+      "territoryId": "eastern_marches",
+      "principalCityId": "briarford"
+    }
+  ],
+  "geographicZones": [
+    {
+      "id": "silver_coast",
+      "label": "Cote d'Argent",
+      "kind": "natural",
+      "labelCell": {
+        "x": 4,
+        "y": 8
+      },
+      "color": "#63a6d9",
+      "borderColor": "#63a6d9",
+      "borderWidth": 1.6,
+      "borderDashArray": "5 4"
+    },
+    {
+      "id": "pilgrim_way",
+      "label": "Voie des Pelerins",
+      "kind": "historical",
+      "labelCell": {
+        "x": 10,
+        "y": 4
+      },
+      "color": "#cfae68",
+      "borderColor": "#cfae68",
+      "borderWidth": 1.6,
+      "borderDashArray": "8 5"
+    },
+    {
+      "id": "march_of_thorns",
+      "label": "Marche des Epines",
+      "kind": "strategic",
+      "labelCell": {
+        "x": 14,
+        "y": 5
+      },
+      "color": "#c56a5c",
+      "borderColor": "#c56a5c",
+      "borderWidth": 1.8,
+      "borderDashArray": "6 6"
+    }
+  ],
+  "cities": [
+    {
+      "id": "stoneharbor",
+      "wikiEntityId": "stoneharbor",
+      "kind": "capital",
+      "cell": {
+        "x": 4,
+        "y": 7
+      },
+      "markerColor": "#f4c967",
+      "governanceId": "westreach_crown",
+      "governanceRole": "capital"
+    },
+    {
+      "id": "ironvale",
+      "wikiEntityId": "ironvale",
+      "kind": "secondary",
+      "cell": {
+        "x": 9,
+        "y": 5
+      },
+      "markerColor": "#d9b47a",
+      "governanceId": "westreach_crown",
+      "governanceRole": "primary"
+    },
+    {
+      "id": "dawnwatch",
+      "wikiEntityId": "dawnwatch",
+      "kind": "capital",
+      "cell": {
+        "x": 14,
+        "y": 4
+      },
+      "markerColor": "#9ac1ff",
+      "governanceId": "marcher_compact",
+      "governanceRole": "capital"
+    },
+    {
+      "id": "briarford",
+      "wikiEntityId": "briarford",
+      "kind": "secondary",
+      "cell": {
+        "x": 11,
+        "y": 9
+      },
+      "markerColor": "#a4d37a",
+      "governanceId": "marcher_compact",
+      "governanceRole": "primary"
+    }
+  ],
+  "paths": [
+    {
+      "id": "amber_road",
+      "label": "Route de l'Ambre",
+      "kind": "road",
+      "roadType": "major_road",
+      "cells": [
+        {
+          "x": 4,
+          "y": 7
+        },
+        {
+          "x": 5,
+          "y": 7
+        },
+        {
+          "x": 6,
+          "y": 7
+        },
+        {
+          "x": 7,
+          "y": 6
+        },
+        {
+          "x": 7,
+          "y": 5
+        },
+        {
+          "x": 8,
+          "y": 5
+        },
+        {
+          "x": 9,
+          "y": 5
+        },
+        {
+          "x": 10,
+          "y": 5
+        },
+        {
+          "x": 11,
+          "y": 5
+        },
+        {
+          "x": 12,
+          "y": 4
+        },
+        {
+          "x": 13,
+          "y": 4
+        },
+        {
+          "x": 14,
+          "y": 4
+        }
+      ]
+    },
+    {
+      "id": "south_grain_route",
+      "label": "Route du Grain du Sud",
+      "kind": "road",
+      "roadType": "road",
+      "cells": [
+        {
+          "x": 9,
+          "y": 5
+        },
+        {
+          "x": 9,
+          "y": 6
+        },
+        {
+          "x": 10,
+          "y": 6
+        },
+        {
+          "x": 10,
+          "y": 7
+        },
+        {
+          "x": 10,
+          "y": 8
+        },
+        {
+          "x": 11,
+          "y": 8
+        },
+        {
+          "x": 11,
+          "y": 9
+        }
+      ]
+    },
+    {
+      "id": "coast_trade_way",
+      "label": "Voie Commerciale Cotiere",
+      "kind": "road",
+      "roadType": "road",
+      "cells": [
+        {
+          "x": 11,
+          "y": 9
+        },
+        {
+          "x": 10,
+          "y": 9
+        },
+        {
+          "x": 9,
+          "y": 9
+        },
+        {
+          "x": 9,
+          "y": 8
+        },
+        {
+          "x": 8,
+          "y": 8
+        },
+        {
+          "x": 7,
+          "y": 8
+        },
+        {
+          "x": 6,
+          "y": 8
+        },
+        {
+          "x": 5,
+          "y": 8
+        },
+        {
+          "x": 4,
+          "y": 7
+        }
+      ]
+    },
+    {
+      "id": "pilgrims_path",
+      "label": "Chemin des Pelerins",
+      "kind": "road",
+      "roadType": "track",
+      "cells": [
+        {
+          "x": 4,
+          "y": 7
+        },
+        {
+          "x": 5,
+          "y": 6
+        },
+        {
+          "x": 6,
+          "y": 6
+        },
+        {
+          "x": 7,
+          "y": 6
+        },
+        {
+          "x": 7,
+          "y": 5
+        },
+        {
+          "x": 8,
+          "y": 4
+        },
+        {
+          "x": 9,
+          "y": 4
+        },
+        {
+          "x": 10,
+          "y": 4
+        },
+        {
+          "x": 11,
+          "y": 4
+        },
+        {
+          "x": 12,
+          "y": 4
+        },
+        {
+          "x": 13,
+          "y": 4
+        },
+        {
+          "x": 14,
+          "y": 4
+        }
+      ]
+    },
+    {
+      "id": "ridge_track",
+      "label": "Piste des Cretes",
+      "kind": "road",
+      "roadType": "track",
+      "cells": [
+        {
+          "x": 14,
+          "y": 4
+        },
+        {
+          "x": 14,
+          "y": 5
+        },
+        {
+          "x": 15,
+          "y": 5
+        },
+        {
+          "x": 15,
+          "y": 6
+        },
+        {
+          "x": 14,
+          "y": 7
+        },
+        {
+          "x": 14,
+          "y": 8
+        },
+        {
+          "x": 13,
+          "y": 8
+        },
+        {
+          "x": 12,
+          "y": 9
+        },
+        {
+          "x": 11,
+          "y": 9
+        }
+      ]
+    },
+    {
+      "id": "silverrun",
+      "label": "Cours d'Argent",
+      "kind": "river",
+      "sourceFlow": 2,
+      "sourceType": "main",
+      "cells": [
+        {
+          "x": 13,
+          "y": 2
+        },
+        {
+          "x": 12,
+          "y": 3
+        },
+        {
+          "x": 12,
+          "y": 4
+        },
+        {
+          "x": 11,
+          "y": 4
+        },
+        {
+          "x": 10,
+          "y": 5
+        },
+        {
+          "x": 10,
+          "y": 6
+        },
+        {
+          "x": 9,
+          "y": 6
+        },
+        {
+          "x": 8,
+          "y": 7
+        },
+        {
+          "x": 7,
+          "y": 7
+        },
+        {
+          "x": 6,
+          "y": 7
+        },
+        {
+          "x": 5,
+          "y": 7
+        },
+        {
+          "x": 4,
+          "y": 7
+        },
+        {
+          "x": 4,
+          "y": 8
+        },
+        {
+          "x": 3,
+          "y": 8
+        }
+      ]
+    },
+    {
+      "id": "frontier_supply_track",
+      "label": "Piste de Ravitaillement Frontaliere",
+      "kind": "road",
+      "roadType": "track",
+      "cells": [
+        {
+          "x": 11,
+          "y": 9
+        },
+        {
+          "x": 12,
+          "y": 9
+        },
+        {
+          "x": 13,
+          "y": 8
+        },
+        {
+          "x": 13,
+          "y": 7
+        },
+        {
+          "x": 13,
+          "y": 6
+        },
+        {
+          "x": 14,
+          "y": 6
+        },
+        {
+          "x": 14,
+          "y": 5
+        },
+        {
+          "x": 14,
+          "y": 4
+        }
+      ]
+    }
+  ],
+  "cliffSegments": [
+    {
+      "a": {
+        "x": 12,
+        "y": 3
+      },
+      "b": {
+        "x": 11,
+        "y": 4
+      },
+      "high": {
+        "x": 12,
+        "y": 3
+      },
+      "low": {
+        "x": 11,
+        "y": 4
+      }
+    },
+    {
+      "a": {
+        "x": 14,
+        "y": 4
+      },
+      "b": {
+        "x": 15,
+        "y": 5
+      },
+      "high": {
+        "x": 14,
+        "y": 4
+      },
+      "low": {
+        "x": 15,
+        "y": 5
+      }
+    }
+  ],
+  "cells": [
+    {
+      "cell": {
+        "x": 13,
+        "y": 2
+      },
+      "surface": "land",
+      "geography": "montagne",
+      "terrainDifficulty": 8,
+      "riskLevel": 4,
+      "tags": [
+        "frontalier"
+      ],
+      "governanceRegionId": "frontier_marches",
+      "geographicZoneIds": [
+        "march_of_thorns"
+      ],
+      "governanceTerritoryId": "eastern_marches"
+    },
+    {
+      "cell": {
+        "x": 12,
+        "y": 3
+      },
+      "surface": "land",
+      "geography": "colline",
+      "terrainDifficulty": 6,
+      "riskLevel": 4,
+      "tags": [
+        "frontalier"
+      ],
+      "governanceRegionId": "frontier_marches",
+      "geographicZoneIds": [
+        "march_of_thorns"
+      ],
+      "governanceTerritoryId": "eastern_marches"
+    },
+    {
+      "cell": {
+        "x": 13,
+        "y": 3
+      },
+      "surface": "land",
+      "geography": "montagne",
+      "terrainDifficulty": 8,
+      "riskLevel": 5,
+      "tags": [
+        "frontalier"
+      ],
+      "governanceRegionId": "frontier_marches",
+      "geographicZoneIds": [
+        "march_of_thorns"
+      ],
+      "governanceTerritoryId": "eastern_marches"
+    },
+    {
+      "cell": {
+        "x": 14,
+        "y": 3
+      },
+      "surface": "land",
+      "geography": "colline",
+      "terrainDifficulty": 6,
+      "riskLevel": 4,
+      "locationWikiIds": [
+        "sun_shrine"
+      ],
+      "tags": [
+        "sacre",
+        "frontalier"
+      ],
+      "governanceRegionId": "frontier_marches",
+      "geographicZoneIds": [
+        "march_of_thorns"
+      ],
+      "governanceTerritoryId": "eastern_marches"
+    },
+    {
+      "cell": {
+        "x": 7,
+        "y": 4
+      },
+      "surface": "land",
+      "geography": "plaine",
+      "terrainDifficulty": 5,
+      "riskLevel": 2,
+      "tags": [
+        "sacre"
+      ],
+      "governanceRegionId": "ashen_hills",
+      "geographicZoneIds": [
+        "pilgrim_way"
+      ],
+      "governanceTerritoryId": "western_reach"
+    },
+    {
+      "cell": {
+        "x": 8,
+        "y": 4
+      },
+      "surface": "land",
+      "geography": "colline",
+      "terrainDifficulty": 6,
+      "riskLevel": 3,
+      "tags": [
+        "forestier"
+      ],
+      "governanceRegionId": "ashen_hills",
+      "geographicZoneIds": [
+        "pilgrim_way"
+      ],
+      "governanceTerritoryId": "western_reach"
+    },
+    {
+      "cell": {
+        "x": 9,
+        "y": 4
+      },
+      "surface": "land",
+      "geography": "montagne",
+      "terrainDifficulty": 8,
+      "riskLevel": 4,
+      "tags": [
+        "minier"
+      ],
+      "governanceRegionId": "ashen_hills",
+      "geographicZoneIds": [
+        "pilgrim_way"
+      ],
+      "governanceTerritoryId": "western_reach"
+    },
+    {
+      "cell": {
+        "x": 10,
+        "y": 4
+      },
+      "surface": "land",
+      "geography": "colline",
+      "terrainDifficulty": 6,
+      "riskLevel": 3,
+      "locationWikiIds": [
+        "ash_monastery"
+      ],
+      "tags": [
+        "sacre"
+      ],
+      "governanceRegionId": "ashen_hills",
+      "geographicZoneIds": [
+        "pilgrim_way"
+      ],
+      "governanceTerritoryId": "western_reach"
+    },
+    {
+      "cell": {
+        "x": 11,
+        "y": 4
+      },
+      "surface": "land",
+      "geography": "plaine",
+      "terrainDifficulty": 5,
+      "riskLevel": 3,
+      "tags": [
+        "commerce",
+        "sacre"
+      ],
+      "governanceRegionId": "ashen_hills",
+      "geographicZoneIds": [
+        "pilgrim_way"
+      ],
+      "governanceTerritoryId": "western_reach"
+    },
+    {
+      "cell": {
+        "x": 12,
+        "y": 4
+      },
+      "surface": "land",
+      "geography": "colline",
+      "terrainDifficulty": 6,
+      "riskLevel": 5,
+      "tags": [
+        "frontalier",
+        "commerce"
+      ],
+      "governanceRegionId": "frontier_marches",
+      "geographicZoneIds": [
+        "pilgrim_way",
+        "march_of_thorns"
+      ],
+      "governanceTerritoryId": "eastern_marches"
+    },
+    {
+      "cell": {
+        "x": 13,
+        "y": 4
+      },
+      "surface": "land",
+      "geography": "colline",
+      "terrainDifficulty": 6,
+      "riskLevel": 6,
+      "tags": [
+        "urbain",
+        "frontalier"
+      ],
+      "governanceRegionId": "frontier_marches",
+      "geographicZoneIds": [
+        "march_of_thorns",
+        "pilgrim_way"
+      ],
+      "governanceTerritoryId": "eastern_marches"
+    },
+    {
+      "cell": {
+        "x": 14,
+        "y": 4
+      },
+      "surface": "land",
+      "geography": "urbain",
+      "terrainDifficulty": 4,
+      "riskLevel": 5,
+      "cityWikiId": "dawnwatch",
+      "locationWikiIds": [
+        "watch_keep",
+        "eastern_gate"
+      ],
+      "tags": [
+        "urbain",
+        "frontalier"
+      ],
+      "governanceRegionId": "frontier_marches",
+      "geographicZoneIds": [
+        "march_of_thorns",
+        "pilgrim_way"
+      ],
+      "governanceTerritoryId": "eastern_marches"
+    },
+    {
+      "cell": {
+        "x": 15,
+        "y": 4
+      },
+      "surface": "land",
+      "geography": "plaine",
+      "terrainDifficulty": 5,
+      "riskLevel": 8,
+      "tags": [
+        "ruines",
+        "dangereux",
+        "frontalier"
+      ],
+      "governanceRegionId": "frontier_marches",
+      "geographicZoneIds": [
+        "march_of_thorns"
+      ],
+      "governanceTerritoryId": "eastern_marches"
+    },
+    {
+      "cell": {
+        "x": 7,
+        "y": 5
+      },
+      "reliefElevation": "none",
+      "surface": "land",
+      "geography": "plaine",
+      "terrainDifficulty": 5,
+      "riskLevel": 2,
+      "tags": [
+        "sacre"
+      ],
+      "governanceRegionId": "ashen_hills",
+      "geographicZoneIds": [
+        "pilgrim_way"
+      ],
+      "governanceTerritoryId": "western_reach"
+    },
+    {
+      "cell": {
+        "x": 8,
+        "y": 5
+      },
+      "surface": "land",
+      "geography": "colline",
+      "terrainDifficulty": 6,
+      "riskLevel": 4,
+      "tags": [
+        "minier"
+      ],
+      "governanceRegionId": "ashen_hills",
+      "governanceTerritoryId": "western_reach"
+    },
+    {
+      "cell": {
+        "x": 9,
+        "y": 5
+      },
+      "surface": "land",
+      "geography": "urbain",
+      "terrainDifficulty": 4,
+      "riskLevel": 4,
+      "cityWikiId": "ironvale",
+      "locationWikiIds": [
+        "iron_market",
+        "miners_gate"
+      ],
+      "tags": [
+        "urbain",
+        "minier",
+        "commerce"
+      ],
+      "governanceRegionId": "ashen_hills",
+      "geographicZoneIds": [
+        "pilgrim_way"
+      ],
+      "governanceTerritoryId": "western_reach"
+    },
+    {
+      "cell": {
+        "x": 10,
+        "y": 5
+      },
+      "surface": "land",
+      "geography": "urbain",
+      "terrainDifficulty": 4,
+      "riskLevel": 4,
+      "tags": [
+        "urbain",
+        "commerce"
+      ],
+      "governanceRegionId": "ashen_hills",
+      "geographicZoneIds": [
+        "pilgrim_way"
+      ],
+      "governanceTerritoryId": "western_reach"
+    },
+    {
+      "cell": {
+        "x": 11,
+        "y": 5
+      },
+      "surface": "land",
+      "geography": "plaine",
+      "terrainDifficulty": 5,
+      "riskLevel": 5,
+      "tags": [
+        "frontalier",
+        "commerce"
+      ],
+      "governanceRegionId": "frontier_marches",
+      "geographicZoneIds": [
+        "march_of_thorns"
+      ],
+      "governanceTerritoryId": "eastern_marches"
+    },
+    {
+      "cell": {
+        "x": 12,
+        "y": 5
+      },
+      "surface": "land",
+      "geography": "plaine",
+      "terrainDifficulty": 5,
+      "riskLevel": 7,
+      "tags": [
+        "dangereux",
+        "ruines",
+        "frontalier"
+      ],
+      "governanceRegionId": "frontier_marches",
+      "geographicZoneIds": [
+        "march_of_thorns"
+      ],
+      "governanceTerritoryId": "eastern_marches"
+    },
+    {
+      "cell": {
+        "x": 13,
+        "y": 5
+      },
+      "surface": "land",
+      "geography": "plaine",
+      "terrainDifficulty": 5,
+      "riskLevel": 6,
+      "tags": [
+        "frontalier"
+      ],
+      "governanceRegionId": "frontier_marches",
+      "geographicZoneIds": [
+        "march_of_thorns"
+      ],
+      "governanceTerritoryId": "eastern_marches"
+    },
+    {
+      "cell": {
+        "x": 14,
+        "y": 5
+      },
+      "surface": "land",
+      "geography": "plaine",
+      "terrainDifficulty": 5,
+      "riskLevel": 6,
+      "tags": [
+        "frontalier"
+      ],
+      "governanceRegionId": "frontier_marches",
+      "geographicZoneIds": [
+        "march_of_thorns"
+      ],
+      "governanceTerritoryId": "eastern_marches"
+    },
+    {
+      "cell": {
+        "x": 15,
+        "y": 5
+      },
+      "surface": "land",
+      "geography": "colline",
+      "terrainDifficulty": 6,
+      "riskLevel": 8,
+      "tags": [
+        "dangereux",
+        "frontalier"
+      ],
+      "governanceRegionId": "frontier_marches",
+      "geographicZoneIds": [
+        "march_of_thorns"
+      ],
+      "governanceTerritoryId": "eastern_marches"
+    },
+    {
+      "cell": {
+        "x": 3,
+        "y": 6
+      },
+      "surface": "ocean",
+      "geography": "ocean",
+      "terrainDifficulty": 9,
+      "riskLevel": 1,
+      "tags": [
+        "maritime"
+      ],
+      "geographicZoneIds": [
+        "silver_coast"
+      ]
+    },
+    {
+      "cell": {
+        "x": 4,
+        "y": 6
+      },
+      "surface": "land",
+      "geography": "cote",
+      "terrainDifficulty": 5,
+      "riskLevel": 2,
+      "tags": [
+        "maritime",
+        "commerce"
+      ],
+      "governanceRegionId": "coastmarch",
+      "geographicZoneIds": [
+        "silver_coast"
+      ],
+      "governanceTerritoryId": "western_reach"
+    },
+    {
+      "cell": {
+        "x": 5,
+        "y": 6
+      },
+      "surface": "land",
+      "geography": "urbain",
+      "terrainDifficulty": 4,
+      "riskLevel": 4,
+      "locationWikiIds": [
+        "wharf_market"
+      ],
+      "tags": [
+        "urbain",
+        "commerce",
+        "maritime"
+      ],
+      "governanceRegionId": "coastmarch",
+      "geographicZoneIds": [
+        "silver_coast",
+        "pilgrim_way"
+      ],
+      "governanceTerritoryId": "western_reach"
+    },
+    {
+      "cell": {
+        "x": 6,
+        "y": 6
+      },
+      "surface": "land",
+      "geography": "urbain",
+      "terrainDifficulty": 4,
+      "riskLevel": 3,
+      "locationWikiIds": [
+        "sun_chapel"
+      ],
+      "tags": [
+        "urbain",
+        "sacre"
+      ],
+      "governanceRegionId": "coastmarch",
+      "geographicZoneIds": [
+        "pilgrim_way"
+      ],
+      "governanceTerritoryId": "western_reach"
+    },
+    {
+      "cell": {
+        "x": 7,
+        "y": 6
+      },
+      "reliefElevation": "none",
+      "surface": "land",
+      "geography": "plaine",
+      "terrainDifficulty": 5,
+      "riskLevel": 3,
+      "tags": [
+        "commerce"
+      ],
+      "governanceRegionId": "ashen_hills",
+      "governanceTerritoryId": "western_reach"
+    },
+    {
+      "cell": {
+        "x": 8,
+        "y": 6
+      },
+      "surface": "land",
+      "geography": "foret_dense",
+      "terrainDifficulty": 7,
+      "riskLevel": 5,
+      "tags": [
+        "forestier"
+      ],
+      "governanceRegionId": "ashen_hills",
+      "governanceTerritoryId": "western_reach"
+    },
+    {
+      "cell": {
+        "x": 9,
+        "y": 6
+      },
+      "surface": "land",
+      "geography": "colline",
+      "terrainDifficulty": 6,
+      "riskLevel": 5,
+      "tags": [
+        "minier"
+      ],
+      "governanceRegionId": "ashen_hills",
+      "governanceTerritoryId": "western_reach"
+    },
+    {
+      "cell": {
+        "x": 10,
+        "y": 6
+      },
+      "surface": "land",
+      "geography": "plaine",
+      "terrainDifficulty": 5,
+      "riskLevel": 3,
+      "tags": [
+        "agricole"
+      ],
+      "governanceRegionId": "green_plains",
+      "governanceTerritoryId": "eastern_marches"
+    },
+    {
+      "cell": {
+        "x": 12,
+        "y": 6
+      },
+      "reliefElevation": "none",
+      "surface": "land",
+      "geography": "plaine",
+      "terrainDifficulty": 5,
+      "riskLevel": 6,
+      "tags": [
+        "frontalier",
+        "dangereux",
+        "commerce"
+      ],
+      "governanceRegionId": "frontier_marches",
+      "geographicZoneIds": [
+        "march_of_thorns"
+      ],
+      "governanceTerritoryId": "eastern_marches"
+    },
+    {
+      "cell": {
+        "x": 13,
+        "y": 6
+      },
+      "reliefElevation": "none",
+      "surface": "land",
+      "geography": "plaine",
+      "terrainDifficulty": 5,
+      "riskLevel": 7,
+      "tags": [
+        "frontalier",
+        "dangereux"
+      ],
+      "governanceRegionId": "frontier_marches",
+      "geographicZoneIds": [
+        "march_of_thorns"
+      ],
+      "governanceTerritoryId": "eastern_marches"
+    },
+    {
+      "cell": {
+        "x": 14,
+        "y": 6
+      },
+      "reliefElevation": "none",
+      "surface": "land",
+      "geography": "plaine",
+      "terrainDifficulty": 5,
+      "riskLevel": 7,
+      "tags": [
+        "frontalier",
+        "dangereux"
+      ],
+      "governanceRegionId": "frontier_marches",
+      "geographicZoneIds": [
+        "march_of_thorns"
+      ],
+      "governanceTerritoryId": "eastern_marches"
+    },
+    {
+      "cell": {
+        "x": 15,
+        "y": 6
+      },
+      "surface": "land",
+      "geography": "foret_dense",
+      "terrainDifficulty": 7,
+      "riskLevel": 8,
+      "tags": [
+        "forestier",
+        "dangereux",
+        "frontalier"
+      ],
+      "governanceRegionId": "frontier_marches",
+      "geographicZoneIds": [
+        "march_of_thorns"
+      ],
+      "governanceTerritoryId": "eastern_marches"
+    },
+    {
+      "cell": {
+        "x": 3,
+        "y": 7
+      },
+      "surface": "ocean",
+      "geography": "ocean",
+      "terrainDifficulty": 9,
+      "riskLevel": 1,
+      "tags": [
+        "maritime"
+      ],
+      "geographicZoneIds": [
+        "silver_coast"
+      ]
+    },
+    {
+      "cell": {
+        "x": 4,
+        "y": 7
+      },
+      "surface": "land",
+      "geography": "urbain",
+      "terrainDifficulty": 4,
+      "riskLevel": 3,
+      "cityWikiId": "stoneharbor",
+      "locationWikiIds": [
+        "stoneharbor_docks",
+        "custom_house"
+      ],
+      "tags": [
+        "urbain",
+        "commerce",
+        "maritime"
+      ],
+      "governanceRegionId": "coastmarch",
+      "geographicZoneIds": [
+        "silver_coast"
+      ],
+      "governanceTerritoryId": "western_reach"
+    },
+    {
+      "cell": {
+        "x": 5,
+        "y": 7
+      },
+      "surface": "land",
+      "geography": "urbain",
+      "terrainDifficulty": 4,
+      "riskLevel": 5,
+      "tags": [
+        "urbain",
+        "commerce"
+      ],
+      "governanceRegionId": "coastmarch",
+      "geographicZoneIds": [
+        "silver_coast"
+      ],
+      "governanceTerritoryId": "western_reach"
+    },
+    {
+      "cell": {
+        "x": 6,
+        "y": 7
+      },
+      "surface": "land",
+      "geography": "plaine",
+      "terrainDifficulty": 5,
+      "riskLevel": 3,
+      "tags": [
+        "commerce"
+      ],
+      "governanceRegionId": "coastmarch",
+      "geographicZoneIds": [
+        "silver_coast"
+      ],
+      "governanceTerritoryId": "western_reach"
+    },
+    {
+      "cell": {
+        "x": 7,
+        "y": 7
+      },
+      "reliefElevation": "none",
+      "surface": "land",
+      "geography": "plaine",
+      "terrainDifficulty": 5,
+      "riskLevel": 3,
+      "tags": [
+        "commerce"
+      ],
+      "governanceRegionId": "coastmarch",
+      "governanceTerritoryId": "western_reach"
+    },
+    {
+      "cell": {
+        "x": 8,
+        "y": 7
+      },
+      "reliefElevation": "none",
+      "surface": "land",
+      "geography": "plaine",
+      "terrainDifficulty": 5,
+      "riskLevel": 3,
+      "tags": [
+        "commerce"
+      ],
+      "governanceRegionId": "ashen_hills",
+      "governanceTerritoryId": "western_reach"
+    },
+    {
+      "cell": {
+        "x": 10,
+        "y": 7
+      },
+      "surface": "land",
+      "geography": "plaine",
+      "terrainDifficulty": 5,
+      "riskLevel": 3,
+      "tags": [
+        "agricole",
+        "commerce"
+      ],
+      "governanceRegionId": "green_plains",
+      "governanceTerritoryId": "eastern_marches"
+    },
+    {
+      "cell": {
+        "x": 13,
+        "y": 7
+      },
+      "reliefElevation": "none",
+      "surface": "land",
+      "geography": "foret_dense",
+      "terrainDifficulty": 7,
+      "riskLevel": 8,
+      "tags": [
+        "frontalier",
+        "dangereux",
+        "forestier"
+      ],
+      "governanceRegionId": "frontier_marches",
+      "geographicZoneIds": [
+        "march_of_thorns"
+      ],
+      "governanceTerritoryId": "eastern_marches"
+    },
+    {
+      "cell": {
+        "x": 14,
+        "y": 7
+      },
+      "surface": "land",
+      "geography": "plaine",
+      "terrainDifficulty": 5,
+      "riskLevel": 6,
+      "tags": [
+        "frontalier",
+        "dangereux"
+      ],
+      "governanceRegionId": "frontier_marches",
+      "geographicZoneIds": [
+        "march_of_thorns"
+      ],
+      "governanceTerritoryId": "eastern_marches"
+    },
+    {
+      "cell": {
+        "x": 3,
+        "y": 8
+      },
+      "surface": "ocean",
+      "geography": "ocean",
+      "terrainDifficulty": 9,
+      "riskLevel": 1,
+      "tags": [
+        "maritime"
+      ],
+      "geographicZoneIds": [
+        "silver_coast"
+      ]
+    },
+    {
+      "cell": {
+        "x": 4,
+        "y": 8
+      },
+      "surface": "land",
+      "geography": "cote",
+      "terrainDifficulty": 5,
+      "riskLevel": 2,
+      "tags": [
+        "maritime",
+        "commerce"
+      ],
+      "governanceRegionId": "coastmarch",
+      "geographicZoneIds": [
+        "silver_coast"
+      ],
+      "governanceTerritoryId": "western_reach"
+    },
+    {
+      "cell": {
+        "x": 5,
+        "y": 8
+      },
+      "surface": "land",
+      "geography": "urbain",
+      "terrainDifficulty": 4,
+      "riskLevel": 7,
+      "tags": [
+        "urbain",
+        "dangereux",
+        "ruines"
+      ],
+      "governanceRegionId": "coastmarch",
+      "geographicZoneIds": [
+        "silver_coast"
+      ],
+      "governanceTerritoryId": "western_reach"
+    },
+    {
+      "cell": {
+        "x": 6,
+        "y": 8
+      },
+      "surface": "land",
+      "geography": "plaine",
+      "terrainDifficulty": 5,
+      "riskLevel": 4,
+      "tags": [
+        "commerce"
+      ],
+      "governanceRegionId": "coastmarch",
+      "governanceTerritoryId": "western_reach"
+    },
+    {
+      "cell": {
+        "x": 7,
+        "y": 8
+      },
+      "reliefElevation": "none",
+      "surface": "land",
+      "geography": "plaine",
+      "terrainDifficulty": 5,
+      "riskLevel": 4,
+      "tags": [
+        "commerce"
+      ],
+      "governanceRegionId": "coastmarch",
+      "governanceTerritoryId": "western_reach"
+    },
+    {
+      "cell": {
+        "x": 8,
+        "y": 8
+      },
+      "surface": "land",
+      "geography": "foret_claire",
+      "terrainDifficulty": 6,
+      "riskLevel": 5,
+      "tags": [
+        "forestier"
+      ],
+      "governanceRegionId": "green_plains",
+      "governanceTerritoryId": "eastern_marches"
+    },
+    {
+      "cell": {
+        "x": 9,
+        "y": 8
+      },
+      "surface": "land",
+      "geography": "colline",
+      "terrainDifficulty": 6,
+      "riskLevel": 4,
+      "tags": [
+        "forestier"
+      ],
+      "governanceRegionId": "green_plains",
+      "governanceTerritoryId": "eastern_marches"
+    },
+    {
+      "cell": {
+        "x": 10,
+        "y": 8
+      },
+      "surface": "land",
+      "geography": "plaine",
+      "terrainDifficulty": 5,
+      "riskLevel": 3,
+      "tags": [
+        "agricole",
+        "forestier"
+      ],
+      "governanceRegionId": "green_plains",
+      "governanceTerritoryId": "eastern_marches"
+    },
+    {
+      "cell": {
+        "x": 11,
+        "y": 8
+      },
+      "surface": "land",
+      "geography": "plaine",
+      "terrainDifficulty": 5,
+      "riskLevel": 2,
+      "tags": [
+        "agricole"
+      ],
+      "governanceRegionId": "green_plains",
+      "governanceTerritoryId": "eastern_marches"
+    },
+    {
+      "cell": {
+        "x": 12,
+        "y": 8
+      },
+      "surface": "land",
+      "geography": "plaine",
+      "terrainDifficulty": 5,
+      "riskLevel": 3,
+      "tags": [
+        "agricole"
+      ],
+      "governanceRegionId": "green_plains",
+      "governanceTerritoryId": "eastern_marches"
+    },
+    {
+      "cell": {
+        "x": 13,
+        "y": 8
+      },
+      "surface": "land",
+      "geography": "foret_dense",
+      "terrainDifficulty": 7,
+      "riskLevel": 7,
+      "tags": [
+        "forestier",
+        "dangereux",
+        "frontalier"
+      ],
+      "governanceRegionId": "frontier_marches",
+      "geographicZoneIds": [
+        "march_of_thorns"
+      ],
+      "governanceTerritoryId": "eastern_marches"
+    },
+    {
+      "cell": {
+        "x": 14,
+        "y": 8
+      },
+      "reliefElevation": "none",
+      "surface": "land",
+      "geography": "plaine",
+      "terrainDifficulty": 5,
+      "riskLevel": 6,
+      "tags": [
+        "frontalier",
+        "dangereux"
+      ],
+      "governanceRegionId": "frontier_marches",
+      "geographicZoneIds": [
+        "march_of_thorns"
+      ],
+      "governanceTerritoryId": "eastern_marches"
+    },
+    {
+      "cell": {
+        "x": 9,
+        "y": 9
+      },
+      "surface": "land",
+      "geography": "plaine",
+      "terrainDifficulty": 5,
+      "riskLevel": 2,
+      "tags": [
+        "agricole"
+      ],
+      "governanceRegionId": "green_plains",
+      "governanceTerritoryId": "eastern_marches"
+    },
+    {
+      "cell": {
+        "x": 10,
+        "y": 9
+      },
+      "surface": "land",
+      "geography": "urbain",
+      "terrainDifficulty": 4,
+      "riskLevel": 3,
+      "tags": [
+        "urbain",
+        "agricole",
+        "commerce"
+      ],
+      "governanceRegionId": "green_plains",
+      "governanceTerritoryId": "eastern_marches"
+    },
+    {
+      "cell": {
+        "x": 11,
+        "y": 9
+      },
+      "surface": "land",
+      "geography": "urbain",
+      "terrainDifficulty": 4,
+      "riskLevel": 3,
+      "cityWikiId": "briarford",
+      "locationWikiIds": [
+        "grain_square",
+        "river_barn"
+      ],
+      "tags": [
+        "urbain",
+        "agricole",
+        "commerce"
+      ],
+      "governanceRegionId": "green_plains",
+      "governanceTerritoryId": "eastern_marches"
+    },
+    {
+      "cell": {
+        "x": 12,
+        "y": 9
+      },
+      "surface": "land",
+      "geography": "foret_claire",
+      "terrainDifficulty": 6,
+      "riskLevel": 6,
+      "tags": [
+        "forestier",
+        "dangereux"
+      ],
+      "governanceRegionId": "green_plains",
+      "geographicZoneIds": [
+        "march_of_thorns"
+      ],
+      "governanceTerritoryId": "eastern_marches"
+    },
+    {
+      "cell": {
+        "x": 10,
+        "y": 10
+      },
+      "surface": "land",
+      "geography": "marais",
+      "terrainDifficulty": 7,
+      "riskLevel": 5,
+      "tags": [
+        "agricole"
+      ],
+      "governanceRegionId": "green_plains",
+      "governanceTerritoryId": "eastern_marches"
+    },
+    {
+      "cell": {
+        "x": 11,
+        "y": 10
+      },
+      "surface": "land",
+      "geography": "plaine",
+      "terrainDifficulty": 5,
+      "riskLevel": 2,
+      "tags": [
+        "agricole"
+      ],
+      "governanceRegionId": "green_plains",
+      "governanceTerritoryId": "eastern_marches"
+    }
+  ],
+  "simulation": {
+    "factions": [
+      {
+        "id": "harbor_league",
+        "label": "Ligue du Port",
+        "type": "merchant_guild",
+        "color": "#5eaf7c",
+        "description": "Consortium marchand adosse a la Couronne d'Occident, dominant Stoneharbor et les flux entre Coastmarch et Ashen Hills.",
+        "agenda": "Conserver la primaute economique du western_reach et garder les deux regions de l'ouest ouvertes au commerce.",
+        "methods": [
+          "negociation",
+          "escorte",
+          "pression economique"
+        ],
+        "objectiveHints": [
+          "ouvrir route",
+          "acquerir ressource",
+          "etendre influence"
+        ],
+        "tags": [
+          "trade",
+          "territorial",
+          "western_reach"
+        ],
+        "homeCityId": "stoneharbor",
+        "baseCell": {
+          "x": 4,
+          "y": 7
+        },
+        "presenceCells": [
+          {
+            "x": 4,
+            "y": 7
+          },
+          {
+            "x": 5,
+            "y": 6
+          },
+          {
+            "x": 9,
+            "y": 5
+          },
+          {
+            "x": 10,
+            "y": 8
+          },
+          {
+            "x": 11,
+            "y": 9
+          }
+        ],
+        "influence": 68,
+        "power": 46,
+        "cohesion": 61,
+        "aggression": 20,
+        "secrecy": 38,
+        "resources": 72,
+        "relations": [
+          {
+            "targetFactionId": "red_knives",
+            "status": "rival",
+            "trust": 18,
+            "hostility": 62,
+            "notes": "Le racket des docks casse les marges."
+          },
+          {
+            "targetFactionId": "dawn_guard",
+            "status": "ally",
+            "trust": 64,
+            "hostility": 12,
+            "notes": "La garde protege les convois les plus visibles."
+          },
+          {
+            "targetFactionId": "ember_cult",
+            "status": "neutral",
+            "trust": 37,
+            "hostility": 18,
+            "notes": "Relations tolerantes autour des pelerinages."
+          }
+        ],
+        "homeRegionId": "coastmarch"
+      },
+      {
+        "id": "red_knives",
+        "label": "Couteaux Rouges",
+        "type": "criminal_network",
+        "color": "#c96f4a",
+        "description": "Reseau criminel parasite du western_reach, installe a Stoneharbor mais actif jusqu'a Briarford et aux lisieres de l'est.",
+        "agenda": "Exploiter les failles entre territoires, corrompre les relais et faire monter la peur dans les zones de transit.",
+        "methods": [
+          "extorsion",
+          "contrebande",
+          "recrutement"
+        ],
+        "objectiveHints": [
+          "acquerir ressource",
+          "recruter",
+          "affaiblir rival"
+        ],
+        "tags": [
+          "criminal",
+          "cross_border",
+          "western_reach"
+        ],
+        "homeCityId": "stoneharbor",
+        "baseCell": {
+          "x": 5,
+          "y": 8
+        },
+        "presenceCells": [
+          {
+            "x": 5,
+            "y": 8
+          },
+          {
+            "x": 11,
+            "y": 9
+          },
+          {
+            "x": 12,
+            "y": 5
+          },
+          {
+            "x": 13,
+            "y": 8
+          }
+        ],
+        "influence": 57,
+        "power": 49,
+        "cohesion": 42,
+        "aggression": 63,
+        "secrecy": 70,
+        "resources": 54,
+        "relations": [
+          {
+            "targetFactionId": "harbor_league",
+            "status": "rival",
+            "trust": 8,
+            "hostility": 73,
+            "notes": "Les convois bien gardes sont une cible prioritaire."
+          },
+          {
+            "targetFactionId": "dawn_guard",
+            "status": "war",
+            "trust": 2,
+            "hostility": 88,
+            "notes": "La garde multiplie les descentes et les confiscations."
+          },
+          {
+            "targetFactionId": "ember_cult",
+            "status": "neutral",
+            "trust": 19,
+            "hostility": 24,
+            "notes": "Le culte peut servir d'ecran ou de source."
+          }
+        ],
+        "homeRegionId": "coastmarch"
+      },
+      {
+        "id": "dawn_guard",
+        "label": "Garde de l'Aube",
+        "type": "militia",
+        "color": "#5f86d8",
+        "description": "Force du Compact des Marches chargee de tenir la capitale orientale et les deux regions des marches.",
+        "agenda": "Maintenir l'autorite du marcher_compact sur frontier_marches et green_plains tout en gardant le lien avec l'ouest.",
+        "methods": [
+          "patrouille",
+          "escorte",
+          "pression militaire"
+        ],
+        "objectiveHints": [
+          "ouvrir route",
+          "eliminer menace",
+          "prise controle lieu"
+        ],
+        "tags": [
+          "military",
+          "civic",
+          "eastern_marches"
+        ],
+        "homeCityId": "dawnwatch",
+        "homeRegionId": "frontier_marches",
+        "baseCell": {
+          "x": 14,
+          "y": 4
+        },
+        "presenceCells": [
+          {
+            "x": 14,
+            "y": 4
+          },
+          {
+            "x": 13,
+            "y": 4
+          },
+          {
+            "x": 12,
+            "y": 4
+          },
+          {
+            "x": 15,
+            "y": 5
+          }
+        ],
+        "influence": 61,
+        "power": 66,
+        "cohesion": 72,
+        "aggression": 48,
+        "secrecy": 28,
+        "resources": 59,
+        "relations": [
+          {
+            "targetFactionId": "harbor_league",
+            "status": "ally",
+            "trust": 58,
+            "hostility": 14,
+            "notes": "Les taxes de route financent une partie des patrouilles."
+          },
+          {
+            "targetFactionId": "red_knives",
+            "status": "war",
+            "trust": 1,
+            "hostility": 92,
+            "notes": "Objectif assume d'arracher le reseau criminel aux Marches."
+          },
+          {
+            "targetFactionId": "ember_cult",
+            "status": "neutral",
+            "trust": 31,
+            "hostility": 22,
+            "notes": "Le culte est tolere tant qu'il ne trouble pas les routes."
+          }
+        ]
+      },
+      {
+        "id": "ember_cult",
+        "label": "Culte de la Braise",
+        "type": "cult",
+        "color": "#d4b16a",
+        "description": "Ordre religieux implante dans Ashen Hills, partage entre loyaute locale au western_reach et expeditions discretes vers l'est.",
+        "agenda": "Retrouver le Fragment Solaire sans provoquer de rupture ouverte entre les deux territoires.",
+        "methods": [
+          "enquete",
+          "pelerinage",
+          "secret"
+        ],
+        "objectiveHints": [
+          "recherche objet",
+          "proteger secret",
+          "etendre influence"
+        ],
+        "tags": [
+          "religious",
+          "ashen_hills",
+          "cross_border"
+        ],
+        "homeCityId": "ironvale",
+        "baseCell": {
+          "x": 10,
+          "y": 4
+        },
+        "presenceCells": [
+          {
+            "x": 10,
+            "y": 4
+          },
+          {
+            "x": 11,
+            "y": 4
+          },
+          {
+            "x": 14,
+            "y": 3
+          }
+        ],
+        "influence": 45,
+        "power": 33,
+        "cohesion": 58,
+        "aggression": 26,
+        "secrecy": 62,
+        "resources": 40,
+        "relations": [
+          {
+            "targetFactionId": "harbor_league",
+            "status": "neutral",
+            "trust": 36,
+            "hostility": 14,
+            "notes": "Les caravanes de pelerins utilisent parfois les relais marchands."
+          },
+          {
+            "targetFactionId": "red_knives",
+            "status": "rival",
+            "trust": 10,
+            "hostility": 47,
+            "notes": "Le culte craint l'infiltration de ses sanctuaires."
+          },
+          {
+            "targetFactionId": "dawn_guard",
+            "status": "neutral",
+            "trust": 33,
+            "hostility": 20,
+            "notes": "La garde surveille, mais n'a pas encore frappe."
+          }
+        ],
+        "homeRegionId": "ashen_hills"
+      }
+    ],
+    "specialObjectives": [
+      {
+        "id": "secure_amber_road",
+        "label": "Securiser la Route de l'Ambre",
+        "category": "open_route",
+        "ownerFactionId": "dawn_guard",
+        "description": "Rouvrir l axe politique et logistique principal entre les deux capitales territoriales.",
+        "whyItMatters": "Sans cette route, la coordination entre Stoneharbor et Dawnwatch s'effondre et les deux territoires se replient sur eux-memes.",
+        "targetKind": "route",
+        "targetId": "amber_road",
+        "priority": 82,
+        "progress": 24,
+        "state": "active",
+        "obstacleHints": [
+          "bandit_cells",
+          "weak_outposts"
+        ],
+        "compatibleActionIds": [
+          "secure_route",
+          "escort_convoy",
+          "patrol"
+        ],
+        "tags": [
+          "route",
+          "security",
+          "frontier"
+        ],
+        "zoneIds": [
+          "amber_road",
+          "stoneharbor",
+          "dawnwatch",
+          "western_reach",
+          "eastern_marches"
+        ],
+        "anchorCell": {
+          "x": 10,
+          "y": 5
+        }
+      },
+      {
+        "id": "recover_sun_shard",
+        "label": "Retrouver le Fragment Solaire",
+        "category": "search_object",
+        "ownerFactionId": "ember_cult",
+        "description": "Retrouver un fragment sacre cache pres des vieux postes de la frontiere.",
+        "whyItMatters": "Le fragment conditionne un rituel de legitimite du culte.",
+        "targetKind": "district",
+        "targetId": "dawnwatch:sanctuary",
+        "priority": 76,
+        "progress": 18,
+        "state": "active",
+        "obstacleHints": [
+          "guard_patrols",
+          "false_relics"
+        ],
+        "compatibleActionIds": [
+          "investigate",
+          "search_clue",
+          "question_source"
+        ],
+        "tags": [
+          "artifact",
+          "religion",
+          "secret"
+        ],
+        "zoneIds": [
+          "dawnwatch",
+          "frontier_marches"
+        ],
+        "anchorCell": {
+          "x": 14,
+          "y": 3
+        }
+      },
+      {
+        "id": "expand_blackmail_racket",
+        "label": "Etendre le Racket de Chantage",
+        "category": "acquire_resource",
+        "ownerFactionId": "red_knives",
+        "description": "Installer un racket stable sur les quais et les granges de sortie.",
+        "whyItMatters": "Le reseau a besoin de liquidites pour corrompre les relais.",
+        "targetKind": "district",
+        "targetId": "stoneharbor:harbor",
+        "priority": 74,
+        "progress": 30,
+        "state": "active",
+        "obstacleHints": [
+          "watch_presence",
+          "merchant_resistance"
+        ],
+        "compatibleActionIds": [
+          "extort",
+          "recruit"
+        ],
+        "tags": [
+          "crime",
+          "fear",
+          "docks"
+        ],
+        "zoneIds": [
+          "stoneharbor",
+          "coastmarch"
+        ],
+        "anchorCell": {
+          "x": 5,
+          "y": 6
+        }
+      },
+      {
+        "id": "stabilize_grain_flow",
+        "label": "Stabiliser le Flux de Grain",
+        "category": "open_route",
+        "ownerFactionId": "harbor_league",
+        "description": "Maintenir le flux de grain entre Briarford, Ironvale et la capitale occidentale.",
+        "whyItMatters": "Le western_reach garde son poids politique tant que Stoneharbor reste approvisionnee par les plaines orientales.",
+        "targetKind": "route",
+        "targetId": "south_grain_route",
+        "priority": 70,
+        "progress": 35,
+        "state": "active",
+        "obstacleHints": [
+          "seasonal_mud",
+          "smuggler_tithes"
+        ],
+        "compatibleActionIds": [
+          "secure_route",
+          "escort_convoy"
+        ],
+        "tags": [
+          "trade",
+          "supply",
+          "grain"
+        ],
+        "zoneIds": [
+          "south_grain_route",
+          "briarford",
+          "stoneharbor",
+          "green_plains",
+          "western_reach",
+          "eastern_marches"
+        ],
+        "anchorCell": {
+          "x": 10,
+          "y": 8
+        }
+      },
+      {
+        "id": "recruit_frontier_informants",
+        "label": "Recruter des Informateurs Frontaliers",
+        "category": "recruit_agents",
+        "ownerFactionId": "red_knives",
+        "description": "Retourner des guetteurs dans les hameaux de lisiere afin de fissurer le controle du Compact des Marches.",
+        "whyItMatters": "Si le reseau s'implante dans frontier_marches, il peut frapper Dawnwatch et menacer la cohesion de l'eastern_marches.",
+        "targetKind": "district",
+        "targetId": "dawnwatch:outskirts",
+        "priority": 64,
+        "progress": 12,
+        "state": "active",
+        "obstacleHints": [
+          "loyalist_families",
+          "guard_raids"
+        ],
+        "compatibleActionIds": [
+          "recruit"
+        ],
+        "tags": [
+          "crime",
+          "network",
+          "frontier"
+        ],
+        "zoneIds": [
+          "dawnwatch",
+          "frontier_marches",
+          "eastern_marches"
+        ],
+        "anchorCell": {
+          "x": 15,
+          "y": 5
+        }
+      },
+      {
+        "id": "hold_frontier_supply_line",
+        "label": "Tenir la Ligne de Ravitaillement Frontaliere",
+        "category": "open_route",
+        "ownerFactionId": "dawn_guard",
+        "description": "Maintenir une piste secondaire praticable entre Green Plains et la capitale orientale.",
+        "whyItMatters": "Cette ligne de secours empeche frontier_marches d'etre isolee quand la Route de l'Ambre devient trop dangereuse.",
+        "targetKind": "route",
+        "targetId": "frontier_supply_track",
+        "priority": 68,
+        "progress": 16,
+        "state": "active",
+        "obstacleHints": [
+          "mud",
+          "ambush_cells",
+          "thin_escorts"
+        ],
+        "compatibleActionIds": [
+          "secure_route",
+          "escort_convoy",
+          "patrol"
+        ],
+        "tags": [
+          "route",
+          "supply",
+          "frontier"
+        ],
+        "zoneIds": [
+          "frontier_supply_track",
+          "briarford",
+          "dawnwatch",
+          "green_plains",
+          "frontier_marches",
+          "eastern_marches"
+        ],
+        "anchorCell": {
+          "x": 13,
+          "y": 7
+        }
+      },
+      {
+        "id": "assert_western_customs",
+        "label": "Affirmer la Douane Occidentale",
+        "category": "take_control_place",
+        "ownerFactionId": "harbor_league",
+        "description": "Renforcer la douane et les relais de Stoneharbor pour que le western_reach garde la main sur les flux entrant depuis l'est.",
+        "whyItMatters": "Le controle des taxes donne a la Couronne d'Occident un levier direct sur les routes, les convois et les factions privees.",
+        "targetKind": "district",
+        "targetId": "stoneharbor:custom_house",
+        "priority": 66,
+        "progress": 28,
+        "state": "active",
+        "obstacleHints": [
+          "smuggler_pressure",
+          "weak_clerks",
+          "shared_route_dependence"
+        ],
+        "compatibleActionIds": [
+          "tax",
+          "close_location",
+          "investigate"
+        ],
+        "tags": [
+          "trade",
+          "politics",
+          "capital"
+        ],
+        "zoneIds": [
+          "stoneharbor",
+          "coastmarch",
+          "western_reach"
+        ],
+        "anchorCell": {
+          "x": 4,
+          "y": 7
+        }
+      },
+      {
+        "id": "secure_dawnwatch_gate",
+        "label": "Securiser la Porte de Dawnwatch",
+        "category": "take_control_place",
+        "ownerFactionId": "dawn_guard",
+        "description": "Durcir les controles autour de Dawnwatch pour empecher infiltrations, rumeurs hostiles et contrebande de frontiere.",
+        "whyItMatters": "La capitale orientale doit rester le point d'ancrage politique du Compact des Marches sur ses deux regions.",
+        "targetKind": "district",
+        "targetId": "dawnwatch:gate_district",
+        "priority": 71,
+        "progress": 34,
+        "state": "active",
+        "obstacleHints": [
+          "overstretched_patrols",
+          "hidden_informants",
+          "route_dependency"
+        ],
+        "compatibleActionIds": [
+          "patrol",
+          "investigate",
+          "secure_route"
+        ],
+        "tags": [
+          "military",
+          "capital",
+          "politics"
+        ],
+        "zoneIds": [
+          "dawnwatch",
+          "frontier_marches",
+          "eastern_marches"
+        ],
+        "anchorCell": {
+          "x": 14,
+          "y": 4
+        }
+      }
+    ],
+    "mobileActors": [
+      {
+        "id": "grain_convoy",
+        "label": "Convoi de Grain",
+        "type": "caravan",
+        "color": "#7cb86a",
+        "ownerFactionId": "harbor_league",
+        "positionKind": "route",
+        "positionId": "south_grain_route",
+        "destinationKind": "city",
+        "destinationId": "stoneharbor",
+        "itineraryRouteIds": [
+          "south_grain_route",
+          "coast_trade_way"
+        ],
+        "travelMode": "road",
+        "speed": 4,
+        "security": 42,
+        "fatigue": 16,
+        "cargo": 70,
+        "headcount": 24,
+        "resources": 22,
+        "objectiveIds": [
+          "stabilize_grain_flow",
+          "assert_western_customs"
+        ],
+        "interactionTags": [
+          "trade",
+          "escort",
+          "supply"
+        ],
+        "simulationLevel": "active"
+      },
+      {
+        "id": "frontier_patrol",
+        "label": "Patrouille Frontaliere",
+        "type": "patrol_column",
+        "color": "#6d98e2",
+        "ownerFactionId": "dawn_guard",
+        "positionKind": "route",
+        "positionId": "amber_road",
+        "destinationKind": "city",
+        "destinationId": "dawnwatch",
+        "itineraryRouteIds": [
+          "amber_road"
+        ],
+        "travelMode": "road",
+        "speed": 5,
+        "security": 63,
+        "fatigue": 18,
+        "cargo": 20,
+        "headcount": 32,
+        "resources": 18,
+        "objectiveIds": [
+          "secure_amber_road",
+          "secure_dawnwatch_gate"
+        ],
+        "interactionTags": [
+          "military",
+          "escort",
+          "inspection",
+          "capital_security"
+        ],
+        "simulationLevel": "active"
+      },
+      {
+        "id": "pilgrim_column",
+        "label": "Colonne de Pelerins",
+        "type": "pilgrims",
+        "color": "#d1b36e",
+        "ownerFactionId": "ember_cult",
+        "positionKind": "city",
+        "positionId": "ironvale",
+        "destinationKind": "city",
+        "destinationId": "dawnwatch",
+        "itineraryRouteIds": [
+          "pilgrims_path"
+        ],
+        "travelMode": "road",
+        "speed": 3,
+        "security": 28,
+        "fatigue": 12,
+        "cargo": 16,
+        "headcount": 22,
+        "resources": 14,
+        "objectiveIds": [
+          "recover_sun_shard"
+        ],
+        "interactionTags": [
+          "religion",
+          "ritual",
+          "rumor"
+        ],
+        "simulationLevel": "summary"
+      },
+      {
+        "id": "smuggler_train",
+        "label": "Convoi de Contrebandiers",
+        "type": "smugglers",
+        "color": "#cb7c62",
+        "ownerFactionId": "red_knives",
+        "positionKind": "route",
+        "positionId": "coast_trade_way",
+        "destinationKind": "city",
+        "destinationId": "briarford",
+        "itineraryRouteIds": [
+          "coast_trade_way"
+        ],
+        "travelMode": "road",
+        "speed": 4,
+        "security": 24,
+        "fatigue": 20,
+        "cargo": 44,
+        "headcount": 14,
+        "resources": 19,
+        "objectiveIds": [
+          "expand_blackmail_racket",
+          "recruit_frontier_informants"
+        ],
+        "interactionTags": [
+          "crime",
+          "contraband",
+          "ambush",
+          "cross_border"
+        ],
+        "simulationLevel": "active"
+      },
+      {
+        "id": "supply_mule_train",
+        "label": "Train de Mules de Ravitaillement",
+        "type": "supply_column",
+        "color": "#8fb58d",
+        "ownerFactionId": "dawn_guard",
+        "positionKind": "route",
+        "positionId": "frontier_supply_track",
+        "destinationKind": "city",
+        "destinationId": "dawnwatch",
+        "itineraryRouteIds": [
+          "frontier_supply_track"
+        ],
+        "travelMode": "road",
+        "speed": 3,
+        "security": 34,
+        "fatigue": 22,
+        "cargo": 58,
+        "headcount": 18,
+        "resources": 16,
+        "objectiveIds": [
+          "hold_frontier_supply_line",
+          "secure_dawnwatch_gate"
+        ],
+        "interactionTags": [
+          "supply",
+          "military",
+          "escort",
+          "ambush"
+        ],
+        "simulationLevel": "active"
+      }
+    ]
+  }
+}

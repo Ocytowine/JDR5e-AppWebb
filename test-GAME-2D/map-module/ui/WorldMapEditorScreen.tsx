@@ -25,6 +25,7 @@ import {
   MapCanvas,
   TAG_PRESET_COLORS,
   type MapLabelAppearanceSet,
+  getCellCenter,
   getFrontMatterList,
   cloneLayout,
   fetchWorldMapLayout,
@@ -33,6 +34,7 @@ import {
   useWikiEntries
 } from "./mapShared";
 import { getSharedHexEdge } from "./cliffOverlayHelpers";
+import { collectInvalidPathSegments, getAllowedRouteAppendCells, validateLayoutPathRules, validateRouteAppend } from "./mapPathRules";
 import { buildCellFeatureIndex, getRiverFlowCategoryLabel, getRiverSourceTypeLabel, getRiverFlowValue } from "./mapTraversal";
 import { MapEditorSidebar } from "./editor/MapEditorSidebar";
 import { MapSelectionSummary } from "./editor/MapSelectionSummary";
@@ -156,8 +158,10 @@ const DEFAULT_LABEL_APPEARANCE: MapLabelAppearanceSet = {
 
 export function WorldMapEditorScreen(props: {
   initialLayout: WorldMapLayout;
-  onCloseEditor: (layout: WorldMapLayout) => void;
-  onLayoutSaved: (layout: WorldMapLayout) => void;
+  layoutStorageKey: string;
+  onRefreshLayoutCatalog?: () => void;
+  onCloseEditor: (layout: WorldMapLayout, layoutStorageKey?: string) => void;
+  onLayoutSaved: (layout: WorldMapLayout, layoutStorageKey?: string) => void;
 }): React.JSX.Element {
   const [terrainSelectionMode, setTerrainSelectionMode] = useState<"single" | "multi">("single");
   const [editorStore, dispatch] = useReducer(
@@ -384,6 +388,12 @@ export function WorldMapEditorScreen(props: {
     return total;
   }, [cellFeatureIndex, selectedRoute]);
   const routeEditorActive = activeTool === "routes" && routeDrawActive;
+  const routeCandidateCellKeys = useMemo(
+    () => (routeEditorActive ? getAllowedRouteAppendCells(layout, selectedRoute).map(cell => getWorldMapCellKey(cell)) : []),
+    [layout, routeEditorActive, selectedRoute]
+  );
+  const invalidPathSegments = useMemo(() => collectInvalidPathSegments(layout), [layout]);
+  const pathIssues = useMemo(() => validateLayoutPathRules(layout), [layout]);
   const currentLayoutJson = useMemo(() => layoutToJson(layout), [layout]);
   const isDirty = currentLayoutJson !== lastSavedLayoutJson;
   const canUndo = editorStore.past.length > 0;
@@ -962,8 +972,10 @@ export function WorldMapEditorScreen(props: {
       const parsed = JSON.parse(jsonBuffer) as unknown;
       const source = sanitizeLayoutSource(parsed);
       if (!source) throw new Error("Structure JSON invalide.");
-      replaceLayoutState(createRuntimeWorldMapLayout(source));
-      updateJsonError(null);
+      const nextLayout = createRuntimeWorldMapLayout(source);
+      replaceLayoutState(nextLayout);
+      const nextPathIssues = validateLayoutPathRules(nextLayout);
+      updateJsonError(nextPathIssues.length > 0 ? nextPathIssues[0].message : null);
     } catch (error) {
       updateJsonError(error instanceof Error ? error.message : "JSON invalide.");
     }
@@ -980,6 +992,13 @@ export function WorldMapEditorScreen(props: {
   }
 
   function addRoutePoint(cell: MapCell): void {
+    if (selectedRoute) {
+      const validation = validateRouteAppend(layout, selectedRoute, cell);
+      if (!validation.ok) {
+        setFootprintFeedback(validation.reason);
+        return;
+      }
+    }
     dispatch({ type: "appendRoutePoint", cell });
   }
 
@@ -995,13 +1014,16 @@ export function WorldMapEditorScreen(props: {
 
   async function persistLayoutToServer(): Promise<void> {
     try {
+      if (pathIssues.length > 0) {
+        throw new Error(pathIssues[0].message);
+      }
       updatePersistenceState("saving");
-      const nextLayout = await saveWorldMapLayout(layout);
+      const nextLayout = await saveWorldMapLayout(layout, props.layoutStorageKey);
       replaceLayoutState(nextLayout, true);
       updateJsonError(null);
       updateLastSavedLayoutJson(layoutToJson(nextLayout));
       updatePersistenceState("saved");
-      props.onLayoutSaved(nextLayout);
+      props.onLayoutSaved(nextLayout, props.layoutStorageKey);
     } catch (error) {
       updatePersistenceState("error");
       updateJsonError(error instanceof Error ? error.message : "Sauvegarde serveur impossible.");
@@ -1011,15 +1033,42 @@ export function WorldMapEditorScreen(props: {
   async function reloadLayoutFromServer(): Promise<void> {
     try {
       updatePersistenceState("saving");
-      const nextLayout = await fetchWorldMapLayout();
+      const nextLayout = await fetchWorldMapLayout(props.layoutStorageKey);
       replaceLayoutState(nextLayout, true);
       updateJsonError(null);
       updateLastSavedLayoutJson(layoutToJson(nextLayout));
       updatePersistenceState("saved");
-      props.onLayoutSaved(nextLayout);
+      props.onLayoutSaved(nextLayout, props.layoutStorageKey);
     } catch (error) {
       updatePersistenceState("error");
       updateJsonError(error instanceof Error ? error.message : "Rechargement serveur impossible.");
+    }
+  }
+
+  async function saveLayoutAsNewMap(): Promise<void> {
+    const draft = window.prompt("Nom technique de la nouvelle carte (ex: valmorin_nord)", layout.id || layout.title || "nouvelle_carte");
+    if (!draft) return;
+    const nextLayoutKey = slugifyDraft(draft);
+    if (!nextLayoutKey) {
+      updatePersistenceState("error");
+      updateJsonError("Nom de carte invalide pour 'sauver sous'.");
+      return;
+    }
+    try {
+      if (pathIssues.length > 0) {
+        throw new Error(pathIssues[0].message);
+      }
+      updatePersistenceState("saving");
+      const nextLayout = await saveWorldMapLayout(layout, nextLayoutKey);
+      replaceLayoutState(nextLayout, true);
+      updateJsonError(null);
+      updateLastSavedLayoutJson(layoutToJson(nextLayout));
+      updatePersistenceState("saved");
+      props.onRefreshLayoutCatalog?.();
+      props.onLayoutSaved(nextLayout, nextLayoutKey);
+    } catch (error) {
+      updatePersistenceState("error");
+      updateJsonError(error instanceof Error ? error.message : "Sauvegarde sous un nouveau layout impossible.");
     }
   }
 
@@ -1335,6 +1384,41 @@ export function WorldMapEditorScreen(props: {
       return segmentKeys[0] === pairKeys[0] && segmentKeys[1] === pairKeys[1];
     }) ?? null;
   }, [layout.cliffSegments, terrainPair]);
+  const invalidPathOverlay = useMemo(
+    () => (
+      <>
+        {invalidPathSegments.map((segment, index) => {
+          const fromCenter = getCellCenter(layout, segment.from);
+          const toCenter = getCellCenter(layout, segment.to);
+          const midX = (fromCenter.x + toCenter.x) / 2;
+          const midY = (fromCenter.y + toCenter.y) / 2;
+          return (
+            <g key={`${segment.pathId}-${index}`}>
+              <line
+                x1={fromCenter.x}
+                y1={fromCenter.y}
+                x2={toCenter.x}
+                y2={toCenter.y}
+                stroke="rgba(255,96,96,0.95)"
+                strokeWidth={6}
+                strokeLinecap="round"
+                strokeDasharray="10 7"
+                opacity={0.95}
+                pointerEvents="none"
+              />
+              <g transform={`translate(${midX} ${midY})`} pointerEvents="none">
+                <circle r={10} fill="rgba(126,18,18,0.92)" stroke="rgba(255,218,218,0.94)" strokeWidth="1.4" />
+                <text x={0} y={4} textAnchor="middle" fill="#fff5f5" style={{ fontSize: 12, fontWeight: 900 }}>
+                  !
+                </text>
+              </g>
+            </g>
+          );
+        })}
+      </>
+    ),
+    [invalidPathSegments, layout]
+  );
 
   const overlay = (
     <>
@@ -1345,7 +1429,7 @@ export function WorldMapEditorScreen(props: {
         activeTool={activeTool}
         canUndo={canUndo}
         canRedo={canRedo}
-        onCloseEditor={() => props.onCloseEditor(layout)}
+        onCloseEditor={() => props.onCloseEditor(layout, props.layoutStorageKey)}
         onTogglePanel={togglePanel}
         onSelectTool={activateTool}
         onUndo={() => dispatch({ type: "undo" })}
@@ -2400,6 +2484,21 @@ export function WorldMapEditorScreen(props: {
                 </div>
                 <div style={{ ...SUBSECTION_STYLE, gap: 10 }}>
                   <div style={editorTextStyles.sectionTitle}>Creation et selection</div>
+                  {pathIssues.length > 0 && (
+                    <div
+                      style={{
+                        padding: "10px 12px",
+                        borderRadius: 10,
+                        border: "1px solid rgba(255,120,120,0.34)",
+                        background: "rgba(126,18,18,0.18)",
+                        color: "#ffe1e1",
+                        fontSize: 12,
+                        lineHeight: 1.45
+                      }}
+                    >
+                      {pathIssues.length} probleme(s) de trace detecte(s). Les segments invalides sont affiches en rouge sur la carte et la sauvegarde reste bloquee tant qu'ils existent.
+                    </div>
+                  )}
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     <button
                       type="button"
@@ -2484,7 +2583,7 @@ export function WorldMapEditorScreen(props: {
                         </label>
                         <div style={editorTextStyles.helper}>
                           {routeDrawActive
-                            ? "Clique sur les hex pour ajouter des points. Une route ne peut pas traverser une falaise."
+                            ? `Clique point par point sur des hex voisins. ${routeCandidateCellKeys.length} case(s) de prolongation sont actuellement autorisees. Une route reste sur terre et ne peut pas traverser une falaise.`
                             : "Active le trace pour poser de nouveaux segments sur la carte."}
                         </div>
                         <button
@@ -2541,7 +2640,7 @@ export function WorldMapEditorScreen(props: {
                         </div>
                         <div style={editorTextStyles.helper}>
                           {routeDrawActive
-                            ? "Clique sur les hex pour ajouter des points. Le sens suit l'ordre du trace, de la source vers l'aval."
+                            ? `Clique point par point sur des hex voisins. ${routeCandidateCellKeys.length} case(s) de prolongation sont actuellement autorisees. Le cours d'eau commence sur terre, suit l'ordre du trace, puis se termine en mer.`
                             : "Active le trace pour prolonger le cours d'eau sur la carte."}
                         </div>
                         <button
@@ -3398,6 +3497,9 @@ export function WorldMapEditorScreen(props: {
               <button type="button" onClick={() => void persistLayoutToServer()} disabled={persistenceState === "saving"} style={{ ...createEditorButtonStyle({ active: true, compact: true }), borderRadius: 8, cursor: persistenceState === "saving" ? "wait" : "pointer", opacity: persistenceState === "saving" ? 0.7 : 1 }}>
                 Sauver serveur
               </button>
+              <button type="button" onClick={() => void saveLayoutAsNewMap()} disabled={persistenceState === "saving"} style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8, cursor: persistenceState === "saving" ? "wait" : "pointer", opacity: persistenceState === "saving" ? 0.7 : 1 }}>
+                Sauver sous
+              </button>
               <button type="button" onClick={() => void reloadLayoutFromServer()} disabled={persistenceState === "saving"} style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8, cursor: persistenceState === "saving" ? "wait" : "pointer" }}>
                 Recharger serveur
               </button>
@@ -3446,6 +3548,7 @@ export function WorldMapEditorScreen(props: {
             ? Array.from(new Set([...selectedSimulationFactionPresenceCellKeys, ...selectedAreaCellKeys]))
             : selectedAreaCellKeys
         }
+        routeCandidateCellKeys={routeCandidateCellKeys}
         selectedCityId={selectedCity?.id ?? null}
         selectedRouteId={selectedRouteId}
         routeEditorActive={routeEditorActive}
@@ -3477,6 +3580,7 @@ export function WorldMapEditorScreen(props: {
           dispatch({ type: "setSelectedCell", cellKey: getWorldMapCellKey(city.cell) });
         }}
         minHeight="calc(100vh - 180px)"
+        svgOverlay={invalidPathOverlay}
         overlay={
           <>
             {overlay}
