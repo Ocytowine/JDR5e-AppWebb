@@ -1,4 +1,5 @@
 import { findShortestRouteItinerary, getRouteTraversalCost } from "./travel";
+import { evaluateObjectiveReadiness, synchronizeObjectiveReadiness } from "./objectiveReadiness";
 import type {
   EntityId,
   EntityRef,
@@ -19,7 +20,13 @@ function clamp(value: number, min = 0, max = 100): number {
 function getTopObjectiveForFaction(state: WorldState, faction: WorldFaction): SpecialObjective | undefined {
   return faction.objectives
     .map(goal => state.specialObjectives[goal.objectiveId])
-    .filter((objective): objective is SpecialObjective => Boolean(objective) && objective.state !== "completed" && objective.state !== "failed")
+    .filter(
+      (objective): objective is SpecialObjective =>
+        Boolean(objective) &&
+        objective.state !== "completed" &&
+        objective.state !== "failed" &&
+        evaluateObjectiveReadiness(state, objective).ready
+    )
     .sort((left, right) => right.priority - left.priority)[0];
 }
 
@@ -332,6 +339,7 @@ function getAssignableActor(state: WorldState, factionId: EntityId, objectifId: 
 }
 
 export function buildFactionLogisticsPlans(state: WorldState): LogisticsPlanTrace[] {
+  synchronizeObjectiveReadiness(state);
   return Object.values(state.factions)
     .map(faction => {
       const objective = getTopObjectiveForFaction(state, faction);

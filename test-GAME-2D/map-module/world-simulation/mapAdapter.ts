@@ -10,6 +10,7 @@ import {
 } from "../data/worldMapLayout";
 import type {
   MobileActor,
+  FactionActionAnchor,
   SpecialObjective,
   WorldFaction,
   WorldCity,
@@ -38,7 +39,11 @@ type DistrictSeedProfile = {
   tags: string[];
   cells: MapCellData[];
   dominantActivities: string[];
+  importantPlaces?: string[];
+  populationProfile?: WorldDistrict["populationProfile"];
 };
+
+type DistrictOverrideSeed = NonNullable<NonNullable<WorldMapLayout["simulation"]>["districtOverrides"]>[number];
 
 function toTitleCase(input: string): string {
   return input
@@ -136,6 +141,32 @@ function inferDistrictProfiles(city: WorldMapCity, cityCells: MapCellData[]): Di
     ...profile,
     cells: profile.cells.length > 0 ? profile.cells : cityCells.slice(0, 1)
   }));
+}
+
+function getDistrictOverridesById(layout: WorldMapLayout): Map<string, DistrictOverrideSeed> {
+  return new Map((layout.simulation?.districtOverrides ?? []).map(override => [override.id, override]));
+}
+
+function getNativeDistrictsByCityId(layout: WorldMapLayout): Map<string, DistrictSeedProfile[]> {
+  const cellsByKey = new Map(layout.cells.map(cell => [getWorldMapCellKey(cell.cell), cell]));
+  const byCityId = new Map<string, DistrictSeedProfile[]>();
+  (layout.simulation?.districts ?? []).forEach(district => {
+    const entry: DistrictSeedProfile = {
+      id: district.id,
+      name: district.name,
+      tags: district.tags,
+      cells: district.cellKeys
+        .map(cellKey => cellsByKey.get(cellKey))
+        .filter((cell): cell is MapCellData => Boolean(cell)),
+      dominantActivities: district.dominantActivities,
+      importantPlaces: district.importantPlaces,
+      populationProfile: district.populationProfile
+    };
+    const current = byCityId.get(district.cityId);
+    if (current) current.push(entry);
+    else byCityId.set(district.cityId, [entry]);
+  });
+  return byCityId;
 }
 
 function statFromCells(cells: MapCellData[], kind: "city" | "district") {
@@ -242,10 +273,38 @@ function syncRouteMobileActorIds(routes: Record<string, WorldRoute>, mobileActor
 }
 
 function deriveRuntimeFactionsFromLayout(layout: WorldMapLayout): Record<string, WorldFaction> {
+  const cityPopulationById = new Map(layout.cities.map(city => [city.id, city.populationProfile]));
+  const knownDistrictIds = new Set(Object.keys(createSimulationSeedFromMapLayout(layout).districts));
   return Object.fromEntries(
     (layout.simulation?.factions ?? []).map(faction => {
       const type = String(faction.type || "faction").trim().toLowerCase();
       const runtimeId = `faction:map:${faction.id}`;
+      const controlledZoneIds = Array.from(new Set(faction.controlledZoneIds ?? []));
+      const influencedZoneIds = Array.from(new Set(faction.influencedZoneIds ?? []));
+      const interestZoneIds = Array.from(new Set(faction.interestZoneIds ?? []));
+      const avoidedZoneIds = Array.from(new Set(faction.avoidedZoneIds ?? []));
+      const localAnchors = (faction.localAnchors ?? []).map(anchor => {
+        const target: FactionActionAnchor["target"] =
+          anchor.targetKind === "city" && anchor.targetId
+            ? { kind: "city", id: anchor.targetId }
+            : anchor.targetKind === "district" && anchor.targetId && knownDistrictIds.has(anchor.targetId)
+              ? { kind: "district", id: anchor.targetId }
+              : anchor.targetKind === "route" && anchor.targetId
+                ? { kind: "route", id: anchor.targetId }
+                : anchor.targetKind === "region" && anchor.targetId
+                  ? { kind: "region", id: anchor.targetId }
+                  : undefined;
+        return {
+          id: anchor.id,
+          label: anchor.label || anchor.id,
+          type: anchor.type,
+          target,
+          cell: anchor.cell ? { ...anchor.cell } : undefined,
+          level: anchor.level,
+          tags: anchor.tags ?? [],
+          notes: anchor.notes ?? ""
+        } satisfies FactionActionAnchor;
+      });
       return [
         runtimeId,
         {
@@ -259,11 +318,20 @@ function deriveRuntimeFactionsFromLayout(layout: WorldMapLayout): Record<string,
             type.includes("guilde") || type.includes("marchand") ? "trade" : "",
             type.includes("crime") || type.includes("contrebande") ? "criminal" : ""
           ].filter(Boolean))),
+          populationProfile: faction.populationProfile ?? (faction.homeCityId ? cityPopulationById.get(faction.homeCityId) : undefined),
+          controlledZoneIds,
+          influencedZoneIds,
+          interestZoneIds,
+          avoidedZoneIds,
+          localAnchors,
           influenceZoneIds: [
+            ...controlledZoneIds,
+            ...influencedZoneIds,
+            ...interestZoneIds,
             ...(faction.homeCityId ? [faction.homeCityId] : []),
             ...(faction.homeRegionId ? [faction.homeRegionId] : []),
             ...faction.presenceCells.map(cell => `cell:${getWorldMapCellKey(cell)}`)
-          ],
+          ].filter((zoneId, index, zoneIds) => zoneIds.indexOf(zoneId) === index),
           state: {
             resources: faction.resources,
             power: faction.power,
@@ -318,21 +386,25 @@ function deriveObjectivesFromLayout(layout: WorldMapLayout): Record<string, Spec
                   id: objective.targetId
                 }
               : undefined,
-          priority: clamp(objective.priority),
-          state: objective.state,
-          progress: clamp(objective.progress),
-          zoneIds: objective.zoneIds,
-          obstacles: objective.obstacleHints,
-          compatibleActionIds: objective.compatibleActionIds.length > 0
-            ? objective.compatibleActionIds as SpecialObjective["compatibleActionIds"]
-            : objective.category === "open_route"
-              ? ["secure_route", "escort_convoy", "patrol"]
-              : objective.category === "search_object"
-                ? ["investigate", "search_clue", "question_source"]
-                : ["recruit", "patrol", "investigate"],
-          onSuccess: [],
-          onFailure: [],
-          tags: objective.tags
+            priority: clamp(objective.priority),
+            state: objective.state,
+            progress: clamp(objective.progress),
+            zoneIds: objective.zoneIds,
+            phases: objective.phases,
+            currentPhaseIndex: objective.currentPhaseIndex,
+            obstacles: objective.obstacleHints,
+            compatibleActionIds: objective.compatibleActionIds.length > 0
+              ? objective.compatibleActionIds as SpecialObjective["compatibleActionIds"]
+              : objective.category === "open_route"
+                ? ["secure_route", "escort_convoy", "patrol"]
+                : objective.category === "search_object"
+                  ? ["investigate", "search_clue", "question_source"]
+                  : ["recruit", "patrol", "investigate"],
+            requiredAnchorId: objective.requiredAnchorId,
+            requiredAnchorType: objective.requiredAnchorType,
+            onSuccess: objective.onSuccess ?? [],
+            onFailure: objective.onFailure ?? [],
+            tags: objective.tags
         } satisfies SpecialObjective
       ])
     );
@@ -367,23 +439,27 @@ function deriveObjectivesFromLayout(layout: WorldMapLayout): Record<string, Spec
             category,
             owner: { kind: "faction", id: `faction:map:${faction.id}` },
             target,
-            priority: clamp(45 + index * 10),
-            state: "active",
-            progress: 0,
-            zoneIds: [
-              ...(faction.homeCityId ? [faction.homeCityId] : []),
-              ...(faction.homeRegionId ? [faction.homeRegionId] : [])
-            ],
-            obstacles: [],
-            compatibleActionIds:
-              category === "open_route"
-                ? ["secure_route", "escort_convoy", "patrol"]
-                : category === "search_object"
-                  ? ["investigate", "search_clue", "question_source"]
-                  : ["recruit", "patrol", "investigate"],
-            onSuccess: [],
-            onFailure: [],
-            tags: faction.tags
+              priority: clamp(45 + index * 10),
+              state: "active",
+              progress: 0,
+              zoneIds: [
+                ...(faction.homeCityId ? [faction.homeCityId] : []),
+                ...(faction.homeRegionId ? [faction.homeRegionId] : [])
+              ],
+              phases: [],
+              currentPhaseIndex: 0,
+              obstacles: [],
+              compatibleActionIds:
+                category === "open_route"
+                  ? ["secure_route", "escort_convoy", "patrol"]
+                  : category === "search_object"
+                    ? ["investigate", "search_clue", "question_source"]
+                    : ["recruit", "patrol", "investigate"],
+              requiredAnchorId: undefined,
+              requiredAnchorType: undefined,
+              onSuccess: [],
+              onFailure: [],
+              tags: faction.tags
           } satisfies SpecialObjective
         ] as const;
       })
@@ -420,6 +496,7 @@ function deriveMobileActorsFromLayout(layout: WorldMapLayout): Record<string, Mo
           typeEntity: actor.type,
           mobile: true,
           owner: actor.ownerFactionId ? { kind: "faction", id: `faction:map:${actor.ownerFactionId}` } : undefined,
+          populationProfile: actor.populationProfile,
           position,
           destination,
           itinerary: actor.itineraryRouteIds,
@@ -459,6 +536,8 @@ export function createSimulationSeedFromMapLayout(layout: WorldMapLayout, overri
 
   const cityCellsById = new Map<string, MapCellData[]>();
   layout.cities.forEach(city => cityCellsById.set(city.id, collectCityCells(layout, city)));
+  const districtOverridesById = getDistrictOverridesById(layout);
+  const nativeDistrictsByCityId = getNativeDistrictsByCityId(layout);
 
   const citiesBase: Record<string, WorldCity> = Object.fromEntries(
     layout.cities.map(city => {
@@ -473,6 +552,7 @@ export function createSimulationSeedFromMapLayout(layout: WorldMapLayout, overri
           districtIds: [],
           routeIds,
           tags: [...new Set([city.kind, ...cityCells.flatMap(cell => cell.tags ?? []).filter(tag => ["maritime", "commerce", "sacre", "frontalier", "urbain"].includes(tag))])],
+          populationProfile: city.populationProfile,
           state: statFromCells(cityCells, "city"),
           factionInfluence: inferFactionInfluence(cityCells),
           structuralPlaces: inferStructuralPlaces(city, cityCells),
@@ -485,24 +565,40 @@ export function createSimulationSeedFromMapLayout(layout: WorldMapLayout, overri
 
   const districtEntries = layout.cities.flatMap(city => {
     const cityCells = cityCellsById.get(city.id) ?? [];
-    return inferDistrictProfiles(city, cityCells).map(profile => [
+    const districtProfiles = nativeDistrictsByCityId.get(city.id)?.filter(profile => profile.cells.length > 0) ?? inferDistrictProfiles(city, cityCells);
+    return districtProfiles.map(profile => [
       profile.id,
-      {
-        id: profile.id,
-        name: profile.name,
-        cityId: city.id,
-        connectionIds: citiesBase[city.id].routeIds,
-        tags: profile.tags,
-        state: statFromCells(profile.cells, "district"),
-        factionInfluence: inferFactionInfluence(profile.cells),
-        importantPlaces: [
-          ...new Set(profile.cells.flatMap(cell => cell.locationWikiIds ?? []))
-        ],
-        dominantActivities: profile.dominantActivities.length > 0 ? profile.dominantActivities : inferDominantActivities(profile.cells),
-        activeTensionIds: [],
-        recentHistory: [],
-        ambientSignals: []
-      } satisfies WorldDistrict
+      (() => {
+        const districtOverride = districtOverridesById.get(profile.id);
+        return {
+          id: profile.id,
+          name: districtOverride?.name?.trim() || profile.name,
+          cityId: city.id,
+          connectionIds: citiesBase[city.id].routeIds,
+          tags:
+            districtOverride?.tags && districtOverride.tags.length > 0
+              ? districtOverride.tags
+              : profile.tags,
+          populationProfile: districtOverride?.populationProfile ?? profile.populationProfile ?? citiesBase[city.id].populationProfile,
+          state: statFromCells(profile.cells, "district"),
+          factionInfluence: inferFactionInfluence(profile.cells),
+          importantPlaces:
+            districtOverride?.importantPlaces && districtOverride.importantPlaces.length > 0
+              ? districtOverride.importantPlaces
+              : profile.importantPlaces && profile.importantPlaces.length > 0
+                ? profile.importantPlaces
+                : [...new Set(profile.cells.flatMap(cell => cell.locationWikiIds ?? []))],
+          dominantActivities:
+            districtOverride?.dominantActivities && districtOverride.dominantActivities.length > 0
+              ? districtOverride.dominantActivities
+              : profile.dominantActivities.length > 0
+                ? profile.dominantActivities
+                : inferDominantActivities(profile.cells),
+          activeTensionIds: [],
+          recentHistory: [],
+          ambientSignals: []
+        } satisfies WorldDistrict;
+      })()
     ] as const);
   });
 
@@ -585,6 +681,12 @@ export function createWorldStateFromMapLayout(layout: WorldMapLayout, overrides:
   const derivedMobileActors = deriveMobileActorsFromLayout(layout);
   const routes = seed.routes;
   const mobileActors = { ...derivedMobileActors, ...(overrides.mobileActors ?? {}) };
+  Object.values(mobileActors).forEach(actor => {
+    if (actor.populationProfile) return;
+    const ownerId = actor.owner?.kind === "faction" ? actor.owner.id : undefined;
+    if (!ownerId) return;
+    actor.populationProfile = derivedFactions[ownerId]?.populationProfile;
+  });
   syncRouteMobileActorIds(routes, mobileActors);
   return {
     clock: {

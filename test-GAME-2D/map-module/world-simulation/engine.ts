@@ -1,5 +1,6 @@
 import { PRESSURE_DEFINITIONS, WORLD_ACTION_DEFINITIONS } from "./definitions";
 import { applyFactionLogisticsPlans, buildFactionLogisticsPlans, reinitialiserRessourcesTransport } from "./logisticsPlanner";
+import { synchronizeObjectiveReadiness } from "./objectiveReadiness";
 import { findShortestRouteItinerary, getProgressPerTick, getRouteTargetId, getRouteTraversalCost } from "./travel";
 import type {
   ActionCandidateTrace,
@@ -436,7 +437,7 @@ function findActorCandidates(state: WorldState, scale: TickScale): ActorCandidat
     actor: faction,
     objective: faction.objectives
       .map(goal => state.specialObjectives[goal.objectiveId])
-      .filter((objective): objective is SpecialObjective => Boolean(objective) && objective.state !== "completed" && objective.state !== "failed")
+      .filter((objective): objective is SpecialObjective => Boolean(objective) && objective.state !== "completed" && objective.state !== "failed" && objective.state !== "blocked")
       .sort((left, right) => right.priority - left.priority)[0]
   }));
 
@@ -444,14 +445,14 @@ function findActorCandidates(state: WorldState, scale: TickScale): ActorCandidat
     .filter(actor => scale === "micro"
       ? actor.simulationLevel !== "abstract"
       : actor.simulationLevel === "active" || actor.simulationLevel === "summary")
-    .map(actor => ({
-      ref: { kind: "mobileActor", id: actor.id },
-      actor,
-      objective: actor.objectives
-        .map(goal => state.specialObjectives[goal.objectiveId])
-        .filter((objective): objective is SpecialObjective => Boolean(objective) && objective.state !== "completed" && objective.state !== "failed")
-        .sort((left, right) => right.priority - left.priority)[0]
-    }));
+      .map(actor => ({
+        ref: { kind: "mobileActor", id: actor.id },
+        actor,
+        objective: actor.objectives
+          .map(goal => state.specialObjectives[goal.objectiveId])
+          .filter((objective): objective is SpecialObjective => Boolean(objective) && objective.state !== "completed" && objective.state !== "failed" && objective.state !== "blocked")
+          .sort((left, right) => right.priority - left.priority)[0]
+      }));
 
   return [...factionCandidates, ...mobileCandidates];
 }
@@ -701,6 +702,7 @@ function applyConsequencesFromObjective(state: WorldState, ctx: TickContext, obj
 }
 
 function resolveSelectedActions(state: WorldState, scale: TickScale): TickContext {
+  const objectiveReadiness = synchronizeObjectiveReadiness(state);
   reinitialiserRessourcesTransport(state);
   const logisticsPlans = buildFactionLogisticsPlans(state);
   applyFactionLogisticsPlans(state, logisticsPlans);
@@ -721,12 +723,13 @@ function resolveSelectedActions(state: WorldState, scale: TickScale): TickContex
       actionCandidates: [],
       selectedActions: [],
       mobility: [],
-      pressureSnapshots: {
-        before: {},
-        after: {}
+        pressureSnapshots: {
+          before: {},
+          after: {}
+        },
+        objectiveReadiness
       }
-    }
-  };
+    };
 
   const { candidates, trace } = getActionCandidates(state, actors, logisticsPlans);
   ctx.trace.actionCandidates = trace;

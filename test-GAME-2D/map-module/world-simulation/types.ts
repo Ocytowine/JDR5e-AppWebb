@@ -1,3 +1,5 @@
+import type { MapCell, PopulationProfile } from "../data/worldMapLayout";
+
 export type EntityId = string;
 
 export type SimulationLevel = "active" | "summary" | "abstract";
@@ -160,6 +162,7 @@ export type WorldCity = {
   districtIds: EntityId[];
   routeIds: EntityId[];
   tags: string[];
+  populationProfile?: PopulationProfile;
   state: DynamicStats;
   factionInfluence: InfluenceMap;
   structuralPlaces: string[];
@@ -173,6 +176,7 @@ export type WorldDistrict = {
   cityId: EntityId;
   connectionIds: EntityId[];
   tags: string[];
+  populationProfile?: PopulationProfile;
   state: DynamicStats;
   factionInfluence: InfluenceMap;
   importantPlaces: string[];
@@ -192,6 +196,17 @@ export type WorldRoute = {
   state: DynamicStats;
   recentHistory: WorldHistoryEntry[];
   mobileActorIds: EntityId[];
+};
+
+export type FactionActionAnchor = {
+  id: EntityId;
+  label: string;
+  type: string;
+  target?: EntityRef;
+  cell?: MapCell;
+  level: number;
+  tags: string[];
+  notes: string;
 };
 
 export type WorldRegion = {
@@ -222,6 +237,12 @@ export type WorldFaction = {
   name: string;
   type: string;
   tags: string[];
+  populationProfile?: PopulationProfile;
+  controlledZoneIds?: EntityId[];
+  influencedZoneIds?: EntityId[];
+  interestZoneIds?: EntityId[];
+  avoidedZoneIds?: EntityId[];
+  localAnchors?: FactionActionAnchor[];
   influenceZoneIds: EntityId[];
   state: DynamicStats;
   ressourcesTransport?: FactionTransportResources;
@@ -240,8 +261,12 @@ export type SpecialObjective = {
   state: ObjectiveState;
   progress: number;
   zoneIds: EntityId[];
+  phases?: string[];
+  currentPhaseIndex?: number;
   obstacles: string[];
   compatibleActionIds: WorldActionId[];
+  requiredAnchorId?: EntityId;
+  requiredAnchorType?: string;
   onSuccess: ConsequenceTemplate[];
   onFailure: ConsequenceTemplate[];
   tags: string[];
@@ -252,6 +277,7 @@ export type MobileActor = {
   typeEntity: string;
   mobile: true;
   owner?: EntityRef;
+  populationProfile?: PopulationProfile;
   position: EntityRef;
   destination?: EntityRef;
   itinerary: EntityId[];
@@ -486,6 +512,20 @@ export type LogisticsPlanTrace = {
   raisonsBlocage: string[];
 };
 
+export type ObjectiveReadinessTrace = {
+  objectiveId: EntityId;
+  factionId?: EntityId;
+  ready: boolean;
+  objectiveStateBefore?: ObjectiveState;
+  objectiveStateAfter?: ObjectiveState;
+  requiredAnchorId?: EntityId;
+  requiredAnchorType?: string;
+  matchedAnchorId?: EntityId;
+  matchedAnchorType?: string;
+  executionTargetRef?: EntityRef;
+  reasons: string[];
+};
+
 export type PressureTermTrace = {
   source: string;
   rawValue: number;
@@ -569,6 +609,7 @@ export type TickTrace = {
   clockBefore: WorldClock;
   clockAfter: WorldClock;
   logisticsPlans: LogisticsPlanTrace[];
+  objectiveReadiness?: ObjectiveReadinessTrace[];
   actorCandidates: ActorCandidateTrace[];
   actionCandidates: ActionCandidateTrace[];
   selectedActions: SelectedActionTrace[];

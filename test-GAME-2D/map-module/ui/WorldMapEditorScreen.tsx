@@ -9,22 +9,28 @@ import {
   type ReliefElevationLevel,
   type SimulationActorLevel,
   type SimulationActorPositionKind,
+  type SimulationAnchorTargetKind,
   type SimulationFactionRelationStatus,
   type SimulationObjectiveCategory,
   type SimulationTravelMode,
   type WorldMapCity,
   type WorldMapGeographicZone,
   type WorldMapLayout,
+  type WorldMapSimulationConsequence,
+  type WorldMapSimulationDistrict,
   type WorldMapSimulationFaction,
+  type WorldMapSimulationFactionAnchor,
   type WorldMapSimulationMobileActor,
   type WorldMapSimulationObjective,
-  type WorldMapLayoutSource
+  type WorldMapLayoutSource,
+  type PopulationProfile
 } from "../data/worldMapLayout";
 import {
   GEOGRAPHY_PRESET_COLORS,
   MapCanvas,
   TAG_PRESET_COLORS,
   type MapLabelAppearanceSet,
+  buildPathPoints,
   getCellCenter,
   getFrontMatterList,
   cloneLayout,
@@ -56,6 +62,20 @@ import { HexZonesPanel } from "./editor/panels/HexZonesPanel";
 import { LayerPanel } from "./editor/panels/LayerPanel";
 import { LegendPanel } from "./editor/panels/LegendPanel";
 import { SimulationPanel } from "./editor/panels/SimulationPanel";
+import {
+  buildFactionLogisticsPlans,
+  createWorldStateFromMapLayout,
+  evaluateObjectiveReadiness,
+  recomputePressuresDetailed,
+  recomputePressures,
+  reinitialiserRessourcesTransport,
+  runWorldTick,
+  runSimulationPreflight,
+  WORLD_ACTION_DEFINITIONS,
+  type SimulationPreflightIssue
+} from "../world-simulation";
+import { findShortestRouteItinerary } from "../world-simulation/travel";
+import { SimulationLogisticsPanel } from "./simulation/SimulationLogisticsPanel";
 
 const PANEL_LABELS: Record<PanelId, string> = {
   legend: "Legende",
@@ -102,6 +122,195 @@ function slugifyDraft(value: string): string {
     .replace(/^_+|_+$/g, "");
 }
 
+function formatPopulationProfile(profile?: PopulationProfile): string {
+  if (!profile?.groups?.length) return "";
+  return profile.groups
+    .map(group => [group.groupId, String(group.weight), group.role].filter(Boolean).join(":"))
+    .join(", ");
+}
+
+function formatSimulationConsequences(consequences?: WorldMapSimulationConsequence[]): string {
+  if (!consequences?.length) return "";
+  return consequences
+    .map(consequence => {
+      if (consequence.type === "create_tension") {
+        return [consequence.type, consequence.tensionType, String(consequence.severity), consequence.tags.join("|")]
+          .filter(Boolean)
+          .join(":");
+      }
+      if (consequence.type === "open_opportunity") {
+        return [consequence.type, consequence.kind, String(consequence.score), consequence.tags.join("|")]
+          .filter(Boolean)
+          .join(":");
+      }
+      return [consequence.type, consequence.signalKind, String(consequence.intensity), consequence.tags.join("|")]
+        .filter(Boolean)
+        .join(":");
+    })
+    .join("\n");
+}
+
+function formatListFieldValue(values?: string[]): string {
+  return (values ?? []).join(", ");
+}
+
+function normalizeListDraftValue(value: string): string {
+  return value.trim();
+}
+
+function formatEntityRefSummary(ref: { kind: string; id: string } | undefined | null): string {
+  if (!ref) return "aucune";
+  return `${ref.kind}:${ref.id}`;
+}
+
+function isClickableEntityRef(ref: { kind: string; id: string } | undefined | null): boolean {
+  return Boolean(ref?.id);
+}
+
+function formatDeltaLabel(key: string): string {
+  if (key === "objective_progress") return "Progression objectif";
+  if (key === "cooldown") return "Cooldown";
+  return key;
+}
+
+function getDeltaVisualStyle(amount?: number): React.CSSProperties {
+  if ((amount ?? 0) > 0) {
+    return {
+      border: "1px solid rgba(114,197,143,0.34)",
+      background: "rgba(114,197,143,0.12)",
+      color: "#b9f1c7"
+    };
+  }
+  if ((amount ?? 0) < 0) {
+    return {
+      border: "1px solid rgba(200,92,92,0.34)",
+      background: "rgba(200,92,92,0.12)",
+      color: "#ffcccc"
+    };
+  }
+  return {
+    border: "1px solid rgba(124, 142, 168, 0.24)",
+    background: "rgba(31, 38, 48, 0.72)",
+    color: "#dce5f2"
+  };
+}
+
+function getProjectionCardStyle(tone: "default" | "accent" | "success" | "warning" = "default"): React.CSSProperties {
+  if (tone === "accent") {
+    return {
+      ...SUBSECTION_STYLE,
+      gap: 6,
+      border: "1px solid rgba(143,179,255,0.28)",
+      background: "linear-gradient(180deg, rgba(36,52,79,0.7), rgba(24,31,41,0.88))"
+    };
+  }
+  if (tone === "success") {
+    return {
+      ...SUBSECTION_STYLE,
+      gap: 6,
+      border: "1px solid rgba(114,197,143,0.28)",
+      background: "linear-gradient(180deg, rgba(35,67,49,0.44), rgba(24,31,41,0.88))"
+    };
+  }
+  if (tone === "warning") {
+    return {
+      ...SUBSECTION_STYLE,
+      gap: 6,
+      border: "1px solid rgba(221,173,86,0.28)",
+      background: "linear-gradient(180deg, rgba(88,67,24,0.34), rgba(24,31,41,0.88))"
+    };
+  }
+  return {
+    ...SUBSECTION_STYLE,
+    gap: 6,
+    border: "1px solid rgba(124, 142, 168, 0.24)",
+    background: "linear-gradient(180deg, rgba(41,49,61,0.78), rgba(24,31,41,0.9))"
+  };
+}
+
+function getProjectionSectionTitleStyle(): React.CSSProperties {
+  return {
+    fontSize: 12,
+    fontWeight: 800,
+    letterSpacing: 0.3,
+    color: "#dce5f2",
+    textTransform: "uppercase"
+  };
+}
+
+function formatObjectiveConsequenceSummary(consequence: WorldMapSimulationConsequence): string {
+  if (consequence.type === "create_tension") {
+    return `Tension ${consequence.tensionType} (${consequence.severity})`;
+  }
+  if (consequence.type === "open_opportunity") {
+    return `Opportunite ${consequence.kind} (${consequence.score})`;
+  }
+  return `Signal ${consequence.signalKind} (${consequence.intensity})`;
+}
+
+const SIMULATION_TENSION_TYPE_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "criminal", label: "Criminelle" },
+  { value: "social", label: "Sociale" },
+  { value: "commercial", label: "Commerciale" },
+  { value: "political", label: "Politique" },
+  { value: "religious", label: "Religieuse" },
+  { value: "scarcity", label: "Penurie" },
+  { value: "control_conflict", label: "Conflit de controle" },
+  { value: "mobility_risk", label: "Risque de mobilite" }
+];
+
+const SIMULATION_OPPORTUNITY_KIND_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "escort_needed", label: "Besoin d'escorte" },
+  { value: "weak_control", label: "Controle faible" },
+  { value: "scarcity_trade", label: "Commerce de penurie" },
+  { value: "investigation_lead", label: "Piste d'investigation" },
+  { value: "political_opening", label: "Ouverture politique" }
+];
+
+const SIMULATION_SIGNAL_KIND_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "visual", label: "Visuel" },
+  { value: "auditory", label: "Auditif" },
+  { value: "institutional", label: "Institutionnel" },
+  { value: "market", label: "Marche" },
+  { value: "religious", label: "Religieux" },
+  { value: "military", label: "Militaire" }
+];
+
+const SIMULATION_OBJECTIVE_CATEGORY_OPTIONS: Array<{ value: SimulationObjectiveCategory; label: string }> = [
+  { value: "search_object", label: "Recherche d'objet" },
+  { value: "take_control_place", label: "Prise de controle" },
+  { value: "weaken_rival", label: "Affaiblir un rival" },
+  { value: "extend_influence", label: "Etendre l'influence" },
+  { value: "protect_secret", label: "Proteger un secret" },
+  { value: "recruit_agents", label: "Recruter" },
+  { value: "acquire_resource", label: "Acquerir une ressource" },
+  { value: "open_route", label: "Ouvrir une route" },
+  { value: "eliminate_threat", label: "Eliminer une menace" },
+  { value: "recover_person", label: "Recuperer une personne" }
+];
+
+const SIMULATION_FACTION_METHOD_SUGGESTIONS = [
+  "patrouille",
+  "corruption",
+  "rituel",
+  "espionnage",
+  "recrutement",
+  "propagande",
+  "intimidation",
+  "contrebande"
+];
+
+const SIMULATION_MOBILE_INTERACTION_TAG_SUGGESTIONS = [
+  "trade",
+  "escort",
+  "patrol",
+  "smuggling",
+  "ritual",
+  "message",
+  "recon",
+  "combat"
+];
+
 function getUniquePathsByKind(layout: WorldMapLayout, kind: "road" | "river") {
   const unique = new Map<string, (typeof layout.paths)[number]>();
   layout.paths.forEach(path => {
@@ -111,6 +320,33 @@ function getUniquePathsByKind(layout: WorldMapLayout, kind: "road" | "river") {
     }
   });
   return Array.from(unique.values());
+}
+
+function getSuggestedObjectivePhases(category: SimulationObjectiveCategory): string[] {
+  switch (category) {
+    case "search_object":
+      return ["collecter_indices", "obtenir_acces", "recuperer_objet"];
+    case "take_control_place":
+      return ["sonder_la_zone", "neutraliser_resistance", "tenir_la_position"];
+    case "weaken_rival":
+      return ["identifier_faiblesse", "perturber_reseau", "capitaliser"];
+    case "extend_influence":
+      return ["ouvrir_contact", "installer_presence", "stabiliser_influence"];
+    case "protect_secret":
+      return ["identifier_fuite", "verrouiller_acces", "camoufler_traces"];
+    case "recruit_agents":
+      return ["identifier_profils", "approcher_cibles", "integrer_agents"];
+    case "acquire_resource":
+      return ["trouver_source", "negocier_ou_prendre", "securiser_stock"];
+    case "open_route":
+      return ["reconnaitre_trajet", "lever_blocage", "securiser_passage"];
+    case "eliminate_threat":
+      return ["localiser_menace", "preparer_intervention", "neutraliser"];
+    case "recover_person":
+      return ["confirmer_position", "obtenir_acces", "extraire_cible"];
+    default:
+      return [];
+  }
 }
 
 const GEOGRAPHY_PRESETS: Array<{ id: string; label: string; geography: string; color: string; surface: "land" | "ocean"; difficulty: number }> = [
@@ -172,6 +408,37 @@ export function WorldMapEditorScreen(props: {
   const [zoneEditSession, setZoneEditSession] = useState<null | { kind: "territory" | "region" | "geographicZone"; id: string; originalCellKeys: string[] }>(null);
   const [footprintFeedback, setFootprintFeedback] = useState<string | null>(null);
   const [labelAppearance, setLabelAppearance] = useState<MapLabelAppearanceSet>(DEFAULT_LABEL_APPEARANCE);
+  const [pendingFactionZoneSelections, setPendingFactionZoneSelections] = useState<{
+    controlledZoneIds: string;
+    influencedZoneIds: string;
+    interestZoneIds: string;
+    avoidedZoneIds: string;
+  }>({
+    controlledZoneIds: "",
+    influencedZoneIds: "",
+    interestZoneIds: "",
+    avoidedZoneIds: ""
+  });
+  const [pendingObjectivePhase, setPendingObjectivePhase] = useState("");
+  const [pendingObjectiveObstacle, setPendingObjectiveObstacle] = useState("");
+  const [pendingObjectiveActionId, setPendingObjectiveActionId] = useState("");
+  const [pendingObjectiveCustomActionId, setPendingObjectiveCustomActionId] = useState("");
+  const [pendingObjectiveTag, setPendingObjectiveTag] = useState("");
+  const [pendingObjectiveCustomTag, setPendingObjectiveCustomTag] = useState("");
+  const [pendingFactionMethod, setPendingFactionMethod] = useState("");
+  const [pendingFactionObjectiveHint, setPendingFactionObjectiveHint] = useState("");
+  const [pendingFactionTag, setPendingFactionTag] = useState("");
+  const [pendingFactionCustomTag, setPendingFactionCustomTag] = useState("");
+  const [pendingMobileObjectiveId, setPendingMobileObjectiveId] = useState("");
+  const [pendingMobileInteractionTag, setPendingMobileInteractionTag] = useState("");
+  const [pendingMobileCustomInteractionTag, setPendingMobileCustomInteractionTag] = useState("");
+  const [pendingObjectiveConsequences, setPendingObjectiveConsequences] = useState<{
+    onSuccess: { type: WorldMapSimulationConsequence["type"]; subtype: string; amount: string; tags: string };
+    onFailure: { type: WorldMapSimulationConsequence["type"]; subtype: string; amount: string; tags: string };
+  }>({
+    onSuccess: { type: "create_tension", subtype: "criminal", amount: "20", tags: "" },
+    onFailure: { type: "create_tension", subtype: "criminal", amount: "20", tags: "" }
+  });
   const [territoryPropertiesEditActive, setTerritoryPropertiesEditActive] = useState(false);
   const [territoryPropertyDraft, setTerritoryPropertyDraft] = useState({
     id: "",
@@ -370,6 +637,342 @@ export function WorldMapEditorScreen(props: {
   );
   const roadPaths = useMemo(() => getUniquePathsByKind(layout, "road"), [layout]);
   const riverPaths = useMemo(() => getUniquePathsByKind(layout, "river"), [layout]);
+  const simulationPreflight = useMemo(() => runSimulationPreflight(layout), [layout]);
+  const topPreflightIssues = useMemo(() => simulationPreflight.issues.slice(0, 12), [simulationPreflight]);
+  const placeTargetOptions = useMemo(
+    () => Array.from(
+      new Map(
+        layout.cells
+          .flatMap(cell => cell.locationWikiIds ?? [])
+          .filter(Boolean)
+          .map(locationId => [locationId, wikiEntriesById[locationId]?.name ?? locationId])
+      ).entries()
+    ).map(([id, label]) => ({ id, label })),
+    [layout.cells, wikiEntriesById]
+  );
+  const objectiveDistrictTargetOptions = useMemo(
+    () =>
+      Object.values(createWorldStateFromMapLayout(layout).districts)
+        .map(district => ({ id: district.id, label: district.name }))
+        .sort((left, right) => left.label.localeCompare(right.label)),
+    [layout]
+  );
+  const objectiveTargetOptions = useMemo(() => {
+    if (!selectedSimulationObjective?.targetKind) return [];
+    if (selectedSimulationObjective.targetKind === "city") {
+      return layout.cities.map(city => ({ id: city.id, label: wikiEntriesById[city.wikiEntityId]?.name ?? city.wikiEntityId ?? city.id }));
+    }
+    if (selectedSimulationObjective.targetKind === "district") {
+      return objectiveDistrictTargetOptions;
+    }
+    if (selectedSimulationObjective.targetKind === "route") {
+      return roadPaths.map(path => ({ id: path.id, label: path.label || path.id }));
+    }
+    if (selectedSimulationObjective.targetKind === "region") {
+      return (layout.governanceRegions ?? []).map(region => ({ id: region.id, label: wikiEntriesById[region.wikiEntityId]?.name ?? region.wikiEntityId ?? region.id }));
+    }
+    if (selectedSimulationObjective.targetKind === "faction") {
+      return simulationFactions.map(faction => ({ id: faction.id, label: faction.label || faction.id }));
+    }
+    if (selectedSimulationObjective.targetKind === "place") {
+      return placeTargetOptions;
+    }
+    return [];
+  }, [layout.cities, layout.governanceRegions, objectiveDistrictTargetOptions, placeTargetOptions, roadPaths, selectedSimulationObjective?.targetKind, simulationFactions, wikiEntriesById]);
+  const objectiveCompatibleActionOptions = useMemo(
+    () =>
+      WORLD_ACTION_DEFINITIONS
+        .filter(action => !selectedSimulationObjective || action.compatibleObjectives.includes(selectedSimulationObjective.category))
+        .map(action => ({ id: action.id, label: `${action.label} (${action.id})` })),
+    [selectedSimulationObjective]
+  );
+  const positionReferenceOptions = useMemo(() => {
+    if (!selectedSimulationMobileActor) return [];
+    if (selectedSimulationMobileActor.positionKind === "city") {
+      return layout.cities.map(city => ({ id: city.id, label: wikiEntriesById[city.wikiEntityId]?.name ?? city.wikiEntityId ?? city.id }));
+    }
+    if (selectedSimulationMobileActor.positionKind === "route") {
+      return roadPaths.map(path => ({ id: path.id, label: path.label || path.id }));
+    }
+    if (selectedSimulationMobileActor.positionKind === "region") {
+      return (layout.governanceRegions ?? []).map(region => ({ id: region.id, label: wikiEntriesById[region.wikiEntityId]?.name ?? region.wikiEntityId ?? region.id }));
+    }
+    return [];
+  }, [layout.cities, layout.governanceRegions, roadPaths, selectedSimulationMobileActor, wikiEntriesById]);
+  const destinationReferenceOptions = useMemo(() => {
+    if (!selectedSimulationMobileActor?.destinationKind) return [];
+    if (selectedSimulationMobileActor.destinationKind === "city") {
+      return layout.cities.map(city => ({ id: city.id, label: wikiEntriesById[city.wikiEntityId]?.name ?? city.wikiEntityId ?? city.id }));
+    }
+    if (selectedSimulationMobileActor.destinationKind === "route") {
+      return roadPaths.map(path => ({ id: path.id, label: path.label || path.id }));
+    }
+    if (selectedSimulationMobileActor.destinationKind === "region") {
+      return (layout.governanceRegions ?? []).map(region => ({ id: region.id, label: wikiEntriesById[region.wikiEntityId]?.name ?? region.wikiEntityId ?? region.id }));
+    }
+    return [];
+  }, [layout.cities, layout.governanceRegions, roadPaths, selectedSimulationMobileActor, wikiEntriesById]);
+  const selectedMobileItineraryRoutes = useMemo(
+    () =>
+      (selectedSimulationMobileActor?.itineraryRouteIds ?? [])
+        .map(routeId => layout.paths.find(path => path.id === routeId && path.kind === "road") ?? null)
+        .filter((path): path is NonNullable<typeof path> => Boolean(path)),
+    [layout.paths, selectedSimulationMobileActor]
+  );
+  const logisticsPreview = useMemo(() => {
+    const runtimeState = createWorldStateFromMapLayout(layout);
+    reinitialiserRessourcesTransport(runtimeState);
+    const pressureComputation = recomputePressuresDetailed(runtimeState);
+    runtimeState.pressures = pressureComputation.pressures;
+    const plans = buildFactionLogisticsPlans(runtimeState);
+    return {
+      runtimeState,
+      plans,
+      pressureTrace: pressureComputation.trace
+    };
+  }, [layout]);
+  const selectedSimulationFactionRuntime = useMemo(
+    () => (selectedSimulationFaction ? logisticsPreview.runtimeState.factions[`faction:map:${selectedSimulationFaction.id}`] ?? null : null),
+    [logisticsPreview.runtimeState.factions, selectedSimulationFaction]
+  );
+  const selectedSimulationMobileActorRuntime = useMemo(
+    () => (selectedSimulationMobileActor ? logisticsPreview.runtimeState.mobileActors[`mobile:map:${selectedSimulationMobileActor.id}`] ?? null : null),
+    [logisticsPreview.runtimeState.mobileActors, selectedSimulationMobileActor]
+  );
+  const selectedSimulationFactionLogisticsPlan = useMemo(
+    () => (selectedSimulationFaction ? logisticsPreview.plans.find(plan => plan.factionId === `faction:map:${selectedSimulationFaction.id}`) ?? null : null),
+    [logisticsPreview.plans, selectedSimulationFaction]
+  );
+  const selectedObjectiveRuntime = useMemo(
+    () => (selectedSimulationObjective ? logisticsPreview.runtimeState.specialObjectives[`objective:map:${selectedSimulationObjective.id}`] ?? null : null),
+    [logisticsPreview.runtimeState.specialObjectives, selectedSimulationObjective]
+  );
+  const selectedObjectiveReadiness = useMemo(
+    () => (selectedObjectiveRuntime ? evaluateObjectiveReadiness(logisticsPreview.runtimeState, selectedObjectiveRuntime) : null),
+    [logisticsPreview.runtimeState, selectedObjectiveRuntime]
+  );
+  const selectedObjectiveLogisticsPlan = useMemo(
+    () => (selectedObjectiveRuntime ? logisticsPreview.plans.find(plan => plan.objectifId === selectedObjectiveRuntime.id) ?? null : null),
+    [logisticsPreview.plans, selectedObjectiveRuntime]
+  );
+  const selectedObjectiveLogisticsRoutes = useMemo(
+    () =>
+      (selectedObjectiveLogisticsPlan?.routeIds ?? [])
+        .map(routeId => layout.paths.find(path => path.id === routeId && path.kind === "road") ?? null)
+        .filter((path): path is NonNullable<typeof path> => Boolean(path)),
+    [layout.paths, selectedObjectiveLogisticsPlan]
+  );
+  const selectedPressureTarget = useMemo(() => {
+    if (selectedSimulationObjective?.targetKind === "district" && selectedSimulationObjective.targetId) {
+      return { kind: "district" as const, id: selectedSimulationObjective.targetId, label: `Quartier · ${objectiveTargetOptions.find(option => option.id === selectedSimulationObjective.targetId)?.label ?? selectedSimulationObjective.targetId}` };
+    }
+    if (selectedCity?.id) {
+      return { kind: "city" as const, id: selectedCity.id, label: `Ville · ${wikiEntriesById[selectedCity.wikiEntityId]?.name ?? selectedCity.wikiEntityId ?? selectedCity.id}` };
+    }
+    if (selectedRoute?.kind === "road") {
+      return { kind: "route" as const, id: selectedRoute.id, label: `Route · ${selectedRoute.label || selectedRoute.id}` };
+    }
+    if (selectedGovernanceRegion?.id) {
+      return { kind: "region" as const, id: selectedGovernanceRegion.id, label: `Region · ${wikiEntriesById[selectedGovernanceRegion.wikiEntityId]?.name ?? selectedGovernanceRegion.wikiEntityId ?? selectedGovernanceRegion.id}` };
+    }
+    return null;
+  }, [objectiveTargetOptions, selectedCity, selectedGovernanceRegion, selectedRoute, selectedSimulationObjective, wikiEntriesById]);
+  const selectedPressureEvaluations = useMemo(
+    () => (selectedPressureTarget ? logisticsPreview.pressureTrace[selectedPressureTarget.kind]?.[selectedPressureTarget.id] ?? [] : []),
+    [logisticsPreview.pressureTrace, selectedPressureTarget]
+  );
+  const pressureHotspots = useMemo(() => {
+    const hotspots: Array<{ kind: "city" | "district" | "route" | "region"; id: string; total: number }> = [];
+    (["city", "district", "route", "region"] as const).forEach(kind => {
+      const byEntity = logisticsPreview.pressureTrace[kind] ?? {};
+      Object.entries(byEntity).forEach(([id, evaluations]) => {
+        const total = evaluations.reduce((sum, evaluation) => sum + evaluation.clampedValue, 0);
+        hotspots.push({ kind, id, total });
+      });
+    });
+    return hotspots.sort((left, right) => right.total - left.total).slice(0, 8);
+  }, [logisticsPreview.pressureTrace]);
+  const nextTickPreview = useMemo(() => {
+    const previewState = structuredClone(logisticsPreview.runtimeState);
+    const micro = runWorldTick(previewState, "micro");
+    return {
+      output: micro,
+      stateAfter: previewState
+    };
+  }, [logisticsPreview.runtimeState]);
+  const selectedSimulationFactionHomeCity = useMemo(
+    () => (selectedSimulationFaction?.homeCityId ? layout.cities.find(city => city.id === selectedSimulationFaction.homeCityId) ?? null : null),
+    [layout.cities, selectedSimulationFaction]
+  );
+  const selectedSimulationFactionEffectivePopulationProfile = selectedSimulationFactionRuntime?.populationProfile;
+  const selectedSimulationFactionPopulationSource = selectedSimulationFaction?.populationProfile
+    ? "Override faction"
+    : selectedSimulationFactionHomeCity?.populationProfile
+      ? `Ville d'ancrage: ${wikiEntriesById[selectedSimulationFactionHomeCity.wikiEntityId]?.name ?? selectedSimulationFactionHomeCity.wikiEntityId}`
+      : "Aucune source";
+  const selectedSimulationMobileOwnerFaction = useMemo(
+    () => (selectedSimulationMobileActor?.ownerFactionId ? simulationFactions.find(faction => faction.id === selectedSimulationMobileActor.ownerFactionId) ?? null : null),
+    [selectedSimulationMobileActor, simulationFactions]
+  );
+  const selectableMobileObjectiveOptions = useMemo(
+    () =>
+      simulationObjectives
+        .filter(objective => !selectedSimulationMobileActor?.ownerFactionId || objective.ownerFactionId === selectedSimulationMobileActor.ownerFactionId)
+        .map(objective => ({ id: objective.id, label: `${objective.label} (${objective.id})` })),
+    [selectedSimulationMobileActor?.ownerFactionId, simulationObjectives]
+  );
+  const selectedObjectiveProjectedAction = useMemo(
+    () => (selectedObjectiveRuntime ? nextTickPreview.output.trace?.selectedActions.find(action => action.objectiveId === selectedObjectiveRuntime.id) ?? null : null),
+    [nextTickPreview.output.trace, selectedObjectiveRuntime]
+  );
+  const selectedObjectiveProjectedEvent = useMemo(
+    () => (selectedObjectiveProjectedAction ? nextTickPreview.output.events.find(event => event.id === selectedObjectiveProjectedAction.eventId) ?? null : null),
+    [nextTickPreview.output.events, selectedObjectiveProjectedAction]
+  );
+  const selectedObjectiveProjectedSignals = useMemo(
+    () =>
+      selectedObjectiveRuntime
+        ? nextTickPreview.output.signals.filter(signal =>
+            signal.payload.objectiveId === selectedObjectiveRuntime.id ||
+            (selectedObjectiveProjectedAction
+              ? signal.payload.actorId === selectedObjectiveProjectedAction.actorRef.id && signal.payload.actionId === selectedObjectiveProjectedAction.actionId
+              : false)
+          )
+        : [],
+    [nextTickPreview.output.signals, selectedObjectiveProjectedAction, selectedObjectiveRuntime]
+  );
+  const selectedObjectiveProjectedRumors = useMemo(
+    () =>
+      selectedObjectiveProjectedEvent
+        ? nextTickPreview.output.rumors.filter(rumor => rumor.sourceEventId === selectedObjectiveProjectedEvent.id)
+        : [],
+    [nextTickPreview.output.rumors, selectedObjectiveProjectedEvent]
+  );
+  const selectedObjectiveProjectedOpportunities = useMemo(
+    () =>
+      selectedObjectiveRuntime
+        ? nextTickPreview.output.opportunities.filter(opportunity => opportunity.id.includes(selectedObjectiveRuntime.id))
+        : [],
+    [nextTickPreview.output.opportunities, selectedObjectiveRuntime]
+  );
+  const selectedObjectiveProjectedDeltaGroups = useMemo(() => {
+    const deltas = selectedObjectiveProjectedEvent?.deltas ?? [];
+    const groups = new Map<string, { ref: { kind: string; id: string }; deltas: typeof deltas }>();
+    deltas.forEach(delta => {
+      const key = `${delta.target.kind}:${delta.target.id}`;
+      const current = groups.get(key);
+      if (current) {
+        current.deltas.push(delta);
+        return;
+      }
+      groups.set(key, { ref: delta.target, deltas: [delta] });
+    });
+    return Array.from(groups.values());
+  }, [selectedObjectiveProjectedEvent]);
+  const nextTickTopDeltaGroups = useMemo(() => {
+    const groups = new Map<string, { ref: { kind: string; id: string }; deltas: typeof nextTickPreview.output.deltas }>();
+    nextTickPreview.output.deltas.forEach(delta => {
+      const key = `${delta.target.kind}:${delta.target.id}`;
+      const current = groups.get(key);
+      if (current) {
+        current.deltas.push(delta);
+        return;
+      }
+      groups.set(key, { ref: delta.target, deltas: [delta] });
+    });
+    return Array.from(groups.values())
+      .sort((left, right) =>
+        right.deltas.reduce((sum, delta) => sum + Math.abs(delta.amount ?? 0), 0) -
+        left.deltas.reduce((sum, delta) => sum + Math.abs(delta.amount ?? 0), 0)
+      )
+      .slice(0, 4);
+  }, [nextTickPreview.output.deltas]);
+
+  useEffect(() => {
+    setPendingObjectivePhase("");
+    setPendingObjectiveObstacle("");
+    setPendingObjectiveActionId("");
+    setPendingObjectiveCustomActionId("");
+    setPendingObjectiveTag("");
+    setPendingObjectiveCustomTag("");
+    setPendingObjectiveConsequences({
+      onSuccess: { type: "create_tension", subtype: "criminal", amount: "20", tags: "" },
+      onFailure: { type: "create_tension", subtype: "criminal", amount: "20", tags: "" }
+    });
+  }, [selectedSimulationObjectiveId]);
+
+  useEffect(() => {
+    setPendingFactionMethod("");
+    setPendingFactionObjectiveHint("");
+    setPendingFactionTag("");
+    setPendingFactionCustomTag("");
+  }, [selectedSimulationFactionId]);
+
+  useEffect(() => {
+    setPendingMobileObjectiveId("");
+    setPendingMobileInteractionTag("");
+    setPendingMobileCustomInteractionTag("");
+  }, [selectedSimulationMobileActorId]);
+  const selectedSimulationMobileOwnerCity = useMemo(
+    () =>
+      selectedSimulationMobileOwnerFaction?.homeCityId
+        ? layout.cities.find(city => city.id === selectedSimulationMobileOwnerFaction.homeCityId) ?? null
+        : null,
+    [layout.cities, selectedSimulationMobileOwnerFaction]
+  );
+  const selectedSimulationMobilePopulationSource = selectedSimulationMobileActor?.populationProfile
+    ? "Override mobile"
+    : selectedSimulationMobileOwnerFaction?.populationProfile
+      ? `Faction: ${selectedSimulationMobileOwnerFaction.label}`
+      : selectedSimulationMobileOwnerCity?.populationProfile
+        ? `Ville d'ancrage de faction: ${wikiEntriesById[selectedSimulationMobileOwnerCity.wikiEntityId]?.name ?? selectedSimulationMobileOwnerCity.wikiEntityId}`
+        : "Aucune source";
+  const selectedCityRuntimeDistricts = useMemo(
+    () =>
+      selectedCity
+        ? Object.values(logisticsPreview.runtimeState.districts)
+            .filter(district => district.cityId === selectedCity.id)
+            .sort((left, right) => left.name.localeCompare(right.name))
+        : [],
+    [logisticsPreview.runtimeState.districts, selectedCity]
+  );
+  const selectedCityDistrictOverridesById = useMemo(
+    () => new Map((layout.simulation?.districtOverrides ?? []).map(override => [override.id, override])),
+    [layout.simulation?.districtOverrides]
+  );
+  const selectedCityNativeDistricts = useMemo(
+    () =>
+      selectedCity
+        ? (layout.simulation?.districts ?? [])
+            .filter(district => district.cityId === selectedCity.id)
+            .sort((left, right) => left.name.localeCompare(right.name))
+        : [],
+    [layout.simulation?.districts, selectedCity]
+  );
+  const simulationZoneOptions = useMemo(() => {
+    const options = new Map<string, string>();
+    layout.cities.forEach(city => {
+      options.set(city.id, `Ville · ${wikiEntriesById[city.wikiEntityId]?.name ?? city.wikiEntityId ?? city.id}`);
+    });
+    (layout.governanceRegions ?? []).forEach(region => {
+      options.set(region.id, `Region · ${wikiEntriesById[region.wikiEntityId]?.name ?? region.wikiEntityId ?? region.id}`);
+    });
+    (layout.geographicZones ?? []).forEach(zone => {
+      options.set(zone.id, `Zone geo · ${zone.label || zone.id}`);
+    });
+    roadPaths.forEach(path => {
+      options.set(path.id, `Route · ${path.label || path.id}`);
+    });
+    Object.values(logisticsPreview.runtimeState.districts).forEach(district => {
+      options.set(district.id, `Quartier · ${district.name}`);
+    });
+    simulationFactions.forEach(faction => {
+      options.set(faction.id, `Faction · ${faction.label || faction.id}`);
+    });
+    return Array.from(options.entries())
+      .map(([id, label]) => ({ id, label }))
+      .sort((left, right) => left.label.localeCompare(right.label));
+  }, [layout.cities, layout.geographicZones, layout.governanceRegions, logisticsPreview.runtimeState.districts, roadPaths, simulationFactions, wikiEntriesById]);
   const cellFeatureIndex = useMemo(() => buildCellFeatureIndex(layout), [layout]);
   const selectedRiverWaterfallCount = useMemo(() => {
     if (!selectedRoute || selectedRoute.kind !== "river") return 0;
@@ -434,6 +1037,69 @@ export function WorldMapEditorScreen(props: {
     () => [] as typeof wikiCatalog,
     [wikiCatalog]
   );
+  const selectedMobileItineraryOverlay = useMemo(() => {
+    if (activeTool !== "simulation" || selectedMobileItineraryRoutes.length === 0) return null;
+    return (
+      <g>
+        {selectedMobileItineraryRoutes.map((path, index) => (
+          <g key={`sim-itinerary-${path.id}-${index}`}>
+            <polyline
+              points={buildPathPoints(layout, path.cells)}
+              fill="none"
+              stroke="rgba(110, 214, 255, 0.96)"
+              strokeWidth={8}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity={0.65}
+            />
+            {path.cells.length > 0 && (() => {
+              const center = getCellCenter(layout, path.cells[Math.floor(path.cells.length / 2)]);
+              return (
+                <g transform={`translate(${center.x} ${center.y})`}>
+                  <circle r={11} fill="rgba(11, 19, 31, 0.9)" stroke="rgba(110, 214, 255, 0.9)" strokeWidth={2} />
+                  <text x={0} y={4} textAnchor="middle" fill="#eefbff" style={{ fontSize: 11, fontWeight: 800 }}>
+                    {index + 1}
+                  </text>
+                </g>
+              );
+            })()}
+          </g>
+        ))}
+      </g>
+    );
+  }, [activeTool, layout, selectedMobileItineraryRoutes]);
+  const selectedObjectiveLogisticsOverlay = useMemo(() => {
+    if (activeTool !== "simulation" || selectedObjectiveLogisticsRoutes.length === 0) return null;
+    return (
+      <g>
+        {selectedObjectiveLogisticsRoutes.map((path, index) => (
+          <g key={`objective-logistics-${path.id}-${index}`}>
+            <polyline
+              points={buildPathPoints(layout, path.cells)}
+              fill="none"
+              stroke="rgba(244, 201, 103, 0.95)"
+              strokeWidth={6}
+              strokeDasharray="10 6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity={0.8}
+            />
+            {path.cells.length > 0 && (() => {
+              const center = getCellCenter(layout, path.cells[Math.floor(path.cells.length / 2)]);
+              return (
+                <g transform={`translate(${center.x} ${center.y})`}>
+                  <rect x={-10} y={-10} width={20} height={20} rx={6} fill="rgba(17, 15, 8, 0.92)" stroke="rgba(244, 201, 103, 0.92)" strokeWidth={2} />
+                  <text x={0} y={4} textAnchor="middle" fill="#fff5da" style={{ fontSize: 11, fontWeight: 800 }}>
+                    {index + 1}
+                  </text>
+                </g>
+              );
+            })()}
+          </g>
+        ))}
+      </g>
+    );
+  }, [activeTool, layout, selectedObjectiveLogisticsRoutes]);
   const allGeographyPresets = useMemo(() => [...GEOGRAPHY_PRESETS, ...customGeographies], [customGeographies]);
   const allTagPresets = useMemo(() => [...TAG_PRESETS, ...customTags], [customTags]);
   const contextualHexSection =
@@ -523,6 +1189,11 @@ export function WorldMapEditorScreen(props: {
       homeRegionId: selectedGovernanceRegionId || undefined,
       baseCell: selectedCell?.cell ? { ...selectedCell.cell } : undefined,
       presenceCells: selectedCell?.cell ? [{ ...selectedCell.cell }] : [],
+      controlledZoneIds: [],
+      influencedZoneIds: [],
+      interestZoneIds: [],
+      avoidedZoneIds: [],
+      localAnchors: [],
       influence: 40,
       power: 40,
       cohesion: 50,
@@ -578,8 +1249,14 @@ export function WorldMapEditorScreen(props: {
       priority: 60,
       progress: 0,
       state: "planned",
+      phases: [],
+      currentPhaseIndex: 0,
       obstacleHints: [],
       compatibleActionIds: [],
+      requiredAnchorId: undefined,
+      requiredAnchorType: undefined,
+      onSuccess: [],
+      onFailure: [],
       tags: [],
       zoneIds,
       anchorCell: selectedCell?.cell ? { ...selectedCell.cell } : undefined
@@ -598,6 +1275,165 @@ export function WorldMapEditorScreen(props: {
     });
   }
 
+  function createNativeDistrictForSelectedCity() {
+    if (!selectedCity) return;
+    const zoneIds = selectedAreaCellKeys.length > 0 ? selectedAreaCellKeys : selectedCellKey ? [selectedCellKey] : [];
+    const nextIndex = selectedCityNativeDistricts.length + 1;
+    const nextDistrict: WorldMapSimulationDistrict = {
+      id: `${selectedCity.id}:native_${nextIndex}`,
+      cityId: selectedCity.id,
+      name: `Quartier ${nextIndex}`,
+      tags: [],
+      cellKeys: zoneIds,
+      dominantActivities: [],
+      importantPlaces: [],
+      populationProfile: undefined
+    };
+    dispatch({ type: "createSimulationDistrict", district: nextDistrict });
+  }
+
+  function updateSelectedObjectiveListField(
+    field: "phases" | "obstacleHints" | "compatibleActionIds" | "tags",
+    values: string[]
+  ) {
+    if (!selectedSimulationObjective) return;
+    dispatch({
+      type: "updateSelectedSimulationObjectiveField",
+      field,
+      value: values.join(", ")
+    });
+  }
+
+  function addValueToSelectedObjectiveListField(
+    field: "phases" | "obstacleHints" | "compatibleActionIds" | "tags",
+    value: string
+  ) {
+    if (!selectedSimulationObjective) return;
+    const normalizedValue = normalizeListDraftValue(value);
+    if (!normalizedValue) return;
+    updateSelectedObjectiveListField(field, Array.from(new Set([...(selectedSimulationObjective[field] ?? []), normalizedValue])));
+  }
+
+  function removeValueFromSelectedObjectiveListField(
+    field: "phases" | "obstacleHints" | "compatibleActionIds" | "tags",
+    value: string
+  ) {
+    if (!selectedSimulationObjective) return;
+    updateSelectedObjectiveListField(
+      field,
+      (selectedSimulationObjective[field] ?? []).filter(entry => entry !== value)
+    );
+  }
+
+  function updateSelectedFactionListField(field: "methods" | "objectiveHints" | "tags", values: string[]) {
+    if (!selectedSimulationFaction) return;
+    dispatch({
+      type: "updateSelectedSimulationFactionField",
+      field,
+      value: values.join(", ")
+    });
+  }
+
+  function addValueToSelectedFactionListField(field: "methods" | "objectiveHints" | "tags", value: string) {
+    if (!selectedSimulationFaction) return;
+    const normalizedValue = normalizeListDraftValue(value);
+    if (!normalizedValue) return;
+    updateSelectedFactionListField(field, Array.from(new Set([...(selectedSimulationFaction[field] ?? []), normalizedValue])));
+  }
+
+  function removeValueFromSelectedFactionListField(field: "methods" | "objectiveHints" | "tags", value: string) {
+    if (!selectedSimulationFaction) return;
+    updateSelectedFactionListField(
+      field,
+      (selectedSimulationFaction[field] ?? []).filter(entry => entry !== value)
+    );
+  }
+
+  function updateSelectedMobileListField(field: "objectiveIds" | "interactionTags", values: string[]) {
+    if (!selectedSimulationMobileActor) return;
+    dispatch({
+      type: "updateSelectedSimulationMobileActorField",
+      field,
+      value: values.join(", ")
+    });
+  }
+
+  function addValueToSelectedMobileListField(field: "objectiveIds" | "interactionTags", value: string) {
+    if (!selectedSimulationMobileActor) return;
+    const normalizedValue = normalizeListDraftValue(value);
+    if (!normalizedValue) return;
+    updateSelectedMobileListField(field, Array.from(new Set([...(selectedSimulationMobileActor[field] ?? []), normalizedValue])));
+  }
+
+  function removeValueFromSelectedMobileListField(field: "objectiveIds" | "interactionTags", value: string) {
+    if (!selectedSimulationMobileActor) return;
+    updateSelectedMobileListField(
+      field,
+      (selectedSimulationMobileActor[field] ?? []).filter(entry => entry !== value)
+    );
+  }
+
+  function updateSelectedObjectiveConsequences(
+    field: "onSuccess" | "onFailure",
+    consequences: WorldMapSimulationConsequence[]
+  ) {
+    if (!selectedSimulationObjective) return;
+    dispatch({
+      type: "updateSelectedSimulationObjectiveField",
+      field,
+      value: formatSimulationConsequences(consequences)
+    });
+  }
+
+  function removeSelectedObjectiveConsequence(field: "onSuccess" | "onFailure", index: number) {
+    if (!selectedSimulationObjective) return;
+    const nextConsequences = (selectedSimulationObjective[field] ?? []).filter((_, entryIndex) => entryIndex !== index);
+    updateSelectedObjectiveConsequences(field, nextConsequences);
+  }
+
+  function addSelectedObjectiveConsequence(field: "onSuccess" | "onFailure") {
+    if (!selectedSimulationObjective) return;
+    const draft = pendingObjectiveConsequences[field];
+    const numericAmount = Number(draft.amount);
+    if (!draft.subtype || !Number.isFinite(numericAmount)) return;
+    const tags = draft.tags
+      .split(",")
+      .map(entry => entry.trim())
+      .filter(Boolean);
+    let consequence: WorldMapSimulationConsequence;
+    if (draft.type === "create_tension") {
+      consequence = {
+        type: "create_tension",
+        tensionType: draft.subtype as Extract<WorldMapSimulationConsequence, { type: "create_tension" }>["tensionType"],
+        severity: numericAmount,
+        tags
+      };
+    } else if (draft.type === "open_opportunity") {
+      consequence = {
+        type: "open_opportunity",
+        kind: draft.subtype as Extract<WorldMapSimulationConsequence, { type: "open_opportunity" }>["kind"],
+        score: numericAmount,
+        tags
+      };
+    } else {
+      consequence = {
+        type: "spawn_signal",
+        signalKind: draft.subtype as Extract<WorldMapSimulationConsequence, { type: "spawn_signal" }>["signalKind"],
+        intensity: numericAmount,
+        tags
+      };
+    }
+    updateSelectedObjectiveConsequences(field, [...(selectedSimulationObjective[field] ?? []), consequence]);
+    setPendingObjectiveConsequences(current => ({
+      ...current,
+      [field]: {
+        ...current[field],
+        amount: current[field].type === "spawn_signal" ? "20" : current[field].amount,
+        tags: ""
+      }
+    }));
+  }
+
   function createSimulationMobileActorDefinition() {
     const normalizedId = slugifyDraft(draftSimulationMobileActorId || draftSimulationMobileActorLabel);
     if (!normalizedId) return;
@@ -608,10 +1444,11 @@ export function WorldMapEditorScreen(props: {
       color: draftSimulationMobileActorColor,
       ownerFactionId: selectedSimulationFactionId || undefined,
       positionKind: selectedCity?.id ? "city" : selectedRouteId ? "route" : "cell",
-      positionId: selectedCity?.id ?? selectedRouteId ?? selectedCellKey ?? undefined,
+      positionId: selectedCity?.id ?? selectedRouteId ?? undefined,
       positionCell: selectedCell?.cell ? { ...selectedCell.cell } : undefined,
       destinationKind: selectedGovernanceRegionId ? "region" : undefined,
       destinationId: selectedGovernanceRegionId || undefined,
+      destinationCell: undefined,
       itineraryRouteIds: selectedRouteId ? [selectedRouteId] : [],
       travelMode: "road",
       speed: 40,
@@ -625,6 +1462,306 @@ export function WorldMapEditorScreen(props: {
       simulationLevel: "active"
     };
     dispatch({ type: "createSimulationMobileActor", actor: nextActor });
+  }
+
+  function getCellLabel(cell?: MapCell | null): string {
+    if (!cell) return "Aucune cellule";
+    return `(${cell.x}, ${cell.y})`;
+  }
+
+  function updateSelectedFactionZoneField(
+    field: "controlledZoneIds" | "influencedZoneIds" | "interestZoneIds" | "avoidedZoneIds",
+    zoneIds: string[]
+  ) {
+    if (!selectedSimulationFaction) return;
+    dispatch({
+      type: "updateSelectedSimulationFactionField",
+      field,
+      value: zoneIds.join(", ")
+    });
+  }
+
+  function addZoneToSelectedFaction(
+    field: "controlledZoneIds" | "influencedZoneIds" | "interestZoneIds" | "avoidedZoneIds",
+    zoneId: string
+  ) {
+    if (!selectedSimulationFaction || !zoneId) return;
+    updateSelectedFactionZoneField(field, Array.from(new Set([...(selectedSimulationFaction[field] ?? []), zoneId])));
+    setPendingFactionZoneSelections(current => ({ ...current, [field]: "" }));
+  }
+
+  function removeZoneFromSelectedFaction(
+    field: "controlledZoneIds" | "influencedZoneIds" | "interestZoneIds" | "avoidedZoneIds",
+    zoneId: string
+  ) {
+    if (!selectedSimulationFaction || !zoneId) return;
+    updateSelectedFactionZoneField(
+      field,
+      (selectedSimulationFaction[field] ?? []).filter(entry => entry !== zoneId)
+    );
+  }
+
+  function getSimulationZoneLabel(zoneId: string): string {
+    return simulationZoneOptions.find(option => option.id === zoneId)?.label ?? zoneId;
+  }
+
+  function getActiveZoneCandidatesForFaction() {
+    const candidates: string[] = [];
+    if (selectedCity?.id) candidates.push(selectedCity.id);
+    if (selectedGovernanceRegionId) candidates.push(selectedGovernanceRegionId);
+    if (selectedRoute?.kind === "road") candidates.push(selectedRoute.id);
+    if (selectedGeographicZoneId) candidates.push(selectedGeographicZoneId);
+    selectedCityRuntimeDistricts.forEach(district => candidates.push(district.id));
+    return Array.from(new Set(candidates));
+  }
+
+  function getFactionAnchorTargetOptions(targetKind: SimulationAnchorTargetKind): Array<{ id: string; label: string }> {
+    if (targetKind === "city") {
+      return layout.cities.map(city => ({ id: city.id, label: wikiEntriesById[city.wikiEntityId]?.name ?? city.wikiEntityId ?? city.id }));
+    }
+    if (targetKind === "region") {
+      return (layout.governanceRegions ?? []).map(region => ({
+        id: region.id,
+        label: wikiEntriesById[region.wikiEntityId]?.name ?? region.wikiEntityId ?? region.id
+      }));
+    }
+    if (targetKind === "route") {
+      return roadPaths.map(path => ({ id: path.id, label: path.label || path.id }));
+    }
+    if (targetKind === "place") {
+      return placeTargetOptions;
+    }
+    if (targetKind === "district") {
+      return Object.values(logisticsPreview.runtimeState.districts)
+        .map(district => ({ id: district.id, label: district.name }))
+        .sort((left, right) => left.label.localeCompare(right.label));
+    }
+    return [];
+  }
+
+  function createSimulationFactionAnchorDefinition() {
+    if (!selectedSimulationFaction) return;
+    const anchorIndex = (selectedSimulationFaction.localAnchors?.length ?? 0) + 1;
+    const activeDistrict = selectedCityRuntimeDistricts[0];
+    const targetKind: SimulationAnchorTargetKind = selectedCity?.id
+      ? "city"
+      : activeDistrict
+        ? "district"
+        : selectedGovernanceRegionId
+          ? "region"
+          : selectedRoute?.kind === "road"
+            ? "route"
+            : "cell";
+    const targetId =
+      targetKind === "city"
+        ? selectedCity?.id
+        : targetKind === "district"
+          ? activeDistrict?.id
+          : targetKind === "region"
+            ? selectedGovernanceRegionId || undefined
+            : targetKind === "route"
+              ? selectedRoute?.id
+              : undefined;
+    const nextAnchor: WorldMapSimulationFactionAnchor = {
+      id: `${selectedSimulationFaction.id}_anchor_${anchorIndex}`,
+      label: `Ancrage ${anchorIndex}`,
+      type: "safehouse",
+      targetKind,
+      targetId,
+      cell: targetKind === "cell" ? (selectedCell?.cell ? { ...selectedCell.cell } : undefined) : undefined,
+      level: 1,
+      tags: [],
+      notes: ""
+    };
+    dispatch({ type: "createSimulationFactionAnchor", anchor: nextAnchor });
+  }
+
+  function focusExistingCell(cell?: MapCell | null) {
+    if (!cell) return;
+    const cellKey = getWorldMapCellKey(cell);
+    if (!layout.cells.some(entry => getWorldMapCellKey(entry.cell) === cellKey)) return;
+    dispatch({ type: "setSelectedCell", cellKey });
+  }
+
+  function focusCityById(cityId: string): boolean {
+    const city = layout.cities.find(entry => entry.id === cityId);
+    if (!city) return false;
+    dispatch({ type: "activateTool", toolId: "places" });
+    focusExistingCell(city.cell);
+    return true;
+  }
+
+  function focusRegionById(regionId: string): boolean {
+    const region = (layout.governanceRegions ?? []).find(entry => entry.id === regionId);
+    if (!region) return false;
+    dispatch({ type: "activateTool", toolId: "zones" });
+    dispatch({ type: "replaceLayout", nextState: { selectedGovernanceRegionId: regionId } });
+    const principalCity = region.principalCityId ? layout.cities.find(city => city.id === region.principalCityId) ?? null : null;
+    focusExistingCell(principalCity?.cell ?? region.labelCell);
+    return true;
+  }
+
+  function focusZoneById(zoneId: string): boolean {
+    const zone = (layout.geographicZones ?? []).find(entry => entry.id === zoneId);
+    if (!zone) return false;
+    dispatch({ type: "activateTool", toolId: "zones" });
+    dispatch({ type: "replaceLayout", nextState: { selectedGeographicZoneId: zoneId } });
+    focusExistingCell(zone.labelCell);
+    return true;
+  }
+
+  function focusRouteById(routeId: string): boolean {
+    const route = layout.paths.find(entry => entry.id === routeId);
+    if (!route) return false;
+    dispatch({ type: "activateTool", toolId: "routes" });
+    dispatch({ type: "setSelectedRoute", routeId });
+    focusExistingCell(route.cells[0]);
+    return true;
+  }
+
+  function focusFactionById(factionId: string): boolean {
+    const faction = simulationFactions.find(entry => entry.id === factionId);
+    if (!faction) return false;
+    dispatch({ type: "activateTool", toolId: "simulation" });
+    dispatch({ type: "setSelectedSimulationFaction", factionId });
+    focusExistingCell(faction.baseCell ?? faction.presenceCells[0] ?? null);
+    if (!faction.baseCell && !faction.presenceCells.length && faction.homeCityId) {
+      focusCityById(faction.homeCityId);
+      dispatch({ type: "activateTool", toolId: "simulation" });
+      dispatch({ type: "setSelectedSimulationFaction", factionId });
+    }
+    return true;
+  }
+
+  function focusObjectiveById(objectiveId: string): boolean {
+    const objective = simulationObjectives.find(entry => entry.id === objectiveId);
+    if (!objective) return false;
+    dispatch({ type: "activateTool", toolId: "simulation" });
+    if (objective.ownerFactionId) {
+      dispatch({ type: "setSelectedSimulationFaction", factionId: objective.ownerFactionId });
+    }
+    dispatch({ type: "setSelectedSimulationObjective", objectiveId });
+    focusExistingCell(objective.anchorCell ?? null);
+    return true;
+  }
+
+  function focusMobileActorById(actorId: string): boolean {
+    const actor = simulationMobileActors.find(entry => entry.id === actorId);
+    if (!actor) return false;
+    dispatch({ type: "activateTool", toolId: "simulation" });
+    if (actor.ownerFactionId) {
+      dispatch({ type: "setSelectedSimulationFaction", factionId: actor.ownerFactionId });
+    }
+    dispatch({ type: "setSelectedSimulationMobileActor", actorId });
+    focusExistingCell(actor.positionCell ?? actor.destinationCell ?? null);
+    if (!actor.positionCell && actor.positionKind === "city" && actor.positionId) {
+      focusCityById(actor.positionId);
+      dispatch({ type: "activateTool", toolId: "simulation" });
+      dispatch({ type: "setSelectedSimulationMobileActor", actorId });
+    }
+    return true;
+  }
+
+  function focusDistrictById(districtId: string): boolean {
+    const district = logisticsPreview.runtimeState.districts[districtId];
+    if (!district) return false;
+    return focusCityById(district.cityId);
+  }
+
+  function focusEntityRef(ref?: { kind: string; id: string } | null): boolean {
+    if (!ref?.id) return false;
+    if (ref.kind === "city") return focusCityById(ref.id);
+    if (ref.kind === "region") return focusRegionById(ref.id);
+    if (ref.kind === "route") return focusRouteById(ref.id);
+    if (ref.kind === "faction") return focusFactionById(ref.id);
+    if (ref.kind === "specialObjective") return focusObjectiveById(ref.id);
+    if (ref.kind === "mobileActor") return focusMobileActorById(ref.id);
+    if (ref.kind === "district") return focusDistrictById(ref.id);
+    return false;
+  }
+
+  function handlePreflightIssueClick(issue: SimulationPreflightIssue): boolean {
+    const entityId = issue.entityId?.trim();
+    if (!entityId) return false;
+
+    if (issue.scope === "faction") return focusFactionById(entityId);
+    if (issue.scope === "objective") return focusObjectiveById(entityId);
+    if (issue.scope === "mobileActor") return focusMobileActorById(entityId);
+    if (issue.scope === "district") return focusDistrictById(entityId);
+
+    if (layout.cities.some(entry => entry.id === entityId)) return focusCityById(entityId);
+    if ((layout.governanceRegions ?? []).some(entry => entry.id === entityId)) return focusRegionById(entityId);
+    if ((layout.geographicZones ?? []).some(entry => entry.id === entityId)) return focusZoneById(entityId);
+    if (layout.paths.some(entry => entry.id === entityId)) return focusRouteById(entityId);
+    if (simulationFactions.some(entry => entry.id === entityId)) return focusFactionById(entityId);
+    if (simulationObjectives.some(entry => entry.id === entityId)) return focusObjectiveById(entityId);
+    if (simulationMobileActors.some(entry => entry.id === entityId)) return focusMobileActorById(entityId);
+    if (entityId in logisticsPreview.runtimeState.districts) return focusDistrictById(entityId);
+
+    return false;
+  }
+
+  function applySelectedCellToMobile(field: "positionCell" | "destinationCell") {
+    if (!selectedCell?.cell) return;
+    dispatch({
+      type: "setSelectedSimulationMobileActorCellField",
+      field,
+      cell: { ...selectedCell.cell }
+    });
+  }
+
+  function clearMobileCell(field: "positionCell" | "destinationCell") {
+    dispatch({
+      type: "setSelectedSimulationMobileActorCellField",
+      field,
+      cell: undefined
+    });
+  }
+
+  function autoComputeSelectedMobileItinerary() {
+    if (!selectedSimulationMobileActor) return;
+    if (selectedSimulationMobileActor.positionKind === "cell" || selectedSimulationMobileActor.destinationKind === "cell") return;
+    const runtimeState = createWorldStateFromMapLayout(layout);
+    const runtimeActor = runtimeState.mobileActors[`mobile:map:${selectedSimulationMobileActor.id}`];
+    if (!runtimeActor || !runtimeActor.destination) return;
+    const itinerary = findShortestRouteItinerary(runtimeState, runtimeActor);
+    dispatch({
+      type: "updateSelectedSimulationMobileActorField",
+      field: "itineraryRouteIds",
+      value: itinerary.join(", ")
+    });
+  }
+
+  function setSelectedMobileItinerary(routeIds: string[]) {
+    dispatch({
+      type: "updateSelectedSimulationMobileActorField",
+      field: "itineraryRouteIds",
+      value: routeIds.join(", ")
+    });
+  }
+
+  function replaceSelectedMobileItineraryWithRoute() {
+    if (!selectedSimulationMobileActor || !selectedRoute || selectedRoute.kind !== "road") return;
+    setSelectedMobileItinerary([selectedRoute.id]);
+  }
+
+  function appendSelectedRouteToMobileItinerary() {
+    if (!selectedSimulationMobileActor || !selectedRoute || selectedRoute.kind !== "road") return;
+    setSelectedMobileItinerary(
+      Array.from(new Set([...(selectedSimulationMobileActor.itineraryRouteIds ?? []), selectedRoute.id]))
+    );
+  }
+
+  function removeSelectedRouteFromMobileItinerary() {
+    if (!selectedSimulationMobileActor || !selectedRoute || selectedRoute.kind !== "road") return;
+    setSelectedMobileItinerary(
+      (selectedSimulationMobileActor.itineraryRouteIds ?? []).filter(routeId => routeId !== selectedRoute.id)
+    );
+  }
+
+  function popSelectedMobileItineraryRoute() {
+    if (!selectedSimulationMobileActor) return;
+    setSelectedMobileItinerary((selectedSimulationMobileActor.itineraryRouteIds ?? []).slice(0, -1));
   }
 
   useEffect(() => {
@@ -1072,7 +2209,7 @@ export function WorldMapEditorScreen(props: {
     }
   }
 
-  function updateCityField(field: "wikiEntityId" | "kind" | "markerColor", value: string): void {
+  function updateCityField(field: "wikiEntityId" | "kind" | "markerColor" | "populationProfile", value: string): void {
     dispatch({ type: "updateSelectedCityField", field, value });
   }
 
@@ -1863,6 +3000,250 @@ export function WorldMapEditorScreen(props: {
                           Couleur
                           <input value={selectedCity.markerColor ?? ""} onChange={event => updateCityField("markerColor", event.target.value)} style={FIELD_STYLE} />
                         </label>
+                        <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                          Population / races
+                          <textarea
+                            value={formatPopulationProfile(selectedCity.populationProfile)}
+                            onChange={event => updateCityField("populationProfile", event.target.value)}
+                            style={{ ...editorFieldStyles.textarea, minHeight: 96 }}
+                            placeholder="humain:70:dominant, nain:20:minority, elfe:10:outsider"
+                          />
+                        </label>
+                        <div style={editorTextStyles.helper}>
+                          Format: `groupe:poids[:role]`, separe par des virgules. Exemple: `humain:70:dominant, nain:20:minority`.
+                        </div>
+                        <div style={{ display: "grid", gap: 8 }}>
+                          <div style={editorTextStyles.sectionTitle}>Quartiers natifs pour la simulation</div>
+                          <div style={editorTextStyles.helper}>
+                            Un quartier natif est une entite explicite du runtime. Il remplace le derive automatique pour cette ville quand il existe, avec sa propre emprise locale via des cellules.
+                          </div>
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            <button
+                              type="button"
+                              onClick={createNativeDistrictForSelectedCity}
+                              style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}
+                            >
+                              Creer quartier natif
+                            </button>
+                            <div style={editorTextStyles.helper}>
+                              Selection courante: {(selectedAreaCellKeys.length > 0 ? selectedAreaCellKeys : selectedCellKey ? [selectedCellKey] : []).length} cellule(s)
+                            </div>
+                          </div>
+                          {selectedCityNativeDistricts.length > 0 ? (
+                            <div style={{ display: "grid", gap: 8 }}>
+                              {selectedCityNativeDistricts.map(district => (
+                                <div key={district.id} style={{ ...SUBSECTION_STYLE, gap: 8 }}>
+                                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+                                    <div>
+                                      <div style={{ fontSize: 12, fontWeight: 700 }}>{district.name}</div>
+                                      <div style={editorTextStyles.helper}>{district.id}</div>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => dispatch({ type: "deleteSimulationDistrict", districtId: district.id })}
+                                      style={{ ...createEditorButtonStyle({ danger: true, compact: true }), borderRadius: 8 }}
+                                    >
+                                      Supprimer
+                                    </button>
+                                  </div>
+                                  <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                                    Nom
+                                    <input
+                                      value={district.name}
+                                      onChange={event => dispatch({ type: "updateSimulationDistrictField", districtId: district.id, field: "name", value: event.target.value })}
+                                      style={FIELD_STYLE}
+                                    />
+                                  </label>
+                                  <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                                    Tags
+                                    <input
+                                      value={district.tags.join(", ")}
+                                      onChange={event => dispatch({ type: "updateSimulationDistrictField", districtId: district.id, field: "tags", value: event.target.value })}
+                                      style={FIELD_STYLE}
+                                    />
+                                  </label>
+                                  <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                                    Activites dominantes
+                                    <input
+                                      value={district.dominantActivities.join(", ")}
+                                      onChange={event => dispatch({ type: "updateSimulationDistrictField", districtId: district.id, field: "dominantActivities", value: event.target.value })}
+                                      style={FIELD_STYLE}
+                                    />
+                                  </label>
+                                  <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                                    Lieux importants
+                                    <input
+                                      value={district.importantPlaces.join(", ")}
+                                      onChange={event => dispatch({ type: "updateSimulationDistrictField", districtId: district.id, field: "importantPlaces", value: event.target.value })}
+                                      style={FIELD_STYLE}
+                                    />
+                                  </label>
+                                  <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                                    Population / races
+                                    <textarea
+                                      value={formatPopulationProfile(district.populationProfile)}
+                                      onChange={event => dispatch({ type: "updateSimulationDistrictField", districtId: district.id, field: "populationProfile", value: event.target.value })}
+                                      style={{ ...editorFieldStyles.textarea, minHeight: 84 }}
+                                      placeholder="Laisse vide pour heriter du profil de la ville"
+                                    />
+                                  </label>
+                                  <div style={{ display: "grid", gap: 4 }}>
+                                    <div style={editorTextStyles.helper}>
+                                      Emprise locale: {district.cellKeys.length} cellule(s)
+                                    </div>
+                                    <div style={editorTextStyles.helper}>
+                                      {district.cellKeys.length > 0 ? district.cellKeys.join(", ") : "Aucune cellule attribuee"}
+                                    </div>
+                                  </div>
+                                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        dispatch({
+                                          type: "updateSimulationDistrictField",
+                                          districtId: district.id,
+                                          field: "cellKeys",
+                                          value: (selectedAreaCellKeys.length > 0 ? selectedAreaCellKeys : selectedCellKey ? [selectedCellKey] : []).join(", ")
+                                        })
+                                      }
+                                      style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}
+                                    >
+                                      Remplacer emprise par selection
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => dispatch({ type: "updateSimulationDistrictField", districtId: district.id, field: "cellKeys", value: "" })}
+                                      style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}
+                                    >
+                                      Vider emprise
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div style={editorTextStyles.helper}>
+                              Aucun quartier natif defini pour cette ville. Dans ce cas, la simulation continue d'utiliser les quartiers derives.
+                            </div>
+                          )}
+                        </div>
+                        {selectedCityNativeDistricts.length === 0 && selectedCityRuntimeDistricts.length > 0 && (
+                          <div style={{ display: "grid", gap: 8 }}>
+                            <div style={editorTextStyles.sectionTitle}>Quartiers derives pour la simulation</div>
+                            <div style={editorTextStyles.helper}>
+                              Cette ville n'a pas encore de quartiers natifs. La simulation utilise donc les quartiers derives automatiquement depuis la carte, avec les overrides ci-dessous.
+                            </div>
+                            {selectedCityRuntimeDistricts.map(district => {
+                              const districtOverride = selectedCityDistrictOverridesById.get(district.id);
+                              return (
+                                <div key={district.id} style={{ ...SUBSECTION_STYLE, gap: 8 }}>
+                                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+                                    <div>
+                                      <div style={{ fontSize: 12, fontWeight: 700 }}>{district.name}</div>
+                                      <div style={editorTextStyles.helper}>{district.id}</div>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => dispatch({ type: "deleteSimulationDistrictOverride", districtId: district.id })}
+                                      disabled={!districtOverride}
+                                      style={{
+                                        ...createEditorButtonStyle({ compact: true }),
+                                        borderRadius: 8,
+                                        opacity: districtOverride ? 1 : 0.6
+                                      }}
+                                    >
+                                      Supprimer override
+                                    </button>
+                                  </div>
+                                  <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                                    Nom du quartier
+                                    <input
+                                      value={districtOverride?.name ?? district.name}
+                                      onChange={event =>
+                                        dispatch({
+                                          type: "updateSimulationDistrictOverrideField",
+                                          districtId: district.id,
+                                          cityId: selectedCity.id,
+                                          field: "name",
+                                          value: event.target.value
+                                        })
+                                      }
+                                      style={FIELD_STYLE}
+                                    />
+                                  </label>
+                                  <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                                    Tags
+                                    <input
+                                      value={(districtOverride?.tags ?? district.tags).join(", ")}
+                                      onChange={event =>
+                                        dispatch({
+                                          type: "updateSimulationDistrictOverrideField",
+                                          districtId: district.id,
+                                          cityId: selectedCity.id,
+                                          field: "tags",
+                                          value: event.target.value
+                                        })
+                                      }
+                                      style={FIELD_STYLE}
+                                    />
+                                  </label>
+                                  <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                                    Activites dominantes
+                                    <input
+                                      value={(districtOverride?.dominantActivities ?? district.dominantActivities).join(", ")}
+                                      onChange={event =>
+                                        dispatch({
+                                          type: "updateSimulationDistrictOverrideField",
+                                          districtId: district.id,
+                                          cityId: selectedCity.id,
+                                          field: "dominantActivities",
+                                          value: event.target.value
+                                        })
+                                      }
+                                      style={FIELD_STYLE}
+                                    />
+                                  </label>
+                                  <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                                    Lieux importants
+                                    <input
+                                      value={(districtOverride?.importantPlaces ?? district.importantPlaces).join(", ")}
+                                      onChange={event =>
+                                        dispatch({
+                                          type: "updateSimulationDistrictOverrideField",
+                                          districtId: district.id,
+                                          cityId: selectedCity.id,
+                                          field: "importantPlaces",
+                                          value: event.target.value
+                                        })
+                                      }
+                                      style={FIELD_STYLE}
+                                    />
+                                  </label>
+                                  <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                                    Population / races
+                                    <textarea
+                                      value={formatPopulationProfile(districtOverride?.populationProfile ?? district.populationProfile)}
+                                      onChange={event =>
+                                        dispatch({
+                                          type: "updateSimulationDistrictOverrideField",
+                                          districtId: district.id,
+                                          cityId: selectedCity.id,
+                                          field: "populationProfile",
+                                          value: event.target.value
+                                        })
+                                      }
+                                      style={{ ...editorFieldStyles.textarea, minHeight: 84 }}
+                                      placeholder="Laisse vide pour heriter du profil de la ville"
+                                    />
+                                  </label>
+                                  <div style={editorTextStyles.helper}>
+                                    Profil effectif: {formatPopulationProfile(district.populationProfile) || "aucun"}.
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                         {selectedCityWiki && (
                           <div style={{ fontSize: 12, color: "#dce5f2", lineHeight: 1.45 }}>
                             <div style={{ fontWeight: 700, marginBottom: 4 }}>{selectedCityWiki.name}</div>
@@ -2684,6 +4065,208 @@ export function WorldMapEditorScreen(props: {
               >
                 <div style={{ display: "grid", gap: 10 }}>
                   <div style={SUBSECTION_STYLE}>
+                    <div style={editorTextStyles.sectionTitle}>Preflight simulation</div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+                      <div style={{ ...editorSurfaceStyles.badge, background: simulationPreflight.errorCount > 0 ? "rgba(190, 74, 74, 0.24)" : "rgba(66, 153, 110, 0.24)", border: simulationPreflight.errorCount > 0 ? "1px solid rgba(214, 103, 103, 0.55)" : "1px solid rgba(88, 179, 131, 0.55)" }}>
+                        {simulationPreflight.errorCount} erreur(s)
+                      </div>
+                      <div style={{ ...editorSurfaceStyles.badge, background: simulationPreflight.warningCount > 0 ? "rgba(201, 148, 58, 0.2)" : "rgba(80, 96, 118, 0.34)", border: simulationPreflight.warningCount > 0 ? "1px solid rgba(221, 173, 86, 0.45)" : "1px solid rgba(111, 129, 154, 0.32)" }}>
+                        {simulationPreflight.warningCount} warning(s)
+                      </div>
+                    </div>
+                    {simulationPreflight.issues.length === 0 ? (
+                      <div style={editorTextStyles.helper}>Aucune incoherence structurelle detectee pour la simulation.</div>
+                    ) : (
+                        <div style={{ display: "grid", gap: 8 }}>
+                          {topPreflightIssues.map((issue, index) => (
+                            <button
+                              type="button"
+                              key={`${issue.code}-${issue.entityId ?? "layout"}-${index}`}
+                              onClick={() => {
+                                handlePreflightIssueClick(issue);
+                              }}
+                              style={{
+                                ...SUBSECTION_STYLE,
+                                gap: 4,
+                                width: "100%",
+                                textAlign: "left",
+                                border: issue.severity === "error"
+                                  ? "1px solid rgba(214, 103, 103, 0.45)"
+                                  : "1px solid rgba(221, 173, 86, 0.35)",
+                                background: issue.severity === "error"
+                                  ? "rgba(94, 43, 43, 0.26)"
+                                  : "rgba(88, 67, 24, 0.2)",
+                                color: "#eef3ff",
+                                cursor: issue.entityId ? "pointer" : "default"
+                              }}
+                            >
+                              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+                                <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4 }}>
+                                  {issue.severity} · {issue.scope}{issue.entityId ? ` · ${issue.entityId}` : ""}
+                                </div>
+                                <div style={{ fontSize: 11, opacity: 0.75 }}>{issue.code}</div>
+                              </div>
+                              <div style={{ fontSize: 12, lineHeight: 1.45 }}>{issue.message}</div>
+                              {issue.entityId && (
+                                <div style={{ ...editorTextStyles.helper, color: "#d8e5ff" }}>
+                                  Cliquer pour ouvrir l'entite concernee dans l'editeur.
+                                </div>
+                              )}
+                            </button>
+                          ))}
+                        {simulationPreflight.issues.length > topPreflightIssues.length && (
+                          <div style={editorTextStyles.helper}>
+                            {simulationPreflight.issues.length - topPreflightIssues.length} issue(s) supplementaire(s) masquees pour garder ce panneau lisible.
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={SUBSECTION_STYLE}>
+                    <div style={editorTextStyles.sectionTitle}>Projection du prochain tick</div>
+                    <div style={editorTextStyles.helper}>
+                      Cette vue lance un tick micro sur un clone de l'etat courant pour previsualiser les sorties probables sans modifier la carte.
+                    </div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+                      <div style={editorSurfaceStyles.badge}>{nextTickPreview.output.events.length} evenement(s)</div>
+                      <div style={editorSurfaceStyles.badge}>{nextTickPreview.output.signals.length} signal(aux)</div>
+                      <div style={editorSurfaceStyles.badge}>{nextTickPreview.output.rumors.length} rumeur(s)</div>
+                      <div style={editorSurfaceStyles.badge}>{nextTickPreview.output.opportunities.length} opportunite(s)</div>
+                    </div>
+                    <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
+                      {nextTickPreview.output.events.slice(0, 4).map(event => (
+                        <button
+                          type="button"
+                          key={event.id}
+                          onClick={() => focusEntityRef(event.target ?? event.actor)}
+                          style={{
+                            ...getProjectionCardStyle(event.success ? "success" : "warning"),
+                            width: "100%",
+                            textAlign: "left",
+                            cursor: isClickableEntityRef(event.target ?? event.actor) ? "pointer" : "default"
+                          }}
+                        >
+                          <div style={getProjectionSectionTitleStyle()}>
+                            {event.type} · {event.success ? "succes" : "echec"}
+                          </div>
+                          <div style={editorTextStyles.helper}>
+                            Acteur: {formatEntityRefSummary(event.actor)} · Cible: {formatEntityRefSummary(event.target)} · Objectif: {event.objectiveId ?? "aucun"}
+                          </div>
+                        </button>
+                      ))}
+                      {nextTickPreview.output.events.length === 0 && (
+                        <div style={editorTextStyles.helper}>
+                          Aucun evenement projete sur le prochain tick micro.
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: "#dce5f2" }}>Deltas d'etat les plus marquants</div>
+                      {nextTickTopDeltaGroups.length > 0 ? nextTickTopDeltaGroups.map(group => (
+                        <button
+                          type="button"
+                          key={`${group.ref.kind}:${group.ref.id}`}
+                          onClick={() => focusEntityRef(group.ref)}
+                          style={{
+                            ...getProjectionCardStyle("default"),
+                            width: "100%",
+                            textAlign: "left",
+                            cursor: isClickableEntityRef(group.ref) ? "pointer" : "default"
+                          }}
+                        >
+                          <div style={getProjectionSectionTitleStyle()}>
+                            {formatEntityRefSummary(group.ref)}
+                          </div>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                            {group.deltas.map((delta, index) => (
+                              <div
+                                key={`${group.ref.kind}:${group.ref.id}:${delta.key}:${index}`}
+                                style={{
+                                  ...getDeltaVisualStyle(delta.amount),
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 8,
+                                  padding: "6px 10px",
+                                  borderRadius: 999,
+                                  fontSize: 12,
+                                  fontWeight: 700
+                                }}
+                              >
+                                <span>{formatDeltaLabel(delta.key)}</span>
+                                <span>{delta.before ?? "?"} → {delta.after ?? "?"}</span>
+                                <span>{(delta.amount ?? 0) > 0 ? "+" : ""}{delta.amount ?? 0}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </button>
+                      )) : (
+                        <div style={editorTextStyles.helper}>Aucun delta d'etat notable sur le tick projete.</div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={SUBSECTION_STYLE}>
+                    <div style={editorTextStyles.sectionTitle}>Inspection des pressions</div>
+                    <div style={editorTextStyles.helper}>
+                      Cette vue lit les traces de calcul du runtime pour expliquer quelles donnees de carte alimentent les pressions attendues avant de lancer la simulation.
+                    </div>
+                    <div style={{ display: "grid", gap: 8 }}>
+                      <div style={{ ...SUBSECTION_STYLE, gap: 8 }}>
+                        <div style={editorTextStyles.sectionTitle}>Hotspots attendus</div>
+                        {pressureHotspots.length === 0 ? (
+                          <div style={editorTextStyles.helper}>Aucun hotspot calcule pour le layout courant.</div>
+                        ) : (
+                          <div style={{ display: "grid", gap: 6 }}>
+                            {pressureHotspots.map(hotspot => (
+                              <button
+                                key={`${hotspot.kind}:${hotspot.id}`}
+                                type="button"
+                                onClick={() => handlePreflightIssueClick({ severity: "warning", code: "pressure_hotspot", scope: "layout", entityId: hotspot.id, message: hotspot.id })}
+                                style={{ ...SUBSECTION_STYLE, gap: 4, width: "100%", textAlign: "left", color: "#eef3ff", cursor: "pointer" }}
+                              >
+                                <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                                  <div style={{ fontSize: 12, fontWeight: 700 }}>{hotspot.kind}:{hotspot.id}</div>
+                                  <div style={{ fontSize: 12, color: "#ffd58f" }}>{Math.round(hotspot.total)}</div>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ ...SUBSECTION_STYLE, gap: 8 }}>
+                        <div style={editorTextStyles.sectionTitle}>Entite active</div>
+                        <div style={editorTextStyles.helper}>
+                          {selectedPressureTarget ? selectedPressureTarget.label : "Selectionne une ville, une route, une region ou un objectif cible sur quartier pour afficher le detail."}
+                        </div>
+                        {selectedPressureEvaluations.length > 0 ? (
+                          <div style={{ display: "grid", gap: 8 }}>
+                            {selectedPressureEvaluations.map(evaluation => (
+                              <div key={`${evaluation.definitionId}-${evaluation.pressureType}`} style={{ ...SUBSECTION_STYLE, gap: 6 }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                                  <div style={{ fontSize: 12, fontWeight: 700 }}>
+                                    {evaluation.pressureType} · {Math.round(evaluation.clampedValue)}
+                                  </div>
+                                  <div style={editorTextStyles.helper}>{evaluation.definitionId}</div>
+                                </div>
+                                <div style={{ display: "grid", gap: 4 }}>
+                                  {evaluation.terms.map((term, index) => (
+                                    <div key={`${evaluation.definitionId}-${index}`} style={{ fontSize: 12, color: "#dce5f2", lineHeight: 1.4 }}>
+                                      {term.source}: brut {Math.round(term.rawValue)}, ajuste {Math.round(term.adjustedValue)}, poids {term.weight}, contribution {Math.round(term.contribution)}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div style={editorTextStyles.helper}>Aucune trace de pression lisible pour l'entite active.</div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={SUBSECTION_STYLE}>
                     <div style={editorTextStyles.sectionTitle}>Factions</div>
                     <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
                       Faction active
@@ -2748,6 +4331,19 @@ export function WorldMapEditorScreen(props: {
                   </div>
 
                   {selectedSimulationFaction && (
+                    <div style={SUBSECTION_STYLE}>
+                      <div style={editorTextStyles.sectionTitle}>Vue logistique</div>
+                      <div style={editorTextStyles.helper}>
+                        Previsualisation calculee depuis le layout courant, sans lancer de tick. Cette vue montre ce que le runtime retient deja pour l'objectif principal de la faction selectionnee.
+                      </div>
+                      <SimulationLogisticsPanel
+                        runtimeFaction={selectedSimulationFactionRuntime}
+                        logisticsPlan={selectedSimulationFactionLogisticsPlan}
+                      />
+                    </div>
+                  )}
+
+                  {selectedSimulationFaction && (
                     <>
                       <div style={SUBSECTION_STYLE}>
                         <div style={editorTextStyles.sectionTitle}>Identite et intention</div>
@@ -2787,33 +4383,176 @@ export function WorldMapEditorScreen(props: {
 
                       <div style={SUBSECTION_STYLE}>
                         <div style={editorTextStyles.sectionTitle}>Qui, quoi, comment, pourquoi</div>
+                        <div style={{ ...SUBSECTION_STYLE, gap: 8 }}>
+                          <div style={editorTextStyles.sectionTitle}>Edition guidee faction</div>
+                          <div style={editorTextStyles.helper}>
+                            Les methodes, objectifs suggeres et tags se gerent ici via des listes structurees.
+                          </div>
+                          <div style={{ display: "grid", gap: 8 }}>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                              {selectedSimulationFaction.methods.length > 0 ? selectedSimulationFaction.methods.map(method => (
+                                <div key={method} style={{ ...editorSurfaceStyles.badge, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                  <span>Methode: {method}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeValueFromSelectedFactionListField("methods", method)}
+                                    style={{ border: "none", background: "transparent", color: "#dce5f2", cursor: "pointer", padding: 0, fontWeight: 700 }}
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              )) : <div style={editorTextStyles.helper}>Aucune methode declaree.</div>}
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 8 }}>
+                              <input
+                                value={pendingFactionMethod}
+                                onChange={event => setPendingFactionMethod(event.target.value)}
+                                style={FIELD_STYLE}
+                                placeholder="Ajouter une methode"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  addValueToSelectedFactionListField("methods", pendingFactionMethod);
+                                  setPendingFactionMethod("");
+                                }}
+                                disabled={!normalizeListDraftValue(pendingFactionMethod)}
+                                style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8, opacity: normalizeListDraftValue(pendingFactionMethod) ? 1 : 0.6 }}
+                              >
+                                Ajouter
+                              </button>
+                            </div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                              {SIMULATION_FACTION_METHOD_SUGGESTIONS
+                                .filter(method => !selectedSimulationFaction.methods.includes(method))
+                                .map(method => (
+                                  <button
+                                    key={method}
+                                    type="button"
+                                    onClick={() => addValueToSelectedFactionListField("methods", method)}
+                                    style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 999 }}
+                                  >
+                                    {method}
+                                  </button>
+                                ))}
+                            </div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                              {selectedSimulationFaction.objectiveHints.length > 0 ? selectedSimulationFaction.objectiveHints.map(category => (
+                                <div key={category} style={{ ...editorSurfaceStyles.badge, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                  <span>Objectif: {SIMULATION_OBJECTIVE_CATEGORY_OPTIONS.find(option => option.value === category)?.label ?? category}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeValueFromSelectedFactionListField("objectiveHints", category)}
+                                    style={{ border: "none", background: "transparent", color: "#dce5f2", cursor: "pointer", padding: 0, fontWeight: 700 }}
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              )) : <div style={editorTextStyles.helper}>Aucun objectif suggere.</div>}
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 8 }}>
+                              <select
+                                value={pendingFactionObjectiveHint}
+                                onChange={event => setPendingFactionObjectiveHint(event.target.value)}
+                                style={FIELD_STYLE}
+                              >
+                                <option value="">Ajouter un objectif suggere</option>
+                                {SIMULATION_OBJECTIVE_CATEGORY_OPTIONS
+                                  .filter(option => !selectedSimulationFaction.objectiveHints.includes(option.value))
+                                  .map(option => (
+                                    <option key={option.value} value={option.value}>
+                                      {option.label}
+                                    </option>
+                                  ))}
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  addValueToSelectedFactionListField("objectiveHints", pendingFactionObjectiveHint);
+                                  setPendingFactionObjectiveHint("");
+                                }}
+                                disabled={!pendingFactionObjectiveHint}
+                                style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8, opacity: pendingFactionObjectiveHint ? 1 : 0.6 }}
+                              >
+                                Ajouter
+                              </button>
+                            </div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                              {selectedSimulationFaction.tags.length > 0 ? selectedSimulationFaction.tags.map(tag => (
+                                <div key={tag} style={{ ...editorSurfaceStyles.badge, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                  <span>Tag: {tag}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeValueFromSelectedFactionListField("tags", tag)}
+                                    style={{ border: "none", background: "transparent", color: "#dce5f2", cursor: "pointer", padding: 0, fontWeight: 700 }}
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              )) : <div style={editorTextStyles.helper}>Aucun tag defini.</div>}
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 8 }}>
+                              <select
+                                value={pendingFactionTag}
+                                onChange={event => setPendingFactionTag(event.target.value)}
+                                style={FIELD_STYLE}
+                              >
+                                <option value="">Choisir un tag connu</option>
+                                {TAG_PRESETS.filter(tag => !selectedSimulationFaction.tags.includes(tag.id)).map(tag => (
+                                  <option key={tag.id} value={tag.id}>
+                                    {tag.label}
+                                  </option>
+                                ))}
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  addValueToSelectedFactionListField("tags", pendingFactionTag);
+                                  setPendingFactionTag("");
+                                }}
+                                disabled={!pendingFactionTag}
+                                style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8, opacity: pendingFactionTag ? 1 : 0.6 }}
+                              >
+                                Ajouter
+                              </button>
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 8 }}>
+                              <input
+                                value={pendingFactionCustomTag}
+                                onChange={event => setPendingFactionCustomTag(event.target.value)}
+                                style={FIELD_STYLE}
+                                placeholder="Ajouter un tag libre"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  addValueToSelectedFactionListField("tags", pendingFactionCustomTag);
+                                  setPendingFactionCustomTag("");
+                                }}
+                                disabled={!normalizeListDraftValue(pendingFactionCustomTag)}
+                                style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8, opacity: normalizeListDraftValue(pendingFactionCustomTag) ? 1 : 0.6 }}
+                              >
+                                Ajouter manuel
+                              </button>
+                            </div>
+                          </div>
+                        </div>
                         <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                          Methodes
-                          <input
-                            value={selectedSimulationFaction.methods.join(", ")}
-                            onChange={event => dispatch({ type: "updateSelectedSimulationFactionField", field: "methods", value: event.target.value })}
-                            style={FIELD_STYLE}
-                            placeholder="patrouille, corruption, rituel"
+                          Population / races
+                          <textarea
+                            value={formatPopulationProfile(selectedSimulationFaction.populationProfile)}
+                            onChange={event => dispatch({ type: "updateSelectedSimulationFactionField", field: "populationProfile", value: event.target.value })}
+                            style={{ ...editorFieldStyles.textarea, minHeight: 96 }}
+                            placeholder="humain:70:dominant, nain:20:minority"
                           />
                         </label>
-                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                          Objectifs suggérés
-                          <input
-                            value={selectedSimulationFaction.objectiveHints.join(", ")}
-                            onChange={event => dispatch({ type: "updateSelectedSimulationFactionField", field: "objectiveHints", value: event.target.value })}
-                            style={FIELD_STYLE}
-                            placeholder="ouvrir_route, recherche_objet"
-                          />
-                        </label>
-                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                          Tags
-                          <input
-                            value={selectedSimulationFaction.tags.join(", ")}
-                            onChange={event => dispatch({ type: "updateSelectedSimulationFactionField", field: "tags", value: event.target.value })}
-                            style={FIELD_STYLE}
-                            placeholder="criminel, religieux, marchand"
-                          />
-                        </label>
+                        <div style={editorTextStyles.helper}>
+                          Laisse vide pour heriter plus tard de la ville d'ancrage quand c'est pertinent.
+                        </div>
+                        <div style={editorTextStyles.helper}>
+                          Profil effectif: {formatPopulationProfile(selectedSimulationFactionEffectivePopulationProfile) || "aucun"}.
+                        </div>
+                        <div style={editorTextStyles.helper}>Source effective: {selectedSimulationFactionPopulationSource}.</div>
                       </div>
 
                       <div style={SUBSECTION_STYLE}>
@@ -2864,6 +4603,247 @@ export function WorldMapEditorScreen(props: {
                             </button>
                           </div>
                         </div>
+                      </div>
+
+                      <div style={SUBSECTION_STYLE}>
+                        <div style={editorTextStyles.sectionTitle}>Zones d'action</div>
+                        <div style={editorTextStyles.helper}>
+                          Ces listes definissent ou la faction agit, projette son influence, surveille ou evite d'intervenir. Les zones peuvent etre des villes, regions, routes, zones geographiques, quartiers derives ou memes d'autres factions.
+                        </div>
+                        {(
+                          [
+                            ["controlledZoneIds", "Zones controlees"],
+                            ["influencedZoneIds", "Zones influencees"],
+                            ["interestZoneIds", "Zones d'interet"],
+                            ["avoidedZoneIds", "Zones evitees"]
+                          ] as const
+                        ).map(([field, label]) => {
+                          const zoneIds = selectedSimulationFaction[field] ?? [];
+                          const activeCandidates = getActiveZoneCandidatesForFaction();
+                          return (
+                            <div key={field} style={{ ...SUBSECTION_STYLE, gap: 8 }}>
+                              <div style={{ fontSize: 12, fontWeight: 700 }}>{label}</div>
+                              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                                <select
+                                  value={pendingFactionZoneSelections[field]}
+                                  onChange={event =>
+                                    setPendingFactionZoneSelections(current => ({
+                                      ...current,
+                                      [field]: event.target.value
+                                    }))
+                                  }
+                                  style={{ ...FIELD_STYLE, flex: "1 1 240px" }}
+                                >
+                                  <option value="">Choisir une zone</option>
+                                  {simulationZoneOptions.map(option => (
+                                    <option key={`${field}-${option.id}`} value={option.id}>
+                                      {option.label}
+                                    </option>
+                                  ))}
+                                </select>
+                                <button
+                                  type="button"
+                                  onClick={() => addZoneToSelectedFaction(field, pendingFactionZoneSelections[field])}
+                                  disabled={!pendingFactionZoneSelections[field]}
+                                  style={{
+                                    ...createEditorButtonStyle({ compact: true }),
+                                    borderRadius: 8,
+                                    opacity: pendingFactionZoneSelections[field] ? 1 : 0.6
+                                  }}
+                                >
+                                  Ajouter
+                                </button>
+                              </div>
+                              {activeCandidates.length > 0 && (
+                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                  {activeCandidates.map(zoneId => (
+                                    <button
+                                      key={`${field}-active-${zoneId}`}
+                                      type="button"
+                                      onClick={() => addZoneToSelectedFaction(field, zoneId)}
+                                      style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}
+                                    >
+                                      Ajouter zone active: {getSimulationZoneLabel(zoneId)}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                              {zoneIds.length === 0 ? (
+                                <div style={editorTextStyles.helper}>Aucune zone definie.</div>
+                              ) : (
+                                <div style={{ display: "grid", gap: 6 }}>
+                                  {zoneIds.map(zoneId => (
+                                    <div key={`${field}-${zoneId}`} style={{ ...SUBSECTION_STYLE, gap: 6 }}>
+                                      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+                                        <div style={{ fontSize: 12, fontWeight: 700 }}>{getSimulationZoneLabel(zoneId)}</div>
+                                        <button
+                                          type="button"
+                                          onClick={() => removeZoneFromSelectedFaction(field, zoneId)}
+                                          style={{ ...createEditorButtonStyle({ danger: true, compact: true }), borderRadius: 8 }}
+                                        >
+                                          Retirer
+                                        </button>
+                                      </div>
+                                      <div style={editorTextStyles.helper}>{zoneId}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <div style={SUBSECTION_STYLE}>
+                        <div style={editorTextStyles.sectionTitle}>Ancrages locaux</div>
+                        <div style={editorTextStyles.helper}>
+                          Un ancrage local represente un point d'appui concret de la faction : repaire, temple, contact, entrepot, poste de garde, lieu de rendez-vous. Il peut viser une entite spatiale ou une cellule precise.
+                        </div>
+                        <button
+                          type="button"
+                          onClick={createSimulationFactionAnchorDefinition}
+                          style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}
+                        >
+                          Creer un ancrage local
+                        </button>
+                        {selectedSimulationFaction.localAnchors && selectedSimulationFaction.localAnchors.length > 0 ? (
+                          <div style={{ display: "grid", gap: 8 }}>
+                            {selectedSimulationFaction.localAnchors.map(anchor => {
+                              const targetOptions = getFactionAnchorTargetOptions(anchor.targetKind);
+                              return (
+                                <div key={anchor.id} style={{ ...SUBSECTION_STYLE, gap: 8 }}>
+                                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+                                    <div>
+                                      <div style={{ fontSize: 12, fontWeight: 700 }}>{anchor.label || anchor.id}</div>
+                                      <div style={editorTextStyles.helper}>{anchor.id}</div>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => dispatch({ type: "deleteSelectedSimulationFactionAnchor", anchorId: anchor.id })}
+                                      style={{ ...createEditorButtonStyle({ danger: true, compact: true }), borderRadius: 8 }}
+                                    >
+                                      Supprimer
+                                    </button>
+                                  </div>
+                                  <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+                                    <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                      Label
+                                      <input
+                                        value={anchor.label}
+                                        onChange={event => dispatch({ type: "updateSelectedSimulationFactionAnchorField", anchorId: anchor.id, field: "label", value: event.target.value })}
+                                        style={FIELD_STYLE}
+                                      />
+                                    </label>
+                                    <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                      Type
+                                      <select
+                                        value={anchor.type}
+                                        onChange={event => dispatch({ type: "updateSelectedSimulationFactionAnchorField", anchorId: anchor.id, field: "type", value: event.target.value })}
+                                        style={FIELD_STYLE}
+                                      >
+                                        <option value="safehouse">Safehouse</option>
+                                        <option value="temple">Temple</option>
+                                        <option value="contact">Contact</option>
+                                        <option value="warehouse">Entrepot</option>
+                                        <option value="outpost">Poste</option>
+                                        <option value="meeting_point">Rendez-vous</option>
+                                      </select>
+                                    </label>
+                                    <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                      Cible
+                                      <select
+                                        value={anchor.targetKind}
+                                        onChange={event => dispatch({ type: "updateSelectedSimulationFactionAnchorField", anchorId: anchor.id, field: "targetKind", value: event.target.value })}
+                                        style={FIELD_STYLE}
+                                      >
+                                        <option value="city">Ville</option>
+                                        <option value="district">Quartier</option>
+                                        <option value="route">Route</option>
+                                        <option value="region">Region</option>
+                                        <option value="place">Lieu</option>
+                                        <option value="cell">Cellule</option>
+                                      </select>
+                                    </label>
+                                    <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                      Niveau
+                                      <input
+                                        type="number"
+                                        min={1}
+                                        max={5}
+                                        value={anchor.level}
+                                        onChange={event => dispatch({ type: "updateSelectedSimulationFactionAnchorField", anchorId: anchor.id, field: "level", value: event.target.value })}
+                                        style={FIELD_STYLE}
+                                      />
+                                    </label>
+                                  </div>
+                                  {anchor.targetKind === "cell" ? (
+                                    <div style={{ display: "grid", gap: 6 }}>
+                                      <div style={editorTextStyles.helper}>Cellule cible: {getCellLabel(anchor.cell)}</div>
+                                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            dispatch({
+                                              type: "setSelectedSimulationFactionAnchorCell",
+                                              anchorId: anchor.id,
+                                              cell: selectedCell?.cell ? { ...selectedCell.cell } : undefined
+                                            })
+                                          }
+                                          disabled={!selectedCell?.cell}
+                                          style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8, opacity: selectedCell?.cell ? 1 : 0.6 }}
+                                        >
+                                          Utiliser cellule active
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => dispatch({ type: "setSelectedSimulationFactionAnchorCell", anchorId: anchor.id, cell: undefined })}
+                                          style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}
+                                        >
+                                          Effacer cellule
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                      Entite cible
+                                      <select
+                                        value={anchor.targetId ?? ""}
+                                        onChange={event => dispatch({ type: "updateSelectedSimulationFactionAnchorField", anchorId: anchor.id, field: "targetId", value: event.target.value })}
+                                        style={FIELD_STYLE}
+                                      >
+                                        <option value="">Choisir une cible</option>
+                                        {targetOptions.map(option => (
+                                          <option key={`${anchor.id}-${option.id}`} value={option.id}>
+                                            {option.label}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </label>
+                                  )}
+                                  <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                    Tags
+                                    <input
+                                      value={anchor.tags.join(", ")}
+                                      onChange={event => dispatch({ type: "updateSelectedSimulationFactionAnchorField", anchorId: anchor.id, field: "tags", value: event.target.value })}
+                                      style={FIELD_STYLE}
+                                      placeholder="secret, relais, logistique"
+                                    />
+                                  </label>
+                                  <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                    Notes
+                                    <textarea
+                                      value={anchor.notes}
+                                      onChange={event => dispatch({ type: "updateSelectedSimulationFactionAnchorField", anchorId: anchor.id, field: "notes", value: event.target.value })}
+                                      style={{ ...editorFieldStyles.textarea, minHeight: 80 }}
+                                    />
+                                  </label>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div style={editorTextStyles.helper}>Aucun ancrage local defini.</div>
+                        )}
                       </div>
 
                       <div style={SUBSECTION_STYLE}>
@@ -3178,40 +5158,513 @@ export function WorldMapEditorScreen(props: {
                               </select>
                             </label>
                           </div>
+                          {selectedSimulationObjective.targetKind ? (
+                            <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                              Cible
+                              <select
+                                value={selectedSimulationObjective.targetId ?? ""}
+                                onChange={event => dispatch({ type: "updateSelectedSimulationObjectiveField", field: "targetId", value: event.target.value })}
+                                style={FIELD_STYLE}
+                              >
+                                <option value="">Choisir une cible</option>
+                                {objectiveTargetOptions.map(option => (
+                                  <option key={option.id} value={option.id}>
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                          ) : (
+                            <div style={editorTextStyles.helper}>Choisis d'abord un type de cible pour activer un selecteur guide.</div>
+                          )}
+                          <div style={{ ...SUBSECTION_STYLE, gap: 8 }}>
+                            <div style={editorTextStyles.sectionTitle}>Phases</div>
+                            <div style={editorTextStyles.helper}>
+                              Definis les etapes de l'objectif dans l'ordre. La phase courante peut ensuite etre pointee directement sur l'une d'elles.
+                            </div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                              {(selectedSimulationObjective.phases ?? []).length > 0 ? (
+                                (selectedSimulationObjective.phases ?? []).map((phase, index) => {
+                                  const isActivePhase = index === (selectedSimulationObjective.currentPhaseIndex ?? 0);
+                                  return (
+                                    <div
+                                      key={`${phase}-${index}`}
+                                      style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: 6,
+                                        padding: "6px 10px",
+                                        borderRadius: 999,
+                                        border: isActivePhase ? "1px solid rgba(114,197,143,0.55)" : "1px solid rgba(124, 142, 168, 0.32)",
+                                        background: isActivePhase ? "rgba(114,197,143,0.14)" : "rgba(31, 38, 48, 0.72)",
+                                        color: isActivePhase ? "#b9f1c7" : "#dce5f2",
+                                        fontSize: 12
+                                      }}
+                                    >
+                                      <button
+                                        type="button"
+                                        onClick={() => dispatch({ type: "updateSelectedSimulationObjectiveField", field: "currentPhaseIndex", value: String(index) })}
+                                        style={{
+                                          border: "none",
+                                          background: "transparent",
+                                          color: "inherit",
+                                          fontWeight: 700,
+                                          cursor: "pointer",
+                                          padding: 0
+                                        }}
+                                        title="Definir cette phase comme phase courante"
+                                      >
+                                        {index + 1}. {phase}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => removeValueFromSelectedObjectiveListField("phases", phase)}
+                                        style={{
+                                          border: "none",
+                                          background: "transparent",
+                                          color: "#ffb0b0",
+                                          cursor: "pointer",
+                                          padding: 0,
+                                          fontWeight: 700
+                                        }}
+                                        title="Retirer cette phase"
+                                      >
+                                        ×
+                                      </button>
+                                    </div>
+                                  );
+                                })
+                              ) : (
+                                <div style={editorTextStyles.helper}>Aucune phase definie.</div>
+                              )}
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 8 }}>
+                              <input
+                                value={pendingObjectivePhase}
+                                onChange={event => setPendingObjectivePhase(event.target.value)}
+                                style={FIELD_STYLE}
+                                placeholder="collecter_indices"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  addValueToSelectedObjectiveListField("phases", pendingObjectivePhase);
+                                  setPendingObjectivePhase("");
+                                }}
+                                disabled={!normalizeListDraftValue(pendingObjectivePhase)}
+                                style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8, opacity: normalizeListDraftValue(pendingObjectivePhase) ? 1 : 0.6 }}
+                              >
+                                Ajouter
+                              </button>
+                            </div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                              {getSuggestedObjectivePhases(selectedSimulationObjective.category)
+                                .filter(phase => !(selectedSimulationObjective.phases ?? []).includes(phase))
+                                .map(phase => (
+                                  <button
+                                    key={phase}
+                                    type="button"
+                                    onClick={() => addValueToSelectedObjectiveListField("phases", phase)}
+                                    style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 999 }}
+                                  >
+                                    Ajouter suggestion: {phase}
+                                  </button>
+                                ))}
+                            </div>
+                          </div>
                           <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                            Id de cible
+                            Phase courante
                             <input
-                              value={selectedSimulationObjective.targetId ?? ""}
-                              onChange={event => dispatch({ type: "updateSelectedSimulationObjectiveField", field: "targetId", value: event.target.value })}
+                              type="number"
+                              min={0}
+                              max={Math.max(0, (selectedSimulationObjective.phases ?? []).length - 1)}
+                              value={selectedSimulationObjective.currentPhaseIndex ?? 0}
+                              onChange={event => dispatch({ type: "updateSelectedSimulationObjectiveField", field: "currentPhaseIndex", value: event.target.value })}
                               style={FIELD_STYLE}
                             />
                           </label>
                           <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                            Obstacles
-                            <input
-                              value={selectedSimulationObjective.obstacleHints.join(", ")}
-                              onChange={event => dispatch({ type: "updateSelectedSimulationObjectiveField", field: "obstacleHints", value: event.target.value })}
+                            Ancrage requis
+                            <select
+                              value={selectedSimulationObjective.requiredAnchorId ?? ""}
+                              onChange={event => dispatch({ type: "updateSelectedSimulationObjectiveField", field: "requiredAnchorId", value: event.target.value })}
                               style={FIELD_STYLE}
-                              placeholder="garde, rival, manque d'indices"
-                            />
+                            >
+                              <option value="">Aucun ancrage specifique</option>
+                              {(selectedSimulationFaction.localAnchors ?? []).map(anchor => (
+                                <option key={anchor.id} value={anchor.id}>
+                                  {anchor.label || anchor.id} ({anchor.type})
+                                </option>
+                              ))}
+                            </select>
                           </label>
                           <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                            Actions compatibles
+                            Type d'ancrage requis
                             <input
-                              value={selectedSimulationObjective.compatibleActionIds.join(", ")}
-                              onChange={event => dispatch({ type: "updateSelectedSimulationObjectiveField", field: "compatibleActionIds", value: event.target.value })}
+                              value={selectedSimulationObjective.requiredAnchorType ?? ""}
+                              onChange={event => dispatch({ type: "updateSelectedSimulationObjectiveField", field: "requiredAnchorType", value: event.target.value })}
                               style={FIELD_STYLE}
-                              placeholder="investigate, patrol, secure_route"
+                              placeholder="safehouse, temple, outpost"
                             />
                           </label>
-                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                            Tags
-                            <input
-                              value={selectedSimulationObjective.tags.join(", ")}
-                              onChange={event => dispatch({ type: "updateSelectedSimulationObjectiveField", field: "tags", value: event.target.value })}
-                              style={FIELD_STYLE}
-                            />
-                          </label>
+                          <div style={editorTextStyles.helper}>
+                            Tu peux demander soit un ancrage precis, soit un type d'ancrage. Les deux servent de contrainte locale pour l'objectif.
+                          </div>
+                          <div style={editorTextStyles.helper}>
+                            Phase active: {(selectedSimulationObjective.phases ?? [])[selectedSimulationObjective.currentPhaseIndex ?? 0] ?? "aucune"}.
+                          </div>
+                          <div style={editorTextStyles.helper}>
+                            Dependance locale: {selectedSimulationObjective.requiredAnchorId
+                              ? (selectedSimulationFaction.localAnchors ?? []).some(anchor => anchor.id === selectedSimulationObjective.requiredAnchorId)
+                                ? `ancrage resolu (${selectedSimulationObjective.requiredAnchorId})`
+                                : `ancrage introuvable (${selectedSimulationObjective.requiredAnchorId})`
+                              : selectedSimulationObjective.requiredAnchorType
+                                ? (selectedSimulationFaction.localAnchors ?? []).some(anchor => anchor.type === selectedSimulationObjective.requiredAnchorType)
+                                  ? `type disponible (${selectedSimulationObjective.requiredAnchorType})`
+                                  : `type absent (${selectedSimulationObjective.requiredAnchorType})`
+                                : "aucune contrainte locale"}
+                            .
+                          </div>
+                          <div style={{ ...SUBSECTION_STYLE, gap: 8 }}>
+                            <div style={editorTextStyles.sectionTitle}>Obstacles</div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                              {selectedSimulationObjective.obstacleHints.length > 0 ? (
+                                selectedSimulationObjective.obstacleHints.map(obstacle => (
+                                  <div
+                                    key={obstacle}
+                                    style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: 6,
+                                      padding: "6px 10px",
+                                      borderRadius: 999,
+                                      border: "1px solid rgba(221,173,86,0.35)",
+                                      background: "rgba(88,67,24,0.2)",
+                                      color: "#ffe0a3",
+                                      fontSize: 12
+                                    }}
+                                  >
+                                    <span>{obstacle}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => removeValueFromSelectedObjectiveListField("obstacleHints", obstacle)}
+                                      style={{ border: "none", background: "transparent", color: "#ffe0a3", cursor: "pointer", padding: 0, fontWeight: 700 }}
+                                      title="Retirer cet obstacle"
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                ))
+                              ) : (
+                                <div style={editorTextStyles.helper}>Aucun obstacle declare.</div>
+                              )}
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 8 }}>
+                              <input
+                                value={pendingObjectiveObstacle}
+                                onChange={event => setPendingObjectiveObstacle(event.target.value)}
+                                style={FIELD_STYLE}
+                                placeholder="garde, rival, manque d'indices"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  addValueToSelectedObjectiveListField("obstacleHints", pendingObjectiveObstacle);
+                                  setPendingObjectiveObstacle("");
+                                }}
+                                disabled={!normalizeListDraftValue(pendingObjectiveObstacle)}
+                                style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8, opacity: normalizeListDraftValue(pendingObjectiveObstacle) ? 1 : 0.6 }}
+                              >
+                                Ajouter
+                              </button>
+                            </div>
+                          </div>
+                          <div style={{ ...SUBSECTION_STYLE, gap: 8 }}>
+                            <div style={editorTextStyles.sectionTitle}>Actions compatibles</div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                              {selectedSimulationObjective.compatibleActionIds.length > 0 ? (
+                                selectedSimulationObjective.compatibleActionIds.map(actionId => (
+                                  <div
+                                    key={actionId}
+                                    style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: 6,
+                                      padding: "6px 10px",
+                                      borderRadius: 999,
+                                      border: "1px solid rgba(103, 139, 214, 0.35)",
+                                      background: "rgba(44, 61, 92, 0.28)",
+                                      color: "#cfe1ff",
+                                      fontSize: 12
+                                    }}
+                                  >
+                                    <span>{objectiveCompatibleActionOptions.find(option => option.id === actionId)?.label ?? actionId}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => removeValueFromSelectedObjectiveListField("compatibleActionIds", actionId)}
+                                      style={{ border: "none", background: "transparent", color: "#cfe1ff", cursor: "pointer", padding: 0, fontWeight: 700 }}
+                                      title="Retirer cette action"
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                ))
+                              ) : (
+                                <div style={editorTextStyles.helper}>Aucune action compatible definie.</div>
+                              )}
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 8 }}>
+                              <select
+                                value={pendingObjectiveActionId}
+                                onChange={event => setPendingObjectiveActionId(event.target.value)}
+                                style={FIELD_STYLE}
+                              >
+                                <option value="">Choisir une action connue</option>
+                                {objectiveCompatibleActionOptions.map(option => (
+                                  <option key={option.id} value={option.id}>
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  addValueToSelectedObjectiveListField("compatibleActionIds", pendingObjectiveActionId);
+                                  setPendingObjectiveActionId("");
+                                }}
+                                disabled={!pendingObjectiveActionId}
+                                style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8, opacity: pendingObjectiveActionId ? 1 : 0.6 }}
+                              >
+                                Ajouter
+                              </button>
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 8 }}>
+                              <input
+                                value={pendingObjectiveCustomActionId}
+                                onChange={event => setPendingObjectiveCustomActionId(event.target.value)}
+                                style={FIELD_STYLE}
+                                placeholder="action_personnalisee"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  addValueToSelectedObjectiveListField("compatibleActionIds", pendingObjectiveCustomActionId);
+                                  setPendingObjectiveCustomActionId("");
+                                }}
+                                disabled={!normalizeListDraftValue(pendingObjectiveCustomActionId)}
+                                style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8, opacity: normalizeListDraftValue(pendingObjectiveCustomActionId) ? 1 : 0.6 }}
+                              >
+                                Ajouter manuel
+                              </button>
+                            </div>
+                          </div>
+                          {(["onSuccess", "onFailure"] as const).map(field => {
+                            const draft = pendingObjectiveConsequences[field];
+                            const consequenceTypeOptions =
+                              draft.type === "create_tension"
+                                ? SIMULATION_TENSION_TYPE_OPTIONS
+                                : draft.type === "open_opportunity"
+                                  ? SIMULATION_OPPORTUNITY_KIND_OPTIONS
+                                  : SIMULATION_SIGNAL_KIND_OPTIONS;
+                            const numericLabel =
+                              draft.type === "create_tension" ? "Severite" : draft.type === "open_opportunity" ? "Score" : "Intensite";
+                            const consequences = selectedSimulationObjective[field] ?? [];
+                            return (
+                              <div key={field} style={{ ...SUBSECTION_STYLE, gap: 8 }}>
+                                <div style={editorTextStyles.sectionTitle}>
+                                  {field === "onSuccess" ? "Consequences en cas de succes" : "Consequences en cas d'echec"}
+                                </div>
+                                <div style={{ display: "grid", gap: 8 }}>
+                                  {consequences.length > 0 ? (
+                                    consequences.map((consequence, index) => (
+                                      <div
+                                        key={`${field}-${index}`}
+                                        style={{
+                                          display: "grid",
+                                          gap: 4,
+                                          padding: 10,
+                                          borderRadius: 10,
+                                          border: "1px solid rgba(124, 142, 168, 0.24)",
+                                          background: "rgba(31, 38, 48, 0.72)"
+                                        }}
+                                      >
+                                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                                          <div style={{ fontSize: 12, fontWeight: 700, color: "#dce5f2" }}>{formatObjectiveConsequenceSummary(consequence)}</div>
+                                          <button
+                                            type="button"
+                                            onClick={() => removeSelectedObjectiveConsequence(field, index)}
+                                            style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}
+                                          >
+                                            Retirer
+                                          </button>
+                                        </div>
+                                        <div style={editorTextStyles.helper}>
+                                          Tags: {consequence.tags.length > 0 ? consequence.tags.join(", ") : "aucun"}
+                                        </div>
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <div style={editorTextStyles.helper}>Aucune consequence definie.</div>
+                                  )}
+                                </div>
+                                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+                                  <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                    Type
+                                    <select
+                                      value={draft.type}
+                                      onChange={event => {
+                                        const nextType = event.target.value as WorldMapSimulationConsequence["type"];
+                                        const nextSubtype =
+                                          nextType === "create_tension"
+                                            ? SIMULATION_TENSION_TYPE_OPTIONS[0]?.value ?? "criminal"
+                                            : nextType === "open_opportunity"
+                                              ? SIMULATION_OPPORTUNITY_KIND_OPTIONS[0]?.value ?? "escort_needed"
+                                              : SIMULATION_SIGNAL_KIND_OPTIONS[0]?.value ?? "visual";
+                                        setPendingObjectiveConsequences(current => ({
+                                          ...current,
+                                          [field]: {
+                                            ...current[field],
+                                            type: nextType,
+                                            subtype: nextSubtype
+                                          }
+                                        }));
+                                      }}
+                                      style={FIELD_STYLE}
+                                    >
+                                      <option value="create_tension">Creer tension</option>
+                                      <option value="open_opportunity">Ouvrir opportunite</option>
+                                      <option value="spawn_signal">Generer signal</option>
+                                    </select>
+                                  </label>
+                                  <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                    Variante
+                                    <select
+                                      value={draft.subtype}
+                                      onChange={event =>
+                                        setPendingObjectiveConsequences(current => ({
+                                          ...current,
+                                          [field]: { ...current[field], subtype: event.target.value }
+                                        }))
+                                      }
+                                      style={FIELD_STYLE}
+                                    >
+                                      {consequenceTypeOptions.map(option => (
+                                        <option key={option.value} value={option.value}>
+                                          {option.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                  <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                    {numericLabel}
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={100}
+                                      value={draft.amount}
+                                      onChange={event =>
+                                        setPendingObjectiveConsequences(current => ({
+                                          ...current,
+                                          [field]: { ...current[field], amount: event.target.value }
+                                        }))
+                                      }
+                                      style={FIELD_STYLE}
+                                    />
+                                  </label>
+                                  <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                    Tags
+                                    <input
+                                      value={draft.tags}
+                                      onChange={event =>
+                                        setPendingObjectiveConsequences(current => ({
+                                          ...current,
+                                          [field]: { ...current[field], tags: event.target.value }
+                                        }))
+                                      }
+                                      style={FIELD_STYLE}
+                                      placeholder="elite, crise, rumeur"
+                                    />
+                                  </label>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => addSelectedObjectiveConsequence(field)}
+                                  disabled={!draft.subtype || !draft.amount.trim()}
+                                  style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8, width: "fit-content", opacity: draft.subtype && draft.amount.trim() ? 1 : 0.6 }}
+                                >
+                                  Ajouter consequence
+                                </button>
+                              </div>
+                            );
+                          })}
+                          <div style={{ ...SUBSECTION_STYLE, gap: 8 }}>
+                            <div style={editorTextStyles.sectionTitle}>Tags</div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                              {selectedSimulationObjective.tags.length > 0 ? (
+                                selectedSimulationObjective.tags.map(tag => (
+                                  <div key={tag} style={{ ...editorSurfaceStyles.badge, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                    <span>{tag}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => removeValueFromSelectedObjectiveListField("tags", tag)}
+                                      style={{ border: "none", background: "transparent", color: "#dce5f2", cursor: "pointer", padding: 0, fontWeight: 700 }}
+                                      title="Retirer ce tag"
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                ))
+                              ) : (
+                                <div style={editorTextStyles.helper}>Aucun tag defini.</div>
+                              )}
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 8 }}>
+                              <select
+                                value={pendingObjectiveTag}
+                                onChange={event => setPendingObjectiveTag(event.target.value)}
+                                style={FIELD_STYLE}
+                              >
+                                <option value="">Choisir un tag connu</option>
+                                {TAG_PRESETS
+                                  .filter(tag => !selectedSimulationObjective.tags.includes(tag.id))
+                                  .map(tag => (
+                                    <option key={tag.id} value={tag.id}>
+                                      {tag.label}
+                                    </option>
+                                  ))}
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  addValueToSelectedObjectiveListField("tags", pendingObjectiveTag);
+                                  setPendingObjectiveTag("");
+                                }}
+                                disabled={!pendingObjectiveTag}
+                                style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8, opacity: pendingObjectiveTag ? 1 : 0.6 }}
+                              >
+                                Ajouter
+                              </button>
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 8 }}>
+                              <input
+                                value={pendingObjectiveCustomTag}
+                                onChange={event => setPendingObjectiveCustomTag(event.target.value)}
+                                style={FIELD_STYLE}
+                                placeholder="tag_personnalise"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  addValueToSelectedObjectiveListField("tags", pendingObjectiveCustomTag);
+                                  setPendingObjectiveCustomTag("");
+                                }}
+                                disabled={!normalizeListDraftValue(pendingObjectiveCustomTag)}
+                                style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8, opacity: normalizeListDraftValue(pendingObjectiveCustomTag) ? 1 : 0.6 }}
+                              >
+                                Ajouter manuel
+                              </button>
+                            </div>
+                          </div>
                           <div style={{ display: "grid", gap: 6 }}>
                             <div style={editorTextStyles.helper}>
                               Zones liees: {selectedSimulationObjective.zoneIds.length} entree(s)
@@ -3223,6 +5676,269 @@ export function WorldMapEditorScreen(props: {
                             >
                               Remplacer zones par la selection
                             </button>
+                          </div>
+                          <div style={{ ...SUBSECTION_STYLE, gap: 8 }}>
+                            <div style={editorTextStyles.sectionTitle}>Lecture des dependances</div>
+                            <div style={editorTextStyles.helper}>
+                              Cette vue relie l'objectif a son ancrage local, a sa zone et a sa projection logistique telle que le runtime la comprend deja.
+                            </div>
+                            <div style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                              <div>Etat runtime: {selectedObjectiveRuntime?.state ?? "indisponible"}</div>
+                              <div>Cible d'execution: {selectedObjectiveReadiness?.executionTargetRef ? `${selectedObjectiveReadiness.executionTargetRef.kind}:${selectedObjectiveReadiness.executionTargetRef.id}` : "aucune"}</div>
+                              <div>Ancrage resolu: {selectedObjectiveReadiness?.matchedAnchorId ? `${selectedObjectiveReadiness.matchedAnchorId} (${selectedObjectiveReadiness.matchedAnchorType ?? "type inconnu"})` : "aucun"}</div>
+                              <div>Zones liees: {selectedSimulationObjective.zoneIds.length > 0 ? selectedSimulationObjective.zoneIds.join(", ") : "aucune"}</div>
+                              <div>Projection logistique: {selectedObjectiveLogisticsPlan ? (selectedObjectiveLogisticsPlan.faisable ? "faisable" : "bloquee") : "aucun plan retenu"}</div>
+                            </div>
+                            {selectedObjectiveReadiness && selectedObjectiveReadiness.reasons.length > 0 ? (
+                              <div
+                                style={{
+                                  display: "grid",
+                                  gap: 4,
+                                  padding: 10,
+                                  borderRadius: 10,
+                                  border: "1px solid rgba(200,92,92,0.28)",
+                                  background: "rgba(200,92,92,0.12)",
+                                  color: "#ffd7d7"
+                                }}
+                              >
+                                <div style={{ fontWeight: 700 }}>Pre requis manquants</div>
+                                {selectedObjectiveReadiness.reasons.map(reason => (
+                                  <div key={reason}>- {reason}</div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div style={{ ...editorTextStyles.helper, color: "#9fe0b2" }}>Pre requis locaux satisfaits.</div>
+                            )}
+                            {selectedObjectiveLogisticsPlan?.raisonsBlocage.length ? (
+                              <div
+                                style={{
+                                  display: "grid",
+                                  gap: 4,
+                                  padding: 10,
+                                  borderRadius: 10,
+                                  border: "1px solid rgba(221,173,86,0.28)",
+                                  background: "rgba(88,67,24,0.2)",
+                                  color: "#ffe0a3"
+                                }}
+                              >
+                                <div style={{ fontWeight: 700 }}>Blocages logistiques</div>
+                                {selectedObjectiveLogisticsPlan.raisonsBlocage.map(reason => (
+                                  <div key={reason}>- {reason}</div>
+                                ))}
+                              </div>
+                            ) : null}
+                          </div>
+                          <div style={{ ...SUBSECTION_STYLE, gap: 8 }}>
+                            <div style={editorTextStyles.sectionTitle}>Lecture logistique objectif</div>
+                            {selectedObjectiveLogisticsPlan ? (
+                              <div style={{ display: "grid", gap: 6, fontSize: 12, color: "#dce5f2", lineHeight: 1.45 }}>
+                                <div
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 8,
+                                    padding: "6px 10px",
+                                    borderRadius: 999,
+                                    width: "fit-content",
+                                    border: `1px solid ${selectedObjectiveLogisticsPlan.faisable ? "rgba(114,197,143,0.34)" : "rgba(200,92,92,0.34)"}`,
+                                    background: selectedObjectiveLogisticsPlan.faisable ? "rgba(114,197,143,0.12)" : "rgba(200,92,92,0.12)",
+                                    color: selectedObjectiveLogisticsPlan.faisable ? "#72c58f" : "#ffb0b0",
+                                    fontWeight: 800
+                                  }}
+                                >
+                                  {selectedObjectiveLogisticsPlan.faisable ? "Projection faisable" : "Projection bloquee"}
+                                </div>
+                                <div>Mode retenu: {selectedObjectiveLogisticsPlan.modeRetenu ?? "aucun"}</div>
+                                <div>Acteur assigne: {selectedObjectiveLogisticsPlan.acteurAssigneId ?? "aucun"}</div>
+                                <div>Cible d'execution: {selectedObjectiveLogisticsPlan.cibleExecutionRef ? `${selectedObjectiveLogisticsPlan.cibleExecutionRef.kind}:${selectedObjectiveLogisticsPlan.cibleExecutionRef.id}` : "aucune"}</div>
+                                <div>Temps estime: {selectedObjectiveLogisticsPlan.ticksEstimes ?? "n/a"} tick(s)</div>
+                                <div>Cout estime: {selectedObjectiveLogisticsPlan.coutEstime ?? "n/a"}</div>
+                                <div>Risque estime: {selectedObjectiveLogisticsPlan.scoreRisque ?? "n/a"}</div>
+                                <div>Itineraire retenu: {selectedObjectiveLogisticsPlan.routeIds.length > 0 ? selectedObjectiveLogisticsPlan.routeIds.join(" -> ") : "aucun"}</div>
+                                {selectedObjectiveLogisticsRoutes.length > 0 && (
+                                  <div style={editorTextStyles.helper}>
+                                    Le trajet logistique retenu est surligne sur la carte en pointilles or tant que cet objectif reste selectionne.
+                                  </div>
+                                )}
+                                {selectedObjectiveLogisticsPlan.notes.length > 0 && (
+                                  <div style={{ display: "grid", gap: 4 }}>
+                                    <div style={{ fontWeight: 700 }}>Notes runtime</div>
+                                    {selectedObjectiveLogisticsPlan.notes.map(note => (
+                                      <div key={note}>- {note}</div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div style={editorTextStyles.helper}>
+                                Aucun plan logistique n'est retenu pour cet objectif. Soit il n'est pas prioritaire pour la faction, soit ses prerequis locaux le bloquent avant projection.
+                              </div>
+                            )}
+                          </div>
+                          <div style={{ ...SUBSECTION_STYLE, gap: 8 }}>
+                            <div style={editorTextStyles.sectionTitle}>Projection metier avant tick</div>
+                            <div style={editorTextStyles.helper}>
+                              Cette vue rapproche l'objectif selectionne du tick micro projete a blanc. Elle montre l'action retenue, l'evenement attendu et les sorties perceptibles associees.
+                            </div>
+                            {selectedObjectiveProjectedAction ? (
+                              <div style={{ display: "grid", gap: 8, fontSize: 12, color: "#dce5f2", lineHeight: 1.45 }}>
+                                <div>Action projetee: {selectedObjectiveProjectedAction.actionId}</div>
+                                <div>Acteur: {formatEntityRefSummary(selectedObjectiveProjectedAction.actorRef)}</div>
+                                <div>Cible: {formatEntityRefSummary(selectedObjectiveProjectedAction.targetRef)}</div>
+                                <div>Score retenu: {Math.round(selectedObjectiveProjectedAction.score)}</div>
+                                <div>Resultat projete: {selectedObjectiveProjectedAction.success ? "succes" : "echec"}</div>
+                                {selectedObjectiveProjectedEvent && (
+                                  <button
+                                    type="button"
+                                    onClick={() => focusEntityRef(selectedObjectiveProjectedEvent.target ?? selectedObjectiveProjectedEvent.actor)}
+                                    style={{
+                                      ...getProjectionCardStyle(selectedObjectiveProjectedAction.success ? "success" : "warning"),
+                                      width: "100%",
+                                      textAlign: "left",
+                                      cursor: isClickableEntityRef(selectedObjectiveProjectedEvent.target ?? selectedObjectiveProjectedEvent.actor) ? "pointer" : "default"
+                                    }}
+                                  >
+                                    <div style={getProjectionSectionTitleStyle()}>Evenement attendu</div>
+                                    <div>{selectedObjectiveProjectedEvent.type}</div>
+                                    <div style={editorTextStyles.helper}>
+                                      Deltas: {selectedObjectiveProjectedEvent.deltas.length} · Tags: {selectedObjectiveProjectedEvent.tags.join(", ") || "aucun"}
+                                    </div>
+                                  </button>
+                                )}
+                                <div style={{ display: "grid", gap: 6 }}>
+                                  <div style={getProjectionSectionTitleStyle()}>Deltas d'etat attendus</div>
+                                  {selectedObjectiveProjectedDeltaGroups.length > 0 ? selectedObjectiveProjectedDeltaGroups.map(group => (
+                                    <button
+                                      type="button"
+                                      key={`${group.ref.kind}:${group.ref.id}`}
+                                      onClick={() => focusEntityRef(group.ref)}
+                                      style={{
+                                        ...getProjectionCardStyle("default"),
+                                        width: "100%",
+                                        textAlign: "left",
+                                        cursor: isClickableEntityRef(group.ref) ? "pointer" : "default"
+                                      }}
+                                    >
+                                      <div style={getProjectionSectionTitleStyle()}>{formatEntityRefSummary(group.ref)}</div>
+                                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                                        {group.deltas.map((delta, index) => (
+                                          <div
+                                            key={`${group.ref.kind}:${group.ref.id}:${delta.key}:${index}`}
+                                            style={{
+                                              ...getDeltaVisualStyle(delta.amount),
+                                              display: "inline-flex",
+                                              alignItems: "center",
+                                              gap: 8,
+                                              padding: "6px 10px",
+                                              borderRadius: 999,
+                                              fontSize: 12,
+                                              fontWeight: 700
+                                            }}
+                                          >
+                                            <span>{formatDeltaLabel(delta.key)}</span>
+                                            <span>{delta.before ?? "?"} → {delta.after ?? "?"}</span>
+                                            <span>{(delta.amount ?? 0) > 0 ? "+" : ""}{delta.amount ?? 0}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </button>
+                                  )) : <div style={editorTextStyles.helper}>Aucun delta d'etat detaille pour cet objectif sur le tick projete.</div>}
+                                </div>
+                                <div style={{ display: "grid", gap: 6 }}>
+                                  <div style={getProjectionSectionTitleStyle()}>Signaux projetes</div>
+                                  {selectedObjectiveProjectedSignals.length > 0 ? selectedObjectiveProjectedSignals.map(signal => (
+                                    <button
+                                      type="button"
+                                      key={signal.id}
+                                      onClick={() => focusEntityRef(signal.location)}
+                                      style={{
+                                        ...getProjectionCardStyle("accent"),
+                                        width: "100%",
+                                        textAlign: "left",
+                                        cursor: isClickableEntityRef(signal.location) ? "pointer" : "default"
+                                      }}
+                                    >
+                                      <div>{signal.kind} · intensite {signal.intensity}</div>
+                                      <div style={editorTextStyles.helper}>
+                                        Lieu: {formatEntityRefSummary(signal.location)} · Tags: {signal.tags.join(", ") || "aucun"}
+                                      </div>
+                                    </button>
+                                  )) : <div style={editorTextStyles.helper}>Aucun signal projete pour cet objectif.</div>}
+                                </div>
+                                <div style={{ display: "grid", gap: 6 }}>
+                                  <div style={getProjectionSectionTitleStyle()}>Rumeurs projetees</div>
+                                  {selectedObjectiveProjectedRumors.length > 0 ? selectedObjectiveProjectedRumors.map(rumor => (
+                                    <button
+                                      type="button"
+                                      key={rumor.id}
+                                      onClick={() => focusEntityRef(rumor.origin)}
+                                      style={{
+                                        ...getProjectionCardStyle("warning"),
+                                        width: "100%",
+                                        textAlign: "left",
+                                        cursor: isClickableEntityRef(rumor.origin) ? "pointer" : "default"
+                                      }}
+                                    >
+                                      <div>Credibilite {rumor.credibility}</div>
+                                      <div style={editorTextStyles.helper}>
+                                        Origine: {formatEntityRefSummary(rumor.origin)} · Tags: {rumor.tags.join(", ") || "aucun"}
+                                      </div>
+                                    </button>
+                                  )) : <div style={editorTextStyles.helper}>Aucune rumeur projetee pour cet objectif.</div>}
+                                </div>
+                                <div style={{ display: "grid", gap: 6 }}>
+                                  <div style={getProjectionSectionTitleStyle()}>Opportunites projetees</div>
+                                  {selectedObjectiveProjectedOpportunities.length > 0 ? selectedObjectiveProjectedOpportunities.map(opportunity => (
+                                    <button
+                                      type="button"
+                                      key={opportunity.id}
+                                      onClick={() => focusEntityRef(opportunity.location)}
+                                      style={{
+                                        ...getProjectionCardStyle("success"),
+                                        width: "100%",
+                                        textAlign: "left",
+                                        cursor: isClickableEntityRef(opportunity.location) ? "pointer" : "default"
+                                      }}
+                                    >
+                                      <div>{opportunity.kind} · score {opportunity.score}</div>
+                                      <div style={editorTextStyles.helper}>
+                                        Lieu: {formatEntityRefSummary(opportunity.location)} · Tags: {opportunity.tags.join(", ") || "aucun"}
+                                      </div>
+                                    </button>
+                                  )) : <div style={editorTextStyles.helper}>Aucune opportunite projetee pour cet objectif.</div>}
+                                </div>
+                                <div style={{ display: "grid", gap: 6 }}>
+                                  <div style={getProjectionSectionTitleStyle()}>Consequences configurees sur l'objectif</div>
+                                  <div style={editorTextStyles.helper}>
+                                    Succes: {(selectedSimulationObjective.onSuccess ?? []).length} · Echec: {(selectedSimulationObjective.onFailure ?? []).length}
+                                  </div>
+                                  {(selectedSimulationObjective.onSuccess ?? []).length > 0 && (
+                                    <div style={{ display: "grid", gap: 4 }}>
+                                      {(selectedSimulationObjective.onSuccess ?? []).map((consequence, index) => (
+                                        <div key={`success-${index}`} style={getProjectionCardStyle("success")}>
+                                          <div>{formatObjectiveConsequenceSummary(consequence)}</div>
+                                          <div style={editorTextStyles.helper}>Branche: succes</div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {(selectedSimulationObjective.onFailure ?? []).length > 0 && (
+                                    <div style={{ display: "grid", gap: 4 }}>
+                                      {(selectedSimulationObjective.onFailure ?? []).map((consequence, index) => (
+                                        <div key={`failure-${index}`} style={getProjectionCardStyle("warning")}>
+                                          <div>{formatObjectiveConsequenceSummary(consequence)}</div>
+                                          <div style={editorTextStyles.helper}>Branche: echec</div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ) : (
+                              <div style={editorTextStyles.helper}>
+                                Aucune action n'est actuellement projetee pour cet objectif au prochain tick micro. Il peut etre bloque, non prioritaire, ou laisser la main a un autre objectif.
+                              </div>
+                            )}
                           </div>
                           <button
                             type="button"
@@ -3348,14 +6064,44 @@ export function WorldMapEditorScreen(props: {
                                 <option value="cell">Cellule</option>
                               </select>
                             </label>
-                            <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                              Id position
-                              <input
-                                value={selectedSimulationMobileActor.positionId ?? ""}
-                                onChange={event => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "positionId", value: event.target.value })}
-                                style={FIELD_STYLE}
-                              />
-                            </label>
+                            {selectedSimulationMobileActor.positionKind === "cell" ? (
+                              <div style={{ display: "grid", gap: 6 }}>
+                                <div style={editorTextStyles.helper}>Cellule de position: {getCellLabel(selectedSimulationMobileActor.positionCell)}</div>
+                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => applySelectedCellToMobile("positionCell")}
+                                    disabled={!selectedCell?.cell}
+                                    style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8, opacity: selectedCell?.cell ? 1 : 0.6 }}
+                                  >
+                                    Utiliser case selectionnee
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => clearMobileCell("positionCell")}
+                                    style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}
+                                  >
+                                    Effacer cellule
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                Reference position
+                                <select
+                                  value={selectedSimulationMobileActor.positionId ?? ""}
+                                  onChange={event => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "positionId", value: event.target.value })}
+                                  style={FIELD_STYLE}
+                                >
+                                  <option value="">Choisir une reference</option>
+                                  {positionReferenceOptions.map(option => (
+                                    <option key={option.id} value={option.id}>
+                                      {option.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                            )}
                             <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
                               Destination
                               <select
@@ -3370,24 +6116,154 @@ export function WorldMapEditorScreen(props: {
                                 <option value="cell">Cellule</option>
                               </select>
                             </label>
-                            <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                              Id destination
-                              <input
-                                value={selectedSimulationMobileActor.destinationId ?? ""}
-                                onChange={event => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "destinationId", value: event.target.value })}
-                                style={FIELD_STYLE}
-                              />
-                            </label>
+                            {selectedSimulationMobileActor.destinationKind === "cell" ? (
+                              <div style={{ display: "grid", gap: 6 }}>
+                                <div style={editorTextStyles.helper}>Cellule de destination: {getCellLabel(selectedSimulationMobileActor.destinationCell)}</div>
+                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => applySelectedCellToMobile("destinationCell")}
+                                    disabled={!selectedCell?.cell}
+                                    style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8, opacity: selectedCell?.cell ? 1 : 0.6 }}
+                                  >
+                                    Utiliser case selectionnee
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => clearMobileCell("destinationCell")}
+                                    style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}
+                                  >
+                                    Effacer cellule
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                Reference destination
+                                <select
+                                  value={selectedSimulationMobileActor.destinationId ?? ""}
+                                  onChange={event => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "destinationId", value: event.target.value })}
+                                  style={FIELD_STYLE}
+                                >
+                                  <option value="">Choisir une reference</option>
+                                  {destinationReferenceOptions.map(option => (
+                                    <option key={option.id} value={option.id}>
+                                      {option.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                            )}
                           </div>
-                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                            Itineraire routes
-                            <input
-                              value={selectedSimulationMobileActor.itineraryRouteIds.join(", ")}
-                              onChange={event => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "itineraryRouteIds", value: event.target.value })}
-                              style={FIELD_STYLE}
-                              placeholder="route_1, route_2"
-                            />
-                          </label>
+                          <div style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                            <div>Itineraire routes</div>
+                            <div style={editorTextStyles.helper}>
+                              L'itineraire se construit avec les actions guidees ci-dessous et reste visible sur la carte.
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            <button
+                              type="button"
+                              onClick={replaceSelectedMobileItineraryWithRoute}
+                              disabled={!selectedRoute || selectedRoute.kind !== "road"}
+                              style={{
+                                ...createEditorButtonStyle({ compact: true }),
+                                borderRadius: 8,
+                                opacity: selectedRoute?.kind === "road" ? 1 : 0.6
+                              }}
+                            >
+                              Remplacer par route active
+                            </button>
+                            <button
+                              type="button"
+                              onClick={appendSelectedRouteToMobileItinerary}
+                              disabled={!selectedRoute || selectedRoute.kind !== "road"}
+                              style={{
+                                ...createEditorButtonStyle({ compact: true }),
+                                borderRadius: 8,
+                                opacity: selectedRoute?.kind === "road" ? 1 : 0.6
+                              }}
+                            >
+                              Ajouter route active
+                            </button>
+                            <button
+                              type="button"
+                              onClick={removeSelectedRouteFromMobileItinerary}
+                              disabled={!selectedRoute || selectedRoute.kind !== "road"}
+                              style={{
+                                ...createEditorButtonStyle({ compact: true }),
+                                borderRadius: 8,
+                                opacity: selectedRoute?.kind === "road" ? 1 : 0.6
+                              }}
+                            >
+                              Retirer route active
+                            </button>
+                            <button
+                              type="button"
+                              onClick={popSelectedMobileItineraryRoute}
+                              disabled={selectedSimulationMobileActor.itineraryRouteIds.length === 0}
+                              style={{
+                                ...createEditorButtonStyle({ compact: true }),
+                                borderRadius: 8,
+                                opacity: selectedSimulationMobileActor.itineraryRouteIds.length > 0 ? 1 : 0.6
+                              }}
+                            >
+                              Retirer derniere route
+                            </button>
+                          </div>
+                          <div style={{ display: "grid", gap: 6 }}>
+                            <div style={editorTextStyles.helper}>
+                              Itineraire visible sur la carte: {selectedMobileItineraryRoutes.length} route(s).
+                            </div>
+                            {selectedMobileItineraryRoutes.length > 0 ? (
+                              <div style={{ display: "grid", gap: 6 }}>
+                                {selectedMobileItineraryRoutes.map((path, index) => (
+                                  <div key={`${path.id}-${index}`} style={{ ...SUBSECTION_STYLE, gap: 4 }}>
+                                    <div style={{ fontSize: 12, fontWeight: 700 }}>
+                                      {index + 1}. {path.label || path.id}
+                                    </div>
+                                    <div style={editorTextStyles.helper}>
+                                      {path.id} · {path.cells.length} case(s) · {path.roadType ?? "road"}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div style={editorTextStyles.helper}>
+                                Aucun trajet detaille defini. Utilise la route active ou le bouton auto-itineraire.
+                              </div>
+                            )}
+                          </div>
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            <button
+                              type="button"
+                              onClick={autoComputeSelectedMobileItinerary}
+                              disabled={
+                                selectedSimulationMobileActor.positionKind === "cell" ||
+                                selectedSimulationMobileActor.destinationKind === "cell" ||
+                                !selectedSimulationMobileActor.destinationKind
+                              }
+                              style={{
+                                ...createEditorButtonStyle({ compact: true }),
+                                borderRadius: 8,
+                                opacity:
+                                  selectedSimulationMobileActor.positionKind === "cell" ||
+                                  selectedSimulationMobileActor.destinationKind === "cell" ||
+                                  !selectedSimulationMobileActor.destinationKind
+                                    ? 0.6
+                                    : 1
+                              }}
+                            >
+                              Auto-itineraire
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "itineraryRouteIds", value: "" })}
+                              style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}
+                            >
+                              Vider itineraire
+                            </button>
+                          </div>
                           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
                             <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
                               Deplacement
@@ -3415,23 +6291,129 @@ export function WorldMapEditorScreen(props: {
                               </select>
                             </label>
                           </div>
+                          <div style={{ ...SUBSECTION_STYLE, gap: 8 }}>
+                            <div style={editorTextStyles.sectionTitle}>Edition guidee mobile</div>
+                            <div style={editorTextStyles.helper}>
+                              Les objectifs lies et tags d'interaction se gerent ici via des selections guidees.
+                            </div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                              {selectedSimulationMobileActor.objectiveIds.length > 0 ? selectedSimulationMobileActor.objectiveIds.map(objectiveId => (
+                                <div key={objectiveId} style={{ ...editorSurfaceStyles.badge, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                  <span>{selectableMobileObjectiveOptions.find(option => option.id === objectiveId)?.label ?? objectiveId}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeValueFromSelectedMobileListField("objectiveIds", objectiveId)}
+                                    style={{ border: "none", background: "transparent", color: "#dce5f2", cursor: "pointer", padding: 0, fontWeight: 700 }}
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              )) : <div style={editorTextStyles.helper}>Aucun objectif lie.</div>}
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 8 }}>
+                              <select
+                                value={pendingMobileObjectiveId}
+                                onChange={event => setPendingMobileObjectiveId(event.target.value)}
+                                style={FIELD_STYLE}
+                              >
+                                <option value="">Ajouter un objectif lie</option>
+                                {selectableMobileObjectiveOptions
+                                  .filter(option => !selectedSimulationMobileActor.objectiveIds.includes(option.id))
+                                  .map(option => (
+                                    <option key={option.id} value={option.id}>
+                                      {option.label}
+                                    </option>
+                                  ))}
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  addValueToSelectedMobileListField("objectiveIds", pendingMobileObjectiveId);
+                                  setPendingMobileObjectiveId("");
+                                }}
+                                disabled={!pendingMobileObjectiveId}
+                                style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8, opacity: pendingMobileObjectiveId ? 1 : 0.6 }}
+                              >
+                                Ajouter
+                              </button>
+                            </div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                              {selectedSimulationMobileActor.interactionTags.length > 0 ? selectedSimulationMobileActor.interactionTags.map(tag => (
+                                <div key={tag} style={{ ...editorSurfaceStyles.badge, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                  <span>{tag}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeValueFromSelectedMobileListField("interactionTags", tag)}
+                                    style={{ border: "none", background: "transparent", color: "#dce5f2", cursor: "pointer", padding: 0, fontWeight: 700 }}
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              )) : <div style={editorTextStyles.helper}>Aucun tag d'interaction.</div>}
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 8 }}>
+                              <select
+                                value={pendingMobileInteractionTag}
+                                onChange={event => setPendingMobileInteractionTag(event.target.value)}
+                                style={FIELD_STYLE}
+                              >
+                                <option value="">Choisir un tag d'interaction</option>
+                                {SIMULATION_MOBILE_INTERACTION_TAG_SUGGESTIONS
+                                  .filter(tag => !selectedSimulationMobileActor.interactionTags.includes(tag))
+                                  .map(tag => (
+                                    <option key={tag} value={tag}>
+                                      {tag}
+                                    </option>
+                                  ))}
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  addValueToSelectedMobileListField("interactionTags", pendingMobileInteractionTag);
+                                  setPendingMobileInteractionTag("");
+                                }}
+                                disabled={!pendingMobileInteractionTag}
+                                style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8, opacity: pendingMobileInteractionTag ? 1 : 0.6 }}
+                              >
+                                Ajouter
+                              </button>
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 8 }}>
+                              <input
+                                value={pendingMobileCustomInteractionTag}
+                                onChange={event => setPendingMobileCustomInteractionTag(event.target.value)}
+                                style={FIELD_STYLE}
+                                placeholder="Ajouter un tag libre"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  addValueToSelectedMobileListField("interactionTags", pendingMobileCustomInteractionTag);
+                                  setPendingMobileCustomInteractionTag("");
+                                }}
+                                disabled={!normalizeListDraftValue(pendingMobileCustomInteractionTag)}
+                                style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8, opacity: normalizeListDraftValue(pendingMobileCustomInteractionTag) ? 1 : 0.6 }}
+                              >
+                                Ajouter manuel
+                              </button>
+                            </div>
+                          </div>
                           <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                            Objectifs lies
-                            <input
-                              value={selectedSimulationMobileActor.objectiveIds.join(", ")}
-                              onChange={event => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "objectiveIds", value: event.target.value })}
-                              style={FIELD_STYLE}
-                              placeholder="objectif_1, objectif_2"
+                            Population / races
+                            <textarea
+                              value={formatPopulationProfile(selectedSimulationMobileActor.populationProfile)}
+                              onChange={event => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "populationProfile", value: event.target.value })}
+                              style={{ ...editorFieldStyles.textarea, minHeight: 96 }}
+                              placeholder="Laisse vide pour heriter de la faction, ou definis un override: humain:60:dominant, elfe:40:elite"
                             />
                           </label>
-                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                            Tags d'interaction
-                            <input
-                              value={selectedSimulationMobileActor.interactionTags.join(", ")}
-                              onChange={event => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "interactionTags", value: event.target.value })}
-                              style={FIELD_STYLE}
-                            />
-                          </label>
+                          <div style={editorTextStyles.helper}>
+                            Si ce champ est vide, le runtime herite du profil de la faction porteuse quand il existe.
+                          </div>
+                          <div style={editorTextStyles.helper}>
+                            Profil effectif: {formatPopulationProfile(selectedSimulationMobileActorRuntime?.populationProfile) || "aucun"}.
+                          </div>
+                          <div style={editorTextStyles.helper}>Source effective: {selectedSimulationMobilePopulationSource}.</div>
                           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
                             {([
                               ["speed", "Vitesse"],
@@ -3580,7 +6562,13 @@ export function WorldMapEditorScreen(props: {
           dispatch({ type: "setSelectedCell", cellKey: getWorldMapCellKey(city.cell) });
         }}
         minHeight="calc(100vh - 180px)"
-        svgOverlay={invalidPathOverlay}
+        svgOverlay={
+          <>
+            {invalidPathOverlay}
+            {selectedMobileItineraryOverlay}
+            {selectedObjectiveLogisticsOverlay}
+          </>
+        }
         overlay={
           <>
             {overlay}

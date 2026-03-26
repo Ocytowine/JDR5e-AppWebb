@@ -74,6 +74,16 @@ export const editorSurfaceStyles = {
     borderRadius: 10,
     border: `1px solid ${EDITOR_THEME.colors.borderSoft}`,
     background: EDITOR_THEME.colors.sectionBg
+  } satisfies React.CSSProperties,
+  badge: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    padding: "4px 8px",
+    borderRadius: 999,
+    fontSize: 12,
+    fontWeight: 700,
+    color: EDITOR_THEME.colors.text
   } satisfies React.CSSProperties
 };
 

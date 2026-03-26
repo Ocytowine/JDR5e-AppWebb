@@ -26,9 +26,13 @@ export type SimulationObjectiveCategory =
 export type SimulationObjectiveState = "planned" | "active" | "blocked" | "completed" | "failed";
 export type SimulationObjectiveTargetKind = "city" | "district" | "route" | "region" | "faction" | "place";
 export type SimulationActorPositionKind = "city" | "route" | "region" | "cell";
+export type SimulationAnchorTargetKind = "city" | "district" | "route" | "region" | "place" | "cell";
 export type SimulationTravelMode = "road" | "river" | "sea" | "foot";
 export type SimulationActorLevel = "active" | "summary" | "abstract";
 export type SimulationFactionRelationStatus = "ally" | "neutral" | "rival" | "war";
+export type SimulationTensionType = "criminal" | "social" | "commercial" | "political" | "religious" | "scarcity" | "control_conflict" | "mobility_risk";
+export type SimulationOpportunityKind = "escort_needed" | "weak_control" | "scarcity_trade" | "investigation_lead" | "political_opening";
+export type SimulationSignalKind = "visual" | "auditory" | "institutional" | "market" | "religious" | "military";
 
 export type MapLayerId =
   | "background"
@@ -46,6 +50,17 @@ export type GovernanceModelId = "primacy" | "kingdom" | "duchy" | "republic" | "
 export type GovernanceCityRole = "capital" | "primary" | "secondary";
 
 export type GeographicZoneKind = "natural" | "cultural" | "historical" | "religious" | "strategic" | "custom";
+export type PopulationGroupRole = "dominant" | "minority" | "elite" | "servitor" | "outsider";
+
+export type PopulationProfile = {
+  dominantGroupId?: string;
+  groups: Array<{
+    groupId: string;
+    weight: number;
+    role?: PopulationGroupRole;
+  }>;
+  notes?: string[];
+};
 
 export type WorldMapGovernance = {
   id: string;
@@ -95,6 +110,7 @@ export type WorldMapCity = {
   markerColor?: string;
   governanceId?: string;
   governanceRole?: GovernanceCityRole;
+  populationProfile?: PopulationProfile;
 };
 
 export type WorldMapSimulationFaction = {
@@ -111,6 +127,12 @@ export type WorldMapSimulationFaction = {
   homeRegionId?: string;
   baseCell?: MapCell;
   presenceCells: MapCell[];
+  controlledZoneIds?: string[];
+  influencedZoneIds?: string[];
+  interestZoneIds?: string[];
+  avoidedZoneIds?: string[];
+  localAnchors?: WorldMapSimulationFactionAnchor[];
+  populationProfile?: PopulationProfile;
   influence: number;
   power: number;
   cohesion: number;
@@ -128,6 +150,23 @@ export type WorldMapSimulationFactionRelation = {
   notes: string;
 };
 
+export type WorldMapSimulationFactionAnchor = {
+  id: string;
+  label: string;
+  type: string;
+  targetKind: SimulationAnchorTargetKind;
+  targetId?: string;
+  cell?: MapCell;
+  level: number;
+  tags: string[];
+  notes: string;
+};
+
+export type WorldMapSimulationConsequence =
+  | { type: "create_tension"; tensionType: SimulationTensionType; severity: number; tags: string[] }
+  | { type: "open_opportunity"; kind: SimulationOpportunityKind; score: number; tags: string[] }
+  | { type: "spawn_signal"; signalKind: SimulationSignalKind; intensity: number; tags: string[] };
+
 export type WorldMapSimulationObjective = {
   id: string;
   label: string;
@@ -140,11 +179,38 @@ export type WorldMapSimulationObjective = {
   priority: number;
   progress: number;
   state: SimulationObjectiveState;
+  phases?: string[];
+  currentPhaseIndex?: number;
   obstacleHints: string[];
   compatibleActionIds: string[];
+  requiredAnchorId?: string;
+  requiredAnchorType?: string;
+  onSuccess?: WorldMapSimulationConsequence[];
+  onFailure?: WorldMapSimulationConsequence[];
   tags: string[];
   zoneIds: string[];
   anchorCell?: MapCell;
+};
+
+export type WorldMapSimulationDistrictOverride = {
+  id: string;
+  cityId: string;
+  name?: string;
+  tags?: string[];
+  dominantActivities?: string[];
+  importantPlaces?: string[];
+  populationProfile?: PopulationProfile;
+};
+
+export type WorldMapSimulationDistrict = {
+  id: string;
+  cityId: string;
+  name: string;
+  tags: string[];
+  cellKeys: string[];
+  dominantActivities: string[];
+  importantPlaces: string[];
+  populationProfile?: PopulationProfile;
 };
 
 export type WorldMapSimulationMobileActor = {
@@ -158,6 +224,8 @@ export type WorldMapSimulationMobileActor = {
   positionCell?: MapCell;
   destinationKind?: SimulationActorPositionKind;
   destinationId?: string;
+  destinationCell?: MapCell;
+  populationProfile?: PopulationProfile;
   itineraryRouteIds: string[];
   travelMode: SimulationTravelMode;
   speed: number;
@@ -175,6 +243,8 @@ export type WorldMapSimulationData = {
   factions: WorldMapSimulationFaction[];
   specialObjectives: WorldMapSimulationObjective[];
   mobileActors: WorldMapSimulationMobileActor[];
+  districts?: WorldMapSimulationDistrict[];
+  districtOverrides?: WorldMapSimulationDistrictOverride[];
 };
 
 export type MapPath = {
@@ -269,6 +339,31 @@ const DEFAULT_LAYER_VISIBILITY: Record<MapLayerId, boolean> = {
   rivers: true
 };
 
+function normalizePopulationProfile(profile: PopulationProfile | undefined): PopulationProfile | undefined {
+  if (!profile || !Array.isArray(profile.groups)) return undefined;
+  const groups = profile.groups
+    .map(group => ({
+      groupId: String(group.groupId ?? "").trim(),
+      weight: Math.max(0, Number(group.weight) || 0),
+      role: group.role
+    }))
+    .filter(group => group.groupId.length > 0);
+  if (groups.length === 0) return undefined;
+  const dominantGroupId =
+    profile.dominantGroupId?.trim() ||
+    groups
+      .slice()
+      .sort((left, right) => right.weight - left.weight)[0]?.groupId;
+  const notes = Array.isArray(profile.notes)
+    ? profile.notes.map(note => String(note).trim()).filter(Boolean)
+    : undefined;
+  return {
+    dominantGroupId,
+    groups,
+    notes
+  };
+}
+
 const source = worldMapLayoutJson as RawWorldMapLayoutSource;
 
 export function createRuntimeWorldMapLayout(
@@ -305,6 +400,22 @@ export function createRuntimeWorldMapLayout(
         objectiveHints: Array.isArray(faction.objectiveHints) ? faction.objectiveHints : [],
         tags: Array.isArray(faction.tags) ? faction.tags : [],
         presenceCells: Array.isArray(faction.presenceCells) ? faction.presenceCells : [],
+        controlledZoneIds: Array.isArray(faction.controlledZoneIds) ? faction.controlledZoneIds : [],
+        influencedZoneIds: Array.isArray(faction.influencedZoneIds) ? faction.influencedZoneIds : [],
+        interestZoneIds: Array.isArray(faction.interestZoneIds) ? faction.interestZoneIds : [],
+        avoidedZoneIds: Array.isArray(faction.avoidedZoneIds) ? faction.avoidedZoneIds : [],
+        localAnchors: (faction.localAnchors ?? []).map(anchor => ({
+          ...anchor,
+          label: anchor.label ?? "",
+          type: anchor.type ?? "safehouse",
+          targetKind: anchor.targetKind ?? "cell",
+          targetId: anchor.targetId ?? undefined,
+          cell: anchor.cell ? { ...anchor.cell } : undefined,
+          level: Math.max(1, Math.min(5, Number(anchor.level) || 1)),
+          tags: Array.isArray(anchor.tags) ? anchor.tags : [],
+          notes: anchor.notes ?? ""
+        })),
+        populationProfile: normalizePopulationProfile(faction.populationProfile),
         influence: Math.max(0, Math.min(100, Number(faction.influence) || 0)),
         power: Math.max(0, Math.min(100, Number(faction.power) || 0)),
         cohesion: Math.max(0, Math.min(100, Number(faction.cohesion) || 0)),
@@ -323,8 +434,14 @@ export function createRuntimeWorldMapLayout(
         ...objective,
         description: objective.description ?? "",
         whyItMatters: objective.whyItMatters ?? "",
+        phases: Array.isArray(objective.phases) ? objective.phases : [],
+        currentPhaseIndex: Math.max(0, Number(objective.currentPhaseIndex) || 0),
         obstacleHints: Array.isArray(objective.obstacleHints) ? objective.obstacleHints : [],
         compatibleActionIds: Array.isArray(objective.compatibleActionIds) ? objective.compatibleActionIds : [],
+        requiredAnchorId: objective.requiredAnchorId ?? undefined,
+        requiredAnchorType: objective.requiredAnchorType ?? undefined,
+        onSuccess: Array.isArray(objective.onSuccess) ? objective.onSuccess : [],
+        onFailure: Array.isArray(objective.onFailure) ? objective.onFailure : [],
         tags: Array.isArray(objective.tags) ? objective.tags : [],
         zoneIds: Array.isArray(objective.zoneIds) ? objective.zoneIds : [],
         priority: Math.max(0, Math.min(100, Number(objective.priority) || 0)),
@@ -336,6 +453,9 @@ export function createRuntimeWorldMapLayout(
         itineraryRouteIds: Array.isArray(actor.itineraryRouteIds) ? actor.itineraryRouteIds : [],
         objectiveIds: Array.isArray(actor.objectiveIds) ? actor.objectiveIds : [],
         interactionTags: Array.isArray(actor.interactionTags) ? actor.interactionTags : [],
+        positionCell: actor.positionCell ? { ...actor.positionCell } : undefined,
+        destinationCell: actor.destinationCell ? { ...actor.destinationCell } : undefined,
+        populationProfile: normalizePopulationProfile(actor.populationProfile),
         travelMode: actor.travelMode ?? "road",
         simulationLevel: actor.simulationLevel ?? "active",
         speed: Math.max(0, Math.min(100, Number(actor.speed) || 0)),
@@ -344,8 +464,28 @@ export function createRuntimeWorldMapLayout(
         cargo: Math.max(0, Math.min(100, Number(actor.cargo) || 0)),
         headcount: Math.max(0, Math.min(100, Number(actor.headcount) || 0)),
         resources: Math.max(0, Math.min(100, Number(actor.resources) || 0))
+      })),
+      districts: (sourceLayout.simulation?.districts ?? []).map(district => ({
+        ...district,
+        name: district.name ?? district.id,
+        tags: Array.isArray(district.tags) ? district.tags : [],
+        cellKeys: Array.isArray(district.cellKeys) ? district.cellKeys : [],
+        dominantActivities: Array.isArray(district.dominantActivities) ? district.dominantActivities : [],
+        importantPlaces: Array.isArray(district.importantPlaces) ? district.importantPlaces : [],
+        populationProfile: normalizePopulationProfile(district.populationProfile)
+      })),
+      districtOverrides: (sourceLayout.simulation?.districtOverrides ?? []).map(override => ({
+        ...override,
+        tags: Array.isArray(override.tags) ? override.tags : [],
+        dominantActivities: Array.isArray(override.dominantActivities) ? override.dominantActivities : [],
+        importantPlaces: Array.isArray(override.importantPlaces) ? override.importantPlaces : [],
+        populationProfile: normalizePopulationProfile(override.populationProfile)
       }))
     },
+    cities: sourceLayout.cities.map(city => ({
+      ...city,
+      populationProfile: normalizePopulationProfile(city.populationProfile)
+    })),
     cells: sourceLayout.cells.map(
       (cell): MapCellData => ({
         ...cell,
@@ -379,7 +519,9 @@ export function serializeWorldMapLayout(layout: WorldMapLayout): WorldMapLayoutS
     simulation: {
       factions: layout.simulation?.factions ?? [],
       specialObjectives: layout.simulation?.specialObjectives ?? [],
-      mobileActors: layout.simulation?.mobileActors ?? []
+      mobileActors: layout.simulation?.mobileActors ?? [],
+      districts: layout.simulation?.districts ?? [],
+      districtOverrides: layout.simulation?.districtOverrides ?? []
     }
   };
 }

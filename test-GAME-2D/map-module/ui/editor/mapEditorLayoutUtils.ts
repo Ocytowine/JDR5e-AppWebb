@@ -12,13 +12,22 @@ import {
   type SimulationObjectiveTargetKind,
   type SimulationActorLevel,
   type SimulationActorPositionKind,
+  type SimulationAnchorTargetKind,
   type SimulationFactionRelationStatus,
+  type SimulationOpportunityKind,
+  type SimulationSignalKind,
+  type SimulationTensionType,
   type SimulationTravelMode,
+  type PopulationGroupRole,
   type WorldMapCity,
+  type WorldMapSimulationConsequence,
+  type WorldMapSimulationFactionAnchor,
   type WorldMapSimulationFactionRelation,
   type WorldMapSimulationMobileActor,
   type WorldMapSimulationObjective,
   type WorldMapSimulationFaction,
+  type WorldMapSimulationDistrict,
+  type WorldMapSimulationDistrictOverride,
   type WorldMapLayout
 } from "../../data/worldMapLayout";
 import { createCityId, ensureCell } from "../mapShared";
@@ -32,6 +41,70 @@ type GeographyPreset = {
   surface: "land" | "ocean";
   difficulty: number;
 };
+
+function parsePopulationProfileInput(value: string) {
+  const groups = value
+    .split(",")
+    .map(entry => entry.trim())
+    .filter(Boolean)
+    .map(entry => {
+      const [groupIdRaw, weightRaw, roleRaw] = entry.split(":").map(part => part.trim());
+      return {
+        groupId: groupIdRaw,
+        weight: Math.max(0, Number(weightRaw) || 0),
+        role: (roleRaw || undefined) as PopulationGroupRole | undefined
+      };
+    })
+    .filter(entry => entry.groupId);
+  if (groups.length === 0) return undefined;
+  const dominantGroupId = groups.slice().sort((left, right) => right.weight - left.weight)[0]?.groupId;
+  return {
+    dominantGroupId,
+    groups
+  };
+}
+
+function parseSimulationConsequencesInput(value: string): WorldMapSimulationConsequence[] {
+  return value
+    .split("\n")
+    .map(entry => entry.trim())
+    .filter(Boolean)
+    .reduce<WorldMapSimulationConsequence[]>((accumulator, entry) => {
+      const [type, subtype, amountRaw, tagsRaw] = entry.split(":").map(part => part.trim());
+      const tags = (tagsRaw ?? "")
+        .split("|")
+        .map(tag => tag.trim())
+        .filter(Boolean);
+      if (type === "create_tension" && subtype) {
+        accumulator.push({
+          type,
+          tensionType: subtype as SimulationTensionType,
+          severity: Math.max(0, Number(amountRaw) || 0),
+          tags
+        });
+        return accumulator;
+      }
+      if (type === "open_opportunity" && subtype) {
+        accumulator.push({
+          type,
+          kind: subtype as SimulationOpportunityKind,
+          score: Math.max(0, Number(amountRaw) || 0),
+          tags
+        });
+        return accumulator;
+      }
+      if (type === "spawn_signal" && subtype) {
+        accumulator.push({
+          type,
+          signalKind: subtype as SimulationSignalKind,
+          intensity: Math.max(0, Number(amountRaw) || 0),
+          tags
+        });
+        return accumulator;
+      }
+      return accumulator;
+    }, []);
+}
 
 export function getTargetCellKeys(selectedAreaCellKeys: string[], selectedCellKey: string | null): string[] {
   if (selectedAreaCellKeys.length > 0) return selectedAreaCellKeys;
@@ -128,11 +201,15 @@ export function appendRoutePoint(layout: WorldMapLayout, selectedRouteId: string
 export function updateCityFieldOnLayout(
   layout: WorldMapLayout,
   selectedCity: WorldMapCity,
-  field: "wikiEntityId" | "kind" | "markerColor",
+  field: "wikiEntityId" | "kind" | "markerColor" | "populationProfile",
   value: string
 ): void {
   const city = layout.cities.find(entry => entry.id === selectedCity.id);
   if (!city) return;
+  if (field === "populationProfile") {
+    city.populationProfile = parsePopulationProfileInput(value);
+    return;
+  }
   if (field === "kind") {
     city.kind = value === "capital" ? "capital" : "secondary";
     return;
@@ -694,11 +771,66 @@ export function reversePathDirection(layout: WorldMapLayout, pathId: string): vo
 }
 
 function ensureSimulation(layout: WorldMapLayout) {
-  layout.simulation ??= { factions: [], specialObjectives: [], mobileActors: [] };
+  layout.simulation ??= { factions: [], specialObjectives: [], mobileActors: [], districts: [], districtOverrides: [] };
   layout.simulation.factions ??= [];
   layout.simulation.specialObjectives ??= [];
   layout.simulation.mobileActors ??= [];
+  layout.simulation.districts ??= [];
+  layout.simulation.districtOverrides ??= [];
   return layout.simulation;
+}
+
+export function upsertSimulationDistrict(
+  layout: WorldMapLayout,
+  district: WorldMapSimulationDistrict
+): void {
+  const simulation = ensureSimulation(layout);
+  const districts = simulation.districts ?? (simulation.districts = []);
+  const existingIndex = districts.findIndex(entry => entry.id === district.id);
+  const normalized: WorldMapSimulationDistrict = {
+    ...district,
+    name: district.name?.trim() || district.id,
+    tags: Array.from(new Set(district.tags ?? [])),
+    cellKeys: Array.from(new Set(district.cellKeys ?? [])),
+    dominantActivities: Array.from(new Set(district.dominantActivities ?? [])),
+    importantPlaces: Array.from(new Set(district.importantPlaces ?? []))
+  };
+  if (existingIndex >= 0) {
+    districts[existingIndex] = normalized;
+    return;
+  }
+  districts.push(normalized);
+}
+
+export function deleteSimulationDistrict(layout: WorldMapLayout, districtId: string): void {
+  const simulation = ensureSimulation(layout);
+  const districts = simulation.districts ?? (simulation.districts = []);
+  simulation.districts = districts.filter(entry => entry.id !== districtId);
+}
+
+export function updateSimulationDistrictField(
+  layout: WorldMapLayout,
+  districtId: string,
+  field: "name" | "tags" | "cellKeys" | "dominantActivities" | "importantPlaces" | "populationProfile",
+  value: string
+): void {
+  const simulation = ensureSimulation(layout);
+  const districts = simulation.districts ?? (simulation.districts = []);
+  const existing = districts.find(entry => entry.id === districtId);
+  if (!existing) return;
+  const nextDistrict: WorldMapSimulationDistrict = { ...existing };
+  if (field === "populationProfile") {
+    nextDistrict.populationProfile = parsePopulationProfileInput(value);
+    upsertSimulationDistrict(layout, nextDistrict);
+    return;
+  }
+  if (field === "tags" || field === "cellKeys" || field === "dominantActivities" || field === "importantPlaces") {
+    nextDistrict[field] = value.split(",").map(item => item.trim()).filter(Boolean);
+    upsertSimulationDistrict(layout, nextDistrict);
+    return;
+  }
+  nextDistrict.name = value.trim() || existing.id;
+  upsertSimulationDistrict(layout, nextDistrict);
 }
 
 export function upsertSimulationFaction(layout: WorldMapLayout, faction: WorldMapSimulationFaction): void {
@@ -712,6 +844,21 @@ export function upsertSimulationFaction(layout: WorldMapLayout, faction: WorldMa
     objectiveHints: Array.from(new Set(faction.objectiveHints ?? [])),
     tags: Array.from(new Set(faction.tags ?? [])),
     presenceCells: Array.from(new Map((faction.presenceCells ?? []).map(cell => [getWorldMapCellKey(cell), cell])).values()),
+    controlledZoneIds: Array.from(new Set(faction.controlledZoneIds ?? [])),
+    influencedZoneIds: Array.from(new Set(faction.influencedZoneIds ?? [])),
+    interestZoneIds: Array.from(new Set(faction.interestZoneIds ?? [])),
+    avoidedZoneIds: Array.from(new Set(faction.avoidedZoneIds ?? [])),
+    localAnchors: (faction.localAnchors ?? []).map(anchor => ({
+      id: anchor.id,
+      label: anchor.label ?? "",
+      type: anchor.type ?? "safehouse",
+      targetKind: anchor.targetKind ?? "cell",
+      targetId: anchor.targetId ?? undefined,
+      cell: anchor.cell ? { ...anchor.cell } : undefined,
+      level: Math.max(1, Math.min(5, Number(anchor.level) || 1)),
+      tags: Array.from(new Set(anchor.tags ?? [])),
+      notes: anchor.notes ?? ""
+    })),
     influence: Math.max(0, Math.min(100, Number(faction.influence) || 0)),
     power: Math.max(0, Math.min(100, Number(faction.power) || 0)),
     cohesion: Math.max(0, Math.min(100, Number(faction.cohesion) || 0)),
@@ -749,10 +896,15 @@ export function updateSimulationFactionField(
     | "description"
     | "agenda"
     | "methods"
-    | "objectiveHints"
-    | "tags"
-    | "homeCityId"
-    | "homeRegionId"
+      | "objectiveHints"
+      | "tags"
+      | "controlledZoneIds"
+      | "influencedZoneIds"
+      | "interestZoneIds"
+      | "avoidedZoneIds"
+      | "homeCityId"
+      | "homeRegionId"
+      | "populationProfile"
     | "influence"
     | "power"
     | "cohesion"
@@ -764,7 +916,19 @@ export function updateSimulationFactionField(
   const simulation = ensureSimulation(layout);
   const faction = simulation.factions.find(entry => entry.id === factionId);
   if (!faction) return;
-  if (field === "methods" || field === "objectiveHints" || field === "tags") {
+  if (field === "populationProfile") {
+    faction.populationProfile = parsePopulationProfileInput(value);
+    return;
+  }
+  if (
+    field === "methods" ||
+    field === "objectiveHints" ||
+    field === "tags" ||
+    field === "controlledZoneIds" ||
+    field === "influencedZoneIds" ||
+    field === "interestZoneIds" ||
+    field === "avoidedZoneIds"
+  ) {
     faction[field] = value
       .split(",")
       .map(item => item.trim())
@@ -865,6 +1029,95 @@ export function removeSimulationFactionPresence(layout: WorldMapLayout, factionI
   faction.presenceCells = faction.presenceCells.filter(cell => !removed.has(getWorldMapCellKey(cell)));
 }
 
+export function upsertSimulationFactionAnchor(
+  layout: WorldMapLayout,
+  factionId: string,
+  anchor: WorldMapSimulationFactionAnchor
+): void {
+  const simulation = ensureSimulation(layout);
+  const faction = simulation.factions.find(entry => entry.id === factionId);
+  if (!faction) return;
+  faction.localAnchors ??= [];
+  const normalized: WorldMapSimulationFactionAnchor = {
+    id: anchor.id,
+    label: anchor.label ?? "",
+    type: anchor.type ?? "safehouse",
+    targetKind: anchor.targetKind ?? "cell",
+    targetId: anchor.targetId ?? undefined,
+    cell: anchor.cell ? { ...anchor.cell } : undefined,
+    level: Math.max(1, Math.min(5, Number(anchor.level) || 1)),
+    tags: Array.from(new Set(anchor.tags ?? [])),
+    notes: anchor.notes ?? ""
+  };
+  const existingIndex = faction.localAnchors.findIndex(entry => entry.id === anchor.id);
+  if (existingIndex >= 0) {
+    faction.localAnchors[existingIndex] = normalized;
+    return;
+  }
+  faction.localAnchors.push(normalized);
+}
+
+export function deleteSimulationFactionAnchor(layout: WorldMapLayout, factionId: string, anchorId: string): void {
+  const simulation = ensureSimulation(layout);
+  const faction = simulation.factions.find(entry => entry.id === factionId);
+  if (!faction?.localAnchors) return;
+  faction.localAnchors = faction.localAnchors.filter(entry => entry.id !== anchorId);
+}
+
+export function updateSimulationFactionAnchorField(
+  layout: WorldMapLayout,
+  factionId: string,
+  anchorId: string,
+  field: "label" | "type" | "targetKind" | "targetId" | "level" | "tags" | "notes",
+  value: string
+): void {
+  const simulation = ensureSimulation(layout);
+  const faction = simulation.factions.find(entry => entry.id === factionId);
+  if (!faction?.localAnchors) return;
+  const anchor = faction.localAnchors.find(entry => entry.id === anchorId);
+  if (!anchor) return;
+  if (field === "tags") {
+    anchor.tags = value.split(",").map(item => item.trim()).filter(Boolean);
+    return;
+  }
+  if (field === "level") {
+    anchor.level = Math.max(1, Math.min(5, Number(value) || 1));
+    return;
+  }
+  if (field === "targetKind") {
+    anchor.targetKind = value as SimulationAnchorTargetKind;
+    if (anchor.targetKind === "cell") {
+      anchor.targetId = undefined;
+    } else {
+      anchor.cell = undefined;
+    }
+    return;
+  }
+  if (field === "targetId") {
+    anchor.targetId = value || undefined;
+    return;
+  }
+  anchor[field] = value;
+}
+
+export function updateSimulationFactionAnchorCell(
+  layout: WorldMapLayout,
+  factionId: string,
+  anchorId: string,
+  cell?: MapCell
+): void {
+  const simulation = ensureSimulation(layout);
+  const faction = simulation.factions.find(entry => entry.id === factionId);
+  if (!faction?.localAnchors) return;
+  const anchor = faction.localAnchors.find(entry => entry.id === anchorId);
+  if (!anchor) return;
+  anchor.cell = cell ? { ...cell } : undefined;
+  if (cell) {
+    anchor.targetKind = "cell";
+    anchor.targetId = undefined;
+  }
+}
+
 export function upsertSimulationObjective(layout: WorldMapLayout, objective: WorldMapSimulationObjective): void {
   const simulation = ensureSimulation(layout);
   const existingIndex = simulation.specialObjectives.findIndex(entry => entry.id === objective.id);
@@ -872,9 +1125,15 @@ export function upsertSimulationObjective(layout: WorldMapLayout, objective: Wor
     ...objective,
     description: objective.description ?? "",
     whyItMatters: objective.whyItMatters ?? "",
+    phases: Array.from(new Set(objective.phases ?? [])),
+    currentPhaseIndex: Math.max(0, Number(objective.currentPhaseIndex) || 0),
     obstacleHints: Array.from(new Set(objective.obstacleHints ?? [])),
-    compatibleActionIds: Array.from(new Set(objective.compatibleActionIds ?? [])),
-    tags: Array.from(new Set(objective.tags ?? [])),
+      compatibleActionIds: Array.from(new Set(objective.compatibleActionIds ?? [])),
+      requiredAnchorId: objective.requiredAnchorId ?? undefined,
+      requiredAnchorType: objective.requiredAnchorType ?? undefined,
+      onSuccess: Array.isArray(objective.onSuccess) ? objective.onSuccess : [],
+      onFailure: Array.isArray(objective.onFailure) ? objective.onFailure : [],
+      tags: Array.from(new Set(objective.tags ?? [])),
     zoneIds: Array.from(new Set(objective.zoneIds ?? [])),
     priority: Math.max(0, Math.min(100, Number(objective.priority) || 0)),
     progress: Math.max(0, Math.min(100, Number(objective.progress) || 0)),
@@ -904,22 +1163,32 @@ export function updateSimulationObjectiveField(
     | "whyItMatters"
     | "targetKind"
     | "targetId"
-    | "priority"
-    | "progress"
-    | "state"
-    | "obstacleHints"
-    | "compatibleActionIds"
-    | "tags",
+      | "priority"
+      | "progress"
+      | "state"
+      | "phases"
+      | "currentPhaseIndex"
+      | "obstacleHints"
+        | "compatibleActionIds"
+        | "requiredAnchorId"
+        | "requiredAnchorType"
+        | "onSuccess"
+        | "onFailure"
+        | "tags",
   value: string
 ): void {
   const simulation = ensureSimulation(layout);
   const objective = simulation.specialObjectives.find(entry => entry.id === objectiveId);
   if (!objective) return;
-  if (field === "obstacleHints" || field === "compatibleActionIds" || field === "tags") {
+  if (field === "onSuccess" || field === "onFailure") {
+    objective[field] = parseSimulationConsequencesInput(value);
+    return;
+  }
+  if (field === "phases" || field === "obstacleHints" || field === "compatibleActionIds" || field === "tags") {
     objective[field] = value.split(",").map(item => item.trim()).filter(Boolean);
     return;
   }
-  if (field === "priority" || field === "progress") {
+  if (field === "priority" || field === "progress" || field === "currentPhaseIndex") {
     objective[field] = Math.max(0, Math.min(100, Number(value) || 0));
     return;
   }
@@ -950,6 +1219,12 @@ export function updateSimulationObjectiveField(
       return;
     case "state":
       objective.state = value as SimulationObjectiveState;
+      return;
+    case "requiredAnchorId":
+      objective.requiredAnchorId = value || undefined;
+      return;
+    case "requiredAnchorType":
+      objective.requiredAnchorType = value || undefined;
       return;
     default:
       return;
@@ -1006,6 +1281,7 @@ export function updateSimulationMobileActorField(
     | "positionId"
     | "destinationKind"
     | "destinationId"
+    | "populationProfile"
     | "itineraryRouteIds"
     | "travelMode"
     | "speed"
@@ -1022,6 +1298,10 @@ export function updateSimulationMobileActorField(
   const simulation = ensureSimulation(layout);
   const actor = simulation.mobileActors.find(entry => entry.id === actorId);
   if (!actor) return;
+  if (field === "populationProfile") {
+    actor.populationProfile = parsePopulationProfileInput(value);
+    return;
+  }
   if (field === "itineraryRouteIds" || field === "objectiveIds" || field === "interactionTags") {
     actor[field] = value.split(",").map(item => item.trim()).filter(Boolean);
     return;
@@ -1048,12 +1328,22 @@ export function updateSimulationMobileActorField(
       return;
     case "positionKind":
       actor.positionKind = value as SimulationActorPositionKind;
+      if (actor.positionKind === "cell") {
+        actor.positionId = undefined;
+      } else {
+        actor.positionCell = undefined;
+      }
       return;
     case "positionId":
       actor.positionId = value || undefined;
       return;
     case "destinationKind":
       actor.destinationKind = (value || undefined) as SimulationActorPositionKind | undefined;
+      if (actor.destinationKind === "cell") {
+        actor.destinationId = undefined;
+      } else {
+        actor.destinationCell = undefined;
+      }
       return;
     case "destinationId":
       actor.destinationId = value || undefined;
@@ -1067,4 +1357,81 @@ export function updateSimulationMobileActorField(
     default:
       return;
   }
+}
+
+export function updateSimulationMobileActorCellField(
+  layout: WorldMapLayout,
+  actorId: string,
+  field: "positionCell" | "destinationCell",
+  cell?: MapCell
+): void {
+  const simulation = ensureSimulation(layout);
+  const actor = simulation.mobileActors.find(entry => entry.id === actorId);
+  if (!actor) return;
+  actor[field] = cell ? { ...cell } : undefined;
+  if (field === "positionCell" && cell) {
+    actor.positionKind = "cell";
+    actor.positionId = undefined;
+  }
+  if (field === "destinationCell" && cell) {
+    actor.destinationKind = "cell";
+    actor.destinationId = undefined;
+  }
+}
+
+export function upsertSimulationDistrictOverride(
+  layout: WorldMapLayout,
+  districtOverride: WorldMapSimulationDistrictOverride
+): void {
+  const simulation = ensureSimulation(layout);
+  const districtOverrides = simulation.districtOverrides ?? (simulation.districtOverrides = []);
+  const existingIndex = districtOverrides.findIndex(entry => entry.id === districtOverride.id);
+  const normalized: WorldMapSimulationDistrictOverride = {
+    ...districtOverride,
+    tags: Array.from(new Set(districtOverride.tags ?? [])),
+    dominantActivities: Array.from(new Set(districtOverride.dominantActivities ?? [])),
+    importantPlaces: Array.from(new Set(districtOverride.importantPlaces ?? []))
+  };
+  if (existingIndex >= 0) {
+    districtOverrides[existingIndex] = normalized;
+    return;
+  }
+  districtOverrides.push(normalized);
+}
+
+export function deleteSimulationDistrictOverride(layout: WorldMapLayout, districtId: string): void {
+  const simulation = ensureSimulation(layout);
+  const districtOverrides = simulation.districtOverrides ?? (simulation.districtOverrides = []);
+  simulation.districtOverrides = districtOverrides.filter(entry => entry.id !== districtId);
+}
+
+export function updateSimulationDistrictOverrideField(
+  layout: WorldMapLayout,
+  districtId: string,
+  cityId: string,
+  field: "name" | "tags" | "dominantActivities" | "importantPlaces" | "populationProfile",
+  value: string
+): void {
+  const simulation = ensureSimulation(layout);
+  const districtOverrides = simulation.districtOverrides ?? (simulation.districtOverrides = []);
+  const existing = districtOverrides.find(entry => entry.id === districtId);
+  const districtOverride: WorldMapSimulationDistrictOverride = existing ?? {
+    id: districtId,
+    cityId,
+    tags: [],
+    dominantActivities: [],
+    importantPlaces: []
+  };
+  if (field === "populationProfile") {
+    districtOverride.populationProfile = parsePopulationProfileInput(value);
+    upsertSimulationDistrictOverride(layout, districtOverride);
+    return;
+  }
+  if (field === "tags" || field === "dominantActivities" || field === "importantPlaces") {
+    districtOverride[field] = value.split(",").map(item => item.trim()).filter(Boolean);
+    upsertSimulationDistrictOverride(layout, districtOverride);
+    return;
+  }
+  districtOverride.name = value || undefined;
+  upsertSimulationDistrictOverride(layout, districtOverride);
 }

@@ -4,3 +4,6 @@ export * from "./engine";
 export * from "./mapAdapter";
 export * from "./exampleScenario";
 export * from "./currentMapDemo";
+export * from "./preflight";
+export * from "./logisticsPlanner";
+export * from "./objectiveReadiness";
