@@ -18,7 +18,9 @@ import type {
   WorldRegion,
   WorldRoute,
   WorldState,
-  WorldTension
+  WorldTension,
+  EntityId,
+  EntityRef
 } from "./types";
 
 export type MapSimulationSeedOverrides = {
@@ -44,6 +46,15 @@ type DistrictSeedProfile = {
 };
 
 type DistrictOverrideSeed = NonNullable<NonNullable<WorldMapLayout["simulation"]>["districtOverrides"]>[number];
+type RouteCellPlacement = {
+  routeId: string;
+  routeIndex: number;
+  routeLength: number;
+  routeCost: number;
+  originEndpointId: string;
+  destinationEndpointId: string;
+  absoluteProgress: number;
+};
 
 function toTitleCase(input: string): string {
   return input
@@ -253,6 +264,138 @@ function mergeRecord<T extends { id: string }>(base: Record<string, T>, patches?
   );
 }
 
+function getCellDistance(left: MapCell, right: MapCell): number {
+  return Math.abs(left.x - right.x) + Math.abs(left.y - right.y);
+}
+
+function getRuntimeRefForRouteEndpoint(layout: WorldMapLayout, routeId: string, cell: MapCell): EntityRef {
+  const city = layout.cities.find(entry => entry.cell.x === cell.x && entry.cell.y === cell.y);
+  if (city) {
+    return { kind: "city", id: city.id };
+  }
+  const region = (layout.governanceRegions ?? []).find(entry => {
+    if (entry.labelCell.x === cell.x && entry.labelCell.y === cell.y) return true;
+    if (!entry.principalCityId) return false;
+    const principalCity = layout.cities.find(cityEntry => cityEntry.id === entry.principalCityId);
+    return Boolean(principalCity && principalCity.cell.x === cell.x && principalCity.cell.y === cell.y);
+  });
+  if (region) {
+    return { kind: "region", id: region.id };
+  }
+  return { kind: "route", id: routeId };
+}
+
+export function resolveMapCellToRuntimeRef(layout: WorldMapLayout, cell: MapCell): EntityRef | undefined {
+  const city = layout.cities.find(entry => entry.cell.x === cell.x && entry.cell.y === cell.y);
+  if (city) {
+    return { kind: "city", id: city.id };
+  }
+
+  const region = (layout.governanceRegions ?? []).find(entry => {
+    if (entry.labelCell.x === cell.x && entry.labelCell.y === cell.y) return true;
+    if (!entry.principalCityId) return false;
+    const principalCity = layout.cities.find(cityEntry => cityEntry.id === entry.principalCityId);
+    return Boolean(principalCity && principalCity.cell.x === cell.x && principalCity.cell.y === cell.y);
+  });
+  if (region) {
+    return { kind: "region", id: region.id };
+  }
+
+  const routeEndpointCandidates = layout.paths
+    .filter(path => path.kind === "road" && path.cells.length > 0)
+    .flatMap(path => {
+      const startCell = path.cells[0];
+      const endCell = path.cells[path.cells.length - 1];
+      return [
+        { ref: getRuntimeRefForRouteEndpoint(layout, path.id, startCell), cell: startCell },
+        { ref: getRuntimeRefForRouteEndpoint(layout, path.id, endCell), cell: endCell }
+      ];
+    });
+
+  const nearestRouteEndpoint = routeEndpointCandidates
+    .slice()
+    .sort((left, right) => getCellDistance(cell, left.cell) - getCellDistance(cell, right.cell))[0];
+  if (nearestRouteEndpoint) {
+    return nearestRouteEndpoint.ref;
+  }
+
+  const nearestCity = layout.cities
+    .slice()
+    .sort((left, right) => getCellDistance(cell, left.cell) - getCellDistance(cell, right.cell))[0];
+  if (nearestCity) {
+    return { kind: "city", id: nearestCity.id };
+  }
+
+  const nearestRegion = (layout.governanceRegions ?? [])
+    .slice()
+    .sort((left, right) => getCellDistance(cell, left.labelCell) - getCellDistance(cell, right.labelCell))[0];
+  if (nearestRegion) {
+    return { kind: "region", id: nearestRegion.id };
+  }
+
+  return undefined;
+}
+
+function getRouteCellPlacement(layout: WorldMapLayout, cell: MapCell): RouteCellPlacement | undefined {
+  const matchingPlacements = layout.paths
+    .filter(path => path.kind === "road" && path.cells.length > 1)
+    .flatMap(path =>
+      path.cells
+        .map((routeCell, index) => ({ routeCell, index }))
+        .filter(entry => entry.routeCell.x === cell.x && entry.routeCell.y === cell.y)
+        .map(entry => {
+          const routeLength = path.cells.length - 1;
+          const progressRatio = routeLength > 0 ? entry.index / routeLength : 0;
+          const routeCost = path.roadType === "major_road" ? 2 : path.roadType === "road" ? 3 : 4;
+          const originEndpointId = getRuntimeRefForRouteEndpoint(layout, path.id, path.cells[0]).id;
+          const destinationEndpointId = getRuntimeRefForRouteEndpoint(layout, path.id, path.cells[path.cells.length - 1]).id;
+          return {
+            routeId: path.id,
+            routeIndex: entry.index,
+            routeLength,
+            routeCost,
+            originEndpointId,
+            destinationEndpointId,
+            absoluteProgress: progressRatio * routeCost
+          } satisfies RouteCellPlacement;
+        })
+    );
+
+  return matchingPlacements
+    .slice()
+    .sort((left, right) => {
+      const leftCentrality = Math.abs(left.routeIndex - left.routeLength / 2);
+      const rightCentrality = Math.abs(right.routeIndex - right.routeLength / 2);
+      return leftCentrality - rightCentrality;
+    })[0];
+}
+
+function inferRouteTargetId(layout: WorldMapLayout, placement: RouteCellPlacement, destination?: EntityRef): EntityId | undefined {
+  const route = layout.paths.find(path => path.id === placement.routeId && path.kind === "road");
+  if (!route || route.cells.length === 0) return undefined;
+  const startCell = route.cells[0];
+  const endCell = route.cells[route.cells.length - 1];
+  const originRef = getRuntimeRefForRouteEndpoint(layout, placement.routeId, startCell);
+  const destinationRef = getRuntimeRefForRouteEndpoint(layout, placement.routeId, endCell);
+
+  if (destination?.id && destination.id === originRef.id) return originRef.id;
+  if (destination?.id && destination.id === destinationRef.id) return destinationRef.id;
+
+  const destinationCell =
+    destination?.kind === "city"
+      ? layout.cities.find(entry => entry.id === destination.id)?.cell
+      : destination?.kind === "region"
+        ? (layout.governanceRegions ?? []).find(entry => entry.id === destination.id)?.labelCell
+        : undefined;
+  if (!destinationCell) {
+    return placement.routeIndex <= placement.routeLength / 2 ? originRef.id : destinationRef.id;
+  }
+
+  const originDistance = getCellDistance(destinationCell, startCell);
+  const destinationDistance = getCellDistance(destinationCell, endCell);
+  return originDistance <= destinationDistance ? originRef.id : destinationRef.id;
+}
+
 function syncRouteMobileActorIds(routes: Record<string, WorldRoute>, mobileActors: Record<string, MobileActor>) {
   Object.values(routes).forEach(route => {
     route.mobileActorIds = [];
@@ -397,8 +540,10 @@ function deriveObjectivesFromLayout(layout: WorldMapLayout): Record<string, Spec
               ? objective.compatibleActionIds as SpecialObjective["compatibleActionIds"]
               : objective.category === "open_route"
                 ? ["secure_route", "escort_convoy", "patrol"]
+                : objective.category === "protect_secret"
+                  ? ["sanctify_site", "patrol", "investigate"]
                 : objective.category === "search_object"
-                  ? ["investigate", "search_clue", "question_source"]
+                  ? ["investigate", "sanctify_site", "search_clue", "question_source"]
                   : ["recruit", "patrol", "investigate"],
             requiredAnchorId: objective.requiredAnchorId,
             requiredAnchorType: objective.requiredAnchorType,
@@ -419,6 +564,8 @@ function deriveObjectivesFromLayout(layout: WorldMapLayout): Record<string, Spec
             ? "open_route"
             : normalizedHint.includes("controle")
               ? "take_control_place"
+              : normalizedHint.includes("secret") || normalizedHint.includes("culte") || normalizedHint.includes("rituel")
+                ? "protect_secret"
               : normalizedHint.includes("influence")
                 ? "extend_influence"
                 : normalizedHint.includes("recrut")
@@ -452,8 +599,10 @@ function deriveObjectivesFromLayout(layout: WorldMapLayout): Record<string, Spec
               compatibleActionIds:
                 category === "open_route"
                   ? ["secure_route", "escort_convoy", "patrol"]
+                  : category === "protect_secret"
+                    ? ["sanctify_site", "patrol", "investigate"]
                   : category === "search_object"
-                    ? ["investigate", "search_clue", "question_source"]
+                    ? ["investigate", "sanctify_site", "search_clue", "question_source"]
                     : ["recruit", "patrol", "investigate"],
               requiredAnchorId: undefined,
               requiredAnchorType: undefined,
@@ -471,16 +620,37 @@ function deriveMobileActorsFromLayout(layout: WorldMapLayout): Record<string, Mo
   return Object.fromEntries(
     (layout.simulation?.mobileActors ?? []).map(actor => {
       const runtimeId = `mobile:map:${actor.id}`;
-      const position =
-        actor.positionKind === "city" || actor.positionKind === "route" || actor.positionKind === "region"
-          ? { kind: actor.positionKind, id: actor.positionId ?? runtimeId }
-          : { kind: "route" as const, id: actor.positionId ?? runtimeId };
       const destination =
-        actor.destinationKind && actor.destinationId
-          ? actor.destinationKind === "city" || actor.destinationKind === "route" || actor.destinationKind === "region"
-            ? { kind: actor.destinationKind, id: actor.destinationId }
-            : { kind: "route" as const, id: actor.destinationId }
-          : undefined;
+        actor.destinationKind === "cell" && actor.destinationCell
+          ? resolveMapCellToRuntimeRef(layout, actor.destinationCell)
+          : actor.destinationKind && actor.destinationId
+            ? actor.destinationKind === "city" || actor.destinationKind === "route" || actor.destinationKind === "region"
+              ? { kind: actor.destinationKind, id: actor.destinationId }
+              : undefined
+            : undefined;
+      const routeCellPlacement = actor.positionKind === "cell" && actor.positionCell
+        ? getRouteCellPlacement(layout, actor.positionCell)
+        : undefined;
+      const inferredRouteTargetId = routeCellPlacement
+        ? inferRouteTargetId(layout, routeCellPlacement, destination)
+        : undefined;
+      const position =
+        routeCellPlacement
+          ? { kind: "route" as const, id: routeCellPlacement.routeId }
+          : actor.positionKind === "cell" && actor.positionCell
+            ? resolveMapCellToRuntimeRef(layout, actor.positionCell)
+            : actor.positionKind === "city" || actor.positionKind === "route" || actor.positionKind === "region"
+              ? { kind: actor.positionKind, id: actor.positionId ?? runtimeId }
+              : undefined;
+      const routeProgress =
+        routeCellPlacement && inferredRouteTargetId
+          ? inferredRouteTargetId === routeCellPlacement.originEndpointId
+            ? routeCellPlacement.routeCost - routeCellPlacement.absoluteProgress
+            : routeCellPlacement.absoluteProgress
+          : 0;
+      const destinationRoutePlacement = actor.destinationKind === "cell" && actor.destinationCell
+        ? getRouteCellPlacement(layout, actor.destinationCell)
+        : undefined;
       const modeTransport =
         actor.travelMode === "river" || actor.travelMode === "sea"
           ? "bateau"
@@ -497,14 +667,18 @@ function deriveMobileActorsFromLayout(layout: WorldMapLayout): Record<string, Mo
           mobile: true,
           owner: actor.ownerFactionId ? { kind: "faction", id: `faction:map:${actor.ownerFactionId}` } : undefined,
           populationProfile: actor.populationProfile,
-          position,
+          position: position ?? { kind: "route", id: actor.positionId ?? runtimeId },
           destination,
           itinerary: actor.itineraryRouteIds,
-          currentRouteTargetId: undefined,
+          currentRouteTargetId: inferredRouteTargetId,
+          destinationRouteProgress:
+            destination?.kind === "route" && destinationRoutePlacement?.routeId === destination.id
+              ? destinationRoutePlacement.absoluteProgress
+              : undefined,
           modeTransport,
           travelMode: actor.travelMode,
           speed: actor.speed,
-          routeProgress: 0,
+          routeProgress,
           state: {
             security: actor.security,
             fatigue: actor.fatigue,

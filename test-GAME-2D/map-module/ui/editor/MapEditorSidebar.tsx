@@ -13,10 +13,14 @@ export function MapEditorSidebar(props: {
         zIndex: 5,
         display: "grid",
         gap: 12,
-        width: "min(360px, calc(100vw - 32px))",
+        width: "min(620px, calc(100vw - 32px))",
+        minWidth: "min(620px, calc(100vw - 32px))",
         maxHeight: "calc(100% - 32px)",
         overflowY: "auto",
+        overflowX: "hidden",
         paddingRight: 4,
+        scrollbarGutter: "stable",
+        overscrollBehavior: "contain",
         color: EDITOR_THEME.colors.text,
         fontFamily: EDITOR_THEME.fontFamily
       }}

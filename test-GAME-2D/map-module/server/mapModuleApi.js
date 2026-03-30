@@ -18,7 +18,9 @@ function sanitizeLayoutSource(value) {
     !Array.isArray(candidate.cities) ||
     !Array.isArray(candidate.paths) ||
     !Array.isArray(candidate.cliffSegments ?? []) ||
-    !Array.isArray(candidate.cells)
+    !Array.isArray(candidate.cells) ||
+    !Array.isArray(candidate.editorPresets?.customGeographies ?? []) ||
+    !Array.isArray(candidate.editorPresets?.customTags ?? [])
   ) {
     return null;
   }
@@ -295,9 +297,14 @@ function createMapModuleApi({ projectRoot, sendJson, parseJsonBody }) {
 
   function writeLayoutSource(source, layoutKey) {
     const target = resolveLayoutPath(layoutKey);
+    if (!target.isDefault) {
+      ensureLayoutsDirectory();
+    }
     const normalized = `${JSON.stringify(source, null, 2)}\n`;
-    fs.writeFileSync(target.path, normalized, "utf-8");
-    return { source, path: target.path, key: target.key, isDefault: target.isDefault };
+    const tempPath = `${target.path}.tmp`;
+    fs.writeFileSync(tempPath, normalized, "utf-8");
+    fs.renameSync(tempPath, target.path);
+    return readLayoutSource(target.key);
   }
 
   function duplicateLayout(sourceKey, targetKey) {

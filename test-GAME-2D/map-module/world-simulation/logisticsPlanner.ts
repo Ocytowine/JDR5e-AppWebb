@@ -368,6 +368,7 @@ export function applyFactionLogisticsPlans(state: WorldState, plans: LogisticsPl
     actor.destination = plan.cibleExecutionRef;
     actor.itinerary = plan.routeIds;
     actor.currentRouteTargetId = undefined;
+    actor.destinationRouteProgress = undefined;
     if (typeof plan.effectifPlanifie === "number") {
       actor.state.headcount = plan.effectifPlanifie;
     }

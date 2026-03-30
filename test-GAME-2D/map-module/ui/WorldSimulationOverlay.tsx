@@ -7,6 +7,7 @@ import {
 } from "../data/worldMapLayout";
 import { buildPathPoints, getCellCenter, getCellPolygon } from "./mapShared";
 import type { PressureMap, PressureType, WorldState } from "../world-simulation";
+import { formatRuntimeMobileProgress, getRuntimeMobileMapPoint } from "./simulation/mobileRuntimeDisplay";
 
 type OverlayMode = "factions" | "objectives" | "mobility" | "pressures" | "relations" | "all";
 
@@ -400,16 +401,18 @@ export function WorldSimulationOverlay(props: {
 
       {(props.mode === "mobility" || props.mode === "all") &&
         mobileActors.map(actor => {
-          const positionCell =
-            actor.positionCell ??
-            getEntityAnchorCell(props.layout, actor.positionKind, actor.positionId) ??
-            null;
-          if (!positionCell) return null;
-          const center = getCellCenter(props.layout, positionCell);
+          const runtimeActor = props.state.mobileActors[`mobile:map:${actor.id}`];
+          const runtimePoint = runtimeActor ? getRuntimeMobileMapPoint(props.layout, props.state, runtimeActor) : null;
+          const positionCell = actor.positionCell ?? getEntityAnchorCell(props.layout, actor.positionKind, actor.positionId) ?? null;
+          if (!positionCell && !runtimePoint) return null;
+          const fallbackCenter = positionCell ? getCellCenter(props.layout, positionCell) : null;
+          const center = runtimePoint ?? fallbackCenter;
+          if (!center) return null;
           const selected = !props.selectedMobileActorId || props.selectedMobileActorId === actor.id;
           const routeCells = actor.itineraryRouteIds
             .map(routeId => props.layout.paths.find(path => path.id === routeId))
             .flatMap(path => path?.cells ?? []);
+          const runtimeSummary = runtimeActor ? formatRuntimeMobileProgress(props.layout, props.state, runtimeActor) : null;
           return (
             <g key={actor.id}>
               {selected && routeCells.length > 1 && (
@@ -435,6 +438,17 @@ export function WorldSimulationOverlay(props: {
                   fill={selected ? "#08111a" : "rgba(255,255,255,0.88)"}
                 />
               </g>
+              {selected && runtimeSummary?.routeLabel ? (
+                <text
+                  x={center.x}
+                  y={center.y + 26}
+                  textAnchor="middle"
+                  fill="#eef3ff"
+                  style={{ fontSize: 10, fontWeight: 800, paintOrder: "stroke", stroke: "rgba(8,11,17,0.86)", strokeWidth: 4 }}
+                >
+                  {runtimeSummary.progressLabel}
+                </text>
+              ) : null}
             </g>
           );
         })}

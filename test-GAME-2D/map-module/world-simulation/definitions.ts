@@ -24,6 +24,18 @@ export const PRESSURE_DEFINITIONS: PressureDefinition[] = [
     clamp: [0, 100]
   },
   {
+    id: "district-religious-pressure",
+    pressureType: "religious",
+    entityKind: "district",
+    terms: [
+      { source: { kind: "factionInfluence", factionTag: "religious" }, weight: 0.45 },
+      { source: { kind: "state", key: "fear" }, weight: 0.25 },
+      { source: { kind: "state", key: "agitation" }, weight: 0.2 },
+      { source: { kind: "state", key: "surveillance" }, weight: 0.1, invert: true }
+    ],
+    clamp: [0, 100]
+  },
+  {
     id: "city-commercial-pressure",
     pressureType: "commercial",
     entityKind: "city",
@@ -166,6 +178,36 @@ export const WORLD_ACTION_DEFINITIONS: WorldActionDefinition[] = [
       signalKind: "institutional",
       rumorTags: ["search", "questions"],
       signalIntensity: 28
+    }
+  },
+  {
+    id: "sanctify_site",
+    label: "Sanctify Site",
+    actorKinds: ["faction"],
+    targetKinds: ["district"],
+    compatibleObjectives: ["protect_secret", "search_object", "extend_influence"],
+    cooldown: 2,
+    basePriority: 46,
+    preconditions: [{ type: "target_pressure", pressure: "religious", op: "gte", value: 40 }],
+    costs: [{ selector: "actor", type: "state", key: "resources", amount: -4 }],
+    successEffects: [
+      { selector: "target", type: "state", key: "fear", amount: -8 },
+      { selector: "target", type: "state", key: "agitation", amount: -10 },
+      { selector: "target", type: "state", key: "surveillance", amount: 6 },
+      { selector: "actor", type: "state", key: "influence", amount: 4 },
+      { selector: "actor", type: "objective_progress", amount: 20 },
+      { selector: "actor", type: "cooldown", actionId: "sanctify_site", ticks: 2 }
+    ],
+    failureEffects: [
+      { selector: "target", type: "state", key: "fear", amount: 6 },
+      { selector: "actor", type: "state", key: "discretion", amount: -4 }
+    ],
+    risks: [{ kind: "exposure", threshold: 62, severity: 9 }],
+    eventType: "action_resolved",
+    diffusion: {
+      signalKind: "religious",
+      rumorTags: ["ritual", "sanctuary"],
+      signalIntensity: 46
     }
   },
   {

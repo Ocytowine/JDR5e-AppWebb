@@ -7,7 +7,15 @@ export function EditorPanelFrame(props: {
   children: React.ReactNode;
 }): React.JSX.Element {
   return (
-    <section style={editorSurfaceStyles.panel}>
+    <section
+      style={{
+        ...editorSurfaceStyles.panel,
+        width: "100%",
+        minWidth: 0,
+        boxSizing: "border-box",
+        overflowX: "hidden"
+      }}
+    >
       {props.title ? (
         <div style={{ ...editorTextStyles.sectionTitle, color: props.titleColor ?? editorTextStyles.sectionTitle.color, marginBottom: 10 }}>{props.title}</div>
       ) : null}

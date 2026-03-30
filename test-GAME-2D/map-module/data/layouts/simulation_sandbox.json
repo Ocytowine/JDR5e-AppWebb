@@ -1,6 +1,6 @@
 {
   "id": "simulation-sandbox-four-winds",
-  "title": "Bac a sable de simulation - Quatre Vents",
+  "title": "Bac a sable de simulation - Quatre Vents evolue",
   "backgroundImageKey": "valmorin",
   "grid": {
     "cols": 18,
@@ -164,7 +164,35 @@
       },
       "markerColor": "#f4c967",
       "governanceId": "westreach_crown",
-      "governanceRole": "capital"
+      "governanceRole": "capital",
+      "populationProfile": {
+        "dominantGroupId": "humains_occident",
+        "groups": [
+          {
+            "groupId": "humains_occident",
+            "weight": 58,
+            "role": "dominant"
+          },
+          {
+            "groupId": "halfelins_cotiers",
+            "weight": 17,
+            "role": "minority"
+          },
+          {
+            "groupId": "nains_artisans",
+            "weight": 15,
+            "role": "elite"
+          },
+          {
+            "groupId": "etrangers_de_route",
+            "weight": 10,
+            "role": "outsider"
+          }
+        ],
+        "notes": [
+          "Ville-port melangee par les flux commerciaux."
+        ]
+      }
     },
     {
       "id": "ironvale",
@@ -176,7 +204,30 @@
       },
       "markerColor": "#d9b47a",
       "governanceId": "westreach_crown",
-      "governanceRole": "primary"
+      "governanceRole": "primary",
+      "populationProfile": {
+        "dominantGroupId": "humains_des_collines",
+        "groups": [
+          {
+            "groupId": "humains_des_collines",
+            "weight": 46,
+            "role": "dominant"
+          },
+          {
+            "groupId": "nains_mineurs",
+            "weight": 38,
+            "role": "elite"
+          },
+          {
+            "groupId": "pelerins_du_feu",
+            "weight": 16,
+            "role": "minority"
+          }
+        ],
+        "notes": [
+          "La ville miniere vit autant de la fonte que des sanctuaires."
+        ]
+      }
     },
     {
       "id": "dawnwatch",
@@ -188,7 +239,30 @@
       },
       "markerColor": "#9ac1ff",
       "governanceId": "marcher_compact",
-      "governanceRole": "capital"
+      "governanceRole": "capital",
+      "populationProfile": {
+        "dominantGroupId": "humains_des_marches",
+        "groups": [
+          {
+            "groupId": "humains_des_marches",
+            "weight": 61,
+            "role": "dominant"
+          },
+          {
+            "groupId": "demi_elfes_frontaliers",
+            "weight": 14,
+            "role": "minority"
+          },
+          {
+            "groupId": "soldats_de_metier",
+            "weight": 25,
+            "role": "elite"
+          }
+        ],
+        "notes": [
+          "La capitale orientale est d'abord une ville de garnison et de passage."
+        ]
+      }
     },
     {
       "id": "briarford",
@@ -200,7 +274,30 @@
       },
       "markerColor": "#a4d37a",
       "governanceId": "marcher_compact",
-      "governanceRole": "primary"
+      "governanceRole": "primary",
+      "populationProfile": {
+        "dominantGroupId": "humains_des_plaines",
+        "groups": [
+          {
+            "groupId": "humains_des_plaines",
+            "weight": 52,
+            "role": "dominant"
+          },
+          {
+            "groupId": "halfelins_riverains",
+            "weight": 28,
+            "role": "minority"
+          },
+          {
+            "groupId": "charretiers_libres",
+            "weight": 20,
+            "role": "outsider"
+          }
+        ],
+        "notes": [
+          "Le grenier des Quatre Vents attire main d'oeuvre et transit."
+        ]
+      }
     }
   ],
   "paths": [
@@ -1711,30 +1808,31 @@
     "factions": [
       {
         "id": "harbor_league",
-        "label": "Ligue du Port",
-        "type": "merchant_guild",
-        "color": "#5eaf7c",
-        "description": "Consortium marchand adosse a la Couronne d'Occident, dominant Stoneharbor et les flux entre Coastmarch et Ashen Hills.",
-        "agenda": "Conserver la primaute economique du western_reach et garder les deux regions de l'ouest ouvertes au commerce.",
+        "label": "Ligue des Havres",
+        "type": "merchant_league",
+        "color": "#5a78b7",
+        "description": "Coalition marchande dominante a Stoneharbor, branchee sur les greniers de Briarford et les relais fiscaux de l'ouest.",
+        "agenda": "Stabiliser les routes taxables, verrouiller les douanes et garder la dependance logistique entre les deux moities du pays.",
         "methods": [
           "negociation",
           "escorte",
           "pression economique"
         ],
         "objectiveHints": [
-          "ouvrir route",
-          "acquerir ressource",
-          "etendre influence"
+          "open_route",
+          "take_control_place",
+          "acquire_resource"
         ],
         "tags": [
           "trade",
-          "territorial",
+          "civic",
           "western_reach"
         ],
         "homeCityId": "stoneharbor",
+        "homeRegionId": "coastmarch",
         "baseCell": {
-          "x": 4,
-          "y": 7
+          "x": 5,
+          "y": 6
         },
         "presenceCells": [
           {
@@ -1746,38 +1844,105 @@
             "y": 6
           },
           {
-            "x": 9,
-            "y": 5
-          },
-          {
             "x": 10,
-            "y": 8
+            "y": 9
           },
           {
             "x": 11,
-            "y": 9
+            "y": 8
           }
         ],
-        "influence": 68,
-        "power": 46,
+        "controlledZoneIds": [
+          "stoneharbor:custom_house",
+          "briarford:grain_ward"
+        ],
+        "influencedZoneIds": [
+          "south_grain_route",
+          "coast_trade_way",
+          "stoneharbor:harbor",
+          "briarford:river_market"
+        ],
+        "interestZoneIds": [
+          "amber_road",
+          "frontier_supply_track",
+          "coastmarch",
+          "green_plains",
+          "frontier_marches"
+        ],
+        "avoidedZoneIds": [
+          "march_of_thorns"
+        ],
+        "localAnchors": [
+          {
+            "id": "harbor_league:customs_house",
+            "label": "Comptoir des Douanes",
+            "type": "warehouse",
+            "targetKind": "district",
+            "targetId": "stoneharbor:custom_house",
+            "level": 4,
+            "tags": [
+              "relais",
+              "logistique",
+              "taxes"
+            ],
+            "notes": "Centre de controle fiscal et de dispatch des convois."
+          },
+          {
+            "id": "harbor_league:briarford_yard",
+            "label": "Cour du Bac",
+            "type": "warehouse",
+            "targetKind": "district",
+            "targetId": "briarford:river_market",
+            "level": 3,
+            "tags": [
+              "commerce",
+              "grain",
+              "relais"
+            ],
+            "notes": "Point de regroupement avant la redistribution vers l'ouest."
+          }
+        ],
+        "populationProfile": {
+          "dominantGroupId": "humains_occident",
+          "groups": [
+            {
+              "groupId": "humains_occident",
+              "weight": 55,
+              "role": "dominant"
+            },
+            {
+              "groupId": "nains_artisans",
+              "weight": 22,
+              "role": "elite"
+            },
+            {
+              "groupId": "etrangers_de_route",
+              "weight": 23,
+              "role": "outsider"
+            }
+          ],
+          "notes": []
+        },
+        "influence": 69,
+        "power": 48,
         "cohesion": 61,
-        "aggression": 20,
-        "secrecy": 38,
-        "resources": 72,
+        "aggression": 28,
+        "secrecy": 31,
+        "resources": 82,
         "relations": [
           {
             "targetFactionId": "red_knives",
             "status": "rival",
-            "trust": 18,
-            "hostility": 62,
-            "notes": "Le racket des docks casse les marges."
+            "trust": 9,
+            "hostility": 72,
+            "notes": "Les rackets perturbent les marges et la reputation des relais."
           },
           {
             "targetFactionId": "dawn_guard",
             "status": "ally",
-            "trust": 64,
-            "hostility": 12,
-            "notes": "La garde protege les convois les plus visibles."
+            "trust": 58,
+            "hostility": 14,
+            "notes": "Alliance pragmatique autour des routes et taxes."
           },
           {
             "targetFactionId": "ember_cult",
@@ -1786,25 +1951,24 @@
             "hostility": 18,
             "notes": "Relations tolerantes autour des pelerinages."
           }
-        ],
-        "homeRegionId": "coastmarch"
+        ]
       },
       {
         "id": "red_knives",
         "label": "Couteaux Rouges",
         "type": "criminal_network",
         "color": "#c96f4a",
-        "description": "Reseau criminel parasite du western_reach, installe a Stoneharbor mais actif jusqu'a Briarford et aux lisieres de l'est.",
-        "agenda": "Exploiter les failles entre territoires, corrompre les relais et faire monter la peur dans les zones de transit.",
+        "description": "Reseau criminel implante sur les quais de Stoneharbor, dans les relais de Briarford et jusque dans les villages de marche.",
+        "agenda": "Faire monter la peur sur les routes et convertir les goulets logistiques en rentes criminelles.",
         "methods": [
           "extorsion",
           "contrebande",
           "recrutement"
         ],
         "objectiveHints": [
-          "acquerir ressource",
-          "recruter",
-          "affaiblir rival"
+          "acquire_resource",
+          "recruit_agents",
+          "weaken_rival"
         ],
         "tags": [
           "criminal",
@@ -1812,6 +1976,7 @@
           "western_reach"
         ],
         "homeCityId": "stoneharbor",
+        "homeRegionId": "coastmarch",
         "baseCell": {
           "x": 5,
           "y": 8
@@ -1822,7 +1987,7 @@
             "y": 8
           },
           {
-            "x": 11,
+            "x": 10,
             "y": 9
           },
           {
@@ -1834,12 +1999,72 @@
             "y": 8
           }
         ],
-        "influence": 57,
+        "influencedZoneIds": [
+          "stoneharbor:harbor",
+          "briarford:river_market",
+          "coast_trade_way"
+        ],
+        "interestZoneIds": [
+          "frontier_marches",
+          "dawnwatch:gate_district",
+          "amber_road"
+        ],
+        "localAnchors": [
+          {
+            "id": "red_knives:salt_cellar",
+            "label": "Cave du Sel",
+            "type": "safehouse",
+            "targetKind": "district",
+            "targetId": "stoneharbor:harbor",
+            "level": 3,
+            "tags": [
+              "secret",
+              "contrebande",
+              "relais"
+            ],
+            "notes": "Entrepot cache pour stockage et redistribution de la contrebande."
+          },
+          {
+            "id": "red_knives:thorn_contact",
+            "label": "Contact des Epines",
+            "type": "contact",
+            "targetKind": "district",
+            "targetId": "dawnwatch:gate_district",
+            "level": 2,
+            "tags": [
+              "infiltration",
+              "frontalier"
+            ],
+            "notes": "Relais humain pour recruter et prevenir des descentes de garde."
+          }
+        ],
+        "populationProfile": {
+          "dominantGroupId": "etrangers_de_route",
+          "groups": [
+            {
+              "groupId": "etrangers_de_route",
+              "weight": 38,
+              "role": "dominant"
+            },
+            {
+              "groupId": "humains_occident",
+              "weight": 34,
+              "role": "minority"
+            },
+            {
+              "groupId": "halfelins_cotiers",
+              "weight": 28,
+              "role": "outsider"
+            }
+          ],
+          "notes": []
+        },
+        "influence": 61,
         "power": 49,
-        "cohesion": 42,
+        "cohesion": 46,
         "aggression": 63,
-        "secrecy": 70,
-        "resources": 54,
+        "secrecy": 74,
+        "resources": 72,
         "relations": [
           {
             "targetFactionId": "harbor_league",
@@ -1862,25 +2087,24 @@
             "hostility": 24,
             "notes": "Le culte peut servir d'ecran ou de source."
           }
-        ],
-        "homeRegionId": "coastmarch"
+        ]
       },
       {
         "id": "dawn_guard",
         "label": "Garde de l'Aube",
         "type": "militia",
         "color": "#5f86d8",
-        "description": "Force du Compact des Marches chargee de tenir la capitale orientale et les deux regions des marches.",
-        "agenda": "Maintenir l'autorite du marcher_compact sur frontier_marches et green_plains tout en gardant le lien avec l'ouest.",
+        "description": "Force armee du Compact des Marches, chargee de garder Dawnwatch et la ligne de ravitaillement frontaliere.",
+        "agenda": "Tenir la capitale orientale, maintenir les voies de secours et casser les cellules bandites avant qu'elles ne ferment les routes.",
         "methods": [
           "patrouille",
           "escorte",
           "pression militaire"
         ],
         "objectiveHints": [
-          "ouvrir route",
-          "eliminer menace",
-          "prise controle lieu"
+          "open_route",
+          "eliminate_threat",
+          "take_control_place"
         ],
         "tags": [
           "military",
@@ -1907,16 +2131,81 @@
             "y": 4
           },
           {
-            "x": 15,
-            "y": 5
+            "x": 14,
+            "y": 6
           }
         ],
-        "influence": 61,
+        "controlledZoneIds": [
+          "dawnwatch:gate_district",
+          "dawnwatch:citadel"
+        ],
+        "influencedZoneIds": [
+          "amber_road",
+          "frontier_supply_track",
+          "frontier_marches"
+        ],
+        "interestZoneIds": [
+          "green_plains",
+          "stoneharbor",
+          "coastmarch"
+        ],
+        "localAnchors": [
+          {
+            "id": "dawn_guard:east_gate_post",
+            "label": "Poste de la Porte Est",
+            "type": "outpost",
+            "targetKind": "district",
+            "targetId": "dawnwatch:gate_district",
+            "level": 4,
+            "tags": [
+              "bastion",
+              "inspection",
+              "relais"
+            ],
+            "notes": "Point de tri des patrouilles et controles des convois."
+          },
+          {
+            "id": "dawn_guard:frontier_depot",
+            "label": "Depot de la Ligne Frontaliere",
+            "type": "outpost",
+            "targetKind": "route",
+            "targetId": "frontier_supply_track",
+            "level": 3,
+            "tags": [
+              "logistique",
+              "military",
+              "relais"
+            ],
+            "notes": "Relais de secours qui empile fourrage, vivres et munitions."
+          }
+        ],
+        "populationProfile": {
+          "dominantGroupId": "soldats_de_metier",
+          "groups": [
+            {
+              "groupId": "soldats_de_metier",
+              "weight": 44,
+              "role": "dominant"
+            },
+            {
+              "groupId": "humains_des_marches",
+              "weight": 41,
+              "role": "minority"
+            },
+            {
+              "groupId": "demi_elfes_frontaliers",
+              "weight": 15,
+              "role": "outsider"
+            }
+          ],
+          "notes": []
+        },
+        "influence": 63,
         "power": 66,
         "cohesion": 72,
         "aggression": 48,
         "secrecy": 28,
-        "resources": 59,
+        "resources": 74,
         "relations": [
           {
             "targetFactionId": "harbor_league",
@@ -1935,8 +2224,8 @@
           {
             "targetFactionId": "ember_cult",
             "status": "neutral",
-            "trust": 31,
-            "hostility": 22,
+            "trust": 33,
+            "hostility": 20,
             "notes": "Le culte est tolere tant qu'il ne trouble pas les routes."
           }
         ]
@@ -1946,17 +2235,17 @@
         "label": "Culte de la Braise",
         "type": "cult",
         "color": "#d4b16a",
-        "description": "Ordre religieux implante dans Ashen Hills, partage entre loyaute locale au western_reach et expeditions discretes vers l'est.",
-        "agenda": "Retrouver le Fragment Solaire sans provoquer de rupture ouverte entre les deux territoires.",
+        "description": "Ordre religieux implante dans les collines d'Ironvale, partage entre rituels publics et recherche clandestine du Fragment Solaire.",
+        "agenda": "Renforcer la voie des pelerins, sanctifier les lieux de passage et retrouver le fragment avant les fouilles de la garde.",
         "methods": [
           "enquete",
           "pelerinage",
           "secret"
         ],
         "objectiveHints": [
-          "recherche objet",
-          "proteger secret",
-          "etendre influence"
+          "search_object",
+          "protect_secret",
+          "extend_influence"
         ],
         "tags": [
           "religious",
@@ -1964,6 +2253,7 @@
           "cross_border"
         ],
         "homeCityId": "ironvale",
+        "homeRegionId": "ashen_hills",
         "baseCell": {
           "x": 10,
           "y": 4
@@ -1982,12 +2272,73 @@
             "y": 3
           }
         ],
-        "influence": 45,
-        "power": 33,
-        "cohesion": 58,
+        "influencedZoneIds": [
+          "ironvale:pilgrim_steps",
+          "dawnwatch:sanctuary",
+          "pilgrims_path",
+          "pilgrim_way"
+        ],
+        "interestZoneIds": [
+          "march_of_thorns",
+          "frontier_marches"
+        ],
+        "localAnchors": [
+          {
+            "id": "ember_cult:ash_monastery",
+            "label": "Monastere des Cendres",
+            "type": "temple",
+            "targetKind": "district",
+            "targetId": "ironvale:pilgrim_steps",
+            "level": 4,
+            "tags": [
+              "rite",
+              "sanctuary",
+              "religious"
+            ],
+            "notes": "Maison-mere du culte et lieu de conservation des archives rituelles."
+          },
+          {
+            "id": "ember_cult:sun_shrine",
+            "label": "Sanctuaire du Levant",
+            "type": "temple",
+            "targetKind": "place",
+            "targetId": "sun_shrine",
+            "level": 3,
+            "tags": [
+              "rite",
+              "frontalier",
+              "secret"
+            ],
+            "notes": "Petit sanctuaire frontalier ou transitent les pelerins les plus discrets."
+          }
+        ],
+        "populationProfile": {
+          "dominantGroupId": "pelerins_du_feu",
+          "groups": [
+            {
+              "groupId": "pelerins_du_feu",
+              "weight": 41,
+              "role": "dominant"
+            },
+            {
+              "groupId": "humains_des_collines",
+              "weight": 37,
+              "role": "minority"
+            },
+            {
+              "groupId": "demi_elfes_frontaliers",
+              "weight": 22,
+              "role": "outsider"
+            }
+          ],
+          "notes": []
+        },
+        "influence": 58,
+        "power": 36,
+        "cohesion": 62,
         "aggression": 26,
-        "secrecy": 62,
-        "resources": 40,
+        "secrecy": 68,
+        "resources": 62,
         "relations": [
           {
             "targetFactionId": "harbor_league",
@@ -2010,8 +2361,7 @@
             "hostility": 20,
             "notes": "La garde surveille, mais n'a pas encore frappe."
           }
-        ],
-        "homeRegionId": "ashen_hills"
+        ]
       }
     ],
     "specialObjectives": [
@@ -2020,21 +2370,59 @@
         "label": "Securiser la Route de l'Ambre",
         "category": "open_route",
         "ownerFactionId": "dawn_guard",
-        "description": "Rouvrir l axe politique et logistique principal entre les deux capitales territoriales.",
-        "whyItMatters": "Sans cette route, la coordination entre Stoneharbor et Dawnwatch s'effondre et les deux territoires se replient sur eux-memes.",
+        "description": "Rouvrir l'axe politique et logistique principal entre Stoneharbor et Dawnwatch malgre les bandits et les goulets frontaliers.",
+        "whyItMatters": "Sans cette route, les deux territoires perdent leur coordination strategique et la pression criminelle devient structurelle.",
         "targetKind": "route",
         "targetId": "amber_road",
         "priority": 82,
-        "progress": 24,
+        "progress": 72,
         "state": "active",
+        "phases": [
+          "Consolider les avant-postes",
+          "Escorter les convois tests",
+          "Fixer des patrouilles permanentes"
+        ],
+        "currentPhaseIndex": 1,
         "obstacleHints": [
           "bandit_cells",
-          "weak_outposts"
+          "weak_outposts",
+          "dual_tax_pressure"
         ],
         "compatibleActionIds": [
           "secure_route",
-          "escort_convoy",
-          "patrol"
+          "escort_convoy"
+        ],
+        "requiredAnchorType": "outpost",
+        "onSuccess": [
+          {
+            "type": "open_opportunity",
+            "kind": "scarcity_trade",
+            "score": 72,
+            "tags": [
+              "amber_road",
+              "secure"
+            ]
+          },
+          {
+            "type": "spawn_signal",
+            "signalKind": "military",
+            "intensity": 52,
+            "tags": [
+              "route",
+              "patrol"
+            ]
+          }
+        ],
+        "onFailure": [
+          {
+            "type": "create_tension",
+            "tensionType": "mobility_risk",
+            "severity": 61,
+            "tags": [
+              "amber_road",
+              "unsafe"
+            ]
+          }
         ],
         "tags": [
           "route",
@@ -2045,8 +2433,8 @@
           "amber_road",
           "stoneharbor",
           "dawnwatch",
-          "western_reach",
-          "eastern_marches"
+          "coastmarch",
+          "frontier_marches"
         ],
         "anchorCell": {
           "x": 10,
@@ -2058,21 +2446,59 @@
         "label": "Retrouver le Fragment Solaire",
         "category": "search_object",
         "ownerFactionId": "ember_cult",
-        "description": "Retrouver un fragment sacre cache pres des vieux postes de la frontiere.",
-        "whyItMatters": "Le fragment conditionne un rituel de legitimite du culte.",
+        "description": "Retrouver un fragment sacre en croisant les archives d'Ironvale et les indices venus du sanctuaire frontalier.",
+        "whyItMatters": "Le fragment conditionne un rituel de legitimite du culte et sa capacite a unifier ses fideles sur la voie des pelerins.",
         "targetKind": "district",
-        "targetId": "dawnwatch:sanctuary",
-        "priority": 76,
-        "progress": 18,
+        "targetId": "ironvale:pilgrim_steps",
+        "priority": 82,
+        "progress": 62,
         "state": "active",
+        "phases": [
+          "Nettoyer les fausses pistes",
+          "Croiser les reliques",
+          "Exfiltrer le fragment"
+        ],
+        "currentPhaseIndex": 1,
         "obstacleHints": [
           "guard_patrols",
-          "false_relics"
+          "false_relics",
+          "competing_seekers"
         ],
         "compatibleActionIds": [
           "investigate",
-          "search_clue",
-          "question_source"
+          "sanctify_site"
+        ],
+        "requiredAnchorType": "temple",
+        "onSuccess": [
+          {
+            "type": "open_opportunity",
+            "kind": "investigation_lead",
+            "score": 78,
+            "tags": [
+              "artifact",
+              "rite"
+            ]
+          },
+          {
+            "type": "spawn_signal",
+            "signalKind": "religious",
+            "intensity": 66,
+            "tags": [
+              "fragment",
+              "sun_shard"
+            ]
+          }
+        ],
+        "onFailure": [
+          {
+            "type": "create_tension",
+            "tensionType": "religious",
+            "severity": 57,
+            "tags": [
+              "artifact",
+              "panic"
+            ]
+          }
         ],
         "tags": [
           "artifact",
@@ -2080,12 +2506,14 @@
           "secret"
         ],
         "zoneIds": [
-          "dawnwatch",
-          "frontier_marches"
+          "ironvale:pilgrim_steps",
+          "dawnwatch:sanctuary",
+          "ashen_hills",
+          "pilgrim_way"
         ],
         "anchorCell": {
-          "x": 14,
-          "y": 3
+          "x": 10,
+          "y": 4
         }
       },
       {
@@ -2093,20 +2521,58 @@
         "label": "Etendre le Racket de Chantage",
         "category": "acquire_resource",
         "ownerFactionId": "red_knives",
-        "description": "Installer un racket stable sur les quais et les granges de sortie.",
-        "whyItMatters": "Le reseau a besoin de liquidites pour corrompre les relais.",
+        "description": "Installer un racket stable sur les quais et les cours de transbordement pour financer les relais criminels.",
+        "whyItMatters": "Le reseau a besoin de liquidites, de caches et d'informateurs pour survivre face a la garde.",
         "targetKind": "district",
         "targetId": "stoneharbor:harbor",
-        "priority": 74,
-        "progress": 30,
+        "priority": 62,
+        "progress": 44,
         "state": "active",
+        "phases": [
+          "Tester les extorsions",
+          "Corrompre les chargeurs",
+          "Institutionnaliser le prelevement"
+        ],
+        "currentPhaseIndex": 1,
         "obstacleHints": [
           "watch_presence",
-          "merchant_resistance"
+          "merchant_resistance",
+          "dock_rumors"
         ],
         "compatibleActionIds": [
-          "extort",
-          "recruit"
+          "extort"
+        ],
+        "requiredAnchorType": "safehouse",
+        "onSuccess": [
+          {
+            "type": "open_opportunity",
+            "kind": "weak_control",
+            "score": 64,
+            "tags": [
+              "crime",
+              "docks"
+            ]
+          },
+          {
+            "type": "spawn_signal",
+            "signalKind": "market",
+            "intensity": 58,
+            "tags": [
+              "racketeering",
+              "fear"
+            ]
+          }
+        ],
+        "onFailure": [
+          {
+            "type": "create_tension",
+            "tensionType": "criminal",
+            "severity": 55,
+            "tags": [
+              "stoneharbor",
+              "crackdown"
+            ]
+          }
         ],
         "tags": [
           "crime",
@@ -2114,12 +2580,12 @@
           "docks"
         ],
         "zoneIds": [
-          "stoneharbor",
+          "stoneharbor:harbor",
           "coastmarch"
         ],
         "anchorCell": {
           "x": 5,
-          "y": 6
+          "y": 7
         }
       },
       {
@@ -2127,20 +2593,59 @@
         "label": "Stabiliser le Flux de Grain",
         "category": "open_route",
         "ownerFactionId": "harbor_league",
-        "description": "Maintenir le flux de grain entre Briarford, Ironvale et la capitale occidentale.",
+        "description": "Maintenir le flux de grain entre Briarford, Ironvale et Stoneharbor malgre la boue, les taxes et la contrebande.",
         "whyItMatters": "Le western_reach garde son poids politique tant que Stoneharbor reste approvisionnee par les plaines orientales.",
         "targetKind": "route",
         "targetId": "south_grain_route",
         "priority": 70,
-        "progress": 35,
+        "progress": 68,
         "state": "active",
+        "phases": [
+          "Assurer les stocks",
+          "Escalader les escorts",
+          "Normaliser les passages"
+        ],
+        "currentPhaseIndex": 1,
         "obstacleHints": [
           "seasonal_mud",
-          "smuggler_tithes"
+          "smuggler_tithes",
+          "wagon_delays"
         ],
         "compatibleActionIds": [
           "secure_route",
           "escort_convoy"
+        ],
+        "requiredAnchorType": "warehouse",
+        "onSuccess": [
+          {
+            "type": "open_opportunity",
+            "kind": "scarcity_trade",
+            "score": 68,
+            "tags": [
+              "grain",
+              "supply"
+            ]
+          },
+          {
+            "type": "spawn_signal",
+            "signalKind": "market",
+            "intensity": 44,
+            "tags": [
+              "grain",
+              "convoy"
+            ]
+          }
+        ],
+        "onFailure": [
+          {
+            "type": "create_tension",
+            "tensionType": "commercial",
+            "severity": 52,
+            "tags": [
+              "grain",
+              "shortage"
+            ]
+          }
         ],
         "tags": [
           "trade",
@@ -2152,8 +2657,8 @@
           "briarford",
           "stoneharbor",
           "green_plains",
-          "western_reach",
-          "eastern_marches"
+          "coastmarch",
+          "ashen_hills"
         ],
         "anchorCell": {
           "x": 10,
@@ -2165,19 +2670,58 @@
         "label": "Recruter des Informateurs Frontaliers",
         "category": "recruit_agents",
         "ownerFactionId": "red_knives",
-        "description": "Retourner des guetteurs dans les hameaux de lisiere afin de fissurer le controle du Compact des Marches.",
-        "whyItMatters": "Si le reseau s'implante dans frontier_marches, il peut frapper Dawnwatch et menacer la cohesion de l'eastern_marches.",
+        "description": "Retourner des guetteurs aux portes de Dawnwatch pour fissurer le controle oriental sans guerre ouverte.",
+        "whyItMatters": "Le reseau veut survivre a la repression en achetant de l'alerte prealable et des couloirs de fuite.",
         "targetKind": "district",
-        "targetId": "dawnwatch:outskirts",
-        "priority": 64,
-        "progress": 12,
+        "targetId": "dawnwatch:gate_district",
+        "priority": 84,
+        "progress": 38,
         "state": "active",
+        "phases": [
+          "Identifier les familles poreuses",
+          "Fixer les paiements",
+          "Rendre les signaux fiables"
+        ],
+        "currentPhaseIndex": 1,
         "obstacleHints": [
           "loyalist_families",
-          "guard_raids"
+          "guard_raids",
+          "thin_cover"
         ],
         "compatibleActionIds": [
           "recruit"
+        ],
+        "requiredAnchorType": "contact",
+        "onSuccess": [
+          {
+            "type": "open_opportunity",
+            "kind": "investigation_lead",
+            "score": 59,
+            "tags": [
+              "frontier",
+              "informants"
+            ]
+          },
+          {
+            "type": "spawn_signal",
+            "signalKind": "institutional",
+            "intensity": 31,
+            "tags": [
+              "new_faces",
+              "gate"
+            ]
+          }
+        ],
+        "onFailure": [
+          {
+            "type": "create_tension",
+            "tensionType": "control_conflict",
+            "severity": 49,
+            "tags": [
+              "frontier",
+              "purge"
+            ]
+          }
         ],
         "tags": [
           "crime",
@@ -2185,9 +2729,8 @@
           "frontier"
         ],
         "zoneIds": [
-          "dawnwatch",
-          "frontier_marches",
-          "eastern_marches"
+          "dawnwatch:gate_district",
+          "frontier_marches"
         ],
         "anchorCell": {
           "x": 15,
@@ -2199,13 +2742,19 @@
         "label": "Tenir la Ligne de Ravitaillement Frontaliere",
         "category": "open_route",
         "ownerFactionId": "dawn_guard",
-        "description": "Maintenir une piste secondaire praticable entre Green Plains et la capitale orientale.",
-        "whyItMatters": "Cette ligne de secours empeche frontier_marches d'etre isolee quand la Route de l'Ambre devient trop dangereuse.",
+        "description": "Maintenir une piste secondaire praticable entre Green Plains et Dawnwatch pour eviter l'isolement des Marches.",
+        "whyItMatters": "Cette ligne de secours protege le front lorsque la grande route devient trop couteuse a tenir.",
         "targetKind": "route",
         "targetId": "frontier_supply_track",
-        "priority": 68,
-        "progress": 16,
+        "priority": 74,
+        "progress": 34,
         "state": "active",
+        "phases": [
+          "Baliser la piste",
+          "Creer des haltes sures",
+          "Regulariser les rotations"
+        ],
+        "currentPhaseIndex": 1,
         "obstacleHints": [
           "mud",
           "ambush_cells",
@@ -2213,8 +2762,39 @@
         ],
         "compatibleActionIds": [
           "secure_route",
-          "escort_convoy",
-          "patrol"
+          "escort_convoy"
+        ],
+        "requiredAnchorType": "outpost",
+        "onSuccess": [
+          {
+            "type": "open_opportunity",
+            "kind": "escort_needed",
+            "score": 62,
+            "tags": [
+              "frontier",
+              "supply"
+            ]
+          },
+          {
+            "type": "spawn_signal",
+            "signalKind": "military",
+            "intensity": 36,
+            "tags": [
+              "mule_train",
+              "route"
+            ]
+          }
+        ],
+        "onFailure": [
+          {
+            "type": "create_tension",
+            "tensionType": "mobility_risk",
+            "severity": 54,
+            "tags": [
+              "frontier_supply_track",
+              "delay"
+            ]
+          }
         ],
         "tags": [
           "route",
@@ -2226,8 +2806,7 @@
           "briarford",
           "dawnwatch",
           "green_plains",
-          "frontier_marches",
-          "eastern_marches"
+          "frontier_marches"
         ],
         "anchorCell": {
           "x": 13,
@@ -2237,24 +2816,61 @@
       {
         "id": "assert_western_customs",
         "label": "Affirmer la Douane Occidentale",
-        "category": "take_control_place",
+        "category": "open_route",
         "ownerFactionId": "harbor_league",
-        "description": "Renforcer la douane et les relais de Stoneharbor pour que le western_reach garde la main sur les flux entrant depuis l'est.",
-        "whyItMatters": "Le controle des taxes donne a la Couronne d'Occident un levier direct sur les routes, les convois et les factions privees.",
-        "targetKind": "district",
-        "targetId": "stoneharbor:custom_house",
-        "priority": 66,
-        "progress": 28,
+        "description": "Transformer la douane de Stoneharbor en verrou logistique sur la voie cotiere, pour filtrer les flux venant de Briarford et casser la contrebande.",
+        "whyItMatters": "Le controle des taxes donne a la Ligue un levier direct sur les convois, les relais et les marges politiques.",
+        "targetKind": "route",
+        "targetId": "coast_trade_way",
+        "priority": 72,
+        "progress": 41,
         "state": "active",
+        "phases": [
+          "Refaire les registres",
+          "Serrer les inspections",
+          "Imposer une doctrine fiscale"
+        ],
+        "currentPhaseIndex": 1,
         "obstacleHints": [
           "smuggler_pressure",
           "weak_clerks",
           "shared_route_dependence"
         ],
         "compatibleActionIds": [
-          "tax",
-          "close_location",
-          "investigate"
+          "secure_route",
+          "escort_convoy"
+        ],
+        "requiredAnchorType": "warehouse",
+        "onSuccess": [
+          {
+            "type": "open_opportunity",
+            "kind": "weak_control",
+            "score": 57,
+            "tags": [
+              "customs",
+              "tax"
+            ]
+          },
+          {
+            "type": "spawn_signal",
+            "signalKind": "institutional",
+            "intensity": 38,
+            "tags": [
+              "tax",
+              "inspection"
+            ]
+          }
+        ],
+        "onFailure": [
+          {
+            "type": "create_tension",
+            "tensionType": "political",
+            "severity": 46,
+            "tags": [
+              "customs",
+              "dispute"
+            ]
+          }
         ],
         "tags": [
           "trade",
@@ -2262,13 +2878,13 @@
           "capital"
         ],
         "zoneIds": [
-          "stoneharbor",
-          "coastmarch",
-          "western_reach"
+          "coast_trade_way",
+          "stoneharbor:custom_house",
+          "coastmarch"
         ],
         "anchorCell": {
-          "x": 4,
-          "y": 7
+          "x": 5,
+          "y": 6
         }
       },
       {
@@ -2283,15 +2899,51 @@
         "priority": 71,
         "progress": 34,
         "state": "active",
+        "phases": [
+          "Cartographier les passages",
+          "Renforcer la porte",
+          "Transformer le quartier en filtre permanent"
+        ],
+        "currentPhaseIndex": 1,
         "obstacleHints": [
           "overstretched_patrols",
           "hidden_informants",
           "route_dependency"
         ],
         "compatibleActionIds": [
-          "patrol",
-          "investigate",
-          "secure_route"
+          "patrol"
+        ],
+        "requiredAnchorType": "outpost",
+        "onSuccess": [
+          {
+            "type": "open_opportunity",
+            "kind": "weak_control",
+            "score": 61,
+            "tags": [
+              "gate",
+              "security"
+            ]
+          },
+          {
+            "type": "spawn_signal",
+            "signalKind": "military",
+            "intensity": 47,
+            "tags": [
+              "gate",
+              "crackdown"
+            ]
+          }
+        ],
+        "onFailure": [
+          {
+            "type": "create_tension",
+            "tensionType": "political",
+            "severity": 51,
+            "tags": [
+              "dawnwatch",
+              "panic"
+            ]
+          }
         ],
         "tags": [
           "military",
@@ -2299,9 +2951,8 @@
           "politics"
         ],
         "zoneIds": [
-          "dawnwatch",
-          "frontier_marches",
-          "eastern_marches"
+          "dawnwatch:gate_district",
+          "frontier_marches"
         ],
         "anchorCell": {
           "x": 14,
@@ -2312,16 +2963,39 @@
     "mobileActors": [
       {
         "id": "grain_convoy",
-        "label": "Convoi de Grain",
+        "label": "Convoi de Grain du Delta",
         "type": "caravan",
         "color": "#7cb86a",
         "ownerFactionId": "harbor_league",
-        "positionKind": "route",
-        "positionId": "south_grain_route",
+        "positionKind": "cell",
+        "positionCell": {
+          "x": 11,
+          "y": 9
+        },
         "destinationKind": "city",
         "destinationId": "stoneharbor",
+        "populationProfile": {
+          "dominantGroupId": "humains_des_plaines",
+          "groups": [
+            {
+              "groupId": "humains_des_plaines",
+              "weight": 58,
+              "role": "dominant"
+            },
+            {
+              "groupId": "halfelins_riverains",
+              "weight": 24,
+              "role": "minority"
+            },
+            {
+              "groupId": "charretiers_libres",
+              "weight": 18,
+              "role": "outsider"
+            }
+          ],
+          "notes": []
+        },
         "itineraryRouteIds": [
-          "south_grain_route",
           "coast_trade_way"
         ],
         "travelMode": "road",
@@ -2344,14 +3018,33 @@
       },
       {
         "id": "frontier_patrol",
-        "label": "Patrouille Frontaliere",
+        "label": "Patrouille de la Porte Est",
         "type": "patrol_column",
         "color": "#6d98e2",
         "ownerFactionId": "dawn_guard",
-        "positionKind": "route",
-        "positionId": "amber_road",
+        "positionKind": "cell",
+        "positionCell": {
+          "x": 14,
+          "y": 4
+        },
         "destinationKind": "city",
-        "destinationId": "dawnwatch",
+        "destinationId": "stoneharbor",
+        "populationProfile": {
+          "dominantGroupId": "soldats_de_metier",
+          "groups": [
+            {
+              "groupId": "soldats_de_metier",
+              "weight": 72,
+              "role": "dominant"
+            },
+            {
+              "groupId": "humains_des_marches",
+              "weight": 28,
+              "role": "minority"
+            }
+          ],
+          "notes": []
+        },
         "itineraryRouteIds": [
           "amber_road"
         ],
@@ -2376,14 +3069,33 @@
       },
       {
         "id": "pilgrim_column",
-        "label": "Colonne de Pelerins",
+        "label": "Colonne des Cendres Errantes",
         "type": "pilgrims",
         "color": "#d1b36e",
         "ownerFactionId": "ember_cult",
-        "positionKind": "city",
-        "positionId": "ironvale",
+        "positionKind": "cell",
+        "positionCell": {
+          "x": 14,
+          "y": 4
+        },
         "destinationKind": "city",
-        "destinationId": "dawnwatch",
+        "destinationId": "stoneharbor",
+        "populationProfile": {
+          "dominantGroupId": "pelerins_du_feu",
+          "groups": [
+            {
+              "groupId": "pelerins_du_feu",
+              "weight": 67,
+              "role": "dominant"
+            },
+            {
+              "groupId": "humains_des_collines",
+              "weight": 33,
+              "role": "minority"
+            }
+          ],
+          "notes": []
+        },
         "itineraryRouteIds": [
           "pilgrims_path"
         ],
@@ -2406,14 +3118,38 @@
       },
       {
         "id": "smuggler_train",
-        "label": "Convoi de Contrebandiers",
+        "label": "Convoi de Contrebandiers de l'Ecume",
         "type": "smugglers",
         "color": "#cb7c62",
         "ownerFactionId": "red_knives",
-        "positionKind": "route",
-        "positionId": "coast_trade_way",
+        "positionKind": "cell",
+        "positionCell": {
+          "x": 4,
+          "y": 7
+        },
         "destinationKind": "city",
         "destinationId": "briarford",
+        "populationProfile": {
+          "dominantGroupId": "etrangers_de_route",
+          "groups": [
+            {
+              "groupId": "etrangers_de_route",
+              "weight": 46,
+              "role": "dominant"
+            },
+            {
+              "groupId": "halfelins_cotiers",
+              "weight": 29,
+              "role": "minority"
+            },
+            {
+              "groupId": "humains_occident",
+              "weight": 25,
+              "role": "outsider"
+            }
+          ],
+          "notes": []
+        },
         "itineraryRouteIds": [
           "coast_trade_way"
         ],
@@ -2438,14 +3174,38 @@
       },
       {
         "id": "supply_mule_train",
-        "label": "Train de Mules de Ravitaillement",
+        "label": "Train de Mules de la Frontiere",
         "type": "supply_column",
         "color": "#8fb58d",
         "ownerFactionId": "dawn_guard",
-        "positionKind": "route",
-        "positionId": "frontier_supply_track",
+        "positionKind": "cell",
+        "positionCell": {
+          "x": 11,
+          "y": 9
+        },
         "destinationKind": "city",
         "destinationId": "dawnwatch",
+        "populationProfile": {
+          "dominantGroupId": "humains_des_marches",
+          "groups": [
+            {
+              "groupId": "humains_des_marches",
+              "weight": 51,
+              "role": "dominant"
+            },
+            {
+              "groupId": "soldats_de_metier",
+              "weight": 32,
+              "role": "elite"
+            },
+            {
+              "groupId": "charretiers_libres",
+              "weight": 17,
+              "role": "outsider"
+            }
+          ],
+          "notes": []
+        },
         "itineraryRouteIds": [
           "frontier_supply_track"
         ],
@@ -2467,6 +3227,651 @@
           "ambush"
         ],
         "simulationLevel": "active"
+      },
+      {
+        "id": "customs_riders",
+        "label": "Cavaliers des Douanes",
+        "type": "inspection_riders",
+        "color": "#8aa7dc",
+        "ownerFactionId": "harbor_league",
+        "positionKind": "cell",
+        "positionCell": {
+          "x": 4,
+          "y": 7
+        },
+        "destinationKind": "city",
+        "destinationId": "briarford",
+        "populationProfile": {
+          "dominantGroupId": "humains_occident",
+          "groups": [
+            {
+              "groupId": "humains_occident",
+              "weight": 62,
+              "role": "dominant"
+            },
+            {
+              "groupId": "nains_artisans",
+              "weight": 18,
+              "role": "elite"
+            },
+            {
+              "groupId": "etrangers_de_route",
+              "weight": 20,
+              "role": "outsider"
+            }
+          ],
+          "notes": []
+        },
+        "itineraryRouteIds": [
+          "coast_trade_way"
+        ],
+        "travelMode": "road",
+        "speed": 5,
+        "security": 46,
+        "fatigue": 14,
+        "cargo": 12,
+        "headcount": 12,
+        "resources": 21,
+        "objectiveIds": [
+          "assert_western_customs",
+          "stabilize_grain_flow"
+        ],
+        "interactionTags": [
+          "tax",
+          "inspection",
+          "escort"
+        ],
+        "simulationLevel": "active"
+      }
+    ],
+    "districts": [
+      {
+        "id": "stoneharbor:harbor",
+        "cityId": "stoneharbor",
+        "name": "Quais du Sel",
+        "tags": [
+          "port",
+          "commerce",
+          "contrebande"
+        ],
+        "cellKeys": [
+          "4,7",
+          "4,8",
+          "5,7"
+        ],
+        "dominantActivities": [
+          "transbordement",
+          "peche",
+          "contrebande"
+        ],
+        "importantPlaces": [
+          "Bassin des Marees",
+          "Entrepot du Levant",
+          "Ponton des Pilotes"
+        ],
+        "populationProfile": {
+          "dominantGroupId": "humains_occident",
+          "groups": [
+            {
+              "groupId": "humains_occident",
+              "weight": 49,
+              "role": "dominant"
+            },
+            {
+              "groupId": "halfelins_cotiers",
+              "weight": 24,
+              "role": "minority"
+            },
+            {
+              "groupId": "etrangers_de_route",
+              "weight": 27,
+              "role": "outsider"
+            }
+          ],
+          "notes": []
+        }
+      },
+      {
+        "id": "stoneharbor:custom_house",
+        "cityId": "stoneharbor",
+        "name": "Maison des Douanes",
+        "tags": [
+          "administration",
+          "taxes",
+          "relais"
+        ],
+        "cellKeys": [
+          "5,6",
+          "5,8"
+        ],
+        "dominantActivities": [
+          "controle",
+          "comptabilite",
+          "negociation"
+        ],
+        "importantPlaces": [
+          "Maison des Douanes",
+          "Cour des Sceaux"
+        ],
+        "populationProfile": {
+          "dominantGroupId": "humains_occident",
+          "groups": [
+            {
+              "groupId": "humains_occident",
+              "weight": 63,
+              "role": "dominant"
+            },
+            {
+              "groupId": "nains_artisans",
+              "weight": 21,
+              "role": "elite"
+            },
+            {
+              "groupId": "etrangers_de_route",
+              "weight": 16,
+              "role": "outsider"
+            }
+          ],
+          "notes": []
+        }
+      },
+      {
+        "id": "stoneharbor:upper_town",
+        "cityId": "stoneharbor",
+        "name": "Haute Ville du Phare",
+        "tags": [
+          "urbain",
+          "residence",
+          "bastion"
+        ],
+        "cellKeys": [
+          "4,6",
+          "6,6",
+          "6,7",
+          "6,8"
+        ],
+        "dominantActivities": [
+          "artisanat",
+          "surveillance",
+          "residence"
+        ],
+        "importantPlaces": [
+          "Tour du Phare",
+          "Escalier des Cordiers"
+        ],
+        "populationProfile": {
+          "dominantGroupId": "humains_occident",
+          "groups": [
+            {
+              "groupId": "humains_occident",
+              "weight": 57,
+              "role": "dominant"
+            },
+            {
+              "groupId": "nains_artisans",
+              "weight": 26,
+              "role": "elite"
+            },
+            {
+              "groupId": "halfelins_cotiers",
+              "weight": 17,
+              "role": "minority"
+            }
+          ],
+          "notes": []
+        }
+      },
+      {
+        "id": "ironvale:forge_ring",
+        "cityId": "ironvale",
+        "name": "Anneau des Forges",
+        "tags": [
+          "minier",
+          "artisanat",
+          "feu"
+        ],
+        "cellKeys": [
+          "8,5",
+          "9,5",
+          "10,5"
+        ],
+        "dominantActivities": [
+          "forge",
+          "fonte",
+          "negoce de metal"
+        ],
+        "importantPlaces": [
+          "Marche du Fer",
+          "Porte des Mineurs"
+        ],
+        "populationProfile": {
+          "dominantGroupId": "nains_mineurs",
+          "groups": [
+            {
+              "groupId": "nains_mineurs",
+              "weight": 42,
+              "role": "dominant"
+            },
+            {
+              "groupId": "humains_des_collines",
+              "weight": 40,
+              "role": "minority"
+            },
+            {
+              "groupId": "pelerins_du_feu",
+              "weight": 18,
+              "role": "outsider"
+            }
+          ],
+          "notes": []
+        }
+      },
+      {
+        "id": "ironvale:pilgrim_steps",
+        "cityId": "ironvale",
+        "name": "Marches des Cendres",
+        "tags": [
+          "sacre",
+          "rite",
+          "pelerinage"
+        ],
+        "cellKeys": [
+          "9,4",
+          "10,4",
+          "11,4"
+        ],
+        "dominantActivities": [
+          "rituel",
+          "hebergement",
+          "enquete religieuse"
+        ],
+        "importantPlaces": [
+          "Monastere des Cendres",
+          "Cour des Lampes"
+        ],
+        "populationProfile": {
+          "dominantGroupId": "pelerins_du_feu",
+          "groups": [
+            {
+              "groupId": "pelerins_du_feu",
+              "weight": 39,
+              "role": "dominant"
+            },
+            {
+              "groupId": "humains_des_collines",
+              "weight": 36,
+              "role": "minority"
+            },
+            {
+              "groupId": "nains_mineurs",
+              "weight": 25,
+              "role": "elite"
+            }
+          ],
+          "notes": []
+        }
+      },
+      {
+        "id": "ironvale:miners_gate",
+        "cityId": "ironvale",
+        "name": "Porte des Mineurs",
+        "tags": [
+          "minier",
+          "relais",
+          "passage"
+        ],
+        "cellKeys": [
+          "7,5",
+          "7,6",
+          "8,6",
+          "9,6"
+        ],
+        "dominantActivities": [
+          "chargement",
+          "escorte",
+          "debit de minerai"
+        ],
+        "importantPlaces": [
+          "Cour du Treuil",
+          "Puits des Messagers"
+        ],
+        "populationProfile": {
+          "dominantGroupId": "humains_des_collines",
+          "groups": [
+            {
+              "groupId": "humains_des_collines",
+              "weight": 47,
+              "role": "dominant"
+            },
+            {
+              "groupId": "nains_mineurs",
+              "weight": 33,
+              "role": "elite"
+            },
+            {
+              "groupId": "etrangers_de_route",
+              "weight": 20,
+              "role": "outsider"
+            }
+          ],
+          "notes": []
+        }
+      },
+      {
+        "id": "dawnwatch:gate_district",
+        "cityId": "dawnwatch",
+        "name": "Quartier de la Porte Est",
+        "tags": [
+          "frontalier",
+          "controle",
+          "bastion"
+        ],
+        "cellKeys": [
+          "13,4",
+          "14,4",
+          "15,4",
+          "14,5"
+        ],
+        "dominantActivities": [
+          "inspection",
+          "patrouille",
+          "perception"
+        ],
+        "importantPlaces": [
+          "Porte de l'Aube",
+          "Cour des Gardes"
+        ],
+        "populationProfile": {
+          "dominantGroupId": "humains_des_marches",
+          "groups": [
+            {
+              "groupId": "soldats_de_metier",
+              "weight": 36,
+              "role": "elite"
+            },
+            {
+              "groupId": "humains_des_marches",
+              "weight": 49,
+              "role": "dominant"
+            },
+            {
+              "groupId": "demi_elfes_frontaliers",
+              "weight": 15,
+              "role": "minority"
+            }
+          ],
+          "notes": []
+        }
+      },
+      {
+        "id": "dawnwatch:sanctuary",
+        "cityId": "dawnwatch",
+        "name": "Sanctuaire du Soleil Neuf",
+        "tags": [
+          "sacre",
+          "rite",
+          "pilgrim_way"
+        ],
+        "cellKeys": [
+          "14,3",
+          "12,4",
+          "13,3"
+        ],
+        "dominantActivities": [
+          "pelerinage",
+          "veille",
+          "conservation"
+        ],
+        "importantPlaces": [
+          "Sanctuaire du Soleil Neuf",
+          "Jardin des Cierges"
+        ],
+        "populationProfile": {
+          "dominantGroupId": "humains_des_marches",
+          "groups": [
+            {
+              "groupId": "pelerins_du_feu",
+              "weight": 34,
+              "role": "dominant"
+            },
+            {
+              "groupId": "humains_des_marches",
+              "weight": 44,
+              "role": "minority"
+            },
+            {
+              "groupId": "demi_elfes_frontaliers",
+              "weight": 22,
+              "role": "outsider"
+            }
+          ],
+          "notes": []
+        }
+      },
+      {
+        "id": "dawnwatch:citadel",
+        "cityId": "dawnwatch",
+        "name": "Citadelle des Veilleurs",
+        "tags": [
+          "militaire",
+          "administration",
+          "bastion"
+        ],
+        "cellKeys": [
+          "13,5",
+          "13,6",
+          "14,6",
+          "15,5"
+        ],
+        "dominantActivities": [
+          "commandement",
+          "logistique",
+          "detention"
+        ],
+        "importantPlaces": [
+          "Citadelle des Veilleurs",
+          "Depot des Marches"
+        ],
+        "populationProfile": {
+          "dominantGroupId": "soldats_de_metier",
+          "groups": [
+            {
+              "groupId": "soldats_de_metier",
+              "weight": 48,
+              "role": "dominant"
+            },
+            {
+              "groupId": "humains_des_marches",
+              "weight": 37,
+              "role": "minority"
+            },
+            {
+              "groupId": "demi_elfes_frontaliers",
+              "weight": 15,
+              "role": "outsider"
+            }
+          ],
+          "notes": []
+        }
+      },
+      {
+        "id": "briarford:grain_ward",
+        "cityId": "briarford",
+        "name": "Quartier des Greniers",
+        "tags": [
+          "grain",
+          "supply",
+          "warehouse"
+        ],
+        "cellKeys": [
+          "10,8",
+          "11,8",
+          "11,9"
+        ],
+        "dominantActivities": [
+          "stockage",
+          "pesage",
+          "convois"
+        ],
+        "importantPlaces": [
+          "Halle au Grain",
+          "Greniers du Pont"
+        ],
+        "populationProfile": {
+          "dominantGroupId": "humains_des_plaines",
+          "groups": [
+            {
+              "groupId": "humains_des_plaines",
+              "weight": 54,
+              "role": "dominant"
+            },
+            {
+              "groupId": "halfelins_riverains",
+              "weight": 24,
+              "role": "minority"
+            },
+            {
+              "groupId": "charretiers_libres",
+              "weight": 22,
+              "role": "outsider"
+            }
+          ],
+          "notes": []
+        }
+      },
+      {
+        "id": "briarford:river_market",
+        "cityId": "briarford",
+        "name": "Marche du Bac",
+        "tags": [
+          "commerce",
+          "river",
+          "relais"
+        ],
+        "cellKeys": [
+          "9,9",
+          "10,9",
+          "10,7"
+        ],
+        "dominantActivities": [
+          "negoce",
+          "transit",
+          "courtage"
+        ],
+        "importantPlaces": [
+          "Marche du Bac",
+          "Auberge des Essieux"
+        ],
+        "populationProfile": {
+          "dominantGroupId": "humains_des_plaines",
+          "groups": [
+            {
+              "groupId": "halfelins_riverains",
+              "weight": 36,
+              "role": "dominant"
+            },
+            {
+              "groupId": "humains_des_plaines",
+              "weight": 42,
+              "role": "minority"
+            },
+            {
+              "groupId": "charretiers_libres",
+              "weight": 22,
+              "role": "outsider"
+            }
+          ],
+          "notes": []
+        }
+      },
+      {
+        "id": "briarford:south_granaries",
+        "cityId": "briarford",
+        "name": "Granges du Sud",
+        "tags": [
+          "agricole",
+          "grain",
+          "peripherie"
+        ],
+        "cellKeys": [
+          "12,8",
+          "12,9",
+          "10,10",
+          "11,10"
+        ],
+        "dominantActivities": [
+          "sechage",
+          "tri",
+          "chargement"
+        ],
+        "importantPlaces": [
+          "Granges du Sud",
+          "Cour des Mules"
+        ],
+        "populationProfile": {
+          "dominantGroupId": "humains_des_plaines",
+          "groups": [
+            {
+              "groupId": "humains_des_plaines",
+              "weight": 57,
+              "role": "dominant"
+            },
+            {
+              "groupId": "charretiers_libres",
+              "weight": 25,
+              "role": "outsider"
+            },
+            {
+              "groupId": "halfelins_riverains",
+              "weight": 18,
+              "role": "minority"
+            }
+          ],
+          "notes": []
+        }
+      }
+    ],
+    "districtOverrides": []
+  },
+  "editorPresets": {
+    "customGeographies": [
+      {
+        "id": "marches_ombrees",
+        "label": "Marches ombrees",
+        "geography": "marches_ombrees",
+        "color": "#7a6a58",
+        "surface": "land",
+        "difficulty": 6
+      },
+      {
+        "id": "sanctuaire_ouvert",
+        "label": "Sanctuaire ouvert",
+        "geography": "sanctuaire_ouvert",
+        "color": "#b79c61",
+        "surface": "land",
+        "difficulty": 4
+      }
+    ],
+    "customTags": [
+      {
+        "id": "bastion",
+        "label": "Bastion",
+        "color": "#7293d7"
+      },
+      {
+        "id": "relais",
+        "label": "Relais",
+        "color": "#8cb97b"
+      },
+      {
+        "id": "rite",
+        "label": "Rite",
+        "color": "#d4b16a"
+      },
+      {
+        "id": "contrebande",
+        "label": "Contrebande",
+        "color": "#c96f4a"
       }
     ]
   }

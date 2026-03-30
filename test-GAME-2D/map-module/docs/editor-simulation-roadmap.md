@@ -163,6 +163,11 @@ Priorite :
 Decision :
 
 - continuer avec quartiers derives + overrides tant que cela couvre le besoin ;
+- formaliser le modele hybride :
+  - mode par defaut = `quartiers derives + overrides` ;
+  - exception = `quartiers natifs` pour les villes qui demandent une lecture locale plus fine ;
+  - une ville avec au moins un quartier natif est consideree en mode natif pour sa simulation locale ;
+  - melanger durablement quartiers natifs et overrides derives sur une meme ville doit rester transitoire.
 - ne pas partir sur une refonte complete tant que l'inspection et la lecture systemique ne sont pas meilleures.
 
 ### 4. Gouvernance, Territoires, Regions, Zones

@@ -1,7 +1,7 @@
 import { PRESSURE_DEFINITIONS, WORLD_ACTION_DEFINITIONS } from "./definitions";
 import { applyFactionLogisticsPlans, buildFactionLogisticsPlans, reinitialiserRessourcesTransport } from "./logisticsPlanner";
 import { synchronizeObjectiveReadiness } from "./objectiveReadiness";
-import { findShortestRouteItinerary, getProgressPerTick, getRouteTargetId, getRouteTraversalCost } from "./travel";
+import { findShortestRouteItinerary, getAbsoluteRouteProgress, getProgressPerTick, getRouteProgressTowardTarget, getRouteTargetId, getRouteTraversalCost } from "./travel";
 import type {
   ActionCandidateTrace,
   ActorCandidateTrace,
@@ -238,6 +238,12 @@ function resolveArrivalPosition(state: WorldState, actor: MobileActor, route: Wo
   }
 
   return getRouteEndpointRef(state, route.destinationId);
+}
+
+function getRouteDestinationStopProgress(route: WorldRoute, actor: MobileActor): number | undefined {
+  if (actor.destination?.kind !== "route" || actor.destination.id !== route.id) return undefined;
+  if (typeof actor.destinationRouteProgress !== "number" || !Number.isFinite(actor.destinationRouteProgress)) return undefined;
+  return clamp(actor.destinationRouteProgress, 0, getRouteTraversalCost(route, actor));
 }
 
 function createMobileTravelEvent(
@@ -516,7 +522,12 @@ function getActionCandidates(state: WorldState, actors: ActorCandidate[], logist
   const trace: ActionCandidateTrace[] = [];
   actors.forEach(actorCandidate => {
     WORLD_ACTION_DEFINITIONS
-      .filter(definition => definition.actorKinds.includes(actorCandidate.ref.kind as never))
+      .filter(definition => {
+        if (!definition.actorKinds.includes(actorCandidate.ref.kind as never)) return false;
+        if (!actorCandidate.objective) return true;
+        if (!actorCandidate.objective.compatibleActionIds.includes(definition.id)) return false;
+        return definition.compatibleObjectives.includes(actorCandidate.objective.category);
+      })
       .forEach(action => {
         const cooldown = getCooldown(actorCandidate.actor, action.id);
         if (cooldown > 0) {
@@ -855,7 +866,9 @@ function advanceMobileActors(state: WorldState, ctx: TickContext) {
       return;
     }
 
-    const alternateRoute = (hazardScore >= 78 || (criminalRisk >= 70 && cargo >= 35)) && actor.position.kind !== "route"
+    const alternateRoute = (hazardScore >= 78 || (criminalRisk >= 70 && cargo >= 35)) &&
+      actor.position.kind !== "route" &&
+      !(actor.destination?.kind === "route" && actor.destination.id === route.id)
       ? findAlternateRoute(state, route)
       : undefined;
     if (alternateRoute) {
@@ -866,6 +879,7 @@ function advanceMobileActors(state: WorldState, ctx: TickContext) {
       actor.itinerary = [alternateRoute.id, ...actor.itinerary.slice(1)];
       actor.routeProgress = 0;
       actor.currentRouteTargetId = undefined;
+      actor.destinationRouteProgress = undefined;
       createMobileTravelEvent(state, ctx, actor, route, "reroute", {
         routePrecedenteId: route.id,
         routeAlternativeId: alternateRoute.id,
@@ -929,7 +943,51 @@ function advanceMobileActors(state: WorldState, ctx: TickContext) {
       (cargo >= 60 ? 1 : 0);
     const effectiveSpeed = Math.max(1, getProgressPerTick(actor, state) - speedPenalty);
     const routeTraversalCost = getRouteTraversalCost(route, actor);
-    actor.routeProgress = clamp(actor.routeProgress + effectiveSpeed, 0, routeTraversalCost);
+    const stopProgress = getRouteDestinationStopProgress(route, actor);
+    const absoluteBefore = getAbsoluteRouteProgress(route, actor);
+    const movingTowardOrigin = actor.currentRouteTargetId === route.originId;
+    const absoluteAfter = clamp(
+      absoluteBefore + (movingTowardOrigin ? -effectiveSpeed : effectiveSpeed),
+      0,
+      routeTraversalCost
+    );
+    const reachedRouteStop =
+      typeof stopProgress === "number" &&
+      ((movingTowardOrigin && absoluteAfter <= stopProgress) || (!movingTowardOrigin && absoluteAfter >= stopProgress));
+
+    actor.routeProgress = reachedRouteStop
+      ? getRouteProgressTowardTarget(route, actor.currentRouteTargetId ?? route.destinationId, stopProgress, actor)
+      : clamp(actor.routeProgress + effectiveSpeed, 0, routeTraversalCost);
+
+    if (reachedRouteStop) {
+      if (actor.position.kind !== "route" || actor.position.id !== route.id) {
+        actor.position = { kind: "route", id: route.id };
+      }
+      actor.destination = undefined;
+      actor.destinationRouteProgress = undefined;
+      actor.itinerary = actor.itinerary.slice(1).filter(routeId => routeId !== route.id);
+      ctx.generatedEvents.push({
+        id: makeId("event", state.clock.tick, `${actor.id}-arrive-route-stop`),
+        type: "mobile_actor_arrived",
+        tick: state.clock.tick,
+        actor: { kind: "mobileActor", id: actor.id },
+        target: { kind: "route", id: route.id },
+        success: true,
+        deltas: [],
+        tags: ["deplacement", "arrivee", "route_stop"],
+        payload: { routeId: route.id, routeProgress: Math.round(stopProgress * 100) / 100 }
+      });
+      ctx.trace.mobility.push({
+        actorId: actor.id,
+        routeId: route.id,
+        outcome: "arrived",
+        beforeProgress,
+        afterProgress: actor.routeProgress,
+        notes: [`arrive sur ${route.id}`, `progression ${Math.round(stopProgress * 10) / 10}`]
+      });
+      return;
+    }
+
     if (actor.routeProgress < routeTraversalCost) {
       if (actor.position.kind !== "route" || actor.position.id !== route.id) {
         actor.position = { kind: "route", id: route.id };
@@ -951,6 +1009,7 @@ function advanceMobileActors(state: WorldState, ctx: TickContext) {
     actor.currentRouteTargetId = undefined;
     if (actor.itinerary.length === 0) {
       actor.destination = undefined;
+      actor.destinationRouteProgress = undefined;
     }
     ctx.generatedEvents.push({
       id: makeId("event", state.clock.tick, `${actor.id}-arrive`),

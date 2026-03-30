@@ -86,6 +86,7 @@ export type WorldActionId =
   | "search_clue"
   | "question_source"
   | "search_site"
+  | "sanctify_site"
   | "infiltrate"
   | "secure_route";
 
@@ -282,6 +283,7 @@ export type MobileActor = {
   destination?: EntityRef;
   itinerary: EntityId[];
   currentRouteTargetId?: EntityId;
+  destinationRouteProgress?: number;
   modeTransport?: TransportMode;
   travelMode: "road" | "river" | "sea" | "foot";
   speed: number;

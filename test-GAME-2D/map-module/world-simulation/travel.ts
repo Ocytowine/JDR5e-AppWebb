@@ -46,23 +46,56 @@ function getPositionNodeId(position: EntityRef): EntityId | undefined {
   return position.kind === "city" || position.kind === "region" ? position.id : undefined;
 }
 
-export function getRouteTargetId(route: WorldRoute, currentPosition: EntityRef, finalDestination?: EntityRef): EntityId {
-  if (currentPosition.id === route.originId) return route.destinationId;
-  if (currentPosition.id === route.destinationId) return route.originId;
-  if (finalDestination?.id === route.originId) return route.originId;
-  if (finalDestination?.id === route.destinationId) return route.destinationId;
-  return route.destinationId;
+export function getAbsoluteRouteProgress(route: WorldRoute, actor: MobileActor): number {
+  const totalCost = getRouteTraversalCost(route, actor);
+  const clampedProgress = clamp(actor.routeProgress, 0, totalCost);
+  if (actor.currentRouteTargetId === route.originId) {
+    return totalCost - clampedProgress;
+  }
+  return clampedProgress;
 }
 
-export function findShortestRouteItinerary(state: WorldState, actor: MobileActor): EntityId[] {
-  if (!actor.destination) return actor.itinerary;
-  if (actor.destination.kind === "route") return [actor.destination.id];
+export function getRouteProgressTowardTarget(route: WorldRoute, targetId: EntityId, absoluteProgress: number, actor: MobileActor): number {
+  const totalCost = getRouteTraversalCost(route, actor);
+  const clampedAbsolute = clamp(absoluteProgress, 0, totalCost);
+  return targetId === route.originId ? totalCost - clampedAbsolute : clampedAbsolute;
+}
 
-  const startNodeId = getPositionNodeId(actor.position);
-  const destinationNodeId = actor.destination.kind === "city" || actor.destination.kind === "region"
-    ? actor.destination.id
-    : undefined;
-  if (!startNodeId || !destinationNodeId || startNodeId === destinationNodeId) {
+function getRouteEndpointCandidates(state: WorldState, actor: MobileActor): Array<{ nodeId: EntityId; initialCost: number }> {
+  if (actor.position.kind !== "route") {
+    const nodeId = getPositionNodeId(actor.position);
+    return nodeId ? [{ nodeId, initialCost: 0 }] : [];
+  }
+
+  const route = state.routes[actor.position.id];
+  if (!route) return [];
+  const totalCost = getRouteTraversalCost(route, actor);
+  const clampedProgress = clamp(actor.routeProgress, 0, totalCost);
+  const targetId =
+    actor.currentRouteTargetId === route.originId || actor.currentRouteTargetId === route.destinationId
+      ? actor.currentRouteTargetId
+      : getRouteTargetId(route, actor.position, actor.destination);
+
+  if (targetId === route.originId) {
+    return [
+      { nodeId: route.originId, initialCost: totalCost - clampedProgress },
+      { nodeId: route.destinationId, initialCost: clampedProgress }
+    ];
+  }
+
+  return [
+    { nodeId: route.originId, initialCost: clampedProgress },
+    { nodeId: route.destinationId, initialCost: totalCost - clampedProgress }
+  ];
+}
+
+function computeShortestItineraryFromNode(
+  state: WorldState,
+  actor: MobileActor,
+  startNodeId: EntityId,
+  destinationNodeId: EntityId
+): EntityId[] {
+  if (startNodeId === destinationNodeId) {
     return [];
   }
 
@@ -90,7 +123,7 @@ export function findShortestRouteItinerary(state: WorldState, actor: MobileActor
   }
 
   if (!previousRoute.has(destinationNodeId)) {
-    return actor.itinerary;
+    return [];
   }
 
   const itinerary: EntityId[] = [];
@@ -103,4 +136,59 @@ export function findShortestRouteItinerary(state: WorldState, actor: MobileActor
     currentNodeId = priorNodeId;
   }
   return itinerary;
+}
+
+export function getRouteTargetId(route: WorldRoute, currentPosition: EntityRef, finalDestination?: EntityRef): EntityId {
+  if (currentPosition.id === route.originId) return route.destinationId;
+  if (currentPosition.id === route.destinationId) return route.originId;
+  if (finalDestination?.id === route.originId) return route.originId;
+  if (finalDestination?.id === route.destinationId) return route.destinationId;
+  return route.destinationId;
+}
+
+export function findShortestRouteItinerary(state: WorldState, actor: MobileActor): EntityId[] {
+  if (!actor.destination) return actor.itinerary;
+  if (actor.destination.kind === "route") {
+    if (actor.position.kind === "route" && actor.position.id === actor.destination.id) {
+      return [actor.destination.id];
+    }
+    return [actor.destination.id];
+  }
+
+  const destinationNodeId = actor.destination.kind === "city" || actor.destination.kind === "region"
+    ? actor.destination.id
+    : undefined;
+  if (!destinationNodeId) {
+    return [];
+  }
+  const startCandidates = getRouteEndpointCandidates(state, actor);
+  if (startCandidates.length === 0) {
+    return actor.itinerary;
+  }
+
+  const best = startCandidates
+    .map(candidate => {
+      const itinerary = computeShortestItineraryFromNode(state, actor, candidate.nodeId, destinationNodeId);
+      if (itinerary.length === 0 && candidate.nodeId !== destinationNodeId) {
+        return null;
+      }
+      const routeCost = itinerary.reduce((sum, routeId) => {
+        const route = state.routes[routeId];
+        return route ? sum + getRouteTraversalCost(route, actor) : sum;
+      }, 0);
+      return {
+        itinerary,
+        totalCost: candidate.initialCost + routeCost
+      };
+    })
+    .filter((entry): entry is { itinerary: EntityId[]; totalCost: number } => Boolean(entry))
+    .sort((left, right) => left.totalCost - right.totalCost)[0];
+
+  if (!best) {
+    return actor.itinerary;
+  }
+
+  return actor.position.kind === "route"
+    ? [actor.position.id, ...best.itinerary.filter(routeId => routeId !== actor.position.id)]
+    : best.itinerary;
 }

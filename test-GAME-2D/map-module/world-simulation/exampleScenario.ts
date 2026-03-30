@@ -53,7 +53,8 @@ export function createExampleWorldState(): WorldState {
         },
         factionInfluence: {
           "faction-militia": 24,
-          "faction-guild": 48
+          "faction-guild": 48,
+          "faction-faith": 52
         },
         importantPlaces: ["fish-market", "river-gate"],
         dominantActivities: ["trade", "smuggling"],
@@ -164,6 +165,26 @@ export function createExampleWorldState(): WorldState {
         relations: [{ otherFactionId: "faction-militia", status: "rival", trust: 14, hostility: 66 }],
         recentHistory: [],
         cooldowns: {}
+      },
+      "faction-faith": {
+        id: "faction-faith",
+        name: "Lantern Shrine",
+        type: "culte_local",
+        tags: ["religious", "ritual"],
+        influenceZoneIds: ["valecroft-docks"],
+        state: {
+          resources: 34,
+          power: 29,
+          influence: 44,
+          cohesion: 63,
+          aggressiveness: 22,
+          discretion: 58,
+          security: 27
+        },
+        objectives: [{ objectiveId: "obj-protect-shrine", priority: 71 }],
+        relations: [{ otherFactionId: "faction-militia", status: "neutral", trust: 38, hostility: 19 }],
+        recentHistory: [],
+        cooldowns: {}
       }
     },
     specialObjectives: {
@@ -199,6 +220,21 @@ export function createExampleWorldState(): WorldState {
         onSuccess: [{ type: "open_opportunity", kind: "scarcity_trade", score: 64, tags: ["route", "trade"] }],
         onFailure: [{ type: "create_tension", tensionType: "mobility_risk", severity: 48, tags: ["route", "unsafe"] }],
         tags: ["trade", "security"]
+      },
+      "obj-protect-shrine": {
+        id: "obj-protect-shrine",
+        category: "protect_secret",
+        owner: { kind: "faction", id: "faction-faith" },
+        target: { kind: "district", id: "valecroft-docks" },
+        priority: 71,
+        state: "active",
+        progress: 12,
+        zoneIds: ["valecroft-docks"],
+        obstacles: ["crowd_fear", "watchful_rivals"],
+        compatibleActionIds: ["sanctify_site", "investigate"],
+        onSuccess: [{ type: "spawn_signal", signalKind: "religious", intensity: 64, tags: ["sanctuary", "rite"] }],
+        onFailure: [{ type: "create_tension", tensionType: "religious", severity: 57, tags: ["shrine", "panic"] }],
+        tags: ["shrine", "secret", "ritual"]
       }
     },
     mobileActors: {

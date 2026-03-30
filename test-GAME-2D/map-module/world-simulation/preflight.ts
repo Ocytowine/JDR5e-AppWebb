@@ -1,4 +1,5 @@
 import type {
+  MapCell,
   PopulationProfile,
   SimulationAnchorTargetKind,
   SimulationActorPositionKind,
@@ -11,7 +12,8 @@ import type {
   WorldMapSimulationMobileActor,
   WorldMapSimulationObjective
 } from "../data/worldMapLayout";
-import { createSimulationSeedFromMapLayout } from "./mapAdapter";
+import { WORLD_ACTION_DEFINITIONS } from "./definitions";
+import { createSimulationSeedFromMapLayout, resolveMapCellToRuntimeRef } from "./mapAdapter";
 
 export type SimulationPreflightSeverity = "error" | "warning";
 
@@ -347,6 +349,7 @@ function validateObjective(
   objective: WorldMapSimulationObjective,
   issues: SimulationPreflightIssue[]
 ) {
+  const knownActionDefinitions = new Map(WORLD_ACTION_DEFINITIONS.map(action => [action.id, action]));
   const ownerFaction = (layout.simulation?.factions ?? []).find(faction => faction.id === objective.ownerFactionId);
   if (!(layout.simulation?.factions ?? []).some(faction => faction.id === objective.ownerFactionId)) {
     pushIssue(issues, {
@@ -409,6 +412,28 @@ function validateObjective(
       message: `L'objectif ${objective.id} n'a pas d'actions compatibles explicites.`
     });
   }
+  objective.compatibleActionIds.forEach(actionId => {
+    const definition = knownActionDefinitions.get(actionId as never);
+    if (!definition) {
+      pushIssue(issues, {
+        severity: "warning",
+        code: "objective_unknown_action",
+        scope: "objective",
+        entityId: objective.id,
+        message: `L'objectif ${objective.id} reference une action inconnue: ${actionId}.`
+      });
+      return;
+    }
+    if (!definition.compatibleObjectives.includes(objective.category as never)) {
+      pushIssue(issues, {
+        severity: "warning",
+        code: "objective_incompatible_action",
+        scope: "objective",
+        entityId: objective.id,
+        message: `L'objectif ${objective.id} reference l'action ${actionId}, non prevue pour la categorie ${objective.category}.`
+      });
+    }
+  });
   objective.zoneIds.forEach(zoneId => {
     if (!isKnownZoneId(layout, knownDistrictIds, zoneId)) {
       pushIssue(issues, {
@@ -455,6 +480,44 @@ function validateDistrictOverride(
   }
 }
 
+function validateCityDistrictModel(layout: WorldMapLayout, knownDistrictIds: Set<string>, issues: SimulationPreflightIssue[]) {
+  layout.cities.forEach(city => {
+    const nativeDistricts = (layout.simulation?.districts ?? []).filter(district => district.cityId === city.id);
+    const districtOverrides = (layout.simulation?.districtOverrides ?? []).filter(override => override.cityId === city.id);
+    const derivedDistrictIds = [...knownDistrictIds].filter(districtId => districtId.startsWith(`${city.id}:`));
+
+    if (nativeDistricts.length > 0 && districtOverrides.length > 0) {
+      pushIssue(issues, {
+        severity: "warning",
+        code: "city_mixed_district_modes",
+        scope: "layout",
+        entityId: city.id,
+        message: `La ville ${city.id} combine quartiers natifs et overrides de quartiers derives. La convention du module recommande de choisir un mode principal par ville.`
+      });
+    }
+
+    if (nativeDistricts.length === 0 && derivedDistrictIds.length === 0) {
+      pushIssue(issues, {
+        severity: "warning",
+        code: "city_without_simulation_districts",
+        scope: "layout",
+        entityId: city.id,
+        message: `La ville ${city.id} n'a ni quartier natif ni quartier derive resolu. La lecture locale de simulation sera tres pauvre.`
+      });
+    }
+
+    if (nativeDistricts.length > 0 && nativeDistricts.every(district => (district.cellKeys ?? []).length === 0)) {
+      pushIssue(issues, {
+        severity: "warning",
+        code: "city_native_districts_without_cells",
+        scope: "layout",
+        entityId: city.id,
+        message: `La ville ${city.id} est en mode natif mais aucun de ses quartiers natifs n'a de cellules exploitables.`
+      });
+    }
+  });
+}
+
 function getRouteById(layout: WorldMapLayout, routeId: string) {
   return layout.paths.find(path => path.id === routeId && path.kind === "road");
 }
@@ -466,6 +529,10 @@ function getRouteEndpointKeys(layout: WorldMapLayout, routeId: string): { startK
     startKey: `${route.cells[0].x},${route.cells[0].y}`,
     endKey: `${route.cells[route.cells.length - 1].x},${route.cells[route.cells.length - 1].y}`
   };
+}
+
+function hasKnownCell(layout: WorldMapLayout, cell: MapCell | undefined): boolean {
+  return Boolean(cell) && layout.cells.some(entry => entry.cell.x === cell?.x && entry.cell.y === cell?.y);
 }
 
 function getRegionAnchorCellKey(layout: WorldMapLayout, regionId: string): string | null {
@@ -481,8 +548,17 @@ function getRegionAnchorCellKey(layout: WorldMapLayout, regionId: string): strin
 function getPositionNodeId(
   layout: WorldMapLayout,
   kind: SimulationActorPositionKind,
-  id: string | undefined
+  id: string | undefined,
+  cell?: MapCell
 ): string | null {
+  if (kind === "cell") {
+    const runtimeRef = cell ? resolveMapCellToRuntimeRef(layout, cell) : undefined;
+    if (!runtimeRef) return null;
+    if (runtimeRef.kind === "city" || runtimeRef.kind === "route" || runtimeRef.kind === "region") {
+      return getPositionNodeId(layout, runtimeRef.kind, runtimeRef.id);
+    }
+    return null;
+  }
   if (kind === "city") {
     const city = id ? layout.cities.find(entry => entry.id === id) : null;
     return city ? `${city.cell.x},${city.cell.y}` : null;
@@ -517,8 +593,8 @@ function validateItinerary(
   });
   if (missingRoutes.length > 0) return;
 
-  const startNodeId = getPositionNodeId(layout, actor.positionKind, actor.positionId);
-  if (!startNodeId && actor.positionKind !== "cell") {
+  const startNodeId = getPositionNodeId(layout, actor.positionKind, actor.positionId, actor.positionCell);
+  if (!startNodeId) {
     pushIssue(issues, {
       severity: "error",
       code: "mobile_unknown_position",
@@ -529,7 +605,7 @@ function validateItinerary(
     return;
   }
 
-  let expectedNodeId = startNodeId;
+  let expectedNodeId: string | null = startNodeId;
   itinerary.forEach((routeId, index) => {
     const endpoints = getRouteEndpointKeys(layout, routeId);
     if (!endpoints) return;
@@ -552,8 +628,11 @@ function validateItinerary(
     expectedNodeId = endpoints.startKey === expectedNodeId ? endpoints.endKey : endpoints.startKey;
   });
 
-  if (expectedNodeId && actor.destinationKind && actor.destinationKind !== "cell" && actor.destinationId) {
-    if (expectedNodeId !== actor.destinationId) {
+  const destinationNodeId = actor.destinationKind
+    ? getPositionNodeId(layout, actor.destinationKind, actor.destinationId, actor.destinationCell)
+    : null;
+  if (expectedNodeId && destinationNodeId) {
+    if (expectedNodeId !== destinationNodeId) {
       pushIssue(issues, {
         severity: "warning",
         code: "mobile_itinerary_destination_mismatch",
@@ -635,13 +714,15 @@ function validateMobileActor(
         message: `Le mobile ${actor.id} utilise une position de type cell sans coordonnees de cellule.`
       });
     }
-    pushIssue(issues, {
-      severity: "warning",
-      code: "mobile_cell_position_runtime_gap",
-      scope: "mobileActor",
-      entityId: actor.id,
-      message: `Le mobile ${actor.id} utilise une position de type cell, mais ce mode n'est pas encore pleinement gere dans l'adaptateur runtime.`
-    });
+    if (actor.positionCell && !hasKnownCell(layout, actor.positionCell)) {
+      pushIssue(issues, {
+        severity: "error",
+        code: "mobile_unknown_position_cell",
+        scope: "mobileActor",
+        entityId: actor.id,
+        message: `Le mobile ${actor.id} reference une cellule de position inconnue: ${actor.positionCell.x},${actor.positionCell.y}.`
+      });
+    }
   } else if (!actor.positionId) {
     pushIssue(issues, {
       severity: "error",
@@ -690,13 +771,15 @@ function validateMobileActor(
         message: `Le mobile ${actor.id} utilise une destination de type cell sans coordonnees de cellule.`
       });
     }
-    pushIssue(issues, {
-      severity: "warning",
-      code: "mobile_cell_destination_runtime_gap",
-      scope: "mobileActor",
-      entityId: actor.id,
-      message: `Le mobile ${actor.id} utilise une destination de type cell, mais ce mode n'est pas encore pleinement gere dans le runtime.`
-    });
+    if (actor.destinationCell && !hasKnownCell(layout, actor.destinationCell)) {
+      pushIssue(issues, {
+        severity: "error",
+        code: "mobile_unknown_destination_cell",
+        scope: "mobileActor",
+        entityId: actor.id,
+        message: `Le mobile ${actor.id} reference une cellule de destination inconnue: ${actor.destinationCell.x},${actor.destinationCell.y}.`
+      });
+    }
   } else if (actor.destinationKind && !actor.destinationId) {
     pushIssue(issues, {
       severity: "error",
@@ -739,6 +822,7 @@ export function runSimulationPreflight(layout: WorldMapLayout): SimulationPrefli
       label: `La ville ${city.id}`
     })
   );
+  validateCityDistrictModel(layout, knownDistrictIds, issues);
   (layout.simulation?.factions ?? []).forEach(faction => validateFaction(layout, knownDistrictIds, faction, issues));
   (layout.simulation?.specialObjectives ?? []).forEach(objective => validateObjective(layout, knownDistrictIds, objective, issues));
   (layout.simulation?.districts ?? []).forEach(district => validateNativeDistrict(layout, district, issues));

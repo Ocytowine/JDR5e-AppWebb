@@ -23,6 +23,7 @@ import {
   type WorldMapSimulationMobileActor,
   type WorldMapSimulationObjective,
   type WorldMapLayoutSource,
+  type PopulationGroupRole,
   type PopulationProfile
 } from "../data/worldMapLayout";
 import {
@@ -76,6 +77,7 @@ import {
 } from "../world-simulation";
 import { findShortestRouteItinerary } from "../world-simulation/travel";
 import { SimulationLogisticsPanel } from "./simulation/SimulationLogisticsPanel";
+import { formatRuntimeMobileProgress } from "./simulation/mobileRuntimeDisplay";
 
 const PANEL_LABELS: Record<PanelId, string> = {
   legend: "Legende",
@@ -95,7 +97,9 @@ function sanitizeLayoutSource(value: unknown): WorldMapLayoutSource | null {
     !Array.isArray(candidate.cities) ||
     !Array.isArray(candidate.paths) ||
     !Array.isArray(candidate.cliffSegments ?? []) ||
-    !Array.isArray(candidate.cells)
+    !Array.isArray(candidate.cells) ||
+    !Array.isArray(candidate.editorPresets?.customGeographies ?? []) ||
+    !Array.isArray(candidate.editorPresets?.customTags ?? [])
   ) {
     return null;
   }
@@ -106,9 +110,39 @@ function layoutToJson(layout: WorldMapLayout): string {
   return JSON.stringify(serializeWorldMapLayout(layout), null, 2);
 }
 
+function withEditorPresets(
+  layout: WorldMapLayout,
+  customGeographies: Array<{ id: string; label: string; geography: string; color: string; surface: "land" | "ocean"; difficulty: number }>,
+  customTags: Array<{ id: string; label: string; color: string }>
+): WorldMapLayout {
+  return {
+    ...layout,
+    editorPresets: {
+      customGeographies,
+      customTags
+    }
+  };
+}
+
 function getSelectedCity(layout: WorldMapLayout, selectedCellKey: string | null): WorldMapCity | null {
   if (!selectedCellKey) return null;
   return layout.cities.find(city => getWorldMapCellKey(city.cell) === selectedCellKey) ?? null;
+}
+
+function getCellRoutePlacementHint(layout: WorldMapLayout, cell: MapCell | undefined): { routeId: string; routeLabel: string; index: number; isIntermediate: boolean } | null {
+  if (!cell) return null;
+  for (const path of layout.paths) {
+    if (path.kind !== "road" || path.cells.length === 0) continue;
+    const index = path.cells.findIndex(routeCell => routeCell.x === cell.x && routeCell.y === cell.y);
+    if (index < 0) continue;
+    return {
+      routeId: path.id,
+      routeLabel: path.label || path.id,
+      index,
+      isIntermediate: index > 0 && index < path.cells.length - 1
+    };
+  }
+  return null;
 }
 
 const UTILITY_PANEL_IDS: PanelId[] = ["legend", "layers", "json"];
@@ -127,6 +161,160 @@ function formatPopulationProfile(profile?: PopulationProfile): string {
   return profile.groups
     .map(group => [group.groupId, String(group.weight), group.role].filter(Boolean).join(":"))
     .join(", ");
+}
+
+const POPULATION_GROUP_ROLE_OPTIONS: Array<{ value: PopulationGroupRole; label: string }> = [
+  { value: "dominant", label: "Dominant" },
+  { value: "minority", label: "Minorite" },
+  { value: "elite", label: "Elite" },
+  { value: "servitor", label: "Serviteur" },
+  { value: "outsider", label: "Exterieur" }
+];
+
+type PopulationProfileDraft = {
+  groupId: string;
+  weight: string;
+  role: PopulationGroupRole;
+};
+
+function buildPopulationProfileInputValue(groups: PopulationProfile["groups"]): string {
+  if (!groups.length) return "";
+  return groups
+    .map(group => [group.groupId, String(group.weight), group.role].filter(Boolean).join(":"))
+    .join(", ");
+}
+
+function createEmptyPopulationProfileDraft(): PopulationProfileDraft {
+  return {
+    groupId: "",
+    weight: "10",
+    role: "minority"
+  };
+}
+
+function upsertPopulationProfileGroup(profile: PopulationProfile | undefined, draft: PopulationProfileDraft): string {
+  const groupId = draft.groupId.trim();
+  if (!groupId) return formatPopulationProfile(profile);
+  const weight = Math.max(0, Number(draft.weight) || 0);
+  const nextGroups = [...(profile?.groups ?? []).filter(group => group.groupId !== groupId), { groupId, weight, role: draft.role }];
+  return buildPopulationProfileInputValue(nextGroups);
+}
+
+function removePopulationProfileGroup(profile: PopulationProfile | undefined, groupId: string): string {
+  const nextGroups = (profile?.groups ?? []).filter(group => group.groupId !== groupId);
+  return buildPopulationProfileInputValue(nextGroups);
+}
+
+type PopulationProfileFieldProps = {
+  profile?: PopulationProfile;
+  effectiveProfile?: PopulationProfile;
+  effectiveSource: string;
+  inheritanceHint: string;
+  emptyAddLabel?: string;
+  onChange: (value: string) => void;
+};
+
+function PopulationProfileField({
+  profile,
+  effectiveProfile,
+  effectiveSource,
+  inheritanceHint,
+  emptyAddLabel = "Ajouter un groupe",
+  onChange
+}: PopulationProfileFieldProps) {
+  const [draft, setDraft] = useState<PopulationProfileDraft>(createEmptyPopulationProfileDraft);
+  const hasOverride = Boolean(profile?.groups?.length);
+  const canAddDraft = draft.groupId.trim().length > 0;
+
+  return (
+    <div style={{ display: "grid", gap: 8 }}>
+      <div style={{ display: "grid", gap: 6 }}>
+        {(profile?.groups ?? []).length > 0 ? (
+          profile!.groups.map(group => (
+            <div
+              key={group.groupId}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "minmax(0, 1fr) auto auto auto",
+                gap: 8,
+                alignItems: "center",
+                padding: "8px 10px",
+                borderRadius: 10,
+                border: `1px solid ${EDITOR_THEME.colors.border}`,
+                background: "rgba(17, 24, 39, 0.22)"
+              }}
+            >
+              <strong style={{ fontSize: 12 }}>{group.groupId}</strong>
+              <span style={editorTextStyles.helper}>{group.weight}%</span>
+              <span style={editorTextStyles.helper}>
+                {POPULATION_GROUP_ROLE_OPTIONS.find(option => option.value === group.role)?.label ?? group.role ?? "Sans role"}
+              </span>
+              <button
+                type="button"
+                onClick={() => onChange(removePopulationProfileGroup(profile, group.groupId))}
+                style={{ ...createEditorButtonStyle({ danger: true, compact: true }), borderRadius: 8 }}
+              >
+                Retirer
+              </button>
+            </div>
+          ))
+        ) : (
+          <div style={editorTextStyles.helper}>{inheritanceHint}</div>
+        )}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.2fr) 120px 140px auto", gap: 8 }}>
+        <input
+          value={draft.groupId}
+          onChange={event => setDraft(current => ({ ...current, groupId: event.target.value }))}
+          style={FIELD_STYLE}
+          placeholder="groupe_id"
+        />
+        <input
+          type="number"
+          min={0}
+          value={draft.weight}
+          onChange={event => setDraft(current => ({ ...current, weight: event.target.value }))}
+          style={FIELD_STYLE}
+        />
+        <select
+          value={draft.role}
+          onChange={event => setDraft(current => ({ ...current, role: event.target.value as PopulationGroupRole }))}
+          style={FIELD_STYLE}
+        >
+          {POPULATION_GROUP_ROLE_OPTIONS.map(option => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={() => {
+            onChange(upsertPopulationProfileGroup(profile, draft));
+            setDraft(current => ({ ...current, groupId: "", weight: current.weight || "10" }));
+          }}
+          disabled={!canAddDraft}
+          style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8, opacity: canAddDraft ? 1 : 0.6 }}
+        >
+          {emptyAddLabel}
+        </button>
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <button
+          type="button"
+          onClick={() => onChange("")}
+          disabled={!hasOverride}
+          style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8, opacity: hasOverride ? 1 : 0.6 }}
+        >
+          Revenir a l'heritage
+        </button>
+      </div>
+      <div style={editorTextStyles.helper}>
+        Profil effectif: {formatPopulationProfile(effectiveProfile) || "aucun"}.
+      </div>
+      <div style={editorTextStyles.helper}>Source effective: {effectiveSource}.</div>
+    </div>
+  );
 }
 
 function formatSimulationConsequences(consequences?: WorldMapSimulationConsequence[]): string {
@@ -156,6 +344,96 @@ function formatListFieldValue(values?: string[]): string {
 
 function normalizeListDraftValue(value: string): string {
   return value.trim();
+}
+
+function upsertStringListValue(values: string[] | undefined, draft: string): string {
+  const normalizedValue = normalizeListDraftValue(draft);
+  if (!normalizedValue) return formatListFieldValue(values);
+  return formatListFieldValue([...(values ?? []).filter(value => value !== normalizedValue), normalizedValue]);
+}
+
+function removeStringListValue(values: string[] | undefined, target: string): string {
+  return formatListFieldValue((values ?? []).filter(value => value !== target));
+}
+
+type StringListFieldProps = {
+  values?: string[];
+  onChange: (value: string) => void;
+  placeholder?: string;
+  emptyHint: string;
+  addLabel?: string;
+  presetOptions?: string[];
+};
+
+function StringListField({
+  values,
+  onChange,
+  placeholder = "Ajouter une valeur",
+  emptyHint,
+  addLabel = "Ajouter",
+  presetOptions
+}: StringListFieldProps) {
+  const [draft, setDraft] = useState("");
+  const normalizedDraft = normalizeListDraftValue(draft);
+
+  return (
+    <div style={{ display: "grid", gap: 8 }}>
+      {(values ?? []).length > 0 ? (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {(values ?? []).map(value => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => onChange(removeStringListValue(values, value))}
+              style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 999 }}
+              title="Retirer cette valeur"
+            >
+              {value} x
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div style={editorTextStyles.helper}>{emptyHint}</div>
+      )}
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 8 }}>
+        <input value={draft} onChange={event => setDraft(event.target.value)} style={FIELD_STYLE} placeholder={placeholder} />
+        <button
+          type="button"
+          onClick={() => {
+            onChange(upsertStringListValue(values, draft));
+            setDraft("");
+          }}
+          disabled={!normalizedDraft}
+          style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8, opacity: normalizedDraft ? 1 : 0.6 }}
+        >
+          {addLabel}
+        </button>
+      </div>
+      {presetOptions && presetOptions.length > 0 && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {presetOptions
+            .filter(option => !(values ?? []).includes(option))
+            .map(option => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => onChange(upsertStringListValue(values, option))}
+                style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 999 }}
+              >
+                + {option}
+              </button>
+            ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function parseStringListInput(value: string): string[] {
+  return value
+    .split(",")
+    .map(entry => normalizeListDraftValue(entry))
+    .filter(Boolean);
 }
 
 function formatEntityRefSummary(ref: { kind: string; id: string } | undefined | null): string {
@@ -246,6 +524,81 @@ function formatObjectiveConsequenceSummary(consequence: WorldMapSimulationConseq
     return `Opportunite ${consequence.kind} (${consequence.score})`;
   }
   return `Signal ${consequence.signalKind} (${consequence.intensity})`;
+}
+
+function formatActionConditionSummary(condition: (typeof WORLD_ACTION_DEFINITIONS)[number]["preconditions"][number]): string {
+  if (condition.type === "self_state") return `Etat acteur: ${condition.key} ${condition.op} ${condition.value}`;
+  if (condition.type === "target_pressure") return `Pression cible: ${condition.pressure} ${condition.op} ${condition.value}`;
+  if (condition.type === "objective_category") return `Categorie objectif: ${condition.category}`;
+  return `Tag cible requis: ${condition.tag}`;
+}
+
+function formatActionDeltaSummary(delta: (typeof WORLD_ACTION_DEFINITIONS)[number]["successEffects"][number]): string {
+  if (delta.type === "state") {
+    return `${delta.selector} -> ${delta.key} ${delta.amount >= 0 ? "+" : ""}${delta.amount}`;
+  }
+  if (delta.type === "objective_progress") {
+    return `${delta.selector} -> progression objectif +${delta.amount}`;
+  }
+  return `${delta.selector} -> cooldown ${delta.actionId} (${delta.ticks})`;
+}
+
+function createObjectiveConsequencePreset(
+  type: WorldMapSimulationConsequence["type"],
+  subtype: string,
+  amount: string,
+  tags: string[]
+): { type: WorldMapSimulationConsequence["type"]; subtype: string; amount: string; tags: string[] } {
+  return { type, subtype, amount, tags };
+}
+
+function getObjectiveConsequencePresets(
+  category: SimulationObjectiveCategory | undefined,
+  field: "onSuccess" | "onFailure"
+): Array<{ label: string; draft: { type: WorldMapSimulationConsequence["type"]; subtype: string; amount: string; tags: string[] } }> {
+  if (category === "open_route") {
+    return field === "onSuccess"
+      ? [
+          { label: "Route plus sure", draft: createObjectiveConsequencePreset("open_opportunity", "scarcity_trade", "58", ["route", "trade"]) },
+          { label: "Signal marchand", draft: createObjectiveConsequencePreset("spawn_signal", "market", "36", ["route", "reopened"]) }
+        ]
+      : [
+          { label: "Risque de mobilite", draft: createObjectiveConsequencePreset("create_tension", "mobility_risk", "52", ["route", "unsafe"]) },
+          { label: "Signal militaire", draft: createObjectiveConsequencePreset("spawn_signal", "military", "34", ["raid", "route"]) }
+        ];
+  }
+  if (category === "protect_secret") {
+    return field === "onSuccess"
+      ? [
+          { label: "Signal religieux", draft: createObjectiveConsequencePreset("spawn_signal", "religious", "60", ["secret", "ritual"]) },
+          { label: "Ouverture d'enquete", draft: createObjectiveConsequencePreset("open_opportunity", "investigation_lead", "44", ["secret", "trace"]) }
+        ]
+      : [
+          { label: "Tension religieuse", draft: createObjectiveConsequencePreset("create_tension", "religious", "56", ["secret", "panic"]) },
+          { label: "Signal institutionnel", draft: createObjectiveConsequencePreset("spawn_signal", "institutional", "42", ["leak", "watch"]) }
+        ];
+  }
+  if (category === "search_object") {
+    return field === "onSuccess"
+      ? [
+          { label: "Piste d'investigation", draft: createObjectiveConsequencePreset("open_opportunity", "investigation_lead", "68", ["artifact", "clue"]) },
+          { label: "Signal discret", draft: createObjectiveConsequencePreset("spawn_signal", "religious", "48", ["artifact", "ritual"]) }
+        ]
+      : [
+          { label: "Conflit de controle", draft: createObjectiveConsequencePreset("create_tension", "control_conflict", "50", ["artifact", "rivalry"]) },
+          { label: "Tension criminelle", draft: createObjectiveConsequencePreset("create_tension", "criminal", "42", ["loot", "hunt"]) }
+        ];
+  }
+  return field === "onSuccess"
+    ? [{ label: "Ouverture politique", draft: createObjectiveConsequencePreset("open_opportunity", "political_opening", "40", ["shift"]) }]
+    : [{ label: "Tension sociale", draft: createObjectiveConsequencePreset("create_tension", "social", "36", ["backlash"]) }];
+}
+
+function getSuggestedActionIdsForObjectiveCategory(category: SimulationObjectiveCategory | undefined): string[] {
+  if (!category) return [];
+  return WORLD_ACTION_DEFINITIONS
+    .filter(action => action.compatibleObjectives.includes(category))
+    .map(action => action.id);
 }
 
 const SIMULATION_TENSION_TYPE_OPTIONS: Array<{ value: string; label: string }> = [
@@ -382,6 +735,56 @@ const FIELD_STYLE: React.CSSProperties = editorFieldStyles.control;
 
 const SUBSECTION_STYLE: React.CSSProperties = editorSurfaceStyles.subsection;
 
+const RESPONSIVE_TWO_COLUMN_GRID: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+  gap: 8
+};
+
+const RESPONSIVE_THREE_COLUMN_GRID: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
+  gap: 8
+};
+
+type EditorStepTabOption = {
+  id: string;
+  label: string;
+};
+
+function EditorStepTabs(props: {
+  tabs: EditorStepTabOption[];
+  activeTab: string;
+  onChange: (tabId: string) => void;
+}): React.JSX.Element {
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+      {props.tabs.map(tab => {
+        const active = tab.id === props.activeTab;
+        return (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => props.onChange(tab.id)}
+            style={{
+              padding: "8px 12px",
+              borderRadius: 999,
+              border: active ? "1px solid rgba(143,179,255,0.58)" : "1px solid rgba(124, 142, 168, 0.32)",
+              background: active ? "rgba(79,125,242,0.22)" : "rgba(31, 38, 48, 0.72)",
+              color: active ? "#eef3ff" : "#dce5f2",
+              cursor: "pointer",
+              fontSize: 12,
+              fontWeight: 700
+            }}
+          >
+            {tab.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 const DEFAULT_LABEL_APPEARANCE: MapLabelAppearanceSet = {
   geography: { fontSize: 14, opacity: 0.96, fontFamily: "Georgia, serif", underline: false },
   territory: { fontSize: 22, opacity: 1, fontFamily: "Georgia, serif", underline: false },
@@ -432,12 +835,18 @@ export function WorldMapEditorScreen(props: {
   const [pendingMobileObjectiveId, setPendingMobileObjectiveId] = useState("");
   const [pendingMobileInteractionTag, setPendingMobileInteractionTag] = useState("");
   const [pendingMobileCustomInteractionTag, setPendingMobileCustomInteractionTag] = useState("");
+  const [activeCityEditorTab, setActiveCityEditorTab] = useState<"identity" | "districts" | "references">("identity");
+  const [activeFactionEditorTab, setActiveFactionEditorTab] = useState<"identity" | "territory" | "objectives" | "mobiles">("identity");
+  const [activeCityCreateTab, setActiveCityCreateTab] = useState<"cell" | "identity" | "create">("cell");
+  const [activeFactionCreateTab, setActiveFactionCreateTab] = useState<"identity" | "profile" | "create">("identity");
+  const [activeObjectiveCreateTab, setActiveObjectiveCreateTab] = useState<"identity" | "category" | "create">("identity");
+  const [activeMobileCreateTab, setActiveMobileCreateTab] = useState<"identity" | "profile" | "create">("identity");
   const [pendingObjectiveConsequences, setPendingObjectiveConsequences] = useState<{
-    onSuccess: { type: WorldMapSimulationConsequence["type"]; subtype: string; amount: string; tags: string };
-    onFailure: { type: WorldMapSimulationConsequence["type"]; subtype: string; amount: string; tags: string };
+    onSuccess: { type: WorldMapSimulationConsequence["type"]; subtype: string; amount: string; tags: string[] };
+    onFailure: { type: WorldMapSimulationConsequence["type"]; subtype: string; amount: string; tags: string[] };
   }>({
-    onSuccess: { type: "create_tension", subtype: "criminal", amount: "20", tags: "" },
-    onFailure: { type: "create_tension", subtype: "criminal", amount: "20", tags: "" }
+    onSuccess: { type: "create_tension", subtype: "criminal", amount: "20", tags: [] },
+    onFailure: { type: "create_tension", subtype: "criminal", amount: "20", tags: [] }
   });
   const [territoryPropertiesEditActive, setTerritoryPropertiesEditActive] = useState(false);
   const [territoryPropertyDraft, setTerritoryPropertyDraft] = useState({
@@ -686,6 +1095,25 @@ export function WorldMapEditorScreen(props: {
         .map(action => ({ id: action.id, label: `${action.label} (${action.id})` })),
     [selectedSimulationObjective]
   );
+  const selectedObjectiveActionDefinitions = useMemo(
+    () =>
+      WORLD_ACTION_DEFINITIONS.filter(action => selectedSimulationObjective?.compatibleActionIds.includes(action.id)),
+    [selectedSimulationObjective]
+  );
+  const availableAnchorTypeOptions = useMemo(
+    () =>
+      Array.from(
+        new Set([
+          "safehouse",
+          "temple",
+          "contact",
+          "warehouse",
+          "outpost",
+          ...((selectedSimulationFaction?.localAnchors ?? []).map(anchor => anchor.type).filter(Boolean))
+        ])
+      ),
+    [selectedSimulationFaction]
+  );
   const positionReferenceOptions = useMemo(() => {
     if (!selectedSimulationMobileActor) return [];
     if (selectedSimulationMobileActor.positionKind === "city") {
@@ -869,6 +1297,39 @@ export function WorldMapEditorScreen(props: {
     });
     return Array.from(groups.values());
   }, [selectedObjectiveProjectedEvent]);
+  const selectedObjectiveAssignedMobileRuntime = useMemo(
+    () =>
+      selectedObjectiveLogisticsPlan?.acteurAssigneId
+        ? logisticsPreview.runtimeState.mobileActors[selectedObjectiveLogisticsPlan.acteurAssigneId] ?? null
+        : null,
+    [logisticsPreview.runtimeState.mobileActors, selectedObjectiveLogisticsPlan]
+  );
+  const selectedObjectiveAssignedMobileSummary = useMemo(
+    () =>
+      selectedObjectiveAssignedMobileRuntime
+        ? formatRuntimeMobileProgress(layout, logisticsPreview.runtimeState, selectedObjectiveAssignedMobileRuntime)
+        : null,
+    [layout, logisticsPreview.runtimeState, selectedObjectiveAssignedMobileRuntime]
+  );
+  const selectedObjectiveExecutionPressureEvaluations = useMemo(() => {
+    const executionRef = selectedObjectiveReadiness?.executionTargetRef ?? selectedObjectiveLogisticsPlan?.cibleExecutionRef;
+    if (!executionRef) return [];
+    if (
+      executionRef.kind !== "city" &&
+      executionRef.kind !== "district" &&
+      executionRef.kind !== "route" &&
+      executionRef.kind !== "region"
+    ) {
+      return [];
+    }
+    return logisticsPreview.pressureTrace[executionRef.kind]?.[executionRef.id] ?? [];
+  }, [logisticsPreview.pressureTrace, selectedObjectiveLogisticsPlan?.cibleExecutionRef, selectedObjectiveReadiness?.executionTargetRef]);
+  const selectedObjectiveDominantPressure = useMemo(
+    () =>
+      [...selectedObjectiveExecutionPressureEvaluations]
+        .sort((left, right) => right.clampedValue - left.clampedValue)[0] ?? null,
+    [selectedObjectiveExecutionPressureEvaluations]
+  );
   const nextTickTopDeltaGroups = useMemo(() => {
     const groups = new Map<string, { ref: { kind: string; id: string }; deltas: typeof nextTickPreview.output.deltas }>();
     nextTickPreview.output.deltas.forEach(delta => {
@@ -896,8 +1357,8 @@ export function WorldMapEditorScreen(props: {
     setPendingObjectiveTag("");
     setPendingObjectiveCustomTag("");
     setPendingObjectiveConsequences({
-      onSuccess: { type: "create_tension", subtype: "criminal", amount: "20", tags: "" },
-      onFailure: { type: "create_tension", subtype: "criminal", amount: "20", tags: "" }
+      onSuccess: { type: "create_tension", subtype: "criminal", amount: "20", tags: [] },
+      onFailure: { type: "create_tension", subtype: "criminal", amount: "20", tags: [] }
     });
   }, [selectedSimulationObjectiveId]);
 
@@ -949,6 +1410,39 @@ export function WorldMapEditorScreen(props: {
         : [],
     [layout.simulation?.districts, selectedCity]
   );
+  const selectedCityDerivedOverridesCount = useMemo(
+    () =>
+      selectedCity
+        ? (layout.simulation?.districtOverrides ?? []).filter(override => override.cityId === selectedCity.id).length
+        : 0,
+    [layout.simulation?.districtOverrides, selectedCity]
+  );
+  const selectedCityDistrictMode = selectedCityNativeDistricts.length > 0 ? "natif" : "derive";
+
+  useEffect(() => {
+    setActiveCityEditorTab("identity");
+  }, [selectedCity?.id]);
+
+  useEffect(() => {
+    setActiveFactionEditorTab("identity");
+  }, [selectedSimulationFaction?.id]);
+
+  useEffect(() => {
+    setActiveCityCreateTab("cell");
+  }, [selectedCellKey]);
+
+  useEffect(() => {
+    setActiveFactionCreateTab("identity");
+  }, [selectedSimulationFactionId]);
+
+  useEffect(() => {
+    setActiveObjectiveCreateTab("identity");
+  }, [selectedSimulationObjectiveId, selectedSimulationFactionId]);
+
+  useEffect(() => {
+    setActiveMobileCreateTab("identity");
+  }, [selectedSimulationMobileActorId, selectedSimulationFactionId]);
+
   const simulationZoneOptions = useMemo(() => {
     const options = new Map<string, string>();
     layout.cities.forEach(city => {
@@ -997,7 +1491,8 @@ export function WorldMapEditorScreen(props: {
   );
   const invalidPathSegments = useMemo(() => collectInvalidPathSegments(layout), [layout]);
   const pathIssues = useMemo(() => validateLayoutPathRules(layout), [layout]);
-  const currentLayoutJson = useMemo(() => layoutToJson(layout), [layout]);
+  const persistedLayout = useMemo(() => withEditorPresets(layout, customGeographies, customTags), [customGeographies, customTags, layout]);
+  const currentLayoutJson = useMemo(() => layoutToJson(persistedLayout), [persistedLayout]);
   const isDirty = currentLayoutJson !== lastSavedLayoutJson;
   const canUndo = editorStore.past.length > 0;
   const canRedo = editorStore.future.length > 0;
@@ -1068,6 +1563,75 @@ export function WorldMapEditorScreen(props: {
       </g>
     );
   }, [activeTool, layout, selectedMobileItineraryRoutes]);
+  const selectedMobilePositionRouteHint = useMemo(
+    () => getCellRoutePlacementHint(layout, selectedSimulationMobileActor?.positionKind === "cell" ? selectedSimulationMobileActor.positionCell : undefined),
+    [layout, selectedSimulationMobileActor]
+  );
+  const selectedMobileDestinationRouteHint = useMemo(
+    () => getCellRoutePlacementHint(layout, selectedSimulationMobileActor?.destinationKind === "cell" ? selectedSimulationMobileActor.destinationCell : undefined),
+    [layout, selectedSimulationMobileActor]
+  );
+  const selectedMobileRouteAnchorOverlay = useMemo(() => {
+    if (activeTool !== "simulation" || !selectedSimulationMobileActor) return null;
+    const markers = [
+      {
+        key: "position",
+        cell: selectedSimulationMobileActor.positionKind === "cell" ? selectedSimulationMobileActor.positionCell : undefined,
+        hint: selectedMobilePositionRouteHint,
+        label: "Depart",
+        stroke: "rgba(110, 214, 255, 0.96)",
+        fill: "rgba(8, 20, 33, 0.96)",
+        text: "#eefbff"
+      },
+      {
+        key: "destination",
+        cell: selectedSimulationMobileActor.destinationKind === "cell" ? selectedSimulationMobileActor.destinationCell : undefined,
+        hint: selectedMobileDestinationRouteHint,
+        label: "Arrivee",
+        stroke: "rgba(244, 201, 103, 0.96)",
+        fill: "rgba(24, 18, 7, 0.96)",
+        text: "#fff2c9"
+      }
+    ].filter(entry => entry.cell && entry.hint?.isIntermediate);
+    if (markers.length === 0) return null;
+    return (
+      <g>
+        {markers.map(entry => {
+          const center = getCellCenter(layout, entry.cell!);
+          return (
+            <g key={`mobile-route-anchor-${entry.key}`} transform={`translate(${center.x} ${center.y})`}>
+              <circle r={15} fill={entry.fill} stroke={entry.stroke} strokeWidth={2.4} />
+              <path d="M -6 0 L 0 -6 L 6 0 L 0 6 Z" fill={entry.stroke} opacity={0.9} />
+              <text
+                x={0}
+                y={-20}
+                textAnchor="middle"
+                fill={entry.text}
+                style={{ fontSize: 10, fontWeight: 800, paintOrder: "stroke", stroke: "rgba(8,11,17,0.86)", strokeWidth: 4 }}
+              >
+                {entry.label}
+              </text>
+              <text
+                x={0}
+                y={29}
+                textAnchor="middle"
+                fill={entry.text}
+                style={{ fontSize: 10, fontWeight: 700, paintOrder: "stroke", stroke: "rgba(8,11,17,0.86)", strokeWidth: 4 }}
+              >
+                {entry.hint?.routeLabel}
+              </text>
+            </g>
+          );
+        })}
+      </g>
+    );
+  }, [
+    activeTool,
+    layout,
+    selectedMobileDestinationRouteHint,
+    selectedMobilePositionRouteHint,
+    selectedSimulationMobileActor
+  ]);
   const selectedObjectiveLogisticsOverlay = useMemo(() => {
     if (activeTool !== "simulation" || selectedObjectiveLogisticsRoutes.length === 0) return null;
     return (
@@ -1325,6 +1889,10 @@ export function WorldMapEditorScreen(props: {
     );
   }
 
+  function replaceSelectedObjectiveCompatibleActions(values: string[]) {
+    updateSelectedObjectiveListField("compatibleActionIds", Array.from(new Set(values.map(value => value.trim()).filter(Boolean))));
+  }
+
   function updateSelectedFactionListField(field: "methods" | "objectiveHints" | "tags", values: string[]) {
     if (!selectedSimulationFaction) return;
     dispatch({
@@ -1396,10 +1964,7 @@ export function WorldMapEditorScreen(props: {
     const draft = pendingObjectiveConsequences[field];
     const numericAmount = Number(draft.amount);
     if (!draft.subtype || !Number.isFinite(numericAmount)) return;
-    const tags = draft.tags
-      .split(",")
-      .map(entry => entry.trim())
-      .filter(Boolean);
+    const tags = draft.tags;
     let consequence: WorldMapSimulationConsequence;
     if (draft.type === "create_tension") {
       consequence = {
@@ -1429,7 +1994,7 @@ export function WorldMapEditorScreen(props: {
       [field]: {
         ...current[field],
         amount: current[field].type === "spawn_signal" ? "20" : current[field].amount,
-        tags: ""
+        tags: []
       }
     }));
   }
@@ -1812,8 +2377,8 @@ export function WorldMapEditorScreen(props: {
     return () => window.clearTimeout(timer);
   }, [footprintFeedback]);
   useEffect(() => {
-    updateJsonBuffer(layoutToJson(layout));
-  }, [layout]);
+    updateJsonBuffer(layoutToJson(persistedLayout));
+  }, [persistedLayout]);
 
   function activateTool(toolId: EditorToolId): void {
     if (toolId !== "zones" && zoneEditSession) {
@@ -1994,15 +2559,18 @@ export function WorldMapEditorScreen(props: {
   }
 
   function replaceLayoutState(nextLayout: WorldMapLayout, resetHistory = false): void {
+    const nextLayoutWithPresets = withEditorPresets(nextLayout, customGeographies, customTags);
     dispatch({
       type: "replaceLayout",
       resetHistory,
       nextState: {
-        layout: cloneLayout(nextLayout),
-        layerVisibility: { ...nextLayout.defaultLayers },
-        selectedRouteId: nextLayout.paths[0]?.id ?? "",
+        layout: cloneLayout(nextLayoutWithPresets),
+        layerVisibility: { ...nextLayoutWithPresets.defaultLayers },
+        selectedRouteId: nextLayoutWithPresets.paths[0]?.id ?? "",
         selectedAreaCellKeys: [],
-        jsonBuffer: layoutToJson(nextLayout),
+        customGeographies: [...(nextLayout.editorPresets?.customGeographies ?? [])],
+        customTags: [...(nextLayout.editorPresets?.customTags ?? [])],
+        jsonBuffer: layoutToJson(nextLayoutWithPresets),
         jsonError: null
       }
     });
@@ -2119,7 +2687,7 @@ export function WorldMapEditorScreen(props: {
   }
 
   function downloadJson(): void {
-    const blob = new Blob([jsonBuffer], { type: "application/json" });
+    const blob = new Blob([layoutToJson(persistedLayout)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
@@ -2155,10 +2723,10 @@ export function WorldMapEditorScreen(props: {
         throw new Error(pathIssues[0].message);
       }
       updatePersistenceState("saving");
-      const nextLayout = await saveWorldMapLayout(layout, props.layoutStorageKey);
+      const nextLayout = await saveWorldMapLayout(persistedLayout, props.layoutStorageKey);
       replaceLayoutState(nextLayout, true);
       updateJsonError(null);
-      updateLastSavedLayoutJson(layoutToJson(nextLayout));
+      updateLastSavedLayoutJson(layoutToJson(withEditorPresets(nextLayout, nextLayout.editorPresets?.customGeographies ?? [], nextLayout.editorPresets?.customTags ?? [])));
       updatePersistenceState("saved");
       props.onLayoutSaved(nextLayout, props.layoutStorageKey);
     } catch (error) {
@@ -2196,10 +2764,10 @@ export function WorldMapEditorScreen(props: {
         throw new Error(pathIssues[0].message);
       }
       updatePersistenceState("saving");
-      const nextLayout = await saveWorldMapLayout(layout, nextLayoutKey);
+      const nextLayout = await saveWorldMapLayout(persistedLayout, nextLayoutKey);
       replaceLayoutState(nextLayout, true);
       updateJsonError(null);
-      updateLastSavedLayoutJson(layoutToJson(nextLayout));
+      updateLastSavedLayoutJson(layoutToJson(withEditorPresets(nextLayout, nextLayout.editorPresets?.customGeographies ?? [], nextLayout.editorPresets?.customTags ?? [])));
       updatePersistenceState("saved");
       props.onRefreshLayoutCatalog?.();
       props.onLayoutSaved(nextLayout, nextLayoutKey);
@@ -2621,7 +3189,7 @@ export function WorldMapEditorScreen(props: {
 
         {openPanels.layers && (
           <LayerPanel>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+            <div style={RESPONSIVE_TWO_COLUMN_GRID}>
               {(Object.keys(layerVisibility) as MapLayerId[]).map(layerId => (
                 <label key={layerId} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#dce5f2" }}>
                   <input
@@ -2985,34 +3553,98 @@ export function WorldMapEditorScreen(props: {
                     <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff" }}>Element actif</div>
                     {selectedCity ? (
                       <>
-                        <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
-                          Wiki entity id
-                          <input value={selectedCity.wikiEntityId} onChange={event => updateCityField("wikiEntityId", event.target.value)} style={FIELD_STYLE} />
-                        </label>
-                        <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
-                          Type
-                          <select value={selectedCity.kind} onChange={event => updateCityField("kind", event.target.value)} style={FIELD_STYLE}>
-                            <option value="capital">capital</option>
-                            <option value="secondary">secondary</option>
-                          </select>
-                        </label>
-                        <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
-                          Couleur
-                          <input value={selectedCity.markerColor ?? ""} onChange={event => updateCityField("markerColor", event.target.value)} style={FIELD_STYLE} />
-                        </label>
-                        <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
-                          Population / races
-                          <textarea
-                            value={formatPopulationProfile(selectedCity.populationProfile)}
-                            onChange={event => updateCityField("populationProfile", event.target.value)}
-                            style={{ ...editorFieldStyles.textarea, minHeight: 96 }}
-                            placeholder="humain:70:dominant, nain:20:minority, elfe:10:outsider"
-                          />
-                        </label>
                         <div style={editorTextStyles.helper}>
-                          Format: `groupe:poids[:role]`, separe par des virgules. Exemple: `humain:70:dominant, nain:20:minority`.
+                          Edition ville simplifiee: suis les etapes `Identite`, `Quartiers`, puis `References` au lieu de faire defiler toute la fiche.
                         </div>
-                        <div style={{ display: "grid", gap: 8 }}>
+                        <EditorStepTabs
+                          tabs={[
+                            { id: "identity", label: "Identite" },
+                            { id: "districts", label: "Quartiers" },
+                            { id: "references", label: "References" }
+                          ]}
+                          activeTab={activeCityEditorTab}
+                          onChange={tabId => setActiveCityEditorTab(tabId as "identity" | "districts" | "references")}
+                        />
+                        {activeCityEditorTab === "identity" && (
+                          <>
+                            <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                              Wiki entity id
+                              <input value={selectedCity.wikiEntityId} onChange={event => updateCityField("wikiEntityId", event.target.value)} style={FIELD_STYLE} />
+                            </label>
+                            <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                              Type
+                              <select value={selectedCity.kind} onChange={event => updateCityField("kind", event.target.value)} style={FIELD_STYLE}>
+                                <option value="capital">capital</option>
+                                <option value="secondary">secondary</option>
+                              </select>
+                            </label>
+                            <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                              Couleur
+                              <input value={selectedCity.markerColor ?? ""} onChange={event => updateCityField("markerColor", event.target.value)} style={FIELD_STYLE} />
+                            </label>
+                            <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                              Population / races
+                              <PopulationProfileField
+                                profile={selectedCity.populationProfile}
+                                effectiveProfile={selectedCity.populationProfile}
+                                effectiveSource="ville"
+                                inheritanceHint="Aucun profil explicite defini pour cette ville."
+                                onChange={value => updateCityField("populationProfile", value)}
+                              />
+                            </label>
+                            <div style={{ ...SUBSECTION_STYLE, gap: 6 }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                                <div style={editorTextStyles.sectionTitle}>Mode quartiers simulation</div>
+                                <div style={{ ...editorSurfaceStyles.badge, background: selectedCityDistrictMode === "natif" ? "rgba(114,197,143,0.18)" : "rgba(79,125,242,0.18)" }}>
+                                  {selectedCityDistrictMode === "natif" ? "Mode natif" : "Mode derive"}
+                                </div>
+                              </div>
+                              <div style={{ display: "grid", gap: 8 }}>
+                                <div
+                                  style={{
+                                    ...SUBSECTION_STYLE,
+                                    gap: 6,
+                                    border: selectedCityDistrictMode === "derive" ? "1px solid rgba(79,125,242,0.42)" : "1px solid rgba(196,210,232,0.12)",
+                                    background: selectedCityDistrictMode === "derive" ? "rgba(79,125,242,0.12)" : "rgba(255,255,255,0.03)"
+                                  }}
+                                >
+                                  <div style={{ ...editorTextStyles.sectionTitle, color: selectedCityDistrictMode === "derive" ? "#b7d1ff" : editorTextStyles.sectionTitle.color }}>Mode derive</div>
+                                  <div style={editorTextStyles.helper}>
+                                    La ville utilise les quartiers detectes automatiquement sur la carte. Tu peux seulement les ajuster via des overrides.
+                                  </div>
+                                </div>
+                                <div
+                                  style={{
+                                    ...SUBSECTION_STYLE,
+                                    gap: 6,
+                                    border: selectedCityDistrictMode === "natif" ? "1px solid rgba(114,197,143,0.42)" : "1px solid rgba(196,210,232,0.12)",
+                                    background: selectedCityDistrictMode === "natif" ? "rgba(114,197,143,0.12)" : "rgba(255,255,255,0.03)"
+                                  }}
+                                >
+                                  <div style={{ ...editorTextStyles.sectionTitle, color: selectedCityDistrictMode === "natif" ? "#b9f1c7" : editorTextStyles.sectionTitle.color }}>Mode natif</div>
+                                  <div style={editorTextStyles.helper}>
+                                    La ville utilise ses quartiers definis manuellement. Des qu'au moins un quartier natif existe, ce mode devient prioritaire pour la simulation locale.
+                                  </div>
+                                </div>
+                              </div>
+                              <div style={editorTextStyles.helper}>
+                                Etat actif: {selectedCityDistrictMode === "natif"
+                                  ? `${selectedCityNativeDistricts.length} quartier(s) natif(s) utilisent la definition manuelle`
+                                  : `${selectedCityRuntimeDistricts.length} quartier(s) detecte(s) utilisent la carte`}
+                                {selectedCityDerivedOverridesCount > 0 ? ` · ${selectedCityDerivedOverridesCount} override(s) derive(s) disponibles` : ""}.
+                              </div>
+                              {selectedCityNativeDistricts.length > 0 && selectedCityDerivedOverridesCount > 0 && (
+                                <div style={editorTextStyles.helper}>
+                                  Attention: les overrides derives restent stockes, mais ils deviennent secondaires tant que la ville reste en mode natif.
+                                </div>
+                              )}
+                            </div>
+                          </>
+                        )}
+                        {activeCityEditorTab === "districts" && (
+                          <>
+                            <CollapsibleSection title="Quartiers natifs" defaultOpen={selectedCityNativeDistricts.length > 0}>
+                          <div style={{ display: "grid", gap: 8 }}>
                           <div style={editorTextStyles.sectionTitle}>Quartiers natifs pour la simulation</div>
                           <div style={editorTextStyles.helper}>
                             Un quartier natif est une entite explicite du runtime. Il remplace le derive automatique pour cette ville quand il existe, avec sa propre emprise locale via des cellules.
@@ -3056,35 +3688,39 @@ export function WorldMapEditorScreen(props: {
                                   </label>
                                   <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
                                     Tags
-                                    <input
-                                      value={district.tags.join(", ")}
-                                      onChange={event => dispatch({ type: "updateSimulationDistrictField", districtId: district.id, field: "tags", value: event.target.value })}
-                                      style={FIELD_STYLE}
+                                    <StringListField
+                                      values={district.tags}
+                                      onChange={value => dispatch({ type: "updateSimulationDistrictField", districtId: district.id, field: "tags", value })}
+                                      placeholder="Ajouter un tag"
+                                      emptyHint="Aucun tag defini pour ce quartier natif."
                                     />
                                   </label>
                                   <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
                                     Activites dominantes
-                                    <input
-                                      value={district.dominantActivities.join(", ")}
-                                      onChange={event => dispatch({ type: "updateSimulationDistrictField", districtId: district.id, field: "dominantActivities", value: event.target.value })}
-                                      style={FIELD_STYLE}
+                                    <StringListField
+                                      values={district.dominantActivities}
+                                      onChange={value => dispatch({ type: "updateSimulationDistrictField", districtId: district.id, field: "dominantActivities", value })}
+                                      placeholder="Ajouter une activite"
+                                      emptyHint="Aucune activite dominante definie."
                                     />
                                   </label>
                                   <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
                                     Lieux importants
-                                    <input
-                                      value={district.importantPlaces.join(", ")}
-                                      onChange={event => dispatch({ type: "updateSimulationDistrictField", districtId: district.id, field: "importantPlaces", value: event.target.value })}
-                                      style={FIELD_STYLE}
+                                    <StringListField
+                                      values={district.importantPlaces}
+                                      onChange={value => dispatch({ type: "updateSimulationDistrictField", districtId: district.id, field: "importantPlaces", value })}
+                                      placeholder="Ajouter un lieu"
+                                      emptyHint="Aucun lieu important defini."
                                     />
                                   </label>
                                   <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
                                     Population / races
-                                    <textarea
-                                      value={formatPopulationProfile(district.populationProfile)}
-                                      onChange={event => dispatch({ type: "updateSimulationDistrictField", districtId: district.id, field: "populationProfile", value: event.target.value })}
-                                      style={{ ...editorFieldStyles.textarea, minHeight: 84 }}
-                                      placeholder="Laisse vide pour heriter du profil de la ville"
+                                    <PopulationProfileField
+                                      profile={district.populationProfile}
+                                      effectiveProfile={district.populationProfile ?? selectedCity.populationProfile}
+                                      effectiveSource={district.populationProfile?.groups?.length ? "quartier natif" : "ville"}
+                                      inheritanceHint="Aucun override defini. Le quartier natif herite alors de la ville."
+                                      onChange={value => dispatch({ type: "updateSimulationDistrictField", districtId: district.id, field: "populationProfile", value })}
                                     />
                                   </label>
                                   <div style={{ display: "grid", gap: 4 }}>
@@ -3126,9 +3762,11 @@ export function WorldMapEditorScreen(props: {
                               Aucun quartier natif defini pour cette ville. Dans ce cas, la simulation continue d'utiliser les quartiers derives.
                             </div>
                           )}
-                        </div>
-                        {selectedCityNativeDistricts.length === 0 && selectedCityRuntimeDistricts.length > 0 && (
-                          <div style={{ display: "grid", gap: 8 }}>
+                          </div>
+                        </CollapsibleSection>
+                            {selectedCityNativeDistricts.length === 0 && selectedCityRuntimeDistricts.length > 0 && (
+                              <CollapsibleSection title="Quartiers derives et overrides" defaultOpen={false}>
+                            <div style={{ display: "grid", gap: 8 }}>
                             <div style={editorTextStyles.sectionTitle}>Quartiers derives pour la simulation</div>
                             <div style={editorTextStyles.helper}>
                               Cette ville n'a pas encore de quartiers natifs. La simulation utilise donc les quartiers derives automatiquement depuis la carte, avec les overrides ci-dessous.
@@ -3173,82 +3811,99 @@ export function WorldMapEditorScreen(props: {
                                   </label>
                                   <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
                                     Tags
-                                    <input
-                                      value={(districtOverride?.tags ?? district.tags).join(", ")}
-                                      onChange={event =>
+                                    <StringListField
+                                      values={districtOverride?.tags ?? district.tags}
+                                      onChange={value =>
                                         dispatch({
                                           type: "updateSimulationDistrictOverrideField",
                                           districtId: district.id,
                                           cityId: selectedCity.id,
                                           field: "tags",
-                                          value: event.target.value
+                                          value
                                         })
                                       }
-                                      style={FIELD_STYLE}
+                                      placeholder="Ajouter un tag"
+                                      emptyHint="Aucun tag defini pour ce quartier derive."
                                     />
                                   </label>
                                   <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
                                     Activites dominantes
-                                    <input
-                                      value={(districtOverride?.dominantActivities ?? district.dominantActivities).join(", ")}
-                                      onChange={event =>
+                                    <StringListField
+                                      values={districtOverride?.dominantActivities ?? district.dominantActivities}
+                                      onChange={value =>
                                         dispatch({
                                           type: "updateSimulationDistrictOverrideField",
                                           districtId: district.id,
                                           cityId: selectedCity.id,
                                           field: "dominantActivities",
-                                          value: event.target.value
+                                          value
                                         })
                                       }
-                                      style={FIELD_STYLE}
+                                      placeholder="Ajouter une activite"
+                                      emptyHint="Aucune activite dominante definie pour ce quartier derive."
                                     />
                                   </label>
                                   <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
                                     Lieux importants
-                                    <input
-                                      value={(districtOverride?.importantPlaces ?? district.importantPlaces).join(", ")}
-                                      onChange={event =>
+                                    <StringListField
+                                      values={districtOverride?.importantPlaces ?? district.importantPlaces}
+                                      onChange={value =>
                                         dispatch({
                                           type: "updateSimulationDistrictOverrideField",
                                           districtId: district.id,
                                           cityId: selectedCity.id,
                                           field: "importantPlaces",
-                                          value: event.target.value
+                                          value
                                         })
                                       }
-                                      style={FIELD_STYLE}
+                                      placeholder="Ajouter un lieu"
+                                      emptyHint="Aucun lieu important defini pour ce quartier derive."
                                     />
                                   </label>
                                   <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
                                     Population / races
-                                    <textarea
-                                      value={formatPopulationProfile(districtOverride?.populationProfile ?? district.populationProfile)}
-                                      onChange={event =>
+                                    <PopulationProfileField
+                                      profile={districtOverride?.populationProfile}
+                                      effectiveProfile={district.populationProfile}
+                                      effectiveSource={districtOverride?.populationProfile?.groups?.length ? "override quartier derive" : "quartier derive"}
+                                      inheritanceHint="Aucun override defini. Le quartier derive conserve son profil calcule."
+                                      onChange={value =>
                                         dispatch({
                                           type: "updateSimulationDistrictOverrideField",
                                           districtId: district.id,
                                           cityId: selectedCity.id,
                                           field: "populationProfile",
-                                          value: event.target.value
+                                          value
                                         })
                                       }
-                                      style={{ ...editorFieldStyles.textarea, minHeight: 84 }}
-                                      placeholder="Laisse vide pour heriter du profil de la ville"
                                     />
                                   </label>
-                                  <div style={editorTextStyles.helper}>
-                                    Profil effectif: {formatPopulationProfile(district.populationProfile) || "aucun"}.
-                                  </div>
                                 </div>
                               );
                             })}
-                          </div>
+                            </div>
+                              </CollapsibleSection>
+                            )}
+                          </>
                         )}
-                        {selectedCityWiki && (
-                          <div style={{ fontSize: 12, color: "#dce5f2", lineHeight: 1.45 }}>
-                            <div style={{ fontWeight: 700, marginBottom: 4 }}>{selectedCityWiki.name}</div>
-                            <div>{selectedCityWiki.snippet || "Pas de resume."}</div>
-                          </div>
+                        {activeCityEditorTab === "references" && (
+                          <>
+                            <CollapsibleSection title="Resume lore" defaultOpen={Boolean(selectedCityWiki)}>
+                              <div style={{ fontSize: 12, color: "#dce5f2", lineHeight: 1.45 }}>
+                                <div style={{ fontWeight: 700, marginBottom: 4 }}>{selectedCityWiki?.name ?? "Aucun lien lore"}</div>
+                                <div>{selectedCityWiki?.snippet || "Pas de resume."}</div>
+                              </div>
+                            </CollapsibleSection>
+                            <div style={{ ...SUBSECTION_STYLE, gap: 8 }}>
+                              <div style={editorTextStyles.sectionTitle}>References editoriales</div>
+                              <div style={editorTextStyles.helper}>
+                                Cette etape sert a lier ou comparer la ville editee avec les fiches lore disponibles.
+                              </div>
+                              <div style={editorTextStyles.helper}>
+                                Wiki entity active: {selectedCity.wikiEntityId || "aucune"}
+                              </div>
+                            </div>
+                          </>
                         )}
                       </>
                     ) : (
@@ -3259,7 +3914,61 @@ export function WorldMapEditorScreen(props: {
                   </div>
 
                   <div style={SUBSECTION_STYLE}>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff" }}>Bibliotheque et references</div>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff" }}>Creation rapide ville</div>
+                    <div style={editorTextStyles.helper}>
+                      Creation en 3 etapes: choisis la case, saisis le nom, puis valide le brouillon.
+                    </div>
+                    <EditorStepTabs
+                      tabs={[
+                        { id: "cell", label: "1. Case" },
+                        { id: "identity", label: "2. Nom" },
+                        { id: "create", label: "3. Creation" }
+                      ]}
+                      activeTab={activeCityCreateTab}
+                      onChange={tabId => setActiveCityCreateTab(tabId as "cell" | "identity" | "create")}
+                    />
+                    {activeCityCreateTab === "cell" && (
+                      <div style={{ display: "grid", gap: 8 }}>
+                        <div style={editorTextStyles.helper}>
+                          Case cible: {selectedCellKey ?? "aucune"}
+                        </div>
+                        <div style={editorTextStyles.helper}>
+                          Selectionne d'abord la case de la future ville sur la carte.
+                        </div>
+                      </div>
+                    )}
+                    {activeCityCreateTab === "identity" && (
+                      <div style={{ display: "grid", gap: 8 }}>
+                        <input
+                          value={draftCityName}
+                          placeholder="Nom ou slug de la ville"
+                          onChange={event => updateDraftField("draftCityName", event.target.value)}
+                          style={FIELD_STYLE}
+                        />
+                        <div style={editorTextStyles.helper}>
+                          Id previsible: {slugifyDraft(draftCityName) || "aucun"}
+                        </div>
+                      </div>
+                    )}
+                    {activeCityCreateTab === "create" && (
+                      <div style={{ display: "grid", gap: 8 }}>
+                        <div style={editorTextStyles.helper}>
+                          Resume: {draftCityName.trim() || "Nom manquant"} · case {selectedCellKey ?? "non selectionnee"}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={createDraftCity}
+                          disabled={!slugifyDraft(draftCityName)}
+                          style={{ padding: "9px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)", color: "#eef3ff", cursor: slugifyDraft(draftCityName) ? "pointer" : "not-allowed", fontWeight: 700, opacity: slugifyDraft(draftCityName) ? 1 : 0.55 }}
+                        >
+                          Creer ville brouillon
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <CollapsibleSection title="Bibliotheque et references" defaultOpen={false}>
+                    <div style={{ display: "grid", gap: 8 }}>
                     <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
                       Ville du lore
                       <select value={selectedLoreCityId} onChange={event => updateLoreField("selectedLoreCityId", event.target.value)} style={FIELD_STYLE}>
@@ -3282,26 +3991,8 @@ export function WorldMapEditorScreen(props: {
                         ))}
                       </select>
                     </label>
-                    <CollapsibleSection title="Creer une ville simple">
-                      <input
-                        value={draftCityName}
-                        placeholder="Nom ou slug de la ville"
-                        onChange={event => updateDraftField("draftCityName", event.target.value)}
-                        style={FIELD_STYLE}
-                      />
-                      <div style={{ fontSize: 12, color: "#c9d3e2", lineHeight: 1.45 }}>
-                        Mode simple base sur le schema de `lysenthe` : `territoire`, `region`, `type_ville`, `quartiers`, `batiments_importants`, `factions_presentes`, `liaisons`, `mots_cles`.
-                      </div>
-                      <button
-                        type="button"
-                        onClick={createDraftCity}
-                        disabled={!slugifyDraft(draftCityName)}
-                        style={{ padding: "9px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)", color: "#eef3ff", cursor: slugifyDraft(draftCityName) ? "pointer" : "not-allowed", fontWeight: 700, opacity: slugifyDraft(draftCityName) ? 1 : 0.55 }}
-                      >
-                        Creer ville brouillon
-                      </button>
-                    </CollapsibleSection>
-                  </div>
+                    </div>
+                  </CollapsibleSection>
 
                   <div style={SUBSECTION_STYLE}>
                     <div style={{ fontSize: 12, fontWeight: 800, color: "#8fb3ff" }}>Application a la case active</div>
@@ -4267,7 +4958,10 @@ export function WorldMapEditorScreen(props: {
                   </div>
 
                   <div style={SUBSECTION_STYLE}>
-                    <div style={editorTextStyles.sectionTitle}>Factions</div>
+                    <div style={editorTextStyles.sectionTitle}>Creer / choisir une faction</div>
+                    <div style={editorTextStyles.helper}>
+                      Choisis une faction existante ou passe par un assistant court pour en creer une nouvelle.
+                    </div>
                     <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
                       Faction active
                       <select
@@ -4283,68 +4977,106 @@ export function WorldMapEditorScreen(props: {
                         ))}
                       </select>
                     </label>
-                    <div style={{ display: "grid", gap: 6 }}>
-                      <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                        Id
-                        <input
-                          value={draftSimulationFactionId}
-                          onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationFactionId", value: event.target.value })}
-                          style={FIELD_STYLE}
-                          placeholder="ordre_des_cendres"
-                        />
-                      </label>
-                      <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                        Label
-                        <input
-                          value={draftSimulationFactionLabel}
-                          onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationFactionLabel", value: event.target.value })}
-                          style={FIELD_STYLE}
-                          placeholder="Ordre des Cendres"
-                        />
-                      </label>
-                      <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                        Type
-                        <input
-                          value={draftSimulationFactionType}
-                          onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationFactionType", value: event.target.value })}
-                          style={FIELD_STYLE}
-                          placeholder="milice, culte, guilde..."
-                        />
-                      </label>
-                      <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                        Couleur
-                        <input
-                          value={draftSimulationFactionColor}
-                          onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationFactionColor", value: event.target.value })}
-                          style={FIELD_STYLE}
-                        />
-                      </label>
-                      <button
-                        type="button"
-                        onClick={createSimulationFactionDefinition}
-                        disabled={!(draftSimulationFactionId.trim() || draftSimulationFactionLabel.trim())}
-                        style={{ ...createEditorButtonStyle({ active: true, compact: true }), borderRadius: 8, cursor: draftSimulationFactionId.trim() || draftSimulationFactionLabel.trim() ? "pointer" : "not-allowed", opacity: draftSimulationFactionId.trim() || draftSimulationFactionLabel.trim() ? 1 : 0.6 }}
-                      >
-                        Creer faction
-                      </button>
-                    </div>
+                    <EditorStepTabs
+                      tabs={[
+                        { id: "identity", label: "1. Identite" },
+                        { id: "profile", label: "2. Profil" },
+                        { id: "create", label: "3. Creation" }
+                      ]}
+                      activeTab={activeFactionCreateTab}
+                      onChange={tabId => setActiveFactionCreateTab(tabId as "identity" | "profile" | "create")}
+                    />
+                    {activeFactionCreateTab === "identity" && (
+                      <div style={{ display: "grid", gap: 6 }}>
+                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                          Id
+                          <input
+                            value={draftSimulationFactionId}
+                            onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationFactionId", value: event.target.value })}
+                            style={FIELD_STYLE}
+                            placeholder="ordre_des_cendres"
+                          />
+                        </label>
+                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                          Label
+                          <input
+                            value={draftSimulationFactionLabel}
+                            onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationFactionLabel", value: event.target.value })}
+                            style={FIELD_STYLE}
+                            placeholder="Ordre des Cendres"
+                          />
+                        </label>
+                      </div>
+                    )}
+                    {activeFactionCreateTab === "profile" && (
+                      <div style={{ display: "grid", gap: 6 }}>
+                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                          Type
+                          <input
+                            value={draftSimulationFactionType}
+                            onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationFactionType", value: event.target.value })}
+                            style={FIELD_STYLE}
+                            placeholder="milice, culte, guilde..."
+                          />
+                        </label>
+                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                          Couleur
+                          <input
+                            value={draftSimulationFactionColor}
+                            onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationFactionColor", value: event.target.value })}
+                            style={FIELD_STYLE}
+                          />
+                        </label>
+                      </div>
+                    )}
+                    {activeFactionCreateTab === "create" && (
+                      <div style={{ display: "grid", gap: 8 }}>
+                        <div style={editorTextStyles.helper}>
+                          Resume: {draftSimulationFactionLabel.trim() || draftSimulationFactionId.trim() || "Faction sans nom"} · {draftSimulationFactionType.trim() || "type libre"} · {draftSimulationFactionColor.trim() || "couleur par defaut"}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={createSimulationFactionDefinition}
+                          disabled={!(draftSimulationFactionId.trim() || draftSimulationFactionLabel.trim())}
+                          style={{ ...createEditorButtonStyle({ active: true, compact: true }), borderRadius: 8, cursor: draftSimulationFactionId.trim() || draftSimulationFactionLabel.trim() ? "pointer" : "not-allowed", opacity: draftSimulationFactionId.trim() || draftSimulationFactionLabel.trim() ? 1 : 0.6 }}
+                        >
+                          Creer faction
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {selectedSimulationFaction && (
-                    <div style={SUBSECTION_STYLE}>
-                      <div style={editorTextStyles.sectionTitle}>Vue logistique</div>
-                      <div style={editorTextStyles.helper}>
-                        Previsualisation calculee depuis le layout courant, sans lancer de tick. Cette vue montre ce que le runtime retient deja pour l'objectif principal de la faction selectionnee.
+                    <CollapsibleSection title="Lecture systeme" defaultOpen={false}>
+                      <div style={{ ...SUBSECTION_STYLE, gap: 8 }}>
+                        <div style={editorTextStyles.sectionTitle}>Vue logistique</div>
+                        <div style={editorTextStyles.helper}>
+                          Previsualisation calculee depuis le layout courant, sans lancer de tick. Cette vue montre ce que le runtime retient deja pour l'objectif principal de la faction selectionnee.
+                        </div>
+                        <SimulationLogisticsPanel
+                          runtimeFaction={selectedSimulationFactionRuntime}
+                          logisticsPlan={selectedSimulationFactionLogisticsPlan}
+                        />
                       </div>
-                      <SimulationLogisticsPanel
-                        runtimeFaction={selectedSimulationFactionRuntime}
-                        logisticsPlan={selectedSimulationFactionLogisticsPlan}
-                      />
-                    </div>
+                    </CollapsibleSection>
                   )}
 
                   {selectedSimulationFaction && (
                     <>
+                      <EditorStepTabs
+                        tabs={[
+                          { id: "identity", label: "Identite" },
+                          { id: "territory", label: "Territoire" },
+                          { id: "objectives", label: "Objectifs" },
+                          { id: "mobiles", label: "Mobiles" }
+                        ]}
+                        activeTab={activeFactionEditorTab}
+                        onChange={tabId => setActiveFactionEditorTab(tabId as "identity" | "territory" | "objectives" | "mobiles")}
+                      />
+
+                      {activeFactionEditorTab === "identity" && (
+                        <>
+                      <CollapsibleSection title="Identite et intention" defaultOpen>
                       <div style={SUBSECTION_STYLE}>
                         <div style={editorTextStyles.sectionTitle}>Identite et intention</div>
                         <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
@@ -4380,7 +5112,9 @@ export function WorldMapEditorScreen(props: {
                           />
                         </label>
                       </div>
+                      </CollapsibleSection>
 
+                      <CollapsibleSection title="Profil et listes" defaultOpen={false}>
                       <div style={SUBSECTION_STYLE}>
                         <div style={editorTextStyles.sectionTitle}>Qui, quoi, comment, pourquoi</div>
                         <div style={{ ...SUBSECTION_STYLE, gap: 8 }}>
@@ -4539,22 +5273,26 @@ export function WorldMapEditorScreen(props: {
                         </div>
                         <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
                           Population / races
-                          <textarea
-                            value={formatPopulationProfile(selectedSimulationFaction.populationProfile)}
-                            onChange={event => dispatch({ type: "updateSelectedSimulationFactionField", field: "populationProfile", value: event.target.value })}
-                            style={{ ...editorFieldStyles.textarea, minHeight: 96 }}
-                            placeholder="humain:70:dominant, nain:20:minority"
+                          <PopulationProfileField
+                            profile={selectedSimulationFaction.populationProfile}
+                            effectiveProfile={selectedSimulationFactionEffectivePopulationProfile}
+                            effectiveSource={selectedSimulationFactionPopulationSource}
+                            inheritanceHint="Aucun override defini. La faction peut encore heriter de sa ville d'ancrage."
+                            emptyAddLabel="Ajouter"
+                            onChange={value => dispatch({ type: "updateSelectedSimulationFactionField", field: "populationProfile", value })}
                           />
                         </label>
                         <div style={editorTextStyles.helper}>
                           Laisse vide pour heriter plus tard de la ville d'ancrage quand c'est pertinent.
                         </div>
-                        <div style={editorTextStyles.helper}>
-                          Profil effectif: {formatPopulationProfile(selectedSimulationFactionEffectivePopulationProfile) || "aucun"}.
-                        </div>
-                        <div style={editorTextStyles.helper}>Source effective: {selectedSimulationFactionPopulationSource}.</div>
                       </div>
+                      </CollapsibleSection>
+                        </>
+                      )}
 
+                      {activeFactionEditorTab === "territory" && (
+                        <>
+                      <CollapsibleSection title="Ancrage et zones" defaultOpen={false}>
                       <div style={SUBSECTION_STYLE}>
                         <div style={editorTextStyles.sectionTitle}>Ancrage carte</div>
                         <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
@@ -4693,6 +5431,7 @@ export function WorldMapEditorScreen(props: {
                           );
                         })}
                       </div>
+                      </CollapsibleSection>
 
                       <div style={SUBSECTION_STYLE}>
                         <div style={editorTextStyles.sectionTitle}>Ancrages locaux</div>
@@ -4725,7 +5464,7 @@ export function WorldMapEditorScreen(props: {
                                       Supprimer
                                     </button>
                                   </div>
-                                  <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+                                  <div style={RESPONSIVE_TWO_COLUMN_GRID}>
                                     <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
                                       Label
                                       <input
@@ -4822,11 +5561,12 @@ export function WorldMapEditorScreen(props: {
                                   )}
                                   <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
                                     Tags
-                                    <input
-                                      value={anchor.tags.join(", ")}
-                                      onChange={event => dispatch({ type: "updateSelectedSimulationFactionAnchorField", anchorId: anchor.id, field: "tags", value: event.target.value })}
-                                      style={FIELD_STYLE}
-                                      placeholder="secret, relais, logistique"
+                                    <StringListField
+                                      values={anchor.tags}
+                                      onChange={value => dispatch({ type: "updateSelectedSimulationFactionAnchorField", anchorId: anchor.id, field: "tags", value })}
+                                      placeholder="Ajouter un tag"
+                                      emptyHint="Aucun tag defini pour cet ancrage."
+                                      presetOptions={["secret", "relais", "logistique", "infiltration", "commerce"]}
                                     />
                                   </label>
                                   <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
@@ -4943,7 +5683,7 @@ export function WorldMapEditorScreen(props: {
                                       <option value="war">Guerre</option>
                                     </select>
                                   </label>
-                                  <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+                                  <div style={RESPONSIVE_TWO_COLUMN_GRID}>
                                     <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
                                       Confiance
                                       <input
@@ -4981,6 +5721,8 @@ export function WorldMapEditorScreen(props: {
                           )}
                         </div>
                       </div>
+                        </>
+                      )}
 
                       <button
                         type="button"
@@ -4990,77 +5732,105 @@ export function WorldMapEditorScreen(props: {
                         Supprimer faction
                       </button>
 
-                      <div style={SUBSECTION_STYLE}>
-                        <div style={editorTextStyles.sectionTitle}>Objectifs speciaux</div>
-                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                          Objectif actif
-                          <select
-                            value={selectedSimulationObjectiveId}
-                            onChange={event => dispatch({ type: "setSelectedSimulationObjective", objectiveId: event.target.value })}
-                            style={FIELD_STYLE}
-                          >
-                            <option value="">Choisir un objectif</option>
-                            {simulationObjectives
-                              .filter(objective => objective.ownerFactionId === selectedSimulationFaction.id)
-                              .map(objective => (
-                                <option key={objective.id} value={objective.id}>
-                                  {objective.label}
-                                </option>
-                              ))}
-                          </select>
-                        </label>
-                        <div style={{ display: "grid", gap: 6 }}>
+                      {activeFactionEditorTab === "objectives" && (
+                      <CollapsibleSection title="Objectifs" defaultOpen>
+                        <div style={SUBSECTION_STYLE}>
+                          <div style={editorTextStyles.helper}>
+                            Choisis un objectif existant ou passe par un assistant court pour en creer un nouveau.
+                          </div>
                           <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                            Id
-                            <input
-                              value={draftSimulationObjectiveId}
-                              onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationObjectiveId", value: event.target.value })}
-                              style={FIELD_STYLE}
-                              placeholder="retrouver_relique"
-                            />
-                          </label>
-                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                            Label
-                            <input
-                              value={draftSimulationObjectiveLabel}
-                              onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationObjectiveLabel", value: event.target.value })}
-                              style={FIELD_STYLE}
-                              placeholder="Retrouver la relique"
-                            />
-                          </label>
-                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                            Categorie
+                            Objectif actif
                             <select
-                              value={draftSimulationObjectiveCategory}
-                              onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationObjectiveCategory", value: event.target.value as SimulationObjectiveCategory })}
+                              value={selectedSimulationObjectiveId}
+                              onChange={event => dispatch({ type: "setSelectedSimulationObjective", objectiveId: event.target.value })}
                               style={FIELD_STYLE}
                             >
-                              <option value="search_object">Recherche d'objet</option>
-                              <option value="take_control_place">Prise de controle</option>
-                              <option value="weaken_rival">Affaiblir un rival</option>
-                              <option value="extend_influence">Etendre l'influence</option>
-                              <option value="protect_secret">Proteger un secret</option>
-                              <option value="recruit_agents">Recruter</option>
-                              <option value="acquire_resource">Acquerir une ressource</option>
-                              <option value="open_route">Ouvrir une route</option>
-                              <option value="eliminate_threat">Eliminer une menace</option>
-                              <option value="recover_person">Recuperer une personne</option>
+                              <option value="">Choisir un objectif</option>
+                              {simulationObjectives
+                                .filter(objective => objective.ownerFactionId === selectedSimulationFaction.id)
+                                .map(objective => (
+                                  <option key={objective.id} value={objective.id}>
+                                    {objective.label}
+                                  </option>
+                                ))}
                             </select>
                           </label>
-                          <button
-                            type="button"
-                            onClick={createSimulationObjectiveDefinition}
-                            disabled={!(draftSimulationObjectiveId.trim() || draftSimulationObjectiveLabel.trim())}
-                            style={{ ...createEditorButtonStyle({ active: true, compact: true }), borderRadius: 8, cursor: draftSimulationObjectiveId.trim() || draftSimulationObjectiveLabel.trim() ? "pointer" : "not-allowed", opacity: draftSimulationObjectiveId.trim() || draftSimulationObjectiveLabel.trim() ? 1 : 0.6 }}
-                          >
-                            Creer objectif
-                          </button>
+                          <EditorStepTabs
+                            tabs={[
+                              { id: "identity", label: "1. Identite" },
+                              { id: "category", label: "2. Categorie" },
+                              { id: "create", label: "3. Creation" }
+                            ]}
+                            activeTab={activeObjectiveCreateTab}
+                            onChange={tabId => setActiveObjectiveCreateTab(tabId as "identity" | "category" | "create")}
+                          />
+                          {activeObjectiveCreateTab === "identity" && (
+                            <div style={{ display: "grid", gap: 6 }}>
+                              <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                Id
+                                <input
+                                  value={draftSimulationObjectiveId}
+                                  onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationObjectiveId", value: event.target.value })}
+                                  style={FIELD_STYLE}
+                                  placeholder="retrouver_relique"
+                                />
+                              </label>
+                              <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                Label
+                                <input
+                                  value={draftSimulationObjectiveLabel}
+                                  onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationObjectiveLabel", value: event.target.value })}
+                                  style={FIELD_STYLE}
+                                  placeholder="Retrouver la relique"
+                                />
+                              </label>
+                            </div>
+                          )}
+                          {activeObjectiveCreateTab === "category" && (
+                            <div style={{ display: "grid", gap: 6 }}>
+                              <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                Categorie
+                                <select
+                                  value={draftSimulationObjectiveCategory}
+                                  onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationObjectiveCategory", value: event.target.value as SimulationObjectiveCategory })}
+                                  style={FIELD_STYLE}
+                                >
+                                  <option value="search_object">Recherche d'objet</option>
+                                  <option value="take_control_place">Prise de controle</option>
+                                  <option value="weaken_rival">Affaiblir un rival</option>
+                                  <option value="extend_influence">Etendre l'influence</option>
+                                  <option value="protect_secret">Proteger un secret</option>
+                                  <option value="recruit_agents">Recruter</option>
+                                  <option value="acquire_resource">Acquerir une ressource</option>
+                                  <option value="open_route">Ouvrir une route</option>
+                                  <option value="eliminate_threat">Eliminer une menace</option>
+                                  <option value="recover_person">Recuperer une personne</option>
+                                </select>
+                              </label>
+                            </div>
+                          )}
+                          {activeObjectiveCreateTab === "create" && (
+                            <div style={{ display: "grid", gap: 8 }}>
+                              <div style={editorTextStyles.helper}>
+                                Resume: {draftSimulationObjectiveLabel.trim() || draftSimulationObjectiveId.trim() || "Objectif sans nom"} · {draftSimulationObjectiveCategory}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={createSimulationObjectiveDefinition}
+                                disabled={!(draftSimulationObjectiveId.trim() || draftSimulationObjectiveLabel.trim())}
+                                style={{ ...createEditorButtonStyle({ active: true, compact: true }), borderRadius: 8, cursor: draftSimulationObjectiveId.trim() || draftSimulationObjectiveLabel.trim() ? "pointer" : "not-allowed", opacity: draftSimulationObjectiveId.trim() || draftSimulationObjectiveLabel.trim() ? 1 : 0.6 }}
+                              >
+                                Creer objectif
+                              </button>
+                            </div>
+                          )}
                         </div>
-                      </div>
+                      </CollapsibleSection>
+                      )}
 
-                      {selectedSimulationObjective && selectedSimulationObjective.ownerFactionId === selectedSimulationFaction.id && (
-                        <div style={SUBSECTION_STYLE}>
-                          <div style={editorTextStyles.sectionTitle}>Objectif selectionne</div>
+                      {activeFactionEditorTab === "objectives" && selectedSimulationObjective && selectedSimulationObjective.ownerFactionId === selectedSimulationFaction.id && (
+                        <CollapsibleSection title="Objectif selectionne" defaultOpen={false}>
+                          <div style={SUBSECTION_STYLE}>
                           <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
                             Nom
                             <input
@@ -5104,7 +5874,7 @@ export function WorldMapEditorScreen(props: {
                               <option value="recover_person">Recuperer une personne</option>
                             </select>
                           </label>
-                          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+                          <div style={RESPONSIVE_TWO_COLUMN_GRID}>
                             <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
                               Etat
                               <select
@@ -5300,12 +6070,18 @@ export function WorldMapEditorScreen(props: {
                           </label>
                           <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
                             Type d'ancrage requis
-                            <input
+                            <select
                               value={selectedSimulationObjective.requiredAnchorType ?? ""}
                               onChange={event => dispatch({ type: "updateSelectedSimulationObjectiveField", field: "requiredAnchorType", value: event.target.value })}
                               style={FIELD_STYLE}
-                              placeholder="safehouse, temple, outpost"
-                            />
+                            >
+                              <option value="">Aucun type specifique</option>
+                              {availableAnchorTypeOptions.map(anchorType => (
+                                <option key={anchorType} value={anchorType}>
+                                  {anchorType}
+                                </option>
+                              ))}
+                            </select>
                           </label>
                           <div style={editorTextStyles.helper}>
                             Tu peux demander soit un ancrage precis, soit un type d'ancrage. Les deux servent de contrainte locale pour l'objectif.
@@ -5381,6 +6157,25 @@ export function WorldMapEditorScreen(props: {
                           </div>
                           <div style={{ ...SUBSECTION_STYLE, gap: 8 }}>
                             <div style={editorTextStyles.sectionTitle}>Actions compatibles</div>
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                              <button
+                                type="button"
+                                onClick={() => replaceSelectedObjectiveCompatibleActions(getSuggestedActionIdsForObjectiveCategory(selectedSimulationObjective.category))}
+                                style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}
+                              >
+                                Restaurer recommandations de categorie
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => replaceSelectedObjectiveCompatibleActions([])}
+                                style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}
+                              >
+                                Vider la liste
+                              </button>
+                            </div>
+                            <div style={editorTextStyles.helper}>
+                              Le moteur n'executera maintenant que les actions declarees ici et compatibles avec la categorie de l'objectif.
+                            </div>
                             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                               {selectedSimulationObjective.compatibleActionIds.length > 0 ? (
                                 selectedSimulationObjective.compatibleActionIds.map(actionId => (
@@ -5457,6 +6252,40 @@ export function WorldMapEditorScreen(props: {
                                 Ajouter manuel
                               </button>
                             </div>
+                            {selectedObjectiveActionDefinitions.length > 0 && (
+                              <div style={{ display: "grid", gap: 8 }}>
+                                <div style={editorTextStyles.helper}>
+                                  Lecture rapide: les fiches ci-dessous reprennent conditions, effets et diffusion des actions actuellement autorisees pour cet objectif.
+                                </div>
+                                {selectedObjectiveActionDefinitions.map(action => (
+                                  <div key={`action-card:${action.id}`} style={{ ...SUBSECTION_STYLE, gap: 6 }}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                                      <div style={{ fontSize: 12, fontWeight: 700, color: "#dce5f2" }}>
+                                        {action.label} · {action.id}
+                                      </div>
+                                      <div style={editorTextStyles.helper}>
+                                        Priorite {action.basePriority} · Cooldown {action.cooldown}
+                                      </div>
+                                    </div>
+                                    <div style={editorTextStyles.helper}>
+                                      Cibles: {action.targetKinds.join(", ")} · Acteurs: {action.actorKinds.join(", ")}
+                                    </div>
+                                    <div style={editorTextStyles.helper}>
+                                      Conditions: {action.preconditions.length > 0 ? action.preconditions.map(formatActionConditionSummary).join(" ; ") : "aucune"}
+                                    </div>
+                                    <div style={editorTextStyles.helper}>
+                                      Succes: {action.successEffects.length > 0 ? action.successEffects.map(formatActionDeltaSummary).join(" ; ") : "aucun effet"}
+                                    </div>
+                                    <div style={editorTextStyles.helper}>
+                                      Echec: {action.failureEffects.length > 0 ? action.failureEffects.map(formatActionDeltaSummary).join(" ; ") : "aucun effet"}
+                                    </div>
+                                    <div style={editorTextStyles.helper}>
+                                      Diffusion: signal {action.diffusion.signalKind} ({action.diffusion.signalIntensity}) · rumeurs {action.diffusion.rumorTags.join(", ") || "aucune"}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                           {(["onSuccess", "onFailure"] as const).map(field => {
                             const draft = pendingObjectiveConsequences[field];
@@ -5469,6 +6298,7 @@ export function WorldMapEditorScreen(props: {
                             const numericLabel =
                               draft.type === "create_tension" ? "Severite" : draft.type === "open_opportunity" ? "Score" : "Intensite";
                             const consequences = selectedSimulationObjective[field] ?? [];
+                            const consequencePresets = getObjectiveConsequencePresets(selectedSimulationObjective.category, field);
                             return (
                               <div key={field} style={{ ...SUBSECTION_STYLE, gap: 8 }}>
                                 <div style={editorTextStyles.sectionTitle}>
@@ -5507,7 +6337,24 @@ export function WorldMapEditorScreen(props: {
                                     <div style={editorTextStyles.helper}>Aucune consequence definie.</div>
                                   )}
                                 </div>
-                                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                  {consequencePresets.map(preset => (
+                                    <button
+                                      key={`${field}:${preset.label}`}
+                                      type="button"
+                                      onClick={() =>
+                                        setPendingObjectiveConsequences(current => ({
+                                          ...current,
+                                          [field]: { ...preset.draft }
+                                        }))
+                                      }
+                                      style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 999 }}
+                                    >
+                                      Preset: {preset.label}
+                                    </button>
+                                  ))}
+                                </div>
+                                <div style={RESPONSIVE_TWO_COLUMN_GRID}>
                                   <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
                                     Type
                                     <select
@@ -5573,16 +6420,17 @@ export function WorldMapEditorScreen(props: {
                                   </label>
                                   <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
                                     Tags
-                                    <input
-                                      value={draft.tags}
-                                      onChange={event =>
+                                    <StringListField
+                                      values={draft.tags}
+                                      onChange={value =>
                                         setPendingObjectiveConsequences(current => ({
                                           ...current,
-                                          [field]: { ...current[field], tags: event.target.value }
+                                          [field]: { ...current[field], tags: parseStringListInput(value) }
                                         }))
                                       }
-                                      style={FIELD_STYLE}
-                                      placeholder="elite, crise, rumeur"
+                                      placeholder="Ajouter un tag"
+                                      emptyHint="Aucun tag sur cette consequence."
+                                      presetOptions={["elite", "crise", "rumeur", "alerte", "discret"]}
                                     />
                                   </label>
                                 </div>
@@ -5688,6 +6536,65 @@ export function WorldMapEditorScreen(props: {
                               <div>Ancrage resolu: {selectedObjectiveReadiness?.matchedAnchorId ? `${selectedObjectiveReadiness.matchedAnchorId} (${selectedObjectiveReadiness.matchedAnchorType ?? "type inconnu"})` : "aucun"}</div>
                               <div>Zones liees: {selectedSimulationObjective.zoneIds.length > 0 ? selectedSimulationObjective.zoneIds.join(", ") : "aucune"}</div>
                               <div>Projection logistique: {selectedObjectiveLogisticsPlan ? (selectedObjectiveLogisticsPlan.faisable ? "faisable" : "bloquee") : "aucun plan retenu"}</div>
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
+                              <div style={getProjectionCardStyle(selectedObjectiveReadiness?.ready ? "success" : "warning")}>
+                                <div style={getProjectionSectionTitleStyle()}>Diagnostic prerequis</div>
+                                <div>{selectedObjectiveReadiness?.ready ? "Objectif pret a etre projete" : "Blocage local avant projection"}</div>
+                                <div style={editorTextStyles.helper}>
+                                  {selectedObjectiveReadiness?.reasons.length
+                                    ? selectedObjectiveReadiness.reasons.join(" | ")
+                                    : "Aucun prerequis manquant detecte."}
+                                </div>
+                              </div>
+                              <div style={getProjectionCardStyle(selectedObjectiveLogisticsPlan?.faisable ? "success" : "warning")}>
+                                <div style={getProjectionSectionTitleStyle()}>Diagnostic projection</div>
+                                <div>
+                                  {selectedObjectiveLogisticsPlan
+                                    ? selectedObjectiveLogisticsPlan.faisable
+                                      ? "La faction sait projeter cet objectif"
+                                      : "La faction ne sait pas encore projeter cet objectif"
+                                    : "Aucun plan logistique retenu"}
+                                </div>
+                                <div style={editorTextStyles.helper}>
+                                  {selectedObjectiveLogisticsPlan?.modeRetenu
+                                    ? `Mode ${selectedObjectiveLogisticsPlan.modeRetenu} · ${selectedObjectiveLogisticsPlan.ticksEstimes ?? "n/a"} tick(s) · risque ${selectedObjectiveLogisticsPlan.scoreRisque ?? "n/a"}`
+                                    : "Pas de mode de projection retenu."}
+                                </div>
+                              </div>
+                              <div style={getProjectionCardStyle(selectedObjectiveDominantPressure ? "accent" : "default")}>
+                                <div style={getProjectionSectionTitleStyle()}>Pression dominante a la cible</div>
+                                {selectedObjectiveDominantPressure ? (
+                                  <>
+                                    <div>
+                                      {selectedObjectiveDominantPressure.pressureType} · score {Math.round(selectedObjectiveDominantPressure.clampedValue)}
+                                    </div>
+                                    <div style={editorTextStyles.helper}>
+                                      Cause principale: {selectedObjectiveDominantPressure.terms[0]?.source ?? "non detaillee"}
+                                    </div>
+                                  </>
+                                ) : (
+                                  <div style={editorTextStyles.helper}>Aucune pression dominante exploitable sur la cible d'execution.</div>
+                                )}
+                              </div>
+                              <div style={getProjectionCardStyle(selectedObjectiveAssignedMobileRuntime ? "accent" : "default")}>
+                                <div style={getProjectionSectionTitleStyle()}>Mobile engage</div>
+                                {selectedObjectiveAssignedMobileRuntime ? (
+                                  <>
+                                    <div>{selectedObjectiveAssignedMobileRuntime.id}</div>
+                                    <div style={editorTextStyles.helper}>
+                                      {selectedObjectiveAssignedMobileSummary?.routeLabel
+                                        ? `${selectedObjectiveAssignedMobileSummary.routeLabel} · ${selectedObjectiveAssignedMobileSummary.progressLabel}`
+                                        : "Mobile hors route pour l'instant."}
+                                    </div>
+                                    <div style={editorTextStyles.helper}>
+                                      {selectedObjectiveAssignedMobileSummary?.stopLabel ?? `Cap vers ${selectedObjectiveAssignedMobileSummary?.targetLabel ?? "aucune cible"}`}
+                                    </div>
+                                  </>
+                                ) : (
+                                  <div style={editorTextStyles.helper}>Aucun mobile assigne a cette projection.</div>
+                                )}
+                              </div>
                             </div>
                             {selectedObjectiveReadiness && selectedObjectiveReadiness.reasons.length > 0 ? (
                               <div
@@ -5947,78 +6854,107 @@ export function WorldMapEditorScreen(props: {
                           >
                             Supprimer objectif
                           </button>
-                        </div>
+                          </div>
+                        </CollapsibleSection>
                       )}
 
-                      <div style={SUBSECTION_STYLE}>
-                        <div style={editorTextStyles.sectionTitle}>Acteurs mobiles</div>
-                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                          Acteur mobile actif
-                          <select
-                            value={selectedSimulationMobileActorId}
-                            onChange={event => dispatch({ type: "setSelectedSimulationMobileActor", actorId: event.target.value })}
-                            style={FIELD_STYLE}
-                          >
-                            <option value="">Choisir un acteur</option>
-                            {simulationMobileActors
-                              .filter(actor => !actor.ownerFactionId || actor.ownerFactionId === selectedSimulationFaction.id)
-                              .map(actor => (
-                                <option key={actor.id} value={actor.id}>
-                                  {actor.label}
-                                </option>
-                              ))}
-                          </select>
-                        </label>
-                        <div style={{ display: "grid", gap: 6 }}>
-                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                            Id
-                            <input
-                              value={draftSimulationMobileActorId}
-                              onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationMobileActorId", value: event.target.value })}
-                              style={FIELD_STYLE}
-                              placeholder="caravane_du_sud"
-                            />
-                          </label>
-                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                            Label
-                            <input
-                              value={draftSimulationMobileActorLabel}
-                              onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationMobileActorLabel", value: event.target.value })}
-                              style={FIELD_STYLE}
-                              placeholder="Caravane du Sud"
-                            />
-                          </label>
-                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                            Type
-                            <input
-                              value={draftSimulationMobileActorType}
-                              onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationMobileActorType", value: event.target.value })}
-                              style={FIELD_STYLE}
-                              placeholder="caravan, army, pilgrims"
-                            />
-                          </label>
-                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                            Couleur
-                            <input
-                              value={draftSimulationMobileActorColor}
-                              onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationMobileActorColor", value: event.target.value })}
-                              style={FIELD_STYLE}
-                            />
-                          </label>
-                          <button
-                            type="button"
-                            onClick={createSimulationMobileActorDefinition}
-                            disabled={!(draftSimulationMobileActorId.trim() || draftSimulationMobileActorLabel.trim())}
-                            style={{ ...createEditorButtonStyle({ active: true, compact: true }), borderRadius: 8, cursor: draftSimulationMobileActorId.trim() || draftSimulationMobileActorLabel.trim() ? "pointer" : "not-allowed", opacity: draftSimulationMobileActorId.trim() || draftSimulationMobileActorLabel.trim() ? 1 : 0.6 }}
-                          >
-                            Creer acteur mobile
-                          </button>
-                        </div>
-                      </div>
-
-                      {selectedSimulationMobileActor && (!selectedSimulationMobileActor.ownerFactionId || selectedSimulationMobileActor.ownerFactionId === selectedSimulationFaction.id) && (
+                      {activeFactionEditorTab === "mobiles" && (
+                      <CollapsibleSection title="Mobiles" defaultOpen={false}>
                         <div style={SUBSECTION_STYLE}>
-                          <div style={editorTextStyles.sectionTitle}>Acteur mobile selectionne</div>
+                          <div style={editorTextStyles.helper}>
+                            Choisis un mobile existant ou passe par un assistant court pour en creer un nouveau.
+                          </div>
+                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                            Acteur mobile actif
+                            <select
+                              value={selectedSimulationMobileActorId}
+                              onChange={event => dispatch({ type: "setSelectedSimulationMobileActor", actorId: event.target.value })}
+                              style={FIELD_STYLE}
+                            >
+                              <option value="">Choisir un acteur</option>
+                              {simulationMobileActors
+                                .filter(actor => !actor.ownerFactionId || actor.ownerFactionId === selectedSimulationFaction.id)
+                                .map(actor => (
+                                  <option key={actor.id} value={actor.id}>
+                                    {actor.label}
+                                  </option>
+                                ))}
+                            </select>
+                          </label>
+                          <EditorStepTabs
+                            tabs={[
+                              { id: "identity", label: "1. Identite" },
+                              { id: "profile", label: "2. Profil" },
+                              { id: "create", label: "3. Creation" }
+                            ]}
+                            activeTab={activeMobileCreateTab}
+                            onChange={tabId => setActiveMobileCreateTab(tabId as "identity" | "profile" | "create")}
+                          />
+                          {activeMobileCreateTab === "identity" && (
+                            <div style={{ display: "grid", gap: 6 }}>
+                              <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                Id
+                                <input
+                                  value={draftSimulationMobileActorId}
+                                  onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationMobileActorId", value: event.target.value })}
+                                  style={FIELD_STYLE}
+                                  placeholder="caravane_du_sud"
+                                />
+                              </label>
+                              <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                Label
+                                <input
+                                  value={draftSimulationMobileActorLabel}
+                                  onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationMobileActorLabel", value: event.target.value })}
+                                  style={FIELD_STYLE}
+                                  placeholder="Caravane du Sud"
+                                />
+                              </label>
+                            </div>
+                          )}
+                          {activeMobileCreateTab === "profile" && (
+                            <div style={{ display: "grid", gap: 6 }}>
+                              <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                Type
+                                <input
+                                  value={draftSimulationMobileActorType}
+                                  onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationMobileActorType", value: event.target.value })}
+                                  style={FIELD_STYLE}
+                                  placeholder="caravan, army, pilgrims"
+                                />
+                              </label>
+                              <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                Couleur
+                                <input
+                                  value={draftSimulationMobileActorColor}
+                                  onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationMobileActorColor", value: event.target.value })}
+                                  style={FIELD_STYLE}
+                                />
+                              </label>
+                            </div>
+                          )}
+                          {activeMobileCreateTab === "create" && (
+                            <div style={{ display: "grid", gap: 8 }}>
+                              <div style={editorTextStyles.helper}>
+                                Resume: {draftSimulationMobileActorLabel.trim() || draftSimulationMobileActorId.trim() || "Mobile sans nom"} · {draftSimulationMobileActorType.trim() || "type libre"} · {draftSimulationMobileActorColor.trim() || "couleur par defaut"}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={createSimulationMobileActorDefinition}
+                                disabled={!(draftSimulationMobileActorId.trim() || draftSimulationMobileActorLabel.trim())}
+                                style={{ ...createEditorButtonStyle({ active: true, compact: true }), borderRadius: 8, cursor: draftSimulationMobileActorId.trim() || draftSimulationMobileActorLabel.trim() ? "pointer" : "not-allowed", opacity: draftSimulationMobileActorId.trim() || draftSimulationMobileActorLabel.trim() ? 1 : 0.6 }}
+                              >
+                                Creer acteur mobile
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </CollapsibleSection>
+                      )}
+
+                      {activeFactionEditorTab === "mobiles" && selectedSimulationMobileActor && (!selectedSimulationMobileActor.ownerFactionId || selectedSimulationMobileActor.ownerFactionId === selectedSimulationFaction.id) && (
+                        <CollapsibleSection title="Mobile selectionne" defaultOpen={false}>
+                          <div style={SUBSECTION_STYLE}>
                           <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
                             Nom
                             <input
@@ -6050,7 +6986,7 @@ export function WorldMapEditorScreen(props: {
                               ))}
                             </select>
                           </label>
-                          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+                          <div style={RESPONSIVE_TWO_COLUMN_GRID}>
                             <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
                               Position
                               <select
@@ -6067,6 +7003,13 @@ export function WorldMapEditorScreen(props: {
                             {selectedSimulationMobileActor.positionKind === "cell" ? (
                               <div style={{ display: "grid", gap: 6 }}>
                                 <div style={editorTextStyles.helper}>Cellule de position: {getCellLabel(selectedSimulationMobileActor.positionCell)}</div>
+                                {selectedMobilePositionRouteHint ? (
+                                  <div style={editorTextStyles.helper}>
+                                    {selectedMobilePositionRouteHint.isIntermediate
+                                      ? `Cette cellule place le mobile sur le troncon ${selectedMobilePositionRouteHint.routeLabel}, a l'interieur de la route.`
+                                      : `Cette cellule tombe sur le point d'ancrage de la route ${selectedMobilePositionRouteHint.routeLabel}.`}
+                                  </div>
+                                ) : null}
                                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                                   <button
                                     type="button"
@@ -6119,6 +7062,13 @@ export function WorldMapEditorScreen(props: {
                             {selectedSimulationMobileActor.destinationKind === "cell" ? (
                               <div style={{ display: "grid", gap: 6 }}>
                                 <div style={editorTextStyles.helper}>Cellule de destination: {getCellLabel(selectedSimulationMobileActor.destinationCell)}</div>
+                                {selectedMobileDestinationRouteHint ? (
+                                  <div style={editorTextStyles.helper}>
+                                    {selectedMobileDestinationRouteHint.isIntermediate
+                                      ? `Cette destination arretera le mobile a l'interieur du troncon ${selectedMobileDestinationRouteHint.routeLabel}.`
+                                      : `Cette cellule de destination correspond au point d'ancrage de la route ${selectedMobileDestinationRouteHint.routeLabel}.`}
+                                  </div>
+                                ) : null}
                                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                                   <button
                                     type="button"
@@ -6264,7 +7214,7 @@ export function WorldMapEditorScreen(props: {
                               Vider itineraire
                             </button>
                           </div>
-                          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+                          <div style={RESPONSIVE_TWO_COLUMN_GRID}>
                             <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
                               Deplacement
                               <select
@@ -6400,21 +7350,19 @@ export function WorldMapEditorScreen(props: {
                           </div>
                           <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
                             Population / races
-                            <textarea
-                              value={formatPopulationProfile(selectedSimulationMobileActor.populationProfile)}
-                              onChange={event => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "populationProfile", value: event.target.value })}
-                              style={{ ...editorFieldStyles.textarea, minHeight: 96 }}
-                              placeholder="Laisse vide pour heriter de la faction, ou definis un override: humain:60:dominant, elfe:40:elite"
+                            <PopulationProfileField
+                              profile={selectedSimulationMobileActor.populationProfile}
+                              effectiveProfile={selectedSimulationMobileActorRuntime?.populationProfile}
+                              effectiveSource={selectedSimulationMobilePopulationSource}
+                              inheritanceHint="Aucun override defini. Le mobile herite alors de la faction porteuse ou de la ville."
+                              emptyAddLabel="Ajouter"
+                              onChange={value => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "populationProfile", value })}
                             />
                           </label>
                           <div style={editorTextStyles.helper}>
                             Si ce champ est vide, le runtime herite du profil de la faction porteuse quand il existe.
                           </div>
-                          <div style={editorTextStyles.helper}>
-                            Profil effectif: {formatPopulationProfile(selectedSimulationMobileActorRuntime?.populationProfile) || "aucun"}.
-                          </div>
-                          <div style={editorTextStyles.helper}>Source effective: {selectedSimulationMobilePopulationSource}.</div>
-                          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
+                          <div style={RESPONSIVE_THREE_COLUMN_GRID}>
                             {([
                               ["speed", "Vitesse"],
                               ["security", "Securite"],
@@ -6443,7 +7391,8 @@ export function WorldMapEditorScreen(props: {
                           >
                             Supprimer acteur mobile
                           </button>
-                        </div>
+                          </div>
+                        </CollapsibleSection>
                       )}
                     </>
                   )}
@@ -6470,7 +7419,7 @@ export function WorldMapEditorScreen(props: {
               <button type="button" onClick={applyJson} style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}>
                 Appliquer JSON
               </button>
-              <button type="button" onClick={() => updateJsonBuffer(layoutToJson(layout))} style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}>
+              <button type="button" onClick={() => updateJsonBuffer(layoutToJson(persistedLayout))} style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}>
                 Regenerer JSON
               </button>
               <button type="button" onClick={downloadJson} style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}>
@@ -6566,6 +7515,7 @@ export function WorldMapEditorScreen(props: {
           <>
             {invalidPathOverlay}
             {selectedMobileItineraryOverlay}
+            {selectedMobileRouteAnchorOverlay}
             {selectedObjectiveLogisticsOverlay}
           </>
         }

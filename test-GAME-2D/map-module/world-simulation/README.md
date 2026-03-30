@@ -1,6 +1,6 @@
 # World Simulation
 
-Sous-module de simulation du monde rattaché au `map-module`, mais isolé de l'UI d'édition et de visualisation.
+Sous-module de simulation du monde rattaché au `map-module` et deja branche aux ecrans d'edition et de simulation.
 
 ## Objectif
 
@@ -16,7 +16,7 @@ Fournir un runtime monde :
 - `definitions.ts` : définitions MVP des pressions et de la bibliothèque d'actions.
 - `engine.ts` : pipeline de tick monde et injection contrôlée de candidats.
 - `mapAdapter.ts` : adaptation depuis `worldMapLayout`, génération d'un `WorldState` et overrides.
-- `exampleScenario.ts` : scénario concret avec 1 ville, 2 quartiers, 2 factions, 1 route, 1 mobile, 1 objectif spécial.
+- `exampleScenario.ts` : scénario concret avec 1 ville, 2 quartiers, plusieurs factions, 1 route, 1 mobile, plusieurs objectifs spéciaux.
 - `currentMapDemo.ts` : démonstration branchée sur la carte actuellement éditée.
 
 ## Pipeline MVP
@@ -33,8 +33,11 @@ Fournir un runtime monde :
 
 ## Notes d'intégration
 
-- Ce sous-module n'est pas encore branché à l'éditeur ou au viewer.
 - L'adaptateur carte dérive villes, quartiers, routes et régions à partir des cellules, tags, routes et zones.
+- Mode quartier formalise :
+  - par defaut, une ville fonctionne en `quartiers derives + overrides` ;
+  - si au moins un quartier natif est defini pour une ville, la simulation locale de cette ville bascule en mode `quartiers natifs` ;
+  - melanger durablement quartiers natifs et overrides derives pour une meme ville est deconseille et remonte en preflight.
 - `createWorldStateFromCurrentMap()` permet de créer un état directement depuis la carte courante.
 - `runCurrentMapDemoTicks()` permet de tester 2-3 ticks sur les vraies données du layout sans UI.
 - L'injection future d'éléments IA passe par `validateCandidateProposal` puis `injectCandidateProposal`.

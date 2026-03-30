@@ -62,6 +62,21 @@ export type PopulationProfile = {
   notes?: string[];
 };
 
+export type WorldMapCustomGeographyPreset = {
+  id: string;
+  label: string;
+  geography: string;
+  color: string;
+  surface: "land" | "ocean";
+  difficulty: number;
+};
+
+export type WorldMapCustomTagPreset = {
+  id: string;
+  label: string;
+  color: string;
+};
+
 export type WorldMapGovernance = {
   id: string;
   wikiEntityId: string;
@@ -301,6 +316,10 @@ export type WorldMapLayoutSource = {
   cliffSegments: CliffSegment[];
   cells: MapCellData[];
   simulation?: WorldMapSimulationData;
+  editorPresets?: {
+    customGeographies?: WorldMapCustomGeographyPreset[];
+    customTags?: WorldMapCustomTagPreset[];
+  };
 };
 
 export type WorldMapLayout = Omit<WorldMapLayoutSource, "backgroundImageKey"> & {
@@ -495,6 +514,21 @@ export function createRuntimeWorldMapLayout(
         geographicZoneIds: Array.isArray(cell.geographicZoneIds) ? cell.geographicZoneIds : []
       })
     ),
+    editorPresets: {
+      customGeographies: (sourceLayout.editorPresets?.customGeographies ?? []).map(entry => ({
+        id: String(entry.id ?? "").trim(),
+        label: String(entry.label ?? entry.id ?? "").trim(),
+        geography: String(entry.geography ?? entry.id ?? "").trim(),
+        color: String(entry.color ?? "#5a7d8f").trim() || "#5a7d8f",
+        surface: (entry.surface === "ocean" ? "ocean" : "land") as "land" | "ocean",
+        difficulty: Math.max(1, Number(entry.difficulty) || 1)
+      })).filter(entry => entry.id && entry.label && entry.geography),
+      customTags: (sourceLayout.editorPresets?.customTags ?? []).map(entry => ({
+        id: String(entry.id ?? "").trim(),
+        label: String(entry.label ?? entry.id ?? "").trim(),
+        color: String(entry.color ?? "#5fa8d3").trim() || "#5fa8d3"
+      })).filter(entry => entry.id && entry.label)
+    },
     backgroundImageUrl: BACKGROUND_IMAGES[sourceLayout.backgroundImageKey] ?? valmorinMapUrl
   };
 }
@@ -522,6 +556,10 @@ export function serializeWorldMapLayout(layout: WorldMapLayout): WorldMapLayoutS
       mobileActors: layout.simulation?.mobileActors ?? [],
       districts: layout.simulation?.districts ?? [],
       districtOverrides: layout.simulation?.districtOverrides ?? []
+    },
+    editorPresets: {
+      customGeographies: layout.editorPresets?.customGeographies ?? [],
+      customTags: layout.editorPresets?.customTags ?? []
     }
   };
 }

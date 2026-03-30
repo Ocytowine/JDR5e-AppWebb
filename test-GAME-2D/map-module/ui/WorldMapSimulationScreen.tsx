@@ -12,6 +12,7 @@ import { SimulationEntityAnalysisPanel } from "./simulation/SimulationEntityAnal
 import { SimulationFactionAnalysisPanel } from "./simulation/SimulationFactionAnalysisPanel";
 import { SimulationPressureAnalysisPanel } from "./simulation/SimulationPressureAnalysisPanel";
 import { SimulationSidebarSection } from "./simulation/SimulationSidebarSection";
+import { formatRuntimeMobileProgress } from "./simulation/mobileRuntimeDisplay";
 
 type SimulationVisualMode = "all" | "factions" | "objectives" | "mobility" | "pressures" | "relations";
 type FactionPanelFocus = "summary" | "goals" | "mobility";
@@ -186,6 +187,56 @@ export function WorldMapSimulationScreen(props: {
   }, [latestTrace, topPressureHotspots, dominantPressureBreakdown]);
 
   const selectedFactionRuntime = selectedFactionId ? state.factions[`faction:map:${selectedFactionId}`] ?? null : null;
+  const selectedMobileActorRuntime = selectedMobileActorId ? state.mobileActors[`mobile:map:${selectedMobileActorId}`] ?? null : null;
+  const selectedMobileRuntimeSummary = useMemo(
+    () => (selectedMobileActorRuntime ? formatRuntimeMobileProgress(props.layout, state, selectedMobileActorRuntime) : null),
+    [props.layout, selectedMobileActorRuntime, state]
+  );
+  const selectedObjectiveRuntime = selectedObjectiveId ? state.specialObjectives[`objective:map:${selectedObjectiveId}`] ?? null : null;
+  const selectedObjectiveReadiness = useMemo(
+    () => (selectedObjectiveRuntime && latestTrace?.objectiveReadiness ? latestTrace.objectiveReadiness.find(entry => entry.objectiveId === selectedObjectiveRuntime.id) ?? null : null),
+    [latestTrace?.objectiveReadiness, selectedObjectiveRuntime]
+  );
+  const selectedObjectiveLogisticsPlan = useMemo(
+    () => (selectedObjectiveRuntime && latestTrace ? latestTrace.logisticsPlans.find(plan => plan.objectifId === selectedObjectiveRuntime.id) ?? null : null),
+    [latestTrace, selectedObjectiveRuntime]
+  );
+  const selectedObjectiveAssignedMobileRuntime = useMemo(
+    () => (selectedObjectiveLogisticsPlan?.acteurAssigneId ? state.mobileActors[selectedObjectiveLogisticsPlan.acteurAssigneId] ?? null : null),
+    [selectedObjectiveLogisticsPlan?.acteurAssigneId, state.mobileActors]
+  );
+  const selectedObjectiveAssignedMobileSummary = useMemo(
+    () => (selectedObjectiveAssignedMobileRuntime ? formatRuntimeMobileProgress(props.layout, state, selectedObjectiveAssignedMobileRuntime) : null),
+    [props.layout, selectedObjectiveAssignedMobileRuntime, state]
+  );
+  const selectedObjectiveDominantPressure = useMemo(() => {
+    const executionRef = selectedObjectiveReadiness?.executionTargetRef ?? selectedObjectiveLogisticsPlan?.cibleExecutionRef;
+    if (!executionRef) return null;
+    if (executionRef.kind !== "city" && executionRef.kind !== "district" && executionRef.kind !== "route" && executionRef.kind !== "region") {
+      return null;
+    }
+    const pressureMap = state.pressures[executionRef.kind]?.[executionRef.id] ?? {};
+    const dominant = Object.entries(pressureMap).sort((left, right) => (right[1] ?? 0) - (left[1] ?? 0))[0];
+    return dominant ? { type: dominant[0], value: Math.round(dominant[1] ?? 0) } : null;
+  }, [selectedObjectiveLogisticsPlan?.cibleExecutionRef, selectedObjectiveReadiness?.executionTargetRef, state.pressures]);
+  const selectedObjectivePressureBreakdown = useMemo(() => {
+    const executionRef = selectedObjectiveReadiness?.executionTargetRef ?? selectedObjectiveLogisticsPlan?.cibleExecutionRef;
+    if (!executionRef || !latestTrace) return null;
+    if (executionRef.kind !== "city" && executionRef.kind !== "district" && executionRef.kind !== "route" && executionRef.kind !== "region") {
+      return null;
+    }
+    const evaluations = latestTrace.pressureSnapshots.after[executionRef.kind]?.[executionRef.id] ?? [];
+    if (!selectedObjectiveDominantPressure) return null;
+    return evaluations.find(entry => entry.pressureType === selectedObjectiveDominantPressure.type) ?? null;
+  }, [latestTrace, selectedObjectiveDominantPressure, selectedObjectiveLogisticsPlan?.cibleExecutionRef, selectedObjectiveReadiness?.executionTargetRef]);
+  const selectedObjectiveSelectedAction = useMemo(
+    () => (selectedObjectiveRuntime && latestTrace ? latestTrace.selectedActions.find(action => action.objectiveId === selectedObjectiveRuntime.id) ?? null : null),
+    [latestTrace, selectedObjectiveRuntime]
+  );
+  const selectedObjectiveActionCandidates = useMemo(
+    () => (selectedObjectiveRuntime && latestTrace ? latestTrace.actionCandidates.filter(candidate => candidate.objectiveId === selectedObjectiveRuntime.id) : []),
+    [latestTrace, selectedObjectiveRuntime]
+  );
   const selectedFactionLogisticsPlan = useMemo(() => {
     if (!selectedFactionRuntime || !latestTrace) return null;
     return latestTrace.logisticsPlans.find(plan => plan.factionId === selectedFactionRuntime.id) ?? null;
@@ -598,6 +649,20 @@ export function WorldMapSimulationScreen(props: {
                         <div>Mobiles: {seedSummary.mobileActorCount}</div>
                       </div>
                     </div>
+                    {selectedMobileActorRuntime && selectedMobileRuntimeSummary ? (
+                      <div style={{ padding: 10, borderRadius: 10, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#f4c967", marginBottom: 6 }}>Mobile suivi</div>
+                        <div style={{ display: "grid", gap: 3, fontSize: 12, color: "#dce5f2" }}>
+                          <div>Reference: {selectedMobileActorRuntime.id}</div>
+                          <div>Position runtime: {formatEntityRef(selectedMobileActorRuntime.position)}</div>
+                          <div>Route actuelle: {selectedMobileRuntimeSummary.routeLabel ?? "aucune"}</div>
+                          <div>Progression: {selectedMobileRuntimeSummary.progressLabel}</div>
+                          <div>Cap vers: {selectedMobileRuntimeSummary.targetLabel}</div>
+                          <div>Destination finale: {formatEntityRef(selectedMobileActorRuntime.destination)}</div>
+                          {selectedMobileRuntimeSummary.stopLabel ? <div>{selectedMobileRuntimeSummary.stopLabel}</div> : null}
+                        </div>
+                      </div>
+                    ) : null}
                     {topPressureHotspots.length > 0 ? topPressureHotspots.slice(0, 3).map(entry => (
                       <div key={`analysis:${entry.kind}:${entry.id}:${entry.pressureType}`} style={{ padding: 10, borderRadius: 10, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
                         <div style={{ fontSize: 13, fontWeight: 700 }}>{entry.kind} {entry.id}</div>
@@ -678,6 +743,126 @@ export function WorldMapSimulationScreen(props: {
                     setVisualMode("mobility");
                   }}
                 />
+              </SimulationSidebarSection>
+
+              <SimulationSidebarSection
+                title="Objectif Suivi"
+                summary={selectedObjective ? `${selectedObjective.label}. Cette section relie l'objectif a ses prerequis, sa projection logistique et le mobile qui le porte.` : "Choisis un objectif pour lire sa faisabilite runtime."}
+              >
+                {selectedObjective && selectedObjectiveRuntime ? (
+                  <div style={{ display: "grid", gap: 10 }}>
+                    <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                      Objectif suivi
+                      <select
+                        value={selectedObjectiveId}
+                        onChange={event => {
+                          setSelectedObjectiveId(event.target.value);
+                          setVisualMode("objectives");
+                        }}
+                        style={FIELD_STYLE}
+                      >
+                        <option value="">Choisir un objectif</option>
+                        {simulationObjectives.map(objective => (
+                          <option key={objective.id} value={objective.id}>
+                            {objective.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <div style={{ ...editorSurfaceStyles.subsection, gap: 6 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: "#f4c967" }}>Diagnostic runtime</div>
+                      <div style={{ display: "grid", gap: 3, fontSize: 12, color: "#dce5f2" }}>
+                        <div>Etat: {selectedObjectiveRuntime.state}</div>
+                        <div>Prerequis: {selectedObjectiveReadiness ? (selectedObjectiveReadiness.ready ? "satisfaits" : "bloques") : "pas encore evalues"}</div>
+                        <div>Cible d'execution: {formatEntityRef(selectedObjectiveReadiness?.executionTargetRef ?? selectedObjectiveLogisticsPlan?.cibleExecutionRef)}</div>
+                        <div>Projection logistique: {selectedObjectiveLogisticsPlan ? (selectedObjectiveLogisticsPlan.faisable ? "faisable" : "bloquee") : "aucun plan"}</div>
+                        <div>Pression dominante: {selectedObjectiveDominantPressure ? `${selectedObjectiveDominantPressure.type} ${selectedObjectiveDominantPressure.value}` : "aucune"}</div>
+                      </div>
+                    </div>
+                    {selectedObjectiveReadiness?.reasons.length ? (
+                      <div style={{ ...editorSurfaceStyles.subsection, gap: 6 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#ffcfad" }}>Blocages locaux</div>
+                        <div style={{ display: "grid", gap: 3, fontSize: 12, color: "#ffd7d7" }}>
+                          {selectedObjectiveReadiness.reasons.map(reason => (
+                            <div key={reason}>- {reason}</div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                    {selectedObjectiveLogisticsPlan ? (
+                      <div style={{ ...editorSurfaceStyles.subsection, gap: 6 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#f4c967" }}>Projection</div>
+                        <div style={{ display: "grid", gap: 3, fontSize: 12, color: "#dce5f2" }}>
+                          <div>Mode: {selectedObjectiveLogisticsPlan.modeRetenu ?? "aucun"}</div>
+                          <div>Acteur assigne: {selectedObjectiveLogisticsPlan.acteurAssigneId ?? "aucun"}</div>
+                          <div>Temps estime: {selectedObjectiveLogisticsPlan.ticksEstimes ?? "n/a"} tick(s)</div>
+                          <div>Risque estime: {selectedObjectiveLogisticsPlan.scoreRisque ?? "n/a"}</div>
+                          <div>Routes retenues: {selectedObjectiveLogisticsPlan.routeIds.length ? selectedObjectiveLogisticsPlan.routeIds.join(" -> ") : "aucune"}</div>
+                        </div>
+                        {selectedObjectiveLogisticsPlan.raisonsBlocage.length > 0 ? (
+                          <div style={{ display: "grid", gap: 3, fontSize: 12, color: "#ffd7d7" }}>
+                            {selectedObjectiveLogisticsPlan.raisonsBlocage.map(reason => (
+                              <div key={reason}>- {reason}</div>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {selectedObjectivePressureBreakdown ? (
+                      <div style={{ ...editorSurfaceStyles.subsection, gap: 6 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#8fb3ff" }}>Pourquoi la cible attire cette action</div>
+                        <div style={{ fontSize: 12, color: "#dce5f2" }}>
+                          {selectedObjectivePressureBreakdown.pressureType} via `{selectedObjectivePressureBreakdown.definitionId}` · score {formatNumber(selectedObjectivePressureBreakdown.clampedValue)}
+                        </div>
+                        <div style={{ display: "grid", gap: 3, fontSize: 12, color: "#c8d0de" }}>
+                          {selectedObjectivePressureBreakdown.terms.map(term => (
+                            <div key={`${selectedObjectivePressureBreakdown.definitionId}:${term.source}`}>
+                              {term.source} {"->"} raw {formatNumber(term.rawValue)} · adj {formatNumber(term.adjustedValue)} · contribution {formatNumber(term.contribution)}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                    {selectedObjectiveAssignedMobileRuntime && selectedObjectiveAssignedMobileSummary ? (
+                      <div style={{ ...editorSurfaceStyles.subsection, gap: 6 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#8fb3ff" }}>Mobile engage</div>
+                        <div style={{ display: "grid", gap: 3, fontSize: 12, color: "#dce5f2" }}>
+                          <div>{selectedObjectiveAssignedMobileRuntime.id}</div>
+                          <div>Position runtime: {formatEntityRef(selectedObjectiveAssignedMobileRuntime.position)}</div>
+                          <div>{selectedObjectiveAssignedMobileSummary.routeLabel ? `${selectedObjectiveAssignedMobileSummary.routeLabel} · ${selectedObjectiveAssignedMobileSummary.progressLabel}` : "Hors route"}</div>
+                          <div>Cap vers: {selectedObjectiveAssignedMobileSummary.targetLabel}</div>
+                          {selectedObjectiveAssignedMobileSummary.stopLabel ? <div>{selectedObjectiveAssignedMobileSummary.stopLabel}</div> : null}
+                        </div>
+                      </div>
+                    ) : null}
+                    {latestTrace ? (
+                      <div style={{ ...editorSurfaceStyles.subsection, gap: 6 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#f4c967" }}>Decision du dernier tick</div>
+                        {selectedObjectiveSelectedAction ? (
+                          <div style={{ display: "grid", gap: 3, fontSize: 12, color: "#dce5f2" }}>
+                            <div>Action retenue: {selectedObjectiveSelectedAction.actionId}</div>
+                            <div>Acteur: {formatEntityRef(selectedObjectiveSelectedAction.actorRef)}</div>
+                            <div>Cible: {formatEntityRef(selectedObjectiveSelectedAction.targetRef)}</div>
+                            <div>Score: {formatNumber(selectedObjectiveSelectedAction.score)} · {selectedObjectiveSelectedAction.success ? "succes" : "echec"}</div>
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: 12, color: "#c8d0de" }}>Aucune action n'a ete retenue pour cet objectif au dernier tick.</div>
+                        )}
+                        {!selectedObjectiveSelectedAction && selectedObjectiveActionCandidates.length > 0 ? (
+                          <div style={{ display: "grid", gap: 4, fontSize: 12, color: "#c8d0de" }}>
+                            {selectedObjectiveActionCandidates.slice(0, 4).map(candidate => (
+                              <div key={`${candidate.actorRef.id}:${candidate.actionId}:${candidate.targetRef.id}`}>
+                                {formatEntityRef(candidate.actorRef)} {"->"} {candidate.actionId} · {candidate.passed ? `score ${formatNumber(candidate.score)}` : candidate.rejectionReasons.join(" | ")}
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12, color: "#c8d0de" }}>Choisis un objectif pour lire sa faisabilite runtime.</div>
+                )}
               </SimulationSidebarSection>
 
               <SimulationSidebarSection
