@@ -64,6 +64,7 @@ export function createInitialMapEditorState(initialLayout: WorldMapLayout, initi
     draftSimulationMobileActorId: "",
     draftSimulationMobileActorLabel: "",
     draftSimulationMobileActorType: "caravan",
+    draftSimulationMobileActorArchetype: "merchant_convoy",
     draftSimulationMobileActorColor: "#77b3d4",
     pendingGeographyId: "",
     pendingReliefElevation: "",

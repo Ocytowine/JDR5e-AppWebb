@@ -281,6 +281,7 @@ export type MobileActor = {
   populationProfile?: PopulationProfile;
   position: EntityRef;
   destination?: EntityRef;
+  itineraryMode?: "auto" | "locked";
   itinerary: EntityId[];
   currentRouteTargetId?: EntityId;
   destinationRouteProgress?: number;

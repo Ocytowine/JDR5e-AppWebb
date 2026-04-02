@@ -669,6 +669,7 @@ function deriveMobileActorsFromLayout(layout: WorldMapLayout): Record<string, Mo
           populationProfile: actor.populationProfile,
           position: position ?? { kind: "route", id: actor.positionId ?? runtimeId },
           destination,
+          itineraryMode: actor.itineraryMode ?? "auto",
           itinerary: actor.itineraryRouteIds,
           currentRouteTargetId: inferredRouteTargetId,
           destinationRouteProgress:

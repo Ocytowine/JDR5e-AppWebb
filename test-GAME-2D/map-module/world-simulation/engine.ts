@@ -798,7 +798,7 @@ function advanceMobileActors(state: WorldState, ctx: TickContext) {
   if (ctx.scale !== "micro") return;
 
   Object.values(state.mobileActors).forEach(actor => {
-    if (actor.destination && actor.position.kind !== "route") {
+    if (actor.itineraryMode !== "locked" && actor.destination && actor.position.kind !== "route") {
       const shortestItinerary = findShortestRouteItinerary(state, actor);
       if (shortestItinerary.length > 0) {
         actor.itinerary = shortestItinerary;

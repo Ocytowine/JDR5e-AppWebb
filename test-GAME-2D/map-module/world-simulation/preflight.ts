@@ -807,6 +807,43 @@ function validateMobileActor(
     });
   }
 
+  if (actor.itineraryMode === "locked" && actor.itineraryRouteIds.length === 0) {
+    pushIssue(issues, {
+      severity: "warning",
+      code: "mobile_locked_itinerary_without_routes",
+      scope: "mobileActor",
+      entityId: actor.id,
+      message: `Le mobile ${actor.id} est en itineraire verrouille sans route definie.`
+    });
+  }
+
+  if (actor.itineraryMode !== "locked" && actor.itineraryRouteIds.length > 0) {
+    pushIssue(issues, {
+      severity: "warning",
+      code: "mobile_manual_itinerary_not_locked",
+      scope: "mobileActor",
+      entityId: actor.id,
+      message: `Le mobile ${actor.id} a un itineraire manuel mais reste en mode auto: le runtime peut le recalculer.`
+    });
+  }
+
+  if (
+    actor.simulationLevel === "abstract" &&
+    (
+      actor.positionKind === "cell" ||
+      actor.destinationKind === "cell" ||
+      actor.itineraryRouteIds.length > 0
+    )
+  ) {
+    pushIssue(issues, {
+      severity: "warning",
+      code: "mobile_abstract_with_precise_spatial_config",
+      scope: "mobileActor",
+      entityId: actor.id,
+      message: `Le mobile ${actor.id} est abstrait mais utilise une configuration spatiale tres precise (cellule ou itineraire detaille).`
+    });
+  }
+
   validateItinerary(layout, actor, issues);
 }
 

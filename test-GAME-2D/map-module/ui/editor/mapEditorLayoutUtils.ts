@@ -1244,6 +1244,12 @@ export function upsertSimulationMobileActor(layout: WorldMapLayout, actor: World
   const existingIndex = simulation.mobileActors.findIndex(entry => entry.id === actor.id);
   const normalized: WorldMapSimulationMobileActor = {
     ...actor,
+    archetype: actor.archetype?.trim() || undefined,
+    missionLabel: actor.missionLabel?.trim() || undefined,
+    missionTargetLabel: actor.missionTargetLabel?.trim() || undefined,
+    missionPriority: actor.missionPriority ?? "standard",
+    missionStatus: actor.missionStatus ?? undefined,
+    itineraryMode: actor.itineraryMode ?? "auto",
     itineraryRouteIds: Array.from(new Set(actor.itineraryRouteIds ?? [])),
     objectiveIds: Array.from(new Set(actor.objectiveIds ?? [])),
     interactionTags: Array.from(new Set(actor.interactionTags ?? [])),
@@ -1275,13 +1281,19 @@ export function updateSimulationMobileActorField(
     | "id"
     | "label"
     | "type"
+    | "archetype"
     | "color"
     | "ownerFactionId"
+    | "missionLabel"
+    | "missionTargetLabel"
+    | "missionPriority"
+    | "missionStatus"
     | "positionKind"
     | "positionId"
     | "destinationKind"
     | "destinationId"
     | "populationProfile"
+    | "itineraryMode"
     | "itineraryRouteIds"
     | "travelMode"
     | "speed"
@@ -1320,11 +1332,29 @@ export function updateSimulationMobileActorField(
     case "type":
       actor.type = value;
       return;
+    case "archetype":
+      actor.archetype = value || undefined;
+      return;
     case "color":
       actor.color = value;
       return;
     case "ownerFactionId":
       actor.ownerFactionId = value || undefined;
+      return;
+    case "missionLabel":
+      actor.missionLabel = value || undefined;
+      return;
+    case "missionTargetLabel":
+      actor.missionTargetLabel = value || undefined;
+      return;
+    case "missionPriority":
+      actor.missionPriority = (value || "standard") as typeof actor.missionPriority;
+      return;
+    case "missionStatus":
+      actor.missionStatus = (value || undefined) as typeof actor.missionStatus;
+      return;
+    case "itineraryMode":
+      actor.itineraryMode = (value || "auto") as typeof actor.itineraryMode;
       return;
     case "positionKind":
       actor.positionKind = value as SimulationActorPositionKind;

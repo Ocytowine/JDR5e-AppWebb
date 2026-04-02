@@ -11,6 +11,9 @@ import {
   type SimulationActorPositionKind,
   type SimulationAnchorTargetKind,
   type SimulationFactionRelationStatus,
+  type SimulationMobileItineraryMode,
+  type SimulationMobileMissionPriority,
+  type SimulationMobileMissionStatus,
   type SimulationObjectiveCategory,
   type SimulationTravelMode,
   type WorldMapCity,
@@ -83,6 +86,119 @@ const PANEL_LABELS: Record<PanelId, string> = {
   legend: "Legende",
   layers: "Couches",
   json: "Donnees"
+};
+
+type MobileArchetypePreset = {
+  id: string;
+  label: string;
+  internalType: string;
+  defaultMissionLabel: string;
+  recommendedSimulationLevel: SimulationActorLevel;
+  recommendedInteractionTags: string[];
+  stats: Pick<WorldMapSimulationMobileActor, "speed" | "security" | "fatigue" | "cargo" | "headcount" | "resources">;
+};
+
+const MOBILE_ARCHETYPE_PRESETS: MobileArchetypePreset[] = [
+  {
+    id: "patrol",
+    label: "Patrouille",
+    internalType: "patrol",
+    defaultMissionLabel: "Securiser une zone",
+    recommendedSimulationLevel: "active",
+    recommendedInteractionTags: ["patrol", "security", "escort"],
+    stats: { speed: 55, security: 75, fatigue: 25, cargo: 20, headcount: 45, resources: 40 }
+  },
+  {
+    id: "merchant_convoy",
+    label: "Convoi marchand",
+    internalType: "caravan",
+    defaultMissionLabel: "Acheminer des marchandises",
+    recommendedSimulationLevel: "active",
+    recommendedInteractionTags: ["trade", "escort"],
+    stats: { speed: 38, security: 45, fatigue: 20, cargo: 78, headcount: 30, resources: 48 }
+  },
+  {
+    id: "supply_train",
+    label: "Train de ravitaillement",
+    internalType: "supply_train",
+    defaultMissionLabel: "Ravitaillement prioritaire",
+    recommendedSimulationLevel: "summary",
+    recommendedInteractionTags: ["logistics", "supply"],
+    stats: { speed: 34, security: 52, fatigue: 24, cargo: 85, headcount: 36, resources: 62 }
+  },
+  {
+    id: "pilgrims",
+    label: "Pelerins",
+    internalType: "pilgrims",
+    defaultMissionLabel: "Atteindre un lieu de pelerinage",
+    recommendedSimulationLevel: "summary",
+    recommendedInteractionTags: ["religion", "rumor"],
+    stats: { speed: 28, security: 30, fatigue: 35, cargo: 26, headcount: 60, resources: 24 }
+  },
+  {
+    id: "smugglers",
+    label: "Contrebandiers",
+    internalType: "smugglers",
+    defaultMissionLabel: "Faire passer une cargaison",
+    recommendedSimulationLevel: "active",
+    recommendedInteractionTags: ["smuggling", "stealth", "trade"],
+    stats: { speed: 62, security: 42, fatigue: 18, cargo: 46, headcount: 18, resources: 55 }
+  },
+  {
+    id: "couriers",
+    label: "Courriers",
+    internalType: "courier",
+    defaultMissionLabel: "Transmettre un message",
+    recommendedSimulationLevel: "summary",
+    recommendedInteractionTags: ["message", "escort"],
+    stats: { speed: 76, security: 28, fatigue: 14, cargo: 10, headcount: 8, resources: 18 }
+  },
+  {
+    id: "escort",
+    label: "Escorte",
+    internalType: "escort",
+    defaultMissionLabel: "Proteger un autre mobile",
+    recommendedSimulationLevel: "active",
+    recommendedInteractionTags: ["escort", "security"],
+    stats: { speed: 52, security: 70, fatigue: 22, cargo: 18, headcount: 28, resources: 36 }
+  },
+  {
+    id: "scouts",
+    label: "Eclaireurs",
+    internalType: "scouts",
+    defaultMissionLabel: "Reconnaissance",
+    recommendedSimulationLevel: "active",
+    recommendedInteractionTags: ["scouting", "intel"],
+    stats: { speed: 72, security: 36, fatigue: 16, cargo: 12, headcount: 12, resources: 22 }
+  }
+];
+
+const SIMULATION_LEVEL_PRODUCT_LABELS: Record<SimulationActorLevel, string> = {
+  active: "Pion suivi",
+  summary: "Unite resumee",
+  abstract: "Presence abstraite"
+};
+
+const MOBILE_MISSION_PRIORITY_LABELS: Record<SimulationMobileMissionPriority, string> = {
+  low: "Basse",
+  standard: "Standard",
+  high: "Haute",
+  critical: "Critique"
+};
+
+const MOBILE_MISSION_STATUS_LABELS: Record<SimulationMobileMissionStatus, string> = {
+  preparing: "En preparation",
+  en_route: "En route",
+  on_site: "Sur zone",
+  in_action: "En action",
+  blocked: "Bloque",
+  withdrawing: "En repli",
+  completed: "Termine"
+};
+
+const MOBILE_ITINERARY_MODE_LABELS: Record<SimulationMobileItineraryMode, string> = {
+  auto: "Auto",
+  locked: "Verrouille"
 };
 
 function sanitizeLayoutSource(value: unknown): WorldMapLayoutSource | null {
@@ -840,7 +956,16 @@ export function WorldMapEditorScreen(props: {
   const [activeCityCreateTab, setActiveCityCreateTab] = useState<"cell" | "identity" | "create">("cell");
   const [activeFactionCreateTab, setActiveFactionCreateTab] = useState<"identity" | "profile" | "create">("identity");
   const [activeObjectiveCreateTab, setActiveObjectiveCreateTab] = useState<"identity" | "category" | "create">("identity");
-  const [activeMobileCreateTab, setActiveMobileCreateTab] = useState<"identity" | "profile" | "create">("identity");
+  const [activeMobileCreateTab, setActiveMobileCreateTab] = useState<"archetype" | "faction" | "mission" | "travel" | "validate">("archetype");
+  const [activeSimulationWorkspace, setActiveSimulationWorkspace] = useState<"inspection" | "factions" | "objectives" | "mobiles">("inspection");
+  const [activeFactionMode, setActiveFactionMode] = useState<"create" | "modify">("modify");
+  const [activeObjectiveMode, setActiveObjectiveMode] = useState<"create" | "modify">("modify");
+  const [activeMobileMode, setActiveMobileMode] = useState<"create" | "modify">("modify");
+  const [draftObjectiveOwnerFactionId, setDraftObjectiveOwnerFactionId] = useState("");
+  const [draftMobileOwnerFactionId, setDraftMobileOwnerFactionId] = useState("");
+  const [mobileBrowseFactionId, setMobileBrowseFactionId] = useState("");
+  const [showSelectionPanel, setShowSelectionPanel] = useState(true);
+  const [showHexAnalysisPanel, setShowHexAnalysisPanel] = useState(true);
   const [pendingObjectiveConsequences, setPendingObjectiveConsequences] = useState<{
     onSuccess: { type: WorldMapSimulationConsequence["type"]; subtype: string; amount: string; tags: string[] };
     onFailure: { type: WorldMapSimulationConsequence["type"]; subtype: string; amount: string; tags: string[] };
@@ -934,6 +1059,7 @@ export function WorldMapEditorScreen(props: {
     draftSimulationMobileActorId,
     draftSimulationMobileActorLabel,
     draftSimulationMobileActorType,
+    draftSimulationMobileActorArchetype,
     draftSimulationMobileActorColor,
     pendingGeographyId,
     pendingReliefElevation,
@@ -1043,6 +1169,29 @@ export function WorldMapEditorScreen(props: {
   const selectedSimulationMobileActor = useMemo(
     () => simulationMobileActors.find(actor => actor.id === selectedSimulationMobileActorId) ?? null,
     [selectedSimulationMobileActorId, simulationMobileActors]
+  );
+  const effectiveObjectiveOwnerFactionId = draftObjectiveOwnerFactionId || selectedSimulationFactionId || simulationFactions[0]?.id || "";
+  const effectiveMobileOwnerFactionId = draftMobileOwnerFactionId || selectedSimulationFactionId || simulationFactions[0]?.id || "";
+  const effectiveMobileBrowseFactionId = mobileBrowseFactionId || selectedSimulationFactionId || simulationFactions[0]?.id || "";
+  const selectedObjectiveOwnerFaction = useMemo(
+    () => simulationFactions.find(faction => faction.id === effectiveObjectiveOwnerFactionId) ?? null,
+    [effectiveObjectiveOwnerFactionId, simulationFactions]
+  );
+  const selectedMobileOwnerFaction = useMemo(
+    () => simulationFactions.find(faction => faction.id === effectiveMobileOwnerFactionId) ?? null,
+    [effectiveMobileOwnerFactionId, simulationFactions]
+  );
+  const mobileBrowseFaction = useMemo(
+    () => simulationFactions.find(faction => faction.id === effectiveMobileBrowseFactionId) ?? null,
+    [effectiveMobileBrowseFactionId, simulationFactions]
+  );
+  const objectivesForSelectedOwnerFaction = useMemo(
+    () => simulationObjectives.filter(objective => objective.ownerFactionId === effectiveObjectiveOwnerFactionId),
+    [effectiveObjectiveOwnerFactionId, simulationObjectives]
+  );
+  const mobilesForBrowseFaction = useMemo(
+    () => simulationMobileActors.filter(actor => actor.ownerFactionId === effectiveMobileBrowseFactionId),
+    [effectiveMobileBrowseFactionId, simulationMobileActors]
   );
   const roadPaths = useMemo(() => getUniquePathsByKind(layout, "road"), [layout]);
   const riverPaths = useMemo(() => getUniquePathsByKind(layout, "river"), [layout]);
@@ -1167,6 +1316,10 @@ export function WorldMapEditorScreen(props: {
     () => (selectedSimulationMobileActor ? logisticsPreview.runtimeState.mobileActors[`mobile:map:${selectedSimulationMobileActor.id}`] ?? null : null),
     [logisticsPreview.runtimeState.mobileActors, selectedSimulationMobileActor]
   );
+  const selectedSimulationMobileArchetypePreset = useMemo(
+    () => getMobileArchetypePreset(selectedSimulationMobileActor?.archetype),
+    [selectedSimulationMobileActor?.archetype]
+  );
   const selectedSimulationFactionLogisticsPlan = useMemo(
     () => (selectedSimulationFaction ? logisticsPreview.plans.find(plan => plan.factionId === `faction:map:${selectedSimulationFaction.id}`) ?? null : null),
     [logisticsPreview.plans, selectedSimulationFaction]
@@ -1242,6 +1395,82 @@ export function WorldMapEditorScreen(props: {
     () => (selectedSimulationMobileActor?.ownerFactionId ? simulationFactions.find(faction => faction.id === selectedSimulationMobileActor.ownerFactionId) ?? null : null),
     [selectedSimulationMobileActor, simulationFactions]
   );
+  const draftMobileArchetypePreset = useMemo(
+    () => MOBILE_ARCHETYPE_PRESETS.find(preset => preset.id === draftSimulationMobileActorArchetype) ?? null,
+    [draftSimulationMobileActorArchetype]
+  );
+  const draftMobileMissionSummary = useMemo(() => {
+    if (selectedSimulationObjective?.label) return selectedSimulationObjective.label;
+    return draftMobileArchetypePreset?.defaultMissionLabel ?? "Aucune mission explicite";
+  }, [draftMobileArchetypePreset, selectedSimulationObjective]);
+  const draftMobileMissionTargetSummary = useMemo(() => {
+    if (selectedSimulationObjective?.targetId) {
+      return objectiveTargetOptions.find(option => option.id === selectedSimulationObjective.targetId)?.label ?? selectedSimulationObjective.targetId;
+    }
+    if (selectedGovernanceRegion?.id) {
+      return wikiEntriesById[selectedGovernanceRegion.wikiEntityId]?.name ?? selectedGovernanceRegion.wikiEntityId ?? selectedGovernanceRegion.id;
+    }
+    if (selectedRoute?.kind === "road") {
+      return selectedRoute.label || selectedRoute.id;
+    }
+    if (selectedCell?.cell) {
+      return `Cellule ${getCellLabel(selectedCell.cell)}`;
+    }
+    return "Aucune cible";
+  }, [objectiveTargetOptions, selectedCell, selectedGovernanceRegion, selectedRoute, selectedSimulationObjective, wikiEntriesById]);
+  const draftMobileDepartureSummary = useMemo(() => {
+    if (selectedCity?.id) {
+      return wikiEntriesById[selectedCity.wikiEntityId]?.name ?? selectedCity.wikiEntityId ?? selectedCity.id;
+    }
+    if (selectedRoute?.kind === "road") {
+      return selectedRoute.label || selectedRoute.id;
+    }
+    if (selectedCell?.cell) {
+      return `Cellule ${getCellLabel(selectedCell.cell)}`;
+    }
+    return "Aucun point de depart";
+  }, [selectedCell, selectedCity, selectedRoute, wikiEntriesById]);
+  const draftMobileCreationReady = Boolean(draftSimulationMobileActorId.trim() || draftSimulationMobileActorLabel.trim());
+  const selectedSimulationMobileMissionSummary = useMemo(() => {
+    if (!selectedSimulationMobileActor) return "Aucune mission explicite";
+    if (selectedSimulationMobileActor.missionLabel) return selectedSimulationMobileActor.missionLabel;
+    if (selectedSimulationMobileArchetypePreset?.defaultMissionLabel) return selectedSimulationMobileArchetypePreset.defaultMissionLabel;
+    if (selectedSimulationMobileActor.objectiveIds.length > 0) {
+      const objective = simulationObjectives.find(entry => entry.id === selectedSimulationMobileActor.objectiveIds[0]);
+      if (objective) return objective.label;
+    }
+    return "Aucune mission explicite";
+  }, [selectedSimulationMobileActor, selectedSimulationMobileArchetypePreset, simulationObjectives]);
+  const selectedSimulationMobileMissionTargetSummary = useMemo(() => {
+    if (!selectedSimulationMobileActor) return "Aucune cible";
+    if (selectedSimulationMobileActor.missionTargetLabel) return selectedSimulationMobileActor.missionTargetLabel;
+    if (selectedSimulationMobileActor.destinationKind === "city") {
+      return destinationReferenceOptions.find(option => option.id === selectedSimulationMobileActor.destinationId)?.label ?? selectedSimulationMobileActor.destinationId ?? "Aucune cible";
+    }
+    if (selectedSimulationMobileActor.destinationKind === "route") {
+      return destinationReferenceOptions.find(option => option.id === selectedSimulationMobileActor.destinationId)?.label ?? selectedSimulationMobileActor.destinationId ?? "Aucune cible";
+    }
+    if (selectedSimulationMobileActor.destinationKind === "region") {
+      return destinationReferenceOptions.find(option => option.id === selectedSimulationMobileActor.destinationId)?.label ?? selectedSimulationMobileActor.destinationId ?? "Aucune cible";
+    }
+    if (selectedSimulationMobileActor.destinationKind === "cell" && selectedSimulationMobileActor.destinationCell) {
+      return `Cellule ${getCellLabel(selectedSimulationMobileActor.destinationCell)}`;
+    }
+    return "Aucune cible";
+  }, [destinationReferenceOptions, selectedSimulationMobileActor]);
+  const selectedSimulationMobilePositionSummary = useMemo(() => {
+    if (!selectedSimulationMobileActor) return "Position inconnue";
+    if (selectedSimulationMobileActorRuntime) {
+      const runtimeProgress = formatRuntimeMobileProgress(layout, logisticsPreview.runtimeState, selectedSimulationMobileActorRuntime);
+      return runtimeProgress.routeLabel
+        ? `${runtimeProgress.routeLabel} | ${runtimeProgress.progressLabel}`
+        : runtimeProgress.progressLabel;
+    }
+    if (selectedSimulationMobileActor.positionKind === "cell" && selectedSimulationMobileActor.positionCell) {
+      return `Cellule ${getCellLabel(selectedSimulationMobileActor.positionCell)}`;
+    }
+    return positionReferenceOptions.find(option => option.id === selectedSimulationMobileActor.positionId)?.label ?? selectedSimulationMobileActor.positionId ?? "Position inconnue";
+  }, [layout, logisticsPreview.runtimeState, positionReferenceOptions, selectedSimulationMobileActor, selectedSimulationMobileActorRuntime]);
   const selectableMobileObjectiveOptions = useMemo(
     () =>
       simulationObjectives
@@ -1440,8 +1669,23 @@ export function WorldMapEditorScreen(props: {
   }, [selectedSimulationObjectiveId, selectedSimulationFactionId]);
 
   useEffect(() => {
-    setActiveMobileCreateTab("identity");
+    setActiveMobileCreateTab("archetype");
   }, [selectedSimulationMobileActorId, selectedSimulationFactionId]);
+
+  useEffect(() => {
+    if (draftObjectiveOwnerFactionId && simulationFactions.some(faction => faction.id === draftObjectiveOwnerFactionId)) return;
+    setDraftObjectiveOwnerFactionId(selectedSimulationFactionId || simulationFactions[0]?.id || "");
+  }, [draftObjectiveOwnerFactionId, selectedSimulationFactionId, simulationFactions]);
+
+  useEffect(() => {
+    if (draftMobileOwnerFactionId && simulationFactions.some(faction => faction.id === draftMobileOwnerFactionId)) return;
+    setDraftMobileOwnerFactionId(selectedSimulationFactionId || simulationFactions[0]?.id || "");
+  }, [draftMobileOwnerFactionId, selectedSimulationFactionId, simulationFactions]);
+
+  useEffect(() => {
+    if (mobileBrowseFactionId && simulationFactions.some(faction => faction.id === mobileBrowseFactionId)) return;
+    setMobileBrowseFactionId(selectedSimulationFactionId || simulationFactions[0]?.id || "");
+  }, [mobileBrowseFactionId, selectedSimulationFactionId, simulationFactions]);
 
   const simulationZoneOptions = useMemo(() => {
     const options = new Map<string, string>();
@@ -1799,13 +2043,13 @@ export function WorldMapEditorScreen(props: {
 
   function createSimulationObjectiveDefinition() {
     const normalizedId = slugifyDraft(draftSimulationObjectiveId || draftSimulationObjectiveLabel);
-    if (!normalizedId || !selectedSimulationFactionId) return;
+    if (!normalizedId || !effectiveObjectiveOwnerFactionId) return;
     const zoneIds = selectedAreaCellKeys.length > 0 ? selectedAreaCellKeys : selectedCellKey ? [selectedCellKey] : [];
     const nextObjective: WorldMapSimulationObjective = {
       id: normalizedId,
       label: draftSimulationObjectiveLabel.trim() || normalizedId,
       category: draftSimulationObjectiveCategory,
-      ownerFactionId: selectedSimulationFactionId,
+      ownerFactionId: effectiveObjectiveOwnerFactionId,
       description: "",
       whyItMatters: "",
       targetKind: selectedCity?.id ? "city" : selectedGovernanceRegionId ? "region" : undefined,
@@ -1941,6 +2185,38 @@ export function WorldMapEditorScreen(props: {
     );
   }
 
+  function getMobileArchetypePreset(archetypeId: string | undefined): MobileArchetypePreset | null {
+    if (!archetypeId) return null;
+    return MOBILE_ARCHETYPE_PRESETS.find(preset => preset.id === archetypeId) ?? null;
+  }
+
+  function applyPresetToSelectedMobile(preset: MobileArchetypePreset) {
+    if (!selectedSimulationMobileActor) return;
+    dispatch({ type: "updateSelectedSimulationMobileActorField", field: "archetype", value: preset.id });
+    dispatch({ type: "updateSelectedSimulationMobileActorField", field: "type", value: preset.internalType });
+    dispatch({
+      type: "updateSelectedSimulationMobileActorField",
+      field: "missionLabel",
+      value: selectedSimulationMobileActor.missionLabel ?? preset.defaultMissionLabel
+    });
+    dispatch({
+      type: "updateSelectedSimulationMobileActorField",
+      field: "missionPriority",
+      value: selectedSimulationMobileActor.missionPriority ?? "standard"
+    });
+    dispatch({ type: "updateSelectedSimulationMobileActorField", field: "simulationLevel", value: preset.recommendedSimulationLevel });
+    dispatch({ type: "updateSelectedSimulationMobileActorField", field: "speed", value: String(preset.stats.speed) });
+    dispatch({ type: "updateSelectedSimulationMobileActorField", field: "security", value: String(preset.stats.security) });
+    dispatch({ type: "updateSelectedSimulationMobileActorField", field: "fatigue", value: String(preset.stats.fatigue) });
+    dispatch({ type: "updateSelectedSimulationMobileActorField", field: "cargo", value: String(preset.stats.cargo) });
+    dispatch({ type: "updateSelectedSimulationMobileActorField", field: "headcount", value: String(preset.stats.headcount) });
+    dispatch({ type: "updateSelectedSimulationMobileActorField", field: "resources", value: String(preset.stats.resources) });
+    updateSelectedMobileListField(
+      "interactionTags",
+      Array.from(new Set([...(selectedSimulationMobileActor.interactionTags ?? []), ...preset.recommendedInteractionTags]))
+    );
+  }
+
   function updateSelectedObjectiveConsequences(
     field: "onSuccess" | "onFailure",
     consequences: WorldMapSimulationConsequence[]
@@ -2002,29 +2278,47 @@ export function WorldMapEditorScreen(props: {
   function createSimulationMobileActorDefinition() {
     const normalizedId = slugifyDraft(draftSimulationMobileActorId || draftSimulationMobileActorLabel);
     if (!normalizedId) return;
+    const archetypePreset = getMobileArchetypePreset(draftSimulationMobileActorArchetype);
+    const missionLabel = selectedSimulationObjective?.label ?? archetypePreset?.defaultMissionLabel;
+    const missionTargetLabel =
+      selectedSimulationObjective?.targetId
+        ? objectiveTargetOptions.find(option => option.id === selectedSimulationObjective.targetId)?.label ?? selectedSimulationObjective.targetId
+        : selectedGovernanceRegion?.id
+          ? wikiEntriesById[selectedGovernanceRegion.wikiEntityId]?.name ?? selectedGovernanceRegion.wikiEntityId ?? selectedGovernanceRegion.id
+          : selectedRoute?.kind === "road"
+            ? selectedRoute.label || selectedRoute.id
+            : selectedCell?.cell
+              ? `Cellule ${getCellLabel(selectedCell.cell)}`
+              : undefined;
     const nextActor: WorldMapSimulationMobileActor = {
       id: normalizedId,
       label: draftSimulationMobileActorLabel.trim() || normalizedId,
-      type: draftSimulationMobileActorType.trim() || "caravan",
+      type: draftSimulationMobileActorType.trim() || archetypePreset?.internalType || "caravan",
+      archetype: draftSimulationMobileActorArchetype || undefined,
       color: draftSimulationMobileActorColor,
-      ownerFactionId: selectedSimulationFactionId || undefined,
+      ownerFactionId: effectiveMobileOwnerFactionId || undefined,
+      missionLabel,
+      missionTargetLabel,
+      missionPriority: "standard",
+      missionStatus: selectedGovernanceRegionId || selectedSimulationObjective ? "en_route" : "preparing",
       positionKind: selectedCity?.id ? "city" : selectedRouteId ? "route" : "cell",
       positionId: selectedCity?.id ?? selectedRouteId ?? undefined,
       positionCell: selectedCell?.cell ? { ...selectedCell.cell } : undefined,
       destinationKind: selectedGovernanceRegionId ? "region" : undefined,
       destinationId: selectedGovernanceRegionId || undefined,
       destinationCell: undefined,
+      itineraryMode: "auto",
       itineraryRouteIds: selectedRouteId ? [selectedRouteId] : [],
       travelMode: "road",
-      speed: 40,
-      security: 45,
-      fatigue: 15,
-      cargo: 30,
-      headcount: 25,
-      resources: 20,
+      speed: archetypePreset?.stats.speed ?? 40,
+      security: archetypePreset?.stats.security ?? 45,
+      fatigue: archetypePreset?.stats.fatigue ?? 15,
+      cargo: archetypePreset?.stats.cargo ?? 30,
+      headcount: archetypePreset?.stats.headcount ?? 25,
+      resources: archetypePreset?.stats.resources ?? 20,
       objectiveIds: selectedSimulationObjective ? [selectedSimulationObjective.id] : [],
-      interactionTags: [],
-      simulationLevel: "active"
+      interactionTags: archetypePreset?.recommendedInteractionTags ?? [],
+      simulationLevel: archetypePreset?.recommendedSimulationLevel ?? "active"
     };
     dispatch({ type: "createSimulationMobileActor", actor: nextActor });
   }
@@ -2032,6 +2326,56 @@ export function WorldMapEditorScreen(props: {
   function getCellLabel(cell?: MapCell | null): string {
     if (!cell) return "Aucune cellule";
     return `(${cell.x}, ${cell.y})`;
+  }
+
+  function getMobilityPresetLabel(speed: number): string {
+    if (speed >= 70) return "Tres rapide";
+    if (speed >= 50) return "Rapide";
+    if (speed >= 30) return "Standard";
+    return "Lente";
+  }
+
+  function getSelectionChipStyle(active: boolean, accentColor?: string) {
+    return {
+      padding: "8px 10px",
+      borderRadius: 999,
+      border: active ? "1px solid rgba(255,255,255,0.66)" : "1px solid rgba(255,255,255,0.14)",
+      background: active ? accentColor ?? "rgba(79,125,242,0.26)" : "rgba(255,255,255,0.06)",
+      color: "#f8fbff",
+      cursor: "pointer",
+      fontWeight: active ? 700 : 600,
+      fontSize: 12,
+      boxShadow: active ? "0 0 0 2px rgba(255,255,255,0.18) inset" : "none"
+    } satisfies React.CSSProperties;
+  }
+
+  function renderSimulationSelectionChips(
+    items: Array<{ id: string; label: string; accentColor?: string; helper?: string }>,
+    selectedId: string,
+    onSelect: (id: string) => void,
+    emptyMessage: string
+  ) {
+    if (items.length === 0) {
+      return <div style={editorTextStyles.helper}>{emptyMessage}</div>;
+    }
+    return (
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {items.map(item => {
+          const active = item.id === selectedId;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onSelect(item.id)}
+              style={getSelectionChipStyle(active, item.accentColor)}
+              title={item.helper}
+            >
+              {item.label}
+            </button>
+          );
+        })}
+      </div>
+    );
   }
 
   function updateSelectedFactionZoneField(
@@ -2285,11 +2629,15 @@ export function WorldMapEditorScreen(props: {
 
   function autoComputeSelectedMobileItinerary() {
     if (!selectedSimulationMobileActor) return;
-    if (selectedSimulationMobileActor.positionKind === "cell" || selectedSimulationMobileActor.destinationKind === "cell") return;
     const runtimeState = createWorldStateFromMapLayout(layout);
     const runtimeActor = runtimeState.mobileActors[`mobile:map:${selectedSimulationMobileActor.id}`];
     if (!runtimeActor || !runtimeActor.destination) return;
     const itinerary = findShortestRouteItinerary(runtimeState, runtimeActor);
+    dispatch({
+      type: "updateSelectedSimulationMobileActorField",
+      field: "itineraryMode",
+      value: "auto"
+    });
     dispatch({
       type: "updateSelectedSimulationMobileActorField",
       field: "itineraryRouteIds",
@@ -2298,6 +2646,11 @@ export function WorldMapEditorScreen(props: {
   }
 
   function setSelectedMobileItinerary(routeIds: string[]) {
+    dispatch({
+      type: "updateSelectedSimulationMobileActorField",
+      field: "itineraryMode",
+      value: "locked"
+    });
     dispatch({
       type: "updateSelectedSimulationMobileActorField",
       field: "itineraryRouteIds",
@@ -3131,6 +3484,10 @@ export function WorldMapEditorScreen(props: {
         panelLabels={PANEL_LABELS}
         panelIds={UTILITY_PANEL_IDS}
         openPanels={openPanels}
+        extraPanelToggles={[
+          { id: "selection", label: "Selection", checked: showSelectionPanel, onToggle: () => setShowSelectionPanel(current => !current) },
+          { id: "hex-analysis", label: "Analyse hex", checked: showHexAnalysisPanel, onToggle: () => setShowHexAnalysisPanel(current => !current) }
+        ]}
         activeTool={activeTool}
         canUndo={canUndo}
         canRedo={canRedo}
@@ -3296,7 +3653,7 @@ export function WorldMapEditorScreen(props: {
               </div>
             </div>
 
-            {!contextualHexSection && (
+            {!contextualHexSection && showSelectionPanel && (
               <div style={{ padding: 10, borderRadius: 10, background: "rgba(255,255,255,0.04)", fontSize: 12, color: "#c9d3e2", lineHeight: 1.5 }}>
                 Choisis un outil d'edition pour afficher ses options ici. `Main` sert surtout a inspecter la carte et la selection.
               </div>
@@ -4752,9 +5109,45 @@ export function WorldMapEditorScreen(props: {
             {contextualHexSection === "simulation" && (
               <SimulationPanel
                 title="World Simulation"
-                selectionLabel={selectedSimulationFaction?.label ?? "Aucune faction selectionnee"}
+                selectionLabel={
+                  activeSimulationWorkspace === "inspection"
+                    ? (selectedCellKey || "Aucune case selectionnee")
+                    : activeSimulationWorkspace === "factions"
+                      ? (selectedSimulationFaction?.label ?? "Aucune faction selectionnee")
+                      : activeSimulationWorkspace === "objectives"
+                        ? (selectedSimulationObjective?.label ?? "Aucun objectif selectionne")
+                        : (selectedSimulationMobileActor?.label ?? "Aucun mobile selectionne")
+                }
               >
                 <div style={{ display: "grid", gap: 10 }}>
+                  <EditorStepTabs
+                    tabs={[
+                      { id: "inspection", label: "Inspection" },
+                      { id: "factions", label: "Factions" },
+                      { id: "objectives", label: "Objectifs" },
+                      { id: "mobiles", label: "Mobiles" }
+                    ]}
+                    activeTab={activeSimulationWorkspace}
+                    onChange={tabId => setActiveSimulationWorkspace(tabId as "inspection" | "factions" | "objectives" | "mobiles")}
+                  />
+                  {activeSimulationWorkspace === "inspection" && (
+                  <div style={SUBSECTION_STYLE}>
+                    <div style={editorTextStyles.sectionTitle}>Cible inspectee</div>
+                    <div style={editorTextStyles.helper}>
+                      L'inspection suit toujours la case selectionnee sur la carte et reste independante des cibles d'edition.
+                    </div>
+                    <div style={{ display: "grid", gap: 6, fontSize: 12, color: "#dce5f2", lineHeight: 1.45 }}>
+                      <div>Case: {selectedCellKey || "Aucune"}</div>
+                      <div>Ville: {selectedCityWiki?.name ?? selectedCity?.id ?? "Aucune"}</div>
+                      <div>Region: {selectedRegionWiki?.name ?? (selectedGovernanceRegionId || "Aucune")}</div>
+                      <div>Route active: {selectedRoute?.label || selectedRoute?.id || "Aucune"}</div>
+                      <div>Factions simulation locales: {selectedCellSimulationFactions.length > 0 ? selectedCellSimulationFactions.join(", ") : "Aucune"}</div>
+                      <div>Lieux: {selectedCell?.locationWikiIds?.length ? selectedCell.locationWikiIds.join(", ") : "Aucun"}</div>
+                    </div>
+                  </div>
+                  )}
+
+                  {activeSimulationWorkspace === "inspection" && (
                   <div style={SUBSECTION_STYLE}>
                     <div style={editorTextStyles.sectionTitle}>Preflight simulation</div>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
@@ -4813,7 +5206,9 @@ export function WorldMapEditorScreen(props: {
                       </div>
                     )}
                   </div>
+                  )}
 
+                  {activeSimulationWorkspace === "inspection" && (
                   <div style={SUBSECTION_STYLE}>
                     <div style={editorTextStyles.sectionTitle}>Projection du prochain tick</div>
                     <div style={editorTextStyles.helper}>
@@ -4896,7 +5291,9 @@ export function WorldMapEditorScreen(props: {
                       )}
                     </div>
                   </div>
+                  )}
 
+                  {activeSimulationWorkspace === "inspection" && (
                   <div style={SUBSECTION_STYLE}>
                     <div style={editorTextStyles.sectionTitle}>Inspection des pressions</div>
                     <div style={editorTextStyles.helper}>
@@ -4956,27 +5353,25 @@ export function WorldMapEditorScreen(props: {
                       </div>
                     </div>
                   </div>
+                  )}
 
+                  {activeSimulationWorkspace === "factions" && (
+                    <EditorStepTabs
+                      tabs={[
+                        { id: "create", label: "Creer" },
+                        { id: "modify", label: "Modifier" }
+                      ]}
+                      activeTab={activeFactionMode}
+                      onChange={tabId => setActiveFactionMode(tabId as "create" | "modify")}
+                    />
+                  )}
+
+                  {activeSimulationWorkspace === "factions" && activeFactionMode === "create" && (
                   <div style={SUBSECTION_STYLE}>
-                    <div style={editorTextStyles.sectionTitle}>Creer / choisir une faction</div>
+                    <div style={editorTextStyles.sectionTitle}>Creer une faction</div>
                     <div style={editorTextStyles.helper}>
-                      Choisis une faction existante ou passe par un assistant court pour en creer une nouvelle.
+                      Cree une nouvelle faction depuis cet assistant. La modification des factions existantes reste dans l'onglet `Modifier`.
                     </div>
-                    <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                      Faction active
-                      <select
-                        value={selectedSimulationFactionId}
-                        onChange={event => dispatch({ type: "setSelectedSimulationFaction", factionId: event.target.value })}
-                        style={FIELD_STYLE}
-                      >
-                        <option value="">Choisir une faction</option>
-                        {simulationFactions.map(faction => (
-                          <option key={faction.id} value={faction.id}>
-                            {faction.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
                     <EditorStepTabs
                       tabs={[
                         { id: "identity", label: "1. Identite" },
@@ -4988,6 +5383,12 @@ export function WorldMapEditorScreen(props: {
                     />
                     {activeFactionCreateTab === "identity" && (
                       <div style={{ display: "grid", gap: 6 }}>
+                        <div style={{ ...SUBSECTION_STYLE, gap: 6 }}>
+                          <div>Nom du brouillon: {draftSimulationFactionLabel.trim() || "Aucun nom saisi"}</div>
+                          <div style={editorTextStyles.helper}>
+                            Saisis directement le nom et l'id de la nouvelle faction ici. Rien n'est lie a une liste de factions existantes dans ce flux.
+                          </div>
+                        </div>
                         <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
                           Id
                           <input
@@ -5045,8 +5446,9 @@ export function WorldMapEditorScreen(props: {
                       </div>
                     )}
                   </div>
+                  )}
 
-                  {selectedSimulationFaction && (
+                  {activeSimulationWorkspace === "factions" && activeFactionMode === "modify" && selectedSimulationFaction && (
                     <CollapsibleSection title="Lecture systeme" defaultOpen={false}>
                       <div style={{ ...SUBSECTION_STYLE, gap: 8 }}>
                         <div style={editorTextStyles.sectionTitle}>Vue logistique</div>
@@ -5061,20 +5463,40 @@ export function WorldMapEditorScreen(props: {
                     </CollapsibleSection>
                   )}
 
-                  {selectedSimulationFaction && (
+                  {(activeSimulationWorkspace === "factions" || activeSimulationWorkspace === "objectives" || activeSimulationWorkspace === "mobiles") && (
                     <>
-                      <EditorStepTabs
-                        tabs={[
-                          { id: "identity", label: "Identite" },
-                          { id: "territory", label: "Territoire" },
-                          { id: "objectives", label: "Objectifs" },
-                          { id: "mobiles", label: "Mobiles" }
-                        ]}
-                        activeTab={activeFactionEditorTab}
-                        onChange={tabId => setActiveFactionEditorTab(tabId as "identity" | "territory" | "objectives" | "mobiles")}
-                      />
+                      {activeSimulationWorkspace === "factions" && activeFactionMode === "modify" && (
+                        <>
+                          <EditorStepTabs
+                            tabs={[
+                              { id: "identity", label: "Identite" },
+                              { id: "territory", label: "Territoire" }
+                            ]}
+                            activeTab={activeFactionEditorTab}
+                            onChange={tabId => setActiveFactionEditorTab(tabId as "identity" | "territory")}
+                          />
 
-                      {activeFactionEditorTab === "identity" && (
+                          <div style={{ ...SUBSECTION_STYLE, gap: 8 }}>
+                            <div style={editorTextStyles.sectionTitle}>Liste des factions</div>
+                            <div style={editorTextStyles.helper}>
+                              Clique une pastille pour ouvrir directement la fiche de la faction.
+                            </div>
+                            {renderSimulationSelectionChips(
+                              simulationFactions.map(faction => ({
+                                id: faction.id,
+                                label: faction.label,
+                                accentColor: faction.color || "rgba(79,125,242,0.26)",
+                                helper: faction.id
+                              })),
+                              selectedSimulationFactionId,
+                              factionId => dispatch({ type: "setSelectedSimulationFaction", factionId }),
+                              "Aucune faction disponible."
+                            )}
+                          </div>
+                        </>
+                      )}
+
+                      {activeSimulationWorkspace === "factions" && activeFactionMode === "modify" && activeFactionEditorTab === "identity" && selectedSimulationFaction && (
                         <>
                       <CollapsibleSection title="Identite et intention" defaultOpen>
                       <div style={SUBSECTION_STYLE}>
@@ -5144,6 +5566,9 @@ export function WorldMapEditorScreen(props: {
                                 style={FIELD_STYLE}
                                 placeholder="Ajouter une methode"
                               />
+                              <div style={editorTextStyles.helper}>
+                                Archetype: {MOBILE_ARCHETYPE_PRESETS.find(preset => preset.id === draftSimulationMobileActorArchetype)?.label ?? "Archetype libre"} | Mission initiale: {MOBILE_ARCHETYPE_PRESETS.find(preset => preset.id === draftSimulationMobileActorArchetype)?.defaultMissionLabel ?? "Aucune"}
+                              </div>
                               <button
                                 type="button"
                                 onClick={() => {
@@ -5290,7 +5715,7 @@ export function WorldMapEditorScreen(props: {
                         </>
                       )}
 
-                      {activeFactionEditorTab === "territory" && (
+                      {activeSimulationWorkspace === "factions" && activeFactionMode === "modify" && activeFactionEditorTab === "territory" && selectedSimulationFaction && (
                         <>
                       <CollapsibleSection title="Ancrage et zones" defaultOpen={false}>
                       <div style={SUBSECTION_STYLE}>
@@ -5325,6 +5750,9 @@ export function WorldMapEditorScreen(props: {
                             ))}
                           </select>
                         </label>
+                        <div style={editorTextStyles.helper}>
+                          Mode nomade possible: laisse la ville d'ancrage vide si besoin, mais garde au moins une region d'ancrage ou une presence sur la carte pour eviter une faction sans point d'appui.
+                        </div>
                         <div style={{ display: "grid", gap: 6 }}>
                           <div style={editorTextStyles.helper}>
                             Presence definie: {selectedSimulationFaction.presenceCells.length} case(s)
@@ -5724,37 +6152,53 @@ export function WorldMapEditorScreen(props: {
                         </>
                       )}
 
-                      <button
-                        type="button"
-                        onClick={() => dispatch({ type: "deleteSelectedSimulationFaction" })}
-                        style={{ ...createEditorButtonStyle({ danger: true, compact: true }), borderRadius: 8 }}
-                      >
-                        Supprimer faction
-                      </button>
+                      {activeSimulationWorkspace === "factions" && activeFactionMode === "modify" && selectedSimulationFaction && (
+                        <button
+                          type="button"
+                          onClick={() => dispatch({ type: "deleteSelectedSimulationFaction" })}
+                          style={{ ...createEditorButtonStyle({ danger: true, compact: true }), borderRadius: 8 }}
+                        >
+                          Supprimer faction
+                        </button>
+                      )}
 
-                      {activeFactionEditorTab === "objectives" && (
+                      {activeSimulationWorkspace === "objectives" && (
+                        <EditorStepTabs
+                          tabs={[
+                            { id: "create", label: "Creer" },
+                            { id: "modify", label: "Modifier" }
+                          ]}
+                          activeTab={activeObjectiveMode}
+                          onChange={tabId => setActiveObjectiveMode(tabId as "create" | "modify")}
+                        />
+                      )}
+
+                      {activeSimulationWorkspace === "objectives" && activeObjectiveMode === "create" && (
                       <CollapsibleSection title="Objectifs" defaultOpen>
                         <div style={SUBSECTION_STYLE}>
                           <div style={editorTextStyles.helper}>
-                            Choisis un objectif existant ou passe par un assistant court pour en creer un nouveau.
+                            Choisis d'abord la faction porteuse, puis passe par un assistant court pour creer un nouvel objectif.
                           </div>
-                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                            Objectif actif
-                            <select
-                              value={selectedSimulationObjectiveId}
-                              onChange={event => dispatch({ type: "setSelectedSimulationObjective", objectiveId: event.target.value })}
-                              style={FIELD_STYLE}
-                            >
-                              <option value="">Choisir un objectif</option>
-                              {simulationObjectives
-                                .filter(objective => objective.ownerFactionId === selectedSimulationFaction.id)
-                                .map(objective => (
-                                  <option key={objective.id} value={objective.id}>
-                                    {objective.label}
-                                  </option>
-                                ))}
-                            </select>
-                          </label>
+                          <div style={{ display: "grid", gap: 6 }}>
+                            <div style={editorTextStyles.sectionTitle}>Faction porteuse</div>
+                            {renderSimulationSelectionChips(
+                              simulationFactions.map(faction => ({
+                                id: faction.id,
+                                label: faction.label,
+                                accentColor: faction.color || "rgba(79,125,242,0.26)",
+                                helper: faction.id
+                              })),
+                              effectiveObjectiveOwnerFactionId,
+                              factionId => {
+                                setDraftObjectiveOwnerFactionId(factionId);
+                                dispatch({ type: "setSelectedSimulationFaction", factionId });
+                              },
+                              "Aucune faction disponible."
+                            )}
+                            <div style={editorTextStyles.helper}>
+                              Faction retenue: {selectedObjectiveOwnerFaction?.label ?? "Aucune faction selectionnee"}
+                            </div>
+                          </div>
                           <EditorStepTabs
                             tabs={[
                               { id: "identity", label: "1. Identite" },
@@ -5814,11 +6258,14 @@ export function WorldMapEditorScreen(props: {
                               <div style={editorTextStyles.helper}>
                                 Resume: {draftSimulationObjectiveLabel.trim() || draftSimulationObjectiveId.trim() || "Objectif sans nom"} · {draftSimulationObjectiveCategory}
                               </div>
+                              <div style={editorTextStyles.helper}>
+                                Faction porteuse: {selectedObjectiveOwnerFaction?.label ?? "Aucune"}
+                              </div>
                               <button
                                 type="button"
                                 onClick={createSimulationObjectiveDefinition}
-                                disabled={!(draftSimulationObjectiveId.trim() || draftSimulationObjectiveLabel.trim())}
-                                style={{ ...createEditorButtonStyle({ active: true, compact: true }), borderRadius: 8, cursor: draftSimulationObjectiveId.trim() || draftSimulationObjectiveLabel.trim() ? "pointer" : "not-allowed", opacity: draftSimulationObjectiveId.trim() || draftSimulationObjectiveLabel.trim() ? 1 : 0.6 }}
+                                disabled={!(draftSimulationObjectiveId.trim() || draftSimulationObjectiveLabel.trim()) || !effectiveObjectiveOwnerFactionId}
+                                style={{ ...createEditorButtonStyle({ active: true, compact: true }), borderRadius: 8, cursor: (Boolean(draftSimulationObjectiveId.trim() || draftSimulationObjectiveLabel.trim()) && Boolean(effectiveObjectiveOwnerFactionId)) ? "pointer" : "not-allowed", opacity: (Boolean(draftSimulationObjectiveId.trim() || draftSimulationObjectiveLabel.trim()) && Boolean(effectiveObjectiveOwnerFactionId)) ? 1 : 0.6 }}
                               >
                                 Creer objectif
                               </button>
@@ -5828,7 +6275,56 @@ export function WorldMapEditorScreen(props: {
                       </CollapsibleSection>
                       )}
 
-                      {activeFactionEditorTab === "objectives" && selectedSimulationObjective && selectedSimulationObjective.ownerFactionId === selectedSimulationFaction.id && (
+                      {activeSimulationWorkspace === "objectives" && activeObjectiveMode === "modify" && (
+                        <div style={{ ...SUBSECTION_STYLE, gap: 8 }}>
+                          <div style={editorTextStyles.sectionTitle}>Liste des objectifs</div>
+                          <div style={editorTextStyles.helper}>
+                            Choisis une faction, puis un objectif existant a modifier.
+                          </div>
+                          <div style={{ display: "grid", gap: 6 }}>
+                            <div style={editorTextStyles.sectionTitle}>Faction</div>
+                            {renderSimulationSelectionChips(
+                              simulationFactions.map(faction => ({
+                                id: faction.id,
+                                label: faction.label,
+                                accentColor: faction.color || "rgba(79,125,242,0.26)",
+                                helper: faction.id
+                              })),
+                              effectiveObjectiveOwnerFactionId,
+                              factionId => {
+                                setDraftObjectiveOwnerFactionId(factionId);
+                                dispatch({ type: "setSelectedSimulationFaction", factionId });
+                              },
+                              "Aucune faction disponible."
+                            )}
+                          </div>
+                          <div style={{ display: "grid", gap: 6 }}>
+                            <div style={editorTextStyles.sectionTitle}>Objectifs</div>
+                            {renderSimulationSelectionChips(
+                              objectivesForSelectedOwnerFaction.map(objective => ({
+                                id: objective.id,
+                                label: objective.label,
+                                accentColor: selectedObjectiveOwnerFaction?.color || "rgba(79,125,242,0.26)",
+                                helper: objective.id
+                              })),
+                              selectedSimulationObjectiveId,
+                              objectiveId => dispatch({ type: "setSelectedSimulationObjective", objectiveId }),
+                              "Aucun objectif pour cette faction."
+                            )}
+                          </div>
+                          <div style={{ ...SUBSECTION_STYLE, gap: 6 }}>
+                            <div style={editorTextStyles.sectionTitle}>Cible active</div>
+                            <div style={editorTextStyles.helper}>
+                              Faction: {selectedObjectiveOwnerFaction?.label ?? "Aucune"} ({objectivesForSelectedOwnerFaction.length} objectif(s))
+                            </div>
+                            <div style={editorTextStyles.helper}>
+                              Objectif: {selectedSimulationObjective?.label ?? "Aucun objectif selectionne"}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {activeSimulationWorkspace === "objectives" && activeObjectiveMode === "modify" && selectedSimulationObjective && selectedSimulationObjective.ownerFactionId === effectiveObjectiveOwnerFactionId && (
                         <CollapsibleSection title="Objectif selectionne" defaultOpen={false}>
                           <div style={SUBSECTION_STYLE}>
                           <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
@@ -6061,7 +6557,7 @@ export function WorldMapEditorScreen(props: {
                               style={FIELD_STYLE}
                             >
                               <option value="">Aucun ancrage specifique</option>
-                              {(selectedSimulationFaction.localAnchors ?? []).map(anchor => (
+                              {(selectedObjectiveOwnerFaction?.localAnchors ?? []).map(anchor => (
                                 <option key={anchor.id} value={anchor.id}>
                                   {anchor.label || anchor.id} ({anchor.type})
                                 </option>
@@ -6091,11 +6587,11 @@ export function WorldMapEditorScreen(props: {
                           </div>
                           <div style={editorTextStyles.helper}>
                             Dependance locale: {selectedSimulationObjective.requiredAnchorId
-                              ? (selectedSimulationFaction.localAnchors ?? []).some(anchor => anchor.id === selectedSimulationObjective.requiredAnchorId)
+                              ? (selectedObjectiveOwnerFaction?.localAnchors ?? []).some(anchor => anchor.id === selectedSimulationObjective.requiredAnchorId)
                                 ? `ancrage resolu (${selectedSimulationObjective.requiredAnchorId})`
                                 : `ancrage introuvable (${selectedSimulationObjective.requiredAnchorId})`
                               : selectedSimulationObjective.requiredAnchorType
-                                ? (selectedSimulationFaction.localAnchors ?? []).some(anchor => anchor.type === selectedSimulationObjective.requiredAnchorType)
+                                ? (selectedObjectiveOwnerFaction?.localAnchors ?? []).some(anchor => anchor.type === selectedSimulationObjective.requiredAnchorType)
                                   ? `type disponible (${selectedSimulationObjective.requiredAnchorType})`
                                   : `type absent (${selectedSimulationObjective.requiredAnchorType})`
                                 : "aucune contrainte locale"}
@@ -6858,64 +7354,101 @@ export function WorldMapEditorScreen(props: {
                         </CollapsibleSection>
                       )}
 
-                      {activeFactionEditorTab === "mobiles" && (
+                      {activeSimulationWorkspace === "mobiles" && (
+                      <EditorStepTabs
+                        tabs={[
+                          { id: "create", label: "Creer" },
+                          { id: "modify", label: "Modifier" }
+                        ]}
+                        activeTab={activeMobileMode}
+                        onChange={tabId => setActiveMobileMode(tabId as "create" | "modify")}
+                      />
+                      )}
+
+                      {activeSimulationWorkspace === "mobiles" && activeMobileMode === "create" && (
                       <CollapsibleSection title="Mobiles" defaultOpen={false}>
                         <div style={SUBSECTION_STYLE}>
                           <div style={editorTextStyles.helper}>
-                            Choisis un mobile existant ou passe par un assistant court pour en creer un nouveau.
+                            Cree un nouveau mobile depuis ce wizard. La modification des mobiles existants reste dans l'onglet `Modifier`.
                           </div>
-                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                            Acteur mobile actif
-                            <select
-                              value={selectedSimulationMobileActorId}
-                              onChange={event => dispatch({ type: "setSelectedSimulationMobileActor", actorId: event.target.value })}
-                              style={FIELD_STYLE}
-                            >
-                              <option value="">Choisir un acteur</option>
-                              {simulationMobileActors
-                                .filter(actor => !actor.ownerFactionId || actor.ownerFactionId === selectedSimulationFaction.id)
-                                .map(actor => (
-                                  <option key={actor.id} value={actor.id}>
-                                    {actor.label}
-                                  </option>
-                                ))}
-                            </select>
-                          </label>
                           <EditorStepTabs
                             tabs={[
-                              { id: "identity", label: "1. Identite" },
-                              { id: "profile", label: "2. Profil" },
-                              { id: "create", label: "3. Creation" }
+                              { id: "archetype", label: "1. Archetype" },
+                              { id: "faction", label: "2. Faction" },
+                              { id: "mission", label: "3. Mission" },
+                              { id: "travel", label: "4. Trajet" },
+                              { id: "validate", label: "5. Validation" }
                             ]}
                             activeTab={activeMobileCreateTab}
-                            onChange={tabId => setActiveMobileCreateTab(tabId as "identity" | "profile" | "create")}
+                            onChange={tabId => setActiveMobileCreateTab(tabId as "archetype" | "faction" | "mission" | "travel" | "validate")}
                           />
-                          {activeMobileCreateTab === "identity" && (
+                          {activeMobileCreateTab === "archetype" && (
                             <div style={{ display: "grid", gap: 6 }}>
+                              <div style={{ ...SUBSECTION_STYLE, gap: 6 }}>
+                                <div>Nom du brouillon: {draftSimulationMobileActorLabel.trim() || "Aucun nom saisi"}</div>
+                                <div style={editorTextStyles.helper}>
+                                  Saisis directement le nom et l'id du nouveau mobile ici. Rien n'est lie a une liste de mobiles existants dans ce flux.
+                                </div>
+                              </div>
                               <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                                Id
-                                <input
-                                  value={draftSimulationMobileActorId}
-                                  onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationMobileActorId", value: event.target.value })}
+                                Archetype
+                                <select
+                                  value={draftSimulationMobileActorArchetype}
+                                  onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationMobileActorArchetype", value: event.target.value })}
                                   style={FIELD_STYLE}
-                                  placeholder="caravane_du_sud"
-                                />
+                                >
+                                  {MOBILE_ARCHETYPE_PRESETS.map(preset => (
+                                    <option key={preset.id} value={preset.id}>
+                                      {preset.label}
+                                    </option>
+                                  ))}
+                                </select>
                               </label>
+                              <div style={editorTextStyles.helper}>
+                                Mission type: {draftMobileArchetypePreset?.defaultMissionLabel ?? "Aucune"} | Niveau recommande: {draftMobileArchetypePreset ? SIMULATION_LEVEL_PRODUCT_LABELS[draftMobileArchetypePreset.recommendedSimulationLevel] : "Aucun"}
+                              </div>
                               <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                                Label
+                                Nom du mobile
                                 <input
                                   value={draftSimulationMobileActorLabel}
                                   onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationMobileActorLabel", value: event.target.value })}
                                   style={FIELD_STYLE}
-                                  placeholder="Caravane du Sud"
+                                  placeholder="Patrouille de la Porte Est"
+                                />
+                              </label>
+                              <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                Id technique
+                                <input
+                                  value={draftSimulationMobileActorId}
+                                  onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationMobileActorId", value: event.target.value })}
+                                  style={FIELD_STYLE}
+                                  placeholder="patrouille_porte_est"
                                 />
                               </label>
                             </div>
                           )}
-                          {activeMobileCreateTab === "profile" && (
+                          {activeMobileCreateTab === "faction" && (
                             <div style={{ display: "grid", gap: 6 }}>
+                              <div style={{ ...SUBSECTION_STYLE, gap: 6 }}>
+                                <div>Faction retenue: {selectedMobileOwnerFaction?.label ?? "Aucune faction selectionnee"}</div>
+                                <div style={editorTextStyles.helper}>Le mobile sera rattache a la faction choisie dans cette etape.</div>
+                              </div>
+                              {renderSimulationSelectionChips(
+                                simulationFactions.map(faction => ({
+                                  id: faction.id,
+                                  label: faction.label,
+                                  accentColor: faction.color || "rgba(79,125,242,0.26)",
+                                  helper: faction.id
+                                })),
+                                effectiveMobileOwnerFactionId,
+                                factionId => {
+                                  setDraftMobileOwnerFactionId(factionId);
+                                  dispatch({ type: "setSelectedSimulationFaction", factionId });
+                                },
+                                "Aucune faction disponible."
+                              )}
                               <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                                Type
+                                Type interne
                                 <input
                                   value={draftSimulationMobileActorType}
                                   onChange={event => dispatch({ type: "setDraftField", field: "draftSimulationMobileActorType", value: event.target.value })}
@@ -6933,16 +7466,45 @@ export function WorldMapEditorScreen(props: {
                               </label>
                             </div>
                           )}
-                          {activeMobileCreateTab === "create" && (
+                          {activeMobileCreateTab === "mission" && (
+                            <div style={{ display: "grid", gap: 8 }}>
+                              <div style={{ ...SUBSECTION_STYLE, gap: 6 }}>
+                                <div>Mission principale: {draftMobileMissionSummary}</div>
+                                <div>Cible de mission: {draftMobileMissionTargetSummary}</div>
+                                <div style={editorTextStyles.helper}>La mission est derivee de l'objectif selectionne, sinon de l'archetype.</div>
+                              </div>
+                              <div style={{ ...SUBSECTION_STYLE, gap: 6 }}>
+                                <div>Objectif selectionne: {selectedSimulationObjective?.label ?? "Aucun"}</div>
+                                <div style={editorTextStyles.helper}>Change l'objectif courant dans l'editeur si tu veux une autre mission liee.</div>
+                              </div>
+                            </div>
+                          )}
+                          {activeMobileCreateTab === "travel" && (
+                            <div style={{ display: "grid", gap: 8 }}>
+                              <div style={{ ...SUBSECTION_STYLE, gap: 6 }}>
+                                <div>Depart: {draftMobileDepartureSummary}</div>
+                                <div>Destination: {draftMobileMissionTargetSummary}</div>
+                                <div>Mode: trajet automatique par defaut</div>
+                                <div style={editorTextStyles.helper}>L'itineraire detaille reste disponible apres creation dans la fiche mobile.</div>
+                              </div>
+                            </div>
+                          )}
+                          {activeMobileCreateTab === "validate" && (
                             <div style={{ display: "grid", gap: 8 }}>
                               <div style={editorTextStyles.helper}>
                                 Resume: {draftSimulationMobileActorLabel.trim() || draftSimulationMobileActorId.trim() || "Mobile sans nom"} · {draftSimulationMobileActorType.trim() || "type libre"} · {draftSimulationMobileActorColor.trim() || "couleur par defaut"}
                               </div>
+                              <div style={editorTextStyles.helper}>
+                                Trajet: {draftMobileDepartureSummary} {"->"} {draftMobileMissionTargetSummary}
+                              </div>
+                              <div style={editorTextStyles.helper}>
+                                Faction: {selectedMobileOwnerFaction?.label ?? "Sans faction"} | Mission: {draftMobileMissionSummary}
+                              </div>
                               <button
                                 type="button"
                                 onClick={createSimulationMobileActorDefinition}
-                                disabled={!(draftSimulationMobileActorId.trim() || draftSimulationMobileActorLabel.trim())}
-                                style={{ ...createEditorButtonStyle({ active: true, compact: true }), borderRadius: 8, cursor: draftSimulationMobileActorId.trim() || draftSimulationMobileActorLabel.trim() ? "pointer" : "not-allowed", opacity: draftSimulationMobileActorId.trim() || draftSimulationMobileActorLabel.trim() ? 1 : 0.6 }}
+                                disabled={!draftMobileCreationReady || !effectiveMobileOwnerFactionId}
+                                style={{ ...createEditorButtonStyle({ active: true, compact: true }), borderRadius: 8, cursor: draftMobileCreationReady && Boolean(effectiveMobileOwnerFactionId) ? "pointer" : "not-allowed", opacity: draftMobileCreationReady && Boolean(effectiveMobileOwnerFactionId) ? 1 : 0.6 }}
                               >
                                 Creer acteur mobile
                               </button>
@@ -6952,22 +7514,64 @@ export function WorldMapEditorScreen(props: {
                       </CollapsibleSection>
                       )}
 
-                      {activeFactionEditorTab === "mobiles" && selectedSimulationMobileActor && (!selectedSimulationMobileActor.ownerFactionId || selectedSimulationMobileActor.ownerFactionId === selectedSimulationFaction.id) && (
+                      {activeSimulationWorkspace === "mobiles" && activeMobileMode === "modify" && (
+                        <div style={{ ...SUBSECTION_STYLE, gap: 8 }}>
+                          <div style={editorTextStyles.sectionTitle}>Liste des mobiles</div>
+                          <div style={editorTextStyles.helper}>
+                            Choisis une faction, puis un mobile appartenant a cette faction.
+                          </div>
+                          <div style={{ display: "grid", gap: 6 }}>
+                            <div style={editorTextStyles.sectionTitle}>Faction</div>
+                            {renderSimulationSelectionChips(
+                              simulationFactions.map(faction => ({
+                                id: faction.id,
+                                label: faction.label,
+                                accentColor: faction.color || "rgba(79,125,242,0.26)",
+                                helper: faction.id
+                              })),
+                              effectiveMobileBrowseFactionId,
+                              factionId => {
+                                setMobileBrowseFactionId(factionId);
+                                dispatch({ type: "setSelectedSimulationFaction", factionId });
+                              },
+                              "Aucune faction disponible."
+                            )}
+                          </div>
+                          <div style={{ display: "grid", gap: 6 }}>
+                            <div style={editorTextStyles.sectionTitle}>Mobiles</div>
+                            {renderSimulationSelectionChips(
+                              mobilesForBrowseFaction.map(actor => ({
+                                id: actor.id,
+                                label: actor.label,
+                                accentColor: mobileBrowseFaction?.color || "rgba(79,125,242,0.26)",
+                                helper: actor.id
+                              })),
+                              selectedSimulationMobileActorId,
+                              actorId => dispatch({ type: "setSelectedSimulationMobileActor", actorId }),
+                              "Aucun mobile pour cette faction."
+                            )}
+                          </div>
+                          <div style={{ ...SUBSECTION_STYLE, gap: 6 }}>
+                            <div style={editorTextStyles.sectionTitle}>Cible active</div>
+                            <div style={editorTextStyles.helper}>
+                              Faction: {mobileBrowseFaction?.label ?? "Aucune"} ({mobilesForBrowseFaction.length} mobile(s))
+                            </div>
+                            <div style={editorTextStyles.helper}>
+                              Mobile: {selectedSimulationMobileActor?.label ?? "Aucun mobile selectionne"}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {activeSimulationWorkspace === "mobiles" && activeMobileMode === "modify" && selectedSimulationMobileActor && selectedSimulationMobileActor.ownerFactionId === effectiveMobileBrowseFactionId && (
                         <CollapsibleSection title="Mobile selectionne" defaultOpen={false}>
                           <div style={SUBSECTION_STYLE}>
+                          <CollapsibleSection title="Resume" defaultOpen>
                           <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
                             Nom
                             <input
                               value={selectedSimulationMobileActor.label}
                               onChange={event => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "label", value: event.target.value })}
-                              style={FIELD_STYLE}
-                            />
-                          </label>
-                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                            Type
-                            <input
-                              value={selectedSimulationMobileActor.type}
-                              onChange={event => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "type", value: event.target.value })}
                               style={FIELD_STYLE}
                             />
                           </label>
@@ -6986,6 +7590,112 @@ export function WorldMapEditorScreen(props: {
                               ))}
                             </select>
                           </label>
+                          <div style={{ ...SUBSECTION_STYLE, gap: 6 }}>
+                            <div style={editorTextStyles.sectionTitle}>Resume mission</div>
+                            <div style={editorTextStyles.helper}>Archetype: {selectedSimulationMobileArchetypePreset?.label ?? selectedSimulationMobileActor.archetype ?? "Non defini"}</div>
+                            <div style={editorTextStyles.helper}>Mission: {selectedSimulationMobileMissionSummary}</div>
+                            <div style={editorTextStyles.helper}>Statut: {selectedSimulationMobileActor.missionStatus ? MOBILE_MISSION_STATUS_LABELS[selectedSimulationMobileActor.missionStatus] : "Non defini"}</div>
+                            <div style={editorTextStyles.helper}>Position: {selectedSimulationMobilePositionSummary}</div>
+                            <div style={editorTextStyles.helper}>Cible: {selectedSimulationMobileMissionTargetSummary}</div>
+                            <div style={editorTextStyles.helper}>Niveau produit: {SIMULATION_LEVEL_PRODUCT_LABELS[selectedSimulationMobileActor.simulationLevel]}</div>
+                            <div style={editorTextStyles.helper}>Itineraire: {MOBILE_ITINERARY_MODE_LABELS[selectedSimulationMobileActor.itineraryMode ?? "auto"]}</div>
+                          </div>
+                          </CollapsibleSection>
+                          <CollapsibleSection title="Mission" defaultOpen>
+                          <div style={RESPONSIVE_TWO_COLUMN_GRID}>
+                            <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                              Archetype
+                              <select
+                                value={selectedSimulationMobileActor.archetype ?? ""}
+                                onChange={event => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "archetype", value: event.target.value })}
+                                style={FIELD_STYLE}
+                              >
+                                <option value="">Aucun</option>
+                                {MOBILE_ARCHETYPE_PRESETS.map(preset => (
+                                  <option key={preset.id} value={preset.id}>
+                                    {preset.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <div style={{ display: "grid", alignContent: "end" }}>
+                              <button
+                                type="button"
+                                onClick={() => selectedSimulationMobileArchetypePreset && applyPresetToSelectedMobile(selectedSimulationMobileArchetypePreset)}
+                                disabled={!selectedSimulationMobileArchetypePreset}
+                                style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8, opacity: selectedSimulationMobileArchetypePreset ? 1 : 0.6 }}
+                              >
+                                Appliquer preset
+                              </button>
+                            </div>
+                          </div>
+                          <div style={RESPONSIVE_TWO_COLUMN_GRID}>
+                            <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                              Mission principale
+                              <input
+                                value={selectedSimulationMobileActor.missionLabel ?? ""}
+                                onChange={event => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "missionLabel", value: event.target.value })}
+                                style={FIELD_STYLE}
+                                placeholder="Securiser la route de l'Ambre"
+                              />
+                            </label>
+                            <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                              Cible de mission
+                              <input
+                                value={selectedSimulationMobileActor.missionTargetLabel ?? ""}
+                                onChange={event => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "missionTargetLabel", value: event.target.value })}
+                                style={FIELD_STYLE}
+                                placeholder="Porte Est"
+                              />
+                            </label>
+                            <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                              Priorite mission
+                              <select
+                                value={selectedSimulationMobileActor.missionPriority ?? "standard"}
+                                onChange={event => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "missionPriority", value: event.target.value })}
+                                style={FIELD_STYLE}
+                              >
+                                {Object.entries(MOBILE_MISSION_PRIORITY_LABELS).map(([value, label]) => (
+                                  <option key={value} value={value}>
+                                    {label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                              Statut mission
+                              <select
+                                value={selectedSimulationMobileActor.missionStatus ?? ""}
+                                onChange={event => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "missionStatus", value: event.target.value })}
+                                style={FIELD_STYLE}
+                              >
+                                <option value="">Non defini</option>
+                                {Object.entries(MOBILE_MISSION_STATUS_LABELS).map(([value, label]) => (
+                                  <option key={value} value={value}>
+                                    {label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                          </div>
+                          </CollapsibleSection>
+                          <CollapsibleSection title="Deplacement" defaultOpen>
+                          <div style={RESPONSIVE_TWO_COLUMN_GRID}>
+                            <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                              Mode d'itineraire
+                              <select
+                                value={selectedSimulationMobileActor.itineraryMode ?? "auto"}
+                                onChange={event => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "itineraryMode", value: event.target.value })}
+                                style={FIELD_STYLE}
+                              >
+                                <option value="auto">{MOBILE_ITINERARY_MODE_LABELS.auto}</option>
+                                <option value="locked">{MOBILE_ITINERARY_MODE_LABELS.locked}</option>
+                              </select>
+                            </label>
+                            <div style={editorTextStyles.helper}>
+                              Auto laisse le runtime recalculer le trajet si besoin. Verrouille preserve l'itineraire manuel tant qu'il reste praticable.
+                            </div>
+                          </div>
                           <div style={RESPONSIVE_TWO_COLUMN_GRID}>
                             <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
                               Position
@@ -7188,20 +7898,11 @@ export function WorldMapEditorScreen(props: {
                             <button
                               type="button"
                               onClick={autoComputeSelectedMobileItinerary}
-                              disabled={
-                                selectedSimulationMobileActor.positionKind === "cell" ||
-                                selectedSimulationMobileActor.destinationKind === "cell" ||
-                                !selectedSimulationMobileActor.destinationKind
-                              }
+                              disabled={!selectedSimulationMobileActor.destinationKind}
                               style={{
                                 ...createEditorButtonStyle({ compact: true }),
                                 borderRadius: 8,
-                                opacity:
-                                  selectedSimulationMobileActor.positionKind === "cell" ||
-                                  selectedSimulationMobileActor.destinationKind === "cell" ||
-                                  !selectedSimulationMobileActor.destinationKind
-                                    ? 0.6
-                                    : 1
+                                opacity: selectedSimulationMobileActor.destinationKind ? 1 : 0.6
                               }}
                             >
                               Auto-itineraire
@@ -7214,6 +7915,8 @@ export function WorldMapEditorScreen(props: {
                               Vider itineraire
                             </button>
                           </div>
+                          </CollapsibleSection>
+                          <CollapsibleSection title="Capacites" defaultOpen>
                           <div style={RESPONSIVE_TWO_COLUMN_GRID}>
                             <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
                               Deplacement
@@ -7228,6 +7931,57 @@ export function WorldMapEditorScreen(props: {
                                 <option value="foot">A pied</option>
                               </select>
                             </label>
+                            <div style={editorTextStyles.helper}>
+                              Mobilite produit: {getMobilityPresetLabel(selectedSimulationMobileActor.speed)}. Les valeurs ci-dessous restent des reglages avances pour le moteur.
+                            </div>
+                          </div>
+                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                            Population / races
+                            <PopulationProfileField
+                              profile={selectedSimulationMobileActor.populationProfile}
+                              effectiveProfile={selectedSimulationMobileActorRuntime?.populationProfile}
+                              effectiveSource={selectedSimulationMobilePopulationSource}
+                              inheritanceHint="Aucun override defini. Le mobile herite alors de la faction porteuse ou de la ville."
+                              emptyAddLabel="Ajouter"
+                              onChange={value => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "populationProfile", value })}
+                            />
+                          </label>
+                          <div style={editorTextStyles.helper}>
+                            Si ce champ est vide, le runtime herite du profil de la faction porteuse quand il existe.
+                          </div>
+                          <div style={RESPONSIVE_THREE_COLUMN_GRID}>
+                            {([
+                              ["speed", "Vitesse"],
+                              ["security", "Securite"],
+                              ["fatigue", "Fatigue"],
+                              ["cargo", "Charge"],
+                              ["headcount", "Effectif"],
+                              ["resources", "Ressources"]
+                            ] as const).map(([field, label]) => (
+                              <label key={field} style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                {label}
+                                <input
+                                  type="number"
+                                  min={0}
+                                  max={100}
+                                  value={selectedSimulationMobileActor[field]}
+                                  onChange={event => dispatch({ type: "updateSelectedSimulationMobileActorField", field, value: event.target.value })}
+                                  style={FIELD_STYLE}
+                                />
+                              </label>
+                            ))}
+                          </div>
+                          </CollapsibleSection>
+                          <CollapsibleSection title="Avance" defaultOpen={false}>
+                          <div style={RESPONSIVE_TWO_COLUMN_GRID}>
+                            <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                              Type interne
+                              <input
+                                value={selectedSimulationMobileActor.type}
+                                onChange={event => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "type", value: event.target.value })}
+                                style={FIELD_STYLE}
+                              />
+                            </label>
                             <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
                               Niveau simulation
                               <select
@@ -7235,14 +7989,19 @@ export function WorldMapEditorScreen(props: {
                                 onChange={event => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "simulationLevel", value: event.target.value as SimulationActorLevel })}
                                 style={FIELD_STYLE}
                               >
-                                <option value="active">Actif</option>
-                                <option value="summary">Resume</option>
-                                <option value="abstract">Abstrait</option>
+                                <option value="active">{SIMULATION_LEVEL_PRODUCT_LABELS.active}</option>
+                                <option value="summary">{SIMULATION_LEVEL_PRODUCT_LABELS.summary}</option>
+                                <option value="abstract">{SIMULATION_LEVEL_PRODUCT_LABELS.abstract}</option>
                               </select>
                             </label>
                           </div>
                           <div style={{ ...SUBSECTION_STYLE, gap: 8 }}>
                             <div style={editorTextStyles.sectionTitle}>Edition guidee mobile</div>
+                            {selectedSimulationMobileActor.simulationLevel === "abstract" ? (
+                              <div style={editorTextStyles.helper}>
+                                Ce mobile est abstrait: evite les positions en cellule et les itineraires tres detailles si tu ne veux pas suggerer une precision runtime trompeuse.
+                              </div>
+                            ) : null}
                             <div style={editorTextStyles.helper}>
                               Les objectifs lies et tags d'interaction se gerent ici via des selections guidees.
                             </div>
@@ -7348,42 +8107,6 @@ export function WorldMapEditorScreen(props: {
                               </button>
                             </div>
                           </div>
-                          <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                            Population / races
-                            <PopulationProfileField
-                              profile={selectedSimulationMobileActor.populationProfile}
-                              effectiveProfile={selectedSimulationMobileActorRuntime?.populationProfile}
-                              effectiveSource={selectedSimulationMobilePopulationSource}
-                              inheritanceHint="Aucun override defini. Le mobile herite alors de la faction porteuse ou de la ville."
-                              emptyAddLabel="Ajouter"
-                              onChange={value => dispatch({ type: "updateSelectedSimulationMobileActorField", field: "populationProfile", value })}
-                            />
-                          </label>
-                          <div style={editorTextStyles.helper}>
-                            Si ce champ est vide, le runtime herite du profil de la faction porteuse quand il existe.
-                          </div>
-                          <div style={RESPONSIVE_THREE_COLUMN_GRID}>
-                            {([
-                              ["speed", "Vitesse"],
-                              ["security", "Securite"],
-                              ["fatigue", "Fatigue"],
-                              ["cargo", "Charge"],
-                              ["headcount", "Effectif"],
-                              ["resources", "Ressources"]
-                            ] as const).map(([field, label]) => (
-                              <label key={field} style={{ display: "grid", gap: 4, fontSize: 12 }}>
-                                {label}
-                                <input
-                                  type="number"
-                                  min={0}
-                                  max={100}
-                                  value={selectedSimulationMobileActor[field]}
-                                  onChange={event => dispatch({ type: "updateSelectedSimulationMobileActorField", field, value: event.target.value })}
-                                  style={FIELD_STYLE}
-                                />
-                              </label>
-                            ))}
-                          </div>
                           <button
                             type="button"
                             onClick={() => dispatch({ type: "deleteSelectedSimulationMobileActor" })}
@@ -7391,6 +8114,7 @@ export function WorldMapEditorScreen(props: {
                           >
                             Supprimer acteur mobile
                           </button>
+                          </CollapsibleSection>
                           </div>
                         </CollapsibleSection>
                       )}
@@ -7523,7 +8247,7 @@ export function WorldMapEditorScreen(props: {
           <>
             {overlay}
             <MapSelectionSummary
-              visible
+              visible={showHexAnalysisPanel}
               position={hexModalPosition}
               selectedCellKey={selectedCellKey}
               selectedCell={selectedCell}

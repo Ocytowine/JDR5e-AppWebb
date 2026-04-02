@@ -29,6 +29,9 @@ export type SimulationActorPositionKind = "city" | "route" | "region" | "cell";
 export type SimulationAnchorTargetKind = "city" | "district" | "route" | "region" | "place" | "cell";
 export type SimulationTravelMode = "road" | "river" | "sea" | "foot";
 export type SimulationActorLevel = "active" | "summary" | "abstract";
+export type SimulationMobileMissionPriority = "low" | "standard" | "high" | "critical";
+export type SimulationMobileMissionStatus = "preparing" | "en_route" | "on_site" | "in_action" | "blocked" | "withdrawing" | "completed";
+export type SimulationMobileItineraryMode = "auto" | "locked";
 export type SimulationFactionRelationStatus = "ally" | "neutral" | "rival" | "war";
 export type SimulationTensionType = "criminal" | "social" | "commercial" | "political" | "religious" | "scarcity" | "control_conflict" | "mobility_risk";
 export type SimulationOpportunityKind = "escort_needed" | "weak_control" | "scarcity_trade" | "investigation_lead" | "political_opening";
@@ -232,8 +235,13 @@ export type WorldMapSimulationMobileActor = {
   id: string;
   label: string;
   type: string;
+  archetype?: string;
   color: string;
   ownerFactionId?: string;
+  missionLabel?: string;
+  missionTargetLabel?: string;
+  missionPriority?: SimulationMobileMissionPriority;
+  missionStatus?: SimulationMobileMissionStatus;
   positionKind: SimulationActorPositionKind;
   positionId?: string;
   positionCell?: MapCell;
@@ -241,6 +249,7 @@ export type WorldMapSimulationMobileActor = {
   destinationId?: string;
   destinationCell?: MapCell;
   populationProfile?: PopulationProfile;
+  itineraryMode?: SimulationMobileItineraryMode;
   itineraryRouteIds: string[];
   travelMode: SimulationTravelMode;
   speed: number;
@@ -469,6 +478,12 @@ export function createRuntimeWorldMapLayout(
       })),
       mobileActors: (sourceLayout.simulation?.mobileActors ?? []).map(actor => ({
         ...actor,
+        archetype: actor.archetype ?? undefined,
+        missionLabel: actor.missionLabel ?? undefined,
+        missionTargetLabel: actor.missionTargetLabel ?? undefined,
+        missionPriority: actor.missionPriority ?? "standard",
+        missionStatus: actor.missionStatus ?? undefined,
+        itineraryMode: actor.itineraryMode ?? "auto",
         itineraryRouteIds: Array.isArray(actor.itineraryRouteIds) ? actor.itineraryRouteIds : [],
         objectiveIds: Array.isArray(actor.objectiveIds) ? actor.objectiveIds : [],
         interactionTags: Array.isArray(actor.interactionTags) ? actor.interactionTags : [],

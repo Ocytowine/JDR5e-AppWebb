@@ -138,6 +138,7 @@ export type MapEditorState = {
   draftSimulationMobileActorId: string;
   draftSimulationMobileActorLabel: string;
   draftSimulationMobileActorType: string;
+  draftSimulationMobileActorArchetype: string;
   draftSimulationMobileActorColor: string;
   pendingGeographyId: string;
   pendingReliefElevation: "" | ReliefElevationLevel;
@@ -189,6 +190,7 @@ type DraftField =
   | "draftSimulationMobileActorId"
   | "draftSimulationMobileActorLabel"
   | "draftSimulationMobileActorType"
+  | "draftSimulationMobileActorArchetype"
   | "draftSimulationMobileActorColor";
 
 type LoreField =
@@ -402,13 +404,19 @@ export type MapEditorAction =
         | "id"
         | "label"
         | "type"
+        | "archetype"
         | "color"
         | "ownerFactionId"
+        | "missionLabel"
+        | "missionTargetLabel"
+        | "missionPriority"
+        | "missionStatus"
         | "positionKind"
         | "positionId"
         | "destinationKind"
         | "destinationId"
         | "populationProfile"
+        | "itineraryMode"
         | "itineraryRouteIds"
         | "travelMode"
         | "speed"

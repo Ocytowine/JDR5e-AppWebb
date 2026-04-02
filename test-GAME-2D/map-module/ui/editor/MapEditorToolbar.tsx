@@ -8,6 +8,7 @@ export function MapEditorToolbar(props: {
   panelLabels: Record<PanelId, string>;
   panelIds: PanelId[];
   openPanels: Record<PanelId, boolean>;
+  extraPanelToggles?: Array<{ id: string; label: string; checked: boolean; onToggle: () => void }>;
   activeTool: EditorToolId;
   canUndo: boolean;
   canRedo: boolean;
@@ -133,6 +134,16 @@ export function MapEditorToolbar(props: {
                   onChange={() => props.onTogglePanel(panelId)}
                 />
                 {props.panelLabels[panelId]}
+              </label>
+            ))}
+            {props.extraPanelToggles?.map(toggle => (
+              <label key={toggle.id} style={{ display: "flex", alignItems: "center", gap: 8, color: EDITOR_THEME.colors.text, fontSize: 13, fontFamily: EDITOR_THEME.fontFamily }}>
+                <input
+                  type="checkbox"
+                  checked={toggle.checked}
+                  onChange={toggle.onToggle}
+                />
+                {toggle.label}
               </label>
             ))}
           </div>
