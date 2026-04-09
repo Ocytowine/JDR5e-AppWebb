@@ -1,6 +1,7 @@
 import { PRESSURE_DEFINITIONS, WORLD_ACTION_DEFINITIONS } from "./definitions";
 import { applyFactionLogisticsPlans, buildFactionLogisticsPlans, reinitialiserRessourcesTransport } from "./logisticsPlanner";
 import { synchronizeObjectiveReadiness } from "./objectiveReadiness";
+import { reconcileSystemObjectives } from "./systemObjectives";
 import { findShortestRouteItinerary, getAbsoluteRouteProgress, getProgressPerTick, getRouteProgressTowardTarget, getRouteTargetId, getRouteTraversalCost } from "./travel";
 import type {
   ActionCandidateTrace,
@@ -53,6 +54,118 @@ const ENTITY_PRESSURE_KINDS: Array<Extract<WorldEntityKind, "city" | "district" 
   "region"
 ];
 
+function getActiveObjectivePhase(objective: SpecialObjective | undefined) {
+  if (!objective || objective.phases.length === 0) return undefined;
+  if (objective.currentPhaseIndex < 0 || objective.currentPhaseIndex >= objective.phases.length) return undefined;
+  return objective.phases[objective.currentPhaseIndex];
+}
+
+function getObjectiveActionTarget(objective: SpecialObjective | undefined): EntityRef | undefined {
+  const activePhase = getActiveObjectivePhase(objective);
+  return activePhase?.localTarget ?? objective?.target;
+}
+
+function getObjectiveCompatibleActions(objective: SpecialObjective | undefined) {
+  const activePhase = getActiveObjectivePhase(objective);
+  if (activePhase && activePhase.compatibleActionIds.length > 0) {
+    return activePhase.compatibleActionIds;
+  }
+  return objective?.compatibleActionIds ?? [];
+}
+
+function ensureActivePhaseHistory(objective: SpecialObjective, tick: number, phase = getActiveObjectivePhase(objective)) {
+  if (!phase) return;
+  const existingOpenEntry = objective.phaseHistory.find(entry => entry.phaseId === phase.id && typeof entry.exitedAtTick !== "number");
+  if (existingOpenEntry) return;
+  objective.phaseHistory.push({
+    phaseId: phase.id,
+    enteredAtTick: tick
+  });
+}
+
+function closePhaseHistoryEntry(
+  objective: SpecialObjective,
+  phaseId: EntityId,
+  tick: number,
+  outcome: "advanced" | "blocked" | "failed",
+  reasons: string[] = []
+) {
+  const openEntry =
+    [...objective.phaseHistory]
+      .reverse()
+      .find(entry => entry.phaseId === phaseId && typeof entry.exitedAtTick !== "number");
+  if (!openEntry) return;
+  openEntry.exitedAtTick = tick;
+  openEntry.outcome = outcome;
+  if (reasons.length > 0) {
+    openEntry.reasons = reasons;
+  }
+}
+
+function isPhaseCompletionReached(state: WorldState, objective: SpecialObjective, phase = getActiveObjectivePhase(objective)): boolean {
+  if (!phase) return false;
+  if (phase.completionMode === "progress_threshold") {
+    return phase.progress >= phase.completionThreshold;
+  }
+  if (phase.completionMode === "action_count") {
+    const total = Object.values(phase.actionCountById ?? {}).reduce((sum, value) => sum + (value ?? 0), 0);
+    return total >= phase.completionThreshold;
+  }
+  if (phase.completionMode === "presence") {
+    const ref = phase.requiredPresenceRef;
+    if (!ref) return false;
+    return Boolean(getEntityState(state, ref));
+  }
+  const faction = objective.owner.kind === "faction" ? state.factions[objective.owner.id] : undefined;
+  if (!faction) return false;
+  if (phase.requiredAnchorId) {
+    return (faction.localAnchors ?? []).some(anchor => anchor.id === phase.requiredAnchorId);
+  }
+  if (phase.requiredAnchorType) {
+    return (faction.localAnchors ?? []).some(anchor => anchor.type === phase.requiredAnchorType);
+  }
+  return false;
+}
+
+function advanceObjectivePhase(
+  state: WorldState,
+  deltas: StateDelta[],
+  objectiveId: EntityId,
+  phase: NonNullable<ReturnType<typeof getActiveObjectivePhase>>
+) {
+  phase.state = "completed";
+  deltas.push({
+    target: { kind: "specialObjective", id: objectiveId },
+    key: "phase_progress",
+    before: phase.progress,
+    after: phase.progress,
+    amount: 0,
+    meta: { phaseId: phase.id, transition: "completed" }
+  });
+  const objective = state.specialObjectives[objectiveId];
+  if (!objective) return;
+  closePhaseHistoryEntry(objective, phase.id, state.clock.tick, "advanced", ["phase_completion"]);
+  const nextIndex = objective.currentPhaseIndex + 1;
+  if (nextIndex >= objective.phases.length) {
+    objective.state = "completed";
+    objective.currentPhaseIndex = Math.max(0, objective.phases.length - 1);
+    objective.progress = 100;
+    return;
+  }
+  objective.currentPhaseIndex = nextIndex;
+  const nextPhase = objective.phases[nextIndex];
+  nextPhase.state = "active";
+  ensureActivePhaseHistory(objective, state.clock.tick, nextPhase);
+  deltas.push({
+    target: { kind: "specialObjective", id: objectiveId },
+    key: "phase_progress",
+    before: 0,
+    after: nextPhase.progress,
+    amount: 0,
+    meta: { phaseId: nextPhase.id, transition: "activated" }
+  });
+}
+
 function clamp(value: number, min = 0, max = 100): number {
   return Math.max(min, Math.min(max, value));
 }
@@ -102,14 +215,281 @@ function setStateStat(state: WorldState, deltas: StateDelta[], ref: EntityRef, k
   deltas.push({ target: ref, key, before, after, amount });
 }
 
-function updateObjectiveProgress(state: WorldState, deltas: StateDelta[], objectiveId: EntityId | undefined, amount: number) {
+function applyWearDelta(state: WorldState, deltas: StateDelta[], ref: EntityRef, key: ScalarStat, amount: number, source: string) {
+  const entity = getEntityState(state, ref) as { state?: Record<string, number> } | undefined;
+  if (!entity?.state) return;
+  const before = entity.state[key] ?? 0;
+  const after = clamp(before + amount);
+  if (before === after) return;
+  entity.state[key] = after;
+  deltas.push({
+    target: ref,
+    key,
+    before,
+    after,
+    amount,
+    meta: { source, kind: "territorial_wear" }
+  });
+}
+
+function applySystemShiftDelta(state: WorldState, deltas: StateDelta[], ref: EntityRef, key: ScalarStat, amount: number, source: string) {
+  const entity = getEntityState(state, ref) as { state?: Record<string, number> } | undefined;
+  if (!entity?.state) return;
+  const before = entity.state[key] ?? 0;
+  const after = clamp(before + amount);
+  if (before === after) return;
+  entity.state[key] = after;
+  deltas.push({
+    target: ref,
+    key,
+    before,
+    after,
+    amount,
+    meta: { source, kind: "tension_conversion" }
+  });
+}
+
+function getDistrictCityRef(state: WorldState, ref: EntityRef): EntityRef | undefined {
+  if (ref.kind !== "district") return undefined;
+  const district = state.districts[ref.id];
+  return district ? { kind: "city", id: district.cityId } : undefined;
+}
+
+function getRegionRefForTarget(state: WorldState, ref: EntityRef): EntityRef | undefined {
+  if (ref.kind === "region") return ref;
+  if (ref.kind === "city") {
+    const city = state.cities[ref.id];
+    return city?.regionId ? { kind: "region", id: city.regionId } : undefined;
+  }
+  if (ref.kind === "district") {
+    const cityRef = getDistrictCityRef(state, ref);
+    return cityRef ? getRegionRefForTarget(state, cityRef) : undefined;
+  }
+  if (ref.kind === "route") {
+    const route = state.routes[ref.id];
+    if (!route) return undefined;
+    const originCity = state.cities[route.originId];
+    if (originCity?.regionId) return { kind: "region", id: originCity.regionId };
+    const destinationCity = state.cities[route.destinationId];
+    return destinationCity?.regionId ? { kind: "region", id: destinationCity.regionId } : undefined;
+  }
+  return undefined;
+}
+
+function getSystemFactionSupportDelta(state: WorldState, faction: WorldFaction): number {
+  const parts = faction.id.split(":");
+  const anchorId = parts[parts.length - 1];
+  if (faction.type === "regional_patrol") {
+    const region = state.regions[anchorId];
+    if (!region) return 0;
+    const production = region.state.production ?? 0;
+    const stability = region.state.stability ?? 0;
+    return Math.max(1, Math.round((production * 0.04) + (stability * 0.02)));
+  }
+
+  const city = state.cities[anchorId];
+  if (!city) return 0;
+  if (faction.type === "public_guard") {
+    return Math.max(1, Math.round(((city.state.order ?? 0) * 0.04) + ((city.state.supply ?? 0) * 0.015)));
+  }
+  if (faction.type === "civic_authority") {
+    return Math.max(1, Math.round(((city.state.attractiveness ?? 0) * 0.025) + ((city.state.order ?? 0) * 0.02) + ((city.state.supply ?? 0) * 0.015)));
+  }
+  if (faction.type === "logistics_office") {
+    return Math.max(1, Math.round(((city.state.commerce ?? 0) * 0.03) + ((city.state.supply ?? 0) * 0.03)));
+  }
+  return 0;
+}
+
+function createSystemTension(
+  state: WorldState,
+  type: WorldTension["type"],
+  severity: number,
+  sourceRefs: EntityRef[],
+  targetRefs: EntityRef[],
+  tags: string[]
+) {
+  const targetSuffix = targetRefs.map(ref => ref.id).join("-");
+  const tension: WorldTension = {
+    id: makeId("tension", state.clock.tick, `${type}-${targetSuffix}-${tags.join("-")}`),
+    type,
+    severity,
+    sourceRefs,
+    targetRefs,
+    sinceTick: state.clock.tick,
+    tags
+  };
+  state.tensions[tension.id] = tension;
+}
+
+function applySystemicTensionConversion(
+  state: WorldState,
+  ctx: TickContext,
+  candidate: ActionCandidate,
+  success: boolean
+) {
+  const source = `systemic_cycle:${candidate.action.id}:${success ? "success" : "failure"}`;
+  const targetRef = candidate.targetRef;
+  const cityRef = getDistrictCityRef(state, targetRef) ?? (targetRef.kind === "city" ? targetRef : undefined);
+  const regionRef = getRegionRefForTarget(state, targetRef);
+
+  if (candidate.action.id === "patrol" && success && targetRef.kind === "district") {
+    applySystemShiftDelta(state, ctx.generatedDeltas, targetRef, "fear", 4, source);
+    applySystemShiftDelta(state, ctx.generatedDeltas, targetRef, "agitation", 2, source);
+    if (cityRef) {
+      applySystemShiftDelta(state, ctx.generatedDeltas, cityRef, "order", 2, source);
+    }
+    createSystemTension(state, "social", 14, [candidate.actorRef], [targetRef], ["patrol_backlash"]);
+    return;
+  }
+
+  if (candidate.action.id === "inspect_customs" && success && targetRef.kind === "district") {
+    applySystemShiftDelta(state, ctx.generatedDeltas, targetRef, "agitation", 5, source);
+    applySystemShiftDelta(state, ctx.generatedDeltas, targetRef, "fear", 2, source);
+    if (regionRef) {
+      applySystemShiftDelta(state, ctx.generatedDeltas, regionRef, "politicalControl", 2, source);
+    }
+    createSystemTension(state, "political", 16, [candidate.actorRef], [targetRef], ["customs_pushback"]);
+    return;
+  }
+
+  if (candidate.action.id === "public_reassurance" && success && targetRef.kind === "district") {
+    applySystemShiftDelta(state, ctx.generatedDeltas, targetRef, "surveillance", -2, source);
+    if (cityRef) {
+      applySystemShiftDelta(state, ctx.generatedDeltas, cityRef, "order", 1, source);
+    }
+    return;
+  }
+
+  if (candidate.action.id === "relief_distribution" && success && targetRef.kind === "district") {
+    if (cityRef) {
+      applySystemShiftDelta(state, ctx.generatedDeltas, cityRef, "supply", -3, source);
+      applySystemShiftDelta(state, ctx.generatedDeltas, cityRef, "commerce", 1, source);
+    }
+    ctx.generatedOpportunities.push({
+      id: makeId("opportunity", state.clock.tick, `${candidate.action.id}-${targetRef.id}`),
+      kind: "scarcity_trade",
+      location: targetRef,
+      score: 44,
+      sourceRefs: [candidate.actorRef, targetRef],
+      tags: ["aid_flow", "redistribution"]
+    });
+    return;
+  }
+
+  if (candidate.action.id === "reopen_market" && success && targetRef.kind === "district") {
+    applySystemShiftDelta(state, ctx.generatedDeltas, targetRef, "danger", 4, source);
+    if (cityRef) {
+      applySystemShiftDelta(state, ctx.generatedDeltas, cityRef, "commerce", 2, source);
+    }
+    createSystemTension(state, "criminal", 18, [candidate.actorRef], [targetRef], ["market_visibility"]);
+    return;
+  }
+
+  if ((candidate.action.id === "secure_route" || candidate.action.id === "repair_route") && success && targetRef.kind === "route") {
+    applySystemShiftDelta(state, ctx.generatedDeltas, targetRef, "traffic", 3, source);
+    applySystemShiftDelta(state, ctx.generatedDeltas, targetRef, "ambushRisk", 2, source);
+    const route = state.routes[targetRef.id];
+    if (route) {
+      const originCityRef = state.cities[route.originId] ? { kind: "city", id: route.originId } as const : undefined;
+      const destinationCityRef = state.cities[route.destinationId] ? { kind: "city", id: route.destinationId } as const : undefined;
+      if (originCityRef) {
+        applySystemShiftDelta(state, ctx.generatedDeltas, originCityRef, "commerce", 2, source);
+      }
+      if (destinationCityRef) {
+        applySystemShiftDelta(state, ctx.generatedDeltas, destinationCityRef, "commerce", 2, source);
+      }
+    }
+    createSystemTension(state, "criminal", 12, [candidate.actorRef], [targetRef], ["corridor_exposure"]);
+    return;
+  }
+
+  if (!success && candidate.action.id === "reopen_market" && targetRef.kind === "district") {
+    applySystemShiftDelta(state, ctx.generatedDeltas, targetRef, "agitation", 3, source);
+    if (regionRef) {
+      applySystemShiftDelta(state, ctx.generatedDeltas, regionRef, "politicalControl", -1, source);
+    }
+  }
+}
+
+function applyTerritorialWear(state: WorldState, scale: TickScale): StateDelta[] {
+  if (scale !== "macro") return [];
+  const deltas: StateDelta[] = [];
+
+  Object.values(state.routes).forEach(route => {
+    const militaryPressure = getPressure(state, { kind: "route", id: route.id }, "military");
+    const traffic = route.state.traffic ?? 0;
+    const ambushRisk = route.state.ambushRisk ?? 0;
+    const materialWear = -Math.max(1, Math.round((traffic + militaryPressure + ambushRisk * 0.5) / 85));
+    applyWearDelta(state, deltas, { kind: "route", id: route.id }, "materialState", materialWear, "macro_route_material_wear");
+    if (militaryPressure >= 52 || ambushRisk >= 48) {
+      applyWearDelta(state, deltas, { kind: "route", id: route.id }, "security", -1, "macro_route_security_wear");
+    }
+  });
+
+  Object.values(state.districts).forEach(district => {
+    const socialPressure = getPressure(state, { kind: "district", id: district.id }, "social");
+    const criminalPressure = getPressure(state, { kind: "district", id: district.id }, "criminal");
+    const commerce = district.state.commerce ?? 0;
+    applyWearDelta(state, deltas, { kind: "district", id: district.id }, "fear", 1, "macro_district_fear_drift");
+    if (socialPressure >= 55) {
+      applyWearDelta(state, deltas, { kind: "district", id: district.id }, "agitation", 1, "macro_district_agitation_drift");
+    }
+    if (socialPressure >= 60 || criminalPressure >= 55) {
+      applyWearDelta(state, deltas, { kind: "district", id: district.id }, "commerce", -1, "macro_district_commerce_wear");
+    } else if (commerce >= 55) {
+      applyWearDelta(state, deltas, { kind: "district", id: district.id }, "commerce", -1, "macro_district_commerce_friction");
+    }
+  });
+
+  Object.values(state.cities).forEach(city => {
+    const commercialPressure = getPressure(state, { kind: "city", id: city.id }, "commercial");
+    applyWearDelta(state, deltas, { kind: "city", id: city.id }, "supply", -1, "macro_city_supply_wear");
+    if (commercialPressure >= 55) {
+      applyWearDelta(state, deltas, { kind: "city", id: city.id }, "commerce", -1, "macro_city_commerce_wear");
+    }
+    if ((city.state.order ?? 0) >= 35) {
+      applyWearDelta(state, deltas, { kind: "city", id: city.id }, "order", -1, "macro_city_order_wear");
+    }
+  });
+
+  Object.values(state.regions).forEach(region => {
+    const politicalPressure = getPressure(state, { kind: "region", id: region.id }, "political");
+    applyWearDelta(state, deltas, { kind: "region", id: region.id }, "circulation", -1, "macro_region_circulation_wear");
+    if (politicalPressure >= 55 || (region.state.externalThreat ?? 0) >= 48) {
+      applyWearDelta(state, deltas, { kind: "region", id: region.id }, "stability", -1, "macro_region_stability_wear");
+      applyWearDelta(state, deltas, { kind: "region", id: region.id }, "politicalControl", -1, "macro_region_control_wear");
+    }
+  });
+
+  Object.values(state.factions).forEach(faction => {
+    if (!faction.tags.includes("system")) return;
+    const supportDelta = getSystemFactionSupportDelta(state, faction);
+    if (supportDelta > 0) {
+      applyWearDelta(state, deltas, { kind: "faction", id: faction.id }, "resources", supportDelta, "macro_system_faction_support");
+    }
+    applyWearDelta(state, deltas, { kind: "faction", id: faction.id }, "resources", -1, "macro_system_faction_upkeep");
+  });
+
+  return deltas;
+}
+
+function updateObjectiveProgress(
+  state: WorldState,
+  deltas: StateDelta[],
+  objectiveId: EntityId | undefined,
+  amount: number,
+  actionId?: WorldActionDefinition["id"]
+) {
   if (!objectiveId) return;
   const objective = state.specialObjectives[objectiveId];
   if (!objective) return;
+  const activePhase = getActiveObjectivePhase(objective);
   const before = objective.progress;
-  const after = clamp(before + amount);
+  const globalAmount = activePhase ? amount * Math.max(0, activePhase.progressWeight || 1) : amount;
+  const after = clamp(before + globalAmount);
   objective.progress = after;
-  if (after >= 100) {
+  if (!activePhase && after >= 100) {
     objective.state = "completed";
   } else if (objective.state === "planned") {
     objective.state = "active";
@@ -119,8 +499,178 @@ function updateObjectiveProgress(state: WorldState, deltas: StateDelta[], object
     key: "objective_progress",
     before,
     after,
-    amount
+    amount: globalAmount
   });
+  if (activePhase) {
+    const phaseBefore = activePhase.progress;
+    const phaseAfter = clamp(phaseBefore + amount);
+    activePhase.progress = phaseAfter;
+    if (actionId) {
+      activePhase.actionCountById = {
+        ...(activePhase.actionCountById ?? {}),
+        [actionId]: (activePhase.actionCountById?.[actionId] ?? 0) + 1
+      };
+    }
+    deltas.push({
+      target: { kind: "specialObjective", id: objectiveId },
+      key: "phase_progress",
+      before: phaseBefore,
+      after: phaseAfter,
+      amount,
+      meta: { phaseId: activePhase.id }
+    });
+    if (isPhaseCompletionReached(state, objective, activePhase)) {
+      advanceObjectivePhase(state, deltas, objectiveId, activePhase);
+    }
+  }
+}
+
+function getFailureSeverity(candidate: ActionCandidate): number {
+  const maxRiskSeverity = candidate.action.risks.reduce((max, risk) => Math.max(max, risk.severity), 0);
+  const scoreFactor = clamp(candidate.score, 0, 100) * 0.08;
+  return Math.max(10, Math.round(12 + maxRiskSeverity * 0.75 + scoreFactor));
+}
+
+function hasFatalFailureCondition(conditions: string[] | undefined, causes: string[]): boolean {
+  if (!conditions || conditions.length === 0) return false;
+  return conditions.some(condition => {
+    const normalized = condition.trim().toLowerCase();
+    return causes.some(cause => cause === normalized);
+  });
+}
+
+function applyObjectiveFailureConsequences(
+  state: WorldState,
+  ctx: TickContext,
+  objective: SpecialObjective | undefined,
+  targetRef: EntityRef
+) {
+  if (!objective || objective.state !== "failed" || objective.failureConsequencesApplied) return;
+  objective.failureConsequencesApplied = true;
+  objective.onFailure.forEach((template, index) => {
+    if (template.type === "create_tension") {
+      const tension: WorldTension = {
+        id: makeId("tension", state.clock.tick, `${objective.id}-failure-${index}`),
+        type: template.tensionType,
+        severity: template.severity,
+        sourceRefs: [objective.owner],
+        targetRefs: [targetRef],
+        sinceTick: state.clock.tick,
+        tags: template.tags
+      };
+      state.tensions[tension.id] = tension;
+      return;
+    }
+    if (template.type === "open_opportunity") {
+      ctx.generatedOpportunities.push({
+        id: makeId("opportunity", state.clock.tick, `${objective.id}-failure-${index}`),
+        kind: template.kind,
+        location: targetRef,
+        score: template.score,
+        sourceRefs: [objective.owner, targetRef],
+        tags: template.tags
+      });
+      return;
+    }
+    ctx.generatedSignals.push({
+      id: makeId("signal", state.clock.tick, `${objective.id}-failure-${index}`),
+      kind: template.signalKind,
+      location: targetRef,
+      intensity: template.intensity,
+      tags: template.tags,
+      payload: { objectiveId: objective.id, outcome: "failed" }
+    });
+  });
+}
+
+function applyObjectiveFailure(
+  state: WorldState,
+  ctx: TickContext,
+  deltas: StateDelta[],
+  objective: SpecialObjective,
+  causes: string[],
+  fallbackTargetRef: EntityRef
+) {
+  const activePhase = getActiveObjectivePhase(objective);
+  if (activePhase && activePhase.state !== "completed") {
+    closePhaseHistoryEntry(objective, activePhase.id, state.clock.tick, "failed", causes);
+    activePhase.state = "failed";
+  }
+  objective.state = "failed";
+  deltas.push({
+    target: { kind: "specialObjective", id: objective.id },
+    key: "objective_failure",
+    before: objective.failureScore,
+    after: objective.failureScore,
+    amount: 0,
+    meta: {
+      phaseId: activePhase?.id ?? null,
+      transition: "failed",
+      causes: causes.join("|")
+    }
+  });
+  applyObjectiveFailureConsequences(state, ctx, objective, getObjectiveActionTarget(objective) ?? fallbackTargetRef);
+}
+
+function updateObjectiveFailure(
+  state: WorldState,
+  ctx: TickContext,
+  deltas: StateDelta[],
+  objectiveId: EntityId | undefined,
+  amount: number,
+  fallbackTargetRef: EntityRef
+): number {
+  if (!objectiveId) return 0;
+  const objective = state.specialObjectives[objectiveId];
+  if (!objective || objective.state === "completed" || objective.state === "failed") return 0;
+  const activePhase = getActiveObjectivePhase(objective);
+  const appliedAmount = Math.max(0, amount);
+  if (activePhase) {
+    const phaseBefore = activePhase.failureScore;
+    const phaseAfter = clamp(phaseBefore + appliedAmount);
+    activePhase.failureScore = phaseAfter;
+    deltas.push({
+      target: { kind: "specialObjective", id: objectiveId },
+      key: "phase_failure",
+      before: phaseBefore,
+      after: phaseAfter,
+      amount: appliedAmount,
+      meta: { phaseId: activePhase.id }
+    });
+    if (phaseAfter >= activePhase.maxFailureScore) {
+      const phaseCauses = ["phase_failure_threshold"];
+      const fatalPhaseFailure =
+        activePhase.failureMode === "fatal_condition" ||
+        hasFatalFailureCondition(activePhase.fatalFailureConditions, phaseCauses) ||
+        hasFatalFailureCondition(objective.fatalFailureConditions, [...phaseCauses, "phase_failed"]);
+      activePhase.state = fatalPhaseFailure ? "failed" : "blocked";
+      if (fatalPhaseFailure) {
+        applyObjectiveFailure(state, ctx, deltas, objective, [...phaseCauses, "phase_failed"], fallbackTargetRef);
+        return appliedAmount;
+      }
+      closePhaseHistoryEntry(objective, activePhase.id, state.clock.tick, "blocked", phaseCauses);
+      objective.state = "blocked";
+    }
+  }
+  const objectiveBefore = objective.failureScore;
+  const objectiveAmount = Math.max(1, Math.round(appliedAmount * 0.6));
+  const objectiveAfter = clamp(objectiveBefore + objectiveAmount);
+  objective.failureScore = objectiveAfter;
+  deltas.push({
+    target: { kind: "specialObjective", id: objectiveId },
+    key: "objective_failure",
+    before: objectiveBefore,
+    after: objectiveAfter,
+    amount: objectiveAmount,
+    meta: { phaseId: activePhase?.id ?? null }
+  });
+  if (
+    objectiveAfter >= objective.maxFailureScore ||
+    hasFatalFailureCondition(objective.fatalFailureConditions, ["objective_failure_threshold"])
+  ) {
+    applyObjectiveFailure(state, ctx, deltas, objective, ["objective_failure_threshold"], fallbackTargetRef);
+  }
+  return appliedAmount;
 }
 
 function getCooldown(actor: WorldFaction | MobileActor, actionId: string): number {
@@ -498,7 +1048,7 @@ function describeCondition(
 }
 
 function getTargetRefsForAction(state: WorldState, action: WorldActionDefinition, actor: ActorCandidate): EntityRef[] {
-  const objectiveTarget = actor.objective?.target;
+  const objectiveTarget = getObjectiveActionTarget(actor.objective);
   if (objectiveTarget && action.targetKinds.includes(objectiveTarget.kind as never)) {
     return [objectiveTarget];
   }
@@ -525,7 +1075,7 @@ function getActionCandidates(state: WorldState, actors: ActorCandidate[], logist
       .filter(definition => {
         if (!definition.actorKinds.includes(actorCandidate.ref.kind as never)) return false;
         if (!actorCandidate.objective) return true;
-        if (!actorCandidate.objective.compatibleActionIds.includes(definition.id)) return false;
+        if (!getObjectiveCompatibleActions(actorCandidate.objective).includes(definition.id)) return false;
         return definition.compatibleObjectives.includes(actorCandidate.objective.category);
       })
       .forEach(action => {
@@ -533,7 +1083,7 @@ function getActionCandidates(state: WorldState, actors: ActorCandidate[], logist
         if (cooldown > 0) {
           trace.push({
             actorRef: actorCandidate.ref,
-            targetRef: actorCandidate.objective?.target ?? actorCandidate.ref,
+            targetRef: getObjectiveActionTarget(actorCandidate.objective) ?? actorCandidate.ref,
             objectiveId: actorCandidate.objective?.id,
             actionId: action.id,
             passed: false,
@@ -615,7 +1165,8 @@ function applyDeltaTemplate(
   actorRef: EntityRef,
   targetRef: EntityRef,
   objectiveId: EntityId | undefined,
-  template: DeltaTemplate
+  template: DeltaTemplate,
+  actionId?: WorldActionDefinition["id"]
 ) {
   const ref: EntityRef =
     template.selector === "actor"
@@ -628,7 +1179,7 @@ function applyDeltaTemplate(
     return;
   }
   if (template.type === "objective_progress") {
-    updateObjectiveProgress(state, deltas, objectiveId, template.amount);
+    updateObjectiveProgress(state, deltas, objectiveId, template.amount, actionId);
     return;
   }
   if (template.selector === "actor") {
@@ -675,7 +1226,8 @@ function createRumor(candidate: ActionCandidate, event: WorldEvent, tick: number
 }
 
 function applyConsequencesFromObjective(state: WorldState, ctx: TickContext, objective: SpecialObjective | undefined, targetRef: EntityRef) {
-  if (!objective || objective.progress < 100) return;
+  if (!objective || objective.progress < 100 || objective.successConsequencesApplied) return;
+  objective.successConsequencesApplied = true;
   objective.onSuccess.forEach((template, index) => {
     if (template.type === "create_tension") {
       const tension: WorldTension = {
@@ -712,7 +1264,7 @@ function applyConsequencesFromObjective(state: WorldState, ctx: TickContext, obj
   });
 }
 
-function resolveSelectedActions(state: WorldState, scale: TickScale): TickContext {
+function resolveSelectedActions(state: WorldState, scale: TickScale, initialDeltas: StateDelta[] = []): TickContext {
   const objectiveReadiness = synchronizeObjectiveReadiness(state);
   reinitialiserRessourcesTransport(state);
   const logisticsPlans = buildFactionLogisticsPlans(state);
@@ -722,7 +1274,7 @@ function resolveSelectedActions(state: WorldState, scale: TickScale): TickContex
     state,
     scale,
     generatedEvents: [],
-    generatedDeltas: [],
+    generatedDeltas: [...initialDeltas],
     generatedSignals: [],
     generatedRumors: [],
     generatedOpportunities: [],
@@ -742,23 +1294,38 @@ function resolveSelectedActions(state: WorldState, scale: TickScale): TickContex
       }
     };
 
+  Object.values(state.specialObjectives).forEach(objective => {
+    ensureActivePhaseHistory(objective, state.clock.tick);
+    if (objective.state !== "failed") return;
+    applyObjectiveFailureConsequences(state, ctx, objective, getObjectiveActionTarget(objective) ?? objective.owner);
+  });
+
   const { candidates, trace } = getActionCandidates(state, actors, logisticsPlans);
   ctx.trace.actionCandidates = trace;
   const resolvedActors = new Set<string>();
 
   candidates.forEach(candidate => {
     if (resolvedActors.has(candidate.actorRef.id)) return;
+    const objectiveAtStart = getObjective(state, candidate.objectiveId);
+    if (objectiveAtStart && (objectiveAtStart.state === "failed" || objectiveAtStart.state === "completed")) {
+      return;
+    }
     resolvedActors.add(candidate.actorRef.id);
     const deltaStart = ctx.generatedDeltas.length;
+    const objectiveBeforeResolution = objectiveAtStart;
+    const phaseIdBeforeResolution = getActiveObjectivePhase(objectiveBeforeResolution)?.id;
 
     candidate.action.costs.forEach(template =>
-      applyDeltaTemplate(state, ctx.generatedDeltas, candidate.actorRef, candidate.targetRef, candidate.objectiveId, template)
+      applyDeltaTemplate(state, ctx.generatedDeltas, candidate.actorRef, candidate.targetRef, candidate.objectiveId, template, candidate.action.id)
     );
     const success = resolveActionSuccess(state, candidate);
     const templates = success ? candidate.action.successEffects : candidate.action.failureEffects;
     templates.forEach(template =>
-      applyDeltaTemplate(state, ctx.generatedDeltas, candidate.actorRef, candidate.targetRef, candidate.objectiveId, template)
+      applyDeltaTemplate(state, ctx.generatedDeltas, candidate.actorRef, candidate.targetRef, candidate.objectiveId, template, candidate.action.id)
     );
+    const failureScoreApplied = success
+      ? 0
+      : updateObjectiveFailure(state, ctx, ctx.generatedDeltas, candidate.objectiveId, getFailureSeverity(candidate), candidate.targetRef);
 
     const event: WorldEvent = {
       id: makeId("event", state.clock.tick, `${candidate.actorRef.id}-${candidate.action.id}`),
@@ -780,15 +1347,20 @@ function resolveSelectedActions(state: WorldState, scale: TickScale): TickContex
       actorRef: candidate.actorRef,
       targetRef: candidate.targetRef,
       objectiveId: candidate.objectiveId,
+      phaseId: phaseIdBeforeResolution,
       actionId: candidate.action.id,
       score: candidate.score,
       success,
       eventId: event.id,
-      deltaCount: event.deltas.length
+      deltaCount: event.deltas.length,
+      failureScoreApplied: failureScoreApplied > 0 ? failureScoreApplied : undefined
     });
     ctx.generatedSignals.push(createSignal(candidate, state.clock.tick));
     ctx.generatedRumors.push(createRumor(candidate, event, state.clock.tick));
-    applyConsequencesFromObjective(state, ctx, getObjective(state, candidate.objectiveId), candidate.targetRef);
+    applySystemicTensionConversion(state, ctx, candidate, success);
+    const objectiveAfterResolution = getObjective(state, candidate.objectiveId);
+    applyConsequencesFromObjective(state, ctx, objectiveAfterResolution, candidate.targetRef);
+    applyObjectiveFailureConsequences(state, ctx, objectiveAfterResolution, candidate.targetRef);
   });
 
   return ctx;
@@ -1074,9 +1646,13 @@ export function runWorldTick(state: WorldState, scale: TickScale): TickOutput {
   state.clock = advanceClock(state.clock, scale);
   decrementCooldowns(state);
   syncRouteMobilePresence(state);
+  const wearDeltas = applyTerritorialWear(state, scale);
   const beforePressures = recomputePressuresDetailed(state);
   state.pressures = beforePressures.pressures;
-  const ctx = resolveSelectedActions(state, scale);
+  if (scale === "macro") {
+    reconcileSystemObjectives(state);
+  }
+  const ctx = resolveSelectedActions(state, scale, wearDeltas);
   ctx.trace.clockBefore = clockBefore;
   ctx.trace.clockAfter = { ...state.clock };
   ctx.trace.pressureSnapshots.before = beforePressures.trace;

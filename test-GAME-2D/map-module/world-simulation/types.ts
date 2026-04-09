@@ -65,12 +65,21 @@ export type ObjectiveCategory =
   | "acquire_resource"
   | "open_route"
   | "eliminate_threat"
-  | "recover_person";
+  | "recover_person"
+  | "restore_order"
+  | "reduce_fear"
+  | "stabilize_supply"
+  | "secure_corridor"
+  | "reopen_market"
+  | "contain_unrest";
 
 export type TransportMode = "pied" | "cheval" | "bateau";
 export type MobilityIntent = "discret" | "rapide" | "charge" | "escorte" | "projection_force";
 
 export type ObjectiveState = "planned" | "active" | "blocked" | "completed" | "failed";
+export type ObjectivePhaseState = "planned" | "active" | "blocked" | "completed" | "failed";
+export type ObjectivePhaseCompletionMode = "progress_threshold" | "action_count" | "presence" | "anchor_established";
+export type ObjectivePhaseFailureMode = "score_threshold" | "fatal_condition";
 
 export type WorldActionId =
   | "patrol"
@@ -88,7 +97,12 @@ export type WorldActionId =
   | "search_site"
   | "sanctify_site"
   | "infiltrate"
-  | "secure_route";
+  | "secure_route"
+  | "public_reassurance"
+  | "reopen_market"
+  | "repair_route"
+  | "relief_distribution"
+  | "inspect_customs";
 
 export type SignalKind = "visual" | "auditory" | "institutional" | "market" | "religious" | "military";
 
@@ -262,15 +276,52 @@ export type SpecialObjective = {
   state: ObjectiveState;
   progress: number;
   zoneIds: EntityId[];
-  phases?: string[];
-  currentPhaseIndex?: number;
+  phases: ObjectivePhaseRuntime[];
+  currentPhaseIndex: number;
+  phaseHistory: ObjectivePhaseHistoryEntry[];
   obstacles: string[];
   compatibleActionIds: WorldActionId[];
   requiredAnchorId?: EntityId;
   requiredAnchorType?: string;
+  failureScore: number;
+  maxFailureScore: number;
+  fatalFailureConditions: string[];
   onSuccess: ConsequenceTemplate[];
   onFailure: ConsequenceTemplate[];
+  successConsequencesApplied?: boolean;
+  failureConsequencesApplied?: boolean;
   tags: string[];
+};
+
+export type ObjectivePhaseHistoryEntry = {
+  phaseId: EntityId;
+  enteredAtTick: number;
+  exitedAtTick?: number;
+  outcome?: "advanced" | "blocked" | "failed";
+  reasons?: string[];
+};
+
+export type ObjectivePhaseRuntime = {
+  id: EntityId;
+  label: string;
+  description?: string;
+  state: ObjectivePhaseState;
+  localTarget?: EntityRef;
+  zoneIds: EntityId[];
+  compatibleActionIds: WorldActionId[];
+  requiredAnchorId?: EntityId;
+  requiredAnchorType?: string;
+  progress: number;
+  progressWeight: number;
+  completionMode: ObjectivePhaseCompletionMode;
+  completionThreshold: number;
+  actionCountById?: Partial<Record<WorldActionId, number>>;
+  requiredPresenceRef?: EntityRef;
+  failureScore: number;
+  maxFailureScore: number;
+  failureMode: ObjectivePhaseFailureMode;
+  fatalFailureConditions: string[];
+  notes?: string[];
 };
 
 export type MobileActor = {
@@ -399,7 +450,7 @@ export type WorldEvent = {
 
 export type StateDelta = {
   target: EntityRef;
-  key: ScalarStat | "objective_progress" | "cooldown";
+  key: ScalarStat | "objective_progress" | "phase_progress" | "objective_failure" | "phase_failure" | "cooldown";
   before?: number;
   after?: number;
   amount?: number;
@@ -518,13 +569,18 @@ export type LogisticsPlanTrace = {
 export type ObjectiveReadinessTrace = {
   objectiveId: EntityId;
   factionId?: EntityId;
+  phaseId?: EntityId;
+  phaseLabel?: string;
   ready: boolean;
   objectiveStateBefore?: ObjectiveState;
   objectiveStateAfter?: ObjectiveState;
+  phaseStateBefore?: ObjectivePhaseState;
+  phaseStateAfter?: ObjectivePhaseState;
   requiredAnchorId?: EntityId;
   requiredAnchorType?: string;
   matchedAnchorId?: EntityId;
   matchedAnchorType?: string;
+  localTargetRef?: EntityRef;
   executionTargetRef?: EntityRef;
   reasons: string[];
 };
@@ -592,11 +648,13 @@ export type SelectedActionTrace = {
   actorRef: EntityRef;
   targetRef: EntityRef;
   objectiveId?: EntityId;
+  phaseId?: EntityId;
   actionId: WorldActionId;
   score: number;
   success: boolean;
   eventId: EntityId;
   deltaCount: number;
+  failureScoreApplied?: number;
 };
 
 export type MobilityTraceEntry = {

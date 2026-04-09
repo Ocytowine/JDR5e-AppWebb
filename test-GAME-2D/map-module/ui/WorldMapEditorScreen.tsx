@@ -15,6 +15,7 @@ import {
   type SimulationMobileMissionPriority,
   type SimulationMobileMissionStatus,
   type SimulationObjectiveCategory,
+  type SimulationObjectiveTargetKind,
   type SimulationTravelMode,
   type WorldMapCity,
   type WorldMapGeographicZone,
@@ -25,6 +26,7 @@ import {
   type WorldMapSimulationFactionAnchor,
   type WorldMapSimulationMobileActor,
   type WorldMapSimulationObjective,
+  type WorldMapSimulationObjectivePhase,
   type WorldMapLayoutSource,
   type PopulationGroupRole,
   type PopulationProfile
@@ -36,6 +38,7 @@ import {
   type MapLabelAppearanceSet,
   buildPathPoints,
   getCellCenter,
+  getCellPolygon,
   getFrontMatterList,
   cloneLayout,
   fetchWorldMapLayout,
@@ -557,12 +560,127 @@ function formatEntityRefSummary(ref: { kind: string; id: string } | undefined | 
   return `${ref.kind}:${ref.id}`;
 }
 
+function colorWithAlpha(color: string | undefined, alpha: number, fallback = `rgba(122, 195, 255, ${alpha})`): string {
+  if (!color) return fallback;
+  const trimmed = color.trim();
+  if (trimmed.startsWith("#")) {
+    const hex = trimmed.slice(1);
+    const normalized = hex.length === 3
+      ? hex.split("").map(char => char + char).join("")
+      : hex.length === 6
+        ? hex
+        : null;
+    if (!normalized) return fallback;
+    const red = Number.parseInt(normalized.slice(0, 2), 16);
+    const green = Number.parseInt(normalized.slice(2, 4), 16);
+    const blue = Number.parseInt(normalized.slice(4, 6), 16);
+    return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+  }
+  const rgbMatch = trimmed.match(/^rgba?\(([^)]+)\)$/i);
+  if (rgbMatch) {
+    const channels = rgbMatch[1].split(",").map(entry => entry.trim());
+    if (channels.length >= 3) {
+      return `rgba(${channels[0]}, ${channels[1]}, ${channels[2]}, ${alpha})`;
+    }
+  }
+  return fallback;
+}
+
+type ObjectivePreviewDraft = {
+  mode: "create" | "modify";
+  ownerFaction: WorldMapSimulationFaction | null;
+  objective: WorldMapSimulationObjective | null;
+  label: string;
+  category: SimulationObjectiveCategory;
+  targetKind?: "city" | "district" | "route" | "region" | "faction" | "place";
+  targetId?: string;
+  zoneIds: string[];
+  anchorCell?: MapCell;
+};
+
+type ObjectiveMapPreview = ObjectivePreviewDraft & {
+  ownerColor: string;
+  ownerLabel: string;
+  ownerCellKeys: string[];
+  targetCellKeys: string[];
+  zoneCellKeys: string[];
+  anchorCellKey: string | null;
+  targetLabel: string | null;
+  targetRoute: WorldMapLayout["paths"][number] | null;
+};
+
+function formatObjectiveTargetKindLabel(kind: ObjectivePreviewDraft["targetKind"]): string {
+  if (kind === "city") return "ville";
+  if (kind === "district") return "quartier";
+  if (kind === "route") return "route";
+  if (kind === "region") return "region";
+  if (kind === "faction") return "faction";
+  if (kind === "place") return "lieu";
+  return "cible";
+}
+
+function getMarkerStackOffset(index: number, count: number, radius = 14): { x: number; y: number } {
+  if (count <= 1) return { x: 0, y: 0 };
+  const angle = (-Math.PI / 2) + (index / count) * Math.PI * 2;
+  return {
+    x: Math.cos(angle) * radius,
+    y: Math.sin(angle) * radius
+  };
+}
+
+function createEditorObjectivePhase(label: string, index: number, compatibleActionIds: string[] = []): WorldMapSimulationObjectivePhase {
+  return {
+    id: slugifyDraft(label) || `phase_${index + 1}`,
+    label,
+    description: "",
+    state: index === 0 ? "active" : "planned",
+    zoneIds: [],
+    compatibleActionIds,
+    completionMode: "progress_threshold",
+    completionThreshold: 100,
+    progress: 0,
+    progressWeight: 1,
+    failureScore: 0,
+    maxFailureScore: 100,
+    failureMode: "score_threshold",
+    fatalFailureConditions: [],
+    notes: []
+  };
+}
+
+function formatObjectiveReadinessReason(reason: string): string {
+  const labels: Record<string, string> = {
+    missing_active_phase: "Aucune phase active valide n'est definie.",
+    missing_required_anchor: "L'ancrage requis pour cette phase est introuvable.",
+    missing_required_anchor_type: "Le type d'ancrage requis n'est pas disponible.",
+    missing_phase_execution_target: "La cible locale de la phase ne peut pas etre resolue.",
+    missing_execution_target: "La cible d'execution de l'objectif ne peut pas etre resolue.",
+    missing_required_presence: "La presence requise pour cette phase est absente.",
+    phase_failed: "La phase active est en echec.",
+    phase_completed: "La phase active est deja terminee.",
+    objective_failed: "L'objectif global est en echec.",
+    objective_completed: "L'objectif global est deja termine.",
+    phase_failure_threshold_blocked: "Le score d'echec de la phase a atteint son seuil de blocage.",
+    phase_failure_threshold: "Le score d'echec de la phase a atteint son seuil critique.",
+    objective_failure_threshold: "Le score d'echec global a atteint son seuil critique."
+  };
+  return labels[reason] ?? reason.replace(/_/g, " ");
+}
+
+function formatSimulationTargetRef(ref: { kind: string; id: string } | undefined | null): string {
+  if (!ref?.id) return "aucune";
+  return `${ref.kind}:${ref.id}`;
+}
+
 function isClickableEntityRef(ref: { kind: string; id: string } | undefined | null): boolean {
   return Boolean(ref?.id);
 }
 
 function formatDeltaLabel(key: string): string {
   if (key === "objective_progress") return "Progression objectif";
+  if (key === "phase_progress") return "Progression phase";
+  if (key === "objective_failure") return "Echec objectif";
+  if (key === "phase_failure") return "Echec phase";
   if (key === "cooldown") return "Cooldown";
   return key;
 }
@@ -815,6 +933,122 @@ function getSuggestedObjectivePhases(category: SimulationObjectiveCategory): str
       return ["confirmer_position", "obtenir_acces", "extraire_cible"];
     default:
       return [];
+  }
+}
+
+function buildObjectiveTargetOptionsForKind(
+  kind: SimulationObjectiveTargetKind | undefined,
+  params: {
+    layout: WorldMapLayout;
+    simulationFactions: WorldMapSimulationFaction[];
+    objectiveDistrictTargetOptions: Array<{ id: string; label: string }>;
+    placeTargetOptions: Array<{ id: string; label: string }>;
+    roadPaths: ReturnType<typeof getUniquePathsByKind>;
+    wikiEntriesById: Record<string, { name?: string }>;
+  }
+): Array<{ id: string; label: string }> {
+  if (!kind) return [];
+  if (kind === "city") {
+    return params.layout.cities.map(city => ({ id: city.id, label: params.wikiEntriesById[city.wikiEntityId]?.name ?? city.wikiEntityId ?? city.id }));
+  }
+  if (kind === "district") {
+    return params.objectiveDistrictTargetOptions;
+  }
+  if (kind === "route") {
+    return params.roadPaths.map(path => ({ id: path.id, label: path.label || path.id }));
+  }
+  if (kind === "region") {
+    return (params.layout.governanceRegions ?? []).map(region => ({ id: region.id, label: params.wikiEntriesById[region.wikiEntityId]?.name ?? region.wikiEntityId ?? region.id }));
+  }
+  if (kind === "faction") {
+    return params.simulationFactions.map(faction => ({ id: faction.id, label: faction.label || faction.id }));
+  }
+  if (kind === "place") {
+    return params.placeTargetOptions;
+  }
+  return [];
+}
+
+function createObjectivePhasePreset(
+  category: SimulationObjectiveCategory,
+  objectiveCompatibleActionIds: string[] = []
+): WorldMapSimulationObjectivePhase[] {
+  const fallbackActions = objectiveCompatibleActionIds.length > 0 ? objectiveCompatibleActionIds : getSuggestedActionIdsForObjectiveCategory(category);
+  const actionSet = (...preferred: string[]) => preferred.filter(actionId => fallbackActions.includes(actionId));
+  const createPhase = (
+    label: string,
+    index: number,
+    patch: Partial<WorldMapSimulationObjectivePhase> = {}
+  ): WorldMapSimulationObjectivePhase => ({
+    ...createEditorObjectivePhase(label, index, patch.compatibleActionIds ?? fallbackActions),
+    completionThreshold: 100,
+    progressWeight: 1,
+    ...patch
+  });
+
+  switch (category) {
+    case "open_route":
+      return [
+        createPhase("reconnaitre_trajet", 0, { compatibleActionIds: actionSet("investigate", "secure_route"), completionThreshold: 60, notes: ["recon", "corridor"] }),
+        createPhase("lever_blocage", 1, { compatibleActionIds: actionSet("secure_route", "patrol"), completionThreshold: 100, maxFailureScore: 70, fatalFailureConditions: ["phase_failure_threshold"] }),
+        createPhase("securiser_passage", 2, { compatibleActionIds: actionSet("escort_convoy", "secure_route"), completionThreshold: 80, notes: ["escort", "maintenance"] })
+      ];
+    case "search_object":
+      return [
+        createPhase("collecter_indices", 0, { compatibleActionIds: actionSet("investigate"), completionThreshold: 70, notes: ["intel"] }),
+        createPhase("obtenir_acces", 1, { compatibleActionIds: actionSet("investigate", "sanctify_site"), completionThreshold: 60, notes: ["entry"] }),
+        createPhase("recuperer_objet", 2, { compatibleActionIds: actionSet("investigate", "sanctify_site"), completionThreshold: 100, maxFailureScore: 60, fatalFailureConditions: ["phase_failure_threshold"] })
+      ];
+    case "protect_secret":
+      return [
+        createPhase("identifier_fuite", 0, { compatibleActionIds: actionSet("investigate", "patrol"), completionThreshold: 60 }),
+        createPhase("verrouiller_acces", 1, { compatibleActionIds: actionSet("patrol", "sanctify_site"), completionThreshold: 70, notes: ["lockdown"] }),
+        createPhase("camoufler_traces", 2, { compatibleActionIds: actionSet("sanctify_site", "investigate"), completionThreshold: 80, notes: ["concealment"] })
+      ];
+    case "take_control_place":
+      return [
+        createPhase("sonder_la_zone", 0, { compatibleActionIds: actionSet("investigate", "patrol"), completionThreshold: 55 }),
+        createPhase("neutraliser_resistance", 1, { compatibleActionIds: actionSet("patrol", "secure_route"), completionThreshold: 85, maxFailureScore: 70 }),
+        createPhase("tenir_la_position", 2, { compatibleActionIds: actionSet("patrol", "recruit"), completionThreshold: 75, notes: ["hold"] })
+      ];
+    case "extend_influence":
+      return [
+        createPhase("ouvrir_contact", 0, { compatibleActionIds: actionSet("recruit", "investigate"), completionThreshold: 55 }),
+        createPhase("installer_presence", 1, { compatibleActionIds: actionSet("recruit", "patrol"), completionThreshold: 75 }),
+        createPhase("stabiliser_influence", 2, { compatibleActionIds: actionSet("recruit", "sanctify_site"), completionThreshold: 80 })
+      ];
+    case "recruit_agents":
+      return [
+        createPhase("identifier_profils", 0, { compatibleActionIds: actionSet("investigate", "recruit"), completionThreshold: 50 }),
+        createPhase("approcher_cibles", 1, { compatibleActionIds: actionSet("recruit"), completionThreshold: 70 }),
+        createPhase("integrer_agents", 2, { compatibleActionIds: actionSet("recruit"), completionThreshold: 90, notes: ["integration"] })
+      ];
+    case "acquire_resource":
+      return [
+        createPhase("trouver_source", 0, { compatibleActionIds: actionSet("investigate", "secure_route"), completionThreshold: 55 }),
+        createPhase("negocier_ou_prendre", 1, { compatibleActionIds: actionSet("extort", "move_resources", "escort_convoy"), completionThreshold: 85 }),
+        createPhase("securiser_stock", 2, { compatibleActionIds: actionSet("escort_convoy", "secure_route"), completionThreshold: 70 })
+      ];
+    case "eliminate_threat":
+      return [
+        createPhase("localiser_menace", 0, { compatibleActionIds: actionSet("investigate", "patrol"), completionThreshold: 60 }),
+        createPhase("preparer_intervention", 1, { compatibleActionIds: actionSet("patrol", "secure_route"), completionThreshold: 65 }),
+        createPhase("neutraliser", 2, { compatibleActionIds: actionSet("patrol", "secure_route"), completionThreshold: 100, maxFailureScore: 60, fatalFailureConditions: ["phase_failure_threshold"] })
+      ];
+    case "recover_person":
+      return [
+        createPhase("confirmer_position", 0, { compatibleActionIds: actionSet("investigate"), completionThreshold: 60 }),
+        createPhase("obtenir_acces", 1, { compatibleActionIds: actionSet("secure_route", "escort_convoy"), completionThreshold: 70 }),
+        createPhase("extraire_cible", 2, { compatibleActionIds: actionSet("escort_convoy", "secure_route"), completionThreshold: 100, maxFailureScore: 60 })
+      ];
+    case "weaken_rival":
+      return [
+        createPhase("identifier_faiblesse", 0, { compatibleActionIds: actionSet("investigate"), completionThreshold: 55 }),
+        createPhase("perturber_reseau", 1, { compatibleActionIds: actionSet("patrol", "secure_route", "extort"), completionThreshold: 80 }),
+        createPhase("capitaliser", 2, { compatibleActionIds: actionSet("recruit", "investigate"), completionThreshold: 70 })
+      ];
+    default:
+      return getSuggestedObjectivePhases(category).map((label, index) => createPhase(label, index));
   }
 }
 
@@ -1147,6 +1381,7 @@ export function WorldMapEditorScreen(props: {
   const simulationFactions = layout.simulation?.factions ?? [];
   const simulationObjectives = layout.simulation?.specialObjectives ?? [];
   const simulationMobileActors = layout.simulation?.mobileActors ?? [];
+  const simulationDistrictDefinitions = layout.simulation?.districts ?? [];
   const selectedSimulationFaction = useMemo(
     () => simulationFactions.find(faction => faction.id === selectedSimulationFactionId) ?? null,
     [selectedSimulationFactionId, simulationFactions]
@@ -1193,10 +1428,18 @@ export function WorldMapEditorScreen(props: {
     () => simulationMobileActors.filter(actor => actor.ownerFactionId === effectiveMobileBrowseFactionId),
     [effectiveMobileBrowseFactionId, simulationMobileActors]
   );
+  const objectivePreviewSelectionCellKeys = useMemo(
+    () => (selectedAreaCellKeys.length > 0 ? selectedAreaCellKeys : selectedCellKey ? [selectedCellKey] : []),
+    [selectedAreaCellKeys, selectedCellKey]
+  );
   const roadPaths = useMemo(() => getUniquePathsByKind(layout, "road"), [layout]);
   const riverPaths = useMemo(() => getUniquePathsByKind(layout, "river"), [layout]);
   const simulationPreflight = useMemo(() => runSimulationPreflight(layout), [layout]);
   const topPreflightIssues = useMemo(() => simulationPreflight.issues.slice(0, 12), [simulationPreflight]);
+  const simulationDistricts = useMemo(
+    () => Object.values(createWorldStateFromMapLayout(layout).districts),
+    [layout]
+  );
   const placeTargetOptions = useMemo(
     () => Array.from(
       new Map(
@@ -1210,32 +1453,20 @@ export function WorldMapEditorScreen(props: {
   );
   const objectiveDistrictTargetOptions = useMemo(
     () =>
-      Object.values(createWorldStateFromMapLayout(layout).districts)
+      simulationDistricts
         .map(district => ({ id: district.id, label: district.name }))
         .sort((left, right) => left.label.localeCompare(right.label)),
-    [layout]
+    [simulationDistricts]
   );
   const objectiveTargetOptions = useMemo(() => {
-    if (!selectedSimulationObjective?.targetKind) return [];
-    if (selectedSimulationObjective.targetKind === "city") {
-      return layout.cities.map(city => ({ id: city.id, label: wikiEntriesById[city.wikiEntityId]?.name ?? city.wikiEntityId ?? city.id }));
-    }
-    if (selectedSimulationObjective.targetKind === "district") {
-      return objectiveDistrictTargetOptions;
-    }
-    if (selectedSimulationObjective.targetKind === "route") {
-      return roadPaths.map(path => ({ id: path.id, label: path.label || path.id }));
-    }
-    if (selectedSimulationObjective.targetKind === "region") {
-      return (layout.governanceRegions ?? []).map(region => ({ id: region.id, label: wikiEntriesById[region.wikiEntityId]?.name ?? region.wikiEntityId ?? region.id }));
-    }
-    if (selectedSimulationObjective.targetKind === "faction") {
-      return simulationFactions.map(faction => ({ id: faction.id, label: faction.label || faction.id }));
-    }
-    if (selectedSimulationObjective.targetKind === "place") {
-      return placeTargetOptions;
-    }
-    return [];
+    return buildObjectiveTargetOptionsForKind(selectedSimulationObjective?.targetKind, {
+      layout,
+      simulationFactions,
+      objectiveDistrictTargetOptions,
+      placeTargetOptions,
+      roadPaths,
+      wikiEntriesById
+    });
   }, [layout.cities, layout.governanceRegions, objectiveDistrictTargetOptions, placeTargetOptions, roadPaths, selectedSimulationObjective?.targetKind, simulationFactions, wikiEntriesById]);
   const objectiveCompatibleActionOptions = useMemo(
     () =>
@@ -1263,6 +1494,166 @@ export function WorldMapEditorScreen(props: {
       ),
     [selectedSimulationFaction]
   );
+  function getPhaseTargetOptions(kind: SimulationObjectiveTargetKind | undefined) {
+    return buildObjectiveTargetOptionsForKind(kind, {
+      layout,
+      simulationFactions,
+      objectiveDistrictTargetOptions,
+      placeTargetOptions,
+      roadPaths,
+      wikiEntriesById
+    });
+  }
+  const draftObjectivePreview = useMemo<ObjectivePreviewDraft | null>(() => {
+    if (activeSimulationWorkspace !== "objectives" || activeObjectiveMode !== "create") return null;
+    const ownerFaction = selectedObjectiveOwnerFaction;
+    if (!ownerFaction && !draftSimulationObjectiveId.trim() && !draftSimulationObjectiveLabel.trim()) return null;
+    const targetKind =
+      selectedCity?.id
+        ? "city"
+        : selectedRoute?.kind === "road"
+          ? "route"
+          : selectedGovernanceRegionId
+            ? "region"
+            : undefined;
+    const targetId =
+      targetKind === "city"
+        ? selectedCity?.id
+        : targetKind === "route"
+          ? selectedRoute?.id
+          : targetKind === "region"
+            ? selectedGovernanceRegionId
+            : undefined;
+    return {
+      mode: "create" as const,
+      ownerFaction,
+      objective: null,
+      label: draftSimulationObjectiveLabel.trim() || draftSimulationObjectiveId.trim() || "Objectif en creation",
+      category: draftSimulationObjectiveCategory,
+      targetKind,
+      targetId,
+      zoneIds: objectivePreviewSelectionCellKeys,
+      anchorCell: selectedCell?.cell ? { ...selectedCell.cell } : undefined
+    };
+  }, [
+    activeObjectiveMode,
+    activeSimulationWorkspace,
+    draftSimulationObjectiveCategory,
+    draftSimulationObjectiveId,
+    draftSimulationObjectiveLabel,
+    objectivePreviewSelectionCellKeys,
+    selectedCell,
+    selectedCity,
+    selectedGovernanceRegionId,
+    selectedObjectiveOwnerFaction,
+    selectedRoute
+  ]);
+  const selectedObjectivePreview = useMemo<ObjectivePreviewDraft | null>(() => {
+    if (activeSimulationWorkspace !== "objectives" || activeObjectiveMode !== "modify" || !selectedSimulationObjective) return null;
+    return {
+      mode: "modify" as const,
+      ownerFaction: selectedObjectiveOwnerFaction,
+      objective: selectedSimulationObjective,
+      label: selectedSimulationObjective.label,
+      category: selectedSimulationObjective.category,
+      targetKind: selectedSimulationObjective.targetKind,
+      targetId: selectedSimulationObjective.targetId,
+      zoneIds: selectedSimulationObjective.zoneIds,
+      anchorCell: selectedSimulationObjective.anchorCell
+    };
+  }, [activeObjectiveMode, activeSimulationWorkspace, selectedObjectiveOwnerFaction, selectedSimulationObjective]);
+  const objectiveMapPreview = useMemo<ObjectiveMapPreview | null>(() => {
+    const preview = selectedObjectivePreview ?? draftObjectivePreview;
+    if (!preview) return null;
+    const ownerFaction = preview.ownerFaction;
+    const ownerCellKeys = Array.from(
+      new Set([
+        ...(ownerFaction?.presenceCells.map(cell => getWorldMapCellKey(cell)) ?? []),
+        ...(ownerFaction?.baseCell ? [getWorldMapCellKey(ownerFaction.baseCell)] : []),
+        ...(ownerFaction?.homeCityId
+          ? layout.cities
+              .filter(city => city.id === ownerFaction.homeCityId)
+              .map(city => getWorldMapCellKey(city.cell))
+          : []),
+        ...(ownerFaction?.homeRegionId
+          ? layout.cells
+              .filter(cell => cell.governanceRegionId === ownerFaction.homeRegionId)
+              .map(cell => getWorldMapCellKey(cell.cell))
+          : [])
+      ])
+    );
+    const targetCellKeys = (() => {
+      if (!preview.targetKind || !preview.targetId) return [];
+      if (preview.targetKind === "city") {
+        return layout.cities
+          .filter(city => city.id === preview.targetId)
+          .map(city => getWorldMapCellKey(city.cell));
+      }
+      if (preview.targetKind === "district") {
+        return simulationDistrictDefinitions.find(district => district.id === preview.targetId)?.cellKeys ?? [];
+      }
+      if (preview.targetKind === "route") {
+        return roadPaths
+          .find(path => path.id === preview.targetId)
+          ?.cells.map(cell => getWorldMapCellKey(cell)) ?? [];
+      }
+      if (preview.targetKind === "region") {
+        return layout.cells
+          .filter(cell => cell.governanceRegionId === preview.targetId)
+          .map(cell => getWorldMapCellKey(cell.cell));
+      }
+      if (preview.targetKind === "faction") {
+        const targetFaction = simulationFactions.find(faction => faction.id === preview.targetId);
+        return Array.from(
+          new Set([
+            ...(targetFaction?.presenceCells.map(cell => getWorldMapCellKey(cell)) ?? []),
+            ...(targetFaction?.baseCell ? [getWorldMapCellKey(targetFaction.baseCell)] : [])
+          ])
+        );
+      }
+      if (preview.targetKind === "place") {
+        return layout.cells
+          .filter(cell => (cell.locationWikiIds ?? []).includes(preview.targetId ?? ""))
+          .map(cell => getWorldMapCellKey(cell.cell));
+      }
+      return [];
+    })();
+    const targetRoute = preview.targetKind === "route"
+      ? roadPaths.find(path => path.id === preview.targetId) ?? null
+      : null;
+    const anchorCellKey = preview.anchorCell ? getWorldMapCellKey(preview.anchorCell) : null;
+    const targetLabel =
+      preview.targetKind && preview.targetId
+        ? (
+            preview.targetKind === "city"
+              ? layout.cities.find(city => city.id === preview.targetId)
+                ? (wikiEntriesById[layout.cities.find(city => city.id === preview.targetId)!.wikiEntityId]?.name ?? preview.targetId)
+                : preview.targetId
+              : preview.targetKind === "district"
+                ? simulationDistricts.find(district => district.id === preview.targetId)?.name ?? preview.targetId
+                : preview.targetKind === "route"
+                  ? roadPaths.find(path => path.id === preview.targetId)?.label || preview.targetId
+                  : preview.targetKind === "region"
+                    ? (layout.governanceRegions ?? []).find(region => region.id === preview.targetId)
+                      ? (wikiEntriesById[(layout.governanceRegions ?? []).find(region => region.id === preview.targetId)!.wikiEntityId]?.name ?? preview.targetId)
+                      : preview.targetId
+                    : preview.targetKind === "faction"
+                      ? simulationFactions.find(faction => faction.id === preview.targetId)?.label ?? preview.targetId
+                      : placeTargetOptions.find(option => option.id === preview.targetId)?.label ?? preview.targetId
+          )
+        : null;
+    return {
+      ...preview,
+      ownerColor: ownerFaction?.color || "#7ac3ff",
+      ownerLabel: ownerFaction?.label ?? "Aucune faction",
+      ownerCellKeys,
+      targetCellKeys,
+      targetRoute,
+      targetLabel,
+      zoneCellKeys: preview.zoneIds,
+      anchorCellKey
+    };
+  }, [draftObjectivePreview, layout.cells, layout.cities, layout.governanceRegions, placeTargetOptions, roadPaths, selectedObjectivePreview, simulationDistrictDefinitions, simulationDistricts, simulationFactions, wikiEntriesById]);
   const positionReferenceOptions = useMemo(() => {
     if (!selectedSimulationMobileActor) return [];
     if (selectedSimulationMobileActor.positionKind === "city") {
@@ -1327,6 +1718,14 @@ export function WorldMapEditorScreen(props: {
   const selectedObjectiveRuntime = useMemo(
     () => (selectedSimulationObjective ? logisticsPreview.runtimeState.specialObjectives[`objective:map:${selectedSimulationObjective.id}`] ?? null : null),
     [logisticsPreview.runtimeState.specialObjectives, selectedSimulationObjective]
+  );
+  const selectedObjectiveEditorActivePhase = useMemo(
+    () => (selectedSimulationObjective?.phases ?? [])[selectedSimulationObjective?.currentPhaseIndex ?? 0] ?? null,
+    [selectedSimulationObjective]
+  );
+  const selectedObjectiveRuntimeActivePhase = useMemo(
+    () => (selectedObjectiveRuntime?.phases ?? [])[selectedObjectiveRuntime?.currentPhaseIndex ?? 0] ?? null,
+    [selectedObjectiveRuntime]
   );
   const selectedObjectiveReadiness = useMemo(
     () => (selectedObjectiveRuntime ? evaluateObjectiveReadiness(logisticsPreview.runtimeState, selectedObjectiveRuntime) : null),
@@ -1815,6 +2214,106 @@ export function WorldMapEditorScreen(props: {
     () => getCellRoutePlacementHint(layout, selectedSimulationMobileActor?.destinationKind === "cell" ? selectedSimulationMobileActor.destinationCell : undefined),
     [layout, selectedSimulationMobileActor]
   );
+  const simulationMobileMapMarkers = useMemo(() => {
+    const markers = simulationMobileActors
+      .map(actor => {
+        const ownerFaction = actor.ownerFactionId ? simulationFactions.find(faction => faction.id === actor.ownerFactionId) ?? null : null;
+        const markerColor = actor.color || ownerFaction?.color || "#7ad6ff";
+        if (actor.positionKind === "cell" && actor.positionCell) {
+          return {
+            actor,
+            center: getCellCenter(layout, actor.positionCell),
+            bucketKey: `cell:${getWorldMapCellKey(actor.positionCell)}`,
+            markerColor
+          };
+        }
+        if (actor.positionKind === "city" && actor.positionId) {
+          const city = layout.cities.find(entry => entry.id === actor.positionId);
+          if (city) {
+            return {
+              actor,
+              center: getCellCenter(layout, city.cell),
+              bucketKey: `city:${city.id}`,
+              markerColor
+            };
+          }
+        }
+        if (actor.positionKind === "route" && actor.positionId) {
+          const path = roadPaths.find(entry => entry.id === actor.positionId);
+          if (path?.cells.length) {
+            return {
+              actor,
+              center: getCellCenter(layout, path.cells[Math.floor(path.cells.length / 2)]),
+              bucketKey: `route:${path.id}`,
+              markerColor
+            };
+          }
+        }
+        if (actor.positionKind === "region" && actor.positionId) {
+          const regionCells = layout.cells.filter(cell => cell.governanceRegionId === actor.positionId);
+          if (regionCells.length > 0) {
+            return {
+              actor,
+              center: getCellCenter(layout, regionCells[Math.floor(regionCells.length / 2)].cell),
+              bucketKey: `region:${actor.positionId}`,
+              markerColor
+            };
+          }
+        }
+        return null;
+      })
+      .filter((marker): marker is NonNullable<typeof marker> => Boolean(marker));
+    const grouped = new Map<string, typeof markers>();
+    markers.forEach(marker => {
+      const current = grouped.get(marker.bucketKey);
+      if (current) current.push(marker);
+      else grouped.set(marker.bucketKey, [marker]);
+    });
+    return markers.map(marker => {
+      const siblings = grouped.get(marker.bucketKey) ?? [marker];
+      const index = siblings.findIndex(entry => entry.actor.id === marker.actor.id);
+      return {
+        ...marker,
+        offset: getMarkerStackOffset(index, siblings.length, 15),
+        siblingCount: siblings.length
+      };
+    });
+  }, [layout, roadPaths, simulationFactions, simulationMobileActors]);
+  const simulationMobileActorsOverlay = useMemo(() => {
+    if (activeTool !== "simulation" || simulationMobileMapMarkers.length === 0) return null;
+    return (
+      <g>
+        {simulationMobileMapMarkers.map(marker => {
+          const isSelected = marker.actor.id === selectedSimulationMobileActorId;
+          const missionLabel = marker.actor.missionLabel || marker.actor.label;
+          return (
+            <g
+              key={`mobile-marker-${marker.actor.id}`}
+              transform={`translate(${marker.center.x + marker.offset.x} ${marker.center.y + marker.offset.y})`}
+            >
+              {marker.siblingCount > 1 && <circle r={isSelected ? 16 : 14} fill="rgba(255,255,255,0.12)" />}
+              <circle
+                r={isSelected ? 9 : 7}
+                fill={marker.markerColor}
+                stroke={isSelected ? "#fff3d4" : "#0b0b12"}
+                strokeWidth={isSelected ? 2.4 : 1.8}
+              />
+              <circle r={isSelected ? 3.4 : 2.6} fill="rgba(8, 13, 22, 0.82)" />
+              <text
+                x={0}
+                y={isSelected ? -16 : -13}
+                textAnchor="middle"
+                fill="#eef6ff"
+                style={{ fontSize: 9, fontWeight: isSelected ? 800 : 700, paintOrder: "stroke", stroke: "rgba(8,11,17,0.86)", strokeWidth: 4 }}
+              >
+                {missionLabel.length > 14 ? `${missionLabel.slice(0, 14)}...` : missionLabel}
+              </text>
+            </g>
+          );
+        })}
+      </g>
+    );
+  }, [activeTool, selectedSimulationMobileActorId, simulationMobileMapMarkers]);
   const selectedMobileRouteAnchorOverlay = useMemo(() => {
     if (activeTool !== "simulation" || !selectedSimulationMobileActor) return null;
     const markers = [
@@ -1908,6 +2407,91 @@ export function WorldMapEditorScreen(props: {
       </g>
     );
   }, [activeTool, layout, selectedObjectiveLogisticsRoutes]);
+  const objectiveMapPreviewOverlay = useMemo(() => {
+    if (activeTool !== "simulation" || !objectiveMapPreview) return null;
+    const ownerFill = colorWithAlpha(objectiveMapPreview.ownerColor, 0.14, "rgba(122, 195, 255, 0.14)");
+    const ownerStroke = colorWithAlpha(objectiveMapPreview.ownerColor, 0.72, "rgba(122, 195, 255, 0.72)");
+    const targetFill = colorWithAlpha(objectiveMapPreview.ownerColor, 0.24, "rgba(244, 201, 103, 0.24)");
+    const targetStroke = colorWithAlpha(objectiveMapPreview.ownerColor, 0.98, "rgba(244, 201, 103, 0.98)");
+    const zoneStroke = colorWithAlpha(objectiveMapPreview.ownerColor, 0.5, "rgba(122, 195, 255, 0.5)");
+    const targetCells = objectiveMapPreview.targetCellKeys
+      .map(cellKey => layout.cells.find(cell => getWorldMapCellKey(cell.cell) === cellKey) ?? null)
+      .filter((cell): cell is NonNullable<typeof cell> => Boolean(cell));
+    const zoneCells = objectiveMapPreview.zoneCellKeys
+      .filter((cellKey: string) => !objectiveMapPreview.targetCellKeys.includes(cellKey))
+      .map((cellKey: string) => layout.cells.find(cell => getWorldMapCellKey(cell.cell) === cellKey) ?? null)
+      .filter((cell): cell is (typeof layout.cells)[number] => Boolean(cell));
+    const ownerCells = objectiveMapPreview.ownerCellKeys
+      .filter((cellKey: string) => !objectiveMapPreview.targetCellKeys.includes(cellKey) && !objectiveMapPreview.zoneCellKeys.includes(cellKey))
+      .map((cellKey: string) => layout.cells.find(cell => getWorldMapCellKey(cell.cell) === cellKey) ?? null)
+      .filter((cell): cell is (typeof layout.cells)[number] => Boolean(cell))
+      .slice(0, 36);
+    const anchorCell = objectiveMapPreview.anchorCellKey
+      ? layout.cells.find(cell => getWorldMapCellKey(cell.cell) === objectiveMapPreview.anchorCellKey) ?? null
+      : null;
+    return (
+      <g>
+        {ownerCells.map(cell => (
+          <polygon
+            key={`objective-owner-${getWorldMapCellKey(cell.cell)}`}
+            points={getCellPolygon(layout, cell.cell)}
+            fill={ownerFill}
+            stroke={ownerStroke}
+            strokeWidth={1.5}
+            strokeDasharray="4 4"
+          />
+        ))}
+        {zoneCells.map(cell => (
+          <polygon
+            key={`objective-zone-${getWorldMapCellKey(cell.cell)}`}
+            points={getCellPolygon(layout, cell.cell)}
+            fill="rgba(244, 201, 103, 0.1)"
+            stroke={zoneStroke}
+            strokeWidth={2}
+            strokeDasharray="8 6"
+          />
+        ))}
+        {targetCells.map(cell => (
+          <polygon
+            key={`objective-target-${getWorldMapCellKey(cell.cell)}`}
+            points={getCellPolygon(layout, cell.cell)}
+            fill={targetFill}
+            stroke={targetStroke}
+            strokeWidth={3}
+          />
+        ))}
+        {objectiveMapPreview.targetRoute && (
+          <polyline
+            points={buildPathPoints(layout, objectiveMapPreview.targetRoute.cells)}
+            fill="none"
+            stroke={targetStroke}
+            strokeWidth={7}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity={0.92}
+          />
+        )}
+        {anchorCell && (() => {
+          const center = getCellCenter(layout, anchorCell.cell);
+          return (
+            <g transform={`translate(${center.x} ${center.y})`}>
+              <circle r={16} fill="rgba(8, 14, 24, 0.88)" stroke={ownerStroke} strokeWidth={2.2} />
+              <circle r={6} fill={targetStroke} />
+              <text
+                x={0}
+                y={28}
+                textAnchor="middle"
+                fill="#eef6ff"
+                style={{ fontSize: 10, fontWeight: 700, paintOrder: "stroke", stroke: "rgba(8,11,17,0.86)", strokeWidth: 4 }}
+              >
+                Ancrage
+              </text>
+            </g>
+          );
+        })()}
+      </g>
+    );
+  }, [activeTool, layout, objectiveMapPreview]);
   const allGeographyPresets = useMemo(() => [...GEOGRAPHY_PRESETS, ...customGeographies], [customGeographies]);
   const allTagPresets = useMemo(() => [...TAG_PRESETS, ...customTags], [customTags]);
   const contextualHexSection =
@@ -2101,7 +2685,7 @@ export function WorldMapEditorScreen(props: {
   }
 
   function updateSelectedObjectiveListField(
-    field: "phases" | "obstacleHints" | "compatibleActionIds" | "tags",
+    field: "obstacleHints" | "compatibleActionIds" | "tags",
     values: string[]
   ) {
     if (!selectedSimulationObjective) return;
@@ -2113,7 +2697,7 @@ export function WorldMapEditorScreen(props: {
   }
 
   function addValueToSelectedObjectiveListField(
-    field: "phases" | "obstacleHints" | "compatibleActionIds" | "tags",
+    field: "obstacleHints" | "compatibleActionIds" | "tags",
     value: string
   ) {
     if (!selectedSimulationObjective) return;
@@ -2123,7 +2707,7 @@ export function WorldMapEditorScreen(props: {
   }
 
   function removeValueFromSelectedObjectiveListField(
-    field: "phases" | "obstacleHints" | "compatibleActionIds" | "tags",
+    field: "obstacleHints" | "compatibleActionIds" | "tags",
     value: string
   ) {
     if (!selectedSimulationObjective) return;
@@ -2131,6 +2715,91 @@ export function WorldMapEditorScreen(props: {
       field,
       (selectedSimulationObjective[field] ?? []).filter(entry => entry !== value)
     );
+  }
+
+  function updateSelectedObjectivePhases(phases: WorldMapSimulationObjectivePhase[]) {
+    if (!selectedSimulationObjective) return;
+    dispatch({
+      type: "createSimulationObjective",
+      objective: {
+        ...selectedSimulationObjective,
+        phases
+      }
+    });
+  }
+
+  function updateSelectedObjectiveRecord(patch: Partial<WorldMapSimulationObjective>) {
+    if (!selectedSimulationObjective) return;
+    dispatch({
+      type: "createSimulationObjective",
+      objective: {
+        ...selectedSimulationObjective,
+        ...patch
+      }
+    });
+  }
+
+  function updateSelectedObjectivePhase(
+    phaseId: string,
+    updater: (phase: WorldMapSimulationObjectivePhase, index: number) => WorldMapSimulationObjectivePhase
+  ) {
+    if (!selectedSimulationObjective) return;
+    updateSelectedObjectivePhases(
+      (selectedSimulationObjective.phases ?? []).map((phase, index) => (phase.id === phaseId ? updater(phase, index) : phase))
+    );
+  }
+
+  function updateSelectedObjectivePhaseField<K extends keyof WorldMapSimulationObjectivePhase>(
+    phaseId: string,
+    field: K,
+    value: WorldMapSimulationObjectivePhase[K]
+  ) {
+    updateSelectedObjectivePhase(phaseId, phase => ({ ...phase, [field]: value }));
+  }
+
+  function updateSelectedObjectivePhaseListField(
+    phaseId: string,
+    field: "zoneIds" | "compatibleActionIds" | "fatalFailureConditions" | "notes",
+    values: string[]
+  ) {
+    updateSelectedObjectivePhaseField(phaseId, field, Array.from(new Set(values.map(entry => entry.trim()).filter(Boolean))));
+  }
+
+  function addValueToSelectedObjectivePhaseListField(
+    phaseId: string,
+    field: "zoneIds" | "compatibleActionIds" | "fatalFailureConditions" | "notes",
+    value: string
+  ) {
+    const normalizedValue = normalizeListDraftValue(value);
+    if (!normalizedValue || !selectedSimulationObjective) return;
+    const phase = (selectedSimulationObjective.phases ?? []).find(entry => entry.id === phaseId);
+    updateSelectedObjectivePhaseListField(phaseId, field, [...(phase?.[field] ?? []), normalizedValue]);
+  }
+
+  function removeValueFromSelectedObjectivePhaseListField(
+    phaseId: string,
+    field: "zoneIds" | "compatibleActionIds" | "fatalFailureConditions" | "notes",
+    value: string
+  ) {
+    if (!selectedSimulationObjective) return;
+    const phase = (selectedSimulationObjective.phases ?? []).find(entry => entry.id === phaseId);
+    updateSelectedObjectivePhaseListField(phaseId, field, (phase?.[field] ?? []).filter(entry => entry !== value));
+  }
+
+  function addSelectedObjectivePhase(label: string) {
+    if (!selectedSimulationObjective) return;
+    const normalizedLabel = normalizeListDraftValue(label);
+    if (!normalizedLabel) return;
+    const phases = selectedSimulationObjective.phases ?? [];
+    updateSelectedObjectivePhases([
+      ...phases,
+      createEditorObjectivePhase(normalizedLabel, phases.length, selectedSimulationObjective.compatibleActionIds)
+    ]);
+  }
+
+  function removeSelectedObjectivePhase(phaseId: string) {
+    if (!selectedSimulationObjective) return;
+    updateSelectedObjectivePhases((selectedSimulationObjective.phases ?? []).filter(phase => phase.id !== phaseId));
   }
 
   function replaceSelectedObjectiveCompatibleActions(values: string[]) {
@@ -6271,6 +6940,17 @@ export function WorldMapEditorScreen(props: {
                               </button>
                             </div>
                           )}
+                          {objectiveMapPreview?.mode === "create" && (
+                            <div style={{ ...SUBSECTION_STYLE, gap: 6 }}>
+                              <div style={editorTextStyles.sectionTitle}>Qui / Quoi / Ou</div>
+                              <div style={editorTextStyles.helper}>La carte previsualise deja cet objectif en cours de creation.</div>
+                              <div style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                                <div>Qui: {objectiveMapPreview.ownerLabel}</div>
+                                <div>Quoi: {objectiveMapPreview.targetLabel ? `${formatObjectiveTargetKindLabel(objectiveMapPreview.targetKind)} · ${objectiveMapPreview.targetLabel}` : "cible principale non definie"}</div>
+                                <div>Ou: {objectiveMapPreview.zoneCellKeys.length > 0 ? `${objectiveMapPreview.zoneCellKeys.length} case(s) de zone d'action` : "aucune zone d'action selectionnee"}</div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </CollapsibleSection>
                       )}
@@ -6320,6 +7000,13 @@ export function WorldMapEditorScreen(props: {
                             <div style={editorTextStyles.helper}>
                               Objectif: {selectedSimulationObjective?.label ?? "Aucun objectif selectionne"}
                             </div>
+                            {objectiveMapPreview?.mode === "modify" && (
+                              <div style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                                <div>Qui: {objectiveMapPreview.ownerLabel}</div>
+                                <div>Quoi: {objectiveMapPreview.targetLabel ? `${formatObjectiveTargetKindLabel(objectiveMapPreview.targetKind)} · ${objectiveMapPreview.targetLabel}` : "cible principale non definie"}</div>
+                                <div>Ou: {objectiveMapPreview.zoneCellKeys.length > 0 ? `${objectiveMapPreview.zoneCellKeys.length} case(s) de zone d'action` : "aucune zone d'action liee"}</div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       )}
@@ -6454,7 +7141,7 @@ export function WorldMapEditorScreen(props: {
                                   const isActivePhase = index === (selectedSimulationObjective.currentPhaseIndex ?? 0);
                                   return (
                                     <div
-                                      key={`${phase}-${index}`}
+                                      key={`${phase.id}-${index}`}
                                       style={{
                                         display: "inline-flex",
                                         alignItems: "center",
@@ -6480,11 +7167,11 @@ export function WorldMapEditorScreen(props: {
                                         }}
                                         title="Definir cette phase comme phase courante"
                                       >
-                                        {index + 1}. {phase}
+                                        {index + 1}. {phase.label}
                                       </button>
                                       <button
                                         type="button"
-                                        onClick={() => removeValueFromSelectedObjectiveListField("phases", phase)}
+                                        onClick={() => removeSelectedObjectivePhase(phase.id)}
                                         style={{
                                           border: "none",
                                           background: "transparent",
@@ -6514,7 +7201,7 @@ export function WorldMapEditorScreen(props: {
                               <button
                                 type="button"
                                 onClick={() => {
-                                  addValueToSelectedObjectiveListField("phases", pendingObjectivePhase);
+                                  addSelectedObjectivePhase(pendingObjectivePhase);
                                   setPendingObjectivePhase("");
                                 }}
                                 disabled={!normalizeListDraftValue(pendingObjectivePhase)}
@@ -6525,18 +7212,360 @@ export function WorldMapEditorScreen(props: {
                             </div>
                             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                               {getSuggestedObjectivePhases(selectedSimulationObjective.category)
-                                .filter(phase => !(selectedSimulationObjective.phases ?? []).includes(phase))
+                                .filter(phase => !(selectedSimulationObjective.phases ?? []).some(entry => entry.label === phase))
                                 .map(phase => (
                                   <button
                                     key={phase}
                                     type="button"
-                                    onClick={() => addValueToSelectedObjectiveListField("phases", phase)}
+                                    onClick={() => addSelectedObjectivePhase(phase)}
                                     style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 999 }}
                                   >
                                     Ajouter suggestion: {phase}
                                   </button>
                                 ))}
+                              <button
+                                type="button"
+                                onClick={() => updateSelectedObjectiveRecord({ phases: createObjectivePhasePreset(selectedSimulationObjective.category, selectedSimulationObjective.compatibleActionIds), currentPhaseIndex: 0 })}
+                                style={{ ...createEditorButtonStyle({ compact: true, active: true }), borderRadius: 999 }}
+                              >
+                                Appliquer preset runtime
+                              </button>
                             </div>
+                            {(selectedSimulationObjective.phases ?? []).length > 0 ? (
+                              <div style={{ display: "grid", gap: 10 }}>
+                                {(selectedSimulationObjective.phases ?? []).map((phase, index) => {
+                                  const isActivePhase = index === (selectedSimulationObjective.currentPhaseIndex ?? 0);
+                                  const runtimePhase = selectedObjectiveRuntime?.phases?.[index];
+                                  const localTargetOptions = getPhaseTargetOptions(phase.localTargetKind);
+                                  const presenceTargetOptions = getPhaseTargetOptions(phase.requiredPresenceTargetKind);
+                                  const targetKindOptions: Array<{ value: WorldMapSimulationObjectivePhase["localTargetKind"] | ""; label: string }> = [
+                                    { value: "", label: "Aucune cible locale" },
+                                    { value: "city", label: "Ville" },
+                                    { value: "district", label: "Quartier" },
+                                    { value: "route", label: "Route" },
+                                    { value: "region", label: "Region" },
+                                    { value: "faction", label: "Faction" },
+                                    { value: "place", label: "Lieu / district" }
+                                  ];
+                                  return (
+                                    <div
+                                      key={`phase-structured:${phase.id}`}
+                                      style={{
+                                        display: "grid",
+                                        gap: 8,
+                                        padding: 12,
+                                        borderRadius: 12,
+                                        border: isActivePhase ? "1px solid rgba(114,197,143,0.45)" : "1px solid rgba(124, 142, 168, 0.24)",
+                                        background: isActivePhase ? "rgba(17, 43, 28, 0.28)" : "rgba(17, 24, 39, 0.22)"
+                                      }}
+                                    >
+                                      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                                        <div style={{ display: "grid", gap: 2 }}>
+                                          <div style={{ fontSize: 12, fontWeight: 700, color: isActivePhase ? "#b9f1c7" : "#dce5f2" }}>
+                                            Phase {index + 1} · {phase.label}
+                                          </div>
+                                          <div style={editorTextStyles.helper}>
+                                            Etat editeur: {phase.state ?? (isActivePhase ? "active" : index < (selectedSimulationObjective.currentPhaseIndex ?? 0) ? "completed" : "planned")}
+                                            {" · "}Etat runtime: {runtimePhase?.state ?? "n/a"}
+                                          </div>
+                                        </div>
+                                        <div style={editorTextStyles.helper}>
+                                          Progression {runtimePhase?.progress ?? phase.progress ?? 0}/{phase.completionThreshold} · Echec {runtimePhase?.failureScore ?? phase.failureScore ?? 0}/{phase.maxFailureScore ?? 100}
+                                        </div>
+                                      </div>
+                                      <div style={RESPONSIVE_TWO_COLUMN_GRID}>
+                                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                          Label
+                                          <input
+                                            value={phase.label}
+                                            onChange={event => updateSelectedObjectivePhaseField(phase.id, "label", event.target.value)}
+                                            style={FIELD_STYLE}
+                                          />
+                                        </label>
+                                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                          Etat
+                                          <select
+                                            value={phase.state ?? (isActivePhase ? "active" : "planned")}
+                                            onChange={event => updateSelectedObjectivePhaseField(phase.id, "state", event.target.value as WorldMapSimulationObjectivePhase["state"])}
+                                            style={FIELD_STYLE}
+                                          >
+                                            <option value="planned">planned</option>
+                                            <option value="active">active</option>
+                                            <option value="blocked">blocked</option>
+                                            <option value="completed">completed</option>
+                                            <option value="failed">failed</option>
+                                          </select>
+                                        </label>
+                                      </div>
+                                      <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                        Description
+                                        <textarea
+                                          value={phase.description ?? ""}
+                                          onChange={event => updateSelectedObjectivePhaseField(phase.id, "description", event.target.value)}
+                                          style={{ ...editorFieldStyles.textarea, minHeight: 72 }}
+                                        />
+                                      </label>
+                                      <div style={RESPONSIVE_THREE_COLUMN_GRID}>
+                                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                          Completion
+                                          <select
+                                            value={phase.completionMode}
+                                            onChange={event => updateSelectedObjectivePhaseField(phase.id, "completionMode", event.target.value as WorldMapSimulationObjectivePhase["completionMode"])}
+                                            style={FIELD_STYLE}
+                                          >
+                                            <option value="progress_threshold">progress_threshold</option>
+                                            <option value="action_count">action_count</option>
+                                            <option value="presence">presence</option>
+                                            <option value="anchor_established">anchor_established</option>
+                                          </select>
+                                        </label>
+                                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                          Seuil completion
+                                          <input
+                                            type="number"
+                                            min={0}
+                                            value={phase.completionThreshold}
+                                            onChange={event => updateSelectedObjectivePhaseField(phase.id, "completionThreshold", Math.max(0, Number(event.target.value) || 0))}
+                                            style={FIELD_STYLE}
+                                          />
+                                        </label>
+                                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                          Poids progression
+                                          <input
+                                            type="number"
+                                            min={0}
+                                            step={0.1}
+                                            value={phase.progressWeight ?? 1}
+                                            onChange={event => updateSelectedObjectivePhaseField(phase.id, "progressWeight", Math.max(0, Number(event.target.value) || 0))}
+                                            style={FIELD_STYLE}
+                                          />
+                                        </label>
+                                      </div>
+                                      <div style={RESPONSIVE_THREE_COLUMN_GRID}>
+                                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                          Type cible locale
+                                          <select
+                                            value={phase.localTargetKind ?? ""}
+                                            onChange={event => updateSelectedObjectivePhaseField(phase.id, "localTargetKind", (event.target.value || undefined) as WorldMapSimulationObjectivePhase["localTargetKind"])}
+                                            style={FIELD_STYLE}
+                                          >
+                                            {targetKindOptions.map(option => (
+                                              <option key={option.value || "none"} value={option.value}>
+                                                {option.label}
+                                              </option>
+                                            ))}
+                                          </select>
+                                        </label>
+                                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                          Id cible locale
+                                          {phase.localTargetKind ? (
+                                            <select
+                                              value={phase.localTargetId ?? ""}
+                                              onChange={event => updateSelectedObjectivePhaseField(phase.id, "localTargetId", event.target.value || undefined)}
+                                              style={FIELD_STYLE}
+                                            >
+                                              <option value="">Choisir une cible locale</option>
+                                              {localTargetOptions.map(option => (
+                                                <option key={`${phase.id}:local:${option.id}`} value={option.id}>
+                                                  {option.label}
+                                                </option>
+                                              ))}
+                                            </select>
+                                          ) : (
+                                            <input value="" readOnly style={{ ...FIELD_STYLE, opacity: 0.65 }} placeholder="Choisis d'abord un type de cible" />
+                                          )}
+                                        </label>
+                                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                          Presence requise
+                                          {phase.requiredPresenceTargetKind ? (
+                                            <select
+                                              value={phase.requiredPresenceTargetId ?? ""}
+                                              onChange={event => updateSelectedObjectivePhaseField(phase.id, "requiredPresenceTargetId", event.target.value || undefined)}
+                                              style={FIELD_STYLE}
+                                            >
+                                              <option value="">Choisir une presence requise</option>
+                                              {presenceTargetOptions.map(option => (
+                                                <option key={`${phase.id}:presence:${option.id}`} value={option.id}>
+                                                  {option.label}
+                                                </option>
+                                              ))}
+                                            </select>
+                                          ) : (
+                                            <input value="" readOnly style={{ ...FIELD_STYLE, opacity: 0.65 }} placeholder="Choisis d'abord un type de presence" />
+                                          )}
+                                        </label>
+                                      </div>
+                                      <div style={RESPONSIVE_THREE_COLUMN_GRID}>
+                                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                          Type presence requise
+                                          <select
+                                            value={phase.requiredPresenceTargetKind ?? ""}
+                                            onChange={event => updateSelectedObjectivePhaseField(phase.id, "requiredPresenceTargetKind", (event.target.value || undefined) as WorldMapSimulationObjectivePhase["requiredPresenceTargetKind"])}
+                                            style={FIELD_STYLE}
+                                          >
+                                            {targetKindOptions.map(option => (
+                                              <option key={`presence-${option.value || "none"}`} value={option.value}>
+                                                {option.value ? option.label : "Aucune presence requise"}
+                                              </option>
+                                            ))}
+                                          </select>
+                                        </label>
+                                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                          Ancrage requis
+                                          <select
+                                            value={phase.requiredAnchorId ?? ""}
+                                            onChange={event => updateSelectedObjectivePhaseField(phase.id, "requiredAnchorId", event.target.value || undefined)}
+                                            style={FIELD_STYLE}
+                                          >
+                                            <option value="">Aucun ancrage specifique</option>
+                                            {(selectedObjectiveOwnerFaction?.localAnchors ?? []).map(anchor => (
+                                              <option key={`${phase.id}:${anchor.id}`} value={anchor.id}>
+                                                {anchor.label || anchor.id} ({anchor.type})
+                                              </option>
+                                            ))}
+                                          </select>
+                                        </label>
+                                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                          Type ancrage
+                                          <select
+                                            value={phase.requiredAnchorType ?? ""}
+                                            onChange={event => updateSelectedObjectivePhaseField(phase.id, "requiredAnchorType", event.target.value || undefined)}
+                                            style={FIELD_STYLE}
+                                          >
+                                            <option value="">Aucun type specifique</option>
+                                            {availableAnchorTypeOptions.map(anchorType => (
+                                              <option key={`${phase.id}:${anchorType}`} value={anchorType}>
+                                                {anchorType}
+                                              </option>
+                                            ))}
+                                          </select>
+                                        </label>
+                                      </div>
+                                      <div style={RESPONSIVE_THREE_COLUMN_GRID}>
+                                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                          Failure mode
+                                          <select
+                                            value={phase.failureMode ?? "score_threshold"}
+                                            onChange={event => updateSelectedObjectivePhaseField(phase.id, "failureMode", event.target.value as WorldMapSimulationObjectivePhase["failureMode"])}
+                                            style={FIELD_STYLE}
+                                          >
+                                            <option value="score_threshold">score_threshold</option>
+                                            <option value="fatal_condition">fatal_condition</option>
+                                          </select>
+                                        </label>
+                                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                          Score echec
+                                          <input
+                                            type="number"
+                                            min={0}
+                                            value={phase.failureScore ?? 0}
+                                            onChange={event => updateSelectedObjectivePhaseField(phase.id, "failureScore", Math.max(0, Number(event.target.value) || 0))}
+                                            style={FIELD_STYLE}
+                                          />
+                                        </label>
+                                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                          Seuil echec
+                                          <input
+                                            type="number"
+                                            min={0}
+                                            value={phase.maxFailureScore ?? 100}
+                                            onChange={event => updateSelectedObjectivePhaseField(phase.id, "maxFailureScore", Math.max(0, Number(event.target.value) || 0))}
+                                            style={FIELD_STYLE}
+                                          />
+                                        </label>
+                                      </div>
+                                      <div style={{ display: "grid", gap: 6 }}>
+                                        <div style={editorTextStyles.helper}>Actions autorisees</div>
+                                        {(phase.compatibleActionIds ?? []).length > 0 ? (
+                                          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                                            {(phase.compatibleActionIds ?? []).map(actionId => (
+                                              <button
+                                                key={`${phase.id}:${actionId}`}
+                                                type="button"
+                                                onClick={() => removeValueFromSelectedObjectivePhaseListField(phase.id, "compatibleActionIds", actionId)}
+                                                style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 999 }}
+                                              >
+                                                {actionId} x
+                                              </button>
+                                            ))}
+                                          </div>
+                                        ) : (
+                                          <div style={editorTextStyles.helper}>Si vide, le runtime retombera sur les actions globales de l'objectif.</div>
+                                        )}
+                                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                                          {WORLD_ACTION_DEFINITIONS
+                                            .filter(action => !(phase.compatibleActionIds ?? []).includes(action.id))
+                                            .map(action => (
+                                              <button
+                                                key={`${phase.id}:add-action:${action.id}`}
+                                                type="button"
+                                                onClick={() => addValueToSelectedObjectivePhaseListField(phase.id, "compatibleActionIds", action.id)}
+                                                style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 999 }}
+                                              >
+                                                + {action.id}
+                                              </button>
+                                            ))}
+                                        </div>
+                                      </div>
+                                      <div style={{ display: "grid", gap: 6 }}>
+                                        <div style={editorTextStyles.helper}>Zones de phase</div>
+                                        {(phase.zoneIds ?? []).length > 0 ? (
+                                          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                                            {(phase.zoneIds ?? []).map(zoneId => (
+                                              <button
+                                                key={`${phase.id}:zone:${zoneId}`}
+                                                type="button"
+                                                onClick={() => removeValueFromSelectedObjectivePhaseListField(phase.id, "zoneIds", zoneId)}
+                                                style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 999 }}
+                                              >
+                                                {zoneId} x
+                                              </button>
+                                            ))}
+                                          </div>
+                                        ) : (
+                                          <div style={editorTextStyles.helper}>Aucune zone specifique: la phase herite de la zone globale de l'objectif.</div>
+                                        )}
+                                        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 8 }}>
+                                          <input
+                                            value={phase.zoneIds?.join(", ") ?? ""}
+                                            onChange={event => updateSelectedObjectivePhaseListField(phase.id, "zoneIds", parseStringListInput(event.target.value))}
+                                            style={FIELD_STYLE}
+                                            placeholder="route_id, district_id, region_id"
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() => updateSelectedObjectivePhaseListField(phase.id, "zoneIds", selectedSimulationObjective.zoneIds ?? [])}
+                                            style={{ ...createEditorButtonStyle({ compact: true }), borderRadius: 8 }}
+                                          >
+                                            Copier zone objectif
+                                          </button>
+                                        </div>
+                                      </div>
+                                      <div style={RESPONSIVE_TWO_COLUMN_GRID}>
+                                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                          Conditions fatales
+                                          <input
+                                            value={(phase.fatalFailureConditions ?? []).join(", ")}
+                                            onChange={event => updateSelectedObjectivePhaseListField(phase.id, "fatalFailureConditions", parseStringListInput(event.target.value))}
+                                            style={FIELD_STYLE}
+                                            placeholder="phase_failure_threshold, missing_required_anchor"
+                                          />
+                                        </label>
+                                        <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
+                                          Notes runtime
+                                          <input
+                                            value={(phase.notes ?? []).join(", ")}
+                                            onChange={event => updateSelectedObjectivePhaseListField(phase.id, "notes", parseStringListInput(event.target.value))}
+                                            style={FIELD_STYLE}
+                                            placeholder="scouting, corridor_est, convoy_first"
+                                          />
+                                        </label>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : null}
                           </div>
                           <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
                             Phase courante
@@ -6583,7 +7612,7 @@ export function WorldMapEditorScreen(props: {
                             Tu peux demander soit un ancrage precis, soit un type d'ancrage. Les deux servent de contrainte locale pour l'objectif.
                           </div>
                           <div style={editorTextStyles.helper}>
-                            Phase active: {(selectedSimulationObjective.phases ?? [])[selectedSimulationObjective.currentPhaseIndex ?? 0] ?? "aucune"}.
+                            Phase active: {selectedObjectiveEditorActivePhase?.label ?? "aucune"}.
                           </div>
                           <div style={editorTextStyles.helper}>
                             Dependance locale: {selectedSimulationObjective.requiredAnchorId
@@ -6597,6 +7626,43 @@ export function WorldMapEditorScreen(props: {
                                 : "aucune contrainte locale"}
                             .
                           </div>
+                          {selectedObjectiveRuntime && selectedObjectiveRuntimeActivePhase ? (
+                            <div style={{ ...SUBSECTION_STYLE, gap: 8 }}>
+                              <div style={editorTextStyles.sectionTitle}>Lecture runtime de la phase active</div>
+                              <div style={{ display: "grid", gap: 3, fontSize: 12, color: "#dce5f2" }}>
+                                <div>Etat runtime: {selectedObjectiveRuntime.state} · phase {selectedObjectiveRuntime.currentPhaseIndex + 1} / {selectedObjectiveRuntime.phases.length}</div>
+                                <div>Phase active: {selectedObjectiveRuntimeActivePhase.label} · {selectedObjectiveRuntimeActivePhase.state}</div>
+                                <div>Progression locale: {selectedObjectiveRuntimeActivePhase.progress}/{selectedObjectiveRuntimeActivePhase.completionThreshold}</div>
+                                <div>Score d'echec local: {selectedObjectiveRuntimeActivePhase.failureScore}/{selectedObjectiveRuntimeActivePhase.maxFailureScore}</div>
+                                <div>Poids vers progression globale: {selectedObjectiveRuntimeActivePhase.progressWeight}</div>
+                                <div>Actions runtime: {(selectedObjectiveRuntimeActivePhase.compatibleActionIds ?? []).length > 0 ? selectedObjectiveRuntimeActivePhase.compatibleActionIds.join(", ") : "fallback objectif global"}</div>
+                                <div>Cible globale: {selectedSimulationObjective.targetKind && selectedSimulationObjective.targetId ? `${selectedSimulationObjective.targetKind}:${selectedSimulationObjective.targetId}` : "aucune"}</div>
+                                <div>Cible locale de phase: {formatSimulationTargetRef(selectedObjectiveReadiness?.localTargetRef ?? selectedObjectiveRuntimeActivePhase.localTarget)}</div>
+                                <div>Cible d'execution runtime: {formatSimulationTargetRef(selectedObjectiveReadiness?.executionTargetRef)}</div>
+                                <div>Readiness: {selectedObjectiveReadiness ? (selectedObjectiveReadiness.ready ? "ready" : "blocked") : "non evaluee"}</div>
+                              </div>
+                              {selectedObjectiveReadiness?.reasons.length ? (
+                                <div style={{ display: "grid", gap: 3, fontSize: 12, color: "#ffd7d7" }}>
+                                  {selectedObjectiveReadiness.reasons.map(reason => (
+                                    <div key={`objective-runtime-reason:${reason}`}>- {formatObjectiveReadinessReason(reason)}</div>
+                                  ))}
+                                </div>
+                              ) : null}
+                              {selectedObjectiveRuntime.phaseHistory.length > 0 ? (
+                                <div style={{ display: "grid", gap: 4, fontSize: 12, color: "#c8d0de" }}>
+                                  <div style={editorTextStyles.sectionTitle}>Historique recent</div>
+                                  {[...selectedObjectiveRuntime.phaseHistory].reverse().slice(0, 5).map((entry, index) => (
+                                    <div key={`objective-history:${entry.phaseId}:${entry.enteredAtTick}:${index}`}>
+                                      {entry.phaseId} · entree {entry.enteredAtTick}
+                                      {typeof entry.exitedAtTick === "number" ? ` · sortie ${entry.exitedAtTick}` : " · ouverte"}
+                                      {" · "}issue {entry.outcome ?? "en cours"}
+                                      {" · "}raisons {(entry.reasons ?? []).join(", ") || "aucune"}
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : null}
                           <div style={{ ...SUBSECTION_STYLE, gap: 8 }}>
                             <div style={editorTextStyles.sectionTitle}>Obstacles</div>
                             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -7028,7 +8094,9 @@ export function WorldMapEditorScreen(props: {
                             </div>
                             <div style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
                               <div>Etat runtime: {selectedObjectiveRuntime?.state ?? "indisponible"}</div>
-                              <div>Cible d'execution: {selectedObjectiveReadiness?.executionTargetRef ? `${selectedObjectiveReadiness.executionTargetRef.kind}:${selectedObjectiveReadiness.executionTargetRef.id}` : "aucune"}</div>
+                              <div>Cible globale: {selectedSimulationObjective.targetKind && selectedSimulationObjective.targetId ? `${selectedSimulationObjective.targetKind}:${selectedSimulationObjective.targetId}` : "aucune"}</div>
+                              <div>Cible locale de phase: {formatSimulationTargetRef(selectedObjectiveReadiness?.localTargetRef ?? selectedObjectiveRuntimeActivePhase?.localTarget)}</div>
+                              <div>Cible d'execution: {formatSimulationTargetRef(selectedObjectiveReadiness?.executionTargetRef)}</div>
                               <div>Ancrage resolu: {selectedObjectiveReadiness?.matchedAnchorId ? `${selectedObjectiveReadiness.matchedAnchorId} (${selectedObjectiveReadiness.matchedAnchorType ?? "type inconnu"})` : "aucun"}</div>
                               <div>Zones liees: {selectedSimulationObjective.zoneIds.length > 0 ? selectedSimulationObjective.zoneIds.join(", ") : "aucune"}</div>
                               <div>Projection logistique: {selectedObjectiveLogisticsPlan ? (selectedObjectiveLogisticsPlan.faisable ? "faisable" : "bloquee") : "aucun plan retenu"}</div>
@@ -7039,7 +8107,7 @@ export function WorldMapEditorScreen(props: {
                                 <div>{selectedObjectiveReadiness?.ready ? "Objectif pret a etre projete" : "Blocage local avant projection"}</div>
                                 <div style={editorTextStyles.helper}>
                                   {selectedObjectiveReadiness?.reasons.length
-                                    ? selectedObjectiveReadiness.reasons.join(" | ")
+                                    ? selectedObjectiveReadiness.reasons.map(formatObjectiveReadinessReason).join(" | ")
                                     : "Aucun prerequis manquant detecte."}
                                 </div>
                               </div>
@@ -7106,7 +8174,7 @@ export function WorldMapEditorScreen(props: {
                               >
                                 <div style={{ fontWeight: 700 }}>Pre requis manquants</div>
                                 {selectedObjectiveReadiness.reasons.map(reason => (
-                                  <div key={reason}>- {reason}</div>
+                                  <div key={reason}>- {formatObjectiveReadinessReason(reason)}</div>
                                 ))}
                               </div>
                             ) : (
@@ -8200,7 +9268,13 @@ export function WorldMapEditorScreen(props: {
         selectedCellKey={selectedCellKey}
         highlightedCellKeys={
           activeTool === "simulation"
-            ? Array.from(new Set([...selectedSimulationFactionPresenceCellKeys, ...selectedAreaCellKeys]))
+            ? objectiveMapPreview
+              ? Array.from(new Set([
+                  ...selectedAreaCellKeys,
+                  ...objectiveMapPreview.zoneCellKeys,
+                  ...objectiveMapPreview.targetCellKeys
+                ]))
+              : Array.from(new Set([...selectedSimulationFactionPresenceCellKeys, ...selectedAreaCellKeys]))
             : selectedAreaCellKeys
         }
         routeCandidateCellKeys={routeCandidateCellKeys}
@@ -8238,14 +9312,41 @@ export function WorldMapEditorScreen(props: {
         svgOverlay={
           <>
             {invalidPathOverlay}
+            {simulationMobileActorsOverlay}
             {selectedMobileItineraryOverlay}
             {selectedMobileRouteAnchorOverlay}
+            {objectiveMapPreviewOverlay}
             {selectedObjectiveLogisticsOverlay}
           </>
         }
         overlay={
           <>
             {overlay}
+            {objectiveMapPreview && (
+              <div
+                style={{
+                  position: "absolute",
+                  right: 16,
+                  bottom: 16,
+                  zIndex: 4,
+                  display: "grid",
+                  gap: 6,
+                  minWidth: 220,
+                  padding: 10,
+                  borderRadius: 12,
+                  border: "1px solid rgba(255,255,255,0.14)",
+                  background: "rgba(9,13,20,0.88)",
+                  color: "#eef6ff",
+                  fontFamily: EDITOR_THEME.fontFamily,
+                  fontSize: 12
+                }}
+              >
+                <div style={{ fontWeight: 800 }}>Preview objectif</div>
+                <div>Qui: accent discret faction porteuse</div>
+                <div>Quoi: cible globale en halo fin, cible locale de phase en accent fort</div>
+                <div>Ou: zone d'action en pointille</div>
+              </div>
+            )}
             <MapSelectionSummary
               visible={showHexAnalysisPanel}
               position={hexModalPosition}

@@ -81,6 +81,61 @@ function formatNumber(value: number | undefined): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
+function formatStringList(values: string[] | undefined, empty = "aucune"): string {
+  return values && values.length > 0 ? values.join(", ") : empty;
+}
+
+function formatObjectiveCategoryLabel(category: string | undefined): string {
+  const labels: Record<string, string> = {
+    search_object: "Recherche d'objet",
+    take_control_place: "Prise de controle",
+    weaken_rival: "Affaiblir un rival",
+    extend_influence: "Etendre l'influence",
+    protect_secret: "Proteger un secret",
+    recruit_agents: "Recruter",
+    acquire_resource: "Acquerir une ressource",
+    open_route: "Ouvrir une route",
+    eliminate_threat: "Eliminer une menace",
+    recover_person: "Recuperer une personne",
+    restore_order: "Retablir l'ordre",
+    reduce_fear: "Reduire la peur",
+    stabilize_supply: "Stabiliser l'approvisionnement",
+    secure_corridor: "Securiser le corridor",
+    reopen_market: "Relancer le marche",
+    contain_unrest: "Contenir les troubles"
+  };
+  return labels[category ?? ""] ?? (category ? category.replace(/_/g, " ") : "inconnue");
+}
+
+function formatObjectiveFamilyLabel(tags: string[] | undefined): string {
+  return tags?.includes("system_generated") ? "Systeme" : "Narratif";
+}
+
+function formatDeltaKindLabel(kind: string | undefined): string {
+  if (kind === "territorial_wear") return "Usure";
+  if (kind === "tension_conversion") return "Conversion";
+  return "Runtime";
+}
+
+function formatObjectiveReadinessReason(reason: string): string {
+  const labels: Record<string, string> = {
+    missing_active_phase: "Aucune phase active valide n'est definie.",
+    missing_required_anchor: "L'ancrage requis pour cette phase est introuvable.",
+    missing_required_anchor_type: "Le type d'ancrage requis n'est pas disponible.",
+    missing_phase_execution_target: "La cible locale de la phase ne peut pas etre resolue.",
+    missing_execution_target: "La cible d'execution de l'objectif ne peut pas etre resolue.",
+    missing_required_presence: "La presence requise pour cette phase est absente.",
+    phase_failed: "La phase active est en echec.",
+    phase_completed: "La phase active est deja terminee.",
+    objective_failed: "L'objectif global est en echec.",
+    objective_completed: "L'objectif global est deja termine.",
+    phase_failure_threshold_blocked: "Le score d'echec de la phase a atteint son seuil de blocage.",
+    phase_failure_threshold: "Le score d'echec de la phase a atteint son seuil critique.",
+    objective_failure_threshold: "Le score d'echec global a atteint son seuil critique."
+  };
+  return labels[reason] ?? reason.replace(/_/g, " ");
+}
+
 function createSimulationLayerVisibility(): Record<MapLayerId, boolean> {
   return {
     background: false,
@@ -122,9 +177,7 @@ export function WorldMapSimulationScreen(props: {
   const simulationFactions = props.layout.simulation?.factions ?? [];
   const simulationObjectives = props.layout.simulation?.specialObjectives ?? [];
   const simulationMobileActors = props.layout.simulation?.mobileActors ?? [];
-
   const selectedFaction = simulationFactions.find(faction => faction.id === selectedFactionId) ?? null;
-  const selectedObjective = simulationObjectives.find(objective => objective.id === selectedObjectiveId) ?? null;
   const selectedCell = props.layout.cells.find(cell => getWorldMapCellKey(cell.cell) === selectedCellKey) ?? null;
   const selectedCity =
     props.layout.cities.find(city => getWorldMapCellKey(city.cell) === selectedCellKey) ??
@@ -133,17 +186,6 @@ export function WorldMapSimulationScreen(props: {
   const latestOutput = outputs[outputs.length - 1] ?? null;
   const latestTrace = latestOutput?.trace ?? null;
   const seedSummary = useMemo(() => summarizeSimulationSeed(state), [state]);
-
-  const highlightedCellKeys = useMemo(() => {
-    const keys = new Set<string>();
-    if (selectedFaction) {
-      selectedFaction.presenceCells.forEach(cell => keys.add(getWorldMapCellKey(cell)));
-    }
-    if (selectedObjective?.anchorCell) {
-      keys.add(getWorldMapCellKey(selectedObjective.anchorCell));
-    }
-    return Array.from(keys);
-  }, [selectedFaction, selectedObjective]);
 
   const topPressureHotspots = useMemo(() => {
     const hotspots: Array<{ kind: string; id: string; pressureType: string; value: number }> = [];
@@ -192,7 +234,54 @@ export function WorldMapSimulationScreen(props: {
     () => (selectedMobileActorRuntime ? formatRuntimeMobileProgress(props.layout, state, selectedMobileActorRuntime) : null),
     [props.layout, selectedMobileActorRuntime, state]
   );
-  const selectedObjectiveRuntime = selectedObjectiveId ? state.specialObjectives[`objective:map:${selectedObjectiveId}`] ?? null : null;
+  const simulationObjectivesByRuntimeId = useMemo(
+    () =>
+      new Map<string, (typeof simulationObjectives)[number]>(
+        simulationObjectives.map(objective => [`objective:map:${objective.id}`, objective] as const)
+      ),
+    [simulationObjectives]
+  );
+  const runtimeObjectiveOptions = useMemo(() => {
+    return Object.values(state.specialObjectives)
+      .map(objective => {
+        const sourceObjective = simulationObjectivesByRuntimeId.get(objective.id) ?? null;
+        const label = sourceObjective?.label
+          ? sourceObjective.label
+          : `${formatObjectiveCategoryLabel(objective.category)} · ${objective.target?.id ?? objective.id}`;
+        return {
+          runtimeId: objective.id,
+          label,
+          family: formatObjectiveFamilyLabel(objective.tags),
+          sourceObjective,
+          runtimeObjective: objective
+        };
+      })
+      .sort((left, right) => {
+        if (left.family !== right.family) return left.family === "Narratif" ? -1 : 1;
+        return right.runtimeObjective.priority - left.runtimeObjective.priority;
+      });
+  }, [simulationObjectivesByRuntimeId, state.specialObjectives]);
+  const selectedObjectiveRuntimeId = useMemo(() => {
+    if (!selectedObjectiveId) return "";
+    if (selectedObjectiveId.startsWith("objective:")) return selectedObjectiveId;
+    return `objective:map:${selectedObjectiveId}`;
+  }, [selectedObjectiveId]);
+  const selectedObjectiveRuntime = selectedObjectiveRuntimeId ? state.specialObjectives[selectedObjectiveRuntimeId] ?? null : null;
+  const selectedObjectiveOption = useMemo(
+    () => runtimeObjectiveOptions.find(option => option.runtimeId === selectedObjectiveRuntimeId) ?? null,
+    [runtimeObjectiveOptions, selectedObjectiveRuntimeId]
+  );
+  const selectedObjective = selectedObjectiveOption?.sourceObjective ?? null;
+  const highlightedCellKeys = useMemo(() => {
+    const keys = new Set<string>();
+    if (selectedFaction) {
+      selectedFaction.presenceCells.forEach(cell => keys.add(getWorldMapCellKey(cell)));
+    }
+    if (selectedObjective?.anchorCell) {
+      keys.add(getWorldMapCellKey(selectedObjective.anchorCell));
+    }
+    return Array.from(keys);
+  }, [selectedFaction, selectedObjective]);
   const selectedObjectiveReadiness = useMemo(
     () => (selectedObjectiveRuntime && latestTrace?.objectiveReadiness ? latestTrace.objectiveReadiness.find(entry => entry.objectiveId === selectedObjectiveRuntime.id) ?? null : null),
     [latestTrace?.objectiveReadiness, selectedObjectiveRuntime]
@@ -233,6 +322,10 @@ export function WorldMapSimulationScreen(props: {
     () => (selectedObjectiveRuntime && latestTrace ? latestTrace.selectedActions.find(action => action.objectiveId === selectedObjectiveRuntime.id) ?? null : null),
     [latestTrace, selectedObjectiveRuntime]
   );
+  const selectedObjectiveActivePhase = useMemo(
+    () => (selectedObjectiveRuntime?.phases ?? [])[selectedObjectiveRuntime?.currentPhaseIndex ?? 0] ?? null,
+    [selectedObjectiveRuntime]
+  );
   const selectedObjectiveActionCandidates = useMemo(
     () => (selectedObjectiveRuntime && latestTrace ? latestTrace.actionCandidates.filter(candidate => candidate.objectiveId === selectedObjectiveRuntime.id) : []),
     [latestTrace, selectedObjectiveRuntime]
@@ -254,6 +347,49 @@ export function WorldMapSimulationScreen(props: {
     () => (selectedFaction ? simulationMobileActors.filter(actor => actor.ownerFactionId === selectedFaction.id) : []),
     [selectedFaction, simulationMobileActors]
   );
+  const systemObjectiveCounts = useMemo(() => {
+    const objectives = Object.values(state.specialObjectives);
+    return {
+      narrative: objectives.filter(objective => !objective.tags.includes("system_generated")).length,
+      system: objectives.filter(objective => objective.tags.includes("system_generated")).length
+    };
+  }, [state.specialObjectives]);
+  const latestWearDeltas = useMemo(
+    () => (latestOutput?.deltas ?? []).filter(delta => delta.meta?.kind === "territorial_wear").slice(0, 8),
+    [latestOutput?.deltas]
+  );
+  const latestConversionDeltas = useMemo(
+    () => (latestOutput?.deltas ?? []).filter(delta => delta.meta?.kind === "tension_conversion").slice(0, 8),
+    [latestOutput?.deltas]
+  );
+  const territorialCycleSummary = useMemo(() => {
+    return Object.values(state.cities)
+      .map(city => {
+        const guard = state.factions[`faction:system:guard:${city.id}`] ?? null;
+        const civic = state.factions[`faction:system:civic:${city.id}`] ?? null;
+        const logistics = state.factions[`faction:system:logistics:${city.id}`] ?? null;
+        const activeObjectiveIds = [
+          ...(guard?.objectives ?? []),
+          ...(civic?.objectives ?? []),
+          ...(logistics?.objectives ?? [])
+        ]
+          .map(goal => state.specialObjectives[goal.objectiveId])
+          .filter((objective): objective is NonNullable<typeof objective> => Boolean(objective) && objective.state !== "completed" && objective.state !== "failed")
+          .sort((left, right) => right.priority - left.priority)
+          .slice(0, 3)
+          .map(objective => `${formatObjectiveFamilyLabel(objective.tags)} · ${formatObjectiveCategoryLabel(objective.category)} · ${objective.target?.id ?? objective.id}`);
+        return {
+          cityId: city.id,
+          cityName: city.name,
+          guardResources: guard?.state.resources ?? null,
+          civicResources: civic?.state.resources ?? null,
+          logisticsResources: logistics?.state.resources ?? null,
+          activeObjectiveIds
+        };
+      })
+      .sort((left, right) => right.activeObjectiveIds.length - left.activeObjectiveIds.length)
+      .slice(0, 4);
+  }, [state.cities, state.factions, state.specialObjectives]);
 
   useEffect(() => {
     setLayerVisibility(createSimulationLayerVisibility());
@@ -448,7 +584,7 @@ export function WorldMapSimulationScreen(props: {
             layout={props.layout}
             mode={visualMode}
             selectedFactionId={selectedFactionId}
-            selectedObjectiveId={selectedObjectiveId}
+            selectedObjectiveId={selectedObjectiveRuntimeId}
             selectedMobileActorId={selectedMobileActorId}
             state={state}
           />
@@ -478,6 +614,8 @@ export function WorldMapSimulationScreen(props: {
                     <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: 12, color: "#c8d0de" }}>
                       <span>Events: {latestOutput?.events.length ?? 0}</span>
                       <span>Deltas: {latestOutput?.deltas.length ?? 0}</span>
+                      <span>Narratifs: {systemObjectiveCounts.narrative}</span>
+                      <span>Systeme: {systemObjectiveCounts.system}</span>
                       <span>Rumors: {latestOutput?.rumors.length ?? 0}</span>
                     </div>
                   </div>
@@ -747,14 +885,14 @@ export function WorldMapSimulationScreen(props: {
 
               <SimulationSidebarSection
                 title="Objectif Suivi"
-                summary={selectedObjective ? `${selectedObjective.label}. Cette section relie l'objectif a ses prerequis, sa projection logistique et le mobile qui le porte.` : "Choisis un objectif pour lire sa faisabilite runtime."}
+                summary={selectedObjectiveOption ? `${selectedObjectiveOption.label}. Cette section relie l'objectif a ses prerequis, sa projection logistique et le mobile qui le porte.` : "Choisis un objectif pour lire sa faisabilite runtime."}
               >
-                {selectedObjective && selectedObjectiveRuntime ? (
+                {selectedObjectiveRuntime ? (
                   <div style={{ display: "grid", gap: 10 }}>
                     <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
                       Objectif suivi
                       <select
-                        value={selectedObjectiveId}
+                        value={selectedObjectiveRuntimeId}
                         onChange={event => {
                           setSelectedObjectiveId(event.target.value);
                           setVisualMode("objectives");
@@ -762,9 +900,9 @@ export function WorldMapSimulationScreen(props: {
                         style={FIELD_STYLE}
                       >
                         <option value="">Choisir un objectif</option>
-                        {simulationObjectives.map(objective => (
-                          <option key={objective.id} value={objective.id}>
-                            {objective.label}
+                        {runtimeObjectiveOptions.map(objective => (
+                          <option key={objective.runtimeId} value={objective.runtimeId}>
+                            [{objective.family}] {objective.label}
                           </option>
                         ))}
                       </select>
@@ -772,19 +910,98 @@ export function WorldMapSimulationScreen(props: {
                     <div style={{ ...editorSurfaceStyles.subsection, gap: 6 }}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: "#f4c967" }}>Diagnostic runtime</div>
                       <div style={{ display: "grid", gap: 3, fontSize: 12, color: "#dce5f2" }}>
+                        <div>Famille: {formatObjectiveFamilyLabel(selectedObjectiveRuntime.tags)} · categorie {formatObjectiveCategoryLabel(selectedObjectiveRuntime.category)}</div>
                         <div>Etat: {selectedObjectiveRuntime.state}</div>
+                        <div>Phase active: {selectedObjectiveActivePhase ? `${selectedObjectiveRuntime.currentPhaseIndex + 1}. ${selectedObjectiveActivePhase.label}` : "aucune"}</div>
                         <div>Prerequis: {selectedObjectiveReadiness ? (selectedObjectiveReadiness.ready ? "satisfaits" : "bloques") : "pas encore evalues"}</div>
+                        <div>Cible globale: {selectedObjective ? (selectedObjective.targetKind && selectedObjective.targetId ? `${selectedObjective.targetKind}:${selectedObjective.targetId}` : "aucune") : formatEntityRef(selectedObjectiveRuntime.target)}</div>
+                        <div>Cible locale de phase: {formatEntityRef(selectedObjectiveReadiness?.localTargetRef ?? selectedObjectiveActivePhase?.localTarget)}</div>
                         <div>Cible d'execution: {formatEntityRef(selectedObjectiveReadiness?.executionTargetRef ?? selectedObjectiveLogisticsPlan?.cibleExecutionRef)}</div>
                         <div>Projection logistique: {selectedObjectiveLogisticsPlan ? (selectedObjectiveLogisticsPlan.faisable ? "faisable" : "bloquee") : "aucun plan"}</div>
                         <div>Pression dominante: {selectedObjectiveDominantPressure ? `${selectedObjectiveDominantPressure.type} ${selectedObjectiveDominantPressure.value}` : "aucune"}</div>
+                        <div>Echec global: {formatNumber(selectedObjectiveRuntime.failureScore)}/{formatNumber(selectedObjectiveRuntime.maxFailureScore)}</div>
                       </div>
                     </div>
+                    {selectedObjectiveActivePhase ? (
+                      <div style={{ ...editorSurfaceStyles.subsection, gap: 6 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#8fb3ff" }}>Phase active</div>
+                        <div style={{ display: "grid", gap: 3, fontSize: 12, color: "#dce5f2" }}>
+                          <div>Etat: {selectedObjectiveActivePhase.state}</div>
+                          <div>Progression: {formatNumber(selectedObjectiveActivePhase.progress)} / {formatNumber(selectedObjectiveActivePhase.completionThreshold)}</div>
+                          <div>Poids global: {formatNumber(selectedObjectiveActivePhase.progressWeight)}</div>
+                          <div>Echec local: {formatNumber(selectedObjectiveActivePhase.failureScore)} / {formatNumber(selectedObjectiveActivePhase.maxFailureScore)}</div>
+                          <div>Completion: {selectedObjectiveActivePhase.completionMode}</div>
+                          <div>Failure mode: {selectedObjectiveActivePhase.failureMode}</div>
+                          <div>Actions autorisees: {formatStringList(selectedObjectiveActivePhase.compatibleActionIds, "fallback objectif global")}</div>
+                          <div>Zones de phase: {formatStringList(selectedObjectiveActivePhase.zoneIds)}</div>
+                          <div>Cible locale: {formatEntityRef(selectedObjectiveReadiness?.localTargetRef ?? selectedObjectiveActivePhase.localTarget)}</div>
+                          <div>Presence requise: {formatEntityRef(selectedObjectiveActivePhase.requiredPresenceRef)}</div>
+                          <div>Ancrage requis: {selectedObjectiveActivePhase.requiredAnchorId ?? selectedObjectiveActivePhase.requiredAnchorType ?? "aucun"}</div>
+                          <div>Conditions fatales: {formatStringList(selectedObjectiveActivePhase.fatalFailureConditions)}</div>
+                          <div>Notes: {formatStringList(selectedObjectiveActivePhase.notes)}</div>
+                        </div>
+                      </div>
+                    ) : null}
+                    {selectedObjectiveRuntime.phases.length > 0 ? (
+                      <div style={{ ...editorSurfaceStyles.subsection, gap: 6 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#f4c967" }}>Pile de phases</div>
+                        <div style={{ display: "grid", gap: 6 }}>
+                          {selectedObjectiveRuntime.phases.map((phase, index) => {
+                            const selected = index === selectedObjectiveRuntime.currentPhaseIndex;
+                            return (
+                              <div
+                                key={`${phase.id}:${index}`}
+                                style={{
+                                  display: "grid",
+                                  gap: 2,
+                                  padding: "8px 10px",
+                                  borderRadius: 10,
+                                  border: selected ? "1px solid rgba(114,197,143,0.45)" : "1px solid rgba(124,142,168,0.24)",
+                                  background: selected ? "rgba(17,43,28,0.24)" : "rgba(17,24,39,0.18)",
+                                  fontSize: 12,
+                                  color: "#dce5f2"
+                                }}
+                              >
+                                <div style={{ fontWeight: 700, color: selected ? "#b9f1c7" : "#eef6ff" }}>
+                                  {index + 1}. {phase.label}
+                                </div>
+                                <div>Etat {phase.state} · progression {formatNumber(phase.progress)}/{formatNumber(phase.completionThreshold)} · echec {formatNumber(phase.failureScore)}/{formatNumber(phase.maxFailureScore)}</div>
+                                <div>Actions {formatStringList(phase.compatibleActionIds, "fallback")}</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
+                    {selectedObjectiveRuntime.phaseHistory.length > 0 ? (
+                      <div style={{ ...editorSurfaceStyles.subsection, gap: 6 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#8fb3ff" }}>Historique des transitions</div>
+                        <div style={{ display: "grid", gap: 4, fontSize: 12, color: "#dce5f2" }}>
+                          {[...selectedObjectiveRuntime.phaseHistory].reverse().slice(0, 8).map((entry, index) => (
+                            <div
+                              key={`${entry.phaseId}:${entry.enteredAtTick}:${index}`}
+                              style={{
+                                padding: "8px 10px",
+                                borderRadius: 10,
+                                border: "1px solid rgba(124,142,168,0.24)",
+                                background: "rgba(17,24,39,0.18)"
+                              }}
+                            >
+                              <div style={{ fontWeight: 700 }}>{entry.phaseId}</div>
+                              <div>Entree tick {entry.enteredAtTick}{typeof entry.exitedAtTick === "number" ? ` · sortie tick ${entry.exitedAtTick}` : " · phase encore ouverte"}</div>
+                              <div>Issue: {entry.outcome ?? "en cours"}</div>
+                              <div>Raisons: {formatStringList(entry.reasons, "aucune")}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
                     {selectedObjectiveReadiness?.reasons.length ? (
                       <div style={{ ...editorSurfaceStyles.subsection, gap: 6 }}>
                         <div style={{ fontSize: 12, fontWeight: 700, color: "#ffcfad" }}>Blocages locaux</div>
                         <div style={{ display: "grid", gap: 3, fontSize: 12, color: "#ffd7d7" }}>
                           {selectedObjectiveReadiness.reasons.map(reason => (
-                            <div key={reason}>- {reason}</div>
+                            <div key={reason}>- {formatObjectiveReadinessReason(reason)}</div>
                           ))}
                         </div>
                       </div>
@@ -841,14 +1058,18 @@ export function WorldMapSimulationScreen(props: {
                         {selectedObjectiveSelectedAction ? (
                           <div style={{ display: "grid", gap: 3, fontSize: 12, color: "#dce5f2" }}>
                             <div>Action retenue: {selectedObjectiveSelectedAction.actionId}</div>
+                            <div>Phase: {selectedObjectiveSelectedAction.phaseId ?? "aucune"}</div>
                             <div>Acteur: {formatEntityRef(selectedObjectiveSelectedAction.actorRef)}</div>
                             <div>Cible: {formatEntityRef(selectedObjectiveSelectedAction.targetRef)}</div>
                             <div>Score: {formatNumber(selectedObjectiveSelectedAction.score)} · {selectedObjectiveSelectedAction.success ? "succes" : "echec"}</div>
+                            {selectedObjectiveSelectedAction.failureScoreApplied ? (
+                              <div>Impact echec: +{formatNumber(selectedObjectiveSelectedAction.failureScoreApplied)} score d'echec</div>
+                            ) : null}
                           </div>
                         ) : (
                           <div style={{ fontSize: 12, color: "#c8d0de" }}>Aucune action n'a ete retenue pour cet objectif au dernier tick.</div>
                         )}
-                        {!selectedObjectiveSelectedAction && selectedObjectiveActionCandidates.length > 0 ? (
+                        {selectedObjectiveActionCandidates.length > 0 ? (
                           <div style={{ display: "grid", gap: 4, fontSize: 12, color: "#c8d0de" }}>
                             {selectedObjectiveActionCandidates.slice(0, 4).map(candidate => (
                               <div key={`${candidate.actorRef.id}:${candidate.actionId}:${candidate.targetRef.id}`}>
@@ -873,6 +1094,33 @@ export function WorldMapSimulationScreen(props: {
                   hotspots={topPressureHotspots}
                   evaluationsByEntity={pressureEvaluationsByHotspot}
                 />
+              </SimulationSidebarSection>
+
+              <SimulationSidebarSection
+                title="Cycle Territorial"
+                summary="Montre, par ville, quel trio public agit encore et quels objectifs systeme ou narratifs restent dominants."
+              >
+                <div style={{ display: "grid", gap: 8 }}>
+                  {territorialCycleSummary.map(entry => (
+                    <div
+                      key={entry.cityId}
+                      style={{
+                        padding: 10,
+                        borderRadius: 10,
+                        background: "rgba(255,255,255,0.04)",
+                        border: "1px solid rgba(255,255,255,0.08)",
+                        display: "grid",
+                        gap: 4,
+                        fontSize: 12,
+                        color: "#dce5f2"
+                      }}
+                    >
+                      <div style={{ fontWeight: 700, color: "#eef6ff" }}>{entry.cityName}</div>
+                      <div>Ordre {entry.guardResources ?? "n/a"} · Civique {entry.civicResources ?? "n/a"} · Logistique {entry.logisticsResources ?? "n/a"}</div>
+                      <div>Objectifs actifs: {entry.activeObjectiveIds.length > 0 ? entry.activeObjectiveIds.join(" | ") : "aucun"}</div>
+                    </div>
+                  ))}
+                </div>
               </SimulationSidebarSection>
 
               <SimulationSidebarSection
@@ -901,6 +1149,46 @@ export function WorldMapSimulationScreen(props: {
                   </div>
                 ) : (
                   <div style={{ fontSize: 12, color: "#c8d0de" }}>Selectionne une case ou une faction pour construire le contexte d'inspection.</div>
+                )}
+              </SimulationSidebarSection>
+
+              <SimulationSidebarSection
+                title="Deltas de Cycle"
+                summary={latestOutput ? "Separer l'usure territoriale des conversions de tension aide a comprendre ce que le monde consomme et ce que les actions deplacent." : "Execute un tick pour lire l'usure et les conversions du cycle."}
+              >
+                {latestOutput ? (
+                  <div style={{ display: "grid", gap: 10 }}>
+                    <div style={{ padding: 10, borderRadius: 10, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6, color: "#dce5f2" }}>Usure territoriale</div>
+                      {latestWearDeltas.length > 0 ? (
+                        <div style={{ display: "grid", gap: 4, fontSize: 12, color: "#c8d0de" }}>
+                          {latestWearDeltas.map((delta, index) => (
+                            <div key={`${delta.target.id}:${delta.key}:${index}`}>
+                              [{formatDeltaKindLabel(String(delta.meta?.kind ?? ""))}] {formatEntityRef(delta.target)} · {delta.key} {formatNumber(delta.before)} {"->"} {formatNumber(delta.after)}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: 12, color: "#c8d0de" }}>Aucune usure marquee sur ce tick.</div>
+                      )}
+                    </div>
+                    <div style={{ padding: 10, borderRadius: 10, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6, color: "#dce5f2" }}>Conversions de tension</div>
+                      {latestConversionDeltas.length > 0 ? (
+                        <div style={{ display: "grid", gap: 4, fontSize: 12, color: "#c8d0de" }}>
+                          {latestConversionDeltas.map((delta, index) => (
+                            <div key={`${delta.target.id}:${delta.key}:${index}`}>
+                              [{formatDeltaKindLabel(String(delta.meta?.kind ?? ""))}] {formatEntityRef(delta.target)} · {delta.key} {formatNumber(delta.before)} {"->"} {formatNumber(delta.after)}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: 12, color: "#c8d0de" }}>Aucune conversion marquee sur ce tick.</div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12, color: "#c8d0de" }}>Execute un tick pour lire l'usure et les conversions du cycle.</div>
                 )}
               </SimulationSidebarSection>
 

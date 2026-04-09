@@ -24,7 +24,10 @@ export type SimulationObjectiveCategory =
   | "eliminate_threat"
   | "recover_person";
 export type SimulationObjectiveState = "planned" | "active" | "blocked" | "completed" | "failed";
+export type SimulationObjectivePhaseState = "planned" | "active" | "blocked" | "completed" | "failed";
 export type SimulationObjectiveTargetKind = "city" | "district" | "route" | "region" | "faction" | "place";
+export type SimulationObjectivePhaseCompletionMode = "progress_threshold" | "action_count" | "presence" | "anchor_established";
+export type SimulationObjectivePhaseFailureMode = "score_threshold" | "fatal_condition";
 export type SimulationActorPositionKind = "city" | "route" | "region" | "cell";
 export type SimulationAnchorTargetKind = "city" | "district" | "route" | "region" | "place" | "cell";
 export type SimulationTravelMode = "road" | "river" | "sea" | "foot";
@@ -185,6 +188,31 @@ export type WorldMapSimulationConsequence =
   | { type: "open_opportunity"; kind: SimulationOpportunityKind; score: number; tags: string[] }
   | { type: "spawn_signal"; signalKind: SimulationSignalKind; intensity: number; tags: string[] };
 
+export type WorldMapSimulationObjectivePhase = {
+  id: string;
+  label: string;
+  description?: string;
+  state?: SimulationObjectivePhaseState;
+  localTargetKind?: SimulationObjectiveTargetKind;
+  localTargetId?: string;
+  zoneIds?: string[];
+  compatibleActionIds: string[];
+  requiredAnchorId?: string;
+  requiredAnchorType?: string;
+  progress?: number;
+  progressWeight?: number;
+  completionMode: SimulationObjectivePhaseCompletionMode;
+  completionThreshold: number;
+  actionCountById?: Partial<Record<string, number>>;
+  requiredPresenceTargetKind?: SimulationObjectiveTargetKind;
+  requiredPresenceTargetId?: string;
+  failureScore?: number;
+  maxFailureScore?: number;
+  failureMode?: SimulationObjectivePhaseFailureMode;
+  fatalFailureConditions?: string[];
+  notes?: string[];
+};
+
 export type WorldMapSimulationObjective = {
   id: string;
   label: string;
@@ -197,12 +225,15 @@ export type WorldMapSimulationObjective = {
   priority: number;
   progress: number;
   state: SimulationObjectiveState;
-  phases?: string[];
-  currentPhaseIndex?: number;
+  phases: WorldMapSimulationObjectivePhase[];
+  currentPhaseIndex: number;
   obstacleHints: string[];
   compatibleActionIds: string[];
   requiredAnchorId?: string;
   requiredAnchorType?: string;
+  failureScore?: number;
+  maxFailureScore?: number;
+  fatalFailureConditions?: string[];
   onSuccess?: WorldMapSimulationConsequence[];
   onFailure?: WorldMapSimulationConsequence[];
   tags: string[];
@@ -392,7 +423,68 @@ function normalizePopulationProfile(profile: PopulationProfile | undefined): Pop
   };
 }
 
-const source = worldMapLayoutJson as RawWorldMapLayoutSource;
+function slugifyPhaseId(value: string, fallback: string): string {
+  const normalized = value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return normalized || fallback;
+}
+
+function normalizeObjectivePhase(
+  phase: WorldMapSimulationObjectivePhase | string,
+  index: number
+): WorldMapSimulationObjectivePhase {
+  if (typeof phase === "string") {
+    const label = phase.trim() || `Phase ${index + 1}`;
+    return {
+      id: slugifyPhaseId(label, `phase_${index + 1}`),
+      label,
+      description: "",
+      state: index === 0 ? "active" : "planned",
+      zoneIds: [],
+      compatibleActionIds: [],
+      completionMode: "progress_threshold",
+      completionThreshold: 100,
+      progress: 0,
+      progressWeight: 1,
+      failureScore: 0,
+      maxFailureScore: 100,
+      failureMode: "score_threshold",
+      fatalFailureConditions: [],
+      notes: []
+    };
+  }
+  const label = String(phase.label ?? "").trim() || `Phase ${index + 1}`;
+  return {
+    id: String(phase.id ?? "").trim() || slugifyPhaseId(label, `phase_${index + 1}`),
+    label,
+    description: phase.description ?? "",
+    state: phase.state ?? (index === 0 ? "active" : "planned"),
+    localTargetKind: phase.localTargetKind ?? undefined,
+    localTargetId: phase.localTargetId ?? undefined,
+    zoneIds: Array.isArray(phase.zoneIds) ? phase.zoneIds : [],
+    compatibleActionIds: Array.isArray(phase.compatibleActionIds) ? phase.compatibleActionIds : [],
+    requiredAnchorId: phase.requiredAnchorId ?? undefined,
+    requiredAnchorType: phase.requiredAnchorType ?? undefined,
+    progress: Math.max(0, Math.min(100, Number(phase.progress) || 0)),
+    progressWeight: Math.max(0, Number(phase.progressWeight) || 1),
+    completionMode: phase.completionMode ?? "progress_threshold",
+    completionThreshold: Math.max(0, Number(phase.completionThreshold) || 0),
+    actionCountById: phase.actionCountById ?? {},
+    requiredPresenceTargetKind: phase.requiredPresenceTargetKind ?? undefined,
+    requiredPresenceTargetId: phase.requiredPresenceTargetId ?? undefined,
+    failureScore: Math.max(0, Number(phase.failureScore) || 0),
+    maxFailureScore: Math.max(0, Number(phase.maxFailureScore) || 100),
+    failureMode: phase.failureMode ?? "score_threshold",
+    fatalFailureConditions: Array.isArray(phase.fatalFailureConditions) ? phase.fatalFailureConditions : [],
+    notes: Array.isArray(phase.notes) ? phase.notes : []
+  };
+}
+
+const source = worldMapLayoutJson as unknown as RawWorldMapLayoutSource;
 
 export function createRuntimeWorldMapLayout(
   sourceLayout: WorldMapLayoutSource | RawWorldMapLayoutSource
@@ -462,12 +554,15 @@ export function createRuntimeWorldMapLayout(
         ...objective,
         description: objective.description ?? "",
         whyItMatters: objective.whyItMatters ?? "",
-        phases: Array.isArray(objective.phases) ? objective.phases : [],
+        phases: Array.isArray(objective.phases) ? objective.phases.map(normalizeObjectivePhase) : [],
         currentPhaseIndex: Math.max(0, Number(objective.currentPhaseIndex) || 0),
         obstacleHints: Array.isArray(objective.obstacleHints) ? objective.obstacleHints : [],
         compatibleActionIds: Array.isArray(objective.compatibleActionIds) ? objective.compatibleActionIds : [],
         requiredAnchorId: objective.requiredAnchorId ?? undefined,
         requiredAnchorType: objective.requiredAnchorType ?? undefined,
+        failureScore: Math.max(0, Number(objective.failureScore) || 0),
+        maxFailureScore: Math.max(0, Number(objective.maxFailureScore) || 100),
+        fatalFailureConditions: Array.isArray(objective.fatalFailureConditions) ? objective.fatalFailureConditions : [],
         onSuccess: Array.isArray(objective.onSuccess) ? objective.onSuccess : [],
         onFailure: Array.isArray(objective.onFailure) ? objective.onFailure : [],
         tags: Array.isArray(objective.tags) ? objective.tags : [],

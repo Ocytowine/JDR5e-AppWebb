@@ -418,6 +418,15 @@ function syncRouteMobileActorIds(routes: Record<string, WorldRoute>, mobileActor
 function deriveRuntimeFactionsFromLayout(layout: WorldMapLayout): Record<string, WorldFaction> {
   const cityPopulationById = new Map(layout.cities.map(city => [city.id, city.populationProfile]));
   const knownDistrictIds = new Set(Object.keys(createSimulationSeedFromMapLayout(layout).districts));
+  const explicitObjectivesByFactionId = new Map<string, Array<{ objectiveId: string; priority: number }>>();
+  (layout.simulation?.specialObjectives ?? []).forEach(objective => {
+    const current = explicitObjectivesByFactionId.get(objective.ownerFactionId) ?? [];
+    current.push({
+      objectiveId: `objective:map:${objective.id}`,
+      priority: clamp(objective.priority, 0, 100)
+    });
+    explicitObjectivesByFactionId.set(objective.ownerFactionId, current);
+  });
   return Object.fromEntries(
     (layout.simulation?.factions ?? []).map(faction => {
       const type = String(faction.type || "faction").trim().toLowerCase();
@@ -494,10 +503,14 @@ function deriveRuntimeFactionsFromLayout(layout: WorldMapLayout): Record<string,
             effectifsTotal: Math.max(0, Math.round(faction.power * 0.7 + faction.cohesion * 0.3)),
             effectifsDisponibles: Math.max(0, Math.round(faction.power * 0.7 + faction.cohesion * 0.3))
           },
-          objectives: faction.objectiveHints.map((_, index) => ({
-            objectiveId: `objective:map:${faction.id}:${index}`,
-            priority: clamp(45 + index * 10, 0, 100)
-          })),
+          objectives: (
+            explicitObjectivesByFactionId.get(faction.id)?.length
+              ? explicitObjectivesByFactionId.get(faction.id)
+              : faction.objectiveHints.map((_, index) => ({
+                  objectiveId: `objective:map:${faction.id}:${index}`,
+                  priority: clamp(45 + index * 10, 0, 100)
+                }))
+          )!.slice().sort((left, right) => right.priority - left.priority),
           relations: faction.relations.map(relation => ({
             otherFactionId: `faction:map:${relation.targetFactionId}`,
             status: relation.status,
@@ -512,13 +525,234 @@ function deriveRuntimeFactionsFromLayout(layout: WorldMapLayout): Record<string,
   );
 }
 
+function findCityDistrictByTags(city: WorldCity, districts: Record<string, WorldDistrict>, tags: string[]): WorldDistrict | undefined {
+  return city.districtIds
+    .map(districtId => districts[districtId])
+    .find(district => district && district.tags.some(tag => tags.includes(tag)));
+}
+
+function createSystemFactionState(source: WorldCity | WorldRegion, patch: Partial<WorldFaction["state"]>): WorldFaction["state"] {
+  return {
+    resources: patch.resources ?? source.state.supply ?? source.state.production ?? 45,
+    power: patch.power ?? source.state.order ?? source.state.politicalControl ?? 45,
+    influence: patch.influence ?? source.state.commerce ?? source.state.circulation ?? 45,
+    cohesion: patch.cohesion ?? source.state.order ?? source.state.stability ?? 50,
+    aggressiveness: patch.aggressiveness ?? 25,
+    discretion: patch.discretion ?? 35,
+    security: patch.security ?? source.state.order ?? source.state.stability ?? 50
+  };
+}
+
+function deriveSystemRuntimeFactions(
+  seed: Pick<WorldState, "cities" | "districts" | "routes" | "regions">
+): Record<string, WorldFaction> {
+  const systemFactions: Record<string, WorldFaction> = {};
+
+  Object.values(seed.cities).forEach(city => {
+    const anchorDistrict =
+      findCityDistrictByTags(city, seed.districts, ["bastion", "controle", "administration"]) ??
+      seed.districts[city.districtIds[0]];
+    const commerceDistrict =
+      findCityDistrictByTags(city, seed.districts, ["commerce", "taxes", "port", "market", "relais"]) ??
+      anchorDistrict;
+    const influenceZoneIds = Array.from(new Set([city.id, ...city.districtIds, ...city.routeIds]));
+
+    const publicGuardId = `faction:system:guard:${city.id}`;
+    systemFactions[publicGuardId] = {
+      id: publicGuardId,
+      name: `Garde locale de ${city.name}`,
+      type: "public_guard",
+      tags: ["system", "public", "civic", "military", "stabilizer"],
+      populationProfile: city.populationProfile,
+      controlledZoneIds: anchorDistrict ? [anchorDistrict.id] : [city.id],
+      influencedZoneIds: city.routeIds,
+      interestZoneIds: influenceZoneIds,
+      localAnchors: anchorDistrict ? [{
+        id: `${publicGuardId}:hq`,
+        label: `Poste central de ${city.name}`,
+        type: "outpost",
+        target: { kind: "district", id: anchorDistrict.id },
+        level: 3,
+        tags: ["public_order", "checkpoint"],
+        notes: "Faction systeme generee pour maintenir l'ordre local."
+      }] : [],
+      influenceZoneIds,
+      state: createSystemFactionState(city, {
+        power: Math.max(45, city.state.order ?? 45),
+        cohesion: Math.max(48, city.state.order ?? 48),
+        influence: 38,
+        aggressiveness: 42,
+        discretion: 24,
+        security: Math.max(50, city.state.order ?? 50),
+        resources: Math.max(38, city.state.supply ?? 38)
+      }),
+      objectives: [],
+      relations: [],
+      recentHistory: [],
+      cooldowns: {}
+    };
+
+    const civicAuthorityId = `faction:system:civic:${city.id}`;
+    systemFactions[civicAuthorityId] = {
+      id: civicAuthorityId,
+      name: `Autorite civique de ${city.name}`,
+      type: "civic_authority",
+      tags: ["system", "public", "civic", "stabilizer", "governance"],
+      populationProfile: city.populationProfile,
+      controlledZoneIds: [city.id],
+      influencedZoneIds: city.districtIds,
+      interestZoneIds: influenceZoneIds,
+      localAnchors: commerceDistrict ? [{
+        id: `${civicAuthorityId}:hall`,
+        label: `Maison commune de ${city.name}`,
+        type: "contact",
+        target: { kind: "district", id: commerceDistrict.id },
+        level: 2,
+        tags: ["governance", "public_service"],
+        notes: "Faction systeme generee pour absorber peur, agitation et rupture civique."
+      }] : [],
+      influenceZoneIds,
+      state: createSystemFactionState(city, {
+        power: 34,
+        influence: Math.max(48, city.state.attractiveness ?? city.state.commerce ?? 48),
+        cohesion: Math.max(50, city.state.order ?? 50),
+        aggressiveness: 12,
+        discretion: 38,
+        security: Math.max(35, city.state.order ?? 35),
+        resources: Math.max(42, city.state.supply ?? 42)
+      }),
+      objectives: [],
+      relations: [],
+      recentHistory: [],
+      cooldowns: {}
+    };
+
+    const qualifiesForLogistics = city.routeIds.length >= 2 || city.tags.some(tag => ["trade_city", "maritime", "commerce"].includes(tag));
+    if (qualifiesForLogistics) {
+      const logisticsOfficeId = `faction:system:logistics:${city.id}`;
+      systemFactions[logisticsOfficeId] = {
+        id: logisticsOfficeId,
+        name: `Office logistique de ${city.name}`,
+        type: "logistics_office",
+        tags: ["system", "public", "trade", "logistics", "stabilizer"],
+        populationProfile: city.populationProfile,
+        controlledZoneIds: commerceDistrict ? [commerceDistrict.id] : [city.id],
+        influencedZoneIds: city.routeIds,
+        interestZoneIds: influenceZoneIds,
+        localAnchors: commerceDistrict ? [{
+          id: `${logisticsOfficeId}:relay`,
+          label: `Relais logistique de ${city.name}`,
+          type: "warehouse",
+          target: { kind: "district", id: commerceDistrict.id },
+          level: 3,
+          tags: ["supply", "dispatch"],
+          notes: "Faction systeme generee pour maintenir trafic, stock et circulation."
+        }] : [],
+        influenceZoneIds,
+        state: createSystemFactionState(city, {
+          power: 28,
+          influence: Math.max(54, city.state.commerce ?? 54),
+          cohesion: 46,
+          aggressiveness: 8,
+          discretion: 32,
+          security: 34,
+          resources: Math.max(55, city.state.supply ?? 55)
+        }),
+        objectives: [],
+        relations: [],
+        recentHistory: [],
+        cooldowns: {}
+      };
+    }
+  });
+
+  Object.values(seed.regions).forEach(region => {
+    const shouldCreateRegionalPatrol =
+      region.tags.some(tag => ["borderland", "frontalier", "dangerous", "dangereux"].includes(tag)) ||
+      region.mainRouteIds.length >= 2;
+    if (!shouldCreateRegionalPatrol) return;
+    const regionalPatrolId = `faction:system:regional_patrol:${region.id}`;
+    systemFactions[regionalPatrolId] = {
+      id: regionalPatrolId,
+      name: `Patrouille regionale de ${region.name}`,
+      type: "regional_patrol",
+      tags: ["system", "public", "military", "frontier", "stabilizer"],
+      populationProfile: undefined,
+      controlledZoneIds: [region.id],
+      influencedZoneIds: region.mainRouteIds,
+      interestZoneIds: [region.id, ...region.cityIds, ...region.mainRouteIds],
+      localAnchors: region.mainRouteIds[0] ? [{
+        id: `${regionalPatrolId}:relay`,
+        label: `Relais regional de ${region.name}`,
+        type: "outpost",
+        target: { kind: "route", id: region.mainRouteIds[0] },
+        level: 3,
+        tags: ["frontier", "relay"],
+        notes: "Faction systeme generee pour tenir les routes et frontieres regionales."
+      }] : [],
+      influenceZoneIds: [region.id, ...region.cityIds, ...region.mainRouteIds],
+      state: createSystemFactionState(region, {
+        power: Math.max(46, region.state.externalThreat ?? 46),
+        influence: 30,
+        cohesion: Math.max(48, region.state.stability ?? 48),
+        aggressiveness: 38,
+        discretion: 22,
+        security: Math.max(46, region.state.stability ?? 46),
+        resources: Math.max(40, region.state.production ?? 40)
+      }),
+      objectives: [],
+      relations: [],
+      recentHistory: [],
+      cooldowns: {}
+    };
+  });
+
+  return systemFactions;
+}
+
 function deriveObjectivesFromLayout(layout: WorldMapLayout): Record<string, SpecialObjective> {
   const explicitObjectives = layout.simulation?.specialObjectives ?? [];
   if (explicitObjectives.length > 0) {
     return Object.fromEntries(
       explicitObjectives.map(objective => [
         `objective:map:${objective.id}`,
-        {
+        (() => {
+          const phases = (objective.phases ?? []).map((phase, index) => ({
+            id: `objective_phase:map:${objective.id}:${phase.id || index}`,
+            label: phase.label,
+            description: phase.description,
+            state: phase.state ?? (index === objective.currentPhaseIndex ? "active" : index < objective.currentPhaseIndex ? "completed" : "planned"),
+            localTarget:
+              phase.localTargetKind && phase.localTargetId
+                ? {
+                    kind: phase.localTargetKind === "place" ? "district" : phase.localTargetKind,
+                    id: phase.localTargetId
+                  }
+                : undefined,
+            zoneIds: phase.zoneIds ?? [],
+            compatibleActionIds: (phase.compatibleActionIds ?? []) as SpecialObjective["compatibleActionIds"],
+            requiredAnchorId: phase.requiredAnchorId,
+            requiredAnchorType: phase.requiredAnchorType,
+            progress: clamp(phase.progress ?? 0),
+            progressWeight: Math.max(0, Number(phase.progressWeight) || 1),
+            completionMode: phase.completionMode,
+            completionThreshold: Math.max(0, Number(phase.completionThreshold) || 0),
+            actionCountById: phase.actionCountById as Partial<Record<SpecialObjective["compatibleActionIds"][number], number>> | undefined,
+            requiredPresenceRef:
+              phase.requiredPresenceTargetKind && phase.requiredPresenceTargetId
+                ? {
+                    kind: phase.requiredPresenceTargetKind === "place" ? "district" : phase.requiredPresenceTargetKind,
+                    id: phase.requiredPresenceTargetId
+                  }
+                : undefined,
+            failureScore: Math.max(0, Number(phase.failureScore) || 0),
+            maxFailureScore: Math.max(0, Number(phase.maxFailureScore) || 100),
+            failureMode: phase.failureMode ?? "score_threshold",
+            fatalFailureConditions: phase.fatalFailureConditions ?? [],
+            notes: phase.notes
+          }));
+          const currentPhase = phases[objective.currentPhaseIndex];
+          return {
           id: `objective:map:${objective.id}`,
           category: objective.category,
           owner: { kind: "faction", id: `faction:map:${objective.ownerFactionId}` },
@@ -533,8 +767,9 @@ function deriveObjectivesFromLayout(layout: WorldMapLayout): Record<string, Spec
             state: objective.state,
             progress: clamp(objective.progress),
             zoneIds: objective.zoneIds,
-            phases: objective.phases,
+            phases,
             currentPhaseIndex: objective.currentPhaseIndex,
+            phaseHistory: currentPhase ? [{ phaseId: currentPhase.id, enteredAtTick: 0 }] : [],
             obstacles: objective.obstacleHints,
             compatibleActionIds: objective.compatibleActionIds.length > 0
               ? objective.compatibleActionIds as SpecialObjective["compatibleActionIds"]
@@ -547,10 +782,16 @@ function deriveObjectivesFromLayout(layout: WorldMapLayout): Record<string, Spec
                   : ["recruit", "patrol", "investigate"],
             requiredAnchorId: objective.requiredAnchorId,
             requiredAnchorType: objective.requiredAnchorType,
+            failureScore: Math.max(0, Number(objective.failureScore) || 0),
+            maxFailureScore: Math.max(0, Number(objective.maxFailureScore) || 100),
+            fatalFailureConditions: objective.fatalFailureConditions ?? [],
             onSuccess: objective.onSuccess ?? [],
             onFailure: objective.onFailure ?? [],
+            successConsequencesApplied: false,
+            failureConsequencesApplied: false,
             tags: objective.tags
-        } satisfies SpecialObjective
+        } satisfies SpecialObjective;
+        })()
       ])
     );
   }
@@ -595,6 +836,7 @@ function deriveObjectivesFromLayout(layout: WorldMapLayout): Record<string, Spec
               ],
               phases: [],
               currentPhaseIndex: 0,
+              phaseHistory: [],
               obstacles: [],
               compatibleActionIds:
                 category === "open_route"
@@ -606,8 +848,13 @@ function deriveObjectivesFromLayout(layout: WorldMapLayout): Record<string, Spec
                     : ["recruit", "patrol", "investigate"],
               requiredAnchorId: undefined,
               requiredAnchorType: undefined,
+              failureScore: 0,
+              maxFailureScore: 100,
+              fatalFailureConditions: [],
               onSuccess: [],
               onFailure: [],
+              successConsequencesApplied: false,
+              failureConsequencesApplied: false,
               tags: faction.tags
           } satisfies SpecialObjective
         ] as const;
@@ -852,6 +1099,7 @@ export function createSimulationSeedFromMapLayout(layout: WorldMapLayout, overri
 export function createWorldStateFromMapLayout(layout: WorldMapLayout, overrides: MapSimulationSeedOverrides = {}): WorldState {
   const seed = createSimulationSeedFromMapLayout(layout, overrides);
   const derivedFactions = deriveRuntimeFactionsFromLayout(layout);
+  const systemFactions = deriveSystemRuntimeFactions(seed);
   const derivedObjectives = deriveObjectivesFromLayout(layout);
   const derivedMobileActors = deriveMobileActorsFromLayout(layout);
   const routes = seed.routes;
@@ -876,7 +1124,7 @@ export function createWorldStateFromMapLayout(layout: WorldMapLayout, overrides:
     districts: seed.districts,
     routes,
     regions: seed.regions,
-    factions: { ...derivedFactions, ...(overrides.factions ?? {}) },
+    factions: { ...derivedFactions, ...systemFactions, ...(overrides.factions ?? {}) },
     specialObjectives: { ...derivedObjectives, ...(overrides.objectives ?? {}) },
     mobileActors,
     tensions: overrides.tensions ?? {},

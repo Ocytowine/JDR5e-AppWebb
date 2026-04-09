@@ -65,6 +65,15 @@ const DEFAULT_LABEL_APPEARANCE: MapLabelAppearanceSet = {
   river: { fontSize: 13, opacity: 1, fontFamily: "Georgia, serif", underline: false }
 };
 
+function getStackOffset(index: number, count: number, radius = 16): { x: number; y: number } {
+  if (count <= 1) return { x: 0, y: 0 };
+  const angle = (-Math.PI / 2) + (index / count) * Math.PI * 2;
+  return {
+    x: Math.cos(angle) * radius,
+    y: Math.sin(angle) * radius
+  };
+}
+
 export const GEOGRAPHY_PRESET_COLORS: Record<string, string> = {
   ocean: "rgba(76,132,196,0.78)",
   plaine: "rgba(171,145,99,0.56)",
@@ -1124,6 +1133,22 @@ export function MapCanvas(props: {
   const selectedRoute = props.selectedRouteId
     ? props.layout.paths.find(path => path.id === props.selectedRouteId) ?? null
     : null;
+  const cityOffsetsById = useMemo(() => {
+    const grouped = new Map<string, typeof props.layout.cities>();
+    props.layout.cities.forEach(city => {
+      const key = getWorldMapCellKey(city.cell);
+      const current = grouped.get(key);
+      if (current) current.push(city);
+      else grouped.set(key, [city]);
+    });
+    const offsets = new Map<string, { x: number; y: number }>();
+    grouped.forEach(cities => {
+      cities.forEach((city, index) => {
+        offsets.set(city.id, getStackOffset(index, cities.length, 18));
+      });
+    });
+    return offsets;
+  }, [props.layout.cities]);
 
   function clampZoom(value: number): number {
     return Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, value));
@@ -1917,12 +1942,13 @@ export function MapCanvas(props: {
           {props.layerVisibility.cities &&
             props.layout.cities.map(city => {
               const center = getCellCenter(props.layout, city.cell);
+              const offset = cityOffsetsById.get(city.id) ?? { x: 0, y: 0 };
               const isSelected = city.id === props.selectedCityId;
               const wiki = props.wikiEntriesById[city.wikiEntityId];
               return (
                 <g
                   key={city.id}
-                  transform={`translate(${center.x} ${center.y})`}
+                  transform={`translate(${center.x + offset.x} ${center.y + offset.y})`}
                   style={{ cursor: "pointer" }}
                   onClick={event => {
                     if (movedDuringPanRef.current) {

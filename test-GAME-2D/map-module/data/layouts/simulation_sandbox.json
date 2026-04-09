@@ -2378,9 +2378,95 @@
         "progress": 72,
         "state": "active",
         "phases": [
-          "Consolider les avant-postes",
-          "Escorter les convois tests",
-          "Fixer des patrouilles permanentes"
+          {
+            "description": "Fixer la presence de la garde sur les points d entree de l axe avant la reprise des convois.",
+            "state": "completed",
+            "zoneIds": [
+              "amber_road",
+              "dawnwatch:gate_district"
+            ],
+            "compatibleActionIds": [
+              "secure_route"
+            ],
+            "completionMode": "progress_threshold",
+            "completionThreshold": 100,
+            "progress": 100,
+            "progressWeight": 1,
+            "failureScore": 0,
+            "maxFailureScore": 65,
+            "failureMode": "score_threshold",
+            "fatalFailureConditions": [],
+            "notes": [
+              "avant_postes",
+              "front_est"
+            ],
+            "id": "consolider_les_avant_postes",
+            "label": "Consolider les avant-postes",
+            "localTargetKind": "route",
+            "localTargetId": "amber_road",
+            "requiredAnchorId": "dawn_guard:east_gate_post"
+          },
+          {
+            "description": "Faire passer quelques convois sous escorte pour verifier que la route est redevenue exploitable.",
+            "state": "active",
+            "zoneIds": [
+              "amber_road",
+              "stoneharbor",
+              "dawnwatch"
+            ],
+            "compatibleActionIds": [
+              "escort_convoy",
+              "secure_route"
+            ],
+            "completionMode": "progress_threshold",
+            "completionThreshold": 90,
+            "progress": 72,
+            "progressWeight": 1,
+            "failureScore": 0,
+            "maxFailureScore": 60,
+            "failureMode": "fatal_condition",
+            "fatalFailureConditions": [
+              "phase_failure_threshold"
+            ],
+            "notes": [
+              "convoy_tests",
+              "escorte_visible"
+            ],
+            "id": "escorter_les_convois_tests",
+            "label": "Escorter les convois tests",
+            "localTargetKind": "route",
+            "localTargetId": "amber_road",
+            "requiredAnchorId": "dawn_guard:east_gate_post",
+            "requiredPresenceTargetKind": "district",
+            "requiredPresenceTargetId": "dawnwatch:gate_district"
+          },
+          {
+            "description": "Transformer la reouverture ponctuelle en securisation durable de l axe.",
+            "state": "planned",
+            "zoneIds": [
+              "amber_road",
+              "frontier_marches"
+            ],
+            "compatibleActionIds": [
+              "secure_route"
+            ],
+            "completionMode": "progress_threshold",
+            "completionThreshold": 80,
+            "progress": 0,
+            "progressWeight": 1,
+            "failureScore": 0,
+            "maxFailureScore": 70,
+            "failureMode": "score_threshold",
+            "fatalFailureConditions": [],
+            "notes": [
+              "patrouille_permanente"
+            ],
+            "id": "fixer_des_patrouilles_permanentes",
+            "label": "Fixer des patrouilles permanentes",
+            "localTargetKind": "route",
+            "localTargetId": "amber_road",
+            "requiredAnchorType": "outpost"
+          }
         ],
         "currentPhaseIndex": 1,
         "obstacleHints": [
@@ -2439,7 +2525,13 @@
         "anchorCell": {
           "x": 10,
           "y": 5
-        }
+        },
+        "failureScore": 0,
+        "maxFailureScore": 100,
+        "fatalFailureConditions": [
+          "objective_failure_threshold"
+        ],
+        "requiredAnchorId": "dawn_guard:east_gate_post"
       },
       {
         "id": "recover_sun_shard",
@@ -2454,9 +2546,93 @@
         "progress": 62,
         "state": "active",
         "phases": [
-          "Nettoyer les fausses pistes",
-          "Croiser les reliques",
-          "Exfiltrer le fragment"
+          {
+            "description": "Ecarter les reliques falsifiees et consolider les temoignages fiables.",
+            "state": "completed",
+            "zoneIds": [
+              "ironvale:pilgrim_steps"
+            ],
+            "compatibleActionIds": [
+              "investigate"
+            ],
+            "completionMode": "progress_threshold",
+            "completionThreshold": 100,
+            "progress": 100,
+            "progressWeight": 1,
+            "failureScore": 0,
+            "maxFailureScore": 55,
+            "failureMode": "score_threshold",
+            "fatalFailureConditions": [],
+            "notes": [
+              "tri_indices"
+            ],
+            "id": "nettoyer_les_fausses_pistes",
+            "label": "Nettoyer les fausses pistes",
+            "localTargetKind": "district",
+            "localTargetId": "ironvale:pilgrim_steps",
+            "requiredAnchorId": "ember_cult:ash_monastery"
+          },
+          {
+            "description": "Comparer les sources d Ironvale avec le sanctuaire frontalier pour isoler la vraie piste.",
+            "state": "active",
+            "zoneIds": [
+              "ironvale:pilgrim_steps",
+              "dawnwatch:sanctuary",
+              "pilgrim_way"
+            ],
+            "compatibleActionIds": [
+              "investigate",
+              "sanctify_site"
+            ],
+            "completionMode": "progress_threshold",
+            "completionThreshold": 85,
+            "progress": 62,
+            "progressWeight": 1,
+            "failureScore": 0,
+            "maxFailureScore": 55,
+            "failureMode": "score_threshold",
+            "fatalFailureConditions": [],
+            "notes": [
+              "cross_reference",
+              "pilgrim_corridor"
+            ],
+            "id": "croiser_les_reliques",
+            "label": "Croiser les reliques",
+            "localTargetKind": "district",
+            "localTargetId": "dawnwatch:sanctuary",
+            "requiredAnchorType": "temple",
+            "requiredPresenceTargetKind": "district",
+            "requiredPresenceTargetId": "dawnwatch:sanctuary"
+          },
+          {
+            "description": "Ramener discretement le fragment vers le monastere avant reaction de la garde.",
+            "state": "planned",
+            "zoneIds": [
+              "ironvale:pilgrim_steps",
+              "pilgrim_way"
+            ],
+            "compatibleActionIds": [
+              "investigate"
+            ],
+            "completionMode": "progress_threshold",
+            "completionThreshold": 100,
+            "progress": 0,
+            "progressWeight": 1,
+            "failureScore": 0,
+            "maxFailureScore": 45,
+            "failureMode": "fatal_condition",
+            "fatalFailureConditions": [
+              "phase_failure_threshold"
+            ],
+            "notes": [
+              "artifact_recovery"
+            ],
+            "id": "exfiltrer_le_fragment",
+            "label": "Exfiltrer le fragment",
+            "localTargetKind": "district",
+            "localTargetId": "ironvale:pilgrim_steps",
+            "requiredAnchorId": "ember_cult:ash_monastery"
+          }
         ],
         "currentPhaseIndex": 1,
         "obstacleHints": [
@@ -2514,7 +2690,11 @@
         "anchorCell": {
           "x": 10,
           "y": 4
-        }
+        },
+        "failureScore": 0,
+        "maxFailureScore": 100,
+        "fatalFailureConditions": [],
+        "requiredAnchorId": "ember_cult:ash_monastery"
       },
       {
         "id": "expand_blackmail_racket",
@@ -2529,9 +2709,88 @@
         "progress": 44,
         "state": "active",
         "phases": [
-          "Tester les extorsions",
-          "Corrompre les chargeurs",
-          "Institutionnaliser le prelevement"
+          {
+            "description": "Mesurer quelles cibles cederont sous pression sur les quais.",
+            "state": "completed",
+            "zoneIds": [
+              "stoneharbor:harbor"
+            ],
+            "compatibleActionIds": [
+              "extort"
+            ],
+            "completionMode": "progress_threshold",
+            "completionThreshold": 100,
+            "progress": 100,
+            "progressWeight": 1,
+            "failureScore": 0,
+            "maxFailureScore": 75,
+            "failureMode": "score_threshold",
+            "fatalFailureConditions": [],
+            "notes": [
+              "test_victims"
+            ],
+            "id": "tester_les_extorsions",
+            "label": "Tester les extorsions",
+            "localTargetKind": "district",
+            "localTargetId": "stoneharbor:harbor",
+            "requiredAnchorId": "red_knives:salt_cellar"
+          },
+          {
+            "description": "Acheter des relais humains au coeur des quais pour rendre le racket plus stable.",
+            "state": "active",
+            "zoneIds": [
+              "stoneharbor:harbor",
+              "stoneharbor:custom_house"
+            ],
+            "compatibleActionIds": [
+              "extort"
+            ],
+            "completionMode": "progress_threshold",
+            "completionThreshold": 80,
+            "progress": 44,
+            "progressWeight": 1,
+            "failureScore": 0,
+            "maxFailureScore": 65,
+            "failureMode": "score_threshold",
+            "fatalFailureConditions": [],
+            "notes": [
+              "dockers",
+              "corruption"
+            ],
+            "id": "corrompre_les_chargeurs",
+            "label": "Corrompre les chargeurs",
+            "localTargetKind": "district",
+            "localTargetId": "stoneharbor:custom_house",
+            "requiredAnchorType": "safehouse",
+            "requiredPresenceTargetKind": "district",
+            "requiredPresenceTargetId": "stoneharbor:harbor"
+          },
+          {
+            "description": "Faire du racket une pratique reguliere et previsible dans la zone portuaire.",
+            "state": "planned",
+            "zoneIds": [
+              "stoneharbor:harbor"
+            ],
+            "compatibleActionIds": [
+              "extort"
+            ],
+            "completionMode": "progress_threshold",
+            "completionThreshold": 100,
+            "progress": 0,
+            "progressWeight": 1,
+            "failureScore": 0,
+            "maxFailureScore": 50,
+            "failureMode": "score_threshold",
+            "fatalFailureConditions": [],
+            "notes": [
+              "steady_income"
+            ],
+            "id": "institutionnaliser_le_prelevement",
+            "label": "Institutionnaliser le prelevement",
+            "localTargetKind": "district",
+            "localTargetId": "stoneharbor:harbor",
+            "requiredAnchorId": "red_knives:salt_cellar"
+          }
         ],
         "currentPhaseIndex": 1,
         "obstacleHints": [
@@ -2586,7 +2845,11 @@
         "anchorCell": {
           "x": 5,
           "y": 7
-        }
+        },
+        "failureScore": 0,
+        "maxFailureScore": 100,
+        "fatalFailureConditions": [],
+        "requiredAnchorId": "red_knives:salt_cellar"
       },
       {
         "id": "stabilize_grain_flow",
@@ -2601,9 +2864,95 @@
         "progress": 68,
         "state": "active",
         "phases": [
-          "Assurer les stocks",
-          "Escalader les escorts",
-          "Normaliser les passages"
+          {
+            "description": "Verifier que les stocks en amont justifient la reprise des convois lourds.",
+            "state": "completed",
+            "zoneIds": [
+              "briarford:grain_ward",
+              "south_grain_route"
+            ],
+            "compatibleActionIds": [
+              "escort_convoy"
+            ],
+            "completionMode": "progress_threshold",
+            "completionThreshold": 100,
+            "progress": 100,
+            "progressWeight": 1,
+            "failureScore": 0,
+            "maxFailureScore": 70,
+            "failureMode": "score_threshold",
+            "fatalFailureConditions": [],
+            "notes": [
+              "grain_buffer"
+            ],
+            "id": "assurer_les_stocks",
+            "label": "Assurer les stocks",
+            "localTargetKind": "district",
+            "localTargetId": "briarford:grain_ward",
+            "requiredAnchorType": "warehouse",
+            "requiredPresenceTargetKind": "district",
+            "requiredPresenceTargetId": "briarford:grain_ward"
+          },
+          {
+            "description": "Monter en cadence sur la route du grain pour absorber la demande de Stoneharbor.",
+            "state": "active",
+            "zoneIds": [
+              "south_grain_route",
+              "briarford",
+              "stoneharbor"
+            ],
+            "compatibleActionIds": [
+              "escort_convoy",
+              "secure_route"
+            ],
+            "completionMode": "progress_threshold",
+            "completionThreshold": 85,
+            "progress": 68,
+            "progressWeight": 1,
+            "failureScore": 0,
+            "maxFailureScore": 60,
+            "failureMode": "score_threshold",
+            "fatalFailureConditions": [],
+            "notes": [
+              "grain_convoys",
+              "cadence"
+            ],
+            "id": "escalader_les_escortes",
+            "label": "Escalader les escortes",
+            "localTargetKind": "route",
+            "localTargetId": "south_grain_route",
+            "requiredAnchorId": "harbor_league:briarford_yard"
+          },
+          {
+            "description": "Passer d une logistique d urgence a un flux normalise et fiscalise.",
+            "state": "planned",
+            "zoneIds": [
+              "south_grain_route",
+              "coast_trade_way",
+              "coastmarch"
+            ],
+            "compatibleActionIds": [
+              "escort_convoy",
+              "secure_route"
+            ],
+            "completionMode": "progress_threshold",
+            "completionThreshold": 75,
+            "progress": 0,
+            "progressWeight": 1,
+            "failureScore": 0,
+            "maxFailureScore": 65,
+            "failureMode": "score_threshold",
+            "fatalFailureConditions": [],
+            "notes": [
+              "throughput",
+              "customs"
+            ],
+            "id": "normaliser_les_passages",
+            "label": "Normaliser les passages",
+            "localTargetKind": "route",
+            "localTargetId": "coast_trade_way",
+            "requiredAnchorId": "harbor_league:customs_house"
+          }
         ],
         "currentPhaseIndex": 1,
         "obstacleHints": [
@@ -2663,7 +3012,11 @@
         "anchorCell": {
           "x": 10,
           "y": 8
-        }
+        },
+        "failureScore": 0,
+        "maxFailureScore": 100,
+        "fatalFailureConditions": [],
+        "requiredAnchorId": "harbor_league:briarford_yard"
       },
       {
         "id": "recruit_frontier_informants",
@@ -2678,9 +3031,90 @@
         "progress": 38,
         "state": "active",
         "phases": [
-          "Identifier les familles poreuses",
-          "Fixer les paiements",
-          "Rendre les signaux fiables"
+          {
+            "description": "Reperer les foyers qui peuvent accepter argent ou protection.",
+            "state": "completed",
+            "zoneIds": [
+              "dawnwatch:gate_district"
+            ],
+            "compatibleActionIds": [
+              "recruit"
+            ],
+            "completionMode": "progress_threshold",
+            "completionThreshold": 100,
+            "progress": 100,
+            "progressWeight": 1,
+            "failureScore": 0,
+            "maxFailureScore": 60,
+            "failureMode": "score_threshold",
+            "fatalFailureConditions": [],
+            "notes": [
+              "households"
+            ],
+            "id": "identifier_les_familles_poreuses",
+            "label": "Identifier les familles poreuses",
+            "localTargetKind": "district",
+            "localTargetId": "dawnwatch:gate_district",
+            "requiredAnchorId": "red_knives:thorn_contact"
+          },
+          {
+            "description": "Stabiliser la chaine de remuneration et les signaux d alerte a la porte.",
+            "state": "active",
+            "zoneIds": [
+              "dawnwatch:gate_district",
+              "frontier_marches"
+            ],
+            "compatibleActionIds": [
+              "recruit"
+            ],
+            "completionMode": "progress_threshold",
+            "completionThreshold": 75,
+            "progress": 38,
+            "progressWeight": 1,
+            "failureScore": 0,
+            "maxFailureScore": 55,
+            "failureMode": "score_threshold",
+            "fatalFailureConditions": [],
+            "notes": [
+              "payments",
+              "warning_network"
+            ],
+            "id": "fixer_les_paiements",
+            "label": "Fixer les paiements",
+            "localTargetKind": "district",
+            "localTargetId": "dawnwatch:gate_district",
+            "requiredAnchorType": "contact",
+            "requiredPresenceTargetKind": "district",
+            "requiredPresenceTargetId": "dawnwatch:gate_district"
+          },
+          {
+            "description": "Faire de ces informateurs un reseau d alerte reellement exploitable.",
+            "state": "planned",
+            "zoneIds": [
+              "dawnwatch:gate_district"
+            ],
+            "compatibleActionIds": [
+              "recruit"
+            ],
+            "completionMode": "progress_threshold",
+            "completionThreshold": 90,
+            "progress": 0,
+            "progressWeight": 1,
+            "failureScore": 0,
+            "maxFailureScore": 45,
+            "failureMode": "fatal_condition",
+            "fatalFailureConditions": [
+              "phase_failure_threshold"
+            ],
+            "notes": [
+              "signal_quality"
+            ],
+            "id": "rendre_les_signaux_fiables",
+            "label": "Rendre les signaux fiables",
+            "localTargetKind": "district",
+            "localTargetId": "dawnwatch:gate_district",
+            "requiredAnchorId": "red_knives:thorn_contact"
+          }
         ],
         "currentPhaseIndex": 1,
         "obstacleHints": [
@@ -2735,7 +3169,11 @@
         "anchorCell": {
           "x": 15,
           "y": 5
-        }
+        },
+        "failureScore": 0,
+        "maxFailureScore": 100,
+        "fatalFailureConditions": [],
+        "requiredAnchorId": "red_knives:thorn_contact"
       },
       {
         "id": "hold_frontier_supply_line",
@@ -2750,9 +3188,94 @@
         "progress": 34,
         "state": "active",
         "phases": [
-          "Baliser la piste",
-          "Creer des haltes sures",
-          "Regulariser les rotations"
+          {
+            "description": "Identifier les troncons praticables et les haltes minimales.",
+            "state": "completed",
+            "zoneIds": [
+              "frontier_supply_track",
+              "green_plains"
+            ],
+            "compatibleActionIds": [
+              "secure_route"
+            ],
+            "completionMode": "progress_threshold",
+            "completionThreshold": 100,
+            "progress": 100,
+            "progressWeight": 1,
+            "failureScore": 0,
+            "maxFailureScore": 75,
+            "failureMode": "score_threshold",
+            "fatalFailureConditions": [],
+            "notes": [
+              "markers",
+              "field_track"
+            ],
+            "id": "baliser_la_piste",
+            "label": "Baliser la piste",
+            "localTargetKind": "route",
+            "localTargetId": "frontier_supply_track",
+            "requiredAnchorId": "dawn_guard:frontier_depot"
+          },
+          {
+            "description": "Installer une logistique minimale pour que la piste soit reutilisable sous pression.",
+            "state": "active",
+            "zoneIds": [
+              "frontier_supply_track",
+              "frontier_marches",
+              "green_plains"
+            ],
+            "compatibleActionIds": [
+              "secure_route",
+              "escort_convoy"
+            ],
+            "completionMode": "progress_threshold",
+            "completionThreshold": 70,
+            "progress": 34,
+            "progressWeight": 1,
+            "failureScore": 0,
+            "maxFailureScore": 60,
+            "failureMode": "score_threshold",
+            "fatalFailureConditions": [],
+            "notes": [
+              "safe_halts",
+              "mule_line"
+            ],
+            "id": "creer_des_haltes_sures",
+            "label": "Creer des haltes sures",
+            "localTargetKind": "route",
+            "localTargetId": "frontier_supply_track",
+            "requiredAnchorType": "outpost",
+            "requiredPresenceTargetKind": "route",
+            "requiredPresenceTargetId": "frontier_supply_track"
+          },
+          {
+            "description": "Passer d un usage de secours a une rotation fiable des convois.",
+            "state": "planned",
+            "zoneIds": [
+              "frontier_supply_track",
+              "dawnwatch"
+            ],
+            "compatibleActionIds": [
+              "escort_convoy",
+              "secure_route"
+            ],
+            "completionMode": "progress_threshold",
+            "completionThreshold": 85,
+            "progress": 0,
+            "progressWeight": 1,
+            "failureScore": 0,
+            "maxFailureScore": 55,
+            "failureMode": "score_threshold",
+            "fatalFailureConditions": [],
+            "notes": [
+              "rotation"
+            ],
+            "id": "regulariser_les_rotations",
+            "label": "Regulariser les rotations",
+            "localTargetKind": "route",
+            "localTargetId": "frontier_supply_track",
+            "requiredAnchorId": "dawn_guard:frontier_depot"
+          }
         ],
         "currentPhaseIndex": 1,
         "obstacleHints": [
@@ -2811,7 +3334,11 @@
         "anchorCell": {
           "x": 13,
           "y": 7
-        }
+        },
+        "failureScore": 0,
+        "maxFailureScore": 100,
+        "fatalFailureConditions": [],
+        "requiredAnchorId": "dawn_guard:frontier_depot"
       },
       {
         "id": "assert_western_customs",
@@ -2826,9 +3353,90 @@
         "progress": 41,
         "state": "active",
         "phases": [
-          "Refaire les registres",
-          "Serrer les inspections",
-          "Imposer une doctrine fiscale"
+          {
+            "description": "Reprendre la main sur les listes de chargement et les droits perçus.",
+            "state": "completed",
+            "zoneIds": [
+              "stoneharbor:custom_house"
+            ],
+            "compatibleActionIds": [
+              "escort_convoy"
+            ],
+            "completionMode": "progress_threshold",
+            "completionThreshold": 100,
+            "progress": 100,
+            "progressWeight": 1,
+            "failureScore": 0,
+            "maxFailureScore": 70,
+            "failureMode": "score_threshold",
+            "fatalFailureConditions": [],
+            "notes": [
+              "registry"
+            ],
+            "id": "refaire_les_registres",
+            "label": "Refaire les registres",
+            "localTargetKind": "district",
+            "localTargetId": "stoneharbor:custom_house",
+            "requiredAnchorId": "harbor_league:customs_house"
+          },
+          {
+            "description": "Utiliser la route et les escortes pour imposer une lecture plus stricte des flux entrants.",
+            "state": "active",
+            "zoneIds": [
+              "coast_trade_way",
+              "stoneharbor:custom_house",
+              "stoneharbor:harbor"
+            ],
+            "compatibleActionIds": [
+              "escort_convoy",
+              "secure_route"
+            ],
+            "completionMode": "progress_threshold",
+            "completionThreshold": 78,
+            "progress": 41,
+            "progressWeight": 1,
+            "failureScore": 0,
+            "maxFailureScore": 58,
+            "failureMode": "score_threshold",
+            "fatalFailureConditions": [],
+            "notes": [
+              "inspection",
+              "tax_filter"
+            ],
+            "id": "serrer_les_inspections",
+            "label": "Serrer les inspections",
+            "localTargetKind": "route",
+            "localTargetId": "coast_trade_way",
+            "requiredPresenceTargetKind": "district",
+            "requiredPresenceTargetId": "stoneharbor:custom_house"
+          },
+          {
+            "description": "Transformer les inspections ponctuelles en doctrine de controle durable.",
+            "state": "planned",
+            "zoneIds": [
+              "stoneharbor:custom_house",
+              "coastmarch"
+            ],
+            "compatibleActionIds": [
+              "escort_convoy"
+            ],
+            "completionMode": "progress_threshold",
+            "completionThreshold": 88,
+            "progress": 0,
+            "progressWeight": 1,
+            "failureScore": 0,
+            "maxFailureScore": 52,
+            "failureMode": "score_threshold",
+            "fatalFailureConditions": [],
+            "notes": [
+              "fiscal_doctrine"
+            ],
+            "id": "imposer_une_doctrine_fiscale",
+            "label": "Imposer une doctrine fiscale",
+            "localTargetKind": "district",
+            "localTargetId": "stoneharbor:custom_house",
+            "requiredAnchorId": "harbor_league:customs_house"
+          }
         ],
         "currentPhaseIndex": 1,
         "obstacleHints": [
@@ -2885,7 +3493,11 @@
         "anchorCell": {
           "x": 5,
           "y": 6
-        }
+        },
+        "failureScore": 0,
+        "maxFailureScore": 100,
+        "fatalFailureConditions": [],
+        "requiredAnchorId": "harbor_league:customs_house"
       },
       {
         "id": "secure_dawnwatch_gate",
@@ -2900,9 +3512,89 @@
         "progress": 34,
         "state": "active",
         "phases": [
-          "Cartographier les passages",
-          "Renforcer la porte",
-          "Transformer le quartier en filtre permanent"
+          {
+            "description": "Identifier les portes secondaires, angles morts et relais douteux.",
+            "state": "completed",
+            "zoneIds": [
+              "dawnwatch:gate_district"
+            ],
+            "compatibleActionIds": [
+              "patrol"
+            ],
+            "completionMode": "progress_threshold",
+            "completionThreshold": 100,
+            "progress": 100,
+            "progressWeight": 1,
+            "failureScore": 0,
+            "maxFailureScore": 70,
+            "failureMode": "score_threshold",
+            "fatalFailureConditions": [],
+            "notes": [
+              "mapping"
+            ],
+            "id": "cartographier_les_passages",
+            "label": "Cartographier les passages",
+            "localTargetKind": "district",
+            "localTargetId": "dawnwatch:gate_district",
+            "requiredAnchorId": "dawn_guard:east_gate_post"
+          },
+          {
+            "description": "Augmenter la densite de surveillance et verrouiller les passages sensibles.",
+            "state": "active",
+            "zoneIds": [
+              "dawnwatch:gate_district",
+              "dawnwatch:citadel"
+            ],
+            "compatibleActionIds": [
+              "patrol"
+            ],
+            "completionMode": "progress_threshold",
+            "completionThreshold": 72,
+            "progress": 34,
+            "progressWeight": 1,
+            "failureScore": 0,
+            "maxFailureScore": 62,
+            "failureMode": "score_threshold",
+            "fatalFailureConditions": [],
+            "notes": [
+              "checkpoint",
+              "surveillance"
+            ],
+            "id": "renforcer_la_porte",
+            "label": "Renforcer la porte",
+            "localTargetKind": "district",
+            "localTargetId": "dawnwatch:gate_district",
+            "requiredAnchorType": "outpost",
+            "requiredPresenceTargetKind": "district",
+            "requiredPresenceTargetId": "dawnwatch:gate_district"
+          },
+          {
+            "description": "Faire du quartier un verrou stable sur les entrees orientales.",
+            "state": "planned",
+            "zoneIds": [
+              "dawnwatch:gate_district",
+              "frontier_marches"
+            ],
+            "compatibleActionIds": [
+              "patrol"
+            ],
+            "completionMode": "progress_threshold",
+            "completionThreshold": 90,
+            "progress": 0,
+            "progressWeight": 1,
+            "failureScore": 0,
+            "maxFailureScore": 55,
+            "failureMode": "score_threshold",
+            "fatalFailureConditions": [],
+            "notes": [
+              "permanent_filter"
+            ],
+            "id": "transformer_le_quartier_en_filtre_permanent",
+            "label": "Transformer le quartier en filtre permanent",
+            "localTargetKind": "district",
+            "localTargetId": "dawnwatch:gate_district",
+            "requiredAnchorId": "dawn_guard:east_gate_post"
+          }
         ],
         "currentPhaseIndex": 1,
         "obstacleHints": [
@@ -2957,7 +3649,11 @@
         "anchorCell": {
           "x": 14,
           "y": 4
-        }
+        },
+        "failureScore": 0,
+        "maxFailureScore": 100,
+        "fatalFailureConditions": [],
+        "requiredAnchorId": "dawn_guard:east_gate_post"
       }
     ],
     "mobileActors": [

@@ -13,6 +13,17 @@ import type {
   WorldState
 } from "./types";
 
+function getActiveObjectivePhase(objective: SpecialObjective | undefined) {
+  if (!objective || objective.phases.length === 0) return undefined;
+  if (objective.currentPhaseIndex < 0 || objective.currentPhaseIndex >= objective.phases.length) return undefined;
+  return objective.phases[objective.currentPhaseIndex];
+}
+
+function getObjectiveRequirementTarget(objective: SpecialObjective): EntityRef | undefined {
+  const activePhase = getActiveObjectivePhase(objective);
+  return activePhase?.localTarget ?? objective.target;
+}
+
 function clamp(value: number, min = 0, max = 100): number {
   return Math.max(min, Math.min(max, value));
 }
@@ -52,6 +63,7 @@ function resolveExecutionTarget(state: WorldState, target?: EntityRef): EntityRe
 }
 
 function deriveMobilityRequirement(objective: SpecialObjective): MobilityRequirement {
+  const targetRef = getObjectiveRequirementTarget(objective);
   switch (objective.category) {
     case "search_object":
       return {
@@ -60,7 +72,7 @@ function deriveMobilityRequirement(objective: SpecialObjective): MobilityRequire
         categorie: objective.category,
         priorite: objective.priority,
         intention: "discret",
-        cibleRef: objective.target,
+        cibleRef: targetRef,
         besoinCharge: 8,
         besoinEffectif: 6,
         besoinDiscretion: 76,
@@ -74,7 +86,7 @@ function deriveMobilityRequirement(objective: SpecialObjective): MobilityRequire
         categorie: objective.category,
         priorite: objective.priority,
         intention: "escorte",
-        cibleRef: objective.target,
+        cibleRef: targetRef,
         besoinCharge: 20,
         besoinEffectif: 16,
         besoinDiscretion: 20,
@@ -88,7 +100,7 @@ function deriveMobilityRequirement(objective: SpecialObjective): MobilityRequire
         categorie: objective.category,
         priorite: objective.priority,
         intention: "charge",
-        cibleRef: objective.target,
+        cibleRef: targetRef,
         besoinCharge: 42,
         besoinEffectif: 12,
         besoinDiscretion: 24,
@@ -102,7 +114,7 @@ function deriveMobilityRequirement(objective: SpecialObjective): MobilityRequire
         categorie: objective.category,
         priorite: objective.priority,
         intention: "rapide",
-        cibleRef: objective.target,
+        cibleRef: targetRef,
         besoinCharge: 10,
         besoinEffectif: 8,
         besoinDiscretion: 48,
@@ -116,7 +128,7 @@ function deriveMobilityRequirement(objective: SpecialObjective): MobilityRequire
         categorie: objective.category,
         priorite: objective.priority,
         intention: "projection_force",
-        cibleRef: objective.target,
+        cibleRef: targetRef,
         besoinCharge: 14,
         besoinEffectif: 10,
         besoinDiscretion: 28,

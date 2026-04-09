@@ -361,8 +361,8 @@ function validateObjective(
     });
   }
   if (
-    (objective.currentPhaseIndex ?? 0) > Math.max(0, (objective.phases ?? []).length - 1) &&
-    (objective.phases ?? []).length > 0
+    objective.currentPhaseIndex > Math.max(0, objective.phases.length - 1) &&
+    objective.phases.length > 0
   ) {
     pushIssue(issues, {
       severity: "warning",
@@ -372,6 +372,48 @@ function validateObjective(
       message: `L'objectif ${objective.id} a un currentPhaseIndex hors limites pour ses phases declarees.`
     });
   }
+  objective.phases.forEach((phase, index) => {
+    if (!phase.id.trim()) {
+      pushIssue(issues, {
+        severity: "error",
+        code: "objective_phase_missing_id",
+        scope: "objective",
+        entityId: objective.id,
+        message: `L'objectif ${objective.id} a une phase sans id en position ${index + 1}.`
+      });
+    }
+    if (!phase.label.trim()) {
+      pushIssue(issues, {
+        severity: "error",
+        code: "objective_phase_missing_label",
+        scope: "objective",
+        entityId: objective.id,
+        message: `L'objectif ${objective.id} a une phase sans label en position ${index + 1}.`
+      });
+    }
+    if (phase.localTargetKind || phase.localTargetId) {
+      if (!getKnownObjectiveTarget(layout, knownDistrictIds, phase.localTargetKind, phase.localTargetId)) {
+        pushIssue(issues, {
+          severity: "error",
+          code: "objective_phase_unknown_local_target",
+          scope: "objective",
+          entityId: objective.id,
+          message: `L'objectif ${objective.id} reference une cible locale de phase inconnue: ${phase.localTargetKind ?? "none"} / ${phase.localTargetId ?? "none"}.`
+        });
+      }
+    }
+    if (phase.requiredPresenceTargetKind || phase.requiredPresenceTargetId) {
+      if (!getKnownObjectiveTarget(layout, knownDistrictIds, phase.requiredPresenceTargetKind, phase.requiredPresenceTargetId)) {
+        pushIssue(issues, {
+          severity: "error",
+          code: "objective_phase_unknown_presence_target",
+          scope: "objective",
+          entityId: objective.id,
+          message: `L'objectif ${objective.id} reference une presence requise inconnue dans la phase ${phase.id}.`
+        });
+      }
+    }
+  });
   if (objective.requiredAnchorId && ownerFaction && !(ownerFaction.localAnchors ?? []).some(anchor => anchor.id === objective.requiredAnchorId)) {
     pushIssue(issues, {
       severity: "warning",

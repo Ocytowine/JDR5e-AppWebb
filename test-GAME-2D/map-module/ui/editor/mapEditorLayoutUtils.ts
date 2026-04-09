@@ -8,6 +8,7 @@ import {
   type RiverSourceType,
   type RoadType,
   type SimulationObjectiveCategory,
+  type SimulationObjectivePhaseCompletionMode,
   type SimulationObjectiveState,
   type SimulationObjectiveTargetKind,
   type SimulationActorLevel,
@@ -25,6 +26,7 @@ import {
   type WorldMapSimulationFactionRelation,
   type WorldMapSimulationMobileActor,
   type WorldMapSimulationObjective,
+  type WorldMapSimulationObjectivePhase,
   type WorldMapSimulationFaction,
   type WorldMapSimulationDistrict,
   type WorldMapSimulationDistrictOverride,
@@ -62,6 +64,51 @@ function parsePopulationProfileInput(value: string) {
     dominantGroupId,
     groups
   };
+}
+
+function slugifyObjectivePhaseLabel(value: string, fallback: string): string {
+  const normalized = value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return normalized || fallback;
+}
+
+function createObjectivePhaseFromLabel(
+  label: string,
+  index: number,
+  fallbackActions: string[] = []
+): WorldMapSimulationObjectivePhase {
+  return {
+    id: slugifyObjectivePhaseLabel(label, `phase_${index + 1}`),
+    label,
+    description: "",
+    state: index === 0 ? "active" : "planned",
+    zoneIds: [],
+    compatibleActionIds: Array.from(new Set(fallbackActions)),
+    completionMode: "progress_threshold" as SimulationObjectivePhaseCompletionMode,
+    completionThreshold: 100,
+    progress: 0,
+    progressWeight: 1,
+    failureScore: 0,
+    maxFailureScore: 100,
+    failureMode: "score_threshold",
+    fatalFailureConditions: [],
+    notes: []
+  };
+}
+
+function parseObjectivePhasesInput(
+  value: string,
+  fallbackActions: string[] = []
+): WorldMapSimulationObjectivePhase[] {
+  return value
+    .split(",")
+    .map(item => item.trim())
+    .filter(Boolean)
+    .map((label, index) => createObjectivePhaseFromLabel(label, index, fallbackActions));
 }
 
 function parseSimulationConsequencesInput(value: string): WorldMapSimulationConsequence[] {
@@ -1125,12 +1172,30 @@ export function upsertSimulationObjective(layout: WorldMapLayout, objective: Wor
     ...objective,
     description: objective.description ?? "",
     whyItMatters: objective.whyItMatters ?? "",
-    phases: Array.from(new Set(objective.phases ?? [])),
+    phases: (objective.phases ?? []).map((phase, index) => ({
+      ...phase,
+      id: phase.id?.trim() || slugifyObjectivePhaseLabel(phase.label, `phase_${index + 1}`),
+      label: phase.label?.trim() || `Phase ${index + 1}`,
+      description: phase.description ?? "",
+      zoneIds: Array.from(new Set(phase.zoneIds ?? [])),
+      compatibleActionIds: Array.from(new Set(phase.compatibleActionIds ?? [])),
+      completionMode: phase.completionMode ?? "progress_threshold",
+      completionThreshold: Math.max(0, Number(phase.completionThreshold) || 0),
+      progress: Math.max(0, Math.min(100, Number(phase.progress) || 0)),
+      progressWeight: Math.max(0, Number(phase.progressWeight) || 1),
+      failureScore: Math.max(0, Number(phase.failureScore) || 0),
+      maxFailureScore: Math.max(0, Number(phase.maxFailureScore) || 100),
+      fatalFailureConditions: Array.from(new Set(phase.fatalFailureConditions ?? [])),
+      notes: Array.from(new Set(phase.notes ?? []))
+    })),
     currentPhaseIndex: Math.max(0, Number(objective.currentPhaseIndex) || 0),
     obstacleHints: Array.from(new Set(objective.obstacleHints ?? [])),
       compatibleActionIds: Array.from(new Set(objective.compatibleActionIds ?? [])),
       requiredAnchorId: objective.requiredAnchorId ?? undefined,
       requiredAnchorType: objective.requiredAnchorType ?? undefined,
+      failureScore: Math.max(0, Number(objective.failureScore) || 0),
+      maxFailureScore: Math.max(0, Number(objective.maxFailureScore) || 100),
+      fatalFailureConditions: Array.from(new Set(objective.fatalFailureConditions ?? [])),
       onSuccess: Array.isArray(objective.onSuccess) ? objective.onSuccess : [],
       onFailure: Array.isArray(objective.onFailure) ? objective.onFailure : [],
       tags: Array.from(new Set(objective.tags ?? [])),
@@ -1184,7 +1249,11 @@ export function updateSimulationObjectiveField(
     objective[field] = parseSimulationConsequencesInput(value);
     return;
   }
-  if (field === "phases" || field === "obstacleHints" || field === "compatibleActionIds" || field === "tags") {
+  if (field === "phases") {
+    objective.phases = parseObjectivePhasesInput(value, objective.compatibleActionIds);
+    return;
+  }
+  if (field === "obstacleHints" || field === "compatibleActionIds" || field === "tags") {
     objective[field] = value.split(",").map(item => item.trim()).filter(Boolean);
     return;
   }

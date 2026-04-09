@@ -76,7 +76,7 @@ export const WORLD_ACTION_DEFINITIONS: WorldActionDefinition[] = [
     label: "Patrol",
     actorKinds: ["faction"],
     targetKinds: ["district"],
-    compatibleObjectives: ["take_control_place", "eliminate_threat", "protect_secret"],
+    compatibleObjectives: ["take_control_place", "eliminate_threat", "protect_secret", "restore_order", "contain_unrest"],
     cooldown: 1,
     basePriority: 48,
     preconditions: [{ type: "target_pressure", pressure: "criminal", op: "gte", value: 45 }],
@@ -185,11 +185,11 @@ export const WORLD_ACTION_DEFINITIONS: WorldActionDefinition[] = [
     label: "Sanctify Site",
     actorKinds: ["faction"],
     targetKinds: ["district"],
-    compatibleObjectives: ["protect_secret", "search_object", "extend_influence"],
+    compatibleObjectives: ["protect_secret", "search_object", "extend_influence", "reduce_fear", "contain_unrest"],
     cooldown: 2,
     basePriority: 46,
     preconditions: [{ type: "target_pressure", pressure: "religious", op: "gte", value: 40 }],
-    costs: [{ selector: "actor", type: "state", key: "resources", amount: -4 }],
+    costs: [{ selector: "actor", type: "state", key: "resources", amount: -3 }],
     successEffects: [
       { selector: "target", type: "state", key: "fear", amount: -8 },
       { selector: "target", type: "state", key: "agitation", amount: -10 },
@@ -242,7 +242,7 @@ export const WORLD_ACTION_DEFINITIONS: WorldActionDefinition[] = [
     label: "Secure Route",
     actorKinds: ["faction", "mobileActor"],
     targetKinds: ["route"],
-    compatibleObjectives: ["open_route", "eliminate_threat", "extend_influence"],
+    compatibleObjectives: ["open_route", "eliminate_threat", "extend_influence", "secure_corridor", "stabilize_supply"],
     cooldown: 2,
     basePriority: 52,
     preconditions: [{ type: "target_pressure", pressure: "military", op: "gte", value: 45 }],
@@ -260,6 +260,151 @@ export const WORLD_ACTION_DEFINITIONS: WorldActionDefinition[] = [
       signalKind: "military",
       rumorTags: ["route", "security"],
       signalIntensity: 38
+    }
+  },
+  {
+    id: "repair_route",
+    label: "Repair Route",
+    actorKinds: ["faction"],
+    targetKinds: ["route"],
+    compatibleObjectives: ["stabilize_supply", "secure_corridor", "open_route"],
+    cooldown: 2,
+    basePriority: 43,
+    preconditions: [{ type: "self_state", key: "resources", op: "gte", value: 20 }],
+    costs: [{ selector: "actor", type: "state", key: "resources", amount: -6 }],
+    successEffects: [
+      { selector: "target", type: "state", key: "materialState", amount: 16 },
+      { selector: "target", type: "state", key: "traffic", amount: 6 },
+      { selector: "target", type: "state", key: "ambushRisk", amount: -6 },
+      { selector: "actor", type: "objective_progress", amount: 22 },
+      { selector: "actor", type: "cooldown", actionId: "repair_route", ticks: 2 }
+    ],
+    failureEffects: [
+      { selector: "target", type: "state", key: "materialState", amount: -4 },
+      { selector: "actor", type: "state", key: "resources", amount: -3 }
+    ],
+    risks: [{ kind: "delay", threshold: 54, severity: 8 }],
+    eventType: "action_resolved",
+    diffusion: {
+      signalKind: "institutional",
+      rumorTags: ["works", "route"],
+      signalIntensity: 24
+    }
+  },
+  {
+    id: "public_reassurance",
+    label: "Public Reassurance",
+    actorKinds: ["faction"],
+    targetKinds: ["district"],
+    compatibleObjectives: ["reduce_fear", "contain_unrest"],
+    cooldown: 1,
+    basePriority: 45,
+    preconditions: [{ type: "target_pressure", pressure: "social", op: "gte", value: 45 }],
+    costs: [{ selector: "actor", type: "state", key: "resources", amount: -2 }],
+    successEffects: [
+      { selector: "target", type: "state", key: "fear", amount: -14 },
+      { selector: "target", type: "state", key: "agitation", amount: -12 },
+      { selector: "target", type: "state", key: "surveillance", amount: 4 },
+      { selector: "actor", type: "objective_progress", amount: 20 },
+      { selector: "actor", type: "cooldown", actionId: "public_reassurance", ticks: 1 }
+    ],
+    failureEffects: [
+      { selector: "target", type: "state", key: "agitation", amount: 6 },
+      { selector: "actor", type: "state", key: "resources", amount: -2 }
+    ],
+    risks: [{ kind: "exposure", threshold: 58, severity: 8 }],
+    eventType: "action_resolved",
+    diffusion: {
+      signalKind: "institutional",
+      rumorTags: ["public_order", "reassurance"],
+      signalIntensity: 30
+    }
+  },
+  {
+    id: "relief_distribution",
+    label: "Relief Distribution",
+    actorKinds: ["faction"],
+    targetKinds: ["district"],
+    compatibleObjectives: ["reduce_fear", "stabilize_supply", "contain_unrest"],
+    cooldown: 2,
+    basePriority: 44,
+    preconditions: [{ type: "self_state", key: "resources", op: "gte", value: 20 }],
+    costs: [{ selector: "actor", type: "state", key: "resources", amount: -5 }],
+    successEffects: [
+      { selector: "target", type: "state", key: "fear", amount: -10 },
+      { selector: "target", type: "state", key: "agitation", amount: -8 },
+      { selector: "target", type: "state", key: "commerce", amount: 6 },
+      { selector: "actor", type: "objective_progress", amount: 22 },
+      { selector: "actor", type: "cooldown", actionId: "relief_distribution", ticks: 2 }
+    ],
+    failureEffects: [
+      { selector: "target", type: "state", key: "agitation", amount: 5 },
+      { selector: "target", type: "state", key: "fear", amount: 3 }
+    ],
+    risks: [{ kind: "delay", threshold: 55, severity: 7 }],
+    eventType: "action_resolved",
+    diffusion: {
+      signalKind: "market",
+      rumorTags: ["aid", "distribution"],
+      signalIntensity: 26
+    }
+  },
+  {
+    id: "reopen_market",
+    label: "Reopen Market",
+    actorKinds: ["faction"],
+    targetKinds: ["district"],
+    compatibleObjectives: ["reopen_market", "stabilize_supply"],
+    cooldown: 2,
+    basePriority: 46,
+    preconditions: [{ type: "self_state", key: "resources", op: "gte", value: 18 }],
+    costs: [{ selector: "actor", type: "state", key: "resources", amount: -5 }],
+    successEffects: [
+      { selector: "target", type: "state", key: "commerce", amount: 14 },
+      { selector: "target", type: "state", key: "fear", amount: -6 },
+      { selector: "target", type: "state", key: "agitation", amount: -4 },
+      { selector: "actor", type: "objective_progress", amount: 24 },
+      { selector: "actor", type: "cooldown", actionId: "reopen_market", ticks: 2 }
+    ],
+    failureEffects: [
+      { selector: "target", type: "state", key: "fear", amount: 4 },
+      { selector: "target", type: "state", key: "commerce", amount: -4 }
+    ],
+    risks: [{ kind: "delay", threshold: 56, severity: 7 }],
+    eventType: "action_resolved",
+    diffusion: {
+      signalKind: "market",
+      rumorTags: ["market", "reopening"],
+      signalIntensity: 34
+    }
+  },
+  {
+    id: "inspect_customs",
+    label: "Inspect Customs",
+    actorKinds: ["faction"],
+    targetKinds: ["district"],
+    compatibleObjectives: ["restore_order", "reopen_market", "contain_unrest"],
+    cooldown: 1,
+    basePriority: 42,
+    preconditions: [{ type: "target_tag", tag: "commerce" }],
+    costs: [{ selector: "actor", type: "state", key: "resources", amount: -3 }],
+    successEffects: [
+      { selector: "target", type: "state", key: "surveillance", amount: 10 },
+      { selector: "target", type: "state", key: "commerce", amount: 6 },
+      { selector: "target", type: "state", key: "danger", amount: -6 },
+      { selector: "actor", type: "objective_progress", amount: 18 },
+      { selector: "actor", type: "cooldown", actionId: "inspect_customs", ticks: 1 }
+    ],
+    failureEffects: [
+      { selector: "target", type: "state", key: "agitation", amount: 7 },
+      { selector: "target", type: "state", key: "fear", amount: 4 }
+    ],
+    risks: [{ kind: "exposure", threshold: 57, severity: 9 }],
+    eventType: "action_resolved",
+    diffusion: {
+      signalKind: "institutional",
+      rumorTags: ["customs", "inspection"],
+      signalIntensity: 32
     }
   }
 ];

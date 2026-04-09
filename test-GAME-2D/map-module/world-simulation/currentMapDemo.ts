@@ -65,10 +65,18 @@ export function createCurrentMapDemoState(): WorldState {
       state: "active",
       progress: 25,
       zoneIds: [firstRoute.id],
+      phases: [],
+      currentPhaseIndex: 0,
+      phaseHistory: [],
       obstacles: ["low_patrol_density"],
       compatibleActionIds: ["secure_route", "escort_convoy", "patrol"],
+      failureScore: 0,
+      maxFailureScore: 100,
+      fatalFailureConditions: [],
       onSuccess: [{ type: "open_opportunity", kind: "scarcity_trade", score: 58, tags: ["route", "trade"] }],
       onFailure: [{ type: "create_tension", tensionType: "mobility_risk", severity: 44, tags: ["route", "unsafe"] }],
+      successConsequencesApplied: false,
+      failureConsequencesApplied: false,
       tags: ["route", "security"]
     },
     "objective:auto:find-cache": {
@@ -80,10 +88,18 @@ export function createCurrentMapDemoState(): WorldState {
       state: "active",
       progress: 18,
       zoneIds: [firstDistrict.id],
+      phases: [],
+      currentPhaseIndex: 0,
+      phaseHistory: [],
       obstacles: ["watch_presence"],
       compatibleActionIds: ["investigate", "infiltrate", "question_source"],
+      failureScore: 0,
+      maxFailureScore: 100,
+      fatalFailureConditions: [],
       onSuccess: [{ type: "open_opportunity", kind: "investigation_lead", score: 61, tags: ["cache", "smuggling"] }],
       onFailure: [{ type: "create_tension", tensionType: "control_conflict", severity: 51, tags: ["watch", "smugglers"] }],
+      successConsequencesApplied: false,
+      failureConsequencesApplied: false,
       tags: ["cache", "contraband"]
     }
   };
