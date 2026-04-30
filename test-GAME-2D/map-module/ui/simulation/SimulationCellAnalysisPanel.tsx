@@ -140,7 +140,7 @@ export function SimulationCellAnalysisPanel(props: {
       </div>
 
       <div style={{ ...editorSurfaceStyles.subsection, gap: 6 }}>
-        <div style={editorTextStyles.sectionTitle}>Dernier tick</div>
+        <div style={editorTextStyles.sectionTitle}>Dernier cycle horaire</div>
         <div style={{ fontSize: 12, color: "#dce5f2", lineHeight: 1.45 }}>
           <div>Evenements lies: {recentEvents.length}</div>
           <div>Deltas lies: {recentDeltas.length}</div>

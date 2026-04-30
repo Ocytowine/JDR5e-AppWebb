@@ -7,8 +7,8 @@ export function createExampleWorldState(): WorldState {
       tick: 0,
       microTick: 0,
       macroTick: 0,
-      minutesPerMicroTick: 15,
-      microPerMacro: 4
+      minutesPerMicroTick: 60,
+      microPerMacro: 6
     },
     cities: {
       valecroft: {

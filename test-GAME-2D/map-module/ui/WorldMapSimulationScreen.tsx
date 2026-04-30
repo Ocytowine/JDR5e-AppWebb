@@ -12,6 +12,7 @@ import { SimulationEntityAnalysisPanel } from "./simulation/SimulationEntityAnal
 import { SimulationFactionAnalysisPanel } from "./simulation/SimulationFactionAnalysisPanel";
 import { SimulationPressureAnalysisPanel } from "./simulation/SimulationPressureAnalysisPanel";
 import { SimulationSidebarSection } from "./simulation/SimulationSidebarSection";
+import { formatCooldownValue, formatRejectionReason } from "./simulation/timeFormatting";
 import { formatRuntimeMobileProgress } from "./simulation/mobileRuntimeDisplay";
 
 type SimulationVisualMode = "all" | "factions" | "objectives" | "mobility" | "pressures" | "relations";
@@ -83,6 +84,39 @@ function formatNumber(value: number | undefined): string {
 
 function formatStringList(values: string[] | undefined, empty = "aucune"): string {
   return values && values.length > 0 ? values.join(", ") : empty;
+}
+
+function getHoursPerMicroTick(state: WorldState): number {
+  return Math.max(state.clock.minutesPerMicroTick / 60, 0);
+}
+
+function formatDurationHours(hours: number | undefined | null): string {
+  if (typeof hours !== "number" || !Number.isFinite(hours)) return "n/a";
+  if (hours < 24) return `${hours.toFixed(hours >= 10 ? 0 : 1)} h`;
+  const days = hours / 24;
+  return `${days.toFixed(days >= 10 ? 0 : 1)} j`;
+}
+
+function formatClockTime(state: WorldState): string {
+  const elapsedHours = state.clock.microTick * getHoursPerMicroTick(state);
+  const roundedHours = Math.max(0, Math.round(elapsedHours));
+  const day = Math.floor(roundedHours / 24);
+  const hour = roundedHours % 24;
+  return `J${day} ${String(hour).padStart(2, "0")}h`;
+}
+
+function formatAbsoluteTickTime(tick: number | undefined | null, state: WorldState): string {
+  if (typeof tick !== "number" || !Number.isFinite(tick)) return "n/a";
+  const hours = tick * getHoursPerMicroTick(state);
+  const roundedHours = Math.max(0, Math.round(hours));
+  const day = Math.floor(roundedHours / 24);
+  const hour = roundedHours % 24;
+  return `J${day} ${String(hour).padStart(2, "0")}h`;
+}
+
+function formatActionCooldownHours(hours: number | undefined): string {
+  if (typeof hours !== "number" || !Number.isFinite(hours)) return "n/a";
+  return formatCooldownValue(hours);
 }
 
 function formatObjectiveCategoryLabel(category: string | undefined): string {
@@ -554,8 +588,8 @@ export function WorldMapSimulationScreen(props: {
       <MapEditorTopbar
         title={props.layout.title}
         activeToolLabel="Simulation monde"
-        activeToolHint="Lis le runtime directement sur la carte, puis lance des ticks micro ou macro sans quitter cette vue."
-        persistenceLabel={`Tick ${state.clock.tick} · micro ${state.clock.microTick} · macro ${state.clock.macroTick}`}
+        activeToolHint="Lis le runtime directement sur la carte, puis avance heure par heure ou cycle par cycle sans quitter cette vue."
+        persistenceLabel={`${formatClockTime(state)} · cycle ${state.clock.macroTick} · heure ${state.clock.microTick} · tick ${state.clock.tick}`}
         persistenceColor={EDITOR_THEME.colors.accent}
         actions={
           <button type="button" onClick={props.onCloseSimulation} style={createEditorButtonStyle({ compact: true })}>
@@ -668,10 +702,10 @@ export function WorldMapSimulationScreen(props: {
                   </div>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     <button type="button" onClick={() => runTick("micro")} style={createEditorButtonStyle({ compact: true })}>
-                      Micro tick
+                      +1 h
                     </button>
                     <button type="button" onClick={() => runTick("macro")} style={createEditorButtonStyle({ compact: true, active: true })}>
-                      Macro tick
+                      +6 h
                     </button>
                     <button type="button" onClick={resetSimulation} style={createEditorButtonStyle({ compact: true })}>
                       Reset
@@ -773,7 +807,7 @@ export function WorldMapSimulationScreen(props: {
                       wikiEntriesById={wikiEntriesById}
                     />
                     <div style={{ fontSize: 12, color: "#dce5f2" }}>
-                      Tick courant: {state.clock.tick} · evenements {latestOutput?.events.length ?? 0} · rumeurs {latestOutput?.rumors.length ?? 0}
+                      Temps courant: {formatClockTime(state)} · evenements {latestOutput?.events.length ?? 0} · rumeurs {latestOutput?.rumors.length ?? 0}
                     </div>
                     <div style={{ padding: 10, borderRadius: 10, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: "#f4c967", marginBottom: 6 }}>Seed runtime</div>
@@ -795,6 +829,8 @@ export function WorldMapSimulationScreen(props: {
                           <div>Position runtime: {formatEntityRef(selectedMobileActorRuntime.position)}</div>
                           <div>Route actuelle: {selectedMobileRuntimeSummary.routeLabel ?? "aucune"}</div>
                           <div>Progression: {selectedMobileRuntimeSummary.progressLabel}</div>
+                          {selectedMobileRuntimeSummary.remainingLabel ? <div>{selectedMobileRuntimeSummary.remainingLabel}</div> : null}
+                          {selectedMobileRuntimeSummary.etaLabel ? <div>{selectedMobileRuntimeSummary.etaLabel}</div> : null}
                           <div>Cap vers: {selectedMobileRuntimeSummary.targetLabel}</div>
                           <div>Destination finale: {formatEntityRef(selectedMobileActorRuntime.destination)}</div>
                           {selectedMobileRuntimeSummary.stopLabel ? <div>{selectedMobileRuntimeSummary.stopLabel}</div> : null}
@@ -988,7 +1024,7 @@ export function WorldMapSimulationScreen(props: {
                               }}
                             >
                               <div style={{ fontWeight: 700 }}>{entry.phaseId}</div>
-                              <div>Entree tick {entry.enteredAtTick}{typeof entry.exitedAtTick === "number" ? ` · sortie tick ${entry.exitedAtTick}` : " · phase encore ouverte"}</div>
+                              <div>Entree {formatAbsoluteTickTime(entry.enteredAtTick, state)}{typeof entry.exitedAtTick === "number" ? ` · sortie ${formatAbsoluteTickTime(entry.exitedAtTick, state)}` : " · phase encore ouverte"}</div>
                               <div>Issue: {entry.outcome ?? "en cours"}</div>
                               <div>Raisons: {formatStringList(entry.reasons, "aucune")}</div>
                             </div>
@@ -1012,7 +1048,7 @@ export function WorldMapSimulationScreen(props: {
                         <div style={{ display: "grid", gap: 3, fontSize: 12, color: "#dce5f2" }}>
                           <div>Mode: {selectedObjectiveLogisticsPlan.modeRetenu ?? "aucun"}</div>
                           <div>Acteur assigne: {selectedObjectiveLogisticsPlan.acteurAssigneId ?? "aucun"}</div>
-                          <div>Temps estime: {selectedObjectiveLogisticsPlan.ticksEstimes ?? "n/a"} tick(s)</div>
+                          <div>Temps estime: {formatDurationHours(selectedObjectiveLogisticsPlan.heuresEstimees)}</div>
                           <div>Risque estime: {selectedObjectiveLogisticsPlan.scoreRisque ?? "n/a"}</div>
                           <div>Routes retenues: {selectedObjectiveLogisticsPlan.routeIds.length ? selectedObjectiveLogisticsPlan.routeIds.join(" -> ") : "aucune"}</div>
                         </div>
@@ -1047,6 +1083,8 @@ export function WorldMapSimulationScreen(props: {
                           <div>{selectedObjectiveAssignedMobileRuntime.id}</div>
                           <div>Position runtime: {formatEntityRef(selectedObjectiveAssignedMobileRuntime.position)}</div>
                           <div>{selectedObjectiveAssignedMobileSummary.routeLabel ? `${selectedObjectiveAssignedMobileSummary.routeLabel} · ${selectedObjectiveAssignedMobileSummary.progressLabel}` : "Hors route"}</div>
+                          {selectedObjectiveAssignedMobileSummary.remainingLabel ? <div>{selectedObjectiveAssignedMobileSummary.remainingLabel}</div> : null}
+                          {selectedObjectiveAssignedMobileSummary.etaLabel ? <div>{selectedObjectiveAssignedMobileSummary.etaLabel}</div> : null}
                           <div>Cap vers: {selectedObjectiveAssignedMobileSummary.targetLabel}</div>
                           {selectedObjectiveAssignedMobileSummary.stopLabel ? <div>{selectedObjectiveAssignedMobileSummary.stopLabel}</div> : null}
                         </div>
@@ -1054,7 +1092,7 @@ export function WorldMapSimulationScreen(props: {
                     ) : null}
                     {latestTrace ? (
                       <div style={{ ...editorSurfaceStyles.subsection, gap: 6 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: "#f4c967" }}>Decision du dernier tick</div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#f4c967" }}>Decision du dernier cycle horaire</div>
                         {selectedObjectiveSelectedAction ? (
                           <div style={{ display: "grid", gap: 3, fontSize: 12, color: "#dce5f2" }}>
                             <div>Action retenue: {selectedObjectiveSelectedAction.actionId}</div>
@@ -1067,13 +1105,13 @@ export function WorldMapSimulationScreen(props: {
                             ) : null}
                           </div>
                         ) : (
-                          <div style={{ fontSize: 12, color: "#c8d0de" }}>Aucune action n'a ete retenue pour cet objectif au dernier tick.</div>
+                          <div style={{ fontSize: 12, color: "#c8d0de" }}>Aucune action n'a ete retenue pour cet objectif sur le dernier cycle horaire.</div>
                         )}
                         {selectedObjectiveActionCandidates.length > 0 ? (
                           <div style={{ display: "grid", gap: 4, fontSize: 12, color: "#c8d0de" }}>
                             {selectedObjectiveActionCandidates.slice(0, 4).map(candidate => (
                               <div key={`${candidate.actorRef.id}:${candidate.actionId}:${candidate.targetRef.id}`}>
-                                {formatEntityRef(candidate.actorRef)} {"->"} {candidate.actionId} · {candidate.passed ? `score ${formatNumber(candidate.score)}` : candidate.rejectionReasons.join(" | ")}
+                                {formatEntityRef(candidate.actorRef)} {"->"} {candidate.actionId} · {candidate.passed ? `score ${formatNumber(candidate.score)}` : candidate.rejectionReasons.map(formatRejectionReason).join(" | ")}
                               </div>
                             ))}
                           </div>
@@ -1125,7 +1163,7 @@ export function WorldMapSimulationScreen(props: {
 
               <SimulationSidebarSection
                 title="Entite Inspectee"
-                summary={selectedInspectEntity ? `${selectedInspectEntity.label}. Cette section relie une entite aux pressions, candidats d'action et evenements du dernier tick.` : "Selectionne une case ou une faction pour construire le contexte d'inspection."}
+                summary={selectedInspectEntity ? `${selectedInspectEntity.label}. Cette section relie une entite aux pressions, candidats d'action et evenements recents.` : "Selectionne une case ou une faction pour construire le contexte d'inspection."}
               >
                 {inspectTargets.length > 0 ? (
                   <div style={{ display: "grid", gap: 10 }}>
@@ -1154,7 +1192,7 @@ export function WorldMapSimulationScreen(props: {
 
               <SimulationSidebarSection
                 title="Deltas de Cycle"
-                summary={latestOutput ? "Separer l'usure territoriale des conversions de tension aide a comprendre ce que le monde consomme et ce que les actions deplacent." : "Execute un tick pour lire l'usure et les conversions du cycle."}
+                summary={latestOutput ? "Separer l'usure territoriale des conversions de tension aide a comprendre ce que le monde consomme et ce que les actions deplacent." : "Avance le temps pour lire l'usure et les conversions du cycle."}
               >
                 {latestOutput ? (
                   <div style={{ display: "grid", gap: 10 }}>
@@ -1169,7 +1207,7 @@ export function WorldMapSimulationScreen(props: {
                           ))}
                         </div>
                       ) : (
-                        <div style={{ fontSize: 12, color: "#c8d0de" }}>Aucune usure marquee sur ce tick.</div>
+                        <div style={{ fontSize: 12, color: "#c8d0de" }}>Aucune usure marquee sur ce cycle horaire.</div>
                       )}
                     </div>
                     <div style={{ padding: 10, borderRadius: 10, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
@@ -1183,18 +1221,18 @@ export function WorldMapSimulationScreen(props: {
                           ))}
                         </div>
                       ) : (
-                        <div style={{ fontSize: 12, color: "#c8d0de" }}>Aucune conversion marquee sur ce tick.</div>
+                        <div style={{ fontSize: 12, color: "#c8d0de" }}>Aucune conversion marquee sur ce cycle horaire.</div>
                       )}
                     </div>
                   </div>
                 ) : (
-                  <div style={{ fontSize: 12, color: "#c8d0de" }}>Execute un tick pour lire l'usure et les conversions du cycle.</div>
+                  <div style={{ fontSize: 12, color: "#c8d0de" }}>Avance le temps pour lire l'usure et les conversions du cycle.</div>
                 )}
               </SimulationSidebarSection>
 
               <SimulationSidebarSection
                 title="Debug de Decision"
-                summary={latestTrace ? `${latestTrace.selectedActions.length} action(s) retenue(s) au dernier tick. Cette section sert a comprendre pourquoi le moteur a choisi ces actions.` : "Execute un tick pour afficher la trace de decision."}
+                summary={latestTrace ? `${latestTrace.selectedActions.length} action(s) retenue(s) sur le dernier cycle horaire. Cette section sert a comprendre pourquoi le moteur a choisi ces actions.` : "Avance le temps pour afficher la trace de decision."}
               >
                 <div style={{ fontSize: 12, fontWeight: 800, color: "#f4c967", marginBottom: 8 }}>Decision debug</div>
                 {latestTrace ? (
@@ -1221,7 +1259,7 @@ export function WorldMapSimulationScreen(props: {
                           ))}
                         </div>
                       ) : (
-                        <div style={{ fontSize: 12, color: "#c8d0de" }}>Aucune action retenue sur ce tick.</div>
+                        <div style={{ fontSize: 12, color: "#c8d0de" }}>Aucune action retenue sur ce cycle horaire.</div>
                       )}
                     </div>
 
@@ -1238,13 +1276,13 @@ export function WorldMapSimulationScreen(props: {
                                   {formatEntityRef(candidate.actorRef)} {"->"} {candidate.actionId} {"->"} {formatEntityRef(candidate.targetRef)}
                                 </div>
                                 <div style={{ marginTop: 3, color: "#9fb0c6" }}>
-                                  {candidate.rejectionReasons.join(" | ") || "preconditions non satisfaites"}
+                                  {candidate.rejectionReasons.map(formatRejectionReason).join(" | ") || "preconditions non satisfaites"}
                                 </div>
                               </div>
                             ))}
                         </div>
                       ) : (
-                        <div style={{ fontSize: 12, color: "#c8d0de" }}>Aucun rejet sur le dernier tick.</div>
+                        <div style={{ fontSize: 12, color: "#c8d0de" }}>Aucun rejet sur le dernier cycle horaire.</div>
                       )}
                     </div>
 
@@ -1262,13 +1300,13 @@ export function WorldMapSimulationScreen(props: {
                     )}
                   </div>
                 ) : (
-                  <div style={{ fontSize: 12, color: "#c8d0de" }}>Execute un tick pour afficher la trace de decision.</div>
+                  <div style={{ fontSize: 12, color: "#c8d0de" }}>Avance le temps pour afficher la trace de decision.</div>
                 )}
               </SimulationSidebarSection>
 
               <SimulationSidebarSection
                 title="Derniers Evenements"
-                summary={latestOutput?.events.length ? `${latestOutput.events.length} evenement(s) sur le dernier tick. Cette section montre les resultats visibles produits par la simulation.` : "Aucun tick execute."}
+                summary={latestOutput?.events.length ? `${latestOutput.events.length} evenement(s) sur le dernier cycle horaire. Cette section montre les resultats visibles produits par la simulation.` : "Aucun cycle horaire execute."}
               >
                 <div style={{ fontSize: 12, fontWeight: 800, color: "#f4c967", marginBottom: 8 }}>Derniers evenements</div>
                 {latestOutput?.events.length ? (
@@ -1283,7 +1321,7 @@ export function WorldMapSimulationScreen(props: {
                     ))}
                   </div>
                 ) : (
-                  <div style={{ fontSize: 12, color: "#c8d0de" }}>Aucun tick execute.</div>
+                  <div style={{ fontSize: 12, color: "#c8d0de" }}>Aucun cycle horaire execute.</div>
                 )}
               </SimulationSidebarSection>
             </MapEditorSidebar>

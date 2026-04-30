@@ -693,12 +693,13 @@ function setCooldown(state: WorldState, deltas: StateDelta[], actorRef: EntityRe
   });
 }
 
-function decrementCooldowns(state: WorldState) {
+function decrementCooldowns(state: WorldState, scale: TickScale) {
+  const step = scale === "macro" ? Math.max(1, state.clock.microPerMacro) : 1;
   [...Object.values(state.factions), ...Object.values(state.mobileActors)].forEach(actor => {
     Object.keys(actor.cooldowns).forEach(actionId => {
       const current = actor.cooldowns[actionId as keyof typeof actor.cooldowns] ?? 0;
       if (current > 0) {
-        actor.cooldowns[actionId as keyof typeof actor.cooldowns] = current - 1;
+        actor.cooldowns[actionId as keyof typeof actor.cooldowns] = Math.max(0, current - step);
       }
     });
   });
@@ -1644,7 +1645,7 @@ function advanceClock(clock: WorldClock, scale: TickScale): WorldClock {
 export function runWorldTick(state: WorldState, scale: TickScale): TickOutput {
   const clockBefore = { ...state.clock };
   state.clock = advanceClock(state.clock, scale);
-  decrementCooldowns(state);
+  decrementCooldowns(state, scale);
   syncRouteMobilePresence(state);
   const wearDeltas = applyTerritorialWear(state, scale);
   const beforePressures = recomputePressuresDetailed(state);

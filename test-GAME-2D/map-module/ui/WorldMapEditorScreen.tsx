@@ -84,6 +84,7 @@ import {
 import { findShortestRouteItinerary } from "../world-simulation/travel";
 import { SimulationLogisticsPanel } from "./simulation/SimulationLogisticsPanel";
 import { formatRuntimeMobileProgress } from "./simulation/mobileRuntimeDisplay";
+import { formatDurationHours } from "./simulation/timeFormatting";
 
 const PANEL_LABELS: Record<PanelId, string> = {
   legend: "Legende",
@@ -109,7 +110,7 @@ const MOBILE_ARCHETYPE_PRESETS: MobileArchetypePreset[] = [
     defaultMissionLabel: "Securiser une zone",
     recommendedSimulationLevel: "active",
     recommendedInteractionTags: ["patrol", "security", "escort"],
-    stats: { speed: 55, security: 75, fatigue: 25, cargo: 20, headcount: 45, resources: 40 }
+    stats: { speed: 50, security: 75, fatigue: 25, cargo: 20, headcount: 45, resources: 40 }
   },
   {
     id: "merchant_convoy",
@@ -118,7 +119,7 @@ const MOBILE_ARCHETYPE_PRESETS: MobileArchetypePreset[] = [
     defaultMissionLabel: "Acheminer des marchandises",
     recommendedSimulationLevel: "active",
     recommendedInteractionTags: ["trade", "escort"],
-    stats: { speed: 38, security: 45, fatigue: 20, cargo: 78, headcount: 30, resources: 48 }
+    stats: { speed: 30, security: 45, fatigue: 20, cargo: 78, headcount: 30, resources: 48 }
   },
   {
     id: "supply_train",
@@ -127,7 +128,7 @@ const MOBILE_ARCHETYPE_PRESETS: MobileArchetypePreset[] = [
     defaultMissionLabel: "Ravitaillement prioritaire",
     recommendedSimulationLevel: "summary",
     recommendedInteractionTags: ["logistics", "supply"],
-    stats: { speed: 34, security: 52, fatigue: 24, cargo: 85, headcount: 36, resources: 62 }
+    stats: { speed: 26, security: 52, fatigue: 24, cargo: 85, headcount: 36, resources: 62 }
   },
   {
     id: "pilgrims",
@@ -136,7 +137,7 @@ const MOBILE_ARCHETYPE_PRESETS: MobileArchetypePreset[] = [
     defaultMissionLabel: "Atteindre un lieu de pelerinage",
     recommendedSimulationLevel: "summary",
     recommendedInteractionTags: ["religion", "rumor"],
-    stats: { speed: 28, security: 30, fatigue: 35, cargo: 26, headcount: 60, resources: 24 }
+    stats: { speed: 24, security: 30, fatigue: 35, cargo: 26, headcount: 60, resources: 24 }
   },
   {
     id: "smugglers",
@@ -145,7 +146,7 @@ const MOBILE_ARCHETYPE_PRESETS: MobileArchetypePreset[] = [
     defaultMissionLabel: "Faire passer une cargaison",
     recommendedSimulationLevel: "active",
     recommendedInteractionTags: ["smuggling", "stealth", "trade"],
-    stats: { speed: 62, security: 42, fatigue: 18, cargo: 46, headcount: 18, resources: 55 }
+    stats: { speed: 58, security: 42, fatigue: 18, cargo: 46, headcount: 18, resources: 55 }
   },
   {
     id: "couriers",
@@ -154,7 +155,7 @@ const MOBILE_ARCHETYPE_PRESETS: MobileArchetypePreset[] = [
     defaultMissionLabel: "Transmettre un message",
     recommendedSimulationLevel: "summary",
     recommendedInteractionTags: ["message", "escort"],
-    stats: { speed: 76, security: 28, fatigue: 14, cargo: 10, headcount: 8, resources: 18 }
+    stats: { speed: 64, security: 28, fatigue: 14, cargo: 10, headcount: 8, resources: 18 }
   },
   {
     id: "escort",
@@ -163,7 +164,7 @@ const MOBILE_ARCHETYPE_PRESETS: MobileArchetypePreset[] = [
     defaultMissionLabel: "Proteger un autre mobile",
     recommendedSimulationLevel: "active",
     recommendedInteractionTags: ["escort", "security"],
-    stats: { speed: 52, security: 70, fatigue: 22, cargo: 18, headcount: 28, resources: 36 }
+    stats: { speed: 46, security: 70, fatigue: 22, cargo: 18, headcount: 28, resources: 36 }
   },
   {
     id: "scouts",
@@ -172,7 +173,7 @@ const MOBILE_ARCHETYPE_PRESETS: MobileArchetypePreset[] = [
     defaultMissionLabel: "Reconnaissance",
     recommendedSimulationLevel: "active",
     recommendedInteractionTags: ["scouting", "intel"],
-    stats: { speed: 72, security: 36, fatigue: 16, cargo: 12, headcount: 12, resources: 22 }
+    stats: { speed: 60, security: 36, fatigue: 16, cargo: 12, headcount: 12, resources: 22 }
   }
 ];
 
@@ -203,6 +204,9 @@ const MOBILE_ITINERARY_MODE_LABELS: Record<SimulationMobileItineraryMode, string
   auto: "Auto",
   locked: "Verrouille"
 };
+
+const HUMAN_REFERENCE_SPEED = 40;
+const HUMAN_REFERENCE_HEXES_PER_HOUR = 0.5;
 
 function sanitizeLayoutSource(value: unknown): WorldMapLayoutSource | null {
   if (!value || typeof value !== "object") return null;
@@ -2998,10 +3002,19 @@ export function WorldMapEditorScreen(props: {
   }
 
   function getMobilityPresetLabel(speed: number): string {
-    if (speed >= 70) return "Tres rapide";
-    if (speed >= 50) return "Rapide";
-    if (speed >= 30) return "Standard";
+    if (speed >= 60) return "Tres rapide";
+    if (speed >= 46) return "Rapide";
+    if (speed >= 32) return "Standard";
     return "Lente";
+  }
+
+  function getMobilityProductMetrics(speed: number) {
+    const hexPerHour = (speed / HUMAN_REFERENCE_SPEED) * HUMAN_REFERENCE_HEXES_PER_HOUR;
+    return {
+      hexPerHour,
+      hexPerMacro: hexPerHour * 6,
+      hexPerDay: hexPerHour * 24
+    };
   }
 
   function getSelectionChipStyle(active: boolean, accentColor?: string) {
@@ -7826,7 +7839,7 @@ export function WorldMapEditorScreen(props: {
                                         {action.label} · {action.id}
                                       </div>
                                       <div style={editorTextStyles.helper}>
-                                        Priorite {action.basePriority} · Cooldown {action.cooldown}
+                                        Priorite {action.basePriority} · Cooldown {action.cooldown} h
                                       </div>
                                     </div>
                                     <div style={editorTextStyles.helper}>
@@ -8122,7 +8135,7 @@ export function WorldMapEditorScreen(props: {
                                 </div>
                                 <div style={editorTextStyles.helper}>
                                   {selectedObjectiveLogisticsPlan?.modeRetenu
-                                    ? `Mode ${selectedObjectiveLogisticsPlan.modeRetenu} · ${selectedObjectiveLogisticsPlan.ticksEstimes ?? "n/a"} tick(s) · risque ${selectedObjectiveLogisticsPlan.scoreRisque ?? "n/a"}`
+                                    ? `Mode ${selectedObjectiveLogisticsPlan.modeRetenu} · ${formatDurationHours(selectedObjectiveLogisticsPlan.heuresEstimees)} · risque ${selectedObjectiveLogisticsPlan.scoreRisque ?? "n/a"}`
                                     : "Pas de mode de projection retenu."}
                                 </div>
                               </div>
@@ -8222,7 +8235,7 @@ export function WorldMapEditorScreen(props: {
                                 <div>Mode retenu: {selectedObjectiveLogisticsPlan.modeRetenu ?? "aucun"}</div>
                                 <div>Acteur assigne: {selectedObjectiveLogisticsPlan.acteurAssigneId ?? "aucun"}</div>
                                 <div>Cible d'execution: {selectedObjectiveLogisticsPlan.cibleExecutionRef ? `${selectedObjectiveLogisticsPlan.cibleExecutionRef.kind}:${selectedObjectiveLogisticsPlan.cibleExecutionRef.id}` : "aucune"}</div>
-                                <div>Temps estime: {selectedObjectiveLogisticsPlan.ticksEstimes ?? "n/a"} tick(s)</div>
+                                <div>Temps estime: {formatDurationHours(selectedObjectiveLogisticsPlan.heuresEstimees)}</div>
                                 <div>Cout estime: {selectedObjectiveLogisticsPlan.coutEstime ?? "n/a"}</div>
                                 <div>Risque estime: {selectedObjectiveLogisticsPlan.scoreRisque ?? "n/a"}</div>
                                 <div>Itineraire retenu: {selectedObjectiveLogisticsPlan.routeIds.length > 0 ? selectedObjectiveLogisticsPlan.routeIds.join(" -> ") : "aucun"}</div>
@@ -8474,6 +8487,9 @@ export function WorldMapEditorScreen(props: {
                               </label>
                               <div style={editorTextStyles.helper}>
                                 Mission type: {draftMobileArchetypePreset?.defaultMissionLabel ?? "Aucune"} | Niveau recommande: {draftMobileArchetypePreset ? SIMULATION_LEVEL_PRODUCT_LABELS[draftMobileArchetypePreset.recommendedSimulationLevel] : "Aucun"}
+                              </div>
+                              <div style={editorTextStyles.helper}>
+                                Mobilite cible: {draftMobileArchetypePreset ? `${getMobilityPresetLabel(draftMobileArchetypePreset.stats.speed)} · ${getMobilityProductMetrics(draftMobileArchetypePreset.stats.speed).hexPerHour.toFixed(2)} hex/h · ${getMobilityProductMetrics(draftMobileArchetypePreset.stats.speed).hexPerDay.toFixed(1)} hex/jour` : "Aucune"}
                               </div>
                               <label style={{ display: "grid", gap: 4, fontSize: 12 }}>
                                 Nom du mobile
@@ -9000,7 +9016,7 @@ export function WorldMapEditorScreen(props: {
                               </select>
                             </label>
                             <div style={editorTextStyles.helper}>
-                              Mobilite produit: {getMobilityPresetLabel(selectedSimulationMobileActor.speed)}. Les valeurs ci-dessous restent des reglages avances pour le moteur.
+                              Mobilite produit: {getMobilityPresetLabel(selectedSimulationMobileActor.speed)} · {getMobilityProductMetrics(selectedSimulationMobileActor.speed).hexPerHour.toFixed(2)} hex/h · {getMobilityProductMetrics(selectedSimulationMobileActor.speed).hexPerMacro.toFixed(1)} hex/6h · {getMobilityProductMetrics(selectedSimulationMobileActor.speed).hexPerDay.toFixed(1)} hex/jour. Les valeurs ci-dessous restent des reglages avances pour le moteur.
                             </div>
                           </div>
                           <label style={{ display: "grid", gap: 4, fontSize: 12 }}>

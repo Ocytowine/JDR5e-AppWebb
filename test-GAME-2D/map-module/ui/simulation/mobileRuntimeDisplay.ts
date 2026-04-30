@@ -1,6 +1,6 @@
 import type { MapCell, WorldMapLayout } from "../../data/worldMapLayout";
 import type { MobileActor, WorldState } from "../../world-simulation";
-import { getAbsoluteRouteProgress, getRouteTraversalCost } from "../../world-simulation/travel";
+import { getAbsoluteRouteProgress, getProgressPerTick, getRouteTraversalCost } from "../../world-simulation/travel";
 import { getCellCenter } from "../mapShared";
 
 type Point = { x: number; y: number };
@@ -65,13 +65,17 @@ export function formatRuntimeMobileProgress(layout: WorldMapLayout, state: World
   progressLabel: string;
   targetLabel: string;
   stopLabel: string | null;
+  remainingLabel: string | null;
+  etaLabel: string | null;
 } {
   if (actor.position.kind !== "route") {
     return {
       routeLabel: null,
       progressLabel: "Hors route",
       targetLabel: actor.destination ? `${actor.destination.kind}:${actor.destination.id}` : "aucune destination",
-      stopLabel: null
+      stopLabel: null,
+      remainingLabel: null,
+      etaLabel: null
     };
   }
   const route = state.routes[actor.position.id];
@@ -81,12 +85,29 @@ export function formatRuntimeMobileProgress(layout: WorldMapLayout, state: World
       routeLabel: layoutRoute?.label || actor.position.id,
       progressLabel: "Route runtime introuvable",
       targetLabel: actor.currentRouteTargetId ?? "aucune cible",
-      stopLabel: null
+      stopLabel: null,
+      remainingLabel: null,
+      etaLabel: null
     };
   }
   const totalCost = getRouteTraversalCost(route, actor);
   const absoluteProgress = getAbsoluteRouteProgress(route, actor);
   const progressPercent = totalCost > 0 ? Math.round((absoluteProgress / totalCost) * 100) : 0;
+  const progressPerTick = getProgressPerTick(actor, state);
+  const hoursPerTick = Math.max(state.clock.minutesPerMicroTick / 60, 0);
+  const remainingCost = Math.max(0, totalCost - absoluteProgress);
+  const estimatedRemainingHours =
+    progressPerTick > 0 && hoursPerTick > 0 ? (remainingCost / progressPerTick) * hoursPerTick : null;
+  const estimatedRemainingDays =
+    typeof estimatedRemainingHours === "number" ? estimatedRemainingHours / 24 : null;
+  const remainingLabel =
+    typeof estimatedRemainingHours === "number"
+      ? `${estimatedRemainingHours.toFixed(1)} h restantes`
+      : null;
+  const etaLabel =
+    typeof estimatedRemainingHours === "number"
+      ? `${estimatedRemainingDays && estimatedRemainingDays >= 1 ? `${estimatedRemainingDays.toFixed(1)} j` : `${estimatedRemainingHours.toFixed(1)} h`} avant arrivee`
+      : null;
   return {
     routeLabel: layoutRoute?.label || route.id,
     progressLabel: `${progressPercent}% du troncon`,
@@ -94,6 +115,8 @@ export function formatRuntimeMobileProgress(layout: WorldMapLayout, state: World
     stopLabel:
       typeof actor.destinationRouteProgress === "number" && Number.isFinite(actor.destinationRouteProgress)
         ? `Arret prevu a ${Math.round((actor.destinationRouteProgress / Math.max(totalCost, 1)) * 100)}%`
-        : null
+        : null,
+    remainingLabel,
+    etaLabel
   };
 }

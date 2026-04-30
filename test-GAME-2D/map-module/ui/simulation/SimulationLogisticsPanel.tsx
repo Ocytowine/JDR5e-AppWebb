@@ -1,6 +1,7 @@
 import React from "react";
 import type { LogisticsPlanTrace, WorldFaction } from "../../world-simulation";
 import { editorSurfaceStyles, editorTextStyles, EDITOR_THEME } from "../editor/editorTheme";
+import { formatDurationHours } from "./timeFormatting";
 
 function formatNumber(value: number | undefined): string {
   if (typeof value !== "number" || !Number.isFinite(value)) return "n/a";
@@ -78,7 +79,7 @@ export function SimulationLogisticsPanel(props: {
             <div>Groupe planifie: {formatNumber(props.logisticsPlan.effectifPlanifie)} personnes</div>
             <div>Charge planifiee: {formatNumber(props.logisticsPlan.chargePlanifiee)}</div>
             <div>Itineraire: {props.logisticsPlan.routeIds.length > 0 ? props.logisticsPlan.routeIds.join(" -> ") : "aucun"}</div>
-            <div>Temps estime: {formatNumber(props.logisticsPlan.ticksEstimes)} tick(s)</div>
+            <div>Temps estime: {formatDurationHours(props.logisticsPlan.heuresEstimees)}</div>
             <div>Cout estime: {formatNumber(props.logisticsPlan.coutEstime)}</div>
             <div>Score risque: {formatNumber(props.logisticsPlan.scoreRisque)}</div>
             {props.logisticsPlan.acteurAssigneId ? <div>Acteur assigne: {props.logisticsPlan.acteurAssigneId}</div> : null}
@@ -111,7 +112,7 @@ export function SimulationLogisticsPanel(props: {
           </div>
         ) : (
           <div style={{ fontSize: 12, color: "#c8d0de" }}>
-            Lance au moins un tick pour voir quel mode de transport, quel groupe et quel cout la faction retient pour son objectif principal.
+            Avance le temps pour voir quel mode de transport, quel groupe et quel cout la faction retient pour son objectif principal.
           </div>
         )}
       </div>

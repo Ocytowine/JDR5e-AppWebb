@@ -4,12 +4,44 @@ function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
+export const HUMAN_REFERENCE_SPEED = 40;
+export const HUMAN_REFERENCE_HEXES_PER_HOUR = 0.5;
+
 function getRouteTerrainDifficulty(route: WorldRoute): number {
   return clamp(route.state.terrainDifficulty ?? route.travelCost * 2, 1, 12);
 }
 
+function getTravelModeHoursMultiplier(modeTransport: MobileActor["modeTransport"]): number {
+  if (modeTransport === "cheval") return 0.85;
+  if (modeTransport === "bateau") return 0.7;
+  return 1;
+}
+
+function getBaseHoursPerHex(travelCost: number): number {
+  if (travelCost <= 2) return 1.35;
+  if (travelCost >= 4) return 2.2;
+  return 1.7;
+}
+
+export function estimateTraversalHours(parameters: {
+  length: number;
+  travelCost: number;
+  terrainDifficulty: number;
+  cargo: number;
+  headcount: number;
+  modeTransport?: MobileActor["modeTransport"];
+}): number {
+  const terrainFactor = 0.65 + clamp(parameters.terrainDifficulty, 1, 12) / 10;
+  const modeMultiplier = getTravelModeHoursMultiplier(parameters.modeTransport);
+  const cargoPenaltyHours = Math.max(0, parameters.cargo) * 0.02;
+  const headcountPenaltyHours = Math.max(0, parameters.headcount) * 0.01;
+  return Math.max(
+    1,
+    Math.max(1, parameters.length) * getBaseHoursPerHex(parameters.travelCost) * terrainFactor * modeMultiplier + cargoPenaltyHours + headcountPenaltyHours
+  );
+}
+
 export function getRouteTraversalCost(route: WorldRoute, actor: MobileActor): number {
-  const terrainDifficulty = getRouteTerrainDifficulty(route);
   const modeTransport =
     actor.modeTransport ??
     (actor.travelMode === "river" || actor.travelMode === "sea"
@@ -17,29 +49,20 @@ export function getRouteTraversalCost(route: WorldRoute, actor: MobileActor): nu
       : actor.travelMode === "foot"
         ? "pied"
         : "cheval");
-  const travelModeMultiplier =
-    modeTransport === "pied"
-      ? 1.15
-      : modeTransport === "bateau"
-        ? 0.75
-        : 1;
-  const cargoLoad = (actor.state.cargo ?? 0) * 0.025;
-  const headcountLoad = (actor.state.headcount ?? 0) * 0.01;
-  return Math.max(
-    1,
-    route.length * ((route.travelCost * 0.9) + (terrainDifficulty * 0.55)) * travelModeMultiplier + cargoLoad + headcountLoad
-  );
+  return estimateTraversalHours({
+    length: route.length,
+    travelCost: route.travelCost,
+    terrainDifficulty: getRouteTerrainDifficulty(route),
+    cargo: actor.state.cargo ?? 0,
+    headcount: actor.state.headcount ?? 0,
+    modeTransport
+  });
 }
 
 export function getProgressPerTick(actor: MobileActor, state: WorldState): number {
-  const tickFactor = state.clock.minutesPerMicroTick / 15;
-  const modeBonus =
-    actor.modeTransport === "cheval"
-      ? 1.2
-      : actor.modeTransport === "bateau"
-        ? 1.1
-        : 1;
-  return Math.max(0.5, actor.speed * tickFactor * modeBonus);
+  const hoursPerTick = state.clock.minutesPerMicroTick / 60;
+  const speedFactor = Math.max(0.25, actor.speed / HUMAN_REFERENCE_SPEED);
+  return Math.max(0.25, hoursPerTick * speedFactor);
 }
 
 function getPositionNodeId(position: EntityRef): EntityId | undefined {

@@ -22,6 +22,7 @@ import type {
   EntityId,
   EntityRef
 } from "./types";
+import { estimateTraversalHours } from "./travel";
 
 export type MapSimulationSeedOverrides = {
   clock?: Partial<WorldState["clock"]>;
@@ -50,10 +51,9 @@ type RouteCellPlacement = {
   routeId: string;
   routeIndex: number;
   routeLength: number;
-  routeCost: number;
+  progressRatio: number;
   originEndpointId: string;
   destinationEndpointId: string;
-  absoluteProgress: number;
 };
 
 function toTitleCase(input: string): string {
@@ -247,6 +247,25 @@ function inferRouteStats(pathCells: MapCellData[], routeIdsTouching: number, roa
   };
 }
 
+function estimateLayoutPathTraversalCost(path: WorldMapLayout["paths"][number], pathCells: MapCellData[], actor?: Pick<MobileActor, "state" | "modeTransport" | "travelMode">): number {
+  const avgTerrainDifficulty = pathCells.reduce((sum, cell) => sum + (cell.terrainDifficulty ?? 5), 0) / Math.max(pathCells.length, 1);
+  const modeTransport =
+    actor?.modeTransport ??
+    (actor?.travelMode === "river" || actor?.travelMode === "sea"
+      ? "bateau"
+      : actor?.travelMode === "foot"
+        ? "pied"
+        : "cheval");
+  return estimateTraversalHours({
+    length: Math.max(path.cells.length, 1),
+    travelCost: path.roadType === "major_road" ? 2 : path.roadType === "road" ? 3 : 4,
+    terrainDifficulty: avgTerrainDifficulty,
+    cargo: actor?.state?.cargo ?? 0,
+    headcount: actor?.state?.headcount ?? 0,
+    modeTransport
+  });
+}
+
 function inferRegionTags(layout: WorldMapLayout, regionId: string): string[] {
   const tags = new Set<string>();
   layout.cells.forEach(cell => {
@@ -346,17 +365,15 @@ function getRouteCellPlacement(layout: WorldMapLayout, cell: MapCell): RouteCell
         .map(entry => {
           const routeLength = path.cells.length - 1;
           const progressRatio = routeLength > 0 ? entry.index / routeLength : 0;
-          const routeCost = path.roadType === "major_road" ? 2 : path.roadType === "road" ? 3 : 4;
           const originEndpointId = getRuntimeRefForRouteEndpoint(layout, path.id, path.cells[0]).id;
           const destinationEndpointId = getRuntimeRefForRouteEndpoint(layout, path.id, path.cells[path.cells.length - 1]).id;
           return {
             routeId: path.id,
             routeIndex: entry.index,
             routeLength,
-            routeCost,
+            progressRatio,
             originEndpointId,
-            destinationEndpointId,
-            absoluteProgress: progressRatio * routeCost
+            destinationEndpointId
           } satisfies RouteCellPlacement;
         })
     );
@@ -864,6 +881,16 @@ function deriveObjectivesFromLayout(layout: WorldMapLayout): Record<string, Spec
 }
 
 function deriveMobileActorsFromLayout(layout: WorldMapLayout): Record<string, MobileActor> {
+  const routePathById = new Map(
+    layout.paths
+      .filter(path => path.kind === "road")
+      .map(path => {
+        const pathCells = path.cells
+          .map(cell => layout.cells.find(entry => entry.cell.x === cell.x && entry.cell.y === cell.y) ?? null)
+          .filter((cell): cell is MapCellData => Boolean(cell));
+        return [path.id, { path, pathCells }] as const;
+      })
+  );
   return Object.fromEntries(
     (layout.simulation?.mobileActors ?? []).map(actor => {
       const runtimeId = `mobile:map:${actor.id}`;
@@ -889,12 +916,6 @@ function deriveMobileActorsFromLayout(layout: WorldMapLayout): Record<string, Mo
             : actor.positionKind === "city" || actor.positionKind === "route" || actor.positionKind === "region"
               ? { kind: actor.positionKind, id: actor.positionId ?? runtimeId }
               : undefined;
-      const routeProgress =
-        routeCellPlacement && inferredRouteTargetId
-          ? inferredRouteTargetId === routeCellPlacement.originEndpointId
-            ? routeCellPlacement.routeCost - routeCellPlacement.absoluteProgress
-            : routeCellPlacement.absoluteProgress
-          : 0;
       const destinationRoutePlacement = actor.destinationKind === "cell" && actor.destinationCell
         ? getRouteCellPlacement(layout, actor.destinationCell)
         : undefined;
@@ -906,6 +927,25 @@ function deriveMobileActorsFromLayout(layout: WorldMapLayout): Record<string, Mo
             : actor.speed >= 4 && actor.headcount <= 24
               ? "cheval"
               : "pied";
+      const routePlacementCost =
+        routeCellPlacement
+          ? (() => {
+              const routeEntry = routePathById.get(routeCellPlacement.routeId);
+              return routeEntry
+                ? estimateLayoutPathTraversalCost(routeEntry.path, routeEntry.pathCells, {
+                    state: { cargo: actor.cargo, headcount: actor.headcount },
+                    modeTransport,
+                    travelMode: actor.travelMode
+                  })
+                : 0;
+            })()
+          : 0;
+      const routeProgress =
+        routeCellPlacement && inferredRouteTargetId
+          ? inferredRouteTargetId === routeCellPlacement.originEndpointId
+            ? routePlacementCost * (1 - routeCellPlacement.progressRatio)
+            : routePlacementCost * routeCellPlacement.progressRatio
+          : 0;
       return [
         runtimeId,
         {
@@ -921,7 +961,16 @@ function deriveMobileActorsFromLayout(layout: WorldMapLayout): Record<string, Mo
           currentRouteTargetId: inferredRouteTargetId,
           destinationRouteProgress:
             destination?.kind === "route" && destinationRoutePlacement?.routeId === destination.id
-              ? destinationRoutePlacement.absoluteProgress
+              ? (() => {
+                  const routeEntry = routePathById.get(destination.id);
+                  if (!routeEntry) return undefined;
+                  const traversalCost = estimateLayoutPathTraversalCost(routeEntry.path, routeEntry.pathCells, {
+                    state: { cargo: actor.cargo, headcount: actor.headcount },
+                    modeTransport,
+                    travelMode: actor.travelMode
+                  });
+                  return traversalCost * destinationRoutePlacement.progressRatio;
+                })()
               : undefined,
           modeTransport,
           travelMode: actor.travelMode,
@@ -1116,8 +1165,8 @@ export function createWorldStateFromMapLayout(layout: WorldMapLayout, overrides:
       tick: 0,
       microTick: 0,
       macroTick: 0,
-      minutesPerMicroTick: 15,
-      microPerMacro: 4,
+      minutesPerMicroTick: 60,
+      microPerMacro: 6,
       ...overrides.clock
     },
     cities: seed.cities,

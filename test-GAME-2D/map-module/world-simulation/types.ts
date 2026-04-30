@@ -557,7 +557,7 @@ export type LogisticsPlanTrace = {
   routeIds: EntityId[];
   effectifPlanifie?: number;
   chargePlanifiee?: number;
-  ticksEstimes?: number;
+  heuresEstimees?: number;
   coutEstime?: number;
   scoreRisque?: number;
   faisable: boolean;

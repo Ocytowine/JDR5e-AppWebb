@@ -4,6 +4,7 @@ import type { LogisticsPlanTrace, WorldFaction } from "../../world-simulation";
 import type { WikiEntry } from "../mapShared";
 import { createEditorButtonStyle, editorSurfaceStyles, editorTextStyles } from "../editor/editorTheme";
 import { SimulationLogisticsPanel } from "./SimulationLogisticsPanel";
+import { formatDurationHours } from "./timeFormatting";
 
 type FactionPanelFocus = "summary" | "goals" | "mobility";
 
@@ -80,6 +81,13 @@ export function SimulationFactionAnalysisPanel(props: {
   const ownedMobiles = useMemo(
     () => (props.faction ? props.mobileActors.filter(actor => actor.ownerFactionId === props.faction!.id) : []),
     [props.faction, props.mobileActors]
+  );
+  const activeCooldownEntries = useMemo(
+    () =>
+      Object.entries(props.runtimeFaction?.cooldowns ?? {})
+        .filter(([, ticks]) => typeof ticks === "number" && ticks > 0)
+        .sort((left, right) => (right[1] ?? 0) - (left[1] ?? 0)),
+    [props.runtimeFaction]
   );
 
   if (!props.faction) {
@@ -246,7 +254,10 @@ export function SimulationFactionAnalysisPanel(props: {
           <div>Puissance: {Math.round(props.runtimeFaction?.state.power ?? 0)}</div>
           <div>Ressources: {Math.round(props.runtimeFaction?.state.resources ?? 0)}</div>
           <div>Cohesion: {Math.round(props.runtimeFaction?.state.cohesion ?? 0)}</div>
-          <div>Cooldowns actifs: {props.runtimeFaction ? Object.keys(props.runtimeFaction.cooldowns).length : 0}</div>
+          <div>Cooldowns actifs: {activeCooldownEntries.length}</div>
+          {activeCooldownEntries.length > 0 ? (
+            <div>Details: {activeCooldownEntries.map(([actionId, ticks]) => `${actionId} (${formatDurationHours(ticks)})`).join(" · ")}</div>
+          ) : null}
         </div>
       </div>
 

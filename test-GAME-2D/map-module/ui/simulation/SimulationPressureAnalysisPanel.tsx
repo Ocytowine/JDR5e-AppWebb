@@ -35,7 +35,7 @@ function buildConsequenceHint(pressureType: string): string {
     case "political":
       return "Risque de lutte d'influence, de reprise en main ou de rupture institutionnelle.";
     default:
-      return "Cette pression peut faire basculer les decisions d'acteurs sur les prochains ticks.";
+      return "Cette pression peut faire basculer les decisions d'acteurs sur les prochains cycles horaires.";
   }
 }
 
@@ -74,7 +74,7 @@ export function SimulationPressureAnalysisPanel(props: {
                   </div>
                 ))
               ) : (
-                <div>Causes detaillees indisponibles sur ce tick.</div>
+                <div>Causes detaillees indisponibles sur ce cycle horaire.</div>
               )}
             </div>
             <div style={{ fontSize: 12, color: "#9fb0c6", lineHeight: 1.45 }}>

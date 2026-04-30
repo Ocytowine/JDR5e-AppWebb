@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import type { ActionCandidateTrace, EntityRef, PressureEvaluationTrace, TickOutput, WorldEvent } from "../../world-simulation";
 import { createEditorButtonStyle, editorSurfaceStyles, editorTextStyles } from "../editor/editorTheme";
+import { formatRejectionReason, formatScaleStep } from "./timeFormatting";
 
 const PRESSURE_LABELS: Record<string, string> = {
   criminal: "Criminelle",
@@ -65,7 +66,7 @@ export function SimulationEntityAnalysisPanel(props: {
         <div style={{ fontSize: 12, color: "#dce5f2", lineHeight: 1.45 }}>
           <div>Entite: {props.selectedEntity.label}</div>
           <div>Reference technique: {formatEntityRef(props.selectedEntity.ref)}</div>
-          <div>Evenements lies au dernier tick: {props.events.length}</div>
+          <div>Evenements lies au dernier cycle horaire: {props.events.length}</div>
           <div>Actions envisagees: {props.actionCandidates.length}</div>
         </div>
       </div>
@@ -86,7 +87,7 @@ export function SimulationEntityAnalysisPanel(props: {
             ))}
           </div>
         ) : (
-          <div style={{ fontSize: 12, color: "#c8d0de" }}>Aucune pression forte calculee sur cette entite au dernier tick.</div>
+          <div style={{ fontSize: 12, color: "#c8d0de" }}>Aucune pression forte calculee sur cette entite sur le dernier cycle horaire.</div>
         )}
       </div>
 
@@ -122,12 +123,12 @@ export function SimulationEntityAnalysisPanel(props: {
                   {formatEntityRef(candidate.actorRef)} {"->"} {candidate.actionId}
                 </div>
                 <div style={{ marginTop: 3, color: "#c8d0de" }}>
-                  {candidate.rejectionReasons.join(" | ") || "Preconditions non satisfaites"}
+                  {candidate.rejectionReasons.map(formatRejectionReason).join(" | ") || "Preconditions non satisfaites"}
                 </div>
               </div>
             ))
           ) : (
-            <div style={{ fontSize: 12, color: "#c8d0de" }}>Aucun blocage notable sur les candidats du dernier tick.</div>
+            <div style={{ fontSize: 12, color: "#c8d0de" }}>Aucun blocage notable sur les candidats du dernier cycle horaire.</div>
           )}
         </div>
       </details>
@@ -146,13 +147,13 @@ export function SimulationEntityAnalysisPanel(props: {
             ))}
           </div>
         ) : (
-          <div style={{ fontSize: 12, color: "#c8d0de" }}>Aucun evenement n'a implique cette entite au dernier tick.</div>
+          <div style={{ fontSize: 12, color: "#c8d0de" }}>Aucun evenement n'a implique cette entite sur le dernier cycle horaire.</div>
         )}
       </div>
 
       {props.latestOutput ? (
         <button type="button" style={createEditorButtonStyle({ compact: true, active: false })}>
-          Tick {props.latestOutput.tick} · {props.latestOutput.scale}
+          Derniere avancee: {formatScaleStep(props.latestOutput.scale)}
         </button>
       ) : null}
     </div>

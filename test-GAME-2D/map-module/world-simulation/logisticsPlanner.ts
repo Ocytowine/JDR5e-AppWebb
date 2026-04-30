@@ -267,7 +267,7 @@ function buildModePlan(
     const route = state.routes[routeId];
     return route ? sum + getRouteTraversalCost(route, travelActor) : sum;
   }, 0);
-  const estimatedTicks = routeIds.length > 0
+  const estimatedHours = routeIds.length > 0
     ? Math.max(1, Math.ceil(routeCost / Math.max(1, existingActor.speed * getModeSpeedMultiplier(mode))))
     : executionTargetRef.id === existingActor.position.id
       ? 0
@@ -294,7 +294,7 @@ function buildModePlan(
   if (mode === "pied" && requirement.besoinCharge >= 28) {
     raisonsBlocage.push("charge_trop_lourde_pour_pied");
   }
-  if (estimatedTicks === undefined) {
+  if (estimatedHours === undefined) {
     raisonsBlocage.push("aucun_itineraire");
   }
 
@@ -313,7 +313,7 @@ function buildModePlan(
     routeIds,
     effectifPlanifie: demandeTransport.effectifPlanifie,
     chargePlanifiee: demandeTransport.chargePlanifiee,
-    ticksEstimes: estimatedTicks,
+    heuresEstimees: estimatedHours,
     coutEstime: estimatedCost,
     scoreRisque: Math.round(riskScore),
     faisable: raisonsBlocage.length === 0,
@@ -327,9 +327,9 @@ function selectBestPlan(candidates: LogisticsPlanTrace[]): LogisticsPlanTrace {
     if (left.faisable !== right.faisable) {
       return left.faisable ? -1 : 1;
     }
-    const leftTicks = left.ticksEstimes ?? Number.POSITIVE_INFINITY;
-    const rightTicks = right.ticksEstimes ?? Number.POSITIVE_INFINITY;
-    if (leftTicks !== rightTicks) return leftTicks - rightTicks;
+    const leftHours = left.heuresEstimees ?? Number.POSITIVE_INFINITY;
+    const rightHours = right.heuresEstimees ?? Number.POSITIVE_INFINITY;
+    if (leftHours !== rightHours) return leftHours - rightHours;
     const leftRisk = left.scoreRisque ?? Number.POSITIVE_INFINITY;
     const rightRisk = right.scoreRisque ?? Number.POSITIVE_INFINITY;
     if (leftRisk !== rightRisk) return leftRisk - rightRisk;
