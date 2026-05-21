@@ -76,7 +76,7 @@ import {
   recomputePressuresDetailed,
   recomputePressures,
   reinitialiserRessourcesTransport,
-  runWorldTick,
+  runWorldHours,
   runSimulationPreflight,
   WORLD_ACTION_DEFINITIONS,
   type SimulationPreflightIssue
@@ -1778,7 +1778,7 @@ export function WorldMapEditorScreen(props: {
   }, [logisticsPreview.pressureTrace]);
   const nextTickPreview = useMemo(() => {
     const previewState = structuredClone(logisticsPreview.runtimeState);
-    const micro = runWorldTick(previewState, "micro");
+    const micro = runWorldHours(previewState, 1);
     return {
       output: micro,
       stateAfter: previewState
@@ -3726,7 +3726,7 @@ export function WorldMapEditorScreen(props: {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = "worldMapLayout.json";
+    anchor.download = "simulation_sandbox.json";
     anchor.click();
     URL.revokeObjectURL(url);
   }

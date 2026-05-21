@@ -1368,8 +1368,6 @@ function resolveSelectedActions(state: WorldState, scale: TickScale, initialDelt
 }
 
 function advanceMobileActors(state: WorldState, ctx: TickContext) {
-  if (ctx.scale !== "micro") return;
-
   Object.values(state.mobileActors).forEach(actor => {
     if (actor.itineraryMode !== "locked" && actor.destination && actor.position.kind !== "route") {
       const shortestItinerary = findShortestRouteItinerary(state, actor);
@@ -1630,22 +1628,22 @@ function diffuse(ctx: TickContext): TickOutput {
   };
 }
 
-function advanceClock(clock: WorldClock, scale: TickScale): WorldClock {
+function advanceClockOneHour(clock: WorldClock, scale: TickScale): WorldClock {
   const nextTick = clock.tick + 1;
-  const nextMicro = scale === "micro" ? clock.microTick + 1 : clock.microTick;
-  const macroIncrement = scale === "macro" ? 1 : nextMicro >= clock.microPerMacro ? 1 : 0;
+  const nextMicro = clock.microTick + 1;
+  const macroIncrement = scale === "macro" || nextMicro >= clock.microPerMacro ? 1 : 0;
   return {
     ...clock,
     tick: nextTick,
-    microTick: scale === "micro" && nextMicro >= clock.microPerMacro ? 0 : nextMicro,
+    microTick: nextMicro >= clock.microPerMacro ? 0 : nextMicro,
     macroTick: clock.macroTick + macroIncrement
   };
 }
 
-export function runWorldTick(state: WorldState, scale: TickScale): TickOutput {
+function runWorldStep(state: WorldState, scale: TickScale): TickOutput {
   const clockBefore = { ...state.clock };
-  state.clock = advanceClock(state.clock, scale);
-  decrementCooldowns(state, scale);
+  state.clock = advanceClockOneHour(state.clock, scale);
+  decrementCooldowns(state, "micro");
   syncRouteMobilePresence(state);
   const wearDeltas = applyTerritorialWear(state, scale);
   const beforePressures = recomputePressuresDetailed(state);
@@ -1663,6 +1661,59 @@ export function runWorldTick(state: WorldState, scale: TickScale): TickOutput {
   state.pressures = afterPressures.pressures;
   ctx.trace.pressureSnapshots.after = afterPressures.trace;
   return diffuse(ctx);
+}
+
+function mergeTickOutputs(outputs: TickOutput[]): TickOutput {
+  const latest = outputs[outputs.length - 1];
+  if (!latest) {
+    throw new Error("runWorldHours requires at least one hourly step.");
+  }
+  const events = outputs.flatMap(output => output.events);
+  const deltas = outputs.flatMap(output => output.deltas);
+  const signals = outputs.flatMap(output => output.signals);
+  const rumors = outputs.flatMap(output => output.rumors);
+  const opportunities = outputs.flatMap(output => output.opportunities);
+  const trace = latest.trace
+    ? {
+        ...latest.trace,
+        clockBefore: outputs[0]?.trace?.clockBefore ?? latest.trace.clockBefore,
+        clockAfter: latest.trace.clockAfter,
+        logisticsPlans: outputs.flatMap(output => output.trace?.logisticsPlans ?? []),
+        objectiveReadiness: outputs.flatMap(output => output.trace?.objectiveReadiness ?? []),
+        actorCandidates: outputs.flatMap(output => output.trace?.actorCandidates ?? []),
+        actionCandidates: outputs.flatMap(output => output.trace?.actionCandidates ?? []),
+        selectedActions: outputs.flatMap(output => output.trace?.selectedActions ?? []),
+        mobility: outputs.flatMap(output => output.trace?.mobility ?? [])
+      }
+    : undefined;
+
+  return {
+    tick: latest.tick,
+    scale: latest.scale,
+    events,
+    deltas,
+    signals,
+    rumors,
+    opportunities,
+    trace
+  };
+}
+
+export function runWorldHours(state: WorldState, hours: number): TickOutput {
+  const stepCount = Math.max(1, Math.floor(hours));
+  const outputs: TickOutput[] = [];
+
+  for (let index = 0; index < stepCount; index += 1) {
+    const nextMicro = state.clock.microTick + 1;
+    const isMacroBoundary = nextMicro >= state.clock.microPerMacro;
+    outputs.push(runWorldStep(state, isMacroBoundary ? "macro" : "micro"));
+  }
+
+  return mergeTickOutputs(outputs);
+}
+
+export function runWorldTick(state: WorldState, scale: TickScale): TickOutput {
+  return runWorldHours(state, scale === "macro" ? Math.max(1, state.clock.microPerMacro) : 1);
 }
 
 export function validateCandidateProposal(state: WorldState, candidate: CandidateProposal): CandidateValidationResult {

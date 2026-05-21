@@ -250,7 +250,7 @@ Champs couverts :
 
 ## Pipeline De Tick
 
-Le pipeline cible du document initial est deja present dans `runWorldTick()` avec cette traduction :
+Le pipeline cible du document initial est present dans `runWorldHours()`. `runWorldTick()` reste un wrapper de compatibilite pour les anciens appels.
 
 1. avancer l'horloge ;
 2. decrementer les cooldowns ;
@@ -558,7 +558,7 @@ Pour un MVP branche sur la vraie carte :
 - completer `layout.simulation.mobileActors` ;
 - ajouter les profils raciaux sur villes et factions ;
 - verifier que les plans logistiques exposent bien mode, itineraire et raisons de blocage ;
-- executer `runWorldTick(state, "micro" | "macro")` sur 2 a 3 ticks.
+- executer `runWorldHours(state, hours)` sur quelques heures, par exemple 1h puis 6h.
 
 ## Recommandations D'Integration
 

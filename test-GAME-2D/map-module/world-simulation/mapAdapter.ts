@@ -68,9 +68,57 @@ function clamp(value: number, min = 0, max = 100): number {
   return Math.max(min, Math.min(max, value));
 }
 
+function normalizeTag(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+const RUNTIME_TAG_ALIASES: Record<string, string> = {
+  criminel: "criminal",
+  crime: "criminal",
+  contrebande: "criminal",
+  bandit: "criminal",
+  religieux: "religious",
+  religion: "religious",
+  sacre: "religious",
+  culte: "religious",
+  rituel: "religious",
+  militaire: "military",
+  milice: "military",
+  garde: "military",
+  armee: "military",
+  marchand: "trade",
+  marchande: "trade",
+  commerce: "trade",
+  commercial: "trade",
+  logistique: "trade",
+  civique: "civic",
+  public: "civic",
+  gouvernance: "civic",
+  frontalier: "frontier",
+  frontiere: "frontier"
+};
+
+function normalizeRuntimeTags(values: string[] | undefined, inferredValues: string[] = []): string[] {
+  const tags = new Set<string>();
+  [...(values ?? []), ...inferredValues]
+    .map(normalizeTag)
+    .filter(Boolean)
+    .forEach(tag => {
+      tags.add(tag);
+      const alias = RUNTIME_TAG_ALIASES[tag];
+      if (alias) tags.add(alias);
+    });
+  return [...tags];
+}
+
 function countMatches(values: string[] | undefined, matchers: string[]): number {
   if (!values?.length) return 0;
-  return values.filter(value => matchers.includes(value)).length;
+  const normalizedMatchers = matchers.map(normalizeTag);
+  return values.filter(value => normalizedMatchers.includes(normalizeTag(value))).length;
 }
 
 function hasAny(values: string[] | undefined, matchers: string[]): boolean {
@@ -447,6 +495,7 @@ function deriveRuntimeFactionsFromLayout(layout: WorldMapLayout): Record<string,
   return Object.fromEntries(
     (layout.simulation?.factions ?? []).map(faction => {
       const type = String(faction.type || "faction").trim().toLowerCase();
+      const normalizedType = normalizeTag(type);
       const runtimeId = `faction:map:${faction.id}`;
       const controlledZoneIds = Array.from(new Set(faction.controlledZoneIds ?? []));
       const influencedZoneIds = Array.from(new Set(faction.influencedZoneIds ?? []));
@@ -470,7 +519,7 @@ function deriveRuntimeFactionsFromLayout(layout: WorldMapLayout): Record<string,
           target,
           cell: anchor.cell ? { ...anchor.cell } : undefined,
           level: anchor.level,
-          tags: anchor.tags ?? [],
+          tags: normalizeRuntimeTags(anchor.tags),
           notes: anchor.notes ?? ""
         } satisfies FactionActionAnchor;
       });
@@ -480,13 +529,12 @@ function deriveRuntimeFactionsFromLayout(layout: WorldMapLayout): Record<string,
           id: runtimeId,
           name: faction.label,
           type: faction.type,
-          tags: Array.from(new Set([
-            ...faction.tags,
-            type.includes("culte") ? "religious" : "",
-            type.includes("milice") || type.includes("garde") ? "military" : "",
-            type.includes("guilde") || type.includes("marchand") ? "trade" : "",
-            type.includes("crime") || type.includes("contrebande") ? "criminal" : ""
-          ].filter(Boolean))),
+          tags: normalizeRuntimeTags(faction.tags, [
+            normalizedType.includes("culte") ? "religieux" : "",
+            normalizedType.includes("milice") || normalizedType.includes("garde") || normalizedType.includes("armee") ? "militaire" : "",
+            normalizedType.includes("guilde") || normalizedType.includes("marchand") ? "commerce" : "",
+            normalizedType.includes("crime") || normalizedType.includes("criminel") || normalizedType.includes("contrebande") ? "criminel" : ""
+          ]),
           populationProfile: faction.populationProfile ?? (faction.homeCityId ? cityPopulationById.get(faction.homeCityId) : undefined),
           controlledZoneIds,
           influencedZoneIds,
@@ -513,10 +561,10 @@ function deriveRuntimeFactionsFromLayout(layout: WorldMapLayout): Record<string,
           ressourcesTransport: {
             budgetTotal: faction.resources,
             budgetDisponible: faction.resources,
-            chevauxTotal: Math.max(0, Math.round(faction.power * 0.25 + (type.includes("milice") || type.includes("garde") || type.includes("marchand") ? 8 : 2))),
-            chevauxDisponibles: Math.max(0, Math.round(faction.power * 0.25 + (type.includes("milice") || type.includes("garde") || type.includes("marchand") ? 8 : 2))),
-            bateauxTotal: Math.max(0, Math.round(faction.influence * 0.05 + ((faction.tags ?? []).includes("maritime") ? 2 : 0))),
-            bateauxDisponibles: Math.max(0, Math.round(faction.influence * 0.05 + ((faction.tags ?? []).includes("maritime") ? 2 : 0))),
+            chevauxTotal: Math.max(0, Math.round(faction.power * 0.25 + (normalizedType.includes("milice") || normalizedType.includes("garde") || normalizedType.includes("marchand") ? 8 : 2))),
+            chevauxDisponibles: Math.max(0, Math.round(faction.power * 0.25 + (normalizedType.includes("milice") || normalizedType.includes("garde") || normalizedType.includes("marchand") ? 8 : 2))),
+            bateauxTotal: Math.max(0, Math.round(faction.influence * 0.05 + (normalizeRuntimeTags(faction.tags).includes("maritime") ? 2 : 0))),
+            bateauxDisponibles: Math.max(0, Math.round(faction.influence * 0.05 + (normalizeRuntimeTags(faction.tags).includes("maritime") ? 2 : 0))),
             effectifsTotal: Math.max(0, Math.round(faction.power * 0.7 + faction.cohesion * 0.3)),
             effectifsDisponibles: Math.max(0, Math.round(faction.power * 0.7 + faction.cohesion * 0.3))
           },

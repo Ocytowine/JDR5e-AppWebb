@@ -1,4 +1,4 @@
-import { runWorldTick } from "./engine";
+import { runWorldHours } from "./engine";
 import type { TickOutput, WorldState } from "./types";
 
 export function createExampleWorldState(): WorldState {
@@ -297,6 +297,6 @@ export function createExampleWorldState(): WorldState {
 
 export function runExampleScenario(): { outputs: TickOutput[]; finalState: WorldState } {
   const state = createExampleWorldState();
-  const outputs = [runWorldTick(state, "macro"), runWorldTick(state, "micro"), runWorldTick(state, "macro")];
+  const outputs = [runWorldHours(state, state.clock.microPerMacro), runWorldHours(state, 1), runWorldHours(state, state.clock.microPerMacro)];
   return { outputs, finalState: state };
 }

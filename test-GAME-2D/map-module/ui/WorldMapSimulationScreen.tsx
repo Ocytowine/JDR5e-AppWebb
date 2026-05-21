@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { getWorldMapCellKey, type MapLayerId, type WorldMapLayout } from "../data/worldMapLayout";
-import { createWorldStateFromMapLayout, runWorldTick, summarizeSimulationSeed } from "../world-simulation";
+import { createWorldStateFromMapLayout, runWorldHours, summarizeSimulationSeed } from "../world-simulation";
 import type { EntityRef, TickOutput, WorldState } from "../world-simulation";
 import { MapCanvas, useWikiEntries } from "./mapShared";
 import { WorldSimulationOverlay } from "./WorldSimulationOverlay";
@@ -98,7 +98,7 @@ function formatDurationHours(hours: number | undefined | null): string {
 }
 
 function formatClockTime(state: WorldState): string {
-  const elapsedHours = state.clock.microTick * getHoursPerMicroTick(state);
+  const elapsedHours = state.clock.tick * getHoursPerMicroTick(state);
   const roundedHours = Math.max(0, Math.round(elapsedHours));
   const day = Math.floor(roundedHours / 24);
   const hour = roundedHours % 24;
@@ -574,10 +574,10 @@ export function WorldMapSimulationScreen(props: {
     setOutputs([]);
   }
 
-  function runTick(scale: "micro" | "macro") {
+  function runHours(hours: number) {
     setState(current => {
       const next = cloneState(current);
-      const output = runWorldTick(next, scale);
+      const output = runWorldHours(next, hours);
       setOutputs(previous => [...previous, output]);
       return next;
     });
@@ -589,7 +589,7 @@ export function WorldMapSimulationScreen(props: {
         title={props.layout.title}
         activeToolLabel="Simulation monde"
         activeToolHint="Lis le runtime directement sur la carte, puis avance heure par heure ou cycle par cycle sans quitter cette vue."
-        persistenceLabel={`${formatClockTime(state)} · cycle ${state.clock.macroTick} · heure ${state.clock.microTick} · tick ${state.clock.tick}`}
+        persistenceLabel={`${formatClockTime(state)} · cycle ${state.clock.macroTick} · heure ${state.clock.microTick}/${state.clock.microPerMacro} · tick ${state.clock.tick}`}
         persistenceColor={EDITOR_THEME.colors.accent}
         actions={
           <button type="button" onClick={props.onCloseSimulation} style={createEditorButtonStyle({ compact: true })}>
@@ -701,10 +701,10 @@ export function WorldMapSimulationScreen(props: {
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <button type="button" onClick={() => runTick("micro")} style={createEditorButtonStyle({ compact: true })}>
+                    <button type="button" onClick={() => runHours(1)} style={createEditorButtonStyle({ compact: true })}>
                       +1 h
                     </button>
-                    <button type="button" onClick={() => runTick("macro")} style={createEditorButtonStyle({ compact: true, active: true })}>
+                    <button type="button" onClick={() => runHours(state.clock.microPerMacro)} style={createEditorButtonStyle({ compact: true, active: true })}>
                       +6 h
                     </button>
                     <button type="button" onClick={resetSimulation} style={createEditorButtonStyle({ compact: true })}>

@@ -1,5 +1,5 @@
 import valmorinMapUrl from "../../src/data/world/Valmorin.png";
-import worldMapLayoutJson from "./worldMapLayout.json";
+import worldMapLayoutJson from "./layouts/simulation_sandbox.json";
 
 export type MapCell = { x: number; y: number };
 export type ReliefElevationLevel = "none" | "low_mountain" | "high_mountain";

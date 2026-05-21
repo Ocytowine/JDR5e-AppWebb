@@ -1,6 +1,6 @@
 import layout from "../map-module/data/layouts/simulation_sandbox.json";
 import { createWorldStateFromMapLayout } from "../map-module/world-simulation/mapAdapter";
-import { runWorldTick } from "../map-module/world-simulation/engine";
+import { runWorldHours } from "../map-module/world-simulation/engine";
 
 function topEntries<T>(values: T[], score: (value: T) => number, limit = 3) {
   return values.slice().sort((left, right) => score(right) - score(left)).slice(0, limit);
@@ -10,7 +10,7 @@ const state = createWorldStateFromMapLayout(layout);
 const snapshots = [];
 
 for (let index = 0; index < 20; index += 1) {
-  const output = runWorldTick(state, "macro");
+  const output = runWorldHours(state, state.clock.microPerMacro);
   const districtPressures = Object.entries(state.pressures.district ?? {}).map(([id, pressure]) => ({
     id,
     social: pressure.social ?? 0,

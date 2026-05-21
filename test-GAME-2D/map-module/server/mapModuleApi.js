@@ -121,8 +121,8 @@ function validateLayoutPathRules(source) {
 function createMapModuleApi({ projectRoot, sendJson, parseJsonBody }) {
   const wikiLoreRoot = path.resolve(projectRoot, "..", "wiki", "lore");
   const mapDataRoot = path.resolve(projectRoot, "map-module", "data");
-  const mapLayoutPath = path.resolve(mapDataRoot, "worldMapLayout.json");
   const mapLayoutsDir = path.resolve(mapDataRoot, "layouts");
+  const mapLayoutPath = path.resolve(mapLayoutsDir, "simulation_sandbox.json");
   let cachedDocs = null;
   let cachedMtime = 0;
 
@@ -145,9 +145,13 @@ function createMapModuleApi({ projectRoot, sendJson, parseJsonBody }) {
       return { key, path: mapLayoutPath, isDefault: true };
     }
     ensureLayoutsDirectory();
+    const targetPath = path.resolve(mapLayoutsDir, `${key}.json`);
+    if (targetPath === mapLayoutPath) {
+      return { key: "default", path: mapLayoutPath, isDefault: true };
+    }
     return {
       key,
-      path: path.resolve(mapLayoutsDir, `${key}.json`),
+      path: targetPath,
       isDefault: false
     };
   }
@@ -188,8 +192,10 @@ function createMapModuleApi({ projectRoot, sendJson, parseJsonBody }) {
       .filter(entry => entry.isFile() && entry.name.toLowerCase().endsWith(".json"))
       .sort((left, right) => left.name.localeCompare(right.name))
       .forEach(entry => {
+        const entryPath = path.resolve(mapLayoutsDir, entry.name);
+        if (entryPath === mapLayoutPath) return;
         const key = entry.name.replace(/\.json$/i, "");
-        pushDescriptor(path.join(mapLayoutsDir, entry.name), key, false);
+        pushDescriptor(entryPath, key, false);
       });
 
     return descriptors;

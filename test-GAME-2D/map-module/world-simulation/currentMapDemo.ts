@@ -1,4 +1,4 @@
-import { runWorldTick } from "./engine";
+import { runWorldHours } from "./engine";
 import { createWorldStateFromCurrentMap } from "./mapAdapter";
 import type { TickOutput, WorldState } from "./types";
 
@@ -145,6 +145,6 @@ export function createCurrentMapDemoState(): WorldState {
 
 export function runCurrentMapDemoTicks(): { outputs: TickOutput[]; finalState: WorldState } {
   const state = createCurrentMapDemoState();
-  const outputs = [runWorldTick(state, "macro"), runWorldTick(state, "micro"), runWorldTick(state, "macro")];
+  const outputs = [runWorldHours(state, state.clock.microPerMacro), runWorldHours(state, 1), runWorldHours(state, state.clock.microPerMacro)];
   return { outputs, finalState: state };
 }

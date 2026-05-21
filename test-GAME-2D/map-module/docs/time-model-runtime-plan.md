@@ -216,7 +216,7 @@ Direction recommandee :
 - execute toujours le micro ;
 - puis declenche le macro si la frontiere de cycle est atteinte.
 
-Le moteur peut conserver `runWorldTick()` transitoirement, mais la cible conceptuelle doit converger vers ce modele.
+Le moteur conserve `runWorldTick()` comme compatibilite transitoire, mais les appels applicatifs doivent utiliser `runWorldHours(state, hours)`.
 
 ## Lecture Produit Recommandee
 
