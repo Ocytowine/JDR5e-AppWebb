@@ -1150,6 +1150,7 @@ export function createSimulationSeedFromMapLayout(layout: WorldMapLayout, overri
             tags: [path.roadType ?? "road", ...new Set(pathCells.flatMap(cell => cell.tags ?? []).filter(tag => ["frontalier", "dangerous", "commerce", "maritime", "forestier"].includes(tag)))],
             state: inferRouteStats(pathCells, matchingCities.length, path.roadType ?? "road"),
             recentHistory: [],
+            activeTensionIds: [],
             mobileActorIds: []
           } satisfies WorldRoute
         ];
@@ -1178,6 +1179,7 @@ export function createSimulationSeedFromMapLayout(layout: WorldMapLayout, overri
             externalThreat: clamp(14 + countMatches(regionTags, ["frontalier", "dangereux"]) * 12)
           },
           dominantWeather: "temperate",
+          recentHistory: [],
           activeTensionIds: [],
           tags: regionTags
         } satisfies WorldRegion

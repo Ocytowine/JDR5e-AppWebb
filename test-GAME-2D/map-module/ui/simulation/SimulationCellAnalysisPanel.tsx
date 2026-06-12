@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { getWorldMapCellKey, type WorldMapLayout } from "../../data/worldMapLayout";
-import type { TickOutput, WorldState } from "../../world-simulation";
+import type { TickOutput, WorldState, WorldTension } from "../../world-simulation";
 import type { WikiEntry } from "../mapShared";
 import { editorSurfaceStyles, editorTextStyles } from "../editor/editorTheme";
 
@@ -19,6 +19,21 @@ function formatPressureEntries(pressures: Record<string, number> | undefined): s
 function formatEventRefs(event: TickOutput["events"][number]): string[] {
   const refs = [event.actor, event.target].filter(Boolean).map(ref => `${ref!.kind}:${ref!.id}`);
   return Array.from(new Set(refs));
+}
+
+function formatTensionType(type: WorldTension["type"]): string {
+  const labels: Record<WorldTension["type"], string> = {
+    criminal: "criminelle",
+    social: "sociale",
+    commercial: "commerciale",
+    military: "militaire",
+    religious: "religieuse",
+    political: "politique",
+    scarcity: "penurie",
+    control_conflict: "controle",
+    mobility_risk: "mobilite"
+  };
+  return labels[type] ?? type.replace(/_/g, " ");
 }
 
 export function SimulationCellAnalysisPanel(props: {
@@ -79,6 +94,18 @@ export function SimulationCellAnalysisPanel(props: {
   const routePressures = localPaths.flatMap(path =>
     formatPressureEntries(props.state.pressures.route?.[path.id] ?? {}).map(entry => `${path.label || path.id}: ${entry}`)
   );
+  const localTensions = useMemo(() => {
+    const tensionIds = uniqueStrings([
+      ...(runtimeCity?.activeTensionIds ?? []),
+      ...(runtimeRegion?.activeTensionIds ?? []),
+      ...localPaths.flatMap(path => props.state.routes[path.id]?.activeTensionIds ?? [])
+    ]);
+    return tensionIds
+      .map(tensionId => props.state.tensions[tensionId])
+      .filter((tension): tension is WorldTension => Boolean(tension))
+      .sort((left, right) => right.severity - left.severity)
+      .slice(0, 5);
+  }, [localPaths, props.state.routes, props.state.tensions, runtimeCity?.activeTensionIds, runtimeRegion?.activeTensionIds]);
 
   const recentEvents = props.latestOutput?.events.filter(event => formatEventRefs(event).some(ref => localRefs.has(ref))) ?? [];
   const recentDeltas = props.latestOutput?.deltas.filter(delta => localRefs.has(`${delta.target.kind}:${delta.target.id}`)) ?? [];
@@ -134,8 +161,13 @@ export function SimulationCellAnalysisPanel(props: {
           <div>Pressions ville: {cityPressures.length ? cityPressures.join(" | ") : "aucune"}</div>
           <div>Pressions region: {regionPressures.length ? regionPressures.join(" | ") : "aucune"}</div>
           <div>Pressions routes: {routePressures.length ? routePressures.join(" | ") : "aucune"}</div>
+          <div>
+            Tensions actives:{" "}
+            {localTensions.length
+              ? localTensions.map(tension => `${formatTensionType(tension.type)} ${Math.round(tension.severity)}`).join(" | ")
+              : "aucune"}
+          </div>
           {runtimeCity ? <div>Historique ville: {runtimeCity.recentHistory.length} entree(s)</div> : null}
-          {runtimeRegion ? <div>Tensions region: {runtimeRegion.activeTensionIds.length}</div> : null}
         </div>
       </div>
 

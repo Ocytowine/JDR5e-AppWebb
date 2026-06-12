@@ -6,7 +6,7 @@ import {
   type WorldMapLayout
 } from "../data/worldMapLayout";
 import { buildPathPoints, getCellCenter, getCellPolygon } from "./mapShared";
-import type { PressureMap, PressureType, WorldState } from "../world-simulation";
+import type { EntityRef, PressureMap, PressureType, WorldState, WorldTension } from "../world-simulation";
 import { formatRuntimeMobileProgress, getRuntimeMobileMapPoint } from "./simulation/mobileRuntimeDisplay";
 
 type OverlayMode = "factions" | "objectives" | "mobility" | "pressures" | "relations" | "all";
@@ -18,6 +18,18 @@ const PRESSURE_COLORS: Record<PressureType, string> = {
   military: "#5f86d8",
   religious: "#d4b16a",
   political: "#6ba8a1"
+};
+
+const TENSION_COLORS: Record<WorldTension["type"], string> = {
+  criminal: "#df6f4f",
+  social: "#e4b44e",
+  commercial: "#62bd84",
+  military: "#6f91e8",
+  religious: "#d9bd6e",
+  political: "#70b6ad",
+  scarcity: "#e0c14d",
+  control_conflict: "#c47fe0",
+  mobility_risk: "#8ba7f4"
 };
 
 const RELATION_STYLES: Record<SimulationFactionRelationStatus, { stroke: string; dasharray?: string; width: number }> = {
@@ -84,6 +96,19 @@ function getDistrictAnchorCell(layout: WorldMapLayout, districtId: string): MapC
   return profileCells[0]?.cell ?? nearbyCells[0]?.cell ?? city.cell;
 }
 
+function getTensionAnchorCell(layout: WorldMapLayout, ref: EntityRef | undefined): MapCell | null {
+  if (!ref) return null;
+  if (ref.kind === "district") {
+    return getDistrictAnchorCell(layout, ref.id);
+  }
+  return getEntityAnchorCell(layout, ref.kind, ref.id);
+}
+
+function getTensionTargetRoute(layout: WorldMapLayout, tension: WorldTension) {
+  const routeRef = tension.targetRefs.find(ref => ref.kind === "route");
+  return routeRef ? layout.paths.find(path => path.id === routeRef.id) ?? null : null;
+}
+
 function getFactionAnchorCell(layout: WorldMapLayout, factionId: string): MapCell | null {
   const faction = layout.simulation?.factions.find(entry => entry.id === factionId);
   if (!faction) return null;
@@ -118,6 +143,21 @@ function getObjectiveTargetLabel(targetId: string | undefined): string | null {
   return leaf.replace(/_/g, " ");
 }
 
+function getTensionShortLabel(tension: WorldTension): string {
+  const labels: Record<WorldTension["type"], string> = {
+    criminal: "CRI",
+    social: "SOC",
+    commercial: "COM",
+    military: "MIL",
+    religious: "REL",
+    political: "POL",
+    scarcity: "PEN",
+    control_conflict: "CTL",
+    mobility_risk: "MOB"
+  };
+  return labels[tension.type] ?? tension.type.slice(0, 3).toUpperCase();
+}
+
 export function WorldSimulationOverlay(props: {
   layout: WorldMapLayout;
   mode: OverlayMode;
@@ -135,6 +175,10 @@ export function WorldSimulationOverlay(props: {
     routes: Object.entries(props.state.pressures.route ?? {}),
     regions: Object.entries(props.state.pressures.region ?? {})
   };
+  const activeTensions = Object.values(props.state.tensions)
+    .slice()
+    .sort((left, right) => right.severity - left.severity)
+    .slice(0, 24);
   const relationSegments = factions.flatMap(faction =>
     faction.relations.map(relation => {
       const sortedIds = [faction.id, relation.targetFactionId].sort();
@@ -367,6 +411,89 @@ export function WorldSimulationOverlay(props: {
                 stroke={hexToRgba(PRESSURE_COLORS[dominant.type], 0.88)}
                 strokeWidth={2}
               />
+            );
+          })}
+        </g>
+      )}
+
+      {(props.mode === "pressures" || props.mode === "all") && activeTensions.length > 0 && (
+        <g>
+          {activeTensions.map(tension => {
+            const route = getTensionTargetRoute(props.layout, tension);
+            const color = TENSION_COLORS[tension.type] ?? "#f4c967";
+            const severity = Math.max(0, Math.min(100, tension.severity));
+            if (route && route.cells.length >= 2) {
+              const anchorCell = getRouteAnchorCell(props.layout, route.id);
+              const center = anchorCell ? getCellCenter(props.layout, anchorCell) : null;
+              return (
+                <g key={`active-tension:${tension.id}`}>
+                  <polyline
+                    points={buildPathPoints(props.layout, route.cells)}
+                    fill="none"
+                    stroke={hexToRgba(color, Math.min(0.92, 0.42 + severity / 190))}
+                    strokeWidth={4 + severity / 24}
+                    strokeDasharray="5 5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  {center ? (
+                    <>
+                      <circle
+                        cx={center.x}
+                        cy={center.y}
+                        r={9 + severity / 18}
+                        fill={hexToRgba(color, 0.2)}
+                        stroke={hexToRgba(color, 0.95)}
+                        strokeWidth={2.4}
+                      />
+                      <text
+                        x={center.x}
+                        y={center.y + 3}
+                        textAnchor="middle"
+                        fill="#fff7d6"
+                        style={{ fontSize: 9, fontWeight: 900, paintOrder: "stroke", stroke: "rgba(8,11,17,0.9)", strokeWidth: 4 }}
+                      >
+                        {getTensionShortLabel(tension)}
+                      </text>
+                    </>
+                  ) : null}
+                </g>
+              );
+            }
+
+            const anchorCell = getTensionAnchorCell(props.layout, tension.targetRefs[0]);
+            if (!anchorCell) return null;
+            const center = getCellCenter(props.layout, anchorCell);
+            const radius = 10 + severity / 11;
+            return (
+              <g key={`active-tension:${tension.id}`}>
+                <circle
+                  cx={center.x}
+                  cy={center.y}
+                  r={radius}
+                  fill={hexToRgba(color, 0.16)}
+                  stroke={hexToRgba(color, 0.96)}
+                  strokeWidth={2.4}
+                  strokeDasharray={severity >= 65 ? undefined : "4 4"}
+                />
+                <circle
+                  cx={center.x}
+                  cy={center.y}
+                  r={Math.max(4, radius * 0.32)}
+                  fill={hexToRgba(color, 0.86)}
+                  stroke="rgba(8,11,17,0.85)"
+                  strokeWidth={1.4}
+                />
+                <text
+                  x={center.x}
+                  y={center.y - radius - 4}
+                  textAnchor="middle"
+                  fill="#fff7d6"
+                  style={{ fontSize: 10, fontWeight: 900, paintOrder: "stroke", stroke: "rgba(8,11,17,0.9)", strokeWidth: 4 }}
+                >
+                  {getTensionShortLabel(tension)} {Math.round(severity)}
+                </text>
+              </g>
             );
           })}
         </g>

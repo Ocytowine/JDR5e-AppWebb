@@ -202,6 +202,107 @@ Definition of done :
 
 - la simulation continue a bouger apres resolution locale d'un probleme.
 
+### Lot 6 - Cycle de vie des tensions actives
+
+Statut : `completed`
+
+But :
+
+- faire des tensions des phenomenes persistants, pas seulement des sorties ponctuelles.
+
+Travail :
+
+- indexer les tensions sur les entites via `activeTensionIds` ;
+- faire monter ou baisser la severite au macro tick ;
+- supprimer proprement les tensions resolues ;
+- ecrire creation, escalation, apaisement et resolution dans `recentHistory` ;
+- appliquer des effets systemiques quand une tension reste forte.
+
+Definition of done :
+
+- une tension active evolue sans intervention externe ;
+- les entites concernees gardent une memoire locale lisible.
+
+### Lot 7 - Reponse systeme aux tensions
+
+Statut : `completed`
+
+But :
+
+- permettre aux factions systeme de reagir aux tensions actives avant que les stats soient totalement degradees.
+
+Travail :
+
+- prendre en compte les `activeTensionIds` dans la generation des objectifs systeme ;
+- augmenter le scoring des objectifs publics, civiques, logistiques et regionaux selon le type de tension ;
+- verifier le cycle `scarcity -> reopen_market`.
+
+Definition of done :
+
+- une tension persistante peut declencher ou prioriser un objectif systeme adapte.
+
+### Lot 8 - Observabilite runtime
+
+Statut : `completed`
+
+But :
+
+- rendre le cycle vivant visible et debuggable dans le mode simulation.
+
+Travail :
+
+- ajouter une commande `npm run verify:world-simulation` ;
+- afficher les tensions actives dans la sidebar ;
+- dessiner les tensions actives sur la carte en modes `Pressions` et `Tout` ;
+- afficher les tensions locales dans l'analyse par case ;
+- afficher `recentHistory` dans l'inspection d'entite.
+
+Definition of done :
+
+- on peut verifier en CLI et inspecter dans l'UI pourquoi une ville, une route ou une region evolue.
+
+### Lot 9 - Soulagement progressif des tensions
+
+Statut : `completed`
+
+But :
+
+- eviter que les actions systeme creent seulement de nouvelles consequences sans traiter le phenomene actif initial.
+
+Travail :
+
+- soulager explicitement les tensions actives correspondant a une action reussie ;
+- historiser le soulagement via `tension_relieved` ;
+- conserver des pas de soulagement progressifs pour que plusieurs actions comptent sans eteindre tout le cycle en un seul passage ;
+- garder les contre-tensions deja produites par certaines actions reussies.
+
+Definition of done :
+
+- une action systeme peut reduire une tension active ;
+- si la tension reste forte, elle continue a produire des deltas systemiques ;
+- le scenario CLI verifie le cycle `scarcity -> reopen_market -> tension_relieved`.
+
+### Lot 10 - Discipline des factions systeme
+
+Statut : `completed`
+
+But :
+
+- eviter que les factions systeme depensent leurs ressources sur des actions opportunistes sans rapport avec leurs objectifs.
+
+Travail :
+
+- rendre les factions systeme inactives quand elles n'ont pas d'objectif actif ;
+- corriger la selection civique pour choisir le meilleur quartier eligible, pas seulement le meilleur score brut ;
+- brancher les tensions politiques locales sur les objectifs `reduce_fear` et le soulagement `public_reassurance` ;
+- rendre le script `analyze-sandbox-simulation.ts` executable hors Vite et utile pour les runs longs.
+
+Definition of done :
+
+- une tension politique locale forte peut declencher une reponse civique ;
+- les ressources des factions systeme sont reservees aux objectifs systeme ;
+- la sonde sandbox longue ne garde plus la tension politique de quartier bloquee comme tension dominante finale.
+
 ## Etat Initial Au Moment Du Gel
 
 - cycle systemique : Lots 1, 2, 3, 4 et 5 lances ;
@@ -209,4 +310,8 @@ Definition of done :
 - objectifs systeme : generation macro runtime implemente ;
 - actions de stabilisation : premier socle implemente ;
 - usure territoriale : derive macro implemente ;
-- conversion des tensions : premier cycle reactif implemente.
+- conversion des tensions : premier cycle reactif implemente ;
+- tensions actives : cycle de vie macro implemente ;
+- soulagement des tensions : actions systeme reliees aux tensions actives ;
+- discipline systeme : factions systeme limitees aux objectifs actifs ;
+- observabilite : verification CLI, overlay carte, panneaux tensions et historique implementes.

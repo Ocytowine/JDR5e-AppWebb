@@ -299,7 +299,7 @@ export const WORLD_ACTION_DEFINITIONS: WorldActionDefinition[] = [
     compatibleObjectives: ["reduce_fear", "contain_unrest"],
     cooldown: 1,
     basePriority: 45,
-    preconditions: [{ type: "target_pressure", pressure: "social", op: "gte", value: 45 }],
+    preconditions: [{ type: "objective_category", category: "reduce_fear" }],
     costs: [{ selector: "actor", type: "state", key: "resources", amount: -2 }],
     successEffects: [
       { selector: "target", type: "state", key: "fear", amount: -14 },

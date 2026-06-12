@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { getWorldMapCellKey, type MapLayerId, type WorldMapLayout } from "../data/worldMapLayout";
 import { createWorldStateFromMapLayout, runWorldHours, summarizeSimulationSeed } from "../world-simulation";
-import type { EntityRef, TickOutput, WorldState } from "../world-simulation";
+import type { EntityRef, TickOutput, WorldHistoryEntry, WorldState, WorldTension } from "../world-simulation";
 import { MapCanvas, useWikiEntries } from "./mapShared";
 import { WorldSimulationOverlay } from "./WorldSimulationOverlay";
 import { MapEditorSidebar } from "./editor/MapEditorSidebar";
@@ -71,6 +71,26 @@ function cloneState<T>(value: T): T {
 function formatEntityRef(ref: EntityRef | undefined): string {
   if (!ref) return "n/a";
   return `${ref.kind}:${ref.id}`;
+}
+
+function getEntityHistory(state: WorldState, ref: EntityRef | undefined): WorldHistoryEntry[] {
+  if (!ref) return [];
+  switch (ref.kind) {
+    case "city":
+      return state.cities[ref.id]?.recentHistory ?? [];
+    case "district":
+      return state.districts[ref.id]?.recentHistory ?? [];
+    case "route":
+      return state.routes[ref.id]?.recentHistory ?? [];
+    case "region":
+      return state.regions[ref.id]?.recentHistory ?? [];
+    case "faction":
+      return state.factions[ref.id]?.recentHistory ?? [];
+    case "mobileActor":
+      return state.mobileActors[ref.id]?.recentHistory ?? [];
+    default:
+      return [];
+  }
 }
 
 function getEntityRefKey(ref: EntityRef): string {
@@ -149,6 +169,21 @@ function formatDeltaKindLabel(kind: string | undefined): string {
   if (kind === "territorial_wear") return "Usure";
   if (kind === "tension_conversion") return "Conversion";
   return "Runtime";
+}
+
+function formatTensionTypeLabel(type: WorldTension["type"]): string {
+  const labels: Record<WorldTension["type"], string> = {
+    criminal: "Criminelle",
+    social: "Sociale",
+    commercial: "Commerciale",
+    military: "Militaire",
+    religious: "Religieuse",
+    political: "Politique",
+    scarcity: "Penurie",
+    control_conflict: "Controle",
+    mobility_risk: "Mobilite"
+  };
+  return labels[type] ?? type.replace(/_/g, " ");
 }
 
 function formatObjectiveReadinessReason(reason: string): string {
@@ -396,6 +431,18 @@ export function WorldMapSimulationScreen(props: {
     () => (latestOutput?.deltas ?? []).filter(delta => delta.meta?.kind === "tension_conversion").slice(0, 8),
     [latestOutput?.deltas]
   );
+  const activeTensionSummaries = useMemo(() => {
+    return Object.values(state.tensions)
+      .map(tension => ({
+        tension,
+        severity: Math.round(tension.severity),
+        ageHours: Math.max(0, (state.clock.tick - tension.sinceTick) * getHoursPerMicroTick(state)),
+        sourceLabel: tension.sourceRefs.map(formatEntityRef).join(" | "),
+        targetLabel: tension.targetRefs.map(formatEntityRef).join(" | ")
+      }))
+      .sort((left, right) => right.severity - left.severity)
+      .slice(0, 12);
+  }, [state]);
   const territorialCycleSummary = useMemo(() => {
     return Object.values(state.cities)
       .map(city => {
@@ -549,6 +596,10 @@ export function WorldMapSimulationScreen(props: {
       );
     });
   }, [latestOutput, selectedInspectEntity]);
+  const inspectedHistory = useMemo(
+    () => getEntityHistory(state, selectedInspectEntity?.ref),
+    [selectedInspectEntity?.ref, state]
+  );
 
   useEffect(() => {
     setSelectedInspectEntityKey(current =>
@@ -761,6 +812,7 @@ export function WorldMapSimulationScreen(props: {
                     <div>Objectifs: anneau or sur la cible, avec trait depuis la faction suivie vers ses zones de travail.</div>
                     <div>Mobilite: pion colore, avec trace d'itineraire si le mobile est suivi.</div>
                     <div>Pressions: halos et traits colores selon la pression dominante.</div>
+                    <div>Tensions actives: marqueurs avec code court et taille selon la severite; elles representent les phenomenes persistants du monde.</div>
                     <div>Relations: liens entre factions, avec couleur selon le statut diplomatique.</div>
                     <div style={{ display: "grid", gap: 6, marginTop: 4 }}>
                       {Object.entries(RELATION_LABELS).map(([status, label]) => (
@@ -788,7 +840,7 @@ export function WorldMapSimulationScreen(props: {
                     <div style={{ display: "grid", gap: 4, marginTop: 6, padding: 10, borderRadius: 10, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
                       <div style={{ fontWeight: 700, color: "#f4c967" }}>Lecture rapide</div>
                       <div>1. Choisis une faction pour voir sa zone, ses liens et ses objectifs.</div>
-                      <div>2. Passe en `Objectifs` pour voir ou elle agit concretement.</div>
+                      <div>2. Passe en `Pressions` pour voir a la fois les pressions et les tensions persistantes.</div>
                       <div>3. Clique une case pour lire ce qu'elle contient et ce qui s'y passe.</div>
                     </div>
                   </div>
@@ -1135,6 +1187,44 @@ export function WorldMapSimulationScreen(props: {
               </SimulationSidebarSection>
 
               <SimulationSidebarSection
+                title="Tensions Actives"
+                summary={activeTensionSummaries.length > 0 ? `${activeTensionSummaries.length} tension(s) active(s). Elles sont les phenomenes que le monde maintient, amplifie ou resout au macro tick.` : "Aucune tension active. Les pressions peuvent encore monter avant de devenir un phenomene persistant."}
+              >
+                <div style={{ display: "grid", gap: 8 }}>
+                  {activeTensionSummaries.length > 0 ? (
+                    activeTensionSummaries.map(entry => (
+                      <div
+                        key={entry.tension.id}
+                        style={{
+                          padding: 10,
+                          borderRadius: 10,
+                          background: "rgba(255,255,255,0.04)",
+                          border: "1px solid rgba(255,255,255,0.08)",
+                          display: "grid",
+                          gap: 5,
+                          fontSize: 12,
+                          color: "#dce5f2"
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+                          <div style={{ fontWeight: 800, color: "#eef6ff" }}>{formatTensionTypeLabel(entry.tension.type)}</div>
+                          <div style={{ color: entry.severity >= 70 ? "#f4a261" : entry.severity >= 45 ? "#f4c967" : "#9fc4ff", fontWeight: 800 }}>
+                            {entry.severity}
+                          </div>
+                        </div>
+                        <div>Cible: {entry.targetLabel || "n/a"}</div>
+                        <div>Source: {entry.sourceLabel || "n/a"}</div>
+                        <div>Age: {formatDurationHours(entry.ageHours)} depuis {formatAbsoluteTickTime(entry.tension.sinceTick, state)}</div>
+                        <div>Tags: {formatStringList(entry.tension.tags)}</div>
+                      </div>
+                    ))
+                  ) : (
+                    <div style={{ fontSize: 12, color: "#c8d0de" }}>Aucune tension active dans le runtime courant.</div>
+                  )}
+                </div>
+              </SimulationSidebarSection>
+
+              <SimulationSidebarSection
                 title="Cycle Territorial"
                 summary="Montre, par ville, quel trio public agit encore et quels objectifs systeme ou narratifs restent dominants."
               >
@@ -1182,6 +1272,7 @@ export function WorldMapSimulationScreen(props: {
                       pressureEvaluations={inspectedPressureEvaluations}
                       actionCandidates={inspectedActionCandidates}
                       events={inspectedEvents}
+                      history={inspectedHistory}
                       latestOutput={latestOutput}
                     />
                   </div>

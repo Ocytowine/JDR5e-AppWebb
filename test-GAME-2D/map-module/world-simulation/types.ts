@@ -210,6 +210,7 @@ export type WorldRoute = {
   tags: string[];
   state: DynamicStats;
   recentHistory: WorldHistoryEntry[];
+  activeTensionIds: EntityId[];
   mobileActorIds: EntityId[];
 };
 
@@ -231,6 +232,7 @@ export type WorldRegion = {
   mainRouteIds: EntityId[];
   state: DynamicStats;
   dominantWeather?: string;
+  recentHistory: WorldHistoryEntry[];
   activeTensionIds: EntityId[];
   tags: string[];
 };

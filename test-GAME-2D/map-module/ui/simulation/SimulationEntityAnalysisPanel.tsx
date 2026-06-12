@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import type { ActionCandidateTrace, EntityRef, PressureEvaluationTrace, TickOutput, WorldEvent } from "../../world-simulation";
+import type { ActionCandidateTrace, EntityRef, PressureEvaluationTrace, TickOutput, WorldEvent, WorldHistoryEntry } from "../../world-simulation";
 import { createEditorButtonStyle, editorSurfaceStyles, editorTextStyles } from "../editor/editorTheme";
 import { formatRejectionReason, formatScaleStep } from "./timeFormatting";
 
@@ -27,6 +27,7 @@ export function SimulationEntityAnalysisPanel(props: {
   pressureEvaluations: PressureEvaluationTrace[];
   actionCandidates: ActionCandidateTrace[];
   events: WorldEvent[];
+  history: WorldHistoryEntry[];
   latestOutput: TickOutput | null;
 }): React.JSX.Element {
   const dominantPressures = useMemo(
@@ -67,6 +68,7 @@ export function SimulationEntityAnalysisPanel(props: {
           <div>Entite: {props.selectedEntity.label}</div>
           <div>Reference technique: {formatEntityRef(props.selectedEntity.ref)}</div>
           <div>Evenements lies au dernier cycle horaire: {props.events.length}</div>
+          <div>Historique recent: {props.history.length} entree(s)</div>
           <div>Actions envisagees: {props.actionCandidates.length}</div>
         </div>
       </div>
@@ -150,6 +152,26 @@ export function SimulationEntityAnalysisPanel(props: {
           <div style={{ fontSize: 12, color: "#c8d0de" }}>Aucun evenement n'a implique cette entite sur le dernier cycle horaire.</div>
         )}
       </div>
+
+      <details style={{ ...editorSurfaceStyles.subsection, gap: 6 }} open={props.history.length > 0}>
+        <summary style={{ cursor: "pointer", userSelect: "none", ...editorTextStyles.sectionTitle }}>
+          Memoire recente de l'entite
+        </summary>
+        <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
+          {props.history.length > 0 ? (
+            props.history.slice(0, 8).map((entry, index) => (
+              <div key={`${entry.tick}:${entry.type}:${index}`} style={{ fontSize: 12, color: "#dce5f2", lineHeight: 1.45 }}>
+                <div style={{ fontWeight: 700, color: "#eef3ff" }}>
+                  tick {entry.tick} - {entry.type}
+                </div>
+                <div style={{ marginTop: 3, color: "#c8d0de" }}>{entry.summary}</div>
+              </div>
+            ))
+          ) : (
+            <div style={{ fontSize: 12, color: "#c8d0de" }}>Aucune memoire persistante n'est encore attachee a cette entite.</div>
+          )}
+        </div>
+      </details>
 
       {props.latestOutput ? (
         <button type="button" style={createEditorButtonStyle({ compact: true, active: false })}>

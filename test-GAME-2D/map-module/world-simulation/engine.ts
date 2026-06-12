@@ -30,6 +30,7 @@ import type {
   WorldEntityKind,
   WorldEvent,
   WorldFaction,
+  WorldHistoryEntry,
   WorldRoute,
   WorldState,
   WorldTension
@@ -53,6 +54,7 @@ const ENTITY_PRESSURE_KINDS: Array<Extract<WorldEntityKind, "city" | "district" 
   "route",
   "region"
 ];
+const RECENT_HISTORY_LIMIT = 64;
 
 function getActiveObjectivePhase(objective: SpecialObjective | undefined) {
   if (!objective || objective.phases.length === 0) return undefined;
@@ -249,6 +251,300 @@ function applySystemShiftDelta(state: WorldState, deltas: StateDelta[], ref: Ent
   });
 }
 
+function getHistoryContainer(state: WorldState, ref: EntityRef): { recentHistory?: WorldHistoryEntry[] } | undefined {
+  switch (ref.kind) {
+    case "city":
+      return state.cities[ref.id];
+    case "district":
+      return state.districts[ref.id];
+    case "route":
+      return state.routes[ref.id];
+    case "region":
+      return state.regions[ref.id];
+    case "faction":
+      return state.factions[ref.id];
+    case "mobileActor":
+      return state.mobileActors[ref.id];
+    default:
+      return undefined;
+  }
+}
+
+function getTensionContainer(state: WorldState, ref: EntityRef): { activeTensionIds?: EntityId[] } | undefined {
+  switch (ref.kind) {
+    case "city":
+      return state.cities[ref.id];
+    case "district":
+      return state.districts[ref.id];
+    case "route":
+      return state.routes[ref.id];
+    case "region":
+      return state.regions[ref.id];
+    default:
+      return undefined;
+  }
+}
+
+function appendHistory(state: WorldState, refs: EntityRef[], entry: WorldHistoryEntry) {
+  const seen = new Set<string>();
+  refs.forEach(ref => {
+    const key = `${ref.kind}:${ref.id}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    const container = getHistoryContainer(state, ref);
+    if (!container?.recentHistory) return;
+    container.recentHistory.unshift(entry);
+    container.recentHistory = container.recentHistory.slice(0, RECENT_HISTORY_LIMIT);
+  });
+}
+
+function getEntityRefKey(ref: EntityRef): string {
+  return `${ref.kind}:${ref.id}`;
+}
+
+function mergeEntityRefs(left: EntityRef[], right: EntityRef[]): EntityRef[] {
+  const refs = [...left];
+  const seen = new Set(left.map(getEntityRefKey));
+  right.forEach(ref => {
+    const key = getEntityRefKey(ref);
+    if (seen.has(key)) return;
+    seen.add(key);
+    refs.push(ref);
+  });
+  return refs;
+}
+
+function normalizeEntityRefs(refs: EntityRef[]): string {
+  return [...new Set(refs.map(getEntityRefKey))].sort().join("|");
+}
+
+function normalizeTags(tags: string[]): string {
+  return [...new Set(tags)].sort().join("|");
+}
+
+function getTensionSignature(tension: WorldTension): string {
+  return [
+    tension.type,
+    normalizeEntityRefs(tension.targetRefs),
+    normalizeTags(tension.tags)
+  ].join("::");
+}
+
+function findEquivalentTension(state: WorldState, tension: WorldTension): WorldTension | undefined {
+  const signature = getTensionSignature(tension);
+  return Object.values(state.tensions).find(existing => existing.id !== tension.id && getTensionSignature(existing) === signature);
+}
+
+function linkTensionToTargets(state: WorldState, tensionId: EntityId, targetRefs: EntityRef[]) {
+  targetRefs.forEach(ref => {
+    const container = getTensionContainer(state, ref);
+    if (!container?.activeTensionIds) return;
+    if (!container.activeTensionIds.includes(tensionId)) {
+      container.activeTensionIds.unshift(tensionId);
+      container.activeTensionIds = container.activeTensionIds.slice(0, 24);
+    }
+  });
+}
+
+function getTensionIdsForRef(state: WorldState, ref: EntityRef): EntityId[] {
+  return getTensionContainer(state, ref)?.activeTensionIds ?? [];
+}
+
+function relieveActiveTensions(
+  state: WorldState,
+  refs: EntityRef[],
+  types: WorldTension["type"][],
+  amount: number,
+  causeRefs: EntityRef[],
+  reason: string
+) {
+  const seen = new Set<EntityId>();
+  refs
+    .flatMap(ref => getTensionIdsForRef(state, ref))
+    .forEach(tensionId => {
+      if (seen.has(tensionId)) return;
+      seen.add(tensionId);
+      const tension = state.tensions[tensionId];
+      if (!tension || !types.includes(tension.type)) return;
+      const before = tension.severity;
+      tension.severity = clamp(tension.severity - amount);
+      const historyRefs = mergeEntityRefs(mergeEntityRefs(tension.sourceRefs, tension.targetRefs), causeRefs);
+
+      if (tension.severity <= 7) {
+        delete state.tensions[tension.id];
+        removeTensionReferences(state, tension.id);
+        appendHistory(state, historyRefs, {
+          tick: state.clock.tick,
+          type: "tension_resolved",
+          summary: `${tension.type} tension resolved by ${reason} from ${Math.round(before)} to ${Math.round(tension.severity)}`,
+          refs: historyRefs
+        });
+        return;
+      }
+
+      if (tension.severity !== before) {
+        appendHistory(state, historyRefs, {
+          tick: state.clock.tick,
+          type: "tension_relieved",
+          summary: `${tension.type} tension relieved by ${reason} ${Math.round(before)} -> ${Math.round(tension.severity)}`,
+          refs: historyRefs
+        });
+      }
+    });
+}
+
+function registerTension(state: WorldState, tension: WorldTension) {
+  const existing = findEquivalentTension(state, tension);
+  if (existing) {
+    const before = existing.severity;
+    existing.severity = clamp(Math.max(existing.severity, tension.severity) + Math.round(Math.min(existing.severity, tension.severity) * 0.12));
+    existing.sourceRefs = mergeEntityRefs(existing.sourceRefs, tension.sourceRefs);
+    existing.targetRefs = mergeEntityRefs(existing.targetRefs, tension.targetRefs);
+    existing.tags = [...new Set([...existing.tags, ...tension.tags])].sort();
+    linkTensionToTargets(state, existing.id, existing.targetRefs);
+    appendHistory(state, [...existing.sourceRefs, ...existing.targetRefs], {
+      tick: state.clock.tick,
+      type: "tension_reinforced",
+      summary: `${existing.type} tension reinforced ${Math.round(before)} -> ${Math.round(existing.severity)} (${existing.tags.join(", ") || "no tags"})`,
+      refs: [...existing.sourceRefs, ...existing.targetRefs]
+    });
+    return;
+  }
+
+  state.tensions[tension.id] = tension;
+  linkTensionToTargets(state, tension.id, tension.targetRefs);
+  appendHistory(state, [...tension.sourceRefs, ...tension.targetRefs], {
+    tick: state.clock.tick,
+    type: "tension_created",
+    summary: `${tension.type} tension ${Math.round(tension.severity)} (${tension.tags.join(", ") || "no tags"})`,
+    refs: [...tension.sourceRefs, ...tension.targetRefs]
+  });
+}
+
+function removeTensionReferences(state: WorldState, tensionId: EntityId) {
+  Object.values(state.cities).forEach(city => {
+    city.activeTensionIds = city.activeTensionIds.filter(id => id !== tensionId);
+  });
+  Object.values(state.districts).forEach(district => {
+    district.activeTensionIds = district.activeTensionIds.filter(id => id !== tensionId);
+  });
+  Object.values(state.routes).forEach(route => {
+    route.activeTensionIds = route.activeTensionIds.filter(id => id !== tensionId);
+  });
+  Object.values(state.regions).forEach(region => {
+    region.activeTensionIds = region.activeTensionIds.filter(id => id !== tensionId);
+  });
+}
+
+function getTensionPressureScore(state: WorldState, tension: WorldTension, ref: EntityRef): number {
+  switch (tension.type) {
+    case "criminal":
+    case "social":
+    case "commercial":
+    case "military":
+    case "religious":
+    case "political":
+      return getPressure(state, ref, tension.type);
+    case "scarcity":
+      return Math.max(getPressure(state, ref, "commercial"), 100 - getStateStat(state, ref, "supply"));
+    case "control_conflict":
+      return Math.max(getPressure(state, ref, "political"), getPressure(state, ref, "social"), 100 - getStateStat(state, ref, "politicalControl"));
+    case "mobility_risk":
+      return Math.max(getPressure(state, ref, "military"), getStateStat(state, ref, "ambushRisk"), 100 - getStateStat(state, ref, "security"));
+    default:
+      return 0;
+  }
+}
+
+function getDominantTensionPressure(state: WorldState, tension: WorldTension): number {
+  return Math.max(0, ...tension.targetRefs.map(ref => getTensionPressureScore(state, tension, ref)));
+}
+
+function getTensionDrift(pressure: number, severity: number, age: number): number {
+  if (pressure >= 72) return 6;
+  if (pressure >= 58) return 4;
+  if (pressure <= 22) return -8;
+  if (pressure <= 34) return -5;
+  if (severity >= 70 && age > 0) return -2;
+  return -1;
+}
+
+function getPrimaryTensionTarget(tension: WorldTension): EntityRef | undefined {
+  return tension.targetRefs[0];
+}
+
+function applyTensionSideEffects(state: WorldState, ctx: TickContext, tension: WorldTension) {
+  if (tension.severity < 55) return;
+  const target = getPrimaryTensionTarget(tension);
+  if (!target) return;
+  const source = `tension:${tension.id}`;
+  switch (tension.type) {
+    case "criminal":
+      applySystemShiftDelta(state, ctx.generatedDeltas, target, "danger", 2, source);
+      applySystemShiftDelta(state, ctx.generatedDeltas, target, "order", -1, source);
+      return;
+    case "social":
+      applySystemShiftDelta(state, ctx.generatedDeltas, target, "agitation", 2, source);
+      applySystemShiftDelta(state, ctx.generatedDeltas, target, "fear", 1, source);
+      return;
+    case "commercial":
+    case "scarcity":
+      applySystemShiftDelta(state, ctx.generatedDeltas, target, "supply", -2, source);
+      applySystemShiftDelta(state, ctx.generatedDeltas, target, "commerce", -1, source);
+      return;
+    case "military":
+    case "mobility_risk":
+      applySystemShiftDelta(state, ctx.generatedDeltas, target, "security", -1, source);
+      applySystemShiftDelta(state, ctx.generatedDeltas, target, "ambushRisk", 2, source);
+      return;
+    case "political":
+    case "control_conflict":
+      applySystemShiftDelta(state, ctx.generatedDeltas, target, "politicalControl", -2, source);
+      applySystemShiftDelta(state, ctx.generatedDeltas, target, "stability", -1, source);
+      return;
+    case "religious":
+      applySystemShiftDelta(state, ctx.generatedDeltas, target, "cohesion", -1, source);
+      applySystemShiftDelta(state, ctx.generatedDeltas, target, "agitation", 1, source);
+      return;
+    default:
+      return;
+  }
+}
+
+function processTensionLifecycle(state: WorldState, ctx: TickContext) {
+  Object.values({ ...state.tensions }).forEach(tension => {
+    const pressure = getDominantTensionPressure(state, tension);
+    const before = tension.severity;
+    const age = Math.max(0, state.clock.tick - tension.sinceTick);
+    const after = clamp(before + getTensionDrift(pressure, before, age));
+    tension.severity = after;
+
+    const refs = [...tension.sourceRefs, ...tension.targetRefs];
+    if (after <= 7) {
+      delete state.tensions[tension.id];
+      removeTensionReferences(state, tension.id);
+      appendHistory(state, refs, {
+        tick: state.clock.tick,
+        type: "tension_resolved",
+        summary: `${tension.type} tension resolved from ${Math.round(before)} to ${Math.round(after)}`,
+        refs
+      });
+      return;
+    }
+
+    if (after !== before) {
+      appendHistory(state, refs, {
+        tick: state.clock.tick,
+        type: after > before ? "tension_escalated" : "tension_eased",
+        summary: `${tension.type} tension ${Math.round(before)} -> ${Math.round(after)} under pressure ${Math.round(pressure)}`,
+        refs
+      });
+    }
+
+    applyTensionSideEffects(state, ctx, tension);
+  });
+}
+
 function getDistrictCityRef(state: WorldState, ref: EntityRef): EntityRef | undefined {
   if (ref.kind !== "district") return undefined;
   const district = state.districts[ref.id];
@@ -319,7 +615,7 @@ function createSystemTension(
     sinceTick: state.clock.tick,
     tags
   };
-  state.tensions[tension.id] = tension;
+  registerTension(state, tension);
 }
 
 function applySystemicTensionConversion(
@@ -332,8 +628,10 @@ function applySystemicTensionConversion(
   const targetRef = candidate.targetRef;
   const cityRef = getDistrictCityRef(state, targetRef) ?? (targetRef.kind === "city" ? targetRef : undefined);
   const regionRef = getRegionRefForTarget(state, targetRef);
+  const localRefs = cityRef ? [targetRef, cityRef] : [targetRef];
 
   if (candidate.action.id === "patrol" && success && targetRef.kind === "district") {
+    relieveActiveTensions(state, [targetRef], ["criminal", "control_conflict"], 10, [candidate.actorRef], candidate.action.id);
     applySystemShiftDelta(state, ctx.generatedDeltas, targetRef, "fear", 4, source);
     applySystemShiftDelta(state, ctx.generatedDeltas, targetRef, "agitation", 2, source);
     if (cityRef) {
@@ -344,6 +642,7 @@ function applySystemicTensionConversion(
   }
 
   if (candidate.action.id === "inspect_customs" && success && targetRef.kind === "district") {
+    relieveActiveTensions(state, localRefs, ["commercial", "criminal", "control_conflict"], 8, [candidate.actorRef], candidate.action.id);
     applySystemShiftDelta(state, ctx.generatedDeltas, targetRef, "agitation", 5, source);
     applySystemShiftDelta(state, ctx.generatedDeltas, targetRef, "fear", 2, source);
     if (regionRef) {
@@ -354,6 +653,7 @@ function applySystemicTensionConversion(
   }
 
   if (candidate.action.id === "public_reassurance" && success && targetRef.kind === "district") {
+    relieveActiveTensions(state, [targetRef], ["social", "religious", "political", "control_conflict"], 8, [candidate.actorRef], candidate.action.id);
     applySystemShiftDelta(state, ctx.generatedDeltas, targetRef, "surveillance", -2, source);
     if (cityRef) {
       applySystemShiftDelta(state, ctx.generatedDeltas, cityRef, "order", 1, source);
@@ -362,6 +662,7 @@ function applySystemicTensionConversion(
   }
 
   if (candidate.action.id === "relief_distribution" && success && targetRef.kind === "district") {
+    relieveActiveTensions(state, localRefs, ["scarcity", "social"], 4, [candidate.actorRef], candidate.action.id);
     if (cityRef) {
       applySystemShiftDelta(state, ctx.generatedDeltas, cityRef, "supply", -3, source);
       applySystemShiftDelta(state, ctx.generatedDeltas, cityRef, "commerce", 1, source);
@@ -378,6 +679,7 @@ function applySystemicTensionConversion(
   }
 
   if (candidate.action.id === "reopen_market" && success && targetRef.kind === "district") {
+    relieveActiveTensions(state, localRefs, ["scarcity", "commercial"], 3, [candidate.actorRef], candidate.action.id);
     applySystemShiftDelta(state, ctx.generatedDeltas, targetRef, "danger", 4, source);
     if (cityRef) {
       applySystemShiftDelta(state, ctx.generatedDeltas, cityRef, "commerce", 2, source);
@@ -387,6 +689,7 @@ function applySystemicTensionConversion(
   }
 
   if ((candidate.action.id === "secure_route" || candidate.action.id === "repair_route") && success && targetRef.kind === "route") {
+    relieveActiveTensions(state, [targetRef], ["military", "mobility_risk"], 10, [candidate.actorRef], candidate.action.id);
     applySystemShiftDelta(state, ctx.generatedDeltas, targetRef, "traffic", 3, source);
     applySystemShiftDelta(state, ctx.generatedDeltas, targetRef, "ambushRisk", 2, source);
     const route = state.routes[targetRef.id];
@@ -409,6 +712,7 @@ function applySystemicTensionConversion(
     if (regionRef) {
       applySystemShiftDelta(state, ctx.generatedDeltas, regionRef, "politicalControl", -1, source);
     }
+    createSystemTension(state, "scarcity", 14, [candidate.actorRef], localRefs, ["market_failure"]);
   }
 }
 
@@ -558,7 +862,7 @@ function applyObjectiveFailureConsequences(
         sinceTick: state.clock.tick,
         tags: template.tags
       };
-      state.tensions[tension.id] = tension;
+      registerTension(state, tension);
       return;
     }
     if (template.type === "open_opportunity") {
@@ -989,14 +1293,19 @@ function traceActorCandidates(actors: ActorCandidate[]): ActorCandidateTrace[] {
 }
 
 function findActorCandidates(state: WorldState, scale: TickScale): ActorCandidate[] {
-  const factionCandidates: ActorCandidate[] = Object.values(state.factions).map(faction => ({
-    ref: { kind: "faction", id: faction.id },
-    actor: faction,
-    objective: faction.objectives
-      .map(goal => state.specialObjectives[goal.objectiveId])
-      .filter((objective): objective is SpecialObjective => Boolean(objective) && objective.state !== "completed" && objective.state !== "failed" && objective.state !== "blocked")
-      .sort((left, right) => right.priority - left.priority)[0]
-  }));
+  const factionCandidates: ActorCandidate[] = Object.values(state.factions)
+    .map(faction => {
+      const objective = faction.objectives
+        .map(goal => state.specialObjectives[goal.objectiveId])
+        .filter((entry): entry is SpecialObjective => Boolean(entry) && entry.state !== "completed" && entry.state !== "failed" && entry.state !== "blocked")
+        .sort((left, right) => right.priority - left.priority)[0];
+      return {
+        ref: { kind: "faction" as const, id: faction.id },
+        actor: faction,
+        objective
+      };
+    })
+    .filter(candidate => !candidate.actor.tags.includes("system") || Boolean(candidate.objective));
 
   const mobileCandidates: ActorCandidate[] = Object.values(state.mobileActors)
     .filter(actor => scale === "micro"
@@ -1240,7 +1549,7 @@ function applyConsequencesFromObjective(state: WorldState, ctx: TickContext, obj
         sinceTick: state.clock.tick,
         tags: template.tags
       };
-      state.tensions[tension.id] = tension;
+      registerTension(state, tension);
       return;
     }
     if (template.type === "open_opportunity") {
@@ -1612,7 +1921,42 @@ function advanceMobileActors(state: WorldState, ctx: TickContext) {
   });
 }
 
+function formatEntityRef(ref: EntityRef | undefined): string {
+  return ref ? `${ref.kind}:${ref.id}` : "none";
+}
+
+function eventHistoryRefs(event: WorldEvent): EntityRef[] {
+  return [
+    event.actor,
+    event.target,
+    event.objectiveId ? { kind: "specialObjective", id: event.objectiveId } : undefined
+  ].filter((ref): ref is EntityRef => Boolean(ref));
+}
+
+function commitWorldHistory(ctx: TickContext) {
+  ctx.generatedEvents.forEach(event => {
+    const refs = eventHistoryRefs(event);
+    appendHistory(ctx.state, refs, {
+      tick: event.tick,
+      type: event.type,
+      summary: `${event.success ? "success" : "failure"} ${event.type} by ${formatEntityRef(event.actor)} on ${formatEntityRef(event.target)}`,
+      refs
+    });
+  });
+
+  ctx.generatedDeltas.forEach(delta => {
+    if (delta.key === "cooldown" || delta.key === "objective_progress" || delta.key === "phase_progress") return;
+    appendHistory(ctx.state, [delta.target], {
+      tick: ctx.state.clock.tick,
+      type: "state_delta",
+      summary: `${String(delta.key)} ${delta.amount && delta.amount > 0 ? "+" : ""}${delta.amount ?? 0}`,
+      refs: [delta.target]
+    });
+  });
+}
+
 function diffuse(ctx: TickContext): TickOutput {
+  commitWorldHistory(ctx);
   ctx.state.pendingSignals.push(...ctx.generatedSignals);
   ctx.state.pendingRumors.push(...ctx.generatedRumors);
   ctx.state.pendingOpportunities.push(...ctx.generatedOpportunities);
@@ -1656,6 +2000,9 @@ function runWorldStep(state: WorldState, scale: TickScale): TickOutput {
   ctx.trace.clockAfter = { ...state.clock };
   ctx.trace.pressureSnapshots.before = beforePressures.trace;
   advanceMobileActors(state, ctx);
+  if (scale === "macro") {
+    processTensionLifecycle(state, ctx);
+  }
   syncRouteMobilePresence(state);
   const afterPressures = recomputePressuresDetailed(state);
   state.pressures = afterPressures.pressures;
@@ -1742,7 +2089,7 @@ export function injectCandidateProposal(state: WorldState, candidate: CandidateP
   } else if (candidate.kind === "mobileActor") {
     state.mobileActors[candidate.payload.id] = candidate.payload;
   } else {
-    state.tensions[candidate.payload.id] = candidate.payload;
+    registerTension(state, candidate.payload);
   }
   return validation;
 }
