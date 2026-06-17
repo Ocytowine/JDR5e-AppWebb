@@ -114,6 +114,7 @@ export type WorldEventType =
   | "special_objective_progressed"
   | "mobile_actor_arrived"
   | "mobile_actor_delayed"
+  | "mobile_actor_encounter"
   | "rumor_spread";
 
 export type EntityRef = {
@@ -633,6 +634,7 @@ export type ActionCandidateTrace = {
   targetRef: EntityRef;
   objectiveId?: EntityId;
   actionId: WorldActionId;
+  actionCause?: ActionCauseTrace;
   passed: boolean;
   score?: number;
   scoreBreakdown?: {
@@ -646,12 +648,32 @@ export type ActionCandidateTrace = {
   conditions: ActionConditionTrace[];
 };
 
+export type ActionCauseKind =
+  | "objective_active"
+  | "tension_locale"
+  | "besoin_logistique"
+  | "rivalite"
+  | "cooperation"
+  | "opportunite_crise"
+  | "reaction_mobile"
+  | "maintenance_systeme"
+  | "action_directe";
+
+export type ActionCauseTrace = {
+  kind: ActionCauseKind;
+  label: string;
+  detail?: string;
+  sourceObjectiveId?: EntityId;
+  sourceTensionId?: EntityId;
+};
+
 export type SelectedActionTrace = {
   actorRef: EntityRef;
   targetRef: EntityRef;
   objectiveId?: EntityId;
   phaseId?: EntityId;
   actionId: WorldActionId;
+  actionCause?: ActionCauseTrace;
   score: number;
   success: boolean;
   eventId: EntityId;
@@ -668,6 +690,19 @@ export type MobilityTraceEntry = {
   notes: string[];
 };
 
+export type PhaseTransitionTrace = {
+  objectiveId: EntityId;
+  phaseId?: EntityId;
+  fromState?: ObjectivePhaseState | ObjectiveState;
+  toState?: ObjectivePhaseState | ObjectiveState;
+  transition: "progressed" | "completed" | "activated" | "blocked" | "failed" | "objective_completed" | "objective_failed";
+  progressBefore?: number;
+  progressAfter?: number;
+  failureBefore?: number;
+  failureAfter?: number;
+  reasons: string[];
+};
+
 export type TickTrace = {
   clockBefore: WorldClock;
   clockAfter: WorldClock;
@@ -677,6 +712,7 @@ export type TickTrace = {
   actionCandidates: ActionCandidateTrace[];
   selectedActions: SelectedActionTrace[];
   mobility: MobilityTraceEntry[];
+  phaseTransitions: PhaseTransitionTrace[];
   pressureSnapshots: {
     before: PressureTraceSnapshot;
     after: PressureTraceSnapshot;

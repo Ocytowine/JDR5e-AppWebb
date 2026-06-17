@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { getWorldMapCellKey, type WorldMapLayout } from "../../data/worldMapLayout";
-import type { TickOutput, WorldState, WorldTension } from "../../world-simulation";
+import { summarizeLocalSituation, type TickOutput, type WorldState, type WorldTension } from "../../world-simulation";
 import type { WikiEntry } from "../mapShared";
 import { editorSurfaceStyles, editorTextStyles } from "../editor/editorTheme";
 
@@ -107,6 +107,18 @@ export function SimulationCellAnalysisPanel(props: {
       .slice(0, 5);
   }, [localPaths, props.state.routes, props.state.tensions, runtimeCity?.activeTensionIds, runtimeRegion?.activeTensionIds]);
 
+  const situation = useMemo(() => {
+    const refs = uniqueStrings([
+      runtimeCity ? `city:${runtimeCity.id}` : null,
+      runtimeRegion ? `region:${runtimeRegion.id}` : null,
+      ...localPaths.map(path => `route:${path.id}`)
+    ]).map(value => {
+      const [kind, id] = value.split(":");
+      return { kind, id } as Parameters<typeof summarizeLocalSituation>[1][number];
+    });
+    return summarizeLocalSituation(props.state, refs);
+  }, [localPaths, props.state, runtimeCity, runtimeRegion]);
+
   const recentEvents = props.latestOutput?.events.filter(event => formatEventRefs(event).some(ref => localRefs.has(ref))) ?? [];
   const recentDeltas = props.latestOutput?.deltas.filter(delta => localRefs.has(`${delta.target.kind}:${delta.target.id}`)) ?? [];
   const recentSignals = props.latestOutput?.signals.filter(signal => localRefs.has(`${signal.location.kind}:${signal.location.id}`)) ?? [];
@@ -120,6 +132,18 @@ export function SimulationCellAnalysisPanel(props: {
 
   return (
     <div style={{ display: "grid", gap: 10 }}>
+      <div style={{ ...editorSurfaceStyles.subsection, gap: 6, border: "1px solid rgba(143,179,255,0.28)", background: "rgba(143,179,255,0.08)" }}>
+        <div style={editorTextStyles.sectionTitle}>Situation locale</div>
+        <div style={{ fontSize: 12, color: "#dce5f2", lineHeight: 1.45 }}>
+          <div style={{ fontWeight: 700, color: "#eef3ff" }}>{situation.headline}</div>
+          <div>Risque: {situation.riskLabel} · tendance {situation.trend}</div>
+          <div>Factions impliquees: {situation.involvedFactionLabels.length ? situation.involvedFactionLabels.join(", ") : "aucune"}</div>
+          <div>Mobiles concernes: {situation.involvedMobileLabels.length ? situation.involvedMobileLabels.join(", ") : "aucun"}</div>
+          <div>Suite probable: {situation.nextLikelyDevelopments.length ? situation.nextLikelyDevelopments.join(" | ") : "stabilite locale"}</div>
+          {situation.recentFact ? <div>Dernier fait: tick {situation.recentFact.tick} - {situation.recentFact.summary}</div> : null}
+        </div>
+      </div>
+
       <div style={{ ...editorSurfaceStyles.subsection, gap: 6 }}>
         <div style={editorTextStyles.sectionTitle}>Identite</div>
         <div style={{ fontSize: 12, color: "#dce5f2", lineHeight: 1.45 }}>

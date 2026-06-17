@@ -1,10 +1,13 @@
 import { PRESSURE_DEFINITIONS, WORLD_ACTION_DEFINITIONS } from "./definitions";
 import { applyFactionLogisticsPlans, buildFactionLogisticsPlans, reinitialiserRessourcesTransport } from "./logisticsPlanner";
 import { synchronizeObjectiveReadiness } from "./objectiveReadiness";
+import { reconcileFactionOpportunities } from "./factionOpportunities";
 import { reconcileSystemObjectives } from "./systemObjectives";
-import { findShortestRouteItinerary, getAbsoluteRouteProgress, getProgressPerTick, getRouteProgressTowardTarget, getRouteTargetId, getRouteTraversalCost } from "./travel";
+import { reconcileAutonomousMobiles } from "./mobileGeneration";
+import { canUseAbstractWaterTravel, findShortestRouteItinerary, getAbsoluteRouteProgress, getOffRouteTraversalCost, getProgressPerTick, getRouteProgressTowardTarget, getRouteTargetId, getRouteTraversalCost, isRouteCompatibleWithActor } from "./travel";
 import type {
   ActionCandidateTrace,
+  ActionCauseTrace,
   ActorCandidateTrace,
   CandidateProposal,
   CandidateValidationResult,
@@ -15,6 +18,7 @@ import type {
   MobileActor,
   ObjectiveCategory,
   PerceptibleSignal,
+  PhaseTransitionTrace,
   PressureDefinition,
   PressureEvaluationTrace,
   PressureMap,
@@ -45,6 +49,7 @@ type ActionCandidate = {
   targetRef: EntityRef;
   objectiveId?: EntityId;
   action: WorldActionDefinition;
+  actionCause: ActionCauseTrace;
   score: number;
 };
 
@@ -251,6 +256,31 @@ function applySystemShiftDelta(state: WorldState, deltas: StateDelta[], ref: Ent
   });
 }
 
+function applyMobileImpactDelta(
+  state: WorldState,
+  deltas: StateDelta[],
+  ref: EntityRef,
+  key: ScalarStat,
+  amount: number,
+  source: string,
+  kind: "mobile_arrival" | "mobile_setback" = "mobile_arrival"
+) {
+  const entity = getEntityState(state, ref) as { state?: Record<string, number> } | undefined;
+  if (!entity?.state) return;
+  const before = entity.state[key] ?? 0;
+  const after = clamp(before + amount);
+  if (before === after) return;
+  entity.state[key] = after;
+  deltas.push({
+    target: ref,
+    key,
+    before,
+    after,
+    amount,
+    meta: { source, kind }
+  });
+}
+
 function getHistoryContainer(state: WorldState, ref: EntityRef): { recentHistory?: WorldHistoryEntry[] } | undefined {
   switch (ref.kind) {
     case "city":
@@ -296,6 +326,186 @@ function appendHistory(state: WorldState, refs: EntityRef[], entry: WorldHistory
     container.recentHistory.unshift(entry);
     container.recentHistory = container.recentHistory.slice(0, RECENT_HISTORY_LIMIT);
   });
+}
+
+function getFactionRelationStatus(trust: number, hostility: number): "ally" | "neutral" | "rival" | "war" {
+  if (hostility >= 82) return "war";
+  if (hostility >= 55) return "rival";
+  if (trust >= 68 && hostility <= 28) return "ally";
+  return "neutral";
+}
+
+function ensureFactionRelation(faction: WorldFaction, otherFactionId: EntityId) {
+  let relation = faction.relations.find(entry => entry.otherFactionId === otherFactionId);
+  if (!relation) {
+    relation = {
+      otherFactionId,
+      status: "neutral",
+      trust: 35,
+      hostility: 20
+    };
+    faction.relations.push(relation);
+  }
+  return relation;
+}
+
+function applyFactionRelationShift(
+  state: WorldState,
+  leftFactionId: EntityId,
+  rightFactionId: EntityId,
+  trustDelta: number,
+  hostilityDelta: number,
+  reason: string,
+  refs: EntityRef[]
+) {
+  if (leftFactionId === rightFactionId) return;
+  const left = state.factions[leftFactionId];
+  const right = state.factions[rightFactionId];
+  if (!left || !right) return;
+
+  [
+    [left, rightFactionId],
+    [right, leftFactionId]
+  ].forEach(([faction, otherId]) => {
+    const relation = ensureFactionRelation(faction as WorldFaction, otherId as EntityId);
+    const trustBefore = relation.trust;
+    const hostilityBefore = relation.hostility;
+    relation.trust = clamp(relation.trust + trustDelta);
+    relation.hostility = clamp(relation.hostility + hostilityDelta);
+    relation.status = getFactionRelationStatus(relation.trust, relation.hostility);
+    appendHistory(state, [{ kind: "faction", id: (faction as WorldFaction).id }, ...refs], {
+      tick: state.clock.tick,
+      type: "relation_shift",
+      summary: `${reason}: ${otherId} trust ${Math.round(trustBefore)} -> ${Math.round(relation.trust)}, hostility ${Math.round(hostilityBefore)} -> ${Math.round(relation.hostility)}`,
+      refs: [{ kind: "faction", id: (faction as WorldFaction).id }, { kind: "faction", id: otherId as EntityId }, ...refs]
+    });
+  });
+}
+
+function getDistrictRefForTarget(state: WorldState, ref: EntityRef): EntityRef | undefined {
+  if (ref.kind === "district" && state.districts[ref.id]) return ref;
+  if (ref.kind !== "city") return undefined;
+  const city = state.cities[ref.id];
+  const districtId = city?.districtIds[0];
+  return districtId ? { kind: "district", id: districtId } : undefined;
+}
+
+function getFactionsRelevantToTarget(state: WorldState, ref: EntityRef, tags: string[]): WorldFaction[] {
+  const districtRef = getDistrictRefForTarget(state, ref);
+  const district = districtRef ? state.districts[districtRef.id] : undefined;
+  const route = ref.kind === "route" ? state.routes[ref.id] : undefined;
+  return Object.values(state.factions).filter(faction => {
+    if (!tags.some(tag => faction.tags.includes(tag))) return false;
+    if (district) {
+      return (
+        faction.influenceZoneIds.includes(district.id) ||
+        faction.influenceZoneIds.includes(district.cityId) ||
+        (district.factionInfluence[faction.id] ?? 0) > 0
+      );
+    }
+    if (route) {
+      return (
+        faction.influenceZoneIds.includes(route.id) ||
+        faction.influenceZoneIds.includes(route.originId) ||
+        faction.influenceZoneIds.includes(route.destinationId)
+      );
+    }
+    return faction.influenceZoneIds.includes(ref.id);
+  });
+}
+
+function getFactionsPresentAtRef(state: WorldState, ref: EntityRef): WorldFaction[] {
+  const districtRef = getDistrictRefForTarget(state, ref);
+  const district = districtRef ? state.districts[districtRef.id] : undefined;
+  const route = ref.kind === "route" ? state.routes[ref.id] : undefined;
+  return Object.values(state.factions)
+    .filter(faction => {
+      if (district) {
+        return (
+          faction.influenceZoneIds.includes(district.id) ||
+          faction.influenceZoneIds.includes(district.cityId) ||
+          (district.factionInfluence[faction.id] ?? 0) > 0
+        );
+      }
+      if (route) {
+        return (
+          faction.influenceZoneIds.includes(route.id) ||
+          faction.influenceZoneIds.includes(route.originId) ||
+          faction.influenceZoneIds.includes(route.destinationId)
+        );
+      }
+      return faction.influenceZoneIds.includes(ref.id);
+    })
+    .sort((left, right) => {
+      const leftInfluence = district?.factionInfluence[left.id] ?? left.state.influence ?? 0;
+      const rightInfluence = district?.factionInfluence[right.id] ?? right.state.influence ?? 0;
+      return rightInfluence - leftInfluence;
+    });
+}
+
+function getMobileOwnerFaction(state: WorldState, actor: MobileActor): WorldFaction | undefined {
+  return actor.owner?.kind === "faction" ? state.factions[actor.owner.id] : undefined;
+}
+
+function getRelationBetween(left: WorldFaction | undefined, rightId: EntityId): "ally" | "neutral" | "rival" | "war" {
+  return left?.relations.find(relation => relation.otherFactionId === rightId)?.status ?? "neutral";
+}
+
+function recentlyLoggedInteraction(actor: MobileActor, type: string, targetId: EntityId, minAgeTicks: number, currentTick: number): boolean {
+  return actor.recentHistory.some(entry =>
+    entry.type === type &&
+    currentTick - entry.tick <= minAgeTicks &&
+    (entry.refs ?? []).some(ref => ref.id === targetId)
+  );
+}
+
+function hasMobileTravelAssignment(actor: MobileActor): boolean {
+  return actor.itinerary.length > 0 || Boolean(actor.destination && !isSameEntityRef(actor.position, actor.destination));
+}
+
+function applyFactionRelationConsequences(state: WorldState, candidate: ActionCandidate, success: boolean) {
+  if (!success || candidate.actorRef.kind !== "faction") return;
+  const actor = state.factions[candidate.actorRef.id];
+  if (!actor) return;
+  const objective = candidate.objectiveId ? state.specialObjectives[candidate.objectiveId] : undefined;
+  if (objective?.tags.includes("relation_generated")) {
+    const rivalId = objective.tags
+      .find(tag => tag.startsWith("rival:"))
+      ?.slice("rival:".length);
+    const allyId = objective.tags
+      .find(tag => tag.startsWith("ally:"))
+      ?.slice("ally:".length);
+    if (rivalId && rivalId !== actor.id && state.factions[rivalId]) {
+      const warIntensity = objective.tags.includes("war");
+      const trustDelta = warIntensity ? -7 : -4;
+      const hostilityDelta = warIntensity ? 12 : 7;
+      applyFactionRelationShift(state, actor.id, rivalId, trustDelta, hostilityDelta, "anti_rival_success", [
+        candidate.targetRef,
+        { kind: "specialObjective", id: objective.id }
+      ]);
+    }
+    if (allyId && allyId !== actor.id && state.factions[allyId]) {
+      applyFactionRelationShift(state, actor.id, allyId, 6, -4, "alliance_support_success", [
+        candidate.targetRef,
+        { kind: "specialObjective", id: objective.id }
+      ]);
+    }
+  }
+  if (candidate.action.id === "extort") {
+    const affected = getFactionsRelevantToTarget(state, candidate.targetRef, ["military", "militaire", "civic", "commerce", "trade"])
+      .filter(faction => faction.id !== actor.id);
+    affected.forEach(faction => {
+      applyFactionRelationShift(state, actor.id, faction.id, -4, 9, "extortion_crisis", [candidate.targetRef]);
+    });
+    return;
+  }
+  if (candidate.action.id === "secure_route" || candidate.action.id === "repair_route") {
+    const beneficiaries = getFactionsRelevantToTarget(state, candidate.targetRef, ["commerce", "trade", "military", "militaire"])
+      .filter(faction => faction.id !== actor.id);
+    beneficiaries.forEach(faction => {
+      applyFactionRelationShift(state, actor.id, faction.id, 5, -3, "corridor_support", [candidate.targetRef]);
+    });
+  }
 }
 
 function getEntityRefKey(ref: EntityRef): string {
@@ -641,6 +851,19 @@ function applySystemicTensionConversion(
     return;
   }
 
+  if (candidate.action.id === "extort" && success && targetRef.kind === "district") {
+    createSystemTension(state, "criminal", 14, [candidate.actorRef], [targetRef], ["extortion_spree"]);
+    if (cityRef) {
+      applySystemShiftDelta(state, ctx.generatedDeltas, cityRef, "commerce", -1, source);
+    }
+    return;
+  }
+
+  if (candidate.action.id === "recruit" && success && targetRef.kind === "district") {
+    createSystemTension(state, "social", 10, [candidate.actorRef], [targetRef], ["recruitment_rumors"]);
+    return;
+  }
+
   if (candidate.action.id === "inspect_customs" && success && targetRef.kind === "district") {
     relieveActiveTensions(state, localRefs, ["commercial", "criminal", "control_conflict"], 8, [candidate.actorRef], candidate.action.id);
     applySystemShiftDelta(state, ctx.generatedDeltas, targetRef, "agitation", 5, source);
@@ -977,6 +1200,68 @@ function updateObjectiveFailure(
   return appliedAmount;
 }
 
+function extractPhaseTransitionsFromDeltas(deltas: StateDelta[]): PhaseTransitionTrace[] {
+  return deltas
+    .filter(delta => delta.target.kind === "specialObjective")
+    .map((delta): PhaseTransitionTrace | null => {
+      const phaseId = typeof delta.meta?.phaseId === "string" ? delta.meta.phaseId : undefined;
+      const transition = typeof delta.meta?.transition === "string" ? delta.meta.transition : undefined;
+      const reasons = typeof delta.meta?.causes === "string" ? delta.meta.causes.split("|").filter(Boolean) : [];
+      if (delta.key === "phase_progress" && transition === "completed") {
+        return {
+          objectiveId: delta.target.id,
+          phaseId,
+          transition: "completed" as const,
+          progressBefore: delta.before,
+          progressAfter: delta.after,
+          reasons: ["phase_completion"]
+        };
+      }
+      if (delta.key === "phase_progress" && transition === "activated") {
+        return {
+          objectiveId: delta.target.id,
+          phaseId,
+          transition: "activated" as const,
+          progressBefore: delta.before,
+          progressAfter: delta.after,
+          reasons: []
+        };
+      }
+      if (delta.key === "phase_progress") {
+        return {
+          objectiveId: delta.target.id,
+          phaseId,
+          transition: "progressed" as const,
+          progressBefore: delta.before,
+          progressAfter: delta.after,
+          reasons: []
+        };
+      }
+      if (delta.key === "phase_failure") {
+        return {
+          objectiveId: delta.target.id,
+          phaseId,
+          transition: "blocked" as const,
+          failureBefore: delta.before,
+          failureAfter: delta.after,
+          reasons
+        };
+      }
+      if (delta.key === "objective_failure" && transition === "failed") {
+        return {
+          objectiveId: delta.target.id,
+          phaseId,
+          transition: "objective_failed" as const,
+          failureBefore: delta.before,
+          failureAfter: delta.after,
+          reasons
+        };
+      }
+      return null;
+    })
+    .filter((entry): entry is PhaseTransitionTrace => Boolean(entry));
+}
+
 function getCooldown(actor: WorldFaction | MobileActor, actionId: string): number {
   return actor.cooldowns[actionId as keyof typeof actor.cooldowns] ?? 0;
 }
@@ -1108,9 +1393,9 @@ function createMobileTravelEvent(
   route: WorldRoute,
   reason: string,
   payload: Record<string, number | string | boolean | null>
-) {
+): WorldEvent {
   const actorRef: EntityRef = { kind: "mobileActor", id: actor.id };
-  ctx.generatedEvents.push({
+  const event: WorldEvent = {
     id: makeId("event", state.clock.tick, `${actor.id}-${reason}`),
     type: "mobile_actor_delayed",
     tick: state.clock.tick,
@@ -1120,7 +1405,218 @@ function createMobileTravelEvent(
     deltas: ctx.generatedDeltas.filter(delta => delta.target.kind === "mobileActor" && delta.target.id === actor.id),
     tags: ["deplacement", reason],
     payload: { routeId: route.id, ...payload }
+  };
+  ctx.generatedEvents.push(event);
+  return event;
+}
+
+function mobileHasTag(actor: MobileActor, patterns: string[]): boolean {
+  const values = [
+    actor.typeEntity,
+    actor.travelMode,
+    actor.modeTransport ?? "",
+    ...actor.possibleInteractionTags
+  ].map(value => value.toLowerCase());
+  return values.some(value => patterns.some(pattern => value.includes(pattern)));
+}
+
+function getMobilePrimaryObjectiveId(actor: MobileActor): EntityId | undefined {
+  return [...actor.objectives].sort((left, right) => right.priority - left.priority)[0]?.objectiveId;
+}
+
+function applyMobileLocalReactions(state: WorldState, ctx: TickContext, actor: MobileActor, target: EntityRef): StateDelta[] {
+  const deltaStart = ctx.generatedDeltas.length;
+  const owner = getMobileOwnerFaction(state, actor);
+  if (!owner) return [];
+  if (recentlyLoggedInteraction(actor, "mobile_local_reaction", target.id, 8, state.clock.tick)) return [];
+
+  const isSupply = (actor.state.cargo ?? 0) >= 18 || mobileHasTag(actor, ["commerce", "trade", "approvisionnement", "supply", "grain", "convoi"]);
+  const isSecurity = (actor.state.security ?? 0) >= 48 || mobileHasTag(actor, ["militaire", "escort", "escorte", "patrol", "patrouille", "secur", "inspection"]);
+  const isCriminal = mobileHasTag(actor, ["crimin", "smuggl", "contreband", "embuscade"]);
+  const isReligious = mobileHasTag(actor, ["relig", "rituel", "pelerin", "pilgrim"]);
+  const localFactions = getFactionsPresentAtRef(state, target)
+    .filter(faction => faction.id !== owner.id)
+    .slice(0, 3);
+
+  localFactions.forEach(faction => {
+    const relation = getRelationBetween(owner, faction.id);
+    const refs = [{ kind: "mobileActor" as const, id: actor.id }, target];
+    if (isCriminal || relation === "war") {
+      applyFactionRelationShift(state, owner.id, faction.id, -3, relation === "war" ? 6 : 4, "mobile_local_friction", refs);
+      return;
+    }
+    if (isSupply || isSecurity) {
+      applyFactionRelationShift(state, owner.id, faction.id, 3, -2, "mobile_local_support", refs);
+      return;
+    }
+    if (isReligious) {
+      applyFactionRelationShift(state, owner.id, faction.id, faction.tags.includes("religious") ? 4 : 1, faction.tags.includes("criminal") ? 2 : -1, "mobile_local_influence", refs);
+    }
   });
+
+  if (target.kind === "city") {
+    if (isSupply) applyMobileImpactDelta(state, ctx.generatedDeltas, target, "commerce", 1, `mobile_reaction:${actor.id}`);
+    if (isSecurity) applyMobileImpactDelta(state, ctx.generatedDeltas, target, "order", 1, `mobile_reaction:${actor.id}`);
+    if (isCriminal) applyMobileImpactDelta(state, ctx.generatedDeltas, target, "corruption", 2, `mobile_reaction:${actor.id}`);
+    if (isReligious) applyMobileImpactDelta(state, ctx.generatedDeltas, target, "cohesion", 1, `mobile_reaction:${actor.id}`);
+  }
+  if (target.kind === "route") {
+    if (isSecurity) applyMobileImpactDelta(state, ctx.generatedDeltas, target, "security", 1, `mobile_reaction:${actor.id}`);
+    if (isCriminal) applyMobileImpactDelta(state, ctx.generatedDeltas, target, "ambushRisk", 2, `mobile_reaction:${actor.id}`);
+  }
+
+  const reactionDeltas = ctx.generatedDeltas.slice(deltaStart);
+  const refs = [{ kind: "mobileActor" as const, id: actor.id }, { kind: "faction" as const, id: owner.id }, target];
+  appendHistory(state, refs, {
+    tick: state.clock.tick,
+    type: "mobile_local_reaction",
+    summary: `${actor.id} provoque une reaction locale sur ${target.kind}:${target.id}`,
+    refs
+  });
+  return reactionDeltas;
+}
+
+function applyMobileArrivalConsequences(state: WorldState, ctx: TickContext, actor: MobileActor, target: EntityRef): StateDelta[] {
+  const deltaStart = ctx.generatedDeltas.length;
+  const actorRef: EntityRef = { kind: "mobileActor", id: actor.id };
+  const source = `mobile_arrival:${actor.id}`;
+  const cargo = actor.state.cargo ?? 0;
+  const security = actor.state.security ?? 0;
+  const headcount = actor.state.headcount ?? 0;
+  const isSupply = cargo >= 18 || mobileHasTag(actor, ["commerce", "trade", "approvisionnement", "supply", "grain", "convoi"]);
+  const isSecurity = security >= 48 || mobileHasTag(actor, ["militaire", "escort", "escorte", "patrol", "patrouille", "secur", "inspection"]);
+  const isCriminal = mobileHasTag(actor, ["crimin", "smuggl", "contreband", "embuscade"]);
+  const isReligious = mobileHasTag(actor, ["relig", "rituel", "pelerin", "pilgrim"]);
+
+  if (target.kind === "city") {
+    if (isSupply) {
+      applyMobileImpactDelta(state, ctx.generatedDeltas, target, "supply", Math.min(8, 2 + Math.round(cargo / 18)), source);
+      applyMobileImpactDelta(state, ctx.generatedDeltas, target, "commerce", 2, source);
+      if (cargo > 0) applyMobileImpactDelta(state, ctx.generatedDeltas, actorRef, "cargo", -Math.min(12, Math.max(4, Math.round(cargo * 0.2))), source);
+    }
+    if (isSecurity) {
+      applyMobileImpactDelta(state, ctx.generatedDeltas, target, "order", Math.min(5, 1 + Math.round(security / 28)), source);
+      applyMobileImpactDelta(state, ctx.generatedDeltas, target, "fear", -1, source);
+    }
+    if (isCriminal) {
+      applyMobileImpactDelta(state, ctx.generatedDeltas, target, "corruption", 3, source);
+      applyMobileImpactDelta(state, ctx.generatedDeltas, target, "commerce", 1, source);
+      applyMobileImpactDelta(state, ctx.generatedDeltas, target, "order", -1, source);
+    }
+    if (isReligious) {
+      applyMobileImpactDelta(state, ctx.generatedDeltas, target, "cohesion", 2, source);
+      applyMobileImpactDelta(state, ctx.generatedDeltas, target, "agitation", 1, source);
+    }
+  } else if (target.kind === "region") {
+    if (isSupply) applyMobileImpactDelta(state, ctx.generatedDeltas, target, "circulation", 3, source);
+    if (isSecurity) {
+      applyMobileImpactDelta(state, ctx.generatedDeltas, target, "stability", 2, source);
+      applyMobileImpactDelta(state, ctx.generatedDeltas, target, "politicalControl", 1, source);
+    }
+    if (isCriminal) applyMobileImpactDelta(state, ctx.generatedDeltas, target, "politicalControl", -2, source);
+    if (isReligious) applyMobileImpactDelta(state, ctx.generatedDeltas, target, "cohesion", 2, source);
+  } else if (target.kind === "route") {
+    if (isSupply) applyMobileImpactDelta(state, ctx.generatedDeltas, target, "traffic", 3, source);
+    if (isSecurity) {
+      applyMobileImpactDelta(state, ctx.generatedDeltas, target, "security", Math.min(5, 2 + Math.round(headcount / 18)), source);
+      applyMobileImpactDelta(state, ctx.generatedDeltas, target, "ambushRisk", -3, source);
+    }
+    if (isCriminal) {
+      applyMobileImpactDelta(state, ctx.generatedDeltas, target, "ambushRisk", 4, source);
+      applyMobileImpactDelta(state, ctx.generatedDeltas, target, "traffic", -2, source);
+    }
+  }
+
+  applyMobileImpactDelta(state, ctx.generatedDeltas, actorRef, "fatigue", -4, source);
+  updateObjectiveProgress(state, ctx.generatedDeltas, getMobilePrimaryObjectiveId(actor), 8, "move_resources");
+  applyMobileLocalReactions(state, ctx, actor, target);
+
+  const arrivalDeltas = ctx.generatedDeltas.slice(deltaStart);
+  if (arrivalDeltas.length > 0) {
+    appendHistory(state, [actorRef, target], {
+      tick: state.clock.tick,
+      type: "mobile_arrival_effect",
+      summary: `${actor.id} applique ${arrivalDeltas.length} effet(s) a l'arrivee sur ${target.kind}:${target.id}`,
+      refs: [actorRef, target]
+    });
+  }
+  return arrivalDeltas;
+}
+
+function applyMobileTravelSetback(
+  state: WorldState,
+  ctx: TickContext,
+  actor: MobileActor,
+  route: WorldRoute,
+  reason: "hold" | "delay" | "ambush" | "reroute",
+  severity: number
+): StateDelta[] {
+  const deltaStart = ctx.generatedDeltas.length;
+  const actorRef: EntityRef = { kind: "mobileActor", id: actor.id };
+  const routeRef: EntityRef = { kind: "route", id: route.id };
+  const objectiveId = getMobilePrimaryObjectiveId(actor);
+  const normalizedSeverity = Math.max(1, Math.round(severity));
+  const source = `mobile_${reason}:${actor.id}`;
+
+  if (objectiveId) {
+    updateObjectiveFailure(state, ctx, ctx.generatedDeltas, objectiveId, Math.min(18, 4 + Math.round(normalizedSeverity / 9)), routeRef);
+  }
+
+  if (reason === "ambush") {
+    applyMobileImpactDelta(state, ctx.generatedDeltas, routeRef, "ambushRisk", 5, source, "mobile_setback");
+    applyMobileImpactDelta(state, ctx.generatedDeltas, routeRef, "security", -4, source, "mobile_setback");
+    applyMobileImpactDelta(state, ctx.generatedDeltas, actorRef, "resources", -3, source, "mobile_setback");
+  } else if (reason === "reroute") {
+    applyMobileImpactDelta(state, ctx.generatedDeltas, routeRef, "traffic", -2, source, "mobile_setback");
+    applyMobileImpactDelta(state, ctx.generatedDeltas, actorRef, "fatigue", 3, source, "mobile_setback");
+  } else {
+    applyMobileImpactDelta(state, ctx.generatedDeltas, routeRef, "traffic", -1, source, "mobile_setback");
+  }
+
+  if (actor.destination?.kind === "city") {
+    const destinationRef: EntityRef = { kind: "city", id: actor.destination.id };
+    if ((actor.state.cargo ?? 0) >= 18 || mobileHasTag(actor, ["commerce", "trade", "approvisionnement", "supply", "grain", "convoi"])) {
+      applyMobileImpactDelta(state, ctx.generatedDeltas, destinationRef, "supply", reason === "ambush" ? -3 : -1, source, "mobile_setback");
+      if (reason === "ambush") applyMobileImpactDelta(state, ctx.generatedDeltas, destinationRef, "commerce", -1, source, "mobile_setback");
+    }
+  }
+
+  const tensionType = reason === "ambush" ? "criminal" : "mobility_risk";
+  const tensionSeverity = Math.min(reason === "ambush" ? 78 : 72, 24 + normalizedSeverity);
+  const tensionTags = ["mobile", reason, actor.id];
+  const existingMobileTension = Object.values(state.tensions).find(
+    tension =>
+      tension.type === tensionType &&
+      tension.tags.includes("mobile") &&
+      tension.tags.includes(reason) &&
+      tension.tags.includes(actor.id) &&
+      tension.targetRefs.some(ref => ref.kind === "route" && ref.id === route.id)
+  );
+  if (existingMobileTension) {
+    existingMobileTension.severity = Math.max(existingMobileTension.severity, tensionSeverity);
+    existingMobileTension.sourceRefs = mergeEntityRefs(existingMobileTension.sourceRefs, [actorRef]);
+    existingMobileTension.targetRefs = mergeEntityRefs(existingMobileTension.targetRefs, [routeRef]);
+    linkTensionToTargets(state, existingMobileTension.id, existingMobileTension.targetRefs);
+  } else {
+    registerTension(state, {
+      id: makeId("tension", state.clock.tick, `${actor.id}-${reason}`),
+      type: tensionType,
+      severity: tensionSeverity,
+      sourceRefs: [actorRef],
+      targetRefs: [routeRef],
+      sinceTick: state.clock.tick,
+      tags: tensionTags
+    });
+  }
+
+  const deltas = ctx.generatedDeltas.slice(deltaStart);
+  appendHistory(state, [actorRef, routeRef], {
+    tick: state.clock.tick,
+    type: reason === "ambush" ? "mobile_ambush_effect" : "mobile_delay_effect",
+    summary: `${actor.id} subit ${reason} sur ${route.id}: ${deltas.length} effet(s), severite ${normalizedSeverity}`,
+    refs: [actorRef, routeRef]
+  });
+  return deltas;
 }
 
 function getFactionInfluenceByTag(state: WorldState, factionInfluence: Record<string, number>, factionTag: string): number {
@@ -1269,6 +1765,46 @@ function getObjective(state: WorldState, objectiveId: EntityId | undefined): Spe
   return objectiveId ? state.specialObjectives[objectiveId] : undefined;
 }
 
+function isObjectiveActive(objective: SpecialObjective | undefined): objective is SpecialObjective {
+  if (!objective) return false;
+  return objective.state !== "completed" && objective.state !== "failed" && objective.state !== "blocked";
+}
+
+function getActiveMobileObjective(state: WorldState, actor: MobileActor): SpecialObjective | undefined {
+  return actor.objectives
+    .map(goal => state.specialObjectives[goal.objectiveId])
+    .filter(isObjectiveActive)
+    .sort((left, right) => right.priority - left.priority)[0];
+}
+
+function clearMobileAssignment(actor: MobileActor) {
+  actor.destination = undefined;
+  actor.itinerary = [];
+  actor.currentRouteTargetId = undefined;
+  actor.destinationRouteProgress = undefined;
+  actor.routeProgress = 0;
+}
+
+function isSameEntityRef(left: EntityRef | undefined, right: EntityRef | undefined): boolean {
+  return Boolean(left && right && left.kind === right.kind && left.id === right.id);
+}
+
+function pruneMobileStaleObjectives(state: WorldState, actor: MobileActor): number {
+  const beforeCount = actor.objectives.length;
+  actor.objectives = actor.objectives.filter(goal => isObjectiveActive(state.specialObjectives[goal.objectiveId]));
+  const removedCount = beforeCount - actor.objectives.length;
+  if (removedCount > 0 && actor.objectives.length === 0) {
+    clearMobileAssignment(actor);
+  }
+  return removedCount;
+}
+
+function prepareMobileActorsForTick(state: WorldState) {
+  Object.values(state.mobileActors).forEach(actor => {
+    pruneMobileStaleObjectives(state, actor);
+  });
+}
+
 function getLogisticsPlanBonus(logisticsPlans: LogisticsPlanTrace[], objectiveId: EntityId | undefined, actorRef: EntityRef): number {
   if (!objectiveId) return 0;
   const plan = logisticsPlans.find(entry => entry.objectifId === objectiveId);
@@ -1281,6 +1817,91 @@ function getLogisticsPlanBonus(logisticsPlans: LogisticsPlanTrace[], objectiveId
 function getObjectivePriorityBonus(category: ObjectiveCategory | undefined, action: WorldActionDefinition): number {
   if (!category) return 0;
   return action.compatibleObjectives.includes(category) ? 18 : -12;
+}
+
+function getObjectiveTensionId(objective: SpecialObjective | undefined): EntityId | undefined {
+  return objective?.tags.find(tag => tag.startsWith("tension:"))?.slice("tension:".length);
+}
+
+function describeActionCause(parameters: {
+  actorRef: EntityRef;
+  objective?: SpecialObjective;
+  targetPressure: number;
+  logisticsPlanBonus: number;
+}): ActionCauseTrace {
+  const { actorRef, objective, targetPressure, logisticsPlanBonus } = parameters;
+  const sourceObjectiveId = objective?.id;
+  const sourceTensionId = getObjectiveTensionId(objective);
+  if (objective?.tags.includes("cooperation_generated")) {
+    return {
+      kind: "cooperation",
+      label: "Cooperation",
+      detail: "objectif genere par une relation de confiance",
+      sourceObjectiveId
+    };
+  }
+  if (objective?.tags.includes("relation_generated")) {
+    return {
+      kind: "rivalite",
+      label: "Rivalite",
+      detail: "objectif genere par une relation hostile",
+      sourceObjectiveId
+    };
+  }
+  if (objective?.tags.includes("faction_generated") && sourceTensionId) {
+    return {
+      kind: "opportunite_crise",
+      label: "Opportunite de crise",
+      detail: "objectif opportuniste issu d'une tension active",
+      sourceObjectiveId,
+      sourceTensionId
+    };
+  }
+  if (logisticsPlanBonus > 0 || objective?.category === "stabilize_supply" || objective?.category === "secure_corridor" || objective?.category === "reopen_market") {
+    return {
+      kind: "besoin_logistique",
+      label: "Besoin logistique",
+      detail: logisticsPlanBonus > 0 ? "plan logistique actif dans le scoring" : "objectif de flux, ravitaillement ou corridor",
+      sourceObjectiveId
+    };
+  }
+  if (objective?.tags.includes("system_generated")) {
+    return {
+      kind: "maintenance_systeme",
+      label: "Maintenance systeme",
+      detail: "objectif public genere par l'etat du monde",
+      sourceObjectiveId
+    };
+  }
+  if (actorRef.kind === "mobileActor") {
+    return {
+      kind: "reaction_mobile",
+      label: "Acteur mobile",
+      detail: "action portee par un mobile assigne a un objectif",
+      sourceObjectiveId
+    };
+  }
+  if (targetPressure > 0) {
+    return {
+      kind: "tension_locale",
+      label: "Tension locale",
+      detail: `pression cible ${Math.round(targetPressure)}`,
+      sourceObjectiveId
+    };
+  }
+  if (objective) {
+    return {
+      kind: "objective_active",
+      label: "Objectif actif",
+      detail: "objectif editorial ou runtime actif",
+      sourceObjectiveId
+    };
+  }
+  return {
+    kind: "action_directe",
+    label: "Action directe",
+    detail: "action sans objectif explicite"
+  };
 }
 
 function traceActorCandidates(actors: ActorCandidate[]): ActorCandidateTrace[] {
@@ -1297,7 +1918,7 @@ function findActorCandidates(state: WorldState, scale: TickScale): ActorCandidat
     .map(faction => {
       const objective = faction.objectives
         .map(goal => state.specialObjectives[goal.objectiveId])
-        .filter((entry): entry is SpecialObjective => Boolean(entry) && entry.state !== "completed" && entry.state !== "failed" && entry.state !== "blocked")
+        .filter(isObjectiveActive)
         .sort((left, right) => right.priority - left.priority)[0];
       return {
         ref: { kind: "faction" as const, id: faction.id },
@@ -1312,13 +1933,11 @@ function findActorCandidates(state: WorldState, scale: TickScale): ActorCandidat
       ? actor.simulationLevel !== "abstract"
       : actor.simulationLevel === "active" || actor.simulationLevel === "summary")
       .map(actor => ({
-        ref: { kind: "mobileActor", id: actor.id },
+        ref: { kind: "mobileActor" as const, id: actor.id },
         actor,
-        objective: actor.objectives
-          .map(goal => state.specialObjectives[goal.objectiveId])
-          .filter((objective): objective is SpecialObjective => Boolean(objective) && objective.state !== "completed" && objective.state !== "failed" && objective.state !== "blocked")
-          .sort((left, right) => right.priority - left.priority)[0]
-      }));
+        objective: getActiveMobileObjective(state, actor)
+      }))
+      .filter(candidate => Boolean(candidate.objective));
 
   return [...factionCandidates, ...mobileCandidates];
 }
@@ -1430,6 +2049,12 @@ function getActionCandidates(state: WorldState, actors: ActorCandidate[], logist
           const objectivePriorityBonus = getObjectivePriorityBonus(actorCandidate.objective?.category, action);
           const objectivePriorityContribution = (actorCandidate.objective?.priority ?? 0) * 0.25;
           const logisticsPlanBonus = getLogisticsPlanBonus(logisticsPlans, actorCandidate.objective?.id, actorCandidate.ref);
+          const actionCause = describeActionCause({
+            actorRef: actorCandidate.ref,
+            objective: actorCandidate.objective,
+            targetPressure,
+            logisticsPlanBonus
+          });
           const score =
             action.basePriority +
             targetPressure * 0.35 +
@@ -1441,6 +2066,7 @@ function getActionCandidates(state: WorldState, actors: ActorCandidate[], logist
             targetRef,
             objectiveId: actorCandidate.objective?.id,
             action,
+            actionCause,
             score
           });
           trace.push({
@@ -1448,6 +2074,7 @@ function getActionCandidates(state: WorldState, actors: ActorCandidate[], logist
             targetRef,
             objectiveId: actorCandidate.objective?.id,
             actionId: action.id,
+            actionCause,
             passed: true,
             score,
             scoreBreakdown: {
@@ -1596,6 +2223,7 @@ function resolveSelectedActions(state: WorldState, scale: TickScale, initialDelt
       actionCandidates: [],
       selectedActions: [],
       mobility: [],
+      phaseTransitions: [],
         pressureSnapshots: {
           before: {},
           after: {}
@@ -1659,6 +2287,7 @@ function resolveSelectedActions(state: WorldState, scale: TickScale, initialDelt
       objectiveId: candidate.objectiveId,
       phaseId: phaseIdBeforeResolution,
       actionId: candidate.action.id,
+      actionCause: candidate.actionCause,
       score: candidate.score,
       success,
       eventId: event.id,
@@ -1668,6 +2297,7 @@ function resolveSelectedActions(state: WorldState, scale: TickScale, initialDelt
     ctx.generatedSignals.push(createSignal(candidate, state.clock.tick));
     ctx.generatedRumors.push(createRumor(candidate, event, state.clock.tick));
     applySystemicTensionConversion(state, ctx, candidate, success);
+    applyFactionRelationConsequences(state, candidate, success);
     const objectiveAfterResolution = getObjective(state, candidate.objectiveId);
     applyConsequencesFromObjective(state, ctx, objectiveAfterResolution, candidate.targetRef);
     applyObjectiveFailureConsequences(state, ctx, objectiveAfterResolution, candidate.targetRef);
@@ -1678,6 +2308,8 @@ function resolveSelectedActions(state: WorldState, scale: TickScale, initialDelt
 
 function advanceMobileActors(state: WorldState, ctx: TickContext) {
   Object.values(state.mobileActors).forEach(actor => {
+    pruneMobileStaleObjectives(state, actor);
+
     if (actor.itineraryMode !== "locked" && actor.destination && actor.position.kind !== "route") {
       const shortestItinerary = findShortestRouteItinerary(state, actor);
       if (shortestItinerary.length > 0) {
@@ -1685,7 +2317,93 @@ function advanceMobileActors(state: WorldState, ctx: TickContext) {
       }
     }
 
+    if (actor.destination && actor.itinerary.length === 0 && isSameEntityRef(actor.position, actor.destination)) {
+      clearMobileAssignment(actor);
+    }
+
+    if (actor.destination && actor.itinerary.length === 0) {
+      const beforeProgress = actor.routeProgress;
+      const actorRef: EntityRef = { kind: "mobileActor", id: actor.id };
+      const waterMode = actor.modeTransport === "bateau" || actor.travelMode === "river" || actor.travelMode === "sea";
+      if (waterMode && !canUseAbstractWaterTravel(state, actor)) {
+        updateObjectiveFailure(state, ctx, ctx.generatedDeltas, getMobilePrimaryObjectiveId(actor), 6, actor.destination);
+        ctx.trace.mobility.push({
+          actorId: actor.id,
+          outcome: "blocked",
+          beforeProgress,
+          afterProgress: actor.routeProgress,
+          notes: ["navigation impossible sans acces eau"]
+        });
+        return;
+      }
+
+      const offRouteCost = getOffRouteTraversalCost(state, actor);
+      const fatigue = actor.state.fatigue ?? 0;
+      if (fatigue >= 88) {
+        setStateStat(state, ctx.generatedDeltas, actorRef, "fatigue", -6);
+        ctx.trace.mobility.push({
+          actorId: actor.id,
+          outcome: "delayed",
+          beforeProgress,
+          afterProgress: actor.routeProgress,
+          notes: ["halte hors-route", `fatigue ${Math.round(fatigue)}`]
+        });
+        return;
+      }
+
+      const terrainPenalty = waterMode ? 0 : 1;
+      const cargoPenalty = (actor.state.cargo ?? 0) >= 55 ? 1 : 0;
+      const effectiveSpeed = Math.max(0.5, getProgressPerTick(actor, state) - terrainPenalty - cargoPenalty);
+      actor.routeProgress = clamp(actor.routeProgress + effectiveSpeed, 0, offRouteCost);
+      setStateStat(state, ctx.generatedDeltas, actorRef, "fatigue", waterMode ? 1 : 2);
+
+      if (actor.routeProgress >= offRouteCost) {
+        const destination = actor.destination;
+        actor.position = destination;
+        actor.destination = undefined;
+        actor.destinationRouteProgress = undefined;
+        actor.currentRouteTargetId = undefined;
+        actor.routeProgress = 0;
+        const arrivalDeltas = applyMobileArrivalConsequences(state, ctx, actor, destination);
+        ctx.generatedEvents.push({
+          id: makeId("event", state.clock.tick, `${actor.id}-arrive-offroute`),
+          type: "mobile_actor_arrived",
+          tick: state.clock.tick,
+          actor: actorRef,
+          target: destination,
+          success: true,
+          deltas: arrivalDeltas,
+          tags: ["deplacement", "arrivee", waterMode ? "navigation_abstraite" : "hors_route"],
+          payload: { mode: waterMode ? "navigation_abstraite" : "hors_route" }
+        });
+        ctx.trace.mobility.push({
+          actorId: actor.id,
+          outcome: "arrived",
+          beforeProgress,
+          afterProgress: actor.routeProgress,
+          notes: [waterMode ? "arrivee navigation abstraite" : "arrivee hors-route", destination.id]
+        });
+        return;
+      }
+
+      ctx.trace.mobility.push({
+        actorId: actor.id,
+        outcome: "progress",
+        beforeProgress,
+        afterProgress: actor.routeProgress,
+        notes: [
+          waterMode ? "navigation abstraite" : "progression hors-route",
+          `vitesse ${Math.round(effectiveSpeed * 10) / 10}`,
+          `cout ${Math.round(offRouteCost * 10) / 10}`
+        ]
+      });
+      return;
+    }
+
     if (actor.itinerary.length === 0 || !actor.destination) {
+      if ((actor.state.fatigue ?? 0) > 0) {
+        setStateStat(state, ctx.generatedDeltas, { kind: "mobileActor", id: actor.id }, "fatigue", -4);
+      }
       ctx.trace.mobility.push({
         actorId: actor.id,
         outcome: "idle",
@@ -1705,6 +2423,18 @@ function advanceMobileActors(state: WorldState, ctx: TickContext) {
         beforeProgress: actor.routeProgress,
         afterProgress: actor.routeProgress,
         notes: ["route absente de l'etat runtime"]
+      });
+      return;
+    }
+    if (!isRouteCompatibleWithActor(route, actor)) {
+      updateObjectiveFailure(state, ctx, ctx.generatedDeltas, getMobilePrimaryObjectiveId(actor), 5, { kind: "route", id: route.id });
+      ctx.trace.mobility.push({
+        actorId: actor.id,
+        routeId: route.id,
+        outcome: "blocked",
+        beforeProgress: actor.routeProgress,
+        afterProgress: actor.routeProgress,
+        notes: ["mode incompatible avec le corridor"]
       });
       return;
     }
@@ -1731,10 +2461,11 @@ function advanceMobileActors(state: WorldState, ctx: TickContext) {
 
     if (fatigue >= 82) {
       setStateStat(state, ctx.generatedDeltas, actorRef, "fatigue", -8);
-      createMobileTravelEvent(state, ctx, actor, route, "hold", {
+      const event = createMobileTravelEvent(state, ctx, actor, route, "hold", {
         fatigue: Math.round(fatigue),
         raison: "maintien_position"
       });
+      event.deltas = [...event.deltas, ...applyMobileTravelSetback(state, ctx, actor, route, "hold", Math.round(fatigue * 0.45))];
       ctx.trace.mobility.push({
         actorId: actor.id,
         routeId: route.id,
@@ -1760,11 +2491,12 @@ function advanceMobileActors(state: WorldState, ctx: TickContext) {
       actor.routeProgress = 0;
       actor.currentRouteTargetId = undefined;
       actor.destinationRouteProgress = undefined;
-      createMobileTravelEvent(state, ctx, actor, route, "reroute", {
+      const event = createMobileTravelEvent(state, ctx, actor, route, "reroute", {
         routePrecedenteId: route.id,
         routeAlternativeId: alternateRoute.id,
         scoreDanger: Math.round(hazardScore)
       });
+      event.deltas = [...event.deltas, ...applyMobileTravelSetback(state, ctx, actor, route, "reroute", Math.round(hazardScore * 0.55))];
       ctx.trace.mobility.push({
         actorId: actor.id,
         routeId: route.id,
@@ -1780,11 +2512,12 @@ function advanceMobileActors(state: WorldState, ctx: TickContext) {
       setStateStat(state, ctx.generatedDeltas, actorRef, "fatigue", 6);
       setStateStat(state, ctx.generatedDeltas, actorRef, "cargo", -6);
       setStateStat(state, ctx.generatedDeltas, { kind: "route", id: route.id }, "security", -4);
-      createMobileTravelEvent(state, ctx, actor, route, "ambush", {
+      const event = createMobileTravelEvent(state, ctx, actor, route, "ambush", {
         risqueCriminel: Math.round(criminalRisk),
         charge: Math.round(cargo),
         raison: "pression_embuscade"
       });
+      event.deltas = [...event.deltas, ...applyMobileTravelSetback(state, ctx, actor, route, "ambush", Math.round(criminalRisk))];
       ctx.trace.mobility.push({
         actorId: actor.id,
         routeId: route.id,
@@ -1801,11 +2534,12 @@ function advanceMobileActors(state: WorldState, ctx: TickContext) {
       if (militaryRisk >= 62) {
         setStateStat(state, ctx.generatedDeltas, actorRef, "security", -3);
       }
-      createMobileTravelEvent(state, ctx, actor, route, "delay", {
+      const event = createMobileTravelEvent(state, ctx, actor, route, "delay", {
         risqueMilitaire: Math.round(militaryRisk),
         risqueMateriel: Math.round(materialRisk),
         scoreDanger: Math.round(hazardScore)
       });
+      event.deltas = [...event.deltas, ...applyMobileTravelSetback(state, ctx, actor, route, "delay", Math.round(hazardScore))];
       ctx.trace.mobility.push({
         actorId: actor.id,
         routeId: route.id,
@@ -1846,6 +2580,7 @@ function advanceMobileActors(state: WorldState, ctx: TickContext) {
       actor.destination = undefined;
       actor.destinationRouteProgress = undefined;
       actor.itinerary = actor.itinerary.slice(1).filter(routeId => routeId !== route.id);
+      const arrivalDeltas = applyMobileArrivalConsequences(state, ctx, actor, { kind: "route", id: route.id });
       ctx.generatedEvents.push({
         id: makeId("event", state.clock.tick, `${actor.id}-arrive-route-stop`),
         type: "mobile_actor_arrived",
@@ -1853,7 +2588,7 @@ function advanceMobileActors(state: WorldState, ctx: TickContext) {
         actor: { kind: "mobileActor", id: actor.id },
         target: { kind: "route", id: route.id },
         success: true,
-        deltas: [],
+        deltas: arrivalDeltas,
         tags: ["deplacement", "arrivee", "route_stop"],
         payload: { routeId: route.id, routeProgress: Math.round(stopProgress * 100) / 100 }
       });
@@ -1887,10 +2622,12 @@ function advanceMobileActors(state: WorldState, ctx: TickContext) {
     actor.itinerary = actor.itinerary.slice(1);
     actor.position = resolveArrivalPosition(state, actor, route);
     actor.currentRouteTargetId = undefined;
+    const finalArrival = actor.itinerary.length === 0;
     if (actor.itinerary.length === 0) {
       actor.destination = undefined;
       actor.destinationRouteProgress = undefined;
     }
+    const arrivalDeltas = finalArrival ? applyMobileArrivalConsequences(state, ctx, actor, actor.position) : [];
     ctx.generatedEvents.push({
       id: makeId("event", state.clock.tick, `${actor.id}-arrive`),
       type: "mobile_actor_arrived",
@@ -1898,7 +2635,7 @@ function advanceMobileActors(state: WorldState, ctx: TickContext) {
       actor: { kind: "mobileActor", id: actor.id },
       target: actor.position,
       success: true,
-      deltas: [],
+      deltas: arrivalDeltas,
       tags: ["deplacement", "arrivee"],
       payload: { positionId: actor.position.id }
     });
@@ -1918,6 +2655,98 @@ function advanceMobileActors(state: WorldState, ctx: TickContext) {
       afterProgress: actor.routeProgress,
       notes: [`arrive a ${actor.position.id}`]
     });
+  });
+}
+
+function getMobileEncounterTone(state: WorldState, left: MobileActor, right: MobileActor): "support" | "friction" | "incident" | undefined {
+  const leftOwner = getMobileOwnerFaction(state, left);
+  const rightOwner = getMobileOwnerFaction(state, right);
+  if (!leftOwner || !rightOwner || leftOwner.id === rightOwner.id) return undefined;
+  const relation = getRelationBetween(leftOwner, rightOwner.id);
+  const leftCriminal = mobileHasTag(left, ["crimin", "smuggl", "contreband", "embuscade"]);
+  const rightCriminal = mobileHasTag(right, ["crimin", "smuggl", "contreband", "embuscade"]);
+  const leftSecurity = (left.state.security ?? 0) >= 48 || mobileHasTag(left, ["militaire", "escort", "patrouille", "secur"]);
+  const rightSecurity = (right.state.security ?? 0) >= 48 || mobileHasTag(right, ["militaire", "escort", "patrouille", "secur"]);
+  if (relation === "war" || (leftCriminal && rightSecurity) || (rightCriminal && leftSecurity)) return "incident";
+  if (relation === "rival" || leftCriminal || rightCriminal) return "friction";
+  if (relation === "ally" || (leftSecurity && rightSecurity)) return "support";
+  return undefined;
+}
+
+function processMobileEncounters(state: WorldState, ctx: TickContext) {
+  let encounterCount = 0;
+  Object.values(state.routes).forEach(route => {
+    if (encounterCount >= 4) return;
+    const actors = route.mobileActorIds
+      .map(actorId => state.mobileActors[actorId])
+      .filter((actor): actor is MobileActor => Boolean(actor))
+      .filter(hasMobileTravelAssignment)
+      .filter(actor => !recentlyLoggedInteraction(actor, "mobile_encounter", route.id, 12, state.clock.tick));
+    if (actors.length < 2) return;
+
+    for (let leftIndex = 0; leftIndex < actors.length; leftIndex += 1) {
+      for (let rightIndex = leftIndex + 1; rightIndex < actors.length; rightIndex += 1) {
+        if (encounterCount >= 4) return;
+        const left = actors[leftIndex];
+        const right = actors[rightIndex];
+        const tone = getMobileEncounterTone(state, left, right);
+        if (!tone) continue;
+        const leftOwner = getMobileOwnerFaction(state, left);
+        const rightOwner = getMobileOwnerFaction(state, right);
+        if (!leftOwner || !rightOwner) continue;
+        const routeRef: EntityRef = { kind: "route", id: route.id };
+        const leftRef: EntityRef = { kind: "mobileActor", id: left.id };
+        const rightRef: EntityRef = { kind: "mobileActor", id: right.id };
+        const refs = [leftRef, rightRef, routeRef, { kind: "faction" as const, id: leftOwner.id }, { kind: "faction" as const, id: rightOwner.id }];
+
+        if (tone === "support") {
+          applyMobileImpactDelta(state, ctx.generatedDeltas, routeRef, "security", 2, `mobile_encounter:${left.id}:${right.id}`);
+          applyMobileImpactDelta(state, ctx.generatedDeltas, leftRef, "fatigue", -2, `mobile_encounter:${right.id}`);
+          applyMobileImpactDelta(state, ctx.generatedDeltas, rightRef, "fatigue", -2, `mobile_encounter:${left.id}`);
+          applyFactionRelationShift(state, leftOwner.id, rightOwner.id, 2, -1, "mobile_route_support", refs);
+        } else {
+          const incident = tone === "incident";
+          applyMobileImpactDelta(state, ctx.generatedDeltas, routeRef, "traffic", incident ? -3 : -1, `mobile_encounter:${left.id}:${right.id}`, "mobile_setback");
+          applyMobileImpactDelta(state, ctx.generatedDeltas, routeRef, "ambushRisk", incident ? 3 : 1, `mobile_encounter:${left.id}:${right.id}`, "mobile_setback");
+          applyMobileImpactDelta(state, ctx.generatedDeltas, leftRef, "fatigue", incident ? 3 : 1, `mobile_encounter:${right.id}`, "mobile_setback");
+          applyMobileImpactDelta(state, ctx.generatedDeltas, rightRef, "fatigue", incident ? 3 : 1, `mobile_encounter:${left.id}`, "mobile_setback");
+          applyFactionRelationShift(state, leftOwner.id, rightOwner.id, incident ? -3 : -1, incident ? 5 : 2, incident ? "mobile_route_incident" : "mobile_route_friction", refs);
+          if (incident) {
+            registerTension(state, {
+              id: makeId("tension", state.clock.tick, `${left.id}-${right.id}-encounter`),
+              type: "mobility_risk",
+              severity: 36,
+              sourceRefs: [leftRef, rightRef],
+              targetRefs: [routeRef],
+              sinceTick: state.clock.tick,
+              tags: ["mobile", "encounter", "route"]
+            });
+          }
+        }
+
+        ctx.generatedEvents.push({
+          id: makeId("event", state.clock.tick, `${left.id}-${right.id}-encounter`),
+          type: "mobile_actor_encounter",
+          tick: state.clock.tick,
+          actor: leftRef,
+          target: routeRef,
+          success: tone === "support",
+          deltas: ctx.generatedDeltas.filter(delta =>
+            (delta.target.kind === "mobileActor" && (delta.target.id === left.id || delta.target.id === right.id)) ||
+            (delta.target.kind === "route" && delta.target.id === route.id)
+          ).slice(-8),
+          tags: ["deplacement", "rencontre", tone],
+          payload: { routeId: route.id, otherActorId: right.id, tone }
+        });
+        appendHistory(state, refs, {
+          tick: state.clock.tick,
+          type: "mobile_encounter",
+          summary: `${left.id} rencontre ${right.id} sur ${route.id}: ${tone}`,
+          refs
+        });
+        encounterCount += 1;
+      }
+    }
   });
 }
 
@@ -1988,18 +2817,25 @@ function runWorldStep(state: WorldState, scale: TickScale): TickOutput {
   const clockBefore = { ...state.clock };
   state.clock = advanceClockOneHour(state.clock, scale);
   decrementCooldowns(state, "micro");
+  prepareMobileActorsForTick(state);
   syncRouteMobilePresence(state);
   const wearDeltas = applyTerritorialWear(state, scale);
   const beforePressures = recomputePressuresDetailed(state);
   state.pressures = beforePressures.pressures;
   if (scale === "macro") {
     reconcileSystemObjectives(state);
+    reconcileFactionOpportunities(state);
+    reconcileAutonomousMobiles(state);
   }
   const ctx = resolveSelectedActions(state, scale, wearDeltas);
   ctx.trace.clockBefore = clockBefore;
   ctx.trace.clockAfter = { ...state.clock };
   ctx.trace.pressureSnapshots.before = beforePressures.trace;
   advanceMobileActors(state, ctx);
+  syncRouteMobilePresence(state);
+  if (scale === "macro") {
+    processMobileEncounters(state, ctx);
+  }
   if (scale === "macro") {
     processTensionLifecycle(state, ctx);
   }
@@ -2007,6 +2843,7 @@ function runWorldStep(state: WorldState, scale: TickScale): TickOutput {
   const afterPressures = recomputePressuresDetailed(state);
   state.pressures = afterPressures.pressures;
   ctx.trace.pressureSnapshots.after = afterPressures.trace;
+  ctx.trace.phaseTransitions = extractPhaseTransitionsFromDeltas(ctx.generatedDeltas);
   return diffuse(ctx);
 }
 
@@ -2030,7 +2867,8 @@ function mergeTickOutputs(outputs: TickOutput[]): TickOutput {
         actorCandidates: outputs.flatMap(output => output.trace?.actorCandidates ?? []),
         actionCandidates: outputs.flatMap(output => output.trace?.actionCandidates ?? []),
         selectedActions: outputs.flatMap(output => output.trace?.selectedActions ?? []),
-        mobility: outputs.flatMap(output => output.trace?.mobility ?? [])
+        mobility: outputs.flatMap(output => output.trace?.mobility ?? []),
+        phaseTransitions: outputs.flatMap(output => output.trace?.phaseTransitions ?? [])
       }
     : undefined;
 

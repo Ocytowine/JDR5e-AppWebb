@@ -116,6 +116,7 @@ export const WORLD_ACTION_DEFINITIONS: WorldActionDefinition[] = [
       { selector: "actor", type: "state", key: "influence", amount: 4 },
       { selector: "target", type: "state", key: "fear", amount: 12 },
       { selector: "target", type: "state", key: "commerce", amount: -8 },
+      { selector: "actor", type: "objective_progress", amount: 20 },
       { selector: "actor", type: "cooldown", actionId: "extort", ticks: 1 }
     ],
     failureEffects: [

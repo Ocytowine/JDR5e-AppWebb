@@ -49,6 +49,7 @@ export function SimulationFactionAnalysisPanel(props: {
   layout: WorldMapLayout;
   faction: WorldMapSimulationFaction | null;
   runtimeFaction: WorldFaction | null;
+  runtimeFactions: Record<string, WorldFaction>;
   logisticsPlan: LogisticsPlanTrace | null;
   objectives: WorldMapSimulationObjective[];
   mobileActors: WorldMapSimulationMobileActor[];
@@ -59,13 +60,42 @@ export function SimulationFactionAnalysisPanel(props: {
   onSelectMobileActor: (actorId: string) => void;
 }): React.JSX.Element {
   const relationDetails = useMemo(() => {
-    if (!props.faction) return [];
+    if (!props.faction && !props.runtimeFaction) return [];
     const factionMap = new Map((props.layout.simulation?.factions ?? []).map(faction => [faction.id, faction.label]));
-    return props.faction.relations.map(relation => ({
+    const runtimeFactionMap = new Map(Object.values(props.runtimeFactions).map(faction => [faction.id, faction.name]));
+    if (props.runtimeFaction) {
+      return props.runtimeFaction.relations
+        .slice()
+        .sort((left, right) => {
+          if (left.status !== right.status) {
+            const rank: Record<string, number> = { war: 4, rival: 3, neutral: 2, ally: 1 };
+            return (rank[right.status] ?? 0) - (rank[left.status] ?? 0);
+          }
+          return right.hostility - left.hostility;
+        })
+        .map(relation => {
+          const mapId = relation.otherFactionId.startsWith("faction:map:")
+            ? relation.otherFactionId.slice("faction:map:".length)
+            : relation.otherFactionId;
+          return {
+            targetFactionId: relation.otherFactionId,
+            status: relation.status,
+            trust: relation.trust,
+            hostility: relation.hostility,
+            notes: "",
+            label: runtimeFactionMap.get(relation.otherFactionId) ?? factionMap.get(mapId) ?? relation.otherFactionId,
+            source: "runtime"
+          };
+        });
+    }
+    const sourceFaction = props.faction;
+    if (!sourceFaction) return [];
+    return sourceFaction.relations.map(relation => ({
       ...relation,
-      label: factionMap.get(relation.targetFactionId) ?? relation.targetFactionId
+      label: factionMap.get(relation.targetFactionId) ?? relation.targetFactionId,
+      source: "edition"
     }));
-  }, [props.faction, props.layout.simulation?.factions]);
+  }, [props.faction, props.layout.simulation?.factions, props.runtimeFaction, props.runtimeFactions]);
 
   const ownedObjectives = useMemo(
     () =>
@@ -88,6 +118,18 @@ export function SimulationFactionAnalysisPanel(props: {
         .filter(([, ticks]) => typeof ticks === "number" && ticks > 0)
         .sort((left, right) => (right[1] ?? 0) - (left[1] ?? 0)),
     [props.runtimeFaction]
+  );
+  const recentRelationHistory = useMemo(
+    () => (props.runtimeFaction?.recentHistory ?? []).filter(entry => entry.type === "relation_shift").slice(0, 6),
+    [props.runtimeFaction]
+  );
+  const relationStatusCounts = useMemo(
+    () =>
+      relationDetails.reduce<Record<string, number>>((counts, relation) => {
+        counts[relation.status] = (counts[relation.status] ?? 0) + 1;
+        return counts;
+      }, {}),
+    [relationDetails]
   );
 
   if (!props.faction) {
@@ -215,6 +257,12 @@ export function SimulationFactionAnalysisPanel(props: {
 
       <div style={{ ...editorSurfaceStyles.subsection, gap: 8 }}>
         <div style={editorTextStyles.sectionTitle}>Avec qui</div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", fontSize: 12, color: "#c8d0de" }}>
+          <span>Allies {relationStatusCounts.ally ?? 0}</span>
+          <span>Neutres {relationStatusCounts.neutral ?? 0}</span>
+          <span>Rivaux {relationStatusCounts.rival ?? 0}</span>
+          <span>Guerres {relationStatusCounts.war ?? 0}</span>
+        </div>
         <div style={{ display: "grid", gap: 8 }}>
           {relationDetails.length > 0 ? (
             relationDetails.map(relation => {
@@ -236,6 +284,7 @@ export function SimulationFactionAnalysisPanel(props: {
                   </div>
                   <div style={{ display: "grid", gap: 3, fontSize: 12, marginTop: 4 }}>
                     <div>Confiance {relation.trust} · Hostilite {relation.hostility}</div>
+                    <div>Source: {relation.source === "runtime" ? "runtime courant" : "donnee editee"}</div>
                     <div>{relation.notes || "Pas de note."}</div>
                   </div>
                 </div>
@@ -245,6 +294,16 @@ export function SimulationFactionAnalysisPanel(props: {
             <div style={{ fontSize: 12, color: "#c8d0de" }}>Aucune relation definie.</div>
           )}
         </div>
+        {recentRelationHistory.length > 0 ? (
+          <div style={{ display: "grid", gap: 6 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#8fb3ff" }}>Journal relationnel</div>
+            {recentRelationHistory.map((entry, index) => (
+              <div key={`${entry.tick}:${index}`} style={{ fontSize: 12, color: "#c8d0de", lineHeight: 1.4 }}>
+                <span style={{ color: "#eef3ff", fontWeight: 700 }}>tick {entry.tick}</span> - {entry.summary}
+              </div>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       <div style={{ ...editorSurfaceStyles.subsection, gap: 6 }}>

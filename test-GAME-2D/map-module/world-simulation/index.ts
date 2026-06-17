@@ -7,3 +7,5 @@ export * from "./currentMapDemo";
 export * from "./preflight";
 export * from "./logisticsPlanner";
 export * from "./objectiveReadiness";
+export * from "./situationSummary";
+export * from "./mobileGeneration";

@@ -6,7 +6,7 @@ import {
   type WorldMapLayout
 } from "../data/worldMapLayout";
 import { buildPathPoints, getCellCenter, getCellPolygon } from "./mapShared";
-import type { EntityRef, PressureMap, PressureType, WorldState, WorldTension } from "../world-simulation";
+import type { EntityRef, MobileActor, PressureMap, PressureType, WorldState, WorldTension } from "../world-simulation";
 import { formatRuntimeMobileProgress, getRuntimeMobileMapPoint } from "./simulation/mobileRuntimeDisplay";
 
 type OverlayMode = "factions" | "objectives" | "mobility" | "pressures" | "relations" | "all";
@@ -143,6 +143,29 @@ function getObjectiveTargetLabel(targetId: string | undefined): string | null {
   return leaf.replace(/_/g, " ");
 }
 
+function getRuntimeMobileColor(actor: MobileActor): string {
+  const tags = actor.possibleInteractionTags.join(" ").toLowerCase();
+  if (tags.includes("militaire") || tags.includes("patrouille") || tags.includes("securite")) return "#6d98e2";
+  if (tags.includes("commerce") || tags.includes("approvisionnement") || tags.includes("convoi")) return "#7cb86a";
+  if (tags.includes("religion") || tags.includes("civique")) return "#d1b36e";
+  if (tags.includes("crimin") || tags.includes("contreband")) return "#cb7c62";
+  return "#9db5d7";
+}
+
+function getRuntimeMobileLabel(actor: MobileActor): string {
+  if (actor.typeEntity.includes("supply") || actor.possibleInteractionTags.includes("approvisionnement")) return "SUP";
+  if (actor.typeEntity.includes("patrol") || actor.possibleInteractionTags.includes("patrouille")) return "PAT";
+  if (actor.typeEntity.includes("civic")) return "CIV";
+  if (actor.typeEntity.includes("agent")) return "AGT";
+  return "RUN";
+}
+
+function getRuntimeMobileRouteCells(layout: WorldMapLayout, actor: MobileActor): MapCell[] {
+  return actor.itinerary
+    .map(routeId => layout.paths.find(path => path.id === routeId))
+    .flatMap(path => path?.cells ?? []);
+}
+
 function getTensionShortLabel(tension: WorldTension): string {
   const labels: Record<WorldTension["type"], string> = {
     criminal: "CRI",
@@ -156,6 +179,12 @@ function getTensionShortLabel(tension: WorldTension): string {
     mobility_risk: "MOB"
   };
   return labels[tension.type] ?? tension.type.slice(0, 3).toUpperCase();
+}
+
+function getMapFactionIdFromRuntimeId(runtimeFactionId: string): string | null {
+  return runtimeFactionId.startsWith("faction:map:")
+    ? runtimeFactionId.slice("faction:map:".length)
+    : null;
 }
 
 export function WorldSimulationOverlay(props: {
@@ -179,18 +208,22 @@ export function WorldSimulationOverlay(props: {
     .slice()
     .sort((left, right) => right.severity - left.severity)
     .slice(0, 24);
-  const relationSegments = factions.flatMap(faction =>
-    faction.relations.map(relation => {
-      const sortedIds = [faction.id, relation.targetFactionId].sort();
+  const relationSegments = Object.values(props.state.factions).flatMap(faction => {
+    const sourceId = getMapFactionIdFromRuntimeId(faction.id);
+    if (!sourceId || !factions.some(entry => entry.id === sourceId)) return [];
+    return faction.relations.flatMap(relation => {
+      const targetId = getMapFactionIdFromRuntimeId(relation.otherFactionId);
+      if (!targetId || !factions.some(entry => entry.id === targetId)) return [];
+      const sortedIds = [sourceId, targetId].sort();
       const key = `${sortedIds[0]}:${sortedIds[1]}:${relation.status}`;
       return {
         key,
-        sourceId: faction.id,
-        targetId: relation.targetFactionId,
-        status: relation.status
+        sourceId,
+        targetId,
+        status: relation.status as SimulationFactionRelationStatus
       };
-    })
-  ).filter((entry, index, collection) => collection.findIndex(candidate => candidate.key === entry.key) === index);
+    });
+  }).filter((entry, index, collection) => collection.findIndex(candidate => candidate.key === entry.key) === index);
   const selectedFaction = factions.find(faction => faction.id === props.selectedFactionId) ?? null;
   const selectedFactionObjectiveIds = new Set(
     objectives.filter(objective => objective.ownerFactionId === props.selectedFactionId).map(objective => objective.id)
@@ -579,6 +612,68 @@ export function WorldSimulationOverlay(props: {
             </g>
           );
         })}
+
+      {(props.mode === "mobility" || props.mode === "all") &&
+        Object.values(props.state.mobileActors)
+          .filter(actor => !actor.id.startsWith("mobile:map:"))
+          .map(actor => {
+            const runtimePoint = getRuntimeMobileMapPoint(props.layout, props.state, actor);
+            const positionCell = runtimePoint ? null : getEntityAnchorCell(props.layout, actor.position.kind, actor.position.id);
+            if (!positionCell && !runtimePoint) return null;
+            const center = runtimePoint ?? (positionCell ? getCellCenter(props.layout, positionCell) : null);
+            if (!center) return null;
+            const selected = !props.selectedMobileActorId || props.selectedMobileActorId === actor.id;
+            const routeCells = getRuntimeMobileRouteCells(props.layout, actor);
+            const runtimeSummary = formatRuntimeMobileProgress(props.layout, props.state, actor);
+            const color = getRuntimeMobileColor(actor);
+            return (
+              <g key={actor.id}>
+                {selected && routeCells.length > 1 && (
+                  <polyline
+                    points={buildPathPoints(props.layout, routeCells)}
+                    fill="none"
+                    stroke={hexToRgba(color, 0.72)}
+                    strokeWidth={3}
+                    strokeDasharray="4 5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                )}
+                <g transform={`translate(${center.x} ${center.y})`}>
+                  <rect
+                    x={selected ? -13 : -11}
+                    y={selected ? -13 : -11}
+                    width={selected ? 26 : 22}
+                    height={selected ? 26 : 22}
+                    rx={4}
+                    transform="rotate(45)"
+                    fill={hexToRgba(color, 0.88)}
+                    stroke={selected ? "rgba(255,255,255,0.94)" : "rgba(7,10,15,0.86)"}
+                    strokeWidth={selected ? 2.4 : 1.8}
+                  />
+                  <text
+                    y={4}
+                    textAnchor="middle"
+                    fill={selected ? "#071018" : "#eef3ff"}
+                    style={{ fontSize: 8, fontWeight: 900, paintOrder: "stroke", stroke: selected ? "rgba(255,255,255,0.25)" : "rgba(7,10,15,0.65)", strokeWidth: 2 }}
+                  >
+                    {getRuntimeMobileLabel(actor)}
+                  </text>
+                </g>
+                {selected ? (
+                  <text
+                    x={center.x}
+                    y={center.y + 28}
+                    textAnchor="middle"
+                    fill="#eef3ff"
+                    style={{ fontSize: 10, fontWeight: 800, paintOrder: "stroke", stroke: "rgba(8,11,17,0.86)", strokeWidth: 4 }}
+                  >
+                    {runtimeSummary.progressLabel}
+                  </text>
+                ) : null}
+              </g>
+            );
+          })}
     </g>
   );
 }
