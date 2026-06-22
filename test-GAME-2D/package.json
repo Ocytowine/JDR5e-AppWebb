@@ -18,6 +18,7 @@
     "narration-module:test:unit": "node -e \"console.log('narration-module runtime removed: no unit suite.')\"",
     "narration-module:test:contracts": "node -e \"console.log('narration-module runtime removed: no contract suite.')\"",
     "narration-module:test:integration": "node -e \"console.log('narration-module runtime removed: no integration suite.')\"",
+    "map-module:test:regression": "npx --yes tsx scripts/verify-map-module-regression.ts",
     "narration-module:demo:trace": "node -e \"console.log('narration-module runtime removed: no trace demo.')\""
   },
   "dependencies": {
