@@ -9,7 +9,8 @@ import type {
   WorldDistrict,
   WorldFaction,
   WorldRoute,
-  WorldState
+  WorldState,
+  WorldTension
 } from "./types";
 
 type SystemObjectiveBlueprint = {
@@ -30,6 +31,31 @@ function clamp(value: number, min = 0, max = 100): number {
 
 function getPressure(state: WorldState, ref: EntityRef, pressure: "criminal" | "social" | "commercial" | "military") {
   return state.pressures[ref.kind]?.[ref.id]?.[pressure] ?? 0;
+}
+
+function getActiveTensionIds(state: WorldState, ref: EntityRef): EntityId[] {
+  switch (ref.kind) {
+    case "city":
+      return state.cities[ref.id]?.activeTensionIds ?? [];
+    case "district":
+      return state.districts[ref.id]?.activeTensionIds ?? [];
+    case "route":
+      return state.routes[ref.id]?.activeTensionIds ?? [];
+    case "region":
+      return state.regions[ref.id]?.activeTensionIds ?? [];
+    default:
+      return [];
+  }
+}
+
+function getTensionSeverity(state: WorldState, ref: EntityRef, types: WorldTension["type"][]): number {
+  return Math.max(
+    0,
+    ...getActiveTensionIds(state, ref)
+      .map(tensionId => state.tensions[tensionId])
+      .filter((tension): tension is WorldTension => Boolean(tension) && types.includes(tension.type))
+      .map(tension => tension.severity)
+  );
 }
 
 function isSystemFaction(faction: WorldFaction): boolean {
@@ -140,20 +166,30 @@ function createGuardObjectives(state: WorldState, faction: WorldFaction): System
   const district = selectDistrictByScore(
     city,
     state,
-    candidate => getPressure(state, { kind: "district", id: candidate.id }, "criminal") * 0.7 + (candidate.state.danger ?? 0) * 0.3
+    candidate => {
+      const ref: EntityRef = { kind: "district", id: candidate.id };
+      return (
+        getPressure(state, ref, "criminal") * 0.55 +
+        (candidate.state.danger ?? 0) * 0.25 +
+        getTensionSeverity(state, ref, ["criminal", "control_conflict"]) * 0.2
+      );
+    }
   );
   if (!district) return [];
-  const criminalPressure = getPressure(state, { kind: "district", id: district.id }, "criminal");
-  const socialPressure = getPressure(state, { kind: "district", id: district.id }, "social");
+  const districtRef: EntityRef = { kind: "district", id: district.id };
+  const criminalPressure = getPressure(state, districtRef, "criminal");
+  const socialPressure = getPressure(state, districtRef, "social");
+  const orderTension = getTensionSeverity(state, districtRef, ["criminal", "control_conflict"]);
+  const unrestTension = getTensionSeverity(state, districtRef, ["social", "control_conflict"]);
   const results: SystemObjectiveBlueprint[] = [];
 
-  if (criminalPressure >= 45) {
+  if (criminalPressure >= 45 || orderTension >= 58) {
     results.push({
       id: `objective:system:restore_order:${faction.id}:${district.id}`,
       ownerFactionId: faction.id,
       category: "restore_order",
       target: { kind: "district", id: district.id },
-      priority: clamp(Math.round(44 + criminalPressure * 0.52 + socialPressure * 0.12)),
+      priority: clamp(Math.round(44 + criminalPressure * 0.46 + socialPressure * 0.1 + orderTension * 0.2)),
       zoneIds: [city.id, district.id],
       compatibleActionIds: district.tags.includes("commerce") ? ["patrol", "inspect_customs"] : ["patrol"],
       tags: ["system_generated", "maintenance", "public_guard", "restore_order"],
@@ -161,13 +197,13 @@ function createGuardObjectives(state: WorldState, faction: WorldFaction): System
     });
   }
 
-  if (socialPressure >= 58 && ((district.state.danger ?? 0) >= 34 || criminalPressure >= 40)) {
+  if ((socialPressure >= 58 || unrestTension >= 62) && ((district.state.danger ?? 0) >= 34 || criminalPressure >= 40 || orderTension >= 55)) {
     results.push({
       id: `objective:system:contain_unrest:${faction.id}:${district.id}`,
       ownerFactionId: faction.id,
       category: "contain_unrest",
       target: { kind: "district", id: district.id },
-      priority: clamp(Math.round(40 + socialPressure * 0.44 + criminalPressure * 0.14)),
+      priority: clamp(Math.round(40 + socialPressure * 0.38 + criminalPressure * 0.12 + unrestTension * 0.18)),
       zoneIds: [city.id, district.id],
       compatibleActionIds: district.tags.includes("commerce") ? ["public_reassurance", "patrol", "inspect_customs"] : ["public_reassurance", "patrol"],
       tags: ["system_generated", "maintenance", "public_guard", "contain_unrest"],
@@ -181,22 +217,33 @@ function createGuardObjectives(state: WorldState, faction: WorldFaction): System
 function createCivicObjectives(state: WorldState, faction: WorldFaction): SystemObjectiveBlueprint[] {
   const city = getCityByFactionId(state, faction.id);
   if (!city) return [];
-  const district = selectDistrictByScore(
-    city,
-    state,
-    candidate => getPressure(state, { kind: "district", id: candidate.id }, "social") * 0.7 + (candidate.state.fear ?? 0) * 0.15 + (candidate.state.agitation ?? 0) * 0.15
-  );
-  if (!district) return [];
-  const socialPressure = getPressure(state, { kind: "district", id: district.id }, "social");
-  const criminalPressure = getPressure(state, { kind: "district", id: district.id }, "criminal");
-  if (socialPressure < 50 && criminalPressure < 42) return [];
+  const candidate = city.districtIds
+    .map(districtId => state.districts[districtId])
+    .filter((district): district is WorldDistrict => Boolean(district))
+    .map(district => {
+      const ref: EntityRef = { kind: "district", id: district.id };
+      const socialPressure = getPressure(state, ref, "social");
+      const criminalPressure = getPressure(state, ref, "criminal");
+      const civicTension = getTensionSeverity(state, ref, ["social", "religious", "political", "control_conflict"]);
+      const score =
+        socialPressure * 0.55 +
+        (district.state.fear ?? 0) * 0.12 +
+        (district.state.agitation ?? 0) * 0.13 +
+        civicTension * 0.2;
+      return { district, socialPressure, criminalPressure, civicTension, score };
+    })
+    .filter(entry => entry.socialPressure >= 50 || entry.criminalPressure >= 42 || entry.civicTension >= 55)
+    .sort((left, right) => right.score - left.score)[0];
+  if (!candidate) return [];
+  const { district, socialPressure, criminalPressure, civicTension } = candidate;
+  if (socialPressure < 50 && criminalPressure < 42 && civicTension < 55) return [];
   return [
     {
       id: `objective:system:reduce_fear:${faction.id}:${district.id}`,
       ownerFactionId: faction.id,
       category: "reduce_fear",
       target: { kind: "district", id: district.id },
-      priority: clamp(Math.round(42 + socialPressure * 0.46 + criminalPressure * 0.08)),
+      priority: clamp(Math.round(42 + socialPressure * 0.4 + criminalPressure * 0.07 + civicTension * 0.18)),
       zoneIds: [city.id, district.id],
       compatibleActionIds: ["public_reassurance", "relief_distribution"],
       tags: ["system_generated", "maintenance", "civic_authority", "reduce_fear"],
@@ -211,23 +258,44 @@ function createLogisticsObjectives(state: WorldState, faction: WorldFaction): Sy
   const route = selectRouteByScore(
     city.routeIds,
     state,
-    candidate => getPressure(state, { kind: "route", id: candidate.id }, "military") * 0.45 + (100 - (candidate.state.security ?? 100)) * 0.35 + (100 - (candidate.state.materialState ?? 100)) * 0.2
+    candidate => {
+      const ref: EntityRef = { kind: "route", id: candidate.id };
+      return (
+        getPressure(state, ref, "military") * 0.38 +
+        (100 - (candidate.state.security ?? 100)) * 0.28 +
+        (100 - (candidate.state.materialState ?? 100)) * 0.17 +
+        getTensionSeverity(state, ref, ["military", "mobility_risk"]) * 0.17
+      );
+    }
   );
   const district = selectDistrictByScore(
     city,
     state,
-    candidate => getPressure(state, { kind: "district", id: candidate.id }, "social") * 0.4 + (100 - (candidate.state.commerce ?? 100)) * 0.6
+    candidate => {
+      const ref: EntityRef = { kind: "district", id: candidate.id };
+      return (
+        getPressure(state, ref, "social") * 0.3 +
+        (100 - (candidate.state.commerce ?? 100)) * 0.48 +
+        getTensionSeverity(state, ref, ["commercial", "scarcity", "social"]) * 0.22
+      );
+    }
   );
   const results: SystemObjectiveBlueprint[] = [];
-  const commercialPressure = getPressure(state, { kind: "city", id: city.id }, "commercial");
-  const districtSocialPressure = district ? getPressure(state, { kind: "district", id: district.id }, "social") : 0;
-  const districtCriminalPressure = district ? getPressure(state, { kind: "district", id: district.id }, "criminal") : 0;
-  const routeMilitaryPressure = route ? getPressure(state, { kind: "route", id: route.id }, "military") : 0;
+  const cityRef: EntityRef = { kind: "city", id: city.id };
+  const commercialPressure = getPressure(state, cityRef, "commercial");
+  const cityMarketTension = getTensionSeverity(state, cityRef, ["commercial", "scarcity"]);
+  const districtRef: EntityRef | undefined = district ? { kind: "district", id: district.id } : undefined;
+  const routeRef: EntityRef | undefined = route ? { kind: "route", id: route.id } : undefined;
+  const districtSocialPressure = districtRef ? getPressure(state, districtRef, "social") : 0;
+  const districtCriminalPressure = districtRef ? getPressure(state, districtRef, "criminal") : 0;
+  const districtMarketTension = districtRef ? getTensionSeverity(state, districtRef, ["commercial", "scarcity", "social"]) : 0;
+  const routeMilitaryPressure = routeRef ? getPressure(state, routeRef, "military") : 0;
+  const routeMobilityTension = routeRef ? getTensionSeverity(state, routeRef, ["military", "mobility_risk"]) : 0;
   const routeStructuralRisk = route ? Math.max(0, 100 - (route.state.materialState ?? 100)) : 0;
 
   if (
     district &&
-    (commercialPressure >= 64 || (district.state.commerce ?? 100) <= 38 || (city.state.supply ?? 100) <= 40) &&
+    (commercialPressure >= 64 || cityMarketTension >= 55 || districtMarketTension >= 55 || (district.state.commerce ?? 100) <= 38 || (city.state.supply ?? 100) <= 40) &&
     !(districtSocialPressure >= 62 && districtCriminalPressure >= 48)
   ) {
     results.push({
@@ -235,7 +303,7 @@ function createLogisticsObjectives(state: WorldState, faction: WorldFaction): Sy
       ownerFactionId: faction.id,
       category: "reopen_market",
       target: { kind: "district", id: district.id },
-      priority: clamp(Math.round(34 + commercialPressure * 0.34 + (100 - (district.state.commerce ?? 100)) * 0.2)),
+      priority: clamp(Math.round(34 + commercialPressure * 0.28 + (100 - (district.state.commerce ?? 100)) * 0.18 + Math.max(cityMarketTension, districtMarketTension) * 0.18)),
       zoneIds: [city.id, district.id],
       compatibleActionIds: district.tags.includes("commerce") ? ["reopen_market", "inspect_customs", "relief_distribution"] : ["reopen_market", "relief_distribution"],
       tags: ["system_generated", "maintenance", "logistics_office", "reopen_market"],
@@ -245,14 +313,14 @@ function createLogisticsObjectives(state: WorldState, faction: WorldFaction): Sy
 
   if (
     route &&
-    (routeMilitaryPressure >= 58 || (route.state.security ?? 100) <= 40 || (route.state.materialState ?? 100) <= 38)
+    (routeMilitaryPressure >= 58 || routeMobilityTension >= 55 || (route.state.security ?? 100) <= 40 || (route.state.materialState ?? 100) <= 38)
   ) {
     results.push({
       id: `objective:system:stabilize_supply:${faction.id}:${route.id}`,
       ownerFactionId: faction.id,
       category: "stabilize_supply",
       target: { kind: "route", id: route.id },
-      priority: clamp(Math.round(38 + routeMilitaryPressure * 0.24 + routeStructuralRisk * 0.22 + commercialPressure * 0.1)),
+      priority: clamp(Math.round(38 + routeMilitaryPressure * 0.22 + routeStructuralRisk * 0.2 + commercialPressure * 0.08 + routeMobilityTension * 0.18)),
       zoneIds: [city.id, route.id],
       compatibleActionIds: (route.state.materialState ?? 100) <= 42 ? ["repair_route", "secure_route"] : ["secure_route", "repair_route"],
       tags: ["system_generated", "maintenance", "logistics_office", "stabilize_supply"],
@@ -272,18 +340,27 @@ function createRegionalObjectives(state: WorldState, faction: WorldFaction): Sys
   const route = selectRouteByScore(
     region.mainRouteIds,
     state,
-    candidate => getPressure(state, { kind: "route", id: candidate.id }, "military") * 0.55 + (candidate.state.ambushRisk ?? 0) * 0.45
+    candidate => {
+      const ref: EntityRef = { kind: "route", id: candidate.id };
+      return (
+        getPressure(state, ref, "military") * 0.45 +
+        (candidate.state.ambushRisk ?? 0) * 0.35 +
+        getTensionSeverity(state, ref, ["military", "mobility_risk"]) * 0.2
+      );
+    }
   );
   if (!route) return [];
-  const militaryPressure = getPressure(state, { kind: "route", id: route.id }, "military");
-  if (militaryPressure < 52 && (route.state.ambushRisk ?? 0) < 50) return [];
+  const routeRef: EntityRef = { kind: "route", id: route.id };
+  const militaryPressure = getPressure(state, routeRef, "military");
+  const mobilityTension = getTensionSeverity(state, routeRef, ["military", "mobility_risk"]);
+  if (militaryPressure < 52 && (route.state.ambushRisk ?? 0) < 50 && mobilityTension < 55) return [];
   return [
     {
       id: `objective:system:secure_corridor:${faction.id}:${route.id}`,
       ownerFactionId: faction.id,
       category: "secure_corridor",
       target: { kind: "route", id: route.id },
-      priority: clamp(Math.round(48 + militaryPressure * 0.55)),
+      priority: clamp(Math.round(48 + militaryPressure * 0.45 + mobilityTension * 0.2)),
       zoneIds: [region.id, route.id],
       compatibleActionIds: (route.state.materialState ?? 100) <= 48 ? ["repair_route", "secure_route"] : ["secure_route", "repair_route"],
       tags: ["system_generated", "maintenance", "regional_patrol", "secure_corridor"],

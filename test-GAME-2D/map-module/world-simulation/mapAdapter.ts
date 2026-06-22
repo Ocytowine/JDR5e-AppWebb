@@ -135,7 +135,7 @@ function collectCityCells(layout: WorldMapLayout, city: WorldMapCity): MapCellDa
 
 function collectRouteIdsForCity(layout: WorldMapLayout, city: WorldMapCity): string[] {
   return layout.paths
-    .filter(path => path.kind === "road" && path.cells.some(cell => cell.x === city.cell.x && cell.y === city.cell.y))
+    .filter(path => path.cells.some(cell => cell.x === city.cell.x && cell.y === city.cell.y))
     .map(path => path.id);
 }
 
@@ -312,6 +312,50 @@ function estimateLayoutPathTraversalCost(path: WorldMapLayout["paths"][number], 
     headcount: actor?.state?.headcount ?? 0,
     modeTransport
   });
+}
+
+function createMaritimeRuntimeRoutes(layout: WorldMapLayout, cities: Record<string, WorldCity>): Record<string, WorldRoute> {
+  const maritimeCityIds = Object.values(cities)
+    .filter(city => city.tags.includes("maritime") || city.districtIds.some(districtId => districtId.includes(":harbor")))
+    .map(city => city.id);
+  const maritimeRegionIds = (layout.governanceRegions ?? [])
+    .filter(region =>
+      layout.cells.some(cell =>
+        cell.governanceRegionId === region.id &&
+        (cell.surface === "ocean" || hasAny(cell.tags, ["maritime"]))
+      )
+    )
+    .map(region => region.id);
+
+  const routes: Record<string, WorldRoute> = {};
+  maritimeCityIds.forEach(cityId => {
+    const city = cities[cityId];
+    const regionIds = [...new Set([city?.regionId, ...maritimeRegionIds].filter((id): id is string => Boolean(id)))];
+    regionIds.forEach(regionId => {
+      if (cityId === regionId) return;
+      const routeId = `maritime:${cityId}:${regionId}`;
+      routes[routeId] = {
+        id: routeId,
+        originId: cityId,
+        destinationId: regionId,
+        travelCost: 4,
+        length: 6,
+        tags: ["sea", "maritime", "waterway"],
+        state: {
+          security: 44,
+          traffic: 34,
+          materialState: 72,
+          control: 30,
+          ambushRisk: 24,
+          terrainDifficulty: 5
+        },
+        recentHistory: [],
+        activeTensionIds: [],
+        mobileActorIds: []
+      };
+    });
+  });
+  return routes;
 }
 
 function inferRegionTags(layout: WorldMapLayout, regionId: string): string[] {
@@ -1129,7 +1173,7 @@ export function createSimulationSeedFromMapLayout(layout: WorldMapLayout, overri
   const cellByKey = new Map(layout.cells.map(cell => [getWorldMapCellKey(cell.cell), cell]));
   const routesBase: Record<string, WorldRoute> = Object.fromEntries(
     layout.paths
-      .filter(path => path.kind === "road")
+      .filter(path => path.kind === "road" || path.kind === "river")
       .map(path => {
         const matchingCities = layout.cities.filter(city =>
           path.cells.some(cell => cell.x === city.cell.x && cell.y === city.cell.y)
@@ -1139,22 +1183,38 @@ export function createSimulationSeedFromMapLayout(layout: WorldMapLayout, overri
           .filter((cell): cell is MapCellData => Boolean(cell));
         const originId = matchingCities[0]?.id ?? path.id;
         const destinationId = matchingCities[1]?.id ?? originId;
+        const routeKindTags = path.kind === "river"
+          ? ["river", "waterway", "fluvial", path.sourceType ?? "river_source"]
+          : [path.roadType ?? "road"];
         return [
           path.id,
           {
             id: path.id,
             originId,
             destinationId,
-            travelCost: path.roadType === "major_road" ? 2 : path.roadType === "road" ? 3 : 4,
+            travelCost: path.kind === "river" ? 3 : path.roadType === "major_road" ? 2 : path.roadType === "road" ? 3 : 4,
             length: Math.max(path.cells.length, 1),
-            tags: [path.roadType ?? "road", ...new Set(pathCells.flatMap(cell => cell.tags ?? []).filter(tag => ["frontalier", "dangerous", "commerce", "maritime", "forestier"].includes(tag)))],
+            tags: [...routeKindTags, ...new Set(pathCells.flatMap(cell => cell.tags ?? []).filter(tag => ["frontalier", "dangerous", "commerce", "maritime", "forestier"].includes(tag)))],
             state: inferRouteStats(pathCells, matchingCities.length, path.roadType ?? "road"),
             recentHistory: [],
+            activeTensionIds: [],
             mobileActorIds: []
           } satisfies WorldRoute
         ];
       })
   );
+  const maritimeRoutes = createMaritimeRuntimeRoutes(layout, citiesBase);
+  Object.entries(maritimeRoutes).forEach(([routeId, route]) => {
+    routesBase[routeId] = route;
+    const originCity = citiesBase[route.originId];
+    if (originCity && !originCity.routeIds.includes(routeId)) {
+      originCity.routeIds.push(routeId);
+    }
+    const destinationCity = citiesBase[route.destinationId];
+    if (destinationCity && !destinationCity.routeIds.includes(routeId)) {
+      destinationCity.routeIds.push(routeId);
+    }
+  });
 
   const regionsBase: Record<string, WorldRegion> = Object.fromEntries(
     (layout.governanceRegions ?? []).map(region => {
@@ -1178,6 +1238,7 @@ export function createSimulationSeedFromMapLayout(layout: WorldMapLayout, overri
             externalThreat: clamp(14 + countMatches(regionTags, ["frontalier", "dangereux"]) * 12)
           },
           dominantWeather: "temperate",
+          recentHistory: [],
           activeTensionIds: [],
           tags: regionTags
         } satisfies WorldRegion

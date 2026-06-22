@@ -104,6 +104,7 @@ export function createExampleWorldState(): WorldState {
           ambushRisk: 63
         },
         recentHistory: [],
+        activeTensionIds: [],
         mobileActorIds: ["mobile-convoy"]
       }
     },
@@ -121,6 +122,7 @@ export function createExampleWorldState(): WorldState {
           externalThreat: 29
         },
         dominantWeather: "rainy",
+        recentHistory: [],
         activeTensionIds: [],
         tags: ["borderland"]
       }

@@ -1,4 +1,4 @@
-import { findShortestRouteItinerary, getRouteTraversalCost } from "./travel";
+import { canUseAbstractWaterTravel, findShortestRouteItinerary, getOffRouteTraversalCost, getRouteTraversalCost } from "./travel";
 import { evaluateObjectiveReadiness, synchronizeObjectiveReadiness } from "./objectiveReadiness";
 import type {
   EntityId,
@@ -267,13 +267,25 @@ function buildModePlan(
     const route = state.routes[routeId];
     return route ? sum + getRouteTraversalCost(route, travelActor) : sum;
   }, 0);
+  const sameLocation = executionTargetRef.id === existingActor.position.id && executionTargetRef.kind === existingActor.position.kind;
+  const canUseOffRoute = routeIds.length === 0 && !sameLocation && mode !== "bateau";
+  const canUseWaterFallback = routeIds.length === 0 && !sameLocation && mode === "bateau" && canUseAbstractWaterTravel(state, travelActor);
+  const offRouteCost = canUseOffRoute || canUseWaterFallback ? getOffRouteTraversalCost(state, travelActor) : 0;
   const estimatedHours = routeIds.length > 0
     ? Math.max(1, Math.ceil(routeCost / Math.max(1, existingActor.speed * getModeSpeedMultiplier(mode))))
-    : executionTargetRef.id === existingActor.position.id
+    : sameLocation
       ? 0
-      : undefined;
-  const estimatedCost = estimatePlanCost(requirement, mode, routeIds.length);
-  const riskScore = computeRouteRisk(state, routeIds);
+      : offRouteCost > 0
+        ? Math.max(1, Math.ceil(offRouteCost / Math.max(1, existingActor.speed * getModeSpeedMultiplier(mode))))
+        : undefined;
+  const estimatedCost = estimatePlanCost(requirement, mode, routeIds.length) + (canUseOffRoute ? 6 : canUseWaterFallback ? 8 : 0);
+  const riskScore = routeIds.length > 0
+    ? computeRouteRisk(state, routeIds)
+    : canUseOffRoute
+      ? 42
+      : canUseWaterFallback
+        ? 36
+        : 0;
   const raisonsBlocage: string[] = [];
 
   if (resources.effectifsDisponibles < demandeTransport.effectifPlanifie) {
@@ -288,8 +300,8 @@ function buildModePlan(
   if (mode === "bateau" && resources.bateauxDisponibles < demandeTransport.bateauxNecessaires) {
     raisonsBlocage.push("pas_de_bateau_disponible");
   }
-  if (mode === "bateau" && routeIds.length > 0) {
-    raisonsBlocage.push("reseau_fluvial_absent");
+  if (mode === "bateau" && routeIds.length === 0 && !sameLocation && !canUseWaterFallback) {
+    raisonsBlocage.push("pas_de_voie_eau_abstraite");
   }
   if (mode === "pied" && requirement.besoinCharge >= 28) {
     raisonsBlocage.push("charge_trop_lourde_pour_pied");
@@ -301,7 +313,9 @@ function buildModePlan(
   const notes = [
     `intention:${requirement.intention}`,
     `effectif:${demandeTransport.effectifPlanifie}`,
-    `charge:${demandeTransport.chargePlanifiee}`
+    `charge:${demandeTransport.chargePlanifiee}`,
+    ...(canUseOffRoute ? ["trajet_hors_route"] : []),
+    ...(canUseWaterFallback ? ["navigation_abstraite"] : [])
   ];
   return {
     objectifId: requirement.objectifId,
@@ -337,16 +351,33 @@ function selectBestPlan(candidates: LogisticsPlanTrace[]): LogisticsPlanTrace {
   })[0];
 }
 
+function isObjectiveActive(objective: SpecialObjective | undefined): objective is SpecialObjective {
+  if (!objective) return false;
+  return objective.state !== "completed" && objective.state !== "failed" && objective.state !== "blocked";
+}
+
+function isAssignableActor(state: WorldState, actor: MobileActor): boolean {
+  if ((actor.state.fatigue ?? 0) >= 85) return false;
+  if ((actor.state.resources ?? 0) <= 0) return false;
+  const activeObjectiveCount = actor.objectives
+    .map(goal => state.specialObjectives[goal.objectiveId])
+    .filter(isObjectiveActive).length;
+  if (activeObjectiveCount > 0) return true;
+  return !actor.destination && actor.itinerary.length === 0;
+}
+
 function getAssignableActor(state: WorldState, factionId: EntityId, objectifId: EntityId): MobileActor | undefined {
   return Object.values(state.mobileActors)
     .filter(actor => actor.owner?.kind === "faction" && actor.owner.id === factionId && actor.simulationLevel !== "abstract")
+    .filter(actor => isAssignableActor(state, actor))
     .sort((left, right) => {
       const leftMatch = left.objectives.some(goal => goal.objectiveId === objectifId) ? 1 : 0;
       const rightMatch = right.objectives.some(goal => goal.objectiveId === objectifId) ? 1 : 0;
       if (leftMatch !== rightMatch) return rightMatch - leftMatch;
       const leftIdle = left.destination ? 0 : 1;
       const rightIdle = right.destination ? 0 : 1;
-      return rightIdle - leftIdle;
+      if (leftIdle !== rightIdle) return rightIdle - leftIdle;
+      return (left.state.fatigue ?? 0) - (right.state.fatigue ?? 0);
     })[0];
 }
 

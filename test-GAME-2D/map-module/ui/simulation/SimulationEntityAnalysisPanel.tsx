@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import type { ActionCandidateTrace, EntityRef, PressureEvaluationTrace, TickOutput, WorldEvent } from "../../world-simulation";
+import { summarizeLocalSituation, type ActionCandidateTrace, type EntityRef, type PressureEvaluationTrace, type TickOutput, type WorldEvent, type WorldHistoryEntry, type WorldState } from "../../world-simulation";
 import { createEditorButtonStyle, editorSurfaceStyles, editorTextStyles } from "../editor/editorTheme";
 import { formatRejectionReason, formatScaleStep } from "./timeFormatting";
 
@@ -22,12 +22,19 @@ function formatNumber(value: number | undefined): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
+function formatActionCause(candidate: ActionCandidateTrace): string {
+  if (!candidate.actionCause) return "cause non detaillee";
+  return candidate.actionCause.detail ? `${candidate.actionCause.label} - ${candidate.actionCause.detail}` : candidate.actionCause.label;
+}
+
 export function SimulationEntityAnalysisPanel(props: {
   selectedEntity: { key: string; label: string; ref: EntityRef } | null;
   pressureEvaluations: PressureEvaluationTrace[];
   actionCandidates: ActionCandidateTrace[];
   events: WorldEvent[];
+  history: WorldHistoryEntry[];
   latestOutput: TickOutput | null;
+  state: WorldState;
 }): React.JSX.Element {
   const dominantPressures = useMemo(
     () =>
@@ -51,6 +58,11 @@ export function SimulationEntityAnalysisPanel(props: {
     [props.actionCandidates]
   );
 
+  const situation = useMemo(
+    () => (props.selectedEntity ? summarizeLocalSituation(props.state, [props.selectedEntity.ref]) : null),
+    [props.selectedEntity, props.state]
+  );
+
   if (!props.selectedEntity) {
     return (
       <div style={{ fontSize: 12, color: "#c8d0de", lineHeight: 1.45 }}>
@@ -67,9 +79,24 @@ export function SimulationEntityAnalysisPanel(props: {
           <div>Entite: {props.selectedEntity.label}</div>
           <div>Reference technique: {formatEntityRef(props.selectedEntity.ref)}</div>
           <div>Evenements lies au dernier cycle horaire: {props.events.length}</div>
+          <div>Historique recent: {props.history.length} entree(s)</div>
           <div>Actions envisagees: {props.actionCandidates.length}</div>
         </div>
       </div>
+
+      {situation ? (
+        <div style={{ ...editorSurfaceStyles.subsection, gap: 6, border: "1px solid rgba(143,179,255,0.28)", background: "rgba(143,179,255,0.08)" }}>
+          <div style={editorTextStyles.sectionTitle}>Situation</div>
+          <div style={{ fontSize: 12, color: "#dce5f2", lineHeight: 1.45 }}>
+            <div style={{ fontWeight: 700, color: "#eef3ff" }}>{situation.headline}</div>
+            <div>Risque: {situation.riskLabel} · tendance {situation.trend}</div>
+            <div>Factions impliquees: {situation.involvedFactionLabels.length ? situation.involvedFactionLabels.join(", ") : "aucune"}</div>
+            <div>Mobiles concernes: {situation.involvedMobileLabels.length ? situation.involvedMobileLabels.join(", ") : "aucun"}</div>
+            <div>Suite probable: {situation.nextLikelyDevelopments.length ? situation.nextLikelyDevelopments.join(" | ") : "stabilite locale"}</div>
+            {situation.recentFact ? <div>Dernier fait: tick {situation.recentFact.tick} - {situation.recentFact.summary}</div> : null}
+          </div>
+        </div>
+      ) : null}
 
       <div style={{ ...editorSurfaceStyles.subsection, gap: 6 }}>
         <div style={editorTextStyles.sectionTitle}>Ce qui pese dessus</div>
@@ -99,6 +126,9 @@ export function SimulationEntityAnalysisPanel(props: {
               <div key={`${candidate.actorRef.id}:${candidate.actionId}:${candidate.targetRef.id}`} style={{ fontSize: 12, color: "#dce5f2", lineHeight: 1.45 }}>
                 <div style={{ fontWeight: 700, color: "#eef3ff" }}>
                   {formatEntityRef(candidate.actorRef)} {"->"} {candidate.actionId}
+                </div>
+                <div style={{ marginTop: 3, color: "#c8d0de" }}>
+                  Cause: {formatActionCause(candidate)}
                 </div>
                 <div style={{ marginTop: 3 }}>
                   Score {formatNumber(candidate.score)} · objectif {candidate.objectiveId ?? "aucun"} · pression cible {formatNumber(candidate.scoreBreakdown?.targetPressure)}
@@ -150,6 +180,26 @@ export function SimulationEntityAnalysisPanel(props: {
           <div style={{ fontSize: 12, color: "#c8d0de" }}>Aucun evenement n'a implique cette entite sur le dernier cycle horaire.</div>
         )}
       </div>
+
+      <details style={{ ...editorSurfaceStyles.subsection, gap: 6 }} open={props.history.length > 0}>
+        <summary style={{ cursor: "pointer", userSelect: "none", ...editorTextStyles.sectionTitle }}>
+          Memoire recente de l'entite
+        </summary>
+        <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
+          {props.history.length > 0 ? (
+            props.history.slice(0, 8).map((entry, index) => (
+              <div key={`${entry.tick}:${entry.type}:${index}`} style={{ fontSize: 12, color: "#dce5f2", lineHeight: 1.45 }}>
+                <div style={{ fontWeight: 700, color: "#eef3ff" }}>
+                  tick {entry.tick} - {entry.type}
+                </div>
+                <div style={{ marginTop: 3, color: "#c8d0de" }}>{entry.summary}</div>
+              </div>
+            ))
+          ) : (
+            <div style={{ fontSize: 12, color: "#c8d0de" }}>Aucune memoire persistante n'est encore attachee a cette entite.</div>
+          )}
+        </div>
+      </details>
 
       {props.latestOutput ? (
         <button type="button" style={createEditorButtonStyle({ compact: true, active: false })}>

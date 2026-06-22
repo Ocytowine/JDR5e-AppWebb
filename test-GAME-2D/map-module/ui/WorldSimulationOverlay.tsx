@@ -6,7 +6,7 @@ import {
   type WorldMapLayout
 } from "../data/worldMapLayout";
 import { buildPathPoints, getCellCenter, getCellPolygon } from "./mapShared";
-import type { PressureMap, PressureType, WorldState } from "../world-simulation";
+import type { EntityRef, MobileActor, PressureMap, PressureType, WorldState, WorldTension } from "../world-simulation";
 import { formatRuntimeMobileProgress, getRuntimeMobileMapPoint } from "./simulation/mobileRuntimeDisplay";
 
 type OverlayMode = "factions" | "objectives" | "mobility" | "pressures" | "relations" | "all";
@@ -18,6 +18,18 @@ const PRESSURE_COLORS: Record<PressureType, string> = {
   military: "#5f86d8",
   religious: "#d4b16a",
   political: "#6ba8a1"
+};
+
+const TENSION_COLORS: Record<WorldTension["type"], string> = {
+  criminal: "#df6f4f",
+  social: "#e4b44e",
+  commercial: "#62bd84",
+  military: "#6f91e8",
+  religious: "#d9bd6e",
+  political: "#70b6ad",
+  scarcity: "#e0c14d",
+  control_conflict: "#c47fe0",
+  mobility_risk: "#8ba7f4"
 };
 
 const RELATION_STYLES: Record<SimulationFactionRelationStatus, { stroke: string; dasharray?: string; width: number }> = {
@@ -84,6 +96,19 @@ function getDistrictAnchorCell(layout: WorldMapLayout, districtId: string): MapC
   return profileCells[0]?.cell ?? nearbyCells[0]?.cell ?? city.cell;
 }
 
+function getTensionAnchorCell(layout: WorldMapLayout, ref: EntityRef | undefined): MapCell | null {
+  if (!ref) return null;
+  if (ref.kind === "district") {
+    return getDistrictAnchorCell(layout, ref.id);
+  }
+  return getEntityAnchorCell(layout, ref.kind, ref.id);
+}
+
+function getTensionTargetRoute(layout: WorldMapLayout, tension: WorldTension) {
+  const routeRef = tension.targetRefs.find(ref => ref.kind === "route");
+  return routeRef ? layout.paths.find(path => path.id === routeRef.id) ?? null : null;
+}
+
 function getFactionAnchorCell(layout: WorldMapLayout, factionId: string): MapCell | null {
   const faction = layout.simulation?.factions.find(entry => entry.id === factionId);
   if (!faction) return null;
@@ -118,6 +143,50 @@ function getObjectiveTargetLabel(targetId: string | undefined): string | null {
   return leaf.replace(/_/g, " ");
 }
 
+function getRuntimeMobileColor(actor: MobileActor): string {
+  const tags = actor.possibleInteractionTags.join(" ").toLowerCase();
+  if (tags.includes("militaire") || tags.includes("patrouille") || tags.includes("securite")) return "#6d98e2";
+  if (tags.includes("commerce") || tags.includes("approvisionnement") || tags.includes("convoi")) return "#7cb86a";
+  if (tags.includes("religion") || tags.includes("civique")) return "#d1b36e";
+  if (tags.includes("crimin") || tags.includes("contreband")) return "#cb7c62";
+  return "#9db5d7";
+}
+
+function getRuntimeMobileLabel(actor: MobileActor): string {
+  if (actor.typeEntity.includes("supply") || actor.possibleInteractionTags.includes("approvisionnement")) return "SUP";
+  if (actor.typeEntity.includes("patrol") || actor.possibleInteractionTags.includes("patrouille")) return "PAT";
+  if (actor.typeEntity.includes("civic")) return "CIV";
+  if (actor.typeEntity.includes("agent")) return "AGT";
+  return "RUN";
+}
+
+function getRuntimeMobileRouteCells(layout: WorldMapLayout, actor: MobileActor): MapCell[] {
+  return actor.itinerary
+    .map(routeId => layout.paths.find(path => path.id === routeId))
+    .flatMap(path => path?.cells ?? []);
+}
+
+function getTensionShortLabel(tension: WorldTension): string {
+  const labels: Record<WorldTension["type"], string> = {
+    criminal: "CRI",
+    social: "SOC",
+    commercial: "COM",
+    military: "MIL",
+    religious: "REL",
+    political: "POL",
+    scarcity: "PEN",
+    control_conflict: "CTL",
+    mobility_risk: "MOB"
+  };
+  return labels[tension.type] ?? tension.type.slice(0, 3).toUpperCase();
+}
+
+function getMapFactionIdFromRuntimeId(runtimeFactionId: string): string | null {
+  return runtimeFactionId.startsWith("faction:map:")
+    ? runtimeFactionId.slice("faction:map:".length)
+    : null;
+}
+
 export function WorldSimulationOverlay(props: {
   layout: WorldMapLayout;
   mode: OverlayMode;
@@ -135,18 +204,26 @@ export function WorldSimulationOverlay(props: {
     routes: Object.entries(props.state.pressures.route ?? {}),
     regions: Object.entries(props.state.pressures.region ?? {})
   };
-  const relationSegments = factions.flatMap(faction =>
-    faction.relations.map(relation => {
-      const sortedIds = [faction.id, relation.targetFactionId].sort();
+  const activeTensions = Object.values(props.state.tensions)
+    .slice()
+    .sort((left, right) => right.severity - left.severity)
+    .slice(0, 24);
+  const relationSegments = Object.values(props.state.factions).flatMap(faction => {
+    const sourceId = getMapFactionIdFromRuntimeId(faction.id);
+    if (!sourceId || !factions.some(entry => entry.id === sourceId)) return [];
+    return faction.relations.flatMap(relation => {
+      const targetId = getMapFactionIdFromRuntimeId(relation.otherFactionId);
+      if (!targetId || !factions.some(entry => entry.id === targetId)) return [];
+      const sortedIds = [sourceId, targetId].sort();
       const key = `${sortedIds[0]}:${sortedIds[1]}:${relation.status}`;
       return {
         key,
-        sourceId: faction.id,
-        targetId: relation.targetFactionId,
-        status: relation.status
+        sourceId,
+        targetId,
+        status: relation.status as SimulationFactionRelationStatus
       };
-    })
-  ).filter((entry, index, collection) => collection.findIndex(candidate => candidate.key === entry.key) === index);
+    });
+  }).filter((entry, index, collection) => collection.findIndex(candidate => candidate.key === entry.key) === index);
   const selectedFaction = factions.find(faction => faction.id === props.selectedFactionId) ?? null;
   const selectedFactionObjectiveIds = new Set(
     objectives.filter(objective => objective.ownerFactionId === props.selectedFactionId).map(objective => objective.id)
@@ -372,6 +449,89 @@ export function WorldSimulationOverlay(props: {
         </g>
       )}
 
+      {(props.mode === "pressures" || props.mode === "all") && activeTensions.length > 0 && (
+        <g>
+          {activeTensions.map(tension => {
+            const route = getTensionTargetRoute(props.layout, tension);
+            const color = TENSION_COLORS[tension.type] ?? "#f4c967";
+            const severity = Math.max(0, Math.min(100, tension.severity));
+            if (route && route.cells.length >= 2) {
+              const anchorCell = getRouteAnchorCell(props.layout, route.id);
+              const center = anchorCell ? getCellCenter(props.layout, anchorCell) : null;
+              return (
+                <g key={`active-tension:${tension.id}`}>
+                  <polyline
+                    points={buildPathPoints(props.layout, route.cells)}
+                    fill="none"
+                    stroke={hexToRgba(color, Math.min(0.92, 0.42 + severity / 190))}
+                    strokeWidth={4 + severity / 24}
+                    strokeDasharray="5 5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  {center ? (
+                    <>
+                      <circle
+                        cx={center.x}
+                        cy={center.y}
+                        r={9 + severity / 18}
+                        fill={hexToRgba(color, 0.2)}
+                        stroke={hexToRgba(color, 0.95)}
+                        strokeWidth={2.4}
+                      />
+                      <text
+                        x={center.x}
+                        y={center.y + 3}
+                        textAnchor="middle"
+                        fill="#fff7d6"
+                        style={{ fontSize: 9, fontWeight: 900, paintOrder: "stroke", stroke: "rgba(8,11,17,0.9)", strokeWidth: 4 }}
+                      >
+                        {getTensionShortLabel(tension)}
+                      </text>
+                    </>
+                  ) : null}
+                </g>
+              );
+            }
+
+            const anchorCell = getTensionAnchorCell(props.layout, tension.targetRefs[0]);
+            if (!anchorCell) return null;
+            const center = getCellCenter(props.layout, anchorCell);
+            const radius = 10 + severity / 11;
+            return (
+              <g key={`active-tension:${tension.id}`}>
+                <circle
+                  cx={center.x}
+                  cy={center.y}
+                  r={radius}
+                  fill={hexToRgba(color, 0.16)}
+                  stroke={hexToRgba(color, 0.96)}
+                  strokeWidth={2.4}
+                  strokeDasharray={severity >= 65 ? undefined : "4 4"}
+                />
+                <circle
+                  cx={center.x}
+                  cy={center.y}
+                  r={Math.max(4, radius * 0.32)}
+                  fill={hexToRgba(color, 0.86)}
+                  stroke="rgba(8,11,17,0.85)"
+                  strokeWidth={1.4}
+                />
+                <text
+                  x={center.x}
+                  y={center.y - radius - 4}
+                  textAnchor="middle"
+                  fill="#fff7d6"
+                  style={{ fontSize: 10, fontWeight: 900, paintOrder: "stroke", stroke: "rgba(8,11,17,0.9)", strokeWidth: 4 }}
+                >
+                  {getTensionShortLabel(tension)} {Math.round(severity)}
+                </text>
+              </g>
+            );
+          })}
+        </g>
+      )}
+
       {(props.mode === "relations" || props.mode === "all" || (props.mode === "factions" && Boolean(props.selectedFactionId))) &&
         relationSegments.map(entry => {
           const fromCell = getFactionAnchorCell(props.layout, entry.sourceId);
@@ -452,6 +612,68 @@ export function WorldSimulationOverlay(props: {
             </g>
           );
         })}
+
+      {(props.mode === "mobility" || props.mode === "all") &&
+        Object.values(props.state.mobileActors)
+          .filter(actor => !actor.id.startsWith("mobile:map:"))
+          .map(actor => {
+            const runtimePoint = getRuntimeMobileMapPoint(props.layout, props.state, actor);
+            const positionCell = runtimePoint ? null : getEntityAnchorCell(props.layout, actor.position.kind, actor.position.id);
+            if (!positionCell && !runtimePoint) return null;
+            const center = runtimePoint ?? (positionCell ? getCellCenter(props.layout, positionCell) : null);
+            if (!center) return null;
+            const selected = !props.selectedMobileActorId || props.selectedMobileActorId === actor.id;
+            const routeCells = getRuntimeMobileRouteCells(props.layout, actor);
+            const runtimeSummary = formatRuntimeMobileProgress(props.layout, props.state, actor);
+            const color = getRuntimeMobileColor(actor);
+            return (
+              <g key={actor.id}>
+                {selected && routeCells.length > 1 && (
+                  <polyline
+                    points={buildPathPoints(props.layout, routeCells)}
+                    fill="none"
+                    stroke={hexToRgba(color, 0.72)}
+                    strokeWidth={3}
+                    strokeDasharray="4 5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                )}
+                <g transform={`translate(${center.x} ${center.y})`}>
+                  <rect
+                    x={selected ? -13 : -11}
+                    y={selected ? -13 : -11}
+                    width={selected ? 26 : 22}
+                    height={selected ? 26 : 22}
+                    rx={4}
+                    transform="rotate(45)"
+                    fill={hexToRgba(color, 0.88)}
+                    stroke={selected ? "rgba(255,255,255,0.94)" : "rgba(7,10,15,0.86)"}
+                    strokeWidth={selected ? 2.4 : 1.8}
+                  />
+                  <text
+                    y={4}
+                    textAnchor="middle"
+                    fill={selected ? "#071018" : "#eef3ff"}
+                    style={{ fontSize: 8, fontWeight: 900, paintOrder: "stroke", stroke: selected ? "rgba(255,255,255,0.25)" : "rgba(7,10,15,0.65)", strokeWidth: 2 }}
+                  >
+                    {getRuntimeMobileLabel(actor)}
+                  </text>
+                </g>
+                {selected ? (
+                  <text
+                    x={center.x}
+                    y={center.y + 28}
+                    textAnchor="middle"
+                    fill="#eef3ff"
+                    style={{ fontSize: 10, fontWeight: 800, paintOrder: "stroke", stroke: "rgba(8,11,17,0.86)", strokeWidth: 4 }}
+                  >
+                    {runtimeSummary.progressLabel}
+                  </text>
+                ) : null}
+              </g>
+            );
+          })}
     </g>
   );
 }
