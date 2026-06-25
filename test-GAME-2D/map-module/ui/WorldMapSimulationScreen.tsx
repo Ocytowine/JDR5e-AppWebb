@@ -1132,6 +1132,9 @@ export function WorldMapSimulationScreen(props: {
                           <div>Proprietaire: {formatEntityRef(selectedMobileActorRuntime.owner)}</div>
                           <div>Profil: {selectedMobileActorRuntime.typeEntity} · {selectedMobileActorRuntime.travelMode}</div>
                           <div>Objectif porte: {getMobileObjectiveLabel(state, selectedMobileActorRuntime)}</div>
+                          <div>Mission: {selectedMobileActorRuntime.missionAssignment?.intent ?? "aucune"}</div>
+                          <div>Phase servie: {selectedMobileActorRuntime.missionAssignment?.phaseId ?? "aucune"}</div>
+                          <div>Cible de mission: {formatEntityRef(selectedMobileActorRuntime.missionAssignment?.executionTarget)}</div>
                           <div>Statut runtime: {selectedMobileRuntimeSummary.statusLabel}</div>
                           <div>Cause statut: {selectedMobileRuntimeSummary.statusReason}</div>
                           <div>Position runtime: {formatEntityRef(selectedMobileActorRuntime.position)}</div>
@@ -1150,7 +1153,7 @@ export function WorldMapSimulationScreen(props: {
                             <div>Plan logistique: aucun plan recent</div>
                           )}
                           {selectedMobileTraceEntry ? (
-                            <div>Dernier mouvement: {selectedMobileTraceEntry.outcome} · {formatNumber(selectedMobileTraceEntry.beforeProgress)} {"->"} {formatNumber(selectedMobileTraceEntry.afterProgress)} · {selectedMobileTraceEntry.notes.join(", ")}</div>
+                            <div>Dernier mouvement: {selectedMobileTraceEntry.outcome} · phase {selectedMobileTraceEntry.phaseId ?? "aucune"} · {formatNumber(selectedMobileTraceEntry.beforeProgress)} {"->"} {formatNumber(selectedMobileTraceEntry.afterProgress)} · {selectedMobileTraceEntry.notes.join(", ")}</div>
                           ) : (
                             <div>Dernier mouvement: aucun dans le dernier cycle</div>
                           )}

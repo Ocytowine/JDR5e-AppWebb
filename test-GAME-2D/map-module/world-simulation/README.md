@@ -82,6 +82,8 @@ Les relations de confiance peuvent aussi devenir une cause d'action. Quand deux 
 
 Les mobiles ont maintenant une premiere consequence systemique a l'arrivee. Un convoi charge peut ameliorer l'approvisionnement et le commerce d'une ville, une patrouille peut renforcer l'ordre ou la securite, un groupe criminel peut augmenter corruption et risque, et un groupe religieux peut produire un effet social local. L'arrivee fait aussi progresser l'objectif principal porte par le mobile et ecrit un historique `mobile_arrival_effect`.
 
+Chaque mobile actif expose aussi une `missionAssignment` runtime qui relie explicitement son objectif, la phase servie, la cible d'execution et l'intention operationnelle. Cette affectation est resynchronisee quand la phase active change. Un itineraire automatique peut alors etre reoriente vers la nouvelle cible de phase, tandis qu'un itineraire editorial `locked` reste preserve. Les memes informations sont disponibles dans la trace de mobilite et dans la fiche `Mobile suivi`.
+
 Les retards et embuscades mobiles produisent aussi des consequences. Un retard augmente le risque d'echec de l'objectif transporte, degrade legerement le corridor ou la destination attendue, et peut creer une tension `mobility_risk`. Une embuscade peut endommager la route, menacer l'approvisionnement de destination et creer une tension criminelle de route. Ces effets sont historises via `mobile_delay_effect` et `mobile_ambush_effect`.
 
 Le runtime peut aussi generer des mobiles autonomes pour les factions qui portent un objectif logistique ou systeme mais n'ont aucun acteur mobile utilisable. La generation reste bornee et ciblee : elle privilegie les objectifs publics, logistiques, de corridor ou de stabilisation, et evite de donner automatiquement un mobile a toutes les opportunites criminelles ou narratives. Ces creations sont historisees via `mobile_generated`.
@@ -113,7 +115,7 @@ Le mode simulation expose :
 - les transitions de phase d'objectif dans la trace runtime : progression, completion, activation, blocage ou echec ;
 - le journal relationnel recent d'une faction avec les derniers `relation_shift` ;
 - une synthese `Situation locale` pour lire tendance, risque, factions impliquees, mobiles concernes et suites probables ;
-- une fiche `Mobile suivi` capable d'inspecter les mobiles editoriaux et les mobiles runtime generes : origine, proprietaire, objectif porte, destination, plan logistique, dernier mouvement et historique utile ;
+- une fiche `Mobile suivi` capable d'inspecter les mobiles editoriaux et les mobiles runtime generes : origine, proprietaire, objectif porte, phase servie, intention, destination, plan logistique, dernier mouvement et historique utile ;
 - la memoire recente d'une entite inspectee.
 
 Lecture rapide du panneau `Calibration` :

@@ -70,7 +70,7 @@ Definition of done :
 
 ## Axe 3 - Objectifs Multi-Phases
 
-Statut : `in_progress`
+Statut : `completed`
 
 But :
 
@@ -83,12 +83,12 @@ Travail :
 - [x] connecter les actions selectionnees a une phase concrete d'objectif ;
 - [x] permettre l'echec partiel d'une phase sans forcement echouer l'objectif entier ;
 - [x] afficher la phase active et les transitions observees ;
-- [ ] renforcer ensuite le role des mobiles comme executants explicites d'une phase.
+- [x] renforcer ensuite le role des mobiles comme executants explicites d'une phase.
 
 Definition of done :
 
 - [x] un objectif de corridor ou de crise peut passer par plusieurs etapes lisibles ;
-- [ ] un mobile sert une phase identifiable ;
+- [x] un mobile sert une phase identifiable ;
 - [x] les echecs ou succes peuvent modifier la phase active ;
 - [x] les tests couvrent au moins un objectif qui progresse et change de phase.
 

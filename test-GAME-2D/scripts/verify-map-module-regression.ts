@@ -66,14 +66,12 @@ assertEqual(sixHourState.clock.macroTick, 1, "clock apres 6h: macroTick");
 console.log("[OK] horloge map-module: 6h = 1 macro tick");
 
 const mobility = (output.trace?.mobility ?? []) as MobilityTrace[];
-assertEqual(
-  mobility.length,
-  mobileActors.length * 6,
-  "mobilite: une trace par mobile et par heure"
-);
+const initialMobileIds = new Set(mobileActors.map(actor => actor.id));
+const initialMobility = mobility.filter(trace => initialMobileIds.has(trace.actorId));
+assertEqual(initialMobility.length, mobileActors.length * 6, "mobilite: une trace par mobile initial et par heure");
 
 const progressByActor = new Map<string, number>();
-mobility.forEach(trace => {
+initialMobility.forEach(trace => {
   const delta = Math.max(0, Number(trace.afterProgress ?? 0) - Number(trace.beforeProgress ?? 0));
   progressByActor.set(trace.actorId, (progressByActor.get(trace.actorId) ?? 0) + delta);
 });
@@ -85,4 +83,3 @@ mobileActors.forEach(actor => {
   );
 });
 console.log("[OK] mobilite map-module: les mobiles avancent pendant le macro tick de 6h");
-

@@ -3,7 +3,7 @@ import { applyFactionLogisticsPlans, buildFactionLogisticsPlans, reinitialiserRe
 import { synchronizeObjectiveReadiness } from "./objectiveReadiness";
 import { reconcileFactionOpportunities } from "./factionOpportunities";
 import { reconcileSystemObjectives } from "./systemObjectives";
-import { reconcileAutonomousMobiles } from "./mobileGeneration";
+import { reconcileAutonomousMobiles, syncMobileMissionAssignment } from "./mobileGeneration";
 import { canUseAbstractWaterTravel, findShortestRouteItinerary, getAbsoluteRouteProgress, getOffRouteTraversalCost, getProgressPerTick, getRouteProgressTowardTarget, getRouteTargetId, getRouteTraversalCost, isRouteCompatibleWithActor } from "./travel";
 import type {
   ActionCandidateTrace,
@@ -1802,6 +1802,7 @@ function pruneMobileStaleObjectives(state: WorldState, actor: MobileActor): numb
 function prepareMobileActorsForTick(state: WorldState) {
   Object.values(state.mobileActors).forEach(actor => {
     pruneMobileStaleObjectives(state, actor);
+    syncMobileMissionAssignment(state, actor);
   });
 }
 
@@ -2309,6 +2310,7 @@ function resolveSelectedActions(state: WorldState, scale: TickScale, initialDelt
 function advanceMobileActors(state: WorldState, ctx: TickContext) {
   Object.values(state.mobileActors).forEach(actor => {
     pruneMobileStaleObjectives(state, actor);
+    syncMobileMissionAssignment(state, actor);
 
     if (actor.itineraryMode !== "locked" && actor.destination && actor.position.kind !== "route") {
       const shortestItinerary = findShortestRouteItinerary(state, actor);
@@ -2656,6 +2658,16 @@ function advanceMobileActors(state: WorldState, ctx: TickContext) {
       notes: [`arrive a ${actor.position.id}`]
     });
   });
+
+  ctx.trace.mobility.forEach(entry => {
+    const assignment = state.mobileActors[entry.actorId]?.missionAssignment;
+    if (!assignment) return;
+    entry.objectiveId = assignment.objectiveId;
+    entry.phaseId = assignment.phaseId;
+    entry.executionTarget = assignment.executionTarget;
+    entry.missionIntent = assignment.intent;
+  });
+  Object.values(state.mobileActors).forEach(actor => syncMobileMissionAssignment(state, actor));
 }
 
 function getMobileEncounterTone(state: WorldState, left: MobileActor, right: MobileActor): "support" | "friction" | "incident" | undefined {

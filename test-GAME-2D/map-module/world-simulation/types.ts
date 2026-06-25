@@ -327,6 +327,14 @@ export type ObjectivePhaseRuntime = {
   notes?: string[];
 };
 
+export type MobileMissionAssignment = {
+  objectiveId: EntityId;
+  phaseId?: EntityId;
+  executionTarget?: EntityRef;
+  intent: string;
+  assignedAtTick: number;
+};
+
 export type MobileActor = {
   id: EntityId;
   typeEntity: string;
@@ -345,6 +353,7 @@ export type MobileActor = {
   routeProgress: number;
   state: DynamicStats;
   objectives: GoalRef[];
+  missionAssignment?: MobileMissionAssignment;
   possibleInteractionTags: string[];
   recentHistory: WorldHistoryEntry[];
   simulationLevel: SimulationLevel;
@@ -683,6 +692,10 @@ export type SelectedActionTrace = {
 
 export type MobilityTraceEntry = {
   actorId: EntityId;
+  objectiveId?: EntityId;
+  phaseId?: EntityId;
+  executionTarget?: EntityRef;
+  missionIntent?: string;
   routeId?: EntityId;
   outcome: "idle" | "progress" | "delayed" | "arrived" | "blocked" | "rerouted";
   beforeProgress: number;

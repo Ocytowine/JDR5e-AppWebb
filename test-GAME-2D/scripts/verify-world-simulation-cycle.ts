@@ -292,6 +292,13 @@ assert(
   generatedRuntimeMobiles.some(actor => actor.owner?.id === logisticsOffice.id && actor.recentHistory.some(entry => entry.type === "mobile_generated")),
   "Une faction systeme sans mobile devrait generer un mobile autonome pour son objectif"
 );
+assert(
+  generatedRuntimeMobiles.every(actor =>
+    Boolean(actor.missionAssignment?.objectiveId) &&
+    actor.missionAssignment?.objectiveId === actor.objectives[0]?.objectiveId
+  ),
+  "Un mobile autonome genere devrait exposer une affectation de mission explicite"
+);
 
 const blockedMobileGenerationState = createExampleWorldState();
 blockedMobileGenerationState.mobileActors = {};
@@ -538,6 +545,21 @@ assert(
   phaseTransitionOutput.trace?.phaseTransitions.some(transition => transition.objectiveId === "obj-secure-road" && transition.transition === "completed") &&
     phaseTransitionOutput.trace?.phaseTransitions.some(transition => transition.objectiveId === "obj-secure-road" && transition.transition === "activated"),
   "La trace runtime devrait exposer les transitions de phase completed et activated"
+);
+const phaseMobile = phaseTransitionState.mobileActors["mobile-convoy"];
+assert(
+  phaseMobile.missionAssignment?.objectiveId === phasedObjective.id &&
+    phaseMobile.missionAssignment.phaseId === "verify_phase_hold",
+  "Le mobile devrait etre reassigne explicitement a la nouvelle phase active"
+);
+assert(
+  phaseTransitionOutput.trace?.mobility.some(entry =>
+    entry.actorId === phaseMobile.id &&
+    entry.objectiveId === phasedObjective.id &&
+    entry.phaseId === "verify_phase_hold" &&
+    Boolean(entry.missionIntent)
+  ),
+  "La trace de mobilite devrait exposer l'objectif, la phase et l'intention servis"
 );
 
 const mobileArrivalState = createExampleWorldState();

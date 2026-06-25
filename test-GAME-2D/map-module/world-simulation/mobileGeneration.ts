@@ -32,6 +32,55 @@ function getObjectiveTargetCity(state: WorldState, objective: SpecialObjective):
   return undefined;
 }
 
+function isSameEntityRef(left: EntityRef | undefined, right: EntityRef | undefined): boolean {
+  return Boolean(left && right && left.kind === right.kind && left.id === right.id);
+}
+
+export function syncMobileMissionAssignment(state: WorldState, actor: MobileActor): void {
+  const objective = actor.objectives
+    .map(goal => state.specialObjectives[goal.objectiveId])
+    .filter(isObjectiveActive)
+    .sort((left, right) => right.priority - left.priority)[0];
+  if (!objective) {
+    actor.missionAssignment = undefined;
+    return;
+  }
+
+  const phase = objective.phases[objective.currentPhaseIndex];
+  const executionTarget = phase?.localTarget ?? objective.target;
+  const previous = actor.missionAssignment;
+  const assignmentChanged =
+    previous?.objectiveId !== objective.id ||
+    previous?.phaseId !== phase?.id ||
+    !isSameEntityRef(previous?.executionTarget, executionTarget);
+
+  actor.missionAssignment = {
+    objectiveId: objective.id,
+    phaseId: phase?.id,
+    executionTarget,
+    intent: phase?.label ?? objective.category,
+    assignedAtTick: assignmentChanged ? state.clock.tick : previous?.assignedAtTick ?? state.clock.tick
+  };
+
+  // The first runtime assignment documents an existing mission. Only a later
+  // phase change is allowed to redirect an automatically planned journey.
+  if (!previous || !assignmentChanged || actor.itineraryMode === "locked" || !executionTarget) return;
+  if (isSameEntityRef(actor.position, executionTarget)) {
+    actor.destination = undefined;
+    actor.itinerary = [];
+    actor.currentRouteTargetId = undefined;
+    actor.destinationRouteProgress = undefined;
+    actor.routeProgress = 0;
+    return;
+  }
+
+  actor.destination = executionTarget;
+  actor.itinerary = findShortestRouteItinerary(state, actor);
+  actor.currentRouteTargetId = undefined;
+  actor.destinationRouteProgress = undefined;
+  if (actor.position.kind !== "route") actor.routeProgress = 0;
+}
+
 function getFactionStartRef(state: WorldState, faction: WorldFaction, fallback?: EntityRef): EntityRef | undefined {
   const zoneIds = [
     ...(faction.controlledZoneIds ?? []),
@@ -197,6 +246,7 @@ export function reconcileAutonomousMobiles(state: WorldState): MobileActor[] {
         simulationLevel: "active",
         cooldowns: {}
       };
+      syncMobileMissionAssignment(state, actor);
       actor.itinerary = findShortestRouteItinerary(state, actor);
       state.mobileActors[id] = actor;
       faction.recentHistory.unshift({

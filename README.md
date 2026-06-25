@@ -1,41 +1,64 @@
 # JDR5e-AppWebb
-Projet de jeu web - jeu de rôle solo sur navigateur, mécaniques complexes
 
-1 - Finir création de lore d'une région complète
-2 - Créer une app intégrant un wiki, une ia narrative, qui répond au question lié au lore
-3 - Créer la base de la partie stratégie/combat
- a : créer les levels (mécanique : escalier, gestion de vision, saut...)
- b : créer mouvement speciaux.
- c : gestion des sprite / obstacle (creation, intégration, coloration, evolution)
- d : gestion des obstacles et des interactions.(créer une base d'interaction, tester)
- e : gestion des tuiles sol (propriété et graphisme, test modules spécial.)
- f : patterns rivière, pont, batiment a étage
- g : 
-4 - Créer une app de discussion, suivant les règles et détectant les TRIGGERs
-5 - Fusionner les apps
+Jeu de role solo sur navigateur. Le projet combine une narration guidee, un univers documente dans un wiki, une simulation du monde et un plateau tactique 2D.
 
-mise à jour en cours :
- - Sol des patterns
+## Etat du projet
 
-## Parser de prompt (map)
+Le developpement actif se trouve dans `test-GAME-2D/`. La pile actuelle est React 18, TypeScript, Vite 6, PixiJS 8 et un serveur Node.js local.
 
-Le parser de prompt transforme un texte libre en specifications de generation de carte.
-Fichiers clefs :
-- `test-GAME-2D/src/game/map/promptParser.ts` : parse le texte et produit un `MapSpec`.
-- `test-GAME-2D/src/game/map/pipeline.ts` : appelle le parser puis declenche la generation.
+Le suivi synthetique du travail est dans [`TASKS.md`](TASKS.md). Les plans techniques detailles restent dans `test-GAME-2D/docs/` et `test-GAME-2D/map-module/docs/`.
 
-Fonctionnement (resume) :
-- Detection du theme (donjon/foret/ville) via mots clefs.
-- Choix du layout (`layoutId`) selon le theme et des indices (rue, clairiere, salle, etc).
-- Indices de taille (small/medium/large) a partir du vocabulaire.
-- Detection de portes/entrees (nord/sud/est/ouest, centre/gauche/droite).
-- Options specifiques par theme (ex: rue pour la ville).
+## Prerequis
 
-Obstacles demandes dans le prompt :
-- Syntaxe simple : `charette` pour en demander une.
-- Orientation explicite : `charette[NW]` (N, NE, E, SE, S, SW/SO, W/O, NW/NO).
-- Exemple : `rue et charette[NE]`.
+- Node.js 20 (version utilisee par la CI)
+- npm
+- Git
 
-Notes :
-- La charette est placee sur la route du module `city_street`.
-- Si l'espace est insuffisant, le log de generation indique le placement partiel.
+## Installation
+
+```powershell
+cd test-GAME-2D
+npm ci
+npm run setup:hooks
+```
+
+La configuration locale facultative se place dans `test-GAME-2D/.env`. Ce fichier est ignore par Git et ne doit pas contenir de secret versionne.
+
+## Utilisation
+
+Depuis `test-GAME-2D/` :
+
+```powershell
+npm run dev
+```
+
+Cette commande regenere les catalogues puis demarre le serveur applicatif. Pour lancer uniquement l'interface Vite :
+
+```powershell
+npm run dev:ui
+```
+
+## Verification
+
+```powershell
+npm run build
+npm run validate:content
+npm run map-module:test:regression
+npm run verify:world-simulation
+```
+
+Les simulations longues sont disponibles avec `npm run verify:world-simulation:long` et `npm run verify:world-simulation:mobility-long`.
+
+## Structure
+
+- `test-GAME-2D/src/` : application React, plateau, regles, donnees et creation de personnage.
+- `test-GAME-2D/map-module/` : carte du monde, editeur et simulation systemique.
+- `test-GAME-2D/narration-module/` : integration du lore et interfaces de narration.
+- `test-GAME-2D/scripts/` : generation de catalogues et scripts de verification.
+- `test-GAME-2D/docs/` : conception fonctionnelle et technique de l'application.
+- `wiki/` : lore et modeles de contenu de l'univers.
+- `docs projet/` : documents historiques et idees de conception.
+
+## Collaboration
+
+Avant de modifier le projet, lire [`AGENTS.md`](AGENTS.md), puis [`TASKS.md`](TASKS.md). Les decisions et l'etat de travail doivent rester dans Git; les fichiers generes, journaux temporaires et secrets ne doivent pas etre commits.
