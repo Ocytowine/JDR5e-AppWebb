@@ -13,8 +13,6 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
-const crypto = require("crypto");
-const { createNarrationModuleApi } = require("./narration-module/server/narrationHttpApi");
 const { createMapModuleApi } = require("./map-module/server/mapModuleApi");
 
 const PORT = process.env.PORT
@@ -68,8 +66,6 @@ if (!OPENAI_API_KEY) {
 } else {
   console.log("[enemy-ai] Clé OpenAI détectée, appels IA activés.");
 }
-
-// Narration module API moved to narration-module/server/narrationHttpApi.js
 
 // ----------------------------------------------------
 // Helpers HTTP
@@ -278,15 +274,6 @@ async function callOpenAiJson({ model, systemPrompt, userPayload }) {
   }
 }
 
-const narrationModuleApi = createNarrationModuleApi({
-  projectRoot: __dirname,
-  openAiApiKey: OPENAI_API_KEY,
-  callOpenAiJson,
-  parseJsonBody,
-  sendJson,
-  cryptoImpl: crypto
-});
-
 const mapModuleApi = createMapModuleApi({
   projectRoot: __dirname,
   sendJson,
@@ -373,9 +360,6 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { summary: "", error: "IA non fonctionnel." });
     }
   }
-
-  const narrationHandled = await narrationModuleApi.tryHandle(req, res);
-  if (narrationHandled !== false) return;
 
   const mapHandled = await mapModuleApi.tryHandle(req, res);
   if (mapHandled !== false) return;

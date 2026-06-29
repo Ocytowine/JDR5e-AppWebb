@@ -17,6 +17,6 @@
     "jsx": "react-jsx",
     "types": ["vite/client"]
   },
-  "include": ["src", "narration-module/ui"]
+  "include": ["src"]
 }
 

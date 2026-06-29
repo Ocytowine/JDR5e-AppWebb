@@ -46,7 +46,6 @@ import { spellCatalog } from "../game/spellCatalog";
 import { loadFeatureTypesFromIndex } from "../game/featureCatalog";
 import type { FeatureDefinition } from "../game/featureTypes";
 import { getEquipmentConstraintIssues } from "../game/engine/rules/equipmentHands";
-import { NarrationSetupPanel } from "../../narration-module/ui/NarrationSetupPanel";
 import { WorldMapScreen } from "../../map-module/ui/WorldMapScreen";
 
 const WEAPON_PROFICIENCY_OPTIONS: Array<{ id: string; label: string }> = [
@@ -140,11 +139,6 @@ export function CombatSetupScreen(props: {
   gridCols: number;
   gridRows: number;
   mapPrompt: string;
-  narrationContext: string;
-  narrationPlayerInput: string;
-  narrationProcessing: boolean;
-  narrationRuntimeError: string | null;
-  narrationRuntimeOutputText: string;
   character: Personnage;
   weaponTypes: WeaponTypeDefinition[];
   raceTypes: RaceDefinition[];
@@ -157,14 +151,11 @@ export function CombatSetupScreen(props: {
   armorItems: ArmorItemDefinition[];
   onChangeCharacter: (next: Personnage) => void;
   onChangeMapPrompt: (value: string) => void;
-  onChangeNarrationContext: (value: string) => void;
-  onChangeNarrationPlayerInput: (value: string) => void;
-  onRunNarrationTurn: () => void;
   onChangeEnemyCount: (value: number) => void;
   onStartCombat: () => void;
   onNoEnemyTypes: () => void;
 }): React.JSX.Element {
-  const [activeMainTab, setActiveMainTab] = useState<"combat" | "player" | "narration" | "worldMap">("combat");
+  const [activeMainTab, setActiveMainTab] = useState<"combat" | "player" | "worldMap">("combat");
   const [activePlayerTab, setActivePlayerTab] = useState<
     | "species"
     | "backgrounds"
@@ -5675,7 +5666,6 @@ export function CombatSetupScreen(props: {
           {[ 
             { id: "combat", label: "Combat" },
             { id: "player", label: "Joueur" },
-            { id: "narration", label: "Narration" },
             { id: "worldMap", label: "Carte" }
           ].map(tab => {
             const isActive = activeMainTab === tab.id;
@@ -5904,19 +5894,6 @@ export function CombatSetupScreen(props: {
 
           {activeMainTab === "worldMap" && (
             <WorldMapScreen onBack={() => setActiveMainTab("combat")} />
-          )}
-
-          {activeMainTab === "narration" && (
-            <NarrationSetupPanel
-              narrationContext={props.narrationContext}
-              narrationPlayerInput={props.narrationPlayerInput}
-              narrationProcessing={props.narrationProcessing}
-              narrationRuntimeError={props.narrationRuntimeError}
-              narrationRuntimeOutputText={props.narrationRuntimeOutputText}
-              onChangeNarrationContext={props.onChangeNarrationContext}
-              onChangeNarrationPlayerInput={props.onChangeNarrationPlayerInput}
-              onRunNarrationTurn={props.onRunNarrationTurn}
-            />
           )}
 
           {activeMainTab === "player" && activePlayerTab === "equip" && (

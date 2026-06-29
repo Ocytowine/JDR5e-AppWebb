@@ -1,6 +1,6 @@
 # JDR5e-AppWebb
 
-Jeu de role solo sur navigateur. Le projet combine une narration guidee, un univers documente dans un wiki, une simulation du monde et un plateau tactique 2D.
+Jeu de role solo sur navigateur. Le projet combine un univers documente dans un wiki, une simulation du monde et un plateau tactique 2D.
 
 ## Etat du projet
 
@@ -53,7 +53,7 @@ Les simulations longues sont disponibles avec `npm run verify:world-simulation:l
 
 - `test-GAME-2D/src/` : application React, plateau, regles, donnees et creation de personnage.
 - `test-GAME-2D/map-module/` : carte du monde, editeur et simulation systemique.
-- `test-GAME-2D/narration-module/` : integration du lore et interfaces de narration.
+- `test-GAME-2D/narration-module/` : espace reserve a la future reconstruction du module de narration; l'application n'en depend pas actuellement.
 - `test-GAME-2D/scripts/` : generation de catalogues et scripts de verification.
 - `test-GAME-2D/docs/` : conception fonctionnelle et technique de l'application.
 - `wiki/` : lore et modeles de contenu de l'univers.

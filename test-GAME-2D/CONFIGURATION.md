@@ -10,7 +10,7 @@
 
 | Commande | Description |
 |---|---|
-| `npm run dev` | Génère les catalogues, build le module narration, démarre le serveur |
+| `npm run dev` | Génère les catalogues et démarre le serveur |
 | `npm run dev:ui` | Démarre uniquement Vite (interface seule) |
 | `npm run build` | Build complet pour la production |
 | `npm run gen:action-catalog` | Génère le catalogue des actions |
@@ -22,7 +22,7 @@
 
 ## Module narration
 
-Le runtime du module narration a été retiré. Il fonctionne en mode **lore-only** : aucune étape de build supplémentaire n'est requise.
+Le runtime et l'interface du module narration ont été retirés. L'application principale ne dépend plus de ce module pour compiler ou démarrer.
 
 ## Notes
 
