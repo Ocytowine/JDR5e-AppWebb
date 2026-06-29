@@ -66,18 +66,103 @@ Cette règle ne réduit pas l'IA à un générateur de texte : elle conserve l'i
 
 ## 3. Autorité des données
 
-Statut : `RETENU`, frontières exactes à confirmer avec les contrats existants.
+Statut : `RETENU`; première matrice validée, flux de mutation et propriétaires secondaires encore à compléter.
 
-| Domaine | Autorité prévue | Usage par la narration |
+| Données | Autorité prévue | Usage par la narration |
 |---|---|---|
-| Canon initial du monde | Wiki et données de lore | Lecture et sélection de faits sourcés |
+| Canon initial du monde | Wiki et données de lore | Lecture et sélection de faits sourcés; aucune mutation de campagne dans le wiki |
+| Overrides et créations propres à une partie | État de campagne | Projection de la vérité effective et propositions validées |
 | Temps, géographie, factions, tensions | `map-module` | Projection locale et demandes d'évolution |
-| Fiche, apparence, aptitudes, progression | Domaine personnage | Lecture et commandes validées par ce domaine |
-| Combat et résolution tactique | Moteur tactique | Déclenchement encadré et consommation des résultats |
-| Scène, fils narratifs, connaissances et relations | État de campagne narratif | Lecture, proposition et persistance contrôlée |
+| Création et choix de progression du PJ | Domaine personnage | Production ou évolution contrôlée de la fiche source |
+| Instance du PJ dans une campagne | Domaine personnage de campagne | Lecture des capacités et demandes de mutations validées |
+| Identité, personnalité, connaissances et relations d'un PNJ | État de campagne narratif | Création, dialogue et évolution contrôlée |
+| Position et activité mondiale d'un PNJ | `map-module` | Projection locale et événements de déplacement ou d'activité |
+| État temporaire d'une rencontre tactique | Moteur tactique | Déclenchement encadré et consommation des résultats |
+| Phases et résultats mécaniques d'un repos | Moteur de repos | Questions mises en scène et consommation des résultats |
+| Scène, fils narratifs et connaissances de campagne | État de campagne narratif | Lecture, proposition et persistance contrôlée |
 | Présentation conversationnelle | Interface narration | Affichage seulement, jamais source de vérité |
 
 Il ne doit exister qu'une seule horloge de jeu faisant autorité. La narration peut demander une avance du temps et réagir au résultat; elle ne maintient pas une horloge parallèle.
+
+### Autorité par propriété et projections
+
+Une entité peut avoir plusieurs projections sans posséder plusieurs autorités concurrentes. L'autorité est attribuée à une propriété ou à un agrégat cohérent, pas nécessairement à tout l'objet représenté dans l'interface.
+
+Par exemple, un même PNJ peut posséder :
+
+- un profil narratif persistant dans la campagne;
+- une position et une activité dans le monde;
+- une projection temporaire de combattant dans le moteur tactique;
+- une représentation visuelle consommée par l'interface.
+
+Chaque projection référence l'identité stable du PNJ. Le moteur tactique ne devient pas propriétaire du personnage : il restitue blessures, mort, dépenses et autres résultats aux domaines persistants compétents.
+
+### Cycle de la fiche joueur
+
+L'éditeur existant produit la fiche initiale et les choix de progression autorisés. Lors de la création d'une campagne, cette fiche est importée comme état initial de l'instance jouée.
+
+À partir de cet instant :
+
+- l'instance de campagne est la source de vérité du personnage en jeu;
+- PV, ressources, inventaire et conséquences ne sont pas rechargés depuis une ancienne copie de l'éditeur;
+- les valeurs dérivées sont recalculables depuis leurs sources;
+- une progression future passe par le domaine personnage puis met à jour l'instance de campagne selon un contrat explicite;
+- le stockage local actuel de l'éditeur est un moyen de conservation et de sélection, pas l'autorité de la campagne.
+
+### Rôle de l'orchestrateur
+
+L'orchestrateur narratif coordonne les lectures, projections, validations et demandes adressées aux domaines. Il peut conserver la causalité d'un tour et son journal d'événements, mais ne possède pas une copie concurrente de la fiche, du monde, du repos ou du combat.
+
+L'IA propose; l'orchestrateur contrôle le protocole; chaque domaine propriétaire valide et applique ses mutations.
+
+### Protocole de mutation inter-domaines
+
+Statut : `RETENU`; schémas techniques à définir ultérieurement.
+
+Toute modification issue d'un tour narratif suit les phases suivantes :
+
+1. proposition structurée de l'IA;
+2. contrôle de contrat par l'orchestrateur;
+3. validation par chaque domaine propriétaire concerné;
+4. préparation d'un ensemble cohérent de mutations;
+5. exécution et enregistrement atomiques;
+6. émission des événements et nouvelles versions d'état;
+7. génération de la narration depuis les résultats confirmés.
+
+#### Proposition
+
+Une proposition référence l'intention, les commandes candidates, leurs cibles, les créations éventuelles, les hypothèses utilisées et les effets narratifs recherchés. Elle ne déclare jamais comme acquis le résultat d'une résolution mécanique.
+
+Le texte narratif n'est pas une commande et ne sera jamais analysé après coup pour découvrir des mutations à appliquer.
+
+#### Validation
+
+Chaque domaine propriétaire peut répondre conceptuellement :
+
+- `accepted` : commande valide et directement exécutable;
+- `rejected` : commande interdite ou incompatible;
+- `clarification_required` : information indispensable manquante;
+- `resolution_required` : issue à déterminer par un moteur de règles;
+- `correctable` : proposition proche d'un contrat valide et pouvant être corrigée sans changer l'intention.
+
+Les noms exacts restent provisoires. Une validation refusée ne produit aucune prose affirmant que l'effet a eu lieu.
+
+#### Exécution atomique
+
+L'orchestrateur prépare un ensemble de changements puis les enregistre comme une unité cohérente. Si une étape indispensable échoue, aucune mutation partielle du groupe n'est conservée. Pour le MVP local, cette garantie peut être assurée dans le processus applicatif sans infrastructure distribuée.
+
+Une séquence déjà clôturée puis interrompue par une nouvelle réaction relève de plusieurs tours ou groupes de mutations successifs; l'atomicité ne fusionne pas artificiellement toute une scène.
+
+#### État, événements et vues
+
+Après exécution, chaque domaine concerné produit :
+
+- son nouvel état courant ou sa nouvelle version;
+- des événements immuables expliquant les changements;
+- une projection publique utilisable pour la narration;
+- les données privées éventuellement réservées au MJ ou au diagnostic.
+
+L'état répond à ce qui est vrai maintenant. L'événement conserve pourquoi et comment cet état a changé. La narration finale est une vue de ces résultats confirmés et ne peut pas les étendre par sa prose.
 
 ## 4. Niveaux de liberté créative
 
@@ -245,6 +330,107 @@ La reformulation narrative ne remplace pas une résolution sociale lorsque l'iss
 Le jeu normal ne présente pas de liste ou de boutons d'actions suggérées. Le MJ rend certaines possibilités perceptibles par des détails intégrés à la mise en scène, sans les présenter comme des solutions garanties ou exhaustives.
 
 Un détail ainsi introduit doit être compatible avec la vérité et les droits de création du tour. S'il établit durablement une porte, un acteur, un objet ou une autre propriété du monde, il suit les règles de persistance progressive.
+
+### 5.3 Scènes et transitions
+
+Statut : `RETENU`.
+
+Une scène est une unité de continuité narrative, pas une unité de mémoire ou une simple coordonnée. Elle regroupe :
+
+- une situation active;
+- un espace narrativement cohérent;
+- une période continue;
+- les acteurs présents ou immédiatement impliqués;
+- la mise en scène déjà établie;
+- les enjeux et fils actuellement mobilisés;
+- l'état de connaissance utile à cet instant.
+
+Un déplacement mineur à l'intérieur d'un même espace narratif ne crée pas automatiquement une scène. Une transition devient pertinente lorsqu'un changement de lieu, de temps, d'acteurs, de perceptions ou d'enjeux impose de reconstruire significativement le contexte.
+
+Une ellipse, un voyage résumé, une attente transformatrice ou un repos produit normalement une transition. Quelques minutes continues d'observation ou de dialogue restent dans la même scène.
+
+L'IA propose la transition et en assure le rythme narratif. L'orchestrateur valide son identité et peut l'imposer lorsqu'un changement autoritaire de lieu, de temps ou de moteur le nécessite. L'IA ne peut pas déclarer seule un déplacement ou une avance temporelle qui n'a pas été validé.
+
+#### Passage tactique et continuation
+
+Lorsqu'une scène déclenche un combat :
+
+1. la scène narrative est suspendue avec un état de sortie;
+2. la séquence tactique est liée à cette scène;
+3. le moteur tactique produit ses résultats et événements;
+4. une scène narrative de continuation est créée à partir de l'état réel après combat.
+
+La continuation peut hériter du lieu et des acteurs encore valides, mais sa mise en scène est reconstruite. Elle ne reprend pas l'ancien contexte comme si le combat n'avait rien changé.
+
+### 5.4 Repos comme sous-couche de règles
+
+Statut : `RETENU`; règles détaillées reportées à l'atelier d'intégration des moteurs.
+
+Le repos court ou long possède un moteur spécialisé chargé des règles de jeu. Ce moteur doit notamment pouvoir gérer éligibilité, phases, activités, consommation ou restauration de ressources, avance du temps, vérifications et interruptions.
+
+Le module narration :
+
+- met en scène la demande de repos;
+- présente naturellement les questions et choix requis;
+- transmet les décisions du joueur au moteur de repos;
+- raconte les étapes, interactions et résultats validés;
+- intègre les événements et conséquences dans la mémoire de campagne.
+
+Côté joueur, le repos reste dans le même flux conversationnel que le reste de l'aventure. Il ne nécessite pas un mode narratif ou un panneau principal séparé. Des données structurées peuvent circuler sous l'interface, mais elles sont présentées et vécues par la narration.
+
+Le repos constitue une transition ou une séquence de scènes selon sa durée, ses activités et ses interruptions. Le moteur de repos ne rédige pas l'histoire; la narration ne décide pas seule de ses effets mécaniques.
+
+### 5.5 Flux conversationnel, locuteurs et rythme
+
+Statut : `RETENU`; paramètres exacts à définir pendant la conception UX et le contrat de sortie.
+
+Une réponse de tour est une séquence ordonnée de messages typés. Elle peut combiner :
+
+- réalisation mise en scène de l'action ou de la parole du personnage joueur;
+- narration du MJ;
+- dialogue ou réaction d'un PNJ identifié;
+- dialogue ou réaction d'autres PNJ;
+- résultat système discret;
+- clarification ou restitution de la main.
+
+L'IA choisit l'ordre narrativement naturel. L'orchestrateur vérifie les identités de locuteurs, leurs droits de connaissance et la compatibilité des résultats exprimés.
+
+#### Présentation du personnage joueur
+
+L'entrée brute est conservée pour audit, correction et consultation. Pendant le traitement, elle peut être affichée comme demande en attente. Après validation, la réalisation mise en scène devient la représentation principale dans le fil.
+
+L'interface doit signaler clairement qu'il s'agit d'une interprétation fidèle de la demande par le MJ et permettre de consulter l'entrée originale sans encombrer la lecture normale. La reformulation ne doit jamais masquer une divergence de sens.
+
+#### Identification des locuteurs
+
+Chaque locuteur dispose d'un identifiant stable dans les données et d'une présentation visuelle distincte. L'interface affiche au minimum son nom connu ou sa désignation actuelle et un marqueur de rôle.
+
+La couleur peut aider à distinguer les interlocuteurs, mais ne doit jamais être le seul signal : nom, position, forme, icône ou autre repère accessible doit maintenir la compréhension. Un PNJ dont l'identité est inconnue conserve une désignation stable, par exemple « garde de la porte », jusqu'à ce que son nom soit effectivement révélé.
+
+Le MJ, le personnage joueur, les PNJ et les notifications système possèdent des traitements visuels reconnaissables et non interchangeables.
+
+#### Dialogues multiples
+
+Plusieurs PNJ peuvent parler, agir, réagir entre eux ou interrompre une séquence sans demander une validation du joueur entre chaque réplique. La séquence s'arrête lorsqu'une nouvelle décision significative appartient au joueur.
+
+L'IA ne peut pas interpréter le silence du joueur comme une autorisation illimitée de faire avancer la scène ou de décider de l'inaction prolongée de son personnage.
+
+#### Politique de rythme configurable
+
+Le développement doit disposer d'une politique de rythme ajustable sans modifier les faits ni les règles. Elle pourra notamment contrôler :
+
+- budget d'échanges automatiques entre PNJ;
+- longueur ou nombre de mouvements narratifs avant restitution de la main;
+- tendance à interrompre tôt ou à laisser vivre une séquence;
+- restitution immédiate lorsqu'un PNJ s'adresse directement au personnage;
+- tolérance aux séquences où le personnage reste simple observateur;
+- niveau de détail des descriptions et dialogues.
+
+Ces paramètres règlent la présentation et le rythme, jamais l'issue mécanique, la connaissance des acteurs ou les événements produits. Le mode diagnostic doit indiquer quel seuil a provoqué la restitution de la main afin de pouvoir régler l'équilibre pendant le développement.
+
+#### Interruption d'une action composée
+
+Entre deux étapes d'une action composée, une réaction du monde ou d'un acteur peut interrompre la suite prévue. Les étapes déjà validées restent enregistrées; les étapes non exécutées sont annulées ou replanifiées. Le joueur récupère la main dès que l'interruption crée une nouvelle décision significative.
 
 ## 6. Snapshot et dossier de scène
 
@@ -443,20 +629,64 @@ Statut : `PROPOSITION`.
 
 ## 14. Premier scénario vertical
 
-Statut : `PROPOSITION`.
+Statut : `RETENU`; contrats et scénarios d'acceptation détaillés à produire dans les ateliers suivants.
 
-Le MVP documentaire puis technique couvrira un seul scénario :
+Le MVP documentaire puis technique valide une boucle verticale, pas une quête préécrite. L'IA conserve la création du contenu concret à l'intérieur d'un périmètre maîtrisé.
 
-1. Le personnage entre dans un lieu connu du lore.
-2. L'IA met en scène le lieu à partir de l'état réel.
-3. Le joueur observe librement.
-4. L'IA crée un figurant puis, si l'interaction le justifie, propose sa persistance comme PNJ.
-5. Le joueur discute et tente une action nécessitant une résolution.
-6. Une mission ou intrigue contextuelle est créée sans modèle de quête préécrit.
-7. Le joueur accepte, refuse ou ignore cette possibilité.
-8. Le temps et le monde évoluent par leurs systèmes propriétaires.
-9. La campagne est sauvegardée et rechargée.
-10. Après une longue avance temporelle simulée, le joueur revient sur place ou évoque le souvenir; les faits utiles sont rappelés sans charger toute la campagne.
+### Périmètre fonctionnel
+
+- campagne solo avec un personnage joueur créé par l'éditeur existant;
+- lieu principal issu du wiki et environnement immédiat;
+- plusieurs PNJ créés ou enrichis par l'IA;
+- situation mondiale locale structurée;
+- intrigue contextuelle créée dynamiquement;
+- observation, déplacement narratif et recherche d'information;
+- dialogues multiples et relation élémentaire avec un PNJ;
+- une résolution sociale réelle;
+- création, promotion et persistance d'un PNJ;
+- création et évolution d'un événement;
+- avance de l'horloge mondiale;
+- passage vers un combat tactique et retour;
+- version minimale d'un repos court ou long;
+- sauvegarde, rechargement, ellipse et rappel d'une mémoire ancienne.
+
+### Déroulement de référence
+
+1. Une fiche existante est sélectionnée pour commencer ou reprendre une campagne.
+2. Le personnage entre dans un lieu connu du lore.
+3. L'IA met en scène le lieu à partir de l'état réel.
+4. Le joueur observe, interroge le MJ et agit librement.
+5. L'IA crée un figurant puis, si l'interaction le justifie, propose sa persistance comme PNJ.
+6. Le joueur discute et tente une action nécessitant une résolution sociale.
+7. Une mission ou intrigue contextuelle est créée sans modèle de quête préécrit.
+8. Le joueur accepte, refuse ou ignore cette possibilité.
+9. Une conséquence justifiée déclenche un passage tactique, puis une scène narrative de continuation.
+10. Un repos minimal mobilise sa sous-couche de règles dans le flux conversationnel.
+11. Le temps et le monde évoluent par leurs systèmes propriétaires.
+12. La campagne est sauvegardée et rechargée.
+13. Après une longue avance temporelle simulée, le joueur revient sur place ou évoque le souvenir; les faits utiles sont rappelés sans charger toute la campagne.
+
+### Hors périmètre initial
+
+- coopération, multijoueur et synchronisation réseau;
+- voix et reconnaissance vocale;
+- bastion complet;
+- progression et multiclassage complets;
+- économie avancée;
+- relations romantiques approfondies;
+- génération mondiale sans limite géographique;
+- interface lourde d'édition narrative;
+- exploitation serveur de plusieurs campagnes concurrentes.
+
+Les contrats doivent éviter de fermer ces extensions, mais le MVP ne finance pas leur comportement.
+
+### Actifs existants et adaptations nécessaires
+
+Le wiki contient déjà des lieux, bâtiments, factions et profils locaux avec identifiants et relations en front matter. Cette base est exploitable pour le scénario, mais elle n'est pas encore un contrat narratif : les clés ne sont pas entièrement normalisées, le parseur actuel n'applique pas de schéma et la sélection devra produire des fragments sourcés plutôt qu'envoyer les fichiers bruts.
+
+L'éditeur de personnage produit déjà une sauvegarde riche : identité, caractéristiques, compétences, langues, apparence, inventaire, progression et capacités dérivées. Le module narration devra consommer une projection narrative versionnée de cette fiche, pas lire tout le cache UI ni considérer les champs dérivés comme plusieurs sources de vérité.
+
+Ces adaptations relèvent des ateliers d'autorité, de modèle persistant, de contexte et d'intégration; elles ne nécessitent pas de recréer le wiki ou l'éditeur dans le MVP.
 
 ### Critères d'acceptation initiaux
 
@@ -466,6 +696,12 @@ Le MVP documentaire puis technique couvrira un seul scénario :
 - Le retour tardif rappelle les changements durables et les souvenirs pertinents.
 - Un secret non connu du PNJ ou du joueur n'est pas révélé.
 - Le paquet IA reste dans son budget et explique ses sélections en diagnostic.
+- La fiche du personnage influence l'interprétation sans être modifiée directement par la narration.
+- Le passage tactique et le repos réinjectent leurs résultats validés dans le fil.
+
+### Critère principal de réussite
+
+Après sauvegarde et ellipse, le joueur revient dans le lieu initial. Le système retrouve les PNJ pertinents, respecte relations et connaissances, applique les changements du monde, rappelle les souvenirs utiles et crée une nouvelle scène cohérente sans dépendre du texte complet des anciennes conversations.
 
 ## 15. Questions ouvertes prioritaires
 

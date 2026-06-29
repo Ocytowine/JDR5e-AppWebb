@@ -21,7 +21,7 @@ Un atelier n'est `BOUCLE` que si ses décisions sont écrites, ses incertitudes 
 | Ordre | Atelier | État | Livrable principal | Dépend de |
 |---:|---|---|---|---|
 | 0 | Gouvernance documentaire | `BOUCLE` | Index, dossier canonique, journal des décisions et présent plan | — |
-| 1 | Boucle joueur et périmètre MVP | `EN_COURS` | Parcours complet d'un tour et limites MVP | 0 |
+| 1 | Boucle joueur et périmètre MVP | `BOUCLE` | Parcours complet d'un tour et limites MVP | 0 |
 | 2 | Autorité des systèmes | `EN_COURS` | Matrice lecture/proposition/validation/mutation | 1 |
 | 3 | Modèle persistant de campagne | `A_FAIRE` | Modèle conceptuel et invariants | 2 |
 | 4 | Créations dynamiques de l'IA | `A_FAIRE` | Cycles de vie par type de création | 3 |
@@ -35,7 +35,7 @@ Un atelier n'est `BOUCLE` que si ses décisions sont écrites, ses incertitudes 
 | 12 | Scénarios d'acceptation | `A_FAIRE` | Corpus fonctionnel et cas limites | 1 à 11 |
 | 13 | Audit final et plan d'implémentation | `A_FAIRE` | Rapport de cohérence et lots techniques | 12 |
 
-Les ateliers 1 et 2 sont marqués `EN_COURS` car leurs principes existent déjà, mais leurs livrables détaillés ne sont pas encore complets.
+L'atelier 1 est bouclé. L'atelier 2 reste en cours car ses principes existent déjà, mais sa matrice détaillée n'est pas encore complète.
 
 ## Atelier 0 — Gouvernance documentaire
 
@@ -56,12 +56,12 @@ Une décision ne peut plus être perdue ou remplacée implicitement par une anci
 ### Questions à résoudre
 
 - [x] Décrire le début, le déroulement et la fin d'un tour narratif.
-- [ ] Définir ce qui constitue une scène et une transition de scène.
+- [x] Définir ce qui constitue une scène et une transition de scène.
 - [x] Définir les usages respectifs de la saisie libre, des suggestions et des clarifications.
-- [ ] Définir les types de messages visibles et leur ordre d'affichage.
-- [ ] Définir la place des dialogues multiples et des interruptions.
-- [ ] Définir les limites fonctionnelles du premier scénario vertical.
-- [ ] Lister explicitement le hors-périmètre MVP.
+- [x] Définir les types de messages visibles et leur ordre d'affichage.
+- [x] Définir la place des dialogues multiples et des interruptions.
+- [x] Définir les limites fonctionnelles du premier scénario vertical.
+- [x] Lister explicitement le hors-périmètre MVP.
 
 ### Livrables
 
@@ -73,9 +73,9 @@ Une décision ne peut plus être perdue ou remplacée implicitement par une anci
 
 - [x] Lot 1 — Unité de tour, entrées composées, gestes implicites, points d'arrêt, clarification et atomicité.
 - [x] Lot 2 — Formes de saisie, dialogues, suggestions et politique complète de clarification.
-- [ ] Lot 3 — Définition et transitions d'une scène.
-- [ ] Lot 4 — Parcours MVP, types de messages et interruptions.
-- [ ] Lot 5 — Périmètre, hors-périmètre et validation finale de l'atelier.
+- [x] Lot 3 — Définition et transitions d'une scène.
+- [x] Lot 4 — Parcours MVP, types de messages et interruptions.
+- [x] Lot 5 — Périmètre, hors-périmètre et validation finale de l'atelier.
 
 ### Critère de sortie
 
@@ -87,7 +87,7 @@ Il est possible de raconter précisément une session MVP sans supposer un compo
 
 - [ ] Inventorier tous les domaines de données.
 - [ ] Désigner l'autorité de lecture et de mutation de chaque domaine.
-- [ ] Distinguer proposition, validation, exécution et notification.
+- [x] Distinguer proposition, validation, exécution et notification.
 - [ ] Identifier les données encore sans propriétaire dans l'application actuelle.
 - [ ] Définir les règles de conflit entre état local, campagne et canon.
 - [ ] Confirmer l'autorité unique de l'horloge.
@@ -95,6 +95,13 @@ Il est possible de raconter précisément une session MVP sans supposer un compo
 ### Livrable
 
 Une matrice comportant pour chaque donnée : propriétaire, lecteurs, auteurs de proposition, validateur, mutation autorisée et événements émis.
+
+### Avancement détaillé
+
+- [x] Lot 1 — Canon, campagne, personnage joueur, projections PNJ et rôle de l'orchestrateur.
+- [x] Lot 2 — Protocole proposition, validation, exécution et événement.
+- [ ] Lot 3 — Propriétaires secondaires, conflits et données orphelines.
+- [ ] Lot 4 — Matrice complète et audit de l'atelier.
 
 ### Critère de sortie
 
@@ -343,3 +350,51 @@ Avant de marquer un atelier `BOUCLE`, vérifier son impact sur :
 - Décision : aucune suggestion directe en jeu normal; les possibilités sont rendues perceptibles par la mise en scène.
 - Blocage : aucun.
 - Prochaine action : définir l'identité, la continuité et les transitions d'une scène.
+
+### 2026-06-29 — Atelier 1, lot 3
+
+- Travail réalisé : définition d'une scène, de ses transitions géographiques et temporelles et de sa continuation après combat.
+- Décision : la transition dépend d'une rupture significative de contexte, pas de chaque déplacement physique.
+- Décision : l'IA propose le rythme et la transition; l'orchestrateur valide les changements autoritaires.
+- Complément : le repos devient une sous-couche de règles spécialisée, entièrement vécue dans le flux narratif côté joueur.
+- Blocage : aucun.
+- Prochaine action : définir les types de messages, leur affichage, les dialogues multiples et les interruptions.
+
+### 2026-06-29 — Atelier 1, lot 4
+
+- Travail réalisé : définition du flux typé, de l'identification des locuteurs, des dialogues multiples et des interruptions.
+- Décision : la réalisation mise en scène est prioritaire dans le fil; l'entrée brute reste consultable.
+- Décision : couleur, nom et marqueur de rôle distinguent les locuteurs sans dépendre uniquement de la couleur.
+- Décision : les échanges automatiques entre PNJ sont autorisés jusqu'au prochain choix significatif du joueur.
+- Complément : une politique de rythme configurable permettra de régler l'équilibre entre autonomie de la scène et implication du joueur sans modifier les faits.
+- Blocage : aucun.
+- Prochaine action : fixer le périmètre et le hors-périmètre du scénario vertical MVP, puis auditer l'atelier 1.
+
+### 2026-06-29 — Atelier 1, lot 5 et clôture
+
+- Travail réalisé : validation du périmètre MVP et audit des actifs réels du wiki et de l'éditeur de personnage.
+- Décision : le scénario vertical couvre création dynamique, résolution sociale, temps, tactique, repos minimal, sauvegarde et rappel tardif.
+- Constat : le wiki fournit des données structurées utiles, mais nécessite normalisation, validation et projection sourcée.
+- Constat : la fiche existante est riche, mais nécessite une projection narrative versionnée séparée des caches UI et données dérivées.
+- Hors périmètre : multijoueur, voix, bastion complet, progression complète, économie avancée et génération mondiale illimitée.
+- Audit transversal : aucune contradiction bloquante relevée; les frontières de données sont transférées à l'atelier 2.
+- État : atelier 1 `BOUCLE`.
+- Prochaine action : construire la matrice d'autorité des systèmes.
+
+### 2026-06-29 — Atelier 2, lot 1
+
+- Travail réalisé : première matrice d'autorité pour le canon, la campagne, le PJ, les PNJ et l'orchestrateur.
+- Décision : la fiche de création est importée; son instance de campagne devient ensuite la source de vérité du personnage joué.
+- Décision : l'autorité est attribuée par propriété; les représentations monde, tactique et UI restent des projections liées par identité stable.
+- Décision : l'orchestrateur coordonne sans posséder de copies concurrentes des domaines.
+- Blocage : aucun.
+- Prochaine action : formaliser le protocole proposition, validation, exécution et émission d'événements.
+
+### 2026-06-29 — Atelier 2, lot 2
+
+- Travail réalisé : formalisation du protocole proposition, validation, exécution atomique, événement et narration.
+- Décision : l'IA propose une commande sans affirmer son résultat mécanique.
+- Décision : chaque domaine propriétaire valide et restitue état, événements et vues autorisées.
+- Décision : la prose visible est générée seulement après confirmation et ne peut ajouter de mutation.
+- Blocage : aucun.
+- Prochaine action : attribuer les propriétaires secondaires et résoudre les conflits de vérité restants.

@@ -7,7 +7,7 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 ## En cours
 
 - [ ] Consolider le dossier de conception du nouveau module narration avant toute reprise du runtime.
-  References: `test-GAME-2D/narration-module/docs/Dossier-de-conception.md` et `test-GAME-2D/narration-module/docs/Plan-de-consolidation.md`. Le socle produit est retenu; la boucle joueur et la matrice d'autorite sont les ateliers actifs.
+  References: `test-GAME-2D/narration-module/docs/Dossier-de-conception.md` et `test-GAME-2D/narration-module/docs/Plan-de-consolidation.md`. L'atelier boucle joueur et perimetre MVP est boucle; la matrice d'autorite est l'atelier actif.
 - [ ] Consolider la simulation du monde apres l'ajout des objectifs multi-phases, des opportunites de faction et des mobiles non-systeme.
   Reference: `test-GAME-2D/map-module/docs/world-simulation-corrective-roadmap.md`. Les mobiles exposent maintenant l'objectif, la phase et la cible qu'ils servent.
 - [ ] Definir le contrat de sortie actionnable du MJ IA.

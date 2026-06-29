@@ -177,3 +177,119 @@ La liberté d'un JDR sur table suppose de pouvoir agir, parler ou interroger le 
 ### Conséquences
 
 Le contrat d'interprétation devra représenter séparément nature de l'entrée, degré d'engagement et contenu sémantique invariant. Le contexte devra exposer les traits utiles du personnage sans autoriser l'IA à inventer ses intentions.
+
+## NAR-010 — Identité et transitions des scènes
+
+Date : `2026-06-29`
+
+Statut : `RETENU`
+
+### Décision
+
+Une scène est définie par la continuité significative de sa situation, de son espace, de son temps, de ses acteurs et de ses enjeux. Un déplacement mineur ne crée pas automatiquement une scène; une rupture substantielle de contexte en crée une nouvelle.
+
+L'IA propose les transitions. L'orchestrateur les valide ou les impose lorsqu'un changement autoritaire de lieu, de temps ou de moteur le requiert. Après un passage tactique, une nouvelle scène de continuation est reconstruite depuis les résultats réels.
+
+### Raisons
+
+Des scènes limitées à des coordonnées fragmenteraient artificiellement la narration. À l'inverse, réutiliser un contexte antérieur après une rupture importante produirait des incohérences de mise en scène.
+
+### Conséquences
+
+Le modèle devra relier scènes précédentes, scènes de continuation, transitions et séquences tactiques sans confondre leurs contextes.
+
+## NAR-011 — Repos intégré à la narration
+
+Date : `2026-06-29`
+
+Statut : `RETENU`
+
+### Décision
+
+Le repos est une sous-couche spécialisée de règles reliée au module narration. Son moteur valide phases, activités et effets mécaniques; la narration porte les questions, choix, interactions et conséquences dans le flux conversationnel normal.
+
+### Raisons
+
+Le repos doit conserver la rigueur d'une mécanique de jeu tout en restant un moment vécu de l'aventure, sans rupture d'interface ou transformation en écran administratif séparé.
+
+### Conséquences
+
+L'ancienne piste d'un panneau principal de repos séparé n'est plus la cible active. Un contrat narration-repos devra être conçu lors de l'atelier d'intégration des moteurs.
+
+## NAR-012 — Flux typé et rythme narratif configurable
+
+Date : `2026-06-29`
+
+Statut : `RETENU`
+
+### Décision
+
+Le fil conversationnel présente une séquence ordonnée de messages typés. Le MJ, le personnage joueur, chaque PNJ et les notifications système sont clairement distingués. La réalisation mise en scène de l'entrée joueur devient l'affichage principal; l'entrée brute reste consultable.
+
+Les échanges automatiques entre PNJ sont autorisés jusqu'au prochain choix significatif du joueur. Leur longueur et le seuil de restitution de la main sont réglables pendant le développement par une politique de rythme indépendante de la vérité et des règles.
+
+### Raisons
+
+Une scène vivante exige plusieurs voix et des échanges autonomes. Leur lisibilité et leur durée doivent toutefois préserver l'implication du joueur et pouvoir être réglées à partir d'essais réels.
+
+### Conséquences
+
+Les messages devront porter type, ordre et identité stable du locuteur. L'accessibilité ne pourra pas reposer seulement sur la couleur. Le diagnostic devra expliquer les points d'arrêt liés au rythme.
+
+## NAR-013 — Périmètre du scénario vertical MVP
+
+Date : `2026-06-29`
+
+Statut : `RETENU`
+
+### Décision
+
+Le MVP valide une campagne solo autour d'un personnage créé par l'éditeur existant, d'un lieu principal issu du wiki et de son contexte immédiat. Il couvre création dynamique, persistance, dialogue, résolution sociale, temps mondial, passage tactique, repos minimal, sauvegarde et rappel tardif.
+
+Le scénario est une épreuve reproductible de l'architecture; son intrigue et ses PNJ ne sont pas préécrits.
+
+### Raisons
+
+Cette coupe traverse les risques essentiels du produit sans exiger l'implémentation immédiate de tous les systèmes futurs. Le wiki et la création de personnage apportent déjà des données utiles qui doivent être adaptées plutôt que recréées.
+
+### Conséquences
+
+Le multijoueur, la voix, le bastion complet, la progression complète, l'économie avancée et la génération mondiale sans limite sont reportés. Les contrats du MVP ne doivent toutefois pas empêcher leur ajout ultérieur.
+
+## NAR-014 — Autorité par propriété et instance de personnage
+
+Date : `2026-06-29`
+
+Statut : `RETENU`
+
+### Décision
+
+Le wiki fournit le canon initial; la campagne porte ses overrides et créations. L'éditeur produit la fiche initiale, puis l'instance importée dans la campagne devient le personnage réellement joué. Un même PNJ peut être projeté dans la narration, le monde, la tactique et l'interface, avec une autorité distincte par propriété.
+
+L'orchestrateur coordonne les domaines sans devenir propriétaire de toutes leurs données.
+
+### Raisons
+
+Les copies concurrentes de la fiche, d'un PNJ ou du monde produiraient des divergences silencieuses. Une autorité par propriété permet les intégrations nécessaires tout en conservant une identité commune.
+
+### Conséquences
+
+Les futures sauvegardes devront distinguer fiche source, instance de campagne et données dérivées. Les projections inter-modules devront référencer des identifiants stables et restituer leurs résultats aux propriétaires persistants.
+
+## NAR-015 — Protocole de mutation et narration post-validation
+
+Date : `2026-06-29`
+
+Statut : `RETENU`
+
+### Décision
+
+Toute mutation suit le protocole proposition IA, contrôle de contrat, validation des propriétaires, exécution atomique, émission d'événements puis narration. L'IA ne déclare pas un résultat mécanique dans sa proposition et la prose finale ne peut ajouter aucune mutation.
+
+### Raisons
+
+La causalité et la sauvegarde deviennent non fiables si le moteur doit interpréter la narration pour déterminer ce qui s'est produit ou si une partie des changements est enregistrée avant l'échec d'une étape indispensable.
+
+### Conséquences
+
+Les futurs contrats devront séparer propositions, résultats de validation, événements, projections publiques et données privées. La génération visible interviendra seulement après confirmation des résultats.
