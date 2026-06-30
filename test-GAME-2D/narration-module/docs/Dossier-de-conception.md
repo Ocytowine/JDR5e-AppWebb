@@ -2,7 +2,7 @@
 
 Version de travail : `0.1`
 
-Dernière mise à jour : `2026-06-29`
+Dernière mise à jour : `2026-06-30`
 
 Statut global : `RETENU` — socle en cours de consolidation, aucun contrat d'implémentation encore figé.
 
@@ -164,6 +164,92 @@ Après exécution, chaque domaine concerné produit :
 
 L'état répond à ce qui est vrai maintenant. L'événement conserve pourquoi et comment cet état a changé. La narration finale est une vue de ces résultats confirmés et ne peut pas les étendre par sa prose.
 
+### Forme d'architecture retenue
+
+Statut : `RETENU`.
+
+Le MVP vise un monolithe modulaire : un seul processus applicatif et une seule sauvegarde de campagne, avec des frontières logiques explicites entre domaines. Ces frontières doivent être testables, mais ne deviennent ni des microservices ni des bases de données séparées sans besoin démontré.
+
+Cette forme apporte :
+
+- transactions locales simples;
+- déploiement et diagnostic adaptés au projet actuel;
+- séparation suffisante pour éviter un module narration omnipotent;
+- possibilité d'extraire ultérieurement un domaine sans en faire une contrainte prématurée.
+
+### Persistance et autorité métier
+
+Le futur `CampaignStore` conserve les versions, snapshots, agrégats mutables et événements d'une campagne. Il garantit lecture, écriture atomique, migration et reprise. Il ne décide pas si une action est autorisée : cette décision appartient au domaine métier concerné.
+
+La chronologie et la politique de sauvegarde sont détaillées dans [`Modele-persistant.md`](Modele-persistant.md).
+
+Les domaines logiques du MVP sont :
+
+- `ContentDomain` : lecture du wiki et des catalogues immuables;
+- `CharacterDomain` : instance du PJ, caractéristiques, capacités, ressources et inventaire du PJ;
+- `CampaignFactDomain` : faits objectifs et overrides persistants propres à la partie, avec provenance;
+- `NarrativeActorDomain` : identité narrative, personnalité et possessions établies des PNJ persistants;
+- `SocialKnowledgeDomain` : relations, réputation, dettes, faits connus, croyances et secrets par acteur;
+- `SceneDomain` : continuité locale, mise en scène établie et fils narratifs;
+- `WorldDomain` : horloge, géographie, factions, tensions, météo et activité mondiale;
+- `TacticalDomain` : état et résolution temporaires d'une rencontre;
+- `RestDomain` : phases et résultats mécaniques d'un repos;
+- `InventoryRules` : validation commune des transferts d'objets entre agrégats propriétaires;
+- `NarrativeOrchestrator` : coordination des propositions, validations et résultats;
+- `NarrativeUI` : présentation et saisie, sans autorité métier.
+
+Ces noms expriment les responsabilités conceptuelles. Ils ne prescrivent pas encore les noms de dossiers ou de classes.
+
+La matrice normative détaillée se trouve dans [`Matrice-autorite.md`](Matrice-autorite.md).
+
+### Inventaire et économie du MVP
+
+- Les définitions d'objets restent dans les catalogues de contenu.
+- Les instances et quantités du PJ appartiennent à son état de campagne.
+- Les possessions établies d'un PNJ appartiennent à son profil persistant.
+- Les transferts utilisent les mêmes règles d'inventaire et une transaction coordonnée.
+- Les prix, disponibilités et offres locales sont des faits du monde ou de campagne validés.
+- Aucun domaine économique complet n'est créé pour le MVP.
+- L'IA peut proposer un objet ou une offre; elle ne peut pas attribuer l'objet, déplacer la monnaie ou fixer une valeur autoritaire par sa prose.
+
+### Relations, réputation et connaissances
+
+Les relations et connaissances sont des sous-domaines persistants de la campagne. Ils restent séparés conceptuellement afin de ne pas confondre :
+
+- ce qu'un acteur ressent ou doit à un autre;
+- ce qu'un acteur sait, croit ou ignore;
+- ce qui est objectivement vrai dans le monde.
+
+L'IA peut proposer une évolution sociale ou l'acquisition d'un savoir. Les règles correspondantes valident l'amplitude, la provenance et les droits de révélation.
+
+### Résolution des conflits de vérité
+
+La vérité ne repose pas sur une accumulation de couches concurrentes. Pour une propriété donnée :
+
+1. l'état courant du domaine propriétaire est autoritaire;
+2. si aucune instance de campagne n'existe encore, la valeur initiale provient du canon ou de la fiche importée;
+3. une création ou modification IA ne devient autoritaire qu'après validation et enregistrement dans ce domaine;
+4. le contexte de scène est une projection et ne possède aucun droit d'override.
+
+Un override de campagne est donc une modification enregistrée de l'état courant, avec provenance; ce n'est pas une seconde base indépendante placée arbitrairement au-dessus du domaine propriétaire.
+
+Si deux domaines prétendent posséder simultanément la même propriété, le système doit signaler une erreur d'architecture ou de contrat. Il ne doit pas masquer le conflit par une règle de priorité implicite.
+
+### Lacunes actuelles identifiées
+
+Le code actuel ne fournit pas encore :
+
+- de sauvegarde de campagne unifiée;
+- de registre persistant des PNJ narratifs;
+- de stockage structuré des relations, connaissances et croyances;
+- de domaine de scène persistant;
+- de moteur de repos correspondant à la cible;
+- de protocole transactionnel entre narration, monde, personnage et tactique;
+- de projection narrative versionnée de la fiche personnage;
+- de validation normalisée du wiki pour la narration.
+
+Ces lacunes définissent les futurs contrats et lots d'implémentation. Elles ne justifient pas de coder ces systèmes avant la fin du cahier des charges.
+
 ## 4. Niveaux de liberté créative
 
 Statut : `RETENU`.
@@ -203,7 +289,16 @@ Une création doit devenir candidate à la persistance lorsqu'au moins une condi
 - elle doit pouvoir réapparaître;
 - elle est importante pour la continuité vécue par le joueur.
 
-La simple présence d'un nom dans une phrase ne suffira pas nécessairement : cette heuristique devra distinguer un détail décoratif d'une entité appelée à vivre.
+Elle devient également persistante immédiatement lorsqu'elle constitue un engagement causal, probatoire ou préparatoire pour une intrigue, même si le joueur ne l'a pas remarquée.
+
+La persistance possède deux profondeurs :
+
+- `référence légère` : identité minimale, première apparition, lieu et faits déjà établis;
+- `entité complète` : personnalité, motivations, relations, connaissances et évolution.
+
+Un nom ou une interaction brève peut justifier une référence légère sans imposer un profil complet. L'importance vécue ou causale déclenche l'enrichissement approprié.
+
+Les règles détaillées sont décrites dans [`Creations-dynamiques.md`](Creations-dynamiques.md); les contraintes spécifiques aux intrigues se trouvent dans [`Coherence-intrigues.md`](Coherence-intrigues.md).
 
 ### Limites non contournables
 
@@ -432,11 +527,13 @@ Ces paramètres règlent la présentation et le rythme, jamais l'issue mécaniqu
 
 Entre deux étapes d'une action composée, une réaction du monde ou d'un acteur peut interrompre la suite prévue. Les étapes déjà validées restent enregistrées; les étapes non exécutées sont annulées ou replanifiées. Le joueur récupère la main dès que l'interruption crée une nouvelle décision significative.
 
-## 6. Snapshot et dossier de scène
+## 6. Snapshot de tour et paquets contextuels
 
 Statut : `RETENU`.
 
-Le contexte d'un tour ne peut pas être un simple résumé des derniers échanges. Il doit être une projection structurée de la vérité au commencement du tour.
+Le contexte d'un tour ne peut pas être un simple résumé des derniers échanges. Le système distingue le `CampaignSnapshot` persistant, le `TurnSnapshot` immuable au début du tour, les `RoleContextPack` spécialisés et le `CommittedTurnResult` post-validation.
+
+Les règles détaillées se trouvent dans [`Snapshot-et-contextes.md`](Snapshot-et-contextes.md).
 
 ### Contenu minimal prévu
 
@@ -456,7 +553,7 @@ Le contexte d'un tour ne peut pas être un simple résumé des derniers échange
 
 ### Immutabilité pendant le tour
 
-Le snapshot d'entrée porte une version. Toute proposition s'applique à cette version. Si l'état autoritaire change avant la validation, le tour doit être revalidé ou relancé; il ne doit pas écraser silencieusement une modification plus récente.
+Le `TurnSnapshot` porte une version. Toute proposition s'applique à cette version. Si l'état autoritaire change avant la validation, le tour doit être revalidé ou relancé; il ne doit pas écraser silencieusement une modification plus récente.
 
 ### Perspectives séparées
 
@@ -482,15 +579,14 @@ La mémoire complète et le contexte envoyé à l'IA sont deux objets différent
 - La mémoire projetée est un paquet temporaire, borné et construit pour un tour précis.
 - Un résumé narratif facilite la lecture, mais ne remplace jamais les faits structurés.
 
-### Couches de vérité
+### Construction de la vérité effective
 
 La vérité effective est construite à partir de :
 
-1. l'état local autoritaire de la scène;
-2. les changements persistants de la campagne;
-3. le canon initial lorsqu'il n'est pas remplacé.
+1. l'état courant du domaine propriétaire, incluant les changements validés de campagne;
+2. le canon épinglé ou la fiche importée uniquement lorsqu'aucune valeur de campagne ne les remplace.
 
-Un changement de campagne ne détruit pas le canon initial : il le surplombe avec une provenance, une date de jeu et une cause.
+La scène et la mémoire projetée ne sont jamais des autorités supplémentaires. Un changement de campagne ne détruit pas le canon initial : il le remplace dans l'état courant avec une provenance, une date de jeu et une cause.
 
 ### Unité conceptuelle de mémoire
 
@@ -507,6 +603,8 @@ Le schéma exact reste ouvert, mais une information durable devra pouvoir porter
 - son importance narrative et son importance systémique;
 - son état de cycle de vie;
 - ses liens avec lieux, acteurs, factions, événements et fils narratifs.
+
+Les règles détaillées de conservation et de rappel se trouvent dans [`Memoire-et-rappel.md`](Memoire-et-rappel.md).
 
 ### Cycle de vie
 
@@ -587,9 +685,9 @@ La source la plus similaire n'est pas nécessairement la plus vraie. Le paquet d
 
 ## 11. Sorties conceptuelles de l'IA
 
-Statut : `PROPOSITION`.
+Statut : `RETENU`.
 
-Le contrat détaillé n'est pas encore défini. Il devra toutefois séparer :
+Le contrat détaillé est défini dans [`Pipeline-et-contrats-IA.md`](Pipeline-et-contrats-IA.md). Il sépare :
 
 - interprétation de l'intention;
 - ambiguïtés réellement bloquantes;
@@ -601,6 +699,8 @@ Le contrat détaillé n'est pas encore défini. Il devra toutefois séparer :
 - incertitudes et éléments que l'IA refuse d'inventer.
 
 Le texte joueur ne doit jamais être analysé pour retrouver après coup les mutations à appliquer. Toute mutation proposée doit exister sous forme structurée avant son enregistrement.
+
+Les règles calculables restent exécutées par leurs domaines. Pour les situations ouvertes, une IA d'arbitrage peut interpréter les règles pertinentes, estimer une durée ou proposer une décision ad hoc. Cette proposition, sourcée et bornée, ne devient autoritaire qu'après validation et commit par le domaine propriétaire.
 
 ## 12. Présentation conversationnelle
 
@@ -615,11 +715,11 @@ L'interface principale est un flux proche d'une conversation. Elle distingue au 
 - clarification;
 - notification hors rôleplay.
 
-La saisie libre est le mode principal. Des suggestions peuvent rendre les possibilités visibles, mais elles ne constituent pas une liste exhaustive d'actions autorisées.
+La saisie libre est le mode principal. Les possibilités sont suggérées par la mise en scène et les éléments perceptibles, sans liste directe d'actions supposées exhaustives.
 
 ## 13. Résilience minimale
 
-Statut : `PROPOSITION`.
+Statut : `RETENU`.
 
 - Une réponse invalide de l'IA ne doit produire aucune mutation partielle.
 - Rejouer une requête avec le même identifiant ne doit pas doubler une récompense, un événement ou un PNJ.
@@ -703,13 +803,9 @@ Ces adaptations relèvent des ateliers d'autorité, de modèle persistant, de co
 
 Après sauvegarde et ellipse, le joueur revient dans le lieu initial. Le système retrouve les PNJ pertinents, respecte relations et connaissances, applique les changements du monde, rappelle les souvenirs utiles et crée une nouvelle scène cohérente sans dépendre du texte complet des anciennes conversations.
 
-## 15. Questions ouvertes prioritaires
+## 15. Questions restantes pour les ateliers suivants
 
-1. Quel format de persistance adopter pour les faits, snapshots et événements de campagne ?
-2. Quelle frontière exacte sépare scène narrative, événement de campagne et événement du `map-module` ?
-3. Quand une création éphémère doit-elle être automatiquement proposée à la persistance, et quand demander une décision supplémentaire à l'IA ?
-4. Un seul modèle IA peut-il interpréter, créer et rédiger avec une qualité suffisante, ou faut-il séparer les rôles ?
-5. Quels budgets de contexte, coût et latence sont acceptables par tour ?
-6. Comment modéliser les connaissances et croyances propres aux PNJ sans exploser le volume de données ?
-7. Quelle politique de correction appliquer lorsqu'une proposition créative contredit partiellement le contexte ?
-8. Comment nommer et faire évoluer l'actuelle route tactique `/api/narration` ?
+1. Quelle technologie de persistance implémentera les agrégats, snapshots et événements déjà modélisés ?
+2. Quels contrats exacts relient scène narrative, domaines applicatifs et `map-module` ?
+3. Quels budgets mesurés de contexte, coût et latence retenir par rôle et modèle ?
+4. Comment remplacer ou faire évoluer l'actuelle route tactique `/api/narration` lors de l'intégration ?

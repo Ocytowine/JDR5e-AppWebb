@@ -1,0 +1,95 @@
+{
+  "schemaVersion": "narration.role-context-pack.example.v1",
+  "packId": "pack_scene_writer_01JEXAMPLE",
+  "snapshotId": "turn_snapshot_01JEXAMPLE",
+  "role": "scene_writer",
+  "task": "narrate_committed_social_result",
+  "perspective": "player_character",
+  "baseCampaignVersion": 1842,
+  "postCommitCampaignVersion": 1843,
+  "projectionPolicyVersion": "projection-policy.v1",
+  "retrievalIndexVersion": 77,
+  "expiresOnSceneChange": true,
+  "dependencyVersions": [
+    {
+      "sourceRef": "scene:archives-lysente",
+      "version": 31,
+      "properties": ["participants", "location", "continuity"]
+    },
+    {
+      "sourceRef": "actor:guard-archives-01",
+      "version": 9,
+      "properties": ["visibleState", "relationshipToPlayer"]
+    },
+    {
+      "sourceRef": "committed-turn-result:turn-01843",
+      "version": 1,
+      "properties": ["outcomes", "elapsedGameTime", "perceptibleChanges"]
+    }
+  ],
+  "perspectiveData": {
+    "objective_truth": [],
+    "perceived": [
+      {
+        "sourceRef": "actor:guard-archives-01",
+        "statement": "Le garde se montre désormais méfiant."
+      }
+    ],
+    "known": [],
+    "believed": [],
+    "secret": [],
+    "derived": [],
+    "unknown": []
+  },
+  "creativeScope": {
+    "mayCreate": ["ephemeral_sensory_texture", "dramatic_phrasing"],
+    "mayReference": ["scene:archives-lysente", "actor:guard-archives-01"],
+    "mayProposeCommands": [],
+    "mayReveal": {
+      "reveal": ["social_attempt_failed", "guard_is_suspicious", "two_minutes_elapsed"],
+      "hint": [],
+      "withhold": ["missing_register_plot", "patrol_schedule"]
+    },
+    "mustPreserve": ["player_intent", "committed_outcomes", "elapsed_game_time"],
+    "mustNotCreate": ["durable_entity", "usable_object", "new_exit", "new_clue"],
+    "mustNotModify": ["campaign_state", "actor_knowledge", "plot_commitments"],
+    "noveltyConstraints": ["procedural_archive_atmosphere", "no_uncommitted_consequence"],
+    "outputContract": "scene-writer-output.v1"
+  },
+  "budget": {
+    "unit": "model_tokens",
+    "maximum": 6000,
+    "reservedForInstructionsAndSchema": 900,
+    "reservedForOutput": 1400,
+    "consumedByContext": 2810,
+    "remainingMargin": 890
+  },
+  "contextBuildTrace": {
+    "requiredBlocks": ["turnInput", "committedResult", "revealEnvelope", "creativeScope"],
+    "included": [
+      {
+        "sourceRef": "committed-turn-result:turn-01843",
+        "reason": "authoritative_result"
+      },
+      {
+        "sourceRef": "actor:guard-archives-01",
+        "reason": "visible_reaction"
+      }
+    ],
+    "condensed": [],
+    "referencedOnly": ["scene:archives-lysente"],
+    "excluded": [
+      {
+        "sourceRef": "plot:missing-register",
+        "reason": "hidden_and_not_revealable"
+      }
+    ],
+    "visibilityFilters": ["player_character"],
+    "serializedPackHash": "sha256:EXAMPLE_NOT_A_REAL_DIGEST"
+  },
+  "stalenessCheck": {
+    "status": "CURRENT",
+    "checkedAgainstCampaignVersion": 1843,
+    "changedDependencies": []
+  }
+}

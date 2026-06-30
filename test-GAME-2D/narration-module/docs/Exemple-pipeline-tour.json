@@ -1,0 +1,204 @@
+{
+  "schemaVersion": "narration.pipeline-turn.example.v1",
+  "operation": {
+    "operationId": "op-turn-01844",
+    "campaignId": "campaign-example",
+    "snapshotId": "turn-snapshot-01844",
+    "baseCampaignVersion": 1843,
+    "status": "COMMITTED_AND_RENDERED"
+  },
+  "playerInput": {
+    "messageId": "input-01844",
+    "rawText": "Je lui explique que je cherche le registre et lui demande calmement de me laisser entrer."
+  },
+  "interpretation": {
+    "contractVersion": "intent-interpreter.v1",
+    "callId": "call-interpret-01844",
+    "packId": "pack-interpret-01844",
+    "status": "OK",
+    "intents": [
+      {
+        "intentId": "intent-01844-1",
+        "intentType": "speech",
+        "commitment": "committed",
+        "targets": ["actor:guard-archives-01"],
+        "coreMeaning": "Demander calmement l'accès afin de chercher le registre",
+        "desiredOutcome": "Obtenir l'autorisation d'entrer",
+        "requiredDetails": ["recherche du registre", "demande d'accès", "ton calme"],
+        "openDetails": ["formulation exacte"],
+        "forbiddenAdditions": ["menace", "mensonge", "corruption"],
+        "requiresClarification": false
+      }
+    ]
+  },
+  "mjPlan": {
+    "contractVersion": "mj-planner.v1",
+    "callId": "call-plan-01844",
+    "packId": "pack-plan-01844",
+    "status": "OK",
+    "sceneBeats": [
+      {
+        "beatId": "beat-01844-1",
+        "kind": "social_request",
+        "actorIds": ["player-character", "actor:guard-archives-01"],
+        "stopCondition": "guard_response_completed"
+      }
+    ],
+    "commandProposals": [
+      {
+        "commandId": "cmd-social-01844",
+        "domain": "SocialDomain",
+        "type": "resolve_access_request"
+      }
+    ],
+    "actorAssignments": ["player_expression_adapter", "npc_performer:guard-archives-01"],
+    "revealPlan": {
+      "reveal": ["access_refused"],
+      "hint": ["guard_remains_procedural"],
+      "withhold": ["missing_register_plot", "patrol_schedule"]
+    },
+    "requiresRulesAdjudication": ["conversation_duration"],
+    "riskFlags": []
+  },
+  "rulesAdjudication": {
+    "contractVersion": "rules-adjudicator.v1",
+    "callId": "call-adjudicate-time-01844",
+    "packId": "pack-adjudicate-time-01844",
+    "status": "OK",
+    "domain": "WorldDomain",
+    "question": "Durée de cet échange social bref",
+    "factsConsidered": ["single_request", "single_npc_response", "no_bargaining_sequence"],
+    "appliedRuleRefs": ["time.social-exchange.general@ruleset-5e-campaign-v1"],
+    "precedentRefs": [],
+    "adjudicationKind": "OPEN_ESTIMATE",
+    "recommendedDurationSeconds": 45,
+    "plausibleRangeSeconds": [20, 120],
+    "scope": "SINGLE_CASE"
+  },
+  "preparedTurnResult": {
+    "preparedResultId": "prepared-01844",
+    "status": "VALIDATED_NOT_COMMITTED",
+    "resolvedCommands": [
+      {
+        "commandId": "cmd-social-01844",
+        "outcome": "FAILURE",
+        "effects": ["access_refused"]
+      }
+    ],
+    "acceptedAdjudications": [
+      {
+        "callId": "call-adjudicate-time-01844",
+        "acceptedDurationSeconds": 45,
+        "recordAsCampaignPrecedent": false
+      }
+    ]
+  },
+  "performances": {
+    "playerExpression": {
+      "contractVersion": "player-expression-adapter.v1",
+      "callId": "call-player-expression-01844",
+      "status": "OK",
+      "intentId": "intent-01844-1",
+      "expressionKind": "speech",
+      "renderedExpression": "Je ne souhaite pas troubler votre service. Je cherche seulement le registre et sollicite votre autorisation pour entrer.",
+      "meaningCovered": ["recherche du registre", "demande d'accès", "ton calme"],
+      "addedMeaning": [],
+      "omittedMeaning": [],
+      "safeToUse": true
+    },
+    "npcPerformances": [
+      {
+        "contractVersion": "npc-performer.v1",
+        "callId": "call-guard-01844",
+        "status": "OK",
+        "actorId": "actor:guard-archives-01",
+        "utterances": [
+          {
+            "utteranceId": "utterance-guard-01844-1",
+            "text": "Sans mandat, personne ne franchit cette porte.",
+            "speechActs": [
+              {
+                "type": "refusal",
+                "content": "Accès refusé sans mandat",
+                "epistemicBasis": "known_rule",
+                "audience": ["player-character"]
+              }
+            ]
+          }
+        ],
+        "knowledgeUsed": ["archive_access_requires_warrant"]
+      }
+    ]
+  },
+  "coherenceReview": {
+    "required": false,
+    "verdict": "NOT_REQUIRED",
+    "deterministicChecksPassed": [
+      "schema",
+      "authority",
+      "semantic_equivalence",
+      "npc_knowledge",
+      "reveal_permissions",
+      "dependency_versions"
+    ]
+  },
+  "commit": {
+    "commitId": "commit-01844",
+    "operationId": "op-turn-01844",
+    "fromCampaignVersion": 1843,
+    "toCampaignVersion": 1844,
+    "events": [
+      "player_utterance_recorded",
+      "npc_utterance_recorded",
+      "access_request_refused",
+      "world_time_advanced"
+    ],
+    "elapsedGameTimeSeconds": 45
+  },
+  "renderPlan": {
+    "renderPlanId": "render-plan-01844",
+    "campaignVersion": 1844,
+    "orderedSlots": [
+      "narration-01844-1",
+      "player-expression-01844",
+      "npc-utterance-01844-1",
+      "narration-01844-2"
+    ],
+    "allowedSources": [
+      "scene:archives-lysente@31",
+      "commit:commit-01844",
+      "utterance:utterance-guard-01844-1",
+      "visible-state:guard-procedural",
+      "creative-scope:ephemeral_sensory_texture"
+    ]
+  },
+  "visibleOutputCandidate": {
+    "contractVersion": "scene-writer.v1",
+    "callId": "call-write-01844",
+    "status": "OK",
+    "narrationBlocks": [
+      {
+        "slotId": "narration-01844-1",
+        "content": "Le garde vous écoute sans quitter la porte des yeux.",
+        "groundedIn": ["scene:archives-lysente@31", "creative-scope:ephemeral_sensory_texture"]
+      },
+      {
+        "slotId": "narration-01844-2",
+        "content": "Sa posture ne laisse entrevoir aucune concession.",
+        "groundedIn": ["commit:commit-01844", "visible-state:guard-procedural"]
+      }
+    ]
+  },
+  "outputValidation": {
+    "status": "PASS",
+    "checks": [
+      "render_contract",
+      "grounding",
+      "reveal_permissions",
+      "speaker_integrity",
+      "no_uncommitted_claim",
+      "no_internal_metadata"
+    ],
+    "displayed": true
+  }
+}

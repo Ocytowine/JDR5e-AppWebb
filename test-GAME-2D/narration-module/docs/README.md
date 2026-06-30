@@ -6,6 +6,16 @@ Il décrit la cible avant toute reprise du runtime.
 ## Documents de référence
 
 - [`Dossier-de-conception.md`](Dossier-de-conception.md) : état courant de la conception produit et technique.
+- [`Matrice-autorite.md`](Matrice-autorite.md) : propriétaires, lecteurs, propositions, validations, mutations et événements du MVP.
+- [`Modele-persistant.md`](Modele-persistant.md) : chronologie, sauvegarde, commits, snapshots et futurs agrégats de campagne.
+- [`Exemple-sauvegarde-mvp.json`](Exemple-sauvegarde-mvp.json) : exemple parseable et non contractuel du modèle persistant.
+- [`Coherence-intrigues.md`](Coherence-intrigues.md) : engagements narratifs, vérité cachée, indices et contrôles des intrigues dynamiques.
+- [`Creations-dynamiques.md`](Creations-dynamiques.md) : cycles, promotions et règles de création des PNJ, événements, objets, fils et lieux.
+- [`Memoire-et-rappel.md`](Memoire-et-rappel.md) : conservation, cycles de rappel, oubli subjectif et futures projections contextuelles.
+- [`Snapshot-et-contextes.md`](Snapshot-et-contextes.md) : photographie immuable d'un tour et paquets spécialisés par rôle IA.
+- [`Exemple-role-context-pack.json`](Exemple-role-context-pack.json) : exemple parseable d'un paquet spécialisé et de sa trace de sélection.
+- [`Pipeline-et-contrats-IA.md`](Pipeline-et-contrats-IA.md) : enchaînement des rôles IA, validations, commits et rédaction visible.
+- [`Exemple-pipeline-tour.json`](Exemple-pipeline-tour.json) : trace parseable d'un tour avec arbitrage temporel, commit et contrôle d'affichage.
 - [`Plan-de-consolidation.md`](Plan-de-consolidation.md) : ateliers, checklist anti-oubli, critères de sortie et journal d'avancement.
 - [`Journal-des-decisions.md`](Journal-des-decisions.md) : décisions structurantes, raisons et conséquences.
 - [`../Idée de base.md`](../Idée%20de%20base.md) : texte d'intention initial; il reste une source d'idées, pas un contrat actif.

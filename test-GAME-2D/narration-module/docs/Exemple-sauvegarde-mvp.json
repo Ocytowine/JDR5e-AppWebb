@@ -1,0 +1,343 @@
+{
+  "_meta": {
+    "status": "non_contractual_example",
+    "purpose": "Illustrer le modèle persistant du MVP sans figer le schéma technique."
+  },
+  "schemaVersion": 1,
+  "campaign": {
+    "schemaVersion": 1,
+    "id": "campaign_01",
+    "stateVersion": 3,
+    "status": "active",
+    "createdAt": "2026-06-30T09:00:00.000Z",
+    "updatedAt": "2026-06-30T09:07:00.000Z",
+    "playerCharacterId": "pc_01",
+    "currentSceneId": "scene_archives_entrance",
+    "activeProcessId": null,
+    "lastCommitId": "commit_003",
+    "latestSnapshotId": "snapshot_003",
+    "contentManifest": {
+      "contentVersion": "lore-1",
+      "rulesetVersion": "rules-1",
+      "applicationVersion": "0.0.1",
+      "packages": [
+        {
+          "id": "wiki-core",
+          "version": "1",
+          "hash": "example-wiki-core-hash"
+        },
+        {
+          "id": "game-catalogs",
+          "version": "1",
+          "hash": "example-game-catalogs-hash"
+        }
+      ]
+    }
+  },
+  "snapshot": {
+    "schemaVersion": 1,
+    "id": "snapshot_003",
+    "campaignId": "campaign_01",
+    "stateVersion": 3,
+    "createdAt": "2026-06-30T09:07:00.000Z",
+    "playerCharacter": {
+      "schemaVersion": 1,
+      "id": "pc_01",
+      "sourceSheetRef": {
+        "id": "sheet_source_01",
+        "version": 1,
+        "hash": "example-sheet-hash"
+      },
+      "identity": {
+        "name": "Aelis"
+      },
+      "profile": {
+        "traits": ["vive", "erudite"],
+        "languages": ["commun", "elfique"]
+      },
+      "runtime": {
+        "hp": 12,
+        "maxHp": 12,
+        "conditions": [],
+        "resources": {}
+      },
+      "inventory": {
+        "items": [],
+        "currency": {
+          "gold": 8
+        }
+      }
+    },
+    "world": {
+      "schemaVersion": 1,
+      "clock": {
+        "tick": 42,
+        "gameTime": "world-day-3T14:20:00"
+      },
+      "playerPosition": {
+        "kind": "building",
+        "id": "archives_de_lysenthe"
+      },
+      "activeWorldEventIds": []
+    },
+    "campaignFacts": {
+      "schemaVersion": 1,
+      "records": {
+        "fact_archives_access_policy": {
+          "id": "fact_archives_access_policy",
+          "type": "location.access_policy",
+          "subjectRefs": [
+            {
+              "kind": "building",
+              "id": "archives_de_lysenthe"
+            }
+          ],
+          "value": {
+            "access": "restricted",
+            "requiredCredential": "official_mandate"
+          },
+          "scope": "local",
+          "status": "active",
+          "validFrom": "world-day-1T00:00:00",
+          "validTo": null,
+          "sourceRefs": [
+            {
+              "kind": "content",
+              "id": "archives_de_lysenthe",
+              "version": "lore-1",
+              "hash": "example-archives-hash"
+            }
+          ],
+          "originEventId": "event_001",
+          "supersedes": null
+        }
+      }
+    },
+    "narrativeActors": {
+      "schemaVersion": 1,
+      "byId": {
+        "npc_gate_guard_01": {
+          "id": "npc_gate_guard_01",
+          "lifecycle": "persistent",
+          "displayName": "Garde des Archives",
+          "knownName": null,
+          "firstSceneId": "scene_archives_entrance",
+          "creationSource": {
+            "kind": "ai_candidate",
+            "turnId": "turn_002",
+            "promotionEventId": "event_002"
+          },
+          "traits": ["procedural", "vigilant"],
+          "motivations": ["protect_archives_access"],
+          "boundaries": ["does_not_ignore_missing_mandate"],
+          "appearance": {
+            "summary": "Surcot bleu gris et boucle d'étain en forme de herse."
+          },
+          "vitalState": "alive",
+          "possessions": []
+        }
+      }
+    },
+    "socialKnowledge": {
+      "schemaVersion": 1,
+      "relations": [
+        {
+          "id": "relation_guard_pc",
+          "fromActorId": "npc_gate_guard_01",
+          "toActorId": "pc_01",
+          "axes": {
+            "trust": 0,
+            "affinity": 0,
+            "fear": 0,
+            "debt": 0
+          },
+          "historyEventIds": []
+        }
+      ],
+      "knowledgeByActor": {
+        "pc_01": [
+          {
+            "id": "knowledge_pc_access_policy",
+            "claimRef": "fact_archives_access_policy",
+            "sourceEventId": "event_001",
+            "precision": "partial",
+            "visibility": "player_visible"
+          }
+        ],
+        "npc_gate_guard_01": [
+          {
+            "id": "knowledge_guard_access_policy",
+            "claimRef": "fact_archives_access_policy",
+            "sourceEventId": "event_002",
+            "precision": "exact",
+            "visibility": "actor_private"
+          },
+          {
+            "id": "knowledge_guard_patrol_schedule",
+            "claim": {
+              "type": "guard.patrol_schedule",
+              "value": "evening_rotation"
+            },
+            "sourceEventId": "event_002",
+            "precision": "exact",
+            "visibility": "secret"
+          }
+        ]
+      },
+      "beliefs": [
+        {
+          "id": "belief_player_guard_corrupt",
+          "holderId": "pc_01",
+          "kind": "player_hypothesis",
+          "claim": {
+            "type": "actor.is_corrupt",
+            "subjectId": "npc_gate_guard_01",
+            "value": true
+          },
+          "confidence": 0.65,
+          "source": {
+            "kind": "player_statement",
+            "turnId": "turn_003"
+          },
+          "truthStatus": "unconfirmed"
+        }
+      ]
+    },
+    "narrativeThreads": {
+      "schemaVersion": 1,
+      "byId": {
+        "thread_archives_entry": {
+          "id": "thread_archives_entry",
+          "type": "intrigue",
+          "state": "detected",
+          "originEventId": "event_001",
+          "anchorRefs": [
+            {
+              "kind": "building",
+              "id": "archives_de_lysenthe"
+            },
+            {
+              "kind": "actor",
+              "id": "npc_gate_guard_01"
+            }
+          ],
+          "knownStake": "Obtenir un accès légitime aux archives.",
+          "hiddenStake": null,
+          "establishedSteps": [],
+          "evolutionConditions": ["obtain_official_mandate", "find_other_legitimate_access"],
+          "consequenceIfIgnored": null,
+          "lastEventId": "event_002"
+        }
+      }
+    },
+    "scenes": {
+      "schemaVersion": 1,
+      "currentSceneId": "scene_archives_entrance",
+      "byId": {
+        "scene_archives_entrance": {
+          "id": "scene_archives_entrance",
+          "status": "active",
+          "locationRef": {
+            "kind": "building",
+            "id": "archives_de_lysenthe"
+          },
+          "startedAt": "world-day-3T14:18:00",
+          "participantIds": ["pc_01", "npc_gate_guard_01"],
+          "establishedStaging": [
+            "Le garde contrôle l'accès principal.",
+            "Les portes des archives sont fermées au public sans mandat."
+          ],
+          "ephemeralDetails": [],
+          "threadIds": ["thread_archives_entry"],
+          "turnIds": ["turn_001", "turn_002", "turn_003"]
+        }
+      }
+    },
+    "activeProcess": null
+  },
+  "eventJournal": {
+    "schemaVersion": 1,
+    "events": [
+      {
+        "id": "event_001",
+        "type": "campaign_fact_materialized",
+        "eventSchemaVersion": 1,
+        "commitId": "commit_001",
+        "domain": "CampaignFactDomain",
+        "gameTime": "world-day-3T14:18:00",
+        "recordedAt": "2026-06-30T09:01:00.000Z",
+        "entityRefs": ["fact_archives_access_policy", "archives_de_lysenthe"],
+        "visibility": "public",
+        "data": {
+          "factId": "fact_archives_access_policy"
+        }
+      },
+      {
+        "id": "event_002",
+        "type": "npc_promoted",
+        "eventSchemaVersion": 1,
+        "commitId": "commit_002",
+        "domain": "NarrativeActorDomain",
+        "gameTime": "world-day-3T14:19:00",
+        "recordedAt": "2026-06-30T09:04:00.000Z",
+        "entityRefs": ["npc_gate_guard_01", "scene_archives_entrance"],
+        "visibility": "system_private",
+        "data": {
+          "actorId": "npc_gate_guard_01"
+        }
+      },
+      {
+        "id": "event_003",
+        "type": "player_belief_recorded",
+        "eventSchemaVersion": 1,
+        "commitId": "commit_003",
+        "domain": "SocialKnowledgeDomain",
+        "gameTime": "world-day-3T14:20:00",
+        "recordedAt": "2026-06-30T09:07:00.000Z",
+        "entityRefs": ["pc_01", "npc_gate_guard_01"],
+        "visibility": "player_private",
+        "data": {
+          "beliefId": "belief_player_guard_corrupt"
+        }
+      }
+    ]
+  },
+  "interactionLog": {
+    "schemaVersion": 1,
+    "entries": [
+      {
+        "turnId": "turn_003",
+        "requestId": "request_003",
+        "sceneId": "scene_archives_entrance",
+        "rawPlayerInput": "Je pense qu'il est corruptible, mais je lui demande seulement ce qu'il faut pour entrer.",
+        "interpretedCommitment": "character_speech",
+        "messageIds": ["message_005", "message_006"],
+        "commitId": "commit_003"
+      }
+    ],
+    "messages": [
+      {
+        "id": "message_005",
+        "type": "player_performance",
+        "speakerId": "pc_01",
+        "text": "Je garde mes soupçons pour moi et demande au garde quelles autorisations sont requises."
+      },
+      {
+        "id": "message_006",
+        "type": "npc_dialogue",
+        "speakerId": "npc_gate_guard_01",
+        "text": "Un mandat officiel portant le sceau du Collegium. Rien de moins."
+      }
+    ]
+  },
+  "commitsAfterSnapshot": [],
+  "checkpoints": [
+    {
+      "id": "checkpoint_003",
+      "kind": "scene_state",
+      "stateVersion": 3,
+      "snapshotId": "snapshot_003",
+      "playerLoadable": false
+    }
+  ]
+}
