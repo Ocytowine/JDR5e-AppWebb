@@ -16,6 +16,8 @@ Il décrit la cible avant toute reprise du runtime.
 - [`Exemple-role-context-pack.json`](Exemple-role-context-pack.json) : exemple parseable d'un paquet spécialisé et de sa trace de sélection.
 - [`Pipeline-et-contrats-IA.md`](Pipeline-et-contrats-IA.md) : enchaînement des rôles IA, validations, commits et rédaction visible.
 - [`Exemple-pipeline-tour.json`](Exemple-pipeline-tour.json) : trace parseable d'un tour avec arbitrage temporel, commit et contrôle d'affichage.
+- [`Integration-domaines.md`](Integration-domaines.md) : transactions et transferts de contrôle entre narration, règles et moteurs propriétaires.
+- [`Regles-et-arbitrages.md`](Regles-et-arbitrages.md) : gouvernance des règles maison, versions, conflits et arbitrages IA.
 - [`Plan-de-consolidation.md`](Plan-de-consolidation.md) : ateliers, checklist anti-oubli, critères de sortie et journal d'avancement.
 - [`Journal-des-decisions.md`](Journal-des-decisions.md) : décisions structurantes, raisons et conséquences.
 - [`../Idée de base.md`](../Idée%20de%20base.md) : texte d'intention initial; il reste une source d'idées, pas un contrat actif.

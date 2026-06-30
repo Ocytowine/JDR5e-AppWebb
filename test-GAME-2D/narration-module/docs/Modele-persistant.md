@@ -89,9 +89,15 @@ Il référence les autres agrégats sans recopier leur contenu.
 
 ### `PlayerCharacterState`
 
-Porte l'instance importée et réellement jouée : identité, apparence, caractéristiques sources, capacités, ressources, états, inventaire et progression de campagne.
+Porte l'instance importée et réellement jouée : identité, apparence, caractéristiques sources, capacités, ressources, états, inventaire, progression de campagne et profil expressif.
 
 Il conserve la provenance de la fiche source et distingue les valeurs sources des valeurs dérivées recalculables.
+
+Les observations d'arc et candidats de traits sont séparés des traits durables. Une évolution identitaire proposée par l'IA ne rejoint le profil expressif qu'après acceptation explicite du joueur; les conditions imposées par les règles restent dans l'état courant.
+
+La fiche prête à jouer est conservée comme source d'import. L'état de campagne normalise inventaire, emplacements et contenants par `instanceId`, recalcule les données dérivées et produit des projections compatibles pour les moteurs consommateurs.
+
+Les pièces physiques sont autoritaires dans l'inventaire. Les résumés monétaires sont dérivés; les actifs non physiques utilisent des structures économiques séparées.
 
 ### `WorldState`
 
@@ -492,6 +498,9 @@ L'exemple démontre notamment :
 19. Une interaction méta ou une clarification pré-exécution possède une durée de jeu nulle.
 20. Une campagne ne change de version de contenu ou de règles que par migration explicite.
 21. Un arbitrage IA accepté peut créer un précédent de campagne, jamais une règle officielle implicite.
+22. Une observation ou proposition d'arc ne modifie jamais silencieusement le profil expressif durable du personnage joueur.
+23. Un emplacement, contenant ou focus de campagne référence une instance, jamais seulement une définition d'objet.
+24. Une valeur dérivée importée ne devient autoritaire qu'après recalcul avec le ruleset épinglé.
 21. Une migration échouée ne remplace jamais la sauvegarde active.
 22. Une migration est déterministe et ne fait aucun appel IA.
 23. Une sauvegarde d'une version future inconnue n'est pas modifiée.

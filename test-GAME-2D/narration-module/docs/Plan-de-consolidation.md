@@ -249,8 +249,8 @@ Chaque donnée produite par l'IA a une destination, une validation et un comport
 
 ### Frontières à traiter
 
-- [ ] Narration ↔ personnage et progression.
-- [ ] Narration ↔ inventaire et économie.
+- [x] Narration ↔ personnage et progression.
+- [x] Narration ↔ inventaire et économie.
 - [ ] Narration ↔ déplacement et carte.
 - [ ] Narration ↔ résolution sociale.
 - [ ] Narration ↔ tactique.
@@ -261,6 +261,17 @@ Chaque donnée produite par l'IA a une destination, une validation et un comport
 ### Critère de sortie
 
 Chaque passage possède une requête, une validation, un résultat, des événements et une stratégie d'échec.
+
+### Avancement détaillé
+
+- [x] Lot 1 — Protocole commun, transaction courte et `ProcessHandoff` sauvegardable.
+- [x] Lot 2 — Personnage et progression.
+- [x] Lot 3 — Inventaire et économie.
+- [ ] Lot 4 — Déplacement, carte et monde.
+- [ ] Lot 5 — Résolution sociale.
+- [ ] Lot 6 — Handoff tactique et retour des conséquences.
+- [ ] Lot 7 — Repos narratif et moteur de règles.
+- [ ] Lot 8 — Persistance, coordination, exemple parseable et audit.
 
 ## Atelier 9 — Temps et monde vivant
 
@@ -707,3 +718,27 @@ Avant de marquer un atelier `BOUCLE`, vérifier son impact sur :
 - Audit transversal : chaque sortie possède un rôle, une destination, une validation, un comportement d'échec et une visibilité définis.
 - Résultat : atelier 7 `BOUCLE`.
 - Prochaine action : atelier 8, formaliser les contrats entre narration et domaines propriétaires.
+
+### 2026-06-30 — Atelier 8, lot 1
+
+- Travail réalisé : audit des fondations existantes, protocole commun de commande et distinction avec les transferts de contrôle longs.
+- Décision : tactique, repos complexe et futurs processus interactifs utilisent un `ProcessHandoff` sauvegardable plutôt qu'une transaction synchrone ordinaire.
+- Décision : la simulation mondiale demeure l'autorité macroscopique; ses événements committés sont projetés vers la narration selon leur portée locale.
+- Garde-fou : tout retour de processus reconstruit un snapshot après commit complet des conséquences.
+- Prochaine action : définir le contrat personnage et progression.
+
+### 2026-06-30 — Atelier 8, lot 2
+
+- Travail réalisé : couches du personnage de campagne, projection narrative, commandes, progression et cycle des évolutions identitaires.
+- Décision : l'IA peut proposer un jalon ou un arc de personnage; règles et joueur conservent respectivement l'autorité mécanique et identitaire.
+- Garde-fou : une réaction contextuelle, une observation et un trait durable sont trois états distincts.
+- Prochaine action : définir inventaire, possessions, monnaie, commerce et transactions économiques.
+
+### 2026-06-30 — Atelier 8, lot 3
+
+- Travail réalisé : analyse de la fiche prête à jouer, contrat d'import normalisé, compatibilité tactique, placements d'instances, monnaie physique, présentation et commerce.
+- Décision : la fiche de création est importée puis normalisée; elle n'est pas l'état de campagne directement muté par tous les moteurs.
+- Décision : les objets et contenants utilisent des références d'instance; les pièces physiques sont autoritaires et le résumé `argent` devient dérivé ou legacy.
+- Décision : vêtements, équipement visible et propreté produisent des facteurs sociaux contextuels sans modifier le Charisme de base.
+- Garde-fou : les projections tactiques maintiennent la compatibilité sans permettre au tactique d'écraser l'agrégat de campagne.
+- Prochaine action : définir déplacement, carte et monde.

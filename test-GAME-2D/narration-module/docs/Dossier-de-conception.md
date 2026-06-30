@@ -535,6 +535,10 @@ Le contexte d'un tour ne peut pas être un simple résumé des derniers échange
 
 Les règles détaillées se trouvent dans [`Snapshot-et-contextes.md`](Snapshot-et-contextes.md).
 
+Les échanges avec les moteurs propriétaires, dont les transferts de contrôle tactiques, sont définis dans [`Integration-domaines.md`](Integration-domaines.md).
+
+Les règles applicables, variantes maison et arbitrages sont gouvernés par [`Regles-et-arbitrages.md`](Regles-et-arbitrages.md); la connaissance implicite de D&D d'un modèle IA n'est jamais une source de règle.
+
 ### Contenu minimal prévu
 
 - identifiants de campagne, scène, tour et version d'état;

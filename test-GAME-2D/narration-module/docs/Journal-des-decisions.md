@@ -825,3 +825,93 @@ Un jeu de rôle ne peut pas prédéfinir toutes les durées, difficultés et int
 ### Conséquences
 
 Les arbitrages acceptés peuvent être conservés comme précédents de campagne sans modifier les règles officielles. Le contrôle d'affichage combine références autorisées, droits de révélation et analyse sémantique ciblée.
+
+## NAR-043 — Transactions courtes et handoffs sauvegardables
+
+Date : `2026-06-30`
+
+Statut : `RETENU`
+
+### Décision
+
+Les intégrations utilisent soit une transaction courte coordonnée, soit un `ProcessHandoff` lorsque le contrôle passe temporairement à un moteur interactif. Le tactique est un processus suspendant la scène; le monde macroscopique évolue par événements validés liés à l'horloge commune.
+
+### Raisons
+
+Un combat, un repos complexe ou un voyage détaillé ne peuvent pas être représentés honnêtement par une commande instantanée. Inversement, fusionner narration, tactique et simulation mondiale créerait des autorités concurrentes et des états impossibles à reprendre proprement.
+
+### Conséquences
+
+Les processus longs possèdent seed, état actif, checkpoints et résultat structuré. Leur retour passe par une transaction multidomaine puis un nouveau snapshot. Les implémentations actuelles seront raccordées par adaptateurs et ne sont pas considérées comme des contrats achevés.
+
+## NAR-044 — Progression mécanique et évolution identitaire séparées
+
+Date : `2026-06-30`
+
+Statut : `RETENU`
+
+### Décision
+
+Le personnage de campagne sépare identité importée, profil mécanique, état courant et profil expressif. L'IA peut proposer progression et évolutions narratives, mais les règles valident la première et le joueur accepte explicitement toute modification identitaire durable.
+
+### Raisons
+
+Les événements doivent pouvoir transformer le personnage sans permettre au modèle de lui attribuer silencieusement une nouvelle personnalité. De même, une récompense narrative ne peut pas contourner les choix et préconditions de progression.
+
+### Conséquences
+
+Observations d'arc, candidats de traits et traits durables ont des cycles distincts. La fiche source reste inchangée et les choix de progression incomplets suspendent leur propre processus sans être décidés par l'IA.
+
+## NAR-045 — Import normalisé et projections compatibles du personnage
+
+Date : `2026-06-30`
+
+Statut : `RETENU`
+
+### Décision
+
+La fiche prête à jouer devient une source d'import conservée, validée puis normalisée dans `PlayerCharacterState`. Les valeurs dérivées sont recalculées et chaque moteur reçoit une projection compatible plutôt que l'agrégat complet.
+
+### Raisons
+
+La fiche actuelle combine choix sources, caches, provenance de création et représentations historiques. La partager directement empêcherait une évolution fiable et permettrait à un retour tactique d'écraser des données extérieures à son autorité.
+
+### Conséquences
+
+Un rapport d'import réconcilie références, monnaie et caches. Le tactique conserve une projection adaptée à son contrat actuel et renvoie uniquement événements et deltas.
+
+## NAR-046 — Instances physiques et présentation sociale contextuelle
+
+Date : `2026-06-30`
+
+Statut : `RETENU`
+
+### Décision
+
+Équipement, placements et contenus référencent des instances. Les pièces physiques sont la monnaie autoritaire portée. État du corps, propreté et objets visibles forment une projection de présentation dont l'effet social dépend du contexte sans modifier le Charisme de base.
+
+### Raisons
+
+Le modèle actuel représente déjà sacs, capacités, emplacements et pièces physiques, mais mélange identifiants de définition, emplacements et instances. L'apparence doit produire des conséquences de rôleplay sans devenir un bonus universel abstrait.
+
+### Conséquences
+
+Les données legacy sont migrées, les contenus de sacs deviennent dérivés des placements, et le domaine social valide des facteurs de présentation bornés selon l'observateur et la scène.
+
+## NAR-047 — Ruleset maison explicite et versionné
+
+Date : `2026-06-30`
+
+Statut : `RETENU`
+
+### Décision
+
+Seules les règles présentes dans le `RuleRegistry` du ruleset épinglé sont applicables. Les règles maison déclarent explicitement leur portée et les règles remplacées. La connaissance générale de D&D détenue par l'IA n'a aucune autorité.
+
+### Raisons
+
+Le jeu combine plusieurs inspirations et règles propres. Une convention implicite serait impossible à partager, tester et faire évoluer sans ambiguïté entre développeur, moteur et IA.
+
+### Conséquences
+
+Les arbitrages citent leurs règles et restent ad hoc en cas de vide. Toute nouvelle règle maison ou migration possède version, conflits déclarés, exemples et scénarios de test.
