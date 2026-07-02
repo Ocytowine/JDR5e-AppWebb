@@ -1,13 +1,13 @@
 # Suivi du travail
 
-Derniere mise a jour: 2026-06-30
+Derniere mise a jour: 2026-07-02
 
 Ce fichier est le tableau de bord court du depot. Les details techniques restent dans les documents lies; une tache ne doit pas etre dupliquee ici avec toute sa specification.
 
 ## En cours
 
 - [ ] Consolider le dossier de conception du nouveau module narration avant toute reprise du runtime.
-  References: `test-GAME-2D/narration-module/docs/Dossier-de-conception.md` et `test-GAME-2D/narration-module/docs/Plan-de-consolidation.md`. Les ateliers 1 a 7 sont boucles; l'integration avec les domaines proprietaires constitue l'atelier actif.
+  References: `test-GAME-2D/narration-module/docs/Dossier-de-conception.md`, `test-GAME-2D/narration-module/docs/Plan-de-consolidation.md` et `test-GAME-2D/narration-module/docs/Matrice-tracabilite-acceptation.md`. Les ateliers 1 a 12 sont boucles; l'audit final constitue l'atelier actif.
 - [ ] Consolider la simulation du monde apres l'ajout des objectifs multi-phases, des opportunites de faction et des mobiles non-systeme.
   Reference: `test-GAME-2D/map-module/docs/world-simulation-corrective-roadmap.md`. Les mobiles exposent maintenant l'objectif, la phase et la cible qu'ils servent.
 - [ ] Definir le contrat de sortie actionnable du MJ IA.
@@ -19,8 +19,7 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 ## Prochaines etapes
 
-- [ ] Formaliser les contrats entre narration et domaines proprietaires.
-- [ ] Transformer le premier scenario vertical narratif en cas d'acceptation detailles.
+- [ ] Auditer les contradictions, reports et contrats avant d'autoriser le premier lot d'implementation narrative.
 - [ ] Generer les premiers mobiles non-systeme contextuels, en commencant par les profils marchands, criminels et religieux.
 - [ ] Historiser les causes d'action importantes sans surcharger `recentHistory`.
 - [ ] Prioriser les cas narratifs 005 a 009 avant leur implementation.
@@ -34,8 +33,13 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 ## Termine recemment
 
+- [x] Construction du corpus d'acceptation et de sa matrice de tracabilite P0 le 2026-07-02.
+- [x] Formalisation des exigences non fonctionnelles de latence, contexte, qualite, capacite et migration le 2026-07-02.
+- [x] Formalisation de la resilience, de la securite, du diagnostic et des politiques de reprise le 2026-07-02.
 - [x] Formalisation du modele persistant, de la memoire et du contrat conceptuel du snapshot narratif le 2026-06-30.
 - [x] Formalisation du pipeline IA, des arbitrages ouverts et de la securite des sorties le 2026-06-30.
+- [x] Formalisation des integrations personnage, inventaire, monde, social, tactique, repos et sauvegarde le 2026-07-02.
+- [x] Formalisation de l'horloge causale, du monde hors ecran et des retours tardifs le 2026-07-02.
 - [x] Decouplage de l'application et du serveur du runtime narration supprime le 2026-06-29; le build et le demarrage ne dependent plus de `narration-module/`.
 - [x] Affectation runtime explicite des mobiles aux phases d'objectif et correction du garde-fou de traces mobiles le 2026-06-22.
 - [x] Ajout d'une verification de regression du module carte (`npm run map-module:test:regression`) le 2026-06-22.

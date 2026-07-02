@@ -809,7 +809,7 @@ Après sauvegarde et ellipse, le joueur revient dans le lieu initial. Le systèm
 
 ## 15. Questions restantes pour les ateliers suivants
 
-1. Quelle technologie de persistance implémentera les agrégats, snapshots et événements déjà modélisés ?
+1. À quel moment remplacer IndexedDB par SQLite si le serveur local devient l'autorité durable ?
 2. Quels contrats exacts relient scène narrative, domaines applicatifs et `map-module` ?
 3. Quels budgets mesurés de contexte, coût et latence retenir par rôle et modèle ?
 4. Comment remplacer ou faire évoluer l'actuelle route tactique `/api/narration` lors de l'intégration ?

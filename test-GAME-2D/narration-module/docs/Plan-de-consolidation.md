@@ -28,14 +28,14 @@ Un atelier n'est `BOUCLE` que si ses décisions sont écrites, ses incertitudes 
 | 5 | Mémoire et rappel | `BOUCLE` | Pipeline de conservation, recherche et projection | 3, 4 |
 | 6 | Snapshot et dossier de scène | `BOUCLE` | Contrat d'entrée conceptuel versionné | 2, 5 |
 | 7 | Pipeline et contrats IA | `BOUCLE` | Séquence des appels et contrats de sortie | 4, 6 |
-| 8 | Intégration des moteurs | `EN_COURS` | Contrats narration ↔ domaines propriétaires | 2, 7 |
-| 9 | Temps et monde vivant | `A_FAIRE` | Contrat temporel et articulation des événements | 5, 8 |
-| 10 | Résilience, sécurité et diagnostic | `A_FAIRE` | Catalogue des échecs et comportements attendus | 7, 8 |
-| 11 | Exigences non fonctionnelles | `A_FAIRE` | Budgets et objectifs mesurables | 5, 7, 10 |
-| 12 | Scénarios d'acceptation | `A_FAIRE` | Corpus fonctionnel et cas limites | 1 à 11 |
-| 13 | Audit final et plan d'implémentation | `A_FAIRE` | Rapport de cohérence et lots techniques | 12 |
+| 8 | Intégration des moteurs | `BOUCLE` | Contrats narration ↔ domaines propriétaires | 2, 7 |
+| 9 | Temps et monde vivant | `BOUCLE` | Contrat temporel et articulation des événements | 5, 8 |
+| 10 | Résilience, sécurité et diagnostic | `BOUCLE` | Catalogue des échecs et comportements attendus | 7, 8 |
+| 11 | Exigences non fonctionnelles | `BOUCLE` | Budgets et objectifs mesurables | 5, 7, 10 |
+| 12 | Scénarios d'acceptation | `BOUCLE` | Corpus fonctionnel et cas limites | 1 à 11 |
+| 13 | Audit final et plan d'implémentation | `EN_COURS` | Rapport de cohérence et lots techniques | 12 |
 
-Les ateliers 1 à 7 sont bouclés. L'atelier 8 sur l'intégration des moteurs est maintenant actif.
+Les ateliers 1 à 12 sont bouclés. L'atelier 13 d'audit final et de préparation de l'implémentation est maintenant actif.
 
 ## Atelier 0 — Gouvernance documentaire
 
@@ -170,8 +170,8 @@ Toute création du scénario MVP possède un parcours explicite depuis sa premi�
 - [ ] Atelier 6 : définir la projection du sous-graphe pertinent dans une scène.
 - [ ] Atelier 7 : définir contrats IA et contrôle sémantique complémentaire.
 - [ ] Atelier 9 : définir chronologie et évolution hors écran.
-- [ ] Atelier 10 : définir correction et diagnostic sans retcon silencieux.
-- [ ] Atelier 12 : couvrir intrigue longue, indices, fausses pistes et contradictions.
+- [x] Atelier 10 : définir correction et diagnostic sans retcon silencieux.
+- [x] Atelier 12 : couvrir intrigue longue, indices, fausses pistes et contradictions.
 
 ## Atelier 5 — Mémoire et rappel
 
@@ -251,12 +251,12 @@ Chaque donnée produite par l'IA a une destination, une validation et un comport
 
 - [x] Narration ↔ personnage et progression.
 - [x] Narration ↔ inventaire et économie.
-- [ ] Narration ↔ déplacement et carte.
-- [ ] Narration ↔ résolution sociale.
-- [ ] Narration ↔ tactique.
-- [ ] Narration ↔ repos.
-- [ ] Narration ↔ monde et factions.
-- [ ] Narration ↔ sauvegarde.
+- [x] Narration ↔ déplacement et carte.
+- [x] Narration ↔ résolution sociale.
+- [x] Narration ↔ tactique.
+- [x] Narration ↔ repos.
+- [x] Narration ↔ monde et factions.
+- [x] Narration ↔ sauvegarde.
 
 ### Critère de sortie
 
@@ -267,58 +267,74 @@ Chaque passage possède une requête, une validation, un résultat, des événem
 - [x] Lot 1 — Protocole commun, transaction courte et `ProcessHandoff` sauvegardable.
 - [x] Lot 2 — Personnage et progression.
 - [x] Lot 3 — Inventaire et économie.
-- [ ] Lot 4 — Déplacement, carte et monde.
-- [ ] Lot 5 — Résolution sociale.
-- [ ] Lot 6 — Handoff tactique et retour des conséquences.
-- [ ] Lot 7 — Repos narratif et moteur de règles.
-- [ ] Lot 8 — Persistance, coordination, exemple parseable et audit.
+- [x] Lot 4 — Déplacement, carte et monde.
+- [x] Lot 5 — Résolution sociale.
+- [x] Lot 6 — Handoff tactique et retour des conséquences.
+- [x] Lot 7 — Repos narratif et moteur de règles.
+- [x] Lot 8 — Persistance, coordination, exemple parseable et audit.
 
 ## Atelier 9 — Temps et monde vivant
 
 ### Questions à résoudre
 
-- [ ] Définir comment la narration demande une avance temporelle.
-- [ ] Distinguer événement créé par l'IA et événement produit par la simulation.
-- [ ] Définir leur fusion éventuelle dans une scène.
-- [ ] Définir l'évolution hors écran.
-- [ ] Définir retour tardif, absence prolongée et conséquences différées.
-- [ ] Éviter toute horloge ou chronologie concurrente.
+- [x] Définir comment la narration demande une avance temporelle.
+- [x] Distinguer événement créé par l'IA et événement produit par la simulation.
+- [x] Définir leur composition éventuelle dans une scène.
+- [x] Définir l'évolution hors écran.
+- [x] Définir retour tardif, absence prolongée et conséquences différées.
+- [x] Éviter toute horloge ou chronologie concurrente.
 
 ### Critère de sortie
 
 Chaque événement du scénario peut être replacé sur une chronologie unique avec sa cause et ses conséquences.
 
+### Avancement détaillé
+
+- [x] Lot 1 — Horloge précise, demandes d'avance, segmentation et curseur monde dérivé.
+- [x] Lot 2 — Échéancier et ordre causal des événements simultanés.
+- [x] Lot 3 — Événements IA, règles et simulation puis composition de scène.
+- [x] Lot 4 — Évolution hors écran, conséquences différées et retour tardif.
+- [x] Lot 5 — Exemple parseable, scénarios limites et audit.
+
 ## Atelier 10 — Résilience, sécurité et diagnostic
 
 ### Cas à couvrir
 
-- [ ] Timeout ou indisponibilité IA.
-- [ ] Sortie invalide ou incomplète.
-- [ ] Contradiction avec le contexte.
-- [ ] Double soumission d'un tour.
-- [ ] Échec partiel d'un moteur propriétaire.
-- [ ] Sauvegarde ou reprise pendant une erreur.
-- [ ] Contenu lore ou joueur tentant de détourner les instructions.
-- [ ] Fuite d'un secret MJ vers le joueur.
-- [ ] Diagnostic suffisamment riche sans polluer l'expérience.
+- [x] Timeout ou indisponibilité IA.
+- [x] Sortie invalide ou incomplète.
+- [x] Contradiction avec le contexte.
+- [x] Double soumission d'un tour.
+- [x] Échec partiel d'un moteur propriétaire.
+- [x] Sauvegarde ou reprise pendant une erreur.
+- [x] Contenu lore ou joueur tentant de détourner les instructions.
+- [x] Fuite d'un secret MJ vers le joueur.
+- [x] Diagnostic suffisamment riche sans polluer l'expérience.
 
 ### Critère de sortie
 
 Aucun échec prévisible ne corrompt silencieusement la campagne ou ne produit une mutation non traçable.
 
+### Avancement détaillé
+
+- [x] Lot 1 — Périmètres de confinement, taxonomie, dégradation et lecture seule.
+- [x] Lot 2 — Fournisseur IA, sorties invalides, contradictions et circuit de reprise.
+- [x] Lot 3 — Concurrence, doubles soumissions, domaines et persistance.
+- [x] Lot 4 — Injection, secrets, données sensibles et contrôle des sorties.
+- [x] Lot 5 — Diagnostic, rétention, scénarios d'acceptation et audit.
+
 ## Atelier 11 — Exigences non fonctionnelles
 
 ### Mesures à fixer
 
-- [ ] Latence cible et maximale d'un tour.
-- [ ] Coût moyen et plafond par tour ou session.
-- [ ] Taille globale et budgets par section du contexte.
-- [ ] Taux accepté de réponses invalides.
-- [ ] Qualité minimale du rappel.
-- [ ] Taux de contradictions et de répétitions.
-- [ ] Durée et volume de campagne supportés.
-- [ ] Compatibilité et migration des sauvegardes.
-- [ ] Niveau de journalisation et conservation des traces.
+- [x] Latence cible et maximale d'un tour.
+- [x] Coût moyen et plafond par tour ou session — mécanisme retenu; montants reportés au benchmark fournisseur.
+- [x] Taille globale et budgets par section du contexte — enveloppes initiales à équilibrer par benchmark.
+- [x] Taux accepté de réponses invalides.
+- [x] Qualité minimale du rappel.
+- [x] Taux de contradictions et de répétitions.
+- [x] Durée et volume de campagne supportés.
+- [x] Compatibilité et migration des sauvegardes.
+- [x] Niveau de journalisation et conservation des traces.
 
 ### Critère de sortie
 
@@ -328,22 +344,30 @@ Les qualités essentielles sont mesurables ou explicitement reportées avec un r
 
 ### Corpus minimal
 
-- [ ] Parcours nominal du scénario vertical.
-- [ ] Création puis réapparition d'un PNJ.
-- [ ] Souvenir ancien évoqué avec une formulation différente.
-- [ ] Retour dans un lieu transformé.
-- [ ] Secret connu du MJ mais pas d'un interlocuteur.
-- [ ] Action mécaniquement impossible.
-- [ ] Transition vers le tactique et retour.
-- [ ] Événement ignoré évoluant hors écran.
-- [ ] Sauvegarde, rechargement et migration.
-- [ ] Panne IA sans mutation partielle.
-- [ ] Contexte dépassant son budget.
-- [ ] Création contradictoire ou doublon.
+- [x] Parcours nominal du scénario vertical.
+- [x] Création puis réapparition d'un PNJ.
+- [x] Souvenir ancien évoqué avec une formulation différente.
+- [x] Retour dans un lieu transformé.
+- [x] Secret connu du MJ mais pas d'un interlocuteur.
+- [x] Action mécaniquement impossible.
+- [x] Transition vers le tactique et retour.
+- [x] Événement ignoré évoluant hors écran.
+- [x] Sauvegarde, rechargement et migration.
+- [x] Panne IA sans mutation partielle.
+- [x] Contexte dépassant son budget.
+- [x] Création contradictoire ou doublon.
 
 ### Critère de sortie
 
 Chaque exigence P0 est couverte par au moins un scénario observable et chaque scénario renvoie aux contrats concernés.
+
+### Avancement détaillé
+
+- [x] Lot 1 — Format commun, niveaux d'oracle et granularité des échanges.
+- [x] Lot 2 — Parcours vertical nominal.
+- [x] Lot 3 — Mémoire longue, intrigue et monde vivant.
+- [x] Lot 4 — Domaines propriétaires, sauvegarde et résilience.
+- [x] Lot 5 — Matrice de couverture et audit du corpus.
 
 ## Atelier 13 — Audit final et autorisation de coder
 
@@ -742,3 +766,199 @@ Avant de marquer un atelier `BOUCLE`, vérifier son impact sur :
 - Décision : vêtements, équipement visible et propreté produisent des facteurs sociaux contextuels sans modifier le Charisme de base.
 - Garde-fou : les projections tactiques maintiennent la compatibilité sans permettre au tactique d'écraser l'agrégat de campagne.
 - Prochaine action : définir déplacement, carte et monde.
+
+### 2026-07-02 — Atelier 8, lot 4
+
+- Travail réalisé : position hiérarchique, échelles de déplacement, `TravelProcess`, synchronisation monde, visibilité des événements et lieux de campagne.
+- Décision : l'horloge précise de campagne est unique; les pas horaires du `map-module` sont des échéances de simulation dérivées.
+- Décision : les rencontres de voyage utilisent une pression, une graine stable et des catégories contextuelles; l'IA concrétise un candidat sans décider du hasard.
+- Garde-fou : aucune rencontre aléatoire ne devient rétroactivement une solution obligatoire d'intrigue et aucune présence simultanée n'impose automatiquement un combat.
+- Prochaine action : définir la résolution sociale et l'effet des connaissances, relations et présentations visibles.
+
+### 2026-07-02 — Atelier 8, lot 5
+
+- Travail réalisé : snapshot social par acteur, faisabilité, résolution conditionnelle, facteurs contextuels, relations multidimensionnelles et effets sur les croyances.
+- Décision : tous les dialogues ne déclenchent pas de jet et une réussite ne transforme jamais un PNJ en personnage contrôlé.
+- Décision : l'approche et les capacités du personnage comptent; l'orthographe et l'éloquence réelle du joueur ne sont pas notées.
+- Garde-fou : disposition temporaire, relation durable, croyance subjective et vérité objective restent quatre objets distincts.
+- Prochaine action : détailler le handoff tactique, la génération de rencontre et le retour multidomaine des conséquences.
+
+### 2026-07-02 — Atelier 8, lot 6
+
+- Travail réalisé : critère d'escalade, seed, carte validée, session sauvegardable, narration tactique, fins multiples et résultat multidomaine.
+- Décision : le tactique est déclenché par le besoin de granularité spatiale et mécanique, pas seulement par la durée d'un conflit.
+- Décision : une carte générée utilise une graine stable et ne peut contredire les sorties, obstacles ou éléments persistants établis.
+- Garde-fou : un combat terminé en attente d'intégration ne peut pas être rejoué; seule sa transaction de conséquences est réessayée.
+- Prochaine action : définir le handoff de repos, ses choix narratifs, interruptions et effets de règles.
+
+### 2026-07-02 — Atelier 8, lot 7
+
+- Travail réalisé : déclenchement, seed, questions, segments, événements, interruption, résultat et intégration du repos.
+- Décision : toute durée et tout bénéfice de repos proviennent du ruleset actif; aucune convention D&D implicite n'est appliquée.
+- Décision UX : un popup signale début, fin ou interruption depuis les événements committés, sans porter les choix mécaniques.
+- Garde-fou : une interruption conserve les phases déjà committées et ne transforme pas automatiquement le repos en réussite ou échec total.
+- Prochaine action : finaliser persistance, coordination et reprise, produire un exemple parseable puis auditer l'atelier.
+
+### 2026-07-02 — Atelier 8, lot 8 et clôture
+
+- Travail réalisé : cycle durable des opérations, commit atomique, reprise par état, checkpoints et abstraction de stockage.
+- Décision : mémoire pour les tests, IndexedDB pour le prototype local et SQLite seulement si le serveur local devient ultérieurement l'autorité.
+- Décision : `localStorage` reste limité aux préférences, pointeurs et imports legacy; il ne porte pas la campagne canonique.
+- Garde-fou : une panne post-commit reprend uniquement la rédaction, l'affichage ou l'intégration déjà préparée.
+- Audit transversal : personnage, inventaire, déplacement, monde, social, tactique, repos et sauvegarde possèdent requête, validation, résultat, événements et stratégie d'échec.
+- Résultat : atelier 8 `BOUCLE`.
+- Prochaine action : atelier 9, formaliser l'horloge précise, le rattrapage mondial et l'ordonnancement causal des événements.
+
+### 2026-07-02 — Atelier 9, lot 1
+
+- Travail réalisé : `CampaignInstant`, séparation technique/diégétique, propositions de durée, avance segmentée et raccord horaire au monde.
+- Décision : l'instant canonique est un nombre entier de secondes; calendrier et libellés sont des projections.
+- Décision : les microticks horaires du `map-module` restent son unité interne mais deviennent des échéances dérivées de l'horloge de campagne.
+- Garde-fou : une activité interrompue ne committe jamais la durée de ses étapes non exécutées.
+- Prochaine action : définir l'échéancier et l'ordre déterministe lorsque plusieurs événements deviennent exigibles au même instant.
+
+### 2026-07-02 — Atelier 9, lot 2
+
+- Travail réalisé : `ScheduledEffect`, boucle d'avance, dépendances, politiques de frontière, annulation et sécurité des cascades.
+- Décision : un ordre ayant un effet métier doit être explicite dans le ruleset; l'ordre technique ne peut pas décider du résultat.
+- Décision : une décision significative arrête l'horloge après le batch et regroupe les événements simultanés perceptibles.
+- Garde-fou : cycles, rétroactivité et cascades infinies bloquent avant toute mutation partielle.
+- Prochaine action : distinguer les origines d'événements et définir leur composition sans fusion de vérité.
+
+### 2026-07-02 — Atelier 9, lot 3
+
+- Travail réalisé : origines d'événements, proposition créative, production simulation, déduplication et `SceneEventBundle`.
+- Décision : l'IA peut créer des événements immédiats ou futurs par proposition validée, sans insertion rétroactive.
+- Décision : plusieurs événements alimentent une même scène mais conservent identifiants, causes et autorités distincts.
+- Garde-fou : un événement non présenté reste réel et ne devient connaissable que par un canal de perception ou d'information.
+- Prochaine action : définir évolution hors écran, conséquences différées et reconstruction d'un retour tardif.
+
+### 2026-07-02 — Atelier 9, lot 4
+
+- Travail réalisé : niveaux de simulation, conséquences différées, contexte de retour et catégories de révélation.
+- Décision : une absence réelle n'avance pas le monde; seule l'absence vécue dans la chronologie produit une évolution.
+- Décision : le retour compare l'état courant à la dernière perception du personnage, pas seulement à l'ancienne vérité système.
+- Garde-fou : acteurs, relations et souvenirs ne changent hors écran que par une cause committée.
+- Prochaine action : produire un exemple temporel parseable, couvrir les scénarios limites et auditer l'atelier.
+
+### 2026-07-02 — Atelier 9, lot 5 et clôture
+
+- Travail réalisé : seize scénarios limites, exemple causal parseable et audit transversal du contrat temporel.
+- Exemple : un repos est interrompu à 06:00 pendant le tick monde; son bénéfice de 06:02 n'est pas appliqué et l'événement distant invisible reste privé.
+- Garde-fou : rejouer le batch retourne son commit existant sans second tick, événement ou consommation.
+- Résultat : atelier 9 `BOUCLE`.
+- Prochaine action : atelier 10, cataloguer les échecs, menaces et informations diagnostiques nécessaires.
+
+### 2026-07-02 — Atelier 10, lot 1
+
+- Travail réalisé : périmètres de confinement, taxonomie d'incidents, distinction échec fermé/dégradation et mode lecture seule.
+- Décision : seules les atteintes à l'intégrité globale peuvent bloquer les écritures de toute une campagne.
+- Garde-fou : une panne IA ne provoque pas de lecture seule et un diagnostic ne copie jamais les secrets ou prompts complets.
+- Prochaine action : détailler indisponibilité fournisseur, sorties invalides, contradictions et reprise bornée.
+
+### 2026-07-02 — Atelier 10, lot 2
+
+- Travail réalisé : tentatives fournisseur, compteurs de reprise séparés, circuit breaker, modèles de secours et comportements par rôle.
+- Décision : une réponse tardive ou provenant d'une tentative remplacée ne peut plus rejoindre le pipeline actif.
+- Décision : un fallback doit être certifié pour le même rôle et ne peut élargir permissions ou secrets.
+- Garde-fou : les contraintes ne sont jamais affaiblies pour forcer une sortie après contradictions répétées.
+- Prochaine action : traiter doubles soumissions, concurrence multi-onglets, échecs de domaines et pannes de persistance.
+
+### 2026-07-02 — Atelier 10, lot 3
+
+- Travail réalisé : écrivain unique, idempotence client, fencing multi-onglets, contrôle optimiste, atomicité et outbox.
+- Décision : les appels IA restent hors transaction; la version et le jeton d'écriture sont relus juste avant commit.
+- Décision : une issue de commit inconnue est résolue par recherche de l'idempotencyKey, jamais par répétition aveugle.
+- Garde-fou : une action de processus long n'est acquise qu'après son checkpoint committé.
+- Prochaine action : traiter injections indirectes, secrets, import de données hostiles et protection de l'API locale.
+
+### 2026-07-02 — Atelier 10, lot 4
+
+- Travail réalisé : frontières de confiance, permissions minimales, protection des secrets, validation des sorties, imports hostiles et bornes de ressources.
+- Décision : joueur, lore, mémoire, imports et anciennes générations restent des données non fiables, même après transformation.
+- Garde-fou : la sécurité repose sur les permissions et contrats, jamais uniquement sur la détection de mots suspects.
+- Prochaine action : définir diagnostic, rétention, reproductibilité et scénarios de résilience.
+
+### 2026-07-02 — Atelier 10, lot 5
+
+- Travail réalisé : niveaux de traces, contrat `IncidentRecord`, séparation UX, rétention initiale, audit et corpus de résilience.
+- Décision : prompts et réponses brutes ne sont pas conservés par défaut; les incidents sont corrélés et expurgés.
+- Garde-fou : le diagnostic technique ne devient jamais une vérité narrative et sa suppression n'altère pas le journal métier.
+- Résultat : atelier 10 `BOUCLE`.
+- Prochaine action : atelier 11, fixer des objectifs mesurables de latence, coût, contexte, qualité et capacité.
+
+### 2026-07-02 — Atelier 11, lot 1
+
+- Travail réalisé : décomposition de la latence, cibles p95, limites maximales, état d'attente et règles d'annulation.
+- Décision : une attente longue peut être signalée sans publier de résultat incomplet; performance et intégrité restent deux critères distincts.
+- Garde-fou : la classe d'un tour est fixée avant mesure et ne peut être modifiée pour masquer un dépassement.
+- Prochaine action : fixer les budgets de contexte, de sortie et de coût par rôle et par opération.
+
+### 2026-07-02 — Atelier 11, lot 2
+
+- Travail réalisé : enveloppes par rôle et par classe de tour, réduction sûre, comptabilisation des retries et contrôle financier.
+- Décision : les budgets chiffrés sont une base configurable, pas une invitation à remplir la fenêtre du modèle.
+- Report accepté : les plafonds monétaires du profil `balanced` seront fixés après choix et benchmark des fournisseurs.
+- Garde-fou : ce benchmark financier est bloquant avant implémentation finale et aucun dépassement ne peut retirer un invariant.
+- Prochaine action : fixer les seuils de qualité de l'intention, du rappel, de la cohérence et de la narration.
+
+### 2026-07-02 — Atelier 11, lot 3
+
+- Travail réalisé : tolérances absolues, fiabilité des sorties, rappel, fidélité de l'intention et grille narrative humaine.
+- Décision : les métriques statistiques ne peuvent jamais compenser une fuite, une mutation interdite ou une atteinte à l'agence du joueur.
+- Garde-fou : le critique IA n'est pas l'unique juge de la chaîne qui le produit; le corpus est stable, annoté et versionné.
+- Prochaine action : fixer capacité d'une campagne longue, compatibilité, migrations et protocole de benchmark final.
+
+### 2026-07-02 — Atelier 11, lot 4
+
+- Travail réalisé : volumes cibles, performances locales, seuil IndexedDB/SQLite, migrations, exports et benchmark de résistance.
+- Décision : le prototype doit soutenir une campagne synthétique de 10 000 tours et 500 Mo sans parcours global sur le chemin critique.
+- Garde-fou : une copie technique de migration ne permet aucun retour chronologique au joueur et une importation invalide ne remplace jamais la campagne active.
+- Report accepté : les valeurs restent à confirmer sur l'environnement, les modèles et les fournisseurs retenus.
+- Résultat : atelier 11 `BOUCLE`.
+- Prochaine action : atelier 12, transformer le scénario vertical et les cas limites en scénarios d'acceptation traçables.
+
+### 2026-07-02 — Atelier 12, lot 1
+
+- Travail réalisé : format d'un scénario, unité d'échange, classes de longueur, checkpoints et trois niveaux d'oracle.
+- Décision : un scénario automatisé reste sous 20 échanges; les historiques longs sont injectés par fixture puis vérifiés sur une courte fenêtre active.
+- Exemple : une question hypothétique sur le vol des clés ne provoque ni action, ni temps, ni réaction du garde.
+- Garde-fou : la prose exacte n'est jamais l'oracle d'un comportement narratif.
+- Prochaine action : découper le parcours vertical nominal en échanges, checkpoints et assertions.
+
+### 2026-07-02 — Atelier 12, lot 2
+
+- Travail réalisé : parcours de 18 échanges aux Archives de Lysenthe, découpé en quatre checkpoints.
+- Décision : le test fixe les intentions et contraintes, mais laisse à l'IA noms, voix, intrigue, indices, confrontation et prose.
+- Garde-fou : l'étape tactique ne justifie jamais à elle seule la création d'un combat; sa cause doit émerger du parcours validé.
+- Prochaine action : couvrir PNJ récurrent, souvenir paraphrasé, retour dans un lieu transformé, secrets et évolution hors écran.
+
+### 2026-07-02 — Atelier 12, lot 3
+
+- Travail réalisé : scénarios PNJ récurrent, souvenir paraphrasé, lieu transformé, intrigue à fausse piste et événement ignoré.
+- Décision : les scénarios longitudinaux utilisent un historique préparé et une courte fenêtre active sans réduire les assertions sur la causalité.
+- Point à préciser : protocole en deux phases pour tester séparément génération puis continuité d'une intrigue.
+- Prochaine action : détailler cette double méthode avant de figer la fixture d'intrigue.
+
+### 2026-07-02 — Atelier 12, complément intrigue
+
+- Travail réalisé : séparation entre certification de création et régression de continuité.
+- Décision : une intrigue est d'abord générée sans solution imposée, validée, puis gelée comme structure versionnée pour les scènes longitudinales.
+- Garde-fou : remplacer automatiquement une fixture lors d'un changement de modèle est interdit.
+- Prochaine action : couvrir règles, inventaire, voyage, tactique, repos, persistance et pannes.
+
+### 2026-07-02 — Atelier 12, lot 4
+
+- Travail réalisé : neuf scénarios couvrant règles, inventaire, apparence, commerce, voyage, tactique, repos, migration, pannes, budgets et créations contradictoires.
+- Décision : les domaines déterministes utilisent des fixtures contrôlées; un fournisseur réel n'est requis que lorsque l'interprétation ou la création IA est l'objet du test.
+- Garde-fou : aucune panne post-commit ne rejoue le métier et aucun test tactique ne accepte une double intégration.
+- Prochaine action : construire la matrice exigence-décision-contrat-scénario et combler les exigences P0 restantes.
+
+### 2026-07-02 — Atelier 12, lot 5
+
+- Travail réalisé : scénarios résiduels de reformulation, concurrence, sécurité, ordre temporel et règles maison; benchmark de résistance; matrice P0 complète.
+- Décision : chaque famille P0 renvoie désormais à une décision, un contrat, un scénario et un oracle observable.
+- Réserve explicite : coûts du profil `balanced` et équilibrage par modèle restent à mesurer au benchmark fournisseur avant implémentation finale.
+- Garde-fou : le parcours vertical ne constitue jamais l'unique preuve d'un domaine critique.
+- Résultat : atelier 12 `BOUCLE`.
+- Prochaine action : atelier 13, auditer les contradictions documentaires et déterminer si le premier lot de code peut être autorisé.

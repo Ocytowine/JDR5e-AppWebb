@@ -18,6 +18,13 @@ Il décrit la cible avant toute reprise du runtime.
 - [`Exemple-pipeline-tour.json`](Exemple-pipeline-tour.json) : trace parseable d'un tour avec arbitrage temporel, commit et contrôle d'affichage.
 - [`Integration-domaines.md`](Integration-domaines.md) : transactions et transferts de contrôle entre narration, règles et moteurs propriétaires.
 - [`Regles-et-arbitrages.md`](Regles-et-arbitrages.md) : gouvernance des règles maison, versions, conflits et arbitrages IA.
+- [`Exemple-integration-domaines.json`](Exemple-integration-domaines.json) : transaction multidomaine parseable avec commit, projections et reprise.
+- [`Temps-et-monde-vivant.md`](Temps-et-monde-vivant.md) : horloge précise, avances segmentées et articulation avec la simulation mondiale.
+- [`Exemple-chronologie-causale.json`](Exemple-chronologie-causale.json) : interruption temporelle, tick mondial, visibilité et reprise idempotente.
+- [`Resilience-securite-diagnostic.md`](Resilience-securite-diagnostic.md) : confinement des erreurs, sécurité des données et traces exploitables.
+- [`Exigences-non-fonctionnelles.md`](Exigences-non-fonctionnelles.md) : objectifs mesurables de latence, coût, qualité et capacité.
+- [`Scenarios-acceptation.md`](Scenarios-acceptation.md) : corpus observable, granularité et oracles du scénario vertical et des cas limites.
+- [`Matrice-tracabilite-acceptation.md`](Matrice-tracabilite-acceptation.md) : liens entre exigences P0, décisions, contrats, scénarios et résultats observables.
 - [`Plan-de-consolidation.md`](Plan-de-consolidation.md) : ateliers, checklist anti-oubli, critères de sortie et journal d'avancement.
 - [`Journal-des-decisions.md`](Journal-des-decisions.md) : décisions structurantes, raisons et conséquences.
 - [`../Idée de base.md`](../Idée%20de%20base.md) : texte d'intention initial; il reste une source d'idées, pas un contrat actif.

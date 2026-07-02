@@ -1,0 +1,174 @@
+{
+  "schemaVersion": "narration.domain-integration.example.v1",
+  "operation": {
+    "operationId": "op-trade-01850",
+    "status": "COMMITTED_PENDING_RENDER",
+    "campaignId": "campaign-example",
+    "turnId": "turn-01850",
+    "baseCampaignVersion": 1849,
+    "idempotencyKey": "campaign-example:turn-01850:trade-1"
+  },
+  "request": {
+    "sourceIntentId": "intent-01850-1",
+    "type": "purchase_item",
+    "buyerId": "player-character",
+    "sellerId": "actor:merchant-01",
+    "itemInstanceId": "item:potion-merchant-07",
+    "quantity": 1,
+    "acceptedPrice": {
+      "currency": "physical_coins",
+      "copperValue": 100,
+      "coinSelection": [
+        {
+          "stackInstanceId": "item:coin-stack-player-gold",
+          "coinDefinitionId": "obj_piece_or",
+          "quantity": 1
+        }
+      ]
+    }
+  },
+  "expectedVersions": {
+    "PlayerCharacterState": 72,
+    "NarrativeActors": 38,
+    "SocialKnowledgeState": 16,
+    "WorldState": 205
+  },
+  "validations": [
+    {
+      "domain": "CharacterDomain",
+      "status": "ACCEPTED",
+      "checks": ["buyer_owns_coin_stack", "quantity_available", "inventory_can_receive_item"]
+    },
+    {
+      "domain": "NarrativeActorDomain",
+      "status": "ACCEPTED",
+      "checks": ["seller_owns_item", "item_is_for_sale", "seller_can_receive_payment"]
+    },
+    {
+      "domain": "SocialKnowledgeDomain",
+      "status": "ACCEPTED",
+      "checks": ["price_was_offered", "buyer_explicitly_accepted"]
+    },
+    {
+      "domain": "WorldDomain",
+      "status": "ACCEPTED",
+      "checks": ["trade_duration_within_accepted_adjudication"]
+    }
+  ],
+  "preparedResults": [
+    {
+      "domain": "CharacterDomain",
+      "mutations": [
+        {
+          "type": "decrement_stack",
+          "instanceId": "item:coin-stack-player-gold",
+          "fromQuantity": 10,
+          "toQuantity": 9
+        },
+        {
+          "type": "acquire_item",
+          "instanceId": "item:potion-merchant-07",
+          "placement": {
+            "kind": "CARRIED",
+            "ownerId": "player-character"
+          }
+        }
+      ]
+    },
+    {
+      "domain": "NarrativeActorDomain",
+      "mutations": [
+        {
+          "type": "release_item",
+          "instanceId": "item:potion-merchant-07"
+        },
+        {
+          "type": "acquire_physical_coin",
+          "coinDefinitionId": "obj_piece_or",
+          "quantity": 1,
+          "ownerId": "actor:merchant-01"
+        }
+      ]
+    },
+    {
+      "domain": "WorldDomain",
+      "mutations": [
+        {
+          "type": "advance_campaign_time",
+          "seconds": 90
+        }
+      ]
+    }
+  ],
+  "commit": {
+    "commitId": "commit-01850",
+    "fromCampaignVersion": 1849,
+    "toCampaignVersion": 1850,
+    "status": "COMMITTED",
+    "aggregateVersions": {
+      "PlayerCharacterState": 73,
+      "NarrativeActors": 39,
+      "SocialKnowledgeState": 16,
+      "WorldState": 206
+    },
+    "events": [
+      {
+        "eventId": "event-item-transferred-01850",
+        "type": "item_transferred",
+        "instanceId": "item:potion-merchant-07",
+        "fromOwnerId": "actor:merchant-01",
+        "toOwnerId": "player-character"
+      },
+      {
+        "eventId": "event-currency-transferred-01850",
+        "type": "currency_transferred",
+        "copperValue": 100,
+        "fromOwnerId": "player-character",
+        "toOwnerId": "actor:merchant-01"
+      },
+      {
+        "eventId": "event-time-advanced-01850",
+        "type": "world_time_advanced",
+        "seconds": 90
+      }
+    ]
+  },
+  "projections": {
+    "narrativeProjection": {
+      "resultRefs": ["event-item-transferred-01850", "event-currency-transferred-01850"],
+      "perceptible": ["merchant_hands_over_potion", "player_pays_one_gold_coin"]
+    },
+    "playerProjection": {
+      "acquiredItemInstanceId": "item:potion-merchant-07",
+      "paidCopperValue": 100
+    },
+    "privateProjection": {},
+    "memoryCandidates": [
+      {
+        "type": "trade_completed",
+        "importance": "low",
+        "sourceEventIds": ["event-item-transferred-01850", "event-currency-transferred-01850"]
+      }
+    ],
+    "uiNotifications": [
+      {
+        "type": "inventory_changed",
+        "itemInstanceId": "item:potion-merchant-07",
+        "quantityDelta": 1
+      }
+    ]
+  },
+  "storageTrace": {
+    "repositoryAdapter": "IndexedDbCampaignRepository",
+    "transactionStatus": "COMMITTED",
+    "writtenCollections": [
+      "campaign_headers",
+      "aggregates",
+      "event_journal",
+      "operations",
+      "projection_jobs"
+    ],
+    "pendingSteps": ["render_visible_output", "append_interaction_log"],
+    "recoveryAction": "resume_render_only"
+  }
+}

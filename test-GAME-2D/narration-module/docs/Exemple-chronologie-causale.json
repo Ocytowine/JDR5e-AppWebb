@@ -1,0 +1,183 @@
+{
+  "schemaVersion": "narration.causal-timeline.example.v1",
+  "campaign": {
+    "campaignId": "campaign-example",
+    "baseCampaignVersion": 1901,
+    "calendarId": "campaign-calendar-v1",
+    "clock": {
+      "elapsedGameSeconds": 21480,
+      "display": "Jour 1, 05:58"
+    },
+    "worldSimulatedThrough": 18000
+  },
+  "activeProcess": {
+    "processId": "rest-process-77",
+    "type": "REST",
+    "status": "ACTIVE",
+    "currentSegment": {
+      "segmentId": "rest-segment-3",
+      "startedAt": 21480,
+      "plannedCompletionAt": 21720,
+      "interruptible": true,
+      "benefitsOnCompletion": ["resource:focus:+1"],
+      "alreadyCommittedEffects": ["item:water-ration:-1"]
+    }
+  },
+  "advanceRequest": {
+    "operationId": "time-operation-902",
+    "from": 21480,
+    "requestedUntil": 21720,
+    "cause": "rest_process_segment",
+    "durationSeconds": 240,
+    "idempotencyKey": "campaign-example:rest-process-77:segment-3"
+  },
+  "scheduledEffects": [
+    {
+      "scheduledEffectId": "schedule-world-hour-6",
+      "type": "WORLD_SIMULATION_BOUNDARY",
+      "ownerDomain": "WorldDomain",
+      "dueAt": 21600,
+      "causedBy": ["campaign-clock-schedule"],
+      "boundaryPolicy": "SIMULTANEOUS",
+      "visibility": "SYSTEM_PRIVATE",
+      "status": "DUE"
+    },
+    {
+      "scheduledEffectId": "schedule-patrol-arrival-12",
+      "type": "MOBILE_ACTOR_ARRIVAL",
+      "ownerDomain": "WorldDomain",
+      "dueAt": 21600,
+      "causedBy": ["event-faction-order-330"],
+      "dependsOn": [],
+      "boundaryPolicy": "BEFORE_ACTIVITY_COMPLETION",
+      "visibility": "CONDITIONAL_PERCEPTION",
+      "status": "DUE"
+    },
+    {
+      "scheduledEffectId": "schedule-rest-completion-77-3",
+      "type": "REST_SEGMENT_COMPLETION",
+      "ownerDomain": "RestDomain",
+      "dueAt": 21720,
+      "causedBy": ["event-rest-segment-started-77-3"],
+      "boundaryPolicy": "AFTER_ACTIVITY_COMPLETION",
+      "visibility": "PLAYER_VISIBLE",
+      "status": "PLANNED"
+    }
+  ],
+  "schedulerDecision": {
+    "nextDueAt": 21600,
+    "selectedEffectIds": [
+      "schedule-world-hour-6",
+      "schedule-patrol-arrival-12"
+    ],
+    "deferredEffectIds": ["schedule-rest-completion-77-3"],
+    "advanceSeconds": 120
+  },
+  "temporalBatch": {
+    "batchId": "temporal-batch-21600-04",
+    "idempotencyKey": "campaign-example:time:21600:04",
+    "effectiveAt": 21600,
+    "orderedTasks": [
+      {
+        "taskOrder": 1,
+        "taskId": "schedule-world-hour-6",
+        "result": "WORLD_HOUR_PROCESSED"
+      },
+      {
+        "taskOrder": 2,
+        "taskId": "schedule-patrol-arrival-12",
+        "result": "PATROL_ARRIVED"
+      },
+      {
+        "taskOrder": 3,
+        "taskId": "derive-rest-interruption-77",
+        "dependsOn": ["schedule-patrol-arrival-12"],
+        "result": "REST_INTERRUPTED"
+      }
+    ],
+    "worldOutput": {
+      "microTicksProcessed": 1,
+      "worldSimulatedThrough": 21600,
+      "events": [
+        {
+          "eventId": "event-market-supply-shift-21600",
+          "origin": "WORLD_SIMULATION",
+          "type": "market_supply_shifted",
+          "effectiveAt": 21600,
+          "visibility": "SYSTEM_PRIVATE",
+          "locationRef": "district:harbor"
+        }
+      ]
+    },
+    "events": [
+      {
+        "eventId": "event-patrol-arrived-21600",
+        "origin": "SCHEDULED_EFFECT",
+        "type": "mobile_actor_arrived",
+        "effectiveAt": 21600,
+        "causedBy": ["event-faction-order-330"],
+        "locationRef": "place:roadside-camp",
+        "visibility": "PERCEPTIBLE"
+      },
+      {
+        "eventId": "event-rest-interrupted-21600",
+        "origin": "DOMAIN_RULE",
+        "type": "rest_interrupted",
+        "effectiveAt": 21600,
+        "causedBy": ["event-patrol-arrived-21600"],
+        "locationRef": "place:roadside-camp",
+        "visibility": "PLAYER_VISIBLE"
+      }
+    ],
+    "commit": {
+      "commitId": "commit-time-1902",
+      "fromCampaignVersion": 1901,
+      "toCampaignVersion": 1902,
+      "clockAfter": 21600,
+      "eventSequence": [
+        "event-market-supply-shift-21600",
+        "event-patrol-arrived-21600",
+        "event-rest-interrupted-21600"
+      ],
+      "status": "COMMITTED"
+    }
+  },
+  "processAfterBatch": {
+    "processId": "rest-process-77",
+    "status": "INTERRUPTED",
+    "elapsedInCurrentSegmentSeconds": 120,
+    "preservedEffects": ["item:water-ration:-1"],
+    "unappliedBenefits": ["resource:focus:+1"],
+    "scheduleUpdates": [
+      {
+        "scheduledEffectId": "schedule-rest-completion-77-3",
+        "fromStatus": "PLANNED",
+        "toStatus": "CANCELLED",
+        "reasonEventId": "event-rest-interrupted-21600"
+      }
+    ]
+  },
+  "sceneEventBundle": {
+    "bundleId": "scene-bundle-camp-interruption-21600",
+    "effectiveAt": 21600,
+    "authoritativeEventIds": [
+      "event-patrol-arrived-21600",
+      "event-rest-interrupted-21600"
+    ],
+    "excludedEventIds": ["event-market-supply-shift-21600"],
+    "requiredPerceptions": [
+      "approaching_footsteps",
+      "metal_equipment_noise",
+      "rest_has_been_interrupted"
+    ],
+    "playerDecisionRequired": true,
+    "clockMustRemainAt": 21600
+  },
+  "retryProof": {
+    "retriedBatchId": "temporal-batch-21600-04",
+    "sameIdempotencyKey": true,
+    "additionalMicroTicksProcessed": 0,
+    "additionalEventsCommitted": 0,
+    "result": "EXISTING_COMMIT_RETURNED"
+  }
+}

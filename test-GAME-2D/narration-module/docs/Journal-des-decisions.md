@@ -915,3 +915,435 @@ Le jeu combine plusieurs inspirations et règles propres. Une convention implici
 ### Conséquences
 
 Les arbitrages citent leurs règles et restent ad hoc en cas de vide. Toute nouvelle règle maison ou migration possède version, conflits déclarés, exemples et scénarios de test.
+
+## NAR-048 — Voyage segmenté et rencontres contextuelles reproductibles
+
+Date : `2026-07-02`
+
+Statut : `RETENU`
+
+### Décision
+
+Les voyages deviennent des processus sauvegardables progressant par segments. Un moteur de rencontres calcule une pression contextuelle, effectue un tirage stable puis sélectionne une catégorie. L'IA concrétise seulement les candidats qui ne proviennent pas déjà du monde simulé.
+
+### Raisons
+
+Un simple jet aléatoire par heure produirait des répétitions, ignorerait le monde vivant et changerait lors d'une reprise technique. À l'inverse, réserver toutes les rencontres aux seuls acteurs existants limiterait fortement la variété des voyages.
+
+### Conséquences
+
+La graine dépend de la campagne, du voyage et du segment. Danger, trafic, écologie, factions, heure et intrigues modulent les catégories. Les rencontres peuvent être sociales, étranges, animales, environnementales ou hostiles et rendent la main sans liste d'actions.
+
+## NAR-049 — Résolution sociale guidée par l'acteur
+
+Date : `2026-07-02`
+
+Statut : `RETENU`
+
+### Décision
+
+La résolution sociale commence par la faisabilité selon motivations, valeurs, connaissances et relation du PNJ. Un jet intervient seulement lorsqu'un résultat reste incertain et significatif. Relations, dispositions, croyances et vérités sont conservées séparément.
+
+### Raisons
+
+Un jet systématique réduirait les PNJ à des serrures de Charisme. Évaluer la qualité d'écriture du joueur pénaliserait aussi celui qui joue un personnage plus éloquent que lui et avantagerait artificiellement l'inverse.
+
+### Conséquences
+
+L'IA interprète approche, preuves et contexte, puis le domaine social applique le ruleset. Les relations utilisent plusieurs axes causés et bornés; une affirmation peut modifier une croyance sans devenir un fait objectif.
+
+## NAR-050 — Session tactique sauvegardable et intégration unique
+
+Date : `2026-07-02`
+
+Statut : `RETENU`
+
+### Décision
+
+Le tactique est un handoff déclenché lorsque la résolution exige sa granularité spatiale et mécanique. Seed, carte, actions et checkpoints sont versionnés. La fin produit un résultat structuré intégré une seule fois par les domaines propriétaires.
+
+### Raisons
+
+Déclencher le plateau pour tout conflit ralentirait inutilement la narration, tandis qu'un simple résumé victoire/défaite perdrait ressources, positions, paroles et conséquences. Rejouer un combat à cause d'une panne d'intégration violerait la chronologie irréversible.
+
+### Conséquences
+
+Les cartes générées sont validées et reproductibles. Les paroles significatives deviennent des actions. Un résultat terminé peut attendre son intégration, mais la rencontre ne peut plus être rouverte et la narration reprend toujours depuis un nouveau snapshot post-commit.
+
+## NAR-051 — Repos segmenté et signal d'interface événementiel
+
+Date : `2026-07-02`
+
+Statut : `RETENU`
+
+### Décision
+
+Le repos est un processus narratif piloté par le ruleset, progressant par segments et capable d'être interrompu. Les questions restent dans la conversation. Un popup distinct signale début, fin ou interruption uniquement depuis les événements committés du repos.
+
+### Raisons
+
+Un repos peut demander des choix, consommer du temps et des ressources, déclencher des événements et ne réussir que partiellement. Une notification purement générée par la prose pourrait annoncer un état qui n'existe pas réellement.
+
+### Conséquences
+
+Le `RestOutcome` coordonne personnage, inventaire, temps, monde et mémoire. Les notifications sont accessibles, historisées et sans effet métier; le helper actuel de recharge devient un calcul interne parmi d'autres.
+
+## NAR-052 — Repository abstrait et IndexedDB pour le prototype local
+
+Date : `2026-07-02`
+
+Statut : `RETENU`
+
+### Décision
+
+Le métier utilise un `CampaignRepository` abstrait. Les tests emploient un adaptateur mémoire, le prototype navigateur IndexedDB et une évolution serveur pourra employer SQLite. `localStorage` ne devient pas le stockage canonique de campagne.
+
+### Raisons
+
+La campagne exige transactions multidomaines, journal croissant, checkpoints et reprise par état. `localStorage` est synchrone, limité et sans transaction entre collections. IndexedDB répond mieux au prototype tout en restant entièrement local.
+
+### Conséquences
+
+Les opérations persistent leur état de réception jusqu'au rendu. Une panne après commit reprend seulement les étapes postérieures. Préférences, campagne active et imports historiques peuvent rester dans `localStorage`.
+
+## NAR-053 — Horloge diégétique précise et ticks monde dérivés
+
+Date : `2026-07-02`
+
+Statut : `RETENU`
+
+### Décision
+
+Le `WorldDomain` possède un `CampaignClock` exprimé par un entier monotone de secondes depuis l'origine de campagne. Le calendrier est dérivé. Les microticks horaires du monde sont des paliers de calcul suivis par un curseur, pas une horloge concurrente.
+
+### Raisons
+
+La narration consomme secondes et minutes tandis que la simulation raisonne par heures. Deux horloges autoritaires dériveraient et rendraient impossibles les interruptions causales au milieu d'un voyage ou d'un repos.
+
+### Conséquences
+
+Tout module soumet une avance sourcée au `WorldDomain`. Les longues durées sont committées par segments et deux événements à la même seconde sont ordonnés par leurs séquences plutôt que par une précision fictive.
+
+## NAR-054 — Échéancier causal et frontières explicites
+
+Date : `2026-07-02`
+
+Statut : `RETENU`
+
+### Décision
+
+Les effets futurs sont des `ScheduledEffect` possédés par un domaine et résolus dans des `TemporalBatch` idempotents. Les dépendances imposent l'ordre causal. Lorsqu'une simultanéité influence le gameplay, le ruleset déclare sa relation à la fin de l'activité.
+
+### Raisons
+
+L'ordre d'exécution accidentel des modules ne doit pas déterminer si un repos se termine avant une attaque ou si un effet expire avant une action. Les avances longues doivent aussi pouvoir s'arrêter exactement à la première interruption pertinente.
+
+### Conséquences
+
+Les échéances annulées restent historiques, les cycles bloquent avant commit et les événements perceptibles simultanés sont composés dans une même restitution avant toute nouvelle avance.
+
+## NAR-055 — Origines distinctes et composition événementielle
+
+Date : `2026-07-02`
+
+Statut : `RETENU`
+
+### Décision
+
+Chaque événement indique s'il provient du joueur, d'une règle, de la simulation, d'une proposition IA, d'un processus ou d'une échéance. Les événements simultanés ou liés sont regroupés dans un `SceneEventBundle` sans fusionner leurs identités autoritaires.
+
+### Raisons
+
+La narration doit pouvoir exploiter ensemble créations IA et monde simulé sans dupliquer une patrouille, transformer une rumeur en fait ou perdre les causes précises derrière une scène synthétique.
+
+### Conséquences
+
+Les propositions IA sont dédupliquées et validées avant commit. La simulation produit des événements, jamais directement de la prose. Un événement invisible reste journalisé et pourra être découvert ultérieurement par un canal valide.
+
+## NAR-056 — Retour tardif fondé sur perception et histoire committée
+
+Date : `2026-07-02`
+
+Statut : `RETENU`
+
+### Décision
+
+Le monde évolue hors écran uniquement lorsque le temps de campagne avance. Un retour dans un lieu reconstruit les changements depuis les événements committés, l'état courant, la dernière perception et les souvenirs du personnage.
+
+### Raisons
+
+Comparer seulement deux vérités système révélerait des secrets anciens ou nouveaux. Improviser les mois d'absence au moment du retour créerait des causes rétroactives et fragiliserait les intrigues.
+
+### Conséquences
+
+Les niveaux actif, résumé et abstrait adaptent le coût sans supprimer les engagements critiques. Les changements sont classés comme visibles, déductibles, appris, remémorés, cachés ou différés avant composition de la scène.
+
+## NAR-057 — Validation temporelle par scénario causal reproductible
+
+Date : `2026-07-02`
+
+Statut : `RETENU`
+
+### Décision
+
+Le contrat temporel est validé par un corpus de cas limites et un exemple parseable combinant interruption de repos, frontière horaire, événement perceptible, événement caché et nouvelle tentative idempotente.
+
+### Raisons
+
+Les erreurs temporelles apparaissent surtout aux frontières : simultanéité, interruption, rattrapage, panne après commit et retour tardif. Une description nominale ne suffit pas à prouver leur comportement attendu.
+
+### Conséquences
+
+Tout futur schéma ou runtime devra préserver ces résultats. Une régression qui double un tick, applique un bénéfice non atteint ou révèle un événement invisible viole le contrat de l'atelier.
+
+## NAR-058 — Confinement des erreurs et lecture seule protectrice
+
+Date : `2026-07-02`
+
+Statut : `RETENU`
+
+### Décision
+
+Les erreurs sont confinées par appel, sortie, opération, domaine, processus puis campagne. Les défauts d'intégrité non vérifiables placent la campagne en lecture seule; les pannes de présentation ou d'index utilisent un mode dégradé.
+
+### Raisons
+
+Traiter toutes les erreurs de la même manière conduirait soit à poursuivre avec un état incertain, soit à bloquer inutilement une campagne saine à cause d'une simple panne IA.
+
+### Conséquences
+
+Chaque incident significatif possède un enregistrement expurgé et une politique de reprise. Le mode lecture seule interdit les écritures mais préserve consultation et export sans correction automatique destructive.
+
+## NAR-059 — Reprises fournisseur bornées et fallback certifié
+
+Date : `2026-07-02`
+
+Statut : `RETENU`
+
+### Décision
+
+Les tentatives IA sont corrélées et bornées, avec compteurs techniques et sémantiques séparés. Un circuit breaker limite les attentes répétées. Un modèle de secours doit être certifié pour le rôle, le schéma et les mêmes permissions.
+
+### Raisons
+
+Une réponse tardive ou un fallback moins contraint pourrait être acceptée après qu'une autre tentative a déjà progressé, dupliquer le travail ou exposer un secret. Mélanger erreurs réseau et contradictions rendrait aussi les reprises inefficaces.
+
+### Conséquences
+
+Chaque tentative possède son statut et toute sortie remplacée est ignorée. Les rôles critiques se suspendent sans modèle qualifié; seuls les rendus et recherches disposant d'un fallback sûr se dégradent automatiquement.
+
+## NAR-060 — Écrivain unique et reprise par idempotencyKey
+
+Date : `2026-07-02`
+
+Statut : `RETENU`
+
+### Décision
+
+Une campagne possède un écrivain métier actif, protégé par version optimiste et fencing token. Les doubles soumissions partagent une idempotencyKey. Les appels IA s'exécutent hors transaction et leurs dépendances sont relues avant commit.
+
+### Raisons
+
+Double clic, deux onglets ou réponse tardive peuvent sinon appliquer deux fois une action. Après une fermeture brutale, l'absence de réponse UI ne permet pas de savoir si IndexedDB a committé.
+
+### Conséquences
+
+La reprise recherche l'opération existante au lieu de répéter l'effet. Les processus n'avancent qu'après checkpoint, et les projections post-commit sont alimentées par une outbox idempotente.
+
+## NAR-061 — Les contenus restent des données sans autorité procédurale
+
+Date : `2026-07-02`
+
+Statut : `RETENU`
+
+### Décision
+
+Les textes du joueur, du lore, des imports, de la mémoire et des générations IA restent des données non fiables à travers toutes leurs transformations. Les rôles IA disposent de permissions minimales, ne mutent jamais directement l'état et ne reçoivent que les secrets nécessaires. Toute proposition est filtrée par schéma, fondation, révélations autorisées et invariants métier.
+
+### Raisons
+
+Une recherche de mots suspects ne protège ni des injections indirectes ni d'une fuite accidentelle de secret. La sécurité doit venir de frontières d'autorité structurelles qui restent valides même lorsque le texte hostile n'est pas reconnu comme tel.
+
+### Conséquences
+
+Les contextes séparent instructions et contenu, les imports et rendus sont bornés et assainis, et les diagnostics sont expurgés. Une violation bloque l'opération concernée sans condamner une campagne saine; une incertitude d'intégrité conserve la politique de lecture seule.
+
+## NAR-062 — Diagnostic corrélé, expurgé et séparé de la vérité métier
+
+Date : `2026-07-02`
+
+Statut : `RETENU`
+
+### Décision
+
+Journal métier, incidents techniques et traces détaillées sont trois catégories distinctes. Les incidents conservent versions, références, étapes et issue sans prompts ou réponses brutes par défaut. L'expérience joueur et l'interface développeur présentent des niveaux d'information séparés.
+
+### Raisons
+
+Un diagnostic trop pauvre empêche de corriger les incohérences; une copie systématique des contextes et sorties créerait un second stockage de secrets et polluerait l'expérience. La non-détermination des modèles interdit aussi de promettre une reproduction textuelle exacte.
+
+### Conséquences
+
+Les incidents expurgés sont initialement retenus 30 jours ou à hauteur de 500 par campagne. Le mode détaillé est volontaire et limité à 24 heures. L'audit reproduit entrées, permissions et validations, tandis que le journal métier reste l'unique historique autoritaire.
+
+## NAR-063 — Mesurer séparément attente, commit et rendu
+
+Date : `2026-07-02`
+
+Statut : `RETENU`
+
+### Décision
+
+Un tour expose des jalons distincts d'acceptation, préparation, commit et rendu. Les classes standard et complexe possèdent des objectifs p95 et des limites maximales différentes. L'interface signale l'étape active sans diffuser de contenu non validé.
+
+### Raisons
+
+Une durée globale confondrait lenteur fournisseur, résolution métier et panne de rendu. Elle encouragerait aussi à publier trop tôt ou à sacrifier une validation pour améliorer une moyenne peu représentative.
+
+### Conséquences
+
+Les mesures conservent médiane, p95, maximum et dépassements par étape. Le tour standard vise 40 secondes au p95 avec une limite de 90 secondes; le tour complexe vise 75 secondes avec une limite de 120 secondes. Une annulation après commit ne revient pas sur la vérité acquise.
+
+## NAR-064 — Enveloppes IA globales et coût financier mesuré
+
+Date : `2026-07-02`
+
+Statut : `RETENU`
+
+### Décision
+
+Chaque rôle possède une enveloppe d'entrée et de sortie, incluse dans un plafond global de tour couvrant aussi corrections et retries. Les coûts sont estimés avant appel et mesurés après réponse. Les montants financiers restent ouverts jusqu'au benchmark des fournisseurs et modèles retenus.
+
+### Raisons
+
+Un plafond par appel seulement laisserait exploser les scènes multi-PNJ et les reprises. À l'inverse, un prix en euros fixé sans modèle, cache ni durée de session donnerait une précision fictive rapidement obsolète.
+
+### Conséquences
+
+Le profil initial limite un tour standard à 60 000 tokens d'entrée et 8 000 de sortie, et un tour complexe à 120 000 et 16 000. Les contenus obligatoires ne sont jamais sacrifiés au budget. Le benchmark du profil `balanced` devient une condition préalable à l'implémentation finale.
+
+## NAR-065 — Seuils statistiques subordonnés aux invariants absolus
+
+Date : `2026-07-02`
+
+Statut : `RETENU`
+
+### Décision
+
+La qualité est évaluée sur un corpus annoté et versionné par contrôles déterministes, assertions d'état et revue humaine. Secrets, autorité, agence, ambiguïtés dangereuses et faits critiques ont une tolérance zéro. Sorties structurées, rappel, reformulation et répétitions possèdent en complément des seuils statistiques initiaux.
+
+### Raisons
+
+Une excellente moyenne pourrait autrement masquer une fuite grave ou une action exécutée contre l'intention du joueur. Une évaluation confiée uniquement à un autre modèle de la même chaîne créerait également un juge non indépendant et difficile à auditer.
+
+### Conséquences
+
+Les sorties doivent être valides après reprise dans au moins 99,5 % des cas, le rappel annoté vise 90 % avec 80 % de précision et la reformulation fidèle 95 %. La qualité narrative est revue sur quatre dimensions avec une moyenne minimale de 4/5, sans rendre acceptable une violation absolue.
+
+## NAR-066 — Capacité vérifiée et migrations sans remplacement destructif
+
+Date : `2026-07-02`
+
+Statut : `RETENU`
+
+### Décision
+
+Le prototype est dimensionné par un benchmark minimal de 10 000 tours, 200 000 événements, 50 000 mémoires et 500 Mo hors médias. IndexedDB reste admis s'il respecte les seuils. Toute migration travaille sur une copie validée et ne remplace la campagne active qu'après contrôle complet.
+
+### Raisons
+
+La mémoire longue et les intrigues persistantes n'ont de valeur que si leur coût reste borné après des mois de jeu. Une migration en place ou une importation partielle pourrait détruire une chronologie que le joueur ne peut volontairement recharger.
+
+### Conséquences
+
+Les chemins critiques ne parcourent jamais tout l'historique. Le stockage surveille son quota et avertit à 70 %. SQLite devient nécessaire si IndexedDB échoue au benchmark ou si l'autorité durable quitte le navigateur. Les copies de migration sont une protection technique, pas un retour narratif.
+
+## NAR-067 — Scénarios courts, checkpoints et prose libre
+
+Date : `2026-07-02`
+
+Statut : `RETENU`
+
+### Décision
+
+Les scénarios d'acceptation sont atomiques, fonctionnels, verticaux ou longitudinaux. Un scénario automatisé ne dépasse pas 20 échanges; un historique long est préparé par fixture et les parcours supérieurs sont divisés par checkpoints. Les oracles déterministe, sémantique et qualitatif sont séparés.
+
+### Raisons
+
+Rejouer des centaines d'échanges rendrait les tests lents, coûteux et impossibles à diagnostiquer. Comparer le texte exact transformerait par ailleurs une IA créative en moteur de dialogues préécrits.
+
+### Conséquences
+
+État et événements sont vérifiés exactement, tandis que la formulation demeure libre dans une enveloppe sémantique et qualitative. Une clarification compte comme un nouvel échange et doit reprendre l'intention suspendue sans mutation préalable.
+
+## NAR-068 — Parcours vertical contraint sans contenu narratif imposé
+
+Date : `2026-07-02`
+
+Statut : `RETENU`
+
+### Décision
+
+Le scénario vertical couvre 18 échanges et quatre checkpoints aux Archives de Lysenthe. Il fixe état initial, intentions joueur, domaines traversés et assertions, mais laisse à l'IA le contenu concret compatible des PNJ, de l'intrigue, des indices et de la confrontation.
+
+### Raisons
+
+Un parcours totalement ouvert serait impossible à auditer; une quête écrite pour le test contredirait l'objectif d'un MJ créateur. Les checkpoints permettent de vérifier les contrats sans imposer la solution fictionnelle.
+
+### Conséquences
+
+Le scénario traverse dialogue, social, temps, tactique, repos, sauvegarde, ellipse et rappel. Le combat doit posséder une cause interne et le retour tardif est évalué depuis les perceptions du personnage, jamais depuis l'ancien texte complet.
+
+## NAR-069 — Certifier la création puis geler la structure d'intrigue
+
+Date : `2026-07-02`
+
+Statut : `RETENU`
+
+### Décision
+
+Les intrigues sont testées en deux phases. La première mesure la création autonome d'une structure solvable à partir de contraintes. Une structure acceptée devient ensuite une fixture versionnée utilisée pour tester sa continuité, sans figer la prose.
+
+### Raisons
+
+Une génération ponctuellement cohérente ne prouve pas la stabilité dans le temps. Inversement, suivre une intrigue écrite à la main ne prouve pas la capacité du MJ IA à en créer. Séparer les phases rend les défauts attribuables et les régressions reproductibles.
+
+### Conséquences
+
+Le corpus conserve plusieurs formes d'intrigue et interdit la mise à jour automatique des références. Les tests avec fournisseur certifient la création; les fixtures permettent des régressions fréquentes sur vérités, indices, témoignages, perspectives et fausses pistes.
+
+## NAR-070 — Tester chaque propriétaire avec le niveau d'IA nécessaire
+
+Date : `2026-07-02`
+
+Statut : `RETENU`
+
+### Décision
+
+Les scénarios des domaines emploient des fixtures contrôlées pour leurs états et résultats déterministes. Les appels à un fournisseur réel sont réservés aux assertions portant sur interprétation, arbitrage ouvert, création ou rédaction. Les parcours intégrés complètent ces tests ciblés.
+
+### Raisons
+
+Faire dépendre chaque vérification d'une génération distante rendrait les régressions lentes, coûteuses et difficiles à attribuer. Supprimer toute IA des tests ne vérifierait toutefois pas le cœur du produit.
+
+### Conséquences
+
+Règles, transactions, voyage, tactique, repos, migration et reprise peuvent être éprouvés de façon reproductible. Les certifications IA restent obligatoires là où la capacité générative est réellement revendiquée.
+
+## NAR-071 — Couverture P0 traçable avant audit final
+
+Date : `2026-07-02`
+
+Statut : `RETENU`
+
+### Décision
+
+L'atelier d'acceptation est fermé uniquement après liaison de chaque famille P0 à une décision, un contrat, un scénario et un oracle observable. Des scénarios dédiés complètent le parcours vertical pour agence, concurrence, sécurité, ordre temporel, règles maison et capacité longue.
+
+### Raisons
+
+Une checklist de cas nominaux pouvait sembler complète tout en laissant sans preuve des mécanismes critiques déjà spécifiés. Un seul grand parcours aurait également rendu les échecs difficiles à attribuer.
+
+### Conséquences
+
+La matrice de traçabilité devient l'index de couverture de l'atelier 12. Les fixtures exécutables restent un produit du runtime futur. Le coût financier fournisseur demeure un report visible et ne peut être déclaré validé par le seul corpus fonctionnel.

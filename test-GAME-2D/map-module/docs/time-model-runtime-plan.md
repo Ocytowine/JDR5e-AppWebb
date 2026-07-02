@@ -191,6 +191,12 @@ Il suffit qu'il soit derivable simplement :
 
 ## Modèle Runtime Recommandé
 
+### Intégration à l'horloge de campagne
+
+Dans l'application complète, le `microTick` horaire n'est pas une seconde horloge autoritaire. Le `WorldDomain` conserve un `CampaignClock` plus précis et un curseur `worldSimulatedThrough` indique jusqu'à quel instant les échéances horaires ont été traitées.
+
+Le franchissement d'une heure de campagne déclenche le microtick correspondant. Plusieurs heures écoulées déclenchent un rattrapage ordonné. Cette intégration conserve toutes les conventions du présent document tout en permettant aux dialogues, combats et micro-déplacements de consommer des durées inférieures à une heure.
+
 ### Horloge
 
 Le contrat mental cible est :

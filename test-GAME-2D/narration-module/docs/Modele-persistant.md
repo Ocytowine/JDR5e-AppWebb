@@ -103,6 +103,8 @@ Les pièces physiques sont autoritaires dans l'inventaire. Les résumés monéta
 
 Porte l'horloge unique, la position du joueur, les états géographiques, factions, tensions, objectifs et acteurs mobiles appartenant au monde simulé.
 
+Il conserve aussi le niveau de simulation courant des zones et acteurs ainsi que leurs changements de niveau. Une réduction de granularité ne supprime jamais un engagement, une échéance ou un événement committé.
+
 ### `CampaignFacts`
 
 Porte les faits objectifs et overrides persistants qui ne vivent ni dans le canon immuable ni dans la connaissance subjective d'un acteur. Chaque fait conserve provenance, validité et liens vers ses causes.
@@ -124,6 +126,8 @@ La proximité de stockage ne supprime pas la distinction entre relation, connais
 
 Une relation minimale référence les deux parties, son orientation, ses axes structurés, ses drapeaux historiques et les événements justifiant sa valeur. Une connaissance référence l'acteur qui la possède, l'affirmation ou le fait concerné, sa source, sa précision et sa visibilité. Une croyance ajoute une confiance subjective et peut contredire la vérité. Un secret est une connaissance dont la politique de visibilité limite la projection.
 
+La disposition et l'émotion temporaires ne sont pas confondues avec la relation durable. Le modèle relationnel peut porter confiance, respect, peur, affection, hostilité et obligation selon le type de lien; chaque variation référence le résultat social et l'événement qui la justifient.
+
 ### `NarrativeThreads`
 
 Porte missions, intrigues, trames et leurs états, ancres, causes, échéances et liens vers les événements qui les font évoluer.
@@ -142,15 +146,29 @@ Porte au plus les processus suspendus nécessaires à la reprise : intention en 
 
 Il ne sert pas de fourre-tout pour les tâches ou événements narratifs ordinaires.
 
+Un `TravelProcess` actif conserve plan, segments committés, segment courant, position sur route, pression et graine de rencontre, ressources suivies et cause de suspension. Les candidats de rencontre non présentés ne deviennent pas des faits connus du joueur.
+
+Un processus tactique conserve seed, carte validée, état courant, journal d'actions, checkpoints techniques, condition de fin et éventuel `TacticalOutcome`. L'état `COMPLETED_PENDING_INTEGRATION` interdit toute reprise du combat et autorise uniquement une nouvelle tentative idempotente d'intégration.
+
+Un processus de repos conserve seed, plan, réponses validées, segments committés, consommations, activités, interruptions et bénéfices encore conditionnels. Un événement de début, fin ou interruption déclenche la projection UI correspondante sans devenir une autorité supplémentaire.
+
 ### `AdjudicationRecord`
 
 Conserve un arbitrage accepté pour une situation que les règles calculables ne couvraient pas entièrement. Il porte le domaine, les faits déterminants, les références et versions de règles, les précédents consultés, la proposition IA, la décision retenue, sa portée et le commit qui l'a appliquée.
 
 Un enregistrement peut servir de précédent de campagne pour améliorer la cohérence. Il ne devient pas une règle officielle, ne modifie pas le corpus épinglé et n'est rappelé que pour un cas suffisamment comparable.
 
+### `ScheduledEffects`
+
+Registre des effets futurs validés : instant dû, domaine propriétaire, cause, dépendances, règle, politique de frontière, conditions d'annulation, visibilité et état courant.
+
+Les échéances résolues, annulées ou expirées restent historisées. Le scheduler les regroupe par instant dans des `TemporalBatch` idempotents et refuse toute dépendance cyclique ou création rétroactive.
+
 ### `EventJournal`
 
 Suite immuable et ordonnée des événements confirmés. Chaque entrée référence son commit, sa cause, son temps de jeu, les agrégats concernés et sa visibilité.
+
+Chaque événement porte aussi son origine de production et son payload versionné. Les regroupements de scène référencent ces entrées sans les remplacer par un événement textuel fusionné.
 
 ### `InteractionLog`
 
@@ -351,6 +369,8 @@ Les intrigues, objectifs et événements du monde ne sont pas des processus inte
 
 Le temps réel écoulé entre deux réponses n'a aucun effet sur la campagne. Seules les activités diégétiques validées font avancer l'horloge.
 
+L'instant canonique utilise un entier `elapsedGameSeconds` et un calendrier référencé. Les compteurs horaires du monde simulé sont des curseurs de traitement dérivés; `worldSimulatedThrough` indique jusqu'où la simulation a rattrapé l'horloge de campagne.
+
 ### Activités diégétiques
 
 Dialogue avec un PNJ, commerce, observation active, manipulation, micro-déplacement, voyage, repos et autres actions vécues produisent une durée de jeu, même minime lorsque l'action est brève.
@@ -501,6 +521,17 @@ L'exemple démontre notamment :
 22. Une observation ou proposition d'arc ne modifie jamais silencieusement le profil expressif durable du personnage joueur.
 23. Un emplacement, contenant ou focus de campagne référence une instance, jamais seulement une définition d'objet.
 24. Une valeur dérivée importée ne devient autoritaire qu'après recalcul avec le ruleset épinglé.
+25. Un tirage de rencontre de voyage est stable pour une campagne, un voyage et un segment donnés.
+26. La position du joueur et l'horloge de campagne n'ont qu'une autorité, même si plusieurs moteurs en consomment des projections.
+27. Une parole peut modifier une croyance ou une relation sans modifier la vérité objective qu'elle évoque.
+28. Un résultat tactique terminé produit au plus un commit de conséquences et ne peut pas être rejoué pour réparer son intégration.
+29. Un signal UI de processus reflète un événement committé et ne peut ni démarrer ni terminer lui-même ce processus.
+30. Deux événements au même instant restent ordonnés par séquence de commit et séquence interne, jamais par une précision temporelle inventée.
+31. Une échéance future possède une cause et un propriétaire; son annulation reste historique.
+32. Une dépendance causale cyclique ne peut produire aucune mutation partielle.
+33. La composition de plusieurs événements dans une scène ne supprime ni ne fusionne leurs identités autoritaires.
+34. Un retour tardif compare l'état courant à la dernière perception du personnage sans révéler l'ancien ou le nouveau secret système.
+35. Une évolution relationnelle ou mémorielle hors écran exige une cause committée; le temps seul ne l'invente pas.
 21. Une migration échouée ne remplace jamais la sauvegarde active.
 22. Une migration est déterministe et ne fait aucun appel IA.
 23. Une sauvegarde d'une version future inconnue n'est pas modifiée.
