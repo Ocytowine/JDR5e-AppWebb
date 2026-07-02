@@ -4,7 +4,7 @@ Version de travail : `0.1`
 
 Dernière mise à jour : `2026-06-30`
 
-Statut global : `RETENU` — socle en cours de consolidation, aucun contrat d'implémentation encore figé.
+Statut global : `RETENU` — cahier des charges consolidé; contrat `campaign-core/1` figé et lot I-00 seul autorisé.
 
 ## 1. Finalité du module
 
@@ -66,7 +66,7 @@ Cette règle ne réduit pas l'IA à un générateur de texte : elle conserve l'i
 
 ## 3. Autorité des données
 
-Statut : `RETENU`; première matrice validée, flux de mutation et propriétaires secondaires encore à compléter.
+Statut : `RETENU`; matrice d'autorité et propriétaires du MVP validés, signatures techniques à figer.
 
 | Données | Autorité prévue | Usage par la narration |
 |---|---|---|
@@ -117,7 +117,7 @@ L'IA propose; l'orchestrateur contrôle le protocole; chaque domaine propriétai
 
 ### Protocole de mutation inter-domaines
 
-Statut : `RETENU`; schémas techniques à définir ultérieurement.
+Statut : `RETENU`; protocole conceptuel validé, schémas et signatures techniques à figer avant le runtime.
 
 Toute modification issue d'un tour narratif suit les phases suivantes :
 
@@ -314,7 +314,7 @@ Sans résolution ou autorisation du domaine propriétaire, l'IA ne peut pas impo
 
 ## 5. Cycle conceptuel d'un tour
 
-Statut : `RETENU`; nombre d'appels IA et contrats exacts encore ouverts.
+Statut : `RETENU`; rôles, déclenchements et contrats conceptuels définis, schémas JSON exécutables à figer.
 
 1. Recevoir l'entrée libre du joueur avec un identifiant de tour.
 2. Capturer un snapshot versionné et immuable de la situation au début du tour.
@@ -388,7 +388,7 @@ Avant toute proposition d'exécution, l'IA distingue conceptuellement :
 
 Une question de possibilité ne déclenche jamais l'action évoquée. Une demande de rappel portant sur une connaissance déjà acquise n'avance pas le temps. Chercher une information nouvelle peut en revanche constituer une action de jeu. En cas d'incertitude significative sur l'engagement, l'IA choisit de ne pas exécuter et demande une clarification.
 
-Ces catégories décrivent un contrat fonctionnel; leurs noms et leur schéma technique restent à concevoir dans l'atelier consacré aux contrats IA.
+Ces catégories décrivent le contrat fonctionnel défini par le pipeline IA; leurs représentations JSON Schema et TypeScript exécutables restent à figer avant l'implémentation du fournisseur.
 
 #### Interprétation théâtrale du personnage
 
@@ -459,7 +459,7 @@ La continuation peut hériter du lieu et des acteurs encore valides, mais sa mis
 
 ### 5.4 Repos comme sous-couche de règles
 
-Statut : `RETENU`; règles détaillées reportées à l'atelier d'intégration des moteurs.
+Statut : `RETENU`; règles détaillées et handoff de repos définis dans le contrat d'intégration des domaines.
 
 Le repos court ou long possède un moteur spécialisé chargé des règles de jeu. Ce moteur doit notamment pouvoir gérer éligibilité, phases, activités, consommation ou restauration de ressources, avance du temps, vérifications et interruptions.
 
@@ -477,7 +477,7 @@ Le repos constitue une transition ou une séquence de scènes selon sa durée, s
 
 ### 5.5 Flux conversationnel, locuteurs et rythme
 
-Statut : `RETENU`; paramètres exacts à définir pendant la conception UX et le contrat de sortie.
+Statut : `RETENU`; types de messages et règles d'attribution définis, réglages fins de rythme reportés aux essais UX.
 
 Une réponse de tour est une séquence ordonnée de messages typés. Elle peut combiner :
 
@@ -573,7 +573,7 @@ Cette séparation évite qu'un PNJ parle d'un fait qu'il ignore ou que la narrat
 
 ## 7. Mémoire longue durée
 
-Statut : `RETENU`; modèle de stockage à concevoir.
+Statut : `RETENU`; modèle conceptuel et repository définis, index physiques à choisir pendant l'implémentation.
 
 ### Principe
 
@@ -650,7 +650,7 @@ Une recherche sémantique peut découvrir un candidat malgré une formulation di
 
 ## 9. Budget du contexte IA
 
-Statut : `RETENU`; budgets chiffrés encore ouverts.
+Statut : `RETENU`; enveloppes initiales fixées, coûts et calibrage par modèle reportés au benchmark fournisseur.
 
 Chaque paquet doit respecter un budget global et des sous-budgets par catégorie. L'ordre de priorité initial est :
 
@@ -733,7 +733,7 @@ Statut : `RETENU`.
 
 ## 14. Premier scénario vertical
 
-Statut : `RETENU`; contrats et scénarios d'acceptation détaillés à produire dans les ateliers suivants.
+Statut : `RETENU`; parcours et scénarios d'acceptation détaillés dans le corpus de l'atelier 12.
 
 Le MVP documentaire puis technique valide une boucle verticale, pas une quête préécrite. L'IA conserve la création du contenu concret à l'intérieur d'un périmètre maîtrisé.
 
@@ -807,9 +807,10 @@ Ces adaptations relèvent des ateliers d'autorité, de modèle persistant, de co
 
 Après sauvegarde et ellipse, le joueur revient dans le lieu initial. Le système retrouve les PNJ pertinents, respecte relations et connaissances, applique les changements du monde, rappelle les souvenirs utiles et crée une nouvelle scène cohérente sans dépendre du texte complet des anciennes conversations.
 
-## 15. Questions restantes pour les ateliers suivants
+## 15. Résolutions et reports avant implémentation
 
-1. À quel moment remplacer IndexedDB par SQLite si le serveur local devient l'autorité durable ?
-2. Quels contrats exacts relient scène narrative, domaines applicatifs et `map-module` ?
-3. Quels budgets mesurés de contexte, coût et latence retenir par rôle et modèle ?
-4. Comment remplacer ou faire évoluer l'actuelle route tactique `/api/narration` lors de l'intégration ?
+- IndexedDB reste l'adaptateur du prototype; SQLite devient nécessaire si le benchmark échoue ou si l'autorité durable quitte le navigateur.
+- Les contrats conceptuels entre scène, domaines et `map-module` sont définis; leurs schémas et signatures exécutables restent à figer avant le lot de code concerné.
+- Les enveloppes initiales de contexte, coût et latence sont définies. Le profil financier `balanced` et le calibrage par modèle restent soumis au benchmark fournisseur accepté.
+- La route tactique actuelle `/api/narration` est un résumé de combat existant, pas le futur orchestrateur. Son remplacement ou son adaptation doit être décidé avant le lot d'intégration tactique, sans bloquer le noyau persistant.
+- Les clés normalisées et le schéma d'ingestion du wiki doivent être figés avant le lot de recherche lore.

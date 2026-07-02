@@ -1,6 +1,6 @@
 # Résilience, sécurité et diagnostic
 
-Statut : `RETENU` — atelier 10 bouclé; seuils quantitatifs à mesurer dans l'atelier 11.
+Statut : `RETENU` — atelier 10 bouclé; politiques validées et seuils initiaux reliés aux exigences non fonctionnelles.
 
 ## Objectif
 

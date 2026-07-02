@@ -1347,3 +1347,93 @@ Une checklist de cas nominaux pouvait sembler complète tout en laissant sans pr
 ### Conséquences
 
 La matrice de traçabilité devient l'index de couverture de l'atelier 12. Les fixtures exécutables restent un produit du runtime futur. Le coût financier fournisseur demeure un report visible et ne peut être déclaré validé par le seul corpus fonctionnel.
+
+## NAR-072 — Alignement documentaire sans élargissement du contrat
+
+Date : `2026-07-02`
+
+Statut : `RETENU`
+
+### Décision
+
+L'audit aligne les statuts et formulations anciennes sur les décisions déjà retenues. Le `scene_writer` est obligatoire dans le parcours IA nominal, avec pour seule exception le rendu déterministe de sécurité. Le champ visible `withhold` ne transporte qu'un identifiant opaque, jamais le texte brut d'un secret.
+
+### Raisons
+
+Des métadonnées périmées faisaient apparaître comme ouvertes des décisions déjà prises. Deux formulations absolues créaient aussi une ambiguïté entre disponibilité et sécurité sans refléter l'architecture validée.
+
+### Conséquences
+
+Les documents de temps, contexte et intégration passent à `RETENU`. IndexedDB est distingué du schéma physique encore ouvert. Les corrections ne changent ni autorité, ni séquence de commit, ni périmètre MVP.
+
+## NAR-073 — Chaque report bloque uniquement sa capacité propriétaire
+
+Date : `2026-07-02`
+
+Statut : `RETENU`
+
+### Décision
+
+Les questions restantes sont classées en prérequis avant premier code, prérequis de capacité, mesure avant certification, décision conditionnelle ou hors MVP. Seuls les contrats du premier lot doivent être `FIGE` avant son démarrage; les autres restent `RETENU` jusqu'à leur propre gate.
+
+### Raisons
+
+Tout bloquer jusqu'au choix du fournisseur, de l'index sémantique ou de l'UX finale empêcherait un noyau sain. À l'inverse, considérer ces points comme de simples détails autoriserait le code à créer silencieusement le contrat.
+
+### Conséquences
+
+Chaque report possède désormais propriétaire, échéance et preuve attendue. Aucun fallback, seuil ou format ne peut être choisi implicitement. Le runtime reste globalement bloqué tant que les identités, versions, opérations, événements, erreurs et repository du premier lot ne sont pas figés.
+
+## NAR-074 — Noyau transactionnel `campaign-core/1`
+
+Date : `2026-07-02`
+
+Statut : `FIGE`
+
+### Décision
+
+Le premier lot d'implémentation cible uniquement un noyau de campagne transactionnel avec repository mémoire. Le contrat `campaign-core/1` fige identités, versions, opérations, commandes acceptées, agrégats, événements, horloge minimale, commit, fencing, outbox, erreurs et port de persistance.
+
+### Raisons
+
+Commencer par le fournisseur IA ou l'interface recréerait les erreurs précédentes : la prose deviendrait implicitement source de vérité et les reprises seraient ajoutées après coup. À l'inverse, figer dès maintenant tous les domaines produirait une architecture spéculative.
+
+### Conséquences
+
+Le premier lot ne dépend d'aucun moteur narratif, fournisseur, UI ou stockage navigateur. Une suite contractuelle unique certifiera l'adaptateur mémoire puis les futurs adaptateurs. Toute évolution normative exigera une nouvelle version et une décision de compatibilité.
+
+## NAR-075 — InteractionLog reconstructible et prose hors commit métier
+
+Date : `2026-07-02`
+
+Statut : `FIGE`
+
+### Décision
+
+L'entrée brute est persistée dans `OperationRecord` dès réception. Les actes de parole durables et résultats de domaine appartiennent au commit. La prose finale post-commit est un résultat filtré et non autoritaire de l'opération. `InteractionLog` est une projection reconstructible de ces sources.
+
+### Raisons
+
+Placer la prose finale dans le commit contredisait l'ordre validé du pipeline; effectuer un second commit métier pour l'afficher aurait compliqué idempotence et reprise. Une simple question méta doit également rester durable sans créer d'événement du monde.
+
+### Conséquences
+
+Une panne de rédaction ne rejoue aucun effet. Une opération reçue peut reprendre depuis son payload durable. La perte du cache de transcript ne supprime ni entrée, ni résultat, ni acte de parole committé.
+
+## NAR-076 — Autorisation limitée au lot I-00
+
+Date : `2026-07-02`
+
+Statut : `FIGE`
+
+### Décision
+
+Le cahier des charges autorise uniquement I-00 : types, schémas, validateurs, noyau transactionnel, port `CampaignRepository`, adaptateur mémoire et tests de `campaign-core/1`. Les huit lots suivants restent fermés jusqu'à leur gate.
+
+### Raisons
+
+Le contrat fondamental est désormais stable et testable, tandis que les capacités suivantes possèdent encore des schémas ou mesures propres à produire. Une autorisation globale recréerait des choix implicites; un blocage total empêcherait de vérifier la fondation.
+
+### Conséquences
+
+I-00 peut commencer sur demande explicite. Il ne modifie ni UI, ni serveur, ni route tactique et ne branche aucun fournisseur. Sa réussite conditionne l'ouverture d'I-01.

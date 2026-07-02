@@ -2,7 +2,7 @@
 
 Dernière mise à jour : `2026-06-30`
 
-Statut : `EN_CONCEPTION` — séparation, vocabulaire, sections par rôle, permissions et réduction budgétaire validés; obsolescence et audit restent à finaliser.
+Statut : `RETENU` — atelier 6 bouclé; séparation, perspectives, permissions, réduction, obsolescence et audit conceptuel validés.
 
 ## Objectif
 
@@ -243,7 +243,7 @@ Le `scene_writer` ne reçoit pas la vérité cachée brute. Le `mj_planner` lui 
 
 - `reveal` : information autorisée explicitement;
 - `hint` : élément perceptible pouvant être suggéré sans révéler sa cause;
-- `withhold` : information à ne pas mentionner.
+- `withhold` : identifiant opaque d'un sujet à ne pas mentionner, sans recopier la vérité cachée brute.
 
 Une consigne de style ou de richesse descriptive ne peut pas élargir cette enveloppe.
 

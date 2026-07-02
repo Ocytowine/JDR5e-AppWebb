@@ -123,7 +123,7 @@ Sa sortie distingue règle directement applicable, interprétation d'une règle 
 
 ### `scene_writer`
 
-Appel obligatoire pour toute sortie narrative. Il rédige les blocs de narration qui entourent l'expression validée du personnage, les dialogues validés et les résultats committés. Il ne réécrit pas les répliques et ne décide plus du contenu sémantique de la scène.
+Dans le parcours IA nominal, l'appel est obligatoire pour toute sortie narrative. Il rédige les blocs de narration qui entourent l'expression validée du personnage, les dialogues validés et les résultats committés. Il ne réécrit pas les répliques et ne décide plus du contenu sémantique de la scène. Le rendu déterministe de sécurité utilisé lorsque ce rôle est indisponible n'est pas un appel créatif et constitue l'unique exception prévue.
 
 ### Contrôles sans rôle créatif
 

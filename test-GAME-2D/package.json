@@ -6,7 +6,7 @@
     "dev": "node scripts/gen-action-catalog.js && node scripts/gen-materiel-catalog.js && node scripts/gen-class-catalog.js && node server.js",
     "dev:api": "node scripts/gen-action-catalog.js && node scripts/gen-materiel-catalog.js && node scripts/gen-class-catalog.js && node server.js",
     "dev:ui": "vite",
-    "build": "node scripts/gen-action-catalog.js && node scripts/gen-materiel-catalog.js && node scripts/gen-class-catalog.js && tsc --noEmit && vite build",
+    "build": "node scripts/gen-action-catalog.js && node scripts/gen-materiel-catalog.js && node scripts/gen-class-catalog.js && npm run narration-module:build && tsc --noEmit && vite build",
     "normalize:content": "node scripts/normalize-content.js",
     "gen:action-catalog": "node scripts/gen-action-catalog.js",
     "gen:class-catalog": "node scripts/gen-class-catalog.js",
@@ -17,12 +17,12 @@
     "verify:world-simulation:long": "npx --yes tsx scripts/verify-world-simulation-long.ts",
     "verify:world-simulation:mobility-long": "npx --yes tsx scripts/verify-world-simulation-mobility-long.ts",
     "setup:hooks": "node scripts/setup-git-hooks.js",
-    "narration-module:build": "node -e \"console.log('narration-module: lore-only mode, no build step required.')\"",
-    "narration-module:test:unit": "node -e \"console.log('narration-module runtime removed: no unit suite.')\"",
-    "narration-module:test:contracts": "node -e \"console.log('narration-module runtime removed: no contract suite.')\"",
-    "narration-module:test:integration": "node -e \"console.log('narration-module runtime removed: no integration suite.')\"",
+    "narration-module:build": "tsc -p narration-module/tsconfig.json --noEmit",
+    "narration-module:test:unit": "node -e \"console.log('campaign-core I-00: no separate unit suite; pure helpers are covered by contract tests.')\"",
+    "narration-module:test:contracts": "npx --yes tsx narration-module/tests/contracts/verify-campaign-core.ts",
+    "narration-module:test:integration": "node -e \"console.log('campaign-core I-00 has no external integration adapter.')\"",
     "map-module:test:regression": "npx --yes tsx scripts/verify-map-module-regression.ts",
-    "narration-module:demo:trace": "node -e \"console.log('narration-module runtime removed: no trace demo.')\""
+    "narration-module:demo:trace": "node -e \"console.log('campaign-core I-00 exposes contracts only; no narrative trace demo.')\""
   },
   "dependencies": {
     "pixi.js": "^8.5.2",

@@ -6,20 +6,14 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 ## En cours
 
-- [ ] Consolider le dossier de conception du nouveau module narration avant toute reprise du runtime.
-  References: `test-GAME-2D/narration-module/docs/Dossier-de-conception.md`, `test-GAME-2D/narration-module/docs/Plan-de-consolidation.md` et `test-GAME-2D/narration-module/docs/Matrice-tracabilite-acceptation.md`. Les ateliers 1 a 12 sont boucles; l'audit final constitue l'atelier actif.
+- [ ] Auditer les prerequis AF-R03 d'I-01 avant toute implementation IndexedDB.
+  References: `test-GAME-2D/narration-module/docs/Audit-final.md` et `test-GAME-2D/narration-module/docs/Plan-implementation-narration.md`. Il reste a figer les stores, index, frontieres transactionnelles, migrations, quotas et tests navigateur; I-01 reste ferme.
 - [ ] Consolider la simulation du monde apres l'ajout des objectifs multi-phases, des opportunites de faction et des mobiles non-systeme.
   Reference: `test-GAME-2D/map-module/docs/world-simulation-corrective-roadmap.md`. Les mobiles exposent maintenant l'objectif, la phase et la cible qu'ils servent.
-- [ ] Definir le contrat de sortie actionnable du MJ IA.
-  Reference: `test-GAME-2D/docs/Evolution/Avancement.md`.
-- [ ] Definir le noyau de memoire narrative a court et long terme.
-  Reference: `test-GAME-2D/docs/Evolution/Avancement.md`.
-- [ ] Definir le passage narration vers tactique, puis le retour des consequences vers la narration.
-  Reference: `test-GAME-2D/docs/Evolution/Avancement.md`.
 
 ## Prochaines etapes
 
-- [ ] Auditer les contradictions, reports et contrats avant d'autoriser le premier lot d'implementation narrative.
+- [ ] Produire le contrat physique IndexedDB et la strategie de migration d'I-01, puis decider explicitement de son ouverture.
 - [ ] Generer les premiers mobiles non-systeme contextuels, en commencant par les profils marchands, criminels et religieux.
 - [ ] Historiser les causes d'action importantes sans surcharger `recentHistory`.
 - [ ] Prioriser les cas narratifs 005 a 009 avant leur implementation.
@@ -28,11 +22,14 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 ## Blocages et risques
 
 - Le snapshot narratif dans `test-GAME-2D/docs/Evolution/Avancement.md` date du 2026-02-23 et doit etre revalide avant de servir de planning detaille.
-- Les hooks et la CI du module narration executent actuellement des commandes factices, en attente du futur runtime.
+- Les suites unitaires, d'integration et de demonstration narration restent informatives tant que leurs lots ne sont pas ouverts; build et contrats I-00 sont reels.
 - `docs projet/Structure app.md` decrit une ancienne cible Nuxt/Vue/Pinia; la reference executable actuelle est `test-GAME-2D/package.json`.
 
 ## Termine recemment
 
+- [x] Verification finale d'I-00: 31 controles de parite compiles, 19/19 contrats et build global reussis le 2026-07-02.
+- [x] Implementation I-00 de `campaign-core/1`, repository memoire et 19 tests contractuels le 2026-07-02.
+- [x] Audit final, contrat `campaign-core/1` fige et autorisation limitee au lot I-00 le 2026-07-02.
 - [x] Construction du corpus d'acceptation et de sa matrice de tracabilite P0 le 2026-07-02.
 - [x] Formalisation des exigences non fonctionnelles de latence, contexte, qualite, capacite et migration le 2026-07-02.
 - [x] Formalisation de la resilience, de la securite, du diagnostic et des politiques de reprise le 2026-07-02.

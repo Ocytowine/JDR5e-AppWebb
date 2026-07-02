@@ -2,7 +2,7 @@
 
 Dernière mise à jour : `2026-06-30`
 
-Statut global : `EN_COURS`
+Statut global : `BOUCLE`
 
 Ce document pilote la conception du module narration jusqu'à son autorisation d'implémentation. Il sert de checklist anti-oubli et de journal d'avancement. Les règles actives restent décrites dans `Dossier-de-conception.md`; les raisons des choix structurants restent dans `Journal-des-decisions.md`.
 
@@ -33,9 +33,9 @@ Un atelier n'est `BOUCLE` que si ses décisions sont écrites, ses incertitudes 
 | 10 | Résilience, sécurité et diagnostic | `BOUCLE` | Catalogue des échecs et comportements attendus | 7, 8 |
 | 11 | Exigences non fonctionnelles | `BOUCLE` | Budgets et objectifs mesurables | 5, 7, 10 |
 | 12 | Scénarios d'acceptation | `BOUCLE` | Corpus fonctionnel et cas limites | 1 à 11 |
-| 13 | Audit final et plan d'implémentation | `EN_COURS` | Rapport de cohérence et lots techniques | 12 |
+| 13 | Audit final et plan d'implémentation | `BOUCLE` | Rapport de cohérence et lots techniques | 12 |
 
-Les ateliers 1 à 12 sont bouclés. L'atelier 13 d'audit final et de préparation de l'implémentation est maintenant actif.
+Les ateliers 1 à 13 sont bouclés. Seul le lot d'implémentation I-00 est autorisé par l'audit final.
 
 ## Atelier 0 — Gouvernance documentaire
 
@@ -167,9 +167,9 @@ Toute création du scénario MVP possède un parcours explicite depuis sa premi�
 - [x] Séparer vérité, preuve, indice, témoignage, croyance et fausse piste.
 - [x] Atelier 4 : figer le cycle de création et les invariants initiaux.
 - [x] Atelier 5 : définir conservation, rappel et réactivation des engagements.
-- [ ] Atelier 6 : définir la projection du sous-graphe pertinent dans une scène.
-- [ ] Atelier 7 : définir contrats IA et contrôle sémantique complémentaire.
-- [ ] Atelier 9 : définir chronologie et évolution hors écran.
+- [x] Atelier 6 : définir la projection du sous-graphe pertinent dans une scène.
+- [x] Atelier 7 : définir contrats IA et contrôle sémantique complémentaire.
+- [x] Atelier 9 : définir chronologie et évolution hors écran.
 - [x] Atelier 10 : définir correction et diagnostic sans retcon silencieux.
 - [x] Atelier 12 : couvrir intrigue longue, indices, fausses pistes et contradictions.
 
@@ -373,26 +373,34 @@ Chaque exigence P0 est couverte par au moins un scénario observable et chaque s
 
 ### Contrôles finaux
 
-- [ ] Rechercher les contradictions entre documents.
-- [ ] Vérifier la traçabilité exigence → décision → contrat → scénario.
-- [ ] Vérifier que toutes les données possèdent une autorité.
-- [ ] Vérifier que les questions restantes sont non bloquantes.
-- [ ] Vérifier coût, latence, sécurité, reprise et migration.
-- [ ] Revalider le scénario vertical de bout en bout.
-- [ ] Découper l'implémentation en lots verticaux testables.
-- [ ] Mettre à jour `TASKS.md` avec le premier lot autorisé.
+- [x] Rechercher les contradictions entre documents.
+- [x] Vérifier la traçabilité exigence → décision → contrat → scénario.
+- [x] Vérifier que toutes les données possèdent une autorité.
+- [x] Vérifier que les questions restantes sont non bloquantes ou rattachées à un lot précis.
+- [x] Vérifier coût, latence, sécurité, reprise et migration.
+- [x] Revalider le scénario vertical de bout en bout.
+- [x] Découper l'implémentation en lots verticaux testables.
+- [x] Mettre à jour `TASKS.md` avec le premier lot autorisé.
 
 ### Définition de cahier des charges bouclé
 
-- Tous les ateliers 1 à 12 sont `BOUCLE`.
+- Tous les ateliers 1 à 13 sont `BOUCLE`.
 - Toutes les exigences P0 ont une décision et un critère d'acceptation.
 - Les contrats nécessaires au premier lot sont `FIGE`.
 - Aucune donnée persistante n'a une autorité ambiguë.
 - Le modèle de sauvegarde et sa stratégie de migration sont définis.
 - Les comportements d'échec et de reprise sont spécifiés.
-- Les budgets de contexte, coût et latence sont décidés.
-- Les questions restantes sont documentées comme non bloquantes.
+- Les budgets initiaux de contexte et latence sont décidés; les montants fournisseur sont rattachés à une gate de certification explicite.
+- Les questions restantes sont non bloquantes globalement ou rattachées à un lot précis.
 - L'audit de cohérence ne relève aucun conflit non résolu.
+
+### Avancement détaillé
+
+- [x] Lot 1 — Contradictions, métadonnées obsolètes et écarts avec le code existant.
+- [x] Lot 2 — Classification des questions, reports et blocages par lot.
+- [x] Lot 3 — Contrats à figer et frontières du premier lot autorisé.
+- [x] Lot 4 — Revalidation verticale et audit des autorités.
+- [x] Lot 5 — Feuille de route technique et décision finale.
 
 ## Contrôle transversal après chaque atelier
 
@@ -962,3 +970,44 @@ Avant de marquer un atelier `BOUCLE`, vérifier son impact sur :
 - Garde-fou : le parcours vertical ne constitue jamais l'unique preuve d'un domaine critique.
 - Résultat : atelier 12 `BOUCLE`.
 - Prochaine action : atelier 13, auditer les contradictions documentaires et déterminer si le premier lot de code peut être autorisé.
+
+### 2026-07-02 — Atelier 13, lot 1
+
+- Travail réalisé : inventaire des statuts et reports, comparaison des contrats, contrôle des exemples JSON et confrontation à la route tactique existante.
+- Corrections : statuts périmés, invariants renumérotés, fallback déterministe du rédacteur, `withhold` opaque et choix IndexedDB clarifié.
+- Résultat : aucune contradiction produit non résolue détectée; six points restent à classer ou figer par lot.
+- Garde-fou : le runtime n'est pas encore autorisé tant que le sous-ensemble contractuel du premier lot n'est pas `FIGE`.
+- Prochaine action : classer chaque report comme bloquant global, bloquant de lot, mesure différée ou hors MVP.
+
+### 2026-07-02 — Atelier 13, lot 2
+
+- Travail réalisé : registre des verrous globaux, blocages par capacité, mesures de certification, décisions conditionnelles et hors-MVP.
+- Décision : seuls les contrats normatifs du premier lot doivent être `FIGE` avant son code; chaque autre report bloque exclusivement sa capacité propriétaire.
+- Garde-fou : une mesure différée ne devient jamais une valeur implicite choisie pendant l'implémentation.
+- Résultat : aucune question produit non classée; le runtime reste bloqué jusqu'au gel du noyau contractuel du premier lot.
+- Prochaine action : définir cette frontière minimale et figer identités, versions, événements, opérations, erreurs et repository.
+
+### 2026-07-02 — Atelier 13, lot 3
+
+- Travail réalisé : contrat `campaign-core/1`, cycle des opérations, commit atomique, horloge, outbox, erreurs, repository et suite contractuelle.
+- Décision : le premier lot candidat est un noyau transactionnel avec adaptateur mémoire, sans IA, UI, wiki, IndexedDB ou moteur propriétaire.
+- Résolution : AF-R01 et AF-R02 sont levés; AF-R03 reste attaché au futur adaptateur IndexedDB.
+- Garde-fou : les schémas exécutables implémenteront le contrat figé et ne pourront pas le redéfinir silencieusement.
+- Prochaine action : revalider la chaîne verticale et vérifier que chaque donnée persistante traverse le noyau sans déplacement d'autorité.
+
+### 2026-07-02 — Atelier 13, lot 4
+
+- Travail réalisé : passage des treize étapes verticales dans le noyau et classification de toutes les données persistantes.
+- Écart résolu : entrée et prose visible appartiennent à l'opération; actes de parole et résultats métier au commit; transcript comme projection reconstructible.
+- Décision : le noyau garantit stockage, ordre et atomicité sans devenir propriétaire des payloads de domaine.
+- Résultat : aucune autorité ambiguë et aucun nouveau blocage global.
+- Prochaine action : produire les lots techniques, vérifier les exigences non fonctionnelles et rendre la décision finale d'autorisation.
+
+### 2026-07-02 — Atelier 13, lot 5
+
+- Travail réalisé : feuille de route I-00 à I-08, gates, vérification non fonctionnelle et décision d'autorisation.
+- Décision : `AUTORISÉ` pour I-00 uniquement; tous les autres lots restent fermés.
+- Premier lot : types, schémas, validateurs, repository mémoire et suite contractuelle de `campaign-core/1`.
+- Garde-fou : aucune IA, UI, IndexedDB, règle, carte, tactique ou ancienne route n'entre dans I-00.
+- Résultat : atelier 13 et plan de consolidation `BOUCLE`.
+- Prochaine action : implémenter I-00 sur demande explicite en respectant le contrat figé.

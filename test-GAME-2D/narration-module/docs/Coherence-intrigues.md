@@ -2,7 +2,7 @@
 
 Dernière mise à jour : `2026-06-30`
 
-Statut : `RETENU` — principe et architecture de cohérence validés; contrats détaillés à compléter dans les ateliers concernés.
+Statut : `RETENU` — engagements, solvabilité, indices, perspectives et protocole d'acceptation validés; schémas exécutables à produire avec le runtime.
 
 ## Objectif
 

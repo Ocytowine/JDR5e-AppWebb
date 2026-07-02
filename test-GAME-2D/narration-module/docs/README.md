@@ -25,6 +25,9 @@ Il décrit la cible avant toute reprise du runtime.
 - [`Exigences-non-fonctionnelles.md`](Exigences-non-fonctionnelles.md) : objectifs mesurables de latence, coût, qualité et capacité.
 - [`Scenarios-acceptation.md`](Scenarios-acceptation.md) : corpus observable, granularité et oracles du scénario vertical et des cas limites.
 - [`Matrice-tracabilite-acceptation.md`](Matrice-tracabilite-acceptation.md) : liens entre exigences P0, décisions, contrats, scénarios et résultats observables.
+- [`Audit-final.md`](Audit-final.md) : contradictions, reports, contrats à figer et décision progressive d'autorisation de coder.
+- [`Contrat-noyau-campagne.md`](Contrat-noyau-campagne.md) : contrat `FIGE` du premier lot, opérations, commits, événements, horloge, outbox et repository.
+- [`Plan-implementation-narration.md`](Plan-implementation-narration.md) : lots I-00 à I-08, prérequis, scénarios et gates de livraison.
 - [`Plan-de-consolidation.md`](Plan-de-consolidation.md) : ateliers, checklist anti-oubli, critères de sortie et journal d'avancement.
 - [`Journal-des-decisions.md`](Journal-des-decisions.md) : décisions structurantes, raisons et conséquences.
 - [`../Idée de base.md`](../Idée%20de%20base.md) : texte d'intention initial; il reste une source d'idées, pas un contrat actif.

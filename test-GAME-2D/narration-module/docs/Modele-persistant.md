@@ -2,7 +2,7 @@
 
 Dernière mise à jour : `2026-06-30`
 
-Statut : `RETENU` — modèle conceptuel complet; schémas contractuels et technologie de stockage restent à définir avant implémentation.
+Statut : `RETENU` — modèle conceptuel complet; IndexedDB retenu pour le prototype, schémas contractuels et organisation physique à figer avant le runtime.
 
 ## Principes retenus
 
@@ -172,9 +172,9 @@ Chaque événement porte aussi son origine de production et son payload versionn
 
 ### `InteractionLog`
 
-Journal complet des entrées brutes, interprétations utiles et messages affichés. Il est relié aux campagnes, scènes, tours et événements, mais n'établit aucun fait par son texte.
+Projection complète des entrées brutes, interprétations utiles et messages affichés, reconstruite depuis les `OperationRecord`, leurs résultats et les événements ou actes de parole committés. Elle est reliée aux campagnes, scènes, tours et événements, mais n'établit aucun fait par son texte.
 
-Le journal est paginable et archivable. Il peut être consulté par le joueur et les outils de diagnostic sans être chargé intégralement dans l'état courant ni envoyé au modèle IA.
+Le journal est paginable, archivable et peut posséder un cache physique. Ce cache est reconstruisible : sa perte ne supprime ni l'entrée brute durable, ni le résultat de présentation, ni les actes de parole autoritaires. Il peut être consulté sans être chargé intégralement dans l'état courant ni envoyé au modèle IA.
 
 ### `Snapshots`
 
@@ -289,19 +289,20 @@ Une découverte tardive d'un fait ancien ne change pas sa date d'existence : ell
 
 ## Politique d'enregistrement
 
-### Journal après chaque échange validé
+### Opération durable après chaque échange validé
 
-Chaque échange terminé est enregistré, même s'il ne modifie aucun attribut mécanique. Cela permet de reprendre le fil visible et d'auditer la décision de l'IA.
+Chaque entrée est enregistrée dès réception dans son opération, même si elle ne modifiera aucun attribut mécanique. Le résultat visible validé complète ensuite cette opération. Cela permet de reprendre le fil et d'auditer la décision de l'IA sans forcer un commit métier pour une question méta.
 
-Le commit distingue :
+Lorsqu'il existe, le commit distingue :
 
-- transcript et données d'interaction;
 - mutations métier éventuelles;
 - événements publics;
 - événements privés ou de diagnostic;
 - nouvelle version des agrégats concernés.
 
-Une simple question hors jeu peut être conservée dans l'historique d'interaction sans devenir un fait du monde.
+Une parole possédant un effet durable est committée comme acte structuré et événement avant la rédaction finale. La prose d'assemblage post-commit reste dans le résultat non autoritaire de l'opération.
+
+Une simple question hors jeu est conservée dans l'historique d'interaction sans commit et sans devenir un fait du monde.
 
 ### Snapshots espacés
 
@@ -532,16 +533,16 @@ L'exemple démontre notamment :
 33. La composition de plusieurs événements dans une scène ne supprime ni ne fusionne leurs identités autoritaires.
 34. Un retour tardif compare l'état courant à la dernière perception du personnage sans révéler l'ancien ou le nouveau secret système.
 35. Une évolution relationnelle ou mémorielle hors écran exige une cause committée; le temps seul ne l'invente pas.
-21. Une migration échouée ne remplace jamais la sauvegarde active.
-22. Une migration est déterministe et ne fait aucun appel IA.
-23. Une sauvegarde d'une version future inconnue n'est pas modifiée.
-24. Le modèle conceptuel ne présume ni moteur de base de données ni format physique définitif.
+36. Une migration échouée ne remplace jamais la sauvegarde active.
+37. Une migration est déterministe et ne fait aucun appel IA.
+38. Une sauvegarde d'une version future inconnue n'est pas modifiée.
+39. Le modèle conceptuel reste indépendant du moteur de base de données et du format physique choisis par les adaptateurs.
 
 ## Points reportés aux contrats d'implémentation
 
 - schémas JSON exacts et validateurs;
-- technologie et emplacement physique du store;
+- schéma physique des stores IndexedDB et seuils mesurés déclenchant un passage à SQLite;
 - stratégie concrète de paquets de contenu versionnés;
 - seuils de création des snapshots;
-- politique de rétention des traces techniques;
+- format physique des incidents, dont la rétention normative est définie dans `Resilience-securite-diagnostic.md`;
 - taille et pagination physiques de l'`InteractionLog`.

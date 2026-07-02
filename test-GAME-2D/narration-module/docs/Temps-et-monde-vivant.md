@@ -1,6 +1,6 @@
 # Temps et monde vivant
 
-Statut : `EN_CONCEPTION` — horloge unique et contrat d'avance retenus; ordonnancement, événements et retours tardifs restent à détailler.
+Statut : `RETENU` — atelier 9 bouclé; horloge, ordonnancement causal, événements, évolution hors écran et retours tardifs validés.
 
 ## Objectif
 

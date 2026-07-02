@@ -2,7 +2,7 @@
 
 Dernière mise à jour : `2026-06-30`
 
-Statut : `RETENU` — modèle conceptuel complet; seuils chiffrés et schémas techniques restent à calibrer.
+Statut : `RETENU` — modèle conceptuel complet et seuils de qualité initiaux fixés; index, quotas fins et schémas techniques restent à calibrer.
 
 ## Objectif
 
@@ -528,8 +528,8 @@ La proximité entre « vague brisée » et « emblème marin fendu » aide à d�
 
 ## Points reportés
 
-- seuils de tokens par modèle et par rôle;
+- calibration des enveloppes initiales par modèle et par rôle définies dans `Exigences-non-fonctionnelles.md`;
 - quotas chiffrés de candidats par canal;
 - technologie d'index textuel et sémantique;
 - stratégie physique de pagination et de cache;
-- politique de rétention des traces détaillées.
+- format des traces mémoire respectant la rétention définie dans `Resilience-securite-diagnostic.md`.

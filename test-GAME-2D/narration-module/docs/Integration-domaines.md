@@ -1,6 +1,6 @@
 # Intégration entre narration et domaines
 
-Statut : `EN_CONCEPTION` — protocole commun et modes d'intégration retenus; contrats propres à chaque domaine à détailler.
+Statut : `RETENU` — atelier 8 bouclé; protocoles par domaine, handoffs, persistance et reprise validés conceptuellement, signatures techniques à figer.
 
 ## Objectif
 
