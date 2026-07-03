@@ -27,6 +27,8 @@ Il décrit la cible avant toute reprise du runtime.
 - [`Matrice-tracabilite-acceptation.md`](Matrice-tracabilite-acceptation.md) : liens entre exigences P0, décisions, contrats, scénarios et résultats observables.
 - [`Audit-final.md`](Audit-final.md) : contradictions, reports, contrats à figer et décision progressive d'autorisation de coder.
 - [`Contrat-noyau-campagne.md`](Contrat-noyau-campagne.md) : contrat `FIGE` du premier lot, opérations, commits, événements, horloge, outbox et repository.
+- [`Contrat-persistance-indexeddb.md`](Contrat-persistance-indexeddb.md) : contrat `FIGE` d'I-01, stores, index, transactions, générations, migrations et tests navigateur.
+- [`Contrat-bootstrap-campagne.md`](Contrat-bootstrap-campagne.md) : contrat `FIGE` d'I-02, paquets immuables, ingestion wiki, import personnage et `RuleRegistry` MVP.
 - [`Plan-implementation-narration.md`](Plan-implementation-narration.md) : lots I-00 à I-08, prérequis, scénarios et gates de livraison.
 - [`Plan-de-consolidation.md`](Plan-de-consolidation.md) : ateliers, checklist anti-oubli, critères de sortie et journal d'avancement.
 - [`Journal-des-decisions.md`](Journal-des-decisions.md) : décisions structurantes, raisons et conséquences.

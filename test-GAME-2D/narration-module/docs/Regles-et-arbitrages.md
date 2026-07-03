@@ -1,6 +1,6 @@
 # Règles, variantes maison et arbitrages
 
-Statut : `RETENU` — gouvernance conceptuelle définie; inventaire exhaustif des règles et schémas à produire avant l'implémentation du runtime.
+Statut : `FIGE` — gouvernance générale; l'inventaire et les schémas du MVP I-02 sont figés dans [`Contrat-bootstrap-campagne.md`](Contrat-bootstrap-campagne.md).
 
 ## Objectif
 

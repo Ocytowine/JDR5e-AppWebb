@@ -1,6 +1,6 @@
 # Audit final du module narration
 
-Statut : `RETENU` — audit terminé; décision `AUTORISÉ` limitée au lot I-00.
+Statut : `RETENU` — audit initial terminé; addendum du 2026-07-03 autorisant uniquement I-02 après livraison d'I-01 et gel de `campaign-bootstrap/1`.
 
 ## Objectif
 
@@ -165,7 +165,7 @@ Il exclut explicitement IndexedDB, wiki, personnage, règles, mémoire, IA, UI, 
 
 - AF-R01 : `RÉSOLU` — le contrat du premier lot est `FIGE`.
 - AF-R02 : `RÉSOLU` — identités, versions, événements, opérations, erreurs et repository sont normatifs.
-- AF-R03 reste `BLOQUANT_CAPACITE` pour l'adaptateur IndexedDB; il ne bloque pas l'adaptateur mémoire du premier lot.
+- AF-R03 : `RÉSOLU` le 2026-07-03 par [`Contrat-persistance-indexeddb.md`](Contrat-persistance-indexeddb.md), version `campaign-storage/1`; I-01 peut être ouvert sans changer `campaign-core/1`.
 
 ### Décision de lot
 
@@ -253,9 +253,9 @@ Aucun report de mesure n'est utilisé pour prétendre qu'une capacité non mesur
 8. I-07 tactique et repos;
 9. I-08 certification verticale et non fonctionnelle.
 
-Chaque lot possède prérequis, scénarios et gate. Seul I-00 est ouvert.
+À la clôture de l'audit initial du 2026-07-02, chaque lot possède prérequis, scénarios et gate et seul I-00 est ouvert. L'addendum en fin de document porte l'autorisation courante.
 
-### Décision
+### Décision initiale du 2026-07-02
 
 **AUTORISÉ — lot I-00 uniquement.**
 
@@ -274,3 +274,23 @@ Elle n'autorise pas IndexedDB, fournisseur IA, prompt, wiki, personnage, règle 
 - aucune question produit globale non résolue.
 
 Le cahier des charges est bouclé au niveau requis pour commencer I-00. Les contrats des capacités suivantes seront figés à leur gate, sans rouvrir les principes déjà retenus.
+
+## Addendum I-01 — Audit AF-R03
+
+L'audit de persistance fixe stores, index, enveloppes physiques, frontières transactionnelles, contrôle multi-onglets, migration par générations, politique de quota et preuves navigateur.
+
+Décision : **AUTORISÉ — lot I-01 uniquement**, après réussite d'I-00. I-02 à I-08 restent fermés.
+
+Les seuils de capacité définitifs restent classés AF-M06 avant certification. Ils ne bloquent pas l'adaptateur, car I-01 doit déjà mesurer, avertir et annuler atomiquement toute écriture non durable.
+
+### Résultat d'I-01
+
+I-01 est livré le 2026-07-03 : les 19 contrats communs et 15 cas IndexedDB passent dans Chrome réel, ainsi que le build global. Cette réussite ne vaut pas ouverture implicite d'I-02; AF-R04 à AF-R07 restent ses prérequis.
+
+## Addendum I-02 — Audit AF-R04 à AF-R07
+
+L'audit du 2026-07-03 confronte les contrats au wiki, au parseur du `map-module`, aux catalogues JSON, à l'éditeur de personnage et au plateau tactique. Il constate un corpus de 26 entités wiki structurées et un document brut, une fiche riche mais non versionnée, des valeurs dérivées calculées à plusieurs endroits et des règles dispersées sans manifeste global.
+
+[`Contrat-bootstrap-campagne.md`](Contrat-bootstrap-campagne.md) fige `campaign-bootstrap/1` : paquet immuable avec empreintes, ingestion wiki stricte et sourcée, import personnage avec recalcul unique et projections, inventaire du `RuleRegistry` MVP, arbitrage ponctuel et transaction de bootstrap atomique.
+
+Décision : **AUTORISÉ — lot I-02 uniquement**. AF-R04 à AF-R07 sont résolus au niveau contractuel. Leur implémentation, la conversion ou l'exclusion explicite de `wiki/lore/gouvernances/primauté`, les fixtures invalides et les preuves NAR-ACC-008/009/021 constituent la gate de fermeture d'I-02. I-03 à I-08 restent fermés.

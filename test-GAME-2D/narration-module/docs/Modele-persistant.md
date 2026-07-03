@@ -1,8 +1,8 @@
 # Modèle persistant de campagne
 
-Dernière mise à jour : `2026-06-30`
+Dernière mise à jour : `2026-07-03`
 
-Statut : `RETENU` — modèle conceptuel complet; IndexedDB retenu pour le prototype, schémas contractuels et organisation physique à figer avant le runtime.
+Statut : `RETENU` — modèle conceptuel complet; l'organisation physique IndexedDB du noyau est figée dans [`Contrat-persistance-indexeddb.md`](Contrat-persistance-indexeddb.md), les agrégats des domaines futurs restent à contracter dans leurs lots.
 
 ## Principes retenus
 
@@ -541,7 +541,7 @@ L'exemple démontre notamment :
 ## Points reportés aux contrats d'implémentation
 
 - schémas JSON exacts et validateurs;
-- schéma physique des stores IndexedDB et seuils mesurés déclenchant un passage à SQLite;
+- seuils mesurés déclenchant un passage à SQLite; le schéma physique du noyau est désormais figé dans `campaign-storage/1`;
 - stratégie concrète de paquets de contenu versionnés;
 - seuils de création des snapshots;
 - format physique des incidents, dont la rétention normative est définie dans `Resilience-securite-diagnostic.md`;

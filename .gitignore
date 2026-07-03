@@ -1,2 +1,4 @@
 test-GAME/.env
 test-GAME-2D/dist/
+test-GAME-2D/test-results/
+test-GAME-2D/playwright-report/

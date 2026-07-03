@@ -57,20 +57,23 @@ export function cloneJson<T>(value: T): T {
   return JSON.parse(canonicalizeJson(value)) as T;
 }
 
+export async function computeJsonFingerprint(value: unknown): Promise<string> {
+  const digest = await globalThis.crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(canonicalizeJson(value))
+  );
+  const hex = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+  return `sha256:${hex}`;
+}
+
 export async function computeRequestFingerprint(
   operationKind: string,
   requestPayloadSchemaVersion: number,
   requestPayload: JsonObject
 ): Promise<string> {
-  const canonical = canonicalizeJson({
+  return computeJsonFingerprint({
     operationKind,
     requestPayload,
     requestPayloadSchemaVersion
   });
-  const digest = await globalThis.crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(canonical)
-  );
-  const hex = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
-  return `sha256:${hex}`;
 }

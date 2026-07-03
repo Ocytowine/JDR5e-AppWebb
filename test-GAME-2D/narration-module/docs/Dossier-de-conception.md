@@ -2,9 +2,9 @@
 
 Version de travail : `0.1`
 
-Dernière mise à jour : `2026-06-30`
+Dernière mise à jour : `2026-07-03`
 
-Statut global : `RETENU` — cahier des charges consolidé; contrat `campaign-core/1` figé et lot I-00 seul autorisé.
+Statut global : `RETENU` — cahier des charges consolidé; I-00 et I-01 terminés, contrat d'I-02 figé et implémentation d'I-02 autorisée.
 
 ## 1. Finalité du module
 
@@ -813,4 +813,4 @@ Après sauvegarde et ellipse, le joueur revient dans le lieu initial. Le systèm
 - Les contrats conceptuels entre scène, domaines et `map-module` sont définis; leurs schémas et signatures exécutables restent à figer avant le lot de code concerné.
 - Les enveloppes initiales de contexte, coût et latence sont définies. Le profil financier `balanced` et le calibrage par modèle restent soumis au benchmark fournisseur accepté.
 - La route tactique actuelle `/api/narration` est un résumé de combat existant, pas le futur orchestrateur. Son remplacement ou son adaptation doit être décidé avant le lot d'intégration tactique, sans bloquer le noyau persistant.
-- Les clés normalisées et le schéma d'ingestion du wiki doivent être figés avant le lot de recherche lore.
+- Les clés normalisées, le schéma d'ingestion du wiki, l'import personnage et le `RuleRegistry` MVP sont figés par `campaign-bootstrap/1`; leur implémentation et leurs preuves appartiennent à I-02.

@@ -1,5 +1,5 @@
-import assert from "node:assert/strict";
 import {
+  type CampaignRepository,
   MemoryCampaignRepository,
   computeRequestFingerprint,
   coreError,
@@ -22,15 +22,38 @@ import {
   type WorkerId,
   type WriterId
 } from "../../src/core/index";
+import { assert } from "./assertions";
 
 type AsyncTest = () => Promise<void>;
 const tests: Array<{ name: string; run: AsyncTest }> = [];
+
+export interface CampaignCoreContractHarness {
+  name: string;
+  create(options: {
+    suffix: string;
+    clock: RepositoryClock;
+    failureInjector?: (point: string) => void;
+  }): Promise<CampaignRepository>;
+  dispose?(): Promise<void>;
+}
+
+const memoryHarness: CampaignCoreContractHarness = {
+  name: "memory",
+  async create(options) {
+    return new MemoryCampaignRepository({
+      clock: options.clock,
+      failureInjector: options.failureInjector as ((point: CommitFailurePoint) => void) | undefined
+    });
+  }
+};
+
+let activeHarness = memoryHarness;
 
 function test(name: string, run: AsyncTest): void {
   tests.push({ name, run });
 }
 
-class MutableClock implements RepositoryClock {
+export class MutableClock implements RepositoryClock {
   constructor(private epochMs = Date.parse("2026-07-02T12:00:00.000Z")) {}
 
   now(): Date {
@@ -42,12 +65,12 @@ class MutableClock implements RepositoryClock {
   }
 }
 
-function expectOk<T>(result: Result<T>): T {
+export function expectOk<T>(result: Result<T>): T {
   if (!result.ok) assert.fail(`Expected success, got ${result.error.code}: ${result.error.messageKey}`);
   return result.value;
 }
 
-function expectError<T>(result: Result<T>, code: string): void {
+export function expectError<T>(result: Result<T>, code: string): void {
   assert.equal(result.ok, false, "Expected an error result.");
   if (!result.ok) assert.equal(result.error.code, code);
 }
@@ -56,7 +79,7 @@ function id<T extends string>(value: string): T {
   return opaqueId<T>(value);
 }
 
-function campaignFixture(clock: MutableClock, suffix = "base"): CampaignRecord {
+export function campaignFixture(clock: MutableClock, suffix = "base"): CampaignRecord {
   const instant = clock.now().toISOString();
   return {
     schemaVersion: 1,
@@ -79,7 +102,7 @@ function campaignFixture(clock: MutableClock, suffix = "base"): CampaignRecord {
   };
 }
 
-const initialClock: CampaignClockPayload = {
+export const initialClock: CampaignClockPayload = {
   elapsedGameSeconds: 0,
   calendarId: "calendar.test",
   calendarVersion: 1
@@ -90,16 +113,18 @@ async function setup(options: {
   failureInjector?: (point: CommitFailurePoint) => void;
 } = {}) {
   const clock = new MutableClock();
-  const repository = new MemoryCampaignRepository({
+  const suffix = options.suffix ?? "base";
+  const repository = await activeHarness.create({
+    suffix,
     clock,
-    failureInjector: options.failureInjector
+    failureInjector: options.failureInjector as ((point: string) => void) | undefined
   });
-  const campaign = campaignFixture(clock, options.suffix ?? "base");
+  const campaign = campaignFixture(clock, suffix);
   expectOk(await repository.createCampaign(campaign, initialClock));
   return { repository, clock, campaign };
 }
 
-async function operationFixture(
+export async function operationFixture(
   campaign: CampaignRecord,
   clock: MutableClock,
   suffix: string,
@@ -130,8 +155,8 @@ async function operationFixture(
   };
 }
 
-async function readyOperation(
-  repository: MemoryCampaignRepository,
+export async function readyOperation(
+  repository: CampaignRepository,
   campaign: CampaignRecord,
   clock: MutableClock,
   suffix: string,
@@ -143,11 +168,11 @@ async function readyOperation(
   return expectOk(await repository.transitionOperation(operation.operationId, "PREPARING", "READY_TO_COMMIT"));
 }
 
-async function lease(repository: MemoryCampaignRepository, campaignId: CampaignId, suffix: string) {
+export async function lease(repository: CampaignRepository, campaignId: CampaignId, suffix: string) {
   return expectOk(await repository.acquireWriterLease(campaignId, id<WriterId>(`writer_${suffix}`), 120_000));
 }
 
-function commitRequest(input: {
+export function commitRequest(input: {
   campaign: CampaignRecord;
   operation: OperationRecord;
   writerLease: Awaited<ReturnType<typeof lease>>;
@@ -526,25 +551,42 @@ test("19 event cursor paginates inside one commit without loss", async () => {
   assert.deepEqual([...firstPage, ...secondPage].map(event => event.eventSequence), [0, 1, 2]);
 });
 
-async function main(): Promise<void> {
+export interface CampaignCoreContractRun {
+  harness: string;
+  passed: number;
+  failed: number;
+  failures: Array<{ name: string; message: string }>;
+}
+
+export async function runCampaignCoreContractTests(
+  harness: CampaignCoreContractHarness = memoryHarness
+): Promise<CampaignCoreContractRun> {
+  activeHarness = harness;
   let failures = 0;
+  const failureDetails: Array<{ name: string; message: string }> = [];
   for (const entry of tests) {
     try {
       await entry.run();
-      console.log(`PASS ${entry.name}`);
+      console.log(`PASS [${harness.name}] ${entry.name}`);
     } catch (error) {
       failures += 1;
-      console.error(`FAIL ${entry.name}`);
+      const message = error instanceof Error ? error.stack ?? error.message : String(error);
+      failureDetails.push({ name: entry.name, message });
+      console.error(`FAIL [${harness.name}] ${entry.name}`);
       console.error(error);
     }
   }
-
-  if (failures > 0) {
-    console.error(`${failures}/${tests.length} contract tests failed.`);
-    process.exitCode = 1;
-  } else {
-    console.log(`PASS ${tests.length}/${tests.length} campaign-core contract tests.`);
-  }
+  await harness.dispose?.();
+  const passed = tests.length - failures;
+  console.log(`${failures === 0 ? "PASS" : "FAIL"} [${harness.name}] ${passed}/${tests.length} campaign-core contract tests.`);
+  return { harness: harness.name, passed, failed: failures, failures: failureDetails };
 }
 
-void main();
+const executedDirectly = typeof process !== "undefined" &&
+  process.argv.some(argument => argument.replaceAll("\\", "/").endsWith("tests/contracts/verify-campaign-core.ts"));
+
+if (executedDirectly) {
+  void runCampaignCoreContractTests().then(result => {
+    if (result.failed > 0) process.exitCode = 1;
+  });
+}

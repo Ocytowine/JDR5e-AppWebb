@@ -44,6 +44,7 @@ npm run dev:ui
 npm run build
 npm run validate:content
 npm run narration-module:test:contracts
+npm run narration-module:test:indexeddb
 npm run map-module:test:regression
 npm run verify:world-simulation
 ```
@@ -54,7 +55,7 @@ Les simulations longues sont disponibles avec `npm run verify:world-simulation:l
 
 - `test-GAME-2D/src/` : application React, plateau, regles, donnees et creation de personnage.
 - `test-GAME-2D/map-module/` : carte du monde, editeur et simulation systemique.
-- `test-GAME-2D/narration-module/` : conception du futur module et noyau transactionnel I-00; aucun flux IA ou UI narratif n'est encore branche.
+- `test-GAME-2D/narration-module/` : noyau transactionnel I-00 et persistance IndexedDB I-01; aucun flux IA ou UI narratif n'est encore branche.
 - `test-GAME-2D/scripts/` : generation de catalogues et scripts de verification.
 - `test-GAME-2D/docs/` : conception fonctionnelle et technique de l'application.
 - `wiki/` : lore et modeles de contenu de l'univers.

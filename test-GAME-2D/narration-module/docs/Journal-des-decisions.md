@@ -1437,3 +1437,75 @@ Le contrat fondamental est désormais stable et testable, tandis que les capacit
 ### Conséquences
 
 I-00 peut commencer sur demande explicite. Il ne modifie ni UI, ni serveur, ni route tactique et ne branche aucun fournisseur. Sa réussite conditionne l'ouverture d'I-01.
+
+## NAR-077 — Persistance IndexedDB par générations de campagne
+
+Date : `2026-07-03`
+
+Statut : `FIGE`
+
+### Décision
+
+I-01 implémente `campaign-storage/1` dans une base IndexedDB unique. Chaque campagne pointe vers une génération active; tous ses enregistrements métier portent physiquement `generationId`, et chaque transaction d'écriture relit ce pointeur. Une migration prépare une nouvelle génération, la valide, bascule le pointeur atomiquement et conserve l'ancienne comme sauvegarde technique.
+
+### Raisons
+
+Une migration directe des enregistrements ne permettrait pas à la fois copie de sécurité, reprise bornée et activation atomique sur une campagne volumineuse. Une base distincte par génération rendrait impossible la vérification atomique du pointeur face à un ancien onglet. Le pointeur et les données dans la même base permettent de bloquer les écritures pendant la copie puis d'empêcher toute écriture dans une génération devenue obsolète.
+
+### Conséquences
+
+Le schéma physique, les index et les frontières transactionnelles sont normatifs. Les calculs longs restent hors transaction. La suite commune est exécutée contre mémoire et IndexedDB, complétée par quinze cas dans un vrai Chromium. Les seuils définitifs de capacité restent mesurés en I-08, sans reporter la gestion sûre des erreurs de quota.
+
+## NAR-078 — Autorisation limitée au lot I-01
+
+Date : `2026-07-03`
+
+Statut : `FIGE`
+
+### Décision
+
+Après livraison et vérification d'I-00, AF-R03 est résolu par `campaign-storage/1`. Le lot I-01 est autorisé pour l'adaptateur IndexedDB, le moteur de migration par générations, la factorisation de la suite contractuelle et les tests navigateur. I-02 à I-08 restent fermés.
+
+### Raisons
+
+Le port métier reste inchangé, les structures et transactions sont définies, les pannes attendues possèdent un oracle et les mesures de capacité non bloquantes sont séparées de l'intégrité. Aucun choix de contenu, règle, personnage ou IA n'est nécessaire pour éprouver la persistance.
+
+### Conséquences
+
+I-01 peut commencer sans importer IndexedDB dans React ou les domaines. Toute extension vers le wiki, l'import personnage ou les règles maison reste interdite avant la résolution de AF-R04 à AF-R07.
+
+## NAR-079 — Bootstrap depuis des dépendances immuables et validées
+
+Date : `2026-07-03`
+
+Statut : `FIGE`
+
+### Décision
+
+Le contrat `campaign-bootstrap/1` résout AF-R04 à AF-R07. Une campagne est créée depuis un paquet de contenu et un ruleset résolus par identifiant et version exacts, ainsi qu'une fiche importée à travers une enveloppe versionnée. Le wiki est compilé avec diagnostics bloquants et provenance; les valeurs dérivées du personnage sont recalculées par des exécuteurs communs; toute règle mécanique est identifiée et versionnée.
+
+### Raisons
+
+Le parseur wiki actuel ignore des erreurs, la fiche legacy mélange choix, état mutable et dérivés, et les règles sont dispersées entre données et code. Lire ces sources directement au démarrage d'une campagne reproduirait les causes des essais précédents : contexte non fiable, autorités concurrentes et comportement dépendant de connaissances implicites du modèle.
+
+### Conséquences
+
+Les fichiers sources, caches UI et créations dynamiques ne sont jamais des dépendances flottantes d'une campagne. Le document brut `gouvernances/primauté` devra être converti ou exclu explicitement. L'import vérifie inventaire physique, monnaie, conteneurs et équipement visible; l'apparence peut devenir un facteur social sans altérer le Charisme. Un arbitrage accepté reste un précédent de campagne et ne devient jamais automatiquement une règle.
+
+## NAR-080 — Autorisation limitée au lot I-02
+
+Date : `2026-07-03`
+
+Statut : `FIGE`
+
+### Décision
+
+Après livraison d'I-01 et gel de `campaign-bootstrap/1`, I-02 est autorisé pour la génération du paquet V1, l'ingestion wiki stricte, l'import et les projections du personnage, le `RuleRegistry` MVP et l'opération atomique `campaign.bootstrap`. I-03 à I-08 restent fermés.
+
+### Raisons
+
+Les autorités, versions, erreurs attendues, frontières d'intégration et preuves de sortie sont désormais assez précises pour être implémentées sans inventer le contrat dans le code. Les mécanismes de temps, mémoire, fournisseur IA, scène, tactique et repos ont leurs propres gates et ne sont pas nécessaires pour certifier le bootstrap.
+
+### Conséquences
+
+I-02 doit réutiliser le noyau et le repository existants, ne pas lire `localStorage` dans le domaine, ne pas étendre le parseur permissif comme autorité et ne pas dupliquer les formules de personnage. Sa fermeture exige les Archives de Lysenthe, la fiche prête à jouer, les rejets ciblés et les checkpoints NAR-ACC-008, 009 et 021.

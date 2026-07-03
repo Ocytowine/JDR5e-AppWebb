@@ -18,9 +18,10 @@
     "verify:world-simulation:mobility-long": "npx --yes tsx scripts/verify-world-simulation-mobility-long.ts",
     "setup:hooks": "node scripts/setup-git-hooks.js",
     "narration-module:build": "tsc -p narration-module/tsconfig.json --noEmit",
-    "narration-module:test:unit": "node -e \"console.log('campaign-core I-00: no separate unit suite; pure helpers are covered by contract tests.')\"",
+    "narration-module:test:unit": "node -e \"console.log('I-00/I-01: pure helpers are covered by contract and IndexedDB browser suites.')\"",
     "narration-module:test:contracts": "npx --yes tsx narration-module/tests/contracts/verify-campaign-core.ts",
-    "narration-module:test:integration": "node -e \"console.log('campaign-core I-00 has no external integration adapter.')\"",
+    "narration-module:test:indexeddb": "playwright test -c narration-module/tests/browser/playwright.config.ts",
+    "narration-module:test:integration": "npm run narration-module:test:indexeddb",
     "map-module:test:regression": "npx --yes tsx scripts/verify-map-module-regression.ts",
     "narration-module:demo:trace": "node -e \"console.log('campaign-core I-00 exposes contracts only; no narrative trace demo.')\""
   },
@@ -30,6 +31,7 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@types/node": "^22.10.1",
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",

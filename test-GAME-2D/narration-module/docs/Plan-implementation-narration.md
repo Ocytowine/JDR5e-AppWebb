@@ -1,6 +1,6 @@
 # Plan d'implémentation du module narration
 
-Statut : `EN_EXECUTION` — I-00 livré et vérifié; I-01 reste fermé jusqu'à une décision explicite après audit de ses prérequis.
+Statut : `EN_EXECUTION` — I-00 et I-01 livrés et vérifiés; I-02 autorisé par `campaign-bootstrap/1`; I-03 à I-08 restent fermés jusqu'à leurs gates.
 
 ## Principes d'exécution
 
@@ -69,13 +69,15 @@ Aucune nouvelle dépendance n'est nécessaire sans preuve d'un manque d'AJV ou d
 
 ## I-01 — Persistance navigateur et migrations
 
+Statut : `TERMINE` le 2026-07-03.
+
 ### Objectif
 
 Implémenter `IndexedDbCampaignRepository` derrière la même suite contractuelle, sans changer le contrat métier.
 
 ### Prérequis
 
-AF-R03, schéma physique des stores, transactions, migrations et stratégie de quota.
+AF-R03 résolu par [`Contrat-persistance-indexeddb.md`](Contrat-persistance-indexeddb.md) : schéma physique des stores, transactions, générations, migrations, quota et tests navigateur figés.
 
 ### Scénarios
 
@@ -85,7 +87,18 @@ NAR-ACC-013, NAR-ACC-018 et parties persistance de NFR-ACC-001.
 
 La suite contractuelle passe sans variante spécifique permissive; fermeture, issue inconnue, migration et lecture seule sont vérifiées dans un navigateur cible.
 
+### Preuves de livraison
+
+- `IndexedDbCampaignRepository` derrière le port I-00 et IndexedDB natif;
+- 12 stores, index de lecture et de copie bornée, transactions courtes et contrôle multi-connexion;
+- migration par générations avec lease renouvelable, empreinte, vérification post-activation, rollback et sauvegarde confirmable;
+- 19/19 contrats communs dans Chrome et 15/15 scénarios IndexedDB spécifiques;
+- fermeture, issue inconnue, version future, `versionchange`, quota, ancienne connexion et lecture seule vérifiés;
+- `npm run narration-module:build`, `npm run narration-module:test:contracts`, `npm run narration-module:test:indexeddb` et `npm run build` réussis.
+
 ## I-02 — Bootstrap de campagne, contenu, personnage et règles
+
+Statut : `OUVERT` le 2026-07-03; pas encore implémenté.
 
 ### Objectif
 
@@ -93,7 +106,7 @@ Créer une campagne réelle depuis le wiki épinglé, une fiche importée et un 
 
 ### Prérequis
 
-AF-R04 à AF-R07 : paquets de contenu, schéma wiki, import personnage et `RuleRegistry` MVP.
+Résolus par [`Contrat-bootstrap-campagne.md`](Contrat-bootstrap-campagne.md) : AF-R04 à AF-R07, soit paquets de contenu, schéma wiki, import personnage et `RuleRegistry` MVP.
 
 ### Scénarios
 
@@ -223,4 +236,4 @@ I-03 et I-04 peuvent être préparés indépendamment après I-02, mais aucune i
 
 ## Autorisation actuelle
 
-I-00 est terminé. I-01 à I-08 sont planifiés mais restent fermés; l'ouverture d'I-01 exige d'abord la résolution documentée de AF-R03 et une décision explicite.
+I-00 et I-01 sont terminés. I-02 est le seul lot ouvert; son périmètre est limité à `campaign-bootstrap/1`. I-03 à I-08 restent fermés.
