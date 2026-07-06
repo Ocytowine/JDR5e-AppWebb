@@ -1,7 +1,11 @@
 ---
+schema_version: 1
 type: faction
 id: archivistes_de_lysenthe
 nom: Ordre des Archivistes de Lysenthe
+aliases: []
+resume: Institution savante chargée de conserver, copier et administrer la mémoire écrite de Lysenthe.
+informations: []
 
 ville: lysenthe
 region: ylssea
@@ -9,7 +13,7 @@ territoire: astryade
 
 faction_category: ordre savant et administratif
 siege_pouvoir: archives_de_lysenthe
-autorite_tutelle: collegium_des_archivistes
+autorite_tutelle: external:collegium_des_archivistes
 role_dans_la_ville:
   - conservation des actes civils
   - validation des copies et mandats

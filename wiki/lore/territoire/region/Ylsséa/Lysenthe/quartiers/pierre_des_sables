@@ -1,7 +1,14 @@
 ---
+schema_version: 1
 type: quartier
 id: pierre_des_sables
 nom: Pierre des Sables
+aliases: []
+resume: Ville haute de commandement organisée autour du Château Tharqual et des autorités locales.
+mots_cles:
+  - pouvoir
+  - chateau
+informations: []
 ville: lysenthe
 territoire: astryade
 region: ylssea

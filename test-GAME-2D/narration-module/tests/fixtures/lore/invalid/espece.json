@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "type": "espece",
+  "id": "espece_jouable_sans_catalogue",
+  "nom": "Espèce invalide",
+  "aliases": [],
+  "resume": "Fixture invalide : une espèce jouable doit référencer une race.",
+  "mots_cles": [],
+  "jouable": true,
+  "rencontrable": true,
+  "classification": "humanoide",
+  "catalogue_mecanique": null,
+  "apparence_observable": [],
+  "biologie": { "maturite": null, "esperance_vie": null, "particularites": [] },
+  "langues": [],
+  "cultures_associees": [],
+  "regions_presence": [],
+  "informations": []
+}

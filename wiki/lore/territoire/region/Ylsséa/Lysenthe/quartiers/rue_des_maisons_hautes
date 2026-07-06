@@ -1,7 +1,14 @@
 ---
+schema_version: 1
 type: quartier
 id: rue_des_maisons_hautes
 nom: Rue des Maisons Hautes
+aliases: []
+resume: Secteur résidentiel et administratif des familles établies, proche des principaux organes de gestion.
+mots_cles:
+  - residences
+  - administration
+informations: []
 ville: lysenthe
 territoire: astryade
 region: ylssea

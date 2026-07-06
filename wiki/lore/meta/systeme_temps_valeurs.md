@@ -1,7 +1,10 @@
 ---
+schema_version: 1
 type: meta
 id: systeme_temps_valeurs
 nom: Calendrier et valeurs de Dunia
+aliases: []
+informations: []
 portee: global
 resume: Calendrier de 12 mois de 30 jours, quatre saisons nommees, et economie en pieces (cuivre, argent, or, platine); fournit un cadre temporel et monetaire commun.
 axes_fondamentaux:
@@ -53,8 +56,8 @@ ancrages_historiques:
         - Standardisation des monnaies metalliques.
       legats: Simplifie les contrats, tributs et journaux de bord.
   chronologie_simplifiee:
-    - Annee type : 12 mois de 30 jours, 4 saisons, notation jour-mois-annee.
-    - Marche : prix exprimes en pieces (PC, PA, PO, PP).
+    - "Annee type : 12 mois de 30 jours, 4 saisons, notation jour-mois-annee."
+    - "Marche : prix exprimes en pieces (PC, PA, PO, PP)."
 mots_cles:
   - calendrier
   - saisons

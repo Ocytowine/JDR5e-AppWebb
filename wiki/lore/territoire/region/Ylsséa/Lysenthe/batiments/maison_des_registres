@@ -1,7 +1,11 @@
 ---
+schema_version: 1
 type: batiment
 id: maison_des_registres
 nom: Maison des Registres
+aliases: []
+resume: Administration chargée des registres civils, commerciaux et fonciers de Lysenthe.
+informations: []
 
 # LOCALISATION
 ville: lysenthe
@@ -37,7 +41,7 @@ fonction_principale:
 importance_strategique: 81
 
 # PROPRIETE / CONTROLE
-proprietaire_faction: maison_tharqual
+proprietaire_faction: external:maison_tharqual
 proprietaire_principal: Intendance de Lysenthe
 acces: public
 

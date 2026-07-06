@@ -21,6 +21,7 @@ import {
   operationFixture,
   readyOperation
 } from "../contracts/verify-campaign-core";
+import { campaignBootstrapFixture } from "../contracts/verify-campaign-bootstrap";
 
 interface SpecificTest {
   name: string;
@@ -92,6 +93,22 @@ test("01 close and reopen preserves the active campaign", async () => {
   first.close();
   const second = await open(databaseName, clock);
   assert.deepEqual(expectOk(await second.getCampaign(campaign.campaignId)), campaign);
+  second.close();
+  await deleteTestDatabase(databaseName);
+});
+
+test("01b atomic bootstrap survives close and reopen", async () => {
+  const databaseName = name("bootstrap_reopen");
+  const clock = new MutableClock();
+  const request = await campaignBootstrapFixture(clock, "idb_bootstrap_reopen");
+  const first = await open(databaseName, clock);
+  expectOk(await first.bootstrapCampaign(request));
+  first.close();
+  const second = await open(databaseName, clock);
+  assert.deepEqual(expectOk(await second.getCampaign(request.campaign.campaignId)), request.campaign);
+  assert.deepEqual(expectOk(await second.getCommit(request.commit.commitId)), request.commit);
+  assert.deepEqual(expectOk(await second.bootstrapCampaign(request)).commit, request.commit);
+  assert.equal(expectOk(await second.listEvents(request.campaign.campaignId, null, 10)).length, 1);
   second.close();
   await deleteTestDatabase(databaseName);
 });

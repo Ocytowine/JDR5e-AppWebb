@@ -1,7 +1,11 @@
 ---
+schema_version: 1
 type: batiment
 id: tour_du_primarque
 nom: Tour du Primarque
+aliases: []
+resume: Tour de pouvoir représentant l'autorité de la Primauté au cœur de Lysenthe.
+informations: []
 
 # LOCALISATION
 ville: lysenthe
@@ -37,7 +41,7 @@ fonction_principale:
 importance_strategique: 98
 
 # PROPRIETE / CONTROLE
-proprietaire_faction: primaute_astryade
+proprietaire_faction: external:primaute_astryade
 proprietaire_principal: Primarque d'Astryade
 acces: tres_restreint
 

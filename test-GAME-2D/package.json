@@ -19,7 +19,15 @@
     "setup:hooks": "node scripts/setup-git-hooks.js",
     "narration-module:build": "tsc -p narration-module/tsconfig.json --noEmit",
     "narration-module:test:unit": "node -e \"console.log('I-00/I-01: pure helpers are covered by contract and IndexedDB browser suites.')\"",
-    "narration-module:test:contracts": "npx --yes tsx narration-module/tests/contracts/verify-campaign-core.ts",
+    "narration-module:test:contracts": "npm run narration-module:test:contracts:core && npm run narration-module:test:contracts:bootstrap",
+    "narration-module:test:contracts:core": "npx --yes tsx narration-module/tests/contracts/verify-campaign-core.ts",
+    "narration-module:test:contracts:bootstrap": "npx --yes tsx narration-module/tests/contracts/verify-campaign-bootstrap.ts",
+    "narration-module:test:lore": "npm run narration-module:test:lore:schemas && npm run narration-module:test:lore:compiler",
+    "narration-module:test:lore:schemas": "npx --yes tsx narration-module/tests/lore/verify-lore-authoring.ts",
+    "narration-module:test:lore:compiler": "npx --yes tsx narration-module/tests/lore/verify-lore-compilation.ts",
+    "narration-module:test:character": "npx --yes tsx narration-module/tests/character/verify-character-import.ts",
+    "narration-module:test:rules": "npx --yes tsx narration-module/tests/rules/verify-rule-registry.ts",
+    "narration-module:test:orchestration": "npx --yes tsx narration-module/tests/orchestration/verify-campaign-bootstrap-service.ts",
     "narration-module:test:indexeddb": "playwright test -c narration-module/tests/browser/playwright.config.ts",
     "narration-module:test:integration": "npm run narration-module:test:indexeddb",
     "map-module:test:regression": "npx --yes tsx scripts/verify-map-module-regression.ts",
@@ -38,6 +46,7 @@
     "@vitejs/plugin-react-swc": "^3.7.0",
     "ajv": "^8.18.0",
     "typescript": "^5.7.2",
-    "vite": "^6.0.0"
+    "vite": "^6.0.0",
+    "yaml": "^2.9.0"
   }
 }

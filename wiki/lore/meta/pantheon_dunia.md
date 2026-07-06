@@ -1,7 +1,10 @@
 ---
+schema_version: 1
 type: meta
 id: pantheon_dunia
 nom: Pantheon des Douze
+aliases: []
+informations: []
 portee: global
 resume: Douze deesses issues de Kharon incarnent des vertus (justice, compassion, courage...) et inspirent sans gouverner; chacune agit par signes ou visions, rarement de facon directe.
 axes_fondamentaux:
@@ -95,8 +98,8 @@ ancrages_historiques:
         - Chaque vertu trouve un embleme mortel (sphinx, elfe, orque, dragonne...).
       legats: Les mortels recoivent guidance indirecte au fil des generations.
   chronologie_simplifiee:
-    - Cycle fondateur : Creation des Douze.
-    - Cycles suivants : Interventions discretes dans les crises majeures.
+    - "Cycle fondateur : Creation des Douze."
+    - "Cycles suivants : Interventions discretes dans les crises majeures."
 mots_cles:
   - vertus
   - guidance

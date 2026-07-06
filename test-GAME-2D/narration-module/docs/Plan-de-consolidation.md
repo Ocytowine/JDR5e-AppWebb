@@ -35,7 +35,7 @@ Un atelier n'est `BOUCLE` que si ses décisions sont écrites, ses incertitudes 
 | 12 | Scénarios d'acceptation | `BOUCLE` | Corpus fonctionnel et cas limites | 1 à 11 |
 | 13 | Audit final et plan d'implémentation | `BOUCLE` | Rapport de cohérence et lots techniques | 12 |
 
-Les ateliers 1 à 13 sont bouclés. I-00 et I-01 sont terminés; AF-R04 à AF-R07 sont résolus par `campaign-bootstrap/1` et I-02 est autorisé.
+Les ateliers 1 à 13 sont bouclés. I-00 et I-01 sont terminés; AF-R04 à AF-R07 sont résolus par `campaign-bootstrap/2` et `lore-authoring/1`, et I-02 est autorisé.
 
 ## Atelier 0 — Gouvernance documentaire
 

@@ -1,4 +1,11 @@
 import { cloneJson, computeJsonFingerprint, computeRequestFingerprint } from "../canonical-json/canonicalJson";
+import type { CampaignBootstrapRepository } from "../../bootstrap/persistence/CampaignBootstrapRepository";
+import type {
+  BootstrapFailurePoint,
+  CampaignBootstrapPersistenceRequestV1,
+  CampaignBootstrapPersistenceResultV1
+} from "../../bootstrap/persistence/types";
+import { validateCampaignBootstrapPersistenceRequestV1 } from "../../bootstrap/persistence/validateBootstrapPersistence";
 import type {
   AcceptedCommandRecord,
   AggregateRecord,
@@ -81,7 +88,7 @@ const OPERATION_TRANSITIONS: Readonly<Record<OperationPhase, readonly OperationP
   CANCELLED: []
 };
 
-export type IndexedDbFailurePoint =
+export type IndexedDbFailurePoint = BootstrapFailurePoint
   | "AFTER_AGGREGATES"
   | "AFTER_COMMANDS"
   | "AFTER_EVENTS"
@@ -178,7 +185,7 @@ function storedOutbox(generationId: string, record: OutboxTaskRecord): StoredOut
     : { generationId, campaignId: record.campaignId, record: cloneJson(record) };
 }
 
-export class IndexedDbCampaignRepository implements CampaignRepository {
+export class IndexedDbCampaignRepository implements CampaignRepository, CampaignBootstrapRepository {
   private closed = false;
 
   private constructor(
@@ -395,6 +402,196 @@ export class IndexedDbCampaignRepository implements CampaignRepository {
         campaignId: record.campaignId
       } satisfies IdDirectoryRecord));
       return ok(cloneJson(record));
+    }));
+  }
+
+  async bootstrapCampaign(
+    request: CampaignBootstrapPersistenceRequestV1
+  ): Promise<Result<CampaignBootstrapPersistenceResultV1>> {
+    const validation = validateCampaignBootstrapPersistenceRequestV1(request);
+    if (!validation.valid) {
+      return err(coreError("VALIDATION_FAILED", "bootstrap.persistence.validation-failed", {
+        issues: validation.issues
+      }));
+    }
+    const { campaign, operation, commit } = request;
+    const integrityFingerprint = await computeJsonFingerprint({
+      storageSchemaVersion: 1,
+      campaigns: [campaign],
+      aggregates: request.initialAggregates,
+      operations: [operation],
+      commands: request.acceptedCommands,
+      events: request.events,
+      commits: [commit],
+      outbox: request.outboxTasks
+    });
+    const stores = [
+      STORES.campaignHeads,
+      STORES.campaignGenerations,
+      STORES.campaignControls,
+      STORES.idDirectory,
+      STORES.campaigns,
+      STORES.aggregates,
+      STORES.operations,
+      STORES.commands,
+      STORES.events,
+      STORES.commits,
+      STORES.outbox
+    ] as const;
+
+    return this.safely(async () => runTransaction(this.database, stores, "readwrite", async transaction => {
+      const headStore = transaction.objectStore(STORES.campaignHeads);
+      const existingHead = await requestResult<CampaignHeadRecord | undefined>(headStore.get(campaign.campaignId));
+      if (existingHead) {
+        const generationId = existingHead.activeGenerationId;
+        const storedCommit = await requestResult<StoredCommit | undefined>(
+          transaction.objectStore(STORES.commits)
+            .index("by_campaign_idempotency")
+            .get([generationId, campaign.campaignId, operation.idempotencyKey])
+        );
+        if (storedCommit) {
+          const storedCampaign = await requestResult<StoredCampaign | undefined>(
+            transaction.objectStore(STORES.campaigns).get([generationId, campaign.campaignId])
+          );
+          const storedOperation = await requestResult<StoredOperation | undefined>(
+            transaction.objectStore(STORES.operations).get([generationId, storedCommit.record.operationId])
+          );
+          if (
+            storedCampaign && storedOperation &&
+            storedCommit.record.commitId === commit.commitId &&
+            storedCommit.record.operationId === operation.operationId &&
+            storedCommit.record.requestFingerprint === operation.requestFingerprint
+          ) return ok(cloneJson({
+            campaign: storedCampaign.record,
+            operation: storedOperation.record,
+            commit: storedCommit.record
+          }));
+        }
+        return err(coreError("IDEMPOTENCY_CONFLICT", "bootstrap.persistence.campaign-conflict", {
+          campaignId: campaign.campaignId
+        }));
+      }
+
+      const now = this.nowIso();
+      const generationId = randomId("gen");
+      const head: CampaignHeadRecord = {
+        campaignId: campaign.campaignId,
+        activeGenerationId: generationId,
+        storageSchemaVersion: 1,
+        migration: {
+          state: "IDLE",
+          sourceGenerationId: null,
+          targetGenerationId: null,
+          ownerId: null,
+          leaseExpiresAt: null,
+          lastErrorCode: null
+        }
+      };
+      const generation: CampaignGenerationRecord = {
+        campaignId: campaign.campaignId,
+        generationId,
+        status: "ACTIVE",
+        storageSchemaVersion: 1,
+        sourceGenerationId: null,
+        createdAt: now,
+        activatedAt: now,
+        verifiedAt: now,
+        confirmedAt: now,
+        recordCounts: {
+          campaigns: 1,
+          aggregates: request.initialAggregates.length,
+          operations: 1,
+          commands: request.acceptedCommands.length,
+          events: request.events.length,
+          commits: 1,
+          outbox: request.outboxTasks.length
+        },
+        integrityFingerprint
+      };
+      const control: CampaignControlRecord = {
+        campaignId: campaign.campaignId,
+        activeOperationId: operation.operationId,
+        writerLease: null,
+        fencingToken: 0
+      };
+      await requestResult(headStore.add(head));
+      await requestResult(transaction.objectStore(STORES.campaignGenerations).add(generation));
+      await requestResult(transaction.objectStore(STORES.campaignControls).add(control));
+      await requestResult(transaction.objectStore(STORES.campaigns).add({
+        generationId,
+        record: cloneJson(campaign)
+      } satisfies StoredCampaign));
+      this.inject("BOOTSTRAP_AFTER_CAMPAIGN");
+
+      const directoryStore = transaction.objectStore(STORES.idDirectory);
+      await requestResult(transaction.objectStore(STORES.operations).add({
+        generationId,
+        record: cloneJson(operation)
+      } satisfies StoredOperation));
+      await requestResult(directoryStore.add({
+        entityKind: "operation",
+        entityId: operation.operationId,
+        campaignId: campaign.campaignId
+      } satisfies IdDirectoryRecord));
+      this.inject("BOOTSTRAP_AFTER_OPERATION");
+
+      const aggregateStore = transaction.objectStore(STORES.aggregates);
+      for (const aggregate of request.initialAggregates) {
+        await requestResult(aggregateStore.add({ generationId, record: cloneJson(aggregate) } satisfies StoredAggregate));
+        await requestResult(directoryStore.add({
+          entityKind: "aggregate",
+          entityId: aggregate.aggregateId,
+          campaignId: campaign.campaignId
+        } satisfies IdDirectoryRecord));
+      }
+      this.inject("BOOTSTRAP_AFTER_AGGREGATES");
+
+      const commandStore = transaction.objectStore(STORES.commands);
+      for (const command of request.acceptedCommands) {
+        await requestResult(commandStore.add({ generationId, record: cloneJson(command) } satisfies StoredCommand));
+        await requestResult(directoryStore.add({
+          entityKind: "command",
+          entityId: command.commandId,
+          campaignId: campaign.campaignId
+        } satisfies IdDirectoryRecord));
+      }
+      this.inject("BOOTSTRAP_AFTER_COMMANDS");
+
+      const eventStore = transaction.objectStore(STORES.events);
+      for (const event of request.events) {
+        await requestResult(eventStore.add({ generationId, record: cloneJson(event) } satisfies StoredEvent));
+        await requestResult(directoryStore.add({
+          entityKind: "event",
+          entityId: event.eventId,
+          campaignId: campaign.campaignId
+        } satisfies IdDirectoryRecord));
+      }
+      this.inject("BOOTSTRAP_AFTER_EVENTS");
+
+      const outboxStore = transaction.objectStore(STORES.outbox);
+      for (const task of request.outboxTasks) {
+        await requestResult(outboxStore.add(storedOutbox(generationId, task)));
+        await requestResult(directoryStore.add({
+          entityKind: "task",
+          entityId: task.taskId,
+          campaignId: campaign.campaignId
+        } satisfies IdDirectoryRecord));
+      }
+      this.inject("BOOTSTRAP_AFTER_OUTBOX");
+
+      await requestResult(transaction.objectStore(STORES.commits).add({
+        generationId,
+        record: cloneJson(commit)
+      } satisfies StoredCommit));
+      await requestResult(directoryStore.add({
+        entityKind: "commit",
+        entityId: commit.commitId,
+        campaignId: campaign.campaignId
+      } satisfies IdDirectoryRecord));
+      this.inject("BOOTSTRAP_AFTER_COMMIT");
+      this.inject("BOOTSTRAP_BEFORE_PUBLISH");
+
+      return ok(cloneJson({ campaign, operation, commit }));
     }));
   }
 

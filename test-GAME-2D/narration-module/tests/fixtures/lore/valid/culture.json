@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "type": "culture",
+  "id": "culture_elfique_ylssea",
+  "nom": "Culture elfique d'Ylsséa",
+  "aliases": [],
+  "resume": "Traditions portées par plusieurs communautés elfiques d'Ylsséa.",
+  "mots_cles": ["mémoire"],
+  "especes_associees": ["elfes"],
+  "zones_associees": ["ylssea"],
+  "langues": ["elfique"],
+  "valeurs": ["transmission de la mémoire"],
+  "coutumes": ["confier les récits à un gardien de lignée"],
+  "organisation_sociale": ["maisons de mémoire"],
+  "esthetique": ["motifs végétaux"],
+  "relations_factions": ["archivistes_de_lysenthe"],
+  "informations": [{
+    "id": "gardiens_de_lignee",
+    "niveau": "LOCAL",
+    "texte": "Les gardiens arbitrent la transmission des récits familiaux.",
+    "sujets": ["gardiens de lignée"],
+    "entites_liees": ["archivistes_de_lysenthe"]
+  }]
+}

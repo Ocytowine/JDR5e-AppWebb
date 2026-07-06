@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "exclusions": [
+    {
+      "sourcePath": "wiki/lore/gouvernances/primauté",
+      "reason": "Document historique sans front matter lore-authoring/1; a migrer lors de l'ajout du type gouvernance."
+    }
+  ]
+}

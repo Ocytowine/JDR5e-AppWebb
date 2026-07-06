@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "type": "pnj",
+  "id": "pnj_invalide",
+  "nom": "PNJ invalide",
+  "aliases": [],
+  "resume": "Fixture invalide avec une confiance supérieure à cent.",
+  "mots_cles": [],
+  "espece": "elfes",
+  "culture": null,
+  "role_public": "Témoin",
+  "lieu_initial": "archives_de_lysenthe",
+  "factions": [],
+  "apparence": [],
+  "expression": { "registre": "bref", "rythme": "lent", "habitudes": [] },
+  "motivations_initiales": [],
+  "objectifs_initiaux": [],
+  "relations_initiales": [],
+  "connaissances_initiales": [],
+  "croyances_initiales": [{ "sujet": "rumeur", "texte": "J'en suis certain.", "confiance": 101 }],
+  "importance": "FIGURANT",
+  "informations": []
+}

@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "type": "evenement_historique",
+  "id": "evenement_auto_cause",
+  "nom": "Événement invalide",
+  "aliases": [],
+  "resume": "Fixture invalide qui se désigne comme sa propre cause.",
+  "mots_cles": [],
+  "periode": null,
+  "date": { "calendar_id": "dunia", "annee": null, "mois": null, "jour": null, "precision": "INCONNUE" },
+  "lieux": [],
+  "participants": [],
+  "causes": [{ "evenement": "evenement_auto_cause", "certitude": "ETABLIE" }],
+  "consequences": [],
+  "informations": []
+}

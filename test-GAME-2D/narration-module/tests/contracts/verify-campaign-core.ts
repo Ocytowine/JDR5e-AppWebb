@@ -42,7 +42,7 @@ const memoryHarness: CampaignCoreContractHarness = {
   async create(options) {
     return new MemoryCampaignRepository({
       clock: options.clock,
-      failureInjector: options.failureInjector as ((point: CommitFailurePoint) => void) | undefined
+      failureInjector: options.failureInjector as ((point: string) => void) | undefined
     });
   }
 };

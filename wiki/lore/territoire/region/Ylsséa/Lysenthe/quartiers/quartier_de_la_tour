@@ -1,7 +1,14 @@
 ---
+schema_version: 1
 type: quartier
 id: quartier_de_la_tour
 nom: Quartier de la Tour
+aliases: []
+resume: Enclave de pouvoir central dominée par la Tour du Primarque et les résidences de la cour.
+mots_cles:
+  - primaute
+  - pouvoir
+informations: []
 ville: lysenthe
 territoire: astryade
 region: ylssea

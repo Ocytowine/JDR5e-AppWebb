@@ -1,7 +1,11 @@
 ---
+schema_version: 1
 type: ville
 id: lysenthe
 nom: Lysenthe
+aliases: []
+resume: Cité portuaire fortifiée d'Ylsséa, carrefour commercial majeur organisé autour de ses quais et institutions.
+informations: []
 
 territoire: astryade
 region: ylssea
@@ -108,12 +112,12 @@ batiments_importants:
 
 # FACTIONS / RELIGIONS
 factions_presentes:
-  - maison_tharqual
+  - external:maison_tharqual
   - garnison_de_lysenthe
   - archivistes_de_lysenthe
   - cercle_du_commerce_maritime
 religions_principales:
-  - culte_des_douze
+  - external:culte_des_douze
 
 # LIAISONS / CONNEXIONS
 liaisons:

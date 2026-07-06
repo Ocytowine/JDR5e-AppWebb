@@ -100,7 +100,8 @@ Toutes les transactions sont courtes et listent leurs stores dès l'ouverture. U
 
 | Opération | Stores écrits atomiquement |
 |---|---|
-| bootstrap | `campaign_heads`, `campaign_generations`, `campaign_controls`, `id_directory`, `campaigns`, `aggregates` |
+| bootstrap minimal `createCampaign` de `campaign-core/1` | `campaign_heads`, `campaign_generations`, `campaign_controls`, `id_directory`, `campaigns`, `aggregates` |
+| bootstrap métier `campaign-bootstrap/2` | `campaign_heads`, `campaign_generations`, `campaign_controls`, `id_directory`, `campaigns`, `operations`, `aggregates`, `commands`, `events`, `commits`, `outbox` |
 | passage en lecture seule | `campaign_heads`, `campaigns` |
 | acquisition ou libération de lease | `campaign_heads`, `campaigns`, `campaign_controls` |
 | réception d'opération | `campaign_heads`, `campaigns`, `campaign_controls`, `id_directory`, `operations` |

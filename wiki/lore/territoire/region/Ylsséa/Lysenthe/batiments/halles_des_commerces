@@ -1,7 +1,11 @@
 ---
+schema_version: 1
 type: batiment
 id: halles_des_commerces
 nom: Halles des Commerces
+aliases: []
+resume: Halles marchandes centrales où s'organisent les échanges commerciaux et maritimes de Lysenthe.
+informations: []
 
 # LOCALISATION
 ville: lysenthe

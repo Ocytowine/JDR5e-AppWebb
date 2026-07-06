@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "type": "pnj",
+  "id": "maelis_varenne",
+  "nom": "Maelis Varenne",
+  "aliases": ["maîtresse des archives"],
+  "resume": "Conservatrice chargée d'une partie des collections de Lysenthe.",
+  "mots_cles": ["archives"],
+  "espece": "elfes",
+  "culture": "culture_elfique_ylssea",
+  "role_public": "Conservatrice des Archives",
+  "lieu_initial": "archives_de_lysenthe",
+  "factions": ["archivistes_de_lysenthe"],
+  "apparence": ["robe bleu sombre"],
+  "expression": { "registre": "précis", "rythme": "posé", "habitudes": ["reformule les questions"] },
+  "motivations_initiales": ["préserver l'indépendance des Archives"],
+  "objectifs_initiaux": ["retrouver les documents disparus"],
+  "relations_initiales": [],
+  "connaissances_initiales": [{ "entity": "incendie_des_archives", "information_id": "enquete_archivistes" }],
+  "croyances_initiales": [{ "sujet": "cause de l'incendie", "texte": "Le sinistre était ciblé.", "confiance": 70 }],
+  "importance": "MAJEUR",
+  "informations": [{
+    "id": "reputation_locale",
+    "niveau": "LOCAL",
+    "texte": "Maelis aide les chercheurs capables de présenter une demande précise.",
+    "sujets": ["réputation de Maelis"],
+    "entites_liees": ["archives_de_lysenthe"]
+  }]
+}

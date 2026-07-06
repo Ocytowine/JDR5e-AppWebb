@@ -1,7 +1,12 @@
 ---
+schema_version: 1
 type: batiment
 id: chateau_tharqual
 nom: Chateau Tharqual
+aliases:
+  - Château Tharqual
+resume: Siège fortifié du pouvoir local de Lysenthe et résidence de la maison Tharqual.
+informations: []
 
 # LOCALISATION
 ville: lysenthe
@@ -39,7 +44,7 @@ fonction_principale:
 importance_strategique: 95
 
 # PROPRIETE / CONTROLE
-proprietaire_faction: maison_tharqual
+proprietaire_faction: external:maison_tharqual
 proprietaire_principal: Tharque regent de Lysenthe
 acces: tres_restreint
 

@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "type": "culture",
+  "id": "culture_invalide",
+  "nom": "Culture invalide",
+  "aliases": [],
+  "resume": "Fixture invalide avec une clé inconnue.",
+  "mots_cles": [],
+  "especes_associees": [],
+  "zones_associees": [],
+  "langues": [],
+  "valeurs": [],
+  "coutumes": [],
+  "organisation_sociale": [],
+  "esthetique": [],
+  "relations_factions": [],
+  "stereotype_biologique": true,
+  "informations": []
+}

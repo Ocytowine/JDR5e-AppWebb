@@ -44,6 +44,10 @@ npm run dev:ui
 npm run build
 npm run validate:content
 npm run narration-module:test:contracts
+npm run narration-module:test:lore
+npm run narration-module:test:character
+npm run narration-module:test:rules
+npm run narration-module:test:orchestration
 npm run narration-module:test:indexeddb
 npm run map-module:test:regression
 npm run verify:world-simulation

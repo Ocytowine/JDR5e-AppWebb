@@ -1,7 +1,11 @@
 ---
+schema_version: 1
 type: faction
 id: garnison_de_lysenthe
 nom: Garnison de Lysenthe
+aliases: []
+resume: Force armée locale assurant la défense, les patrouilles et le maintien visible de l'ordre à Lysenthe.
+informations: []
 
 ville: lysenthe
 region: ylssea
@@ -9,7 +13,7 @@ territoire: astryade
 
 faction_category: ordre militaire urbain
 siege_pouvoir: caserne_centrale
-autorite_tutelle: maison_tharqual
+autorite_tutelle: external:maison_tharqual
 role_dans_la_ville:
   - maintien de l'ordre urbain
   - defense des remparts et points sensibles

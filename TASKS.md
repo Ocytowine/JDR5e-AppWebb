@@ -1,21 +1,20 @@
 # Suivi du travail
 
-Derniere mise a jour: 2026-07-03
+Derniere mise a jour: 2026-07-06
 
 Ce fichier est le tableau de bord court du depot. Les details techniques restent dans les documents lies; une tache ne doit pas etre dupliquee ici avec toute sa specification.
 
 ## En cours
 
-- [ ] Implementer I-02 selon `campaign-bootstrap/1`, seul lot narration ouvert.
-  Reference: `test-GAME-2D/narration-module/docs/Contrat-bootstrap-campagne.md`. Commencer par les types/schemas, le generateur de paquet et les diagnostics wiki, sans branchement UI ni IA.
+- [ ] Maintenir la reserve de parite tactique d'I-02 sans bloquer le prochain travail narratif autonome.
+  Reference: `test-GAME-2D/narration-module/docs/Matrice-preuves-I02.md`. Treize preuves sur quatorze sont couvertes; la comparaison directe import/plateau reste differee avec la jonction tactique.
 - [ ] Consolider la simulation du monde apres l'ajout des objectifs multi-phases, des opportunites de faction et des mobiles non-systeme.
   Reference: `test-GAME-2D/map-module/docs/world-simulation-corrective-roadmap.md`. Les mobiles exposent maintenant l'objectif, la phase et la cible qu'ils servent.
 
 ## Prochaines etapes
 
-- [ ] Produire les types et schemas executables de `campaign-bootstrap/1`, puis certifier la generation deterministe du paquet V1.
-- [ ] Convertir ou exclure explicitement `wiki/lore/gouvernances/primauté` avant la premiere generation valide.
-- [ ] Ajouter la fixture de fiche prete a jouer et les rejets cibles d'import personnage.
+- [ ] Migrer `wiki/lore/gouvernances/primauté` vers un futur type de gouvernance et retirer alors son exclusion explicite.
+- [ ] Cadrer le prochain lot narratif autonome sans ouvrir implicitement les jonctions carte, createur ou tactique.
 - [ ] Generer les premiers mobiles non-systeme contextuels, en commencant par les profils marchands, criminels et religieux.
 - [ ] Historiser les causes d'action importantes sans surcharger `recentHistory`.
 - [ ] Prioriser les cas narratifs 005 a 009 avant leur implementation.
@@ -27,9 +26,21 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 - La commande unitaire et la demonstration narration restent informatives faute de capacite correspondante; contrats I-00 et integration IndexedDB I-01 sont reels.
 - `npm audit --omit=dev` signale une vulnerabilite haute transitive existante dans `@xmldom/xmldom` via PixiJS; elle n'est pas introduite par I-01 et doit etre traitee separement avant livraison publique.
 - `docs projet/Structure app.md` decrit une ancienne cible Nuxt/Vue/Pinia; la reference executable actuelle est `test-GAME-2D/package.json`.
+- Les jonctions UI avec le createur de personnage et le plateau tactique sont explicitement differees; les projections I-02 restent des contrats testes sans branchement applicatif.
 
 ## Termine recemment
 
+- [x] Revue de gate I-02: 13 preuves sur 14, checkpoints NAR-ACC-008/009/021 explicites et reserve tactique isolee le 2026-07-06.
+- [x] Service `campaign.bootstrap`, validation paquet/ruleset/provenance, chaîne des Archives, projections par règles et 8 rejets atomiques le 2026-07-06.
+- [x] `RuleRegistry` strict, manifeste de 15 regles, 11 executeurs purs, conflits, surcharges et citations le 2026-07-06.
+- [x] Fixture issue de `buildCharacterSave`, import legacy, projections tactique/narrative et 16 rejets cibles le 2026-07-06.
+- [x] Bootstrap atomique IndexedDB, 7 contrats partages dans Chromium et relecture apres reouverture le 2026-07-06.
+- [x] Port `CampaignBootstrapRepository`, adaptateur memoire et 7 contrats couvrant 8 points de panne atomiques le 2026-07-06.
+- [x] Migration de 25 sources geographiques et organisationnelles, 13 templates V1 et exclusion versionnee de `gouvernances/primauté` le 2026-07-06.
+- [x] Schemas et compilation `lore-authoring/1` etendus aux 13 types, avec test du corpus reel le 2026-07-06.
+- [x] Compilation YAML stricte et deterministe des cinq nouveaux types en entites, relations, fragments et manifeste le 2026-07-06.
+- [x] Types, schemas AJV stricts, 14 controles de parite et 10 fixtures de `lore-authoring/1` le 2026-07-06.
+- [x] Correction de l'atomicite par `campaign-bootstrap/2`, gel de `lore-authoring/1` et premiers templates espece/culture/PNJ/histoire le 2026-07-06.
 - [x] Audit AF-R04 a AF-R07, contrat `campaign-bootstrap/1` fige et autorisation limitee a I-02 le 2026-07-03.
 - [x] Implementation I-01: IndexedDB, migrations par generations, 19 contrats communs et 15 tests Chrome le 2026-07-03.
 - [x] Audit AF-R03, contrat `campaign-storage/1` fige et autorisation limitee a I-01 le 2026-07-03.

@@ -1,6 +1,6 @@
 # Plan d'implémentation du module narration
 
-Statut : `EN_EXECUTION` — I-00 et I-01 livrés et vérifiés; I-02 autorisé par `campaign-bootstrap/1`; I-03 à I-08 restent fermés jusqu'à leurs gates.
+Statut : `EN_EXECUTION` — I-00 et I-01 livrés et vérifiés; I-02 autorisé par `campaign-bootstrap/2` et `lore-authoring/1`; I-03 à I-08 restent fermés jusqu'à leurs gates.
 
 ## Principes d'exécution
 
@@ -98,7 +98,7 @@ La suite contractuelle passe sans variante spécifique permissive; fermeture, is
 
 ## I-02 — Bootstrap de campagne, contenu, personnage et règles
 
-Statut : `OUVERT` le 2026-07-03; pas encore implémenté.
+Statut : `EN VERIFICATION` le 2026-07-06; contrats lore, import, règles, persistance atomique et orchestration implémentés. La matrice de preuves couvre 13 exigences sur 14; la parité directe avec le plateau reste explicitement différée avec sa jonction.
 
 ### Objectif
 
@@ -106,7 +106,7 @@ Créer une campagne réelle depuis le wiki épinglé, une fiche importée et un 
 
 ### Prérequis
 
-Résolus par [`Contrat-bootstrap-campagne.md`](Contrat-bootstrap-campagne.md) : AF-R04 à AF-R07, soit paquets de contenu, schéma wiki, import personnage et `RuleRegistry` MVP.
+Résolus par [`Contrat-bootstrap-campagne.md`](Contrat-bootstrap-campagne.md) et [`Contrat-contenu-lore.md`](Contrat-contenu-lore.md) : AF-R04 à AF-R07, soit écriture atomique spécialisée, paquets de contenu, schéma wiki, import personnage et `RuleRegistry` MVP.
 
 ### Scénarios
 
@@ -236,4 +236,4 @@ I-03 et I-04 peuvent être préparés indépendamment après I-02, mais aucune i
 
 ## Autorisation actuelle
 
-I-00 et I-01 sont terminés. I-02 est le seul lot ouvert; son périmètre est limité à `campaign-bootstrap/1`. I-03 à I-08 restent fermés.
+I-00 et I-01 sont terminés. I-02 est le seul lot ouvert; son périmètre est limité à `campaign-bootstrap/2` et `lore-authoring/1`. I-03 à I-08 restent fermés.

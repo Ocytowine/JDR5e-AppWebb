@@ -1,7 +1,14 @@
 ---
+schema_version: 1
 type: quartier
 id: quartier_des_remparts
 nom: Quartier des Remparts
+aliases: []
+resume: Ceinture défensive de Lysenthe regroupant murailles, tours, casernes et logistique militaire.
+mots_cles:
+  - remparts
+  - garnison
+informations: []
 ville: lysenthe
 territoire: astryade
 region: ylssea

@@ -1,6 +1,6 @@
 # Audit final du module narration
 
-Statut : `RETENU` — audit initial terminé; addendum du 2026-07-03 autorisant uniquement I-02 après livraison d'I-01 et gel de `campaign-bootstrap/1`.
+Statut : `RETENU` — audit initial terminé; addendum du 2026-07-06 maintenant l'autorisation limitée à I-02 après remplacement de `campaign-bootstrap/1` par `campaign-bootstrap/2` et gel de `lore-authoring/1`.
 
 ## Objectif
 
@@ -291,6 +291,16 @@ I-01 est livré le 2026-07-03 : les 19 contrats communs et 15 cas IndexedDB pass
 
 L'audit du 2026-07-03 confronte les contrats au wiki, au parseur du `map-module`, aux catalogues JSON, à l'éditeur de personnage et au plateau tactique. Il constate un corpus de 26 entités wiki structurées et un document brut, une fiche riche mais non versionnée, des valeurs dérivées calculées à plusieurs endroits et des règles dispersées sans manifeste global.
 
-[`Contrat-bootstrap-campagne.md`](Contrat-bootstrap-campagne.md) fige `campaign-bootstrap/1` : paquet immuable avec empreintes, ingestion wiki stricte et sourcée, import personnage avec recalcul unique et projections, inventaire du `RuleRegistry` MVP, arbitrage ponctuel et transaction de bootstrap atomique.
+[`Contrat-bootstrap-campagne.md`](Contrat-bootstrap-campagne.md) fige initialement `campaign-bootstrap/1` : paquet immuable avec empreintes, ingestion wiki stricte et sourcée, import personnage avec recalcul unique et projections, inventaire du `RuleRegistry` MVP, arbitrage ponctuel et intention de transaction atomique.
 
 Décision : **AUTORISÉ — lot I-02 uniquement**. AF-R04 à AF-R07 sont résolus au niveau contractuel. Leur implémentation, la conversion ou l'exclusion explicite de `wiki/lore/gouvernances/primauté`, les fixtures invalides et les preuves NAR-ACC-008/009/021 constituent la gate de fermeture d'I-02. I-03 à I-08 restent fermés.
+
+## Addendum I-02.1 — Atomicité et lore étendu
+
+La revue du 2026-07-06 découvre que `campaign-bootstrap/1` exige un unique commit complet alors que `createCampaign` de `campaign-core/1` autorise uniquement la campagne et son horloge. Une séquence `createCampaign`, puis `commit` rendrait un état partiel observable et contredirait la gate d'I-02.
+
+`campaign-bootstrap/2` corrige la frontière sans modifier `campaign-core/1` : `CampaignBootstrapRepository` crée campagne, opération, agrégats, commit, événements et outbox dans une transaction spécialisée commune aux adaptateurs mémoire et IndexedDB. La campagne finale commence à la révision `1`; aucun état intermédiaire à la révision `0` n'est publié.
+
+La même revue constate que les besoins connus en espèces, cultures, PNJ et histoire doivent être intégrés avant les schémas exécutables. [`Contrat-contenu-lore.md`](Contrat-contenu-lore.md) fige `lore-authoring/1`, sépare catalogues mécaniques, lore initial et état de campagne, et définit des fragments par niveau de connaissance. Les templates quittent la racine `wiki/lore/`.
+
+Décision : **AUTORISÉ — lot I-02 uniquement**, désormais selon `campaign-bootstrap/2` et `lore-authoring/1`. `campaign-bootstrap/1` est remplacé avant implémentation. I-03 à I-08 restent fermés.

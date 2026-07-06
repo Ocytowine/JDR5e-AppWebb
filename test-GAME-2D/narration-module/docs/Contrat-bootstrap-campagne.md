@@ -1,22 +1,23 @@
 # Contrat de bootstrap de campagne
 
-Statut : `FIGE`
+Statut : `FIGE` — remplace `campaign-bootstrap/1` avant toute implémentation d'I-02.
 
-Version du contrat : `campaign-bootstrap/1`
+Version du contrat : `campaign-bootstrap/2`
 
-Ce document résout les prérequis AF-R04 à AF-R07 du lot I-02. Il fixe le paquet de contenu, l'ingestion du wiki, l'import du personnage et le registre des règles nécessaires pour créer une campagne. Il ne livre pas encore leur implémentation.
+Ce document résout les prérequis AF-R04 à AF-R07 du lot I-02. Il fixe le paquet de contenu, l'ingestion du wiki, l'import du personnage, le registre des règles et l'écriture atomique nécessaires pour créer une campagne. La version 2 corrige l'incompatibilité entre le bootstrap métier complet et `createCampaign` de `campaign-core/1`, puis étend le lore auteur aux espèces, cultures, PNJ et à l'histoire. Il ne livre pas encore leur implémentation.
 
 ## 1. Résultat attendu
 
 Le bootstrap reçoit exactement :
 
+- un `campaignId` alloué avant toute écriture et conservé lors d'une reprise;
 - l'identifiant et la version d'un paquet de contenu installé;
 - l'identifiant et la version d'un ruleset installé;
 - une fiche personnage exportée par l'éditeur ou fournie en JSON;
 - un identifiant de lieu initial présent dans le paquet;
 - un identifiant de requête et une clé d'idempotence.
 
-Il valide toutes les dépendances, importe le personnage, recalcule les valeurs dérivées, produit les projections initiales et crée la campagne par un unique commit du noyau. Il ne lit jamais `localStorage`, l'état React, le cache du `map-module` ou les fichiers du wiki pendant ce commit.
+Il valide toutes les dépendances, importe le personnage, recalcule les valeurs dérivées, produit les projections initiales et crée la campagne par une unique transaction de bootstrap spécialisée. Cette transaction réutilise les invariants de `campaign-core/1`, mais n'appelle pas d'abord `createCampaign`, qui n'autorise que l'horloge initiale. Elle ne lit jamais `localStorage`, l'état React, le cache du `map-module` ou les fichiers du wiki.
 
 Une erreur de contenu, de règle, de fiche ou de référence produit un diagnostic structuré et aucun état de campagne partiel.
 
@@ -58,7 +59,7 @@ interface ContentPackageManifestV1 {
   schemaVersion: 1;
   packageId: string;
   packageVersion: number;
-  minimumRuntimeContract: "campaign-bootstrap/1";
+  minimumRuntimeContract: "campaign-bootstrap/2";
   entries: ContentEntryDescriptorV1[];
   rootFingerprint: `sha256:${string}`;
 }
@@ -156,7 +157,7 @@ Contraintes communes :
 - une clé inconnue est une erreur, pas une donnée abandonnée;
 - les commentaires et le corps Markdown sont conservés comme sources, jamais interprétés comme instructions système.
 
-Le schéma V1 conserve les clés actuellement observées par type. Leur structure détaillée est validée par des sous-schémas partagés : profils de population, présence pondérée, langues, social, autorité, grades, liens et rumeurs. Ajouter une clé ou changer sa structure exige une nouvelle version du schéma d'entité.
+Le schéma auteur `lore-authoring/1` conserve les clés actuellement observées et ajoute les types nécessaires au contexte narratif. Sa structure détaillée, ses niveaux de connaissance et ses règles de fragmentation sont définis dans [`Contrat-contenu-lore.md`](Contrat-contenu-lore.md). Ajouter une clé ou changer sa structure exige une nouvelle version du schéma d'entité.
 
 | Type | Relations requises | Relations optionnelles principales |
 |---|---|---|
@@ -166,6 +167,11 @@ Le schéma V1 conserve les clés actuellement observées par type. Leur structur
 | `region` | `territoire` | `villes_principales`, `factions_actives`, `lieux_remarquables` |
 | `faction` | aucune universelle | `territoire`, `region`, `ville`, `autorite_tutelle`, `siege_pouvoir` |
 | `territoire`, `royaume`, `meta` | aucune | liens déclarés par leur schéma |
+| `espece` | aucune | catalogue mécanique, cultures, langues et régions de présence |
+| `culture` | aucune | espèces, langues, territoires, régions, factions et événements historiques |
+| `pnj` | aucune | espèce, culture, lieu initial, factions, autres PNJ et connaissances initiales |
+| `periode_historique` | aucune | période parente, territoires, cultures et événements historiques |
+| `evenement_historique` | aucune | période, lieux, participants, causes et conséquences |
 
 Une relation marquée requise doit résoudre une entité du type attendu. Une relation optionnelle peut viser une entité absente uniquement si elle est écrite sous forme externe explicite, par exemple `external:collegium_des_archivistes`; une chaîne locale non résolue reste une erreur.
 
@@ -260,6 +266,10 @@ interface CharacterImportResultV1 {
 
 L'adaptateur legacy reconnaît la fiche prête à jouer fournie pendant la conception. Il ne conserve aucune propriété inconnue dans l'agrégat normalisé; une propriété inconnue produit au minimum un diagnostic afin d'éviter une perte silencieuse.
 
+La fixture exécutable `tests/fixtures/character/valid/creator-ready.json` suit la sortie actuelle de `buildCharacterSave` et résout ses références contre les catalogues réellement chargés par le créateur. Elle matérialise armure, arme, contenant et monnaie par `instanceId`; `sampleCharacter` reste un fallback tactique historique et n'est pas une source normative d'import.
+
+`importLegacyCharacterV1` reçoit exclusivement l'enveloppe et un snapshot de catalogues explicite. Il ne lit ni `localStorage`, ni composant React. Il recalcule niveau, modificateurs, maîtrise, PV maximum, CA et perception passive, rejette les contradictions mutables et retourne séparément agrégat, projection tactique et projection narrative. Les champs dérivés legacy divergents restent des diagnostics tant qu'ils ne masquent pas une donnée mutable impossible.
+
 ### 5.2 Autorités de données
 
 | Donnée | Autorité après import | Traitement des doublons legacy |
@@ -311,6 +321,8 @@ Chaque calcul retourne sa valeur et les références de règles/catalogues utili
 ### 5.5 Rejets minimaux
 
 Les tests couvrent au minimum : fiche valide fournie, version future, JSON non objet, identifiant manquant, score hors limites, classe ou objet inconnu, niveau incohérent, `instanceId` dupliqué, conteneur absent ou cyclique, emplacement incohérent, monnaie incohérente, capacité/action/sort absent du paquet et ressource courante supérieure à son maximum.
+
+La suite exécutable couvre ces rejets par 16 mutations ciblées de la fixture, vérifie aussi l'abandon des propriétés inconnues avec avertissement et exige des projections déterministes.
 
 ## 6. AF-R07 — RuleRegistry MVP
 
@@ -404,6 +416,10 @@ Toute décision mécanique conserve :
 - l'identifiant de l'exécuteur et sa version de contrat;
 - le résultat ou le code de refus.
 
+L'implémentation `RuleRegistryV1` recalcule les empreintes de chaque définition et du manifeste, vérifie la compatibilité exacte du paquet, exige l'inventaire des quinze règles V1 et refuse exécuteur absent, relation manquante, cycle ou incompatibilité active. `resolveActiveRules` applique uniquement les relations `overrides` et `specializes`; aucune priorité numérique implicite n'existe. Une exécution déterministe retourne un `RuleDecisionV1` citant règle, version, paramètres, références de contenu, exécuteur et version de contrat.
+
+Le manifeste MVP est construit par `createMvpRulesetManifestV1`. Onze règles disposent d'exécuteurs purs dans le module narration; les trois invariants descriptifs ne mutent rien et `house.social.observable-appearance` reste explicitement `ADJUDICATION_REQUIRED`.
+
 ### 6.4 Arbitrage ponctuel
 
 ```ts
@@ -425,7 +441,74 @@ interface AdjudicationRecordV1 {
 
 `caseFingerprint` porte sur la question structurée, l'état mécanique pertinent et les versions citées. Un arbitrage accepté constitue un précédent de cette campagne seulement. Il ne modifie ni `RuleDefinition`, ni `RulesetManifest`, ni l'historique. Sa promotion éventuelle exige une nouvelle règle, une nouvelle version de ruleset et des tests.
 
-## 7. Transaction de bootstrap
+## 7. Persistance atomique du bootstrap
+
+### 7.1 Port spécialisé
+
+`campaign-core/1` reste inchangé. I-02 ajoute un port spécialisé implémenté par les mêmes adaptateurs mémoire et IndexedDB :
+
+```ts
+interface CampaignBootstrapRepository {
+  bootstrapCampaign(
+    request: CampaignBootstrapPersistenceRequestV1
+  ): Promise<Result<CampaignBootstrapPersistenceResultV1>>;
+}
+```
+
+La forme exécutable de la requête persiste des enregistrements finaux entièrement alloués :
+
+```ts
+interface CampaignBootstrapPersistenceRequestV1 {
+  schemaVersion: 1;
+  campaign: CampaignRecord;
+  operation: OperationRecord;
+  initialAggregates: AggregateRecord[];
+  acceptedCommands: AcceptedCommandRecord[];
+  events: EventRecord[];
+  outboxTasks: OutboxTaskRecord[];
+  commit: CommitRecord;
+}
+```
+
+Le repository revalide les schémas communs et les cohérences croisées avant publication. La campagne fournie est déjà à la révision `1`, l'opération en `COMMITTED_PENDING_RENDER`, tous les agrégats à la révision `0` et toutes les références portent le même commit initial. Les horodatages sont donc stables pendant une reprise d'issue inconnue.
+
+La requête contient uniquement des données déjà validées : identités de campagne et d'opération, clé d'idempotence, empreinte complète, dépendances épinglées, horloge, agrégats initiaux, commandes acceptées, événement `campaign.bootstrapped` et éventuelles tâches d'outbox. Elle ne contient ni fichier source, ni cache UI, ni fonction de calcul.
+
+Le `campaignId`, l'`operationId`, le `clientRequestId`, l'`idempotencyKey` et le `commitId` sont alloués avant l'appel et restent identiques pendant toute reprise. Le repository n'invente pas une nouvelle identité après une issue inconnue.
+
+### 7.2 Frontière avec `campaign-core/1`
+
+`createCampaign` reste l'opération minimale de `campaign-core/1` et continue de créer uniquement une campagne à la révision `0` et son horloge. Elle n'est pas utilisée par `campaign.bootstrap`.
+
+Le port spécialisé applique dans une même transaction les validations communes de schéma, taille, identité, références, idempotence, révisions, ordre d'événements et monotonie de l'horloge. Il crée directement :
+
+- les métadonnées physiques de campagne;
+- la campagne persistée à la révision `1`;
+- l'opération en `COMMITTED_PENDING_RENDER`;
+- l'horloge et tous les agrégats initiaux à la révision `0`;
+- les commandes acceptées;
+- le commit initial, avec `previousCampaignRevision: 0`, `campaignRevision: 1` et `commitSequence: 1`;
+- l'événement `campaign.bootstrapped`, puis les tâches d'outbox éventuelles.
+
+Tous les agrégats initiaux, y compris l'horloge, référencent le commit initial dans `updatedByCommitId`. Aucun état de campagne à la révision `0` n'est observable entre deux transactions.
+
+Une présentation ou redirection UI peut compléter ensuite l'opération par `completePresentation`. Son échec ne remet pas en cause la campagne committée et la reprise retrouve `COMMITTED_PENDING_RENDER`.
+
+### 7.3 Idempotence et issue inconnue
+
+Une retransmission portant le même `campaignId`, la même `idempotencyKey` et la même empreinte retourne le commit initial existant, même si le lease technique d'origine a expiré. Le même `campaignId` ou la même clé avec une empreinte différente produit `IDEMPOTENCY_CONFLICT`.
+
+Le client conserve l'enveloppe de création, notamment `campaignId` et `idempotencyKey`, jusqu'à résolution certaine. La future interface de création devra rendre cette enveloppe durable avant l'appel; cette responsabilité n'autorise pas le domaine à lire la fiche active ou d'autres caches UI.
+
+### 7.4 Frontière transactionnelle IndexedDB
+
+L'adaptateur IndexedDB écrit dans une seule transaction les stores déjà définis par `campaign-storage/1` : têtes, générations, contrôles, répertoire d'identités, campagnes, opérations, agrégats, commandes, événements, commits et outbox. Aucun nouveau store n'est requis pour la version 2.
+
+L'adaptateur mémoire prépare une copie complète de son état et ne la publie qu'après toutes les validations. Les deux adaptateurs exécutent la même suite contractuelle du bootstrap.
+
+L'implémentation mémoire est `MemoryCampaignBootstrapRepository`, spécialisation de l'adaptateur mémoire I-00. La même suite contractuelle s'exécute contre `IndexedDbCampaignRepository` dans Chromium et injecte une panne après campagne, opération, agrégats, commandes, événements, outbox et commit, puis juste avant publication. Un contrôle supplémentaire ferme et rouvre IndexedDB avant de relire campagne, commit et événement.
+
+## 8. Séquence métier du bootstrap
 
 L'opération `campaign.bootstrap` suit cet ordre sans écrire avant l'étape 8 :
 
@@ -436,12 +519,16 @@ L'opération `campaign.bootstrap` suit cet ordre sans écrire avant l'étape 8 :
 5. importer la fiche et produire les diagnostics;
 6. recalculer les dérivés et construire les projections;
 7. préparer campagne, horloge, personnage, position initiale et références épinglées;
-8. committer atomiquement les agrégats et l'événement `campaign.bootstrapped` avec le repository I-01;
+8. persister atomiquement campagne, opération, agrégats, commit et événement `campaign.bootstrapped` avec `CampaignBootstrapRepository`;
 9. retourner le résultat idempotent existant en cas de répétition identique.
 
 Les empreintes de l'enveloppe, du paquet, du ruleset et de la source personnage participent au `requestFingerprint`. Une même clé d'idempotence avec une empreinte différente est refusée.
 
-## 8. Preuves exigées pour fermer I-02
+L'implémentation `CampaignBootstrapServiceV1` suit cette séquence derrière deux ports de résolution. Elle vérifie l'identité et la racine du manifeste, chaque source et payload, la parité des entités lore et de leur provenance, ainsi que la présence des entrées de catalogue utilisées par l'import. Elle recalcule niveau, modificateurs, maîtrise, points de vie, classe d'armure et perception passive via le `RuleRegistry`, puis remet une seule requête au `CampaignBootstrapRepository`.
+
+La suite `narration-module:test:orchestration` couvre le démarrage aux Archives de Lysenthe, les six agrégats initiaux, l'événement, le rejeu idempotent et huit frontières de rejet sans campagne partielle. Les jonctions UI, créateur et plateau restent volontairement hors de ce service.
+
+## 9. Preuves exigées pour fermer I-02
 
 - génération déterministe deux fois du même paquet avec empreintes identiques;
 - échec sur fichier wiki brut non déclaré, doublon, clé inconnue et référence requise absente;
@@ -454,9 +541,11 @@ Les empreintes de l'enveloppe, du paquet, du ruleset et de la source personnage 
 - checkpoint A de NAR-ACC-009 : apparence visible et inventaire issus de la projection autoritaire;
 - NAR-ACC-021 : règle maison prioritaire et arbitrage ponctuel non promu;
 - bootstrap atomique, idempotent et relisible après fermeture/réouverture IndexedDB;
+- panne injectée à chaque étape d'écriture sans campagne partielle observable;
+- reprise d'une issue inconnue avec les identités originales et restitution du même commit;
 - build global et suites I-00/I-01 toujours verts.
 
-## 9. Hors périmètre d'I-02
+## 10. Hors périmètre d'I-02
 
 - recherche sémantique et mémoire longue;
 - appel à un fournisseur IA;

@@ -1,7 +1,14 @@
 ---
+schema_version: 1
 type: quartier
 id: port_des_xantars
 nom: Port des Xantars
+aliases: []
+resume: Principal front maritime de Lysenthe, réunissant quais militaires, commerce et circulation des équipages.
+mots_cles:
+  - port
+  - commerce maritime
+informations: []
 ville: lysenthe
 territoire: astryade
 region: ylssea

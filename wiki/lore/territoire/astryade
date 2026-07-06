@@ -1,7 +1,14 @@
 ---
+schema_version: 1
 type: royaume
 id: astryade
 nom: Primauté d'Astryade
+aliases: []
+resume: Royaume d'Elysion organisé autour de la Primauté et de ses autorités régionales.
+mots_cles:
+  - primaute
+  - royaume
+informations: []
 ---
 Résumé : La Primauté d'Astryade est un royaume situé sur le continent d'Elysion.
 

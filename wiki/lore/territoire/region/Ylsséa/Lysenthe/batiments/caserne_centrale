@@ -1,7 +1,11 @@
 ---
+schema_version: 1
 type: batiment
 id: caserne_centrale
 nom: Caserne centrale
+aliases: []
+resume: Caserne principale de Lysenthe, base opérationnelle de la garnison et de ses patrouilles.
+informations: []
 
 # LOCALISATION
 ville: lysenthe
@@ -17,7 +21,7 @@ fonction_principale:
 importance_strategique: 84
 
 # PROPRIETE / CONTROLE
-proprietaire_faction: maison_tharqual
+proprietaire_faction: external:maison_tharqual
 proprietaire_principal: Capitaine de Garnison
 acces: tres_restreint
 factions_residentes:

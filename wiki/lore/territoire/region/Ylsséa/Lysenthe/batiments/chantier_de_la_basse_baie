@@ -1,7 +1,11 @@
 ---
+schema_version: 1
 type: batiment
 id: chantier_de_la_basse_baie
 nom: Chantier de la Basse Baie
+aliases: []
+resume: Chantier naval de la Basse Baie consacré à la réparation et à l'entretien des bâtiments maritimes.
+informations: []
 
 # LOCALISATION
 ville: lysenthe

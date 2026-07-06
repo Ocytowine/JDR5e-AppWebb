@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "type": "periode_historique",
+  "id": "periode_invalide",
+  "nom": "Période invalide",
+  "aliases": [],
+  "resume": "Fixture invalide dont la fin précède le début.",
+  "mots_cles": [],
+  "debut": { "calendar_id": "dunia", "annee": 900, "mois": null, "jour": null, "precision": "ANNEE" },
+  "fin": { "calendar_id": "dunia", "annee": 800, "mois": null, "jour": null, "precision": "ANNEE" },
+  "periode_parente": null,
+  "territoires": [],
+  "cultures": [],
+  "caracteristiques": [],
+  "evenements_majeurs": [],
+  "informations": []
+}

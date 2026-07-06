@@ -58,10 +58,10 @@ export type CommitFailurePoint =
 export interface MemoryCampaignRepositoryOptions {
   clock?: RepositoryClock;
   maximumPageSize?: number;
-  failureInjector?: (point: CommitFailurePoint) => void;
+  failureInjector?: (point: string) => void;
 }
 
-interface MemoryState {
+export interface MemoryState {
   campaigns: Map<string, CampaignRecord>;
   aggregates: Map<string, AggregateRecord>;
   operations: Map<string, OperationRecord>;
@@ -99,7 +99,7 @@ function emptyState(): MemoryState {
   };
 }
 
-function copyState(state: MemoryState): MemoryState {
+export function copyMemoryState(state: MemoryState): MemoryState {
   return {
     campaigns: new Map(state.campaigns),
     aggregates: new Map(state.aggregates),
@@ -122,11 +122,11 @@ function copyState(state: MemoryState): MemoryState {
   };
 }
 
-function aggregateKey(campaignId: string, aggregateType: string, aggregateId: string): string {
+export function memoryAggregateKey(campaignId: string, aggregateType: string, aggregateId: string): string {
   return `${campaignId}\u0000${aggregateType}\u0000${aggregateId}`;
 }
 
-function idempotencyKey(campaignId: string, key: string): string {
+export function memoryIdempotencyKey(campaignId: string, key: string): string {
   return `${campaignId}\u0000${key}`;
 }
 
@@ -161,10 +161,10 @@ const OPERATION_TRANSITIONS: Readonly<Record<OperationPhase, readonly OperationP
 };
 
 export class MemoryCampaignRepository implements CampaignRepository {
-  private state = emptyState();
+  protected state = emptyState();
   private readonly clock: RepositoryClock;
   private readonly maximumPageSize: number;
-  private readonly failureInjector?: (point: CommitFailurePoint) => void;
+  private readonly failureInjector?: (point: string) => void;
 
   constructor(options: MemoryCampaignRepositoryOptions = {}) {
     this.clock = options.clock ?? systemClock;
@@ -176,11 +176,11 @@ export class MemoryCampaignRepository implements CampaignRepository {
     return this.clock.now();
   }
 
-  private nowIso(): string {
+  protected nowIso(): string {
     return this.now().toISOString();
   }
 
-  private inject(point: CommitFailurePoint): void {
+  protected inject(point: string): void {
     this.failureInjector?.(point);
   }
 
@@ -217,10 +217,10 @@ export class MemoryCampaignRepository implements CampaignRepository {
     const aggregateValidation = validateAggregateRecord(clockRecord);
     if (!aggregateValidation.valid) return validationFailure(aggregateValidation);
 
-    const next = copyState(this.state);
+    const next = copyMemoryState(this.state);
     next.campaigns.set(record.campaignId, cloneJson(record));
     next.aggregates.set(
-      aggregateKey(record.campaignId, "world.clock", record.clockAggregateId),
+      memoryAggregateKey(record.campaignId, "world.clock", record.clockAggregateId),
       cloneJson(clockRecord)
     );
     this.state = next;
@@ -302,7 +302,7 @@ export class MemoryCampaignRepository implements CampaignRepository {
     const campaign = this.state.campaigns.get(record.campaignId);
     if (!campaign) return notFound("campaign", record.campaignId);
 
-    const lookupKey = idempotencyKey(record.campaignId, record.idempotencyKey);
+    const lookupKey = memoryIdempotencyKey(record.campaignId, record.idempotencyKey);
     const existingId = this.state.operationByIdempotency.get(lookupKey);
     if (existingId) {
       const existing = this.state.operations.get(existingId)!;
@@ -339,7 +339,7 @@ export class MemoryCampaignRepository implements CampaignRepository {
     campaignId: CampaignId,
     key: IdempotencyKey
   ): Promise<Result<OperationRecord>> {
-    const operationId = this.state.operationByIdempotency.get(idempotencyKey(campaignId, key));
+    const operationId = this.state.operationByIdempotency.get(memoryIdempotencyKey(campaignId, key));
     return operationId ? this.getOperation(operationId as OperationId) : notFound("operation", key);
   }
 
@@ -437,7 +437,7 @@ export class MemoryCampaignRepository implements CampaignRepository {
   }
 
   async getAggregate(campaignId: CampaignId, aggregateType: string, aggregateId: string): Promise<Result<AggregateRecord>> {
-    const record = this.state.aggregates.get(aggregateKey(campaignId, aggregateType, aggregateId));
+    const record = this.state.aggregates.get(memoryAggregateKey(campaignId, aggregateType, aggregateId));
     return record ? ok(cloneJson(record)) : notFound("aggregate", aggregateId);
   }
 
@@ -457,7 +457,7 @@ export class MemoryCampaignRepository implements CampaignRepository {
       return err(coreError("IDEMPOTENCY_CONFLICT", "core.commit.operation-mismatch"));
     }
 
-    const lookupKey = idempotencyKey(request.campaignId, request.idempotencyKey);
+    const lookupKey = memoryIdempotencyKey(request.campaignId, request.idempotencyKey);
     const existingCommitId = this.state.commitByIdempotency.get(lookupKey);
     if (existingCommitId) {
       const existing = this.state.commits.get(existingCommitId)!;
@@ -486,13 +486,13 @@ export class MemoryCampaignRepository implements CampaignRepository {
     if (duplicateError) return err(duplicateError);
 
     try {
-      const next = copyState(this.state);
+      const next = copyMemoryState(this.state);
       const nextRevision = campaign.campaignRevision + 1;
       const aggregateWrites = [] as CommitRecord["aggregateWrites"];
       const writtenAggregateKeys = new Set<string>();
 
       for (const write of request.aggregateWrites) {
-        const key = aggregateKey(request.campaignId, write.aggregateType, write.aggregateId);
+        const key = memoryAggregateKey(request.campaignId, write.aggregateType, write.aggregateId);
         if (writtenAggregateKeys.has(key)) {
           return err(coreError("VALIDATION_FAILED", "core.commit.duplicate-aggregate-write", { aggregateId: write.aggregateId }));
         }
@@ -531,7 +531,7 @@ export class MemoryCampaignRepository implements CampaignRepository {
       }
       this.inject("AFTER_AGGREGATES");
 
-      const resultingClock = next.aggregates.get(aggregateKey(
+      const resultingClock = next.aggregates.get(memoryAggregateKey(
         request.campaignId,
         "world.clock",
         campaign.clockAggregateId
@@ -574,7 +574,7 @@ export class MemoryCampaignRepository implements CampaignRepository {
           throw new CommitValidationError("core.event.future-occurrence", { eventId: draft.eventId });
         }
         for (const ref of draft.aggregateRefs) {
-          const aggregate = next.aggregates.get(aggregateKey(request.campaignId, ref.aggregateType, ref.aggregateId));
+          const aggregate = next.aggregates.get(memoryAggregateKey(request.campaignId, ref.aggregateType, ref.aggregateId));
           if (!aggregate || aggregate.aggregateRevision !== ref.aggregateRevision) {
             throw new CommitValidationError("core.event.aggregate-ref-invalid", { eventId: draft.eventId, aggregateId: ref.aggregateId });
           }
@@ -735,7 +735,7 @@ export class MemoryCampaignRepository implements CampaignRepository {
     campaignId: CampaignId,
     key: IdempotencyKey
   ): Promise<Result<CommitRecord>> {
-    const commitId = this.state.commitByIdempotency.get(idempotencyKey(campaignId, key));
+    const commitId = this.state.commitByIdempotency.get(memoryIdempotencyKey(campaignId, key));
     return commitId ? this.getCommit(commitId as CommitId) : notFound("commit", key);
   }
 

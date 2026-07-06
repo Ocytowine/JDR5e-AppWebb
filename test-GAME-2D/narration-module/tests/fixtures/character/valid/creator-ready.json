@@ -1,0 +1,109 @@
+{
+  "id": "pj-aryn",
+  "nom": { "nomcomplet": "Aryn Varenne", "prenom": "Aryn", "surnom": "la Bleue" },
+  "age": 25,
+  "sexe": "F",
+  "taille": 175,
+  "poids": 70,
+  "langues": ["commun"],
+  "alignement": "Neutral Good",
+  "raceId": "human",
+  "backgroundId": "veteran-de-guerre",
+  "classe": {
+    "1": { "classeId": "fighter", "subclasseId": null, "niveau": 1 }
+  },
+  "niveauGlobal": 1,
+  "xp": 0,
+  "dv": 10,
+  "maitriseBonus": 2,
+  "pvActuels": 12,
+  "pvTmp": 0,
+  "nivFatigueActuel": 0,
+  "nivFatigueMax": 3,
+  "actionIds": ["melee-strike", "dash"],
+  "reactionIds": [],
+  "combatStats": {
+    "level": 1,
+    "mods": { "modFOR": 3, "modDEX": 2, "modCON": 2, "modINT": 0, "modSAG": 1, "modCHA": 0 },
+    "maxHp": 12,
+    "armorClass": 16,
+    "attackBonus": 5,
+    "maxAttacksPerTurn": 1,
+    "actionsPerTurn": 1,
+    "bonusActionsPerTurn": 1,
+    "actionRules": { "forbidSecondAttack": true },
+    "resources": {}
+  },
+  "caracs": {
+    "force": { "FOR": 16, "modFOR": 3 },
+    "dexterite": { "DEX": 14, "modDEX": 2 },
+    "constitution": { "CON": 14, "modCON": 2 },
+    "intelligence": { "INT": 10, "modINT": 0 },
+    "sagesse": { "SAG": 12, "modSAG": 1 },
+    "charisme": { "CHA": 10, "modCHA": 0 }
+  },
+  "movementModes": { "walk": 6 },
+  "visionProfile": { "shape": "cone", "range": 100, "apertureDeg": 180, "lightVision": "normal" },
+  "appearance": { "spriteKey": "character", "tokenScale": 100 },
+  "competences": [],
+  "expertises": [],
+  "initiative": "modDEX",
+  "besoin": [],
+  "percPassive": 11,
+  "proficiencies": { "weapons": ["simple", "martiale"], "armors": ["lourde"], "tools": [] },
+  "weaponMasteries": [],
+  "savingThrows": ["force", "constitution"],
+  "inspiration": false,
+  "notes": "",
+  "argent": { "cuivre": 0, "argent": 0, "or": 10, "platine": 0 },
+  "materielSlots": {
+    "corps": "item-armure",
+    "main_droite": "item-epee",
+    "ceinture_bourse_1": "item-bourse"
+  },
+  "armesDefaut": { "main_droite": "epee-longue", "main_gauche": null, "mains": null },
+  "inventoryItems": [
+    {
+      "type": "armor", "id": "cotte_mailles", "qty": 1, "source": "auto",
+      "instanceId": "item-armure", "equippedSlot": "corps", "storedIn": null, "isPrimaryWeapon": false
+    },
+    {
+      "type": "weapon", "id": "epee-longue", "qty": 1, "source": "auto",
+      "instanceId": "item-epee", "equippedSlot": "main_droite", "storedIn": null, "isPrimaryWeapon": true
+    },
+    {
+      "type": "object", "id": "obj_bourse", "qty": 1, "source": "auto",
+      "instanceId": "item-bourse", "equippedSlot": "ceinture_bourse_1", "storedIn": null,
+      "isPrimaryWeapon": false, "contenu": ["item-or"]
+    },
+    {
+      "type": "object", "id": "obj_piece_or", "qty": 10, "source": "auto",
+      "instanceId": "item-or", "equippedSlot": null, "storedIn": "item-bourse", "isPrimaryWeapon": false
+    }
+  ],
+  "descriptionPersonnage": {
+    "bio": "Ancienne soldate arrivée à Lysenthe.",
+    "physique": "Humaine athlétique portant une cotte de mailles et une épée longue.",
+    "personnalite": "Calme et déterminée.",
+    "objectifs": "Retrouver un ancien compagnon d'armes.",
+    "relations": "",
+    "defauts": "Prend des risques pour protéger les autres."
+  },
+  "profileDetails": {
+    "visage": "Traits marqués",
+    "cheveux": "Cheveux bruns courts",
+    "yeux": "Yeux verts",
+    "silhouette": "Silhouette athlétique"
+  },
+  "choiceSelections": { "statsBase": { "FOR": 16, "DEX": 14, "CON": 14, "INT": 10, "SAG": 12, "CHA": 10 }, "sheetValidated": true },
+  "creationLocks": {},
+  "classLocks": { "primary": true, "secondary": false },
+  "progressionHistory": [],
+  "spellcastingState": { "totalCasterLevel": 0, "slots": {}, "sources": {}, "spellGrants": {}, "slotJustifications": [] },
+  "derived": {
+    "grants": {
+      "traits": [], "features": [], "feats": [], "skills": [], "tools": [], "languages": [],
+      "spells": [], "actions": [], "reactions": [], "resources": [], "passifs": [], "weaponMasteries": []
+    }
+  }
+}

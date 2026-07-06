@@ -1478,7 +1478,7 @@ I-01 peut commencer sans importer IndexedDB dans React ou les domaines. Toute ex
 
 Date : `2026-07-03`
 
-Statut : `FIGE`
+Statut : `REMPLACE` par NAR-081 et NAR-082
 
 ### Décision
 
@@ -1496,7 +1496,7 @@ Les fichiers sources, caches UI et créations dynamiques ne sont jamais des dép
 
 Date : `2026-07-03`
 
-Statut : `FIGE`
+Statut : `REMPLACE` par NAR-083
 
 ### Décision
 
@@ -1509,3 +1509,57 @@ Les autorités, versions, erreurs attendues, frontières d'intégration et preuv
 ### Conséquences
 
 I-02 doit réutiliser le noyau et le repository existants, ne pas lire `localStorage` dans le domaine, ne pas étendre le parseur permissif comme autorité et ne pas dupliquer les formules de personnage. Sa fermeture exige les Archives de Lysenthe, la fiche prête à jouer, les rejets ciblés et les checkpoints NAR-ACC-008, 009 et 021.
+
+## NAR-081 — Bootstrap atomique par port spécialisé
+
+Date : `2026-07-06`
+
+Statut : `FIGE`
+
+### Décision
+
+`campaign-bootstrap/2` remplace `campaign-bootstrap/1`. `CampaignBootstrapRepository` crée campagne, opération, horloge, agrégats initiaux, commandes, commit, événements et outbox dans une transaction unique. Il réutilise les invariants de `campaign-core/1` sans appeler préalablement `createCampaign`.
+
+### Raisons
+
+`createCampaign` autorise uniquement la campagne et son horloge. L'enchaîner avec un commit métier publierait une campagne partielle en cas de panne et violerait l'atomicité annoncée. Modifier le noyau déjà livré n'est pas nécessaire : la capacité de création complète appartient au contrat I-02 et peut être implémentée par les deux adaptateurs existants.
+
+### Conséquences
+
+La campagne persistée par le bootstrap commence à la révision `1`, tous ses agrégats initiaux référencent le commit initial et la reprise conserve les identités originales. La suite I-02 injecte des pannes à chaque frontière d'écriture et vérifie qu'aucun état à la révision `0` n'est observable.
+
+## NAR-082 — Lore auteur structuré par entité et niveau de connaissance
+
+Date : `2026-07-06`
+
+Statut : `FIGE`
+
+### Décision
+
+`lore-authoring/1` complète le bootstrap avec les types `espece`, `culture`, `pnj`, `periode_historique` et `evenement_historique`. Les informations sélectionnables portent un niveau `COMMUN`, `LOCAL`, `SPECIALISE`, `RESTREINT` ou `MJ_SECRET` et deviennent des fragments déterministes sourcés.
+
+### Raisons
+
+Les catalogues existants décrivent surtout les règles jouables et les anciens templates mélangent textes libres, état initial, état mutable, connaissances et secrets. La future IA doit retrouver une information par lieu, acteur, culture, alias ou relation sans charger un document entier ni exposer un secret à la mauvaise perspective.
+
+### Conséquences
+
+Catalogues mécaniques, lore initial et agrégats de campagne ont des autorités distinctes. Espèce et culture ne sont pas synonymes. Les templates vivent hors de `wiki/lore/`; le générateur sépare les fragments secrets avant indexation joueur et conserve la provenance jusqu'au champ source.
+
+## NAR-083 — Autorisation I-02 maintenue après révision contractuelle
+
+Date : `2026-07-06`
+
+Statut : `FIGE`
+
+### Décision
+
+I-02 reste le seul lot autorisé, désormais dans les limites de `campaign-bootstrap/2` et `lore-authoring/1`. I-03 à I-08 restent fermés.
+
+### Raisons
+
+Les contradictions découvertes ont été résolues avant création des types exécutables. Le port atomique, les autorités de contenu, les nouveaux types, les niveaux de connaissance et les preuves attendues sont explicites.
+
+### Conséquences
+
+L'implémentation peut commencer par les types et schémas lore, les diagnostics, la génération déterministe et les tests du port de bootstrap. Elle ne branche ni mémoire longue, ni fournisseur IA, ni UI narrative.

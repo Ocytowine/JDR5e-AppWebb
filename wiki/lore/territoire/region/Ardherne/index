@@ -1,7 +1,11 @@
 ---
+schema_version: 1
 type: region
 id: ardherne
 nom: Ardherne
+aliases: []
+resume: Région montagneuse et forestière d'Astryade, connue pour ses communautés humaines et naines et son artisanat.
+informations: []
 
 territoire: astryade
 type_region: Montagnes forestières
@@ -16,14 +20,14 @@ risques_naturels:
   - avalanches
 
 # POPULATION / HABITANTS
-population_estimee: <à renseigner>
+population_estimee: inconnue
 habitats_principaux:
   - villages humains et nains
 peuples_present:
-  - Humains 50%
-  - Nains 30%
-  - Elfes 10%
-  - Autres 10%
+  - "Humains 50%"
+  - "Nains 30%"
+  - "Elfes 10%"
+  - "Autres 10%"
 
 # ECONOMIE / RESSOURCES
 ressources:
@@ -36,18 +40,14 @@ activites:
   - artisanat traditionnel
 
 # POLITIQUE / CONTRÔLE
-autorite_locale: <slug_faction_ou_territoire>
-niveau_controle: <faible/moyen/élevé>
-zones_de_loi_faible:
-  - <à préciser>
+autorite_locale: null
+niveau_controle: non documente
+zones_de_loi_faible: []
 
 # LIENS / CONTENU
-villes_principales:
-  - <à préciser>
-lieux_remarquables:
-  - <à préciser>
-factions_actives:
-  - <à préciser>
+villes_principales: []
+lieux_remarquables: []
+factions_actives: []
 
 mots_cles:
   - montagnes

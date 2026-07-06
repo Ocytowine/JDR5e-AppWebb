@@ -1,18 +1,21 @@
 ---
+schema_version: 1
 type: meta
 id: genese_dunia
 nom: Genese de Dunia
+aliases: []
+informations: []
 portee: global
 resume: Le Createur confie a Kharon le defi de forger Dunia et une vie mortelle porteuse de vertus divines; Kharon modele le monde, insuffle sa source et observe la montee des peuples et des conflits.
 axes_fondamentaux:
   - theme: cosmologie_et_creation
     points:
       - Consciences anciennes, dont le Createur, a l origine des Divins.
-      - Defi central: insuffler des vertus divines a une vie mortelle.
+      - "Defi central: insuffler des vertus divines a une vie mortelle."
       - Kharon rassemble des fragments de planetes et cree Dunia.
   - theme: magie_et_flux
     points:
-      - Source de Kharon: flux tentaculaire lumineux qui se fractalise dans la matiere.
+      - "Source de Kharon: flux tentaculaire lumineux qui se fractalise dans la matiere."
       - La creation d une vie exige un fragment de source divine, risquant la corruption.
   - theme: lois_et_interdits
     points:
@@ -74,9 +77,9 @@ ancrages_historiques:
         - Insuffle un fragment de sa source et observe l evolution des mortels.
       legats: Etablit les bases du monde et des cycles de vie.
   chronologie_simplifiee:
-    - Cycle 0 : Le Createur imagine le paradoxe.
-    - Cycle 1 : Kharon forge Dunia et insuffle la vie.
-    - Cycle 2 : Les mortels evoluent et se divisent.
+    - "Cycle 0 : Le Createur imagine le paradoxe."
+    - "Cycle 1 : Kharon forge Dunia et insuffle la vie."
+    - "Cycle 2 : Les mortels evoluent et se divisent."
 mots_cles:
   - creation
   - source_divine

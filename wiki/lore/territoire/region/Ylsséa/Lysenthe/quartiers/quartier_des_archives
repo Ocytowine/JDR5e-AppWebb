@@ -1,7 +1,14 @@
 ---
+schema_version: 1
 type: quartier
 id: quartier_des_archives
 nom: Quartier des Archives
+aliases: []
+resume: Noyau de mémoire écrite et d'administration organisé autour des Archives et de la Maison des Registres.
+mots_cles:
+  - archives
+  - administration
+informations: []
 ville: lysenthe
 territoire: astryade
 region: ylssea

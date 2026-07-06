@@ -1,7 +1,14 @@
 ---
+schema_version: 1
 type: quartier
 id: basse_baie
 nom: Basse Baie
+aliases: []
+resume: Zone portuaire secondaire consacrée à la réparation navale, à la petite pêche et aux activités populaires.
+mots_cles:
+  - port
+  - chantier naval
+informations: []
 ville: lysenthe
 territoire: astryade
 region: ylssea

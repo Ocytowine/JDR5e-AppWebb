@@ -1,7 +1,11 @@
 ---
+schema_version: 1
 type: batiment
 id: archives_de_lysenthe
 nom: Archives de Lysenthe
+aliases: []
+resume: Centre de conservation des actes, chartes et savoirs administratifs de Lysenthe.
+informations: []
 
 # LOCALISATION
 ville: lysenthe
@@ -53,7 +57,7 @@ rumeurs:
 # LIENS
 lieux_connectes:
   - quartier_des_archives
-  - place_des_archives
+  - external:place_des_archives
 
 mots_cles:
   - archives

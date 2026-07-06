@@ -1,7 +1,11 @@
 ---
+schema_version: 1
 type: faction
 id: cercle_du_commerce_maritime
 nom: Cercle du Commerce Maritime
+aliases: []
+resume: Institution marchande qui organise les échanges portuaires et une part majeure de l'économie de Lysenthe.
+informations: []
 
 ville: lysenthe
 region: ylssea
@@ -9,7 +13,7 @@ territoire: astryade
 
 faction_category: guilde marchande
 siege_pouvoir: halles_des_commerces
-autorite_tutelle: chambre_des_courtiers_de_lysenthe
+autorite_tutelle: external:chambre_des_courtiers_de_lysenthe
 role_dans_la_ville:
   - regulation des echanges de gros
   - arbitrage des litiges commerciaux rapides

@@ -1,7 +1,11 @@
 ---
+schema_version: 1
 type: region
 id: ylssea
 nom: Ylsséa
+aliases: []
+resume: Région côtière d'Astryade tournée vers la pêche, le commerce maritime et les communautés portuaires.
+informations: []
 
 territoire: astryade
 type_region: Côte maritime
@@ -17,15 +21,15 @@ risques_naturels:
   - érosion et embruns salés
 
 # POPULATION / HABITANTS
-population_estimee: <à renseigner>
+population_estimee: inconnue
 habitats_principaux:
   - ports marchands
   - villages de pêcheurs
 peuples_present:
-  - Humains 70%
-  - Elfes 15%
-  - Nains 10%
-  - Autres 5%
+  - "Humains 70%"
+  - "Elfes 15%"
+  - "Nains 10%"
+  - "Autres 5%"
 
 # ECONOMIE / RESSOURCES
 ressources:
@@ -39,18 +43,15 @@ activites:
   - festivals et marchés artisanaux
 
 # POLITIQUE / CONTRÔLE
-autorite_locale: <slug_faction_ou_territoire>
-niveau_controle: <faible/moyen/élevé>
-zones_de_loi_faible:
-  - <à préciser>
+autorite_locale: null
+niveau_controle: non documente
+zones_de_loi_faible: []
 
 # LIENS / CONTENU
 villes_principales:
   - lysenthe
-lieux_remarquables:
-  - <à préciser>
-factions_actives:
-  - <à préciser>
+lieux_remarquables: []
+factions_actives: []
 
 mots_cles:
   - côte
