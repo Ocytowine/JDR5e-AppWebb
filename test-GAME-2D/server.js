@@ -14,6 +14,7 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const { createMapModuleApi } = require("./map-module/server/mapModuleApi");
+const { createNarrativeOpenAiEnhancementApi } = require("./narration-module/server/narrativeOpenAiEnhancementRoute");
 
 const PORT = process.env.PORT
   ? Number(process.env.PORT)
@@ -25,39 +26,42 @@ const DIST_DIR = path.join(__dirname, "dist");
 const INDEX_HTML = path.join(DIST_DIR, "index.html");
 
 // ----------------------------------------------------
-// Lecture de la clé API OpenAI
+// Lecture de la configuration OpenAI serveur
 // ----------------------------------------------------
 
-function loadOpenAiApiKey() {
-  // 1) Priorité à la variable d'environnement directe
-  if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.trim()) {
-    return process.env.OPENAI_API_KEY.trim();
+function parseEnvContent(content) {
+  const values = {};
+  const lines = content.split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const match = trimmed.match(/^([A-Z0-9_]+)\s*[:=]\s*(.+)\s*$/);
+    if (!match) continue;
+    values[match[1]] = match[2].trim().replace(/^["']|["']$/g, "");
   }
-
-  // 2) Fallback : tenter de lire le fichier .env du projet
-  try {
-    const envPath = path.join(__dirname, ".env");
-    if (fs.existsSync(envPath)) {
-      const content = fs.readFileSync(envPath, "utf8");
-      const lines = content.split(/\r?\n/);
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith("#")) continue;
-        // Supporte OPENAI_API_KEY=... ou OPENAI_API_KEY: ...
-        const match = trimmed.match(/^OPENAI_API_KEY\s*[:=]\s*(.+)\s*$/);
-        if (match) {
-          return match[1].trim();
-        }
-      }
-    }
-  } catch (err) {
-    console.warn("Erreur lors de la lecture du fichier .env:", err);
-  }
-
-  return null;
+  return values;
 }
 
-const OPENAI_API_KEY = loadOpenAiApiKey();
+function loadServerEnvConfig() {
+  const fromFile = {};
+  for (const envPath of [path.join(__dirname, ".env"), path.join(__dirname, "..", ".env")]) {
+    try {
+      if (!fs.existsSync(envPath)) continue;
+      Object.assign(fromFile, parseEnvContent(fs.readFileSync(envPath, "utf8")));
+    } catch (err) {
+      console.warn("Erreur lors de la lecture d'un fichier .env:", err);
+    }
+  }
+  return {
+    ...fromFile,
+    ...Object.fromEntries(Object.entries(process.env).filter(([, value]) => typeof value === "string"))
+  };
+}
+
+const SERVER_ENV = loadServerEnvConfig();
+const OPENAI_API_KEY = SERVER_ENV.OPENAI_API_KEY && SERVER_ENV.OPENAI_API_KEY.trim()
+  ? SERVER_ENV.OPENAI_API_KEY.trim()
+  : null;
 if (!OPENAI_API_KEY) {
   console.warn(
     "[enemy-ai] Aucun OPENAI_API_KEY trouvé. " +
@@ -65,6 +69,12 @@ if (!OPENAI_API_KEY) {
   );
 } else {
   console.log("[enemy-ai] Clé OpenAI détectée, appels IA activés.");
+}
+
+if (SERVER_ENV.NARRATION_OPENAI_LIVE === "1") {
+  console.log("[narration-openai] Route narrative OpenAI opt-in activée.");
+} else {
+  console.log("[narration-openai] Route narrative OpenAI disponible mais désactivée sans NARRATION_OPENAI_LIVE=1.");
 }
 
 // ----------------------------------------------------
@@ -279,6 +289,13 @@ const mapModuleApi = createMapModuleApi({
   sendJson,
   parseJsonBody
 });
+const narrativeOpenAiApi = createNarrativeOpenAiEnhancementApi({
+  env: SERVER_ENV,
+  apiKey: OPENAI_API_KEY,
+  sendJson,
+  parseJsonBody,
+  fetchImpl: fetch
+});
 
 // ----------------------------------------------------
 // Serveur HTTP : API + fichiers statiques (dist/)
@@ -363,6 +380,9 @@ const server = http.createServer(async (req, res) => {
 
   const mapHandled = await mapModuleApi.tryHandle(req, res);
   if (mapHandled !== false) return;
+
+  const narrativeOpenAiHandled = await narrativeOpenAiApi.tryHandle(req, res);
+  if (narrativeOpenAiHandled !== false) return;
 
   // API bulles ennemies (1-2 lignes, generees a chaque tour d'ennemi)
   if (req.method === "POST" && req.url === "/api/enemy-speech") {

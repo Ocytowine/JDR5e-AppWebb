@@ -1637,3 +1637,399 @@ Les preuves couvrent NAR-ACC-007, NAR-ACC-010 et NAR-ACC-020 au niveau détermin
 ### Conséquences
 
 La mémoire ne peut pas devenir une deuxième vérité et le snapshot ne peut pas envoyer des agrégats bruts au futur fournisseur IA. Le prochain contrat devra figer unités de mémoire, ports d'index, `TurnSnapshot`, `RoleContextPack`, quotas, traces de sélection et règles de non-fuite avant tout code I-04. UI, tactique, repos jouable, création dynamique et fournisseur IA restent fermés.
+
+## NAR-088 — Mémoire et contexte comme projections sourcées
+
+Date : `2026-07-07`
+
+Statut : `FIGE`
+
+### Décision
+
+`memory-context/1` autorise I-04. La mémoire indexe et condense des sources autoritaires sans les remplacer. `TurnSnapshotV1` photographie les sources utiles à une révision donnée et `RoleContextPackV1` projette seulement les blocs utiles, révélables et budgétés pour un rôle.
+
+### Raisons
+
+Les scénarios de rappel et de retour tardif exigent de retrouver des informations anciennes sans charger toute la campagne ni exposer des secrets. Un résumé ou un embedding non sourcé deviendrait rapidement une vérité parallèle. Les contextes IA doivent donc porter provenance, perspective, budget, empreinte et dépendances.
+
+### Conséquences
+
+I-04 peut implémenter types, validateurs, ports, fixtures et tests de rappel, budget, secret et obsolescence. Il ne peut pas brancher un fournisseur IA réel, une UI narrative, une création dynamique ou un stockage externe non audité. Les index restent reconstruisibles; leur perte dégrade la recherche mais ne détruit aucun fait.
+
+## NAR-089 — Fermeture du socle I-04 sans IA réelle
+
+Statut : `RETENU`
+
+Date : 2026-07-07
+
+### Décision
+
+I-04 est fermé avec un socle déterministe : repository mémoire en mémoire, index reconstruisible, rappel sourcé, snapshot immuable, paquet de contexte par rôle, budget strict, trace et obsolescence.
+
+### Raisons
+
+Le risque majeur était de connecter trop tôt le fournisseur IA et de laisser les résumés/contextes devenir une seconde vérité. Les preuves actuelles verrouillent d'abord les autorités, la visibilité, les empreintes et les erreurs.
+
+### Conséquences
+
+I-05 peut être audité à partir de ce socle, mais reste fermé. Le prochain contrat devra préciser les rôles IA, les schémas d'entrée/sortie, les validations de sortie, les retries, les limites de création dynamique et la gouvernance des secrets.
+
+## NAR-090 — I-05 démarre par un faux fournisseur contractuel
+
+Statut : `RETENU`
+
+Date : 2026-07-07
+
+### Décision
+
+Le premier sous-lot I-05 est limité à `ai-pipeline/1` : routes de rôles, enveloppes d'appel, sorties strictes, validateurs, faux fournisseur déterministe, retries, incidents expurgés et propositions de création non autoritaires.
+
+### Raisons
+
+Le fournisseur réel ajouterait non-déterminisme, coût, latence, secrets techniques et évaluation qualitative avant que le pipeline puisse prouver ses invariants. Le faux fournisseur permet de tester les contrats d'autorité, de correction et de sécurité sans dépendre d'un modèle.
+
+### Conséquences
+
+Aucune clé fournisseur, aucun appel distant et aucun fallback réel ne sont autorisés en I-05A. Un futur I-05B devra certifier chaque modèle par rôle, contrat, permissions, qualité, coût, timeout et protection des secrets avant branchement.
+
+## NAR-091 — Fermeture I-05A avant fournisseur réel
+
+Statut : `RETENU`
+
+Date : 2026-07-07
+
+### Décision
+
+I-05A est fermé avec `ai-pipeline/1` : faux fournisseur, sorties strictes, correction bornée, incident expurgé, circuit breaker par rôle et validation des créations dynamiques.
+
+### Raisons
+
+Les risques critiques du pipeline IA sont indépendants du choix du modèle : corrélation, validation, absence de mutation directe, absence de fuite, anti-doublon et reprise bornée. Les prouver avant tout fournisseur réel évite de confondre qualité de modèle et sécurité d'architecture.
+
+### Conséquences
+
+Le prochain travail possible est l'audit I-05B, centré sur certification fournisseur, clés serveur, budgets réels, métriques de qualité et comportement réseau. Aucun appel distant ne doit être ajouté sans ce contrat.
+
+## NAR-092 — OpenAI seulement derrière un adaptateur serveur certifié
+
+Statut : `RETENU`
+
+Date : 2026-07-07
+
+### Décision
+
+I-05B utilisera OpenAI uniquement derrière `ai-provider-openai/1`. L'appel fournisseur cible l'API Responses avec sortie structurée stricte et reste côté serveur. Les tests live sont désactivés par défaut et exigent `NARRATION_OPENAI_LIVE=1`.
+
+### Raisons
+
+La présence locale d'une clé ne suffit pas à sécuriser le pipeline. Il faut empêcher l'exposition navigateur, les prompts bruts en diagnostic, les coûts non bornés, les sorties non strictes et la dépendance aux routes historiques tactiques.
+
+### Conséquences
+
+Le dépôt ignore désormais `/.env`. L'adaptateur devra accepter une clé depuis `process.env`, `test-GAME-2D/.env` ou `.env` racine ignoré. Aucun fournisseur réel ne peut être utilisé par l'UI narrative tant qu'I-06 n'a pas son propre contrat.
+
+## NAR-093 — Fermeture I-05B sans branchement UI
+
+Statut : `RETENU`
+
+Date : 2026-07-07
+
+### Décision
+
+I-05B est fermé avec un adaptateur OpenAI serveur testable sans réseau et un smoke live optionnel. Le fournisseur réel est disponible comme capacité technique contrôlée, mais n'est pas encore branché à une interface narrative.
+
+### Raisons
+
+La prochaine zone de risque n'est plus l'appel fournisseur, mais l'assemblage scène/social/UI : attribution des locuteurs, transcript, affichage des blocs validés, clarification, reprise et interaction avec le joueur.
+
+### Conséquences
+
+I-06 devra commencer par un contrat dédié de scène, social et UI conversationnelle. Aucun appel fournisseur ne doit être déclenché depuis l'interface tant que les frontières d'affichage, de transcript et de commit ne sont pas figées.
+
+## NAR-094 — Scène, social et affichage comme projections vérifiables
+
+Statut : `RETENU`
+
+Date : 2026-07-07
+
+### Décision
+
+I-06A est ouvert par `scene-social-ui/1`. L'entrée brute, l'expression validée du personnage joueur, les répliques exactes des PNJ, la narration MJ, les clarifications et les notifications système sont des blocs distincts reliés à leurs sources. `InteractionLog` reste une projection reconstructible; le cache du transcript n'est jamais une source de vérité.
+
+### Raisons
+
+Le prochain risque n'est pas seulement visuel. Une interface confuse peut faire perdre l'attribution d'un locuteur, masquer une reformulation infidèle ou transformer une prose finale en fait de campagne. Le contrat verrouille donc les sources, les types de blocs, les droits de connaissance et l'accessibilité avant tout branchement React.
+
+### Conséquences
+
+I-06A peut produire types, validateurs, projections, politique de rythme et fixtures. L'intégration UI complète, le streaming, le routage joueur vers OpenAI, tactique et repos restent fermés jusqu'aux preuves du socle.
+
+## NAR-095 — Fermeture I-06A avant branchement React
+
+Statut : `RETENU`
+
+Date : 2026-07-07
+
+### Décision
+
+I-06A est fermé avec un socle déterministe `scene-social-ui/1` : types, validateurs, projection `RenderPlan` vers `DisplayPacket`, reconstruction d'`InteractionLog`, clarification sans temps et politique de rythme.
+
+### Raisons
+
+Les invariants critiques d'affichage doivent exister avant l'interface : parole exacte non réécrite, locuteur accessible, transcript reconstructible, cache non autoritaire et séparation stricte entre narration, PJ, PNJ, système et clarification.
+
+### Conséquences
+
+Le prochain lot doit auditer I-06B avant de brancher React. L'UI devra consommer ces projections au lieu de fabriquer sa propre vérité depuis du texte libre ou depuis un cache local.
+
+## NAR-096 — Interface narrative React sans fournisseur navigateur
+
+Statut : `RETENU`
+
+Date : 2026-07-07
+
+### Décision
+
+I-06B est ouvert par `narrative-react-ui/1`. Les premiers composants React narratifs sont purs : ils affichent des `DisplayPacketV1` validés et remontent une saisie libre avec `clientRequestId`. Ils n'appellent ni OpenAI, ni `/api/narration`, ni stockage local.
+
+### Raisons
+
+L'UI tactique existante possède déjà des appels IA historiques pour les ennemis et les résumés de round. Les réutiliser pour la campagne narrative confondrait tactique, prose visible et runtime narratif. L'UI narrative doit d'abord devenir une projection vérifiable.
+
+### Conséquences
+
+Le branchement dans une surface narration dédiée et l'orchestrateur serveur restent des sous-lots ultérieurs. `GameBoard.tsx` reste la surface tactique et ne doit pas absorber le runtime narratif de campagne. Le composant I-06B peut être rendu et testé isolément sans effet de bord.
+
+## NAR-097 — Fermeture I-06B comme composant UI pur
+
+Statut : `RETENU`
+
+Date : 2026-07-07
+
+### Décision
+
+I-06B est fermé avec `NarrativeConversationPanel`, un composant React pur qui affiche des `DisplayPacketV1` et remonte une saisie libre par callback avec `clientRequestId`.
+
+### Raisons
+
+Le composant prouve la forme UI sans créer d'effet de bord. Il ne lit pas le stockage local, n'appelle aucune route IA et ne transforme pas le texte visible en vérité.
+
+### Conséquences
+
+Le prochain sous-lot doit définir le contrôleur applicatif et le point d'entrée UI dédié qui brancheront ce composant au runtime de campagne. Cette étape devra éviter `GameBoard.tsx`, les routes tactiques historiques et préserver la reconstruction depuis les sources persistantes.
+
+## NAR-098 — Surface narration dédiée hors GameBoard
+
+Statut : `RETENU`
+
+Date : 2026-07-07
+
+### Décision
+
+I-06C est ouvert par `narrative-app-surface/1`. L'application doit distinguer une surface narration dédiée et une surface tactique. `GameBoard.tsx` reste tactique et ne devient pas le conteneur du runtime narration.
+
+### Raisons
+
+Mélanger narration et plateau tactique dans le même composant recréerait un couplage fort, rendrait les handoffs flous et risquerait de faire dépendre la campagne narrative d'un écran de combat.
+
+### Conséquences
+
+`App.tsx` peut orchestrer le choix de surface. `NarrativeAppSurface` ne doit pas importer `GameBoard.tsx`, appeler les routes tactiques historiques ou persister un transcript local autoritaire.
+
+## NAR-099 — Fermeture I-06C avec shell narration/tactique
+
+Statut : `RETENU`
+
+Date : 2026-07-07
+
+### Décision
+
+I-06C est fermé avec un shell applicatif `App.tsx`. La surface narration est dédiée et séparée de la surface tactique. `GameBoard.tsx` n'est plus monté directement par `main.tsx`.
+
+### Raisons
+
+La séparation applicative rend visible la frontière produit : le joueur entre d'abord dans une surface narration; le tactique reste une surface spécialisée activable et future destination de handoff.
+
+### Conséquences
+
+Le prochain sous-lot doit définir l'orchestrateur narratif applicatif. Le prototype actuel ne commite rien, ne fait pas avancer le temps et n'appelle aucun fournisseur.
+
+## NAR-100 — Contrôleur narratif prototype sans commit métier
+
+Statut : `RETENU`
+
+Date : 2026-07-07
+
+### Décision
+
+I-06D est ouvert par `narrative-turn-controller/1`. Une saisie libre crée ou retrouve une opération durable et se complète par `NO_COMMIT_RESPONSE`. La réponse visible est un `DisplayPacketV1` de réception.
+
+### Raisons
+
+Avant d'interpréter l'intention avec l'IA, il faut prouver que l'UI sait passer par le noyau transactionnel et produire une projection sans temps, sans commit métier et sans route tactique.
+
+### Conséquences
+
+Le contrôleur prototype peut être branché à la surface narration. Il ne résout aucune action et ne doit pas être présenté comme un MJ complet.
+
+## NAR-101 — Fermeture I-06D par opération durable sans commit
+
+Statut : `RETENU`
+
+Date : 2026-07-07
+
+### Décision
+
+I-06D est fermé avec `NarrativeTurnControllerV1`. La saisie libre est enregistrée dans le noyau comme opération durable puis complétée par `NO_COMMIT_RESPONSE`.
+
+### Raisons
+
+Cette étape vérifie l'idempotence, la reprise et la projection UI sans encore déléguer à l'IA ni committer une vérité de campagne.
+
+### Conséquences
+
+La surface narration n'est plus un simple miroir local. Elle passe par le noyau de campagne prototype. Le prochain sous-lot doit traiter l'interprétation d'intention et la clarification réelle.
+
+## NAR-102 — Interprétation conservatrice avant résolution
+
+Statut : `RETENU`
+
+Date : 2026-07-07
+
+### Décision
+
+I-06E est ouvert par `intent-clarification/1`. Le premier interprète est déterministe et conservateur : il protège les questions méta, les questions de possibilité et les engagements ambigus avant toute résolution.
+
+### Raisons
+
+Le risque produit le plus immédiat est de faire agir le personnage alors que le joueur demandait une information. Ce garde-fou doit exister avant de brancher un rôle IA plus libre.
+
+### Conséquences
+
+Les actions explicites peuvent être détectées mais restent non résolues. La résolution narrative réelle et la reformulation RP restent des sous-lots ultérieurs.
+
+## NAR-103 — Fermeture I-06E avec clarification sans mutation
+
+Statut : `RETENU`
+
+Date : 2026-07-07
+
+### Décision
+
+I-06E est fermé avec un interprète conservateur et une structure de clarification suspendue. Les questions de possibilité sont protégées contre l'exécution accidentelle.
+
+### Raisons
+
+Ce garde-fou répond directement au risque identifié : le joueur peut demander si une action est possible sans que son personnage la tente.
+
+### Conséquences
+
+Le prochain sous-lot peut auditer la résolution narrative réelle en s'appuyant sur une première classification sûre.
+
+## NAR-104 — Résolution narrative bornée avant MJ complet
+
+Statut : `RETENU`
+
+Date : 2026-07-07
+
+### Décision
+
+I-06F est ouvert par `narrative-resolution/1`. La résolution narrative doit suivre un ordre strict : intention classée, résolution bornée, validation des propriétaires, commit éventuel, puis rendu visible. La reformulation du personnage joueur est autorisée seulement si elle conserve l'intention, l'objectif, le risque et les engagements exprimés.
+
+### Raisons
+
+La prochaine capacité est la première à pouvoir produire une vérité de campagne. Sans frontière stricte, l'IA pourrait redevenir un moteur de texte qui invente les conséquences, ou l'UI pourrait laisser croire qu'une prose non validée est un fait durable.
+
+### Conséquences
+
+I-06F peut implémenter le resolver borné et ses tests. Les créations persistantes, intrigues committables, repos, tactique, progression et règles spécialisées restent des handoffs ou des propositions tant que leurs domaines ne sont pas ouverts.
+
+## NAR-105 — Fermeture I-06F par resolver conservateur
+
+Statut : `RETENU`
+
+Date : 2026-07-07
+
+### Décision
+
+I-06F est fermé avec un resolver déterministe conservateur branché au contrôleur de tour. Une parole joueur explicite peut produire un commit social borné avant rendu. Les actions qui relèvent de l'inventaire, du tactique, du repos, des règles ou d'une création durable produisent un handoff sans résultat inventé.
+
+### Raisons
+
+Cette fermeture prouve la chaîne dangereuse — intention, résolution, validation, commit, rendu — sans ouvrir prématurément les moteurs propriétaires. Elle donne une base testable pour brancher ensuite un rôle IA de résolution ou les handoffs spécialisés.
+
+### Conséquences
+
+Le prochain audit doit porter sur I-07 tactique/repos ou sur un sous-lot IA de résolution, mais aucun de ces domaines n'est ouvert implicitement par I-06F.
+
+## NAR-106 — Embellissement IA sans autorité métier
+
+Statut : `RETENU`
+
+Date : 2026-07-07
+
+### Décision
+
+I-06G ajoute une couche IA d'enrichissement visible après résolution. Elle utilise seulement `player_expression_adapter` et `scene_writer`, et ne peut modifier que le `DisplayPacketV1`.
+
+### Raisons
+
+Le jeu doit pouvoir produire une belle narration avant que tactique, repos et inventaire soient complets. Mais cette qualité d'écriture ne doit pas rouvrir la faille principale : laisser l'IA inventer une conséquence métier dans la prose.
+
+### Conséquences
+
+La narration peut devenir plus vivante sans changer les commits. Les sorties IA dangereuses déclenchent un fallback déterministe. Le branchement OpenAI dans l'UI et les rôles plus puissants restent soumis à un audit ultérieur.
+
+## NAR-107 — Branchement UI enrichi et OpenAI hors navigateur
+
+Statut : `RETENU`
+
+Date : 2026-07-07
+
+### Décision
+
+La surface narration prototype utilise l'enrichissement IA avec un faux fournisseur contractuel. OpenAI est rendu compatible avec le même port fournisseur, mais reste cote serveur/tests et n'est pas importé par la surface React.
+
+### Raisons
+
+Le joueur doit pouvoir percevoir rapidement une narration plus belle. En revanche, exposer OpenAI ou une clé dans le navigateur casserait la frontière de sécurité déjà figée par I-05B.
+
+### Conséquences
+
+Le prochain travail peut soit créer une route serveur narrative contrôlée pour activer OpenAI en opt-in, soit passer aux handoffs tactique/repos. L'UI ne doit toujours pas appeler OpenAI directement.
+
+## NAR-108 — Route OpenAI narrative opt-in
+
+Statut : `RETENU`
+
+Date : 2026-07-07
+
+### Décision
+
+La route `POST /api/narration/enhance-openai` active OpenAI uniquement côté serveur et uniquement si `NARRATION_OPENAI_LIVE=1` est présent. Elle accepte seulement les rôles `player_expression_adapter` et `scene_writer`.
+
+### Raisons
+
+Le module a besoin d'une vraie prose IA sans exposer la clé ni transformer l'UI en client fournisseur. L'opt-in explicite évite les coûts ou appels réseau accidentels pendant le développement.
+
+### Conséquences
+
+Le serveur peut désormais servir de pont contrôlé vers OpenAI pour l'enrichissement narratif. La bascule UX vers cette route, le streaming et la certification qualité/coût restent des sous-lots séparés.
+
+## NAR-109 — Bascule UI OpenAI avec fallback local
+
+Statut : `RETENU`
+
+Date : 2026-07-07
+
+### Décision
+
+La surface narration expose un choix `Locale / OpenAI`. Le mode OpenAI appelle uniquement la route serveur narrative et revient au mode local si la route est désactivée, absente, invalide ou si la sortie IA est refusée.
+
+### Raisons
+
+Le développeur doit pouvoir tester une vraie qualité de prose sans modifier le code et sans risquer d'exposer la clé. Le fallback garantit que le flux narratif reste utilisable même sans fournisseur réel.
+
+### Conséquences
+
+OpenAI devient testable depuis l'interface, mais reste optionnel. La prochaine étape peut porter sur la qualité des prompts, la persistance des incidents, ou les handoffs tactique/repos.

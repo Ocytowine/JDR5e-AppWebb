@@ -13,6 +13,16 @@ Il décrit la cible avant toute reprise du runtime.
 - [`Creations-dynamiques.md`](Creations-dynamiques.md) : cycles, promotions et règles de création des PNJ, événements, objets, fils et lieux.
 - [`Memoire-et-rappel.md`](Memoire-et-rappel.md) : conservation, cycles de rappel, oubli subjectif et futures projections contextuelles.
 - [`Snapshot-et-contextes.md`](Snapshot-et-contextes.md) : photographie immuable d'un tour et paquets spécialisés par rôle IA.
+- [`Contrat-memoire-snapshot.md`](Contrat-memoire-snapshot.md) : contrat `FIGE` I-04 `memory-context/1`, mémoire, snapshot, contexte, budget et obsolescence.
+- [`Contrat-pipeline-ia-creations.md`](Contrat-pipeline-ia-creations.md) : contrat `FIGE` I-05A `ai-pipeline/1`, faux fournisseur, rôles IA, sorties, retries, incidents et créations.
+- [`Contrat-fournisseur-ia-openai.md`](Contrat-fournisseur-ia-openai.md) : contrat `FIGE` I-05B `ai-provider-openai/1`, OpenAI côté serveur, clé, schémas stricts, retries et test live optionnel.
+- [`Contrat-scene-social-ui.md`](Contrat-scene-social-ui.md) : contrat `FIGE` I-06A `scene-social-ui/1`, scène, social, transcript, blocs visibles et attribution accessible.
+- [`Contrat-interface-narrative-react.md`](Contrat-interface-narrative-react.md) : contrat `FIGE` I-06B `narrative-react-ui/1`, composants React purs, saisie libre et absence d'appel fournisseur navigateur.
+- [`Contrat-surface-narration-app.md`](Contrat-surface-narration-app.md) : contrat `FIGE` I-06C `narrative-app-surface/1`, surface narration dédiée distincte du tactique.
+- [`Contrat-controleur-tour-narratif.md`](Contrat-controleur-tour-narratif.md) : contrat `FIGE` I-06D `narrative-turn-controller/1`, saisie libre vers opération durable sans commit métier.
+- [`Contrat-interpretation-clarification.md`](Contrat-interpretation-clarification.md) : contrat `FIGE` I-06E `intent-clarification/1`, interprétation conservatrice et clarification sans mutation.
+- [`Contrat-resolution-narrative.md`](Contrat-resolution-narrative.md) : contrat `FIGE` I-06F `narrative-resolution/1`, résolution bornée, reformulation PJ, commit validé et handoffs.
+- [`Contrat-resolution-ia-bornee.md`](Contrat-resolution-ia-bornee.md) : contrat `FIGE` I-06G `narrative-ai-resolution/1`, embellissement IA sans autorité métier.
 - [`Exemple-role-context-pack.json`](Exemple-role-context-pack.json) : exemple parseable d'un paquet spécialisé et de sa trace de sélection.
 - [`Pipeline-et-contrats-IA.md`](Pipeline-et-contrats-IA.md) : enchaînement des rôles IA, validations, commits et rédaction visible.
 - [`Exemple-pipeline-tour.json`](Exemple-pipeline-tour.json) : trace parseable d'un tour avec arbitrage temporel, commit et contrôle d'affichage.
@@ -23,6 +33,19 @@ Il décrit la cible avant toute reprise du runtime.
 - [`Contrat-temps-processus.md`](Contrat-temps-processus.md) : contrat exécutable `temporal-kernel/1`, sous-lots I-03 et frontière avec `map-module`.
 - [`Handoff-I03D.md`](Handoff-I03D.md) : point de reprise opérationnel, fichiers clés, invariants et plan du dernier sous-lot I-03.
 - [`Matrice-preuves-I03.md`](Matrice-preuves-I03.md) : revue exécutable de la gate I-03 et limites avant mémoire/snapshot.
+- [`Matrice-preuves-I04.md`](Matrice-preuves-I04.md) : preuves du socle mémoire, snapshot, contexte, budget et obsolescence.
+- [`Matrice-preuves-I05.md`](Matrice-preuves-I05.md) : preuves du socle pipeline IA contractuel et créations dynamiques I-05A.
+- [`Matrice-preuves-I05B.md`](Matrice-preuves-I05B.md) : preuves de l'adaptateur fournisseur OpenAI I-05B.
+- [`Matrice-preuves-I06A.md`](Matrice-preuves-I06A.md) : preuves du socle scène, social, transcript et affichage typé.
+- [`Matrice-preuves-I06B.md`](Matrice-preuves-I06B.md) : preuves de l'interface narrative React pure.
+- [`Matrice-preuves-I06C.md`](Matrice-preuves-I06C.md) : preuves de la surface narration applicative dédiée.
+- [`Matrice-preuves-I06D.md`](Matrice-preuves-I06D.md) : preuves du contrôleur de tour narratif prototype.
+- [`Matrice-preuves-I06E.md`](Matrice-preuves-I06E.md) : preuves de l'interprétation conservatrice et de la clarification.
+- [`Matrice-preuves-I06F.md`](Matrice-preuves-I06F.md) : preuves de la résolution narrative bornée, du commit speech et des handoffs.
+- [`Matrice-preuves-I06G.md`](Matrice-preuves-I06G.md) : preuves de l'enrichissement IA borné et du fallback déterministe.
+- [`Matrice-preuves-I06H.md`](Matrice-preuves-I06H.md) : preuves du branchement UI enrichi et du fournisseur OpenAI contrôlé.
+- [`Matrice-preuves-I06I.md`](Matrice-preuves-I06I.md) : preuves de la route serveur OpenAI narrative opt-in.
+- [`Matrice-preuves-I06J.md`](Matrice-preuves-I06J.md) : preuves de la bascule UI OpenAI opt-in avec fallback local.
 - [`Exemple-chronologie-causale.json`](Exemple-chronologie-causale.json) : interruption temporelle, tick mondial, visibilité et reprise idempotente.
 - [`Resilience-securite-diagnostic.md`](Resilience-securite-diagnostic.md) : confinement des erreurs, sécurité des données et traces exploitables.
 - [`Exigences-non-fonctionnelles.md`](Exigences-non-fonctionnelles.md) : objectifs mesurables de latence, coût, qualité et capacité.

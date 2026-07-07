@@ -1,6 +1,6 @@
 # Audit final du module narration
 
-Statut : `RETENU` — audit initial terminé; addenda progressifs jusqu'à I-03, avec I-03 fermé le 2026-07-07 et I-04 soumis à l'audit AF-R08/AF-R09 avant implémentation.
+Statut : `RETENU` — audit initial terminé; addenda progressifs jusqu'à I-06A, avec I-05B fermé le 2026-07-07 et I-06A autorisé contractuellement.
 
 ## Objectif
 
@@ -340,3 +340,127 @@ Le socle livré ajoute `TravelProcessV1`, `TravelPlanV1`, `TravelSegmentV1`, `Tr
 Décision : **I-03 LIVRÉ dans son périmètre**. Cette fermeture couvre temps, échéances, monde sur copie, processus, voyage et rencontre structurée. Elle n'autorise pas UI, mémoire longue, snapshot, fournisseur IA, création dynamique, repos jouable, tactique ou prose de rencontre.
 
 I-04 reste fermé comme implémentation. Le prochain travail autorisé est l'audit contractuel AF-R08/AF-R09 pour mémoire, snapshot et contextes.
+
+## Addendum I-04 — Audit AF-R08/AF-R09
+
+L'audit du 2026-07-07 confronte [`Memoire-et-rappel.md`](Memoire-et-rappel.md), [`Snapshot-et-contextes.md`](Snapshot-et-contextes.md), les scénarios NAR-ACC-004/005/015 et la partie perspective de NAR-ACC-006 aux capacités déjà livrées par I-00 à I-03.
+
+Le risque principal est de créer une deuxième vérité sous forme de résumé, d'index ou de contexte IA. [`Contrat-memoire-snapshot.md`](Contrat-memoire-snapshot.md) fige donc `memory-context/1` : sources autoritaires référencées, `MemoryUnitV1`, index reconstruisibles, requête de rappel, capsule sourcée, `TurnSnapshotV1`, `RoleContextPackV1`, budget, trace et obsolescence.
+
+Décision : **AUTORISÉ — lot I-04 uniquement**. L'autorisation couvre types, validateurs, ports mémoire/snapshot/contexte, fixtures déterministes et tests de rappel/budget/secret/obsolescence. Elle n'autorise pas fournisseur IA réel, UI narrative, embeddings distants obligatoires, création dynamique, tactique ou repos.
+
+Fermeture : **I-04 LIVRÉ** le 2026-07-07. [`Matrice-preuves-I04.md`](Matrice-preuves-I04.md) couvre mémoire sourcée, index reconstruisible, rappel NAR-ACC-004/005, secret NAR-ACC-006, snapshot, paquet de contexte, budget NAR-ACC-015, obsolescence, régressions I-00 à I-03, IndexedDB et build global. I-05 reste fermé jusqu'à audit pipeline IA/créations.
+
+## Addendum I-05 — Audit AF-R10/AF-R11/AF-R15/AF-C02
+
+L'audit du 2026-07-07 confronte [`Pipeline-et-contrats-IA.md`](Pipeline-et-contrats-IA.md), [`Creations-dynamiques.md`](Creations-dynamiques.md), [`Resilience-securite-diagnostic.md`](Resilience-securite-diagnostic.md), [`Coherence-intrigues.md`](Coherence-intrigues.md) et les scénarios NAR-ACC-001/003/006/014/016/019 au socle I-00 à I-04.
+
+Le risque principal est de brancher trop tôt un fournisseur réel et de confondre sortie IA, proposition, validation, commit et texte visible. [`Contrat-pipeline-ia-creations.md`](Contrat-pipeline-ia-creations.md) fige donc `ai-pipeline/1` : routes de rôle, faux fournisseur contractuel, enveloppes strictes, payloads par rôle, propositions de création, retry, incidents expurgés et preuves avant certification fournisseur.
+
+Décision : **AUTORISÉ — sous-lot I-05A uniquement**. L'autorisation couvre types, validateurs, ports, faux fournisseur déterministe, fixtures et tests du pipeline IA sans fournisseur réel. Elle n'autorise pas clé fournisseur, UI conversationnelle, génération distante, création d'intrigue jouable complète, tactique, repos ou certification qualitative finale.
+
+Fermeture : **I-05A LIVRÉ** le 2026-07-07. [`Matrice-preuves-I05.md`](Matrice-preuves-I05.md) couvre enveloppes strictes, faux fournisseur, correction bornée, incident expurgé, circuit breaker par rôle, NAR-ACC-001, NAR-ACC-003, NAR-ACC-014, NAR-ACC-016, NAR-ACC-019 et perspective NAR-ACC-006 au niveau contractuel. I-05B fournisseur réel reste fermé jusqu'à certification dédiée.
+
+## Addendum I-05B — Audit fournisseur OpenAI
+
+L'audit du 2026-07-07 confronte I-05A, [`Resilience-securite-diagnostic.md`](Resilience-securite-diagnostic.md), [`Exigences-non-fonctionnelles.md`](Exigences-non-fonctionnelles.md), l'état actuel de `server.js` et la documentation officielle OpenAI Responses/Structured Outputs.
+
+Le risque principal est de réutiliser les routes historiques `/api/narration` ou `/api/enemy-ai` comme socle du module narration alors qu'elles utilisent Chat Completions, CORS permissif, JSON object non strict et un comportement de fallback conçu pour le tactique historique. [`Contrat-fournisseur-ia-openai.md`](Contrat-fournisseur-ia-openai.md) fige donc `ai-provider-openai/1` : fournisseur OpenAI côté serveur, Responses API, schéma strict, opt-in live, métriques, incidents expurgés, absence de clé côté navigateur et tests réseau simulés.
+
+Décision : **AUTORISÉ — sous-lot I-05B uniquement**. L'autorisation couvre adaptateur serveur OpenAI, loader de clé sécurisé, schémas stricts, transport simulable, tests sans réseau et smoke test live optionnel. Elle n'autorise pas UI narrative, streaming, outils OpenAI, web search, stockage de prompts bruts, fallback multi-fournisseur ou certification qualitative finale.
+
+Fermeture : **I-05B LIVRÉ** le 2026-07-07. [`Matrice-preuves-I05B.md`](Matrice-preuves-I05B.md) couvre clé serveur, `.env` ignoré, Responses API, schéma strict, HTTP simulé, expurgation, métriques, sortie valide/invalide, smoke live opt-in et régressions. I-06 scène/social/UI reste fermé jusqu'à contrat dédié.
+
+## Addendum I-06A — Audit scène, social et interface conversationnelle
+
+L'audit du 2026-07-07 confronte [`Dossier-de-conception.md`](Dossier-de-conception.md), [`Modele-persistant.md`](Modele-persistant.md), [`Pipeline-et-contrats-IA.md`](Pipeline-et-contrats-IA.md), [`Integration-domaines.md`](Integration-domaines.md) et les scénarios NAR-ACC-002 checkpoint B, NAR-ACC-009 et NAR-ACC-017.
+
+Le risque principal est de laisser l'UI devenir une vérité implicite : une prose séduisante, un transcript cache ou une bulle de dialogue mal attribuée pourrait faire croire à un fait, une parole ou une connaissance non validés. [`Contrat-scene-social-ui.md`](Contrat-scene-social-ui.md) fige donc `scene-social-ui/1` : scène, connaissances sociales, actes de parole, `RenderPlan`, `DisplayPacket`, `InteractionLog` reconstructible, attribution accessible, clarification et rythme configurable.
+
+Décision : **AUTORISÉ — sous-lot I-06A uniquement**. L'autorisation couvre types, validateurs, projections déterministes, politiques de rythme, fixtures et tests. Elle n'autorise pas intégration React complète, streaming fournisseur, routage UI vers OpenAI, tactique, repos ou certification UX finale.
+
+Fermeture : **I-06A LIVRÉ** le 2026-07-07. [`Matrice-preuves-I06A.md`](Matrice-preuves-I06A.md) couvre types, validateurs, blocs exacts, attribution accessible, reconstruction d'`InteractionLog`, clarification sans temps, rythme configurable, NAR-ACC-017, NAR-ACC-009 et rendu dégradé. I-06B UI narrative complète reste fermé jusqu'à audit dédié.
+
+## Addendum I-06B — Audit interface narrative React
+
+L'audit du 2026-07-07 confronte I-06A, l'état actuel de `GameBoard.tsx`, `src/narrationClient.ts`, `src/narrationTypes.ts` et les routes historiques `/api/narration`, `/api/enemy-ai`, `/api/enemy-speech`.
+
+Le constat est que `GameBoard.tsx` et l'UI narration existante appartiennent au tactique historique : panneau de récapitulatif de round, bulles ennemies et appels aux routes Chat Completions. Ils ne peuvent pas devenir la surface du runtime narratif de campagne. La narration doit disposer d'un point d'entrée applicatif dédié et communiquer avec le tactique uniquement par handoff contractuel ultérieur.
+
+[`Contrat-interface-narrative-react.md`](Contrat-interface-narrative-react.md) fige donc `narrative-react-ui/1` : composants React purs, affichage de `DisplayPacketV1`, saisie libre remontée par callback, `clientRequestId`, labels accessibles et interdiction d'appel fournisseur ou stockage local dans le composant.
+
+Décision : **AUTORISÉ — sous-lot I-06B uniquement**. L'autorisation couvre composants UI purs, rendu statique, soumission callback et tests anti-réseau. Elle n'autorise pas branchement dans `GameBoard.tsx`, appel OpenAI, utilisation de `/api/narration` historique, persistance du transcript en `localStorage`, tactique, repos ou orchestrateur serveur complet.
+
+Fermeture : **I-06B LIVRÉ** le 2026-07-07. [`Matrice-preuves-I06B.md`](Matrice-preuves-I06B.md) couvre composant React pur, rendu multi-locuteurs accessible, saisie libre callback, `clientRequestId`, absence d'appel réseau, absence de stockage local et absence de réutilisation des routes tactiques historiques. I-06C branchement applicatif reste fermé jusqu'à audit dédié.
+
+## Addendum I-06C — Audit surface narration applicative
+
+L'audit du 2026-07-07 acte la séparation demandée : `GameBoard.tsx` contient la partie tactique et ne doit pas recevoir le runtime narration.
+
+[`Contrat-surface-narration-app.md`](Contrat-surface-narration-app.md) fige donc `narrative-app-surface/1` : un shell React distingue surface narration et surface tactique, `GameBoard.tsx` reste monté seulement côté tactique, et la surface narration affiche des `DisplayPacketV1` sans réseau, stockage local ou route IA historique.
+
+Décision : **AUTORISÉ — sous-lot I-06C uniquement**. L'autorisation couvre `App.tsx`, une surface narration dédiée, un contrôleur UI local de prototype et des tests statiques de séparation. Elle n'autorise pas orchestrateur narratif réel, appel fournisseur, handoff tactique, persistance transcript ou mutation de campagne.
+
+Fermeture : **I-06C LIVRÉ** le 2026-07-07. [`Matrice-preuves-I06C.md`](Matrice-preuves-I06C.md) couvre shell applicatif, surface narration dédiée, séparation de `GameBoard.tsx`, absence d'appel réseau et absence de stockage local dans la surface narration. I-06D orchestrateur narratif applicatif reste fermé jusqu'à audit dédié.
+
+## Addendum I-06D — Audit contrôleur de tour narratif applicatif
+
+L'audit du 2026-07-07 limite volontairement le premier contrôleur applicatif à une preuve de chaîne sûre. [`Contrat-controleur-tour-narratif.md`](Contrat-controleur-tour-narratif.md) fige `narrative-turn-controller/1` : saisie libre, opération durable, complétion `NO_COMMIT_RESPONSE`, `DisplayPacketV1`, idempotence et horloge inchangée.
+
+Décision : **AUTORISÉ — sous-lot I-06D uniquement**. L'autorisation couvre contrôleur TypeScript pur, campagne prototype en mémoire, réception idempotente, affichage de réception et intégration à la surface narration. Elle n'autorise pas appel IA, interprétation d'intention, commit métier, temps, tactique, repos, IndexedDB ou route HTTP.
+
+Fermeture : **I-06D LIVRÉ** le 2026-07-07. [`Matrice-preuves-I06D.md`](Matrice-preuves-I06D.md) couvre opération durable, `NO_COMMIT_RESPONSE`, `DisplayPacketV1`, idempotence, conflit d'idempotence et horloge inchangée. I-06E interprétation et clarification réelles reste fermé jusqu'à audit dédié.
+
+## Addendum I-06E — Audit interprétation et clarification
+
+L'audit du 2026-07-07 reprend les risques des ateliers de saisie libre : une question de possibilité ne doit jamais devenir une action, une question méta ne doit pas faire avancer le temps, et une ambiguïté d'engagement doit suspendre l'intention sans mutation.
+
+[`Contrat-interpretation-clarification.md`](Contrat-interpretation-clarification.md) fige `intent-clarification/1` : interprétation conservatrice, méta, question de possibilité, ambiguïté, clarification suspendue et reprise liée à l'intention initiale.
+
+Décision : **AUTORISÉ — sous-lot I-06E uniquement**. L'autorisation couvre types d'intention, interprète déterministe, clarification, reprise contrôlée et intégration au contrôleur prototype. Elle n'autorise pas appel IA, résolution métier, commit, temps, création dynamique, tactique ou reformulation théâtrale complète.
+
+Fermeture : **I-06E LIVRÉ** le 2026-07-07. [`Matrice-preuves-I06E.md`](Matrice-preuves-I06E.md) couvre méta sans temps, possibilité sans action, ambiguïté avec clarification, suspension, reprise et action détectée non résolue. I-06F résolution narrative réelle reste fermé jusqu'à audit dédié.
+
+## Addendum I-06F — Audit résolution narrative bornée
+
+L'audit du 2026-07-07 traite la première frontière où une intention joueur peut produire autre chose qu'une réception ou une clarification. Le risque principal est de réintroduire exactement les erreurs des essais précédents : texte visible pris comme vérité, IA qui décide une action non demandée, reformulation qui change l'intention, création persistante non validée ou résultat mécanique inventé dans la prose.
+
+[`Contrat-resolution-narrative.md`](Contrat-resolution-narrative.md) fige `narrative-resolution/1` : ordre strict du tour, reformulation fidèle du PJ, séparation entre proposition, validation, commit et rendu, limites de création IA, temps nul pour méta/possibilité/clarification et handoffs obligatoires vers tactique, repos, règles, inventaire, monde ou promotion de création.
+
+Décision : **AUTORISÉ — sous-lot I-06F uniquement**. L'autorisation couvre la résolution narrative bornée et ses tests de frontière. Elle n'autorise pas MJ complet, streaming fournisseur, tactique jouable, repos jouable, progression de personnage, économie complète, création persistante automatique, intrigue dynamique committable ou certification UX finale.
+
+Fermeture : **I-06F LIVRÉ** le 2026-07-07. [`Matrice-preuves-I06F.md`](Matrice-preuves-I06F.md) couvre sortie structurée, possibilité sans action, handoff inventaire, handoff tactique, parole committée avant rendu, reformulation fidèle, idempotence, conflit d'idempotence et horloge inchangée. I-07 tactique/repos reste fermé jusqu'à audit dédié.
+
+## Addendum I-06G — Audit résolution IA bornée
+
+L'audit du 2026-07-07 constate qu'I-06F sécurise la résolution, mais que le rendu reste encore trop mécanique. Le besoin produit est d'obtenir une narration plus belle sans ouvrir les domaines tactique, repos, inventaire ou création persistante.
+
+[`Contrat-resolution-ia-bornee.md`](Contrat-resolution-ia-bornee.md) fige `narrative-ai-resolution/1` : les rôles `player_expression_adapter` et `scene_writer` peuvent enrichir le `DisplayPacketV1` après résolution, sans modifier `resultKind`, `commitId`, handoff, événements, agrégats ou horloge.
+
+Décision : **AUTORISÉ — sous-lot I-06G uniquement**. L'autorisation couvre l'embellissement IA, le rejet de sorties dangereuses, le fallback déterministe et les incidents expurgés. Elle n'autorise pas MJ planner, NPC performer, rules adjudicator, streaming, branchement OpenAI UI, tactique, repos ou création persistante.
+
+Fermeture : **I-06G LIVRÉ** le 2026-07-07. [`Matrice-preuves-I06G.md`](Matrice-preuves-I06G.md) couvre expression PJ enrichie, rejet d'ajout de sens, narration MJ ancrée, handoff tactique vivant sans combat simulé et fallback déterministe.
+
+## Addendum I-06H — Branchement UI et OpenAI controle
+
+Le sous-lot I-06H applique la demande de brancher les deux axes sans les confondre : l'UI prototype recoit l'enrichissement IA via le faux fournisseur contractuel, tandis que l'adaptateur OpenAI devient compatible avec le port `ContractAiProviderV1` cote serveur/tests.
+
+Décision : **AUTORISÉ ET LIVRÉ — sous-lot I-06H uniquement**. L'autorisation couvre le branchement UI prototype et le wrapper OpenAI contrôlé. Elle n'autorise pas appel OpenAI live depuis le navigateur, route HTTP narrative de production, streaming, choix dynamique de modèle, benchmark qualité/coût ou certification finale.
+
+Fermeture : **I-06H LIVRÉ** le 2026-07-07. [`Matrice-preuves-I06H.md`](Matrice-preuves-I06H.md) couvre UI enrichie, absence d'OpenAI navigateur, compatibilité OpenAI avec le port IA, Structured Outputs stricts, clé absente sans réseau et build global.
+
+## Addendum I-06I — Route serveur OpenAI narrative opt-in
+
+Le sous-lot I-06I ajoute la route serveur qui manquait pour utiliser OpenAI réellement sans exposer la cle au navigateur. La route est volontairement limitée aux deux rôles d'enrichissement I-06G et reste désactivée tant que `NARRATION_OPENAI_LIVE=1` n'est pas fourni.
+
+Décision : **AUTORISÉ ET LIVRÉ — sous-lot I-06I uniquement**. L'autorisation couvre `POST /api/narration/enhance-openai`, validation des rôles, Structured Outputs stricts, absence d'appel sans opt-in ou clé, et tests réseau simulés. Elle n'autorise pas streaming, activation UI automatique, persistance incidents/projections, benchmark qualité/coût ou certification finale.
+
+Fermeture : **I-06I LIVRÉ** le 2026-07-07. [`Matrice-preuves-I06I.md`](Matrice-preuves-I06I.md) couvre route serveur, opt-in, clé absente sans réseau, rôles bornés, `text.format` `json_schema` strict, `store=false`, corrélation stricte et UI toujours séparée.
+
+## Addendum I-06J — Bascule UI OpenAI opt-in
+
+Le sous-lot I-06J ajoute le contrôle utilisateur qui rend la capacité compréhensible dans l'interface : le joueur ou développeur peut choisir entre enrichissement local et OpenAI. La bascule ne donne aucune clé au navigateur et n'appelle jamais OpenAI directement.
+
+Décision : **AUTORISÉ ET LIVRÉ — sous-lot I-06J uniquement**. L'autorisation couvre le sélecteur UI, le client vers `/api/narration/enhance-openai`, le fallback local et les tests source. Elle n'autorise pas streaming, persistance du choix, affichage détaillé des incidents, benchmark qualité/coût ou rôles IA plus puissants.
+
+Fermeture : **I-06J LIVRÉ** le 2026-07-07. [`Matrice-preuves-I06J.md`](Matrice-preuves-I06J.md) couvre UI Locale/OpenAI, appel serveur dédié, absence d'OpenAI navigateur, fallback local et route serveur toujours protégée.

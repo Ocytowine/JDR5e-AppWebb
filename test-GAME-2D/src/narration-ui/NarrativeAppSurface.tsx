@@ -1,0 +1,380 @@
+import { useEffect, useMemo, useState } from "react";
+import {
+  createPrototypeNarrativeTurnControllerV1,
+  enhanceNarrativeDisplayWithAiV1,
+  type NarrativeTurnControllerV1
+} from "../../narration-module/src/application";
+import { FakeContractAiProviderV1 } from "../../narration-module/src/ai/FakeContractAiProvider";
+import type { AiModelRouteV1, AiRetryPolicyV1 } from "../../narration-module/src/ai/types";
+import type { NarrativeTurnControllerOutputV1 } from "../../narration-module/src/application";
+import type { DisplayPacketV1 } from "../../narration-module/src/scene";
+import { SCENE_SOCIAL_UI_CONTRACT_VERSION_V1 } from "../../narration-module/src/scene";
+import {
+  NarrativeConversationPanel,
+  type NarrativeSubmitPayloadV1
+} from "../ui/NarrativeConversationPanel";
+import { ServerOpenAiEnhancementProviderV1 } from "./serverOpenAiEnhancementClient";
+
+type NarrativeEnhancementMode = "local" | "openai";
+
+export function NarrativeAppSurface() {
+  const [controller, setController] = useState<NarrativeTurnControllerV1 | null>(null);
+  const [packetsFromController, setPacketsFromController] = useState<DisplayPacketV1[]>([]);
+  const [pending, setPending] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [enhancementMode, setEnhancementMode] = useState<NarrativeEnhancementMode>("local");
+  const [enhancementStatus, setEnhancementStatus] = useState<string>("Mode local actif.");
+  const packets = useMemo(
+    () => [createWelcomePacket(), ...packetsFromController],
+    [packetsFromController]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    void createPrototypeNarrativeTurnControllerV1().then(nextController => {
+      if (!cancelled) setController(nextController);
+    }).catch(error => {
+      if (!cancelled) setErrorMessage(error instanceof Error ? error.message : String(error));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function handleSubmit(payload: NarrativeSubmitPayloadV1) {
+    if (!controller) {
+      setErrorMessage("Contrôleur narratif indisponible.");
+      return;
+    }
+    setPending(true);
+    setErrorMessage(null);
+    void controller.submit(payload).then(async result => {
+      if (!result.ok) {
+        setErrorMessage(result.error.messageKey);
+        return;
+      }
+      const enhancement = await enhancePrototypePacket(result.value.output, enhancementMode);
+      setEnhancementStatus(enhancement.status);
+      const enhanced = enhancement.displayPacket;
+      setPacketsFromController(prev => [...prev, enhanced]);
+    }).catch(error => {
+      setErrorMessage(error instanceof Error ? error.message : String(error));
+    }).finally(() => {
+      setPending(false);
+    });
+  }
+
+  return (
+    <main
+      aria-label="Surface narration"
+      style={{
+        minHeight: "100vh",
+        boxSizing: "border-box",
+        padding: "82px 18px 18px",
+        background:
+          "radial-gradient(circle at 20% 0%, rgba(88,166,255,0.20), transparent 32%), linear-gradient(145deg, #070911, #111522 62%, #070911)"
+      }}
+    >
+      <div
+        style={{
+          width: "min(980px, 100%)",
+          margin: "0 auto",
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1fr)",
+          gap: 14
+        }}
+      >
+        <section
+          aria-label="Statut du module narration"
+          style={{
+            borderRadius: 16,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(8,10,18,0.72)",
+            padding: 14,
+            boxShadow: "0 18px 60px rgba(0,0,0,0.30)"
+          }}
+        >
+          <h1 style={{ margin: "0 0 6px", fontSize: 22 }}>Narration</h1>
+          <p style={{ margin: 0, color: "rgba(255,255,255,0.72)", fontSize: 13, lineHeight: 1.5 }}>
+            Surface dédiée au module narration. Ce prototype affiche des projections typées et remonte la saisie
+            libre via le contrôleur applicatif prototype. L'enrichissement IA peut rester local ou passer par la route
+            serveur OpenAI opt-in, sans clé navigateur, sans écrire de transcript local et sans dépendre du plateau
+            tactique.
+          </p>
+          <fieldset
+            aria-label="Mode IA narrative"
+            style={{
+              margin: "12px 0 0",
+              padding: 10,
+              borderRadius: 12,
+              border: "1px solid rgba(255,255,255,0.12)"
+            }}
+          >
+            <legend style={{ padding: "0 6px", color: "rgba(255,255,255,0.76)", fontSize: 12 }}>
+              IA narrative
+            </legend>
+            <label style={{ marginRight: 12, fontSize: 13 }}>
+              <input
+                type="radio"
+                name="narrative-ai-mode"
+                value="local"
+                checked={enhancementMode === "local"}
+                onChange={() => {
+                  setEnhancementMode("local");
+                  setEnhancementStatus("Mode local actif.");
+                }}
+              />{" "}
+              Locale
+            </label>
+            <label style={{ fontSize: 13 }}>
+              <input
+                type="radio"
+                name="narrative-ai-mode"
+                value="openai"
+                checked={enhancementMode === "openai"}
+                onChange={() => {
+                  setEnhancementMode("openai");
+                  setEnhancementStatus("Mode OpenAI demandé. Fallback local si la route serveur est désactivée.");
+                }}
+              />{" "}
+              OpenAI
+            </label>
+            <p style={{ margin: "8px 0 0", color: "rgba(255,255,255,0.62)", fontSize: 12 }}>
+              {enhancementStatus}
+            </p>
+          </fieldset>
+          {errorMessage && (
+            <p role="alert" style={{ margin: "8px 0 0", color: "#ffb4b4", fontSize: 12 }}>
+              {errorMessage}
+            </p>
+          )}
+        </section>
+
+        <div style={{ height: "calc(100vh - 190px)", minHeight: 420 }}>
+          <NarrativeConversationPanel
+            packets={packets}
+            pending={pending || controller === null}
+            title="Fil narratif"
+            onSubmit={handleSubmit}
+          />
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function createWelcomePacket(): DisplayPacketV1 {
+  return {
+    schemaVersion: 1,
+    contractVersion: SCENE_SOCIAL_UI_CONTRACT_VERSION_V1,
+    operationId: "prototype-welcome",
+    sceneId: "prototype-narration-surface",
+    displayBlocks: [
+      {
+        blockId: "prototype-welcome-gm",
+        kind: "GM_NARRATION",
+        speaker: {
+          speakerId: "speaker-gm",
+          kind: "GM",
+          displayName: "MJ",
+          roleLabel: "Maître du jeu",
+          ariaLabel: "Maître du jeu",
+          visualToken: "speaker-gm"
+        },
+        text: "La surface narration est prête. Le prochain lot branchera cette UI à un contrôleur de campagne réel.",
+        ariaLabel: "Maître du jeu: GM_NARRATION",
+        roleLabel: "Maître du jeu",
+        visualStyleToken: "speaker-gm",
+        sourceRefs: ["prototype:surface"],
+        isDegradedFallback: false
+      },
+      {
+        blockId: "prototype-welcome-system",
+        kind: "SYSTEM_NOTICE",
+        speaker: {
+          speakerId: "speaker-system",
+          kind: "SYSTEM",
+          displayName: "Système",
+          roleLabel: "Notification système",
+          ariaLabel: "Notification système",
+          visualToken: "speaker-system"
+        },
+        text: "Mode prototype : la saisie passe par le contrôleur narratif, la résolution bornée et un enrichissement IA fictif sans autorité métier.",
+        ariaLabel: "Notification système: SYSTEM_NOTICE",
+        roleLabel: "Notification système",
+        visualStyleToken: "speaker-system",
+        sourceRefs: ["prototype:surface"],
+        isDegradedFallback: false
+      }
+    ],
+    rawInputAccess: {
+      available: true,
+      operationId: "prototype-welcome"
+    },
+    rhythmDiagnostics: "prototype",
+    reconstructionRefs: ["prototype:surface"],
+    version: 1
+  };
+}
+
+async function enhancePrototypePacket(
+  output: NarrativeTurnControllerOutputV1,
+  mode: NarrativeEnhancementMode
+): Promise<{ displayPacket: DisplayPacketV1; status: string }> {
+  const operationId = output.operationId;
+  const localProvider = new FakeContractAiProviderV1([
+    [`${operationId}:ai:expression:attempt:1`, {
+      schemaVersion: 1,
+      contractVersion: "narrative-ai-resolution/1",
+      outputId: `output:${operationId}:expression`,
+      callId: `${operationId}:ai:expression:call`,
+      attemptId: `${operationId}:ai:expression:attempt:1`,
+      packId: `${operationId}:pack:expression`,
+      snapshotId: `${operationId}:snapshot:display`,
+      role: "player_expression_adapter",
+      status: "OK",
+      payload: {
+        intentId: output.interpretation.intentId,
+        expressionKind: output.interpretation.intentType === "speech" ? "speech" : "action_staging",
+        renderedExpression: buildPrototypeExpression(output),
+        meaningCovered: [output.interpretation.coreMeaning],
+        addedMeaning: [],
+        omittedMeaning: [],
+        styleChoices: ["prototype", "registre narratif sobre"],
+        safeToUse: true
+      },
+      diagnostics: [],
+      supersedesOutputId: null
+    }],
+    [`${operationId}:ai:scene-writer:attempt:1`, {
+      schemaVersion: 1,
+      contractVersion: "narrative-ai-resolution/1",
+      outputId: `output:${operationId}:scene-writer`,
+      callId: `${operationId}:ai:scene-writer:call`,
+      attemptId: `${operationId}:ai:scene-writer:attempt:1`,
+      packId: `${operationId}:pack:scene-writer`,
+      snapshotId: `${operationId}:snapshot:display`,
+      role: "scene_writer",
+      status: "OK",
+      payload: {
+        narrationBlocks: [{
+          slotId: "prototype-atmosphere",
+          blockKind: "MJ_NARRATION",
+          content: buildPrototypeNarration(output),
+          groundedIn: [`resolution:${output.resolution.resolutionId}`],
+          usesCreativeTexture: true
+        }]
+      },
+      diagnostics: [],
+      supersedesOutputId: null
+    }]
+  ]);
+  const provider = mode === "openai"
+    ? new ServerOpenAiEnhancementProviderV1()
+    : localProvider;
+  const enhanced = await enhanceNarrativeDisplayWithAiV1({
+    campaignId: "cmp-narrative-prototype",
+    operationId,
+    displayPacket: output.displayPacket,
+    resolution: output.resolution,
+    config: {
+      provider,
+      expressionRoute: prototypeExpressionRoute,
+      sceneWriterRoute: prototypeSceneWriterRoute,
+      retryPolicy: prototypeRetryPolicy
+    }
+  });
+  if (mode === "openai" && enhanced.usedFallback) {
+    const fallback = await enhanceNarrativeDisplayWithAiV1({
+      campaignId: "cmp-narrative-prototype",
+      operationId,
+      displayPacket: output.displayPacket,
+      resolution: output.resolution,
+      config: {
+        provider: localProvider,
+        expressionRoute: prototypeExpressionRoute,
+        sceneWriterRoute: prototypeSceneWriterRoute,
+        retryPolicy: prototypeRetryPolicy
+      }
+    });
+    return {
+      displayPacket: fallback.displayPacket,
+      status: `OpenAI indisponible ou sortie refusée (${summarizeOpenAiFallback(enhanced)}) : fallback local utilisé.`
+    };
+  }
+  return {
+    displayPacket: enhanced.displayPacket,
+    status: mode === "openai" ? "OpenAI serveur utilisé pour l'enrichissement." : "Mode local utilisé pour l'enrichissement."
+  };
+}
+
+function summarizeOpenAiFallback(enhancement: Awaited<ReturnType<typeof enhanceNarrativeDisplayWithAiV1>>): string {
+  const incident = enhancement.incidents[0];
+  if (!incident) return "aucun diagnostic serveur";
+  const role = incident.role ?? "role inconnu";
+  const outputDiagnostics = Array.isArray(incident.safeDetails.outputDiagnostics)
+    ? incident.safeDetails.outputDiagnostics.filter((entry): entry is string => typeof entry === "string")
+    : [];
+  const suffix = outputDiagnostics.length > 0 ? `/${outputDiagnostics.join("+")}` : "";
+  return `${role}/${incident.category}/${incident.stage}${suffix}`;
+}
+
+function buildPrototypeExpression(output: NarrativeTurnControllerOutputV1): string {
+  const expression = output.resolution.characterExpression?.expressionText;
+  if (expression) return expression;
+  return output.interpretation.coreMeaning;
+}
+
+function buildPrototypeNarration(output: NarrativeTurnControllerOutputV1): string {
+  if (output.resolution.resultKind === "HANDOFF_REQUIRED") {
+    return "La scène se tend autour de cette intention, mais le résultat reste suspendu au domaine compétent.";
+  }
+  if (output.resolution.resultKind === "COMMIT_APPLIED") {
+    return "La parole prend place dans la scène; elle est désormais enregistrée avant que le récit ne poursuive son cours.";
+  }
+  if (output.resolution.resultKind === "CLARIFICATION_REQUIRED") {
+    return "Le fil s'arrête proprement, le temps que l'intention soit précisée sans faire avancer le monde.";
+  }
+  return "Le MJ garde la main sur le cadre: rien n'est encore engagé dans la fiction durable.";
+}
+
+const prototypeExpressionRoute: AiModelRouteV1 = {
+  schemaVersion: 1,
+  routeId: "prototype-ui-expression",
+  role: "player_expression_adapter",
+  providerKind: "FAKE_CONTRACT",
+  providerId: "fake",
+  modelId: "fake-ui-expression",
+  modelConfigVersion: "i06h",
+  certified: true,
+  allowedContractVersions: ["narrative-ai-resolution/1"],
+  inputTokenLimit: 2_000,
+  outputTokenLimit: 1_000,
+  timeoutMs: 1_000,
+  fallbackRouteIds: []
+};
+
+const prototypeSceneWriterRoute: AiModelRouteV1 = {
+  schemaVersion: 1,
+  routeId: "prototype-ui-scene-writer",
+  role: "scene_writer",
+  providerKind: "FAKE_CONTRACT",
+  providerId: "fake",
+  modelId: "fake-ui-scene-writer",
+  modelConfigVersion: "i06h",
+  certified: true,
+  allowedContractVersions: ["narrative-ai-resolution/1"],
+  inputTokenLimit: 2_000,
+  outputTokenLimit: 1_000,
+  timeoutMs: 1_000,
+  fallbackRouteIds: []
+};
+
+const prototypeRetryPolicy: AiRetryPolicyV1 = {
+  schemaVersion: 1,
+  role: "scene_writer",
+  maxTechnicalRetries: 0,
+  maxTargetedCorrections: 0,
+  maxFullRegenerations: 0,
+  allowFallback: false
+};

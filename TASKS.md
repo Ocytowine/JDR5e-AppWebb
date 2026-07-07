@@ -1,20 +1,20 @@
 # Suivi du travail
 
-Derniere mise a jour: 2026-07-06
+Derniere mise a jour: 2026-07-07
 
 Ce fichier est le tableau de bord court du depot. Les details techniques restent dans les documents lies; une tache ne doit pas etre dupliquee ici avec toute sa specification.
 
 ## En cours
 
-- [ ] Auditer I-04: AF-R08 memoire et AF-R09 snapshot/contextes avant toute implementation.
-  References: `test-GAME-2D/narration-module/docs/Matrice-preuves-I03.md`, `test-GAME-2D/narration-module/docs/Memoire-et-rappel.md`, `test-GAME-2D/narration-module/docs/Snapshot-et-contextes.md`. Objectif: figer les unites de memoire, budgets de contexte, secrets, provenance, reconstruction d'index et gate de tests.
+- [ ] Auditer la suite après correctif live I-06J: choisir entre persistance des incidents/projections IA ou I-07 tactique/repos.
+  References: `test-GAME-2D/narration-module/docs/Matrice-preuves-I06J.md`, `test-GAME-2D/narration-module/docs/Contrat-resolution-ia-bornee.md`.
 - [ ] Consolider la simulation du monde apres l'ajout des objectifs multi-phases, des opportunites de faction et des mobiles non-systeme.
   Reference: `test-GAME-2D/map-module/docs/world-simulation-corrective-roadmap.md`. Les mobiles exposent maintenant l'objectif, la phase et la cible qu'ils servent.
 
 ## Prochaines etapes
 
 - [ ] Migrer `wiki/lore/gouvernances/primauté` vers un futur type de gouvernance et retirer alors son exclusion explicite.
-- [ ] Produire le contrat I-04 memoire/snapshot avec schemas, fixtures et preuves NAR-ACC-004/005/015 plus perspective NAR-ACC-006.
+- [ ] Préparer après I-06A le branchement UI narratif progressif, sans appel fournisseur direct depuis React tant que les projections ne sont pas validées.
 - [ ] Generer les premiers mobiles non-systeme contextuels, en commencant par les profils marchands, criminels et religieux.
 - [ ] Historiser les causes d'action importantes sans surcharger `recentHistory`.
 - [ ] Prioriser les cas narratifs 005 a 009 avant leur implementation.
@@ -31,6 +31,31 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 ## Termine recemment
 
+- [x] Correctif live I-06J: schéma OpenAI strict par requête compatible Responses API, instructions serveur explicites, validation payload par rôle et diagnostic fallback UI le 2026-07-07.
+- [x] Fermeture I-06J: bascule UI Locale/OpenAI, client route serveur dédiée, fallback local et test `narration-module:test:narrative-app-surface` le 2026-07-07.
+- [x] Fermeture I-06I: route serveur OpenAI narrative opt-in, rôles bornés, clé absente sans réseau et test `narration-module:test:narrative-openai-route` le 2026-07-07.
+- [x] Fermeture I-06H: surface narration enrichie par faux fournisseur et OpenAI compatible `ContractAiProviderV1` sans import navigateur le 2026-07-07.
+- [x] Fermeture I-06G: enrichissement IA borne, expression PJ, narration MJ ancree, fallback et test `narration-module:test:ai-narrative-enhancement` le 2026-07-07.
+- [x] Fermeture I-06F: resolver deterministe, commit speech borne, handoffs inventaire/tactique, idempotence et test `narration-module:test:narrative-resolution` le 2026-07-07.
+- [x] Audit I-06F: contrat `narrative-resolution/1` fige et autorisation limitee a la résolution narrative bornée le 2026-07-07.
+- [x] Fermeture I-06E: interprétation conservatrice, possibilité sans action, clarification suspendue, reprise et test `narration-module:test:narrative-turn-controller` le 2026-07-07.
+- [x] Audit I-06E: contrat `intent-clarification/1` fige et autorisation limitee a l'interprétation conservatrice sans mutation le 2026-07-07.
+- [x] Fermeture I-06D: contrôleur narratif prototype, opération durable, `NO_COMMIT_RESPONSE`, idempotence et test `narration-module:test:narrative-turn-controller` le 2026-07-07.
+- [x] Audit I-06D: contrat `narrative-turn-controller/1` fige et autorisation limitee au contrôleur prototype sans commit métier le 2026-07-07.
+- [x] Fermeture I-06C: shell `App.tsx`, surface narration dédiée, séparation de `GameBoard.tsx` et test `narration-module:test:narrative-app-surface` le 2026-07-07.
+- [x] Audit I-06C: contrat `narrative-app-surface/1` fige et autorisation limitee a la surface narration dediee le 2026-07-07.
+- [x] Fermeture I-06B: composant React pur, saisie libre callback, rendu accessible et test `narration-module:test:narrative-react-ui` le 2026-07-07.
+- [x] Audit I-06B: contrat `narrative-react-ui/1` fige et autorisation limitee aux composants React purs le 2026-07-07.
+- [x] Fermeture I-06A: types, validateurs, projections, rythme configurable, transcript reconstructible et test `narration-module:test:scene-social-ui` le 2026-07-07.
+- [x] Audit I-06 AF-R16: contrat `scene-social-ui/1` fige et autorisation limitee a I-06A le 2026-07-07.
+- [x] Fermeture I-05B: adaptateur OpenAI, tests simulés, smoke live opt-in, regressions et build global reussis le 2026-07-07.
+- [x] Audit I-05B fournisseur OpenAI: contrat `ai-provider-openai/1` fige et autorisation limitee a I-05B le 2026-07-07.
+- [x] Fermeture I-05A: matrice de preuves, regressions `contracts`, `memory`, `context`, `time`, `indexeddb` et build global reussis le 2026-07-07.
+- [x] Socle I-05A: types, validateurs, faux fournisseur, sorties strictes, incidents expurges et créations dynamiques avec scripts `narration-module:test:ai-pipeline` et `narration-module:test:dynamic-creation` le 2026-07-07.
+- [x] Audit I-05 AF-R10/AF-R11/AF-R15/AF-C02: contrat `ai-pipeline/1` fige et autorisation limitee a I-05A le 2026-07-07.
+- [x] Fermeture I-04: matrice de preuves, regressions `contracts`, `time`, `indexeddb` et build global reussis le 2026-07-07.
+- [x] Socle I-04: memoire sourcée, index reconstruisible, snapshot, contexte role, budget, secret et obsolescence avec scripts `narration-module:test:memory` et `narration-module:test:context` le 2026-07-07.
+- [x] Audit I-04 AF-R08/AF-R09: contrat `memory-context/1` fige et autorisation limitee a I-04 le 2026-07-07.
 - [x] Revue de gate I-03: matrice de preuves, fermeture d'I-03 et autorisation limitee a l'audit I-04 AF-R08/AF-R09 le 2026-07-07.
 - [x] Candidats I-03D: selection deterministe d'un candidat de rencontre depuis signaux monde/lore/archétypes sans creation IA le 2026-07-07.
 - [x] Raccord I-03D: commit atomique voyage avec horloge, checkpoint `process.state`, `world.position`, evenement, rejeu idempotent et Chromium le 2026-07-07.
