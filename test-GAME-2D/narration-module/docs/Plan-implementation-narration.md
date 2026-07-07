@@ -1,6 +1,6 @@
 # Plan d'implémentation du module narration
 
-Statut : `EN_EXECUTION` — I-00 à I-06L livrés dans leur périmètre; audit I-07 tactique/repos terminé et I-07A autorisé; I-02 conserve une réserve tactique différée; I-08 reste fermé jusqu'à sa gate.
+Statut : `EN_EXECUTION` — I-00 à I-06N livrés dans leur périmètre; audit I-07 tactique/repos terminé et I-07A à I-07D livrés; I-02 conserve une réserve tactique différée; I-08 reste fermé jusqu'à sa gate.
 
 ## Principes d'exécution
 
@@ -371,6 +371,33 @@ Il couvre uniquement l'enrichissement IA du rendu visible après résolution : e
 - tests `narration-module:test:contracts:core`, `narration-module:test:narrative-render-projection` et `narration-module:test:narrative-app-surface`;
 - matrice [`Matrice-preuves-I06L.md`](Matrice-preuves-I06L.md).
 
+### Preuves de livraison I-06M
+
+- scène narrative de référence `reference-inn-rain-001`;
+- contexte concret : auberge, pluie, garde blessé, serveuse nerveuse et porte du fond;
+- blocs visibles typés `GM_NARRATION` et `NPC_SPEECH` injectés dans le paquet de rendu;
+- parole `je demande au garde...` reconnue comme intention `speech`;
+- questions méta, questions de possibilité et clarifications maintenues hors fiction;
+- aucune dépendance à `GameBoard.tsx`, `localStorage`, `/api/narration` ou au module tactique réel;
+- test `narration-module:test:narrative-turn-controller`;
+- matrice [`Matrice-preuves-I06M.md`](Matrice-preuves-I06M.md).
+
+Limite assumée : I-06M ne livre pas encore l'état persistant de scène, la mémoire sociale PNJ, le paquet IA riche `scene_writer`, ni une progression dynamique de la scène. Il sert de base stable pour corriger la narration générique avant de reprendre les intégrations de domaine.
+
+### Preuves de livraison I-06N
+
+- contrat interne `reference-scene-writer-context/1`;
+- paquet `RoleContextPackV1` construit pour `scene_writer`;
+- contexte concret transmis : Auberge du Seuil, pluie, garde blessé, serveuse nerveuse et porte du fond;
+- `contextFingerprint` stable dérivé du paquet;
+- `task.allowedGrounding` limité aux références `resolution:*` et `reference-scene:*`;
+- validation stricte des `groundedIn` des blocs IA;
+- fallback local UI ancré dans la scène de référence;
+- test `narration-module:test:ai-narrative-enhancement`;
+- matrice [`Matrice-preuves-I06N.md`](Matrice-preuves-I06N.md).
+
+Limite assumée : I-06N ne livre pas encore l'état persistant de scène ni la mémoire courte PNJ. Ces deux sujets deviennent les suites I-06O et I-06P.
+
 ## I-07 — Tactique et repos
 
 ### Objectif
@@ -433,6 +460,19 @@ Limite assumée : I-07B ne livre pas encore la segmentation jouable du repos, le
 
 Limite assumée : I-07C ne livre pas encore l'UI de repos jouable, les choix interactifs complets, les règles exhaustives de classe/sorts/fatigue, ni la simulation mondiale aux frontières horaires longues.
 
+### Preuves de livraison I-07D
+
+- placeholder tactique `resolveTacticalPlaceholderV1`;
+- production déterministe d'un `TacticalOutcomeV1` depuis `TacticalEncounterSeedV1`;
+- scénarios contrôlés `VICTORY`, `FLEE`, `CAPTURE`, `SURRENDER`, `TECHNICAL_FAILURE`;
+- checkpoints simulés et empreintes stables;
+- intégration temporelle idempotente d'un outcome placeholder;
+- absence de dépendance à `GameBoard.tsx`, `localStorage` ou `/api/narration`;
+- test dédié `narration-module:test:tactical-rest-handoff`;
+- matrice [`Matrice-preuves-I07D.md`](Matrice-preuves-I07D.md).
+
+Limite assumée : I-07D ne livre pas le combat réel, l'IA tactique, la grille, la portée, la vision, la couverture, la génération de carte ou l'adaptation du prototype `GameBoard.tsx`.
+
 ## I-08 — Certification verticale et non fonctionnelle
 
 ### Objectif
@@ -463,4 +503,4 @@ I-03 et I-04 peuvent être préparés indépendamment après I-02, mais aucune i
 
 ## Autorisation actuelle
 
-I-00 à I-06L sont terminés dans leur périmètre déclaré. L'audit I-07 est terminé et autorise I-07A uniquement. I-08 reste fermé jusqu'à son contrat et sa gate.
+I-00 à I-06N sont terminés dans leur périmètre déclaré, et I-07A à I-07D restent disponibles comme socle tactique/repos différé. La prochaine étape autorisée est I-06O : état de scène minimal persistant pour faire évoluer `reference-inn-rain-001` sans donner d'autorité métier à l'IA. I-06P suivra pour la mémoire courte PNJ. I-07E et I-08 restent fermés tant qu'ils ne sont pas explicitement rouverts.

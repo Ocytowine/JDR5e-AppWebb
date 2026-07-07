@@ -60,7 +60,7 @@ Les simulations longues sont disponibles avec `npm run verify:world-simulation:l
 
 - `test-GAME-2D/src/` : application React, plateau, regles, donnees et creation de personnage.
 - `test-GAME-2D/map-module/` : carte du monde, editeur et simulation systemique.
-- `test-GAME-2D/narration-module/` : noyau narratif progressif I-00 a I-07C, avec persistance IndexedDB, contexte, pipeline IA contractuel, surface narration prototype, OpenAI opt-in cote serveur, projections de rendu durables, reconstruction du fil visible, handoffs tactique/repos typés, avance temporelle atomique et repos segmenté déterministe. Le MJ complet de campagne, les handoffs jouables et le lecteur UX d'historique complet restent en cours de construction.
+- `test-GAME-2D/narration-module/` : noyau narratif progressif I-00 a I-06N et socle différé I-07A a I-07D, avec persistance IndexedDB, contexte, pipeline IA contractuel, surface narration prototype, OpenAI opt-in cote serveur, projections de rendu durables, reconstruction du fil visible, scène narrative de référence, paquet IA de scène, handoffs tactique/repos typés, avance temporelle atomique, repos segmenté déterministe et placeholder tactique contractuel. Le MJ complet de campagne, les handoffs jouables, l'état de scène persistant, la mémoire courte PNJ et le lecteur UX d'historique complet restent en cours de construction.
 - `test-GAME-2D/scripts/` : generation de catalogues et scripts de verification.
 - `test-GAME-2D/docs/` : conception fonctionnelle et technique de l'application.
 - `wiki/` : lore et modeles de contenu de l'univers.

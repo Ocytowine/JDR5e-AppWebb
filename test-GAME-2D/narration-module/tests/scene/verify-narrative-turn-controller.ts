@@ -72,7 +72,12 @@ async function main(): Promise<void> {
   assert.equal(first.value.output.noGameTime, true);
   assert.equal(first.value.output.interpretation.intentType, "action");
   assert.equal(first.value.output.resolution.resultKind, "RESOLUTION_PROPOSED");
+  assert.equal(first.value.output.displayPacket.sceneId, "reference-inn-rain-001");
   assert.equal(first.value.output.displayPacket.displayBlocks[0]?.kind, "RAW_INPUT");
+  assert.equal(first.value.output.displayPacket.displayBlocks.some(block =>
+    block.kind === "GM_NARRATION" &&
+    /garde blessé|porte du fond|pluie/u.test(block.text)
+  ), true, "observation doit produire une narration MJ concrète de la scène de référence");
   assert.match(first.value.output.displayPacket.displayBlocks.at(-1)?.text ?? "", /sans commit/);
 
   const replay = await controller.submit({
@@ -107,6 +112,7 @@ async function main(): Promise<void> {
   assert.equal(meta.value.output.interpretation.intentType, "meta_question");
   assert.equal(meta.value.output.interpretation.expectedTimeEffect, "NO_GAME_TIME");
   assert.equal(meta.value.output.resolution.resultKind, "NO_COMMIT_RESPONSE");
+  assert.equal(meta.value.output.displayPacket.displayBlocks.some(block => block.kind === "GM_NARRATION" || block.kind === "NPC_SPEECH"), false);
   assert.match(meta.value.output.displayPacket.displayBlocks.at(-1)?.text ?? "", /sans commit/);
 
   const possibility = await controller.submit({
@@ -119,7 +125,22 @@ async function main(): Promise<void> {
   assert.equal(possibility.value.output.interpretation.commitment, "hypothetical");
   assert.equal(possibility.value.output.suspendedIntent, null);
   assert.equal(possibility.value.output.resolution.resultKind, "NO_COMMIT_RESPONSE");
+  assert.equal(possibility.value.output.displayPacket.displayBlocks.some(block => block.kind === "GM_NARRATION" || block.kind === "NPC_SPEECH"), false);
   assert.match(possibility.value.output.displayPacket.displayBlocks.at(-1)?.text ?? "", /Aucune action/);
+
+  const speech = await controller.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-controller-speech",
+    rawInput: "je demande au garde ce qu'il cherche"
+  });
+  if (!speech.ok) throw new Error(speech.error.messageKey);
+  assert.equal(speech.value.output.interpretation.intentType, "speech");
+  assert.equal(speech.value.output.resolution.resultKind, "COMMIT_APPLIED");
+  assert.equal(speech.value.output.displayPacket.displayBlocks.some(block =>
+    block.kind === "NPC_SPEECH" &&
+    block.speaker.displayName === "Garde blessé" &&
+    /porte du fond/u.test(block.text)
+  ), true, "dialogue doit produire une réponse PNJ ancrée dans la scène");
 
   const ambiguous = await controller.submit({
     schemaVersion: 1,

@@ -30,11 +30,14 @@ import {
   prepareRestSegmentCommitV1,
   prepareTimedHandoffOutcomeIntegrationV1,
   restProcessAggregateId,
+  resolveTacticalPlaceholderV1,
   validateRestSeedV1,
   validateTacticalEncounterSeedV1,
+  validateTacticalOutcomeV1,
   type ProcessHandoffV1,
   type PreparedRestSegmentV1,
   type RestProcessStateV1,
+  type TacticalPlaceholderScenarioV1,
   type RestOutcomeV1,
   type RestSeedV1,
   type TacticalEncounterSeedV1,
@@ -867,6 +870,115 @@ test("10 segmented rest interruption is deterministic and grants no long rest be
   assert.equal(interrupted.process.remainingBenefits.length, 1);
   const events = expectOk(await repository.listEvents(campaign.campaignId, null, 30));
   assert.equal(events.filter(event => event.eventType === "rest_interrupted").length, 1);
+});
+
+test("11 tactical placeholder produces deterministic typed outcomes", async () => {
+  const { campaign } = await setup("tactical_placeholder_deterministic");
+  const seed = tacticalSeed(campaign, "proc_tactical_placeholder_deterministic_i07d");
+  const sourceOperationId = id<OperationId>("op_i07d_placeholder_source");
+  const first = await resolveTacticalPlaceholderV1({
+    seed,
+    sourceOperationId,
+    scenario: "VICTORY",
+    deterministicSeed: "stable-tactical-placeholder"
+  });
+  const replay = await resolveTacticalPlaceholderV1({
+    seed,
+    sourceOperationId,
+    scenario: "VICTORY",
+    deterministicSeed: "stable-tactical-placeholder"
+  });
+  assert.deepEqual(replay, first);
+  const validation = validateTacticalOutcomeV1(first.outcome);
+  assert.equal(validation.valid, true, validation.issues.join(" | "));
+  assert.equal(first.outcome.endCondition, "all_hostiles_neutralized");
+  assert.equal(first.outcome.domainDeltas.length, 1);
+  assert.equal(first.checkpoints.length, 2);
+});
+
+test("12 tactical placeholder covers controlled terminal scenarios", async () => {
+  const { campaign } = await setup("tactical_placeholder_scenarios");
+  const scenarios: Array<[TacticalPlaceholderScenarioV1, string, string, number]> = [
+    ["VICTORY", "COMPLETED", "all_hostiles_neutralized", 1],
+    ["FLEE", "COMPLETED", "escape", 1],
+    ["CAPTURE", "COMPLETED", "capture", 1],
+    ["SURRENDER", "COMPLETED", "surrender", 1],
+    ["TECHNICAL_FAILURE", "FAILED", "technical_failure", 0]
+  ];
+  for (const [scenario, status, endCondition, deltaCount] of scenarios) {
+    const seed = tacticalSeed(campaign, `proc_tactical_placeholder_${scenario.toLowerCase()}_i07d`);
+    const result = await resolveTacticalPlaceholderV1({
+      seed,
+      sourceOperationId: id<OperationId>(`op_i07d_${scenario.toLowerCase()}`),
+      scenario,
+      deterministicSeed: "stable-tactical-placeholder"
+    });
+    assert.equal(result.outcome.status, status);
+    assert.equal(result.outcome.endCondition, endCondition);
+    assert.equal(result.outcome.domainDeltas.length, deltaCount);
+    assert.equal(result.outcome.narrativeProjection.placeholder, true);
+  }
+});
+
+test("13 tactical placeholder outcome integrates through timed handoff without GameBoard", async () => {
+  const { repository, clock, campaign } = await setup("tactical_placeholder_integrate");
+  const sourceOperationId = id<OperationId>("op_i07d_placeholder_integrate_source");
+  const seed = tacticalSeed(campaign, "proc_tactical_placeholder_integrate_i07d");
+  const process = pendingTacticalProcess(campaign, sourceOperationId, seed.processId);
+  const afterProcess = await commitPendingProcess(repository, campaign, clock, process, "placeholder_integrate");
+  const placeholder = await resolveTacticalPlaceholderV1({
+    seed: { ...seed, campaignId: afterProcess.campaignId },
+    sourceOperationId,
+    scenario: "CAPTURE",
+    deterministicSeed: "stable-tactical-placeholder"
+  });
+  const batch = await createHandoffOutcomeTemporalBatchV1({
+    batchId: "batch_i07d_placeholder_integrate",
+    taskId: "task_i07d_placeholder_integrate",
+    currentGameSecond: 0,
+    elapsedGameSeconds: placeholder.outcome.elapsedGameSeconds,
+    processId: process.processId,
+    outcomeId: placeholder.outcome.outcomeId
+  });
+  const operation = await readyOperation(repository, afterProcess, clock, "placeholder_integrate", "time.segment", {
+    batchFingerprint: batch.batchFingerprint
+  }, id<IdempotencyKey>(placeholder.outcome.integrationIdempotencyKey));
+  const writerLease = await lease(repository, campaign.campaignId, "placeholder_integrate");
+  const clockAggregate = expectOk(await repository.getAggregate(campaign.campaignId, "world.clock", campaign.clockAggregateId));
+  const prepared = await prepareTimedHandoffOutcomeIntegrationV1({
+    campaign: afterProcess,
+    operation,
+    writerLease,
+    clockAggregate,
+    scheduleAggregate: null,
+    scheduleAggregateId: scheduleAggregateId("placeholder_integrate"),
+    simulationCursorAggregate: null,
+    simulationCursorAggregateId: simulationCursorAggregateId("placeholder_integrate"),
+    process,
+    processExpectedRevision: 0,
+    outcome: placeholder.outcome,
+    batch,
+    eventId: id<EventId>("evt_i07d_placeholder_integrated"),
+    commitId: id<CommitId>("cmt_i07d_placeholder_integrated"),
+    commandId: id<CommandId>("cmd_i07d_placeholder_integrated")
+  });
+  assert.equal(prepared.ok, true, prepared.ok ? undefined : prepared.diagnostics.map(value => value.code).join(","));
+  if (!prepared.ok) throw new Error("placeholder tactical integration preparation failed");
+  const first = expectOk(await repository.commit(prepared.value));
+  const replay = expectOk(await repository.commit(prepared.value));
+  assert.deepEqual(replay, first);
+  expectOk(await repository.releaseWriterLease(writerLease));
+
+  const storedClock = expectOk(await repository.getAggregate(campaign.campaignId, "world.clock", campaign.clockAggregateId));
+  assert.equal(storedClock.payload.elapsedGameSeconds, 60);
+  const characterAggregate = expectOk(await repository.getAggregate(
+    campaign.campaignId,
+    "character.state",
+    id<AggregateId>("agg_character_pj-1")
+  ));
+  assert.equal(characterAggregate.payload.tacticalEndCondition, "capture");
+  const events = expectOk(await repository.listEvents(campaign.campaignId, null, 40));
+  assert.equal(events.filter(event => event.eventType === "tactical_encounter_resolved").length, 1);
 });
 
 export async function runTacticalRestHandoffTests(): Promise<{ passed: number; failed: number }> {

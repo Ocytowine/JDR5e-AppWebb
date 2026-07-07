@@ -15,9 +15,20 @@ import {
   FakeContractAiProviderV1
 } from "../../src/ai/FakeContractAiProvider";
 import type {
+  AiCallRequestV1,
   AiModelRouteV1,
   AiRetryPolicyV1
 } from "../../src/ai/types";
+import type { RoleContextPackV1 } from "../../src/context";
+
+class RecordingProvider extends FakeContractAiProviderV1 {
+  readonly requests: AiCallRequestV1[] = [];
+
+  override async generate(request: AiCallRequestV1): Promise<unknown> {
+    this.requests.push(request);
+    return super.generate(request);
+  }
+}
 
 class FixedClock implements RepositoryClock {
   constructor(private readonly instant = new Date("2026-07-07T12:00:00.000Z")) {}
@@ -137,7 +148,7 @@ async function main(): Promise<void> {
   if (!speech.ok) throw new Error(speech.error.messageKey);
   assert.equal(speech.value.output.resolution.resultKind, "COMMIT_APPLIED");
   const speechOp = speech.value.operation.operationId;
-  const speechProvider = new FakeContractAiProviderV1([
+  const speechProvider = new RecordingProvider([
     [`${speechOp}:ai:expression:attempt:1`, envelope({
       operationId: speechOp,
       role: "player_expression_adapter",
@@ -162,7 +173,10 @@ async function main(): Promise<void> {
           slotId: "speech-texture",
           blockKind: "MJ_NARRATION",
           content: "Le murmure de la salle retombe un instant autour de cette demande, assez pour que le garde mesure le sérieux de votre démarche.",
-          groundedIn: [`resolution:${speech.value.output.resolution.resolutionId}`],
+          groundedIn: [
+            `resolution:${speech.value.output.resolution.resolutionId}`,
+            "reference-scene:reference-inn-rain-001"
+          ],
           usesCreativeTexture: true
         }]
       }
@@ -180,6 +194,23 @@ async function main(): Promise<void> {
   assert.equal(speech.value.output.resolution.resultKind, "COMMIT_APPLIED");
   assert.match(speechEnhanced.displayPacket.displayBlocks.find(block => block.kind === "PLAYER_EXPRESSION")?.text ?? "", /voix posée/);
   assert.equal(speechEnhanced.displayPacket.displayBlocks.some(block => block.kind === "GM_NARRATION"), true);
+  const sceneWriterRequest = speechProvider.requests.find(request => request.role === "scene_writer");
+  assert.ok(sceneWriterRequest, "scene_writer doit être appelé sur une parole committée");
+  assert.equal(sceneWriterRequest.input.instructionsRef, "narrative-ai-resolution/scene-writer/reference-scene/v1");
+  assert.match(sceneWriterRequest.contextFingerprint, /^sha256:[0-9a-f]{64}$/u);
+  const roleContextPack = sceneWriterRequest.input.roleContextPack as RoleContextPackV1;
+  assert.equal(roleContextPack.role, "scene_writer");
+  assert.equal(roleContextPack.blocks.some(block =>
+    block.blockKind === "SCENE" &&
+    /Auberge du Seuil/u.test(block.text) &&
+    /porte du fond/u.test(block.text)
+  ), true, "le paquet scene_writer doit contenir la scène de référence concrète");
+  assert.deepEqual((sceneWriterRequest.input.task as { allowedGrounding: string[] }).allowedGrounding, [
+    `resolution:${speech.value.output.resolution.resolutionId}`,
+    "reference-scene:reference-inn-rain-001"
+  ]);
+  assert.equal(roleContextPack.creativeScope.mustNotModify.includes("handoff"), true);
+  assert.equal(speechEnhanced.displayPacket.reconstructionRefs.includes(`ai-context:${speechOp}:pack:scene-writer`), true);
 
   const unsafeProvider = new FakeContractAiProviderV1([
     [`${speechOp}:ai:expression:attempt:1`, envelope({

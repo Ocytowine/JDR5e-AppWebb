@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  buildReferenceSceneLocalNarrationV1,
   createBrowserPersistentNarrativeTurnControllerV1,
   createPrototypeNarrativeTurnControllerV1,
   enhanceNarrativeDisplayWithAiV1,
@@ -376,16 +377,11 @@ function buildPrototypeExpression(output: NarrativeTurnControllerOutputV1): stri
 }
 
 function buildPrototypeNarration(output: NarrativeTurnControllerOutputV1): string {
-  if (output.resolution.resultKind === "HANDOFF_REQUIRED") {
-    return "La scène se tend autour de cette intention, mais le résultat reste suspendu au domaine compétent.";
-  }
-  if (output.resolution.resultKind === "COMMIT_APPLIED") {
-    return "La parole prend place dans la scène; elle est désormais enregistrée avant que le récit ne poursuive son cours.";
-  }
-  if (output.resolution.resultKind === "CLARIFICATION_REQUIRED") {
-    return "Le fil s'arrête proprement, le temps que l'intention soit précisée sans faire avancer le monde.";
-  }
-  return "Le MJ garde la main sur le cadre: rien n'est encore engagé dans la fiction durable.";
+  return buildReferenceSceneLocalNarrationV1({
+    rawInput: output.displayPacket.displayBlocks.find(block => block.kind === "RAW_INPUT")?.text ?? "",
+    interpretation: output.interpretation,
+    resolution: output.resolution
+  });
 }
 
 const prototypeExpressionRoute: AiModelRouteV1 = {

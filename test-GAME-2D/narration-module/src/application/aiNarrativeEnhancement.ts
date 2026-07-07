@@ -10,6 +10,11 @@ import type {
 } from "../ai/types";
 import type { DisplayBlockV1, DisplayPacketV1 } from "../scene";
 import type { NarrativeResolutionResultV1 } from "./narrativeResolution";
+import {
+  buildReferenceSceneWriterContextPackV1,
+  buildReferenceSceneWriterTaskV1,
+  REFERENCE_PLAYABLE_SCENE_ID_V1
+} from "./referenceScene";
 
 export const NARRATIVE_AI_RESOLUTION_CONTRACT_VERSION_V1 = "narrative-ai-resolution/1" as const;
 
@@ -92,6 +97,22 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
   }
 
   if (shouldCallSceneWriter(input.resolution)) {
+    const snapshotId = `${input.operationId}:snapshot:display`;
+    const packId = `${input.operationId}:pack:scene-writer`;
+    const sceneContextPack = await buildReferenceSceneWriterContextPackV1({
+      campaignId: input.campaignId,
+      operationId: input.operationId,
+      packId,
+      snapshotId,
+      rawInput: findRawInput(input.displayPacket),
+      interpretation: input.resolution.interpretation,
+      resolution: input.resolution
+    });
+    const sceneTask = buildReferenceSceneWriterTaskV1({
+      rawInput: findRawInput(input.displayPacket),
+      interpretation: input.resolution.interpretation,
+      resolution: input.resolution
+    });
     const sceneRun = await runAiPipelineCallV1({
       provider: input.config.provider,
       route: input.config.sceneWriterRoute,
@@ -102,23 +123,17 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
         operationId: input.operationId,
         attemptId: `${input.operationId}:ai:scene-writer:attempt:1`,
         campaignId: input.campaignId,
-        snapshotId: `${input.operationId}:snapshot:display`,
-        packId: `${input.operationId}:pack:scene-writer`,
+        snapshotId,
+        packId,
         role: "scene_writer",
         contractVersion: NARRATIVE_AI_RESOLUTION_CONTRACT_VERSION_V1,
         modelRouteId: input.config.sceneWriterRoute.routeId,
-        contextFingerprint: "sha256:narrative-ai-scene-writer-fixture",
+        contextFingerprint: sceneContextPack.packFingerprint,
         idempotencyKey: `${input.operationId}:ai:scene-writer`,
         input: {
-          instructionsRef: "narrative-ai-resolution/scene-writer/v1",
-          roleContextPack: {},
-          task: {
-            resultKind: input.resolution.resultKind,
-            handoff: input.resolution.handoff,
-            committed: input.resolution.commitId !== null,
-            allowedGrounding: [`resolution:${input.resolution.resolutionId}`],
-            forbidden: ["success_without_commit", "combat_resolution", "inventory_mutation", "secret_reveal"]
-          }
+          instructionsRef: "narrative-ai-resolution/scene-writer/reference-scene/v1",
+          roleContextPack: sceneContextPack,
+          task: sceneTask
         },
         limits: {
           inputTokenBudget: 900,
@@ -132,15 +147,20 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
     const narrativeBlocks = scenePayload?.narrationBlocks.filter(block => {
       return block.blockKind === "MJ_NARRATION"
         && block.content.trim().length > 0
-        && block.groundedIn.includes(`resolution:${input.resolution.resolutionId}`)
+        && hasAllowedGrounding(block.groundedIn, sceneTask.allowedGrounding)
         && !forbiddenNarrativeClaim(block.content);
     }) ?? [];
     if (narrativeBlocks.length > 0) {
       enhanced.displayBlocks.push(...narrativeBlocks.map((block, index) => aiNarrationBlock(input.operationId, block.content, sceneRun.acceptedOutput?.outputId ?? "unknown", index)));
       enhanced.rhythmDiagnostics = `${enhanced.rhythmDiagnostics ?? "none"}|ai-scene-writer`;
-      enhanced.reconstructionRefs = [...enhanced.reconstructionRefs, `ai-output:${sceneRun.acceptedOutput?.outputId ?? "unknown"}`];
+      enhanced.reconstructionRefs = [
+        ...enhanced.reconstructionRefs,
+        `ai-output:${sceneRun.acceptedOutput?.outputId ?? "unknown"}`,
+        `ai-context:${sceneContextPack.packId}`,
+        `reference-scene:${REFERENCE_PLAYABLE_SCENE_ID_V1}`
+      ];
       changed = true;
-      safetyNotes.push("Narration MJ ajoutée uniquement comme texture ancrée.");
+      safetyNotes.push("Narration MJ ajoutée uniquement comme texture ancrée dans la scène de référence.");
     }
   } else {
     safetyNotes.push("Scene writer non appelé: aucune matière fictionnelle autorisée pour ce résultat sans commit.");
@@ -196,6 +216,14 @@ function shouldCallSceneWriter(resolution: NarrativeResolutionResultV1): boolean
     || resolution.characterExpression !== null
     || resolution.handoff !== null
     || resolution.resultKind === "CLARIFICATION_REQUIRED";
+}
+
+function findRawInput(displayPacket: DisplayPacketV1): string {
+  return displayPacket.displayBlocks.find(block => block.kind === "RAW_INPUT")?.text ?? "";
+}
+
+function hasAllowedGrounding(groundedIn: string[], allowedGrounding: string[]): boolean {
+  return groundedIn.length > 0 && groundedIn.every(ref => allowedGrounding.includes(ref));
 }
 
 function forbiddenNarrativeClaim(text: string): boolean {

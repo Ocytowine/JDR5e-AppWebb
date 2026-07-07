@@ -1,7 +1,7 @@
 # Documentation du module narration
 
 Ce dossier est la source de vérité de conception et de suivi du module narration.
-Il distingue la cible complète du runtime de campagne et les capacités déjà livrées progressivement. La surface narration prototype, la bascule OpenAI opt-in, l'enregistrement durable des projections de rendu, la reconstruction du fil visible, le socle contractuel I-07A des handoffs tactique/repos, leur raccord temporel I-07B et le repos segmenté propriétaire I-07C existent; le MJ complet, les handoffs jouables branchés aux moteurs propriétaires et le lecteur UX d'historique complet restent à ouvrir par contrats dédiés.
+Il distingue la cible complète du runtime de campagne et les capacités déjà livrées progressivement. La surface narration prototype, la bascule OpenAI opt-in, l'enregistrement durable des projections de rendu, la reconstruction du fil visible, la scène narrative de référence I-06M, le paquet IA de scène I-06N, le socle contractuel I-07A des handoffs tactique/repos, leur raccord temporel I-07B, le repos segmenté propriétaire I-07C et le placeholder tactique contractuel I-07D existent; le MJ complet, l'état de scène persistant, la mémoire courte PNJ, les handoffs jouables branchés aux moteurs propriétaires et le lecteur UX d'historique complet restent à ouvrir par contrats dédiés.
 
 ## Documents de référence
 
@@ -49,10 +49,13 @@ Il distingue la cible complète du runtime de campagne et les capacités déjà 
 - [`Matrice-preuves-I06J.md`](Matrice-preuves-I06J.md) : preuves de la bascule UI OpenAI opt-in avec fallback local.
 - [`Matrice-preuves-I06K.md`](Matrice-preuves-I06K.md) : preuves de la persistance des projections de rendu et incidents IA expurgés.
 - [`Matrice-preuves-I06L.md`](Matrice-preuves-I06L.md) : preuves de la reconstruction du fil visible depuis les projections persistées.
+- [`Matrice-preuves-I06M.md`](Matrice-preuves-I06M.md) : preuves de la scène narrative de référence et des blocs visibles concrets.
+- [`Matrice-preuves-I06N.md`](Matrice-preuves-I06N.md) : preuves du paquet IA `scene_writer` ancré dans la scène de référence.
 - [`Matrice-preuves-I07-audit.md`](Matrice-preuves-I07-audit.md) : audit tactique/repos, résolution AF-R13/AF-R14 et autorisation limitée I-07A.
 - [`Matrice-preuves-I07A.md`](Matrice-preuves-I07A.md) : preuves I-07A, types, validateurs, fixtures et intégration idempotente simulée.
 - [`Matrice-preuves-I07B.md`](Matrice-preuves-I07B.md) : preuves I-07B, intégration temporelle des outcomes tactique/repos par `world.clock`.
 - [`Matrice-preuves-I07C.md`](Matrice-preuves-I07C.md) : preuves I-07C, repos segmenté, checkpoints et interruptions déterministes.
+- [`Matrice-preuves-I07D.md`](Matrice-preuves-I07D.md) : preuves I-07D, placeholder tactique et outcomes typés.
 - [`Handoff-I06J-retour-live.md`](Handoff-I06J-retour-live.md) : retour des premiers tests OpenAI live, cap produit et prochain micro-lot recommandé.
 - [`Exemple-chronologie-causale.json`](Exemple-chronologie-causale.json) : interruption temporelle, tick mondial, visibilité et reprise idempotente.
 - [`Resilience-securite-diagnostic.md`](Resilience-securite-diagnostic.md) : confinement des erreurs, sécurité des données et traces exploitables.

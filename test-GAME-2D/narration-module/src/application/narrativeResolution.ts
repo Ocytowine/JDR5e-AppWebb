@@ -18,6 +18,10 @@ import {
 import type { DisplayPacketV1, RenderBlockKindV1 } from "../scene";
 import { SCENE_SOCIAL_UI_CONTRACT_VERSION_V1 } from "../scene";
 import type { NarrativeIntentInterpretationV1, SuspendedIntentRecordV1 } from "./intentClarification";
+import {
+  buildReferenceSceneBlocksV1,
+  REFERENCE_PLAYABLE_SCENE_ID_V1
+} from "./referenceScene";
 
 export const NARRATIVE_RESOLUTION_CONTRACT_VERSION_V1 = "narrative-resolution/1" as const;
 
@@ -390,6 +394,12 @@ function buildResolutionDisplayPacket(
       [`resolution:${resolution.resolutionId}:character-expression`]
     ));
   }
+  blocks.push(...buildReferenceSceneBlocksV1({
+    operationId,
+    rawInput,
+    interpretation: resolution.interpretation,
+    resolution
+  }));
   blocks.push(block(
     operationId,
     "resolution",
@@ -403,14 +413,14 @@ function buildResolutionDisplayPacket(
     schemaVersion: 1,
     contractVersion: SCENE_SOCIAL_UI_CONTRACT_VERSION_V1,
     operationId,
-    sceneId: "prototype-narration-surface",
+    sceneId: REFERENCE_PLAYABLE_SCENE_ID_V1,
     displayBlocks: blocks,
     rawInputAccess: {
       available: true,
       operationId
     },
-    rhythmDiagnostics: `narrative-resolution:${resolution.resultKind}`,
-    reconstructionRefs: [`operation:${operationId}:raw`, `resolution:${resolution.resolutionId}`],
+    rhythmDiagnostics: `narrative-resolution:${resolution.resultKind}|reference-scene:${REFERENCE_PLAYABLE_SCENE_ID_V1}`,
+    reconstructionRefs: [`operation:${operationId}:raw`, `resolution:${resolution.resolutionId}`, `reference-scene:${REFERENCE_PLAYABLE_SCENE_ID_V1}`],
     version: 1
   } as unknown as DisplayPacketV1 & JsonObject;
 }
