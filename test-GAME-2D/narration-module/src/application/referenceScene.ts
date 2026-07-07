@@ -4,6 +4,7 @@ import type { MemorySourceRefV1 } from "../memory";
 import type { DisplayBlockV1, RenderBlockKindV1, SpeakerKindV1 } from "../scene";
 import type { NarrativeIntentInterpretationV1 } from "./intentClarification";
 import type { NarrativeResolutionResultV1 } from "./narrativeResolution";
+import type { ReferenceSceneStateV1 } from "./referenceSceneState";
 
 export const REFERENCE_PLAYABLE_SCENE_ID_V1 = "reference-inn-rain-001" as const;
 export const REFERENCE_PLAYABLE_SCENE_CONTRACT_VERSION_V1 = "reference-playable-scene/1" as const;
@@ -79,11 +80,13 @@ export async function buildReferenceSceneWriterContextPackV1(input: {
   rawInput: string;
   interpretation: NarrativeIntentInterpretationV1;
   resolution: NarrativeResolutionResultV1;
+  sceneState?: ReferenceSceneStateV1;
 }): Promise<RoleContextPackV1> {
   const sceneSourceRef = `reference-scene:${REFERENCE_PLAYABLE_SCENE_ID_V1}`;
   const resolutionSourceRef = `resolution:${input.resolution.resolutionId}`;
   const sceneMemoryRef = memorySourceRef("CONTENT_ENTRY", REFERENCE_PLAYABLE_SCENE_ID_V1, input.campaignId, "narration.reference-scene");
   const resolutionMemoryRef = memorySourceRef("OPERATION", input.resolution.resolutionId, input.campaignId, "narration.resolution");
+  const sceneStateMemoryRef = memorySourceRef("AGGREGATE", REFERENCE_PLAYABLE_SCENE_ID_V1, input.campaignId, "narration.scene-state");
   const scenePayload = REFERENCE_SCENE_CONTEXT_V1 as unknown as JsonObject;
   const resolutionPayload = {
     resultKind: input.resolution.resultKind,
@@ -140,6 +143,9 @@ export async function buildReferenceSceneWriterContextPackV1(input: {
     }, {
       sourceRef: resolutionMemoryRef,
       properties: ["resultKind", "commitId", "handoff", "interpretation"]
+    }, {
+      sourceRef: sceneStateMemoryRef,
+      properties: ["interactionCount", "guardAddressed", "backRoomDoorHighlighted", "visibleFocus", "shortTermNpcMemory"]
     }],
     creativeScope: {
       mayCreate: [],
@@ -183,7 +189,21 @@ export async function buildReferenceSceneWriterContextPackV1(input: {
       ].join(" "),
       payload: scenePayload,
       tokenEstimate: 210
-    }, {
+    }, ...(input.sceneState ? [{
+      blockId: `${input.operationId}:context:scene-state`,
+      blockKind: "SCENE" as const,
+      sourceRefs: [sceneStateMemoryRef],
+      visibility: "SYSTEM_ONLY" as const,
+      actorScope: [],
+      text: [
+        `État scène: ${input.sceneState.interactionCount} interaction(s), garde interpellé=${input.sceneState.guardAddressed}, porte du fond signalée=${input.sceneState.backRoomDoorHighlighted}.`,
+        input.sceneState.shortTermNpcMemory.length > 0
+          ? `Mémoire courte PNJ: ${input.sceneState.shortTermNpcMemory.map(memory => `${memory.actorDisplayName}: ${memory.npcContinuitySummary}`).join(" | ")}`
+          : "Mémoire courte PNJ: aucun échange mémorisé."
+      ].join(" "),
+      payload: input.sceneState as unknown as JsonObject,
+      tokenEstimate: 70
+    }] : []), {
       blockId: `${input.operationId}:context:resolution`,
       blockKind: "COMMITTED_RESULT",
       sourceRefs: [resolutionMemoryRef],
@@ -280,6 +300,7 @@ export function buildReferenceSceneBlocksV1(input: {
   rawInput: string;
   interpretation: NarrativeIntentInterpretationV1;
   resolution: NarrativeResolutionResultV1;
+  sceneState?: ReferenceSceneStateV1;
 }): DisplayBlockV1[] {
   if (input.resolution.resultKind === "CLARIFICATION_REQUIRED") return [];
   if (input.interpretation.intentType === "meta_question" || input.interpretation.intentType === "possibility_query") return [];
@@ -302,7 +323,7 @@ export function buildReferenceSceneBlocksV1(input: {
         kind: "NPC_SPEECH",
         speakerKind: "NPC",
         displayName: "Garde blessé",
-        text: "Le garde baisse la voix. « Si vous cherchez des réponses, commencez par la porte du fond. Mais ne faites pas de geste brusque ici. »",
+        text: guardSpeechNarration(input.sceneState),
         sourceRefs: [`reference-scene:${REFERENCE_PLAYABLE_SCENE_ID_V1}`, `resolution:${input.resolution.resolutionId}:speech-reaction`]
       })
     ];
@@ -314,22 +335,42 @@ export function buildReferenceSceneBlocksV1(input: {
       kind: "GM_NARRATION",
       speakerKind: "GM",
       displayName: "MJ",
-      text: observationNarration(input.rawInput),
+      text: observationNarration(input.rawInput, input.sceneState),
       sourceRefs: [`reference-scene:${REFERENCE_PLAYABLE_SCENE_ID_V1}`, `resolution:${input.resolution.resolutionId}:reference-observation`]
     })];
   }
   return [];
 }
 
-function observationNarration(rawInput: string): string {
+function observationNarration(rawInput: string, sceneState?: ReferenceSceneStateV1): string {
   const normalized = rawInput.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
   if (/\b(porte|arriere|arriere-salle|fond)\b/u.test(normalized)) {
+    if (sceneState?.backRoomDoorHighlighted) {
+      return "La porte du fond est maintenant le point autour duquel toute la salle semble se contracter. La serveuse évite de la regarder; le garde, lui, sait que tu as compris son avertissement.";
+    }
     return "La porte du fond n'est pas verrouillée, mais la serveuse se crispe dès que ton attention s'y attarde. Le garde blessé remarque aussi ton regard.";
   }
   if (/\b(garde|blesse|soldat)\b/u.test(normalized)) {
+    if (sceneState?.guardAddressed) {
+      return "Le garde blessé te reconnaît maintenant comme quelqu'un qui l'a directement interpellé. Sa main reste sur son flanc, mais son regard revient sans cesse vers la porte du fond.";
+    }
     return "Le garde blessé serre les dents chaque fois qu'il respire trop fort. Sa cuirasse porte des traces de boue fraîche, pas seulement de la route.";
   }
+  if (sceneState?.guardAddressed || sceneState?.backRoomDoorHighlighted) {
+    return "Tu reprends la mesure de la salle commune. La pluie couvre les murmures; depuis l'échange avec le garde blessé, la porte du fond attire davantage les regards qu'elle ne le devrait.";
+  }
   return "Tu prends le temps d'observer la salle commune. La pluie couvre les conversations basses; le garde blessé surveille l'entrée, tandis que la serveuse garde un œil inquiet sur la porte du fond.";
+}
+
+function guardSpeechNarration(sceneState?: ReferenceSceneStateV1): string {
+  const remembered = sceneState?.shortTermNpcMemory.at(-1);
+  if ((sceneState?.interactionCount ?? 0) > 1 && remembered) {
+    return "Le garde ne répète pas toute son explication. Il incline seulement la tête vers l'arrière-salle. « Je vous l'ai dit : la porte du fond. Si vous insistez, faites-le vite, avant que ceux dehors n'entrent. »";
+  }
+  if ((sceneState?.interactionCount ?? 0) > 0) {
+    return "Le garde baisse encore la voix, plus pressé qu'avant. « Vous avez compris l'essentiel : la porte du fond. Mais si vous forcez les choses ici, je ne pourrai plus vous couvrir. »";
+  }
+  return "Le garde baisse la voix. « Si vous cherchez des réponses, commencez par la porte du fond. Mais ne faites pas de geste brusque ici. »";
 }
 
 function handoffNarration(target: string): string {

@@ -9,7 +9,12 @@ import {
   type RepositoryClock
 } from "../../src/core";
 import { NarrativeTurnControllerV1 } from "../../src/application";
-import { resumeSuspendedIntentV1 } from "../../src/application";
+import {
+  REFERENCE_SCENE_STATE_AGGREGATE_ID_V1,
+  REFERENCE_SCENE_STATE_AGGREGATE_TYPE_V1,
+  resumeSuspendedIntentV1,
+  type ReferenceSceneStateV1
+} from "../../src/application";
 
 class FixedClock implements RepositoryClock {
   constructor(private readonly instant = new Date("2026-07-07T12:00:00.000Z")) {}
@@ -102,6 +107,13 @@ async function main(): Promise<void> {
   const clockAggregate = await repository.getAggregate(campaignId, "world.clock", clockAggregateId);
   if (!clockAggregate.ok) throw new Error(clockAggregate.error.messageKey);
   assert.equal((clockAggregate.value.payload as CampaignClockPayload).elapsedGameSeconds, 0, "aucune avance temporelle");
+  const sceneStateBeforeSpeech = await repository.getAggregate(
+    campaignId,
+    REFERENCE_SCENE_STATE_AGGREGATE_TYPE_V1,
+    REFERENCE_SCENE_STATE_AGGREGATE_ID_V1
+  );
+  assert.equal(sceneStateBeforeSpeech.ok, false, "une observation sans commit ne doit pas créer l'état de scène");
+  if (!sceneStateBeforeSpeech.ok) assert.equal(sceneStateBeforeSpeech.error.code, "NOT_FOUND");
 
   const meta = await controller.submit({
     schemaVersion: 1,
@@ -141,6 +153,45 @@ async function main(): Promise<void> {
     block.speaker.displayName === "Garde blessé" &&
     /porte du fond/u.test(block.text)
   ), true, "dialogue doit produire une réponse PNJ ancrée dans la scène");
+  const sceneStateAfterSpeech = await repository.getAggregate(
+    campaignId,
+    REFERENCE_SCENE_STATE_AGGREGATE_TYPE_V1,
+    REFERENCE_SCENE_STATE_AGGREGATE_ID_V1
+  );
+  if (!sceneStateAfterSpeech.ok) throw new Error(sceneStateAfterSpeech.error.messageKey);
+  const sceneState = sceneStateAfterSpeech.value.payload as ReferenceSceneStateV1;
+  assert.equal(sceneState.guardAddressed, true);
+  assert.equal(sceneState.backRoomDoorHighlighted, true);
+  assert.equal(sceneState.interactionCount, 1);
+  assert.equal(sceneState.lastPlayerSpeechSummary, speech.value.output.interpretation.coreMeaning);
+  assert.equal(sceneState.shortTermNpcMemory.length, 1);
+  assert.match(sceneState.shortTermNpcMemory[0]?.npcContinuitySummary ?? "", /porte du fond/u);
+
+  const afterSpeechObservation = await controller.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-controller-after-speech-observe",
+    rawInput: "j'observe le garde"
+  });
+  if (!afterSpeechObservation.ok) throw new Error(afterSpeechObservation.error.messageKey);
+  assert.equal(afterSpeechObservation.value.operation.commitId, null);
+  assert.equal(afterSpeechObservation.value.output.displayPacket.displayBlocks.some(block =>
+    block.kind === "GM_NARRATION" &&
+    /reconnaît maintenant|porte du fond/u.test(block.text)
+  ), true, "l'observation suivante doit utiliser l'état de scène persisté");
+
+  const repeatedSpeech = await controller.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-controller-repeat-guard",
+    rawInput: "je demande au garde de répéter"
+  });
+  if (!repeatedSpeech.ok) throw new Error(repeatedSpeech.error.messageKey);
+  assert.equal(repeatedSpeech.value.output.resolution.resultKind, "COMMIT_APPLIED");
+  assert.equal(repeatedSpeech.value.output.sceneState.interactionCount, 2);
+  assert.equal(repeatedSpeech.value.output.sceneState.shortTermNpcMemory.length, 2);
+  assert.equal(repeatedSpeech.value.output.displayPacket.displayBlocks.some(block =>
+    block.kind === "NPC_SPEECH" &&
+    /Je vous l'ai dit/u.test(block.text)
+  ), true, "le PNJ doit tenir compte de la mémoire courte au lieu de répéter la première réponse");
 
   const ambiguous = await controller.submit({
     schemaVersion: 1,

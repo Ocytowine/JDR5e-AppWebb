@@ -1,0 +1,191 @@
+import {
+  opaqueId,
+  type AggregateId,
+  type AggregateRecord,
+  type CampaignId,
+  type CampaignRepository,
+  type JsonObject,
+  type Result
+} from "../core";
+import type { NarrativeIntentInterpretationV1 } from "./intentClarification";
+import type { NarrativeResolutionResultV1 } from "./narrativeResolution";
+import { REFERENCE_PLAYABLE_SCENE_ID_V1 } from "./referenceScene";
+
+export const REFERENCE_SCENE_STATE_CONTRACT_VERSION_V1 = "reference-scene-state/1" as const;
+export const REFERENCE_SCENE_STATE_AGGREGATE_TYPE_V1 = "scene.state" as const;
+export const REFERENCE_SCENE_STATE_AGGREGATE_ID_V1 = opaqueId<AggregateId>("agg-scene-reference-inn-rain-001");
+
+export interface ReferenceSceneStateV1 extends JsonObject {
+  schemaVersion: 1;
+  contractVersion: typeof REFERENCE_SCENE_STATE_CONTRACT_VERSION_V1;
+  sceneId: typeof REFERENCE_PLAYABLE_SCENE_ID_V1;
+  interactionCount: number;
+  guardAddressed: boolean;
+  backRoomDoorHighlighted: boolean;
+  playerLookedAround: boolean;
+  visibleFocus: string[];
+  lastPlayerSpeechSummary: string | null;
+  shortTermNpcMemory: ReferenceSceneShortTermNpcMemoryEntryV1[];
+  lastMutationOperationId: string | null;
+  version: 1;
+}
+
+export interface ReferenceSceneShortTermNpcMemoryEntryV1 extends JsonObject {
+  schemaVersion: 1;
+  memoryId: string;
+  actorId: "npc-garde-blesse" | "npc-serveuse-nerveuse";
+  actorDisplayName: string;
+  operationId: string;
+  playerIntentSummary: string;
+  npcContinuitySummary: string;
+  visibleToPlayer: true;
+  order: number;
+  version: 1;
+}
+
+export interface LoadedReferenceSceneStateV1 {
+  aggregateType: typeof REFERENCE_SCENE_STATE_AGGREGATE_TYPE_V1;
+  aggregateId: AggregateId;
+  aggregateRevision: number | null;
+  state: ReferenceSceneStateV1;
+}
+
+export function createInitialReferenceSceneStateV1(): ReferenceSceneStateV1 {
+  return {
+    schemaVersion: 1,
+    contractVersion: REFERENCE_SCENE_STATE_CONTRACT_VERSION_V1,
+    sceneId: REFERENCE_PLAYABLE_SCENE_ID_V1,
+    interactionCount: 0,
+    guardAddressed: false,
+    backRoomDoorHighlighted: false,
+    playerLookedAround: false,
+    visibleFocus: ["pluie", "garde-blesse", "serveuse-nerveuse", "porte-du-fond"],
+    lastPlayerSpeechSummary: null,
+    shortTermNpcMemory: [],
+    lastMutationOperationId: null,
+    version: 1
+  };
+}
+
+export async function loadReferenceSceneStateV1(input: {
+  repository: CampaignRepository;
+  campaignId: CampaignId;
+}): Promise<Result<LoadedReferenceSceneStateV1>> {
+  const aggregate = await input.repository.getAggregate(
+    input.campaignId,
+    REFERENCE_SCENE_STATE_AGGREGATE_TYPE_V1,
+    REFERENCE_SCENE_STATE_AGGREGATE_ID_V1
+  );
+  if (!aggregate.ok) {
+    if (aggregate.error.code !== "NOT_FOUND") return aggregate;
+    return {
+      ok: true,
+      value: {
+        aggregateType: REFERENCE_SCENE_STATE_AGGREGATE_TYPE_V1,
+        aggregateId: REFERENCE_SCENE_STATE_AGGREGATE_ID_V1,
+        aggregateRevision: null,
+        state: createInitialReferenceSceneStateV1()
+      }
+    };
+  }
+  return {
+    ok: true,
+    value: {
+      aggregateType: REFERENCE_SCENE_STATE_AGGREGATE_TYPE_V1,
+      aggregateId: REFERENCE_SCENE_STATE_AGGREGATE_ID_V1,
+      aggregateRevision: aggregate.value.aggregateRevision,
+      state: normalizeReferenceSceneStateV1(aggregate.value)
+    }
+  };
+}
+
+export function applyReferenceSceneMutationV1(input: {
+  current: ReferenceSceneStateV1;
+  operationId: string;
+  interpretation: NarrativeIntentInterpretationV1;
+  resolution: NarrativeResolutionResultV1;
+}): ReferenceSceneStateV1 {
+  const next: ReferenceSceneStateV1 = {
+    ...input.current,
+    visibleFocus: [...input.current.visibleFocus],
+    lastMutationOperationId: input.operationId
+  };
+  if (input.interpretation.intentType === "speech" && input.resolution.commitId === null) {
+    next.interactionCount += 1;
+    next.guardAddressed = true;
+    next.backRoomDoorHighlighted = true;
+    next.lastPlayerSpeechSummary = input.interpretation.coreMeaning;
+    next.shortTermNpcMemory = appendNpcShortTermMemoryV1({
+      current: input.current.shortTermNpcMemory,
+      operationId: input.operationId,
+      playerIntentSummary: input.interpretation.coreMeaning,
+      nextOrder: input.current.shortTermNpcMemory.length + 1
+    });
+    if (!next.visibleFocus.includes("garde-blesse-interpelle")) next.visibleFocus.push("garde-blesse-interpelle");
+    if (!next.visibleFocus.includes("porte-du-fond-signalee")) next.visibleFocus.push("porte-du-fond-signalee");
+  }
+  if (input.interpretation.intentType === "action" && /regarde|observe/iu.test(input.interpretation.coreMeaning)) {
+    next.playerLookedAround = true;
+  }
+  return next;
+}
+
+function normalizeReferenceSceneStateV1(aggregate: AggregateRecord): ReferenceSceneStateV1 {
+  const payload = aggregate.payload as Partial<ReferenceSceneStateV1>;
+  return {
+    ...createInitialReferenceSceneStateV1(),
+    ...payload,
+    schemaVersion: 1,
+    contractVersion: REFERENCE_SCENE_STATE_CONTRACT_VERSION_V1,
+    sceneId: REFERENCE_PLAYABLE_SCENE_ID_V1,
+    visibleFocus: Array.isArray(payload.visibleFocus)
+      ? payload.visibleFocus.filter((entry): entry is string => typeof entry === "string")
+      : createInitialReferenceSceneStateV1().visibleFocus,
+    shortTermNpcMemory: normalizeShortTermNpcMemory(payload.shortTermNpcMemory),
+    version: 1
+  };
+}
+
+function appendNpcShortTermMemoryV1(input: {
+  current: ReferenceSceneShortTermNpcMemoryEntryV1[];
+  operationId: string;
+  playerIntentSummary: string;
+  nextOrder: number;
+}): ReferenceSceneShortTermNpcMemoryEntryV1[] {
+  const entry: ReferenceSceneShortTermNpcMemoryEntryV1 = {
+    schemaVersion: 1,
+    memoryId: `${input.operationId}:memory:npc-garde-blesse`,
+    actorId: "npc-garde-blesse",
+    actorDisplayName: "Garde blessé",
+    operationId: input.operationId,
+    playerIntentSummary: input.playerIntentSummary,
+    npcContinuitySummary: "Le garde a déjà orienté le personnage vers la porte du fond et averti de ne pas provoquer d'escalade dans la salle.",
+    visibleToPlayer: true,
+    order: input.nextOrder,
+    version: 1
+  };
+  return [...input.current, entry].slice(-5).map((memory, index) => ({
+    ...memory,
+    order: index + 1
+  }));
+}
+
+function normalizeShortTermNpcMemory(value: unknown): ReferenceSceneShortTermNpcMemoryEntryV1[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((entry): entry is ReferenceSceneShortTermNpcMemoryEntryV1 => {
+    return entry !== null &&
+      typeof entry === "object" &&
+      (entry as { schemaVersion?: unknown }).schemaVersion === 1 &&
+      typeof (entry as { memoryId?: unknown }).memoryId === "string" &&
+      typeof (entry as { operationId?: unknown }).operationId === "string" &&
+      typeof (entry as { playerIntentSummary?: unknown }).playerIntentSummary === "string" &&
+      typeof (entry as { npcContinuitySummary?: unknown }).npcContinuitySummary === "string";
+  }).slice(-5).map((entry, index) => ({
+    ...entry,
+    actorId: entry.actorId === "npc-serveuse-nerveuse" ? "npc-serveuse-nerveuse" : "npc-garde-blesse",
+    actorDisplayName: typeof entry.actorDisplayName === "string" ? entry.actorDisplayName : "Garde blessé",
+    visibleToPlayer: true,
+    order: index + 1,
+    version: 1
+  }));
+}

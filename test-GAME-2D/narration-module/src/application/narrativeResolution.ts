@@ -22,6 +22,14 @@ import {
   buildReferenceSceneBlocksV1,
   REFERENCE_PLAYABLE_SCENE_ID_V1
 } from "./referenceScene";
+import {
+  applyReferenceSceneMutationV1,
+  loadReferenceSceneStateV1,
+  REFERENCE_SCENE_STATE_AGGREGATE_ID_V1,
+  REFERENCE_SCENE_STATE_AGGREGATE_TYPE_V1,
+  type LoadedReferenceSceneStateV1,
+  type ReferenceSceneStateV1
+} from "./referenceSceneState";
 
 export const NARRATIVE_RESOLUTION_CONTRACT_VERSION_V1 = "narrative-resolution/1" as const;
 
@@ -93,17 +101,25 @@ export interface NarrativeResolutionOutputV1 {
   result: NarrativeResolutionResultV1;
   displayPacket: DisplayPacketV1 & JsonObject;
   commit: CommitRecord | null;
+  sceneState: ReferenceSceneStateV1;
 }
 
 export async function resolveNarrativeTurnV1(input: NarrativeResolutionInputV1): Promise<Result<NarrativeResolutionOutputV1>> {
+  const loadedSceneState = await loadReferenceSceneStateV1({
+    repository: input.repository,
+    campaignId: input.campaignId
+  });
+  if (!loadedSceneState.ok) return loadedSceneState;
+
   const deterministic = buildDeterministicResolution(input.operation, input.rawInput, input.interpretation, input.suspendedIntent);
   if (deterministic.resultKind !== "COMMIT_PREPARED") {
     return {
       ok: true,
       value: {
         result: deterministic,
-        displayPacket: buildResolutionDisplayPacket(input.operation.operationId, input.rawInput, deterministic),
-        commit: null
+        displayPacket: buildResolutionDisplayPacket(input.operation.operationId, input.rawInput, deterministic, loadedSceneState.value.state),
+        commit: null,
+        sceneState: loadedSceneState.value.state
       }
     };
   }
@@ -128,11 +144,20 @@ export async function resolveNarrativeTurnV1(input: NarrativeResolutionInputV1):
     operation: ready.value,
     expectedCampaignRevision: currentCampaign.value.campaignRevision,
     writerLease: writerLease.value,
-    resolution: deterministic
+    resolution: deterministic,
+    loadedSceneState: loadedSceneState.value
   });
   const commit = await input.repository.commit(commitRequest);
+  const released = await input.repository.releaseWriterLease(writerLease.value);
+  if (!released.ok && commit.ok) return released;
   if (!commit.ok) return commit;
 
+  const nextSceneState = applyReferenceSceneMutationV1({
+    current: loadedSceneState.value.state,
+    operationId: input.operation.operationId,
+    interpretation: input.interpretation,
+    resolution: deterministic
+  });
   const applied: NarrativeResolutionResultV1 = {
     ...deterministic,
     resultKind: "COMMIT_APPLIED",
@@ -143,13 +168,14 @@ export async function resolveNarrativeTurnV1(input: NarrativeResolutionInputV1):
     ]
   };
 
-  const displayPacket = buildResolutionDisplayPacket(input.operation.operationId, input.rawInput, applied);
+  const displayPacket = buildResolutionDisplayPacket(input.operation.operationId, input.rawInput, applied, nextSceneState);
   return {
     ok: true,
     value: {
       result: applied,
       displayPacket,
-      commit: commit.value
+      commit: commit.value,
+      sceneState: nextSceneState
     }
   };
 }
@@ -253,12 +279,22 @@ function buildSpeechCommitRequest(input: {
   expectedCampaignRevision: number;
   writerLease: CommitRequest["writerLease"];
   resolution: NarrativeResolutionResultV1;
+  loadedSceneState: LoadedReferenceSceneStateV1;
 }): CommitRequest {
   const aggregateId = opaqueId<AggregateId>(`${input.operation.operationId}:speech-log`);
   const commandId = opaqueId<CommitRequest["acceptedCommands"][number]["commandId"]>(`${input.operation.operationId}:cmd:speech`);
   const eventId = opaqueId<EventId>(`${input.operation.operationId}:evt:speech`);
   const commitId = opaqueId<CommitId>(`${input.operation.operationId}:commit:speech`);
   const expression = input.resolution.characterExpression?.expressionText ?? "";
+  const nextSceneState = applyReferenceSceneMutationV1({
+    current: input.loadedSceneState.state,
+    operationId: input.operation.operationId,
+    interpretation: input.resolution.interpretation,
+    resolution: input.resolution
+  });
+  const nextSceneRevision = input.loadedSceneState.aggregateRevision === null
+    ? 0
+    : input.loadedSceneState.aggregateRevision + 1;
   return {
     campaignId: input.campaignId,
     operationId: input.operation.operationId,
@@ -302,6 +338,12 @@ function buildSpeechCommitRequest(input: {
         noMechanicalSocialEffect: true,
         version: 1
       }
+    }, {
+      aggregateType: REFERENCE_SCENE_STATE_AGGREGATE_TYPE_V1,
+      aggregateId: REFERENCE_SCENE_STATE_AGGREGATE_ID_V1,
+      expectedAggregateRevision: input.loadedSceneState.aggregateRevision,
+      payloadSchemaVersion: 1,
+      payload: nextSceneState
     }],
     events: [{
       schemaVersion: 1,
@@ -315,6 +357,10 @@ function buildSpeechCommitRequest(input: {
         aggregateType: "social.speech-act",
         aggregateId,
         aggregateRevision: 0
+      }, {
+        aggregateType: REFERENCE_SCENE_STATE_AGGREGATE_TYPE_V1,
+        aggregateId: REFERENCE_SCENE_STATE_AGGREGATE_ID_V1,
+        aggregateRevision: nextSceneRevision
       }],
       visibility: { scope: "PLAYER_VISIBLE", actorIds: [] },
       occurredAtGameSecond: 0,
@@ -323,6 +369,29 @@ function buildSpeechCommitRequest(input: {
         schemaVersion: 1,
         expression,
         noMechanicalSocialEffect: true
+      }
+    }, {
+      schemaVersion: 1,
+      eventId: opaqueId<EventId>(`${input.operation.operationId}:evt:scene-state`),
+      campaignId: input.campaignId,
+      operationId: input.operation.operationId,
+      eventType: "scene.reference-state.updated",
+      origin: "PLAYER_INTENT",
+      causation: { kind: "COMMAND", id: commandId },
+      aggregateRefs: [{
+        aggregateType: REFERENCE_SCENE_STATE_AGGREGATE_TYPE_V1,
+        aggregateId: REFERENCE_SCENE_STATE_AGGREGATE_ID_V1,
+        aggregateRevision: nextSceneRevision
+      }],
+      visibility: { scope: "SYSTEM", actorIds: [] },
+      occurredAtGameSecond: 0,
+      payloadSchemaVersion: 1,
+      payload: {
+        schemaVersion: 1,
+        sceneId: REFERENCE_PLAYABLE_SCENE_ID_V1,
+        guardAddressed: nextSceneState.guardAddressed,
+        backRoomDoorHighlighted: nextSceneState.backRoomDoorHighlighted,
+        interactionCount: nextSceneState.interactionCount
       }
     }],
     outboxTasks: []
@@ -378,7 +447,8 @@ function classifyHandoff(
 function buildResolutionDisplayPacket(
   operationId: OperationId,
   rawInput: string,
-  resolution: NarrativeResolutionResultV1
+  resolution: NarrativeResolutionResultV1,
+  sceneState?: ReferenceSceneStateV1
 ): DisplayPacketV1 & JsonObject {
   const blocks = [
     block(operationId, "raw", "RAW_INPUT", "Joueur", "PLAYER_CHARACTER", rawInput, [`operation:${operationId}:raw`])
@@ -398,7 +468,8 @@ function buildResolutionDisplayPacket(
     operationId,
     rawInput,
     interpretation: resolution.interpretation,
-    resolution
+    resolution,
+    sceneState
   }));
   blocks.push(block(
     operationId,
@@ -420,7 +491,7 @@ function buildResolutionDisplayPacket(
       operationId
     },
     rhythmDiagnostics: `narrative-resolution:${resolution.resultKind}|reference-scene:${REFERENCE_PLAYABLE_SCENE_ID_V1}`,
-    reconstructionRefs: [`operation:${operationId}:raw`, `resolution:${resolution.resolutionId}`, `reference-scene:${REFERENCE_PLAYABLE_SCENE_ID_V1}`],
+    reconstructionRefs: [`operation:${operationId}:raw`, `resolution:${resolution.resolutionId}`, `reference-scene:${REFERENCE_PLAYABLE_SCENE_ID_V1}`, `scene-state:${REFERENCE_PLAYABLE_SCENE_ID_V1}`],
     version: 1
   } as unknown as DisplayPacketV1 & JsonObject;
 }

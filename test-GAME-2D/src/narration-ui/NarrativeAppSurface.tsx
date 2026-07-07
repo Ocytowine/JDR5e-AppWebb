@@ -314,6 +314,7 @@ async function enhancePrototypePacket(
     operationId,
     displayPacket: output.displayPacket,
     resolution: output.resolution,
+    sceneState: output.sceneState,
     config: {
       provider,
       expressionRoute: prototypeExpressionRoute,
@@ -327,6 +328,7 @@ async function enhancePrototypePacket(
       operationId,
       displayPacket: output.displayPacket,
       resolution: output.resolution,
+      sceneState: output.sceneState,
       config: {
         provider: localProvider,
         expressionRoute: prototypeExpressionRoute,

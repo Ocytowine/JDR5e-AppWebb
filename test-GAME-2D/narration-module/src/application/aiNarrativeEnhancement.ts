@@ -15,6 +15,7 @@ import {
   buildReferenceSceneWriterTaskV1,
   REFERENCE_PLAYABLE_SCENE_ID_V1
 } from "./referenceScene";
+import type { ReferenceSceneStateV1 } from "./referenceSceneState";
 
 export const NARRATIVE_AI_RESOLUTION_CONTRACT_VERSION_V1 = "narrative-ai-resolution/1" as const;
 
@@ -40,6 +41,7 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
   operationId: string;
   displayPacket: DisplayPacketV1 & JsonObject;
   resolution: NarrativeResolutionResultV1;
+  sceneState?: ReferenceSceneStateV1;
   config: AiNarrativeEnhancementConfigV1;
 }): Promise<AiNarrativeEnhancementResultV1> {
   const original = cloneJson(input.displayPacket) as DisplayPacketV1 & JsonObject;
@@ -106,7 +108,8 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
       snapshotId,
       rawInput: findRawInput(input.displayPacket),
       interpretation: input.resolution.interpretation,
-      resolution: input.resolution
+      resolution: input.resolution,
+      sceneState: input.sceneState
     });
     const sceneTask = buildReferenceSceneWriterTaskV1({
       rawInput: findRawInput(input.displayPacket),

@@ -6,8 +6,8 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 ## En cours
 
-- [ ] Ouvrir I-06O: créer un état de scène minimal persistant pour faire évoluer `reference-inn-rain-001` sans dépendre du texte libre IA.
-  References: `test-GAME-2D/narration-module/docs/Matrice-preuves-I06N.md`, `test-GAME-2D/narration-module/docs/Matrice-preuves-I06M.md`, `test-GAME-2D/narration-module/docs/Plan-implementation-narration.md`.
+- [ ] Ouvrir I-06Q: définir et exécuter un scénario vertical de test qualité Locale/OpenAI sur 10 à 15 entrées joueur.
+  References: `test-GAME-2D/narration-module/docs/Matrice-preuves-I06P.md`, `test-GAME-2D/narration-module/docs/Matrice-preuves-I06O.md`, `test-GAME-2D/narration-module/docs/Plan-implementation-narration.md`.
 - [ ] Consolider la simulation du monde apres l'ajout des objectifs multi-phases, des opportunites de faction et des mobiles non-systeme.
   Reference: `test-GAME-2D/map-module/docs/world-simulation-corrective-roadmap.md`. Les mobiles exposent maintenant l'objectif, la phase et la cible qu'ils servent.
 
@@ -31,6 +31,8 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 ## Termine recemment
 
+- [x] Fermeture I-06P: mémoire courte PNJ bornée, deuxième réponse non répétitive, pack IA enrichi et writer lease libéré le 2026-07-07.
+- [x] Fermeture I-06O: état `scene.state` minimal, mutation atomique sur parole, rendu et paquet IA dépendants de l'état le 2026-07-07.
 - [x] Fermeture I-06N: paquet de contexte IA `scene_writer`, fingerprint stable, références autorisées et fallback local ancré le 2026-07-07.
 - [x] Fermeture I-06M: scène narrative de référence `reference-inn-rain-001`, blocs concrets MJ/PNJ et garde-fous méta/possibilité le 2026-07-07.
 - [x] Fermeture I-07D: placeholder tactique contractuel, scénarios contrôlés, outcomes typés et intégration temporelle idempotente le 2026-07-07.

@@ -1,6 +1,6 @@
 # Plan d'implémentation du module narration
 
-Statut : `EN_EXECUTION` — I-00 à I-06N livrés dans leur périmètre; audit I-07 tactique/repos terminé et I-07A à I-07D livrés; I-02 conserve une réserve tactique différée; I-08 reste fermé jusqu'à sa gate.
+Statut : `EN_EXECUTION` — I-00 à I-06P livrés dans leur périmètre; audit I-07 tactique/repos terminé et I-07A à I-07D livrés; I-02 conserve une réserve tactique différée; I-08 reste fermé jusqu'à sa gate.
 
 ## Principes d'exécution
 
@@ -398,6 +398,33 @@ Limite assumée : I-06M ne livre pas encore l'état persistant de scène, la mé
 
 Limite assumée : I-06N ne livre pas encore l'état persistant de scène ni la mémoire courte PNJ. Ces deux sujets deviennent les suites I-06O et I-06P.
 
+### Preuves de livraison I-06O
+
+- contrat interne `reference-scene-state/1`;
+- agrégat stable `scene.state` pour `reference-inn-rain-001`;
+- mutation atomique de l'état scène lors d'une parole committée;
+- observations sans commit maintenues non mutantes;
+- rendu post-commit capable d'utiliser l'état persisté;
+- sortie contrôleur enrichie avec `sceneState`;
+- paquet `scene_writer` enrichi avec un bloc `scene-state`;
+- tests `narration-module:test:narrative-turn-controller` et `narration-module:test:ai-narrative-enhancement`;
+- matrice [`Matrice-preuves-I06O.md`](Matrice-preuves-I06O.md).
+
+Limite assumée : I-06O ne livre pas encore la mémoire courte PNJ ni la continuité détaillée acteur par acteur. Ce sujet devient I-06P.
+
+### Preuves de livraison I-06P
+
+- mémoire courte PNJ `shortTermNpcMemory` dans `reference-scene-state/1`;
+- borne de conservation à 5 entrées;
+- résumé de continuité ajouté lors d'une parole committée au garde;
+- réponse PNJ non répétitive sur deuxième échange;
+- paquet `scene_writer` enrichi avec `Mémoire courte PNJ`;
+- libération du writer lease après commit pour autoriser plusieurs paroles successives;
+- tests `narration-module:test:narrative-turn-controller` et `narration-module:test:ai-narrative-enhancement`;
+- matrice [`Matrice-preuves-I06P.md`](Matrice-preuves-I06P.md).
+
+Limite assumée : I-06P ne livre pas encore une mémoire sociale générique, multi-PNJ et résumée automatiquement. Cette couche devra être généralisée après validation du scénario vertical.
+
 ## I-07 — Tactique et repos
 
 ### Objectif
@@ -503,4 +530,4 @@ I-03 et I-04 peuvent être préparés indépendamment après I-02, mais aucune i
 
 ## Autorisation actuelle
 
-I-00 à I-06N sont terminés dans leur périmètre déclaré, et I-07A à I-07D restent disponibles comme socle tactique/repos différé. La prochaine étape autorisée est I-06O : état de scène minimal persistant pour faire évoluer `reference-inn-rain-001` sans donner d'autorité métier à l'IA. I-06P suivra pour la mémoire courte PNJ. I-07E et I-08 restent fermés tant qu'ils ne sont pas explicitement rouverts.
+I-00 à I-06P sont terminés dans leur périmètre déclaré, et I-07A à I-07D restent disponibles comme socle tactique/repos différé. La prochaine étape autorisée est I-06Q : scénario vertical de test qualité Locale/OpenAI sur la scène de référence. I-07E et I-08 restent fermés tant qu'ils ne sont pas explicitement rouverts.

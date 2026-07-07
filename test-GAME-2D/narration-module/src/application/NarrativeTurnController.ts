@@ -36,6 +36,7 @@ import {
   type NarrativeRenderProjectionRecordResultV1,
   type RestoredNarrativeThreadV1
 } from "./narrativeRenderProjection";
+import { createInitialReferenceSceneStateV1, type ReferenceSceneStateV1 } from "./referenceSceneState";
 
 export interface NarrativeTurnInputV1 {
   schemaVersion: 1;
@@ -53,6 +54,7 @@ export interface NarrativeTurnControllerOutputV1 extends JsonObject {
   interpretation: NarrativeIntentInterpretationV1 & JsonObject;
   suspendedIntent: (SuspendedIntentRecordV1 & JsonObject) | null;
   resolution: NarrativeResolutionResultV1;
+  sceneState: ReferenceSceneStateV1;
   displayPacket: DisplayPacketV1 & JsonObject;
 }
 
@@ -330,6 +332,7 @@ export function buildNoCommitOutput(
       noGameTime: true,
       safetyNotes: ["Sortie legacy conservée pour compatibilité de test."]
     },
+    sceneState: createInitialReferenceSceneStateV1(),
     displayPacket
   };
 }
@@ -378,6 +381,7 @@ async function buildResolvedOutput(input: {
         interpretation,
         suspendedIntent,
         resolution: resolution.value.result,
+        sceneState: resolution.value.sceneState,
         displayPacket: resolution.value.displayPacket
       }
     }

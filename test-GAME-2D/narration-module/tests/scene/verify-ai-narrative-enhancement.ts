@@ -187,6 +187,7 @@ async function main(): Promise<void> {
     operationId: speechOp,
     displayPacket: speech.value.output.displayPacket,
     resolution: speech.value.output.resolution,
+    sceneState: speech.value.output.sceneState,
     config: { provider: speechProvider, expressionRoute, sceneWriterRoute, retryPolicy }
   });
   assert.equal(speechEnhanced.enhanced, true);
@@ -205,6 +206,18 @@ async function main(): Promise<void> {
     /Auberge du Seuil/u.test(block.text) &&
     /porte du fond/u.test(block.text)
   ), true, "le paquet scene_writer doit contenir la scène de référence concrète");
+  assert.equal(roleContextPack.blocks.some(block =>
+    block.blockKind === "SCENE" &&
+    block.visibility === "SYSTEM_ONLY" &&
+    /État scène/u.test(block.text) &&
+    /garde interpellé=true/u.test(block.text)
+  ), true, "le paquet scene_writer doit contenir l'état de scène persistant");
+  assert.equal(roleContextPack.blocks.some(block =>
+    block.blockKind === "SCENE" &&
+    block.visibility === "SYSTEM_ONLY" &&
+    /Mémoire courte PNJ/u.test(block.text) &&
+    /Garde blessé/u.test(block.text)
+  ), true, "le paquet scene_writer doit contenir la mémoire courte PNJ");
   assert.deepEqual((sceneWriterRequest.input.task as { allowedGrounding: string[] }).allowedGrounding, [
     `resolution:${speech.value.output.resolution.resolutionId}`,
     "reference-scene:reference-inn-rain-001"
