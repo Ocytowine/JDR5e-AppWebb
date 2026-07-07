@@ -7,7 +7,7 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 ## En cours
 
 - [ ] Ouvrir I-06Q: définir et exécuter un scénario vertical de test qualité Locale/OpenAI sur 10 à 15 entrées joueur.
-  References: `test-GAME-2D/narration-module/docs/Matrice-preuves-I06P.md`, `test-GAME-2D/narration-module/docs/Matrice-preuves-I06O.md`, `test-GAME-2D/narration-module/docs/Plan-implementation-narration.md`.
+  References: `test-GAME-2D/narration-module/docs/Suivi-prochains-lots-narration.md`, `test-GAME-2D/narration-module/docs/Matrice-preuves-I06P.md`, `test-GAME-2D/narration-module/docs/Plan-implementation-narration.md`.
 - [ ] Consolider la simulation du monde apres l'ajout des objectifs multi-phases, des opportunites de faction et des mobiles non-systeme.
   Reference: `test-GAME-2D/map-module/docs/world-simulation-corrective-roadmap.md`. Les mobiles exposent maintenant l'objectif, la phase et la cible qu'ils servent.
 

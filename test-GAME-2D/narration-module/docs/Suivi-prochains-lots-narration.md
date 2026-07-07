@@ -1,0 +1,215 @@
+# Suivi des prochains lots narration
+
+Date : 2026-07-07  
+Statut : `SUIVI_ACTIF`
+
+## Intention
+
+Ce document garde le cap des prochains lots après I-06P. Il sert à éviter deux dérives :
+
+- empiler des couches techniques sans tester la qualité réelle de narration;
+- repartir trop vite vers le tactique, les intrigues ou la mémoire long terme alors que la scène de référence doit d'abord prouver qu'elle fonctionne en jeu.
+
+Les lots ci-dessous restent des intentions de travail. Chaque lot devra être confirmé dans `TASKS.md`, livré avec preuves, puis consigné dans une matrice dédiée.
+
+## État de départ
+
+Déjà livré dans le périmètre prototype narration :
+
+- scène de référence `reference-inn-rain-001`;
+- contexte IA `scene_writer` ancré;
+- état minimal `scene.state`;
+- mémoire courte PNJ bornée;
+- fallback local ancré;
+- OpenAI opt-in côté serveur;
+- séparation maintenue avec le module tactique réel.
+
+Ce qui reste fermé :
+
+- MJ complet de campagne;
+- moteur PNJ générique;
+- mémoire sociale long terme;
+- intrigues dynamiques;
+- créations persistantes automatiques;
+- branchement tactique réel;
+- lecteur UX complet d'historique.
+
+## I-06Q — Scénario vertical qualité Locale/OpenAI
+
+Objectif : tester réellement la scène sur 10 à 15 entrées joueur, en mode local puis OpenAI, avant d'ajouter une nouvelle couche.
+
+Ce lot doit produire :
+
+- une liste fixe d'entrées joueur;
+- des critères observables de réussite;
+- une trace de sortie locale;
+- une trace de sortie OpenAI si la route est disponible;
+- une matrice d'écarts;
+- des décisions de correction priorisées.
+
+Critères à vérifier :
+
+- la réponse est ancrée dans l'Auberge du Seuil;
+- les questions méta restent hors fiction;
+- les questions de possibilité ne déclenchent pas l'action;
+- le garde ne répète pas mécaniquement la même réponse;
+- l'IA ne crée pas d'objet, PNJ, secret ou conséquence durable non autorisée;
+- l'OpenAI enrichit sans prendre l'autorité métier;
+- le fallback local reste acceptable.
+
+Sortie attendue :
+
+- `Matrice-preuves-I06Q.md`;
+- un script de test ou une fixture de scénario vertical;
+- une liste claire des défauts à corriger ensuite.
+
+## I-06R — Corrections qualité issues du scénario vertical
+
+Objectif : corriger uniquement les défauts observés en I-06Q.
+
+Ce lot ne doit pas inventer une architecture nouvelle. Il doit partir des écarts mesurés.
+
+Corrections probables :
+
+- meilleure classification des demandes du joueur;
+- meilleure réponse aux demandes de localisation/météo en scène;
+- amélioration du fallback local;
+- durcissement des refus IA si elle invente trop;
+- ajustement du style de narration pour éviter le texte vague.
+
+Sortie attendue :
+
+- matrice des défauts corrigés;
+- tests de non-régression sur les entrées problématiques;
+- décision sur le niveau de qualité acceptable avant généralisation.
+
+## I-06S — Généralisation légère de scène
+
+Objectif : sortir progressivement du cas unique `reference-inn-rain-001` sans créer encore un moteur complet.
+
+Ce lot doit transformer la scène de référence en modèle minimal réutilisable :
+
+- définition d'un contrat `playable-scene-state/1`;
+- description des éléments visibles;
+- PNJ présents;
+- tensions courantes;
+- portes/objets/points d'intérêt;
+- mémoire courte locale;
+- règles de rendu/fallback.
+
+Ce lot ne doit pas encore charger tout le wiki ni générer des lieux dynamiques.
+
+Sortie attendue :
+
+- contrat de scène jouable minimal;
+- migration de la scène actuelle vers ce contrat;
+- test prouvant qu'une deuxième scène fixture peut fonctionner.
+
+## I-06T — Intégration wiki minimale pour lieux existants
+
+Objectif : utiliser une base de lieu issue du wiki sans demander à l'IA de tout inventer.
+
+Ce lot doit déterminer comment prendre un lieu existant et en faire une scène jouable :
+
+- sélection d'un lieu wiki;
+- extraction des faits visibles;
+- distinction faits publics / secrets / inconnus;
+- création d'une scène runtime dérivée;
+- budget de contexte envoyé à l'IA.
+
+Sortie attendue :
+
+- fixture de lieu wiki transformée en scène jouable;
+- preuve que l'IA reçoit uniquement les faits autorisés;
+- aucune révélation de secret.
+
+## I-06U — Création locale contrôlée d'éléments de scène
+
+Objectif : autoriser l'IA à proposer de petits éléments de scène, sans les rendre durables automatiquement.
+
+Exemples autorisés :
+
+- bruit ponctuel;
+- client anonyme en arrière-plan;
+- détail sensoriel;
+- obstacle mineur non persistant.
+
+Exemples interdits :
+
+- PNJ durable;
+- indice d'intrigue;
+- objet utile;
+- secret;
+- faction;
+- conséquence politique.
+
+Sortie attendue :
+
+- politique de création éphémère;
+- validation stricte;
+- rejet des créations trop importantes;
+- promotion durable explicitement fermée.
+
+## I-06V — Préparation intrigue, sans création d'intrigue
+
+Objectif : préparer les contraintes qui permettront plus tard de créer des intrigues cohérentes.
+
+Ce lot ne doit pas encore générer d'intrigue. Il doit définir les protections :
+
+- vérité cachée;
+- indices;
+- contradictions interdites;
+- engagement narratif;
+- scènes où un détail devient critique;
+- contrôle de cohérence avant affichage.
+
+Sortie attendue :
+
+- checklist intrigue;
+- pont documentaire vers `Coherence-intrigues.md`;
+- critères nécessaires avant d'autoriser une IA à proposer une intrigue.
+
+## I-06W — Revue UX narration
+
+Objectif : vérifier que l'interface permet de comprendre clairement :
+
+- qui parle;
+- ce qui vient du joueur;
+- ce qui vient du MJ;
+- ce qui est système;
+- ce qui est une clarification;
+- ce qui est une réponse sans commit;
+- quand l'OpenAI est utilisé ou non.
+
+Sortie attendue :
+
+- audit UX court;
+- corrections UI si nécessaire;
+- décision sur les indicateurs visibles à garder ou masquer.
+
+## Ordre recommandé
+
+Ordre strict recommandé :
+
+1. I-06Q — scénario vertical qualité;
+2. I-06R — corrections observées;
+3. I-06S — généralisation légère de scène;
+4. I-06T — intégration wiki minimale;
+5. I-06U — créations éphémères contrôlées;
+6. I-06V — préparation intrigue;
+7. I-06W — revue UX narration.
+
+Le tactique réel, le repos jouable complet et les intrigues dynamiques doivent rester fermés tant que I-06Q/I-06R n'ont pas prouvé que la boucle narrative de base est saine.
+
+## Critère de sortie avant de quitter I-06
+
+On peut envisager de quitter cette phase narrative seulement si :
+
+- le scénario vertical fonctionne localement;
+- le scénario vertical fonctionne avec OpenAI ou dégrade proprement;
+- les entrées méta ne polluent pas la fiction;
+- les actions hypothétiques ne deviennent pas des actions;
+- les PNJ gardent une continuité minimale;
+- le contexte envoyé à l'IA reste borné;
+- aucune mutation durable n'est faite par texte IA;
+- la documentation permet à une autre conversation Codex de reprendre sans deviner.
