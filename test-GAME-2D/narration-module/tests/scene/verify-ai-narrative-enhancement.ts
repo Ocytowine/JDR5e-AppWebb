@@ -277,6 +277,57 @@ async function main(): Promise<void> {
   assert.equal(attackEnhanced.displayPacket.displayBlocks.some(block => /résolution tactique/u.test(block.text)), true);
   assert.equal(attackEnhanced.displayPacket.displayBlocks.some(block => /réussis|mort|combat terminé/iu.test(block.text)), false);
 
+  const weather = await controller.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-ai-weather-meta",
+    rawInput: "quelle temps fait il ?"
+  });
+  if (!weather.ok) throw new Error(weather.error.messageKey);
+  assert.equal(weather.value.output.resolution.resultKind, "NO_COMMIT_RESPONSE");
+  const weatherEnhanced = await enhanceNarrativeDisplayWithAiV1({
+    campaignId,
+    operationId: weather.value.operation.operationId,
+    displayPacket: weather.value.output.displayPacket,
+    resolution: weather.value.output.resolution,
+    config: {
+      provider: new FakeContractAiProviderV1(),
+      expressionRoute,
+      sceneWriterRoute,
+      retryPolicy
+    }
+  });
+  assert.equal(weatherEnhanced.enhanced, false);
+  assert.equal(weatherEnhanced.usedFallback, false);
+  assert.equal(weatherEnhanced.incidents.length, 0);
+  assert.deepEqual(weatherEnhanced.displayPacket, weather.value.output.displayPacket);
+  assert.equal(weatherEnhanced.displayPacket.displayBlocks.some(block => block.kind === "GM_NARRATION"), false);
+  assert.equal(weatherEnhanced.safetyNotes.some(note => /Scene writer non appelé/u.test(note)), true);
+
+  const location = await controller.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-ai-location-meta",
+    rawInput: "ok, peut tu me dire ou je me situe ?"
+  });
+  if (!location.ok) throw new Error(location.error.messageKey);
+  assert.equal(location.value.output.resolution.resultKind, "NO_COMMIT_RESPONSE");
+  const locationEnhanced = await enhanceNarrativeDisplayWithAiV1({
+    campaignId,
+    operationId: location.value.operation.operationId,
+    displayPacket: location.value.output.displayPacket,
+    resolution: location.value.output.resolution,
+    config: {
+      provider: new FakeContractAiProviderV1(),
+      expressionRoute,
+      sceneWriterRoute,
+      retryPolicy
+    }
+  });
+  assert.equal(locationEnhanced.enhanced, false);
+  assert.equal(locationEnhanced.usedFallback, false);
+  assert.equal(locationEnhanced.incidents.length, 0);
+  assert.deepEqual(locationEnhanced.displayPacket, location.value.output.displayPacket);
+  assert.equal(locationEnhanced.displayPacket.displayBlocks.some(block => block.kind === "GM_NARRATION"), false);
+
   console.log("narrative-ai-resolution/1: OK");
 }
 

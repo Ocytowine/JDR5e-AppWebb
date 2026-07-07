@@ -1,6 +1,10 @@
 # Module narration
 
-Le runtime narratif complet n'est pas encore branché à l'UI. I-00 fournit le noyau transactionnel `campaign-core/1`; I-01 ajoute la persistance IndexedDB; I-02 fournit le bootstrap contenu/personnage/règles. I-03 livre l'horloge, l'échéancier, les checkpoints de processus, l'adaptateur monde sur copie et le voyage segmenté. I-04 livre mémoire, snapshot et contextes déterministes. I-05 livre le pipeline IA contractuel, les créations dynamiques et l'adaptateur OpenAI serveur. I-06 livre progressivement scène, social, UI, contrôleur de tour, interprétation conservatrice et contrat de résolution narrative bornée.
+Le runtime narratif complet de campagne n'est pas encore livré. En revanche, une surface narration prototype existe et peut utiliser OpenAI en opt-in côté serveur pour enrichir le rendu visible sans autorité métier, enregistrer durablement la projection de rendu et reconstruire le fil visible depuis ces projections.
+
+I-00 fournit le noyau transactionnel `campaign-core/1`; I-01 ajoute la persistance IndexedDB; I-02 fournit le bootstrap contenu/personnage/règles. I-03 livre l'horloge, l'échéancier, les checkpoints de processus, l'adaptateur monde sur copie et le voyage segmenté. I-04 livre mémoire, snapshot et contextes déterministes. I-05 livre le pipeline IA contractuel, les créations dynamiques et l'adaptateur OpenAI serveur. I-06 livre scène, social, UI, contrôleur de tour, interprétation conservatrice, résolution narrative bornée, enrichissement IA, bascule UI Locale/OpenAI, persistance de la projection finale et restauration du fil visible. I-07A livre le socle typé et testé des handoffs tactique/repos, avec intégration idempotente d'outcomes simulés. I-07B raccorde ces outcomes au kernel temporel pour écrire `world.clock` atomiquement. I-07C ajoute l'état propriétaire `rest.process` et la progression segmentée déterministe du repos.
+
+Les rôles de MJ complet, PNJ interprétés, arbitrage de règles, création persistante automatique, lecteur UX d'historique complet et snapshot de scène réel restent fermés tant que leurs contrats/gates dédiés ne sont pas ouverts. Les handoffs tactique/repos ne sont pas encore branchés comme processus jouables; I-07C ne remplace pas `GameBoard.tsx`, l'UI de repos ou les règles complètes de classe/sorts/fatigue.
 
 ## Vérifications
 
@@ -25,6 +29,8 @@ npm run narration-module:test:narrative-app-surface
 npm run narration-module:test:narrative-turn-controller
 npm run narration-module:test:narrative-resolution
 npm run narration-module:test:ai-narrative-enhancement
+npm run narration-module:test:narrative-render-projection
+npm run narration-module:test:tactical-rest-handoff
 npm run narration-module:test:narrative-openai-route
 npm run narration-module:test:indexeddb
 ```
@@ -53,11 +59,19 @@ npm run build
 - [`docs/Contrat-resolution-narrative.md`](docs/Contrat-resolution-narrative.md) : contrat I-06F, résolution bornée, reformulation PJ, commit validé et handoffs.
 - [`docs/Matrice-preuves-I06F.md`](docs/Matrice-preuves-I06F.md) : preuves I-06F, cas de frontière et commandes de vérification.
 - [`docs/Contrat-resolution-ia-bornee.md`](docs/Contrat-resolution-ia-bornee.md) : contrat I-06G, enrichissement IA de l'expression et de la narration sans autorité métier.
+- [`docs/Contrat-handoffs-tactique-repos.md`](docs/Contrat-handoffs-tactique-repos.md) : contrat I-07, handoffs tactique/repos, processus, outcomes et intégration idempotente.
 - [`docs/Matrice-preuves-I06G.md`](docs/Matrice-preuves-I06G.md) : preuves I-06G, sorties IA acceptées/rejetées et fallback.
 - [`docs/Matrice-preuves-I06H.md`](docs/Matrice-preuves-I06H.md) : preuves I-06H, branchement UI enrichi et fournisseur OpenAI contrôlé.
 - [`docs/Matrice-preuves-I06I.md`](docs/Matrice-preuves-I06I.md) : preuves I-06I, route serveur OpenAI opt-in pour l'enrichissement narratif.
 - [`docs/Matrice-preuves-I06J.md`](docs/Matrice-preuves-I06J.md) : preuves I-06J, bascule UI OpenAI opt-in et fallback local.
+- [`docs/Matrice-preuves-I06K.md`](docs/Matrice-preuves-I06K.md) : preuves I-06K, persistance des projections de rendu et incidents IA expurgés.
+- [`docs/Matrice-preuves-I06L.md`](docs/Matrice-preuves-I06L.md) : preuves I-06L, reconstruction du fil visible depuis les projections persistées.
+- [`docs/Matrice-preuves-I07-audit.md`](docs/Matrice-preuves-I07-audit.md) : audit I-07, résolution AF-R13/AF-R14 et autorisation I-07A.
+- [`docs/Matrice-preuves-I07A.md`](docs/Matrice-preuves-I07A.md) : preuves I-07A, types, validateurs et intégration idempotente simulée tactique/repos.
+- [`docs/Matrice-preuves-I07B.md`](docs/Matrice-preuves-I07B.md) : preuves I-07B, avance de `world.clock` via le kernel temporel pendant l'intégration d'outcomes.
+- [`docs/Matrice-preuves-I07C.md`](docs/Matrice-preuves-I07C.md) : preuves I-07C, état propriétaire et progression segmentée déterministe du repos.
+- [`docs/Matrice-couverture-scenarios.md`](docs/Matrice-couverture-scenarios.md) : revue de pilotage des scénarios NAR-ACC, couverture actuelle et lots responsables.
 - [`docs/Audit-final.md`](docs/Audit-final.md) : autorisations progressives et blocages par capacité.
 - [`docs/Plan-implementation-narration.md`](docs/Plan-implementation-narration.md) : ordre et gates des lots suivants.
 
-IndexedDB reste derrière `CampaignRepository`. Le fournisseur OpenAI reste côté serveur. Les projections I-06A ne doivent pas être remplacées par un cache UI autoritaire.
+IndexedDB reste derrière `CampaignRepository`. Le fournisseur OpenAI reste côté serveur. Les projections I-06A et I-06K ne doivent pas être remplacées par un cache UI autoritaire.

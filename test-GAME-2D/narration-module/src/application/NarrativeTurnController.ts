@@ -1,6 +1,7 @@
 import {
   computeRequestFingerprint,
   coreError,
+  IndexedDbCampaignRepository,
   MemoryCampaignRepository,
   opaqueId,
   type AggregateId,
@@ -28,6 +29,13 @@ import {
   resolveNarrativeTurnV1,
   type NarrativeResolutionResultV1
 } from "./narrativeResolution";
+import {
+  recordNarrativeRenderedProjectionV1,
+  restoreNarrativeRenderedThreadV1,
+  type NarrativeRenderProjectionInputV1,
+  type NarrativeRenderProjectionRecordResultV1,
+  type RestoredNarrativeThreadV1
+} from "./narrativeRenderProjection";
 
 export interface NarrativeTurnInputV1 {
   schemaVersion: 1;
@@ -145,6 +153,26 @@ export class NarrativeTurnControllerV1 {
       }
     };
   }
+
+  async recordRenderedProjection(
+    request: NarrativeRenderProjectionInputV1
+  ): Promise<Result<NarrativeRenderProjectionRecordResultV1>> {
+    return recordNarrativeRenderedProjectionV1({
+      repository: this.repository,
+      campaignId: this.campaignId,
+      clock: this.clock,
+      idPrefix: this.idPrefix,
+      request
+    });
+  }
+
+  async restoreRenderedThread(limit = 100): Promise<Result<RestoredNarrativeThreadV1>> {
+    return restoreNarrativeRenderedThreadV1({
+      repository: this.repository,
+      campaignId: this.campaignId,
+      limit
+    });
+  }
 }
 
 export async function createPrototypeNarrativeTurnControllerV1(options: {
@@ -152,6 +180,28 @@ export async function createPrototypeNarrativeTurnControllerV1(options: {
 } = {}): Promise<NarrativeTurnControllerV1> {
   const clock = options.clock ?? systemClock;
   const repository = new MemoryCampaignRepository({ clock });
+  await ensurePrototypeCampaign(repository, clock);
+  return new NarrativeTurnControllerV1({ repository, campaignId: DEFAULT_CAMPAIGN_ID, clock });
+}
+
+export async function createBrowserPersistentNarrativeTurnControllerV1(options: {
+  clock?: RepositoryClock;
+  databaseName?: string;
+} = {}): Promise<NarrativeTurnControllerV1> {
+  const clock = options.clock ?? systemClock;
+  if (!globalThis.indexedDB) return createPrototypeNarrativeTurnControllerV1({ clock });
+  const repository = await IndexedDbCampaignRepository.open({
+    clock,
+    databaseName: options.databaseName ?? "jdr5e-narration-prototype"
+  });
+  await ensurePrototypeCampaign(repository, clock);
+  return new NarrativeTurnControllerV1({ repository, campaignId: DEFAULT_CAMPAIGN_ID, clock });
+}
+
+async function ensurePrototypeCampaign(
+  repository: CampaignRepository,
+  clock: RepositoryClock
+): Promise<void> {
   const now = clock.now().toISOString();
   const campaign: CampaignRecord = {
     schemaVersion: 1,
@@ -179,9 +229,11 @@ export async function createPrototypeNarrativeTurnControllerV1(options: {
   };
   const created = await repository.createCampaign(campaign, initialClock);
   if (!created.ok) {
-    throw new Error(`Failed to create prototype narrative campaign: ${created.error.messageKey}`);
+    const existing = await repository.getCampaign(campaign.campaignId);
+    if (!existing.ok) {
+      throw new Error(`Failed to create prototype narrative campaign: ${created.error.messageKey}`);
+    }
   }
-  return new NarrativeTurnControllerV1({ repository, campaignId: campaign.campaignId, clock });
 }
 
 export function buildNoCommitOutput(

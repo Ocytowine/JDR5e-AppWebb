@@ -782,6 +782,39 @@ export class IndexedDbCampaignRepository implements CampaignRepository, Campaign
     }));
   }
 
+  async listOperations(campaignId: CampaignId, operationKind: string | null, limit: number): Promise<Result<OperationRecord[]>> {
+    if (!Number.isInteger(limit) || limit <= 0 || limit > this.maximumPageSize) {
+      return err(coreError("VALIDATION_FAILED", "core.pagination.invalid-limit", { limit }));
+    }
+    return this.safely(async () => runTransaction(this.database, [
+      STORES.campaignHeads,
+      STORES.operations
+    ], "readonly", async transaction => {
+      const head = await requestResult<CampaignHeadRecord | undefined>(
+        transaction.objectStore(STORES.campaignHeads).get(campaignId)
+      );
+      if (!head) return notFound("campaign", campaignId);
+      const range = IDBKeyRange.bound(
+        [head.activeGenerationId, campaignId, ""],
+        [head.activeGenerationId, campaignId, "\uffff"]
+      );
+      const stored = await cursorValues<StoredOperation>(
+        transaction.objectStore(STORES.operations).index("by_campaign_operation").openCursor(range, "next"),
+        this.maximumPageSize
+      );
+      const operations = stored
+        .map(value => value.record)
+        .filter(record => operationKind === null || record.operationKind === operationKind)
+        .sort((left, right) => {
+          const byReceivedAt = left.receivedAt.localeCompare(right.receivedAt);
+          return byReceivedAt !== 0 ? byReceivedAt : left.operationId.localeCompare(right.operationId);
+        })
+        .slice(0, limit)
+        .map(record => cloneJson(record));
+      return ok(operations);
+    }));
+  }
+
   private async getRecordByDirectory<RecordType, StoredType extends { record: RecordType }>(
     kind: DirectoryEntityKind,
     id: string,

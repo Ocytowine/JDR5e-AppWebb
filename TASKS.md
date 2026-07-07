@@ -6,8 +6,8 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 ## En cours
 
-- [ ] Auditer la suite après correctif live I-06J: choisir entre persistance des incidents/projections IA ou I-07 tactique/repos.
-  References: `test-GAME-2D/narration-module/docs/Matrice-preuves-I06J.md`, `test-GAME-2D/narration-module/docs/Contrat-resolution-ia-bornee.md`.
+- [ ] Ouvrir I-07D: placeholder tactique contractuel produisant `TacticalOutcomeV1` sans dépendre de `GameBoard.tsx`.
+  References: `test-GAME-2D/narration-module/docs/Contrat-handoffs-tactique-repos.md`, `test-GAME-2D/narration-module/docs/Matrice-preuves-I07C.md`, `test-GAME-2D/narration-module/docs/Plan-implementation-narration.md`.
 - [ ] Consolider la simulation du monde apres l'ajout des objectifs multi-phases, des opportunites de faction et des mobiles non-systeme.
   Reference: `test-GAME-2D/map-module/docs/world-simulation-corrective-roadmap.md`. Les mobiles exposent maintenant l'objectif, la phase et la cible qu'ils servent.
 
@@ -31,6 +31,15 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 ## Termine recemment
 
+- [x] Fermeture I-07C: état `rest.process`, progression segmentée, checkpoints, interruptions déterministes et test dédié le 2026-07-07.
+- [x] Fermeture I-07B: intégration temporelle des outcomes tactique/repos via `world.clock`, retry idempotent et test dédié le 2026-07-07.
+- [x] Fermeture I-07A: types, validateurs, fixtures et intégration idempotente simulée des handoffs tactique/repos avec test dédié le 2026-07-07.
+- [x] Matrice de couverture des scénarios NAR-ACC: état couvert/partiel/non ouvert et confirmation que I-07A reste le prochain lot logique le 2026-07-07.
+- [x] Audit I-07 tactique/repos: contrat `tactical-rest-handoff/1`, décision `/api/narration` non autoritaire et autorisation I-07A le 2026-07-07.
+- [x] Fermeture I-06L: reconstruction du fil visible depuis les projections persistées, lecture `listOperations` et prototype navigateur IndexedDB le 2026-07-07.
+- [x] Fermeture I-06K: opération `narrative.render.projection`, persistance du rendu final et incidents IA expurgés sans autorité métier le 2026-07-07.
+- [x] Realignement documentaire post-I-06J: README racine/module/docs, audit et plan distinguent surface prototype OpenAI opt-in et runtime complet non livre le 2026-07-07.
+- [x] Calibration post-I-06J: `scene_writer` saute les `NO_COMMIT_RESPONSE` méta/informatifs, tests météo/localisation et statut UI sans faux fallback le 2026-07-07.
 - [x] Correctif live I-06J: schéma OpenAI strict par requête compatible Responses API, instructions serveur explicites, validation payload par rôle et diagnostic fallback UI le 2026-07-07.
 - [x] Fermeture I-06J: bascule UI Locale/OpenAI, client route serveur dédiée, fallback local et test `narration-module:test:narrative-app-surface` le 2026-07-07.
 - [x] Fermeture I-06I: route serveur OpenAI narrative opt-in, rôles bornés, clé absente sans réseau et test `narration-module:test:narrative-openai-route` le 2026-07-07.

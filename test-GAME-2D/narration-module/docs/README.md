@@ -1,7 +1,7 @@
 # Documentation du module narration
 
-Ce dossier est la source de vérité de conception du futur module narration.
-Il décrit la cible avant toute reprise du runtime.
+Ce dossier est la source de vérité de conception et de suivi du module narration.
+Il distingue la cible complète du runtime de campagne et les capacités déjà livrées progressivement. La surface narration prototype, la bascule OpenAI opt-in, l'enregistrement durable des projections de rendu, la reconstruction du fil visible, le socle contractuel I-07A des handoffs tactique/repos, leur raccord temporel I-07B et le repos segmenté propriétaire I-07C existent; le MJ complet, les handoffs jouables branchés aux moteurs propriétaires et le lecteur UX d'historique complet restent à ouvrir par contrats dédiés.
 
 ## Documents de référence
 
@@ -23,6 +23,7 @@ Il décrit la cible avant toute reprise du runtime.
 - [`Contrat-interpretation-clarification.md`](Contrat-interpretation-clarification.md) : contrat `FIGE` I-06E `intent-clarification/1`, interprétation conservatrice et clarification sans mutation.
 - [`Contrat-resolution-narrative.md`](Contrat-resolution-narrative.md) : contrat `FIGE` I-06F `narrative-resolution/1`, résolution bornée, reformulation PJ, commit validé et handoffs.
 - [`Contrat-resolution-ia-bornee.md`](Contrat-resolution-ia-bornee.md) : contrat `FIGE` I-06G `narrative-ai-resolution/1`, embellissement IA sans autorité métier.
+- [`Contrat-handoffs-tactique-repos.md`](Contrat-handoffs-tactique-repos.md) : contrat `FIGE` I-07 `tactical-rest-handoff/1`, seeds, processus, outcomes, intégration et signaux de repos.
 - [`Exemple-role-context-pack.json`](Exemple-role-context-pack.json) : exemple parseable d'un paquet spécialisé et de sa trace de sélection.
 - [`Pipeline-et-contrats-IA.md`](Pipeline-et-contrats-IA.md) : enchaînement des rôles IA, validations, commits et rédaction visible.
 - [`Exemple-pipeline-tour.json`](Exemple-pipeline-tour.json) : trace parseable d'un tour avec arbitrage temporel, commit et contrôle d'affichage.
@@ -46,11 +47,19 @@ Il décrit la cible avant toute reprise du runtime.
 - [`Matrice-preuves-I06H.md`](Matrice-preuves-I06H.md) : preuves du branchement UI enrichi et du fournisseur OpenAI contrôlé.
 - [`Matrice-preuves-I06I.md`](Matrice-preuves-I06I.md) : preuves de la route serveur OpenAI narrative opt-in.
 - [`Matrice-preuves-I06J.md`](Matrice-preuves-I06J.md) : preuves de la bascule UI OpenAI opt-in avec fallback local.
+- [`Matrice-preuves-I06K.md`](Matrice-preuves-I06K.md) : preuves de la persistance des projections de rendu et incidents IA expurgés.
+- [`Matrice-preuves-I06L.md`](Matrice-preuves-I06L.md) : preuves de la reconstruction du fil visible depuis les projections persistées.
+- [`Matrice-preuves-I07-audit.md`](Matrice-preuves-I07-audit.md) : audit tactique/repos, résolution AF-R13/AF-R14 et autorisation limitée I-07A.
+- [`Matrice-preuves-I07A.md`](Matrice-preuves-I07A.md) : preuves I-07A, types, validateurs, fixtures et intégration idempotente simulée.
+- [`Matrice-preuves-I07B.md`](Matrice-preuves-I07B.md) : preuves I-07B, intégration temporelle des outcomes tactique/repos par `world.clock`.
+- [`Matrice-preuves-I07C.md`](Matrice-preuves-I07C.md) : preuves I-07C, repos segmenté, checkpoints et interruptions déterministes.
+- [`Handoff-I06J-retour-live.md`](Handoff-I06J-retour-live.md) : retour des premiers tests OpenAI live, cap produit et prochain micro-lot recommandé.
 - [`Exemple-chronologie-causale.json`](Exemple-chronologie-causale.json) : interruption temporelle, tick mondial, visibilité et reprise idempotente.
 - [`Resilience-securite-diagnostic.md`](Resilience-securite-diagnostic.md) : confinement des erreurs, sécurité des données et traces exploitables.
 - [`Exigences-non-fonctionnelles.md`](Exigences-non-fonctionnelles.md) : objectifs mesurables de latence, coût, qualité et capacité.
 - [`Scenarios-acceptation.md`](Scenarios-acceptation.md) : corpus observable, granularité et oracles du scénario vertical et des cas limites.
 - [`Matrice-tracabilite-acceptation.md`](Matrice-tracabilite-acceptation.md) : liens entre exigences P0, décisions, contrats, scénarios et résultats observables.
+- [`Matrice-couverture-scenarios.md`](Matrice-couverture-scenarios.md) : couverture actuelle des scénarios NAR-ACC, manques et lots responsables sans modifier la roadmap.
 - [`Audit-final.md`](Audit-final.md) : contradictions, reports, contrats à figer et décision progressive d'autorisation de coder.
 - [`Contrat-noyau-campagne.md`](Contrat-noyau-campagne.md) : contrat `FIGE` du premier lot, opérations, commits, événements, horloge, outbox et repository.
 - [`Contrat-persistance-indexeddb.md`](Contrat-persistance-indexeddb.md) : contrat `FIGE` d'I-01, stores, index, transactions, générations, migrations et tests navigateur.

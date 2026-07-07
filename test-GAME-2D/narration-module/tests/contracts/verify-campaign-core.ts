@@ -551,6 +551,28 @@ test("19 event cursor paginates inside one commit without loss", async () => {
   assert.deepEqual([...firstPage, ...secondPage].map(event => event.eventSequence), [0, 1, 2]);
 });
 
+test("20 operation listing is bounded and filterable by kind", async () => {
+  const { repository, clock, campaign } = await setup({ suffix: "operation_list" });
+  const first = await operationFixture(campaign, clock, "operation_list_a", { text: "a" });
+  expectOk(await repository.receiveOperation(first));
+  expectOk(await repository.completeWithoutCommit(first.operationId, 1, { answer: "a" }));
+  clock.advance(1);
+  const secondPayload = { schemaVersion: 1, projection: "render" };
+  const second = {
+    ...await operationFixture(campaign, clock, "operation_list_b", secondPayload),
+    operationKind: "narrative.render.projection",
+    requestFingerprint: await computeRequestFingerprint("narrative.render.projection", 1, secondPayload)
+  };
+  expectOk(await repository.receiveOperation(second));
+  expectOk(await repository.completeWithoutCommit(second.operationId, 1, { projection: "b" }));
+
+  const all = expectOk(await repository.listOperations(campaign.campaignId, null, 10));
+  assert.deepEqual(all.map(operation => operation.operationId), [first.operationId, second.operationId]);
+  const renderOnly = expectOk(await repository.listOperations(campaign.campaignId, "narrative.render.projection", 10));
+  assert.deepEqual(renderOnly.map(operation => operation.operationId), [second.operationId]);
+  expectError(await repository.listOperations(campaign.campaignId, null, 0), "VALIDATION_FAILED");
+});
+
 export interface CampaignCoreContractRun {
   harness: string;
   passed: number;

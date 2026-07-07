@@ -343,6 +343,22 @@ export class MemoryCampaignRepository implements CampaignRepository {
     return operationId ? this.getOperation(operationId as OperationId) : notFound("operation", key);
   }
 
+  async listOperations(campaignId: CampaignId, operationKind: string | null, limit: number): Promise<Result<OperationRecord[]>> {
+    if (!Number.isInteger(limit) || limit <= 0 || limit > this.maximumPageSize) {
+      return err(coreError("VALIDATION_FAILED", "core.pagination.invalid-limit", { limit }));
+    }
+    if (!this.state.campaigns.has(campaignId)) return notFound("campaign", campaignId);
+    const records = [...this.state.operations.values()]
+      .filter(record => record.campaignId === campaignId && (operationKind === null || record.operationKind === operationKind))
+      .sort((left, right) => {
+        const byReceivedAt = left.receivedAt.localeCompare(right.receivedAt);
+        return byReceivedAt !== 0 ? byReceivedAt : left.operationId.localeCompare(right.operationId);
+      })
+      .slice(0, limit)
+      .map(record => cloneJson(record));
+    return ok(records);
+  }
+
   async transitionOperation(
     operationId: OperationId,
     expectedPhase: OperationPhase,

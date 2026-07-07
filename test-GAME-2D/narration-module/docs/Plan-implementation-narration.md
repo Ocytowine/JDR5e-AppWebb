@@ -1,6 +1,6 @@
 # Plan d'implémentation du module narration
 
-Statut : `EN_EXECUTION` — I-00 à I-06J livrés dans leur périmètre; I-02 conserve une réserve tactique différée; I-07 et I-08 restent fermés jusqu'à leurs gates.
+Statut : `EN_EXECUTION` — I-00 à I-06L livrés dans leur périmètre; audit I-07 tactique/repos terminé et I-07A autorisé; I-02 conserve une réserve tactique différée; I-08 reste fermé jusqu'à sa gate.
 
 ## Principes d'exécution
 
@@ -346,8 +346,30 @@ Il couvre uniquement l'enrichissement IA du rendu visible après résolution : e
 - client navigateur dédié vers `/api/narration/enhance-openai`;
 - fallback automatique vers faux fournisseur local;
 - interdiction d'appel OpenAI direct, clé ou `openaiProvider` dans le navigateur;
+- calibration post-live : pas d'appel `scene_writer` sur `NO_COMMIT_RESPONSE` méta/informatif sans matière fictionnelle;
 - tests `narration-module:test:narrative-app-surface` et `narration-module:test:narrative-openai-route`;
 - matrice [`Matrice-preuves-I06J.md`](Matrice-preuves-I06J.md).
+
+### Preuves de livraison I-06K
+
+- contrat applicatif `narrative-render-projection/1`;
+- opération secondaire `narrative.render.projection` idempotente;
+- persistance du `DisplayPacketV1` final après enrichissement IA;
+- stockage des incidents IA expurgés avec autorité `PRESENTATION_ONLY`;
+- absence de commit métier, temps de jeu ou remplacement de l'opération source;
+- branchement de la surface narration prototype à l'enregistrement durable du rendu;
+- test `narration-module:test:narrative-render-projection`;
+- matrice [`Matrice-preuves-I06K.md`](Matrice-preuves-I06K.md).
+
+### Preuves de livraison I-06L
+
+- lecture bornée `CampaignRepository.listOperations`;
+- reconstruction `narrative-rendered-thread/1` depuis les opérations `narrative.render.projection`;
+- méthode `NarrativeTurnControllerV1.restoreRenderedThread`;
+- surface narration qui restaure le fil visible au montage;
+- contrôleur prototype navigateur sur IndexedDB avec fallback mémoire;
+- tests `narration-module:test:contracts:core`, `narration-module:test:narrative-render-projection` et `narration-module:test:narrative-app-surface`;
+- matrice [`Matrice-preuves-I06L.md`](Matrice-preuves-I06L.md).
 
 ## I-07 — Tactique et repos
 
@@ -357,7 +379,7 @@ Réaliser les handoffs sauvegardables et intégrer leurs résultats une seule fo
 
 ### Prérequis
 
-AF-R13, AF-R14 et décision explicite sur l'ancienne route `/api/narration`.
+AF-R13 et AF-R14 sont résolus par [`Contrat-handoffs-tactique-repos.md`](Contrat-handoffs-tactique-repos.md), version `tactical-rest-handoff/1`. La route historique `/api/narration` ne devient pas le contrat I-07.
 
 ### Scénarios
 
@@ -366,6 +388,50 @@ NAR-ACC-011, NAR-ACC-012 et checkpoints C/D de NAR-ACC-002.
 ### Gate
 
 Combat terminé non rejouable, conséquences atomiques, repos segmenté et signaux UI issus uniquement des événements committés.
+
+### Autorisation I-07A
+
+I-07A couvre uniquement types, validateurs, fixtures déterministes, persistance d'un processus actif et intégration idempotente d'outcomes simulés pour tactique et repos.
+
+Il n'autorise pas encore combat complet dans `GameBoard.tsx`, IA tactique complète, génération automatique de carte tactique, repos complet avec toutes les règles de classe, progression de personnage ou remplacement global des routes historiques.
+
+### Preuves de livraison I-07A
+
+- `ProcessHandoffV1`, `ProcessCheckpointV1`, `TacticalEncounterSeedV1`, `TacticalOutcomeV1`, `RestSeedV1`, `RestOutcomeV1`;
+- intégration unique d'un outcome tactique simulé;
+- état `COMPLETED_PENDING_INTEGRATION` si l'intégration échoue après fin de processus;
+- repos déclenché uniquement par intention explicite;
+- signaux `rest_started`, `rest_completed`, `rest_interrupted` ou `rest_failed` dérivés d'événements committés;
+- test dédié `narration-module:test:tactical-rest-handoff`;
+- matrice [`Matrice-preuves-I07A.md`](Matrice-preuves-I07A.md).
+
+Limite assumée : I-07A porte les durées dans les outcomes mais ne committe pas encore l'avance de l'agrégat `world.clock`; ce raccord doit être ouvert en I-07B avec le kernel temporel.
+
+### Preuves de livraison I-07B
+
+- batch temporel `PROCESS_BOUNDARY` construit depuis un outcome de handoff;
+- intégration temporelle via `prepareTemporalSegmentCommitV1`;
+- écriture atomique de `world.clock`, `process.handoff`, deltas métier et événement principal;
+- retry idempotent sans double horloge, dégâts, ressources ou événement;
+- repos interrompu avec durée réelle committée et bénéfice long non accordé;
+- test dédié `narration-module:test:tactical-rest-handoff`;
+- matrice [`Matrice-preuves-I07B.md`](Matrice-preuves-I07B.md).
+
+Limite assumée : I-07B ne livre pas encore la segmentation jouable du repos, les checkpoints intermédiaires, la simulation mondiale pendant les frontières horaires de repos long, ni le branchement réel au plateau tactique.
+
+### Preuves de livraison I-07C
+
+- état propriétaire `RestProcessStateV1` persistable en agrégat `rest.process`;
+- création d'un repos segmenté depuis `RestSeedV1`;
+- progression segment par segment avec checkpoint/fingerprint;
+- commit temporel atomique de chaque segment via `prepareTemporalSegmentCommitV1`;
+- retry sans double temps, double consommation ou double événement;
+- bénéfice de repos accordé uniquement à la durée cible;
+- interruption déterministe à graine stable sans bénéfice long indu;
+- test dédié `narration-module:test:tactical-rest-handoff`;
+- matrice [`Matrice-preuves-I07C.md`](Matrice-preuves-I07C.md).
+
+Limite assumée : I-07C ne livre pas encore l'UI de repos jouable, les choix interactifs complets, les règles exhaustives de classe/sorts/fatigue, ni la simulation mondiale aux frontières horaires longues.
 
 ## I-08 — Certification verticale et non fonctionnelle
 
@@ -397,4 +463,4 @@ I-03 et I-04 peuvent être préparés indépendamment après I-02, mais aucune i
 
 ## Autorisation actuelle
 
-I-00 à I-06J sont terminés dans leur périmètre déclaré. I-07 et I-08 restent fermés jusqu'à leurs contrats et gates.
+I-00 à I-06L sont terminés dans leur périmètre déclaré. L'audit I-07 est terminé et autorise I-07A uniquement. I-08 reste fermé jusqu'à son contrat et sa gate.

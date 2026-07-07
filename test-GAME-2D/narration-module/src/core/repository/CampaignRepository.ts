@@ -37,6 +37,7 @@ export interface CampaignRepository {
   receiveOperation(record: OperationRecord): Promise<Result<OperationRecord>>;
   getOperation(operationId: OperationId): Promise<Result<OperationRecord>>;
   getOperationByIdempotencyKey(campaignId: CampaignId, idempotencyKey: IdempotencyKey): Promise<Result<OperationRecord>>;
+  listOperations(campaignId: CampaignId, operationKind: string | null, limit: number): Promise<Result<OperationRecord[]>>;
   transitionOperation(
     operationId: OperationId,
     expectedPhase: OperationPhase,

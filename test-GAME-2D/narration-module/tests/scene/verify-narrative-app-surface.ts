@@ -21,6 +21,8 @@ const appSource = readFileSync(resolve("src/App.tsx"), "utf8");
 const mainSource = readFileSync(resolve("src/main.tsx"), "utf8");
 
 assert.equal(narrativeSurfaceSource.includes("GameBoard"), false, "NarrativeAppSurface ne doit pas importer GameBoard");
+assert.equal(narrativeSurfaceSource.includes("createBrowserPersistentNarrativeTurnControllerV1"), true, "surface restaure le fil via le contrôleur persistant");
+assert.equal(narrativeSurfaceSource.includes("restoreRenderedThread"), true, "surface recharge les projections de rendu persistées");
 assert.equal(mainSource.includes("GameBoard"), false, "main.tsx ne doit plus monter GameBoard directement");
 assert.equal(appSource.includes("from \"./GameBoard\""), true, "App.tsx monte GameBoard seulement comme surface tactique");
 assert.equal(appSource.includes("<GameBoard />"), true, "surface tactique explicite");

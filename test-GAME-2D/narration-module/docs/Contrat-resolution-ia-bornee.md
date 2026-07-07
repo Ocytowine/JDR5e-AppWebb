@@ -61,7 +61,7 @@ Les roles suivants restent fermes :
 1. recevoir une `NarrativeResolutionResultV1` deja produite;
 2. construire un appel `player_expression_adapter` si une expression PJ existe;
 3. valider que `addedMeaning` est vide et `safeToUse=true`;
-4. construire un appel `scene_writer` pour un bloc MJ optionnel;
+4. construire un appel `scene_writer` pour un bloc MJ optionnel uniquement si le resultat contient une matiere fictionnelle autorisee;
 5. valider que chaque bloc est ancre dans des references autorisees;
 6. appliquer les ameliorations uniquement au `DisplayPacketV1`;
 7. conserver le resultat I-06F intact;
@@ -87,6 +87,8 @@ La narration MJ peut :
 - rendre une parole ou un handoff plus lisible;
 - souligner qu'une action n'a pas encore ete resolue.
 
+Le `scene_writer` ne doit pas etre appele pour meubler une reponse `NO_COMMIT_RESPONSE` purement meta ou informative. Si aucun fait fictionnel autorise n'est disponible, le systeme conserve la notification deterministe ou une reponse factuelle sobre.
+
 Elle ne peut pas :
 
 - annoncer un succes ou un echec non commite;
@@ -110,6 +112,7 @@ I-06G doit prouver :
 - amelioration d'une expression PJ sans ajout de sens;
 - rejet d'une reformulation qui ajoute un engagement;
 - ajout d'une narration MJ ancree;
+- absence de narration atmospherique sur question meta ou informative sans snapshot reel;
 - handoff tactique rendu plus vivant sans resolution de combat;
 - fallback deterministe si sortie invalide;
 - aucun changement de `resolution.resultKind`, `commitId`, `handoff` ou horloge.

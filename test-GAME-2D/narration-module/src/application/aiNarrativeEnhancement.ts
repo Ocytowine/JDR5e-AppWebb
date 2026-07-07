@@ -91,55 +91,59 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
     }
   }
 
-  const sceneRun = await runAiPipelineCallV1({
-    provider: input.config.provider,
-    route: input.config.sceneWriterRoute,
-    retryPolicy: input.config.retryPolicy,
-    request: {
-      schemaVersion: 1,
-      callId: `${input.operationId}:ai:scene-writer:call`,
-      operationId: input.operationId,
-      attemptId: `${input.operationId}:ai:scene-writer:attempt:1`,
-      campaignId: input.campaignId,
-      snapshotId: `${input.operationId}:snapshot:display`,
-      packId: `${input.operationId}:pack:scene-writer`,
-      role: "scene_writer",
-      contractVersion: NARRATIVE_AI_RESOLUTION_CONTRACT_VERSION_V1,
-      modelRouteId: input.config.sceneWriterRoute.routeId,
-      contextFingerprint: "sha256:narrative-ai-scene-writer-fixture",
-      idempotencyKey: `${input.operationId}:ai:scene-writer`,
-      input: {
-        instructionsRef: "narrative-ai-resolution/scene-writer/v1",
-        roleContextPack: {},
-        task: {
-          resultKind: input.resolution.resultKind,
-          handoff: input.resolution.handoff,
-          committed: input.resolution.commitId !== null,
-          allowedGrounding: [`resolution:${input.resolution.resolutionId}`],
-          forbidden: ["success_without_commit", "combat_resolution", "inventory_mutation", "secret_reveal"]
+  if (shouldCallSceneWriter(input.resolution)) {
+    const sceneRun = await runAiPipelineCallV1({
+      provider: input.config.provider,
+      route: input.config.sceneWriterRoute,
+      retryPolicy: input.config.retryPolicy,
+      request: {
+        schemaVersion: 1,
+        callId: `${input.operationId}:ai:scene-writer:call`,
+        operationId: input.operationId,
+        attemptId: `${input.operationId}:ai:scene-writer:attempt:1`,
+        campaignId: input.campaignId,
+        snapshotId: `${input.operationId}:snapshot:display`,
+        packId: `${input.operationId}:pack:scene-writer`,
+        role: "scene_writer",
+        contractVersion: NARRATIVE_AI_RESOLUTION_CONTRACT_VERSION_V1,
+        modelRouteId: input.config.sceneWriterRoute.routeId,
+        contextFingerprint: "sha256:narrative-ai-scene-writer-fixture",
+        idempotencyKey: `${input.operationId}:ai:scene-writer`,
+        input: {
+          instructionsRef: "narrative-ai-resolution/scene-writer/v1",
+          roleContextPack: {},
+          task: {
+            resultKind: input.resolution.resultKind,
+            handoff: input.resolution.handoff,
+            committed: input.resolution.commitId !== null,
+            allowedGrounding: [`resolution:${input.resolution.resolutionId}`],
+            forbidden: ["success_without_commit", "combat_resolution", "inventory_mutation", "secret_reveal"]
+          }
+        },
+        limits: {
+          inputTokenBudget: 900,
+          outputTokenBudget: 500,
+          timeoutMs: input.config.sceneWriterRoute.timeoutMs
         }
-      },
-      limits: {
-        inputTokenBudget: 900,
-        outputTokenBudget: 500,
-        timeoutMs: input.config.sceneWriterRoute.timeoutMs
       }
+    });
+    incidents.push(...sceneRun.incidents);
+    const scenePayload = sceneRun.acceptedOutput?.payload as SceneWriterPayloadV1 | undefined;
+    const narrativeBlocks = scenePayload?.narrationBlocks.filter(block => {
+      return block.blockKind === "MJ_NARRATION"
+        && block.content.trim().length > 0
+        && block.groundedIn.includes(`resolution:${input.resolution.resolutionId}`)
+        && !forbiddenNarrativeClaim(block.content);
+    }) ?? [];
+    if (narrativeBlocks.length > 0) {
+      enhanced.displayBlocks.push(...narrativeBlocks.map((block, index) => aiNarrationBlock(input.operationId, block.content, sceneRun.acceptedOutput?.outputId ?? "unknown", index)));
+      enhanced.rhythmDiagnostics = `${enhanced.rhythmDiagnostics ?? "none"}|ai-scene-writer`;
+      enhanced.reconstructionRefs = [...enhanced.reconstructionRefs, `ai-output:${sceneRun.acceptedOutput?.outputId ?? "unknown"}`];
+      changed = true;
+      safetyNotes.push("Narration MJ ajoutée uniquement comme texture ancrée.");
     }
-  });
-  incidents.push(...sceneRun.incidents);
-  const scenePayload = sceneRun.acceptedOutput?.payload as SceneWriterPayloadV1 | undefined;
-  const narrativeBlocks = scenePayload?.narrationBlocks.filter(block => {
-    return block.blockKind === "MJ_NARRATION"
-      && block.content.trim().length > 0
-      && block.groundedIn.includes(`resolution:${input.resolution.resolutionId}`)
-      && !forbiddenNarrativeClaim(block.content);
-  }) ?? [];
-  if (narrativeBlocks.length > 0) {
-    enhanced.displayBlocks.push(...narrativeBlocks.map((block, index) => aiNarrationBlock(input.operationId, block.content, sceneRun.acceptedOutput?.outputId ?? "unknown", index)));
-    enhanced.rhythmDiagnostics = `${enhanced.rhythmDiagnostics ?? "none"}|ai-scene-writer`;
-    enhanced.reconstructionRefs = [...enhanced.reconstructionRefs, `ai-output:${sceneRun.acceptedOutput?.outputId ?? "unknown"}`];
-    changed = true;
-    safetyNotes.push("Narration MJ ajoutée uniquement comme texture ancrée.");
+  } else {
+    safetyNotes.push("Scene writer non appelé: aucune matière fictionnelle autorisée pour ce résultat sans commit.");
   }
 
   if (!changed) {
@@ -147,10 +151,10 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
       schemaVersion: 1,
       contractVersion: NARRATIVE_AI_RESOLUTION_CONTRACT_VERSION_V1,
       enhanced: false,
-      usedFallback: true,
+      usedFallback: incidents.length > 0,
       displayPacket: original,
       incidents,
-      safetyNotes: ["Fallback déterministe conservé."]
+      safetyNotes: incidents.length > 0 ? ["Fallback déterministe conservé."] : safetyNotes
     };
   }
 
@@ -184,6 +188,14 @@ function aiNarrationBlock(operationId: string, text: string, outputId: string, i
     sourceRefs: [`ai-output:${outputId}`],
     isDegradedFallback: false
   };
+}
+
+function shouldCallSceneWriter(resolution: NarrativeResolutionResultV1): boolean {
+  if (resolution.resultKind === "NO_COMMIT_RESPONSE") return false;
+  return resolution.commitId !== null
+    || resolution.characterExpression !== null
+    || resolution.handoff !== null
+    || resolution.resultKind === "CLARIFICATION_REQUIRED";
 }
 
 function forbiddenNarrativeClaim(text: string): boolean {

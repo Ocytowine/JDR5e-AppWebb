@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  createBrowserPersistentNarrativeTurnControllerV1,
   createPrototypeNarrativeTurnControllerV1,
   enhanceNarrativeDisplayWithAiV1,
+  type AiNarrativeEnhancementResultV1,
   type NarrativeTurnControllerV1
 } from "../../narration-module/src/application";
 import { FakeContractAiProviderV1 } from "../../narration-module/src/ai/FakeContractAiProvider";
@@ -31,10 +33,26 @@ export function NarrativeAppSurface() {
 
   useEffect(() => {
     let cancelled = false;
-    void createPrototypeNarrativeTurnControllerV1().then(nextController => {
-      if (!cancelled) setController(nextController);
+    void createBrowserPersistentNarrativeTurnControllerV1().then(async nextController => {
+      const restored = await nextController.restoreRenderedThread();
+      if (!cancelled) {
+        if (restored.ok) {
+          setPacketsFromController(restored.value.displayPackets);
+        } else {
+          setErrorMessage(restored.error.messageKey);
+        }
+        setController(nextController);
+      }
     }).catch(error => {
-      if (!cancelled) setErrorMessage(error instanceof Error ? error.message : String(error));
+      void createPrototypeNarrativeTurnControllerV1().then(nextController => {
+        if (!cancelled) setController(nextController);
+      }).catch(fallbackError => {
+        if (!cancelled) {
+          const primary = error instanceof Error ? error.message : String(error);
+          const fallback = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+          setErrorMessage(`${primary}; fallback mémoire indisponible: ${fallback}`);
+        }
+      });
     });
     return () => {
       cancelled = true;
@@ -54,6 +72,19 @@ export function NarrativeAppSurface() {
         return;
       }
       const enhancement = await enhancePrototypePacket(result.value.output, enhancementMode);
+      const recorded = await controller.recordRenderedProjection({
+        schemaVersion: 1,
+        clientRequestId: result.value.output.clientRequestId,
+        sourceOutput: result.value.output,
+        mode: enhancementMode,
+        finalEnhancement: enhancement.finalEnhancement,
+        attemptedEnhancement: enhancement.attemptedEnhancement,
+        statusMessage: enhancement.status
+      });
+      if (!recorded.ok) {
+        setErrorMessage(recorded.error.messageKey);
+        return;
+      }
       setEnhancementStatus(enhancement.status);
       const enhanced = enhancement.displayPacket;
       setPacketsFromController(prev => [...prev, enhanced]);
@@ -220,7 +251,12 @@ function createWelcomePacket(): DisplayPacketV1 {
 async function enhancePrototypePacket(
   output: NarrativeTurnControllerOutputV1,
   mode: NarrativeEnhancementMode
-): Promise<{ displayPacket: DisplayPacketV1; status: string }> {
+): Promise<{
+  displayPacket: DisplayPacketV1;
+  status: string;
+  finalEnhancement: AiNarrativeEnhancementResultV1;
+  attemptedEnhancement: AiNarrativeEnhancementResultV1 | null;
+}> {
   const operationId = output.operationId;
   const localProvider = new FakeContractAiProviderV1([
     [`${operationId}:ai:expression:attempt:1`, {
@@ -299,12 +335,26 @@ async function enhancePrototypePacket(
     });
     return {
       displayPacket: fallback.displayPacket,
-      status: `OpenAI indisponible ou sortie refusée (${summarizeOpenAiFallback(enhanced)}) : fallback local utilisé.`
+      status: `OpenAI indisponible ou sortie refusée (${summarizeOpenAiFallback(enhanced)}) : fallback local utilisé.`,
+      finalEnhancement: fallback,
+      attemptedEnhancement: enhanced
+    };
+  }
+  if (!enhanced.enhanced && !enhanced.usedFallback) {
+    return {
+      displayPacket: enhanced.displayPacket,
+      status: mode === "openai"
+        ? "OpenAI non appelé : aucun enrichissement narratif nécessaire pour cette réponse."
+        : "Mode local : aucun enrichissement narratif nécessaire pour cette réponse.",
+      finalEnhancement: enhanced,
+      attemptedEnhancement: null
     };
   }
   return {
     displayPacket: enhanced.displayPacket,
-    status: mode === "openai" ? "OpenAI serveur utilisé pour l'enrichissement." : "Mode local utilisé pour l'enrichissement."
+    status: mode === "openai" ? "OpenAI serveur utilisé pour l'enrichissement." : "Mode local utilisé pour l'enrichissement.",
+    finalEnhancement: enhanced,
+    attemptedEnhancement: null
   };
 }
 

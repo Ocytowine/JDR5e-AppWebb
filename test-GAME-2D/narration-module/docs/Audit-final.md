@@ -1,6 +1,6 @@
 # Audit final du module narration
 
-Statut : `RETENU` — audit initial terminé; addenda progressifs jusqu'à I-06A, avec I-05B fermé le 2026-07-07 et I-06A autorisé contractuellement.
+Statut : `RETENU` — audit initial terminé; addenda progressifs jusqu'à I-06L livrés; audit I-07 tactique/repos terminé et I-07A autorisé. I-08 certification reste fermé jusqu'à sa gate.
 
 ## Objectif
 
@@ -464,3 +464,41 @@ Le sous-lot I-06J ajoute le contrôle utilisateur qui rend la capacité compréh
 Décision : **AUTORISÉ ET LIVRÉ — sous-lot I-06J uniquement**. L'autorisation couvre le sélecteur UI, le client vers `/api/narration/enhance-openai`, le fallback local et les tests source. Elle n'autorise pas streaming, persistance du choix, affichage détaillé des incidents, benchmark qualité/coût ou rôles IA plus puissants.
 
 Fermeture : **I-06J LIVRÉ** le 2026-07-07. [`Matrice-preuves-I06J.md`](Matrice-preuves-I06J.md) couvre UI Locale/OpenAI, appel serveur dédié, absence d'OpenAI navigateur, fallback local et route serveur toujours protégée.
+
+## Addendum post-I-06J — Calibration du rendu sans commit
+
+Les premiers tests live OpenAI ont révélé une dérive qualitative sans dérive d'autorité : sur des questions méta ou informatives comme la météo ou la localisation, `scene_writer` pouvait ajouter une ambiance générique alors que le resolver retournait correctement `NO_COMMIT_RESPONSE`.
+
+La calibration post-I-06J conserve la frontière I-06G : `scene_writer` n'est plus appelé sur un `NO_COMMIT_RESPONSE` sans matière fictionnelle autorisée. Ce cas n'est pas un fallback fournisseur; l'UI indique simplement qu'aucun enrichissement narratif n'était nécessaire.
+
+Décision : **CORRECTION LIVRÉE — sans ouverture de nouveau rôle IA**. La correction couvre uniquement le saut de `scene_writer`, les tests météo/localisation et le statut UI. Elle n'autorise pas `mj_planner`, snapshot complet, persistance du fil, tactique, repos ou création persistante.
+
+## Addendum I-06K — Persistance des projections et incidents IA
+
+Le sous-lot I-06K traite la priorité restante après les premiers tests live : le rendu final enrichi ne doit pas rester uniquement dans l'état React.
+
+La solution retenue n'altère pas l'opération métier source. Elle ajoute une opération secondaire `narrative.render.projection`, idempotente, complétée en `NO_COMMIT_RESPONSE`, qui stocke le `DisplayPacketV1` final, les métadonnées d'enrichissement et les incidents IA expurgés sous contrat `narrative-render-projection/1`.
+
+Décision : **AUTORISÉ ET LIVRÉ — sous-lot I-06K uniquement**. L'autorisation couvre la persistance du rendu visible final et des diagnostics IA sûrs, avec autorité `PRESENTATION_ONLY`. Elle n'autorise pas reconstruction complète du fil après reload, snapshot réel de scène, affichage UX détaillé des incidents, streaming, tactique, repos ou nouveaux rôles IA.
+
+Fermeture : **I-06K LIVRÉ** le 2026-07-07. [`Matrice-preuves-I06K.md`](Matrice-preuves-I06K.md) couvre opération de rendu secondaire, idempotence, source métier intacte, absence de temps/commit, incidents expurgés et branchement UI prototype.
+
+## Addendum I-06L — Reconstruction du fil visible
+
+Le sous-lot I-06L rend exploitable la persistance I-06K dans l'interface. La surface narration peut restaurer les `DisplayPacketV1` finaux depuis les opérations `narrative.render.projection`, sans rappeler OpenAI et sans rejouer les opérations métier.
+
+Le port `CampaignRepository` expose désormais une lecture bornée `listOperations`, utilisée par le reconstructeur `narrative-rendered-thread/1`. Le prototype navigateur tente IndexedDB et conserve un fallback mémoire pour les environnements de test ou navigateurs sans IndexedDB.
+
+Décision : **AUTORISÉ ET LIVRÉ — sous-lot I-06L uniquement**. L'autorisation couvre la reconstruction du fil visible final. Elle n'autorise pas pagination UX avancée, suppression/compactage, préférence OpenAI persistée, détail visuel des incidents, snapshot réel de scène, tactique, repos ou nouveaux rôles IA.
+
+Fermeture : **I-06L LIVRÉ** le 2026-07-07. [`Matrice-preuves-I06L.md`](Matrice-preuves-I06L.md) couvre lecture bornée des opérations, reconstruction, branchement UI, IndexedDB prototype et absence de rejeu métier.
+
+## Addendum I-07 — Audit tactique et repos
+
+L'audit du 2026-07-07 confronte [`Integration-domaines.md`](Integration-domaines.md), [`Contrat-resolution-narrative.md`](Contrat-resolution-narrative.md), les scénarios NAR-ACC-011 et NAR-ACC-012, l'état actuel de `GameBoard.tsx` et la route historique `/api/narration`.
+
+Le risque principal est de réutiliser un résumé textuel de combat comme résultat métier, ou de laisser la narration accorder des bénéfices de repos par prose. [`Contrat-handoffs-tactique-repos.md`](Contrat-handoffs-tactique-repos.md) fige donc `tactical-rest-handoff/1` : seeds typés, processus/checkpoints, outcomes, intégration idempotente, état `COMPLETED_PENDING_INTEGRATION` et signaux UI de repos dérivés d'événements committés.
+
+Décision : **AUTORISÉ — sous-lot I-07A uniquement**. L'autorisation couvre types, validateurs, fixtures déterministes, processus actif et intégration idempotente d'outcomes simulés pour tactique et repos. Elle n'autorise pas combat complet dans `GameBoard.tsx`, IA tactique complète, génération automatique de carte, repos complet avec toutes les règles de classe, progression de personnage, butin automatique ou remplacement global des routes historiques.
+
+Fermeture d'audit : **AF-R13 et AF-R14 RÉSOLUS AU NIVEAU CONTRACTUEL** le 2026-07-07. [`Matrice-preuves-I07-audit.md`](Matrice-preuves-I07-audit.md) consigne la décision sur `/api/narration`, les risques couverts et la gate attendue pour I-07A.
