@@ -304,3 +304,27 @@ La revue du 2026-07-06 découvre que `campaign-bootstrap/1` exige un unique comm
 La même revue constate que les besoins connus en espèces, cultures, PNJ et histoire doivent être intégrés avant les schémas exécutables. [`Contrat-contenu-lore.md`](Contrat-contenu-lore.md) fige `lore-authoring/1`, sépare catalogues mécaniques, lore initial et état de campagne, et définit des fragments par niveau de connaissance. Les templates quittent la racine `wiki/lore/`.
 
 Décision : **AUTORISÉ — lot I-02 uniquement**, désormais selon `campaign-bootstrap/2` et `lore-authoring/1`. `campaign-bootstrap/1` est remplacé avant implémentation. I-03 à I-08 restent fermés.
+
+## Addendum I-03A — Audit AF-R12
+
+La revue du 2026-07-06 clôt I-02 pour son périmètre narratif avec la réserve documentée de parité directe avec le plateau tactique. Cette réserve reste différée et ne transfère aucune autorité au module narration.
+
+L'audit d'I-03 confirme que `world.clock.elapsedGameSeconds` existe déjà comme horloge atomique du noyau, tandis que `map-module/world-simulation` expose un runtime mutable où `runWorldHours` avance des ticks horaires. Ces ticks ne peuvent pas devenir une seconde horloge de campagne. [`Contrat-temps-processus.md`](Contrat-temps-processus.md) fige donc `temporal-kernel/1`, le curseur dérivé `worldSimulatedThrough`, l'ordre causal et quatre sous-lots séparés.
+
+Décision : **AUTORISÉ — sous-lot I-03A uniquement**. Il couvre types, validateurs et ordonnanceur temporel purs, sans persistance d'échéance et sans appel au `map-module`. I-03B doit figer les agrégats d'échéancier et de processus avant leur première écriture. I-03C doit figer l'adaptateur avant toute avance mondiale intégrée.
+
+## Addendum I-03B — Persistance temporelle
+
+Les agrégats `world.schedule`, `world.simulation-cursor` et `process.state` sont figés par `temporal-kernel/1`. Leur préparation réutilise exclusivement `CampaignRepository.commit`; aucun store ou mécanisme transactionnel parallèle n'est ajouté.
+
+Les contrats mémoire et Chromium vérifient commit conjoint de l'horloge, de l'échéancier et du checkpoint, rejeu idempotent, fermeture/réouverture, panne après événements sans état partiel, empreinte de checkpoint, arithmétique du curseur et cycles d'échéances.
+
+Décision : **I-03B LIVRÉ; I-03C AUTORISÉ** dans la limite de l'adaptateur monde décrit par [`Contrat-temps-processus.md`](Contrat-temps-processus.md). L'adaptateur doit travailler sur une copie, recevoir uniquement un nombre entier positif d'heures dues et retourner des sorties structurées avant tout commit.
+
+## Addendum I-03C — Adaptateur monde
+
+`WorldSimulationPortV1` et `MapModuleWorldSimulationAdapterV1` isolent le runtime carte derrière des snapshots et empreintes. Le moteur réel est exécuté sur une copie; ses sorties restent techniques. Le préparateur temporel recalcule les empreintes et refuse tout résultat qui ne correspond pas au curseur, à la durée ou à la tâche committée.
+
+Les preuves exécutent le scénario réel du moteur pour 1 h et 6 h, comparent deux exécutions, vérifient l'absence de mutation, puis publient état monde, tick, curseur, événement et horloge dans une transaction mémoire et IndexedDB.
+
+Décision : **I-03C LIVRÉ; I-03D AUTORISÉ** pour le processus de voyage et les scénarios NAR-ACC-007/010/020. Cette autorisation ne couvre ni UI, ni tactique, ni création IA de rencontre.

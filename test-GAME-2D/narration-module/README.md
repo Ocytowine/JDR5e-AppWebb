@@ -1,6 +1,6 @@
 # Module narration
 
-Le runtime narratif complet n'est pas encore implémenté. I-00 fournit le noyau transactionnel `campaign-core/1`; I-01 ajoute `IndexedDbCampaignRepository`, les migrations par générations et les tests Chromium de `campaign-storage/1`. I-02 fournit les treize types de `lore-authoring/1`, la compilation du corpus réel, le bootstrap atomique, l'import legacy du personnage, le `RuleRegistry` MVP et le service d'orchestration `campaign.bootstrap`.
+Le runtime narratif complet n'est pas encore implémenté. I-00 fournit le noyau transactionnel `campaign-core/1`; I-01 ajoute la persistance IndexedDB; I-02 fournit le bootstrap contenu/personnage/règles. I-03A ajoute le noyau temporel pur, I-03B persiste échéances et checkpoints, et I-03C raccorde le moteur monde sur copie sans créer de seconde horloge.
 
 ## Vérifications
 
@@ -13,6 +13,7 @@ npm run narration-module:test:lore
 npm run narration-module:test:character
 npm run narration-module:test:rules
 npm run narration-module:test:orchestration
+npm run narration-module:test:time
 npm run narration-module:test:indexeddb
 ```
 
@@ -28,6 +29,7 @@ npm run build
 - [`docs/Contrat-persistance-indexeddb.md`](docs/Contrat-persistance-indexeddb.md) : contrat physique `FIGE` implémenté par I-01.
 - [`docs/Contrat-bootstrap-campagne.md`](docs/Contrat-bootstrap-campagne.md) : contrat `FIGE` du bootstrap I-02 et état de son implémentation.
 - [`docs/Contrat-contenu-lore.md`](docs/Contrat-contenu-lore.md) : contrat `FIGE` des sources, relations, connaissances et fragments lore.
+- [`docs/Contrat-temps-processus.md`](docs/Contrat-temps-processus.md) : contrat I-03, horloge unique, échéances et sous-lots d'intégration monde.
 - [`docs/Audit-final.md`](docs/Audit-final.md) : autorisations progressives et blocages par capacité.
 - [`docs/Plan-implementation-narration.md`](docs/Plan-implementation-narration.md) : ordre et gates des lots suivants.
 

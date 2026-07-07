@@ -1,6 +1,6 @@
 # Plan d'implémentation du module narration
 
-Statut : `EN_EXECUTION` — I-00 et I-01 livrés et vérifiés; I-02 autorisé par `campaign-bootstrap/2` et `lore-authoring/1`; I-03 à I-08 restent fermés jusqu'à leurs gates.
+Statut : `EN_EXECUTION` — I-00 à I-02 livrés; I-02 conserve une réserve tactique différée; I-03A est ouvert par `temporal-kernel/1`; I-03B à I-08 restent fermés jusqu'à leurs gates.
 
 ## Principes d'exécution
 
@@ -117,6 +117,8 @@ Checkpoint A de NAR-ACC-002, NAR-ACC-008, NAR-ACC-009 et NAR-ACC-021.
 Les Archives de Lysenthe et la fiche prête à jouer sont importées sans lecture directe des caches UI; toute donnée dérivée est recalculée et toute règle cite sa version.
 
 ## I-03 — Temps, monde et processus
+
+Statut : `EN COURS` le 2026-07-06; I-03A, I-03B et I-03C implémentés, I-03D prochain sous-lot. Le découpage est figé dans [`Contrat-temps-processus.md`](Contrat-temps-processus.md) et la reprise détaillée dans [`Handoff-I03D.md`](Handoff-I03D.md).
 
 ### Objectif
 
@@ -236,4 +238,4 @@ I-03 et I-04 peuvent être préparés indépendamment après I-02, mais aucune i
 
 ## Autorisation actuelle
 
-I-00 et I-01 sont terminés. I-02 est le seul lot ouvert; son périmètre est limité à `campaign-bootstrap/2` et `lore-authoring/1`. I-03 à I-08 restent fermés.
+I-00 à I-02 sont terminés dans leur périmètre déclaré. I-03A à I-03C sont livrés; I-03D est autorisé. I-04 à I-08 restent fermés jusqu'à leurs contrats et gates.

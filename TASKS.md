@@ -6,15 +6,15 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 ## En cours
 
-- [ ] Maintenir la reserve de parite tactique d'I-02 sans bloquer le prochain travail narratif autonome.
-  Reference: `test-GAME-2D/narration-module/docs/Matrice-preuves-I02.md`. Treize preuves sur quatorze sont couvertes; la comparaison directe import/plateau reste differee avec la jonction tactique.
+- [ ] Implementer I-03D: processus de voyage segmente, interruptions et rencontres contextuelles deterministes.
+  References: `test-GAME-2D/narration-module/docs/Contrat-temps-processus.md` et `test-GAME-2D/narration-module/docs/Handoff-I03D.md`. I-03A/B/C sont livres; commencer par figer les types voyage et rencontre, puis couvrir NAR-ACC-007, NAR-ACC-010 et NAR-ACC-020 sans ouvrir UI, tactique ou creation IA.
 - [ ] Consolider la simulation du monde apres l'ajout des objectifs multi-phases, des opportunites de faction et des mobiles non-systeme.
   Reference: `test-GAME-2D/map-module/docs/world-simulation-corrective-roadmap.md`. Les mobiles exposent maintenant l'objectif, la phase et la cible qu'ils servent.
 
 ## Prochaines etapes
 
 - [ ] Migrer `wiki/lore/gouvernances/primauté` vers un futur type de gouvernance et retirer alors son exclusion explicite.
-- [ ] Cadrer le prochain lot narratif autonome sans ouvrir implicitement les jonctions carte, createur ou tactique.
+- [ ] Figer `TravelProcessV1`, la graine de rencontre et les checkpoints d'I-03D.
 - [ ] Generer les premiers mobiles non-systeme contextuels, en commencant par les profils marchands, criminels et religieux.
 - [ ] Historiser les causes d'action importantes sans surcharger `recentHistory`.
 - [ ] Prioriser les cas narratifs 005 a 009 avant leur implementation.
@@ -27,9 +27,13 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 - `npm audit --omit=dev` signale une vulnerabilite haute transitive existante dans `@xmldom/xmldom` via PixiJS; elle n'est pas introduite par I-01 et doit etre traitee separement avant livraison publique.
 - `docs projet/Structure app.md` decrit une ancienne cible Nuxt/Vue/Pinia; la reference executable actuelle est `test-GAME-2D/package.json`.
 - Les jonctions UI avec le createur de personnage et le plateau tactique sont explicitement differees; les projections I-02 restent des contrats testes sans branchement applicatif.
+- La parite directe import/plateau reste la reserve documentee d'I-02; elle ne doit pas etre contournee dans I-03.
 
 ## Termine recemment
 
+- [x] I-03C: adaptateur monde sur copie, sorties empreintees et commit atomique du tick en memoire et Chromium le 2026-07-06.
+- [x] I-03B: agregats temporels, checkpoints empreintes et commits atomiques verifies en memoire et Chromium le 2026-07-06.
+- [x] I-03A: contrat `temporal-kernel/1`, propositions d'avance, echeances, ordre causal et frontieres horaires deterministes le 2026-07-06.
 - [x] Revue de gate I-02: 13 preuves sur 14, checkpoints NAR-ACC-008/009/021 explicites et reserve tactique isolee le 2026-07-06.
 - [x] Service `campaign.bootstrap`, validation paquet/ruleset/provenance, chaîne des Archives, projections par règles et 8 rejets atomiques le 2026-07-06.
 - [x] `RuleRegistry` strict, manifeste de 15 regles, 11 executeurs purs, conflits, surcharges et citations le 2026-07-06.

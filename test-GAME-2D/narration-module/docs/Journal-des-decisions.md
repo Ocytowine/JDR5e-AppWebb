@@ -1563,3 +1563,59 @@ Les contradictions découvertes ont été résolues avant création des types ex
 ### Conséquences
 
 L'implémentation peut commencer par les types et schémas lore, les diagnostics, la génération déterministe et les tests du port de bootstrap. Elle ne branche ni mémoire longue, ni fournisseur IA, ni UI narrative.
+
+## NAR-084 — Horloge unique et ouverture limitée d'I-03A
+
+Date : `2026-07-06`
+
+Statut : `FIGE`
+
+### Décision
+
+I-02 est clos pour le périmètre narration avec une réserve de parité tactique différée. I-03 est découpé en quatre sous-lots. Seul I-03A, défini par `temporal-kernel/1`, est ouvert : propositions d'avance, échéances, ordre causal, batches déterministes et calcul des frontières horaires.
+
+`world.clock.elapsedGameSeconds` reste l'unique horloge. Les compteurs `tick`, `microTick` et `macroTick` du `map-module` sont des curseurs dérivés derrière `worldSimulatedThrough`.
+
+### Raisons
+
+Le moteur monde existant mute son `WorldState` et force au moins une heure dans `runWorldHours`. Le brancher directement à une durée narrative risquerait un tick sur une durée nulle, une perte des fractions d'heure et une autorité temporelle concurrente. Un noyau pur doit segmenter et valider le temps avant toute intégration.
+
+### Conséquences
+
+I-03A ne persiste rien et n'importe pas le moteur carte. I-03B devra rendre échéances et checkpoints atomiques avec l'horloge. I-03C appellera la simulation uniquement avec un nombre entier strictement positif d'heures dues et sur une copie de travail. I-04 à I-08 restent fermés.
+
+## NAR-085 — Persistance temporelle dans le commit du noyau
+
+Date : `2026-07-06`
+
+Statut : `FIGE`
+
+### Décision
+
+Échéancier, curseur de simulation et checkpoints de processus sont des agrégats ordinaires versionnés. `prepareTemporalSegmentCommitV1` écrit leurs évolutions avec `world.clock` dans une unique `CommitRequest` de `campaign-core/1`.
+
+### Raisons
+
+Créer un repository temporel ou un store de processus séparé rendrait une avance partiellement observable et dupliquerait l'idempotence déjà fournie par le noyau. Les checkpoints doivent suivre le même commit et la même révision de campagne que leurs événements.
+
+### Conséquences
+
+Une panne ne publie ni heure, ni effet résolu, ni checkpoint isolé. Les payloads portent leurs propres versions et empreintes. Une tâche de simulation est refusée avant I-03C afin qu'un curseur ne puisse jamais avancer sans `TickOutput` réellement validé.
+
+## NAR-086 — Adaptateur monde sur copie et résultat empreinté
+
+Date : `2026-07-06`
+
+Statut : `FIGE`
+
+### Décision
+
+Le module narration appelle le moteur monde uniquement via `WorldSimulationPortV1`. L'adaptateur `map-module` reçoit un snapshot JSON, vérifie son empreinte et ses compteurs, exécute un nombre entier positif d'heures sur une copie, puis retourne un nouvel état, un `TickOutput`, un curseur et une empreinte de résultat.
+
+### Raisons
+
+`runWorldHours` mute son argument et transforme toute durée inférieure à une heure en au moins un tick. Un appel direct depuis une intention narrative pourrait donc avancer le monde à tort et rendre un échec partiellement visible.
+
+### Conséquences
+
+La segmentation temporelle décide d'abord des heures dues. L'état source reste intact jusqu'au commit. Le résultat est revalidé avant d'être écrit atomiquement avec le curseur et `CampaignClock`. Le `map-module` ne devient pas propriétaire du temps de campagne et le module narration ne réimplémente pas sa simulation.

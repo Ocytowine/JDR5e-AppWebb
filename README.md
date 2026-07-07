@@ -48,6 +48,7 @@ npm run narration-module:test:lore
 npm run narration-module:test:character
 npm run narration-module:test:rules
 npm run narration-module:test:orchestration
+npm run narration-module:test:time
 npm run narration-module:test:indexeddb
 npm run map-module:test:regression
 npm run verify:world-simulation
