@@ -5,4 +5,6 @@ export * from "./prepareTemporalSegment";
 export * from "./MapModuleWorldSimulationAdapter";
 export * from "./segmentTypes";
 export * from "./types";
+export * from "./travelProcess";
+export * from "./travelTypes";
 export * from "./worldSimulationTypes";

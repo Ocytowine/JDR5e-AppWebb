@@ -1619,3 +1619,21 @@ Le module narration appelle le moteur monde uniquement via `WorldSimulationPortV
 ### Conséquences
 
 La segmentation temporelle décide d'abord des heures dues. L'état source reste intact jusqu'au commit. Le résultat est revalidé avant d'être écrit atomiquement avec le curseur et `CampaignClock`. Le `map-module` ne devient pas propriétaire du temps de campagne et le module narration ne réimplémente pas sa simulation.
+
+## NAR-087 — Fermeture I-03 et audit I-04 limité à mémoire/snapshot
+
+Date : `2026-07-07`
+
+Statut : `FIGE`
+
+### Décision
+
+I-03 est livré dans son périmètre : noyau temporel, échéancier, checkpoints, simulation monde sur copie, voyage segmenté, rencontre structurée, position et événement de voyage committés atomiquement. I-04 n'est pas ouvert en implémentation; seul l'audit AF-R08/AF-R09 est autorisé.
+
+### Raisons
+
+Les preuves couvrent NAR-ACC-007, NAR-ACC-010 et NAR-ACC-020 au niveau déterministe : temps nul pour méta, ordre causal stable, voyage committé une fois, candidat de rencontre reproductible et rejeu idempotent en mémoire et Chromium. Les capacités restantes demandées par I-04 relèvent d'un autre type d'autorité : rappel, budget de contexte, secrets, provenance et reconstruction d'index.
+
+### Conséquences
+
+La mémoire ne peut pas devenir une deuxième vérité et le snapshot ne peut pas envoyer des agrégats bruts au futur fournisseur IA. Le prochain contrat devra figer unités de mémoire, ports d'index, `TurnSnapshot`, `RoleContextPack`, quotas, traces de sélection et règles de non-fuite avant tout code I-04. UI, tactique, repos jouable, création dynamique et fournisseur IA restent fermés.

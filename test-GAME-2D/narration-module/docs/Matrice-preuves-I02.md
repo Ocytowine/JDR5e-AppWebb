@@ -1,6 +1,6 @@
 # Matrice de preuves I-02
 
-Date de revue : 2026-07-06  
+Date de revue : 2026-07-06
 Contrats : `campaign-bootstrap/2` et `lore-authoring/1`
 
 ## Conclusion

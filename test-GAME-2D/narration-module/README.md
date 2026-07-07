@@ -1,6 +1,6 @@
 # Module narration
 
-Le runtime narratif complet n'est pas encore implémenté. I-00 fournit le noyau transactionnel `campaign-core/1`; I-01 ajoute la persistance IndexedDB; I-02 fournit le bootstrap contenu/personnage/règles. I-03A ajoute le noyau temporel pur, I-03B persiste échéances et checkpoints, et I-03C raccorde le moteur monde sur copie sans créer de seconde horloge.
+Le runtime narratif complet n'est pas encore implémenté. I-00 fournit le noyau transactionnel `campaign-core/1`; I-01 ajoute la persistance IndexedDB; I-02 fournit le bootstrap contenu/personnage/règles. I-03 livre l'horloge, l'échéancier, les checkpoints de processus, l'adaptateur monde sur copie et le voyage segmenté avec rencontre déterministe, position et événement committés atomiquement.
 
 ## Vérifications
 

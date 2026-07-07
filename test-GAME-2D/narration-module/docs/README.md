@@ -22,6 +22,7 @@ Il décrit la cible avant toute reprise du runtime.
 - [`Temps-et-monde-vivant.md`](Temps-et-monde-vivant.md) : horloge précise, avances segmentées et articulation avec la simulation mondiale.
 - [`Contrat-temps-processus.md`](Contrat-temps-processus.md) : contrat exécutable `temporal-kernel/1`, sous-lots I-03 et frontière avec `map-module`.
 - [`Handoff-I03D.md`](Handoff-I03D.md) : point de reprise opérationnel, fichiers clés, invariants et plan du dernier sous-lot I-03.
+- [`Matrice-preuves-I03.md`](Matrice-preuves-I03.md) : revue exécutable de la gate I-03 et limites avant mémoire/snapshot.
 - [`Exemple-chronologie-causale.json`](Exemple-chronologie-causale.json) : interruption temporelle, tick mondial, visibilité et reprise idempotente.
 - [`Resilience-securite-diagnostic.md`](Resilience-securite-diagnostic.md) : confinement des erreurs, sécurité des données et traces exploitables.
 - [`Exigences-non-fonctionnelles.md`](Exigences-non-fonctionnelles.md) : objectifs mesurables de latence, coût, qualité et capacité.

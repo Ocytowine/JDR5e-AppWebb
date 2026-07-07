@@ -9,6 +9,6 @@ test("campaign-core, bootstrap and temporal contracts pass against real Chromium
   expect(failures, failures.map(failure => `${failure.name}\n${failure.message}`).join("\n\n")).toEqual([]);
   expect(result.contracts.passed).toBe(19);
   expect(result.bootstrap.passed).toBe(7);
-  expect(result.temporal.passed).toBe(5);
+  expect(result.temporal.passed).toBe(6);
   expect(result.specific.passed).toBe(16);
 });

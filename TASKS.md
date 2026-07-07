@@ -6,15 +6,15 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 ## En cours
 
-- [ ] Implementer I-03D: processus de voyage segmente, interruptions et rencontres contextuelles deterministes.
-  References: `test-GAME-2D/narration-module/docs/Contrat-temps-processus.md` et `test-GAME-2D/narration-module/docs/Handoff-I03D.md`. I-03A/B/C sont livres; commencer par figer les types voyage et rencontre, puis couvrir NAR-ACC-007, NAR-ACC-010 et NAR-ACC-020 sans ouvrir UI, tactique ou creation IA.
+- [ ] Auditer I-04: AF-R08 memoire et AF-R09 snapshot/contextes avant toute implementation.
+  References: `test-GAME-2D/narration-module/docs/Matrice-preuves-I03.md`, `test-GAME-2D/narration-module/docs/Memoire-et-rappel.md`, `test-GAME-2D/narration-module/docs/Snapshot-et-contextes.md`. Objectif: figer les unites de memoire, budgets de contexte, secrets, provenance, reconstruction d'index et gate de tests.
 - [ ] Consolider la simulation du monde apres l'ajout des objectifs multi-phases, des opportunites de faction et des mobiles non-systeme.
   Reference: `test-GAME-2D/map-module/docs/world-simulation-corrective-roadmap.md`. Les mobiles exposent maintenant l'objectif, la phase et la cible qu'ils servent.
 
 ## Prochaines etapes
 
 - [ ] Migrer `wiki/lore/gouvernances/primauté` vers un futur type de gouvernance et retirer alors son exclusion explicite.
-- [ ] Figer `TravelProcessV1`, la graine de rencontre et les checkpoints d'I-03D.
+- [ ] Produire le contrat I-04 memoire/snapshot avec schemas, fixtures et preuves NAR-ACC-004/005/015 plus perspective NAR-ACC-006.
 - [ ] Generer les premiers mobiles non-systeme contextuels, en commencant par les profils marchands, criminels et religieux.
 - [ ] Historiser les causes d'action importantes sans surcharger `recentHistory`.
 - [ ] Prioriser les cas narratifs 005 a 009 avant leur implementation.
@@ -31,6 +31,10 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 ## Termine recemment
 
+- [x] Revue de gate I-03: matrice de preuves, fermeture d'I-03 et autorisation limitee a l'audit I-04 AF-R08/AF-R09 le 2026-07-07.
+- [x] Candidats I-03D: selection deterministe d'un candidat de rencontre depuis signaux monde/lore/archétypes sans creation IA le 2026-07-07.
+- [x] Raccord I-03D: commit atomique voyage avec horloge, checkpoint `process.state`, `world.position`, evenement, rejeu idempotent et Chromium le 2026-07-07.
+- [x] Socle I-03D: types `TravelProcessV1`, graine de rencontre stable, checkpoint `process.state`, temps nul meta et 4 preuves voyage le 2026-07-07.
 - [x] I-03C: adaptateur monde sur copie, sorties empreintees et commit atomique du tick en memoire et Chromium le 2026-07-06.
 - [x] I-03B: agregats temporels, checkpoints empreintes et commits atomiques verifies en memoire et Chromium le 2026-07-06.
 - [x] I-03A: contrat `temporal-kernel/1`, propositions d'avance, echeances, ordre causal et frontieres horaires deterministes le 2026-07-06.

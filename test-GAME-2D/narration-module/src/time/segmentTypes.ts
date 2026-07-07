@@ -8,6 +8,7 @@ import type {
   EventId,
   EventOrigin,
   EventVisibility,
+  AggregateWrite,
   JsonObject,
   OperationRecord,
   WriterLease
@@ -45,6 +46,7 @@ export interface PrepareTemporalSegmentInputV1 {
   batch: TemporalBatchV1;
   resolutions: TemporalTaskResolutionV1[];
   newEffects: ScheduledEffectV1[];
+  additionalAggregateWrites?: AggregateWrite[];
   commitId: CommitId;
   commandId: CommandId;
 }

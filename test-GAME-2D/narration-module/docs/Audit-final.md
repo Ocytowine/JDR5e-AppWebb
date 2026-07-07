@@ -1,6 +1,6 @@
 # Audit final du module narration
 
-Statut : `RETENU` — audit initial terminé; addendum du 2026-07-06 maintenant l'autorisation limitée à I-02 après remplacement de `campaign-bootstrap/1` par `campaign-bootstrap/2` et gel de `lore-authoring/1`.
+Statut : `RETENU` — audit initial terminé; addenda progressifs jusqu'à I-03, avec I-03 fermé le 2026-07-07 et I-04 soumis à l'audit AF-R08/AF-R09 avant implémentation.
 
 ## Objectif
 
@@ -328,3 +328,15 @@ Décision : **I-03B LIVRÉ; I-03C AUTORISÉ** dans la limite de l'adaptateur mon
 Les preuves exécutent le scénario réel du moteur pour 1 h et 6 h, comparent deux exécutions, vérifient l'absence de mutation, puis publient état monde, tick, curseur, événement et horloge dans une transaction mémoire et IndexedDB.
 
 Décision : **I-03C LIVRÉ; I-03D AUTORISÉ** pour le processus de voyage et les scénarios NAR-ACC-007/010/020. Cette autorisation ne couvre ni UI, ni tactique, ni création IA de rencontre.
+
+## Addendum I-03D — Voyage segmenté et rencontre déterministe
+
+La revue du 2026-07-07 vérifie le dernier sous-lot I-03 contre NAR-ACC-007, NAR-ACC-010 et NAR-ACC-020. [`Matrice-preuves-I03.md`](Matrice-preuves-I03.md) consigne les preuves exécutables.
+
+Le socle livré ajoute `TravelProcessV1`, `TravelPlanV1`, `TravelSegmentV1`, `TravelCheckpointV1`, une graine de rencontre stable, une pression calculée, une sélection déterministe de candidat structuré et une projection vers `process.state`. Le candidat peut référencer un signal monde, une entité lore ou un archétype autorisé; il ne crée ni PNJ complet, ni scène IA, ni prose.
+
+`prepareTemporalSegmentCommitV1` accepte désormais des écritures d'agrégats additionnelles contrôlées afin que le voyage écrive `world.position` dans la même transaction que l'horloge, le checkpoint, le schedule et l'événement. Les suites mémoire et Chromium vérifient qu'un segment committé puis rejoué retourne le même commit et ne crée pas de seconde rencontre ou second événement.
+
+Décision : **I-03 LIVRÉ dans son périmètre**. Cette fermeture couvre temps, échéances, monde sur copie, processus, voyage et rencontre structurée. Elle n'autorise pas UI, mémoire longue, snapshot, fournisseur IA, création dynamique, repos jouable, tactique ou prose de rencontre.
+
+I-04 reste fermé comme implémentation. Le prochain travail autorisé est l'audit contractuel AF-R08/AF-R09 pour mémoire, snapshot et contextes.

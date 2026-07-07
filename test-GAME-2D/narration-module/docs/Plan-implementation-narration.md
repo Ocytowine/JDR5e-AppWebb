@@ -1,6 +1,6 @@
 # Plan d'implémentation du module narration
 
-Statut : `EN_EXECUTION` — I-00 à I-02 livrés; I-02 conserve une réserve tactique différée; I-03A est ouvert par `temporal-kernel/1`; I-03B à I-08 restent fermés jusqu'à leurs gates.
+Statut : `EN_EXECUTION` — I-00 à I-03 livrés dans leur périmètre; I-02 conserve une réserve tactique différée; I-04 est limité à l'audit AF-R08/AF-R09; I-05 à I-08 restent fermés jusqu'à leurs gates.
 
 ## Principes d'exécution
 
@@ -98,7 +98,7 @@ La suite contractuelle passe sans variante spécifique permissive; fermeture, is
 
 ## I-02 — Bootstrap de campagne, contenu, personnage et règles
 
-Statut : `EN VERIFICATION` le 2026-07-06; contrats lore, import, règles, persistance atomique et orchestration implémentés. La matrice de preuves couvre 13 exigences sur 14; la parité directe avec le plateau reste explicitement différée avec sa jonction.
+Statut : `TERMINE DANS SON PERIMETRE NARRATIF` le 2026-07-06; contrats lore, import, règles, persistance atomique et orchestration implémentés. La matrice de preuves couvre 13 exigences sur 14; la parité directe avec le plateau reste explicitement différée avec sa jonction et ne transfère aucune autorité tactique au module narration.
 
 ### Objectif
 
@@ -118,7 +118,7 @@ Les Archives de Lysenthe et la fiche prête à jouer sont importées sans lectur
 
 ## I-03 — Temps, monde et processus
 
-Statut : `EN COURS` le 2026-07-06; I-03A, I-03B et I-03C implémentés, I-03D prochain sous-lot. Le découpage est figé dans [`Contrat-temps-processus.md`](Contrat-temps-processus.md) et la reprise détaillée dans [`Handoff-I03D.md`](Handoff-I03D.md).
+Statut : `TERMINE` le 2026-07-07; I-03A, I-03B, I-03C et I-03D implémentés et vérifiés. La revue de gate est consignée dans [`Matrice-preuves-I03.md`](Matrice-preuves-I03.md).
 
 ### Objectif
 
@@ -238,4 +238,4 @@ I-03 et I-04 peuvent être préparés indépendamment après I-02, mais aucune i
 
 ## Autorisation actuelle
 
-I-00 à I-02 sont terminés dans leur périmètre déclaré. I-03A à I-03C sont livrés; I-03D est autorisé. I-04 à I-08 restent fermés jusqu'à leurs contrats et gates.
+I-00 à I-03 sont terminés dans leur périmètre déclaré. L'implémentation I-04 reste fermée; seul l'audit contractuel AF-R08/AF-R09 est autorisé pour figer mémoire, snapshot et contextes. I-05 à I-08 restent fermés jusqu'à leurs contrats et gates.

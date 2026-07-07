@@ -1,6 +1,6 @@
 # Contrat temps et processus
 
-Statut : `FIGÉ POUR I-03A/I-03B/I-03C` — noyau, persistance et adaptateur `map-module` implémentés; voyage et rencontres restent soumis à la gate I-03D.
+Statut : `LIVRÉ POUR I-03` — noyau, persistance, adaptateur `map-module`, voyage segmenté et rencontres déterministes structurées sont implémentés et vérifiés.
 
 Version : `temporal-kernel/1`
 
@@ -78,6 +78,27 @@ Le moteur carte reste inchangé. Son état d'entrée n'est jamais muté et aucun
 
 Gate : ordre stable, arrêt à la première décision joueur et reprise au dernier checkpoint committé.
 
+Contrat de départ :
+
+- un voyage est un processus `travel.process` dont l'état contient plan, segment courant, progression, checkpoint et éventuelle décision joueur;
+- une étape méta ou de clarification utilise `NO_GAME_TIME` et ne modifie ni progression, ni rencontre, ni horloge;
+- un segment de voyage validé utilise `PROCESS_SEGMENT` avec durée exacte et cause versionnée;
+- la prochaine avancée s'arrête à la première frontière entre fin du segment, frontière monde, interruption externe, rencontre déclenchée ou arrivée;
+- la rencontre est une décision structurée déterministe issue d'une graine stable; elle ne produit pas encore de prose, PNJ complet ou scène IA;
+- un segment déjà committé ne doit jamais être recalculé avec une nouvelle graine;
+- une rencontre déclenchée suspend le processus avec `pendingDecision`, afin de laisser observation, évitement ou approche libre au joueur;
+- le checkpoint porte une empreinte canonique et doit être identique après fermeture/réouverture.
+
+Implémentation en cours :
+
+- `TravelProcessV1` et `prepareTravelSegmentV1` produisent un segment pur, une proposition de temps, une pression de rencontre et un prochain checkpoint;
+- `createTravelProcessStatePayloadV1` projette ce checkpoint dans `process.state`;
+- `prepareTemporalSegmentCommitV1` accepte des écritures additionnelles contrôlées afin d'écrire `world.position` dans le même commit que l'horloge, le checkpoint, le schedule et l'événement;
+- les suites mémoire et Chromium vérifient qu'un segment de voyage committé puis rejoué ne crée pas de second événement;
+- la décision de rencontre peut sélectionner un candidat structuré depuis des signaux monde, entités lore ou archétypes autorisés; ce candidat reste une référence, pas une création narrative.
+
+I-03 est fermé par [`Matrice-preuves-I03.md`](Matrice-preuves-I03.md). Les limites restantes relèvent des lots suivants, sans création IA ni scène narrative dans le domaine temporel.
+
 ## 3. Propositions d'avance
 
 Une proposition contient une identité stable, la campagne, le domaine demandeur, la seconde observée, une catégorie, une durée recommandée et ses bornes, une source versionnée, une cause, un processus éventuel et les versions d'agrégats lues.
@@ -117,7 +138,7 @@ I-03A ne persiste rien et ne modifie pas `campaign-core/1`. I-03B utilise les é
 
 Une préparation échouée, une simulation en erreur ou un batch invalide n'écrit aucun de ces éléments.
 
-## 6. Hors périmètre d'I-03A à I-03C
+## 6. Hors périmètre d'I-03
 
 - appel IA;
 - mutation de `WorldState`;

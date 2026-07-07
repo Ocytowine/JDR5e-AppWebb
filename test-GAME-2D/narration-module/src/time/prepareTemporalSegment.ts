@@ -270,6 +270,7 @@ export async function prepareTemporalSegmentCommitV1(
   if (cursorWrite) writes.push(cursorWrite);
   if (worldStateWrite) writes.push(worldStateWrite);
   if (processWrite) writes.push(processWrite);
+  input.additionalAggregateWrites?.forEach(write => writes.push(cloneJson(write)));
   const aggregateRefs: EventAggregateRef[] = writes.map(write => ({
     aggregateType: write.aggregateType,
     aggregateId: write.aggregateId,

@@ -22,7 +22,9 @@ import {
 import {
   MapModuleWorldSimulationAdapterV1,
   createProcessStatePayloadV1,
+  createTravelProcessStatePayloadV1,
   planNextTemporalBatchV1,
+  prepareTravelSegmentV1,
   prepareTemporalSegmentCommitV1,
   scheduledEffectToTaskV1,
   validateProcessStatePayloadV1,
@@ -30,7 +32,9 @@ import {
   validateWorldSimulationCursorPayloadV1,
   type ProcessStatePayloadV1,
   type ScheduledEffectV1,
-  type TemporalBatchV1
+  type TemporalBatchV1,
+  type TravelPlanV1,
+  type TravelProcessStateV1
 } from "../../src/time";
 import { createExampleWorldState } from "../../../map-module/world-simulation/exampleScenario";
 import type { CampaignRepository, CampaignRecord, CommitRecord, JsonObject } from "../../src/core/index";
@@ -139,10 +143,60 @@ async function processState(input: {
   return result.value;
 }
 
+function travelPlan(campaignId: CampaignId): TravelPlanV1 {
+  return {
+    schemaVersion: 1,
+    planId: "travel-plan-persistence",
+    campaignId,
+    characterId: "actor.player",
+    originLocationId: "archives_de_lysenthe",
+    destinationLocationId: "porte_nord",
+    mode: "WALK",
+    route: [{
+      stepId: "step-archives-porte",
+      fromLocationId: "archives_de_lysenthe",
+      toLocationId: "porte_nord",
+      distanceUnits: 4,
+      estimatedSeconds: 7_200,
+      dangerLevel: 80,
+      environmentTags: ["route_sauvage", "ruines"]
+    }],
+    totalEstimatedSeconds: 7_200,
+    createdAtGameSecond: 0,
+    source: { kind: "PLAYER_INTENT", id: "intent-travel-persistence", version: 1 }
+  };
+}
+
+function travelProcess(campaignId: CampaignId): TravelProcessStateV1 {
+  const plan = travelPlan(campaignId);
+  return {
+    schemaVersion: 1,
+    processId: "process-travel-lysenthe",
+    campaignId,
+    status: "PLANNED",
+    plan,
+    checkpoint: {
+      schemaVersion: 1,
+      checkpointId: "travel.checkpoint.persistence.initial",
+      processId: "process-travel-lysenthe",
+      checkpointRevision: 0,
+      status: "PLANNED",
+      currentLocationId: plan.originLocationId,
+      nextLocationId: plan.destinationLocationId,
+      elapsedTravelSeconds: 0,
+      remainingTravelSeconds: plan.totalEstimatedSeconds,
+      completedStepIds: [],
+      activeSegment: null,
+      lastEncounterDecision: null
+    }
+  };
+}
+
 const aggregateIds = {
   schedule: id<AggregateId>("agg-world-schedule"),
   cursor: id<AggregateId>("agg-world-simulation-cursor"),
   process: id<AggregateId>("agg-process-travel-lysenthe"),
+  position: id<AggregateId>("agg-world-position-player"),
   world: id<AggregateId>("agg-world-state")
 };
 
@@ -313,6 +367,125 @@ async function successfulScenario(harness: TemporalPersistenceHarness): Promise<
   const events = ok(await repository.listEvents(campaign.campaignId, null, 20));
   assert.equal(events.filter(value => value.eventType === "travel.segment-completed").length, 1);
   console.log(`PASS [${harness.name}] clock, schedule and process checkpoint commit atomically and replay once`);
+}
+
+async function travelCommitScenario(harness: TemporalPersistenceHarness): Promise<void> {
+  let repository = await harness.create({ suffix: "travel_commit", clock: new FixedClock() });
+  const initialCampaign = await bootstrap(repository, "travel_commit");
+  await initialize(repository, initialCampaign, "travel_commit", false);
+  const campaign = ok(await repository.getCampaign(initialCampaign.campaignId));
+  const travel = await prepareTravelSegmentV1({
+    process: travelProcess(campaign.campaignId),
+    currentGameSecond: 0,
+    worldSimulatedThrough: 0,
+    secondsPerWorldBoundary: 3_600,
+    maxSegmentSeconds: 1_800,
+    contentPackageId: campaign.dependencies.contentPackageId,
+    contentPackageVersion: campaign.dependencies.contentPackageVersion,
+    rulesetId: campaign.dependencies.rulesetId,
+    rulesetVersion: campaign.dependencies.rulesetVersion,
+    worldPressure: 60
+  });
+  assert.equal(travel.ok, true, travel.ok ? undefined : travel.diagnostics.map(value => value.code).join(","));
+  if (!travel.ok) throw new Error("travel segment preparation failed");
+  const task = {
+    schemaVersion: 1 as const,
+    taskId: "task-travel-persistence-segment",
+    taskKind: "PROCESS_BOUNDARY" as const,
+    dueAtGameSecond: travel.value.timeProposal.duration.recommendedSeconds,
+    boundaryPolicy: "SIMULTANEOUS" as const,
+    dependsOnTaskIds: [],
+    payload: {
+      processId: travel.value.nextProcess.processId,
+      segmentId: travel.value.nextProcess.checkpoint.activeSegment?.segmentId ?? null
+    }
+  };
+  const batchBase = {
+    schemaVersion: 1 as const,
+    batchId: "batch-travel-persistence",
+    currentGameSecond: 0,
+    requestedTargetGameSecond: travel.value.timeProposal.duration.recommendedSeconds,
+    effectiveAtGameSecond: travel.value.timeProposal.duration.recommendedSeconds,
+    orderedTasks: [task]
+  };
+  const batch: TemporalBatchV1 = {
+    ...batchBase,
+    batchFingerprint: await computeJsonFingerprint(batchBase) as `sha256:${string}`
+  };
+  const op = await operation(repository, campaign, "travel_commit", batch.batchFingerprint);
+  const writerLease = ok(await repository.acquireWriterLease(campaign.campaignId, id<WriterId>("writer-travel-commit"), 120_000));
+  const eventId = id<EventId>("event-travel-segment-committed");
+  const nextProcess = await createTravelProcessStatePayloadV1({
+    process: travel.value.nextProcess,
+    pendingDecision: travel.value.pendingDecision,
+    lastAppliedEventId: eventId,
+    expectedCampaignRevision: campaign.campaignRevision + 1
+  });
+  assert.equal(nextProcess.ok, true, nextProcess.ok ? undefined : nextProcess.diagnostics.map(value => value.code).join(","));
+  if (!nextProcess.ok) throw new Error("travel process state payload invalid");
+  const prepared = await prepareTemporalSegmentCommitV1({
+    campaign,
+    operation: op,
+    writerLease,
+    clockAggregate: ok(await repository.getAggregate(campaign.campaignId, "world.clock", campaign.clockAggregateId)),
+    scheduleAggregate: ok(await repository.getAggregate(campaign.campaignId, "world.schedule", aggregateIds.schedule)),
+    scheduleAggregateId: aggregateIds.schedule,
+    simulationCursorAggregate: ok(await repository.getAggregate(campaign.campaignId, "world.simulation-cursor", aggregateIds.cursor)),
+    simulationCursorAggregateId: aggregateIds.cursor,
+    processAggregate: ok(await repository.getAggregate(campaign.campaignId, "process.state", aggregateIds.process)),
+    processAggregateId: aggregateIds.process,
+    nextProcess: nextProcess.value,
+    batch,
+    resolutions: [{
+      taskId: task.taskId,
+      outcome: "RESOLVED",
+      eventId,
+      eventType: "travel.segment-advanced",
+      origin: "PROCESS",
+      visibility: { scope: "PLAYER_VISIBLE", actorIds: [] },
+      payload: {
+        stopReason: travel.value.stopReason,
+        encounterDecisionId: travel.value.encounterDecision.decisionId,
+        elapsedTravelSeconds: travel.value.nextProcess.checkpoint.elapsedTravelSeconds
+      }
+    }],
+    newEffects: [],
+    additionalAggregateWrites: [{
+      aggregateType: "world.position",
+      aggregateId: aggregateIds.position,
+      expectedAggregateRevision: null,
+      payloadSchemaVersion: 1,
+      payload: {
+        characterId: travel.value.nextProcess.plan.characterId,
+        locationId: travel.value.nextProcess.checkpoint.currentLocationId,
+        nextLocationId: travel.value.nextProcess.checkpoint.nextLocationId,
+        elapsedTravelSeconds: travel.value.nextProcess.checkpoint.elapsedTravelSeconds,
+        travelProcessId: travel.value.nextProcess.processId
+      }
+    }],
+    commitId: id<CommitId>("commit-travel-segment-advanced"),
+    commandId: id<CommandId>("command-travel-segment-advanced")
+  });
+  assert.equal(prepared.ok, true, prepared.ok ? undefined : prepared.diagnostics.map(value => value.code).join(","));
+  if (!prepared.ok) throw new Error("travel temporal commit invalid");
+  const first = ok(await repository.commit(prepared.value));
+  const replay = ok(await repository.commit(prepared.value));
+  assert.equal(replay.commitId, first.commitId);
+  if (harness.reopen) repository = await harness.reopen(repository, new FixedClock());
+  const storedClock = ok(await repository.getAggregate(campaign.campaignId, "world.clock", campaign.clockAggregateId));
+  assert.equal(storedClock.payload.elapsedGameSeconds, travel.value.timeProposal.duration.recommendedSeconds);
+  const storedProcess = await validateProcessStatePayloadV1(ok(await repository.getAggregate(campaign.campaignId, "process.state", aggregateIds.process)).payload);
+  assert.equal(storedProcess.ok, true);
+  if (storedProcess.ok) {
+    assert.equal(storedProcess.value.processType, "travel.process");
+    assert.equal(storedProcess.value.checkpointRevision, 1);
+    assert.deepEqual(storedProcess.value.pendingDecision, travel.value.pendingDecision);
+  }
+  const storedPosition = ok(await repository.getAggregate(campaign.campaignId, "world.position", aggregateIds.position));
+  assert.equal(storedPosition.payload.elapsedTravelSeconds, travel.value.nextProcess.checkpoint.elapsedTravelSeconds);
+  const events = ok(await repository.listEvents(campaign.campaignId, null, 20));
+  assert.equal(events.filter(value => value.eventType === "travel.segment-advanced").length, 1);
+  console.log(`PASS [${harness.name}] travel segment commits clock, checkpoint, position and event once`);
 }
 
 async function failureScenario(harness: TemporalPersistenceHarness): Promise<void> {
@@ -543,10 +716,11 @@ export async function runTemporalPersistenceTests(
 ): Promise<TemporalPersistenceRun> {
   const cases = [
     { name: "01 atomic temporal segment and replay", run: () => successfulScenario(harness) },
-    { name: "02 injected failure rollback", run: () => failureScenario(harness) },
-    { name: "03 persisted payload validation", run: () => payloadValidationScenario(harness) },
-    { name: "04 simulation adapter guard", run: () => simulationGuardScenario(harness) },
-    { name: "05 atomic simulation publication", run: () => simulationCommitScenario(harness) }
+    { name: "02 atomic travel segment and replay", run: () => travelCommitScenario(harness) },
+    { name: "03 injected failure rollback", run: () => failureScenario(harness) },
+    { name: "04 persisted payload validation", run: () => payloadValidationScenario(harness) },
+    { name: "05 simulation adapter guard", run: () => simulationGuardScenario(harness) },
+    { name: "06 atomic simulation publication", run: () => simulationCommitScenario(harness) }
   ];
   const failures: TemporalPersistenceRun["failures"] = [];
   for (const entry of cases) {
