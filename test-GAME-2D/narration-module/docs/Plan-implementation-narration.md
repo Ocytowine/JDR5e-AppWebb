@@ -501,6 +501,14 @@ Limite assumée : I-06V ne crée pas encore de graphe d'intrigue, ne choisit auc
 
 Limite assumée : I-06W ne livre pas le lecteur UX complet d'historique, ni une refonte visuelle complète, ni une nouvelle orchestration narrative.
 
+### Cadrage I-06X
+
+I-06X est cadré par [`Contrat-interpretation-ia-intention.md`](Contrat-interpretation-ia-intention.md), version cible `ai-intent-interpretation/1`.
+
+Il couvre uniquement l'interprétation IA structurée de l'intention joueur. L'IA peut proposer une intention normalisée, une cible, un engagement et une clarification candidate, mais elle ne reçoit aucune autorité de commit, temps, lore durable, tactique, inventaire ou résolution sociale mécanique.
+
+Objectif de sortie : prouver par matrice de robustesse linguistique que des formulations équivalentes ne changent pas arbitrairement l'intention, tout en conservant les clarifications sur les vraies ambiguïtés.
+
 ## I-07 — Tactique et repos
 
 ### Objectif

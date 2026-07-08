@@ -21,6 +21,7 @@ Il distingue la cible complète du runtime de campagne et les capacités déjà 
 - [`Contrat-surface-narration-app.md`](Contrat-surface-narration-app.md) : contrat `FIGE` I-06C `narrative-app-surface/1`, surface narration dédiée distincte du tactique.
 - [`Contrat-controleur-tour-narratif.md`](Contrat-controleur-tour-narratif.md) : contrat `FIGE` I-06D `narrative-turn-controller/1`, saisie libre vers opération durable sans commit métier.
 - [`Contrat-interpretation-clarification.md`](Contrat-interpretation-clarification.md) : contrat `FIGE` I-06E `intent-clarification/1`, interprétation conservatrice et clarification sans mutation.
+- [`Contrat-interpretation-ia-intention.md`](Contrat-interpretation-ia-intention.md) : cadrage I-06X `ai-intent-interpretation/1`, interprétation IA structurée sans autorité de commit.
 - [`Contrat-resolution-narrative.md`](Contrat-resolution-narrative.md) : contrat `FIGE` I-06F `narrative-resolution/1`, résolution bornée, reformulation PJ, commit validé et handoffs.
 - [`Contrat-resolution-ia-bornee.md`](Contrat-resolution-ia-bornee.md) : contrat `FIGE` I-06G `narrative-ai-resolution/1`, embellissement IA sans autorité métier.
 - [`Contrat-handoffs-tactique-repos.md`](Contrat-handoffs-tactique-repos.md) : contrat `FIGE` I-07 `tactical-rest-handoff/1`, seeds, processus, outcomes, intégration et signaux de repos.

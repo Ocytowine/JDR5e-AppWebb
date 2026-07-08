@@ -61,6 +61,7 @@ npm run build
 - [`docs/Contrat-surface-narration-app.md`](docs/Contrat-surface-narration-app.md) : contrat I-06C, surface narration applicative dédiée.
 - [`docs/Contrat-controleur-tour-narratif.md`](docs/Contrat-controleur-tour-narratif.md) : contrat I-06D, contrôleur prototype sans commit métier.
 - [`docs/Contrat-interpretation-clarification.md`](docs/Contrat-interpretation-clarification.md) : contrat I-06E, interprétation conservatrice et clarification.
+- [`docs/Contrat-interpretation-ia-intention.md`](docs/Contrat-interpretation-ia-intention.md) : cadrage I-06X, interprétation IA structurée de l'intention joueur sans autorité de commit.
 - [`docs/Contrat-resolution-narrative.md`](docs/Contrat-resolution-narrative.md) : contrat I-06F, résolution bornée, reformulation PJ, commit validé et handoffs.
 - [`docs/Matrice-preuves-I06F.md`](docs/Matrice-preuves-I06F.md) : preuves I-06F, cas de frontière et commandes de vérification.
 - [`docs/Contrat-resolution-ia-bornee.md`](docs/Contrat-resolution-ia-bornee.md) : contrat I-06G, enrichissement IA de l'expression et de la narration sans autorité métier.

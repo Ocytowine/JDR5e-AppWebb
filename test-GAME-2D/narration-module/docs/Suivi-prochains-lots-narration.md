@@ -283,6 +283,29 @@ Décision :
 - la prochaine étape narrative autorisée est I-06X : interprétation IA structurée de l'intention joueur;
 - l'IA peut proposer une interprétation, mais le code garde seul l'autorité de validation, résolution, commit, temps, lore durable, tactique et inventaire.
 
+## I-06X — Interprétation IA structurée de l'intention joueur
+
+Statut : `CADRE` le 2026-07-08.
+Référence : [`Contrat-interpretation-ia-intention.md`](Contrat-interpretation-ia-intention.md).
+
+Objectif : introduire un rôle `player_intent_interpreter` qui produit une intention structurée validée localement, afin d'éviter que des variations de formulation changent arbitrairement l'interprétation.
+
+Sortie attendue :
+
+- contrat `ai-intent-interpretation/1`;
+- matrice de robustesse linguistique;
+- futur test `narration-module:test:ai-intent-interpretation`;
+- fallback conservateur vers `intent-clarification/1`;
+- absence d'autorité IA sur commit, temps, inventaire, tactique, lore durable et résultat social.
+
+Cas minimal à couvrir :
+
+```text
+Je m’approche du garde et je lui demande s’il a vu quelque chose d’étrange.
+```
+
+Résultat attendu futur : `speech`, cible garde, engagement `committed`, sans clarification.
+
 ## Critères retenus pour la sortie I-06
 
 La sortie I-06 est cadrée par [`Sortie-phase-I06.md`](Sortie-phase-I06.md). Les critères retenus sont :
