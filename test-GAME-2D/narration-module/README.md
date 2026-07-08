@@ -82,6 +82,7 @@ npm run build
 - [`docs/Matrice-preuves-I06U.md`](docs/Matrice-preuves-I06U.md) : preuves I-06U, créations éphémères contrôlées sans promotion durable.
 - [`docs/Matrice-preuves-I06V.md`](docs/Matrice-preuves-I06V.md) : preuves I-06V, gate de préparation intrigue sans création d'intrigue.
 - [`docs/Matrice-preuves-I06W.md`](docs/Matrice-preuves-I06W.md) : preuves I-06W, revue UX narration et badges accessibles de statut.
+- [`docs/Sortie-phase-I06.md`](docs/Sortie-phase-I06.md) : cadrage de sortie I-06, défaut d'interprétation déterministe et décision d'ouvrir une interprétation IA structurée.
 - [`docs/Matrice-preuves-I07-audit.md`](docs/Matrice-preuves-I07-audit.md) : audit I-07, résolution AF-R13/AF-R14 et autorisation I-07A.
 - [`docs/Matrice-preuves-I07A.md`](docs/Matrice-preuves-I07A.md) : preuves I-07A, types, validateurs et intégration idempotente simulée tactique/repos.
 - [`docs/Matrice-preuves-I07B.md`](docs/Matrice-preuves-I07B.md) : preuves I-07B, avance de `world.clock` via le kernel temporel pendant l'intégration d'outcomes.

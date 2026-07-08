@@ -60,6 +60,7 @@ Il distingue la cible complète du runtime de campagne et les capacités déjà 
 - [`Matrice-preuves-I06U.md`](Matrice-preuves-I06U.md) : preuves des créations éphémères contrôlées de scène.
 - [`Matrice-preuves-I06V.md`](Matrice-preuves-I06V.md) : preuves de la gate de préparation intrigue sans création d'intrigue.
 - [`Matrice-preuves-I06W.md`](Matrice-preuves-I06W.md) : preuves de la revue UX narration et des badges de statut accessibles.
+- [`Sortie-phase-I06.md`](Sortie-phase-I06.md) : cadrage de sortie I-06, limites du prototype et décision d'ouvrir une interprétation IA structurée avant généralisation.
 - [`Suivi-prochains-lots-narration.md`](Suivi-prochains-lots-narration.md) : feuille de suivi des lots I-06Q et suivants avant généralisation.
 - [`Matrice-preuves-I07-audit.md`](Matrice-preuves-I07-audit.md) : audit tactique/repos, résolution AF-R13/AF-R14 et autorisation limitée I-07A.
 - [`Matrice-preuves-I07A.md`](Matrice-preuves-I07A.md) : preuves I-07A, types, validateurs, fixtures et intégration idempotente simulée.

@@ -6,8 +6,8 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 ## En cours
 
-- [ ] Cadrer la sortie de phase I-06 avant tout nouveau lot narratif.
-  References: `test-GAME-2D/narration-module/docs/Matrice-preuves-I06W.md`, `test-GAME-2D/narration-module/docs/Suivi-prochains-lots-narration.md`, `test-GAME-2D/narration-module/docs/Plan-implementation-narration.md`.
+- [ ] Cadrer I-06X: interprétation IA structurée de l'intention joueur, sans autorité de commit.
+  References: `test-GAME-2D/narration-module/docs/Sortie-phase-I06.md`, `test-GAME-2D/narration-module/docs/Suivi-prochains-lots-narration.md`, `test-GAME-2D/narration-module/docs/Plan-implementation-narration.md`.
 - [ ] Consolider la simulation du monde apres l'ajout des objectifs multi-phases, des opportunites de faction et des mobiles non-systeme.
   Reference: `test-GAME-2D/map-module/docs/world-simulation-corrective-roadmap.md`. Les mobiles exposent maintenant l'objectif, la phase et la cible qu'ils servent.
 
@@ -31,6 +31,7 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 ## Termine recemment
 
+- [x] Cadrage de sortie I-06: prototype narratif clos dans son périmètre sûr, défaut d'interprétation déterministe acté et suite I-06X orientée IA structurée le 2026-07-08.
 - [x] Fermeture I-06W: revue UX narration, badges accessibles pour rôles/statuts critiques et test `narration-module:test:narrative-react-ui` renforcé le 2026-07-08.
 - [x] Fermeture I-06V: gate `plot-preparation-gate/1`, checklist intrigue et blocage des secrets/indices/résumés d'intrigue prématurés le 2026-07-08.
 - [x] Fermeture I-06U: contrat `scene-ephemeral-creation/1`, validation stricte des détails transitoires et rejet des créations durables/secrètes le 2026-07-08.

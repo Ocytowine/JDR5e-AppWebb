@@ -268,11 +268,24 @@ Ordre strict recommandé :
 6. I-06V — préparation intrigue;
 7. I-06W — revue UX narration.
 
-Le tactique réel, le repos jouable complet et les intrigues dynamiques doivent rester fermés tant que I-06Q/I-06R n'ont pas prouvé que la boucle narrative de base est saine.
+Le tactique réel, le repos jouable complet et les intrigues dynamiques restent fermés hors autorisation explicite. La sortie I-06 ne les rouvre pas.
 
-## Critère de sortie avant de quitter I-06
+## Sortie I-06 et suite I-06X
 
-On peut envisager de quitter cette phase narrative seulement si :
+Statut : `CADRE` le 2026-07-08.
+Référence : [`Sortie-phase-I06.md`](Sortie-phase-I06.md).
+
+Décision :
+
+- I-06 est clos dans son périmètre de prototype narratif sûr;
+- l'interprétation déterministe actuelle reste une limite structurante;
+- les variations de formulation joueur ne doivent pas être corrigées par accumulation de regex;
+- la prochaine étape narrative autorisée est I-06X : interprétation IA structurée de l'intention joueur;
+- l'IA peut proposer une interprétation, mais le code garde seul l'autorité de validation, résolution, commit, temps, lore durable, tactique et inventaire.
+
+## Critères retenus pour la sortie I-06
+
+La sortie I-06 est cadrée par [`Sortie-phase-I06.md`](Sortie-phase-I06.md). Les critères retenus sont :
 
 - le scénario vertical fonctionne localement;
 - le scénario vertical fonctionne avec OpenAI ou dégrade proprement;

@@ -606,4 +606,4 @@ I-03 et I-04 peuvent être préparés indépendamment après I-02, mais aucune i
 
 ## Autorisation actuelle
 
-I-00 à I-06W sont terminés dans leur périmètre déclaré, et I-07A à I-07D restent disponibles comme socle tactique/repos différé. La prochaine étape autorisée est le cadrage explicite de la sortie de phase I-06. I-07E et I-08 restent fermés tant qu'ils ne sont pas explicitement rouverts.
+I-00 à I-06W sont terminés dans leur périmètre déclaré, et I-07A à I-07D restent disponibles comme socle tactique/repos différé. Le cadrage de sortie I-06 est consigné dans [`Sortie-phase-I06.md`](Sortie-phase-I06.md). La prochaine étape narrative autorisée est le cadrage limité d'I-06X : interprétation IA structurée de l'intention joueur, sans autorité de commit. I-07E, I-08, le MJ complet, les intrigues dynamiques et les handoffs jouables restent fermés tant qu'ils ne sont pas explicitement rouverts.
