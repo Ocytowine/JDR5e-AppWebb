@@ -33,6 +33,8 @@ npm run narration-module:test:narrative-render-projection
 npm run narration-module:test:vertical-quality
 npm run narration-module:test:playable-scene
 npm run narration-module:test:lore-playable-scene
+npm run narration-module:test:scene-ephemeral-creation
+npm run narration-module:test:plot-preparation
 npm run narration-module:test:tactical-rest-handoff
 npm run narration-module:test:narrative-openai-route
 npm run narration-module:test:indexeddb
@@ -77,6 +79,8 @@ npm run build
 - [`docs/Matrice-preuves-I06R.md`](docs/Matrice-preuves-I06R.md) : preuves I-06R, corrections de classification, localisation et PNJ ciblé.
 - [`docs/Matrice-preuves-I06S.md`](docs/Matrice-preuves-I06S.md) : preuves I-06S, contrat de scène jouable minimal et deuxième fixture.
 - [`docs/Matrice-preuves-I06T.md`](docs/Matrice-preuves-I06T.md) : preuves I-06T, transformation d'un lieu wiki en scène jouable sans secret.
+- [`docs/Matrice-preuves-I06U.md`](docs/Matrice-preuves-I06U.md) : preuves I-06U, créations éphémères contrôlées sans promotion durable.
+- [`docs/Matrice-preuves-I06V.md`](docs/Matrice-preuves-I06V.md) : preuves I-06V, gate de préparation intrigue sans création d'intrigue.
 - [`docs/Matrice-preuves-I07-audit.md`](docs/Matrice-preuves-I07-audit.md) : audit I-07, résolution AF-R13/AF-R14 et autorisation I-07A.
 - [`docs/Matrice-preuves-I07A.md`](docs/Matrice-preuves-I07A.md) : preuves I-07A, types, validateurs et intégration idempotente simulée tactique/repos.
 - [`docs/Matrice-preuves-I07B.md`](docs/Matrice-preuves-I07B.md) : preuves I-07B, avance de `world.clock` via le kernel temporel pendant l'intégration d'outcomes.

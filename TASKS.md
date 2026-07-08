@@ -6,8 +6,8 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 ## En cours
 
-- [ ] Ouvrir I-06U: créations éphémères contrôlées d'éléments de scène, sans promotion durable automatique.
-  References: `test-GAME-2D/narration-module/docs/Suivi-prochains-lots-narration.md`, `test-GAME-2D/narration-module/docs/Matrice-preuves-I06T.md`, `test-GAME-2D/narration-module/docs/Plan-implementation-narration.md`.
+- [ ] Ouvrir I-06W: revue UX narration.
+  References: `test-GAME-2D/narration-module/docs/Suivi-prochains-lots-narration.md`, `test-GAME-2D/narration-module/docs/Matrice-preuves-I06V.md`, `test-GAME-2D/narration-module/docs/Plan-implementation-narration.md`.
 - [ ] Consolider la simulation du monde apres l'ajout des objectifs multi-phases, des opportunites de faction et des mobiles non-systeme.
   Reference: `test-GAME-2D/map-module/docs/world-simulation-corrective-roadmap.md`. Les mobiles exposent maintenant l'objectif, la phase et la cible qu'ils servent.
 
@@ -31,6 +31,8 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 ## Termine recemment
 
+- [x] Fermeture I-06V: gate `plot-preparation-gate/1`, checklist intrigue et blocage des secrets/indices/résumés d'intrigue prématurés le 2026-07-08.
+- [x] Fermeture I-06U: contrat `scene-ephemeral-creation/1`, validation stricte des détails transitoires et rejet des créations durables/secrètes le 2026-07-08.
 - [x] Fermeture I-06T: adaptateur `lore-playable-scene-adapter/1`, Archives de Lysenthe en scène jouable et exclusion des secrets le 2026-07-08.
 - [x] Fermeture I-06S: contrat `playable-scene-state/1`, fixture Auberge du Seuil, deuxième scène Tour de guet et test `narration-module:test:playable-scene` le 2026-07-08.
 - [x] Fermeture I-06R: corrections qualité issues d'I-06Q, classification sociale, localisation contextualisée, PNJ serveuse ciblé et test vertical renforcé le 2026-07-08.

@@ -1,6 +1,6 @@
 # Plan d'implémentation du module narration
 
-Statut : `EN_EXECUTION` — I-00 à I-06T livrés dans leur périmètre; audit I-07 tactique/repos terminé et I-07A à I-07D livrés; I-02 conserve une réserve tactique différée; I-08 reste fermé jusqu'à sa gate.
+Statut : `EN_EXECUTION` — I-00 à I-06V livrés dans leur périmètre; audit I-07 tactique/repos terminé et I-07A à I-07D livrés; I-02 conserve une réserve tactique différée; I-08 reste fermé jusqu'à sa gate.
 
 ## Principes d'exécution
 
@@ -468,6 +468,29 @@ Limite assumée : la sélection dynamique de scènes, l'intégration wiki, les c
 
 Limite assumée : I-06T ne livre pas encore de sélection UI, de batch sur tout le wiki, de révélation contrôlée de secrets ni de création éphémère.
 
+### Preuves de livraison I-06U
+
+- contrat `scene-ephemeral-creation/1`;
+- politique transitoire dérivée d'une `PlayableSceneStateV1`;
+- acceptation stricte de détails sensoriels, bruits ponctuels, figurants anonymes et obstacles mineurs;
+- expiration obligatoire en fin de tour;
+- interdiction de promotion durable, lore, objet utile, PNJ durable, secret, indice et conséquence tactique;
+- test `narration-module:test:scene-ephemeral-creation`;
+- matrice [`Matrice-preuves-I06U.md`](Matrice-preuves-I06U.md).
+
+Limite assumée : I-06U ne branche pas encore ces propositions au fournisseur OpenAI réel et ne définit pas de mécanique de révélation contrôlée de secret.
+
+### Preuves de livraison I-06V
+
+- contrat `plot-preparation-gate/1`;
+- gate de préparation issue de `Coherence-intrigues.md`;
+- critères obligatoires pour vérité cachée opaque, engagements narratifs, deux voies d'indice, fausse piste réfutable, perspectives d'acteurs, chronologie causale, contradiction et révélation par scène;
+- blocage explicite de texte secret, résumé d'intrigue, indice concret et création runtime d'intrigue;
+- test `narration-module:test:plot-preparation`;
+- matrice [`Matrice-preuves-I06V.md`](Matrice-preuves-I06V.md).
+
+Limite assumée : I-06V ne crée pas encore de graphe d'intrigue, ne choisit aucune vérité cachée et ne branche pas `coherence_critic` à un fournisseur IA.
+
 ## I-07 — Tactique et repos
 
 ### Objectif
@@ -573,4 +596,4 @@ I-03 et I-04 peuvent être préparés indépendamment après I-02, mais aucune i
 
 ## Autorisation actuelle
 
-I-00 à I-06T sont terminés dans leur périmètre déclaré, et I-07A à I-07D restent disponibles comme socle tactique/repos différé. La prochaine étape autorisée est I-06U : créations éphémères contrôlées d'éléments de scène, sans promotion durable automatique. I-07E et I-08 restent fermés tant qu'ils ne sont pas explicitement rouverts.
+I-00 à I-06V sont terminés dans leur périmètre déclaré, et I-07A à I-07D restent disponibles comme socle tactique/repos différé. La prochaine étape autorisée est I-06W : revue UX narration. I-07E et I-08 restent fermés tant qu'ils ne sont pas explicitement rouverts.

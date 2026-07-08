@@ -49,6 +49,8 @@
     "narration-module:test:vertical-quality": "npx --yes tsx narration-module/tests/scene/verify-vertical-quality-i06q.ts",
     "narration-module:test:playable-scene": "npx --yes tsx narration-module/tests/scene/verify-playable-scene-generalization.ts",
     "narration-module:test:lore-playable-scene": "npx --yes tsx narration-module/tests/scene/verify-lore-playable-scene.ts",
+    "narration-module:test:scene-ephemeral-creation": "npx --yes tsx narration-module/tests/scene/verify-scene-ephemeral-creation.ts",
+    "narration-module:test:plot-preparation": "npx --yes tsx narration-module/tests/scene/verify-plot-preparation.ts",
     "narration-module:test:tactical-rest-handoff": "npx --yes tsx narration-module/tests/scene/verify-tactical-rest-handoff.ts",
     "narration-module:test:narrative-openai-route": "node narration-module/tests/server/verify-narrative-openai-route.js",
     "narration-module:test:indexeddb": "playwright test -c narration-module/tests/browser/playwright.config.ts",

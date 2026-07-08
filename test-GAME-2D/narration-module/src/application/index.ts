@@ -5,5 +5,7 @@ export * from "./lorePlayableScene";
 export * from "./narrativeResolution";
 export * from "./narrativeRenderProjection";
 export * from "./playableScene";
+export * from "./plotPreparation";
 export * from "./referenceScene";
 export * from "./referenceSceneState";
+export * from "./sceneEphemeralCreation";

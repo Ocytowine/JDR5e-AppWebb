@@ -1,6 +1,6 @@
 # Suivi des prochains lots narration
 
-Date : 2026-07-07  
+Date : 2026-07-08
 Statut : `SUIVI_ACTIF`
 
 ## Intention
@@ -164,6 +164,9 @@ Livré :
 
 ## I-06U — Création locale contrôlée d'éléments de scène
 
+Statut : `TERMINE_DANS_PERIMETRE` le 2026-07-08.
+Preuves : [`Matrice-preuves-I06U.md`](Matrice-preuves-I06U.md), `npm run narration-module:test:scene-ephemeral-creation`.
+
 Objectif : autoriser l'IA à proposer de petits éléments de scène, sans les rendre durables automatiquement.
 
 Exemples autorisés :
@@ -189,7 +192,17 @@ Sortie attendue :
 - rejet des créations trop importantes;
 - promotion durable explicitement fermée.
 
+Livré :
+
+- contrat `scene-ephemeral-creation/1`;
+- politique transitoire par scène avec grounding borné;
+- acceptation de bruits, détails sensoriels, figurants anonymes et obstacles mineurs;
+- rejet des objets utiles, PNJ durables, secrets, indices, références inconnues et promotions lore.
+
 ## I-06V — Préparation intrigue, sans création d'intrigue
+
+Statut : `TERMINE_DANS_PERIMETRE` le 2026-07-08.
+Preuves : [`Matrice-preuves-I06V.md`](Matrice-preuves-I06V.md), `npm run narration-module:test:plot-preparation`.
 
 Objectif : préparer les contraintes qui permettront plus tard de créer des intrigues cohérentes.
 
@@ -207,6 +220,13 @@ Sortie attendue :
 - checklist intrigue;
 - pont documentaire vers `Coherence-intrigues.md`;
 - critères nécessaires avant d'autoriser une IA à proposer une intrigue.
+
+Livré :
+
+- contrat `plot-preparation-gate/1`;
+- checklist structurée des critères obligatoires avant future proposition d'intrigue;
+- blocage des vérités cachées textuelles, résumés d'intrigue, indices concrets et créations runtime;
+- références aux validateurs futurs `coherence_critic`, filtres de secrets, voies d'indices, chronologie, perspectives et gate de révélation.
 
 ## I-06W — Revue UX narration
 
