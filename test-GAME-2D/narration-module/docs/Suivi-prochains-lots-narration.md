@@ -5,7 +5,7 @@ Statut : `SUIVI_ACTIF`
 
 ## Intention
 
-Ce document garde le cap des prochains lots après I-06P. Il sert à éviter deux dérives :
+Ce document garde le cap des prochains lots après I-06R. Il sert à éviter deux dérives :
 
 - empiler des couches techniques sans tester la qualité réelle de narration;
 - repartir trop vite vers le tactique, les intrigues ou la mémoire long terme alors que la scène de référence doit d'abord prouver qu'elle fonctionne en jeu.
@@ -36,6 +36,9 @@ Ce qui reste fermé :
 
 ## I-06Q — Scénario vertical qualité Locale/OpenAI
 
+Statut : `TERMINE_DANS_PERIMETRE` le 2026-07-08.
+Preuves : [`Matrice-preuves-I06Q.md`](Matrice-preuves-I06Q.md), `npm run narration-module:test:vertical-quality`.
+
 Objectif : tester réellement la scène sur 10 à 15 entrées joueur, en mode local puis OpenAI, avant d'ajouter une nouvelle couche.
 
 Ce lot doit produire :
@@ -63,7 +66,17 @@ Sortie attendue :
 - un script de test ou une fixture de scénario vertical;
 - une liste claire des défauts à corriger ensuite.
 
+Défauts mesurés à reprendre en I-06R :
+
+- classification trop générale de certaines questions sociales simples;
+- réponses informatives de localisation sûres mais trop pauvres;
+- logique PNJ encore centrée sur le garde même quand la serveuse est ciblée;
+- trace OpenAI live réelle encore manuelle/opt-in, non intégrée à la suite déterministe.
+
 ## I-06R — Corrections qualité issues du scénario vertical
+
+Statut : `TERMINE_DANS_PERIMETRE` le 2026-07-08.
+Preuves : [`Matrice-preuves-I06R.md`](Matrice-preuves-I06R.md), `npm run narration-module:test:vertical-quality`.
 
 Objectif : corriger uniquement les défauts observés en I-06Q.
 
@@ -83,7 +96,16 @@ Sortie attendue :
 - tests de non-régression sur les entrées problématiques;
 - décision sur le niveau de qualité acceptable avant généralisation.
 
+Corrections livrées :
+
+- question sociale simple classée `possibility_query`;
+- localisation contextualisée dans l'Auberge du Seuil sans commit ni temps;
+- réponse et mémoire courte distinctes pour la serveuse nerveuse.
+
 ## I-06S — Généralisation légère de scène
+
+Statut : `TERMINE_DANS_PERIMETRE` le 2026-07-08.
+Preuves : [`Matrice-preuves-I06S.md`](Matrice-preuves-I06S.md), `npm run narration-module:test:playable-scene`.
 
 Objectif : sortir progressivement du cas unique `reference-inn-rain-001` sans créer encore un moteur complet.
 
@@ -105,7 +127,17 @@ Sortie attendue :
 - migration de la scène actuelle vers ce contrat;
 - test prouvant qu'une deuxième scène fixture peut fonctionner.
 
+Livré :
+
+- contrat `playable-scene-state/1`;
+- fixture `reference-inn-rain-001`;
+- fixture `watchtower-dawn-001`;
+- helpers de rendu déterministe pour localisation, observation, possibilité sociale et ciblage PNJ.
+
 ## I-06T — Intégration wiki minimale pour lieux existants
+
+Statut : `TERMINE_DANS_PERIMETRE` le 2026-07-08.
+Preuves : [`Matrice-preuves-I06T.md`](Matrice-preuves-I06T.md), `npm run narration-module:test:lore-playable-scene`.
 
 Objectif : utiliser une base de lieu issue du wiki sans demander à l'IA de tout inventer.
 
@@ -122,6 +154,13 @@ Sortie attendue :
 - fixture de lieu wiki transformée en scène jouable;
 - preuve que l'IA reçoit uniquement les faits autorisés;
 - aucune révélation de secret.
+
+Livré :
+
+- adaptateur `lore-playable-scene-adapter/1`;
+- transformation des `Archives de Lysenthe` en `PlayableSceneStateV1`;
+- filtrage `COMMUN`/`LOCAL` pour la scène visible;
+- exclusion vérifiée des fragments `MJ_SECRET`.
 
 ## I-06U — Création locale contrôlée d'éléments de scène
 

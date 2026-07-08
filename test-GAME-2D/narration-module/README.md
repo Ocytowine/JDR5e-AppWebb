@@ -30,6 +30,9 @@ npm run narration-module:test:narrative-turn-controller
 npm run narration-module:test:narrative-resolution
 npm run narration-module:test:ai-narrative-enhancement
 npm run narration-module:test:narrative-render-projection
+npm run narration-module:test:vertical-quality
+npm run narration-module:test:playable-scene
+npm run narration-module:test:lore-playable-scene
 npm run narration-module:test:tactical-rest-handoff
 npm run narration-module:test:narrative-openai-route
 npm run narration-module:test:indexeddb
@@ -70,6 +73,10 @@ npm run build
 - [`docs/Matrice-preuves-I06N.md`](docs/Matrice-preuves-I06N.md) : preuves I-06N, paquet IA `scene_writer` ancré et fallback local de scène.
 - [`docs/Matrice-preuves-I06O.md`](docs/Matrice-preuves-I06O.md) : preuves I-06O, état de scène minimal persistant et paquet IA dépendant de l'état.
 - [`docs/Matrice-preuves-I06P.md`](docs/Matrice-preuves-I06P.md) : preuves I-06P, mémoire courte PNJ et continuité de scène.
+- [`docs/Matrice-preuves-I06Q.md`](docs/Matrice-preuves-I06Q.md) : preuves I-06Q, scénario vertical qualité Locale/OpenAI-compatible et écarts I-06R.
+- [`docs/Matrice-preuves-I06R.md`](docs/Matrice-preuves-I06R.md) : preuves I-06R, corrections de classification, localisation et PNJ ciblé.
+- [`docs/Matrice-preuves-I06S.md`](docs/Matrice-preuves-I06S.md) : preuves I-06S, contrat de scène jouable minimal et deuxième fixture.
+- [`docs/Matrice-preuves-I06T.md`](docs/Matrice-preuves-I06T.md) : preuves I-06T, transformation d'un lieu wiki en scène jouable sans secret.
 - [`docs/Matrice-preuves-I07-audit.md`](docs/Matrice-preuves-I07-audit.md) : audit I-07, résolution AF-R13/AF-R14 et autorisation I-07A.
 - [`docs/Matrice-preuves-I07A.md`](docs/Matrice-preuves-I07A.md) : preuves I-07A, types, validateurs et intégration idempotente simulée tactique/repos.
 - [`docs/Matrice-preuves-I07B.md`](docs/Matrice-preuves-I07B.md) : preuves I-07B, avance de `world.clock` via le kernel temporel pendant l'intégration d'outcomes.

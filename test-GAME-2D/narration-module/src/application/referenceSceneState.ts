@@ -111,17 +111,20 @@ export function applyReferenceSceneMutationV1(input: {
     lastMutationOperationId: input.operationId
   };
   if (input.interpretation.intentType === "speech" && input.resolution.commitId === null) {
+    const actor = speechTarget(input.interpretation.coreMeaning);
     next.interactionCount += 1;
-    next.guardAddressed = true;
+    next.guardAddressed = actor.actorId === "npc-garde-blesse" ? true : next.guardAddressed;
     next.backRoomDoorHighlighted = true;
     next.lastPlayerSpeechSummary = input.interpretation.coreMeaning;
     next.shortTermNpcMemory = appendNpcShortTermMemoryV1({
       current: input.current.shortTermNpcMemory,
       operationId: input.operationId,
       playerIntentSummary: input.interpretation.coreMeaning,
-      nextOrder: input.current.shortTermNpcMemory.length + 1
+      nextOrder: input.current.shortTermNpcMemory.length + 1,
+      actor
     });
-    if (!next.visibleFocus.includes("garde-blesse-interpelle")) next.visibleFocus.push("garde-blesse-interpelle");
+    if (actor.actorId === "npc-garde-blesse" && !next.visibleFocus.includes("garde-blesse-interpelle")) next.visibleFocus.push("garde-blesse-interpelle");
+    if (actor.actorId === "npc-serveuse-nerveuse" && !next.visibleFocus.includes("serveuse-nerveuse-interpellee")) next.visibleFocus.push("serveuse-nerveuse-interpellee");
     if (!next.visibleFocus.includes("porte-du-fond-signalee")) next.visibleFocus.push("porte-du-fond-signalee");
   }
   if (input.interpretation.intentType === "action" && /regarde|observe/iu.test(input.interpretation.coreMeaning)) {
@@ -151,15 +154,22 @@ function appendNpcShortTermMemoryV1(input: {
   operationId: string;
   playerIntentSummary: string;
   nextOrder: number;
+  actor: {
+    actorId: "npc-garde-blesse" | "npc-serveuse-nerveuse";
+    actorDisplayName: string;
+  };
 }): ReferenceSceneShortTermNpcMemoryEntryV1[] {
+  const isWaitress = input.actor.actorId === "npc-serveuse-nerveuse";
   const entry: ReferenceSceneShortTermNpcMemoryEntryV1 = {
     schemaVersion: 1,
-    memoryId: `${input.operationId}:memory:npc-garde-blesse`,
-    actorId: "npc-garde-blesse",
-    actorDisplayName: "Garde blessé",
+    memoryId: `${input.operationId}:memory:${input.actor.actorId}`,
+    actorId: input.actor.actorId,
+    actorDisplayName: input.actor.actorDisplayName,
     operationId: input.operationId,
     playerIntentSummary: input.playerIntentSummary,
-    npcContinuitySummary: "Le garde a déjà orienté le personnage vers la porte du fond et averti de ne pas provoquer d'escalade dans la salle.",
+    npcContinuitySummary: isWaitress
+      ? "La serveuse a laissé voir que la porte du fond l'inquiète et qu'elle craint les ennuis dans la salle."
+      : "Le garde a déjà orienté le personnage vers la porte du fond et averti de ne pas provoquer d'escalade dans la salle.",
     visibleToPlayer: true,
     order: input.nextOrder,
     version: 1
@@ -168,6 +178,17 @@ function appendNpcShortTermMemoryV1(input: {
     ...memory,
     order: index + 1
   }));
+}
+
+function speechTarget(rawInput: string): {
+  actorId: "npc-garde-blesse" | "npc-serveuse-nerveuse";
+  actorDisplayName: string;
+} {
+  const normalized = rawInput.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
+  if (/\b(serveuse|aubergiste|femme au comptoir)\b/u.test(normalized)) {
+    return { actorId: "npc-serveuse-nerveuse", actorDisplayName: "Serveuse nerveuse" };
+  }
+  return { actorId: "npc-garde-blesse", actorDisplayName: "Garde blessé" };
 }
 
 function normalizeShortTermNpcMemory(value: unknown): ReferenceSceneShortTermNpcMemoryEntryV1[] {

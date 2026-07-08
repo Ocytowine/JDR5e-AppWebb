@@ -1,7 +1,7 @@
 # Documentation du module narration
 
 Ce dossier est la source de vérité de conception et de suivi du module narration.
-Il distingue la cible complète du runtime de campagne et les capacités déjà livrées progressivement. La surface narration prototype, la bascule OpenAI opt-in, l'enregistrement durable des projections de rendu, la reconstruction du fil visible, la scène narrative de référence I-06M, le paquet IA de scène I-06N, l'état de scène minimal I-06O, la mémoire courte PNJ I-06P, le socle contractuel I-07A des handoffs tactique/repos, leur raccord temporel I-07B, le repos segmenté propriétaire I-07C et le placeholder tactique contractuel I-07D existent; le MJ complet, la mémoire sociale générique, les handoffs jouables branchés aux moteurs propriétaires et le lecteur UX d'historique complet restent à ouvrir par contrats dédiés.
+Il distingue la cible complète du runtime de campagne et les capacités déjà livrées progressivement. La surface narration prototype, la bascule OpenAI opt-in, l'enregistrement durable des projections de rendu, la reconstruction du fil visible, la scène narrative de référence I-06M, le paquet IA de scène I-06N, l'état de scène minimal I-06O, la mémoire courte PNJ I-06P, le scénario vertical I-06Q, les corrections qualité I-06R, le contrat de scène jouable I-06S, l'intégration wiki minimale de lieux I-06T, le socle contractuel I-07A des handoffs tactique/repos, leur raccord temporel I-07B, le repos segmenté propriétaire I-07C et le placeholder tactique contractuel I-07D existent; le MJ complet, la mémoire sociale générique, les handoffs jouables branchés aux moteurs propriétaires et le lecteur UX d'historique complet restent à ouvrir par contrats dédiés.
 
 ## Documents de référence
 
@@ -53,6 +53,10 @@ Il distingue la cible complète du runtime de campagne et les capacités déjà 
 - [`Matrice-preuves-I06N.md`](Matrice-preuves-I06N.md) : preuves du paquet IA `scene_writer` ancré dans la scène de référence.
 - [`Matrice-preuves-I06O.md`](Matrice-preuves-I06O.md) : preuves de l'état de scène minimal persistant.
 - [`Matrice-preuves-I06P.md`](Matrice-preuves-I06P.md) : preuves de la mémoire courte PNJ et de la continuité de scène.
+- [`Matrice-preuves-I06Q.md`](Matrice-preuves-I06Q.md) : preuves du scénario vertical qualité Locale/OpenAI-compatible sur la scène de référence.
+- [`Matrice-preuves-I06R.md`](Matrice-preuves-I06R.md) : preuves des corrections qualité issues du scénario vertical I-06Q.
+- [`Matrice-preuves-I06S.md`](Matrice-preuves-I06S.md) : preuves de la généralisation légère `playable-scene-state/1`.
+- [`Matrice-preuves-I06T.md`](Matrice-preuves-I06T.md) : preuves de l'intégration wiki minimale d'un lieu en scène jouable.
 - [`Suivi-prochains-lots-narration.md`](Suivi-prochains-lots-narration.md) : feuille de suivi des lots I-06Q et suivants avant généralisation.
 - [`Matrice-preuves-I07-audit.md`](Matrice-preuves-I07-audit.md) : audit tactique/repos, résolution AF-R13/AF-R14 et autorisation limitée I-07A.
 - [`Matrice-preuves-I07A.md`](Matrice-preuves-I07A.md) : preuves I-07A, types, validateurs, fixtures et intégration idempotente simulée.

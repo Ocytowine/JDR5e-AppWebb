@@ -4,6 +4,13 @@ import type { MemorySourceRefV1 } from "../memory";
 import type { DisplayBlockV1, RenderBlockKindV1, SpeakerKindV1 } from "../scene";
 import type { NarrativeIntentInterpretationV1 } from "./intentClarification";
 import type { NarrativeResolutionResultV1 } from "./narrativeResolution";
+import {
+  buildPlayableSceneLocationAnswerV1,
+  buildPlayableSceneSocialPossibilityAnswerV1,
+  findPlayableSceneNpcTargetV1,
+  REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1,
+  toPlayableScenePublicContextV1
+} from "./playableScene";
 import type { ReferenceSceneStateV1 } from "./referenceSceneState";
 
 export const REFERENCE_PLAYABLE_SCENE_ID_V1 = "reference-inn-rain-001" as const;
@@ -303,7 +310,30 @@ export function buildReferenceSceneBlocksV1(input: {
   sceneState?: ReferenceSceneStateV1;
 }): DisplayBlockV1[] {
   if (input.resolution.resultKind === "CLARIFICATION_REQUIRED") return [];
-  if (input.interpretation.intentType === "meta_question" || input.interpretation.intentType === "possibility_query") return [];
+  if (input.interpretation.intentType === "meta_question") {
+    if (!isLocationQuestion(input.rawInput)) return [];
+    return [referenceBlock({
+      operationId: input.operationId,
+      suffix: "reference-location-answer",
+      kind: "GM_NARRATION",
+      speakerKind: "GM",
+      displayName: "MJ",
+      text: locationAnswerNarration(),
+      sourceRefs: [`reference-scene:${REFERENCE_PLAYABLE_SCENE_ID_V1}`, `resolution:${input.resolution.resolutionId}:location-answer`]
+    })];
+  }
+  if (input.interpretation.intentType === "possibility_query") {
+    if (!isSocialPossibilityQuestion(input.rawInput)) return [];
+    return [referenceBlock({
+      operationId: input.operationId,
+      suffix: "reference-social-possibility",
+      kind: "GM_NARRATION",
+      speakerKind: "GM",
+      displayName: "MJ",
+      text: socialPossibilityNarration(input.rawInput),
+      sourceRefs: [`reference-scene:${REFERENCE_PLAYABLE_SCENE_ID_V1}`, `resolution:${input.resolution.resolutionId}:social-possibility`]
+    })];
+  }
   if (input.resolution.handoff !== null) {
     return [referenceBlock({
       operationId: input.operationId,
@@ -316,14 +346,17 @@ export function buildReferenceSceneBlocksV1(input: {
     })];
   }
   if (input.interpretation.intentType === "speech") {
+    const target = speechTarget(input.rawInput);
     return [
       referenceBlock({
         operationId: input.operationId,
         suffix: "reference-npc-reaction",
         kind: "NPC_SPEECH",
         speakerKind: "NPC",
-        displayName: "Garde blessé",
-        text: guardSpeechNarration(input.sceneState),
+        displayName: target.displayName,
+        text: target.actorId === "npc-serveuse-nerveuse"
+          ? waitressSpeechNarration(input.sceneState)
+          : guardSpeechNarration(input.sceneState),
         sourceRefs: [`reference-scene:${REFERENCE_PLAYABLE_SCENE_ID_V1}`, `resolution:${input.resolution.resolutionId}:speech-reaction`]
       })
     ];
@@ -340,6 +373,33 @@ export function buildReferenceSceneBlocksV1(input: {
     })];
   }
   return [];
+}
+
+function isLocationQuestion(rawInput: string): boolean {
+  const normalized = rawInput.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
+  return /\b(ou sommes-nous|ou suis-je|quel lieu|endroit|localisation)\b/u.test(normalized);
+}
+
+function isSocialPossibilityQuestion(rawInput: string): boolean {
+  const normalized = rawInput.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
+  return /\b(peux|puis|possible|est-ce que je peux)\b/u.test(normalized) &&
+    /\b(parler|discuter|questionner|interroger|demander)\b/u.test(normalized);
+}
+
+function locationAnswerNarration(): string {
+  return buildPlayableSceneLocationAnswerV1(REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1);
+}
+
+function socialPossibilityNarration(rawInput: string): string {
+  return buildPlayableSceneSocialPossibilityAnswerV1(REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1, rawInput);
+}
+
+function speechTarget(rawInput: string): { actorId: "npc-garde-blesse" | "npc-serveuse-nerveuse"; displayName: string } {
+  const target = findPlayableSceneNpcTargetV1(REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1, rawInput);
+  return {
+    actorId: target.actorId === "npc-serveuse-nerveuse" ? "npc-serveuse-nerveuse" : "npc-garde-blesse",
+    displayName: target.displayName
+  };
 }
 
 function observationNarration(rawInput: string, sceneState?: ReferenceSceneStateV1): string {
@@ -363,7 +423,7 @@ function observationNarration(rawInput: string, sceneState?: ReferenceSceneState
 }
 
 function guardSpeechNarration(sceneState?: ReferenceSceneStateV1): string {
-  const remembered = sceneState?.shortTermNpcMemory.at(-1);
+  const remembered = sceneState?.shortTermNpcMemory.filter(memory => memory.actorId === "npc-garde-blesse").at(-1);
   if ((sceneState?.interactionCount ?? 0) > 1 && remembered) {
     return "Le garde ne répète pas toute son explication. Il incline seulement la tête vers l'arrière-salle. « Je vous l'ai dit : la porte du fond. Si vous insistez, faites-le vite, avant que ceux dehors n'entrent. »";
   }
@@ -371,6 +431,14 @@ function guardSpeechNarration(sceneState?: ReferenceSceneStateV1): string {
     return "Le garde baisse encore la voix, plus pressé qu'avant. « Vous avez compris l'essentiel : la porte du fond. Mais si vous forcez les choses ici, je ne pourrai plus vous couvrir. »";
   }
   return "Le garde baisse la voix. « Si vous cherchez des réponses, commencez par la porte du fond. Mais ne faites pas de geste brusque ici. »";
+}
+
+function waitressSpeechNarration(sceneState?: ReferenceSceneStateV1): string {
+  const remembered = sceneState?.shortTermNpcMemory.filter(memory => memory.actorId === "npc-serveuse-nerveuse").at(-1);
+  if (remembered) {
+    return "La serveuse garde le gobelet entre ses mains. « Je vous ai déjà dit que je ne veux pas d'ennuis. La porte du fond ne s'ouvre pas pour les curieux. »";
+  }
+  return "La serveuse cesse enfin d'essuyer son gobelet. « Nerveuse ? Avec cette pluie, ce garde qui saigne et cette porte qu'on me demande d'ignorer, vous ne le seriez pas ? »";
 }
 
 function handoffNarration(target: string): string {

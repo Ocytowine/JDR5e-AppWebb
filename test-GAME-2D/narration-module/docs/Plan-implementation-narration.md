@@ -1,6 +1,6 @@
 # Plan d'implémentation du module narration
 
-Statut : `EN_EXECUTION` — I-00 à I-06P livrés dans leur périmètre; audit I-07 tactique/repos terminé et I-07A à I-07D livrés; I-02 conserve une réserve tactique différée; I-08 reste fermé jusqu'à sa gate.
+Statut : `EN_EXECUTION` — I-00 à I-06T livrés dans leur périmètre; audit I-07 tactique/repos terminé et I-07A à I-07D livrés; I-02 conserve une réserve tactique différée; I-08 reste fermé jusqu'à sa gate.
 
 ## Principes d'exécution
 
@@ -425,6 +425,49 @@ Limite assumée : I-06O ne livre pas encore la mémoire courte PNJ ni la continu
 
 Limite assumée : I-06P ne livre pas encore une mémoire sociale générique, multi-PNJ et résumée automatiquement. Cette couche devra être généralisée après validation du scénario vertical.
 
+### Preuves de livraison I-06Q
+
+- scénario vertical fixe de 12 entrées joueur sur `reference-inn-rain-001`;
+- vérification du contrôleur narratif, du mode local et d'un mode OpenAI-compatible simulé sans réseau;
+- oracles qualité sur ancrage, méta hors fiction, possibilité sans action, continuité PNJ et absence de mutation durable inventée;
+- script `narration-module:test:vertical-quality`;
+- écarts priorisés pour I-06R dans [`Matrice-preuves-I06Q.md`](Matrice-preuves-I06Q.md).
+
+Limite assumée : I-06Q mesure et documente les défauts; il ne les corrige pas. Le live OpenAI réel reste opt-in et peut compléter la matrice par trace manuelle.
+
+### Preuves de livraison I-06R
+
+- correction des questions de possibilité sociale simples en `possibility_query`;
+- réponse de localisation contextualisée dans l'Auberge du Seuil, sans commit et sans temps;
+- réponse ciblée de la `Serveuse nerveuse` et mémoire courte associée;
+- test vertical renforcé sur les trois défauts mesurés en I-06Q;
+- matrice [`Matrice-preuves-I06R.md`](Matrice-preuves-I06R.md).
+
+Limite assumée : les corrections restent propres à la scène de référence. La généralisation légère devient I-06S.
+
+### Preuves de livraison I-06S
+
+- contrat `playable-scene-state/1` avec éléments visibles, PNJ, points d'intérêt, tension, faits connus, mémoire courte et politique `scene_writer`;
+- migration légère de `reference-inn-rain-001` vers une fixture `PlayableSceneStateV1`;
+- deuxième fixture `watchtower-dawn-001`;
+- helpers déterministes réutilisables pour localisation, observation, possibilité sociale et ciblage PNJ;
+- test `narration-module:test:playable-scene`;
+- matrice [`Matrice-preuves-I06S.md`](Matrice-preuves-I06S.md).
+
+Limite assumée : la sélection dynamique de scènes, l'intégration wiki, les créations éphémères et le moteur MJ complet restent fermés.
+
+### Preuves de livraison I-06T
+
+- adaptateur `lore-playable-scene-adapter/1`;
+- compilation du lieu wiki réel `archives_de_lysenthe`;
+- transformation en `PlayableSceneStateV1`;
+- autorisation limitée aux fragments `COMMUN` et `LOCAL`;
+- exclusion vérifiée des fragments `MJ_SECRET` du texte visible et de `scene_writer.mayReference`;
+- test `narration-module:test:lore-playable-scene`;
+- matrice [`Matrice-preuves-I06T.md`](Matrice-preuves-I06T.md).
+
+Limite assumée : I-06T ne livre pas encore de sélection UI, de batch sur tout le wiki, de révélation contrôlée de secrets ni de création éphémère.
+
 ## I-07 — Tactique et repos
 
 ### Objectif
@@ -530,4 +573,4 @@ I-03 et I-04 peuvent être préparés indépendamment après I-02, mais aucune i
 
 ## Autorisation actuelle
 
-I-00 à I-06P sont terminés dans leur périmètre déclaré, et I-07A à I-07D restent disponibles comme socle tactique/repos différé. La prochaine étape autorisée est I-06Q : scénario vertical de test qualité Locale/OpenAI sur la scène de référence. I-07E et I-08 restent fermés tant qu'ils ne sont pas explicitement rouverts.
+I-00 à I-06T sont terminés dans leur périmètre déclaré, et I-07A à I-07D restent disponibles comme socle tactique/repos différé. La prochaine étape autorisée est I-06U : créations éphémères contrôlées d'éléments de scène, sans promotion durable automatique. I-07E et I-08 restent fermés tant qu'ils ne sont pas explicitement rouverts.
