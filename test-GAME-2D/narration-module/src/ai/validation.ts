@@ -3,6 +3,7 @@ import type {
   AiCallRequestV1,
   AiFailureCategoryV1,
   AiIncidentRecordV1,
+  AiIntentInterpretationPayloadV1,
   AiModelRouteV1,
   AiOutputValidationResultV1,
   AiRoleOutputEnvelopeV1,
@@ -121,6 +122,92 @@ function validateIntentPayload(payload: unknown): string[] {
   return issues;
 }
 
+function validateAiIntentInterpretationPayload(payload: unknown): string[] {
+  if (!isObject(payload)) return ["payload: expected object"];
+  const issues: string[] = [];
+  const typed = payload as Partial<AiIntentInterpretationPayloadV1>;
+  issues.push(...exactKeys(payload, ["rawInputEcho", "intents"], "payload"));
+  issues.push(...validateNonEmptyString(typed.rawInputEcho, "payload.rawInputEcho"));
+  if (!Array.isArray(typed.intents) || typed.intents.length === 0) {
+    issues.push("payload.intents: expected non-empty array");
+    return issues;
+  }
+
+  const allowedTypes = new Set(["meta_question", "possibility_query", "memory_recall", "speech", "action", "mixed", "unclear_commitment"]);
+  const allowedCommitments = new Set(["none", "hypothetical", "conditional", "committed", "unclear"]);
+  const allowedTimeEffects = new Set(["NO_GAME_TIME", "DOMAIN_TO_DECIDE"]);
+  const allowedConfidence = new Set(["low", "medium", "high"]);
+  const allowedTargetKinds = new Set(["npc", "place", "object", "self", "unknown"]);
+
+  typed.intents.forEach((intent, index) => {
+    const path = `payload.intents[${index}]`;
+    if (!isObject(intent)) {
+      issues.push(issue(path, "expected object"));
+      return;
+    }
+    issues.push(...exactKeys(intent, [
+      "action",
+      "clarificationQuestion",
+      "commitment",
+      "confidence",
+      "coreMeaning",
+      "expectedTimeEffect",
+      "forbiddenInterpretations",
+      "intentId",
+      "intentType",
+      "openDetails",
+      "order",
+      "playerImposedDetails",
+      "requiresClarification",
+      "riskFlags",
+      "target",
+      "topic"
+    ], path));
+    issues.push(...validateNonEmptyString(intent.intentId, `${path}.intentId`));
+    if (!Number.isInteger(intent.order) || intent.order < 1) issues.push(issue(`${path}.order`, "expected positive integer"));
+    if (typeof intent.intentType !== "string" || !allowedTypes.has(intent.intentType)) issues.push(issue(`${path}.intentType`, "invalid intent type"));
+    if (typeof intent.commitment !== "string" || !allowedCommitments.has(intent.commitment)) issues.push(issue(`${path}.commitment`, "invalid commitment"));
+    issues.push(...validateNonEmptyString(intent.coreMeaning, `${path}.coreMeaning`));
+    if (!isStringArray(intent.playerImposedDetails)) issues.push(issue(`${path}.playerImposedDetails`, "expected string array"));
+    if (!isStringArray(intent.openDetails)) issues.push(issue(`${path}.openDetails`, "expected string array"));
+    if (!isStringArray(intent.forbiddenInterpretations)) issues.push(issue(`${path}.forbiddenInterpretations`, "expected string array"));
+    if (typeof intent.requiresClarification !== "boolean") issues.push(issue(`${path}.requiresClarification`, "expected boolean"));
+    if (intent.clarificationQuestion !== null && typeof intent.clarificationQuestion !== "string") issues.push(issue(`${path}.clarificationQuestion`, "expected string or null"));
+    if (!isStringArray(intent.riskFlags)) issues.push(issue(`${path}.riskFlags`, "expected string array"));
+    if (typeof intent.expectedTimeEffect !== "string" || !allowedTimeEffects.has(intent.expectedTimeEffect)) issues.push(issue(`${path}.expectedTimeEffect`, "invalid time effect"));
+    if (typeof intent.confidence !== "string" || !allowedConfidence.has(intent.confidence)) issues.push(issue(`${path}.confidence`, "invalid confidence"));
+    if (intent.action !== null && typeof intent.action !== "string") issues.push(issue(`${path}.action`, "expected string or null"));
+    if (intent.topic !== null && typeof intent.topic !== "string") issues.push(issue(`${path}.topic`, "expected string or null"));
+    if (intent.target !== null) {
+      if (!isObject(intent.target)) {
+        issues.push(issue(`${path}.target`, "expected object or null"));
+      } else {
+        issues.push(...exactKeys(intent.target, ["kind", "label", "ref"], `${path}.target`));
+        if (typeof intent.target.kind !== "string" || !allowedTargetKinds.has(intent.target.kind)) issues.push(issue(`${path}.target.kind`, "invalid target kind"));
+        if (intent.target.ref !== null && typeof intent.target.ref !== "string") issues.push(issue(`${path}.target.ref`, "expected string or null"));
+        if (intent.target.label !== null && typeof intent.target.label !== "string") issues.push(issue(`${path}.target.label`, "expected string or null"));
+      }
+    }
+
+    if (intent.intentType === "meta_question" && intent.commitment !== "none") {
+      issues.push(issue(`${path}.commitment`, "meta_question must use none"));
+    }
+    if (intent.intentType === "possibility_query" && intent.commitment !== "hypothetical") {
+      issues.push(issue(`${path}.commitment`, "possibility_query must use hypothetical"));
+    }
+    if ((intent.intentType === "meta_question" || intent.intentType === "possibility_query" || intent.intentType === "unclear_commitment") && intent.expectedTimeEffect !== "NO_GAME_TIME") {
+      issues.push(issue(`${path}.expectedTimeEffect`, "non-committed interpretation must not advance game time"));
+    }
+    if (intent.requiresClarification && (typeof intent.clarificationQuestion !== "string" || intent.clarificationQuestion.trim().length === 0)) {
+      issues.push(issue(`${path}.clarificationQuestion`, "required when clarification is needed"));
+    }
+    if (/succ[eè]s|r[eé]ussit|[eé]chec|secret r[eé]v[eé]l[eé]|combat gagn[eé]|inventaire/iu.test(intent.coreMeaning)) {
+      issues.push(issue(`${path}.coreMeaning`, "must not contain outcome, secret, combat or inventory authority"));
+    }
+  });
+  return issues;
+}
+
 function validatePlannerPayload(payload: unknown): string[] {
   if (!isObject(payload)) return ["payload: expected object"];
   const typed = payload as Partial<MjPlannerPayloadV1>;
@@ -173,6 +260,7 @@ export function validateAiRoleOutputEnvelopeV1(output: unknown, request: AiCallR
 
   if (issues.length === 0) {
     if (request.role === "intent_interpreter") issues.push(...validateIntentPayload(envelope.payload));
+    if (request.role === "player_intent_interpreter") issues.push(...validateAiIntentInterpretationPayload(envelope.payload));
     if (request.role === "mj_planner") issues.push(...validatePlannerPayload(envelope.payload));
     if (request.role === "player_expression_adapter") issues.push(...validatePlayerExpressionPayload(envelope.payload));
     if (request.role === "scene_writer") issues.push(...validateSceneWriterPayload(envelope.payload));

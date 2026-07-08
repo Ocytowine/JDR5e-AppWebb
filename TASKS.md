@@ -6,8 +6,8 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 ## En cours
 
-- [ ] Revoir et committer le cadrage I-06X, puis préparer son implémentation limitée.
-  References: `test-GAME-2D/narration-module/docs/Contrat-interpretation-ia-intention.md`, `test-GAME-2D/narration-module/docs/Sortie-phase-I06.md`, `test-GAME-2D/narration-module/docs/Suivi-prochains-lots-narration.md`.
+- [ ] Revoir et committer I-06X, puis décider entre OpenAI live pour `player_intent_interpreter` ou préparation limitée de `mj_planner`.
+  References: `test-GAME-2D/narration-module/docs/Matrice-preuves-I06X.md`, `test-GAME-2D/narration-module/docs/Contrat-interpretation-ia-intention.md`, `test-GAME-2D/narration-module/docs/Suivi-prochains-lots-narration.md`.
 - [ ] Consolider la simulation du monde apres l'ajout des objectifs multi-phases, des opportunites de faction et des mobiles non-systeme.
   Reference: `test-GAME-2D/map-module/docs/world-simulation-corrective-roadmap.md`. Les mobiles exposent maintenant l'objectif, la phase et la cible qu'ils servent.
 
@@ -31,6 +31,7 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 ## Termine recemment
 
+- [x] Fermeture I-06X: rôle `player_intent_interpreter`, contrat `ai-intent-interpretation/1`, robustesse linguistique, fallback conservateur et intégration contrôleur le 2026-07-08.
 - [x] Cadrage I-06X: contrat `ai-intent-interpretation/1`, rôle `player_intent_interpreter`, matrice de robustesse linguistique et interdiction d'autorité IA sur les commits le 2026-07-08.
 - [x] Cadrage de sortie I-06: prototype narratif clos dans son périmètre sûr, défaut d'interprétation déterministe acté et suite I-06X orientée IA structurée le 2026-07-08.
 - [x] Fermeture I-06W: revue UX narration, badges accessibles pour rôles/statuts critiques et test `narration-module:test:narrative-react-ui` renforcé le 2026-07-08.

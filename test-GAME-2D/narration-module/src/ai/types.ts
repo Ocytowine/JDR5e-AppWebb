@@ -2,6 +2,7 @@ import type { CreativeScopeV1, RoleContextPackV1 } from "../context";
 
 export type AiRoleV1 =
   | "intent_interpreter"
+  | "player_intent_interpreter"
   | "mj_planner"
   | "player_expression_adapter"
   | "npc_performer"
@@ -83,6 +84,41 @@ export interface AiRoleOutputEnvelopeV1<TPayload = unknown> {
 export interface IntentInterpreterPayloadV1 {
   intents: PlayerIntentV1[];
   suspendedIntent: SuspendedIntentV1 | null;
+}
+
+export interface AiIntentInterpretationPayloadV1 {
+  rawInputEcho: string;
+  intents: AiStructuredPlayerIntentV1[];
+}
+
+export interface AiStructuredPlayerIntentV1 {
+  intentId: string;
+  order: number;
+  intentType:
+    | "meta_question"
+    | "possibility_query"
+    | "memory_recall"
+    | "speech"
+    | "action"
+    | "mixed"
+    | "unclear_commitment";
+  commitment: "none" | "hypothetical" | "conditional" | "committed" | "unclear";
+  target: {
+    kind: "npc" | "place" | "object" | "self" | "unknown";
+    ref: string | null;
+    label: string | null;
+  } | null;
+  action: string | null;
+  topic: string | null;
+  coreMeaning: string;
+  playerImposedDetails: string[];
+  openDetails: string[];
+  forbiddenInterpretations: string[];
+  requiresClarification: boolean;
+  clarificationQuestion: string | null;
+  riskFlags: string[];
+  expectedTimeEffect: "NO_GAME_TIME" | "DOMAIN_TO_DECIDE";
+  confidence: "low" | "medium" | "high";
 }
 
 export interface SuspendedIntentV1 {

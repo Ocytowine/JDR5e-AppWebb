@@ -1,6 +1,6 @@
 # Plan d'implémentation du module narration
 
-Statut : `EN_EXECUTION` — I-00 à I-06W livrés dans leur périmètre; audit I-07 tactique/repos terminé et I-07A à I-07D livrés; I-02 conserve une réserve tactique différée; I-08 reste fermé jusqu'à sa gate.
+Statut : `EN_EXECUTION` — I-00 à I-06X livrés dans leur périmètre; audit I-07 tactique/repos terminé et I-07A à I-07D livrés; I-02 conserve une réserve tactique différée; I-08 reste fermé jusqu'à sa gate.
 
 ## Principes d'exécution
 
@@ -501,13 +501,20 @@ Limite assumée : I-06V ne crée pas encore de graphe d'intrigue, ne choisit auc
 
 Limite assumée : I-06W ne livre pas le lecteur UX complet d'historique, ni une refonte visuelle complète, ni une nouvelle orchestration narrative.
 
-### Cadrage I-06X
+### Preuves de livraison I-06X
 
-I-06X est cadré par [`Contrat-interpretation-ia-intention.md`](Contrat-interpretation-ia-intention.md), version cible `ai-intent-interpretation/1`.
+- contrat [`Contrat-interpretation-ia-intention.md`](Contrat-interpretation-ia-intention.md), version `ai-intent-interpretation/1`;
+- rôle `player_intent_interpreter`;
+- payload strict et validation locale des intentions structurées;
+- fournisseur local déterministe servant de faux fournisseur certifié;
+- intégration au `NarrativeTurnControllerV1` avec fallback conservateur vers `intent-clarification/1`;
+- matrice de robustesse linguistique;
+- test `narration-module:test:ai-intent-interpretation`;
+- matrice [`Matrice-preuves-I06X.md`](Matrice-preuves-I06X.md).
 
-Il couvre uniquement l'interprétation IA structurée de l'intention joueur. L'IA peut proposer une intention normalisée, une cible, un engagement et une clarification candidate, mais elle ne reçoit aucune autorité de commit, temps, lore durable, tactique, inventaire ou résolution sociale mécanique.
+Limite assumée : I-06X ne branche pas encore OpenAI live pour `player_intent_interpreter`, ne livre pas `mj_planner` et ne donne aucune autorité de commit, temps, lore durable, tactique, inventaire ou résolution sociale mécanique à l'IA.
 
-Objectif de sortie : prouver par matrice de robustesse linguistique que des formulations équivalentes ne changent pas arbitrairement l'intention, tout en conservant les clarifications sur les vraies ambiguïtés.
+Objectif atteint : prouver par matrice de robustesse linguistique que des formulations équivalentes ne changent pas arbitrairement l'intention, tout en conservant les clarifications sur les vraies ambiguïtés.
 
 ## I-07 — Tactique et repos
 
@@ -614,4 +621,4 @@ I-03 et I-04 peuvent être préparés indépendamment après I-02, mais aucune i
 
 ## Autorisation actuelle
 
-I-00 à I-06W sont terminés dans leur périmètre déclaré, et I-07A à I-07D restent disponibles comme socle tactique/repos différé. Le cadrage de sortie I-06 est consigné dans [`Sortie-phase-I06.md`](Sortie-phase-I06.md). La prochaine étape narrative autorisée est le cadrage limité d'I-06X : interprétation IA structurée de l'intention joueur, sans autorité de commit. I-07E, I-08, le MJ complet, les intrigues dynamiques et les handoffs jouables restent fermés tant qu'ils ne sont pas explicitement rouverts.
+I-00 à I-06X sont terminés dans leur périmètre déclaré, et I-07A à I-07D restent disponibles comme socle tactique/repos différé. Le cadrage de sortie I-06 est consigné dans [`Sortie-phase-I06.md`](Sortie-phase-I06.md). La prochaine étape narrative autorisée est une revue produit courte des traces I-06X avant d'ouvrir OpenAI live pour `player_intent_interpreter` ou une première préparation de `mj_planner`. I-07E, I-08, le MJ complet, les intrigues dynamiques et les handoffs jouables restent fermés tant qu'ils ne sont pas explicitement rouverts.

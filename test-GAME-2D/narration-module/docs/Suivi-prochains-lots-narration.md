@@ -285,8 +285,8 @@ Décision :
 
 ## I-06X — Interprétation IA structurée de l'intention joueur
 
-Statut : `CADRE` le 2026-07-08.
-Référence : [`Contrat-interpretation-ia-intention.md`](Contrat-interpretation-ia-intention.md).
+Statut : `TERMINE_DANS_PERIMETRE` le 2026-07-08.
+Références : [`Contrat-interpretation-ia-intention.md`](Contrat-interpretation-ia-intention.md), [`Matrice-preuves-I06X.md`](Matrice-preuves-I06X.md).
 
 Objectif : introduire un rôle `player_intent_interpreter` qui produit une intention structurée validée localement, afin d'éviter que des variations de formulation changent arbitrairement l'interprétation.
 
@@ -294,7 +294,7 @@ Sortie attendue :
 
 - contrat `ai-intent-interpretation/1`;
 - matrice de robustesse linguistique;
-- futur test `narration-module:test:ai-intent-interpretation`;
+- test `narration-module:test:ai-intent-interpretation`;
 - fallback conservateur vers `intent-clarification/1`;
 - absence d'autorité IA sur commit, temps, inventaire, tactique, lore durable et résultat social.
 
@@ -305,6 +305,15 @@ Je m’approche du garde et je lui demande s’il a vu quelque chose d’étrang
 ```
 
 Résultat attendu futur : `speech`, cible garde, engagement `committed`, sans clarification.
+
+Livré :
+
+- rôle `player_intent_interpreter`;
+- fournisseur local déterministe certifié pour le prototype;
+- validation stricte de payload IA;
+- intégration contrôleur avec fallback conservateur;
+- cas `je lui demande` corrigé en `speech` sans clarification;
+- familles de robustesse linguistique couvertes.
 
 ## Critères retenus pour la sortie I-06
 

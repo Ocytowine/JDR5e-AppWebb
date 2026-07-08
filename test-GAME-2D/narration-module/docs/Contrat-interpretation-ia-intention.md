@@ -1,6 +1,6 @@
 # Contrat interprétation IA de l'intention joueur
 
-Statut : `PROPOSITION_CADREE`
+Statut : `FIGE_IMPLEMENTE_I06X`
 
 Version cible : `ai-intent-interpretation/1`
 

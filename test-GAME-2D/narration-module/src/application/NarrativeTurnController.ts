@@ -26,6 +26,11 @@ import {
   type SuspendedIntentRecordV1
 } from "./intentClarification";
 import {
+  createDefaultAiIntentInterpreterConfigV1,
+  interpretNarrativeInputWithAiV1,
+  type AiIntentInterpreterConfigV1
+} from "./aiIntentInterpretation";
+import {
   resolveNarrativeTurnV1,
   type NarrativeResolutionResultV1
 } from "./narrativeResolution";
@@ -68,6 +73,7 @@ export interface NarrativeTurnControllerOptions {
   campaignId: CampaignId;
   clock?: RepositoryClock;
   idPrefix?: string;
+  intentInterpreterConfig?: AiIntentInterpreterConfigV1 | null;
 }
 
 const DEFAULT_CAMPAIGN_ID = opaqueId<CampaignId>("cmp-narrative-prototype");
@@ -79,12 +85,16 @@ export class NarrativeTurnControllerV1 {
   private readonly campaignId: CampaignId;
   private readonly clock: RepositoryClock;
   private readonly idPrefix: string;
+  private readonly intentInterpreterConfig: AiIntentInterpreterConfigV1 | null;
 
   constructor(options: NarrativeTurnControllerOptions) {
     this.repository = options.repository;
     this.campaignId = options.campaignId;
     this.clock = options.clock ?? systemClock;
     this.idPrefix = options.idPrefix ?? "nar";
+    this.intentInterpreterConfig = options.intentInterpreterConfig === undefined
+      ? createDefaultAiIntentInterpreterConfigV1()
+      : options.intentInterpreterConfig;
   }
 
   async submit(input: NarrativeTurnInputV1): Promise<Result<NarrativeTurnControllerResultV1>> {
@@ -138,7 +148,8 @@ export class NarrativeTurnControllerV1 {
       campaignId: this.campaignId,
       operation: received.value,
       input,
-      createdAt: this.clock.now().toISOString()
+      createdAt: this.clock.now().toISOString(),
+      intentInterpreterConfig: this.intentInterpreterConfig
     });
     if (!output.ok) return output;
 
@@ -343,11 +354,21 @@ async function buildResolvedOutput(input: {
   operation: OperationRecord;
   input: NarrativeTurnInputV1;
   createdAt: string;
+  intentInterpreterConfig: AiIntentInterpreterConfigV1 | null;
 }): Promise<Result<{ output: NarrativeTurnControllerOutputV1; commit: unknown | null }>> {
-  const interpretation = interpretNarrativeInputV1({
-    intentId: `${input.operation.operationId}:intent:1`,
-    rawInput: input.input.rawInput
-  }) as NarrativeIntentInterpretationV1 & JsonObject;
+  const intentId = `${input.operation.operationId}:intent:1`;
+  const interpretation = input.intentInterpreterConfig === null
+    ? interpretNarrativeInputV1({
+      intentId,
+      rawInput: input.input.rawInput
+    }) as NarrativeIntentInterpretationV1 & JsonObject
+    : (await interpretNarrativeInputWithAiV1({
+      campaignId: input.campaignId,
+      operationId: input.operation.operationId,
+      intentId,
+      rawInput: input.input.rawInput,
+      config: input.intentInterpreterConfig
+    })).interpretation as NarrativeIntentInterpretationV1 & JsonObject;
   const suspendedIntent = interpretation.requiresClarification
     ? createSuspendedIntentRecordV1({
       suspendedIntentId: `${input.operation.operationId}:suspended:1`,
