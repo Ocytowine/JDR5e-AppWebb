@@ -28,6 +28,14 @@ assert.match(html, /role="log"/, "fil rendu comme log accessible");
 assert.match(html, /aria-label="Saisie narrative libre"/, "saisie libre accessible");
 assert.match(html, /data-narrative-block-kind="PLAYER_EXPRESSION"/, "type de bloc rendu hors couleur");
 assert.match(html, /data-narrative-speaker-kind="NPC"/, "type de locuteur rendu hors couleur");
+assert.match(html, /data-narrative-ux-badge="Expression validée"/, "badge expression joueur rendu hors couleur");
+assert.match(html, /data-narrative-ux-badge="PNJ"/, "badge PNJ rendu hors couleur");
+assert.match(html, /data-narrative-ux-badge="Sans commit"/, "badge sans commit rendu hors couleur");
+assert.match(html, /data-narrative-ux-badge="Aucun temps"/, "badge aucun temps rendu hors couleur");
+assert.match(html, /data-narrative-ux-badge="Clarification"/, "badge clarification rendu hors couleur");
+assert.match(html, /data-narrative-ux-badge="IA"/, "badge IA rendu depuis sourceRefs");
+assert.match(html, /data-narrative-ux-badge="Fallback"/, "badge fallback rendu hors couleur");
+assert.match(html, /Indicateurs UX:/, "badges décrits par aria-label");
 
 const requestId = createNarrativeClientRequestId("test");
 assert.match(requestId, /^test-/, "clientRequestId préfixé");

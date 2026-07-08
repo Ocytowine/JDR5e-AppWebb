@@ -230,6 +230,9 @@ Livré :
 
 ## I-06W — Revue UX narration
 
+Statut : `TERMINE_DANS_PERIMETRE` le 2026-07-08.
+Preuves : [`Matrice-preuves-I06W.md`](Matrice-preuves-I06W.md), `npm run narration-module:test:narrative-react-ui`.
+
 Objectif : vérifier que l'interface permet de comprendre clairement :
 
 - qui parle;
@@ -245,6 +248,13 @@ Sortie attendue :
 - audit UX court;
 - corrections UI si nécessaire;
 - décision sur les indicateurs visibles à garder ou masquer.
+
+Livré :
+
+- badges UX accessibles par bloc pour rôle et statut critique;
+- indicateurs hors couleur pour clarification, sans commit, aucun temps, IA et fallback;
+- test React renforcé sur `NarrativeConversationPanel`;
+- maintien de la séparation OpenAI côté serveur et surface narration dédiée.
 
 ## Ordre recommandé
 

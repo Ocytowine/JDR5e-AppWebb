@@ -81,6 +81,7 @@ npm run build
 - [`docs/Matrice-preuves-I06T.md`](docs/Matrice-preuves-I06T.md) : preuves I-06T, transformation d'un lieu wiki en scène jouable sans secret.
 - [`docs/Matrice-preuves-I06U.md`](docs/Matrice-preuves-I06U.md) : preuves I-06U, créations éphémères contrôlées sans promotion durable.
 - [`docs/Matrice-preuves-I06V.md`](docs/Matrice-preuves-I06V.md) : preuves I-06V, gate de préparation intrigue sans création d'intrigue.
+- [`docs/Matrice-preuves-I06W.md`](docs/Matrice-preuves-I06W.md) : preuves I-06W, revue UX narration et badges accessibles de statut.
 - [`docs/Matrice-preuves-I07-audit.md`](docs/Matrice-preuves-I07-audit.md) : audit I-07, résolution AF-R13/AF-R14 et autorisation I-07A.
 - [`docs/Matrice-preuves-I07A.md`](docs/Matrice-preuves-I07A.md) : preuves I-07A, types, validateurs et intégration idempotente simulée tactique/repos.
 - [`docs/Matrice-preuves-I07B.md`](docs/Matrice-preuves-I07B.md) : preuves I-07B, avance de `world.clock` via le kernel temporel pendant l'intégration d'outcomes.

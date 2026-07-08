@@ -1,6 +1,6 @@
 # Plan d'implémentation du module narration
 
-Statut : `EN_EXECUTION` — I-00 à I-06V livrés dans leur périmètre; audit I-07 tactique/repos terminé et I-07A à I-07D livrés; I-02 conserve une réserve tactique différée; I-08 reste fermé jusqu'à sa gate.
+Statut : `EN_EXECUTION` — I-00 à I-06W livrés dans leur périmètre; audit I-07 tactique/repos terminé et I-07A à I-07D livrés; I-02 conserve une réserve tactique différée; I-08 reste fermé jusqu'à sa gate.
 
 ## Principes d'exécution
 
@@ -491,6 +491,16 @@ Limite assumée : I-06U ne branche pas encore ces propositions au fournisseur Op
 
 Limite assumée : I-06V ne crée pas encore de graphe d'intrigue, ne choisit aucune vérité cachée et ne branche pas `coherence_critic` à un fournisseur IA.
 
+### Preuves de livraison I-06W
+
+- revue UX ciblée de `NarrativeConversationPanel` et `NarrativeAppSurface`;
+- badges accessibles par bloc pour joueur brut, expression validée, MJ, PNJ, système, clarification, sans commit, aucun temps, IA et fallback;
+- rendu des indicateurs via `data-narrative-ux-badge` et `aria-label`, sans dépendre uniquement de la couleur;
+- test `narration-module:test:narrative-react-ui` renforcé;
+- matrice [`Matrice-preuves-I06W.md`](Matrice-preuves-I06W.md).
+
+Limite assumée : I-06W ne livre pas le lecteur UX complet d'historique, ni une refonte visuelle complète, ni une nouvelle orchestration narrative.
+
 ## I-07 — Tactique et repos
 
 ### Objectif
@@ -596,4 +606,4 @@ I-03 et I-04 peuvent être préparés indépendamment après I-02, mais aucune i
 
 ## Autorisation actuelle
 
-I-00 à I-06V sont terminés dans leur périmètre déclaré, et I-07A à I-07D restent disponibles comme socle tactique/repos différé. La prochaine étape autorisée est I-06W : revue UX narration. I-07E et I-08 restent fermés tant qu'ils ne sont pas explicitement rouverts.
+I-00 à I-06W sont terminés dans leur périmètre déclaré, et I-07A à I-07D restent disponibles comme socle tactique/repos différé. La prochaine étape autorisée est le cadrage explicite de la sortie de phase I-06. I-07E et I-08 restent fermés tant qu'ils ne sont pas explicitement rouverts.

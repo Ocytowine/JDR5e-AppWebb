@@ -60,6 +60,60 @@ export const narrativePanelFixture: DisplayPacketV1 = {
       visualStyleToken: "speaker-gm",
       sourceRefs: ["event:door-visible"],
       isDegradedFallback: false
+    },
+    {
+      blockId: "block-system-no-commit",
+      kind: "SYSTEM_NOTICE",
+      speaker: {
+        speakerId: "speaker-system",
+        kind: "SYSTEM",
+        displayName: "Système",
+        roleLabel: "Notification système",
+        ariaLabel: "Notification système",
+        visualToken: "speaker-system"
+      },
+      text: "Aucune action n'est exécutée : réponse sans commit et aucun temps de jeu ne passe.",
+      ariaLabel: "Notification système: SYSTEM_NOTICE",
+      roleLabel: "Notification système",
+      visualStyleToken: "speaker-system",
+      sourceRefs: ["resolution:no-commit"],
+      isDegradedFallback: false
+    },
+    {
+      blockId: "block-clarification",
+      kind: "CLARIFICATION",
+      speaker: {
+        speakerId: "speaker-system",
+        kind: "SYSTEM",
+        displayName: "Système",
+        roleLabel: "Clarification",
+        ariaLabel: "Clarification système",
+        visualToken: "speaker-system"
+      },
+      text: "Tu demandes si c'est possible ou tu veux réellement tenter l'action ?",
+      ariaLabel: "Clarification système: CLARIFICATION",
+      roleLabel: "Clarification",
+      visualStyleToken: "speaker-system",
+      sourceRefs: ["clarification:commitment"],
+      isDegradedFallback: false
+    },
+    {
+      blockId: "block-ai-fallback",
+      kind: "GM_NARRATION",
+      speaker: {
+        speakerId: "speaker-gm",
+        kind: "GM",
+        displayName: "MJ",
+        roleLabel: "Narration",
+        ariaLabel: "Narration du maître de jeu",
+        visualToken: "speaker-gm"
+      },
+      text: "La lumière des archives tremble sur les registres.",
+      ariaLabel: "MJ: GM_NARRATION",
+      roleLabel: "Narration",
+      visualStyleToken: "speaker-gm",
+      sourceRefs: ["ai-output:test-scene-writer"],
+      isDegradedFallback: true
     }
   ],
   rawInputAccess: {

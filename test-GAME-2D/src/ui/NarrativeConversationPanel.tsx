@@ -48,6 +48,25 @@ function blockTone(kind: RenderBlockKindV1): string {
   return "gm";
 }
 
+function blockUxBadges(block: DisplayBlockV1): string[] {
+  const badges: string[] = [];
+  if (block.kind === "RAW_INPUT") badges.push("Joueur brut");
+  if (block.kind === "PLAYER_EXPRESSION") badges.push("Expression validée");
+  if (block.kind === "GM_NARRATION") badges.push("MJ");
+  if (block.kind === "NPC_SPEECH") badges.push("PNJ");
+  if (block.kind === "CLARIFICATION") badges.push("Clarification");
+  if (block.kind === "SYSTEM_NOTICE") badges.push("Système");
+  if (block.kind === "CLARIFICATION" || /sans commit|aucune action|aucun résultat|no commit/iu.test(block.text)) {
+    badges.push("Sans commit");
+  }
+  if (block.kind === "CLARIFICATION" || /ne fait pas avancer le temps|aucun temps|no game time/iu.test(block.text)) {
+    badges.push("Aucun temps");
+  }
+  if (block.sourceRefs.some(ref => ref.startsWith("ai-output:"))) badges.push("IA");
+  if (block.isDegradedFallback) badges.push("Fallback");
+  return [...new Set(badges)];
+}
+
 export function NarrativeConversationPanel(props: NarrativeConversationPanelProps) {
   const { packets, pending = false, title = "Narration", onSubmit } = props;
   const [draft, setDraft] = useState("");
@@ -160,6 +179,7 @@ export function NarrativeConversationPanel(props: NarrativeConversationPanelProp
 function NarrativeDisplayBlock({ block }: { block: DisplayBlockV1 }) {
   const tone = blockTone(block.kind);
   const kindLabel = KIND_LABELS[block.kind];
+  const uxBadges = blockUxBadges(block);
 
   return (
     <article
@@ -189,6 +209,27 @@ function NarrativeDisplayBlock({ block }: { block: DisplayBlockV1 }) {
           <span style={{ color: "rgba(255,255,255,0.62)", fontWeight: 600 }}> — {block.roleLabel}</span>
         </span>
         <span style={{ fontSize: 11, color: "rgba(255,255,255,0.62)" }}>{kindLabel}</span>
+      </div>
+      <div
+        aria-label={`Indicateurs UX: ${uxBadges.join(", ")}`}
+        style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 6 }}
+      >
+        {uxBadges.map(badge => (
+          <span
+            key={badge}
+            data-narrative-ux-badge={badge}
+            style={{
+              borderRadius: 999,
+              border: "1px solid rgba(255,255,255,0.14)",
+              padding: "1px 6px",
+              fontSize: 10,
+              color: "rgba(255,255,255,0.70)",
+              background: "rgba(255,255,255,0.06)"
+            }}
+          >
+            {badge}
+          </span>
+        ))}
       </div>
       <p style={{ margin: 0, fontSize: 13, lineHeight: 1.45 }}>{block.text}</p>
       {block.isDegradedFallback && (
