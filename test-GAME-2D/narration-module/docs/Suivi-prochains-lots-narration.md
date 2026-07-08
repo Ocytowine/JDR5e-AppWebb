@@ -266,7 +266,9 @@ Ordre strict recommandé :
 4. I-06T — intégration wiki minimale;
 5. I-06U — créations éphémères contrôlées;
 6. I-06V — préparation intrigue;
-7. I-06W — revue UX narration.
+7. I-06W — revue UX narration;
+8. I-06X — interprétation IA structurée de l'intention joueur;
+9. I-06Y — UX no-commit / clarification.
 
 Le tactique réel, le repos jouable complet et les intrigues dynamiques restent fermés hors autorisation explicite. La sortie I-06 ne les rouvre pas.
 
@@ -314,6 +316,42 @@ Livré :
 - intégration contrôleur avec fallback conservateur;
 - cas `je lui demande` corrigé en `speech` sans clarification;
 - familles de robustesse linguistique couvertes.
+
+## I-06Y — UX no-commit / clarification
+
+Statut : `TERMINE_DANS_PERIMETRE` le 2026-07-08.
+Référence : [`Matrice-preuves-I06Y.md`](Matrice-preuves-I06Y.md).
+
+Objectif : clarifier dans l'interface les cas où le système répond sans exécuter d'action, afin d'éviter qu'une question, une possibilité ou une clarification soit perçue comme un commit métier.
+
+Livré :
+
+- encarts UX dédiés pour possibilité sans commit, clarification suspendue, parole enregistrée bornée et no-commit générique;
+- badges supplémentaires `Possibilité`, `Action non exécutée` et `Parole enregistrée`;
+- test `narration-module:test:narrative-react-ui` renforcé sur les badges et encarts;
+- aucune modification de l'interprétation IA, du contrôleur, du temps, du tactique, de l'inventaire ou du lore durable.
+
+Suite directe recommandée :
+
+- revue produit courte sur traces réelles I-06X/I-06Y : effectuée dans [`Revue-produit-I06X-I06Y.md`](Revue-produit-I06X-I06Y.md);
+- suite retenue : OpenAI live serveur pour `player_intent_interpreter`.
+
+## Revue produit I-06X/I-06Y
+
+Statut : `TERMINE` le 2026-07-08.
+Référence : [`Revue-produit-I06X-I06Y.md`](Revue-produit-I06X-I06Y.md).
+
+Résultat :
+
+- les traces de parole adressée au garde sont validées sans clarification inutile;
+- les questions de possibilité restent sans action exécutée;
+- les formulations ambiguës restent en clarification suspendue;
+- l'UX I-06Y rend explicitement visibles no-commit, temps suspendu et parole enregistrée bornée.
+
+Décision :
+
+- ouvrir ensuite le branchement OpenAI live serveur pour `player_intent_interpreter`;
+- ne pas ouvrir `mj_planner` à ce stade.
 
 ## Critères retenus pour la sortie I-06
 

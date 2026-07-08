@@ -31,11 +31,21 @@ assert.match(html, /data-narrative-speaker-kind="NPC"/, "type de locuteur rendu 
 assert.match(html, /data-narrative-ux-badge="Expression validée"/, "badge expression joueur rendu hors couleur");
 assert.match(html, /data-narrative-ux-badge="PNJ"/, "badge PNJ rendu hors couleur");
 assert.match(html, /data-narrative-ux-badge="Sans commit"/, "badge sans commit rendu hors couleur");
+assert.match(html, /data-narrative-ux-badge="Action non/, "badge action non executee rendu hors couleur");
+assert.match(html, /data-narrative-ux-badge="Possibilit/, "badge possibilite rendu hors couleur");
+assert.match(html, /data-narrative-ux-badge="Parole enregistr/, "badge parole enregistree rendu hors couleur");
 assert.match(html, /data-narrative-ux-badge="Aucun temps"/, "badge aucun temps rendu hors couleur");
 assert.match(html, /data-narrative-ux-badge="Clarification"/, "badge clarification rendu hors couleur");
 assert.match(html, /data-narrative-ux-badge="IA"/, "badge IA rendu depuis sourceRefs");
 assert.match(html, /data-narrative-ux-badge="Fallback"/, "badge fallback rendu hors couleur");
 assert.match(html, /Indicateurs UX:/, "badges décrits par aria-label");
+
+assert.match(html, /data-narrative-ux-notice="possibility-no-commit"/, "encart possibilite sans commit rendu");
+assert.match(html, /data-narrative-ux-notice="clarification-no-commit"/, "encart clarification sans commit rendu");
+assert.match(html, /data-narrative-ux-notice="bounded-speech-commit"/, "encart parole enregistree rendu");
+assert.match(html, /aucune action exécutée/, "notice explicite sans action exécutée");
+assert.match(html, /scène et le temps restent suspendus/, "notice explicite temps suspendu");
+assert.match(html, /sans succès social automatique/, "notice explicite effet social borné");
 
 const requestId = createNarrativeClientRequestId("test");
 assert.match(requestId, /^test-/, "clientRequestId préfixé");

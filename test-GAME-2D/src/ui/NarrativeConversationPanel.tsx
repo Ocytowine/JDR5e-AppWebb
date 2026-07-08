@@ -48,6 +48,48 @@ function blockTone(kind: RenderBlockKindV1): string {
   return "gm";
 }
 
+interface BlockUxNoticeV1 {
+  kind: "clarification-no-commit" | "possibility-no-commit" | "bounded-speech-commit" | "generic-no-commit";
+  title: string;
+  text: string;
+}
+
+function blockTextMatches(block: DisplayBlockV1, pattern: RegExp): boolean {
+  return pattern.test(block.text);
+}
+
+function blockSourceMatches(block: DisplayBlockV1, pattern: RegExp): boolean {
+  return block.sourceRefs.some(ref => pattern.test(ref));
+}
+
+function isNoCommitBlock(block: DisplayBlockV1): boolean {
+  return (
+    block.kind === "CLARIFICATION" ||
+    blockTextMatches(block, /sans commit|aucune action|aucun rÃ©sultat|no commit/iu) ||
+    blockSourceMatches(block, /no-commit/iu)
+  );
+}
+
+function isNoTimeBlock(block: DisplayBlockV1): boolean {
+  return block.kind === "CLARIFICATION" || blockTextMatches(block, /ne fait pas avancer le temps|aucun temps|no game time/iu);
+}
+
+function isPossibilityBlock(block: DisplayBlockV1): boolean {
+  return (
+    block.kind === "SYSTEM_NOTICE" &&
+    (blockTextMatches(block, /possibilit|possible|peux|puis|reponse sans commit|réponse sans commit|aucune action/iu) ||
+      blockSourceMatches(block, /possibility|no-commit/iu))
+  );
+}
+
+function isBoundedSpeechCommitBlock(block: DisplayBlockV1): boolean {
+  return (
+    block.kind === "SYSTEM_NOTICE" &&
+    (blockTextMatches(block, /parole enregistr|commit metier born|commit métier born|aucun effet social/iu) ||
+      blockSourceMatches(block, /speech/iu))
+  );
+}
+
 function blockUxBadges(block: DisplayBlockV1): string[] {
   const badges: string[] = [];
   if (block.kind === "RAW_INPUT") badges.push("Joueur brut");
@@ -55,6 +97,9 @@ function blockUxBadges(block: DisplayBlockV1): string[] {
   if (block.kind === "GM_NARRATION") badges.push("MJ");
   if (block.kind === "NPC_SPEECH") badges.push("PNJ");
   if (block.kind === "CLARIFICATION") badges.push("Clarification");
+  if (isPossibilityBlock(block)) badges.push("Possibilité");
+  if (isBoundedSpeechCommitBlock(block)) badges.push("Parole enregistrée");
+  if (isNoCommitBlock(block)) badges.push("Action non exécutée");
   if (block.kind === "SYSTEM_NOTICE") badges.push("Système");
   if (block.kind === "CLARIFICATION" || /sans commit|aucune action|aucun résultat|no commit/iu.test(block.text)) {
     badges.push("Sans commit");
@@ -65,6 +110,42 @@ function blockUxBadges(block: DisplayBlockV1): string[] {
   if (block.sourceRefs.some(ref => ref.startsWith("ai-output:"))) badges.push("IA");
   if (block.isDegradedFallback) badges.push("Fallback");
   return [...new Set(badges)];
+}
+
+function blockUxNotice(block: DisplayBlockV1): BlockUxNoticeV1 | null {
+  if (block.kind === "CLARIFICATION") {
+    return {
+      kind: "clarification-no-commit",
+      title: "Clarification - aucune action exécutée",
+      text: "Réponds à la question pour confirmer ton intention. La scène et le temps restent suspendus."
+    };
+  }
+
+  if (isBoundedSpeechCommitBlock(block)) {
+    return {
+      kind: "bounded-speech-commit",
+      title: "Parole enregistrée - effet borné",
+      text: "La parole est journalisée, sans succès social automatique ni effet mécanique supplémentaire."
+    };
+  }
+
+  if (isPossibilityBlock(block)) {
+    return {
+      kind: "possibility-no-commit",
+      title: "Possibilité - aucune action exécutée",
+      text: "Le système répond à une question ou à une possibilité sans modifier la scène."
+    };
+  }
+
+  if (block.kind === "SYSTEM_NOTICE" && isNoCommitBlock(block)) {
+    return {
+      kind: "generic-no-commit",
+      title: "Sans commit - aucune action exécutée",
+      text: "La notification ne déclenche ni commit métier, ni avance du temps de jeu."
+    };
+  }
+
+  return null;
 }
 
 export function NarrativeConversationPanel(props: NarrativeConversationPanelProps) {
@@ -180,6 +261,7 @@ function NarrativeDisplayBlock({ block }: { block: DisplayBlockV1 }) {
   const tone = blockTone(block.kind);
   const kindLabel = KIND_LABELS[block.kind];
   const uxBadges = blockUxBadges(block);
+  const uxNotice = blockUxNotice(block);
 
   return (
     <article
@@ -231,6 +313,24 @@ function NarrativeDisplayBlock({ block }: { block: DisplayBlockV1 }) {
           </span>
         ))}
       </div>
+      {uxNotice && (
+        <div
+          aria-label={`${uxNotice.title}. ${uxNotice.text}`}
+          data-narrative-ux-notice={uxNotice.kind}
+          style={{
+            borderRadius: 9,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(0,0,0,0.16)",
+            padding: "6px 8px",
+            marginBottom: 6
+          }}
+        >
+          <div style={{ fontSize: 11, fontWeight: 800, color: "rgba(255,255,255,0.82)" }}>{uxNotice.title}</div>
+          <div style={{ marginTop: 2, fontSize: 11, color: "rgba(255,255,255,0.66)", lineHeight: 1.35 }}>
+            {uxNotice.text}
+          </div>
+        </div>
+      )}
       <p style={{ margin: 0, fontSize: 13, lineHeight: 1.45 }}>{block.text}</p>
       {block.isDegradedFallback && (
         <div style={{ marginTop: 5, fontSize: 11, color: "rgba(255,255,255,0.58)" }}>

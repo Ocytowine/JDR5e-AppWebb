@@ -98,6 +98,24 @@ export const narrativePanelFixture: DisplayPacketV1 = {
       isDegradedFallback: false
     },
     {
+      blockId: "block-system-speech-commit",
+      kind: "SYSTEM_NOTICE",
+      speaker: {
+        speakerId: "speaker-system",
+        kind: "SYSTEM",
+        displayName: "Système",
+        roleLabel: "Notification système",
+        ariaLabel: "Notification système",
+        visualToken: "speaker-system"
+      },
+      text: "Parole enregistrée après commit métier borné. Aucun effet social mécanique supplémentaire n'a été ajouté.",
+      ariaLabel: "Notification système: SYSTEM_NOTICE",
+      roleLabel: "Notification système",
+      visualStyleToken: "speaker-system",
+      sourceRefs: ["resolution:speech-commit"],
+      isDegradedFallback: false
+    },
+    {
       blockId: "block-ai-fallback",
       kind: "GM_NARRATION",
       speaker: {

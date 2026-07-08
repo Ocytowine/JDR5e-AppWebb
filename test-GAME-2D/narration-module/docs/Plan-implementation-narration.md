@@ -1,6 +1,6 @@
 # Plan d'implémentation du module narration
 
-Statut : `EN_EXECUTION` — I-00 à I-06X livrés dans leur périmètre; audit I-07 tactique/repos terminé et I-07A à I-07D livrés; I-02 conserve une réserve tactique différée; I-08 reste fermé jusqu'à sa gate.
+Statut : `EN_EXECUTION` — I-00 à I-06Y livrés dans leur périmètre; audit I-07 tactique/repos terminé et I-07A à I-07D livrés; I-02 conserve une réserve tactique différée; I-08 reste fermé jusqu'à sa gate.
 
 ## Principes d'exécution
 
@@ -516,6 +516,15 @@ Limite assumée : I-06X ne branche pas encore OpenAI live pour `player_intent_in
 
 Objectif atteint : prouver par matrice de robustesse linguistique que des formulations équivalentes ne changent pas arbitrairement l'intention, tout en conservant les clarifications sur les vraies ambiguïtés.
 
+### Preuves de livraison I-06Y
+
+- encarts UX explicites dans `NarrativeConversationPanel` pour `possibility-no-commit`, `clarification-no-commit`, `bounded-speech-commit` et `generic-no-commit`;
+- badges accessibles supplémentaires pour possibilité, action non exécutée et parole enregistrée;
+- test `narration-module:test:narrative-react-ui` renforcé sur les nouveaux `data-narrative-ux-notice`;
+- matrice [`Matrice-preuves-I06Y.md`](Matrice-preuves-I06Y.md).
+
+Limite assumée : I-06Y ne modifie ni l'interprétation IA, ni le contrôleur, ni la résolution métier. Il clarifie uniquement ce que l'interface affiche pour éviter qu'une question, une possibilité ou une clarification soit perçue comme une action exécutée.
+
 ## I-07 — Tactique et repos
 
 ### Objectif
@@ -621,4 +630,4 @@ I-03 et I-04 peuvent être préparés indépendamment après I-02, mais aucune i
 
 ## Autorisation actuelle
 
-I-00 à I-06X sont terminés dans leur périmètre déclaré, et I-07A à I-07D restent disponibles comme socle tactique/repos différé. Le cadrage de sortie I-06 est consigné dans [`Sortie-phase-I06.md`](Sortie-phase-I06.md). La prochaine étape narrative autorisée est une revue produit courte des traces I-06X avant d'ouvrir OpenAI live pour `player_intent_interpreter` ou une première préparation de `mj_planner`. I-07E, I-08, le MJ complet, les intrigues dynamiques et les handoffs jouables restent fermés tant qu'ils ne sont pas explicitement rouverts.
+I-00 à I-06Y sont terminés dans leur périmètre déclaré, et I-07A à I-07D restent disponibles comme socle tactique/repos différé. La revue produit I-06X/I-06Y est consignée dans [`Revue-produit-I06X-I06Y.md`](Revue-produit-I06X-I06Y.md). La prochaine étape narrative autorisée est le branchement OpenAI live serveur pour `player_intent_interpreter`, avec opt-in, schéma strict et fallback conservateur. I-07E, I-08, `mj_planner`, le MJ complet, les intrigues dynamiques et les handoffs jouables restent fermés tant qu'ils ne sont pas explicitement rouverts.
