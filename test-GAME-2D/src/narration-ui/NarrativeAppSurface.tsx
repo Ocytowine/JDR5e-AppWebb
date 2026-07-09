@@ -460,7 +460,7 @@ const prototypeSceneWriterRoute: AiModelRouteV1 = {
   certified: true,
   allowedContractVersions: ["narrative-ai-resolution/1"],
   inputTokenLimit: 2_000,
-  outputTokenLimit: 1_000,
+  outputTokenLimit: 1_500,
   timeoutMs: 1_000,
   fallbackRouteIds: []
 };

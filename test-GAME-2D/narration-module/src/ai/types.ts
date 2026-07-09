@@ -277,6 +277,15 @@ export interface NarrativeBlockCandidateV1 {
   content: string;
   groundedIn: string[];
   usesCreativeTexture: boolean;
+  factDiscipline?: NarrativeBlockFactDisciplineV1;
+}
+
+export interface NarrativeBlockFactDisciplineV1 {
+  addedUnsupportedFacts: string[];
+  usesOnlyProvidedVisibleEntities: boolean;
+  noNewEvents: boolean;
+  noHiddenPresence: boolean;
+  notes: string[];
 }
 
 export interface ClarificationWriterPayloadV1 {

@@ -80,12 +80,24 @@ function sceneOutputFor(req, overrides = {}) {
         blockKind: "MJ_NARRATION",
         content: "La pluie frappe les volets de l'auberge.",
         groundedIn: ["resolution:route-scene-001"],
-        usesCreativeTexture: true
+        usesCreativeTexture: true,
+        factDiscipline: safeFactDiscipline()
       }],
       ...(overrides.payload || {})
     },
     diagnostics: [],
     supersedesOutputId: null,
+    ...overrides
+  };
+}
+
+function safeFactDiscipline(overrides = {}) {
+  return {
+    addedUnsupportedFacts: [],
+    usesOnlyProvidedVisibleEntities: true,
+    noNewEvents: true,
+    noHiddenPresence: true,
+    notes: [],
     ...overrides
   };
 }
@@ -212,6 +224,11 @@ async function main() {
     callId: "call-route-scene-001",
     attemptId: "attempt-route-scene-001",
     role: "scene_writer",
+    limits: {
+      inputTokenBudget: 900,
+      outputTokenBudget: 1_200,
+      timeoutMs: 1_000
+    },
     input: {
       instructionsRef: "narrative-ai-resolution/scene-writer/v1",
       roleContextPack: {},
@@ -221,15 +238,28 @@ async function main() {
       }
     }
   });
+  const normalizedSceneWriterBudget = normalizeAiCallRequest(sceneReq);
+  assert.equal(normalizedSceneWriterBudget.ok, true);
+  const rejectedSceneWriterBudget = normalizeAiCallRequest({
+    ...sceneReq,
+    limits: { ...sceneReq.limits, outputTokenBudget: 1_501 }
+  });
+  assert.equal(rejectedSceneWriterBudget.ok, false);
+  assert.equal(rejectedSceneWriterBudget.issues.includes("limits.outputTokenBudget must be between 1 and 1500."), true);
   const sceneSchema = buildStrictAiOutputSchema(sceneReq);
   assert.deepEqual(sceneSchema.schema.properties.role.enum, ["scene_writer"]);
   assert.equal(sceneSchema.schema.properties.payload.required.includes("narrationBlocks"), true);
   assert.equal(sceneSchema.schema.properties.payload.properties.narrationBlocks.items.required.includes("groundedIn"), true);
+  assert.equal(sceneSchema.schema.properties.payload.properties.narrationBlocks.items.required.includes("factDiscipline"), true);
   assert.deepEqual(sceneSchema.schema.properties.payload.properties.narrationBlocks.items.properties.blockKind.enum, ["MJ_NARRATION"]);
   assert.deepEqual(sceneSchema.schema.properties.payload.properties.narrationBlocks.items.properties.groundedIn.items.enum, [
     "resolution:route-scene-001",
     "reference-scene:reference-inn-rain-001"
   ]);
+  assert.deepEqual(
+    sceneSchema.schema.properties.payload.properties.narrationBlocks.items.properties.factDiscipline.required,
+    ["addedUnsupportedFacts", "usesOnlyProvidedVisibleEntities", "noNewEvents", "noHiddenPresence", "notes"]
+  );
 
   const intentBody = buildOpenAiResponsesBody(intentRequest(), { modelId: "gpt-4.1-mini" });
   assert.equal(intentBody.text.format.schema.properties.contractVersion.enum[0], "ai-intent-interpretation/1");
@@ -260,7 +290,8 @@ async function main() {
           blockKind: "SYSTEM_NOTICE",
           content: "Cette réponse ne fait pas avancer le temps.",
           groundedIn: ["resolution:route-scene-001"],
-          usesCreativeTexture: false
+          usesCreativeTexture: false,
+          factDiscipline: safeFactDiscipline()
         }]
       }
     }),

@@ -403,7 +403,7 @@ function route(role: "player_expression_adapter" | "scene_writer", mode: Quality
     certified: true,
     allowedContractVersions: ["narrative-ai-resolution/1"],
     inputTokenLimit: 2_000,
-    outputTokenLimit: 1_000,
+    outputTokenLimit: role === "scene_writer" ? 1_500 : 1_000,
     timeoutMs: 1_000,
     fallbackRouteIds: []
   };

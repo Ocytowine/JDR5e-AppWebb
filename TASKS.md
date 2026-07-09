@@ -6,10 +6,10 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 ## En cours
 
-- [ ] Revoir I-06ZB variation contrôlée et continuité locale en UI, puis décider de la suite produit narration sans ouvrir automatiquement `mj_planner`.
+- [ ] Préparer I-06ZC: certification live courte du `scene_writer` sur questions de contexte, descriptions de scène, répétitions, possibilité risquée et parole au garde.
 - [ ] Traiter l'audit technique post-I-06ZB avant d'ouvrir une nouvelle capacité narrative.
-  References: `test-GAME-2D/narration-module/docs/Audit-technique-I06ZB.md`, `test-GAME-2D/narration-module/docs/Matrice-preuves-I06ZB-variation-controlee.md`, `test-GAME-2D/narration-module/docs/Suivi-prochains-lots-narration.md`.
-  Note: A-01, A-02, A-03, A-04 et A-07 traités le 2026-07-09. Prochaine priorité proposée: tester manuellement le flux OpenAI sur questions de contexte répétées, puis traiter A-06 si le comportement reste stable.
+  References: `test-GAME-2D/narration-module/docs/Audit-technique-I06ZB.md`, `test-GAME-2D/narration-module/docs/Revue-technique-post-I06ZB.md`, `test-GAME-2D/narration-module/docs/Suivi-prochains-lots-narration.md`.
+  Note: A-01, A-02, A-03, A-04 et A-07 traités le 2026-07-09; `scene_writer` no-commit stabilisé avec historique court, diagnostics, budget JSON strict et discipline factuelle `factDiscipline`. Prochaine étape concrète: I-06ZC, certification live courte du `scene_writer` sans ouvrir de nouvelle capacité narrative.
 - [ ] Consolider la simulation du monde apres l'ajout des objectifs multi-phases, des opportunites de faction et des mobiles non-systeme.
   Reference: `test-GAME-2D/map-module/docs/world-simulation-corrective-roadmap.md`. Les mobiles exposent maintenant l'objectif, la phase et la cible qu'ils servent.
 
@@ -33,6 +33,7 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 ## Termine recemment
 
+- [x] Revue technique post-I-06ZB: comportement live `scene_writer` jugé exploitable, écarts restants classés et suite I-06ZC/I-06ZD/I-06ZE cadrée sans ouvrir `mj_planner` le 2026-07-09.
 - [x] Fermeture I-06Z: route OpenAI serveur étendue à `player_intent_interpreter`, schéma strict `ai-intent-interpretation/1`, fallback conservateur et mode UI OpenAI appliqué à l'interprétation le 2026-07-08.
 - [x] Revue produit I-06X/I-06Y: traces intention, possibilité, clarification et UX validées; suite retenue OpenAI live serveur pour `player_intent_interpreter` le 2026-07-08.
 - [x] Fermeture I-06Y: encarts UX no-commit/clarification, badges possibilité/action non exécutée/parole enregistrée et test `narration-module:test:narrative-react-ui` renforcé le 2026-07-08.

@@ -56,5 +56,6 @@ assert.equal(serverOpenAiClientSource.includes("/api/narration/enhance-openai"),
 assert.equal(serverOpenAiClientSource.includes("api.openai.com"), false, "client navigateur ne doit jamais appeler OpenAI directement");
 assert.equal(serverOpenAiClientSource.includes("OPENAI_API_KEY"), false, "client navigateur ne doit jamais référencer la clé");
 assert.equal(serverOpenAiClientSource.includes("openaiProvider"), false, "client navigateur ne doit pas importer l'adaptateur serveur OpenAI");
+assert.equal(serverOpenAiClientSource.includes("data?.output"), true, "client OpenAI relaie l'enveloppe serveur même en HTTP non-OK");
 
 console.log("narrative-app-surface/1: OK");

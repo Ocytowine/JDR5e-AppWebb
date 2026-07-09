@@ -472,9 +472,72 @@ Livré :
 
 Limite volontaire :
 
-- pas encore d'historique visible transmis au `scene_writer`;
 - pas de mémoire longue de style;
 - pas de génération d'intrigue ou de nouveaux faits pour masquer une répétition.
+
+Stabilisation post-test live du 2026-07-09 :
+
+- le `scene_writer` peut maintenant enrichir certaines réponses de contexte no-commit;
+- un historique visible court est transmis au `scene_writer`;
+- le schéma `scene_writer` impose `factDiscipline` pour déclarer les faits non supportés, entités visibles non fournies, événements nouveaux et présences cachées;
+- le pipeline rejette les blocs dont `factDiscipline` signale une dérive factuelle;
+- revue de reprise : [`Revue-technique-post-I06ZB.md`](Revue-technique-post-I06ZB.md).
+
+Suite immédiate recommandée :
+
+- ouvrir I-06ZC : certification live courte du `scene_writer`, sans nouvelle capacité narrative;
+- ne pas ouvrir `mj_planner`, intrigue dynamique, mémoire longue, tactique réel ou repos jouable complet tant que cette certification n'est pas faite.
+
+## I-06ZC — Certification live courte `scene_writer`
+
+Statut : `A_OUVRIR`
+Référence : [`Revue-technique-post-I06ZB.md`](Revue-technique-post-I06ZB.md).
+
+Objectif : mesurer le comportement OpenAI live du `scene_writer` sur une matrice courte avant d'ajouter une nouvelle capacité.
+
+Cas minimaux :
+
+- météo;
+- localisation;
+- description générale de scène;
+- description des personnes présentes;
+- description du garde;
+- description de la serveuse;
+- question sur la porte du fond;
+- répétition d'une question de contexte;
+- possibilité risquée sans action;
+- parole au garde.
+
+Critères de sortie :
+
+- les réponses de contexte ne déclenchent ni commit ni temps;
+- les possibilités restent hypothétiques;
+- les paroles restent bornées;
+- aucun PNJ, groupe, événement, secret ou fait durable non fourni n'est ajouté;
+- la narration est suffisamment concrète et non générique;
+- le fallback local reste propre si OpenAI échoue.
+
+Sorties attendues :
+
+- matrice `Matrice-certification-live-scene-writer.md`;
+- liste des écarts `OK`, `A_CORRIGER`, `BLOQUANT`;
+- décision : corriger le contexte/contrat ou passer à l'amorce UI jouable I-06ZD.
+
+## I-06ZD — Amorce de scène jouable dans l'UI
+
+Statut : `FERME_JUSQU_APRES_I06ZC`
+
+Objectif : remplacer les messages visibles de prototype par une ouverture de scène issue du `PlayableSceneStateV1`.
+
+Ce lot doit rester UI/rendu. Il ne doit pas ouvrir le MJ complet.
+
+## I-06ZE — Paquet de scène explicite pour `scene_writer`
+
+Statut : `FERME_JUSQU_APRES_I06ZC`
+
+Objectif : enrichir structurellement le contexte envoyé au `scene_writer` si la certification live montre encore des ambiguïtés factuelles.
+
+Ce lot doit renforcer les données envoyées à l'IA, pas ajouter des listes lexicales de formulations.
 
 ## Critères retenus pour la sortie I-06
 

@@ -64,7 +64,7 @@ const sceneWriterRoute: AiModelRouteV1 = {
   certified: true,
   allowedContractVersions: ["narrative-ai-resolution/1"],
   inputTokenLimit: 2_000,
-  outputTokenLimit: 1_000,
+  outputTokenLimit: 1_500,
   timeoutMs: 1_000,
   fallbackRouteIds: []
 };
@@ -134,6 +134,23 @@ function envelope(input: {
     payload: input.payload,
     diagnostics: [],
     supersedesOutputId: null
+  };
+}
+
+function factDiscipline(overrides: Partial<{
+  addedUnsupportedFacts: string[];
+  usesOnlyProvidedVisibleEntities: boolean;
+  noNewEvents: boolean;
+  noHiddenPresence: boolean;
+  notes: string[];
+}> = {}) {
+  return {
+    addedUnsupportedFacts: [],
+    usesOnlyProvidedVisibleEntities: true,
+    noNewEvents: true,
+    noHiddenPresence: true,
+    notes: [],
+    ...overrides
   };
 }
 
@@ -222,6 +239,7 @@ async function main(): Promise<void> {
     `resolution:${speech.value.output.resolution.resolutionId}`,
     "reference-scene:reference-inn-rain-001"
   ]);
+  assert.equal(sceneWriterRequest.limits.outputTokenBudget, 1_200, "scene_writer doit avoir assez de budget pour l'enveloppe JSON stricte");
   assert.equal(roleContextPack.creativeScope.mustNotModify.includes("handoff"), true);
   assert.equal(speechEnhanced.displayPacket.reconstructionRefs.includes(`ai-context:${speechOp}:pack:scene-writer`), true);
 
@@ -406,6 +424,208 @@ async function main(): Promise<void> {
   });
   assert.equal(invalidGroundingWeather.enhanced, false);
   assert.equal(invalidGroundingWeather.safetyNotes.some(note => /grounding_missing_allowed_ref/u.test(note)), true);
+
+  const dynamicEventWeatherProvider = new RecordingProvider([
+    [`${weatherOp}:ai:scene-writer:attempt:1`, envelope({
+      operationId: weatherOp,
+      role: "scene_writer",
+      attemptSuffix: "scene-writer",
+      payload: {
+        narrationBlocks: [{
+          slotId: "weather-unsourced-door",
+          blockKind: "MJ_NARRATION",
+          content: "La pluie bat les volets; chaque fois que la porte d'entrée s'ouvre, un souffle froid traverse la salle.",
+          groundedIn: [
+            `resolution:${weather.value.output.resolution.resolutionId}`,
+            "reference-scene:reference-inn-rain-001"
+          ],
+          usesCreativeTexture: true,
+          factDiscipline: factDiscipline({
+            addedUnsupportedFacts: ["la porte d'entrée s'ouvre"],
+            noNewEvents: false,
+            notes: ["événement dynamique non fourni par la scène"]
+          })
+        }]
+      }
+    })]
+  ]);
+  const dynamicEventWeather = await enhanceNarrativeDisplayWithAiV1({
+    campaignId,
+    operationId: weatherOp,
+    displayPacket: weather.value.output.displayPacket,
+    resolution: weather.value.output.resolution,
+    sceneState: weather.value.output.sceneState,
+    config: {
+      provider: dynamicEventWeatherProvider,
+      expressionRoute,
+      sceneWriterRoute,
+      retryPolicy
+    }
+  });
+  assert.equal(dynamicEventWeather.enhanced, false);
+  assert.equal(dynamicEventWeather.safetyNotes.some(note => /fact_discipline_new_event/u.test(note)), true);
+
+  const liveDynamicEventWeatherProvider = new RecordingProvider([
+    [`${weatherOp}:ai:scene-writer:attempt:1`, envelope({
+      operationId: weatherOp,
+      role: "scene_writer",
+      attemptSuffix: "scene-writer",
+      payload: {
+        narrationBlocks: [{
+          slotId: "weather-live-unsourced-door",
+          blockKind: "MJ_NARRATION",
+          content: "À travers les volets, le tambourinement régulier de la pluie s'intensifie, martelant le toit et les fenêtres avec une insistance presque oppressante. L'air froid envahit légèrement la pièce chaque fois que la porte d'entrée s'ouvre dans un grincement, offrant une brève exposition humide au vent chargé d'eau.",
+          groundedIn: [
+            `resolution:${weather.value.output.resolution.resolutionId}`,
+            "reference-scene:reference-inn-rain-001"
+          ],
+          usesCreativeTexture: true,
+          factDiscipline: factDiscipline({
+            addedUnsupportedFacts: ["la porte d'entrée s'ouvre dans un grincement"],
+            noNewEvents: false,
+            notes: ["formulation observée en test live, rejetée par discipline factuelle"]
+          })
+        }]
+      }
+    })]
+  ]);
+  const liveDynamicEventWeather = await enhanceNarrativeDisplayWithAiV1({
+    campaignId,
+    operationId: weatherOp,
+    displayPacket: weather.value.output.displayPacket,
+    resolution: weather.value.output.resolution,
+    sceneState: weather.value.output.sceneState,
+    config: {
+      provider: liveDynamicEventWeatherProvider,
+      expressionRoute,
+      sceneWriterRoute,
+      retryPolicy
+    }
+  });
+  assert.equal(liveDynamicEventWeather.enhanced, false);
+  assert.equal(liveDynamicEventWeather.safetyNotes.some(note => /fact_discipline_new_event/u.test(note)), true);
+
+  const hiddenPeopleProvider = new RecordingProvider([
+    [`${weatherOp}:ai:scene-writer:attempt:1`, envelope({
+      operationId: weatherOp,
+      role: "scene_writer",
+      attemptSuffix: "scene-writer",
+      payload: {
+        narrationBlocks: [{
+          slotId: "people-hidden",
+          blockKind: "MJ_NARRATION",
+          content: "Le garde blessé et la serveuse sont visibles, tandis que d'autres occupants restent discrètement dissimulés dans la pièce.",
+          groundedIn: [
+            `resolution:${weather.value.output.resolution.resolutionId}`,
+            "reference-scene:reference-inn-rain-001"
+          ],
+          usesCreativeTexture: true,
+          factDiscipline: factDiscipline({
+            addedUnsupportedFacts: ["autres occupants dissimulés"],
+            usesOnlyProvidedVisibleEntities: false,
+            noHiddenPresence: false,
+            notes: ["présence non fournie par la scène"]
+          })
+        }]
+      }
+    })]
+  ]);
+  const hiddenPeople = await enhanceNarrativeDisplayWithAiV1({
+    campaignId,
+    operationId: weatherOp,
+    displayPacket: weather.value.output.displayPacket,
+    resolution: weather.value.output.resolution,
+    sceneState: weather.value.output.sceneState,
+    config: {
+      provider: hiddenPeopleProvider,
+      expressionRoute,
+      sceneWriterRoute,
+      retryPolicy
+    }
+  });
+  assert.equal(hiddenPeople.enhanced, false);
+  assert.equal(hiddenPeople.safetyNotes.some(note => /fact_discipline_hidden_presence/u.test(note)), true);
+
+  const liveHiddenPeopleProvider = new RecordingProvider([
+    [`${weatherOp}:ai:scene-writer:attempt:1`, envelope({
+      operationId: weatherOp,
+      role: "scene_writer",
+      attemptSuffix: "scene-writer",
+      payload: {
+        narrationBlocks: [{
+          slotId: "people-live-hidden",
+          blockKind: "MJ_NARRATION",
+          content: "Le bruit régulier de la pluie qui martèle les volets crée une toile de fond constante, masquant presque les murmures étouffés et les soupirs contenus des autres occupants, absents de la pièce ou discrètement dissimulés.",
+          groundedIn: [
+            `resolution:${weather.value.output.resolution.resolutionId}`,
+            "reference-scene:reference-inn-rain-001"
+          ],
+          usesCreativeTexture: true,
+          factDiscipline: factDiscipline({
+            addedUnsupportedFacts: ["autres occupants absents ou discrètement dissimulés"],
+            usesOnlyProvidedVisibleEntities: false,
+            noHiddenPresence: false,
+            notes: ["formulation observée en test live, rejetée par discipline factuelle"]
+          })
+        }]
+      }
+    })]
+  ]);
+  const liveHiddenPeople = await enhanceNarrativeDisplayWithAiV1({
+    campaignId,
+    operationId: weatherOp,
+    displayPacket: weather.value.output.displayPacket,
+    resolution: weather.value.output.resolution,
+    sceneState: weather.value.output.sceneState,
+    config: {
+      provider: liveHiddenPeopleProvider,
+      expressionRoute,
+      sceneWriterRoute,
+      retryPolicy
+    }
+  });
+  assert.equal(liveHiddenPeople.enhanced, false);
+  assert.equal(liveHiddenPeople.safetyNotes.some(note => /fact_discipline_hidden_presence/u.test(note)), true);
+
+  const unsupportedCrowdProvider = new RecordingProvider([
+    [`${weatherOp}:ai:scene-writer:attempt:1`, envelope({
+      operationId: weatherOp,
+      role: "scene_writer",
+      attemptSuffix: "scene-writer",
+      payload: {
+        narrationBlocks: [{
+          slotId: "weather-unsupported-crowd",
+          blockKind: "MJ_NARRATION",
+          content: "La pluie assombrit les vitres tandis que le murmure discret des convives accompagne l'attente.",
+          groundedIn: [
+            `resolution:${weather.value.output.resolution.resolutionId}`,
+            "reference-scene:reference-inn-rain-001"
+          ],
+          usesCreativeTexture: true,
+          factDiscipline: factDiscipline({
+            addedUnsupportedFacts: ["convives non fournis dans la scène"],
+            usesOnlyProvidedVisibleEntities: false,
+            notes: ["groupe visible non fourni"]
+          })
+        }]
+      }
+    })]
+  ]);
+  const unsupportedCrowd = await enhanceNarrativeDisplayWithAiV1({
+    campaignId,
+    operationId: weatherOp,
+    displayPacket: weather.value.output.displayPacket,
+    resolution: weather.value.output.resolution,
+    sceneState: weather.value.output.sceneState,
+    config: {
+      provider: unsupportedCrowdProvider,
+      expressionRoute,
+      sceneWriterRoute,
+      retryPolicy
+    }
+  });
+  assert.equal(unsupportedCrowd.enhanced, false);
+  assert.equal(unsupportedCrowd.safetyNotes.some(note => /fact_discipline_added_unsupported_facts/u.test(note)), true);
 
   const unusableWeatherProvider = new RecordingProvider([
     [`${weatherOp}:ai:scene-writer:attempt:1`, envelope({

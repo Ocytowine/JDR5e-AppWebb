@@ -67,6 +67,7 @@ Il distingue la cible complète du runtime de campagne et les capacités déjà 
 - [`Matrice-preuves-I06Z.md`](Matrice-preuves-I06Z.md) : preuves du branchement OpenAI live serveur pour `player_intent_interpreter`.
 - [`Sortie-phase-I06.md`](Sortie-phase-I06.md) : cadrage de sortie I-06, limites du prototype et décision d'ouvrir une interprétation IA structurée avant généralisation.
 - [`Suivi-prochains-lots-narration.md`](Suivi-prochains-lots-narration.md) : feuille de suivi des lots I-06Q et suivants avant généralisation.
+- [`Revue-technique-post-I06ZB.md`](Revue-technique-post-I06ZB.md) : point de reprise après stabilisation live du `scene_writer`, écarts restants et lots recommandés I-06ZC à I-06ZE.
 - [`Matrice-preuves-I07-audit.md`](Matrice-preuves-I07-audit.md) : audit tactique/repos, résolution AF-R13/AF-R14 et autorisation limitée I-07A.
 - [`Matrice-preuves-I07A.md`](Matrice-preuves-I07A.md) : preuves I-07A, types, validateurs, fixtures et intégration idempotente simulée.
 - [`Matrice-preuves-I07B.md`](Matrice-preuves-I07B.md) : preuves I-07B, intégration temporelle des outcomes tactique/repos par `world.clock`.

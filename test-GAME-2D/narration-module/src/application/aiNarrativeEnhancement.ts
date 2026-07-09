@@ -144,7 +144,7 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
         },
         limits: {
           inputTokenBudget: 900,
-          outputTokenBudget: 500,
+          outputTokenBudget: 1_200,
           timeoutMs: input.config.sceneWriterRoute.timeoutMs
         }
       }
@@ -299,7 +299,8 @@ function assessSceneWriterBlock(
   if (block.blockKind !== "MJ_NARRATION") rejectionReasons.push(`blockKind=${block.blockKind}`);
   if (block.content.trim().length === 0) rejectionReasons.push("content_empty");
   if (!hasAnyAllowedGrounding(block.groundedIn, allowedGrounding)) rejectionReasons.push("grounding_missing_allowed_ref");
-  if (forbiddenNarrativeClaim(block.content)) rejectionReasons.push("forbidden_claim");
+  rejectionReasons.push(...factDisciplineRejectionReasons(block.factDiscipline));
+  rejectionReasons.push(...forbiddenNarrativeClaimReasons(block.content));
   return {
     usable: rejectionReasons.length === 0,
     block,
@@ -311,6 +312,35 @@ function hasAnyAllowedGrounding(groundedIn: string[], allowedGrounding: string[]
   return groundedIn.length > 0 && groundedIn.some(ref => allowedGrounding.includes(ref));
 }
 
-function forbiddenNarrativeClaim(text: string): boolean {
-  return /\b(tu reussis|tu réussis|tu echoues|tu échoues|il est mort|combat termine|combat terminé|tu prends|tu voles|dans ton inventaire)\b/iu.test(text);
+function factDisciplineRejectionReasons(
+  factDiscipline: SceneWriterPayloadV1["narrationBlocks"][number]["factDiscipline"]
+): string[] {
+  if (!factDiscipline) return [];
+  const reasons: string[] = [];
+  if (factDiscipline.addedUnsupportedFacts.length > 0) reasons.push("fact_discipline_added_unsupported_facts");
+  if (factDiscipline.usesOnlyProvidedVisibleEntities !== true) reasons.push("fact_discipline_unknown_visible_entity");
+  if (factDiscipline.noNewEvents !== true) reasons.push("fact_discipline_new_event");
+  if (factDiscipline.noHiddenPresence !== true) reasons.push("fact_discipline_hidden_presence");
+  return reasons;
+}
+
+function forbiddenNarrativeClaimReasons(text: string): string[] {
+  const normalized = text.toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/[’`´]/gu, "'");
+  const reasons: string[] = [];
+  if (/\b(tu reussis|tu echoues|il est mort|combat termine|tu prends|tu voles|dans ton inventaire)\b/u.test(normalized)) {
+    reasons.push("forbidden_resolution_claim");
+  }
+  if (/\b(porte d entree|porte d'entree|porte principale|porte de l auberge)\b.{0,120}\b(s ouvre|s'ouvre|s entrouvre|s'entrouvre|grince|claque)\b/u.test(normalized)) {
+    reasons.push("forbidden_unsourced_dynamic_event");
+  }
+  if (/\b(absents de la piece|discretement dissimules|discretement dissimulees|dissimules|dissimulees|caches|cachees|tapies|tapis dans l ombre)\b/u.test(normalized)) {
+    reasons.push("forbidden_unsourced_hidden_presence");
+  }
+  if (/\b(quelqu un entre|quelqu'un entre|un inconnu entre|des silhouettes entrent|la porte s ouvre)\b/u.test(normalized)) {
+    reasons.push("forbidden_unsourced_arrival");
+  }
+  return [...new Set(reasons)];
 }

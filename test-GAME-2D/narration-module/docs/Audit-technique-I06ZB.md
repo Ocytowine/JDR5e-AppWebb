@@ -164,6 +164,25 @@ Correctif parsing OpenAI :
 - l'UI affiche ces messages dans le résumé de fallback OpenAI pour éviter les diagnostics opaques;
 - objectif : distinguer une vraie sortie non JSON d'une sortie JSON valide mal encapsulée.
 
+Correctif budget de sortie `scene_writer` :
+
+- le budget de sortie demandé au `scene_writer` passe de 500 à 1200 tokens;
+- la limite de route `scene_writer` passe à 1500 tokens côté UI/tests;
+- la limite serveur OpenAI accepte maintenant 1500 tokens pour `scene_writer` tout en gardant 1000 pour les autres rôles;
+- le client navigateur relaie désormais l'enveloppe JSON d'erreur serveur même si la route répond en HTTP non-OK;
+- raison : l'enveloppe JSON stricte consomme déjà une part significative du budget et les sorties live étaient tronquées avant fermeture du JSON;
+- l'autorité métier ne change pas : l'augmentation concerne uniquement la capacité à retourner un objet JSON complet.
+
+Correctif cohérence de texture `scene_writer` :
+
+- les instructions serveur interdisent maintenant explicitement les événements non fournis : porte d'entrée qui s'ouvre, arrivées/sorties, nouveaux clients, silhouettes cachées ou occupants dissimulés;
+- les descriptions de personnes doivent se limiter aux PNJ visibles fournis dans le contexte;
+- le schéma OpenAI `scene_writer` impose maintenant un audit structuré `factDiscipline` par bloc : faits ajoutés non supportés, usage exclusif des entités visibles fournies, absence de nouvel événement et absence de présence cachée;
+- le pipeline rejette les blocs dont `factDiscipline` signale un ajout factuel, un événement nouveau, une entité visible non fournie ou une présence cachée;
+- les garde-fous textuels locaux restent limités à une ceinture de sécurité legacy; ils ne doivent pas devenir le moteur principal de compréhension;
+- les régressions couvrent les formulations live exactes observées, dont "chaque fois que la porte d'entrée s'ouvre", "autres occupants, absents de la pièce ou discrètement dissimulés" et "convives" non fournis, mais le rejet attendu vient de la discipline factuelle déclarée;
+- objectif : conserver la richesse sensorielle sans créer de micro-faits ou présences non sourcées.
+
 ### A-05 — Fallback local d'intention encore trop lexical
 
 Priorité : `MOYENNE`

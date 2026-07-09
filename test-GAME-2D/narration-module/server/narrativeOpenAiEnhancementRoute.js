@@ -235,13 +235,31 @@ function buildRolePayloadSchema(requestOrRole) {
         items: {
           type: "object",
           additionalProperties: false,
-          required: ["slotId", "blockKind", "content", "groundedIn", "usesCreativeTexture"],
+          required: ["slotId", "blockKind", "content", "groundedIn", "usesCreativeTexture", "factDiscipline"],
           properties: {
             slotId: { type: "string" },
             blockKind: { enum: ["MJ_NARRATION"] },
             content: { type: "string" },
             groundedIn: { type: "array", minItems: 1, items: groundedInItems },
-            usesCreativeTexture: { type: "boolean" }
+            usesCreativeTexture: { type: "boolean" },
+            factDiscipline: {
+              type: "object",
+              additionalProperties: false,
+              required: [
+                "addedUnsupportedFacts",
+                "usesOnlyProvidedVisibleEntities",
+                "noNewEvents",
+                "noHiddenPresence",
+                "notes"
+              ],
+              properties: {
+                addedUnsupportedFacts: { type: "array", items: { type: "string" } },
+                usesOnlyProvidedVisibleEntities: { type: "boolean" },
+                noNewEvents: { type: "boolean" },
+                noHiddenPresence: { type: "boolean" },
+                notes: { type: "array", items: { type: "string" } }
+              }
+            }
           }
         }
       }
@@ -407,8 +425,9 @@ function normalizeAiCallRequest(value) {
     if (!Number.isInteger(request.limits.inputTokenBudget) || request.limits.inputTokenBudget <= 0 || request.limits.inputTokenBudget > 2_000) {
       issues.push("limits.inputTokenBudget must be between 1 and 2000.");
     }
-    if (!Number.isInteger(request.limits.outputTokenBudget) || request.limits.outputTokenBudget <= 0 || request.limits.outputTokenBudget > 1_000) {
-      issues.push("limits.outputTokenBudget must be between 1 and 1000.");
+    const maxOutputTokenBudget = request.role === "scene_writer" ? 1_500 : 1_000;
+    if (!Number.isInteger(request.limits.outputTokenBudget) || request.limits.outputTokenBudget <= 0 || request.limits.outputTokenBudget > maxOutputTokenBudget) {
+      issues.push(`limits.outputTokenBudget must be between 1 and ${maxOutputTokenBudget}.`);
     }
     if (!Number.isInteger(request.limits.timeoutMs) || request.limits.timeoutMs <= 0 || request.limits.timeoutMs > 10_000) {
       issues.push("limits.timeoutMs must be between 1 and 10000.");
@@ -528,7 +547,11 @@ function buildRoleInstructions(request) {
     "Pour une parole ou une action engagee, montre la mise en scene immediate sans decider le succes, l'echec, la reaction decisive ou une consequence durable.",
     "Pour une question de contexte no-commit, reponds directement avec les perceptions et faits visibles deja fournis dans un bloc blockKind=MJ_NARRATION; n'ajoute aucune action du personnage et ne fais pas avancer le temps.",
     "Pour une clarification ou une possibilite, rends la limite claire: aucune action n'est executee et le temps de jeu ne progresse pas.",
+    "Ne decris aucun evenement nouveau non fourni: pas de porte d'entree qui s'ouvre, pas d'arrivee, pas de sortie, pas de nouveau client, pas de silhouette cachee ou d'occupant dissimule.",
+    "Pour decrire les gens presents, limite-toi aux PNJ visibles fournis dans le contexte. Si aucun autre occupant visible n'est fourni, ne les invente pas.",
     "Chaque bloc doit citer dans groundedIn au moins une reference exacte fournie dans task.allowedGrounding. Tu peux citer plusieurs references, mais au moins une doit etre recopiee exactement.",
+    "Pour chaque bloc, remplis factDiscipline comme un audit factuel: addedUnsupportedFacts liste les faits/personnes/evenements qui ne sont pas explicitement fournis; noNewEvents=false si un evenement nouveau est decrit; noHiddenPresence=false si une presence cachee/dissimulee/non fournie est suggeree; usesOnlyProvidedVisibleEntities=false si une personne ou un groupe visible non fourni est mentionne.",
+    "Si tu as besoin d'ajouter un fait non fourni pour rendre la phrase naturelle, signale-le dans factDiscipline.addedUnsupportedFacts au lieu de le masquer.",
     `References groundedIn autorisees pour cette requete: ${allowedGroundingInstruction(request)}.`,
     "N'annonce pas de nouveau resultat de test, de degat, de reaction PNJ decisive, de combat, de recompense ou de secret.",
     "La texture creative est autorisee seulement pour decrire le ton, le rythme, les sensations et la mise en scene."
@@ -715,6 +738,25 @@ function validateRolePayload(payload, role, request = null) {
       issues.push(`payload.narrationBlocks[${index}].groundedIn must be a non-empty string array.`);
     }
     if (typeof block.usesCreativeTexture !== "boolean") issues.push(`payload.narrationBlocks[${index}].usesCreativeTexture must be a boolean.`);
+    if (!block.factDiscipline || typeof block.factDiscipline !== "object" || Array.isArray(block.factDiscipline)) {
+      issues.push(`payload.narrationBlocks[${index}].factDiscipline must be an object.`);
+    } else {
+      if (!Array.isArray(block.factDiscipline.addedUnsupportedFacts) || block.factDiscipline.addedUnsupportedFacts.some(item => typeof item !== "string")) {
+        issues.push(`payload.narrationBlocks[${index}].factDiscipline.addedUnsupportedFacts must be a string array.`);
+      }
+      if (typeof block.factDiscipline.usesOnlyProvidedVisibleEntities !== "boolean") {
+        issues.push(`payload.narrationBlocks[${index}].factDiscipline.usesOnlyProvidedVisibleEntities must be a boolean.`);
+      }
+      if (typeof block.factDiscipline.noNewEvents !== "boolean") {
+        issues.push(`payload.narrationBlocks[${index}].factDiscipline.noNewEvents must be a boolean.`);
+      }
+      if (typeof block.factDiscipline.noHiddenPresence !== "boolean") {
+        issues.push(`payload.narrationBlocks[${index}].factDiscipline.noHiddenPresence must be a boolean.`);
+      }
+      if (!Array.isArray(block.factDiscipline.notes) || block.factDiscipline.notes.some(item => typeof item !== "string")) {
+        issues.push(`payload.narrationBlocks[${index}].factDiscipline.notes must be a string array.`);
+      }
+    }
   }
   return issues;
 }

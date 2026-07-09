@@ -13,9 +13,15 @@ export class ServerOpenAiEnhancementProviderV1 implements ContractAiProviderV1 {
         },
         body: JSON.stringify({ request })
       });
-      if (!response.ok) return serverErrorEnvelope(request, "SERVER_ROUTE_HTTP_ERROR", `HTTP ${response.status}`);
-      const data = await response.json() as { output?: unknown };
-      return data.output ?? serverErrorEnvelope(request, "SERVER_ROUTE_EMPTY_OUTPUT", "Server route returned no output.");
+      const data = await response.json().catch(() => null) as { output?: unknown; error?: unknown; issues?: unknown } | null;
+      if (!response.ok) {
+        if (data?.output) return data.output;
+        const detail = Array.isArray(data?.issues)
+          ? `HTTP ${response.status}: ${data.issues.filter((entry): entry is string => typeof entry === "string").join("; ")}`
+          : `HTTP ${response.status}`;
+        return serverErrorEnvelope(request, "SERVER_ROUTE_HTTP_ERROR", detail);
+      }
+      return data?.output ?? serverErrorEnvelope(request, "SERVER_ROUTE_EMPTY_OUTPUT", "Server route returned no output.");
     } catch (error) {
       return serverErrorEnvelope(
         request,
