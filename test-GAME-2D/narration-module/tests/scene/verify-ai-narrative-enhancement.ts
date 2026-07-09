@@ -328,24 +328,122 @@ async function main(): Promise<void> {
   });
   if (!weather.ok) throw new Error(weather.error.messageKey);
   assert.equal(weather.value.output.resolution.resultKind, "NO_COMMIT_RESPONSE");
+  const weatherOp = weather.value.operation.operationId;
+  const weatherProvider = new RecordingProvider([
+    [`${weatherOp}:ai:scene-writer:attempt:1`, envelope({
+      operationId: weatherOp,
+      role: "scene_writer",
+      attemptSuffix: "scene-writer",
+      payload: {
+        narrationBlocks: [{
+          slotId: "weather-context",
+          blockKind: "MJ_NARRATION",
+          content: "La pluie bat toujours les volets de l'Auberge du Seuil; elle brouille les voix dehors sans changer l'attente tendue dans la salle.",
+          groundedIn: [
+            `resolution:${weather.value.output.resolution.resolutionId}`,
+            "reference-scene:reference-inn-rain-001",
+            "scene-weather-visible"
+          ],
+          usesCreativeTexture: true
+        }]
+      }
+    })]
+  ]);
   const weatherEnhanced = await enhanceNarrativeDisplayWithAiV1({
     campaignId,
-    operationId: weather.value.operation.operationId,
+    operationId: weatherOp,
     displayPacket: weather.value.output.displayPacket,
     resolution: weather.value.output.resolution,
+    sceneState: weather.value.output.sceneState,
     config: {
-      provider: new FakeContractAiProviderV1(),
+      provider: weatherProvider,
       expressionRoute,
       sceneWriterRoute,
       retryPolicy
     }
   });
-  assert.equal(weatherEnhanced.enhanced, false);
+  assert.equal(weatherEnhanced.enhanced, true);
   assert.equal(weatherEnhanced.usedFallback, false);
   assert.equal(weatherEnhanced.incidents.length, 0);
-  assert.deepEqual(weatherEnhanced.displayPacket, weather.value.output.displayPacket);
-  assert.equal(weatherEnhanced.displayPacket.displayBlocks.some(block => block.kind === "GM_NARRATION"), false);
-  assert.equal(weatherEnhanced.safetyNotes.some(note => /Scene writer non appelé/u.test(note)), true);
+  assert.equal(weather.value.output.resolution.noGameTime, true);
+  assert.equal(weather.value.operation.commitId, null);
+  assert.equal(weatherProvider.requests.some(request => request.role === "scene_writer"), true, "scene_writer doit enrichir les questions de contexte no-commit");
+  const weatherAiNarrations = weatherEnhanced.displayPacket.displayBlocks.filter(block =>
+    block.kind === "GM_NARRATION" &&
+    block.sourceRefs.some(ref => ref.startsWith("ai-output:"))
+  );
+  assert.equal(weatherAiNarrations.length, 1, "la narration IA remplace le bloc MJ local au lieu de dupliquer la réponse");
+  assert.match(weatherAiNarrations[0]?.text ?? "", /pluie bat toujours les volets/u);
+
+  const invalidGroundingWeatherProvider = new RecordingProvider([
+    [`${weatherOp}:ai:scene-writer:attempt:1`, envelope({
+      operationId: weatherOp,
+      role: "scene_writer",
+      attemptSuffix: "scene-writer",
+      payload: {
+        narrationBlocks: [{
+          slotId: "weather-context-invalid-grounding",
+          blockKind: "MJ_NARRATION",
+          content: "La pluie continue contre les volets.",
+          groundedIn: ["scene-weather-visible"],
+          usesCreativeTexture: true
+        }]
+      }
+    })]
+  ]);
+  const invalidGroundingWeather = await enhanceNarrativeDisplayWithAiV1({
+    campaignId,
+    operationId: weatherOp,
+    displayPacket: weather.value.output.displayPacket,
+    resolution: weather.value.output.resolution,
+    sceneState: weather.value.output.sceneState,
+    config: {
+      provider: invalidGroundingWeatherProvider,
+      expressionRoute,
+      sceneWriterRoute,
+      retryPolicy
+    }
+  });
+  assert.equal(invalidGroundingWeather.enhanced, false);
+  assert.equal(invalidGroundingWeather.safetyNotes.some(note => /grounding_missing_allowed_ref/u.test(note)), true);
+
+  const unusableWeatherProvider = new RecordingProvider([
+    [`${weatherOp}:ai:scene-writer:attempt:1`, envelope({
+      operationId: weatherOp,
+      role: "scene_writer",
+      attemptSuffix: "scene-writer",
+      payload: {
+        narrationBlocks: [{
+          slotId: "weather-system-notice",
+          blockKind: "SYSTEM_NOTICE",
+          content: "Cette réponse ne fait pas avancer le temps.",
+          groundedIn: [
+            `resolution:${weather.value.output.resolution.resolutionId}`,
+            "reference-scene:reference-inn-rain-001"
+          ],
+          usesCreativeTexture: false
+        }]
+      }
+    })]
+  ]);
+  const unusableWeather = await enhanceNarrativeDisplayWithAiV1({
+    campaignId,
+    operationId: weatherOp,
+    displayPacket: weather.value.output.displayPacket,
+    resolution: weather.value.output.resolution,
+    sceneState: weather.value.output.sceneState,
+    config: {
+      provider: unusableWeatherProvider,
+      expressionRoute,
+      sceneWriterRoute,
+      retryPolicy
+    }
+  });
+  assert.equal(unusableWeatherProvider.requests.some(request => request.role === "scene_writer"), true);
+  assert.equal(unusableWeather.enhanced, false);
+  assert.equal(unusableWeather.usedFallback, false);
+  assert.equal(unusableWeather.safetyNotes.some(note => /aucun bloc MJ utilisable/u.test(note)), true);
+  assert.deepEqual(unusableWeather.displayPacket, weather.value.output.displayPacket);
 
   const location = await controller.submit({
     schemaVersion: 1,
@@ -354,23 +452,80 @@ async function main(): Promise<void> {
   });
   if (!location.ok) throw new Error(location.error.messageKey);
   assert.equal(location.value.output.resolution.resultKind, "NO_COMMIT_RESPONSE");
+  const locationOp = location.value.operation.operationId;
+  const locationProvider = new RecordingProvider([
+    [`${locationOp}:ai:scene-writer:attempt:1`, envelope({
+      operationId: locationOp,
+      role: "scene_writer",
+      attemptSuffix: "scene-writer",
+      payload: {
+        narrationBlocks: [{
+          slotId: "location-context",
+          blockKind: "MJ_NARRATION",
+          content: "Tu te trouves dans la salle commune de l'Auberge du Seuil, près du garde blessé et de la porte du fond qui attire les silences.",
+          groundedIn: [
+            `resolution:${location.value.output.resolution.resolutionId}`,
+            "reference-scene:reference-inn-rain-001"
+          ],
+          usesCreativeTexture: true
+        }]
+      }
+    })]
+  ]);
   const locationEnhanced = await enhanceNarrativeDisplayWithAiV1({
     campaignId,
-    operationId: location.value.operation.operationId,
+    operationId: locationOp,
     displayPacket: location.value.output.displayPacket,
+    priorDisplayPackets: [weatherEnhanced.displayPacket],
     resolution: location.value.output.resolution,
+    sceneState: location.value.output.sceneState,
     config: {
-      provider: new FakeContractAiProviderV1(),
+      provider: locationProvider,
       expressionRoute,
       sceneWriterRoute,
       retryPolicy
     }
   });
-  assert.equal(locationEnhanced.enhanced, false);
+  assert.equal(locationEnhanced.enhanced, true);
   assert.equal(locationEnhanced.usedFallback, false);
   assert.equal(locationEnhanced.incidents.length, 0);
-  assert.deepEqual(locationEnhanced.displayPacket, location.value.output.displayPacket);
-  assert.equal(locationEnhanced.displayPacket.displayBlocks.some(block => block.kind === "GM_NARRATION"), false);
+  const locationRequest = locationProvider.requests.find(request => request.role === "scene_writer");
+  assert.ok(locationRequest, "scene_writer doit recevoir la question de localisation no-commit");
+  assert.equal((locationRequest.input.roleContextPack as RoleContextPackV1).blocks.some(block =>
+    block.blockKind === "MEMORY_CAPSULE" &&
+    /Historique visible court/u.test(block.text) &&
+    /pluie bat toujours les volets/u.test(block.text)
+  ), true, "le paquet scene_writer doit contenir un historique visible court borné");
+  assert.equal(location.value.operation.commitId, null);
+  assert.equal(location.value.output.resolution.noGameTime, true);
+  assert.equal(locationEnhanced.displayPacket.displayBlocks.filter(block =>
+    block.kind === "GM_NARRATION" &&
+    block.sourceRefs.some(ref => ref.startsWith("ai-output:"))
+  ).length, 1);
+
+  const possibility = await controller.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-ai-possibility-no-commit",
+    rawInput: "est-ce que je peux voler la bourse du garde ?"
+  });
+  if (!possibility.ok) throw new Error(possibility.error.messageKey);
+  assert.equal(possibility.value.output.resolution.resultKind, "NO_COMMIT_RESPONSE");
+  const possibilityProvider = new RecordingProvider();
+  const possibilityEnhanced = await enhanceNarrativeDisplayWithAiV1({
+    campaignId,
+    operationId: possibility.value.operation.operationId,
+    displayPacket: possibility.value.output.displayPacket,
+    resolution: possibility.value.output.resolution,
+    sceneState: possibility.value.output.sceneState,
+    config: {
+      provider: possibilityProvider,
+      expressionRoute,
+      sceneWriterRoute,
+      retryPolicy
+    }
+  });
+  assert.equal(possibilityEnhanced.enhanced, false);
+  assert.equal(possibilityProvider.requests.some(request => request.role === "scene_writer"), false, "une possibilité risquée no-commit ne doit pas appeler scene_writer");
 
   console.log("narrative-ai-resolution/1: OK");
 }

@@ -139,6 +139,37 @@ assert.equal(
   "une question de contexte fictionnel doit produire une narration MJ concrète même sans commit"
 );
 
+const guardDescriptionIntent = interpretation("meta_question", "demander une description du garde blessé");
+const guardDescription = buildReferenceSceneLocalNarrationV1({
+  rawInput: "peut tu décrire le garde ?",
+  interpretation: guardDescriptionIntent,
+  resolution: resolution("NO_COMMIT_RESPONSE", guardDescriptionIntent)
+});
+assert.match(guardDescription, /garde blessé|cuirasse|flanc|boue|blessure/u);
+assert.equal(/Auberge du Seuil est basse de plafond|salle commune est resserree|auberge de passage tendue/iu.test(guardDescription), false);
+assertNoGenericFog(guardDescription, "description garde");
+
+const guardDescriptionBlocks = buildReferenceSceneBlocksV1({
+  operationId: "operation:guard-description-quality",
+  rawInput: "je te demande de décrire le garde",
+  interpretation: guardDescriptionIntent,
+  resolution: resolution("NO_COMMIT_RESPONSE", guardDescriptionIntent)
+});
+assert.equal(
+  guardDescriptionBlocks.some(block => block.kind === "GM_NARRATION" && /garde blessé|cuirasse|flanc|boue|blessure/u.test(block.text)),
+  true,
+  "la description d'un PNJ ciblé doit primer sur la description générale du lieu"
+);
+
+const locationNaturalIntent = interpretation("meta_question", "demander où se situe le personnage");
+const locationNatural = buildReferenceSceneLocalNarrationV1({
+  rawInput: "peut tu me dire ou je suis ?",
+  interpretation: locationNaturalIntent,
+  resolution: resolution("NO_COMMIT_RESPONSE", locationNaturalIntent)
+});
+assert.match(locationNatural, /Auberge du Seuil|salle commune|auberge/u);
+assertNoGenericFog(locationNatural, "localisation naturelle");
+
 const buildingTypeIntent = interpretation("meta_question", "demander le type de bâtiment");
 const buildingType = buildReferenceSceneLocalNarrationV1({
   rawInput: "je suis dans quel type de batiment ?",

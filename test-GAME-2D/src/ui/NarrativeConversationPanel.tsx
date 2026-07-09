@@ -65,7 +65,7 @@ function blockSourceMatches(block: DisplayBlockV1, pattern: RegExp): boolean {
 function isNoCommitBlock(block: DisplayBlockV1): boolean {
   return (
     block.kind === "CLARIFICATION" ||
-    blockTextMatches(block, /sans commit|aucune action|aucun rÃ©sultat|no commit/iu) ||
+    blockTextMatches(block, /sans commit|aucune action|aucun résultat|no commit/iu) ||
     blockSourceMatches(block, /no-commit/iu)
   );
 }

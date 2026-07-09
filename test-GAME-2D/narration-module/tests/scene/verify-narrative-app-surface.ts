@@ -16,6 +16,7 @@ assert.match(surfaceHtml, /Locale/, "mode local rendu");
 assert.match(surfaceHtml, /OpenAI/, "mode OpenAI rendu");
 
 const narrativeSurfaceSource = readFileSync(resolve("src/narration-ui/NarrativeAppSurface.tsx"), "utf8");
+const presentationVariationSource = readFileSync(resolve("narration-module/src/application/presentationVariation.ts"), "utf8");
 const serverOpenAiClientSource = readFileSync(resolve("src/narration-ui/serverOpenAiEnhancementClient.ts"), "utf8");
 const appSource = readFileSync(resolve("src/App.tsx"), "utf8");
 const mainSource = readFileSync(resolve("src/main.tsx"), "utf8");
@@ -25,9 +26,11 @@ assert.equal(narrativeSurfaceSource.includes("createBrowserPersistentNarrativeTu
 assert.equal(narrativeSurfaceSource.includes("restoreRenderedThread"), true, "surface recharge les projections de rendu persistées");
 assert.equal(narrativeSurfaceSource.includes("player_intent_interpreter"), true, "mode OpenAI configure aussi l'interpreteur d'intention via fournisseur route serveur");
 assert.equal(narrativeSurfaceSource.includes("AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1"), true, "contrat intention OpenAI explicite dans la config UI");
-assert.equal(narrativeSurfaceSource.includes("applyLocalPresentationVariation"), true, "surface applique la variation de présentation locale avant persistance");
-assert.equal(narrativeSurfaceSource.includes("countPriorMetaAnswerBlocks"), true, "variation UI dépend de l'historique visible plutôt que du seul operationId");
-assert.equal(narrativeSurfaceSource.includes("presentation-variant:"), true, "projection tracée avec variante de présentation");
+assert.equal(narrativeSurfaceSource.includes("applyNarrativePresentationVariationV1"), true, "surface délègue la variation de présentation au service applicatif");
+assert.equal(narrativeSurfaceSource.includes("function applyLocalPresentationVariation"), false, "surface ne doit pas porter la logique de variation en local");
+assert.equal(narrativeSurfaceSource.includes("function countPriorMetaAnswerBlocks"), false, "surface ne doit pas compter elle-même les réponses de contexte");
+assert.equal(narrativeSurfaceSource.includes("OpenAI appelé, mais aucune narration utilisable"), true, "surface distingue un appel OpenAI sans bloc MJ exploitable d'un non-appel");
+assert.equal(presentationVariationSource.includes("presentation-variant:"), true, "projection tracée avec variante de présentation dans le service applicatif");
 assert.equal(mainSource.includes("GameBoard"), false, "main.tsx ne doit plus monter GameBoard directement");
 assert.equal(appSource.includes("from \"./GameBoard\""), true, "App.tsx monte GameBoard seulement comme surface tactique");
 assert.equal(appSource.includes("<GameBoard />"), true, "surface tactique explicite");

@@ -7,8 +7,9 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 ## En cours
 
 - [ ] Revoir I-06ZB variation contrôlée et continuité locale en UI, puis décider de la suite produit narration sans ouvrir automatiquement `mj_planner`.
-  References: `test-GAME-2D/narration-module/docs/Matrice-preuves-I06ZA-qualite-scene.md`, `test-GAME-2D/narration-module/docs/Matrice-preuves-I06ZB-variation-controlee.md`, `test-GAME-2D/narration-module/docs/Suivi-prochains-lots-narration.md`.
-  Note: I-06ZB varie les réponses locales météo/contexte/type de bâtiment sans changer les faits, sans commit métier et sans changement d'horloge. Prochaine revue manuelle: répéter deux fois une même question de contexte et vérifier que les faits restent stables sans copie stricte.
+- [ ] Traiter l'audit technique post-I-06ZB avant d'ouvrir une nouvelle capacité narrative.
+  References: `test-GAME-2D/narration-module/docs/Audit-technique-I06ZB.md`, `test-GAME-2D/narration-module/docs/Matrice-preuves-I06ZB-variation-controlee.md`, `test-GAME-2D/narration-module/docs/Suivi-prochains-lots-narration.md`.
+  Note: A-01, A-02, A-03, A-04 et A-07 traités le 2026-07-09. Prochaine priorité proposée: tester manuellement le flux OpenAI sur questions de contexte répétées, puis traiter A-06 si le comportement reste stable.
 - [ ] Consolider la simulation du monde apres l'ajout des objectifs multi-phases, des opportunites de faction et des mobiles non-systeme.
   Reference: `test-GAME-2D/map-module/docs/world-simulation-corrective-roadmap.md`. Les mobiles exposent maintenant l'objectif, la phase et la cible qu'ils servent.
 

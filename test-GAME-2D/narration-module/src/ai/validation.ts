@@ -255,6 +255,7 @@ export function validateAiRoleOutputEnvelopeV1(output: unknown, request: AiCallR
   if (envelope.snapshotId !== request.snapshotId) issues.push(issue("snapshotId", "correlation mismatch"));
   if (envelope.role !== request.role) issues.push(issue("role", "correlation mismatch"));
   if (envelope.contractVersion !== request.contractVersion) issues.push(issue("contractVersion", "correlation mismatch"));
+  if (envelope.status !== "OK") issues.push(issue("status", "only OK outputs are usable by the pipeline"));
   if (!Array.isArray(envelope.diagnostics)) issues.push(issue("diagnostics", "expected array"));
   if (envelope.supersedesOutputId !== null && typeof envelope.supersedesOutputId !== "string") issues.push(issue("supersedesOutputId", "expected string or null"));
 

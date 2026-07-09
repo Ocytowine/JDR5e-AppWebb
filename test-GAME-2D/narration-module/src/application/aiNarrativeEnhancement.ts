@@ -40,6 +40,7 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
   campaignId: string;
   operationId: string;
   displayPacket: DisplayPacketV1 & JsonObject;
+  priorDisplayPackets?: DisplayPacketV1[];
   resolution: NarrativeResolutionResultV1;
   sceneState?: ReferenceSceneStateV1;
   config: AiNarrativeEnhancementConfigV1;
@@ -49,6 +50,7 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
   const incidents: AiIncidentRecordV1[] = [];
   const safetyNotes: string[] = [];
   let changed = false;
+  let sceneWriterAttempted = false;
 
   if (input.resolution.characterExpression !== null) {
     const expressionRun = await runAiPipelineCallV1({
@@ -98,7 +100,8 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
     }
   }
 
-  if (shouldCallSceneWriter(input.resolution)) {
+  if (shouldCallSceneWriter(input.resolution, input.displayPacket)) {
+    sceneWriterAttempted = true;
     const snapshotId = `${input.operationId}:snapshot:display`;
     const packId = `${input.operationId}:pack:scene-writer`;
     const sceneContextPack = await buildReferenceSceneWriterContextPackV1({
@@ -109,7 +112,8 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
       rawInput: findRawInput(input.displayPacket),
       interpretation: input.resolution.interpretation,
       resolution: input.resolution,
-      sceneState: input.sceneState
+      sceneState: input.sceneState,
+      priorDisplayPackets: input.priorDisplayPackets
     });
     const sceneTask = buildReferenceSceneWriterTaskV1({
       rawInput: findRawInput(input.displayPacket),
@@ -147,14 +151,17 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
     });
     incidents.push(...sceneRun.incidents);
     const scenePayload = sceneRun.acceptedOutput?.payload as SceneWriterPayloadV1 | undefined;
-    const narrativeBlocks = scenePayload?.narrationBlocks.filter(block => {
-      return block.blockKind === "MJ_NARRATION"
-        && block.content.trim().length > 0
-        && hasAllowedGrounding(block.groundedIn, sceneTask.allowedGrounding)
-        && !forbiddenNarrativeClaim(block.content);
-    }) ?? [];
+    const assessedBlocks = scenePayload?.narrationBlocks.map(block => assessSceneWriterBlock(block, sceneTask.allowedGrounding)) ?? [];
+    const narrativeBlocks = assessedBlocks
+      .filter(result => result.usable)
+      .map(result => result.block);
     if (narrativeBlocks.length > 0) {
-      enhanced.displayBlocks.push(...narrativeBlocks.map((block, index) => aiNarrationBlock(input.operationId, block.content, sceneRun.acceptedOutput?.outputId ?? "unknown", index)));
+      applySceneWriterNarration({
+        packet: enhanced,
+        resolution: input.resolution,
+        blocks: narrativeBlocks,
+        outputId: sceneRun.acceptedOutput?.outputId ?? "unknown"
+      });
       enhanced.rhythmDiagnostics = `${enhanced.rhythmDiagnostics ?? "none"}|ai-scene-writer`;
       enhanced.reconstructionRefs = [
         ...enhanced.reconstructionRefs,
@@ -164,6 +171,13 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
       ];
       changed = true;
       safetyNotes.push("Narration MJ ajoutée uniquement comme texture ancrée dans la scène de référence.");
+    } else {
+      const reasons = [...new Set(assessedBlocks.flatMap(result => result.rejectionReasons))];
+      safetyNotes.push(
+        reasons.length > 0
+          ? `Scene writer appelé, mais aucun bloc MJ utilisable n'a passé les garde-fous de rendu: ${reasons.join(", ")}.`
+          : "Scene writer appelé, mais aucun bloc MJ utilisable n'a passé les garde-fous de rendu."
+      );
     }
   } else {
     safetyNotes.push("Scene writer non appelé: aucune matière fictionnelle autorisée pour ce résultat sans commit.");
@@ -177,7 +191,12 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
       usedFallback: incidents.length > 0,
       displayPacket: original,
       incidents,
-      safetyNotes: incidents.length > 0 ? ["Fallback déterministe conservé."] : safetyNotes
+      safetyNotes: incidents.length > 0
+        ? [
+          "Fallback déterministe conservé.",
+          ...(sceneWriterAttempted ? ["Scene writer appelé avant fallback."] : [])
+        ]
+        : safetyNotes
     };
   }
 
@@ -213,20 +232,83 @@ function aiNarrationBlock(operationId: string, text: string, outputId: string, i
   };
 }
 
-function shouldCallSceneWriter(resolution: NarrativeResolutionResultV1): boolean {
-  if (resolution.resultKind === "NO_COMMIT_RESPONSE") return false;
+function applySceneWriterNarration(input: {
+  packet: DisplayPacketV1 & JsonObject;
+  resolution: NarrativeResolutionResultV1;
+  blocks: Array<{ content: string }>;
+  outputId: string;
+}): void {
+  const aiBlocks = input.blocks.map((block, index) =>
+    aiNarrationBlock(input.resolution.operationId, block.content, input.outputId, index)
+  );
+  if (isNoCommitSceneContext(input.resolution, input.packet)) {
+    let replacementIndex = 0;
+    input.packet.displayBlocks = input.packet.displayBlocks.map(block => {
+      if (
+        block.kind === "GM_NARRATION" &&
+        block.sourceRefs.some(ref => ref.includes(":meta-answer")) &&
+        replacementIndex < aiBlocks.length
+      ) {
+        const aiBlock = aiBlocks[replacementIndex];
+        replacementIndex += 1;
+        return {
+          ...block,
+          text: aiBlock.text,
+          sourceRefs: [...new Set([...block.sourceRefs, ...aiBlock.sourceRefs])]
+        };
+      }
+      return block;
+    });
+    if (replacementIndex < aiBlocks.length) input.packet.displayBlocks.push(...aiBlocks.slice(replacementIndex));
+    return;
+  }
+  input.packet.displayBlocks.push(...aiBlocks);
+}
+
+function shouldCallSceneWriter(resolution: NarrativeResolutionResultV1, displayPacket: DisplayPacketV1): boolean {
+  if (resolution.resultKind === "NO_COMMIT_RESPONSE") return isNoCommitSceneContext(resolution, displayPacket);
   return resolution.commitId !== null
     || resolution.characterExpression !== null
     || resolution.handoff !== null
     || resolution.resultKind === "CLARIFICATION_REQUIRED";
 }
 
+function isNoCommitSceneContext(resolution: NarrativeResolutionResultV1, displayPacket: DisplayPacketV1): boolean {
+  return resolution.resultKind === "NO_COMMIT_RESPONSE" &&
+    resolution.interpretation.intentType === "meta_question" &&
+    resolution.noGameTime === true &&
+    displayPacket.displayBlocks.some(block =>
+      block.kind === "GM_NARRATION" &&
+      block.sourceRefs.some(ref => ref.includes(":meta-answer"))
+    );
+}
+
 function findRawInput(displayPacket: DisplayPacketV1): string {
   return displayPacket.displayBlocks.find(block => block.kind === "RAW_INPUT")?.text ?? "";
 }
 
-function hasAllowedGrounding(groundedIn: string[], allowedGrounding: string[]): boolean {
-  return groundedIn.length > 0 && groundedIn.every(ref => allowedGrounding.includes(ref));
+function assessSceneWriterBlock(
+  block: SceneWriterPayloadV1["narrationBlocks"][number],
+  allowedGrounding: string[]
+): {
+  usable: boolean;
+  block: SceneWriterPayloadV1["narrationBlocks"][number];
+  rejectionReasons: string[];
+} {
+  const rejectionReasons: string[] = [];
+  if (block.blockKind !== "MJ_NARRATION") rejectionReasons.push(`blockKind=${block.blockKind}`);
+  if (block.content.trim().length === 0) rejectionReasons.push("content_empty");
+  if (!hasAnyAllowedGrounding(block.groundedIn, allowedGrounding)) rejectionReasons.push("grounding_missing_allowed_ref");
+  if (forbiddenNarrativeClaim(block.content)) rejectionReasons.push("forbidden_claim");
+  return {
+    usable: rejectionReasons.length === 0,
+    block,
+    rejectionReasons
+  };
+}
+
+function hasAnyAllowedGrounding(groundedIn: string[], allowedGrounding: string[]): boolean {
+  return groundedIn.length > 0 && groundedIn.some(ref => allowedGrounding.includes(ref));
 }
 
 function forbiddenNarrativeClaim(text: string): boolean {

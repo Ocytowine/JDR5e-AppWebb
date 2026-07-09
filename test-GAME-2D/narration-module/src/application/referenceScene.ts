@@ -1,7 +1,7 @@
 import { computeJsonFingerprint, type JsonObject } from "../core";
 import type { RoleContextPackV1 } from "../context";
 import type { MemorySourceRefV1 } from "../memory";
-import type { DisplayBlockV1, RenderBlockKindV1, SpeakerKindV1 } from "../scene";
+import type { DisplayBlockV1, DisplayPacketV1, RenderBlockKindV1, SpeakerKindV1 } from "../scene";
 import type { NarrativeIntentInterpretationV1 } from "./intentClarification";
 import type { NarrativeResolutionResultV1 } from "./narrativeResolution";
 import {
@@ -88,12 +88,15 @@ export async function buildReferenceSceneWriterContextPackV1(input: {
   interpretation: NarrativeIntentInterpretationV1;
   resolution: NarrativeResolutionResultV1;
   sceneState?: ReferenceSceneStateV1;
+  priorDisplayPackets?: DisplayPacketV1[];
 }): Promise<RoleContextPackV1> {
   const sceneSourceRef = `reference-scene:${REFERENCE_PLAYABLE_SCENE_ID_V1}`;
   const resolutionSourceRef = `resolution:${input.resolution.resolutionId}`;
   const sceneMemoryRef = memorySourceRef("CONTENT_ENTRY", REFERENCE_PLAYABLE_SCENE_ID_V1, input.campaignId, "narration.reference-scene");
   const resolutionMemoryRef = memorySourceRef("OPERATION", input.resolution.resolutionId, input.campaignId, "narration.resolution");
   const sceneStateMemoryRef = memorySourceRef("AGGREGATE", REFERENCE_PLAYABLE_SCENE_ID_V1, input.campaignId, "narration.scene-state");
+  const visibleHistoryMemoryRef = memorySourceRef("OPERATION", `${input.operationId}:visible-history`, input.campaignId, "narration.visible-history");
+  const visibleHistory = buildShortVisibleHistoryV1(input.priorDisplayPackets ?? []);
   const scenePayload = REFERENCE_SCENE_CONTEXT_V1 as unknown as JsonObject;
   const resolutionPayload = {
     resultKind: input.resolution.resultKind,
@@ -210,6 +213,15 @@ export async function buildReferenceSceneWriterContextPackV1(input: {
       ].join(" "),
       payload: input.sceneState as unknown as JsonObject,
       tokenEstimate: 70
+    }] : []), ...(visibleHistory.entries.length > 0 ? [{
+      blockId: `${input.operationId}:context:visible-history`,
+      blockKind: "MEMORY_CAPSULE" as const,
+      sourceRefs: [visibleHistoryMemoryRef],
+      visibility: "PLAYER_CHARACTER" as const,
+      actorScope: [],
+      text: visibleHistory.text,
+      payload: visibleHistory as unknown as JsonObject,
+      tokenEstimate: visibleHistory.tokenEstimate
     }] : []), {
       blockId: `${input.operationId}:context:resolution`,
       blockKind: "COMMITTED_RESULT",
@@ -235,6 +247,46 @@ export async function buildReferenceSceneWriterContextPackV1(input: {
   return {
     ...packDraft,
     packFingerprint: await computeJsonFingerprint({ ...packDraft, packFingerprint: null }) as `sha256:${string}`
+  };
+}
+
+export function buildShortVisibleHistoryV1(packets: DisplayPacketV1[]): {
+  schemaVersion: 1;
+  entries: Array<{
+    packetOperationId: string;
+    kind: DisplayBlockV1["kind"];
+    speaker: string;
+    text: string;
+  }>;
+  text: string;
+  tokenEstimate: number;
+} {
+  const visibleKinds = new Set<DisplayBlockV1["kind"]>([
+    "RAW_INPUT",
+    "PLAYER_EXPRESSION",
+    "GM_NARRATION",
+    "NPC_SPEECH"
+  ]);
+  const entries = packets
+    .slice(-3)
+    .flatMap(packet => packet.displayBlocks
+      .filter(block => visibleKinds.has(block.kind))
+      .map(block => ({
+        packetOperationId: packet.operationId,
+        kind: block.kind,
+        speaker: block.speaker.displayName,
+        text: block.text.replace(/\s+/gu, " ").trim().slice(0, 220)
+      }))
+    )
+    .filter(entry => entry.text.length > 0)
+    .slice(-6);
+  return {
+    schemaVersion: 1,
+    entries,
+    text: entries.length > 0
+      ? `Historique visible court: ${entries.map(entry => `${entry.speaker} (${entry.kind}): ${entry.text}`).join(" | ")}`
+      : "Historique visible court: aucun échange visible récent.",
+    tokenEstimate: Math.max(40, entries.reduce((sum, entry) => sum + Math.ceil(entry.text.length / 4), 0))
   };
 }
 
@@ -306,9 +358,9 @@ export function buildReferenceSceneLocalNarrationV1(input: {
     if (isOutOfFictionMetaQuestion(input.rawInput)) {
       return "Réponse hors fiction : le temps de jeu ne bouge pas et la scène de l'Auberge du Seuil reste exactement au même point.";
     }
-    if (isLocationQuestion(input.rawInput)) return locationAnswerNarration();
-    if (isWeatherQuestion(input.rawInput)) return weatherAnswerNarration(variant);
-    return sceneContextNarration(input.rawInput, variant);
+    if (isLocationQuestion(input.rawInput, input.interpretation.coreMeaning)) return locationAnswerNarration();
+    if (isWeatherQuestion(input.rawInput, input.interpretation.coreMeaning)) return weatherAnswerNarration(variant);
+    return sceneContextNarration(input.rawInput, input.interpretation.coreMeaning, variant);
   }
   if (input.interpretation.intentType === "possibility_query") {
     if (isSocialPossibilityQuestion(input.rawInput)) return socialPossibilityNarration(input.rawInput);
@@ -336,9 +388,9 @@ export function buildReferenceSceneBlocksV1(input: {
   if (input.resolution.resultKind === "CLARIFICATION_REQUIRED") return [];
   if (input.interpretation.intentType === "meta_question") {
     if (isOutOfFictionMetaQuestion(input.rawInput)) return [];
-    const answerKind = isWeatherQuestion(input.rawInput)
+    const answerKind = isWeatherQuestion(input.rawInput, input.interpretation.coreMeaning)
       ? "weather"
-      : isLocationQuestion(input.rawInput)
+      : isLocationQuestion(input.rawInput, input.interpretation.coreMeaning)
         ? "location"
         : "context";
     const variant = presentationVariant(input.operationId, 3);
@@ -352,7 +404,7 @@ export function buildReferenceSceneBlocksV1(input: {
         ? weatherAnswerNarration(variant)
         : answerKind === "location"
           ? locationAnswerNarration()
-          : sceneContextNarration(input.rawInput, variant),
+          : sceneContextNarration(input.rawInput, input.interpretation.coreMeaning, variant),
       sourceRefs: [`reference-scene:${REFERENCE_PLAYABLE_SCENE_ID_V1}`, `resolution:${input.resolution.resolutionId}:meta-answer`]
     })];
   }
@@ -410,14 +462,18 @@ export function buildReferenceSceneBlocksV1(input: {
   return [];
 }
 
-function isLocationQuestion(rawInput: string): boolean {
-  const normalized = rawInput.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
-  return /\b(ou sommes-nous|ou suis-je|quel lieu|endroit|localisation)\b/u.test(normalized);
+function isLocationQuestion(rawInput: string, coreMeaning = ""): boolean {
+  const normalized = normalizeTopicInput(rawInput, coreMeaning);
+  return /\b(ou sommes-nous|ou suis-je|ou je suis|ou je me trouve|ou me situe|me situe|quel lieu|endroit|localisation)\b/u.test(normalized);
 }
 
-function isWeatherQuestion(rawInput: string): boolean {
-  const normalized = rawInput.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
+function isWeatherQuestion(rawInput: string, coreMeaning = ""): boolean {
+  const normalized = normalizeTopicInput(rawInput, coreMeaning);
   return /\b(temps|meteo|pluie|pleut|dehors|ciel|beau|mauvais temps|fait[- ]il beau|il fait beau)\b/u.test(normalized);
+}
+
+function normalizeTopicInput(rawInput: string, coreMeaning = ""): string {
+  return `${rawInput} ${coreMeaning}`.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
 }
 
 function isOutOfFictionMetaQuestion(rawInput: string): boolean {
@@ -443,20 +499,13 @@ function weatherAnswerNarration(variant = 0): string {
   ]);
 }
 
-function sceneContextNarration(rawInput: string, variant = 0): string {
-  const normalized = rawInput.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
+function sceneContextNarration(rawInput: string, coreMeaning = "", variant = 0): string {
+  const normalized = normalizeTopicInput(rawInput, coreMeaning);
   if (/\b(type|batiment|bâtiment|edifice|etablissement|endroit)\b/u.test(normalized)) {
     return selectPresentationVariant(variant, [
       "Tu te trouves dans une auberge de passage : un bâtiment public fait pour boire, manger, attendre une chambre ou des nouvelles. L'Auberge du Seuil n'a rien d'un palais ni d'une caserne; c'est un lieu de halte, bas de plafond, usé par la pluie et traversé ce soir par une tension inhabituelle.",
       "C'est une auberge, donc un lieu ouvert aux voyageurs, aux habitués et aux gens qui cherchent un abri plus qu'un refuge sûr. L'Auberge du Seuil sert à boire, à manger et probablement à louer des chambres, mais ce soir elle ressemble surtout à un point d'attente sous pression.",
       "Le bâtiment est une auberge de passage : salle commune, comptoir, passage vers l'arrière et clientèle de halte. Rien n'indique une demeure privée; tout dit plutôt un établissement public fatigué par la pluie, où la présence du garde blessé change l'ambiance."
-    ]);
-  }
-  if (/\b(auberge|salle|piece|lieu|decor|decrire|decris|description)\b/u.test(normalized)) {
-    return selectPresentationVariant(variant, [
-      "L'Auberge du Seuil est basse de plafond, chaude seulement près de l'âtre, et saturée d'odeurs de bois humide. Les clients parlent peu. Le garde blessé occupe l'attention sans la réclamer, tandis que la serveuse nerveuse garde un œil trop fréquent sur la porte du fond.",
-      "La salle commune est resserrée, plus pratique que belle : tables marquées, comptoir usé, manteaux humides près de l'entrée. Le garde blessé attire les regards malgré lui, et la serveuse travaille en surveillant trop souvent la porte du fond.",
-      "Tu vois une auberge de passage tendue par l'orage et par ce qui n'est pas dit. La pluie colle aux volets, les clients restent prudents, la serveuse évite certains regards, et la porte du fond pèse dans la pièce plus qu'une simple porte ne devrait."
     ]);
   }
   if (/\b(garde|blesse|soldat)\b/u.test(normalized)) {
@@ -478,6 +527,13 @@ function sceneContextNarration(rawInput: string, variant = 0): string {
       "La porte du fond est étroite, presque banale, mais la salle entière semble se tendre autour d'elle. La serveuse la surveille sans vouloir le montrer, et le garde blessé paraît attendre que quelqu'un ose s'en approcher.",
       "La porte menant vers l'arrière-salle n'a rien de spectaculaire. Pourtant, les regards qui l'évitent ou y reviennent la rendent plus importante que son apparence ne le justifie.",
       "C'est une porte de service, proche du comptoir, assez discrète pour passer inaperçue si personne ne la craignait. Ici, le garde blessé et la serveuse lui donnent malgré eux trop de poids."
+    ]);
+  }
+  if (/\b(auberge|salle|piece|lieu|decor|decrire|decris|description)\b/u.test(normalized)) {
+    return selectPresentationVariant(variant, [
+      "L'Auberge du Seuil est basse de plafond, chaude seulement près de l'âtre, et saturée d'odeurs de bois humide. Les clients parlent peu. Le garde blessé occupe l'attention sans la réclamer, tandis que la serveuse nerveuse garde un œil trop fréquent sur la porte du fond.",
+      "La salle commune est resserrée, plus pratique que belle : tables marquées, comptoir usé, manteaux humides près de l'entrée. Le garde blessé attire les regards malgré lui, et la serveuse travaille en surveillant trop souvent la porte du fond.",
+      "Tu vois une auberge de passage tendue par l'orage et par ce qui n'est pas dit. La pluie colle aux volets, les clients restent prudents, la serveuse évite certains regards, et la porte du fond pèse dans la pièce plus qu'une simple porte ne devrait."
     ]);
   }
   return selectPresentationVariant(variant, [

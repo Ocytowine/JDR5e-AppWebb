@@ -21,7 +21,7 @@ function request(overrides = {}) {
     role: "player_expression_adapter",
     contractVersion: "narrative-ai-resolution/1",
     modelRouteId: "client-route-placeholder",
-    contextFingerprint: "sha256:route-fixture",
+    contextFingerprint: "sha256:1111111111111111111111111111111111111111111111111111111111111111",
     idempotencyKey: "idem-route-expression-001",
     input: {
       instructionsRef: "narrative-ai-resolution/player-expression-adapter/v1",
@@ -60,6 +60,33 @@ function outputFor(req) {
     },
     diagnostics: [],
     supersedesOutputId: null
+  };
+}
+
+function sceneOutputFor(req, overrides = {}) {
+  return {
+    schemaVersion: 1,
+    contractVersion: req.contractVersion,
+    outputId: "output-route-scene-001",
+    callId: req.callId,
+    attemptId: req.attemptId,
+    packId: req.packId,
+    snapshotId: req.snapshotId,
+    role: req.role,
+    status: "OK",
+    payload: {
+      narrationBlocks: [{
+        slotId: "scene-weather",
+        blockKind: "MJ_NARRATION",
+        content: "La pluie frappe les volets de l'auberge.",
+        groundedIn: ["resolution:route-scene-001"],
+        usesCreativeTexture: true
+      }],
+      ...(overrides.payload || {})
+    },
+    diagnostics: [],
+    supersedesOutputId: null,
+    ...overrides
   };
 }
 
@@ -156,6 +183,20 @@ async function main() {
   assert.equal(normalizedIntent.ok, true);
   const rejectedIntentContract = normalizeAiCallRequest(intentRequest({ contractVersion: "narrative-ai-resolution/1" }));
   assert.equal(rejectedIntentContract.ok, false);
+  const rejectedMissingFingerprint = normalizeAiCallRequest(request({ contextFingerprint: undefined }));
+  assert.equal(rejectedMissingFingerprint.ok, false);
+  assert.equal(rejectedMissingFingerprint.issues.includes("contextFingerprint must be a non-empty string."), true);
+  const rejectedBadFingerprint = normalizeAiCallRequest(request({ contextFingerprint: "sha256:not-a-real-fingerprint" }));
+  assert.equal(rejectedBadFingerprint.ok, false);
+  assert.equal(rejectedBadFingerprint.issues.includes("contextFingerprint must be a sha256 fingerprint."), true);
+  const rejectedMissingInstructions = normalizeAiCallRequest(request({
+    input: {
+      roleContextPack: {},
+      task: {}
+    }
+  }));
+  assert.equal(rejectedMissingInstructions.ok, false);
+  assert.equal(rejectedMissingInstructions.issues.includes("input.instructionsRef must be a non-empty string."), true);
 
   const body = buildOpenAiResponsesBody(request(), { modelId: "gpt-4.1-mini" });
   assert.equal(body.text.format.type, "json_schema");
@@ -174,13 +215,21 @@ async function main() {
     input: {
       instructionsRef: "narrative-ai-resolution/scene-writer/v1",
       roleContextPack: {},
-      task: { resolutionIds: ["resolution-route-001"] }
+      task: {
+        resolutionIds: ["resolution-route-001"],
+        allowedGrounding: ["resolution:route-scene-001", "reference-scene:reference-inn-rain-001"]
+      }
     }
   });
   const sceneSchema = buildStrictAiOutputSchema(sceneReq);
   assert.deepEqual(sceneSchema.schema.properties.role.enum, ["scene_writer"]);
   assert.equal(sceneSchema.schema.properties.payload.required.includes("narrationBlocks"), true);
   assert.equal(sceneSchema.schema.properties.payload.properties.narrationBlocks.items.required.includes("groundedIn"), true);
+  assert.deepEqual(sceneSchema.schema.properties.payload.properties.narrationBlocks.items.properties.blockKind.enum, ["MJ_NARRATION"]);
+  assert.deepEqual(sceneSchema.schema.properties.payload.properties.narrationBlocks.items.properties.groundedIn.items.enum, [
+    "resolution:route-scene-001",
+    "reference-scene:reference-inn-rain-001"
+  ]);
 
   const intentBody = buildOpenAiResponsesBody(intentRequest(), { modelId: "gpt-4.1-mini" });
   assert.equal(intentBody.text.format.schema.properties.contractVersion.enum[0], "ai-intent-interpretation/1");
@@ -191,6 +240,34 @@ async function main() {
   const dangerousExpression = validateEnvelope({ ...outputFor(request()), payload: { ...outputFor(request()).payload, addedMeaning: ["promesse de payer"] } }, request());
   assert.equal(dangerousExpression.ok, false);
   assert.equal(dangerousExpression.issues.includes("payload.addedMeaning must be empty."), true);
+  const unusableExpression = validateEnvelope({
+    ...outputFor(request()),
+    status: "PARTIAL_UNUSABLE",
+    diagnostics: [{
+      code: "PROVIDER_REFUSED",
+      severity: "BLOCKING",
+      message: "Provider refused usable output.",
+      sourceRefs: ["operation:operation-route-expression-001"]
+    }]
+  }, request());
+  assert.equal(unusableExpression.ok, false);
+  assert.equal(unusableExpression.issues.includes("status must be OK for a usable output."), true);
+  const systemNoticeScene = validateEnvelope(
+    sceneOutputFor(sceneReq, {
+      payload: {
+        narrationBlocks: [{
+          slotId: "scene-notice",
+          blockKind: "SYSTEM_NOTICE",
+          content: "Cette réponse ne fait pas avancer le temps.",
+          groundedIn: ["resolution:route-scene-001"],
+          usesCreativeTexture: false
+        }]
+      }
+    }),
+    sceneReq
+  );
+  assert.equal(systemNoticeScene.ok, false);
+  assert.equal(systemNoticeScene.issues.includes("payload.narrationBlocks[0].blockKind must be MJ_NARRATION."), true);
   const dangerousIntent = validateEnvelope(
     intentOutputFor(intentRequest(), { intent: { intentType: "possibility_query", commitment: "committed" } }),
     intentRequest()
@@ -423,6 +500,63 @@ async function main() {
   assert.equal(liveIntent.payload.output.role, "player_intent_interpreter");
   assert.equal(liveIntent.payload.output.contractVersion, "ai-intent-interpretation/1");
   assert.equal(capturedBody.model, "gpt-4.1-intent-test");
+
+  const fencedSceneApi = createNarrativeOpenAiEnhancementApi({
+    env: { NARRATION_OPENAI_LIVE: "1", NARRATION_OPENAI_MODEL: "gpt-4.1-mini" },
+    apiKey: "sk-test-secret",
+    fetchImpl: async (_url, init) => {
+      capturedBody = JSON.parse(init.body);
+      return {
+        status: 200,
+        statusText: "OK",
+        async json() {
+          return {
+            output_text: `\`\`\`json\n${JSON.stringify(sceneOutputFor(sceneReq))}\n\`\`\``,
+            usage: { input_tokens: 12, output_tokens: 22, total_tokens: 34 }
+          };
+        },
+        async text() {
+          return "";
+        }
+      };
+    },
+    parseJsonBody: async req => req.body,
+    sendJson: (res, statusCode, data) => {
+      res.statusCode = statusCode;
+      res.payload = data;
+    }
+  });
+  const fencedScene = await runRoute(fencedSceneApi, { request: sceneReq });
+  assert.equal(fencedScene.payload.ok, true);
+  assert.equal(fencedScene.payload.output.role, "scene_writer");
+  assert.deepEqual(capturedBody.text.format.schema.properties.payload.properties.narrationBlocks.items.properties.groundedIn.items.enum, [
+    "resolution:route-scene-001",
+    "reference-scene:reference-inn-rain-001"
+  ]);
+
+  const invalidJsonApi = createNarrativeOpenAiEnhancementApi({
+    env: { NARRATION_OPENAI_LIVE: "1" },
+    apiKey: "sk-test-secret",
+    fetchImpl: async () => ({
+      status: 200,
+      statusText: "OK",
+      async json() {
+        return { output_text: "Je ne respecte pas le format JSON." };
+      },
+      async text() {
+        return "";
+      }
+    }),
+    parseJsonBody: async req => req.body,
+    sendJson: (res, statusCode, data) => {
+      res.statusCode = statusCode;
+      res.payload = data;
+    }
+  });
+  const invalidJson = await runRoute(invalidJsonApi, { request: sceneReq });
+  assert.equal(invalidJson.payload.ok, false);
+  assert.equal(invalidJson.payload.error, "OPENAI_INVALID_JSON");
+  assert.equal(/Preview: Je ne respecte pas le format JSON/u.test(invalidJson.payload.output.diagnostics[0].message), true);
 
   const invalidOutputApi = createNarrativeOpenAiEnhancementApi({
     env: { NARRATION_OPENAI_LIVE: "1" },

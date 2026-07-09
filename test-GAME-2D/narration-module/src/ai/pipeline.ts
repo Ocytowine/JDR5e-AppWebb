@@ -126,6 +126,7 @@ export async function runAiPipelineCallV1(input: AiPipelineRunInputV1): Promise<
       unsafeDetails: {
         issues: validation.issues,
         outputDiagnostics: extractOutputDiagnosticCodes(rawOutput),
+        outputDiagnosticMessages: extractOutputDiagnosticMessages(rawOutput),
         rawProviderOutput: rawOutput
       }
     }));
@@ -145,6 +146,19 @@ function extractOutputDiagnosticCodes(output: unknown): string[] {
       return typeof code === "string" && code.trim().length > 0 ? code : null;
     })
     .filter((code): code is string => code !== null);
+}
+
+function extractOutputDiagnosticMessages(output: unknown): string[] {
+  if (!output || typeof output !== "object" || Array.isArray(output)) return [];
+  const diagnostics = (output as { diagnostics?: unknown }).diagnostics;
+  if (!Array.isArray(diagnostics)) return [];
+  return diagnostics
+    .map(entry => {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) return null;
+      const message = (entry as { message?: unknown }).message;
+      return typeof message === "string" && message.trim().length > 0 ? message.trim().slice(0, 300) : null;
+    })
+    .filter((message): message is string => message !== null);
 }
 
 export interface DeterministicRenderFallbackInputV1 {

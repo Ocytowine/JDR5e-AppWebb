@@ -63,6 +63,8 @@ const source = readFileSync(
   resolve("src/ui/NarrativeConversationPanel.tsx"),
   "utf8"
 );
+assert.equal(source.includes("rÃ"), false, "source UI ne doit pas contenir de texte UTF-8 corrompu");
+assert.equal(source.includes("aucun résultat"), true, "motif no-commit doit couvrir 'aucun résultat' avec encodage correct");
 
 for (const forbidden of [
   "fetch(",

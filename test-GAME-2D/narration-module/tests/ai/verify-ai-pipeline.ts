@@ -120,6 +120,19 @@ async function run(): Promise<void> {
   assert.equal(possibilityPayload.intents[0].expectedTimeEffect, "NO_GAME_TIME");
   console.log("PASS [ai-pipeline] NAR-ACC-001 hypothetical guard question produces no mutation or game time");
 
+  const unusableValidation = validateAiRoleOutputEnvelopeV1(output(possibilityPayload, {
+    status: "PARTIAL_UNUSABLE",
+    diagnostics: [{
+      code: "PROVIDER_REFUSED",
+      severity: "BLOCKING",
+      message: "Provider refused usable output.",
+      sourceRefs: ["operation:operation-001"]
+    }]
+  }), request());
+  assert.equal(unusableValidation.accepted, false);
+  assert.ok(unusableValidation.issues.some(issue => issue.includes("status")));
+  console.log("PASS [ai-pipeline] non-OK role output status is rejected even with a valid payload");
+
   const provider = new FakeContractAiProviderV1([
     ["attempt-001", { ...accepted, unexpected: "field" }],
     ["attempt-001:retry-1", output(possibilityPayload, {
@@ -138,7 +151,30 @@ async function run(): Promise<void> {
   assert.deepEqual(runResult.attempts.map(attempt => attempt.status), ["REJECTED", "ACCEPTED"]);
   assert.equal(runResult.incidents.length, 1);
   assert.equal(runResult.incidents[0].safeDetails.rawProviderOutput, "[REDACTED]");
+  assert.deepEqual(runResult.incidents[0].safeDetails.outputDiagnosticMessages, []);
   console.log("PASS [ai-pipeline] NAR-ACC-014 invalid output is rejected then corrected with redacted incident");
+
+  const diagnosticProvider = new FakeContractAiProviderV1([
+    ["attempt-001", output(possibilityPayload, {
+      status: "PARTIAL_UNUSABLE",
+      diagnostics: [{
+        code: "OPENAI_INVALID_JSON",
+        severity: "BLOCKING",
+        message: "OpenAI output was not parseable JSON. Preview: texte non JSON.",
+        sourceRefs: ["operation:operation-001"]
+      }]
+    })]
+  ]);
+  const diagnosticRun = await runAiPipelineCallV1({
+    request: request(),
+    route: route(),
+    retryPolicy: { ...retryPolicy(), maxTargetedCorrections: 0, maxFullRegenerations: 0 },
+    provider: diagnosticProvider
+  });
+  assert.equal(diagnosticRun.acceptedOutput, null);
+  assert.deepEqual(diagnosticRun.incidents[0].safeDetails.outputDiagnostics, ["OPENAI_INVALID_JSON"]);
+  assert.deepEqual(diagnosticRun.incidents[0].safeDetails.outputDiagnosticMessages, ["OpenAI output was not parseable JSON. Preview: texte non JSON."]);
+  console.log("PASS [ai-pipeline] provider diagnostic messages are preserved in safe incident details");
 
   const failedProvider = new FakeContractAiProviderV1([
     ["attempt-001", "not-json-object"],

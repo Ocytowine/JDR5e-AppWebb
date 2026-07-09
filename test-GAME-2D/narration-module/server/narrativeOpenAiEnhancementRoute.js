@@ -38,7 +38,7 @@ function buildStrictAiOutputSchema(request) {
         snapshotId: { enum: [request.snapshotId] },
         role: { enum: [request.role] },
         status: { enum: ["OK", "NEEDS_CLARIFICATION", "CANNOT_COMPLY", "REFUSED", "PARTIAL_UNUSABLE"] },
-        payload: buildRolePayloadSchema(request.role),
+        payload: buildRolePayloadSchema(request),
         diagnostics: {
           type: "array",
           items: {
@@ -110,7 +110,8 @@ const STRICT_AI_OUTPUT_SCHEMA = {
   }
 };
 
-function buildRolePayloadSchema(role) {
+function buildRolePayloadSchema(requestOrRole) {
+  const role = typeof requestOrRole === "string" ? requestOrRole : requestOrRole.role;
   if (role === "player_intent_interpreter") {
     return {
       type: "object",
@@ -218,6 +219,12 @@ function buildRolePayloadSchema(role) {
     };
   }
 
+  const allowedGrounding = Array.isArray(requestOrRole?.input?.task?.allowedGrounding)
+    ? requestOrRole.input.task.allowedGrounding.filter(ref => typeof ref === "string" && ref.trim().length > 0)
+    : [];
+  const groundedInItems = allowedGrounding.length > 0
+    ? { type: "string", enum: allowedGrounding }
+    : { type: "string" };
   return {
     type: "object",
     additionalProperties: false,
@@ -231,9 +238,9 @@ function buildRolePayloadSchema(role) {
           required: ["slotId", "blockKind", "content", "groundedIn", "usesCreativeTexture"],
           properties: {
             slotId: { type: "string" },
-            blockKind: { enum: ["MJ_NARRATION", "SYSTEM_NOTICE"] },
+            blockKind: { enum: ["MJ_NARRATION"] },
             content: { type: "string" },
-            groundedIn: { type: "array", items: { type: "string" } },
+            groundedIn: { type: "array", minItems: 1, items: groundedInItems },
             usesCreativeTexture: { type: "boolean" }
           }
         }
@@ -316,12 +323,16 @@ function createNarrativeOpenAiEnhancementApi(options) {
 
       let parsed;
       try {
-        parsed = JSON.parse(outputText);
+        parsed = parseOpenAiOutputJson(outputText);
       } catch {
         return sendJson(res, 200, {
           ok: false,
           error: "OPENAI_INVALID_JSON",
-          output: errorEnvelope(request.value, "OPENAI_INVALID_JSON", "OpenAI output was not parseable JSON.")
+          output: errorEnvelope(
+            request.value,
+            "OPENAI_INVALID_JSON",
+            `OpenAI output was not parseable JSON. Preview: ${previewProviderText(outputText)}`
+          )
         });
       }
 
@@ -373,6 +384,7 @@ function normalizeAiCallRequest(value) {
     "role",
     "contractVersion",
     "modelRouteId",
+    "contextFingerprint",
     "idempotencyKey"
   ]) {
     if (typeof request[key] !== "string" || request[key].trim().length === 0) issues.push(`${key} must be a non-empty string.`);
@@ -381,7 +393,14 @@ function normalizeAiCallRequest(value) {
   if (!ALLOWED_ROLES.has(request.role)) issues.push("role is not allowed for narrative enhancement.");
   const expectedContractVersion = contractVersionForRole(request.role);
   if (request.contractVersion !== expectedContractVersion) issues.push(`contractVersion must be ${expectedContractVersion}.`);
-  if (!request.input || typeof request.input !== "object") issues.push("input must be an object.");
+  if (typeof request.contextFingerprint === "string" && !/^sha256:[a-f0-9]{64}$/u.test(request.contextFingerprint)) {
+    issues.push("contextFingerprint must be a sha256 fingerprint.");
+  }
+  if (!request.input || typeof request.input !== "object") {
+    issues.push("input must be an object.");
+  } else if (typeof request.input.instructionsRef !== "string" || request.input.instructionsRef.trim().length === 0) {
+    issues.push("input.instructionsRef must be a non-empty string.");
+  }
   if (!request.limits || typeof request.limits !== "object") {
     issues.push("limits must be an object.");
   } else {
@@ -507,11 +526,20 @@ function buildRoleInstructions(request) {
     "Role scene_writer: ajoute seulement une narration MJ atmospherique ancree dans les resolutions deja confirmees.",
     "Le rendu doit etre concret: lieu, perception, tension locale, PNJ visibles. Evite les phrases generiques comme 'tout reste possible' si un detail de scene est disponible.",
     "Pour une parole ou une action engagee, montre la mise en scene immediate sans decider le succes, l'echec, la reaction decisive ou une consequence durable.",
+    "Pour une question de contexte no-commit, reponds directement avec les perceptions et faits visibles deja fournis dans un bloc blockKind=MJ_NARRATION; n'ajoute aucune action du personnage et ne fais pas avancer le temps.",
     "Pour une clarification ou une possibilite, rends la limite claire: aucune action n'est executee et le temps de jeu ne progresse pas.",
-    "Chaque bloc doit citer au moins une source dans groundedIn, par exemple resolution:<id> si fourni dans la tache.",
+    "Chaque bloc doit citer dans groundedIn au moins une reference exacte fournie dans task.allowedGrounding. Tu peux citer plusieurs references, mais au moins une doit etre recopiee exactement.",
+    `References groundedIn autorisees pour cette requete: ${allowedGroundingInstruction(request)}.`,
     "N'annonce pas de nouveau resultat de test, de degat, de reaction PNJ decisive, de combat, de recompense ou de secret.",
     "La texture creative est autorisee seulement pour decrire le ton, le rythme, les sensations et la mise en scene."
   ].join("\n");
+}
+
+function allowedGroundingInstruction(request) {
+  const refs = Array.isArray(request?.input?.task?.allowedGrounding)
+    ? request.input.task.allowedGrounding.filter(ref => typeof ref === "string" && ref.trim().length > 0)
+    : [];
+  return refs.length > 0 ? refs.join(" | ") : "aucune reference specifique; utilise les refs fournies dans la tache";
 }
 
 function extractOutputText(data) {
@@ -526,6 +554,33 @@ function extractOutputText(data) {
     }
   }
   return null;
+}
+
+function parseOpenAiOutputJson(outputText) {
+  try {
+    return JSON.parse(outputText);
+  } catch {
+    const extracted = extractJsonObjectText(outputText);
+    if (!extracted) throw new Error("No JSON object found.");
+    return JSON.parse(extracted);
+  }
+}
+
+function extractJsonObjectText(text) {
+  if (typeof text !== "string") return null;
+  const trimmed = text.trim();
+  const fenced = trimmed.match(/^```(?:json)?\s*(?<body>[\s\S]*?)\s*```$/iu);
+  if (fenced?.groups?.body) return fenced.groups.body.trim();
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+  if (start < 0 || end <= start) return null;
+  return trimmed.slice(start, end + 1);
+}
+
+function previewProviderText(text) {
+  return String(text ?? "")
+    .replace(/\s+/gu, " ")
+    .slice(0, 240);
 }
 
 function validateEnvelope(output, request) {
@@ -554,6 +609,7 @@ function validateEnvelope(output, request) {
   if (output.packId !== request.packId) issues.push("packId mismatch.");
   if (output.snapshotId !== request.snapshotId) issues.push("snapshotId mismatch.");
   if (output.role !== request.role) issues.push("role mismatch.");
+  if (output.status !== "OK") issues.push("status must be OK for a usable output.");
   if (!Array.isArray(output.diagnostics)) issues.push("diagnostics must be an array.");
   if (!output.payload || typeof output.payload !== "object" || Array.isArray(output.payload)) {
     issues.push("payload must be an object.");
@@ -653,7 +709,7 @@ function validateRolePayload(payload, role, request = null) {
       continue;
     }
     if (typeof block.slotId !== "string" || block.slotId.trim().length === 0) issues.push(`payload.narrationBlocks[${index}].slotId must be a non-empty string.`);
-    if (!["MJ_NARRATION", "SYSTEM_NOTICE"].includes(block.blockKind)) issues.push(`payload.narrationBlocks[${index}].blockKind is invalid.`);
+    if (block.blockKind !== "MJ_NARRATION") issues.push(`payload.narrationBlocks[${index}].blockKind must be MJ_NARRATION.`);
     if (typeof block.content !== "string" || block.content.trim().length === 0) issues.push(`payload.narrationBlocks[${index}].content must be a non-empty string.`);
     if (!Array.isArray(block.groundedIn) || block.groundedIn.length === 0 || block.groundedIn.some(item => typeof item !== "string")) {
       issues.push(`payload.narrationBlocks[${index}].groundedIn must be a non-empty string array.`);
