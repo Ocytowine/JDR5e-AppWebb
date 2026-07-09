@@ -60,6 +60,12 @@ const metaQuestions = [
   "Est-ce que l'interface sauvegarde automatiquement ?"
 ];
 
+const contextQuestions = [
+  "Peux-tu me décrire l'auberge ?",
+  "Tu peux me dire où je me situe ?",
+  "Pourrais-tu me rappeler ce que je vois ?"
+];
+
 const ambiguousInputs = [
   "Lui voler quelque chose ?",
   "Et si j'entrais ?",
@@ -105,6 +111,15 @@ async function main(): Promise<void> {
     assert.equal(result.interpretation.intentType, "meta_question", `${rawInput}: méta attendue`);
     assert.equal(result.interpretation.commitment, "none", `${rawInput}: aucun engagement`);
     assert.equal(result.interpretation.expectedTimeEffect, "NO_GAME_TIME", `${rawInput}: aucun temps`);
+  }
+
+  for (const rawInput of contextQuestions) {
+    const result = await interpret(rawInput, config);
+    assert.equal(result.usedAiInterpretation, true, `${rawInput}: IA structurée attendue`);
+    assert.equal(result.interpretation.intentType, "meta_question", `${rawInput}: question de contexte attendue`);
+    assert.equal(result.interpretation.commitment, "none", `${rawInput}: aucun engagement`);
+    assert.equal(result.interpretation.expectedTimeEffect, "NO_GAME_TIME", `${rawInput}: aucun temps`);
+    assert.equal(result.interpretation.requiresClarification, false, `${rawInput}: pas de clarification`);
   }
 
   for (const rawInput of ambiguousInputs) {

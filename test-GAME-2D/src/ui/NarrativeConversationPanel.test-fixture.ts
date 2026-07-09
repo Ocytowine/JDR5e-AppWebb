@@ -62,7 +62,7 @@ export const narrativePanelFixture: DisplayPacketV1 = {
       isDegradedFallback: false
     },
     {
-      blockId: "block-system-no-commit",
+      blockId: "block-system-context",
       kind: "SYSTEM_NOTICE",
       speaker: {
         speakerId: "speaker-system",
@@ -72,11 +72,29 @@ export const narrativePanelFixture: DisplayPacketV1 = {
         ariaLabel: "Notification système",
         visualToken: "speaker-system"
       },
-      text: "Aucune action n'est exécutée : réponse sans commit et aucun temps de jeu ne passe.",
+      text: "Réponse de contexte sans commit métier. Aucun temps de jeu n'a été déclenché.",
       ariaLabel: "Notification système: SYSTEM_NOTICE",
       roleLabel: "Notification système",
       visualStyleToken: "speaker-system",
-      sourceRefs: ["resolution:no-commit"],
+      sourceRefs: ["resolution:context", "intent:meta_question"],
+      isDegradedFallback: false
+    },
+    {
+      blockId: "block-system-possibility",
+      kind: "SYSTEM_NOTICE",
+      speaker: {
+        speakerId: "speaker-system",
+        kind: "SYSTEM",
+        displayName: "Système",
+        roleLabel: "Notification système",
+        ariaLabel: "Notification système",
+        visualToken: "speaker-system"
+      },
+      text: "Question de possibilité traitée sans commit métier. Aucune action n'a été exécutée.",
+      ariaLabel: "Notification système: SYSTEM_NOTICE",
+      roleLabel: "Notification système",
+      visualStyleToken: "speaker-system",
+      sourceRefs: ["resolution:possibility", "intent:possibility_query"],
       isDegradedFallback: false
     },
     {

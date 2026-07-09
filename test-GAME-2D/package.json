@@ -48,6 +48,7 @@
     "narration-module:test:narrative-render-projection": "npx --yes tsx narration-module/tests/scene/verify-narrative-render-projection.ts",
     "narration-module:test:vertical-quality": "npx --yes tsx narration-module/tests/scene/verify-vertical-quality-i06q.ts",
     "narration-module:test:scene-playable-quality": "npx --yes tsx narration-module/tests/scene/verify-scene-playable-quality-i06za.ts",
+    "narration-module:test:scene-controlled-variation": "npx --yes tsx narration-module/tests/scene/verify-scene-controlled-variation-i06zb.ts",
     "narration-module:test:playable-scene": "npx --yes tsx narration-module/tests/scene/verify-playable-scene-generalization.ts",
     "narration-module:test:lore-playable-scene": "npx --yes tsx narration-module/tests/scene/verify-lore-playable-scene.ts",
     "narration-module:test:scene-ephemeral-creation": "npx --yes tsx narration-module/tests/scene/verify-scene-ephemeral-creation.ts",

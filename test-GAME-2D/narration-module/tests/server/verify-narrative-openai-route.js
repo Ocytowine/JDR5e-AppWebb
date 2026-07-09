@@ -304,6 +304,26 @@ async function main() {
   );
   assert.equal(contextQuestionAsPossibilityIntent.ok, false);
   assert.equal(contextQuestionAsPossibilityIntent.issues.includes("payload.intents[0] possibility_query requires explicit possibility wording."), true);
+  const politeContextReq = intentRequest({
+    input: {
+      ...intentRequest().input,
+      task: {
+        ...intentRequest().input.task,
+        rawInput: "peux-tu me décrire l'auberge ?"
+      }
+    }
+  });
+  const politeContextAsPossibilityIntent = validateEnvelope(
+    intentOutputFor(politeContextReq, { intent: { intentType: "possibility_query", commitment: "hypothetical", expectedTimeEffect: "NO_GAME_TIME" } }),
+    politeContextReq
+  );
+  assert.equal(politeContextAsPossibilityIntent.ok, false);
+  assert.equal(politeContextAsPossibilityIntent.issues.includes("payload.intents[0] possibility_query requires explicit possibility wording."), true);
+  const politeContextAsMetaIntent = validateEnvelope(
+    intentOutputFor(politeContextReq, { intent: { intentType: "meta_question", commitment: "none", expectedTimeEffect: "NO_GAME_TIME" } }),
+    politeContextReq
+  );
+  assert.equal(politeContextAsMetaIntent.ok, true);
 
   let sendCount = 0;
   const disabledApi = createNarrativeOpenAiEnhancementApi({

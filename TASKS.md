@@ -1,14 +1,14 @@
 # Suivi du travail
 
-Derniere mise a jour: 2026-07-08
+Derniere mise a jour: 2026-07-09
 
 Ce fichier est le tableau de bord court du depot. Les details techniques restent dans les documents lies; une tache ne doit pas etre dupliquee ici avec toute sa specification.
 
 ## En cours
 
-- [ ] Revoir I-06ZA qualité de scène jouable, puis décider du prochain lot produit narration sans ouvrir automatiquement `mj_planner`.
-  References: `test-GAME-2D/narration-module/docs/Matrice-preuves-I06ZA-qualite-scene.md`, `test-GAME-2D/narration-module/docs/Matrice-certification-live-intent-interpreter.md`, `test-GAME-2D/narration-module/docs/Suivi-prochains-lots-narration.md`.
-  Note: I-06ZA améliore le rendu visible météo/possibilité/parole/mixed sans nouvelle autorité IA et sans changement d'horloge.
+- [ ] Revoir I-06ZB variation contrôlée et continuité locale en UI, puis décider de la suite produit narration sans ouvrir automatiquement `mj_planner`.
+  References: `test-GAME-2D/narration-module/docs/Matrice-preuves-I06ZA-qualite-scene.md`, `test-GAME-2D/narration-module/docs/Matrice-preuves-I06ZB-variation-controlee.md`, `test-GAME-2D/narration-module/docs/Suivi-prochains-lots-narration.md`.
+  Note: I-06ZB varie les réponses locales météo/contexte/type de bâtiment sans changer les faits, sans commit métier et sans changement d'horloge. Prochaine revue manuelle: répéter deux fois une même question de contexte et vérifier que les faits restent stables sans copie stricte.
 - [ ] Consolider la simulation du monde apres l'ajout des objectifs multi-phases, des opportunites de faction et des mobiles non-systeme.
   Reference: `test-GAME-2D/map-module/docs/world-simulation-corrective-roadmap.md`. Les mobiles exposent maintenant l'objectif, la phase et la cible qu'ils servent.
 

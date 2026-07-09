@@ -25,6 +25,9 @@ assert.equal(narrativeSurfaceSource.includes("createBrowserPersistentNarrativeTu
 assert.equal(narrativeSurfaceSource.includes("restoreRenderedThread"), true, "surface recharge les projections de rendu persistées");
 assert.equal(narrativeSurfaceSource.includes("player_intent_interpreter"), true, "mode OpenAI configure aussi l'interpreteur d'intention via fournisseur route serveur");
 assert.equal(narrativeSurfaceSource.includes("AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1"), true, "contrat intention OpenAI explicite dans la config UI");
+assert.equal(narrativeSurfaceSource.includes("applyLocalPresentationVariation"), true, "surface applique la variation de présentation locale avant persistance");
+assert.equal(narrativeSurfaceSource.includes("countPriorMetaAnswerBlocks"), true, "variation UI dépend de l'historique visible plutôt que du seul operationId");
+assert.equal(narrativeSurfaceSource.includes("presentation-variant:"), true, "projection tracée avec variante de présentation");
 assert.equal(mainSource.includes("GameBoard"), false, "main.tsx ne doit plus monter GameBoard directement");
 assert.equal(appSource.includes("from \"./GameBoard\""), true, "App.tsx monte GameBoard seulement comme surface tactique");
 assert.equal(appSource.includes("<GameBoard />"), true, "surface tactique explicite");

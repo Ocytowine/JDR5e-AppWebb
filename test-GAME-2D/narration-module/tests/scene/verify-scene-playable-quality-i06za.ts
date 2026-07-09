@@ -118,4 +118,34 @@ const sunnyQuestion = buildReferenceSceneLocalNarrationV1({
 assert.match(sunnyQuestion, /pluie|Auberge du Seuil|garde blessé/u);
 assertNoGenericFog(sunnyQuestion, "fait-il beau");
 
+const innDescriptionIntent = interpretation("meta_question", "demander une description de l'auberge");
+const innDescription = buildReferenceSceneLocalNarrationV1({
+  rawInput: "peux tu me décrire l'auberge ?",
+  interpretation: innDescriptionIntent,
+  resolution: resolution("NO_COMMIT_RESPONSE", innDescriptionIntent)
+});
+assert.match(innDescription, /Auberge du Seuil|garde blessé|serveuse|porte du fond/u);
+assertNoGenericFog(innDescription, "description auberge");
+
+const innDescriptionBlocks = buildReferenceSceneBlocksV1({
+  operationId: "operation:inn-description-quality",
+  rawInput: "peux tu me décrire l'auberge ?",
+  interpretation: innDescriptionIntent,
+  resolution: resolution("NO_COMMIT_RESPONSE", innDescriptionIntent)
+});
+assert.equal(
+  innDescriptionBlocks.some(block => block.kind === "GM_NARRATION" && /Auberge du Seuil|porte du fond/u.test(block.text)),
+  true,
+  "une question de contexte fictionnel doit produire une narration MJ concrète même sans commit"
+);
+
+const buildingTypeIntent = interpretation("meta_question", "demander le type de bâtiment");
+const buildingType = buildReferenceSceneLocalNarrationV1({
+  rawInput: "je suis dans quel type de batiment ?",
+  interpretation: buildingTypeIntent,
+  resolution: resolution("NO_COMMIT_RESPONSE", buildingTypeIntent)
+});
+assert.match(buildingType, /auberge de passage|bâtiment public|lieu de halte/u);
+assertNoGenericFog(buildingType, "type bâtiment");
+
 console.log("scene-playable-quality/i06za: OK");

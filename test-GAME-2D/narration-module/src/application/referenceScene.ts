@@ -289,7 +289,13 @@ export function buildReferenceSceneLocalNarrationV1(input: {
   rawInput: string;
   interpretation: NarrativeIntentInterpretationV1;
   resolution: NarrativeResolutionResultV1;
+  presentationSeed?: string;
+  presentationVariantIndex?: number;
 }): string {
+  const variantSeed = input.presentationSeed ?? input.resolution.operationId ?? input.rawInput;
+  const variant = typeof input.presentationVariantIndex === "number"
+    ? input.presentationVariantIndex
+    : presentationVariant(variantSeed, 3);
   if (input.resolution.resultKind === "CLARIFICATION_REQUIRED") {
     return "La scène marque une pause nette : l'intention doit être précisée avant que le personnage n'agisse ou que le monde ne réponde.";
   }
@@ -297,9 +303,12 @@ export function buildReferenceSceneLocalNarrationV1(input: {
     return handoffNarration(input.resolution.handoff?.target ?? "UNKNOWN");
   }
   if (input.interpretation.intentType === "meta_question") {
+    if (isOutOfFictionMetaQuestion(input.rawInput)) {
+      return "Réponse hors fiction : le temps de jeu ne bouge pas et la scène de l'Auberge du Seuil reste exactement au même point.";
+    }
     if (isLocationQuestion(input.rawInput)) return locationAnswerNarration();
-    if (isWeatherQuestion(input.rawInput)) return weatherAnswerNarration();
-    return "Réponse hors fiction : le temps de jeu ne bouge pas et la scène de l'Auberge du Seuil reste exactement au même point.";
+    if (isWeatherQuestion(input.rawInput)) return weatherAnswerNarration(variant);
+    return sceneContextNarration(input.rawInput, variant);
   }
   if (input.interpretation.intentType === "possibility_query") {
     if (isSocialPossibilityQuestion(input.rawInput)) return socialPossibilityNarration(input.rawInput);
@@ -326,14 +335,24 @@ export function buildReferenceSceneBlocksV1(input: {
 }): DisplayBlockV1[] {
   if (input.resolution.resultKind === "CLARIFICATION_REQUIRED") return [];
   if (input.interpretation.intentType === "meta_question") {
-    if (!isLocationQuestion(input.rawInput) && !isWeatherQuestion(input.rawInput)) return [];
+    if (isOutOfFictionMetaQuestion(input.rawInput)) return [];
+    const answerKind = isWeatherQuestion(input.rawInput)
+      ? "weather"
+      : isLocationQuestion(input.rawInput)
+        ? "location"
+        : "context";
+    const variant = presentationVariant(input.operationId, 3);
     return [referenceBlock({
       operationId: input.operationId,
-      suffix: isWeatherQuestion(input.rawInput) ? "reference-weather-answer" : "reference-location-answer",
+      suffix: `reference-${answerKind}-answer`,
       kind: "GM_NARRATION",
       speakerKind: "GM",
       displayName: "MJ",
-      text: isWeatherQuestion(input.rawInput) ? weatherAnswerNarration() : locationAnswerNarration(),
+      text: answerKind === "weather"
+        ? weatherAnswerNarration(variant)
+        : answerKind === "location"
+          ? locationAnswerNarration()
+          : sceneContextNarration(input.rawInput, variant),
       sourceRefs: [`reference-scene:${REFERENCE_PLAYABLE_SCENE_ID_V1}`, `resolution:${input.resolution.resolutionId}:meta-answer`]
     })];
   }
@@ -401,6 +420,11 @@ function isWeatherQuestion(rawInput: string): boolean {
   return /\b(temps|meteo|pluie|pleut|dehors|ciel|beau|mauvais temps|fait[- ]il beau|il fait beau)\b/u.test(normalized);
 }
 
+function isOutOfFictionMetaQuestion(rawInput: string): boolean {
+  const normalized = rawInput.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
+  return /\b(regle|mecanique|jet|bonus|action bonus|interface|sauvegarde|parametre|option|mj|comment ca marche|comment fonctionne)\b/u.test(normalized);
+}
+
 function isSocialPossibilityQuestion(rawInput: string): boolean {
   const normalized = rawInput.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
   return /\b(peux|puis|possible|est-ce que je peux)\b/u.test(normalized) &&
@@ -411,8 +435,67 @@ function locationAnswerNarration(): string {
   return buildPlayableSceneLocationAnswerV1(REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1);
 }
 
-function weatherAnswerNarration(): string {
-  return "Dehors, la pluie tombe assez fort pour brouiller les voix près des volets. Dans l'Auberge du Seuil, l'air sent le bois humide, la laine mouillée et la tension retenue autour du garde blessé.";
+function weatherAnswerNarration(variant = 0): string {
+  return selectPresentationVariant(variant, [
+    "Dehors, la pluie tombe assez fort pour brouiller les voix près des volets. Dans l'Auberge du Seuil, l'air sent le bois humide, la laine mouillée et la tension retenue autour du garde blessé.",
+    "Il pleut franchement dehors : les gouttes martèlent les volets et étouffent une partie des conversations. À l'intérieur de l'Auberge du Seuil, la chaleur reste lourde, mêlée d'humidité, pendant que le garde blessé surveille la salle.",
+    "Le temps n'a rien d'accueillant. La pluie plaque le monde contre les fenêtres, laisse entrer une odeur de bois mouillé, et renforce le silence tendu autour du garde blessé dans l'Auberge du Seuil."
+  ]);
+}
+
+function sceneContextNarration(rawInput: string, variant = 0): string {
+  const normalized = rawInput.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
+  if (/\b(type|batiment|bâtiment|edifice|etablissement|endroit)\b/u.test(normalized)) {
+    return selectPresentationVariant(variant, [
+      "Tu te trouves dans une auberge de passage : un bâtiment public fait pour boire, manger, attendre une chambre ou des nouvelles. L'Auberge du Seuil n'a rien d'un palais ni d'une caserne; c'est un lieu de halte, bas de plafond, usé par la pluie et traversé ce soir par une tension inhabituelle.",
+      "C'est une auberge, donc un lieu ouvert aux voyageurs, aux habitués et aux gens qui cherchent un abri plus qu'un refuge sûr. L'Auberge du Seuil sert à boire, à manger et probablement à louer des chambres, mais ce soir elle ressemble surtout à un point d'attente sous pression.",
+      "Le bâtiment est une auberge de passage : salle commune, comptoir, passage vers l'arrière et clientèle de halte. Rien n'indique une demeure privée; tout dit plutôt un établissement public fatigué par la pluie, où la présence du garde blessé change l'ambiance."
+    ]);
+  }
+  if (/\b(auberge|salle|piece|lieu|decor|decrire|decris|description)\b/u.test(normalized)) {
+    return selectPresentationVariant(variant, [
+      "L'Auberge du Seuil est basse de plafond, chaude seulement près de l'âtre, et saturée d'odeurs de bois humide. Les clients parlent peu. Le garde blessé occupe l'attention sans la réclamer, tandis que la serveuse nerveuse garde un œil trop fréquent sur la porte du fond.",
+      "La salle commune est resserrée, plus pratique que belle : tables marquées, comptoir usé, manteaux humides près de l'entrée. Le garde blessé attire les regards malgré lui, et la serveuse travaille en surveillant trop souvent la porte du fond.",
+      "Tu vois une auberge de passage tendue par l'orage et par ce qui n'est pas dit. La pluie colle aux volets, les clients restent prudents, la serveuse évite certains regards, et la porte du fond pèse dans la pièce plus qu'une simple porte ne devrait."
+    ]);
+  }
+  if (/\b(garde|blesse|soldat)\b/u.test(normalized)) {
+    return selectPresentationVariant(variant, [
+      "Le garde blessé reste debout par volonté plus que par confort. Sa cuirasse est tachée de boue fraîche, sa main protège son flanc bandé, et son regard revient toujours vers la porte du fond avant de revenir à la salle.",
+      "Le garde tient encore sa posture, mais mal. Il protège son flanc, respire court et regarde la porte du fond avec une insistance qu'il essaie de rendre discrète.",
+      "C'est un garde de ville en mauvais état : boue fraîche, blessure bandée, attention nerveuse. Il ne semble pas seulement souffrir; il attend quelque chose, ou quelqu'un, lié à l'arrière-salle."
+    ]);
+  }
+  if (/\b(serveuse|aubergiste|femme)\b/u.test(normalized)) {
+    return selectPresentationVariant(variant, [
+      "La serveuse garde les mains occupées pour ne pas rester immobile. Elle essuie un gobelet déjà propre, évite le regard du garde blessé et surveille la porte du fond comme si elle craignait qu'on la remarque.",
+      "La serveuse bouge trop pour quelqu'un qui maîtrise la situation. Ses gestes restent utiles en apparence, mais son attention revient à l'arrière-salle dès qu'elle croit ne pas être observée.",
+      "Elle tient son rôle d'auberge, mais sa nervosité le fissure : sourire bref, mains occupées, regard qui glisse vers la porte du fond puis revient aussitôt au comptoir."
+    ]);
+  }
+  if (/\b(porte|fond|arriere|arriere-salle)\b/u.test(normalized)) {
+    return selectPresentationVariant(variant, [
+      "La porte du fond est étroite, presque banale, mais la salle entière semble se tendre autour d'elle. La serveuse la surveille sans vouloir le montrer, et le garde blessé paraît attendre que quelqu'un ose s'en approcher.",
+      "La porte menant vers l'arrière-salle n'a rien de spectaculaire. Pourtant, les regards qui l'évitent ou y reviennent la rendent plus importante que son apparence ne le justifie.",
+      "C'est une porte de service, proche du comptoir, assez discrète pour passer inaperçue si personne ne la craignait. Ici, le garde blessé et la serveuse lui donnent malgré eux trop de poids."
+    ]);
+  }
+  return selectPresentationVariant(variant, [
+    "Ce que ton personnage perçoit reste concret : la pluie aux volets, la salle commune tendue, le garde blessé près du passage et la serveuse nerveuse qui évite de fixer trop longtemps la porte du fond.",
+    "Le tableau visible ne change pas : la pluie maintient l'auberge humide, les conversations restent retenues, le garde blessé se montre trop attentif et la serveuse trahit sa nervosité autour de la porte du fond.",
+    "À première vue, tout tient dans quelques repères : pluie dehors, salle commune sous tension, garde blessé présent, serveuse nerveuse, et cette porte du fond qui attire les silences plus que les regards."
+  ]);
+}
+
+function presentationVariant(seed: string, count: number): number {
+  if (count <= 1) return 0;
+  let hash = 0;
+  for (const char of seed) hash = ((hash << 5) - hash + char.charCodeAt(0)) | 0;
+  return Math.abs(hash) % count;
+}
+
+function selectPresentationVariant(variant: number, options: string[]): string {
+  return options[Math.abs(variant) % options.length] ?? options[0] ?? "";
 }
 
 function socialPossibilityNarration(rawInput: string): string {

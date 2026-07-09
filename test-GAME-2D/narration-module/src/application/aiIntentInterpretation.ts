@@ -138,6 +138,7 @@ export function buildLocalIntentPayload(rawInput: string): AiIntentInterpretatio
   const target = findTarget(rawInput);
   const hasQuestion = /[?？]/u.test(rawInput) || /^(est[- ]ce|peux|puis|peut|comment|pourquoi|combien|ou|où|quand|quelle|quel|quels|quelles)\b/u.test(normalized);
   const asksPossibility = /\b(peux|puis|possible|possibilite|est[- ]ce que je peux|ai[- ]je le droit|ce serait possible)\b/u.test(normalized);
+  const politeContextRequest = isPoliteContextQuestionText(rawInput);
   const meta = /\b(regle|mecanique|jet|bonus|interface|sauvegarde|comment fonctionne|comment marche|cote regles)\b/u.test(normalized);
   const risky = /\b(voler|vole|ouvrir|entrer|forcer|crocheter|attaquer|attaque|frapper|prendre)\b/u.test(normalized);
   const speech = /\b(je demande|je lui demande|lui demander|je questionne|j'interroge|j interroge|je lui dis|je dis|je reponds|je réponds|parler|discuter|interroger)\b/u.test(normalized);
@@ -150,6 +151,9 @@ export function buildLocalIntentPayload(rawInput: string): AiIntentInterpretatio
   }
   if (hasQuestion && meta && !risky) {
     return payload(rawInput, intent(rawInput, "meta_question", "none", null, null, null, "Question méta ou interface.", [], ["fictional_reaction"], false, null, [], "NO_GAME_TIME", "high"));
+  }
+  if (hasQuestion && politeContextRequest) {
+    return payload(rawInput, intent(rawInput, "meta_question", "none", target, null, topic(rawInput), rawInput.trim(), [], ["execute_action"], false, null, [], "NO_GAME_TIME", "high"));
   }
   if (hasQuestion && asksPossibility) {
     return payload(rawInput, intent(rawInput, "possibility_query", "hypothetical", target, "ask_possibility", topic(rawInput), `Demander si ${topic(rawInput) ?? "l'action évoquée"} est possible.`, [], ["execute_action"], false, null, risky ? ["risky_action_hypothetical"] : [], "NO_GAME_TIME", "high"));
@@ -344,8 +348,16 @@ function normalize(value: string): string {
 
 function isExplicitPossibilityQuestionText(value: string): boolean {
   const normalized = normalize(value);
+  if (isPoliteContextQuestionText(value)) return false;
   return /[?？]/u.test(value)
     && /\b(est[- ]ce que|peux|puis|possible|possibilite|ai[- ]je le droit|ce serait possible)\b/u.test(normalized);
+}
+
+function isPoliteContextQuestionText(value: string): boolean {
+  const normalized = normalize(value);
+  return /[?？]/u.test(value)
+    && /\b(peux[- ]tu|peut[- ]tu|pourrais[- ]tu|tu peux|tu pourrais)\b/u.test(normalized)
+    && /\b(decrire|decris|dire|rappeler|expliquer|montrer|resumer|situer|localiser)\b/u.test(normalized);
 }
 
 export function createAiSuspendedIntentRecordV1(input: {

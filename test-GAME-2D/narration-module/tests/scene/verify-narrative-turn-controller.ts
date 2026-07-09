@@ -140,6 +140,31 @@ async function main(): Promise<void> {
     block.kind === "GM_NARRATION" &&
     /pluie|Auberge du Seuil|garde blessé/u.test(block.text)
   ), true, "une question météo doit recevoir une réponse de scène concrète");
+  assert.equal(weather.value.output.displayPacket.displayBlocks.some(block =>
+    block.kind === "SYSTEM_NOTICE" &&
+    block.sourceRefs.includes("intent:meta_question") &&
+    !block.sourceRefs.includes("intent:possibility_query") &&
+    /Réponse de contexte/u.test(block.text)
+  ), true, "une question météo doit rester une notification de contexte, pas de possibilité");
+
+  const innDescription = await controller.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-controller-inn-description",
+    rawInput: "peux tu me décrire l'auberge ?"
+  });
+  if (!innDescription.ok) throw new Error(innDescription.error.messageKey);
+  assert.equal(innDescription.value.output.interpretation.intentType, "meta_question");
+  assert.equal(innDescription.value.output.interpretation.expectedTimeEffect, "NO_GAME_TIME");
+  assert.equal(innDescription.value.output.resolution.resultKind, "NO_COMMIT_RESPONSE");
+  assert.equal(innDescription.value.output.displayPacket.displayBlocks.some(block =>
+    block.kind === "GM_NARRATION" &&
+    /Auberge du Seuil|garde blessé|serveuse|porte du fond/u.test(block.text)
+  ), true, "une question de contexte fictionnel doit recevoir une réponse MJ concrète");
+  assert.equal(innDescription.value.output.displayPacket.displayBlocks.some(block =>
+    block.kind === "SYSTEM_NOTICE" &&
+    block.sourceRefs.includes("intent:meta_question") &&
+    /Réponse de contexte/u.test(block.text)
+  ), true, "la description de contexte reste no-commit et sans temps de jeu");
 
   const possibility = await controller.submit({
     schemaVersion: 1,

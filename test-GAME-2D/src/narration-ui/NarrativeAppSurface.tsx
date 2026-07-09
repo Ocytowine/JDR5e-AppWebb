@@ -19,6 +19,7 @@ import {
   type NarrativeSubmitPayloadV1
 } from "../ui/NarrativeConversationPanel";
 import { ServerOpenAiEnhancementProviderV1 } from "./serverOpenAiEnhancementClient";
+import type { JsonObject } from "../../narration-module/src/core";
 
 type NarrativeEnhancementMode = "local" | "openai";
 
@@ -76,7 +77,7 @@ export function NarrativeAppSurface() {
         setErrorMessage(result.error.messageKey);
         return;
       }
-      const enhancement = await enhancePrototypePacket(result.value.output, enhancementMode);
+      const enhancement = await enhancePrototypePacket(result.value.output, enhancementMode, packetsFromController);
       const recorded = await controller.recordRenderedProjection({
         schemaVersion: 1,
         clientRequestId: result.value.output.clientRequestId,
@@ -255,7 +256,8 @@ function createWelcomePacket(): DisplayPacketV1 {
 
 async function enhancePrototypePacket(
   output: NarrativeTurnControllerOutputV1,
-  mode: NarrativeEnhancementMode
+  mode: NarrativeEnhancementMode,
+  priorPackets: DisplayPacketV1[] = []
 ): Promise<{
   displayPacket: DisplayPacketV1;
   status: string;
@@ -340,27 +342,37 @@ async function enhancePrototypePacket(
         retryPolicy: prototypeRetryPolicy
       }
     });
+    const variedFallback = applyLocalPresentationVariation(fallback.displayPacket, output, priorPackets);
     return {
-      displayPacket: fallback.displayPacket,
+      displayPacket: variedFallback,
       status: `OpenAI indisponible ou sortie refusée (${summarizeOpenAiFallback(enhanced)}) : fallback local utilisé.`,
-      finalEnhancement: fallback,
+      finalEnhancement: { ...fallback, displayPacket: variedFallback },
       attemptedEnhancement: enhanced
     };
   }
   if (!enhanced.enhanced && !enhanced.usedFallback) {
+    const varied = applyLocalPresentationVariation(enhanced.displayPacket, output, priorPackets);
+    const hasLocalNarration = varied.displayBlocks.some(block =>
+      block.kind === "GM_NARRATION" || block.kind === "NPC_SPEECH"
+    );
     return {
-      displayPacket: enhanced.displayPacket,
-      status: mode === "openai"
-        ? "OpenAI non appelé : aucun enrichissement narratif nécessaire pour cette réponse."
-        : "Mode local : aucun enrichissement narratif nécessaire pour cette réponse.",
-      finalEnhancement: enhanced,
+      displayPacket: varied,
+      status: hasLocalNarration
+        ? mode === "openai"
+          ? "Narration de scène locale utilisée; OpenAI non appelé car aucun enrichissement supplémentaire n'était nécessaire."
+          : "Narration de scène locale utilisée."
+        : mode === "openai"
+          ? "OpenAI non appelé : aucune matière narrative autorisée pour cette réponse."
+          : "Mode local : aucune matière narrative autorisée pour cette réponse.",
+      finalEnhancement: { ...enhanced, displayPacket: varied },
       attemptedEnhancement: null
     };
   }
+  const varied = applyLocalPresentationVariation(enhanced.displayPacket, output, priorPackets);
   return {
-    displayPacket: enhanced.displayPacket,
+    displayPacket: varied,
     status: mode === "openai" ? "OpenAI serveur utilisé pour l'enrichissement." : "Mode local utilisé pour l'enrichissement.",
-    finalEnhancement: enhanced,
+    finalEnhancement: { ...enhanced, displayPacket: varied },
     attemptedEnhancement: null
   };
 }
@@ -388,6 +400,50 @@ function buildPrototypeNarration(output: NarrativeTurnControllerOutputV1): strin
     interpretation: output.interpretation,
     resolution: output.resolution
   });
+}
+
+function applyLocalPresentationVariation(
+  packet: DisplayPacketV1,
+  output: NarrativeTurnControllerOutputV1,
+  priorPackets: DisplayPacketV1[]
+): DisplayPacketV1 & JsonObject {
+  if (output.interpretation.intentType !== "meta_question") return packet as DisplayPacketV1 & JsonObject;
+  const rawInput = packet.displayBlocks.find(block => block.kind === "RAW_INPUT")?.text ?? "";
+  const localMetaBlocks = packet.displayBlocks.filter(block =>
+    block.kind === "GM_NARRATION" &&
+    block.sourceRefs.some(ref => ref.includes(":meta-answer"))
+  );
+  if (localMetaBlocks.length === 0) return packet as DisplayPacketV1 & JsonObject;
+  const variantIndex = countPriorMetaAnswerBlocks(priorPackets) % 3;
+  const text = buildReferenceSceneLocalNarrationV1({
+    rawInput,
+    interpretation: output.interpretation,
+    resolution: output.resolution,
+    presentationVariantIndex: variantIndex
+  });
+  return {
+    ...packet,
+    displayBlocks: packet.displayBlocks.map(block =>
+      localMetaBlocks.some(local => local.blockId === block.blockId)
+        ? {
+          ...block,
+          text,
+          sourceRefs: [...new Set([...block.sourceRefs, `presentation-variant:${variantIndex}`])]
+        }
+        : block
+    ),
+    rhythmDiagnostics: `${packet.rhythmDiagnostics ?? "none"}|presentation-variant:${variantIndex}`,
+    reconstructionRefs: [...new Set([...packet.reconstructionRefs, `presentation-variant:${variantIndex}`])]
+  } as DisplayPacketV1 & JsonObject;
+}
+
+function countPriorMetaAnswerBlocks(packets: DisplayPacketV1[]): number {
+  return packets.reduce((count, packet) => {
+    return count + packet.displayBlocks.filter(block =>
+      block.kind === "GM_NARRATION" &&
+      block.sourceRefs.some(ref => ref.includes(":meta-answer"))
+    ).length;
+  }, 0);
 }
 
 const prototypeExpressionRoute: AiModelRouteV1 = {

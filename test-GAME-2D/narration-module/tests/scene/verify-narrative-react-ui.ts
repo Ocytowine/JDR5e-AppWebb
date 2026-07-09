@@ -33,6 +33,7 @@ assert.match(html, /data-narrative-ux-badge="PNJ"/, "badge PNJ rendu hors couleu
 assert.match(html, /data-narrative-ux-badge="Sans commit"/, "badge sans commit rendu hors couleur");
 assert.match(html, /data-narrative-ux-badge="Action non/, "badge action non executee rendu hors couleur");
 assert.match(html, /data-narrative-ux-badge="Possibilit/, "badge possibilite rendu hors couleur");
+assert.match(html, /data-narrative-ux-badge="Contexte"/, "badge contexte rendu hors couleur");
 assert.match(html, /data-narrative-ux-badge="Parole enregistr/, "badge parole enregistree rendu hors couleur");
 assert.match(html, /data-narrative-ux-badge="Aucun temps"/, "badge aucun temps rendu hors couleur");
 assert.match(html, /data-narrative-ux-badge="Clarification"/, "badge clarification rendu hors couleur");
@@ -41,9 +42,16 @@ assert.match(html, /data-narrative-ux-badge="Fallback"/, "badge fallback rendu h
 assert.match(html, /Indicateurs UX:/, "badges décrits par aria-label");
 
 assert.match(html, /data-narrative-ux-notice="possibility-no-commit"/, "encart possibilite sans commit rendu");
+assert.match(html, /data-narrative-ux-notice="context-no-commit"/, "encart contexte sans commit rendu");
 assert.match(html, /data-narrative-ux-notice="clarification-no-commit"/, "encart clarification sans commit rendu");
 assert.match(html, /data-narrative-ux-notice="bounded-speech-commit"/, "encart parole enregistree rendu");
 assert.match(html, /aucune action exécutée/, "notice explicite sans action exécutée");
+assert.match(html, /question de contexte sans action/, "notice explicite contexte sans action");
+assert.doesNotMatch(
+  html,
+  /block-system-context[\s\S]*data-narrative-ux-badge="Action non/u,
+  "une question de contexte ne doit pas afficher le badge action non executee"
+);
 assert.match(html, /scène et le temps restent suspendus/, "notice explicite temps suspendu");
 assert.match(html, /sans succès social automatique/, "notice explicite effet social borné");
 

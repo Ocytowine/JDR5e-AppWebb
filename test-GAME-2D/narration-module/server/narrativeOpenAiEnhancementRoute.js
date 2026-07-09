@@ -495,6 +495,7 @@ function buildRoleInstructions(request) {
       "Une action explicite doit etre intentType=action, commitment=committed, expectedTimeEffect=DOMAIN_TO_DECIDE.",
       "Une question meta ou interface doit etre intentType=meta_question, commitment=none, expectedTimeEffect=NO_GAME_TIME.",
       "Une question sur l'etat percu de la scene, l'environnement, la meteo, le lieu ou ce que le personnage peut savoir sans agir est une question de contexte: intentType=meta_question, commitment=none, expectedTimeEffect=NO_GAME_TIME.",
+      "Une demande polie adressee au MJ comme 'peux-tu me decrire l'auberge ?' est une question de contexte, pas une possibilite d'action.",
       "Une ellipse objet sans verbe clair, par exemple 'la bourse du garde ?' ou 'et la porte du fond ?', doit etre unclear_commitment avec requiresClarification=true, pas possibility_query.",
       "Une formulation elliptique ou ambigue doit etre intentType=unclear_commitment, commitment=unclear, requiresClarification=true.",
       "Interdit: transformer une possibilite en action executee, accorder un succes social, reveler un secret, creer un objet ou PNJ durable, ou declencher un handoff definitif."
@@ -672,7 +673,15 @@ function isSocialSpeechRequestText(value) {
 
 function isExplicitPossibilityQuestionText(value) {
   const text = normalizeRouteText(value).replace(/[’']/gu, "'");
+  if (isPoliteContextQuestionText(value)) return false;
   return /[?？]/u.test(String(value || "")) && /\b(est[- ]ce que|peux|puis|possible|possibilite|ai[- ]je le droit)\b/u.test(text);
+}
+
+function isPoliteContextQuestionText(value) {
+  const text = normalizeRouteText(value).replace(/[’']/gu, "'");
+  return /[?？]/u.test(String(value || ""))
+    && /\b(peux[- ]tu|peut[- ]tu|pourrais[- ]tu|tu peux|tu pourrais)\b/u.test(text)
+    && /\b(decrire|decris|dire|rappeler|expliquer|montrer|resumer|situer|localiser)\b/u.test(text);
 }
 
 function isEllipticalObjectQuestionText(value) {

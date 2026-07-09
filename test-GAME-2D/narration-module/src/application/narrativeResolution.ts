@@ -478,7 +478,7 @@ function buildResolutionDisplayPacket(
     "Système",
     "SYSTEM",
     resolutionNotice(resolution),
-    [`resolution:${resolution.resolutionId}`]
+    [`resolution:${resolution.resolutionId}`, `intent:${resolution.interpretation.intentType}`]
   ));
   return {
     schemaVersion: 1,
@@ -531,6 +531,12 @@ function resolutionNotice(resolution: NarrativeResolutionResultV1): string {
     return "Clarification requise. Aucun temps de jeu ni commit métier n'a été déclenché.";
   }
   if (resolution.resultKind === "NO_COMMIT_RESPONSE") {
+    if (resolution.interpretation.intentType === "meta_question") {
+      return "Réponse de contexte sans commit métier. Aucun temps de jeu n'a été déclenché.";
+    }
+    if (resolution.interpretation.intentType === "possibility_query") {
+      return "Question de possibilité traitée sans commit métier. Aucune action n'a été exécutée.";
+    }
     return "Réponse sans commit métier. Aucune action n'a été exécutée.";
   }
   if (resolution.resultKind === "HANDOFF_REQUIRED") {

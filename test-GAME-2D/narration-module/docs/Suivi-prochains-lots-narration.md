@@ -417,6 +417,65 @@ Hors périmètre :
 - pas d'intrigue dynamique;
 - pas de changement d'horloge.
 
+Suite immédiate recommandée :
+
+- valider manuellement dans l'UI la séparation `Contexte` / `Possibilité` / `Parole enregistrée`;
+- ouvrir ensuite I-06ZB sur la variation contrôlée et la continuité locale;
+- ne pas ouvrir `mj_planner` tant que les retours visibles courts ne sont pas stables.
+
+## I-06ZB — Variation contrôlée et continuité locale
+
+Statut : `IMPLEMENTE_DANS_PERIMETRE` le 2026-07-09.
+Référence : [`Matrice-preuves-I06ZB-variation-controlee.md`](Matrice-preuves-I06ZB-variation-controlee.md).
+
+Objectif : éviter les répétitions mécaniques dans les réponses visibles courtes, tout en conservant exactement les mêmes faits de scène et sans donner de nouvelle autorité à l'IA.
+
+Problème traité :
+
+- si le joueur demande plusieurs fois le temps, le lieu ou une information déjà disponible, le MJ doit garder la vérité fictionnelle stable mais varier la formulation;
+- si le joueur répète une sollicitation PNJ, le PNJ doit tenir compte de l'échange précédent sans révéler de secret nouveau ni produire un succès social automatique;
+- les variations doivent être de présentation, pas des commits métier.
+
+Règles proposées :
+
+- la vérité de scène reste stable : météo, lieu, PNJ présents, danger, horloge et événements ne changent pas par variation stylistique;
+- une question de contexte répétée peut reformuler, préciser ou rappeler, mais ne déclenche pas de temps de jeu;
+- une réponse PNJ répétée peut montrer impatience, prudence, fatigue ou insistance selon la mémoire courte déjà autorisée;
+- l'IA `scene_writer` peut améliorer le style, mais le code valide toujours le type d'intention, le commit, le temps et les effets;
+- le fallback local doit rester borné et acceptable, même sans OpenAI.
+
+Périmètre technique pressenti :
+
+- enrichir le contexte de rendu avec un court historique visible ou un signal de répétition;
+- ajouter une petite preuve automatique sur deux demandes météo consécutives : mêmes faits, texte non strictement identique, aucun commit;
+- ajouter une preuve automatique sur deux sollicitations du garde : continuité PNJ sans nouvel effet mécanique;
+- documenter clairement la différence entre variation de surface et mutation narrative.
+
+Hors périmètre :
+
+- pas de génération d'intrigue;
+- pas de nouveau PNJ durable;
+- pas de progression de temps sur les questions méta;
+- pas d'intégration du module tactique.
+
+Critère de sortie :
+
+- le joueur peut reposer une question de contexte ou relancer un PNJ sans obtenir une copie mécanique de la réponse précédente, et sans que le système invente une nouvelle réalité pour masquer la répétition.
+
+Livré :
+
+- variation locale déterministe des réponses météo;
+- variation locale déterministe des rappels de perception générale;
+- variation locale déterministe des réponses sur le type de bâtiment;
+- conservation explicite des faits stables de scène dans les variantes;
+- preuve `npm run narration-module:test:scene-controlled-variation`.
+
+Limite volontaire :
+
+- pas encore d'historique visible transmis au `scene_writer`;
+- pas de mémoire longue de style;
+- pas de génération d'intrigue ou de nouveaux faits pour masquer une répétition.
+
 ## Critères retenus pour la sortie I-06
 
 La sortie I-06 est cadrée par [`Sortie-phase-I06.md`](Sortie-phase-I06.md). Les critères retenus sont :

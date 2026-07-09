@@ -49,7 +49,7 @@ function blockTone(kind: RenderBlockKindV1): string {
 }
 
 interface BlockUxNoticeV1 {
-  kind: "clarification-no-commit" | "possibility-no-commit" | "bounded-speech-commit" | "generic-no-commit";
+  kind: "clarification-no-commit" | "possibility-no-commit" | "context-no-commit" | "bounded-speech-commit" | "generic-no-commit";
   title: string;
   text: string;
 }
@@ -77,8 +77,16 @@ function isNoTimeBlock(block: DisplayBlockV1): boolean {
 function isPossibilityBlock(block: DisplayBlockV1): boolean {
   return (
     block.kind === "SYSTEM_NOTICE" &&
-    (blockTextMatches(block, /possibilit|possible|peux|puis|reponse sans commit|réponse sans commit|aucune action/iu) ||
-      blockSourceMatches(block, /possibility|no-commit/iu))
+    (blockSourceMatches(block, /intent:possibility_query|:possibility\b|:social-possibility\b/iu) ||
+      blockTextMatches(block, /question de possibilit|possibilit[ée] trait[ée]e/iu))
+  );
+}
+
+function isContextNoCommitBlock(block: DisplayBlockV1): boolean {
+  return (
+    block.kind === "SYSTEM_NOTICE" &&
+    (blockSourceMatches(block, /intent:meta_question/iu) ||
+      blockTextMatches(block, /r[eé]ponse de contexte|question m[eé]ta/iu))
   );
 }
 
@@ -98,8 +106,9 @@ function blockUxBadges(block: DisplayBlockV1): string[] {
   if (block.kind === "NPC_SPEECH") badges.push("PNJ");
   if (block.kind === "CLARIFICATION") badges.push("Clarification");
   if (isPossibilityBlock(block)) badges.push("Possibilité");
+  if (isContextNoCommitBlock(block)) badges.push("Contexte");
   if (isBoundedSpeechCommitBlock(block)) badges.push("Parole enregistrée");
-  if (isNoCommitBlock(block)) badges.push("Action non exécutée");
+  if (isNoCommitBlock(block) && !isContextNoCommitBlock(block)) badges.push("Action non exécutée");
   if (block.kind === "SYSTEM_NOTICE") badges.push("Système");
   if (block.kind === "CLARIFICATION" || /sans commit|aucune action|aucun résultat|no commit/iu.test(block.text)) {
     badges.push("Sans commit");
@@ -134,6 +143,14 @@ function blockUxNotice(block: DisplayBlockV1): BlockUxNoticeV1 | null {
       kind: "possibility-no-commit",
       title: "Possibilité - aucune action exécutée",
       text: "Le système répond à une question ou à une possibilité sans modifier la scène."
+    };
+  }
+
+  if (isContextNoCommitBlock(block)) {
+    return {
+      kind: "context-no-commit",
+      title: "Contexte - aucun temps déclenché",
+      text: "Le système répond à une question de contexte sans action du personnage ni commit métier."
     };
   }
 
