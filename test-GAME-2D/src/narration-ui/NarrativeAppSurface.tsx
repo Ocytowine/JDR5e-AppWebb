@@ -439,6 +439,9 @@ function buildIntentInterpreterConfig(mode: NarrativeEnhancementMode): AiIntentI
       schemaVersion: 1,
       routeId: "prototype-ui-openai-player-intent-interpreter",
       role: "player_intent_interpreter",
+      // Proxy contractuel: le navigateur appelle uniquement la route serveur OpenAI.
+      // Le pipeline local garde FAKE_CONTRACT tant que REMOTE_PROVIDER reste réservé
+      // aux appels OpenAI directs validés côté narration-module.
       providerKind: "FAKE_CONTRACT",
       providerId: "server-openai-route",
       modelId: "server-selected-openai-intent-model",

@@ -75,7 +75,7 @@ export function interpretNarrativeInputV1(input: {
 
   if (hasQuestion && asksPossibility && socialPossibility && !explicitAttempt) {
     return intent(input, "possibility_query", "hypothetical", "NO_GAME_TIME", false, null, [
-      "Question de possibilitÃ© sociale: aucune parole ou action n'est exÃ©cutÃ©e."
+      "Question de possibilité sociale: aucune parole ou action n'est exécutée."
     ]);
   }
 

@@ -372,9 +372,50 @@ Livré :
 
 Suite directe recommandée :
 
-- revue et commit I-06Z;
 - smoke live manuel court avec `.env` local;
-- si stable, créer une matrice de certification live courte avant tout élargissement produit.
+- si stable, créer une matrice de certification live courte avant tout élargissement produit;
+- sinon, corriger le contrat ou le fallback avant d'ouvrir le prochain lot produit narration.
+
+Smoke live court du 2026-07-09 :
+
+- OK : questions méta (`quelle temps fait il ?`, localisation joueur) classées `meta_question`, sans temps de jeu;
+- OK : possibilité risquée (`est-ce que je peux voler la bourse du garde ?`) classée `possibility_query`, `hypothetical`, sans temps de jeu;
+- OK : action explicite (`je vole la bourse du garde`) classée `action`, `committed`;
+- OK : parole simple (`je lui demande...`, `je parle au garde`, `j'aimerais parler à un garde`) classée `speech`, `committed`;
+- Écart : formulation sociale composée (`je m'approche du garde et je lui demande...`) acceptée en `action`; à corriger avant certification live ou élargissement produit.
+
+Correctif live du 2026-07-09 :
+
+- instructions serveur renforcées : une phrase composée avec micro-déplacement social doit rester `speech` ou `mixed`;
+- validation serveur renforcée : une entrée source sociale ne peut pas être acceptée comme `action`, même si `rawInputEcho` est altéré par la sortie IA;
+- mini smoke live de correction OK : `je m'approche... et je lui demande...`, `je m'avance... et je lui demande...`, `je vais vers... et je parle...` sortent en `mixed`, `committed`, `DOMAIN_TO_DECIDE`.
+
+Suite immédiate :
+
+- certification live courte [`Matrice-certification-live-intent-interpreter.md`](Matrice-certification-live-intent-interpreter.md) validée le 2026-07-09 après correction ciblée : 18 cas couverts, 18 OK, 0 `A_CORRIGER`, 0 `BLOQUANT`;
+- ouvrir le prochain lot produit narration orienté qualité de scène jouable;
+- ne pas ouvrir automatiquement `mj_planner`.
+
+## I-06ZA — Qualité de scène jouable
+
+Statut : `IMPLEMENTE_DANS_PERIMETRE` le 2026-07-09.
+Référence : [`Matrice-preuves-I06ZA-qualite-scene.md`](Matrice-preuves-I06ZA-qualite-scene.md).
+
+Objectif : améliorer le rendu visible immédiat de la scène après la certification live de l'intention joueur, sans donner de pouvoir stratégique à l'IA.
+
+Livré :
+
+- réponse météo concrète et localisée;
+- réponse de possibilité risquée sans action exécutée;
+- narration de parole plus ancrée dans la scène;
+- intention `mixed` sociale rendue comme interaction PNJ bornée;
+- consignes `scene_writer` renforcées contre le remplissage générique.
+
+Hors périmètre :
+
+- pas de `mj_planner`;
+- pas d'intrigue dynamique;
+- pas de changement d'horloge.
 
 ## Critères retenus pour la sortie I-06
 

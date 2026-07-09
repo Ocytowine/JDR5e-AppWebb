@@ -273,6 +273,7 @@ function mapAiIntentToNarrativeInterpretationV1(input: {
   if (!first) return { ok: false };
   if (first.confidence === "low") return { ok: false };
   if (first.intentType === "possibility_query" && first.commitment !== "hypothetical") return { ok: false };
+  if (first.intentType === "possibility_query" && !isExplicitPossibilityQuestionText(input.rawInput)) return { ok: false };
   if (first.intentType === "meta_question" && first.commitment !== "none") return { ok: false };
   if (first.intentType === "speech" && first.commitment !== "committed") return { ok: false };
   if (first.intentType === "action" && first.commitment !== "committed") return { ok: false };
@@ -339,6 +340,12 @@ function actionLabel(normalized: string): string {
 
 function normalize(value: string): string {
   return value.trim().toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "").replace(/[’']/gu, "'");
+}
+
+function isExplicitPossibilityQuestionText(value: string): boolean {
+  const normalized = normalize(value);
+  return /[?？]/u.test(value)
+    && /\b(est[- ]ce que|peux|puis|possible|possibilite|ai[- ]je le droit|ce serait possible)\b/u.test(normalized);
 }
 
 export function createAiSuspendedIntentRecordV1(input: {

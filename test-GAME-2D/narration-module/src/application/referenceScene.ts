@@ -290,11 +290,26 @@ export function buildReferenceSceneLocalNarrationV1(input: {
   interpretation: NarrativeIntentInterpretationV1;
   resolution: NarrativeResolutionResultV1;
 }): string {
+  if (input.resolution.resultKind === "CLARIFICATION_REQUIRED") {
+    return "La scène marque une pause nette : l'intention doit être précisée avant que le personnage n'agisse ou que le monde ne réponde.";
+  }
   if (input.resolution.resultKind === "HANDOFF_REQUIRED") {
     return handoffNarration(input.resolution.handoff?.target ?? "UNKNOWN");
   }
+  if (input.interpretation.intentType === "meta_question") {
+    if (isLocationQuestion(input.rawInput)) return locationAnswerNarration();
+    if (isWeatherQuestion(input.rawInput)) return weatherAnswerNarration();
+    return "Réponse hors fiction : le temps de jeu ne bouge pas et la scène de l'Auberge du Seuil reste exactement au même point.";
+  }
+  if (input.interpretation.intentType === "possibility_query") {
+    if (isSocialPossibilityQuestion(input.rawInput)) return socialPossibilityNarration(input.rawInput);
+    return possibilityNarration(input.rawInput);
+  }
   if (input.interpretation.intentType === "speech") {
-    return "Dans l'auberge battue par la pluie, la demande s'inscrit dans le silence tendu autour du garde blessé et de la porte du fond.";
+    return "La parole prend place dans la salle commune : le bruit de la pluie couvre les voix basses, et l'attention revient vers le garde blessé avant toute réponse décisive.";
+  }
+  if (input.interpretation.intentType === "mixed") {
+    return "Le déplacement et la parole s'enchaînent dans la même impulsion. La scène les traite comme une intention engagée, sans résoudre à elle seule l'issue sociale.";
   }
   if (input.interpretation.intentType === "action") {
     return observationNarration(input.rawInput);
@@ -311,27 +326,28 @@ export function buildReferenceSceneBlocksV1(input: {
 }): DisplayBlockV1[] {
   if (input.resolution.resultKind === "CLARIFICATION_REQUIRED") return [];
   if (input.interpretation.intentType === "meta_question") {
-    if (!isLocationQuestion(input.rawInput)) return [];
+    if (!isLocationQuestion(input.rawInput) && !isWeatherQuestion(input.rawInput)) return [];
     return [referenceBlock({
       operationId: input.operationId,
-      suffix: "reference-location-answer",
+      suffix: isWeatherQuestion(input.rawInput) ? "reference-weather-answer" : "reference-location-answer",
       kind: "GM_NARRATION",
       speakerKind: "GM",
       displayName: "MJ",
-      text: locationAnswerNarration(),
-      sourceRefs: [`reference-scene:${REFERENCE_PLAYABLE_SCENE_ID_V1}`, `resolution:${input.resolution.resolutionId}:location-answer`]
+      text: isWeatherQuestion(input.rawInput) ? weatherAnswerNarration() : locationAnswerNarration(),
+      sourceRefs: [`reference-scene:${REFERENCE_PLAYABLE_SCENE_ID_V1}`, `resolution:${input.resolution.resolutionId}:meta-answer`]
     })];
   }
   if (input.interpretation.intentType === "possibility_query") {
-    if (!isSocialPossibilityQuestion(input.rawInput)) return [];
     return [referenceBlock({
       operationId: input.operationId,
-      suffix: "reference-social-possibility",
+      suffix: isSocialPossibilityQuestion(input.rawInput) ? "reference-social-possibility" : "reference-possibility",
       kind: "GM_NARRATION",
       speakerKind: "GM",
       displayName: "MJ",
-      text: socialPossibilityNarration(input.rawInput),
-      sourceRefs: [`reference-scene:${REFERENCE_PLAYABLE_SCENE_ID_V1}`, `resolution:${input.resolution.resolutionId}:social-possibility`]
+      text: isSocialPossibilityQuestion(input.rawInput)
+        ? socialPossibilityNarration(input.rawInput)
+        : possibilityNarration(input.rawInput),
+      sourceRefs: [`reference-scene:${REFERENCE_PLAYABLE_SCENE_ID_V1}`, `resolution:${input.resolution.resolutionId}:possibility`]
     })];
   }
   if (input.resolution.handoff !== null) {
@@ -345,7 +361,7 @@ export function buildReferenceSceneBlocksV1(input: {
       sourceRefs: [`reference-scene:${REFERENCE_PLAYABLE_SCENE_ID_V1}`, `resolution:${input.resolution.resolutionId}:handoff`]
     })];
   }
-  if (input.interpretation.intentType === "speech") {
+  if (input.interpretation.intentType === "speech" || input.interpretation.intentType === "mixed") {
     const target = speechTarget(input.rawInput);
     return [
       referenceBlock({
@@ -380,6 +396,11 @@ function isLocationQuestion(rawInput: string): boolean {
   return /\b(ou sommes-nous|ou suis-je|quel lieu|endroit|localisation)\b/u.test(normalized);
 }
 
+function isWeatherQuestion(rawInput: string): boolean {
+  const normalized = rawInput.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
+  return /\b(temps|meteo|pluie|pleut|dehors|ciel|beau|mauvais temps|fait[- ]il beau|il fait beau)\b/u.test(normalized);
+}
+
 function isSocialPossibilityQuestion(rawInput: string): boolean {
   const normalized = rawInput.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
   return /\b(peux|puis|possible|est-ce que je peux)\b/u.test(normalized) &&
@@ -390,8 +411,23 @@ function locationAnswerNarration(): string {
   return buildPlayableSceneLocationAnswerV1(REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1);
 }
 
+function weatherAnswerNarration(): string {
+  return "Dehors, la pluie tombe assez fort pour brouiller les voix près des volets. Dans l'Auberge du Seuil, l'air sent le bois humide, la laine mouillée et la tension retenue autour du garde blessé.";
+}
+
 function socialPossibilityNarration(rawInput: string): string {
   return buildPlayableSceneSocialPossibilityAnswerV1(REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1, rawInput);
+}
+
+function possibilityNarration(rawInput: string): string {
+  const normalized = rawInput.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
+  if (/\b(voler|bourse|prendre|fouiller)\b/u.test(normalized)) {
+    return "C'est une possibilité risquée, pas une action encore lancée. Le garde est blessé mais attentif; sa bourse reste visible, et la salle commune offre assez de regards pour rendre le geste dangereux.";
+  }
+  if (/\b(porte|fond|arriere|arriere-salle|ouvrir)\b/u.test(normalized)) {
+    return "La porte du fond existe bien comme piste possible, mais cette question ne l'ouvre pas. La serveuse la surveille du coin de l'œil, et le garde semble attendre de voir si tu vas insister.";
+  }
+  return "La possibilité est notée sans être exécutée. La scène reste dans l'Auberge du Seuil, sous la pluie, avec le garde blessé, la serveuse nerveuse et la porte du fond comme points d'attention.";
 }
 
 function speechTarget(rawInput: string): { actorId: "npc-garde-blesse" | "npc-serveuse-nerveuse"; displayName: string } {

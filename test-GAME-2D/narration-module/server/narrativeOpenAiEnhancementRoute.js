@@ -5,6 +5,9 @@ const CONTRACT_VERSION = "narrative-ai-resolution/1";
 const INTENT_CONTRACT_VERSION = "ai-intent-interpretation/1";
 const DEFAULT_MODEL = "gpt-4.1-mini";
 
+// Source active pour la route serveur: le schéma est construit par requête afin
+// de verrouiller le rôle, le contrat et le payload attendus, notamment pour
+// `player_intent_interpreter`.
 function buildStrictAiOutputSchema(request) {
   return {
     name: "narrative_ai_role_output_envelope_v1",
@@ -56,6 +59,8 @@ function buildStrictAiOutputSchema(request) {
   };
 }
 
+// Compatibilité legacy pour les tests/consommateurs I-06I. Les nouveaux rôles
+// doivent utiliser `buildStrictAiOutputSchema(request)`.
 const STRICT_AI_OUTPUT_SCHEMA = {
   name: "narrative_ai_role_output_envelope_v1",
   schema: {
@@ -484,9 +489,13 @@ function buildRoleInstructions(request) {
       "Utilise diagnostics=[] si tout va bien, supersedesOutputId=null et status=OK pour une sortie utilisable.",
       "Role player_intent_interpreter: produire une intention structuree, pas un resultat.",
       "Une question de possibilite comme 'Est-ce que je peux...' ou 'Puis-je...' doit rester intentType=possibility_query, commitment=hypothetical, expectedTimeEffect=NO_GAME_TIME.",
-      "Une parole claire adressee a un PNJ doit etre intentType=speech, commitment=committed, sans inventer la reponse du PNJ.",
+      "Une demande polie d'interaction comme 'j'aimerais parler a un garde' est une intention de parole engagee: intentType=speech, commitment=committed, expectedTimeEffect=DOMAIN_TO_DECIDE.",
+      "Une parole claire adressee a un PNJ doit etre intentType=speech, commitment=committed, expectedTimeEffect=DOMAIN_TO_DECIDE, sans inventer la reponse du PNJ.",
+      "Une phrase composee avec micro-deplacement social, par exemple 'je m'approche du garde et je lui demande...', doit rester speech ou mixed avec expectedTimeEffect=DOMAIN_TO_DECIDE; ne la reduis pas a action.",
       "Une action explicite doit etre intentType=action, commitment=committed, expectedTimeEffect=DOMAIN_TO_DECIDE.",
       "Une question meta ou interface doit etre intentType=meta_question, commitment=none, expectedTimeEffect=NO_GAME_TIME.",
+      "Une question sur l'etat percu de la scene, l'environnement, la meteo, le lieu ou ce que le personnage peut savoir sans agir est une question de contexte: intentType=meta_question, commitment=none, expectedTimeEffect=NO_GAME_TIME.",
+      "Une ellipse objet sans verbe clair, par exemple 'la bourse du garde ?' ou 'et la porte du fond ?', doit etre unclear_commitment avec requiresClarification=true, pas possibility_query.",
       "Une formulation elliptique ou ambigue doit etre intentType=unclear_commitment, commitment=unclear, requiresClarification=true.",
       "Interdit: transformer une possibilite en action executee, accorder un succes social, reveler un secret, creer un objet ou PNJ durable, ou declencher un handoff definitif."
     ].join("\n");
@@ -495,6 +504,9 @@ function buildRoleInstructions(request) {
   return [
     ...shared,
     "Role scene_writer: ajoute seulement une narration MJ atmospherique ancree dans les resolutions deja confirmees.",
+    "Le rendu doit etre concret: lieu, perception, tension locale, PNJ visibles. Evite les phrases generiques comme 'tout reste possible' si un detail de scene est disponible.",
+    "Pour une parole ou une action engagee, montre la mise en scene immediate sans decider le succes, l'echec, la reaction decisive ou une consequence durable.",
+    "Pour une clarification ou une possibilite, rends la limite claire: aucune action n'est executee et le temps de jeu ne progresse pas.",
     "Chaque bloc doit citer au moins une source dans groundedIn, par exemple resolution:<id> si fourni dans la tache.",
     "N'annonce pas de nouveau resultat de test, de degat, de reaction PNJ decisive, de combat, de recompense ou de secret.",
     "La texture creative est autorisee seulement pour decrire le ton, le rythme, les sensations et la mise en scene."
@@ -545,16 +557,21 @@ function validateEnvelope(output, request) {
   if (!output.payload || typeof output.payload !== "object" || Array.isArray(output.payload)) {
     issues.push("payload must be an object.");
   } else {
-    issues.push(...validateRolePayload(output.payload, request.role));
+    issues.push(...validateRolePayload(output.payload, request.role, request));
   }
   return issues.length > 0 ? { ok: false, issues } : { ok: true };
 }
 
-function validateRolePayload(payload, role) {
+function validateRolePayload(payload, role, request = null) {
   const issues = [];
   if (role === "player_intent_interpreter") {
     if (typeof payload.rawInputEcho !== "string") issues.push("payload.rawInputEcho must be a string.");
-    const socialSpeechRequest = isSocialSpeechRequestText(payload.rawInputEcho);
+    const sourceRawInput = request && request.input && request.input.task && typeof request.input.task.rawInput === "string"
+      ? request.input.task.rawInput
+      : payload.rawInputEcho;
+    const socialSpeechRequest = isSocialSpeechRequestText(sourceRawInput);
+    const explicitPossibilityQuestion = isExplicitPossibilityQuestionText(sourceRawInput);
+    const ellipticalObjectQuestion = isEllipticalObjectQuestionText(sourceRawInput);
     if (!Array.isArray(payload.intents) || payload.intents.length === 0 || payload.intents.length > 3) {
       issues.push("payload.intents must contain 1 to 3 intents.");
       return issues;
@@ -589,10 +606,20 @@ function validateRolePayload(payload, role) {
       if (!["NO_GAME_TIME", "DOMAIN_TO_DECIDE"].includes(intent.expectedTimeEffect)) issues.push(`payload.intents[${index}].expectedTimeEffect is invalid.`);
       if (!["low", "medium", "high"].includes(intent.confidence)) issues.push(`payload.intents[${index}].confidence is invalid.`);
       if (intent.intentType === "possibility_query" && intent.commitment !== "hypothetical") issues.push(`payload.intents[${index}] possibility_query must stay hypothetical.`);
+      if (intent.intentType === "possibility_query" && !explicitPossibilityQuestion) issues.push(`payload.intents[${index}] possibility_query requires explicit possibility wording.`);
       if (intent.intentType === "meta_question" && intent.commitment !== "none") issues.push(`payload.intents[${index}] meta_question must have no commitment.`);
       if (intent.intentType === "speech" && intent.commitment !== "committed") issues.push(`payload.intents[${index}] speech must be committed.`);
       if (intent.intentType === "action" && intent.commitment !== "committed") issues.push(`payload.intents[${index}] action must be committed.`);
+      if (["speech", "mixed", "action"].includes(intent.intentType) && intent.commitment === "committed" && intent.expectedTimeEffect !== "DOMAIN_TO_DECIDE") {
+        issues.push(`payload.intents[${index}] committed in-fiction intent must use DOMAIN_TO_DECIDE.`);
+      }
       if (socialSpeechRequest && intent.intentType === "action") issues.push(`payload.intents[${index}] social speech request must not be action.`);
+      if (socialSpeechRequest && !explicitPossibilityQuestion && intent.intentType === "possibility_query") {
+        issues.push(`payload.intents[${index}] social speech statement must not be possibility_query.`);
+      }
+      if (ellipticalObjectQuestion && intent.intentType === "possibility_query") {
+        issues.push(`payload.intents[${index}] elliptical object question must require clarification.`);
+      }
       if (intent.requiresClarification === true && typeof intent.clarificationQuestion !== "string") issues.push(`payload.intents[${index}] clarification requires a question.`);
       if (Array.isArray(intent.riskFlags) && intent.riskFlags.some(flag => ["secret_reveal", "social_success_granted"].includes(flag))) {
         issues.push(`payload.intents[${index}] contains forbidden risk flag.`);
@@ -637,7 +664,24 @@ function validateRolePayload(payload, role) {
 
 function isSocialSpeechRequestText(value) {
   const text = normalizeRouteText(value).replace(/[’']/gu, "'");
-  return /\b(j'aimerais|j aimerais|j'aimerai|j aimerai|je voudrais|je souhaite)\b.*\b(parler|discuter|questionner|interroger|demander)\b/u.test(text);
+  const asksToSpeak = /\b(j'aimerais|j aimerais|j'aimerai|j aimerai|je voudrais|je souhaite)\b.*\b(parler|discuter|questionner|interroger|demander)\b/u.test(text);
+  const directSpeech = /\b(je lui demande|je demande a|je demande au|je demande aux|je lui dis|je dis a|je dis au|je parle a|je parle au|je questionne|j'interroge|j interroge)\b/u.test(text);
+  const composedApproachSpeech = /\b(je m'approche|je m approche|je m'avance|je m avance|je vais vers|je me dirige vers)\b.*\b(je lui demande|je demande a|je demande au|je lui dis|je parle a|je parle au|je questionne|j'interroge|j interroge)\b/u.test(text);
+  return asksToSpeak || directSpeech || composedApproachSpeech;
+}
+
+function isExplicitPossibilityQuestionText(value) {
+  const text = normalizeRouteText(value).replace(/[’']/gu, "'");
+  return /[?？]/u.test(String(value || "")) && /\b(est[- ]ce que|peux|puis|possible|possibilite|ai[- ]je le droit)\b/u.test(text);
+}
+
+function isEllipticalObjectQuestionText(value) {
+  const raw = String(value || "").trim();
+  const text = normalizeRouteText(raw).replace(/[’']/gu, "'");
+  if (!/[?？]\s*$/u.test(raw)) return false;
+  if (isExplicitPossibilityQuestionText(raw)) return false;
+  if (/\b(je|j'|j |tu|vous|peux|puis|est[- ]ce|comment|pourquoi|combien|quand|quelle|quel|quels|quelles|ou|où)\b/u.test(text)) return false;
+  return /^(et\s+)?(la|le|les|l'|un|une)\s+[\p{Letter}0-9]/u.test(text);
 }
 
 function normalizeRouteText(value) {

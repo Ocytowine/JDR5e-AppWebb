@@ -125,6 +125,12 @@ async function main(): Promise<void> {
   assert.equal(invalidSocialSpeech.interpretation.intentType, "speech", "fallback conserve la demande sociale comme parole");
   assert.equal(invalidSocialSpeech.interpretation.commitment, "committed", "parole engagee attendue");
 
+  const invalidImplicitPossibility = await interpret("quel temps fait il ?", invalidImplicitPossibilityConfig());
+  assert.equal(invalidImplicitPossibility.usedAiInterpretation, false, "possibility_query sans demande explicite rejetee");
+  assert.equal(invalidImplicitPossibility.usedFallback, true, "fallback conservateur utilise");
+  assert.equal(invalidImplicitPossibility.interpretation.intentType, "meta_question", "question de contexte attendue");
+  assert.equal(invalidImplicitPossibility.interpretation.commitment, "none", "aucun engagement attendu");
+
   const controllerResult = await runControllerSpeechCase();
   assert.equal(controllerResult.output.interpretation.intentType, "speech");
   assert.equal(controllerResult.output.resolution.resultKind, "COMMIT_APPLIED");
@@ -211,6 +217,51 @@ function invalidUnusableConfig(): AiIntentInterpreterConfigV1 {
           payload: {
             rawInputEcho: "",
             intents: []
+          },
+          diagnostics: [],
+          supersedesOutputId: null
+        };
+      }
+    } satisfies ContractAiProviderV1
+  };
+}
+
+function invalidImplicitPossibilityConfig(): AiIntentInterpreterConfigV1 {
+  const config = createDefaultAiIntentInterpreterConfigV1();
+  return {
+    ...config,
+    provider: {
+      async generate(request) {
+        return {
+          schemaVersion: 1,
+          contractVersion: AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1,
+          outputId: "output-invalid-implicit-possibility",
+          callId: request.callId,
+          attemptId: request.attemptId,
+          packId: request.packId,
+          snapshotId: request.snapshotId,
+          role: request.role,
+          status: "OK",
+          payload: {
+            rawInputEcho: "quel temps fait il ?",
+            intents: [{
+              intentId: "intent:1",
+              order: 1,
+              intentType: "possibility_query",
+              commitment: "hypothetical",
+              target: null,
+              action: "ask_possibility",
+              topic: "temps actuel",
+              coreMeaning: "Demander s'il est possible qu'il fasse beau.",
+              playerImposedDetails: [],
+              openDetails: [],
+              forbiddenInterpretations: [],
+              requiresClarification: false,
+              clarificationQuestion: null,
+              riskFlags: [],
+              expectedTimeEffect: "NO_GAME_TIME",
+              confidence: "high"
+            }]
           },
           diagnostics: [],
           supersedesOutputId: null

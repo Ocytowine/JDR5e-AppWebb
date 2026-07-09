@@ -125,8 +125,8 @@ const scenario: ScenarioInput[] = [{
   id: "i06q-08-possibility-door",
   rawInput: "Puis-je ouvrir la porte sans attirer l'attention ?",
   expectation: {
-    requiresAnchor: false,
-    noFiction: true,
+    requiresAnchor: true,
+    noFiction: false,
     noCommit: true,
     noGameTime: true,
     expectedIntent: "possibility_query"

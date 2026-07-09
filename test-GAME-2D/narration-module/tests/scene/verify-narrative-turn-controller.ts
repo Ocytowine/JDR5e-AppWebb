@@ -127,6 +127,20 @@ async function main(): Promise<void> {
   assert.equal(meta.value.output.displayPacket.displayBlocks.some(block => block.kind === "GM_NARRATION" || block.kind === "NPC_SPEECH"), false);
   assert.match(meta.value.output.displayPacket.displayBlocks.at(-1)?.text ?? "", /sans commit/);
 
+  const weather = await controller.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-controller-weather",
+    rawInput: "aujourd'hui fait il beau ?"
+  });
+  if (!weather.ok) throw new Error(weather.error.messageKey);
+  assert.equal(weather.value.output.interpretation.intentType, "meta_question");
+  assert.equal(weather.value.output.interpretation.expectedTimeEffect, "NO_GAME_TIME");
+  assert.equal(weather.value.output.resolution.resultKind, "NO_COMMIT_RESPONSE");
+  assert.equal(weather.value.output.displayPacket.displayBlocks.some(block =>
+    block.kind === "GM_NARRATION" &&
+    /pluie|Auberge du Seuil|garde blessé/u.test(block.text)
+  ), true, "une question météo doit recevoir une réponse de scène concrète");
+
   const possibility = await controller.submit({
     schemaVersion: 1,
     clientRequestId: "req-controller-possibility",
@@ -137,7 +151,11 @@ async function main(): Promise<void> {
   assert.equal(possibility.value.output.interpretation.commitment, "hypothetical");
   assert.equal(possibility.value.output.suspendedIntent, null);
   assert.equal(possibility.value.output.resolution.resultKind, "NO_COMMIT_RESPONSE");
-  assert.equal(possibility.value.output.displayPacket.displayBlocks.some(block => block.kind === "GM_NARRATION" || block.kind === "NPC_SPEECH"), false);
+  assert.equal(possibility.value.output.displayPacket.displayBlocks.some(block => block.kind === "NPC_SPEECH"), false);
+  assert.equal(possibility.value.output.displayPacket.displayBlocks.some(block =>
+    block.kind === "GM_NARRATION" &&
+    /possibilité|pas une action|garde/u.test(block.text)
+  ), true, "une possibilité peut être contextualisée sans exécuter l'action");
   assert.match(possibility.value.output.displayPacket.displayBlocks.at(-1)?.text ?? "", /Aucune action/);
 
   const speech = await controller.submit({

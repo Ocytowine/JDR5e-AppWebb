@@ -6,9 +6,9 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 ## En cours
 
-- [ ] Revoir et committer I-06Z, puis exécuter un smoke live manuel court de `player_intent_interpreter` si `.env` contient `OPENAI_API_KEY` et `NARRATION_OPENAI_LIVE=1`.
-  References: `test-GAME-2D/narration-module/docs/Matrice-preuves-I06Z.md`, `test-GAME-2D/narration-module/docs/Contrat-interpretation-ia-intention.md`, `test-GAME-2D/narration-module/docs/Suivi-prochains-lots-narration.md`.
-  Note: premier retour manuel `j'aimerais parler a un garde` durci cote fallback local et validation serveur OpenAI.
+- [ ] Revoir I-06ZA qualité de scène jouable, puis décider du prochain lot produit narration sans ouvrir automatiquement `mj_planner`.
+  References: `test-GAME-2D/narration-module/docs/Matrice-preuves-I06ZA-qualite-scene.md`, `test-GAME-2D/narration-module/docs/Matrice-certification-live-intent-interpreter.md`, `test-GAME-2D/narration-module/docs/Suivi-prochains-lots-narration.md`.
+  Note: I-06ZA améliore le rendu visible météo/possibilité/parole/mixed sans nouvelle autorité IA et sans changement d'horloge.
 - [ ] Consolider la simulation du monde apres l'ajout des objectifs multi-phases, des opportunites de faction et des mobiles non-systeme.
   Reference: `test-GAME-2D/map-module/docs/world-simulation-corrective-roadmap.md`. Les mobiles exposent maintenant l'objectif, la phase et la cible qu'ils servent.
 

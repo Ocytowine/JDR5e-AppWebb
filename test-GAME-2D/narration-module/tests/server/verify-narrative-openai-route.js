@@ -212,6 +212,98 @@ async function main() {
   );
   assert.equal(dangerousSocialSpeechIntent.ok, false);
   assert.equal(dangerousSocialSpeechIntent.issues.includes("payload.intents[0] social speech request must not be action."), true);
+  const composedSocialSpeechReq = intentRequest({
+    input: {
+      ...intentRequest().input,
+      task: {
+        ...intentRequest().input.task,
+        rawInput: "je m'approche du garde et je lui demande s'il a vu quelque chose d'etrange"
+      }
+    }
+  });
+  const dangerousComposedSocialSpeechIntent = validateEnvelope(
+    intentOutputFor(composedSocialSpeechReq, { intent: { intentType: "action", action: "act", coreMeaning: "Le personnage agit vers le garde." } }),
+    composedSocialSpeechReq
+  );
+  assert.equal(dangerousComposedSocialSpeechIntent.ok, false);
+  assert.equal(dangerousComposedSocialSpeechIntent.issues.includes("payload.intents[0] social speech request must not be action."), true);
+  const dangerousAlteredEchoSocialSpeechIntent = validateEnvelope(
+    {
+      ...intentOutputFor(composedSocialSpeechReq, { intent: { intentType: "action", action: "act", coreMeaning: "Le personnage agit vers le garde." } }),
+      payload: {
+        ...intentOutputFor(composedSocialSpeechReq).payload,
+        rawInputEcho: "je m'approche du garde",
+        intents: [
+          {
+            ...intentOutputFor(composedSocialSpeechReq).payload.intents[0],
+            intentType: "action",
+            action: "act",
+            coreMeaning: "Le personnage agit vers le garde."
+          }
+        ]
+      }
+    },
+    composedSocialSpeechReq
+  );
+  assert.equal(dangerousAlteredEchoSocialSpeechIntent.ok, false);
+  assert.equal(dangerousAlteredEchoSocialSpeechIntent.issues.includes("payload.intents[0] social speech request must not be action."), true);
+  const speechNoGameTimeIntent = validateEnvelope(
+    intentOutputFor(intentRequest(), { intent: { intentType: "speech", commitment: "committed", expectedTimeEffect: "NO_GAME_TIME" } }),
+    intentRequest()
+  );
+  assert.equal(speechNoGameTimeIntent.ok, false);
+  assert.equal(speechNoGameTimeIntent.issues.includes("payload.intents[0] committed in-fiction intent must use DOMAIN_TO_DECIDE."), true);
+  const politeSpeechAsPossibilityIntent = validateEnvelope(
+    intentOutputFor(socialSpeechReq, { intent: { intentType: "possibility_query", commitment: "hypothetical", expectedTimeEffect: "NO_GAME_TIME" } }),
+    socialSpeechReq
+  );
+  assert.equal(politeSpeechAsPossibilityIntent.ok, false);
+  assert.equal(politeSpeechAsPossibilityIntent.issues.includes("payload.intents[0] social speech statement must not be possibility_query."), true);
+  const ellipticalObjectReq = intentRequest({
+    input: {
+      ...intentRequest().input,
+      task: {
+        ...intentRequest().input.task,
+        rawInput: "la bourse du garde ?"
+      }
+    }
+  });
+  const ellipticalObjectAsPossibilityIntent = validateEnvelope(
+    intentOutputFor(ellipticalObjectReq, { intent: { intentType: "possibility_query", commitment: "hypothetical", expectedTimeEffect: "NO_GAME_TIME" } }),
+    ellipticalObjectReq
+  );
+  assert.equal(ellipticalObjectAsPossibilityIntent.ok, false);
+  assert.equal(ellipticalObjectAsPossibilityIntent.issues.includes("payload.intents[0] elliptical object question must require clarification."), true);
+  const ellipticalDoorReq = intentRequest({
+    input: {
+      ...intentRequest().input,
+      task: {
+        ...intentRequest().input.task,
+        rawInput: "et la porte du fond ?"
+      }
+    }
+  });
+  const ellipticalDoorAsPossibilityIntent = validateEnvelope(
+    intentOutputFor(ellipticalDoorReq, { intent: { intentType: "possibility_query", commitment: "hypothetical", expectedTimeEffect: "NO_GAME_TIME" } }),
+    ellipticalDoorReq
+  );
+  assert.equal(ellipticalDoorAsPossibilityIntent.ok, false);
+  assert.equal(ellipticalDoorAsPossibilityIntent.issues.includes("payload.intents[0] elliptical object question must require clarification."), true);
+  const contextQuestionReq = intentRequest({
+    input: {
+      ...intentRequest().input,
+      task: {
+        ...intentRequest().input.task,
+        rawInput: "quel temps fait il ?"
+      }
+    }
+  });
+  const contextQuestionAsPossibilityIntent = validateEnvelope(
+    intentOutputFor(contextQuestionReq, { intent: { intentType: "possibility_query", commitment: "hypothetical", expectedTimeEffect: "NO_GAME_TIME" } }),
+    contextQuestionReq
+  );
+  assert.equal(contextQuestionAsPossibilityIntent.ok, false);
+  assert.equal(contextQuestionAsPossibilityIntent.issues.includes("payload.intents[0] possibility_query requires explicit possibility wording."), true);
 
   let sendCount = 0;
   const disabledApi = createNarrativeOpenAiEnhancementApi({
