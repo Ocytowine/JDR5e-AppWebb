@@ -63,6 +63,69 @@ function outputFor(req) {
   };
 }
 
+function intentRequest(overrides = {}) {
+  return request({
+    callId: "call-route-intent-001",
+    operationId: "operation-route-intent-001",
+    attemptId: "attempt-route-intent-001",
+    snapshotId: "snapshot-route-intent-001",
+    packId: "pack-route-intent-001",
+    role: "player_intent_interpreter",
+    contractVersion: "ai-intent-interpretation/1",
+    input: {
+      instructionsRef: "ai-intent-interpretation/player-intent-interpreter/v1",
+      roleContextPack: {
+        sceneId: "reference-inn-rain-001",
+        presentNpc: [{ actorId: "npc-garde-blesse", displayName: "Garde blessé", keywords: ["garde", "lui"] }]
+      },
+      task: {
+        rawInput: "Je m'approche du garde et je lui demande s'il a vu quelque chose d'étrange.",
+        allowedIntentTypes: ["meta_question", "possibility_query", "memory_recall", "speech", "action", "mixed", "unclear_commitment"],
+        forbiddenAuthority: ["commit", "time", "inventory", "tactical", "durable_lore", "social_success"]
+      }
+    },
+    ...overrides
+  });
+}
+
+function intentOutputFor(req, overrides = {}) {
+  return {
+    schemaVersion: 1,
+    contractVersion: req.contractVersion,
+    outputId: "output-route-intent-001",
+    callId: req.callId,
+    attemptId: req.attemptId,
+    packId: req.packId,
+    snapshotId: req.snapshotId,
+    role: req.role,
+    status: "OK",
+    payload: {
+      rawInputEcho: req.input.task.rawInput,
+      intents: [{
+        intentId: "intent:1",
+        order: 1,
+        intentType: "speech",
+        commitment: "committed",
+        target: { kind: "npc", ref: "npc:npc-garde-blesse", label: "garde" },
+        action: "ask",
+        topic: "s'il a vu quelque chose d'étrange",
+        coreMeaning: "Le personnage demande au garde s'il a vu quelque chose d'étrange.",
+        playerImposedDetails: ["s'approcher du garde", "poser une question"],
+        openDetails: [],
+        forbiddenInterpretations: ["le garde répond", "un succès social est acquis"],
+        requiresClarification: false,
+        clarificationQuestion: null,
+        riskFlags: [],
+        expectedTimeEffect: "DOMAIN_TO_DECIDE",
+        confidence: "high",
+        ...overrides.intent
+      }]
+    },
+    diagnostics: [],
+    supersedesOutputId: null
+  };
+}
+
 function mockReq(body) {
   return {
     method: "POST",
@@ -89,6 +152,10 @@ async function main() {
   assert.equal(normalized.ok, true);
   const rejected = normalizeAiCallRequest(request({ role: "mj_planner" }));
   assert.equal(rejected.ok, false);
+  const normalizedIntent = normalizeAiCallRequest(intentRequest());
+  assert.equal(normalizedIntent.ok, true);
+  const rejectedIntentContract = normalizeAiCallRequest(intentRequest({ contractVersion: "narrative-ai-resolution/1" }));
+  assert.equal(rejectedIntentContract.ok, false);
 
   const body = buildOpenAiResponsesBody(request(), { modelId: "gpt-4.1-mini" });
   assert.equal(body.text.format.type, "json_schema");
@@ -115,9 +182,36 @@ async function main() {
   assert.equal(sceneSchema.schema.properties.payload.required.includes("narrationBlocks"), true);
   assert.equal(sceneSchema.schema.properties.payload.properties.narrationBlocks.items.required.includes("groundedIn"), true);
 
+  const intentBody = buildOpenAiResponsesBody(intentRequest(), { modelId: "gpt-4.1-mini" });
+  assert.equal(intentBody.text.format.schema.properties.contractVersion.enum[0], "ai-intent-interpretation/1");
+  assert.equal(intentBody.text.format.schema.properties.role.enum[0], "player_intent_interpreter");
+  assert.equal(intentBody.text.format.schema.properties.payload.properties.intents.items.required.includes("expectedTimeEffect"), true);
+  assert.equal(intentBody.input[0].content[0].text.includes("transformer une possibilite en action executee"), true);
+
   const dangerousExpression = validateEnvelope({ ...outputFor(request()), payload: { ...outputFor(request()).payload, addedMeaning: ["promesse de payer"] } }, request());
   assert.equal(dangerousExpression.ok, false);
   assert.equal(dangerousExpression.issues.includes("payload.addedMeaning must be empty."), true);
+  const dangerousIntent = validateEnvelope(
+    intentOutputFor(intentRequest(), { intent: { intentType: "possibility_query", commitment: "committed" } }),
+    intentRequest()
+  );
+  assert.equal(dangerousIntent.ok, false);
+  assert.equal(dangerousIntent.issues.includes("payload.intents[0] possibility_query must stay hypothetical."), true);
+  const socialSpeechReq = intentRequest({
+    input: {
+      ...intentRequest().input,
+      task: {
+        ...intentRequest().input.task,
+        rawInput: "j'aimerais parler a un garde"
+      }
+    }
+  });
+  const dangerousSocialSpeechIntent = validateEnvelope(
+    intentOutputFor(socialSpeechReq, { intent: { intentType: "action", action: "act", coreMeaning: "Le personnage agit vers le garde." } }),
+    socialSpeechReq
+  );
+  assert.equal(dangerousSocialSpeechIntent.ok, false);
+  assert.equal(dangerousSocialSpeechIntent.issues.includes("payload.intents[0] social speech request must not be action."), true);
 
   let sendCount = 0;
   const disabledApi = createNarrativeOpenAiEnhancementApi({
@@ -158,11 +252,13 @@ async function main() {
   assert.equal(missingKey.payload.error, "OPENAI_API_KEY_MISSING");
 
   let capturedAuth = "";
+  let capturedBody = null;
   const liveApi = createNarrativeOpenAiEnhancementApi({
-    env: { NARRATION_OPENAI_LIVE: "1", NARRATION_OPENAI_MODEL: "gpt-4.1-mini" },
+    env: { NARRATION_OPENAI_LIVE: "1", NARRATION_OPENAI_MODEL: "gpt-4.1-mini", NARRATION_OPENAI_INTENT_MODEL: "gpt-4.1-intent-test" },
     apiKey: "sk-test-secret",
     fetchImpl: async (_url, init) => {
       capturedAuth = init.headers.Authorization;
+      capturedBody = JSON.parse(init.body);
       return {
         status: 200,
         statusText: "OK",
@@ -185,6 +281,36 @@ async function main() {
   assert.equal(live.payload.ok, true);
   assert.equal(live.payload.output.role, "player_expression_adapter");
   assert.equal(capturedAuth, "Bearer sk-test-secret");
+  assert.equal(capturedBody.model, "gpt-4.1-mini");
+
+  const liveIntentApi = createNarrativeOpenAiEnhancementApi({
+    env: { NARRATION_OPENAI_LIVE: "1", NARRATION_OPENAI_MODEL: "gpt-4.1-mini", NARRATION_OPENAI_INTENT_MODEL: "gpt-4.1-intent-test" },
+    apiKey: "sk-test-secret",
+    fetchImpl: async (_url, init) => {
+      capturedBody = JSON.parse(init.body);
+      return {
+        status: 200,
+        statusText: "OK",
+        async json() {
+          return { output_text: JSON.stringify(intentOutputFor(intentRequest())), usage: { input_tokens: 11, output_tokens: 21, total_tokens: 32 } };
+        },
+        async text() {
+          return "";
+        }
+      };
+    },
+    parseJsonBody: async req => req.body,
+    sendJson: (res, statusCode, data) => {
+      res.statusCode = statusCode;
+      res.payload = data;
+    }
+  });
+  const liveIntent = await runRoute(liveIntentApi, { request: intentRequest() });
+  assert.equal(liveIntent.statusCode, 200);
+  assert.equal(liveIntent.payload.ok, true);
+  assert.equal(liveIntent.payload.output.role, "player_intent_interpreter");
+  assert.equal(liveIntent.payload.output.contractVersion, "ai-intent-interpretation/1");
+  assert.equal(capturedBody.model, "gpt-4.1-intent-test");
 
   const invalidOutputApi = createNarrativeOpenAiEnhancementApi({
     env: { NARRATION_OPENAI_LIVE: "1" },

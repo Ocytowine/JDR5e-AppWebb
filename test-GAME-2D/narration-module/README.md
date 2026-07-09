@@ -2,7 +2,7 @@
 
 Le runtime narratif complet de campagne n'est pas encore livré. En revanche, une surface narration prototype existe et peut utiliser OpenAI en opt-in côté serveur pour enrichir le rendu visible sans autorité métier, enregistrer durablement la projection de rendu, reconstruire le fil visible depuis ces projections et afficher une scène de référence concrète.
 
-I-00 fournit le noyau transactionnel `campaign-core/1`; I-01 ajoute la persistance IndexedDB; I-02 fournit le bootstrap contenu/personnage/règles. I-03 livre l'horloge, l'échéancier, les checkpoints de processus, l'adaptateur monde sur copie et le voyage segmenté. I-04 livre mémoire, snapshot et contextes déterministes. I-05 livre le pipeline IA contractuel, les créations dynamiques et l'adaptateur OpenAI serveur. I-06 livre scène, social, UI, contrôleur de tour, interprétation conservatrice, résolution narrative bornée, enrichissement IA, bascule UI Locale/OpenAI, persistance de la projection finale, restauration du fil visible, scène narrative de référence `reference-inn-rain-001`, paquet IA `scene_writer` ancré, état de scène minimal `scene.state`, mémoire courte PNJ, interprétation IA structurée de l'intention joueur et encarts UX explicites pour no-commit/clarification. I-07A livre le socle typé et testé des handoffs tactique/repos, avec intégration idempotente d'outcomes simulés. I-07B raccorde ces outcomes au kernel temporel pour écrire `world.clock` atomiquement. I-07C ajoute l'état propriétaire `rest.process` et la progression segmentée déterministe du repos. I-07D ajoute un placeholder tactique contractuel produisant des `TacticalOutcomeV1`.
+I-00 fournit le noyau transactionnel `campaign-core/1`; I-01 ajoute la persistance IndexedDB; I-02 fournit le bootstrap contenu/personnage/règles. I-03 livre l'horloge, l'échéancier, les checkpoints de processus, l'adaptateur monde sur copie et le voyage segmenté. I-04 livre mémoire, snapshot et contextes déterministes. I-05 livre le pipeline IA contractuel, les créations dynamiques et l'adaptateur OpenAI serveur. I-06 livre scène, social, UI, contrôleur de tour, interprétation conservatrice, résolution narrative bornée, enrichissement IA, bascule UI Locale/OpenAI, persistance de la projection finale, restauration du fil visible, scène narrative de référence `reference-inn-rain-001`, paquet IA `scene_writer` ancré, état de scène minimal `scene.state`, mémoire courte PNJ, interprétation IA structurée de l'intention joueur, encarts UX explicites pour no-commit/clarification et branchement OpenAI live serveur pour `player_intent_interpreter`. I-07A livre le socle typé et testé des handoffs tactique/repos, avec intégration idempotente d'outcomes simulés. I-07B raccorde ces outcomes au kernel temporel pour écrire `world.clock` atomiquement. I-07C ajoute l'état propriétaire `rest.process` et la progression segmentée déterministe du repos. I-07D ajoute un placeholder tactique contractuel produisant des `TacticalOutcomeV1`.
 
 Les rôles de MJ complet, PNJ interprétés, arbitrage de règles, création persistante automatique, mémoire sociale générique, lecteur UX d'historique complet et snapshot de scène réel restent fermés tant que leurs contrats/gates dédiés ne sont pas ouverts. Les handoffs tactique/repos ne sont pas encore branchés comme processus jouables; I-07D ne remplace pas `GameBoard.tsx`, l'IA tactique réelle, l'UI de repos ou les règles complètes de classe/sorts/fatigue.
 
@@ -47,6 +47,17 @@ Le build global exécute également la vérification TypeScript du noyau :
 npm run build
 ```
 
+Configuration OpenAI live optionnelle dans `test-GAME-2D/.env` :
+
+```env
+OPENAI_API_KEY=...
+NARRATION_OPENAI_LIVE=1
+NARRATION_OPENAI_MODEL=gpt-4.1-mini
+NARRATION_OPENAI_INTENT_MODEL=gpt-4.1-mini
+```
+
+`NARRATION_OPENAI_INTENT_MODEL` est optionnel. S'il est absent, le serveur utilise `NARRATION_OPENAI_MODEL`, puis le modèle par défaut.
+
 ## Références
 
 - [`docs/Contrat-noyau-campagne.md`](docs/Contrat-noyau-campagne.md) : contrat normatif `FIGE`.
@@ -87,6 +98,7 @@ npm run build
 - [`docs/Matrice-preuves-I06X.md`](docs/Matrice-preuves-I06X.md) : preuves I-06X, interprétation IA structurée, robustesse linguistique et fallback conservateur.
 - [`docs/Matrice-preuves-I06Y.md`](docs/Matrice-preuves-I06Y.md) : preuves I-06Y, encarts UX no-commit, clarification, possibilité et parole enregistrée.
 - [`docs/Revue-produit-I06X-I06Y.md`](docs/Revue-produit-I06X-I06Y.md) : revue produit I-06X/I-06Y et décision d'ouvrir OpenAI live pour `player_intent_interpreter`.
+- [`docs/Matrice-preuves-I06Z.md`](docs/Matrice-preuves-I06Z.md) : preuves I-06Z, branchement OpenAI live serveur pour `player_intent_interpreter`.
 - [`docs/Sortie-phase-I06.md`](docs/Sortie-phase-I06.md) : cadrage de sortie I-06, défaut d'interprétation déterministe et décision d'ouvrir une interprétation IA structurée.
 - [`docs/Matrice-preuves-I07-audit.md`](docs/Matrice-preuves-I07-audit.md) : audit I-07, résolution AF-R13/AF-R14 et autorisation I-07A.
 - [`docs/Matrice-preuves-I07A.md`](docs/Matrice-preuves-I07A.md) : preuves I-07A, types, validateurs et intégration idempotente simulée tactique/repos.

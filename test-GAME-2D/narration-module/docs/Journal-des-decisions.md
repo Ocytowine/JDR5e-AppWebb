@@ -2033,3 +2033,21 @@ Le développeur doit pouvoir tester une vraie qualité de prose sans modifier le
 ### Conséquences
 
 OpenAI devient testable depuis l'interface, mais reste optionnel. La prochaine étape peut porter sur la qualité des prompts, la persistance des incidents, ou les handoffs tactique/repos.
+
+## NAR-110 — OpenAI serveur pour l'interprétation d'intention
+
+Statut : `RETENU`
+
+Date : 2026-07-08
+
+### Décision
+
+La route `POST /api/narration/enhance-openai` accepte aussi le rôle `player_intent_interpreter` avec le contrat `ai-intent-interpretation/1`. Le mode OpenAI de la surface narration utilise cette route pour l'interprétation d'intention, puis pour l'enrichissement visible.
+
+### Raisons
+
+La revue I-06X/I-06Y a validé que l'interprétation structurée est le bon endroit pour traiter les variations de formulation. Le branchement OpenAI doit rester côté serveur pour éviter l'exposition de clé et conserver la validation locale stricte.
+
+### Conséquences
+
+OpenAI peut proposer une intention structurée, mais ne peut toujours pas committer, avancer le temps, modifier inventaire/tactique/lore durable ou accorder un succès social. `mj_planner`, les PNJ autonomes et la certification live large restent fermés.

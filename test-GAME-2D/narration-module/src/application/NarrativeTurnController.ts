@@ -190,25 +190,40 @@ export class NarrativeTurnControllerV1 {
 
 export async function createPrototypeNarrativeTurnControllerV1(options: {
   clock?: RepositoryClock;
+  intentInterpreterConfig?: AiIntentInterpreterConfigV1 | null;
 } = {}): Promise<NarrativeTurnControllerV1> {
   const clock = options.clock ?? systemClock;
   const repository = new MemoryCampaignRepository({ clock });
   await ensurePrototypeCampaign(repository, clock);
-  return new NarrativeTurnControllerV1({ repository, campaignId: DEFAULT_CAMPAIGN_ID, clock });
+  return new NarrativeTurnControllerV1({
+    repository,
+    campaignId: DEFAULT_CAMPAIGN_ID,
+    clock,
+    intentInterpreterConfig: options.intentInterpreterConfig
+  });
 }
 
 export async function createBrowserPersistentNarrativeTurnControllerV1(options: {
   clock?: RepositoryClock;
   databaseName?: string;
+  intentInterpreterConfig?: AiIntentInterpreterConfigV1 | null;
 } = {}): Promise<NarrativeTurnControllerV1> {
   const clock = options.clock ?? systemClock;
-  if (!globalThis.indexedDB) return createPrototypeNarrativeTurnControllerV1({ clock });
+  if (!globalThis.indexedDB) return createPrototypeNarrativeTurnControllerV1({
+    clock,
+    intentInterpreterConfig: options.intentInterpreterConfig
+  });
   const repository = await IndexedDbCampaignRepository.open({
     clock,
     databaseName: options.databaseName ?? "jdr5e-narration-prototype"
   });
   await ensurePrototypeCampaign(repository, clock);
-  return new NarrativeTurnControllerV1({ repository, campaignId: DEFAULT_CAMPAIGN_ID, clock });
+  return new NarrativeTurnControllerV1({
+    repository,
+    campaignId: DEFAULT_CAMPAIGN_ID,
+    clock,
+    intentInterpreterConfig: options.intentInterpreterConfig
+  });
 }
 
 async function ensurePrototypeCampaign(

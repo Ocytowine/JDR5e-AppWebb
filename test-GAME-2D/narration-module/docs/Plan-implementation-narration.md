@@ -1,6 +1,6 @@
 # Plan d'implémentation du module narration
 
-Statut : `EN_EXECUTION` — I-00 à I-06Y livrés dans leur périmètre; audit I-07 tactique/repos terminé et I-07A à I-07D livrés; I-02 conserve une réserve tactique différée; I-08 reste fermé jusqu'à sa gate.
+Statut : `EN_EXECUTION` — I-00 à I-06Z livrés dans leur périmètre; audit I-07 tactique/repos terminé et I-07A à I-07D livrés; I-02 conserve une réserve tactique différée; I-08 reste fermé jusqu'à sa gate.
 
 ## Principes d'exécution
 
@@ -525,6 +525,19 @@ Objectif atteint : prouver par matrice de robustesse linguistique que des formul
 
 Limite assumée : I-06Y ne modifie ni l'interprétation IA, ni le contrôleur, ni la résolution métier. Il clarifie uniquement ce que l'interface affiche pour éviter qu'une question, une possibilité ou une clarification soit perçue comme une action exécutée.
 
+### Preuves de livraison I-06Z
+
+- extension de `POST /api/narration/enhance-openai` au rôle `player_intent_interpreter`;
+- contrat `ai-intent-interpretation/1` accepté uniquement pour ce rôle;
+- schéma JSON strict dédié au payload d'interprétation d'intention;
+- instructions serveur interdisant commit, temps, inventaire, tactique, lore durable et succès social;
+- `NarrativeAppSurface` applique le mode OpenAI à l'interprétation d'intention et à l'enrichissement final;
+- modèle optionnel `NARRATION_OPENAI_INTENT_MODEL`;
+- tests `narration-module:test:narrative-openai-route`, `narration-module:test:narrative-app-surface`, `narration-module:test:ai-intent-interpretation`, `narration-module:test:narrative-turn-controller`;
+- matrice [`Matrice-preuves-I06Z.md`](Matrice-preuves-I06Z.md).
+
+Limite assumée : I-06Z ne lance pas de smoke live automatique, ne certifie pas encore la qualité OpenAI sur corpus manuel large et n'ouvre pas `mj_planner`.
+
 ## I-07 — Tactique et repos
 
 ### Objectif
@@ -630,4 +643,4 @@ I-03 et I-04 peuvent être préparés indépendamment après I-02, mais aucune i
 
 ## Autorisation actuelle
 
-I-00 à I-06Y sont terminés dans leur périmètre déclaré, et I-07A à I-07D restent disponibles comme socle tactique/repos différé. La revue produit I-06X/I-06Y est consignée dans [`Revue-produit-I06X-I06Y.md`](Revue-produit-I06X-I06Y.md). La prochaine étape narrative autorisée est le branchement OpenAI live serveur pour `player_intent_interpreter`, avec opt-in, schéma strict et fallback conservateur. I-07E, I-08, `mj_planner`, le MJ complet, les intrigues dynamiques et les handoffs jouables restent fermés tant qu'ils ne sont pas explicitement rouverts.
+I-00 à I-06Z sont terminés dans leur périmètre déclaré, et I-07A à I-07D restent disponibles comme socle tactique/repos différé. La prochaine étape narrative autorisée est la revue/commit I-06Z puis un smoke live manuel optionnel de `player_intent_interpreter` avec `NARRATION_OPENAI_LIVE=1`. I-07E, I-08, `mj_planner`, le MJ complet, les intrigues dynamiques et les handoffs jouables restent fermés tant qu'ils ne sont pas explicitement rouverts.

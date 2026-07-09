@@ -4,7 +4,9 @@ import {
   createBrowserPersistentNarrativeTurnControllerV1,
   createPrototypeNarrativeTurnControllerV1,
   enhanceNarrativeDisplayWithAiV1,
+  AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1,
   type AiNarrativeEnhancementResultV1,
+  type AiIntentInterpreterConfigV1,
   type NarrativeTurnControllerV1
 } from "../../narration-module/src/application";
 import { FakeContractAiProviderV1 } from "../../narration-module/src/ai/FakeContractAiProvider";
@@ -26,7 +28,7 @@ export function NarrativeAppSurface() {
   const [pending, setPending] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [enhancementMode, setEnhancementMode] = useState<NarrativeEnhancementMode>("local");
-  const [enhancementStatus, setEnhancementStatus] = useState<string>("Mode local actif.");
+  const [enhancementStatus, setEnhancementStatus] = useState<string>("Mode local actif pour l'interprétation et l'enrichissement.");
   const packets = useMemo(
     () => [createWelcomePacket(), ...packetsFromController],
     [packetsFromController]
@@ -34,7 +36,9 @@ export function NarrativeAppSurface() {
 
   useEffect(() => {
     let cancelled = false;
-    void createBrowserPersistentNarrativeTurnControllerV1().then(async nextController => {
+    setController(null);
+    const intentInterpreterConfig = buildIntentInterpreterConfig(enhancementMode);
+    void createBrowserPersistentNarrativeTurnControllerV1({ intentInterpreterConfig }).then(async nextController => {
       const restored = await nextController.restoreRenderedThread();
       if (!cancelled) {
         if (restored.ok) {
@@ -45,7 +49,7 @@ export function NarrativeAppSurface() {
         setController(nextController);
       }
     }).catch(error => {
-      void createPrototypeNarrativeTurnControllerV1().then(nextController => {
+      void createPrototypeNarrativeTurnControllerV1({ intentInterpreterConfig }).then(nextController => {
         if (!cancelled) setController(nextController);
       }).catch(fallbackError => {
         if (!cancelled) {
@@ -58,7 +62,7 @@ export function NarrativeAppSurface() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [enhancementMode]);
 
   function handleSubmit(payload: NarrativeSubmitPayloadV1) {
     if (!controller) {
@@ -153,7 +157,7 @@ export function NarrativeAppSurface() {
                 checked={enhancementMode === "local"}
                 onChange={() => {
                   setEnhancementMode("local");
-                  setEnhancementStatus("Mode local actif.");
+                  setEnhancementStatus("Mode local actif pour l'interprétation et l'enrichissement.");
                 }}
               />{" "}
               Locale
@@ -166,7 +170,7 @@ export function NarrativeAppSurface() {
                 checked={enhancementMode === "openai"}
                 onChange={() => {
                   setEnhancementMode("openai");
-                  setEnhancementStatus("Mode OpenAI demandé. Fallback local si la route serveur est désactivée.");
+                  setEnhancementStatus("Mode OpenAI demandé pour l'interprétation et l'enrichissement. Fallback local si la route serveur est désactivée.");
                 }}
               />{" "}
               OpenAI
@@ -426,3 +430,33 @@ const prototypeRetryPolicy: AiRetryPolicyV1 = {
   maxFullRegenerations: 0,
   allowFallback: false
 };
+
+function buildIntentInterpreterConfig(mode: NarrativeEnhancementMode): AiIntentInterpreterConfigV1 | undefined {
+  if (mode !== "openai") return undefined;
+  return {
+    provider: new ServerOpenAiEnhancementProviderV1(),
+    route: {
+      schemaVersion: 1,
+      routeId: "prototype-ui-openai-player-intent-interpreter",
+      role: "player_intent_interpreter",
+      providerKind: "FAKE_CONTRACT",
+      providerId: "server-openai-route",
+      modelId: "server-selected-openai-intent-model",
+      modelConfigVersion: "i06z",
+      certified: true,
+      allowedContractVersions: [AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1],
+      inputTokenLimit: 2_000,
+      outputTokenLimit: 1_000,
+      timeoutMs: 10_000,
+      fallbackRouteIds: []
+    },
+    retryPolicy: {
+      schemaVersion: 1,
+      role: "player_intent_interpreter",
+      maxTechnicalRetries: 0,
+      maxTargetedCorrections: 0,
+      maxFullRegenerations: 0,
+      allowFallback: true
+    }
+  };
+}

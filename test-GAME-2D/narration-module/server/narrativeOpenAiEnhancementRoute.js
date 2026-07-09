@@ -1,7 +1,8 @@
 "use strict";
 
-const ALLOWED_ROLES = new Set(["player_expression_adapter", "scene_writer"]);
+const ALLOWED_ROLES = new Set(["player_expression_adapter", "scene_writer", "player_intent_interpreter"]);
 const CONTRACT_VERSION = "narrative-ai-resolution/1";
+const INTENT_CONTRACT_VERSION = "ai-intent-interpretation/1";
 const DEFAULT_MODEL = "gpt-4.1-mini";
 
 function buildStrictAiOutputSchema(request) {
@@ -105,6 +106,86 @@ const STRICT_AI_OUTPUT_SCHEMA = {
 };
 
 function buildRolePayloadSchema(role) {
+  if (role === "player_intent_interpreter") {
+    return {
+      type: "object",
+      additionalProperties: false,
+      required: ["rawInputEcho", "intents"],
+      properties: {
+        rawInputEcho: { type: "string" },
+        intents: {
+          type: "array",
+          minItems: 1,
+          maxItems: 3,
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: [
+              "intentId",
+              "order",
+              "intentType",
+              "commitment",
+              "target",
+              "action",
+              "topic",
+              "coreMeaning",
+              "playerImposedDetails",
+              "openDetails",
+              "forbiddenInterpretations",
+              "requiresClarification",
+              "clarificationQuestion",
+              "riskFlags",
+              "expectedTimeEffect",
+              "confidence"
+            ],
+            properties: {
+              intentId: { type: "string" },
+              order: { type: "integer", minimum: 1 },
+              intentType: {
+                enum: [
+                  "meta_question",
+                  "possibility_query",
+                  "memory_recall",
+                  "speech",
+                  "action",
+                  "mixed",
+                  "unclear_commitment"
+                ]
+              },
+              commitment: { enum: ["none", "hypothetical", "conditional", "committed", "unclear"] },
+              target: {
+                anyOf: [
+                  {
+                    type: "object",
+                    additionalProperties: false,
+                    required: ["kind", "ref", "label"],
+                    properties: {
+                      kind: { enum: ["npc", "place", "object", "self", "unknown"] },
+                      ref: { type: ["string", "null"] },
+                      label: { type: ["string", "null"] }
+                    }
+                  },
+                  { type: "null" }
+                ]
+              },
+              action: { type: ["string", "null"] },
+              topic: { type: ["string", "null"] },
+              coreMeaning: { type: "string" },
+              playerImposedDetails: { type: "array", items: { type: "string" } },
+              openDetails: { type: "array", items: { type: "string" } },
+              forbiddenInterpretations: { type: "array", items: { type: "string" } },
+              requiresClarification: { type: "boolean" },
+              clarificationQuestion: { type: ["string", "null"] },
+              riskFlags: { type: "array", items: { type: "string" } },
+              expectedTimeEffect: { enum: ["NO_GAME_TIME", "DOMAIN_TO_DECIDE"] },
+              confidence: { enum: ["low", "medium", "high"] }
+            }
+          }
+        }
+      }
+    };
+  }
+
   if (role === "player_expression_adapter") {
     return {
       type: "object",
@@ -293,7 +374,8 @@ function normalizeAiCallRequest(value) {
   }
   if (request.schemaVersion !== 1) issues.push("schemaVersion must be 1.");
   if (!ALLOWED_ROLES.has(request.role)) issues.push("role is not allowed for narrative enhancement.");
-  if (request.contractVersion !== CONTRACT_VERSION) issues.push("contractVersion must be narrative-ai-resolution/1.");
+  const expectedContractVersion = contractVersionForRole(request.role);
+  if (request.contractVersion !== expectedContractVersion) issues.push(`contractVersion must be ${expectedContractVersion}.`);
   if (!request.input || typeof request.input !== "object") issues.push("input must be an object.");
   if (!request.limits || typeof request.limits !== "object") {
     issues.push("limits must be an object.");
@@ -313,11 +395,19 @@ function normalizeAiCallRequest(value) {
 
 function buildServerRoute(request, env) {
   return {
-    modelId: env.NARRATION_OPENAI_MODEL || DEFAULT_MODEL,
+    modelId: request.role === "player_intent_interpreter"
+      ? env.NARRATION_OPENAI_INTENT_MODEL || env.NARRATION_OPENAI_MODEL || DEFAULT_MODEL
+      : env.NARRATION_OPENAI_MODEL || DEFAULT_MODEL,
     routeId: request.role === "scene_writer"
       ? "server-openai-narrative-scene-writer"
-      : "server-openai-narrative-expression"
+      : request.role === "player_intent_interpreter"
+        ? "server-openai-player-intent-interpreter"
+        : "server-openai-narrative-expression"
   };
+}
+
+function contractVersionForRole(role) {
+  return role === "player_intent_interpreter" ? INTENT_CONTRACT_VERSION : CONTRACT_VERSION;
 }
 
 function buildOpenAiResponsesBody(request, route) {
@@ -384,6 +474,24 @@ function buildRoleInstructions(request) {
     ].join("\n");
   }
 
+  if (request.role === "player_intent_interpreter") {
+    return [
+      "Tu es une couche d'interpretation structuree de l'intention joueur pour un jeu de role solo.",
+      "Tu ne modifies jamais les faits, les consequences, les reussites, les echecs, l'inventaire, le combat, les secrets, le lore durable ou le temps.",
+      "Tu ne joues pas le MJ, tu ne reponds pas au joueur et tu n'ecris aucun texte visible.",
+      "Tu retournes uniquement l'objet JSON strict demande par le schema. Aucun Markdown. Aucun commentaire hors JSON.",
+      "Recopie exactement schemaVersion, contractVersion, callId, attemptId, packId, snapshotId et role depuis l'entree utilisateur.",
+      "Utilise diagnostics=[] si tout va bien, supersedesOutputId=null et status=OK pour une sortie utilisable.",
+      "Role player_intent_interpreter: produire une intention structuree, pas un resultat.",
+      "Une question de possibilite comme 'Est-ce que je peux...' ou 'Puis-je...' doit rester intentType=possibility_query, commitment=hypothetical, expectedTimeEffect=NO_GAME_TIME.",
+      "Une parole claire adressee a un PNJ doit etre intentType=speech, commitment=committed, sans inventer la reponse du PNJ.",
+      "Une action explicite doit etre intentType=action, commitment=committed, expectedTimeEffect=DOMAIN_TO_DECIDE.",
+      "Une question meta ou interface doit etre intentType=meta_question, commitment=none, expectedTimeEffect=NO_GAME_TIME.",
+      "Une formulation elliptique ou ambigue doit etre intentType=unclear_commitment, commitment=unclear, requiresClarification=true.",
+      "Interdit: transformer une possibilite en action executee, accorder un succes social, reveler un secret, creer un objet ou PNJ durable, ou declencher un handoff definitif."
+    ].join("\n");
+  }
+
   return [
     ...shared,
     "Role scene_writer: ajoute seulement une narration MJ atmospherique ancree dans les resolutions deja confirmees.",
@@ -444,6 +552,55 @@ function validateEnvelope(output, request) {
 
 function validateRolePayload(payload, role) {
   const issues = [];
+  if (role === "player_intent_interpreter") {
+    if (typeof payload.rawInputEcho !== "string") issues.push("payload.rawInputEcho must be a string.");
+    const socialSpeechRequest = isSocialSpeechRequestText(payload.rawInputEcho);
+    if (!Array.isArray(payload.intents) || payload.intents.length === 0 || payload.intents.length > 3) {
+      issues.push("payload.intents must contain 1 to 3 intents.");
+      return issues;
+    }
+    for (let index = 0; index < payload.intents.length; index += 1) {
+      const intent = payload.intents[index];
+      if (!intent || typeof intent !== "object" || Array.isArray(intent)) {
+        issues.push(`payload.intents[${index}] must be an object.`);
+        continue;
+      }
+      if (typeof intent.intentId !== "string" || intent.intentId.trim().length === 0) issues.push(`payload.intents[${index}].intentId must be a non-empty string.`);
+      if (!Number.isInteger(intent.order) || intent.order < 1) issues.push(`payload.intents[${index}].order must be a positive integer.`);
+      if (!["meta_question", "possibility_query", "memory_recall", "speech", "action", "mixed", "unclear_commitment"].includes(intent.intentType)) issues.push(`payload.intents[${index}].intentType is invalid.`);
+      if (!["none", "hypothetical", "conditional", "committed", "unclear"].includes(intent.commitment)) issues.push(`payload.intents[${index}].commitment is invalid.`);
+      if (intent.target !== null) {
+        if (!intent.target || typeof intent.target !== "object" || Array.isArray(intent.target)) {
+          issues.push(`payload.intents[${index}].target must be an object or null.`);
+        } else {
+          if (!["npc", "place", "object", "self", "unknown"].includes(intent.target.kind)) issues.push(`payload.intents[${index}].target.kind is invalid.`);
+          if (!(typeof intent.target.ref === "string" || intent.target.ref === null)) issues.push(`payload.intents[${index}].target.ref must be a string or null.`);
+          if (!(typeof intent.target.label === "string" || intent.target.label === null)) issues.push(`payload.intents[${index}].target.label must be a string or null.`);
+        }
+      }
+      for (const key of ["action", "topic", "clarificationQuestion"]) {
+        if (!(typeof intent[key] === "string" || intent[key] === null)) issues.push(`payload.intents[${index}].${key} must be a string or null.`);
+      }
+      if (typeof intent.coreMeaning !== "string" || intent.coreMeaning.trim().length === 0) issues.push(`payload.intents[${index}].coreMeaning must be a non-empty string.`);
+      for (const key of ["playerImposedDetails", "openDetails", "forbiddenInterpretations", "riskFlags"]) {
+        if (!Array.isArray(intent[key]) || intent[key].some(item => typeof item !== "string")) issues.push(`payload.intents[${index}].${key} must be a string array.`);
+      }
+      if (typeof intent.requiresClarification !== "boolean") issues.push(`payload.intents[${index}].requiresClarification must be a boolean.`);
+      if (!["NO_GAME_TIME", "DOMAIN_TO_DECIDE"].includes(intent.expectedTimeEffect)) issues.push(`payload.intents[${index}].expectedTimeEffect is invalid.`);
+      if (!["low", "medium", "high"].includes(intent.confidence)) issues.push(`payload.intents[${index}].confidence is invalid.`);
+      if (intent.intentType === "possibility_query" && intent.commitment !== "hypothetical") issues.push(`payload.intents[${index}] possibility_query must stay hypothetical.`);
+      if (intent.intentType === "meta_question" && intent.commitment !== "none") issues.push(`payload.intents[${index}] meta_question must have no commitment.`);
+      if (intent.intentType === "speech" && intent.commitment !== "committed") issues.push(`payload.intents[${index}] speech must be committed.`);
+      if (intent.intentType === "action" && intent.commitment !== "committed") issues.push(`payload.intents[${index}] action must be committed.`);
+      if (socialSpeechRequest && intent.intentType === "action") issues.push(`payload.intents[${index}] social speech request must not be action.`);
+      if (intent.requiresClarification === true && typeof intent.clarificationQuestion !== "string") issues.push(`payload.intents[${index}] clarification requires a question.`);
+      if (Array.isArray(intent.riskFlags) && intent.riskFlags.some(flag => ["secret_reveal", "social_success_granted"].includes(flag))) {
+        issues.push(`payload.intents[${index}] contains forbidden risk flag.`);
+      }
+    }
+    return issues;
+  }
+
   if (role === "player_expression_adapter") {
     for (const key of ["intentId", "expressionKind", "renderedExpression"]) {
       if (typeof payload[key] !== "string" || payload[key].trim().length === 0) issues.push(`payload.${key} must be a non-empty string.`);
@@ -478,6 +635,15 @@ function validateRolePayload(payload, role) {
   return issues;
 }
 
+function isSocialSpeechRequestText(value) {
+  const text = normalizeRouteText(value).replace(/[’']/gu, "'");
+  return /\b(j'aimerais|j aimerais|j'aimerai|j aimerai|je voudrais|je souhaite)\b.*\b(parler|discuter|questionner|interroger|demander)\b/u.test(text);
+}
+
+function normalizeRouteText(value) {
+  return String(value || "").trim().toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
+}
+
 function sanitizeProviderErrorText(text) {
   if (typeof text !== "string" || text.trim().length === 0) return "";
   return text
@@ -489,7 +655,7 @@ function sanitizeProviderErrorText(text) {
 function errorEnvelope(request, code, message) {
   return {
     schemaVersion: 1,
-    contractVersion: request.contractVersion || CONTRACT_VERSION,
+    contractVersion: request.contractVersion || contractVersionForRole(request.role),
     outputId: `server-openai-error:${request.attemptId || "unknown"}`,
     callId: request.callId || "unknown",
     attemptId: request.attemptId || "unknown",

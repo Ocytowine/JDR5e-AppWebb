@@ -30,7 +30,8 @@ const speechInputs = [
   "Je vais vers le garde pour lui demander ce qu’il a vu.",
   "Je questionne le garde sur ce qu’il a vu.",
   "Je demande au garde s’il a remarqué quelque chose.",
-  "Je m’approche du garde et je lui demande s’il a vu quelque chose d’étrange."
+  "Je m’approche du garde et je lui demande s’il a vu quelque chose d’étrange.",
+  "j'aimerais parler à un garde"
 ];
 
 const socialPossibilities = [
@@ -118,6 +119,12 @@ async function main(): Promise<void> {
   assert.equal(invalid.usedFallback, true, "fallback conservateur utilisé");
   assert.equal(invalid.interpretation.intentType, "possibility_query", "fallback ne transforme pas l'hypothèse en action");
 
+  const invalidSocialSpeech = await interpret("j'aimerais parler a un garde", invalidUnusableConfig());
+  assert.equal(invalidSocialSpeech.usedAiInterpretation, false, "sortie IA vide rejetee");
+  assert.equal(invalidSocialSpeech.usedFallback, true, "fallback conservateur utilise");
+  assert.equal(invalidSocialSpeech.interpretation.intentType, "speech", "fallback conserve la demande sociale comme parole");
+  assert.equal(invalidSocialSpeech.interpretation.commitment, "committed", "parole engagee attendue");
+
   const controllerResult = await runControllerSpeechCase();
   assert.equal(controllerResult.output.interpretation.intentType, "speech");
   assert.equal(controllerResult.output.resolution.resultKind, "COMMIT_APPLIED");
@@ -176,6 +183,34 @@ function invalidCommittedPossibilityConfig(): AiIntentInterpreterConfigV1 {
               expectedTimeEffect: "NO_GAME_TIME",
               confidence: "high"
             }]
+          },
+          diagnostics: [],
+          supersedesOutputId: null
+        };
+      }
+    } satisfies ContractAiProviderV1
+  };
+}
+
+function invalidUnusableConfig(): AiIntentInterpreterConfigV1 {
+  const config = createDefaultAiIntentInterpreterConfigV1();
+  return {
+    ...config,
+    provider: {
+      async generate(request) {
+        return {
+          schemaVersion: 1,
+          contractVersion: AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1,
+          outputId: "output-invalid-empty",
+          callId: request.callId,
+          attemptId: request.attemptId,
+          packId: request.packId,
+          snapshotId: request.snapshotId,
+          role: request.role,
+          status: "OK",
+          payload: {
+            rawInputEcho: "",
+            intents: []
           },
           diagnostics: [],
           supersedesOutputId: null

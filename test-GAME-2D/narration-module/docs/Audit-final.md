@@ -502,3 +502,11 @@ Le risque principal est de réutiliser un résumé textuel de combat comme résu
 Décision : **AUTORISÉ — sous-lot I-07A uniquement**. L'autorisation couvre types, validateurs, fixtures déterministes, processus actif et intégration idempotente d'outcomes simulés pour tactique et repos. Elle n'autorise pas combat complet dans `GameBoard.tsx`, IA tactique complète, génération automatique de carte, repos complet avec toutes les règles de classe, progression de personnage, butin automatique ou remplacement global des routes historiques.
 
 Fermeture d'audit : **AF-R13 et AF-R14 RÉSOLUS AU NIVEAU CONTRACTUEL** le 2026-07-07. [`Matrice-preuves-I07-audit.md`](Matrice-preuves-I07-audit.md) consigne la décision sur `/api/narration`, les risques couverts et la gate attendue pour I-07A.
+
+## Addendum I-06Z — OpenAI live pour `player_intent_interpreter`
+
+La revue produit I-06X/I-06Y valide que l'interprétation structurée d'intention est le point correct pour traiter les variations de formulation joueur. I-06Z étend donc la route serveur OpenAI opt-in existante au rôle `player_intent_interpreter`.
+
+Décision : **AUTORISÉ ET LIVRÉ — sous-lot I-06Z uniquement**. L'autorisation couvre le rôle `player_intent_interpreter`, le contrat `ai-intent-interpretation/1`, le schéma strict associé, les instructions serveur spécialisées, le fallback conservateur et l'usage UI via la route serveur. Elle n'autorise pas `mj_planner`, streaming, PNJ autonomes, résolution sociale mécanique, tactique, repos, création durable ou certification live large.
+
+Fermeture : **I-06Z LIVRÉ** le 2026-07-08. [`Matrice-preuves-I06Z.md`](Matrice-preuves-I06Z.md) couvre la route, les validations, l'UI, le build et les régressions d'interprétation.

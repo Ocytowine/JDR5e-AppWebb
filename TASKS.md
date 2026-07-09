@@ -6,8 +6,9 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 ## En cours
 
-- [ ] Cadrer puis implémenter le branchement OpenAI live serveur pour `player_intent_interpreter`, avec opt-in, schéma strict et fallback conservateur.
-  References: `test-GAME-2D/narration-module/docs/Revue-produit-I06X-I06Y.md`, `test-GAME-2D/narration-module/docs/Contrat-interpretation-ia-intention.md`, `test-GAME-2D/narration-module/docs/Suivi-prochains-lots-narration.md`.
+- [ ] Revoir et committer I-06Z, puis exécuter un smoke live manuel court de `player_intent_interpreter` si `.env` contient `OPENAI_API_KEY` et `NARRATION_OPENAI_LIVE=1`.
+  References: `test-GAME-2D/narration-module/docs/Matrice-preuves-I06Z.md`, `test-GAME-2D/narration-module/docs/Contrat-interpretation-ia-intention.md`, `test-GAME-2D/narration-module/docs/Suivi-prochains-lots-narration.md`.
+  Note: premier retour manuel `j'aimerais parler a un garde` durci cote fallback local et validation serveur OpenAI.
 - [ ] Consolider la simulation du monde apres l'ajout des objectifs multi-phases, des opportunites de faction et des mobiles non-systeme.
   Reference: `test-GAME-2D/map-module/docs/world-simulation-corrective-roadmap.md`. Les mobiles exposent maintenant l'objectif, la phase et la cible qu'ils servent.
 
@@ -31,6 +32,7 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 ## Termine recemment
 
+- [x] Fermeture I-06Z: route OpenAI serveur étendue à `player_intent_interpreter`, schéma strict `ai-intent-interpretation/1`, fallback conservateur et mode UI OpenAI appliqué à l'interprétation le 2026-07-08.
 - [x] Revue produit I-06X/I-06Y: traces intention, possibilité, clarification et UX validées; suite retenue OpenAI live serveur pour `player_intent_interpreter` le 2026-07-08.
 - [x] Fermeture I-06Y: encarts UX no-commit/clarification, badges possibilité/action non exécutée/parole enregistrée et test `narration-module:test:narrative-react-ui` renforcé le 2026-07-08.
 - [x] Fermeture I-06X: rôle `player_intent_interpreter`, contrat `ai-intent-interpretation/1`, robustesse linguistique, fallback conservateur et intégration contrôleur le 2026-07-08.

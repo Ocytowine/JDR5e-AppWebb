@@ -57,6 +57,7 @@ export function interpretNarrativeInputV1(input: {
   const riskyAction = /\b(voler|attaque|attaquer|frapper|forcer|crocheter|menacer|mentir|fouiller|prendre|ouvrir|entrer)\b/u.test(text);
   const socialPossibility = /\b(parler|discuter|questionner|interroger|adresser|demander)\b/u.test(text);
   const explicitAttempt = /\b(je tente|j'essaie|j essaie|je fais|je vole|j'attaque|j attaque|je frappe|je force|je crochete|je prends|j'ouvre|j ouvre)\b/u.test(text);
+  const socialSpeechStatement = /\b(j'aimerais|j aimerais|j'aimerai|j aimerai|je voudrais|je souhaite)\b.*\b(parler|discuter|questionner|interroger|demander)\b/u.test(text);
   const speechLike = /["«»]/u.test(input.rawInput) || /\b(je dis|je réponds|je reponds|je lui dis|je demande à|je demande a|je demande au|je demande aux)\b/u.test(text);
   const actionLike = explicitAttempt || /\b(je vais|je me dirige|j'avance|j avance|je regarde|j'observe|j observe)\b/u.test(text);
 
@@ -87,6 +88,12 @@ export function interpretNarrativeInputV1(input: {
   if (speechLike && actionLike) {
     return intent(input, "mixed", "committed", "DOMAIN_TO_DECIDE", false, null, [
       "Entrée mixte détectée mais non résolue en I-06E."
+    ]);
+  }
+
+  if (socialSpeechStatement) {
+    return intent(input, "speech", "committed", "DOMAIN_TO_DECIDE", false, null, [
+      "Intention sociale de parole detectee sans resultat social accorde."
     ]);
   }
 

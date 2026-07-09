@@ -268,7 +268,8 @@ Ordre strict recommandé :
 6. I-06V — préparation intrigue;
 7. I-06W — revue UX narration;
 8. I-06X — interprétation IA structurée de l'intention joueur;
-9. I-06Y — UX no-commit / clarification.
+9. I-06Y — UX no-commit / clarification;
+10. I-06Z — OpenAI live serveur pour `player_intent_interpreter`.
 
 Le tactique réel, le repos jouable complet et les intrigues dynamiques restent fermés hors autorisation explicite. La sortie I-06 ne les rouvre pas.
 
@@ -352,6 +353,28 @@ Décision :
 
 - ouvrir ensuite le branchement OpenAI live serveur pour `player_intent_interpreter`;
 - ne pas ouvrir `mj_planner` à ce stade.
+
+## I-06Z — OpenAI live serveur pour `player_intent_interpreter`
+
+Statut : `TERMINE_DANS_PERIMETRE` le 2026-07-08.
+Référence : [`Matrice-preuves-I06Z.md`](Matrice-preuves-I06Z.md).
+
+Objectif : brancher le rôle `player_intent_interpreter` sur la route OpenAI serveur opt-in existante, sans exposer de clé au navigateur et sans donner d'autorité métier à l'IA.
+
+Livré :
+
+- route `POST /api/narration/enhance-openai` étendue au rôle `player_intent_interpreter`;
+- contrat `ai-intent-interpretation/1` validé par schéma strict;
+- instructions serveur spécialisées pour comprendre l'intention sans répondre au joueur;
+- validation locale renforcée des engagements impossibles ou dangereux;
+- support optionnel de `NARRATION_OPENAI_INTENT_MODEL`;
+- mode OpenAI UI appliqué à l'interprétation d'intention et à l'enrichissement narratif.
+
+Suite directe recommandée :
+
+- revue et commit I-06Z;
+- smoke live manuel court avec `.env` local;
+- si stable, créer une matrice de certification live courte avant tout élargissement produit.
 
 ## Critères retenus pour la sortie I-06
 
