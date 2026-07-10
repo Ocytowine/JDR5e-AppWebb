@@ -8,7 +8,10 @@ import { NarrativeAppSurface } from "../../../src/narration-ui/NarrativeAppSurfa
 const surfaceHtml = renderToStaticMarkup(React.createElement(NarrativeAppSurface));
 
 assert.match(surfaceHtml, /Surface dédiée au module narration/, "surface narration rendue");
-assert.match(surfaceHtml, /Mode prototype/, "limite prototype affichée");
+assert.match(surfaceHtml, /Auberge du Seuil/, "amorce de scene jouable rendue");
+assert.match(surfaceHtml, /scene est ouverte/, "le fil initial attend une intention joueur");
+assert.equal(surfaceHtml.includes("La surface narration est pr"), false, "ancien message prototype absent du fil rendu");
+assert.equal(surfaceHtml.includes("Mode prototype"), false, "ancienne notification prototype absente du fil rendu");
 assert.match(surfaceHtml, /Fil narratif/, "panneau narratif rendu");
 assert.match(surfaceHtml, /Saisie narrative libre/, "saisie libre présente");
 assert.match(surfaceHtml, /IA narrative/, "sélecteur IA rendu");
@@ -26,6 +29,7 @@ assert.equal(narrativeSurfaceSource.includes("createBrowserPersistentNarrativeTu
 assert.equal(narrativeSurfaceSource.includes("restoreRenderedThread"), true, "surface recharge les projections de rendu persistées");
 assert.equal(narrativeSurfaceSource.includes("player_intent_interpreter"), true, "mode OpenAI configure aussi l'interpreteur d'intention via fournisseur route serveur");
 assert.equal(narrativeSurfaceSource.includes("AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1"), true, "contrat intention OpenAI explicite dans la config UI");
+assert.equal(narrativeSurfaceSource.includes("REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1"), true, "amorce UI issue du PlayableSceneStateV1 de reference");
 assert.equal(narrativeSurfaceSource.includes("applyNarrativePresentationVariationV1"), true, "surface délègue la variation de présentation au service applicatif");
 assert.equal(narrativeSurfaceSource.includes("function applyLocalPresentationVariation"), false, "surface ne doit pas porter la logique de variation en local");
 assert.equal(narrativeSurfaceSource.includes("function countPriorMetaAnswerBlocks"), false, "surface ne doit pas compter elle-même les réponses de contexte");

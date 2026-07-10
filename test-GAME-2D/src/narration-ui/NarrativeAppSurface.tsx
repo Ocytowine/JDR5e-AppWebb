@@ -6,6 +6,7 @@ import {
   createPrototypeNarrativeTurnControllerV1,
   enhanceNarrativeDisplayWithAiV1,
   AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1,
+  REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1,
   type AiNarrativeEnhancementResultV1,
   type AiIntentInterpreterConfigV1,
   type NarrativeTurnControllerV1
@@ -201,6 +202,59 @@ export function NarrativeAppSurface() {
 }
 
 function createWelcomePacket(): DisplayPacketV1 {
+  return createPlayableSceneOpeningPacket();
+}
+
+function createPlayableSceneOpeningPacket(): DisplayPacketV1 {
+  const scene = REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1;
+  const visibleNpc = scene.presentNpc
+    .map(npc => `${npc.displayName}, ${npc.visibleState}`)
+    .join(" ; ");
+  const visiblePoints = scene.pointsOfInterest
+    .map(point => `${point.label} : ${point.visibleDescription}`)
+    .join(" ");
+  const openingText = [
+    `Tu es dans la salle commune de l'${scene.locationName}.`,
+    scene.perceptibleSituation.join(" "),
+    visibleNpc ? `Presences visibles : ${visibleNpc}.` : "",
+    visiblePoints,
+    `Tension actuelle : ${scene.currentTension}`,
+    "Aucune action n'est encore engagee : la scene est ouverte et attend ta premiere intention."
+  ].filter(Boolean).join(" ");
+  return {
+    schemaVersion: 1,
+    contractVersion: SCENE_SOCIAL_UI_CONTRACT_VERSION_V1,
+    operationId: "scene-opening-reference-inn-rain-001",
+    sceneId: scene.sceneId,
+    displayBlocks: [{
+      blockId: "scene-opening-reference-inn-rain-001-gm",
+      kind: "GM_NARRATION",
+      speaker: {
+        speakerId: "speaker-gm",
+        kind: "GM",
+        displayName: "MJ",
+        roleLabel: "Maitre du jeu",
+        ariaLabel: "Maitre du jeu",
+        visualToken: "speaker-gm"
+      },
+      text: openingText,
+      ariaLabel: "Maitre du jeu: GM_NARRATION",
+      roleLabel: "Maitre du jeu",
+      visualStyleToken: "speaker-gm",
+      sourceRefs: [`playable-scene:${scene.sceneId}`, `reference-scene:${scene.sceneId}`],
+      isDegradedFallback: false
+    }],
+    rawInputAccess: {
+      available: false,
+      operationId: "scene-opening-reference-inn-rain-001"
+    },
+    rhythmDiagnostics: "scene-opening:playable-scene-state/1",
+    reconstructionRefs: [`playable-scene:${scene.sceneId}`],
+    version: 1
+  };
+}
+
+function createLegacyPrototypeWelcomePacket(): DisplayPacketV1 {
   return {
     schemaVersion: 1,
     contractVersion: SCENE_SOCIAL_UI_CONTRACT_VERSION_V1,

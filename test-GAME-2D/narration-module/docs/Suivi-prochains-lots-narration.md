@@ -490,10 +490,14 @@ Suite immédiate recommandée :
 
 ## I-06ZC — Certification live courte `scene_writer`
 
-Statut : `A_OUVRIR`
+Statut : `TERMINE_DANS_PERIMETRE` le 2026-07-10.
 Référence : [`Revue-technique-post-I06ZB.md`](Revue-technique-post-I06ZB.md).
 
 Objectif : mesurer le comportement OpenAI live du `scene_writer` sur une matrice courte avant d'ajouter une nouvelle capacité.
+
+Matrice ouverte : [`Matrice-certification-live-scene-writer.md`](Matrice-certification-live-scene-writer.md).
+
+Resultat : 12 cas live couverts, 12 OK, 0 `A_CORRIGER`, 0 `BLOQUANT`. La suite logique est I-06ZD.
 
 Cas minimaux :
 
@@ -525,11 +529,19 @@ Sorties attendues :
 
 ## I-06ZD — Amorce de scène jouable dans l'UI
 
-Statut : `FERME_JUSQU_APRES_I06ZC`
+Statut : `IMPLEMENTE_DANS_PERIMETRE` le 2026-07-10.
+Preuve : [`Matrice-preuves-I06ZD-amorce-scene-ui.md`](Matrice-preuves-I06ZD-amorce-scene-ui.md), `npm run narration-module:test:narrative-app-surface`.
 
 Objectif : remplacer les messages visibles de prototype par une ouverture de scène issue du `PlayableSceneStateV1`.
 
 Ce lot doit rester UI/rendu. Il ne doit pas ouvrir le MJ complet.
+
+Livre :
+
+- amorce initiale issue de `REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1`;
+- fil visible demarrant dans l'Auberge du Seuil avec garde blesse, serveuse nerveuse, pluie, porte du fond et tension courante;
+- anciens messages visibles de prototype retires du rendu initial;
+- statut technique conserve hors fil fictionnel.
 
 ## I-06ZE — Paquet de scène explicite pour `scene_writer`
 
@@ -538,6 +550,20 @@ Statut : `FERME_JUSQU_APRES_I06ZC`
 Objectif : enrichir structurellement le contexte envoyé au `scene_writer` si la certification live montre encore des ambiguïtés factuelles.
 
 Ce lot doit renforcer les données envoyées à l'IA, pas ajouter des listes lexicales de formulations.
+
+### Note de remplacement I-06ZE du 2026-07-10
+
+L'ancien libelle I-06ZE "paquet de scene explicite pour scene_writer" est remplace par le cadrage [`Cadrage-I06ZE-referents-locaux.md`](Cadrage-I06ZE-referents-locaux.md).
+
+Le prochain I-06ZE actif concerne la resolution IA des referents locaux recents par `player_intent_interpreter`, pas `scene_writer`.
+
+Regle de conception :
+
+- l'IA propose le referent ;
+- le code valide que le referent est visible, unique et compatible ;
+- le code clarifie si le referent est ambigu ou incompatible ;
+- aucun secret, changement de scene complet, tactique, intrigue ou `mj_planner` n'est ouvert ;
+- aucune condition speciale du type `porte du fond -> ouvrir` ne doit etre ajoutee.
 
 ## Critères retenus pour la sortie I-06
 

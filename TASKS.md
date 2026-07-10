@@ -1,12 +1,12 @@
 # Suivi du travail
 
-Derniere mise a jour: 2026-07-09
+Derniere mise a jour: 2026-07-10
 
 Ce fichier est le tableau de bord court du depot. Les details techniques restent dans les documents lies; une tache ne doit pas etre dupliquee ici avec toute sa specification.
 
 ## En cours
 
-- [ ] Préparer I-06ZC: certification live courte du `scene_writer` sur questions de contexte, descriptions de scène, répétitions, possibilité risquée et parole au garde.
+- [ ] Implementer I-06ZE selon `test-GAME-2D/narration-module/docs/Cadrage-I06ZE-referents-locaux.md`: resolution IA des referents locaux recents, sans hard code metier ni ouverture de `mj_planner`.
 - [ ] Traiter l'audit technique post-I-06ZB avant d'ouvrir une nouvelle capacité narrative.
   References: `test-GAME-2D/narration-module/docs/Audit-technique-I06ZB.md`, `test-GAME-2D/narration-module/docs/Revue-technique-post-I06ZB.md`, `test-GAME-2D/narration-module/docs/Suivi-prochains-lots-narration.md`.
   Note: A-01, A-02, A-03, A-04 et A-07 traités le 2026-07-09; `scene_writer` no-commit stabilisé avec historique court, diagnostics, budget JSON strict et discipline factuelle `factDiscipline`. Prochaine étape concrète: I-06ZC, certification live courte du `scene_writer` sans ouvrir de nouvelle capacité narrative.
@@ -33,6 +33,10 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 ## Termine recemment
 
+- [x] Implementation I-06ZD: fil initial remplace par une amorce de scene jouable issue de `PlayableSceneStateV1`, anciens messages prototype retires du rendu initial, test `narration-module:test:narrative-app-surface` OK le 2026-07-10.
+- [x] Smoke UI I-06ZD valide: premiere impression OK, plus de message tronque observe; prochain sujet identifie = resolution bornee d'action sur point d'interet visible le 2026-07-10.
+- [x] Cadrage I-06ZE: resolution IA des referents locaux recents, code limite a validation visible/unique/compatible et interdiction explicite du hard code metier le 2026-07-10.
+- [x] Validation I-06ZC: certification live courte du `scene_writer`, 12 cas OK sur 12, 0 `A_CORRIGER`, 0 `BLOQUANT`, suite I-06ZD retenue le 2026-07-10.
 - [x] Revue technique post-I-06ZB: comportement live `scene_writer` jugé exploitable, écarts restants classés et suite I-06ZC/I-06ZD/I-06ZE cadrée sans ouvrir `mj_planner` le 2026-07-09.
 - [x] Fermeture I-06Z: route OpenAI serveur étendue à `player_intent_interpreter`, schéma strict `ai-intent-interpretation/1`, fallback conservateur et mode UI OpenAI appliqué à l'interprétation le 2026-07-08.
 - [x] Revue produit I-06X/I-06Y: traces intention, possibilité, clarification et UX validées; suite retenue OpenAI live serveur pour `player_intent_interpreter` le 2026-07-08.

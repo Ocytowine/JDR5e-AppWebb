@@ -65,6 +65,9 @@ Il distingue la cible complète du runtime de campagne et les capacités déjà 
 - [`Matrice-preuves-I06Y.md`](Matrice-preuves-I06Y.md) : preuves des encarts UX no-commit, clarification, possibilité et parole enregistrée.
 - [`Revue-produit-I06X-I06Y.md`](Revue-produit-I06X-I06Y.md) : validation produit des traces I-06X/I-06Y et décision d'ouvrir OpenAI live pour `player_intent_interpreter`.
 - [`Matrice-preuves-I06Z.md`](Matrice-preuves-I06Z.md) : preuves du branchement OpenAI live serveur pour `player_intent_interpreter`.
+- [`Matrice-certification-live-scene-writer.md`](Matrice-certification-live-scene-writer.md) : matrice I-06ZC de certification live courte du `scene_writer`.
+- [`Matrice-preuves-I06ZD-amorce-scene-ui.md`](Matrice-preuves-I06ZD-amorce-scene-ui.md) : preuves I-06ZD de l'amorce de scÃ¨ne jouable dans l'UI.
+- [`Cadrage-I06ZE-referents-locaux.md`](Cadrage-I06ZE-referents-locaux.md) : cadrage I-06ZE de la rÃ©solution IA des rÃ©fÃ©rents locaux rÃ©cents, sans hard code mÃ©tier.
 - [`Sortie-phase-I06.md`](Sortie-phase-I06.md) : cadrage de sortie I-06, limites du prototype et décision d'ouvrir une interprétation IA structurée avant généralisation.
 - [`Suivi-prochains-lots-narration.md`](Suivi-prochains-lots-narration.md) : feuille de suivi des lots I-06Q et suivants avant généralisation.
 - [`Revue-technique-post-I06ZB.md`](Revue-technique-post-I06ZB.md) : point de reprise après stabilisation live du `scene_writer`, écarts restants et lots recommandés I-06ZC à I-06ZE.
