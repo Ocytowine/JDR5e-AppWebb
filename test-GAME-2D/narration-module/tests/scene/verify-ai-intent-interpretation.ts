@@ -50,7 +50,6 @@ const riskyPossibilities = [
 const explicitActions = [
   "J'ouvre la porte.",
   "Je tente d'ouvrir la porte.",
-  "Je force la serrure.",
   "Je m'avance vers l'arrière-salle."
 ];
 
@@ -106,6 +105,10 @@ async function main(): Promise<void> {
     assert.equal(result.interpretation.commitment, "committed", `${rawInput}: action engagée`);
   }
 
+  const forceUnknownLock = await interpret("Je force la serrure.", config);
+  assert.equal(forceUnknownLock.interpretation.intentType, "unclear_commitment", "serrure non visible: clarification attendue");
+  assert.equal(forceUnknownLock.interpretation.requiresClarification, true, "serrure non visible: pas de resolution directe");
+
   for (const rawInput of metaQuestions) {
     const result = await interpret(rawInput, config);
     assert.equal(result.interpretation.intentType, "meta_question", `${rawInput}: méta attendue`);
@@ -154,6 +157,35 @@ async function main(): Promise<void> {
   assert.equal(controllerResult.output.displayPacket.displayBlocks.some(block =>
     block.kind === "NPC_SPEECH" && /porte du fond/u.test(block.text)
   ), true, "la parole claire doit produire une réponse PNJ");
+
+  const localReferentResult = await runControllerLocalReferentCase();
+  assert.equal(localReferentResult.focus.output.interpretation.target?.ref, "poi:back-room-door", "le focus initial doit porter la porte visible");
+  assert.equal(localReferentResult.open.output.interpretation.intentType, "action", "l'ellipse doit rester une action");
+  assert.equal(localReferentResult.open.output.interpretation.target?.ref, "poi:back-room-door", "le pronom doit être résolu vers le référent récent");
+  assert.equal(localReferentResult.open.output.interpretation.referentResolution?.source, "recent_visible_focus", "la source du référent doit être le focus récent");
+  assert.equal(localReferentResult.open.output.resolution.resultKind, "COMMIT_APPLIED", "l'action locale bornée doit être enregistrée");
+  assert.equal(localReferentResult.open.output.noCommit, false, "le commit local borné doit être visible côté contrôleur");
+  assert.equal(localReferentResult.open.output.resolution.preparedEffects[0]?.effectType, "LOCAL_SCENE_ACTION_RECORDED");
+  assert.equal(localReferentResult.open.output.displayPacket.displayBlocks.some(block =>
+    /référent visible/u.test(block.text)
+  ), true, "le rendu doit expliquer que seul le référent visible est validé");
+
+  const nonCanonicalAction = await interpret("J'ouvre la porte du fond", nonCanonicalActionConfig());
+  assert.equal(nonCanonicalAction.usedAiInterpretation, false, "une action IA non canonique doit etre rejetee");
+  assert.equal(nonCanonicalAction.usedFallback, true, "une action IA non canonique doit degrader vers fallback");
+
+  const noContextOpen = await interpret("je l'ouvre", config);
+  assert.equal(noContextOpen.interpretation.intentType, "unclear_commitment", "sans contexte, le pronom local doit clarifier");
+  assert.equal(noContextOpen.interpretation.requiresClarification, true, "sans referent fiable, clarification obligatoire");
+
+  const incompatibleReferent = await runControllerIncompatibleReferentCase();
+  assert.equal(incompatibleReferent.open.output.interpretation.intentType, "unclear_commitment", "ouvrir une personne doit clarifier");
+  assert.equal(incompatibleReferent.open.output.resolution.resultKind, "CLARIFICATION_REQUIRED", "referent incompatible: pas de commit");
+  assert.equal(incompatibleReferent.open.output.noCommit, true, "referent incompatible: aucun commit");
+
+  const ambiguousReferent = await interpret("je l'ouvre", ambiguousReferentConfig());
+  assert.equal(ambiguousReferent.interpretation.intentType, "unclear_commitment", "referent ambigu: clarification attendue");
+  assert.equal(ambiguousReferent.interpretation.requiresClarification, true, "referent ambigu: pas de resolution directe");
 
   console.log("ai-intent-interpretation/1: OK");
 }
@@ -286,6 +318,114 @@ function invalidImplicitPossibilityConfig(): AiIntentInterpreterConfigV1 {
   };
 }
 
+function ambiguousReferentConfig(): AiIntentInterpreterConfigV1 {
+  const config = createDefaultAiIntentInterpreterConfigV1();
+  return {
+    ...config,
+    provider: {
+      async generate(request) {
+        return {
+          schemaVersion: 1,
+          contractVersion: AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1,
+          outputId: "output-ambiguous-referent",
+          callId: request.callId,
+          attemptId: request.attemptId,
+          packId: request.packId,
+          snapshotId: request.snapshotId,
+          role: request.role,
+          status: "OK",
+          payload: {
+            rawInputEcho: "je l'ouvre",
+            intents: [{
+              intentId: "intent:1",
+              order: 1,
+              intentType: "action",
+              commitment: "committed",
+              target: { kind: "object", ref: "poi:back-room-door", label: "porte du fond" },
+              action: "open",
+              referentResolution: {
+                schemaVersion: 1,
+                usedPreviousContext: true,
+                source: "recent_visible_focus",
+                resolvedTarget: { kind: "object", ref: "poi:back-room-door", label: "porte du fond" },
+                evidence: ["porte du fond", "autre objet visible possible"],
+                ambiguity: "multiple_candidates",
+                confidence: "medium"
+              },
+              topic: "ouvrir le referent local",
+              coreMeaning: "Le personnage veut ouvrir un referent local ambigu.",
+              playerImposedDetails: ["je l'ouvre"],
+              openDetails: [],
+              forbiddenInterpretations: ["choisir un referent ambigu sans clarification"],
+              requiresClarification: false,
+              clarificationQuestion: null,
+              riskFlags: [],
+              expectedTimeEffect: "DOMAIN_TO_DECIDE",
+              confidence: "high"
+            }]
+          },
+          diagnostics: [],
+          supersedesOutputId: null
+        };
+      }
+    } satisfies ContractAiProviderV1
+  };
+}
+
+function nonCanonicalActionConfig(): AiIntentInterpreterConfigV1 {
+  const config = createDefaultAiIntentInterpreterConfigV1();
+  return {
+    ...config,
+    provider: {
+      async generate(request) {
+        return {
+          schemaVersion: 1,
+          contractVersion: AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1,
+          outputId: "output-non-canonical-action",
+          callId: request.callId,
+          attemptId: request.attemptId,
+          packId: request.packId,
+          snapshotId: request.snapshotId,
+          role: request.role,
+          status: "OK",
+          payload: {
+            rawInputEcho: "J'ouvre la porte du fond",
+            intents: [{
+              intentId: "intent:1",
+              order: 1,
+              intentType: "action",
+              commitment: "committed",
+              target: { kind: "object", ref: "poi:back-room-door", label: "porte du fond" },
+              action: "ouvrir",
+              referentResolution: {
+                schemaVersion: 1,
+                usedPreviousContext: false,
+                source: "current_input",
+                resolvedTarget: { kind: "object", ref: "poi:back-room-door", label: "porte du fond" },
+                evidence: ["J'ouvre la porte du fond", "porte du fond"],
+                ambiguity: "none",
+                confidence: "high"
+              },
+              topic: "ouvrir la porte du fond",
+              coreMeaning: "Le personnage tente d'ouvrir la porte du fond.",
+              playerImposedDetails: ["J'ouvre la porte du fond"],
+              openDetails: [],
+              forbiddenInterpretations: ["reveler l'arriere-salle", "faire avancer le temps"],
+              requiresClarification: false,
+              clarificationQuestion: null,
+              riskFlags: [],
+              expectedTimeEffect: "DOMAIN_TO_DECIDE",
+              confidence: "high"
+            }]
+          },
+          diagnostics: [],
+          supersedesOutputId: null
+        };
+      }
+    } satisfies ContractAiProviderV1
+  };
+}
+
 async function runControllerSpeechCase() {
   const clock = new FixedClock();
   const repository = new MemoryCampaignRepository({ clock });
@@ -331,6 +471,112 @@ async function runControllerSpeechCase() {
   });
   if (!submitted.ok) throw new Error(submitted.error.messageKey);
   return submitted.value;
+}
+
+async function runControllerLocalReferentCase() {
+  const clock = new FixedClock();
+  const repository = new MemoryCampaignRepository({ clock });
+  const campaignId = opaqueId<CampaignId>("cmp-ai-intent-referent");
+  const clockAggregateId = opaqueId<AggregateId>("agg-ai-intent-referent-clock");
+  const now = clock.now().toISOString();
+  const campaign: CampaignRecord = {
+    schemaVersion: 1,
+    campaignId,
+    campaignRevision: 0,
+    status: "ACTIVE",
+    clockAggregateId,
+    dependencies: {
+      contentPackageId: "prototype.narration",
+      contentPackageVersion: 1,
+      rulesetId: "prototype.rules",
+      rulesetVersion: 1,
+      calendarId: "prototype.calendar",
+      calendarVersion: 1
+    },
+    writeBlock: null,
+    lastCommitId: null,
+    createdAt: now,
+    updatedAt: now
+  };
+  const created = await repository.createCampaign(campaign, {
+    elapsedGameSeconds: 0,
+    calendarId: "prototype.calendar",
+    calendarVersion: 1
+  });
+  if (!created.ok) throw new Error(created.error.messageKey);
+
+  const controller = new NarrativeTurnControllerV1({
+    repository,
+    campaignId,
+    clock,
+    idPrefix: "i06ze"
+  });
+  const focus = await controller.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-i06ze-focus-door",
+    rawInput: "Je me dirige vers la porte du fond"
+  });
+  if (!focus.ok) throw new Error(focus.error.messageKey);
+  const open = await controller.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-i06ze-open-it",
+    rawInput: "je l'ouvre"
+  });
+  if (!open.ok) throw new Error(open.error.messageKey);
+  return { focus: focus.value, open: open.value };
+}
+
+async function runControllerIncompatibleReferentCase() {
+  const clock = new FixedClock();
+  const repository = new MemoryCampaignRepository({ clock });
+  const campaignId = opaqueId<CampaignId>("cmp-ai-intent-incompatible-referent");
+  const clockAggregateId = opaqueId<AggregateId>("agg-ai-intent-incompatible-clock");
+  const now = clock.now().toISOString();
+  const campaign: CampaignRecord = {
+    schemaVersion: 1,
+    campaignId,
+    campaignRevision: 0,
+    status: "ACTIVE",
+    clockAggregateId,
+    dependencies: {
+      contentPackageId: "prototype.narration",
+      contentPackageVersion: 1,
+      rulesetId: "prototype.rules",
+      rulesetVersion: 1,
+      calendarId: "prototype.calendar",
+      calendarVersion: 1
+    },
+    writeBlock: null,
+    lastCommitId: null,
+    createdAt: now,
+    updatedAt: now
+  };
+  const created = await repository.createCampaign(campaign, {
+    elapsedGameSeconds: 0,
+    calendarId: "prototype.calendar",
+    calendarVersion: 1
+  });
+  if (!created.ok) throw new Error(created.error.messageKey);
+
+  const controller = new NarrativeTurnControllerV1({
+    repository,
+    campaignId,
+    clock,
+    idPrefix: "i06ze-neg"
+  });
+  const focus = await controller.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-i06ze-focus-waitress",
+    rawInput: "Je regarde la serveuse"
+  });
+  if (!focus.ok) throw new Error(focus.error.messageKey);
+  const open = await controller.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-i06ze-open-waitress",
+    rawInput: "je l'ouvre"
+  });
+  if (!open.ok) throw new Error(open.error.messageKey);
+  return { focus: focus.value, open: open.value };
 }
 
 function hash(value: string): number {

@@ -138,6 +138,7 @@ function validateAiIntentInterpretationPayload(payload: unknown): string[] {
   const allowedTimeEffects = new Set(["NO_GAME_TIME", "DOMAIN_TO_DECIDE"]);
   const allowedConfidence = new Set(["low", "medium", "high"]);
   const allowedTargetKinds = new Set(["npc", "place", "object", "self", "unknown"]);
+  const allowedActions = new Set(["ask_possibility", "ask", "open", "force", "observe", "act"]);
 
   typed.intents.forEach((intent, index) => {
     const path = `payload.intents[${index}]`;
@@ -158,6 +159,7 @@ function validateAiIntentInterpretationPayload(payload: unknown): string[] {
       "openDetails",
       "order",
       "playerImposedDetails",
+      "referentResolution",
       "requiresClarification",
       "riskFlags",
       "target",
@@ -176,7 +178,7 @@ function validateAiIntentInterpretationPayload(payload: unknown): string[] {
     if (!isStringArray(intent.riskFlags)) issues.push(issue(`${path}.riskFlags`, "expected string array"));
     if (typeof intent.expectedTimeEffect !== "string" || !allowedTimeEffects.has(intent.expectedTimeEffect)) issues.push(issue(`${path}.expectedTimeEffect`, "invalid time effect"));
     if (typeof intent.confidence !== "string" || !allowedConfidence.has(intent.confidence)) issues.push(issue(`${path}.confidence`, "invalid confidence"));
-    if (intent.action !== null && typeof intent.action !== "string") issues.push(issue(`${path}.action`, "expected string or null"));
+    if (!(intent.action === null || allowedActions.has(intent.action))) issues.push(issue(`${path}.action`, "expected canonical action or null"));
     if (intent.topic !== null && typeof intent.topic !== "string") issues.push(issue(`${path}.topic`, "expected string or null"));
     if (intent.target !== null) {
       if (!isObject(intent.target)) {
@@ -188,6 +190,7 @@ function validateAiIntentInterpretationPayload(payload: unknown): string[] {
         if (intent.target.label !== null && typeof intent.target.label !== "string") issues.push(issue(`${path}.target.label`, "expected string or null"));
       }
     }
+    issues.push(...validateReferentResolution(intent.referentResolution, path, allowedTargetKinds, allowedConfidence));
 
     if (intent.intentType === "meta_question" && intent.commitment !== "none") {
       issues.push(issue(`${path}.commitment`, "meta_question must use none"));
@@ -205,6 +208,48 @@ function validateAiIntentInterpretationPayload(payload: unknown): string[] {
       issues.push(issue(`${path}.coreMeaning`, "must not contain outcome, secret, combat or inventory authority"));
     }
   });
+  return issues;
+}
+
+function validateReferentResolution(
+  value: unknown,
+  path: string,
+  allowedTargetKinds: Set<string>,
+  allowedConfidence: Set<string>
+): string[] {
+  if (value === null) return [];
+  const referentPath = `${path}.referentResolution`;
+  if (!isObject(value)) return [issue(referentPath, "expected object or null")];
+  const issues: string[] = [];
+  issues.push(...exactKeys(value, [
+    "ambiguity",
+    "confidence",
+    "evidence",
+    "resolvedTarget",
+    "schemaVersion",
+    "source",
+    "usedPreviousContext"
+  ], referentPath));
+  if (value.schemaVersion !== 1) issues.push(issue(`${referentPath}.schemaVersion`, "expected 1"));
+  if (typeof value.usedPreviousContext !== "boolean") issues.push(issue(`${referentPath}.usedPreviousContext`, "expected boolean"));
+  if (typeof value.source !== "string" || !["current_input", "recent_visible_focus", "visible_scene", "none"].includes(value.source)) {
+    issues.push(issue(`${referentPath}.source`, "invalid source"));
+  }
+  if (!isStringArray(value.evidence)) issues.push(issue(`${referentPath}.evidence`, "expected string array"));
+  if (typeof value.ambiguity !== "string" || !["none", "multiple_candidates", "incompatible_action", "insufficient_context", "unknown"].includes(value.ambiguity)) {
+    issues.push(issue(`${referentPath}.ambiguity`, "invalid ambiguity"));
+  }
+  if (typeof value.confidence !== "string" || !allowedConfidence.has(value.confidence)) issues.push(issue(`${referentPath}.confidence`, "invalid confidence"));
+  if (value.resolvedTarget !== null) {
+    if (!isObject(value.resolvedTarget)) {
+      issues.push(issue(`${referentPath}.resolvedTarget`, "expected object or null"));
+    } else {
+      issues.push(...exactKeys(value.resolvedTarget, ["kind", "label", "ref"], `${referentPath}.resolvedTarget`));
+      if (typeof value.resolvedTarget.kind !== "string" || !allowedTargetKinds.has(value.resolvedTarget.kind)) issues.push(issue(`${referentPath}.resolvedTarget.kind`, "invalid target kind"));
+      if (value.resolvedTarget.ref !== null && typeof value.resolvedTarget.ref !== "string") issues.push(issue(`${referentPath}.resolvedTarget.ref`, "expected string or null"));
+      if (value.resolvedTarget.label !== null && typeof value.resolvedTarget.label !== "string") issues.push(issue(`${referentPath}.resolvedTarget.label`, "expected string or null"));
+    }
+  }
   return issues;
 }
 

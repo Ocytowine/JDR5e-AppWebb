@@ -13,7 +13,8 @@ import type {
 import {
   createSuspendedIntentRecordV1,
   interpretNarrativeInputV1,
-  type NarrativeIntentInterpretationV1
+  type NarrativeIntentInterpretationV1,
+  type NarrativeIntentTargetV1
 } from "./intentClarification";
 import { REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1, findPlayableSceneNpcTargetV1 } from "./playableScene";
 
@@ -36,10 +37,19 @@ export interface AiIntentInterpretationResultV1 {
   safetyNotes: string[];
 }
 
+export interface LocalReferentHintV1 {
+  schemaVersion: 1;
+  target: NarrativeIntentTargetV1;
+  sourceOperationId: string;
+  sourceText: string;
+  confidence: "low" | "medium" | "high";
+}
+
 export class LocalPlayerIntentInterpreterProviderV1 implements ContractAiProviderV1 {
   async generate(request: AiCallRequestV1): Promise<unknown> {
-    const task = request.input.task as { rawInput?: unknown };
+    const task = request.input.task as { rawInput?: unknown; localReferentHints?: unknown };
     const rawInput = typeof task.rawInput === "string" ? task.rawInput : "";
+    const localReferentHints = normalizeLocalReferentHints(task.localReferentHints);
     return {
       schemaVersion: 1,
       contractVersion: request.contractVersion,
@@ -50,7 +60,7 @@ export class LocalPlayerIntentInterpreterProviderV1 implements ContractAiProvide
       snapshotId: request.snapshotId,
       role: request.role,
       status: "OK",
-      payload: buildLocalIntentPayload(rawInput),
+      payload: buildLocalIntentPayload(rawInput, localReferentHints),
       diagnostics: [],
       supersedesOutputId: null
     } satisfies AiRoleOutputEnvelopeV1<AiIntentInterpretationPayloadV1>;
@@ -92,6 +102,7 @@ export async function interpretNarrativeInputWithAiV1(input: {
   intentId: string;
   rawInput: string;
   config: AiIntentInterpreterConfigV1;
+  localReferentHints?: LocalReferentHintV1[];
 }): Promise<AiIntentInterpretationResultV1> {
   const request = await buildIntentInterpreterRequestV1(input);
   const run = await runAiPipelineCallV1({
@@ -133,16 +144,17 @@ export async function interpretNarrativeInputWithAiV1(input: {
   };
 }
 
-export function buildLocalIntentPayload(rawInput: string): AiIntentInterpretationPayloadV1 {
+export function buildLocalIntentPayload(rawInput: string, localReferentHints: LocalReferentHintV1[] = []): AiIntentInterpretationPayloadV1 {
   const normalized = normalize(rawInput);
-  const target = findTarget(rawInput);
+  const localAction = actionLabel(normalized);
+  const target = findTarget(rawInput, localReferentHints, localAction);
   const hasQuestion = /[?？]/u.test(rawInput) || /^(est[- ]ce|peux|puis|peut|comment|pourquoi|combien|ou|où|quand|quelle|quel|quels|quelles)\b/u.test(normalized);
   const asksPossibility = /\b(peux|puis|possible|possibilite|est[- ]ce que je peux|ai[- ]je le droit|ce serait possible)\b/u.test(normalized);
   const politeContextRequest = isPoliteContextQuestionText(rawInput);
   const meta = /\b(regle|mecanique|jet|bonus|interface|sauvegarde|comment fonctionne|comment marche|cote regles)\b/u.test(normalized);
   const risky = /\b(voler|vole|ouvrir|entrer|forcer|crocheter|attaquer|attaque|frapper|prendre)\b/u.test(normalized);
   const speech = /\b(je demande|je lui demande|lui demander|je questionne|j'interroge|j interroge|je lui dis|je dis|je reponds|je réponds|parler|discuter|interroger)\b/u.test(normalized);
-  const explicitCommittedAction = /\b(je vole|j'attaque|j attaque|je frappe|je prends|je tente|j'essaie|j essaie|j'ouvre|j ouvre|je force|je crochete)\b/u.test(normalized);
+  const explicitCommittedAction = /\b(je vole|j'attaque|j attaque|je frappe|je prends|je tente|j'essaie|j essaie|j'ouvre|j ouvre|je l'ouvre|je le force|je la force|je force|je crochete)\b/u.test(normalized);
   const action = explicitCommittedAction || /\b(je m'avance|je m avance|je vais|je me dirige|je m'approche|je m approche|je regarde|j'observe|j observe)\b/u.test(normalized);
   const elliptical = normalized.length < 22 || /^(lui |le garde\s*\??$|et si|je pourrais peut-etre|je pourrais peut etre)/u.test(normalized);
 
@@ -162,7 +174,7 @@ export function buildLocalIntentPayload(rawInput: string): AiIntentInterpretatio
     return payload(rawInput, intent(rawInput, "speech", "committed", target, "ask", topic(rawInput), speechCoreMeaning(rawInput, target.label ?? "la personne ciblée"), imposedDetails(rawInput, target.label), ["reaction_npc", "social_outcome"], false, null, [], "DOMAIN_TO_DECIDE", "high"));
   }
   if (action) {
-    return payload(rawInput, intent(rawInput, "action", "committed", target, actionLabel(normalized), topic(rawInput), `Le personnage tente l'action décrite : ${rawInput.trim()}`, [rawInput.trim()], ["success", "failure", "mechanical_effect"], false, null, risky ? ["domain_handoff_possible"] : [], "DOMAIN_TO_DECIDE", "medium"));
+    return payload(rawInput, intent(rawInput, "action", "committed", target, localAction, topic(rawInput), `Le personnage tente l'action décrite : ${rawInput.trim()}`, [rawInput.trim()], ["success", "failure", "mechanical_effect"], false, null, risky ? ["domain_handoff_possible"] : [], "DOMAIN_TO_DECIDE", "medium"));
   }
   if (hasQuestion) {
     return payload(rawInput, intent(rawInput, "meta_question", "none", target, null, topic(rawInput), rawInput.trim(), [], ["fictional_reaction"], false, null, [], "NO_GAME_TIME", "medium"));
@@ -190,6 +202,7 @@ function intent(
   expectedTimeEffect: AiStructuredPlayerIntentV1["expectedTimeEffect"],
   confidence: AiStructuredPlayerIntentV1["confidence"]
 ): AiStructuredPlayerIntentV1 {
+  const referentResolution = buildReferentResolution(target, rawInput);
   return {
     intentId: "intent:1",
     order: 1,
@@ -197,6 +210,7 @@ function intent(
     commitment,
     target,
     action,
+    referentResolution,
     topic: topicValue,
     coreMeaning,
     playerImposedDetails,
@@ -219,6 +233,7 @@ async function buildIntentInterpreterRequestV1(input: {
   operationId: string;
   rawInput: string;
   config: AiIntentInterpreterConfigV1;
+  localReferentHints?: LocalReferentHintV1[];
 }): Promise<AiCallRequestV1> {
   const snapshotId = `${input.operationId}:snapshot:intent`;
   const packId = `${input.operationId}:pack:intent`;
@@ -256,6 +271,7 @@ async function buildIntentInterpreterRequestV1(input: {
       roleContextPack: context,
       task: {
         rawInput: input.rawInput,
+        localReferentHints: input.localReferentHints ?? [],
         allowedIntentTypes: ["meta_question", "possibility_query", "memory_recall", "speech", "action", "mixed", "unclear_commitment"],
         forbiddenAuthority: ["commit", "time", "inventory", "tactical", "durable_lore", "social_success"]
       }
@@ -282,6 +298,30 @@ function mapAiIntentToNarrativeInterpretationV1(input: {
   if (first.intentType === "speech" && first.commitment !== "committed") return { ok: false };
   if (first.intentType === "action" && first.commitment !== "committed") return { ok: false };
   if (first.riskFlags.includes("secret_reveal") || first.riskFlags.includes("social_success_granted")) return { ok: false };
+  const referentClarification = committedActionReferentClarification(first, input.rawInput);
+  if (referentClarification !== null) {
+    return {
+      ok: true,
+      interpretation: {
+        schemaVersion: 1,
+        contractVersion: "intent-clarification/1",
+        intentId: input.intentId,
+        intentType: "unclear_commitment",
+        commitment: "unclear",
+        target: first.target,
+        action: first.action,
+        referentResolution: first.referentResolution ?? buildReferentResolution(first.target, input.rawInput),
+        coreMeaning: first.coreMeaning,
+        requiresClarification: true,
+        clarificationQuestion: referentClarification,
+        expectedTimeEffect: "NO_GAME_TIME",
+        safetyNotes: [
+          "RÃ©fÃ©rent d'action locale non validÃ©: clarification obligatoire avant rÃ©solution.",
+          ...first.forbiddenInterpretations.map(entry => `InterprÃ©tation interdite: ${entry}`)
+        ]
+      }
+    };
+  }
 
   return {
     ok: true,
@@ -291,6 +331,9 @@ function mapAiIntentToNarrativeInterpretationV1(input: {
       intentId: input.intentId,
       intentType: first.intentType,
       commitment: first.commitment,
+      target: first.target,
+      action: first.action,
+      referentResolution: first.referentResolution ?? buildReferentResolution(first.target, input.rawInput),
       coreMeaning: first.coreMeaning,
       requiresClarification: first.requiresClarification,
       clarificationQuestion: first.clarificationQuestion,
@@ -303,7 +346,7 @@ function mapAiIntentToNarrativeInterpretationV1(input: {
   };
 }
 
-function findTarget(rawInput: string): AiStructuredPlayerIntentV1["target"] {
+function findTarget(rawInput: string, localReferentHints: LocalReferentHintV1[] = [], action: string | null = null): AiStructuredPlayerIntentV1["target"] {
   const normalized = normalize(rawInput);
   if (/\b(moi|me)\b/u.test(normalized) && !/\b(garde|serveuse|aubergiste|porte)\b/u.test(normalized)) {
     return { kind: "self", ref: "player-character:prototype", label: "personnage joueur" };
@@ -313,7 +356,93 @@ function findTarget(rawInput: string): AiStructuredPlayerIntentV1["target"] {
     return { kind: "npc", ref: `npc:${npc.actorId}`, label: normalize(npc.displayName).includes("serveuse") ? "serveuse" : "garde" };
   }
   if (/\b(porte|arriere|arriere-salle|fond)\b/u.test(normalized)) return { kind: "object", ref: "poi:back-room-door", label: "porte du fond" };
+  const pronounOnly = /\b(l'|le|la|lui|cela|ca|ça)\b/u.test(normalized);
+  const recentCompatible = localReferentHints.find(hint =>
+    hint.confidence !== "low" &&
+    hint.target.ref !== null &&
+    isTargetCompatibleWithAction(hint.target, action)
+  );
+  if (pronounOnly && recentCompatible) return recentCompatible.target;
   return null;
+}
+
+function committedActionReferentClarification(
+  intentValue: AiStructuredPlayerIntentV1,
+  rawInput: string
+): string | null {
+  if (intentValue.intentType !== "action") return null;
+  if (intentValue.action !== "open" && intentValue.action !== "force") return null;
+  const referentResolution = intentValue.referentResolution ?? buildReferentResolution(intentValue.target, rawInput);
+  const target = referentResolution.resolvedTarget ?? intentValue.target;
+  if (referentResolution.ambiguity !== "none") {
+    return "Je dois savoir précisément quel élément tu veux ouvrir ou forcer avant d'exécuter l'action.";
+  }
+  if (target === null || target.ref === null) {
+    return "Que veux-tu ouvrir ou forcer exactement ?";
+  }
+  if (!isTargetCompatibleWithAction(target, intentValue.action)) {
+    return "Le référent récent ne correspond pas à quelque chose qu'on peut ouvrir ou forcer. Que veux-tu cibler exactement ?";
+  }
+  if (!isVisibleSceneTargetRef(target.ref)) {
+    return "Ce référent n'est pas validé comme élément visible de la scène. Que veux-tu cibler exactement ?";
+  }
+  return null;
+}
+
+function isVisibleSceneTargetRef(ref: string): boolean {
+  return ref === "poi:back-room-door" ||
+    ref === "npc:npc-garde-blesse" ||
+    ref === "npc:npc-serveuse-nerveuse";
+}
+
+function buildReferentResolution(
+  target: AiStructuredPlayerIntentV1["target"],
+  rawInput: string
+): NonNullable<AiStructuredPlayerIntentV1["referentResolution"]> {
+  if (target === null) {
+    return {
+      schemaVersion: 1,
+      usedPreviousContext: false,
+      source: "none",
+      resolvedTarget: null,
+      evidence: [rawInput.trim()].filter(Boolean),
+      ambiguity: "insufficient_context",
+      confidence: "medium"
+    };
+  }
+  const normalized = normalize(rawInput);
+  const targetToken = target.label === null ? null : normalize(target.label).split(" ")[0] ?? null;
+  const explicit = targetToken !== null && normalized.includes(targetToken);
+  return {
+    schemaVersion: 1,
+    usedPreviousContext: !explicit,
+    source: explicit ? "current_input" : "recent_visible_focus",
+    resolvedTarget: target,
+    evidence: [rawInput.trim(), target.label ?? target.ref ?? "referent"].filter(Boolean),
+    ambiguity: "none",
+    confidence: explicit ? "high" : "medium"
+  };
+}
+
+function isTargetCompatibleWithAction(target: NarrativeIntentTargetV1, action: string | null): boolean {
+  if (action === null) return true;
+  if (action === "open" || action === "force") return target.kind === "object" || target.kind === "place";
+  if (action === "ask") return target.kind === "npc";
+  return true;
+}
+
+function normalizeLocalReferentHints(value: unknown): LocalReferentHintV1[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((entry): entry is LocalReferentHintV1 => {
+    if (entry === null || typeof entry !== "object") return false;
+    const candidate = entry as Partial<LocalReferentHintV1>;
+    return candidate.schemaVersion === 1 &&
+      candidate.target !== null &&
+      typeof candidate.target === "object" &&
+      typeof candidate.sourceOperationId === "string" &&
+      typeof candidate.sourceText === "string" &&
+      ["low", "medium", "high"].includes(candidate.confidence ?? "");
+  }).slice(0, 5);
 }
 
 function topic(rawInput: string): string | null {

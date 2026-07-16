@@ -11,12 +11,31 @@ export type NarrativeIntentTypeV1 =
 
 export type NarrativeIntentCommitmentV1 = "none" | "hypothetical" | "conditional" | "committed" | "unclear";
 
+export interface NarrativeIntentTargetV1 {
+  kind: "npc" | "place" | "object" | "self" | "unknown";
+  ref: string | null;
+  label: string | null;
+}
+
+export interface NarrativeIntentReferentResolutionV1 {
+  schemaVersion: 1;
+  usedPreviousContext: boolean;
+  source: "current_input" | "recent_visible_focus" | "visible_scene" | "none";
+  resolvedTarget: NarrativeIntentTargetV1 | null;
+  evidence: string[];
+  ambiguity: "none" | "multiple_candidates" | "incompatible_action" | "insufficient_context" | "unknown";
+  confidence: "low" | "medium" | "high";
+}
+
 export interface NarrativeIntentInterpretationV1 {
   schemaVersion: 1;
   contractVersion: typeof INTENT_CLARIFICATION_CONTRACT_VERSION_V1;
   intentId: string;
   intentType: NarrativeIntentTypeV1;
   commitment: NarrativeIntentCommitmentV1;
+  target?: NarrativeIntentTargetV1 | null;
+  action?: string | null;
+  referentResolution?: NarrativeIntentReferentResolutionV1 | null;
   coreMeaning: string;
   requiresClarification: boolean;
   clarificationQuestion: string | null;

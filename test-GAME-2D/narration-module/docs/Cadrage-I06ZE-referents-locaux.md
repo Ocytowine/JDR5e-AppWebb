@@ -1,8 +1,58 @@
 # Cadrage I-06ZE - Resolution IA des referents locaux recents
 
 Date : 2026-07-10
+Derniere mise a jour : 2026-07-15
 
-Statut : `CADRE`
+Statut : `TERMINE_DANS_PERIMETRE`
+
+## Livraison 2026-07-15
+
+I-06ZE est implemente dans le perimetre borne suivant :
+
+- `ai-intent-interpretation/1` transporte maintenant `target`, `action` et `referentResolution` jusque dans `NarrativeIntentInterpretationV1`;
+- le controleur conserve une memoire courte de session des referents visibles deja proposes par l'interpreteur IA/fake;
+- `player_intent_interpreter` recoit `localReferentHints` et peut resoudre une ellipse locale compatible comme `je l'ouvre`;
+- le resolver valide seulement le referent propose : visible, non ambigu, compatible avec l'action;
+- les actions locales bornees `open`/`force` sur referent visible peuvent etre enregistrees sans temps de jeu, sans revelation et sans changement de scene;
+- les observations, deplacements, questions de possibilite et domaines proprietaires restent sans commit ou en handoff comme avant.
+
+Cas couvert :
+
+```text
+Je me dirige vers la porte du fond
+je l'ouvre
+```
+
+Resultat attendu livre : le deuxieme tour reutilise le referent recent `poi:back-room-door`, produit `referentResolution.source = recent_visible_focus`, puis applique un commit local borne `LOCAL_SCENE_ACTION_RECORDED` sans reveler l'arriere-salle.
+
+Preuves executees :
+
+```powershell
+npm run narration-module:test:ai-intent-interpretation
+npm run narration-module:test:narrative-resolution
+npm run narration-module:test:narrative-turn-controller
+npm run narration-module:test:narrative-openai-route
+npm run narration-module:build
+```
+
+## Durcissement post-livraison 2026-07-15
+
+Le comportement negatif a ete renforce sans ouvrir de nouvelle capacite :
+
+- `je l'ouvre` sans referent recent fiable devient `unclear_commitment`;
+- `Je regarde la serveuse` puis `je l'ouvre` reste en clarification, car `open` est incompatible avec un PNJ;
+- une sortie IA/OpenAI qui propose `open` ou `force` avec un `referentResolution` ambigu est rejetee ou transformee en clarification;
+- une action comme `Je force la serrure` clarifie si la serrure n'est pas etablie comme referent visible.
+- les actions produites par IA doivent respecter les categories canoniques du contrat (`open`, `force`, `observe`, `ask`, etc.); le code ne traduit pas les mots du joueur ou du modele.
+
+Preuves ajoutees :
+
+```powershell
+npm run narration-module:test:ai-intent-interpretation
+npm run narration-module:test:narrative-openai-route
+```
+
+Retour de certification UI : OpenAI live comprenait correctement `J'ouvre la porte du fond`, mais la resolution restait en `Sans commit`, symptome coherent avec une action non canonique ou non exploitable par le contrat. Le correctif retenu est contractuel : renforcer la sortie structuree attendue et rejeter les actions non canoniques, sans traduction lexicale cote code.
 
 ## Objectif
 
@@ -92,9 +142,12 @@ Exemple :
   "referentResolution": {
     "schemaVersion": 1,
     "usedPreviousContext": true,
-    "referentSource": "recent_focus",
-    "resolvedRef": "poi:back-room-door",
-    "resolvedLabel": "porte du fond",
+    "source": "recent_visible_focus",
+    "resolvedTarget": {
+      "kind": "object",
+      "ref": "poi:back-room-door",
+      "label": "porte du fond"
+    },
     "evidence": [
       "Entree precedente: Je me dirige vers la porte du fond",
       "Entree actuelle: je l'ouvre"
@@ -111,7 +164,7 @@ Le champ est une proposition IA. Il n'est pas une autorisation de commit.
 
 La proposition est rejetee ou transformee en clarification si :
 
-- `resolvedRef` ne correspond pas a une entite visible ou a un point d'interet visible de la scene ;
+- `resolvedTarget.ref` ne correspond pas a une entite visible ou a un point d'interet visible de la scene ;
 - plusieurs referents recents sont plausibles ;
 - l'action proposee est incompatible avec le type de referent ;
 - `confidence` est inferieur a `high` pour une action engagee ;
@@ -217,6 +270,6 @@ npm run narration-module:build
 
 ## Decision de suite
 
-I-06ZE est le prochain micro-lot recommande.
+I-06ZE est livre dans son perimetre borne.
 
-Il doit corriger la continuite locale observee sans remplacer l'IA par des conditions codees. Le code reste arbitre et validateur, pas interprete principal.
+Il corrige la continuite locale observee sans remplacer l'IA par des conditions codees. Le code reste arbitre et validateur, pas interprete principal.

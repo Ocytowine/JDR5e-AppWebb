@@ -28,7 +28,8 @@ import {
 import {
   createDefaultAiIntentInterpreterConfigV1,
   interpretNarrativeInputWithAiV1,
-  type AiIntentInterpreterConfigV1
+  type AiIntentInterpreterConfigV1,
+  type LocalReferentHintV1
 } from "./aiIntentInterpretation";
 import {
   resolveNarrativeTurnV1,
@@ -86,6 +87,7 @@ export class NarrativeTurnControllerV1 {
   private readonly clock: RepositoryClock;
   private readonly idPrefix: string;
   private readonly intentInterpreterConfig: AiIntentInterpreterConfigV1 | null;
+  private recentLocalReferents: LocalReferentHintV1[] = [];
 
   constructor(options: NarrativeTurnControllerOptions) {
     this.repository = options.repository;
@@ -134,6 +136,7 @@ export class NarrativeTurnControllerV1 {
     const received = await this.repository.receiveOperation(operation);
     if (!received.ok) return received;
     if (received.value.phase === "COMPLETED" && received.value.resultPayload !== null) {
+      this.rememberLocalReferent(received.value.resultPayload as NarrativeTurnControllerOutputV1);
       return {
         ok: true,
         value: {
@@ -149,7 +152,8 @@ export class NarrativeTurnControllerV1 {
       operation: received.value,
       input,
       createdAt: this.clock.now().toISOString(),
-      intentInterpreterConfig: this.intentInterpreterConfig
+      intentInterpreterConfig: this.intentInterpreterConfig,
+      localReferentHints: this.recentLocalReferents
     });
     if (!output.ok) return output;
 
@@ -157,6 +161,7 @@ export class NarrativeTurnControllerV1 {
       ? await this.repository.completeWithoutCommit(received.value.operationId, 1, output.value.output)
       : await this.repository.completePresentation(received.value.operationId, "COMMITTED_RENDERED", 1, output.value.output);
     if (!completed.ok) return completed;
+    this.rememberLocalReferent(output.value.output);
 
     return {
       ok: true,
@@ -185,6 +190,22 @@ export class NarrativeTurnControllerV1 {
       campaignId: this.campaignId,
       limit
     });
+  }
+
+  private rememberLocalReferent(output: NarrativeTurnControllerOutputV1): void {
+    const target = output.interpretation.target ?? output.interpretation.referentResolution?.resolvedTarget ?? null;
+    if (target === null || target.ref === null || target.kind === "unknown" || target.kind === "self") return;
+    const hint: LocalReferentHintV1 = {
+      schemaVersion: 1,
+      target,
+      sourceOperationId: output.operationId,
+      sourceText: output.interpretation.coreMeaning,
+      confidence: output.interpretation.referentResolution?.confidence ?? "medium"
+    };
+    this.recentLocalReferents = [
+      hint,
+      ...this.recentLocalReferents.filter(entry => entry.target.ref !== target.ref)
+    ].slice(0, 5);
   }
 }
 
@@ -370,6 +391,7 @@ async function buildResolvedOutput(input: {
   input: NarrativeTurnInputV1;
   createdAt: string;
   intentInterpreterConfig: AiIntentInterpreterConfigV1 | null;
+  localReferentHints?: LocalReferentHintV1[];
 }): Promise<Result<{ output: NarrativeTurnControllerOutputV1; commit: unknown | null }>> {
   const intentId = `${input.operation.operationId}:intent:1`;
   const interpretation = input.intentInterpreterConfig === null
@@ -382,7 +404,8 @@ async function buildResolvedOutput(input: {
       operationId: input.operation.operationId,
       intentId,
       rawInput: input.input.rawInput,
-      config: input.intentInterpreterConfig
+      config: input.intentInterpreterConfig,
+      localReferentHints: input.localReferentHints ?? []
     })).interpretation as NarrativeIntentInterpretationV1 & JsonObject;
   const suspendedIntent = interpretation.requiresClarification
     ? createSuspendedIntentRecordV1({

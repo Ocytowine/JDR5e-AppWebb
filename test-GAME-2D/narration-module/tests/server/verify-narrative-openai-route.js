@@ -147,6 +147,15 @@ function intentOutputFor(req, overrides = {}) {
         commitment: "committed",
         target: { kind: "npc", ref: "npc:npc-garde-blesse", label: "garde" },
         action: "ask",
+        referentResolution: {
+          schemaVersion: 1,
+          usedPreviousContext: false,
+          source: "current_input",
+          resolvedTarget: { kind: "npc", ref: "npc:npc-garde-blesse", label: "garde" },
+          evidence: [req.input.task.rawInput, "garde"],
+          ambiguity: "none",
+          confidence: "high"
+        },
         topic: "s'il a vu quelque chose d'étrange",
         coreMeaning: "Le personnage demande au garde s'il a vu quelque chose d'étrange.",
         playerImposedDetails: ["s'approcher du garde", "poser une question"],
@@ -361,6 +370,45 @@ async function main() {
   );
   assert.equal(speechNoGameTimeIntent.ok, false);
   assert.equal(speechNoGameTimeIntent.issues.includes("payload.intents[0] committed in-fiction intent must use DOMAIN_TO_DECIDE."), true);
+  const ambiguousOpenIntent = validateEnvelope(
+    intentOutputFor(intentRequest(), {
+      intent: {
+        intentType: "action",
+        commitment: "committed",
+        target: { kind: "object", ref: "poi:back-room-door", label: "porte du fond" },
+        action: "open",
+        referentResolution: {
+          schemaVersion: 1,
+          usedPreviousContext: true,
+          source: "recent_visible_focus",
+          resolvedTarget: { kind: "object", ref: "poi:back-room-door", label: "porte du fond" },
+          evidence: ["porte du fond", "autre referent possible"],
+          ambiguity: "multiple_candidates",
+          confidence: "medium"
+        },
+        coreMeaning: "Le personnage tente d'ouvrir un referent ambigu.",
+        expectedTimeEffect: "DOMAIN_TO_DECIDE"
+      }
+    }),
+    intentRequest()
+  );
+  assert.equal(ambiguousOpenIntent.ok, false);
+  assert.equal(ambiguousOpenIntent.issues.includes("payload.intents[0] committed open/force action requires unambiguous referentResolution."), true);
+  const nonCanonicalOpenIntent = validateEnvelope(
+    intentOutputFor(intentRequest(), {
+      intent: {
+        intentType: "action",
+        commitment: "committed",
+        target: { kind: "object", ref: "poi:back-room-door", label: "porte du fond" },
+        action: "ouvrir",
+        coreMeaning: "Le personnage tente d'ouvrir la porte du fond.",
+        expectedTimeEffect: "DOMAIN_TO_DECIDE"
+      }
+    }),
+    intentRequest()
+  );
+  assert.equal(nonCanonicalOpenIntent.ok, false);
+  assert.equal(nonCanonicalOpenIntent.issues.includes("payload.intents[0].action must be a canonical action or null."), true);
   const politeSpeechAsPossibilityIntent = validateEnvelope(
     intentOutputFor(socialSpeechReq, { intent: { intentType: "possibility_query", commitment: "hypothetical", expectedTimeEffect: "NO_GAME_TIME" } }),
     socialSpeechReq

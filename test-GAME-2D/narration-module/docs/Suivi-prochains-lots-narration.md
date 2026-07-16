@@ -543,9 +543,9 @@ Livre :
 - anciens messages visibles de prototype retires du rendu initial;
 - statut technique conserve hors fil fictionnel.
 
-## I-06ZE — Paquet de scène explicite pour `scene_writer`
+## I-06ZE — Referents locaux recents pour `player_intent_interpreter`
 
-Statut : `FERME_JUSQU_APRES_I06ZC`
+Statut : `TERMINE_DANS_PERIMETRE` le 2026-07-15.
 
 Objectif : enrichir structurellement le contexte envoyé au `scene_writer` si la certification live montre encore des ambiguïtés factuelles.
 
@@ -556,6 +556,10 @@ Ce lot doit renforcer les données envoyées à l'IA, pas ajouter des listes lex
 L'ancien libelle I-06ZE "paquet de scene explicite pour scene_writer" est remplace par le cadrage [`Cadrage-I06ZE-referents-locaux.md`](Cadrage-I06ZE-referents-locaux.md).
 
 Le prochain I-06ZE actif concerne la resolution IA des referents locaux recents par `player_intent_interpreter`, pas `scene_writer`.
+
+Livraison : `ai-intent-interpretation/1` transporte `referentResolution`, le controleur fournit une memoire courte de referents visibles, le resolver valide visible/compatible/non ambigu, et `LOCAL_SCENE_ACTION_RECORDED` enregistre seulement une action locale bornee sans secret, temps ou changement de scene. Preuves : `npm run narration-module:test:ai-intent-interpretation`, `npm run narration-module:test:narrative-resolution`, `npm run narration-module:test:narrative-turn-controller`, `npm run narration-module:test:narrative-openai-route`, `npm run narration-module:build`.
+
+Durcissement post-livraison : les cas sans contexte, referent incompatible et referent ambigu sur `open`/`force` clarifient ou sont rejetes avant resolution; la route OpenAI refuse aussi une action de manipulation engagee avec `referentResolution` ambigu. Le retour UI a aussi montre qu'une action non canonique pouvait rester inexploitable : la correction doit rester contractuelle, sans traduction lexicale cote code.
 
 Regle de conception :
 

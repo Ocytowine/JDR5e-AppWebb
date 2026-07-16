@@ -130,6 +130,15 @@ export function applyReferenceSceneMutationV1(input: {
   if (input.interpretation.intentType === "action" && /regarde|observe/iu.test(input.interpretation.coreMeaning)) {
     next.playerLookedAround = true;
   }
+  const actionTarget = input.interpretation.referentResolution?.resolvedTarget ?? input.interpretation.target ?? null;
+  if (
+    input.interpretation.intentType === "action" &&
+    input.resolution.resultKind === "COMMIT_PREPARED" &&
+    actionTarget?.ref === "poi:back-room-door"
+  ) {
+    next.backRoomDoorHighlighted = true;
+    if (!next.visibleFocus.includes("porte-du-fond-signalee")) next.visibleFocus.push("porte-du-fond-signalee");
+  }
   return next;
 }
 

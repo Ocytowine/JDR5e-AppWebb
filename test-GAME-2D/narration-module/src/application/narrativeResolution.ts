@@ -63,7 +63,7 @@ export interface CharacterExpressionV1 extends JsonObject {
 export interface NarrativePreparedEffectV1 extends JsonObject {
   schemaVersion: 1;
   effectId: string;
-  effectType: "SPEECH_ACT_RECORDED" | "OBSERVATION_ONLY" | "BLOCKED_UNOPENED_DOMAIN";
+  effectType: "SPEECH_ACT_RECORDED" | "LOCAL_SCENE_ACTION_RECORDED" | "OBSERVATION_ONLY" | "BLOCKED_UNOPENED_DOMAIN";
   targetRef: string;
   summary: string;
   commitEligible: boolean;
@@ -139,7 +139,7 @@ export async function resolveNarrativeTurnV1(input: NarrativeResolutionInputV1):
   const currentCampaign = await input.repository.getCampaign(input.campaignId);
   if (!currentCampaign.ok) return currentCampaign;
 
-  const commitRequest = buildSpeechCommitRequest({
+  const commitRequest = buildNarrativeCommitRequest({
     campaignId: input.campaignId,
     operation: ready.value,
     expectedCampaignRevision: currentCampaign.value.campaignRevision,
@@ -257,6 +257,17 @@ export function buildDeterministicResolution(
     };
   }
 
+  const localSceneAction = buildLocalSceneActionEffect(operation, interpretation);
+  if (localSceneAction !== null) {
+    return {
+      ...base,
+      resultKind: "COMMIT_PREPARED",
+      characterExpression: buildCharacterExpression(rawInput, interpretation),
+      preparedEffects: [localSceneAction],
+      safetyNotes: [...base.safetyNotes, "Action locale bornÃ©e: rÃ©fÃ©rent visible validÃ©, aucune issue de scÃ¨ne avancÃ©e."]
+    };
+  }
+
   return {
     ...base,
     resultKind: "RESOLUTION_PROPOSED",
@@ -273,7 +284,40 @@ export function buildDeterministicResolution(
   };
 }
 
-function buildSpeechCommitRequest(input: {
+function buildLocalSceneActionEffect(
+  operation: OperationRecord,
+  interpretation: NarrativeIntentInterpretationV1
+): NarrativePreparedEffectV1 | null {
+  if (interpretation.intentType !== "action") return null;
+  if (interpretation.action !== "open" && interpretation.action !== "force") return null;
+  const target = interpretation.referentResolution?.resolvedTarget ?? interpretation.target ?? null;
+  if (target === null || target.ref === null) return null;
+  if (!isVisibleReferenceSceneTarget(target.ref)) return null;
+  if (!isActionCompatibleWithTarget(interpretation.action ?? null, target.kind)) return null;
+  if (interpretation.referentResolution?.ambiguity && interpretation.referentResolution.ambiguity !== "none") return null;
+  return {
+    schemaVersion: 1,
+    effectId: `${operation.operationId}:effect:local-action:1`,
+    effectType: "LOCAL_SCENE_ACTION_RECORDED",
+    targetRef: target.ref,
+    summary: `Action locale enregistrÃ©e sur rÃ©fÃ©rent visible: ${target.label ?? target.ref}.`,
+    commitEligible: true
+  };
+}
+
+function isVisibleReferenceSceneTarget(ref: string): boolean {
+  return ref === "poi:back-room-door" ||
+    ref === "npc:npc-garde-blesse" ||
+    ref === "npc:npc-serveuse-nerveuse";
+}
+
+function isActionCompatibleWithTarget(action: string | null, targetKind: string): boolean {
+  if (action === "open" || action === "force") return targetKind === "object" || targetKind === "place";
+  if (action === "ask") return targetKind === "npc";
+  return true;
+}
+
+function buildNarrativeCommitRequest(input: {
   campaignId: CampaignId;
   operation: OperationRecord;
   expectedCampaignRevision: number;
@@ -281,10 +325,12 @@ function buildSpeechCommitRequest(input: {
   resolution: NarrativeResolutionResultV1;
   loadedSceneState: LoadedReferenceSceneStateV1;
 }): CommitRequest {
-  const aggregateId = opaqueId<AggregateId>(`${input.operation.operationId}:speech-log`);
-  const commandId = opaqueId<CommitRequest["acceptedCommands"][number]["commandId"]>(`${input.operation.operationId}:cmd:speech`);
-  const eventId = opaqueId<EventId>(`${input.operation.operationId}:evt:speech`);
-  const commitId = opaqueId<CommitId>(`${input.operation.operationId}:commit:speech`);
+  const localAction = input.resolution.preparedEffects.find(effect => effect.effectType === "LOCAL_SCENE_ACTION_RECORDED") ?? null;
+  const isLocalAction = localAction !== null;
+  const aggregateId = opaqueId<AggregateId>(`${input.operation.operationId}:${isLocalAction ? "local-action" : "speech-log"}`);
+  const commandId = opaqueId<CommitRequest["acceptedCommands"][number]["commandId"]>(`${input.operation.operationId}:cmd:${isLocalAction ? "local-action" : "speech"}`);
+  const eventId = opaqueId<EventId>(`${input.operation.operationId}:evt:${isLocalAction ? "local-action" : "speech"}`);
+  const commitId = opaqueId<CommitId>(`${input.operation.operationId}:commit:${isLocalAction ? "local-action" : "speech"}`);
   const expression = input.resolution.characterExpression?.expressionText ?? "";
   const nextSceneState = applyReferenceSceneMutationV1({
     current: input.loadedSceneState.state,
@@ -310,9 +356,9 @@ function buildSpeechCommitRequest(input: {
       commandId,
       campaignId: input.campaignId,
       operationId: input.operation.operationId,
-      commandType: "social.speech-act.record",
+      commandType: isLocalAction ? "scene.local-action.record" : "social.speech-act.record",
       target: {
-        aggregateType: "social.speech-act",
+        aggregateType: isLocalAction ? "scene.local-action" : "social.speech-act",
         aggregateId,
         expectedAggregateRevision: null
       },
@@ -321,12 +367,15 @@ function buildSpeechCommitRequest(input: {
         schemaVersion: 1,
         expression,
         source: "PLAYER_INTENT",
-        noMechanicalSocialEffect: true
+        targetRef: localAction?.targetRef ?? null,
+        action: input.resolution.interpretation.action ?? null,
+        noMechanicalEffect: true,
+        noMechanicalSocialEffect: !isLocalAction
       },
       acceptedAtGameSecond: 0
     }],
     aggregateWrites: [{
-      aggregateType: "social.speech-act",
+      aggregateType: isLocalAction ? "scene.local-action" : "social.speech-act",
       aggregateId,
       expectedAggregateRevision: null,
       payloadSchemaVersion: 1,
@@ -334,8 +383,11 @@ function buildSpeechCommitRequest(input: {
         schemaVersion: 1,
         operationId: input.operation.operationId,
         expression,
+        targetRef: localAction?.targetRef ?? null,
+        action: input.resolution.interpretation.action ?? null,
         semanticCommitments: [input.resolution.interpretation.coreMeaning],
-        noMechanicalSocialEffect: true,
+        noMechanicalEffect: true,
+        noMechanicalSocialEffect: !isLocalAction,
         version: 1
       }
     }, {
@@ -350,11 +402,11 @@ function buildSpeechCommitRequest(input: {
       eventId,
       campaignId: input.campaignId,
       operationId: input.operation.operationId,
-      eventType: "social.speech-act.recorded",
+      eventType: isLocalAction ? "scene.local-action.recorded" : "social.speech-act.recorded",
       origin: "PLAYER_INTENT",
       causation: { kind: "COMMAND", id: commandId },
       aggregateRefs: [{
-        aggregateType: "social.speech-act",
+        aggregateType: isLocalAction ? "scene.local-action" : "social.speech-act",
         aggregateId,
         aggregateRevision: 0
       }, {
@@ -368,6 +420,9 @@ function buildSpeechCommitRequest(input: {
       payload: {
         schemaVersion: 1,
         expression,
+        targetRef: localAction?.targetRef ?? null,
+        action: input.resolution.interpretation.action ?? null,
+        noMechanicalEffect: true,
         noMechanicalSocialEffect: true
       }
     }, {
@@ -543,6 +598,9 @@ function resolutionNotice(resolution: NarrativeResolutionResultV1): string {
     return `${resolution.handoff?.reason ?? "Handoff requis."} Aucun résultat n'a été inventé par la narration.`;
   }
   if (resolution.resultKind === "COMMIT_APPLIED") {
+    if (resolution.preparedEffects.some(effect => effect.effectType === "LOCAL_SCENE_ACTION_RECORDED")) {
+      return "Action locale enregistrée après validation d'un référent visible. Aucun effet caché, temps de jeu ou domaine propriétaire n'a été déclenché.";
+    }
     return "Parole enregistrée après commit métier borné. Aucun effet social mécanique supplémentaire n'a été ajouté.";
   }
   return "Résolution proposée sans commit métier.";

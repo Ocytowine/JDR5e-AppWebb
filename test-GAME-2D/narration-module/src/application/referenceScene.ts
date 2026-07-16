@@ -455,7 +455,7 @@ export function buildReferenceSceneBlocksV1(input: {
       kind: "GM_NARRATION",
       speakerKind: "GM",
       displayName: "MJ",
-      text: observationNarration(input.rawInput, input.sceneState),
+      text: actionNarration(input.rawInput, input.interpretation, input.resolution, input.sceneState),
       sourceRefs: [`reference-scene:${REFERENCE_PLAYABLE_SCENE_ID_V1}`, `resolution:${input.resolution.resolutionId}:reference-observation`]
     })];
   }
@@ -595,6 +595,22 @@ function observationNarration(rawInput: string, sceneState?: ReferenceSceneState
     return "Tu reprends la mesure de la salle commune. La pluie couvre les murmures; depuis l'échange avec le garde blessé, la porte du fond attire davantage les regards qu'elle ne le devrait.";
   }
   return "Tu prends le temps d'observer la salle commune. La pluie couvre les conversations basses; le garde blessé surveille l'entrée, tandis que la serveuse garde un œil inquiet sur la porte du fond.";
+}
+
+function actionNarration(
+  rawInput: string,
+  interpretation: NarrativeIntentInterpretationV1,
+  resolution: NarrativeResolutionResultV1,
+  sceneState?: ReferenceSceneStateV1
+): string {
+  const target = interpretation.referentResolution?.resolvedTarget ?? interpretation.target ?? null;
+  if (
+    resolution.preparedEffects.some(effect => effect.effectType === "LOCAL_SCENE_ACTION_RECORDED") &&
+    target?.ref === "poi:back-room-door"
+  ) {
+    return "Ton geste se fixe bien sur la porte étroite près du comptoir, celle qui mène vers l'arrière-salle. La salle se contracte autour de ce seuil : la serveuse évite de le regarder, et le garde blessé comprend que tu as saisi son avertissement. L'action est enregistrée sur ce référent visible, sans révéler ce qu'il y a derrière ni faire avancer le temps.";
+  }
+  return observationNarration(rawInput, sceneState);
 }
 
 function guardSpeechNarration(sceneState?: ReferenceSceneStateV1): string {

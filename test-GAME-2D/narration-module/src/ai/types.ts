@@ -109,6 +109,19 @@ export interface AiStructuredPlayerIntentV1 {
     label: string | null;
   } | null;
   action: string | null;
+  referentResolution?: {
+    schemaVersion: 1;
+    usedPreviousContext: boolean;
+    source: "current_input" | "recent_visible_focus" | "visible_scene" | "none";
+    resolvedTarget: {
+      kind: "npc" | "place" | "object" | "self" | "unknown";
+      ref: string | null;
+      label: string | null;
+    } | null;
+    evidence: string[];
+    ambiguity: "none" | "multiple_candidates" | "incompatible_action" | "insufficient_context" | "unknown";
+    confidence: "low" | "medium" | "high";
+  } | null;
   topic: string | null;
   coreMeaning: string;
   playerImposedDetails: string[];

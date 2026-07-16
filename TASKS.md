@@ -1,12 +1,11 @@
 # Suivi du travail
 
-Derniere mise a jour: 2026-07-10
+Derniere mise a jour: 2026-07-15
 
 Ce fichier est le tableau de bord court du depot. Les details techniques restent dans les documents lies; une tache ne doit pas etre dupliquee ici avec toute sa specification.
 
 ## En cours
 
-- [ ] Implementer I-06ZE selon `test-GAME-2D/narration-module/docs/Cadrage-I06ZE-referents-locaux.md`: resolution IA des referents locaux recents, sans hard code metier ni ouverture de `mj_planner`.
 - [ ] Traiter l'audit technique post-I-06ZB avant d'ouvrir une nouvelle capacité narrative.
   References: `test-GAME-2D/narration-module/docs/Audit-technique-I06ZB.md`, `test-GAME-2D/narration-module/docs/Revue-technique-post-I06ZB.md`, `test-GAME-2D/narration-module/docs/Suivi-prochains-lots-narration.md`.
   Note: A-01, A-02, A-03, A-04 et A-07 traités le 2026-07-09; `scene_writer` no-commit stabilisé avec historique court, diagnostics, budget JSON strict et discipline factuelle `factDiscipline`. Prochaine étape concrète: I-06ZC, certification live courte du `scene_writer` sans ouvrir de nouvelle capacité narrative.
@@ -15,6 +14,7 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 ## Prochaines etapes
 
+- [ ] Faire le point roadmap narration post-I-06ZE depuis les documents du module avant d'ouvrir un nouveau lot.
 - [ ] Migrer `wiki/lore/gouvernances/primauté` vers un futur type de gouvernance et retirer alors son exclusion explicite.
 - [ ] Préparer après I-06A le branchement UI narratif progressif, sans appel fournisseur direct depuis React tant que les projections ne sont pas validées.
 - [ ] Generer les premiers mobiles non-systeme contextuels, en commencant par les profils marchands, criminels et religieux.
@@ -33,6 +33,8 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 ## Termine recemment
 
+- [x] Fermeture I-06ZE: resolution IA/fake des referents locaux recents via `referentResolution`, validation visible/compatible, commit local borne `LOCAL_SCENE_ACTION_RECORDED` sans revelation ni temps, tests `ai-intent-interpretation`, `narrative-resolution`, `narrative-turn-controller`, `narrative-openai-route` et `narration-module:build` OK le 2026-07-15.
+- [x] Durcissement post-I-06ZE: clarification sans contexte, rejet/clarification des referents ambigus ou incompatibles pour `open`/`force`, actions IA contraintes aux categories canoniques du contrat, validation serveur OpenAI renforcee et tests ciblés OK le 2026-07-15.
 - [x] Implementation I-06ZD: fil initial remplace par une amorce de scene jouable issue de `PlayableSceneStateV1`, anciens messages prototype retires du rendu initial, test `narration-module:test:narrative-app-surface` OK le 2026-07-10.
 - [x] Smoke UI I-06ZD valide: premiere impression OK, plus de message tronque observe; prochain sujet identifie = resolution bornee d'action sur point d'interet visible le 2026-07-10.
 - [x] Cadrage I-06ZE: resolution IA des referents locaux recents, code limite a validation visible/unique/compatible et interdiction explicite du hard code metier le 2026-07-10.

@@ -133,6 +133,7 @@ function buildRolePayloadSchema(requestOrRole) {
               "commitment",
               "target",
               "action",
+              "referentResolution",
               "topic",
               "coreMeaning",
               "playerImposedDetails",
@@ -174,7 +175,40 @@ function buildRolePayloadSchema(requestOrRole) {
                   { type: "null" }
                 ]
               },
-              action: { type: ["string", "null"] },
+              action: { enum: ["ask_possibility", "ask", "open", "force", "observe", "act", null] },
+              referentResolution: {
+                anyOf: [
+                  {
+                    type: "object",
+                    additionalProperties: false,
+                    required: ["schemaVersion", "usedPreviousContext", "source", "resolvedTarget", "evidence", "ambiguity", "confidence"],
+                    properties: {
+                      schemaVersion: { enum: [1] },
+                      usedPreviousContext: { type: "boolean" },
+                      source: { enum: ["current_input", "recent_visible_focus", "visible_scene", "none"] },
+                      resolvedTarget: {
+                        anyOf: [
+                          {
+                            type: "object",
+                            additionalProperties: false,
+                            required: ["kind", "ref", "label"],
+                            properties: {
+                              kind: { enum: ["npc", "place", "object", "self", "unknown"] },
+                              ref: { type: ["string", "null"] },
+                              label: { type: ["string", "null"] }
+                            }
+                          },
+                          { type: "null" }
+                        ]
+                      },
+                      evidence: { type: "array", items: { type: "string" } },
+                      ambiguity: { enum: ["none", "multiple_candidates", "incompatible_action", "insufficient_context", "unknown"] },
+                      confidence: { enum: ["low", "medium", "high"] }
+                    }
+                  },
+                  { type: "null" }
+                ]
+              },
               topic: { type: ["string", "null"] },
               coreMeaning: { type: "string" },
               playerImposedDetails: { type: "array", items: { type: "string" } },
@@ -531,6 +565,9 @@ function buildRoleInstructions(request) {
       "Une parole claire adressee a un PNJ doit etre intentType=speech, commitment=committed, expectedTimeEffect=DOMAIN_TO_DECIDE, sans inventer la reponse du PNJ.",
       "Une phrase composee avec micro-deplacement social, par exemple 'je m'approche du garde et je lui demande...', doit rester speech ou mixed avec expectedTimeEffect=DOMAIN_TO_DECIDE; ne la reduis pas a action.",
       "Une action explicite doit etre intentType=action, commitment=committed, expectedTimeEffect=DOMAIN_TO_DECIDE.",
+      "Le champ action doit etre une categorie canonique du contrat, pas une reprise du mot du joueur: ask_possibility, ask, open, force, observe ou act.",
+      "Si task.localReferentHints contient un referent recent unique compatible avec une ellipse ou un pronom local ('le', 'la', 'lui', \"l'\"), renseigne target et referentResolution avec source=recent_visible_focus; sinon laisse le referent ambigu et demande clarification.",
+      "referentResolution decrit uniquement ton choix de referent: il ne valide pas la reussite, ne deplace pas le personnage et ne revele aucun contenu cache.",
       "Une question meta ou interface doit etre intentType=meta_question, commitment=none, expectedTimeEffect=NO_GAME_TIME.",
       "Une question sur l'etat percu de la scene, l'environnement, la meteo, le lieu ou ce que le personnage peut savoir sans agir est une question de contexte: intentType=meta_question, commitment=none, expectedTimeEffect=NO_GAME_TIME.",
       "Une demande polie adressee au MJ comme 'peux-tu me decrire l'auberge ?' est une question de contexte, pas une possibilite d'action.",
@@ -652,6 +689,7 @@ function validateRolePayload(payload, role, request = null) {
     const socialSpeechRequest = isSocialSpeechRequestText(sourceRawInput);
     const explicitPossibilityQuestion = isExplicitPossibilityQuestionText(sourceRawInput);
     const ellipticalObjectQuestion = isEllipticalObjectQuestionText(sourceRawInput);
+    const allowedIntentActions = new Set(["ask_possibility", "ask", "open", "force", "observe", "act"]);
     if (!Array.isArray(payload.intents) || payload.intents.length === 0 || payload.intents.length > 3) {
       issues.push("payload.intents must contain 1 to 3 intents.");
       return issues;
@@ -675,9 +713,13 @@ function validateRolePayload(payload, role, request = null) {
           if (!(typeof intent.target.label === "string" || intent.target.label === null)) issues.push(`payload.intents[${index}].target.label must be a string or null.`);
         }
       }
-      for (const key of ["action", "topic", "clarificationQuestion"]) {
+      for (const key of ["topic", "clarificationQuestion"]) {
         if (!(typeof intent[key] === "string" || intent[key] === null)) issues.push(`payload.intents[${index}].${key} must be a string or null.`);
       }
+      if (!(intent.action === null || allowedIntentActions.has(intent.action))) {
+        issues.push(`payload.intents[${index}].action must be a canonical action or null.`);
+      }
+      issues.push(...validateIntentReferentResolution(intent.referentResolution, index));
       if (typeof intent.coreMeaning !== "string" || intent.coreMeaning.trim().length === 0) issues.push(`payload.intents[${index}].coreMeaning must be a non-empty string.`);
       for (const key of ["playerImposedDetails", "openDetails", "forbiddenInterpretations", "riskFlags"]) {
         if (!Array.isArray(intent[key]) || intent[key].some(item => typeof item !== "string")) issues.push(`payload.intents[${index}].${key} must be a string array.`);
@@ -690,6 +732,9 @@ function validateRolePayload(payload, role, request = null) {
       if (intent.intentType === "meta_question" && intent.commitment !== "none") issues.push(`payload.intents[${index}] meta_question must have no commitment.`);
       if (intent.intentType === "speech" && intent.commitment !== "committed") issues.push(`payload.intents[${index}] speech must be committed.`);
       if (intent.intentType === "action" && intent.commitment !== "committed") issues.push(`payload.intents[${index}] action must be committed.`);
+      if (intent.intentType === "action" && ["open", "force"].includes(intent.action)) {
+        issues.push(...validateCommittedActionReferent(intent, index));
+      }
       if (["speech", "mixed", "action"].includes(intent.intentType) && intent.commitment === "committed" && intent.expectedTimeEffect !== "DOMAIN_TO_DECIDE") {
         issues.push(`payload.intents[${index}] committed in-fiction intent must use DOMAIN_TO_DECIDE.`);
       }
@@ -756,6 +801,50 @@ function validateRolePayload(payload, role, request = null) {
       if (!Array.isArray(block.factDiscipline.notes) || block.factDiscipline.notes.some(item => typeof item !== "string")) {
         issues.push(`payload.narrationBlocks[${index}].factDiscipline.notes must be a string array.`);
       }
+    }
+  }
+  return issues;
+}
+
+function validateCommittedActionReferent(intent, index) {
+  const issues = [];
+  const referent = intent.referentResolution || null;
+  const target = referent && referent.resolvedTarget !== null ? referent.resolvedTarget : intent.target;
+  if (!referent || referent.ambiguity !== "none") {
+    issues.push(`payload.intents[${index}] committed open/force action requires unambiguous referentResolution.`);
+  }
+  if (!target || typeof target !== "object" || target.ref === null) {
+    issues.push(`payload.intents[${index}] committed open/force action requires a resolved visible target.`);
+    return issues;
+  }
+  if (!["object", "place"].includes(target.kind)) {
+    issues.push(`payload.intents[${index}] committed open/force action target must be object or place.`);
+  }
+  if (!["poi:back-room-door", "npc:npc-garde-blesse", "npc:npc-serveuse-nerveuse"].includes(target.ref)) {
+    issues.push(`payload.intents[${index}] committed open/force action target is not visible in the current scene.`);
+  }
+  return issues;
+}
+
+function validateIntentReferentResolution(value, index) {
+  const issues = [];
+  if (value === null) return issues;
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return [`payload.intents[${index}].referentResolution must be an object or null.`];
+  }
+  if (value.schemaVersion !== 1) issues.push(`payload.intents[${index}].referentResolution.schemaVersion must be 1.`);
+  if (typeof value.usedPreviousContext !== "boolean") issues.push(`payload.intents[${index}].referentResolution.usedPreviousContext must be a boolean.`);
+  if (!["current_input", "recent_visible_focus", "visible_scene", "none"].includes(value.source)) issues.push(`payload.intents[${index}].referentResolution.source is invalid.`);
+  if (!Array.isArray(value.evidence) || value.evidence.some(item => typeof item !== "string")) issues.push(`payload.intents[${index}].referentResolution.evidence must be a string array.`);
+  if (!["none", "multiple_candidates", "incompatible_action", "insufficient_context", "unknown"].includes(value.ambiguity)) issues.push(`payload.intents[${index}].referentResolution.ambiguity is invalid.`);
+  if (!["low", "medium", "high"].includes(value.confidence)) issues.push(`payload.intents[${index}].referentResolution.confidence is invalid.`);
+  if (value.resolvedTarget !== null) {
+    if (!value.resolvedTarget || typeof value.resolvedTarget !== "object" || Array.isArray(value.resolvedTarget)) {
+      issues.push(`payload.intents[${index}].referentResolution.resolvedTarget must be an object or null.`);
+    } else {
+      if (!["npc", "place", "object", "self", "unknown"].includes(value.resolvedTarget.kind)) issues.push(`payload.intents[${index}].referentResolution.resolvedTarget.kind is invalid.`);
+      if (!(typeof value.resolvedTarget.ref === "string" || value.resolvedTarget.ref === null)) issues.push(`payload.intents[${index}].referentResolution.resolvedTarget.ref must be a string or null.`);
+      if (!(typeof value.resolvedTarget.label === "string" || value.resolvedTarget.label === null)) issues.push(`payload.intents[${index}].referentResolution.resolvedTarget.label must be a string or null.`);
     }
   }
   return issues;
