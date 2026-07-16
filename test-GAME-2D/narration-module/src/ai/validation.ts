@@ -12,6 +12,7 @@ import type {
   DynamicCreationValidationResultV1,
   IntentInterpreterPayloadV1,
   MjPlannerPayloadV1,
+  NpcPerformerPayloadV1,
   PlayerExpressionPayloadV1,
   SceneWriterPayloadV1
 } from "./types";
@@ -462,6 +463,68 @@ function validatePlayerExpressionPayload(payload: unknown): string[] {
   return issues;
 }
 
+function validateNpcPerformerPayload(payload: unknown): string[] {
+  if (!isObject(payload)) return ["payload: expected object"];
+  const typed = payload as Partial<NpcPerformerPayloadV1>;
+  const issues: string[] = [];
+  issues.push(...exactKeys(payload, [
+    "actorId",
+    "durableCommitments",
+    "knowledgeUsed",
+    "nonVerbalReactions",
+    "performanceId",
+    "revealedRefs",
+    "safetyConstraints",
+    "schemaVersion",
+    "utterances"
+  ], "payload"));
+  if (typed.schemaVersion !== 1) issues.push("payload.schemaVersion: expected 1");
+  issues.push(...validateNonEmptyString(typed.performanceId, "payload.performanceId"));
+  issues.push(...validateNonEmptyString(typed.actorId, "payload.actorId"));
+  if (!isStringArray(typed.nonVerbalReactions)) issues.push("payload.nonVerbalReactions: expected string array");
+  if (!isStringArray(typed.durableCommitments) || typed.durableCommitments.length > 0) issues.push("payload.durableCommitments: must be empty");
+  if (!isStringArray(typed.revealedRefs) || typed.revealedRefs.length > 0) issues.push("payload.revealedRefs: must be empty");
+  if (!isStringArray(typed.knowledgeUsed)) issues.push("payload.knowledgeUsed: expected string array");
+  if (!isObject(typed.safetyConstraints)) {
+    issues.push("payload.safetyConstraints: expected object");
+  } else {
+    if (typed.safetyConstraints.noMechanicalSuccess !== true) issues.push("payload.safetyConstraints.noMechanicalSuccess: expected true");
+    if (typed.safetyConstraints.noSecretReveal !== true) issues.push("payload.safetyConstraints.noSecretReveal: expected true");
+    if (typed.safetyConstraints.noDurableCommitment !== true) issues.push("payload.safetyConstraints.noDurableCommitment: expected true");
+    if (typed.safetyConstraints.noStateMutation !== true) issues.push("payload.safetyConstraints.noStateMutation: expected true");
+  }
+  if (!Array.isArray(typed.utterances) || typed.utterances.length === 0 || typed.utterances.length > 2) {
+    issues.push("payload.utterances: expected 1 to 2 utterances");
+  } else {
+    typed.utterances.forEach((utterance, index) => {
+      const path = `payload.utterances[${index}]`;
+      if (!isObject(utterance)) {
+        issues.push(`${path}: expected object`);
+        return;
+      }
+      issues.push(...validateNonEmptyString(utterance.utteranceId, `${path}.utteranceId`));
+      issues.push(...validateNonEmptyString(utterance.text, `${path}.text`));
+      if (!isStringArray(utterance.audience)) issues.push(`${path}.audience: expected string array`);
+      if (!Array.isArray(utterance.speechActs) || utterance.speechActs.length === 0) {
+        issues.push(`${path}.speechActs: expected non-empty array`);
+      } else {
+        utterance.speechActs.forEach((speechAct, actIndex) => {
+          const actPath = `${path}.speechActs[${actIndex}]`;
+          if (!isObject(speechAct)) {
+            issues.push(`${actPath}: expected object`);
+            return;
+          }
+          if (!["assertion", "question", "refusal"].includes(String(speechAct.type))) issues.push(`${actPath}.type: only assertion, question or refusal allowed in mini npc_performer`);
+          issues.push(...validateNonEmptyString(speechAct.content, `${actPath}.content`));
+          if (!["known", "believed", "uncertain"].includes(String(speechAct.epistemicBasis))) issues.push(`${actPath}.epistemicBasis: invalid basis for mini npc_performer`);
+          if (!isStringArray(speechAct.sourceRefs)) issues.push(`${actPath}.sourceRefs: expected string array`);
+        });
+      }
+    });
+  }
+  return issues;
+}
+
 function validateSceneWriterPayload(payload: unknown): string[] {
   if (!isObject(payload) || !Array.isArray(payload.narrationBlocks)) return ["payload.narrationBlocks: expected array"];
   const typed = payload as unknown as SceneWriterPayloadV1;
@@ -494,6 +557,7 @@ export function validateAiRoleOutputEnvelopeV1(output: unknown, request: AiCallR
     if (request.role === "intent_interpreter") issues.push(...validateIntentPayload(envelope.payload));
     if (request.role === "player_intent_interpreter") issues.push(...validateAiIntentInterpretationPayload(envelope.payload));
     if (request.role === "mj_planner") issues.push(...validatePlannerPayload(envelope.payload));
+    if (request.role === "npc_performer") issues.push(...validateNpcPerformerPayload(envelope.payload));
     if (request.role === "player_expression_adapter") issues.push(...validatePlayerExpressionPayload(envelope.payload));
     if (request.role === "scene_writer") issues.push(...validateSceneWriterPayload(envelope.payload));
   }

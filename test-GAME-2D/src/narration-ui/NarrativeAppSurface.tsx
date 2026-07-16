@@ -6,9 +6,13 @@ import {
   createPrototypeNarrativeTurnControllerV1,
   enhanceNarrativeDisplayWithAiV1,
   AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1,
+  MJ_PLANNER_CONTRACT_VERSION_V1,
+  NPC_PERFORMER_CONTRACT_VERSION_V1,
   REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1,
   type AiNarrativeEnhancementResultV1,
   type AiIntentInterpreterConfigV1,
+  type MjPlannerConfigV1,
+  type NpcPerformerConfigV1,
   type NarrativeTurnControllerV1
 } from "../../narration-module/src/application";
 import { FakeContractAiProviderV1 } from "../../narration-module/src/ai/FakeContractAiProvider";
@@ -40,7 +44,9 @@ export function NarrativeAppSurface() {
     let cancelled = false;
     setController(null);
     const intentInterpreterConfig = buildIntentInterpreterConfig(enhancementMode);
-    void createBrowserPersistentNarrativeTurnControllerV1({ intentInterpreterConfig }).then(async nextController => {
+    const mjPlannerConfig = buildMjPlannerConfig(enhancementMode);
+    const npcPerformerConfig = buildNpcPerformerConfig(enhancementMode);
+    void createBrowserPersistentNarrativeTurnControllerV1({ intentInterpreterConfig, mjPlannerConfig, npcPerformerConfig }).then(async nextController => {
       const restored = await nextController.restoreRenderedThread();
       if (!cancelled) {
         if (restored.ok) {
@@ -51,7 +57,7 @@ export function NarrativeAppSurface() {
         setController(nextController);
       }
     }).catch(error => {
-      void createPrototypeNarrativeTurnControllerV1({ intentInterpreterConfig }).then(nextController => {
+      void createPrototypeNarrativeTurnControllerV1({ intentInterpreterConfig, mjPlannerConfig, npcPerformerConfig }).then(nextController => {
         if (!cancelled) setController(nextController);
       }).catch(fallbackError => {
         if (!cancelled) {
@@ -557,6 +563,68 @@ function buildIntentInterpreterConfig(mode: NarrativeEnhancementMode): AiIntentI
       maxTargetedCorrections: 0,
       maxFullRegenerations: 0,
       allowFallback: true
+    }
+  };
+}
+
+function buildMjPlannerConfig(mode: NarrativeEnhancementMode): MjPlannerConfigV1 | undefined {
+  if (mode !== "openai") return undefined;
+  return {
+    provider: new ServerOpenAiEnhancementProviderV1(),
+    route: {
+      schemaVersion: 1,
+      routeId: "prototype-ui-openai-mj-planner",
+      role: "mj_planner",
+      // Proxy contractuel: le navigateur appelle uniquement la route serveur OpenAI.
+      providerKind: "FAKE_CONTRACT",
+      providerId: "server-openai-route",
+      modelId: "server-selected-openai-mj-planner-model",
+      modelConfigVersion: "i06zi",
+      certified: true,
+      allowedContractVersions: [MJ_PLANNER_CONTRACT_VERSION_V1],
+      inputTokenLimit: 2_000,
+      outputTokenLimit: 1_000,
+      timeoutMs: 10_000,
+      fallbackRouteIds: []
+    },
+    retryPolicy: {
+      schemaVersion: 1,
+      role: "mj_planner",
+      maxTechnicalRetries: 0,
+      maxTargetedCorrections: 0,
+      maxFullRegenerations: 0,
+      allowFallback: false
+    }
+  };
+}
+
+function buildNpcPerformerConfig(mode: NarrativeEnhancementMode): NpcPerformerConfigV1 | undefined {
+  if (mode !== "openai") return undefined;
+  return {
+    provider: new ServerOpenAiEnhancementProviderV1(),
+    route: {
+      schemaVersion: 1,
+      routeId: "prototype-ui-openai-npc-performer",
+      role: "npc_performer",
+      // Proxy contractuel: le navigateur appelle uniquement la route serveur OpenAI.
+      providerKind: "FAKE_CONTRACT",
+      providerId: "server-openai-route",
+      modelId: "server-selected-openai-npc-performer-model",
+      modelConfigVersion: "i06zk",
+      certified: true,
+      allowedContractVersions: [NPC_PERFORMER_CONTRACT_VERSION_V1],
+      inputTokenLimit: 2_000,
+      outputTokenLimit: 1_000,
+      timeoutMs: 10_000,
+      fallbackRouteIds: []
+    },
+    retryPolicy: {
+      schemaVersion: 1,
+      role: "npc_performer",
+      maxTechnicalRetries: 0,
+      maxTargetedCorrections: 0,
+      maxFullRegenerations: 0,
+      allowFallback: false
     }
   };
 }

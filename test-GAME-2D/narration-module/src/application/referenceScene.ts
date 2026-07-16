@@ -433,7 +433,7 @@ export function buildReferenceSceneBlocksV1(input: {
     })];
   }
   if (input.interpretation.intentType === "speech" || input.interpretation.intentType === "mixed") {
-    const target = speechTarget(input.rawInput);
+    const target = speechTarget(input.rawInput, input.interpretation);
     return [
       referenceBlock({
         operationId: input.operationId,
@@ -569,7 +569,14 @@ function possibilityNarration(rawInput: string): string {
   return "La possibilité est notée sans être exécutée. La scène reste dans l'Auberge du Seuil, sous la pluie, avec le garde blessé, la serveuse nerveuse et la porte du fond comme points d'attention.";
 }
 
-function speechTarget(rawInput: string): { actorId: "npc-garde-blesse" | "npc-serveuse-nerveuse"; displayName: string } {
+function speechTarget(rawInput: string, interpretation?: NarrativeIntentInterpretationV1): { actorId: "npc-garde-blesse" | "npc-serveuse-nerveuse"; displayName: string } {
+  const structuredRef = interpretation?.referentResolution?.resolvedTarget?.ref ?? interpretation?.target?.ref ?? null;
+  if (structuredRef === "npc:npc-serveuse-nerveuse" || structuredRef === "npc-serveuse-nerveuse") {
+    return { actorId: "npc-serveuse-nerveuse", displayName: "Serveuse nerveuse" };
+  }
+  if (structuredRef === "npc:npc-garde-blesse" || structuredRef === "npc-garde-blesse") {
+    return { actorId: "npc-garde-blesse", displayName: "Garde blessé" };
+  }
   const target = findPlayableSceneNpcTargetV1(REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1, rawInput);
   return {
     actorId: target.actorId === "npc-serveuse-nerveuse" ? "npc-serveuse-nerveuse" : "npc-garde-blesse",
@@ -609,6 +616,14 @@ function actionNarration(
     target?.ref === "poi:back-room-door"
   ) {
     return "Ton geste se fixe bien sur la porte étroite près du comptoir, celle qui mène vers l'arrière-salle. La salle se contracte autour de ce seuil : la serveuse évite de le regarder, et le garde blessé comprend que tu as saisi son avertissement. L'action est enregistrée sur ce référent visible, sans révéler ce qu'il y a derrière ni faire avancer le temps.";
+  }
+  if (
+    resolution.preparedEffects.some(effect => effect.effectType === "LOCAL_SCENE_ACTION_RECORDED") &&
+    target?.kind === "npc"
+  ) {
+    return target.ref === "npc:npc-serveuse-nerveuse" || target.ref === "npc-serveuse-nerveuse"
+      ? "Tu te places près de la serveuse nerveuse, assez près pour voir ses mains se crisper autour du gobelet. Elle te remarque, mais aucune parole n'est encore échangée et aucune réaction sociale n'est résolue."
+      : "Tu te places près du garde blessé, à portée de voix. Il remarque ton approche, sa main toujours serrée contre son flanc, mais aucune parole n'est encore échangée et aucune réaction sociale n'est résolue.";
   }
   return observationNarration(rawInput, sceneState);
 }

@@ -37,7 +37,14 @@ import {
   type MjPlannerConfigV1,
   type MjPlanningFailureV1
 } from "./mjPlanning";
-import type { MjPlannerPayloadV1 } from "../ai/types";
+import {
+  applyNpcPerformanceToDisplayPacketV1,
+  createDefaultNpcPerformerConfigV1,
+  performNpcTurnV1,
+  type NpcPerformanceFailureV1,
+  type NpcPerformerConfigV1
+} from "./npcPerforming";
+import type { MjPlannerPayloadV1, NpcPerformerPayloadV1 } from "../ai/types";
 import {
   resolveNarrativeTurnV1,
   type NarrativeResolutionResultV1
@@ -67,6 +74,8 @@ export interface NarrativeTurnControllerOutputV1 extends JsonObject {
   interpretation: NarrativeIntentInterpretationV1 & JsonObject;
   mjPlan: (MjPlannerPayloadV1 & JsonObject) | null;
   mjPlannerFailure: (MjPlanningFailureV1 & JsonObject) | null;
+  npcPerformance: (NpcPerformerPayloadV1 & JsonObject) | null;
+  npcPerformanceFailure: (NpcPerformanceFailureV1 & JsonObject) | null;
   suspendedIntent: (SuspendedIntentRecordV1 & JsonObject) | null;
   resolution: NarrativeResolutionResultV1;
   sceneState: ReferenceSceneStateV1;
@@ -85,6 +94,7 @@ export interface NarrativeTurnControllerOptions {
   idPrefix?: string;
   intentInterpreterConfig?: AiIntentInterpreterConfigV1 | null;
   mjPlannerConfig?: MjPlannerConfigV1 | null;
+  npcPerformerConfig?: NpcPerformerConfigV1 | null;
 }
 
 const DEFAULT_CAMPAIGN_ID = opaqueId<CampaignId>("cmp-narrative-prototype");
@@ -98,6 +108,7 @@ export class NarrativeTurnControllerV1 {
   private readonly idPrefix: string;
   private readonly intentInterpreterConfig: AiIntentInterpreterConfigV1 | null;
   private readonly mjPlannerConfig: MjPlannerConfigV1 | null;
+  private readonly npcPerformerConfig: NpcPerformerConfigV1 | null;
   private recentLocalReferents: LocalReferentHintV1[] = [];
 
   constructor(options: NarrativeTurnControllerOptions) {
@@ -111,6 +122,9 @@ export class NarrativeTurnControllerV1 {
     this.mjPlannerConfig = options.mjPlannerConfig === undefined
       ? createDefaultMjPlannerConfigV1()
       : options.mjPlannerConfig;
+    this.npcPerformerConfig = options.npcPerformerConfig === undefined
+      ? createDefaultNpcPerformerConfigV1()
+      : options.npcPerformerConfig;
   }
 
   async submit(input: NarrativeTurnInputV1): Promise<Result<NarrativeTurnControllerResultV1>> {
@@ -168,6 +182,7 @@ export class NarrativeTurnControllerV1 {
       createdAt: this.clock.now().toISOString(),
       intentInterpreterConfig: this.intentInterpreterConfig,
       mjPlannerConfig: this.mjPlannerConfig,
+      npcPerformerConfig: this.npcPerformerConfig,
       localReferentHints: this.recentLocalReferents
     });
     if (!output.ok) return output;
@@ -208,7 +223,7 @@ export class NarrativeTurnControllerV1 {
   }
 
   private rememberLocalReferent(output: NarrativeTurnControllerOutputV1): void {
-    const target = output.interpretation.target ?? output.interpretation.referentResolution?.resolvedTarget ?? null;
+    const target = output.interpretation.referentResolution?.resolvedTarget ?? output.interpretation.target ?? null;
     if (target === null || target.ref === null || target.kind === "unknown" || target.kind === "self") return;
     const hint: LocalReferentHintV1 = {
       schemaVersion: 1,
@@ -228,6 +243,7 @@ export async function createPrototypeNarrativeTurnControllerV1(options: {
   clock?: RepositoryClock;
   intentInterpreterConfig?: AiIntentInterpreterConfigV1 | null;
   mjPlannerConfig?: MjPlannerConfigV1 | null;
+  npcPerformerConfig?: NpcPerformerConfigV1 | null;
 } = {}): Promise<NarrativeTurnControllerV1> {
   const clock = options.clock ?? systemClock;
   const repository = new MemoryCampaignRepository({ clock });
@@ -237,7 +253,8 @@ export async function createPrototypeNarrativeTurnControllerV1(options: {
     campaignId: DEFAULT_CAMPAIGN_ID,
     clock,
     intentInterpreterConfig: options.intentInterpreterConfig,
-    mjPlannerConfig: options.mjPlannerConfig
+    mjPlannerConfig: options.mjPlannerConfig,
+    npcPerformerConfig: options.npcPerformerConfig
   });
 }
 
@@ -246,12 +263,14 @@ export async function createBrowserPersistentNarrativeTurnControllerV1(options: 
   databaseName?: string;
   intentInterpreterConfig?: AiIntentInterpreterConfigV1 | null;
   mjPlannerConfig?: MjPlannerConfigV1 | null;
+  npcPerformerConfig?: NpcPerformerConfigV1 | null;
 } = {}): Promise<NarrativeTurnControllerV1> {
   const clock = options.clock ?? systemClock;
   if (!globalThis.indexedDB) return createPrototypeNarrativeTurnControllerV1({
     clock,
     intentInterpreterConfig: options.intentInterpreterConfig,
-    mjPlannerConfig: options.mjPlannerConfig
+    mjPlannerConfig: options.mjPlannerConfig,
+    npcPerformerConfig: options.npcPerformerConfig
   });
   const repository = await IndexedDbCampaignRepository.open({
     clock,
@@ -263,7 +282,8 @@ export async function createBrowserPersistentNarrativeTurnControllerV1(options: 
     campaignId: DEFAULT_CAMPAIGN_ID,
     clock,
     intentInterpreterConfig: options.intentInterpreterConfig,
-    mjPlannerConfig: options.mjPlannerConfig
+    mjPlannerConfig: options.mjPlannerConfig,
+    npcPerformerConfig: options.npcPerformerConfig
   });
 }
 
@@ -386,6 +406,8 @@ export function buildNoCommitOutput(
     interpretation,
     mjPlan: null,
     mjPlannerFailure: null,
+    npcPerformance: null,
+    npcPerformanceFailure: null,
     suspendedIntent,
     resolution: {
       schemaVersion: 1,
@@ -414,6 +436,7 @@ async function buildResolvedOutput(input: {
   createdAt: string;
   intentInterpreterConfig: AiIntentInterpreterConfigV1 | null;
   mjPlannerConfig: MjPlannerConfigV1 | null;
+  npcPerformerConfig: NpcPerformerConfigV1 | null;
   localReferentHints?: LocalReferentHintV1[];
 }): Promise<Result<{ output: NarrativeTurnControllerOutputV1; commit: unknown | null }>> {
   const intentId = `${input.operation.operationId}:intent:1`;
@@ -457,6 +480,22 @@ async function buildResolvedOutput(input: {
     suspendedIntent
   });
   if (!resolution.ok) return resolution;
+  const npcPerformance = input.npcPerformerConfig === null
+    ? null
+    : await performNpcTurnV1({
+      campaignId: input.campaignId,
+      operationId: input.operation.operationId,
+      rawInput: input.input.rawInput,
+      interpretation,
+      mjPlan: planning?.plan ?? null,
+      resolution: resolution.value.result,
+      sceneState: resolution.value.sceneState,
+      config: input.npcPerformerConfig
+    });
+  const displayPacket = applyNpcPerformanceToDisplayPacketV1({
+    displayPacket: resolution.value.displayPacket,
+    performance: npcPerformance?.performance ?? null
+  });
 
   return {
     ok: true,
@@ -472,10 +511,12 @@ async function buildResolvedOutput(input: {
         interpretation,
         mjPlan: planning?.plan ?? null,
         mjPlannerFailure: planning?.planningFailure as (MjPlanningFailureV1 & JsonObject) | null ?? null,
+        npcPerformance: npcPerformance?.performance ?? null,
+        npcPerformanceFailure: npcPerformance?.performanceFailure as (NpcPerformanceFailureV1 & JsonObject) | null ?? null,
         suspendedIntent,
         resolution: resolution.value.result,
         sceneState: resolution.value.sceneState,
-        displayPacket: resolution.value.displayPacket
+        displayPacket
       }
     }
   };

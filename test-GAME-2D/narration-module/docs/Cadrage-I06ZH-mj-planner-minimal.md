@@ -72,3 +72,7 @@ Options cohérentes :
 - ajouter un validateur de cohérence du plan contre les domaines ouverts ;
 - ouvrir un mini `npc_performer` borné pour réactions PNJ non mécaniques ;
 - ouvrir un premier domaine propriétaire minimal si le blocage produit devient plus fort que la planification.
+
+## Suite livrée
+
+I-06ZI branche le rôle `mj_planner` sur la route OpenAI serveur avec schéma strict. Voir [`Cadrage-I06ZI-branchement-ia-mj-planner.md`](Cadrage-I06ZI-branchement-ia-mj-planner.md).

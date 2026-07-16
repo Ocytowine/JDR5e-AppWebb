@@ -174,7 +174,7 @@ export function buildLocalMjPlanPayload(
   const runtimeHandling = interpretation?.runtimeHandling ?? null;
   const requiredDomain = runtimeHandling?.requiredDomain ?? (interpretation?.intentType === "speech" ? "social" : "scene_resolution");
   const runtimeStatus = runtimeHandling?.status ?? "SUPPORTED_BY_CURRENT_RUNTIME";
-  const targetRef = interpretation?.target?.ref ?? interpretation?.referentResolution?.resolvedTarget?.ref ?? null;
+  const targetRef = interpretation?.referentResolution?.resolvedTarget?.ref ?? interpretation?.target?.ref ?? null;
   const targetRefs = targetRef === null ? [] : [targetRef];
   const beat = buildSceneBeat(interpretation, runtimeStatus, requiredDomain);
   const commandProposal = buildCommandProposal(interpretation, requiredDomain, targetRefs);
@@ -289,10 +289,11 @@ function buildSceneBeat(
     };
   }
   if (interpretation?.intentType === "speech") {
+    const targetRef = interpretation.referentResolution?.resolvedTarget?.ref ?? interpretation.target?.ref ?? null;
     return {
       beatId: "beat:actor-reaction",
       kind: "ACTOR_REACTION_EXPECTED",
-      actorIds: interpretation.target?.ref === null || interpretation.target?.ref === undefined ? [] : [interpretation.target.ref],
+      actorIds: targetRef === null || targetRef === undefined ? [] : [targetRef],
       stopCondition: "Rendre la main après réaction bornée, sans résultat social mécanique."
     };
   }
@@ -337,10 +338,11 @@ function buildActorAssignments(
     actorId: null,
     reason: "Rédiger uniquement après validation de résolution ou arrêt runtime."
   }];
-  if (beat.kind === "ACTOR_REACTION_EXPECTED" && interpretation?.target?.kind === "npc") {
+  const target = interpretation?.referentResolution?.resolvedTarget ?? interpretation?.target ?? null;
+  if (beat.kind === "ACTOR_REACTION_EXPECTED" && target?.kind === "npc") {
     assignments.unshift({
       role: "npc_performer",
-      actorId: interpretation.target.ref,
+      actorId: target.ref,
       reason: "Réaction PNJ potentielle, à valider séparément avant affichage."
     });
   }

@@ -268,12 +268,20 @@ export interface PlayerExpressionPayloadV1 {
 }
 
 export interface NpcPerformerPayloadV1 {
+  schemaVersion: 1;
+  performanceId: string;
   actorId: string;
   utterances: NpcUtteranceV1[];
   nonVerbalReactions: string[];
   durableCommitments: string[];
   revealedRefs: string[];
   knowledgeUsed: string[];
+  safetyConstraints: {
+    noMechanicalSuccess: true;
+    noSecretReveal: true;
+    noDurableCommitment: true;
+    noStateMutation: true;
+  };
 }
 
 export interface NpcUtteranceV1 {

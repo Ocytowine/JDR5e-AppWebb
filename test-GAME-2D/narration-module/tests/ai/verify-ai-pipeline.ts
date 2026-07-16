@@ -12,6 +12,7 @@ import {
   type AiRoleOutputEnvelopeV1,
   type IntentInterpreterPayloadV1,
   type MjPlannerPayloadV1,
+  type NpcPerformerPayloadV1,
   type SceneWriterPayloadV1
 } from "../../src/ai";
 import { assert } from "../contracts/assertions";
@@ -329,6 +330,76 @@ async function run(): Promise<void> {
   assert.equal(plannerWithCommitAuthority.accepted, false);
   assert.ok(plannerWithCommitAuthority.issues.some(issue => issue.includes("commitAuthority")));
   console.log("PASS [ai-pipeline] mj_planner plans are accepted only without commit authority");
+
+  const npcPayload: NpcPerformerPayloadV1 = {
+    schemaVersion: 1,
+    performanceId: "performance-npc-001",
+    actorId: "npc:npc-garde-blesse",
+    utterances: [{
+      utteranceId: "utterance-npc-001",
+      text: "Le garde souffle: « La porte du fond, mais sans esclandre. »",
+      audience: ["player-character"],
+      speechActs: [{
+        type: "assertion",
+        content: "La porte du fond, mais sans esclandre.",
+        epistemicBasis: "known",
+        sourceRefs: ["reference-scene:reference-inn-rain-001"]
+      }]
+    }],
+    nonVerbalReactions: ["mâchoire crispée"],
+    durableCommitments: [],
+    revealedRefs: [],
+    knowledgeUsed: ["reference-scene:reference-inn-rain-001"],
+    safetyConstraints: {
+      noMechanicalSuccess: true,
+      noSecretReveal: true,
+      noDurableCommitment: true,
+      noStateMutation: true
+    }
+  };
+  const npcOutput: AiRoleOutputEnvelopeV1<NpcPerformerPayloadV1> = {
+    schemaVersion: 1,
+    contractVersion: "npc-performer/1",
+    outputId: "output-npc-001",
+    callId: "call-npc-001",
+    attemptId: "attempt-npc-001",
+    packId: "pack-npc-001",
+    snapshotId: "snapshot-001",
+    role: "npc_performer",
+    status: "OK",
+    payload: npcPayload,
+    diagnostics: [],
+    supersedesOutputId: null
+  };
+  const npcRequest = request({
+    callId: "call-npc-001",
+    attemptId: "attempt-npc-001",
+    packId: "pack-npc-001",
+    role: "npc_performer",
+    contractVersion: "npc-performer/1",
+    modelRouteId: "route-npc-performer-fake"
+  });
+  const npcValidation = validateAiRoleOutputEnvelopeV1(npcOutput, npcRequest);
+  assert.equal(npcValidation.accepted, true);
+  const npcWithReveal = validateAiRoleOutputEnvelopeV1({
+    ...npcOutput,
+    payload: {
+      ...npcPayload,
+      revealedRefs: ["secret:back-room"]
+    }
+  }, npcRequest);
+  assert.equal(npcWithReveal.accepted, false);
+  assert.ok(npcWithReveal.issues.some(issue => issue.includes("revealedRefs")));
+  const npcWithPromise = validateAiRoleOutputEnvelopeV1({
+    ...npcOutput,
+    payload: {
+      ...npcPayload,
+      durableCommitments: ["Le garde promet une escorte."]
+    }
+  }, npcRequest);
+  assert.equal(npcWithPromise.accepted, false);
+  assert.ok(npcWithPromise.issues.some(issue => issue.includes("durableCommitments")));
+  console.log("PASS [ai-pipeline] npc_performer utterances are accepted only without reveal or durable commitment");
 }
 
 void run().catch(error => {

@@ -352,10 +352,14 @@ function buildLocalSceneActionEffect(
   interpretation: NarrativeIntentInterpretationV1
 ): NarrativePreparedEffectV1 | null {
   if (interpretation.intentType !== "action") return null;
-  if (interpretation.action !== "open" && interpretation.action !== "force") return null;
   const target = interpretation.referentResolution?.resolvedTarget ?? interpretation.target ?? null;
   if (target === null || target.ref === null) return null;
   if (!isVisibleReferenceSceneTarget(target.ref)) return null;
+  if (
+    interpretation.action !== "open" &&
+    interpretation.action !== "force" &&
+    !isVisibleNpcPositioningAction(interpretation, target.kind)
+  ) return null;
   if (!isActionCompatibleWithTarget(interpretation.action ?? null, target.kind)) return null;
   if (interpretation.referentResolution?.ambiguity && interpretation.referentResolution.ambiguity !== "none") return null;
   return {
@@ -363,7 +367,9 @@ function buildLocalSceneActionEffect(
     effectId: `${operation.operationId}:effect:local-action:1`,
     effectType: "LOCAL_SCENE_ACTION_RECORDED",
     targetRef: target.ref,
-    summary: `Action locale enregistrÃ©e sur rÃ©fÃ©rent visible: ${target.label ?? target.ref}.`,
+    summary: isVisibleNpcPositioningAction(interpretation, target.kind)
+      ? `Positionnement local enregistré près du référent visible: ${target.label ?? target.ref}.`
+      : `Action locale enregistrée sur référent visible: ${target.label ?? target.ref}.`,
     commitEligible: true
   };
 }
@@ -378,6 +384,21 @@ function isActionCompatibleWithTarget(action: string | null, targetKind: string)
   if (action === "open" || action === "force") return targetKind === "object" || targetKind === "place";
   if (action === "ask") return targetKind === "npc";
   return true;
+}
+
+function isVisibleNpcPositioningAction(
+  interpretation: NarrativeIntentInterpretationV1,
+  targetKind: string
+): boolean {
+  if (interpretation.action !== "act" || targetKind !== "npc") return false;
+  if (
+    interpretation.runtimeHandling?.status === "SUPPORTED_BY_CURRENT_RUNTIME" &&
+    interpretation.runtimeHandling.requiredDomain === "scene_resolution" &&
+    interpretation.runtimeHandling.noCommit === false &&
+    interpretation.runtimeHandling.noGameTime === true
+  ) return true;
+  const normalized = interpretation.coreMeaning.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
+  return /\b(approche|avance|vais vers|dirige vers|pres du garde|près du garde|pres de la serveuse|près de la serveuse)\b/u.test(normalized);
 }
 
 function buildNarrativeCommitRequest(input: {
@@ -596,7 +617,13 @@ function buildResolutionDisplayPacket(
     "Système",
     "SYSTEM",
     resolutionNotice(resolution),
-    [`resolution:${resolution.resolutionId}`, `intent:${resolution.interpretation.intentType}`]
+    [
+      `resolution:${resolution.resolutionId}`,
+      `resolution-kind:${resolution.resultKind}`,
+      `intent:${resolution.interpretation.intentType}`,
+      ...(resolvedTargetRef(resolution) === null ? [] : [`target:${resolvedTargetRef(resolution)}`]),
+      ...resolution.preparedEffects.map(effect => `effect:${effect.effectType}`)
+    ]
   ));
   return {
     schemaVersion: 1,
@@ -645,26 +672,85 @@ function block(
 }
 
 function resolutionNotice(resolution: NarrativeResolutionResultV1): string {
+  const diagnostic = resolutionDiagnosticLines(resolution);
   if (resolution.resultKind === "CLARIFICATION_REQUIRED") {
-    return "Clarification requise. Aucun temps de jeu ni commit métier n'a été déclenché.";
+    return [
+      "Clarification requise - aucun commit",
+      ...diagnostic,
+      "Raison: l'intention n'est pas suffisamment confirmée pour être exécutée.",
+      "Effet: aucun temps de jeu ni commit métier n'a été déclenché."
+    ].join("\n");
   }
   if (resolution.resultKind === "NO_COMMIT_RESPONSE") {
     if (resolution.interpretation.intentType === "meta_question") {
-      return "Réponse de contexte sans commit métier. Aucun temps de jeu n'a été déclenché.";
+      return [
+        "Contexte - aucun temps déclenché",
+        ...diagnostic,
+        "Raison: question de contexte, sans action du personnage.",
+        "Effet: Réponse de contexte sans commit métier; aucun temps de jeu n'a été déclenché."
+      ].join("\n");
     }
     if (resolution.interpretation.intentType === "possibility_query") {
-      return "Question de possibilité traitée sans commit métier. Aucune action n'a été exécutée.";
+      return [
+        "Possibilité - Aucune action exécutée",
+        ...diagnostic,
+        "Raison: le joueur demande si une action serait possible, sans la lancer.",
+        "Effet: question de possibilité traitée sans commit métier; Aucune action n'a été exécutée."
+      ].join("\n");
     }
-    return "Réponse sans commit métier. Aucune action n'a été exécutée.";
+    return [
+      "Sans commit - aucune action exécutée",
+      ...diagnostic,
+      "Raison: aucun effet métier éligible n'a été préparé pour cette intention.",
+      "Effet: aucune mutation, aucun temps de jeu et aucun succès implicite."
+    ].join("\n");
   }
   if (resolution.resultKind === "HANDOFF_REQUIRED") {
-    return `${resolution.handoff?.reason ?? "Handoff requis."} Aucun résultat n'a été inventé par la narration.`;
+    return [
+      "Handoff requis - domaine non résolu ici",
+      ...diagnostic,
+      `Raison: ${resolution.handoff?.reason ?? "domaine propriétaire requis."}`,
+      "Effet: aucun résultat n'a été inventé par la narration."
+    ].join("\n");
   }
   if (resolution.resultKind === "COMMIT_APPLIED") {
     if (resolution.preparedEffects.some(effect => effect.effectType === "LOCAL_SCENE_ACTION_RECORDED")) {
-      return "Action locale enregistrée après validation d'un référent visible. Aucun effet caché, temps de jeu ou domaine propriétaire n'a été déclenché.";
+      return [
+        "Action locale enregistrée - effet borné",
+        ...diagnostic,
+        `Effet: ${resolution.preparedEffects.map(effect => effect.summary).join(" ")}`,
+        "Limites: aucun effet caché, temps de jeu ou domaine propriétaire n'a été déclenché."
+      ].join("\n");
     }
-    return "Parole enregistrée après commit métier borné. Aucun effet social mécanique supplémentaire n'a été ajouté.";
+    return [
+      "Parole enregistrée - effet borné",
+      ...diagnostic,
+      "Effet: parole enregistrée après commit métier borné.",
+      "Limites: aucun succès social automatique ni effet mécanique supplémentaire n'a été ajouté."
+    ].join("\n");
   }
-  return "Résolution proposée sans commit métier.";
+  return [
+    "Résolution proposée sans commit métier",
+    ...diagnostic,
+    "Effet: aucun commit métier n'a été appliqué."
+  ].join("\n");
+}
+
+function resolutionDiagnosticLines(resolution: NarrativeResolutionResultV1): string[] {
+  const interpretation = resolution.interpretation;
+  const target = interpretation.referentResolution?.resolvedTarget ?? interpretation.target ?? null;
+  const runtimeHandling = interpretation.runtimeHandling ?? null;
+  return [
+    `Intention: ${interpretation.intentType}${interpretation.action === null ? "" : ` / action=${interpretation.action}`}.`,
+    `Cible résolue: ${target === null ? "aucune" : `${target.label ?? target.ref ?? target.kind} (${target.ref ?? target.kind})`}.`,
+    runtimeHandling === null
+      ? "Runtime: non renseigné."
+      : `Runtime: ${runtimeHandling.status}, domaine=${runtimeHandling.requiredDomain ?? "aucun"}, commit=${runtimeHandling.noCommit ? "non" : "possible"}, temps=${runtimeHandling.noGameTime ? "non" : "à décider"}.`
+  ];
+}
+
+function resolvedTargetRef(resolution: NarrativeResolutionResultV1): string | null {
+  return resolution.interpretation.referentResolution?.resolvedTarget?.ref ??
+    resolution.interpretation.target?.ref ??
+    null;
 }

@@ -177,6 +177,190 @@ function intentOutputFor(req, overrides = {}) {
   };
 }
 
+function mjPlannerRequest(overrides = {}) {
+  const baseIntentReq = intentRequest();
+  const interpretation = intentOutputFor(baseIntentReq).payload.intents[0];
+  return request({
+    callId: "call-route-mj-planner-001",
+    operationId: "operation-route-mj-planner-001",
+    attemptId: "attempt-route-mj-planner-001",
+    snapshotId: "snapshot-route-mj-planner-001",
+    packId: "pack-route-mj-planner-001",
+    role: "mj_planner",
+    contractVersion: "mj-planner/1",
+    input: {
+      instructionsRef: "mj-planner/minimal/v1",
+      roleContextPack: {
+        schemaVersion: 1,
+        role: "mj_planner",
+        authority: "PLAN_ONLY"
+      },
+      task: {
+        rawInput: baseIntentReq.input.task.rawInput,
+        interpretation,
+        requiredOutput: "structured_mj_plan_without_commit"
+      }
+    },
+    ...overrides
+  });
+}
+
+function mjPlannerOutputFor(req, overrides = {}) {
+  const interpretation = req.input.task.interpretation;
+  const runtimeHandling = interpretation.runtimeHandling;
+  return {
+    schemaVersion: 1,
+    contractVersion: req.contractVersion,
+    outputId: "output-route-mj-planner-001",
+    callId: req.callId,
+    attemptId: req.attemptId,
+    packId: req.packId,
+    snapshotId: req.snapshotId,
+    role: req.role,
+    status: "OK",
+    payload: {
+      schemaVersion: 1,
+      planId: `${interpretation.intentId}:mj-plan:route`,
+      planningBasis: {
+        intentId: interpretation.intentId,
+        semanticGoal: interpretation.coreMeaning,
+        runtimeStatus: runtimeHandling.status,
+        requiredDomain: runtimeHandling.requiredDomain
+      },
+      sceneBeats: [{
+        beatId: "beat:actor-reaction",
+        kind: "ACTOR_REACTION_EXPECTED",
+        actorIds: ["npc:npc-garde-blesse"],
+        stopCondition: "Rendre la main après proposition de réaction PNJ, sans résultat social."
+      }],
+      commandProposals: [{
+        proposalId: `${interpretation.intentId}:proposal:route`,
+        domain: runtimeHandling.requiredDomain,
+        commandType: "social.intent.request_actor_reaction",
+        targetRefs: ["npc:npc-garde-blesse"],
+        payload: {
+          intentType: interpretation.intentType,
+          coreMeaning: interpretation.coreMeaning
+        },
+        commitAuthority: false
+      }],
+      creationProposals: [],
+      actorAssignments: [{
+        role: "npc_performer",
+        actorId: "npc:npc-garde-blesse",
+        reason: "Réaction PNJ potentielle à traiter séparément."
+      }],
+      revealPlan: {
+        reveal: [],
+        hint: [],
+        withhold: ["résultat social", "secret", "fait durable"]
+      },
+      timeAdvanceProposal: null,
+      playerHandoff: {
+        handoffKind: "END_TURN",
+        reason: "Plan minimal non committable."
+      },
+      riskFlags: [],
+      respectedCommitmentRefs: [`intent:${interpretation.intentId}`],
+      forbiddenOutcomes: [
+        "commit_direct",
+        "narrate_unvalidated_success",
+        "advance_time_without_domain",
+        "reveal_secret",
+        "create_persistent_fact"
+      ],
+      ...(overrides.payload || {})
+    },
+    diagnostics: [],
+    supersedesOutputId: null,
+    ...overrides
+  };
+}
+
+function npcPerformerRequest(overrides = {}) {
+  const plannerReq = mjPlannerRequest();
+  return request({
+    callId: "call-route-npc-performer-001",
+    operationId: "operation-route-npc-performer-001",
+    attemptId: "attempt-route-npc-performer-001",
+    snapshotId: "snapshot-route-npc-performer-001",
+    packId: "pack-route-npc-performer-001",
+    role: "npc_performer",
+    contractVersion: "npc-performer/1",
+    input: {
+      instructionsRef: "npc-performer/minimal/v1",
+      roleContextPack: {
+        schemaVersion: 1,
+        role: "npc_performer",
+        authority: "PERFORM_VISIBLE_ACTOR_ONLY",
+        actorId: "npc:npc-garde-blesse"
+      },
+      task: {
+        rawInput: plannerReq.input.task.rawInput,
+        actorId: "npc:npc-garde-blesse",
+        interpretation: plannerReq.input.task.interpretation,
+        mjPlan: mjPlannerOutputFor(plannerReq).payload,
+        resolution: {
+          schemaVersion: 1,
+          resultKind: "COMMIT_APPLIED",
+          noGameTime: true,
+          safetyNotes: ["Parole bornée."]
+        },
+        sceneState: {
+          schemaVersion: 1,
+          shortTermNpcMemory: []
+        },
+        requiredOutput: "bounded_visible_npc_reaction_without_commit"
+      }
+    },
+    ...overrides
+  });
+}
+
+function npcPerformerOutputFor(req, overrides = {}) {
+  return {
+    schemaVersion: 1,
+    contractVersion: req.contractVersion,
+    outputId: "output-route-npc-performer-001",
+    callId: req.callId,
+    attemptId: req.attemptId,
+    packId: req.packId,
+    snapshotId: req.snapshotId,
+    role: req.role,
+    status: "OK",
+    payload: {
+      schemaVersion: 1,
+      performanceId: "performance-route-npc-001",
+      actorId: req.input.task.actorId,
+      utterances: [{
+        utteranceId: "utterance-route-npc-001",
+        text: "Le garde serre les dents. « La porte du fond. Mais pas d'esclandre ici. »",
+        audience: ["player-character"],
+        speechActs: [{
+          type: "assertion",
+          content: "La porte du fond. Mais pas d'esclandre ici.",
+          epistemicBasis: "known",
+          sourceRefs: ["reference-scene:reference-inn-rain-001"]
+        }]
+      }],
+      nonVerbalReactions: ["mâchoire crispée"],
+      durableCommitments: [],
+      revealedRefs: [],
+      knowledgeUsed: ["reference-scene:reference-inn-rain-001"],
+      safetyConstraints: {
+        noMechanicalSuccess: true,
+        noSecretReveal: true,
+        noDurableCommitment: true,
+        noStateMutation: true
+      },
+      ...(overrides.payload || {})
+    },
+    diagnostics: [],
+    supersedesOutputId: null,
+    ...overrides
+  };
+}
+
 function semanticIntentFor(req, intent) {
   return {
     schemaVersion: 1,
@@ -237,8 +421,10 @@ async function runRoute(api, body) {
 async function main() {
   const normalized = normalizeAiCallRequest(request());
   assert.equal(normalized.ok, true);
-  const rejected = normalizeAiCallRequest(request({ role: "mj_planner" }));
-  assert.equal(rejected.ok, false);
+  const normalizedMjPlanner = normalizeAiCallRequest(mjPlannerRequest());
+  assert.equal(normalizedMjPlanner.ok, true);
+  const normalizedNpcPerformer = normalizeAiCallRequest(npcPerformerRequest());
+  assert.equal(normalizedNpcPerformer.ok, true);
   const normalizedIntent = normalizeAiCallRequest(intentRequest());
   assert.equal(normalizedIntent.ok, true);
   const rejectedIntentContract = normalizeAiCallRequest(intentRequest({ contractVersion: "narrative-ai-resolution/1" }));
@@ -314,6 +500,28 @@ async function main() {
   assert.equal(intentBody.text.format.schema.properties.role.enum[0], "player_intent_interpreter");
   assert.equal(intentBody.text.format.schema.properties.payload.properties.intents.items.required.includes("expectedTimeEffect"), true);
   assert.equal(intentBody.input[0].content[0].text.includes("transformer une possibilite en action executee"), true);
+  const mjPlannerBody = buildOpenAiResponsesBody(mjPlannerRequest(), { modelId: "gpt-4.1-mini" });
+  assert.equal(mjPlannerBody.text.format.schema.properties.contractVersion.enum[0], "mj-planner/1");
+  assert.equal(mjPlannerBody.text.format.schema.properties.role.enum[0], "mj_planner");
+  assert.equal(mjPlannerBody.text.format.schema.properties.payload.required.includes("planningBasis"), true);
+  assert.deepEqual(
+    mjPlannerBody.text.format.schema.properties.payload.properties.commandProposals.items.properties.commitAuthority.enum,
+    [false]
+  );
+  assert.equal(mjPlannerBody.input[0].content[0].text.includes("commitAuthority doit toujours etre false"), true);
+  const npcPerformerBody = buildOpenAiResponsesBody(npcPerformerRequest(), { modelId: "gpt-4.1-mini" });
+  assert.equal(npcPerformerBody.text.format.schema.properties.contractVersion.enum[0], "npc-performer/1");
+  assert.equal(npcPerformerBody.text.format.schema.properties.role.enum[0], "npc_performer");
+  assert.equal(npcPerformerBody.text.format.schema.properties.payload.required.includes("safetyConstraints"), true);
+  assert.deepEqual(
+    npcPerformerBody.text.format.schema.properties.payload.properties.durableCommitments.maxItems,
+    0
+  );
+  assert.deepEqual(
+    npcPerformerBody.text.format.schema.properties.payload.properties.utterances.items.properties.speechActs.items.properties.type.enum,
+    ["assertion", "question", "refusal"]
+  );
+  assert.equal(npcPerformerBody.input[0].content[0].text.includes("durableCommitments doit rester []"), true);
 
   const dangerousExpression = validateEnvelope({ ...outputFor(request()), payload: { ...outputFor(request()).payload, addedMeaning: ["promesse de payer"] } }, request());
   assert.equal(dangerousExpression.ok, false);
@@ -368,6 +576,20 @@ async function main() {
   );
   assert.equal(dangerousSocialSpeechIntent.ok, false);
   assert.equal(dangerousSocialSpeechIntent.issues.includes("payload.intents[0] social speech request must not be action."), true);
+  const socialSpeechAsMetaIntent = validateEnvelope(
+    intentOutputFor(socialSpeechReq, {
+      intent: {
+        intentType: "meta_question",
+        commitment: "none",
+        action: null,
+        expectedTimeEffect: "NO_GAME_TIME",
+        coreMeaning: "Question de contexte."
+      }
+    }),
+    socialSpeechReq
+  );
+  assert.equal(socialSpeechAsMetaIntent.ok, false);
+  assert.equal(socialSpeechAsMetaIntent.issues.includes("payload.intents[0] social speech request must not be meta_question."), true);
   const composedSocialSpeechReq = intentRequest({
     input: {
       ...intentRequest().input,
@@ -383,6 +605,53 @@ async function main() {
   );
   assert.equal(dangerousComposedSocialSpeechIntent.ok, false);
   assert.equal(dangerousComposedSocialSpeechIntent.issues.includes("payload.intents[0] social speech request must not be action."), true);
+  const approachOnlyReq = intentRequest({
+    input: {
+      ...intentRequest().input,
+      task: {
+        ...intentRequest().input.task,
+        rawInput: "Je m'approche du garde"
+      }
+    }
+  });
+  const dangerousApproachAsSpeechIntent = validateEnvelope(
+    intentOutputFor(approachOnlyReq, { intent: { intentType: "speech", action: "ask", coreMeaning: "Le personnage s'approche du garde." } }),
+    approachOnlyReq
+  );
+  assert.equal(dangerousApproachAsSpeechIntent.ok, false);
+  assert.equal(dangerousApproachAsSpeechIntent.issues.includes("payload.intents[0] approach-only request must not be speech."), true);
+  const dangerousApproachRestDomainIntent = validateEnvelope(
+    intentOutputFor(approachOnlyReq, {
+      intent: {
+        intentType: "action",
+        action: "act",
+        coreMeaning: "Le personnage se place près du garde.",
+        runtimeHandling: {
+          status: "SUPPORTED_BY_CURRENT_RUNTIME",
+          requiredDomain: "rest",
+          canonicalActionHint: "act",
+          noCommit: false,
+          noGameTime: false
+        }
+      }
+    }),
+    approachOnlyReq
+  );
+  assert.equal(dangerousApproachRestDomainIntent.ok, false);
+  assert.equal(dangerousApproachRestDomainIntent.issues.includes("payload.intents[0] approach-only action must use scene_resolution domain."), true);
+  assert.equal(dangerousApproachRestDomainIntent.issues.includes("payload.intents[0] approach-only action must not advance game time."), true);
+  const dangerousSpeechForceIntent = validateEnvelope(
+    intentOutputFor(socialSpeechReq, {
+      intent: {
+        intentType: "speech",
+        action: "force",
+        coreMeaning: "Le personnage s'adresse au garde."
+      }
+    }),
+    socialSpeechReq
+  );
+  assert.equal(dangerousSpeechForceIntent.ok, false);
+  assert.equal(dangerousSpeechForceIntent.issues.includes("payload.intents[0] speech action must be ask, act or null."), true);
   const dangerousAlteredEchoSocialSpeechIntent = validateEnvelope(
     {
       ...intentOutputFor(composedSocialSpeechReq, { intent: { intentType: "action", action: "act", coreMeaning: "Le personnage agit vers le garde." } }),
@@ -519,6 +788,64 @@ async function main() {
     politeContextReq
   );
   assert.equal(politeContextAsMetaIntent.ok, true);
+  const validMjPlan = validateEnvelope(mjPlannerOutputFor(mjPlannerRequest()), mjPlannerRequest());
+  assert.equal(validMjPlan.ok, true);
+  const committableMjPlan = validateEnvelope(
+    mjPlannerOutputFor(mjPlannerRequest(), {
+      payload: {
+        commandProposals: [{
+          ...mjPlannerOutputFor(mjPlannerRequest()).payload.commandProposals[0],
+          commitAuthority: true
+        }]
+      }
+    }),
+    mjPlannerRequest()
+  );
+  assert.equal(committableMjPlan.ok, false);
+  assert.equal(committableMjPlan.issues.includes("payload.commandProposals[0].commitAuthority must be false."), true);
+  const revealingMjPlan = validateEnvelope(
+    mjPlannerOutputFor(mjPlannerRequest(), {
+      payload: {
+        revealPlan: {
+          ...mjPlannerOutputFor(mjPlannerRequest()).payload.revealPlan,
+          reveal: ["secret:cache"]
+        }
+      }
+    }),
+    mjPlannerRequest()
+  );
+  assert.equal(revealingMjPlan.ok, false);
+  assert.equal(revealingMjPlan.issues.includes("payload.revealPlan.reveal must be empty for mj_planner mini."), true);
+  const validNpcPerformance = validateEnvelope(npcPerformerOutputFor(npcPerformerRequest()), npcPerformerRequest());
+  assert.equal(validNpcPerformance.ok, true);
+  const revealingNpcPerformance = validateEnvelope(
+    npcPerformerOutputFor(npcPerformerRequest(), { payload: { revealedRefs: ["secret:back-room"] } }),
+    npcPerformerRequest()
+  );
+  assert.equal(revealingNpcPerformance.ok, false);
+  assert.equal(revealingNpcPerformance.issues.includes("payload.revealedRefs must be empty for npc_performer mini."), true);
+  const committingNpcPerformance = validateEnvelope(
+    npcPerformerOutputFor(npcPerformerRequest(), { payload: { durableCommitments: ["Le garde promet de couvrir le personnage."] } }),
+    npcPerformerRequest()
+  );
+  assert.equal(committingNpcPerformance.ok, false);
+  assert.equal(committingNpcPerformance.issues.includes("payload.durableCommitments must be empty for npc_performer mini."), true);
+  const forbiddenSpeechActNpcPerformance = validateEnvelope(
+    npcPerformerOutputFor(npcPerformerRequest(), {
+      payload: {
+        utterances: [{
+          ...npcPerformerOutputFor(npcPerformerRequest()).payload.utterances[0],
+          speechActs: [{
+            ...npcPerformerOutputFor(npcPerformerRequest()).payload.utterances[0].speechActs[0],
+            type: "reveal"
+          }]
+        }]
+      }
+    }),
+    npcPerformerRequest()
+  );
+  assert.equal(forbiddenSpeechActNpcPerformance.ok, false);
+  assert.equal(forbiddenSpeechActNpcPerformance.issues.includes("payload.utterances[0].speechActs[0].type is not allowed for npc_performer mini."), true);
 
   let sendCount = 0;
   const disabledApi = createNarrativeOpenAiEnhancementApi({
@@ -618,6 +945,64 @@ async function main() {
   assert.equal(liveIntent.payload.output.role, "player_intent_interpreter");
   assert.equal(liveIntent.payload.output.contractVersion, "ai-intent-interpretation/1");
   assert.equal(capturedBody.model, "gpt-4.1-intent-test");
+
+  const liveMjPlannerApi = createNarrativeOpenAiEnhancementApi({
+    env: { NARRATION_OPENAI_LIVE: "1", NARRATION_OPENAI_MODEL: "gpt-4.1-mini", NARRATION_OPENAI_MJ_PLANNER_MODEL: "gpt-4.1-mj-planner-test" },
+    apiKey: "sk-test-secret",
+    fetchImpl: async (_url, init) => {
+      capturedBody = JSON.parse(init.body);
+      return {
+        status: 200,
+        statusText: "OK",
+        async json() {
+          return { output_text: JSON.stringify(mjPlannerOutputFor(mjPlannerRequest())), usage: { input_tokens: 13, output_tokens: 23, total_tokens: 36 } };
+        },
+        async text() {
+          return "";
+        }
+      };
+    },
+    parseJsonBody: async req => req.body,
+    sendJson: (res, statusCode, data) => {
+      res.statusCode = statusCode;
+      res.payload = data;
+    }
+  });
+  const liveMjPlanner = await runRoute(liveMjPlannerApi, { request: mjPlannerRequest() });
+  assert.equal(liveMjPlanner.statusCode, 200);
+  assert.equal(liveMjPlanner.payload.ok, true);
+  assert.equal(liveMjPlanner.payload.output.role, "mj_planner");
+  assert.equal(liveMjPlanner.payload.output.contractVersion, "mj-planner/1");
+  assert.equal(capturedBody.model, "gpt-4.1-mj-planner-test");
+
+  const liveNpcPerformerApi = createNarrativeOpenAiEnhancementApi({
+    env: { NARRATION_OPENAI_LIVE: "1", NARRATION_OPENAI_MODEL: "gpt-4.1-mini", NARRATION_OPENAI_NPC_PERFORMER_MODEL: "gpt-4.1-npc-performer-test" },
+    apiKey: "sk-test-secret",
+    fetchImpl: async (_url, init) => {
+      capturedBody = JSON.parse(init.body);
+      return {
+        status: 200,
+        statusText: "OK",
+        async json() {
+          return { output_text: JSON.stringify(npcPerformerOutputFor(npcPerformerRequest())), usage: { input_tokens: 14, output_tokens: 24, total_tokens: 38 } };
+        },
+        async text() {
+          return "";
+        }
+      };
+    },
+    parseJsonBody: async req => req.body,
+    sendJson: (res, statusCode, data) => {
+      res.statusCode = statusCode;
+      res.payload = data;
+    }
+  });
+  const liveNpcPerformer = await runRoute(liveNpcPerformerApi, { request: npcPerformerRequest() });
+  assert.equal(liveNpcPerformer.statusCode, 200);
+  assert.equal(liveNpcPerformer.payload.ok, true);
+  assert.equal(liveNpcPerformer.payload.output.role, "npc_performer");
+  assert.equal(liveNpcPerformer.payload.output.contractVersion, "npc-performer/1");
+  assert.equal(capturedBody.model, "gpt-4.1-npc-performer-test");
 
   const fencedSceneApi = createNarrativeOpenAiEnhancementApi({
     env: { NARRATION_OPENAI_LIVE: "1", NARRATION_OPENAI_MODEL: "gpt-4.1-mini" },

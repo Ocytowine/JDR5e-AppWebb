@@ -109,6 +109,8 @@ function controllerOutput(operationId: string, rawInput: string, interp: Narrati
     interpretation: interp as NarrativeIntentInterpretationV1 & JsonObject,
     mjPlan: null,
     mjPlannerFailure: null,
+    npcPerformance: null,
+    npcPerformanceFailure: null,
     suspendedIntent: null,
     resolution: res,
     sceneState: createInitialReferenceSceneStateV1(),

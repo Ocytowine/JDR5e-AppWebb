@@ -394,6 +394,17 @@ function buildRuntimeHandling(input: {
       noGameTime: true
     };
   }
+  if (input.intentType === "action" && input.action === "act" && isApproachOnlyText(input.rawInput)) {
+    return {
+      schemaVersion: 1,
+      status: "SUPPORTED_BY_CURRENT_RUNTIME",
+      reason: "Déplacement ou approche locale sans parole explicite, traité sans réaction PNJ automatique.",
+      requiredDomain: "scene_resolution",
+      canonicalActionHint: input.action,
+      noCommit: false,
+      noGameTime: true
+    };
+  }
   if (input.intentType === "action" && input.action === "observe") {
     return {
       schemaVersion: 1,
@@ -455,6 +466,7 @@ function semanticKind(
   if (intentType === "possibility_query") return "hypothetical_action";
   if (intentType === "speech") return "address_visible_actor";
   if (intentType === "unclear_commitment") return "unclear_intent";
+  if (intentType === "action" && isApproachOnlyText(rawInput)) return "nonverbal_signal";
   if (action === "observe") return "observe_environment";
   if (intentType === "action") return "manipulate_visible_object";
   if (/\b(signe|main|levre|levres|hoche|tends)\b/u.test(normalized)) return "nonverbal_signal";
@@ -537,7 +549,10 @@ function mapAiIntentToNarrativeInterpretationV1(input: {
   if (first.intentType === "speech" && first.commitment !== "committed") return { ok: false };
   if (first.intentType === "action" && first.commitment !== "committed") return { ok: false };
   if (first.riskFlags.includes("secret_reveal") || first.riskFlags.includes("social_success_granted")) return { ok: false };
-  const referentClarification = committedActionReferentClarification(first, input.rawInput);
+  const canonicalFirst = canonicalizeVisibleTargetRefs(first);
+  if (!isIntentRuntimeConsistent(canonicalFirst, input.rawInput)) return { ok: false };
+  const mappedFirst = normalizeMappedIntentTarget(canonicalFirst, input.rawInput);
+  const referentClarification = committedActionReferentClarification(mappedFirst, input.rawInput);
   if (referentClarification !== null) {
     return {
       ok: true,
@@ -547,11 +562,11 @@ function mapAiIntentToNarrativeInterpretationV1(input: {
         intentId: input.intentId,
         intentType: "unclear_commitment",
         commitment: "unclear",
-        target: first.target,
-        action: first.action,
-        runtimeHandling: first.runtimeHandling,
-        referentResolution: first.referentResolution ?? buildReferentResolution(first.target, input.rawInput),
-        coreMeaning: first.semanticIntent.playerGoal || first.coreMeaning,
+        target: mappedFirst.target,
+        action: mappedFirst.action,
+        runtimeHandling: mappedFirst.runtimeHandling,
+        referentResolution: mappedFirst.referentResolution ?? buildReferentResolution(mappedFirst.target, input.rawInput),
+        coreMeaning: mappedFirst.semanticIntent.playerGoal || mappedFirst.coreMeaning,
         requiresClarification: true,
         clarificationQuestion: referentClarification,
         expectedTimeEffect: "NO_GAME_TIME",
@@ -569,16 +584,16 @@ function mapAiIntentToNarrativeInterpretationV1(input: {
       schemaVersion: 1,
       contractVersion: "intent-clarification/1",
       intentId: input.intentId,
-      intentType: first.intentType,
-      commitment: first.commitment,
-      target: first.target,
-      action: first.action,
-      runtimeHandling: first.runtimeHandling,
-      referentResolution: first.referentResolution ?? buildReferentResolution(first.target, input.rawInput),
-      coreMeaning: first.semanticIntent.playerGoal || first.coreMeaning,
-      requiresClarification: first.requiresClarification,
-      clarificationQuestion: first.clarificationQuestion,
-      expectedTimeEffect: first.expectedTimeEffect,
+      intentType: mappedFirst.intentType,
+      commitment: mappedFirst.commitment,
+      target: mappedFirst.target,
+      action: mappedFirst.action,
+      runtimeHandling: mappedFirst.runtimeHandling,
+      referentResolution: mappedFirst.referentResolution ?? buildReferentResolution(mappedFirst.target, input.rawInput),
+      coreMeaning: mappedFirst.semanticIntent.playerGoal || mappedFirst.coreMeaning,
+      requiresClarification: mappedFirst.requiresClarification,
+      clarificationQuestion: mappedFirst.clarificationQuestion,
+      expectedTimeEffect: mappedFirst.expectedTimeEffect,
       safetyNotes: [
         "Interprétation proposée par player_intent_interpreter et validée localement.",
         ...first.forbiddenInterpretations.map(entry => `Interprétation interdite: ${entry}`)
@@ -587,14 +602,95 @@ function mapAiIntentToNarrativeInterpretationV1(input: {
   };
 }
 
+function normalizeMappedIntentTarget(
+  intentValue: AiStructuredPlayerIntentV1,
+  rawInput: string
+): AiStructuredPlayerIntentV1 {
+  if (!isApproachOnlyText(rawInput)) return intentValue;
+  if (intentValue.intentType !== "action" || intentValue.action !== "act") return intentValue;
+  const target = intentValue.referentResolution?.resolvedTarget ?? intentValue.target ?? findTarget(rawInput, [], intentValue.action);
+  if (target === null || target.kind !== "npc") return intentValue;
+  return {
+    ...intentValue,
+    target,
+    referentResolution: intentValue.referentResolution ?? buildReferentResolution(target, rawInput),
+    semanticIntent: {
+      ...intentValue.semanticIntent,
+      kind: "nonverbal_signal",
+      target
+    }
+  };
+}
+
+function isIntentRuntimeConsistent(intentValue: AiStructuredPlayerIntentV1, rawInput: string): boolean {
+  if (intentValue.intentType === "speech") {
+    if (intentValue.action !== null && intentValue.action !== "ask" && intentValue.action !== "act") return false;
+    if (intentValue.runtimeHandling.noCommit !== false) return false;
+  }
+  if (isApproachOnlyText(rawInput) && intentValue.intentType === "action" && intentValue.action === "act") {
+    if (intentValue.runtimeHandling.status !== "SUPPORTED_BY_CURRENT_RUNTIME") return false;
+    if (intentValue.runtimeHandling.requiredDomain !== "scene_resolution") return false;
+    if (intentValue.runtimeHandling.noCommit !== false) return false;
+    if (intentValue.runtimeHandling.noGameTime !== true) return false;
+  }
+  const target = intentValue.referentResolution?.resolvedTarget ?? intentValue.target ?? null;
+  if (
+    intentValue.intentType === "action" &&
+    intentValue.action === "act" &&
+    target?.kind === "npc" &&
+    intentValue.semanticIntent.kind === "nonverbal_signal"
+  ) {
+    if (intentValue.runtimeHandling.requiredDomain !== "scene_resolution") return false;
+    if (intentValue.runtimeHandling.noCommit !== false) return false;
+    if (intentValue.runtimeHandling.noGameTime !== true) return false;
+  }
+  return true;
+}
+
+function canonicalizeVisibleTargetRefs(intentValue: AiStructuredPlayerIntentV1): AiStructuredPlayerIntentV1 {
+  const target = canonicalizeVisibleTargetRef(intentValue.target);
+  const resolvedTarget = canonicalizeVisibleTargetRef(intentValue.referentResolution?.resolvedTarget ?? null);
+  const semanticTarget = canonicalizeVisibleTargetRef(intentValue.semanticIntent.target ?? null);
+  return {
+    ...intentValue,
+    target,
+    referentResolution: intentValue.referentResolution == null
+      ? null
+      : {
+        ...intentValue.referentResolution,
+        resolvedTarget
+      },
+    semanticIntent: {
+      ...intentValue.semanticIntent,
+      target: semanticTarget
+    }
+  };
+}
+
+function canonicalizeVisibleTargetRef<T extends AiStructuredPlayerIntentV1["target"]>(target: T): T {
+  if (target === null || target.kind !== "npc" || target.ref === null) return target;
+  if (target.ref === "npc-garde-blesse") return { ...target, ref: "npc:npc-garde-blesse" } as T;
+  if (target.ref === "npc-serveuse-nerveuse") return { ...target, ref: "npc:npc-serveuse-nerveuse" } as T;
+  return target;
+}
+
 function findTarget(rawInput: string, localReferentHints: LocalReferentHintV1[] = [], action: string | null = null): AiStructuredPlayerIntentV1["target"] {
   const normalized = normalize(rawInput);
-  if (/\b(moi|me)\b/u.test(normalized) && !/\b(garde|serveuse|aubergiste|porte)\b/u.test(normalized)) {
-    return { kind: "self", ref: "player-character:prototype", label: "personnage joueur" };
-  }
   const npc = findPlayableSceneNpcTargetV1(REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1, rawInput);
-  if (npc.keywords.some(keyword => normalized.includes(normalize(keyword))) || /\b(lui|il|elle)\b/u.test(normalized)) {
+  const explicitNpcMention = npc.keywords.some(keyword => normalized.includes(normalize(keyword)));
+  if (explicitNpcMention) {
     return { kind: "npc", ref: `npc:${npc.actorId}`, label: normalize(npc.displayName).includes("serveuse") ? "serveuse" : "garde" };
+  }
+  const visibleDescriptorNpc = findVisibleNpcByGenericDescriptor(rawInput);
+  if (visibleDescriptorNpc !== null) {
+    return {
+      kind: "npc",
+      ref: `npc:${visibleDescriptorNpc.actorId}`,
+      label: normalize(visibleDescriptorNpc.displayName).includes("serveuse") ? "serveuse" : visibleDescriptorNpc.displayName
+    };
+  }
+  if (/\b(moi|me)\b/u.test(normalized) && !/\b(garde|serveuse|aubergiste|porte|homme|femme|dame|madame|blesse|blessé)\b/u.test(normalized)) {
+    return { kind: "self", ref: "player-character:prototype", label: "personnage joueur" };
   }
   if (/\b(porte|arriere|arriere-salle|fond)\b/u.test(normalized)) return { kind: "object", ref: "poi:back-room-door", label: "porte du fond" };
   const pronounOnly = /\b(l'|le|la|lui|cela|ca|ça)\b/u.test(normalized);
@@ -604,7 +700,31 @@ function findTarget(rawInput: string, localReferentHints: LocalReferentHintV1[] 
     isTargetCompatibleWithAction(hint.target, action)
   );
   if (pronounOnly && recentCompatible) return recentCompatible.target;
+  if (pronounOnly && (/\b(il|lui)\b/u.test(normalized) || action === "ask")) {
+    return { kind: "npc", ref: `npc:${npc.actorId}`, label: normalize(npc.displayName).includes("serveuse") ? "serveuse" : "garde" };
+  }
   return null;
+}
+
+function findVisibleNpcByGenericDescriptor(rawInput: string): typeof REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1.presentNpc[number] | null {
+  const normalized = normalize(rawInput);
+  const asksForVisibleWoman = /\b(la femme|cette femme|une femme|dame|madame)\b/u.test(normalized);
+  const asksForVisibleMan = /\b(l'homme|l homme|cet homme|un homme|homme blesse|homme blessé|bless[eé])\b/u.test(normalized);
+  if (!asksForVisibleWoman && !asksForVisibleMan) return null;
+  const candidates = REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1.presentNpc.filter(npc =>
+    asksForVisibleWoman ? isPubliclyFeminineNpc(npc) : isPubliclyMasculineNpc(npc)
+  );
+  return candidates.length === 1 ? candidates[0] ?? null : null;
+}
+
+function isPubliclyFeminineNpc(npc: typeof REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1.presentNpc[number]): boolean {
+  const publicText = normalize(`${npc.displayName} ${npc.publicRole} ${npc.visibleState} ${npc.keywords.join(" ")}`);
+  return /\b(serveuse|aubergiste|employee|vigie|femme|dame)\b/u.test(publicText);
+}
+
+function isPubliclyMasculineNpc(npc: typeof REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1.presentNpc[number]): boolean {
+  const publicText = normalize(`${npc.displayName} ${npc.publicRole} ${npc.visibleState} ${npc.keywords.join(" ")}`);
+  return /\b(garde|soldat|homme|blesse|guetteur)\b/u.test(publicText);
 }
 
 function committedActionReferentClarification(
@@ -714,6 +834,13 @@ function actionLabel(normalized: string): string {
 
 function normalize(value: string): string {
   return value.trim().toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "").replace(/[’']/gu, "'");
+}
+
+function isApproachOnlyText(value: string): boolean {
+  const normalized = normalize(value);
+  const hasApproach = /\b(je m'approche|je m approche|je m'avance|je m avance|je vais vers|je me dirige vers)\b/u.test(normalized);
+  const hasSpeech = /\b(je lui demande|je demande a|je demande au|je demande aux|je lui dis|je dis a|je dis au|je parle a|je parle au|je questionne|j'interroge|j interroge|parler|discuter|questionner|interroger|demander)\b/u.test(normalized);
+  return hasApproach && !hasSpeech;
 }
 
 function isExplicitPossibilityQuestionText(value: string): boolean {

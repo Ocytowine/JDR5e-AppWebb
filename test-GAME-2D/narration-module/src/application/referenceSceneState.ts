@@ -111,7 +111,7 @@ export function applyReferenceSceneMutationV1(input: {
     lastMutationOperationId: input.operationId
   };
   if (input.interpretation.intentType === "speech" && input.resolution.commitId === null) {
-    const actor = speechTarget(input.interpretation.coreMeaning);
+    const actor = speechTarget(input.interpretation);
     next.interactionCount += 1;
     next.guardAddressed = actor.actorId === "npc-garde-blesse" ? true : next.guardAddressed;
     next.backRoomDoorHighlighted = true;
@@ -189,11 +189,18 @@ function appendNpcShortTermMemoryV1(input: {
   }));
 }
 
-function speechTarget(rawInput: string): {
+function speechTarget(interpretation: NarrativeIntentInterpretationV1): {
   actorId: "npc-garde-blesse" | "npc-serveuse-nerveuse";
   actorDisplayName: string;
 } {
-  const normalized = rawInput.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
+  const structuredRef = interpretation.referentResolution?.resolvedTarget?.ref ?? interpretation.target?.ref ?? null;
+  if (structuredRef === "npc:npc-serveuse-nerveuse" || structuredRef === "npc-serveuse-nerveuse") {
+    return { actorId: "npc-serveuse-nerveuse", actorDisplayName: "Serveuse nerveuse" };
+  }
+  if (structuredRef === "npc:npc-garde-blesse" || structuredRef === "npc-garde-blesse") {
+    return { actorId: "npc-garde-blesse", actorDisplayName: "Garde blessé" };
+  }
+  const normalized = interpretation.coreMeaning.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
   if (/\b(serveuse|aubergiste|femme au comptoir)\b/u.test(normalized)) {
     return { actorId: "npc-serveuse-nerveuse", actorDisplayName: "Serveuse nerveuse" };
   }

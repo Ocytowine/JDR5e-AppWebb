@@ -6,6 +6,7 @@ export * from "./lorePlayableScene";
 export * from "./mjPlanning";
 export * from "./narrativeResolution";
 export * from "./narrativeRenderProjection";
+export * from "./npcPerforming";
 export * from "./playableScene";
 export * from "./plotPreparation";
 export * from "./presentationVariation";

@@ -674,6 +674,80 @@ Hors périmètre :
 - pas de résolution sociale mécanique;
 - pas de domaine propriétaire ouvert.
 
+## I-06ZI — Branchement IA serveur du MJ planner
+
+Statut : `IMPLEMENTE_DANS_PERIMETRE` le 2026-07-16.
+Référence : [`Cadrage-I06ZI-branchement-ia-mj-planner.md`](Cadrage-I06ZI-branchement-ia-mj-planner.md).
+
+Objectif : brancher `mj_planner` sur OpenAI via la route serveur existante, sans donner de pouvoir de commit au modèle.
+
+Livraison :
+
+- rôle `mj_planner` autorisé par `/api/narration/enhance-openai`;
+- contrat serveur `mj-planner/1` avec schéma strict;
+- instructions serveur orientées planification sémantique depuis `task.interpretation`;
+- rejet local des plans committables, révélateurs, créateurs ou temporels;
+- variable optionnelle `NARRATION_OPENAI_MJ_PLANNER_MODEL`;
+- mode OpenAI UI configurant aussi `mjPlannerConfig`;
+- preuves : `npm run narration-module:test:narrative-openai-route`, `npm run narration-module:test:ai-intent-interpretation`, `npm run narration-module:test:narrative-resolution`, `npm run narration-module:build`, `npm run build`.
+
+Hors périmètre :
+
+- pas d'exécution automatique des propositions;
+- pas de `npc_performer` live;
+- pas de domaine inventaire/tactique/repos/monde ouvert;
+- pas de création ou intrigue persistante;
+- pas de fallback narratif sur erreur planner.
+
+## I-06ZJ — NPC performer minimal
+
+Statut : `IMPLEMENTE_DANS_PERIMETRE` le 2026-07-16.
+Référence : [`Cadrage-I06ZJ-npc-performer-minimal.md`](Cadrage-I06ZJ-npc-performer-minimal.md).
+
+Objectif : consommer une assignation `npc_performer` du `mj_planner` pour produire une réaction PNJ visible et bornée.
+
+Livraison :
+
+- contrat `npc-performer/1`;
+- provider local `LocalNpcPerformerProviderV1`;
+- validation pipeline des répliques sans révélation ni engagement durable;
+- appel contrôleur après résolution bornée de parole;
+- remplacement du bloc `NPC_SPEECH` par la réaction acceptée;
+- sortie technique `npcPerformance` / `npcPerformanceFailure`;
+- preuves : `npm run narration-module:test:ai-pipeline`, `npm run narration-module:test:narrative-turn-controller`, `npm run narration-module:test:ai-intent-interpretation`.
+
+Hors périmètre :
+
+- pas de route OpenAI serveur `npc_performer`;
+- pas de moteur social mécanique;
+- pas de mémoire sociale longue;
+- pas de conséquences ou promesses durables;
+- pas d'automatisation PNJ multi-tours.
+
+## I-06ZK — Branchement IA serveur du NPC performer
+
+Statut : `IMPLEMENTE_DANS_PERIMETRE` le 2026-07-16.
+Référence : [`Cadrage-I06ZK-branchement-ia-npc-performer.md`](Cadrage-I06ZK-branchement-ia-npc-performer.md).
+
+Objectif : brancher `npc_performer` sur OpenAI via la route serveur existante, sans ouvrir le moteur social.
+
+Livraison :
+
+- rôle `npc_performer` autorisé par `/api/narration/enhance-openai`;
+- contrat serveur `npc-performer/1` avec schéma strict;
+- instructions serveur limitant le rôle au PNJ visible assigné;
+- rejet local des révélations, engagements durables et speech acts interdits;
+- variable optionnelle `NARRATION_OPENAI_NPC_PERFORMER_MODEL`;
+- mode OpenAI UI configurant aussi `npcPerformerConfig`;
+- preuves : `npm run narration-module:test:narrative-openai-route`, `npm run narration-module:test:narrative-app-surface`, `npm run narration-module:test:ai-pipeline`.
+
+Hors périmètre :
+
+- pas de moteur social mécanique;
+- pas de mémoire sociale longue;
+- pas de secrets ou promesses durables;
+- pas de PNJ autonomes multi-tours.
+
 ## Critères retenus pour la sortie I-06
 
 La sortie I-06 est cadrée par [`Sortie-phase-I06.md`](Sortie-phase-I06.md). Les critères retenus sont :

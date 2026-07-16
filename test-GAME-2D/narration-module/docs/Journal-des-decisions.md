@@ -2091,3 +2091,63 @@ Après I-06ZF/I-06ZG, le système comprend mieux l'intention et sait bloquer un 
 ### Conséquences
 
 Le contrôleur peut conserver un `mjPlan` technique sur les tours engagés. Les questions méta et possibilités pures ne déclenchent pas le planner. Les plans rejetant ou demandant un domaine fermé restent non committables. La route OpenAI serveur, `npc_performer`, les intrigues dynamiques, la création persistante et les domaines propriétaires jouables restent fermés tant qu'un lot dédié ne les ouvre pas.
+
+## NAR-113 — OpenAI serveur pour le MJ planner
+
+Statut : `RETENU`
+
+Date : 2026-07-16
+
+### Décision
+
+La route `POST /api/narration/enhance-openai` accepte le rôle `mj_planner` avec le contrat `mj-planner/1`.
+
+Le mode OpenAI de la surface narration peut utiliser cette route pour le planner, après l'interprétation d'intention et avant l'enrichissement visible. Le navigateur continue à ne jamais appeler OpenAI directement.
+
+### Raisons
+
+Le planner est précisément la couche où l'IA doit exploiter le sens structuré du tour sans être réduite à des listes de mots-clés. Mais cette ouverture doit rester contrôlée : le planner organise une suite possible, il ne résout pas la scène.
+
+### Conséquences
+
+Le serveur valide strictement que le plan reste non committable : pas de `commitAuthority=true`, pas de création, pas de révélation, pas d'avance temporelle et alignement avec `runtimeHandling`. Une sortie invalide devient un diagnostic et `mjPlannerFailure`; aucun plan narratif de secours n'est inventé.
+
+## NAR-114 — NPC performer minimal borné
+
+Statut : `RETENU`
+
+Date : 2026-07-16
+
+### Décision
+
+Le rôle `npc_performer` peut être ouvert uniquement en version minimale `npc-performer/1`, déclenchée par une assignation explicite du `mj_planner`.
+
+Il produit une réaction courte d'un PNJ visible, structurée et validée, après le commit borné de parole du joueur. Cette réaction peut alimenter le bloc visible `NPC_SPEECH`, mais ne crée aucun commit supplémentaire.
+
+### Raisons
+
+Le `mj_planner` devient utile seulement si ses assignations peuvent être consommées par un rôle spécialisé. La réaction PNJ est le plus petit pas visible qui améliore le jeu sans ouvrir le moteur social complet.
+
+### Conséquences
+
+Les sorties `npc_performer` contenant révélation, promesse durable, succès mécanique ou mutation d'état sont rejetées. La route OpenAI serveur pour ce rôle, la mémoire sociale longue et l'automatisation multi-tours de PNJ restent fermées.
+
+## NAR-115 — OpenAI serveur pour le NPC performer
+
+Statut : `RETENU`
+
+Date : 2026-07-16
+
+### Décision
+
+La route `POST /api/narration/enhance-openai` accepte le rôle `npc_performer` avec le contrat `npc-performer/1`.
+
+La surface narration en mode OpenAI peut utiliser cette route pour produire la réaction courte du PNJ assigné par le `mj_planner`.
+
+### Raisons
+
+Après validation locale du rôle, la valeur visible suivante vient de la capacité de l'IA à jouer le ton d'un PNJ sans prendre l'autorité de résolution. Le serveur est le bon point de contrôle : clé protégée, schéma strict et validation locale.
+
+### Conséquences
+
+OpenAI peut proposer une réplique PNJ bornée. Le système rejette les révélations, engagements durables, speech acts interdits, mutations et succès sociaux. Le moteur social, la mémoire sociale longue et les conséquences persistantes restent fermés.

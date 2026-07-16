@@ -191,6 +191,9 @@ async function main(): Promise<void> {
   if (!speech.ok) throw new Error(speech.error.messageKey);
   assert.equal(speech.value.output.interpretation.intentType, "speech");
   assert.equal(speech.value.output.resolution.resultKind, "COMMIT_APPLIED");
+  assert.notEqual(speech.value.output.npcPerformance, null);
+  assert.equal(speech.value.output.npcPerformance?.durableCommitments.length, 0);
+  assert.equal(speech.value.output.npcPerformance?.revealedRefs.length, 0);
   assert.equal(speech.value.output.displayPacket.displayBlocks.some(block =>
     block.kind === "NPC_SPEECH" &&
     block.speaker.displayName === "Garde blessé" &&
@@ -231,6 +234,7 @@ async function main(): Promise<void> {
   assert.equal(repeatedSpeech.value.output.resolution.resultKind, "COMMIT_APPLIED");
   assert.equal(repeatedSpeech.value.output.sceneState.interactionCount, 2);
   assert.equal(repeatedSpeech.value.output.sceneState.shortTermNpcMemory.length, 2);
+  assert.notEqual(repeatedSpeech.value.output.npcPerformance, null);
   assert.equal(repeatedSpeech.value.output.displayPacket.displayBlocks.some(block =>
     block.kind === "NPC_SPEECH" &&
     /Je vous l'ai dit/u.test(block.text)

@@ -12,6 +12,7 @@ import {
   AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1,
   NarrativeTurnControllerV1,
   createDefaultAiIntentInterpreterConfigV1,
+  createPrototypeNarrativeTurnControllerV1,
   interpretNarrativeInputWithAiV1,
   type AiIntentInterpreterConfigV1
 } from "../../src/application";
@@ -160,6 +161,72 @@ async function main(): Promise<void> {
   assert.equal(invalidImplicitPossibility.interpretation.intentType, "meta_question", "diagnostic technique attendu");
   assert.equal(invalidImplicitPossibility.interpretation.commitment, "none", "aucun engagement attendu");
   assert.equal(invalidImplicitPossibility.interpretationFailure?.category, "AI_OUTPUT_INVALID");
+
+  const invalidApproachRuntime = await interpret("je me dirige vers la femme", invalidApproachRuntimeConfig());
+  assert.equal(invalidApproachRuntime.usedAiInterpretation, false, "approche PNJ avec domaine rest rejetee");
+  assert.equal(invalidApproachRuntime.usedFallback, false, "aucun fallback narratif sur runtime incoherent");
+  assert.equal(invalidApproachRuntime.interpretationFailure?.category, "AI_OUTPUT_REJECTED");
+
+  const invalidSpeechAction = await interpret("je la salue, et je lui demande ce qu'il ce passe", invalidSpeechActionConfig());
+  assert.equal(invalidSpeechAction.usedAiInterpretation, false, "parole avec action force rejetee");
+  assert.equal(invalidSpeechAction.usedFallback, false, "aucun fallback narratif sur action de parole incoherente");
+  assert.equal(invalidSpeechAction.interpretationFailure?.category, "AI_OUTPUT_REJECTED");
+
+  const approachOnly = await runControllerApproachOnlyCase();
+  assert.equal(approachOnly.output.interpretation.intentType, "action", "approche seule: action locale attendue");
+  assert.equal(approachOnly.output.resolution.resultKind, "COMMIT_APPLIED", "approche seule: action locale bornée exécutée");
+  assert.equal(approachOnly.output.resolution.preparedEffects[0]?.effectType, "LOCAL_SCENE_ACTION_RECORDED", "approche seule: effet local attendu");
+  assert.equal(approachOnly.output.noCommit, false, "approche seule: commit local attendu");
+  assert.equal(approachOnly.output.npcPerformance, null, "approche seule: aucune réaction PNJ automatique");
+  assert.equal(approachOnly.output.displayPacket.displayBlocks.some(block => block.kind === "NPC_SPEECH"), false, "approche seule: aucune réplique PNJ");
+  assert.equal(approachOnly.output.displayPacket.displayBlocks.some(block => /Parole enregistrée/u.test(block.text)), false, "approche seule: pas de parole enregistrée");
+  assert.equal(approachOnly.output.displayPacket.displayBlocks.some(block => /Action locale enregistrée/u.test(block.text)), true, "approche seule: notification d'action locale attendue");
+
+  const directedApproach = await runControllerDirectedApproachCase();
+  assert.equal(directedApproach.output.interpretation.target?.ref, "npc:npc-garde-blesse", "direction garde: cible visible attendue");
+  assert.equal(directedApproach.output.interpretation.runtimeHandling?.requiredDomain, "scene_resolution", "direction garde: domaine scene attendu");
+  assert.equal(directedApproach.output.resolution.resultKind, "COMMIT_APPLIED", "direction garde: commit local attendu malgré coreMeaning reformulé");
+  assert.equal(directedApproach.output.resolution.preparedEffects[0]?.effectType, "LOCAL_SCENE_ACTION_RECORDED", "direction garde: effet local attendu");
+
+  const approachWaitressThenAsk = await runControllerApproachWaitressThenAskCase();
+  assert.equal(approachWaitressThenAsk.approach.output.interpretation.target?.ref, "npc:npc-serveuse-nerveuse", "approche serveuse: cible visible attendue");
+  assert.equal(approachWaitressThenAsk.approach.output.resolution.resultKind, "COMMIT_APPLIED", "approche serveuse: commit local attendu");
+  assert.equal(approachWaitressThenAsk.ask.output.interpretation.intentType, "speech", "pronom lui après approche: parole attendue");
+  assert.equal(approachWaitressThenAsk.ask.output.interpretation.target?.ref, "npc:npc-serveuse-nerveuse", "pronom lui après approche: serveuse attendue");
+  assert.notEqual(approachWaitressThenAsk.ask.output.npcPerformance, null, "question à la serveuse: npc_performer attendu");
+  assert.equal(approachWaitressThenAsk.ask.output.displayPacket.displayBlocks.some(block => block.kind === "NPC_SPEECH"), true, "question à la serveuse: réponse PNJ attendue");
+
+  const approachWomanThenAsk = await runControllerApproachWomanThenAskCase();
+  assert.equal(approachWomanThenAsk.approach.output.interpretation.target?.ref, "npc:npc-serveuse-nerveuse", "approche femme: serveuse visible attendue");
+  assert.equal(approachWomanThenAsk.approach.output.resolution.resultKind, "COMMIT_APPLIED", "approche femme: commit local attendu");
+  assert.equal(approachWomanThenAsk.approach.output.displayPacket.displayBlocks.some(block =>
+    block.kind === "SYSTEM_NOTICE" && /Cible résolue: serveuse \(npc:npc-serveuse-nerveuse\)/u.test(block.text)
+  ), true, "approche femme: notification système doit exposer la cible résolue");
+  assert.equal(approachWomanThenAsk.ask.output.interpretation.target?.ref, "npc:npc-serveuse-nerveuse", "pronom lui après femme: serveuse attendue");
+  assert.equal(approachWomanThenAsk.ask.output.displayPacket.displayBlocks.some(block =>
+    block.kind === "NPC_SPEECH" && block.speaker.displayName === "Serveuse nerveuse"
+  ), true, "question après approche femme: réponse de la serveuse attendue");
+
+  const unprefixedWaitress = await runControllerUnprefixedWaitressCase();
+  assert.equal(unprefixedWaitress.call.output.interpretation.target?.ref, "npc:npc-serveuse-nerveuse", "appel serveuse IA: ref PNJ canonique attendue");
+  assert.equal(unprefixedWaitress.ask.output.interpretation.target?.ref, "npc:npc-serveuse-nerveuse", "question serveuse IA: ref PNJ canonique attendue");
+  assert.equal(unprefixedWaitress.ask.output.displayPacket.displayBlocks.some(block =>
+    block.kind === "NPC_SPEECH" && block.speaker.displayName === "Serveuse nerveuse"
+  ), true, "question serveuse IA: le rendu doit conserver la serveuse, pas le garde");
+  assert.equal(unprefixedWaitress.ask.output.sceneState.shortTermNpcMemory.some(memory =>
+    memory.actorId === "npc-serveuse-nerveuse"
+  ), true, "question serveuse IA: la mémoire courte doit conserver la serveuse");
+
+  const approachWoundedManThenAsk = await runControllerApproachWoundedManThenAskCase();
+  assert.equal(approachWoundedManThenAsk.approach.output.interpretation.target?.ref, "npc:npc-garde-blesse", "approche homme blessé: garde visible attendu");
+  assert.equal(approachWoundedManThenAsk.approach.output.resolution.resultKind, "COMMIT_APPLIED", "approche homme blessé: commit local attendu");
+  assert.equal(approachWoundedManThenAsk.approach.output.displayPacket.displayBlocks.some(block =>
+    block.kind === "SYSTEM_NOTICE" && /Cible résolue: garde \(npc:npc-garde-blesse\)/u.test(block.text)
+  ), true, "approche homme blessé: notification système doit exposer la cible résolue");
+  assert.equal(approachWoundedManThenAsk.ask.output.interpretation.target?.ref, "npc:npc-garde-blesse", "pronom lui après homme blessé: garde attendu");
+  assert.equal(approachWoundedManThenAsk.ask.output.displayPacket.displayBlocks.some(block =>
+    block.kind === "NPC_SPEECH" && block.speaker.displayName === "Garde blessé"
+  ), true, "question après approche homme blessé: réponse du garde attendue");
 
   const controllerResult = await runControllerSpeechCase();
   assert.equal(controllerResult.output.interpretation.intentType, "speech");
@@ -378,6 +445,148 @@ function invalidImplicitPossibilityConfig(): AiIntentInterpreterConfigV1 {
   };
 }
 
+function invalidApproachRuntimeConfig(): AiIntentInterpreterConfigV1 {
+  const config = createDefaultAiIntentInterpreterConfigV1();
+  return {
+    ...config,
+    provider: {
+      async generate(request) {
+        return {
+          schemaVersion: 1,
+          contractVersion: AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1,
+          outputId: "output-invalid-approach-runtime",
+          callId: request.callId,
+          attemptId: request.attemptId,
+          packId: request.packId,
+          snapshotId: request.snapshotId,
+          role: request.role,
+          status: "OK",
+          payload: {
+            rawInputEcho: "je me dirige vers la femme",
+            intents: [{
+              intentId: "intent:1",
+              order: 1,
+              intentType: "action",
+              commitment: "committed",
+              target: { kind: "npc", ref: "npc:npc-serveuse-nerveuse", label: "Serveuse nerveuse" },
+              action: "act",
+              referentResolution: {
+                schemaVersion: 1,
+                usedPreviousContext: false,
+                source: "current_input",
+                resolvedTarget: { kind: "npc", ref: "npc:npc-serveuse-nerveuse", label: "Serveuse nerveuse" },
+                evidence: ["je me dirige vers la femme"],
+                ambiguity: "none",
+                confidence: "high"
+              },
+              topic: "se placer près de la serveuse",
+              coreMeaning: "Le personnage se place près de la serveuse.",
+              playerImposedDetails: ["je me dirige vers la femme"],
+              openDetails: [],
+              forbiddenInterpretations: ["faire parler le PNJ automatiquement"],
+              requiresClarification: false,
+              clarificationQuestion: null,
+              riskFlags: [],
+              expectedTimeEffect: "DOMAIN_TO_DECIDE",
+              confidence: "high",
+              semanticIntent: semanticIntent({
+                kind: "nonverbal_signal",
+                playerGoal: "Se placer près de la serveuse.",
+                target: { kind: "npc", ref: "npc:npc-serveuse-nerveuse", label: "Serveuse nerveuse" },
+                commitment: "committed",
+                evidenceFromInput: ["je me dirige vers la femme"],
+                forbiddenInterpretations: ["faire parler le PNJ automatiquement"],
+                confidence: "high"
+              }),
+              runtimeHandling: runtimeHandling({
+                status: "SUPPORTED_BY_CURRENT_RUNTIME",
+                reason: "Domaine incohérent volontaire pour test.",
+                requiredDomain: "rest",
+                canonicalActionHint: "act",
+                noCommit: false,
+                noGameTime: false
+              })
+            }]
+          },
+          diagnostics: [],
+          supersedesOutputId: null
+        };
+      }
+    } satisfies ContractAiProviderV1
+  };
+}
+
+function invalidSpeechActionConfig(): AiIntentInterpreterConfigV1 {
+  const config = createDefaultAiIntentInterpreterConfigV1();
+  return {
+    ...config,
+    provider: {
+      async generate(request) {
+        return {
+          schemaVersion: 1,
+          contractVersion: AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1,
+          outputId: "output-invalid-speech-action",
+          callId: request.callId,
+          attemptId: request.attemptId,
+          packId: request.packId,
+          snapshotId: request.snapshotId,
+          role: request.role,
+          status: "OK",
+          payload: {
+            rawInputEcho: "je la salue, et je lui demande ce qu'il ce passe",
+            intents: [{
+              intentId: "intent:1",
+              order: 1,
+              intentType: "speech",
+              commitment: "committed",
+              target: { kind: "npc", ref: "npc:npc-serveuse-nerveuse", label: "Serveuse nerveuse" },
+              action: "force",
+              referentResolution: {
+                schemaVersion: 1,
+                usedPreviousContext: true,
+                source: "recent_visible_focus",
+                resolvedTarget: { kind: "npc", ref: "npc:npc-serveuse-nerveuse", label: "Serveuse nerveuse" },
+                evidence: ["je lui demande"],
+                ambiguity: "none",
+                confidence: "high"
+              },
+              topic: "ce qu'il se passe",
+              coreMeaning: "Le personnage demande à la serveuse ce qu'il se passe.",
+              playerImposedDetails: ["je la salue", "je lui demande ce qu'il se passe"],
+              openDetails: [],
+              forbiddenInterpretations: ["forcer une action", "accorder un succès social"],
+              requiresClarification: false,
+              clarificationQuestion: null,
+              riskFlags: [],
+              expectedTimeEffect: "DOMAIN_TO_DECIDE",
+              confidence: "high",
+              semanticIntent: semanticIntent({
+                kind: "address_visible_actor",
+                playerGoal: "Demander à la serveuse ce qu'il se passe.",
+                target: { kind: "npc", ref: "npc:npc-serveuse-nerveuse", label: "Serveuse nerveuse" },
+                commitment: "committed",
+                evidenceFromInput: ["je lui demande"],
+                forbiddenInterpretations: ["forcer une action", "accorder un succès social"],
+                confidence: "high"
+              }),
+              runtimeHandling: runtimeHandling({
+                status: "SUPPORTED_BY_CURRENT_RUNTIME",
+                reason: "Parole bornée vers un PNJ visible.",
+                requiredDomain: "social",
+                canonicalActionHint: "force",
+                noCommit: false,
+                noGameTime: false
+              })
+            }]
+          },
+          diagnostics: [],
+          supersedesOutputId: null
+        };
+      }
+    } satisfies ContractAiProviderV1
+  };
+}
+
 function ambiguousReferentConfig(): AiIntentInterpreterConfigV1 {
   const config = createDefaultAiIntentInterpreterConfigV1();
   return {
@@ -507,6 +716,150 @@ function nonCanonicalActionConfig(): AiIntentInterpreterConfigV1 {
                 reason: "Action locale visible.",
                 requiredDomain: "scene_resolution",
                 canonicalActionHint: "open",
+                noCommit: false,
+                noGameTime: false
+              })
+            }]
+          },
+          diagnostics: [],
+          supersedesOutputId: null
+        };
+      }
+    } satisfies ContractAiProviderV1
+  };
+}
+
+function directedApproachConfig(): AiIntentInterpreterConfigV1 {
+  const config = createDefaultAiIntentInterpreterConfigV1();
+  return {
+    ...config,
+    provider: {
+      async generate(request) {
+        return {
+          schemaVersion: 1,
+          contractVersion: AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1,
+          outputId: "output-directed-approach",
+          callId: request.callId,
+          attemptId: request.attemptId,
+          packId: request.packId,
+          snapshotId: request.snapshotId,
+          role: request.role,
+          status: "OK",
+          payload: {
+            rawInputEcho: "je me dirige vers le garde",
+            intents: [{
+              intentId: "intent:1",
+              order: 1,
+              intentType: "action",
+              commitment: "committed",
+              target: { kind: "npc", ref: "npc:npc-garde-blesse", label: "garde" },
+              action: "act",
+              referentResolution: {
+                schemaVersion: 1,
+                usedPreviousContext: false,
+                source: "current_input",
+                resolvedTarget: { kind: "npc", ref: "npc:npc-garde-blesse", label: "garde" },
+                evidence: ["je me dirige vers le garde", "garde"],
+                ambiguity: "none",
+                confidence: "high"
+              },
+              topic: "se placer près du garde",
+              coreMeaning: "Le personnage change de position vers le PNJ visible.",
+              playerImposedDetails: ["je me dirige vers le garde"],
+              openDetails: [],
+              forbiddenInterpretations: ["faire parler le PNJ automatiquement", "résoudre un effet social"],
+              requiresClarification: false,
+              clarificationQuestion: null,
+              riskFlags: [],
+              expectedTimeEffect: "DOMAIN_TO_DECIDE",
+              confidence: "high",
+              semanticIntent: semanticIntent({
+                kind: "nonverbal_signal",
+                playerGoal: "Se placer près du garde sans parole explicite.",
+                target: { kind: "npc", ref: "npc:npc-garde-blesse", label: "garde" },
+                commitment: "committed",
+                evidenceFromInput: ["je me dirige vers le garde"],
+                forbiddenInterpretations: ["faire parler le PNJ automatiquement", "résoudre un effet social"],
+                confidence: "high"
+              }),
+              runtimeHandling: runtimeHandling({
+                status: "SUPPORTED_BY_CURRENT_RUNTIME",
+                reason: "Positionnement local auprès d'un PNJ visible, sans parole explicite.",
+                requiredDomain: "scene_resolution",
+                canonicalActionHint: "act",
+                noCommit: false,
+                noGameTime: true
+              })
+            }]
+          },
+          diagnostics: [],
+          supersedesOutputId: null
+        };
+      }
+    } satisfies ContractAiProviderV1
+  };
+}
+
+function unprefixedWaitressConfig(): AiIntentInterpreterConfigV1 {
+  const config = createDefaultAiIntentInterpreterConfigV1();
+  return {
+    ...config,
+    provider: {
+      async generate(request) {
+        const rawInput = String((request.input.task as { rawInput?: unknown }).rawInput ?? "");
+        const isQuestion = /demande/u.test(rawInput);
+        return {
+          schemaVersion: 1,
+          contractVersion: AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1,
+          outputId: `output-unprefixed-waitress-${isQuestion ? "ask" : "call"}`,
+          callId: request.callId,
+          attemptId: request.attemptId,
+          packId: request.packId,
+          snapshotId: request.snapshotId,
+          role: request.role,
+          status: "OK",
+          payload: {
+            rawInputEcho: rawInput,
+            intents: [{
+              intentId: "intent:1",
+              order: 1,
+              intentType: "speech",
+              commitment: "committed",
+              target: { kind: "npc", ref: "npc-serveuse-nerveuse", label: "Serveuse nerveuse" },
+              action: isQuestion ? "ask" : "act",
+              referentResolution: {
+                schemaVersion: 1,
+                usedPreviousContext: isQuestion,
+                source: isQuestion ? "recent_visible_focus" : "current_input",
+                resolvedTarget: { kind: "npc", ref: "npc-serveuse-nerveuse", label: "Serveuse nerveuse" },
+                evidence: [rawInput],
+                ambiguity: "none",
+                confidence: "high"
+              },
+              topic: isQuestion ? "état de la serveuse" : "attirer l'attention de la serveuse",
+              coreMeaning: isQuestion ? "Le personnage demande à la serveuse si elle va bien." : "Le personnage appelle la serveuse.",
+              playerImposedDetails: [rawInput],
+              openDetails: [],
+              forbiddenInterpretations: ["répondre à la place du PNJ", "accorder un succès social"],
+              requiresClarification: false,
+              clarificationQuestion: null,
+              riskFlags: [],
+              expectedTimeEffect: "DOMAIN_TO_DECIDE",
+              confidence: "high",
+              semanticIntent: semanticIntent({
+                kind: "address_visible_actor",
+                playerGoal: isQuestion ? "Demander à la serveuse si elle va bien." : "Appeler la serveuse.",
+                target: { kind: "npc", ref: "npc-serveuse-nerveuse", label: "Serveuse nerveuse" },
+                commitment: "committed",
+                evidenceFromInput: [rawInput],
+                forbiddenInterpretations: ["répondre à la place du PNJ", "accorder un succès social"],
+                confidence: "high"
+              }),
+              runtimeHandling: runtimeHandling({
+                status: "SUPPORTED_BY_CURRENT_RUNTIME",
+                reason: "Parole bornée vers un PNJ visible.",
+                requiredDomain: "social",
+                canonicalActionHint: isQuestion ? "ask" : "act",
                 noCommit: false,
                 noGameTime: false
               })
@@ -689,6 +1042,96 @@ async function runControllerLocalReferentCase() {
   });
   if (!open.ok) throw new Error(open.error.messageKey);
   return { focus: focus.value, open: open.value };
+}
+
+async function runControllerApproachOnlyCase() {
+  const controller = await createPrototypeNarrativeTurnControllerV1();
+  const submitted = await controller.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-i06zk-approach-only",
+    rawInput: "Je m'approche du garde"
+  });
+  if (!submitted.ok) throw new Error(submitted.error.messageKey);
+  return submitted.value;
+}
+
+async function runControllerDirectedApproachCase() {
+  const controller = await createPrototypeNarrativeTurnControllerV1({ intentInterpreterConfig: directedApproachConfig() });
+  const submitted = await controller.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-i06zl-directed-approach",
+    rawInput: "je me dirige vers le garde"
+  });
+  if (!submitted.ok) throw new Error(submitted.error.messageKey);
+  return submitted.value;
+}
+
+async function runControllerApproachWaitressThenAskCase() {
+  const controller = await createPrototypeNarrativeTurnControllerV1();
+  const approach = await controller.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-i06zl-approach-waitress",
+    rawInput: "je m'approche de la serveuse"
+  });
+  if (!approach.ok) throw new Error(approach.error.messageKey);
+  const ask = await controller.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-i06zl-ask-waitress",
+    rawInput: "je lui demande ce qui ne va pas"
+  });
+  if (!ask.ok) throw new Error(ask.error.messageKey);
+  return { approach: approach.value, ask: ask.value };
+}
+
+async function runControllerApproachWomanThenAskCase() {
+  const controller = await createPrototypeNarrativeTurnControllerV1();
+  const approach = await controller.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-i06zl-approach-woman",
+    rawInput: "je m'avance vers la femme"
+  });
+  if (!approach.ok) throw new Error(approach.error.messageKey);
+  const ask = await controller.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-i06zl-ask-woman",
+    rawInput: "je lui demande comment elle va"
+  });
+  if (!ask.ok) throw new Error(ask.error.messageKey);
+  return { approach: approach.value, ask: ask.value };
+}
+
+async function runControllerUnprefixedWaitressCase() {
+  const controller = await createPrototypeNarrativeTurnControllerV1({ intentInterpreterConfig: unprefixedWaitressConfig() });
+  const call = await controller.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-i06zl-call-waitress-unprefixed",
+    rawInput: "j'appel la serveuse"
+  });
+  if (!call.ok) throw new Error(call.error.messageKey);
+  const ask = await controller.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-i06zl-ask-waitress-unprefixed",
+    rawInput: "je lui demande si elle va bien ?"
+  });
+  if (!ask.ok) throw new Error(ask.error.messageKey);
+  return { call: call.value, ask: ask.value };
+}
+
+async function runControllerApproachWoundedManThenAskCase() {
+  const controller = await createPrototypeNarrativeTurnControllerV1();
+  const approach = await controller.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-i06zl-approach-wounded-man",
+    rawInput: "je me dirige vers l'homme blessé"
+  });
+  if (!approach.ok) throw new Error(approach.error.messageKey);
+  const ask = await controller.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-i06zl-ask-wounded-man",
+    rawInput: "je lui demande ce qu'il a"
+  });
+  if (!ask.ok) throw new Error(ask.error.messageKey);
+  return { approach: approach.value, ask: ask.value };
 }
 
 async function runControllerUnsupportedRuntimeCase() {
