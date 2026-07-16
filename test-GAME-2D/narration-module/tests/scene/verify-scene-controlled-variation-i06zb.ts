@@ -107,6 +107,8 @@ function controllerOutput(operationId: string, rawInput: string, interp: Narrati
     noCommit: true,
     noGameTime: true,
     interpretation: interp as NarrativeIntentInterpretationV1 & JsonObject,
+    mjPlan: null,
+    mjPlannerFailure: null,
     suspendedIntent: null,
     resolution: res,
     sceneState: createInitialReferenceSceneStateV1(),

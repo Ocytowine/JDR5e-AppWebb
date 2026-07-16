@@ -2051,3 +2051,43 @@ La revue I-06X/I-06Y a validé que l'interprétation structurée est le bon endr
 ### Conséquences
 
 OpenAI peut proposer une intention structurée, mais ne peut toujours pas committer, avancer le temps, modifier inventaire/tactique/lore durable ou accorder un succès social. `mj_planner`, les PNJ autonomes et la certification live large restent fermés.
+
+## NAR-111 — Interprétation sémantique unique
+
+Statut : `RETENU`
+
+Date : 2026-07-16
+
+### Décision
+
+L'interprétation d'intention doit avoir un seul contrat actif, centré sur l'intention sémantique libre du joueur.
+
+L'intention sémantique porte le sens central, l'objectif apparent, la cible probable, les preuves dans le texte joueur, les incertitudes, les interprétations interdites et le statut d'exploitabilité par le runtime courant. Une action canonique peut rester un détail d'exploitation, mais elle ne remplace pas ce sens.
+
+### Raisons
+
+Les lots I-06X à I-06ZE ont sécurisé l'interprétation et les référents locaux, mais l'enum `action` et certains fallback/validateurs ramènent encore le système vers des catégories lexicales ou trop étroites. Cela contredit l'objectif produit de saisie libre et de compréhension ouverte. En version de test, masquer une panne IA par un fallback narratif est également contre-productif : il faut diagnostiquer l'échec au lieu de simuler un succès.
+
+### Conséquences
+
+Le prochain cadrage doit définir la seule version active du contrat d'interprétation, déclasser `action` en détail non central, ajouter des champs sémantiques minimaux et empêcher l'ajout de dictionnaires métier comme solution aux formulations naturelles. Une indisponibilité ou un rejet de l'IA d'interprétation doit produire un diagnostic explicite sans commit ni temps de jeu, pas une réponse fictionnelle de secours.
+
+## NAR-112 — MJ planner minimal non committable
+
+Statut : `RETENU`
+
+Date : 2026-07-16
+
+### Décision
+
+Le rôle `mj_planner` peut être ouvert uniquement en version minimale `mj-planner/1`.
+
+Il produit un plan structuré de protocole depuis l'intention interprétée et `runtimeHandling` : mouvements de scène, domaines requis, rôles IA éventuels, point de restitution au joueur et résultats interdits. Il ne produit pas de prose visible et ne possède aucune autorité de commit.
+
+### Raisons
+
+Après I-06ZF/I-06ZG, le système comprend mieux l'intention et sait bloquer un domaine fermé. Il manque encore la couche MJ qui organise ce que la scène doit tenter ensuite sans résoudre à la place des domaines propriétaires. Ouvrir le MJ complet serait trop large; ouvrir un planner minimal donne le bon chaînon sans intrigue dynamique ni mutation durable.
+
+### Conséquences
+
+Le contrôleur peut conserver un `mjPlan` technique sur les tours engagés. Les questions méta et possibilités pures ne déclenchent pas le planner. Les plans rejetant ou demandant un domaine fermé restent non committables. La route OpenAI serveur, `npc_performer`, les intrigues dynamiques, la création persistante et les domaines propriétaires jouables restent fermés tant qu'un lot dédié ne les ouvre pas.

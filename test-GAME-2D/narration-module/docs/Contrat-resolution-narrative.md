@@ -193,6 +193,15 @@ Le resolver doit rendre `HANDOFF_REQUIRED` au lieu de resoudre localement lorsqu
 
 Le handoff contient le contexte minimal, les references et l'intention. Il ne contient pas un resultat deja decide.
 
+Depuis I-06ZG, lorsque l'interpretation provient de `ai-intent-interpretation/1`, le champ `runtimeHandling` est la source prioritaire pour cette decision :
+
+- `SUPPORTED_BY_CURRENT_RUNTIME` autorise seulement la suite normale de validation locale, sans donner d'autorite de succes a l'IA ;
+- `NEEDS_CLARIFICATION` arrete le tour en `CLARIFICATION_REQUIRED` ;
+- `UNSUPPORTED_DOMAIN` arrete le tour en `HANDOFF_REQUIRED` vers le domaine indique (`inventory`, `tactical`, `rest`, `world`, etc.) ;
+- `AI_INTERPRETATION_FAILED` ne doit pas etre traite comme une resolution narrative.
+
+Les anciennes heuristiques textuelles du resolver restent une ceinture legacy pour les chemins sans interpretation IA runtime-aware. Elles ne doivent pas redevenir le moteur principal de routage.
+
 ## Politique d'erreur
 
 Toute sortie invalide doit aboutir a un etat explicite :

@@ -1,3 +1,5 @@
+import type { AiIntentRuntimeHandlingV1 } from "../ai/types";
+
 export const INTENT_CLARIFICATION_CONTRACT_VERSION_V1 = "intent-clarification/1" as const;
 
 export type NarrativeIntentTypeV1 =
@@ -35,6 +37,7 @@ export interface NarrativeIntentInterpretationV1 {
   commitment: NarrativeIntentCommitmentV1;
   target?: NarrativeIntentTargetV1 | null;
   action?: string | null;
+  runtimeHandling?: AiIntentRuntimeHandlingV1 | null;
   referentResolution?: NarrativeIntentReferentResolutionV1 | null;
   coreMeaning: string;
   requiresClarification: boolean;

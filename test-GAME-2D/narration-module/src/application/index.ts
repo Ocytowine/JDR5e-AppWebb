@@ -3,6 +3,7 @@ export * from "./aiNarrativeEnhancement";
 export * from "./aiIntentInterpretation";
 export * from "./intentClarification";
 export * from "./lorePlayableScene";
+export * from "./mjPlanning";
 export * from "./narrativeResolution";
 export * from "./narrativeRenderProjection";
 export * from "./playableScene";

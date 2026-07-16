@@ -32,6 +32,13 @@ import {
   type LocalReferentHintV1
 } from "./aiIntentInterpretation";
 import {
+  createDefaultMjPlannerConfigV1,
+  planNarrativeTurnWithMjV1,
+  type MjPlannerConfigV1,
+  type MjPlanningFailureV1
+} from "./mjPlanning";
+import type { MjPlannerPayloadV1 } from "../ai/types";
+import {
   resolveNarrativeTurnV1,
   type NarrativeResolutionResultV1
 } from "./narrativeResolution";
@@ -58,6 +65,8 @@ export interface NarrativeTurnControllerOutputV1 extends JsonObject {
   noCommit: boolean;
   noGameTime: boolean;
   interpretation: NarrativeIntentInterpretationV1 & JsonObject;
+  mjPlan: (MjPlannerPayloadV1 & JsonObject) | null;
+  mjPlannerFailure: (MjPlanningFailureV1 & JsonObject) | null;
   suspendedIntent: (SuspendedIntentRecordV1 & JsonObject) | null;
   resolution: NarrativeResolutionResultV1;
   sceneState: ReferenceSceneStateV1;
@@ -75,6 +84,7 @@ export interface NarrativeTurnControllerOptions {
   clock?: RepositoryClock;
   idPrefix?: string;
   intentInterpreterConfig?: AiIntentInterpreterConfigV1 | null;
+  mjPlannerConfig?: MjPlannerConfigV1 | null;
 }
 
 const DEFAULT_CAMPAIGN_ID = opaqueId<CampaignId>("cmp-narrative-prototype");
@@ -87,6 +97,7 @@ export class NarrativeTurnControllerV1 {
   private readonly clock: RepositoryClock;
   private readonly idPrefix: string;
   private readonly intentInterpreterConfig: AiIntentInterpreterConfigV1 | null;
+  private readonly mjPlannerConfig: MjPlannerConfigV1 | null;
   private recentLocalReferents: LocalReferentHintV1[] = [];
 
   constructor(options: NarrativeTurnControllerOptions) {
@@ -97,6 +108,9 @@ export class NarrativeTurnControllerV1 {
     this.intentInterpreterConfig = options.intentInterpreterConfig === undefined
       ? createDefaultAiIntentInterpreterConfigV1()
       : options.intentInterpreterConfig;
+    this.mjPlannerConfig = options.mjPlannerConfig === undefined
+      ? createDefaultMjPlannerConfigV1()
+      : options.mjPlannerConfig;
   }
 
   async submit(input: NarrativeTurnInputV1): Promise<Result<NarrativeTurnControllerResultV1>> {
@@ -153,6 +167,7 @@ export class NarrativeTurnControllerV1 {
       input,
       createdAt: this.clock.now().toISOString(),
       intentInterpreterConfig: this.intentInterpreterConfig,
+      mjPlannerConfig: this.mjPlannerConfig,
       localReferentHints: this.recentLocalReferents
     });
     if (!output.ok) return output;
@@ -212,6 +227,7 @@ export class NarrativeTurnControllerV1 {
 export async function createPrototypeNarrativeTurnControllerV1(options: {
   clock?: RepositoryClock;
   intentInterpreterConfig?: AiIntentInterpreterConfigV1 | null;
+  mjPlannerConfig?: MjPlannerConfigV1 | null;
 } = {}): Promise<NarrativeTurnControllerV1> {
   const clock = options.clock ?? systemClock;
   const repository = new MemoryCampaignRepository({ clock });
@@ -220,7 +236,8 @@ export async function createPrototypeNarrativeTurnControllerV1(options: {
     repository,
     campaignId: DEFAULT_CAMPAIGN_ID,
     clock,
-    intentInterpreterConfig: options.intentInterpreterConfig
+    intentInterpreterConfig: options.intentInterpreterConfig,
+    mjPlannerConfig: options.mjPlannerConfig
   });
 }
 
@@ -228,11 +245,13 @@ export async function createBrowserPersistentNarrativeTurnControllerV1(options: 
   clock?: RepositoryClock;
   databaseName?: string;
   intentInterpreterConfig?: AiIntentInterpreterConfigV1 | null;
+  mjPlannerConfig?: MjPlannerConfigV1 | null;
 } = {}): Promise<NarrativeTurnControllerV1> {
   const clock = options.clock ?? systemClock;
   if (!globalThis.indexedDB) return createPrototypeNarrativeTurnControllerV1({
     clock,
-    intentInterpreterConfig: options.intentInterpreterConfig
+    intentInterpreterConfig: options.intentInterpreterConfig,
+    mjPlannerConfig: options.mjPlannerConfig
   });
   const repository = await IndexedDbCampaignRepository.open({
     clock,
@@ -243,7 +262,8 @@ export async function createBrowserPersistentNarrativeTurnControllerV1(options: 
     repository,
     campaignId: DEFAULT_CAMPAIGN_ID,
     clock,
-    intentInterpreterConfig: options.intentInterpreterConfig
+    intentInterpreterConfig: options.intentInterpreterConfig,
+    mjPlannerConfig: options.mjPlannerConfig
   });
 }
 
@@ -364,6 +384,8 @@ export function buildNoCommitOutput(
     noCommit: true,
     noGameTime: true,
     interpretation,
+    mjPlan: null,
+    mjPlannerFailure: null,
     suspendedIntent,
     resolution: {
       schemaVersion: 1,
@@ -391,6 +413,7 @@ async function buildResolvedOutput(input: {
   input: NarrativeTurnInputV1;
   createdAt: string;
   intentInterpreterConfig: AiIntentInterpreterConfigV1 | null;
+  mjPlannerConfig: MjPlannerConfigV1 | null;
   localReferentHints?: LocalReferentHintV1[];
 }): Promise<Result<{ output: NarrativeTurnControllerOutputV1; commit: unknown | null }>> {
   const intentId = `${input.operation.operationId}:intent:1`;
@@ -407,6 +430,15 @@ async function buildResolvedOutput(input: {
       config: input.intentInterpreterConfig,
       localReferentHints: input.localReferentHints ?? []
     })).interpretation as NarrativeIntentInterpretationV1 & JsonObject;
+  const planning = input.mjPlannerConfig === null
+    ? null
+    : await planNarrativeTurnWithMjV1({
+      campaignId: input.campaignId,
+      operationId: input.operation.operationId,
+      rawInput: input.input.rawInput,
+      interpretation,
+      config: input.mjPlannerConfig
+    });
   const suspendedIntent = interpretation.requiresClarification
     ? createSuspendedIntentRecordV1({
       suspendedIntentId: `${input.operation.operationId}:suspended:1`,
@@ -438,6 +470,8 @@ async function buildResolvedOutput(input: {
         noCommit: resolution.value.commit === null,
         noGameTime: resolution.value.result.noGameTime,
         interpretation,
+        mjPlan: planning?.plan ?? null,
+        mjPlannerFailure: planning?.planningFailure as (MjPlanningFailureV1 & JsonObject) | null ?? null,
         suspendedIntent,
         resolution: resolution.value.result,
         sceneState: resolution.value.sceneState,

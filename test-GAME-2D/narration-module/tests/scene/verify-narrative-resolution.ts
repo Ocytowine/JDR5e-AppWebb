@@ -59,6 +59,7 @@ async function main(): Promise<void> {
   });
   if (!possibility.ok) throw new Error(possibility.error.messageKey);
   assert.equal(possibility.value.output.resolution.resultKind, "NO_COMMIT_RESPONSE");
+  assert.equal(possibility.value.output.mjPlan, null, "mj_planner non appelé pour possibilité pure");
   assert.equal(possibility.value.output.noCommit, true);
   assert.equal(possibility.value.operation.commitId, null);
   assert.match(possibility.value.output.displayPacket.displayBlocks.at(-1)?.text ?? "", /Aucune action/);
@@ -69,6 +70,8 @@ async function main(): Promise<void> {
     rawInput: "Je vole la bourse du garde"
   });
   if (!steal.ok) throw new Error(steal.error.messageKey);
+  assert.equal(steal.value.output.mjPlan?.sceneBeats[0]?.kind, "DOMAIN_BLOCKED");
+  assert.equal(steal.value.output.mjPlan?.planningBasis.requiredDomain, "inventory");
   assert.equal(steal.value.output.resolution.resultKind, "HANDOFF_REQUIRED");
   assert.equal(steal.value.output.resolution.handoff?.target, "INVENTORY");
   assert.equal(steal.value.operation.commitId, null);
@@ -79,6 +82,8 @@ async function main(): Promise<void> {
     rawInput: "J'attaque le garde"
   });
   if (!attack.ok) throw new Error(attack.error.messageKey);
+  assert.equal(attack.value.output.mjPlan?.sceneBeats[0]?.kind, "DOMAIN_BLOCKED");
+  assert.equal(attack.value.output.mjPlan?.planningBasis.requiredDomain, "tactical");
   assert.equal(attack.value.output.resolution.resultKind, "HANDOFF_REQUIRED");
   assert.equal(attack.value.output.resolution.handoff?.target, "TACTICAL");
   assert.match(attack.value.output.displayPacket.displayBlocks.at(-1)?.text ?? "", /handoff tactique/i);
@@ -89,6 +94,8 @@ async function main(): Promise<void> {
     rawInput: "Je dis au garde que je cherche les archives"
   });
   if (!speech.ok) throw new Error(speech.error.messageKey);
+  assert.equal(speech.value.output.mjPlan?.sceneBeats[0]?.kind, "ACTOR_REACTION_EXPECTED");
+  assert.equal(speech.value.output.mjPlan?.commandProposals.every(proposal => proposal.commitAuthority === false), true);
   assert.equal(speech.value.output.resolution.resultKind, "COMMIT_APPLIED");
   assert.equal(speech.value.output.noCommit, false);
   assert.equal(speech.value.operation.completionMode, "COMMITTED_RENDERED");

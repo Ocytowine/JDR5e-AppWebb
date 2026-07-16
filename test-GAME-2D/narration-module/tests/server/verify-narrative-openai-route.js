@@ -128,6 +128,36 @@ function intentRequest(overrides = {}) {
 }
 
 function intentOutputFor(req, overrides = {}) {
+  const intent = {
+    intentId: "intent:1",
+    order: 1,
+    intentType: "speech",
+    commitment: "committed",
+    target: { kind: "npc", ref: "npc:npc-garde-blesse", label: "garde" },
+    action: "ask",
+    referentResolution: {
+      schemaVersion: 1,
+      usedPreviousContext: false,
+      source: "current_input",
+      resolvedTarget: { kind: "npc", ref: "npc:npc-garde-blesse", label: "garde" },
+      evidence: [req.input.task.rawInput, "garde"],
+      ambiguity: "none",
+      confidence: "high"
+    },
+    topic: "s'il a vu quelque chose d'étrange",
+    coreMeaning: "Le personnage demande au garde s'il a vu quelque chose d'étrange.",
+    playerImposedDetails: ["s'approcher du garde", "poser une question"],
+    openDetails: [],
+    forbiddenInterpretations: ["le garde répond", "un succès social est acquis"],
+    requiresClarification: false,
+    clarificationQuestion: null,
+    riskFlags: [],
+    expectedTimeEffect: "DOMAIN_TO_DECIDE",
+    confidence: "high",
+    ...overrides.intent
+  };
+  if (!intent.semanticIntent) intent.semanticIntent = semanticIntentFor(req, intent);
+  if (!intent.runtimeHandling) intent.runtimeHandling = runtimeHandlingFor(intent);
   return {
     schemaVersion: 1,
     contractVersion: req.contractVersion,
@@ -140,37 +170,46 @@ function intentOutputFor(req, overrides = {}) {
     status: "OK",
     payload: {
       rawInputEcho: req.input.task.rawInput,
-      intents: [{
-        intentId: "intent:1",
-        order: 1,
-        intentType: "speech",
-        commitment: "committed",
-        target: { kind: "npc", ref: "npc:npc-garde-blesse", label: "garde" },
-        action: "ask",
-        referentResolution: {
-          schemaVersion: 1,
-          usedPreviousContext: false,
-          source: "current_input",
-          resolvedTarget: { kind: "npc", ref: "npc:npc-garde-blesse", label: "garde" },
-          evidence: [req.input.task.rawInput, "garde"],
-          ambiguity: "none",
-          confidence: "high"
-        },
-        topic: "s'il a vu quelque chose d'étrange",
-        coreMeaning: "Le personnage demande au garde s'il a vu quelque chose d'étrange.",
-        playerImposedDetails: ["s'approcher du garde", "poser une question"],
-        openDetails: [],
-        forbiddenInterpretations: ["le garde répond", "un succès social est acquis"],
-        requiresClarification: false,
-        clarificationQuestion: null,
-        riskFlags: [],
-        expectedTimeEffect: "DOMAIN_TO_DECIDE",
-        confidence: "high",
-        ...overrides.intent
-      }]
+      intents: [intent]
     },
     diagnostics: [],
     supersedesOutputId: null
+  };
+}
+
+function semanticIntentFor(req, intent) {
+  return {
+    schemaVersion: 1,
+    kind: semanticKindFor(intent),
+    playerGoal: intent.coreMeaning,
+    target: intent.target,
+    commitment: intent.commitment,
+    evidenceFromInput: [req.input.task.rawInput],
+    uncertainties: intent.requiresClarification ? ["intention à clarifier"] : [],
+    forbiddenInterpretations: [...intent.forbiddenInterpretations],
+    confidence: intent.confidence
+  };
+}
+
+function semanticKindFor(intent) {
+  if (intent.intentType === "speech") return "address_visible_actor";
+  if (intent.intentType === "possibility_query") return "hypothetical_action";
+  if (intent.intentType === "meta_question") return "context_question";
+  if (intent.intentType === "action") return "manipulate_visible_object";
+  if (intent.intentType === "unclear_commitment") return "unclear_intent";
+  return "unclear_intent";
+}
+
+function runtimeHandlingFor(intent) {
+  const noCommit = intent.commitment !== "committed";
+  return {
+    schemaVersion: 1,
+    status: intent.requiresClarification ? "NEEDS_CLARIFICATION" : "SUPPORTED_BY_CURRENT_RUNTIME",
+    reason: intent.requiresClarification ? "Clarification joueur requise." : "Intention exploitable par le runtime courant.",
+    requiredDomain: intent.commitment === "committed" ? "scene_resolution" : null,
+    canonicalActionHint: intent.action,
+    noCommit,
+    noGameTime: intent.expectedTimeEffect === "NO_GAME_TIME"
   };
 }
 

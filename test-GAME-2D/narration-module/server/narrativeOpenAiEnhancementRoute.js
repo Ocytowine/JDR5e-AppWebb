@@ -133,6 +133,8 @@ function buildRolePayloadSchema(requestOrRole) {
               "commitment",
               "target",
               "action",
+              "semanticIntent",
+              "runtimeHandling",
               "referentResolution",
               "topic",
               "coreMeaning",
@@ -176,6 +178,50 @@ function buildRolePayloadSchema(requestOrRole) {
                 ]
               },
               action: { enum: ["ask_possibility", "ask", "open", "force", "observe", "act", null] },
+              semanticIntent: {
+                type: "object",
+                additionalProperties: false,
+                required: ["schemaVersion", "kind", "playerGoal", "target", "commitment", "evidenceFromInput", "uncertainties", "forbiddenInterpretations", "confidence"],
+                properties: {
+                  schemaVersion: { enum: [1] },
+                  kind: { enum: ["address_visible_actor", "manipulate_visible_object", "observe_environment", "nonverbal_signal", "hypothetical_action", "context_question", "meta_request", "unclear_intent"] },
+                  playerGoal: { type: "string" },
+                  target: {
+                    anyOf: [
+                      {
+                        type: "object",
+                        additionalProperties: false,
+                        required: ["kind", "ref", "label"],
+                        properties: {
+                          kind: { enum: ["npc", "place", "object", "self", "unknown"] },
+                          ref: { type: ["string", "null"] },
+                          label: { type: ["string", "null"] }
+                        }
+                      },
+                      { type: "null" }
+                    ]
+                  },
+                  commitment: { enum: ["none", "hypothetical", "conditional", "committed", "unclear"] },
+                  evidenceFromInput: { type: "array", minItems: 1, items: { type: "string" } },
+                  uncertainties: { type: "array", items: { type: "string" } },
+                  forbiddenInterpretations: { type: "array", items: { type: "string" } },
+                  confidence: { enum: ["low", "medium", "high"] }
+                }
+              },
+              runtimeHandling: {
+                type: "object",
+                additionalProperties: false,
+                required: ["schemaVersion", "status", "reason", "requiredDomain", "canonicalActionHint", "noCommit", "noGameTime"],
+                properties: {
+                  schemaVersion: { enum: [1] },
+                  status: { enum: ["SUPPORTED_BY_CURRENT_RUNTIME", "UNSUPPORTED_DOMAIN", "NEEDS_CLARIFICATION", "AI_INTERPRETATION_FAILED"] },
+                  reason: { type: "string" },
+                  requiredDomain: { enum: ["scene_resolution", "social", "perception", "inventory", "tactical", "rest", "world", null] },
+                  canonicalActionHint: { enum: ["ask_possibility", "ask", "open", "force", "observe", "act", null] },
+                  noCommit: { type: "boolean" },
+                  noGameTime: { type: "boolean" }
+                }
+              },
               referentResolution: {
                 anyOf: [
                   {
@@ -560,12 +606,17 @@ function buildRoleInstructions(request) {
       "Recopie exactement schemaVersion, contractVersion, callId, attemptId, packId, snapshotId et role depuis l'entree utilisateur.",
       "Utilise diagnostics=[] si tout va bien, supersedesOutputId=null et status=OK pour une sortie utilisable.",
       "Role player_intent_interpreter: produire une intention structuree, pas un resultat.",
+      "Chaque intention doit remplir semanticIntent: kind, playerGoal, target, commitment, evidenceFromInput, uncertainties, forbiddenInterpretations et confidence.",
+      "semanticIntent.playerGoal porte le sens principal de la saisie joueur; ne le reduis pas a une action canonique.",
+      "Chaque intention doit remplir runtimeHandling: status, reason, requiredDomain, canonicalActionHint, noCommit et noGameTime.",
+      "runtimeHandling indique si le runtime courant peut traiter l'intention; il ne donne aucune autorite de commit, succes, temps ou secret.",
+      "Le champ action et runtimeHandling.canonicalActionHint sont seulement des aides d'exploitation: ask_possibility, ask, open, force, observe, act ou null.",
       "Une question de possibilite comme 'Est-ce que je peux...' ou 'Puis-je...' doit rester intentType=possibility_query, commitment=hypothetical, expectedTimeEffect=NO_GAME_TIME.",
       "Une demande polie d'interaction comme 'j'aimerais parler a un garde' est une intention de parole engagee: intentType=speech, commitment=committed, expectedTimeEffect=DOMAIN_TO_DECIDE.",
       "Une parole claire adressee a un PNJ doit etre intentType=speech, commitment=committed, expectedTimeEffect=DOMAIN_TO_DECIDE, sans inventer la reponse du PNJ.",
       "Une phrase composee avec micro-deplacement social, par exemple 'je m'approche du garde et je lui demande...', doit rester speech ou mixed avec expectedTimeEffect=DOMAIN_TO_DECIDE; ne la reduis pas a action.",
       "Une action explicite doit etre intentType=action, commitment=committed, expectedTimeEffect=DOMAIN_TO_DECIDE.",
-      "Le champ action doit etre une categorie canonique du contrat, pas une reprise du mot du joueur: ask_possibility, ask, open, force, observe ou act.",
+      "Une action implicite contextuelle comme 'je mets la main sur la poignee et pivote le mecanisme' devant une porte visible peut etre comprise comme semanticIntent.kind=manipulate_visible_object et canonicalActionHint=open sans exiger le mot ouvrir.",
       "Si task.localReferentHints contient un referent recent unique compatible avec une ellipse ou un pronom local ('le', 'la', 'lui', \"l'\"), renseigne target et referentResolution avec source=recent_visible_focus; sinon laisse le referent ambigu et demande clarification.",
       "referentResolution decrit uniquement ton choix de referent: il ne valide pas la reussite, ne deplace pas le personnage et ne revele aucun contenu cache.",
       "Une question meta ou interface doit etre intentType=meta_question, commitment=none, expectedTimeEffect=NO_GAME_TIME.",
@@ -690,6 +741,9 @@ function validateRolePayload(payload, role, request = null) {
     const explicitPossibilityQuestion = isExplicitPossibilityQuestionText(sourceRawInput);
     const ellipticalObjectQuestion = isEllipticalObjectQuestionText(sourceRawInput);
     const allowedIntentActions = new Set(["ask_possibility", "ask", "open", "force", "observe", "act"]);
+    const allowedSemanticKinds = new Set(["address_visible_actor", "manipulate_visible_object", "observe_environment", "nonverbal_signal", "hypothetical_action", "context_question", "meta_request", "unclear_intent"]);
+    const allowedRuntimeStatuses = new Set(["SUPPORTED_BY_CURRENT_RUNTIME", "UNSUPPORTED_DOMAIN", "NEEDS_CLARIFICATION", "AI_INTERPRETATION_FAILED"]);
+    const allowedRuntimeDomains = new Set(["scene_resolution", "social", "perception", "inventory", "tactical", "rest", "world"]);
     if (!Array.isArray(payload.intents) || payload.intents.length === 0 || payload.intents.length > 3) {
       issues.push("payload.intents must contain 1 to 3 intents.");
       return issues;
@@ -719,6 +773,8 @@ function validateRolePayload(payload, role, request = null) {
       if (!(intent.action === null || allowedIntentActions.has(intent.action))) {
         issues.push(`payload.intents[${index}].action must be a canonical action or null.`);
       }
+      issues.push(...validateIntentSemanticIntent(intent.semanticIntent, intent, index, allowedSemanticKinds));
+      issues.push(...validateIntentRuntimeHandling(intent.runtimeHandling, intent, index, allowedIntentActions, allowedRuntimeStatuses, allowedRuntimeDomains));
       issues.push(...validateIntentReferentResolution(intent.referentResolution, index));
       if (typeof intent.coreMeaning !== "string" || intent.coreMeaning.trim().length === 0) issues.push(`payload.intents[${index}].coreMeaning must be a non-empty string.`);
       for (const key of ["playerImposedDetails", "openDetails", "forbiddenInterpretations", "riskFlags"]) {
@@ -823,6 +879,56 @@ function validateCommittedActionReferent(intent, index) {
   if (!["poi:back-room-door", "npc:npc-garde-blesse", "npc:npc-serveuse-nerveuse"].includes(target.ref)) {
     issues.push(`payload.intents[${index}] committed open/force action target is not visible in the current scene.`);
   }
+  return issues;
+}
+
+function validateIntentSemanticIntent(value, intent, index, allowedSemanticKinds) {
+  const issues = [];
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return [`payload.intents[${index}].semanticIntent must be an object.`];
+  }
+  if (value.schemaVersion !== 1) issues.push(`payload.intents[${index}].semanticIntent.schemaVersion must be 1.`);
+  if (!allowedSemanticKinds.has(value.kind)) issues.push(`payload.intents[${index}].semanticIntent.kind is invalid.`);
+  if (typeof value.playerGoal !== "string" || value.playerGoal.trim().length === 0) issues.push(`payload.intents[${index}].semanticIntent.playerGoal must be a non-empty string.`);
+  if (value.commitment !== intent.commitment) issues.push(`payload.intents[${index}].semanticIntent.commitment must match commitment.`);
+  if (!["low", "medium", "high"].includes(value.confidence)) issues.push(`payload.intents[${index}].semanticIntent.confidence is invalid.`);
+  if (!Array.isArray(value.evidenceFromInput) || value.evidenceFromInput.length === 0 || value.evidenceFromInput.some(item => typeof item !== "string")) {
+    issues.push(`payload.intents[${index}].semanticIntent.evidenceFromInput must be a non-empty string array.`);
+  }
+  for (const key of ["uncertainties", "forbiddenInterpretations"]) {
+    if (!Array.isArray(value[key]) || value[key].some(item => typeof item !== "string")) {
+      issues.push(`payload.intents[${index}].semanticIntent.${key} must be a string array.`);
+    }
+  }
+  if (value.target !== null) {
+    if (!value.target || typeof value.target !== "object" || Array.isArray(value.target)) {
+      issues.push(`payload.intents[${index}].semanticIntent.target must be an object or null.`);
+    } else {
+      if (!["npc", "place", "object", "self", "unknown"].includes(value.target.kind)) issues.push(`payload.intents[${index}].semanticIntent.target.kind is invalid.`);
+      if (!(typeof value.target.ref === "string" || value.target.ref === null)) issues.push(`payload.intents[${index}].semanticIntent.target.ref must be a string or null.`);
+      if (!(typeof value.target.label === "string" || value.target.label === null)) issues.push(`payload.intents[${index}].semanticIntent.target.label must be a string or null.`);
+    }
+  }
+  return issues;
+}
+
+function validateIntentRuntimeHandling(value, intent, index, allowedIntentActions, allowedRuntimeStatuses, allowedRuntimeDomains) {
+  const issues = [];
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return [`payload.intents[${index}].runtimeHandling must be an object.`];
+  }
+  if (value.schemaVersion !== 1) issues.push(`payload.intents[${index}].runtimeHandling.schemaVersion must be 1.`);
+  if (!allowedRuntimeStatuses.has(value.status)) issues.push(`payload.intents[${index}].runtimeHandling.status is invalid.`);
+  if (value.status === "AI_INTERPRETATION_FAILED") issues.push(`payload.intents[${index}].runtimeHandling.status failed output must not be accepted.`);
+  if (value.status === "NEEDS_CLARIFICATION" && intent.requiresClarification !== true) issues.push(`payload.intents[${index}].runtimeHandling NEEDS_CLARIFICATION requires clarification.`);
+  if (typeof value.reason !== "string" || value.reason.trim().length === 0) issues.push(`payload.intents[${index}].runtimeHandling.reason must be a non-empty string.`);
+  if (!(value.requiredDomain === null || allowedRuntimeDomains.has(value.requiredDomain))) issues.push(`payload.intents[${index}].runtimeHandling.requiredDomain is invalid.`);
+  if (!(value.canonicalActionHint === null || allowedIntentActions.has(value.canonicalActionHint))) issues.push(`payload.intents[${index}].runtimeHandling.canonicalActionHint must be canonical or null.`);
+  if (value.canonicalActionHint !== null && intent.action !== null && value.canonicalActionHint !== intent.action) {
+    issues.push(`payload.intents[${index}].runtimeHandling.canonicalActionHint must match action when both are provided.`);
+  }
+  if (typeof value.noCommit !== "boolean") issues.push(`payload.intents[${index}].runtimeHandling.noCommit must be a boolean.`);
+  if (typeof value.noGameTime !== "boolean") issues.push(`payload.intents[${index}].runtimeHandling.noGameTime must be a boolean.`);
   return issues;
 }
 

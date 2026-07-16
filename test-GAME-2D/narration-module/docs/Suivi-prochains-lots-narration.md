@@ -569,6 +569,111 @@ Regle de conception :
 - aucun secret, changement de scene complet, tactique, intrigue ou `mj_planner` n'est ouvert ;
 - aucune condition speciale du type `porte du fond -> ouvrir` ne doit etre ajoutee.
 
+## I-06ZF — Interpretation semantique unique
+
+Statut : `IMPLEMENTE_DANS_PERIMETRE` le 2026-07-16.
+References : [`Cadrage-interpretation-semantique-ouverte.md`](Cadrage-interpretation-semantique-ouverte.md), [`Matrice-cas-I06ZF-interpretation-semantique.md`](Matrice-cas-I06ZF-interpretation-semantique.md).
+
+Contrat en revision : [`Contrat-interpretation-ia-intention.md`](Contrat-interpretation-ia-intention.md) conserve `ai-intent-interpretation/1` comme seule version active et ajoute `semanticIntent`, `runtimeHandling` et le diagnostic d'echec d'interpretation.
+
+Objectif : corriger la tension post-I-06ZE entre l'ambition de comprehension ouverte et les categories systeme trop etroites.
+
+Decision de cap :
+
+- l'IA doit produire la seule interpretation active du tour;
+- l'intention semantique libre devient le coeur du contrat, pas une action canonique;
+- une action canonique (`open`, `force`, `observe`, etc.) peut rester comme detail d'exploitation, mais ne porte pas le sens principal;
+- le code doit valider les autorites, references, secrets, consequences et domaines ouverts, sans comprendre le langage par regex;
+- une panne IA ou une sortie rejetee doit produire un diagnostic explicite, pas un fallback narratif qui donne l'impression que le tour fonctionne.
+
+Cas temoin :
+
+```text
+Le personnage est devant la porte du fond.
+Je mets la main sur la poignee et pivote le mecanisme.
+```
+
+Attendu cible : l'intention peut etre comprise comme une manipulation ou tentative d'ouverture du passage sans que le joueur emploie le mot `ouvrir`; le code ne valide que cible visible, absence de resultat invente et perimetre de resolution.
+
+Prochaine sortie attendue :
+
+- relire la revision contractuelle de `ai-intent-interpretation/1`;
+- valider ou ajuster les champs semantiques minimaux;
+- valider ou ajuster le format de diagnostic d'echec IA en mode test;
+- selectionner les cas de test depuis la matrice I-06ZF;
+- verifier que les validations restent des validations d'autorite, pas des dictionnaires metier.
+
+Hors perimetre :
+
+- pas de `mj_planner`;
+- pas de creation durable automatique;
+- pas de moteur social mecanique;
+- pas de branchement tactique ou repos jouable;
+- pas de liste lexicale pour compenser l'interpretation IA;
+- pas de fallback produit qui transforme une panne IA en reponse fictionnelle.
+
+Livraison :
+
+- `ai-intent-interpretation/1` transporte `semanticIntent` et `runtimeHandling`;
+- une sortie IA invalide produit un diagnostic explicite sans fallback narratif;
+- le cas "poignee / mecanisme" devant la porte visible est couvert comme intention semantique exploitable;
+- validations TypeScript et serveur OpenAI renforcees;
+- preuves : `npm run narration-module:test:ai-intent-interpretation`, `node narration-module\tests\server\verify-narrative-openai-route.js`, `npm run build`.
+
+## I-06ZG — Verrou runtime d'exploitation des intentions
+
+Statut : `IMPLEMENTE_DANS_PERIMETRE` le 2026-07-16.
+
+Objectif : transformer le statut `runtimeHandling` produit par l'interpreteur IA en decision runtime explicite avant toute resolution locale.
+
+Probleme traite :
+
+- l'IA peut maintenant comprendre une intention ouverte;
+- le runtime doit dire clairement s'il sait l'exploiter;
+- un domaine non ouvert ne doit pas etre resolu par narration, ni par une regex sur le texte brut.
+
+Livraison :
+
+- `NarrativeIntentInterpretationV1` transporte `runtimeHandling`;
+- le resolver lit `runtimeHandling` avant les heuristiques legacy;
+- `UNSUPPORTED_DOMAIN` produit `HANDOFF_REQUIRED` vers le domaine proprietaire;
+- `NEEDS_CLARIFICATION` et `AI_INTERPRETATION_FAILED` restent non committables;
+- preuve ajoutee sur une intention d'inventaire formulee sans mot-cle lexical evident : `Je glisse deux doigts vers la bourse accrochee a sa ceinture.`;
+- test : `npm run narration-module:test:ai-intent-interpretation`.
+
+Hors perimetre :
+
+- pas d'ouverture du moteur inventaire;
+- pas de resolution de vol;
+- pas de consequence sociale ou tactique;
+- pas de nouveau fallback narratif.
+
+## I-06ZH — MJ planner minimal
+
+Statut : `IMPLEMENTE_DANS_PERIMETRE` le 2026-07-16.
+Référence : [`Cadrage-I06ZH-mj-planner-minimal.md`](Cadrage-I06ZH-mj-planner-minimal.md).
+
+Objectif : introduire `mj_planner` comme couche de planification sémantique non committable entre intention et résolution.
+
+Livraison :
+
+- contrat minimal `mj-planner/1`;
+- provider local déterministe `LocalMjPlannerProviderV1`;
+- validation stricte du payload planner, notamment `commitAuthority=false`;
+- appel contrôleur sur intentions engagées ou domaines fermés;
+- pas d'appel sur questions méta, possibilités pures ou clarifications;
+- sortie technique `mjPlan` / `mjPlannerFailure` conservée dans `NarrativeTurnControllerOutputV1`;
+- preuves : `npm run narration-module:test:ai-intent-interpretation`, `npm run narration-module:test:narrative-resolution`, `npm run narration-module:test:ai-pipeline`, `npm run narration-module:build`.
+
+Hors périmètre :
+
+- pas de route OpenAI live `mj_planner`;
+- pas de MJ complet;
+- pas d'intrigue dynamique;
+- pas de création persistante;
+- pas de résolution sociale mécanique;
+- pas de domaine propriétaire ouvert.
+
 ## Critères retenus pour la sortie I-06
 
 La sortie I-06 est cadrée par [`Sortie-phase-I06.md`](Sortie-phase-I06.md). Les critères retenus sont :

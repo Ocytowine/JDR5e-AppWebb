@@ -11,6 +11,7 @@ import {
   type AiRetryPolicyV1,
   type AiRoleOutputEnvelopeV1,
   type IntentInterpreterPayloadV1,
+  type MjPlannerPayloadV1,
   type SceneWriterPayloadV1
 } from "../../src/ai";
 import { assert } from "../contracts/assertions";
@@ -254,6 +255,80 @@ async function run(): Promise<void> {
   }));
   assert.equal(sceneValidation.accepted, true);
   console.log("PASS [ai-pipeline] post-commit render can fall back deterministically without replaying business resolution");
+
+  const plannerPayload: MjPlannerPayloadV1 = {
+    schemaVersion: 1,
+    planId: "plan-mj-001",
+    planningBasis: {
+      intentId: "intent-action-001",
+      semanticGoal: "Tenter une action locale.",
+      runtimeStatus: "SUPPORTED_BY_CURRENT_RUNTIME",
+      requiredDomain: "scene_resolution"
+    },
+    sceneBeats: [{
+      beatId: "beat-local-action",
+      kind: "LOCAL_ACTION_ATTEMPT",
+      actorIds: [],
+      stopCondition: "Rendre la main après validation."
+    }],
+    commandProposals: [{
+      proposalId: "proposal-local-action",
+      domain: "scene_resolution",
+      commandType: "scene.local_intent.consider",
+      targetRefs: ["poi:back-room-door"],
+      payload: { action: "open" },
+      commitAuthority: false
+    }],
+    creationProposals: [],
+    actorAssignments: [{
+      role: "scene_writer",
+      actorId: null,
+      reason: "Rédiger seulement après validation."
+    }],
+    revealPlan: { reveal: [], hint: [], withhold: ["secret"] },
+    timeAdvanceProposal: null,
+    playerHandoff: {
+      handoffKind: "END_TURN",
+      reason: "Plan borné."
+    },
+    riskFlags: [],
+    respectedCommitmentRefs: ["intent:intent-action-001"],
+    forbiddenOutcomes: ["commit_direct"]
+  };
+  const plannerOutput: AiRoleOutputEnvelopeV1<MjPlannerPayloadV1> = {
+    schemaVersion: 1,
+    contractVersion: "mj-planner/1",
+    outputId: "output-mj-plan-001",
+    callId: "call-mj-plan-001",
+    attemptId: "attempt-mj-plan-001",
+    packId: "pack-mj-plan-001",
+    snapshotId: "snapshot-001",
+    role: "mj_planner",
+    status: "OK",
+    payload: plannerPayload,
+    diagnostics: [],
+    supersedesOutputId: null
+  };
+  const plannerRequest = request({
+    callId: "call-mj-plan-001",
+    attemptId: "attempt-mj-plan-001",
+    packId: "pack-mj-plan-001",
+    role: "mj_planner",
+    contractVersion: "mj-planner/1",
+    modelRouteId: "route-mj-planner-fake"
+  });
+  const plannerValidation = validateAiRoleOutputEnvelopeV1(plannerOutput, plannerRequest);
+  assert.equal(plannerValidation.accepted, true);
+  const plannerWithCommitAuthority = validateAiRoleOutputEnvelopeV1({
+    ...plannerOutput,
+    payload: {
+      ...plannerPayload,
+      commandProposals: [{ ...plannerPayload.commandProposals[0], commitAuthority: true }]
+    }
+  }, plannerRequest);
+  assert.equal(plannerWithCommitAuthority.accepted, false);
+  assert.ok(plannerWithCommitAuthority.issues.some(issue => issue.includes("commitAuthority")));
+  console.log("PASS [ai-pipeline] mj_planner plans are accepted only without commit authority");
 }
 
 void run().catch(error => {

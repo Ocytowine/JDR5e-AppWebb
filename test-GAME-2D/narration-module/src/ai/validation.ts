@@ -139,6 +139,9 @@ function validateAiIntentInterpretationPayload(payload: unknown): string[] {
   const allowedConfidence = new Set(["low", "medium", "high"]);
   const allowedTargetKinds = new Set(["npc", "place", "object", "self", "unknown"]);
   const allowedActions = new Set(["ask_possibility", "ask", "open", "force", "observe", "act"]);
+  const allowedSemanticKinds = new Set(["address_visible_actor", "manipulate_visible_object", "observe_environment", "nonverbal_signal", "hypothetical_action", "context_question", "meta_request", "unclear_intent"]);
+  const allowedRuntimeStatuses = new Set(["SUPPORTED_BY_CURRENT_RUNTIME", "UNSUPPORTED_DOMAIN", "NEEDS_CLARIFICATION", "AI_INTERPRETATION_FAILED"]);
+  const allowedRuntimeDomains = new Set(["scene_resolution", "social", "perception", "inventory", "tactical", "rest", "world"]);
 
   typed.intents.forEach((intent, index) => {
     const path = `payload.intents[${index}]`;
@@ -161,7 +164,9 @@ function validateAiIntentInterpretationPayload(payload: unknown): string[] {
       "playerImposedDetails",
       "referentResolution",
       "requiresClarification",
+      "runtimeHandling",
       "riskFlags",
+      "semanticIntent",
       "target",
       "topic"
     ], path));
@@ -190,6 +195,8 @@ function validateAiIntentInterpretationPayload(payload: unknown): string[] {
         if (intent.target.label !== null && typeof intent.target.label !== "string") issues.push(issue(`${path}.target.label`, "expected string or null"));
       }
     }
+    issues.push(...validateSemanticIntent(intent.semanticIntent, path, allowedTargetKinds, allowedCommitments, allowedConfidence, allowedSemanticKinds));
+    issues.push(...validateRuntimeHandling(intent.runtimeHandling, path, allowedActions, allowedRuntimeStatuses, allowedRuntimeDomains));
     issues.push(...validateReferentResolution(intent.referentResolution, path, allowedTargetKinds, allowedConfidence));
 
     if (intent.intentType === "meta_question" && intent.commitment !== "none") {
@@ -204,10 +211,98 @@ function validateAiIntentInterpretationPayload(payload: unknown): string[] {
     if (intent.requiresClarification && (typeof intent.clarificationQuestion !== "string" || intent.clarificationQuestion.trim().length === 0)) {
       issues.push(issue(`${path}.clarificationQuestion`, "required when clarification is needed"));
     }
+    if (isObject(intent.semanticIntent) && intent.semanticIntent.commitment !== intent.commitment) {
+      issues.push(issue(`${path}.semanticIntent.commitment`, "must match top-level commitment"));
+    }
+    if (isObject(intent.runtimeHandling) && intent.runtimeHandling.status === "NEEDS_CLARIFICATION" && intent.requiresClarification !== true) {
+      issues.push(issue(`${path}.runtimeHandling.status`, "NEEDS_CLARIFICATION requires requiresClarification=true"));
+    }
+    if (isObject(intent.runtimeHandling) && intent.runtimeHandling.status === "AI_INTERPRETATION_FAILED") {
+      issues.push(issue(`${path}.runtimeHandling.status`, "failed interpretation must not be accepted as OK output"));
+    }
+    if (isObject(intent.runtimeHandling) && typeof intent.runtimeHandling.canonicalActionHint === "string" && intent.action !== null && intent.runtimeHandling.canonicalActionHint !== intent.action) {
+      issues.push(issue(`${path}.runtimeHandling.canonicalActionHint`, "must match action when both are provided"));
+    }
     if (/succ[eè]s|r[eé]ussit|[eé]chec|secret r[eé]v[eé]l[eé]|combat gagn[eé]|inventaire/iu.test(intent.coreMeaning)) {
       issues.push(issue(`${path}.coreMeaning`, "must not contain outcome, secret, combat or inventory authority"));
     }
   });
+  return issues;
+}
+
+function validateSemanticIntent(
+  value: unknown,
+  path: string,
+  allowedTargetKinds: Set<string>,
+  allowedCommitments: Set<string>,
+  allowedConfidence: Set<string>,
+  allowedSemanticKinds: Set<string>
+): string[] {
+  const semanticPath = `${path}.semanticIntent`;
+  if (!isObject(value)) return [issue(semanticPath, "expected object")];
+  const issues: string[] = [];
+  issues.push(...exactKeys(value, [
+    "commitment",
+    "confidence",
+    "evidenceFromInput",
+    "forbiddenInterpretations",
+    "kind",
+    "playerGoal",
+    "schemaVersion",
+    "target",
+    "uncertainties"
+  ], semanticPath));
+  if (value.schemaVersion !== 1) issues.push(issue(`${semanticPath}.schemaVersion`, "expected 1"));
+  if (typeof value.kind !== "string" || !allowedSemanticKinds.has(value.kind)) issues.push(issue(`${semanticPath}.kind`, "invalid semantic kind"));
+  issues.push(...validateNonEmptyString(value.playerGoal, `${semanticPath}.playerGoal`));
+  if (typeof value.commitment !== "string" || !allowedCommitments.has(value.commitment)) issues.push(issue(`${semanticPath}.commitment`, "invalid commitment"));
+  if (!isStringArray(value.evidenceFromInput) || value.evidenceFromInput.length === 0) issues.push(issue(`${semanticPath}.evidenceFromInput`, "expected non-empty string array"));
+  if (!isStringArray(value.uncertainties)) issues.push(issue(`${semanticPath}.uncertainties`, "expected string array"));
+  if (!isStringArray(value.forbiddenInterpretations)) issues.push(issue(`${semanticPath}.forbiddenInterpretations`, "expected string array"));
+  if (typeof value.confidence !== "string" || !allowedConfidence.has(value.confidence)) issues.push(issue(`${semanticPath}.confidence`, "invalid confidence"));
+  if (value.target !== null) {
+    if (!isObject(value.target)) {
+      issues.push(issue(`${semanticPath}.target`, "expected object or null"));
+    } else {
+      issues.push(...exactKeys(value.target, ["kind", "label", "ref"], `${semanticPath}.target`));
+      if (typeof value.target.kind !== "string" || !allowedTargetKinds.has(value.target.kind)) issues.push(issue(`${semanticPath}.target.kind`, "invalid target kind"));
+      if (value.target.ref !== null && typeof value.target.ref !== "string") issues.push(issue(`${semanticPath}.target.ref`, "expected string or null"));
+      if (value.target.label !== null && typeof value.target.label !== "string") issues.push(issue(`${semanticPath}.target.label`, "expected string or null"));
+    }
+  }
+  return issues;
+}
+
+function validateRuntimeHandling(
+  value: unknown,
+  path: string,
+  allowedActions: Set<string>,
+  allowedRuntimeStatuses: Set<string>,
+  allowedRuntimeDomains: Set<string>
+): string[] {
+  const runtimePath = `${path}.runtimeHandling`;
+  if (!isObject(value)) return [issue(runtimePath, "expected object")];
+  const issues: string[] = [];
+  issues.push(...exactKeys(value, [
+    "canonicalActionHint",
+    "noCommit",
+    "noGameTime",
+    "reason",
+    "requiredDomain",
+    "schemaVersion",
+    "status"
+  ], runtimePath));
+  if (value.schemaVersion !== 1) issues.push(issue(`${runtimePath}.schemaVersion`, "expected 1"));
+  if (typeof value.status !== "string" || !allowedRuntimeStatuses.has(value.status)) issues.push(issue(`${runtimePath}.status`, "invalid status"));
+  issues.push(...validateNonEmptyString(value.reason, `${runtimePath}.reason`));
+  if (!(value.requiredDomain === null || (typeof value.requiredDomain === "string" && allowedRuntimeDomains.has(value.requiredDomain)))) {
+    issues.push(issue(`${runtimePath}.requiredDomain`, "invalid domain or null"));
+  }
+  if (!(value.canonicalActionHint === null || (typeof value.canonicalActionHint === "string" && allowedActions.has(value.canonicalActionHint)))) {
+    issues.push(issue(`${runtimePath}.canonicalActionHint`, "expected canonical action or null"));
+  }
+  if (typeof value.noCommit !== "boolean") issues.push(issue(`${runtimePath}.noCommit`, "expected boolean"));
+  if (typeof value.noGameTime !== "boolean") issues.push(issue(`${runtimePath}.noGameTime`, "expected boolean"));
   return issues;
 }
 
@@ -257,11 +352,102 @@ function validatePlannerPayload(payload: unknown): string[] {
   if (!isObject(payload)) return ["payload: expected object"];
   const typed = payload as Partial<MjPlannerPayloadV1>;
   const issues: string[] = [];
-  if (!Array.isArray(typed.sceneBeats)) issues.push("payload.sceneBeats: expected array");
-  if (!Array.isArray(typed.commandProposals)) issues.push("payload.commandProposals: expected array");
+  issues.push(...exactKeys(payload, [
+    "actorAssignments",
+    "commandProposals",
+    "creationProposals",
+    "forbiddenOutcomes",
+    "planId",
+    "planningBasis",
+    "playerHandoff",
+    "respectedCommitmentRefs",
+    "revealPlan",
+    "riskFlags",
+    "sceneBeats",
+    "schemaVersion",
+    "timeAdvanceProposal"
+  ], "payload"));
+  if (typed.schemaVersion !== 1) issues.push("payload.schemaVersion: expected 1");
+  issues.push(...validateNonEmptyString(typed.planId, "payload.planId"));
+  if (!isObject(typed.planningBasis)) {
+    issues.push("payload.planningBasis: expected object");
+  } else {
+    issues.push(...exactKeys(typed.planningBasis, ["intentId", "requiredDomain", "runtimeStatus", "semanticGoal"], "payload.planningBasis"));
+    issues.push(...validateNonEmptyString(typed.planningBasis.intentId, "payload.planningBasis.intentId"));
+    issues.push(...validateNonEmptyString(typed.planningBasis.semanticGoal, "payload.planningBasis.semanticGoal"));
+    if (!["SUPPORTED_BY_CURRENT_RUNTIME", "UNSUPPORTED_DOMAIN", "NEEDS_CLARIFICATION", "AI_INTERPRETATION_FAILED"].includes(String(typed.planningBasis.runtimeStatus))) {
+      issues.push("payload.planningBasis.runtimeStatus: invalid status");
+    }
+    if (!(typed.planningBasis.requiredDomain === null || ["scene_resolution", "social", "perception", "inventory", "tactical", "rest", "world"].includes(String(typed.planningBasis.requiredDomain)))) {
+      issues.push("payload.planningBasis.requiredDomain: invalid domain or null");
+    }
+  }
+  if (!Array.isArray(typed.sceneBeats)) {
+    issues.push("payload.sceneBeats: expected array");
+  } else {
+    typed.sceneBeats.forEach((beat, index) => {
+      const path = `payload.sceneBeats[${index}]`;
+      if (!isObject(beat)) {
+        issues.push(`${path}: expected object`);
+        return;
+      }
+      issues.push(...validateNonEmptyString(beat.beatId, `${path}.beatId`));
+      if (!["CONTEXT_RESPONSE", "LOCAL_ACTION_ATTEMPT", "ACTOR_REACTION_EXPECTED", "DOMAIN_BLOCKED", "CLARIFICATION"].includes(String(beat.kind))) issues.push(`${path}.kind: invalid beat kind`);
+      if (!isStringArray(beat.actorIds)) issues.push(`${path}.actorIds: expected string array`);
+      issues.push(...validateNonEmptyString(beat.stopCondition, `${path}.stopCondition`));
+    });
+  }
+  const allowedDomains = ["scene_resolution", "social", "perception", "inventory", "tactical", "rest", "world"];
+  if (!Array.isArray(typed.commandProposals)) {
+    issues.push("payload.commandProposals: expected array");
+  } else {
+    typed.commandProposals.forEach((proposal, index) => {
+      const path = `payload.commandProposals[${index}]`;
+      if (!isObject(proposal)) {
+        issues.push(`${path}: expected object`);
+        return;
+      }
+      issues.push(...validateNonEmptyString(proposal.proposalId, `${path}.proposalId`));
+      if (!allowedDomains.includes(String(proposal.domain))) issues.push(`${path}.domain: invalid domain`);
+      issues.push(...validateNonEmptyString(proposal.commandType, `${path}.commandType`));
+      if (!isStringArray(proposal.targetRefs)) issues.push(`${path}.targetRefs: expected string array`);
+      if (!isObject(proposal.payload)) issues.push(`${path}.payload: expected object`);
+      if (proposal.commitAuthority !== false) issues.push(`${path}.commitAuthority: expected false`);
+    });
+  }
   if (!Array.isArray(typed.creationProposals)) issues.push("payload.creationProposals: expected array");
+  if (!Array.isArray(typed.actorAssignments)) {
+    issues.push("payload.actorAssignments: expected array");
+  } else {
+    typed.actorAssignments.forEach((assignment, index) => {
+      const path = `payload.actorAssignments[${index}]`;
+      if (!isObject(assignment)) {
+        issues.push(`${path}: expected object`);
+        return;
+      }
+      if (!["intent_interpreter", "player_intent_interpreter", "mj_planner", "player_expression_adapter", "npc_performer", "rules_adjudicator", "coherence_critic", "scene_writer", "clarification_writer"].includes(String(assignment.role))) issues.push(`${path}.role: invalid role`);
+      if (!(assignment.actorId === null || typeof assignment.actorId === "string")) issues.push(`${path}.actorId: expected string or null`);
+      issues.push(...validateNonEmptyString(assignment.reason, `${path}.reason`));
+    });
+  }
   if (!isObject(typed.revealPlan) || !isStringArray(typed.revealPlan.reveal) || !isStringArray(typed.revealPlan.hint) || !isStringArray(typed.revealPlan.withhold)) {
     issues.push("payload.revealPlan: expected reveal/hint/withhold arrays");
+  }
+  if (!isObject(typed.playerHandoff)) {
+    issues.push("payload.playerHandoff: expected object");
+  } else {
+    if (!["ASK_PLAYER", "CONTINUE_AUTOMATICALLY", "CLARIFY", "END_TURN"].includes(String(typed.playerHandoff.handoffKind))) issues.push("payload.playerHandoff.handoffKind: invalid handoff");
+    issues.push(...validateNonEmptyString(typed.playerHandoff.reason, "payload.playerHandoff.reason"));
+  }
+  if (typed.timeAdvanceProposal !== null) issues.push("payload.timeAdvanceProposal: mini mj_planner must not propose time yet");
+  if (!isStringArray(typed.riskFlags)) issues.push("payload.riskFlags: expected string array");
+  if (!isStringArray(typed.respectedCommitmentRefs)) issues.push("payload.respectedCommitmentRefs: expected string array");
+  if (!isStringArray(typed.forbiddenOutcomes)) issues.push("payload.forbiddenOutcomes: expected string array");
+  if (isObject(typed.revealPlan) && Array.isArray(typed.revealPlan.reveal) && typed.revealPlan.reveal.length > 0) {
+    issues.push("payload.revealPlan.reveal: mini mj_planner must not reveal facts");
+  }
+  if (Array.isArray(typed.creationProposals) && typed.creationProposals.length > 0) {
+    issues.push("payload.creationProposals: mini mj_planner must not create persistent candidates");
   }
   return issues;
 }

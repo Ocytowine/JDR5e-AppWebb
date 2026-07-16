@@ -1,6 +1,6 @@
 # Suivi du travail
 
-Derniere mise a jour: 2026-07-15
+Derniere mise a jour: 2026-07-16
 
 Ce fichier est le tableau de bord court du depot. Les details techniques restent dans les documents lies; une tache ne doit pas etre dupliquee ici avec toute sa specification.
 
@@ -8,7 +8,7 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 - [ ] Traiter l'audit technique post-I-06ZB avant d'ouvrir une nouvelle capacité narrative.
   References: `test-GAME-2D/narration-module/docs/Audit-technique-I06ZB.md`, `test-GAME-2D/narration-module/docs/Revue-technique-post-I06ZB.md`, `test-GAME-2D/narration-module/docs/Suivi-prochains-lots-narration.md`.
-  Note: A-01, A-02, A-03, A-04 et A-07 traités le 2026-07-09; `scene_writer` no-commit stabilisé avec historique court, diagnostics, budget JSON strict et discipline factuelle `factDiscipline`. Prochaine étape concrète: I-06ZC, certification live courte du `scene_writer` sans ouvrir de nouvelle capacité narrative.
+  Note: A-01, A-02, A-03, A-04 et A-07 traités le 2026-07-09; `scene_writer` no-commit stabilisé avec historique court, diagnostics, budget JSON strict et discipline factuelle `factDiscipline`; I-06ZC à I-06ZH livrés. Prochaine étape concrète: décider entre route OpenAI serveur pour `mj_planner`, mini `npc_performer`, ouverture contrôlée d'un domaine propriétaire ou nettoyage legacy A-06.
 - [ ] Consolider la simulation du monde apres l'ajout des objectifs multi-phases, des opportunites de faction et des mobiles non-systeme.
   Reference: `test-GAME-2D/map-module/docs/world-simulation-corrective-roadmap.md`. Les mobiles exposent maintenant l'objectif, la phase et la cible qu'ils servent.
 
@@ -33,6 +33,9 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 ## Termine recemment
 
+- [x] Socle I-06ZF: contrat unique `ai-intent-interpretation/1` enrichi par `semanticIntent` et `runtimeHandling`, diagnostic explicite sans fallback narratif sur sortie IA invalide, cas naturel "poignée/mécanisme" couvert, validations TS/serveur renforcées et tests `ai-intent-interpretation`, `narrative-openai-route`, `build` OK le 2026-07-16.
+- [x] Verrou runtime I-06ZG: `runtimeHandling` propagé jusqu'à `NarrativeIntentInterpretationV1`, resolver priorisant `UNSUPPORTED_DOMAIN`/`NEEDS_CLARIFICATION` avant heuristiques legacy, handoff inventory prouvé sans mot-clé lexical évident et test `narration-module:test:ai-intent-interpretation` OK le 2026-07-16.
+- [x] MJ planner minimal I-06ZH: contrat `mj-planner/1`, provider local, validation stricte `commitAuthority=false`, appel contrôleur sur intentions engagées/domaines fermés, sortie technique `mjPlan` sans prose ni commit et tests `ai-intent-interpretation`, `narrative-resolution`, `ai-pipeline`, `narration-module:build` OK le 2026-07-16.
 - [x] Fermeture I-06ZE: resolution IA/fake des referents locaux recents via `referentResolution`, validation visible/compatible, commit local borne `LOCAL_SCENE_ACTION_RECORDED` sans revelation ni temps, tests `ai-intent-interpretation`, `narrative-resolution`, `narrative-turn-controller`, `narrative-openai-route` et `narration-module:build` OK le 2026-07-15.
 - [x] Durcissement post-I-06ZE: clarification sans contexte, rejet/clarification des referents ambigus ou incompatibles pour `open`/`force`, actions IA contraintes aux categories canoniques du contrat, validation serveur OpenAI renforcee et tests ciblés OK le 2026-07-15.
 - [x] Implementation I-06ZD: fil initial remplace par une amorce de scene jouable issue de `PlayableSceneStateV1`, anciens messages prototype retires du rendu initial, test `narration-module:test:narrative-app-surface` OK le 2026-07-10.

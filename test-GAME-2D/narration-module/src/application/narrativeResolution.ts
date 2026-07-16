@@ -216,6 +216,40 @@ export function buildDeterministicResolution(
     };
   }
 
+  const runtimeHandoff = classifyRuntimeHandlingHandoff(interpretation);
+  if (runtimeHandoff !== null) {
+    return {
+      ...base,
+      resultKind: runtimeHandoff.kind,
+      characterExpression: runtimeHandoff.kind === "HANDOFF_REQUIRED"
+        ? buildCharacterExpression(rawInput, interpretation)
+        : null,
+      preparedEffects: runtimeHandoff.kind === "HANDOFF_REQUIRED"
+        ? [{
+          schemaVersion: 1,
+          effectId: `${operation.operationId}:effect:runtime-block:1`,
+          effectType: "BLOCKED_UNOPENED_DOMAIN",
+          targetRef: runtimeHandoff.target,
+          summary: runtimeHandoff.reason,
+          commitEligible: false
+        }]
+        : [],
+      handoff: runtimeHandoff.kind === "HANDOFF_REQUIRED"
+        ? {
+          target: runtimeHandoff.target,
+          reason: runtimeHandoff.reason,
+          blockedCommit: true
+        }
+        : null,
+      safetyNotes: [
+        ...base.safetyNotes,
+        runtimeHandoff.kind === "HANDOFF_REQUIRED"
+          ? "Domaine runtime non ouvert déclaré par l'interprétation IA: aucun résultat inventé."
+          : "Statut runtime non committable déclaré par l'interprétation IA."
+      ]
+    };
+  }
+
   if (interpretation.intentType === "speech") {
     const expression = buildCharacterExpression(rawInput, interpretation);
     return {
@@ -282,6 +316,35 @@ export function buildDeterministicResolution(
     }],
     safetyNotes: [...base.safetyNotes, "Resolution proposée sans commit tant que le domaine scène complet n'est pas ouvert."]
   };
+}
+
+function classifyRuntimeHandlingHandoff(
+  interpretation: NarrativeIntentInterpretationV1
+): { kind: "CLARIFICATION_REQUIRED"; reason: string } | { kind: "HANDOFF_REQUIRED"; target: NarrativeHandoffTargetV1; reason: string } | null {
+  const runtimeHandling = interpretation.runtimeHandling ?? null;
+  if (runtimeHandling === null) return null;
+  if (runtimeHandling.status === "AI_INTERPRETATION_FAILED") {
+    return { kind: "CLARIFICATION_REQUIRED", reason: runtimeHandling.reason };
+  }
+  if (runtimeHandling.status === "NEEDS_CLARIFICATION") {
+    return { kind: "CLARIFICATION_REQUIRED", reason: runtimeHandling.reason };
+  }
+  if (runtimeHandling.status !== "UNSUPPORTED_DOMAIN") return null;
+  return {
+    kind: "HANDOFF_REQUIRED",
+    target: mapRuntimeDomainToHandoffTarget(runtimeHandling.requiredDomain),
+    reason: runtimeHandling.reason
+  };
+}
+
+function mapRuntimeDomainToHandoffTarget(domain: NonNullable<NarrativeIntentInterpretationV1["runtimeHandling"]>["requiredDomain"]): NarrativeHandoffTargetV1 {
+  if (domain === "tactical") return "TACTICAL";
+  if (domain === "rest") return "REST";
+  if (domain === "inventory") return "INVENTORY";
+  if (domain === "world") return "WORLD";
+  if (domain === "social") return "UNOPENED_DOMAIN";
+  if (domain === "perception") return "UNOPENED_DOMAIN";
+  return "UNOPENED_DOMAIN";
 }
 
 function buildLocalSceneActionEffect(

@@ -105,6 +105,15 @@ async function main(): Promise<void> {
     assert.equal(result.interpretation.commitment, "committed", `${rawInput}: action engagée`);
   }
 
+  const implicitDoorOpening = await interpret("Je mets la main sur la poignée et pivote le mécanisme.", config);
+  assert.equal(implicitDoorOpening.usedAiInterpretation, true, "manipulation implicite: IA structurée attendue");
+  assert.equal(implicitDoorOpening.usedFallback, false, "manipulation implicite: aucun fallback");
+  assert.equal(implicitDoorOpening.interpretation.intentType, "action", "manipulation implicite: action attendue");
+  assert.equal(implicitDoorOpening.interpretation.action, "open", "manipulation implicite: ouverture canonique attendue");
+  assert.equal(implicitDoorOpening.interpretation.target?.ref, "poi:back-room-door", "manipulation implicite: porte visible attendue");
+  assert.equal(implicitDoorOpening.acceptedOutput?.payload.intents[0]?.semanticIntent.kind, "manipulate_visible_object");
+  assert.equal(implicitDoorOpening.acceptedOutput?.payload.intents[0]?.runtimeHandling.status, "SUPPORTED_BY_CURRENT_RUNTIME");
+
   const forceUnknownLock = await interpret("Je force la serrure.", config);
   assert.equal(forceUnknownLock.interpretation.intentType, "unclear_commitment", "serrure non visible: clarification attendue");
   assert.equal(forceUnknownLock.interpretation.requiresClarification, true, "serrure non visible: pas de resolution directe");
@@ -134,23 +143,29 @@ async function main(): Promise<void> {
   const invalidConfig = invalidCommittedPossibilityConfig();
   const invalid = await interpret("Est-ce que je peux voler la bourse du garde ?", invalidConfig);
   assert.equal(invalid.usedAiInterpretation, false, "sortie IA invalide rejetée");
-  assert.equal(invalid.usedFallback, true, "fallback conservateur utilisé");
-  assert.equal(invalid.interpretation.intentType, "possibility_query", "fallback ne transforme pas l'hypothèse en action");
+  assert.equal(invalid.usedFallback, false, "aucun fallback narratif sur sortie invalide");
+  assert.equal(invalid.interpretation.intentType, "meta_question", "diagnostic technique attendu");
+  assert.equal(invalid.interpretationFailure?.category, "AI_OUTPUT_INVALID");
 
   const invalidSocialSpeech = await interpret("j'aimerais parler a un garde", invalidUnusableConfig());
   assert.equal(invalidSocialSpeech.usedAiInterpretation, false, "sortie IA vide rejetee");
-  assert.equal(invalidSocialSpeech.usedFallback, true, "fallback conservateur utilise");
-  assert.equal(invalidSocialSpeech.interpretation.intentType, "speech", "fallback conserve la demande sociale comme parole");
-  assert.equal(invalidSocialSpeech.interpretation.commitment, "committed", "parole engagee attendue");
+  assert.equal(invalidSocialSpeech.usedFallback, false, "aucun fallback narratif sur sortie vide");
+  assert.equal(invalidSocialSpeech.interpretation.intentType, "meta_question", "diagnostic technique attendu");
+  assert.equal(invalidSocialSpeech.interpretation.commitment, "none", "aucun engagement sur diagnostic");
+  assert.equal(invalidSocialSpeech.interpretationFailure?.category, "AI_OUTPUT_INVALID");
 
   const invalidImplicitPossibility = await interpret("quel temps fait il ?", invalidImplicitPossibilityConfig());
   assert.equal(invalidImplicitPossibility.usedAiInterpretation, false, "possibility_query sans demande explicite rejetee");
-  assert.equal(invalidImplicitPossibility.usedFallback, true, "fallback conservateur utilise");
-  assert.equal(invalidImplicitPossibility.interpretation.intentType, "meta_question", "question de contexte attendue");
+  assert.equal(invalidImplicitPossibility.usedFallback, false, "aucun fallback narratif sur sortie invalide");
+  assert.equal(invalidImplicitPossibility.interpretation.intentType, "meta_question", "diagnostic technique attendu");
   assert.equal(invalidImplicitPossibility.interpretation.commitment, "none", "aucun engagement attendu");
+  assert.equal(invalidImplicitPossibility.interpretationFailure?.category, "AI_OUTPUT_INVALID");
 
   const controllerResult = await runControllerSpeechCase();
   assert.equal(controllerResult.output.interpretation.intentType, "speech");
+  assert.equal(controllerResult.output.mjPlan?.planningBasis.intentId, controllerResult.output.interpretation.intentId, "mj_planner doit planifier depuis l'intention structurée");
+  assert.equal(controllerResult.output.mjPlan?.sceneBeats[0]?.kind, "ACTOR_REACTION_EXPECTED", "parole: réaction PNJ attendue au niveau plan");
+  assert.equal(controllerResult.output.mjPlan?.commandProposals.every(proposal => proposal.commitAuthority === false), true, "mj_planner sans autorité de commit");
   assert.equal(controllerResult.output.resolution.resultKind, "COMMIT_APPLIED");
   assert.equal(controllerResult.output.suspendedIntent, null);
   assert.equal(controllerResult.output.noCommit, false);
@@ -161,6 +176,8 @@ async function main(): Promise<void> {
   const localReferentResult = await runControllerLocalReferentCase();
   assert.equal(localReferentResult.focus.output.interpretation.target?.ref, "poi:back-room-door", "le focus initial doit porter la porte visible");
   assert.equal(localReferentResult.open.output.interpretation.intentType, "action", "l'ellipse doit rester une action");
+  assert.equal(localReferentResult.open.output.mjPlan?.sceneBeats[0]?.kind, "LOCAL_ACTION_ATTEMPT", "action locale: beat de tentative attendu");
+  assert.equal(localReferentResult.open.output.mjPlan?.forbiddenOutcomes.includes("narrate_unvalidated_success"), true, "planner interdit le succès narré non validé");
   assert.equal(localReferentResult.open.output.interpretation.target?.ref, "poi:back-room-door", "le pronom doit être résolu vers le référent récent");
   assert.equal(localReferentResult.open.output.interpretation.referentResolution?.source, "recent_visible_focus", "la source du référent doit être le focus récent");
   assert.equal(localReferentResult.open.output.resolution.resultKind, "COMMIT_APPLIED", "l'action locale bornée doit être enregistrée");
@@ -172,7 +189,8 @@ async function main(): Promise<void> {
 
   const nonCanonicalAction = await interpret("J'ouvre la porte du fond", nonCanonicalActionConfig());
   assert.equal(nonCanonicalAction.usedAiInterpretation, false, "une action IA non canonique doit etre rejetee");
-  assert.equal(nonCanonicalAction.usedFallback, true, "une action IA non canonique doit degrader vers fallback");
+  assert.equal(nonCanonicalAction.usedFallback, false, "une action IA non canonique ne doit pas degrader vers fallback");
+  assert.equal(nonCanonicalAction.interpretationFailure?.category, "AI_OUTPUT_INVALID");
 
   const noContextOpen = await interpret("je l'ouvre", config);
   assert.equal(noContextOpen.interpretation.intentType, "unclear_commitment", "sans contexte, le pronom local doit clarifier");
@@ -182,6 +200,16 @@ async function main(): Promise<void> {
   assert.equal(incompatibleReferent.open.output.interpretation.intentType, "unclear_commitment", "ouvrir une personne doit clarifier");
   assert.equal(incompatibleReferent.open.output.resolution.resultKind, "CLARIFICATION_REQUIRED", "referent incompatible: pas de commit");
   assert.equal(incompatibleReferent.open.output.noCommit, true, "referent incompatible: aucun commit");
+
+  const unsupportedRuntime = await runControllerUnsupportedRuntimeCase();
+  assert.equal(unsupportedRuntime.output.interpretation.runtimeHandling?.status, "UNSUPPORTED_DOMAIN", "domaine runtime non ouvert attendu");
+  assert.equal(unsupportedRuntime.output.mjPlan?.sceneBeats[0]?.kind, "DOMAIN_BLOCKED", "planner doit arrêter le domaine fermé");
+  assert.equal(unsupportedRuntime.output.mjPlan?.planningBasis.requiredDomain, "inventory", "planner doit conserver le domaine requis");
+  assert.equal(unsupportedRuntime.output.mjPlan?.creationProposals.length, 0, "planner minimal ne crée rien");
+  assert.equal(unsupportedRuntime.output.resolution.resultKind, "HANDOFF_REQUIRED", "domaine runtime non ouvert: handoff requis");
+  assert.equal(unsupportedRuntime.output.resolution.handoff?.target, "INVENTORY", "domaine inventory attendu depuis runtimeHandling");
+  assert.equal(unsupportedRuntime.output.noCommit, true, "domaine non ouvert: aucun commit");
+  assert.equal(unsupportedRuntime.output.resolution.preparedEffects[0]?.effectType, "BLOCKED_UNOPENED_DOMAIN");
 
   const ambiguousReferent = await interpret("je l'ouvre", ambiguousReferentConfig());
   assert.equal(ambiguousReferent.interpretation.intentType, "unclear_commitment", "referent ambigu: clarification attendue");
@@ -234,7 +262,23 @@ function invalidCommittedPossibilityConfig(): AiIntentInterpreterConfigV1 {
               clarificationQuestion: null,
               riskFlags: [],
               expectedTimeEffect: "NO_GAME_TIME",
-              confidence: "high"
+              confidence: "high",
+              semanticIntent: semanticIntent({
+                kind: "hypothetical_action",
+                playerGoal: "Demander si voler la bourse du garde serait possible.",
+                target: { kind: "npc", ref: "npc:npc-garde-blesse", label: "garde" },
+                commitment: "hypothetical",
+                evidenceFromInput: ["Est-ce que je peux", "voler la bourse du garde"],
+                confidence: "high"
+              }),
+              runtimeHandling: runtimeHandling({
+                status: "SUPPORTED_BY_CURRENT_RUNTIME",
+                reason: "Question hypothétique sans commit.",
+                requiredDomain: null,
+                canonicalActionHint: "ask_possibility",
+                noCommit: true,
+                noGameTime: true
+              })
             }]
           },
           diagnostics: [],
@@ -307,7 +351,23 @@ function invalidImplicitPossibilityConfig(): AiIntentInterpreterConfigV1 {
               clarificationQuestion: null,
               riskFlags: [],
               expectedTimeEffect: "NO_GAME_TIME",
-              confidence: "high"
+              confidence: "high",
+              semanticIntent: semanticIntent({
+                kind: "context_question",
+                playerGoal: "Demander le temps actuel.",
+                target: null,
+                commitment: "none",
+                evidenceFromInput: ["quel temps fait il"],
+                confidence: "high"
+              }),
+              runtimeHandling: runtimeHandling({
+                status: "SUPPORTED_BY_CURRENT_RUNTIME",
+                reason: "Question de contexte sans commit.",
+                requiredDomain: null,
+                canonicalActionHint: "ask",
+                noCommit: true,
+                noGameTime: true
+              })
             }]
           },
           diagnostics: [],
@@ -361,7 +421,24 @@ function ambiguousReferentConfig(): AiIntentInterpreterConfigV1 {
               clarificationQuestion: null,
               riskFlags: [],
               expectedTimeEffect: "DOMAIN_TO_DECIDE",
-              confidence: "high"
+              confidence: "high",
+              semanticIntent: semanticIntent({
+                kind: "manipulate_visible_object",
+                playerGoal: "Ouvrir un référent local ambigu.",
+                target: { kind: "object", ref: "poi:back-room-door", label: "porte du fond" },
+                commitment: "committed",
+                evidenceFromInput: ["je l'ouvre"],
+                forbiddenInterpretations: ["choisir un referent ambigu sans clarification"],
+                confidence: "medium"
+              }),
+              runtimeHandling: runtimeHandling({
+                status: "SUPPORTED_BY_CURRENT_RUNTIME",
+                reason: "Action locale possible si le référent est fiable.",
+                requiredDomain: "scene_resolution",
+                canonicalActionHint: "open",
+                noCommit: false,
+                noGameTime: false
+              })
             }]
           },
           diagnostics: [],
@@ -415,7 +492,95 @@ function nonCanonicalActionConfig(): AiIntentInterpreterConfigV1 {
               clarificationQuestion: null,
               riskFlags: [],
               expectedTimeEffect: "DOMAIN_TO_DECIDE",
-              confidence: "high"
+              confidence: "high",
+              semanticIntent: semanticIntent({
+                kind: "manipulate_visible_object",
+                playerGoal: "Ouvrir la porte du fond.",
+                target: { kind: "object", ref: "poi:back-room-door", label: "porte du fond" },
+                commitment: "committed",
+                evidenceFromInput: ["J'ouvre la porte du fond"],
+                forbiddenInterpretations: ["reveler l'arriere-salle", "faire avancer le temps"],
+                confidence: "high"
+              }),
+              runtimeHandling: runtimeHandling({
+                status: "SUPPORTED_BY_CURRENT_RUNTIME",
+                reason: "Action locale visible.",
+                requiredDomain: "scene_resolution",
+                canonicalActionHint: "open",
+                noCommit: false,
+                noGameTime: false
+              })
+            }]
+          },
+          diagnostics: [],
+          supersedesOutputId: null
+        };
+      }
+    } satisfies ContractAiProviderV1
+  };
+}
+
+function unsupportedInventoryRuntimeConfig(): AiIntentInterpreterConfigV1 {
+  const config = createDefaultAiIntentInterpreterConfigV1();
+  return {
+    ...config,
+    provider: {
+      async generate(request) {
+        return {
+          schemaVersion: 1,
+          contractVersion: AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1,
+          outputId: "output-runtime-unsupported-inventory",
+          callId: request.callId,
+          attemptId: request.attemptId,
+          packId: request.packId,
+          snapshotId: request.snapshotId,
+          role: request.role,
+          status: "OK",
+          payload: {
+            rawInputEcho: "Je glisse deux doigts vers la bourse accrochée à sa ceinture.",
+            intents: [{
+              intentId: "intent:1",
+              order: 1,
+              intentType: "action",
+              commitment: "committed",
+              target: { kind: "object", ref: null, label: "bourse du garde" },
+              action: "act",
+              referentResolution: {
+                schemaVersion: 1,
+                usedPreviousContext: false,
+                source: "current_input",
+                resolvedTarget: { kind: "object", ref: null, label: "bourse du garde" },
+                evidence: ["bourse accrochée à sa ceinture"],
+                ambiguity: "none",
+                confidence: "medium"
+              },
+              topic: "atteindre la bourse du garde",
+              coreMeaning: "Le personnage tente d'interagir avec la bourse portée par le garde.",
+              playerImposedDetails: ["Je glisse deux doigts vers la bourse accrochée à sa ceinture."],
+              openDetails: ["issue de l'action", "réaction du garde"],
+              forbiddenInterpretations: ["accorder l'objet", "résoudre le vol", "modifier l'inventaire"],
+              requiresClarification: false,
+              clarificationQuestion: null,
+              riskFlags: ["inventory_mutation"],
+              expectedTimeEffect: "DOMAIN_TO_DECIDE",
+              confidence: "high",
+              semanticIntent: semanticIntent({
+                kind: "manipulate_visible_object",
+                playerGoal: "Interagir avec la bourse portée par le garde.",
+                target: { kind: "object", ref: null, label: "bourse du garde" },
+                commitment: "committed",
+                evidenceFromInput: ["glisse deux doigts", "bourse accrochée à sa ceinture"],
+                forbiddenInterpretations: ["accorder l'objet", "résoudre le vol", "modifier l'inventaire"],
+                confidence: "high"
+              }),
+              runtimeHandling: runtimeHandling({
+                status: "UNSUPPORTED_DOMAIN",
+                reason: "L'intention implique une possession ou mutation d'inventaire; le runtime d'inventaire n'est pas ouvert.",
+                requiredDomain: "inventory",
+                canonicalActionHint: "act",
+                noCommit: true,
+                noGameTime: true
+              })
             }]
           },
           diagnostics: [],
@@ -526,6 +691,54 @@ async function runControllerLocalReferentCase() {
   return { focus: focus.value, open: open.value };
 }
 
+async function runControllerUnsupportedRuntimeCase() {
+  const clock = new FixedClock();
+  const repository = new MemoryCampaignRepository({ clock });
+  const campaignId = opaqueId<CampaignId>("cmp-ai-intent-runtime-unsupported");
+  const clockAggregateId = opaqueId<AggregateId>("agg-ai-intent-runtime-unsupported-clock");
+  const now = clock.now().toISOString();
+  const campaign: CampaignRecord = {
+    schemaVersion: 1,
+    campaignId,
+    campaignRevision: 0,
+    status: "ACTIVE",
+    clockAggregateId,
+    dependencies: {
+      contentPackageId: "prototype.narration",
+      contentPackageVersion: 1,
+      rulesetId: "prototype.rules",
+      rulesetVersion: 1,
+      calendarId: "prototype.calendar",
+      calendarVersion: 1
+    },
+    writeBlock: null,
+    lastCommitId: null,
+    createdAt: now,
+    updatedAt: now
+  };
+  const created = await repository.createCampaign(campaign, {
+    elapsedGameSeconds: 0,
+    calendarId: "prototype.calendar",
+    calendarVersion: 1
+  });
+  if (!created.ok) throw new Error(created.error.messageKey);
+
+  const controller = new NarrativeTurnControllerV1({
+    repository,
+    campaignId,
+    clock,
+    idPrefix: "i06zg",
+    intentInterpreterConfig: unsupportedInventoryRuntimeConfig()
+  });
+  const submitted = await controller.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-i06zg-runtime-inventory",
+    rawInput: "Je glisse deux doigts vers la bourse accrochée à sa ceinture."
+  });
+  if (!submitted.ok) throw new Error(submitted.error.messageKey);
+  return submitted.value;
+}
+
 async function runControllerIncompatibleReferentCase() {
   const clock = new FixedClock();
   const repository = new MemoryCampaignRepository({ clock });
@@ -583,6 +796,48 @@ function hash(value: string): number {
   let output = 0;
   for (const char of value) output = ((output << 5) - output + char.charCodeAt(0)) | 0;
   return output;
+}
+
+function semanticIntent(input: {
+  kind: string;
+  playerGoal: string;
+  target: { kind: string; ref: string | null; label: string | null } | null;
+  commitment: string;
+  evidenceFromInput: string[];
+  uncertainties?: string[];
+  forbiddenInterpretations?: string[];
+  confidence: string;
+}) {
+  return {
+    schemaVersion: 1,
+    kind: input.kind,
+    playerGoal: input.playerGoal,
+    target: input.target,
+    commitment: input.commitment,
+    evidenceFromInput: input.evidenceFromInput,
+    uncertainties: input.uncertainties ?? [],
+    forbiddenInterpretations: input.forbiddenInterpretations ?? [],
+    confidence: input.confidence
+  };
+}
+
+function runtimeHandling(input: {
+  status: string;
+  reason: string;
+  requiredDomain: string | null;
+  canonicalActionHint: string | null;
+  noCommit: boolean;
+  noGameTime: boolean;
+}) {
+  return {
+    schemaVersion: 1,
+    status: input.status,
+    reason: input.reason,
+    requiredDomain: input.requiredDomain,
+    canonicalActionHint: input.canonicalActionHint,
+    noCommit: input.noCommit,
+    noGameTime: input.noGameTime
+  };
 }
 
 void main().catch(error => {

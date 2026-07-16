@@ -1,20 +1,26 @@
 # Contrat interprétation IA de l'intention joueur
 
-Statut : `FIGE_IMPLEMENTE_I06X`
+Statut : `REVISION_I06ZF_A_CONTRACTUALISER`
 
 Version cible : `ai-intent-interpretation/1`
 
-Lot : I-06X
+Lot : I-06X, revision I-06ZF
 
 Date : 2026-07-08
+
+Derniere revision : 2026-07-16
 
 ## Objectif
 
 I-06X remplace la dépendance aux formulations exactes par une interprétation IA structurée de la saisie libre du joueur.
 
+La revision I-06ZF conserve une seule version active du contrat, `ai-intent-interpretation/1`, mais deplace son centre de gravite : l'interpretation ne doit plus etre reduite a `intentType + action`. Elle doit porter une intention semantique libre, puis indiquer separement si le runtime courant sait la traiter.
+
 Le but n'est pas de donner plus d'autorité à l'IA. Le but est de mieux comprendre l'intention naturelle du joueur avant de la soumettre aux validateurs et domaines propriétaires.
 
 La sortie IA devient une proposition structurée. Elle n'est jamais un commit, un résultat mécanique, une vérité de campagne ou un texte visible directement.
+
+En mode test, l'absence d'IA exploitable ne doit pas etre masquee par un fallback narratif. Une panne, une sortie invalide ou une sortie rejetee produit un diagnostic explicite, sans commit ni temps de jeu.
 
 ## Problème traité
 
@@ -36,6 +42,14 @@ alors que des variantes proches sont reconnues comme `speech`.
 
 I-06X doit corriger ce problème au niveau architectural : l'interprétation doit reconnaître des familles de sens équivalentes, pas seulement des mots-clés.
 
+Defaut post-I-06ZE confirme :
+
+```text
+Je mets la main sur la poignee et pivote le mecanisme.
+```
+
+dans un contexte ou le personnage est devant une porte visible ne doit pas echouer faute de mot `ouvrir`. Le systeme doit comprendre l'intention semantique probable, puis valider seulement ce qu'il a autorite a traiter.
+
 ## Autorité
 
 Le rôle IA d'I-06X peut proposer :
@@ -43,7 +57,9 @@ Le rôle IA d'I-06X peut proposer :
 - une ou plusieurs intentions structurées;
 - un niveau d'engagement;
 - une cible probable;
-- une action ou parole normalisée;
+- une intention semantique libre;
+- un statut d'exploitabilite par le runtime courant;
+- une action canonique uniquement comme detail d'exploitation non central;
 - un sujet;
 - les ambiguïtés réelles;
 - une question de clarification candidate;
@@ -66,7 +82,7 @@ Le code applicatif reste seul responsable de :
 
 - la validation de schéma;
 - la validation des références;
-- la classification finale autorisée;
+- la validation des autorites et domaines ouverts;
 - la décision de clarification;
 - les handoffs;
 - les commits;
@@ -86,12 +102,15 @@ texte joueur brut
 -> contrôleur / résolution bornée existants
 ```
 
-En cas de panne IA, sortie invalide ou confiance insuffisante, le système doit dégrader vers :
+En cas de panne IA, sortie invalide ou confiance insuffisante, le systeme produit un diagnostic d'echec d'interpretation :
 
-- l'interpréteur déterministe conservateur existant;
-- ou une clarification contrôlée si le risque est trop élevé.
+- aucun commit;
+- aucun temps de jeu;
+- aucune narration de secours;
+- recapitulatif des issues pour le developpeur/testeur;
+- possibilite de relancer la meme entree apres correction technique ou fournisseur.
 
-Cette dégradation ne doit jamais inventer une intention plus engagée que le texte joueur.
+Le fallback local peut rester un outil de test contractuel isole. Il ne doit pas etre le comportement produit du tour narratif.
 
 ## Rôle IA
 
@@ -138,6 +157,8 @@ Le paquet ne doit pas contenir :
 
 La sortie contient une enveloppe stricte et un tableau d'intentions.
 
+Chaque intention doit porter `semanticIntent`. Les anciens champs `intentType`, `commitment`, `target`, `action`, `topic` et `coreMeaning` peuvent rester pour compatibilite pendant la migration, mais le sens principal appartient a `semanticIntent`.
+
 Exemple :
 
 ```json
@@ -162,6 +183,37 @@ Exemple :
         "action": "ask",
         "topic": "ce qu'il a vu d'étrange",
         "coreMeaning": "Le personnage va vers le garde et lui demande s'il a vu quelque chose d'étrange.",
+        "semanticIntent": {
+          "schemaVersion": 1,
+          "kind": "address_visible_actor",
+          "playerGoal": "demander au garde s'il a vu quelque chose d'etrange",
+          "target": {
+            "kind": "npc",
+            "ref": "npc:garde",
+            "label": "garde"
+          },
+          "commitment": "committed",
+          "evidenceFromInput": [
+            "je lui demande",
+            "s'il a vu quelque chose d'etrange"
+          ],
+          "uncertainties": [],
+          "forbiddenInterpretations": [
+            "le garde revele un secret",
+            "le garde accepte une demande",
+            "un succes social est acquis"
+          ],
+          "confidence": "high"
+        },
+        "runtimeHandling": {
+          "schemaVersion": 1,
+          "status": "SUPPORTED_BY_CURRENT_RUNTIME",
+          "reason": "Parole joueur bornee vers un PNJ visible; aucun resultat social automatique.",
+          "requiredDomain": "scene_resolution",
+          "canonicalActionHint": "ask",
+          "noCommit": false,
+          "noGameTime": true
+        },
         "playerImposedDetails": [
           "s'approcher du garde",
           "poser une question au garde",
@@ -185,9 +237,87 @@ Exemple :
 }
 ```
 
+Exemple I-06ZF sans verbe canonique :
+
+```json
+{
+  "intentType": "action",
+  "commitment": "committed",
+  "target": {
+    "kind": "object",
+    "ref": "poi:back-room-door",
+    "label": "porte du fond"
+  },
+  "action": "open",
+  "topic": "manipulation du mecanisme de la porte",
+  "coreMeaning": "Le personnage manipule la poignee et le mecanisme de la porte visible, probablement pour tenter de l'ouvrir.",
+  "semanticIntent": {
+    "schemaVersion": 1,
+    "kind": "manipulate_visible_object",
+    "playerGoal": "actionner le passage visible ou tenter de l'ouvrir",
+    "target": {
+      "kind": "object",
+      "ref": "poi:back-room-door",
+      "label": "porte du fond"
+    },
+    "commitment": "committed",
+    "evidenceFromInput": [
+      "mets la main sur la poignee",
+      "pivote le mecanisme"
+    ],
+    "uncertainties": [],
+    "forbiddenInterpretations": [
+      "la porte s'ouvre forcement",
+      "le personnage entre dans la piece",
+      "ce qui se trouve derriere est revele"
+    ],
+    "confidence": "high"
+  },
+  "runtimeHandling": {
+    "schemaVersion": 1,
+    "status": "SUPPORTED_BY_CURRENT_RUNTIME",
+    "reason": "La cible est visible et le runtime peut enregistrer une action locale bornee sans resultat cache.",
+    "requiredDomain": "scene_resolution",
+    "canonicalActionHint": "open",
+    "noCommit": false,
+    "noGameTime": true
+  }
+}
+```
+
+## Champs semantiques obligatoires I-06ZF
+
+`semanticIntent` est obligatoire pour chaque intention acceptee.
+
+Champs :
+
+- `schemaVersion`: `1`;
+- `kind`: famille semantique large, par exemple `address_visible_actor`, `manipulate_visible_object`, `observe_environment`, `nonverbal_signal`, `hypothetical_action`, `unclear_intent`;
+- `playerGoal`: objectif apparent formule en langage naturel structure;
+- `target`: cible probable ou `null`;
+- `commitment`: meme enum que l'intention principale;
+- `evidenceFromInput[]`: fragments courts du texte joueur qui justifient l'interpretation;
+- `uncertainties[]`: incertitudes reelles, pas des precautions generiques;
+- `forbiddenInterpretations[]`: resultats, secrets, engagements ou deductions a ne pas ajouter;
+- `confidence`: `low`, `medium` ou `high`.
+
+`runtimeHandling` est obligatoire pour chaque intention acceptee.
+
+Champs :
+
+- `schemaVersion`: `1`;
+- `status`: `SUPPORTED_BY_CURRENT_RUNTIME`, `UNSUPPORTED_DOMAIN`, `NEEDS_CLARIFICATION`, `AI_INTERPRETATION_FAILED` ou equivalent a figer;
+- `reason`: raison exploitable par developpeur/testeur;
+- `requiredDomain`: domaine requis ou `null`;
+- `canonicalActionHint`: aide d'exploitation ou `null`;
+- `noCommit`: booleen;
+- `noGameTime`: booleen.
+
+`canonicalActionHint` ne porte pas le sens. Si ce champ est absent ou `null`, l'intention semantique reste valide tant qu'elle est claire et non dangereuse.
+
 ## Types d'intention autorisés en I-06X
 
-I-06X peut proposer uniquement les types déjà compatibles avec I-06 :
+Le contrat conserve les types compatibles avec I-06 :
 
 ```text
 meta_question
@@ -199,7 +329,7 @@ mixed
 unclear_commitment
 ```
 
-Il peut ajouter des champs structurants autour de ces types, mais ne doit pas ouvrir de nouvelles familles métier sans contrat dédié.
+Ces types servent au routage large. Ils ne doivent pas remplacer `semanticIntent.kind` et `semanticIntent.playerGoal`.
 
 ## Engagement
 
@@ -255,6 +385,14 @@ Je m’approche du garde et je lui demande ce qu’il a vu.
 
 Motif : variation grammaticale, mais intention de parole claire.
 
+Clarification illegitime I-06ZF :
+
+```text
+Je mets la main sur la poignee et pivote le mecanisme.
+```
+
+Motif : si la porte visible est le seul referent compatible dans le contexte, la formulation est inhabituelle mais l'intention semantique est suffisamment claire. Le runtime peut ensuite limiter ou refuser la resolution selon ses autorites, sans nier la comprehension.
+
 ## Validation locale
 
 La sortie IA est rejetée si :
@@ -270,12 +408,41 @@ La sortie IA est rejetée si :
 - une clarification est proposée alors que la sortie contient aussi une intention engagée contradictoire;
 - la confiance est absente ou hors enum;
 - le texte contient une instruction destinée au joueur au lieu d'une structure.
+- `semanticIntent` est absent, incoherent ou reduit a une action canonique sans preuves;
+- `runtimeHandling` est absent ou pretend supporter un domaine ferme;
+- `canonicalActionHint` contredit `semanticIntent.playerGoal`;
+- la sortie demande un fallback narratif apres echec.
 
-Le rejet doit produire un incident expurgé et une dégradation contrôlée.
+Le rejet doit produire un incident expurgé et un diagnostic d'echec d'interpretation. Il ne doit pas produire de fallback fictionnel.
 
-## Matrice de robustesse linguistique
+## Diagnostic d'echec d'interpretation
+
+Si `player_intent_interpreter` est indisponible, invalide ou rejete, le tour retourne un diagnostic structure, par exemple :
+
+```json
+{
+  "schemaVersion": 1,
+  "stage": "PLAYER_INTENT_INTERPRETATION",
+  "role": "player_intent_interpreter",
+  "status": "FAILED",
+  "category": "AI_OUTPUT_INVALID",
+  "rawInput": "Je mets la main sur la poignee et pivote le mecanisme.",
+  "issues": [
+    "payload.intents[0].semanticIntent is missing"
+  ],
+  "noCommit": true,
+  "noGameTime": true,
+  "developerSummary": "L'interpretation IA a ete rejetee; aucune resolution narrative n'a ete tentee."
+}
+```
+
+Les categories exactes seront figees par l'implementation. Le comportement ne varie pas : aucune reponse fictionnelle ne simule une interpretation reussie.
+
+## Matrices de verification
 
 I-06X doit tester des familles de formulations équivalentes.
+
+I-06ZF ajoute une matrice de cas naturels sans verbe canonique : [`Matrice-cas-I06ZF-interpretation-semantique.md`](Matrice-cas-I06ZF-interpretation-semantique.md).
 
 ### Famille A — parole adressée à un PNJ
 
@@ -358,6 +525,17 @@ I-06X pourra être considéré clos si :
 - le contrôleur ne donne aucune autorité de commit à l'IA;
 - les tests existants I-06 et map pertinents restent verts.
 
+## Criteres de sortie I-06ZF
+
+I-06ZF pourra etre considere pret pour implementation si :
+
+- `semanticIntent` et `runtimeHandling` sont figes dans ce contrat;
+- `action` est explicitement declassé en aide d'exploitation non centrale;
+- le format de diagnostic d'echec est figé;
+- les tests selectionnes depuis la matrice I-06ZF couvrent au moins actions implicites, gestes sociaux, observation, hypothese, domaine non supporte et ambiguite reelle;
+- le flux produit ne continue pas avec un fallback narratif quand l'IA d'interpretation echoue;
+- les validations locales restent des validations d'autorite et non des dictionnaires lexicaux.
+
 ## Commandes de vérification prévues
 
 Commandes minimales attendues après implémentation :
@@ -393,4 +571,4 @@ I-06X ne livre pas :
 
 I-06X doit traiter la compréhension de l'intention comme une capacité IA structurée et validée, pas comme une extension de l'heuristique déterministe.
 
-Le contrat `intent-clarification/1` reste disponible comme fallback conservateur. Il ne doit plus être la cible de généralisation principale pour la compréhension naturelle du joueur.
+I-06ZF precise que cette capacite IA est la seule interpretation active du tour en mode test. Le contrat `intent-clarification/1` et les fournisseurs locaux peuvent rester utiles aux tests techniques isoles, mais ils ne doivent pas masquer une panne de l'IA d'interpretation par une clarification ou une narration de facade.

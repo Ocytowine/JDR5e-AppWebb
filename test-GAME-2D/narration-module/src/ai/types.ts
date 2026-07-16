@@ -109,6 +109,8 @@ export interface AiStructuredPlayerIntentV1 {
     label: string | null;
   } | null;
   action: string | null;
+  semanticIntent: AiStructuredSemanticIntentV1;
+  runtimeHandling: AiIntentRuntimeHandlingV1;
   referentResolution?: {
     schemaVersion: 1;
     usedPreviousContext: boolean;
@@ -132,6 +134,40 @@ export interface AiStructuredPlayerIntentV1 {
   riskFlags: string[];
   expectedTimeEffect: "NO_GAME_TIME" | "DOMAIN_TO_DECIDE";
   confidence: "low" | "medium" | "high";
+}
+
+export interface AiStructuredSemanticIntentV1 {
+  schemaVersion: 1;
+  kind:
+    | "address_visible_actor"
+    | "manipulate_visible_object"
+    | "observe_environment"
+    | "nonverbal_signal"
+    | "hypothetical_action"
+    | "context_question"
+    | "meta_request"
+    | "unclear_intent";
+  playerGoal: string;
+  target: {
+    kind: "npc" | "place" | "object" | "self" | "unknown";
+    ref: string | null;
+    label: string | null;
+  } | null;
+  commitment: "none" | "hypothetical" | "conditional" | "committed" | "unclear";
+  evidenceFromInput: string[];
+  uncertainties: string[];
+  forbiddenInterpretations: string[];
+  confidence: "low" | "medium" | "high";
+}
+
+export interface AiIntentRuntimeHandlingV1 {
+  schemaVersion: 1;
+  status: "SUPPORTED_BY_CURRENT_RUNTIME" | "UNSUPPORTED_DOMAIN" | "NEEDS_CLARIFICATION" | "AI_INTERPRETATION_FAILED";
+  reason: string;
+  requiredDomain: "scene_resolution" | "social" | "perception" | "inventory" | "tactical" | "rest" | "world" | null;
+  canonicalActionHint: string | null;
+  noCommit: boolean;
+  noGameTime: boolean;
 }
 
 export interface SuspendedIntentV1 {
@@ -165,17 +201,18 @@ export interface PlayerIntentV1 {
 
 export interface SceneBeatProposalV1 {
   beatId: string;
-  kind: string;
+  kind: "CONTEXT_RESPONSE" | "LOCAL_ACTION_ATTEMPT" | "ACTOR_REACTION_EXPECTED" | "DOMAIN_BLOCKED" | "CLARIFICATION";
   actorIds: string[];
   stopCondition: string;
 }
 
 export interface DomainCommandProposalV1 {
   proposalId: string;
-  domain: string;
+  domain: "scene_resolution" | "social" | "perception" | "inventory" | "tactical" | "rest" | "world";
   commandType: string;
   targetRefs: string[];
   payload: Record<string, unknown>;
+  commitAuthority: false;
 }
 
 export interface ActorAssignmentV1 {
@@ -195,6 +232,14 @@ export interface PlayerHandoffProposalV1 {
 }
 
 export interface MjPlannerPayloadV1 {
+  schemaVersion: 1;
+  planId: string;
+  planningBasis: {
+    intentId: string;
+    semanticGoal: string;
+    runtimeStatus: AiIntentRuntimeHandlingV1["status"];
+    requiredDomain: AiIntentRuntimeHandlingV1["requiredDomain"];
+  };
   sceneBeats: SceneBeatProposalV1[];
   commandProposals: DomainCommandProposalV1[];
   creationProposals: DynamicCreationProposalV1[];
@@ -208,6 +253,7 @@ export interface MjPlannerPayloadV1 {
   playerHandoff: PlayerHandoffProposalV1;
   riskFlags: string[];
   respectedCommitmentRefs: string[];
+  forbiddenOutcomes: string[];
 }
 
 export interface PlayerExpressionPayloadV1 {

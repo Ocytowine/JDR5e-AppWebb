@@ -5,10 +5,12 @@ import type {
   AiCallRequestV1,
   AiIncidentRecordV1,
   AiIntentInterpretationPayloadV1,
+  AiIntentRuntimeHandlingV1,
   AiModelRouteV1,
   AiRetryPolicyV1,
   AiRoleOutputEnvelopeV1,
-  AiStructuredPlayerIntentV1
+  AiStructuredPlayerIntentV1,
+  AiStructuredSemanticIntentV1
 } from "../ai/types";
 import {
   createSuspendedIntentRecordV1,
@@ -33,8 +35,22 @@ export interface AiIntentInterpretationResultV1 {
   usedFallback: boolean;
   interpretation: NarrativeIntentInterpretationV1;
   acceptedOutput: AiRoleOutputEnvelopeV1<AiIntentInterpretationPayloadV1> | null;
+  interpretationFailure: AiIntentInterpretationFailureV1 | null;
   incidents: AiIncidentRecordV1[];
   safetyNotes: string[];
+}
+
+export interface AiIntentInterpretationFailureV1 {
+  schemaVersion: 1;
+  stage: "PLAYER_INTENT_INTERPRETATION";
+  role: "player_intent_interpreter";
+  status: "FAILED";
+  category: "AI_OUTPUT_INVALID" | "AI_OUTPUT_REJECTED" | "AI_UNAVAILABLE";
+  rawInput: string;
+  issues: string[];
+  noCommit: true;
+  noGameTime: true;
+  developerSummary: string;
 }
 
 export interface LocalReferentHintV1 {
@@ -126,21 +142,29 @@ export async function interpretNarrativeInputWithAiV1(input: {
         usedFallback: false,
         interpretation: mapped.interpretation,
         acceptedOutput,
+        interpretationFailure: null,
         incidents: run.incidents,
         safetyNotes: ["Interprétation IA structurée acceptée sans autorité de commit."]
       };
     }
   }
 
+  const failure = buildInterpretationFailure(input.rawInput, [
+    ...(run.validation?.issues ?? []),
+    acceptedOutput === null
+      ? "No accepted player_intent_interpreter output."
+      : "Accepted output could not be mapped to a safe narrative interpretation."
+  ]);
   return {
     schemaVersion: 1,
     contractVersion: AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1,
     usedAiInterpretation: false,
-    usedFallback: true,
-    interpretation: interpretNarrativeInputV1({ intentId: input.intentId, rawInput: input.rawInput }),
+    usedFallback: false,
+    interpretation: buildDiagnosticInterpretation(input.intentId, failure),
     acceptedOutput: null,
+    interpretationFailure: failure,
     incidents: run.incidents,
-    safetyNotes: ["Fallback conservateur intent-clarification/1 utilisé."]
+    safetyNotes: ["Diagnostic d'échec d'interprétation IA produit sans fallback narratif."]
   };
 }
 
@@ -156,6 +180,8 @@ export function buildLocalIntentPayload(rawInput: string, localReferentHints: Lo
   const speech = /\b(je demande|je lui demande|lui demander|je questionne|j'interroge|j interroge|je lui dis|je dis|je reponds|je réponds|parler|discuter|interroger)\b/u.test(normalized);
   const explicitCommittedAction = /\b(je vole|j'attaque|j attaque|je frappe|je prends|je tente|j'essaie|j essaie|j'ouvre|j ouvre|je l'ouvre|je le force|je la force|je force|je crochete)\b/u.test(normalized);
   const action = explicitCommittedAction || /\b(je m'avance|je m avance|je vais|je me dirige|je m'approche|je m approche|je regarde|j'observe|j observe)\b/u.test(normalized);
+  const implicitDoorManipulation = /\b(poignee|mecanisme|loquet|battant)\b/u.test(normalized) &&
+    /\b(main|pivote|tourne|actionne|abaisse|pousse|tire)\b/u.test(normalized);
   const elliptical = normalized.length < 22 || /^(lui |le garde\s*\??$|et si|je pourrais peut-etre|je pourrais peut etre)/u.test(normalized);
 
   if (!explicitCommittedAction && elliptical && (risky || /^(et si|je pourrais peut-etre|je pourrais peut etre|le garde\s*\??$)/u.test(normalized))) {
@@ -172,6 +198,10 @@ export function buildLocalIntentPayload(rawInput: string, localReferentHints: Lo
   }
   if (speech && target !== null) {
     return payload(rawInput, intent(rawInput, "speech", "committed", target, "ask", topic(rawInput), speechCoreMeaning(rawInput, target.label ?? "la personne ciblée"), imposedDetails(rawInput, target.label), ["reaction_npc", "social_outcome"], false, null, [], "DOMAIN_TO_DECIDE", "high"));
+  }
+  if (implicitDoorManipulation) {
+    const doorTarget = target ?? { kind: "object" as const, ref: "poi:back-room-door", label: "porte du fond" };
+    return payload(rawInput, intent(rawInput, "action", "committed", doorTarget, "open", topic(rawInput), "Le personnage manipule le mécanisme du passage visible, probablement pour tenter de l'ouvrir.", [rawInput.trim()], ["automatic_success", "hidden_reveal", "scene_transition"], false, null, ["domain_handoff_possible"], "DOMAIN_TO_DECIDE", "high"));
   }
   if (action) {
     return payload(rawInput, intent(rawInput, "action", "committed", target, localAction, topic(rawInput), `Le personnage tente l'action décrite : ${rawInput.trim()}`, [rawInput.trim()], ["success", "failure", "mechanical_effect"], false, null, risky ? ["domain_handoff_possible"] : [], "DOMAIN_TO_DECIDE", "medium"));
@@ -203,6 +233,26 @@ function intent(
   confidence: AiStructuredPlayerIntentV1["confidence"]
 ): AiStructuredPlayerIntentV1 {
   const referentResolution = buildReferentResolution(target, rawInput);
+  const semanticIntent = buildSemanticIntent({
+    rawInput,
+    intentType,
+    commitment,
+    target,
+    action,
+    coreMeaning,
+    forbiddenInterpretations,
+    requiresClarification,
+    confidence
+  });
+  const runtimeHandling = buildRuntimeHandling({
+    rawInput,
+    intentType,
+    commitment,
+    target,
+    action,
+    requiresClarification,
+    confidence
+  });
   return {
     intentId: "intent:1",
     order: 1,
@@ -210,6 +260,8 @@ function intent(
     commitment,
     target,
     action,
+    semanticIntent,
+    runtimeHandling,
     referentResolution,
     topic: topicValue,
     coreMeaning,
@@ -226,6 +278,187 @@ function intent(
 
 function unclear(rawInput: string, question: string): AiStructuredPlayerIntentV1 {
   return intent(rawInput, "unclear_commitment", "unclear", findTarget(rawInput), null, topic(rawInput), rawInput.trim(), [], ["execute_without_confirmation"], true, question, ["ambiguous_commitment"], "NO_GAME_TIME", "medium");
+}
+
+function buildInterpretationFailure(rawInput: string, issues: string[]): AiIntentInterpretationFailureV1 {
+  const normalizedIssues = issues.filter(entry => entry.trim().length > 0);
+  const providerUnavailable = normalizedIssues.some(entry => /transport|provider/iu.test(entry));
+  const rejectedByMapper = normalizedIssues.some(entry => /could not be mapped/iu.test(entry));
+  return {
+    schemaVersion: 1,
+    stage: "PLAYER_INTENT_INTERPRETATION",
+    role: "player_intent_interpreter",
+    status: "FAILED",
+    category: providerUnavailable ? "AI_UNAVAILABLE" : rejectedByMapper ? "AI_OUTPUT_REJECTED" : "AI_OUTPUT_INVALID",
+    rawInput,
+    issues: normalizedIssues,
+    noCommit: true,
+    noGameTime: true,
+    developerSummary: "L'interprétation IA a échoué ou a été rejetée; aucune résolution narrative n'a été tentée."
+  };
+}
+
+function buildDiagnosticInterpretation(intentId: string, failure: AiIntentInterpretationFailureV1): NarrativeIntentInterpretationV1 {
+  return {
+    schemaVersion: 1,
+    contractVersion: "intent-clarification/1",
+    intentId,
+    intentType: "meta_question",
+    commitment: "none",
+    target: null,
+    action: null,
+    runtimeHandling: {
+      schemaVersion: 1,
+      status: "AI_INTERPRETATION_FAILED",
+      reason: failure.developerSummary,
+      requiredDomain: null,
+      canonicalActionHint: null,
+      noCommit: true,
+      noGameTime: true
+    },
+    referentResolution: null,
+    coreMeaning: failure.developerSummary,
+    requiresClarification: false,
+    clarificationQuestion: null,
+    expectedTimeEffect: "NO_GAME_TIME",
+    safetyNotes: [
+      "Diagnostic technique sans fallback narratif.",
+      ...failure.issues.map(entry => `Issue: ${entry}`)
+    ]
+  };
+}
+
+function buildSemanticIntent(input: {
+  rawInput: string;
+  intentType: AiStructuredPlayerIntentV1["intentType"];
+  commitment: AiStructuredPlayerIntentV1["commitment"];
+  target: AiStructuredPlayerIntentV1["target"];
+  action: string | null;
+  coreMeaning: string;
+  forbiddenInterpretations: string[];
+  requiresClarification: boolean;
+  confidence: AiStructuredPlayerIntentV1["confidence"];
+}): AiStructuredSemanticIntentV1 {
+  return {
+    schemaVersion: 1,
+    kind: semanticKind(input.intentType, input.action, input.rawInput),
+    playerGoal: input.coreMeaning,
+    target: input.target,
+    commitment: input.commitment,
+    evidenceFromInput: [input.rawInput.trim()].filter(Boolean),
+    uncertainties: input.requiresClarification ? ["engagement, cible ou portée à clarifier"] : [],
+    forbiddenInterpretations: [...input.forbiddenInterpretations],
+    confidence: input.confidence
+  };
+}
+
+function buildRuntimeHandling(input: {
+  rawInput: string;
+  intentType: AiStructuredPlayerIntentV1["intentType"];
+  commitment: AiStructuredPlayerIntentV1["commitment"];
+  target: AiStructuredPlayerIntentV1["target"];
+  action: string | null;
+  requiresClarification: boolean;
+  confidence: AiStructuredPlayerIntentV1["confidence"];
+}): AiIntentRuntimeHandlingV1 {
+  if (input.requiresClarification || input.confidence === "low") {
+    return {
+      schemaVersion: 1,
+      status: "NEEDS_CLARIFICATION",
+      reason: "L'intention n'est pas exploitable sans précision joueur.",
+      requiredDomain: null,
+      canonicalActionHint: input.action,
+      noCommit: true,
+      noGameTime: true
+    };
+  }
+  if (input.intentType === "meta_question" || input.intentType === "possibility_query") {
+    return {
+      schemaVersion: 1,
+      status: "SUPPORTED_BY_CURRENT_RUNTIME",
+      reason: "Intention sans commit métier traitable par le runtime courant.",
+      requiredDomain: "scene_resolution",
+      canonicalActionHint: input.action,
+      noCommit: true,
+      noGameTime: true
+    };
+  }
+  if (input.intentType === "speech") {
+    return {
+      schemaVersion: 1,
+      status: "SUPPORTED_BY_CURRENT_RUNTIME",
+      reason: "Parole joueur bornée vers une cible visible, sans résultat social automatique.",
+      requiredDomain: "scene_resolution",
+      canonicalActionHint: input.action,
+      noCommit: false,
+      noGameTime: true
+    };
+  }
+  if (input.intentType === "action" && input.action === "observe") {
+    return {
+      schemaVersion: 1,
+      status: "SUPPORTED_BY_CURRENT_RUNTIME",
+      reason: "Observation locale traitable sans commit métier durable.",
+      requiredDomain: "perception",
+      canonicalActionHint: input.action,
+      noCommit: true,
+      noGameTime: true
+    };
+  }
+  if (input.intentType === "action" && (input.action === "open" || input.action === "force") && input.target?.ref === "poi:back-room-door") {
+    return {
+      schemaVersion: 1,
+      status: "SUPPORTED_BY_CURRENT_RUNTIME",
+      reason: "Action locale bornée sur un référent visible, sans résultat caché ni changement de scène.",
+      requiredDomain: "scene_resolution",
+      canonicalActionHint: input.action,
+      noCommit: false,
+      noGameTime: true
+    };
+  }
+  const unsupportedDomain = classifyLocalUnsupportedRuntimeDomain(input.rawInput);
+  return {
+    schemaVersion: 1,
+    status: input.commitment === "committed" ? "UNSUPPORTED_DOMAIN" : "SUPPORTED_BY_CURRENT_RUNTIME",
+    reason: input.commitment === "committed"
+      ? localUnsupportedRuntimeReason(unsupportedDomain)
+      : "Intention exploitable sans domaine propriétaire supplémentaire.",
+    requiredDomain: input.commitment === "committed" ? unsupportedDomain : "scene_resolution",
+    canonicalActionHint: input.action,
+    noCommit: input.commitment === "committed",
+    noGameTime: true
+  };
+}
+
+function localUnsupportedRuntimeReason(domain: AiIntentRuntimeHandlingV1["requiredDomain"]): string {
+  if (domain === "tactical") return "Conflit violent potentiel: handoff tactique requis.";
+  if (domain === "rest") return "Début de repos: moteur de repos requis.";
+  if (domain === "inventory") return "Mutation d'inventaire ou possession: domaine inventaire requis.";
+  return "Intention comprise mais domaine propriétaire non ouvert dans le runtime courant.";
+}
+
+function classifyLocalUnsupportedRuntimeDomain(rawInput: string): AiIntentRuntimeHandlingV1["requiredDomain"] {
+  const normalized = normalize(rawInput);
+  if (/\b(attaque|attaquer|frappe|frapper|combat|tuer|poignarder)\b/u.test(normalized)) return "tactical";
+  if (/\b(repos|dormir|campement|se reposer)\b/u.test(normalized)) return "rest";
+  if (/\b(voler|vole|prendre|prends|ramasser|ramasse|acheter|achete|vendre|vends|donner|donne|equiper|equipe)\b/u.test(normalized)) return "inventory";
+  return "world";
+}
+
+function semanticKind(
+  intentType: AiStructuredPlayerIntentV1["intentType"],
+  action: string | null,
+  rawInput: string
+): AiStructuredSemanticIntentV1["kind"] {
+  const normalized = normalize(rawInput);
+  if (intentType === "meta_question") return "context_question";
+  if (intentType === "possibility_query") return "hypothetical_action";
+  if (intentType === "speech") return "address_visible_actor";
+  if (intentType === "unclear_commitment") return "unclear_intent";
+  if (action === "observe") return "observe_environment";
+  if (intentType === "action") return "manipulate_visible_object";
+  if (/\b(signe|main|levre|levres|hoche|tends)\b/u.test(normalized)) return "nonverbal_signal";
+  return "unclear_intent";
 }
 
 async function buildIntentInterpreterRequestV1(input: {
@@ -273,6 +506,7 @@ async function buildIntentInterpreterRequestV1(input: {
         rawInput: input.rawInput,
         localReferentHints: input.localReferentHints ?? [],
         allowedIntentTypes: ["meta_question", "possibility_query", "memory_recall", "speech", "action", "mixed", "unclear_commitment"],
+        requiredSemanticFields: ["semanticIntent", "runtimeHandling"],
         forbiddenAuthority: ["commit", "time", "inventory", "tactical", "durable_lore", "social_success"]
       }
     },
@@ -292,6 +526,11 @@ function mapAiIntentToNarrativeInterpretationV1(input: {
   const first = input.payload.intents[0];
   if (!first) return { ok: false };
   if (first.confidence === "low") return { ok: false };
+  if (first.semanticIntent.confidence === "low") return { ok: false };
+  if (first.semanticIntent.commitment !== first.commitment) return { ok: false };
+  if (first.runtimeHandling.status === "AI_INTERPRETATION_FAILED") return { ok: false };
+  if (first.runtimeHandling.status === "NEEDS_CLARIFICATION" && first.requiresClarification !== true) return { ok: false };
+  if (first.runtimeHandling.canonicalActionHint !== null && first.action !== null && first.runtimeHandling.canonicalActionHint !== first.action) return { ok: false };
   if (first.intentType === "possibility_query" && first.commitment !== "hypothetical") return { ok: false };
   if (first.intentType === "possibility_query" && !isExplicitPossibilityQuestionText(input.rawInput)) return { ok: false };
   if (first.intentType === "meta_question" && first.commitment !== "none") return { ok: false };
@@ -310,14 +549,15 @@ function mapAiIntentToNarrativeInterpretationV1(input: {
         commitment: "unclear",
         target: first.target,
         action: first.action,
+        runtimeHandling: first.runtimeHandling,
         referentResolution: first.referentResolution ?? buildReferentResolution(first.target, input.rawInput),
-        coreMeaning: first.coreMeaning,
+        coreMeaning: first.semanticIntent.playerGoal || first.coreMeaning,
         requiresClarification: true,
         clarificationQuestion: referentClarification,
         expectedTimeEffect: "NO_GAME_TIME",
         safetyNotes: [
-          "RÃ©fÃ©rent d'action locale non validÃ©: clarification obligatoire avant rÃ©solution.",
-          ...first.forbiddenInterpretations.map(entry => `InterprÃ©tation interdite: ${entry}`)
+          "Référent d'action locale non validé: clarification obligatoire avant résolution.",
+          ...first.forbiddenInterpretations.map(entry => `Interprétation interdite: ${entry}`)
         ]
       }
     };
@@ -333,8 +573,9 @@ function mapAiIntentToNarrativeInterpretationV1(input: {
       commitment: first.commitment,
       target: first.target,
       action: first.action,
+      runtimeHandling: first.runtimeHandling,
       referentResolution: first.referentResolution ?? buildReferentResolution(first.target, input.rawInput),
-      coreMeaning: first.coreMeaning,
+      coreMeaning: first.semanticIntent.playerGoal || first.coreMeaning,
       requiresClarification: first.requiresClarification,
       clarificationQuestion: first.clarificationQuestion,
       expectedTimeEffect: first.expectedTimeEffect,
