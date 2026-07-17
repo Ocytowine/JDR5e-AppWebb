@@ -14,6 +14,7 @@ import {
   createDefaultAiIntentInterpreterConfigV1,
   createPrototypeNarrativeTurnControllerV1,
   interpretNarrativeInputWithAiV1,
+  upgradeLegacyNarrativeIntentInterpretationV1,
   type AiIntentInterpreterConfigV1
 } from "../../src/application";
 
@@ -112,6 +113,15 @@ async function main(): Promise<void> {
   assert.equal(implicitDoorOpening.interpretation.intentType, "action", "manipulation implicite: action attendue");
   assert.equal(implicitDoorOpening.interpretation.action, "open", "manipulation implicite: ouverture canonique attendue");
   assert.equal(implicitDoorOpening.interpretation.target?.ref, "poi:back-room-door", "manipulation implicite: porte visible attendue");
+  assert.deepEqual(
+    implicitDoorOpening.interpretation.semanticIntent,
+    implicitDoorOpening.acceptedOutput?.payload.intents[0]?.semanticIntent,
+    "manipulation implicite: semanticIntent doit traverser le mapping sans perte"
+  );
+  const { semanticIntent: _omittedSemanticIntent, ...legacyInterpretation } = implicitDoorOpening.interpretation;
+  const upgradedLegacy = upgradeLegacyNarrativeIntentInterpretationV1(legacyInterpretation);
+  assert.equal(upgradedLegacy?.semanticIntent.playerGoal, legacyInterpretation.coreMeaning, "relecture legacy: projection sémantique explicite attendue");
+  assert.equal(upgradedLegacy?.semanticIntent.target?.ref, legacyInterpretation.target?.ref, "relecture legacy: cible conservée");
   assert.equal(implicitDoorOpening.acceptedOutput?.payload.intents[0]?.semanticIntent.kind, "manipulate_visible_object");
   assert.equal(implicitDoorOpening.acceptedOutput?.payload.intents[0]?.runtimeHandling.status, "SUPPORTED_BY_CURRENT_RUNTIME");
 
@@ -186,7 +196,14 @@ async function main(): Promise<void> {
   assert.equal(directedApproach.output.interpretation.target?.ref, "npc:npc-garde-blesse", "direction garde: cible visible attendue");
   assert.equal(directedApproach.output.interpretation.runtimeHandling?.requiredDomain, "scene_resolution", "direction garde: domaine scene attendu");
   assert.equal(directedApproach.output.resolution.resultKind, "COMMIT_APPLIED", "direction garde: commit local attendu malgré coreMeaning reformulé");
+  assert.deepEqual(
+    directedApproach.output.resolution.interpretation.semanticIntent,
+    directedApproach.output.interpretation.semanticIntent,
+    "direction garde: résolution et contrôleur doivent conserver la même intention sémantique"
+  );
   assert.equal(directedApproach.output.resolution.preparedEffects[0]?.effectType, "LOCAL_SCENE_ACTION_RECORDED", "direction garde: effet local attendu");
+  assert.equal(directedApproach.output.mjPlan?.planningBasis.semanticGoal, directedApproach.output.interpretation.semanticIntent.playerGoal, "planner: objectif sémantique canonique attendu");
+  assert.notEqual(directedApproach.output.mjPlan?.planningBasis.semanticGoal, directedApproach.output.interpretation.coreMeaning, "planner: coreMeaning legacy ne doit plus faire autorité");
 
   const approachWaitressThenAsk = await runControllerApproachWaitressThenAskCase();
   assert.equal(approachWaitressThenAsk.approach.output.interpretation.target?.ref, "npc:npc-serveuse-nerveuse", "approche serveuse: cible visible attendue");
@@ -269,12 +286,14 @@ async function main(): Promise<void> {
   assert.equal(incompatibleReferent.open.output.noCommit, true, "referent incompatible: aucun commit");
 
   const unsupportedRuntime = await runControllerUnsupportedRuntimeCase();
-  assert.equal(unsupportedRuntime.output.interpretation.runtimeHandling?.status, "UNSUPPORTED_DOMAIN", "domaine runtime non ouvert attendu");
+  assert.equal(unsupportedRuntime.output.interpretation.runtimeHandling?.status, "SUPPORTED_BY_CURRENT_RUNTIME", "suggestion IA volontairement permissive attendue");
+  assert.equal(unsupportedRuntime.output.interpretation.runtimeDecision.status, "UNSUPPORTED_DOMAIN", "le registre local doit fermer inventory malgré la suggestion IA");
+  assert.equal(unsupportedRuntime.output.interpretation.runtimeDecision.aiSuggestionMatched, false, "la divergence IA/runtime doit être tracée");
   assert.equal(unsupportedRuntime.output.mjPlan?.sceneBeats[0]?.kind, "DOMAIN_BLOCKED", "planner doit arrêter le domaine fermé");
   assert.equal(unsupportedRuntime.output.mjPlan?.planningBasis.requiredDomain, "inventory", "planner doit conserver le domaine requis");
   assert.equal(unsupportedRuntime.output.mjPlan?.creationProposals.length, 0, "planner minimal ne crée rien");
   assert.equal(unsupportedRuntime.output.resolution.resultKind, "HANDOFF_REQUIRED", "domaine runtime non ouvert: handoff requis");
-  assert.equal(unsupportedRuntime.output.resolution.handoff?.target, "INVENTORY", "domaine inventory attendu depuis runtimeHandling");
+  assert.equal(unsupportedRuntime.output.resolution.handoff?.target, "INVENTORY", "domaine inventory attendu depuis la décision runtime locale");
   assert.equal(unsupportedRuntime.output.noCommit, true, "domaine non ouvert: aucun commit");
   assert.equal(unsupportedRuntime.output.resolution.preparedEffects[0]?.effectType, "BLOCKED_UNOPENED_DOMAIN");
 
@@ -927,11 +946,11 @@ function unsupportedInventoryRuntimeConfig(): AiIntentInterpreterConfigV1 {
                 confidence: "high"
               }),
               runtimeHandling: runtimeHandling({
-                status: "UNSUPPORTED_DOMAIN",
-                reason: "L'intention implique une possession ou mutation d'inventaire; le runtime d'inventaire n'est pas ouvert.",
+                status: "SUPPORTED_BY_CURRENT_RUNTIME",
+                reason: "Suggestion IA volontairement permissive pour prouver l'autorité du registre local.",
                 requiredDomain: "inventory",
                 canonicalActionHint: "act",
-                noCommit: true,
+                noCommit: false,
                 noGameTime: true
               })
             }]

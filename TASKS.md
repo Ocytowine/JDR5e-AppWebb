@@ -8,13 +8,13 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 - [ ] Traiter l'audit technique post-I-06ZB avant d'ouvrir une nouvelle capacité narrative.
   References: `test-GAME-2D/narration-module/docs/Audit-technique-I06ZB.md`, `test-GAME-2D/narration-module/docs/Revue-technique-post-I06ZB.md`, `test-GAME-2D/narration-module/docs/Suivi-prochains-lots-narration.md`.
-  Note: A-01, A-02, A-03, A-04 et A-07 traités le 2026-07-09; `scene_writer` no-commit stabilisé avec historique court, diagnostics, budget JSON strict et discipline factuelle `factDiscipline`; I-06ZC à I-06ZK livrés. Prochaine étape concrète: décider entre ouverture contrôlée d'un domaine propriétaire, mémoire sociale courte structurée ou nettoyage legacy A-06.
+  Note: A-01, A-02, A-03, A-04 et A-07 traités le 2026-07-09; I-06ZC à I-06ZM livrés. `semanticIntent` est propagé sans perte, le planner consomme son objectif et `runtimeDecision` donne l'autorité au registre local plutôt qu'à la suggestion IA. Prochaine étape concrète: cadrer I-06ZN pour séparer intention, routage et commandes de domaine typées.
 - [ ] Consolider la simulation du monde apres l'ajout des objectifs multi-phases, des opportunites de faction et des mobiles non-systeme.
   Reference: `test-GAME-2D/map-module/docs/world-simulation-corrective-roadmap.md`. Les mobiles exposent maintenant l'objectif, la phase et la cible qu'ils servent.
 
 ## Prochaines etapes
 
-- [ ] Faire le point roadmap narration post-I-06ZE depuis les documents du module avant d'ouvrir un nouveau lot.
+- [ ] Cadrer puis implémenter I-06ZN, enveloppes et commandes de domaine typées, selon `test-GAME-2D/narration-module/docs/Plan-fidelite-intention-systeme.md`.
 - [ ] Migrer `wiki/lore/gouvernances/primauté` vers un futur type de gouvernance et retirer alors son exclusion explicite.
 - [ ] Préparer après I-06A le branchement UI narratif progressif, sans appel fournisseur direct depuis React tant que les projections ne sont pas validées.
 - [ ] Generer les premiers mobiles non-systeme contextuels, en commencant par les profils marchands, criminels et religieux.

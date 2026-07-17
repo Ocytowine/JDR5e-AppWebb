@@ -2151,3 +2151,45 @@ Après validation locale du rôle, la valeur visible suivante vient de la capaci
 ### Conséquences
 
 OpenAI peut proposer une réplique PNJ bornée. Le système rejette les révélations, engagements durables, speech acts interdits, mutations et succès sociaux. Le moteur social, la mémoire sociale longue et les conséquences persistantes restent fermés.
+
+## NAR-116 — Fidélité sémantique de bout en bout avant nouvelle capacité
+
+Statut : `RETENU`
+
+Date : 2026-07-17
+
+### Décision
+
+Les prochains lots narration I-06ZL à I-06ZR consolident la fidélité entre l'intention comprise et la commande transmise au système avant d'ouvrir une nouvelle capacité narrative.
+
+La structure `semanticIntent` doit devenir et rester la source canonique du sens dans le contrôleur, le planner et le routeur. La décision de disponibilité d'un domaine appartient au runtime local. Une commande de domaine typée doit être distincte de l'intention et ne peut contenir ni résultat anticipé ni autorité de commit.
+
+### Raisons
+
+Le contrat IA actuel transporte une intention sémantique riche, mais le mapping applicatif la réduit encore vers `coreMeaning`, `intentType` et `action`. Les étapes aval peuvent alors perdre une compréhension correcte, relire le texte par heuristiques lexicales ou dépendre de références propres à la scène prototype. Les tests existants prouvent les cas stabilisés, mais pas encore l'invariance de la transmission sur plusieurs formulations et plusieurs scènes.
+
+### Conséquences
+
+Le plan [`Plan-fidelite-intention-systeme.md`](Plan-fidelite-intention-systeme.md) devient la référence normative de ce chantier. Il impose sept gates : propagation sémantique, consommation par planner et routeur, commandes typées, retrait lexical, registre générique de scène, invariance multi-scènes, puis tests d'autorité et retrait legacy.
+
+Le moteur social, les intrigues dynamiques, les créations persistantes, la mémoire sociale longue et les domaines propriétaires jouables restent fermés. La première étape est l'inventaire complet de `NarrativeIntentInterpretationV1` et la décision de version du contrat canonique I-06ZL.
+
+## NAR-117 — Le registre local décide de la disponibilité runtime
+
+Statut : `RETENU`
+
+Date : 2026-07-17
+
+### Décision
+
+`runtimeHandling` produit par `player_intent_interpreter` est une suggestion de domaine. La décision exécutable appartient à `runtimeDecision`, calculé localement depuis l'intention sémantique et un registre explicite des capacités ouvertes.
+
+Le `mj_planner` consomme `semanticIntent.playerGoal`; il ne reconstruit plus son objectif depuis `coreMeaning`. Le planner et le resolver lisent le statut et le domaine depuis `runtimeDecision`.
+
+### Raisons
+
+Un modèle peut comprendre correctement l'intention tout en se trompant sur les capacités réellement installées. Lui laisser déclarer `SUPPORTED_BY_CURRENT_RUNTIME` reviendrait à lui donner indirectement autorité sur le routage et le commit. Cette disponibilité est un fait local, déterministe et versionné.
+
+### Conséquences
+
+Une suggestion IA permissive peut être renversée en `UNSUPPORTED_DOMAIN` sans perdre le sens compris. La divergence est tracée par `aiSuggestionMatched` et affichée dans le diagnostic. Le domaine demandé reste encore une proposition structurée jusqu'à I-06ZN, qui introduira les commandes de domaine typées.

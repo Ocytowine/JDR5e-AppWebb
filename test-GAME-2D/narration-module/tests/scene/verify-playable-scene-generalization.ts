@@ -12,6 +12,8 @@ import {
   toPlayableScenePublicContextV1,
   validatePlayableSceneV1,
   WATCHTOWER_DAWN_PLAYABLE_SCENE_V1,
+  buildCompatibleSemanticIntentV1,
+  evaluateNarrativeRuntimeDecisionV1,
   type NarrativeIntentInterpretationV1,
   type NarrativeResolutionResultV1
 } from "../../src/application";
@@ -80,6 +82,17 @@ function interpretation(
     intentId: "intent-i06s",
     intentType,
     commitment: intentType === "meta_question" || intentType === "possibility_query" ? "none" : "committed",
+    semanticIntent: buildCompatibleSemanticIntentV1({
+      intentType,
+      commitment: intentType === "meta_question" || intentType === "possibility_query" ? "none" : "committed",
+      coreMeaning,
+      requiresClarification: false
+    }),
+    runtimeDecision: evaluateNarrativeRuntimeDecisionV1({
+      semanticIntent: buildCompatibleSemanticIntentV1({ intentType, commitment: intentType === "meta_question" || intentType === "possibility_query" ? "none" : "committed", coreMeaning, requiresClarification: false }),
+      runtimeSuggestion: null,
+      requiresClarification: false
+    }),
     coreMeaning,
     requiresClarification: false,
     clarificationQuestion: null,

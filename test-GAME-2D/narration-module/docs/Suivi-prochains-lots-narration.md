@@ -748,6 +748,26 @@ Hors périmètre :
 - pas de secrets ou promesses durables;
 - pas de PNJ autonomes multi-tours.
 
+## I-06ZL à I-06ZR — Fidélité intention vers système
+
+Statut : `PLANIFIE` le 2026-07-17.
+
+Référence normative : [`Plan-fidelite-intention-systeme.md`](Plan-fidelite-intention-systeme.md).
+
+Constat : les lots I-06ZF à I-06ZK ont introduit une intention sémantique riche, un verrou runtime, un planner et un performer PNJ, mais la structure `semanticIntent` est encore aplatie avant les consommateurs applicatifs. Le planner et la résolution restent partiellement dépendants de `coreMeaning`, `intentType`, `action`, du texte brut et de références propres à la scène prototype.
+
+Décision de suite : ne pas ouvrir une nouvelle capacité narrative avant d'avoir consolidé la fidélité de bout en bout. Les sept lots retenus sont :
+
+- I-06ZL : contrat canonique et propagation de `semanticIntent` — `TERMINE_DANS_PERIMETRE` le 2026-07-17, preuves dans [`Matrice-preuves-I06ZL.md`](Matrice-preuves-I06ZL.md);
+- I-06ZM : consommation sémantique par le planner et décision runtime locale — `TERMINE_DANS_PERIMETRE` le 2026-07-17, preuves dans [`Matrice-preuves-I06ZM.md`](Matrice-preuves-I06ZM.md);
+- I-06ZN : commandes de domaine typées;
+- I-06ZO : retrait progressif des interprétations lexicales;
+- I-06ZP : registre générique des référents de scène;
+- I-06ZQ : matrices d'invariance sémantique multi-scènes;
+- I-06ZR : tests d'autorité et nettoyage legacy.
+
+I-06ZL conserve `intent-clarification/1` comme seule version active et rend `semanticIntent` obligatoire. I-06ZM ajoute `runtimeDecision`, calculé par le registre local, et fait consommer `semanticIntent.playerGoal` au planner. La prochaine gate est I-06ZN : introduire des commandes de domaine typées distinctes de l'intention et du routage.
+
 ## Critères retenus pour la sortie I-06
 
 La sortie I-06 est cadrée par [`Sortie-phase-I06.md`](Sortie-phase-I06.md). Les critères retenus sont :

@@ -4,6 +4,8 @@ import {
   buildReferenceSceneBlocksV1,
   createInitialReferenceSceneStateV1,
   NARRATIVE_PRESENTATION_VARIATION_CONTRACT_VERSION_V1,
+  buildCompatibleSemanticIntentV1,
+  evaluateNarrativeRuntimeDecisionV1,
   type NarrativeIntentInterpretationV1,
   type NarrativeResolutionResultV1,
   type NarrativeTurnControllerOutputV1
@@ -21,6 +23,17 @@ function interpretation(
     intentId: `intent:${intentType}:${Math.abs(hash(coreMeaning))}`,
     intentType,
     commitment: intentType === "possibility_query" ? "hypothetical" : intentType === "meta_question" ? "none" : "committed",
+    semanticIntent: buildCompatibleSemanticIntentV1({
+      intentType,
+      commitment: intentType === "possibility_query" ? "hypothetical" : intentType === "meta_question" ? "none" : "committed",
+      coreMeaning,
+      requiresClarification: false
+    }),
+    runtimeDecision: evaluateNarrativeRuntimeDecisionV1({
+      semanticIntent: buildCompatibleSemanticIntentV1({ intentType, commitment: intentType === "possibility_query" ? "hypothetical" : intentType === "meta_question" ? "none" : "committed", coreMeaning, requiresClarification: false }),
+      runtimeSuggestion: null,
+      requiresClarification: false
+    }),
     coreMeaning,
     requiresClarification: false,
     clarificationQuestion: null,

@@ -11,7 +11,7 @@ import type {
   MjPlannerPayloadV1,
   SceneBeatProposalV1
 } from "../ai/types";
-import type { NarrativeIntentInterpretationV1 } from "./intentClarification";
+import { isNarrativeRuntimeDecisionV1, isNarrativeSemanticIntentV1, type NarrativeIntentInterpretationV1 } from "./intentClarification";
 
 export const MJ_PLANNER_CONTRACT_VERSION_V1 = "mj-planner/1" as const;
 
@@ -97,11 +97,11 @@ export function createDefaultMjPlannerConfigV1(): MjPlannerConfigV1 {
 }
 
 export function shouldCallMjPlannerV1(interpretation: NarrativeIntentInterpretationV1): boolean {
-  if (interpretation.intentType === "meta_question" || interpretation.intentType === "possibility_query") return false;
+  if (interpretation.semanticIntent.commitment === "none" || interpretation.semanticIntent.commitment === "hypothetical") return false;
   if (interpretation.requiresClarification) return false;
-  return interpretation.commitment === "committed" ||
-    interpretation.commitment === "conditional" ||
-    interpretation.runtimeHandling?.status === "UNSUPPORTED_DOMAIN";
+  return interpretation.semanticIntent.commitment === "committed" ||
+    interpretation.semanticIntent.commitment === "conditional" ||
+    interpretation.runtimeDecision.status === "UNSUPPORTED_DOMAIN";
 }
 
 export async function planNarrativeTurnWithMjV1(input: {
@@ -171,9 +171,9 @@ export function buildLocalMjPlanPayload(
   rawInput: string,
   interpretation: NarrativeIntentInterpretationV1 | null
 ): MjPlannerPayloadV1 {
-  const runtimeHandling = interpretation?.runtimeHandling ?? null;
-  const requiredDomain = runtimeHandling?.requiredDomain ?? (interpretation?.intentType === "speech" ? "social" : "scene_resolution");
-  const runtimeStatus = runtimeHandling?.status ?? "SUPPORTED_BY_CURRENT_RUNTIME";
+  const runtimeDecision = interpretation?.runtimeDecision ?? null;
+  const requiredDomain = runtimeDecision?.requiredDomain ?? "scene_resolution";
+  const runtimeStatus = runtimeDecision?.status ?? "SUPPORTED_BY_CURRENT_RUNTIME";
   const targetRef = interpretation?.referentResolution?.resolvedTarget?.ref ?? interpretation?.target?.ref ?? null;
   const targetRefs = targetRef === null ? [] : [targetRef];
   const beat = buildSceneBeat(interpretation, runtimeStatus, requiredDomain);
@@ -183,7 +183,7 @@ export function buildLocalMjPlanPayload(
     planId: `${interpretation?.intentId ?? "intent:unknown"}:mj-plan:1`,
     planningBasis: {
       intentId: interpretation?.intentId ?? "intent:unknown",
-      semanticGoal: interpretation?.coreMeaning ?? rawInput.trim(),
+      semanticGoal: interpretation?.semanticIntent.playerGoal ?? rawInput.trim(),
       runtimeStatus,
       requiredDomain
     },
@@ -316,14 +316,15 @@ function buildCommandProposal(
     domain: requiredDomain,
     commandType: interpretation.intentType === "speech"
       ? "speech.intent.record_or_request_actor_reaction"
-      : interpretation.runtimeHandling?.status === "UNSUPPORTED_DOMAIN"
+      : interpretation.runtimeDecision.status === "UNSUPPORTED_DOMAIN"
         ? "domain.required_before_resolution"
         : "scene.local_intent.consider",
     targetRefs,
     payload: {
       intentType: interpretation.intentType,
       action: interpretation.action ?? null,
-      coreMeaning: interpretation.coreMeaning
+      semanticKind: interpretation.semanticIntent.kind,
+      semanticGoal: interpretation.semanticIntent.playerGoal
     },
     commitAuthority: false
   };
@@ -377,5 +378,7 @@ function isNarrativeIntentInterpretation(value: unknown): value is NarrativeInte
     !Array.isArray(value) &&
     (value as Partial<NarrativeIntentInterpretationV1>).schemaVersion === 1 &&
     typeof (value as Partial<NarrativeIntentInterpretationV1>).intentId === "string" &&
-    typeof (value as Partial<NarrativeIntentInterpretationV1>).intentType === "string";
+    typeof (value as Partial<NarrativeIntentInterpretationV1>).intentType === "string" &&
+    isNarrativeSemanticIntentV1((value as Partial<NarrativeIntentInterpretationV1>).semanticIntent) &&
+    isNarrativeRuntimeDecisionV1((value as Partial<NarrativeIntentInterpretationV1>).runtimeDecision);
 }

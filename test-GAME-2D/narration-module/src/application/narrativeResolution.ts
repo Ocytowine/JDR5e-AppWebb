@@ -321,23 +321,22 @@ export function buildDeterministicResolution(
 function classifyRuntimeHandlingHandoff(
   interpretation: NarrativeIntentInterpretationV1
 ): { kind: "CLARIFICATION_REQUIRED"; reason: string } | { kind: "HANDOFF_REQUIRED"; target: NarrativeHandoffTargetV1; reason: string } | null {
-  const runtimeHandling = interpretation.runtimeHandling ?? null;
-  if (runtimeHandling === null) return null;
-  if (runtimeHandling.status === "AI_INTERPRETATION_FAILED") {
-    return { kind: "CLARIFICATION_REQUIRED", reason: runtimeHandling.reason };
+  const runtimeDecision = interpretation.runtimeDecision;
+  if (runtimeDecision.status === "AI_INTERPRETATION_FAILED") {
+    return { kind: "CLARIFICATION_REQUIRED", reason: runtimeDecision.reason };
   }
-  if (runtimeHandling.status === "NEEDS_CLARIFICATION") {
-    return { kind: "CLARIFICATION_REQUIRED", reason: runtimeHandling.reason };
+  if (runtimeDecision.status === "NEEDS_CLARIFICATION") {
+    return { kind: "CLARIFICATION_REQUIRED", reason: runtimeDecision.reason };
   }
-  if (runtimeHandling.status !== "UNSUPPORTED_DOMAIN") return null;
+  if (runtimeDecision.status !== "UNSUPPORTED_DOMAIN") return null;
   return {
     kind: "HANDOFF_REQUIRED",
-    target: mapRuntimeDomainToHandoffTarget(runtimeHandling.requiredDomain),
-    reason: runtimeHandling.reason
+    target: mapRuntimeDomainToHandoffTarget(runtimeDecision.requiredDomain),
+    reason: runtimeDecision.reason
   };
 }
 
-function mapRuntimeDomainToHandoffTarget(domain: NonNullable<NarrativeIntentInterpretationV1["runtimeHandling"]>["requiredDomain"]): NarrativeHandoffTargetV1 {
+function mapRuntimeDomainToHandoffTarget(domain: NarrativeIntentInterpretationV1["runtimeDecision"]["requiredDomain"]): NarrativeHandoffTargetV1 {
   if (domain === "tactical") return "TACTICAL";
   if (domain === "rest") return "REST";
   if (domain === "inventory") return "INVENTORY";
@@ -392,10 +391,10 @@ function isVisibleNpcPositioningAction(
 ): boolean {
   if (interpretation.action !== "act" || targetKind !== "npc") return false;
   if (
-    interpretation.runtimeHandling?.status === "SUPPORTED_BY_CURRENT_RUNTIME" &&
-    interpretation.runtimeHandling.requiredDomain === "scene_resolution" &&
-    interpretation.runtimeHandling.noCommit === false &&
-    interpretation.runtimeHandling.noGameTime === true
+    interpretation.runtimeDecision.status === "SUPPORTED_BY_CURRENT_RUNTIME" &&
+    interpretation.runtimeDecision.requiredDomain === "scene_resolution" &&
+    interpretation.runtimeDecision.noCommit === false &&
+    interpretation.runtimeDecision.noGameTime === true
   ) return true;
   const normalized = interpretation.coreMeaning.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
   return /\b(approche|avance|vais vers|dirige vers|pres du garde|près du garde|pres de la serveuse|près de la serveuse)\b/u.test(normalized);
@@ -740,12 +739,14 @@ function resolutionDiagnosticLines(resolution: NarrativeResolutionResultV1): str
   const interpretation = resolution.interpretation;
   const target = interpretation.referentResolution?.resolvedTarget ?? interpretation.target ?? null;
   const runtimeHandling = interpretation.runtimeHandling ?? null;
+  const runtimeDecision = interpretation.runtimeDecision;
   return [
     `Intention: ${interpretation.intentType}${interpretation.action === null ? "" : ` / action=${interpretation.action}`}.`,
     `Cible résolue: ${target === null ? "aucune" : `${target.label ?? target.ref ?? target.kind} (${target.ref ?? target.kind})`}.`,
     runtimeHandling === null
       ? "Runtime: non renseigné."
-      : `Runtime: ${runtimeHandling.status}, domaine=${runtimeHandling.requiredDomain ?? "aucun"}, commit=${runtimeHandling.noCommit ? "non" : "possible"}, temps=${runtimeHandling.noGameTime ? "non" : "à décider"}.`
+      : `Suggestion IA: ${runtimeHandling.status}, domaine=${runtimeHandling.requiredDomain ?? "aucun"}.`,
+    `Décision runtime locale: ${runtimeDecision.status}, domaine=${runtimeDecision.requiredDomain ?? "aucun"}, commit=${runtimeDecision.noCommit ? "non" : "possible"}, concordance IA=${runtimeDecision.aiSuggestionMatched ? "oui" : "non"}.`
   ];
 }
 

@@ -22,6 +22,7 @@ import { SCENE_SOCIAL_UI_CONTRACT_VERSION_V1 } from "../scene";
 import {
   createSuspendedIntentRecordV1,
   interpretNarrativeInputV1,
+  upgradeLegacyNarrativeIntentInterpretationV1,
   type NarrativeIntentInterpretationV1,
   type SuspendedIntentRecordV1
 } from "./intentClarification";
@@ -164,12 +165,13 @@ export class NarrativeTurnControllerV1 {
     const received = await this.repository.receiveOperation(operation);
     if (!received.ok) return received;
     if (received.value.phase === "COMPLETED" && received.value.resultPayload !== null) {
-      this.rememberLocalReferent(received.value.resultPayload as NarrativeTurnControllerOutputV1);
+      const restoredOutput = upgradeLegacyControllerOutput(received.value.resultPayload as NarrativeTurnControllerOutputV1);
+      this.rememberLocalReferent(restoredOutput);
       return {
         ok: true,
         value: {
           operation: received.value,
-          output: received.value.resultPayload as NarrativeTurnControllerOutputV1
+          output: restoredOutput
         }
       };
     }
@@ -237,6 +239,29 @@ export class NarrativeTurnControllerV1 {
       ...this.recentLocalReferents.filter(entry => entry.target.ref !== target.ref)
     ].slice(0, 5);
   }
+}
+
+function upgradeLegacyControllerOutput(output: NarrativeTurnControllerOutputV1): NarrativeTurnControllerOutputV1 {
+  const interpretation = upgradeLegacyNarrativeIntentInterpretationV1(output.interpretation);
+  if (interpretation === null) return output;
+  const resolutionInterpretation = upgradeLegacyNarrativeIntentInterpretationV1(output.resolution?.interpretation) ?? interpretation;
+  const knownInterpretation = output.suspendedIntent === null
+    ? null
+    : upgradeLegacyNarrativeIntentInterpretationV1(output.suspendedIntent.knownInterpretation);
+  return {
+    ...output,
+    interpretation: interpretation as NarrativeIntentInterpretationV1 & JsonObject,
+    resolution: {
+      ...output.resolution,
+      interpretation: resolutionInterpretation as NarrativeIntentInterpretationV1 & JsonObject
+    },
+    suspendedIntent: output.suspendedIntent === null || knownInterpretation === null
+      ? output.suspendedIntent
+      : {
+        ...output.suspendedIntent,
+        knownInterpretation: knownInterpretation as NarrativeIntentInterpretationV1 & JsonObject
+      }
+  };
 }
 
 export async function createPrototypeNarrativeTurnControllerV1(options: {

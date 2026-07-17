@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import {
   buildReferenceSceneBlocksV1,
   buildReferenceSceneLocalNarrationV1,
+  buildCompatibleSemanticIntentV1,
+  evaluateNarrativeRuntimeDecisionV1,
   type NarrativeIntentInterpretationV1,
   type NarrativeResolutionResultV1
 } from "../../src/application";
@@ -17,6 +19,17 @@ function interpretation(
     intentId: `intent:${intentType}`,
     intentType,
     commitment: intentType === "meta_question" ? "none" : intentType === "possibility_query" ? "hypothetical" : "committed",
+    semanticIntent: buildCompatibleSemanticIntentV1({
+      intentType,
+      commitment: intentType === "meta_question" ? "none" : intentType === "possibility_query" ? "hypothetical" : "committed",
+      coreMeaning,
+      requiresClarification: false
+    }),
+    runtimeDecision: evaluateNarrativeRuntimeDecisionV1({
+      semanticIntent: buildCompatibleSemanticIntentV1({ intentType, commitment: intentType === "meta_question" ? "none" : intentType === "possibility_query" ? "hypothetical" : "committed", coreMeaning, requiresClarification: false }),
+      runtimeSuggestion: null,
+      requiresClarification: false
+    }),
     coreMeaning,
     requiresClarification: false,
     clarificationQuestion: null,

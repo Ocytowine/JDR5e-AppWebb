@@ -1,4 +1,4 @@
-import type { AiIntentRuntimeHandlingV1 } from "../ai/types";
+import type { AiIntentRuntimeHandlingV1, AiStructuredSemanticIntentV1 } from "../ai/types";
 
 export const INTENT_CLARIFICATION_CONTRACT_VERSION_V1 = "intent-clarification/1" as const;
 
@@ -29,6 +29,17 @@ export interface NarrativeIntentReferentResolutionV1 {
   confidence: "low" | "medium" | "high";
 }
 
+export interface NarrativeRuntimeDecisionV1 {
+  schemaVersion: 1;
+  source: "LOCAL_CAPABILITY_REGISTRY";
+  status: AiIntentRuntimeHandlingV1["status"];
+  requiredDomain: AiIntentRuntimeHandlingV1["requiredDomain"];
+  reason: string;
+  noCommit: boolean;
+  noGameTime: boolean;
+  aiSuggestionMatched: boolean;
+}
+
 export interface NarrativeIntentInterpretationV1 {
   schemaVersion: 1;
   contractVersion: typeof INTENT_CLARIFICATION_CONTRACT_VERSION_V1;
@@ -37,7 +48,9 @@ export interface NarrativeIntentInterpretationV1 {
   commitment: NarrativeIntentCommitmentV1;
   target?: NarrativeIntentTargetV1 | null;
   action?: string | null;
+  semanticIntent: AiStructuredSemanticIntentV1;
   runtimeHandling?: AiIntentRuntimeHandlingV1 | null;
+  runtimeDecision: NarrativeRuntimeDecisionV1;
   referentResolution?: NarrativeIntentReferentResolutionV1 | null;
   coreMeaning: string;
   requiresClarification: boolean;
@@ -189,18 +202,184 @@ function intent(
   clarificationQuestion: string | null,
   safetyNotes: string[]
 ): NarrativeIntentInterpretationV1 {
+  const coreMeaning = input.rawInput.trim();
+  const semanticIntent = buildCompatibleSemanticIntentV1({
+    intentType,
+    commitment,
+    target: null,
+    coreMeaning,
+    requiresClarification,
+    safetyNotes
+  });
   return {
     schemaVersion: 1,
     contractVersion: INTENT_CLARIFICATION_CONTRACT_VERSION_V1,
     intentId: input.intentId,
     intentType,
     commitment,
-    coreMeaning: input.rawInput.trim(),
+    semanticIntent,
+    runtimeDecision: evaluateNarrativeRuntimeDecisionV1({
+      semanticIntent,
+      runtimeSuggestion: null,
+      requiresClarification
+    }),
+    coreMeaning,
     requiresClarification,
     clarificationQuestion,
     expectedTimeEffect,
     safetyNotes
   };
+}
+
+export function buildCompatibleSemanticIntentV1(input: {
+  intentType: NarrativeIntentTypeV1;
+  commitment: NarrativeIntentCommitmentV1;
+  target?: NarrativeIntentTargetV1 | null;
+  coreMeaning: string;
+  requiresClarification: boolean;
+  safetyNotes?: string[];
+}): AiStructuredSemanticIntentV1 {
+  return {
+    schemaVersion: 1,
+    kind: legacySemanticKind(input.intentType),
+    playerGoal: input.coreMeaning,
+    target: input.target ?? null,
+    commitment: input.commitment,
+    evidenceFromInput: [input.coreMeaning].filter(Boolean),
+    uncertainties: input.requiresClarification ? ["intention à clarifier"] : [],
+    forbiddenInterpretations: input.commitment === "hypothetical" || input.commitment === "unclear"
+      ? ["execute_without_confirmed_commitment"]
+      : [],
+    confidence: input.requiresClarification ? "medium" : "high"
+  };
+}
+
+export function evaluateNarrativeRuntimeDecisionV1(input: {
+  semanticIntent: AiStructuredSemanticIntentV1;
+  runtimeSuggestion: AiIntentRuntimeHandlingV1 | null;
+  requiresClarification: boolean;
+}): NarrativeRuntimeDecisionV1 {
+  const suggestion = input.runtimeSuggestion;
+  if (suggestion?.status === "AI_INTERPRETATION_FAILED") {
+    return decision("AI_INTERPRETATION_FAILED", null, "Interprétation IA indisponible ou rejetée: aucune exploitation runtime locale.", true, true);
+  }
+  if (input.requiresClarification || input.semanticIntent.commitment === "unclear" || input.semanticIntent.confidence === "low") {
+    return decision("NEEDS_CLARIFICATION", null, "Le registre local refuse toute progression tant que l'intention reste incertaine.", true, suggestion?.status === "NEEDS_CLARIFICATION");
+  }
+  if (input.semanticIntent.commitment === "none" || input.semanticIntent.commitment === "hypothetical") {
+    return decision("SUPPORTED_BY_CURRENT_RUNTIME", "scene_resolution", "Le runtime local traite cette intention sans engagement comme une réponse sans commit.", true, suggestion?.status === "SUPPORTED_BY_CURRENT_RUNTIME");
+  }
+  const requiredDomain = suggestion?.requiredDomain ?? "scene_resolution";
+  const supported = requiredDomain === "scene_resolution" ||
+    requiredDomain === "perception" ||
+    (requiredDomain === "social" && input.semanticIntent.kind === "address_visible_actor");
+  const noCommit = !supported || requiredDomain === "perception";
+  return decision(
+    supported ? "SUPPORTED_BY_CURRENT_RUNTIME" : "UNSUPPORTED_DOMAIN",
+    requiredDomain,
+    supported
+      ? "Le domaine scene_resolution est ouvert pour une tentative bornée sans temps de jeu."
+      : closedDomainReason(requiredDomain),
+    noCommit,
+    suggestion?.status === (supported ? "SUPPORTED_BY_CURRENT_RUNTIME" : "UNSUPPORTED_DOMAIN")
+  );
+}
+
+function closedDomainReason(domain: NarrativeRuntimeDecisionV1["requiredDomain"]): string {
+  if (domain === "tactical") return "Handoff tactique requis: le domaine tactical n'est pas ouvert dans le registre runtime local.";
+  if (domain === "inventory") return "Handoff inventaire requis: le domaine inventory n'est pas ouvert dans le registre runtime local.";
+  if (domain === "rest") return "Handoff repos requis: le domaine rest n'est pas ouvert dans le registre runtime local.";
+  if (domain === "world") return "Handoff monde requis: le domaine world n'est pas ouvert dans le registre runtime local.";
+  return `Le domaine ${domain ?? "inconnu"} n'est pas ouvert dans le registre runtime local.`;
+}
+
+function decision(
+  status: NarrativeRuntimeDecisionV1["status"],
+  requiredDomain: NarrativeRuntimeDecisionV1["requiredDomain"],
+  reason: string,
+  noCommit: boolean,
+  aiSuggestionMatched: boolean
+): NarrativeRuntimeDecisionV1 {
+  return {
+    schemaVersion: 1,
+    source: "LOCAL_CAPABILITY_REGISTRY",
+    status,
+    requiredDomain,
+    reason,
+    noCommit,
+    noGameTime: true,
+    aiSuggestionMatched
+  };
+}
+
+export function upgradeLegacyNarrativeIntentInterpretationV1(value: unknown): NarrativeIntentInterpretationV1 | null {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return null;
+  const candidate = value as Record<string, unknown>;
+  if (candidate.schemaVersion !== 1 || candidate.contractVersion !== INTENT_CLARIFICATION_CONTRACT_VERSION_V1) return null;
+  if (typeof candidate.intentId !== "string" || typeof candidate.intentType !== "string") return null;
+  if (typeof candidate.commitment !== "string" || typeof candidate.coreMeaning !== "string") return null;
+  if (typeof candidate.requiresClarification !== "boolean" || !Array.isArray(candidate.safetyNotes)) return null;
+  if (isNarrativeSemanticIntentV1(candidate.semanticIntent) && isNarrativeRuntimeDecisionV1(candidate.runtimeDecision)) {
+    return value as NarrativeIntentInterpretationV1;
+  }
+  const legacy = value as Omit<NarrativeIntentInterpretationV1, "semanticIntent" | "runtimeDecision">;
+  const semanticIntent = isNarrativeSemanticIntentV1(candidate.semanticIntent)
+    ? candidate.semanticIntent
+    : buildCompatibleSemanticIntentV1({
+      intentType: legacy.intentType,
+      commitment: legacy.commitment,
+      target: legacy.target,
+      coreMeaning: legacy.coreMeaning,
+      requiresClarification: legacy.requiresClarification,
+      safetyNotes: legacy.safetyNotes
+    });
+  return {
+    ...legacy,
+    semanticIntent,
+    runtimeDecision: evaluateNarrativeRuntimeDecisionV1({
+      semanticIntent,
+      runtimeSuggestion: legacy.runtimeHandling ?? null,
+      requiresClarification: legacy.requiresClarification
+    })
+  };
+}
+
+export function isNarrativeRuntimeDecisionV1(value: unknown): value is NarrativeRuntimeDecisionV1 {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+  const candidate = value as Record<string, unknown>;
+  return candidate.schemaVersion === 1 &&
+    candidate.source === "LOCAL_CAPABILITY_REGISTRY" &&
+    typeof candidate.status === "string" &&
+    typeof candidate.reason === "string" &&
+    typeof candidate.noCommit === "boolean" &&
+    typeof candidate.noGameTime === "boolean" &&
+    typeof candidate.aiSuggestionMatched === "boolean";
+}
+
+export function isNarrativeSemanticIntentV1(value: unknown): value is AiStructuredSemanticIntentV1 {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+  const candidate = value as Record<string, unknown>;
+  return candidate.schemaVersion === 1 &&
+    typeof candidate.kind === "string" &&
+    typeof candidate.playerGoal === "string" &&
+    typeof candidate.commitment === "string" &&
+    Array.isArray(candidate.evidenceFromInput) &&
+    candidate.evidenceFromInput.every(entry => typeof entry === "string") &&
+    Array.isArray(candidate.uncertainties) &&
+    candidate.uncertainties.every(entry => typeof entry === "string") &&
+    Array.isArray(candidate.forbiddenInterpretations) &&
+    candidate.forbiddenInterpretations.every(entry => typeof entry === "string") &&
+    typeof candidate.confidence === "string";
+}
+
+function legacySemanticKind(intentType: NarrativeIntentTypeV1): AiStructuredSemanticIntentV1["kind"] {
+  if (intentType === "meta_question") return "meta_request";
+  if (intentType === "possibility_query") return "hypothetical_action";
+  if (intentType === "memory_recall") return "context_question";
+  if (intentType === "speech") return "address_visible_actor";
+  if (intentType === "action") return "manipulate_visible_object";
+  if (intentType === "mixed") return "unclear_intent";
+  return "unclear_intent";
 }
 
 function normalize(value: string): string {

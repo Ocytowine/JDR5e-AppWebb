@@ -14,6 +14,7 @@ import type {
 } from "../ai/types";
 import {
   createSuspendedIntentRecordV1,
+  evaluateNarrativeRuntimeDecisionV1,
   interpretNarrativeInputV1,
   type NarrativeIntentInterpretationV1,
   type NarrativeIntentTargetV1
@@ -299,6 +300,26 @@ function buildInterpretationFailure(rawInput: string, issues: string[]): AiInten
 }
 
 function buildDiagnosticInterpretation(intentId: string, failure: AiIntentInterpretationFailureV1): NarrativeIntentInterpretationV1 {
+  const semanticIntent: AiStructuredSemanticIntentV1 = {
+    schemaVersion: 1,
+    kind: "unclear_intent",
+    playerGoal: failure.developerSummary,
+    target: null,
+    commitment: "none",
+    evidenceFromInput: [failure.rawInput].filter(Boolean),
+    uncertainties: [...failure.issues],
+    forbiddenInterpretations: ["execute_action", "invent_narrative_fallback"],
+    confidence: "low"
+  };
+  const runtimeHandling: AiIntentRuntimeHandlingV1 = {
+    schemaVersion: 1,
+    status: "AI_INTERPRETATION_FAILED",
+    reason: failure.developerSummary,
+    requiredDomain: null,
+    canonicalActionHint: null,
+    noCommit: true,
+    noGameTime: true
+  };
   return {
     schemaVersion: 1,
     contractVersion: "intent-clarification/1",
@@ -307,15 +328,9 @@ function buildDiagnosticInterpretation(intentId: string, failure: AiIntentInterp
     commitment: "none",
     target: null,
     action: null,
-    runtimeHandling: {
-      schemaVersion: 1,
-      status: "AI_INTERPRETATION_FAILED",
-      reason: failure.developerSummary,
-      requiredDomain: null,
-      canonicalActionHint: null,
-      noCommit: true,
-      noGameTime: true
-    },
+    semanticIntent,
+    runtimeHandling,
+    runtimeDecision: evaluateNarrativeRuntimeDecisionV1({ semanticIntent, runtimeSuggestion: runtimeHandling, requiresClarification: false }),
     referentResolution: null,
     coreMeaning: failure.developerSummary,
     requiresClarification: false,
@@ -564,9 +579,15 @@ function mapAiIntentToNarrativeInterpretationV1(input: {
         commitment: "unclear",
         target: mappedFirst.target,
         action: mappedFirst.action,
+        semanticIntent: mappedFirst.semanticIntent,
         runtimeHandling: mappedFirst.runtimeHandling,
+        runtimeDecision: evaluateNarrativeRuntimeDecisionV1({
+          semanticIntent: mappedFirst.semanticIntent,
+          runtimeSuggestion: mappedFirst.runtimeHandling,
+          requiresClarification: true
+        }),
         referentResolution: mappedFirst.referentResolution ?? buildReferentResolution(mappedFirst.target, input.rawInput),
-        coreMeaning: mappedFirst.semanticIntent.playerGoal || mappedFirst.coreMeaning,
+        coreMeaning: mappedFirst.coreMeaning,
         requiresClarification: true,
         clarificationQuestion: referentClarification,
         expectedTimeEffect: "NO_GAME_TIME",
@@ -588,9 +609,15 @@ function mapAiIntentToNarrativeInterpretationV1(input: {
       commitment: mappedFirst.commitment,
       target: mappedFirst.target,
       action: mappedFirst.action,
+      semanticIntent: mappedFirst.semanticIntent,
       runtimeHandling: mappedFirst.runtimeHandling,
+      runtimeDecision: evaluateNarrativeRuntimeDecisionV1({
+        semanticIntent: mappedFirst.semanticIntent,
+        runtimeSuggestion: mappedFirst.runtimeHandling,
+        requiresClarification: mappedFirst.requiresClarification
+      }),
       referentResolution: mappedFirst.referentResolution ?? buildReferentResolution(mappedFirst.target, input.rawInput),
-      coreMeaning: mappedFirst.semanticIntent.playerGoal || mappedFirst.coreMeaning,
+      coreMeaning: mappedFirst.coreMeaning,
       requiresClarification: mappedFirst.requiresClarification,
       clarificationQuestion: mappedFirst.clarificationQuestion,
       expectedTimeEffect: mappedFirst.expectedTimeEffect,

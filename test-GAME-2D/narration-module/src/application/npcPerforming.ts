@@ -11,7 +11,7 @@ import type {
   NpcPerformerPayloadV1
 } from "../ai/types";
 import type { DisplayPacketV1 } from "../scene";
-import type { NarrativeIntentInterpretationV1 } from "./intentClarification";
+import { isNarrativeRuntimeDecisionV1, isNarrativeSemanticIntentV1, type NarrativeIntentInterpretationV1 } from "./intentClarification";
 import type { NarrativeResolutionResultV1 } from "./narrativeResolution";
 import type { ReferenceSceneStateV1 } from "./referenceSceneState";
 
@@ -339,7 +339,9 @@ function isNarrativeIntentInterpretation(value: unknown): value is NarrativeInte
     !Array.isArray(value) &&
     (value as Partial<NarrativeIntentInterpretationV1>).schemaVersion === 1 &&
     typeof (value as Partial<NarrativeIntentInterpretationV1>).intentId === "string" &&
-    typeof (value as Partial<NarrativeIntentInterpretationV1>).intentType === "string";
+    typeof (value as Partial<NarrativeIntentInterpretationV1>).intentType === "string" &&
+    isNarrativeSemanticIntentV1((value as Partial<NarrativeIntentInterpretationV1>).semanticIntent) &&
+    isNarrativeRuntimeDecisionV1((value as Partial<NarrativeIntentInterpretationV1>).runtimeDecision);
 }
 
 function isReferenceSceneState(value: unknown): value is ReferenceSceneStateV1 {

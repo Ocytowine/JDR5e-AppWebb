@@ -69,6 +69,9 @@ Il distingue la cible complète du runtime de campagne et les capacités déjà 
 - [`Matrice-preuves-I06ZD-amorce-scene-ui.md`](Matrice-preuves-I06ZD-amorce-scene-ui.md) : preuves I-06ZD de l'amorce de scÃ¨ne jouable dans l'UI.
 - [`Cadrage-I06ZE-referents-locaux.md`](Cadrage-I06ZE-referents-locaux.md) : cadrage et livraison I-06ZE de la résolution IA des référents locaux récents, sans hard code métier.
 - [`Cadrage-interpretation-semantique-ouverte.md`](Cadrage-interpretation-semantique-ouverte.md) : décision de conception post-I-06ZE centrant le contrat unique sur l'intention sémantique et le statut d'exploitation runtime.
+- [`Plan-fidelite-intention-systeme.md`](Plan-fidelite-intention-systeme.md) : plan normatif post-I-06ZK en sept chantiers pour conserver l'intention sémantique jusqu'aux commandes de domaine, généraliser les référents et retirer le legacy lexical.
+- [`Matrice-preuves-I06ZL.md`](Matrice-preuves-I06ZL.md) : preuves de la propagation obligatoire et sans perte de `semanticIntent`, avec relecture explicite des opérations legacy.
+- [`Matrice-preuves-I06ZM.md`](Matrice-preuves-I06ZM.md) : preuves de la consommation sémantique par le planner et de l'autorité du registre runtime local sur la suggestion IA.
 - [`Matrice-cas-I06ZF-interpretation-semantique.md`](Matrice-cas-I06ZF-interpretation-semantique.md) : cas naturels I-06ZF pour contractualiser l'interprétation sémantique unique et les diagnostics d'échec IA.
 - [`Cadrage-I06ZH-mj-planner-minimal.md`](Cadrage-I06ZH-mj-planner-minimal.md) : cadrage et livraison du `mj_planner` minimal non committable, sans MJ complet ni intrigue dynamique.
 - [`Cadrage-I06ZI-branchement-ia-mj-planner.md`](Cadrage-I06ZI-branchement-ia-mj-planner.md) : branchement OpenAI serveur du `mj_planner`, schéma strict et absence de fallback narratif.

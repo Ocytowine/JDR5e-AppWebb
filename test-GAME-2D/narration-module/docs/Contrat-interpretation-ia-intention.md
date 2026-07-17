@@ -1,6 +1,6 @@
 # Contrat interprétation IA de l'intention joueur
 
-Statut : `REVISION_I06ZF_A_CONTRACTUALISER`
+Statut : `ACTIF_I06ZL_PROPAGATION_SEMANTIQUE`
 
 Version cible : `ai-intent-interpretation/1`
 
@@ -8,7 +8,7 @@ Lot : I-06X, revision I-06ZF
 
 Date : 2026-07-08
 
-Derniere revision : 2026-07-16
+Derniere revision : 2026-07-17
 
 ## Objectif
 
@@ -158,6 +158,12 @@ Le paquet ne doit pas contenir :
 La sortie contient une enveloppe stricte et un tableau d'intentions.
 
 Chaque intention doit porter `semanticIntent`. Les anciens champs `intentType`, `commitment`, `target`, `action`, `topic` et `coreMeaning` peuvent rester pour compatibilite pendant la migration, mais le sens principal appartient a `semanticIntent`.
+
+Depuis I-06ZL, cette règle s'applique aussi au contrat applicatif `NarrativeIntentInterpretationV1` : `semanticIntent` y est obligatoire et doit être copié sans perte depuis la sortie IA acceptée. `coreMeaning` reste une projection legacy lisible, pas une source de vérité concurrente.
+
+Les anciennes opérations persistées sans `semanticIntent` sont adaptées uniquement à la frontière de relecture. L'adaptateur construit une projection compatible depuis les champs legacy, puis le reste du pipeline utilise la forme canonique enrichie. Une nouvelle opération ne peut pas être produite sans `semanticIntent`.
+
+Depuis I-06ZM, `runtimeHandling` est explicitement une suggestion de l'interpréteur, pas une décision d'autorité. Le contrat applicatif ajoute `runtimeDecision`, calculé localement depuis l'intention validée et le registre des capacités ouvertes. Le planner et le resolver doivent lire `runtimeDecision` pour le statut, le domaine disponible et la politique de commit. Toute divergence avec la suggestion IA est conservée dans `aiSuggestionMatched` et exposée au diagnostic.
 
 Exemple :
 
