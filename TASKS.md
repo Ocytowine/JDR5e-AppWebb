@@ -1,6 +1,6 @@
 # Suivi du travail
 
-Derniere mise a jour: 2026-07-16
+Derniere mise a jour: 2026-07-20
 
 Ce fichier est le tableau de bord court du depot. Les details techniques restent dans les documents lies; une tache ne doit pas etre dupliquee ici avec toute sa specification.
 
@@ -8,7 +8,7 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 - [ ] Traiter l'audit technique post-I-06ZB avant d'ouvrir une nouvelle capacité narrative.
   References: `test-GAME-2D/narration-module/docs/Audit-technique-I06ZB.md`, `test-GAME-2D/narration-module/docs/Revue-technique-post-I06ZB.md`, `test-GAME-2D/narration-module/docs/Suivi-prochains-lots-narration.md`.
-  Note: A-01, A-02, A-03, A-04 et A-07 traités le 2026-07-09; I-06ZC à I-06ZR livrés. Le chantier fidélité intention-système est fermé dans son périmètre: source sémantique unique, commandes locales, registre générique, invariance et contradictions sans commit. Prochaine étape concrète: revue de gate post-I-06ZR avant toute nouvelle capacité narrative.
+  Note: A-01, A-02, A-03, A-04 et A-07 traités le 2026-07-09; I-06ZC à I-06ZR livrés. Le chantier fidélité intention-système est fermé dans son périmètre. Les recettes ont conduit aux frontières de rendu NAR-125, à la résolution perceptive minimale NAR-126 puis au contrôle de toute prose visible NAR-127. Prochaine étape concrète: redémarrer le serveur, supprimer IndexedDB et rejouer le scénario conversationnel complet avant d'ouvrir la résolution réelle des actions locales.
 - [ ] Consolider la simulation du monde apres l'ajout des objectifs multi-phases, des opportunites de faction et des mobiles non-systeme.
   Reference: `test-GAME-2D/map-module/docs/world-simulation-corrective-roadmap.md`. Les mobiles exposent maintenant l'objectif, la phase et la cible qu'ils servent.
 
@@ -33,6 +33,15 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 ## Termine recemment
 
+- [x] Frontière de prose NAR-127: contrôle sémantique indépendant des reformulations PJ, conservation du texte original en cas d'ajout, réplique déterministe de la serveuse limitée aux faits publics et diagnostics legacy/commit clarifiés le 2026-07-20.
+- [x] Correctif statut fallback: distinction structurée entre `TECHNICAL_INCIDENT` et `RENDER_AUTHORITY_REJECTION`; un rejet normal du critique conserve le rendu perceptif autorisé sans afficher « OpenAI indisponible » ni relancer tout le pipeline local le 2026-07-20.
+- [x] Correctif enveloppe critique: le schéma OpenAI impose désormais `status=OK` pour toute sortie structurée exploitable, tandis que `payload.verdict=REJECT` porte le refus narratif; suppression de la contradiction schéma/validateur qui produisait `OPENAI_INVALID_ENVELOPE` le 2026-07-20.
+- [x] Fiabilisation du démarrage narration: `npm run dev` reconstruit désormais `dist` avant `server.js`, afin qu'un redémarrage ne continue plus à servir un ancien bundle client; le cas avait masqué le correctif SHA-256 du `player_expression_adapter` le 2026-07-20.
+- [x] Correctif transport post-NAR-126: `player_expression_adapter` utilise désormais l'empreinte SHA-256 réelle de son contexte borné au lieu d'une ancienne valeur symbolique refusée en HTTP 400; régression ciblée et builds narration OK le 2026-07-20.
+- [x] Résolution perceptive minimale `perception-resolution/1`: profondeur sémantique IA `GLANCE`/`FOCUSED`/`SEARCH`, indices de scène à visibilité contrôlée, résultat automatique ou vérification requise sans commit, RenderAuthority alimentée par les seuls indices révélés et test vertical dédié le 2026-07-20.
+- [x] Correctif de rendu post-recette: frontière structurée `OBSERVATION_RESULT`/`ACTION_STAGING_ONLY`/`CONFIRMED_OUTCOME`/`NPC_REACTION`, critique IA sémantique non autoritaire, fallback prudent sur résultat inventé, observation ciblée publique et suppression du doublon MJ après parole PNJ le 2026-07-20.
+- [x] Correctif live de continuité post-I-06ZR: retrait du second interprète lexical serveur, historique sémantique borné pour les ellipses, aides legacy non autoritaires, détails de validation visibles et première réplique PNJ non répétitive; smoke OpenAI des quatre tours OK le 2026-07-20.
+- [x] Préparation de la recette fonctionnelle manuelle post-I-06ZR: sept scénarios séquencés, frontières de réinitialisation IndexedDB, format de collecte des blocs visibles et critères de gate le 2026-07-20.
 - [x] Diagnostic fournisseur post-I-06ZR: les enveloppes IA non `OK` propagent maintenant leur code et message expurgé dans les `Issue:` visibles, au lieu de masquer la cause derrière le seul statut générique; test pipeline ajouté le 2026-07-17.
 - [x] Correctif badge diagnostic: une projection legacy `intent:meta_question` ne force plus le bandeau UI « Contexte » quand le corps porte `AI_INTERPRETATION_FAILED`; le bandeau indique explicitement « Interprétation IA refusée » le 2026-07-17.
 - [x] Correctif troncature OpenAI: budget `player_intent_interpreter` relevé de 700 à 1600 tokens (plafond serveur 2000) et statut Responses API `incomplete` diagnostiqué explicitement; la sortie JSON structurée ne doit plus être coupée sur une intention simple le 2026-07-17.

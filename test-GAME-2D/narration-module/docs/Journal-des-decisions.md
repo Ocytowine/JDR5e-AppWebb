@@ -2311,3 +2311,81 @@ Pour une enveloppe fournisseur dont le statut n'est pas `OK`, les diagnostics ex
 Le contrat structuré complet de `player_intent_interpreter` dépasse régulièrement l'ancien budget de 700 tokens, même pour une phrase courte. Son budget de sortie et la limite de route passent à 1600 tokens, avec un plafond serveur de 2000. Une réponse OpenAI explicitement `incomplete` est désormais diagnostiquée comme telle avec sa raison, plutôt que reclassée en JSON invalide.
 
 Sur une observation, le `scene_writer` remplace la narration déterministe au même emplacement au lieu d'ajouter un second bloc après la notification système. Une observation perceptive est présentée comme exécutée sans mutation durable; elle n'est plus assimilée à une action non exécutée. Les badges no-commit/no-time sont réservés aux blocs système ou clarification et ne sont plus inférés depuis le texte libre d'une narration MJ.
+
+## NAR-124 — Continuité sémantique sans second interprète lexical
+
+Statut : `RETENU`
+
+Date : 2026-07-20
+
+### Décision
+
+La route OpenAI et le mapper ne doivent pas rejeter une intention en recomprenant `rawInput` par regex, ni en exigeant l'égalité de deux aides legacy sans autorité. `semanticIntent` reste la source du sens; `runtimeDecision`, le registre de référents et la commande locale restent les sources d'exécution.
+
+L'interpréteur reçoit désormais un historique borné de cinq intentions sémantiques acceptées. Ce contexte transporte objectif, sujet, cible publique, engagement et provenance afin que l'IA puisse comprendre les ellipses conversationnelles. Toute référence proposée reste validée par `scene-referent-registry/1`.
+
+### Raisons
+
+Le scénario « Je regarde la serveuse » → « Je l'observe plus attentivement » → « Je lui demande pourquoi elle regarde la porte » → « Je l'ouvre » révélait deux défauts. Des sorties sémantiquement correctes étaient rejetées lorsque `action` et `canonicalActionHint` différaient, alors que ces champs n'ont plus d'autorité. Après la parole, le tour suivant connaissait uniquement la serveuse comme cible principale et ne recevait pas le sujet récent concernant la porte.
+
+### Conséquences
+
+Les validations lexicales de parole, approche, possibilité et ellipse sont retirées de la route active. Les issues détaillées du validateur serveur sont propagées dans les diagnostics visibles. La première réplique PNJ est choisie avant de considérer l'échange courant comme un échange antérieur. Un smoke OpenAI live des quatre tours résout successivement serveuse, serveuse, serveuse et porte du fond sans échec d'interprétation, contradiction d'autorité ni campagne occupée.
+
+## NAR-125 — La prose est bornée par une frontière d'autorité sémantique
+
+Statut : `RETENU`
+
+Date : 2026-07-20
+
+### Décision
+
+Chaque appel au `scene_writer` reçoit une `NarrativeRenderAuthorityV1` qui sépare les faits confirmés, non confirmés et interdits. En mode OpenAI, un `coherence_critic` non autoritaire compare la prose candidate à cette frontière. Il peut seulement accepter ou rejeter; il ne réécrit rien et ne possède aucune autorité de commit.
+
+Une action locale enregistrée, telle que tenter d'ouvrir une porte visible, utilise `ACTION_STAGING_ONLY`. Le rendu peut décrire le geste engagé, mais pas annoncer l'ouverture, révéler ce qui se trouve derrière ou inventer une réaction. Une observation ciblée utilise `OBSERVATION_RESULT` et reste limitée aux signes publics visibles. Une réplique `NPC_SPEECH` n'est plus doublée par une narration MJ générique.
+
+### Raisons
+
+Le test manuel montrait qu'une résolution correctement bornée pouvait être contredite ensuite par une prose créative affirmant l'ouverture de la porte. Des regex sur quelques verbes ou objets auraient seulement déplacé le problème vers les reformulations suivantes. La comparaison doit porter sur le sens du texte et sur l'autorité réellement accordée à ce tour.
+
+### Conséquences
+
+Une prose hors frontière est écartée et le rendu déterministe prudent est conservé. Le test couvre explicitement ouverture, révélation et réaction PNJ inventées malgré une discipline factuelle déclarée saine. L'observation ciblée exploite l'état public et la continuité de scène, tout en signalant qu'une certitude supplémentaire relève de la future résolution perceptive.
+
+## NAR-126 — La profondeur perceptive vient du sens, les révélations de la scène
+
+Statut : `RETENU`
+
+Date : 2026-07-20
+
+### Décision
+
+Une intention `observe_environment` porte une demande `perception` structurée avec une profondeur `GLANCE`, `FOCUSED` ou `SEARCH`. L'IA propose ce niveau depuis le sens global de la demande; aucun parseur lexical local ne le redéduit. Le runtime sélectionne ensuite uniquement les `perceptionClues` déclarés par la scène au niveau autorisé.
+
+### Raisons
+
+« Je regarde la serveuse » et « Je l'observe plus attentivement » conservaient correctement leur référent mais produisaient le même texte. Autoriser le `scene_writer` à inventer la progression révélait au contraire des pensées privées. Il faut séparer compréhension de la profondeur, autorité de révélation et formulation narrative.
+
+### Conséquences
+
+Une observation immédiate et une observation focalisée peuvent maintenant révéler des signes différents sans commit. Une recherche plus profonde produit `CHECK_REQUIRED` avec une proposition non committable; elle ne transforme pas un fait caché en certitude. Les indices révélés alimentent la frontière d'autorité du rendu et les indices retenus restent explicitement interdits.
+
+## NAR-127 — Toute prose visible possède sa propre frontière d'autorité
+
+Statut : `RETENU`
+
+Date : 2026-07-20
+
+### Décision
+
+La reformulation du personnage produite par `player_expression_adapter` est contrôlée indépendamment par `coherence_critic` avec le mode `PLAYER_EXPRESSION_FIDELITY`. Le critique compare le texte candidat à l'intention structurée et à la saisie originale. Il rejette tout ajout d'étape, de méthode, d'intensité, d'engagement, de connaissance ou de résultat. En cas de rejet, la formulation déterministe originale est conservée sans présenter ce refus normal comme une indisponibilité OpenAI.
+
+La réplique déterministe de la serveuse est également limitée aux faits publics déjà fournis par la scène. Enfin, les diagnostics visibles nomment explicitement la projection historique comme une compatibilité non autoritaire et distinguent la journalisation réellement appliquée, absente ou seulement préparée.
+
+### Raisons
+
+Le scénario manuel a montré qu'une résolution et une narration MJ correctement bornées pouvaient encore être précédées d'une expression PJ infidèle : « Je l'ouvre » devenait « Je la déverrouille et ouvre la porte », ajoutant simultanément un état verrouillé, une étape et un résultat. La déclaration `addedMeaning=[]` du premier modèle ne constitue pas une preuve indépendante. Une liste locale de verbes interdits serait fragile et contraire à l'architecture sémantique retenue.
+
+### Conséquences
+
+La fidélité ne dépend plus de l'auto-évaluation de l'adaptateur. Une régression simule explicitement une reformulation déclarée sûre qui ajoute déverrouillage et ouverture accomplie; le critique la refuse et le texte joueur initial reste visible. Le diagnostic système ne suggère plus qu'une projection `action=act` décide du comportement ni qu'un commit est seulement « possible » après son application.

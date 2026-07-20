@@ -299,7 +299,8 @@ export function buildCompatibleSemanticIntentV1(input: {
     forbiddenInterpretations: input.commitment === "hypothetical" || input.commitment === "unclear"
       ? ["execute_without_confirmed_commitment"]
       : [],
-    confidence: input.requiresClarification ? "medium" : "high"
+    confidence: input.requiresClarification ? "medium" : "high",
+    perception: null
   };
 }
 
@@ -418,7 +419,17 @@ export function isNarrativeSemanticIntentV1(value: unknown): value is AiStructur
     candidate.uncertainties.every(entry => typeof entry === "string") &&
     Array.isArray(candidate.forbiddenInterpretations) &&
     candidate.forbiddenInterpretations.every(entry => typeof entry === "string") &&
-    typeof candidate.confidence === "string";
+    typeof candidate.confidence === "string" &&
+    (candidate.perception === null || isNarrativePerceptionRequestV1(candidate.perception));
+}
+
+function isNarrativePerceptionRequestV1(value: unknown): boolean {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+  const candidate = value as Record<string, unknown>;
+  return candidate.schemaVersion === 1 &&
+    (candidate.depth === "GLANCE" || candidate.depth === "FOCUSED" || candidate.depth === "SEARCH") &&
+    typeof candidate.focus === "string" && candidate.focus.trim().length > 0 &&
+    (candidate.soughtInformation === null || typeof candidate.soughtInformation === "string");
 }
 
 function legacySemanticKind(intentType: NarrativeIntentTypeV1): AiStructuredSemanticIntentV1["kind"] {

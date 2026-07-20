@@ -78,7 +78,8 @@ function speechInterpretation(): NarrativeIntentInterpretationV1 {
     evidenceFromInput: ["Je lui demande ce qu'il a vu."],
     uncertainties: [],
     forbiddenInterpretations: ["social_success", "secret_reveal"],
-    confidence: "high" as const
+    confidence: "high" as const,
+    perception: null
   };
   const runtimeHandling = {
     schemaVersion: 1 as const,

@@ -21,6 +21,7 @@ import { SCENE_SOCIAL_UI_CONTRACT_VERSION_V1 } from "../scene";
 import { isAiInterpretationFailureDiagnosticV1, validateCanonicalIntentAuthorityV1, type NarrativeIntentInterpretationV1, type SuspendedIntentRecordV1 } from "./intentClarification";
 import { validateNarrativeDomainCommandV1, type NarrativeDomainCommandV1 } from "./domainCommands";
 import { REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1 } from "./playableScene";
+import { resolvePerceptionV1, type PerceptionResolutionV1 } from "./perceptionResolution";
 import { buildSceneReferentRegistryV1, findSceneReferentByRefV1 } from "./sceneReferentRegistry";
 import {
   buildReferenceSceneBlocksV1,
@@ -92,6 +93,7 @@ export interface NarrativeResolutionResultV1 extends JsonObject {
   commitId: string | null;
   noGameTime: boolean;
   safetyNotes: string[];
+  perception: PerceptionResolutionV1 | null;
 }
 
 export interface NarrativeResolutionInputV1 {
@@ -216,7 +218,8 @@ export function buildDeterministicResolution(
     handoff: null,
     commitId: null,
     noGameTime: true,
-    safetyNotes: [...interpretation.safetyNotes]
+    safetyNotes: [...interpretation.safetyNotes],
+    perception: null
   };
 
   if (suspendedIntent) {
@@ -275,6 +278,33 @@ export function buildDeterministicResolution(
           ? "Domaine runtime non ouvert déclaré par l'interprétation IA: aucun résultat inventé."
           : "Statut runtime non committable déclaré par l'interprétation IA."
       ]
+    };
+  }
+
+  if (interpretation.semanticIntent.kind === "observe_environment") {
+    const target = interpretation.referentResolution?.resolvedTarget ?? interpretation.semanticIntent.target ?? null;
+    const perception = resolvePerceptionV1({
+      semanticIntent: interpretation.semanticIntent,
+      targetRef: target?.ref ?? null,
+      scene: REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1
+    });
+    return {
+      ...base,
+      resultKind: perception?.status === "NEEDS_CLARIFICATION" ? "CLARIFICATION_REQUIRED" : "RESOLUTION_PROPOSED",
+      characterExpression: buildCharacterExpression(rawInput, interpretation),
+      perception,
+      preparedEffects: [{
+        schemaVersion: 1,
+        effectId: `${operation.operationId}:effect:observation:1`,
+        effectType: "OBSERVATION_ONLY",
+        targetRef: target?.ref ?? "scene:prototype-narration-surface",
+        summary: perception?.status === "CHECK_REQUIRED"
+          ? "Observation approfondie préparée: vérification perceptive requise."
+          : "Résultat perceptif automatique sans mutation durable.",
+        commitEligible: false,
+        sourceCommandId: domainCommand?.commandId ?? null
+      }],
+      safetyNotes: [...base.safetyNotes, "Résolution perceptive bornée sans commit ni révélation hors niveau autorisé."]
     };
   }
 
@@ -722,12 +752,12 @@ function resolutionDiagnosticLines(resolution: NarrativeResolutionResultV1): str
   const runtimeHandling = interpretation.runtimeHandling ?? null;
   const runtimeDecision = interpretation.runtimeDecision;
   return [
-    `Intention canonique: ${interpretation.semanticIntent.kind}; projection legacy: ${interpretation.intentType}${interpretation.action === null ? "" : ` / action=${interpretation.action}`}.`,
+    `Intention canonique: ${interpretation.semanticIntent.kind}; projection de compatibilité non autoritaire: ${interpretation.intentType}${interpretation.action === null ? "" : ` / action=${interpretation.action}`}.`,
     `Cible résolue: ${target === null ? "aucune" : `${target.label ?? target.ref ?? target.kind} (${target.ref ?? target.kind})`}.`,
     runtimeHandling === null
       ? "Runtime: non renseigné."
       : `Suggestion IA: ${runtimeHandling.status}, domaine=${runtimeHandling.requiredDomain ?? "aucun"}.`,
-    `Décision runtime locale: ${runtimeDecision.status}, domaine=${runtimeDecision.requiredDomain ?? "aucun"}, commit=${runtimeDecision.noCommit ? "non" : "possible"}, concordance IA=${runtimeDecision.aiSuggestionMatched ? "oui" : "non"}.`
+    `Décision runtime locale: ${runtimeDecision.status}, domaine=${runtimeDecision.requiredDomain ?? "aucun"}, journalisation=${resolution.commitId !== null ? "appliquée" : runtimeDecision.noCommit ? "aucune" : "préparée"}, concordance IA=${runtimeDecision.aiSuggestionMatched ? "oui" : "non"}.`
   ];
 }
 

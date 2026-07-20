@@ -158,6 +158,12 @@ export interface AiStructuredSemanticIntentV1 {
   uncertainties: string[];
   forbiddenInterpretations: string[];
   confidence: "low" | "medium" | "high";
+  perception: {
+    schemaVersion: 1;
+    depth: "GLANCE" | "FOCUSED" | "SEARCH";
+    focus: string;
+    soughtInformation: string | null;
+  } | null;
 }
 
 export interface AiIntentRuntimeHandlingV1 {

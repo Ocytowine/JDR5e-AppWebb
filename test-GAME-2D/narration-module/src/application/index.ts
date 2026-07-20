@@ -12,6 +12,7 @@ export * from "./playableScene";
 export * from "./sceneReferentRegistry";
 export * from "./plotPreparation";
 export * from "./presentationVariation";
+export * from "./perceptionResolution";
 export * from "./referenceScene";
 export * from "./referenceSceneState";
 export * from "./sceneEphemeralCreation";

@@ -32,6 +32,8 @@ Depuis `test-GAME-2D/` :
 npm run dev
 ```
 
+`npm run dev` reconstruit l'application avant de lancer le serveur, car `server.js` sert le contenu de `dist`. Après une modification du code client, un simple redémarrage sans build laisserait sinon l'ancien bundle actif.
+
 Cette commande regenere les catalogues puis demarre le serveur applicatif. Pour lancer uniquement l'interface Vite :
 
 ```powershell

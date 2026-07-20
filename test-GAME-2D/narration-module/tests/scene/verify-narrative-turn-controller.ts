@@ -221,6 +221,9 @@ async function main(): Promise<void> {
   });
   if (!afterSpeechObservation.ok) throw new Error(afterSpeechObservation.error.messageKey);
   assert.equal(afterSpeechObservation.value.operation.commitId, null);
+  assert.equal(afterSpeechObservation.value.output.resolution.perception?.status, "AUTOMATIC_RESULT");
+  assert.equal(afterSpeechObservation.value.output.resolution.perception?.depth, "GLANCE");
+  assert.deepEqual(afterSpeechObservation.value.output.resolution.perception?.revealedClueRefs, ["guard-immediate-signs"]);
   assert.equal(afterSpeechObservation.value.output.displayPacket.displayBlocks.some(block =>
     block.kind === "GM_NARRATION" &&
     /reconnaît maintenant|porte du fond/u.test(block.text)

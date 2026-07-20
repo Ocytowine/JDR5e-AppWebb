@@ -164,7 +164,8 @@ function resolution(
     handoff: null,
     commitId: null,
     noGameTime: true,
-    safetyNotes: []
+    safetyNotes: [],
+    perception: null
   };
 }
 

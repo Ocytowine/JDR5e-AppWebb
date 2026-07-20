@@ -139,6 +139,7 @@ Le paquet envoyé au rôle contient uniquement :
 - acteurs visibles nommés;
 - points d'intérêt visibles;
 - dernière clarification suspendue si elle existe;
+- au plus cinq intentions sémantiques récemment acceptées, limitées à leur objectif, sujet, cible publique, engagement et provenance;
 - politique d'autorité;
 - liste des intentions et handoffs autorisés par le lot;
 - exemples de sorties attendues si utile.
@@ -306,6 +307,9 @@ Champs :
 - `uncertainties[]`: incertitudes reelles, pas des precautions generiques;
 - `forbiddenInterpretations[]`: resultats, secrets, engagements ou deductions a ne pas ajouter;
 - `confidence`: `low`, `medium` ou `high`.
+- `perception`: demande perceptive structurée obligatoire pour `observe_environment`, sinon `null`; elle porte `depth=GLANCE|FOCUSED|SEARCH`, un `focus` sémantique et une information recherchée optionnelle.
+
+La profondeur perceptive est proposée par l'IA depuis le sens complet de la demande. Le runtime valide l'enum et la cohérence avec `observe_environment`, mais ne tente pas de reconnaître localement des formulations comme « attentivement » ou « fouiller du regard ».
 
 `runtimeHandling` est obligatoire pour chaque intention acceptee.
 
@@ -320,6 +324,10 @@ Champs :
 - `noGameTime`: booleen.
 
 `canonicalActionHint` ne porte pas le sens. Si ce champ est absent ou `null`, l'intention semantique reste valide tant qu'elle est claire et non dangereuse.
+
+`action` et `runtimeHandling.canonicalActionHint` sont deux aides legacy non autoritaires. Chacune doit respecter son enum et ne doit pas contredire `semanticIntent`, mais une différence entre elles ne suffit pas à rejeter une intention sémantique cohérente. Le runtime ne les utilise ni pour choisir le domaine, ni pour construire la commande, ni pour décider du commit.
+
+Le contexte `recentSemanticTurns` permet à l'IA de comprendre une continuité discursive sans analyse lexicale locale. Il ne devient jamais une autorité : toute cible proposée depuis ce contexte est canonicalisée et revalidée par `scene-referent-registry/1` avant résolution.
 
 ## Types d'intention autorisés en I-06X
 

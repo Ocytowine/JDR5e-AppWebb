@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev": "node scripts/gen-action-catalog.js && node scripts/gen-materiel-catalog.js && node scripts/gen-class-catalog.js && node server.js",
+    "dev": "npm run build && node server.js",
     "dev:api": "node scripts/gen-action-catalog.js && node scripts/gen-materiel-catalog.js && node scripts/gen-class-catalog.js && node server.js",
     "dev:ui": "vite",
     "build": "node scripts/gen-action-catalog.js && node scripts/gen-materiel-catalog.js && node scripts/gen-class-catalog.js && npm run narration-module:build && tsc --noEmit && vite build",
@@ -44,6 +44,7 @@
     "narration-module:test:narrative-app-surface": "npx --yes tsx narration-module/tests/scene/verify-narrative-app-surface.ts",
     "narration-module:test:narrative-turn-controller": "npx --yes tsx narration-module/tests/scene/verify-narrative-turn-controller.ts",
     "narration-module:test:narrative-resolution": "npx --yes tsx narration-module/tests/scene/verify-narrative-resolution.ts",
+    "narration-module:test:perception": "npx --yes tsx narration-module/tests/scene/verify-perception-resolution.ts",
     "narration-module:test:ai-narrative-enhancement": "npx --yes tsx narration-module/tests/scene/verify-ai-narrative-enhancement.ts",
     "narration-module:test:narrative-render-projection": "npx --yes tsx narration-module/tests/scene/verify-narrative-render-projection.ts",
     "narration-module:test:vertical-quality": "npx --yes tsx narration-module/tests/scene/verify-vertical-quality-i06q.ts",

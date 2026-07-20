@@ -21,7 +21,8 @@ export class ServerOpenAiEnhancementProviderV1 implements ContractAiProviderV1 {
           : `HTTP ${response.status}`;
         return serverErrorEnvelope(request, "SERVER_ROUTE_HTTP_ERROR", detail);
       }
-      return data?.output ?? serverErrorEnvelope(request, "SERVER_ROUTE_EMPTY_OUTPUT", "Server route returned no output.");
+      if (data?.output) return withServerValidationIssues(data.output, data.issues, request);
+      return serverErrorEnvelope(request, "SERVER_ROUTE_EMPTY_OUTPUT", "Server route returned no output.");
     } catch (error) {
       return serverErrorEnvelope(
         request,
@@ -30,6 +31,22 @@ export class ServerOpenAiEnhancementProviderV1 implements ContractAiProviderV1 {
       );
     }
   }
+}
+
+function withServerValidationIssues(output: unknown, issues: unknown, request: AiCallRequestV1): unknown {
+  if (!Array.isArray(issues) || issues.length === 0 || output === null || typeof output !== "object" || Array.isArray(output)) return output;
+  const typed = output as Partial<AiRoleOutputEnvelopeV1>;
+  const diagnostics = Array.isArray(typed.diagnostics) ? typed.diagnostics : [];
+  const validationIssues = issues
+    .filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0)
+    .slice(0, 20)
+    .map((message, index) => ({
+      code: `SERVER_ENVELOPE_VALIDATION_${index + 1}`,
+      severity: "BLOCKING" as const,
+      message,
+      sourceRefs: [`operation:${request.operationId}`]
+    }));
+  return { ...typed, diagnostics: [...diagnostics, ...validationIssues] };
 }
 
 function serverErrorEnvelope(request: AiCallRequestV1, code: string, message: string): AiRoleOutputEnvelopeV1 {

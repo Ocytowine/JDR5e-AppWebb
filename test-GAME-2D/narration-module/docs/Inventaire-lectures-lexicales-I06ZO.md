@@ -23,12 +23,14 @@ Toute nouvelle lecture textuelle doit être classée dans une des exceptions ci-
 
 ## Lectures retirées du flux de décision
 
+- la route OpenAI ne relit plus `rawInput` avec des regex pour imposer parole, approche, possibilité ou ellipse; elle valide la structure, les autorités et les cohérences canoniques;
 - le resolver ne classe plus `rawInput` en tactique, repos, inventaire ou création;
 - le commit local ne dépend plus de `action=open|force` ni d'un verbe dans `coreMeaning`;
 - le positionnement PNJ dépend de `semanticIntent.kind=nonverbal_signal` et de la cible structurée;
 - la mutation `playerLookedAround` dépend de `semanticIntent.kind=observe_environment`;
 - la cible de parole et la mémoire courte ne sont plus reconstruites depuis le texte;
 - le mapper IA ne transforme plus une phrase reconnue comme « approche » en intention non verbale et ne rejette plus une possibilité selon sa ponctuation ou ses synonymes.
+- le mapper ne rejette plus une intention uniquement parce que les deux aides legacy `action` et `canonicalActionHint` diffèrent; les décisions restent fondées sur `semanticIntent`, `runtimeDecision`, le référent validé et la commande locale.
 
 ## Limite assumée
 

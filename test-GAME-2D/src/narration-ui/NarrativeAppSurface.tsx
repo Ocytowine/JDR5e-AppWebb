@@ -386,10 +386,11 @@ async function enhancePrototypePacket(
       provider,
       expressionRoute: prototypeExpressionRoute,
       sceneWriterRoute: prototypeSceneWriterRoute,
+      coherenceCriticRoute: mode === "openai" ? prototypeCoherenceCriticRoute : undefined,
       retryPolicy: prototypeRetryPolicy
     }
   });
-  if (mode === "openai" && enhanced.usedFallback) {
+  if (mode === "openai" && enhanced.fallbackKind === "TECHNICAL_INCIDENT") {
     const fallback = await enhanceNarrativeDisplayWithAiV1({
       campaignId: "cmp-narrative-prototype",
       operationId,
@@ -415,6 +416,20 @@ async function enhancePrototypePacket(
       status: `OpenAI indisponible ou sortie refusée (${summarizeOpenAiFallback(enhanced)}) : fallback local utilisé.`,
       finalEnhancement: { ...fallback, displayPacket: variedFallback },
       attemptedEnhancement: enhanced
+    };
+  }
+  if (mode === "openai" && enhanced.fallbackKind === "RENDER_AUTHORITY_REJECTION") {
+    const varied = applyNarrativePresentationVariationV1({
+      schemaVersion: 1,
+      displayPacket: enhanced.displayPacket,
+      output,
+      priorPackets
+    }).displayPacket;
+    return {
+      displayPacket: varied,
+      status: "Texte IA candidat rejeté par la frontière d'autorité : rendu déterministe autorisé conservé.",
+      finalEnhancement: { ...enhanced, displayPacket: varied },
+      attemptedEnhancement: null
     };
   }
   if (!enhanced.enhanced && !enhanced.usedFallback) {
@@ -522,6 +537,22 @@ const prototypeSceneWriterRoute: AiModelRouteV1 = {
   inputTokenLimit: 2_000,
   outputTokenLimit: 1_500,
   timeoutMs: 1_000,
+  fallbackRouteIds: []
+};
+
+const prototypeCoherenceCriticRoute: AiModelRouteV1 = {
+  schemaVersion: 1,
+  routeId: "prototype-ui-openai-coherence-critic",
+  role: "coherence_critic",
+  providerKind: "FAKE_CONTRACT",
+  providerId: "server-openai-route",
+  modelId: "server-selected-openai-model",
+  modelConfigVersion: "render-authority-v1",
+  certified: true,
+  allowedContractVersions: ["narrative-ai-resolution/1"],
+  inputTokenLimit: 2_000,
+  outputTokenLimit: 700,
+  timeoutMs: 10_000,
   fallbackRouteIds: []
 };
 

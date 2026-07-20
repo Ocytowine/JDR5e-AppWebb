@@ -53,6 +53,7 @@ export function buildPlayableSceneFromLoreLocationV1(input: {
     visibleElements: buildVisibleElements(input.entity, visibleFragments),
     presentNpc: buildNpcFromPresence(input.entity),
     pointsOfInterest: buildPointsOfInterest(input.entity),
+    perceptionClues: [],
     currentTension: buildTension(input.entity),
     playerKnownFacts: uniqueNonEmpty([
       `Le personnage peut identifier le lieu: ${input.entity.displayName}.`,
@@ -120,6 +121,7 @@ function buildNpcFromPresence(entity: LoreEntityV1): PlayableSceneNpcV1[] {
     schemaVersion: 1,
     actorId: `npc-${entity.entityId}-${slug(role)}`,
     displayName: `${displayRole} de ${entity.displayName}`,
+    narrativeLabel: `le ${displayRole.toLowerCase()} de ${entity.displayName}`,
     publicRole: displayRole,
     visibleState: `présent à ${entity.displayName}, occupé par la fonction publique du lieu`,
     keywords: uniqueNonEmpty([role, displayRole, entity.displayName]),

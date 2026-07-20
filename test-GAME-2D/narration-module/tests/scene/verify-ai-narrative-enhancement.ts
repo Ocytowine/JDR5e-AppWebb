@@ -9,6 +9,7 @@ import {
 } from "../../src/core";
 import {
   NarrativeTurnControllerV1,
+  buildNarrativeRenderAuthorityV1,
   enhanceNarrativeDisplayWithAiV1
 } from "../../src/application";
 import {
@@ -69,6 +70,13 @@ const sceneWriterRoute: AiModelRouteV1 = {
   fallbackRouteIds: []
 };
 
+const coherenceCriticRoute: AiModelRouteV1 = {
+  ...sceneWriterRoute,
+  routeId: "route-ai-coherence-critic-i06g",
+  role: "coherence_critic",
+  modelId: "fake-coherence-critic"
+};
+
 const retryPolicy: AiRetryPolicyV1 = {
   schemaVersion: 1,
   role: "scene_writer",
@@ -117,8 +125,8 @@ async function setup() {
 
 function envelope(input: {
   operationId: string;
-  role: "player_expression_adapter" | "scene_writer";
-  attemptSuffix: "expression" | "scene-writer";
+  role: "player_expression_adapter" | "scene_writer" | "coherence_critic";
+  attemptSuffix: "expression" | "expression-critic" | "scene-writer" | "coherence-critic";
   payload: unknown;
 }) {
   return {
@@ -127,7 +135,11 @@ function envelope(input: {
     outputId: `output:${input.operationId}:${input.attemptSuffix}`,
     callId: `${input.operationId}:ai:${input.attemptSuffix}:call`,
     attemptId: `${input.operationId}:ai:${input.attemptSuffix}:attempt:1`,
-    packId: `${input.operationId}:pack:${input.attemptSuffix}`,
+    packId: input.attemptSuffix === "coherence-critic"
+      ? `${input.operationId}:pack:scene-writer:critic`
+      : input.attemptSuffix === "expression-critic"
+        ? `${input.operationId}:pack:expression:critic`
+      : `${input.operationId}:pack:${input.attemptSuffix}`,
     snapshotId: `${input.operationId}:snapshot:display`,
     role: input.role,
     status: "OK",
@@ -211,39 +223,18 @@ async function main(): Promise<void> {
   assert.equal(speechEnhanced.usedFallback, false);
   assert.equal(speech.value.output.resolution.resultKind, "COMMIT_APPLIED");
   assert.match(speechEnhanced.displayPacket.displayBlocks.find(block => block.kind === "PLAYER_EXPRESSION")?.text ?? "", /voix posée/);
-  assert.equal(speechEnhanced.displayPacket.displayBlocks.some(block => block.kind === "GM_NARRATION"), true);
-  assert.equal(speechEnhanced.displayPacket.displayBlocks.filter(block => block.kind === "GM_NARRATION").length, 1, "scene_writer remplace la narration déterministe au lieu de la dupliquer");
+  assert.match(
+    speechProvider.requests.find(request => request.role === "player_expression_adapter")?.contextFingerprint ?? "",
+    /^sha256:[0-9a-f]{64}$/u,
+    "player_expression_adapter doit envoyer une empreinte SHA-256 réelle à la route serveur"
+  );
+  assert.equal(speechEnhanced.displayPacket.displayBlocks.some(block => block.kind === "GM_NARRATION"), false, "une réplique PNJ ne doit pas être doublée par une narration MJ");
   assert.equal(speechEnhanced.displayPacket.displayBlocks.at(-1)?.kind, "SYSTEM_NOTICE", "la notification système reste le dernier bloc après la narration finale");
   const sceneWriterRequest = speechProvider.requests.find(request => request.role === "scene_writer");
-  assert.ok(sceneWriterRequest, "scene_writer doit être appelé sur une parole committée");
-  assert.equal(sceneWriterRequest.input.instructionsRef, "narrative-ai-resolution/scene-writer/reference-scene/v1");
-  assert.match(sceneWriterRequest.contextFingerprint, /^sha256:[0-9a-f]{64}$/u);
-  const roleContextPack = sceneWriterRequest.input.roleContextPack as RoleContextPackV1;
-  assert.equal(roleContextPack.role, "scene_writer");
-  assert.equal(roleContextPack.blocks.some(block =>
-    block.blockKind === "SCENE" &&
-    /Auberge du Seuil/u.test(block.text) &&
-    /porte du fond/u.test(block.text)
-  ), true, "le paquet scene_writer doit contenir la scène de référence concrète");
-  assert.equal(roleContextPack.blocks.some(block =>
-    block.blockKind === "SCENE" &&
-    block.visibility === "SYSTEM_ONLY" &&
-    /État scène/u.test(block.text) &&
-    /garde interpellé=true/u.test(block.text)
-  ), true, "le paquet scene_writer doit contenir l'état de scène persistant");
-  assert.equal(roleContextPack.blocks.some(block =>
-    block.blockKind === "SCENE" &&
-    block.visibility === "SYSTEM_ONLY" &&
-    /Mémoire courte PNJ/u.test(block.text) &&
-    /Garde blessé/u.test(block.text)
-  ), true, "le paquet scene_writer doit contenir la mémoire courte PNJ");
-  assert.deepEqual((sceneWriterRequest.input.task as { allowedGrounding: string[] }).allowedGrounding, [
-    `resolution:${speech.value.output.resolution.resolutionId}`,
-    "reference-scene:reference-inn-rain-001"
-  ]);
-  assert.equal(sceneWriterRequest.limits.outputTokenBudget, 1_200, "scene_writer doit avoir assez de budget pour l'enveloppe JSON stricte");
-  assert.equal(roleContextPack.creativeScope.mustNotModify.includes("handoff"), true);
-  assert.equal(speechEnhanced.displayPacket.reconstructionRefs.includes(`ai-context:${speechOp}:pack:scene-writer`), true);
+  assert.equal(sceneWriterRequest, undefined, "la réponse PNJ constitue déjà le rendu narratif du tour");
+  const speechKinds = speechEnhanced.displayPacket.displayBlocks.map(block => block.kind);
+  assert.ok(speechKinds.indexOf("PLAYER_EXPRESSION") < speechKinds.indexOf("NPC_SPEECH"));
+  assert.ok(speechKinds.indexOf("NPC_SPEECH") < speechKinds.indexOf("SYSTEM_NOTICE"));
 
   const unsafeProvider = new FakeContractAiProviderV1([
     [`${speechOp}:ai:expression:attempt:1`, envelope({
@@ -285,8 +276,151 @@ async function main(): Promise<void> {
   });
   assert.equal(unsafe.enhanced, false);
   assert.equal(unsafe.usedFallback, true);
+  assert.equal(unsafe.fallbackKind, "TECHNICAL_INCIDENT");
   assert.equal(unsafe.incidents.length, 1);
   assert.deepEqual(unsafe.displayPacket, speech.value.output.displayPacket);
+
+  const door = await controller.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-ai-door-staging",
+    rawInput: "J'ouvre la porte du fond"
+  });
+  if (!door.ok) throw new Error(door.error.messageKey);
+  assert.equal(door.value.output.resolution.preparedEffects.some(effect => effect.effectType === "LOCAL_SCENE_ACTION_RECORDED"), true);
+  const doorAuthority = buildNarrativeRenderAuthorityV1(door.value.output.resolution, door.value.output.displayPacket);
+  assert.equal(doorAuthority.mode, "ACTION_STAGING_ONLY");
+  assert.equal(doorAuthority.unconfirmedClaims.some(claim => /modification/u.test(claim)), true);
+  const doorOp = door.value.operation.operationId;
+  const unsafeDoorProvider = new RecordingProvider([
+    [`${doorOp}:ai:expression:attempt:1`, envelope({
+      operationId: doorOp,
+      role: "player_expression_adapter",
+      attemptSuffix: "expression",
+      payload: {
+        intentId: door.value.output.interpretation.intentId,
+        expressionKind: "action_staging",
+        renderedExpression: "Je saisis la poignée et tente d'ouvrir la porte du fond.",
+        meaningCovered: ["ouvrir la porte du fond"],
+        addedMeaning: [],
+        omittedMeaning: [],
+        styleChoices: ["geste précis"],
+        safeToUse: true
+      }
+    })],
+    [`${doorOp}:ai:expression-critic:attempt:1`, envelope({
+      operationId: doorOp,
+      role: "coherence_critic",
+      attemptSuffix: "expression-critic",
+      payload: {
+        verdict: "PASS",
+        findings: [],
+        correctionConstraints: []
+      }
+    })],
+    [`${doorOp}:ai:scene-writer:attempt:1`, envelope({
+      operationId: doorOp,
+      role: "scene_writer",
+      attemptSuffix: "scene-writer",
+      payload: {
+        narrationBlocks: [{
+          slotId: "door-unsupported-outcome",
+          blockKind: "MJ_NARRATION",
+          content: "La porte s'ouvre et révèle une pièce sombre; la serveuse recule aussitôt.",
+          groundedIn: [`resolution:${door.value.output.resolution.resolutionId}`],
+          usesCreativeTexture: true,
+          factDiscipline: factDiscipline()
+        }]
+      }
+    })],
+    [`${doorOp}:ai:coherence-critic:attempt:1`, envelope({
+      operationId: doorOp,
+      role: "coherence_critic",
+      attemptSuffix: "coherence-critic",
+      payload: {
+        verdict: "REJECT",
+        findings: [{
+          findingId: "door-outcome-without-authority",
+          severity: "BLOCKING",
+          category: "AUTHORITY",
+          affectedRefs: [doorAuthority.targetRef ?? "door"],
+          explanation: "Le texte transforme une tentative locale en ouverture, révélation et réaction confirmées."
+        }],
+        correctionConstraints: ["Ne décrire que l'engagement du geste."]
+      }
+    })]
+  ]);
+  const unsafeDoor = await enhanceNarrativeDisplayWithAiV1({
+    campaignId,
+    operationId: doorOp,
+    displayPacket: door.value.output.displayPacket,
+    resolution: door.value.output.resolution,
+    sceneState: door.value.output.sceneState,
+    config: { provider: unsafeDoorProvider, expressionRoute, sceneWriterRoute, coherenceCriticRoute, retryPolicy }
+  });
+  assert.equal(unsafeDoor.usedFallback, true);
+  assert.equal(unsafeDoor.fallbackKind, "RENDER_AUTHORITY_REJECTION");
+  assert.equal(unsafeDoorProvider.requests.some(request => request.role === "coherence_critic"), true);
+  assert.equal(unsafeDoor.displayPacket.displayBlocks.some(block => /révèle une pièce|serveuse recule/u.test(block.text)), false);
+  assert.equal(unsafeDoor.displayPacket.displayBlocks.some(block => block.kind === "GM_NARRATION" && /commences à faire jouer le mécanisme/u.test(block.text)), true);
+  const criticRequest = unsafeDoorProvider.requests.find(request => request.attemptId.endsWith(":coherence-critic:attempt:1"));
+  assert.equal((criticRequest?.input.task as { renderAuthority: { mode: string } }).renderAuthority.mode, "ACTION_STAGING_ONLY");
+
+  const unsafeExpressionProvider = new RecordingProvider([
+    [`${doorOp}:ai:expression:attempt:1`, envelope({
+      operationId: doorOp,
+      role: "player_expression_adapter",
+      attemptSuffix: "expression",
+      payload: {
+        intentId: door.value.output.interpretation.intentId,
+        expressionKind: "action_staging",
+        renderedExpression: "Je déverrouille et ouvre la porte du fond.",
+        meaningCovered: ["ouvrir la porte du fond"],
+        addedMeaning: [],
+        omittedMeaning: [],
+        styleChoices: ["geste précis"],
+        safeToUse: true
+      }
+    })],
+    [`${doorOp}:ai:expression-critic:attempt:1`, envelope({
+      operationId: doorOp,
+      role: "coherence_critic",
+      attemptSuffix: "expression-critic",
+      payload: {
+        verdict: "REJECT",
+        findings: [{
+          findingId: "expression-adds-unlock-and-outcome",
+          severity: "BLOCKING",
+          category: "PLAYER_AGENCY",
+          affectedRefs: [doorAuthority.targetRef ?? "door"],
+          explanation: "La reformulation ajoute le déverrouillage et présente l'ouverture comme accomplie."
+        }],
+        correctionConstraints: ["Conserver la formulation déterministe du joueur."]
+      }
+    })],
+    [`${doorOp}:ai:scene-writer:attempt:1`, envelope({
+      operationId: doorOp,
+      role: "scene_writer",
+      attemptSuffix: "scene-writer",
+      payload: { narrationBlocks: [] }
+    })]
+  ]);
+  const unsafeExpression = await enhanceNarrativeDisplayWithAiV1({
+    campaignId,
+    operationId: doorOp,
+    displayPacket: door.value.output.displayPacket,
+    resolution: door.value.output.resolution,
+    sceneState: door.value.output.sceneState,
+    config: { provider: unsafeExpressionProvider, expressionRoute, sceneWriterRoute, coherenceCriticRoute, retryPolicy }
+  });
+  assert.equal(unsafeExpression.fallbackKind, "RENDER_AUTHORITY_REJECTION");
+  assert.equal(unsafeExpression.incidents.length, 0);
+  assert.equal(unsafeExpression.displayPacket.displayBlocks.some(block => /déverrouille/u.test(block.text)), false);
+  assert.equal(
+    unsafeExpression.displayPacket.displayBlocks.find(block => block.kind === "PLAYER_EXPRESSION")?.text,
+    door.value.output.displayPacket.displayBlocks.find(block => block.kind === "PLAYER_EXPRESSION")?.text
+  );
+  const expressionCriticRequest = unsafeExpressionProvider.requests.find(request => request.attemptId.endsWith(":expression-critic:attempt:1"));
+  assert.equal((expressionCriticRequest?.input.task as { renderAuthority: { mode: string } }).renderAuthority.mode, "PLAYER_EXPRESSION_FIDELITY");
 
   const attack = await controller.submit({
     schemaVersion: 1,

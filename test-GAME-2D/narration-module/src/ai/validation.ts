@@ -243,9 +243,6 @@ function validateAiIntentInterpretationPayload(payload: unknown): string[] {
     if (isObject(intent.runtimeHandling) && intent.runtimeHandling.status === "AI_INTERPRETATION_FAILED") {
       issues.push(issue(`${path}.runtimeHandling.status`, "failed interpretation must not be accepted as OK output"));
     }
-    if (isObject(intent.runtimeHandling) && typeof intent.runtimeHandling.canonicalActionHint === "string" && intent.action !== null && intent.runtimeHandling.canonicalActionHint !== intent.action) {
-      issues.push(issue(`${path}.runtimeHandling.canonicalActionHint`, "must match action when both are provided"));
-    }
     if (/succ[eè]s|r[eé]ussit|[eé]chec|secret r[eé]v[eé]l[eé]|combat gagn[eé]|inventaire/iu.test(intent.coreMeaning)) {
       issues.push(issue(`${path}.coreMeaning`, "must not contain outcome, secret, combat or inventory authority"));
     }
@@ -270,6 +267,7 @@ function validateSemanticIntent(
     "evidenceFromInput",
     "forbiddenInterpretations",
     "kind",
+    "perception",
     "playerGoal",
     "schemaVersion",
     "target",
@@ -283,6 +281,18 @@ function validateSemanticIntent(
   if (!isStringArray(value.uncertainties)) issues.push(issue(`${semanticPath}.uncertainties`, "expected string array"));
   if (!isStringArray(value.forbiddenInterpretations)) issues.push(issue(`${semanticPath}.forbiddenInterpretations`, "expected string array"));
   if (typeof value.confidence !== "string" || !allowedConfidence.has(value.confidence)) issues.push(issue(`${semanticPath}.confidence`, "invalid confidence"));
+  if (value.kind === "observe_environment" && !isObject(value.perception)) {
+    issues.push(issue(`${semanticPath}.perception`, "observation requires a structured perception request"));
+  } else if (value.kind !== "observe_environment" && value.perception !== null) {
+    issues.push(issue(`${semanticPath}.perception`, "must be null outside observe_environment"));
+  }
+  if (isObject(value.perception)) {
+    issues.push(...exactKeys(value.perception, ["depth", "focus", "schemaVersion", "soughtInformation"], `${semanticPath}.perception`));
+    if (value.perception.schemaVersion !== 1) issues.push(issue(`${semanticPath}.perception.schemaVersion`, "expected 1"));
+    if (!["GLANCE", "FOCUSED", "SEARCH"].includes(String(value.perception.depth))) issues.push(issue(`${semanticPath}.perception.depth`, "invalid perception depth"));
+    issues.push(...validateNonEmptyString(value.perception.focus, `${semanticPath}.perception.focus`));
+    if (value.perception.soughtInformation !== null && typeof value.perception.soughtInformation !== "string") issues.push(issue(`${semanticPath}.perception.soughtInformation`, "expected string or null"));
+  }
   if (value.target !== null) {
     if (!isObject(value.target)) {
       issues.push(issue(`${semanticPath}.target`, "expected object or null"));
@@ -593,6 +603,7 @@ export function validateAiRoleOutputEnvelopeV1(output: unknown, request: AiCallR
     if (request.role === "mj_planner") issues.push(...validatePlannerPayload(envelope.payload));
     if (request.role === "npc_performer") issues.push(...validateNpcPerformerPayload(envelope.payload));
     if (request.role === "player_expression_adapter") issues.push(...validatePlayerExpressionPayload(envelope.payload));
+    if (request.role === "coherence_critic") issues.push(...validateCoherenceCriticPayload(envelope.payload));
     if (request.role === "scene_writer") issues.push(...validateSceneWriterPayload(envelope.payload));
   }
 
@@ -603,6 +614,37 @@ export function validateAiRoleOutputEnvelopeV1(output: unknown, request: AiCallR
     failureCategory: issues.length === 0 ? null : "SCHEMA_VIOLATION",
     issues
   };
+}
+
+function validateCoherenceCriticPayload(payload: unknown): string[] {
+  if (!isObject(payload)) return ["payload: expected object"];
+  const issues = exactKeys(payload, ["verdict", "findings", "correctionConstraints"], "payload");
+  if (!["PASS", "REVISE", "REJECT"].includes(String(payload.verdict))) issues.push("payload.verdict: invalid verdict");
+  if (!Array.isArray(payload.findings)) {
+    issues.push("payload.findings: expected array");
+  } else {
+    payload.findings.forEach((finding, index) => {
+      const path = `payload.findings[${index}]`;
+      if (!isObject(finding)) {
+        issues.push(`${path}: expected object`);
+        return;
+      }
+      issues.push(...exactKeys(finding, ["findingId", "severity", "category", "affectedRefs", "explanation"], path));
+      issues.push(...validateNonEmptyString(finding.findingId, `${path}.findingId`));
+      if (!["INFO", "WARNING", "BLOCKING"].includes(String(finding.severity))) issues.push(`${path}.severity: invalid severity`);
+      if (!["AUTHORITY", "PLAYER_AGENCY", "SECRET_LEAK", "PERSPECTIVE", "PLOT_COHERENCE", "RULE_CONFLICT", "DUPLICATE", "UNSUPPORTED_CREATION"].includes(String(finding.category))) issues.push(`${path}.category: invalid category`);
+      if (!isStringArray(finding.affectedRefs)) issues.push(`${path}.affectedRefs: expected string array`);
+      issues.push(...validateNonEmptyString(finding.explanation, `${path}.explanation`));
+    });
+  }
+  if (!isStringArray(payload.correctionConstraints)) issues.push("payload.correctionConstraints: expected string array");
+  if (payload.verdict === "PASS" && ((payload.findings as unknown[])?.length > 0 || (payload.correctionConstraints as unknown[])?.length > 0)) {
+    issues.push("payload: PASS must not contain findings or correction constraints");
+  }
+  if (payload.verdict === "REJECT" && !(payload.findings as unknown[])?.some(finding => isObject(finding) && finding.severity === "BLOCKING")) {
+    issues.push("payload.findings: REJECT requires a BLOCKING finding");
+  }
+  return issues;
 }
 
 export function intentAllowsMutationV1(payload: IntentInterpreterPayloadV1): boolean {

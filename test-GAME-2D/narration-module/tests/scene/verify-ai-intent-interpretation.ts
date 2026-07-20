@@ -78,6 +78,38 @@ const ambiguousInputs = [
 
 async function main(): Promise<void> {
   const config = createDefaultAiIntentInterpreterConfigV1();
+  let capturedSemanticHistory: unknown = null;
+  const capturingProvider: ContractAiProviderV1 = {
+    async generate(request) {
+      capturedSemanticHistory = (request.input.task as { recentSemanticTurns?: unknown }).recentSemanticTurns;
+      return config.provider.generate(request);
+    }
+  };
+  await interpretNarrativeInputWithAiV1({
+    campaignId: "cmp-semantic-history",
+    operationId: "op-semantic-history",
+    intentId: "intent-semantic-history",
+    rawInput: "Je l'ouvre.",
+    config: { ...config, provider: capturingProvider },
+    recentSemanticTurns: [{
+      schemaVersion: 1,
+      operationId: "op-previous-speech",
+      semanticKind: "address_visible_actor",
+      playerGoal: "demander à la serveuse pourquoi elle regarde la porte du fond",
+      primaryTarget: { kind: "npc", ref: "npc:npc-serveuse-nerveuse", label: "Serveuse nerveuse" },
+      topic: "la porte du fond",
+      commitment: "committed"
+    }]
+  });
+  assert.deepEqual(capturedSemanticHistory, [{
+    schemaVersion: 1,
+    operationId: "op-previous-speech",
+    semanticKind: "address_visible_actor",
+    playerGoal: "demander à la serveuse pourquoi elle regarde la porte du fond",
+    primaryTarget: { kind: "npc", ref: "npc:npc-serveuse-nerveuse", label: "Serveuse nerveuse" },
+    topic: "la porte du fond",
+    commitment: "committed"
+  }], "l'interpréteur doit recevoir le contexte sémantique récent sans réinterprétation locale");
 
   for (const rawInput of speechInputs) {
     const result = await interpret(rawInput, config);
@@ -237,6 +269,9 @@ async function main(): Promise<void> {
   assert.equal(approachWaitressThenAsk.ask.output.interpretation.target?.ref, "npc:npc-serveuse-nerveuse", "pronom lui après approche: serveuse attendue");
   assert.notEqual(approachWaitressThenAsk.ask.output.npcPerformance, null, "question à la serveuse: npc_performer attendu");
   assert.equal(approachWaitressThenAsk.ask.output.displayPacket.displayBlocks.some(block => block.kind === "NPC_SPEECH"), true, "question à la serveuse: réponse PNJ attendue");
+  assert.equal(approachWaitressThenAsk.ask.output.displayPacket.displayBlocks.some(block =>
+    block.kind === "NPC_SPEECH" && /Je vous ai déjà dit/u.test(block.text)
+  ), false, "la première parole à la serveuse ne doit pas utiliser la variante de répétition");
 
   const approachWomanThenAsk = await runControllerApproachWomanThenAskCase();
   assert.equal(approachWomanThenAsk.approach.output.interpretation.target?.ref, "npc:npc-serveuse-nerveuse", "approche femme: serveuse visible attendue");
@@ -1304,6 +1339,7 @@ function semanticIntent(input: {
   uncertainties?: string[];
   forbiddenInterpretations?: string[];
   confidence: string;
+  perception?: { schemaVersion: 1; depth: "GLANCE" | "FOCUSED" | "SEARCH"; focus: string; soughtInformation: string | null } | null;
 }) {
   return {
     schemaVersion: 1,
@@ -1314,7 +1350,8 @@ function semanticIntent(input: {
     evidenceFromInput: input.evidenceFromInput,
     uncertainties: input.uncertainties ?? [],
     forbiddenInterpretations: input.forbiddenInterpretations ?? [],
-    confidence: input.confidence
+    confidence: input.confidence,
+    perception: input.perception ?? null
   };
 }
 

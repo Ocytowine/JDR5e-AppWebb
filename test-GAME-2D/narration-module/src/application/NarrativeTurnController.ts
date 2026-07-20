@@ -30,7 +30,8 @@ import {
   createDefaultAiIntentInterpreterConfigV1,
   interpretNarrativeInputWithAiV1,
   type AiIntentInterpreterConfigV1,
-  type LocalReferentHintV1
+  type LocalReferentHintV1,
+  type RecentSemanticTurnV1
 } from "./aiIntentInterpretation";
 import { REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1 } from "./playableScene";
 import {
@@ -114,6 +115,7 @@ export class NarrativeTurnControllerV1 {
   private readonly mjPlannerConfig: MjPlannerConfigV1 | null;
   private readonly npcPerformerConfig: NpcPerformerConfigV1 | null;
   private recentLocalReferents: LocalReferentHintV1[] = [];
+  private recentSemanticTurns: RecentSemanticTurnV1[] = [];
 
   constructor(options: NarrativeTurnControllerOptions) {
     this.repository = options.repository;
@@ -170,6 +172,7 @@ export class NarrativeTurnControllerV1 {
     if (received.value.phase === "COMPLETED" && received.value.resultPayload !== null) {
       const restoredOutput = upgradeLegacyControllerOutput(received.value.resultPayload as NarrativeTurnControllerOutputV1);
       this.rememberLocalReferent(restoredOutput);
+      this.rememberSemanticTurn(restoredOutput);
       return {
         ok: true,
         value: {
@@ -188,7 +191,8 @@ export class NarrativeTurnControllerV1 {
       intentInterpreterConfig: this.intentInterpreterConfig,
       mjPlannerConfig: this.mjPlannerConfig,
       npcPerformerConfig: this.npcPerformerConfig,
-      localReferentHints: this.recentLocalReferents
+      localReferentHints: this.recentLocalReferents,
+      recentSemanticTurns: this.recentSemanticTurns
     });
     if (!output.ok) {
       await cancelReceivedOperationAfterFailure(this.repository, received.value.operationId);
@@ -200,6 +204,7 @@ export class NarrativeTurnControllerV1 {
       : await this.repository.completePresentation(received.value.operationId, "COMMITTED_RENDERED", 1, output.value.output);
     if (!completed.ok) return completed;
     this.rememberLocalReferent(output.value.output);
+    this.rememberSemanticTurn(output.value.output);
 
     return {
       ok: true,
@@ -245,6 +250,23 @@ export class NarrativeTurnControllerV1 {
     this.recentLocalReferents = [
       hint,
       ...this.recentLocalReferents.filter(entry => entry.target.ref !== target.ref)
+    ].slice(0, 5);
+  }
+
+  private rememberSemanticTurn(output: NarrativeTurnControllerOutputV1): void {
+    if (output.interpretation.runtimeDecision.status === "AI_INTERPRETATION_FAILED") return;
+    const turn: RecentSemanticTurnV1 = {
+      schemaVersion: 1,
+      operationId: output.operationId,
+      semanticKind: output.interpretation.semanticIntent.kind,
+      playerGoal: output.interpretation.semanticIntent.playerGoal,
+      primaryTarget: output.interpretation.referentResolution?.resolvedTarget ?? output.interpretation.semanticIntent.target,
+      topic: typeof output.interpretation.topic === "string" ? output.interpretation.topic : null,
+      commitment: output.interpretation.semanticIntent.commitment
+    };
+    this.recentSemanticTurns = [
+      turn,
+      ...this.recentSemanticTurns.filter(entry => entry.operationId !== turn.operationId)
     ].slice(0, 5);
   }
 }
@@ -465,7 +487,8 @@ export function buildNoCommitOutput(
       handoff: null,
       commitId: null,
       noGameTime: true,
-      safetyNotes: ["Sortie legacy conservée pour compatibilité de test."]
+      safetyNotes: ["Sortie legacy conservée pour compatibilité de test."],
+      perception: null
     },
     sceneState: createInitialReferenceSceneStateV1(),
     displayPacket
@@ -482,6 +505,7 @@ async function buildResolvedOutput(input: {
   mjPlannerConfig: MjPlannerConfigV1 | null;
   npcPerformerConfig: NpcPerformerConfigV1 | null;
   localReferentHints?: LocalReferentHintV1[];
+  recentSemanticTurns?: RecentSemanticTurnV1[];
 }): Promise<Result<{ output: NarrativeTurnControllerOutputV1; commit: unknown | null }>> {
   const intentId = `${input.operation.operationId}:intent:1`;
   const interpretation = input.intentInterpreterConfig === null
@@ -495,7 +519,8 @@ async function buildResolvedOutput(input: {
       intentId,
       rawInput: input.input.rawInput,
       config: input.intentInterpreterConfig,
-      localReferentHints: input.localReferentHints ?? []
+      localReferentHints: input.localReferentHints ?? [],
+      recentSemanticTurns: input.recentSemanticTurns ?? []
     })).interpretation as NarrativeIntentInterpretationV1 & JsonObject;
   const planning = input.mjPlannerConfig === null
     ? null

@@ -1,6 +1,6 @@
 "use strict";
 
-const ALLOWED_ROLES = new Set(["player_expression_adapter", "scene_writer", "player_intent_interpreter", "mj_planner", "npc_performer"]);
+const ALLOWED_ROLES = new Set(["player_expression_adapter", "scene_writer", "coherence_critic", "player_intent_interpreter", "mj_planner", "npc_performer"]);
 const CONTRACT_VERSION = "narrative-ai-resolution/1";
 const INTENT_CONTRACT_VERSION = "ai-intent-interpretation/1";
 const MJ_PLANNER_CONTRACT_VERSION = "mj-planner/1";
@@ -39,7 +39,7 @@ function buildStrictAiOutputSchema(request) {
         packId: { enum: [request.packId] },
         snapshotId: { enum: [request.snapshotId] },
         role: { enum: [request.role] },
-        status: { enum: ["OK", "NEEDS_CLARIFICATION", "CANNOT_COMPLY", "REFUSED", "PARTIAL_UNUSABLE"] },
+        status: { enum: ["OK"] },
         payload: buildRolePayloadSchema(request),
         diagnostics: {
           type: "array",
@@ -183,7 +183,7 @@ function buildRolePayloadSchema(requestOrRole) {
               semanticIntent: {
                 type: "object",
                 additionalProperties: false,
-                required: ["schemaVersion", "kind", "playerGoal", "target", "commitment", "evidenceFromInput", "uncertainties", "forbiddenInterpretations", "confidence"],
+                required: ["schemaVersion", "kind", "playerGoal", "target", "commitment", "evidenceFromInput", "uncertainties", "forbiddenInterpretations", "confidence", "perception"],
                 properties: {
                   schemaVersion: { enum: [1] },
                   kind: { enum: ["address_visible_actor", "manipulate_visible_object", "observe_environment", "nonverbal_signal", "hypothetical_action", "context_question", "meta_request", "unclear_intent"] },
@@ -207,7 +207,20 @@ function buildRolePayloadSchema(requestOrRole) {
                   evidenceFromInput: { type: "array", minItems: 1, items: { type: "string" } },
                   uncertainties: { type: "array", items: { type: "string" } },
                   forbiddenInterpretations: { type: "array", items: { type: "string" } },
-                  confidence: { enum: ["low", "medium", "high"] }
+                  confidence: { enum: ["low", "medium", "high"] },
+                  perception: {
+                    anyOf: [{
+                      type: "object",
+                      additionalProperties: false,
+                      required: ["schemaVersion", "depth", "focus", "soughtInformation"],
+                      properties: {
+                        schemaVersion: { enum: [1] },
+                        depth: { enum: ["GLANCE", "FOCUSED", "SEARCH"] },
+                        focus: { type: "string" },
+                        soughtInformation: { type: ["string", "null"] }
+                      }
+                    }, { type: "null" }]
+                  }
                 }
               },
               runtimeHandling: {
@@ -297,6 +310,33 @@ function buildRolePayloadSchema(requestOrRole) {
         omittedMeaning: { type: "array", items: { type: "string" } },
         styleChoices: { type: "array", items: { type: "string" } },
         safeToUse: { type: "boolean" }
+      }
+    };
+  }
+
+  if (role === "coherence_critic") {
+    return {
+      type: "object",
+      additionalProperties: false,
+      required: ["verdict", "findings", "correctionConstraints"],
+      properties: {
+        verdict: { enum: ["PASS", "REVISE", "REJECT"] },
+        findings: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["findingId", "severity", "category", "affectedRefs", "explanation"],
+            properties: {
+              findingId: { type: "string" },
+              severity: { enum: ["INFO", "WARNING", "BLOCKING"] },
+              category: { enum: ["AUTHORITY", "PLAYER_AGENCY", "SECRET_LEAK", "PERSPECTIVE", "PLOT_COHERENCE", "RULE_CONFLICT", "DUPLICATE", "UNSUPPORTED_CREATION"] },
+              affectedRefs: { type: "array", items: { type: "string" } },
+              explanation: { type: "string" }
+            }
+          }
+        },
+        correctionConstraints: { type: "array", items: { type: "string" } }
       }
     };
   }
@@ -725,6 +765,8 @@ function buildServerRoute(request, env) {
           : env.NARRATION_OPENAI_MODEL || DEFAULT_MODEL,
     routeId: request.role === "scene_writer"
       ? "server-openai-narrative-scene-writer"
+      : request.role === "coherence_critic"
+        ? "server-openai-narrative-coherence-critic"
       : request.role === "player_intent_interpreter"
         ? "server-openai-player-intent-interpreter"
         : request.role === "mj_planner"
@@ -815,7 +857,11 @@ function buildRoleInstructions(request) {
       "Recopie exactement schemaVersion, contractVersion, callId, attemptId, packId, snapshotId et role depuis l'entree utilisateur.",
       "Utilise diagnostics=[] si tout va bien, supersedesOutputId=null et status=OK pour une sortie utilisable.",
       "Role player_intent_interpreter: produire une intention structuree, pas un resultat.",
-      "Chaque intention doit remplir semanticIntent: kind, playerGoal, target, commitment, evidenceFromInput, uncertainties, forbiddenInterpretations et confidence.",
+      "Chaque intention doit remplir semanticIntent: kind, playerGoal, target, commitment, evidenceFromInput, uncertainties, forbiddenInterpretations, confidence et perception.",
+      "Pour observe_environment, perception est obligatoire: GLANCE pour une perception immédiate, FOCUSED pour une attention renforcée, SEARCH pour rechercher activement une information qui peut exiger une vérification. Déduis ce niveau du sens complet de la demande, jamais d'un mot isolé.",
+      "Choisis GLANCE par défaut pour une observation ordinaire sans intensification ni objectif de recherche, par exemple 'Je regarde la serveuse'. Ne surclasse jamais une demande ordinaire en FOCUSED par prudence ou pour enrichir la narration.",
+      "Choisis FOCUSED seulement si le joueur exprime réellement une attention renforcée, prolongée, précise ou comparative, par exemple 'Je l'observe plus attentivement'. Choisis SEARCH seulement si le joueur cherche à découvrir ou établir une information déterminée au-delà des signes immédiatement visibles.",
+      "Pour toute autre intention, perception doit être null.",
       "semanticIntent.playerGoal porte le sens principal de la saisie joueur; ne le reduis pas a une action canonique.",
       "Chaque intention doit remplir runtimeHandling: status, reason, requiredDomain, canonicalActionHint, noCommit et noGameTime.",
       "runtimeHandling indique si le runtime courant peut traiter l'intention; il ne donne aucune autorite de commit, succes, temps ou secret.",
@@ -829,6 +875,8 @@ function buildRoleInstructions(request) {
       "Une action implicite contextuelle comme 'je mets la main sur la poignee et pivote le mecanisme' devant une porte visible peut etre comprise comme semanticIntent.kind=manipulate_visible_object et canonicalActionHint=open sans exiger le mot ouvrir.",
       "Si le joueur designe un PNJ visible par description publique unique, par exemple 'la femme' pour la serveuse ou 'l'homme blesse' pour le garde, resous vers ce PNJ visible au lieu du PNJ par defaut.",
       "Si task.localReferentHints contient un referent recent unique compatible avec une ellipse ou un pronom local ('le', 'la', 'lui', \"l'\"), renseigne target et referentResolution avec source=recent_visible_focus; sinon laisse le referent ambigu et demande clarification.",
+      "task.recentSemanticTurns contient au plus cinq intentions recemment acceptees. Utilise leur objectif, sujet et cible avec la scene publique pour comprendre la continuite du discours, sans leur donner autorite sur le tour courant.",
+      "Un referent secondaire evoque dans un tour recent peut devenir la cible probable du tour courant si le sens conversationnel le justifie et si sa reference existe dans roleContextPack.referentRegistry. Propose alors cette reference structuree; le logiciel verifiera sa visibilite et sa compatibilite.",
       "referentResolution decrit uniquement ton choix de referent: il ne valide pas la reussite, ne deplace pas le personnage et ne revele aucun contenu cache.",
       "Une question meta ou interface doit etre intentType=meta_question, commitment=none, expectedTimeEffect=NO_GAME_TIME.",
       "Une question sur l'etat percu de la scene, l'environnement, la meteo, le lieu ou ce que le personnage peut savoir sans agir est une question de contexte: intentType=meta_question, commitment=none, expectedTimeEffect=NO_GAME_TIME.",
@@ -836,6 +884,19 @@ function buildRoleInstructions(request) {
       "Une ellipse objet sans verbe clair, par exemple 'la bourse du garde ?' ou 'et la porte du fond ?', doit etre unclear_commitment avec requiresClarification=true, pas possibility_query.",
       "Une formulation elliptique ou ambigue doit etre intentType=unclear_commitment, commitment=unclear, requiresClarification=true.",
       "Interdit: transformer une possibilite en action executee, accorder un succes social, reveler un secret, creer un objet ou PNJ durable, ou declencher un handoff definitif."
+    ].join("\n");
+  }
+
+  if (request.role === "coherence_critic") {
+    return [
+      "Tu es un contrôleur sémantique non autoritaire de rendu narratif.",
+      "Compare uniquement candidateNarration à renderAuthority. Tu ne réécris pas la narration et tu ne produis aucun fait de fiction.",
+      "REJECT avec au moins un finding BLOCKING si la prose affirme un résultat, une mutation, une révélation, une pensée privée ou une réaction absente des confirmedClaims.",
+      "Pour PLAYER_EXPRESSION_FIDELITY, préserve exactement le but, la cible, l'intensité et le degré d'engagement du joueur. Rejette toute étape d'action, méthode, condition préalable, connaissance, émotion, promesse, réussite ou conséquence ajoutée par la reformulation.",
+      "Pour ACTION_STAGING_ONLY, le geste engagé est autorisé mais son succès, l'état résultant de la cible, ce qui devient visible et les réactions de PNJ sont interdits.",
+      "Pour OBSERVATION_RESULT, les signes visibles publics sont autorisés; les motivations, pensées et certitudes mentales non confirmées sont interdites.",
+      "PASS exige findings=[] et correctionConstraints=[].",
+      ...shared
     ].join("\n");
   }
 
@@ -983,13 +1044,6 @@ function validateRolePayload(payload, role, request = null) {
   const issues = [];
   if (role === "player_intent_interpreter") {
     if (typeof payload.rawInputEcho !== "string") issues.push("payload.rawInputEcho must be a string.");
-    const sourceRawInput = request && request.input && request.input.task && typeof request.input.task.rawInput === "string"
-      ? request.input.task.rawInput
-      : payload.rawInputEcho;
-    const socialSpeechRequest = isSocialSpeechRequestText(sourceRawInput);
-    const approachOnlyRequest = isApproachOnlyRequestText(sourceRawInput);
-    const explicitPossibilityQuestion = isExplicitPossibilityQuestionText(sourceRawInput);
-    const ellipticalObjectQuestion = isEllipticalObjectQuestionText(sourceRawInput);
     const allowedIntentActions = new Set(["ask_possibility", "ask", "open", "force", "observe", "act"]);
     const allowedSemanticKinds = new Set(["address_visible_actor", "manipulate_visible_object", "observe_environment", "nonverbal_signal", "hypothetical_action", "context_question", "meta_request", "unclear_intent"]);
     const allowedRuntimeStatuses = new Set(["SUPPORTED_BY_CURRENT_RUNTIME", "UNSUPPORTED_DOMAIN", "NEEDS_CLARIFICATION", "AI_INTERPRETATION_FAILED"]);
@@ -1034,19 +1088,9 @@ function validateRolePayload(payload, role, request = null) {
       if (!["NO_GAME_TIME", "DOMAIN_TO_DECIDE"].includes(intent.expectedTimeEffect)) issues.push(`payload.intents[${index}].expectedTimeEffect is invalid.`);
       if (!["low", "medium", "high"].includes(intent.confidence)) issues.push(`payload.intents[${index}].confidence is invalid.`);
       if (intent.intentType === "possibility_query" && intent.commitment !== "hypothetical") issues.push(`payload.intents[${index}] possibility_query must stay hypothetical.`);
-      if (intent.intentType === "possibility_query" && !explicitPossibilityQuestion) issues.push(`payload.intents[${index}] possibility_query requires explicit possibility wording.`);
       if (intent.intentType === "meta_question" && intent.commitment !== "none") issues.push(`payload.intents[${index}] meta_question must have no commitment.`);
       if (intent.intentType === "speech" && intent.commitment !== "committed") issues.push(`payload.intents[${index}] speech must be committed.`);
       if (intent.intentType === "action" && intent.commitment !== "committed") issues.push(`payload.intents[${index}] action must be committed.`);
-      if (approachOnlyRequest && intent.intentType === "speech") issues.push(`payload.intents[${index}] approach-only request must not be speech.`);
-      if (approachOnlyRequest && intent.semanticIntent?.kind === "address_visible_actor") issues.push(`payload.intents[${index}] approach-only request must be nonverbal_signal or action staging, not address_visible_actor.`);
-      if (approachOnlyRequest && intent.action === "ask") issues.push(`payload.intents[${index}] approach-only request must not use ask action.`);
-      if (approachOnlyRequest && intent.intentType === "action" && intent.action === "act") {
-        if (intent.runtimeHandling?.status !== "SUPPORTED_BY_CURRENT_RUNTIME") issues.push(`payload.intents[${index}] approach-only action must be supported by current runtime.`);
-        if (intent.runtimeHandling?.requiredDomain !== "scene_resolution") issues.push(`payload.intents[${index}] approach-only action must use scene_resolution domain.`);
-        if (intent.runtimeHandling?.noCommit !== false) issues.push(`payload.intents[${index}] approach-only action must allow bounded local commit.`);
-        if (intent.runtimeHandling?.noGameTime !== true) issues.push(`payload.intents[${index}] approach-only action must not advance game time.`);
-      }
       if (intent.intentType === "speech") {
         if (!(intent.action === null || intent.action === "ask" || intent.action === "act")) issues.push(`payload.intents[${index}] speech action must be ask, act or null.`);
         if (intent.runtimeHandling?.noCommit !== false) issues.push(`payload.intents[${index}] speech must allow bounded speech commit.`);
@@ -1056,14 +1100,6 @@ function validateRolePayload(payload, role, request = null) {
       }
       if (["speech", "mixed", "action"].includes(intent.intentType) && intent.commitment === "committed" && intent.expectedTimeEffect !== "DOMAIN_TO_DECIDE") {
         issues.push(`payload.intents[${index}] committed in-fiction intent must use DOMAIN_TO_DECIDE.`);
-      }
-      if (socialSpeechRequest && intent.intentType === "meta_question") issues.push(`payload.intents[${index}] social speech request must not be meta_question.`);
-      if (socialSpeechRequest && intent.intentType === "action") issues.push(`payload.intents[${index}] social speech request must not be action.`);
-      if (socialSpeechRequest && !explicitPossibilityQuestion && intent.intentType === "possibility_query") {
-        issues.push(`payload.intents[${index}] social speech statement must not be possibility_query.`);
-      }
-      if (ellipticalObjectQuestion && intent.intentType === "possibility_query") {
-        issues.push(`payload.intents[${index}] elliptical object question must require clarification.`);
       }
       if (intent.requiresClarification === true && typeof intent.clarificationQuestion !== "string") issues.push(`payload.intents[${index}] clarification requires a question.`);
       if (Array.isArray(intent.riskFlags) && intent.riskFlags.some(flag => ["secret_reveal", "social_success_granted"].includes(flag))) {
@@ -1079,6 +1115,10 @@ function validateRolePayload(payload, role, request = null) {
 
   if (role === "npc_performer") {
     return validateNpcPerformerPayload(payload, request);
+  }
+
+  if (role === "coherence_critic") {
+    return validateCoherenceCriticPayload(payload);
   }
 
   if (role === "player_expression_adapter") {
@@ -1322,6 +1362,37 @@ function validateNpcPerformerPayload(payload, request) {
   return issues;
 }
 
+function validateCoherenceCriticPayload(payload) {
+  const issues = [];
+  if (!["PASS", "REVISE", "REJECT"].includes(payload.verdict)) issues.push("payload.verdict is invalid.");
+  if (!Array.isArray(payload.findings)) {
+    issues.push("payload.findings must be an array.");
+  } else {
+    payload.findings.forEach((finding, index) => {
+      const path = `payload.findings[${index}]`;
+      if (!finding || typeof finding !== "object" || Array.isArray(finding)) {
+        issues.push(`${path} must be an object.`);
+        return;
+      }
+      if (typeof finding.findingId !== "string" || finding.findingId.trim().length === 0) issues.push(`${path}.findingId must be a non-empty string.`);
+      if (!["INFO", "WARNING", "BLOCKING"].includes(finding.severity)) issues.push(`${path}.severity is invalid.`);
+      if (!["AUTHORITY", "PLAYER_AGENCY", "SECRET_LEAK", "PERSPECTIVE", "PLOT_COHERENCE", "RULE_CONFLICT", "DUPLICATE", "UNSUPPORTED_CREATION"].includes(finding.category)) issues.push(`${path}.category is invalid.`);
+      if (!Array.isArray(finding.affectedRefs) || finding.affectedRefs.some(ref => typeof ref !== "string")) issues.push(`${path}.affectedRefs must be a string array.`);
+      if (typeof finding.explanation !== "string" || finding.explanation.trim().length === 0) issues.push(`${path}.explanation must be a non-empty string.`);
+    });
+  }
+  if (!Array.isArray(payload.correctionConstraints) || payload.correctionConstraints.some(entry => typeof entry !== "string")) {
+    issues.push("payload.correctionConstraints must be a string array.");
+  }
+  if (payload.verdict === "PASS" && (payload.findings?.length > 0 || payload.correctionConstraints?.length > 0)) {
+    issues.push("payload PASS must not contain findings or correction constraints.");
+  }
+  if (payload.verdict === "REJECT" && !payload.findings?.some(finding => finding?.severity === "BLOCKING")) {
+    issues.push("payload REJECT requires a BLOCKING finding.");
+  }
+  return issues;
+}
+
 function validateIntentSemanticIntent(value, intent, index, allowedSemanticKinds) {
   const issues = [];
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -1339,6 +1410,17 @@ function validateIntentSemanticIntent(value, intent, index, allowedSemanticKinds
     if (!Array.isArray(value[key]) || value[key].some(item => typeof item !== "string")) {
       issues.push(`payload.intents[${index}].semanticIntent.${key} must be a string array.`);
     }
+  }
+  if (value.kind === "observe_environment" && (!value.perception || typeof value.perception !== "object" || Array.isArray(value.perception))) {
+    issues.push(`payload.intents[${index}].semanticIntent.perception is required for observe_environment.`);
+  } else if (value.kind !== "observe_environment" && value.perception !== null) {
+    issues.push(`payload.intents[${index}].semanticIntent.perception must be null outside observe_environment.`);
+  }
+  if (value.perception && typeof value.perception === "object" && !Array.isArray(value.perception)) {
+    if (value.perception.schemaVersion !== 1) issues.push(`payload.intents[${index}].semanticIntent.perception.schemaVersion must be 1.`);
+    if (!["GLANCE", "FOCUSED", "SEARCH"].includes(value.perception.depth)) issues.push(`payload.intents[${index}].semanticIntent.perception.depth is invalid.`);
+    if (typeof value.perception.focus !== "string" || value.perception.focus.trim().length === 0) issues.push(`payload.intents[${index}].semanticIntent.perception.focus must be a non-empty string.`);
+    if (!(value.perception.soughtInformation === null || typeof value.perception.soughtInformation === "string")) issues.push(`payload.intents[${index}].semanticIntent.perception.soughtInformation must be a string or null.`);
   }
   if (value.target !== null) {
     if (!value.target || typeof value.target !== "object" || Array.isArray(value.target)) {
@@ -1364,9 +1446,6 @@ function validateIntentRuntimeHandling(value, intent, index, allowedIntentAction
   if (typeof value.reason !== "string" || value.reason.trim().length === 0) issues.push(`payload.intents[${index}].runtimeHandling.reason must be a non-empty string.`);
   if (!(value.requiredDomain === null || allowedRuntimeDomains.has(value.requiredDomain))) issues.push(`payload.intents[${index}].runtimeHandling.requiredDomain is invalid.`);
   if (!(value.canonicalActionHint === null || allowedIntentActions.has(value.canonicalActionHint))) issues.push(`payload.intents[${index}].runtimeHandling.canonicalActionHint must be canonical or null.`);
-  if (value.canonicalActionHint !== null && intent.action !== null && value.canonicalActionHint !== intent.action) {
-    issues.push(`payload.intents[${index}].runtimeHandling.canonicalActionHint must match action when both are provided.`);
-  }
   if (typeof value.noCommit !== "boolean") issues.push(`payload.intents[${index}].runtimeHandling.noCommit must be a boolean.`);
   if (typeof value.noGameTime !== "boolean") issues.push(`payload.intents[${index}].runtimeHandling.noGameTime must be a boolean.`);
   return issues;
@@ -1394,47 +1473,6 @@ function validateIntentReferentResolution(value, index) {
     }
   }
   return issues;
-}
-
-function isSocialSpeechRequestText(value) {
-  const text = normalizeRouteText(value).replace(/[’']/gu, "'");
-  const asksToSpeak = /\b(j'aimerais|j aimerais|j'aimerai|j aimerai|je voudrais|je souhaite)\b.*\b(parler|discuter|questionner|interroger|demander)\b/u.test(text);
-  const directSpeech = /\b(je lui demande|je demande a|je demande au|je demande aux|je lui dis|je dis a|je dis au|je parle a|je parle au|je questionne|j'interroge|j interroge)\b/u.test(text);
-  const composedApproachSpeech = /\b(je m'approche|je m approche|je m'avance|je m avance|je vais vers|je me dirige vers)\b.*\b(je lui demande|je demande a|je demande au|je lui dis|je parle a|je parle au|je questionne|j'interroge|j interroge)\b/u.test(text);
-  return asksToSpeak || directSpeech || composedApproachSpeech;
-}
-
-function isApproachOnlyRequestText(value) {
-  const text = normalizeRouteText(value).replace(/[’']/gu, "'");
-  const hasApproach = /\b(je m'approche|je m approche|je m'avance|je m avance|je vais vers|je me dirige vers)\b/u.test(text);
-  const hasSpeech = /\b(je lui demande|je demande a|je demande au|je demande aux|je lui dis|je dis a|je dis au|je parle a|je parle au|je questionne|j'interroge|j interroge|parler|discuter|questionner|interroger|demander)\b/u.test(text);
-  return hasApproach && !hasSpeech;
-}
-
-function isExplicitPossibilityQuestionText(value) {
-  const text = normalizeRouteText(value).replace(/[’']/gu, "'");
-  if (isPoliteContextQuestionText(value)) return false;
-  return /[?？]/u.test(String(value || "")) && /\b(est[- ]ce que|peux|puis|possible|possibilite|ai[- ]je le droit)\b/u.test(text);
-}
-
-function isPoliteContextQuestionText(value) {
-  const text = normalizeRouteText(value).replace(/[’']/gu, "'");
-  return /[?？]/u.test(String(value || ""))
-    && /\b(peux[- ]tu|peut[- ]tu|pourrais[- ]tu|tu peux|tu pourrais)\b/u.test(text)
-    && /\b(decrire|decris|dire|rappeler|expliquer|montrer|resumer|situer|localiser)\b/u.test(text);
-}
-
-function isEllipticalObjectQuestionText(value) {
-  const raw = String(value || "").trim();
-  const text = normalizeRouteText(raw).replace(/[’']/gu, "'");
-  if (!/[?？]\s*$/u.test(raw)) return false;
-  if (isExplicitPossibilityQuestionText(raw)) return false;
-  if (/\b(je|j'|j |tu|vous|peux|puis|est[- ]ce|comment|pourquoi|combien|quand|quelle|quel|quels|quelles|ou|où)\b/u.test(text)) return false;
-  return /^(et\s+)?(la|le|les|l'|un|une)\s+[\p{Letter}0-9]/u.test(text);
-}
-
-function normalizeRouteText(value) {
-  return String(value || "").trim().toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
 }
 
 function sanitizeProviderErrorText(text) {

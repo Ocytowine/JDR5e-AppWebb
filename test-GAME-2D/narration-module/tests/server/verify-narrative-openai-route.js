@@ -362,16 +362,20 @@ function npcPerformerOutputFor(req, overrides = {}) {
 }
 
 function semanticIntentFor(req, intent) {
+  const kind = semanticKindFor(intent);
   return {
     schemaVersion: 1,
-    kind: semanticKindFor(intent),
+    kind,
     playerGoal: intent.coreMeaning,
     target: intent.target,
     commitment: intent.commitment,
     evidenceFromInput: [req.input.task.rawInput],
     uncertainties: intent.requiresClarification ? ["intention à clarifier"] : [],
     forbiddenInterpretations: [...intent.forbiddenInterpretations],
-    confidence: intent.confidence
+    confidence: intent.confidence,
+    perception: kind === "observe_environment"
+      ? { schemaVersion: 1, depth: "FOCUSED", focus: intent.coreMeaning, soughtInformation: null }
+      : null
   };
 }
 
@@ -379,6 +383,7 @@ function semanticKindFor(intent) {
   if (intent.intentType === "speech") return "address_visible_actor";
   if (intent.intentType === "possibility_query") return "hypothetical_action";
   if (intent.intentType === "meta_question") return "context_question";
+  if (intent.intentType === "action" && intent.action === "observe") return "observe_environment";
   if (intent.intentType === "action") return "manipulate_visible_object";
   if (intent.intentType === "unclear_commitment") return "unclear_intent";
   return "unclear_intent";
@@ -495,11 +500,60 @@ async function main() {
     ["addedUnsupportedFacts", "usesOnlyProvidedVisibleEntities", "noNewEvents", "noHiddenPresence", "notes"]
   );
 
+  const criticReq = request({
+    callId: "call-route-critic-001",
+    operationId: "operation-route-critic-001",
+    attemptId: "attempt-route-critic-001",
+    snapshotId: "snapshot-route-critic-001",
+    packId: "pack-route-critic-001",
+    role: "coherence_critic",
+    input: {
+      instructionsRef: "narrative-ai-resolution/coherence-critic/render-authority/v1",
+      roleContextPack: { renderAuthority: { mode: "ACTION_STAGING_ONLY" } },
+      task: {
+        candidateNarration: ["La porte s'ouvre et révèle une pièce sombre."],
+        renderAuthority: { mode: "ACTION_STAGING_ONLY", confirmedClaims: ["Le geste est engagé."], unconfirmedClaims: ["Le succès."], forbiddenClaims: ["Annoncer une ouverture."] }
+      }
+    }
+  });
+  const criticBody = buildOpenAiResponsesBody(criticReq, { modelId: "gpt-4.1-mini" });
+  assert.deepEqual(criticBody.text.format.schema.properties.role.enum, ["coherence_critic"]);
+  assert.deepEqual(criticBody.text.format.schema.properties.status.enum, ["OK"], "un verdict critique REJECT reste une enveloppe fournisseur OK");
+  assert.equal(criticBody.input[0].content[0].text.includes("Compare uniquement candidateNarration à renderAuthority"), true);
+  const rejectedNarration = validateEnvelope({
+    ...outputFor(criticReq),
+    role: "coherence_critic",
+    payload: {
+      verdict: "REJECT",
+      findings: [{ findingId: "unsupported-door-opening", severity: "BLOCKING", category: "AUTHORITY", affectedRefs: ["object:back-room-door"], explanation: "L'ouverture n'est pas confirmée." }],
+      correctionConstraints: ["Rester au geste engagé."]
+    }
+  }, criticReq);
+  assert.equal(rejectedNarration.ok, true, "un verdict REJECT structuré doit rester une sortie critique utilisable");
+  const invalidCriticPass = validateEnvelope({
+    ...outputFor(criticReq),
+    role: "coherence_critic",
+    payload: {
+      verdict: "PASS",
+      findings: [{ findingId: "contradictory-pass", severity: "BLOCKING", category: "AUTHORITY", affectedRefs: [], explanation: "Contradiction." }],
+      correctionConstraints: []
+    }
+  }, criticReq);
+  assert.equal(invalidCriticPass.ok, false);
+  assert.equal(invalidCriticPass.issues.includes("payload PASS must not contain findings or correction constraints."), true);
+
   const intentBody = buildOpenAiResponsesBody(intentRequest(), { modelId: "gpt-4.1-mini" });
   assert.equal(intentBody.text.format.schema.properties.contractVersion.enum[0], "ai-intent-interpretation/1");
   assert.equal(intentBody.text.format.schema.properties.role.enum[0], "player_intent_interpreter");
   assert.equal(intentBody.text.format.schema.properties.payload.properties.intents.items.required.includes("expectedTimeEffect"), true);
+  assert.equal(intentBody.text.format.schema.properties.payload.properties.intents.items.properties.semanticIntent.required.includes("perception"), true);
+  assert.deepEqual(
+    intentBody.text.format.schema.properties.payload.properties.intents.items.properties.semanticIntent.properties.perception.anyOf[0].properties.depth.enum,
+    ["GLANCE", "FOCUSED", "SEARCH"]
+  );
   assert.equal(intentBody.input[0].content[0].text.includes("transformer une possibilite en action executee"), true);
+  assert.equal(intentBody.input[0].content[0].text.includes("Déduis ce niveau du sens complet de la demande"), true);
+  assert.equal(intentBody.input[0].content[0].text.includes("Ne surclasse jamais une demande ordinaire en FOCUSED"), true);
   const mjPlannerBody = buildOpenAiResponsesBody(mjPlannerRequest(), { modelId: "gpt-4.1-mini" });
   assert.equal(mjPlannerBody.text.format.schema.properties.contractVersion.enum[0], "mj-planner/1");
   assert.equal(mjPlannerBody.text.format.schema.properties.role.enum[0], "mj_planner");
@@ -561,6 +615,32 @@ async function main() {
   );
   assert.equal(dangerousIntent.ok, false);
   assert.equal(dangerousIntent.issues.includes("payload.intents[0] possibility_query must stay hypothetical."), true);
+  const observationReq = intentRequest({
+    input: {
+      ...intentRequest().input,
+      task: { ...intentRequest().input.task, rawInput: "Je l'observe plus attentivement." }
+    }
+  });
+  const observationOutput = intentOutputFor(observationReq, {
+    intent: {
+      intentType: "action",
+      action: "observe",
+      coreMeaning: "Le personnage examine plus attentivement la cible visible."
+    }
+  });
+  assert.equal(validateEnvelope(observationOutput, observationReq).ok, true);
+  const observationWithoutDepth = validateEnvelope({
+    ...observationOutput,
+    payload: {
+      ...observationOutput.payload,
+      intents: [{
+        ...observationOutput.payload.intents[0],
+        semanticIntent: { ...observationOutput.payload.intents[0].semanticIntent, perception: null }
+      }]
+    }
+  }, observationReq);
+  assert.equal(observationWithoutDepth.ok, false);
+  assert.equal(observationWithoutDepth.issues.includes("payload.intents[0].semanticIntent.perception is required for observe_environment."), true);
   const socialSpeechReq = intentRequest({
     input: {
       ...intentRequest().input,
@@ -574,8 +654,7 @@ async function main() {
     intentOutputFor(socialSpeechReq, { intent: { intentType: "action", action: "act", coreMeaning: "Le personnage agit vers le garde." } }),
     socialSpeechReq
   );
-  assert.equal(dangerousSocialSpeechIntent.ok, false);
-  assert.equal(dangerousSocialSpeechIntent.issues.includes("payload.intents[0] social speech request must not be action."), true);
+  assert.equal(dangerousSocialSpeechIntent.ok, true, "le serveur ne doit pas réinterpréter lexicalement la saisie; la certification live mesure la fidélité sémantique");
   const socialSpeechAsMetaIntent = validateEnvelope(
     intentOutputFor(socialSpeechReq, {
       intent: {
@@ -588,8 +667,7 @@ async function main() {
     }),
     socialSpeechReq
   );
-  assert.equal(socialSpeechAsMetaIntent.ok, false);
-  assert.equal(socialSpeechAsMetaIntent.issues.includes("payload.intents[0] social speech request must not be meta_question."), true);
+  assert.equal(socialSpeechAsMetaIntent.ok, true);
   const composedSocialSpeechReq = intentRequest({
     input: {
       ...intentRequest().input,
@@ -603,8 +681,7 @@ async function main() {
     intentOutputFor(composedSocialSpeechReq, { intent: { intentType: "action", action: "act", coreMeaning: "Le personnage agit vers le garde." } }),
     composedSocialSpeechReq
   );
-  assert.equal(dangerousComposedSocialSpeechIntent.ok, false);
-  assert.equal(dangerousComposedSocialSpeechIntent.issues.includes("payload.intents[0] social speech request must not be action."), true);
+  assert.equal(dangerousComposedSocialSpeechIntent.ok, true);
   const approachOnlyReq = intentRequest({
     input: {
       ...intentRequest().input,
@@ -618,8 +695,7 @@ async function main() {
     intentOutputFor(approachOnlyReq, { intent: { intentType: "speech", action: "ask", coreMeaning: "Le personnage s'approche du garde." } }),
     approachOnlyReq
   );
-  assert.equal(dangerousApproachAsSpeechIntent.ok, false);
-  assert.equal(dangerousApproachAsSpeechIntent.issues.includes("payload.intents[0] approach-only request must not be speech."), true);
+  assert.equal(dangerousApproachAsSpeechIntent.ok, true);
   const dangerousApproachRestDomainIntent = validateEnvelope(
     intentOutputFor(approachOnlyReq, {
       intent: {
@@ -627,7 +703,9 @@ async function main() {
         action: "act",
         coreMeaning: "Le personnage se place près du garde.",
         runtimeHandling: {
+          schemaVersion: 1,
           status: "SUPPORTED_BY_CURRENT_RUNTIME",
+          reason: "Domaine proposé par le modèle; le runtime garde l'autorité finale.",
           requiredDomain: "rest",
           canonicalActionHint: "act",
           noCommit: false,
@@ -637,9 +715,7 @@ async function main() {
     }),
     approachOnlyReq
   );
-  assert.equal(dangerousApproachRestDomainIntent.ok, false);
-  assert.equal(dangerousApproachRestDomainIntent.issues.includes("payload.intents[0] approach-only action must use scene_resolution domain."), true);
-  assert.equal(dangerousApproachRestDomainIntent.issues.includes("payload.intents[0] approach-only action must not advance game time."), true);
+  assert.equal(dangerousApproachRestDomainIntent.ok, true, "la disponibilité du domaine sera recalculée localement depuis l'intention structurée");
   const dangerousSpeechForceIntent = validateEnvelope(
     intentOutputFor(socialSpeechReq, {
       intent: {
@@ -670,8 +746,7 @@ async function main() {
     },
     composedSocialSpeechReq
   );
-  assert.equal(dangerousAlteredEchoSocialSpeechIntent.ok, false);
-  assert.equal(dangerousAlteredEchoSocialSpeechIntent.issues.includes("payload.intents[0] social speech request must not be action."), true);
+  assert.equal(dangerousAlteredEchoSocialSpeechIntent.ok, true, "les aides legacy divergentes ne doivent pas remplacer la validation sémantique canonique du pipeline");
   const speechNoGameTimeIntent = validateEnvelope(
     intentOutputFor(intentRequest(), { intent: { intentType: "speech", commitment: "committed", expectedTimeEffect: "NO_GAME_TIME" } }),
     intentRequest()
@@ -721,8 +796,7 @@ async function main() {
     intentOutputFor(socialSpeechReq, { intent: { intentType: "possibility_query", commitment: "hypothetical", expectedTimeEffect: "NO_GAME_TIME" } }),
     socialSpeechReq
   );
-  assert.equal(politeSpeechAsPossibilityIntent.ok, false);
-  assert.equal(politeSpeechAsPossibilityIntent.issues.includes("payload.intents[0] social speech statement must not be possibility_query."), true);
+  assert.equal(politeSpeechAsPossibilityIntent.ok, true);
   const ellipticalObjectReq = intentRequest({
     input: {
       ...intentRequest().input,
@@ -736,8 +810,7 @@ async function main() {
     intentOutputFor(ellipticalObjectReq, { intent: { intentType: "possibility_query", commitment: "hypothetical", expectedTimeEffect: "NO_GAME_TIME" } }),
     ellipticalObjectReq
   );
-  assert.equal(ellipticalObjectAsPossibilityIntent.ok, false);
-  assert.equal(ellipticalObjectAsPossibilityIntent.issues.includes("payload.intents[0] elliptical object question must require clarification."), true);
+  assert.equal(ellipticalObjectAsPossibilityIntent.ok, true);
   const ellipticalDoorReq = intentRequest({
     input: {
       ...intentRequest().input,
@@ -751,8 +824,7 @@ async function main() {
     intentOutputFor(ellipticalDoorReq, { intent: { intentType: "possibility_query", commitment: "hypothetical", expectedTimeEffect: "NO_GAME_TIME" } }),
     ellipticalDoorReq
   );
-  assert.equal(ellipticalDoorAsPossibilityIntent.ok, false);
-  assert.equal(ellipticalDoorAsPossibilityIntent.issues.includes("payload.intents[0] elliptical object question must require clarification."), true);
+  assert.equal(ellipticalDoorAsPossibilityIntent.ok, true);
   const contextQuestionReq = intentRequest({
     input: {
       ...intentRequest().input,
@@ -766,8 +838,7 @@ async function main() {
     intentOutputFor(contextQuestionReq, { intent: { intentType: "possibility_query", commitment: "hypothetical", expectedTimeEffect: "NO_GAME_TIME" } }),
     contextQuestionReq
   );
-  assert.equal(contextQuestionAsPossibilityIntent.ok, false);
-  assert.equal(contextQuestionAsPossibilityIntent.issues.includes("payload.intents[0] possibility_query requires explicit possibility wording."), true);
+  assert.equal(contextQuestionAsPossibilityIntent.ok, true);
   const politeContextReq = intentRequest({
     input: {
       ...intentRequest().input,
@@ -781,8 +852,7 @@ async function main() {
     intentOutputFor(politeContextReq, { intent: { intentType: "possibility_query", commitment: "hypothetical", expectedTimeEffect: "NO_GAME_TIME" } }),
     politeContextReq
   );
-  assert.equal(politeContextAsPossibilityIntent.ok, false);
-  assert.equal(politeContextAsPossibilityIntent.issues.includes("payload.intents[0] possibility_query requires explicit possibility wording."), true);
+  assert.equal(politeContextAsPossibilityIntent.ok, true);
   const politeContextAsMetaIntent = validateEnvelope(
     intentOutputFor(politeContextReq, { intent: { intentType: "meta_question", commitment: "none", expectedTimeEffect: "NO_GAME_TIME" } }),
     politeContextReq

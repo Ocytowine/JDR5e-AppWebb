@@ -72,6 +72,7 @@ async function main(): Promise<void> {
     contractVersion: "narrative-ai-resolution/1",
     enhanced: false,
     usedFallback: true,
+    fallbackKind: "TECHNICAL_INCIDENT",
     displayPacket: turn.value.output.displayPacket,
     incidents: [incident],
     safetyNotes: ["Fallback déterministe conservé."]

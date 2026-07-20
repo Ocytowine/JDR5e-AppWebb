@@ -74,6 +74,16 @@ export interface LocalReferentHintV1 {
   confidence: "low" | "medium" | "high";
 }
 
+export interface RecentSemanticTurnV1 {
+  schemaVersion: 1;
+  operationId: string;
+  semanticKind: NarrativeIntentInterpretationV1["semanticIntent"]["kind"];
+  playerGoal: string;
+  primaryTarget: NarrativeIntentTargetV1 | null;
+  topic: string | null;
+  commitment: NarrativeIntentInterpretationV1["semanticIntent"]["commitment"];
+}
+
 export class LocalPlayerIntentInterpreterProviderV1 implements ContractAiProviderV1 {
   async generate(request: AiCallRequestV1): Promise<unknown> {
     const task = request.input.task as { rawInput?: unknown; localReferentHints?: unknown };
@@ -132,6 +142,7 @@ export async function interpretNarrativeInputWithAiV1(input: {
   rawInput: string;
   config: AiIntentInterpreterConfigV1;
   localReferentHints?: LocalReferentHintV1[];
+  recentSemanticTurns?: RecentSemanticTurnV1[];
 }): Promise<AiIntentInterpretationResultV1> {
   const request = await buildIntentInterpreterRequestV1(input);
   const run = await runAiPipelineCallV1({
@@ -325,7 +336,8 @@ function buildDiagnosticInterpretation(intentId: string, failure: AiIntentInterp
     evidenceFromInput: [failure.rawInput].filter(Boolean),
     uncertainties: [...failure.issues],
     forbiddenInterpretations: ["execute_action", "invent_narrative_fallback"],
-    confidence: "low"
+    confidence: "low",
+    perception: null
   };
   const runtimeHandling: AiIntentRuntimeHandlingV1 = {
     schemaVersion: 1,
@@ -379,7 +391,10 @@ function buildSemanticIntent(input: {
     evidenceFromInput: [input.rawInput.trim()].filter(Boolean),
     uncertainties: input.requiresClarification ? ["engagement, cible ou portée à clarifier"] : [],
     forbiddenInterpretations: [...input.forbiddenInterpretations],
-    confidence: input.confidence
+    confidence: input.confidence,
+    perception: semanticKind(input.intentType, input.action, input.rawInput) === "observe_environment"
+      ? { schemaVersion: 1, depth: "GLANCE", focus: input.coreMeaning, soughtInformation: null }
+      : null
   };
 }
 
@@ -517,6 +532,7 @@ async function buildIntentInterpreterRequestV1(input: {
   rawInput: string;
   config: AiIntentInterpreterConfigV1;
   localReferentHints?: LocalReferentHintV1[];
+  recentSemanticTurns?: RecentSemanticTurnV1[];
 }): Promise<AiCallRequestV1> {
   const snapshotId = `${input.operationId}:snapshot:intent`;
   const packId = `${input.operationId}:pack:intent`;
@@ -547,6 +563,7 @@ async function buildIntentInterpreterRequestV1(input: {
       task: {
         rawInput: input.rawInput,
         localReferentHints: input.localReferentHints ?? [],
+        recentSemanticTurns: (input.recentSemanticTurns ?? []).slice(0, 5),
         allowedIntentTypes: ["meta_question", "possibility_query", "memory_recall", "speech", "action", "mixed", "unclear_commitment"],
         requiredSemanticFields: ["semanticIntent", "runtimeHandling"],
         forbiddenAuthority: ["commit", "time", "inventory", "tactical", "durable_lore", "social_success"]
@@ -566,20 +583,19 @@ function mapAiIntentToNarrativeInterpretationV1(input: {
   payload: AiIntentInterpretationPayloadV1;
 }): { ok: true; interpretation: NarrativeIntentInterpretationV1 } | { ok: false; issues?: string[] } {
   const first = input.payload.intents[0];
-  if (!first) return { ok: false };
-  if (first.confidence === "low") return { ok: false };
-  if (first.semanticIntent.confidence === "low") return { ok: false };
-  if (first.semanticIntent.commitment !== first.commitment) return { ok: false };
-  if (first.runtimeHandling.status === "AI_INTERPRETATION_FAILED") return { ok: false };
-  if (first.runtimeHandling.status === "NEEDS_CLARIFICATION" && first.requiresClarification !== true) return { ok: false };
-  if (first.runtimeHandling.canonicalActionHint !== null && first.action !== null && first.runtimeHandling.canonicalActionHint !== first.action) return { ok: false };
-  if (first.intentType === "possibility_query" && first.commitment !== "hypothetical") return { ok: false };
-  if (first.intentType === "meta_question" && first.commitment !== "none") return { ok: false };
-  if (first.intentType === "speech" && first.commitment !== "committed") return { ok: false };
-  if (first.intentType === "action" && first.commitment !== "committed") return { ok: false };
-  if (first.riskFlags.includes("secret_reveal") || first.riskFlags.includes("social_success_granted")) return { ok: false };
+  if (!first) return { ok: false, issues: ["payload.intents must contain at least one intention."] };
+  if (first.confidence === "low") return { ok: false, issues: ["Top-level interpretation confidence is low."] };
+  if (first.semanticIntent.confidence === "low") return { ok: false, issues: ["semanticIntent confidence is low."] };
+  if (first.semanticIntent.commitment !== first.commitment) return { ok: false, issues: ["semanticIntent.commitment contradicts the legacy commitment projection."] };
+  if (first.runtimeHandling.status === "AI_INTERPRETATION_FAILED") return { ok: false, issues: ["runtimeHandling reports AI_INTERPRETATION_FAILED in an accepted envelope."] };
+  if (first.runtimeHandling.status === "NEEDS_CLARIFICATION" && first.requiresClarification !== true) return { ok: false, issues: ["runtimeHandling requires clarification but requiresClarification is false."] };
+  if (first.intentType === "possibility_query" && first.commitment !== "hypothetical") return { ok: false, issues: ["possibility_query must remain hypothetical."] };
+  if (first.intentType === "meta_question" && first.commitment !== "none") return { ok: false, issues: ["meta_question must not carry player commitment."] };
+  if (first.intentType === "speech" && first.commitment !== "committed") return { ok: false, issues: ["speech must carry committed player intent."] };
+  if (first.intentType === "action" && first.commitment !== "committed") return { ok: false, issues: ["action must carry committed player intent."] };
+  if (first.riskFlags.includes("secret_reveal") || first.riskFlags.includes("social_success_granted")) return { ok: false, issues: ["Interpretation contains a forbidden authority risk flag."] };
   const canonicalFirst = canonicalizeVisibleTargetRefs(first, REFERENCE_SCENE_REFERENT_REGISTRY_V1);
-  if (!isIntentRuntimeConsistent(canonicalFirst)) return { ok: false };
+  if (!isIntentRuntimeConsistent(canonicalFirst)) return { ok: false, issues: ["runtimeHandling is inconsistent with the canonical semantic intention."] };
   const mappedFirst = normalizeMappedIntentTarget(canonicalFirst);
   const referentClarification = committedActionReferentClarification(mappedFirst, input.rawInput);
   if (referentClarification !== null) {
@@ -661,14 +677,11 @@ function acceptMappedInterpretation(
 }
 
 function isIntentRuntimeConsistent(intentValue: AiStructuredPlayerIntentV1): boolean {
-  if (intentValue.intentType === "speech") {
-    if (intentValue.action !== null && intentValue.action !== "ask" && intentValue.action !== "act") return false;
+  if (intentValue.semanticIntent.kind === "address_visible_actor") {
     if (intentValue.runtimeHandling.noCommit !== false) return false;
   }
   const target = intentValue.referentResolution?.resolvedTarget ?? intentValue.target ?? null;
   if (
-    intentValue.intentType === "action" &&
-    intentValue.action === "act" &&
     target?.kind === "npc" &&
     intentValue.semanticIntent.kind === "nonverbal_signal"
   ) {

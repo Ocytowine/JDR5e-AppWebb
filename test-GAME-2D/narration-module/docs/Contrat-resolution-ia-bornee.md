@@ -56,16 +56,33 @@ Les roles suivants restent fermes :
 - `coherence_critic` comme correction automatique;
 - creation dynamique committable.
 
+## Amendement post-I-06ZR — frontière d'autorité du rendu
+
+Le rôle `coherence_critic` est désormais ouvert dans un usage strictement non autoritaire : il compare une prose candidate à une `NarrativeRenderAuthorityV1`, puis retourne seulement `PASS`, `REVISE` ou `REJECT`. Il ne réécrit pas la prose, ne décide aucun résultat et ne déclenche aucune correction automatique. Un verdict absent, invalide, `REVISE`, `REJECT` ou comportant un finding `BLOCKING` conserve le rendu déterministe.
+
+Une sortie structurée exploitable du critique conserve toujours l'enveloppe `status=OK`, y compris quand `payload.verdict=REJECT`. Le statut d'enveloppe décrit la validité technique de la réponse; le verdict décrit l'acceptabilité de la narration candidate.
+
+La frontière remise aux adaptateurs de texte et au critique distingue cinq modes :
+
+- `PLAYER_EXPRESSION_FIDELITY` : la reformulation conserve but, cible, intensité et engagement; elle ne peut ajouter ni étape, ni méthode, ni résultat, ni connaissance;
+- `OBSERVATION_RESULT` : signes publics directement perceptibles autorisés; faits cachés, motivations et certitudes mentales interdits;
+- `ACTION_STAGING_ONLY` : seul le geste engagé est confirmé; succès, mutation de la cible, révélation et réaction de PNJ restent non confirmés;
+- `CONFIRMED_OUTCOME` : seuls les effets réellement confirmés par la résolution peuvent être narrés comme acquis;
+- `NPC_REACTION` : la réaction structurée du PNJ constitue le rendu; elle ne doit pas être doublée par une narration MJ générique.
+
+Ce contrôle est sémantique. Le code applicatif ne tente pas de reconnaître une liste de formulations interdites dans la prose. Il valide les références et la discipline factuelle structurée, puis confie la comparaison de sens au critique borné.
+
 ## Ordre obligatoire
 
 1. recevoir une `NarrativeResolutionResultV1` deja produite;
 2. construire un appel `player_expression_adapter` si une expression PJ existe;
-3. valider que `addedMeaning` est vide et `safeToUse=true`;
+3. valider que `addedMeaning` est vide et `safeToUse=true`, puis faire contrôler indépendamment la reformulation par `coherence_critic` en mode `PLAYER_EXPRESSION_FIDELITY` lorsque la route IA est active;
 4. construire un appel `scene_writer` pour un bloc MJ optionnel uniquement si le resultat contient une matiere fictionnelle autorisee;
 5. valider que chaque bloc est ancre dans des references autorisees;
-6. appliquer les ameliorations uniquement au `DisplayPacketV1`;
-7. conserver le resultat I-06F intact;
-8. consigner les incidents expurges en cas de rejet.
+6. comparer tout bloc candidat à la frontière d'autorité avec `coherence_critic` lorsque la route IA est active;
+7. appliquer les ameliorations uniquement au `DisplayPacketV1`;
+8. conserver le resultat I-06F intact;
+9. consigner les incidents expurges en cas de rejet.
 
 ## Sorties autorisees
 

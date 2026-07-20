@@ -157,7 +157,10 @@ function fingerprint(familyValue: SemanticInvarianceFamilyV1, registry: SceneRef
     evidenceFromInput: [rawInput],
     uncertainties: familyValue.requiresClarification ? ["meaning"] : [],
     forbiddenInterpretations: [...familyValue.expected.forbiddenResults],
-    confidence: familyValue.requiresClarification ? "medium" : "high"
+    confidence: familyValue.requiresClarification ? "medium" : "high",
+    perception: familyValue.semanticKind === "observe_environment"
+      ? { schemaVersion: 1, depth: "GLANCE", focus: familyValue.semanticGoal, soughtInformation: null }
+      : null
   };
   const runtimeDecision = evaluateNarrativeRuntimeDecisionV1({ semanticIntent, runtimeSuggestion: suggestion, requiresClarification: familyValue.requiresClarification });
   const interpretation: NarrativeIntentInterpretationV1 = {

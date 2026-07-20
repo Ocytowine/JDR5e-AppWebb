@@ -1,10 +1,11 @@
-import { cloneJson, type JsonObject } from "../core";
+import { cloneJson, computeJsonFingerprint, type JsonObject } from "../core";
 import type { ContractAiProviderV1 } from "../ai/FakeContractAiProvider";
 import { runAiPipelineCallV1 } from "../ai/pipeline";
 import type {
   AiIncidentRecordV1,
   AiModelRouteV1,
   AiRetryPolicyV1,
+  CoherenceCriticPayloadV1,
   PlayerExpressionPayloadV1,
   SceneWriterPayloadV1
 } from "../ai/types";
@@ -23,6 +24,7 @@ export interface AiNarrativeEnhancementConfigV1 {
   provider: ContractAiProviderV1;
   expressionRoute: AiModelRouteV1;
   sceneWriterRoute: AiModelRouteV1;
+  coherenceCriticRoute?: AiModelRouteV1;
   retryPolicy: AiRetryPolicyV1;
 }
 
@@ -31,6 +33,7 @@ export interface AiNarrativeEnhancementResultV1 {
   contractVersion: typeof NARRATIVE_AI_RESOLUTION_CONTRACT_VERSION_V1;
   enhanced: boolean;
   usedFallback: boolean;
+  fallbackKind: "NONE" | "TECHNICAL_INCIDENT" | "RENDER_AUTHORITY_REJECTION";
   displayPacket: DisplayPacketV1 & JsonObject;
   incidents: AiIncidentRecordV1[];
   safetyNotes: string[];
@@ -51,8 +54,14 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
   const safetyNotes: string[] = [];
   let changed = false;
   let sceneWriterAttempted = false;
+  let renderFallbackUsed = false;
 
   if (input.resolution.characterExpression !== null) {
+    const expressionContext = {
+      schemaVersion: 1,
+      intentId: input.resolution.interpretation.intentId,
+      authority: "EXPRESSION_ONLY"
+    } satisfies JsonObject;
     const expressionRun = await runAiPipelineCallV1({
       provider: input.config.provider,
       route: input.config.expressionRoute,
@@ -68,11 +77,11 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
         role: "player_expression_adapter",
         contractVersion: NARRATIVE_AI_RESOLUTION_CONTRACT_VERSION_V1,
         modelRouteId: input.config.expressionRoute.routeId,
-        contextFingerprint: "sha256:narrative-ai-expression-fixture",
+        contextFingerprint: await computeJsonFingerprint(expressionContext) as `sha256:${string}`,
         idempotencyKey: `${input.operationId}:ai:expression`,
         input: {
           instructionsRef: "narrative-ai-resolution/player-expression-adapter/v1",
-          roleContextPack: {},
+          roleContextPack: expressionContext,
           task: {
             rawPlayerText: input.resolution.characterExpression.rawPlayerText,
             deterministicExpression: input.resolution.characterExpression.expressionText,
@@ -90,8 +99,54 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
     incidents.push(...expressionRun.incidents);
     const payload = expressionRun.acceptedOutput?.payload as PlayerExpressionPayloadV1 | undefined;
     if (payload && payload.safeToUse === true && payload.addedMeaning.length === 0 && payload.renderedExpression.trim().length > 0) {
+      let expressionAuthorized = true;
+      if (input.config.coherenceCriticRoute) {
+        const renderAuthority = buildPlayerExpressionRenderAuthorityV1(input.resolution, input.displayPacket);
+        const criticContext = { renderAuthority } satisfies JsonObject;
+        const criticRun = await runAiPipelineCallV1({
+          provider: input.config.provider,
+          route: input.config.coherenceCriticRoute,
+          retryPolicy: { ...input.config.retryPolicy, role: "coherence_critic" },
+          request: {
+            schemaVersion: 1,
+            callId: `${input.operationId}:ai:expression-critic:call`,
+            operationId: input.operationId,
+            attemptId: `${input.operationId}:ai:expression-critic:attempt:1`,
+            campaignId: input.campaignId,
+            snapshotId: `${input.operationId}:snapshot:display`,
+            packId: `${input.operationId}:pack:expression:critic`,
+            role: "coherence_critic",
+            contractVersion: NARRATIVE_AI_RESOLUTION_CONTRACT_VERSION_V1,
+            modelRouteId: input.config.coherenceCriticRoute.routeId,
+            contextFingerprint: await computeJsonFingerprint(criticContext) as `sha256:${string}`,
+            idempotencyKey: `${input.operationId}:ai:expression-critic`,
+            input: {
+              instructionsRef: "narrative-ai-resolution/coherence-critic/player-expression-authority/v1",
+              roleContextPack: criticContext,
+              task: {
+                candidateNarration: [payload.renderedExpression],
+                renderAuthority
+              }
+            },
+            limits: {
+              inputTokenBudget: 700,
+              outputTokenBudget: 700,
+              timeoutMs: input.config.coherenceCriticRoute.timeoutMs
+            }
+          }
+        });
+        incidents.push(...criticRun.incidents);
+        const critic = criticRun.acceptedOutput?.payload as CoherenceCriticPayloadV1 | undefined;
+        expressionAuthorized = Boolean(critic && critic.verdict === "PASS" && !critic.findings.some(finding => finding.severity === "BLOCKING"));
+        if (!expressionAuthorized) {
+          renderFallbackUsed = true;
+          safetyNotes.push(`Expression PJ IA rejetée par le contrôle sémantique d'autorité: ${critic?.verdict ?? "NO_USABLE_VERDICT"}.`);
+        } else {
+          safetyNotes.push("Expression PJ IA validée par le contrôle sémantique non autoritaire.");
+        }
+      }
       const expressionBlock = enhanced.displayBlocks.find(block => block.kind === "PLAYER_EXPRESSION");
-      if (expressionBlock) {
+      if (expressionBlock && expressionAuthorized) {
         expressionBlock.text = payload.renderedExpression;
         expressionBlock.sourceRefs = [...expressionBlock.sourceRefs, `ai-output:${expressionRun.acceptedOutput?.outputId}`];
         changed = true;
@@ -120,6 +175,7 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
       interpretation: input.resolution.interpretation,
       resolution: input.resolution
     });
+    const renderAuthority = buildNarrativeRenderAuthorityV1(input.resolution, input.displayPacket);
     const sceneRun = await runAiPipelineCallV1({
       provider: input.config.provider,
       route: input.config.sceneWriterRoute,
@@ -140,7 +196,7 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
         input: {
           instructionsRef: "narrative-ai-resolution/scene-writer/reference-scene/v1",
           roleContextPack: sceneContextPack,
-          task: sceneTask
+          task: { ...sceneTask, renderAuthority }
         },
         limits: {
           inputTokenBudget: 900,
@@ -152,9 +208,52 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
     incidents.push(...sceneRun.incidents);
     const scenePayload = sceneRun.acceptedOutput?.payload as SceneWriterPayloadV1 | undefined;
     const assessedBlocks = scenePayload?.narrationBlocks.map(block => assessSceneWriterBlock(block, sceneTask.allowedGrounding)) ?? [];
-    const narrativeBlocks = assessedBlocks
+    let narrativeBlocks = assessedBlocks
       .filter(result => result.usable)
       .map(result => result.block);
+    if (narrativeBlocks.length > 0 && input.config.coherenceCriticRoute) {
+      const criticRun = await runAiPipelineCallV1({
+        provider: input.config.provider,
+        route: input.config.coherenceCriticRoute,
+        retryPolicy: { ...input.config.retryPolicy, role: "coherence_critic" },
+        request: {
+          schemaVersion: 1,
+          callId: `${input.operationId}:ai:coherence-critic:call`,
+          operationId: input.operationId,
+          attemptId: `${input.operationId}:ai:coherence-critic:attempt:1`,
+          campaignId: input.campaignId,
+          snapshotId,
+          packId: `${packId}:critic`,
+          role: "coherence_critic",
+          contractVersion: NARRATIVE_AI_RESOLUTION_CONTRACT_VERSION_V1,
+          modelRouteId: input.config.coherenceCriticRoute.routeId,
+          contextFingerprint: sceneContextPack.packFingerprint,
+          idempotencyKey: `${input.operationId}:ai:coherence-critic`,
+          input: {
+            instructionsRef: "narrative-ai-resolution/coherence-critic/render-authority/v1",
+            roleContextPack: { renderAuthority },
+            task: {
+              candidateNarration: narrativeBlocks.map(block => block.content),
+              renderAuthority
+            }
+          },
+          limits: {
+            inputTokenBudget: 900,
+            outputTokenBudget: 700,
+            timeoutMs: input.config.coherenceCriticRoute.timeoutMs
+          }
+        }
+      });
+      incidents.push(...criticRun.incidents);
+      const critic = criticRun.acceptedOutput?.payload as CoherenceCriticPayloadV1 | undefined;
+      if (!critic || critic.verdict !== "PASS" || critic.findings.some(finding => finding.severity === "BLOCKING")) {
+        narrativeBlocks = [];
+        renderFallbackUsed = true;
+        safetyNotes.push(`Narration IA rejetée par le contrôle sémantique d'autorité: ${critic?.verdict ?? "NO_USABLE_VERDICT"}.`);
+      } else {
+        safetyNotes.push("Narration IA validée par le contrôle sémantique non autoritaire.");
+      }
+    }
     if (narrativeBlocks.length > 0) {
       applySceneWriterNarration({
         packet: enhanced,
@@ -188,7 +287,12 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
       schemaVersion: 1,
       contractVersion: NARRATIVE_AI_RESOLUTION_CONTRACT_VERSION_V1,
       enhanced: false,
-      usedFallback: incidents.length > 0,
+      usedFallback: incidents.length > 0 || renderFallbackUsed,
+      fallbackKind: incidents.length > 0
+        ? "TECHNICAL_INCIDENT"
+        : renderFallbackUsed
+          ? "RENDER_AUTHORITY_REJECTION"
+          : "NONE",
       displayPacket: original,
       incidents,
       safetyNotes: incidents.length > 0
@@ -204,7 +308,12 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
     schemaVersion: 1,
     contractVersion: NARRATIVE_AI_RESOLUTION_CONTRACT_VERSION_V1,
     enhanced: true,
-    usedFallback: false,
+    usedFallback: incidents.length > 0 || renderFallbackUsed,
+    fallbackKind: incidents.length > 0
+      ? "TECHNICAL_INCIDENT"
+      : renderFallbackUsed
+        ? "RENDER_AUTHORITY_REJECTION"
+        : "NONE",
     displayPacket: enhanced,
     incidents,
     safetyNotes
@@ -260,11 +369,104 @@ function applySceneWriterNarration(input: {
 }
 
 function shouldCallSceneWriter(resolution: NarrativeResolutionResultV1, displayPacket: DisplayPacketV1): boolean {
+  if (displayPacket.displayBlocks.some(block => block.kind === "NPC_SPEECH")) return false;
   if (resolution.resultKind === "NO_COMMIT_RESPONSE") return isNoCommitSceneContext(resolution, displayPacket);
   return resolution.commitId !== null
     || resolution.characterExpression !== null
     || resolution.handoff !== null
     || resolution.resultKind === "CLARIFICATION_REQUIRED";
+}
+
+export interface NarrativeRenderAuthorityV1 extends JsonObject {
+  schemaVersion: 1;
+  mode: "PLAYER_EXPRESSION_FIDELITY" | "OBSERVATION_RESULT" | "ACTION_STAGING_ONLY" | "CONFIRMED_OUTCOME" | "NPC_REACTION";
+  semanticGoal: string;
+  targetRef: string | null;
+  confirmedClaims: string[];
+  unconfirmedClaims: string[];
+  forbiddenClaims: string[];
+  sourceRefs: string[];
+}
+
+export function buildPlayerExpressionRenderAuthorityV1(
+  resolution: NarrativeResolutionResultV1,
+  displayPacket: DisplayPacketV1
+): NarrativeRenderAuthorityV1 {
+  const semantic = resolution.interpretation.semanticIntent;
+  const target = resolution.interpretation.referentResolution?.resolvedTarget ?? semantic.target;
+  return {
+    schemaVersion: 1,
+    mode: "PLAYER_EXPRESSION_FIDELITY",
+    semanticGoal: semantic.playerGoal,
+    targetRef: target?.ref ?? null,
+    confirmedClaims: [
+      `Texte original du joueur: ${findRawInput(displayPacket)}`,
+      `Intention canonique: ${semantic.kind}.`,
+      `Engagement exprimé: ${semantic.commitment}.`,
+      ...(semantic.perception === null ? [] : [`Profondeur perceptive: ${semantic.perception.depth}.`])
+    ],
+    unconfirmedClaims: [
+      "Toute étape d'action, intensité, méthode ou condition préalable absente de l'intention.",
+      "Le succès, l'échec ou le résultat fictionnel de l'action.",
+      "Toute connaissance, émotion, promesse ou prise de risque non exprimée par le joueur."
+    ],
+    forbiddenClaims: [
+      "Augmenter l'intensité ou l'engagement de l'intention.",
+      "Ajouter une action comme déverrouiller, forcer, frapper, promettre ou accepter.",
+      "Présenter comme accompli un résultat que le joueur demande seulement de tenter.",
+      "Changer la cible ou le but sémantique."
+    ],
+    sourceRefs: [`resolution:${resolution.resolutionId}`, `intent:${resolution.interpretation.intentId}`]
+  };
+}
+
+export function buildNarrativeRenderAuthorityV1(
+  resolution: NarrativeResolutionResultV1,
+  displayPacket: DisplayPacketV1
+): NarrativeRenderAuthorityV1 {
+  const semantic = resolution.interpretation.semanticIntent;
+  const target = resolution.interpretation.referentResolution?.resolvedTarget ?? semantic.target;
+  const sourceRefs = [`resolution:${resolution.resolutionId}`];
+  if (semantic.kind === "observe_environment") {
+    const perception = resolution.perception;
+    return {
+      schemaVersion: 1,
+      mode: "OBSERVATION_RESULT",
+      semanticGoal: semantic.playerGoal,
+      targetRef: target?.ref ?? null,
+      confirmedClaims: perception?.revealedTexts.length
+        ? perception.revealedTexts
+        : ["Le personnage porte son attention sur la cible visible."],
+      unconfirmedClaims: [
+        "Les pensées privées, motivations et certitudes mentales de la cible.",
+        ...(perception?.withheldClueRefs.map(ref => `Indice non révélé: ${ref}.`) ?? [])
+      ],
+      forbiddenClaims: ["Révéler un fait caché ou une cause non confirmée.", "Présenter une déduction psychologique comme une certitude."],
+      sourceRefs
+    };
+  }
+  if (resolution.preparedEffects.some(effect => effect.effectType === "LOCAL_SCENE_ACTION_RECORDED")) {
+    return {
+      schemaVersion: 1,
+      mode: "ACTION_STAGING_ONLY",
+      semanticGoal: semantic.playerGoal,
+      targetRef: target?.ref ?? null,
+      confirmedClaims: ["Le personnage engage le geste décrit par son intention sur la cible validée."],
+      unconfirmedClaims: ["Le succès ou l'échec du geste.", "Toute modification de la cible.", "Tout contenu rendu visible par le geste.", "Toute réaction nouvelle d'un PNJ."],
+      forbiddenClaims: ["Annoncer que l'action réussit ou échoue.", "Décrire une ouverture, une révélation, une entrée ou une conséquence non confirmée.", "Inventer une réaction de PNJ."],
+      sourceRefs
+    };
+  }
+  return {
+    schemaVersion: 1,
+    mode: displayPacket.displayBlocks.some(block => block.kind === "NPC_SPEECH") ? "NPC_REACTION" : "CONFIRMED_OUTCOME",
+    semanticGoal: semantic.playerGoal,
+    targetRef: target?.ref ?? null,
+    confirmedClaims: resolution.preparedEffects.map(effect => `Effet confirmé: ${effect.effectType}.`),
+    unconfirmedClaims: ["Tout résultat absent des effets et du commit confirmés."],
+    forbiddenClaims: ["Ajouter un succès, un échec, une révélation, une mutation ou une réaction non sourcée."],
+    sourceRefs
+  };
 }
 
 function isNoCommitSceneContext(resolution: NarrativeResolutionResultV1, displayPacket: DisplayPacketV1): boolean {
@@ -294,7 +496,6 @@ function assessSceneWriterBlock(
   if (block.content.trim().length === 0) rejectionReasons.push("content_empty");
   if (!hasAnyAllowedGrounding(block.groundedIn, allowedGrounding)) rejectionReasons.push("grounding_missing_allowed_ref");
   rejectionReasons.push(...factDisciplineRejectionReasons(block.factDiscipline));
-  rejectionReasons.push(...forbiddenNarrativeClaimReasons(block.content));
   return {
     usable: rejectionReasons.length === 0,
     block,
@@ -316,25 +517,4 @@ function factDisciplineRejectionReasons(
   if (factDiscipline.noNewEvents !== true) reasons.push("fact_discipline_new_event");
   if (factDiscipline.noHiddenPresence !== true) reasons.push("fact_discipline_hidden_presence");
   return reasons;
-}
-
-function forbiddenNarrativeClaimReasons(text: string): string[] {
-  const normalized = text.toLowerCase()
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .replace(/[’`´]/gu, "'");
-  const reasons: string[] = [];
-  if (/\b(tu reussis|tu echoues|il est mort|combat termine|tu prends|tu voles|dans ton inventaire)\b/u.test(normalized)) {
-    reasons.push("forbidden_resolution_claim");
-  }
-  if (/\b(porte d entree|porte d'entree|porte principale|porte de l auberge)\b.{0,120}\b(s ouvre|s'ouvre|s entrouvre|s'entrouvre|grince|claque)\b/u.test(normalized)) {
-    reasons.push("forbidden_unsourced_dynamic_event");
-  }
-  if (/\b(absents de la piece|discretement dissimules|discretement dissimulees|dissimules|dissimulees|caches|cachees|tapies|tapis dans l ombre)\b/u.test(normalized)) {
-    reasons.push("forbidden_unsourced_hidden_presence");
-  }
-  if (/\b(quelqu un entre|quelqu'un entre|un inconnu entre|des silhouettes entrent|la porte s ouvre)\b/u.test(normalized)) {
-    reasons.push("forbidden_unsourced_arrival");
-  }
-  return [...new Set(reasons)];
 }

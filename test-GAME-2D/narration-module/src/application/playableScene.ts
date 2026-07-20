@@ -16,6 +16,7 @@ export interface PlayableSceneNpcV1 extends JsonObject {
   schemaVersion: 1;
   actorId: string;
   displayName: string;
+  narrativeLabel: string;
   publicRole: string;
   visibleState: string;
   keywords: string[];
@@ -33,6 +34,17 @@ export interface PlayableScenePointOfInterestV1 extends JsonObject {
   version: 1;
 }
 
+export interface PlayableScenePerceptionClueV1 extends JsonObject {
+  schemaVersion: 1;
+  clueId: string;
+  targetRef: string;
+  visibility: "IMMEDIATE" | "FOCUSED" | "CHECKED";
+  factKind: "VISIBLE_SIGN" | "INTERPRETATION" | "HIDDEN_FACT";
+  playerText: string;
+  sourceRefs: string[];
+  version: 1;
+}
+
 export interface PlayableSceneStateV1 extends JsonObject {
   schemaVersion: 1;
   contractVersion: typeof PLAYABLE_SCENE_CONTRACT_VERSION_V1;
@@ -42,6 +54,7 @@ export interface PlayableSceneStateV1 extends JsonObject {
   visibleElements: PlayableSceneVisibleElementV1[];
   presentNpc: PlayableSceneNpcV1[];
   pointsOfInterest: PlayableScenePointOfInterestV1[];
+  perceptionClues: PlayableScenePerceptionClueV1[];
   currentTension: string;
   playerKnownFacts: string[];
   localMemoryPolicy: {
@@ -109,6 +122,7 @@ export const REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1: PlayableSceneStateV1 = {
     schemaVersion: 1,
     actorId: "npc-garde-blesse",
     displayName: "Garde blessé",
+    narrativeLabel: "le garde blessé",
     publicRole: "Garde de ville",
     visibleState: "fatigué, nerveux, blessure bandée sous la cuirasse",
     keywords: ["garde", "blesse", "soldat", "homme", "homme blessé"],
@@ -119,10 +133,11 @@ export const REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1: PlayableSceneStateV1 = {
     schemaVersion: 1,
     actorId: "npc-serveuse-nerveuse",
     displayName: "Serveuse nerveuse",
+    narrativeLabel: "la serveuse nerveuse",
     publicRole: "Employée de l'auberge",
     visibleState: "mains occupées, regard fuyant, attention fixée sur l'arrière-salle",
     keywords: ["serveuse", "aubergiste", "comptoir", "femme", "dame"],
-    defaultReply: "La serveuse cesse enfin d'essuyer son gobelet. « Nerveuse ? Avec cette pluie, ce garde qui saigne et cette porte qu'on me demande d'ignorer, vous ne le seriez pas ? »",
+    defaultReply: "La serveuse cesse enfin d'essuyer son gobelet. « Avec cette pluie, ce garde blessé et tous ces regards qui reviennent vers cette porte, vous ne seriez pas nerveux, vous ? »",
     repeatedReply: "La serveuse garde le gobelet entre ses mains. « Je vous ai déjà dit que je ne veux pas d'ennuis. La porte du fond ne s'ouvre pas pour les curieux. »",
     version: 1
   }],
@@ -132,6 +147,52 @@ export const REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1: PlayableSceneStateV1 = {
     label: "Porte du fond",
     visibleDescription: "Une porte étroite près du comptoir mène vers l'arrière-salle.",
     keywords: ["porte", "fond", "arriere", "arriere-salle", "poignée", "mécanisme", "loquet", "battant"],
+    version: 1
+  }],
+  perceptionClues: [{
+    schemaVersion: 1,
+    clueId: "waitress-immediate-signs",
+    targetRef: "npc:npc-serveuse-nerveuse",
+    visibility: "IMMEDIATE",
+    factKind: "VISIBLE_SIGN",
+    playerText: "La serveuse garde les mains occupées autour du même gobelet, mais son regard revient régulièrement vers la porte du fond.",
+    sourceRefs: ["reference-scene:reference-inn-rain-001", "npc:npc-serveuse-nerveuse"],
+    version: 1
+  }, {
+    schemaVersion: 1,
+    clueId: "waitress-focused-rhythm",
+    targetRef: "npc:npc-serveuse-nerveuse",
+    visibility: "FOCUSED",
+    factKind: "VISIBLE_SIGN",
+    playerText: "En maintenant ton attention sur elle, tu remarques que son geste ralentit chaque fois qu'un bruit étouffé vient de l'arrière-salle, puis reprend aussitôt.",
+    sourceRefs: ["reference-scene:reference-inn-rain-001", "npc:npc-serveuse-nerveuse", "poi:back-room-door"],
+    version: 1
+  }, {
+    schemaVersion: 1,
+    clueId: "waitress-hidden-motive",
+    targetRef: "npc:npc-serveuse-nerveuse",
+    visibility: "CHECKED",
+    factKind: "HIDDEN_FACT",
+    playerText: "La cause exacte de sa nervosité n'est pas directement perceptible.",
+    sourceRefs: ["reference-scene:reference-inn-rain-001", "npc:npc-serveuse-nerveuse"],
+    version: 1
+  }, {
+    schemaVersion: 1,
+    clueId: "guard-immediate-signs",
+    targetRef: "npc:npc-garde-blesse",
+    visibility: "IMMEDIATE",
+    factKind: "VISIBLE_SIGN",
+    playerText: "Le garde blessé protège toujours son flanc bandé, et son regard revient vers la porte du fond.",
+    sourceRefs: ["reference-scene:reference-inn-rain-001", "npc:npc-garde-blesse", "poi:back-room-door"],
+    version: 1
+  }, {
+    schemaVersion: 1,
+    clueId: "guard-focused-breathing",
+    targetRef: "npc:npc-garde-blesse",
+    visibility: "FOCUSED",
+    factKind: "VISIBLE_SIGN",
+    playerText: "En l'observant plus précisément, tu distingues une respiration courte et une tension qui augmente lorsqu'il tourne les yeux vers la porte du fond.",
+    sourceRefs: ["reference-scene:reference-inn-rain-001", "npc:npc-garde-blesse", "poi:back-room-door"],
     version: 1
   }],
   currentTension: "Quelqu'un ou quelque chose est attendu dehors, mais personne ne veut le nommer à voix haute.",
@@ -180,6 +241,7 @@ export const WATCHTOWER_DAWN_PLAYABLE_SCENE_V1: PlayableSceneStateV1 = {
     schemaVersion: 1,
     actorId: "npc-vigie-fatiguee",
     displayName: "Vigie fatiguée",
+    narrativeLabel: "la vigie fatiguée",
     publicRole: "Guetteur de Brumeval",
     visibleState: "yeux rouges, manteau serré, attention tournée vers la route basse",
     keywords: ["vigie", "guetteur", "garde"],
@@ -195,6 +257,7 @@ export const WATCHTOWER_DAWN_PLAYABLE_SCENE_V1: PlayableSceneStateV1 = {
     keywords: ["route", "sud", "brume"],
     version: 1
   }],
+  perceptionClues: [],
   currentTension: "Quelque chose bouge peut-être sur la route basse, mais la distance rend toute certitude fragile.",
   playerKnownFacts: [
     "Le personnage est en hauteur, sur une tour de guet.",

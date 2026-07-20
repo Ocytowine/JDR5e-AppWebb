@@ -375,7 +375,7 @@ export function buildReferenceSceneLocalNarrationV1(input: {
     return "Le déplacement et la parole s'enchaînent dans la même impulsion. La scène les traite comme une intention engagée, sans résoudre à elle seule l'issue sociale.";
   }
   if (input.interpretation.intentType === "action") {
-    return observationNarration(input.rawInput);
+    return actionNarration(input.rawInput, input.interpretation, input.resolution);
   }
   return "La scène reste stable : la pluie frappe les volets de l'Auberge du Seuil, sans faire avancer le temps de jeu.";
 }
@@ -610,11 +610,33 @@ function actionNarration(
   sceneState?: ReferenceSceneStateV1
 ): string {
   const target = interpretation.referentResolution?.resolvedTarget ?? interpretation.semanticIntent.target ?? null;
+  if (interpretation.semanticIntent.kind === "observe_environment" && target?.kind === "npc") {
+    const narrativeTarget = referenceNarrativeTargetLabel(target.ref, target.label);
+    if (resolution.perception?.status === "AUTOMATIC_RESULT" && resolution.perception.revealedTexts.length > 0) {
+      return resolution.perception.revealedTexts.join(" ");
+    }
+    if (resolution.perception?.status === "CHECK_REQUIRED") {
+      return `Tu prolonges ton observation de ${narrativeTarget}, mais ce que tu cherches ne peut pas être établi par les seuls signes visibles. Une vérification perceptive est nécessaire.`;
+    }
+    if (resolution.perception?.status === "NOT_PERCEPTIBLE") {
+      return `Tu maintiens ton attention sur ${narrativeTarget}, sans découvrir de nouvel élément directement perceptible.`;
+    }
+    const actorId = target.ref?.replace(/^npc:/u, "") ?? "";
+    const actor = REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1.presentNpc.find(entry => entry.actorId === actorId);
+    if (actor) {
+      const continuity = actorId === "npc-garde-blesse" && sceneState?.guardAddressed
+        ? " Depuis votre échange, il te reconnaît et son regard revient vers la porte du fond."
+        : actorId === "npc-serveuse-nerveuse" && sceneState?.backRoomDoorHighlighted
+          ? " Son attention visible revient encore vers la porte du fond."
+          : "";
+      return `Tu concentres ton attention sur ${actor.narrativeLabel ?? actor.displayName.toLowerCase()}. Les signes directement visibles restent les mêmes : ${actor.visibleState}.${continuity}`;
+    }
+  }
   if (
     resolution.preparedEffects.some(effect => effect.effectType === "LOCAL_SCENE_ACTION_RECORDED") &&
     target?.ref === "poi:back-room-door"
   ) {
-    return "Ton geste se fixe bien sur la porte étroite près du comptoir, celle qui mène vers l'arrière-salle. La salle se contracte autour de ce seuil : la serveuse évite de le regarder, et le garde blessé comprend que tu as saisi son avertissement. L'action est enregistrée sur ce référent visible, sans révéler ce qu'il y a derrière ni faire avancer le temps.";
+    return "Ta main se referme sur la poignée de la porte étroite près du comptoir. Tu commences à faire jouer le mécanisme.";
   }
   if (
     resolution.preparedEffects.some(effect => effect.effectType === "LOCAL_SCENE_ACTION_RECORDED") &&
@@ -625,6 +647,12 @@ function actionNarration(
       : "Tu te places près du garde blessé, à portée de voix. Il remarque ton approche, sa main toujours serrée contre son flanc, mais aucune parole n'est encore échangée et aucune réaction sociale n'est résolue.";
   }
   return observationNarration(rawInput, sceneState);
+}
+
+function referenceNarrativeTargetLabel(ref: string | null, fallback: string | null): string {
+  const actorId = ref?.replace(/^npc:/u, "") ?? "";
+  const actor = REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1.presentNpc.find(entry => entry.actorId === actorId);
+  return actor?.narrativeLabel ?? fallback?.toLowerCase() ?? "la cible";
 }
 
 function guardSpeechNarration(sceneState?: ReferenceSceneStateV1): string {
@@ -640,10 +668,10 @@ function guardSpeechNarration(sceneState?: ReferenceSceneStateV1): string {
 
 function waitressSpeechNarration(sceneState?: ReferenceSceneStateV1): string {
   const remembered = sceneState?.shortTermNpcMemory.filter(memory => memory.actorId === "npc-serveuse-nerveuse").at(-1);
-  if (remembered) {
+  if ((sceneState?.interactionCount ?? 0) > 1 && remembered) {
     return "La serveuse garde le gobelet entre ses mains. « Je vous ai déjà dit que je ne veux pas d'ennuis. La porte du fond ne s'ouvre pas pour les curieux. »";
   }
-  return "La serveuse cesse enfin d'essuyer son gobelet. « Nerveuse ? Avec cette pluie, ce garde qui saigne et cette porte qu'on me demande d'ignorer, vous ne le seriez pas ? »";
+  return "La serveuse cesse enfin d'essuyer son gobelet. « Avec cette pluie, ce garde blessé et tous ces regards qui reviennent vers cette porte, vous ne seriez pas nerveux, vous ? »";
 }
 
 function handoffNarration(target: string): string {

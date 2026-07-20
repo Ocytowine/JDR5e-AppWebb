@@ -55,7 +55,8 @@ function resolution(
     handoff: null,
     commitId: resultKind === "COMMIT_PREPARED" ? `commit:${interp.intentType}` : null,
     noGameTime: true,
-    safetyNotes: []
+    safetyNotes: [],
+    perception: null
   };
 }
 
