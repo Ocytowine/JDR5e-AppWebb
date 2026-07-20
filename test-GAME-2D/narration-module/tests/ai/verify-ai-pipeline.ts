@@ -133,6 +133,7 @@ async function run(): Promise<void> {
   }), request());
   assert.equal(unusableValidation.accepted, false);
   assert.ok(unusableValidation.issues.some(issue => issue.includes("status")));
+  assert.ok(unusableValidation.issues.some(issue => issue.includes("providerDiagnostic.PROVIDER_REFUSED") && issue.includes("Provider refused usable output")));
   console.log("PASS [ai-pipeline] non-OK role output status is rejected even with a valid payload");
 
   const provider = new FakeContractAiProviderV1([

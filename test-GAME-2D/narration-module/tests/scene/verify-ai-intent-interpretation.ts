@@ -15,6 +15,8 @@ import {
   createPrototypeNarrativeTurnControllerV1,
   interpretNarrativeInputWithAiV1,
   upgradeLegacyNarrativeIntentInterpretationV1,
+  validateCanonicalIntentAuthorityV1,
+  validateNarrativeDomainCommandV1,
   type AiIntentInterpreterConfigV1
 } from "../../src/application";
 
@@ -80,6 +82,11 @@ async function main(): Promise<void> {
   for (const rawInput of speechInputs) {
     const result = await interpret(rawInput, config);
     assert.equal(result.usedAiInterpretation, true, `${rawInput}: IA structurée attendue`);
+    if (rawInput === "Je lui demande ce qu’il a vu.") {
+      assert.equal(result.interpretation.intentType, "unclear_commitment", `${rawInput}: aucun PNJ par défaut sans référent récent`);
+      assert.equal(result.interpretation.requiresClarification, true, `${rawInput}: clarification attendue`);
+      continue;
+    }
     assert.equal(result.interpretation.intentType, "speech", `${rawInput}: speech attendu`);
     assert.equal(result.interpretation.commitment, "committed", `${rawInput}: engagement attendu`);
     assert.equal(result.interpretation.requiresClarification, false, `${rawInput}: pas de clarification`);
@@ -126,7 +133,7 @@ async function main(): Promise<void> {
   assert.equal(implicitDoorOpening.acceptedOutput?.payload.intents[0]?.runtimeHandling.status, "SUPPORTED_BY_CURRENT_RUNTIME");
 
   const forceUnknownLock = await interpret("Je force la serrure.", config);
-  assert.equal(forceUnknownLock.interpretation.intentType, "unclear_commitment", "serrure non visible: clarification attendue");
+  assert.equal(forceUnknownLock.interpretation.intentType, "action", "serrure non visible: sens de l'action conservé pendant la clarification");
   assert.equal(forceUnknownLock.interpretation.requiresClarification, true, "serrure non visible: pas de resolution directe");
 
   for (const rawInput of metaQuestions) {
@@ -164,6 +171,21 @@ async function main(): Promise<void> {
   assert.equal(invalidSocialSpeech.interpretation.intentType, "meta_question", "diagnostic technique attendu");
   assert.equal(invalidSocialSpeech.interpretation.commitment, "none", "aucun engagement sur diagnostic");
   assert.equal(invalidSocialSpeech.interpretationFailure?.category, "AI_OUTPUT_INVALID");
+  assert.equal(validateCanonicalIntentAuthorityV1(invalidSocialSpeech.interpretation).ok, true, "un diagnostic AI_INTERPRETATION_FAILED doit traverser le resolver sans devenir une intention de jeu");
+
+  const diagnosticController = await createPrototypeNarrativeTurnControllerV1({ intentInterpreterConfig: invalidUnusableConfig() });
+  const diagnosticTurn = await diagnosticController.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-ai-interpretation-diagnostic-render",
+    rawInput: "Je regarde la serveuse."
+  });
+  if (!diagnosticTurn.ok) throw new Error(diagnosticTurn.error.messageKey);
+  const diagnosticBlocks = diagnosticTurn.value.output.displayPacket.displayBlocks;
+  assert.equal(diagnosticBlocks.some(block => block.kind === "GM_NARRATION"), false, "un échec IA ne doit pas produire une fausse réponse MJ de contexte");
+  const diagnosticNotice = diagnosticBlocks.find(block => block.kind === "SYSTEM_NOTICE")?.text ?? "";
+  assert.match(diagnosticNotice, /Interprétation IA refusée/u);
+  assert.doesNotMatch(diagnosticNotice, /question de contexte/iu);
+  assert.match(diagnosticNotice, /Issue:/u, "la cause de rejet doit être visible dans le diagnostic système");
 
   const invalidImplicitPossibility = await interpret("quel temps fait il ?", invalidImplicitPossibilityConfig());
   assert.equal(invalidImplicitPossibility.usedAiInterpretation, false, "possibility_query sans demande explicite rejetee");
@@ -180,7 +202,7 @@ async function main(): Promise<void> {
   const invalidSpeechAction = await interpret("je la salue, et je lui demande ce qu'il ce passe", invalidSpeechActionConfig());
   assert.equal(invalidSpeechAction.usedAiInterpretation, false, "parole avec action force rejetee");
   assert.equal(invalidSpeechAction.usedFallback, false, "aucun fallback narratif sur action de parole incoherente");
-  assert.equal(invalidSpeechAction.interpretationFailure?.category, "AI_OUTPUT_REJECTED");
+  assert.equal(invalidSpeechAction.interpretationFailure?.category, "AI_OUTPUT_INVALID");
 
   const approachOnly = await runControllerApproachOnlyCase();
   assert.equal(approachOnly.output.interpretation.intentType, "action", "approche seule: action locale attendue");
@@ -202,6 +224,9 @@ async function main(): Promise<void> {
     "direction garde: résolution et contrôleur doivent conserver la même intention sémantique"
   );
   assert.equal(directedApproach.output.resolution.preparedEffects[0]?.effectType, "LOCAL_SCENE_ACTION_RECORDED", "direction garde: effet local attendu");
+  assert.equal(directedApproach.output.domainCommand?.commandType, "SCENE_INTERACTION_REQUEST", "direction garde: commande de scène typée attendue");
+  assert.equal(directedApproach.output.domainCommand?.commitAuthority, false, "direction garde: la commande ne possède aucune autorité de commit");
+  assert.equal(directedApproach.output.resolution.preparedEffects[0]?.sourceCommandId, directedApproach.output.domainCommand?.commandId, "direction garde: l'effet doit citer sa commande source");
   assert.equal(directedApproach.output.mjPlan?.planningBasis.semanticGoal, directedApproach.output.interpretation.semanticIntent.playerGoal, "planner: objectif sémantique canonique attendu");
   assert.notEqual(directedApproach.output.mjPlan?.planningBasis.semanticGoal, directedApproach.output.interpretation.coreMeaning, "planner: coreMeaning legacy ne doit plus faire autorité");
 
@@ -217,7 +242,7 @@ async function main(): Promise<void> {
   assert.equal(approachWomanThenAsk.approach.output.interpretation.target?.ref, "npc:npc-serveuse-nerveuse", "approche femme: serveuse visible attendue");
   assert.equal(approachWomanThenAsk.approach.output.resolution.resultKind, "COMMIT_APPLIED", "approche femme: commit local attendu");
   assert.equal(approachWomanThenAsk.approach.output.displayPacket.displayBlocks.some(block =>
-    block.kind === "SYSTEM_NOTICE" && /Cible résolue: serveuse \(npc:npc-serveuse-nerveuse\)/u.test(block.text)
+    block.kind === "SYSTEM_NOTICE" && /Cible résolue: Serveuse nerveuse \(npc:npc-serveuse-nerveuse\)/u.test(block.text)
   ), true, "approche femme: notification système doit exposer la cible résolue");
   assert.equal(approachWomanThenAsk.ask.output.interpretation.target?.ref, "npc:npc-serveuse-nerveuse", "pronom lui après femme: serveuse attendue");
   assert.equal(approachWomanThenAsk.ask.output.displayPacket.displayBlocks.some(block =>
@@ -238,7 +263,7 @@ async function main(): Promise<void> {
   assert.equal(approachWoundedManThenAsk.approach.output.interpretation.target?.ref, "npc:npc-garde-blesse", "approche homme blessé: garde visible attendu");
   assert.equal(approachWoundedManThenAsk.approach.output.resolution.resultKind, "COMMIT_APPLIED", "approche homme blessé: commit local attendu");
   assert.equal(approachWoundedManThenAsk.approach.output.displayPacket.displayBlocks.some(block =>
-    block.kind === "SYSTEM_NOTICE" && /Cible résolue: garde \(npc:npc-garde-blesse\)/u.test(block.text)
+    block.kind === "SYSTEM_NOTICE" && /Cible résolue: Garde blessé \(npc:npc-garde-blesse\)/u.test(block.text)
   ), true, "approche homme blessé: notification système doit exposer la cible résolue");
   assert.equal(approachWoundedManThenAsk.ask.output.interpretation.target?.ref, "npc:npc-garde-blesse", "pronom lui après homme blessé: garde attendu");
   assert.equal(approachWoundedManThenAsk.ask.output.displayPacket.displayBlocks.some(block =>
@@ -277,11 +302,11 @@ async function main(): Promise<void> {
   assert.equal(nonCanonicalAction.interpretationFailure?.category, "AI_OUTPUT_INVALID");
 
   const noContextOpen = await interpret("je l'ouvre", config);
-  assert.equal(noContextOpen.interpretation.intentType, "unclear_commitment", "sans contexte, le pronom local doit clarifier");
+  assert.equal(noContextOpen.interpretation.intentType, "action", "sans contexte, le sens de l'action reste conservé pendant la clarification");
   assert.equal(noContextOpen.interpretation.requiresClarification, true, "sans referent fiable, clarification obligatoire");
 
   const incompatibleReferent = await runControllerIncompatibleReferentCase();
-  assert.equal(incompatibleReferent.open.output.interpretation.intentType, "unclear_commitment", "ouvrir une personne doit clarifier");
+  assert.equal(incompatibleReferent.open.output.interpretation.intentType, "action", "le sens engagé reste conservé pendant la clarification de cible");
   assert.equal(incompatibleReferent.open.output.resolution.resultKind, "CLARIFICATION_REQUIRED", "referent incompatible: pas de commit");
   assert.equal(incompatibleReferent.open.output.noCommit, true, "referent incompatible: aucun commit");
 
@@ -296,9 +321,19 @@ async function main(): Promise<void> {
   assert.equal(unsupportedRuntime.output.resolution.handoff?.target, "INVENTORY", "domaine inventory attendu depuis la décision runtime locale");
   assert.equal(unsupportedRuntime.output.noCommit, true, "domaine non ouvert: aucun commit");
   assert.equal(unsupportedRuntime.output.resolution.preparedEffects[0]?.effectType, "BLOCKED_UNOPENED_DOMAIN");
+  assert.equal(unsupportedRuntime.output.domainCommand?.commandType, "DOMAIN_HANDOFF_REQUEST", "domaine fermé: commande de handoff typée attendue");
+  assert.equal(unsupportedRuntime.output.domainCommand?.commitPolicy, "FORBIDDEN", "domaine fermé: commit interdit dans la commande");
+
+  const validCommand = directedApproach.output.domainCommand;
+  assert.notEqual(validCommand, null, "commande valide attendue pour le test de corrélation");
+  if (validCommand !== null) {
+    const invalidCommand = { ...validCommand, semanticGoal: "objectif altéré" };
+    const invalidCommandValidation = validateNarrativeDomainCommandV1(invalidCommand, directedApproach.output.interpretation);
+    assert.equal(invalidCommandValidation.ok, false, "une commande désalignée de semanticIntent doit être rejetée");
+  }
 
   const ambiguousReferent = await interpret("je l'ouvre", ambiguousReferentConfig());
-  assert.equal(ambiguousReferent.interpretation.intentType, "unclear_commitment", "referent ambigu: clarification attendue");
+  assert.equal(ambiguousReferent.interpretation.intentType, "action", "référent ambigu: sens engagé conservé pendant la clarification");
   assert.equal(ambiguousReferent.interpretation.requiresClarification, true, "referent ambigu: pas de resolution directe");
 
   console.log("ai-intent-interpretation/1: OK");

@@ -135,6 +135,8 @@ Le routeur runtime lit l'intention, l'engagement, la cible validée, les incerti
 
 ## 3. Introduire des commandes de domaine typées
 
+Statut : `TERMINE_DANS_PERIMETRE` le 2026-07-17. Preuves : [`Matrice-preuves-I06ZN.md`](Matrice-preuves-I06ZN.md).
+
 ### Problème
 
 `action` sert aujourd'hui à la fois de résumé du sens, d'indice runtime et de quasi-commande. Les catégories `ask`, `open`, `force`, `observe` et `act` sont trop pauvres pour représenter librement l'intention et trop ambiguës pour constituer une interface de domaine durable.
@@ -151,13 +153,13 @@ Une commande n'est créée qu'après validation de l'intention, de l'engagement,
 
 ### Todo
 
-- [ ] Établir l'inventaire des domaines et de leurs propriétaires.
-- [ ] Définir une enveloppe commune de commande avec corrélation et provenance.
-- [ ] Définir le premier sous-ensemble de commandes réellement supportées.
-- [ ] Définir les validateurs de chaque commande avant leurs exécutants.
-- [ ] Interdire résultat, succès, secret, temps ou création durable dans une commande de proposition.
-- [ ] Relier chaque commande à une politique explicite de commit et de temps.
-- [ ] Définir le comportement pour une intention valide sans commande disponible.
+- [x] Établir l'inventaire minimal des domaines et de leurs propriétaires.
+- [x] Définir une enveloppe commune de commande avec corrélation et provenance.
+- [x] Définir le premier sous-ensemble de commandes réellement supportées.
+- [x] Définir le validateur de commande avant son exploitation par le resolver.
+- [x] Interdire résultat, succès, secret, temps ou création durable dans une commande de proposition.
+- [x] Relier chaque commande à une politique explicite de commit et de temps.
+- [x] Définir le handoff typé pour une intention valide sans domaine disponible.
 
 ### Critères de sortie
 
@@ -180,13 +182,13 @@ Les règles lexicales ne restent autorisées que pour des contrôles techniques 
 
 ### Todo
 
-- [ ] Inventorier toutes les lectures de `rawInput`, `coreMeaning`, regex et listes de synonymes dans le flux actif.
-- [ ] Classer chaque occurrence : sécurité, compatibilité, interprétation ou rendu.
-- [ ] Remplacer les occurrences d'interprétation par des champs structurés.
-- [ ] Conserver temporairement les garde-fous nécessaires derrière des métriques de compatibilité.
-- [ ] Ajouter une condition de retrait à chaque fallback restant.
-- [ ] Supprimer les corrections spécifiques à une formulation dès que leurs tests passent par la chaîne sémantique.
-- [ ] Empêcher l'ajout de nouveaux dictionnaires métier par une règle de revue documentée.
+- [x] Inventorier toutes les lectures de `rawInput`, `coreMeaning`, regex et listes de synonymes dans le flux actif.
+- [x] Classer chaque occurrence : sécurité, compatibilité, interprétation ou rendu.
+- [x] Remplacer les occurrences d'interprétation du flux de décision par des champs structurés.
+- [x] Isoler les garde-fous temporaires dans les catégories compatibilité et sécurité inventoriées.
+- [x] Ajouter une condition de retrait à chaque famille de fallback restante.
+- [x] Supprimer les corrections spécifiques à une formulation dans le mapper et le resolver actifs.
+- [x] Empêcher l'ajout de nouveaux dictionnaires métier par une règle de revue documentée.
 
 ### Critères de sortie
 
@@ -209,13 +211,13 @@ L'IA propose une référence issue de ce registre. Le code canonicalise par cons
 
 ### Todo
 
-- [ ] Définir le contrat `SceneReferentRegistry` et son constructeur.
-- [ ] Définir les vues par rôle afin de ne pas exposer les secrets.
-- [ ] Remplacer les listes d'identifiants visibles codées en dur.
-- [ ] Remplacer la canonicalisation spéciale garde/serveuse par une recherche générique.
-- [ ] Définir les règles de résolution des pronoms et du référent récent.
-- [ ] Définir l'expiration et la persistance de la mémoire courte de référents.
-- [ ] Ajouter au moins une troisième scène de test avec des identifiants et rôles différents.
+- [x] Définir le contrat `SceneReferentRegistry` et son constructeur.
+- [x] Définir les vues par rôle afin de ne pas exposer les secrets.
+- [x] Remplacer les listes d'identifiants visibles codées en dur dans l'interpréteur et le resolver génériques.
+- [x] Remplacer la canonicalisation spéciale garde/serveuse par une recherche générique.
+- [x] Définir les règles de résolution des pronoms et du référent récent.
+- [x] Définir l'expiration par scène/version et la persistance bornée de la mémoire courte de référents.
+- [x] Ajouter une troisième scène de test avec des identifiants et rôles différents.
 
 ### Critères de sortie
 
@@ -239,13 +241,13 @@ Les différences stylistiques de formulation, de preuves ou de rendu peuvent êt
 
 ### Todo
 
-- [ ] Définir le format d'une famille d'invariance et son oracle.
-- [ ] Couvrir parole, approche, manipulation implicite, observation, possibilité, clarification et domaine fermé.
-- [ ] Ajouter des formulations sans verbe canonique et avec ordre des propositions différent.
-- [ ] Ajouter des variantes avec pronoms et référents récents.
-- [ ] Exécuter les familles sur plusieurs scènes.
-- [ ] Séparer les tests déterministes des certifications live statistiques.
-- [ ] Définir un seuil et une procédure de revue pour les essais OpenAI live.
+- [x] Définir le format d'une famille d'invariance et son oracle.
+- [x] Couvrir parole, approche, manipulation implicite, observation, possibilité, clarification et domaine fermé.
+- [x] Ajouter des formulations sans verbe canonique et avec ordre des propositions différent.
+- [x] Ajouter des variantes avec pronoms et référents récents.
+- [x] Exécuter les familles sur plusieurs scènes.
+- [x] Séparer les tests déterministes des certifications live statistiques.
+- [x] Définir un seuil et une procédure de revue pour les essais OpenAI live.
 
 ### Critères de sortie
 
@@ -271,13 +273,13 @@ La politique doit être explicite : rejet de contradiction lors de la validation
 
 ### Todo
 
-- [ ] Définir la matrice d'autorité champ par champ.
-- [ ] Ajouter les fixtures de contradiction contrôlée.
-- [ ] Vérifier que planner, routeur, resolver, mémoire de référent et rendu suivent la même source.
-- [ ] Inventorier les fonctions et sorties legacy encore appelées.
-- [ ] Déprécier les adaptateurs avec une condition de suppression vérifiable.
-- [ ] Supprimer les chemins devenus sans consommateurs.
-- [ ] Mettre à jour contrats, exemples JSON, documentation et journal des décisions.
+- [x] Définir la matrice d'autorité champ par champ.
+- [x] Ajouter les fixtures de contradiction contrôlée.
+- [x] Vérifier que planner, routeur, resolver, mémoire de référent et mutations suivent la même source; borner le rendu legacy.
+- [x] Inventorier les fonctions et sorties legacy encore appelées.
+- [x] Déprécier les adaptateurs avec une condition de suppression vérifiable.
+- [x] Supprimer les replis legacy devenus sans consommateurs dans commande, cible, mémoire et mutation.
+- [x] Mettre à jour contrats, exemples, documentation et journal des décisions.
 
 ### Critères de sortie
 

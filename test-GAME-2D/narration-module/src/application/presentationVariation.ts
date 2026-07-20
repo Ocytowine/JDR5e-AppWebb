@@ -25,7 +25,7 @@ export function applyNarrativePresentationVariationV1(
   input: NarrativePresentationVariationInputV1
 ): NarrativePresentationVariationResultV1 {
   const packet = input.displayPacket as DisplayPacketV1 & JsonObject;
-  if (input.output.interpretation.intentType !== "meta_question") {
+  if (input.output.interpretation.semanticIntent.kind !== "meta_request" && input.output.interpretation.semanticIntent.kind !== "context_question") {
     return result(packet, false, null);
   }
 

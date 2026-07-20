@@ -552,7 +552,7 @@ function buildIntentInterpreterConfig(mode: NarrativeEnhancementMode): AiIntentI
       certified: true,
       allowedContractVersions: [AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1],
       inputTokenLimit: 2_000,
-      outputTokenLimit: 1_000,
+      outputTokenLimit: 1_600,
       timeoutMs: 10_000,
       fallbackRouteIds: []
     },

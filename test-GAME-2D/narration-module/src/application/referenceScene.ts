@@ -2,12 +2,11 @@ import { computeJsonFingerprint, type JsonObject } from "../core";
 import type { RoleContextPackV1 } from "../context";
 import type { MemorySourceRefV1 } from "../memory";
 import type { DisplayBlockV1, DisplayPacketV1, RenderBlockKindV1, SpeakerKindV1 } from "../scene";
-import type { NarrativeIntentInterpretationV1 } from "./intentClarification";
+import { isAiInterpretationFailureDiagnosticV1, type NarrativeIntentInterpretationV1 } from "./intentClarification";
 import type { NarrativeResolutionResultV1 } from "./narrativeResolution";
 import {
   buildPlayableSceneLocationAnswerV1,
   buildPlayableSceneSocialPossibilityAnswerV1,
-  findPlayableSceneNpcTargetV1,
   REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1,
   toPlayableScenePublicContextV1
 } from "./playableScene";
@@ -348,6 +347,9 @@ export function buildReferenceSceneLocalNarrationV1(input: {
   const variant = typeof input.presentationVariantIndex === "number"
     ? input.presentationVariantIndex
     : presentationVariant(variantSeed, 3);
+  if (isAiInterpretationFailureDiagnosticV1(input.interpretation)) {
+    return "L'entrée du joueur n'a pas pu être interprétée de manière fiable. La scène reste inchangée et aucune action n'est exécutée.";
+  }
   if (input.resolution.resultKind === "CLARIFICATION_REQUIRED") {
     return "La scène marque une pause nette : l'intention doit être précisée avant que le personnage n'agisse ou que le monde ne réponde.";
   }
@@ -385,6 +387,7 @@ export function buildReferenceSceneBlocksV1(input: {
   resolution: NarrativeResolutionResultV1;
   sceneState?: ReferenceSceneStateV1;
 }): DisplayBlockV1[] {
+  if (isAiInterpretationFailureDiagnosticV1(input.interpretation)) return [];
   if (input.resolution.resultKind === "CLARIFICATION_REQUIRED") return [];
   if (input.interpretation.intentType === "meta_question") {
     if (isOutOfFictionMetaQuestion(input.rawInput)) return [];
@@ -569,7 +572,7 @@ function possibilityNarration(rawInput: string): string {
   return "La possibilité est notée sans être exécutée. La scène reste dans l'Auberge du Seuil, sous la pluie, avec le garde blessé, la serveuse nerveuse et la porte du fond comme points d'attention.";
 }
 
-function speechTarget(rawInput: string, interpretation?: NarrativeIntentInterpretationV1): { actorId: "npc-garde-blesse" | "npc-serveuse-nerveuse"; displayName: string } {
+function speechTarget(_rawInput: string, interpretation?: NarrativeIntentInterpretationV1): { actorId: "npc-garde-blesse" | "npc-serveuse-nerveuse"; displayName: string } {
   const structuredRef = interpretation?.referentResolution?.resolvedTarget?.ref ?? interpretation?.target?.ref ?? null;
   if (structuredRef === "npc:npc-serveuse-nerveuse" || structuredRef === "npc-serveuse-nerveuse") {
     return { actorId: "npc-serveuse-nerveuse", displayName: "Serveuse nerveuse" };
@@ -577,11 +580,7 @@ function speechTarget(rawInput: string, interpretation?: NarrativeIntentInterpre
   if (structuredRef === "npc:npc-garde-blesse" || structuredRef === "npc-garde-blesse") {
     return { actorId: "npc-garde-blesse", displayName: "Garde blessé" };
   }
-  const target = findPlayableSceneNpcTargetV1(REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1, rawInput);
-  return {
-    actorId: target.actorId === "npc-serveuse-nerveuse" ? "npc-serveuse-nerveuse" : "npc-garde-blesse",
-    displayName: target.displayName
-  };
+  return { actorId: "npc-garde-blesse", displayName: "Garde blessé" };
 }
 
 function observationNarration(rawInput: string, sceneState?: ReferenceSceneStateV1): string {
@@ -610,7 +609,7 @@ function actionNarration(
   resolution: NarrativeResolutionResultV1,
   sceneState?: ReferenceSceneStateV1
 ): string {
-  const target = interpretation.referentResolution?.resolvedTarget ?? interpretation.target ?? null;
+  const target = interpretation.referentResolution?.resolvedTarget ?? interpretation.semanticIntent.target ?? null;
   if (
     resolution.preparedEffects.some(effect => effect.effectType === "LOCAL_SCENE_ACTION_RECORDED") &&
     target?.ref === "poi:back-room-door"

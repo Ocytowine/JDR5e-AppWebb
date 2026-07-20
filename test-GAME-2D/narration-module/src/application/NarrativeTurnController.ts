@@ -32,6 +32,7 @@ import {
   type AiIntentInterpreterConfigV1,
   type LocalReferentHintV1
 } from "./aiIntentInterpretation";
+import { REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1 } from "./playableScene";
 import {
   createDefaultMjPlannerConfigV1,
   planNarrativeTurnWithMjV1,
@@ -58,6 +59,7 @@ import {
   type RestoredNarrativeThreadV1
 } from "./narrativeRenderProjection";
 import { createInitialReferenceSceneStateV1, type ReferenceSceneStateV1 } from "./referenceSceneState";
+import { buildNarrativeDomainCommandV1, type NarrativeDomainCommandV1 } from "./domainCommands";
 
 export interface NarrativeTurnInputV1 {
   schemaVersion: 1;
@@ -73,6 +75,7 @@ export interface NarrativeTurnControllerOutputV1 extends JsonObject {
   noCommit: boolean;
   noGameTime: boolean;
   interpretation: NarrativeIntentInterpretationV1 & JsonObject;
+  domainCommand: NarrativeDomainCommandV1 | null;
   mjPlan: (MjPlannerPayloadV1 & JsonObject) | null;
   mjPlannerFailure: (MjPlanningFailureV1 & JsonObject) | null;
   npcPerformance: (NpcPerformerPayloadV1 & JsonObject) | null;
@@ -187,7 +190,10 @@ export class NarrativeTurnControllerV1 {
       npcPerformerConfig: this.npcPerformerConfig,
       localReferentHints: this.recentLocalReferents
     });
-    if (!output.ok) return output;
+    if (!output.ok) {
+      await cancelReceivedOperationAfterFailure(this.repository, received.value.operationId);
+      return output;
+    }
 
     const completed = output.value.commit === null
       ? await this.repository.completeWithoutCommit(received.value.operationId, 1, output.value.output)
@@ -225,13 +231,15 @@ export class NarrativeTurnControllerV1 {
   }
 
   private rememberLocalReferent(output: NarrativeTurnControllerOutputV1): void {
-    const target = output.interpretation.referentResolution?.resolvedTarget ?? output.interpretation.target ?? null;
+    const target = output.interpretation.referentResolution?.resolvedTarget ?? output.interpretation.semanticIntent.target ?? null;
     if (target === null || target.ref === null || target.kind === "unknown" || target.kind === "self") return;
     const hint: LocalReferentHintV1 = {
       schemaVersion: 1,
+      sceneId: REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1.sceneId,
+      sceneVersion: REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1.version,
       target,
       sourceOperationId: output.operationId,
-      sourceText: output.interpretation.coreMeaning,
+      sourceText: output.interpretation.semanticIntent.playerGoal,
       confidence: output.interpretation.referentResolution?.confidence ?? "medium"
     };
     this.recentLocalReferents = [
@@ -241,9 +249,16 @@ export class NarrativeTurnControllerV1 {
   }
 }
 
+async function cancelReceivedOperationAfterFailure(repository: CampaignRepository, operationId: OperationId): Promise<void> {
+  const current = await repository.getOperation(operationId);
+  if (!current.ok || current.value.phase !== "RECEIVED") return;
+  await repository.transitionOperation(operationId, "RECEIVED", "CANCELLED");
+}
+
 function upgradeLegacyControllerOutput(output: NarrativeTurnControllerOutputV1): NarrativeTurnControllerOutputV1 {
   const interpretation = upgradeLegacyNarrativeIntentInterpretationV1(output.interpretation);
   if (interpretation === null) return output;
+  const domainCommand = output.domainCommand ?? buildNarrativeDomainCommandV1(interpretation);
   const resolutionInterpretation = upgradeLegacyNarrativeIntentInterpretationV1(output.resolution?.interpretation) ?? interpretation;
   const knownInterpretation = output.suspendedIntent === null
     ? null
@@ -251,9 +266,11 @@ function upgradeLegacyControllerOutput(output: NarrativeTurnControllerOutputV1):
   return {
     ...output,
     interpretation: interpretation as NarrativeIntentInterpretationV1 & JsonObject,
+    domainCommand,
     resolution: {
       ...output.resolution,
-      interpretation: resolutionInterpretation as NarrativeIntentInterpretationV1 & JsonObject
+      interpretation: resolutionInterpretation as NarrativeIntentInterpretationV1 & JsonObject,
+      domainCommand: output.resolution.domainCommand ?? domainCommand
     },
     suspendedIntent: output.suspendedIntent === null || knownInterpretation === null
       ? output.suspendedIntent
@@ -429,6 +446,7 @@ export function buildNoCommitOutput(
     noCommit: true,
     noGameTime: true,
     interpretation,
+    domainCommand: buildNarrativeDomainCommandV1(interpretation),
     mjPlan: null,
     mjPlannerFailure: null,
     npcPerformance: null,
@@ -441,6 +459,7 @@ export function buildNoCommitOutput(
       operationId: operation.operationId,
       resultKind: "NO_COMMIT_RESPONSE",
       interpretation,
+      domainCommand: buildNarrativeDomainCommandV1(interpretation),
       characterExpression: null,
       preparedEffects: [],
       handoff: null,
@@ -485,6 +504,7 @@ async function buildResolvedOutput(input: {
       operationId: input.operation.operationId,
       rawInput: input.input.rawInput,
       interpretation,
+      domainCommand: buildNarrativeDomainCommandV1(interpretation),
       config: input.mjPlannerConfig
     });
   const suspendedIntent = interpretation.requiresClarification
@@ -496,12 +516,14 @@ async function buildResolvedOutput(input: {
       createdAt: input.createdAt
     }) as SuspendedIntentRecordV1 & JsonObject
     : null;
+  const domainCommand = buildNarrativeDomainCommandV1(interpretation);
   const resolution = await resolveNarrativeTurnV1({
     repository: input.repository,
     campaignId: input.campaignId,
     operation: input.operation,
     rawInput: input.input.rawInput,
     interpretation,
+    domainCommand,
     suspendedIntent
   });
   if (!resolution.ok) return resolution;
@@ -534,6 +556,7 @@ async function buildResolvedOutput(input: {
         noCommit: resolution.value.commit === null,
         noGameTime: resolution.value.result.noGameTime,
         interpretation,
+        domainCommand,
         mjPlan: planning?.plan ?? null,
         mjPlannerFailure: planning?.planningFailure as (MjPlanningFailureV1 & JsonObject) | null ?? null,
         npcPerformance: npcPerformance?.performance ?? null,

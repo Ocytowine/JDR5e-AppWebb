@@ -2193,3 +2193,121 @@ Un modèle peut comprendre correctement l'intention tout en se trompant sur les 
 ### Conséquences
 
 Une suggestion IA permissive peut être renversée en `UNSUPPORTED_DOMAIN` sans perdre le sens compris. La divergence est tracée par `aiSuggestionMatched` et affichée dans le diagnostic. Le domaine demandé reste encore une proposition structurée jusqu'à I-06ZN, qui introduira les commandes de domaine typées.
+
+## NAR-118 — Une commande locale sépare intention et exécution
+
+Statut : `RETENU`
+
+Date : 2026-07-17
+
+### Décision
+
+Toute intention engagée exploitable ou nécessitant un handoff produit une enveloppe locale `narrative-domain-command/1` avant résolution. Cette commande est corrélée à l'intention sémantique et à `runtimeDecision`, possède `commitAuthority=false` et ne contient aucun résultat anticipé.
+
+### Raisons
+
+Le champ legacy `action` et les propositions du `mj_planner` ne doivent pas servir de commandes implicites. Une frontière typée permet de valider séparément ce qui a été compris, où cela doit être traité et quelle requête exacte est présentée au propriétaire du domaine.
+
+### Conséquences
+
+Le resolver rejette une commande désalignée de l'intention. Tout effet committable cite `sourceCommandId`, et l'agrégat conserve l'objectif sémantique de la commande. Les domaines fermés reçoivent uniquement une commande de handoff à politique de commit interdite. Le retrait des projections lexicales restantes est reporté à I-06ZO.
+
+## NAR-119 — Le texte joueur n'a plus d'autorité après l'interprétation
+
+Statut : `RETENU`
+
+Date : 2026-07-17
+
+### Décision
+
+Après validation de `semanticIntent`, le routage, la commande, le commit et les mutations de scène ne peuvent plus être corrigés par une lecture de `rawInput`, `coreMeaning`, une regex ou une liste de synonymes. Le texte reste disponible pour la preuve, l'expression et le rendu.
+
+### Raisons
+
+Une seconde interprétation locale annulait silencieusement la compréhension de l'IA et rendait le comportement dépendant des formulations françaises déjà prévues. La frontière structurée doit être l'unique autorité applicative.
+
+### Conséquences
+
+Les heuristiques de handoff et de commit ont été retirées du resolver; le mapper ne réécrit plus les approches et possibilités depuis le texte. Les usages restants sont inventoriés comme fournisseur local, compatibilité de référent, rendu ou sécurité, avec une condition de retrait. I-06ZP doit maintenant remplacer les références propres à la fixture.
+
+## NAR-120 — La scène publiée est l'autorité des référents
+
+Statut : `RETENU`
+
+Date : 2026-07-17
+
+### Décision
+
+Les cibles visibles sont validées et canonicalisées par `scene-referent-registry/1`, construit depuis `PlayableSceneStateV1`. Une absence ou une ambiguïté ne peut jamais retomber sur le premier PNJ de la scène.
+
+### Raisons
+
+Les tables garde/serveuse/porte dupliquaient la scène dans le code générique et rendaient chaque nouvelle scène dépendante d'un correctif. La projection publique existante contient déjà les identités, alias et propriétés que l'interpréteur peut connaître.
+
+### Conséquences
+
+Le même constructeur fonctionne pour l'auberge, la tour et le marché de test. Les vues sont filtrées par rôle, les hints récents expirent lors d'un changement de scène/version, et un pronom sans contexte clarifie. Les adaptateurs de rendu propres à l'auberge restent explicitement hors du code générique et seront nettoyés lors d'I-06ZR.
+
+## NAR-121 — L'invariance porte sur l'empreinte système
+
+Statut : `RETENU`
+
+Date : 2026-07-17
+
+### Décision
+
+Deux formulations sont équivalentes si elles produisent la même empreinte de sens, cible, routage, commande, commit, temps et interdictions. Leur texte, leurs preuves et leur rendu peuvent différer.
+
+### Raisons
+
+Tester des mots attendus entretient le second interprète lexical supprimé en I-06ZO. À l'inverse, comparer uniquement la prose ne détecte pas qu'une possibilité a été transformée en action ou qu'une cible a changé.
+
+### Conséquences
+
+La suite déterministe couvre 105 cas sur sept familles et trois scènes. Les essais OpenAI live suivent le même oracle mais restent statistiques et hors build : 100 % est obligatoire sur autorité/commit/temps/interdictions, 95 % sur la convergence globale, avec blocage immédiat en cas d'exécution indue.
+
+## NAR-122 — Toute contradiction avec la source sémantique est rejetée
+
+Statut : `RETENU`
+
+Date : 2026-07-17
+
+### Décision
+
+`semanticIntent` est l'autorité du sens, de l'objectif, de l'engagement et de la cible proposée. Une contradiction structurelle avec les champs legacy ou avec la décision runtime recalculée localement est rejetée avant commande. `coreMeaning` peut différer stylistiquement mais ne possède aucune autorité métier.
+
+### Raisons
+
+Donner silencieusement priorité à un champ parmi deux valeurs contradictoires masquerait les sorties IA défectueuses et compliquerait les diagnostics. Le rejet explicite garantit qu'une incohérence ne peut produire un commit.
+
+### Conséquences
+
+La validation existe dans le contrat IA, le constructeur de commande et le resolver. Six contradictions contrôlées produisent zéro commande. Les replis de cible/action legacy sont retirés du planner, du performer, de la résolution, de la mémoire et des mutations. Les adaptateurs historiques restent uniquement pour relecture, mode local isolé, diagnostic et rendu, avec conditions de suppression documentées.
+
+## NAR-123 — Un échec pré-commit doit libérer l'opération
+
+Statut : `RETENU`
+
+Date : 2026-07-17
+
+### Décision
+
+Si la construction du tour échoue après `receiveOperation` mais avant commit, le contrôleur annule l'opération encore en phase `RECEIVED` avant de retourner l'erreur. Il ne touche pas une opération qui aurait déjà changé de phase.
+
+### Raisons
+
+Le premier rejet d'autorité pouvait laisser une opération active dans IndexedDB. Tous les tours suivants rencontraient alors `core.operation.campaign-busy`, même si leur entrée était valide.
+
+### Conséquences
+
+Une erreur pré-commit ne verrouille plus durablement la campagne. Une régression force un échec, vérifie la phase `CANCELLED`, puis prouve que le tour suivant est accepté. Les campagnes déjà bloquées avant ce correctif nécessitent encore la reprise ou la suppression de l'opération persistée existante.
+
+Le diagnostic technique `AI_INTERPRETATION_FAILED` est explicitement distingué d'une intention de jeu. Il reste validable comme enveloppe no-commit même si son `semanticIntent` est volontairement `unclear_intent` à faible confiance; il ne doit pas être rejeté une seconde fois par la matrice d'autorité.
+
+Sa projection legacy `intentType=meta_question` n'a aucune valeur narrative. La présentation teste d'abord le statut canonique, ne génère aucun bloc MJ de contexte et affiche dans la notification système les `Issue:` de validation ou de mapping ayant causé le rejet. Ainsi, un échec sur « Je regarde la serveuse. » ne peut plus être présenté comme une réponse à une question de contexte.
+
+Pour une enveloppe fournisseur dont le statut n'est pas `OK`, les diagnostics expurgés de l'enveloppe sont recopiés dans les issues sous la forme `providerDiagnostic.<code>`. Le pipeline continue de refuser la sortie, mais ne masque plus une erreur HTTP, JSON, de configuration ou un refus explicite derrière le seul message générique sur le statut.
+
+Le contrat structuré complet de `player_intent_interpreter` dépasse régulièrement l'ancien budget de 700 tokens, même pour une phrase courte. Son budget de sortie et la limite de route passent à 1600 tokens, avec un plafond serveur de 2000. Une réponse OpenAI explicitement `incomplete` est désormais diagnostiquée comme telle avec sa raison, plutôt que reclassée en JSON invalide.
+
+Sur une observation, le `scene_writer` remplace la narration déterministe au même emplacement au lieu d'ajouter un second bloc après la notification système. Une observation perceptive est présentée comme exécutée sans mutation durable; elle n'est plus assimilée à une action non exécutée. Les badges no-commit/no-time sont réservés aux blocs système ou clarification et ne sont plus inférés depuis le texte libre d'une narration MJ.

@@ -760,13 +760,13 @@ Décision de suite : ne pas ouvrir une nouvelle capacité narrative avant d'avoi
 
 - I-06ZL : contrat canonique et propagation de `semanticIntent` — `TERMINE_DANS_PERIMETRE` le 2026-07-17, preuves dans [`Matrice-preuves-I06ZL.md`](Matrice-preuves-I06ZL.md);
 - I-06ZM : consommation sémantique par le planner et décision runtime locale — `TERMINE_DANS_PERIMETRE` le 2026-07-17, preuves dans [`Matrice-preuves-I06ZM.md`](Matrice-preuves-I06ZM.md);
-- I-06ZN : commandes de domaine typées;
-- I-06ZO : retrait progressif des interprétations lexicales;
-- I-06ZP : registre générique des référents de scène;
-- I-06ZQ : matrices d'invariance sémantique multi-scènes;
-- I-06ZR : tests d'autorité et nettoyage legacy.
+- I-06ZN : commandes de domaine typées — `TERMINE_DANS_PERIMETRE` le 2026-07-17, preuves dans [`Matrice-preuves-I06ZN.md`](Matrice-preuves-I06ZN.md);
+- I-06ZO : retrait progressif des interprétations lexicales — `TERMINE_DANS_PERIMETRE` le 2026-07-17, inventaire dans [`Inventaire-lectures-lexicales-I06ZO.md`](Inventaire-lectures-lexicales-I06ZO.md) et preuves dans [`Matrice-preuves-I06ZO.md`](Matrice-preuves-I06ZO.md);
+- I-06ZP : registre générique des référents de scène — `TERMINE_DANS_PERIMETRE` le 2026-07-17, contrat dans [`Contrat-registre-referents-scene.md`](Contrat-registre-referents-scene.md) et preuves dans [`Matrice-preuves-I06ZP.md`](Matrice-preuves-I06ZP.md);
+- I-06ZQ : matrices d'invariance sémantique multi-scènes — `TERMINE_DANS_PERIMETRE` le 2026-07-17, contrat dans [`Contrat-invariance-semantique.md`](Contrat-invariance-semantique.md) et preuves dans [`Matrice-preuves-I06ZQ.md`](Matrice-preuves-I06ZQ.md);
+- I-06ZR : tests d'autorité et nettoyage legacy — `TERMINE_DANS_PERIMETRE` le 2026-07-17, autorité dans [`Matrice-autorite-intention-I06ZR.md`](Matrice-autorite-intention-I06ZR.md) et preuves dans [`Matrice-preuves-I06ZR.md`](Matrice-preuves-I06ZR.md).
 
-I-06ZL conserve `intent-clarification/1` comme seule version active et rend `semanticIntent` obligatoire. I-06ZM ajoute `runtimeDecision`, calculé par le registre local, et fait consommer `semanticIntent.playerGoal` au planner. La prochaine gate est I-06ZN : introduire des commandes de domaine typées distinctes de l'intention et du routage.
+I-06ZL conserve `intent-clarification/1` comme seule version active et rend `semanticIntent` obligatoire. I-06ZM ajoute `runtimeDecision`, calculé par le registre local. I-06ZN introduit `narrative-domain-command/1`. I-06ZO retire les décisions lexicales du flux actif. I-06ZP apporte `scene-referent-registry/1`. I-06ZQ prouve 105 convergences déterministes. I-06ZR ferme le chantier : contradictions rejetées avant commande, consommateurs actifs alignés sur la source canonique et legacy restant borné à la migration, au diagnostic et au rendu de référence.
 
 ## Critères retenus pour la sortie I-06
 

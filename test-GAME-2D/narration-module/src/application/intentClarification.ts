@@ -231,6 +231,55 @@ function intent(
   };
 }
 
+export function validateCanonicalIntentAuthorityV1(
+  interpretation: NarrativeIntentInterpretationV1
+): { ok: true } | { ok: false; issues: string[] } {
+  const issues: string[] = [];
+  const semantic = interpretation.semanticIntent;
+  const isFailureDiagnostic = interpretation.runtimeHandling?.status === "AI_INTERPRETATION_FAILED";
+  if (interpretation.commitment !== semantic.commitment) issues.push("legacy commitment contradicts semanticIntent.commitment");
+  const expectedIntentTypes: Record<AiStructuredSemanticIntentV1["kind"], NarrativeIntentTypeV1[]> = {
+    address_visible_actor: ["speech"],
+    manipulate_visible_object: ["action"],
+    observe_environment: ["action"],
+    nonverbal_signal: ["action"],
+    hypothetical_action: ["possibility_query"],
+    context_question: ["meta_question", "memory_recall"],
+    meta_request: ["meta_question"],
+    unclear_intent: ["unclear_commitment"]
+  };
+  if (!isFailureDiagnostic && !expectedIntentTypes[semantic.kind].includes(interpretation.intentType)) issues.push("legacy intentType contradicts semanticIntent.kind");
+  if (semantic.kind === "address_visible_actor" && interpretation.action !== null && interpretation.action !== undefined && interpretation.action !== "ask" && interpretation.action !== "act") {
+    issues.push("legacy action contradicts address_visible_actor");
+  }
+  const semanticRef = semantic.target?.ref ?? null;
+  const legacyRef = interpretation.target?.ref ?? null;
+  const resolvedRef = interpretation.referentResolution?.resolvedTarget?.ref ?? null;
+  if (semanticRef !== legacyRef) issues.push("legacy target contradicts semanticIntent.target");
+  if (resolvedRef !== null && resolvedRef !== semanticRef) issues.push("resolved target contradicts semanticIntent.target");
+  const semanticNeedsClarification = semantic.kind === "unclear_intent" || semantic.commitment === "unclear" || semantic.confidence === "low";
+  if (!isFailureDiagnostic && semanticNeedsClarification && !interpretation.requiresClarification) issues.push("requiresClarification contradicts semanticIntent");
+  const expectedRuntime = evaluateNarrativeRuntimeDecisionV1({
+    semanticIntent: semantic,
+    runtimeSuggestion: interpretation.runtimeHandling ?? null,
+    requiresClarification: interpretation.requiresClarification
+  });
+  if (
+    interpretation.runtimeDecision.status !== expectedRuntime.status ||
+    interpretation.runtimeDecision.requiredDomain !== expectedRuntime.requiredDomain ||
+    interpretation.runtimeDecision.noCommit !== expectedRuntime.noCommit ||
+    interpretation.runtimeDecision.noGameTime !== expectedRuntime.noGameTime
+  ) issues.push("runtimeDecision contradicts local evaluation of semanticIntent");
+  return issues.length === 0 ? { ok: true } : { ok: false, issues };
+}
+
+export function isAiInterpretationFailureDiagnosticV1(
+  interpretation: NarrativeIntentInterpretationV1
+): boolean {
+  return interpretation.runtimeHandling?.status === "AI_INTERPRETATION_FAILED" ||
+    interpretation.runtimeDecision.status === "AI_INTERPRETATION_FAILED";
+}
+
 export function buildCompatibleSemanticIntentV1(input: {
   intentType: NarrativeIntentTypeV1;
   commitment: NarrativeIntentCommitmentV1;

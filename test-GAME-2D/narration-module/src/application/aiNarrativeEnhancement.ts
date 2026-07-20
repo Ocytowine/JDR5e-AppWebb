@@ -76,7 +76,7 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
           task: {
             rawPlayerText: input.resolution.characterExpression.rawPlayerText,
             deterministicExpression: input.resolution.characterExpression.expressionText,
-            coreMeaning: input.resolution.interpretation.coreMeaning,
+            coreMeaning: input.resolution.interpretation.semanticIntent.playerGoal,
             forbidden: ["added_goal", "added_risk", "new_action", "new_knowledge"]
           }
         },
@@ -241,28 +241,22 @@ function applySceneWriterNarration(input: {
   const aiBlocks = input.blocks.map((block, index) =>
     aiNarrationBlock(input.resolution.operationId, block.content, input.outputId, index)
   );
-  if (isNoCommitSceneContext(input.resolution, input.packet)) {
-    let replacementIndex = 0;
-    input.packet.displayBlocks = input.packet.displayBlocks.map(block => {
-      if (
-        block.kind === "GM_NARRATION" &&
-        block.sourceRefs.some(ref => ref.includes(":meta-answer")) &&
-        replacementIndex < aiBlocks.length
-      ) {
-        const aiBlock = aiBlocks[replacementIndex];
-        replacementIndex += 1;
-        return {
-          ...block,
-          text: aiBlock.text,
-          sourceRefs: [...new Set([...block.sourceRefs, ...aiBlock.sourceRefs])]
-        };
-      }
-      return block;
-    });
-    if (replacementIndex < aiBlocks.length) input.packet.displayBlocks.push(...aiBlocks.slice(replacementIndex));
-    return;
-  }
-  input.packet.displayBlocks.push(...aiBlocks);
+  const firstGmIndex = input.packet.displayBlocks.findIndex(block => block.kind === "GM_NARRATION");
+  const systemIndex = input.packet.displayBlocks.findIndex(block => block.kind === "SYSTEM_NOTICE" || block.kind === "CLARIFICATION");
+  const insertionIndex = firstGmIndex >= 0
+    ? firstGmIndex
+    : systemIndex >= 0
+      ? systemIndex
+      : input.packet.displayBlocks.length;
+  const replacedRefs = input.packet.displayBlocks
+    .filter(block => block.kind === "GM_NARRATION")
+    .flatMap(block => block.sourceRefs);
+  const finalAiBlocks = aiBlocks.map(block => ({
+    ...block,
+    sourceRefs: [...new Set([...replacedRefs, ...block.sourceRefs])]
+  }));
+  input.packet.displayBlocks = input.packet.displayBlocks.filter(block => block.kind !== "GM_NARRATION");
+  input.packet.displayBlocks.splice(insertionIndex, 0, ...finalAiBlocks);
 }
 
 function shouldCallSceneWriter(resolution: NarrativeResolutionResultV1, displayPacket: DisplayPacketV1): boolean {
@@ -275,7 +269,7 @@ function shouldCallSceneWriter(resolution: NarrativeResolutionResultV1, displayP
 
 function isNoCommitSceneContext(resolution: NarrativeResolutionResultV1, displayPacket: DisplayPacketV1): boolean {
   return resolution.resultKind === "NO_COMMIT_RESPONSE" &&
-    resolution.interpretation.intentType === "meta_question" &&
+    (resolution.interpretation.semanticIntent.kind === "meta_request" || resolution.interpretation.semanticIntent.kind === "context_question") &&
     resolution.noGameTime === true &&
     displayPacket.displayBlocks.some(block =>
       block.kind === "GM_NARRATION" &&

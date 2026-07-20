@@ -590,6 +590,20 @@ function createNarrativeOpenAiEnhancementApi(options) {
       }
 
       const data = await response.json();
+      if (data && data.status === "incomplete") {
+        const reason = data.incomplete_details && typeof data.incomplete_details.reason === "string"
+          ? data.incomplete_details.reason
+          : "unknown";
+        return sendJson(res, 200, {
+          ok: false,
+          error: "OPENAI_OUTPUT_INCOMPLETE",
+          output: errorEnvelope(
+            request.value,
+            "OPENAI_OUTPUT_INCOMPLETE",
+            `OpenAI response was incomplete (${reason}); output token budget=${request.value.limits.outputTokenBudget}.`
+          )
+        });
+      }
       const outputText = extractOutputText(data);
       if (!outputText) {
         return sendJson(res, 200, {
@@ -685,7 +699,11 @@ function normalizeAiCallRequest(value) {
     if (!Number.isInteger(request.limits.inputTokenBudget) || request.limits.inputTokenBudget <= 0 || request.limits.inputTokenBudget > 2_000) {
       issues.push("limits.inputTokenBudget must be between 1 and 2000.");
     }
-    const maxOutputTokenBudget = request.role === "scene_writer" ? 1_500 : 1_000;
+    const maxOutputTokenBudget = request.role === "player_intent_interpreter"
+      ? 2_000
+      : request.role === "scene_writer"
+        ? 1_500
+        : 1_000;
     if (!Number.isInteger(request.limits.outputTokenBudget) || request.limits.outputTokenBudget <= 0 || request.limits.outputTokenBudget > maxOutputTokenBudget) {
       issues.push(`limits.outputTokenBudget must be between 1 and ${maxOutputTokenBudget}.`);
     }

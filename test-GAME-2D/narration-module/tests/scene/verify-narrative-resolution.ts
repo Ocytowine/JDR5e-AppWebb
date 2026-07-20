@@ -61,6 +61,7 @@ async function main(): Promise<void> {
   assert.equal(possibility.value.output.resolution.resultKind, "NO_COMMIT_RESPONSE");
   assert.equal(possibility.value.output.mjPlan, null, "mj_planner non appelé pour possibilité pure");
   assert.equal(possibility.value.output.noCommit, true);
+  assert.equal(possibility.value.output.domainCommand, null, "possibilité pure: aucune commande engagée");
   assert.equal(possibility.value.operation.commitId, null);
   assert.match(possibility.value.output.displayPacket.displayBlocks.at(-1)?.text ?? "", /Aucune action/);
 
@@ -74,6 +75,7 @@ async function main(): Promise<void> {
   assert.equal(steal.value.output.mjPlan?.planningBasis.requiredDomain, "inventory");
   assert.equal(steal.value.output.resolution.resultKind, "HANDOFF_REQUIRED");
   assert.equal(steal.value.output.resolution.handoff?.target, "INVENTORY");
+  assert.equal(steal.value.output.domainCommand?.commandType, "DOMAIN_HANDOFF_REQUEST");
   assert.equal(steal.value.operation.commitId, null);
 
   const attack = await controller.submit({
@@ -88,6 +90,17 @@ async function main(): Promise<void> {
   assert.equal(attack.value.output.resolution.handoff?.target, "TACTICAL");
   assert.match(attack.value.output.displayPacket.displayBlocks.at(-1)?.text ?? "", /handoff tactique/i);
 
+  const observation = await controller.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-resolution-observe-waitress",
+    rawInput: "Je regarde la serveuse."
+  });
+  if (!observation.ok) throw new Error(observation.error.messageKey);
+  assert.equal(observation.value.output.resolution.resultKind, "RESOLUTION_PROPOSED");
+  assert.equal(observation.value.output.resolution.characterExpression?.expressionText, "Je regarde la serveuse.");
+  assert.match(observation.value.output.displayPacket.displayBlocks.at(-1)?.text ?? "", /Observation exécutée - sans mutation durable/u);
+  assert.doesNotMatch(observation.value.output.displayPacket.displayBlocks.at(-1)?.text ?? "", /aucune action exécutée/iu);
+
   const speech = await controller.submit({
     schemaVersion: 1,
     clientRequestId: "req-resolution-speech",
@@ -97,6 +110,9 @@ async function main(): Promise<void> {
   assert.equal(speech.value.output.mjPlan?.sceneBeats[0]?.kind, "ACTOR_REACTION_EXPECTED");
   assert.equal(speech.value.output.mjPlan?.commandProposals.every(proposal => proposal.commitAuthority === false), true);
   assert.equal(speech.value.output.resolution.resultKind, "COMMIT_APPLIED");
+  assert.equal(speech.value.output.domainCommand?.commandType, "SCENE_SPEECH_REQUEST");
+  assert.equal(speech.value.output.domainCommand?.commitAuthority, false);
+  assert.equal(speech.value.output.resolution.preparedEffects[0]?.sourceCommandId, speech.value.output.domainCommand?.commandId);
   assert.equal(speech.value.output.noCommit, false);
   assert.equal(speech.value.operation.completionMode, "COMMITTED_RENDERED");
   assert.notEqual(speech.value.operation.commitId, null);

@@ -12,6 +12,7 @@ import type {
   SceneBeatProposalV1
 } from "../ai/types";
 import { isNarrativeRuntimeDecisionV1, isNarrativeSemanticIntentV1, type NarrativeIntentInterpretationV1 } from "./intentClarification";
+import type { NarrativeDomainCommandV1 } from "./domainCommands";
 
 export const MJ_PLANNER_CONTRACT_VERSION_V1 = "mj-planner/1" as const;
 
@@ -109,6 +110,7 @@ export async function planNarrativeTurnWithMjV1(input: {
   operationId: string;
   rawInput: string;
   interpretation: NarrativeIntentInterpretationV1;
+  domainCommand?: NarrativeDomainCommandV1 | null;
   config: MjPlannerConfigV1;
 }): Promise<MjPlanningResultV1> {
   if (!shouldCallMjPlannerV1(input.interpretation)) {
@@ -174,7 +176,7 @@ export function buildLocalMjPlanPayload(
   const runtimeDecision = interpretation?.runtimeDecision ?? null;
   const requiredDomain = runtimeDecision?.requiredDomain ?? "scene_resolution";
   const runtimeStatus = runtimeDecision?.status ?? "SUPPORTED_BY_CURRENT_RUNTIME";
-  const targetRef = interpretation?.referentResolution?.resolvedTarget?.ref ?? interpretation?.target?.ref ?? null;
+  const targetRef = interpretation?.referentResolution?.resolvedTarget?.ref ?? interpretation?.semanticIntent.target?.ref ?? null;
   const targetRefs = targetRef === null ? [] : [targetRef];
   const beat = buildSceneBeat(interpretation, runtimeStatus, requiredDomain);
   const commandProposal = buildCommandProposal(interpretation, requiredDomain, targetRefs);
@@ -225,6 +227,7 @@ async function buildMjPlannerRequestV1(input: {
   operationId: string;
   rawInput: string;
   interpretation: NarrativeIntentInterpretationV1;
+  domainCommand?: NarrativeDomainCommandV1 | null;
   config: MjPlannerConfigV1;
 }): Promise<AiCallRequestV1> {
   const snapshotId = `${input.operationId}:snapshot:mj-plan`;
@@ -239,6 +242,7 @@ async function buildMjPlannerRequestV1(input: {
   const task = {
     rawInput: input.rawInput,
     interpretation: input.interpretation,
+    domainCommand: input.domainCommand ?? null,
     requiredOutput: "structured_mj_plan_without_commit"
   };
   return {
@@ -288,8 +292,8 @@ function buildSceneBeat(
       stopCondition: "Rendre la main: clarification joueur requise."
     };
   }
-  if (interpretation?.intentType === "speech") {
-    const targetRef = interpretation.referentResolution?.resolvedTarget?.ref ?? interpretation.target?.ref ?? null;
+  if (interpretation?.semanticIntent.kind === "address_visible_actor") {
+    const targetRef = interpretation.referentResolution?.resolvedTarget?.ref ?? interpretation.semanticIntent.target?.ref ?? null;
     return {
       beatId: "beat:actor-reaction",
       kind: "ACTOR_REACTION_EXPECTED",
@@ -314,7 +318,7 @@ function buildCommandProposal(
   return {
     proposalId: `${interpretation.intentId}:proposal:1`,
     domain: requiredDomain,
-    commandType: interpretation.intentType === "speech"
+    commandType: interpretation.semanticIntent.kind === "address_visible_actor"
       ? "speech.intent.record_or_request_actor_reaction"
       : interpretation.runtimeDecision.status === "UNSUPPORTED_DOMAIN"
         ? "domain.required_before_resolution"
@@ -339,7 +343,7 @@ function buildActorAssignments(
     actorId: null,
     reason: "Rédiger uniquement après validation de résolution ou arrêt runtime."
   }];
-  const target = interpretation?.referentResolution?.resolvedTarget ?? interpretation?.target ?? null;
+  const target = interpretation?.referentResolution?.resolvedTarget ?? interpretation?.semanticIntent.target ?? null;
   if (beat.kind === "ACTOR_REACTION_EXPECTED" && target?.kind === "npc") {
     assignments.unshift({
       role: "npc_performer",

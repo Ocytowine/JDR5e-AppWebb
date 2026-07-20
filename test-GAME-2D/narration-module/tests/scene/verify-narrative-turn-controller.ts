@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   MemoryCampaignRepository,
+  coreError,
   opaqueId,
   type AggregateId,
   type CampaignClockPayload,
@@ -261,6 +262,36 @@ async function main(): Promise<void> {
   assert.equal(resume.suspendedIntentId, suspended.suspendedIntentId);
   assert.equal(resume.resumedCommitment, "hypothetical");
   assert.equal(resume.noGameTime, true);
+
+  const failureRepository = new MemoryCampaignRepository({ clock });
+  const failureCampaignId = opaqueId<CampaignId>("cmp-controller-failure-release");
+  const failureCampaign: CampaignRecord = {
+    ...campaign,
+    campaignId: failureCampaignId,
+    clockAggregateId: opaqueId<AggregateId>("agg-controller-failure-clock")
+  };
+  const failureCreated = await failureRepository.createCampaign(failureCampaign, {
+    elapsedGameSeconds: 0,
+    calendarId: "prototype.calendar",
+    calendarVersion: 1
+  });
+  if (!failureCreated.ok) throw new Error(failureCreated.error.messageKey);
+  const originalGetAggregate = failureRepository.getAggregate.bind(failureRepository);
+  let failAggregateOnce = true;
+  failureRepository.getAggregate = async (...args) => {
+    if (failAggregateOnce) {
+      failAggregateOnce = false;
+      return { ok: false, error: coreError("VALIDATION_FAILED", "test.forced-precommit-failure") };
+    }
+    return originalGetAggregate(...args);
+  };
+  const failureController = new NarrativeTurnControllerV1({ repository: failureRepository, campaignId: failureCampaignId, clock, idPrefix: "failure-release" });
+  const failedTurn = await failureController.submit({ schemaVersion: 1, clientRequestId: "req-failure-release-1", rawInput: "Je regarde la serveuse." });
+  assert.equal(failedTurn.ok, false, "échec pré-commit forcé attendu");
+  const cancelledOperation = await failureRepository.getOperation(opaqueId("failure-release-op-req-failure-release-1"));
+  assert.equal(cancelledOperation.ok && cancelledOperation.value.phase, "CANCELLED", "l'opération échouée doit libérer la campagne");
+  const recoveredTurn = await failureController.submit({ schemaVersion: 1, clientRequestId: "req-failure-release-2", rawInput: "Je regarde la serveuse." });
+  assert.equal(recoveredTurn.ok, true, "le tour suivant ne doit pas rencontrer campaign-busy");
 
   console.log("narrative-turn-controller/1: OK");
 }

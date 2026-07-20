@@ -72,6 +72,15 @@ Il distingue la cible complète du runtime de campagne et les capacités déjà 
 - [`Plan-fidelite-intention-systeme.md`](Plan-fidelite-intention-systeme.md) : plan normatif post-I-06ZK en sept chantiers pour conserver l'intention sémantique jusqu'aux commandes de domaine, généraliser les référents et retirer le legacy lexical.
 - [`Matrice-preuves-I06ZL.md`](Matrice-preuves-I06ZL.md) : preuves de la propagation obligatoire et sans perte de `semanticIntent`, avec relecture explicite des opérations legacy.
 - [`Matrice-preuves-I06ZM.md`](Matrice-preuves-I06ZM.md) : preuves de la consommation sémantique par le planner et de l'autorité du registre runtime local sur la suggestion IA.
+- [`Matrice-preuves-I06ZN.md`](Matrice-preuves-I06ZN.md) : preuves du contrat local de commandes typées, de leur corrélation sémantique et de leur absence d'autorité de commit.
+- [`Inventaire-lectures-lexicales-I06ZO.md`](Inventaire-lectures-lexicales-I06ZO.md) : classement normatif des lectures textuelles restantes, limites d'autorité et conditions de retrait.
+- [`Matrice-preuves-I06ZO.md`](Matrice-preuves-I06ZO.md) : preuves du retrait des décisions lexicales de domaine, commit et mutation dans le flux actif.
+- [`Contrat-registre-referents-scene.md`](Contrat-registre-referents-scene.md) : contrat `scene-referent-registry/1`, vues par rôle, ambiguïté et mémoire récente versionnée.
+- [`Matrice-preuves-I06ZP.md`](Matrice-preuves-I06ZP.md) : preuves du registre générique sur trois scènes sans identifiants de fixture dans les consommateurs génériques.
+- [`Contrat-invariance-semantique.md`](Contrat-invariance-semantique.md) : format des familles, empreinte système et procédure de certification OpenAI live.
+- [`Matrice-preuves-I06ZQ.md`](Matrice-preuves-I06ZQ.md) : preuves de convergence de sept familles, cinq formulations et trois scènes.
+- [`Matrice-autorite-intention-I06ZR.md`](Matrice-autorite-intention-I06ZR.md) : source canonique champ par champ, politique de contradiction et inventaire legacy borné.
+- [`Matrice-preuves-I06ZR.md`](Matrice-preuves-I06ZR.md) : preuves de rejet des contradictions et de l'absence de commande ou commit associé.
 - [`Matrice-cas-I06ZF-interpretation-semantique.md`](Matrice-cas-I06ZF-interpretation-semantique.md) : cas naturels I-06ZF pour contractualiser l'interprétation sémantique unique et les diagnostics d'échec IA.
 - [`Cadrage-I06ZH-mj-planner-minimal.md`](Cadrage-I06ZH-mj-planner-minimal.md) : cadrage et livraison du `mj_planner` minimal non committable, sans MJ complet ni intrigue dynamique.
 - [`Cadrage-I06ZI-branchement-ia-mj-planner.md`](Cadrage-I06ZI-branchement-ia-mj-planner.md) : branchement OpenAI serveur du `mj_planner`, schéma strict et absence de fallback narratif.

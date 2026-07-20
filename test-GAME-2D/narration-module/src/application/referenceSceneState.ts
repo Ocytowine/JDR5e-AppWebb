@@ -110,16 +110,16 @@ export function applyReferenceSceneMutationV1(input: {
     visibleFocus: [...input.current.visibleFocus],
     lastMutationOperationId: input.operationId
   };
-  if (input.interpretation.intentType === "speech" && input.resolution.commitId === null) {
+  if (input.interpretation.semanticIntent.kind === "address_visible_actor" && input.resolution.commitId === null) {
     const actor = speechTarget(input.interpretation);
     next.interactionCount += 1;
     next.guardAddressed = actor.actorId === "npc-garde-blesse" ? true : next.guardAddressed;
     next.backRoomDoorHighlighted = true;
-    next.lastPlayerSpeechSummary = input.interpretation.coreMeaning;
+    next.lastPlayerSpeechSummary = input.interpretation.semanticIntent.playerGoal;
     next.shortTermNpcMemory = appendNpcShortTermMemoryV1({
       current: input.current.shortTermNpcMemory,
       operationId: input.operationId,
-      playerIntentSummary: input.interpretation.coreMeaning,
+      playerIntentSummary: input.interpretation.semanticIntent.playerGoal,
       nextOrder: input.current.shortTermNpcMemory.length + 1,
       actor
     });
@@ -127,12 +127,12 @@ export function applyReferenceSceneMutationV1(input: {
     if (actor.actorId === "npc-serveuse-nerveuse" && !next.visibleFocus.includes("serveuse-nerveuse-interpellee")) next.visibleFocus.push("serveuse-nerveuse-interpellee");
     if (!next.visibleFocus.includes("porte-du-fond-signalee")) next.visibleFocus.push("porte-du-fond-signalee");
   }
-  if (input.interpretation.intentType === "action" && /regarde|observe/iu.test(input.interpretation.coreMeaning)) {
+  if (input.interpretation.semanticIntent.kind === "observe_environment") {
     next.playerLookedAround = true;
   }
-  const actionTarget = input.interpretation.referentResolution?.resolvedTarget ?? input.interpretation.target ?? null;
+  const actionTarget = input.interpretation.referentResolution?.resolvedTarget ?? input.interpretation.semanticIntent.target ?? null;
   if (
-    input.interpretation.intentType === "action" &&
+    input.interpretation.semanticIntent.kind === "manipulate_visible_object" &&
     input.resolution.resultKind === "COMMIT_PREPARED" &&
     actionTarget?.ref === "poi:back-room-door"
   ) {
@@ -193,16 +193,12 @@ function speechTarget(interpretation: NarrativeIntentInterpretationV1): {
   actorId: "npc-garde-blesse" | "npc-serveuse-nerveuse";
   actorDisplayName: string;
 } {
-  const structuredRef = interpretation.referentResolution?.resolvedTarget?.ref ?? interpretation.target?.ref ?? null;
+  const structuredRef = interpretation.referentResolution?.resolvedTarget?.ref ?? interpretation.semanticIntent.target?.ref ?? null;
   if (structuredRef === "npc:npc-serveuse-nerveuse" || structuredRef === "npc-serveuse-nerveuse") {
     return { actorId: "npc-serveuse-nerveuse", actorDisplayName: "Serveuse nerveuse" };
   }
   if (structuredRef === "npc:npc-garde-blesse" || structuredRef === "npc-garde-blesse") {
     return { actorId: "npc-garde-blesse", actorDisplayName: "Garde blessé" };
-  }
-  const normalized = interpretation.coreMeaning.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
-  if (/\b(serveuse|aubergiste|femme au comptoir)\b/u.test(normalized)) {
-    return { actorId: "npc-serveuse-nerveuse", actorDisplayName: "Serveuse nerveuse" };
   }
   return { actorId: "npc-garde-blesse", actorDisplayName: "Garde blessé" };
 }

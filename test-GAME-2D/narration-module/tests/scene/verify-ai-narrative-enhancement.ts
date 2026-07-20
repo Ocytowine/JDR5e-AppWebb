@@ -212,6 +212,8 @@ async function main(): Promise<void> {
   assert.equal(speech.value.output.resolution.resultKind, "COMMIT_APPLIED");
   assert.match(speechEnhanced.displayPacket.displayBlocks.find(block => block.kind === "PLAYER_EXPRESSION")?.text ?? "", /voix posée/);
   assert.equal(speechEnhanced.displayPacket.displayBlocks.some(block => block.kind === "GM_NARRATION"), true);
+  assert.equal(speechEnhanced.displayPacket.displayBlocks.filter(block => block.kind === "GM_NARRATION").length, 1, "scene_writer remplace la narration déterministe au lieu de la dupliquer");
+  assert.equal(speechEnhanced.displayPacket.displayBlocks.at(-1)?.kind, "SYSTEM_NOTICE", "la notification système reste le dernier bloc après la narration finale");
   const sceneWriterRequest = speechProvider.requests.find(request => request.role === "scene_writer");
   assert.ok(sceneWriterRequest, "scene_writer doit être appelé sur une parole committée");
   assert.equal(sceneWriterRequest.input.instructionsRef, "narrative-ai-resolution/scene-writer/reference-scene/v1");

@@ -54,7 +54,7 @@ export const narrativePanelFixture: DisplayPacketV1 = {
         ariaLabel: "Maître du jeu",
         visualToken: "speaker-gm"
       },
-      text: "La porte latérale reste dans votre champ de vision.",
+      text: "La porte latérale reste dans votre champ de vision. Aucune action n'est encore engagée.",
       ariaLabel: "Maître du jeu: GM_NARRATION",
       roleLabel: "Maître du jeu",
       visualStyleToken: "speaker-gm",

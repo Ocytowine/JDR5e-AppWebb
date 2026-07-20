@@ -49,6 +49,7 @@ function resolution(
     operationId: `operation:${interp.intentType}`,
     resultKind,
     interpretation: interp as NarrativeIntentInterpretationV1 & JsonObject,
+    domainCommand: null,
     characterExpression: null,
     preparedEffects: [],
     handoff: null,

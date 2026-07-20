@@ -1,4 +1,5 @@
 import {
+  coreError,
   opaqueId,
   type AggregateId,
   type CampaignId,
@@ -17,7 +18,10 @@ import {
 } from "../core";
 import type { DisplayPacketV1, RenderBlockKindV1 } from "../scene";
 import { SCENE_SOCIAL_UI_CONTRACT_VERSION_V1 } from "../scene";
-import type { NarrativeIntentInterpretationV1, SuspendedIntentRecordV1 } from "./intentClarification";
+import { isAiInterpretationFailureDiagnosticV1, validateCanonicalIntentAuthorityV1, type NarrativeIntentInterpretationV1, type SuspendedIntentRecordV1 } from "./intentClarification";
+import { validateNarrativeDomainCommandV1, type NarrativeDomainCommandV1 } from "./domainCommands";
+import { REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1 } from "./playableScene";
+import { buildSceneReferentRegistryV1, findSceneReferentByRefV1 } from "./sceneReferentRegistry";
 import {
   buildReferenceSceneBlocksV1,
   REFERENCE_PLAYABLE_SCENE_ID_V1
@@ -67,6 +71,7 @@ export interface NarrativePreparedEffectV1 extends JsonObject {
   targetRef: string;
   summary: string;
   commitEligible: boolean;
+  sourceCommandId: string | null;
 }
 
 export interface NarrativeResolutionResultV1 extends JsonObject {
@@ -76,6 +81,7 @@ export interface NarrativeResolutionResultV1 extends JsonObject {
   operationId: string;
   resultKind: NarrativeResolutionKindV1;
   interpretation: NarrativeIntentInterpretationV1 & JsonObject;
+  domainCommand: NarrativeDomainCommandV1 | null;
   characterExpression: CharacterExpressionV1 | null;
   preparedEffects: NarrativePreparedEffectV1[];
   handoff: {
@@ -94,6 +100,7 @@ export interface NarrativeResolutionInputV1 {
   operation: OperationRecord;
   rawInput: string;
   interpretation: NarrativeIntentInterpretationV1;
+  domainCommand: NarrativeDomainCommandV1 | null;
   suspendedIntent: SuspendedIntentRecordV1 | null;
 }
 
@@ -105,13 +112,23 @@ export interface NarrativeResolutionOutputV1 {
 }
 
 export async function resolveNarrativeTurnV1(input: NarrativeResolutionInputV1): Promise<Result<NarrativeResolutionOutputV1>> {
+  const authorityValidation = validateCanonicalIntentAuthorityV1(input.interpretation);
+  if (!authorityValidation.ok) {
+    return { ok: false, error: coreError("VALIDATION_FAILED", "narrative.intent-authority.contradiction", { issues: authorityValidation.issues }) };
+  }
+  if (input.domainCommand !== null) {
+    const commandValidation = validateNarrativeDomainCommandV1(input.domainCommand, input.interpretation);
+    if (!commandValidation.ok) {
+      return { ok: false, error: coreError("VALIDATION_FAILED", "narrative.domain-command.invalid", { issues: commandValidation.issues }) };
+    }
+  }
   const loadedSceneState = await loadReferenceSceneStateV1({
     repository: input.repository,
     campaignId: input.campaignId
   });
   if (!loadedSceneState.ok) return loadedSceneState;
 
-  const deterministic = buildDeterministicResolution(input.operation, input.rawInput, input.interpretation, input.suspendedIntent);
+  const deterministic = buildDeterministicResolution(input.operation, input.rawInput, input.interpretation, input.domainCommand, input.suspendedIntent);
   if (deterministic.resultKind !== "COMMIT_PREPARED") {
     return {
       ok: true,
@@ -184,6 +201,7 @@ export function buildDeterministicResolution(
   operation: OperationRecord,
   rawInput: string,
   interpretation: NarrativeIntentInterpretationV1,
+  domainCommand: NarrativeDomainCommandV1 | null,
   suspendedIntent: SuspendedIntentRecordV1 | null
 ): NarrativeResolutionResultV1 {
   const base = {
@@ -192,6 +210,7 @@ export function buildDeterministicResolution(
     resolutionId: `${operation.operationId}:resolution:1`,
     operationId: operation.operationId,
     interpretation: interpretation as NarrativeIntentInterpretationV1 & JsonObject,
+    domainCommand,
     characterExpression: null,
     preparedEffects: [],
     handoff: null,
@@ -208,7 +227,15 @@ export function buildDeterministicResolution(
     };
   }
 
-  if (interpretation.intentType === "meta_question" || interpretation.intentType === "possibility_query") {
+  if (isAiInterpretationFailureDiagnosticV1(interpretation)) {
+    return {
+      ...base,
+      resultKind: "NO_COMMIT_RESPONSE",
+      safetyNotes: [...base.safetyNotes, "Diagnostic technique uniquement : aucune intention de jeu n'a été résolue."]
+    };
+  }
+
+  if (interpretation.semanticIntent.commitment === "none" || interpretation.semanticIntent.commitment === "hypothetical") {
     return {
       ...base,
       resultKind: "NO_COMMIT_RESPONSE",
@@ -231,7 +258,8 @@ export function buildDeterministicResolution(
           effectType: "BLOCKED_UNOPENED_DOMAIN",
           targetRef: runtimeHandoff.target,
           summary: runtimeHandoff.reason,
-          commitEligible: false
+          commitEligible: false,
+          sourceCommandId: domainCommand?.commandId ?? null
         }]
         : [],
       handoff: runtimeHandoff.kind === "HANDOFF_REQUIRED"
@@ -250,7 +278,7 @@ export function buildDeterministicResolution(
     };
   }
 
-  if (interpretation.intentType === "speech") {
+  if (domainCommand?.commandType === "SCENE_SPEECH_REQUEST") {
     const expression = buildCharacterExpression(rawInput, interpretation);
     return {
       ...base,
@@ -262,36 +290,14 @@ export function buildDeterministicResolution(
         effectType: "SPEECH_ACT_RECORDED",
         targetRef: "scene:prototype-narration-surface",
         summary: "Acte de parole joueur enregistré dans le journal social borné.",
-        commitEligible: true
+        commitEligible: true,
+        sourceCommandId: domainCommand.commandId
       }],
       safetyNotes: [...base.safetyNotes, "Parole explicite bornée: aucun effet social mécanique avancé."]
     };
   }
 
-  const handoff = classifyHandoff(rawInput, interpretation);
-  if (handoff !== null) {
-    return {
-      ...base,
-      resultKind: "HANDOFF_REQUIRED",
-      characterExpression: buildCharacterExpression(rawInput, interpretation),
-      preparedEffects: [{
-        schemaVersion: 1,
-        effectId: `${operation.operationId}:effect:block:1`,
-        effectType: "BLOCKED_UNOPENED_DOMAIN",
-        targetRef: handoff.target,
-        summary: handoff.reason,
-        commitEligible: false
-      }],
-      handoff: {
-        target: handoff.target,
-        reason: handoff.reason,
-        blockedCommit: true
-      },
-      safetyNotes: [...base.safetyNotes, "Domaine propriétaire non ouvert: aucun résultat inventé par la narration."]
-    };
-  }
-
-  const localSceneAction = buildLocalSceneActionEffect(operation, interpretation);
+  const localSceneAction = buildLocalSceneActionEffect(operation, interpretation, domainCommand);
   if (localSceneAction !== null) {
     return {
       ...base,
@@ -312,7 +318,8 @@ export function buildDeterministicResolution(
       effectType: "OBSERVATION_ONLY",
       targetRef: "scene:prototype-narration-surface",
       summary: "Observation locale proposée sans mutation durable.",
-      commitEligible: false
+      commitEligible: false,
+      sourceCommandId: domainCommand?.commandId ?? null
     }],
     safetyNotes: [...base.safetyNotes, "Resolution proposée sans commit tant que le domaine scène complet n'est pas ouvert."]
   };
@@ -348,56 +355,30 @@ function mapRuntimeDomainToHandoffTarget(domain: NarrativeIntentInterpretationV1
 
 function buildLocalSceneActionEffect(
   operation: OperationRecord,
-  interpretation: NarrativeIntentInterpretationV1
+  interpretation: NarrativeIntentInterpretationV1,
+  domainCommand: NarrativeDomainCommandV1 | null
 ): NarrativePreparedEffectV1 | null {
-  if (interpretation.intentType !== "action") return null;
-  const target = interpretation.referentResolution?.resolvedTarget ?? interpretation.target ?? null;
+  if (domainCommand?.commandType !== "SCENE_INTERACTION_REQUEST") return null;
+  const target = interpretation.referentResolution?.resolvedTarget ?? interpretation.semanticIntent.target ?? null;
   if (target === null || target.ref === null) return null;
   if (!isVisibleReferenceSceneTarget(target.ref)) return null;
-  if (
-    interpretation.action !== "open" &&
-    interpretation.action !== "force" &&
-    !isVisibleNpcPositioningAction(interpretation, target.kind)
-  ) return null;
-  if (!isActionCompatibleWithTarget(interpretation.action ?? null, target.kind)) return null;
   if (interpretation.referentResolution?.ambiguity && interpretation.referentResolution.ambiguity !== "none") return null;
+  const isNpcPositioning = interpretation.semanticIntent.kind === "nonverbal_signal" && target.kind === "npc";
   return {
     schemaVersion: 1,
     effectId: `${operation.operationId}:effect:local-action:1`,
     effectType: "LOCAL_SCENE_ACTION_RECORDED",
     targetRef: target.ref,
-    summary: isVisibleNpcPositioningAction(interpretation, target.kind)
+    summary: isNpcPositioning
       ? `Positionnement local enregistré près du référent visible: ${target.label ?? target.ref}.`
       : `Action locale enregistrée sur référent visible: ${target.label ?? target.ref}.`,
-    commitEligible: true
+    commitEligible: true,
+    sourceCommandId: domainCommand.commandId
   };
 }
 
 function isVisibleReferenceSceneTarget(ref: string): boolean {
-  return ref === "poi:back-room-door" ||
-    ref === "npc:npc-garde-blesse" ||
-    ref === "npc:npc-serveuse-nerveuse";
-}
-
-function isActionCompatibleWithTarget(action: string | null, targetKind: string): boolean {
-  if (action === "open" || action === "force") return targetKind === "object" || targetKind === "place";
-  if (action === "ask") return targetKind === "npc";
-  return true;
-}
-
-function isVisibleNpcPositioningAction(
-  interpretation: NarrativeIntentInterpretationV1,
-  targetKind: string
-): boolean {
-  if (interpretation.action !== "act" || targetKind !== "npc") return false;
-  if (
-    interpretation.runtimeDecision.status === "SUPPORTED_BY_CURRENT_RUNTIME" &&
-    interpretation.runtimeDecision.requiredDomain === "scene_resolution" &&
-    interpretation.runtimeDecision.noCommit === false &&
-    interpretation.runtimeDecision.noGameTime === true
-  ) return true;
-  const normalized = interpretation.coreMeaning.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
-  return /\b(approche|avance|vais vers|dirige vers|pres du garde|près du garde|pres de la serveuse|près de la serveuse)\b/u.test(normalized);
+  return findSceneReferentByRefV1(buildSceneReferentRegistryV1(REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1), ref) !== null;
 }
 
 function buildNarrativeCommitRequest(input: {
@@ -450,8 +431,9 @@ function buildNarrativeCommitRequest(input: {
         schemaVersion: 1,
         expression,
         source: "PLAYER_INTENT",
+        sourceDomainCommandId: input.resolution.domainCommand?.commandId ?? null,
         targetRef: localAction?.targetRef ?? null,
-        action: input.resolution.interpretation.action ?? null,
+        action: input.resolution.interpretation.semanticIntent.kind,
         noMechanicalEffect: true,
         noMechanicalSocialEffect: !isLocalAction
       },
@@ -467,8 +449,9 @@ function buildNarrativeCommitRequest(input: {
         operationId: input.operation.operationId,
         expression,
         targetRef: localAction?.targetRef ?? null,
-        action: input.resolution.interpretation.action ?? null,
-        semanticCommitments: [input.resolution.interpretation.coreMeaning],
+        action: input.resolution.interpretation.semanticIntent.kind,
+        semanticCommitments: [input.resolution.domainCommand?.semanticGoal ?? input.resolution.interpretation.semanticIntent.playerGoal],
+        sourceDomainCommandId: input.resolution.domainCommand?.commandId ?? null,
         noMechanicalEffect: true,
         noMechanicalSocialEffect: !isLocalAction,
         version: 1
@@ -504,7 +487,7 @@ function buildNarrativeCommitRequest(input: {
         schemaVersion: 1,
         expression,
         targetRef: localAction?.targetRef ?? null,
-        action: input.resolution.interpretation.action ?? null,
+        action: input.resolution.interpretation.semanticIntent.kind,
         noMechanicalEffect: true,
         noMechanicalSocialEffect: true
       }
@@ -555,31 +538,8 @@ function normalizeCharacterExpression(rawInput: string, intentType: NarrativeInt
     const content = speechMatch[1].replace(/^["«\s]+|["»\s]+$/gu, "").trim();
     if (content.length > 0) return `Je formule clairement : « ${content} »`;
   }
-  if (intentType === "action") return `Je tente l'action décrite : ${trimmed}`;
+  if (intentType === "action") return trimmed;
   return trimmed;
-}
-
-function classifyHandoff(
-  rawInput: string,
-  interpretation: NarrativeIntentInterpretationV1
-): { target: NarrativeHandoffTargetV1; reason: string } | null {
-  const text = rawInput.trim().toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
-  if (/\b(attaque|attaquer|frappe|frapper|combat|tuer|poignarder)\b/u.test(text)) {
-    return { target: "TACTICAL", reason: "Conflit violent potentiel: handoff tactique requis." };
-  }
-  if (/\b(repos|dormir|campement|se reposer)\b/u.test(text)) {
-    return { target: "REST", reason: "Début de repos: moteur de repos requis." };
-  }
-  if (/\b(voler|vole|prendre|prends|ramasser|ramasse|acheter|achete|vendre|vends|donner|donne|equiper|équiper|equipe|équipe)\b/u.test(text)) {
-    return { target: "INVENTORY", reason: "Mutation d'inventaire ou possession: domaine inventaire requis." };
-  }
-  if (/\b(creer|créer|nouveau pnj|nouveau lieu|intrigue|indice)\b/u.test(text)) {
-    return { target: "DYNAMIC_CREATION", reason: "Création durable potentielle: promotion dédiée requise." };
-  }
-  if (interpretation.intentType === "mixed") {
-    return { target: "UNOPENED_DOMAIN", reason: "Intention mixte: résolution complète différée." };
-  }
-  return null;
 }
 
 function buildResolutionDisplayPacket(
@@ -620,6 +580,7 @@ function buildResolutionDisplayPacket(
       `resolution:${resolution.resolutionId}`,
       `resolution-kind:${resolution.resultKind}`,
       `intent:${resolution.interpretation.intentType}`,
+      `semantic-intent:${resolution.interpretation.semanticIntent.kind}`,
       ...(resolvedTargetRef(resolution) === null ? [] : [`target:${resolvedTargetRef(resolution)}`]),
       ...resolution.preparedEffects.map(effect => `effect:${effect.effectType}`)
     ]
@@ -672,6 +633,16 @@ function block(
 
 function resolutionNotice(resolution: NarrativeResolutionResultV1): string {
   const diagnostic = resolutionDiagnosticLines(resolution);
+  if (isAiInterpretationFailureDiagnosticV1(resolution.interpretation)) {
+    const issues = resolution.interpretation.safetyNotes.filter(note => note.startsWith("Issue:"));
+    return [
+      "Interprétation IA refusée - aucune action exécutée",
+      ...diagnostic,
+      ...(issues.length === 0 ? [] : ["Détails du rejet:", ...issues]),
+      `Raison: ${resolution.interpretation.runtimeDecision.reason}`,
+      "Effet: aucune intention de jeu n'a été déduite, aucun commit et aucun temps de jeu n'ont été déclenchés."
+    ].join("\n");
+  }
   if (resolution.resultKind === "CLARIFICATION_REQUIRED") {
     return [
       "Clarification requise - aucun commit",
@@ -712,6 +683,16 @@ function resolutionNotice(resolution: NarrativeResolutionResultV1): string {
       "Effet: aucun résultat n'a été inventé par la narration."
     ].join("\n");
   }
+  if (
+    resolution.resultKind === "RESOLUTION_PROPOSED" &&
+    resolution.interpretation.semanticIntent.kind === "observe_environment"
+  ) {
+    return [
+      "Observation exécutée - sans mutation durable",
+      ...diagnostic,
+      "Effet: les éléments perceptibles de la scène sont décrits, sans commit métier durable ni avance significative du temps de jeu."
+    ].join("\n");
+  }
   if (resolution.resultKind === "COMMIT_APPLIED") {
     if (resolution.preparedEffects.some(effect => effect.effectType === "LOCAL_SCENE_ACTION_RECORDED")) {
       return [
@@ -737,11 +718,11 @@ function resolutionNotice(resolution: NarrativeResolutionResultV1): string {
 
 function resolutionDiagnosticLines(resolution: NarrativeResolutionResultV1): string[] {
   const interpretation = resolution.interpretation;
-  const target = interpretation.referentResolution?.resolvedTarget ?? interpretation.target ?? null;
+  const target = interpretation.referentResolution?.resolvedTarget ?? interpretation.semanticIntent.target ?? null;
   const runtimeHandling = interpretation.runtimeHandling ?? null;
   const runtimeDecision = interpretation.runtimeDecision;
   return [
-    `Intention: ${interpretation.intentType}${interpretation.action === null ? "" : ` / action=${interpretation.action}`}.`,
+    `Intention canonique: ${interpretation.semanticIntent.kind}; projection legacy: ${interpretation.intentType}${interpretation.action === null ? "" : ` / action=${interpretation.action}`}.`,
     `Cible résolue: ${target === null ? "aucune" : `${target.label ?? target.ref ?? target.kind} (${target.ref ?? target.kind})`}.`,
     runtimeHandling === null
       ? "Runtime: non renseigné."
@@ -752,6 +733,6 @@ function resolutionDiagnosticLines(resolution: NarrativeResolutionResultV1): str
 
 function resolvedTargetRef(resolution: NarrativeResolutionResultV1): string | null {
   return resolution.interpretation.referentResolution?.resolvedTarget?.ref ??
-    resolution.interpretation.target?.ref ??
+    resolution.interpretation.semanticIntent.target?.ref ??
     null;
 }

@@ -114,7 +114,7 @@ export function shouldCallNpcPerformerV1(input: {
   resolution: NarrativeResolutionResultV1;
 }): boolean {
   if (input.resolution.resultKind !== "COMMIT_APPLIED") return false;
-  if (input.interpretation.intentType !== "speech" && input.interpretation.intentType !== "mixed") return false;
+  if (input.interpretation.semanticIntent.kind !== "address_visible_actor") return false;
   if (input.interpretation.requiresClarification) return false;
   return findNpcPerformerActorIdV1(input.mjPlan) !== null;
 }

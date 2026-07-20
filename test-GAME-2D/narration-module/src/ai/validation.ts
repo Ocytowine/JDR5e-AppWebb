@@ -215,6 +215,28 @@ function validateAiIntentInterpretationPayload(payload: unknown): string[] {
     if (isObject(intent.semanticIntent) && intent.semanticIntent.commitment !== intent.commitment) {
       issues.push(issue(`${path}.semanticIntent.commitment`, "must match top-level commitment"));
     }
+    if (isObject(intent.semanticIntent)) {
+      const allowedIntentTypesBySemanticKind: Record<string, string[]> = {
+        address_visible_actor: ["speech"],
+        manipulate_visible_object: ["action"],
+        observe_environment: ["action"],
+        nonverbal_signal: ["action"],
+        hypothetical_action: ["possibility_query"],
+        context_question: ["meta_question", "memory_recall"],
+        meta_request: ["meta_question"],
+        unclear_intent: ["unclear_commitment"]
+      };
+      const allowedForKind = typeof intent.semanticIntent.kind === "string" ? allowedIntentTypesBySemanticKind[intent.semanticIntent.kind] : undefined;
+      if (allowedForKind !== undefined && !allowedForKind.includes(String(intent.intentType))) {
+        issues.push(issue(`${path}.intentType`, "must match semanticIntent.kind"));
+      }
+      const semanticTargetRef = isObject(intent.semanticIntent.target) && typeof intent.semanticIntent.target.ref === "string" ? intent.semanticIntent.target.ref : null;
+      const legacyTargetRef = isObject(intent.target) && typeof intent.target.ref === "string" ? intent.target.ref : null;
+      if (semanticTargetRef !== legacyTargetRef) issues.push(issue(`${path}.target`, "must match semanticIntent.target"));
+      if (intent.semanticIntent.kind === "address_visible_actor" && intent.action !== null && intent.action !== "ask" && intent.action !== "act") {
+        issues.push(issue(`${path}.action`, "must not contradict address_visible_actor"));
+      }
+    }
     if (isObject(intent.runtimeHandling) && intent.runtimeHandling.status === "NEEDS_CLARIFICATION" && intent.requiresClarification !== true) {
       issues.push(issue(`${path}.runtimeHandling.status`, "NEEDS_CLARIFICATION requires requiresClarification=true"));
     }
@@ -549,7 +571,19 @@ export function validateAiRoleOutputEnvelopeV1(output: unknown, request: AiCallR
   if (envelope.snapshotId !== request.snapshotId) issues.push(issue("snapshotId", "correlation mismatch"));
   if (envelope.role !== request.role) issues.push(issue("role", "correlation mismatch"));
   if (envelope.contractVersion !== request.contractVersion) issues.push(issue("contractVersion", "correlation mismatch"));
-  if (envelope.status !== "OK") issues.push(issue("status", "only OK outputs are usable by the pipeline"));
+  if (envelope.status !== "OK") {
+    issues.push(issue("status", "only OK outputs are usable by the pipeline"));
+    if (Array.isArray(envelope.diagnostics)) {
+      for (const diagnostic of envelope.diagnostics) {
+        if (!isObject(diagnostic)) continue;
+        const code = typeof diagnostic.code === "string" ? diagnostic.code : "UNKNOWN_PROVIDER_DIAGNOSTIC";
+        const message = typeof diagnostic.message === "string"
+          ? diagnostic.message.replace(/\s+/gu, " ").slice(0, 500)
+          : "No diagnostic message supplied.";
+        issues.push(issue(`providerDiagnostic.${code}`, message));
+      }
+    }
+  }
   if (!Array.isArray(envelope.diagnostics)) issues.push(issue("diagnostics", "expected array"));
   if (envelope.supersedesOutputId !== null && typeof envelope.supersedesOutputId !== "string") issues.push(issue("supersedesOutputId", "expected string or null"));
 

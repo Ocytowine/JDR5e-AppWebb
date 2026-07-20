@@ -1,6 +1,7 @@
 export * from "./NarrativeTurnController";
 export * from "./aiNarrativeEnhancement";
 export * from "./aiIntentInterpretation";
+export * from "./domainCommands";
 export * from "./intentClarification";
 export * from "./lorePlayableScene";
 export * from "./mjPlanning";
@@ -8,6 +9,7 @@ export * from "./narrativeResolution";
 export * from "./narrativeRenderProjection";
 export * from "./npcPerforming";
 export * from "./playableScene";
+export * from "./sceneReferentRegistry";
 export * from "./plotPreparation";
 export * from "./presentationVariation";
 export * from "./referenceScene";

@@ -101,7 +101,7 @@ export const REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1: PlayableSceneStateV1 = {
     elementId: "back-room-door",
     label: "Porte du fond",
     description: "La porte du fond attire trop de regards pour être anodine.",
-    keywords: ["porte", "fond", "arriere", "arriere-salle"],
+    keywords: ["porte", "fond", "arriere", "arriere-salle", "poignée", "mécanisme", "loquet", "battant"],
     playerVisible: true,
     version: 1
   }],
@@ -111,7 +111,7 @@ export const REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1: PlayableSceneStateV1 = {
     displayName: "Garde blessé",
     publicRole: "Garde de ville",
     visibleState: "fatigué, nerveux, blessure bandée sous la cuirasse",
-    keywords: ["garde", "blesse", "soldat"],
+    keywords: ["garde", "blesse", "soldat", "homme", "homme blessé"],
     defaultReply: "Le garde baisse la voix. « Si vous cherchez des réponses, commencez par la porte du fond. Mais ne faites pas de geste brusque ici. »",
     repeatedReply: "Le garde ne répète pas toute son explication. Il incline seulement la tête vers l'arrière-salle. « Je vous l'ai dit : la porte du fond. Si vous insistez, faites-le vite, avant que ceux dehors n'entrent. »",
     version: 1
@@ -121,7 +121,7 @@ export const REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1: PlayableSceneStateV1 = {
     displayName: "Serveuse nerveuse",
     publicRole: "Employée de l'auberge",
     visibleState: "mains occupées, regard fuyant, attention fixée sur l'arrière-salle",
-    keywords: ["serveuse", "aubergiste", "comptoir"],
+    keywords: ["serveuse", "aubergiste", "comptoir", "femme", "dame"],
     defaultReply: "La serveuse cesse enfin d'essuyer son gobelet. « Nerveuse ? Avec cette pluie, ce garde qui saigne et cette porte qu'on me demande d'ignorer, vous ne le seriez pas ? »",
     repeatedReply: "La serveuse garde le gobelet entre ses mains. « Je vous ai déjà dit que je ne veux pas d'ennuis. La porte du fond ne s'ouvre pas pour les curieux. »",
     version: 1
@@ -131,7 +131,7 @@ export const REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1: PlayableSceneStateV1 = {
     pointId: "back-room-door",
     label: "Porte du fond",
     visibleDescription: "Une porte étroite près du comptoir mène vers l'arrière-salle.",
-    keywords: ["porte", "fond", "arriere", "arriere-salle"],
+    keywords: ["porte", "fond", "arriere", "arriere-salle", "poignée", "mécanisme", "loquet", "battant"],
     version: 1
   }],
   currentTension: "Quelqu'un ou quelque chose est attendu dehors, mais personne ne veut le nommer à voix haute.",
@@ -252,9 +252,10 @@ export function toPlayableScenePublicContextV1(scene: PlayableSceneStateV1): Pla
   };
 }
 
-export function findPlayableSceneNpcTargetV1(scene: PlayableSceneStateV1, rawInput: string): PlayableSceneNpcV1 {
+export function findPlayableSceneNpcTargetV1(scene: PlayableSceneStateV1, rawInput: string): PlayableSceneNpcV1 | null {
   const normalized = normalize(rawInput);
-  return scene.presentNpc.find(npc => npc.keywords.some(keyword => normalized.includes(normalize(keyword)))) ?? scene.presentNpc[0]!;
+  const candidates = scene.presentNpc.filter(npc => npc.keywords.some(keyword => normalized.includes(normalize(keyword))));
+  return candidates.length === 1 ? candidates[0] ?? null : null;
 }
 
 export function buildPlayableSceneLocationAnswerV1(scene: PlayableSceneStateV1): string {
@@ -274,6 +275,7 @@ export function buildPlayableSceneObservationV1(scene: PlayableSceneStateV1, raw
 
 export function buildPlayableSceneSocialPossibilityAnswerV1(scene: PlayableSceneStateV1, rawInput: string): string {
   const npc = findPlayableSceneNpcTargetV1(scene, rawInput);
+  if (npc === null) return "Tu peux tenter de parler à un interlocuteur visible, mais il faut préciser lequel avant de lui adresser la parole.";
   return `Tu peux tenter de parler à ${npc.displayName}, mais cette réponse ne lui adresse pas encore la parole. ${npc.visibleState}`;
 }
 

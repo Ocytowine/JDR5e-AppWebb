@@ -65,13 +65,22 @@ function blockSourceMatches(block: DisplayBlockV1, pattern: RegExp): boolean {
 function isNoCommitBlock(block: DisplayBlockV1): boolean {
   return (
     block.kind === "CLARIFICATION" ||
-    blockTextMatches(block, /sans commit|aucune action|aucun résultat|no commit/iu) ||
-    blockSourceMatches(block, /no-commit/iu)
+    (block.kind === "SYSTEM_NOTICE" && (
+      blockTextMatches(block, /sans commit|aucune action|aucun résultat|aucun commit|no commit/iu) ||
+      blockSourceMatches(block, /no-commit/iu)
+    ))
   );
 }
 
 function isNoTimeBlock(block: DisplayBlockV1): boolean {
-  return block.kind === "CLARIFICATION" || blockTextMatches(block, /ne fait pas avancer le temps|aucun temps|no game time/iu);
+  return block.kind === "CLARIFICATION" || (block.kind === "SYSTEM_NOTICE" && blockTextMatches(block, /ne fait pas avancer le temps|aucun temps|no game time/iu));
+}
+
+function isObservationExecutedBlock(block: DisplayBlockV1): boolean {
+  return block.kind === "SYSTEM_NOTICE" && (
+    blockSourceMatches(block, /semantic-intent:observe_environment/iu) ||
+    blockTextMatches(block, /Observation exécutée/iu)
+  );
 }
 
 function isPossibilityBlock(block: DisplayBlockV1): boolean {
@@ -82,9 +91,14 @@ function isPossibilityBlock(block: DisplayBlockV1): boolean {
   );
 }
 
+function isAiInterpretationFailureBlock(block: DisplayBlockV1): boolean {
+  return block.kind === "SYSTEM_NOTICE" && blockTextMatches(block, /Interprétation IA refusée|AI_INTERPRETATION_FAILED/iu);
+}
+
 function isContextNoCommitBlock(block: DisplayBlockV1): boolean {
   return (
     block.kind === "SYSTEM_NOTICE" &&
+    !isAiInterpretationFailureBlock(block) &&
     (blockSourceMatches(block, /intent:meta_question/iu) ||
       blockTextMatches(block, /r[eé]ponse de contexte|question m[eé]ta/iu))
   );
@@ -105,15 +119,17 @@ function blockUxBadges(block: DisplayBlockV1): string[] {
   if (block.kind === "GM_NARRATION") badges.push("MJ");
   if (block.kind === "NPC_SPEECH") badges.push("PNJ");
   if (block.kind === "CLARIFICATION") badges.push("Clarification");
+  if (isAiInterpretationFailureBlock(block)) badges.push("Interprétation IA refusée");
   if (isPossibilityBlock(block)) badges.push("Possibilité");
   if (isContextNoCommitBlock(block)) badges.push("Contexte");
   if (isBoundedSpeechCommitBlock(block)) badges.push("Parole enregistrée");
-  if (isNoCommitBlock(block) && !isContextNoCommitBlock(block)) badges.push("Action non exécutée");
+  if (isObservationExecutedBlock(block)) badges.push("Observation exécutée");
+  if (isNoCommitBlock(block) && !isContextNoCommitBlock(block) && !isObservationExecutedBlock(block)) badges.push("Action non exécutée");
   if (block.kind === "SYSTEM_NOTICE") badges.push("Système");
-  if (block.kind === "CLARIFICATION" || /sans commit|aucune action|aucun résultat|no commit/iu.test(block.text)) {
+  if (block.kind === "CLARIFICATION" || (block.kind === "SYSTEM_NOTICE" && /sans commit|aucune action|aucun résultat|aucun commit|no commit/iu.test(block.text))) {
     badges.push("Sans commit");
   }
-  if (block.kind === "CLARIFICATION" || /ne fait pas avancer le temps|aucun temps|no game time/iu.test(block.text)) {
+  if (block.kind === "CLARIFICATION" || (block.kind === "SYSTEM_NOTICE" && /ne fait pas avancer le temps|aucun temps|no game time/iu.test(block.text))) {
     badges.push("Aucun temps");
   }
   if (block.sourceRefs.some(ref => ref.startsWith("ai-output:"))) badges.push("IA");
@@ -122,6 +138,22 @@ function blockUxBadges(block: DisplayBlockV1): string[] {
 }
 
 function blockUxNotice(block: DisplayBlockV1): BlockUxNoticeV1 | null {
+  if (isAiInterpretationFailureBlock(block)) {
+    return {
+      kind: "generic-no-commit",
+      title: "Interprétation IA refusée - aucune action exécutée",
+      text: "La sortie IA n'est pas exploitable. Les détails techniques figurent dans la notification; la scène et le temps restent inchangés."
+    };
+  }
+
+  if (isObservationExecutedBlock(block)) {
+    return {
+      kind: "generic-no-commit",
+      title: "Observation exécutée - sans mutation durable",
+      text: "Le personnage observe la scène. Aucun état durable ni temps de jeu significatif n'est modifié."
+    };
+  }
+
   if (block.kind === "CLARIFICATION") {
     return {
       kind: "clarification-no-commit",

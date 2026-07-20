@@ -8,6 +8,8 @@ Lot : I-06F
 
 Date : 2026-07-07
 
+Derniere revision : 2026-07-17, I-06ZR
+
 ## Objectif
 
 I-06F introduit la premiere resolution narrative reelle apres l'interpretation conservatrice d'I-06E.
@@ -20,6 +22,12 @@ Le but n'est pas encore de livrer un MJ complet. Le but est de figer la frontier
 - une sortie IA ne committe rien directement;
 - une creation narrative reste une proposition tant que son domaine ne l'a pas promue;
 - le temps, le tactique, le repos et les regles restent sous leurs proprietaires.
+
+Depuis I-06ZN, la resolution recoit aussi une commande locale `narrative-domain-command/1`. Cette commande est distincte de l'intention et du plan IA, possede toujours `commitAuthority=false` et doit etre validee contre `semanticIntent` et `runtimeDecision` avant preparation d'un effet. Tout effet committable cite son `sourceCommandId`.
+
+Depuis I-06ZO, `rawInput`, `coreMeaning` et `action` ne peuvent plus determiner un domaine, un commit ou une mutation de scene. Le resolver consomme la commande validee; `rawInput` reste reserve a l'expression joueur, au rendu et a la tracabilite.
+
+Depuis I-06ZR, le resolver valide l'autorite canonique avant toute lecture ou preparation d'effet. Une contradiction entre `semanticIntent`, les projections legacy, la cible resolue ou `runtimeDecision` retourne `narrative.intent-authority.contradiction`; aucune commande contradictoire ne peut etre exploitee.
 
 ## Entrees autorisees
 
@@ -198,7 +206,7 @@ Depuis I-06ZG, lorsque l'interpretation provient de `ai-intent-interpretation/1`
 - `SUPPORTED_BY_CURRENT_RUNTIME` autorise seulement la suite normale de validation locale, sans donner d'autorite de succes a l'IA ;
 - `NEEDS_CLARIFICATION` arrete le tour en `CLARIFICATION_REQUIRED` ;
 - `UNSUPPORTED_DOMAIN` arrete le tour en `HANDOFF_REQUIRED` vers le domaine indique (`inventory`, `tactical`, `rest`, `world`, etc.) ;
-- `AI_INTERPRETATION_FAILED` ne doit pas etre traite comme une resolution narrative.
+- `AI_INTERPRETATION_FAILED` ne doit pas etre traite comme une resolution narrative : il produit une réponse technique sans commit, aucun bloc de narration MJ et expose les causes de validation disponibles; sa projection legacy ne doit jamais servir à choisir le rendu.
 
 Les anciennes heuristiques textuelles du resolver restent une ceinture legacy pour les chemins sans interpretation IA runtime-aware. Elles ne doivent pas redevenir le moteur principal de routage.
 

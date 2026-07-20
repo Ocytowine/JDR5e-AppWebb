@@ -8,13 +8,13 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 - [ ] Traiter l'audit technique post-I-06ZB avant d'ouvrir une nouvelle capacité narrative.
   References: `test-GAME-2D/narration-module/docs/Audit-technique-I06ZB.md`, `test-GAME-2D/narration-module/docs/Revue-technique-post-I06ZB.md`, `test-GAME-2D/narration-module/docs/Suivi-prochains-lots-narration.md`.
-  Note: A-01, A-02, A-03, A-04 et A-07 traités le 2026-07-09; I-06ZC à I-06ZM livrés. `semanticIntent` est propagé sans perte, le planner consomme son objectif et `runtimeDecision` donne l'autorité au registre local plutôt qu'à la suggestion IA. Prochaine étape concrète: cadrer I-06ZN pour séparer intention, routage et commandes de domaine typées.
+  Note: A-01, A-02, A-03, A-04 et A-07 traités le 2026-07-09; I-06ZC à I-06ZR livrés. Le chantier fidélité intention-système est fermé dans son périmètre: source sémantique unique, commandes locales, registre générique, invariance et contradictions sans commit. Prochaine étape concrète: revue de gate post-I-06ZR avant toute nouvelle capacité narrative.
 - [ ] Consolider la simulation du monde apres l'ajout des objectifs multi-phases, des opportunites de faction et des mobiles non-systeme.
   Reference: `test-GAME-2D/map-module/docs/world-simulation-corrective-roadmap.md`. Les mobiles exposent maintenant l'objectif, la phase et la cible qu'ils servent.
 
 ## Prochaines etapes
 
-- [ ] Cadrer puis implémenter I-06ZN, enveloppes et commandes de domaine typées, selon `test-GAME-2D/narration-module/docs/Plan-fidelite-intention-systeme.md`.
+- [ ] Réaliser la revue de gate post-I-06ZR et décider de la prochaine capacité narrative sans rouvrir les autorités IA fermées.
 - [ ] Migrer `wiki/lore/gouvernances/primauté` vers un futur type de gouvernance et retirer alors son exclusion explicite.
 - [ ] Préparer après I-06A le branchement UI narratif progressif, sans appel fournisseur direct depuis React tant que les projections ne sont pas validées.
 - [ ] Generer les premiers mobiles non-systeme contextuels, en commencant par les profils marchands, criminels et religieux.
@@ -32,6 +32,18 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 - La parite directe import/plateau reste la reserve documentee d'I-02; elle ne doit pas etre contournee dans I-03.
 
 ## Termine recemment
+
+- [x] Diagnostic fournisseur post-I-06ZR: les enveloppes IA non `OK` propagent maintenant leur code et message expurgé dans les `Issue:` visibles, au lieu de masquer la cause derrière le seul statut générique; test pipeline ajouté le 2026-07-17.
+- [x] Correctif badge diagnostic: une projection legacy `intent:meta_question` ne force plus le bandeau UI « Contexte » quand le corps porte `AI_INTERPRETATION_FAILED`; le bandeau indique explicitement « Interprétation IA refusée » le 2026-07-17.
+- [x] Correctif troncature OpenAI: budget `player_intent_interpreter` relevé de 700 à 1600 tokens (plafond serveur 2000) et statut Responses API `incomplete` diagnostiqué explicitement; la sortie JSON structurée ne doit plus être coupée sur une intention simple le 2026-07-17.
+- [x] Correctif projection observation: narration IA unique en remplacement du texte déterministe et avant la notification, expression joueur fidèle, statut « Observation exécutée - sans mutation durable », badges UI limités aux blocs système; régressions ajoutées le 2026-07-17.
+- [x] Correctif rendu post-I-06ZR: `AI_INTERPRETATION_FAILED` ne se déguise plus en question de contexte malgré sa projection legacy; aucun faux bloc MJ n'est produit et les causes `Issue:` du rejet IA/mapping sont visibles dans la notification système. Cas « Je regarde la serveuse. », régressions ciblées et build narration OK le 2026-07-17.
+
+- [x] Correctif post-I-06ZR: diagnostic `AI_INTERPRETATION_FAILED` distingué d'une intention de jeu, validation canonique finale avant resolver et annulation des opérations `RECEIVED` après échec pré-commit; `narrative.intent-authority.contradiction` puis `core.operation.campaign-busy` ne doivent plus s'enchaîner, régressions et build OK le 2026-07-17.
+- [x] Fermeture I-06ZR: matrice d'autorité canonique, six contradictions rejetées sans commande, validation avant resolver et replis legacy retirés des consommateurs métier; adaptateurs historiques restants bornés le 2026-07-17.
+- [x] Fermeture I-06ZQ: contrat d'empreinte système, sept familles de cinq formulations, trois scènes et 105 convergences déterministes; procédure live séparée avec seuils et taxonomie le 2026-07-17.
+- [x] Fermeture I-06ZP: registre générique construit depuis `PlayableSceneStateV1`, vues par rôle, canonicalisation sans tables de fixture, ambiguïté explicite, mémoire récente liée à scène/version et preuves sur trois scènes le 2026-07-17.
+- [x] Fermeture I-06ZO: décisions de domaine, commit, positionnement et mutations retirées des lectures de `rawInput`/`coreMeaning`; usages lexicaux restants classés avec conditions de retrait, tests ciblés et builds OK le 2026-07-17.
 
 - [x] Socle I-06ZF: contrat unique `ai-intent-interpretation/1` enrichi par `semanticIntent` et `runtimeHandling`, diagnostic explicite sans fallback narratif sur sortie IA invalide, cas naturel "poignée/mécanisme" couvert, validations TS/serveur renforcées et tests `ai-intent-interpretation`, `narrative-openai-route`, `build` OK le 2026-07-16.
 - [x] Verrou runtime I-06ZG: `runtimeHandling` propagé jusqu'à `NarrativeIntentInterpretationV1`, resolver priorisant `UNSUPPORTED_DOMAIN`/`NEEDS_CLARIFICATION` avant heuristiques legacy, handoff inventory prouvé sans mot-clé lexical évident et test `narration-module:test:ai-intent-interpretation` OK le 2026-07-16.
