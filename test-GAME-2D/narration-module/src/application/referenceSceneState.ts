@@ -177,8 +177,8 @@ function appendNpcShortTermMemoryV1(input: {
     operationId: input.operationId,
     playerIntentSummary: input.playerIntentSummary,
     npcContinuitySummary: isWaitress
-      ? "La serveuse a laissé voir que la porte du fond l'inquiète et qu'elle craint les ennuis dans la salle."
-      : "Le garde a déjà orienté le personnage vers la porte du fond et averti de ne pas provoquer d'escalade dans la salle.",
+      ? "Le joueur s'est adressé à la serveuse; aucune ancienne réplique PNJ n'est déduite de cette entrée."
+      : "Le joueur s'est adressé au garde; aucune ancienne réplique PNJ n'est déduite de cette entrée.",
     visibleToPlayer: true,
     order: input.nextOrder,
     version: 1

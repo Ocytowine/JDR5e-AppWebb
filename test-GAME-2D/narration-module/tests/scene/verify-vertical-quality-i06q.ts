@@ -266,7 +266,7 @@ async function main(): Promise<void> {
         output.displayPacket.displayBlocks.some(block =>
           block.kind === "NPC_SPEECH" &&
           block.speaker.displayName === "Serveuse nerveuse" &&
-          /Nerveuse|porte du fond/u.test(block.text)
+          /entendu|confirmer|question/u.test(block.text)
         ),
         true,
         "la parole ciblant la serveuse doit produire une réponse de la serveuse"
@@ -287,8 +287,8 @@ async function main(): Promise<void> {
     "au moins une entrée fictionnelle doit être enrichie dans les deux modes"
   );
   assert.ok(guardReplies.length >= 2, "le scénario doit contenir plusieurs réponses PNJ");
-  assert.notEqual(guardReplies[0], guardReplies[1], "le garde ne doit pas répéter mécaniquement la même réponse");
-  assert.match(guardReplies[1] ?? "", /Je vous l'ai dit|porte du fond/u, "la deuxième réponse doit exploiter la mémoire courte");
+  assert.match(guardReplies[1] ?? "", /comprends votre question|rien confirmer/u, "la deuxième réponse doit porter sur l'acte de dialogue courant");
+  assert.doesNotMatch(guardReplies[1] ?? "", /déjà dit|réponse ne change pas|encore une fois/iu, "le PNJ ne doit pas inventer une ancienne réplique absente de sa mémoire");
 
   const clockAggregate = await repository.getAggregate(campaignId, "world.clock", clockAggregateId);
   if (!clockAggregate.ok) throw new Error(clockAggregate.error.messageKey);

@@ -10,7 +10,8 @@ import {
 import {
   NarrativeTurnControllerV1,
   buildNarrativeRenderAuthorityV1,
-  enhanceNarrativeDisplayWithAiV1
+  enhanceNarrativeDisplayWithAiV1,
+  type NarrativeRenderAuthorityV1
 } from "../../src/application";
 import {
   FakeContractAiProviderV1
@@ -290,6 +291,14 @@ async function main(): Promise<void> {
   const doorAuthority = buildNarrativeRenderAuthorityV1(door.value.output.resolution, door.value.output.displayPacket);
   assert.equal(doorAuthority.mode, "ACTION_STAGING_ONLY");
   assert.equal(doorAuthority.unconfirmedClaims.some(claim => /modification/u.test(claim)), true);
+  assert.equal(doorAuthority.renderPlanVersion, "narrative-render-plan/1");
+  assert.equal(doorAuthority.perspective, "SECOND_PERSON_PLAYER");
+  assert.equal(doorAuthority.allowedClaims.every(claim => claim.sourceRefs.length > 0), true);
+  assert.equal(doorAuthority.texturePolicy.lifetime, "TURN_ONLY");
+  assert.equal(doorAuthority.texturePolicy.reusableAsFact, false);
+  assert.equal(doorAuthority.texturePolicy.persistToMemory, false);
+  assert.equal(doorAuthority.texturePolicy.forbiddenUses.some(rule => /État mécanique/u.test(rule)), true);
+  assert.deepEqual(doorAuthority.allowedActorReactionRefs, []);
   const doorOp = door.value.operation.operationId;
   const unsafeDoorProvider = new RecordingProvider([
     [`${doorOp}:ai:expression:attempt:1`, envelope({
@@ -421,6 +430,85 @@ async function main(): Promise<void> {
   );
   const expressionCriticRequest = unsafeExpressionProvider.requests.find(request => request.attemptId.endsWith(":expression-critic:attempt:1"));
   assert.equal((expressionCriticRequest?.input.task as { renderAuthority: { mode: string } }).renderAuthority.mode, "PLAYER_EXPRESSION_FIDELITY");
+
+  const focusedDoor = await controller.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-ai-door-focused-adversarial",
+    rawInput: "J'observe plus attentivement la porte du fond"
+  });
+  if (!focusedDoor.ok) throw new Error(focusedDoor.error.messageKey);
+  assert.deepEqual(focusedDoor.value.output.resolution.perception?.revealedClueRefs, ["door-immediate-signs"]);
+  const focusedDoorOp = focusedDoor.value.operation.operationId;
+  const focusedDoorAuthority = buildNarrativeRenderAuthorityV1(focusedDoor.value.output.resolution, focusedDoor.value.output.displayPacket);
+  const mechanicalTextureProvider = new RecordingProvider([
+    [`${focusedDoorOp}:ai:expression:attempt:1`, envelope({
+      operationId: focusedDoorOp,
+      role: "player_expression_adapter",
+      attemptSuffix: "expression",
+      payload: {
+        intentId: focusedDoor.value.output.interpretation.intentId,
+        expressionKind: "observation",
+        renderedExpression: "J'observe plus attentivement la porte du fond.",
+        meaningCovered: ["observer plus attentivement la porte du fond"],
+        addedMeaning: [],
+        omittedMeaning: [],
+        styleChoices: [],
+        safeToUse: true
+      }
+    })],
+    [`${focusedDoorOp}:ai:expression-critic:attempt:1`, envelope({
+      operationId: focusedDoorOp,
+      role: "coherence_critic",
+      attemptSuffix: "expression-critic",
+      payload: { verdict: "PASS", findings: [], correctionConstraints: [] }
+    })],
+    [`${focusedDoorOp}:ai:scene-writer:attempt:1`, envelope({
+      operationId: focusedDoorOp,
+      role: "scene_writer",
+      attemptSuffix: "scene-writer",
+      payload: {
+        narrationBlocks: [{
+          slotId: "door-false-mechanical-texture",
+          blockKind: "MJ_NARRATION",
+          content: "Tu distingues derrière la poignée des engrenages rouillés mais toujours fonctionnels.",
+          groundedIn: [`resolution:${focusedDoor.value.output.resolution.resolutionId}`],
+          usesCreativeTexture: true,
+          factDiscipline: factDiscipline()
+        }]
+      }
+    })],
+    [`${focusedDoorOp}:ai:coherence-critic:attempt:1`, envelope({
+      operationId: focusedDoorOp,
+      role: "coherence_critic",
+      attemptSuffix: "coherence-critic",
+      payload: {
+        verdict: "REJECT",
+        findings: [{
+          findingId: "mechanical-state-disguised-as-texture",
+          severity: "BLOCKING",
+          category: "AUTHORITY",
+          affectedRefs: [focusedDoorAuthority.targetRef ?? "door"],
+          explanation: "La rouille, les engrenages et leur fonctionnement sont des propriétés mécaniques absentes des affirmations autorisées."
+        }],
+        correctionConstraints: ["Conserver uniquement l'indice perceptif focalisé sourcé."]
+      }
+    })]
+  ]);
+  const mechanicalTexture = await enhanceNarrativeDisplayWithAiV1({
+    campaignId,
+    operationId: focusedDoorOp,
+    displayPacket: focusedDoor.value.output.displayPacket,
+    resolution: focusedDoor.value.output.resolution,
+    sceneState: focusedDoor.value.output.sceneState,
+    config: { provider: mechanicalTextureProvider, expressionRoute, sceneWriterRoute, coherenceCriticRoute, retryPolicy }
+  });
+  assert.equal(mechanicalTexture.fallbackKind, "RENDER_AUTHORITY_REJECTION");
+  assert.equal(mechanicalTexture.displayPacket.displayBlocks.some(block => /engrenages rouillés|toujours fonctionnels/iu.test(block.text)), false);
+  assert.equal(mechanicalTexture.displayPacket.displayBlocks.some(block => /rien.*permet.*établir|mécanisme cédera/iu.test(block.text)), true);
+  const mechanicalCriticRequest = mechanicalTextureProvider.requests.find(request => request.attemptId.endsWith(":coherence-critic:attempt:1"));
+  const mechanicalRenderPlan = (mechanicalCriticRequest?.input.task as { renderAuthority: NarrativeRenderAuthorityV1 }).renderAuthority;
+  assert.equal(mechanicalRenderPlan.texturePolicy.mayAffectRules, false);
+  assert.equal(mechanicalRenderPlan.allowedClaims.some(claim => /engrenages|rouill/iu.test(claim.text)), false);
 
   const attack = await controller.submit({
     schemaVersion: 1,

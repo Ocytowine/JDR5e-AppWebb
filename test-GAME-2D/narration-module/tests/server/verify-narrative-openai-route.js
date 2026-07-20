@@ -375,6 +375,14 @@ function semanticIntentFor(req, intent) {
     confidence: intent.confidence,
     perception: kind === "observe_environment"
       ? { schemaVersion: 1, depth: "FOCUSED", focus: intent.coreMeaning, soughtInformation: null }
+      : null,
+    dialogueAct: kind === "address_visible_actor"
+      ? {
+        schemaVersion: 1,
+        act: intent.action === "ask" ? "ASK_QUESTION" : "INITIATE_CONVERSATION",
+        contentGoal: intent.coreMeaning,
+        addresseeRef: intent.target?.ref ?? null
+      }
       : null
   };
 }

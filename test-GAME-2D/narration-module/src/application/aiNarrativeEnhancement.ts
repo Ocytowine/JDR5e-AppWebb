@@ -379,13 +379,37 @@ function shouldCallSceneWriter(resolution: NarrativeResolutionResultV1, displayP
 
 export interface NarrativeRenderAuthorityV1 extends JsonObject {
   schemaVersion: 1;
+  renderPlanVersion: "narrative-render-plan/1";
   mode: "PLAYER_EXPRESSION_FIDELITY" | "OBSERVATION_RESULT" | "ACTION_STAGING_ONLY" | "CONFIRMED_OUTCOME" | "NPC_REACTION";
   semanticGoal: string;
   targetRef: string | null;
+  perspective: "FIRST_PERSON_PLAYER" | "SECOND_PERSON_PLAYER" | "THIRD_PERSON_ACTOR";
+  allowedClaims: NarrativeRenderClaimV1[];
+  allowedActorReactionRefs: string[];
+  texturePolicy: NarrativeEphemeralTexturePolicyV1;
   confirmedClaims: string[];
   unconfirmedClaims: string[];
   forbiddenClaims: string[];
   sourceRefs: string[];
+}
+
+export interface NarrativeRenderClaimV1 extends JsonObject {
+  schemaVersion: 1;
+  claimId: string;
+  category: "SOURCE_FACT" | "CONFIRMED_RESULT" | "ATTRIBUTED_SPEECH";
+  text: string;
+  sourceRefs: string[];
+}
+
+export interface NarrativeEphemeralTexturePolicyV1 extends JsonObject {
+  schemaVersion: 1;
+  allowed: boolean;
+  lifetime: "TURN_ONLY";
+  reusableAsFact: false;
+  persistToMemory: false;
+  mayAffectRules: false;
+  allowedUses: string[];
+  forbiddenUses: string[];
 }
 
 export function buildPlayerExpressionRenderAuthorityV1(
@@ -396,9 +420,20 @@ export function buildPlayerExpressionRenderAuthorityV1(
   const target = resolution.interpretation.referentResolution?.resolvedTarget ?? semantic.target;
   return {
     schemaVersion: 1,
+    renderPlanVersion: "narrative-render-plan/1",
     mode: "PLAYER_EXPRESSION_FIDELITY",
     semanticGoal: semantic.playerGoal,
     targetRef: target?.ref ?? null,
+    perspective: "FIRST_PERSON_PLAYER",
+    allowedClaims: [{
+      schemaVersion: 1,
+      claimId: "player-expression-source",
+      category: "SOURCE_FACT",
+      text: findRawInput(displayPacket),
+      sourceRefs: [`intent:${resolution.interpretation.intentId}`]
+    }],
+    allowedActorReactionRefs: [],
+    texturePolicy: texturePolicy(false),
     confirmedClaims: [
       `Texte original du joueur: ${findRawInput(displayPacket)}`,
       `Intention canonique: ${semantic.kind}.`,
@@ -431,9 +466,23 @@ export function buildNarrativeRenderAuthorityV1(
     const perception = resolution.perception;
     return {
       schemaVersion: 1,
+      renderPlanVersion: "narrative-render-plan/1",
       mode: "OBSERVATION_RESULT",
       semanticGoal: semantic.playerGoal,
       targetRef: target?.ref ?? null,
+      perspective: "SECOND_PERSON_PLAYER",
+      allowedClaims: (perception?.revealedTexts.length
+        ? perception.revealedTexts
+        : ["Le personnage porte son attention sur la cible visible."]
+      ).map((text, index) => ({
+        schemaVersion: 1,
+        claimId: `observation-source-${index + 1}`,
+        category: "SOURCE_FACT" as const,
+        text,
+        sourceRefs: perception?.sourceRefs.length ? perception.sourceRefs : sourceRefs
+      })),
+      allowedActorReactionRefs: [],
+      texturePolicy: texturePolicy(true),
       confirmedClaims: perception?.revealedTexts.length
         ? perception.revealedTexts
         : ["Le personnage porte son attention sur la cible visible."],
@@ -448,9 +497,20 @@ export function buildNarrativeRenderAuthorityV1(
   if (resolution.preparedEffects.some(effect => effect.effectType === "LOCAL_SCENE_ACTION_RECORDED")) {
     return {
       schemaVersion: 1,
+      renderPlanVersion: "narrative-render-plan/1",
       mode: "ACTION_STAGING_ONLY",
       semanticGoal: semantic.playerGoal,
       targetRef: target?.ref ?? null,
+      perspective: "SECOND_PERSON_PLAYER",
+      allowedClaims: [{
+        schemaVersion: 1,
+        claimId: "action-staging-confirmed",
+        category: "CONFIRMED_RESULT",
+        text: "Le personnage engage le geste décrit par son intention sur la cible validée.",
+        sourceRefs
+      }],
+      allowedActorReactionRefs: [],
+      texturePolicy: texturePolicy(true),
       confirmedClaims: ["Le personnage engage le geste décrit par son intention sur la cible validée."],
       unconfirmedClaims: ["Le succès ou l'échec du geste.", "Toute modification de la cible.", "Tout contenu rendu visible par le geste.", "Toute réaction nouvelle d'un PNJ."],
       forbiddenClaims: ["Annoncer que l'action réussit ou échoue.", "Décrire une ouverture, une révélation, une entrée ou une conséquence non confirmée.", "Inventer une réaction de PNJ."],
@@ -459,13 +519,52 @@ export function buildNarrativeRenderAuthorityV1(
   }
   return {
     schemaVersion: 1,
+    renderPlanVersion: "narrative-render-plan/1",
     mode: displayPacket.displayBlocks.some(block => block.kind === "NPC_SPEECH") ? "NPC_REACTION" : "CONFIRMED_OUTCOME",
     semanticGoal: semantic.playerGoal,
     targetRef: target?.ref ?? null,
+    perspective: "SECOND_PERSON_PLAYER",
+    allowedClaims: resolution.preparedEffects.map((effect, index) => ({
+      schemaVersion: 1,
+      claimId: `confirmed-effect-${index + 1}`,
+      category: "CONFIRMED_RESULT" as const,
+      text: effect.summary,
+      sourceRefs
+    })),
+    allowedActorReactionRefs: displayPacket.displayBlocks
+      .filter(block => block.kind === "NPC_SPEECH")
+      .map(block => block.speaker.speakerId),
+    texturePolicy: texturePolicy(true),
     confirmedClaims: resolution.preparedEffects.map(effect => `Effet confirmé: ${effect.effectType}.`),
     unconfirmedClaims: ["Tout résultat absent des effets et du commit confirmés."],
     forbiddenClaims: ["Ajouter un succès, un échec, une révélation, une mutation ou une réaction non sourcée."],
     sourceRefs
+  };
+}
+
+function texturePolicy(allowed: boolean): NarrativeEphemeralTexturePolicyV1 {
+  return {
+    schemaVersion: 1,
+    allowed,
+    lifetime: "TURN_ONLY",
+    reusableAsFact: false,
+    persistToMemory: false,
+    mayAffectRules: false,
+    allowedUses: allowed
+      ? [
+        "Reformulation sensorielle d'une source déjà autorisée.",
+        "Accentuation stylistique de la tension confirmée.",
+        "Liaison atmosphérique sans nouvelle cause, présence, action ou propriété."
+      ]
+      : [],
+    forbiddenUses: [
+      "État mécanique, verrouillage, fonctionnement, solidité ou efficacité d'un objet.",
+      "Histoire causale, usage antérieur, usure attribuée ou origine non sourcée.",
+      "Nouvelle présence, nouvelle source sensorielle, nouvel événement ou nouvel objet.",
+      "Réaction, action, pensée, émotion certaine ou connaissance d'un acteur non autorisé.",
+      "Condition de lumière, terrain ou environnement susceptible d'affecter une règle.",
+      "Fait mémorisable, indice, preuve, précondition ou élément réutilisable à un tour ultérieur."
+    ]
   };
 }
 

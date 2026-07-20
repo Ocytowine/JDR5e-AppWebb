@@ -269,6 +269,7 @@ function intent(
     action,
     coreMeaning,
     forbiddenInterpretations,
+    topicValue,
     requiresClarification,
     confidence
   });
@@ -337,7 +338,8 @@ function buildDiagnosticInterpretation(intentId: string, failure: AiIntentInterp
     uncertainties: [...failure.issues],
     forbiddenInterpretations: ["execute_action", "invent_narrative_fallback"],
     confidence: "low",
-    perception: null
+    perception: null,
+    dialogueAct: null
   };
   const runtimeHandling: AiIntentRuntimeHandlingV1 = {
     schemaVersion: 1,
@@ -379,12 +381,14 @@ function buildSemanticIntent(input: {
   action: string | null;
   coreMeaning: string;
   forbiddenInterpretations: string[];
+  topicValue: string | null;
   requiresClarification: boolean;
   confidence: AiStructuredPlayerIntentV1["confidence"];
 }): AiStructuredSemanticIntentV1 {
+  const kind = semanticKind(input.intentType, input.action, input.rawInput);
   return {
     schemaVersion: 1,
-    kind: semanticKind(input.intentType, input.action, input.rawInput),
+    kind,
     playerGoal: input.coreMeaning,
     target: input.target,
     commitment: input.commitment,
@@ -392,8 +396,16 @@ function buildSemanticIntent(input: {
     uncertainties: input.requiresClarification ? ["engagement, cible ou portée à clarifier"] : [],
     forbiddenInterpretations: [...input.forbiddenInterpretations],
     confidence: input.confidence,
-    perception: semanticKind(input.intentType, input.action, input.rawInput) === "observe_environment"
+    perception: kind === "observe_environment"
       ? { schemaVersion: 1, depth: "GLANCE", focus: input.coreMeaning, soughtInformation: null }
+      : null,
+    dialogueAct: kind === "address_visible_actor"
+      ? {
+        schemaVersion: 1,
+        act: input.topicValue === null ? "INITIATE_CONVERSATION" : input.action === "ask" ? "ASK_QUESTION" : "MAKE_STATEMENT",
+        contentGoal: input.coreMeaning,
+        addresseeRef: input.target?.ref ?? null
+      }
       : null
   };
 }
@@ -654,8 +666,18 @@ function mapAiIntentToNarrativeInterpretationV1(input: {
 }
 
 function normalizeMappedIntentTarget(intentValue: AiStructuredPlayerIntentV1): AiStructuredPlayerIntentV1 {
+  const proposedTarget = intentValue.referentResolution?.resolvedTarget ?? intentValue.semanticIntent.target ?? intentValue.target;
+  if (intentValue.semanticIntent.kind === "observe_environment" && proposedTarget?.kind === "unknown" && proposedTarget.ref === null) {
+    const referentResolution = intentValue.referentResolution;
+    return {
+      ...intentValue,
+      target: null,
+      referentResolution: referentResolution == null ? null : { ...referentResolution, resolvedTarget: null },
+      semanticIntent: { ...intentValue.semanticIntent, target: null }
+    };
+  }
   if (intentValue.semanticIntent.kind !== "nonverbal_signal") return intentValue;
-  const target = intentValue.referentResolution?.resolvedTarget ?? intentValue.semanticIntent.target ?? intentValue.target;
+  const target = proposedTarget;
   if (target === null || target.kind !== "npc") return intentValue;
   return {
     ...intentValue,

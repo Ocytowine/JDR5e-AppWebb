@@ -11,6 +11,8 @@ import type { AiIncidentRecordV1 } from "../../src/ai/types";
 import {
   NARRATIVE_RENDER_PROJECTION_CONTRACT_VERSION_V1,
   NarrativeTurnControllerV1,
+  createDefaultNpcPerformerConfigV1,
+  reconstructRenderedNpcUtterancesV1,
   type AiNarrativeEnhancementResultV1
 } from "../../src/application";
 
@@ -109,6 +111,55 @@ async function main(): Promise<void> {
   assert.equal(restored.value.displayPackets[0]?.operationId, turn.value.output.operationId);
   assert.equal(restored.value.projections[0]?.displayPacketFingerprint, recorded.value.projection.displayPacketFingerprint);
   assert.deepEqual(restored.value.skippedOperationIds, []);
+
+  const expectedGuardReply = turn.value.output.displayPacket.displayBlocks.find(block =>
+    block.kind === "NPC_SPEECH" && block.speaker.speakerId === "speaker-garde-blesse"
+  )?.text;
+  assert.ok(expectedGuardReply, "la première projection doit contenir la réplique affichée du garde");
+  const reconstructed = await reconstructRenderedNpcUtterancesV1({
+    repository,
+    campaignId,
+    actorId: "npc:npc-garde-blesse",
+    limit: 20
+  });
+  if (!reconstructed.ok) throw new Error(reconstructed.error.messageKey);
+  assert.equal(reconstructed.value.length, 1);
+  assert.equal(reconstructed.value[0]?.text, expectedGuardReply, "la mémoire reprend exactement le texte finalement affiché");
+  assert.equal(reconstructed.value[0]?.sourceOperationId, turn.value.output.operationId);
+  const waitressMemory = await reconstructRenderedNpcUtterancesV1({
+    repository,
+    campaignId,
+    actorId: "npc:npc-serveuse-nerveuse",
+    limit: 20
+  });
+  if (!waitressMemory.ok) throw new Error(waitressMemory.error.messageKey);
+  assert.deepEqual(waitressMemory.value, [], "une réplique du garde ne doit pas alimenter la mémoire de la serveuse");
+
+  const performerConfig = createDefaultNpcPerformerConfigV1();
+  const capturedPerformerTask: { value: Record<string, unknown> | null } = { value: null };
+  const memoryAwareController = new NarrativeTurnControllerV1({
+    repository,
+    campaignId,
+    clock,
+    idPrefix: "memory-aware",
+    npcPerformerConfig: {
+      ...performerConfig,
+      provider: {
+        async generate(request) {
+          capturedPerformerTask.value = request.input.task as Record<string, unknown>;
+          return performerConfig.provider.generate(request);
+        }
+      }
+    }
+  });
+  const followUp = await memoryAwareController.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-render-projection-follow-up",
+    rawInput: "je demande au garde ce qu'il a vu"
+  });
+  if (!followUp.ok) throw new Error(followUp.error.messageKey);
+  const knowledgeEnvelope = capturedPerformerTask.value?.knowledgeEnvelope as { priorNpcUtterances?: Array<{ text?: string }> } | undefined;
+  assert.equal(knowledgeEnvelope?.priorNpcUtterances?.[0]?.text, expectedGuardReply, "le performer reçoit la réplique persistée exacte au tour suivant");
 
   const sourceAfterRecord = await repository.getOperation(turn.value.operation.operationId);
   if (!sourceAfterRecord.ok) throw new Error(sourceAfterRecord.error.messageKey);

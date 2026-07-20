@@ -555,6 +555,7 @@ async function buildResolvedOutput(input: {
   const npcPerformance = input.npcPerformerConfig === null
     ? null
     : await performNpcTurnV1({
+      repository: input.repository,
       campaignId: input.campaignId,
       operationId: input.operation.operationId,
       rawInput: input.input.rawInput,

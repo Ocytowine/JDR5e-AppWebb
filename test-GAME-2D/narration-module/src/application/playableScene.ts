@@ -126,8 +126,8 @@ export const REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1: PlayableSceneStateV1 = {
     publicRole: "Garde de ville",
     visibleState: "fatigué, nerveux, blessure bandée sous la cuirasse",
     keywords: ["garde", "blesse", "soldat", "homme", "homme blessé"],
-    defaultReply: "Le garde baisse la voix. « Si vous cherchez des réponses, commencez par la porte du fond. Mais ne faites pas de geste brusque ici. »",
-    repeatedReply: "Le garde ne répète pas toute son explication. Il incline seulement la tête vers l'arrière-salle. « Je vous l'ai dit : la porte du fond. Si vous insistez, faites-le vite, avant que ceux dehors n'entrent. »",
+    defaultReply: "Le garde écoute la question sans quitter son flanc bandé. « Je vous ai entendu. Je ne répondrai que sur ce que je peux confirmer ici. »",
+    repeatedReply: "Le garde soutient ton regard. « Votre question est claire, mais je ne peux rien confirmer de plus ici. »",
     version: 1
   }, {
     schemaVersion: 1,
@@ -137,8 +137,8 @@ export const REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1: PlayableSceneStateV1 = {
     publicRole: "Employée de l'auberge",
     visibleState: "mains occupées, regard fuyant, attention fixée sur l'arrière-salle",
     keywords: ["serveuse", "aubergiste", "comptoir", "femme", "dame"],
-    defaultReply: "La serveuse cesse enfin d'essuyer son gobelet. « Avec cette pluie, ce garde blessé et tous ces regards qui reviennent vers cette porte, vous ne seriez pas nerveux, vous ? »",
-    repeatedReply: "La serveuse garde le gobelet entre ses mains. « Je vous ai déjà dit que je ne veux pas d'ennuis. La porte du fond ne s'ouvre pas pour les curieux. »",
+    defaultReply: "La serveuse suspend son geste et écoute la question. « Je vous ai entendu, mais je préfère ne rien affirmer de plus ici. »",
+    repeatedReply: "La serveuse garde le gobelet entre ses mains. « Votre question est claire. Ma réponse ne change pas : je ne peux rien confirmer de plus ici. »",
     version: 1
   }],
   pointsOfInterest: [{
@@ -150,6 +150,33 @@ export const REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1: PlayableSceneStateV1 = {
     version: 1
   }],
   perceptionClues: [{
+    schemaVersion: 1,
+    clueId: "door-immediate-signs",
+    targetRef: "poi:back-room-door",
+    visibility: "IMMEDIATE",
+    factKind: "VISIBLE_SIGN",
+    playerText: "La porte du fond est étroite, munie d'une poignée et placée près du comptoir; rien dans son aspect visible ne permet encore d'établir ce qui se trouve derrière ni si son mécanisme cédera.",
+    sourceRefs: ["reference-scene:reference-inn-rain-001", "poi:back-room-door"],
+    version: 1
+  }, {
+    schemaVersion: 1,
+    clueId: "door-focused-signs",
+    targetRef: "poi:back-room-door",
+    visibility: "FOCUSED",
+    factKind: "VISIBLE_SIGN",
+    playerText: "En examinant plus attentivement la porte, tu distingues le battant, la poignée et le mécanisme accessibles depuis la salle, sans pouvoir déduire par la seule vue leur état interne ni le contenu de l'arrière-salle.",
+    sourceRefs: ["reference-scene:reference-inn-rain-001", "poi:back-room-door"],
+    version: 1
+  }, {
+    schemaVersion: 1,
+    clueId: "door-checked-mechanism",
+    targetRef: "poi:back-room-door",
+    visibility: "CHECKED",
+    factKind: "HIDDEN_FACT",
+    playerText: "L'état exact du mécanisme exige une vérification ou une manipulation; il n'est pas révélé par une simple observation.",
+    sourceRefs: ["reference-scene:reference-inn-rain-001", "poi:back-room-door"],
+    version: 1
+  }, {
     schemaVersion: 1,
     clueId: "waitress-immediate-signs",
     targetRef: "npc:npc-serveuse-nerveuse",

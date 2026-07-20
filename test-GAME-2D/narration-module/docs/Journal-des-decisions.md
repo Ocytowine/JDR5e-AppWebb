@@ -2389,3 +2389,85 @@ Le scénario manuel a montré qu'une résolution et une narration MJ correctemen
 ### Conséquences
 
 La fidélité ne dépend plus de l'auto-évaluation de l'adaptateur. Une régression simule explicitement une reformulation déclarée sûre qui ajoute déverrouillage et ouverture accomplie; le critique la refuse et le texte joueur initial reste visible. Le diagnostic système ne suggère plus qu'une projection `action=act` décide du comportement ni qu'un commit est seulement « possible » après son application.
+
+## NAR-128 — Les domaines, perceptions et dialogues se valident par leurs structures
+
+Statut : `RETENU`
+
+Date : 2026-07-20
+
+### Décision
+
+Le validateur ne recherche plus dans `coreMeaning` des mots supposés conférer une autorité de résultat, notamment `inventaire`. L'autorité se contrôle exclusivement par l'intention structurée, le domaine requis, la décision runtime, la commande et les effets.
+
+La résolution perceptive s'applique désormais aussi aux points d'intérêt. La porte de référence déclare des indices immédiats, focalisés et retenus; l'ancien rendu lexical ne peut plus affirmer son déverrouillage ou inventer des réactions à son observation. Une observation globale sans cible canonique utilise uniquement la situation perceptible déclarée et ne conserve pas un pseudo-référent `unknown`.
+
+Une manipulation structurée `open` ou `force` visant un objet ou lieu visible est stabilisée localement vers `scene_resolution`, même si la suggestion IA propose un domaine `world` incohérent. Cette correction part des champs sémantiques et non du texte brut.
+
+Enfin, un dialogue de repli ne choisit plus une intrigue ou une ancienne réplique d'après le seul compteur d'interactions. Il accuse réception sans inventer de fait. Le `npc_performer` OpenAI doit répondre à la question actuelle ou formuler une esquive explicite portant sur elle; il ne peut évoquer un propos, une promesse ou une interdiction antérieurs que s'ils existent dans la mémoire fournie.
+
+### Raisons
+
+La recette complète révélait un rejet de « Je vérifie mon inventaire » causé par une regex, une observation de porte annonçant sans source qu'elle n'était pas verrouillée, un même geste routé tantôt vers `scene_resolution`, tantôt vers `world`, et des PNJ répondant à une autre question tout en prétendant avoir déjà livré des informations absentes.
+
+### Conséquences
+
+Les régressions couvrent les deux niveaux perceptifs de la porte, l'absence de révélation sur son mécanisme et la stabilisation structurée du domaine. Les fallbacks PNJ perdent volontairement en richesse lorsqu'aucune performance sémantique fiable n'est disponible, mais restent cohérents et sans faux historique.
+
+## NAR-129 — La créativité visible est une permission positive limitée au tour
+
+Statut : `RETENU`
+
+Date : 2026-07-20
+
+### Décision
+
+La frontière de rendu devient un plan positif `narrative-render-plan/1`. Elle énumère les affirmations sourcées, la perspective, les acteurs autorisés à réagir et une politique de texture éphémère. Une texture ne peut être mémorisée, affecter une règle ou devenir une preuve, un indice ou une précondition.
+
+### Raisons
+
+La recette OpenAI a produit simultanément une ambiance légitime et des engrenages rouillés déclarés fonctionnels. L'ancien booléen `usesCreativeTexture` et l'auto-audit `factDiscipline` ne suffisaient pas à distinguer une reformulation sensorielle d'un état mécanique exploitable. Interdire toute créativité aurait contredit le cap produit; laisser le modèle définir seul la frontière aurait donné une autorité implicite à la prose.
+
+### Conséquences
+
+Le `scene_writer` et le critique reçoivent la même liste positive. La perspective seconde personne est explicite. Les propriétés, causalités, sources sensorielles, réactions et conditions mécaniques absentes restent interdites même si le modèle les présente comme texture. La prochaine étape est une matrice adversariale dédiée, puis la consolidation des actes de dialogue.
+
+## NAR-130A — L'acte courant et la mémoire disponible bornent la réaction PNJ
+
+Statut : `RETENU`
+
+Date : 2026-07-20
+
+### Décision
+
+`semanticIntent` distingue désormais `INITIATE_CONVERSATION`, `ASK_QUESTION`, `MAKE_STATEMENT`, `REQUEST_ACTION` et `OTHER`. Le `npc_performer` reçoit cet acte directement, ainsi qu'une enveloppe séparant faits publics, paroles antérieures du joueur et répliques PNJ antérieures réellement disponibles.
+
+La mémoire actuelle ne possède pas encore de source autoritaire pour la réplique finalement affichée. Le paquet déclare donc honnêtement `priorNpcUtterances=[]`. Le performer ne peut pas prétendre répéter une réponse, évoquer un propos antérieur ou écrire que sa réponse ne change pas. Un rejet du performer devient visible dans le statut UI tout en conservant la réaction déterministe bornée déjà produite.
+
+### Raisons
+
+Les recettes montraient qu'une prise de contact pouvait être traitée comme une question et que le compteur d'interactions suffisait à fabriquer un faux passé conversationnel. La mémoire d'une intention joueur ne prouve pas les mots effectivement prononcés ensuite par le PNJ.
+
+### Conséquences
+
+Le prompt OpenAI et le fallback local répondent à l'acte courant sans créer d'historique. `NAR-130B` devra enregistrer la seule réplique validée et effectivement retenue dans une source reconstructible; jusque-là, la perte volontaire de continuité PNJ est préférable à une fausse mémoire.
+
+## NAR-130B — La mémoire PNJ se reconstruit depuis la réplique réellement affichée
+
+Statut : `RETENU`
+
+Date : 2026-07-20
+
+### Décision
+
+La projection finale `narrative-render-projection/1` est la source reconstructible de la parole effectivement montrée au joueur. Avant un nouveau tour PNJ, le runtime relit ses blocs `NPC_SPEECH`, les filtre par acteur et transmet au plus cinq répliques exactes avec leurs références d'opération et l'empreinte du paquet affiché.
+
+L'agrégat de scène conserve seulement le résumé de l'intention verbale du joueur. Son ancien résumé attribuant au garde ou à la serveuse des informations non prouvées est supprimé. Aucune copie supplémentaire de la réplique n'est écrite dans cet agrégat.
+
+### Raisons
+
+Mémoriser la sortie brute du performer aurait conservé un texte potentiellement remplacé ou rejeté. Ajouter la réplique à l'état de scène après coup aurait créé une seconde vérité et une mutation distincte de la projection déjà persistée.
+
+### Conséquences
+
+Après rechargement IndexedDB comme entre deux sessions, le performer retrouve les mots réellement affichés. Il peut assurer une continuité conversationnelle exacte sans transformer leur contenu en fait objectif. Sans projection, aucune ancienne réplique n'est supposée.

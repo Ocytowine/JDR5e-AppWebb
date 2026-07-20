@@ -246,6 +246,10 @@ La validation rejette tout ajout d'objectif, consentement, connaissance, certitu
 
 ### 6.4 `npc_performer`
 
+Le tour de dialogue fournit un acte sémantique explicite parmi `INITIATE_CONVERSATION`, `ASK_QUESTION`, `MAKE_STATEMENT`, `REQUEST_ACTION` et `OTHER`. Une ouverture de contact n'est donc pas une question implicite et une affirmation du joueur ne doit pas être reformulée comme une demande.
+
+Le paquet du performer sépare les faits publics, les paroles antérieures du joueur et les répliques PNJ réellement disponibles. `priorNpcUtterances` est reconstruit exclusivement depuis les blocs `NPC_SPEECH` des projections finales persistées, avec leur opération source, leur opération de rendu et l'empreinte du paquet affiché. Une parole ainsi rappelée reste attribuée au PNJ et ne devient pas une vérité objective. En l'absence de projection correspondante, le modèle ne peut pas écrire qu'il se répète, que sa réponse ne change pas ou qu'il a déjà fourni une information.
+
 ```ts
 interface NpcPerformerPayloadV1 {
   actorId: string;

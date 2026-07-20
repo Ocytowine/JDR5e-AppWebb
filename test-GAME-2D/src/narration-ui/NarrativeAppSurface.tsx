@@ -85,6 +85,9 @@ export function NarrativeAppSurface() {
         return;
       }
       const enhancement = await enhancePrototypePacket(result.value.output, enhancementMode, packetsFromController);
+      const statusMessage = result.value.output.npcPerformanceFailure === null
+        ? enhancement.status
+        : `Réaction PNJ IA indisponible ou rejetée : réaction locale bornée conservée. ${enhancement.status}`;
       const recorded = await controller.recordRenderedProjection({
         schemaVersion: 1,
         clientRequestId: result.value.output.clientRequestId,
@@ -92,13 +95,13 @@ export function NarrativeAppSurface() {
         mode: enhancementMode,
         finalEnhancement: enhancement.finalEnhancement,
         attemptedEnhancement: enhancement.attemptedEnhancement,
-        statusMessage: enhancement.status
+        statusMessage
       });
       if (!recorded.ok) {
         setErrorMessage(recorded.error.messageKey);
         return;
       }
-      setEnhancementStatus(enhancement.status);
+      setEnhancementStatus(statusMessage);
       const enhanced = enhancement.displayPacket;
       setPacketsFromController(prev => [...prev, enhanced]);
     }).catch(error => {

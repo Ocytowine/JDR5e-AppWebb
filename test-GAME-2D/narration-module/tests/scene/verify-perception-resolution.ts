@@ -31,6 +31,23 @@ assert.deepEqual(focused?.revealedClueRefs, ["waitress-focused-rhythm"]);
 assert.equal(focused?.revealedTexts.some(text => /geste ralentit/u.test(text)), true);
 assert.equal(focused?.revealedTexts.some(text => /cause exacte|redoute|pense/u.test(text)), false);
 
+const doorGlance = resolvePerceptionV1({
+  semanticIntent: { ...observation("GLANCE", "observer la porte"), target: { kind: "object", ref: "poi:back-room-door", label: "Porte du fond" } },
+  targetRef: "poi:back-room-door",
+  scene: REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1
+});
+assert.deepEqual(doorGlance?.revealedClueRefs, ["door-immediate-signs"]);
+assert.equal(doorGlance?.revealedTexts.some(text => /rien.*permet.*établir.*derrière/iu.test(text)), true);
+assert.equal(doorGlance?.revealedTexts.some(text => /n'est pas verrouillée/iu.test(text)), false);
+
+const doorFocused = resolvePerceptionV1({
+  semanticIntent: { ...observation("FOCUSED", "examiner attentivement la porte"), target: { kind: "object", ref: "poi:back-room-door", label: "Porte du fond" } },
+  targetRef: "poi:back-room-door",
+  scene: REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1
+});
+assert.deepEqual(doorFocused?.revealedClueRefs, ["door-focused-signs"]);
+assert.equal(doorFocused?.revealedTexts.some(text => /état interne/iu.test(text)), true);
+
 const search = resolvePerceptionV1({
   semanticIntent: observation("SEARCH", "chercher à déterminer la cause de sa nervosité", "cause de sa nervosité"),
   targetRef: target.ref,

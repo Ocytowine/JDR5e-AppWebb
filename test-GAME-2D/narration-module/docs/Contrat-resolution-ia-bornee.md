@@ -72,6 +72,23 @@ La frontière remise aux adaptateurs de texte et au critique distingue cinq mode
 
 Ce contrôle est sémantique. Le code applicatif ne tente pas de reconnaître une liste de formulations interdites dans la prose. Il valide les références et la discipline factuelle structurée, puis confie la comparaison de sens au critique borné.
 
+## Amendement NAR-129 — plan de rendu positif
+
+`NarrativeRenderAuthorityV1` transporte désormais `renderPlanVersion=narrative-render-plan/1`, une perspective, des `allowedClaims` sourcées, les références d'acteurs autorisés à réagir et une `texturePolicy` explicite.
+
+Les affirmations positives appartiennent à `SOURCE_FACT`, `CONFIRMED_RESULT` ou `ATTRIBUTED_SPEECH`. Une texture autorisée reste `TURN_ONLY`, `reusableAsFact=false`, `persistToMemory=false` et `mayAffectRules=false`.
+
+La texture peut reformuler une sensation déjà sourcée, accentuer une tension confirmée ou relier stylistiquement des faits autorisés. Elle ne peut pas ajouter :
+
+- propriété matérielle ou usure non fournie ;
+- état interne, mécanique, fonctionnement, solidité ou efficacité ;
+- causalité passée ou usage antérieur ;
+- nouvelle source sensorielle, présence, action ou réaction ;
+- lumière, terrain ou environnement pouvant affecter une règle ;
+- indice, preuve, précondition ou fait réutilisable.
+
+Le `scene_writer` et le `coherence_critic` reçoivent ce même plan. Le critique reste une défense supplémentaire : l'autorité vient du plan positif construit depuis la résolution et ses sources.
+
 ## Ordre obligatoire
 
 1. recevoir une `NarrativeResolutionResultV1` deja produite;

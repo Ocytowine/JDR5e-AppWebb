@@ -610,8 +610,11 @@ function actionNarration(
   sceneState?: ReferenceSceneStateV1
 ): string {
   const target = interpretation.referentResolution?.resolvedTarget ?? interpretation.semanticIntent.target ?? null;
-  if (interpretation.semanticIntent.kind === "observe_environment" && target?.kind === "npc") {
-    const narrativeTarget = referenceNarrativeTargetLabel(target.ref, target.label);
+  if (interpretation.semanticIntent.kind === "observe_environment" && resolution.perception !== null) {
+    if (target === null || target.kind === "self" || target.kind === "unknown") {
+      return REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1.perceptibleSituation.join(" ");
+    }
+    const narrativeTarget = referenceNarrativeTargetLabel(target?.ref, target?.label);
     if (resolution.perception?.status === "AUTOMATIC_RESULT" && resolution.perception.revealedTexts.length > 0) {
       return resolution.perception.revealedTexts.join(" ");
     }
@@ -621,7 +624,7 @@ function actionNarration(
     if (resolution.perception?.status === "NOT_PERCEPTIBLE") {
       return `Tu maintiens ton attention sur ${narrativeTarget}, sans découvrir de nouvel élément directement perceptible.`;
     }
-    const actorId = target.ref?.replace(/^npc:/u, "") ?? "";
+    const actorId = target?.ref?.replace(/^npc:/u, "") ?? "";
     const actor = REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1.presentNpc.find(entry => entry.actorId === actorId);
     if (actor) {
       const continuity = actorId === "npc-garde-blesse" && sceneState?.guardAddressed
@@ -631,6 +634,7 @@ function actionNarration(
           : "";
       return `Tu concentres ton attention sur ${actor.narrativeLabel ?? actor.displayName.toLowerCase()}. Les signes directement visibles restent les mêmes : ${actor.visibleState}.${continuity}`;
     }
+    return `Tu concentres ton attention sur ${narrativeTarget}, sans obtenir de nouvel élément perceptible autorisé.`;
   }
   if (
     resolution.preparedEffects.some(effect => effect.effectType === "LOCAL_SCENE_ACTION_RECORDED") &&
@@ -649,7 +653,7 @@ function actionNarration(
   return observationNarration(rawInput, sceneState);
 }
 
-function referenceNarrativeTargetLabel(ref: string | null, fallback: string | null): string {
+function referenceNarrativeTargetLabel(ref: string | null | undefined, fallback: string | null | undefined): string {
   const actorId = ref?.replace(/^npc:/u, "") ?? "";
   const actor = REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1.presentNpc.find(entry => entry.actorId === actorId);
   return actor?.narrativeLabel ?? fallback?.toLowerCase() ?? "la cible";
@@ -658,20 +662,17 @@ function referenceNarrativeTargetLabel(ref: string | null, fallback: string | nu
 function guardSpeechNarration(sceneState?: ReferenceSceneStateV1): string {
   const remembered = sceneState?.shortTermNpcMemory.filter(memory => memory.actorId === "npc-garde-blesse").at(-1);
   if ((sceneState?.interactionCount ?? 0) > 1 && remembered) {
-    return "Le garde ne répète pas toute son explication. Il incline seulement la tête vers l'arrière-salle. « Je vous l'ai dit : la porte du fond. Si vous insistez, faites-le vite, avant que ceux dehors n'entrent. »";
+    return "Le garde soutient ton regard. « Votre question est claire, mais je ne peux rien confirmer de plus ici. »";
   }
-  if ((sceneState?.interactionCount ?? 0) > 0) {
-    return "Le garde baisse encore la voix, plus pressé qu'avant. « Vous avez compris l'essentiel : la porte du fond. Mais si vous forcez les choses ici, je ne pourrai plus vous couvrir. »";
-  }
-  return "Le garde baisse la voix. « Si vous cherchez des réponses, commencez par la porte du fond. Mais ne faites pas de geste brusque ici. »";
+  return "Le garde écoute la question sans quitter son flanc bandé. « Je vous ai entendu. Je ne répondrai que sur ce que je peux confirmer ici. »";
 }
 
 function waitressSpeechNarration(sceneState?: ReferenceSceneStateV1): string {
   const remembered = sceneState?.shortTermNpcMemory.filter(memory => memory.actorId === "npc-serveuse-nerveuse").at(-1);
   if ((sceneState?.interactionCount ?? 0) > 1 && remembered) {
-    return "La serveuse garde le gobelet entre ses mains. « Je vous ai déjà dit que je ne veux pas d'ennuis. La porte du fond ne s'ouvre pas pour les curieux. »";
+    return "La serveuse garde le gobelet entre ses mains. « Votre question est claire. Ma réponse ne change pas : je ne peux rien confirmer de plus ici. »";
   }
-  return "La serveuse cesse enfin d'essuyer son gobelet. « Avec cette pluie, ce garde blessé et tous ces regards qui reviennent vers cette porte, vous ne seriez pas nerveux, vous ? »";
+  return "La serveuse suspend son geste et écoute la question. « Je vous ai entendu, mais je préfère ne rien affirmer de plus ici. »";
 }
 
 function handoffNarration(target: string): string {

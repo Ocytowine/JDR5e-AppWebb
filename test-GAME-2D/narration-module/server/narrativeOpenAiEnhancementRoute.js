@@ -183,7 +183,7 @@ function buildRolePayloadSchema(requestOrRole) {
               semanticIntent: {
                 type: "object",
                 additionalProperties: false,
-                required: ["schemaVersion", "kind", "playerGoal", "target", "commitment", "evidenceFromInput", "uncertainties", "forbiddenInterpretations", "confidence", "perception"],
+                required: ["schemaVersion", "kind", "playerGoal", "target", "commitment", "evidenceFromInput", "uncertainties", "forbiddenInterpretations", "confidence", "perception", "dialogueAct"],
                 properties: {
                   schemaVersion: { enum: [1] },
                   kind: { enum: ["address_visible_actor", "manipulate_visible_object", "observe_environment", "nonverbal_signal", "hypothetical_action", "context_question", "meta_request", "unclear_intent"] },
@@ -218,6 +218,19 @@ function buildRolePayloadSchema(requestOrRole) {
                         depth: { enum: ["GLANCE", "FOCUSED", "SEARCH"] },
                         focus: { type: "string" },
                         soughtInformation: { type: ["string", "null"] }
+                      }
+                    }, { type: "null" }]
+                  },
+                  dialogueAct: {
+                    anyOf: [{
+                      type: "object",
+                      additionalProperties: false,
+                      required: ["schemaVersion", "act", "contentGoal", "addresseeRef"],
+                      properties: {
+                        schemaVersion: { enum: [1] },
+                        act: { enum: ["INITIATE_CONVERSATION", "ASK_QUESTION", "MAKE_STATEMENT", "REQUEST_ACTION", "OTHER"] },
+                        contentGoal: { type: "string" },
+                        addresseeRef: { type: ["string", "null"] }
                       }
                     }, { type: "null" }]
                   }
@@ -857,11 +870,13 @@ function buildRoleInstructions(request) {
       "Recopie exactement schemaVersion, contractVersion, callId, attemptId, packId, snapshotId et role depuis l'entree utilisateur.",
       "Utilise diagnostics=[] si tout va bien, supersedesOutputId=null et status=OK pour une sortie utilisable.",
       "Role player_intent_interpreter: produire une intention structuree, pas un resultat.",
-      "Chaque intention doit remplir semanticIntent: kind, playerGoal, target, commitment, evidenceFromInput, uncertainties, forbiddenInterpretations, confidence et perception.",
+      "Chaque intention doit remplir semanticIntent: kind, playerGoal, target, commitment, evidenceFromInput, uncertainties, forbiddenInterpretations, confidence, perception et dialogueAct.",
       "Pour observe_environment, perception est obligatoire: GLANCE pour une perception immédiate, FOCUSED pour une attention renforcée, SEARCH pour rechercher activement une information qui peut exiger une vérification. Déduis ce niveau du sens complet de la demande, jamais d'un mot isolé.",
       "Choisis GLANCE par défaut pour une observation ordinaire sans intensification ni objectif de recherche, par exemple 'Je regarde la serveuse'. Ne surclasse jamais une demande ordinaire en FOCUSED par prudence ou pour enrichir la narration.",
       "Choisis FOCUSED seulement si le joueur exprime réellement une attention renforcée, prolongée, précise ou comparative, par exemple 'Je l'observe plus attentivement'. Choisis SEARCH seulement si le joueur cherche à découvrir ou établir une information déterminée au-delà des signes immédiatement visibles.",
       "Pour toute autre intention, perception doit être null.",
+      "Pour address_visible_actor, dialogueAct est obligatoire: INITIATE_CONVERSATION si le joueur ouvre seulement le contact, ASK_QUESTION pour une question, MAKE_STATEMENT pour une information exprimée, REQUEST_ACTION pour une demande d'agir, OTHER sinon. Pour toute autre intention, dialogueAct doit être null.",
+      "Ne transforme pas 'je parle à la serveuse' en question: c'est INITIATE_CONVERSATION tant qu'aucun contenu de parole n'est donné.",
       "semanticIntent.playerGoal porte le sens principal de la saisie joueur; ne le reduis pas a une action canonique.",
       "Chaque intention doit remplir runtimeHandling: status, reason, requiredDomain, canonicalActionHint, noCommit et noGameTime.",
       "runtimeHandling indique si le runtime courant peut traiter l'intention; il ne donne aucune autorite de commit, succes, temps ou secret.",
@@ -891,6 +906,9 @@ function buildRoleInstructions(request) {
     return [
       "Tu es un contrôleur sémantique non autoritaire de rendu narratif.",
       "Compare uniquement candidateNarration à renderAuthority. Tu ne réécris pas la narration et tu ne produis aucun fait de fiction.",
+      "renderAuthority.allowedClaims est la liste positive des affirmations disponibles. Une affirmation concrète absente de cette liste n'est permise que si texturePolicy l'autorise réellement comme texture éphémère.",
+      "Une texture TURN_ONLY peut reformuler une sensation déjà sourcée ou accentuer une tension confirmée; elle ne peut jamais ajouter propriété matérielle, état mécanique, causalité passée, source sensorielle, éclairage pertinent pour les règles, présence, action ou réaction.",
+      "Vérifie la perspective imposée. SECOND_PERSON_PLAYER interdit de remplacer le point de vue joueur par 'le personnage' à la troisième personne.",
       "REJECT avec au moins un finding BLOCKING si la prose affirme un résultat, une mutation, une révélation, une pensée privée ou une réaction absente des confirmedClaims.",
       "Pour PLAYER_EXPRESSION_FIDELITY, préserve exactement le but, la cible, l'intensité et le degré d'engagement du joueur. Rejette toute étape d'action, méthode, condition préalable, connaissance, émotion, promesse, réussite ou conséquence ajoutée par la reformulation.",
       "Pour ACTION_STAGING_ONLY, le geste engagé est autorisé mais son succès, l'état résultant de la cible, ce qui devient visible et les réactions de PNJ sont interdits.",
@@ -928,6 +946,11 @@ function buildRoleInstructions(request) {
       "Recopie exactement schemaVersion, contractVersion, callId, attemptId, packId, snapshotId et role depuis l'entree utilisateur.",
       "Utilise diagnostics=[] si tout va bien, supersedesOutputId=null et status=OK pour une sortie utilisable.",
       "Role npc_performer: produire une reaction courte du PNJ assigne, a partir de task.interpretation, task.mjPlan, task.resolution et task.sceneState.",
+      "Lis task.dialogueAct comme contrat du tour: INITIATE_CONVERSATION ouvre seulement le contact et ne doit inventer aucune question; ASK_QUESTION répond à contentGoal; MAKE_STATEMENT accuse réception sans la transformer en question; REQUEST_ACTION accepte, refuse ou hésite sans décider un succès; OTHER reste prudent.",
+      "La réaction doit répondre au but sémantique du tour courant, ou exprimer clairement un refus, une ignorance ou une esquive portant sur ce but.",
+      "N'affirme jamais que le PNJ a déjà dit, promis, interdit, couvert ou expliqué quelque chose sauf si la réplique exacte apparaît dans task.knowledgeEnvelope.priorNpcUtterances.",
+      "Si priorNpcUtterances est vide, n'écris jamais 'je vous l'ai déjà dit', 'ma réponse ne change pas', 'encore une fois' ni aucun faux rappel équivalent.",
+      "N'utilise que les faits publics et la mémoire fournis; une réponse générique provenant d'un autre sujet de conversation est inutilisable.",
       "Ne decide jamais un succes social, un echec social, une consequence durable, un changement d'etat, un combat, un gain, une perte, une avance de temps ou une revelation de secret.",
       "durableCommitments doit rester []. revealedRefs doit rester [].",
       "safetyConstraints doit etre integralement true: noMechanicalSuccess, noSecretReveal, noDurableCommitment, noStateMutation.",
@@ -941,6 +964,10 @@ function buildRoleInstructions(request) {
   return [
     ...shared,
     "Role scene_writer: ajoute seulement une narration MJ atmospherique ancree dans les resolutions deja confirmees.",
+    "task.renderAuthority.allowedClaims est la liste positive des affirmations que tu peux formuler. Ne complète pas un objet ou un acteur par des propriétés plausibles mais absentes.",
+    "Si texturePolicy.allowed=true, la texture reste TURN_ONLY: elle peut seulement reformuler une sensation déjà sourcée, accentuer une tension confirmée ou relier stylistiquement des faits autorisés.",
+    "Interdit même comme texture: matériau ou usure non fournis, état interne ou mécanique, fonctionnement, causalité passée, nouvelle source sonore ou lumineuse, présence, action ou réaction non autorisée, détail utilisable comme indice ou règle.",
+    "Respecte renderAuthority.perspective; SECOND_PERSON_PLAYER s'adresse au joueur avec 'tu' et ne raconte pas 'le personnage' à la troisième personne.",
     "Le rendu doit etre concret: lieu, perception, tension locale, PNJ visibles. Evite les phrases generiques comme 'tout reste possible' si un detail de scene est disponible.",
     "Pour une parole ou une action engagee, montre la mise en scene immediate sans decider le succes, l'echec, la reaction decisive ou une consequence durable.",
     "Pour une question de contexte no-commit, reponds directement avec les perceptions et faits visibles deja fournis dans un bloc blockKind=MJ_NARRATION; n'ajoute aucune action du personnage et ne fais pas avancer le temps.",
@@ -1421,6 +1448,17 @@ function validateIntentSemanticIntent(value, intent, index, allowedSemanticKinds
     if (!["GLANCE", "FOCUSED", "SEARCH"].includes(value.perception.depth)) issues.push(`payload.intents[${index}].semanticIntent.perception.depth is invalid.`);
     if (typeof value.perception.focus !== "string" || value.perception.focus.trim().length === 0) issues.push(`payload.intents[${index}].semanticIntent.perception.focus must be a non-empty string.`);
     if (!(value.perception.soughtInformation === null || typeof value.perception.soughtInformation === "string")) issues.push(`payload.intents[${index}].semanticIntent.perception.soughtInformation must be a string or null.`);
+  }
+  if (value.kind === "address_visible_actor" && (!value.dialogueAct || typeof value.dialogueAct !== "object" || Array.isArray(value.dialogueAct))) {
+    issues.push(`payload.intents[${index}].semanticIntent.dialogueAct is required for address_visible_actor.`);
+  } else if (value.kind !== "address_visible_actor" && value.dialogueAct !== null) {
+    issues.push(`payload.intents[${index}].semanticIntent.dialogueAct must be null outside address_visible_actor.`);
+  }
+  if (value.dialogueAct && typeof value.dialogueAct === "object" && !Array.isArray(value.dialogueAct)) {
+    if (value.dialogueAct.schemaVersion !== 1) issues.push(`payload.intents[${index}].semanticIntent.dialogueAct.schemaVersion must be 1.`);
+    if (!["INITIATE_CONVERSATION", "ASK_QUESTION", "MAKE_STATEMENT", "REQUEST_ACTION", "OTHER"].includes(value.dialogueAct.act)) issues.push(`payload.intents[${index}].semanticIntent.dialogueAct.act is invalid.`);
+    if (typeof value.dialogueAct.contentGoal !== "string" || value.dialogueAct.contentGoal.trim().length === 0) issues.push(`payload.intents[${index}].semanticIntent.dialogueAct.contentGoal must be a non-empty string.`);
+    if (!(value.dialogueAct.addresseeRef === null || typeof value.dialogueAct.addresseeRef === "string")) issues.push(`payload.intents[${index}].semanticIntent.dialogueAct.addresseeRef must be a string or null.`);
   }
   if (value.target !== null) {
     if (!value.target || typeof value.target !== "object" || Array.isArray(value.target)) {

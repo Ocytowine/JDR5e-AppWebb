@@ -7,12 +7,13 @@ import {
   type CampaignRecord,
   type RepositoryClock
 } from "../../src/core";
-import type { ContractAiProviderV1 } from "../../src/ai";
+import type { AiIntentRuntimeHandlingV1, AiStructuredSemanticIntentV1, ContractAiProviderV1 } from "../../src/ai";
 import {
   AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1,
   NarrativeTurnControllerV1,
   createDefaultAiIntentInterpreterConfigV1,
   createPrototypeNarrativeTurnControllerV1,
+  evaluateNarrativeRuntimeDecisionV1,
   interpretNarrativeInputWithAiV1,
   upgradeLegacyNarrativeIntentInterpretationV1,
   validateCanonicalIntentAuthorityV1,
@@ -77,6 +78,29 @@ const ambiguousInputs = [
 ];
 
 async function main(): Promise<void> {
+  const stabilizedDoorDomain = evaluateNarrativeRuntimeDecisionV1({
+    semanticIntent: semanticIntent({
+      kind: "manipulate_visible_object",
+      playerGoal: "ouvrir la porte visible",
+      target: { kind: "object", ref: "poi:back-room-door", label: "Porte du fond" },
+      commitment: "committed",
+      evidenceFromInput: ["je l'ouvre"],
+      forbiddenInterpretations: ["annoncer l'ouverture"],
+      confidence: "high"
+    }) as AiStructuredSemanticIntentV1,
+    runtimeSuggestion: runtimeHandling({
+      status: "UNSUPPORTED_DOMAIN",
+      reason: "Suggestion IA instable.",
+      requiredDomain: "world",
+      canonicalActionHint: "open",
+      noCommit: true,
+      noGameTime: true
+    }) as AiIntentRuntimeHandlingV1,
+    requiresClarification: false
+  });
+  assert.equal(stabilizedDoorDomain.requiredDomain, "scene_resolution");
+  assert.equal(stabilizedDoorDomain.status, "SUPPORTED_BY_CURRENT_RUNTIME");
+
   const config = createDefaultAiIntentInterpreterConfigV1();
   let capturedSemanticHistory: unknown = null;
   const capturingProvider: ContractAiProviderV1 = {
@@ -314,8 +338,8 @@ async function main(): Promise<void> {
   assert.equal(controllerResult.output.suspendedIntent, null);
   assert.equal(controllerResult.output.noCommit, false);
   assert.equal(controllerResult.output.displayPacket.displayBlocks.some(block =>
-    block.kind === "NPC_SPEECH" && /porte du fond/u.test(block.text)
-  ), true, "la parole claire doit produire une réponse PNJ");
+    block.kind === "NPC_SPEECH" && /entendu|confirmer|question/u.test(block.text)
+  ), true, "la parole claire doit produire une réponse PNJ prudente sans fait hors question");
 
   const localReferentResult = await runControllerLocalReferentCase();
   assert.equal(localReferentResult.focus.output.interpretation.target?.ref, "poi:back-room-door", "le focus initial doit porter la porte visible");
@@ -1351,7 +1375,15 @@ function semanticIntent(input: {
     uncertainties: input.uncertainties ?? [],
     forbiddenInterpretations: input.forbiddenInterpretations ?? [],
     confidence: input.confidence,
-    perception: input.perception ?? null
+    perception: input.perception ?? null,
+    dialogueAct: input.kind === "address_visible_actor"
+      ? {
+          schemaVersion: 1,
+          act: "ASK_QUESTION",
+          contentGoal: input.playerGoal,
+          addresseeRef: input.target?.ref ?? null
+        }
+      : null
   };
 }
 

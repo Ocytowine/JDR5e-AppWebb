@@ -8,7 +8,7 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 - [ ] Traiter l'audit technique post-I-06ZB avant d'ouvrir une nouvelle capacité narrative.
   References: `test-GAME-2D/narration-module/docs/Audit-technique-I06ZB.md`, `test-GAME-2D/narration-module/docs/Revue-technique-post-I06ZB.md`, `test-GAME-2D/narration-module/docs/Suivi-prochains-lots-narration.md`.
-  Note: A-01, A-02, A-03, A-04 et A-07 traités le 2026-07-09; I-06ZC à I-06ZR livrés. Le chantier fidélité intention-système est fermé dans son périmètre. Les recettes ont conduit aux frontières de rendu NAR-125, à la résolution perceptive minimale NAR-126 puis au contrôle de toute prose visible NAR-127. Prochaine étape concrète: redémarrer le serveur, supprimer IndexedDB et rejouer le scénario conversationnel complet avant d'ouvrir la résolution réelle des actions locales.
+  Note: A-01, A-02, A-03, A-04 et A-07 traités le 2026-07-09; I-06ZC à I-06ZR livrés. Le chantier fidélité intention-système est fermé dans son périmètre. La consolidation active est décrite dans `test-GAME-2D/narration-module/docs/Consolidation-fondations-narration.md`; NAR-129 et NAR-130 sont implémentés. Prochaine étape concrète: compléter la gate adversariale faux historique/fausse présence, puis cadrer le routage ouvert NAR-131.
 - [ ] Consolider la simulation du monde apres l'ajout des objectifs multi-phases, des opportunites de faction et des mobiles non-systeme.
   Reference: `test-GAME-2D/map-module/docs/world-simulation-corrective-roadmap.md`. Les mobiles exposent maintenant l'objectif, la phase et la cible qu'ils servent.
 
@@ -33,6 +33,11 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 ## Termine recemment
 
+- [x] Consolidation NAR-130A: actes de dialogue structurés, connaissances PNJ bornées, interdiction du faux historique quand aucune réplique antérieure n'est disponible et repli performer visible le 2026-07-20.
+- [x] Consolidation NAR-130B: mémoire des répliques PNJ reconstruite depuis les projections finales réellement affichées, isolée par acteur et transmise comme parole attribuée sans promotion factuelle le 2026-07-20.
+
+- [x] Fondation NAR-129: `narrative-render-plan/1`, affirmations positives sourcées, perspective explicite et texture `TURN_ONLY` non mémorisable, non mécanique et non réutilisable le 2026-07-20.
+- [x] Correctifs transversaux de recette NAR-128: retrait du veto lexical sur `coreMeaning`, perception structurée des points d'intérêt, domaine `open/force` stabilisé, cible globale `unknown` normalisée et dialogues PNJ de repli sans faux faits ni faux historique le 2026-07-20.
 - [x] Frontière de prose NAR-127: contrôle sémantique indépendant des reformulations PJ, conservation du texte original en cas d'ajout, réplique déterministe de la serveuse limitée aux faits publics et diagnostics legacy/commit clarifiés le 2026-07-20.
 - [x] Correctif statut fallback: distinction structurée entre `TECHNICAL_INCIDENT` et `RENDER_AUTHORITY_REJECTION`; un rejet normal du critique conserve le rendu perceptif autorisé sans afficher « OpenAI indisponible » ni relancer tout le pipeline local le 2026-07-20.
 - [x] Correctif enveloppe critique: le schéma OpenAI impose désormais `status=OK` pour toute sortie structurée exploitable, tandis que `payload.verdict=REJECT` porte le refus narratif; suppression de la contradiction schéma/validateur qui produisait `OPENAI_INVALID_ENVELOPE` le 2026-07-20.

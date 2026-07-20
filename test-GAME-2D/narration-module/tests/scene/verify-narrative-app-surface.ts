@@ -36,6 +36,7 @@ assert.equal(narrativeSurfaceSource.includes("function countPriorMetaAnswerBlock
 assert.equal(narrativeSurfaceSource.includes("OpenAI appelé, mais aucune narration utilisable"), true, "surface distingue un appel OpenAI sans bloc MJ exploitable d'un non-appel");
 assert.equal(narrativeSurfaceSource.includes("RENDER_AUTHORITY_REJECTION"), true, "surface distingue un rejet sémantique contrôlé d'une panne OpenAI");
 assert.equal(narrativeSurfaceSource.includes("Texte IA candidat rejeté par la frontière d'autorité"), true, "surface explique le maintien du rendu autorisé sans faux diagnostic serveur");
+assert.equal(narrativeSurfaceSource.includes("Réaction PNJ IA indisponible ou rejetée : réaction locale bornée conservée"), true, "surface rend visible le repli du performer PNJ");
 assert.equal(presentationVariationSource.includes("presentation-variant:"), true, "projection tracée avec variante de présentation dans le service applicatif");
 assert.equal(mainSource.includes("GameBoard"), false, "main.tsx ne doit plus monter GameBoard directement");
 assert.equal(appSource.includes("from \"./GameBoard\""), true, "App.tsx monte GameBoard seulement comme surface tactique");

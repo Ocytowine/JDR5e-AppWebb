@@ -198,8 +198,8 @@ async function main(): Promise<void> {
   assert.equal(speech.value.output.displayPacket.displayBlocks.some(block =>
     block.kind === "NPC_SPEECH" &&
     block.speaker.displayName === "Garde blessé" &&
-    /porte du fond/u.test(block.text)
-  ), true, "dialogue doit produire une réponse PNJ ancrée dans la scène");
+    /entendu|confirmer/u.test(block.text)
+  ), true, "le fallback dialogue doit accuser réception sans inventer une réponse hors sujet");
   const sceneStateAfterSpeech = await repository.getAggregate(
     campaignId,
     REFERENCE_SCENE_STATE_AGGREGATE_TYPE_V1,
@@ -212,7 +212,7 @@ async function main(): Promise<void> {
   assert.equal(sceneState.interactionCount, 1);
   assert.equal(sceneState.lastPlayerSpeechSummary, speech.value.output.interpretation.coreMeaning);
   assert.equal(sceneState.shortTermNpcMemory.length, 1);
-  assert.match(sceneState.shortTermNpcMemory[0]?.npcContinuitySummary ?? "", /porte du fond/u);
+  assert.match(sceneState.shortTermNpcMemory[0]?.npcContinuitySummary ?? "", /garde|question|cherche/iu);
 
   const afterSpeechObservation = await controller.submit({
     schemaVersion: 1,
@@ -241,8 +241,9 @@ async function main(): Promise<void> {
   assert.notEqual(repeatedSpeech.value.output.npcPerformance, null);
   assert.equal(repeatedSpeech.value.output.displayPacket.displayBlocks.some(block =>
     block.kind === "NPC_SPEECH" &&
-    /Je vous l'ai dit/u.test(block.text)
-  ), true, "le PNJ doit tenir compte de la mémoire courte au lieu de répéter la première réponse");
+    /comprends votre question|rien confirmer/u.test(block.text) &&
+    !/déjà dit|réponse ne change pas|encore une fois/iu.test(block.text)
+  ), true, "le PNJ doit répondre à l'acte courant sans inventer une ancienne réplique");
 
   const ambiguous = await controller.submit({
     schemaVersion: 1,

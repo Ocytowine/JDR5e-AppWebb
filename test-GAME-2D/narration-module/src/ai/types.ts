@@ -164,6 +164,12 @@ export interface AiStructuredSemanticIntentV1 {
     focus: string;
     soughtInformation: string | null;
   } | null;
+  dialogueAct?: {
+    schemaVersion: 1;
+    act: "INITIATE_CONVERSATION" | "ASK_QUESTION" | "MAKE_STATEMENT" | "REQUEST_ACTION" | "OTHER";
+    contentGoal: string;
+    addresseeRef: string | null;
+  } | null;
 }
 
 export interface AiIntentRuntimeHandlingV1 {

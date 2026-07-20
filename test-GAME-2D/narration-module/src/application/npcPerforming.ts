@@ -1,4 +1,4 @@
-import { computeJsonFingerprint, type JsonObject } from "../core";
+import { computeJsonFingerprint, type CampaignId, type CampaignRepository, type JsonObject } from "../core";
 import type { ContractAiProviderV1 } from "../ai/FakeContractAiProvider";
 import { runAiPipelineCallV1 } from "../ai/pipeline";
 import type {
@@ -7,6 +7,7 @@ import type {
   AiModelRouteV1,
   AiRetryPolicyV1,
   AiRoleOutputEnvelopeV1,
+  AiStructuredSemanticIntentV1,
   MjPlannerPayloadV1,
   NpcPerformerPayloadV1
 } from "../ai/types";
@@ -14,6 +15,7 @@ import type { DisplayPacketV1 } from "../scene";
 import { isNarrativeRuntimeDecisionV1, isNarrativeSemanticIntentV1, type NarrativeIntentInterpretationV1 } from "./intentClarification";
 import type { NarrativeResolutionResultV1 } from "./narrativeResolution";
 import type { ReferenceSceneStateV1 } from "./referenceSceneState";
+import { reconstructRenderedNpcUtterancesV1 } from "./narrativeRenderProjection";
 
 export const NPC_PERFORMER_CONTRACT_VERSION_V1 = "npc-performer/1" as const;
 
@@ -120,7 +122,8 @@ export function shouldCallNpcPerformerV1(input: {
 }
 
 export async function performNpcTurnV1(input: {
-  campaignId: string;
+  repository: CampaignRepository;
+  campaignId: CampaignId;
   operationId: string;
   rawInput: string;
   interpretation: NarrativeIntentInterpretationV1;
@@ -231,18 +234,12 @@ function npcSpeakerForActorId(actorId: string): { speakerId: string; displayName
 function buildLocalNpcPerformancePayload(
   actorId: string,
   interpretation: NarrativeIntentInterpretationV1 | null,
-  sceneState: ReferenceSceneStateV1 | null
+  _sceneState: ReferenceSceneStateV1 | null
 ): NpcPerformerPayloadV1 {
   const knownActorId = actorId === "npc:npc-serveuse-nerveuse" || actorId === "npc-serveuse-nerveuse" ? "npc:npc-serveuse-nerveuse" : "npc:npc-garde-blesse";
   const isWaitress = knownActorId === "npc:npc-serveuse-nerveuse";
-  const previousMemory = sceneState?.shortTermNpcMemory.filter(memory => `npc:${memory.actorId}` === knownActorId).at(-2) ?? null;
-  const content = previousMemory !== null
-    ? isWaitress
-      ? "Elle garde la voix basse. « Je vous l'ai dit : moins cette porte attire les regards, mieux ça vaut pour tout le monde. »"
-      : "Le garde vous reconnaît et souffle. « Je vous l'ai dit : la porte du fond. Mais pas d'esclandre dans ma salle. »"
-    : isWaitress
-      ? "Elle baisse la voix. « Pas ici. Si vous cherchez des réponses, ne faites pas de bruit près de la porte du fond. »"
-      : "Le garde serre sa mâchoire. « Si vous voulez comprendre ce qui s'est passé, commencez par la porte du fond. Mais ne déclenchez pas de scandale ici. »";
+  const dialogueAct = interpretation?.semanticIntent.dialogueAct?.act ?? "OTHER";
+  const content = localNpcReaction(dialogueAct, isWaitress);
   return {
     schemaVersion: 1,
     performanceId: `${interpretation?.intentId ?? "intent:unknown"}:npc-performance:1`,
@@ -261,12 +258,12 @@ function buildLocalNpcPerformancePayload(
         ]
       }]
     }],
-    nonVerbalReactions: [isWaitress ? "voix baissée" : "mâchoire crispée"],
+    nonVerbalReactions: [isWaitress ? "geste suspendu" : "attention maintenue"],
     durableCommitments: [],
     revealedRefs: [],
     knowledgeUsed: [
       "reference-scene:reference-inn-rain-001",
-      "scene-visible:porte-du-fond"
+      `intent:${interpretation?.intentId ?? "unknown"}`
     ],
     safetyConstraints: {
       noMechanicalSuccess: true,
@@ -277,8 +274,38 @@ function buildLocalNpcPerformancePayload(
   };
 }
 
+function localNpcReaction(
+  dialogueAct: NonNullable<AiStructuredSemanticIntentV1["dialogueAct"]>["act"],
+  isWaitress: boolean
+): string {
+  if (dialogueAct === "INITIATE_CONVERSATION") {
+    return isWaitress
+      ? "La serveuse suspend son geste et relève les yeux vers toi. « Oui ? »"
+      : "Le garde tourne son attention vers toi. « Oui ? »";
+  }
+  if (dialogueAct === "ASK_QUESTION") {
+    return isWaitress
+      ? "La serveuse écoute jusqu'au bout. « Je comprends votre question, mais je ne peux rien confirmer à ce sujet ici. »"
+      : "Le garde écoute jusqu'au bout. « Je comprends votre question, mais je ne peux rien confirmer à ce sujet ici. »";
+  }
+  if (dialogueAct === "MAKE_STATEMENT") {
+    return isWaitress
+      ? "La serveuse acquiesce sans confirmer le fond. « Je vous ai entendu. »"
+      : "Le garde acquiesce avec prudence. « Je vous ai entendu. »";
+  }
+  if (dialogueAct === "REQUEST_ACTION") {
+    return isWaitress
+      ? "La serveuse hésite. « Je ne peux pas vous promettre de faire cela. »"
+      : "Le garde secoue légèrement la tête. « Je ne peux pas vous promettre de faire cela. »";
+  }
+  return isWaitress
+    ? "La serveuse marque une pause, attentive, sans prétendre avoir compris davantage."
+    : "Le garde te prête attention, sans prétendre avoir compris davantage.";
+}
+
 async function buildNpcPerformerRequestV1(input: {
-  campaignId: string;
+  repository: CampaignRepository;
+  campaignId: CampaignId;
   operationId: string;
   rawInput: string;
   actorId: string;
@@ -298,6 +325,12 @@ async function buildNpcPerformerRequestV1(input: {
     visibleScene: "reference-inn-rain-001",
     forbiddenAuthority: ["commit", "time", "inventory", "tactical", "rest", "durable_lore", "secret_reveal", "social_success"]
   };
+  const priorNpcUtterances = await reconstructRenderedNpcUtterancesV1({
+    repository: input.repository,
+    campaignId: input.campaignId,
+    actorId: input.actorId,
+    limit: 20
+  });
   const task = {
     rawInput: input.rawInput,
     actorId: input.actorId,
@@ -305,6 +338,20 @@ async function buildNpcPerformerRequestV1(input: {
     mjPlan: input.mjPlan,
     resolution: input.resolution,
     sceneState: input.sceneState,
+    dialogueAct: input.interpretation.semanticIntent.dialogueAct ?? null,
+    knowledgeEnvelope: {
+      publicFactRefs: ["reference-scene:reference-inn-rain-001"],
+      priorPlayerSpeech: input.sceneState.shortTermNpcMemory
+        .filter(memory => `npc:${memory.actorId}` === input.actorId)
+        .map(memory => ({
+          operationId: memory.operationId,
+          playerIntentSummary: memory.playerIntentSummary
+        })),
+      priorNpcUtterances: priorNpcUtterances.ok ? priorNpcUtterances.value : [],
+      memoryLimit: priorNpcUtterances.ok
+        ? "Seules les répliques EXACT reconstruites depuis les projections de rendu persistées peuvent être rappelées; leur contenu reste une parole attribuée, jamais une vérité objective."
+        : "La reconstruction des répliques a échoué; ne jamais inventer ni prétendre répéter une réponse antérieure."
+    },
     requiredOutput: "bounded_visible_npc_reaction_without_commit"
   };
   return {
@@ -332,7 +379,6 @@ async function buildNpcPerformerRequestV1(input: {
     }
   };
 }
-
 function isNarrativeIntentInterpretation(value: unknown): value is NarrativeIntentInterpretationV1 {
   return value !== null &&
     typeof value === "object" &&

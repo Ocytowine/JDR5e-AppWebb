@@ -93,6 +93,17 @@ export interface RestoredNarrativeThreadV1 extends JsonObject {
   version: 1;
 }
 
+export interface ReconstructedNpcUtteranceV1 extends JsonObject {
+  schemaVersion: 1;
+  actorId: string;
+  speakerId: string;
+  text: string;
+  sourceOperationId: string;
+  renderOperationId: string;
+  displayPacketFingerprint: string;
+  recordedAt: string;
+}
+
 export async function recordNarrativeRenderedProjectionV1(input: {
   repository: CampaignRepository;
   campaignId: CampaignId;
@@ -231,6 +242,51 @@ export async function restoreNarrativeRenderedThreadV1(input: {
       version: 1
     }
   };
+}
+
+export async function reconstructRenderedNpcUtterancesV1(input: {
+  repository: CampaignRepository;
+  campaignId: CampaignId;
+  actorId: string;
+  limit: number;
+}): Promise<Result<ReconstructedNpcUtteranceV1[]>> {
+  const restored = await restoreNarrativeRenderedThreadV1({
+    repository: input.repository,
+    campaignId: input.campaignId,
+    limit: input.limit
+  });
+  if (!restored.ok) return restored;
+  const speakerId = npcSpeakerIdForActor(input.actorId);
+  if (speakerId === null) return { ok: true, value: [] };
+  const utterances: ReconstructedNpcUtteranceV1[] = [];
+  for (const projection of restored.value.projections) {
+    const packet = projection.displayPacket as unknown as Partial<DisplayPacketV1>;
+    if (!Array.isArray(packet.displayBlocks)) continue;
+    for (const block of packet.displayBlocks) {
+      if (
+        block.kind !== "NPC_SPEECH" ||
+        block.speaker.speakerId !== speakerId ||
+        block.text.trim().length === 0
+      ) continue;
+      utterances.push({
+        schemaVersion: 1,
+        actorId: input.actorId,
+        speakerId,
+        text: block.text,
+        sourceOperationId: projection.sourceOperationId,
+        renderOperationId: projection.renderOperationId,
+        displayPacketFingerprint: projection.displayPacketFingerprint,
+        recordedAt: projection.recordedAt
+      });
+    }
+  }
+  return { ok: true, value: utterances.slice(-5) };
+}
+
+function npcSpeakerIdForActor(actorId: string): string | null {
+  if (actorId === "npc:npc-serveuse-nerveuse" || actorId === "npc-serveuse-nerveuse") return "speaker-serveuse-nerveuse";
+  if (actorId === "npc:npc-garde-blesse" || actorId === "npc-garde-blesse") return "speaker-garde-blesse";
+  return null;
 }
 
 function buildNarrativeRenderedProjectionV1(input: {

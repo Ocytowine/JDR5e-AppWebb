@@ -243,9 +243,6 @@ function validateAiIntentInterpretationPayload(payload: unknown): string[] {
     if (isObject(intent.runtimeHandling) && intent.runtimeHandling.status === "AI_INTERPRETATION_FAILED") {
       issues.push(issue(`${path}.runtimeHandling.status`, "failed interpretation must not be accepted as OK output"));
     }
-    if (/succ[eè]s|r[eé]ussit|[eé]chec|secret r[eé]v[eé]l[eé]|combat gagn[eé]|inventaire/iu.test(intent.coreMeaning)) {
-      issues.push(issue(`${path}.coreMeaning`, "must not contain outcome, secret, combat or inventory authority"));
-    }
   });
   return issues;
 }
@@ -264,6 +261,7 @@ function validateSemanticIntent(
   issues.push(...exactKeys(value, [
     "commitment",
     "confidence",
+    "dialogueAct",
     "evidenceFromInput",
     "forbiddenInterpretations",
     "kind",
@@ -292,6 +290,17 @@ function validateSemanticIntent(
     if (!["GLANCE", "FOCUSED", "SEARCH"].includes(String(value.perception.depth))) issues.push(issue(`${semanticPath}.perception.depth`, "invalid perception depth"));
     issues.push(...validateNonEmptyString(value.perception.focus, `${semanticPath}.perception.focus`));
     if (value.perception.soughtInformation !== null && typeof value.perception.soughtInformation !== "string") issues.push(issue(`${semanticPath}.perception.soughtInformation`, "expected string or null"));
+  }
+  if (value.dialogueAct !== undefined && value.dialogueAct !== null) {
+    if (!isObject(value.dialogueAct)) {
+      issues.push(issue(`${semanticPath}.dialogueAct`, "expected object or null"));
+    } else {
+      issues.push(...exactKeys(value.dialogueAct, ["act", "addresseeRef", "contentGoal", "schemaVersion"], `${semanticPath}.dialogueAct`));
+      if (value.dialogueAct.schemaVersion !== 1) issues.push(issue(`${semanticPath}.dialogueAct.schemaVersion`, "expected 1"));
+      if (!["INITIATE_CONVERSATION", "ASK_QUESTION", "MAKE_STATEMENT", "REQUEST_ACTION", "OTHER"].includes(String(value.dialogueAct.act))) issues.push(issue(`${semanticPath}.dialogueAct.act`, "invalid dialogue act"));
+      issues.push(...validateNonEmptyString(value.dialogueAct.contentGoal, `${semanticPath}.dialogueAct.contentGoal`));
+      if (value.dialogueAct.addresseeRef !== null && typeof value.dialogueAct.addresseeRef !== "string") issues.push(issue(`${semanticPath}.dialogueAct.addresseeRef`, "expected string or null"));
+    }
   }
   if (value.target !== null) {
     if (!isObject(value.target)) {
